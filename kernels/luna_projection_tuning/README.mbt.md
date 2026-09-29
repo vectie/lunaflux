@@ -53,3 +53,12 @@ with backend limits. Missing/stale baseline records or unknown constrained
 resources cannot promote a candidate. No records preserves the labelled
 unmeasured default. Export output prints the exact baseline scope, policy IDs,
 source digests and candidate directories needed to construct a replayable table.
+
+New `luna-projection-resources-v2` tables retain the same scope/budget lines,
+then exactly one
+`workload<TAB>phase<TAB>queries<TAB>rows<TAB>history<TAB>bucket_queries<TAB>bucket_rows`
+and `provenance<TAB>physical_uuid`, before observations. The device scope is an
+explicit performance compatibility class, while UUID is provenance only.
+The parser and exporter derive a workload-specific pure selection scope.
+Mixed workload aggregates are not accepted as v2 observations. Legacy v1 input
+remains readable; it must not be relabelled as exact-bucket measurement.

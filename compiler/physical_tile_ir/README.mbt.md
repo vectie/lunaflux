@@ -15,6 +15,13 @@ Both descriptors are immutable, constant-space, and checked at construction.
 They contain no model names, CUDA instructions, warp width, or runtime state.
 The CUDA backend binds values to buffers and instructions only at emission.
 
+`FragmentProgram::forward_right` performs single-use register forwarding:
+one-row, one-slot products may bind each packed producer word directly to its
+ordered consumer operand. A bounded bijection rejects omitted, repeated or
+foreign words. Multi-row reuse and lookahead lifetimes are rejected rather than
+silently reloaded. This transform removes an intermediate representation;
+actual register moves are still decided by the device compiler.
+
 `OperandStorage` packs disjoint row strips in a finite ring allocation.
 `VectorOwnership` assigns each copy vector to one owner/round pair. Producer
 and consumer bindings therefore derive their offsets from one plan rather than

@@ -38,6 +38,7 @@ fn compute_code(compute : @luna_attention_strategy.AttentionTileCompute) -> Int 
     AttentionSubgroupDot => 2
     AttentionGroupedQuerySubgroupDot => 3
     AttentionGroupedQuerySplitSubgroupDot => 6
+    AttentionGroupedQueryBlockwiseDot => 7
     AttentionMatrixDot => 4
     AttentionMatrixQkPv => 5
   }
@@ -106,6 +107,9 @@ fn canonical_schedule(
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
   let builder = StringBuilder()
   builder <+ "luna-attention-tile-schedule-v3\n"
+  if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
+    builder <+ "numeric=blockwise-f32-probability-v1\n"
+  }
   let resident_output = output_fold_storage(
       candidate.compute(),
       loops[0].tile,
@@ -233,7 +237,9 @@ fn schedule_attention_tile_program_with_partitions(
     raise InvalidAttentionTileSchedule(InvalidVector)
   }
   let query_head_tile = match candidate.compute() {
-    AttentionGroupedQuerySubgroupDot | AttentionGroupedQuerySplitSubgroupDot => {
+    AttentionGroupedQuerySubgroupDot
+    | AttentionGroupedQuerySplitSubgroupDot
+    | AttentionGroupedQueryBlockwiseDot => {
       let (query_heads, key_value_heads, _, _) = problem.shape().dimensions()
       query_heads / key_value_heads
     }

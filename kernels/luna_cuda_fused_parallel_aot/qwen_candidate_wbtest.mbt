@@ -214,17 +214,25 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   assert_true(source.contains("q_norm_weight"))
   assert_true(source.contains("k_norm_weight"))
   assert_true(source.contains("rsqrtf(__fadd_rn"))
-  assert_true(source.contains("const int head = (int)blockIdx.y;"))
+  assert_true(
+    source.contains(
+      "const int head_begin = (int)blockIdx.y * LF_HEADS_PER_CTA;",
+    ),
+  )
   assert_false(source.contains("for (int head = 0; head < all_heads; ++head)"))
   assert_true(source.contains("nvcuda::wmma"))
-  assert_true(source.contains("component = warp; component < LF_HEAD_DIM"))
+  assert_true(
+    source.contains("component = warp; component < LF_PROJECTION_WIDTH"),
+  )
   assert_true(
     source.contains("inner = lane; inner < LF_INPUT_WIDTH; inner += 32"),
   )
   assert_true(source.contains("if (lane == 0) projected[0][component]"))
   assert_false(source.contains("inner = 0; inner < LF_INPUT_WIDTH; ++inner"))
   assert_true(
-    source.contains("__shared__ float projected[LF_TILE_ROWS][LF_HEAD_DIM]"),
+    source.contains(
+      "__shared__ float projected[LF_TILE_ROWS][LF_PROJECTION_WIDTH]",
+    ),
   )
   assert_true(
     source.contains("__shared__ __align__(32) __nv_bfloat16 ingress_operands["),
@@ -234,10 +242,10 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   assert_true(source.contains("window < LF_COLUMN_WINDOWS"))
   assert_true(source.contains("slot < LF_LIVE_COLUMNS"))
   assert_false(source.contains("column_base < LF_HEAD_DIM; column_base +="))
-  assert_true(source.contains("if (column_base < LF_HEAD_DIM)"))
+  assert_true(source.contains("if (column_base < LF_PROJECTION_WIDTH)"))
   assert_true(
     source.contains(
-      "if (column_base < LF_HEAD_DIM) nvcuda::wmma::store_matrix_sync",
+      "if (column_base < LF_PROJECTION_WIDTH) nvcuda::wmma::store_matrix_sync",
     ),
   )
   assert_true(source.contains("__device__ const float LF_ROPE_INV_FREQ"))

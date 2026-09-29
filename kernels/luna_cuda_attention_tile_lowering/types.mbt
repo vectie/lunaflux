@@ -4,6 +4,7 @@ pub(all) enum CudaAttentionComputePrimitive {
   CudaSubgroupShuffleDot
   CudaGroupedQuerySubgroupShuffleDot
   CudaGroupedQuerySplitSubgroupShuffleDot
+  CudaGroupedQueryBlockwiseShuffleDot
   CudaMatrixMultiplyAccumulate
   CudaMatrixQkPvMultiplyAccumulate
 } derive(Debug, Eq)
@@ -46,6 +47,7 @@ pub struct CudaAttentionTileLowering {
   priv factor_shared_key_query_map : Bool
   priv resident_output_fold : Bool
   priv query_owned_fragments : Bool
+  priv prefill_fragments : CudaPrefillFragmentBinding?
   priv physical_program : Result[
     @luna_attention_tile_schedule.AttentionPhysicalProgram,
     @luna_attention_tile_schedule.AttentionTileScheduleRule,

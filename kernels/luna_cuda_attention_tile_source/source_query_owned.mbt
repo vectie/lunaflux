@@ -33,7 +33,9 @@ fn emit_cuda_query_owned_attention_source(
   }
   let layout = cuda_attention_operand_layout(q, k, d)
   guard cuda_physical_program(lowering) is QueryFragmentProgram(fold, effects) &&
-    fold.geometry() == (q, k, d) else {
+    fold.geometry() == (q, k, d) &&
+    lowering.prefill_fragments() is Some(fragments) &&
+    fragments.program().fold() == fold else {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let split = effects.split_key_value()
@@ -64,7 +66,7 @@ fn emit_cuda_query_owned_attention_source(
     $|#define LF_PARTIAL_STATE_COUNT \{states}ULL
     $|// query-owner-v1: ordered QK/PV, BF16 probabilities, four-owner softmax.
     $|\{layout}
-    $|\{cuda_attention_matrix_fragments(shared_scores=false)}
+    $|\{cuda_attention_matrix_fragments(shared_scores=false, forwarded_right=fragments)}
     $|\{cuda_query_owned_score_fold()}
     $|\{cuda_query_owned_numeric_primitives()}
     $|extern "C" __global__ void \{symbol}(
@@ -116,11 +118,11 @@ fn emit_cuda_query_owned_attention_source(
     $|      \{if split { "LfMatrixAccumulator score[LF_KEY_VALUE_TILE/16] = {};" } else { "" }}
     $|      if (qr<active) {
     $|        \{if split { "" } else { "LfMatrixAccumulator score[LF_KEY_VALUE_TILE/16] = {};" }}
-    $|\{cuda_online_fold_phase(fold.score_phase())}
+    $|\{cuda_online_fold_phase(fold.score_phase(), fragments)}
     $|      \{if split { "}" } else { "" }}
     $|      \{cuda_query_owned_effects(effects, BeforeValueComputation)}
     $|      \{if split { "if (qr<active) {" } else { "" }}
-    $|\{cuda_online_fold_phase(fold.value_phase())}
+    $|\{cuda_online_fold_phase(fold.value_phase(), fragments)}
     $|      }
     $|      \{cuda_query_owned_effects(effects, ReleaseValueReaders)}
     $|      \{cuda_query_owned_effects(effects, AfterValueRelease)}

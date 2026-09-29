@@ -3,7 +3,7 @@ test "export compiler repair probes without changing production ABIs" {
   if @env.get_env_var("LUNA_TEST_EXPORT_COUNTER_REPAIR") != Some("1") {
     return
   }
-  for id in [2000, 2001, 2003, 2004] {
+  for id in [322, 2000, 2001, 2003, 2004] {
     let lowering = source_test_lowering(true, 100000L, 2, candidate_id=Some(id))
     let source = emit_cuda_attention_tile_source(
       lowering,
@@ -16,8 +16,11 @@ test "export compiler repair probes without changing production ABIs" {
     println(@utf8.decode(source.bytes()))
     println("LUNA_SOURCE_END")
   }
-  for id in [430, 440, 441] {
-    let lowering = source_test_decode_lowering(candidate_id=id)
+  for id in [430, 440, 441, 450, 451] {
+    let lowering = source_test_decode_lowering(
+      candidate_id=id,
+      alternative=id >= 450,
+    )
     let source = emit_cuda_attention_tile_source(
       lowering,
       source_test_abi(),
@@ -28,6 +31,9 @@ test "export compiler repair probes without changing production ABIs" {
     println("#define LF_PROBE_BLOCK_THREADS \{lowering.launch().2}")
     println("#define LF_SHARED_MEMORY_BYTES \{lowering.launch().3}")
     println(@utf8.decode(source.bytes()))
+    if id >= 450 {
+      println("#define owned_decode owned_decode_blockwise_f32_v1")
+    }
     println("LUNA_SOURCE_END")
   }
 }

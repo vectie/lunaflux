@@ -28,7 +28,7 @@ test "query-owned source carries QK softmax PV across register ownership" {
     )
     assert_false(text.contains("__expf("))
     assert_true(
-      text.contains("lf_matrix_mma(out[column],probability,value,true)"),
+      text.contains("lf_matrix_mma_value(out[column],probability,current_v"),
     )
     assert_false(text.contains("float *scores"))
     assert_true(text.contains("lf_query_score_fold<false>"))

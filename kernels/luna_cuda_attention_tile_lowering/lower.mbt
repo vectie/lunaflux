@@ -9,6 +9,7 @@ fn cuda_compute_primitive(
     AttentionGroupedQuerySubgroupDot => CudaGroupedQuerySubgroupShuffleDot
     AttentionGroupedQuerySplitSubgroupDot =>
       CudaGroupedQuerySplitSubgroupShuffleDot
+    AttentionGroupedQueryBlockwiseDot => CudaGroupedQueryBlockwiseShuffleDot
     AttentionMatrixDot =>
       if target.compute_major() >= 8 && target.supports_bf16() {
         CudaMatrixMultiplyAccumulate
@@ -48,6 +49,7 @@ fn cuda_compute_code(compute : CudaAttentionComputePrimitive) -> Int {
     CudaSubgroupShuffleDot => 2
     CudaGroupedQuerySubgroupShuffleDot => 3
     CudaGroupedQuerySplitSubgroupShuffleDot => 6
+    CudaGroupedQueryBlockwiseShuffleDot => 7
     CudaMatrixMultiplyAccumulate => 4
     CudaMatrixQkPvMultiplyAccumulate => 5
   }
@@ -192,10 +194,12 @@ pub fn lower_attention_tile_schedule_to_cuda(
     InvalidAttentionTileSchedule(rule) => Err(rule)
   }
   let builder = StringBuilder()
+  let prefill_fragments = cuda_prefill_fragment_binding(physical_program)
   builder <+ "luna-cuda-attention-tile-lowering-v6\n"
   builder <+ "resident_output_fold=\{resident_output_fold}\n"
   if query_owned_fragments {
     builder <+ "query_owned_fragments=true\n"
+    builder <+ "fragment_representation=forward-single-use-right-v1\n"
   }
   builder <+ "factor_shared_key_query_map=\{factor_shared_key_query_map}\n"
   builder <+
@@ -241,6 +245,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     factor_shared_key_query_map,
     resident_output_fold,
     query_owned_fragments,
+    prefill_fragments,
     physical_program,
     reads_dense_current_key_value,
     matrix_storage_layout: schedule.matrix_storage_layout(),

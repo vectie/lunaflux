@@ -6,6 +6,10 @@ pub(all) enum AttentionPhysicalProgram {
   DirectKeyProgram(@attention_physical_ir.KeyFold)
   GroupedKeyProgram(@attention_physical_ir.KeyFold, AttentionGroupedEffectPlan)
   SplitKeyProgram(@attention_physical_ir.KeyFold, AttentionGroupedEffectPlan)
+  BlockwiseKeyProgram(
+    @attention_physical_ir.BlockwiseFold,
+    AttentionGroupedEffectPlan
+  )
   SharedScoreProgram(AttentionSharedScoreProgram)
   QueryFragmentProgram(
     @attention_physical_ir.OnlineFold,
@@ -53,6 +57,24 @@ pub fn AttentionTileSchedule::physical_program(
     raise InvalidAttentionTileSchedule(InvalidTile)
   }
   match self.compute {
+    AttentionGroupedQueryBlockwiseDot => {
+      guard self.key_value_partitions == 1 &&
+        @attention_physical_ir.BlockwiseFold::new(
+          dimensions~,
+          keys=self.loops[2].tile,
+        )
+        is Some(fold) else {
+        raise InvalidAttentionTileSchedule(InvalidTile)
+      }
+      BlockwiseKeyProgram(
+        fold,
+        AttentionGroupedEffectPlan::new(
+          self.memory,
+          stages=self.pipeline_stages,
+          readiness=self.transfer_readiness(),
+        ),
+      )
+    }
     AttentionScalarDot => {
       guard self.memory == AttentionDirectGlobal else {
         raise InvalidAttentionTileSchedule(InvalidLoopNest)

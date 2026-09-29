@@ -6,6 +6,7 @@ priv struct QwenIngressPhysicalProgram {
   pipeline : @luna_projection_tile_compiler.ProjectionPhysicalPipeline
   numerics : @luna_projection_tile_compiler.AttentionIngressNumerics
   scalar : @luna_projection_tile_compiler.ProjectionScalarFoldPlan
+  packing : @luna_projection_tile_compiler.AttentionIngressPacking
 }
 
 ///|
@@ -45,6 +46,12 @@ fn qwen_refine_physical(
   let numerics = epilogue.numerics(reduction_lanes=32) catch {
     _ => raise FusedParallelMismatch(CompilerPolicy)
   }
+  let packing = epilogue.packing(
+    heads_per_group=policy.head_tiles(),
+    reduction_lanes=32,
+  ) catch {
+    _ => raise FusedParallelMismatch(CompilerPolicy)
+  }
   let extent = schedule.tile_count() * schedule.tile_width()
   guard @luna_projection_tile_compiler.ProjectionScalarFoldPlan::new(
       extent~,
@@ -54,5 +61,5 @@ fn qwen_refine_physical(
     is Some(scalar) else {
     raise FusedParallelMismatch(CompilerPolicy)
   }
-  { columns, pipeline, numerics, scalar, }
+  { columns, pipeline, numerics, scalar, packing, }
 }

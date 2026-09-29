@@ -103,6 +103,7 @@ pub(all) enum AttentionPhysicalProgram {
   DirectKeyProgram(@attention_physical_ir.KeyFold)
   GroupedKeyProgram(@attention_physical_ir.KeyFold, AttentionGroupedEffectPlan)
   SplitKeyProgram(@attention_physical_ir.KeyFold, AttentionGroupedEffectPlan)
+  BlockwiseKeyProgram(@attention_physical_ir.BlockwiseFold, AttentionGroupedEffectPlan)
   SharedScoreProgram(AttentionSharedScoreProgram)
   QueryFragmentProgram(@attention_physical_ir.OnlineFold, AttentionQueryEffectPlan)
 } derive(Eq, @debug.Debug)

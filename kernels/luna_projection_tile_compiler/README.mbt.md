@@ -7,6 +7,16 @@ query-row selection explicit; the optimizer records demand pruning, selected
 input-tile hoisting, and cross-output input-tile reuse; the schedule expresses
 parallel row/output maps and the ordered reduction fold without vendor terms.
 
+Full projection/ingress packing is represented separately from numerical head
+ownership. `with_ingress_head_tiles` expands only the producer's independent
+column domain; it leaves the semantic graph, ordered dot fold, and per-head
+BF16 rounding law unchanged. `AttentionIngressPacking` resolves Q/K/V operand
+rows across segment boundaries and returns no authority for padded heads.
+Its explicit prepare/consume/retire effects give rotary pairs token-row
+lifetime across complete-head consumers. Resource policies decide the retained
+column window; the terminal backend is responsible for realizing that lifetime,
+not for inventing a model-specific fusion or numeric reassociation.
+
 The ingress numerical plan can group independent complete head folds into a
 workgroup. `AttentionIngressHeadMap` distributes only the product's head axis;
 the lane count, ordered reduction, rotary basis, and BF16 rounding boundaries

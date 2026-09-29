@@ -12,7 +12,7 @@ fn projection_head_fragment_source(
   }
   let load = fn(offset : String, slot : String) -> String {
     (
-      $|        if ((window * LF_LIVE_COLUMNS * LF_WARPS + warp) * 16 < LF_HEAD_DIM) {
+      $|        if ((window * LF_LIVE_COLUMNS * LF_WARPS + warp) * 16 < LF_PROJECTION_WIDTH) {
       $|          #pragma unroll
       $|          for (int row_fragment=0; row_fragment<\{rows}; ++row_fragment)
       $|            nvcuda::wmma::load_matrix_sync(a[\{slot}][row_fragment], current + row_fragment * 16 * \{width} + \{offset}, \{width});
@@ -20,7 +20,7 @@ fn projection_head_fragment_source(
       $|        #pragma unroll
       $|        for (int column_slot = 0; column_slot < \{live}; ++column_slot) {
       $|          const int column_base = ((window * LF_LIVE_COLUMNS + column_slot) * LF_WARPS + warp) * 16;
-      $|          if (column_base < LF_HEAD_DIM) nvcuda::wmma::load_matrix_sync(b[\{slot}][column_slot], current + \{input_elements} + column_base * \{width} + \{offset}, \{width});
+      $|          if (column_base < LF_PROJECTION_WIDTH) nvcuda::wmma::load_matrix_sync(b[\{slot}][column_slot], current + \{input_elements} + column_base * \{width} + \{offset}, \{width});
       $|        }
     )
   }
@@ -40,7 +40,7 @@ fn projection_head_fragment_source(
             $|          const int column_base = ((window * LF_LIVE_COLUMNS + column_slot) * LF_WARPS + warp) * 16;
             $|          #pragma unroll
             $|          for (int row_fragment=0; row_fragment<\{rows}; ++row_fragment)
-            $|            if (column_base < LF_HEAD_DIM) nvcuda::wmma::mma_sync(c[row_fragment][column_slot], a[fragment_stage][row_fragment], b[fragment_stage][column_slot], c[row_fragment][column_slot]);
+            $|            if (column_base < LF_PROJECTION_WIDTH) nvcuda::wmma::mma_sync(c[row_fragment][column_slot], a[fragment_stage][row_fragment], b[fragment_stage][column_slot], c[row_fragment][column_slot]);
             $|        }
           )
       }

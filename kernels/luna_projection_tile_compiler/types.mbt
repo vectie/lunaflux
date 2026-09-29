@@ -182,6 +182,7 @@ pub struct ProjectionTileSchedule {
 ///|
 pub struct ProjectionTileCompilerRequest {
   priv ingress_row_tiles : Int
+  priv ingress_head_tiles : Int
   priv dispatch : @luna_projection_strategy.ProjectionDispatchPlan
   priv maximum_rows : Int
   priv maximum_tokens : Int

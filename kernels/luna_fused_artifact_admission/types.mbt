@@ -132,6 +132,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   QwenPagedAttentionReadOnlyProductionV2
   QwenPagedAttentionReadOnlyDecodeSplitProductionV3
   PagedAttentionReadOnlyCompilerDecodeProductionV7
+  PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
 } derive(Debug, Eq)
 
 ///|
@@ -146,6 +147,7 @@ pub struct ReusableFusedRuntimeModuleInput {
   priv launch : @launch_contract.AotLaunchDimensions
   priv query_tile_rows : Int?
   priv query_metadata_version : Int
+  priv heads_per_cta : Int
   priv module_bytes : Bytes
 }
 
@@ -161,6 +163,7 @@ pub struct ApprovedReusableFusedRuntimeModule {
   priv launch : @launch_contract.AotLaunchDimensions
   priv query_tile_rows : Int?
   priv query_metadata_version : Int
+  priv heads_per_cta : Int
   priv module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv module_bytes : Bytes
 }

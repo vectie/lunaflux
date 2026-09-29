@@ -17,6 +17,23 @@ fn prepare_ingress_choice(
 ) -> (RuntimeBundleArguments, @luna_fusion_strategy.FusionSchedule) raise Qwen3FusedRuntimeBundleExportError {
   // Global ABI options are independent of the optional ingress experiment.
   // Peel the global suffix before interpreting that experiment's fixed arity.
+  if raw_args is [.. rest, "--decode-blockwise-f32-v1"] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    if args.blockwise_decode || choice == Unfused {
+      raise InvalidArguments
+    }
+    return ({ ..args, blockwise_decode: true, }, choice)
+  }
+  if raw_args is [.. rest, "--ingress-heads-per-cta", value] {
+    let heads = positive_int(value)
+    let (args, choice) = prepare_ingress_choice(rest)
+    guard heads is (1 | 2 | 4) &&
+      args.ingress_heads_per_cta is None &&
+      choice == FullyFused else {
+      raise InvalidArguments
+    }
+    return ({ ..args, ingress_heads_per_cta: Some(heads), }, choice)
+  }
   if raw_args is [.. rest, "--query-metadata-v1"] {
     let (args, choice) = prepare_ingress_choice(rest)
     if args.query_metadata {
@@ -180,6 +197,7 @@ fn selected_ingress_modules(
       },
       launch=launch_dimensions(args.ingress),
       query_tile_rows?=args.ingress_query_tile_rows,
+      heads_per_cta=args.ingress_heads_per_cta.unwrap_or(1),
       module_bytes=ingress_bytes,
     ) catch {
       _ => raise InvalidRuntime

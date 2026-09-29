@@ -12,12 +12,21 @@ workload<TAB>total-query-tokens<TAB>request-rows<TAB>history-tokens
 record<TAB>candidate-id<TAB>median-latency-ns<TAB>sample-count
 ```
 
-One or more workload records precede observations. For a workload vector, a
+Legacy v1: one or more workload records precede observations. For a workload vector, a
 sample is the sum of the kernel timings over that vector, with the same vector
 and repetition count for every candidate. At least three samples are required.
 This selects one AOT candidate for that vector; it is not a runtime bucket
 dispatch table and does not extrapolate observations to a different frontier.
 Correctness must be checked before collecting a candidate's observations.
+
+New calibration emits `luna-attention-tuning-v2` with exactly one
+`workload<TAB>phase<TAB>queries<TAB>rows<TAB>history<TAB>bucket_queries<TAB>bucket_rows`
+and `provenance<TAB>physical_uuid` preceding observations. The scope's device
+slot is a declared performance compatibility class, not physical identity.
+Unlike v1 vectors, unlike cells cannot be implicitly summed: each file chooses
+one immutable export for its stated objective. The parser rejects multiple
+objectives, invalid buckets and missing provenance. These files are not a
+runtime multi-artifact dispatch table or a claim of optimal whole-serving cost.
 
 The Qwen exporter accepts `--attention-tuning ABSOLUTE_PATH SHA256 DEVICE_ID`
 after its optional projection tuning arguments. Scope binds the complete

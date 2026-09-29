@@ -3,21 +3,34 @@
 /// order and state dependencies; this backend owns fragment/lane instructions.
 fn cuda_online_fold_phase(
   operations : ReadOnlyArray[@attention_physical_ir.FoldOperation],
+  fragments : @luna_cuda_attention_tile_lowering.CudaPrefillFragmentBinding,
 ) -> String {
+  let (score_rows, score_columns, _, score_quantum, _) = fragments
+    .score()
+    .program()
+    .geometry()
+  let (value_rows, value_columns, _, value_quantum, _) = fragments
+    .value()
+    .program()
+    .geometry()
+  // The retained binding owns scalarized product counts. These are not new
+  // reduction schedules, and each reusable left fragment is still loaded once.
+  guard score_rows == 1 && value_rows == 1 else {
+    abort("invalid single-use fragment binding")
+  }
   operations
   .map(operation => {
     match operation {
       ScoreProduct =>
         (
-          #|        #pragma unroll
-          #|        for (int reduction=0; reduction<LF_HEAD_DIMENSION; reduction+=16) {
-          #|          const auto a=lf_matrix_load(qbuf,qr,reduction,LF_HEAD_DIMENSION);
-          #|          #pragma unroll
-          #|          for (int key=0; key<LF_KEY_VALUE_TILE/16; ++key) {
-          #|            const auto b=lf_matrix_load(current_k,key*16,reduction,LF_HEAD_DIMENSION);
-          #|            lf_matrix_mma(score[key],a,b);
-          #|          }
-          #|        }
+          $|        #pragma unroll
+          $|        for (int reduction=0; reduction<LF_HEAD_DIMENSION; reduction+=\{score_quantum}) {
+          $|          const auto a=lf_matrix_load(qbuf,qr,reduction,LF_HEAD_DIMENSION);
+          $|          #pragma unroll
+          $|          for (int key=0; key<\{score_columns}; ++key) {
+          $|            lf_matrix_mma_key(score[key],a,current_k,key*16,reduction,LF_HEAD_DIMENSION);
+          $|          }
+          $|        }
         )
       PrepareScores =>
         (
@@ -49,26 +62,25 @@ fn cuda_online_fold_phase(
         )
       AccumulateProbabilityValue =>
         (
-          #|        #pragma unroll
-          #|        for (int key=0;key<LF_KEY_VALUE_TILE/16;++key) {
-          #|          float weight[8];
-          #|          #pragma unroll
-          #|          for (int item=0;item<8;++item) {
-          #|            const int r=item%4/2;
-          #|            weight[item]=lf_masked_exp(score[key].x[item],score[key].x[item]-next[r]);
-          #|            sum[r]+=weight[item];
-          #|          }
-          #|          LfMatrixOperand probability;
-          #|          #pragma unroll
-          #|          for (int pair=0;pair<4;++pair) {
-          #|            probability.x[pair]=lf_probability_pair(weight[pair*2],weight[pair*2+1]);
-          #|          }
-          #|          #pragma unroll
-          #|          for (int column=0;column<LF_HEAD_DIMENSION/16;++column) {
-          #|            const auto value=lf_matrix_load(current_v,key*16,column*16,LF_HEAD_DIMENSION,true);
-          #|            lf_matrix_mma(out[column],probability,value,true);
-          #|          }
-          #|        }
+          $|        #pragma unroll
+          $|        for (int key=0;key<LF_KEY_VALUE_TILE/16;++key) {
+          $|          float weight[8];
+          $|          #pragma unroll
+          $|          for (int item=0;item<8;++item) {
+          $|            const int r=item%4/2;
+          $|            weight[item]=lf_masked_exp(score[key].x[item],score[key].x[item]-next[r]);
+          $|            sum[r]+=weight[item];
+          $|          }
+          $|          LfMatrixOperand probability;
+          $|          #pragma unroll
+          $|          for (int pair=0;pair<4;++pair) {
+          $|            probability.x[pair]=lf_probability_pair(weight[pair*2],weight[pair*2+1]);
+          $|          }
+          $|          #pragma unroll
+          $|          for (int column=0;column<\{value_columns};++column) {
+          $|            lf_matrix_mma_value(out[column],probability,current_v,key*\{value_quantum},column*16,LF_HEAD_DIMENSION);
+          $|          }
+          $|        }
         )
       UpdateDenominator =>
         (

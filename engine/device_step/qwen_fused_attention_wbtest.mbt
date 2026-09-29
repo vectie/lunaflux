@@ -74,6 +74,9 @@ fn qwen_fused_test_runtime(
   split_compiler_decode? : Bool = false,
   full_ingress? : Bool = false,
   ingress_query_tile_rows? : Int,
+  ingress_heads_per_cta? : Int = 1,
+  blockwise_decode? : Bool = false,
+  mismatched_decode_law? : Bool = false,
   ingress_grid_x? : Int = -1,
   wide_query_prefill? : Bool = false,
   wide_query_prefill_alias_selected? : Bool = false,
@@ -118,6 +121,7 @@ fn qwen_fused_test_runtime(
     ),
     module_bytes=b"qwen-postprocess-module",
     query_tile_rows?=ingress_query_tile_rows,
+    heads_per_cta=ingress_heads_per_cta,
   )
   let modules : Array[
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput,
@@ -183,10 +187,18 @@ fn qwen_fused_test_runtime(
   if phase_specific_attention {
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-        abi=QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+        abi=if blockwise_decode {
+          PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+        } else {
+          QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+        },
         first_operation=5,
         operation_count=1,
-        function_symbol="lunaflux_attention_decode_tile_compiler_v1",
+        function_symbol=if blockwise_decode != mismatched_decode_law {
+          "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
+        } else {
+          "lunaflux_attention_decode_tile_compiler_v1"
+        },
         launch=@launch_contract.AotLaunchDimensions::new(
           grid_x=blueprint.profile().max_query_rows(),
           grid_y=if direct_compiler_decode { 16 } else { 8 },

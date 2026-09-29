@@ -207,6 +207,7 @@ pub(all) enum AttentionTileCompute {
   AttentionSubgroupDot
   AttentionGroupedQuerySubgroupDot
   AttentionGroupedQuerySplitSubgroupDot
+  AttentionGroupedQueryBlockwiseDot
   AttentionMatrixDot
   AttentionMatrixQkPv
 } derive(Eq, @debug.Debug)

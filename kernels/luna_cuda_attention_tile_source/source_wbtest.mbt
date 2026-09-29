@@ -122,6 +122,7 @@ fn source_test_decode_lowering(
   candidate_id? : Int = 420,
   batch_rows? : Int = 32,
   context_tokens? : Int = 4096,
+  alternative? : Bool = false,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -137,6 +138,7 @@ fn source_test_decode_lowering(
     query_rows=1,
     context_tokens~,
     causal=true,
+    allow_alternative_softmax_reduction=alternative,
   )
   let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
     subgroup_width=32,

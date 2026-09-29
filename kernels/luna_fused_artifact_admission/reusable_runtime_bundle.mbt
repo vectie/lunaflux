@@ -31,6 +31,8 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
       "qwen-paged-attention-readonly-decode-split-production-v3"
     PagedAttentionReadOnlyCompilerDecodeProductionV7 =>
       "paged-attention-readonly-compiler-decode-production-v7"
+    PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 =>
+      "paged-attention-readonly-blockwise-f32-decode-production-v8"
   }
 }
 
@@ -60,6 +62,8 @@ fn reusable_runtime_parse_abi(
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3
     "paged-attention-readonly-compiler-decode-production-v7" =>
       PagedAttentionReadOnlyCompilerDecodeProductionV7
+    "paged-attention-readonly-blockwise-f32-decode-production-v8" =>
+      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
     _ => raise InvalidFusedArtifact(Family)
   }
 }
@@ -80,6 +84,7 @@ fn reusable_runtime_required_operation_count(
     QwenPagedAttentionReadOnlyProductionV2 => 1
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 1
     PagedAttentionReadOnlyCompilerDecodeProductionV7 => 1
+    PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 => 1
   }
 }
 
@@ -97,6 +102,7 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
     QwenPagedAttentionReadOnlyProductionV2 => 8
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3 => 9
     PagedAttentionReadOnlyCompilerDecodeProductionV7 => 10
+    PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 => 11
   }
 }
 
@@ -121,7 +127,16 @@ fn reusable_runtime_is_qwen_attention_reader(
   abi == QwenPagedAttentionPrefillWideQueryProductionV5 ||
   abi == QwenPagedAttentionReadOnlyProductionV2 ||
   abi == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
-  abi == PagedAttentionReadOnlyCompilerDecodeProductionV7
+  abi == PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
+  abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+}
+
+///|
+fn reusable_runtime_is_decode(abi : ReusableFusedRuntimeKernelAbi) -> Bool {
+  abi
+  is (QwenPagedAttentionReadOnlyDecodeSplitProductionV3
+  | PagedAttentionReadOnlyCompilerDecodeProductionV7
+  | PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8)
 }
 
 ///|
@@ -148,14 +163,7 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
   let reader_a = reusable_runtime_is_qwen_attention_reader(abi_a)
   let reader_b = reusable_runtime_is_qwen_attention_reader(abi_b)
   if reader_a && reader_b {
-    if (
-        abi_a == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 &&
-        abi_b == PagedAttentionReadOnlyCompilerDecodeProductionV7
-      ) ||
-      (
-        abi_b == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 &&
-        abi_a == PagedAttentionReadOnlyCompilerDecodeProductionV7
-      ) {
+    if reusable_runtime_is_decode(abi_a) && reusable_runtime_is_decode(abi_b) {
       return false
     }
     return first_a == first_b
@@ -217,7 +225,9 @@ pub fn ReusableFusedRuntimeModuleInput::new(
   module_bytes~ : Bytes,
   query_tile_rows? : Int,
   query_metadata_version? : Int = 0,
+  heads_per_cta? : Int = 1,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
+  reusable_runtime_validate_head_ownership(abi, heads_per_cta, query_tile_rows)
   if query_metadata_version != 0 &&
     (
       query_metadata_version != 1 ||
@@ -240,6 +250,7 @@ pub fn ReusableFusedRuntimeModuleInput::new(
     launch,
     query_tile_rows,
     query_metadata_version,
+    heads_per_cta,
     module_bytes,
   }
 }
@@ -356,6 +367,7 @@ fn reusable_runtime_append_module(
   ordinal : Int,
   module_ : ReusableFusedRuntimeModuleInput,
   metadata : Bool,
+  ownership : Bool,
 ) -> Unit raise FusedArtifactAdmissionError {
   let prefix = "module_" + ordinal.to_string() + "_"
   out.write_string(
@@ -381,6 +393,11 @@ fn reusable_runtime_append_module(
       "query_metadata_version=" +
       module_.query_metadata_version.to_string() +
       "\n",
+    )
+  }
+  if ownership {
+    out.write_string(
+      prefix + "heads_per_cta=" + module_.heads_per_cta.to_string() + "\n",
     )
   }
   out.write_string(
@@ -438,10 +455,17 @@ pub fn export_reusable_fused_runtime_bundle(
   }
   reusable_runtime_validate_unique_inputs(modules)
   let out = StringBuilder()
-  let metadata = attention_bucket_routes is Some(_) ||
+  let ownership = modules.any(m => {
+    m.heads_per_cta != 1 ||
+    m.abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+  })
+  let metadata = ownership ||
+    attention_bucket_routes is Some(_) ||
     modules.any(m => m.query_metadata_version != 0)
   out.write_string(
-    if attention_bucket_routes is Some(_) {
+    if ownership {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v7\n"
+    } else if attention_bucket_routes is Some(_) {
       "schema=lunaflux-reusable-fused-runtime-bundle.v6\n"
     } else if metadata {
       "schema=lunaflux-reusable-fused-runtime-bundle.v5\n"
@@ -461,6 +485,8 @@ pub fn export_reusable_fused_runtime_bundle(
       @crypto.bytes_to_hex_string(routes) +
       "\n",
     )
+  } else if ownership {
+    out.write_string("attention_bucket_routes_hex=-\n")
   }
   out.write_string("module_count=" + modules.length().to_string() + "\n")
   let canonical_abis = [
@@ -475,12 +501,15 @@ pub fn export_reusable_fused_runtime_bundle(
     QwenPagedAttentionReadOnlyProductionV2,
     QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
     PagedAttentionReadOnlyCompilerDecodeProductionV7,
+    PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8,
   ]
   let mut ordinal = 0
   for abi in canonical_abis {
     for module_ in modules {
       if module_.abi == abi {
-        reusable_runtime_append_module(out, ordinal, module_, metadata)
+        reusable_runtime_append_module(
+          out, ordinal, module_, metadata, ownership,
+        )
         ordinal += 1
       }
     }
@@ -508,12 +537,17 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   }
   let source_digest = fused_deployment_digest(expected_sha256)
   let reader = fused_deployment_reader(canonical)
-  let (has_schedule_metadata, has_query_metadata, has_bucket_routes) = match
-    reader.value("schema") {
-    "lunaflux-reusable-fused-runtime-bundle.v6" => (true, true, true)
-    "lunaflux-reusable-fused-runtime-bundle.v5" => (true, true, false)
-    "lunaflux-reusable-fused-runtime-bundle.v4" => (true, false, false)
-    "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false, false)
+  let (
+    has_schedule_metadata,
+    has_query_metadata,
+    has_bucket_routes,
+    has_ownership,
+  ) = match reader.value("schema") {
+    "lunaflux-reusable-fused-runtime-bundle.v7" => (true, true, true, true)
+    "lunaflux-reusable-fused-runtime-bundle.v6" => (true, true, true, false)
+    "lunaflux-reusable-fused-runtime-bundle.v5" => (true, true, false, false)
+    "lunaflux-reusable-fused-runtime-bundle.v4" => (true, false, false, false)
+    "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false, false, false)
     _ => raise InvalidFusedArtifact(Manifest)
   }
   let model_content = fused_deployment_digest(
@@ -540,13 +574,16 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     raise InvalidFusedArtifact(Target)
   }
   let attention_bucket_routes = if has_bucket_routes {
-    let routes = fused_deployment_decode_hex(
-      reader.value("attention_bucket_routes_hex"),
-    )
-    if routes.is_empty() || routes.length() > 1048576 {
-      raise InvalidFusedArtifact(Manifest)
+    let encoded_routes = reader.value("attention_bucket_routes_hex")
+    if encoded_routes == "-" && has_ownership {
+      None
+    } else {
+      let routes = fused_deployment_decode_hex(encoded_routes)
+      if routes.is_empty() || routes.length() > 1048576 {
+        raise InvalidFusedArtifact(Manifest)
+      }
+      Some(routes)
     }
-    Some(routes)
   } else {
     None
   }
@@ -578,6 +615,18 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
       reader.int(prefix + "query_metadata_version")
     } else {
       0
+    }
+    let heads_per_cta = if has_ownership {
+      reader.int(prefix + "heads_per_cta")
+    } else {
+      1
+    }
+    reusable_runtime_validate_head_ownership(
+      abi, heads_per_cta, query_tile_rows,
+    )
+    if abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 &&
+      !has_ownership {
+      raise InvalidFusedArtifact(KernelAbi)
     }
     if query_metadata_version != 0 &&
       (
@@ -618,6 +667,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
       launch,
       query_tile_rows,
       query_metadata_version,
+      heads_per_cta,
       module_digest,
       module_bytes,
     })

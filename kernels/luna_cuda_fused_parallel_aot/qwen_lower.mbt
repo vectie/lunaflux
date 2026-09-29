@@ -99,7 +99,7 @@ fn qwen_fused_recipe(
       dispatch_canary,
       QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1,
       grid_x,
-      query_heads + 2 * kv_heads,
+      physical_program.packing.geometry().0,
       0,
     ) +
     "semantic_family=qkv-qknorm-positioned-rope-paged-kvwrite\n" +
@@ -114,6 +114,10 @@ fn qwen_fused_recipe(
     "\n" +
     "column_fold_plan_sha256=" +
     fused_parallel_digest(physical_program.columns.canonical_bytes()).as_hex() +
+    "\nhead_packing_sha256=" +
+    fused_parallel_digest(physical_program.packing.canonical_bytes()).as_hex() +
+    "\nheads_per_cta=" +
+    physical_program.packing.geometry().1.to_string() +
     "\n" +
     "model_content_sha256=" +
     plan.identity().content().as_hex() +
@@ -198,12 +202,14 @@ fn qwen_fused_production_recipe(
     .unwrap()
     .row_width()
     .to_string() +
+    "\nheads_per_cta=" +
+    qualification.physical_program.packing.geometry().1.to_string() +
     "\nmax_page_table_entries=" +
     profile.max_page_table_entries().to_string() +
     "\nblock=128,1,1\ngrid=" +
     qualification.dimensions.grid_x().to_string() +
     "," +
-    (query_heads + 2 * kv_heads).to_string() +
+    qualification.dimensions.grid_y().to_string() +
     ",1\nshared_memory_bytes=0\ndiagnostic_canary=absent\n" +
     fused_compiler_record(qualification.compiler) +
     "tile_program_sha256=" +
@@ -352,6 +358,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
       }
       request
       .with_ingress_row_tiles(policy.row_tiles())
+      .with_ingress_head_tiles(policy.head_tiles())
       .with_fold_pipeline(
         MatrixFold,
         stages=policy.operand_stages(),
@@ -375,13 +382,13 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   guard tile_compilation.schedule().matrix_pipeline() is Some(pipeline) else {
     raise FusedParallelUnsupported(StaticResources)
   }
-  let shared_bytes = (
-      pipeline.row_width().to_int64() + head_dimension.to_int64()
-    ) *
+  let producer_width = pipeline.output_tiles().to_int64() *
+    pipeline.tile_width().to_int64()
+  let shared_bytes = (pipeline.row_width().to_int64() + producer_width) *
     pipeline.transfer_width().to_int64() *
     pipeline.stage_count().to_int64() *
     2L +
-    pipeline.row_width().to_int64() * head_dimension.to_int64() * 4L
+    pipeline.row_width().to_int64() * producer_width * 4L
   if shared_bytes > 49152L {
     raise FusedParallelUnsupported(StaticResources)
   }
@@ -400,7 +407,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   let tiled_grid_x = (profile.max_query_tokens() + tile_rows - 1) / tile_rows
   let dimensions = @launch_contract.AotLaunchDimensions::new(
     grid_x=tiled_grid_x,
-    grid_y=query_heads + 2 * kv_heads,
+    grid_y=physical_program.packing.geometry().0,
     grid_z=1,
     block_x=FUSED_PARALLEL_THREADS,
     block_y=1,

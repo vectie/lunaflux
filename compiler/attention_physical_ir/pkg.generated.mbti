@@ -3,6 +3,7 @@ package "vectie/lunaflux/compiler/attention_physical_ir"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/physical_tile_ir",
 }
 
 // Values
@@ -10,6 +11,31 @@ import {
 // Errors
 
 // Types and methods
+pub struct BlockwiseFold {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn BlockwiseFold::dimensions(Self) -> (Int, Int)
+pub fn BlockwiseFold::equal(Self, Self) -> Bool
+pub fn BlockwiseFold::new(dimensions~ : Int, keys~ : Int) -> Self?
+pub fn BlockwiseFold::not_equal(Self, Self) -> Bool
+pub fn BlockwiseFold::numeric_law(Self) -> String
+pub fn BlockwiseFold::steps(Self) -> ReadOnlyArray[BlockwiseFoldStep]
+pub fn BlockwiseFold::to_repr(Self) -> @debug.Repr
+
+pub(all) enum BlockwiseFoldStep {
+  ComputeTileScores
+  PublishTileScores
+  ReduceTileMaximum
+  FormFloat32Probabilities
+  ReduceTileDenominator
+  PublishTileProbabilities
+  AccumulateTileValues
+  MergeTileState
+} derive(Eq, @debug.Debug)
+pub fn BlockwiseFoldStep::equal(Self, Self) -> Bool
+pub fn BlockwiseFoldStep::not_equal(Self, Self) -> Bool
+pub fn BlockwiseFoldStep::to_repr(Self) -> @debug.Repr
+
 pub(all) enum FoldOperation {
   ScoreProduct
   PrepareScores
@@ -71,12 +97,24 @@ pub struct OnlineFold {
 pub fn OnlineFold::canonical(Self) -> String
 pub fn OnlineFold::carried_state(Self) -> ReadOnlyArray[(FoldValue, FoldValue)]
 pub fn OnlineFold::equal(Self, Self) -> Bool
+pub fn OnlineFold::fragment_products(Self, fragment_rows~ : Int, fragment_columns~ : Int, reduction_quantum~ : Int) -> OnlineFragmentProgram?
 pub fn OnlineFold::geometry(Self) -> (Int, Int, Int)
 pub fn OnlineFold::new(queries~ : Int, keys~ : Int, dimensions~ : Int) -> Self?
 pub fn OnlineFold::not_equal(Self, Self) -> Bool
 pub fn OnlineFold::score_phase(Self) -> ReadOnlyArray[FoldOperation]
 pub fn OnlineFold::to_repr(Self) -> @debug.Repr
 pub fn OnlineFold::value_phase(Self) -> ReadOnlyArray[FoldOperation]
+
+pub struct OnlineFragmentProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OnlineFragmentProgram::equal(Self, Self) -> Bool
+pub fn OnlineFragmentProgram::fold(Self) -> OnlineFold
+pub fn OnlineFragmentProgram::geometry(Self) -> (Int, Int, Int)
+pub fn OnlineFragmentProgram::not_equal(Self, Self) -> Bool
+pub fn OnlineFragmentProgram::score(Self) -> @physical_tile_ir.FragmentProgram
+pub fn OnlineFragmentProgram::to_repr(Self) -> @debug.Repr
+pub fn OnlineFragmentProgram::value(Self) -> @physical_tile_ir.FragmentProgram
 
 pub struct PagedRowOwnership {
   // private fields

@@ -1,5 +1,5 @@
 ///|
-test "physical refinement preserves full ingress source" {
+test "packed physical refinement emits deterministic full ingress source" {
   let digests : Array[String] = []
   for head_dimension in [32, 64, 128] {
     for maximum_tokens in [8, 31, 32] {
@@ -19,24 +19,24 @@ test "physical refinement preserves full ingress source" {
     digests,
     content=(
       #|[
-      #|  "78eb7b6ba774def2b9ec2d41bf927e2fe6a14ddb73fe5ccbe4e0c57bd1bea471",
-      #|  "c5c8a9550cb6926319a114e98b16ec6155c50ec2ee5dcd49db7013e42d43aaf9",
-      #|  "a6c9831881a2ffc61a151271134e341abb32a5fc4ff11ffe0166fcbedca13b33",
-      #|  "74f2faf0906c0f68c88e7546fd547777156a8b06d7eda78cba4481e3315ee02f",
-      #|  "09484f317de030e9f29df2aca641dd5eabd0668447636a5510ab4a29d407e941",
-      #|  "31a03cf66f197dbac1121796f08521472c2f71d81b8f73ded795d6eeefe3c767",
-      #|  "98f9631419598092679b30f17bed533545a7bb7fba3da185bc0246bbb010a1b1",
-      #|  "6c9d0caf46c5a78de8a5eaddc4e6cb206416c7d39c939863a2a794e7a422758f",
-      #|  "111a47d65287866d40bb7e59af200cf0a4fc64d4c31d04dd972c8b8c6a23327d",
-      #|  "814f3ed04b1bbdcb3210407947e6ae995445c910ecd40e69f0377ef1ad57fd7a",
-      #|  "bb5de0b664bf9164c79cc5781b220adc10709dbbbfed276cabcdc1d0c9ab4144",
-      #|  "ea63122afe051ac66d103d7fb7d91142b4b207f9f4b8c242bd4bcf16516b1272",
-      #|  "db96aca7bf4149c6b9d57078e61d8f16a4cd533a07f36a6beab37ac0045f2b0b",
-      #|  "439f5f1046ba9e6c8e97a57c4434335a608217f32c9a3ac00e8523edd550e3d4",
-      #|  "407606bd1323bd695ba552f79a31dc3d4f38857ea44101a87f3cf8b7209e07f7",
-      #|  "78f5c3d00e1b0bcc1163e098c98cf28c715e03329c18407bdb58a4827ee467a0",
-      #|  "f81930b8807c6f84dad32942df79c70ef191eaf744c1e0acd1eb822a059f8cf3",
-      #|  "94c5edfb414d3bc0f3e9dfd2f26a730fb213f907c9fc7aa2f7fcb5f530ca3592",
+      #|  "e14d8a11d6cf5ba6d04309eebb554f3aa90446b0a86cdc1e0a85b8c446c80a0e",
+      #|  "20b02fb94791a7f641bfc2d2ed5b9042b2785c9b95af4e6bd9d4d7df73a84027",
+      #|  "4be6d6d663a4958a0467bdbd2f22f3beed15428b101e9b88fe7f8a356803d489",
+      #|  "36835dca319b13402479c9d42f08dcfde917efe8167d725e8782f3519fae154e",
+      #|  "4448abf80dbcb9142b092d3cb34f806966ef27d8648547bb5b0ef6c5337d57bc",
+      #|  "ddcb43e81afc3a8d3585e7baa457e425561edcb1252d6273db81187002fb24ba",
+      #|  "fd4e5bb9de0c4e965353e661ab85e12291bce29472f8940d18bc31fda40bcb91",
+      #|  "e6d9b26c50576882152ca82d454fc8fe8e6e04ab4d41db7d1b4920aeb1d55269",
+      #|  "1bafea65b9b0e6095af5b6bedfa118d7e2e9e228ff4c7a581086dd9735b40b44",
+      #|  "b900840c7115f0ef8a40fdefa2b7e8bcfebbaa66e40eca06ff7dd32014ca6cea",
+      #|  "b8ba8f415be4e3501eefd1b61d99748b8361cfdea9c1ba0076638663e6cf44d0",
+      #|  "7ee712de83285183b53f2180b8618e545f65208242a9a23c2d05be34fc6bd686",
+      #|  "ac92848a843a000390ca11e27c9b3a043771d40873e5fc910b5132a7fdacd2a7",
+      #|  "b8ef6f0eeada9f6724369e873b05b9cb35bbc03d2c85c8c74a2a9b9741dad4a9",
+      #|  "6a25de9c4dfb3cfd58c8b93cefc32f38db7c6d25c6de75b1df4889e420267369",
+      #|  "5b4d71ba3a6c7e5b23b3d22e07a2ee1d9a9065644a4d2d3eae4d8a060c5b4c87",
+      #|  "76eab473e0076e40093668fe62002f3a4ae8a790dff197f96225c3a999c5999a",
+      #|  "65cb1f25667a0f7cf6f386bce2649ddd7a7fbb86494b1bdc89ce693d18cf484a",
       #|]
     ),
   )

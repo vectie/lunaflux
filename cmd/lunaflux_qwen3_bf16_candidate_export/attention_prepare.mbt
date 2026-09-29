@@ -277,6 +277,7 @@ fn prepare_qwen_compiler_decode(
     query_rows=1,
     context_tokens=plan.shape_constraints().max_sequence_tokens(),
     causal=true,
+    allow_alternative_softmax_reduction=true,
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }

@@ -50,20 +50,32 @@ async fn main {
   let args = @env.args()
   guard args.length() == 3 || args.length() == 4 else {
     fail(
-      "usage: check_counter_repair.mbtx OUTPUT_ROOT CUDA_ARCH [decode|prefill-numeric]",
+      "usage: check_counter_repair.mbtx OUTPUT_ROOT CUDA_ARCH [decode|prefill|prefill-numeric|ingress-packing|ingress-packing-numeric]",
     )
   }
   let root = args[1]
   let arch = args[2]
   let mode = args.get(3).unwrap_or("all")
-  guard mode == "all" || mode == "decode" || mode == "prefill-numeric" else {
+  guard mode == "all" ||
+    mode == "decode" ||
+    mode == "prefill" ||
+    mode == "prefill-numeric" ||
+    mode == "ingress-packing" ||
+    mode == "ingress-packing-numeric" else {
     fail("invalid scope")
   }
   let decode_only = mode == "decode"
+  let ingress_numeric = mode == "ingress-packing-numeric"
+  let ingress_only = mode == "ingress-packing" || ingress_numeric
   let full_prefill = mode == "prefill-numeric"
   let nvcc = "/usr/local/cuda/bin/nvcc"
   let sanitizer = "/usr/local/cuda/bin/compute-sanitizer"
-  for id in (if decode_only { [] } else { ["2000", "2001", "2003", "2004"] }) {
+  for
+    id in (if decode_only || ingress_only {
+      []
+    } else {
+      ["322", "2000", "2001", "2003", "2004"]
+    }) {
     let label = "prefill-" + id
     let folder = root + "/" + label
     @fs.mkdir(folder)
@@ -132,7 +144,49 @@ async fn main {
       ])
     }
   }
-  for id in (if full_prefill { [] } else { ["430", "440", "441"] }) {
+  for
+    label in (if mode == "all" || ingress_only {
+      [
+        "ingress-pack-d64-h1", "ingress-pack-d64-h2", "ingress-pack-d64-h4", "ingress-pack-d128-h1",
+        "ingress-pack-d128-h2",
+      ]
+    } else {
+      []
+    }) {
+    recorded(root, label + "-build", [
+      nvcc,
+      "-O3",
+      "--fmad=false",
+      "-lineinfo",
+      "-arch=" + arch,
+      "-DKERNEL_SOURCE=\"" + root + "/" + label + ".cu\"",
+      root + "/ingress-packing-probe.cu",
+      "-o",
+      root + "/" + label + ".exe",
+    ])
+    recorded(root, label + "-numeric", [root + "/" + label + ".exe"])
+    for
+      tool in (if ingress_numeric {
+        []
+      } else {
+        ["memcheck", "racecheck", "synccheck"]
+      }) {
+      recorded(root, label + "-" + tool, [
+        sanitizer,
+        "--tool",
+        tool,
+        "--error-exitcode",
+        "91",
+        root + "/" + label + ".exe",
+      ])
+    }
+  }
+  for
+    id in (if full_prefill || mode == "prefill" || ingress_only {
+      []
+    } else {
+      ["430", "440", "441", "450", "451"]
+    }) {
     let label = "decode-" + id
     recorded(root, label + "-build", [
       nvcc,
@@ -172,10 +226,20 @@ async fn main {
   }
   @fs.write_file(
     root + "/RESULT.txt",
-    (if full_prefill {
+    (if ingress_numeric {
+      "ingress_packing_numeric=passed"
+    } else if full_prefill {
       "prefill_full_numeric=passed"
     } else {
-      (if decode_only { "decode" } else { "prefill_ingress_decode" }) +
+      (if ingress_only {
+        "ingress_packing"
+      } else if decode_only {
+        "decode"
+      } else if mode == "prefill" {
+        "prefill"
+      } else {
+        "prefill_ingress_decode"
+      }) +
       "_numeric_and_sanitizers=passed"
     }) +
     "\nserving_benchmark=not-run\n",

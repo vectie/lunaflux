@@ -33,9 +33,10 @@ pub struct Policy {
 pub fn Policy::consumer_groups(Self) -> Int
 pub fn Policy::equal(Self, Self) -> Bool
 pub fn Policy::fragment_stages(Self) -> Int
+pub fn Policy::head_tiles(Self) -> Int
 pub fn Policy::id(Self) -> String
 pub fn Policy::live_accumulators(Self) -> Int
-pub fn Policy::new(id~ : String, consumer_groups~ : Int, live_accumulators~ : Int, operand_stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int, row_tiles? : Int) -> Self?
+pub fn Policy::new(id~ : String, consumer_groups~ : Int, live_accumulators~ : Int, operand_stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int, row_tiles? : Int, head_tiles? : Int) -> Self?
 pub fn Policy::not_equal(Self, Self) -> Bool
 pub fn Policy::operand_stages(Self) -> Int
 pub fn Policy::row_tiles(Self) -> Int
@@ -78,6 +79,17 @@ pub(all) enum SelectionOrigin {
 pub fn SelectionOrigin::equal(Self, Self) -> Bool
 pub fn SelectionOrigin::not_equal(Self, Self) -> Bool
 pub fn SelectionOrigin::to_repr(Self) -> @debug.Repr
+
+pub struct Workload {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Workload::equal(Self, Self) -> Bool
+pub fn Workload::fits(Self, max_query_tokens~ : Int, max_batch_rows~ : Int) -> Bool
+pub fn Workload::identity(Self) -> String
+pub fn Workload::new(phase~ : String, query_tokens~ : Int, batch_rows~ : Int, prior_history~ : Int, bucket_tokens~ : Int, bucket_rows~ : Int) -> Self?
+pub fn Workload::not_equal(Self, Self) -> Bool
+pub fn Workload::scope(Self, Scope) -> Scope?
+pub fn Workload::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

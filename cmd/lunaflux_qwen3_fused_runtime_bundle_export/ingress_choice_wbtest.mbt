@@ -318,3 +318,48 @@ test "full ingress carries explicit compiler tile metadata through export and ad
     }
   }
 }
+
+///|
+test "full ingress head packing and explicit decode numerical policy survive argument parsing" {
+  for heads in [1, 2, 4] {
+    let raw = runtime_bundle_test_arguments("5")
+    raw.append([
+      "--ingress-evaluate",
+      "full",
+      "--ingress-query-tile",
+      "32",
+      "--ingress-heads-per-cta",
+      heads.to_string(),
+      "--decode-blockwise-f32-v1",
+    ])
+    let (args, choice) = prepare_ingress_choice(raw)
+    assert_eq(args.ingress_heads_per_cta, Some(heads))
+    assert_true(args.blockwise_decode)
+    let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
+      model_content_sha256=args.model_content,
+      model_plan_sha256=args.model_plan,
+      target=@catalog.DeviceTarget::new(
+        compute_major=12,
+        compute_minor=0,
+        supports_bf16=true,
+        supports_cublas_lt=false,
+      ),
+      modules=selected_ingress_modules(args, choice, b"residual", b"ingress"),
+    )
+    let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
+      bytes,
+      @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+    )
+    assert_eq(
+      admitted.qwen_full_attention_ingress_module().unwrap().heads_per_cta(),
+      heads,
+    )
+    raw.append(["--ingress-heads-per-cta", "2"])
+    try prepare_ingress_choice(raw) catch {
+      InvalidArguments => ()
+      _ => fail("wrong repeated ownership error")
+    } noraise {
+      _ => fail("duplicate head ownership accepted")
+    }
+  }
+}

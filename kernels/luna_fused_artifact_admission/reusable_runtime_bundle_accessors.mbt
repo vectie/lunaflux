@@ -119,6 +119,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_wide_query_prefill_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8)
+    is Some(module_) {
+    return Some(module_)
+  }
   if self.module_for(PagedAttentionReadOnlyCompilerDecodeProductionV7)
     is Some(module_) {
     return Some(module_)
@@ -149,6 +153,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_prefill_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8)
+    is Some(module_) {
+    return Some(module_)
+  }
   if self.module_for(PagedAttentionReadOnlyCompilerDecodeProductionV7)
     is Some(module_) {
     return Some(module_)
@@ -276,6 +284,14 @@ pub fn ApprovedReusableFusedRuntimeModule::query_metadata_version(
   self : ApprovedReusableFusedRuntimeModule,
 ) -> Int {
   self.query_metadata_version
+}
+
+///|
+/// Complete-head producer ownership, authenticated once with the artifact.
+pub fn ApprovedReusableFusedRuntimeModule::heads_per_cta(
+  self : ApprovedReusableFusedRuntimeModule,
+) -> Int {
+  self.heads_per_cta
 }
 
 ///|

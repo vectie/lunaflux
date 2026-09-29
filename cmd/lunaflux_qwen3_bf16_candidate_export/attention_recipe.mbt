@@ -60,6 +60,11 @@ fn qwen_compiler_attention_recipe(
     lowering.digest().as_hex() +
     "\ncandidate_stable_id=" +
     candidate.stable_id().to_string() +
+    (if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
+      "\nnumeric_law=blockwise-f32-probability-v1"
+    } else {
+      ""
+    }) +
     "\nquery_tile_rows=" +
     query_tile_rows.to_string() +
     "\nquery_metadata_version=" +

@@ -19,6 +19,17 @@ pub fn FragmentAction::equal(Self, Self) -> Bool
 pub fn FragmentAction::not_equal(Self, Self) -> Bool
 pub fn FragmentAction::to_repr(Self) -> @debug.Repr
 
+pub struct FragmentForwarding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn FragmentForwarding::canonical(Self) -> String
+pub fn FragmentForwarding::equal(Self, Self) -> Bool
+pub fn FragmentForwarding::geometry(Self) -> (Int, Int, Int)
+pub fn FragmentForwarding::not_equal(Self, Self) -> Bool
+pub fn FragmentForwarding::program(Self) -> FragmentProgram
+pub fn FragmentForwarding::to_repr(Self) -> @debug.Repr
+pub fn FragmentForwarding::word(Self, Int, Int) -> Int?
+
 pub(all) enum FragmentOperand {
   LeftOperand
   RightOperand
@@ -32,6 +43,7 @@ pub struct FragmentProgram {
 } derive(Eq, @debug.Debug)
 pub fn FragmentProgram::canonical(Self) -> String
 pub fn FragmentProgram::equal(Self, Self) -> Bool
+pub fn FragmentProgram::forward_right(Self, words~ : Int, instruction_words~ : Int, ArrayView[Int]) -> FragmentForwarding?
 pub fn FragmentProgram::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn FragmentProgram::iteration(Self) -> ReadOnlyArray[FragmentAction]
 pub fn FragmentProgram::load(Self, Int) -> (FragmentOperand, Int)?

@@ -124,6 +124,27 @@ async fn main {
     candidate + "/reusable-qwen-full-ingress/kernel.recipe",
   ).text()
   args.append(["--ingress-query-tile", field(ingress_recipe, "query_tile_rows")])
+  // Older one-head recipes remain supported; new ownership must survive both
+  // export passes just like the compiler-selected token tile.
+  if ingress_recipe.contains("\nheads_per_cta=") {
+    args.append([
+      "--ingress-heads-per-cta",
+      field(ingress_recipe, "heads_per_cta"),
+    ])
+  }
+  let decode_recipe = @fs.read_file(
+    candidate + "/reusable-qwen-decode-attention/kernel.recipe",
+  ).text()
+  if field(decode_recipe, "function_symbol") ==
+    "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1" {
+    guard field(decode_recipe, "numeric_law") == "blockwise-f32-probability-v1" else {
+      fail("blockwise decode numerical contract mismatch")
+    }
+    args.push("--decode-blockwise-f32-v1")
+  } else if field(decode_recipe, "function_symbol") !=
+    "lunaflux_attention_decode_tile_compiler_v1" {
+    fail("unsupported decode numerical entry point")
+  }
   if versions[0] == "1" {
     args.push("--query-metadata-v1")
   }

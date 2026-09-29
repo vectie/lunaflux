@@ -35,6 +35,17 @@ fn qwen_fused_source(
   let qk_heads = query_heads + kv_heads
   let kv_width = kv_heads * head_dimension
   let tile_rows = physical.pipeline.schedule.row_width()
+  let (head_groups, heads_per_group, projection_width, _) = physical.packing.geometry()
+  // This backend implements one row-scoped rotary lifetime around all local
+  // complete-head consumers. Reject new effect orders rather than silently
+  // emitting this lowering for an incompatible middle-end program.
+  let effects = physical.packing.effects()
+  guard effects.length() == 3 &&
+    effects[0] == PrepareRowRotary &&
+    effects[1] == ConsumeCompleteHeads &&
+    effects[2] == RetireRowRotary else {
+    abort("CUDA ingress does not support this rotary lifetime")
+  }
   let maximum_tile_count = (profile.max_query_tokens() + tile_rows - 1) /
     tile_rows
   let column_plan = physical.columns
@@ -55,6 +66,9 @@ fn qwen_fused_source(
   out.write_string("#define LF_KV_HEADS " + kv_heads.to_string() + "\n")
   out.write_string("#define LF_QK_HEADS " + qk_heads.to_string() + "\n")
   out.write_string("#define LF_PACKED_HEADS " + packed_heads.to_string() + "\n")
+  out.write_string("#define LF_HEAD_GROUPS \{head_groups}\n")
+  out.write_string("#define LF_HEADS_PER_CTA \{heads_per_group}\n")
+  out.write_string("#define LF_PROJECTION_WIDTH \{projection_width}\n")
   out.write_string("#define LF_HEAD_DIM " + head_dimension.to_string() + "\n")
   out.write_string("#define LF_KV_WIDTH " + kv_width.to_string() + "\n")
   out.write_string(
@@ -102,10 +116,10 @@ fn qwen_fused_source(
   out.write_string(
     "  if (blockDim.x != LF_BLOCK_THREADS || blockIdx.z != 0 || gridDim.x == 0 || gridDim.x > " +
     maximum_tile_count.to_string() +
-    " || gridDim.y != LF_PACKED_HEADS) return;\n" +
+    " || gridDim.y != LF_HEAD_GROUPS) return;\n" +
     "  const int lane = (int)threadIdx.x & 31;\n" +
     "  const int warp = (int)threadIdx.x >> 5;\n" +
-    "  const int head = (int)blockIdx.y;\n" +
+    "  const int head_begin = (int)blockIdx.y * LF_HEADS_PER_CTA;\n" +
     "  const int token_begin = (int)blockIdx.x * LF_TILE_ROWS;\n" +
     "  const int prefill = step_counts[0], decode = step_counts[1];\n" +
     "  const int rows = step_counts[2], tokens = step_counts[3], table_cells = step_counts[4];\n" +
@@ -118,15 +132,16 @@ fn qwen_fused_source(
     " || token_begin >= tokens || query_row_offsets[0] != 0 ||\n" +
     "      query_row_offsets[rows] != tokens || page_table_offsets[0] != 0 ||\n" +
     "      page_table_offsets[rows] != table_cells) return;\n" +
-    "  const bool is_query = head < LF_QUERY_HEADS;\n" +
-    "  const bool is_key = head >= LF_QUERY_HEADS && head < LF_QK_HEADS;\n" +
-    "  const int matrix_head = is_query ? head : (is_key ? head - LF_QUERY_HEADS : head - LF_QK_HEADS);\n" +
-    "  const __nv_bfloat16* matrix = is_query ? q_weight : (is_key ? k_weight : v_weight);\n" +
-    "  __shared__ float projected[LF_TILE_ROWS][LF_HEAD_DIM];\n" +
+    "  __shared__ float projected[LF_TILE_ROWS][LF_PROJECTION_WIDTH];\n" +
     "  if (tokens == 1) {\n" +
     "    // Lower the compiler's strided fold followed by a fixed pairwise tree.\n" +
-    "    for (int component = warp; component < LF_HEAD_DIM; component += LF_WARPS) {\n" +
-    "      const int column = matrix_head * LF_HEAD_DIM + component;\n" +
+    "    for (int component = warp; component < LF_PROJECTION_WIDTH; component += LF_WARPS) {\n" +
+    "      const int head = head_begin + component / LF_HEAD_DIM;\n" +
+    "      if (head >= LF_PACKED_HEADS) continue;\n" +
+    "      const bool is_query = head < LF_QUERY_HEADS, is_key = head < LF_QK_HEADS;\n" +
+    "      const int matrix_head = is_query ? head : (is_key ? head - LF_QUERY_HEADS : head - LF_QK_HEADS);\n" +
+    "      const __nv_bfloat16* matrix = is_query ? q_weight : (is_key ? k_weight : v_weight);\n" +
+    "      const int column = matrix_head * LF_HEAD_DIM + component % LF_HEAD_DIM;\n" +
     "      float value = 0.0f;\n" +
     "      for (int inner = lane; inner < LF_INPUT_WIDTH; inner += \{physical.scalar.geometry().2}) value = __fadd_rn(value, __fmul_rn(\n" +
     "        __bfloat162float(input[inner]),\n" +
@@ -155,18 +170,28 @@ fn qwen_fused_source(
     "        page_end > table_cells || logical_page < 0 || logical_page >= page_end - page_begin) continue;\n" +
     "    const int physical_page = page_table_page_indices[page_begin + logical_page];\n" +
     "    if (physical_page < 0 || physical_page >= LF_TOTAL_PAGE_COUNT) continue;\n" +
-    "    for (int component = lane; component < LF_HEAD_DIM; component += 32) projected[local_row][component] =\n" +
-    "      __bfloat162float(__float2bfloat16_rn(projected[local_row][component]));\n" +
+    "    // Row-scoped rotary operands remain live until every owned Q/K head retires.\n" +
+    "    LfIngressRotaryValues rotary;\n" +
+    "    if (head_begin < LF_QK_HEADS) rotary = lf_ingress_prepare_rotary(position, lane);\n" +
+    "    #pragma unroll\n" +
+    "    for (int local_head = 0; local_head < LF_HEADS_PER_CTA; ++local_head) {\n" +
+    "    const int head = head_begin + local_head;\n" +
+    "    if (head >= LF_PACKED_HEADS) continue;\n" +
+    "    const bool is_query = head < LF_QUERY_HEADS;\n" +
+    "    const bool is_key = head >= LF_QUERY_HEADS && head < LF_QK_HEADS;\n" +
+    "    float* head_values = projected[local_row] + local_head * LF_HEAD_DIM;\n" +
+    "    for (int component = lane; component < LF_HEAD_DIM; component += 32) head_values[component] =\n" +
+    "      __bfloat162float(__float2bfloat16_rn(head_values[component]));\n" +
     "    __syncwarp();\n" +
     "    if (head < LF_QK_HEADS) {\n" +
     "      const __nv_bfloat16* norm_weight = is_query ? q_norm_weight : k_norm_weight;\n" +
-    "      lf_ingress_norm_rotary(projected[local_row], norm_weight, position, lane);\n" +
+    "      lf_ingress_norm_rotary_prepared(head_values, norm_weight, rotary, lane);\n" +
     "    }\n" +
     "    if (head < LF_QK_HEADS) {\n" +
     "      const int half = LF_HEAD_DIM / 2;\n" +
     "      for (int pair = lane; pair < half; pair += 32) {\n" +
-    "        const __nv_bfloat16 first_encoded = __float2bfloat16_rn(projected[local_row][pair]);\n" +
-    "        const __nv_bfloat16 second_encoded = __float2bfloat16_rn(projected[local_row][pair + half]);\n" +
+    "        const __nv_bfloat16 first_encoded = __float2bfloat16_rn(head_values[pair]);\n" +
+    "        const __nv_bfloat16 second_encoded = __float2bfloat16_rn(head_values[pair + half]);\n" +
     "        const unsigned long long output_base =\n" +
     "          ((unsigned long long)token * LF_PACKED_HEADS + head) * LF_HEAD_DIM;\n" +
     "        rotated_qkv[output_base + pair] = first_encoded;\n" +
@@ -185,7 +210,7 @@ fn qwen_fused_source(
     "      const int kv_head = head - LF_QK_HEADS;\n" +
     "      for (int component = lane; component < LF_HEAD_DIM; component += 32) {\n" +
     "        const __nv_bfloat16 encoded =\n" +
-    "          __float2bfloat16_rn(projected[local_row][component]);\n" +
+    "          __float2bfloat16_rn(head_values[component]);\n" +
     "        const unsigned long long output_index =\n" +
     "          ((unsigned long long)token * LF_PACKED_HEADS + head) * LF_HEAD_DIM + component;\n" +
     "        const unsigned long long cache_index =\n" +
@@ -197,12 +222,13 @@ fn qwen_fused_source(
     "      }\n" +
     "    }\n" +
     "    __syncwarp();\n" +
+    "    }\n" +
     "  }\n",
   )
   match dispatch_canary {
     Some(value) =>
       out.write_string(
-        "  if (threadIdx.x == 0 && head == 0) atomicAdd(dispatch_canary, " +
+        "  if (threadIdx.x == 0 && head_begin == 0) atomicAdd(dispatch_canary, " +
         value.to_string() +
         "u);\n",
       )

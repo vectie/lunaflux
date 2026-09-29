@@ -158,3 +158,24 @@ dispatch. Source generation no longer rebuilds query/grouped transfer effects,
 shared-score ownership, bootstrap, fold, or terminal plans from CUDA flags.
 Nineteen additional pre-migration digest fixtures cover all five terminal
 families, including partitioned decode, without changing emitted bytes.
+
+## Single-use fragment forwarding
+
+Query-owned prefill now retains a checked `OnlineFragmentProgram` and CUDA
+fragment binding before emission. The common physical IR proves each K/V
+fragment has one product consumer. CUDA realizes its packed register
+permutation as names inside a combined shared-load/two-MMA PTX region, rather
+than returning a C++ right-operand aggregate and selecting copied pairs.
+Reusable Q/probability fragments stay outside that region. The shared layout,
+published epoch, ordered F32 updates and BF16 probability conversion do not
+change. Incompatible instruction dimensions, lane counts and vector widths
+are rejected before rendering; other ownership schedules keep their existing
+materialization contracts.
+
+This changes source identities for query-owned prefill, including c322. It is
+not yet a claim of fewer executed SASS MOVs or faster inference: ptxas may still
+require register rearrangements. The extended `export_counter_repair.mbtx`
+includes c322, and `check_counter_repair.mbtx ROOT sm_121 prefill` runs the
+bounded numerical and sanitizer gates without ingress/decode workloads.
+Compare fresh selected-kernel instructions, register/spill counts and elapsed
+time before accepting a performance conclusion.

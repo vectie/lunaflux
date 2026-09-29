@@ -51,10 +51,18 @@ async fn main {
     .to_array()
     .join("\n")
   @fs.write_file(root + "/ingress.records", subset, create_mode=CreateNew)
-  for
-    name in [
-      "attention.records", "decode.records", "ingress.spec", "prefill.spec", "decode.spec",
-    ] {
+  // V2 calibration explicitly chooses one objective. The opposite phase has
+  // no invented measurement and keeps its normal unmeasured compiler policy.
+  let record_names : Array[String] = []
+  for name in ["attention.records", "decode.records"] {
+    let bytes = @fs.read_file(measured + "/" + name) catch { _ => continue }
+    @fs.write_file(root + "/" + name, bytes, create_mode=CreateNew)
+    record_names.push(name)
+  }
+  guard !record_names.is_empty() else {
+    fail("no measured attention objective")
+  }
+  for name in ["ingress.spec", "prefill.spec", "decode.spec"] {
     @fs.write_file(
       root + "/" + name,
       @fs.read_file(measured + "/" + name),
@@ -63,8 +71,7 @@ async fn main {
   }
   let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
   let converted = @fs.read_file(base + "/convert.stdout").text()
-  // Unmeasured exports deliberately have an architecture namespace; use the
-  // UUID from the already measured table, not that uncalibrated label.
+  // The measured table carries its compatibility class; UUID is provenance.
   guard subset.split("\n").filter(x => x.has_prefix("scope\t")).to_array()
     is [scope] else {
     fail("scope")
@@ -89,12 +96,13 @@ async fn main {
     "16384",
     root + "/selected",
   ]
-  for
-    (option, name) in [
-      ("--ingress-policy-records", "ingress.records"),
-      ("--decode-tuning", "decode.records"),
-      ("--attention-tuning", "attention.records"),
-    ] {
+  record_names.push("ingress.records")
+  for name in record_names {
+    let option = match name {
+      "ingress.records" => "--ingress-policy-records"
+      "decode.records" => "--decode-tuning"
+      _ => "--attention-tuning"
+    }
     args.append([
       option,
       root + "/" + name,

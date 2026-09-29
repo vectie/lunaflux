@@ -29,7 +29,7 @@ test "every supported attention family enters the typed physical dispatch" {
 }
 
 ///|
-test "physical architecture merge preserves every terminal attention family" {
+test "physical architecture source identities cover every terminal attention family" {
   let digests : Array[String] = []
   for id in [100, 290, 300, 310, 312, 313, 314, 316, 318, 322] {
     let lowering = source_test_lowering(true, 100000L, 2, candidate_id=Some(id))
@@ -87,8 +87,8 @@ test "physical architecture merge preserves every terminal attention family" {
       #|  "c688e556140075d8841ed58cb9eb419e6ccc722e91831803eec09c1574a2c818",
       #|  "abab0e1aabd8000a27d6db7bf64303c29744d124dfe4e53ac8139befb0902660",
       #|  "d54c66f2f1ace31e64091c75b4c090515c3b31da662bbea35fcb382c87c57018",
-      #|  "688812a6946adaf53df48d2fea63cdfa9959c29dcbec00154aaa29a182794062",
-      #|  "2d9013cf84934f13412aa0474e58975d6889521ba6e80aa688b4ea9e1b11ab0f",
+      #|  "098fef3135c83aa8e63745b48bf485222d92fedfe8309396e843f742ad1f02b5",
+      #|  "28d0eb57a7b420c98ab0425316b5960725f9426eb0f44d0597180f81e768fb32",
       #|  "da09e6fd281d703b70cf3075ba81ef55046152d50b0d5d317b3d6191bff105f4",
       #|  "a8f2cc9b6f423958241517f62b73ea978a754aa2886636c014889850ff0b8fc5",
       #|  "db259a82363d53d4066f5f2757acfed24d82f5013e4d88bbec9d29c205ed44e5",

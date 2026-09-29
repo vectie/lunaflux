@@ -1,5 +1,10 @@
 import {
+  "vectie/lunaflux/compiler/physical_tile_ir",
   "moonbitlang/core/debug",
 }
 
 supported_targets = "native"
+
+import {
+  "moonbitlang/core/math",
+} for "test"

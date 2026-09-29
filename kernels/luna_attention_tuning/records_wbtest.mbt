@@ -96,6 +96,18 @@ test "offline observations select a candidate and reject stale or malformed tabl
     capabilities~,
   )
   assert_eq(selected.candidate().stable_id(), 322)
+  let exact = "luna-attention-tuning-v2\nscope\tfrontier-device-toolchain\nworkload\tprefill\t1024\t1\t0\t1024\t1\nprovenance\tGPU-a\nrecord\t318\t200000\t7\nrecord\t322\t100000\t7\n"
+  assert_eq(
+    parse_attention_tuning_records(
+      @utf8.encode(exact),
+      scope="frontier-device-toolchain",
+      backend~,
+      target~,
+      problem~,
+      candidates[:],
+    ),
+    records,
+  )
   for
     invalid in [
       valid.replace(old="frontier-device-toolchain", new="stale"),
@@ -107,6 +119,12 @@ test "offline observations select a candidate and reject stale or malformed tabl
       header + workloads + "record\t318\t0\t3\n",
       header + "workload\t1\t8\t0\nrecord\t318\t1\t3\n",
       header + workloads,
+      exact.replace(old="provenance\tGPU-a\n", new=""),
+      exact.replace(
+        old="record\t318",
+        new="workload\tprefill\t128\t1\t0\t128\t32\nrecord\t318",
+      ),
+      exact.replace(old="\t1024\t1\n", new="\t128\t1\n"),
     ] {
     try
       parse_attention_tuning_records(

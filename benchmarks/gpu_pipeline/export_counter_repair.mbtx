@@ -16,8 +16,8 @@ async fn main {
     "moon",
     [
       "test", "kernels/luna_cuda_attention_tile_source/repair_export_wbtest.mbt",
-      "kernels/luna_cuda_fused_parallel_aot/ingress_rows_wbtest.mbt", "--target",
-      "native", "--deny-warn", "--warn-list", "-79-20-29-25",
+      "kernels/luna_cuda_fused_parallel_aot/ingress_rows_wbtest.mbt", "kernels/luna_cuda_fused_parallel_aot/ingress_packing_export_wbtest.mbt",
+      "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25",
     ],
     env={ "LUNA_TEST_EXPORT_COUNTER_REPAIR": "1" },
   ).output(max_output_bytes=16777216)
@@ -47,6 +47,6 @@ async fn main {
     @fs.write_file(args[1] + "/" + name + ".cu", body[0], create_mode=CreateNew)
     count += 1
   }
-  assert_eq(count, 10)
+  assert_eq(count, 18)
   println("exported=\{count}")
 }

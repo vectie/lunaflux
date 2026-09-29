@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "selected_policy_geometry.h"
 #define CK(x) do { auto e=(x); if(e!=0){std::fprintf(stderr,"CUDA %d line %d\n",int(e),__LINE__);std::exit(2);} }while(0)
 using Fields=std::map<std::string,std::string>;
 static Fields fields(const std::string& path) {
@@ -33,10 +34,14 @@ struct Buffer {
   std::vector<__nv_bfloat16> read(){std::vector<__nv_bfloat16> v(bytes/2);CK(cudaMemcpy(v.data(),p,bytes,cudaMemcpyDeviceToHost));return v;}
 };
 struct Kernel {
-  CUmodule module; CUfunction function; unsigned gx,gy,b,shared; int regs,resident,local;
-  explicit Kernel(const std::string& root){
+  CUmodule module; CUfunction function; unsigned gx,gy,b,shared; int regs,resident,local; std::string law;
+  explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode){
     auto r=fields(root+"/kernel.recipe");auto grid=tuple(r.at("grid")),block=tuple(r.at("block"));
     gx=grid.at(0);gy=grid.at(1);b=block.at(0);shared=number(r,"shared_memory_bytes");
+    const int tile=decode ? 1 : number(r,"query_tile_rows");
+    const bool metadata=!ingress&&!decode&&number(r,"query_metadata_version")==1;
+    gx=selected_grid_x(gx,bucket_tokens,profile_rows,tile,metadata,decode);
+    law=r.count("numeric_law") ? r.at("numeric_law") : "legacy-declared-law";
     CK(cuModuleLoad(&module,(root+"/kernel.cubin").c_str()));
     CK(cuModuleGetFunction(&function,module,r.at("function_symbol").c_str()));
     if(shared)CK(cuFuncSetAttribute(function,CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,shared));
@@ -70,7 +75,11 @@ int main(int argc,char**argv){
   const int input_width=number(spec,"input_width"),page=number(spec,"tokens_per_page"),stride=number(spec,"page_stride_values");
   const int max_rows=number(spec,"maximum_rows"),max_tokens=number(spec,"maximum_tokens"),max_pages=number(spec,"maximum_pages");
   if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||past<0||past>8192||(decode&&tokens!=rows))return 1;
-  CK(cudaSetDevice(0));CK(cudaFree(nullptr));Kernel baseline(argv[2]),candidate(argv[3]);
+  const int bucket_tokens=selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
+  CK(cudaSetDevice(0));CK(cudaFree(nullptr));
+  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode),candidate(argv[3],bucket_tokens,max_rows,ingress,decode);
+  std::printf("geometry mode=runtime-bucket tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u new_grid=%u,%u numeric_law=%s\n",
+    tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,candidate.gx,candidate.gy,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
   for(int r=0;r<rows;r++){
     int n=tokens/rows+(r<tokens%rows),length=past+n;

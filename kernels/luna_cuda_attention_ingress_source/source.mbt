@@ -25,8 +25,22 @@ pub fn lower_attention_ingress_numerics(
     )
   }
   out.write_string("};\n")
+  let pairs_per_lane = (dimension / 2 - 1) / lanes + 1
   out <+
-    "static __device__ __forceinline__ void lf_ingress_norm_rotary(float* values, const __nv_bfloat16* weight, int position, int lane) {\n"
+    "struct LfIngressRotaryValues { float sine[\{pairs_per_lane}], cosine[\{pairs_per_lane}]; };\n"
+  out <+
+    "static __device__ __forceinline__ LfIngressRotaryValues lf_ingress_prepare_rotary(int position, int lane) {\n"
+  out <+ "  LfIngressRotaryValues rotary;\n"
+  out <+ "  #pragma unroll\n"
+  out <+ "  for (int pair = lane; pair < \{dimension / 2}; pair += 32) {\n"
+  out <+ "    float sine, cosine;\n"
+  out <+
+    "    sincosf(__fmul_rn((float)position, LF_ROPE_INV_FREQ[pair]), &sine, &cosine);\n"
+  out <+
+    "    rotary.sine[pair / 32] = sine; rotary.cosine[pair / 32] = cosine;\n"
+  out <+ "  }\n  return rotary;\n}\n"
+  out <+
+    "static __device__ __forceinline__ void lf_ingress_norm_rotary_prepared(float* values, const __nv_bfloat16* weight, const LfIngressRotaryValues& rotary, int lane) {\n"
   out <+ "  float square_sum = 0.0f;\n"
   out <+
     "  for (int component = lane; component < \{dimension}; component += 32) square_sum = __fadd_rn(square_sum, __fmul_rn(values[component], values[component]));\n"
@@ -43,13 +57,17 @@ pub fn lower_attention_ingress_numerics(
   out <+ "  for (int pair = lane; pair < \{dimension / 2}; pair += 32) {\n"
   out <+
     "    const float first = values[pair], second = values[pair + \{dimension / 2}];\n"
-  out <+ "    float sine, cosine;\n"
   out <+
-    "    sincosf(__fmul_rn((float)position, LF_ROPE_INV_FREQ[pair]), &sine, &cosine);\n"
+    "    const float sine = rotary.sine[pair / 32], cosine = rotary.cosine[pair / 32];\n"
   out <+
     "    values[pair] = __bfloat162float(__float2bfloat16_rn(__fsub_rn(__fmul_rn(first, cosine), __fmul_rn(second, sine))));\n"
   out <+
     "    values[pair + \{dimension / 2}] = __bfloat162float(__float2bfloat16_rn(__fadd_rn(__fmul_rn(second, cosine), __fmul_rn(first, sine))));\n"
   out <+ "  }\n  __syncwarp();\n}\n"
+  out <+
+    "static __device__ __forceinline__ void lf_ingress_norm_rotary(float* values, const __nv_bfloat16* weight, int position, int lane) {\n"
+  out <+
+    "  const LfIngressRotaryValues rotary = lf_ingress_prepare_rotary(position, lane);\n"
+  out <+ "  lf_ingress_norm_rotary_prepared(values, weight, rotary, lane);\n}\n"
   out.to_string()
 }

@@ -12,6 +12,32 @@ fn attention_candidate_shared_bytes(
     return 0L
   }
   let (_, _, head_dimension, _) = problem.shape.dimensions()
+  if compute == AttentionGroupedQueryBlockwiseDot {
+    let (heads, kv_heads, _, _) = problem.shape.dimensions()
+    let operand_bytes = attention_checked_product(
+      attention_checked_product(
+        key_value_tile.to_int64(),
+        head_dimension.to_int64(),
+        Candidate,
+      ),
+      4L,
+      Candidate,
+    )
+    let scores = attention_checked_product(
+      attention_checked_product(
+        (heads / kv_heads).to_int64(),
+        key_value_tile.to_int64(),
+        Candidate,
+      ),
+      4L,
+      Candidate,
+    )
+    return attention_checked_add(
+      attention_checked_add(operand_bytes, scores, Candidate),
+      16L,
+      Candidate,
+    )
+  }
   let element_bytes = attention_numeric_bytes(problem.numeric_type)
   let query_elements = attention_checked_product(
     query_tile.to_int64(),
@@ -68,6 +94,7 @@ fn attention_candidate_shared_bytes(
     | AttentionSubgroupDot
     | AttentionGroupedQuerySubgroupDot
     | AttentionGroupedQuerySplitSubgroupDot
+    | AttentionGroupedQueryBlockwiseDot
     | AttentionMatrixDot => 4L
   }
   let score_and_weight_bytes = attention_checked_product(
@@ -135,7 +162,9 @@ fn attention_candidate_compatible(
     return false
   }
   match candidate.compute {
-    AttentionGroupedQuerySubgroupDot | AttentionGroupedQuerySplitSubgroupDot => {
+    AttentionGroupedQuerySubgroupDot
+    | AttentionGroupedQuerySplitSubgroupDot
+    | AttentionGroupedQueryBlockwiseDot => {
       let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
       let group_size = if key_value_heads > 0 {
         query_heads / key_value_heads
@@ -148,6 +177,9 @@ fn attention_candidate_compatible(
       (match candidate.compute {
         AttentionGroupedQuerySubgroupDot =>
           candidate.subgroups_per_block == group_size
+        AttentionGroupedQueryBlockwiseDot =>
+          candidate.subgroups_per_block == group_size &&
+          problem.allow_alternative_softmax_reduction
         AttentionGroupedQuerySplitSubgroupDot =>
           candidate.subgroups_per_block > group_size &&
           candidate.subgroups_per_block % group_size == 0
@@ -241,6 +273,26 @@ pub fn generate_attention_tile_candidates(
     let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
     if key_value_heads > 0 && query_heads % key_value_heads == 0 {
       let query_heads_per_group = query_heads / key_value_heads
+      if problem.allow_alternative_softmax_reduction {
+        for index, keys in [32, 64] {
+          match
+            make_attention_candidate(
+              problem,
+              capabilities,
+              450 + index,
+              AttentionGroupedQueryBlockwiseDot,
+              AttentionStagedShared,
+              1,
+              keys,
+              query_heads_per_group,
+              1,
+              8,
+            ) {
+            Some(candidate) => candidates.push(candidate)
+            None => ()
+          }
+        }
+      }
       if query_heads_per_group > 1 {
         match
           make_attention_candidate(

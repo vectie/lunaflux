@@ -17,6 +17,8 @@ pub fn parse_projection_resource_records(Bytes, scope~ : @resource_policy.Scope)
 
 pub fn parse_projection_tuning_snapshot(Bytes) -> ProjectionTuningSnapshot raise ProjectionTuningError
 
+pub fn projection_resource_selection_scope(Bytes, scope~ : @resource_policy.Scope, max_query_tokens? : Int, max_batch_rows? : Int) -> @resource_policy.Scope raise ProjectionTuningError
+
 // Errors
 pub(all) suberror ProjectionTuningError {
   InvalidSnapshot

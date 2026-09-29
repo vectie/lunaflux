@@ -35,9 +35,14 @@ fn ingress_matrix_projection_source(
     $|      }
     $|      for (int vector = (int)threadIdx.x; vector < \{weight_vectors}; vector += LF_BLOCK_THREADS) {
     $|        const int local_column = vector / \{width / 8}, local_inner = (vector % \{width / 8}) * 8;
-    $|        const __nv_bfloat16 *source = matrix + (unsigned long long)(matrix_head * LF_HEAD_DIM + local_column) * LF_INPUT_WIDTH + offset + local_inner;
+    $|        const int weight_head = head_begin + local_column / LF_HEAD_DIM;
+    $|        const bool valid = weight_head < LF_PACKED_HEADS;
+    $|        const bool query_weight = weight_head < LF_QUERY_HEADS, key_weight = weight_head < LF_QK_HEADS;
+    $|        const int matrix_head = query_weight ? weight_head : (key_weight ? weight_head - LF_QUERY_HEADS : weight_head - LF_QK_HEADS);
+    $|        const __nv_bfloat16 *matrix = query_weight ? q_weight : (key_weight ? k_weight : v_weight);
+    $|        const __nv_bfloat16 *source = valid ? matrix + (unsigned long long)(matrix_head * LF_HEAD_DIM + local_column % LF_HEAD_DIM) * LF_INPUT_WIDTH + offset + local_inner : v_weight;
     $|        const unsigned address = (unsigned)__cvta_generic_to_shared(destination + \{input_elements} + vector * 8);
-    $|        asm volatile("cp.async.cg.shared.global [%0], [%1], 16;" :: "r"(address), "l"(source) : "memory");
+    $|        asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;" :: "r"(address), "l"(source), "r"(valid ? 16 : 0) : "memory");
     $|      }
     $|      asm volatile("cp.async.commit_group;" ::: "memory");
     $|    };
@@ -52,7 +57,7 @@ fn ingress_matrix_projection_source(
     $|        const int column_base = ((window * LF_LIVE_COLUMNS + slot) * LF_WARPS + warp) * 16;
     $|        #pragma unroll
     $|        for (int row_fragment=0; row_fragment<\{row_fragments}; ++row_fragment)
-    $|          if (column_base < LF_HEAD_DIM) nvcuda::wmma::store_matrix_sync(&projected[row_fragment*16][column_base], c[row_fragment][slot], LF_HEAD_DIM, nvcuda::wmma::mem_row_major);
+    $|          if (column_base < LF_PROJECTION_WIDTH) nvcuda::wmma::store_matrix_sync(&projected[row_fragment*16][column_base], c[row_fragment][slot], LF_PROJECTION_WIDTH, nvcuda::wmma::mem_row_major);
     $|      }
     $|    }
     $|

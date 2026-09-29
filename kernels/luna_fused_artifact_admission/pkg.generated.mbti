@@ -117,6 +117,7 @@ pub struct ApprovedReusableFusedRuntimeModule {
 }
 pub fn ApprovedReusableFusedRuntimeModule::first_operation_index(Self) -> Int
 pub fn ApprovedReusableFusedRuntimeModule::function_symbol(Self) -> String
+pub fn ApprovedReusableFusedRuntimeModule::heads_per_cta(Self) -> Int
 pub fn ApprovedReusableFusedRuntimeModule::kernel_abi(Self) -> ReusableFusedRuntimeKernelAbi
 pub fn ApprovedReusableFusedRuntimeModule::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn ApprovedReusableFusedRuntimeModule::module_bytes(Self) -> Bytes
@@ -171,12 +172,13 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   QwenPagedAttentionReadOnlyProductionV2
   QwenPagedAttentionReadOnlyDecodeSplitProductionV3
   PagedAttentionReadOnlyCompilerDecodeProductionV7
+  PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
 } derive(Eq, @debug.Debug)
 
 pub struct ReusableFusedRuntimeModuleInput {
   // private fields
 }
-pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, query_tile_rows? : Int, query_metadata_version? : Int) -> Self raise FusedArtifactAdmissionError
+pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, query_tile_rows? : Int, query_metadata_version? : Int, heads_per_cta? : Int) -> Self raise FusedArtifactAdmissionError
 
 // Type aliases
 

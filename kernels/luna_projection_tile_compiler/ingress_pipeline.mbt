@@ -1,6 +1,6 @@
 ///|
 /// An ingress epilogue observes one complete head, so its materialized operand
-/// product is an independently selected row tile by one complete head.
+/// product is an independently selected row tile by a group of complete heads.
 /// Reuse the same finite ring and ordered fragment fold as ordinary projection.
 fn projection_ingress_pipeline(
   optimized : OptimizedProjectionTileCompilation,
@@ -28,7 +28,7 @@ fn projection_ingress_pipeline(
         tile_count: extent / reduction,
         transfer_width: projection_transfer_width(extent, reduction, 4),
         row_width: rows * request.ingress_row_tiles,
-        output_tiles: spec.head_dimension / columns,
+        output_tiles: spec.head_dimension / columns * request.ingress_head_tiles,
         minimum_rows: 2,
         stages: 2,
         fragments: Some(1),
@@ -37,6 +37,21 @@ fn projection_ingress_pipeline(
       request,
     ),
   )
+}
+
+///|
+/// Pack complete, independent head folds into one producer domain. This only
+/// changes ownership: each head retains its original dot and epilogue order.
+pub fn ProjectionTileCompilerRequest::with_ingress_head_tiles(
+  self : ProjectionTileCompilerRequest,
+  heads : Int,
+) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
+  guard self.epilogue is ProjectionAttentionIngress(spec) &&
+    heads > 0 &&
+    heads <= 2147483647 / spec.head_dimension else {
+    raise InvalidProjectionTileCompilation(InvalidProblem)
+  }
+  { ..self, ingress_head_tiles: heads, }
 }
 
 ///|

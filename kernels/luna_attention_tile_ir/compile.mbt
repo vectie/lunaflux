@@ -148,6 +148,7 @@ fn attention_compute_code(
     AttentionSubgroupDot => 2
     AttentionGroupedQuerySubgroupDot => 3
     AttentionGroupedQuerySplitSubgroupDot => 6
+    AttentionGroupedQueryBlockwiseDot => 7
     AttentionMatrixDot => 4
     AttentionMatrixQkPv => 5
   }
@@ -203,7 +204,9 @@ fn canonical_attention_tile_program(
     "shape=\{query_heads},\{key_value_heads},\{head_dimension},\{tokens_per_page}\n"
   builder <+
     "problem=\{attention_phase_code(problem.phase())},\{attention_numeric_code(problem.numeric_type())},\{problem.batch_rows()},\{query_rows},\{context_tokens},\{problem.is_causal()}\n"
-  if problem.allows_alternative_softmax_reduction() {
+  if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
+    builder <+ "softmax_reduction=blockwise-f32-probability-v1\n"
+  } else if problem.allows_alternative_softmax_reduction() {
     builder <+ "softmax_reduction=alternative-ordered-bf16-v1\n"
   }
   if problem.key_value_read_view() == DenseCurrentAndPagedHistory {

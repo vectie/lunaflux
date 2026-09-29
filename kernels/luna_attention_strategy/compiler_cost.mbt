@@ -32,7 +32,9 @@ fn attention_candidate_online_fold_steps(
   let (_, context) = problem.dimensions()
   let (_, transfer_rows, _) = candidate.tile.dimensions()
   match candidate.compute {
-    AttentionMatrixDot | AttentionMatrixQkPv =>
+    AttentionMatrixDot
+    | AttentionMatrixQkPv
+    | AttentionGroupedQueryBlockwiseDot =>
       attention_ceil_div(context, transfer_rows)
     AttentionGroupedQuerySplitSubgroupDot => {
       let (query_heads, kv_heads, _, _) = problem.shape.dimensions()
@@ -77,6 +79,8 @@ fn attention_candidate_cost_breakdown(
       candidate.subgroups_per_block.to_int64() * 8L
     AttentionGroupedQuerySplitSubgroupDot =>
       candidate.subgroups_per_block.to_int64() * 8L
+    AttentionGroupedQueryBlockwiseDot =>
+      candidate.subgroups_per_block.to_int64() * 8L
     AttentionMatrixDot | AttentionMatrixQkPv =>
       candidate.subgroups_per_block.to_int64() * 64L
   }
@@ -109,7 +113,9 @@ fn attention_candidate_cost_breakdown(
   }
   let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
   let query_head_group = match candidate.compute {
-    AttentionGroupedQuerySubgroupDot | AttentionGroupedQuerySplitSubgroupDot =>
+    AttentionGroupedQuerySubgroupDot
+    | AttentionGroupedQuerySplitSubgroupDot
+    | AttentionGroupedQueryBlockwiseDot =>
       (query_heads / key_value_heads).to_int64()
     AttentionScalarDot
     | AttentionSubgroupDot

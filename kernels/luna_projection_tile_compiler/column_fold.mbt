@@ -122,10 +122,8 @@ pub fn ProjectionTileSchedule::column_fold_plan(
   let column = self.column_fold_axis(ProjectionOutputColumnAxis)
   guard column is Some(column) else { return None }
   let extent = if self.fuse_attention_ingress_epilogue {
-    guard self.column_fold_axis(ProjectionHeadComponentAxis) is Some(head) else {
-      return None
-    }
-    head.extent
+    guard self.matrix_pipeline is Some(pipeline) else { return None }
+    pipeline.output_tiles() * column.tile
   } else {
     column.extent
   }

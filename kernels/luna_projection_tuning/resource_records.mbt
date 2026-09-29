@@ -10,7 +10,11 @@ pub fn parse_projection_resource_records(
   guard bytes.length() <= 1048576 else { raise InvalidSnapshot }
   let text = @utf8.decode(bytes) catch { _ => raise InvalidSnapshot }
   guard text.split("\n").to_array()
-    is ["luna-projection-resources-v1", scope_line, _, .. lines, ""] &&
+    is [version, scope_line, _, .. all_lines, ""] &&
+    (
+      version == "luna-projection-resources-v1" ||
+      version == "luna-projection-resources-v2"
+    ) &&
     scope_line.split("\t").to_array()
     is ["scope", device, toolchain, shape, program] else {
     raise InvalidSnapshot
@@ -22,6 +26,12 @@ pub fn parse_projection_resource_records(
     program=program.to_owned(),
   )
   guard actual == Some(scope) else { raise ScopeMismatch }
+  let selected_scope = projection_resource_selection_scope(bytes, scope~)
+  let lines = if version == "luna-projection-resources-v2" {
+    all_lines[2:]
+  } else {
+    all_lines
+  }
   ignore(parse_projection_resource_budget(bytes))
   guard !lines.is_empty() && lines.length() <= 256 else {
     raise InvalidSnapshot
@@ -37,7 +47,7 @@ pub fn parse_projection_resource_records(
     let identity = (policy.to_owned(), artifact.to_owned())
     guard !identities.contains(identity) else { raise InvalidSnapshot }
     guard @resource_policy.Observation::new(
-        scope,
+        selected_scope,
         policy_id=identity.0,
         artifact=identity.1,
         latency_ns=decimal(latency),
@@ -62,8 +72,11 @@ pub fn parse_projection_resource_budget(
 ) -> @resource_policy.ResourceBudget raise ProjectionTuningError {
   guard bytes.length() <= 1048576 else { raise InvalidSnapshot }
   let text = @utf8.decode(bytes) catch { _ => raise InvalidSnapshot }
-  guard text.split("\n").to_array()
-    is ["luna-projection-resources-v1", _, budget, .., ""] &&
+  guard text.split("\n").to_array() is [version, _, budget, .., ""] &&
+    (
+      version == "luna-projection-resources-v1" ||
+      version == "luna-projection-resources-v2"
+    ) &&
     budget.split("\t").to_array()
     is ["budget", threads, shared, registers, resident] else {
     raise InvalidSnapshot
@@ -78,4 +91,52 @@ pub fn parse_projection_resource_budget(
     raise InvalidSnapshot
   }
   value
+}
+
+///|
+/// V2 contains exactly one timing objective, including actual and captured
+/// bucket geometry. UUID is retained as provenance, never confused with a
+/// performance compatibility class. V1 remains readable as a legacy scope.
+pub fn projection_resource_selection_scope(
+  bytes : Bytes,
+  scope~ : @resource_policy.Scope,
+  max_query_tokens? : Int = 1048576,
+  max_batch_rows? : Int = 1048576,
+) -> @resource_policy.Scope raise ProjectionTuningError {
+  guard bytes.length() <= 1048576 else { raise InvalidSnapshot }
+  let text = @utf8.decode(bytes) catch { _ => raise InvalidSnapshot }
+  match text.split("\n").to_array() {
+    ["luna-projection-resources-v1", .., ""] => scope
+    ["luna-projection-resources-v2", _, _, workload, provenance, .., ""] => {
+      guard workload.split("\t").to_array()
+        is [
+          "workload",
+          phase,
+          queries,
+          rows,
+          history,
+          bucket_queries,
+          bucket_rows,
+        ] &&
+        provenance.split("\t").to_array() is ["provenance", uuid] &&
+        !uuid.is_empty() else {
+        raise InvalidSnapshot
+      }
+      guard @resource_policy.Workload::new(
+          phase=phase.to_owned(),
+          query_tokens=integer(queries),
+          batch_rows=integer(rows),
+          prior_history=if history == "0" { 0 } else { integer(history) },
+          bucket_tokens=integer(bucket_queries),
+          bucket_rows=integer(bucket_rows),
+        )
+        is Some(value) &&
+        value.fits(max_query_tokens~, max_batch_rows~) &&
+        value.scope(scope) is Some(selected) else {
+        raise InvalidSnapshot
+      }
+      selected
+    }
+    _ => raise InvalidSnapshot
+  }
 }

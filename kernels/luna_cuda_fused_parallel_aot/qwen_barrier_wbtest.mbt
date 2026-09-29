@@ -21,7 +21,7 @@ test "ingress tail tiles keep inactive column owners in block barriers" {
     assert_false(source.contains("column_base < LF_HEAD_DIM; column_base +="))
     assert_true(source.contains("cp.async.wait_group 0;"))
     assert_true(source.contains("__syncthreads();"))
-    assert_true(source.contains("if (column_base < LF_HEAD_DIM)"))
+    assert_true(source.contains("if (column_base < LF_PROJECTION_WIDTH)"))
     if @env.get_env_var("LUNA_TEST_EXPORT_INGRESS_BARRIERS") == Some("1") {
       println("LUNA_SOURCE_BEGIN ingress-\{dimension}")
       println(source)

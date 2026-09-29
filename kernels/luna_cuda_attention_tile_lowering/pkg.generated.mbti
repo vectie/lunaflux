@@ -3,6 +3,8 @@ package "vectie/lunaflux/kernels/luna_cuda_attention_tile_lowering"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/attention_physical_ir",
+  "vectie/lunaflux/compiler/physical_tile_ir",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_attention_tile_ir",
@@ -24,6 +26,7 @@ pub(all) enum CudaAttentionComputePrimitive {
   CudaSubgroupShuffleDot
   CudaGroupedQuerySubgroupShuffleDot
   CudaGroupedQuerySplitSubgroupShuffleDot
+  CudaGroupedQueryBlockwiseShuffleDot
   CudaMatrixMultiplyAccumulate
   CudaMatrixQkPvMultiplyAccumulate
 } derive(Eq, @debug.Debug)
@@ -52,6 +55,7 @@ pub fn CudaAttentionTileLowering::optimization_digest(Self) -> @luna_attention_t
 pub fn CudaAttentionTileLowering::phase(Self) -> @luna_attention_strategy.AttentionExecutionPhase
 pub fn CudaAttentionTileLowering::physical_program(Self) -> @luna_attention_tile_schedule.AttentionPhysicalProgram raise CudaAttentionTileLoweringError
 pub fn CudaAttentionTileLowering::pipeline(Self) -> (Int, Int)
+pub fn CudaAttentionTileLowering::prefill_fragments(Self) -> CudaPrefillFragmentBinding?
 pub fn CudaAttentionTileLowering::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn CudaAttentionTileLowering::query_owned_fragments(Self) -> Bool
 pub fn CudaAttentionTileLowering::reads_dense_current_key_value(Self) -> Bool
@@ -73,6 +77,17 @@ pub(all) enum CudaAttentionTileLoweringRule {
   InvalidLaunch
   SharedMemory
 } derive(Eq, @debug.Debug)
+
+pub struct CudaPrefillFragmentBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn CudaPrefillFragmentBinding::equal(Self, Self) -> Bool
+pub fn CudaPrefillFragmentBinding::new(@attention_physical_ir.OnlineFragmentProgram, subgroup_lanes~ : Int, operand_vector_elements~ : Int) -> Self?
+pub fn CudaPrefillFragmentBinding::not_equal(Self, Self) -> Bool
+pub fn CudaPrefillFragmentBinding::program(Self) -> @attention_physical_ir.OnlineFragmentProgram
+pub fn CudaPrefillFragmentBinding::score(Self) -> @physical_tile_ir.FragmentForwarding
+pub fn CudaPrefillFragmentBinding::to_repr(Self) -> @debug.Repr
+pub fn CudaPrefillFragmentBinding::value(Self) -> @physical_tile_ir.FragmentForwarding
 
 // Type aliases
 

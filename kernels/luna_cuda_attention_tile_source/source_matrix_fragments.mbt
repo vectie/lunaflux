@@ -1,7 +1,10 @@
 ///|
 /// CUDA-only register ownership for an ordered BF16 matrix fold. Both shared
 /// layouts are permutations; no extra storage or numerical reassociation.
-fn cuda_attention_matrix_fragments(shared_scores? : Bool = true) -> String {
+fn cuda_attention_matrix_fragments(
+  shared_scores? : Bool = true,
+  forwarded_right? : @luna_cuda_attention_tile_lowering.CudaPrefillFragmentBinding,
+) -> String {
   let storage_index = if shared_scores {
     (
       #|static __device__ __forceinline__ int lf_float_index(int row, int column, int columns) {
@@ -29,14 +32,20 @@ fn cuda_attention_matrix_fragments(shared_scores? : Bool = true) -> String {
     #|  }
     #|  return a;
     #|}
-    #|static __device__ __forceinline__ void lf_matrix_mma(LfMatrixAccumulator &c, const LfMatrixOperand &a, const LfMatrixOperand &b, bool row_b = false) {
-    #|  #pragma unroll
-    #|  for (int half = 0; half < 2; ++half) {
-    #|    float *d = c.x + half * 4;
-    #|    const unsigned b0 = b.x[row_b ? half * 2 : half], b1 = b.x[row_b ? half * 2 + 1 : half + 2];
-    #|    asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(d[0]),"+f"(d[1]),"+f"(d[2]),"+f"(d[3]) : "r"(a.x[0]),"r"(a.x[1]),"r"(a.x[2]),"r"(a.x[3]),"r"(b0),"r"(b1));
-    #|  }
-    #|}
+  let product = match forwarded_right {
+    Some(binding) => cuda_forwarded_matrix_products(binding)
+    None =>
+      (
+        #|static __device__ __forceinline__ void lf_matrix_mma(LfMatrixAccumulator &c, const LfMatrixOperand &a, const LfMatrixOperand &b, bool row_b = false) {
+        #|  #pragma unroll
+        #|  for (int half = 0; half < 2; ++half) {
+        #|    float *d = c.x + half * 4;
+        #|    const unsigned b0 = b.x[row_b ? half * 2 : half], b1 = b.x[row_b ? half * 2 + 1 : half + 2];
+        #|    asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};" : "+f"(d[0]),"+f"(d[1]),"+f"(d[2]),"+f"(d[3]) : "r"(a.x[0]),"r"(a.x[1]),"r"(a.x[2]),"r"(a.x[3]),"r"(b0),"r"(b1));
+        #|  }
+        #|}
+      )
+  }
   let store = if shared_scores {
     (
       #|static __device__ __forceinline__ void lf_matrix_store_float(float *p, int row, int column, int columns, const LfMatrixAccumulator &c) {
@@ -47,7 +56,7 @@ fn cuda_attention_matrix_fragments(shared_scores? : Bool = true) -> String {
   } else {
     ""
   }
-  storage_index + "\n" + fragments + "\n" + store
+  storage_index + "\n" + fragments + "\n" + product + "\n" + store
 }
 
 ///|

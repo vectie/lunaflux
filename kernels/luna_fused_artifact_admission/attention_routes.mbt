@@ -55,6 +55,11 @@ pub fn ApprovedReusableFusedRuntimeBundle::attention_route_scope(
       out.write_string(number.to_string() + ":")
     }
     out.write_string("\n")
+    if module_.heads_per_cta != 1 {
+      out.write_string(
+        "heads_per_cta=" + module_.heads_per_cta.to_string() + "\n",
+      )
+    }
   }
   @crypto.bytes_to_hex_string(@crypto.sha256(@utf8.encode(out.to_string())))
 }

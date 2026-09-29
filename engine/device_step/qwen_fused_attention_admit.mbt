@@ -329,7 +329,9 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module.kernel_abi() ==
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
       decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyCompilerDecodeProductionV7
+      PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
+      decode_module.kernel_abi() ==
+      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
     ) &&
     runtime.qwen_paged_attention_readonly_operation_index()
     is Some(readonly_attention) &&
@@ -382,7 +384,17 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     query_heads % kv_heads == 0 else {
     raise MismatchedFusedGroupedOperation(Launch)
   }
-  let compiler_decode = decode_module.function_symbol() ==
+  let blockwise_decode = decode_module.kernel_abi() ==
+    PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+  if blockwise_decode !=
+    (
+      decode_module.function_symbol() ==
+      "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
+    ) {
+    raise MismatchedFusedGroupedOperation(KernelAbi)
+  }
+  let compiler_decode = blockwise_decode ||
+    decode_module.function_symbol() ==
     "lunaflux_attention_decode_tile_compiler_v1"
   let grouped_decode = compiler_decode &&
     decode_launch.grid_y() == kv_heads &&
@@ -478,7 +490,9 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module.kernel_abi() ==
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
       decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyCompilerDecodeProductionV7
+      PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
+      decode_module.kernel_abi() ==
+      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
     ) &&
     readonly_launch.grid_x() == compiler_prefill_grid &&
     readonly_launch.shared_memory_bytes() > 0 &&
@@ -521,13 +535,14 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   let ingress_heads = query_heads + 2 * kv_heads
   let ingress_head_groups = postprocess.launch_dimensions().grid_y()
   let valid_ingress_head_groups = if includes_projection {
-    ingress_head_groups == ingress_heads
+    ingress_head_groups == (ingress_heads - 1) / postprocess.heads_per_cta() + 1
   } else {
     @luna_cuda_qknorm_rope_paged_kv_write_aot.supports_production_head_group_count(
       ingress_heads, ingress_head_groups,
     )
   }
   guard maximum_tokens >= maximum_rows &&
+    (!blockwise_decode || grouped_decode) &&
     valid_prefill_launch &&
     readonly_launch.grid_y() == query_heads &&
     readonly_launch.grid_z() == 1 &&

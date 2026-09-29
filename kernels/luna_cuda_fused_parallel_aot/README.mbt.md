@@ -9,7 +9,7 @@ This package emits two offline, deterministic, candidate-only CUDA families:
 The Qwen full-ingress CUDA lowering consumes a backend-neutral functional
 projection schedule. When that schedule hoists the rotary inverse-frequency
 basis and fuses paired rotary evaluation, the lowerer materializes the basis as
-an AOT CUDA constant table and emits one paired `sincosf` evaluation per rotary
+an AOT read-only CUDA table and emits one paired `sincosf` evaluation per rotary
 pair. No runtime `powf` remains in this path, and model or compiler-middle-end
 code does not name CUDA storage classes or intrinsics.
 
@@ -60,5 +60,33 @@ program: selected column window, operand ownership/layout, matrix fragment
 lifetime, scalar fold and numerical epilogue. The source and recipe consume
 that same program; neither independently reconstructs its column-fold plan.
 An incompatible refinement raises the existing typed compiler-policy error.
-Digest regressions preserve complete pre-refactor ingress sources for three
+Digest regressions track deterministic complete ingress sources for three
 head dimensions and three token bounds, including production forms.
+
+## Packed complete-head producer and row-scoped rotary reuse
+
+`Policy.head_tiles` is an offline, backend-neutral ownership choice. The pure
+`AttentionIngressPacking` plan maps producer columns to Q/K/V operand rows,
+gives masked tails no store authority, and retains the explicit
+prepare-row / consume-complete-heads / retire-row rotary lifetime. CUDA lowers
+that plan to one input-tile traversal shared by the retained local head domain
+and one lane-owned rotary preparation reused across its Q/K heads. Each head
+still uses the original BF16 rounding points and ordered normalization tree;
+the scalar single-token law is unchanged.
+
+The AOT frontier includes one, two and four heads per CTA, live accumulator
+windows of one, two, four and eight, and the existing row/transfer/stage choices.
+Packed producer and epilogue storage participate in the same resource bound;
+for example head-128/h4 is rejected by the current 48 KiB shared limit while
+head-128/h2 is available. More heads without enough live columns cause multiple
+producer windows, so packing alone is not a claim of fewer input loads. Defaults
+remain h1 until an exact target/workload measurement selects another candidate.
+Recipes export `heads_per_cta`; grid Y is the ceiling of packed heads divided by
+that field, not a guessed multiplicity from launch geometry.
+
+`ingress_packing_export_wbtest.mbt` exports head-64/h1,h2,h4 with Q6/K3 and
+head-128/h1,h2 with Q1/K1. `benchmarks/gpu_pipeline/ingress_packing_probe.cu`
+checks distinct segment/head/component weights, row tails, segment-crossing
+groups, a masked final head, reversed page tables, exact KV/output agreement,
+and untouched cache locations. Hardware execution/sanitizer and timing remain
+separate required checks; these compiler tests do not claim physical speedup.

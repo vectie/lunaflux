@@ -10,6 +10,9 @@ pub(all) enum AttentionTileCompute {
   /// Multiple subgroups cooperate on each query head while the complete GQA
   /// group shares one K/V tile.
   AttentionGroupedQuerySplitSubgroupDot
+  /// Tile-local F32 max/probabilities followed by one state merge per tile.
+  /// This is deliberately not the ordered per-key recurrence.
+  AttentionGroupedQueryBlockwiseDot
   AttentionMatrixDot
   AttentionMatrixQkPv
 } derive(Debug, Eq)

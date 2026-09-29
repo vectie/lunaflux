@@ -52,6 +52,20 @@ pub fn AttentionIngressNumerics::group_heads(Self, heads~ : Int, workgroup_lanes
 pub fn AttentionIngressNumerics::rotary_basis(Self) -> ReadOnlyArray[Float]
 pub fn AttentionIngressNumerics::shape(Self) -> (Int, Int)
 
+pub struct AttentionIngressPacking {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AttentionIngressPacking::canonical_bytes(Self) -> Bytes
+pub fn AttentionIngressPacking::effects(Self) -> ReadOnlyArray[AttentionIngressReuseEffect]
+pub fn AttentionIngressPacking::geometry(Self) -> (Int, Int, Int, Int)
+pub fn AttentionIngressPacking::weight_row(Self, Int, Int) -> (Int, Int)?
+
+pub(all) enum AttentionIngressReuseEffect {
+  PrepareRowRotary
+  ConsumeCompleteHeads
+  RetireRowRotary
+} derive(Eq, @debug.Debug)
+
 pub struct OptimizedProjectionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -84,6 +98,7 @@ pub struct ProjectionAttentionIngressEpilogue {
 pub fn ProjectionAttentionIngressEpilogue::new(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, norm_epsilon~ : Double, rope_theta~ : Double) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::numeric_parameters(Self) -> (Double, Double)
 pub fn ProjectionAttentionIngressEpilogue::numerics(Self, reduction_lanes~ : Int) -> AttentionIngressNumerics raise ProjectionTileCompilerError
+pub fn ProjectionAttentionIngressEpilogue::packing(Self, heads_per_group~ : Int, reduction_lanes~ : Int) -> AttentionIngressPacking raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::shape(Self) -> (Int, Int, Int)
 
 pub struct ProjectionColumnFoldPlan {
@@ -319,6 +334,7 @@ pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ 
 pub fn ProjectionTileCompilerRequest::with_concatenated_weights(Self, ArrayView[Int]) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_fold_choices(Self, ArrayView[ProjectionFoldChoice]) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_fold_pipeline(Self, ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::with_ingress_head_tiles(Self, Int) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_ingress_row_tiles(Self, Int) -> Self raise ProjectionTileCompilerError
 
 pub(all) enum ProjectionTileCompilerRule {

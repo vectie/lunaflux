@@ -23,12 +23,16 @@ fn qwen_default_ingress_policy(
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
 ) -> @resource_policy.Policy {
   let pipeline = compilation.schedule().matrix_pipeline().unwrap()
+  guard compilation.program().epilogue() is ProjectionAttentionIngress(epilogue) else {
+    abort("ingress policy requires complete-head epilogue")
+  }
   qwen_ingress_policy(
     2,
     pipeline.stage_count(),
     pipeline.transfer_width() / pipeline.tile_width(),
     pipeline.fragment_stage_count(),
     rows=pipeline.row_width() / pipeline.tile_width(),
+    heads=pipeline.output_tiles() * pipeline.tile_width() / epilogue.shape().2,
   )
 }
 
@@ -39,16 +43,19 @@ fn qwen_ingress_policy(
   tiles : Int,
   fragments : Int,
   rows? : Int = 1,
+  heads? : Int = 1,
 ) -> @resource_policy.Policy {
   @resource_policy.Policy::new(
     id="ingress-g4-a\{live}-s\{stages}-t\{tiles}-f\{fragments}" +
-      (if rows == 1 { "" } else { "-r\{rows}" }),
+      (if rows == 1 { "" } else { "-r\{rows}" }) +
+      (if heads == 1 { "" } else { "-h\{heads}" }),
     consumer_groups=4,
     live_accumulators=live,
     operand_stages=stages,
     transfer_tiles=tiles,
     fragment_stages=fragments,
     row_tiles=rows,
+    head_tiles=heads,
   ).unwrap()
 }
 
@@ -65,37 +72,43 @@ pub fn qwen_ingress_policies(
     return []
   }
   let policies = [qwen_default_ingress_policy(compilation)]
-  let head = pipeline.output_tiles().to_int64() * 16L
+  guard compilation.program().epilogue() is ProjectionAttentionIngress(epilogue) else {
+    return []
+  }
+  let head = epilogue.shape().2.to_int64()
   // These are this backend's realizable finite-ring choices, not universal IR
   // constants or asserted profitability thresholds. Measurements choose them.
-  for rows in [1, 2, 4, 8] {
-    for stages in 2..<=4 {
-      for tiles in [1, 2, 4, 8, 16] {
-        if pipeline.tile_count() % tiles != 0 ||
-          pipeline.tile_count() / tiles < stages {
-          continue
-        }
-        let row_width = rows.to_int64() * pipeline.tile_width().to_int64()
-        let shared = (row_width + head) *
-          pipeline.tile_width().to_int64() *
-          tiles.to_int64() *
-          stages.to_int64() *
-          2L +
-          row_width * head * 4L
-        if shared > 49152L {
-          continue
-        }
-        for fragments in 1..<=Int::min(2, tiles) {
-          for live in 1..<=2 {
-            let policy = qwen_ingress_policy(
-              live,
-              stages,
-              tiles,
-              fragments,
-              rows~,
-            )
-            if !policies.contains(policy) {
-              policies.push(policy)
+  for heads in [1, 2, 4] {
+    for rows in [1, 2, 4, 8] {
+      for stages in 2..<=4 {
+        for tiles in [1, 2, 4, 8, 16] {
+          if pipeline.tile_count() % tiles != 0 ||
+            pipeline.tile_count() / tiles < stages {
+            continue
+          }
+          let row_width = rows.to_int64() * pipeline.tile_width().to_int64()
+          let shared = (row_width + head * heads.to_int64()) *
+            pipeline.tile_width().to_int64() *
+            tiles.to_int64() *
+            stages.to_int64() *
+            2L +
+            row_width * head * heads.to_int64() * 4L
+          if shared > 49152L {
+            continue
+          }
+          for fragments in 1..<=Int::min(2, tiles) {
+            for live in [1, 2, 4, 8] {
+              let policy = qwen_ingress_policy(
+                live,
+                stages,
+                tiles,
+                fragments,
+                rows~,
+                heads~,
+              )
+              if !policies.contains(policy) {
+                policies.push(policy)
+              }
             }
           }
         }
@@ -144,7 +157,8 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::resource_candidate(
 ) -> @resource_policy.Candidate {
   let q = self.qualification
   let pipeline = q.tile_compilation.schedule().matrix_pipeline().unwrap()
-  let head = q.semantic.attention_shape().2.to_int64()
+  let head = pipeline.output_tiles().to_int64() *
+    pipeline.tile_width().to_int64()
   let shared = (pipeline.row_width().to_int64() + head) *
     pipeline.transfer_width().to_int64() *
     pipeline.stage_count().to_int64() *

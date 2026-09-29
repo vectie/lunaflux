@@ -31,18 +31,71 @@ pub fn parse_attention_tuning_records(
     raise InvalidTable
   }
   let text = @utf8.decode(bytes) catch { _ => raise InvalidTable }
-  guard text.split("\n").to_array()
-    is ["luna-attention-tuning-v1", actual_scope, .. lines, ""] &&
+  guard text.split("\n").to_array() is [version, actual_scope, .. lines, ""] &&
+    (
+      version == "luna-attention-tuning-v1" ||
+      version == "luna-attention-tuning-v2"
+    ) &&
     actual_scope == "scope\t" + scope else {
     raise InvalidTable
   }
   let records : Array[@strategy.AttentionAutotuneRecord] = []
   let mut workloads = 0
+  let mut provenance = false
   let mut sample_count : Int? = None
   for line in lines {
     match line.split("\t").to_array() {
+      ["workload", phase, queries, rows, history, bucket_queries, bucket_rows] => {
+        guard version == "luna-attention-tuning-v2" &&
+          workloads == 0 &&
+          records.is_empty() else {
+          raise InvalidTable
+        }
+        let expected_phase = match problem.phase() {
+          Prefill => "prefill"
+          Decode => "decode"
+          MixedCompatibility => "mixed"
+        }
+        if phase != expected_phase {
+          raise InvalidTable
+        }
+        let q = positive(queries)
+        let r = positive(rows)
+        let h = if history == "0" { 0L } else { positive(history) }
+        let bq = positive(bucket_queries)
+        let br = positive(bucket_rows)
+        guard q <= 1048576L &&
+          r <= q &&
+          h <= 1048576L &&
+          // Compiler query_rows may be tile count (prefill) or per-row
+          // query count (decode), not flattened launch tokens.
+          bq <= 1048576L &&
+          br <= bq &&
+          @resource_policy.Workload::new(
+            phase=phase.to_owned(),
+            query_tokens=q.to_int(),
+            batch_rows=r.to_int(),
+            prior_history=h.to_int(),
+            bucket_tokens=bq.to_int(),
+            bucket_rows=br.to_int(),
+          )
+          is Some(_) else {
+          raise InvalidTable
+        }
+        workloads = 1
+      }
+      ["provenance", uuid] => {
+        guard version == "luna-attention-tuning-v2" &&
+          workloads == 1 &&
+          !provenance &&
+          records.is_empty() &&
+          !uuid.is_empty() else {
+          raise InvalidTable
+        }
+        provenance = true
+      }
       ["workload", queries, rows, history] => {
-        if !records.is_empty() {
+        if version != "luna-attention-tuning-v1" || !records.is_empty() {
           raise InvalidTable
         }
         let q = positive(queries)
@@ -54,7 +107,9 @@ pub fn parse_attention_tuning_records(
         workloads += 1
       }
       ["record", id, latency, samples] => {
-        if workloads == 0 || records.length() >= 4096 {
+        if workloads == 0 ||
+          records.length() >= 4096 ||
+          (version == "luna-attention-tuning-v2" && !provenance) {
           raise InvalidTable
         }
         let id = positive(id)

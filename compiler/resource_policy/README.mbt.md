@@ -16,3 +16,13 @@ Absent measurements never become a claimed optimal winner. Backend defaults can
 preserve previously qualified geometry while making that status explicit. The
 selected value is retained by physical refinement; this is not a token-path
 autotuner, JIT, global cache or runtime interpreter.
+
+`Workload` adds actual query/row/history and captured bucket geometry to a
+scope. Selecting one cell cannot consume a different cell's measurements; the
+maximum artifact envelope is not interchangeable with a small runtime bucket.
+New offline tables use a declared performance compatibility class in the device
+slot and retain physical UUID separately as provenance. A class must cover
+hardware resources (SM count, caches, memory class) and clock/power configuration,
+not merely instruction-set compatibility. Toolchain, program, numeric/layout
+contract and generated source identity remain exact. This does not assert
+performance portability or require every physical GPU to be retuned.

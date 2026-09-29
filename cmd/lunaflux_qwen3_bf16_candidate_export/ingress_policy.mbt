@@ -75,6 +75,14 @@ fn select_qwen_ingress_resource_variant(
   ) catch {
     _ => raise QwenIngressPreparation
   }
+  let scope = @luna_projection_tuning.projection_resource_selection_scope(
+    bytes,
+    scope~,
+    max_query_tokens=baseline.profile().max_query_tokens(),
+    max_batch_rows=baseline.profile().max_query_rows(),
+  ) catch {
+    _ => raise QwenIngressPreparation
+  }
   let budget = @luna_cuda_fused_parallel_aot.qwen_ingress_resource_budget().intersect(
     @luna_projection_tuning.parse_projection_resource_budget(bytes) catch {
       _ => raise QwenIngressPreparation

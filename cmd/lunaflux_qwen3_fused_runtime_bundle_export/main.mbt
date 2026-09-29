@@ -21,6 +21,8 @@ priv struct ModuleLaunchInput {
 priv struct RuntimeBundleArguments {
   ingress_selection : IngressSelectionBasis
   ingress_query_tile_rows : Int?
+  ingress_heads_per_cta : Int?
+  blockwise_decode : Bool
   query_metadata : Bool
   model_content : String
   model_plan : String
@@ -388,6 +390,8 @@ fn parse_arguments(
     model_plan,
     ingress_selection: ConservativeUnmeasured,
     ingress_query_tile_rows: None,
+    ingress_heads_per_cta: None,
+    blockwise_decode: false,
     residual,
     ingress,
     attention_prefill,
@@ -583,10 +587,18 @@ async fn run(
   )
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=PagedAttentionReadOnlyCompilerDecodeProductionV7,
+      abi=if args.blockwise_decode {
+        PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+      } else {
+        PagedAttentionReadOnlyCompilerDecodeProductionV7
+      },
       first_operation=args.attention_read.first_operation,
       operation_count=1,
-      function_symbol="lunaflux_attention_decode_tile_compiler_v1",
+      function_symbol=if args.blockwise_decode {
+        "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
+      } else {
+        "lunaflux_attention_decode_tile_compiler_v1"
+      },
       launch=launch_dimensions(args.attention_read),
       module_bytes=attention_bytes,
     ) catch {
