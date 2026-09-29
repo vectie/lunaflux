@@ -1,0 +1,119 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn collect(
+  root : String,
+  name : String,
+  command : String,
+  args : Array[String],
+) -> String {
+  let result = @shell.Cmd(command, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, matched, previous] else {
+    fail("ROOT MATCHED_BASE PREVIOUS_LUNA")
+  }
+  let serving = root + "/serving"
+  guard @fs.read_file(serving + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("incomplete serving")
+  }
+  for
+    (name, source) in [
+      ("old", previous + "/bench-luna-full"),
+      ("vllm", matched + "/bench-vllm"),
+      ("sglang", matched + "/bench-sglang"),
+    ] {
+    @shell.Cmd("cp", ["-a", source, serving + "/bench-" + name]).run()
+  }
+  let moon = root + "/toolchain/bin/moon"
+  println(
+    collect(root, "summary", moon, [
+      "run",
+      serving + "/summarize.mbtx",
+      serving,
+      "luna-full",
+      "old",
+      "vllm",
+      "sglang",
+    ]),
+  )
+  for baseline in ["old", "vllm", "sglang"] {
+    println(
+      collect(root, "agreement-" + baseline, moon, [
+        "run",
+        serving + "/compare-outputs.mbtx",
+        serving,
+        "luna-full",
+        baseline,
+      ]),
+    )
+  }
+  let samples = @fs.read_file(serving + "/memory-samples.txt").text()
+  let available : Array[Int64] = []
+  for line in samples.split("\n") {
+    if line.is_empty() {
+      continue
+    }
+    guard line.split(" ").to_array() is [_, value] else {
+      fail("memory sample")
+    }
+    available.push(@string.parse_int64(value))
+  }
+  available.sort()
+  @fs.write_file(
+    root + "/memory-summary.txt",
+    "minimum_available_kib=\{available[0]}\nreserve_kib=33554432\n",
+    create_mode=CreateNew,
+  )
+  println("minimum_available_kib=\{available[0]}")
+  ignore(
+    collect(root, "gpu-final", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]),
+  )
+  @fs.write_file(
+    root + "/comparison-scope.txt",
+    "current_source=8f87f6d8\nold_luna=" +
+    previous +
+    "\nbaselines=" +
+    matched +
+    "\nbaselines_rerun=false\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("tar", [
+    "-czf",
+    root + "/results.tar.gz",
+    "--exclude=_build",
+    "--exclude=.mooncakes",
+    "--exclude=results.tar.gz",
+    "-C",
+    root,
+    ".",
+  ]).run()
+  println(
+    collect(root, "results-sha256", "sha256sum", [root + "/results.tar.gz"]),
+  )
+}

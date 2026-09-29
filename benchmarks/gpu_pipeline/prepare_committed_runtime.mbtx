@@ -1,0 +1,40 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, archive] else {
+    fail("MATCHED_BASE NEW_ROOT COMMITTED_SOURCE_ARCHIVE")
+  }
+  // Reuse only the documented Spark portability substitutions. Never copy
+  // previously compiled executables into a current-source benchmark.
+  let setup = @fs.read_file(base + "/setup.mbtx")
+    .text()
+    .replace(old="root + \"/source-d13ac969.tar\"", new="\"" + archive + "\"")
+  @fs.write_file(root + "/setup.mbtx", setup, create_mode=CreateNew)
+  @shell.Cmd(base + "/toolchain/bin/moon", ["run", root + "/setup.mbtx", root]).run()
+  for name in ["candidate", "fused-full", "release"] {
+    @shell.Cmd("ln", ["-s", base + "/" + name, root + "/" + name]).run()
+  }
+  for
+    name in [
+      "bind.stdout", "prepare-spark.mbtx", "measure.mbtx", "benchmark.mbtx", "summarize.mbtx",
+      "compare-outputs.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/BUILD_RESULT.txt",
+    "outcome=passed\n",
+    create_mode=CreateNew,
+  )
+}

@@ -1,0 +1,162 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  command : String,
+  args : Array[String],
+) -> Unit {
+  let result = @shell.Cmd(command, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, root] else {
+    fail("COMPLETED_SERVING NEW_EMPTY_ROOT")
+  }
+  guard @fs.read_file(serving + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("finish unprofiled benchmark first")
+  }
+  let gpu = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
+  for entry in ["source", "toolchain", "deployment", "capacity.json"] {
+    @shell.Cmd("ln", ["-s", serving + "/" + entry, root + "/" + entry]).run()
+  }
+  @fs.write_file(
+    root + "/prepare-full.mbtx",
+    @fs.read_file(serving + "/prepare-full.mbtx"),
+    create_mode=CreateNew,
+  )
+  let client = @fs.read_file(serving + "/benchmark.mbtx")
+    .text()
+    .replace(old="[(128,32),(4096,64),(4096,256)]", new="[(4096,4)]")
+    .replace(old="[1,8,16]", new="[1,16]")
+    .replace(old="0..<4", new="0..<1")
+  @fs.write_file(root + "/client.mbtx", client, create_mode=CreateNew)
+  let moon = root + "/toolchain/bin/moon"
+  let unit = "lunaflux-allnew-trace-" +
+    root.split("/").to_array().last().unwrap().to_owned()
+  let units = [unit + "-bridge.service", unit + "-serve.service"]
+  errdefer ignore(@shell.Cmd("systemctl", ["--user", "stop"] + units).output())
+  @shell.Cmd("systemd-run", [
+    "--user",
+    "--unit=" + unit + "-serve",
+    "--property=MemoryMax=64G",
+    "--property=MemorySwapMax=0",
+    "--property=RuntimeMaxSec=600",
+    "/usr/local/bin/nsys",
+    "profile",
+    "--trace=cuda",
+    "--sample=none",
+    "--cpuctxsw=none",
+    "--cuda-graph-trace=node",
+    "--trace-fork-before-exec=true",
+    "--wait=all",
+    "-o",
+    root + "/trace",
+    moon,
+    "run",
+    root + "/prepare-full.mbtx",
+    root,
+    "serve",
+  ]).run()
+  @shell.Cmd("systemd-run", [
+    "--user",
+    "--unit=" + unit + "-bridge",
+    "--property=MemoryMax=64G",
+    "--property=MemorySwapMax=0",
+    "--property=RuntimeMaxSec=600",
+    moon,
+    "run",
+    root + "/prepare-full.mbtx",
+    root,
+    "bridge",
+  ]).run()
+  let mut ready = false
+  for _ in 0..<180 {
+    let result = @shell.Cmd("ss", ["-ltnH", "sport", "=", ":5061"]).output()
+    if result.exit_code() == 0 && !result.stdout().trim().is_empty() {
+      ready = true
+      break
+    }
+    @async.sleep(1000)
+  }
+  guard ready else { fail("trace runtime readiness") }
+  capture(root, "client", moon, [
+    "run",
+    root + "/client.mbtx",
+    "luna-full",
+    root + "/requests",
+  ])
+  capture(root, "drain", moon, [
+    "run",
+    root + "/prepare-full.mbtx",
+    root,
+    "drain",
+  ])
+  @shell.Cmd("systemctl", ["--user", "stop", unit + "-bridge.service"]).run()
+  let mut finished = false
+  for _ in 0..<120 {
+    let state = @shell.Cmd("systemctl", [
+      "--user",
+      "is-active",
+      unit + "-serve.service",
+    ]).output()
+    if state.stdout().trim() != "active" && @fs.exists(root + "/trace.nsys-rep") {
+      finished = true
+      break
+    }
+    @async.sleep(1000)
+  }
+  guard finished else { fail("trace did not finish") }
+  capture(root, "export", "/usr/local/bin/nsys", [
+    "export",
+    "--type=sqlite",
+    "--output=" + root + "/trace.sqlite",
+    root + "/trace.nsys-rep",
+  ])
+  capture(root, "selected-kernels", "sqlite3", [
+    "-header",
+    "-csv",
+    root + "/trace.sqlite",
+    "SELECT s.value AS kernel,k.gridX,k.gridY,k.blockX,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.blockX ORDER BY total_ms DESC;",
+  ])
+  let kernels = @fs.read_file(root + "/selected-kernels.stdout").text()
+  guard kernels.contains(
+      "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1",
+    ) &&
+    kernels.contains(
+      "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
+    ) else {
+    fail("new kernel absent from actual serving launches")
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=profiled-selection-not-latency-benchmark\n",
+    create_mode=CreateNew,
+  )
+  println(kernels)
+}

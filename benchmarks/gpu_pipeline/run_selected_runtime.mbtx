@@ -50,6 +50,39 @@ async fn main {
   guard @fs.read_file(calibration + "/RESULT.txt").text() == "outcome=passed\n" else {
     fail("calibration incomplete")
   }
+  let all_new = @fs.exists(calibration + "/selection-plan.txt")
+  if all_new {
+    assert_eq(
+      @fs.read_file(
+        calibration + "/selected/reusable-qwen-prefill-attention/kernel.cu",
+      ).text(),
+      @fs.read_file(
+        calibration +
+        "/selected/reusable-qwen-prefill-wide-query-attention/kernel.cu",
+      ).text(),
+    )
+    let ingress = @fs.read_file(
+      calibration + "/selected/reusable-qwen-full-ingress/kernel.recipe",
+    ).text()
+    let decode = @fs.read_file(
+      calibration + "/selected/reusable-qwen-decode-attention/kernel.recipe",
+    ).text()
+    guard (
+        ingress.contains("\nheads_per_cta=2\n") ||
+        ingress.contains("\nheads_per_cta=4\n")
+      ) &&
+      decode.contains(
+        "function_symbol=lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1\n",
+      ) &&
+      decode.contains("numeric_law=blockwise-f32-probability-v1\n") else {
+      fail("all-new selection was not retained in AOT recipes")
+    }
+    @fs.write_file(
+      root + "/selection-plan.txt",
+      @fs.read_file(calibration + "/selection-plan.txt"),
+      create_mode=CreateNew,
+    )
+  }
   let gpu = @shell.Cmd("nvidia-smi", [
     "--query-compute-apps=pid", "--format=csv,noheader",
   ]).output()
@@ -108,6 +141,18 @@ async fn main {
     root,
     "fused",
   ])
+  if all_new {
+    let bundle = @fs.read_file(root + "/fused/reusable-fused-runtime-bundle.v3").text()
+    guard bundle.contains("heads_per_cta=2\n") ||
+      bundle.contains("heads_per_cta=4\n") else {
+      fail("head packing lost while packaging runtime bundle")
+    }
+    guard bundle.contains(
+      "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1\n",
+    ) else {
+      fail("blockwise decode lost while packaging runtime bundle")
+    }
+  }
   checked(root, "probe-build", "/usr/local/cuda/bin/nvcc", [
     "-O3",
     "-arch=sm_121",
@@ -122,6 +167,7 @@ async fn main {
     (kind, directory, module_) in [
       ("ingress", "reusable-qwen-full-ingress", "ingress"),
       ("prefill", "reusable-qwen-prefill-attention", "prefill"),
+      ("decode", "reusable-qwen-decode-attention", "attention"),
     ] {
     for
       (version, candidates, binaries) in [
@@ -151,7 +197,11 @@ async fn main {
         calibration + "/" + kind + ".spec",
         root + "/" + kind + "-baseline",
         root + "/" + kind + "-selected",
-        "129",
+        if kind == "decode" {
+          "8"
+        } else {
+          "129"
+        },
         "8",
         "2048",
         "--check-only",

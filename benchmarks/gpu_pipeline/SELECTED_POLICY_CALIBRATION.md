@@ -38,3 +38,29 @@ prove a whole-serving winner. Run matched complete serving chains for finalists
 and keep their request mix/output length/concurrency explicit. No chain cost
 can be inferred by summing these isolated kernel medians. Hardware calibration
 and end-to-end comparison remain required before any speed claim.
+
+## Explicit all-new experiment
+
+`prepare_committed_runtime.mbtx MATCHED_BASE NEW_ROOT COMMITTED_SOURCE_ARCHIVE`
+rebuilds serving executables from the committed archive, retaining the matched
+campaign's documented Spark target substitutions, model and baseline kernels.
+It never substitutes old runtime executables for a current-source build.
+
+An optional `--all-new-finalists` suffix on calibration bounds the experiment
+to the ingress reference, previous row-packed winner and legal packed-head
+policies. The filter accepts `-f1-h2`, not only IDs ending in `-f1` or `-f1-rN`.
+All attention/decode candidates and all ten cells are still measured.
+
+`select_all_new.mbtx CALIBRATION NEW_EMPTY_ROOT PREFILL_CELL DECODE_CELL`
+selects the fastest **eligible new-family** ingress, fragment-forwarded prefill
+and blockwise decode candidate from those named cells. It retains the original
+records and export report verbatim. `selection-plan.txt` is the explicit
+experimental override; this is not an unconstrained winner or automatic
+cross-cell dispatch. Existing aliases are preserved under `default-*` in the
+new output. A slower new-family result must be published as a regression.
+
+The serving runner checks packed-head and blockwise identities both in recipes
+and in the final runtime bundle. Differential/oracle and memcheck/racecheck/
+synccheck coverage includes the exact packaged decode cubin as well as ingress
+and prefill. Serving remains sequential, with a 32-GiB available-memory reserve
+and 64-GiB per-unit memory ceilings.

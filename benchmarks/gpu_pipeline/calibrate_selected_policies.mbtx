@@ -86,7 +86,13 @@ async fn compile(
     run(root, "compile-" + name, nvcc, [
       "-O3",
       "-arch=" + field(recipe, "target"),
+      "--std=c++14",
       "--fmad=false",
+      "--ftz=false",
+      "--prec-div=true",
+      "--prec-sqrt=true",
+      "--Werror",
+      "all-warnings",
       "--maxrregcount=" + field(recipe, "max_registers"),
       "-Xptxas=-v",
       "-cubin",
@@ -156,11 +162,23 @@ async fn measure(
 ///|
 async fn main {
   guard @env.args()
-    is [_, base, root, probe_source, performance_class, selected_cell] else {
+    is [
+      _,
+      base,
+      root,
+      probe_source,
+      performance_class,
+      selected_cell,
+      .. options,
+    ] else {
     fail(
       "BENCHMARK_ROOT NEW_EMPTY_ROOT PROBE_SOURCE PERFORMANCE_CLASS SELECTED_CELL (e.g. prefill-q2048-r8-h2048); class must include SM/cache/memory and clock/power policy, not UUID or ISA alone",
     )
   }
+  guard options.is_empty() || options == ["--all-new-finalists"] else {
+    fail("optional mode: --all-new-finalists")
+  }
+  let all_new_finalists = !options.is_empty()
   guard performance_class.has_prefix("perf-v1:") &&
     performance_class.length() <= 512 &&
     !performance_class.contains("\t") &&
@@ -282,7 +300,17 @@ async fn main {
     if !(id.contains("-s2-") &&
       id.has_prefix("ingress-g4-") &&
       (id.contains("-t1-") || id.contains("-t2-") || id.contains("-t4-")) &&
-      (id.has_suffix("-f1") || id.contains("-f1-r"))) {
+      (id.has_suffix("-f1") || id.contains("-f1-"))) {
+      continue
+    }
+    // Bounded all-new experiment: retain the measured reference and previous
+    // row-packed winner, plus legal head-packed producer/consumer windows.
+    // This is an explicit experiment subset, not a universal tuning rule.
+    if all_new_finalists &&
+      id != field(exported, "ingress_policy_selected") &&
+      id != "ingress-g4-a2-s2-t2-f1-r2" &&
+      !id.has_suffix("-h2") &&
+      !id.has_suffix("-h4") {
       continue
     }
     compile(root, id, directory.to_owned(), nvcc)
