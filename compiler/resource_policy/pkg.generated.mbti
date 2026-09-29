@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/resource_policy"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn select(Scope, ResourceBudget, ArrayView[Candidate], ArrayView[Observation], preferred_id~ : String) -> Selection?
+
+// Errors
+
+// Types and methods
+pub struct Candidate {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Candidate::equal(Self, Self) -> Bool
+pub fn Candidate::new(Policy, artifact~ : String, threads~ : Int, shared_bytes~ : Int64, registers_per_thread~ : Int?, resident_groups~ : Int?) -> Self?
+pub fn Candidate::not_equal(Self, Self) -> Bool
+pub fn Candidate::to_repr(Self) -> @debug.Repr
+
+pub struct Observation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Observation::equal(Self, Self) -> Bool
+pub fn Observation::new(Scope, policy_id~ : String, artifact~ : String, latency_ns~ : Int64, samples~ : Int, registers_per_thread~ : Int, resident_groups~ : Int) -> Self?
+pub fn Observation::not_equal(Self, Self) -> Bool
+pub fn Observation::to_repr(Self) -> @debug.Repr
+
+pub struct Policy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Policy::consumer_groups(Self) -> Int
+pub fn Policy::equal(Self, Self) -> Bool
+pub fn Policy::fragment_stages(Self) -> Int
+pub fn Policy::id(Self) -> String
+pub fn Policy::live_accumulators(Self) -> Int
+pub fn Policy::new(id~ : String, consumer_groups~ : Int, live_accumulators~ : Int, operand_stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self?
+pub fn Policy::not_equal(Self, Self) -> Bool
+pub fn Policy::operand_stages(Self) -> Int
+pub fn Policy::to_repr(Self) -> @debug.Repr
+pub fn Policy::transfer_tiles(Self) -> Int
+
+pub struct ResourceBudget {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ResourceBudget::equal(Self, Self) -> Bool
+pub fn ResourceBudget::intersect(Self, Self) -> Self
+pub fn ResourceBudget::new(max_threads~ : Int, max_shared_bytes~ : Int64, max_registers_per_thread~ : Int?, min_resident_groups~ : Int?) -> Self?
+pub fn ResourceBudget::not_equal(Self, Self) -> Bool
+pub fn ResourceBudget::to_repr(Self) -> @debug.Repr
+
+pub struct Scope {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Scope::equal(Self, Self) -> Bool
+pub fn Scope::identity(Self) -> (String, String, String, String)
+pub fn Scope::new(device~ : String, toolchain~ : String, shape~ : String, program~ : String) -> Self?
+pub fn Scope::not_equal(Self, Self) -> Bool
+pub fn Scope::to_repr(Self) -> @debug.Repr
+
+pub struct Selection {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Selection::artifact(Self) -> String
+pub fn Selection::equal(Self, Self) -> Bool
+pub fn Selection::not_equal(Self, Self) -> Bool
+pub fn Selection::origin(Self) -> SelectionOrigin
+pub fn Selection::policy(Self) -> Policy
+pub fn Selection::to_repr(Self) -> @debug.Repr
+
+pub(all) enum SelectionOrigin {
+  Measured(latency_ns~ : Int64, samples~ : Int)
+  UnmeasuredPreferred
+  UnmeasuredEligible
+} derive(Eq, @debug.Debug)
+pub fn SelectionOrigin::equal(Self, Self) -> Bool
+pub fn SelectionOrigin::not_equal(Self, Self) -> Bool
+pub fn SelectionOrigin::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,159 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/elementwise_physical_ir"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/physical_tile_ir",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum IngressEffect {
+  LoadHead
+  PublishHead
+  NormalizeRotateQueryKey
+  StoreActivationAndCache
+  RetireHead
+} derive(Eq, @debug.Debug)
+pub fn IngressEffect::equal(Self, Self) -> Bool
+pub fn IngressEffect::not_equal(Self, Self) -> Bool
+pub fn IngressEffect::to_repr(Self) -> @debug.Repr
+
+pub struct IngressProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn IngressProgram::effects(Self) -> ReadOnlyArray[IngressEffect]
+pub fn IngressProgram::equal(Self, Self) -> Bool
+pub fn IngressProgram::geometry(Self) -> (Int, Int, Int)
+pub fn IngressProgram::new(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, owners~ : Int) -> Self?
+pub fn IngressProgram::not_equal(Self, Self) -> Bool
+pub fn IngressProgram::ownership(Self) -> @physical_tile_ir.VectorOwnership
+pub fn IngressProgram::to_repr(Self) -> @debug.Repr
+
+pub(all) enum KvWriteEffect {
+  StoreKey
+  StoreValue
+} derive(Eq, @debug.Debug)
+pub fn KvWriteEffect::equal(Self, Self) -> Bool
+pub fn KvWriteEffect::not_equal(Self, Self) -> Bool
+pub fn KvWriteEffect::to_repr(Self) -> @debug.Repr
+
+pub struct KvWriteProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn KvWriteProgram::effects(Self) -> ReadOnlyArray[KvWriteEffect]
+pub fn KvWriteProgram::equal(Self, Self) -> Bool
+pub fn KvWriteProgram::geometry(Self) -> (Int, Int, Int64)
+pub fn KvWriteProgram::new(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, page_stride_bytes~ : Int64, element_bytes~ : Int, owners~ : Int) -> Self?
+pub fn KvWriteProgram::not_equal(Self, Self) -> Bool
+pub fn KvWriteProgram::ownership(Self) -> @physical_tile_ir.VectorOwnership
+pub fn KvWriteProgram::to_repr(Self) -> @debug.Repr
+
+pub(all) enum NormalizationPrepare {
+  LoadInput
+  AddResidual
+  RoundBf16
+  AccumulateSquare
+} derive(Eq, @debug.Debug)
+pub fn NormalizationPrepare::equal(Self, Self) -> Bool
+pub fn NormalizationPrepare::not_equal(Self, Self) -> Bool
+pub fn NormalizationPrepare::to_repr(Self) -> @debug.Repr
+
+pub struct NormalizationProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn NormalizationProgram::equal(Self, Self) -> Bool
+pub fn NormalizationProgram::geometry(Self) -> (Int, Int, Int)
+pub fn NormalizationProgram::new(width~ : Int, owners~ : Int, subgroup_lanes~ : Int, residual~ : Bool, owner_tree? : Bool) -> Self?
+pub fn NormalizationProgram::not_equal(Self, Self) -> Bool
+pub fn NormalizationProgram::partial_count(Self) -> Int
+pub fn NormalizationProgram::preparation(Self) -> ReadOnlyArray[NormalizationPrepare]
+pub fn NormalizationProgram::reduction(Self) -> ReadOnlyArray[ReductionEffect]
+pub fn NormalizationProgram::to_repr(Self) -> @debug.Repr
+pub fn NormalizationProgram::values_per_owner(Self) -> Int
+
+pub(all) enum ReductionEffect {
+  ReduceSubgroup
+  PublishPartials
+  SynchronizeOwners
+  ReducePartials
+  PublishTotal
+  ReduceOwnerTree(Int)
+} derive(Eq, @debug.Debug)
+pub fn ReductionEffect::equal(Self, Self) -> Bool
+pub fn ReductionEffect::not_equal(Self, Self) -> Bool
+pub fn ReductionEffect::to_repr(Self) -> @debug.Repr
+
+pub struct RotaryProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RotaryProgram::equal(Self, Self) -> Bool
+pub fn RotaryProgram::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn RotaryProgram::new(width~ : Int, query_heads~ : Int, key_heads~ : Int, head_dimension~ : Int, owners~ : Int) -> Self?
+pub fn RotaryProgram::not_equal(Self, Self) -> Bool
+pub fn RotaryProgram::to_repr(Self) -> @debug.Repr
+pub fn RotaryProgram::work_per_token(Self) -> Int
+
+pub(all) enum SelectionEffect {
+  ScanOwnedValues
+  PublishOwnerSummaries
+  SynchronizeSelection
+  ReduceOwnerSummaries(Int)
+  ReduceSubgroupSummaries(Int)
+  PublishSubgroupSummaries
+  ReducePublishedSubgroups(Int)
+  StoreSelection
+} derive(Eq, @debug.Debug)
+pub fn SelectionEffect::equal(Self, Self) -> Bool
+pub fn SelectionEffect::not_equal(Self, Self) -> Bool
+pub fn SelectionEffect::to_repr(Self) -> @debug.Repr
+
+pub struct SelectionProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SelectionProgram::effects(Self) -> ReadOnlyArray[SelectionEffect]
+pub fn SelectionProgram::equal(Self, Self) -> Bool
+pub fn SelectionProgram::geometry(Self) -> (Int, Int, Int)
+pub fn SelectionProgram::new(values~ : Int, owners~ : Int, subgroup_lanes~ : Int, reduction~ : SelectionReduction) -> Self?
+pub fn SelectionProgram::not_equal(Self, Self) -> Bool
+pub fn SelectionProgram::prefers(Self, Double, Int, Double, Int) -> Bool
+pub fn SelectionProgram::to_repr(Self) -> @debug.Repr
+
+pub(all) enum SelectionReduction {
+  OwnerTree
+  SubgroupTree
+} derive(Eq, @debug.Debug)
+pub fn SelectionReduction::equal(Self, Self) -> Bool
+pub fn SelectionReduction::not_equal(Self, Self) -> Bool
+pub fn SelectionReduction::to_repr(Self) -> @debug.Repr
+
+pub(all) enum StochasticFinalStep {
+  OrderedSoftmax
+  RequireFiniteMass
+  MinimalProbabilityPrefix
+  SumRetainedMass
+  CounterDraw
+  OrderedInverseCdf
+  PublishSample
+} derive(Eq, @debug.Debug)
+pub fn StochasticFinalStep::equal(Self, Self) -> Bool
+pub fn StochasticFinalStep::not_equal(Self, Self) -> Bool
+pub fn StochasticFinalStep::to_repr(Self) -> @debug.Repr
+
+pub struct StochasticProgram {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StochasticProgram::equal(Self, Self) -> Bool
+pub fn StochasticProgram::final_steps(Self) -> ReadOnlyArray[StochasticFinalStep]
+pub fn StochasticProgram::maximum_top_k(Self) -> Int
+pub fn StochasticProgram::new(values~ : Int, owners~ : Int, subgroup_lanes~ : Int, maximum_top_k~ : Int) -> Self?
+pub fn StochasticProgram::not_equal(Self, Self) -> Bool
+pub fn StochasticProgram::selection(Self) -> SelectionProgram
+pub fn StochasticProgram::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

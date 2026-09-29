@@ -1,0 +1,104 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/fusion_regions"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn select_partition(ArrayView[PartitionAlternative], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> Int raise FusionRegionError
+
+pub fn select_regions(Graph, ArrayView[Candidate], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> Selection raise FusionRegionError
+
+// Errors
+pub(all) suberror FusionRegionError {
+  InvalidGraph
+  InvalidRegion
+  MissingExport
+  EffectBoundary
+  InvalidPartition
+  InvalidCost
+  InvalidComparison
+  NoFeasiblePartition
+} derive(Eq, @debug.Debug)
+pub fn FusionRegionError::equal(Self, Self) -> Bool
+pub fn FusionRegionError::not_equal(Self, Self) -> Bool
+pub fn FusionRegionError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct Candidate {
+  // private fields
+}
+pub fn Candidate::new(id~ : Int, Region, Cost, workspace_bytes~ : Int64, local_bytes~ : Int64) -> Self raise FusionRegionError
+
+pub struct Cost {
+  // private fields
+} derive(Eq)
+pub fn Cost::basis(Self) -> CostBasis
+pub fn Cost::equal(Self, Self) -> Bool
+pub fn Cost::estimated(nanoseconds~ : Int64) -> Self raise FusionRegionError
+pub fn Cost::measured(nanoseconds~ : Int64, samples~ : Int) -> Self raise FusionRegionError
+pub fn Cost::nanoseconds(Self) -> Int64
+pub fn Cost::not_equal(Self, Self) -> Bool
+
+pub(all) enum CostBasis {
+  Measured
+  Estimated
+} derive(Eq, @debug.Debug)
+pub fn CostBasis::equal(Self, Self) -> Bool
+pub fn CostBasis::not_equal(Self, Self) -> Bool
+pub fn CostBasis::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Effect {
+  Pure
+  Ordered
+  Boundary
+} derive(Eq, @debug.Debug)
+pub fn Effect::equal(Self, Self) -> Bool
+pub fn Effect::not_equal(Self, Self) -> Bool
+pub fn Effect::to_repr(Self) -> @debug.Repr
+
+pub struct Graph {
+  // private fields
+} derive(Eq)
+pub fn Graph::equal(Self, Self) -> Bool
+pub fn Graph::new(ArrayView[Node]) -> Self raise FusionRegionError
+pub fn Graph::node_count(Self) -> Int
+pub fn Graph::not_equal(Self, Self) -> Bool
+
+pub struct Node {
+  // private fields
+} derive(Eq)
+pub fn Node::equal(Self, Self) -> Bool
+pub fn Node::new(ArrayView[Int], observable~ : Bool, effect~ : Effect) -> Self
+pub fn Node::not_equal(Self, Self) -> Bool
+
+pub struct Partition {
+  // private fields
+}
+pub fn Partition::new(Graph, ArrayView[Region]) -> Self raise FusionRegionError
+pub fn Partition::regions(Self) -> ReadOnlyArray[Region]
+
+pub struct PartitionAlternative {
+  // private fields
+}
+pub fn PartitionAlternative::new(id~ : Int, Partition, Cost, workspace_bytes~ : Int64, local_bytes~ : Int64) -> Self raise FusionRegionError
+
+pub struct Region {
+  // private fields
+}
+pub fn Region::effect_order(Self) -> ReadOnlyArray[Int]
+pub fn Region::exports(Self) -> ReadOnlyArray[Int]
+pub fn Region::new(Graph, start~ : Int, count~ : Int, ArrayView[Int]) -> Self raise FusionRegionError
+pub fn Region::span(Self) -> (Int, Int)
+
+pub struct Selection {
+  // private fields
+}
+pub fn Selection::cost(Self) -> Cost
+pub fn Selection::implementation_ids(Self) -> ReadOnlyArray[Int]
+pub fn Selection::partition(Self) -> Partition
+
+// Type aliases
+
+// Traits
