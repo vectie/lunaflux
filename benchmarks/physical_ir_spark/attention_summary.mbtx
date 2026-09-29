@@ -1,0 +1,50 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+fn median(xs : Array[Double]) -> Double {
+  let copy = xs.copy()
+  copy.sort()
+  copy[copy.length() / 2]
+}
+
+async fn main {
+  guard @env.args() is [_, root] else { fail("CAMPAIGN_LOG_DIR") }
+  assert_true(@fs.read_file(root + "/RESULT.txt").text().contains("outcome=passed"))
+  let samples : Map[String, Array[Double]] = Map([])
+  let cases : Array[String] = []
+  for trial in 0..<3 {
+    for version in ["old", "new"] {
+      let stem = root + "/trial-\{trial}-" + version
+      assert_eq(@fs.read_file(stem + ".exit").text(), "0")
+      for line in @fs.read_file(stem + ".stdout").text().split("\n") {
+        if !line.has_prefix("benchmark_case=") { continue }
+        let fields : Map[String, String] = Map([])
+        for field in line.split(" ") {
+          if field.split("=").to_array() is [key, value] {
+            fields[key.to_owned()] = value.to_owned()
+          }
+        }
+        let name = fields["benchmark_case"]
+        let key = version + ":" + name
+        if !samples.contains(key) { samples[key] = [] }
+        samples[key].push(@string.parse_double(fields["median_microseconds"]))
+        if trial == 0 && version == "old" { cases.push(name) }
+      }
+    }
+  }
+  println("| Case | HEAD µs | Current µs | Current / HEAD |")
+  println("| --- | ---: | ---: | ---: |")
+  for name in cases {
+    let old = samples["old:" + name]
+    let current = samples["new:" + name]
+    assert_eq(old.length(), 3)
+    assert_eq(current.length(), 3)
+    let a = median(old)
+    let b = median(current)
+    println("| \{name} | \{a} | \{b} | \{b / a} |")
+  }
+}

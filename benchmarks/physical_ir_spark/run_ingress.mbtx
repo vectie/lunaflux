@@ -1,0 +1,211 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let socket = "/tmp/lunaflux-spark178-20260929.sock"
+
+///|
+let host = "wlc003s@192.168.2.178"
+
+///|
+async fn ssh(args : Array[String]) -> String {
+  let (code, out, err) = @process.collect_output(
+    "ssh",
+    ["-o", "BatchMode=yes", "-S", socket, host] + args,
+  )
+  assert_eq(code, 0, msg=err.text())
+  out.text()
+}
+
+///|
+async fn idle() -> Unit {
+  assert_true(
+    ssh(["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"])
+    .trim()
+    .is_empty(),
+    msg="GPU occupied",
+  )
+  let memory = ssh(["cat", "/proc/meminfo"])
+  let available = memory
+    .split("\n")
+    .filter(line => line.has_prefix("MemAvailable:"))
+    .to_array()
+    .get(0)
+  guard available is Some(line) else { fail("missing MemAvailable") }
+  let fields = line.split(" ").filter(x => !x.is_empty()).to_array()
+  assert_true(
+    @string.parse_int64(fields[1].to_owned()) >= 32L * 1024L * 1024L,
+    msg="less than 32 GiB available",
+  )
+}
+
+///|
+async fn run(logs : String, label : String, command : Array[String]) -> Unit {
+  let invocation = [
+      "systemd-run", "--user", "--wait", "--pipe", "--collect", "-p", "MemoryMax=8G",
+      "-p", "MemorySwapMax=0", "-p", "TasksMax=64", "-p", "RuntimeMaxSec=180", "--",
+      "/usr/bin/time", "-v",
+    ] +
+    command
+  @fs.write_file(
+    logs + "/" + label + ".command",
+    invocation.join(" ") + "\n",
+    create_mode=CreateNew,
+  )
+  let (code, out, err) = @process.collect_output(
+    "ssh",
+    ["-o", "BatchMode=yes", "-S", socket, host] + invocation,
+  )
+  @fs.write_file(logs + "/" + label + ".stdout", out, create_mode=CreateNew)
+  @fs.write_file(logs + "/" + label + ".stderr", err, create_mode=CreateNew)
+  @fs.write_file(
+    logs + "/" + label + ".exit",
+    code.to_string(),
+    create_mode=CreateNew,
+  )
+  assert_eq(code, 0, msg=label + ": " + out.text() + err.text())
+  println(label + " passed")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("LOCAL_PREPARED_ROOT") }
+  let logs = root + "/ingress-timing-campaign"
+  @fs.mkdir(logs)
+  let payload = logs + "/payload"
+  @fs.mkdir(payload)
+  @fs.write_file(
+    payload + "/ingress_pair.cu",
+    @fs.read_file("benchmarks/physical_ir_spark/ingress_pair.cu"),
+    create_mode=CreateNew,
+  )
+  for dimension in [16, 32, 64, 128] {
+    let name = dimension.to_string()
+    @fs.mkdir(payload + "/" + name)
+    for version in ["baseline", "current"] {
+      let source = @fs.read_file(
+        root + "/" + version + "-ingress-final/ingress-" + name + ".cu",
+      ).text()
+      @fs.write_file(
+        payload + "/" + name + "/" + version + ".cu",
+        source,
+        create_mode=CreateNew,
+      )
+      if version == "current" {
+        let header = source
+          .split("\n")
+          .filter(line => line.has_prefix("#define LF_"))
+          .map(line => line.to_owned())
+          .to_array()
+          .join("\n")
+        @fs.write_file(
+          payload + "/" + name + "/ingress_shape.h",
+          header + "\n",
+          create_mode=CreateNew,
+        )
+      }
+    }
+  }
+  idle()
+  @fs.write_file(
+    logs + "/memory-before.txt",
+    ssh(["cat", "/proc/meminfo"]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/gpu.csv",
+    ssh([
+      "nvidia-smi", "--query-gpu=name,uuid,driver_version,compute_cap", "--format=csv,noheader",
+    ]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/nvcc.txt",
+    ssh(["/usr/local/cuda/bin/nvcc", "--version"]),
+    create_mode=CreateNew,
+  )
+  let remote = ssh(["mktemp", "-d", "/tmp/lunaflux-ingress-timing.XXXXXXXX"])
+    .trim()
+    .to_owned()
+  @fs.write_file(
+    logs + "/remote-path.txt",
+    remote + "\n",
+    create_mode=CreateNew,
+  )
+  let (code, _, err) = @process.collect_output("scp", [
+    "-o",
+    "ControlPath=" + socket,
+    "-r",
+    payload,
+    host + ":" + remote + "/",
+  ])
+  assert_eq(code, 0, msg=err.text())
+  let artifacts = [remote + "/payload/ingress_pair.cu"]
+  for dimension in [16, 32, 64, 128] {
+    let name = dimension.to_string()
+    let path = remote + "/payload/" + name
+    for version in ["baseline", "current"] {
+      run(logs, "build-" + name + "-" + version, [
+        "/usr/local/cuda/bin/nvcc",
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        "-cubin",
+        path + "/" + version + ".cu",
+        "-o",
+        path + "/" + version + ".cubin",
+      ])
+      artifacts.push(path + "/" + version + ".cu")
+      artifacts.push(path + "/" + version + ".cubin")
+    }
+    run(logs, "build-driver-" + name, [
+      "/usr/local/cuda/bin/nvcc",
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      "-I" + path,
+      remote + "/payload/ingress_pair.cu",
+      "-lcuda",
+      "-o",
+      path + "/probe",
+    ])
+    artifacts.push(path + "/ingress_shape.h")
+    artifacts.push(path + "/probe")
+    idle()
+    run(logs, "timing-" + name, [
+      path + "/probe",
+      path + "/baseline.cubin",
+      path + "/current.cubin",
+    ])
+  }
+  idle()
+  @fs.write_file(
+    logs + "/memory-after.txt",
+    ssh(["cat", "/proc/meminfo"]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/ARTIFACTS.sha256",
+    ssh(["sha256sum"] + artifacts),
+    create_mode=CreateNew,
+  )
+  let (download_code, _, download_error) = @process.collect_output("scp", [
+    "-o",
+    "ControlPath=" + socket,
+    "-r",
+    host + ":" + remote,
+    logs + "/remote-artifacts",
+  ])
+  assert_eq(download_code, 0, msg=download_error.text())
+  @fs.write_file(
+    logs + "/RESULT.txt",
+    "outcome=passed\npaired_trials=3\nscope=bounded full-ingress kernel portability diagnostic, not serving\n",
+    create_mode=CreateNew,
+  )
+}

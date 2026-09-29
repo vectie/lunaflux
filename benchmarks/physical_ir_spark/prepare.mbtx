@@ -1,0 +1,86 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn checked(
+  program : String,
+  args : Array[String],
+  cwd : String,
+) -> String {
+  let (code, out, err) = @process.collect_output(program, args, cwd~)
+  assert_eq(code, 0, msg=err.text())
+  out.text()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, revision, phase] else {
+    fail("ABSOLUTE_OUTPUT BASELINE_REVISION baseline|current")
+  }
+  let repo = checked("git", ["rev-parse", "--show-toplevel"], ".")
+    .trim()
+    .to_owned()
+  let tree = if phase == "baseline" {
+    @fs.mkdir(root + "/baseline")
+    ignore(
+      checked("git", ["archive", revision, "-o", root + "/baseline.tar"], repo),
+    )
+    ignore(
+      checked(
+        "tar",
+        ["-xf", root + "/baseline.tar", "-C", root + "/baseline"],
+        repo,
+      ),
+    )
+    ignore(
+      checked(
+        "ln",
+        ["-s", repo + "/.mooncakes", root + "/baseline/.mooncakes"],
+        repo,
+      ),
+    )
+    root + "/baseline"
+  } else if phase == "current" {
+    repo
+  } else {
+    fail("invalid phase")
+  }
+  let destination = root + "/" + phase + "-sources"
+  @fs.mkdir(destination)
+  for family in ["qkv", "output", "head", "mlp"] {
+    let options = if family == "mlp" { [] } else { ["--", family] }
+    let source = checked(
+      "moon",
+      [
+        "run", "--target", "native", "tests/projection_pipeline_cuda_source_probe",
+      ] +
+      options,
+      tree,
+    )
+    @fs.write_file(
+      destination + "/" + family + ".cu",
+      source,
+      create_mode=CreateNew,
+    )
+  }
+  for name in ["matrix_fold.cu", "fold_pipeline.cu"] {
+    @fs.write_file(
+      destination + "/" + name,
+      @fs.read_file(repo + "/benchmarks/gpu_pipeline/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    destination + "/scope.txt",
+    "Production source exporter fixtures retain their sm120/CUDA13.1 policy. Physical diagnostic recompilation uses GB10 sm121/CUDA13.0 and does not grant target-specific runtime admission. Baseline=" +
+    revision +
+    "; current includes all uncommitted source changes, not an architecture-only causal experiment.\n",
+    create_mode=CreateNew,
+  )
+  println(destination)
+}

@@ -1,0 +1,58 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, logs] else { fail("CAMPAIGN_LOG_DIRECTORY") }
+  println(
+    "| Kernel | Tokens | Before median μs [min,max] | Current median μs [min,max] | Before/current |",
+  )
+  println("| --- | ---: | ---: | ---: | ---: |")
+  for family in ["qkv", "output", "head", "mlp"] {
+    for tokens in [1, 8, 32, 128, 129, 1024, 2048] {
+      let raw = @fs.read_file(
+        logs + "/" + family + "-t" + tokens.to_string() + ".stdout",
+      ).text()
+      for part in (if family == "mlp" { [1, 2, 0] } else { [-1] }) {
+        let before : Array[Double] = []
+        let after : Array[Double] = []
+        for line in raw.split("\n") {
+          if !line.contains("old_us=") ||
+            (part >= 0 && !line.contains("part=" + part.to_string() + " ")) {
+            continue
+          }
+          let fields : Map[String, String] = Map([])
+          for field in line.split(" ") {
+            let pair = field.split("=").to_array()
+            if pair.length() == 2 {
+              fields[pair[0].to_owned()] = pair[1].to_owned()
+            }
+          }
+          before.push(@string.parse_double(fields["old_us"]))
+          after.push(@string.parse_double(fields["new_us"]))
+        }
+        assert_eq(before.length(), 5)
+        assert_eq(after.length(), 5)
+        before.sort()
+        after.sort()
+        let name = if part == 1 {
+          "gate/up"
+        } else if part == 2 {
+          "down"
+        } else if part == 0 {
+          "MLP chain"
+        } else {
+          family
+        }
+        println(
+          "| \{name} | \{tokens} | \{before[2]} [\{before[0]},\{before[4]}] | \{after[2]} [\{after[0]},\{after[4]}] | \{before[2] / after[2]} |",
+        )
+      }
+    }
+  }
+}

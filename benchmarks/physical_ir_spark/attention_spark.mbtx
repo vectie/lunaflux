@@ -1,0 +1,103 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+fn quote(value : String) -> String {
+  "'" + value.replace(old="'", new="'\"'\"'") + "'"
+}
+
+async fn record(root : String, label : String, executable : String,
+  args : Array[String], cwd? : StringView) -> String {
+  @fs.write_file(root + "/" + label + ".command.json",
+    Json([executable] + args).stringify(), create_mode=CreateNew)
+  let (code, out, err) = @process.collect_output(executable, args, cwd?)
+  @fs.write_file(root + "/" + label + ".stdout", out, create_mode=CreateNew)
+  @fs.write_file(root + "/" + label + ".stderr", err, create_mode=CreateNew)
+  @fs.write_file(root + "/" + label + ".exit", code.to_string(), create_mode=CreateNew)
+  guard code == 0 else { fail(label + ": " + err.text() + out.text()) }
+  println(label + " passed")
+  out.text()
+}
+
+async fn main {
+  match @env.args() {
+    [_, "prepare" | "prepare-long" as mode, repo, output, candidate] => {
+      @fs.mkdir(output)
+      // Only the diagnostic fixture changes in the disposable HEAD checkout;
+      // baseline production compiler packages remain the archived commit.
+      if mode == "prepare-long" {
+        @fs.write_file(repo + "/tests/attention_tile_cuda_source_probe/main.mbt",
+          @fs.read_file("tests/attention_tile_cuda_source_probe/main.mbt"))
+      }
+      let source = record(output, "export", "moon", ["run", "--target-dir", output + "/build", "--target", "native",
+        "tests/attention_tile_cuda_source_probe", "--", candidate] +
+        (if mode == "prepare-long" { ["bounded-long"] } else { [] }), cwd=repo)
+      @fs.write_file(output + "/generated_attention_tile.cu", source, create_mode=CreateNew)
+      @fs.write_file(output + "/probe.cu",
+        @fs.read_file("tests/attention_tile_cuda_source_probe/probe.cu"), create_mode=CreateNew)
+    }
+    [_, "run" | "run-long" as mode, old, current, remote, logs, socket] => {
+      for source in [old, current] {
+        ignore(@fs.read_file(source + "/generated_attention_tile.cu"))
+        ignore(@fs.read_file(source + "/probe.cu"))
+      }
+      @fs.mkdir(logs)
+      let host = "wlc004s@192.168.2.179"
+      let ssh = ["-S", socket, "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host]
+      let remote_run = async fn(label : String, args : Array[String]) -> String {
+        record(logs, label, "ssh", ssh + [args.map(quote).join(" ")])
+      }
+      let check_idle = async fn(label : String) -> Unit {
+        let idle = remote_run(label + "-gpu", ["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"])
+        assert_true(idle.trim().is_empty(), msg="GPU is in use")
+        let memory = remote_run(label + "-memory", ["cat", "/proc/meminfo"])
+        let available = memory.split("\n").filter(s => s.has_prefix("MemAvailable:")).to_array()
+        guard available is [line] else { fail("missing MemAvailable") }
+        let fields = line.split(" ").filter(s => !s.is_empty()).to_array()
+        guard fields is [_, value, "kB"] else { fail("invalid MemAvailable") }
+        assert_true(@string.parse_int64(value) >= 33554432L, msg="less than 32GiB available")
+      }
+      let bounded = async fn(label : String, args : Array[String]) -> String {
+        remote_run(label, ["systemd-run", "--user", "--wait", "--pipe",
+          "-p", "MemoryMax=8G", "-p", "MemorySwapMax=0",
+          "-p", "TasksMax=128", "-p", "RuntimeMaxSec=240", "--", "/usr/bin/time", "-v"] + args)
+      }
+      check_idle("before")
+      ignore(remote_run("identity", ["nvidia-smi", "--query-gpu=name,uuid,driver_version,temperature.gpu,clocks.sm", "--format=csv"]))
+      ignore(remote_run("compiler", ["/usr/local/cuda/bin/nvcc", "--version"]))
+      ignore(remote_run("mkdir", ["mkdir", remote + "/old", remote + "/new"]))
+      for (name, source) in [("old", old), ("new", current)] {
+        ignore(record(logs, "upload-" + name, "scp", ["-o", "ControlPath=" + socket,
+          source + "/generated_attention_tile.cu", source + "/probe.cu", host + ":" + remote + "/" + name + "/"]))
+        ignore(bounded("build-" + name, ["/usr/local/cuda/bin/nvcc", "-O3", "-arch=sm_121"] +
+          (if mode == "run-long" { ["-DLF_LONG_PROBE"] } else { [] }) + [
+          "--fmad=false", "-lineinfo", remote + "/" + name + "/probe.cu", "-o", remote + "/" + name + "/probe"]))
+      }
+      for trial in 0..<3 {
+        for name in (if trial % 2 == 0 { ["old", "new"] } else { ["new", "old"] }) {
+          check_idle("trial-\{trial}-" + name)
+          ignore(bounded("trial-\{trial}-" + name, [remote + "/" + name + "/probe"]))
+        }
+      }
+      if mode == "run" {
+        ignore(bounded("build-sanitizer", ["/usr/local/cuda/bin/nvcc", "-O3", "-arch=sm_121",
+        "--fmad=false", "-lineinfo", "-DLF_BOUNDED_SANITIZER", "-DLF_SKIP_BENCHMARK",
+        remote + "/new/probe.cu", "-o", remote + "/new/sanitize"]))
+        for tool in ["memcheck", "racecheck", "synccheck"] {
+        check_idle(tool)
+        ignore(bounded(tool, ["/usr/local/cuda/bin/compute-sanitizer", "--tool", tool,
+          "--error-exitcode", "9", remote + "/new/sanitize"]))
+        }
+      }
+      check_idle("after")
+      @fs.write_file(logs + "/RESULT.txt", "outcome=passed\nscope=standalone attention fixed schedule sm121; not serving admission\n",
+        create_mode=CreateNew)
+    }
+    _ => fail("prepare REPO NEW_OUTPUT CANDIDATE | run OLD NEW REMOTE_EMPTY_DIR NEW_LOGS SOCKET")
+  }
+}

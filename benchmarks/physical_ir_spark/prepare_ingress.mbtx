@@ -1,0 +1,28 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  guard @env.args() is [_, root, tree, label] else {
+    fail("OUTPUT_ROOT SOURCE_TREE baseline|current")
+  }
+  let output = root + "/" + label + "-ingress-final"
+  @fs.mkdir(output)
+  let (code, stdout, stderr) = @process.collect_output("moon", ["test", "kernels/luna_cuda_fused_parallel_aot/qwen_barrier_wbtest.mbt", "--target", "native", "--warn-list", "-79-25"], cwd=tree, extra_env={"LUNA_TEST_EXPORT_INGRESS_BARRIERS": "1"})
+  @fs.write_file(output + "/export.stdout", stdout, create_mode=CreateNew)
+  @fs.write_file(output + "/export.stderr", stderr, create_mode=CreateNew)
+  assert_eq(code, 0, msg=stderr.text())
+  for dimension in [16, 32, 64, 128] {
+    let parts = stdout.text().split("LUNA_SOURCE_BEGIN ingress-" + dimension.to_string() + "\n").to_array()
+    assert_eq(parts.length(), 2)
+    let source = parts[1].split("LUNA_SOURCE_END").to_array()[0].to_owned()
+    @fs.write_file(output + "/ingress-" + dimension.to_string() + ".cu", source, create_mode=CreateNew)
+    let probe = @fs.read_file(tree + "/tests/fused_ingress_barrier_cuda/probe.cu").text().replace(old="#include KERNEL_SOURCE", new="#include \"ingress-" + dimension.to_string() + ".cu\"")
+    @fs.write_file(output + "/probe-" + dimension.to_string() + ".cu", probe, create_mode=CreateNew)
+  }
+  @fs.write_file(output + "/probe.cu", @fs.read_file(tree + "/tests/fused_ingress_barrier_cuda/probe.cu"), create_mode=CreateNew)
+  println(output)
+}

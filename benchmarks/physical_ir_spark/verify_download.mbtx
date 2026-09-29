@@ -1,0 +1,26 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  guard @env.args() is [_, logs] else { fail("CAMPAIGN_LOG_DIRECTORY") }
+  let remote = @fs.read_file(logs + "/remote-path.txt").text().trim().to_owned()
+  let lines = @fs.read_file(logs + "/ARTIFACTS.sha256").text()
+  let verified = StringBuilder()
+  for line in lines.split("\n") {
+    if line.is_empty() { continue }
+    let fields = line.split("  ").to_array()
+    assert_eq(fields.length(), 2)
+    assert_true(fields[1].has_prefix(remote + "/"))
+    let local_path = fields[1].to_owned().replace(old=remote, new=logs + "/remote-artifacts")
+    let (code, out, err) = @process.collect_output("shasum", ["-a", "256", local_path])
+    assert_eq(code, 0, msg=err.text())
+    assert_eq(out.text().split(" ").to_array()[0], fields[0])
+    verified.write_string(out.text())
+  }
+  @fs.write_file(logs + "/LOCAL_ARTIFACTS.sha256", verified.to_string(), create_mode=CreateNew)
+  println("Downloaded source and binary hashes match")
+}

@@ -1,0 +1,47 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, logs] else { fail("INGRESS_TIMING_LOG_DIRECTORY") }
+  println(
+    "| Head dimension | Tokens | Before median μs [min,max] | Current median μs [min,max] | Before/current |",
+  )
+  println("| ---: | ---: | ---: | ---: | ---: |")
+  for dimension in [16, 32, 64, 128] {
+    let name = dimension.to_string()
+    assert_eq(@fs.read_file(logs + "/timing-" + name + ".exit").text(), "0")
+    let raw = @fs.read_file(logs + "/timing-" + name + ".stdout").text()
+    for tokens in [1, 2, 7, 8, 15, 16, 17, 31, 32] {
+      let before : Array[Double] = []
+      let after : Array[Double] = []
+      for line in raw.split("\n") {
+        if !line.contains(" tokens=" + tokens.to_string() + " ") {
+          continue
+        }
+        assert_true(line.contains("bitwise=true scalar=passed kv=passed"))
+        let fields : Map[String, String] = Map([])
+        for field in line.split(" ") {
+          let pair = field.split("=").to_array()
+          if pair.length() == 2 {
+            fields[pair[0].to_owned()] = pair[1].to_owned()
+          }
+        }
+        before.push(@string.parse_double(fields["old_us"]))
+        after.push(@string.parse_double(fields["new_us"]))
+      }
+      assert_eq(before.length(), 3)
+      assert_eq(after.length(), 3)
+      before.sort()
+      after.sort()
+      println(
+        "| \{dimension} | \{tokens} | \{before[1]} [\{before[0]},\{before[2]}] | \{after[1]} [\{after[0]},\{after[2]}] | \{before[1] / after[1]} |",
+      )
+    }
+  }
+}

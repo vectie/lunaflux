@@ -1,0 +1,275 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let socket = "/tmp/lunaflux-spark178-20260929.sock"
+
+///|
+let host = "wlc003s@192.168.2.178"
+
+///|
+async fn ssh(args : Array[String]) -> String {
+  let (code, out, err) = @process.collect_output(
+    "ssh",
+    ["-o", "BatchMode=yes", "-S", socket, host] + args,
+  )
+  assert_eq(code, 0, msg=err.text())
+  out.text()
+}
+
+///|
+async fn idle() -> Unit {
+  assert_true(
+    ssh(["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"])
+    .trim()
+    .is_empty(),
+    msg="GPU occupied: refusing concurrent run",
+  )
+  let memory = ssh(["cat", "/proc/meminfo"])
+  let available = memory
+    .split("\n")
+    .filter(line => line.has_prefix("MemAvailable:"))
+    .to_array()
+    .get(0)
+  guard available is Some(line) else { fail("missing MemAvailable") }
+  let fields = line.split(" ").filter(x => !x.is_empty()).to_array()
+  assert_true(
+    @string.parse_int64(fields[1].to_owned()) >= 32L * 1024L * 1024L,
+    msg="less than 32 GiB available",
+  )
+}
+
+///|
+async fn run(logs : String, label : String, command : Array[String]) -> Unit {
+  let invocation = [
+      "systemd-run", "--user", "--wait", "--pipe", "--collect", "-p", "MemoryMax=8G",
+      "-p", "MemorySwapMax=0", "-p", "TasksMax=64", "-p", "RuntimeMaxSec=180", "--",
+    ] +
+    ["/usr/bin/time", "-v"] + command
+  @fs.write_file(
+    logs + "/" + label + ".command",
+    invocation.join(" ") + "\n",
+    create_mode=CreateNew,
+  )
+  let (code, out, err) = @process.collect_output(
+    "ssh",
+    ["-o", "BatchMode=yes", "-S", socket, host] + invocation,
+  )
+  @fs.write_file(logs + "/" + label + ".stdout", out, create_mode=CreateNew)
+  @fs.write_file(logs + "/" + label + ".stderr", err, create_mode=CreateNew)
+  @fs.write_file(
+    logs + "/" + label + ".exit",
+    code.to_string(),
+    create_mode=CreateNew,
+  )
+  assert_eq(code, 0, msg=label + ": " + err.text() + out.text())
+  println(label + " passed")
+}
+
+///|
+async fn main {
+  let (root, baseline_only) = match @env.args() {
+    [_, root] => (root, false)
+    [_, root, "baseline-only"] => (root, true)
+    _ => fail("LOCAL_PREPARED_ROOT [baseline-only]")
+  }
+  let versions = if baseline_only { ["baseline"] } else { ["baseline", "current"] }
+  let compared = if baseline_only { "baseline" } else { "current" }
+  let logs = root + "/projection-campaign" + (if baseline_only { "-baseline" } else { "" })
+  @fs.mkdir(logs)
+  idle()
+  @fs.write_file(
+    logs + "/gpu-before.csv",
+    ssh([
+      "nvidia-smi", "--query-gpu=name,uuid,driver_version,compute_cap,temperature.gpu,clocks.current.sm",
+      "--format=csv,noheader",
+    ]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/memory-before.txt",
+    ssh(["cat", "/proc/meminfo"]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/nvcc.txt",
+    ssh(["/usr/local/cuda/bin/nvcc", "--version"]),
+    create_mode=CreateNew,
+  )
+  let remote = ssh([
+      "mktemp", "-d", "/tmp/lunaflux-physical-ir-projection.XXXXXXXX",
+    ])
+    .trim()
+    .to_owned()
+  @fs.write_file(
+    logs + "/remote-path.txt",
+    remote + "\n",
+    create_mode=CreateNew,
+  )
+  for version in versions {
+    let (code, _, err) = @process.collect_output("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      "-r",
+      root + "/" + version + "-sources",
+      host + ":" + remote + "/",
+    ])
+    assert_eq(code, 0, msg=err.text())
+    for family in ["qkv", "output", "head", "mlp"] {
+      let stem = remote + "/" + version + "-sources/" + family
+      run(logs, "build-" + version + "-" + family, [
+        "/usr/local/cuda/bin/nvcc",
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        "--maxrregcount=128",
+        "-lineinfo",
+        "-cubin",
+        stem + ".cu",
+        "-o",
+        stem + ".cubin",
+      ])
+    }
+  }
+  for name in ["matrix_fold", "fold_pipeline"] {
+    run(logs, "build-" + name, [
+      "/usr/local/cuda/bin/nvcc",
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      remote + "/" + compared + "-sources/" + name + ".cu",
+      "-lcuda",
+      "-o",
+      remote + "/" + name,
+    ])
+  }
+  for version in versions {
+    let (code, _, err) = @process.collect_output("scp", ["-o", "ControlPath=" + socket, "-r", root + "/" + version + "-ingress-final", host + ":" + remote + "/"])
+    assert_eq(code, 0, msg=err.text())
+    for dimension in [16, 32, 64, 128] {
+      let stem = remote + "/" + version + "-ingress-final/probe-" + dimension.to_string()
+      run(logs, "build-ingress-" + version + "-" + dimension.to_string(), ["/usr/local/cuda/bin/nvcc", "-O3", "-arch=sm_121", "--fmad=false", stem + ".cu", "-o", stem])
+      idle()
+      run(logs, "ingress-" + version + "-" + dimension.to_string(), [stem])
+    }
+  }
+  for family in ["qkv", "output", "head", "mlp"] {
+    for tokens in [1, 8, 32, 128, 129, 1024, 2048] {
+      let rows = if family == "head" {
+        if tokens < 32 {
+          tokens
+        } else {
+          32
+        }
+      } else {
+        1
+      }
+      let old = remote + "/baseline-sources/" + family + ".cubin"
+      let now = remote + "/" + compared + "-sources/" + family + ".cubin"
+      let command = if family == "mlp" {
+        [remote + "/fold_pipeline", old, now, tokens.to_string()]
+      } else {
+        [
+          remote + "/matrix_fold",
+          old,
+          now,
+          family,
+          tokens.to_string(),
+          rows.to_string(),
+        ]
+      }
+      idle()
+      run(logs, family + "-t" + tokens.to_string(), command)
+    }
+  }
+  for family in ["qkv", "output", "mlp"] {
+    let old = remote + "/baseline-sources/" + family + ".cubin"
+    let now = remote + "/" + compared + "-sources/" + family + ".cubin"
+    let command = if family == "mlp" {
+      [remote + "/fold_pipeline", old, now, "129", "check"]
+    } else {
+      [remote + "/matrix_fold", old, now, family, "129", "1", "check"]
+    }
+    idle()
+    run(logs, "memcheck-" + family, ["/usr/local/cuda/bin/compute-sanitizer", "--tool", "memcheck", "--error-exitcode", "9"] + command)
+  }
+  if !baseline_only {
+    for version in versions {
+      let (code, _, err) = @process.collect_output("scp", ["-o", "ControlPath=" + socket, "-r", root + "/" + version + "-variants", host + ":" + remote + "/"])
+      assert_eq(code, 0, msg=err.text())
+      for family in ["qkv", "mlp"] {
+        for stages in [3, 4] {
+          let name = family + "-s" + stages.to_string()
+          let stem = remote + "/" + version + "-variants/" + name
+          run(logs, "build-variant-" + version + "-" + name, ["/usr/local/cuda/bin/nvcc", "-O3", "-arch=sm_121", "--fmad=false", "--maxrregcount=128", "-lineinfo", "-cubin", stem + ".cu", "-o", stem + ".cubin"])
+        }
+      }
+    }
+    for family in ["qkv", "mlp"] {
+      for stages in [3, 4] {
+        let name = family + "-s" + stages.to_string()
+        let old = remote + "/baseline-variants/" + name + ".cubin"
+        let now = remote + "/current-variants/" + name + ".cubin"
+        for tokens in [129, 1024] {
+          let command = if family == "mlp" {
+            [remote + "/fold_pipeline", old, now, tokens.to_string()]
+          } else {
+            [remote + "/matrix_fold", old, now, family, tokens.to_string(), "1"]
+          }
+          idle()
+          run(logs, "variant-" + name + "-t" + tokens.to_string(), command)
+        }
+      }
+    }
+  }
+  for check in ["memcheck", "racecheck", "synccheck"] {
+    idle()
+    run(logs, check + "-ingress", ["/usr/local/cuda/bin/compute-sanitizer", "--tool", check, "--error-exitcode", "9", remote + "/" + compared + "-ingress-final/probe-32"])
+  }
+  idle()
+  let artifacts : Array[String] = []
+  for version in versions {
+    for family in ["qkv", "output", "head", "mlp"] {
+      for extension in ["cu", "cubin"] {
+        artifacts.push(remote + "/" + version + "-sources/" + family + "." + extension)
+      }
+    }
+    if !baseline_only {
+      for name in ["qkv-s3", "qkv-s4", "mlp-s3", "mlp-s4"] {
+        for extension in ["cu", "cubin"] {
+          artifacts.push(remote + "/" + version + "-variants/" + name + "." + extension)
+        }
+      }
+    }
+    for dimension in [16, 32, 64, 128] {
+      artifacts.push(remote + "/" + version + "-ingress-final/ingress-" + dimension.to_string() + ".cu")
+      artifacts.push(remote + "/" + version + "-ingress-final/probe-" + dimension.to_string())
+    }
+  }
+  @fs.write_file(logs + "/ARTIFACTS.sha256", ssh(["sha256sum"] + artifacts), create_mode=CreateNew)
+  let (download_code, _, download_error) = @process.collect_output("scp", ["-o", "ControlPath=" + socket, "-r", host + ":" + remote, logs + "/remote-artifacts"])
+  assert_eq(download_code, 0, msg=download_error.text())
+  @fs.write_file(
+    logs + "/memory-after.txt",
+    ssh(["cat", "/proc/meminfo"]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/gpu-after.csv",
+    ssh([
+      "nvidia-smi", "--query-gpu=name,uuid,temperature.gpu,clocks.current.sm", "--format=csv,noheader",
+    ]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/RESULT.txt",
+    "outcome=passed\nscope=production-generated projection diagnostic sm121 transfer, not serving qualification\ncompared=" + compared + "\n",
+    create_mode=CreateNew,
+  )
+}

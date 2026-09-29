@@ -713,6 +713,21 @@ outside default telemetry.
 
 ## Package dependency law
 
+### Intra-kernel physical planning
+
+The projection compiler now lowers selected schedules into immutable fragment,
+operand-storage and copy-ownership plans in `compiler/physical_tile_ir` before
+CUDA instruction emission. The attention schedule owns a closed physical
+program covering direct, grouped, split-key, shared-score and query-fragment
+terminals. Scalar and query-fragment online-softmax state dialects live in
+`compiler/attention_physical_ir`; storage and effect choices are retained
+through backend lowering rather than reconstructed by source emitters.
+Single-launch and partitioned attention share this dispatch. The inter-launch parallel/execution IR remains
+separate: it cannot describe a kernel's register liveness or shared-memory
+publication by itself. See [the migration status](PHYSICAL_TILE_IR_2026-09-29.md)
+for exact coverage and remaining families; this is not a claim that every
+backend path has been unified.
+
 ~~~text
 contracts  ← api, tokenizer, engine
 model      ← loader and architecture builders
