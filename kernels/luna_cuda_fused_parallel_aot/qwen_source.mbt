@@ -79,7 +79,7 @@ fn qwen_fused_source(
     "\n",
   )
   out.write_string(
-    @luna_cuda_attention_ingress_source.lower_attention_ingress_numerics(
+    @luna_cuda_attention_ingress_source.lower_prepared_attention_ingress_numerics(
       physical.numerics,
     ),
   )

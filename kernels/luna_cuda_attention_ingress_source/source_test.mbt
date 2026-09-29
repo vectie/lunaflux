@@ -32,6 +32,12 @@ test "shared epilogue preserves fold and rounding boundaries across fusion cuts"
     source.contains("static __device__ const float LF_ROPE_INV_FREQ[64]"),
   )
   assert_false(source.contains("__constant__"))
+  let prepared = lower_prepared_attention_ingress_numerics(
+    epilogue.numerics(reduction_lanes=32),
+  )
+  assert_true(source.has_prefix(prepared))
+  assert_false(prepared.contains("void lf_ingress_norm_rotary("))
+  assert_true(prepared.contains("void lf_ingress_norm_rotary_prepared("))
 }
 
 ///|

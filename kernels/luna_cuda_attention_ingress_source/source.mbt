@@ -5,6 +5,19 @@
 pub fn lower_attention_ingress_numerics(
   plan : @luna_projection_tile_compiler.AttentionIngressNumerics,
 ) -> String {
+  lower_prepared_attention_ingress_numerics(plan) +
+  "static __device__ __forceinline__ void lf_ingress_norm_rotary(float* values, const __nv_bfloat16* weight, int position, int lane) {\n" +
+  "  const LfIngressRotaryValues rotary = lf_ingress_prepare_rotary(position, lane);\n" +
+  "  lf_ingress_norm_rotary_prepared(values, weight, rotary, lane);\n}\n"
+}
+
+///|
+/// Packed-head consumers prepare rotary once per row and do not call the
+/// position-taking wrapper. Emit only their reachable helper graph so strict
+/// CUDA builds do not contain an unused static device function.
+pub fn lower_prepared_attention_ingress_numerics(
+  plan : @luna_projection_tile_compiler.AttentionIngressNumerics,
+) -> String {
   let (dimension, lanes) = plan.shape()
   guard lanes == 32 else {
     abort("CUDA attention ingress requires a 32-lane numerical schedule")
@@ -64,10 +77,5 @@ pub fn lower_attention_ingress_numerics(
   out <+
     "    values[pair + \{dimension / 2}] = __bfloat162float(__float2bfloat16_rn(__fadd_rn(__fmul_rn(second, cosine), __fmul_rn(first, sine))));\n"
   out <+ "  }\n  __syncwarp();\n}\n"
-  out <+
-    "static __device__ __forceinline__ void lf_ingress_norm_rotary(float* values, const __nv_bfloat16* weight, int position, int lane) {\n"
-  out <+
-    "  const LfIngressRotaryValues rotary = lf_ingress_prepare_rotary(position, lane);\n"
-  out <+ "  lf_ingress_norm_rotary_prepared(values, weight, rotary, lane);\n}\n"
   out.to_string()
 }

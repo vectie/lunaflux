@@ -20,6 +20,7 @@ test "packed ingress exports head ownership and reuses row rotary before head lo
     )
     assert_eq(candidate.launch_dimensions().grid_y(), (12 - 1) / heads + 1)
     let source = @utf8.decode(candidate.source_bytes())
+    assert_false(source.contains("void lf_ingress_norm_rotary("))
     assert_true(source.contains("#define LF_HEADS_PER_CTA \{heads}\n"))
     assert_true(source.contains("#define LF_PROJECTION_WIDTH \{64 * heads}\n"))
     assert_true(

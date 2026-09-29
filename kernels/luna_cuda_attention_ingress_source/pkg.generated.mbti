@@ -8,6 +8,8 @@ import {
 // Values
 pub fn lower_attention_ingress_numerics(@luna_projection_tile_compiler.AttentionIngressNumerics) -> String
 
+pub fn lower_prepared_attention_ingress_numerics(@luna_projection_tile_compiler.AttentionIngressNumerics) -> String
+
 // Errors
 
 // Types and methods
