@@ -1,0 +1,62 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/string",
+  "moonbitlang/core/env",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields = []
+  let buffer = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      fields.push(buffer.to_string())
+      buffer.reset()
+    } else {
+      buffer.write_char(c)
+    }
+  }
+  fields.push(buffer.to_string())
+  fields
+}
+
+///|
+async fn main {
+  let args = @env.args()
+  guard args.length() == 3 else {
+    fail("usage: prefill-opcodes.mbtx SOURCE_CSV KERNEL_SUBSTRING")
+  }
+  let data = @fs.read_file(args[1]).text()
+  let totals : Map[String, Int64] = Map([])
+  let mut active = false
+  for line in data.split("\n") {
+    let row = csv(line)
+    if row.length() > 1 && row[0] == "Kernel Name" {
+      if active {
+        break
+      }
+      active = row[1].contains(args[2])
+      continue
+    }
+    if !active || row.length() != 3 || !row[0].has_prefix("0x") {
+      continue
+    }
+    let count = @string.parse_int64(row[2])
+    let words = row[1].split(" ").filter(w => !w.is_empty()).to_array()
+    let word = words[if words[0].has_prefix("@") { 1 } else { 0 }].to_owned()
+    totals[word] = totals.get(word).unwrap_or(0L) + count
+  }
+  guard !totals.is_empty() else {
+    fail("no matching executed-instruction rows")
+  }
+  let ordered = totals.to_array()
+  ordered.sort_by((a, b) => b.1.compare(a.1))
+  for _, pair in ordered {
+    println("\{pair.0}: \{pair.1}")
+  }
+}

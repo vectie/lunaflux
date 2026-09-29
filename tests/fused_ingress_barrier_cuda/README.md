@@ -14,6 +14,12 @@ partially occupied matrix tiles, and releases all allocated buffers.
 Run each under memcheck, racecheck and synccheck with a nonzero
 `--error-exitcode` and an external timeout. Orchestration belongs in `.mbtx`.
 
+The compiler-repair exporter also emits 16/32/64-row CTA variants with a
+129-token envelope. Compile those with `-DLF_PROBE_MAXTOKENS=129`. The probe
+derives grid width from the emitted `LF_TILE_ROWS`, exercises both sides of
+32/64/128-token boundaries, and derives the page table from the token count.
+Do not use a hard-coded 16-row launch to test a wider physical row map.
+
 The structured input/weight pattern has an independently calculated projection,
 normalization and RoPE result; all output elements must be finite and within
 0.02, and every written KV entry must exactly match the corresponding output.

@@ -1,0 +1,184 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn reserve() -> Unit {
+  let memory = @fs.read_file("/proc/meminfo").text()
+  let line = memory
+    .split("\n")
+    .find_first(s => s.has_prefix("MemAvailable:"))
+    .unwrap()
+  let fields = line.split(" ").filter(s => !s.is_empty()).to_array()
+  guard @string.parse_int64(fields[1]) >= 33554432L else {
+    fail("32 GiB memory reserve")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("requires idle GPU") }
+}
+
+///|
+async fn recorded(root : String, name : String, args : Array[String]) -> Unit {
+  reserve()
+  let result = @shell.Cmd("timeout", ["180"] + args).output(
+    max_output_bytes=16777216,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(name + " passed")
+}
+
+///|
+async fn main {
+  let args = @env.args()
+  guard args.length() == 3 || args.length() == 4 else {
+    fail(
+      "usage: check_counter_repair.mbtx OUTPUT_ROOT CUDA_ARCH [decode|prefill-numeric]",
+    )
+  }
+  let root = args[1]
+  let arch = args[2]
+  let mode = args.get(3).unwrap_or("all")
+  guard mode == "all" || mode == "decode" || mode == "prefill-numeric" else {
+    fail("invalid scope")
+  }
+  let decode_only = mode == "decode"
+  let full_prefill = mode == "prefill-numeric"
+  let nvcc = "/usr/local/cuda/bin/nvcc"
+  let sanitizer = "/usr/local/cuda/bin/compute-sanitizer"
+  for id in (if decode_only { [] } else { ["2000", "2001", "2003", "2004"] }) {
+    let label = "prefill-" + id
+    let folder = root + "/" + label
+    @fs.mkdir(folder)
+    @fs.write_file(
+      folder + "/generated_attention_tile.cu",
+      @fs.read_file(root + "/" + label + ".cu"),
+      create_mode=CreateNew,
+    )
+    let flags = if full_prefill { [] } else { ["-DLF_BOUNDED_SANITIZER"] }
+    recorded(
+      root,
+      label + "-build",
+      [
+        nvcc,
+        "-O3",
+        "--fmad=false",
+        "-lineinfo",
+        "-arch=" + arch,
+        "-I" + folder,
+        root + "/attention-probe.cu",
+        "-o",
+        folder + "/probe",
+      ] +
+      flags,
+    )
+    recorded(root, label + "-numeric", [folder + "/probe"])
+    for
+      tool in (if full_prefill {
+        []
+      } else {
+        ["memcheck", "racecheck", "synccheck"]
+      }) {
+      recorded(root, label + "-" + tool, [
+        sanitizer,
+        "--tool",
+        tool,
+        "--error-exitcode",
+        "91",
+        folder + "/probe",
+      ])
+    }
+  }
+  for rows in (if mode != "all" { [] } else { ["1", "2", "4"] }) {
+    let label = "ingress-" + rows
+    recorded(root, label + "-build", [
+      nvcc,
+      "-O3",
+      "--fmad=false",
+      "-lineinfo",
+      "-arch=" + arch,
+      "-DLF_PROBE_MAXTOKENS=129",
+      "-DKERNEL_SOURCE=\"" + root + "/" + label + ".cu\"",
+      root + "/ingress-probe.cu",
+      "-o",
+      root + "/" + label + ".exe",
+    ])
+    recorded(root, label + "-numeric", [root + "/" + label + ".exe"])
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      recorded(root, label + "-" + tool, [
+        sanitizer,
+        "--tool",
+        tool,
+        "--error-exitcode",
+        "91",
+        root + "/" + label + ".exe",
+      ])
+    }
+  }
+  for id in (if full_prefill { [] } else { ["430", "440", "441"] }) {
+    let label = "decode-" + id
+    recorded(root, label + "-build", [
+      nvcc,
+      "-O3",
+      "--fmad=false",
+      "-lineinfo",
+      "-arch=" + arch,
+      "--cubin",
+      root + "/" + label + ".cu",
+      "-o",
+      root + "/" + label + ".cubin",
+    ])
+    recorded(root, label + "-probe-build", [
+      nvcc,
+      "-O3",
+      "--fmad=false",
+      "-lineinfo",
+      "-arch=" + arch,
+      "-include",
+      root + "/" + label + ".cu",
+      root + "/owned-decode-probe.cu",
+      "-o",
+      root + "/" + label + ".exe",
+    ])
+    recorded(root, label + "-numeric", [root + "/" + label + ".exe"])
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      recorded(root, label + "-" + tool, [
+        sanitizer,
+        "--tool",
+        tool,
+        "--error-exitcode",
+        "91",
+        root + "/" + label + ".exe",
+        "bounded",
+      ])
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    (if full_prefill {
+      "prefill_full_numeric=passed"
+    } else {
+      (if decode_only { "decode" } else { "prefill_ingress_decode" }) +
+      "_numeric_and_sanitizers=passed"
+    }) +
+    "\nserving_benchmark=not-run\n",
+    create_mode=CreateNew,
+  )
+}

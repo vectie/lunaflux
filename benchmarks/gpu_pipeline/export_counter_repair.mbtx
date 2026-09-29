@@ -1,0 +1,52 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  let args = @env.args()
+  guard args.length() == 2 else {
+    fail("usage: export_counter_repair.mbtx EMPTY_OUTPUT_DIRECTORY")
+  }
+  let result = @shell.Cmd(
+    "moon",
+    [
+      "test", "kernels/luna_cuda_attention_tile_source/repair_export_wbtest.mbt",
+      "kernels/luna_cuda_fused_parallel_aot/ingress_rows_wbtest.mbt", "--target",
+      "native", "--deny-warn", "--warn-list", "-79-20-29-25",
+    ],
+    env={ "LUNA_TEST_EXPORT_COUNTER_REPAIR": "1" },
+  ).output(max_output_bytes=16777216)
+  @fs.write_file(
+    args[1] + "/export.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    args[1] + "/export.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  let sections = result.stdout().split("LUNA_SOURCE_BEGIN ").to_array()
+  let mut count = 0
+  for section in sections[1:] {
+    let lines = section.split("\n").to_array()
+    let name = lines[0].to_owned()
+    guard name.has_prefix("prefill-") ||
+      name.has_prefix("decode-") ||
+      name.has_prefix("ingress-") else {
+      fail("unexpected probe")
+    }
+    let body = lines[1:].join("\n").split("LUNA_SOURCE_END").to_array()
+    assert_eq(body.length(), 2)
+    @fs.write_file(args[1] + "/" + name + ".cu", body[0], create_mode=CreateNew)
+    count += 1
+  }
+  assert_eq(count, 10)
+  println("exported=\{count}")
+}

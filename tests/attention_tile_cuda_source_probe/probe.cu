@@ -422,8 +422,17 @@ int main() {
       run_case("long-ragged-513-127-256", {513,127,256}, {4096,2048,8192}, false));
 #endif
   std::printf(
-      "outcome=passed query_token_vectors=16,64,128 "
-      "context_token_vectors=16,65,128,512,1024,2048,4096 "
+      "outcome=passed "
+#ifdef LF_BOUNDED_SANITIZER
+      "scope=bounded query_token_vectors=16,17,65,128,ragged17+65 "
+      "context_token_vectors=16,17,65,128,257 "
+#else
+      "scope=full query_token_vectors=16,17,64,65,128,ragged17+65 "
+      "context_token_vectors=16,17,65,128,512,1024,2048,4096 "
+#endif
+#ifdef LF_LONG_PROBE
+      "extra_query_vectors=512,1024,2048,ragged513+127+256 extra_context_vectors=2048,4096,8192 "
+#endif
       "maximum_absolute_error=%g\n",
       maximum_absolute_error);
   return 0;
