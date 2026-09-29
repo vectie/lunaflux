@@ -1,0 +1,1 @@
+[{"engine":"luna-full","min_available_kib":"105119700","min_swap_used_kib":"409856","max_swap_used_kib":"409856"},{"engine":"vllm","min_available_kib":"56742616","min_swap_used_kib":"409828","max_swap_used_kib":"409856"},{"engine":"sglang","min_available_kib":"55911524","min_swap_used_kib":"409856","max_swap_used_kib":"409856"}]
