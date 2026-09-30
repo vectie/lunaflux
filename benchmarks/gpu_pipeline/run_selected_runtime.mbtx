@@ -110,7 +110,7 @@ async fn main {
   for
     name in [
       "toolchain.v1", "convert.stdout", "bind.stdout", "benchmark.mbtx", "summarize.mbtx",
-      "compare-outputs.mbtx",
+      "compare-outputs.mbtx", "selected_policy_probe.cu",
     ] {
     @fs.write_file(
       root + "/" + name,
