@@ -63,16 +63,14 @@ fn emit_cuda_blockwise_decode_source(
   } else {
     cuda_grouped_effects(effects, AcquireKeyOperands, transfer, "    ")
   }
-  let release = cuda_grouped_effects(
-    effects,
-    if effects.is_pipelined() {
-      CompleteTileReaders
-    } else {
-      ReleaseTileReaders
-    },
-    "",
-    "    ",
-  )
+  let release = cuda_grouped_effects(effects, ReleaseTileReaders, "", "    ")
+  // Double-slot reuse is ordered by the next acquire; only loop exit needs
+  // the terminal publication. It must not become a per-tile CTA barrier.
+  let complete = if effects.is_pipelined() {
+    cuda_grouped_effects(effects, CompleteTileReaders, "", "  ")
+  } else {
+    ""
+  }
   let value_ready = if effects.is_pipelined() {
     cuda_grouped_effects(effects, AcquireValueOperands, "", "    ") +
     "\n" +
@@ -216,6 +214,7 @@ fn emit_cuda_blockwise_decode_source(
     $|\{body}
     $|\{release}
     $|  }
+    $|\{complete}
     $|\{epilogue}
     $|}
     $|#undef LF_BLOCK_THREADS

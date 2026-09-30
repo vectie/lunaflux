@@ -203,6 +203,11 @@ pub fn lower_attention_tile_schedule_to_cuda(
     candidate.joint_query_consumers(),
   )
   builder <+ "luna-cuda-attention-tile-lowering-v6\n"
+  match physical_program {
+    Ok(BlockwiseKeyProgram(_, effects)) if effects.is_pipelined() =>
+      builder <+ "blockwise_terminal_release=after-key-loop-v1\n"
+    _ => ()
+  }
   builder <+ "resident_output_fold=\{resident_output_fold}\n"
   if query_owned_fragments {
     builder <+ "query_owned_fragments=true\n"
