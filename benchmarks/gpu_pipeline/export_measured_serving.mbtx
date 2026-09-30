@@ -98,6 +98,22 @@ async fn main {
   }
   if options.contains("--blockwise-evaluate") {
     args.append(["--decode-candidate", "452"])
+  } else {
+    // The opposite phase must not silently fall back to its static winner
+    // when a measured decode table is available in this calibration.
+    let decode = calibration + "/decode-q16-r16-h4095/decode.records"
+    guard @fs.exists(decode) else { fail("measured decode table required") }
+    @fs.write_file(
+      root + "/decode.records",
+      @fs.read_file(decode),
+      create_mode=CreateNew,
+    )
+    args.append([
+      "--decode-tuning",
+      root + "/decode.records",
+      sha(root + "/decode.records"),
+      scope[1].to_owned(),
+    ])
   }
   if options.contains("--prefill-pair") {
     args.append([
@@ -134,7 +150,7 @@ async fn main {
     (if options.contains("--blockwise-evaluate") {
       "explicit-452-evaluation"
     } else {
-      "unmeasured-default"
+      "measured-decode-q16-r16-h4095"
     }) +
     "\n",
     create_mode=CreateNew,
