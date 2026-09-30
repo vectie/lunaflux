@@ -56,8 +56,8 @@ fn bootstrap_reusable_qwen_bundle(
 }
 
 ///|
-test "fused runtime schema selects reusable bundles including measured routes v6" {
-  for version in [3, 4, 5, 6] {
+test "fused runtime schema selects reusable bundles including blockwise decode v7" {
+  for version in [3, 4, 5, 6, 7] {
     match
       classify_fused_runtime_source(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\nmodule-count=2\n",
