@@ -69,12 +69,15 @@ test "packed ingress resource frontier retains single head and rejects excess st
   let policies = qwen_ingress_policies(candidate.tile_compilation())
   assert_true(policies.contains(candidate.ingress_policy()))
   assert_true(policies.contains(qwen_ingress_policy(4, 2, 1, 1, heads=2)))
-  assert_false(policies.contains(qwen_ingress_policy(8, 2, 1, 1, heads=4)))
+  assert_true(policies.contains(qwen_ingress_policy(8, 2, 1, 1, heads=4)))
+  assert_false(
+    policies.contains(qwen_ingress_policy(8, 2, 1, 1, rows=2, heads=4)),
+  )
   try
     qwen_fused_test_candidate(
       head_dimension=128,
       maximum_tokens=33,
-      ingress_policy=qwen_ingress_policy(8, 2, 1, 1, heads=4),
+      ingress_policy=qwen_ingress_policy(8, 2, 1, 1, rows=2, heads=4),
     )
   catch {
     FusedParallelAotError::FusedParallelUnsupported(StaticResources) => ()
@@ -82,4 +85,41 @@ test "packed ingress resource frontier retains single head and rejects excess st
   } noraise {
     _ => fail("packed shared overflow accepted")
   }
+}
+
+///|
+test "disjoint ingress scratch admits wider row and head geometry safely" {
+  let candidate = qwen_fused_test_candidate(
+    head_dimension=128,
+    maximum_tokens=65,
+    ingress_policy=qwen_ingress_policy(4, 2, 2, 1, rows=2, heads=2),
+  )
+  let physical = qwen_refine_physical(
+    candidate.tile_compilation(),
+    candidate.ingress_policy(),
+  )
+  assert_true(physical.scratch.reuses_storage())
+  assert_eq(physical.scratch.allocation_bytes(), 36864L)
+  let source = @utf8.decode(candidate.source_bytes())
+  assert_true(source.contains("ingress_scratch[36864]"))
+  assert_true(
+    source.contains(
+      "Retire every operand reader before reusing its storage.\n      __syncthreads();",
+    ),
+  )
+  let overlapping = qwen_fused_test_candidate(
+    head_dimension=128,
+    maximum_tokens=65,
+    ingress_policy=qwen_ingress_policy(2, 2, 1, 1, heads=2),
+  )
+  let retained = qwen_refine_physical(
+    overlapping.tile_compilation(),
+    overlapping.ingress_policy(),
+  )
+  assert_false(retained.scratch.reuses_storage())
+  assert_true(
+    @utf8.decode(overlapping.source_bytes()).contains(
+      "__shared__ float projected[",
+    ),
+  )
 }

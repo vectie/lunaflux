@@ -92,6 +92,13 @@ pub fn OperandStorage::region(Self, Int) -> OperandRegion?
 pub fn OperandStorage::slot_elements(Self) -> Int
 pub fn OperandStorage::to_repr(Self) -> @debug.Repr
 
+pub struct SequentialScratch {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SequentialScratch::allocation_bytes(Self) -> Int64
+pub fn SequentialScratch::new(producer_bytes~ : Int64, consumer_bytes~ : Int64, overlapping~ : Bool) -> Self?
+pub fn SequentialScratch::reuses_storage(Self) -> Bool
+
 pub struct VectorOwnership {
   // private fields
 } derive(Eq, @debug.Debug)

@@ -7,6 +7,7 @@ priv struct QwenIngressPhysicalProgram {
   numerics : @luna_projection_tile_compiler.AttentionIngressNumerics
   scalar : @luna_projection_tile_compiler.ProjectionScalarFoldPlan
   packing : @luna_projection_tile_compiler.AttentionIngressPacking
+  scratch : @physical_tile_ir.SequentialScratch
 }
 
 ///|
@@ -61,5 +62,32 @@ fn qwen_refine_physical(
     is Some(scalar) else {
     raise FusedParallelMismatch(CompilerPolicy)
   }
-  { columns, pipeline, numerics, scalar, packing, }
+  let scratch = ingress_scratch_plan(
+    schedule.row_width(),
+    schedule.output_tiles() * schedule.tile_width(),
+    schedule.transfer_width(),
+    schedule.stage_count(),
+    columns.geometry().3,
+  )
+  { columns, pipeline, numerics, scalar, packing, scratch, }
+}
+
+///|
+/// Multiple accumulator windows publish output while subsequent windows still
+/// read staged operands. A single window retires all operand readers first.
+fn ingress_scratch_plan(
+  rows : Int,
+  columns : Int,
+  transfer : Int,
+  stages : Int,
+  windows : Int,
+) -> @physical_tile_ir.SequentialScratch {
+  @physical_tile_ir.SequentialScratch::new(
+    producer_bytes=(rows.to_int64() + columns.to_int64()) *
+      transfer.to_int64() *
+      stages.to_int64() *
+      2L,
+    consumer_bytes=rows.to_int64() * columns.to_int64() * 4L,
+    overlapping=windows != 1,
+  ).unwrap()
 }

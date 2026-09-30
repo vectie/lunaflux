@@ -132,7 +132,12 @@ fn qwen_fused_source(
     " || token_begin >= tokens || query_row_offsets[0] != 0 ||\n" +
     "      query_row_offsets[rows] != tokens || page_table_offsets[0] != 0 ||\n" +
     "      page_table_offsets[rows] != table_cells) return;\n" +
-    "  __shared__ float projected[LF_TILE_ROWS][LF_PROJECTION_WIDTH];\n" +
+    (if physical.scratch.reuses_storage() {
+      "  __shared__ __align__(32) unsigned char ingress_scratch[\{physical.scratch.allocation_bytes()}];\n" +
+      "  float (*projected)[LF_PROJECTION_WIDTH] = reinterpret_cast<float (*)[LF_PROJECTION_WIDTH]>(ingress_scratch);\n"
+    } else {
+      "  __shared__ float projected[LF_TILE_ROWS][LF_PROJECTION_WIDTH];\n"
+    }) +
     "  if (tokens == 1) {\n" +
     "    // Lower the compiler's strided fold followed by a fixed pairwise tree.\n" +
     "    for (int component = warp; component < LF_PROJECTION_WIDTH; component += LF_WARPS) {\n" +

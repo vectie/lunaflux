@@ -382,19 +382,23 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   guard tile_compilation.schedule().matrix_pipeline() is Some(pipeline) else {
     raise FusedParallelUnsupported(StaticResources)
   }
-  let producer_width = pipeline.output_tiles().to_int64() *
-    pipeline.tile_width().to_int64()
-  let shared_bytes = (pipeline.row_width().to_int64() + producer_width) *
-    pipeline.transfer_width().to_int64() *
-    pipeline.stage_count().to_int64() *
-    2L +
-    pipeline.row_width().to_int64() * producer_width * 4L
-  if shared_bytes > 49152L {
-    raise FusedParallelUnsupported(StaticResources)
-  }
   let ingress_policy = match ingress_policy {
     Some(policy) => policy
     None => qwen_default_ingress_policy(tile_compilation)
+  }
+  let columns = qwen_ingress_column_plan(
+    tile_compilation,
+    policy=ingress_policy,
+  )
+  let shared_bytes = ingress_scratch_plan(
+    pipeline.row_width(),
+    pipeline.output_tiles() * pipeline.tile_width(),
+    pipeline.transfer_width(),
+    pipeline.stage_count(),
+    columns.geometry().3,
+  ).allocation_bytes()
+  if shared_bytes > 49152L {
+    raise FusedParallelUnsupported(StaticResources)
   }
   guard qwen_ingress_policies(tile_compilation).contains(ingress_policy) else {
     raise FusedParallelUnsupported(StaticResources)

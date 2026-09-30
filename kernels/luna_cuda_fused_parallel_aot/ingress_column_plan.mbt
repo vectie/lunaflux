@@ -87,17 +87,21 @@ pub fn qwen_ingress_policies(
             continue
           }
           let row_width = rows.to_int64() * pipeline.tile_width().to_int64()
-          let shared = (row_width + head * heads.to_int64()) *
-            pipeline.tile_width().to_int64() *
-            tiles.to_int64() *
-            stages.to_int64() *
-            2L +
-            row_width * head * heads.to_int64() * 4L
-          if shared > 49152L {
-            continue
-          }
           for fragments in 1..<=Int::min(2, tiles) {
             for live in [1, 2, 4, 8] {
+              let rounds = (head.to_int() * heads / pipeline.tile_width() + 3) /
+                4
+              let windows = (rounds + live - 1) / live
+              let shared = ingress_scratch_plan(
+                row_width.to_int(),
+                head.to_int() * heads,
+                pipeline.tile_width() * tiles,
+                stages,
+                windows,
+              ).allocation_bytes()
+              if shared > 49152L {
+                continue
+              }
               let policy = qwen_ingress_policy(
                 live,
                 stages,
@@ -159,11 +163,19 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::resource_candidate(
   let pipeline = q.tile_compilation.schedule().matrix_pipeline().unwrap()
   let head = pipeline.output_tiles().to_int64() *
     pipeline.tile_width().to_int64()
-  let shared = (pipeline.row_width().to_int64() + head) *
-    pipeline.transfer_width().to_int64() *
-    pipeline.stage_count().to_int64() *
-    2L +
-    pipeline.row_width().to_int64() * head * 4L
+  let columns = qwen_ingress_column_plan(
+    q.tile_compilation,
+    policy=q.ingress_policy,
+  ) catch {
+    _ => abort("retained ingress policy lost its column plan")
+  }
+  let shared = ingress_scratch_plan(
+    pipeline.row_width(),
+    head.to_int(),
+    pipeline.transfer_width(),
+    pipeline.stage_count(),
+    columns.geometry().3,
+  ).allocation_bytes()
   @resource_policy.Candidate::new(
     q.ingress_policy,
     artifact=self.source_digest.as_hex(),
