@@ -1,0 +1,88 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn recorded(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+) -> Unit {
+  let result = @shell.Cmd(exe, args, cwd~).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(label + " passed")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, source, base, prior, physical, integrator] else {
+    fail(
+      "NEW_ROOT EXACT_SOURCE_ROOT BASE_CAMPAIGN PRIOR_SERVING PROJECTION_CAMPAIGN INTEGRATOR",
+    )
+  }
+  @fs.mkdir(root + "/source")
+  @shell.Cmd("cp", ["-a", source + "/.", root + "/source/"]).run()
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  let moon = root + "/toolchain/bin/moon"
+  recorded(
+    root,
+    "build",
+    moon,
+    [
+      "build", "--jobs", "2", "--target", "native", "--release", "--deny-warn", "--warn-list",
+      "-79-20-29-25-92-14",
+    ],
+    cwd=root + "/source",
+  )
+  // Preserve all non-decode choices from the already measured strict bundle.
+  recorded(root, "integrate", moon, ["run", integrator, root, base, physical])
+  let selected = root +
+    "/selected-final/selected/reusable-qwen-decode-attention/kernel.cu"
+  let text = @fs.read_file(selected).text()
+  guard text.contains("for (int key_base = key_begin;") else {
+    fail("blockwise decode not selected")
+  }
+  let tail = text.split("for (int key_base = key_begin;").to_array()[1]
+    .split("\n  }\n")
+    .to_array()[1]
+  guard tail.has_prefix("  __syncthreads();\n") else {
+    fail("terminal handoff fix did not propagate into selected source")
+  }
+  @fs.mkdir(root + "/serving")
+  recorded(root, "serving", moon, [
+    "run",
+    root + "/source/benchmarks/gpu_pipeline/run_selected_runtime.mbtx",
+    root,
+    root + "/selected-final",
+    root + "/serving",
+    root + "/source/scripts/build-qwen3-reusable-fused-runtime.mbtx",
+    "--measured-decode-routes",
+    "--probe-source",
+    root + "/source/benchmarks/gpu_pipeline/selected_policy_probe.cu",
+    "--route-helper",
+    root + "/source/benchmarks/gpu_pipeline/measure_decode_routes.mbtx",
+    "--baseline-root",
+    prior,
+  ])
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=exact-source rebuild and matched serving; compare timings before claiming gain\n",
+    create_mode=CreateNew,
+  )
+}

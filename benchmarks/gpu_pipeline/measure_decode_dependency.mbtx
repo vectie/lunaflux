@@ -1,0 +1,194 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn checked(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+  env? : Map[String, String] = {},
+) -> String {
+  let result = @shell.Cmd(exe, args, cwd~, env~).output(
+    max_output_bytes=67108864,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(label + " passed")
+  result.stdout()
+}
+
+///|
+async fn require_idle() -> Unit {
+  let gpu = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else { fail("GPU busy") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, prior, base] else {
+    fail("NEW_ROOT PRIOR_STRICT_SERVING CAMPAIGN_WITH_TOOLCHAIN_AND_SPEC")
+  }
+  require_idle()
+  let moon = base + "/toolchain/bin/moon"
+  let exported = checked(
+    root,
+    "export",
+    moon,
+    [
+      "test", "kernels/luna_cuda_attention_tile_source", "--target", "native", "--deny-warn",
+      "--warn-list", "-79-20-29-25-92-14",
+    ],
+    cwd=root + "/source",
+    env={
+      "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1",
+      "PATH": base + "/toolchain/bin:/usr/local/cuda/bin:/usr/bin:/bin",
+    },
+  )
+  let probe = root + "/attention-probe"
+  ignore(
+    checked(root, "build-probe", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-O3",
+      "-std=c++17",
+      "-arch=sm_121",
+      root + "/source/benchmarks/gpu_pipeline/selected_policy_probe.cu",
+      "-lcuda",
+      "-o",
+      probe,
+    ]),
+  )
+  let baseline = prior + "/decode-route-measurements/partitioned"
+  let spec = base + "/selected-final/decode.spec"
+  let mount = [
+    "--mount", "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+  ]
+  let seen : Array[String] = []
+  for block in exported.split("LUNA_PARTIAL_BEGIN ").to_array()[1:] {
+    guard block.split("\nLUNA_PARTIAL_SOURCE\n").to_array()
+      is [header, remainder] else {
+      fail("framing")
+    }
+    let fields = header.split("\n").to_array()
+    let id = fields[0].to_owned()
+    if !["c452-p4", "c452-p8"].contains(id) {
+      continue
+    }
+    guard !seen.contains(id) else { fail("duplicate candidate: " + id) }
+    seen.push(id)
+    let destination = root + "/" + id
+    @fs.mkdir(destination)
+    @fs.write_file(
+      destination + "/kernel.recipe",
+      fields[1:].map(x => x.to_owned()).join("\n") + "\n",
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      destination + "/kernel.cu",
+      remainder.split("\nLUNA_PARTIAL_END").to_array()[0].to_owned(),
+      create_mode=CreateNew,
+    )
+    ignore(
+      checked(root, "compile-" + id, "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-arch=sm_121",
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=128",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        destination + "/kernel.cu",
+        "-o",
+        destination + "/kernel.cubin",
+      ]),
+    )
+    for history in [127, 4095, 8191] {
+      for rows in [1, 8, 16] {
+        require_idle()
+        ignore(
+          checked(
+            root,
+            "measure-" + id + "-r\{rows}-h\{history}",
+            "docker",
+            [
+              "run", "--rm", "--gpus", "all", "--network", "none", "--memory", "8g",
+              "--memory-swap", "8g",
+            ] +
+            mount +
+            [
+              "nvcr.io/nvidia/vllm:26.01-py3",
+              probe,
+              spec,
+              baseline,
+              destination,
+              "\{rows}",
+              "\{rows}",
+              "\{history}",
+              "--decode-envelope",
+            ],
+          ),
+        )
+      }
+    }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      require_idle()
+      ignore(
+        checked(
+          root,
+          id + "-" + tool,
+          "docker",
+          [
+            "run", "--rm", "--gpus", "all", "--network", "none", "--memory", "8g",
+            "--memory-swap", "8g", "--mount", "type=bind,source=/usr/local/cuda-13.0,target=/opt/host-cuda,readonly",
+          ] +
+          mount +
+          [
+            "nvcr.io/nvidia/vllm:26.01-py3", "/opt/host-cuda/bin/compute-sanitizer",
+            "--tool", tool, "--error-exitcode", "9", probe, spec, baseline, destination,
+            "16", "16", "4095", "--decode-envelope", "--check-only",
+          ],
+        ),
+      )
+    }
+  }
+  assert_eq(seen.length(), 2, msg="both expected candidates must execute")
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=traced-envelope paired replay and sanitizers; not serving throughput\n",
+    create_mode=CreateNew,
+  )
+}

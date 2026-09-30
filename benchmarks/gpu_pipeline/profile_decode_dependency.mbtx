@@ -1,0 +1,130 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, probe, spec, prior, selected] else {
+    fail("NEW_ROOT PROBE SPEC PRIOR_KERNEL SELECTED_KERNEL")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+  for ordinal in [0, 1] {
+    let label = if ordinal == 0 { "prior" } else { "selected" }
+    let args = [
+      "run",
+      "--rm",
+      "--gpus",
+      "all",
+      "--network",
+      "none",
+      "--memory",
+      "8g",
+      "--memory-swap",
+      "8g",
+      "--cap-add",
+      "SYS_ADMIN",
+      "--security-opt",
+      "seccomp=unconfined",
+      "--mount",
+      "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+      "--mount",
+      "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+      "--mount",
+      "type=bind,source=" + root + ",target=" + root,
+      "nvcr.io/nvidia/vllm:26.01-py3",
+      "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+      "--config-file",
+      "off",
+      "--clock-control",
+      "none",
+      "--cache-control",
+      "all",
+      "--kernel-name-base",
+      "function",
+      "--kernel-name",
+      "regex:.*(decode_split_partial_v3_ep_3903|blockwise_partial).*",
+      "--launch-skip",
+      ordinal.to_string(),
+      "--launch-count",
+      "1",
+    ]
+    for
+      section in [
+        "LaunchStats", "Occupancy", "SpeedOfLight", "SchedulerStats", "WarpStateStats",
+        "MemoryWorkloadAnalysis", "InstructionStats", "SourceCounters",
+      ] {
+      args.append(["--section", section])
+    }
+    args.append([
+      "--export",
+      root + "/" + label,
+      probe,
+      spec,
+      prior,
+      selected,
+      "16",
+      "16",
+      "4095",
+      "--decode-envelope",
+      "--check-only",
+    ])
+    @fs.write_file(
+      root + "/" + label + ".command.json",
+      Json(["docker"] + args).stringify(),
+      create_mode=CreateNew,
+    )
+    let out = @shell.Cmd("docker", args).output(max_output_bytes=33554432)
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+    let csv = @shell.Cmd("/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+      "--import",
+      root + "/" + label + ".ncu-rep",
+      "--page",
+      "raw",
+      "--csv",
+    ]).output(max_output_bytes=33554432)
+    csv.check()
+    @fs.write_file(
+      root + "/" + label + ".csv",
+      csv.stdout(),
+      create_mode=CreateNew,
+    )
+    println(label + " counters collected")
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=traced decode envelope; cold-cache paired replay, not serving throughput\n",
+    create_mode=CreateNew,
+  )
+}

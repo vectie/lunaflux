@@ -1,0 +1,38 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  for path in @env.args()[1:] {
+    let lines = @fs.read_file(path).text().trim().split("\n").to_array()
+    guard lines.length() == 3 else {
+      fail("one raw counter invocation required")
+    }
+    let names = lines[0].split("\",\"").to_array()
+    let units = lines[1].split("\",\"").to_array()
+    let values = lines[2].split("\",\"").to_array()
+    assert_eq(names.length(), values.length())
+    println(path)
+    for i in 0..<names.length() {
+      let name = names[i]
+      if name == "Kernel Name" ||
+        name == "gpu__time_duration.sum" ||
+        name == "smsp__inst_executed.sum" ||
+        name == "smsp__warps_eligible.avg.per_cycle_active" ||
+        name == "sm__warps_active.avg.pct_of_peak_sustained_active" ||
+        name ==
+        "gpu__compute_memory_throughput.avg.pct_of_peak_sustained_elapsed" ||
+        name.has_prefix("smsp__average_warps_issue_stalled_") ||
+        name.has_prefix("smsp__average_warp_latency") ||
+        name.contains("bytes_read") ||
+        name.contains("bank_conflicts") ||
+        name.contains("wavefronts_shared_excessive") {
+        println("\{name}=\{values[i]} \{units[i]}")
+      }
+    }
+  }
+}

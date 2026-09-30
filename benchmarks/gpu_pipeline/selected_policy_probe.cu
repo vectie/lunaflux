@@ -85,11 +85,12 @@ static std::vector<__nv_bfloat16> values(size_t n,int salt){
 static bool same(const std::vector<__nv_bfloat16>& a,const std::vector<__nv_bfloat16>& b){return a.size()==b.size()&&!std::memcmp(a.data(),b.data(),a.size()*2);}
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc<7 || argc>9)return 1;
-  bool check_only=false,mixed=false;
+  if(argc<7 || argc>10)return 1;
+  bool check_only=false,mixed=false,decode_envelope=false;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
+    else if(std::string(argv[i])=="--decode-envelope" && !decode_envelope)decode_envelope=true;
     else return 1;
   }
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
@@ -99,11 +100,14 @@ int main(int argc,char**argv){
   const int input_width=number(spec,"input_width"),page=number(spec,"tokens_per_page"),stride=number(spec,"page_stride_values");
   const int max_rows=number(spec,"maximum_rows"),max_tokens=number(spec,"maximum_tokens"),max_pages=number(spec,"maximum_pages");
   if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||past<0||past>8192||(decode&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
-  const int bucket_tokens=selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
+  if(decode_envelope && !decode)return 1;
+  // Explicit replay of a traced capacity-grid graph, including inactive rows.
+  // Do not silently treat a compact synthetic bucket as the serving envelope.
+  const int bucket_tokens=decode_envelope?max_rows:selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
   Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess),candidate(argv[3],bucket_tokens,max_rows,ingress,decode,postprocess);
-  std::printf("geometry mode=runtime-bucket tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u new_grid=%u,%u numeric_law=%s\n",
-    tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,candidate.gx,candidate.gy,candidate.law.c_str());
+  std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u numeric_law=%s\n",
+    decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
   for(int r=0;r<rows;r++){
     const int prefill_rows=mixed?rows-1:rows,prefill_tokens=mixed?tokens-1:tokens;

@@ -1,0 +1,50 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn median(text : String, field : String) -> Double raise {
+  let values : Array[Double] = []
+  for line in text.split("\n").filter(x => x.has_prefix("tokens=")) {
+    guard line.contains(" bitwise=true ") else { fail("numeric regression") }
+    guard line.split(" ").find_first(x => x.has_prefix(field + "="))
+      is Some(value) else {
+      fail("missing timing")
+    }
+    values.push(@string.parse_double(value.strip_prefix(field + "=").unwrap()))
+  }
+  assert_eq(values.length(), 5)
+  values.sort()
+  values[2]
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_DECODE_CAMPAIGN") }
+  guard @fs.read_file(root + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\n") else {
+    fail("incomplete campaign")
+  }
+  println(
+    "candidate\trows\thistory\tprior_us\tselected_us\tlatency_change_percent",
+  )
+  for candidate in ["c452-p4", "c452-p8"] {
+    for history in [127, 4095, 8191] {
+      for rows in [1, 8, 16] {
+        let text = @fs.read_file(
+          root + "/measure-\{candidate}-r\{rows}-h\{history}.stdout",
+        ).text()
+        let old = median(text, "old_us")
+        let selected = median(text, "new_us")
+        println(
+          "\{candidate}\t\{rows}\t\{history}\t\{old}\t\{selected}\t\{(selected / old - 1.0) * 100.0}",
+        )
+      }
+    }
+  }
+}
