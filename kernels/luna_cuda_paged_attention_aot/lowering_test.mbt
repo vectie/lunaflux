@@ -64,7 +64,7 @@ test "generated source covers mixed prefill decode without grid synchronization"
 ///|
 test "phase bundle emits independent prefill and decode entry points" {
   let contract = pa_attention_contract()
-  let bundle = lower_paged_attention_cuda_aot_phase_bundle(
+  let bundle = @luna_cuda_paged_attention_aot.lower_paged_attention_cuda_aot_phase_bundle(
     pa_plan().operations()[2],
     contract.profile(),
     pa_layout(),

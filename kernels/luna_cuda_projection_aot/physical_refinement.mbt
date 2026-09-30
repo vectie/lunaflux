@@ -9,6 +9,8 @@ fn projection_operand_copy_is_async(width : Int) -> Bool {
 /// producer, fold and lifetime relations are retained by the generic pass.
 fn projection_refine_physical(
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
 ) -> @luna_projection_tile_compiler.PhysicalProjectionTileCompilation raise ProjectionAotError {
   let physical = compilation.refine_physical(
     width => {
@@ -22,6 +24,8 @@ fn projection_refine_physical(
       }
     },
     owners_per_group=32,
+    sibling_ownership~,
+    sibling_transport~,
   )
   guard physical is Some(physical) else { raise Unsupported(Strategy) }
   physical

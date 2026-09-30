@@ -4,8 +4,64 @@ fn probe_matrix_family(
   options : ArrayView[String],
 ) -> Unit raise {
   let choices : Array[@luna_projection_tile_compiler.ProjectionFoldChoice] = []
+  let mut max_registers = 128
   match options {
+    ["small-batch-output"] => {
+      max_registers = 255
+      choices.push(
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          MatrixFold,
+          stages=2,
+          transfer_tiles=4,
+          fragment_stages=1,
+          row_tiles=4,
+          output_tiles=4,
+          hoist_addresses=true,
+        ),
+      )
+      choices.push(
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          MatrixFold,
+          stages=2,
+          transfer_tiles=4,
+          fragment_stages=1,
+          row_tiles=1,
+          output_tiles=2,
+          hoist_addresses=true,
+          consumer_groups=2,
+          maximum_token_rows=16,
+        ),
+      )
+    }
+    [
+      stages,
+      window,
+      fragments,
+      rows,
+      columns,
+      addresses,
+      registers,
+      consumers,
+      bound,
+    ] => {
+      max_registers = probe_register_choice(registers)
+      choices.push(
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          MatrixFold,
+          stages=probe_choice_int(stages),
+          transfer_tiles=probe_choice_int(window),
+          fragment_stages=probe_choice_int(fragments),
+          row_tiles=probe_choice_int(rows),
+          output_tiles=probe_choice_int(columns),
+          hoist_addresses=addresses == "1",
+          consumer_groups=probe_choice_int(consumers),
+          maximum_token_rows=probe_choice_int(bound),
+        ),
+      )
+    }
     [] => ()
+    ["128" | "192" | "255" as registers] =>
+      max_registers = probe_register_choice(registers)
     [stages, window, fragments] =>
       choices.push(
         @luna_projection_tile_compiler.ProjectionFoldChoice::new(
@@ -15,7 +71,32 @@ fn probe_matrix_family(
           fragment_stages=probe_choice_int(fragments),
         ),
       )
-    _ => fail("FAMILY [STAGES TRANSFER_TILES FRAGMENT_STAGES]")
+    [stages, window, fragments, rows, columns, addresses, registers] => {
+      max_registers = match registers {
+        "128" => 128
+        "192" => 192
+        "255" => 255
+        _ => fail("register envelope must be 128, 192 or 255")
+      }
+      guard addresses == "0" || addresses == "1" else {
+        fail("address choice must be 0 or 1")
+      }
+      choices.push(
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          MatrixFold,
+          stages=probe_choice_int(stages),
+          transfer_tiles=probe_choice_int(window),
+          fragment_stages=probe_choice_int(fragments),
+          row_tiles=probe_choice_int(rows),
+          output_tiles=probe_choice_int(columns),
+          hoist_addresses=addresses == "1",
+        ),
+      )
+    }
+    _ =>
+      fail(
+        "FAMILY [STAGES TRANSFER_TILES FRAGMENT_STAGES [ROW_TILES OUTPUT_TILES HOIST MAX_REGISTERS]]",
+      )
   }
   let (kind, input_width, widths) : (@plan.OperationKind, Int, Array[Int]) = match
     family {
@@ -109,7 +190,7 @@ fn probe_matrix_family(
       optimization_level=3,
       fused_multiply_add=false,
       reassociate=false,
-      max_registers=128,
+      max_registers~,
     ),
     operands,
     @luna_cuda_projection_aot.ProjectionAotLimits::new(
@@ -119,6 +200,22 @@ fn probe_matrix_family(
     fold_choices=choices,
   )
   println(@utf8.decode(compiled.source_bytes()))
+  probe_row_variants(compiled)
+  let dimensions = compiled.launch_dimensions()
+  println("// PROBE_PRIMARY_GRID=\{dimensions.grid_x()}")
+  println("// PROBE_PRIMARY_BLOCK=\{dimensions.block_x()}")
+  println("// PROBE_PRIMARY_SHARED=\{dimensions.shared_memory_bytes()}")
+  let schedule = compiled.tile_compilation().schedule()
+  if schedule.matrix_pipeline() is Some(pipeline) {
+    let work_grid = pipeline
+      .workgroup_count(
+        maximum_rows=if family == "head" { 32 } else { 2048 },
+        output_columns=output_width,
+        matrix_columns=16,
+      )
+      .unwrap()
+    println("// PROBE_PRIMARY_ACTIVE_GRID=\{work_grid}")
+  }
   println("// RECIPE-BEGIN")
   for line in @utf8.decode(compiled.recipe_bytes()).split("\n") {
     println("// \{line}")

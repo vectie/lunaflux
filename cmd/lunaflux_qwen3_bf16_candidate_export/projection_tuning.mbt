@@ -5,7 +5,11 @@ fn load_candidate_projection_records(
   @projection_tuning_file.load_projection_tuning_records(
     arguments.projection_tuning,
     backend=@luna_projection_strategy.ProjectionBackendId::new("cuda-aot-v1"),
-    architecture=@luna_projection_strategy.ProjectionTargetId::new("sm_120"),
+    architecture=@luna_projection_strategy.ProjectionTargetId::new(
+      "sm_" +
+      arguments.compute_major.to_string() +
+      arguments.compute_minor.to_string(),
+    ),
     toolchain_sha256=arguments.toolchain_sha256,
   ) catch {
     _ => raise CandidatePreparation

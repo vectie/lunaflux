@@ -64,6 +64,11 @@ fn partitioned_merge_source(
   workspace : CudaPartitionedAttentionWorkspace,
   merge_symbol : String,
 ) -> String {
+  if lowering.decode_partition_merge() is Some(program) {
+    return cuda_decode_partition_merge_source(
+      lowering, abi, workspace, merge_symbol, program,
+    )
+  }
   let partitions = lowering.key_value_partitions()
   let (query_tile, _, head_dimension) = lowering.tile()
   let (_, _, block_threads, _) = lowering.launch()

@@ -63,8 +63,9 @@ fn admit_reusable_qwen_decode_split_bindings(
         268435456L,
         compiler_readonly=module_.kernel_abi() ==
           PagedAttentionReadOnlyCompilerDecodeProductionV7,
-        blockwise_readonly=module_.kernel_abi() ==
-          PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8,
+        blockwise_readonly=module_.kernel_abi()
+          is (PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+          | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9),
       ) catch {
         _ => raise Invalid(ResourceState)
       },

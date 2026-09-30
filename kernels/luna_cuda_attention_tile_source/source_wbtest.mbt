@@ -148,7 +148,9 @@ fn source_test_decode_lowering(
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=[440, 441, 452, 453].contains(candidate_id),
+    supports_async_copy=[440, 441, 452, 453, 454, 455, 456, 457].contains(
+      candidate_id,
+    ),
     parallel_workgroup_target~,
   )
   guard @luna_attention_strategy.generate_attention_tile_candidates(
@@ -226,9 +228,9 @@ test "decode cross-workgroup fold covers direct and grouped schedules with row w
       32L * 16L * lowering.key_value_partitions().to_int64(),
     )
     let text = @utf8.decode(first.bytes())
-    assert_true(text.contains("candidate_row = prefill_count"))
-    assert_true(text.contains("candidate_row < row_count"))
-    assert_true(text.contains("part_denominator > 0.0f"))
+    assert_true(text.contains("const int row = prefill_count + local_row"))
+    assert_true(text.contains("local_row >= decode_count"))
+    assert_true(text.contains("partition_active[split]"))
     assert_true(text.contains("const __nv_bfloat16 *key_cache"))
     if candidate_id == 430 {
       assert_true(text.contains("decode_partial_warp_sum"))

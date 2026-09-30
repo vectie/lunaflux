@@ -6,7 +6,13 @@ pub fn ProjectionTileSchedule::companion_output_tiles_per_workgroup(
   self : ProjectionTileSchedule,
 ) -> Int? {
   if self.reuse_intermediate_tile {
-    Some(projection_companion_output_tiles(self.output_tiles_per_workgroup))
+    Some(
+      self.intermediate_pipeline
+      .map(pipeline => pipeline.output_tiles())
+      .unwrap_or(
+        projection_companion_output_tiles(self.output_tiles_per_workgroup),
+      ),
+    )
   } else {
     None
   }

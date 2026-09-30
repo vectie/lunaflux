@@ -78,6 +78,7 @@ pub struct PhysicalProjectionTileCompilation {
   ordered_down : ProjectionScalarFoldPlan?
   matrix : ProjectionPhysicalPipeline?
   sibling : ProjectionPhysicalPipeline?
+  sibling_epilogue : ProjectionSiblingEpiloguePlan?
   intermediate : ProjectionPhysicalPipeline?
   mapped : (@physical_tile_ir.FragmentProgram, @physical_tile_ir.OperandLayout)?
   map_effects : ProjectionMapEffectPlan
@@ -121,7 +122,8 @@ pub enum ProjectionFoldBootstrapEffect {
 pub struct ProjectionFoldChoice {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn ProjectionFoldChoice::new(ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionFoldChoice::maximum_token_rows(Self) -> Int?
+pub fn ProjectionFoldChoice::new(ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int, row_tiles? : Int, output_tiles? : Int, hoist_addresses? : Bool, consumer_groups? : Int, maximum_token_rows? : Int) -> Self raise ProjectionTileCompilerError
 
 pub(all) enum ProjectionFoldEffect {
   IssueFutureOperand
@@ -237,13 +239,26 @@ pub struct ProjectionPhysicalPipeline {
   effects : ProjectionFoldEffectPlan
   distribution : ProjectionProductFoldDistribution
   sibling_reuse : Bool
+  sibling_transport : ProjectionSiblingTransport
   owners_per_group : Int
   transfer_segments : ReadOnlyArray[ProjectionTransferSegment]
 } derive(Eq, @debug.Debug)
 pub fn ProjectionPhysicalPipeline::equal(Self, Self) -> Bool
-pub fn ProjectionPhysicalPipeline::new(ProjectionFoldPipeline, @physical_tile_ir.OperandLayout, consumer_groups~ : Int, owners_per_group~ : Int, products~ : Int, ProjectionTransferExecution, columns? : Int, output_tiles? : Int) -> Self?
+pub fn ProjectionPhysicalPipeline::new(ProjectionFoldPipeline, @physical_tile_ir.OperandLayout, consumer_groups~ : Int, owners_per_group~ : Int, products~ : Int, ProjectionTransferExecution, columns? : Int, output_tiles? : Int, sibling_ownership? : ProjectionSiblingOwnership, sibling_transport? : ProjectionSiblingTransport) -> Self?
 pub fn ProjectionPhysicalPipeline::not_equal(Self, Self) -> Bool
+pub fn ProjectionPhysicalPipeline::producer_addresses(Self, Int) -> ProjectionProducerAddressPlan?
+pub fn ProjectionPhysicalPipeline::sibling_epilogue(Self, ProjectionSiblingOwnership) -> ProjectionSiblingEpiloguePlan?
 pub fn ProjectionPhysicalPipeline::to_repr(Self) -> @debug.Repr
+
+pub struct ProjectionProducerAddressPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionProducerAddressPlan::at(Self, Int, Int) -> (Int, Int, Int)?
+pub fn ProjectionProducerAddressPlan::equal(Self, Self) -> Bool
+pub fn ProjectionProducerAddressPlan::geometry(Self) -> (Int, Int, Int)
+pub fn ProjectionProducerAddressPlan::hoisted(Self) -> Bool
+pub fn ProjectionProducerAddressPlan::not_equal(Self, Self) -> Bool
+pub fn ProjectionProducerAddressPlan::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionProductFoldDistribution {
   // private fields
@@ -301,6 +316,36 @@ pub fn ProjectionSelectedRowGather::operand_window(Self, Int) -> ProjectionOpera
 pub fn ProjectionSelectedRowGather::prefetch_fragments(Self) -> Int
 pub fn ProjectionSelectedRowGather::to_repr(Self) -> @debug.Repr
 
+pub struct ProjectionSiblingEpiloguePlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProjectionSiblingEpiloguePlan::distribution(Self) -> ProjectionProductFoldDistribution
+pub fn ProjectionSiblingEpiloguePlan::effects(Self) -> ProjectionMaterializationEffects?
+pub fn ProjectionSiblingEpiloguePlan::equal(Self, Self) -> Bool
+pub fn ProjectionSiblingEpiloguePlan::not_equal(Self, Self) -> Bool
+pub fn ProjectionSiblingEpiloguePlan::ownership(Self) -> ProjectionSiblingOwnership
+pub fn ProjectionSiblingEpiloguePlan::plane_elements(Self) -> Int
+pub fn ProjectionSiblingEpiloguePlan::result_planes(Self) -> Int
+pub fn ProjectionSiblingEpiloguePlan::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ProjectionSiblingOwnership {
+  SplitSiblingPlanes
+  RetainSiblingProducer
+  CoownedSiblingValues
+} derive(Eq, @debug.Debug)
+pub fn ProjectionSiblingOwnership::equal(Self, Self) -> Bool
+pub fn ProjectionSiblingOwnership::not_equal(Self, Self) -> Bool
+pub fn ProjectionSiblingOwnership::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ProjectionSiblingTransport {
+  BaselineSiblingTransport
+  SegmentedSiblingTransport
+  IndependentSiblingTransport
+} derive(Eq, @debug.Debug)
+pub fn ProjectionSiblingTransport::equal(Self, Self) -> Bool
+pub fn ProjectionSiblingTransport::not_equal(Self, Self) -> Bool
+pub fn ProjectionSiblingTransport::to_repr(Self) -> @debug.Repr
+
 pub(all) enum ProjectionSingleRowNumerics {
   PreserveDotOrder
   AllowDeterministicDotTree
@@ -333,7 +378,7 @@ pub fn ProjectionTileCompilerRequest::new(dispatch~ : @luna_projection_strategy.
 pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, epilogue~ : ProjectionAttentionIngressEpilogue, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_concatenated_weights(Self, ArrayView[Int]) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_fold_choices(Self, ArrayView[ProjectionFoldChoice]) -> Self raise ProjectionTileCompilerError
-pub fn ProjectionTileCompilerRequest::with_fold_pipeline(Self, ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::with_fold_pipeline(Self, ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int, row_tiles? : Int, output_tiles? : Int, hoist_addresses? : Bool, consumer_groups? : Int) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_ingress_head_tiles(Self, Int) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_ingress_row_tiles(Self, Int) -> Self raise ProjectionTileCompilerError
 
@@ -485,7 +530,7 @@ pub fn ScheduledProjectionTileCompilation::digest(Self) -> ProjectionTileCompila
 pub fn ScheduledProjectionTileCompilation::eliminated_bindings(Self) -> (Int, Int)
 pub fn ScheduledProjectionTileCompilation::optimization(Self) -> ProjectionTileOptimization
 pub fn ScheduledProjectionTileCompilation::program(Self) -> ProjectionTileProgram
-pub fn ScheduledProjectionTileCompilation::refine_physical(Self, (Int) -> @physical_tile_ir.OperandLayout?, (Int) -> ProjectionTransferExecution, owners_per_group~ : Int) -> PhysicalProjectionTileCompilation?
+pub fn ScheduledProjectionTileCompilation::refine_physical(Self, (Int) -> @physical_tile_ir.OperandLayout?, (Int) -> ProjectionTransferExecution, owners_per_group~ : Int, sibling_ownership? : ProjectionSiblingOwnership, sibling_transport? : ProjectionSiblingTransport) -> PhysicalProjectionTileCompilation?
 pub fn ScheduledProjectionTileCompilation::schedule(Self) -> ProjectionTileSchedule
 pub fn ScheduledProjectionTileCompilation::selected_row_gather(Self) -> ProjectionSelectedRowGather?
 pub fn ScheduledProjectionTileCompilation::source_program(Self) -> ProjectionTileProgram

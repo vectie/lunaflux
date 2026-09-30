@@ -43,6 +43,25 @@ fn is_lower_sha256(value : StringView) -> Bool {
 fn parse_qwen3_release_bind_arguments(
   arguments : ArrayView[String],
 ) -> Qwen3ReleaseBindArguments raise Qwen3Bf16ReleaseBindError {
+  let (arguments, projection_folds) = match arguments {
+    [.. rest, "--projection-folds", path, digest, device] => {
+      guard path.has_prefix("/") &&
+        is_lower_sha256(digest) &&
+        !device.is_empty() else {
+        raise InvalidArguments
+      }
+      (rest, Some((path, digest, device)))
+    }
+    _ => (arguments, None)
+  }
+  let (arguments, compiler_register_limit) = match arguments {
+    [.. rest, "--compiler-register-limit", value] => {
+      let limit = parse_positive_int(value)
+      guard limit <= 255 else { raise InvalidArguments }
+      (rest, limit)
+    }
+    _ => (arguments, 128)
+  }
   guard arguments
     is [
       _,
@@ -96,6 +115,8 @@ fn parse_qwen3_release_bind_arguments(
     max_query_tokens: parse_positive_int(max_query_tokens),
     max_page_table_entries: parse_positive_int(max_page_table_entries),
     absolute_new_output,
+    projection_folds,
+    compiler_register_limit,
     projection_tuning: @projection_tuning_file.parse_projection_tuning_suffix(
       tuning_suffix,
     ) catch {

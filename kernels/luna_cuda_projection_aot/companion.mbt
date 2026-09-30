@@ -4,6 +4,7 @@ fn projection_companion_dimensions(
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
   profile : @launch_contract.PagedKernelProfile,
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  refine_fold_geometry? : Bool = false,
 ) -> @launch_contract.AotLaunchDimensions? raise ProjectionAotError {
   if !projection_tensor_core_mlp_eligible(parameters, dispatch) {
     return None
@@ -16,10 +17,26 @@ fn projection_companion_dimensions(
   let rows = (profile.max_query_tokens().to_int64() + 15L) / 16L
   let columns = (width + groups.to_int64() * 16L - 1L) /
     (groups.to_int64() * 16L)
-  let work = Int64::max(
-    rows * columns,
-    (width + groups.to_int64() - 1L) / groups.to_int64(),
-  )
+  let work = if refine_fold_geometry {
+    guard compilation.schedule().intermediate_pipeline() is Some(pipeline) &&
+      pipeline.workgroup_count(
+        maximum_rows=profile.max_query_tokens(),
+        output_columns=parameters.output_width,
+        matrix_columns=16,
+      )
+      is Some(matrix_work) else {
+      raise SizeOverflow(LaunchDimensions)
+    }
+    Int64::max(
+      matrix_work.to_int64(),
+      (width + groups.to_int64() * 4L - 1L) / (groups.to_int64() * 4L),
+    )
+  } else {
+    Int64::max(
+      rows * columns,
+      (width + groups.to_int64() - 1L) / groups.to_int64(),
+    )
+  }
   if work <= 0L || work > 2147483647L {
     raise SizeOverflow(LaunchDimensions)
   }

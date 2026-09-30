@@ -32,8 +32,11 @@ pub struct ProjectionFoldRecord {
 pub fn ProjectionFoldRecord::artifact_sha256(Self) -> String
 pub fn ProjectionFoldRecord::baseline_sha256(Self) -> String
 pub fn ProjectionFoldRecord::fold_choices(Self) -> ReadOnlyArray[@luna_projection_tile_compiler.ProjectionFoldChoice]
+pub fn ProjectionFoldRecord::is_baseline(Self) -> Bool
 pub fn ProjectionFoldRecord::median_latency_ns(Self) -> Int64
 pub fn ProjectionFoldRecord::sample_count(Self) -> Int
+pub fn ProjectionFoldRecord::sibling_ownership(Self) -> @luna_projection_tile_compiler.ProjectionSiblingOwnership
+pub fn ProjectionFoldRecord::sibling_transport(Self) -> @luna_projection_tile_compiler.ProjectionSiblingTransport
 
 pub struct ProjectionTuningScope {
   // private fields

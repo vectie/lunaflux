@@ -57,13 +57,26 @@ pub fn AttentionTileSchedule::physical_program(
     raise InvalidAttentionTileSchedule(InvalidTile)
   }
   match self.compute {
-    AttentionGroupedQueryBlockwiseDot => {
+    AttentionGroupedQueryBlockwiseDot
+    | AttentionGroupedQueryDualScoreBlockwiseDot
+    | AttentionGroupedQueryFmaBlockwiseDot => {
       let keys = if self.key_value_partitions == 1 {
         self.loops[2].tile
       } else {
         self.loops[3].tile
       }
-      guard @attention_physical_ir.BlockwiseFold::new(dimensions~, keys~)
+      let score_owners = if self.compute ==
+        AttentionGroupedQueryDualScoreBlockwiseDot {
+        2
+      } else {
+        1
+      }
+      guard @attention_physical_ir.BlockwiseFold::new(
+          dimensions~,
+          keys~,
+          score_owners~,
+          contraction=self.compute == AttentionGroupedQueryFmaBlockwiseDot,
+        )
         is Some(fold) else {
         raise InvalidAttentionTileSchedule(InvalidTile)
       }

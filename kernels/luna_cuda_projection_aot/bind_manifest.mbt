@@ -108,7 +108,12 @@ pub fn bind_manifest_projection_cuda_aot(
     operation_parameters,
     contract.operands(),
   )
-  validate_projection_contract(operation, contract, candidate.dispatch_plan)
+  validate_projection_contract(
+    operation,
+    contract,
+    candidate.dispatch_plan,
+    candidate.dimensions,
+  )
   if contract.profile() != candidate.profile ||
     contract.dimensions() != candidate.dimensions ||
     contract.operands() != candidate.operands ||

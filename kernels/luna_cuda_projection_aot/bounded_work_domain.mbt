@@ -10,6 +10,7 @@ fn projection_bounded_work_grid_x(
   maximum_tokens : Int,
   maximum_rows : Int,
   dimensions : @launch_contract.AotLaunchDimensions,
+  minimum_grid_x? : Int = 0,
 ) -> Int? {
   let schedule = compilation.schedule()
   let (pipeline, output_columns) = if schedule.sibling_pipeline() is Some(plan) {
@@ -31,5 +32,5 @@ fn projection_bounded_work_grid_x(
     is Some(count) else {
     return None
   }
-  Some(if count < dimensions.grid_x() { count } else { dimensions.grid_x() })
+  Some(Int::max(minimum_grid_x, Int::min(count, dimensions.grid_x())))
 }

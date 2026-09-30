@@ -41,7 +41,14 @@ fn emit_cuda_blockwise_decode_source(
   let symbol = if partitioned {
     requested_symbol
   } else {
-    requested_symbol + "_blockwise_f32_v1"
+    requested_symbol +
+    (if fold.contracts_multiply_add() {
+      "_blockwise_fma_f32_v3"
+    } else if fold.score_owners() == 1 {
+      "_blockwise_f32_v1"
+    } else {
+      "_dual_score_blockwise_f32_v2"
+    })
   }
   guard valid_cuda_symbol(symbol) else {
     raise InvalidCudaAttentionTileSource(InvalidSymbol)
@@ -79,11 +86,32 @@ fn emit_cuda_blockwise_decode_source(
       abi,
       effects,
       lowering.hoists_paged_key_value_page_lookup(),
+      lowering.decode_copy_retention().unwrap(),
+      vector_elements=lowering.decode_copy_elements(),
     )
   } else {
     ""
   }
   let items = (dimension + 31) / 32
+  let value_ownership = @attention_physical_ir.ValueComponentOwnership::new(
+    dimensions=dimension,
+    owners=32,
+    maximum_fragment=if dimension == 128 { 4 } else { 1 },
+  ).unwrap()
+  let value_component = if value_ownership.fragment_width() == 4 {
+    "lane * 4 + item"
+  } else {
+    "lane + item * 32"
+  }
+  let score_owners = fold.score_owners()
+  let score_lanes = 32 / score_owners
+  let score_items = (dimension + score_lanes - 1) / score_lanes
+  let score_phase = lowering.decode_score_group_phase()
+  let score_component = if score_phase != 0 {
+    "score_lane + ((item + score_owner * \{score_phase}) % LF_SCORE_QUERY_ITEMS) * LF_SCORE_LANES"
+  } else {
+    "score_lane + item * LF_SCORE_LANES"
+  }
   let output_arguments = if partitioned {
     "const __nv_bfloat16 *rotated_qkv_rows, const __nv_bfloat16 *key_cache,\n    const __nv_bfloat16 *value_cache, float *workspace"
   } else {
@@ -109,12 +137,12 @@ fn emit_cuda_blockwise_decode_source(
   let epilogue = if partitioned {
     "  if (lane == 0) { workspace[state] = maximum; workspace[\{state_count}ULL + state] = denominator; }\n" +
     "  #pragma unroll\n  for (int item = 0; item < LF_ACCUMULATOR_ITEMS; ++item) {\n" +
-    "    const int component = lane + item * 32;\n" +
+    "    const int component = LF_VALUE_COMPONENT(item);\n" +
     "    if (component < LF_HEAD_DIMENSION) workspace[\{2L * state_count}ULL + state * LF_HEAD_DIMENSION + component] = accumulator[item];\n  }"
   } else {
     "  const unsigned long long output_offset = (unsigned long long)token * \{heads * dimension}ULL + query_head * LF_HEAD_DIMENSION;\n" +
     "  #pragma unroll\n  for (int item = 0; item < LF_ACCUMULATOR_ITEMS; ++item) {\n" +
-    "    const int component = lane + item * 32;\n    if (component < LF_HEAD_DIMENSION)\n" +
+    "    const int component = LF_VALUE_COMPONENT(item);\n    if (component < LF_HEAD_DIMENSION)\n" +
     "      output[output_offset + component] = __float2bfloat16_rn(accumulator[item] / denominator);\n  }"
   }
   let stage_valid = if effects.is_pipelined() {
@@ -130,6 +158,11 @@ fn emit_cuda_blockwise_decode_source(
     $|#define LF_KEY_VALUE_TILE \{keys}
     $|#define LF_HEAD_DIMENSION \{dimension}
     $|#define LF_ACCUMULATOR_ITEMS \{items}
+    $|#define LF_VALUE_COMPONENT(item) (\{value_component})
+    $|#define LF_SCORE_OWNERS \{score_owners}
+    $|#define LF_SCORE_LANES \{score_lanes}
+    $|#define LF_SCORE_QUERY_ITEMS \{score_items}
+    $|#define LF_SCORE_COMPONENT(item) (\{score_component})
     $|extern "C" __global__ void \{symbol}(
     $|    const int *counts, const int *query_positions,
     $|    const int *query_row_offsets, const int *sequence_lengths,
@@ -137,6 +170,8 @@ fn emit_cuda_blockwise_decode_source(
     $|    \{output_arguments}) {
     $|  const int thread = (int)threadIdx.x;
     $|  const int lane = thread & 31;
+    $|  const int score_lane = lane % LF_SCORE_LANES;
+    $|  const int score_owner = lane / LF_SCORE_LANES;
     $|  const int warp = thread >> 5;
     $|  const int key_value_head = (int)blockIdx.y;
     $|  const int query_head = key_value_head * \{group} + warp;
@@ -165,10 +200,10 @@ fn emit_cuda_blockwise_decode_source(
     $|  int *tile_valid = reinterpret_cast<int *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + \{group * keys};
     $|\{stage_valid}
     $|  const unsigned long long query_offset = (unsigned long long)token * \{input_width}ULL + query_head * LF_HEAD_DIMENSION;
-    $|  float query_fragment[LF_ACCUMULATOR_ITEMS], accumulator[LF_ACCUMULATOR_ITEMS] = {};
+    $|  float query_fragment[LF_SCORE_QUERY_ITEMS], accumulator[LF_ACCUMULATOR_ITEMS] = {};
     $|  #pragma unroll
-    $|  for (int item = 0; item < LF_ACCUMULATOR_ITEMS; ++item) {
-    $|    const int component = lane + item * 32;
+    $|  for (int item = 0; item < LF_SCORE_QUERY_ITEMS; ++item) {
+    $|    const int component = LF_SCORE_COMPONENT(item);
     $|    query_fragment[item] = component < LF_HEAD_DIMENSION ? __bfloat162float(rotated_qkv_rows[query_offset + component]) : 0.0f;
     $|  }
     $|  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
@@ -187,6 +222,11 @@ fn emit_cuda_blockwise_decode_source(
     $|#undef LF_KEY_VALUE_TILE
     $|#undef LF_HEAD_DIMENSION
     $|#undef LF_ACCUMULATOR_ITEMS
+    $|#undef LF_VALUE_COMPONENT
+    $|#undef LF_SCORE_OWNERS
+    $|#undef LF_SCORE_LANES
+    $|#undef LF_SCORE_QUERY_ITEMS
+    $|#undef LF_SCORE_COMPONENT
   let bytes = @utf8.encode(source)
   guard bytes.length() <= maximum_source_bytes else {
     raise InvalidCudaAttentionTileSource(SourceLimit)

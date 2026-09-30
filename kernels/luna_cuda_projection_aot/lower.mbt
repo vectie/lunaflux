@@ -24,6 +24,8 @@ fn projection_finish_candidate(
   embed_greedy_sampling : Bool,
   limits : ProjectionAotLimits,
   fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   projection_validate_policy(target, compiler)
   let parameters = projection_bind_qkv_widths(
@@ -37,6 +39,13 @@ fn projection_finish_candidate(
     profile.max_query_tokens(),
     target,
   )
+  if (
+      sibling_ownership != SplitSiblingPlanes ||
+      sibling_transport != BaselineSiblingTransport
+    ) &&
+    parameters.family != GatedMlp {
+    raise Unsupported(Strategy)
+  }
   let demand : @luna_projection_tile_compiler.ProjectionResultDemand = if parameters.family ==
     LanguageModelHead {
     QueryRowEnds
@@ -75,14 +84,34 @@ fn projection_finish_candidate(
   validate_projection_operands(
     operation, parameters, profile, operands, dispatch_plan,
   )
-  let dimensions = projection_dimensions(profile, parameters, dispatch_plan)
+  let dimensions = projection_dimensions(
+    profile,
+    parameters,
+    dispatch_plan,
+    sibling_ownership~,
+  )
+  let dimensions = if fold_choices.is_empty() {
+    dimensions
+  } else {
+    projection_refine_fold_dimensions(
+      parameters, tile_compilation, profile, dimensions,
+    )
+  }
   if !fold_choices.is_empty() {
     projection_validate_fold_resources(
       tile_compilation,
       dimensions.shared_memory_bytes(),
     )
   }
-  let physical_compilation = projection_refine_physical(tile_compilation)
+  let physical_compilation = projection_refine_physical(
+    tile_compilation,
+    sibling_ownership~,
+    sibling_transport~,
+  )
+  if sibling_ownership != SplitSiblingPlanes &&
+    physical_compilation.sibling_epilogue is None {
+    raise Unsupported(Strategy)
+  }
   let primary_source = projection_emit_source(
     symbol,
     parameters,
@@ -101,6 +130,9 @@ fn projection_finish_candidate(
     dispatch_plan,
     symbol,
     max_registers=compiler.max_registers(),
+    sibling_ownership~,
+    fold_choices~,
+    sibling_transport~,
   )
   let source = projection_join_source_fragments(primary_source, variant_source)
   if source.length() > limits.max_source_bytes {
@@ -111,21 +143,43 @@ fn projection_finish_candidate(
     parameters, dispatch_plan,
   )
   let recipe = projection_recipe(
-    parameters,
-    operation.id(),
-    entry_point_id,
-    target,
-    compiler,
-    profile,
-    operands,
-    dimensions,
-    numerical_contract,
-    dispatch_plan,
-    tile_compilation,
-    symbol,
-    source_digest,
-    embed_greedy_sampling,
-  )
+      parameters,
+      operation.id(),
+      entry_point_id,
+      target,
+      compiler,
+      profile,
+      operands,
+      dimensions,
+      numerical_contract,
+      dispatch_plan,
+      tile_compilation,
+      symbol,
+      source_digest,
+      embed_greedy_sampling,
+    ) +
+    (if sibling_ownership == SplitSiblingPlanes {
+      ""
+    } else {
+      "sibling_epilogue_ownership=" +
+      (match sibling_ownership {
+        SplitSiblingPlanes => "split_planes"
+        RetainSiblingProducer => "retained_producer"
+        CoownedSiblingValues => "coowned_values"
+      }) +
+      "\n"
+    }) +
+    (if sibling_transport == BaselineSiblingTransport {
+      ""
+    } else {
+      "sibling_operand_transport=" +
+      (match sibling_transport {
+        BaselineSiblingTransport => "baseline"
+        SegmentedSiblingTransport => "segmented"
+        IndependentSiblingTransport => "independent"
+      }) +
+      "\n"
+    })
   if recipe.length() > limits.max_recipe_bytes {
     raise LimitExceeded(Recipe)
   }
@@ -149,7 +203,11 @@ fn projection_finish_candidate(
     source,
     row_variants,
     companion_dimensions: projection_companion_dimensions(
-      parameters, dispatch_plan, profile, tile_compilation,
+      parameters,
+      dispatch_plan,
+      profile,
+      tile_compilation,
+      refine_fold_geometry=!fold_choices.is_empty(),
     ),
     source_digest,
     recipe,
@@ -248,6 +306,8 @@ pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(
   runtime_dispatch : @luna_projection_strategy.ProjectionRuntimeDispatch,
   limits : ProjectionAotLimits,
   fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   let parameters = projection_parameters(operation)
   let entry_point_id = @catalog.AotKernelEntryPointId::from_stable_int(1) catch {
@@ -273,6 +333,8 @@ pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(
     parameters.family == LanguageModelHead,
     limits,
     fold_choices~,
+    sibling_ownership~,
+    sibling_transport~,
   )
 }
 
@@ -288,6 +350,8 @@ pub fn lower_reusable_projection_cuda_aot_candidate(
   operands : ArrayView[@launch_contract.AotOperand],
   limits : ProjectionAotLimits,
   fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   let records : Array[@luna_projection_strategy.ProjectionAutotuneRecord] = []
   let runtime_dispatch = prepare_projection_cuda_runtime_dispatch(
@@ -302,5 +366,7 @@ pub fn lower_reusable_projection_cuda_aot_candidate(
     runtime_dispatch,
     limits,
     fold_choices~,
+    sibling_ownership~,
+    sibling_transport~,
   )
 }

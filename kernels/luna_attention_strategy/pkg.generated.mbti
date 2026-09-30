@@ -197,7 +197,9 @@ pub struct AttentionTileCandidate {
 } derive(Eq, @debug.Debug)
 pub fn AttentionTileCandidate::compute(Self) -> AttentionTileCompute
 pub fn AttentionTileCandidate::execution_geometry(Self) -> (Int, Int, Int)
+pub fn AttentionTileCandidate::joint_query_consumers(Self) -> Bool
 pub fn AttentionTileCandidate::memory(Self) -> AttentionTileMemory
+pub fn AttentionTileCandidate::retained_query_dimensions(Self) -> Int
 pub fn AttentionTileCandidate::shared_memory_bytes(Self) -> Int64
 pub fn AttentionTileCandidate::stable_id(Self) -> Int
 pub fn AttentionTileCandidate::tile(Self) -> AttentionTileShape
@@ -208,6 +210,8 @@ pub(all) enum AttentionTileCompute {
   AttentionGroupedQuerySubgroupDot
   AttentionGroupedQuerySplitSubgroupDot
   AttentionGroupedQueryBlockwiseDot
+  AttentionGroupedQueryDualScoreBlockwiseDot
+  AttentionGroupedQueryFmaBlockwiseDot
   AttentionMatrixDot
   AttentionMatrixQkPv
 } derive(Eq, @debug.Debug)

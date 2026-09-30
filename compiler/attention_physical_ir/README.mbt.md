@@ -24,6 +24,16 @@ consumer and can use the shared physical IR's register-forwarding transform.
 It does not reorder reduction steps, change probability precision, add
 storage, or move reads across transfer publication/release effects.
 
+`QueryOperandLifetime` jointly refines the invariant Q operands and epoch-local
+score/PV fragment live ranges. A complete-fragment prefix may remain live across
+ascending KV epochs; its explicit representation size estimates fragment
+storage, not the hardware register count. The selected lowering retains this
+plan and materializes separately named Q operands before the KV loop. No-retain,
+half-prefix and full-prefix AOT alternatives preserve the same numerical fold.
+Register lifetime and saved shared loads must be measured together; unchanged
+static cost and stable-ID ties retain the prior default without fabricating a
+performance win or growing KV width first.
+
 `KeyFold` separately describes the F32 per-key statistics merge and scale
 publication used by direct, grouped and split-key attention. It computes
 component ownership from an explicit backend-supplied owner width, without
@@ -45,3 +55,42 @@ accumulates an ordered tile PV numerator, then merges the running state once
 per ascending tile. Its score/probability exchanges are subgroup effects;
 shared-KV publication remains workgroup-scoped. It is not bit-equivalent to
 `KeyFold` and does not round probabilities to BF16 like `OnlineFold`.
+
+The separate `dual-score-blockwise-f32-probability-v2` law gives each subgroup
+two disjoint score owners with smaller QK reduction trees. Cyclic component
+group traversal is a bijection with a declared reassociation law, not a claim
+of bitwise equality. CUDA lowering chooses the physical traversal phase from
+the row stride and shared-word bank mapping; model and scheduler layers do not
+contain warp or bank constants. Both key-tile widths remain measured AOT
+alternatives, not an unmeasured replacement for the selected ordered kernel.
+
+`PartitionMerge` gives invariant maximum/denominator/scale statistics one
+owner and one publication. Disjoint component owners consume those statistics
+using the unchanged ascending-partition numerator sum. Partial and merge
+launches are measured together, including empty partitions and ragged masks;
+parallelism alone does not establish that a split route is faster.
+
+`RetainedCopyOwnership` is the finite product of vector slots and workgroup
+owners. It gives every retained copy address and validity size a statically
+named binding between the key and value transfer publications. Device lowering
+consumes that ownership as scalar bindings, not a dynamically indexed array.
+This preserves address sharing, zero-fill masks, stage order, numerical law
+and CTA geometry. It does not assert that registers are free: the emitted
+register count, local traffic and total time still require measurement.
+
+`ValueComponentOwnership` is a bijection between independent output components
+and consumer fragments. Supported contiguous fragments permit packed loads;
+ragged or unsupported physical widths retain the masked interleaved mapping.
+The same resolved ownership must govern accumulation and both ordinary and
+partitioned output stores. It changes neither the key order nor the strict
+probability law. The CUDA lowering independently chooses aligned copy width
+and consumes retained addresses as named values rather than dynamic arrays.
+
+`blockwise-fma-f32-probability-v3` is a separate, opt-in contraction law, not a
+reinterpretation of V1. Only its explicitly contracted dot, PV and state-merge
+operations use FMA. Exponential evaluation, probability precision and ascending
+tile/partition ordering remain explicit. CUDA compilation still disables
+implicit contraction globally. A distinct symbol, ABI and bundle schema carry
+this law through export, packaging, startup admission and split-route binding;
+strict bundles keep their existing identity. Numerical and whole-serving
+comparisons are required before selecting this alternative.

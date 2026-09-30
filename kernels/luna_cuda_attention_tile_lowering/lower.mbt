@@ -9,7 +9,10 @@ fn cuda_compute_primitive(
     AttentionGroupedQuerySubgroupDot => CudaGroupedQuerySubgroupShuffleDot
     AttentionGroupedQuerySplitSubgroupDot =>
       CudaGroupedQuerySplitSubgroupShuffleDot
-    AttentionGroupedQueryBlockwiseDot => CudaGroupedQueryBlockwiseShuffleDot
+    AttentionGroupedQueryBlockwiseDot
+    | AttentionGroupedQueryDualScoreBlockwiseDot
+    | AttentionGroupedQueryFmaBlockwiseDot =>
+      CudaGroupedQueryBlockwiseShuffleDot
     AttentionMatrixDot =>
       if target.compute_major() >= 8 && target.supports_bf16() {
         CudaMatrixMultiplyAccumulate
@@ -194,12 +197,27 @@ pub fn lower_attention_tile_schedule_to_cuda(
     InvalidAttentionTileSchedule(rule) => Err(rule)
   }
   let builder = StringBuilder()
-  let prefill_fragments = cuda_prefill_fragment_binding(physical_program)
+  let prefill_fragments = cuda_prefill_fragment_binding(
+    physical_program,
+    candidate.retained_query_dimensions(),
+    candidate.joint_query_consumers(),
+  )
   builder <+ "luna-cuda-attention-tile-lowering-v6\n"
   builder <+ "resident_output_fold=\{resident_output_fold}\n"
   if query_owned_fragments {
     builder <+ "query_owned_fragments=true\n"
     builder <+ "fragment_representation=forward-single-use-right-v1\n"
+    if candidate.retained_query_dimensions() > 0 {
+      builder <+
+        "query_operand_lifetime=retained-prefix-v1,\{candidate.retained_query_dimensions()}\n"
+      if prefill_fragments is Some(binding) {
+        builder <+
+          "peak_fragment_words=\{binding.query_lifetime().peak_fragment_words()}\n"
+      }
+    }
+    if candidate.joint_query_consumers() {
+      builder <+ "query_operand_consumer=joint-right-columns-v1\n"
+    }
   }
   builder <+ "factor_shared_key_query_map=\{factor_shared_key_query_map}\n"
   builder <+

@@ -12,7 +12,9 @@ fn attention_candidate_shared_bytes(
     return 0L
   }
   let (_, _, head_dimension, _) = problem.shape.dimensions()
-  if compute == AttentionGroupedQueryBlockwiseDot {
+  if compute == AttentionGroupedQueryBlockwiseDot ||
+    compute == AttentionGroupedQueryDualScoreBlockwiseDot ||
+    compute == AttentionGroupedQueryFmaBlockwiseDot {
     let (heads, kv_heads, _, _) = problem.shape.dimensions()
     let operand_bytes = attention_checked_product(
       attention_checked_product(
@@ -95,6 +97,8 @@ fn attention_candidate_shared_bytes(
     | AttentionGroupedQuerySubgroupDot
     | AttentionGroupedQuerySplitSubgroupDot
     | AttentionGroupedQueryBlockwiseDot
+    | AttentionGroupedQueryDualScoreBlockwiseDot
+    | AttentionGroupedQueryFmaBlockwiseDot
     | AttentionMatrixDot => 4L
   }
   let score_and_weight_bytes = attention_checked_product(
@@ -134,6 +138,18 @@ fn attention_candidate_compatible(
     head_columns~,
     subgroups~,
   )
+  if candidate.retained_query_dimensions < 0 ||
+    (
+      candidate.joint_query_consumers &&
+      candidate.retained_query_dimensions == 0
+    ) ||
+    candidate.retained_query_dimensions > head_columns ||
+    (
+      candidate.retained_query_dimensions > 0 &&
+      ownership != QueryOwnedFragments
+    ) {
+    return false
+  }
   if problem.required_fragment_ownership is Some(required) &&
     required != ownership {
     return false
@@ -164,7 +180,9 @@ fn attention_candidate_compatible(
   match candidate.compute {
     AttentionGroupedQuerySubgroupDot
     | AttentionGroupedQuerySplitSubgroupDot
-    | AttentionGroupedQueryBlockwiseDot => {
+    | AttentionGroupedQueryBlockwiseDot
+    | AttentionGroupedQueryDualScoreBlockwiseDot
+    | AttentionGroupedQueryFmaBlockwiseDot => {
       let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
       let group_size = if key_value_heads > 0 {
         query_heads / key_value_heads
@@ -177,9 +195,15 @@ fn attention_candidate_compatible(
       (match candidate.compute {
         AttentionGroupedQuerySubgroupDot =>
           candidate.subgroups_per_block == group_size
-        AttentionGroupedQueryBlockwiseDot =>
+        AttentionGroupedQueryBlockwiseDot
+        | AttentionGroupedQueryDualScoreBlockwiseDot
+        | AttentionGroupedQueryFmaBlockwiseDot =>
           candidate.subgroups_per_block == group_size &&
-          problem.allow_alternative_softmax_reduction
+          problem.allow_alternative_softmax_reduction &&
+          (
+            candidate.compute != AttentionGroupedQueryDualScoreBlockwiseDot ||
+            capabilities.subgroup_width % 2 == 0
+          )
         AttentionGroupedQuerySplitSubgroupDot =>
           candidate.subgroups_per_block > group_size &&
           candidate.subgroups_per_block % group_size == 0
@@ -222,6 +246,8 @@ fn make_attention_candidate(
     subgroups_per_block,
     pipeline_stages,
     vector_bytes,
+    retained_query_dimensions: 0,
+    joint_query_consumers: false,
     shared_memory_bytes: attention_candidate_shared_bytes(
       problem, compute, query_rows, key_value_rows, pipeline_stages, memory, subgroups_per_block,
     ),
@@ -269,11 +295,48 @@ pub fn generate_attention_tile_candidates(
       )
     }
   })
+  candidates.append(retained_query_attention_candidates(candidates))
   if problem.phase == Decode {
     let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
     if key_value_heads > 0 && query_heads % key_value_heads == 0 {
       let query_heads_per_group = query_heads / key_value_heads
       if problem.allow_alternative_softmax_reduction {
+        for index, keys in [32, 64] {
+          match
+            make_attention_candidate(
+              problem,
+              capabilities,
+              456 + index,
+              AttentionGroupedQueryFmaBlockwiseDot,
+              AttentionAsyncStagedShared,
+              1,
+              keys,
+              query_heads_per_group,
+              2,
+              8,
+            ) {
+            Some(candidate) => candidates.push(candidate)
+            None => ()
+          }
+        }
+        for index, keys in [32, 64] {
+          match
+            make_attention_candidate(
+              problem,
+              capabilities,
+              454 + index,
+              AttentionGroupedQueryDualScoreBlockwiseDot,
+              AttentionAsyncStagedShared,
+              1,
+              keys,
+              query_heads_per_group,
+              2,
+              8,
+            ) {
+            Some(candidate) => candidates.push(candidate)
+            None => ()
+          }
+        }
         for index, keys in [32, 64] {
           match
             make_attention_candidate(

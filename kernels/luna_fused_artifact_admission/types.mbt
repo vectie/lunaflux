@@ -133,6 +133,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   QwenPagedAttentionReadOnlyDecodeSplitProductionV3
   PagedAttentionReadOnlyCompilerDecodeProductionV7
   PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+  PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
 } derive(Debug, Eq)
 
 ///|

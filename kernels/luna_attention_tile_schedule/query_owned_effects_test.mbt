@@ -194,7 +194,7 @@ test "query effect model detects missing readiness and premature reuse" {
 ///|
 test "split lifetime publishes value before recycling key storage" {
   let plan = @luna_attention_tile_schedule.AttentionQueryEffectPlan::new(
-    @luna_attention_strategy.AttentionAsyncStagedShared,
+    AttentionAsyncStagedShared,
     stages=1,
     readiness=KeyScoreBeforeValueReadiness,
   )

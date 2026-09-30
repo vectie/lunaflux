@@ -10,6 +10,7 @@ pub struct PhysicalProjectionTileCompilation {
   ordered_down : ProjectionScalarFoldPlan?
   matrix : ProjectionPhysicalPipeline?
   sibling : ProjectionPhysicalPipeline?
+  sibling_epilogue : ProjectionSiblingEpiloguePlan?
   intermediate : ProjectionPhysicalPipeline?
   mapped : (@physical_tile_ir.FragmentProgram, @physical_tile_ir.OperandLayout)?
   map_effects : ProjectionMapEffectPlan
@@ -31,6 +32,8 @@ pub fn ScheduledProjectionTileCompilation::refine_physical(
   layout : (Int) -> @physical_tile_ir.OperandLayout?,
   execution : (Int) -> ProjectionTransferExecution,
   owners_per_group~ : Int,
+  sibling_ownership? : ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport? : ProjectionSiblingTransport = BaselineSiblingTransport,
 ) -> PhysicalProjectionTileCompilation? {
   guard owners_per_group > 0 else { return None }
   let schedule = self.schedule()
@@ -79,18 +82,27 @@ pub fn ScheduledProjectionTileCompilation::refine_physical(
       owners_per_group~,
       products~,
       execution(pipeline.transfer_width()),
+      sibling_ownership~,
+      sibling_transport~,
     )
   }
   let groups = schedule.output_tiles_per_workgroup()
   let matrix = bind(schedule.matrix_pipeline(), groups, 1)
   let sibling = bind(schedule.sibling_pipeline(), groups, 2)
+  let sibling_epilogue = match sibling {
+    Some(pipeline) => pipeline.sibling_epilogue(sibling_ownership)
+    None => None
+  }
   let intermediate = bind(
     schedule.intermediate_pipeline(),
     schedule.companion_output_tiles_per_workgroup().unwrap_or(groups),
     1,
   )
   guard (schedule.matrix_pipeline() is None || matrix is Some(_)) &&
-    (schedule.sibling_pipeline() is None || sibling is Some(_)) &&
+    (
+      schedule.sibling_pipeline() is None ||
+      (sibling is Some(_) && sibling_epilogue is Some(_))
+    ) &&
     (schedule.intermediate_pipeline() is None || intermediate is Some(_)) else {
     return None
   }
@@ -153,6 +165,7 @@ pub fn ScheduledProjectionTileCompilation::refine_physical(
     ordered_down,
     matrix,
     sibling,
+    sibling_epilogue,
     intermediate,
     mapped,
     selected_gather,

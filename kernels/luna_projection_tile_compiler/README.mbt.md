@@ -7,6 +7,17 @@ query-row selection explicit; the optimizer records demand pruning, selected
 input-tile hoisting, and cross-output input-tile reuse; the schedule expresses
 parallel row/output maps and the ordered reduction fold without vendor terms.
 
+Offline fold choices independently refine row and output reuse multiplicity.
+`row_tiles` bounds the parallel row map (including partial evaluation for small
+domains), while `output_tiles` changes matrix-column sharing within the admitted
+consumer envelope. Neither changes a dot's reduction ordering or rounding.
+`ProjectionProducerAddressPlan` separates each worker's immutable row/vector
+coordinate from the varying reduction offset; CUDA lowering may retain these
+addresses across ordered stages without moving operand reads across effects.
+The same choices propagate through bounded row executables, so a tuned primary
+does not silently revert to ordinary geometry when a graph bucket is selected.
+Larger reuse is an executable alternative, not an unmeasured default winner.
+
 Full projection/ingress packing is represented separately from numerical head
 ownership. `with_ingress_head_tiles` expands only the producer's independent
 column domain; it leaves the semantic graph, ordered dot fold, and per-head
@@ -204,8 +215,43 @@ CUDA emitters consume this retained value, including transport mode, rather
 than reconstructing independent producer and consumer plans. Backend binding
 checks instruction vector and subgroup geometry separately from generic IR.
 
+Sibling pointwise materialization is now a separate immutable ownership plan,
+not an implicit consequence of a CUDA renderer. `SplitSiblingPlanes` retains
+the existing measured two-plane exchange. `RetainSiblingProducer` keeps one
+ordered fold in its consumer registers and publishes only its peer through a
+retired operand ring. `CoownedSiblingValues` gives the same consumer both ordered
+folds; their pointwise map requires no result plane or workgroup exchange.
+The latter removes the split consumer topology during physical refinement.
+These are generic two-fold ownership choices, not model-specific fusion rules.
+All three retain the same reduction and strict pointwise numerical contract.
+Physical plans expose distribution, result-plane count, and explicit
+publication/retirement effects. CUDA only realizes the chosen plan.
+
+Ownership can be combined with a finite sibling consumer-group choice and
+independent row/output geometry. This jointly refines accumulator ownership,
+operand storage, schedule identity and launch topology; it is not a diagnostic
+block-size override. The down fold keeps its own geometry. Reduced consumer
+counts preserve the scalar fallback's output coverage even in small bounded
+variants. More register ownership can reduce resident workgroups and can be
+slower despite removing shared result planes, so these choices are not promoted
+without complete-chain measurements and selected-kernel counters.
+
+Alternatives are exportable and selectable through source-bound v2 offline
+fold observations, including all bounded-row executables. No measurement keeps
+the baseline; an alternative must improve the complete declared chain, not
+merely its epilogue or one GEMM, before selection. A source-bound record is a
+selection input, not a replacement for physical correctness and sanitizer tests.
+
 The compiler performs no I/O, device probing, benchmarking, or runtime
 allocation. CUDA, HIP, Metal, and CPU backends may lower the same scheduled
 value differently. Subgroup width arrives as an abstract capability; device
 instruction names, fixed vendor widths, and launch geometry remain outside
 this package.
+
+Bounded fold choices refine independent row/column products and consumer
+cooperation before schedule construction. The narrowest applicable token-row
+domain wins, with an unbounded measured fallback. Every row variant receives
+its own resolved physical plan; its executable source, primary launch and
+companion launch are derived together. This avoids changing only a diagnostic
+block size or preserving a scalar grid floor on a matrix row variant. Ordered
+reduction and pointwise numeric contracts remain unchanged.

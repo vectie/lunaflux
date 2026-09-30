@@ -39,6 +39,8 @@ fn compute_code(compute : @luna_attention_strategy.AttentionTileCompute) -> Int 
     AttentionGroupedQuerySubgroupDot => 3
     AttentionGroupedQuerySplitSubgroupDot => 6
     AttentionGroupedQueryBlockwiseDot => 7
+    AttentionGroupedQueryDualScoreBlockwiseDot => 8
+    AttentionGroupedQueryFmaBlockwiseDot => 9
     AttentionMatrixDot => 4
     AttentionMatrixQkPv => 5
   }
@@ -107,8 +109,12 @@ fn canonical_schedule(
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
   let builder = StringBuilder()
   builder <+ "luna-attention-tile-schedule-v3\n"
-  if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
+  if candidate.compute() == AttentionGroupedQueryFmaBlockwiseDot {
+    builder <+ "numeric=blockwise-fma-f32-probability-v3\n"
+  } else if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
     builder <+ "numeric=blockwise-f32-probability-v1\n"
+  } else if candidate.compute() == AttentionGroupedQueryDualScoreBlockwiseDot {
+    builder <+ "numeric=dual-score-blockwise-f32-probability-v2\n"
   }
   let resident_output = output_fold_storage(
       candidate.compute(),
@@ -131,6 +137,13 @@ fn canonical_schedule(
     builder <+ "numeric=ordered-qk-pv-bf16-probability-four-owner-softmax-v1\n"
   }
   builder <+ "program_sha256=\{program.digest().as_hex()}\n"
+  if candidate.retained_query_dimensions() > 0 {
+    builder <+
+      "query_operand_lifetime=retained-prefix-v1,\{candidate.retained_query_dimensions()}\n"
+  }
+  if candidate.joint_query_consumers() {
+    builder <+ "query_operand_consumer=joint-right-columns-v1\n"
+  }
   builder <+ "kv_partitions=\{key_value_partitions}\n"
   builder <+ "kv_partition_grain=\{key_value_partition_grain}\n"
   builder <+
@@ -239,7 +252,9 @@ fn schedule_attention_tile_program_with_partitions(
   let query_head_tile = match candidate.compute() {
     AttentionGroupedQuerySubgroupDot
     | AttentionGroupedQuerySplitSubgroupDot
-    | AttentionGroupedQueryBlockwiseDot => {
+    | AttentionGroupedQueryBlockwiseDot
+    | AttentionGroupedQueryDualScoreBlockwiseDot
+    | AttentionGroupedQueryFmaBlockwiseDot => {
       let (query_heads, key_value_heads, _, _) = problem.shape().dimensions()
       query_heads / key_value_heads
     }

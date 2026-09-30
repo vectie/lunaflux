@@ -332,6 +332,13 @@ fn projection_schedule_canonical(
   builder <+
     "row_tail_policy=\{if row_tail_policy == ZeroPaddedMatrixRowTail { "masked-matrix" } else { "scalar" }}\n"
   let dispatch = optimized.semantic.selected.request.dispatch
+  let primary_groups = projection_primary_consumer_groups(
+    optimized.semantic.selected.request,
+  )
+  if primary_groups != dispatch.prefill().output_tiles_per_workgroup() {
+    builder <+
+      "\{if dispatch.shape().family() == GatedMlp { "sibling" } else { "primary" }}_consumer_groups=\{primary_groups}\n"
+  }
   if projection_selected_row_gather(
       dispatch,
       optimized.semantic.selected.request.demand,
@@ -365,9 +372,13 @@ fn projection_schedule_canonical(
   builder <+
     "reuse_intermediate_tile=\{optimized.optimization.applied(ReuseIntermediateTileAcrossOutputTiles)}\n"
   if optimized.optimization.applied(ReuseIntermediateTileAcrossOutputTiles) {
-    let tiles = projection_companion_output_tiles(
-      dispatch.prefill().output_tiles_per_workgroup(),
-    )
+    let tiles = projection_intermediate_pipeline(optimized)
+      .map(pipeline => pipeline.output_tiles())
+      .unwrap_or(
+        projection_companion_output_tiles(
+          dispatch.prefill().output_tiles_per_workgroup(),
+        ),
+      )
     builder <+ "companion_output_tiles_per_workgroup=\{tiles}\n"
   }
   let rotary_optimized = optimized.optimization.applied(
@@ -380,6 +391,9 @@ fn projection_schedule_canonical(
       "intermediate_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width},\{pipeline.tile_count},\{pipeline.transfer_width},\{pipeline.row_width()},\{pipeline.single_row_outputs()},\{pipeline.minimum_rows()}\n"
     builder <+
       "intermediate_fragment_pipeline=\{pipeline.fragment_stage_count()}\n"
+    if pipeline.hoist_addresses {
+      builder <+ "intermediate_producer_address_scope=workgroup\n"
+    }
   }
   if projection_sibling_pipeline(optimized) is Some(pipeline) {
     builder <+
@@ -389,13 +403,13 @@ fn projection_schedule_canonical(
     let sibling_reuse = partition_projection_sibling_reuse(
       row_tiles=pipeline.row_width() / row_tile,
       output_tiles=pipeline.output_tiles(),
-      consumer_groups=dispatch.prefill().output_tiles_per_workgroup(),
+      consumer_groups=primary_groups,
     )
     if sibling_reuse is Some(reuse) {
       builder <+
         "sibling_axis_reuse=2,\{reuse.row_groups()},\{reuse.output_groups()},\{reuse.rows_per_group()}\n"
     }
-    let effective_groups = dispatch.prefill().output_tiles_per_workgroup() /
+    let effective_groups = primary_groups /
       (if sibling_reuse is Some(_) { 2 } else { 1 })
     if partition_projection_product_fold(
         row_tiles=pipeline.row_width() / row_tile,
@@ -411,6 +425,9 @@ fn projection_schedule_canonical(
     builder <+
       "matrix_operand_pipeline=\{pipeline.stage_count()},\{pipeline.tile_width()},\{pipeline.tile_count()},\{pipeline.transfer_width()},\{pipeline.row_width()},\{pipeline.output_tiles()},\{pipeline.minimum_rows()}\n"
     builder <+ "matrix_fragment_pipeline=\{pipeline.fragment_stage_count()}\n"
+    if pipeline.hoist_addresses {
+      builder <+ "matrix_producer_address_scope=workgroup\n"
+    }
   }
   @utf8.encode(builder.to_string())
 }
@@ -521,9 +538,7 @@ pub fn schedule_projection_tile(
     optimization_digest: optimized.optimization.digest,
     demand: request.demand,
     loops: ReadOnlyArray::from_array(loops),
-    output_tiles_per_workgroup: request.dispatch
-    .prefill()
-    .output_tiles_per_workgroup(),
+    output_tiles_per_workgroup: projection_primary_consumer_groups(request),
     selected_input_row_resident: request.demand == QueryRowEnds &&
     request.dispatch.prefill().input_residency() == SelectedRowTileResidency,
     row_tail_policy,

@@ -29,6 +29,8 @@ struct Qwen3ReleaseBindArguments {
   max_page_table_entries : Int
   absolute_new_output : String
   projection_tuning : @projection_tuning_file.ProjectionTuningInput?
+  projection_folds : (String, String, String)?
+  compiler_register_limit : Int
 }
 
 ///|

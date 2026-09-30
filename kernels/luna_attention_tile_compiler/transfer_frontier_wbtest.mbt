@@ -18,7 +18,7 @@ test "query-owned Cartesian schedules survive uncalibrated cost pruning" {
     required_fragment_ownership=Some(QueryOwnedFragments),
   )
   let frontier = compile_attention_tile_frontier({ ..base, problem, })
-  assert_eq(frontier.variants().length(), 16)
+  assert_eq(frontier.variants().length(), 80)
   for
     id in [
       318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008, 2000, 2001,

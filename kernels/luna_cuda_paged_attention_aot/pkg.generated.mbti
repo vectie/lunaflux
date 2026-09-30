@@ -22,7 +22,7 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(@plan.PlanOperation, 
 
 pub fn blockwise_decode_split_launch_geometry(@luna_attention_strategy.AttentionShape, Int) -> (Int, Int, Int, Int64) raise PagedAttentionAotError
 
-pub fn compile_blockwise_decode_split(@luna_attention_strategy.AttentionShape, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, Int64, Int64, Int, Int, Int64) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise PagedAttentionAotError
+pub fn compile_blockwise_decode_split(@luna_attention_strategy.AttentionShape, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, Int64, Int64, Int, Int, Int64, candidate_id? : Int) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise PagedAttentionAotError
 
 pub fn lower_paged_attention_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PagedAttentionAotLimits) -> PagedAttentionCudaLowering raise PagedAttentionAotError
 

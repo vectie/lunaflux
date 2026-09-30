@@ -84,6 +84,8 @@ fn fused_parallel_error_name(
 
 ///|
 priv struct Qwen3CandidateExportArguments {
+  compute_major : Int
+  compute_minor : Int
   model_root : String
   config_locator : String
   config_sha256 : String

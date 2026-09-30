@@ -119,6 +119,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_wide_query_prefill_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9)
+    is Some(module_) {
+    return Some(module_)
+  }
   if self.module_for(PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8)
     is Some(module_) {
     return Some(module_)
@@ -153,6 +157,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_prefill_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9)
+    is Some(module_) {
+    return Some(module_)
+  }
   if self.module_for(PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8)
     is Some(module_) {
     return Some(module_)
@@ -173,6 +181,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_split_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9)
+    is Some(module_) {
+    return Some(module_)
+  }
   if self.module_for(PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8)
     is Some(module_) {
     return Some(module_)

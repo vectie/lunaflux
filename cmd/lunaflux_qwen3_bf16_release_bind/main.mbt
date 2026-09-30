@@ -4,7 +4,8 @@ async fn run_qwen3_release_bind(
 ) -> Unit raise Qwen3Bf16ReleaseBindError {
   let arguments = parse_qwen3_release_bind_arguments(raw_arguments)
   let inputs = load_release_bind_inputs(arguments)
-  let candidates = release_candidates(inputs, arguments)
+  let folds = load_release_fold_records(arguments)
+  let candidates = release_candidates(inputs, arguments, fold_records=folds[:])
   let compilations = admit_compiled_set(arguments, candidates)
   let release = @luna_bf16_kernel_producer.produce_luna_bf16_kernel_release(
     inputs.plan,

@@ -33,7 +33,10 @@ fn qwen_compiler_attention_recipe(
     operation.to_string() +
     "\nfunction_symbol=" +
     source.symbol().to_owned() +
-    "\ntarget=sm_120\ntoolchain_sha256=" +
+    "\ntarget=sm_" +
+    set.target().compute_major().to_string() +
+    set.target().compute_minor().to_string() +
+    "\ntoolchain_sha256=" +
     identity.toolchain_digest_sha256() +
     "\ncompiler_version=" +
     identity.major().to_string() +
@@ -60,8 +63,12 @@ fn qwen_compiler_attention_recipe(
     lowering.digest().as_hex() +
     "\ncandidate_stable_id=" +
     candidate.stable_id().to_string() +
-    (if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
+    (if candidate.compute() == AttentionGroupedQueryFmaBlockwiseDot {
+      "\nnumeric_law=blockwise-fma-f32-probability-v3"
+    } else if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
       "\nnumeric_law=blockwise-f32-probability-v1"
+    } else if candidate.compute() == AttentionGroupedQueryDualScoreBlockwiseDot {
+      "\nnumeric_law=dual-score-blockwise-f32-probability-v2"
     } else {
       ""
     }) +
@@ -153,7 +160,10 @@ fn qwen_compiler_partitioned_attention_recipe(
     partial_symbol.to_owned() +
     "\nmerge_function_symbol=" +
     merge_symbol.to_owned() +
-    "\ntarget=sm_120\ntoolchain_sha256=" +
+    "\ntarget=sm_" +
+    set.target().compute_major().to_string() +
+    set.target().compute_minor().to_string() +
+    "\ntoolchain_sha256=" +
     identity.toolchain_digest_sha256() +
     "\ncompiler_version=" +
     identity.major().to_string() +

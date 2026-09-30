@@ -153,7 +153,7 @@ test "ingress exporter uses measured resource policy and retains source-bound un
     Some((@utf8.encode(prefix + base + fast), device, toolchain)),
   )
   assert_eq(selected.source_digest(), alternate.source_digest())
-  assert_eq(origin, @resource_policy.Measured(latency_ns=50L, samples=5))
+  assert_eq(origin, Measured(latency_ns=50L, samples=5))
   let exact_prefix = prefix.replace(old="resources-v1", new="resources-v2") +
     "workload\tprefill\t8\t1\t0\t8\t4\nprovenance\tGPU-fixture\n"
   let (workload_selected, workload_origin) = select_qwen_ingress_resource_variant(
@@ -162,10 +162,7 @@ test "ingress exporter uses measured resource policy and retains source-bound un
     Some((@utf8.encode(exact_prefix + base + fast), device, toolchain)),
   )
   assert_eq(workload_selected.source_digest(), alternate.source_digest())
-  assert_eq(
-    workload_origin,
-    @resource_policy.Measured(latency_ns=50L, samples=5),
-  )
+  assert_eq(workload_origin, Measured(latency_ns=50L, samples=5))
   let stale = "record\t\{baseline.ingress_policy().id()}\t\{"a".repeat(64)}\t100\t5\t64\t1\n"
   let (default, default_origin) = select_qwen_ingress_resource_variant(
     baseline,
@@ -173,7 +170,7 @@ test "ingress exporter uses measured resource policy and retains source-bound un
     None,
   )
   assert_eq(default.source_digest(), baseline.source_digest())
-  assert_eq(default_origin, @resource_policy.UnmeasuredPreferred)
+  assert_eq(default_origin, UnmeasuredPreferred)
   for
     input in [
       Some((@utf8.encode(prefix + fast), device, toolchain)),
@@ -195,5 +192,5 @@ test "ingress exporter uses measured resource policy and retains source-bound un
     Some((@utf8.encode(prefix + base + excessive), device, toolchain)),
   )
   assert_eq(selected.source_digest(), baseline.source_digest())
-  assert_eq(origin, @resource_policy.Measured(latency_ns=100L, samples=5))
+  assert_eq(origin, Measured(latency_ns=100L, samples=5))
 }

@@ -17,6 +17,29 @@ fn prepare_ingress_choice(
 ) -> (RuntimeBundleArguments, @luna_fusion_strategy.FusionSchedule) raise Qwen3FusedRuntimeBundleExportError {
   // Global ABI options are independent of the optional ingress experiment.
   // Peel the global suffix before interpreting that experiment's fixed arity.
+  if raw_args is [.. rest, "--device-target", major, minor] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    guard args.device_target is None else { raise InvalidArguments }
+    let target = @catalog.DeviceTarget::new(
+      compute_major=positive_int(major),
+      compute_minor=non_negative_int(minor),
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ) catch {
+      _ => raise InvalidArguments
+    }
+    return ({ ..args, device_target: Some(target), }, choice)
+  }
+  if raw_args is [.. rest, "--decode-blockwise-fma-f32-v3"] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    if args.blockwise_decode || choice == Unfused {
+      raise InvalidArguments
+    }
+    return (
+      { ..args, blockwise_decode: true, contracting_decode: true, },
+      choice,
+    )
+  }
   if raw_args is [.. rest, "--decode-blockwise-f32-v1"] {
     let (args, choice) = prepare_ingress_choice(rest)
     if args.blockwise_decode || choice == Unfused {
@@ -214,12 +237,7 @@ async fn write_unfused_ingress_bundle(
   let runtime = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256=args.model_content,
     model_plan_sha256=args.model_plan,
-    target=@catalog.DeviceTarget::new(
-      compute_major=12,
-      compute_minor=0,
-      supports_bf16=true,
-      supports_cublas_lt=false,
-    ),
+    target=runtime_device_target(args),
     modules=selected_ingress_modules(args, Unfused, residual_bytes, b""),
   ) catch {
     _ => raise InvalidRuntime

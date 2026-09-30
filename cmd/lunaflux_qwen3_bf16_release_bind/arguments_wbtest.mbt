@@ -9,6 +9,8 @@ test "binder consumes the same explicit saved projection tuning suffix" {
   let legacy = parse_qwen3_release_bind_arguments(arguments)
   assert_true(legacy.projection_tuning is None)
   assert_eq(load_release_projection_records(legacy).length(), 0)
+  assert_true(legacy.projection_folds is None)
+  assert_eq(legacy.compiler_register_limit, 128)
   arguments.append([
     "--projection-tuning", "/tuning", "projection.v1", digest, "device-a",
   ])
@@ -21,6 +23,42 @@ test "binder consumes the same explicit saved projection tuning suffix" {
     _ => fail("unexpected error")
   } noraise {
     _ => fail("extra argument accepted")
+  }
+}
+
+///|
+test "binder regenerates measured projection envelope and rejects malformed fold suffix" {
+  let digest = "a".repeat(64)
+  let base = [
+    "binder", "/model", "config.json", digest, digest, "weights.numeric", digest,
+    digest, "/compiled", "/toolchain", digest, "13", "1", "115", "8", "8192", "32",
+    "256", "5120", "/new-output",
+  ]
+  let parsed = parse_qwen3_release_bind_arguments(
+    base +
+    [
+      "--compiler-register-limit", "255", "--projection-folds", "/folds", digest,
+      "device-a",
+    ],
+  )
+  assert_eq(parsed.projection_folds, Some(("/folds", digest, "device-a")))
+  assert_eq(release_compiler(parsed).max_registers(), 255)
+  for
+    suffix in [
+      ["--compiler-register-limit", "256"],
+      ["--compiler-register-limit", "0"],
+      ["--projection-folds", "relative", digest, "device-a"],
+      ["--projection-folds", "/folds", "A".repeat(64), "device-a"],
+      ["--projection-folds", "/folds", digest, ""],
+      ["--projection-folds", "/folds", digest],
+      ["--compiler-register-limit", "255", "--compiler-register-limit", "255"],
+    ] {
+    try parse_qwen3_release_bind_arguments(base + suffix) catch {
+      InvalidArguments => ()
+      _ => fail("wrong error")
+    } noraise {
+      _ => fail("malformed fold option accepted")
+    }
   }
 }
 

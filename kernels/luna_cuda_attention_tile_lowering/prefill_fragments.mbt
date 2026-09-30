@@ -7,6 +7,7 @@ pub struct CudaPrefillFragmentBinding {
   priv program : @attention_physical_ir.OnlineFragmentProgram
   priv score : @physical_tile_ir.FragmentForwarding
   priv value : @physical_tile_ir.FragmentForwarding
+  priv query_lifetime : @attention_physical_ir.QueryOperandLifetime
 } derive(Eq, Debug)
 
 ///|
@@ -23,6 +24,8 @@ pub fn CudaPrefillFragmentBinding::new(
   program : @attention_physical_ir.OnlineFragmentProgram,
   subgroup_lanes~ : Int,
   operand_vector_elements~ : Int,
+  retained_query_dimensions? : Int = 0,
+  joint_query_consumers? : Bool = false,
 ) -> CudaPrefillFragmentBinding? {
   guard program.geometry() == (16, 16, 16) &&
     subgroup_lanes == 32 &&
@@ -41,7 +44,17 @@ pub fn CudaPrefillFragmentBinding::new(
     is Some(value) else {
     return None
   }
-  Some({ program, score, value, })
+  guard @attention_physical_ir.QueryOperandLifetime::new(
+      program,
+      retained_dimensions=retained_query_dimensions,
+      operand_words=4,
+      accumulator_words=8,
+      joint_right_consumers=joint_query_consumers,
+    )
+    is Some(query_lifetime) else {
+    return None
+  }
+  Some({ program, score, value, query_lifetime, })
 }
 
 ///|
@@ -66,6 +79,13 @@ pub fn CudaPrefillFragmentBinding::value(
 }
 
 ///|
+pub fn CudaPrefillFragmentBinding::query_lifetime(
+  self : CudaPrefillFragmentBinding,
+) -> @attention_physical_ir.QueryOperandLifetime {
+  self.query_lifetime
+}
+
+///|
 pub fn CudaAttentionTileLowering::prefill_fragments(
   self : CudaAttentionTileLowering,
 ) -> CudaPrefillFragmentBinding? {
@@ -78,6 +98,8 @@ fn cuda_prefill_fragment_binding(
     @luna_attention_tile_schedule.AttentionPhysicalProgram,
     @luna_attention_tile_schedule.AttentionTileScheduleRule,
   ],
+  retained_query_dimensions : Int,
+  joint_query_consumers : Bool,
 ) -> CudaPrefillFragmentBinding? raise CudaAttentionTileLoweringError {
   guard physical is Ok(QueryFragmentProgram(fold, _)) else { return None }
   guard fold.fragment_products(
@@ -90,6 +112,8 @@ fn cuda_prefill_fragment_binding(
       program,
       subgroup_lanes=32,
       operand_vector_elements=8,
+      retained_query_dimensions~,
+      joint_query_consumers~,
     )
     is Some(binding) else {
     raise InvalidCudaAttentionTileLowering(UnsupportedCompute)

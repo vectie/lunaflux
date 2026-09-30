@@ -46,7 +46,7 @@ test "selected-row head register gather reaches segmented greedy executable vari
     assert_eq(gather.dimensions(), (16, 16, 16))
     assert_eq(
       compiled.schedule().single_row_reduction(),
-      @luna_projection_tile_compiler.StridedPairwiseDot(32),
+      StridedPairwiseDot(32),
     )
     let primary = baseline.dispatch_plan(1024)
     assert_eq(runtime.dispatch_plan(1024), primary)

@@ -44,9 +44,11 @@ async fn compile_module(
   )
   let mut source = @fs.read_file(source_path).text()
   if directory == "reusable-qwen-decode-attention" &&
-    !recipe.contains("partition_numeric_law=blockwise-f32-probability-v1\n") {
+    !recipe.contains("partition_numeric_law=blockwise-f32-probability-v1\n") &&
+    !recipe.contains("partition_numeric_law=blockwise-fma-f32-probability-v3\n") {
     let split = candidate + "/reusable-qwen-decode-split-attention"
     let split_recipe = @fs.read_file(split + "/kernel.recipe").text()
+    assert_eq(field(split_recipe, "target"), field(recipe, "target"))
     assert_eq(
       checked("sha256sum", [split + "/kernel.cu"]).split(" ").to_array()[0].to_owned(),
       field(split_recipe, "source_sha256"),
@@ -196,8 +198,18 @@ async fn main {
     ("attention", "reusable-qwen-decode-attention", "model_operation_id", ""),
   ]
   let mut hashes = ""
+  let compiled_target = field(
+    @fs.read_file(candidate + "/reusable-fused-residual/kernel.recipe").text(),
+    "target",
+  )
+  guard compiled_target.has_prefix("sm_") else { fail("CUDA target required") }
+  let capability = @string.parse_int(compiled_target[3:])
+  guard capability >= 80 && "sm_" + capability.to_string() == compiled_target else {
+    fail("unsupported/noncanonical BF16 target")
+  }
   for (name, directory, operation, prefix) in modules {
     let recipe = @fs.read_file(candidate + "/" + directory + "/kernel.recipe").text()
+    assert_eq(field(recipe, "target"), compiled_target)
     assert_eq(field(recipe, "toolchain_sha256"), toolchain_hash.to_owned())
     let compile_root = intermediate + "/" + name
     compile_module(nvcc, candidate, directory, compile_root)
@@ -235,6 +247,7 @@ async fn main {
   if choice == "partial" || comparison is Some(_) {
     let directory = candidate + "/reusable-qwen-ingress"
     let recipe = @fs.read_file(directory + "/kernel.recipe").text()
+    assert_eq(field(recipe, "target"), compiled_target)
     let digest = checked("sha256sum", [directory + "/kernel.cu"])
     .split(" ")
     .to_array()[0].to_owned()
@@ -314,6 +327,13 @@ async fn main {
       fail("blockwise decode numerical contract mismatch")
     }
     args.push("--decode-blockwise-f32-v1")
+  } else if field(decode_recipe, "function_symbol") ==
+    "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3" {
+    guard field(decode_recipe, "numeric_law") ==
+      "blockwise-fma-f32-probability-v3" else {
+      fail("contracting blockwise decode numerical contract mismatch")
+    }
+    args.push("--decode-blockwise-fma-f32-v3")
   } else if field(decode_recipe, "function_symbol") !=
     "lunaflux_attention_decode_tile_compiler_v1" {
     fail("unsupported decode numerical entry point")
@@ -321,6 +341,11 @@ async fn main {
   if versions[0] == "1" {
     args.push("--query-metadata-v1")
   }
+  args.append([
+    "--device-target",
+    (capability / 10).to_string(),
+    (capability % 10).to_string(),
+  ])
   if routes is Some(path) {
     args.append([
       "--attention-buckets",

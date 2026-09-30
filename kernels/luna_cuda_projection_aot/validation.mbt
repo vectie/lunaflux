@@ -540,6 +540,7 @@ fn projection_dimensions(
   profile : @launch_contract.PagedKernelProfile,
   parameters : ProjectionParameters,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
+  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
 ) -> @launch_contract.AotLaunchDimensions raise ProjectionAotError {
   let tensor_core = projection_tensor_core_eligible(parameters, dispatch)
   let tensor_core_mlp = projection_tensor_core_mlp_eligible(
@@ -554,7 +555,12 @@ fn projection_dimensions(
       AllTokenRows
     },
   )
-  let shared_memory_bytes = if tensor_core && gather is Some(_) {
+  let shared_memory_bytes = if tensor_core_mlp &&
+    sibling_ownership != SplitSiblingPlanes {
+    // Register-retained and coowned epilogues do not use the dynamic peer
+    // plane. Their checked static operand ring owns any required peer storage.
+    0L
+  } else if tensor_core && gather is Some(_) {
     0L
   } else if tensor_core || tensor_core_mlp {
     let storage = dispatch
@@ -659,6 +665,7 @@ fn validate_projection_contract(
   operation : @plan.PlanOperation,
   contract : @launch_contract.PagedKvAotLaunchContract,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
+  compiled_dimensions : @launch_contract.AotLaunchDimensions,
 ) -> Unit raise ProjectionAotError {
   let parameters = projection_bind_qkv_widths(
     operation,
@@ -685,8 +692,11 @@ fn validate_projection_contract(
     0L {
     raise Mismatch(Operation)
   }
-  let expected = projection_dimensions(contract.profile(), parameters, dispatch)
-  if contract.dimensions() != expected {
+  // Launch geometry belongs to the immutable scheduled lowering, not to the
+  // untuned semantic dispatch. Rebuilding the latter here rejects legal AOT
+  // row/output products selected by the fold compiler. The caller owns the
+  // private lowering; external contracts still must match it exactly.
+  if contract.dimensions() != compiled_dimensions {
     raise Mismatch(LaunchDimensions)
   }
 }

@@ -2,21 +2,21 @@
 test "bounded pipeline specialization is exported without inventing autotune results" {
   for
     parameters in [
-      ProjectionParameters::{
+      {
         family: QkvProjection,
         input_width: 1024,
         output_width: 4096,
         query_width: 2048,
         intermediate_width: 1024,
       },
-      ProjectionParameters::{
+      {
         family: DenseProjection,
         input_width: 2048,
         output_width: 1024,
         query_width: 0,
         intermediate_width: 0,
       },
-      ProjectionParameters::{
+      {
         family: GatedMlp,
         input_width: 1024,
         output_width: 1024,

@@ -10,6 +10,9 @@ fn projection_row_variant_sources(
   primary : @luna_projection_strategy.ProjectionDispatchPlan,
   symbol : String,
   max_registers~ : Int,
+  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
+  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> (String, ReadOnlyArray[@artifact.KernelRowVariant]) raise ProjectionAotError {
   let sources = StringBuilder()
   let variants : Array[@artifact.KernelRowVariant] = []
@@ -18,6 +21,7 @@ fn projection_row_variant_sources(
     primary,
     profile.max_query_rows(),
     profile.max_query_tokens(),
+    fold_choices~,
   )
   for
     bound in [
@@ -49,6 +53,7 @@ fn projection_row_variant_sources(
       dispatch,
       Int::min(profile.max_query_rows(), bound),
       bound,
+      fold_choices~,
     )
     let measured_distribution = selected.source() == OfflineAutotune &&
       (
@@ -78,8 +83,18 @@ fn projection_row_variant_sources(
       _ => raise Invalid(CompilerPolicy)
     }
     let dimensions = projection_dimensions(
-      variant_profile, parameters, dispatch,
+      variant_profile,
+      parameters,
+      dispatch,
+      sibling_ownership~,
     )
+    let dimensions = if fold_choices.is_empty() {
+      dimensions
+    } else {
+      projection_refine_fold_dimensions(
+        parameters, compilation, variant_profile, dimensions,
+      )
+    }
     let variant_symbol = symbol + "_rows" + bound.to_string()
     let source = projection_emit_source(
       variant_symbol,
@@ -87,7 +102,11 @@ fn projection_row_variant_sources(
       bound,
       Int::min(profile.max_query_rows(), bound),
       dispatch,
-      projection_refine_physical(compilation),
+      projection_refine_physical(
+        compilation,
+        sibling_ownership~,
+        sibling_transport~,
+      ),
       false,
       dimensions.shared_memory_bytes() > 0,
       max_registers~,
@@ -109,9 +128,16 @@ fn projection_row_variant_sources(
           bound,
           Int::min(profile.max_query_rows(), bound),
           dimensions,
+          // Startup dispatch deliberately keeps token-bound one on the primary
+          // scalar entry. Matrix variants therefore need no scalar grid floor.
+          minimum_grid_x=0,
         ),
         companion_dimensions=projection_companion_dimensions(
-          parameters, dispatch, variant_profile, compilation,
+          parameters,
+          dispatch,
+          variant_profile,
+          compilation,
+          refine_fold_geometry=!fold_choices.is_empty(),
         ),
       ),
     )
@@ -125,6 +151,7 @@ fn projection_row_variant_compilation(
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
   maximum_rows : Int,
   maximum_tokens : Int,
+  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation raise ProjectionAotError {
   let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
     dispatch~,
@@ -144,8 +171,13 @@ fn projection_row_variant_compilation(
   ) catch {
     _ => raise Invalid(CompilerPolicy)
   }
+  let request = projection_bind_tile_weights(request, parameters).with_fold_choices(
+    fold_choices,
+  ) catch {
+    _ => raise Invalid(CompilerPolicy)
+  }
   let compilation = @luna_projection_tile_compiler.compile_projection_tile(
-    projection_bind_tile_weights(request, parameters),
+    request,
   )
   projection_validate_scalar_realization(
     compilation.schedule().single_row_reduction(),

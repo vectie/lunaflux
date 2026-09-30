@@ -149,6 +149,8 @@ fn attention_compute_code(
     AttentionGroupedQuerySubgroupDot => 3
     AttentionGroupedQuerySplitSubgroupDot => 6
     AttentionGroupedQueryBlockwiseDot => 7
+    AttentionGroupedQueryDualScoreBlockwiseDot => 8
+    AttentionGroupedQueryFmaBlockwiseDot => 9
     AttentionMatrixDot => 4
     AttentionMatrixQkPv => 5
   }
@@ -204,8 +206,12 @@ fn canonical_attention_tile_program(
     "shape=\{query_heads},\{key_value_heads},\{head_dimension},\{tokens_per_page}\n"
   builder <+
     "problem=\{attention_phase_code(problem.phase())},\{attention_numeric_code(problem.numeric_type())},\{problem.batch_rows()},\{query_rows},\{context_tokens},\{problem.is_causal()}\n"
-  if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
+  if candidate.compute() == AttentionGroupedQueryFmaBlockwiseDot {
+    builder <+ "softmax_reduction=blockwise-fma-f32-probability-v3\n"
+  } else if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
     builder <+ "softmax_reduction=blockwise-f32-probability-v1\n"
+  } else if candidate.compute() == AttentionGroupedQueryDualScoreBlockwiseDot {
+    builder <+ "softmax_reduction=dual-score-blockwise-f32-probability-v2\n"
   } else if problem.allows_alternative_softmax_reduction() {
     builder <+ "softmax_reduction=alternative-ordered-bf16-v1\n"
   }
@@ -223,6 +229,13 @@ fn canonical_attention_tile_program(
     "candidate=\{candidate.stable_id()},\{attention_compute_code(candidate.compute())},\{attention_memory_code(candidate.memory())}\n"
   builder <+
     "tile=\{tile_query},\{tile_key_value},\{tile_head},\{subgroups},\{stages},\{vector_bytes},\{candidate.shared_memory_bytes()}\n"
+  if candidate.retained_query_dimensions() > 0 {
+    builder <+
+      "query_operand_lifetime=retained-prefix-v1,\{candidate.retained_query_dimensions()}\n"
+  }
+  if candidate.joint_query_consumers() {
+    builder <+ "query_operand_consumer=joint-right-columns-v1\n"
+  }
   for binding in bindings {
     builder <+
       "bind=\{binding.id.as_int()}:\{attention_expression_code(binding.expression)}\n"

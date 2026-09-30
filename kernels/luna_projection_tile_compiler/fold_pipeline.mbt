@@ -10,6 +10,7 @@ pub struct ProjectionFoldPipeline {
   priv minimum_rows : Int
   priv stages : Int
   priv fragments : Int?
+  priv hoist_addresses : Bool
 } derive(Debug, Eq)
 
 ///|
@@ -112,6 +113,7 @@ fn projection_intermediate_pipeline(
         {
           stages: 2,
           fragments: None,
+          hoist_addresses: false,
           tile_width: tile,
           tile_count: extent / tile,
           // Long folds with a narrow independent product can amortize producer
@@ -171,6 +173,7 @@ fn projection_sibling_pipeline(
         {
           stages: 2,
           fragments: None,
+          hoist_addresses: false,
           tile_width: tile,
           tile_count: extent / tile,
           // A bounded single-row-tile product has room for four immutable fold
@@ -239,6 +242,7 @@ fn projection_matrix_pipeline(
         {
           stages: 2,
           fragments: None,
+          hoist_addresses: false,
           tile_width: k,
           tile_count: extent / k,
           // Bound lookahead by both fold length and the independent product.

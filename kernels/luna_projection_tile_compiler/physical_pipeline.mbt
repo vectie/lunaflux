@@ -8,6 +8,7 @@ pub struct ProjectionPhysicalPipeline {
   effects : ProjectionFoldEffectPlan
   distribution : ProjectionProductFoldDistribution
   sibling_reuse : Bool
+  sibling_transport : ProjectionSiblingTransport
   owners_per_group : Int
   transfer_segments : ReadOnlyArray[ProjectionTransferSegment]
 } derive(Debug, Eq)
@@ -28,13 +29,15 @@ pub fn ProjectionPhysicalPipeline::new(
   execution : ProjectionTransferExecution,
   columns? : Int,
   output_tiles? : Int,
+  sibling_ownership? : ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport? : ProjectionSiblingTransport = BaselineSiblingTransport,
 ) -> ProjectionPhysicalPipeline? {
   guard products == 1 || products == 2 else { return None }
   let output_tiles = output_tiles.unwrap_or(schedule.output_tiles())
   guard output_tiles > 0 && output_tiles <= schedule.output_tiles() else {
     return None
   }
-  let reuse = if products == 2 {
+  let reuse = if products == 2 && sibling_ownership != CoownedSiblingValues {
     partition_projection_sibling_reuse(
       row_tiles=schedule.row_width() / schedule.tile_width(),
       output_tiles~,
@@ -60,6 +63,17 @@ pub fn ProjectionPhysicalPipeline::new(
     return None
   }
   let distribution = reuse.unwrap_or(ordinary)
+  let transport = if products != 2 {
+    BaselineSiblingTransport
+  } else if sibling_transport == BaselineSiblingTransport {
+    if reuse is Some(_) {
+      SegmentedSiblingTransport
+    } else {
+      IndependentSiblingTransport
+    }
+  } else {
+    sibling_transport
+  }
   let weight_rows = output_tiles * schedule.tile_width()
   guard owners_per_group > 0 && consumer_groups <= 2147483647 / owners_per_group else {
     return None
@@ -78,6 +92,10 @@ pub fn ProjectionPhysicalPipeline::new(
     return None
   }
   guard layout.geometry().0 == schedule.transfer_width() else { return None }
+  guard transport != SegmentedSiblingTransport ||
+    operands.has_concatenated_layout() else {
+    return None
+  }
   let fragment_rows = distribution.rows_per_group()
   guard fragment_rows > 0 &&
     fragment_rows <= schedule.row_width() / schedule.tile_width() else {
@@ -120,13 +138,14 @@ pub fn ProjectionPhysicalPipeline::new(
     fragments,
     distribution,
     effects: schedule.effect_plan(
-      if reuse is Some(_) {
+      if transport == SegmentedSiblingTransport {
         SerialTransfer
       } else {
         execution
       },
     ),
     sibling_reuse: reuse is Some(_),
+    sibling_transport: transport,
     owners_per_group,
     transfer_segments: ReadOnlyArray::from_array(transfer_segments),
   })

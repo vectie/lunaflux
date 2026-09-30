@@ -5,6 +5,7 @@ test "finite operand rings publish before consumption without overwriting live s
       let plan : ProjectionFoldPipeline = {
         stages,
         fragments: Some(1),
+        hoist_addresses: false,
         tile_width: 16,
         tile_count: transfers,
         transfer_width: 16,

@@ -65,7 +65,7 @@ fn release_compiler(
     optimization_level=3,
     fused_multiply_add=false,
     reassociate=false,
-    max_registers=128,
+    max_registers=arguments.compiler_register_limit,
   ) catch {
     error => {
       ignore(error)
@@ -78,6 +78,7 @@ fn release_compiler(
 fn release_candidates(
   inputs : Qwen3ReleaseBindInputs,
   arguments : Qwen3ReleaseBindArguments,
+  fold_records? : ArrayView[@luna_projection_tuning.ProjectionFoldRecord] = [],
 ) -> @luna_bf16_kernel_producer.LunaBf16CandidateSet raise Qwen3Bf16ReleaseBindError {
   let profile = release_profile(arguments)
   if profile.max_query_rows() !=
@@ -101,6 +102,7 @@ fn release_candidates(
       max_total_bytes=1073741824,
     ),
     projection_records=load_release_projection_records(arguments)[:],
+    fold_records~,
   ) catch {
     error => {
       ignore(error)

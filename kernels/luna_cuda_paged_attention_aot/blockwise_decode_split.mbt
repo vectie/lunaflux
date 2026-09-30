@@ -32,15 +32,24 @@ pub fn compile_blockwise_decode_split(
   maximum_context_tokens : Int,
   splits : Int,
   maximum_workspace_bytes : Int64,
+  candidate_id? : Int = 452,
 ) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise PagedAttentionAotError {
+  guard candidate_id == 452 || candidate_id == 454 || candidate_id == 456 else {
+    raise Unsupported(Profile)
+  }
+  let numeric_law = if candidate_id == 456 {
+    "blockwise-fma-f32-probability-v3"
+  } else if candidate_id == 454 {
+    "dual-score-blockwise-f32-probability-v2"
+  } else {
+    "blockwise-f32-probability-v1"
+  }
   let (heads, kv, dimension, page) = shape.dimensions()
   let geometry = blockwise_decode_split_launch_geometry(shape, splits)
   let compiled = @luna_cuda_attention_tile_aot.specialize_cuda_partitioned_attention_tile_aot(
     @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotRequest::new(
       backend=@luna_attention_strategy.AttentionBackendId::new("cuda"),
-      target_id=@luna_attention_strategy.AttentionTargetId::new(
-        "blockwise-f32-probability-v1",
-      ),
+      target_id=@luna_attention_strategy.AttentionTargetId::new(numeric_law),
       problem=@luna_attention_strategy.AttentionCompileProblem::new(
         shape~,
         phase=Decode,
@@ -78,7 +87,7 @@ pub fn compile_blockwise_decode_split(
       maximum_workspace_bytes~,
       maximum_source_bytes=1048576,
     ),
-    452,
+    candidate_id,
   ) catch {
     _ => raise Unsupported(Profile)
   }

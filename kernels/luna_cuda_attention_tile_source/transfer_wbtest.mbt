@@ -114,7 +114,8 @@ test "two-stage decode keeps ordered fold and explicit producer consumer lifetim
   assert_eq(lowering.transfer_readiness(), KeyScoreBeforeValueReadiness)
   assert_true(source.contains("cp.async.wait_group 1"))
   assert_true(source.contains("scores[key / LF_SPLITS_PER_HEAD] = score"))
-  assert_true(source.contains("value_cache + addresses[item]"))
+  assert_true(source.contains("value_cache + retained_address_0"))
+  assert_false(source.contains("addresses[copies]"))
   assert_true(
     source.contains("stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1)"),
   )

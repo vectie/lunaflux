@@ -22,16 +22,20 @@ fn cuda_online_fold_phase(
   .map(operation => {
     match operation {
       ScoreProduct =>
-        (
-          $|        #pragma unroll
-          $|        for (int reduction=0; reduction<LF_HEAD_DIMENSION; reduction+=\{score_quantum}) {
-          $|          const auto a=lf_matrix_load(qbuf,qr,reduction,LF_HEAD_DIMENSION);
-          $|          #pragma unroll
-          $|          for (int key=0; key<\{score_columns}; ++key) {
-          $|            lf_matrix_mma_key(score[key],a,current_k,key*16,reduction,LF_HEAD_DIMENSION);
-          $|          }
-          $|        }
-        )
+        if fragments.query_lifetime().retained_fragments() > 0 {
+          cuda_retained_query_score_product(fragments)
+        } else {
+          (
+            $|        #pragma unroll
+            $|        for (int reduction=0; reduction<LF_HEAD_DIMENSION; reduction+=\{score_quantum}) {
+            $|          const auto a=lf_matrix_load(qbuf,qr,reduction,LF_HEAD_DIMENSION);
+            $|          #pragma unroll
+            $|          for (int key=0; key<\{score_columns}; ++key) {
+            $|            lf_matrix_mma_key(score[key],a,current_k,key*16,reduction,LF_HEAD_DIMENSION);
+            $|          }
+            $|        }
+          )
+        }
       PrepareScores =>
         (
           #|        float next[2]={-CUDART_INF_F,-CUDART_INF_F};

@@ -105,8 +105,8 @@ fn prepare_candidate_set(
     raise CandidatePreparation
   }
   let target = @catalog.DeviceTarget::new(
-    compute_major=12,
-    compute_minor=0,
+    compute_major=arguments.compute_major,
+    compute_minor=arguments.compute_minor,
     supports_bf16=true,
     supports_cublas_lt=false,
   ) catch {

@@ -62,6 +62,7 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
       abi,
       effects,
       lowering.hoists_paged_key_value_page_lookup(),
+      lowering.decode_copy_retention().unwrap(),
     )
   } else {
     ""

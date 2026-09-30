@@ -32,6 +32,7 @@ fn projection_ingress_pipeline(
         minimum_rows: 2,
         stages: 2,
         fragments: Some(1),
+        hoist_addresses: false,
       },
       MatrixFold,
       request,

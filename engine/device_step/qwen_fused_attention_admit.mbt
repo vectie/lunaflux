@@ -331,7 +331,9 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module.kernel_abi() ==
       PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
       decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
+      decode_module.kernel_abi() ==
+      PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
     ) &&
     runtime.qwen_paged_attention_readonly_operation_index()
     is Some(readonly_attention) &&
@@ -384,13 +386,21 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     query_heads % kv_heads == 0 else {
     raise MismatchedFusedGroupedOperation(Launch)
   }
-  let blockwise_decode = decode_module.kernel_abi() ==
-    PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
-  if blockwise_decode !=
-    (
-      decode_module.function_symbol() ==
+  let blockwise_decode = decode_module.kernel_abi()
+    is (PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+    | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9)
+  let expected_blockwise_symbol = match decode_module.kernel_abi() {
+    PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 =>
       "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
-    ) {
+    PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 =>
+      "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3"
+    _ => ""
+  }
+  if (
+      blockwise_decode &&
+      decode_module.function_symbol() != expected_blockwise_symbol
+    ) ||
+    (!blockwise_decode && decode_module.function_symbol().contains("blockwise")) {
     raise MismatchedFusedGroupedOperation(KernelAbi)
   }
   let compiler_decode = blockwise_decode ||
@@ -492,7 +502,9 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module.kernel_abi() ==
       PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
       decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
+      decode_module.kernel_abi() ==
+      PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
     ) &&
     readonly_launch.grid_x() == compiler_prefill_grid &&
     readonly_launch.shared_memory_bytes() > 0 &&

@@ -229,7 +229,7 @@ test "grouped fold effects drain errors and release both ring slots" {
 ///|
 test "grouped effect model rejects missing waits publication and release" {
   let plan = @luna_attention_tile_schedule.AttentionGroupedEffectPlan::new(
-    @luna_attention_strategy.AttentionAsyncStagedShared,
+    AttentionAsyncStagedShared,
     stages=2,
     readiness=KeyScoreBeforeValueReadiness,
   )

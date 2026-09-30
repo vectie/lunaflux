@@ -13,6 +13,12 @@ pub(all) enum AttentionTileCompute {
   /// Tile-local F32 max/probabilities followed by one state merge per tile.
   /// This is deliberately not the ordered per-key recurrence.
   AttentionGroupedQueryBlockwiseDot
+  /// Two independent score owners share each subgroup, then join one tile
+  /// state. The narrower QK reduction has its own declared numerical law.
+  AttentionGroupedQueryDualScoreBlockwiseDot
+  /// Explicit F32 contraction in the blockwise dot/value/state folds; not
+  /// permission for global reassociation or approximate exponentiation.
+  AttentionGroupedQueryFmaBlockwiseDot
   AttentionMatrixDot
   AttentionMatrixQkPv
 } derive(Debug, Eq)
@@ -100,6 +106,11 @@ pub struct AttentionTileCandidate {
   priv pipeline_stages : Int
   priv vector_bytes : Int
   priv shared_memory_bytes : Int64
+  /// Immutable query reduction prefix retained across the KV fold. Zero
+  /// retains the per-fold load program. This is a semantic dimension extent,
+  /// not a backend register count or a model-specific tuning constant.
+  priv retained_query_dimensions : Int
+  priv joint_query_consumers : Bool
 } derive(Debug, Eq)
 
 ///|

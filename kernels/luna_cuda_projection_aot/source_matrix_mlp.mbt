@@ -69,7 +69,7 @@ fn projection_matrix_mlp_source(
       $|    if (lane == 0) workspace[intermediate] = __float2bfloat16_rn((gate / (1.0f + expf(-gate))) * up);
       $|    return;
       $|  }
-      $|\{projection_sibling_fold_pipeline_source(compilation.sibling.unwrap(), parameters, compilation.materialization)}
+      $|\{projection_sibling_fold_pipeline_source(compilation.sibling.unwrap(), parameters, compilation.materialization, epilogue=compilation.sibling_epilogue.unwrap())}
       $|}
       $|extern "C" __global__ void \{symbol}_down(const int32_t *counts, const __nv_bfloat16 *input, const __nv_bfloat16 *gate_weight, const __nv_bfloat16 *up_weight, const __nv_bfloat16 *down_weight, __nv_bfloat16 *output, __nv_bfloat16 *workspace) {
       $|\{projection_count_guard(maximum_tokens)}

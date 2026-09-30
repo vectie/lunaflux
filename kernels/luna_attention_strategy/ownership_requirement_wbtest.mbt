@@ -30,7 +30,36 @@ test "required query ownership excludes exchanged schedules across query buckets
   for queries in [1, 16, 32, 64, 128, 129, 1528, 4096] {
     let bucket = problem.with_query_rows(queries)
     let candidates = generate_attention_tile_candidates(bucket, capabilities)
-    assert_eq(candidates.length(), 18)
+    // Every original ownership schedule has reload plus half/full retention,
+    // with either individual or joint consumers. Count from the typed plan,
+    // not an unexplained frontier size that changes when schedules are added.
+    let reloads = candidates.filter(c => c.retained_query_dimensions() == 0)
+    assert_eq(reloads.length(), 18)
+    assert_eq(candidates.length(), reloads.length() * 5)
+    for reload in reloads {
+      let dimensions = reload.tile().dimensions().2
+      for
+        (retained, joint) in [
+          (dimensions / 2, false),
+          (dimensions, false),
+          (dimensions / 2, true),
+          (dimensions, true),
+        ] {
+        assert_eq(
+          candidates
+          .filter(c => {
+            c.tile() == reload.tile() &&
+            c.compute() == reload.compute() &&
+            c.memory() == reload.memory() &&
+            c.execution_geometry() == reload.execution_geometry() &&
+            c.retained_query_dimensions() == retained &&
+            c.joint_query_consumers() == joint
+          })
+          .length(),
+          1,
+        )
+      }
+    }
     assert_true(
       candidates.all(c => {
         let (q, k, d) = c.tile().dimensions()

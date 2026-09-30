@@ -32,31 +32,79 @@ fn projection_fold_pipeline_source(
   // Keep the next slot's global reads independent of the current matrix fold.
   // A synchronous load/store pair blocks this producer at STS on the load's
   // scoreboard even though its destination is the inactive shared slot.
-  let input_copy = projection_fold_operand_copy_source(
-    "pipeline_a",
-    "destination",
-    input_region,
-    stride,
-    true,
-    physical.effects.has_pending_transfers(),
-  )
-  let weight_copy = projection_fold_operand_copy_source(
-    "pipeline_b",
-    "destination + \{input_elements}",
-    weight_region,
-    stride,
-    false,
-    physical.effects.has_pending_transfers(),
-  )
+  let input_addresses = physical.producer_addresses(0).unwrap()
+  let weight_addresses = physical.producer_addresses(1).unwrap()
+  let hoisted = input_addresses.hoisted()
+  let address_declarations = if hoisted {
+    projection_producer_address_source(
+      input_addresses,
+      "input_address",
+      "pipeline_a",
+      "pipeline_storage",
+      stride,
+      "const int local_row = vector / \{pipeline.transfer_width() / 8}, k = (vector % \{pipeline.transfer_width() / 8}) * 8; const int source_row = local_row;",
+      "row_start + local_row < token_count",
+      "",
+    ) +
+    "\n" +
+    projection_producer_address_source(
+      weight_addresses,
+      "weight_address",
+      "pipeline_b",
+      "pipeline_storage + \{input_elements}",
+      stride,
+      "const int local_row = vector / \{pipeline.transfer_width() / 8}, k = (vector % \{pipeline.transfer_width() / 8}) * 8; const int source_row = local_row;",
+      "true",
+      "",
+    )
+  } else {
+    ""
+  }
+  let input_copy = if hoisted {
+    projection_hoisted_transfer_source(
+      input_addresses,
+      "input_address",
+      slot,
+      "offset",
+      physical.effects.has_pending_transfers(),
+    )
+  } else {
+    projection_fold_operand_copy_source(
+      "pipeline_a",
+      "destination",
+      input_region,
+      stride,
+      true,
+      physical.effects.has_pending_transfers(),
+    )
+  }
+  let weight_copy = if hoisted {
+    projection_hoisted_transfer_source(
+      weight_addresses,
+      "weight_address",
+      slot,
+      "offset",
+      physical.effects.has_pending_transfers(),
+    )
+  } else {
+    projection_fold_operand_copy_source(
+      "pipeline_b",
+      "destination + \{input_elements}",
+      weight_region,
+      stride,
+      false,
+      physical.effects.has_pending_transfers(),
+    )
+  }
   let source =
     $|  {
     $|    \{projection_operand_address_source(operands.layout())}
     $|    float c[\{rows / 16}][8] = {};
     $|    __shared__ __align__(32) __nv_bfloat16 pipeline_storage[\{operands.allocation_elements()}];
     $|    const __nv_bfloat16 *pipeline_a = \{input_base};
-    $|    const __nv_bfloat16 *pipeline_b = \{weight_base};
+    $|    const __nv_bfloat16 *pipeline_b = \{weight_base};\{if hoisted { "\n" + address_declarations } else { "" }}
     $|    auto stage_operands = [&](int offset, int stage) {
-    $|      __nv_bfloat16 *destination = pipeline_storage + stage * \{slot};
+    $|      \{if hoisted { "" } else { "__nv_bfloat16 *destination = pipeline_storage + stage * " + slot.to_string() + ";" }}
     $|\{input_copy}
     $|\{weight_copy}
     $|      \{if physical.effects.has_pending_transfers() { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}

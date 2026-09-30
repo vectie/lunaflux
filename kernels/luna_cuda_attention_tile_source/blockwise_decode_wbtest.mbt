@@ -64,7 +64,30 @@ test "offline export of the partitioned blockwise physical frontier" {
     maximum_query_tokens=2048,
     maximum_page_entries=16384,
   )
-  for id in [450, 451, 452, 453] {
+  for id in [441, 452, 453, 454, 455, 456, 457] {
+    let lowering = source_test_decode_lowering(
+      candidate_id=id,
+      alternative=id >= 450,
+      key_value_heads=8,
+      tokens_per_page=8,
+    )
+    let source = emit_cuda_attention_tile_source(
+      lowering, abi, "owned_decode", 1048576,
+    )
+    let law = match lowering.physical_program() {
+      BlockwiseKeyProgram(fold, _) => fold.numeric_law()
+      _ => "ordered-online-f32-v1"
+    }
+    let (_, heads, threads, shared) = lowering.launch()
+    println("LUNA_PARTIAL_BEGIN c\{id}-p1")
+    println(
+      "grid=32,\{heads},1\nblock=\{threads},1,1\nshared_memory_bytes=\{shared}\nquery_tile_rows=1\nquery_metadata_version=0\nfunction_symbol=\{source.symbol()}\nmax_registers=128\ntarget=sm_121\nnumeric_law=\{law}",
+    )
+    println("LUNA_PARTIAL_SOURCE")
+    println(@utf8.decode(source.bytes()))
+    println("LUNA_PARTIAL_END")
+  }
+  for id in [450, 451, 452, 453, 454, 455, 456, 457] {
     for target in [16, 32, 64] {
       let lowering = source_test_decode_lowering(
         candidate_id=id,
@@ -77,10 +100,14 @@ test "offline export of the partitioned blockwise physical frontier" {
       let source = emit_cuda_partitioned_attention_tile_source(
         lowering, abi, "blockwise_partial", "blockwise_merge", 16777216L, 1048576,
       )
+      let law = match lowering.physical_program() {
+        BlockwiseKeyProgram(fold, _) => fold.numeric_law()
+        _ => fail("missing exported blockwise program")
+      }
       let (_, heads, threads, shared) = lowering.launch()
       println("LUNA_PARTIAL_BEGIN c\{id}-p\{lowering.key_value_partitions()}")
       println(
-        "grid=32,\{heads},\{lowering.key_value_partitions()}\nmerge_grid=32,16,1\nblock=\{threads},1,1\nshared_memory_bytes=\{shared}\nworkspace_bytes=\{source.workspace().total_bytes()}\nquery_tile_rows=1\nquery_metadata_version=0\nfunction_symbol=blockwise_partial\nmerge_function_symbol=blockwise_merge\nmax_registers=128\ntarget=sm_121\nnumeric_law=blockwise-f32-probability-v1",
+        "grid=32,\{heads},\{lowering.key_value_partitions()}\nmerge_grid=32,16,1\nblock=\{threads},1,1\nshared_memory_bytes=\{shared}\nworkspace_bytes=\{source.workspace().total_bytes()}\nquery_tile_rows=1\nquery_metadata_version=0\nfunction_symbol=blockwise_partial\nmerge_function_symbol=blockwise_merge\nmax_registers=128\ntarget=sm_121\nnumeric_law=\{law}",
       )
       println("LUNA_PARTIAL_SOURCE")
       println(@utf8.decode(source.bytes()))

@@ -14,11 +14,14 @@ import {
 pub struct BlockwiseFold {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn BlockwiseFold::contracts_multiply_add(Self) -> Bool
 pub fn BlockwiseFold::dimensions(Self) -> (Int, Int)
 pub fn BlockwiseFold::equal(Self, Self) -> Bool
-pub fn BlockwiseFold::new(dimensions~ : Int, keys~ : Int) -> Self?
+pub fn BlockwiseFold::new(dimensions~ : Int, keys~ : Int, score_owners? : Int, contraction? : Bool) -> Self?
 pub fn BlockwiseFold::not_equal(Self, Self) -> Bool
 pub fn BlockwiseFold::numeric_law(Self) -> String
+pub fn BlockwiseFold::rotates_score_groups(Self) -> Bool
+pub fn BlockwiseFold::score_owners(Self) -> Int
 pub fn BlockwiseFold::steps(Self) -> ReadOnlyArray[BlockwiseFoldStep]
 pub fn BlockwiseFold::to_repr(Self) -> @debug.Repr
 
@@ -126,6 +129,59 @@ pub fn PagedRowOwnership::new(row_elements~ : Int, vector_elements~ : Int, subgr
 pub fn PagedRowOwnership::not_equal(Self, Self) -> Bool
 pub fn PagedRowOwnership::shares_address(Self) -> Bool
 pub fn PagedRowOwnership::to_repr(Self) -> @debug.Repr
+
+pub struct PartitionMerge {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PartitionMerge::dimensions(Self) -> (Int, Int)
+pub fn PartitionMerge::equal(Self, Self) -> Bool
+pub fn PartitionMerge::new(partitions~ : Int, dimensions~ : Int) -> Self?
+pub fn PartitionMerge::not_equal(Self, Self) -> Bool
+pub fn PartitionMerge::numeric_law(Self) -> String
+pub fn PartitionMerge::steps(Self) -> ReadOnlyArray[PartitionMergeStep]
+pub fn PartitionMerge::to_repr(Self) -> @debug.Repr
+
+pub(all) enum PartitionMergeStep {
+  ReducePartitionMaximum
+  FormPartitionScalesAndDenominator
+  PublishPartitionStatistics
+  AccumulatePartitionNumerators
+  NormalizePartitionNumerators
+} derive(Eq, @debug.Debug)
+pub fn PartitionMergeStep::equal(Self, Self) -> Bool
+pub fn PartitionMergeStep::not_equal(Self, Self) -> Bool
+pub fn PartitionMergeStep::to_repr(Self) -> @debug.Repr
+
+pub struct QueryOperandLifetime {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn QueryOperandLifetime::equal(Self, Self) -> Bool
+pub fn QueryOperandLifetime::joint_right_consumers(Self) -> Bool
+pub fn QueryOperandLifetime::new(OnlineFragmentProgram, retained_dimensions~ : Int, operand_words~ : Int, accumulator_words~ : Int, joint_right_consumers? : Bool) -> Self?
+pub fn QueryOperandLifetime::not_equal(Self, Self) -> Bool
+pub fn QueryOperandLifetime::peak_fragment_words(Self) -> Int
+pub fn QueryOperandLifetime::program(Self) -> OnlineFragmentProgram
+pub fn QueryOperandLifetime::query_load_count(Self, Int) -> Int64?
+pub fn QueryOperandLifetime::retained_dimensions(Self) -> Int
+pub fn QueryOperandLifetime::retained_fragments(Self) -> Int
+pub fn QueryOperandLifetime::to_repr(Self) -> @debug.Repr
+
+pub struct RetainedCopyOwnership {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RetainedCopyOwnership::dimensions(Self) -> (Int, Int, Int)
+pub fn RetainedCopyOwnership::equal(Self, Self) -> Bool
+pub fn RetainedCopyOwnership::new(vectors~ : Int, owners~ : Int) -> Self?
+pub fn RetainedCopyOwnership::not_equal(Self, Self) -> Bool
+pub fn RetainedCopyOwnership::to_repr(Self) -> @debug.Repr
+pub fn RetainedCopyOwnership::vector_index(Self, Int, Int) -> Int?
+
+pub struct ValueComponentOwnership {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ValueComponentOwnership::component(Self, Int, Int) -> Int?
+pub fn ValueComponentOwnership::fragment_width(Self) -> Int
+pub fn ValueComponentOwnership::new(dimensions~ : Int, owners~ : Int, maximum_fragment~ : Int) -> Self?
 
 // Type aliases
 

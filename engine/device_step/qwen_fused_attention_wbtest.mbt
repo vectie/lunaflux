@@ -76,6 +76,7 @@ fn qwen_fused_test_runtime(
   ingress_query_tile_rows? : Int,
   ingress_heads_per_cta? : Int = 1,
   blockwise_decode? : Bool = false,
+  contracting_decode? : Bool = false,
   mismatched_decode_law? : Bool = false,
   ingress_grid_x? : Int = -1,
   wide_query_prefill? : Bool = false,
@@ -187,14 +188,18 @@ fn qwen_fused_test_runtime(
   if phase_specific_attention {
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-        abi=if blockwise_decode {
+        abi=if contracting_decode {
+          PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+        } else if blockwise_decode {
           PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
         } else {
           QwenPagedAttentionReadOnlyDecodeSplitProductionV3
         },
         first_operation=5,
         operation_count=1,
-        function_symbol=if blockwise_decode != mismatched_decode_law {
+        function_symbol=if contracting_decode && !mismatched_decode_law {
+          "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3"
+        } else if blockwise_decode != mismatched_decode_law {
           "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
         } else {
           "lunaflux_attention_decode_tile_compiler_v1"

@@ -5,9 +5,15 @@ fn projection_sibling_fold_pipeline_source(
   physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   parameters : ProjectionParameters,
   effects : @luna_projection_tile_compiler.ProjectionMaterializationEffects,
+  epilogue? : @luna_projection_tile_compiler.ProjectionSiblingEpiloguePlan,
 ) -> String {
   if physical.sibling_reuse {
-    return projection_sibling_reuse_source(physical, parameters, effects)
+    return projection_sibling_reuse_source(
+      physical,
+      parameters,
+      effects,
+      epilogue?,
+    )
   }
   let plan = physical.schedule
   let rows = plan.row_width()
@@ -18,63 +24,6 @@ fn projection_sibling_fold_pipeline_source(
   let fold_rows = distribution.rows_per_group()
   let consumers = distribution.consumer_groups()
   let operands = physical.operands
-  let slot = operands.slot_elements()
-  let copies = StringBuilder()
-  for
-    domain in [
-      ("input + (unsigned long long)row_begin * \{input_width}ULL", 0, true),
-      (
-        "gate_weight + (unsigned long long)column_begin * \{input_width}ULL",
-        1,
-        false,
-      ),
-      (
-        "up_weight + (unsigned long long)column_begin * \{input_width}ULL",
-        2,
-        false,
-      ),
-    ] {
-    let (base, operand, guard_rows) = domain
-    let region = operands.region(operand).unwrap()
-    let (offset, _, _) = region.geometry()
-    let destination = if offset == 0 {
-      "destination"
-    } else {
-      "destination + \{offset}"
-    }
-    // Priming has no previous fold to overlap. Keep its masked input value
-    // local to the producer rather than issuing partially active bypass-copy
-    // transactions. Both calls below carry constant phase values, so phase
-    // selection disappears before the device loop is emitted.
-    if guard_rows {
-      copies.write_string("if (!overlap) {\n")
-      copies.write_string(
-        projection_fold_operand_copy_source(
-          "(" + base + ")",
-          destination,
-          region,
-          input_width,
-          guard_rows,
-          false,
-        ),
-      )
-      copies.write_string("\n} else {\n")
-    }
-    copies.write_string(
-      projection_fold_operand_copy_source(
-        "(" + base + ")",
-        destination,
-        region,
-        input_width,
-        guard_rows,
-        physical.effects.has_pending_transfers(),
-      ),
-    )
-    if guard_rows {
-      copies.write_string("\n}\n")
-    }
-    copies.write_string("\n")
-  }
   let body = projection_packed_fold_body(
     physical,
     storage="sibling_storage",
@@ -93,14 +42,9 @@ fn projection_sibling_fold_pipeline_source(
     $|      const int column_begin = (work % groups) * \{columns};
     $|      const int consumer_row = (warp / \{distribution.output_groups()}) * \{fold_rows};
     $|      const int consumer_column = warp % \{distribution.output_groups()};
-    $|      auto stage_operands = [&](int k_base, int stage, bool overlap) {
-    $|        __nv_bfloat16 *destination = sibling_storage + stage * \{slot};
-    $|        const int row_start = row_begin, offset = k_base;
-    $|\{copies.to_string()}
-    $|        \{if physical.effects.has_pending_transfers() { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}
-    $|      };
+    $|      \{projection_sibling_transport_source(physical, input_width)}
     $|      float cg[\{fold_rows}][8] = {}, cu[\{fold_rows}][8] = {};
-    $|\{projection_fold_lifetime_source(physical, body, phase_argument=true)}
+    $|\{projection_fold_lifetime_source(physical, body, phase_argument=physical.sibling_transport == IndependentSiblingTransport)}
     $|      if (warp < \{consumers}) {
     $|        #pragma unroll
     $|        for (int row = 0; row < \{fold_rows}; ++row) {

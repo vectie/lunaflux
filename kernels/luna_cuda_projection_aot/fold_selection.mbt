@@ -21,7 +21,7 @@ pub fn lower_measured_projection_cuda_aot_candidate(
   )
   let digest = baseline.source_digest().as_hex()
   let baseline_times = records.filter(r => {
-    r.baseline_sha256() == digest && r.fold_choices().is_empty()
+    r.baseline_sha256() == digest && r.is_baseline()
   })
   guard baseline_times is [measured] else { return baseline }
   // A tiny timing fluctuation is not a reason to change an AOT schedule.
@@ -36,7 +36,7 @@ pub fn lower_measured_projection_cuda_aot_candidate(
     record in records
     selected = baseline, cost = measured.median_latency_ns() {
     if record.baseline_sha256() != digest ||
-      record.fold_choices().is_empty() ||
+      record.is_baseline() ||
       record.median_latency_ns() > cutoff ||
       record.median_latency_ns() > cost ||
       (
@@ -57,6 +57,8 @@ pub fn lower_measured_projection_cuda_aot_candidate(
       dispatch,
       limits,
       fold_choices=record.fold_choices()[:],
+      sibling_ownership=record.sibling_ownership(),
+      sibling_transport=record.sibling_transport(),
     ) catch {
       LimitExceeded(LaunchDimensions) => continue selected, cost
       error => raise error

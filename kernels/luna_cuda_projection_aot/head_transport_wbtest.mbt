@@ -42,10 +42,7 @@ test "selected head transport alternatives retain declared maps and numerical fo
       )
       assert_true(compiled.selected_row_gather() is None)
       assert_true(compiled.schedule().matrix_pipeline() is Some(_))
-      assert_eq(
-        compiled.schedule().single_row_reduction(),
-        @luna_projection_tile_compiler.OrderedDot,
-      )
+      assert_eq(compiled.schedule().single_row_reduction(), OrderedDot)
       let (source, variants) = projection_row_variant_sources(
         parameters,
         row_variant_test_profile(),

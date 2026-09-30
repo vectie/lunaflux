@@ -5,41 +5,58 @@ fn emit_decode_async_stage(
   abi : CudaPagedAttentionTileAbi,
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
   hoist_page_lookup : Bool,
+  retention : @attention_physical_ir.RetainedCopyOwnership,
+  vector_elements? : Int = 4,
 ) -> String {
   let address = cuda_decode_row_address(
-    abi, 4, hoist_page_lookup, "atomicExch(stage_valid + slot, 0)",
+    abi, vector_elements, hoist_page_lookup, "atomicExch(stage_valid + slot, 0)",
   )
+  let vector_bytes = vector_elements * 2
+  let (vectors, owners, slots) = retention.dimensions()
+  let key_copies = Array::make(slots, "")
+  let value_copies = Array::make(slots, "")
+  for slot in 0..<slots {
+    // The binding name and vector offset are compile-time constants. The
+    // inactive tail guard is uniform inside each participating subgroup.
+    key_copies[slot] = (
+      $|    unsigned long long retained_address_\{slot} = 0;
+      $|    int retained_size_\{slot} = 0;
+      $|    {
+      $|      const int vector = thread + \{slot * owners};
+      $|      if (vector < \{vectors}) {
+      $|      const int linear = vector * \{vector_elements};
+      $|      const int key = linear / LF_HEAD_DIMENSION;
+      $|      const int component = linear % LF_HEAD_DIMENSION;
+      $|\{address}
+      $|      const int source_bytes = row_valid ? \{vector_bytes} : 0;
+      $|      const unsigned int key_address = (unsigned int)__cvta_generic_to_shared(key_tile + linear);
+      $|      retained_address_\{slot} = cache_index;
+      $|      retained_size_\{slot} = source_bytes;
+      $|      asm volatile("cp.async.ca.shared.global [%0], [%1], \{vector_bytes}, %2;" ::
+      $|          "r"(key_address), "l"(key_cache + cache_index), "r"(source_bytes) : "memory");
+      $|      }
+      $|    }
+    )
+    value_copies[slot] = (
+      $|    {
+      $|      const int vector = thread + \{slot * owners};
+      $|      if (vector < \{vectors}) {
+      $|      const unsigned int value_address = (unsigned int)__cvta_generic_to_shared(value_tile + vector * \{vector_elements});
+      $|      asm volatile("cp.async.ca.shared.global [%0], [%1], \{vector_bytes}, %2;" ::
+      $|          "r"(value_address), "l"(value_cache + retained_address_\{slot}), "r"(retained_size_\{slot}) : "memory");
+      $|      }
+      $|    }
+    )
+  }
   (
     $|  auto stage_tile = [&](int key_base, int slot) {
     $|    const int active_keys = min(LF_KEY_VALUE_TILE, key_limit - key_base);
     $|    __nv_bfloat16 *key_tile = stage_arena + slot * 2 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|    __nv_bfloat16 *value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|    constexpr int copies = (LF_KEY_VALUE_TILE * (LF_HEAD_DIMENSION / 4) + LF_BLOCK_THREADS - 1) / LF_BLOCK_THREADS;
-    $|    unsigned long long addresses[copies];
-    $|    int sizes[copies];
-    $|    int item = 0;
-    $|    for (int vector = thread; vector < LF_KEY_VALUE_TILE * (LF_HEAD_DIMENSION / 4);
-    $|         vector += LF_BLOCK_THREADS) {
-    $|      const int linear = vector * 4;
-    $|      const int key = linear / LF_HEAD_DIMENSION;
-    $|      const int component = linear % LF_HEAD_DIMENSION;
-    $|\{address}
-    $|      const int source_bytes = row_valid ? 8 : 0;
-    $|      const unsigned int key_address = (unsigned int)__cvta_generic_to_shared(key_tile + linear);
-    $|      addresses[item] = cache_index;
-    $|      sizes[item++] = source_bytes;
-    $|      asm volatile("cp.async.ca.shared.global [%0], [%1], 8, %2;" ::
-    $|          "r"(key_address), "l"(key_cache + cache_index), "r"(source_bytes) : "memory");
-    $|    }
+    $|    // Retained copy ownership: \{vectors} vectors, \{owners} owners, \{slots} scalar slots.
+    $|\{key_copies.join("\n")}
     $|    asm volatile("cp.async.commit_group;" ::: "memory");
-    $|    item = 0;
-    $|    for (int vector = thread; vector < LF_KEY_VALUE_TILE * (LF_HEAD_DIMENSION / 4);
-    $|         vector += LF_BLOCK_THREADS) {
-    $|      const unsigned int value_address = (unsigned int)__cvta_generic_to_shared(value_tile + vector * 4);
-    $|      asm volatile("cp.async.ca.shared.global [%0], [%1], 8, %2;" ::
-    $|          "r"(value_address), "l"(value_cache + addresses[item]), "r"(sizes[item]) : "memory");
-    $|      ++item;
-    $|    }
+    $|\{value_copies.join("\n")}
     $|    asm volatile("cp.async.commit_group;" ::: "memory");
     $|  };
     $|\{cuda_grouped_effects(effects, InitializeTransfers, "", "  ")}

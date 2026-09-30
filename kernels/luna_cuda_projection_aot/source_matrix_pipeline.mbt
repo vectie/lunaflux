@@ -43,30 +43,85 @@ fn projection_matrix_pipeline_source(
   } else {
     "const __nv_bfloat16 *base = weight; const int weight_row = logical_column;\n"
   }
-  let input_copy =
-    $|        \{projection_physical_transfer_map_loop(input_region.ownership())} {
-    $|          const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
-    $|          const int logical_row = row_begin + local_row;
-    $|          const int token_row = \{input_row};
-    $|          const bool valid = logical_row < pipeline_rows && token_row >= 0 && token_row < token_count;
-    $|          const __nv_bfloat16 *source = valid ? input + (unsigned long long)token_row * \{input_width}ULL + k_base + k : input;
-    $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + operand_index(local_row, k));
-    $|          if (overlap) {
-    $|            \{projection_operand_transfer_source(asynchronous=physical.effects.has_pending_transfers())}
-    $|          } else {
-    $|            \{projection_operand_transfer_source(asynchronous=false)}
-    $|          }
-    $|        }
-  let weight_copy =
-    $|        \{projection_physical_transfer_map_loop(weight_region.ownership())} {
-    $|          const int local_row = vector / \{weight_plan.row_vectors()}, k = (vector % \{weight_plan.row_vectors()}) * 8;
-    $|          const int logical_column = column_begin + local_row;
-    $|          \{weight_selection}
-    $|          const bool valid = \{if output_width % columns == 0 { "true" } else { "logical_column < " + output_width.to_string() }};
-    $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)weight_row * \{input_width}ULL + k_base + k : base;
-    $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + \{input_elements} + operand_index(local_row, k));
-    $|          \{projection_operand_transfer_source(asynchronous=physical.effects.has_pending_transfers())}
-    $|        }
+  let input_addresses = physical.producer_addresses(0).unwrap()
+  let weight_addresses = physical.producer_addresses(1).unwrap()
+  let hoisted = input_addresses.hoisted()
+  let address_declarations = if hoisted {
+    projection_producer_address_source(
+      input_addresses,
+      "input_address",
+      "input",
+      "matrix_storage",
+      input_width,
+      "const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8; const int logical_row = row_begin + local_row; const int source_row = \{input_row};",
+      "logical_row < pipeline_rows && source_row >= 0 && source_row < token_count",
+      "",
+    ) +
+    "\n" +
+    projection_producer_address_source(
+      weight_addresses,
+      "weight_address",
+      "base",
+      "matrix_storage + \{input_elements}",
+      input_width,
+      "const int local_row = vector / \{weight_plan.row_vectors()}, k = (vector % \{weight_plan.row_vectors()}) * 8; const int logical_column = column_begin + local_row;",
+      if output_width % columns == 0 {
+        "true"
+      } else {
+        "logical_column < \{output_width}"
+      },
+      weight_selection + "const int source_row = weight_row;",
+    )
+  } else {
+    ""
+  }
+  let input_copy = if hoisted {
+    projection_hoisted_transfer_source(
+      input_addresses,
+      "input_address",
+      slot,
+      "k_base",
+      physical.effects.has_pending_transfers(),
+      initial_synchronous=true,
+    )
+  } else {
+    (
+      $|        \{projection_physical_transfer_map_loop(input_region.ownership())} {
+      $|          const int local_row = vector / \{width / 8}, k = (vector % \{width / 8}) * 8;
+      $|          const int logical_row = row_begin + local_row;
+      $|          const int token_row = \{input_row};
+      $|          const bool valid = logical_row < pipeline_rows && token_row >= 0 && token_row < token_count;
+      $|          const __nv_bfloat16 *source = valid ? input + (unsigned long long)token_row * \{input_width}ULL + k_base + k : input;
+      $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + operand_index(local_row, k));
+      $|          if (overlap) {
+      $|            \{projection_operand_transfer_source(asynchronous=physical.effects.has_pending_transfers())}
+      $|          } else {
+      $|            \{projection_operand_transfer_source(asynchronous=false)}
+      $|          }
+      $|        }
+    )
+  }
+  let weight_copy = if hoisted {
+    projection_hoisted_transfer_source(
+      weight_addresses,
+      "weight_address",
+      slot,
+      "k_base",
+      physical.effects.has_pending_transfers(),
+    )
+  } else {
+    (
+      $|        \{projection_physical_transfer_map_loop(weight_region.ownership())} {
+      $|          const int local_row = vector / \{weight_plan.row_vectors()}, k = (vector % \{weight_plan.row_vectors()}) * 8;
+      $|          const int logical_column = column_begin + local_row;
+      $|          \{weight_selection}
+      $|          const bool valid = \{if output_width % columns == 0 { "true" } else { "logical_column < " + output_width.to_string() }};
+      $|          const __nv_bfloat16 *source = valid ? base + (unsigned long long)weight_row * \{input_width}ULL + k_base + k : base;
+      $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + \{input_elements} + operand_index(local_row, k));
+      $|          \{projection_operand_transfer_source(asynchronous=physical.effects.has_pending_transfers())}
+      $|        }
+    )
+  }
   let fragment_declarations =
     $|      float c[\{fold_rows}][8] = {};
   // Selection changes logical row addresses, not matrix-fragment ownership.
@@ -92,9 +147,9 @@ fn projection_matrix_pipeline_source(
     $|      const int row_begin = (work / column_groups) * \{rows};
     $|      const int column_begin = (work % column_groups) * \{columns};
     $|      const int consumer_row = (warp / \{distribution.output_groups()}) * \{fold_rows};
-    $|      const int consumer_column = warp % \{distribution.output_groups()};
+    $|      const int consumer_column = warp % \{distribution.output_groups()};\{if hoisted { "\n" + address_declarations } else { "" }}
     $|      auto stage_operands = [&](int k_base, int stage, bool overlap) {
-    $|        __nv_bfloat16 *destination = matrix_storage + stage * \{slot};
+    $|        \{if hoisted { "" } else { "__nv_bfloat16 *destination = matrix_storage + stage * " + slot.to_string() + ";" }}
     $|\{input_copy}
     $|\{weight_copy}
     $|        \{if physical.effects.has_pending_transfers() { "asm volatile(\"cp.async.commit_group;\" ::: \"memory\");" } else { "" }}

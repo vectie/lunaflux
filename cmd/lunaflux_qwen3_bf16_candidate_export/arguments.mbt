@@ -52,6 +52,27 @@ fn is_lower_sha256(value : StringView) -> Bool {
 fn parse_qwen3_candidate_export_arguments(
   arguments : ArrayView[String],
 ) -> Qwen3CandidateExportArguments raise Qwen3Bf16CandidateExportCliError {
+  let mut compute_major = 12
+  let mut compute_minor = 0
+  let mut target_seen = false
+  let filtered : Array[String] = []
+  for index = 0; index < arguments.length(); {
+    if arguments[index] == "--device-target" {
+      guard !target_seen && index + 2 < arguments.length() else {
+        raise InvalidArguments
+      }
+      compute_major = parse_positive_decimal(arguments[index + 1])
+      compute_minor = parse_compiler_component(arguments[index + 2]).reinterpret_as_int()
+      guard compute_major >= 8 && compute_minor <= 9 else {
+        raise InvalidArguments
+      }
+      target_seen = true
+      continue index + 3
+    }
+    filtered.push(arguments[index])
+    continue index + 1
+  }
+  let arguments = filtered
   let flags = arguments.filter(value => value == "--ingress-policy-search")
   guard flags.length() <= 1 else { raise InvalidArguments }
   let ingress_policy_search = !flags.is_empty()
@@ -209,6 +230,8 @@ fn parse_qwen3_candidate_export_arguments(
     _ => (tuning_suffix, None)
   }
   let parsed : Qwen3CandidateExportArguments = {
+    compute_major,
+    compute_minor,
     model_root,
     config_locator,
     config_sha256,
