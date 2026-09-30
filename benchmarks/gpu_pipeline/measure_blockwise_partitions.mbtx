@@ -13,8 +13,8 @@ async fn checked(
   label : String,
   command : String,
   args : Array[String],
-  cwd? : String? = None,
-  env? : Map[String, String]? = None,
+  cwd? : String = ".",
+  env? : Map[String, String] = {},
 ) -> String {
   let result = @shell.Cmd(command, args, cwd~, env~).output(
     max_output_bytes=16777216,
