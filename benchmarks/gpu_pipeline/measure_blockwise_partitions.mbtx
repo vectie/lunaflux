@@ -1,0 +1,151 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn checked(
+  root : String,
+  label : String,
+  command : String,
+  args : Array[String],
+  cwd? : String? = None,
+  env? : Map[String, String]? = None,
+) -> String {
+  let result = @shell.Cmd(command, args, cwd~, env~).output(
+    max_output_bytes=16777216,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, calibration, root, probe_source] else {
+    fail(
+      "CURRENT_SOURCE_ROOT COMPLETED_CALIBRATION NEW_EMPTY_ROOT PROBE_SOURCE",
+    )
+  }
+  let available = @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+  guard available is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  let moon = base + "/toolchain/bin/moon"
+  let output = checked(
+    root,
+    "export",
+    moon,
+    [
+      "test", "kernels/luna_cuda_attention_tile_source", "--target", "native", "--deny-warn",
+      "--warn-list", "-79-20-29-25",
+    ],
+    cwd=base + "/source",
+    env={
+      "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1",
+      "PATH": base +
+      "/toolchain/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/bin:/bin",
+    },
+  )
+  ignore(
+    checked(root, "probe-build", "/usr/local/cuda/bin/nvcc", [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      probe_source,
+      "-lcuda",
+      "-o",
+      root + "/probe",
+    ]),
+  )
+  @fs.write_file(
+    root + "/decode.spec",
+    @fs.read_file(calibration + "/decode.spec"),
+    create_mode=CreateNew,
+  )
+  let baseline = calibration + "/candidate/reusable-qwen-decode-attention-c441"
+  let results = StringBuilder()
+  for block in output.split("LUNA_PARTIAL_BEGIN ").to_array()[1:] {
+    let parts = block.split("\nLUNA_PARTIAL_SOURCE\n").to_array()
+    guard parts is [header, remainder] else { fail("source framing") }
+    let first = header.split("\n").to_array()
+    let id = first[0].to_owned()
+    let directory = root + "/" + id
+    @fs.mkdir(directory)
+    @fs.write_file(
+      directory + "/kernel.recipe",
+      first[1:].map(x => x.to_owned()).join("\n") + "\n",
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      directory + "/kernel.cu",
+      remainder.split("\nLUNA_PARTIAL_END").to_array()[0].to_owned(),
+      create_mode=CreateNew,
+    )
+    ignore(
+      checked(root, "compile-" + id, "/usr/local/cuda/bin/nvcc", [
+        "-O3",
+        "-arch=sm_121",
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--Werror",
+        "all-warnings",
+        "--maxrregcount=128",
+        "-Xptxas=-v",
+        "-cubin",
+        directory + "/kernel.cu",
+        "-o",
+        directory + "/kernel.cubin",
+      ]),
+    )
+    for history in [127, 4095] {
+      for rows in [1, 8, 16] {
+        let label = "\{id}-r\{rows}-h\{history}"
+        let measured = checked(root, label, root + "/probe", [
+          root + "/decode.spec",
+          baseline,
+          directory,
+          "\{rows}",
+          "\{rows}",
+          "\{history}",
+        ])
+        results.write_string("variant=" + id + "\n" + measured)
+        println(label + " passed")
+      }
+    }
+  }
+  @fs.write_file(
+    root + "/measurements.txt",
+    results.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\n",
+    create_mode=CreateNew,
+  )
+}

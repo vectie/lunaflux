@@ -34,23 +34,39 @@ struct Buffer {
   std::vector<__nv_bfloat16> read(){std::vector<__nv_bfloat16> v(bytes/2);CK(cudaMemcpy(v.data(),p,bytes,cudaMemcpyDeviceToHost));return v;}
 };
 struct Kernel {
-  CUmodule module; CUfunction function; unsigned gx,gy,b,shared; int regs,resident,local; std::string law;
+  CUmodule module; CUfunction function,merge=nullptr; unsigned gx,gy,gz,b,shared,merge_y=0; int regs,resident,local; std::string law;
+  void* workspace=nullptr;
   explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode){
     auto r=fields(root+"/kernel.recipe");auto grid=tuple(r.at("grid")),block=tuple(r.at("block"));
-    gx=grid.at(0);gy=grid.at(1);b=block.at(0);shared=number(r,"shared_memory_bytes");
+    gx=grid.at(0);gy=grid.at(1);gz=grid.at(2);b=block.at(0);shared=number(r,"shared_memory_bytes");
     const int tile=decode ? 1 : number(r,"query_tile_rows");
     const bool metadata=!ingress&&!decode&&number(r,"query_metadata_version")==1;
     gx=selected_grid_x(gx,bucket_tokens,profile_rows,tile,metadata,decode);
     law=r.count("numeric_law") ? r.at("numeric_law") : "legacy-declared-law";
     CK(cuModuleLoad(&module,(root+"/kernel.cubin").c_str()));
     CK(cuModuleGetFunction(&function,module,r.at("function_symbol").c_str()));
+    if(r.count("merge_function_symbol")) {
+      if(!decode || gz<=1 || r.at("numeric_law")!="blockwise-f32-probability-v1")std::exit(1);
+      CK(cuModuleGetFunction(&merge,module,r.at("merge_function_symbol").c_str()));
+      auto bytes=std::stoull(r.at("workspace_bytes"));
+      if(bytes==0 || bytes>16777216)std::exit(1);
+      CK(cudaMalloc(&workspace,bytes));CK(cudaMemset(workspace,0,bytes));
+      merge_y=tuple(r.at("merge_grid")).at(1);
+    }
     if(shared)CK(cuFuncSetAttribute(function,CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,shared));
     CK(cuFuncGetAttribute(&regs,CU_FUNC_ATTRIBUTE_NUM_REGS,function));
     CK(cuFuncGetAttribute(&local,CU_FUNC_ATTRIBUTE_LOCAL_SIZE_BYTES,function));
     CK(cuOccupancyMaxActiveBlocksPerMultiprocessor(&resident,function,b,shared));
   }
-  ~Kernel(){CK(cuModuleUnload(module));}
-  void launch(void** a){CK(cuLaunchKernel(function,gx,gy,1,b,1,1,shared,nullptr,a,nullptr));}
+  ~Kernel(){if(workspace)CK(cudaFree(workspace));CK(cuModuleUnload(module));}
+  void launch(void** a){
+    if(merge){
+      void* partial[]={a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[8],a[9],&workspace};
+      void* combine[]={a[0],a[2],&workspace,a[7]};
+      CK(cuLaunchKernel(function,gx,gy,gz,b,1,1,shared,nullptr,partial,nullptr));
+      CK(cuLaunchKernel(merge,gx,merge_y,1,b,1,1,0,nullptr,combine,nullptr));
+    }else{CK(cuLaunchKernel(function,gx,gy,1,b,1,1,shared,nullptr,a,nullptr));}
+  }
   double time(void** a){
     for(int i=0;i<3;i++)launch(a);CK(cudaDeviceSynchronize());
     cudaEvent_t start,end;CK(cudaEventCreate(&start));CK(cudaEventCreate(&end));

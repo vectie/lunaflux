@@ -123,12 +123,15 @@ fn source_test_decode_lowering(
   batch_rows? : Int = 32,
   context_tokens? : Int = 4096,
   alternative? : Bool = false,
+  parallel_workgroup_target? : Int = 32,
+  key_value_heads? : Int = 4,
+  tokens_per_page? : Int = 16,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
-    kv_heads=4,
+    kv_heads=key_value_heads,
     head_dimension=128,
-    tokens_per_page=16,
+    tokens_per_page~,
   )
   let problem = @luna_attention_strategy.AttentionCompileProblem::new(
     shape~,
@@ -146,6 +149,7 @@ fn source_test_decode_lowering(
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
     supports_async_copy=[440, 441, 452, 453].contains(candidate_id),
+    parallel_workgroup_target~,
   )
   guard @luna_attention_strategy.generate_attention_tile_candidates(
       problem, capabilities,
@@ -175,6 +179,7 @@ fn source_test_decode_lowering(
   let program = @luna_attention_tile_ir.compile_attention_tile_ir(selected)
   let optimized = @luna_attention_tile_optimizer.optimize_attention_tile_program(
     program,
+    parallel_workgroup_target~,
   )
   @luna_cuda_attention_tile_lowering.lower_attention_tile_schedule_to_cuda(
     program,

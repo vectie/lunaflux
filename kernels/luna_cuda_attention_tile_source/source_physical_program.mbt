@@ -31,8 +31,7 @@ fn cuda_emit_physical_attention(
       emit_cuda_grouped_split_decode_attention_tile_source(
         lowering, abi, symbol, maximum_source_bytes,
       )
-    (Decode, BlockwiseKeyProgram(fold, effects)) if lowering.key_value_partitions() ==
-      1 =>
+    (Decode, BlockwiseKeyProgram(fold, effects)) =>
       emit_cuda_blockwise_decode_source(
         lowering, abi, symbol, maximum_source_bytes, fold, effects,
       )

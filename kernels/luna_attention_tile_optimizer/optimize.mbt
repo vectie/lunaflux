@@ -281,8 +281,9 @@ fn attention_partition_count(
   let (query_heads, key_value_heads, _, _) = problem.shape().dimensions()
   let query_tiles = 1 + (query_rows - 1) / query_tile
   let head_workgroups = match program.candidate().compute() {
-    AttentionGroupedQuerySubgroupDot | AttentionGroupedQuerySplitSubgroupDot =>
-      key_value_heads
+    AttentionGroupedQuerySubgroupDot
+    | AttentionGroupedQuerySplitSubgroupDot
+    | AttentionGroupedQueryBlockwiseDot => key_value_heads
     _ => query_heads
   }
   // Valid problem dimensions can produce more than 2^31 workgroups. Keep

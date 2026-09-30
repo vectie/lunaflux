@@ -48,6 +48,100 @@ test "blockwise decode retains explicit F32 law and uniform cache rejection" {
 }
 
 ///|
+test "offline export of the partitioned blockwise physical frontier" {
+  if @env.get_env_var("LUNA_EXPORT_BLOCKWISE_PARTITIONS") != Some("1") {
+    return
+  }
+  let abi = CudaPagedAttentionTileAbi::new(
+    query_heads=16,
+    key_value_heads=8,
+    head_dimension=128,
+    tokens_per_page=8,
+    input_row_width=4096,
+    page_stride_values=8192L,
+    physical_page_capacity=16384L,
+    maximum_query_rows=32,
+    maximum_query_tokens=2048,
+    maximum_page_entries=16384,
+  )
+  for id in [450, 451, 452, 453] {
+    for target in [16, 32, 64] {
+      let lowering = source_test_decode_lowering(
+        candidate_id=id,
+        alternative=true,
+        batch_rows=1,
+        parallel_workgroup_target=target,
+        key_value_heads=8,
+        tokens_per_page=8,
+      )
+      let source = emit_cuda_partitioned_attention_tile_source(
+        lowering, abi, "blockwise_partial", "blockwise_merge", 16777216L, 1048576,
+      )
+      let (_, heads, threads, shared) = lowering.launch()
+      println("LUNA_PARTIAL_BEGIN c\{id}-p\{lowering.key_value_partitions()}")
+      println(
+        "grid=32,\{heads},\{lowering.key_value_partitions()}\nmerge_grid=32,16,1\nblock=\{threads},1,1\nshared_memory_bytes=\{shared}\nworkspace_bytes=\{source.workspace().total_bytes()}\nquery_tile_rows=1\nquery_metadata_version=0\nfunction_symbol=blockwise_partial\nmerge_function_symbol=blockwise_merge\nmax_registers=128\ntarget=sm_121\nnumeric_law=blockwise-f32-probability-v1",
+      )
+      println("LUNA_PARTIAL_SOURCE")
+      println(@utf8.decode(source.bytes()))
+      println("LUNA_PARTIAL_END")
+    }
+  }
+}
+
+///|
+test "blockwise partial fold binds partition ownership and an explicit merge ABI" {
+  for id in [450, 452] {
+    let lowering = source_test_decode_lowering(
+      candidate_id=id,
+      alternative=true,
+      batch_rows=1,
+      parallel_workgroup_target=96,
+    )
+    assert_eq(lowering.key_value_partitions(), 8)
+    guard lowering.physical_program() is BlockwiseKeyProgram(fold, _) else {
+      fail("partitioned blockwise program missing")
+    }
+    assert_eq(fold.dimensions(), (128, 32))
+    let source = emit_cuda_partitioned_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "blockwise_partial",
+      "blockwise_merge",
+      16777216L,
+      1048576,
+    )
+    let text = @utf8.decode(source.bytes())
+    assert_true(text.contains("void blockwise_partial("))
+    assert_false(text.contains("void blockwise_partial_blockwise_f32_v1("))
+    assert_true(text.contains("void blockwise_merge("))
+    assert_true(text.contains("float *workspace"))
+    assert_true(text.contains("workspace[state] = CUDART_NAN_F"))
+    assert_true(text.contains("workspace[state] = maximum"))
+    assert_true(text.contains("const int key_begin = first *"))
+    assert_true(
+      text.contains(
+        "state * LF_HEAD_DIMENSION + component] = accumulator[item]",
+      ),
+    )
+    assert_eq(source.workspace().total_bytes(), 32L * 16L * 8L * 130L * 4L)
+    try
+      emit_cuda_attention_tile_source(
+        lowering,
+        source_test_abi(),
+        "unsafe_single",
+        1048576,
+      )
+    catch {
+      InvalidCudaAttentionTileSource(UnsupportedLowering) => ()
+      _ => fail("wrong single-launch rejection")
+    } noraise {
+      _ => fail("partial workspace escaped through a single-output ABI")
+    }
+  }
+}
+
+///|
 test "blockwise decode pipelines operands with disjoint score ownership" {
   for id in [452, 453] {
     let lowering = source_test_decode_lowering(

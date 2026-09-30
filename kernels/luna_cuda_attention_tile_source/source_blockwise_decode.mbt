@@ -32,7 +32,17 @@ fn emit_cuda_blockwise_decode_source(
     shared_bytes >= required_shared else {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
-  let symbol = requested_symbol + "_blockwise_f32_v1"
+  let partitions = lowering.key_value_partitions()
+  let partitioned = partitions > 1
+  let grain = lowering.key_value_partition_grain()
+  guard partitions > 0 && grain > 0 && grain % keys == 0 else {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let symbol = if partitioned {
+    requested_symbol
+  } else {
+    requested_symbol + "_blockwise_f32_v1"
+  }
   guard valid_cuda_symbol(symbol) else {
     raise InvalidCudaAttentionTileSource(InvalidSymbol)
   }
@@ -74,6 +84,44 @@ fn emit_cuda_blockwise_decode_source(
     ""
   }
   let items = (dimension + 31) / 32
+  let output_arguments = if partitioned {
+    "const __nv_bfloat16 *rotated_qkv_rows, const __nv_bfloat16 *key_cache,\n    const __nv_bfloat16 *value_cache, float *workspace"
+  } else {
+    "const __nv_bfloat16 *rotated_qkv_rows, __nv_bfloat16 *output,\n    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache"
+  }
+  let state_count = max_rows.to_int64() *
+    heads.to_int64() *
+    partitions.to_int64()
+  let state_initialization = if partitioned {
+    "  const unsigned long long state = ((unsigned long long)row * \{heads}ULL + query_head) * \{partitions}ULL + blockIdx.z;\n" +
+    "  if (lane == 0) { workspace[state] = CUDART_NAN_F; workspace[\{state_count}ULL + state] = CUDART_NAN_F; }"
+  } else {
+    ""
+  }
+  let range = if partitioned {
+    "  const int tiles = (query_position + \{grain}) / \{grain};\n" +
+    "  const int first = (int)((unsigned long long)tiles * blockIdx.z / \{partitions}ULL);\n" +
+    "  const int last = (int)((unsigned long long)tiles * (blockIdx.z + 1) / \{partitions}ULL);\n" +
+    "  const int key_begin = first * \{grain};\n  const int key_limit = min(query_position + 1, last * \{grain});"
+  } else {
+    "  const int key_limit = query_position + 1;\n  const int key_begin = 0;"
+  }
+  let epilogue = if partitioned {
+    "  if (lane == 0) { workspace[state] = maximum; workspace[\{state_count}ULL + state] = denominator; }\n" +
+    "  #pragma unroll\n  for (int item = 0; item < LF_ACCUMULATOR_ITEMS; ++item) {\n" +
+    "    const int component = lane + item * 32;\n" +
+    "    if (component < LF_HEAD_DIMENSION) workspace[\{2L * state_count}ULL + state * LF_HEAD_DIMENSION + component] = accumulator[item];\n  }"
+  } else {
+    "  const unsigned long long output_offset = (unsigned long long)token * \{heads * dimension}ULL + query_head * LF_HEAD_DIMENSION;\n" +
+    "  #pragma unroll\n  for (int item = 0; item < LF_ACCUMULATOR_ITEMS; ++item) {\n" +
+    "    const int component = lane + item * 32;\n    if (component < LF_HEAD_DIMENSION)\n" +
+    "      output[output_offset + component] = __float2bfloat16_rn(accumulator[item] / denominator);\n  }"
+  }
+  let stage_valid = if effects.is_pipelined() {
+    "  int *stage_valid = tile_valid;"
+  } else {
+    ""
+  }
   let source =
     $|#include <cuda_bf16.h>
     $|#include <math_constants.h>
@@ -86,21 +134,21 @@ fn emit_cuda_blockwise_decode_source(
     $|    const int *counts, const int *query_positions,
     $|    const int *query_row_offsets, const int *sequence_lengths,
     $|    const int *page_table_offsets, const int *page_table_page_indices,
-    $|    const __nv_bfloat16 *rotated_qkv_rows, __nv_bfloat16 *output,
-    $|    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache) {
+    $|    \{output_arguments}) {
     $|  const int thread = (int)threadIdx.x;
     $|  const int lane = thread & 31;
     $|  const int warp = thread >> 5;
     $|  const int key_value_head = (int)blockIdx.y;
     $|  const int query_head = key_value_head * \{group} + warp;
     $|  const int local_row = (int)blockIdx.x;
-    $|  if (blockDim.x != LF_BLOCK_THREADS || key_value_head >= \{kv_heads} || warp >= \{group}) return;
+    $|  if (blockDim.x != LF_BLOCK_THREADS || blockIdx.z >= \{partitions} || key_value_head >= \{kv_heads} || warp >= \{group}) return;
     $|  const int prefill_count = counts[0], decode_count = counts[1];
     $|  const int row_count = counts[2], token_count = counts[3], page_entry_count = counts[4];
     $|  if (prefill_count < 0 || decode_count <= 0 || row_count != prefill_count + decode_count ||
     $|      row_count > \{max_rows} || token_count <= 0 || token_count > \{max_tokens} ||
     $|      page_entry_count <= 0 || page_entry_count > \{max_pages} || local_row >= decode_count) return;
     $|  const int row = prefill_count + local_row;
+    $|\{state_initialization}
     $|  const int token = query_row_offsets[row], row_end = query_row_offsets[row + 1];
     $|  const int sequence_length = sequence_lengths[row];
     $|  const int query_position = token >= 0 && token < token_count ? query_positions[token] : -1;
@@ -115,7 +163,7 @@ fn emit_cuda_blockwise_decode_source(
     $|  __nv_bfloat16 *value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|  float *scores = reinterpret_cast<float *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + warp * LF_KEY_VALUE_TILE;
     $|  int *tile_valid = reinterpret_cast<int *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + \{group * keys};
-    $|  int *stage_valid = tile_valid;
+    $|\{stage_valid}
     $|  const unsigned long long query_offset = (unsigned long long)token * \{input_width}ULL + query_head * LF_HEAD_DIMENSION;
     $|  float query_fragment[LF_ACCUMULATOR_ITEMS], accumulator[LF_ACCUMULATOR_ITEMS] = {};
     $|  #pragma unroll
@@ -125,8 +173,7 @@ fn emit_cuda_blockwise_decode_source(
     $|  }
     $|  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
     $|  float maximum = -CUDART_INF_F, denominator = 0.0f;
-    $|  const int key_limit = query_position + 1;
-    $|  const int key_begin = 0;
+    $|\{range}
     $|\{initialize}
     $|  for (int key_base = key_begin; key_base < key_limit; key_base += LF_KEY_VALUE_TILE) {
     $|    const int active_keys = min(LF_KEY_VALUE_TILE, key_limit - key_base);
@@ -134,13 +181,7 @@ fn emit_cuda_blockwise_decode_source(
     $|\{body}
     $|\{release}
     $|  }
-    $|  const unsigned long long output_offset = (unsigned long long)token * \{heads * dimension}ULL + query_head * LF_HEAD_DIMENSION;
-    $|  #pragma unroll
-    $|  for (int item = 0; item < LF_ACCUMULATOR_ITEMS; ++item) {
-    $|    const int component = lane + item * 32;
-    $|    if (component < LF_HEAD_DIMENSION)
-    $|      output[output_offset + component] = __float2bfloat16_rn(accumulator[item] / denominator);
-    $|  }
+    $|\{epilogue}
     $|}
     $|#undef LF_BLOCK_THREADS
     $|#undef LF_KEY_VALUE_TILE
