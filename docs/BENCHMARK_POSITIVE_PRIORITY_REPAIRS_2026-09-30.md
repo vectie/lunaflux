@@ -107,7 +107,11 @@ history, finds warp instructions **74.05M → 61.29M** (−17.2%), registers
 zero source-correlated excessive shared wavefronts in both variants. Its
 cold-cache profiled invocation changes **1.270 → 1.238 ms** (−2.5%). These
 are synthetic selected-cubin counters, not a live-serving counter capture or
-cross-framework throughput result. Dependency/issue ratios remain high and
+cross-framework throughput result. The replay uses a 16-row launch bucket;
+the fresh serving trace retains a 32-row attention grid with inactive slots.
+Thus its instruction/timing deltas are not a capture of the exact live graph
+launch geometry. The trace independently verifies serving improvement.
+Dependency/issue ratios remain high and
 some increase as the issue denominator changes; they are not latency
 percentages. Reduced instructions did not eliminate the critical waits.
 
@@ -183,3 +187,14 @@ that the whole dirty repository passes the default unsuppressed warning policy.
 Affected exporters also pass focused warning-denied checks/tests. Formatting
 and standalone checks cover the changed MoonBit campaign helpers; Git whitespace
 checks pass. Unrelated tensor-parallel/remote/multimodal edits are preserved.
+
+The final diagnostic archive includes exact strict/FMA serving source snapshots,
+successful and failed campaign logs, selected AOT modules, raw client outputs,
+NCU reports and the fresh Nsight trace. Model-root copies and build caches are
+listed as exclusions, not deleted. Remote archive:
+`archive-final3/gap-repairs.tar.gz`, SHA-256
+`b676e3fe96e06bf565aa5fa134ca8219e0ea080619a25424cd889f16e3577605`.
+Exact strict source snapshot SHA-256:
+`c5d5be2d7a8f277c77433dabfed92f073a87506254aa9e5e931cf5972807fafc`;
+FMA source snapshot:
+`dba616651995012940eded59cb93f9d52eb53579b5e5384759e5d9fa4aa7ab85`.
