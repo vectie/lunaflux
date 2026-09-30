@@ -83,14 +83,20 @@ static std::vector<__nv_bfloat16> values(size_t n,int salt){
 static bool same(const std::vector<__nv_bfloat16>& a,const std::vector<__nv_bfloat16>& b){return a.size()==b.size()&&!std::memcmp(a.data(),b.data(),a.size()*2);}
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc!=7 && !(argc==8 && std::string(argv[7])=="--check-only"))return 1;
+  if(argc<7 || argc>9)return 1;
+  bool check_only=false,mixed=false;
+  for(int i=7;i<argc;i++){
+    if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
+    else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
+    else return 1;
+  }
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
   const bool ingress=kind=="ingress",decode=kind=="decode",postprocess=kind=="postprocess";
   const int tokens=std::stoi(argv[4]),rows=std::stoi(argv[5]),past=std::stoi(argv[6]);
   const int qh=number(spec,"query_heads"),kh=number(spec,"key_value_heads"),d=number(spec,"head_dimension");
   const int input_width=number(spec,"input_width"),page=number(spec,"tokens_per_page"),stride=number(spec,"page_stride_values");
   const int max_rows=number(spec,"maximum_rows"),max_tokens=number(spec,"maximum_tokens"),max_pages=number(spec,"maximum_pages");
-  if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||past<0||past>8192||(decode&&tokens!=rows))return 1;
+  if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||past<0||past>8192||(decode&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
   const int bucket_tokens=selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
   Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess),candidate(argv[3],bucket_tokens,max_rows,ingress,decode,postprocess);
@@ -98,14 +104,15 @@ int main(int argc,char**argv){
     tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,candidate.gx,candidate.gy,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
   for(int r=0;r<rows;r++){
-    int n=tokens/rows+(r<tokens%rows),length=past+n;
+    const int prefill_rows=mixed?rows-1:rows,prefill_tokens=mixed?tokens-1:tokens;
+    int n=mixed&&r==rows-1?1:prefill_tokens/prefill_rows+(r<prefill_tokens%prefill_rows),length=past+n;
     lengths.push_back(length);for(int t=0;t<n;t++)positions.push_back(past+t);
     offsets.push_back(offsets.back()+n);
     for(int p=0;p<(length+page-1)/page;p++)pages.push_back(int(pages.size()));
     po.push_back(int(pages.size()));
   }
   if(int(pages.size())>max_pages)return 1;
-  std::vector<int> counts{decode?0:rows,decode?rows:0,rows,tokens,int(pages.size())};
+  std::vector<int> counts{decode?0:(mixed?rows-1:rows),decode?rows:(mixed?1:0),rows,tokens,int(pages.size())};
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
   std::vector<int> metadata(4,0);
   for(int bucket=0;bucket<4;bucket++){
@@ -195,7 +202,7 @@ int main(int argc,char**argv){
     if(oracle_error>0.003){std::fprintf(stderr,"oracle failed error=%g\n",oracle_error);return 4;}
   }
   std::printf("resources registers=%d resident_blocks=%d local_bytes=%d\n",candidate.regs,candidate.resident,candidate.local);
-  if(argc==8){std::printf("correctness=passed bitwise=%s maxabs=%g oracle_maxabs=%g\n",bitwise?"true":"false",error,oracle_error);return 0;}
+  if(check_only){std::printf("correctness=passed bitwise=%s maxabs=%g oracle_maxabs=%g\n",bitwise?"true":"false",error,oracle_error);return 0;}
   for(int trial=0;trial<5;trial++){
     double a,b;if(trial%2){b=candidate.time(args);a=baseline.time(args);}else{a=baseline.time(args);b=candidate.time(args);}
     std::printf("tokens=%d rows=%d history=%d trial=%d old_us=%.6f new_us=%.6f bitwise=%s maxabs=%g oracle_maxabs=%g\n",tokens,rows,past,trial,a,b,bitwise?"true":"false",error,oracle_error);

@@ -33,9 +33,11 @@ async fn main {
     verify_trace(root)
     return
   }
-  guard @env.args() is [_, serving, root] else {
-    fail("COMPLETED_SERVING NEW_EMPTY_ROOT")
+  guard @env.args() is [_, serving, root, .. options] &&
+    (options.is_empty() || options is ["--selected"]) else {
+    fail("COMPLETED_SERVING NEW_EMPTY_ROOT [--selected]")
   }
+  let selected = options is ["--selected"]
   guard @fs.read_file(serving + "/RESULT.txt")
     .text()
     .has_prefix("outcome=completed\n") else {
@@ -123,6 +125,13 @@ async fn main {
     "Isolated profiler-environment launcher; unchanged measured worker and AOT kernels. Not a timing benchmark or deployable runtime.\n",
     create_mode=CreateNew,
   )
+  if selected {
+    @fs.write_file(
+      root + "/SELECTED_MODE.txt",
+      "retained measured families\n",
+      create_mode=CreateNew,
+    )
+  }
   let client = @fs.read_file(serving + "/benchmark.mbtx")
     .text()
     .replace(old="[(128,32),(4096,64),(4096,256)]", new="[(4096,4)]")
@@ -244,8 +253,13 @@ async fn verify_trace(root : String) -> Unit {
     "SELECT s.value AS kernel,k.gridX,k.gridY,k.blockX,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.blockX ORDER BY total_ms DESC;",
   ])
   let kernels = @fs.read_file(root + "/selected-kernels.stdout").text()
+  let selected = @fs.exists(root + "/SELECTED_MODE.txt")
   guard kernels.contains(
-      "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1",
+      if selected {
+        "lunaflux_attention_decode_tile_compiler_v1"
+      } else {
+        "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
+      },
     ) &&
     kernels.contains(
       "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
@@ -256,6 +270,9 @@ async fn verify_trace(root : String) -> Unit {
     fail("selected prefill kernel absent from serving launches")
   }
   for line in kernels.split("\n") {
+    if selected {
+      continue
+    }
     if line.contains(
         "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
       ) {
