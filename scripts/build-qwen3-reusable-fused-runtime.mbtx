@@ -226,6 +226,11 @@ async fn main {
       checked("sha256sum", [path]).split(" ").to_array()[0].to_owned(),
     ])
   }
+  @fs.write_file(
+    output + "/export.arguments",
+    args.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
   let report = checked(exporter.to_owned(), args)
   guard field(report, "ingress_schedule") == choice else {
     fail("ingress cut was lost during metadata rebind")

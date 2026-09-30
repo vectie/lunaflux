@@ -1,0 +1,190 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("field " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn checked(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  let out = @shell.Cmd(program, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+fn median(output : String, name : String) -> Int64 raise {
+  let samples : Array[Double] = []
+  for line in output.split("\n").filter(x => x.has_prefix("tokens=")) {
+    guard line.split(" ").filter(x => x.has_prefix(name + "=")).to_array()
+      is [value] else {
+      fail("sample")
+    }
+    samples.push(@string.parse_double(value[name.length() + 1:]))
+  }
+  assert_eq(samples.length(), 5)
+  samples.sort()
+  (samples[2] * 1000.0).to_int64()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, calibration] else {
+    fail("SERVING PREPARED_CALIBRATION")
+  }
+  let gpu = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else { fail("GPU busy") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [available] else {
+    fail("memory")
+  }
+  guard @string.parse_int64(
+      available.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  let recipe = @fs.read_file(serving + "/decode-selected/kernel.recipe").text()
+  guard recipe.contains("partition_numeric_law=blockwise-f32-probability-v1\n") else {
+    fail("explicit partition numerical contract required")
+  }
+  let root = serving + "/decode-route-measurements"
+  @fs.mkdir(root)
+  let partial = root + "/partitioned"
+  @fs.mkdir(partial)
+  let text = recipe
+    .split("\n")
+    .filter(x => {
+      !["function_symbol=", "grid=", "block=", "shared_memory_bytes="].any(prefix => {
+        x.has_prefix(prefix)
+      })
+    })
+    .to_array()
+    .join("\n") +
+    "function_symbol=lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903\nmerge_function_symbol=lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904\n" +
+    "grid=" +
+    field(recipe, "partition_grid") +
+    "\nmerge_grid=" +
+    field(recipe, "partition_merge_grid") +
+    "\nblock=" +
+    field(recipe, "partition_block") +
+    "\nshared_memory_bytes=" +
+    field(recipe, "partition_shared_memory_bytes") +
+    "\nworkspace_bytes=" +
+    field(recipe, "partition_workspace_bytes") +
+    "\n"
+  @fs.write_file(partial + "/kernel.recipe", text, create_mode=CreateNew)
+  @fs.write_file(
+    partial + "/kernel.cubin",
+    @fs.read_file(serving + "/fused/attention.cubin"),
+    create_mode=CreateNew,
+  )
+  let report = @fs.read_file(serving + "/fused/export.stdout").text()
+  let mut routes = "luna-attention-buckets-v1\nscope\t" +
+    field(report, "attention_route_scope") +
+    "\n"
+  for rows in [1, 2, 4, 8, 16] {
+    for history in [127, 255, 4095, 8191] {
+      let args = [
+        calibration + "/decode.spec",
+        serving + "/decode-selected",
+        partial,
+        "\{rows}",
+        "\{rows}",
+        "\{history}",
+      ]
+      // Isolated GPU probes are serialized, small and independently checked.
+      if (rows == 1 || rows == 16) && history == 4095 {
+        for tool in ["memcheck", "racecheck", "synccheck"] {
+          ignore(
+            checked(
+              root,
+              "\{tool}-r\{rows}",
+              "/usr/local/cuda/bin/compute-sanitizer",
+              [
+                "--tool",
+                tool,
+                "--error-exitcode",
+                "99",
+                serving + "/check-probe",
+              ] +
+              args +
+              ["--check-only"],
+            ),
+          )
+        }
+      }
+      let output = checked(
+        root,
+        "r\{rows}-h\{history}",
+        serving + "/check-probe",
+        args,
+      )
+      routes += "record\tdecode\t\{rows}\t\{rows}\t\{history + 1}\t3\t\{median(output, "old_us")}\t5\nrecord\tdecode\t\{rows}\t\{rows}\t\{history + 1}\t4\t\{median(output, "new_us")}\t5\n"
+    }
+  }
+  let route_path = root + "/routes.v1"
+  @fs.write_file(route_path, routes, create_mode=CreateNew, permission=0o444)
+  let hash = checked(root, "route-sha", "sha256sum", [route_path])
+  .split(" ")
+  .to_array()[0].to_owned()
+  @fs.mkdir(serving + "/fused-routed")
+  let old_path = serving + "/fused/reusable-fused-runtime-bundle.v3"
+  let new_path = serving + "/fused-routed/reusable-fused-runtime-bundle.v3"
+  let args = @fs.read_file(serving + "/fused/export.arguments")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => if x == old_path { new_path } else { x.to_owned() })
+    .to_array()
+  guard args.contains(new_path) else { fail("output seam") }
+  args.append(["--attention-buckets", route_path, hash])
+  ignore(
+    checked(
+      root,
+      "rebind",
+      serving +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+      args,
+    ),
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nobjective=matched-attention-span-not-full-graph-timing\n",
+    create_mode=CreateNew,
+  )
+  println(routes)
+}

@@ -96,3 +96,28 @@ test "decode workspace rejects insufficient bytes and empty split geometry" {
     _ => fail("expected phase rejection")
   }
 }
+
+///|
+test "explicit AOT partitions do not shrink with the context heuristic" {
+  let shape = AttentionShape::new(
+    query_heads=16,
+    kv_heads=8,
+    head_dimension=128,
+    tokens_per_page=8,
+  )
+  let dispatch = plan_attention_dispatch(
+    shape,
+    4096,
+    16,
+    8,
+    exact_key_value_splits=Some(8),
+  )
+  let workspace = plan_decode_attention_workspace(
+    shape,
+    dispatch.decode(),
+    1,
+    4096,
+    268435456L,
+  )
+  assert_eq(workspace.split_count(), 8)
+}

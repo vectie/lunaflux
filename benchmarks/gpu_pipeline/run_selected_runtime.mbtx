@@ -45,10 +45,10 @@ async fn memory() -> Int64 {
 ///|
 async fn main {
   guard @env.args() is [_, base, calibration, root, builder, .. options] &&
-    (options.is_empty() || options == ["--partial-ingress"]) else {
+    options.all(x => x == "--partial-ingress" || x == "--measured-decode-routes") else {
     fail("BASELINE_ROOT CALIBRATION_ROOT NEW_EMPTY_ROOT FIXED_FUSED_BUILDER")
   }
-  let partial_ingress = !options.is_empty()
+  let partial_ingress = options.contains("--partial-ingress")
   guard @fs.read_file(calibration + "/RESULT.txt").text() == "outcome=passed\n" else {
     fail("calibration incomplete")
   }
@@ -250,13 +250,25 @@ async fn main {
       )
     }
   }
-  for phase in ["materialize", "capacity"] {
-    checked(root, "prepare-" + phase, moon, [
+  let prepare_path = if options.contains("--measured-decode-routes") {
+    checked(root, "measure-decode-routes", moon, [
       "run",
-      root + "/prepare-full.mbtx",
+      base + "/source/benchmarks/gpu_pipeline/measure_decode_routes.mbtx",
       root,
-      phase,
+      calibration,
     ])
+    let routed = prepare.replace(
+      old="root+\"/fused/reusable-fused-runtime-bundle.v3\"",
+      new="root+\"/fused-routed/reusable-fused-runtime-bundle.v3\"",
+    )
+    guard routed != prepare else { fail("routed materialization seam") }
+    @fs.write_file(root + "/prepare-routed.mbtx", routed, create_mode=CreateNew)
+    root + "/prepare-routed.mbtx"
+  } else {
+    root + "/prepare-full.mbtx"
+  }
+  for phase in ["materialize", "capacity"] {
+    checked(root, "prepare-" + phase, moon, ["run", prepare_path, root, phase])
   }
   let units = [unit + "-bridge.service", unit + "-serve.service"]
   errdefer ignore(@shell.Cmd("systemctl", ["--user", "stop"] + units).output())
@@ -269,7 +281,7 @@ async fn main {
       "--property=RuntimeMaxSec=1800",
       moon,
       "run",
-      root + "/prepare-full.mbtx",
+      prepare_path,
       root,
       phase,
     ]).run()

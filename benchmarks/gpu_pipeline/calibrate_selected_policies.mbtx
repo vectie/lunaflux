@@ -177,11 +177,13 @@ async fn main {
   }
   guard options.is_empty() ||
     options == ["--all-new-finalists"] ||
-    options == ["--scratch-pipeline-finalists"] else {
+    options == ["--scratch-pipeline-finalists"] ||
+    options == ["--joint-budget-finalists"] else {
     fail("optional mode: --all-new-finalists or --scratch-pipeline-finalists")
   }
   let all_new_finalists = options == ["--all-new-finalists"]
   let scratch_finalists = options == ["--scratch-pipeline-finalists"]
+  let joint_finalists = options == ["--joint-budget-finalists"]
   guard performance_class.has_prefix("perf-v1:") &&
     performance_class.length() <= 512 &&
     !performance_class.contains("\t") &&
@@ -224,10 +226,25 @@ async fn main {
     "16384",
   ]
   let args = common.copy()
+  let shared_limit = if joint_finalists {
+    ignore(
+      run(root, "device-budget-build", nvcc, [
+        base + "/source/benchmarks/gpu_pipeline/device_budget_probe.cu",
+        "-o",
+        root + "/device-budget-probe",
+      ]),
+    )
+    let budget = run(root, "device-budget", root + "/device-budget-probe", [])
+    Int64::min(98304L, @string.parse_int64(field(budget, "shared_optin_bytes"))).to_string()
+  } else {
+    "49152"
+  }
   args.append([
     root + "/candidate",
     "--ingress-policy-search",
     "--query-metadata-v1",
+    "--ingress-shared-limit",
+    shared_limit,
   ])
   let exported = run(root, "export", exporter, args)
   ignore(
@@ -278,7 +295,9 @@ async fn main {
     field(exported, "ingress_policy_scope_shape") +
     "\t" +
     field(exported, "ingress_policy_scope_program") +
-    "\nbudget\t128\t49152\t128\t1\n"
+    "\nbudget\t128\t" +
+    shared_limit +
+    "\t255\t1\n"
   let names : Array[String] = []
   let ingress : Array[String] = []
   for index, (tokens, rows, history) in workloads {
@@ -300,6 +319,16 @@ async fn main {
       fail("variant")
     }
     let id = id.to_owned()
+    if joint_finalists &&
+      ![
+        "ingress-g4-a2-s2-t2-f1-r4", "ingress-g4-a2-s2-t2-f1-r8", "ingress-g4-a4-s2-t2-f1-r4-h2",
+        "ingress-g4-a4-s3-t2-f1-r4-h2", "ingress-g4-a4-s4-t2-f1-r4-h2", "ingress-g4-a4-s2-t4-f2-r4-h2",
+        "ingress-g4-a2-s3-t2-f1-r4", "ingress-g4-a2-s4-t2-f1-r4", "ingress-g4-a2-s4-t4-f2-r4",
+        "ingress-g4-a8-s2-t1-f1-r2-h4", "ingress-g4-a8-s2-t2-f1-r2-h4",
+      ].contains(id) &&
+      id != field(exported, "ingress_policy_selected") {
+      continue
+    }
     if scratch_finalists &&
       ![
         "ingress-g4-a2-s2-t2-f1-r2", "ingress-g4-a4-s2-t1-f1-h2", "ingress-g4-a4-s2-t2-f1-h2",
@@ -310,7 +339,8 @@ async fn main {
       id != field(exported, "ingress_policy_selected") {
       continue
     }
-    if !(id.contains("-s2-") &&
+    if !joint_finalists &&
+      !(id.contains("-s2-") &&
       id.has_prefix("ingress-g4-") &&
       (id.contains("-t1-") || id.contains("-t2-") || id.contains("-t4-")) &&
       (id.has_suffix("-f1") || id.contains("-f1-"))) {
@@ -369,7 +399,7 @@ async fn main {
       318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008, 2000, 2001,
       2003, 2004,
     ] {
-    if scratch_finalists && ![318, 322, 2001].contains(id) {
+    if (scratch_finalists || joint_finalists) && ![318, 322, 2001].contains(id) {
       continue
     }
     let directory = root + "/candidate/reusable-qwen-prefill-attention-c\{id}"

@@ -62,6 +62,7 @@ fn qwen_decode_module_pair(
       old="source_sha256=" + compiled.source().digest().as_hex(),
       new="source_sha256=" + digest,
     ) +
-    "partition_count=8\npartition_candidate=452\npartition_numeric_law=blockwise-f32-probability-v1\n"
+    "partition_count=8\npartition_candidate=452\npartition_numeric_law=blockwise-f32-probability-v1\n" +
+    "partition_grid=\{set.profile().max_query_rows()},\{partitioned.lowering().launch().1},8\npartition_merge_grid=\{set.profile().max_query_rows()},\{shape.dimensions().0},1\npartition_block=\{partitioned.lowering().launch().2},1,1\npartition_shared_memory_bytes=\{partitioned.lowering().launch().3}\npartition_workspace_bytes=\{partitioned.source().workspace().total_bytes()}\n"
   (source, @utf8.encode(text))
 }

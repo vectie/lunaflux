@@ -48,6 +48,13 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
     maximum_context_tokens,
     profile.max_query_tokens(),
     maximum_key_value_splits,
+    // V3 is an AOT specialization: its workspace and merge indices must use
+    // the admitted artifact's partition count, not a context-size heuristic.
+    exact_key_value_splits=if blockwise_readonly {
+      Some(maximum_key_value_splits)
+    } else {
+      None
+    },
   ) catch {
     _ => raise Invalid(Profile)
   }

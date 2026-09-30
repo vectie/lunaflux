@@ -21,6 +21,7 @@ pub fn plan_attention_dispatch(
   maximum_context_tokens : Int,
   maximum_prefill_tokens : Int,
   maximum_key_value_splits : Int,
+  exact_key_value_splits? : Int? = None,
 ) -> AttentionDispatchPlan raise AttentionStrategyError {
   if maximum_context_tokens <= 0 ||
     maximum_prefill_tokens <= 0 ||
@@ -35,7 +36,12 @@ pub fn plan_attention_dispatch(
   } else {
     1
   }
-  let desired_splits = if maximum_context_tokens >= 8192 {
+  let desired_splits = if exact_key_value_splits is Some(splits) {
+    if splits <= 0 || splits > maximum_key_value_splits {
+      raise InvalidAttentionStrategy(Split)
+    }
+    splits
+  } else if maximum_context_tokens >= 8192 {
     8
   } else if maximum_context_tokens >= 4096 {
     4
@@ -50,6 +56,9 @@ pub fn plan_attention_dispatch(
     maximum_key_value_splits
   }
   let maximum_pages = 1 + (maximum_context_tokens - 1) / shape.tokens_per_page
+  if exact_key_value_splits is Some(splits) && splits > maximum_pages {
+    raise InvalidAttentionStrategy(Split)
+  }
   let splits = if allowed_splits < maximum_pages {
     allowed_splits
   } else {

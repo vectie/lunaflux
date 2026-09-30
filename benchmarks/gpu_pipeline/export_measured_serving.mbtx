@@ -1,0 +1,125 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, calibration, root, .. options] &&
+    (options.is_empty() || options == ["--blockwise-evaluate"]) else {
+    fail("SOURCE_ROOT CALIBRATION NEW_ROOT [--blockwise-evaluate]")
+  }
+  assert_eq(
+    @fs.read_file(calibration + "/RESULT.txt").text(),
+    "outcome=passed\n",
+  )
+  let cell = calibration + "/prefill-q2048-r8-h2048"
+  let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+  let converted = @fs.read_file(base + "/convert.stdout").text()
+  let scope = @fs.read_file(cell + "/ingress.records")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("scope\t"))
+    .to_array()[0]
+    .split("\t")
+    .to_array()
+  let args = [
+    model,
+    "config.json",
+    sha(model + "/config.json"),
+    sha(model + "/model.safetensors"),
+    "qwen.numeric",
+    field(converted, "output_artifact_sha256"),
+    field(converted, "route_manifest_sha256"),
+    sha(base + "/toolchain.v1"),
+    "13",
+    "0",
+    "88",
+    "8",
+    "16384",
+    "32",
+    "2048",
+    "16384",
+    root + "/selected",
+  ]
+  for
+    (name, option) in [
+      ("ingress.records", "--ingress-policy-records"),
+      ("attention.records", "--attention-tuning"),
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(cell + "/" + name),
+      create_mode=CreateNew,
+    )
+    args.append([
+      option,
+      root + "/" + name,
+      sha(root + "/" + name),
+      scope[1].to_owned(),
+    ])
+  }
+  if !options.is_empty() {
+    args.append(["--decode-candidate", "452"])
+  }
+  args.push("--query-metadata-v1")
+  let out = @shell.Cmd(
+    base +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+    args,
+  ).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/selected-export.stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/selected-export.stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  for name in ["ingress.spec", "prefill.spec", "decode.spec"] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(calibration + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/selection-objective.txt",
+    "ingress=prefill-q2048-r8-h2048\nattention=prefill-q2048-r8-h2048\ndecode=" +
+    (if options.is_empty() {
+      "unmeasured-default"
+    } else {
+      "explicit-452-evaluation"
+    }) +
+    "\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\n",
+    create_mode=CreateNew,
+  )
+  println(out.stdout())
+}
