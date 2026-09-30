@@ -1,0 +1,72 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, current, register_campaign, blockwise_campaign] else {
+    fail("COMPLETED_CURRENT_ROOT REGISTER_ABLATION_ROOT BLOCKWISE_ROOT")
+  }
+  for
+    relative in [
+      "serving-phase-complete", "fresh-baselines", "counters-selected", "counters-mixed-wide",
+      "trace-matched",
+    ] {
+    guard @fs.read_file(current + "/" + relative + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("unfinished " + relative)
+    }
+  }
+  guard @fs.read_file(
+      register_campaign + "/machine-feedback-register/RESULT.txt",
+    )
+    .text()
+    .has_prefix("outcome=passed\n") else {
+    fail("register feedback incomplete")
+  }
+  guard @fs.read_file(blockwise_campaign + "/serving-full-routes/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("blockwise serving incomplete")
+  }
+  let roots = [current, register_campaign, blockwise_campaign]
+  let parent = current.split("/").to_array()[:-1].join("/")
+  let names = roots.map(root => {
+    guard root.split("/").to_array()[:-1].join("/") == parent else {
+      fail("common parent required")
+    }
+    root.split("/").to_array().last().unwrap().to_owned()
+  })
+  let temporary = @shell.Cmd("mktemp", ["-d", current + "-export.XXXXXX"]).output()
+  temporary.check()
+  let archive = temporary.stdout().trim().to_owned() +
+    "/integrated-results.tar.gz"
+  @shell.Cmd(
+    "tar",
+    [
+      "-czf", archive, "--exclude=_build", "--exclude=.mooncakes", "--exclude=qwen.numeric",
+      "--exclude=toolchain", "--exclude=source", "--exclude=release", "--exclude=deployment",
+      "-C", parent,
+    ] +
+    names,
+  ).run()
+  let sha = @shell.Cmd("sha256sum", [archive]).output()
+  sha.check()
+  let identity = "scope=immutable-kernels-probes-raw-counters-and-serving-results\narchive=" +
+    archive +
+    "\nsha256=" +
+    sha.stdout().split(" ").to_array()[0].to_owned() +
+    "\n"
+  @fs.write_file(
+    current + "/FINAL_ARCHIVE.txt",
+    identity,
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  println(identity)
+}
