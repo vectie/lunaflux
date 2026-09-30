@@ -47,3 +47,42 @@ test "bucket observations preserve shape winners and reject unmatched work" {
     }
   }
 }
+
+///|
+test "pure prefill observations do not cover mixed graph slots" {
+  let buckets = @graph.build_execution_graph_bucket_table(16, 2048, 8192, 65536)
+  let routes = parse_attention_bucket_routes(
+    @utf8.encode(
+      "luna-attention-buckets-v1\nscope\tphase-scope\nrecord\tprefill\t16\t2048\t4096\t1\t100\t5\nrecord\tprefill\t16\t2048\t4096\t2\t200\t5\nrecord\tmixed\t16\t2048\t4096\t1\t300\t5\nrecord\tmixed\t16\t2048\t4096\t2\t400\t5\n",
+    ),
+    scope="phase-scope",
+    buckets,
+    baseline=1,
+    [1, 2],
+  )
+  let phases : Array[@graph.ExecutionGraphPhase] = [PrefillGraph, MixedGraph]
+  for phase in phases {
+    assert_eq(
+      routes.select(
+        @graph.ExecutionGraphShape::new(
+          phase~,
+          batch_rows=16,
+          query_tokens=2048,
+          context_tokens=4096,
+        ),
+      ),
+      Some(1),
+    )
+  }
+  assert_eq(
+    routes.select(
+      @graph.ExecutionGraphShape::new(
+        phase=MixedGraph,
+        batch_rows=16,
+        query_tokens=2048,
+        context_tokens=2048,
+      ),
+    ),
+    None,
+  )
+}

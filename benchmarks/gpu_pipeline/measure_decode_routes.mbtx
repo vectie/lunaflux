@@ -139,7 +139,17 @@ async fn main {
         continue
       }
       for queries in [128, 512, 2048] {
-      for history in [0, 2048, 4096] {
+      let current = if phase == "mixed" {
+        (queries - 1 + rows - 2) / (rows - 1)
+      } else {
+        (queries + rows - 1) / rows
+      }
+      let mut context = 1
+      while context < current { context *= 2 }
+      while context <= 8192 {
+        // One representative per context bucket. Sparse history vectors
+        // leave intervening runtime slots unmeasured even at the same query.
+        let history = context - current
         let output = checked(
           root,
           "\{phase}-q\{queries}-r\{rows}-h\{history}",
@@ -151,14 +161,10 @@ async fn main {
             "\{queries}",
             "\{rows}",
             "\{history}",
-          ] + if phase == "mixed" { ["--mixed"] } else { [] },
+          ] + (if phase == "mixed" { ["--mixed"] } else { [] }),
         )
-        let context = history + if phase == "mixed" {
-          (queries - 1 + rows - 2) / (rows - 1)
-        } else {
-          (queries + rows - 1) / rows
-        }
         routes += "record\t\{phase}\t\{rows}\t\{queries}\t\{context}\t1\t\{median(output, "old_us")}\t5\nrecord\t\{phase}\t\{rows}\t\{queries}\t\{context}\t2\t\{median(output, "new_us")}\t5\n"
+        context *= 2
       }
       }
     }

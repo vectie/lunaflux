@@ -1,0 +1,91 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn memory() -> Int64 {
+  guard @fs.read_file("/proc/meminfo").text().split("\n")
+    .filter(x => x.has_prefix("MemAvailable:")).to_array() is [line] else {
+    fail("memory")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn checked(root : String, label : String, moon : String, args : Array[String]) -> Unit {
+  let result = @shell.Cmd(moon, args).output(max_output_bytes=16777216)
+  @fs.write_file(root + "/" + label + ".stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + label + ".stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("PREPARED_SANITIZED_ROUTED_SERVING_ROOT") }
+  guard !@fs.exists(root + "/RESULT.txt") &&
+    @fs.read_file(root + "/decode-route-measurements/RESULT.txt").text()
+      .has_prefix("outcome=passed\n") else { fail("unprepared or completed") }
+  for kind in ["ingress", "prefill", "decode"] {
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let output = @fs.read_file(root + "/sanitizer-" + kind + "-" + tool + ".stdout").text()
+      guard output.contains("correctness=passed") &&
+        (output.contains("0 errors") || output.contains("ERROR SUMMARY: 0 errors")) else {
+        fail("packaged sanitizer incomplete")
+      }
+    }
+  }
+  let gpu = @shell.Cmd("nvidia-smi", ["--query-compute-apps=pid", "--format=csv,noheader"]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() && memory() >= 33554432L else { fail("GPU or reserve") }
+  let prepare = @fs.read_file(root + "/prepare-full.mbtx").text()
+  let routed = prepare.replace(old="root+\"/fused/reusable-fused-runtime-bundle.v3\"", new="root+\"/fused-routed/reusable-fused-runtime-bundle.v3\"")
+  guard routed != prepare else { fail("routed materialization seam") }
+  let path = root + "/prepare-routed.mbtx"
+  @fs.write_file(path, routed, create_mode=CreateNew)
+  let moon = root + "/toolchain/bin/moon"
+  for phase in ["materialize", "capacity"] {
+    checked(root, "prepare-" + phase, moon, ["run", path, root, phase])
+  }
+  let unit = "lunaflux-calibrated-" + root.split("/").to_array().last().unwrap().to_owned()
+  let units = [unit + "-bridge.service", unit + "-serve.service"]
+  errdefer ignore(@shell.Cmd("systemctl", ["--user", "stop"] + units).output())
+  for phase in ["serve", "bridge"] {
+    @shell.Cmd("systemd-run", [
+      "--user", "--unit=" + unit + "-" + phase,
+      "--property=MemoryMax=64G", "--property=MemorySwapMax=0", "--property=RuntimeMaxSec=1800",
+      moon, "run", path, root, phase,
+    ]).run()
+  }
+  let samples = StringBuilder()
+  let mut done = false
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let available = memory()
+        samples.write_string("\{@async.now()} \{available}\n")
+        guard available >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(1000)
+      }
+    })
+    checked(root, "measure", moon, ["run", root + "/measure.mbtx", root, "luna-full"])
+    done = true
+  })
+  @fs.write_file(root + "/memory-samples.txt", samples.to_string(), create_mode=CreateNew)
+  let mut drained = false
+  for _ in 0..<60 {
+    if @fs.exists(root + "/supervisor.stdout") { drained = true; break }
+    @async.sleep(500)
+  }
+  guard drained else { fail("normal drain incomplete") }
+  let supervisor = @fs.read_file(root + "/supervisor.stdout").text()
+  for field in ["drain_acknowledged=1", "child_exit_code=0", "child_closed=1"] {
+    guard supervisor.contains(field) else { fail(field) }
+  }
+  guard @fs.read_file(root + "/runtime.stderr").text().is_empty() else { fail("runtime stderr") }
+  @fs.write_file(root + "/RESULT.txt", "outcome=completed\nscope=prepared-sanitized-route-retest\n", create_mode=CreateNew)
+}

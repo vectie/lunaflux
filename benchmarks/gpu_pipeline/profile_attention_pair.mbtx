@@ -1,0 +1,37 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, probe, spec, baseline, candidate, root] else {
+    fail("MIXED_CAPABLE_PROBE SPEC BASELINE CANDIDATE NEW_EMPTY_COUNTER_ROOT")
+  }
+  let gpu = @shell.Cmd("nvidia-smi", ["--query-compute-apps=pid", "--format=csv,noheader"]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
+  guard @fs.read_file("/proc/meminfo").text().split("\n")
+    .filter(x => x.has_prefix("MemAvailable:")).to_array() is [available] &&
+    @string.parse_int64(available.split(" ").filter(x => !x.is_empty()).to_array()[1]) >= 33554432L else {
+    fail("32 GiB reserve")
+  }
+  let metrics = [
+    "gpu__time_duration.sum", "launch__grid_size", "launch__registers_per_thread",
+    "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+  ].join(",")
+  let args = ["-n", "/usr/local/cuda/bin/ncu", "--csv", "--page", "raw", "--kernel-name", "regex:lunaflux_", "--launch-count", "2", "--metrics", metrics,
+    "--export", root + "/prefill", probe, spec, baseline, candidate, "2048", "16", "2048", "--mixed", "--check-only"]
+  @fs.write_file(root + "/prefill.command", args.join("\n"), create_mode=CreateNew)
+  let result = @shell.Cmd("sudo", args).output(max_output_bytes=16777216)
+  @fs.write_file(root + "/prefill.stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/prefill.stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+  @fs.write_file(root + "/RESULT.txt", "outcome=completed\nscope=mixed-selected-kernel-pair\n", create_mode=CreateNew)
+}
