@@ -95,7 +95,7 @@ async fn main {
   )
   @fs.write_file(
     root + "/comparison-scope.txt",
-    "current_source=8f87f6d8\nold_luna=" +
+    "kernel_source=8f87f6d8\nmaterializer_overlay=14327978\nstartup_overlay=ea398327\nold_luna=" +
     previous +
     "\nbaselines=" +
     matched +
@@ -107,6 +107,7 @@ async fn main {
     root + "/results.tar.gz",
     "--exclude=_build",
     "--exclude=.mooncakes",
+    "--exclude=qwen.numeric",
     "--exclude=results.tar.gz",
     "-C",
     root,

@@ -42,8 +42,11 @@ async fn main {
   ]).output()
   gpu.check()
   guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
-  for entry in ["source", "toolchain", "deployment", "capacity.json"] {
+  for entry in ["source", "toolchain"] {
     @shell.Cmd("ln", ["-s", serving + "/" + entry, root + "/" + entry]).run()
+  }
+  for entry in ["deployment", "capacity.json"] {
+    @shell.Cmd("cp", ["-a", serving + "/" + entry, root + "/" + entry]).run()
   }
   @fs.write_file(
     root + "/prepare-full.mbtx",
@@ -152,6 +155,20 @@ async fn main {
       "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
     ) else {
     fail("new kernel absent from actual serving launches")
+  }
+  guard kernels.contains("lunaflux_attention_prefill_tile_compiler_v1") else {
+    fail("selected prefill kernel absent from serving launches")
+  }
+  for line in kernels.split("\n") {
+    if line.contains("lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2") {
+      guard line.split(",").to_array() is [_, _, "16", _, _, _] else {
+        fail("serving ingress did not retain two-head grid ownership")
+      }
+    }
+    if line.contains("lunaflux_attention_decode_tile_compiler_v1") &&
+      !line.contains("lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1") {
+      fail("old decode path was launched in the all-new capture")
+    }
   }
   @fs.write_file(
     root + "/RESULT.txt",

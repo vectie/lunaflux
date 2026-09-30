@@ -93,7 +93,10 @@ async fn main {
   // The base supplies the rebuilt launch-contract runtime; weights, base
   // kernels and workload generator remain those of the matched campaign.
   for name in ["source", "release"] {
-    @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+    @fs.mkdir(root + "/" + name)
+    // Copy directory contents, not a baseline's convenience symlink: the
+    // deployment materializer requires its release root to be a real directory.
+    @shell.Cmd("cp", ["-a", base + "/" + name + "/.", root + "/" + name + "/"]).run()
   }
   @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
   @shell.Cmd("cp", ["-a", calibration + "/selected", root + "/candidate"]).run()
