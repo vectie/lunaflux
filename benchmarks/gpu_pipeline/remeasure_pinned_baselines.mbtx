@@ -1,0 +1,99 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn available() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn measure(root : String, engine : String) -> Unit {
+  let container = "lunaflux-remeasure-" + engine + "-53deab59"
+  // Exact benchmark container only. Cancellation or a reserve breach must
+  // release its GPU allocation even before the recorded helper can finish.
+  errdefer ignore(
+    @shell.Cmd("docker", ["stop", "--time", "30", container]).output(),
+  )
+  let samples = StringBuilder()
+  let mut done = false
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = available()
+        samples.write_string("\{@async.now()} \{free}\n")
+        guard free >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(1000)
+      }
+    })
+    let result = @shell.Cmd(root + "/toolchain/bin/moon", [
+      "run",
+      root + "/measure.mbtx",
+      root,
+      engine,
+    ]).output(max_output_bytes=16777216)
+    @fs.write_file(
+      root + "/" + engine + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + engine + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory-" + engine + ".txt",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, completed_serving, root] else {
+    fail("COMPLETED_SERVING_ROOT NEW_EMPTY_BASELINE_ROOT")
+  }
+  guard @fs.read_file(completed_serving + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("serving incomplete")
+  }
+  for name in ["toolchain"] {
+    @shell.Cmd("ln", ["-s", completed_serving + "/" + name, root + "/" + name]).run()
+  }
+  for
+    name in [
+      "benchmark.mbtx", "measure.mbtx", "summarize.mbtx", "compare-outputs.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(completed_serving + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  for engine in ["vllm", "sglang"] {
+    measure(root, engine)
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=fresh-pinned-baseline-serving\n",
+    create_mode=CreateNew,
+  )
+}

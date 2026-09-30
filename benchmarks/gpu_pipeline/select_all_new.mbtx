@@ -90,6 +90,8 @@ async fn main {
       if entry == "reusable-qwen-prefill-attention" ||
         entry == "reusable-qwen-prefill-wide-query-attention" {
         calibration + "/" + prefill_cell + "/selected/" + entry
+      } else if unrestricted && entry == "reusable-qwen-decode-attention" {
+        calibration + "/" + decode_cell + "/selected/" + entry
       } else {
         root + "/selected/" + selected
       },
@@ -104,6 +106,13 @@ async fn main {
         .text()
         .contains("\nvariant_stable_id=" + prefill + "\n") else {
         fail("typed prefill export does not match the new-family finalist")
+      }
+    }
+    if unrestricted && entry == "reusable-qwen-decode-attention" {
+      guard @fs.read_file(root + "/selected/" + entry + "/kernel.recipe")
+        .text()
+        .contains("\nvariant_stable_id=" + decode + "\n") else {
+        fail("typed decode export does not match the measured finalist")
       }
     }
   }
