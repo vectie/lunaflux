@@ -29,6 +29,10 @@ async fn capture(
 
 ///|
 async fn main {
+  if @env.args() is [_, root, "--verify-existing"] {
+    verify_trace(root)
+    return
+  }
   guard @env.args() is [_, serving, root] else {
     fail("COMPLETED_SERVING NEW_EMPTY_ROOT")
   }
@@ -42,15 +46,81 @@ async fn main {
   ]).output()
   gpu.check()
   guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
-  for entry in ["source", "toolchain"] {
-    @shell.Cmd("ln", ["-s", serving + "/" + entry, root + "/" + entry]).run()
-  }
-  for entry in ["deployment", "capacity.json"] {
+  @shell.Cmd("ln", ["-s", serving + "/toolchain", root + "/toolchain"]).run()
+  // The bridge validates canonical executable paths, including parent paths.
+  @fs.mkdir(root + "/source")
+  @shell.Cmd("cp", ["-a", serving + "/source/.", root + "/source/"]).run()
+  for
+    entry in [
+      "deployment", "convert.stdout", "export.stdout", "toolchain.v1", "bind.stdout",
+    ] {
     @shell.Cmd("cp", ["-a", serving + "/" + entry, root + "/" + entry]).run()
   }
   @fs.write_file(
     root + "/prepare-full.mbtx",
     @fs.read_file(serving + "/prepare-full.mbtx"),
+    create_mode=CreateNew,
+  )
+  // Diagnostic-only parent: production intentionally strips injected profiler
+  // environment at exec. Keep the deployed worker and every AOT cubin frozen;
+  // rebuild only the launcher in this separate trace directory.
+  let spawn_path = root + "/source/internal/process/process_approved_spawn.c"
+  let original = @fs.read_file(spawn_path).text()
+  let target = "fexecve(5, argv, sanitized_environment);"
+  assert_eq(original.split(target).to_array().length(), 2)
+  @fs.write_file(
+    root + "/process_approved_spawn.original.c",
+    original,
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    spawn_path,
+    original.replace(
+      old=target,
+      new="/* OFFLINE PROFILE ONLY: never deploy this launcher. */\n    extern char **environ;\n    (void)sanitized_environment;\n    fexecve(5, argv, environ);",
+    ),
+  )
+  let moon = root + "/toolchain/bin/moon"
+  let build = @shell.Cmd(
+    moon,
+    [
+      "build", "cmd/lunaflux", "--target", "native", "--release", "--warn-list",
+      "-79-20-29-25", "--diagnostic-limit", "5",
+    ],
+    cwd=root + "/source",
+  ).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/diagnostic-build.stdout",
+    build.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/diagnostic-build.stderr",
+    build.stderr(),
+    create_mode=CreateNew,
+  )
+  build.check()
+  capture(root, "prepare-capacity", moon, [
+    "run",
+    root + "/prepare-full.mbtx",
+    root,
+    "capacity",
+  ])
+  capture(root, "worker-identities", "sha256sum", [
+    serving + "/deployment/bin/lunaflux-device-worker",
+    root + "/deployment/bin/lunaflux-device-worker",
+  ])
+  let hashes = @fs.read_file(root + "/worker-identities.stdout")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => x.split(" ").to_array()[0])
+    .to_array()
+  assert_eq(hashes.length(), 2)
+  assert_eq(hashes[0], hashes[1])
+  @fs.write_file(
+    root + "/SCOPE.txt",
+    "Isolated profiler-environment launcher; unchanged measured worker and AOT kernels. Not a timing benchmark or deployable runtime.\n",
     create_mode=CreateNew,
   )
   let client = @fs.read_file(serving + "/benchmark.mbtx")
@@ -59,7 +129,6 @@ async fn main {
     .replace(old="[1,8,16]", new="[1,16]")
     .replace(old="0..<4", new="0..<1")
   @fs.write_file(root + "/client.mbtx", client, create_mode=CreateNew)
-  let moon = root + "/toolchain/bin/moon"
   let unit = "lunaflux-allnew-trace-" +
     root.split("/").to_array().last().unwrap().to_owned()
   let units = [unit + "-bridge.service", unit + "-serve.service"]
@@ -100,8 +169,21 @@ async fn main {
   ]).run()
   let mut ready = false
   for _ in 0..<180 {
+    for service in units {
+      let state = @shell.Cmd("systemctl", ["--user", "is-failed", service]).output()
+      guard state.stdout().trim() != "failed" else {
+        fail(
+          "trace unit failed before readiness; inspect its user journal: " +
+          service,
+        )
+      }
+    }
     let result = @shell.Cmd("ss", ["-ltnH", "sport", "=", ":5061"]).output()
-    if result.exit_code() == 0 && !result.stdout().trim().is_empty() {
+    let bridge = @shell.Cmd("ss", ["-ltnH", "sport", "=", ":5062"]).output()
+    if result.exit_code() == 0 &&
+      !result.stdout().trim().is_empty() &&
+      bridge.exit_code() == 0 &&
+      !bridge.stdout().trim().is_empty() {
       ready = true
       break
     }
@@ -135,12 +217,26 @@ async fn main {
     @async.sleep(1000)
   }
   guard finished else { fail("trace did not finish") }
-  capture(root, "export", "/usr/local/bin/nsys", [
-    "export",
-    "--type=sqlite",
-    "--output=" + root + "/trace.sqlite",
-    root + "/trace.nsys-rep",
-  ])
+  verify_trace(root)
+}
+
+///|
+async fn verify_trace(root : String) -> Unit {
+  let supervisor = @fs.read_file(root + "/supervisor.stdout").text()
+  for field in ["drain_acknowledged=1", "child_exit_code=0", "child_closed=1"] {
+    guard supervisor.contains(field) else { fail("trace missing " + field) }
+  }
+  guard @fs.read_file(root + "/runtime.stderr").text().is_empty() else {
+    fail("trace runtime stderr")
+  }
+  if !@fs.exists(root + "/trace.sqlite") {
+    capture(root, "nsight-export", "/usr/local/bin/nsys", [
+      "export",
+      "--type=sqlite",
+      "--output=" + root + "/trace.sqlite",
+      root + "/trace.nsys-rep",
+    ])
+  }
   capture(root, "selected-kernels", "sqlite3", [
     "-header",
     "-csv",
@@ -160,13 +256,17 @@ async fn main {
     fail("selected prefill kernel absent from serving launches")
   }
   for line in kernels.split("\n") {
-    if line.contains("lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2") {
+    if line.contains(
+        "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
+      ) {
       guard line.split(",").to_array() is [_, _, "16", _, _, _] else {
         fail("serving ingress did not retain two-head grid ownership")
       }
     }
     if line.contains("lunaflux_attention_decode_tile_compiler_v1") &&
-      !line.contains("lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1") {
+      !line.contains(
+        "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1",
+      ) {
       fail("old decode path was launched in the all-new capture")
     }
   }

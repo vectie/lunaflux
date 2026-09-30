@@ -31,8 +31,17 @@ async fn collect(
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, matched, previous, serving] else {
-    fail("ROOT MATCHED_BASE PREVIOUS_LUNA COMPLETED_SERVING")
+  if @env.args() is [_, root, "--archive-existing"] {
+    archive_results(root)
+    return
+  }
+  guard @env.args() is [_, root, matched, previous, serving, trace] else {
+    fail("ROOT MATCHED_BASE PREVIOUS_LUNA COMPLETED_SERVING VERIFIED_TRACE")
+  }
+  guard @fs.read_file(trace + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("selection trace incomplete")
   }
   guard @fs.read_file(serving + "/RESULT.txt")
     .text()
@@ -95,25 +104,33 @@ async fn main {
   )
   @fs.write_file(
     root + "/comparison-scope.txt",
-    "kernel_source=8f87f6d8\nmaterializer_overlay=14327978\nstartup_overlay=ea398327\nold_luna=" +
+    "kernel_source=8f87f6d8\nmaterializer_overlay=14327978\nstartup_overlay=ea398327\nselection_trace=" +
+    trace +
+    "\nold_luna=" +
     previous +
     "\nbaselines=" +
     matched +
     "\nbaselines_rerun=false\n",
     create_mode=CreateNew,
   )
+  archive_results(root)
+}
+
+///|
+async fn archive_results(root : String) -> Unit {
+  // Create outside the directory being archived: creating an output inside it
+  // changes its mtime and makes tar report a changed source directory.
+  guard @fs.exists(root + "/comparison-scope.txt") &&
+    @fs.exists(root + "/agreement-sglang.stdout") else {
+    fail("summary and agreement checks must finish before archiving")
+  }
+  let temporary = @shell.Cmd("mktemp", ["-d", root + "-export.XXXXXX"]).output()
+  temporary.check()
+  let archive = temporary.stdout().trim().to_owned() +
+    "/all-new-selected.tar.gz"
   @shell.Cmd("tar", [
-    "-czf",
-    root + "/results.tar.gz",
-    "--exclude=_build",
-    "--exclude=.mooncakes",
-    "--exclude=qwen.numeric",
-    "--exclude=results.tar.gz",
-    "-C",
-    root,
-    ".",
+    "-czf", archive, "--exclude=_build", "--exclude=.mooncakes", "--exclude=qwen.numeric",
+    "--exclude=results.tar.gz", "-C", root, ".",
   ]).run()
-  println(
-    collect(root, "results-sha256", "sha256sum", [root + "/results.tar.gz"]),
-  )
+  println(collect(root, "results-sha256", "sha256sum", [archive]))
 }
