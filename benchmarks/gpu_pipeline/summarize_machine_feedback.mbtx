@@ -1,0 +1,69 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let result = []
+  let mut quoted = false
+  let mut field = StringBuilder()
+  for character in line {
+    if character == '"' {
+      quoted = !quoted
+    } else if character == ',' && !quoted {
+      result.push(field.to_string())
+      field = StringBuilder()
+    } else {
+      field.write_char(character)
+    }
+  }
+  result.push(field.to_string())
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_MACHINE_FEEDBACK") }
+  guard @fs.read_file(root + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\n") else {
+    fail("feedback incomplete")
+  }
+  let wanted = [
+    "launch__grid_size", "launch__registers_per_thread", "launch__local_mem_per_thread",
+    "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+    "gpu__time_duration.sum",
+  ]
+  let report = StringBuilder()
+  for line in @fs.read_file(root + "/ingress.records").text().split("\n") {
+    if !line.has_prefix("record\t") {
+      continue
+    }
+    let policy = line.split("\t").to_array()[1].to_owned()
+    let raw = @fs.read_file(root + "/" + policy + ".stdout")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("\""))
+      .to_array()
+    guard raw.length() == 4 else { fail("two exact kernel captures required") }
+    let names = csv(raw[0])
+    let values = csv(raw[3])
+    assert_eq(names.length(), values.length())
+    report.write_string(policy + "\n")
+    for index, name in names {
+      if wanted.contains(name) {
+        report.write_string(name + "=" + values[index] + "\n")
+      }
+    }
+  }
+  @fs.write_file(
+    root + "/diagnosis.txt",
+    report.to_string(),
+    create_mode=CreateNew,
+  )
+  println(report.to_string())
+}

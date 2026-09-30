@@ -32,6 +32,13 @@ async fn main {
   @fs.write_file(root + "/setup.stdout", out.stdout(), create_mode=CreateNew)
   @fs.write_file(root + "/setup.stderr", out.stderr(), create_mode=CreateNew)
   out.check()
+  for name in ["selected_policy_probe.cu", "selected_policy_geometry.h"] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(root + "/source/benchmarks/gpu_pipeline/" + name),
+      create_mode=CreateNew,
+    )
+  }
   for name in ["candidate", "fused-full", "release"] {
     @shell.Cmd("ln", ["-s", base + "/" + name, root + "/" + name]).run()
   }
