@@ -1,5 +1,10 @@
 # Four remaining compiler paths
 
+Update: the [all-new selected benchmark](BENCHMARK_ALL_NEW_SELECTED_2026-09-30.md)
+now measures these paths in serving. They are active, but the forced new-family
+selection regresses; the 190.48 tok/s result below remains the prior selection,
+not the performance of this implementation.
+
 This implementation continues the [selected-schedule repair](BENCHMARK_SELECTED_SCHEDULES_2026-09-30.md).
 The last measured serving result is still 190.48 output tokens/s for
 4096/64 C16 on Spark. It is **not** a measurement of the changes below.
