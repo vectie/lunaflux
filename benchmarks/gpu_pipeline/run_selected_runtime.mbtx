@@ -43,6 +43,15 @@ async fn memory() -> Int64 {
 }
 
 ///|
+fn field(recipe : String, name : String) -> String raise {
+  guard recipe.split("\n").filter(x => x.has_prefix(name + "=")).to_array()
+    is [line] else {
+    fail(name)
+  }
+  line[name.length() + 1:].to_owned()
+}
+
+///|
 async fn main {
   guard @env.args() is [_, base, calibration, root, builder, .. options] else {
     fail("BASELINE_ROOT CALIBRATION_ROOT NEW_EMPTY_ROOT FIXED_FUSED_BUILDER")
@@ -50,6 +59,18 @@ async fn main {
   let (options, prior) = match options {
     [.. flags, "--baseline-root", path] => (flags, Some(path))
     _ => (options, None)
+  }
+  let (options, route_helper) = match options {
+    [.. flags, "--route-helper", path] => (flags, path)
+    _ =>
+      (
+        options,
+        base + "/source/benchmarks/gpu_pipeline/measure_decode_routes.mbtx",
+      )
+  }
+  let (options, probe_source) = match options {
+    [.. flags, "--probe-source", path] => (flags, path)
+    _ => (options, base + "/selected_policy_probe.cu")
   }
   guard options.all(x => {
     x == "--partial-ingress" || x == "--measured-decode-routes"
@@ -124,7 +145,13 @@ async fn main {
     ] {
     @fs.write_file(
       root + "/" + name,
-      @fs.read_file(base + "/" + name),
+      @fs.read_file(
+        if name == "selected_policy_probe.cu" {
+          probe_source
+        } else {
+          base + "/" + name
+        },
+      ),
       create_mode=CreateNew,
     )
   }
@@ -266,12 +293,57 @@ async fn main {
       )
     }
   }
+  if partial_ingress {
+    let directory = root + "/postprocess-selected"
+    @fs.mkdir(directory)
+    let recipe = @fs.read_file(
+      root + "/candidate/reusable-qwen-ingress/kernel.recipe",
+    ).text()
+    @fs.write_file(directory + "/kernel.recipe", recipe, create_mode=CreateNew)
+    @fs.write_file(
+      directory + "/kernel.cubin",
+      @fs.read_file(root + "/fused/ingress-partial-first.cubin"),
+      create_mode=CreateNew,
+    )
+    let spec = root + "/postprocess.spec"
+    @fs.write_file(
+      spec,
+      @fs.read_file(calibration + "/ingress.spec")
+      .text()
+      .replace(old="kind=ingress", new="kind=postprocess")
+      .replace(old="input_width=1024", new="input_width=4096") +
+      "norm_epsilon=" +
+      field(recipe, "norm_epsilon") +
+      "\nrope_theta=" +
+      field(recipe, "rope_theta") +
+      "\n",
+      create_mode=CreateNew,
+    )
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      checked(
+        root,
+        "sanitizer-postprocess-" + tool,
+        "/usr/local/cuda/bin/compute-sanitizer",
+        [
+          "--tool",
+          tool,
+          "--error-exitcode",
+          "99",
+          root + "/check-probe",
+          spec,
+          directory,
+          directory,
+          "129",
+          "8",
+          "2048",
+          "--check-only",
+        ],
+      )
+    }
+  }
   let prepare_path = if options.contains("--measured-decode-routes") {
     checked(root, "measure-decode-routes", moon, [
-      "run",
-      base + "/source/benchmarks/gpu_pipeline/measure_decode_routes.mbtx",
-      root,
-      calibration,
+      "run", route_helper, root, calibration,
     ])
     let routed = prepare.replace(
       old="root+\"/fused/reusable-fused-runtime-bundle.v3\"",

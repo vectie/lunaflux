@@ -85,7 +85,16 @@ fn qwen_compiler_attention_recipe(
 /// silently replacing the selected plan with the largest resource footprint.
 fn qwen_wide_query_prefill_variant(
   frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier,
+  explicit_candidate? : Int,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation? {
+  if explicit_candidate is Some(id) {
+    for variant in frontier.variants() {
+      if variant.functional().plan().candidate().stable_id() == id {
+        return Some(variant)
+      }
+    }
+    return None
+  }
   Some(frontier.selected())
 }
 

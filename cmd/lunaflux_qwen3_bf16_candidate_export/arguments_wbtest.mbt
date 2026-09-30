@@ -36,6 +36,8 @@ test "export consumes an explicit saved projection tuning suffix" {
   arguments.append(["--ingress-shared-limit", "98304"])
   arguments.append(["--decode-candidate", "452"])
   arguments.append(["--compiler-register-limit", "255"])
+  arguments.append(["--prefill-candidate", "318"])
+  arguments.append(["--wide-prefill-candidate", "2001"])
   let measured = parse_qwen3_candidate_export_arguments(arguments)
   assert_eq(
     measured.attention_resources,
@@ -54,6 +56,8 @@ test "export consumes an explicit saved projection tuning suffix" {
   assert_eq(measured.ingress_shared_limit, 98304L)
   assert_eq(measured.decode_candidate, Some(452))
   assert_eq(measured.compiler_register_limit, 255)
+  assert_eq(measured.prefill_candidate, Some(318))
+  assert_eq(measured.wide_prefill_candidate, Some(2001))
   assert_eq(
     measured.ingress_policy_records,
     Some(("/ingress-policy", digest, "device-a")),

@@ -72,6 +72,27 @@ fn parse_qwen3_candidate_export_arguments(
     continue index + 1
   }
   let arguments = filtered
+  let mut prefill_candidate : Int? = None
+  let mut wide_prefill_candidate : Int? = None
+  let filtered : Array[String] = []
+  for index = 0; index < arguments.length(); {
+    if arguments[index] == "--prefill-candidate" ||
+      arguments[index] == "--wide-prefill-candidate" {
+      guard index + 1 < arguments.length() else { raise InvalidArguments }
+      let candidate = parse_positive_decimal(arguments[index + 1])
+      if arguments[index] == "--prefill-candidate" {
+        guard prefill_candidate is None else { raise InvalidArguments }
+        prefill_candidate = Some(candidate)
+      } else {
+        guard wide_prefill_candidate is None else { raise InvalidArguments }
+        wide_prefill_candidate = Some(candidate)
+      }
+      continue index + 2
+    }
+    filtered.push(arguments[index])
+    continue index + 1
+  }
+  let arguments = filtered
   let mut compiler_register_limit = 128
   let mut register_limit_seen = false
   let filtered : Array[String] = []
@@ -220,6 +241,8 @@ fn parse_qwen3_candidate_export_arguments(
     ingress_policy_search,
     ingress_shared_limit,
     compiler_register_limit,
+    prefill_candidate,
+    wide_prefill_candidate,
     decode_candidate,
     query_metadata,
   }

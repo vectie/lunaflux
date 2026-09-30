@@ -116,6 +116,42 @@ async fn main {
   let mut routes = "luna-attention-buckets-v1\nscope\t" +
     field(report, "attention_route_scope") +
     "\n"
+  let wide = root + "/wide-prefill"
+  @fs.mkdir(wide)
+  @fs.write_file(
+    wide + "/kernel.recipe",
+    @fs.read_file(
+      serving +
+      "/candidate/reusable-qwen-prefill-wide-query-attention/kernel.recipe",
+    ),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    wide + "/kernel.cubin",
+    @fs.read_file(serving + "/fused/prefill_wide.cubin"),
+    create_mode=CreateNew,
+  )
+  for rows in [1, 2, 4, 8, 16] {
+    for queries in [128, 512, 2048] {
+      for history in [0, 2048, 4096] {
+        let output = checked(
+          root,
+          "prefill-q\{queries}-r\{rows}-h\{history}",
+          serving + "/check-probe",
+          [
+            calibration + "/prefill.spec",
+            serving + "/prefill-selected",
+            wide,
+            "\{queries}",
+            "\{rows}",
+            "\{history}",
+          ],
+        )
+        let context = history + (queries + rows - 1) / rows
+        routes += "record\tprefill\t\{rows}\t\{queries}\t\{context}\t1\t\{median(output, "old_us")}\t5\nrecord\tprefill\t\{rows}\t\{queries}\t\{context}\t2\t\{median(output, "new_us")}\t5\n"
+      }
+    }
+  }
   for rows in [1, 2, 4, 8, 16] {
     for history in [127, 255, 4095, 8191] {
       let args = [
@@ -153,7 +189,7 @@ async fn main {
         serving + "/check-probe",
         args,
       )
-      routes += "record\tdecode\t\{rows}\t\{rows}\t\{history + 1}\t3\t\{median(output, "old_us")}\t5\nrecord\tdecode\t\{rows}\t\{rows}\t\{history + 1}\t4\t\{median(output, "new_us")}\t5\n"
+      routes += "record\tdecode\t\{rows}\t\{rows}\t\{history + 1}\t1\t\{median(output, "old_us")}\t5\nrecord\tdecode\t\{rows}\t\{rows}\t\{history + 1}\t4\t\{median(output, "new_us")}\t5\n"
     }
   }
   let route_path = root + "/routes.v1"

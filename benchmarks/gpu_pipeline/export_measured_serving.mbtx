@@ -24,9 +24,17 @@ async fn sha(path : String) -> String {
 
 ///|
 async fn main {
-  guard @env.args() is [_, base, calibration, root, .. options] &&
-    (options.is_empty() || options == ["--blockwise-evaluate"]) else {
-    fail("SOURCE_ROOT CALIBRATION NEW_ROOT [--blockwise-evaluate]")
+  guard @env.args() is [_, base, calibration, root, .. options] else {
+    fail(
+      "SOURCE_ROOT CALIBRATION NEW_ROOT [--blockwise-evaluate] [--prefill-pair] [--machine-feedback FILE]",
+    )
+  }
+  let (options, machine_feedback) = match options {
+    [.. flags, "--machine-feedback", path] => (flags, Some(path))
+    _ => (options, None)
+  }
+  guard options.all(x => x == "--blockwise-evaluate" || x == "--prefill-pair") else {
+    fail("unsupported option")
   }
   assert_eq(
     @fs.read_file(calibration + "/RESULT.txt").text(),
@@ -61,6 +69,10 @@ async fn main {
     "16384",
     root + "/selected",
   ]
+  let recipe = @fs.read_file(
+    calibration + "/candidate/reusable-qwen-full-ingress/kernel.recipe",
+  ).text()
+  args.append(["--compiler-register-limit", field(recipe, "max_registers")])
   for
     (name, option) in [
       ("ingress.records", "--ingress-policy-records"),
@@ -68,7 +80,13 @@ async fn main {
     ] {
     @fs.write_file(
       root + "/" + name,
-      @fs.read_file(cell + "/" + name),
+      @fs.read_file(
+        if name == "ingress.records" && machine_feedback is Some(path) {
+          path
+        } else {
+          cell + "/" + name
+        },
+      ),
       create_mode=CreateNew,
     )
     args.append([
@@ -78,8 +96,13 @@ async fn main {
       scope[1].to_owned(),
     ])
   }
-  if !options.is_empty() {
+  if options.contains("--blockwise-evaluate") {
     args.append(["--decode-candidate", "452"])
+  }
+  if options.contains("--prefill-pair") {
+    args.append([
+      "--prefill-candidate", "318", "--wide-prefill-candidate", "2001",
+    ])
   }
   args.push("--query-metadata-v1")
   let out = @shell.Cmd(
@@ -108,10 +131,10 @@ async fn main {
   @fs.write_file(
     root + "/selection-objective.txt",
     "ingress=prefill-q2048-r8-h2048\nattention=prefill-q2048-r8-h2048\ndecode=" +
-    (if options.is_empty() {
-      "unmeasured-default"
-    } else {
+    (if options.contains("--blockwise-evaluate") {
       "explicit-452-evaluation"
+    } else {
+      "unmeasured-default"
     }) +
     "\n",
     create_mode=CreateNew,

@@ -36,15 +36,15 @@ struct Buffer {
 struct Kernel {
   CUmodule module; CUfunction function,merge=nullptr; unsigned gx,gy,gz,b,shared,merge_y=0; int regs,resident,local; std::string law;
   void* workspace=nullptr;
-  explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode){
+  explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode, bool postprocess=false){
     auto r=fields(root+"/kernel.recipe");auto grid=tuple(r.at("grid")),block=tuple(r.at("block"));
     gx=grid.at(0);gy=grid.at(1);gz=grid.at(2);b=block.at(0);shared=number(r,"shared_memory_bytes");
-    const int tile=decode ? 1 : number(r,"query_tile_rows");
-    const bool metadata=!ingress&&!decode&&number(r,"query_metadata_version")==1;
-    gx=selected_grid_x(gx,bucket_tokens,profile_rows,tile,metadata,decode);
+    const int tile=(decode||postprocess) ? 1 : number(r,"query_tile_rows");
+    const bool metadata=!ingress&&!decode&&!postprocess&&number(r,"query_metadata_version")==1;
+    gx=postprocess?std::min(gx,unsigned(bucket_tokens)):selected_grid_x(gx,bucket_tokens,profile_rows,tile,metadata,decode);
     law=r.count("numeric_law") ? r.at("numeric_law") : "legacy-declared-law";
     CK(cuModuleLoad(&module,(root+"/kernel.cubin").c_str()));
-    CK(cuModuleGetFunction(&function,module,r.at("function_symbol").c_str()));
+    CK(cuModuleGetFunction(&function,module,r.at(postprocess?"symbol":"function_symbol").c_str()));
     if(r.count("merge_function_symbol")) {
       if(!decode || gz<=1 || r.at("numeric_law")!="blockwise-f32-probability-v1")std::exit(1);
       CK(cuModuleGetFunction(&merge,module,r.at("merge_function_symbol").c_str()));
@@ -85,7 +85,7 @@ int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
   if(argc!=7 && !(argc==8 && std::string(argv[7])=="--check-only"))return 1;
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
-  const bool ingress=kind=="ingress",decode=kind=="decode";
+  const bool ingress=kind=="ingress",decode=kind=="decode",postprocess=kind=="postprocess";
   const int tokens=std::stoi(argv[4]),rows=std::stoi(argv[5]),past=std::stoi(argv[6]);
   const int qh=number(spec,"query_heads"),kh=number(spec,"key_value_heads"),d=number(spec,"head_dimension");
   const int input_width=number(spec,"input_width"),page=number(spec,"tokens_per_page"),stride=number(spec,"page_stride_values");
@@ -93,7 +93,7 @@ int main(int argc,char**argv){
   if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||past<0||past>8192||(decode&&tokens!=rows))return 1;
   const int bucket_tokens=selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
-  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode),candidate(argv[3],bucket_tokens,max_rows,ingress,decode);
+  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess),candidate(argv[3],bucket_tokens,max_rows,ingress,decode,postprocess);
   std::printf("geometry mode=runtime-bucket tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u new_grid=%u,%u numeric_law=%s\n",
     tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,candidate.gx,candidate.gy,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
@@ -119,7 +119,7 @@ int main(int argc,char**argv){
   }
   auto x=values(size_t(tokens)*input_width,3);
   auto key=values(size_t(pages.size())*stride,29),value=values(key.size(),31);
-  if(!ingress){
+  if(!ingress&&!postprocess){
     // Dense-current and paged-history views describe the same immutable KV.
     for(int r=0;r<rows;r++)for(int t=offsets[r];t<offsets[r+1];t++)for(int h=0;h<kh;h++)for(int c=0;c<d;c++){
       size_t address=size_t(pages[po[r]+positions[t]/page])*stride+(positions[t]%page*kh+h)*d+c;
@@ -129,15 +129,16 @@ int main(int argc,char**argv){
   }
   Buffer dc(20),dp(positions.size()*4),doff(offsets.size()*4),dl(lengths.size()*4),dpo(po.size()*4),dpi(pages.size()*4),dm(metadata.size()*4);
   dc.put(counts);dp.put(positions);doff.put(offsets);dl.put(lengths);dpo.put(po);dpi.put(pages);dm.put(metadata);
-  Buffer dx(x.size()*2),dk(key.size()*2),dv(value.size()*2),out(size_t(tokens)*(ingress?(qh+2*kh)*d:qh*d)*2);
+  Buffer dx(x.size()*2),dk(key.size()*2),dv(value.size()*2),out(size_t(tokens)*((ingress||postprocess)?(qh+2*kh)*d:qh*d)*2);
   dx.put(x);dk.put(key);dv.put(value);
   Buffer qw(size_t(qh)*d*(ingress?input_width:1)*2),kw(size_t(kh)*d*(ingress?input_width:1)*2),vw(kw.bytes),norm(d*2);
   qw.put(values(qw.bytes/2,7));kw.put(values(kw.bytes/2,11));vw.put(values(vw.bytes/2,13));
   norm.put(std::vector<__nv_bfloat16>(d,__float2bfloat16_rn(1)));
-  void* row_data=(!ingress&&!decode&&number(spec,"query_metadata_version")==1)?dm.p:doff.p;
+  void* row_data=(!ingress&&!decode&&!postprocess&&number(spec,"query_metadata_version")==1)?dm.p:doff.p;
   void* attention_args[]={&dc.p,&dp.p,&row_data,&dl.p,&dpo.p,&dpi.p,&dx.p,&out.p,&dk.p,&dv.p};
   void* ingress_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&qw.p,&kw.p,&vw.p,&norm.p,&norm.p,&out.p,&dk.p,&dv.p};
-  void** args=ingress?ingress_args:attention_args;
+  void* postprocess_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&norm.p,&norm.p,&out.p,&dk.p,&dv.p};
+  void** args=ingress?ingress_args:(postprocess?postprocess_args:attention_args);
   baseline.launch(args);CK(cudaDeviceSynchronize());auto expected=out.read(),expected_key=dk.read(),expected_value=dv.read();
   out.clear();dk.put(key);dv.put(value);candidate.launch(args);CK(cudaDeviceSynchronize());auto actual=out.read();
   double error=0;bool nonzero=false;
@@ -153,7 +154,33 @@ int main(int argc,char**argv){
   // Independent sampled attention reference; uses full FP32 probabilities and
   // FP64 accumulation, not the compiler's recurrence or fragment mapping.
   double oracle_error=0;
-  if(!ingress)for(int r=0;r<rows;r++)for(int t:{offsets[r],(offsets[r]+offsets[r+1]-1)/2,offsets[r+1]-1})for(int h:{0,qh-1}){
+  if(postprocess){
+    const double epsilon=std::stod(spec.at("norm_epsilon")),theta=std::stod(spec.at("rope_theta"));
+    const auto actual_key=dk.read(),actual_value=dv.read();
+    for(int r=0;r<rows;r++)for(int t=offsets[r];t<offsets[r+1];t++)for(int h=0;h<qh+2*kh;h++){
+      std::vector<double> head(d);double energy=0;
+      for(int c=0;c<d;c++){head[c]=__bfloat162float(x[size_t(t)*input_width+h*d+c]);energy+=head[c]*head[c];}
+      if(h<qh+kh){
+        const double inverse=1/std::sqrt(energy/d+epsilon);
+        for(auto& scalar:head)scalar=__bfloat162float(__float2bfloat16_rn(float(scalar*inverse)));
+        for(int c=0;c<d/2;c++){
+          const double angle=positions[t]*std::pow(theta,-2.0*c/d),a=head[c],b=head[c+d/2];
+          head[c]=__bfloat162float(__float2bfloat16_rn(float(a*std::cos(angle)-b*std::sin(angle))));
+          head[c+d/2]=__bfloat162float(__float2bfloat16_rn(float(b*std::cos(angle)+a*std::sin(angle))));
+        }
+      }
+      for(int c=0;c<d;c++){
+        oracle_error=std::max(oracle_error,std::abs(double(__bfloat162float(actual[size_t(t)*input_width+h*d+c]))-head[c]));
+        if(h>=qh){
+          int kvh=h<qh+kh?h-qh:h-qh-kh;
+          size_t address=size_t(pages[po[r]+positions[t]/page])*stride+(positions[t]%page*kh+kvh)*d+c;
+          oracle_error=std::max(oracle_error,std::abs(double(__bfloat162float((h<qh+kh?actual_key:actual_value)[address]))-head[c]));
+        }
+      }
+    }
+    if(oracle_error>0.015){std::fprintf(stderr,"postprocess oracle failed error=%g\n",oracle_error);return 4;}
+  }
+  if(!ingress&&!postprocess)for(int r=0;r<rows;r++)for(int t:{offsets[r],(offsets[r]+offsets[r+1]-1)/2,offsets[r+1]-1})for(int h:{0,qh-1}){
     int length=positions[t]+1;std::vector<double> scores(length);double maximum=-INFINITY;
     for(int k=0;k<length;k++){
       size_t address=size_t(pages[po[r]+k/page])*stride+(k%page*kh+h/(qh/kh))*d;

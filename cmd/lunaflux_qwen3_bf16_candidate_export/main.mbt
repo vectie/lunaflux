@@ -70,6 +70,7 @@ async fn run_qwen3_candidate_export(
     ingress_policy_search=arguments.ingress_policy_search,
     ingress_shared_limit=arguments.ingress_shared_limit,
     decode_candidate?=arguments.decode_candidate,
+    prefill_candidate?=arguments.prefill_candidate,
     query_metadata=arguments.query_metadata,
   )
   let evidence = @luna_bf16_candidate_export.export_new(
@@ -171,6 +172,7 @@ async fn run_qwen3_candidate_export(
   }
   let wide_prefill = qwen_wide_query_prefill_variant(
     qwen_fused.attention_prefill_frontier,
+    explicit_candidate?=arguments.wide_prefill_candidate,
   )
   let wide_prefill_root = arguments.absolute_new_output +
     "/reusable-qwen-prefill-wide-query-attention"

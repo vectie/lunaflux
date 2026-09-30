@@ -305,7 +305,8 @@ async fn main {
     create_mode=CreateNew,
   )
   let report = checked(exporter.to_owned(), args)
-  guard field(report, "ingress_schedule") == choice else {
+  guard field(report, "ingress_schedule") ==
+    (if choice == "partial" { "producer-separated" } else { "full" }) else {
     fail("ingress cut was lost during metadata rebind")
   }
   @fs.write_file(output + "/export.stdout", report, create_mode=CreateNew)

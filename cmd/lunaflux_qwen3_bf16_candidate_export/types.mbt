@@ -112,6 +112,8 @@ priv struct Qwen3CandidateExportArguments {
   ingress_policy_search : Bool
   ingress_shared_limit : Int64
   compiler_register_limit : Int
+  prefill_candidate : Int?
+  wide_prefill_candidate : Int?
   decode_candidate : Int?
   query_metadata : Bool
 }

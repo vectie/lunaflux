@@ -87,6 +87,7 @@ fn prepare_qwen_fused_production_set(
   ingress_policy_search? : Bool = false,
   ingress_shared_limit? : Int64 = 49152L,
   decode_candidate? : Int,
+  prefill_candidate? : Int,
   query_metadata? : Bool = false,
 ) -> QwenFusedProductionSet raise Qwen3Bf16CandidateExportCliError {
   let candidates = set.candidates()
@@ -266,6 +267,7 @@ fn prepare_qwen_fused_production_set(
       tuning~,
       resources~,
       query_metadata~,
+      explicit_candidate?=prefill_candidate,
     )
     let attention_prefill_partitioned = prepare_qwen_compiler_partitioned_prefill(
       set,
