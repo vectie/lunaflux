@@ -1,0 +1,66 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(line : String, key : String) -> String raise {
+  guard line.split(" ").filter(x => x.has_prefix(key + "=")).to_array()
+    is [value] else {
+    fail("missing " + key)
+  }
+  value.to_owned().replace(old=key + "=", new="")
+}
+
+///|
+fn median(samples : Array[Double]) -> Double {
+  samples.sort()
+  samples[samples.length() / 2]
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_PARTITION_ROOT") }
+  assert_eq(@fs.read_file(root + "/RESULT.txt").text(), "outcome=passed\n")
+  let samples : Map[(String, Int, Int), (Array[Double], Array[Double])] = Map([])
+  let mut variant = ""
+  for line in @fs.read_file(root + "/measurements.txt").text().split("\n") {
+    if line.has_prefix("variant=") {
+      variant = line.to_owned().replace(old="variant=", new="")
+    } else if line.has_prefix("tokens=") {
+      let key = (
+        variant,
+        @string.parse_int(field(line.to_owned(), "rows")),
+        @string.parse_int(field(line.to_owned(), "history")),
+      )
+      let (old, current) = samples.get_or_init(key, () => ([], []))
+      old.push(@string.parse_double(field(line.to_owned(), "old_us")))
+      current.push(@string.parse_double(field(line.to_owned(), "new_us")))
+    }
+  }
+  println(
+    "| Rows | History | Fastest partial+merge | Baseline µs | Current µs | Speedup |",
+  )
+  println("| ---: | ---: | --- | ---: | ---: | ---: |")
+  for history in [127, 4095] {
+    for rows in [1, 8, 16] {
+      let finalists : Array[(String, Double, Double)] = []
+      for (key, pair) in samples {
+        if key.1 == rows && key.2 == history {
+          assert_eq(pair.0.length(), 5)
+          assert_eq(pair.1.length(), 5)
+          finalists.push((key.0, median(pair.0), median(pair.1)))
+        }
+      }
+      finalists.sort_by((a, b) => a.2.compare(b.2))
+      guard !finalists.is_empty() else { fail("missing cell") }
+      let winner = finalists[0]
+      println(
+        "| \{rows} | \{history} | \{winner.0} | \{winner.1} | \{winner.2} | \{winner.1 / winner.2} |",
+      )
+    }
+  }
+}

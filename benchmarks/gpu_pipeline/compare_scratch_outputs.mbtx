@@ -1,0 +1,49 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, prior, baselines] else {
+    fail("SERVING PRIOR BASELINES")
+  }
+  for root in [serving, baselines] {
+    guard @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("incomplete measurement")
+    }
+  }
+  for (name, path) in [("luna-full", serving), ("prior", prior)] {
+    @shell.Cmd("ln", [
+      "-s",
+      path + "/bench-luna-full",
+      baselines + "/bench-" + name,
+    ]).run()
+  }
+  for engine in ["prior", "vllm", "sglang"] {
+    let result = @shell.Cmd(serving + "/toolchain/bin/moon", [
+      "run",
+      baselines + "/compare-outputs.mbtx",
+      baselines,
+      "luna-full",
+      engine,
+    ]).output()
+    @fs.write_file(
+      baselines + "/compare-" + engine + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      baselines + "/compare-" + engine + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    println(result.stdout())
+  }
+}

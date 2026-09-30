@@ -1,0 +1,55 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_CAMPAIGN_ROOT") }
+  assert_eq(
+    @fs.read_file(root + "/FOLLOWUPS_RESULT.txt").text(),
+    "outcome=completed\n",
+  )
+  assert_eq(
+    @fs.read_file(root + "/counters-v3/RESULT.txt").text(),
+    "outcome=completed\n",
+  )
+  assert_eq(
+    @fs.read_file(root + "/partition-sanitizers/RESULT.txt").text(),
+    "outcome=passed\n",
+  )
+  let destination = root + "/archive"
+  @fs.mkdir(destination)
+  let archive = destination + "/scratch-results.tar.gz"
+  let args = [
+    "-czf", archive, "--exclude=source", "--exclude=_build", "--exclude=.mooncakes",
+    "--exclude=toolchain", "--exclude=release", "--exclude=deployment*", "--exclude=model-root",
+    "--exclude=tmp", "-C", root, "calibration-final", "selection-v2", "serving-v4",
+    "fresh-baselines", "partitions", "partition-sanitizers", "counters", "counters-v2",
+    "counters-v3", "FOLLOWUPS_RESULT.txt", "fresh-baselines.stdout", "fresh-baselines.stderr",
+    "partitions.stdout", "partitions.stderr",
+  ]
+  @fs.write_file(
+    destination + "/command.txt",
+    args.join("\n"),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd("tar", args).output()
+  @fs.write_file(
+    destination + "/tar.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  let hash = @shell.Cmd("sha256sum", [archive]).output()
+  hash.check()
+  @fs.write_file(
+    destination + "/SHA256.txt",
+    hash.stdout(),
+    create_mode=CreateNew,
+  )
+  println(hash.stdout())
+}

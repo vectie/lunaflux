@@ -1,0 +1,88 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root] else {
+    fail("COMPLETED_CAMPAIGN NEW_EMPTY_ROOT")
+  }
+  assert_eq(
+    @fs.read_file(base + "/partitions/RESULT.txt").text(),
+    "outcome=passed\n",
+  )
+  assert_eq(
+    @fs.read_file(base + "/counters-v3/RESULT.txt").text(),
+    "outcome=completed\n",
+  )
+  let gpu = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  for
+    (rows, history, variant) in [
+      (1, 127, "c450-p4"),
+      (8, 127, "c450-p4"),
+      (16, 127, "c450-p4"),
+      (1, 4095, "c452-p8"),
+      (8, 4095, "c452-p4"),
+      (16, 4095, "c452-p2"),
+    ] {
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let args = ["--tool", tool, "--error-exitcode", "99"]
+      if tool == "memcheck" {
+        args.append(["--leak-check", "full"])
+      }
+      args.append([
+        base + "/partitions/probe",
+        base + "/partitions/decode.spec",
+        base +
+        "/calibration-final/candidate/reusable-qwen-decode-attention-c441",
+        base + "/partitions/" + variant,
+        "\{rows}",
+        "\{rows}",
+        "\{history}",
+        "--check-only",
+      ])
+      let result = @shell.Cmd("/usr/local/cuda/bin/compute-sanitizer", args).output(
+        max_output_bytes=16777216,
+      )
+      let name = "\{variant}-r\{rows}-h\{history}-\{tool}"
+      @fs.write_file(
+        root + "/" + name + ".stdout",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/" + name + ".stderr",
+        result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+      println(name + " passed")
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\n",
+    create_mode=CreateNew,
+  )
+}

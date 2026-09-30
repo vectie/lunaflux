@@ -81,5 +81,136 @@ unit ceiling, no swap growth and a 32 GiB available-memory reserve. Pinned
 reference containers have an 80 GiB ceiling and no swap growth, plus the same
 reserve monitor; their limits are not claimed to be identical to LunaFlux's.
 
-Fresh serving, reference, partition and counter results: pending terminal runs.
-No performance parity or production promotion is claimed at this stage.
+## End-to-end LunaFlux result
+
+`serving-v4` completed all nine cells, acknowledged drain, exited the worker
+with code zero and closed it. Runtime stderr is empty. Same Qwen3-0.6B BF16
+model and token-ID workload as the previous selected run: one warm-up, three
+measured trials, medians; greedy, ignore EOS, prefix reuse disabled.
+
+| Input/output | C | Previous fastest wall ms | Current wall ms | Current output tok/s |
+| --- | ---: | ---: | ---: | ---: |
+| 128/32 | 1 | 246 | 246 | 130.08 |
+| 128/32 | 8 | 322 | 321 | 797.51 |
+| 128/32 | 16 | 388 | 383 | 1336.81 |
+| 4096/64 | 1 | 747 | 738 | 86.72 |
+| 4096/64 | 8 | 2845 | 2752 | 186.05 |
+| 4096/64 | 16 | 5376 | 5177 | 197.80 |
+| 4096/256 | 1 | 2530 | 2529 | 101.23 |
+| 4096/256 | 8 | 7707 | 7625 | 268.59 |
+| 4096/256 | 16 | 14261 | 14083 | 290.85 |
+
+The largest throughput gain against the previous fastest package is 3.8% at
+4096/64 C16; 4096/256 C16 gains 1.3%. The comparator is historical, not a
+contemporaneous old/new serving A/B. This is a modest improvement, not parity
+or an explanation that all remaining time is projection overhead. In particular,
+the row64 versus current row32 calibration differs by only 1.6%.
+
+TTFT p50/p95 at 4096/64 C16 is 1469/2601 ms; ITL is 45/162 ms. At
+4096/256 C16 these are 1482/2632 ms and 46/48 ms. The selected package restores
+the prior split-decode ABI rather than treating a faster unsplit blockwise
+probe as proof of an equally fast serving graph.
+
+## Fresh pinned reference comparison
+
+vLLM and SGLang completed the identical nine-cell token workload sequentially,
+after LunaFlux drained. The existing stopped benchmark containers were started,
+inspected and stopped again; no image or framework configuration was changed.
+These are pinned NVIDIA 26.01 reference configurations from the preceding
+campaign (vLLM v0.13.0 build / FlashAttention; SGLang / FlashInfer), not a claim
+to compare every current framework release or optimal configuration.
+
+Completion medians, milliseconds, lower is better:
+
+| Input/output | C | LunaFlux | vLLM | SGLang |
+| --- | ---: | ---: | ---: | ---: |
+| 128/32 | 1 | 246 | 298 | 288 |
+| 128/32 | 8 | 321 | 284 | 280 |
+| 128/32 | 16 | 383 | 322 | 329 |
+| 4096/64 | 1 | 738 | 772 | 785 |
+| 4096/64 | 8 | 2752 | 2271 | 2334 |
+| 4096/64 | 16 | 5177 | 4210 | 4251 |
+| 4096/256 | 1 | 2529 | 2712 | 2771 |
+| 4096/256 | 8 | 7625 | 6645 | 6855 |
+| 4096/256 | 16 | 14083 | 11840 | 11980 |
+
+LunaFlux is faster at C1 in these cells but takes 23.0%/21.8% more time at
+4096/64 C16 than vLLM/SGLang. At 4096/256 C16 the remaining time gap is
+18.9%/17.6%. This improvement does **not** close the concurrency gap.
+
+All 225 measured sequences match the previous fastest LunaFlux package exactly.
+Against each fresh framework reference, 216/225 sequences match exactly and
+225/225 first tokens match; all 150 long-input sequences match. Short-input
+greedy divergences remain and are not silently described as numerical identity.
+
+## Partitioned blockwise experiment
+
+Twelve sync/async, KV32/KV64, 2/4/8-partition variants passed five paired trials
+in each of six cells. Timings include partial and merge launches. The baseline
+here is **unsplit c441**, not the existing production split-decode chain.
+
+| Rows | History | Fastest variant | c441 unsplit µs | Partial+merge µs |
+| ---: | ---: | --- | ---: | ---: |
+| 1 | 127 | c450-p4 | 14.358 | 14.443 |
+| 8 | 127 | c450-p4 | 16.419 | 24.554 |
+| 16 | 127 | c450-p4 | 28.438 | 36.700 |
+| 1 | 4095 | c452-p8 | 320.124 | 106.662 |
+| 8 | 4095 | c452-p4 | 594.932 | 690.954 |
+| 16 | 4095 | c452-p2 | 1281.002 | 1291.858 |
+
+History-axis parallelism gives a real 3.0× C1 improvement against this unsplit
+probe, but loses at C8/C16. It must not become an unconditional runtime path.
+Production already has a split-decode path at small batch: the 3.0× result is
+**not an incremental serving speedup**. Binding this F32 blockwise ABI into the
+runtime and comparing it with that existing full chain remain separate work.
+All six per-cell finalists also pass memcheck with leak checking, racecheck
+and synccheck (18 checks); no memory, race or synchronization errors are reported.
+
+## Paired selected-kernel counters
+
+`counters-v3` compares the prior fastest packaged ingress/prefill modules with
+the current package on query2048/rows8/history2048. Exactly two matching kernel
+launches are captured per operation. Profiler timings are not substituted into
+the serving table. The prior run did not retain a standalone paired decode
+module; no prior decode artifact was invented.
+
+| Ingress metric | Prior fastest | Current |
+| --- | ---: | ---: |
+| CTAs | 2048 | 1024 |
+| Profiled GPU time | 893.824 µs | 682.496 µs |
+| Warp instructions | 82,608,128 | 67,588,096 |
+| Registers/thread | 86 | 117 |
+| Tensor activity | 18.33% | 24.09% |
+| Long-scoreboard metric | 30.54% | 25.95% |
+| Barrier metric | 4.36% | 5.49% |
+| Local load/store sectors | 0/0 | 0/0 |
+
+These stall metrics are per-warp-active percentages, **not** the previous
+source-correlated average warp-latency contributions. They are not interchangeable.
+Requested DRAM byte counters are absent from this GB10 raw capture and are not
+reported as zero or inferred from another column.
+
+Current prefill remains approximately the same: 94,723,968 → 95,081,344 warp
+instructions, 809.824 → 825.152 µs profiled time, 43.75% → 42.98% tensor
+activity, zero local load/store sectors. A single profiled replay cannot establish
+a 1.9% regression; it does show no large reduction in supporting instructions.
+
+Thus ingress improved, but unchanged attention/MLP/head execution and the
+concurrent serving graph still dominate the remaining gap. More IR layers alone
+will not remove it. The schedule space still needs geometry independent of
+headwise epilogue ownership, a lower-overhead attention realization, and
+workload-specific full-chain selection. No parity or production promotion is
+claimed.
+
+## Saved results
+
+Minimum sampled available memory: LunaFlux 104,594,888 KiB (99.75 GiB),
+vLLM 56,276,836 KiB (53.67 GiB), SGLang 57,110,668 KiB (54.46 GiB).
+All exceed the 32 GiB reserve. No OOM occurred; no benchmark GPU process
+remained after completion. Failed profiler setup attempts (expired sudo cache
+and missing standalone prior decode artifact) remain separately preserved.
+
+Completed calibration, selections, packaged kernels, raw serving trials,
+container inspections, partition probes/sanitizers and paired Nsight reports
+are archived without model weights or build caches. Archive SHA-256:
+`834c105f6fd7b63d16b42d5c8d01ce4ce8593558de204b868ccd67df15daf84a`.

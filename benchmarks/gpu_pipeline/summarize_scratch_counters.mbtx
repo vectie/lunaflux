@@ -1,0 +1,66 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn fields(line : StringView) -> Array[String] {
+  let result = []
+  let mut value = StringBuilder()
+  let mut quoted = false
+  let mut i = 0
+  while i < line.length() {
+    let c = line[i]
+    if c == '"' {
+      if quoted && i + 1 < line.length() && line[i + 1] == '"' {
+        value.write_char('"')
+        i += 1
+      } else {
+        quoted = !quoted
+      }
+    } else if c == ',' && !quoted {
+      result.push(value.to_string())
+      value = StringBuilder()
+    } else {
+      value.write_view(line[i:i + 1])
+    }
+    i += 1
+  }
+  result.push(value.to_string())
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_COUNTER_ROOT") }
+  assert_eq(@fs.read_file(root + "/RESULT.txt").text(), "outcome=completed\n")
+  let wanted = [
+    "gpu__time_duration.sum", "launch__grid_size", "launch__registers_per_thread",
+    "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "dram__bytes_read.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+  ]
+  for kind in ["ingress", "prefill"] {
+    let lines = @fs.read_file(root + "/" + kind + ".stdout")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("\""))
+      .to_array()
+    guard lines.length() == 4 else {
+      fail("exactly two kernel captures required")
+    }
+    let names = fields(lines[0])
+    let units = fields(lines[1])
+    for (label, index) in [("prior", 2), ("current", 3)] {
+      let values = fields(lines[index])
+      println(kind + " " + label)
+      for index, name in names {
+        if wanted.contains(name) {
+          println("\{name}=\{values[index]} \{units[index]}")
+        }
+      }
+    }
+  }
+}
