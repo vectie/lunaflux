@@ -409,6 +409,12 @@ async fn main {
   }
   for id in [400, 420, 430, 441, 450, 451, 452, 453] {
     let directory = root + "/candidate/reusable-qwen-decode-attention-c\{id}"
+    // A backend's bounded shared-memory frontier may omit a legal portable
+    // candidate. Absence is not a compilation failure or a timing observation.
+    if !@fs.exists(directory + "/kernel.recipe") {
+      println("decode-c\{id} unavailable in the exported resource frontier")
+      continue
+    }
     compile(root, "decode-c\{id}", directory, nvcc)
     let measured = measure(
       root,
