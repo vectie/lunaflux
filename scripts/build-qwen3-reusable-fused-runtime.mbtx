@@ -28,10 +28,30 @@ async fn checked(program : String, args : Array[String]) -> String {
 ///|
 async fn main {
   guard @env.args()
-    is [_, nvcc, toolchain, candidate, model, plan, exporter_identity, output] else {
+    is [
+      _,
+      nvcc,
+      toolchain,
+      candidate,
+      model,
+      plan,
+      exporter_identity,
+      output,
+      .. options,
+    ] else {
     fail(
       "usage: NVCC TOOLCHAIN#sha256=HEX CANDIDATE MODEL_SHA PLAN_SHA EXPORTER#sha256=HEX NEW_OUTPUT",
     )
+  }
+  let (options, routes) = match options {
+    [.. rest, "--attention-buckets", path] => (rest, Some(path))
+    _ => (options, None)
+  }
+  let choice = match options {
+    [] | ["--ingress-mode", "full"] => "full"
+    ["--ingress-mode", "partial"] => "partial"
+    _ =>
+      fail("optional --ingress-mode full|partial and --attention-buckets FILE")
   }
   guard exporter_identity.split("#sha256=").to_array() is [exporter, _] else {
     fail("exporter identity required")
@@ -119,14 +139,65 @@ async fn main {
   // This helper compiles the full-ingress runtime. The metadata rebind must
   // retain that explicit route: the exporter's conservative default omits
   // both ingress and attention modules, not merely the metadata annotation.
-  args.append(["--ingress-evaluate", "full"])
+  if choice == "partial" {
+    let directory = candidate + "/reusable-qwen-ingress"
+    let recipe = @fs.read_file(directory + "/kernel.recipe").text()
+    let digest = checked("sha256sum", [directory + "/kernel.cu"])
+    .split(" ")
+    .to_array()[0].to_owned()
+    assert_eq(digest, field(recipe, "source_sha256"))
+    let flags = [
+      "-O" + field(recipe, "optimization"),
+      "-arch=" + field(recipe, "target"),
+      "--std=c++14",
+      "--fmad=" + field(recipe, "fmad"),
+      "--ftz=false",
+      "--prec-div=true",
+      "--prec-sqrt=true",
+      "--Werror",
+      "all-warnings",
+      "--maxrregcount=" + field(recipe, "max_registers"),
+      "-cubin",
+      directory + "/kernel.cu",
+      "-o",
+    ]
+    for name in ["ingress-partial-first.cubin", "ingress-partial-second.cubin"] {
+      ignore(checked(nvcc, flags + [output + "/" + name]))
+    }
+    ignore(
+      checked("cmp", [
+        output + "/ingress-partial-first.cubin",
+        output + "/ingress-partial-second.cubin",
+      ]),
+    )
+    args.append(["--ingress-evaluate", "partial"])
+    args.append(
+      field(recipe, "grid").split(",").map(x => x.to_owned()).to_array(),
+    )
+    args.append([
+      field(recipe, "block").split(",").to_array()[0].to_owned(),
+      field(recipe, "shared_memory_bytes"),
+      output + "/ingress-partial-first.cubin",
+    ])
+    hashes += checked("sha256sum", [output + "/ingress-partial-first.cubin"])
+      .split(" ")
+      .to_array()[0].to_owned() +
+      "  ingress-partial-first.cubin\n"
+  } else {
+    args.append(["--ingress-evaluate", "full"])
+  }
   let ingress_recipe = @fs.read_file(
     candidate + "/reusable-qwen-full-ingress/kernel.recipe",
   ).text()
-  args.append(["--ingress-query-tile", field(ingress_recipe, "query_tile_rows")])
+  if choice == "full" {
+    args.append([
+      "--ingress-query-tile",
+      field(ingress_recipe, "query_tile_rows"),
+    ])
+  }
   // Older one-head recipes remain supported; new ownership must survive both
   // export passes just like the compiler-selected token tile.
-  if ingress_recipe.contains("\nheads_per_cta=") {
+  if choice == "full" && ingress_recipe.contains("\nheads_per_cta=") {
     args.append([
       "--ingress-heads-per-cta",
       field(ingress_recipe, "heads_per_cta"),
@@ -148,9 +219,16 @@ async fn main {
   if versions[0] == "1" {
     args.push("--query-metadata-v1")
   }
+  if routes is Some(path) {
+    args.append([
+      "--attention-buckets",
+      path,
+      checked("sha256sum", [path]).split(" ").to_array()[0].to_owned(),
+    ])
+  }
   let report = checked(exporter.to_owned(), args)
-  guard field(report, "ingress_schedule") == "full" else {
-    fail("full-ingress route was lost during metadata rebind")
+  guard field(report, "ingress_schedule") == choice else {
+    fail("ingress cut was lost during metadata rebind")
   }
   @fs.write_file(output + "/export.stdout", report, create_mode=CreateNew)
   let digest = checked("sha256sum", [output + "/" + bundle])

@@ -70,6 +70,7 @@ pub struct AttentionTileCompilationFrontier {
 pub fn AttentionTileCompilationFrontier::canonical_bytes(Self) -> Bytes
 pub fn AttentionTileCompilationFrontier::digest(Self) -> AttentionTileCompilationDigest
 pub fn AttentionTileCompilationFrontier::selected(Self) -> ScheduledAttentionTileCompilation
+pub fn AttentionTileCompilationFrontier::specialize(Self, AttentionTileCompilerRequest, Int) -> Self raise AttentionTileCompilerError
 pub fn AttentionTileCompilationFrontier::variants(Self) -> ReadOnlyArray[ScheduledAttentionTileCompilation]
 
 pub struct AttentionTileCompilerRequest {

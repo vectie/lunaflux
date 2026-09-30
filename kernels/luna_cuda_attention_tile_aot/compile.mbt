@@ -71,6 +71,7 @@ pub fn compile_cuda_attention_tile_aot_frontier(
   request : CudaAttentionTileAotRequest,
   autotune_records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
   previous? : CudaAttentionTileAotFrontier,
+  explicit_candidate? : Int,
 ) -> CudaAttentionTileAotFrontier raise CudaAttentionTileAotError {
   let functional = try {
     let input = request.functional_request(autotune_records)
@@ -85,6 +86,13 @@ pub fn compile_cuda_attention_tile_aot_frontier(
     }
   } catch {
     _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
+  }
+  let functional = match explicit_candidate {
+    Some(id) =>
+      functional.specialize(request.functional_request(autotune_records), id) catch {
+        _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
+      }
+    None => functional
   }
   let variants : Array[CudaAttentionTileAotCompilation] = []
   let rejected : Array[(Int, CudaAttentionTileAotRule)] = []

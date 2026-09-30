@@ -111,5 +111,6 @@ priv struct Qwen3CandidateExportArguments {
   ingress_policy_records : (String, String, String)?
   ingress_policy_search : Bool
   ingress_shared_limit : Int64
+  decode_candidate : Int?
   query_metadata : Bool
 }

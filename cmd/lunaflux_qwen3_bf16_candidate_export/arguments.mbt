@@ -72,6 +72,20 @@ fn parse_qwen3_candidate_export_arguments(
     continue index + 1
   }
   let arguments = filtered
+  let mut decode_candidate : Int? = None
+  let filtered : Array[String] = []
+  for index = 0; index < arguments.length(); {
+    if arguments[index] == "--decode-candidate" {
+      guard decode_candidate is None && index + 1 < arguments.length() else {
+        raise InvalidArguments
+      }
+      decode_candidate = Some(parse_positive_decimal(arguments[index + 1]))
+      continue index + 2
+    }
+    filtered.push(arguments[index])
+    continue index + 1
+  }
+  let arguments = filtered
   let (arguments, ingress_policy_records) = extract_resource_option(
     arguments[:],
     "--ingress-policy-records",
@@ -187,6 +201,7 @@ fn parse_qwen3_candidate_export_arguments(
     ingress_policy_records,
     ingress_policy_search,
     ingress_shared_limit,
+    decode_candidate,
     query_metadata,
   }
   if attention_tuning is Some((_, _, tuning_device)) &&

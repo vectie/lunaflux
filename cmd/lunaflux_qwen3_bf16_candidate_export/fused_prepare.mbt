@@ -86,6 +86,7 @@ fn prepare_qwen_fused_production_set(
   ingress_policy_records? : (Bytes, String, String)? = None,
   ingress_policy_search? : Bool = false,
   ingress_shared_limit? : Int64 = 49152L,
+  decode_candidate? : Int,
   query_metadata? : Bool = false,
 ) -> QwenFusedProductionSet raise Qwen3Bf16CandidateExportCliError {
   let candidates = set.candidates()
@@ -279,6 +280,7 @@ fn prepare_qwen_fused_production_set(
       index + 3,
       resources=decode_resources,
       tuning=decode_tuning,
+      explicit_candidate?=decode_candidate,
     )
     return {
       first_operation: index,

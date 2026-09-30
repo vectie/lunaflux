@@ -1,0 +1,54 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, archive] else {
+    fail("BASE NEW_ROOT COMMITTED_ARCHIVE")
+  }
+  let setup = @fs.read_file(base + "/setup.mbtx").text()
+  guard setup
+    .split("\"")
+    .filter(x => x.has_prefix("/") && x.has_suffix(".tar"))
+    .to_array()
+    is [old] else {
+    fail("one immutable archive seam required")
+  }
+  @fs.write_file(
+    root + "/setup.mbtx",
+    setup.replace(old=old.to_owned(), new=archive),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(base + "/toolchain/bin/moon", [
+    "run",
+    root + "/setup.mbtx",
+    root,
+  ]).output(max_output_bytes=16777216)
+  @fs.write_file(root + "/setup.stdout", out.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/setup.stderr", out.stderr(), create_mode=CreateNew)
+  out.check()
+  for name in ["candidate", "fused-full", "release"] {
+    @shell.Cmd("ln", ["-s", base + "/" + name, root + "/" + name]).run()
+  }
+  for
+    name in [
+      "bind.stdout", "prepare-spark.mbtx", "measure.mbtx", "benchmark.mbtx", "summarize.mbtx",
+      "compare-outputs.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/BUILD_RESULT.txt",
+    "outcome=passed\n",
+    create_mode=CreateNew,
+  )
+}

@@ -69,6 +69,7 @@ async fn run_qwen3_candidate_export(
     ),
     ingress_policy_search=arguments.ingress_policy_search,
     ingress_shared_limit=arguments.ingress_shared_limit,
+    decode_candidate?=arguments.decode_candidate,
     query_metadata=arguments.query_metadata,
   )
   let evidence = @luna_bf16_candidate_export.export_new(

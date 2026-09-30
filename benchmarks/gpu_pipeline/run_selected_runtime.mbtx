@@ -44,9 +44,11 @@ async fn memory() -> Int64 {
 
 ///|
 async fn main {
-  guard @env.args() is [_, base, calibration, root, builder] else {
+  guard @env.args() is [_, base, calibration, root, builder, .. options] &&
+    (options.is_empty() || options == ["--partial-ingress"]) else {
     fail("BASELINE_ROOT CALIBRATION_ROOT NEW_EMPTY_ROOT FIXED_FUSED_BUILDER")
   }
+  let partial_ingress = !options.is_empty()
   guard @fs.read_file(calibration + "/RESULT.txt").text() == "outcome=passed\n" else {
     fail("calibration incomplete")
   }
@@ -134,6 +136,17 @@ async fn main {
       old="source+\"/scripts/build-qwen3-reusable-fused-runtime.mbtx\"",
       new="root+\"/fused-builder.mbtx\"",
     )
+  let prepare = if partial_ingress {
+    guard prepare.contains("root+\"/fused\"]))") else {
+      fail("builder suffix seam changed")
+    }
+    prepare.replace(
+      old="root+\"/fused\"]))",
+      new="root+\"/fused\",\"--ingress-mode\",\"partial\"]))",
+    )
+  } else {
+    prepare
+  }
   @fs.write_file(root + "/prepare-full.mbtx", prepare, create_mode=CreateNew)
   let unit = "lunaflux-calibrated-" +
     root.split("/").to_array().last().unwrap().to_owned()

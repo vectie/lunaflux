@@ -252,6 +252,7 @@ fn prepare_qwen_compiler_decode(
   attention_index : Int,
   resources? : (Bytes, String, String)? = None,
   tuning? : (Bytes, String, String)? = None,
+  explicit_candidate? : Int,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   guard plan.operations()[qkv_index].shape()
     is ProjectionShape(output_width~, ..) &&
@@ -335,7 +336,19 @@ fn prepare_qwen_compiler_decode(
       _ => raise QwenReadOnlyPreparation
     }
   }
-  guard tuning is Some((bytes, device, toolchain)) else { return expanded }
+  guard tuning is Some((bytes, device, toolchain)) else {
+    if explicit_candidate is Some(_) {
+      return @luna_cuda_attention_tile_aot.compile_cuda_attention_tile_aot_frontier(
+        request,
+        records,
+        previous=expanded,
+        explicit_candidate?,
+      ) catch {
+        _ => raise QwenReadOnlyPreparation
+      }
+    }
+    return expanded
+  }
   let observations = @luna_attention_tuning.parse_attention_tuning_records(
     bytes,
     scope=frontier.digest().as_hex() + "\t" + device + "\t" + toolchain,
@@ -350,6 +363,7 @@ fn prepare_qwen_compiler_decode(
     request,
     observations[:],
     previous=expanded,
+    explicit_candidate?,
   ) catch {
     _ => raise QwenReadOnlyPreparation
   }
