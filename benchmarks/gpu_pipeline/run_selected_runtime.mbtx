@@ -108,10 +108,22 @@ async fn main {
           ingress.contains("\nheads_per_cta=2\n") ||
           ingress.contains("\nheads_per_cta=4\n")
         ) &&
-        decode.contains(
-          "function_symbol=lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1\n",
-        ) &&
-        decode.contains("numeric_law=blockwise-f32-probability-v1\n")
+        (
+          (
+            decode.contains(
+              "function_symbol=lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1\n",
+            ) &&
+            decode.contains("numeric_law=blockwise-f32-probability-v1\n")
+          ) ||
+          (
+            decode.contains(
+              "function_symbol=lunaflux_attention_decode_tile_compiler_v1_dual_score_blockwise_f32_v2\n",
+            ) &&
+            decode.contains(
+              "numeric_law=dual-score-blockwise-f32-probability-v2\n",
+            )
+          )
+        )
       ) else {
       fail("all-new selection was not retained in AOT recipes")
     }

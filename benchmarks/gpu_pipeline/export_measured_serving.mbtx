@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -26,15 +27,32 @@ async fn sha(path : String) -> String {
 async fn main {
   guard @env.args() is [_, base, calibration, root, .. options] else {
     fail(
-      "SOURCE_ROOT CALIBRATION NEW_ROOT [--blockwise-evaluate] [--prefill-pair] [--machine-feedback FILE]",
+      "SOURCE_ROOT CALIBRATION NEW_ROOT [--blockwise-evaluate] [--prefill-pair] [--explicit-attention] [--machine-feedback FILE] [--projection-folds FILE]",
     )
+  }
+  let (options, projection_folds) = match options {
+    [.. flags, "--projection-folds", path] => (flags, Some(path))
+    _ => (options, None)
   }
   let (options, machine_feedback) = match options {
     [.. flags, "--machine-feedback", path] => (flags, Some(path))
     _ => (options, None)
   }
-  guard options.all(x => x == "--blockwise-evaluate" || x == "--prefill-pair") else {
+  guard options.all(x => {
+    x == "--blockwise-evaluate" ||
+    x == "--contracting-decode" ||
+    x == "--prefill-pair" ||
+    x == "--explicit-attention"
+  }) else {
     fail("unsupported option")
+  }
+  guard !options.contains("--contracting-decode") ||
+    options.contains("--blockwise-evaluate") else {
+    fail("contracting decode requires explicit blockwise evaluation")
+  }
+  guard !options.contains("--explicit-attention") ||
+    options.contains("--prefill-pair") else {
+    fail("explicit attention requires an explicit prefill pair")
   }
   assert_eq(
     @fs.read_file(calibration + "/RESULT.txt").text(),
@@ -72,12 +90,24 @@ async fn main {
   let recipe = @fs.read_file(
     calibration + "/candidate/reusable-qwen-full-ingress/kernel.recipe",
   ).text()
+  let target = field(recipe, "target")
+  guard target.has_prefix("sm_") else { fail("CUDA calibration target") }
+  let capability = @string.parse_int(target[3:])
+  assert_eq(target, "sm_" + capability.to_string())
+  args.append([
+    "--device-target",
+    (capability / 10).to_string(),
+    (capability % 10).to_string(),
+  ])
   args.append(["--compiler-register-limit", field(recipe, "max_registers")])
   for
     (name, option) in [
       ("ingress.records", "--ingress-policy-records"),
       ("attention.records", "--attention-tuning"),
     ] {
+    if name == "attention.records" && options.contains("--explicit-attention") {
+      continue
+    }
     @fs.write_file(
       root + "/" + name,
       @fs.read_file(
@@ -97,7 +127,14 @@ async fn main {
     ])
   }
   if options.contains("--blockwise-evaluate") {
-    args.append(["--decode-candidate", "452"])
+    args.append([
+      "--decode-candidate",
+      if options.contains("--contracting-decode") {
+        "456"
+      } else {
+        "452"
+      },
+    ])
   } else {
     // The opposite phase must not silently fall back to its static winner
     // when a measured decode table is available in this calibration.
@@ -118,6 +155,19 @@ async fn main {
   if options.contains("--prefill-pair") {
     args.append([
       "--prefill-candidate", "322", "--wide-prefill-candidate", "2001",
+    ])
+  }
+  if projection_folds is Some(path) {
+    @fs.write_file(
+      root + "/projection-folds.records",
+      @fs.read_file(path),
+      create_mode=CreateNew,
+    )
+    args.append([
+      "--projection-folds",
+      root + "/projection-folds.records",
+      sha(root + "/projection-folds.records"),
+      scope[1].to_owned(),
     ])
   }
   args.push("--query-metadata-v1")
@@ -146,7 +196,13 @@ async fn main {
   }
   @fs.write_file(
     root + "/selection-objective.txt",
-    "ingress=prefill-q2048-r8-h2048\nattention=prefill-q2048-r8-h2048\ndecode=" +
+    "ingress=prefill-q2048-r8-h2048\nattention=" +
+    (if options.contains("--explicit-attention") {
+      "explicit-322-wide-2001-evaluation"
+    } else {
+      "prefill-q2048-r8-h2048"
+    }) +
+    "\ndecode=" +
     (if options.contains("--blockwise-evaluate") {
       "explicit-452-evaluation"
     } else {

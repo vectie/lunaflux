@@ -1,0 +1,200 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn recorded(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+  env? : Map[String, String] = {},
+) -> String {
+  let out = @shell.Cmd(exe, args, cwd~, env~).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " passed")
+  out.stdout()
+}
+
+///|
+fn field(source : String, key : String) -> String raise {
+  guard source
+    .split("\n")
+    .filter(x => x.has_prefix("// " + key + "="))
+    .to_array()
+    is [line] else {
+    fail(key)
+  }
+  line.strip_prefix("// " + key + "=").unwrap().trim().to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, completed, diagnostic] else {
+    fail("NEW_ROOT COMPLETED DIAGNOSTIC")
+  }
+  let moon = completed + "/toolchain/bin/moon"
+  guard recorded(root, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty() else {
+    fail("GPU busy")
+  }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+  let selected = @fs.read_file(
+    diagnostic + "/counter-luna-replay/SELECTED_MODULES.txt",
+  ).text()
+  for
+    (name, kind, choices) in [
+      (
+        "output-one",
+        "output",
+        ["output", "2", "4", "1", "1", "1", "0", "255", "1", "16"],
+      ),
+      (
+        "output-two",
+        "output",
+        ["output", "2", "4", "1", "1", "2", "1", "255", "2", "16"],
+      ),
+      ("output-selected", "output", ["output", "small-batch-output"]),
+      (
+        "output-four",
+        "output",
+        ["output", "2", "4", "1", "1", "4", "1", "255", "4", "16"],
+      ),
+      (
+        "output-two-wide",
+        "output",
+        ["output", "2", "8", "1", "1", "2", "1", "255", "2", "16"],
+      ),
+      (
+        "gate-two",
+        "mlp",
+        ["sibling", "2", "4", "1", "1", "2", "0", "2", "255", "16"],
+      ),
+      ("gate-selected", "mlp", ["small-batch-gate"]),
+      (
+        "down-one",
+        "mlp",
+        ["intermediate", "2", "4", "1", "1", "1", "1", "1", "255", "16"],
+      ),
+      (
+        "down-two",
+        "mlp",
+        ["intermediate", "2", "4", "1", "1", "2", "1", "2", "255", "16"],
+      ),
+      (
+        "down-four",
+        "mlp",
+        ["intermediate", "2", "4", "1", "1", "4", "1", "4", "255", "16"],
+      ),
+    ] {
+    let source = recorded(
+      root,
+      "export-" + name,
+      moon,
+      [
+        "run", "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25",
+        "tests/projection_pipeline_cuda_source_probe", "--",
+      ] +
+      choices,
+      cwd=root + "/source",
+      env={
+        "PATH": completed + "/toolchain/bin:/usr/local/cuda/bin:/usr/bin:/bin",
+      },
+    )
+    @fs.write_file(root + "/" + name + ".cu", source, create_mode=CreateNew)
+    ignore(
+      recorded(root, "compile-" + name, "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-std=c++17",
+        "-arch=sm_121",
+        "--fmad=false",
+        "--maxrregcount=255",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        root + "/" + name + ".cu",
+        "-o",
+        root + "/" + name + ".cubin",
+      ]),
+    )
+    guard selected.split("\n").filter(x => x.has_prefix(kind + "=")).to_array()
+      is [original] else {
+      fail(kind)
+    }
+    let old = original.strip_prefix(kind + "=").unwrap().to_owned()
+    let before = if kind == "output" {
+      ["16", "256", "8192", "0", "0", "0"]
+    } else {
+      ["192", "512", "16384", "16", "128", "0"]
+    }
+    let down_groups = if kind == "mlp" {
+      Int::min(4, @string.parse_int(field(source, "ROWS16_DOWN_BLOCK")) / 32)
+    } else {
+      1
+    }
+    let after = [
+        field(source, "ROWS16_PRIMARY_GRID"),
+        field(source, "ROWS16_PRIMARY_BLOCK"),
+        field(source, "ROWS16_PRIMARY_SHARED"),
+      ] +
+      (if kind == "output" {
+        ["0", "0", "0"]
+      } else {
+        [
+          ((1024 + down_groups * 16 - 1) / (down_groups * 16)).to_string(),
+          field(source, "ROWS16_DOWN_BLOCK"),
+          field(source, "ROWS16_DOWN_SHARED"),
+        ]
+      })
+    let probe = diagnostic + "/counter-luna-replay/projection-probe"
+    let args = [kind, old, root + "/" + name + ".cubin", "16", "16"] +
+      before +
+      after
+    ignore(recorded(root, "measure-" + name, probe, args))
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      ignore(
+        recorded(
+          root,
+          name + "-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          ["--tool", tool, "--error-exitcode", "9", probe] + args + ["--check"],
+        ),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=selected row16 projection chain replay; not serving\n",
+    create_mode=CreateNew,
+  )
+}

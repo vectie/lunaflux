@@ -1,0 +1,93 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn columns(line : StringView) -> Array[String] {
+  let fields = []
+  let text = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      fields.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  fields.push(text.to_string())
+  fields
+}
+
+///|
+fn metrics(text : String) -> Map[String, (String, String)] raise {
+  let rows = text
+    .split("\n")
+    .map(columns)
+    .filter(r => r.length() > 10)
+    .to_array()
+  guard rows is [header, units, record, ..] else {
+    fail("one wide NCU record expected")
+  }
+  let result = Map([])
+  for i in 0..<header.length() {
+    result[header[i]] = (record[i], units[i])
+  }
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("PAIRED_COUNTER_ROOT") }
+  let old = metrics(@fs.read_file(root + "/prior.csv").text())
+  let new = metrics(@fs.read_file(root + "/selected.csv").text())
+  let report = StringBuilder()
+  report.write_string("metric\tunit\tprior\tselected\n")
+  for
+    key in [
+      "Grid Size", "Block Size", "gpu__time_duration.sum", "launch__registers_per_thread",
+      "smsp__inst_executed.sum", "smsp__sass_inst_executed_op_shared_ld.sum", "smsp__sass_inst_executed_op_shared_st.sum",
+      "dram__bytes_read.sum", "dram__throughput.avg.pct_of_peak_sustained_elapsed",
+      "sm__warps_active.avg.pct_of_peak_sustained_active", "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct",
+      "smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+      "derived__memory_l1_wavefronts_shared_excessive", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum",
+      "smsp__warps_eligible.avg.per_cycle_active", "smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio",
+      "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio",
+      "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio", "smsp__average_warps_issue_stalled_wait_per_issue_active.ratio",
+      "derived__local_spilling_requests", "derived__local_spilling_requests_pct",
+      "memory_l1_wavefronts_shared", "memory_l1_wavefronts_shared_ideal",
+    ] {
+    guard old.get(key) is Some((a, unit)) && new.get(key) is Some((b, new_unit)) else {
+      continue
+    }
+    assert_eq(unit, new_unit)
+    report.write_string("\{key}\t\{unit}\t\{a}\t\{b}\n")
+  }
+  let remaining = old
+    .keys()
+    .filter(key => {
+      (key.contains("warp_issue_stalled") && key.has_suffix(".pct")) ||
+      key.contains("dram__bytes") ||
+      key.contains("mem_local_op") ||
+      (key.contains("mem_shared_op") && key.has_suffix(".sum"))
+    })
+    .to_array()
+  remaining.sort()
+  for key in remaining {
+    let (a, unit) = old[key]
+    guard new.get(key) is Some((b, new_unit)) else { continue }
+    assert_eq(unit, new_unit)
+    report.write_string("\{key}\t\{unit}\t\{a}\t\{b}\n")
+  }
+  @fs.write_file(
+    root + "/comparison-v3.txt",
+    report.to_string(),
+    create_mode=CreateNew,
+  )
+  println(report.to_string())
+}

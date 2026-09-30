@@ -1,0 +1,117 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(
+  root : String,
+  name : String,
+  executable : String,
+  args : Array[String],
+  cwd? : String = ".",
+) -> Int {
+  let out = @shell.Cmd(executable, args, cwd~).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.exit_code()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, root] else {
+    fail("FAILED_SERVING NEW_DIAGNOSTIC_ROOT")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  @fs.mkdir(root)
+  for name in ["source", "release", "fused-routed"] {
+    @fs.mkdir(root + "/" + name)
+    @shell.Cmd("cp", ["-a", serving + "/" + name + "/.", root + "/" + name]).run()
+  }
+  @shell.Cmd("ln", ["-s", serving + "/toolchain", root + "/toolchain"]).run()
+  for name in ["bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1"] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(serving + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/prepare.mbtx",
+    @fs.read_file(serving + "/prepare-routed.mbtx"),
+    create_mode=CreateNew,
+  )
+  let spawn = root + "/source/internal/process/process_approved_spawn.c"
+  let original = @fs.read_file(spawn).text()
+  let target = "if (close(2) != 0 && errno != EBADF) _exit(126);"
+  assert_eq(original.split(target).to_array().length(), 2)
+  @fs.write_file(
+    spawn,
+    original.replace(
+      old=target,
+      new="/* DIAGNOSTIC ONLY: retain inherited stderr; never deploy. */",
+    ),
+  )
+  let cleanup = root + "/source/engine/device_worker_bootstrap/cleanup.mbt"
+  let original = @fs.read_file(cleanup).text()
+  let target = "let slot = Ref(worker)"
+  assert_eq(original.split(target).to_array().length(), 2)
+  @fs.write_file(
+    cleanup,
+    original.replace(
+      old=target,
+      new="eprintln(@debug.repr(cause))\n  " + target,
+    ),
+  )
+  @fs.write_file(
+    root + "/SCOPE.txt",
+    "Offline startup diagnostic with error rendering and inherited stderr. Not deployable or benchmarkable.\n",
+    create_mode=CreateNew,
+  )
+  let moon = root + "/toolchain/bin/moon"
+  assert_eq(
+    record(
+      root,
+      "build",
+      moon,
+      [
+        "build", "--release", "--target", "native", "--warn-list", "-79-20-29-25",
+        "--diagnostic-limit", "5", "cmd/lunaflux", "cmd/device_worker_child",
+      ],
+      cwd=root + "/source",
+    ),
+    0,
+  )
+  assert_eq(
+    record(root, "diagnostic-materialize", moon, [
+      "run",
+      root + "/prepare.mbtx",
+      root,
+      "materialize",
+    ]),
+    0,
+  )
+  let status = record(root, "diagnostic-serve", moon, [
+    "run",
+    root + "/prepare.mbtx",
+    root,
+    "serve",
+  ])
+  println("startup status=" + status.to_string())
+  println(@fs.read_file(root + "/runtime.stderr").text())
+}

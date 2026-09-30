@@ -78,9 +78,9 @@ async fn main {
     fail("32 GiB reserve")
   }
   let recipe = @fs.read_file(serving + "/decode-selected/kernel.recipe").text()
-  let blockwise = recipe.contains(
-    "partition_numeric_law=blockwise-f32-probability-v1\n",
-  )
+  let blockwise = [
+    "blockwise-f32-probability-v1", "dual-score-blockwise-f32-probability-v2", "blockwise-fma-f32-probability-v3",
+  ].any(law => recipe.contains("partition_numeric_law=" + law + "\n"))
   let root = serving + "/decode-route-measurements"
   @fs.mkdir(root)
   let partial = root + "/partitioned"

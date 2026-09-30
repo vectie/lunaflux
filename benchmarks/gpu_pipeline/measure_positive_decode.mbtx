@@ -1,0 +1,212 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn checked(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+  cwd? : String = ".",
+  env? : Map[String, String] = {},
+) -> String {
+  let result = @shell.Cmd(program, args, cwd~, env~).output(
+    max_output_bytes=67108864,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(label + " passed")
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, completed, diagnostic, .. options] else {
+    fail("NEW_ROOT COMPLETED_BENCHMARK PRIOR_DIAGNOSTIC [--fma]")
+  }
+  guard options.is_empty() || options == ["--fma"] else {
+    fail("unsupported option")
+  }
+  let moon = completed + "/toolchain/bin/moon"
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+  let exported = checked(
+    root,
+    "export",
+    moon,
+    [
+      "test", "kernels/luna_cuda_attention_tile_source", "--target", "native", "--deny-warn",
+      "--warn-list", "-79-20-29-25",
+    ],
+    cwd=root + "/source",
+    env={
+      "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1",
+      "PATH": completed + "/toolchain/bin:/usr/local/cuda/bin:/usr/bin:/bin",
+    },
+  )
+  let baseline = diagnostic + "/counter-luna-replay/partitioned"
+  let probe = if options.is_empty() {
+    diagnostic + "/counter-luna-replay/attention-probe"
+  } else {
+    root + "/attention-probe"
+  }
+  if !options.is_empty() {
+    @fs.write_file(
+      root + "/attention-probe.cu",
+      @fs.read_file(
+        root + "/source/benchmarks/gpu_pipeline/selected_policy_probe.cu",
+      )
+      .text()
+      .replace(
+        old="const int bucket_tokens=selected_bucket_tokens(tokens,decode?max_rows:max_tokens);",
+        new="const int bucket_tokens=decode?max_rows:selected_bucket_tokens(tokens,max_tokens);",
+      ),
+      create_mode=CreateNew,
+    )
+    ignore(
+      checked(root, "build-probe", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-std=c++17",
+        "-arch=sm_121",
+        "-I",
+        root + "/source/benchmarks/gpu_pipeline",
+        root + "/attention-probe.cu",
+        "-lcuda",
+        "-o",
+        probe,
+      ]),
+    )
+  }
+  for block in exported.split("LUNA_PARTIAL_BEGIN ").to_array()[1:] {
+    let parts = block.split("\nLUNA_PARTIAL_SOURCE\n").to_array()
+    guard parts is [header, remainder] else { fail("framing") }
+    let fields = header.split("\n").to_array()
+    let id = fields[0].to_owned()
+    let selected = if options.is_empty() {
+      ["c452-p1", "c452-p2", "c452-p4", "c452-p8", "c454-p8"]
+    } else {
+      ["c456-p1", "c456-p2", "c456-p4", "c456-p8"]
+    }
+    if !selected.contains(id) {
+      continue
+    }
+    let destination = root + "/" + id
+    @fs.mkdir(destination)
+    @fs.write_file(
+      destination + "/kernel.recipe",
+      fields[1:].map(x => x.to_owned()).join("\n") + "\n",
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      destination + "/kernel.cu",
+      remainder.split("\nLUNA_PARTIAL_END").to_array()[0].to_owned(),
+      create_mode=CreateNew,
+    )
+    ignore(
+      checked(root, "compile-" + id, "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-arch=sm_121",
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=128",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        destination + "/kernel.cu",
+        "-o",
+        destination + "/kernel.cubin",
+      ]),
+    )
+    for history in [127, 4095, 8191] {
+      for rows in [1, 8, 16] {
+        ignore(
+          checked(root, "measure-" + id + "-r\{rows}-h\{history}", "docker", [
+            "run",
+            "--rm",
+            "--name",
+            "lunaflux-positive-decode-probe",
+            "--gpus",
+            "all",
+            "--network",
+            "none",
+            "--memory",
+            "8g",
+            "--memory-swap",
+            "8g",
+            "--mount",
+            "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+            "nvcr.io/nvidia/vllm:26.01-py3",
+            probe,
+            completed + "/selected-final/decode.spec",
+            baseline,
+            destination,
+            "\{rows}",
+            "\{rows}",
+            "\{history}",
+          ]),
+        )
+      }
+    }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      ignore(
+        checked(
+          root,
+          id + "-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "9",
+            probe,
+            completed + "/selected-final/decode.spec",
+            baseline,
+            destination,
+            "16",
+            "16",
+            "4095",
+            "--check-only",
+          ],
+        ),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/DECODE_RESULT.txt",
+    "outcome=passed\nscope=exact-bucket synthetic A/B and sanitizer; no serving claim\n",
+    create_mode=CreateNew,
+  )
+}

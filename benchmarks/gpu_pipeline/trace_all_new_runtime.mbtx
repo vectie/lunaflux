@@ -34,10 +34,19 @@ async fn main {
     return
   }
   guard @env.args() is [_, serving, root, .. options] &&
-    (options.is_empty() || options is ["--selected"]) else {
-    fail("COMPLETED_SERVING NEW_EMPTY_ROOT [--selected]")
+    (
+      options.is_empty() ||
+      options is ["--selected"] ||
+      options is ["--selected", "--long-c16"] ||
+      options is ["--selected", "--long-c16-256"]
+    ) else {
+    fail(
+      "COMPLETED_SERVING NEW_EMPTY_ROOT [--selected [--long-c16|--long-c16-256]]",
+    )
   }
-  let selected = options is ["--selected"]
+  let selected = options.contains("--selected")
+  let long_c16 = options.contains("--long-c16") ||
+    options.contains("--long-c16-256")
   guard @fs.read_file(serving + "/RESULT.txt")
     .text()
     .has_prefix("outcome=completed\n") else {
@@ -134,9 +143,31 @@ async fn main {
   }
   let client = @fs.read_file(serving + "/benchmark.mbtx")
     .text()
-    .replace(old="[(128,32),(4096,64),(4096,256)]", new="[(4096,4)]")
-    .replace(old="[1,8,16]", new="[1,16]")
-    .replace(old="0..<4", new="0..<1")
+    .replace(
+      old="[(128,32),(4096,64),(4096,256)]",
+      new=if options.contains("--long-c16-256") {
+        "[(4096,256)]"
+      } else if long_c16 {
+        "[(4096,64)]"
+      } else {
+        "[(4096,4)]"
+      },
+    )
+    .replace(old="[1,8,16]", new=if long_c16 { "[16]" } else { "[1,16]" })
+    .replace(old="0..<4", new=if long_c16 { "0..<2" } else { "0..<1" })
+  let client = if long_c16 {
+    client
+    .replace(
+      old="let started=@async.now()\n        let requests=",
+      new="let epoch=@shell.Cmd(\"date\",[\"+%s%N\"]).output(); epoch.check()\n        let started=@async.now()\n        let requests=",
+    )
+    .replace(
+      old="let result : Json={\"engine\":engine",
+      new="let ended=@shell.Cmd(\"date\",[\"+%s%N\"]).output(); ended.check()\n        let result : Json={\"epoch_start_ns\":epoch.stdout().trim().to_owned(),\"epoch_end_ns\":ended.stdout().trim().to_owned(),\"engine\":engine",
+    )
+  } else {
+    client
+  }
   @fs.write_file(root + "/client.mbtx", client, create_mode=CreateNew)
   let unit = "lunaflux-allnew-trace-" +
     root.split("/").to_array().last().unwrap().to_owned()
@@ -261,8 +292,16 @@ async fn verify_trace(root : String) -> Unit {
         "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
       },
     ) &&
-    kernels.contains(
-      "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
+    (
+      kernels.contains(
+        "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2",
+      ) ||
+      (
+        selected &&
+        kernels.contains(
+          "lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2",
+        )
+      )
     ) else {
     fail("new kernel absent from actual serving launches")
   }

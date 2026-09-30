@@ -1,0 +1,116 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Int64 raise {
+  match value {
+    Number(x, repr~) => @string.parse_int64(repr.unwrap_or(x.to_string()))
+    String(x) => @string.parse_int64(x)
+    _ => fail("integer expected")
+  }
+}
+
+///|
+async fn query(db : String, sql : String) -> Json {
+  let out = @shell.Cmd("sqlite3", ["-readonly", "-json", db, sql]).output(
+    max_output_bytes=33554432,
+  )
+  out.check()
+  @json.parse(if out.stdout().trim().is_empty() { "[]" } else { out.stdout() })
+}
+
+///|
+fn overlap(begin : Int64, end : Int64, left : Int64, right : Int64) -> Int64 {
+  Int64::max(0L, Int64::min(end, right) - Int64::max(begin, left))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, trace, request, output] else {
+    fail("TRACE_ROOT REQUEST_JSON NEW_OUTPUT_FILE")
+  }
+  let db = trace + "/trace.sqlite"
+  guard query(db, "SELECT utcEpochNs FROM TARGET_INFO_SESSION_START_TIME;")
+    is Array([{ "utcEpochNs": epoch, .. }]) else {
+    fail("trace epoch")
+  }
+  guard @json.parse(@fs.read_file(request).text())
+    is { "epoch_start_ns": begin, "epoch_end_ns": end, .. } else {
+    fail("request epoch")
+  }
+  let start = number(begin) - number(epoch)
+  let stop = number(end) - number(epoch)
+  guard query(
+      db,
+      "SELECT k.start,k.end,k.correlationId AS correlation FROM CUPTI_ACTIVITY_KIND_KERNEL k WHERE k.start>=\{start} AND k.end<=\{stop} ORDER BY k.start;",
+    )
+    is Array(kernels) &&
+    !kernels.is_empty() else {
+    fail("request kernels")
+  }
+  guard query(
+      db,
+      "SELECT r.start,r.end,r.correlationId AS correlation FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId WHERE s.value='cuGraphLaunch' AND r.end>=\{start} AND r.start<=\{stop};",
+    )
+    is Array(launches) else {
+    fail("graph launches")
+  }
+  let api : Map[Int64, (Int64, Int64)] = Map([])
+  for row in launches {
+    guard row is { "start": begin, "end": end, "correlation": id, .. } else {
+      fail("launch row")
+    }
+    api[number(id)] = (number(begin), number(end))
+  }
+  let mut previous_end = 0L
+  let mut previous_id = -1L
+  let mut intragraph = 0L
+  let mut intergraph = 0L
+  let mut before_submit = 0L
+  let mut submit = 0L
+  let mut after_submit = 0L
+  let mut unknown = 0L
+  let mut boundaries = 0
+  for row in kernels {
+    guard row is { "start": begin, "end": end, "correlation": id, .. } else {
+      fail("kernel row")
+    }
+    let begin = number(begin)
+    let end = number(end)
+    let id = number(id)
+    if previous_end > 0L && begin > previous_end {
+      let gap = begin - previous_end
+      if previous_id == id {
+        intragraph += gap
+      } else {
+        intergraph += gap
+        boundaries += 1
+        match api.get(id) {
+          Some((api_begin, api_end)) => {
+            before_submit += overlap(
+              previous_end, begin, previous_end, api_begin,
+            )
+            submit += overlap(previous_end, begin, api_begin, api_end)
+            after_submit += overlap(previous_end, begin, api_end, begin)
+          }
+          None => unknown += gap
+        }
+      }
+    }
+    if end > previous_end {
+      previous_end = end
+      previous_id = id
+    }
+  }
+  assert_eq(intergraph, before_submit + submit + after_submit + unknown)
+  let summary = "scope=kernel-gap correlation, not summed host waits or proof of idle device\nrequest_start_ns=\{start}\nrequest_end_ns=\{stop}\nlaunches=\{launches.length()}\nintergraph_boundaries=\{boundaries}\nintragraph_gap_ns=\{intragraph}\nintergraph_gap_ns=\{intergraph}\nbefore_next_submit_ns=\{before_submit}\ninside_next_submit_ns=\{submit}\nafter_next_submit_ns=\{after_submit}\nunmatched_gap_ns=\{unknown}\n"
+  @fs.write_file(output, summary, create_mode=CreateNew)
+  println(summary)
+}

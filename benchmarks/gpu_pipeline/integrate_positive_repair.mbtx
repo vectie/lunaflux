@@ -1,0 +1,197 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn recorded(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " passed")
+  out.stdout()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+fn median(text : String, field : String) -> Int64 raise {
+  let values : Array[Double] = []
+  for
+    line in text
+    .split("\n")
+    .filter(x => x.has_prefix("tokens=") && x.contains(" part=0 ")) {
+    values.push(
+      @string.parse_double(
+        line
+        .split(" ")
+        .find_first(x => x.has_prefix(field + "="))
+        .unwrap()
+        .strip_prefix(field + "=")
+        .unwrap(),
+      ),
+    )
+  }
+  assert_eq(values.length(), 5)
+  values.sort()
+  (values[2] * 1000.0).to_int64()
+}
+
+///|
+fn generated_source(text : String) -> String {
+  text.split("// RECIPE-BEGIN").to_array()[0]
+  .split("\n")
+  .filter(x => !x.has_prefix("// PROBE_") && !x.has_prefix("// ROWS"))
+  .to_array()
+  .join("\n")
+  .trim_end()
+  .to_owned() +
+  "\n"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, base, physical, .. options] &&
+    options.all(x => x == "--contracting-decode") else {
+    fail(
+      "PREPARED_SOURCE_ROOT PRIOR_BENCHMARK EXACT_PROJECTION_CAMPAIGN [--contracting-decode]",
+    )
+  }
+  let moon = root + "/toolchain/bin/moon"
+  for
+    name in [
+      "toolchain.v1", "convert.stdout", "bind.stdout", "prepare-spark.mbtx", "benchmark.mbtx",
+      "measure.mbtx", "summarize.mbtx", "compare-outputs.mbtx", "selected_policy_probe.cu",
+      "selected_policy_geometry.h",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @shell.Cmd("ln", ["-s", base + "/calibration", root + "/calibration"]).run()
+  @shell.Cmd("ln", ["-s", base + "/fused-full", root + "/fused-full"]).run()
+  let records = StringBuilder()
+  records.write_string(
+    "luna-projection-fold-v3\nscope\tperf-v1:gb10-sm121-sm48-unified128g-clockdefault-powerdefault\t" +
+    sha(root + "/toolchain.v1") +
+    "\n",
+  )
+  for
+    (label, baseline, choice) in [
+      (
+        "output-selected", "867ca7b2e549f4eca2ccb17d54e293bd1272c16ee0dfe9be36d6d629c73ac6c8",
+        "matrix:2:4:1:4:4:1,matrix:2:4:1:1:2:1:2:16",
+      ),
+      (
+        "gate-selected", "d89f59217fc573d233b3e6427c5231fc0f59a457b03d9b19e62f9432a4e8da31",
+        "intermediate:2:4:1:8:0:1,sibling:2:4:1:1:2:0:2:16",
+      ),
+    ] {
+    @fs.write_file(
+      root + "/" + label + ".cu",
+      generated_source(@fs.read_file(physical + "/" + label + ".cu").text()),
+      create_mode=CreateNew,
+    )
+    let digest = sha(root + "/" + label + ".cu")
+    let timings = @fs.read_file(physical + "/measure-" + label + ".stdout").text()
+    let old = median(timings, "old_us")
+    let improved = median(timings, "new_us")
+    guard improved * 100L < old * 98L else {
+      fail("no meaningful chain gain: " + label)
+    }
+    records.write_string(
+      "record\t\{baseline}\t\{baseline}\t\{old}\t5\t-\nrecord\t\{baseline}\t\{digest}\t\{improved}\t5\t\{choice}\n",
+    )
+  }
+  @fs.write_file(
+    root + "/projection-folds-final.records",
+    records.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/projection-objective.txt",
+    "MLP objective=16 tokens/16 rows exact prior selected chain; global down schedule preserved; bounded gate/up product selected only through rows16. Output objective unchanged from prior long-prefill calibration.\n",
+    create_mode=CreateNew,
+  )
+  @fs.mkdir(root + "/selected-final")
+  let export_args = [
+    "run",
+    root + "/source/benchmarks/gpu_pipeline/export_measured_serving.mbtx",
+    root,
+    root + "/calibration",
+    root + "/selected-final",
+    "--prefill-pair",
+    "--explicit-attention",
+    "--blockwise-evaluate",
+  ]
+  export_args.append(options.to_owned())
+  export_args.append([
+    "--projection-folds",
+    root + "/projection-folds-final.records",
+  ])
+  ignore(recorded(root, "export-final", moon, export_args))
+  for
+    (operation, label) in [
+      ("op_00000006_dense_projection", "output-selected"),
+      ("op_00000009_gated_mlp", "gate-selected"),
+    ] {
+    assert_eq(
+      @fs.read_file(
+        root +
+        "/selected-final/selected/candidate-root/sources/" +
+        operation +
+        ".cu",
+      ).text(),
+      @fs.read_file(root + "/" + label + ".cu").text(),
+      msg="diagnostic choice must propagate unchanged into production export",
+    )
+  }
+  @fs.write_file(
+    root + "/bind-final.mbtx",
+    @fs.read_file(base + "/bind-final.mbtx"),
+    create_mode=CreateNew,
+  )
+  ignore(
+    recorded(root, "bind-campaign", moon, [
+      "run",
+      root + "/bind-final.mbtx",
+      root,
+    ]),
+  )
+  @shell.Cmd("ln", ["-s", root + "/release-final", root + "/release"]).run()
+  @shell.Cmd("ln", [
+    "-s",
+    root + "/selected-final/selected",
+    root + "/candidate",
+  ]).run()
+  @fs.write_file(
+    root + "/BUILD_RESULT.txt",
+    "outcome=passed\nprojection propagation=exact source equality and regenerated digest\n",
+    create_mode=CreateNew,
+  )
+}

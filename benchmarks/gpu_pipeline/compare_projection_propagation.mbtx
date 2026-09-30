@@ -1,0 +1,23 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, diagnostic, measured] else {
+    fail("DIAGNOSTIC_ROOT MEASURED_SOURCE")
+  }
+  let text = @fs.read_file(diagnostic + "/selected-export.stdout").text()
+  let actual = text.split("diagnostic-source-begin\n").to_array()[1]
+    .split("\ndiagnostic-source-end")
+    .to_array()[0]
+  @fs.write_file(diagnostic + "/actual.cu", actual, create_mode=CreateNew)
+  let out = @shell.Cmd("diff", ["-u", measured, diagnostic + "/actual.cu"]).output(
+    max_output_bytes=1048576,
+  )
+  println(out.stdout())
+}

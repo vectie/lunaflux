@@ -46,7 +46,9 @@ struct Kernel {
     CK(cuModuleLoad(&module,(root+"/kernel.cubin").c_str()));
     CK(cuModuleGetFunction(&function,module,r.at(postprocess?"symbol":"function_symbol").c_str()));
     if(r.count("merge_function_symbol")) {
-      if(!decode || gz<=1 || r.at("numeric_law")!="blockwise-f32-probability-v1")std::exit(1);
+      if(!decode || gz<=1 || (law!="blockwise-f32-probability-v1" &&
+          law!="dual-score-blockwise-f32-probability-v2" &&
+          law!="blockwise-fma-f32-probability-v3"))std::exit(1);
       CK(cuModuleGetFunction(&merge,module,r.at("merge_function_symbol").c_str()));
       auto bytes=std::stoull(r.at("workspace_bytes"));
       if(bytes==0 || bytes>16777216)std::exit(1);

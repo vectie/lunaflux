@@ -1,0 +1,129 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+// Snapshot only explicitly supplied, idle diagnostic roots. Unreadable files
+// from failed privileged captures are listed as exclusions, never mutated.
+async fn main {
+  guard @env.args() is [_, destination, .. roots] && roots.length() > 0 else {
+    fail("NEW_ARCHIVE_DIRECTORY DIAGNOSTIC_ROOT...")
+  }
+  guard !@fs.exists(destination) else { fail("non-overwriting archive") }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else {
+    fail("GPU campaign still active")
+  }
+  @fs.mkdir(destination)
+  let parts = roots[0].split("/").to_array()
+  let parent = parts[:parts.length() - 1].join("/")
+  let files : Array[String] = []
+  let excluded : Array[String] = []
+  for root in roots {
+    guard root.has_prefix(parent + "/") &&
+      root.split("/").to_array().length() == parts.length() else {
+      fail("common explicit parent required")
+    }
+    let found = @shell.Cmd("find", [root, "-type", "f"]).output(
+      max_output_bytes=16777216,
+    )
+    found.check()
+    for path in found.stdout().split("\n").filter(s => !s.is_empty()) {
+      let relative = path.strip_prefix(parent + "/").unwrap().to_owned()
+      if relative
+        .split("/")
+        .any(x => {
+          x == "_build" ||
+          x == ".mooncakes" ||
+          x == "toolchain" ||
+          x == "source" ||
+          x == ".git"
+        }) {
+        excluded.push(relative)
+      } else {
+        let readable = @shell.Cmd("test", ["-r", path.to_owned()]).output()
+        if readable.exit_code() == 0 {
+          files.push(relative)
+        } else {
+          excluded.push(relative)
+        }
+      }
+    }
+  }
+  files.sort()
+  excluded.sort()
+  guard files.length() > 0 else { fail("empty snapshot") }
+  @fs.write_file(
+    destination + "/FILES.txt",
+    files.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    destination + "/EXCLUDED.txt",
+    excluded.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  // Large compiler frontiers can exceed exec's argument-size limit. Bound
+  // each host command without changing the sorted inventory or digest format.
+  let hashes = StringBuilder()
+  for first = 0; first < files.length(); {
+    let last = Int::min(first + 256, files.length())
+    let batch = @shell.Cmd(
+      "sha256sum",
+      files[first:last].to_owned(),
+      cwd=parent,
+    ).output(max_output_bytes=16777216)
+    batch.check()
+    hashes.write_string(batch.stdout())
+    continue last
+  }
+  @fs.write_file(
+    destination + "/FILES.sha256",
+    hashes.to_string(),
+    create_mode=CreateNew,
+  )
+  let archive = destination + "/gap-repairs.tar.gz"
+  let args = [
+    "-czf",
+    archive,
+    "-C",
+    parent,
+    "-T",
+    destination + "/FILES.txt",
+    "-C",
+    destination,
+    "FILES.txt",
+    "FILES.sha256",
+    "EXCLUDED.txt",
+  ]
+  @fs.write_file(
+    destination + "/command.json",
+    Json(["tar"] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  let tar = @shell.Cmd("tar", args).output()
+  @fs.write_file(
+    destination + "/tar.stderr",
+    tar.stderr(),
+    create_mode=CreateNew,
+  )
+  tar.check()
+  let hash = @shell.Cmd("sha256sum", [archive]).output()
+  hash.check()
+  @fs.write_file(
+    destination + "/SHA256.txt",
+    hash.stdout(),
+    create_mode=CreateNew,
+  )
+  println(
+    "files=\{files.length()} excluded=\{excluded.length()}\n" + hash.stdout(),
+  )
+}
