@@ -88,6 +88,27 @@ test "CUDA AOT compiler purely composes functional and device stages" {
     ),
   )
   assert_eq(first.digest().as_hex().length(), 64)
+  let measured = compile_cuda_attention_tile_aot_frontier(request, records)
+  let legal = compile_cuda_attention_tile_aot_frontier(request, [])
+  let alternative = legal
+    .variants()
+    .filter(v => v.functional().plan().candidate().stable_id() != 310)[0]
+  let alternate_id = alternative.functional().plan().candidate().stable_id()
+  let evaluated = compile_cuda_attention_tile_aot_frontier(
+    request,
+    records,
+    previous=measured,
+    explicit_candidate=alternate_id,
+  )
+  assert_eq(
+    evaluated.selected().functional().plan().candidate().stable_id(),
+    alternate_id,
+  )
+  assert_true(evaluated.variants().length() > 1)
+  assert_eq(
+    measured.selected().functional().plan().candidate().stable_id(),
+    310,
+  )
   let budget = @luna_attention_tile_compiler.AttentionResourceBudget::new(
     units=36,
     threads_per_unit=1536,

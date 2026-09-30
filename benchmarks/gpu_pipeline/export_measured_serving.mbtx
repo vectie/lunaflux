@@ -101,7 +101,7 @@ async fn main {
   }
   if options.contains("--prefill-pair") {
     args.append([
-      "--prefill-candidate", "318", "--wide-prefill-candidate", "2001",
+      "--prefill-candidate", "322", "--wide-prefill-candidate", "2001",
     ])
   }
   args.push("--query-metadata-v1")

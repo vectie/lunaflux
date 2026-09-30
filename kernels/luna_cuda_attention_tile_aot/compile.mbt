@@ -73,8 +73,15 @@ pub fn compile_cuda_attention_tile_aot_frontier(
   previous? : CudaAttentionTileAotFrontier,
   explicit_candidate? : Int,
 ) -> CudaAttentionTileAotFrontier raise CudaAttentionTileAotError {
+  // Measured selection may collapse the ordinary frontier to one schedule.
+  // Explicit offline evaluation retains the legal alternatives instead; it
+  // does not fabricate an observation overriding the measured winner.
+  let input = if explicit_candidate is Some(_) {
+    request.functional_request([])
+  } else {
+    request.functional_request(autotune_records)
+  }
   let functional = try {
-    let input = request.functional_request(autotune_records)
     match previous {
       Some(previous) =>
         @luna_attention_tile_compiler.compile_attention_tile_frontier_incremental(
@@ -89,7 +96,7 @@ pub fn compile_cuda_attention_tile_aot_frontier(
   }
   let functional = match explicit_candidate {
     Some(id) =>
-      functional.specialize(request.functional_request(autotune_records), id) catch {
+      functional.specialize(input, id) catch {
         _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
       }
     None => functional
