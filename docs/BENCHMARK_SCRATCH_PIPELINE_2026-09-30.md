@@ -1,8 +1,9 @@
 # Scratch lifetime reuse and decode readiness pipelines
 
 This follow-up implements the source-level diagnosis rather than adding another
-IR layer or forcing a new kernel family to win. End-to-end and fresh pinned
-reference measurements are recorded below when their terminal runs complete.
+IR layer or forcing a new kernel family to win. Completed end-to-end and fresh
+pinned reference measurements are recorded below. It does not close every gap
+identified in the source review.
 
 ## Changes
 
@@ -195,11 +196,23 @@ instructions, 809.824 → 825.152 µs profiled time, 43.75% → 42.98% tensor
 activity, zero local load/store sectors. A single profiled replay cannot establish
 a 1.9% regression; it does show no large reduction in supporting instructions.
 
-Thus ingress improved, but unchanged attention/MLP/head execution and the
-concurrent serving graph still dominate the remaining gap. More IR layers alone
-will not remove it. The schedule space still needs geometry independent of
-headwise epilogue ownership, a lower-overhead attention realization, and
-workload-specific full-chain selection. No parity or production promotion is
+Thus ingress improved, but this capture does not account for the whole serving
+gap. Attention/MLP/head execution and the concurrent serving graph remain to be
+attributed with a fresh full-model timeline; unchanged source alone is not proof
+of their precise shares. More IR layers alone will not remove the known
+schedule/lowering costs. Remaining work is explicit:
+
+- Row64 ingress is larger, but still headwise: complete independence between
+  GEMM geometry and epilogue ownership is not implemented by scratch reuse.
+- Async c322 is selected, but supporting attention instructions remain high.
+  KV128 and a separately approved fast exponential contract are not added here.
+- Blockwise partial+merge exists and passes probes/sanitizers, but its new
+  numerical ABI is not a production split route. It needs full-chain comparison
+  with existing split decode before binding.
+- Workload-scoped measurements exist; automatic per-cell serving dispatch is
+  not implemented by the offline selector.
+
+No parity, complete removal of the diagnosed gaps, or production promotion is
 claimed.
 
 ## Saved results
