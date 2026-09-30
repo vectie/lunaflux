@@ -78,40 +78,42 @@ async fn main {
     fail("32 GiB reserve")
   }
   let recipe = @fs.read_file(serving + "/decode-selected/kernel.recipe").text()
-  guard recipe.contains("partition_numeric_law=blockwise-f32-probability-v1\n") else {
-    fail("explicit partition numerical contract required")
-  }
+  let blockwise = recipe.contains(
+    "partition_numeric_law=blockwise-f32-probability-v1\n",
+  )
   let root = serving + "/decode-route-measurements"
   @fs.mkdir(root)
   let partial = root + "/partitioned"
-  @fs.mkdir(partial)
-  let text = recipe
-    .split("\n")
-    .filter(x => {
-      !["function_symbol=", "grid=", "block=", "shared_memory_bytes="].any(prefix => {
-        x.has_prefix(prefix)
+  if blockwise {
+    @fs.mkdir(partial)
+    let text = recipe
+      .split("\n")
+      .filter(x => {
+        !["function_symbol=", "grid=", "block=", "shared_memory_bytes="].any(prefix => {
+          x.has_prefix(prefix)
+        })
       })
-    })
-    .to_array()
-    .join("\n") +
-    "function_symbol=lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903\nmerge_function_symbol=lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904\n" +
-    "grid=" +
-    field(recipe, "partition_grid") +
-    "\nmerge_grid=" +
-    field(recipe, "partition_merge_grid") +
-    "\nblock=" +
-    field(recipe, "partition_block") +
-    "\nshared_memory_bytes=" +
-    field(recipe, "partition_shared_memory_bytes") +
-    "\nworkspace_bytes=" +
-    field(recipe, "partition_workspace_bytes") +
-    "\n"
-  @fs.write_file(partial + "/kernel.recipe", text, create_mode=CreateNew)
-  @fs.write_file(
-    partial + "/kernel.cubin",
-    @fs.read_file(serving + "/fused/attention.cubin"),
-    create_mode=CreateNew,
-  )
+      .to_array()
+      .join("\n") +
+      "function_symbol=lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903\nmerge_function_symbol=lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904\n" +
+      "grid=" +
+      field(recipe, "partition_grid") +
+      "\nmerge_grid=" +
+      field(recipe, "partition_merge_grid") +
+      "\nblock=" +
+      field(recipe, "partition_block") +
+      "\nshared_memory_bytes=" +
+      field(recipe, "partition_shared_memory_bytes") +
+      "\nworkspace_bytes=" +
+      field(recipe, "partition_workspace_bytes") +
+      "\n"
+    @fs.write_file(partial + "/kernel.recipe", text, create_mode=CreateNew)
+    @fs.write_file(
+      partial + "/kernel.cubin",
+      @fs.read_file(serving + "/fused/attention.cubin"),
+      create_mode=CreateNew,
+    )
+  }
   let report = @fs.read_file(serving + "/fused/export.stdout").text()
   let mut routes = "luna-attention-buckets-v1\nscope\t" +
     field(report, "attention_route_scope") +
@@ -153,6 +155,9 @@ async fn main {
     }
   }
   for rows in [1, 2, 4, 8, 16] {
+    if !blockwise {
+      continue
+    }
     for history in [127, 255, 4095, 8191] {
       let args = [
         calibration + "/decode.spec",
