@@ -210,7 +210,9 @@ fn qwen_fused_production_recipe(
     qualification.dimensions.grid_x().to_string() +
     "," +
     qualification.dimensions.grid_y().to_string() +
-    ",1\nshared_memory_bytes=0\ndiagnostic_canary=absent\n" +
+    ",1\nshared_memory_bytes=" +
+    qualification.dimensions.shared_memory_bytes().to_string() +
+    "\ndiagnostic_canary=absent\n" +
     fused_compiler_record(qualification.compiler) +
     "tile_program_sha256=" +
     qualification.tile_compilation.program().digest().as_hex() +
@@ -282,6 +284,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   limits : FusedParallelAotLimits,
   fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
   ingress_policy? : @resource_policy.Policy,
+  maximum_shared_bytes? : Int64 = 49152L,
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError {
   let profile = qkv_fallback.profile()
   fused_validate_common(profile, target, compiler)
@@ -376,9 +379,8 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     tile_compilation.schedule().single_row_reduction() != StridedPairwiseDot(32) {
     raise FusedParallelMismatch(Operation)
   }
-  // Static CUDA shared storage must fit without a dynamic-memory opt-in. The
-  // generic compiler may describe larger rings; this backend rejects them
-  // rather than silently dropping the supplied offline scheduling choice.
+  // An explicit offline device budget admits larger shared arenas. Above the
+  // portable static limit the recipe requires startup's CUDA dynamic opt-in.
   guard tile_compilation.schedule().matrix_pipeline() is Some(pipeline) else {
     raise FusedParallelUnsupported(StaticResources)
   }
@@ -397,10 +399,12 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     pipeline.stage_count(),
     columns.geometry().3,
   ).allocation_bytes()
-  if shared_bytes > 49152L {
+  if shared_bytes > maximum_shared_bytes || maximum_shared_bytes > 98304L {
     raise FusedParallelUnsupported(StaticResources)
   }
-  guard qwen_ingress_policies(tile_compilation).contains(ingress_policy) else {
+  guard qwen_ingress_policies(tile_compilation, maximum_shared_bytes~).contains(
+    ingress_policy,
+  ) else {
     raise FusedParallelUnsupported(StaticResources)
   }
   let physical_program = qwen_refine_physical(tile_compilation, ingress_policy)
@@ -416,7 +420,11 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
     block_x=FUSED_PARALLEL_THREADS,
     block_y=1,
     block_z=1,
-    shared_memory_bytes=0,
+    shared_memory_bytes=if shared_bytes > 49152L {
+      shared_bytes.to_int()
+    } else {
+      0
+    },
   ) catch {
     _ => raise FusedParallelUnsupported(StaticResources)
   }

@@ -9,6 +9,7 @@ fn qwen_fused_test_candidate(
   export_projection? : Bool = false,
   fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
   ingress_policy? : @resource_policy.Policy,
+  maximum_shared_bytes? : Int64 = 49152L,
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise {
   let model = @qwen3_spec.Qwen3ModelSpec::new(
     vocabulary_size=1024,
@@ -183,6 +184,7 @@ fn qwen_fused_test_candidate(
     fused_test_limits(),
     fold_choices~,
     ingress_policy?,
+    maximum_shared_bytes~,
   )
 }
 

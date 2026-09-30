@@ -77,7 +77,12 @@ pub fn select(
           budget,
           Some(record.registers),
           Some(record.residency),
-        ) {
+        ) ||
+        (match (budget.machine_limits, record.machine_work) {
+          (None, _) => false
+          (Some(limits), Some(work)) => !work.fits(limits)
+          (Some(_), None) => true
+        }) {
         continue
       }
       let better = match measured {
@@ -93,12 +98,8 @@ pub fn select(
           origin: Measured(latency_ns=record.latency, samples=record.samples),
         })
       }
-    } else if eligible(
-        candidate,
-        budget,
-        candidate.registers,
-        candidate.residency,
-      ) {
+    } else if budget.machine_limits is None &&
+      eligible(candidate, budget, candidate.registers, candidate.residency) {
       if candidate.policy.id == preferred_id {
         preferred = Some(candidate)
       }

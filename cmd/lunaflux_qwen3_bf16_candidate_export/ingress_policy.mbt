@@ -9,6 +9,7 @@ fn prepare_qwen_ingress_resource_variants(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   baseline : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
   production : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+  maximum_shared_bytes? : Int64 = 49152L,
 ) -> ReadOnlyArray[
   @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
 ] raise Qwen3Bf16CandidateExportCliError {
@@ -23,6 +24,7 @@ fn prepare_qwen_ingress_resource_variants(
   for
     policy in @luna_cuda_fused_parallel_aot.qwen_ingress_policies(
       baseline.tile_compilation(),
+      maximum_shared_bytes~,
     ) {
     if policy == production.ingress_policy() {
       continue
@@ -38,6 +40,7 @@ fn prepare_qwen_ingress_resource_variants(
       set.compiler_policy(),
       limits,
       ingress_policy=policy,
+      maximum_shared_bytes~,
     ) catch {
       _ => raise QwenIngressPreparation
     }
@@ -83,11 +86,14 @@ fn select_qwen_ingress_resource_variant(
   ) catch {
     _ => raise QwenIngressPreparation
   }
-  let budget = @luna_cuda_fused_parallel_aot.qwen_ingress_resource_budget().intersect(
-    @luna_projection_tuning.parse_projection_resource_budget(bytes) catch {
-      _ => raise QwenIngressPreparation
-    },
-  )
+  let observed_budget = @luna_projection_tuning.parse_projection_resource_budget(
+    bytes,
+  ) catch {
+    _ => raise QwenIngressPreparation
+  }
+  let budget = @luna_cuda_fused_parallel_aot.qwen_ingress_resource_budget(
+    maximum_shared_bytes=Int64::min(98304L, observed_budget.max_shared_bytes()),
+  ).intersect(observed_budget)
   // Do not replace an unmeasured baseline solely because some alternative has
   // a measurement. A matched baseline is needed for a comparable selection.
   guard @resource_policy.select(
@@ -103,7 +109,16 @@ fn select_qwen_ingress_resource_variant(
   guard reference.origin() is Measured(..) else {
     return (baseline, UnmeasuredPreferred)
   }
-  let candidates = variants.map(v => v.resource_candidate())
+  // A larger target frontier is not a larger claim of measured coverage.
+  // Select only identities present in the bounded, exact-artifact table.
+  let measured_identities = observations.map(o => o.identity())
+  let candidates = variants
+    .filter(v => {
+      measured_identities.contains(
+        (v.ingress_policy().id(), v.source_digest().as_hex()),
+      )
+    })
+    .map(v => v.resource_candidate())
   guard @resource_policy.select(
       scope,
       budget,

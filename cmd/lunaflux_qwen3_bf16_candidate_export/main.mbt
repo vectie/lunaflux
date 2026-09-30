@@ -68,6 +68,7 @@ async fn run_qwen3_candidate_export(
       arguments.toolchain_sha256,
     ),
     ingress_policy_search=arguments.ingress_policy_search,
+    ingress_shared_limit=arguments.ingress_shared_limit,
     query_metadata=arguments.query_metadata,
   )
   let evidence = @luna_bf16_candidate_export.export_new(
@@ -192,23 +193,20 @@ async fn run_qwen3_candidate_export(
   }
   let decode_root = arguments.absolute_new_output +
     "/reusable-qwen-decode-attention"
-  write_new_candidate_pair(
-    decode_root,
-    qwen_fused.attention_decode.source().bytes(),
-    qwen_compiler_attention_recipe(
-      qwen_fused.first_operation + 3,
-      "paged-attention-decode-functional-tile",
-      set,
-      qwen_fused.attention_decode,
-      frontier_sha256=qwen_fused.attention_decode_frontier.digest().as_hex(),
-      variant_stable_id=qwen_fused.attention_decode
-        .functional()
-        .plan()
-        .candidate()
-        .stable_id(),
-    ),
+  let (decode_source, decode_recipe) = qwen_decode_module_pair(
+    qwen_fused.first_operation + 3,
+    set,
+    layout,
+    qwen_fused.attention_decode,
+    qwen_fused.attention_decode_frontier.digest().as_hex(),
   )
-  publish_decode_frontier(arguments.absolute_new_output, set, qwen_fused) catch {
+  write_new_candidate_pair(decode_root, decode_source, decode_recipe)
+  publish_decode_frontier(
+    arguments.absolute_new_output,
+    set,
+    layout,
+    qwen_fused,
+  ) catch {
     _ => raise Publication
   }
   let decode_split_root = arguments.absolute_new_output +

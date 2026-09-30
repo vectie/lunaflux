@@ -64,6 +64,7 @@ fn qwen_ingress_policy(
 /// CUDA kernel's 128-thread ABI; accumulator windows are independently legal.
 pub fn qwen_ingress_policies(
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
+  maximum_shared_bytes? : Int64 = 49152L,
 ) -> ReadOnlyArray[@resource_policy.Policy] {
   guard compilation.schedule().fuses_attention_ingress_epilogue() else {
     return []
@@ -99,7 +100,7 @@ pub fn qwen_ingress_policies(
                 stages,
                 windows,
               ).allocation_bytes()
-              if shared > 49152L {
+              if shared > maximum_shared_bytes {
                 continue
               }
               let policy = qwen_ingress_policy(
@@ -190,10 +191,12 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::resource_candidate(
 /// Static shared storage needs no opt-in and the kernel ABI fixes the thread
 /// count. Register/residency limits must be supplied with target observations;
 /// this default imposes neither and does not claim a measured register count.
-pub fn qwen_ingress_resource_budget() -> @resource_policy.ResourceBudget {
+pub fn qwen_ingress_resource_budget(
+  maximum_shared_bytes? : Int64 = 49152L,
+) -> @resource_policy.ResourceBudget {
   @resource_policy.ResourceBudget::new(
     max_threads=FUSED_PARALLEL_THREADS,
-    max_shared_bytes=49152L,
+    max_shared_bytes=maximum_shared_bytes,
     max_registers_per_thread=None,
     min_resident_groups=None,
   ).unwrap()

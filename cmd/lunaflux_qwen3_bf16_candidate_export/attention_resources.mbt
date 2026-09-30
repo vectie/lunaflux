@@ -38,21 +38,22 @@ fn qwen_attention_resource_request(
 async fn publish_decode_frontier(
   output : String,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
+  layout : @device_layout.DeviceKvLayout,
   fused : QwenFusedProductionSet,
 ) -> Unit {
   for variant in fused.attention_decode_frontier.variants() {
     let id = variant.functional().plan().candidate().stable_id()
+    let (source, recipe) = qwen_decode_module_pair(
+      fused.first_operation + 3,
+      set,
+      layout,
+      variant,
+      fused.attention_decode_frontier.digest().as_hex(),
+    )
     write_new_candidate_pair(
       output + "/reusable-qwen-decode-attention-c" + id.to_string(),
-      variant.source().bytes(),
-      qwen_compiler_attention_recipe(
-        fused.first_operation + 3,
-        "paged-attention-decode-functional-tile",
-        set,
-        variant,
-        frontier_sha256=fused.attention_decode_frontier.digest().as_hex(),
-        variant_stable_id=id,
-      ),
+      source,
+      recipe,
     )
   }
 }

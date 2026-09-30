@@ -13,7 +13,8 @@ pub fn parse_projection_resource_records(
     is [version, scope_line, _, .. all_lines, ""] &&
     (
       version == "luna-projection-resources-v1" ||
-      version == "luna-projection-resources-v2"
+      version == "luna-projection-resources-v2" ||
+      version == "luna-projection-resources-v3"
     ) &&
     scope_line.split("\t").to_array()
     is ["scope", device, toolchain, shape, program] else {
@@ -27,7 +28,11 @@ pub fn parse_projection_resource_records(
   )
   guard actual == Some(scope) else { raise ScopeMismatch }
   let selected_scope = projection_resource_selection_scope(bytes, scope~)
-  let lines = if version == "luna-projection-resources-v2" {
+  let lines = if version == "luna-projection-resources-v3" {
+    guard all_lines.length() >= 4 else { raise InvalidSnapshot }
+    all_lines[3:]
+  } else if version == "luna-projection-resources-v2" {
+    guard all_lines.length() >= 3 else { raise InvalidSnapshot }
     all_lines[2:]
   } else {
     all_lines
@@ -40,12 +45,32 @@ pub fn parse_projection_resource_records(
   let identities : Array[(String, String)] = []
   for line in lines {
     guard line.split("\t").to_array()
-      is ["record", policy, artifact, latency, samples, registers, residency] &&
+      is [
+        "record",
+        policy,
+        artifact,
+        latency,
+        samples,
+        registers,
+        residency,
+        .. machine,
+      ] &&
       fold_digest(artifact) else {
       raise InvalidSnapshot
     }
     let identity = (policy.to_owned(), artifact.to_owned())
     guard !identities.contains(identity) else { raise InvalidSnapshot }
+    let machine_work = match (version, machine) {
+      ("luna-projection-resources-v3", [instructions, local_bytes, barriers]) =>
+        @resource_policy.MachineWork::new(
+          instructions=nonnegative(instructions),
+          local_bytes=nonnegative(local_bytes),
+          barriers=nonnegative(barriers),
+        )
+      ("luna-projection-resources-v3", _) => raise InvalidSnapshot
+      (_, []) => None
+      _ => raise InvalidSnapshot
+    }
     guard @resource_policy.Observation::new(
         selected_scope,
         policy_id=identity.0,
@@ -54,6 +79,7 @@ pub fn parse_projection_resource_records(
         samples=integer(samples),
         registers_per_thread=integer(registers),
         resident_groups=integer(residency),
+        machine_work~,
       )
       is Some(record) else {
       raise InvalidSnapshot
@@ -75,17 +101,33 @@ pub fn parse_projection_resource_budget(
   guard text.split("\n").to_array() is [version, _, budget, .., ""] &&
     (
       version == "luna-projection-resources-v1" ||
-      version == "luna-projection-resources-v2"
+      version == "luna-projection-resources-v2" ||
+      version == "luna-projection-resources-v3"
     ) &&
     budget.split("\t").to_array()
     is ["budget", threads, shared, registers, resident] else {
     raise InvalidSnapshot
+  }
+  let machine_limits = if version == "luna-projection-resources-v3" {
+    guard text.split("\n").to_array() is [_, _, _, _, _, work, .., ""] &&
+      work.split("\t").to_array()
+      is ["machine-budget", instructions, local_bytes, barriers] else {
+      raise InvalidSnapshot
+    }
+    @resource_policy.MachineWork::new(
+      instructions=nonnegative(instructions),
+      local_bytes=nonnegative(local_bytes),
+      barriers=nonnegative(barriers),
+    )
+  } else {
+    None
   }
   guard @resource_policy.ResourceBudget::new(
       max_threads=integer(threads),
       max_shared_bytes=decimal(shared),
       max_registers_per_thread=Some(integer(registers)),
       min_resident_groups=Some(integer(resident)),
+      machine_limits~,
     )
     is Some(value) else {
     raise InvalidSnapshot
@@ -107,7 +149,9 @@ pub fn projection_resource_selection_scope(
   let text = @utf8.decode(bytes) catch { _ => raise InvalidSnapshot }
   match text.split("\n").to_array() {
     ["luna-projection-resources-v1", .., ""] => scope
-    ["luna-projection-resources-v2", _, _, workload, provenance, .., ""] => {
+    [version, _, _, workload, provenance, .., ""] if version ==
+      "luna-projection-resources-v2" ||
+      version == "luna-projection-resources-v3" => {
       guard workload.split("\t").to_array()
         is [
           "workload",
@@ -138,5 +182,14 @@ pub fn projection_resource_selection_scope(
       selected
     }
     _ => raise InvalidSnapshot
+  }
+}
+
+///|
+fn nonnegative(text : StringView) -> Int64 raise ProjectionTuningError {
+  if text == "0" {
+    0L
+  } else {
+    decimal(text)
   }
 }

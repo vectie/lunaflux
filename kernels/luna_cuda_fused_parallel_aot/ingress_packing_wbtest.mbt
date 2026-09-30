@@ -61,6 +61,41 @@ test "packed ingress exports head ownership and reuses row rotary before head lo
 }
 
 ///|
+test "device supplied budget emits an exact dynamic arena and launch contract" {
+  let policy = qwen_ingress_policy(8, 2, 1, 1, rows=2, heads=4)
+  let candidate = qwen_fused_test_candidate(
+    head_dimension=128,
+    maximum_tokens=65,
+    ingress_policy=policy,
+    maximum_shared_bytes=98304L,
+  )
+  let bytes = candidate.launch_dimensions().shared_memory_bytes()
+  assert_true(bytes > 49152 && bytes <= 98304)
+  let source = @utf8.decode(candidate.source_bytes())
+  assert_true(
+    source.contains(
+      "extern __shared__ __align__(32) unsigned char ingress_scratch[];",
+    ),
+  )
+  assert_false(source.contains("__shared__ float projected["))
+  let production = lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
+    candidate,
+    fused_test_limits(),
+  )
+  assert_true(
+    @utf8.decode(production.recipe_bytes()).contains(
+      "shared_memory_bytes=\{bytes}\n",
+    ),
+  )
+  assert_true(
+    qwen_ingress_policies(
+      candidate.tile_compilation(),
+      maximum_shared_bytes=98304L,
+    ).contains(policy),
+  )
+}
+
+///|
 test "packed ingress resource frontier retains single head and rejects excess storage" {
   let candidate = qwen_fused_test_candidate(
     head_dimension=128,

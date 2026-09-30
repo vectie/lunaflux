@@ -40,7 +40,7 @@ pub fn lower_fused_qkv_rope_paged_kv_write_candidate(@plan.ModelPlan, @device_la
 
 pub fn lower_fused_qkv_rope_paged_kv_write_production_candidate(FusedQkvRopeKvWriteCudaCandidate, FusedParallelAotLimits) -> FusedQkvRopeKvWriteProductionCudaCandidate raise FusedParallelAotError
 
-pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(@plan.ModelPlan, @device_layout.DeviceKvLayout, @luna_cuda_projection_aot.ProjectionCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, FusedParallelAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice], ingress_policy? : @resource_policy.Policy) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError
+pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(@plan.ModelPlan, @device_layout.DeviceKvLayout, @luna_cuda_projection_aot.ProjectionCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, FusedParallelAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice], ingress_policy? : @resource_policy.Policy, maximum_shared_bytes? : Int64) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError
 
 pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(FusedQwenQkvQkNormRopeKvWriteCudaCandidate, FusedParallelAotLimits) -> FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate raise FusedParallelAotError
 
@@ -48,9 +48,9 @@ pub fn lower_fused_residual_rmsnorm_candidate(@plan.ModelPlan, @luna_cuda_pointw
 
 pub fn lower_fused_residual_rmsnorm_production_candidate(FusedResidualRmsNormCudaCandidate, FusedParallelAotLimits) -> FusedResidualRmsNormProductionCudaCandidate raise FusedParallelAotError
 
-pub fn qwen_ingress_policies(@luna_projection_tile_compiler.ScheduledProjectionTileCompilation) -> ReadOnlyArray[@resource_policy.Policy]
+pub fn qwen_ingress_policies(@luna_projection_tile_compiler.ScheduledProjectionTileCompilation, maximum_shared_bytes? : Int64) -> ReadOnlyArray[@resource_policy.Policy]
 
-pub fn qwen_ingress_resource_budget() -> @resource_policy.ResourceBudget
+pub fn qwen_ingress_resource_budget(maximum_shared_bytes? : Int64) -> @resource_policy.ResourceBudget
 
 // Errors
 pub(all) suberror FusedParallelAotError {

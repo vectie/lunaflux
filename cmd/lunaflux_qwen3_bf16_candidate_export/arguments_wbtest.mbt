@@ -10,6 +10,7 @@ test "export consumes an explicit saved projection tuning suffix" {
   assert_true(legacy.attention_resources is None)
   assert_true(legacy.ingress_policy_records is None)
   assert_false(legacy.ingress_policy_search)
+  assert_eq(legacy.ingress_shared_limit, 49152L)
   assert_eq(load_candidate_projection_records(legacy).length(), 0)
   arguments.append([
     "--projection-tuning", "/tuning", "projection.v1", digest, "device-a",
@@ -31,6 +32,7 @@ test "export consumes an explicit saved projection tuning suffix" {
     "--ingress-policy-records", "/ingress-policy", digest, "device-a",
   ])
   arguments.push("--ingress-policy-search")
+  arguments.append(["--ingress-shared-limit", "98304"])
   let measured = parse_qwen3_candidate_export_arguments(arguments)
   assert_eq(
     measured.attention_resources,
@@ -46,6 +48,7 @@ test "export consumes an explicit saved projection tuning suffix" {
   )
   assert_true(measured.query_metadata)
   assert_true(measured.ingress_policy_search)
+  assert_eq(measured.ingress_shared_limit, 98304L)
   assert_eq(
     measured.ingress_policy_records,
     Some(("/ingress-policy", digest, "device-a")),

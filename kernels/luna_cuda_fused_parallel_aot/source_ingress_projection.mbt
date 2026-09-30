@@ -22,7 +22,8 @@ fn ingress_matrix_projection_source(
   let input_vectors = input_region.ownership().geometry().0
   let weight_vectors = weight_region.ownership().geometry().0
   let row_fragments = physical.pipeline.fragments.geometry().0
-  let declaration = if physical.scratch.reuses_storage() {
+  let declaration = if physical.scratch.reuses_storage() ||
+    physical.scratch.allocation_bytes() > 49152L {
     "    __nv_bfloat16 *ingress_operands = reinterpret_cast<__nv_bfloat16 *>(ingress_scratch);"
   } else {
     "    __shared__ __align__(32) __nv_bfloat16 ingress_operands[\{storage.allocation_elements()}];"

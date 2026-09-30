@@ -132,7 +132,10 @@ fn qwen_fused_source(
     " || token_begin >= tokens || query_row_offsets[0] != 0 ||\n" +
     "      query_row_offsets[rows] != tokens || page_table_offsets[0] != 0 ||\n" +
     "      page_table_offsets[rows] != table_cells) return;\n" +
-    (if physical.scratch.reuses_storage() {
+    (if physical.scratch.allocation_bytes() > 49152L {
+      "  extern __shared__ __align__(32) unsigned char ingress_scratch[];\n" +
+      "  float (*projected)[LF_PROJECTION_WIDTH] = reinterpret_cast<float (*)[LF_PROJECTION_WIDTH]>(ingress_scratch + \{if physical.scratch.reuses_storage() { 0L } else { physical.pipeline.operands.allocation_elements().to_int64() * 2L }});\n"
+    } else if physical.scratch.reuses_storage() {
       "  __shared__ __align__(32) unsigned char ingress_scratch[\{physical.scratch.allocation_bytes()}];\n" +
       "  float (*projected)[LF_PROJECTION_WIDTH] = reinterpret_cast<float (*)[LF_PROJECTION_WIDTH]>(ingress_scratch);\n"
     } else {

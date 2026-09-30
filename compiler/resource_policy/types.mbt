@@ -144,6 +144,7 @@ pub struct ResourceBudget {
   priv shared : Int64
   priv registers : Int?
   priv residency : Int?
+  priv machine_limits : MachineWork?
 } derive(Eq, Debug)
 
 ///|
@@ -158,6 +159,7 @@ pub fn ResourceBudget::new(
   max_shared_bytes~ : Int64,
   max_registers_per_thread~ : Int?,
   min_resident_groups~ : Int?,
+  machine_limits? : MachineWork? = None,
 ) -> ResourceBudget? {
   guard max_threads > 0 && max_shared_bytes >= 0L else { return None }
   if max_registers_per_thread is Some(n) && n <= 0 {
@@ -171,6 +173,7 @@ pub fn ResourceBudget::new(
     shared: max_shared_bytes,
     registers: max_registers_per_thread,
     residency: min_resident_groups,
+    machine_limits,
   })
 }
 
@@ -181,6 +184,11 @@ pub fn ResourceBudget::intersect(
   other : ResourceBudget,
 ) -> ResourceBudget {
   {
+    machine_limits: match (self.machine_limits, other.machine_limits) {
+      (Some(a), Some(b)) => Some(a.intersect(b))
+      (Some(a), None) | (None, Some(a)) => Some(a)
+      _ => None
+    },
     threads: Int::min(self.threads, other.threads),
     shared: Int64::min(self.shared, other.shared),
     registers: match (self.registers, other.registers) {
@@ -194,6 +202,11 @@ pub fn ResourceBudget::intersect(
       _ => None
     },
   }
+}
+
+///|
+pub fn ResourceBudget::max_shared_bytes(self : ResourceBudget) -> Int64 {
+  self.shared
 }
 
 ///|
@@ -251,6 +264,7 @@ pub struct Observation {
   priv samples : Int
   priv registers : Int
   priv residency : Int
+  priv machine_work : MachineWork?
 } derive(Eq, Debug)
 
 ///|
@@ -268,6 +282,7 @@ pub fn Observation::new(
   samples~ : Int,
   registers_per_thread~ : Int,
   resident_groups~ : Int,
+  machine_work? : MachineWork? = None,
 ) -> Observation? {
   guard valid_label(policy_id) &&
     valid_label(artifact) &&
@@ -285,6 +300,7 @@ pub fn Observation::new(
     samples,
     registers: registers_per_thread,
     residency: resident_groups,
+    machine_work,
   })
 }
 
@@ -316,6 +332,11 @@ pub extend Selection with @debug.Debug::{to_repr}
 ///|
 pub fn Selection::policy(self : Selection) -> Policy {
   self.candidate.policy
+}
+
+///|
+pub fn Observation::identity(self : Observation) -> (String, String) {
+  (self.policy_id, self.artifact)
 }
 
 ///|

@@ -56,6 +56,22 @@ fn parse_qwen3_candidate_export_arguments(
   guard flags.length() <= 1 else { raise InvalidArguments }
   let ingress_policy_search = !flags.is_empty()
   let arguments = arguments.filter(value => value != "--ingress-policy-search")
+  let limit_flags = arguments.filter(value => value == "--ingress-shared-limit")
+  guard limit_flags.length() <= 1 else { raise InvalidArguments }
+  let mut ingress_shared_limit = 49152L
+  let filtered : Array[String] = []
+  for index = 0; index < arguments.length(); {
+    if arguments[index] == "--ingress-shared-limit" {
+      guard index + 1 < arguments.length() else { raise InvalidArguments }
+      let bytes = parse_positive_decimal(arguments[index + 1])
+      guard bytes <= 98304 else { raise InvalidArguments }
+      ingress_shared_limit = bytes.to_int64()
+      continue index + 2
+    }
+    filtered.push(arguments[index])
+    continue index + 1
+  }
+  let arguments = filtered
   let (arguments, ingress_policy_records) = extract_resource_option(
     arguments[:],
     "--ingress-policy-records",
@@ -170,6 +186,7 @@ fn parse_qwen3_candidate_export_arguments(
     partitioned_resources,
     ingress_policy_records,
     ingress_policy_search,
+    ingress_shared_limit,
     query_metadata,
   }
   if attention_tuning is Some((_, _, tuning_device)) &&

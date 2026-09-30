@@ -55,6 +55,76 @@ test "resource observation parser enforces scope bounds identity and valid measu
 }
 
 ///|
+test "machine feedback v3 is consumed by resource selection not just retained" {
+  let scope = @resource_policy.Scope::new(
+    device="class-a",
+    toolchain="tool",
+    shape="bf16",
+    program="program",
+  ).unwrap()
+  let prefix = "luna-projection-resources-v3\nscope\tclass-a\ttool\tbf16\tprogram\nbudget\t128\t98304\t255\t1\nworkload\tprefill\t128\t1\t0\t128\t32\nprovenance\tGPU-a\nmachine-budget\t1000\t0\t100\n"
+  let a = "a".repeat(64)
+  let b = "b".repeat(64)
+  let bytes = @utf8.encode(
+    prefix +
+    "record\tfast-spilling\t\{a}\t80\t5\t64\t2\t900\t16\t20\nrecord\tclean\t\{b}\t100\t5\t64\t2\t1000\t0\t100\n",
+  )
+  let observations = parse_projection_resource_records(bytes, scope~)
+  let budget = parse_projection_resource_budget(bytes)
+  let candidates = [
+    @resource_policy.Candidate::new(
+      @resource_policy.Policy::new(
+        id="fast-spilling",
+        consumer_groups=4,
+        live_accumulators=2,
+        operand_stages=2,
+        transfer_tiles=2,
+        fragment_stages=1,
+      ).unwrap(),
+      artifact=a,
+      threads=128,
+      shared_bytes=65536L,
+      registers_per_thread=None,
+      resident_groups=None,
+    ).unwrap(),
+    @resource_policy.Candidate::new(
+      @resource_policy.Policy::new(
+        id="clean",
+        consumer_groups=4,
+        live_accumulators=2,
+        operand_stages=2,
+        transfer_tiles=2,
+        fragment_stages=1,
+      ).unwrap(),
+      artifact=b,
+      threads=128,
+      shared_bytes=65536L,
+      registers_per_thread=None,
+      resident_groups=None,
+    ).unwrap(),
+  ]
+  let chosen = @resource_policy.select(
+    projection_resource_selection_scope(bytes, scope~),
+    budget,
+    candidates,
+    observations[:],
+    preferred_id="fast-spilling",
+  ).unwrap()
+  assert_eq(chosen.policy().id(), "clean")
+  // Removing feedback must not permit an optimistic, unmeasured bypass.
+  assert_eq(
+    @resource_policy.select(
+      projection_resource_selection_scope(bytes, scope~),
+      budget,
+      candidates,
+      [],
+      preferred_id="clean",
+    ),
+    None,
+  )
+}
+
+///|
 test "workload v2 separates provenance from class and rejects mixed objectives" {
   let scope = @resource_policy.Scope::new(
     device="perf-v1:class-a",

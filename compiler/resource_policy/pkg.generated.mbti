@@ -19,11 +19,18 @@ pub fn Candidate::new(Policy, artifact~ : String, threads~ : Int, shared_bytes~ 
 pub fn Candidate::not_equal(Self, Self) -> Bool
 pub fn Candidate::to_repr(Self) -> @debug.Repr
 
+pub struct MachineWork {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MachineWork::counts(Self) -> (Int64, Int64, Int64)
+pub fn MachineWork::new(instructions~ : Int64, local_bytes~ : Int64, barriers~ : Int64) -> Self?
+
 pub struct Observation {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Observation::equal(Self, Self) -> Bool
-pub fn Observation::new(Scope, policy_id~ : String, artifact~ : String, latency_ns~ : Int64, samples~ : Int, registers_per_thread~ : Int, resident_groups~ : Int) -> Self?
+pub fn Observation::identity(Self) -> (String, String)
+pub fn Observation::new(Scope, policy_id~ : String, artifact~ : String, latency_ns~ : Int64, samples~ : Int, registers_per_thread~ : Int, resident_groups~ : Int, machine_work? : MachineWork?) -> Self?
 pub fn Observation::not_equal(Self, Self) -> Bool
 pub fn Observation::to_repr(Self) -> @debug.Repr
 
@@ -48,7 +55,8 @@ pub struct ResourceBudget {
 } derive(Eq, @debug.Debug)
 pub fn ResourceBudget::equal(Self, Self) -> Bool
 pub fn ResourceBudget::intersect(Self, Self) -> Self
-pub fn ResourceBudget::new(max_threads~ : Int, max_shared_bytes~ : Int64, max_registers_per_thread~ : Int?, min_resident_groups~ : Int?) -> Self?
+pub fn ResourceBudget::max_shared_bytes(Self) -> Int64
+pub fn ResourceBudget::new(max_threads~ : Int, max_shared_bytes~ : Int64, max_registers_per_thread~ : Int?, min_resident_groups~ : Int?, machine_limits? : MachineWork?) -> Self?
 pub fn ResourceBudget::not_equal(Self, Self) -> Bool
 pub fn ResourceBudget::to_repr(Self) -> @debug.Repr
 

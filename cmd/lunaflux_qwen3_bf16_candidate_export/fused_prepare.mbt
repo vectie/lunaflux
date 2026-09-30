@@ -85,6 +85,7 @@ fn prepare_qwen_fused_production_set(
   partitioned_resources? : (Bytes, String, String)? = None,
   ingress_policy_records? : (Bytes, String, String)? = None,
   ingress_policy_search? : Bool = false,
+  ingress_shared_limit? : Int64 = 49152L,
   query_metadata? : Bool = false,
 ) -> QwenFusedProductionSet raise Qwen3Bf16CandidateExportCliError {
   let candidates = set.candidates()
@@ -157,6 +158,16 @@ fn prepare_qwen_fused_production_set(
     ) catch {
       _ => raise QwenIngressPreparation
     }
+    let maximum_shared_bytes = match ingress_policy_records {
+      Some((bytes, _, _)) =>
+        Int64::min(
+          98304L,
+          (@luna_projection_tuning.parse_projection_resource_budget(bytes) catch {
+            _ => raise QwenIngressPreparation
+          }).max_shared_bytes(),
+        )
+      None => ingress_shared_limit
+    }
     let full_ingress_qualification = @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
       plan,
       layout,
@@ -171,6 +182,7 @@ fn prepare_qwen_fused_production_set(
         maximum_recipe_bytes=65536,
         maximum_promotion_bytes=65536,
       ),
+      maximum_shared_bytes~,
     ) catch {
       _ => raise QwenIngressPreparation
     }
@@ -187,8 +199,16 @@ fn prepare_qwen_fused_production_set(
     let ingress_variants = if ingress_policy_search ||
       ingress_policy_records is Some(_) {
       prepare_qwen_ingress_resource_variants(
-        plan, layout, qkv, qk_norm, rope, kv_write, set, full_ingress_qualification,
+        plan,
+        layout,
+        qkv,
+        qk_norm,
+        rope,
+        kv_write,
+        set,
+        full_ingress_qualification,
         default_ingress,
+        maximum_shared_bytes~,
       )
     } else {
       ReadOnlyArray::from_array([default_ingress])

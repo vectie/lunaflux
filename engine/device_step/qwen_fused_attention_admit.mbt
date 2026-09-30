@@ -564,7 +564,12 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     postprocess.launch_dimensions().block_x() == 128 &&
     postprocess.launch_dimensions().block_y() == 1 &&
     postprocess.launch_dimensions().block_z() == 1 &&
-    postprocess.launch_dimensions().shared_memory_bytes() == 0 else {
+    (if includes_projection {
+      postprocess.launch_dimensions().shared_memory_bytes() >= 0 &&
+      postprocess.launch_dimensions().shared_memory_bytes() <= 98304
+    } else {
+      postprocess.launch_dimensions().shared_memory_bytes() == 0
+    }) else {
     raise MismatchedFusedGroupedOperation(Launch)
   }
   let measured_attention_candidates = admit_qwen_attention_routes(
