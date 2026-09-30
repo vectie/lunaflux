@@ -1,0 +1,76 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  moon : String,
+  args : Array[String],
+) -> Unit {
+  let result = @shell.Cmd(moon, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(result.stdout())
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, prior, baselines, root] else {
+    fail("SERVING PRIOR FRESH_BASELINES NEW_COMPARISON_ROOT")
+  }
+  for campaign in [serving, prior, baselines] {
+    guard @fs.read_file(campaign + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("incomplete campaign")
+    }
+  }
+  for
+    (label, path) in [
+      ("luna-full", serving + "/bench-luna-full"),
+      ("prior", prior + "/bench-luna-full"),
+      ("vllm", baselines + "/bench-vllm"),
+      ("sglang", baselines + "/bench-sglang"),
+    ] {
+    @shell.Cmd("ln", ["-s", path, root + "/bench-" + label]).run()
+  }
+  let moon = serving + "/toolchain/bin/moon"
+  record(root, "summary", moon, [
+    "run",
+    serving + "/summarize.mbtx",
+    root,
+    "luna-full",
+    "prior",
+    "vllm",
+    "sglang",
+  ])
+  for engine in ["prior", "vllm", "sglang"] {
+    record(root, "agreement-" + engine, moon, [
+      "run",
+      serving + "/compare-outputs.mbtx",
+      root,
+      "luna-full",
+      engine,
+    ])
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=fresh-baselines-final-route-retest\n",
+    create_mode=CreateNew,
+  )
+}

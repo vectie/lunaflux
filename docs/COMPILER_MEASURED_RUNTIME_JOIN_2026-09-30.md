@@ -48,6 +48,11 @@ implemented.
   ordinary row offsets with attention metadata. Both probe contracts are fixed.
 - Fresh preparation omitted the probe geometry header. Preparation now copies
   the source and header from the same archive.
+- Pure-prefill calibration omitted mixed-phase slots and intervening history
+  buckets. Those slots silently took the slower wide heuristic. The offline
+  probe now represents mixed descriptor counts and measures each context bucket
+  separately; a regression confirms that pure-prefill records do not cover
+  mixed slots. No production token-step scan or online timing was added.
 
 ## Hardware-counter ablation
 
@@ -118,7 +123,92 @@ The final v6 run consumes actual v3 machine feedback, retains independent
 ordinary/wide prefill modules, and measures 45 prefill buckets before binding
 their graphs. The first v6 export exposed the opposite-phase selection issue
 and is retained separately; the corrected export selects measured c441.
-Final corrected serving and fresh reference results are pending below.
+
+### Actual serving exposed a second selection defect
+
+The initial corrected export completed input4096/output256/C16 in **14,797 ms**.
+Its serving trace revealed 504 launches of c2001, totaling **1,009.582 ms** in
+that diagnostic capture. The earlier paired normal-prefill counters had not
+captured this variant. Pure and mixed phases occupy different immutable graph
+slots; sparse pure-prefill measurements were not sufficient coverage.
+
+An exact mixed query2048/rows16/history2048 counter pair quantified the cause:
+
+| Counter | c322 | c2001 |
+| --- | ---: | ---: |
+| Profiled replay duration µs | 1,102.528 | 3,714.688 |
+| CTAs | 1,008 | 1,520 |
+| Registers/thread | 230 | 255 |
+| Executed warp instructions | 109,589,824 | 142,945,488 |
+| Local-load sectors | 0 | 2,049,472 |
+| Local-store sectors | 0 | 1,534,848 |
+| Tensor active % | 33.24 | 10.01 |
+| Long-scoreboard stall % | 23.96 | 16.47 |
+| Barrier stall % | 17.22 | 4.87 |
+
+The wide kernel executes 30.4% more instructions and approximately **114.7 MB
+of local-sector traffic** despite a 255-register ceiling. Its lower dependency
+and barrier percentages are not a speedup: replay takes 3.37 times as long.
+This is a concrete spill/resource/work-distribution defect in this alternative,
+not an absence of functional IR. The selector must reject it for these shapes;
+expanding a legal KV tile is not proof that its lowering is profitable.
+GB10 DRAM-byte counters were unavailable in this capture and are not invented.
+
+Calibration now covers **183 pure/mixed prefill cells**, with five paired
+unprofiled samples per cell, including every context bucket between its current
+query extent and 8192. These are representative shapes, not an exhaustive
+certification of every distribution inside each bucket. Mixed batches also
+pass independent attention correctness and memcheck/racecheck/synccheck.
+The final serving trace confirms c2001 is absent: the same 952 principal
+prefill calls use c322, totaling 695.124 ms instead of the previous combined
+1415.219 ms. This is a profiled diagnostic comparison, not the unprofiled
+serving throughput result.
+
+## Final matched serving comparison
+
+Qwen3-0.6B BF16 on the same GB10; exact input token IDs, greedy, ignore-EOS,
+prefix reuse disabled. Three measured trials after warmup. Pinned NVIDIA26.01
+vLLM and SGLang containers were rerun serially after the initial v6 serving.
+The final route-only retest uses the same source kernels, with the expanded
+startup graph table. Lower completion time is better.
+
+| Input/output | C | Previous fastest Luna ms | Final Luna ms | Fresh vLLM ms | Fresh SGLang ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 128/32 | 1 | 246 | 245 | 293 | 287 |
+| 128/32 | 8 | 321 | 327 | 274 | 283 |
+| 128/32 | 16 | 383 | 388 | 320 | 329 |
+| 4096/64 | 1 | 738 | 741 | 767 | 788 |
+| 4096/64 | 8 | 2,752 | 2,766 | 2,270 | 2,340 |
+| 4096/64 | 16 | 5,177 | 5,175 | 4,201 | 4,244 |
+| 4096/256 | 1 | 2,529 | 2,536 | 2,699 | 2,761 |
+| 4096/256 | 8 | 7,625 | 7,633 | 6,650 | 6,875 |
+| 4096/256 | 16 | 14,083 | 14,081 | 11,861 | 12,003 |
+
+The route repair removes the regression, not the remaining framework gap.
+Final long-C16 throughput is **290.89 token/s**, versus **345.33/341.25**;
+completion time remains **18.7%/17.3% higher**. Long-C16 TTFT p50/p95 is
+1495/2630 ms, versus 1147/2259 and 970/1707. ITL p50/p95 is 46/48 ms,
+versus 39/61 and 40/42. Short/single-request results have different tradeoffs;
+there is no universal speedup.
+
+All 150 long-input output sequences match each reference exactly. Across all
+225 sequences, exact agreement is 220 with previous LunaFlux, 219 with vLLM,
+and 221 with SGLang; all 225 first tokens agree. Remaining differences occur
+on the short-input cases. This is not a bitwise identity or broad quality claim.
+
+Normal selected kernel counter pairs versus the previous package show nearly
+identical instructions and replay time: ingress 67.59M→67.46M instructions,
+prefill 95.08M→95.08M, decode 120.70M→120.70M; all have zero local-sector
+traffic in those cells. Thus integrating search/feedback/dispatch does not
+itself reduce mathematical or supporting work in the winning existing kernels.
+The larger head/row alternatives remove spills but still lose on tensor
+utilization and resource/work distribution; forcing them is not a remedy.
+The remaining end-to-end gap is not fully apportioned by these isolated probes,
+and old baseline stall percentages are not claimed as fresh measurements.
+
+All five compiler-to-runtime joins are implemented and exercised. This closes
+the implementation/integration work, **not** exhaustive tuning, a universal
+best schedule, or performance parity with the reference frameworks.
 
 ## Validation
 
