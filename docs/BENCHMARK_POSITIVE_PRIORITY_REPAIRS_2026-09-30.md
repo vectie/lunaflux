@@ -198,3 +198,127 @@ Exact strict source snapshot SHA-256:
 `c5d5be2d7a8f277c77433dabfed92f073a87506254aa9e5e931cf5972807fafc`;
 FMA source snapshot:
 `dba616651995012940eded59cb93f9d52eb53579b5e5384759e5d9fa4aa7ab85`.
+
+## October 1 decode-pipeline follow-up
+
+Decode is the largest remaining measured family, not the only remaining gap.
+Output/down is still separate. Several pipeline alternatives were tested before
+changing the selected production source; none reliably improved the C16/H4095
+replay. Their rejected production edits were removed, not left as inactive
+compiler options:
+
+| Experiment | C16/H4095 median change | Outcome |
+| --- | ---: | --- |
+| Larger ready fragment window | approximately −0.3% | Not a reliable gain |
+| Three-slot dead-K reuse | approximately +0.7% | Reject; instructions +17.3% |
+| Register-owned probabilities with three slots | approximately +1.0% | Reject |
+| Streaming rather than cache-all async copies | approximately +0.6% | Reject |
+| Prefetch before QK, with separate V readiness | approximately +1.1% | Reject |
+| Smaller KV tiles | roughly flat at C16 | Reject; C1 long history substantially regresses |
+
+These are paired synthetic chain replays, not new framework comparisons. The
+three-slot counter experiment improves residency from two to three blocks and
+reduces short-scoreboard latency, but increases instructions, long-scoreboard
+latency and barrier latency. More occupancy or overlap is not itself a speedup.
+
+A concrete lowering defect was found independently of those experiments:
+`CompleteTileReaders` is a terminal effect, but the blockwise CUDA renderer
+emitted it after every KV tile. The fix emits `ReleaseTileReaders` inside the
+loop and `CompleteTileReaders` once after the loop, matching the immutable
+effect plan. The pipelined loop now has two workgroup publications instead of
+three; synchronous single-slot behavior is unchanged. The lowering identity
+records the corrected terminal placement. No numerical law, tile geometry,
+copy width, stage allocation or scheduler behavior changes.
+
+Regression coverage checks all eight synchronous/asynchronous strict,
+dual-score and contracting blockwise candidates. Local native check and
+**4264/4264 tests pass**, with the same documented warning exclusions. The
+same exported strict c452 kernels pass bitwise comparison and memcheck,
+racecheck and synccheck on the Spark. Source and sanitizer correctness do not
+prove a speedup.
+
+Campaign `/home/wlc004s/lunaflux-decode-handoff-20261001.zzsKyyQ7` uses the
+traced 32-row serving launch envelope, including inactive rows. Both old and
+new p8 use the same geometry and five alternating trials per cell. Representative
+medians in microseconds:
+
+| Active rows | History | Prior p8 | Corrected p8 | Change |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 4095 | 92.124 | 92.189 | +0.07% |
+| 8 | 4095 | 628.226 | 640.269 | +1.92% |
+| 16 | 4095 | 1189.644 | 1194.671 | +0.42% |
+| 16 | 8191 | 2353.508 | 2351.440 | −0.09% |
+
+Thus the bug is fixed, but isolated timing does not show a reliable performance
+gain. The p4 trial also changes the partition count and is not a same-geometry
+attribution to the handoff fix. A new exact-overlay serving rebuild/retest is
+required before revising the end-to-end table above. Its first rebuild hit its
+8 GiB cgroup ceiling during parallel compilation; the retry limits compilation
+to two jobs. The host retained its memory reserve; no failed run is promoted.
+
+The completed serving overlay is
+`/home/wlc004s/lunaflux-decode-serving-20261001.T34eKMDF`. It rebuilds the
+required native executables from the archived strict source plus the handoff
+fix, re-exports the selected kernels, rebinds the release and regenerates the
+decode route package. It is not a build of the unrelated dirty working tree.
+The standalone-selection guard verifies the final publication in the exported
+source; the packaged direct kernels and split chain pass sanitizer checks.
+All **225/225 output sequences and first tokens match** the prior strict run.
+The runtime drains successfully, reports `child_closed=1`, and has empty stderr.
+
+| Input/output | C | Prior tok/s | Corrected tok/s |
+| --- | ---: | ---: | ---: |
+| 128/32 | 1 | 132.23 | 131.69 |
+| 128/32 | 8 | 792.57 | 792.57 |
+| 128/32 | 16 | 1343.83 | 1340.31 |
+| 4096/64 | 1 | 86.37 | 87.43 |
+| 4096/64 | 8 | 180.66 | 181.17 |
+| 4096/64 | 16 | 204.55 | 204.72 |
+| 4096/256 | 1 | 102.28 | 101.91 |
+| 4096/256 | 8 | 258.85 | 260.03 |
+| 4096/256 | 16 | 305.42 | 306.08 |
+
+C16 long completion time is **13,411 → 13,382 ms** (−0.22%); the trial ranges
+overlap. This does **not** establish a meaningful speedup. Against the unchanged
+September 30 reference measurements, completion time remains about **12.9%
+above vLLM and 11.4% above SGLang**. Those frameworks were not rerun for this
+follow-up. The earlier throughput table is not silently replaced with a new
+cross-framework campaign.
+
+Paired C16/H4095/p8 cold-cache counters in
+`/home/wlc004s/lunaflux-decode-counters-20261001.vXe6FQnj` confirm the change
+executes, rather than merely existing in an unused compiler plan:
+
+| Counter | Prior | Corrected |
+| --- | ---: | ---: |
+| Warp instructions | 61,353,984 | 61,323,264 |
+| Barrier stall / issued-instruction ratio | 0.679740 | 0.544329 |
+| Short-scoreboard stall / issued-instruction ratio | 3.189743 | 3.198981 |
+| Long-scoreboard stall / issued-instruction ratio | 2.690638 | 2.928409 |
+| Eligible warps / active cycle | 0.121867 | 0.123502 |
+| Source-correlated excessive shared wavefronts | 0 | 0 |
+| Profiled partial-kernel time | 1.240640 ms | 1.250656 ms |
+
+The instruction reduction is exactly **30,720**, only **0.05%** of the kernel.
+There are 1024 active CTAs, two warps each, and 16 KV tiles per partition;
+replacing 16 terminal publications with one removes
+`1024 × 2 × (16 − 1) = 30,720` warp barrier instructions. Barrier waits fall,
+but the load/reduction dependency chain and almost all supporting arithmetic
+remain. The stall ratios are normalized counters, not percentages of wall
+time. This is a synthetic cold-cache partial replay, not a new live-serving
+counter trace. It explains why the correct lowering repair is not a cure for
+the remaining throughput gap; no bandwidth-roofline or framework parity claim
+is justified by these measurements.
+
+The successful scoped rebuild peaks at **4.8 GiB** with zero cgroup swap. The
+initial full-module build retry also encountered an unrelated standalone
+link target without `main`; the reproducible helper now builds only the eight
+executables needed by this campaign. Failed attempts are retained separately.
+
+The final handoff replay, exact serving overlay and paired counters are archived
+at `lunaflux-decode-archive-20261001.6B1pDSaH/decode-handoff.tar.gz`, SHA-256
+`e5fd794562f5f276a727c14d70db7ab26cbb96e94f0c713c33f336af598ef146`.
+Build caches, toolchain installations and duplicate model-root copies are
+explicitly excluded, not deleted. Earlier rejected experiments remain in their
+separate remote campaign directories. The source fix is committed as `e57fe109`
+on `parallel`; it does not assert that the remaining performance gap is fixed.

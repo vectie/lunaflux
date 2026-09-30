@@ -1,0 +1,61 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. campaigns] && campaigns.length() > 0 else {
+    fail("NEW_ARCHIVE_ROOT COMPLETED_CAMPAIGN...")
+  }
+  for campaign in campaigns {
+    guard @fs.read_file(campaign + "/RESULT.txt").text().has_prefix("outcome=") else {
+      fail("campaign must be terminal")
+    }
+  }
+  let args = [
+    "--create",
+    "--gzip",
+    "--file",
+    root + "/decode-handoff.tar.gz",
+    "--exclude=_build",
+    "--exclude=.mooncakes",
+    "--exclude=toolchain",
+    "--exclude=model-root",
+  ]
+  args.append(campaigns)
+  @fs.write_file(
+    root + "/archive-command.json",
+    Json(["tar"] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd("tar", args).output(max_output_bytes=1048576)
+  @fs.write_file(
+    root + "/archive.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/archive.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  let checksum = @shell.Cmd("sha256sum", [root + "/decode-handoff.tar.gz"]).output()
+  checksum.check()
+  @fs.write_file(
+    root + "/archive.sha256",
+    checksum.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=completed campaigns; build caches, toolchain installation and model-root copies excluded\n",
+    create_mode=CreateNew,
+  )
+  println(checksum.stdout())
+}
