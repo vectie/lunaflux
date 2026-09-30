@@ -176,14 +176,27 @@ async fn main {
       ] {
       let destination = root + "/" + kind + "-" + version
       @fs.mkdir(destination)
+      let reference = calibration + "/selected/default-" + directory
       @fs.write_file(
         destination + "/kernel.recipe",
-        @fs.read_file(candidates + "/" + directory + "/kernel.recipe"),
+        @fs.read_file(
+          if all_new && version == "baseline" {
+            reference + "/kernel.recipe"
+          } else {
+            candidates + "/" + directory + "/kernel.recipe"
+          },
+        ),
         create_mode=CreateNew,
       )
       @fs.write_file(
         destination + "/kernel.cubin",
-        @fs.read_file(binaries + "/" + module_ + ".cubin"),
+        @fs.read_file(
+          if all_new && version == "baseline" {
+            reference + "/kernel.cubin"
+          } else {
+            binaries + "/" + module_ + ".cubin"
+          },
+        ),
         create_mode=CreateNew,
       )
     }

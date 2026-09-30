@@ -31,10 +31,9 @@ async fn collect(
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, matched, previous] else {
-    fail("ROOT MATCHED_BASE PREVIOUS_LUNA")
+  guard @env.args() is [_, root, matched, previous, serving] else {
+    fail("ROOT MATCHED_BASE PREVIOUS_LUNA COMPLETED_SERVING")
   }
-  let serving = root + "/serving"
   guard @fs.read_file(serving + "/RESULT.txt")
     .text()
     .has_prefix("outcome=completed\n") else {
