@@ -26,7 +26,7 @@ async fn checked(root : String, label : String, moon : String, args : Array[Stri
 
 ///|
 async fn main {
-  guard @env.args() is [_, root] else { fail("PREPARED_SANITIZED_ROUTED_SERVING_ROOT") }
+  guard @env.args() is [_, root, calibration] else { fail("PREPARED_SANITIZED_ROUTED_SERVING_ROOT CALIBRATION") }
   guard !@fs.exists(root + "/RESULT.txt") &&
     @fs.read_file(root + "/decode-route-measurements/RESULT.txt").text()
       .has_prefix("outcome=passed\n") else { fail("unprepared or completed") }
@@ -42,6 +42,14 @@ async fn main {
   let gpu = @shell.Cmd("nvidia-smi", ["--query-compute-apps=pid", "--format=csv,noheader"]).output()
   gpu.check()
   guard gpu.stdout().trim().is_empty() && memory() >= 33554432L else { fail("GPU or reserve") }
+  for tool in ["memcheck", "racecheck", "synccheck"] {
+    checked(root, "sanitizer-mixed-" + tool, "/usr/local/cuda/bin/compute-sanitizer", [
+      "--tool", tool, "--error-exitcode", "99", root + "/check-probe",
+      calibration + "/prefill.spec", root + "/prefill-selected",
+      root + "/decode-route-measurements/wide-prefill",
+      "129", "8", "2048", "--mixed", "--check-only",
+    ])
+  }
   let prepare = @fs.read_file(root + "/prepare-full.mbtx").text()
   let routed = prepare.replace(old="root+\"/fused/reusable-fused-runtime-bundle.v3\"", new="root+\"/fused-routed/reusable-fused-runtime-bundle.v3\"")
   guard routed != prepare else { fail("routed materialization seam") }
