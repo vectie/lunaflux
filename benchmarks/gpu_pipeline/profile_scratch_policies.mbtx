@@ -23,9 +23,13 @@ async fn main {
     "dram__bytes_read.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
     "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
   ].join(",")
-  // The previous fastest run retained paired ingress/prefill modules only.
-  // Do not invent a prior decode artifact: decode is unchanged in this bundle.
-  for kind in ["ingress", "prefill"] {
+  // Capture only real retained artifacts; older campaigns may lack decode.
+  // Its omission is not an observation or evidence of unchanged machine code.
+  for kind in ["ingress", "prefill", "decode"] {
+    if !@fs.exists(prior + "/" + kind + "-selected/kernel.cubin") {
+      println(kind + " prior artifact unavailable; capture skipped")
+      continue
+    }
     let gpu = @shell.Cmd("nvidia-smi", [
       "--query-compute-apps=pid", "--format=csv,noheader",
     ]).output()
