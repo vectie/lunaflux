@@ -30,9 +30,12 @@ fn best(
 
 ///|
 async fn main {
-  guard @env.args() is [_, calibration, root, prefill_cell, decode_cell] else {
-    fail("CALIBRATION NEW_EMPTY_ROOT PREFILL_CELL DECODE_CELL")
+  guard @env.args()
+    is [_, calibration, root, prefill_cell, decode_cell, .. options] &&
+    (options.is_empty() || options == ["--unrestricted"]) else {
+    fail("CALIBRATION NEW_EMPTY_ROOT PREFILL_CELL DECODE_CELL [--unrestricted]")
   }
+  let unrestricted = options == ["--unrestricted"]
   assert_eq(
     @fs.read_file(calibration + "/RESULT.txt").text(),
     "outcome=passed\n",
@@ -48,15 +51,19 @@ async fn main {
   ).text()
   let ingress = best(
     ingress_records,
-    x => x.has_suffix("-h2") || x.has_suffix("-h4"),
+    x => unrestricted || x.has_suffix("-h2") || x.has_suffix("-h4"),
     3,
   )
   let prefill = best(
     attention_records,
-    x => ["322", "2000", "2001", "2003", "2004"].contains(x),
+    x => unrestricted || ["322", "2000", "2001", "2003", "2004"].contains(x),
     2,
   )
-  let decode = best(decode_records, x => x == "450" || x == "451", 2)
+  let decode = best(
+    decode_records,
+    x => unrestricted || ["450", "451", "452", "453"].contains(x),
+    2,
+  )
   @shell.Cmd("cp", ["-a", calibration + "/candidate", root + "/selected"]).run()
   for
     (entry, selected) in [
@@ -127,7 +134,13 @@ async fn main {
     @fs.read_file(calibration + "/export.stdout"),
     create_mode=CreateNew,
   )
-  let plan = "schema=luna-all-new-benchmark-selection-v1\nmode=forced-new-family-measured-finalist\n" +
+  let plan = "schema=luna-all-new-benchmark-selection-v1\nmode=" +
+    (if unrestricted {
+      "unrestricted-measured-finalist"
+    } else {
+      "forced-new-family-measured-finalist"
+    }) +
+    "\n" +
     "ingress=" +
     ingress +
     "\nprefill=" +

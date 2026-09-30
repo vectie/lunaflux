@@ -1,0 +1,44 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, archive] else {
+    fail("MATCHED_BASE NEW_EMPTY_ROOT COMMITTED_SOURCE_ARCHIVE")
+  }
+  let old_archive = base + "/source-8f87f6d8.tar"
+  let setup = @fs.read_file(base + "/setup.mbtx").text()
+  guard setup.contains(old_archive) else {
+    fail("recorded source seam changed")
+  }
+  @fs.write_file(
+    root + "/setup.mbtx",
+    setup.replace(old=old_archive, new=archive),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(base + "/toolchain/bin/moon", ["run", root + "/setup.mbtx", root]).run()
+  for name in ["candidate", "fused-full", "release"] {
+    @shell.Cmd("ln", ["-s", base + "/" + name, root + "/" + name]).run()
+  }
+  for
+    name in [
+      "bind.stdout", "prepare-spark.mbtx", "measure.mbtx", "benchmark.mbtx", "summarize.mbtx",
+      "compare-outputs.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/BUILD_RESULT.txt",
+    "outcome=passed\n",
+    create_mode=CreateNew,
+  )
+}

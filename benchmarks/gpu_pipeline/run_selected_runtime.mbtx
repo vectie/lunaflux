@@ -51,6 +51,10 @@ async fn main {
     fail("calibration incomplete")
   }
   let all_new = @fs.exists(calibration + "/selection-plan.txt")
+  let forced_new = all_new &&
+    @fs.read_file(calibration + "/selection-plan.txt")
+    .text()
+    .contains("mode=forced-new-family-measured-finalist\n")
   if all_new {
     assert_eq(
       @fs.read_file(
@@ -67,14 +71,17 @@ async fn main {
     let decode = @fs.read_file(
       calibration + "/selected/reusable-qwen-decode-attention/kernel.recipe",
     ).text()
-    guard (
-        ingress.contains("\nheads_per_cta=2\n") ||
-        ingress.contains("\nheads_per_cta=4\n")
-      ) &&
-      decode.contains(
-        "function_symbol=lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1\n",
-      ) &&
-      decode.contains("numeric_law=blockwise-f32-probability-v1\n") else {
+    guard !forced_new ||
+      (
+        (
+          ingress.contains("\nheads_per_cta=2\n") ||
+          ingress.contains("\nheads_per_cta=4\n")
+        ) &&
+        decode.contains(
+          "function_symbol=lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1\n",
+        ) &&
+        decode.contains("numeric_law=blockwise-f32-probability-v1\n")
+      ) else {
       fail("all-new selection was not retained in AOT recipes")
     }
     @fs.write_file(
@@ -144,7 +151,7 @@ async fn main {
     root,
     "fused",
   ])
-  if all_new {
+  if forced_new {
     let bundle = @fs.read_file(root + "/fused/reusable-fused-runtime-bundle.v3").text()
     guard bundle.contains("heads_per_cta=2\n") ||
       bundle.contains("heads_per_cta=4\n") else {

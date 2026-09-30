@@ -175,10 +175,13 @@ async fn main {
       "BENCHMARK_ROOT NEW_EMPTY_ROOT PROBE_SOURCE PERFORMANCE_CLASS SELECTED_CELL (e.g. prefill-q2048-r8-h2048); class must include SM/cache/memory and clock/power policy, not UUID or ISA alone",
     )
   }
-  guard options.is_empty() || options == ["--all-new-finalists"] else {
-    fail("optional mode: --all-new-finalists")
+  guard options.is_empty() ||
+    options == ["--all-new-finalists"] ||
+    options == ["--scratch-pipeline-finalists"] else {
+    fail("optional mode: --all-new-finalists or --scratch-pipeline-finalists")
   }
-  let all_new_finalists = !options.is_empty()
+  let all_new_finalists = options == ["--all-new-finalists"]
+  let scratch_finalists = options == ["--scratch-pipeline-finalists"]
   guard performance_class.has_prefix("perf-v1:") &&
     performance_class.length() <= 512 &&
     !performance_class.contains("\t") &&
@@ -297,6 +300,16 @@ async fn main {
       fail("variant")
     }
     let id = id.to_owned()
+    if scratch_finalists &&
+      ![
+        "ingress-g4-a2-s2-t2-f1-r2", "ingress-g4-a4-s2-t1-f1-h2", "ingress-g4-a4-s2-t2-f1-h2",
+        "ingress-g4-a4-s2-t1-f1-r2-h2", "ingress-g4-a4-s2-t2-f1-r2-h2", "ingress-g4-a4-s2-t4-f1-r2-h2",
+        "ingress-g4-a8-s2-t1-f1-h4", "ingress-g4-a8-s2-t2-f1-h4", "ingress-g4-a2-s2-t1-f1-r4",
+        "ingress-g4-a2-s2-t2-f1-r4",
+      ].contains(id) &&
+      id != field(exported, "ingress_policy_selected") {
+      continue
+    }
     if !(id.contains("-s2-") &&
       id.has_prefix("ingress-g4-") &&
       (id.contains("-t1-") || id.contains("-t2-") || id.contains("-t4-")) &&
@@ -356,6 +369,9 @@ async fn main {
       318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008, 2000, 2001,
       2003, 2004,
     ] {
+    if scratch_finalists && ![318, 322, 2001].contains(id) {
+      continue
+    }
     let directory = root + "/candidate/reusable-qwen-prefill-attention-c\{id}"
     compile(root, "prefill-c\{id}", directory, nvcc)
     let measured = measure(
@@ -391,7 +407,7 @@ async fn main {
       "\n",
     )
   }
-  for id in [400, 420, 430, 441, 450, 451] {
+  for id in [400, 420, 430, 441, 450, 451, 452, 453] {
     let directory = root + "/candidate/reusable-qwen-decode-attention-c\{id}"
     compile(root, "decode-c\{id}", directory, nvcc)
     let measured = measure(
