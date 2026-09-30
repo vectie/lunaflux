@@ -210,11 +210,36 @@ All five compiler-to-runtime joins are implemented and exercised. This closes
 the implementation/integration work, **not** exhaustive tuning, a universal
 best schedule, or performance parity with the reference frameworks.
 
+## Reproduction and retained results
+
+The v6 kernel/runtime source is committed `730378cc`, archive SHA-256
+`61420f9f21bd1cfd24c68fb6ae1e59767c19ec4b7bbf452d0c17b3125672b906`.
+The final benchmark overlays are mixed-descriptor probe `8b6f57ac`, complete
+context/phase calibration `31ca9fce`, and resumed-serving mixed sanitizers
+`287795a4`. These are offline benchmark changes; the kernel/worker binaries
+remain those of the v6 source. Formatting/finalization do not alter their code.
+
+The final v6 subdirectories are `serving-phase-complete`, `fresh-baselines`,
+`final-comparison`, `trace-phase-complete`, and `counters-mixed-wide`.
+Failed setup runs and slower completed ablations remain separately labeled.
+The three-root results archive also retains v3 blockwise/full-versus-partial
+campaigns and v5 register/resource/machine-feedback experiments. Source builds,
+toolchains and model payload copies are excluded; generated sources, AOT
+artifacts, probes, recipes, raw counters, traces and serving results are kept.
+
+Downloaded without overwriting to
+`/private/tmp/lunaflux-integrated-final.XtIrSY/integrated-results.tar.gz`;
+local and remote SHA-256 both verify as
+`915ed2279e5a0aeb20416abcc6ad953861fd596e9d433fc8374ab70928af1d59`.
+
 ## Validation
 
 - Full local native suite: 4,213/4,213 pass.
 - Affected warning-denied package suite: 314/314 pass; final frontier/export/
   executor regression subset: 220/220 pass.
+- The final mixed-route regression passes; attention/graph/device-step subset
+  passes 212/212. A redundant full-tree rerun was stopped during compilation
+  of unrelated working-tree packages; it is not reported as an additional pass.
 - `moon info`, formatting and diff whitespace checks complete.
 - The global warning-denied check encounters unrelated warning 92 and warning
   14 in existing uncommitted remote-TLS work. Those files are not modified for
