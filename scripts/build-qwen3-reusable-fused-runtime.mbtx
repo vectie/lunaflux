@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.20.3/fs",
   "moonbitlang/async@0.20.3/process",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -105,11 +106,30 @@ async fn main {
     [.. rest, "--attention-buckets", path] => (rest, Some(path))
     _ => (options, None)
   }
-  let choice = match options {
+  let (options, comparison) = match options {
+    [.. rest, "--ingress-pair", full, partial, samples] => {
+      let a = @string.parse_int64(full)
+      let b = @string.parse_int64(partial)
+      let n = @string.parse_int(samples)
+      guard a > 0L && b > 0L && n > 0 else {
+        fail("positive measured full-chain observations required")
+      }
+      (rest, Some((a, b, n)))
+    }
+    _ => (options, None)
+  }
+  let explicit_choice = match options {
     [] | ["--ingress-mode", "full"] => "full"
     ["--ingress-mode", "partial"] => "partial"
     _ =>
       fail("optional --ingress-mode full|partial and --attention-buckets FILE")
+  }
+  guard comparison is None || options.is_empty() else {
+    fail("measured and explicit ingress selection are mutually exclusive")
+  }
+  let choice = match comparison {
+    Some((full, partial, _)) => if full <= partial { "full" } else { "partial" }
+    None => explicit_choice
   }
   guard exporter_identity.split("#sha256=").to_array() is [exporter, _] else {
     fail("exporter identity required")
@@ -212,7 +232,7 @@ async fn main {
   // This helper compiles the full-ingress runtime. The metadata rebind must
   // retain that explicit route: the exporter's conservative default omits
   // both ingress and attention modules, not merely the metadata annotation.
-  if choice == "partial" {
+  if choice == "partial" || comparison is Some(_) {
     let directory = candidate + "/reusable-qwen-ingress"
     let recipe = @fs.read_file(directory + "/kernel.recipe").text()
     let digest = checked("sha256sum", [directory + "/kernel.cu"])
@@ -243,7 +263,16 @@ async fn main {
         output + "/ingress-partial-second.cubin",
       ]),
     )
-    args.append(["--ingress-evaluate", "partial"])
+    match comparison {
+      Some((full, partial, samples)) =>
+        args.append([
+          "--ingress-pair",
+          full.to_string(),
+          partial.to_string(),
+          samples.to_string(),
+        ])
+      None => args.append(["--ingress-evaluate", "partial"])
+    }
     args.append(
       field(recipe, "grid").split(",").map(x => x.to_owned()).to_array(),
     )
