@@ -141,3 +141,25 @@ fn partitioned_attention_symbol_suffix(
     "_p\{partitions}"
   }
 }
+
+///|
+/// AOT compilation for an explicitly selected legal partitioned alternative.
+/// Selection and measurements are separate; this function cannot manufacture
+/// an offline timing record to force a candidate through the compiler.
+pub fn specialize_cuda_partitioned_attention_tile_aot(
+  request : CudaPartitionedAttentionTileAotRequest,
+  candidate_id : Int,
+) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError {
+  let functional = @luna_attention_tile_compiler.specialize_partitioned_attention_tile(
+    request.functional_request([]),
+    candidate_id,
+  ) catch {
+    _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
+  }
+  finish_cuda_partitioned_attention_tile_aot(
+    request,
+    functional,
+    request.partial_symbol,
+    request.merge_symbol,
+  )
+}

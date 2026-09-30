@@ -634,14 +634,17 @@ async fn run(
       scope=route_scope,
       table,
       baseline=1,
-      [1, 2],
+      [1, 2, 3, 4, 5, 6],
     ) catch {
       _ => raise InvalidRuntime
     }
     for slot, candidate in selected.bucket_candidates() {
-      if candidate >= 0 &&
-        (table.bucket_at(slot) catch { _ => raise InvalidRuntime }).phase() ==
-        DecodeGraph {
+      let phase = (table.bucket_at(slot) catch { _ => raise InvalidRuntime }).phase()
+      if ((candidate == 3 || candidate == 4) && phase != DecodeGraph) ||
+        (
+          (candidate == 2 || candidate == 5 || candidate == 6) &&
+          phase == DecodeGraph
+        ) {
         raise InvalidRuntime
       }
     }

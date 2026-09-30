@@ -57,7 +57,7 @@ test "packed ingress preserves head ownership through graph bucket launch" {
 }
 
 ///|
-test "blockwise decode has a distinct numerical admission and no implicit split ABI" {
+test "blockwise decode has a distinct numerical admission and partition ABI" {
   let plan = qwen_fused_test_plan()
   let blueprint = qwen_fused_test_blueprint(plan)
   let runtime = qwen_fused_test_runtime(
@@ -66,7 +66,7 @@ test "blockwise decode has a distinct numerical admission and no implicit split 
     phase_specific_attention=true,
     blockwise_decode=true,
   )
-  assert_true(runtime.qwen_paged_attention_decode_split_module() is None)
+  assert_true(runtime.qwen_paged_attention_decode_split_module() is Some(_))
   let spans = admit_reusable_qwen_fused_attention_spans(
     plan,
     @worker_protocol.ModelPlanGeneration::first(),

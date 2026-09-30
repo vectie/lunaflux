@@ -16,8 +16,10 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
   maximum_key_value_splits : Int,
   maximum_workspace_bytes : Int64,
   compiler_readonly? : Bool = false,
+  blockwise_readonly? : Bool = false,
 ) -> PagedAttentionDecodeSplitRuntimeCudaBinding raise PagedAttentionAotError {
-  if partial_entry_point_id == merge_entry_point_id ||
+  if (compiler_readonly && blockwise_readonly) ||
+    partial_entry_point_id == merge_entry_point_id ||
     module_bytes.is_empty() ||
     module_bytes.length() > 8388608 ||
     paged_attention_sha256(module_bytes) != expected_module_sha256 ||
@@ -97,7 +99,13 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
       _ => raise Invalid(Contract)
     },
   )
-  let version = if compiler_readonly { "v2" } else { "v1" }
+  let version = if blockwise_readonly {
+    "v3"
+  } else if compiler_readonly {
+    "v2"
+  } else {
+    "v1"
+  }
   let partial_symbol = "lunaflux_paged_attention_bf16_decode_split_partial_" +
     version +
     "_ep_" +
@@ -106,7 +114,9 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
     version +
     "_ep_" +
     merge_entry_point_id.as_int().to_string()
-  let (_, partial_heads, threads, shared) = if compiler_readonly {
+  let (_, partial_heads, threads, shared) = if blockwise_readonly {
+    blockwise_decode_split_launch_geometry(shape, workspace_plan.split_count())
+  } else if compiler_readonly {
     compiler_decode_launch_geometry(
       shape,
       maximum_context_tokens,
@@ -174,5 +184,6 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
     contract,
     module_bytes,
     compiler_readonly,
+    blockwise_readonly,
   }
 }

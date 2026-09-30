@@ -100,7 +100,11 @@ fn paged_decode_split_minimum_context_tokens(
     }
     // Buckets use an upper context bound. Selecting the 256 bucket starts
     // after 128 live tokens, where shared-KV split begins paying for merge.
-    let threshold = if binding.is_compiler_readonly() {
+    let threshold = if binding.is_blockwise_readonly() {
+      // Full-chain measurements may override this startup fallback. The
+      // blockwise merge is useful only after a substantial history exists.
+      4096
+    } else if binding.is_compiler_readonly() {
       256
     } else {
       minimum_pages * tokens_per_page
@@ -120,7 +124,11 @@ fn paged_decode_split_maximum_batch_rows(
     @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ],
 ) -> Int {
-  if bindings.any(binding => binding.is_compiler_readonly()) {
+  if bindings.any(binding => binding.is_blockwise_readonly()) {
+    // Current paired measurements justify only the one-request long-history
+    // route; compiling other row buckets does not assert they are faster.
+    1
+  } else if bindings.any(binding => binding.is_compiler_readonly()) {
     4
   } else {
     2147483647

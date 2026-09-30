@@ -69,6 +69,44 @@ test "measured runtime bundle binds routes and maps winners to real graph owners
 }
 
 ///|
+test "decode and partitioned complete graphs use measured bucket owners" {
+  let (table, _, base) = graph_dispatch_fixture(7)
+  let ids = Array::make(table.bucket_count(), -1)
+  let small = graph_dispatch_bucket(table, DecodeGraph, 1, 1, 4096)
+  let large = graph_dispatch_bucket(table, DecodeGraph, 16, 16, 4096)
+  ids[small.slot()] = 4
+  ids[large.slot()] = 3
+  let split = FixedArray::make(table.bucket_count(), -1)
+  split[small.slot()] = 21
+  let mapped = map_measured_attention_owners(
+    Some(ReadOnlyArray::from_array(ids)),
+    base.slot_owner_indices,
+    7,
+    base.prefill_wide_slot_owner_indices,
+    11,
+    decode_fallback=13,
+    decode_split=Some(split),
+    decode_split_fallback=23,
+  )
+  assert_eq(mapped[small.slot()], 21)
+  assert_true(mapped[large.slot()] >= 0)
+  try
+    map_measured_attention_owners(
+      Some(ReadOnlyArray::from_array(ids)),
+      base.slot_owner_indices,
+      7,
+      base.prefill_wide_slot_owner_indices,
+      11,
+    )
+  catch {
+    InvalidExecutor(GraphBucket) => ()
+    _ => fail("wrong unprepared route error")
+  } noraise {
+    _ => fail("unprepared measured partition route accepted")
+  }
+}
+
+///|
 test "measured baseline overrides heuristic while unmeasured buckets retain it" {
   let (table, _, base) = graph_dispatch_fixture(7)
   let chosen = graph_dispatch_bucket(table, PrefillGraph, 8, 64, 4096)

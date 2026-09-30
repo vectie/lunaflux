@@ -394,8 +394,17 @@ fn prepare_paged_ordered_executors(
   }
   {
     measured_owner_indices: map_measured_attention_owners(
-      measured_attention_candidates, slot_owner_indices, fallback_owner_index, prefill_wide_slot_owner_indices,
+      measured_attention_candidates,
+      slot_owner_indices,
+      fallback_owner_index,
+      prefill_wide_slot_owner_indices,
       prefill_wide_owner_index,
+      decode_fallback=decode_owner_index,
+      decode_split=Some(decode_split_slot_owner_indices),
+      decode_split_fallback=decode_split_owner_index,
+      prefill_split=Some(prefill_split_slot_owner_indices),
+      prefill_split_fallback=prefill_split_owner_index,
+      deep_prefill_split_fallback=deep_prefill_split_owner_index,
     ),
     slot_owner_indices,
     prefill_wide_slot_owner_indices,

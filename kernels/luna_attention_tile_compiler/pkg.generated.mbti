@@ -30,6 +30,8 @@ pub fn schedule_partitioned_attention_tile(OptimizedAttentionTileCompilation) ->
 
 pub fn select_attention_tile(AttentionTileCompilerRequest) -> SelectedAttentionTileCompilation raise AttentionTileCompilerError
 
+pub fn specialize_partitioned_attention_tile(AttentionTileCompilerRequest, Int) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError
+
 // Errors
 pub(all) suberror AttentionTileCompilerError {
   InvalidAttentionTileCompilation(AttentionTileCompilerRule)

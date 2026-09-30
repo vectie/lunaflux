@@ -19,6 +19,8 @@ pub fn compile_cuda_partitioned_attention_tile_aot(CudaPartitionedAttentionTileA
 
 pub fn compile_cuda_partitioned_attention_tile_aot_frontier(CudaPartitionedAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord], ArrayView[Int]) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError
 
+pub fn specialize_cuda_partitioned_attention_tile_aot(CudaPartitionedAttentionTileAotRequest, Int) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError
+
 // Errors
 pub(all) suberror CudaAttentionTileAotError {
   InvalidCudaAttentionTileAot(CudaAttentionTileAotRule)

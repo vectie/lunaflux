@@ -46,3 +46,50 @@ test "portable compiler adapter agrees with runtime row workspace and launch geo
     ),
   )
 }
+
+///|
+test "blockwise partition specialization retains explicit numeric law and shared geometry" {
+  let shape = @luna_attention_strategy.AttentionShape::new(
+    query_heads=16,
+    kv_heads=8,
+    head_dimension=128,
+    tokens_per_page=16,
+  )
+  let compiled = compile_blockwise_decode_split(
+    shape,
+    @launch_contract.PagedKernelProfile::new(
+      id=@launch_contract.KernelProfileId::from_stable_int(9),
+      max_query_rows=32,
+      max_query_tokens=32,
+      max_page_table_entries=2560,
+    ),
+    @catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=0,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    32768L,
+    2560L,
+    40960,
+    8,
+    67108864L,
+  )
+  assert_eq(compiled.lowering().key_value_partitions(), 8)
+  assert_eq(
+    compiled.lowering().launch(),
+    blockwise_decode_split_launch_geometry(shape, 8),
+  )
+  assert_eq(compiled.source().workspace().total_bytes(), 2129920L)
+  let source = @utf8.decode(compiled.source().bytes())
+  assert_true(
+    source.contains(
+      "lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903",
+    ),
+  )
+  assert_true(
+    source.contains(
+      "lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904",
+    ),
+  )
+}

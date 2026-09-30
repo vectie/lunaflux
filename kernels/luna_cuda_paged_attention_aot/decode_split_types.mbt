@@ -49,6 +49,7 @@ pub struct PagedAttentionDecodeSplitManifestCudaBinding {
 /// bundle before this exact model operation and launch contract are joined.
 pub struct PagedAttentionDecodeSplitRuntimeCudaBinding {
   priv compiler_readonly : Bool
+  priv blockwise_readonly : Bool
   priv operation_id : @plan.OperationId
   priv profile : @launch_contract.PagedKernelProfile
   priv layout : @device_layout.DeviceKvLayout
@@ -318,6 +319,7 @@ pub fn PagedAttentionDecodeSplitManifestCudaBinding::runtime_binding(
     contract: self.contract,
     module_bytes: self.module_bytes,
     compiler_readonly: self.candidate.compiler_readonly,
+    blockwise_readonly: false,
   }
 }
 
@@ -329,4 +331,11 @@ pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::is_compiler_readonly(
   self : PagedAttentionDecodeSplitRuntimeCudaBinding,
 ) -> Bool {
   self.compiler_readonly
+}
+
+///|
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::is_blockwise_readonly(
+  self : PagedAttentionDecodeSplitRuntimeCudaBinding,
+) -> Bool {
+  self.blockwise_readonly
 }
