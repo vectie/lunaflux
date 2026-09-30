@@ -45,6 +45,7 @@ async fn main {
           x == ".mooncakes" ||
           x == "toolchain" ||
           x == "source" ||
+          x == "model-root" ||
           x == ".git"
         }) {
         excluded.push(relative)
