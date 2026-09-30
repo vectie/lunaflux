@@ -17,12 +17,12 @@ fn emit_cuda_blockwise_decode_source(
   let (input_width, _, _) = abi.layout()
   let (max_rows, max_tokens, max_pages) = abi.limits()
   let group = heads / kv_heads
-  let required_shared = (keys * dimension * 4 + group * keys * 4 + 16).to_int64()
+  let stages = if effects.is_pipelined() { 2 } else { 1 }
+  let required_shared = (keys * dimension * 4 * stages + group * keys * 4 + 16).to_int64()
   guard !abi.query_metadata &&
     lowering.phase() == Decode &&
     query_tile == 1 &&
     lowering.compute() == CudaGroupedQueryBlockwiseShuffleDot &&
-    !effects.is_pipelined() &&
     (keys == 32 || keys == 64) &&
     dimension == abi_dimension &&
     fold.dimensions() == (dimension, keys) &&
@@ -41,14 +41,38 @@ fn emit_cuda_blockwise_decode_source(
     8,
     hoist_page_lookup=lowering.hoists_paged_key_value_page_lookup(),
   )
-  let acquire = cuda_grouped_effects(
+  let acquire = if effects.is_pipelined() {
+    emit_decode_pipeline_iteration(effects)
+  } else {
+    cuda_grouped_effects(effects, AcquireKeyOperands, transfer, "    ")
+  }
+  let release = cuda_grouped_effects(
     effects,
-    AcquireKeyOperands,
-    transfer,
+    if effects.is_pipelined() {
+      CompleteTileReaders
+    } else {
+      ReleaseTileReaders
+    },
+    "",
     "    ",
   )
-  let release = cuda_grouped_effects(effects, ReleaseTileReaders, "", "    ")
-  let body = cuda_blockwise_fold_body(fold)
+  let value_ready = if effects.is_pipelined() {
+    cuda_grouped_effects(effects, AcquireValueOperands, "", "    ") +
+    "\n" +
+    cuda_grouped_effects(effects, PrefetchNextTile, "", "    ")
+  } else {
+    ""
+  }
+  let body = cuda_blockwise_fold_body(fold, value_ready~)
+  let initialize = if effects.is_pipelined() {
+    emit_decode_async_stage(
+      abi,
+      effects,
+      lowering.hoists_paged_key_value_page_lookup(),
+    )
+  } else {
+    ""
+  }
   let items = (dimension + 31) / 32
   let source =
     $|#include <cuda_bf16.h>
@@ -86,10 +110,12 @@ fn emit_cuda_blockwise_decode_source(
     $|      page_end > page_entry_count || page_end - page_start !=
     $|          (sequence_length + \{page_tokens - 1}) / \{page_tokens}) return;
     $|  extern __shared__ __align__(16) unsigned char shared_arena[];
-    $|  __nv_bfloat16 *key_tile = reinterpret_cast<__nv_bfloat16 *>(shared_arena);
+    $|  __nv_bfloat16 *stage_arena = reinterpret_cast<__nv_bfloat16 *>(shared_arena);
+    $|  __nv_bfloat16 *key_tile = stage_arena;
     $|  __nv_bfloat16 *value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-    $|  float *scores = reinterpret_cast<float *>(value_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + warp * LF_KEY_VALUE_TILE;
-    $|  int *tile_valid = reinterpret_cast<int *>(value_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + \{group * keys};
+    $|  float *scores = reinterpret_cast<float *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + warp * LF_KEY_VALUE_TILE;
+    $|  int *tile_valid = reinterpret_cast<int *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + \{group * keys};
+    $|  int *stage_valid = tile_valid;
     $|  const unsigned long long query_offset = (unsigned long long)token * \{input_width}ULL + query_head * LF_HEAD_DIMENSION;
     $|  float query_fragment[LF_ACCUMULATOR_ITEMS], accumulator[LF_ACCUMULATOR_ITEMS] = {};
     $|  #pragma unroll
@@ -100,7 +126,9 @@ fn emit_cuda_blockwise_decode_source(
     $|  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
     $|  float maximum = -CUDART_INF_F, denominator = 0.0f;
     $|  const int key_limit = query_position + 1;
-    $|  for (int key_base = 0; key_base < key_limit; key_base += LF_KEY_VALUE_TILE) {
+    $|  const int key_begin = 0;
+    $|\{initialize}
+    $|  for (int key_base = key_begin; key_base < key_limit; key_base += LF_KEY_VALUE_TILE) {
     $|    const int active_keys = min(LF_KEY_VALUE_TILE, key_limit - key_base);
     $|\{acquire}
     $|\{body}

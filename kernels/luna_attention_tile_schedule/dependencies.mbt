@@ -20,7 +20,10 @@ pub fn AttentionTileSchedule::transfer_readiness(
     self.memory == AttentionAsyncStagedShared &&
     self.pipeline_stages == 1 {
     KeyScoreBeforeValueReadiness
-  } else if self.compute == AttentionGroupedQuerySplitSubgroupDot &&
+  } else if (
+      self.compute == AttentionGroupedQuerySplitSubgroupDot ||
+      self.compute == AttentionGroupedQueryBlockwiseDot
+    ) &&
     self.memory == AttentionAsyncStagedShared &&
     self.pipeline_stages == 2 {
     KeyScoreBeforeValueReadiness

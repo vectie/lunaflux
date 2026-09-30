@@ -145,7 +145,7 @@ fn source_test_decode_lowering(
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=candidate_id == 440 || candidate_id == 441,
+    supports_async_copy=[440, 441, 452, 453].contains(candidate_id),
   )
   guard @luna_attention_strategy.generate_attention_tile_candidates(
       problem, capabilities,

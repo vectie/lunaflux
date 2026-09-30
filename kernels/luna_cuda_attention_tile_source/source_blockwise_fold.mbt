@@ -3,6 +3,7 @@
 /// disjoint per subgroup; its exchanges do not require a workgroup barrier.
 fn cuda_blockwise_fold_body(
   fold : @attention_physical_ir.BlockwiseFold,
+  value_ready? : String = "",
 ) -> String {
   fold
   .steps()
@@ -50,6 +51,8 @@ fn cuda_blockwise_fold_body(
         )
       PublishTileProbabilities => "    __syncwarp();"
       AccumulateTileValues =>
+        value_ready +
+        "\n" +
         (
           #|    float tile_numerator[LF_ACCUMULATOR_ITEMS] = {};
           #|    for (int key = 0; key < active_keys; ++key) {

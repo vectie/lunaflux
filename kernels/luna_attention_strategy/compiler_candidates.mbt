@@ -20,7 +20,7 @@ fn attention_candidate_shared_bytes(
         head_dimension.to_int64(),
         Candidate,
       ),
-      4L,
+      4L * pipeline_stages.to_int64(),
       Candidate,
     )
     let scores = attention_checked_product(
@@ -274,6 +274,24 @@ pub fn generate_attention_tile_candidates(
     if key_value_heads > 0 && query_heads % key_value_heads == 0 {
       let query_heads_per_group = query_heads / key_value_heads
       if problem.allow_alternative_softmax_reduction {
+        for index, keys in [32, 64] {
+          match
+            make_attention_candidate(
+              problem,
+              capabilities,
+              452 + index,
+              AttentionGroupedQueryBlockwiseDot,
+              AttentionAsyncStagedShared,
+              1,
+              keys,
+              query_heads_per_group,
+              2,
+              8,
+            ) {
+            Some(candidate) => candidates.push(candidate)
+            None => ()
+          }
+        }
         for index, keys in [32, 64] {
           match
             make_attention_candidate(

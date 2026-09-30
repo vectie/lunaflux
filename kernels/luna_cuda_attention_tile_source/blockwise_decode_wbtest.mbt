@@ -48,6 +48,41 @@ test "blockwise decode retains explicit F32 law and uniform cache rejection" {
 }
 
 ///|
+test "blockwise decode pipelines operands with disjoint score ownership" {
+  for id in [452, 453] {
+    let lowering = source_test_decode_lowering(
+      candidate_id=id,
+      alternative=true,
+    )
+    guard lowering.physical_program() is BlockwiseKeyProgram(fold, effects) else {
+      fail("missing blockwise physical program")
+    }
+    assert_true(effects.is_pipelined())
+    let source = emit_cuda_attention_tile_source(
+      lowering,
+      source_test_abi(),
+      "decode",
+      1048576,
+    )
+    let text = @utf8.decode(source.bytes())
+    assert_true(text.contains("cp.async.ca.shared.global"))
+    assert_true(text.contains("cp.async.wait_group 1;"))
+    assert_true(text.contains("cp.async.wait_group 0;"))
+    assert_true(
+      text.contains("stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1)"),
+    )
+    assert_true(text.contains("if (!stage_valid[slot]) return;"))
+    assert_true(text.contains("stage_arena + 4 * LF_KEY_VALUE_TILE"))
+    assert_eq(source.symbol(), "decode_blockwise_f32_v1")
+    let (_, keys) = fold.dimensions()
+    assert_eq(
+      lowering.launch().3,
+      (keys * 128 * 8 + 4 * keys * 4 + 16).to_int64(),
+    )
+  }
+}
+
+///|
 test "ordered decode does not expose the alternative numerical law" {
   try source_test_decode_lowering(candidate_id=450) catch {
     _ => ()
