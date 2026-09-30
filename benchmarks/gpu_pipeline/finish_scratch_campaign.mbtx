@@ -1,0 +1,78 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn execute(root : String, label : String, args : Array[String]) -> Unit {
+  let result = @shell.Cmd(root + "/toolchain/bin/moon", args).output(
+    max_output_bytes=16777216,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, serving, unit] else {
+    fail("ROOT SERVING UNIT")
+  }
+  let mut complete = false
+  for _ in 0..<1800 {
+    if @fs.exists(serving + "/RESULT.txt") {
+      guard @fs.read_file(serving + "/RESULT.txt")
+        .text()
+        .has_prefix("outcome=completed\n") else {
+        fail("serving did not complete")
+      }
+      complete = true
+      break
+    }
+    let state = @shell.Cmd("systemctl", [
+      "--user", "show", unit, "-p", "ActiveState", "--value",
+    ]).output()
+    state.check()
+    guard state.stdout().trim() == "active" else {
+      fail("serving unit stopped before terminal result")
+    }
+    @async.sleep(1000)
+  }
+  guard complete else { fail("serving deadline") }
+  // The serving runner has drained before writing RESULT. Never overlap GPU
+  // campaigns: reference timing first, then isolated partition correctness.
+  let baseline = root + "/fresh-baselines"
+  @fs.mkdir(baseline)
+  execute(root, "fresh-baselines", [
+    "run",
+    root + "/remeasure_pinned_baselines.mbtx",
+    serving,
+    baseline,
+  ])
+  let partitions = root + "/partitions"
+  @fs.mkdir(partitions)
+  execute(root, "partitions", [
+    "run",
+    root + "/measure_blockwise_partitions.mbtx",
+    root,
+    root + "/calibration-final",
+    partitions,
+    root + "/selected_policy_probe.cu",
+  ])
+  @fs.write_file(
+    root + "/FOLLOWUPS_RESULT.txt",
+    "outcome=completed\n",
+    create_mode=CreateNew,
+  )
+}

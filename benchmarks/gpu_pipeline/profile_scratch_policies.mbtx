@@ -1,0 +1,103 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, prior, calibration, root] else {
+    fail("COMPLETED_SERVING PRIOR_FAST_SERVING CALIBRATION NEW_EMPTY_ROOT")
+  }
+  guard @fs.read_file(serving + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("serving incomplete")
+  }
+  let metrics = [
+    "gpu__time_duration.sum", "launch__grid_size", "launch__registers_per_thread",
+    "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "dram__bytes_read.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+  ].join(",")
+  for kind in ["ingress", "prefill", "decode"] {
+    let gpu = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    gpu.check()
+    guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
+    guard @fs.read_file("/proc/meminfo")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("MemAvailable:"))
+      .to_array()
+      is [line] &&
+      @string.parse_int64(
+        line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+      ) >=
+      33554432L else {
+      fail("32 GiB reserve")
+    }
+    let args = [
+      "-n",
+      "/usr/local/cuda/bin/ncu",
+      "--csv",
+      "--page",
+      "raw",
+      "--kernel-name",
+      "regex:lunaflux_",
+      "--launch-count",
+      "2",
+      "--metrics",
+      metrics,
+      "--export",
+      root + "/" + kind,
+      serving + "/check-probe",
+      calibration + "/" + kind + ".spec",
+      prior + "/" + kind + "-selected",
+      serving + "/" + kind + "-selected",
+      if kind == "decode" {
+        "16"
+      } else {
+        "2048"
+      },
+      if kind == "decode" {
+        "16"
+      } else {
+        "8"
+      },
+      if kind == "decode" {
+        "4095"
+      } else {
+        "2048"
+      },
+      "--check-only",
+    ]
+    @fs.write_file(
+      root + "/" + kind + ".command",
+      args.join("\n"),
+      create_mode=CreateNew,
+    )
+    let result = @shell.Cmd("sudo", args).output(max_output_bytes=16777216)
+    @fs.write_file(
+      root + "/" + kind + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + kind + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    println(kind + " paired counters complete")
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\n",
+    create_mode=CreateNew,
+  )
+}
