@@ -65,7 +65,11 @@ pub fn parse_projection_resource_records(
         @resource_policy.MachineWork::new(
           instructions=nonnegative(instructions),
           local_bytes=nonnegative(local_bytes),
-          barriers=nonnegative(barriers),
+          barriers=if barriers == "-" {
+            None
+          } else {
+            Some(nonnegative(barriers))
+          },
         )
       ("luna-projection-resources-v3", _) => raise InvalidSnapshot
       (_, []) => None
@@ -117,7 +121,7 @@ pub fn parse_projection_resource_budget(
     @resource_policy.MachineWork::new(
       instructions=nonnegative(instructions),
       local_bytes=nonnegative(local_bytes),
-      barriers=nonnegative(barriers),
+      barriers=if barriers == "-" { None } else { Some(nonnegative(barriers)) },
     )
   } else {
     None

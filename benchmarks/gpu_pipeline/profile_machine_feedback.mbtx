@@ -1,0 +1,189 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields = []
+  let mut text = StringBuilder()
+  let mut quoted = false
+  for character in line {
+    if character == '"' {
+      quoted = !quoted
+    } else if character == ',' && !quoted {
+      fields.push(text.to_string())
+      text = StringBuilder()
+    } else {
+      text.write_char(character)
+    }
+  }
+  fields.push(text.to_string())
+  fields
+}
+
+///|
+fn counter(
+  names : Array[String],
+  values : Array[String],
+  metric : String,
+) -> Int64 raise {
+  guard names.length() == values.length() else { fail("CSV arity") }
+  let mut found = None
+  for index, name in names {
+    if name == metric {
+      guard found is None else { fail("duplicate metric") }
+      found = Some(@string.parse_int64(values[index].replace(old=",", new="")))
+    }
+  }
+  guard found is Some(value) && value >= 0L else {
+    fail("missing counter " + metric)
+  }
+  value
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, calibration, root] else {
+    fail("CALIBRATION NEW_EMPTY_ROOT")
+  }
+  assert_eq(
+    @fs.read_file(calibration + "/RESULT.txt").text(),
+    "outcome=passed\n",
+  )
+  let gpu = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else { fail("GPU busy") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [memory] else {
+    fail("memory")
+  }
+  guard @string.parse_int64(
+      memory.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  let cell = calibration + "/prefill-q2048-r8-h2048"
+  let records = @fs.read_file(cell + "/ingress.records")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+  let metrics = [
+    "gpu__time_duration.sum", "launch__grid_size", "launch__registers_per_thread",
+    "launch__local_mem_per_thread", "smsp__inst_executed.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum",
+    "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+  ].join(",")
+  let mut report = "luna-projection-resources-v3\n" +
+    records[1:5].map(x => x.to_owned()).join("\n") +
+    "\n"
+  let observations = []
+  let mut reference_instructions = 0L
+  let mut reference_local = 0L
+  for line in records[5:] {
+    let columns = line.split("\t").to_array()
+    guard columns.length() == 7 && columns[0] == "record" else {
+      fail("record")
+    }
+    let policy = columns[1].to_owned()
+    let baseline = calibration + "/candidate/reusable-qwen-full-ingress"
+    let candidate = if policy == records[5].split("\t").to_array()[1].to_owned() {
+      baseline
+    } else {
+      calibration + "/candidate/reusable-qwen-full-ingress-" + policy
+    }
+    // Counters describe exact selected machine code. Paired unprofiled medians
+    // remain the optimization objective; profiler timing never replaces them.
+    let args = [
+      "-n",
+      "/usr/local/cuda/bin/ncu",
+      "--csv",
+      "--page",
+      "raw",
+      "--kernel-name",
+      "regex:lunaflux_",
+      "--launch-count",
+      "2",
+      "--metrics",
+      metrics,
+      "--export",
+      root + "/" + policy,
+      calibration + "/probe",
+      calibration + "/ingress.spec",
+      baseline,
+      candidate,
+      "2048",
+      "8",
+      "2048",
+      "--check-only",
+    ]
+    @fs.write_file(
+      root + "/" + policy + ".arguments",
+      args.join("\n"),
+      create_mode=CreateNew,
+    )
+    let result = @shell.Cmd("sudo", args).output(max_output_bytes=16777216)
+    @fs.write_file(
+      root + "/" + policy + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + policy + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    let rows = result
+      .stdout()
+      .split("\n")
+      .filter(x => x.has_prefix("\""))
+      .to_array()
+    guard rows.length() == 4 else { fail("two exact kernel captures") }
+    let names = csv(rows[0])
+    let values = csv(rows[3])
+    let instructions = counter(names, values, "smsp__inst_executed.sum")
+    let local_bytes = (
+        counter(names, values, "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum") +
+        counter(names, values, "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum")
+      ) *
+      32L
+    if observations.is_empty() {
+      reference_instructions = instructions
+      reference_local = local_bytes
+    }
+    // GB10 does not expose a barrier-instruction counter here. A missing
+    // observation is explicit '-', never fabricated zero or a stall percent.
+    observations.push(
+      line.to_owned() + "\t\{instructions}\t\{local_bytes}\t-\n",
+    )
+    println(
+      "\{policy}: instructions=\{instructions}, local_sector_bytes=\{local_bytes}",
+    )
+  }
+  report += "machine-budget\t\{reference_instructions * 2L}\t\{reference_local}\t-\n" +
+    observations.join("")
+  @fs.write_file(
+    root + "/ingress.records",
+    report,
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nobjective=unprofiled-median\nlocal-counter-unit=32-byte-sectors\nbarrier-instructions=unavailable\n",
+    create_mode=CreateNew,
+  )
+}
