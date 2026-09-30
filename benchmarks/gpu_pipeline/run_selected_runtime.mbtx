@@ -44,9 +44,17 @@ async fn memory() -> Int64 {
 
 ///|
 async fn main {
-  guard @env.args() is [_, base, calibration, root, builder, .. options] &&
-    options.all(x => x == "--partial-ingress" || x == "--measured-decode-routes") else {
+  guard @env.args() is [_, base, calibration, root, builder, .. options] else {
     fail("BASELINE_ROOT CALIBRATION_ROOT NEW_EMPTY_ROOT FIXED_FUSED_BUILDER")
+  }
+  let (options, prior) = match options {
+    [.. flags, "--baseline-root", path] => (flags, Some(path))
+    _ => (options, None)
+  }
+  guard options.all(x => {
+    x == "--partial-ingress" || x == "--measured-decode-routes"
+  }) else {
+    fail("unsupported option")
   }
   let partial_ingress = options.contains("--partial-ingress")
   guard @fs.read_file(calibration + "/RESULT.txt").text() == "outcome=passed\n" else {
@@ -194,7 +202,15 @@ async fn main {
     ] {
     for
       (version, candidates, binaries) in [
-        ("baseline", base + "/candidate", base + "/fused-full"),
+        (
+          "baseline",
+          prior.unwrap_or(base) + "/candidate",
+          if prior is Some(path) {
+            path + "/fused"
+          } else {
+            base + "/fused-full"
+          },
+        ),
         ("selected", root + "/candidate", root + "/fused"),
       ] {
       let destination = root + "/" + kind + "-" + version

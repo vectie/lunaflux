@@ -72,6 +72,24 @@ fn parse_qwen3_candidate_export_arguments(
     continue index + 1
   }
   let arguments = filtered
+  let mut compiler_register_limit = 128
+  let mut register_limit_seen = false
+  let filtered : Array[String] = []
+  for index = 0; index < arguments.length(); {
+    if arguments[index] == "--compiler-register-limit" {
+      guard !register_limit_seen && index + 1 < arguments.length() else {
+        raise InvalidArguments
+      }
+      let limit = parse_positive_decimal(arguments[index + 1])
+      guard limit <= 255 else { raise InvalidArguments }
+      compiler_register_limit = limit
+      register_limit_seen = true
+      continue index + 2
+    }
+    filtered.push(arguments[index])
+    continue index + 1
+  }
+  let arguments = filtered
   let mut decode_candidate : Int? = None
   let filtered : Array[String] = []
   for index = 0; index < arguments.length(); {
@@ -201,6 +219,7 @@ fn parse_qwen3_candidate_export_arguments(
     ingress_policy_records,
     ingress_policy_search,
     ingress_shared_limit,
+    compiler_register_limit,
     decode_candidate,
     query_metadata,
   }

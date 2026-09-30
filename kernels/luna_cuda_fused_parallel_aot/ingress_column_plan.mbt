@@ -152,7 +152,15 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::resource_scope(
     device~,
     toolchain~,
     shape="bf16:\{input}:\{output}:\{heads}:\{kv}:\{dimension}:\{q.profile.max_query_rows()}:\{q.profile.max_query_tokens()}",
-    program=q.tile_compilation.digest().as_hex(),
+    // Compiler register ceilings change generated machine code even when
+    // CUDA source and semantic plans are identical. They invalidate tuning.
+    program=fused_parallel_digest(
+      @utf8.encode(
+        q.tile_compilation.digest().as_hex() +
+        "\n" +
+        fused_compiler_record(q.compiler),
+      ),
+    ).as_hex(),
   )
 }
 

@@ -178,12 +178,19 @@ async fn main {
   guard options.is_empty() ||
     options == ["--all-new-finalists"] ||
     options == ["--scratch-pipeline-finalists"] ||
-    options == ["--joint-budget-finalists"] else {
+    options == ["--joint-budget-finalists"] ||
+    options == ["--joint-register-finalists"] else {
     fail("optional mode: --all-new-finalists or --scratch-pipeline-finalists")
   }
   let all_new_finalists = options == ["--all-new-finalists"]
   let scratch_finalists = options == ["--scratch-pipeline-finalists"]
-  let joint_finalists = options == ["--joint-budget-finalists"]
+  let joint_finalists = options == ["--joint-budget-finalists"] ||
+    options == ["--joint-register-finalists"]
+  let register_limit = if options == ["--joint-register-finalists"] {
+    "255"
+  } else {
+    "128"
+  }
   guard performance_class.has_prefix("perf-v1:") &&
     performance_class.length() <= 512 &&
     !performance_class.contains("\t") &&
@@ -245,6 +252,8 @@ async fn main {
     "--query-metadata-v1",
     "--ingress-shared-limit",
     shared_limit,
+    "--compiler-register-limit",
+    register_limit,
   ])
   let exported = run(root, "export", exporter, args)
   ignore(
@@ -506,6 +515,8 @@ async fn main {
       sha(cell_root + "/" + attention_name),
       device,
       "--query-metadata-v1",
+      "--compiler-register-limit",
+      register_limit,
     ])
     ignore(run(cell_root, "selected-export", exporter, tuned))
     @fs.write_file(

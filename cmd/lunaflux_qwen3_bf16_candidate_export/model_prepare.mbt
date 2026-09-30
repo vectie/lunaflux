@@ -122,7 +122,7 @@ fn prepare_candidate_set(
     optimization_level=3,
     fused_multiply_add=false,
     reassociate=false,
-    max_registers=128,
+    max_registers=arguments.compiler_register_limit,
   ) catch {
     _ => raise CandidatePreparation
   }
