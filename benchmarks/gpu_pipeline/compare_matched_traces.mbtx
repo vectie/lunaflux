@@ -1,0 +1,170 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    String(s) => @string.parse_int64(s)
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("integer required")
+  }
+}
+
+///|
+fn activity(value : Json) -> Map[String, Int64] raise {
+  guard value
+    is {
+      "schema": "lunaflux.matched-chain-trace.v1",
+      "input": i,
+      "output": o,
+      "concurrency": c,
+      "window_ns": window,
+      "exclusive_activity_ns": Object(raw),
+      ..
+    } &&
+    integer(i) == 4096L &&
+    integer(o) == 256L &&
+    integer(c) == 16L else {
+    fail("trace work vector mismatch")
+  }
+  let result : Map[String, Int64] = Map([])
+  for key, value in raw {
+    result[key] = integer(value)
+  }
+  assert_true(result.values().all(x => x >= 0L))
+  assert_eq(result.values().fold(init=0L, (a, b) => a + b), integer(window))
+  result
+}
+
+///|
+fn self_test() -> Unit raise {
+  let fixture : Json = {
+    "schema": "lunaflux.matched-chain-trace.v1",
+    "input": 4096,
+    "output": 256,
+    "concurrency": 16,
+    "window_ns": "20",
+    "exclusive_activity_ns": { "attention-all-phases": "15", "unmapped": "5" },
+  }
+  assert_eq(activity(fixture)["unmapped"], 5L)
+  let bad : Json = {
+    "schema": "lunaflux.matched-chain-trace.v1",
+    "input": 4096,
+    "output": 64,
+    "concurrency": 16,
+    "window_ns": "20",
+    "exclusive_activity_ns": {},
+  }
+  try activity(bad) catch {
+    _ => ()
+  } noraise {
+    _ => fail("different work accepted")
+  }
+  println(
+    "matched trace comparison passed: additive budgets and unequal-work rejection",
+  )
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    self_test()
+    return
+  }
+  guard @env.args() is [_, root, output] &&
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n") else {
+    fail("COMPLETED_MATCHED_TRACE_CAMPAIGN NEW_OUTPUT | --self-test")
+  }
+  let budgets : Map[String, Map[String, Int64]] = Map([])
+  let summaries : Map[String, Json] = Map([])
+  let expected_inputs : Array[Json] = []
+  let expected_outputs : Array[Json] = []
+  let disagreements : Array[Json] = []
+  for engine in ["luna-full", "vllm", "sglang"] {
+    let summary = @json.parse(
+      @fs.read_file(root + "/" + engine + "/matched-summary.json").text(),
+    )
+    budgets[engine] = activity(summary)
+    summaries[engine] = summary
+    guard summary
+      is { "engine": String(actual), "client_trial": String(client), .. } &&
+      actual == engine else {
+      fail("trace engine identity")
+    }
+    guard @json.parse(@fs.read_file(client).text())
+      is { "requests": Array(responses), .. } &&
+      responses.length() == 16 else {
+      fail("complete trace response vector")
+    }
+    let stem = client[:client.length() - 5].to_owned()
+    for row, response in responses {
+      guard response is { "token_ids": Array(ids), .. } && ids.length() == 256 else {
+        fail("output vector")
+      }
+      let body = @json.parse(@fs.read_file(stem + "-r\{row}.body.json").text())
+      let input = match body {
+        { "input_token_ids": Array(ids), .. } => Json(ids)
+        { "input_ids": Array(ids), .. } => Json(ids)
+        { "prompt": Array(ids), .. } => Json(ids)
+        _ => fail("explicit input tokens required")
+      }
+      guard input is Array(tokens) && tokens.length() == 4096 else {
+        fail("input vector")
+      }
+      if engine == "luna-full" {
+        expected_inputs.push(input)
+        expected_outputs.push(Json(ids))
+      } else {
+        assert_eq(expected_inputs[row], input, msg="profiler inputs differ")
+        if expected_outputs[row] != Json(ids) {
+          disagreements.push({ "engine": engine, "row": row })
+        }
+      }
+    }
+  }
+  let labels : Array[String] = []
+  for _, budget in budgets {
+    for label, _ in budget {
+      if !labels.contains(label) {
+        labels.push(label)
+      }
+    }
+  }
+  labels.sort()
+  let rows = labels.map(label => {
+    let luna = budgets["luna-full"].get(label).unwrap_or(0L)
+    let vllm = budgets["vllm"].get(label).unwrap_or(0L)
+    let sglang = budgets["sglang"].get(label).unwrap_or(0L)
+    (
+      {
+        "activity": label,
+        "luna_ms": luna.to_double() / 1000000.0,
+        "vllm_ms": vllm.to_double() / 1000000.0,
+        "sglang_ms": sglang.to_double() / 1000000.0,
+        "luna_minus_vllm_ms": (luna - vllm).to_double() / 1000000.0,
+        "luna_minus_sglang_ms": (luna - sglang).to_double() / 1000000.0,
+      } : Json)
+  })
+  let result : Json = {
+    "schema": "lunaflux.matched-trace-comparison.v1",
+    "rows": rows,
+    "token_agreement": disagreements.is_empty(),
+    "different_requests": disagreements,
+    "summaries": summaries,
+    "scope": "fresh profiled activity accounting, not ordinary throughput or causal hardware attribution; names group whole chains, unknowns stay unknown; no assumption of equal per-launch shapes or invocation counts",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  let printed : Json = {
+    "rows": rows,
+    "token_agreement": disagreements.is_empty(),
+    "different_requests": disagreements,
+    "full_result": output,
+  }
+  println(printed.stringify(indent=2))
+}
