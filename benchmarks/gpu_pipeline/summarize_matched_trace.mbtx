@@ -1,0 +1,298 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+struct Interval {
+  begin : Int64
+  end : Int64
+  chain : String
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer required")
+  }
+}
+
+// Deliberately use whole chains. A shared GEMM symbol/grid is not enough to
+// identify output versus down, and mixed attention is not pure prefill.
+
+///|
+fn chain(name : String, engine : String, grid_y : Int64) -> String {
+  if name.contains("attention_") ||
+    name.contains("decode_split") ||
+    name.contains("BatchDecode") ||
+    name.contains("BatchPrefill") ||
+    name.contains("MergeStates") ||
+    name.contains("flash_fwd") {
+    return "attention-all-phases"
+  }
+  if name.contains("language_model_head") ||
+    name.contains("greedy_bf16") ||
+    name.contains("argmax") ||
+    name.contains("sampling") ||
+    (engine != "luna-full" && name.contains("wmma_tensorop") && grid_y == 1187L) {
+    return "head-and-sampling"
+  }
+  if name.contains("dense_projection") ||
+    name.contains("gated_mlp") ||
+    name.contains("fused_qwen_qkv") ||
+    name.contains("qknorm") ||
+    name.contains("QKApplyRotary") ||
+    name.contains("reshape_and_cache") ||
+    name.contains("silu") ||
+    name.contains("tensorop") ||
+    name.has_prefix("nvjet_") ||
+    name.contains("triton_red_fused") ||
+    name.contains("triton_poi_fused_2") ||
+    name.contains("triton_poi_fused_4") ||
+    name.contains("index_elementwise") {
+    return "decoder-projection-and-postops"
+  }
+  if name.contains("rms") ||
+    name.contains("RMSNorm") ||
+    name.contains("embedding") ||
+    name.contains("mean_mul_pow_rsqrt") {
+    return "norm-and-embedding"
+  }
+  "unmapped"
+}
+
+// Sweep interval endpoints. Attribute a segment only when exactly one chain
+// is active. Cross-chain overlap is retained, never credited to both chains.
+// This is an additive activity budget, NOT a CUDA dependency critical path.
+
+///|
+fn budget(
+  events : Array[Interval],
+  begin : Int64,
+  end : Int64,
+) -> Map[String, Int64] raise {
+  guard begin >= 0L && end > begin else { fail("invalid window") }
+  let points : Array[(Int64, String, Int)] = [(begin, "", 0), (end, "", 0)]
+  for event in events {
+    guard event.begin >= 0L && event.end > event.begin else {
+      fail("invalid activity")
+    }
+    let lo = Int64::max(event.begin, begin)
+    let hi = Int64::min(event.end, end)
+    if lo < hi {
+      points.push((lo, event.chain, 1))
+      points.push((hi, event.chain, -1))
+    }
+  }
+  points.sort_by((a, b) => a.0.compare(b.0))
+  let active : Map[String, Int] = Map([])
+  let totals : Map[String, Int64] = Map([])
+  let mut previous = begin
+  for (time, key, delta) in points {
+    if time > previous {
+      let keys = active.to_array().filter(x => x.1 > 0)
+      let label = match keys {
+        [] => "no-observed-gpu-activity"
+        [(label, _)] => label
+        _ => "cross-chain-overlap"
+      }
+      totals[label] = totals.get(label).unwrap_or(0L) + time - previous
+      previous = time
+    }
+    if delta != 0 {
+      active[key] = active.get(key).unwrap_or(0) + delta
+    }
+  }
+  assert_eq(totals.values().fold(init=0L, (a, b) => a + b), end - begin)
+  assert_true(active.values().all(x => x == 0))
+  totals
+}
+
+///|
+fn self_test() -> Unit raise {
+  let totals = budget(
+    [
+      { begin: 5L, end: 25L, chain: "attention", },
+      { begin: 15L, end: 35L, chain: "attention", },
+      { begin: 20L, end: 40L, chain: "projection", },
+    ],
+    10L,
+    50L,
+  )
+  assert_eq(totals["attention"], 10L)
+  assert_eq(totals["cross-chain-overlap"], 15L)
+  assert_eq(totals["projection"], 5L)
+  assert_eq(totals["no-observed-gpu-activity"], 10L)
+  let clipped = budget([{ begin: 0L, end: 100L, chain: "x", }], 10L, 20L)
+  assert_eq(clipped["x"], 10L)
+  assert_eq(budget([], 0L, 10L)["no-observed-gpu-activity"], 10L)
+  try budget([{ begin: 10L, end: 10L, chain: "x", }], 0L, 20L) catch {
+    _ => ()
+  } noraise {
+    _ => fail("zero-length activity accepted")
+  }
+  assert_eq(
+    chain("lunaflux_attention_decode_split_merge", "luna-full", 1L),
+    "attention-all-phases",
+  )
+  assert_eq(
+    chain("flash_fwd_splitkv_kernel", "vllm", 16L),
+    "attention-all-phases",
+  )
+  assert_eq(
+    chain("lunaflux_dense_projection_qkv", "luna-full", 32L),
+    "decoder-projection-and-postops",
+  )
+  assert_eq(chain("wmma_tensorop_bf16", "vllm", 1187L), "head-and-sampling")
+  assert_eq(chain("unknown", "sglang", 1L), "unmapped")
+  println(
+    "matched trace regression passed: overlap, clipping, gaps, incomplete mappings",
+  )
+}
+
+///|
+async fn query(db : String, sql : String) -> Array[Json] {
+  let result = @shell.Cmd("sqlite3", ["-json", db, sql]).output(
+    max_output_bytes=134217728,
+  )
+  result.check()
+  guard @json.parse(
+      if result.stdout().trim().is_empty() {
+        "[]"
+      } else {
+        result.stdout()
+      },
+    )
+    is Array(rows) else {
+    fail("SQL rows")
+  }
+  rows
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    self_test()
+    return
+  }
+  guard @env.args() is [_, root, engine, request, output] &&
+    ["luna-full", "vllm", "sglang"].contains(engine) else {
+    fail("TRACE_ROOT ENGINE CLIENT_TRIAL_JSON NEW_OUTPUT_JSON | --self-test")
+  }
+  let db = root + "/trace.sqlite"
+  guard query(db, "SELECT utcEpochNs FROM TARGET_INFO_SESSION_START_TIME;")
+    is [{ "utcEpochNs": epoch, .. }] else {
+    fail("session epoch")
+  }
+  guard @json.parse(@fs.read_file(request).text())
+    is {
+      "epoch_start_ns": a,
+      "epoch_end_ns": b,
+      "input": input,
+      "output": tokens,
+      "concurrency": concurrent,
+      "requests": Array(responses),
+      ..
+    } else {
+    fail("bounded client epoch/work vector required")
+  }
+  let begin = integer(a) - integer(epoch)
+  let end = integer(b) - integer(epoch)
+  assert_eq(responses.length(), integer(concurrent).to_int())
+  for response in responses {
+    guard response is { "token_ids": Array(ids), .. } &&
+      ids.length().to_int64() == integer(tokens) else {
+      fail("incomplete output work")
+    }
+  }
+  let rows = query(
+    db,
+    "SELECT k.start,k.end,s.value name,k.gridX,k.gridY,k.gridZ,k.blockX,k.blockY,k.blockZ,k.registersPerThread,k.staticSharedMemory,k.dynamicSharedMemory,k.graphNodeId,k.correlationId,k.streamId FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName WHERE k.end>\{begin} AND k.start<\{end} ORDER BY k.start;",
+  )
+  guard !rows.is_empty() else { fail("empty measured kernel window") }
+  let events : Array[Interval] = []
+  let sums : Map[String, Int64] = Map([])
+  let configs : Map[String, (Int, Int64)] = Map([])
+  let mut graphs = 0
+  for row in rows {
+    guard row
+      is {
+        "start": lo,
+        "end": hi,
+        "name": String(name),
+        "gridY": gy,
+        "gridX": gx,
+        "gridZ": gz,
+        "blockX": bx,
+        "blockY": by,
+        "blockZ": bz,
+        "registersPerThread": regs,
+        "staticSharedMemory": ss,
+        "dynamicSharedMemory": ds,
+        "graphNodeId": graph,
+        ..
+      } else {
+      fail("kernel metadata")
+    }
+    let label = chain(name, engine, integer(gy))
+    let ns = Int64::min(end, integer(hi)) - Int64::max(begin, integer(lo))
+    events.push({ begin: integer(lo), end: integer(hi), chain: label, })
+    sums[label] = sums.get(label).unwrap_or(0L) + ns
+    match graph {
+      Null => ()
+      _ => if integer(graph) > 0L { graphs += 1 }
+    }
+    let key = name +
+      " grid=\{integer(gx)},\{integer(gy)},\{integer(gz)} block=\{integer(bx)},\{integer(by)},\{integer(bz)} regs=\{integer(regs)} shared=\{integer(ss)+integer(ds)}"
+    let previous = configs.get(key).unwrap_or((0, 0L))
+    configs[key] = (previous.0 + 1, previous.1 + ns)
+  }
+  for table in ["CUPTI_ACTIVITY_KIND_MEMCPY", "CUPTI_ACTIVITY_KIND_MEMSET"] {
+    if !query(db, "SELECT name FROM sqlite_master WHERE name='\{table}';").is_empty() {
+      for
+        row in query(
+          db,
+          "SELECT start,end FROM \{table} WHERE end>\{begin} AND start<\{end};",
+        ) {
+        guard row is { "start": lo, "end": hi, .. } else {
+          fail("transfer interval")
+        }
+        events.push({ begin: integer(lo), end: integer(hi), chain: "transfer", })
+      }
+    }
+  }
+  let ordered = configs.to_array()
+  ordered.sort_by((a, b) => b.1.1.compare(a.1.1))
+  let result : Json = {
+    "schema": "lunaflux.matched-chain-trace.v1",
+    "engine": engine,
+    "client_trial": request,
+    "input": input,
+    "output": tokens,
+    "concurrency": concurrent,
+    "window_ns": end - begin,
+    "exclusive_activity_ns": budget(events, begin, end),
+    "kernel_sums_ns_not_additive": sums,
+    "kernel_calls": rows.length(),
+    "graph_kernel_calls": graphs,
+    "configurations": ordered.map(x => {
+      ({ "config": x.0, "calls": x.1.0, "ns": x.1.1 } : Json)
+    }),
+    "mapping_policy": "whole-attention including merge and mixed phases; combined decoder projections/postops; shared GEMM symbols are not separated into output/down",
+    "scope": "activity budget, not a dependency critical path or hardware cause; all unknowns/overlap retained; physical grids do not imply equal logical work",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  @fs.write_file(
+    output + ".kernels.json",
+    Json(rows).stringify(),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+}

@@ -1,0 +1,283 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number required")
+  }
+}
+
+///|
+fn divergence(expected : Json, actual : Json) -> Json raise {
+  guard expected is Array(a) && actual is Array(b) && a.length() == b.length() else {
+    fail("equal output lengths required")
+  }
+  for i in 0..<a.length() {
+    if a[i] != b[i] {
+      return {
+        "first_different_token": i,
+        "expected_token_id": a[i],
+        "actual_token_id": b[i],
+      }
+    }
+  }
+  Json::null()
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() &&
+    values.all(x => x > 0.0 && !x.is_inf() && !x.is_nan()) else {
+    fail("positive finite trial times required")
+  }
+  let sorted = values.copy()
+  sorted.sort_by((a, b) => a.compare(b))
+  let middle = sorted.length() / 2
+  if sorted.length() % 2 == 1 {
+    sorted[middle]
+  } else {
+    (sorted[middle - 1] + sorted[middle]) / 2.0
+  }
+}
+
+///|
+fn stats(values : Array[Double]) -> Json raise {
+  let sorted = values.copy()
+  sorted.sort_by((a, b) => a.compare(b))
+  {
+    "median_ms": median(values),
+    "min_ms": sorted[0],
+    "max_ms": sorted.last().unwrap(),
+    "trials_ms": values,
+  }
+}
+
+///|
+fn validate_trial(
+  value : Json,
+  engine : String,
+  input : Int,
+  output : Int,
+) -> Array[Json] raise {
+  guard value
+    is {
+      "engine": String(actual),
+      "input": i,
+      "output": o,
+      "concurrency": c,
+      "trial": t,
+      "warmup": False,
+      "wall_ms": time,
+      "requests": Array(requests),
+      ..
+    } &&
+    actual == engine &&
+    number(i) == input.to_double() &&
+    number(o) == output.to_double() &&
+    number(c) == 16.0 &&
+    number(t) == 1.0 &&
+    number(time) > 0.0 &&
+    requests.length() == 16 else {
+    fail("trial/work vector drift or warm-up included")
+  }
+  for request in requests {
+    guard request is { "token_ids": Array(ids), "token_ms": Array(times), .. } &&
+      ids.length() == output &&
+      times.length() == output else {
+      fail("incomplete work")
+    }
+  }
+  requests
+}
+
+///|
+fn self_test() -> Unit raise {
+  assert_eq(median([3.0, 1.0, 2.0]), 2.0)
+  assert_eq(median([2.0, 1.0]), 1.5)
+  assert_eq(number(Json("13356")), 13356.0)
+  assert_eq(divergence(Json([1, 2]), Json([1, 2])), Json::null())
+  assert_eq(divergence(Json([1, 2]), Json([1, 3])), {
+    "first_different_token": 1,
+    "expected_token_id": 2,
+    "actual_token_id": 3,
+  })
+  try median([0.0]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("zero time accepted")
+  }
+  try
+    validate_trial({ "engine": "vllm", "warmup": true }, "vllm", 128, 32)
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("warm-up accepted")
+  }
+  println(
+    "matched campaign regression passed: medians, invalid times, incomplete trials",
+  )
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    self_test()
+    return
+  }
+  guard @env.args() is [_, root, output_path] &&
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n") else {
+    fail("COMPLETED_MATCHED_CAMPAIGN NEW_OUTPUT | --self-test")
+  }
+  let cells : Array[Json] = []
+  let differences : Array[Json] = []
+  let repeatability : Array[Json] = []
+  let first_outputs : Map[String, Json] = Map([])
+  let first_inputs : Map[String, Json] = Map([])
+  let memory : Map[String, Int64] = Map([])
+  let mut compared_requests = 0
+  let mut minimum_available = 9223372036854775807L
+  for (input, output) in [(128, 32), (4096, 64), (4096, 256)] {
+    let stem = "i\{input}-o\{output}-c16-t1"
+    let times : Map[String, Array[Double]] = Map([])
+    let ttft : Map[String, Array[Double]] = Map([])
+    for round in 0..<3 {
+      let expected : Array[Json] = []
+      let expected_input : Array[Json] = []
+      for engine in ["luna-full", "vllm", "sglang"] {
+        let dir = root + "/r\{round}-" + engine
+        guard @fs.read_file(dir + "/RESULT.txt")
+          .text()
+          .has_prefix("outcome=completed\n") else {
+          fail("incomplete engine trial")
+        }
+        let value = @json.parse(
+          @fs.read_file(dir + "/requests/" + stem + ".json").text(),
+        )
+        let requests = validate_trial(value, engine, input, output)
+        guard value is { "wall_ms": wall, .. } else { fail("wall time") }
+        let sequence = times.get(engine).unwrap_or([])
+        sequence.push(number(wall))
+        times[engine] = sequence
+        let latencies = ttft.get(engine).unwrap_or([])
+        for row, request in requests {
+          guard request is { "token_ids": ids, "ttft_ms": first, .. } else {
+            fail("tokens/TTFT")
+          }
+          latencies.push(number(first))
+          let body = @json.parse(
+            @fs.read_file(dir + "/requests/" + stem + "-r\{row}.body.json").text(),
+          )
+          let ids_input = match body {
+            { "input_token_ids": Array(ids), .. } => ids
+            { "input_ids": Array(ids), .. } => ids
+            { "prompt": Array(ids), .. } => ids
+            _ => fail("token input required")
+          }
+          assert_eq(ids_input.length(), input)
+          let identity = "\{engine}/\{input}/\{output}/\{row}"
+          if round == 0 {
+            first_outputs[identity] = ids
+            first_inputs[identity] = Json(ids_input)
+          } else {
+            assert_eq(
+              first_inputs[identity],
+              Json(ids_input),
+              msg="inputs changed across rounds",
+            )
+            if first_outputs[identity] != ids {
+              repeatability.push({
+                "engine": engine,
+                "round": round,
+                "input": input,
+                "output": output,
+                "row": row,
+                "divergence": divergence(first_outputs[identity], ids),
+              })
+            }
+          }
+          if engine == "luna-full" {
+            expected.push(ids)
+            expected_input.push(Json(ids_input))
+          } else {
+            assert_eq(
+              Json(ids_input),
+              expected_input[row],
+              msg="input tokens differ",
+            )
+            compared_requests += 1
+            if ids != expected[row] {
+              differences.push({
+                "engine": engine,
+                "round": round,
+                "input": input,
+                "output": output,
+                "row": row,
+                "divergence": divergence(expected[row], ids),
+              })
+            }
+          }
+        }
+        ttft[engine] = latencies
+        if !memory.contains(dir) {
+          let samples = @fs.read_file(dir + "/memory.csv")
+            .text()
+            .split("\n")
+            .filter(x => !x.is_empty())
+            .to_array()
+          guard !samples.is_empty() else { fail("memory samples absent") }
+          let values = samples.map(x => {
+            @string.parse_int64(x.split(",").to_array()[1])
+          })
+          let minimum = values.fold(init=9223372036854775807L, Int64::min)
+          assert_true(minimum >= 33554432L, msg="reserve breached")
+          memory[dir] = minimum
+          minimum_available = Int64::min(minimum_available, minimum)
+        }
+      }
+    }
+    let engines : Map[String, Json] = Map([])
+    for engine, values in times {
+      let time = median(values)
+      engines[engine] = {
+        "wall": stats(values),
+        "output_tokens_per_second": (16 * output).to_double() * 1000.0 / time,
+        "ttft_median_ms": median(ttft[engine]),
+      }
+    }
+    cells.push({
+      "input": input,
+      "output": output,
+      "concurrency": 16,
+      "engines": engines,
+      "luna_extra_time_vs_vllm_percent": (
+        median(times["luna-full"]) / median(times["vllm"]) - 1.0
+      ) *
+      100.0,
+      "luna_extra_time_vs_sglang_percent": (
+        median(times["luna-full"]) / median(times["sglang"]) - 1.0
+      ) *
+      100.0,
+    })
+  }
+  let result : Json = {
+    "schema": "lunaflux.matched-chain-comparison.v1",
+    "cells": cells,
+    "minimum_memavailable_kib": minimum_available,
+    "compared_requests": compared_requests,
+    "token_agreement": differences.is_empty(),
+    "different_requests": differences,
+    "within_engine_repeatability_differences": repeatability,
+    "scope": "three Latin-square fresh-start trials per engine/cell, matched token inputs, C16 only; three trials do not establish statistical significance; no profiler durations included",
+  }
+  @fs.write_file(output_path, result.stringify(indent=2), create_mode=CreateNew)
+  println(result.stringify(indent=2))
+}

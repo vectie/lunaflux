@@ -1,0 +1,356 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline only: rerun the immutable, already-qualified worker and cubins.
+// No source build, production instrumentation, or tuning happens here.
+
+///|
+fn replace_once(text : String, before : String, after : String) -> String raise {
+  let parts = text.split(before).to_array()
+  guard parts.length() == 2 else { fail("client seam changed: " + before) }
+  parts.join(after)
+}
+
+///|
+async fn available() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("MemAvailable")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let result = @shell.Cmd("sha256sum", [path]).output()
+  result.check()
+  result.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn luna_child(serving : String, root : String, mode : String) -> Unit {
+  let cmd = serving + "/source/_build/native/release/build/cmd/"
+  let launch = serving + "/deployment/lunaflux.launch.json"
+  if mode == "serve" {
+    ignore(
+      capture(
+        root,
+        "supervisor",
+        serving +
+        "/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe",
+        [
+          cmd + "lunaflux/lunaflux.exe",
+          serving + "/deployment#sha256=" + sha(launch),
+          root + "/runtime.stdout",
+          root + "/runtime.stderr",
+          root + "/drain-trigger",
+        ],
+      ),
+    )
+  } else {
+    let bridge = cmd +
+      "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe"
+    let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+    let exported = @fs.read_file(serving + "/export.stdout").text()
+    guard exported
+      .split("\n")
+      .filter(x => x.has_prefix("model_plan_sha256="))
+      .to_array()
+      is [plan] else {
+      fail("model plan")
+    }
+    ignore(
+      capture(root, "bridge", bridge, [
+        bridge + "#sha256=" + sha(bridge),
+        model + "/tokenizer.json#sha256=" + sha(model + "/tokenizer.json"),
+        launch + "#sha256=" + sha(launch),
+        serving + "/capacity.json#sha256=" + sha(serving + "/capacity.json"),
+        "127.0.0.1:5062",
+        "127.0.0.1:5061",
+        sha(model + "/model.safetensors"),
+        plan["model_plan_sha256=".length():].to_owned(),
+        "4096",
+        "256",
+        "151935",
+        "40960",
+      ]),
+    )
+  }
+}
+
+///|
+async fn trial(
+  serving : String,
+  root : String,
+  script : String,
+  engine : String,
+) -> Unit {
+  @fs.mkdir(root)
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() && available() >= 33554432L else {
+    fail("GPU occupied or 32 GiB reserve absent")
+  }
+  let moon = serving + "/toolchain/bin/moon"
+  let components = root.split("/").to_array()
+  let unit = "lunaflux-matched-" +
+    components[components.length() - 2].to_owned() +
+    "-" +
+    components.last().unwrap().to_owned()
+  let units = [unit + "-bridge.service", unit + "-serve.service"]
+  let container = "lunaflux-remeasure-" + engine + "-53deab59"
+  errdefer (if engine == "luna-full" {
+    ignore(@shell.Cmd("systemctl", ["--user", "stop", ..units]).output())
+  } else {
+    ignore(@shell.Cmd("docker", ["stop", "--time", "30", container]).output())
+  })
+  let samples = StringBuilder()
+  let mut done = false
+  errdefer @fs.write_file(
+    root + "/memory-interrupted.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = available()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(500)
+      }
+    })
+    if engine == "luna-full" {
+      for phase in ["serve", "bridge"] {
+        ignore(
+          capture(root, "start-" + phase, "systemd-run", [
+            "--user",
+            "--unit=" + unit + "-" + phase,
+            "--property=MemoryMax=64G",
+            "--property=MemorySwapMax=0",
+            "--property=RuntimeMaxSec=900",
+            moon,
+            "run",
+            script,
+            serving,
+            root,
+            script,
+            "--" + phase,
+          ]),
+        )
+      }
+    } else {
+      ignore(
+        capture(root, "container-before", "docker", ["inspect", container]),
+      )
+      ignore(capture(root, "start", "docker", ["start", container]))
+    }
+    let mut ready = false
+    for _ in 0..<240 {
+      let health = if engine == "luna-full" {
+        @shell.Cmd("ss", ["-ltnH", "sport", "=", ":5062"]).output()
+      } else {
+        @shell.Cmd("curl", [
+          "--fail",
+          "--silent",
+          "--max-time",
+          "2",
+          if engine == "vllm" {
+            "http://127.0.0.1:8101/health"
+          } else {
+            "http://127.0.0.1:8102/health"
+          },
+        ]).output()
+      }
+      let native_ready = if engine == "luna-full" {
+        let native = @shell.Cmd("ss", ["-ltnH", "sport", "=", ":5061"]).output()
+        native.exit_code() == 0 && !native.stdout().trim().is_empty()
+      } else {
+        true
+      }
+      if health.exit_code() == 0 &&
+        native_ready &&
+        (engine != "luna-full" || !health.stdout().trim().is_empty()) {
+        ready = true
+        break
+      }
+      @async.sleep(1000)
+    }
+    guard ready else { fail("server readiness") }
+    ignore(
+      capture(root, "client", moon, [
+        "run",
+        script + ".client.mbtx",
+        engine,
+        root + "/requests",
+      ]),
+    )
+    if engine == "luna-full" {
+      @fs.write_file(
+        root + "/drain-trigger",
+        "benchmark complete\n",
+        create_mode=CreateNew,
+      )
+      let mut drained = false
+      for _ in 0..<120 {
+        if @fs.exists(root + "/supervisor.stdout") {
+          drained = true
+          break
+        }
+        @async.sleep(500)
+      }
+      guard drained else { fail("drain incomplete") }
+      let supervisor = @fs.read_file(root + "/supervisor.stdout").text()
+      for key in ["drain_acknowledged=1", "child_exit_code=0", "child_closed=1"] {
+        guard supervisor.contains(key) else { fail(key) }
+      }
+      guard @fs.read_file(root + "/runtime.stderr").text().is_empty() else {
+        fail("runtime stderr")
+      }
+      ignore(
+        capture(root, "stop-bridge", "systemctl", [
+          "--user",
+          "stop",
+          unit + "-bridge.service",
+        ]),
+      )
+    } else {
+      ignore(
+        capture(root, "stop", "docker", ["stop", "--time", "30", container]),
+      )
+      ignore(capture(root, "container-after", "docker", ["inspect", container]))
+    }
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  // Stopping the enclosing owner must leave no GPU worker from this trial.
+  for _ in 0..<30 {
+    let idle = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    idle.check()
+    if idle.stdout().trim().is_empty() {
+      @fs.write_file(
+        root + "/RESULT.txt",
+        "outcome=completed\n",
+        create_mode=CreateNew,
+      )
+      return
+    }
+    @async.sleep(500)
+  }
+  fail("GPU did not return idle")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, root, script, .. options] else {
+    fail(
+      "COMPLETED_IMMUTABLE_SERVING NEW_EMPTY_ROOT THIS_SCRIPT [--serve|--bridge]",
+    )
+  }
+  if options is ["--serve"] {
+    luna_child(serving, root, "serve")
+    return
+  }
+  if options is ["--bridge"] {
+    luna_child(serving, root, "bridge")
+    return
+  }
+  guard options.is_empty() &&
+    @fs.read_file(serving + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("completed runtime required")
+  }
+  // Latin square across three fresh starts; one identical warm-up per cell.
+  let orders = [
+    ["vllm", "luna-full", "sglang"],
+    ["sglang", "vllm", "luna-full"],
+    ["luna-full", "sglang", "vllm"],
+  ]
+  let client = replace_once(
+    @fs.read_file(serving + "/benchmark.mbtx").text(),
+    "[1,8,16]",
+    "[16]",
+  )
+  let client = replace_once(client, "0..<4", "0..<2")
+  let client = replace_once(
+    client, "let started=@async.now()\n        let requests=", "let epoch=@shell.Cmd(\"date\",[\"+%s%N\"]).output(); epoch.check()\n        let started=@async.now()\n        let requests=",
+  )
+  let client = replace_once(
+    client, "let result : Json={\"engine\":engine", "let ended=@shell.Cmd(\"date\",[\"+%s%N\"]).output(); ended.check()\n        let result : Json={\"epoch_start_ns\":epoch.stdout().trim().to_owned(),\"epoch_end_ns\":ended.stdout().trim().to_owned(),\"engine\":engine",
+  )
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  let provenance : Json = {
+    "schema": "lunaflux.matched-chain-campaign.v1",
+    "serving_root": serving,
+    "script_sha256": sha(script),
+    "client_sha256": sha(script + ".client.mbtx"),
+    "launch_sha256": sha(serving + "/deployment/lunaflux.launch.json"),
+    "worker_sha256": sha(serving + "/deployment/bin/lunaflux-device-worker"),
+    "orders": orders,
+    "input_output_vector": [[128, 32], [4096, 64], [4096, 256]],
+    "concurrency_vector": [16],
+    "scope": "unprofiled timing, fresh starts, unchanged qualified worker/cubins; not current dirty-tree deployment",
+  }
+  @fs.write_file(
+    root + "/campaign.json",
+    provenance.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  for round, order in orders {
+    for engine in order {
+      trial(serving, root + "/r\{round}-" + engine, script, engine)
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=counterbalanced-C16-token-vector\n",
+    create_mode=CreateNew,
+  )
+}

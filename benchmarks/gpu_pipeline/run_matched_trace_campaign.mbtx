@@ -1,0 +1,236 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn replace_once(text : String, before : String, after : String) -> String raise {
+  let parts = text.split(before).to_array()
+  guard parts.length() == 2 else { fail("trace seam changed: " + before) }
+  parts.join(after)
+}
+
+///|
+async fn available() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [
+      _,
+      serving,
+      measured,
+      root,
+      luna_tool,
+      reference_tool,
+      summary_tool,
+      .. options,
+    ] &&
+    (
+      options.is_empty() ||
+      options is ["--prepare-only"] ||
+      options is ["--reuse-luna", _]
+    ) else {
+    fail(
+      "IMMUTABLE_SERVING COMPLETED_MATCHED_TIMING NEW_ROOT LUNA_TRACE_TOOL REFERENCE_TRACE_TOOL SUMMARY_TOOL [--prepare-only|--reuse-luna COMPLETED_CAPTURE]",
+    )
+  }
+  guard options is ["--prepare-only"] ||
+    @fs.read_file(measured + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("finish ordinary timing before profiler capture")
+  }
+  // Retain the known reference launcher, changing only the requested workload
+  // and epoch recording. Do not change allocation, image or kernel options.
+  let client = replace_once(
+    @fs.read_file(serving + "/benchmark.mbtx").text(),
+    "[(128,32),(4096,64),(4096,256)]",
+    "[(4096,256)]",
+  )
+  let client = replace_once(client, "[1,8,16]", "[16]")
+  let client = replace_once(client, "0..<4", "0..<1")
+  let client = replace_once(
+    client, "let started=@async.now()\n        let requests=", "let epoch=@shell.Cmd(\"date\",[\"+%s%N\"]).output(); epoch.check()\n        let started=@async.now()\n        let requests=",
+  )
+  let client = replace_once(
+    client, "let result : Json={\"engine\":engine", "let ended=@shell.Cmd(\"date\",[\"+%s%N\"]).output(); ended.check()\n        let result : Json={\"epoch_start_ns\":epoch.stdout().trim().to_owned(),\"epoch_end_ns\":ended.stdout().trim().to_owned(),\"engine\":engine",
+  )
+  @fs.write_file(root + "/client.template.mbtx", client, create_mode=CreateNew)
+  let old_client =
+    #|  let base = @fs.read_file(completed + "/benchmark.mbtx")
+    #|    .text()
+    #|    .replace(old="[(128,32),(4096,64),(4096,256)]", new="[(4096,64)]")
+    #|    .replace(old="[1,8,16]", new="[16]")
+    #|    .replace(old="0..<4", new="0..<1")
+    #|  @fs.write_file(root + "/client.mbtx", base, create_mode=CreateNew)
+  let reference = replace_once(
+    @fs.read_file(reference_tool).text(),
+    old_client,
+    "  @fs.write_file(root + \"/client.mbtx\", @fs.read_file(" +
+    Json(root + "/client.template.mbtx").stringify() +
+    "), create_mode=CreateNew)",
+  )
+  // Engine basenames alone collide with preserved earlier profiler containers.
+  let reference = replace_once(
+    reference, "root.split(\"/\").to_array().last().unwrap().to_owned()", "root.split(\"/\").to_array()[root.split(\"/\").to_array().length()-2].to_owned() + \"-\" + root.split(\"/\").to_array().last().unwrap().to_owned()",
+  )
+  @fs.write_file(
+    root + "/reference-trace.mbtx",
+    reference,
+    create_mode=CreateNew,
+  )
+  let moon = serving + "/toolchain/bin/moon"
+  // Compile without arguments: the helper must reject usage before touching a
+  // GPU or container. This catches generated-source defects before admission.
+  let preflight = @shell.Cmd(moon, ["run", root + "/reference-trace.mbtx"]).output(
+    max_output_bytes=1048576,
+  )
+  @fs.write_file(
+    root + "/preflight.stderr",
+    preflight.stderr(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/preflight.stdout",
+    preflight.stdout(),
+    create_mode=CreateNew,
+  )
+  let diagnostics = preflight.stdout() + preflight.stderr()
+  guard preflight.exit_code() != 0 &&
+    diagnostics.contains("COMPLETED_BASELINE NEW_EMPTY_ROOT") &&
+    !diagnostics.contains("Error:") else {
+    fail("reference trace preflight")
+  }
+  let client_check = @shell.Cmd(moon, [
+    "check",
+    root + "/client.template.mbtx",
+    "--deny-warn",
+  ]).output(max_output_bytes=1048576)
+  @fs.write_file(
+    root + "/client-preflight.stdout",
+    client_check.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/client-preflight.stderr",
+    client_check.stderr(),
+    create_mode=CreateNew,
+  )
+  client_check.check()
+  if options is ["--prepare-only"] {
+    println(
+      "reference generated-source preflight passed; no GPU workload started",
+    )
+    return
+  }
+  let samples = StringBuilder()
+  let mut done = false
+  errdefer @fs.write_file(
+    root + "/memory-interrupted.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = available()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(500)
+      }
+    })
+    for engine in ["luna-full", "vllm", "sglang"] {
+      let dir = root + "/" + engine
+      if engine == "luna-full" && options is ["--reuse-luna", completed_capture] {
+        guard @fs.read_file(completed_capture + "/RESULT.txt")
+          .text()
+          .has_prefix("outcome=completed\n") &&
+          @fs.exists(completed_capture + "/matched-summary.json") else {
+          fail("complete captured Luna trace required")
+        }
+        @shell.Cmd("ln", ["-s", completed_capture, dir]).run()
+        continue
+      }
+      @fs.mkdir(dir)
+      if engine == "luna-full" {
+        capture(root, engine, moon, [
+          "run", luna_tool, serving, dir, "--selected", "--long-c16-256",
+        ])
+      } else {
+        capture(root, engine, moon, [
+          "run",
+          root + "/reference-trace.mbtx",
+          serving,
+          dir,
+          engine,
+          "trace",
+        ])
+      }
+      let request = dir +
+        "/requests/i4096-o256-c16-t" +
+        (if engine == "luna-full" { "1" } else { "0" }) +
+        ".json"
+      capture(root, "summary-" + engine, moon, [
+        "run",
+        summary_tool,
+        dir,
+        engine,
+        request,
+        dir + "/matched-summary.json",
+      ])
+    }
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=fresh-three-framework-4096-256-C16-activity-not-throughput\n",
+    create_mode=CreateNew,
+  )
+}
