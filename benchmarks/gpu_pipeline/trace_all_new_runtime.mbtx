@@ -74,7 +74,7 @@ async fn main {
   }
   guard @env.args() is [_, serving, root, .. raw_options] else {
     fail(
-      "COMPLETED_SERVING NEW_EMPTY_ROOT [--selected [--long-c16|--long-c16-256]] [--work-rows INSTALLER]",
+      "COMPLETED_SERVING NEW_EMPTY_ROOT [--selected [--short-c16|--long-c16|--long-c16-256]] [--work-rows INSTALLER]",
     )
   }
   let (options, installer) = match raw_options {
@@ -83,14 +83,16 @@ async fn main {
   }
   guard options.is_empty() ||
     options is ["--selected"] ||
+    options is ["--selected", "--short-c16"] ||
     options is ["--selected", "--long-c16"] ||
     options is ["--selected", "--long-c16-256"] else {
     fail(
-      "COMPLETED_SERVING NEW_EMPTY_ROOT [--selected [--long-c16|--long-c16-256]]",
+      "COMPLETED_SERVING NEW_EMPTY_ROOT [--selected [--short-c16|--long-c16|--long-c16-256]]",
     )
   }
   let selected = options.contains("--selected")
-  let long_c16 = options.contains("--long-c16") ||
+  let c16_workload = options.contains("--short-c16") ||
+    options.contains("--long-c16") ||
     options.contains("--long-c16-256")
   guard @fs.read_file(serving + "/RESULT.txt")
     .text()
@@ -237,17 +239,19 @@ async fn main {
     .text()
     .replace(
       old="[(128,32),(4096,64),(4096,256)]",
-      new=if options.contains("--long-c16-256") {
+      new=if options.contains("--short-c16") {
+        "[(128,32)]"
+      } else if options.contains("--long-c16-256") {
         "[(4096,256)]"
-      } else if long_c16 {
+      } else if c16_workload {
         "[(4096,64)]"
       } else {
         "[(4096,4)]"
       },
     )
-    .replace(old="[1,8,16]", new=if long_c16 { "[16]" } else { "[1,16]" })
-    .replace(old="0..<4", new=if long_c16 { "0..<2" } else { "0..<1" })
-  let client = if long_c16 {
+    .replace(old="[1,8,16]", new=if c16_workload { "[16]" } else { "[1,16]" })
+    .replace(old="0..<4", new=if c16_workload { "0..<2" } else { "0..<1" })
+  let client = if c16_workload {
     client
     .replace(
       old="let started=@async.now()\n        let requests=",
@@ -378,12 +382,17 @@ async fn verify_trace(root : String) -> Unit {
       root + "/trace.nsys-rep",
     ])
   }
-  capture(root, "selected-kernels", "sqlite3", [
-    "-header",
-    "-csv",
-    root + "/trace.sqlite",
-    "SELECT s.value AS kernel,k.gridX,k.gridY,k.blockX,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.blockX ORDER BY total_ms DESC;",
-  ])
+  if !@fs.exists(root + "/selected-kernels.stdout") {
+    capture(root, "selected-kernels", "sqlite3", [
+      "-header",
+      "-csv",
+      root + "/trace.sqlite",
+      "SELECT s.value AS kernel,k.gridX,k.gridY,k.blockX,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.blockX ORDER BY total_ms DESC;",
+    ])
+  }
+  guard @fs.read_file(root + "/selected-kernels.stderr").text().is_empty() else {
+    fail("selected-kernel query failed")
+  }
   let kernels = @fs.read_file(root + "/selected-kernels.stdout").text()
   let selected = @fs.exists(root + "/SELECTED_MODE.txt")
   guard (
@@ -413,6 +422,15 @@ async fn verify_trace(root : String) -> Unit {
         kernels.contains(
           "lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2",
         )
+      ) ||
+      (
+        selected &&
+        kernels.contains(
+          "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3,",
+        ) &&
+        kernels.contains(
+          "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3_rotary_prepare,",
+        )
       )
     ) else {
     fail("new kernel absent from actual serving launches")
@@ -438,10 +456,11 @@ async fn verify_trace(root : String) -> Unit {
       fail("old decode path was launched in the all-new capture")
     }
   }
-  @fs.write_file(
-    root + "/RESULT.txt",
-    "outcome=completed\nscope=profiled-selection-not-latency-benchmark\n",
-    create_mode=CreateNew,
-  )
+  let result = "outcome=completed\nscope=profiled-selection-not-latency-benchmark\n"
+  if @fs.exists(root + "/RESULT.txt") {
+    assert_eq(@fs.read_file(root + "/RESULT.txt").text(), result)
+  } else {
+    @fs.write_file(root + "/RESULT.txt", result, create_mode=CreateNew)
+  }
   println(kernels)
 }

@@ -1,0 +1,62 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Combined --work-rows installer for trace_all_new_runtime.mbtx. This operates
+// only on its disposable source copy. Readbacks deliberately perturb timings:
+// the resulting trace is for deterministic correctness diagnosis, not speed.
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("DISPOSABLE_TRACE_SOURCE") }
+  // A completed serving source is immutable and may predate this diagnostic
+  // fix. Select external diagnostic helpers explicitly without editing it.
+  let directory = @env.get_env_var("LUNAFLUX_DIAGNOSTIC_INSTALLER_ROOT").unwrap_or(
+    root + "/benchmarks/gpu_pipeline",
+  )
+  let execution = directory + "/install_execution_trace.mbtx"
+  let margin = directory + "/install_logit_margin_trace.mbtx"
+  let moon = root + "/../toolchain/bin/moon"
+  for
+    path in [
+      execution,
+      margin,
+      moon,
+      root + "/moon.mod",
+      root + "/engine/device_step/moon.pkg",
+    ] {
+    assert_true(
+      @fs.exists(path),
+      msg="required disposable source/toolchain file: " + path,
+    )
+  }
+  for
+    path in [
+      root + "/engine/device_step/diagnostic_execution.mbt",
+      root + "/engine/device_step/diagnostic_logit_margin.mbt",
+      root + "/EXECUTION_LOGIT_TRACE.txt",
+    ] {
+    assert_false(
+      @fs.exists(path),
+      msg="refusing duplicate diagnostic installation: " + path,
+    )
+  }
+  @shell.Cmd(moon, ["run", execution, root]).run()
+  @shell.Cmd(moon, ["run", margin, root]).run()
+  @fs.write_file(
+    root + "/EXECUTION_LOGIT_TRACE.txt",
+    "scope=diagnostic-only-not-performance\n" +
+    "kind6=epoch,row,position,selected,best,second,best_bf16_bits,second_bf16_bits\n" +
+    "kind7=request_id,row,sample_index,phase,generation\n" +
+    "kind14=epoch,row,token,bf16_bits,packed_token_row,projected_result_row\n" +
+    "tracked_tokens=624,382\nproduction_deployable=false\n",
+    create_mode=CreateNew,
+  )
+  println(
+    "execution/request/logit diagnostics installed in disposable source only",
+  )
+}
