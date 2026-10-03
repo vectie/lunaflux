@@ -11,10 +11,8 @@ fn cuda_blockwise_fold_body(
     owners=32,
     maximum_fragment=if dimensions == 128 { 4 } else { 1 },
   ).unwrap()
-  let accumulate = if ownership.fragment_width() == 4 {
+  let value_body = if ownership.fragment_width() == 4 {
     (
-      #|    float tile_numerator[LF_ACCUMULATOR_ITEMS] = {};
-      #|    for (int key = 0; key < active_keys; ++key) {
       #|      const float probability = scores[key];
       #|      const uint2 packed = *reinterpret_cast<const uint2 *>(value_tile + key * LF_HEAD_DIMENSION + lane * 4);
       #|      const float values[4] = { __uint_as_float(packed.x << 16), __uint_as_float(packed.x & 0xffff0000U),
@@ -22,12 +20,9 @@ fn cuda_blockwise_fold_body(
       #|      #pragma unroll
       #|      for (int item = 0; item < 4; ++item)
       #|        tile_numerator[item] += probability * values[item];
-      #|    }
     )
   } else {
     (
-      #|    float tile_numerator[LF_ACCUMULATOR_ITEMS] = {};
-      #|    for (int key = 0; key < active_keys; ++key) {
       #|      const float probability = scores[key];
       #|      #pragma unroll
       #|      for (int item = 0; item < LF_ACCUMULATOR_ITEMS; ++item) {
@@ -35,29 +30,73 @@ fn cuda_blockwise_fold_body(
       #|        if (component < LF_HEAD_DIMENSION)
       #|          tile_numerator[item] += probability * __bfloat162float(value_tile[key * LF_HEAD_DIMENSION + component]);
       #|      }
-      #|    }
+    )
+  }
+  // Specialize the iteration domain, not the fold's association. Complete
+  // tiles have a compile-time extent; the ragged domain retains the exact
+  // ascending-key loop. Both alternatives share the same per-key expression.
+  let accumulate = if fold.score_owners() > 1 {
+    (
+      $|    float tile_numerator[LF_ACCUMULATOR_ITEMS] = {};
+      $|    if (active_keys == LF_KEY_VALUE_TILE) {
+      $|      #pragma unroll
+      $|      for (int key = 0; key < LF_KEY_VALUE_TILE; ++key) {
+      $|\{value_body}
+      $|      }
+      $|    } else {
+      $|      for (int key = 0; key < active_keys; ++key) {
+      $|\{value_body}
+      $|      }
+      $|    }
+    )
+  } else {
+    (
+      $|    float tile_numerator[LF_ACCUMULATOR_ITEMS] = {};
+      $|    for (int key = 0; key < active_keys; ++key) {
+      $|\{value_body}
+      $|    }
+    )
+  }
+  let score_body =
+    #|      const int key = key_group + score_owner;
+    #|      float dot = 0.0f;
+    #|      #pragma unroll
+    #|      for (int item = 0; item < LF_SCORE_QUERY_ITEMS; ++item) {
+    #|        const int component = LF_SCORE_COMPONENT(item);
+    #|        if (key < active_keys && component < LF_HEAD_DIMENSION)
+    #|          dot += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
+    #|      }
+    #|      for (int offset = LF_SCORE_LANES / 2; offset > 0; offset >>= 1)
+    #|        dot += __shfl_down_sync(0xffffffffU, dot, offset, LF_SCORE_LANES);
+    #|      if (score_lane == 0 && key < active_keys) scores[key] = dot * scale;
+  let complete_score_body = score_body
+    .replace(old="key < active_keys && component", new="component")
+    .replace(old="score_lane == 0 && key < active_keys", new="score_lane == 0")
+  let scores = if fold.score_owners() > 1 {
+    (
+      $|    if (active_keys == LF_KEY_VALUE_TILE) {
+      $|      #pragma unroll
+      $|      for (int key_group = 0; key_group < LF_KEY_VALUE_TILE; key_group += LF_SCORE_OWNERS) {
+      $|\{complete_score_body}
+      $|      }
+      $|    } else {
+      $|      for (int key_group = 0; key_group < active_keys; key_group += LF_SCORE_OWNERS) {
+      $|\{score_body}
+      $|      }
+      $|    }
+    )
+  } else {
+    (
+      $|    for (int key_group = 0; key_group < active_keys; key_group += LF_SCORE_OWNERS) {
+      $|\{score_body}
+      $|    }
     )
   }
   let ordered = fold
     .steps()
     .map(step => {
       match step {
-        ComputeTileScores =>
-          (
-            #|    for (int key_group = 0; key_group < active_keys; key_group += LF_SCORE_OWNERS) {
-            #|      const int key = key_group + score_owner;
-            #|      float dot = 0.0f;
-            #|      #pragma unroll
-            #|      for (int item = 0; item < LF_SCORE_QUERY_ITEMS; ++item) {
-            #|        const int component = LF_SCORE_COMPONENT(item);
-            #|        if (key < active_keys && component < LF_HEAD_DIMENSION)
-            #|          dot += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
-            #|      }
-            #|      for (int offset = LF_SCORE_LANES / 2; offset > 0; offset >>= 1)
-            #|        dot += __shfl_down_sync(0xffffffffU, dot, offset, LF_SCORE_LANES);
-            #|      if (score_lane == 0 && key < active_keys) scores[key] = dot * scale;
-            #|    }
-          )
+        ComputeTileScores => scores
         PublishTileScores => "    __syncwarp();"
         ReduceTileMaximum =>
           (
