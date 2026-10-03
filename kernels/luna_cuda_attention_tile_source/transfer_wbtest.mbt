@@ -31,9 +31,15 @@ test "grouped copies realize the optimizer page ownership in sync and async sour
         1048576,
       ).bytes(),
     )
-    assert_true(source.contains("if (key < active_keys && component == 0)"))
-    assert_true(source.contains("row_address = __shfl_sync"))
-    assert_true(source.contains("row_valid = __shfl_sync"))
+    if source.contains("Aligned page epochs") {
+      assert_true(source.contains("retained_page = __shfl_sync"))
+      assert_false(source.contains("row_address = __shfl_sync"))
+      assert_false(source.contains("row_valid = __shfl_sync"))
+    } else {
+      assert_true(source.contains("if (key < active_keys && component == 0)"))
+      assert_true(source.contains("row_address = __shfl_sync"))
+      assert_true(source.contains("row_valid = __shfl_sync"))
+    }
     assert_true(
       source.contains("cache_index = row_valid ? row_address + component : 0"),
     )

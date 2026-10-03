@@ -7,6 +7,7 @@ fn cuda_decode_row_address(
   vector_elements : Int,
   hoist : Bool,
   invalid : String,
+  retained_page? : String = "",
 ) -> String {
   let (_, heads, dimension, page_tokens) = abi.shape()
   let (_, stride, capacity) = abi.layout()
@@ -20,6 +21,24 @@ fn cuda_decode_row_address(
     "component == 0"
   } else {
     "true"
+  }
+  if !retained_page.is_empty() {
+    // The page-epoch plan retains a narrow page identity, not a 64-bit
+    // address. Reconstruct the immutable affine offset at each consumer;
+    // distributing the address again costs two shuffles plus a validity
+    // shuffle after the already-distributed page identity.
+    return (
+      $|\{retained_page}
+      $|      const int position = key_base + key;
+      $|      const int page = retained_page;
+      $|      const int row_valid = key < active_keys && page >= 0 && (unsigned long long)page < \{capacity}ULL;
+      $|      if (key < active_keys && !row_valid && \{leader}) { \{invalid}; }
+      $|      const unsigned long long row_address = row_valid
+      $|          ? (unsigned long long)page * \{stride}ULL +
+      $|              ((unsigned long long)(position % \{page_tokens}) * \{heads}ULL + key_value_head) * LF_HEAD_DIMENSION
+      $|          : 0;
+      $|      const unsigned long long cache_index = row_valid ? row_address + component : 0;
+    )
   }
   let distribute = if ownership.shares_address() {
     "      row_address = __shfl_sync(0xffffffffU, row_address, (lane / \{ownership.consumers()}) * \{ownership.consumers()});\n" +

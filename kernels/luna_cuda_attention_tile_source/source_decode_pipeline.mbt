@@ -7,9 +7,39 @@ fn emit_decode_async_stage(
   hoist_page_lookup : Bool,
   retention : @attention_physical_ir.RetainedCopyOwnership,
   vector_elements? : Int = 4,
+  tile_rows~ : Int,
+  start_alignment~ : Int,
 ) -> String {
+  let (_, _, _, page_rows) = abi.shape()
+  let epochs = if hoist_page_lookup {
+    @attention_physical_ir.PagedTileEpochs::new(
+      tile_rows~,
+      page_rows~,
+      start_alignment~,
+      owners=32,
+    )
+  } else {
+    None
+  }
+  let page_acquire = match epochs {
+    Some(plan) =>
+      "    // Aligned page epochs: one table load per page and subgroup.\n" +
+      "    const int epoch_slot = page_start + key_base / \{page_rows} + lane;\n" +
+      "    const int epoch_page = lane < \{plan.page_count()} && lane * \{page_rows} < active_keys && epoch_slot < page_end\n" +
+      "        ? page_table_page_indices[epoch_slot] : -1;"
+    None => ""
+  }
+  let retained_page = if epochs is Some(_) {
+    "      const int retained_page = __shfl_sync(0xffffffffU, epoch_page, key / \{page_rows});"
+  } else {
+    ""
+  }
   let address = cuda_decode_row_address(
-    abi, vector_elements, hoist_page_lookup, "atomicExch(stage_valid + slot, 0)",
+    abi,
+    vector_elements,
+    hoist_page_lookup,
+    "atomicExch(stage_valid + slot, 0)",
+    retained_page~,
   )
   let vector_bytes = vector_elements * 2
   let (vectors, owners, slots) = retention.dimensions()
@@ -53,6 +83,7 @@ fn emit_decode_async_stage(
     $|    const int active_keys = min(LF_KEY_VALUE_TILE, key_limit - key_base);
     $|    __nv_bfloat16 *key_tile = stage_arena + slot * 2 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|    __nv_bfloat16 *value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+    $|\{page_acquire}
     $|    // Retained copy ownership: \{vectors} vectors, \{owners} owners, \{slots} scalar slots.
     $|\{key_copies.join("\n")}
     $|    asm volatile("cp.async.commit_group;" ::: "memory");

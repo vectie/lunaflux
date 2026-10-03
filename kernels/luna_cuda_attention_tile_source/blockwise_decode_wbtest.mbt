@@ -189,6 +189,9 @@ test "blockwise decode pipelines operands with disjoint score ownership" {
     assert_true(text.contains("cp.async.ca.shared.global"))
     assert_true(text.contains("cp.async.wait_group 1;"))
     assert_true(text.contains("cp.async.wait_group 0;"))
+    assert_true(text.contains("Aligned page epochs"))
+    assert_true(text.contains("const int epoch_page = lane <"))
+    assert_true(text.contains("const int page = retained_page;"))
     assert_true(
       text.contains("stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1)"),
     )
@@ -200,6 +203,41 @@ test "blockwise decode pipelines operands with disjoint score ownership" {
       lowering.launch().3,
       (keys * 128 * 8 + 4 * keys * 4 + 16).to_int64(),
     )
+  }
+}
+
+///|
+test "decode page epochs require both tile and partition alignment" {
+  let lowering = source_test_decode_lowering(candidate_id=452, alternative=true)
+  guard lowering.physical_program() is BlockwiseKeyProgram(_, effects) else {
+    fail("missing effects")
+  }
+  let retention = lowering.decode_copy_retention().unwrap()
+  let aligned = emit_decode_async_stage(
+    source_test_abi(),
+    effects,
+    true,
+    retention,
+    tile_rows=32,
+    start_alignment=32,
+  )
+  assert_true(aligned.contains("lane < 2"))
+  assert_true(aligned.contains("key / 16"))
+  assert_false(aligned.contains("page_table_page_indices[page_slot]"))
+  assert_false(aligned.contains("row_address = __shfl_sync"))
+  assert_false(aligned.contains("row_valid = __shfl_sync"))
+  assert_true(aligned.contains("row_valid = key < active_keys && page >= 0"))
+  for (hoist, alignment) in [(true, 8), (false, 32)] {
+    let general = emit_decode_async_stage(
+      source_test_abi(),
+      effects,
+      hoist,
+      retention,
+      tile_rows=32,
+      start_alignment=alignment,
+    )
+    assert_false(general.contains("epoch_page"))
+    assert_true(general.contains("page_table_page_indices[page_slot]"))
   }
 }
 

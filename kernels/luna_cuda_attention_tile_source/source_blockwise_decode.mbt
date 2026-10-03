@@ -86,6 +86,8 @@ fn emit_cuda_blockwise_decode_source(
       lowering.hoists_paged_key_value_page_lookup(),
       lowering.decode_copy_retention().unwrap(),
       vector_elements=lowering.decode_copy_elements(),
+      tile_rows=keys,
+      start_alignment=if partitioned { grain } else { keys },
     )
   } else {
     ""

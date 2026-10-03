@@ -63,6 +63,12 @@ fn emit_cuda_grouped_split_decode_attention_tile_source(
       effects,
       lowering.hoists_paged_key_value_page_lookup(),
       lowering.decode_copy_retention().unwrap(),
+      tile_rows=key_value_tile,
+      start_alignment=if lowering.key_value_partitions() > 1 {
+        lowering.key_value_partition_grain()
+      } else {
+        key_value_tile
+      },
     )
   } else {
     ""

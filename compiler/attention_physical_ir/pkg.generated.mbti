@@ -130,6 +130,16 @@ pub fn PagedRowOwnership::not_equal(Self, Self) -> Bool
 pub fn PagedRowOwnership::shares_address(Self) -> Bool
 pub fn PagedRowOwnership::to_repr(Self) -> @debug.Repr
 
+pub struct PagedTileEpochs {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedTileEpochs::equal(Self, Self) -> Bool
+pub fn PagedTileEpochs::new(tile_rows~ : Int, page_rows~ : Int, start_alignment~ : Int, owners~ : Int) -> Self?
+pub fn PagedTileEpochs::not_equal(Self, Self) -> Bool
+pub fn PagedTileEpochs::page_count(Self) -> Int
+pub fn PagedTileEpochs::page_owner(Self, Int) -> Int?
+pub fn PagedTileEpochs::to_repr(Self) -> @debug.Repr
+
 pub struct PartitionMerge {
   // private fields
 } derive(Eq, @debug.Debug)
