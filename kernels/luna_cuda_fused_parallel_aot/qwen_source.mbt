@@ -52,7 +52,7 @@ fn qwen_fused_source(
   let (consumer_groups, column_rounds, live_columns, column_windows) = column_plan.geometry()
   let out = StringBuilder()
   out.write_string(
-    "#include <cuda_bf16.h>\n#include <mma.h>\n#include <math.h>\n#include <stdint.h>\n",
+    "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n",
   )
   out.write_string("#define LF_BLOCK_THREADS 128\n")
   out.write_string("#define LF_WARPS \{consumer_groups}\n")

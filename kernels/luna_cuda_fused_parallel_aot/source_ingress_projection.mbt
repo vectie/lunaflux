@@ -58,10 +58,7 @@ fn ingress_matrix_projection_source(
     $|      asm volatile("cp.async.commit_group;" ::: "memory");
     $|    };
     $|    for (int window = 0; window < LF_COLUMN_WINDOWS; ++window) {
-    $|      nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> c[\{row_fragments}][LF_LIVE_COLUMNS];
-    $|      #pragma unroll
-    $|      for (int row_fragment=0; row_fragment<\{row_fragments}; ++row_fragment)
-    $|        for (int slot = 0; slot < LF_LIVE_COLUMNS; ++slot) nvcuda::wmma::fill_fragment(c[row_fragment][slot], 0.0f);
+    $|      float c[\{row_fragments}][LF_LIVE_COLUMNS][8] = {};
     $|      \{lifetime}
     $|\{retire}
     $|      #pragma unroll
@@ -69,7 +66,14 @@ fn ingress_matrix_projection_source(
     $|        const int column_base = ((window * LF_LIVE_COLUMNS + slot) * LF_WARPS + warp) * 16;
     $|        #pragma unroll
     $|        for (int row_fragment=0; row_fragment<\{row_fragments}; ++row_fragment)
-    $|          if (column_base < LF_PROJECTION_WIDTH) nvcuda::wmma::store_matrix_sync(&projected[row_fragment*16][column_base], c[row_fragment][slot], LF_PROJECTION_WIDTH, nvcuda::wmma::mem_row_major);
+    $|          if (column_base < LF_PROJECTION_WIDTH) {
+    $|            #pragma unroll
+    $|            for (int item=0;item<8;++item) {
+    $|              const int row=row_fragment*16+lane/4+(item%4/2)*8;
+    $|              const int column=column_base+lane%4*2+item%2+item/4*8;
+    $|              projected[row][column]=c[row_fragment][slot][item];
+    $|            }
+    $|          }
     $|      }
     $|    }
     $|

@@ -22,6 +22,8 @@ test "ingress tail tiles keep inactive column owners in block barriers" {
     assert_true(source.contains("cp.async.wait_group 0;"))
     assert_true(source.contains("__syncthreads();"))
     assert_true(source.contains("if (column_base < LF_PROJECTION_WIDTH)"))
+    assert_true(source.contains("for (int word=0; word<4; ++word) b["))
+    assert_true(source.contains("][column_slot][word]=0U"))
     if @env.get_env_var("LUNA_TEST_EXPORT_INGRESS_BARRIERS") == Some("1") {
       println("LUNA_SOURCE_BEGIN ingress-\{dimension}")
       println(source)
@@ -42,11 +44,9 @@ test "ingress physical IR bounds accumulators and shares the ordered fold input"
   )
   assert_eq(plan.geometry(), (4, 2, 2, 1))
   let source = @utf8.decode(candidate.source_bytes())
-  assert_true(source.contains("float> c[1][LF_LIVE_COLUMNS]"))
+  assert_true(source.contains("float c[1][LF_LIVE_COLUMNS][8] = {}"))
   assert_true(
-    source.contains(
-      "mma_sync(c[row_fragment][column_slot], a[fragment_stage][row_fragment], b[fragment_stage][column_slot], c[row_fragment][column_slot])",
-    ),
+    source.contains("joint-head-products-v1: no numerical reassociation"),
   )
   let pipeline = candidate
     .tile_compilation()
@@ -60,7 +60,7 @@ test "ingress physical IR bounds accumulators and shares the ordered fold input"
   assert_true(source.contains("cp.async.cg.shared.global"))
   assert_true(
     source.contains(
-      "current + row_fragment * 16 * \{pipeline.transfer_width()} + fragment_inner, \{pipeline.transfer_width()}",
+      "current + (row_fragment*16+lane%16)*\{pipeline.transfer_width()} + fragment_inner + lane/16*8",
     ),
   )
   assert_true(

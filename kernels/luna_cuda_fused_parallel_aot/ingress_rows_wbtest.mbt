@@ -27,8 +27,10 @@ test "ingress CTA row ownership is independent of instruction and epilogue geome
     )
     let source = @utf8.decode(candidate.source_bytes())
     assert_true(source.contains("#define LF_TILE_ROWS \{16 * tiles}\n"))
-    assert_true(source.contains("float> c[\{tiles}][LF_LIVE_COLUMNS]"))
-    assert_true(source.contains("projected[row_fragment*16][column_base]"))
+    assert_true(source.contains("float c[\{tiles}][LF_LIVE_COLUMNS][8]"))
+    assert_true(
+      source.contains("projected[row][column]=c[row_fragment][slot][item]"),
+    )
     assert_true(source.contains("const int token = token_begin + local_row"))
     assert_true(source.contains("if (token >= tokens) continue;"))
     assert_true(source.contains("if (tokens == 1)"))

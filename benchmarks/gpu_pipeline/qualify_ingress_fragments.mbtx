@@ -1,0 +1,46 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root] else { fail("export|qualify NEW_ROOT") }
+  if mode == "export" {
+    for file in ["ingress_rows_wbtest.mbt", "ingress_packing_export_wbtest.mbt", "qwen_barrier_wbtest.mbt"] {
+      let out = @shell.Cmd("moon", ["test", "kernels/luna_cuda_fused_parallel_aot/" + file, "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14"], env={"LUNA_TEST_EXPORT_COUNTER_REPAIR":"1", "LUNA_TEST_EXPORT_INGRESS_BARRIERS":"1"}).output(max_output_bytes=8388608)
+      @fs.write_file(root + "/" + file + ".stdout", out.stdout(), create_mode=CreateNew)
+      @fs.write_file(root + "/" + file + ".stderr", out.stderr(), create_mode=CreateNew)
+      out.check()
+      for section in out.stdout().split("LUNA_SOURCE_BEGIN ").to_array()[1:] {
+        let lines = section.split("\n").to_array()
+        let name = lines[0].to_owned()
+        let parts = lines[1:].join("\n").split("LUNA_SOURCE_END").to_array()
+        guard parts is [source, _] else { fail("source framing") }
+        @fs.write_file(root + "/" + name + ".cu", source, create_mode=CreateNew)
+      }
+    }
+    return
+  }
+  guard mode == "qualify" else { fail("mode") }
+  for name in ["ingress-1", "ingress-2", "ingress-4", "ingress-16", "ingress-32", "ingress-64", "ingress-128", "ingress-pack-d64-h1", "ingress-pack-d64-h2", "ingress-pack-d64-h4", "ingress-pack-d128-h1", "ingress-pack-d128-h2"] {
+    let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+    let bounded = ["ingress-16", "ingress-32", "ingress-64", "ingress-128"].contains(name)
+    let compile = @shell.Cmd(nvcc, ["-O3", "-arch=sm_121", "--fmad=false", "-DPROBE_MAX_TOKENS=" + (if bounded { "32" } else { "129" }), "-DKERNEL_SOURCE=\"" + root + "/" + name + ".cu\"", root + "/ingress_packing_probe.cu", "-o", root + "/" + name + ".exe"]).output()
+    @fs.write_file(root + "/" + name + "-build.stdout", compile.stdout(), create_mode=CreateNew)
+    @fs.write_file(root + "/" + name + "-build.stderr", compile.stderr(), create_mode=CreateNew)
+    compile.check()
+    // Barrier fixtures admit 32 tokens. The probe derives this bound from the
+    // exported ABI and includes the inactive column owners at small widths.
+    let out = @shell.Cmd(root + "/" + name + ".exe", []).output()
+    @fs.write_file(root + "/" + name + "-numeric.stdout", out.stdout(), create_mode=CreateNew)
+    @fs.write_file(root + "/" + name + "-numeric.stderr", out.stderr(), create_mode=CreateNew)
+    out.check()
+    assert_eq(out.stdout().split("\n").filter(x => x.contains("numeric=passed kv=passed tails=passed")).to_array().length(),if bounded { 9 } else { 16 })
+    println(name + " independent numeric/KV/tails passed")
+  }
+  @fs.write_file(root + "/RESULT.txt", "outcome=passed\nscope=independent-ingress-fragment-fixtures\n", create_mode=CreateNew)
+}

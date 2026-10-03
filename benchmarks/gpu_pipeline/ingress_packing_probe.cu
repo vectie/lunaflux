@@ -10,6 +10,9 @@
 #include <cmath>
 #include <cstdint>
 #include KERNEL_SOURCE
+#ifndef PROBE_MAX_TOKENS
+#define PROBE_MAX_TOKENS 129
+#endif
 #define CK(call) do { cudaError_t e = (call); if (e != cudaSuccess) { std::fprintf(stderr, "%s\n", cudaGetErrorString(e)); std::exit(2); } } while(0)
 struct Buffer {
   void *p;
@@ -40,6 +43,7 @@ static std::vector<__nv_bfloat16> weights(int segment, int heads) {
 int main() {
   CK(cudaSetDevice(0));
   for (int tokens : {1,2,7,8,15,16,17,31,32,33,63,64,65,127,128,129}) {
+    if (tokens > PROBE_MAX_TOKENS) continue;
     const int page_count = (tokens + LF_TOKENS_PER_PAGE - 1) / LF_TOKENS_PER_PAGE;
     int counts[5] = {1,0,1,tokens,page_count}, offsets[2] = {0,tokens}, tables[2] = {0,page_count};
     std::vector<int> pages(page_count), positions(tokens);

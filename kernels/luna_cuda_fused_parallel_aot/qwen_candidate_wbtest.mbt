@@ -222,7 +222,8 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
     ),
   )
   assert_false(source.contains("for (int head = 0; head < all_heads; ++head)"))
-  assert_true(source.contains("nvcuda::wmma"))
+  assert_false(source.contains("nvcuda::wmma"))
+  assert_true(source.contains("mma.sync.aligned.m16n8k16"))
   assert_true(
     source.contains("component = warp; component < LF_PROJECTION_WIDTH"),
   )
@@ -242,19 +243,13 @@ test "Qwen fused CUDA lowering consumes the backend-neutral semantic plan" {
   assert_false(source.contains("column_base < LF_HEAD_DIM; column_base +="))
   assert_true(source.contains("if (column_base < LF_PROJECTION_WIDTH)"))
   assert_true(
-    source.contains(
-      "if (column_base < LF_PROJECTION_WIDTH) nvcuda::wmma::store_matrix_sync",
-    ),
+    source.contains("projected[row][column]=c[row_fragment][slot][item]"),
   )
   assert_true(source.contains("__device__ const float LF_ROPE_INV_FREQ"))
   assert_false(source.contains("__constant__ float LF_ROPE_INV_FREQ"))
   assert_true(source.contains("sincosf(__fmul_rn"))
   assert_false(source.contains("powf("))
-  assert_true(
-    source.contains(
-      "nvcuda::wmma::load_matrix_sync(a[0][row_fragment], current + row_fragment * 16 *",
-    ),
-  )
+  assert_true(source.contains("unsigned *operand=a[0][row_fragment]"))
   let recipe = @utf8.decode(first.recipe_bytes())
   assert_true(
     recipe.contains(
