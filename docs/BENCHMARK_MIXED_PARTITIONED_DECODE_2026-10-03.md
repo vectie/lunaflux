@@ -2,8 +2,8 @@
 
 Mixed attention now supports an ordered partition/merge decode companion.
 On Spark, the controlled serving A/B reduced completion time by 2.95% for
-4096/64/C16 and 0.81% for 4096/256/C16. The selected mixed decode chain became
-82.2% faster, but this change does not close the whole-serving framework gap.
+4096/64/C16 and 0.81% for 4096/256/C16. Selected mixed decode activity fell
+82.2%, but this change does not close the whole-serving framework gap.
 
 Runtime implementation: `bb3ad7be` (`feat(runtime): support measured partitioned
 decode in mixed graphs`). This is a general execution-planning change, not a
