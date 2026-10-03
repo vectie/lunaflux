@@ -1,0 +1,79 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn eligible(path : String) -> Bool {
+  !path.contains("..") &&
+  !path.has_prefix("/") &&
+  path != "kernels/luna_fusion_plan/ingress_regions.mbt" &&
+  (
+    path.has_suffix(".mbt") ||
+    path.has_suffix(".mbti") ||
+    path.has_suffix("/moon.pkg") ||
+    path.has_suffix(".c") ||
+    path.has_suffix(".h")
+  )
+}
+
+///|
+test "overlay never includes pre-existing dirty region or documentation" {
+  assert_false(eligible("kernels/luna_fusion_plan/ingress_regions.mbt"))
+  assert_false(eligible("compiler/attention_physical_ir/README.mbt.md"))
+  assert_true(eligible("compiler/physical_tile_ir/row_factoring.mbt"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, repository, destination, archive, .. packages] &&
+    !packages.is_empty() &&
+    packages.all(x => !x.contains("..") && !x.has_prefix("/")) else {
+    fail("REPOSITORY NEW_DESTINATION NEW_ARCHIVE PACKAGE...")
+  }
+  guard !@fs.exists(destination) && !@fs.exists(archive) else {
+    fail("non-overwriting output required")
+  }
+  let paths : Array[String] = []
+  for
+    args in [
+      ["diff", "--name-only", "--", ..packages],
+      ["ls-files", "--others", "--exclude-standard", "--", ..packages],
+    ] {
+    let result = @shell.Cmd("git", args, cwd=repository).output()
+    result.check()
+    for path in result.stdout().split("\n").map(x => x.to_owned()) {
+      if eligible(path) && !path.is_empty() && !paths.contains(path) {
+        paths.push(path)
+      }
+    }
+  }
+  guard !paths.is_empty() else { fail("no source changes") }
+  paths.sort()
+  @fs.mkdir(destination)
+  for path in paths {
+    let components = path.split("/").to_array()
+    @shell.Cmd("mkdir", [
+      "-p",
+      destination + "/" + components[:components.length() - 1].join("/"),
+    ]).run()
+    @fs.write_file(
+      destination + "/" + path,
+      @fs.read_file(repository + "/" + path),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    destination + "/FILES.txt",
+    paths.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("tar", ["-czf", archive, "-C", destination, "FILES.txt", ..paths]).run()
+  let digest = @shell.Cmd("shasum", ["-a", "256", archive]).output()
+  digest.check()
+  println(digest.stdout())
+  println("scoped source files=\{paths.length()}")
+}

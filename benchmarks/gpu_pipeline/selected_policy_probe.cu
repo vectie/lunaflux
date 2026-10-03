@@ -34,7 +34,9 @@ struct Buffer {
   std::vector<__nv_bfloat16> read(){std::vector<__nv_bfloat16> v(bytes/2);CK(cudaMemcpy(v.data(),p,bytes,cudaMemcpyDeviceToHost));return v;}
 };
 struct Kernel {
-  CUmodule module; CUfunction function,merge=nullptr; unsigned gx,gy,gz,b,shared,merge_y=0; int regs,resident,local; std::string law;
+  CUmodule module; CUfunction function,merge=nullptr,rotary_prepare=nullptr;
+  unsigned gx,gy,gz,b,shared,merge_y=0,rotary_grid=0,rotary_block=0;
+  int regs,resident,local; std::string law; size_t rotary_bytes=0;
   void* workspace=nullptr;
   explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode, bool postprocess=false){
     auto r=fields(root+"/kernel.recipe");auto grid=tuple(r.at("grid")),block=tuple(r.at("block"));
@@ -45,6 +47,14 @@ struct Kernel {
     law=r.count("numeric_law") ? r.at("numeric_law") : "legacy-declared-law";
     CK(cuModuleLoad(&module,(root+"/kernel.cubin").c_str()));
     CK(cuModuleGetFunction(&function,module,r.at(postprocess?"symbol":"function_symbol").c_str()));
+    if(r.count("rotary_cache_policy")) {
+      if(!ingress || r.at("rotary_cache_policy")!="step-prepared-f32-pairs-v1")std::exit(1);
+      CK(cuModuleGetFunction(&rotary_prepare,module,r.at("rotary_prepare_symbol").c_str()));
+      rotary_grid=tuple(r.at("rotary_prepare_grid")).at(0);
+      rotary_block=tuple(r.at("rotary_prepare_block")).at(0);
+      rotary_bytes=std::stoull(r.at("rotary_cache_bytes"));
+      if(rotary_grid==0 || rotary_block==0 || rotary_block>1024)std::exit(1);
+    }
     if(r.count("merge_function_symbol")) {
       if(!decode || gz<=1 || (law!="blockwise-f32-probability-v1" &&
           law!="dual-score-blockwise-f32-probability-v2" &&
@@ -61,6 +71,12 @@ struct Kernel {
     CK(cuOccupancyMaxActiveBlocksPerMultiprocessor(&resident,function,b,shared));
   }
   ~Kernel(){if(workspace)CK(cudaFree(workspace));CK(cuModuleUnload(module));}
+  void prepare(void* counts,void* positions,void* cache,size_t cache_bytes) {
+    if(!rotary_prepare)return;
+    if(cache_bytes<rotary_bytes)std::exit(1);
+    void* args[]={&counts,&positions,&cache};
+    CK(cuLaunchKernel(rotary_prepare,rotary_grid,1,1,rotary_block,1,1,0,nullptr,args,nullptr));
+  }
   void launch(void** a){
     if(merge){
       void* partial[]={a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[8],a[9],&workspace};
@@ -145,15 +161,19 @@ int main(int argc,char**argv){
   Buffer dx(x.size()*2),dk(key.size()*2),dv(value.size()*2),out(size_t(tokens)*((ingress||postprocess)?(qh+2*kh)*d:qh*d)*2);
   dx.put(x);dk.put(key);dv.put(value);
   Buffer qw(size_t(qh)*d*(ingress?input_width:1)*2),kw(size_t(kh)*d*(ingress?input_width:1)*2),vw(kw.bytes),norm(d*2);
+  Buffer rotary(ingress?size_t(max_tokens)*(d/2)*sizeof(float2):sizeof(float2));
   qw.put(values(qw.bytes/2,7));kw.put(values(kw.bytes/2,11));vw.put(values(vw.bytes/2,13));
   norm.put(std::vector<__nv_bfloat16>(d,__float2bfloat16_rn(1)));
   void* row_data=(!ingress&&!decode&&!postprocess&&number(spec,"query_metadata_version")==1)?dm.p:doff.p;
   void* attention_args[]={&dc.p,&dp.p,&row_data,&dl.p,&dpo.p,&dpi.p,&dx.p,&out.p,&dk.p,&dv.p};
-  void* ingress_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&qw.p,&kw.p,&vw.p,&norm.p,&norm.p,&out.p,&dk.p,&dv.p};
+  void* ingress_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&qw.p,&kw.p,&vw.p,&norm.p,&norm.p,&out.p,&dk.p,&dv.p,&rotary.p};
   void* postprocess_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&norm.p,&norm.p,&out.p,&dk.p,&dv.p};
   void** args=ingress?ingress_args:(postprocess?postprocess_args:attention_args);
+  baseline.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
   baseline.launch(args);CK(cudaDeviceSynchronize());auto expected=out.read(),expected_key=dk.read(),expected_value=dv.read();
-  out.clear();dk.put(key);dv.put(value);candidate.launch(args);CK(cudaDeviceSynchronize());auto actual=out.read();
+  out.clear();dk.put(key);dv.put(value);
+  candidate.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
+  candidate.launch(args);CK(cudaDeviceSynchronize());auto actual=out.read();
   double error=0;bool nonzero=false;
   for(size_t i=0;i<actual.size();i++){
     float a=__bfloat162float(actual[i]),b=__bfloat162float(expected[i]);
@@ -208,6 +228,17 @@ int main(int argc,char**argv){
     if(oracle_error>0.003){std::fprintf(stderr,"oracle failed error=%g\n",oracle_error);return 4;}
   }
   std::printf("resources registers=%d resident_blocks=%d local_bytes=%d\n",candidate.regs,candidate.resident,candidate.local);
+  if(candidate.rotary_prepare) {
+    // Kernel timing below measures the consumer. Preparation is once per whole
+    // decoder step, not once per layer; report it independently rather than
+    // silently counting a free cache or charging every layer another launch.
+    cudaEvent_t start,end;CK(cudaEventCreate(&start));CK(cudaEventCreate(&end));
+    CK(cudaEventRecord(start));
+    for(int repeat=0;repeat<100;repeat++)candidate.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
+    CK(cudaEventRecord(end));CK(cudaEventSynchronize(end));float ms;
+    CK(cudaEventElapsedTime(&ms,start,end));CK(cudaEventDestroy(start));CK(cudaEventDestroy(end));
+    std::printf("rotary_cache preparation_us=%.6f bytes=%zu consumer_timing_excludes_preparation=true\n",ms*10.0,rotary.bytes);
+  }
   if(check_only){std::printf("correctness=passed bitwise=%s maxabs=%g oracle_maxabs=%g\n",bitwise?"true":"false",error,oracle_error);return 0;}
   for(int trial=0;trial<5;trial++){
     double a,b;if(trial%2){b=candidate.time(args);a=baseline.time(args);}else{a=baseline.time(args);b=candidate.time(args);}

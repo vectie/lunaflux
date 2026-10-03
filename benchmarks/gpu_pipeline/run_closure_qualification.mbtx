@@ -1,0 +1,405 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("one field required: " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn overlay_path(path : String) -> Bool {
+  !path.contains("..") &&
+  !path.has_prefix("/") &&
+  [
+    "compiler/", "kernels/", "cmd/", "engine/", "device/", "internal/", "model/",
+    "tests/",
+  ].any(prefix => path.has_prefix(prefix)) &&
+  (
+    path.has_suffix(".mbt") ||
+    path.has_suffix(".mbti") ||
+    path.has_suffix(".c") ||
+    path.has_suffix(".h") ||
+    path.has_suffix("/moon.pkg")
+  )
+}
+
+///|
+test "scoped overlay excludes automation, parent traversal and absolute paths" {
+  assert_true(overlay_path("compiler/attention_physical_ir/fold.mbt"))
+  assert_true(overlay_path("kernels/new_rotary/moon.pkg"))
+  for
+    path in [
+      "../source.mbt", "/compiler/a.mbt", "docs/PLAN.md", "kernels/x/a.mbtx", "internal/../a.c",
+    ] {
+    assert_false(overlay_path(path))
+  }
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+  export_partitions? : Bool = false,
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  println("starting " + label)
+  let out = @shell.Cmd(exe, args, cwd~, env={
+    "PATH": root +
+    "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/local/bin:/usr/bin:/bin",
+    "LUNA_EXPORT_BLOCKWISE_PARTITIONS": if export_partitions {
+      "1"
+    } else {
+      "0"
+    },
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed " + label)
+  out.stdout()
+}
+
+///|
+async fn reserve() -> Unit {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory unavailable")
+  }
+  let words = line.split(" ").filter(x => !x.is_empty()).to_array()
+  guard @string.parse_int64(words[1]) >= 33554432L else {
+    fail("32 GiB reserve")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let identity = @shell.Cmd("nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ]).output()
+  identity.check()
+  assert_eq(
+    identity.stdout().trim().to_owned(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn prepare(base : String, overlay : String, root : String) -> Unit {
+  reserve()
+  guard !@fs.exists(root + "/source") else { fail("source already prepared") }
+  guard @fs.read_file(base + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("incomplete frozen baseline")
+  }
+  let paths = @fs.read_file(overlay + "/FILES.txt")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => x.to_owned())
+    .to_array()
+  guard !paths.is_empty() && paths.all(overlay_path) else {
+    fail("invalid scoped overlay")
+  }
+  @fs.mkdir(root + "/source")
+  @shell.Cmd("cp", ["-a", base + "/source/.", root + "/source/"]).run()
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  for path in paths {
+    let pieces = path.split("/").to_array()
+    @shell.Cmd("mkdir", [
+      "-p",
+      root + "/source/" + pieces[:pieces.length() - 1].join("/"),
+    ]).run()
+    @shell.Cmd("cp", [overlay + "/" + path, root + "/source/" + path]).run()
+  }
+  ignore(
+    record(
+      root,
+      "overlay-identities",
+      "sha256sum",
+      paths.map(x => root + "/source/" + x),
+    ),
+  )
+  let moon = root + "/toolchain/bin/moon"
+  ignore(
+    record(
+      root,
+      "build-exporters",
+      moon,
+      [
+        "build", "cmd/lunaflux_qwen3_bf16_candidate_export", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+        "--target", "native", "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+        "-j", "2",
+      ],
+      cwd=root + "/source",
+    ),
+  )
+  @fs.write_file(
+    root + "/PREPARED.txt",
+    "scope=current-compiler-scoped-overlay\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+async fn module_pair(
+  root : String,
+  label : String,
+  source : String,
+  baseline : String,
+  spec : String,
+  probe : String,
+  kind : String,
+) -> Unit {
+  guard ["decode", "prefill", "ingress"].contains(kind) &&
+    !label.is_empty() &&
+    !label.contains("/") &&
+    !label.contains("..") else {
+    fail("module pair arguments")
+  }
+  reserve()
+  let recipe = @fs.read_file(source + "/kernel.recipe").text()
+  let baseline_recipe = @fs.read_file(baseline + "/kernel.recipe").text()
+  let same_law = recipe.contains("numeric_law=") &&
+    baseline_recipe.contains("numeric_law=") &&
+    field(recipe, "numeric_law") == field(baseline_recipe, "numeric_law")
+  assert_eq(field(recipe, "source_sha256"), sha(source + "/kernel.cu"))
+  let directory = root + "/" + label
+  guard !@fs.exists(directory) else { fail("module output exists") }
+  @fs.mkdir(directory)
+  for name in ["kernel.cu", "kernel.recipe"] {
+    @fs.write_file(
+      directory + "/" + name,
+      @fs.read_file(source + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  for suffix in ["first", "second"] {
+    ignore(
+      record(
+        root,
+        label + "-compile-" + suffix,
+        "/usr/local/cuda-13.0/bin/nvcc",
+        [
+          "-O3",
+          "-arch=sm_121",
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--maxrregcount=" + field(recipe, "max_registers"),
+          "--Werror",
+          "all-warnings",
+          "-Xptxas=-v",
+          "-cubin",
+          directory + "/kernel.cu",
+          "-o",
+          directory + "/" + suffix + ".cubin",
+        ],
+      ),
+    )
+  }
+  ignore(
+    record(root, label + "-deterministic", "cmp", [
+      directory + "/first.cubin",
+      directory + "/second.cubin",
+    ]),
+  )
+  @fs.write_file(
+    directory + "/kernel.cubin",
+    @fs.read_file(directory + "/first.cubin"),
+    create_mode=CreateNew,
+  )
+  let workloads : Array[(Int, Int, Int, Bool)] = if kind == "decode" {
+    let histories = [0, 1, 31, 32, 127, 4096, 8191]
+    let rows = [1, 8, 16]
+    Array::makei(histories.length() * rows.length(), index => {
+      let row_count = rows[index % rows.length()]
+      (row_count, row_count, histories[index / rows.length()], false)
+    })
+  } else {
+    [
+      (2048, 1, 0, false),
+      (2048, 1, 2048, false),
+      (2048, 16, 4096, true),
+      (129, 16, 4096, true),
+      (2048, 16, 0, false),
+      (1, 1, 4096, false),
+    ]
+  }
+  for (tokens, rows, history, mixed) in workloads {
+    reserve()
+    let args = [
+        spec,
+        baseline,
+        directory,
+        tokens.to_string(),
+        rows.to_string(),
+        history.to_string(),
+      ] +
+      (if mixed { ["--mixed"] } else { [] }) +
+      (if kind == "decode" { ["--decode-envelope"] } else { [] })
+    let out = record(
+      root,
+      "\{label}-q\{tokens}-r\{rows}-h\{history}-m\{mixed}",
+      probe,
+      args,
+    )
+    guard out.contains("tokens=") && out.contains("oracle_maxabs=") else {
+      fail("probe checks absent")
+    }
+    // Ingress and pure same-law rewrites are bitwise checked. Decode alternatives
+    // can declare a different reduction law; the independent probe enforces its
+    // differential/scalar error envelope, not a fake bitwise-equivalence claim.
+    if kind == "ingress" || same_law {
+      guard !out.contains("bitwise=false") else {
+        fail("ingress numeric regression")
+      }
+    }
+  }
+  for tool in ["memcheck", "racecheck", "synccheck"] {
+    reserve()
+    let args = ["--tool", tool, "--error-exitcode", "99"] +
+      (if tool == "memcheck" { ["--leak-check", "full"] } else { [] }) +
+      [
+        probe,
+        spec,
+        baseline,
+        directory,
+        if kind == "decode" {
+          "16"
+        } else {
+          "129"
+        },
+        "16",
+        "4096",
+        "--check-only",
+      ] +
+      (if kind == "decode" { ["--decode-envelope"] } else { ["--mixed"] })
+    ignore(
+      record(
+        root,
+        label + "-" + tool,
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        args,
+      ),
+    )
+  }
+  @fs.write_file(
+    directory + "/RESULT.txt",
+    "outcome=passed\nscope=paired-kernel-not-serving\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+// Export the actual compiler physical frontier, never edit generated CUDA to
+// make a test variant. The framing carries the exact runtime-bucket geometry.
+async fn partition_export(
+  root : String,
+  origin : String,
+  id : Int,
+  partitions : Int,
+) -> Unit {
+  guard id > 0 && partitions > 0 else {
+    fail("positive identity and partitions")
+  }
+  let label = "c\{id}-p\{partitions}"
+  let text = record(
+    root,
+    label + "-export",
+    origin + "/toolchain/bin/moon",
+    [
+      "test", "kernels/luna_cuda_attention_tile_source/blockwise_decode_wbtest.mbt",
+      "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+    ],
+    cwd=origin + "/source",
+    export_partitions=true,
+  )
+  guard text.split("LUNA_PARTIAL_BEGIN ").to_array()[1:].filter(x => {
+      x.has_prefix(label + "\n")
+    })
+    is [section] else {
+    fail("exact physical variant absent")
+  }
+  guard section.split("\nLUNA_PARTIAL_SOURCE\n").to_array() is [header, body] else {
+    fail("physical export framing")
+  }
+  guard body.split("\nLUNA_PARTIAL_END").to_array() is [source, _] else {
+    fail("physical source framing")
+  }
+  let destination = root + "/exported-" + label
+  @fs.mkdir(destination)
+  @fs.write_file(
+    destination + "/kernel.cu",
+    source.to_owned(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    destination + "/kernel.recipe",
+    header.split("\n").to_array()[1:].join("\n") +
+    "\nsource_sha256=" +
+    sha(destination + "/kernel.cu") +
+    "\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+async fn main {
+  match @env.args() {
+    [_, "--prepare", base, overlay, root] => prepare(base, overlay, root)
+    [_, "--module", root, label, source, baseline, spec, probe, kind] =>
+      module_pair(root, label, source, baseline, spec, probe, kind)
+    [_, "--partition-export", root, origin, id, partitions] =>
+      partition_export(
+        root,
+        origin,
+        @string.parse_int(id),
+        @string.parse_int(partitions),
+      )
+    _ =>
+      fail(
+        "--prepare BASE OVERLAY NEW_ROOT | --module ROOT LABEL SOURCE BASELINE SPEC PROBE KIND",
+      )
+  }
+}
