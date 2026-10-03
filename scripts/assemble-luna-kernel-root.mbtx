@@ -32,6 +32,35 @@ fn relative(value : StringView) -> Bool {
 }
 
 ///|
+fn reusable_runtime_schema(schema : StringView) -> Bool {
+  [
+    "schema=lunaflux-reusable-fused-runtime-bundle.v3", "schema=lunaflux-reusable-fused-runtime-bundle.v4",
+    "schema=lunaflux-reusable-fused-runtime-bundle.v5", "schema=lunaflux-reusable-fused-runtime-bundle.v6",
+    "schema=lunaflux-reusable-fused-runtime-bundle.v7", "schema=lunaflux-reusable-fused-runtime-bundle.v8",
+    "schema=lunaflux-reusable-fused-runtime-bundle.v9", "schema=lunaflux-reusable-fused-runtime-bundle.v10",
+    "schema=lunaflux-reusable-fused-runtime-bundle.v11", "schema=lunaflux-reusable-fused-runtime-bundle.v12",
+  ].contains(schema.to_owned())
+}
+
+///|
+test "kernel assembly accepts extended decode and explicit prefill laws only in supported schemas" {
+  for version in [3, 10, 11, 12] {
+    assert_true(
+      reusable_runtime_schema(
+        "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}",
+      ),
+    )
+  }
+  for
+    schema in [
+      "schema=lunaflux-reusable-fused-runtime-bundle.v2", "schema=lunaflux-reusable-fused-runtime-bundle.v13",
+      "schema=lunaflux-reusable-fused-runtime-bundle.v11-unverified",
+    ] {
+    assert_false(reusable_runtime_schema(schema))
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, source_identity, output] &&
     source_identity.split("#sha256=").to_array() is [root, expected] else {
@@ -108,15 +137,7 @@ async fn main {
       bytes += @fs.read_file(file).binary().length().to_int64()
     } else if path == "reusable-fused-runtime-bundle.v3" {
       let schema = @fs.read_file(file).text().split("\n").to_array()[0]
-      guard [
-        "schema=lunaflux-reusable-fused-runtime-bundle.v3", "schema=lunaflux-reusable-fused-runtime-bundle.v4",
-        "schema=lunaflux-reusable-fused-runtime-bundle.v5", "schema=lunaflux-reusable-fused-runtime-bundle.v6",
-        "schema=lunaflux-reusable-fused-runtime-bundle.v7", "schema=lunaflux-reusable-fused-runtime-bundle.v8",
-        "schema=lunaflux-reusable-fused-runtime-bundle.v9",
-        "schema=lunaflux-reusable-fused-runtime-bundle.v10",
-      ].contains(schema.to_owned()) else {
-        fail("runtime schema")
-      }
+      guard reusable_runtime_schema(schema) else { fail("runtime schema") }
       fused += 1
     } else {
       fail("unsupported payload")
