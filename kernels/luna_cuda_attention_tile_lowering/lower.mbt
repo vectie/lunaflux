@@ -218,6 +218,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     | Ok(GroupedMatrixKeyProgram(_, effects)) if effects.independently_refills() => {
       builder <+ "decode_operand_ring=independent-two-stage-v1\n"
       builder <+ "decode_page_lookup=batched-future-owner-origin-v2\n"
+      builder <+ "decode_validity_transport=replicated-page-owner-v1\n"
     }
     Ok(BlockwiseKeyProgram(_, effects)) if effects.is_pipelined() =>
       builder <+ "blockwise_terminal_release=after-key-loop-v1\n"

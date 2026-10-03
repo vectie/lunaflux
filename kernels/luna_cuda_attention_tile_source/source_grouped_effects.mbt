@@ -16,6 +16,7 @@ fn cuda_grouped_effects(
   point : @luna_attention_tile_schedule.AttentionGroupedEffectPoint,
   transfer : String,
   indent : String,
+  retained_validity? : Bool = false,
 ) -> String {
   plan
   .actions(point)
@@ -36,15 +37,27 @@ fn cuda_grouped_effects(
         indent +
         "  stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1);"
       ResetOperandValidity =>
-        "if (thread == 0) { stage_valid[0] = stage_valid[1] = stage_valid[2] = stage_valid[3] = 1; }"
+        if retained_validity {
+          "key_stage_valid_0 = key_stage_valid_1 = value_stage_valid_0 = value_stage_valid_1 = 1;"
+        } else {
+          "if (thread == 0) { stage_valid[0] = stage_valid[1] = stage_valid[2] = stage_valid[3] = 1; }"
+        }
       PrimeOperandRings =>
         "stage_key(key_begin, 0); stage_value(key_begin, 0);\n" +
         indent +
         "stage_key(key_begin + LF_KEY_VALUE_TILE, 1); stage_value(key_begin + LF_KEY_VALUE_TILE, 1);"
       RequireValidKeyStage =>
-        "if (!stage_valid[slot]) { asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return; }"
+        if retained_validity {
+          "if (!(slot == 0 ? key_stage_valid_0 : key_stage_valid_1)) { asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return; }"
+        } else {
+          "if (!stage_valid[slot]) { asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return; }"
+        }
       RequireValidValueStage =>
-        "if (!stage_valid[2 + slot]) { asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return; }"
+        if retained_validity {
+          "if (!(slot == 0 ? value_stage_valid_0 : value_stage_valid_1)) { asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return; }"
+        } else {
+          "if (!stage_valid[2 + slot]) { asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return; }"
+        }
       RefillKeyStage => "stage_key(key_base + 2 * LF_KEY_VALUE_TILE, slot);"
       RefillValueStage => "stage_value(key_base + 2 * LF_KEY_VALUE_TILE, slot);"
     }

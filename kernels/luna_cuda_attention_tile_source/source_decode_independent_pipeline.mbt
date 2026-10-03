@@ -1,8 +1,8 @@
 ///|
-/// Two independently retired operand rings. Retain page identities, not an
-/// array of wide vector addresses: the latter grows register pressure and can
-/// spill when the slot index is dynamic. Aligned page epochs amortize the
-/// table lookup across both operands and every vector of the future tile.
+/// Two independently retired operand rings. Retain checked page origins and
+/// validity, not an array of wide vector addresses: the latter grows register
+/// pressure and can spill when the slot index is dynamic. Aligned page epochs
+/// amortize lookup across both operands and every vector of the future tile.
 fn emit_decode_independent_stage(
   abi : CudaPagedAttentionTileAbi,
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
@@ -35,10 +35,15 @@ fn emit_decode_independent_stage(
   } else {
     None
   }
+  let validity = decode_independent_validity_transport(
+    abi, hoist_page_lookup, tile_rows, start_alignment,
+  )
   let declaration = if epochs is Some(_) {
     "  \{origin_type} future_origin_0 = 0, future_origin_1 = 0;\n" +
     "  int future_valid_0 = 0, future_valid_1 = 0;\n" +
-    "  int lookup_epoch_begin = -1, lookup_epoch_page = -1;"
+    "  int lookup_epoch_begin = -1, lookup_epoch_page = -1;\n" +
+    "  int key_stage_valid_0 = 1, key_stage_valid_1 = 1;\n" +
+    "  int value_stage_valid_0 = 1, value_stage_valid_1 = 1;"
   } else {
     ""
   }
@@ -58,7 +63,8 @@ fn emit_decode_independent_stage(
       "        ? (\{origin_type})((unsigned long long)epoch_page * \{stride}ULL + key_value_head * LF_HEAD_DIMENSION) : 0;\n" +
       "    if (slot == 0) { future_origin_0 = page_origin; future_valid_0 = page_valid; }\n" +
       "    else { future_origin_1 = page_origin; future_valid_1 = page_valid; }\n" +
-      "    if (lane < \{tile_rows / page_rows} && lane * \{page_rows} < active_keys && !page_valid) atomicExch(stage_valid + slot, 0);"
+      "    const int operand_valid = __all_sync(0xffffffffU, lane >= \{tile_rows / page_rows} || lane * \{page_rows} >= active_keys || page_valid);\n" +
+      "    if (slot == 0) key_stage_valid_0 = operand_valid; else key_stage_valid_1 = operand_valid;"
     None => ""
   }
   let vector_bytes = vector_elements * 2
@@ -105,7 +111,8 @@ fn emit_decode_independent_stage(
         prepare
       } else if epochs is Some(_) {
         "    const int page_valid = slot == 0 ? future_valid_0 : future_valid_1;\n" +
-        "    if (lane < \{tile_rows / page_rows} && lane * \{page_rows} < active_keys && !page_valid) atomicExch(stage_valid + 2 + slot, 0);"
+        "    const int operand_valid = __all_sync(0xffffffffU, lane >= \{tile_rows / page_rows} || lane * \{page_rows} >= active_keys || page_valid);\n" +
+        "    if (slot == 0) value_stage_valid_0 = operand_valid; else value_stage_valid_1 = operand_valid;"
       } else {
         ""
       }
@@ -125,6 +132,6 @@ fn emit_decode_independent_stage(
     $|  // Retained copy ownership: \{vectors} vectors, \{owners} owners, \{slots} scalar slots.
     $|\{declaration}
     $|\{bodies.join("\n")}
-    $|\{cuda_grouped_effects(effects, InitializeTransfers, "", "  ")}
+    $|\{cuda_grouped_effects(effects, InitializeTransfers, "", "  ", retained_validity=validity is Some(_))}
   )
 }

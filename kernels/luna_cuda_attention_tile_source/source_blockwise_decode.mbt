@@ -53,8 +53,20 @@ fn emit_cuda_blockwise_decode_source(
     8,
     hoist_page_lookup=lowering.hoists_paged_key_value_page_lookup(),
   )
+  let retained_validity = effects.independently_refills() &&
+    decode_independent_validity_transport(
+      abi,
+      lowering.hoists_paged_key_value_page_lookup(),
+      keys,
+      if partitioned {
+        grain
+      } else {
+        keys
+      },
+    )
+    is Some(_)
   let acquire = if effects.is_pipelined() {
-    emit_decode_pipeline_iteration(effects)
+    emit_decode_pipeline_iteration(effects, retained_validity~)
   } else {
     cuda_grouped_effects(effects, AcquireKeyOperands, transfer, "    ")
   }
@@ -67,7 +79,13 @@ fn emit_cuda_blockwise_decode_source(
     ""
   }
   let value_ready = if effects.is_pipelined() {
-    cuda_grouped_effects(effects, AcquireValueOperands, "", "    ") +
+    cuda_grouped_effects(
+      effects,
+      AcquireValueOperands,
+      "",
+      "    ",
+      retained_validity~,
+    ) +
     "\n" +
     cuda_grouped_effects(effects, PrefetchNextTile, "", "    ")
   } else {
@@ -153,10 +171,15 @@ fn emit_cuda_blockwise_decode_source(
     "    const int component = LF_VALUE_COMPONENT(item);\n    if (component < LF_HEAD_DIMENSION)\n" +
     "      output[output_offset + component] = __float2bfloat16_rn(accumulator[item] / denominator);\n  }"
   }
-  let stage_valid = if effects.is_pipelined() {
-    "  int *stage_valid = tile_valid;"
-  } else {
+  let validity_storage = if retained_validity {
     ""
+  } else {
+    "  int *tile_valid = reinterpret_cast<int *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + \{group * keys};\n" +
+    (if effects.is_pipelined() {
+      "  int *stage_valid = tile_valid;"
+    } else {
+      ""
+    })
   }
   let source =
     $|#include <cuda_bf16.h>
@@ -205,8 +228,7 @@ fn emit_cuda_blockwise_decode_source(
     $|  __nv_bfloat16 *key_tile = stage_arena;
     $|  __nv_bfloat16 *value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|  float *scores = reinterpret_cast<float *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + warp * LF_KEY_VALUE_TILE;
-    $|  int *tile_valid = reinterpret_cast<int *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + \{group * keys};
-    $|\{stage_valid}
+    $|\{validity_storage}
     $|  const unsigned long long query_offset = (unsigned long long)token * \{input_width}ULL + query_head * LF_HEAD_DIMENSION;
     $|  float query_fragment[LF_SCORE_QUERY_ITEMS], accumulator[LF_ACCUMULATOR_ITEMS] = {};
     $|  #pragma unroll

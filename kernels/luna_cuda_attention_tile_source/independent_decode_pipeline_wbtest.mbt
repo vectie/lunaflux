@@ -55,7 +55,17 @@ test "independent operand ring reaches selected blockwise source with early refi
   assert_true(values[0].contains("float tile_numerator"))
   assert_false(values[0].contains("const float next_maximum"))
   assert_true(values[1].contains("const float next_maximum"))
-  assert_true(source.contains("if (!stage_valid[2 + slot]) { asm volatile"))
+  assert_true(
+    source.contains(
+      "if (!(slot == 0 ? value_stage_valid_0 : value_stage_valid_1)) { asm volatile",
+    ),
+  )
+  assert_false(source.contains("stage_valid["))
+  assert_true(
+    source.contains(
+      "cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return;",
+    ),
+  )
 }
 
 ///|
@@ -102,9 +112,13 @@ test "independent decode validates malformed future pages and zero fills tails" 
   assert_true(
     source.contains("epoch_page >= 0 && (unsigned long long)epoch_page <"),
   )
-  assert_true(source.contains("lane * 16 < active_keys && !page_valid"))
-  assert_true(source.contains("atomicExch(stage_valid + slot, 0)"))
-  assert_true(source.contains("atomicExch(stage_valid + 2 + slot, 0)"))
+  assert_true(
+    source.contains("lane >= 2 || lane * 16 >= active_keys || page_valid"),
+  )
+  assert_eq(source.split("__all_sync(0xffffffffU,").to_array().length(), 3)
+  assert_true(source.contains("key_stage_valid_0 = operand_valid"))
+  assert_true(source.contains("value_stage_valid_0 = operand_valid"))
+  assert_false(source.contains("atomicExch(stage_valid"))
   assert_eq(
     source.split("\"r\"(row_valid ? 16 : 0)").to_array().length(),
     2 * lowering.decode_copy_retention().unwrap().dimensions().2 + 1,
@@ -127,6 +141,8 @@ test "independent decode validates malformed future pages and zero fills tails" 
   assert_false(fallback.contains("lookup_epoch_begin"))
   assert_true(fallback.contains("page_slot < page_end"))
   assert_true(fallback.contains("page < 0 || (unsigned long long)page >="))
+  assert_true(fallback.contains("atomicExch(stage_valid"))
+  assert_false(fallback.contains("__all_sync"))
 }
 
 ///|

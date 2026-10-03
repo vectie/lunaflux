@@ -27,7 +27,8 @@ test "grouped matrix decode alternative propagates heads tails and operand rings
     assert_true(text.contains("if(position<key_limit)") || id >= 482)
     assert_false(text.contains("__exp2f("))
     assert_eq(text.contains("cp.async.ca.shared.global"), id >= 482)
-    assert_eq(text.contains("int *stage_valid=tile_valid;"), id >= 482)
+    assert_false(text.contains("int *stage_valid=tile_valid;"))
+    assert_eq(text.contains("value_stage_valid_0"), id >= 482)
     assert_eq(text.split("float next[2]").length(), 2)
     assert_eq(text.split("float alpha[2], sum[2]").length(), 2)
     assert_true(

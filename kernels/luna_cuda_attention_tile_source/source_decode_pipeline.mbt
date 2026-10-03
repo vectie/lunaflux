@@ -104,11 +104,12 @@ fn emit_decode_async_stage(
 ///|
 fn emit_decode_pipeline_iteration(
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
+  retained_validity? : Bool = false,
 ) -> String {
   (
     $|    const int slot = ((key_base - key_begin) / LF_KEY_VALUE_TILE) & 1;
     $|    // K is ready before V: QK does not depend on the value transfer.
-    $|\{cuda_grouped_effects(effects, AcquireKeyOperands, "", "    ")}
+    $|\{cuda_grouped_effects(effects, AcquireKeyOperands, "", "    ", retained_validity~)}
     $|    key_tile = stage_arena + slot * 2 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
     $|    value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
   )

@@ -89,8 +89,20 @@ fn emit_cuda_grouped_matrix_decode_source(
     "      output[((unsigned long long)token*\{heads}ULL+query_head)*LF_HEAD_DIMENSION+component]=__float2bfloat16_rn(out[column].x[item]/denominator[item%4/2]);"
   }
   let transfer = cuda_grouped_matrix_transfer(abi)
+  let retained_validity = effects.independently_refills() &&
+    decode_independent_validity_transport(
+      abi,
+      lowering.hoists_paged_key_value_page_lookup(),
+      k,
+      if partitions > 1 {
+        grain
+      } else {
+        k
+      },
+    )
+    is Some(_)
   let acquire = if effects.is_pipelined() {
-    emit_decode_pipeline_iteration(effects)
+    emit_decode_pipeline_iteration(effects, retained_validity~)
   } else {
     cuda_grouped_effects(effects, AcquireKeyOperands, transfer, "    ")
   }
@@ -107,6 +119,12 @@ fn emit_cuda_grouped_matrix_decode_source(
     )
   } else {
     ""
+  }
+  let validity_storage = if retained_validity {
+    ""
+  } else {
+    "  int *tile_valid=reinterpret_cast<int *>(stage_arena+\{2*stages}*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION);\n" +
+    (if effects.is_pipelined() { "  int *stage_valid=tile_valid;" } else { "" })
   }
   let source =
     $|#include <cuda_bf16.h>
@@ -145,8 +163,7 @@ fn emit_cuda_grouped_matrix_decode_source(
     $|  auto *stage_arena=qbuf+16*LF_HEAD_DIMENSION;
     $|  auto *key_tile=stage_arena;
     $|  auto *value_tile=key_tile+LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION;
-    $|  int *tile_valid=reinterpret_cast<int *>(stage_arena+\{2*stages}*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION);
-    $|\{if effects.is_pipelined() {"  int *stage_valid=tile_valid;"} else {""}}
+    $|\{validity_storage}
     $|  for(int vector=thread;vector<16*LF_HEAD_DIMENSION/8;vector+=32) {
     $|    const int r=vector*8/LF_HEAD_DIMENSION,c=vector*8%LF_HEAD_DIMENSION;
     $|    uint4 packed=make_uint4(0,0,0,0);
@@ -170,7 +187,7 @@ fn emit_cuda_grouped_matrix_decode_source(
     $|    LfMatrixAccumulator score[LF_KEY_VALUE_TILE/16]={};
     $|\{cuda_online_fold_phase(fold.score_phase(), fragments)}
     $|\{cuda_grouped_effects(effects, ReleaseKeyReaders, "", "    ")}
-    $|\{cuda_grouped_effects(effects, AcquireValueOperands, "", "    ")}
+    $|\{cuda_grouped_effects(effects, AcquireValueOperands, "", "    ", retained_validity~)}
     $|\{cuda_online_fold_phase(fold.value_phase(), fragments)}
     $|\{cuda_grouped_effects(effects, ReleaseTileReaders, "", "    ")}
     $|  }

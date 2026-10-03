@@ -195,6 +195,16 @@ pub fn PagedTileEpochs::page_count(Self) -> Int
 pub fn PagedTileEpochs::page_owner(Self, Int) -> Int?
 pub fn PagedTileEpochs::to_repr(Self) -> @debug.Repr
 
+pub struct PagedValidityOwnership {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedValidityOwnership::equal(Self, Self) -> Bool
+pub fn PagedValidityOwnership::new(tile_rows~ : Int, page_rows~ : Int, start_alignment~ : Int, owners~ : Int) -> Self?
+pub fn PagedValidityOwnership::not_equal(Self, Self) -> Bool
+pub fn PagedValidityOwnership::page_count(Self) -> Int
+pub fn PagedValidityOwnership::to_repr(Self) -> @debug.Repr
+pub fn PagedValidityOwnership::valid_tile(Self, Int, ReadOnlyArray[Bool]) -> Bool?
+
 pub struct PartitionMerge {
   // private fields
 } derive(Eq, @debug.Debug)
