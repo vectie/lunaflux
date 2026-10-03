@@ -74,6 +74,14 @@ and one lane-owned rotary preparation reused across its Q/K heads. Each head
 still uses the original BF16 rounding points and ordered normalization tree;
 the scalar single-token law is unchanged.
 
+The shared numerical lowerer now consumes register-pair retention from the
+pure physical plan for aligned split-half heads. It avoids the intermediate
+normalized scratch writes/reads and two helper-local warp publications while
+retaining the exact reduction tree and normalization/rotation BF16 rounds.
+The cache-bound helper is a distinct lowering which consumes GPU-prepared F32
+sine/cosine pairs; its extra operand and preparation launch must be explicitly
+bound by the production candidate and executor, never inferred from an old ABI.
+
 The AOT frontier includes one, two and four heads per CTA, live accumulator
 windows of one, two, four and eight, and the existing row/transfer/stage choices.
 Packed producer and epilogue storage participate in the same resource bound;

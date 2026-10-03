@@ -26,6 +26,9 @@ priv struct RuntimeBundleArguments {
   blockwise_decode : Bool
   contracting_decode : Bool
   dual_score_decode : Bool
+  decode_execution : @luna_fused_artifact_admission.DecodeExecutionDescriptor?
+  decode_function_symbol : String?
+  step_rotary_cache : Bool
   query_metadata : Bool
   model_content : String
   model_plan : String
@@ -398,6 +401,9 @@ fn parse_arguments(
     blockwise_decode: false,
     contracting_decode: false,
     dual_score_decode: false,
+    decode_execution: None,
+    decode_function_symbol: None,
+    step_rotary_cache: false,
     residual,
     ingress,
     attention_prefill,
@@ -465,7 +471,12 @@ async fn run(
     }
     _ => (raw_args, None)
   }
-  let (args, ingress_choice) = prepare_ingress_choice(raw_args)
+  let (
+    args,
+    ingress_choice,
+    prefill_exponential_law,
+    wide_prefill_exponential_law,
+  ) = prepare_prefill_numerical_choice(raw_args)
   let residual_bytes = read_module(args.residual.module_path)
   if !selected_ingress_cut(args, ingress_choice).permits_readonly_attention() {
     if attention_bucket_routes is Some(_) {
@@ -507,7 +518,10 @@ async fn run(
       abi=QwenPagedAttentionReadOnlyProductionV2,
       first_operation=args.attention_prefill.first_operation,
       operation_count=1,
-      function_symbol="lunaflux_attention_prefill_tile_compiler_v1",
+      function_symbol=prefill_function_symbol(prefill_exponential_law),
+      prefill_exponential_law~,
+      allow_approximate_prefill_exponential=prefill_exponential_law ==
+        ApproximateBaseTwoExponential,
       launch=launch_dimensions(args.attention_prefill),
       module_bytes=attention_prefill_bytes,
       query_tile_rows=args.prefill_query_tile_rows,
@@ -522,6 +536,9 @@ async fn run(
       first_operation=args.attention_prefill_wide.first_operation,
       operation_count=1,
       function_symbol=args.attention_prefill_wide_symbol,
+      prefill_exponential_law=wide_prefill_exponential_law,
+      allow_approximate_prefill_exponential=wide_prefill_exponential_law ==
+        ApproximateBaseTwoExponential,
       launch=launch_dimensions(args.attention_prefill_wide),
       module_bytes=attention_prefill_wide_bytes,
       query_tile_rows=args.wide_query_tile_rows,
@@ -586,7 +603,9 @@ async fn run(
   )
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=if args.dual_score_decode {
+      abi=if args.decode_execution is Some(_) {
+        PagedAttentionReadOnlyExtendedDecodeProductionV11
+      } else if args.dual_score_decode {
         PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
       } else if args.contracting_decode {
         PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
@@ -597,7 +616,9 @@ async fn run(
       },
       first_operation=args.attention_read.first_operation,
       operation_count=1,
-      function_symbol=if args.dual_score_decode {
+      function_symbol=if args.decode_execution is Some(descriptor) {
+        args.decode_function_symbol.unwrap_or(descriptor.function_symbol())
+      } else if args.dual_score_decode {
         "lunaflux_attention_decode_tile_compiler_v1_dual_score_blockwise_f32_v2"
       } else if args.contracting_decode {
         "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3"
@@ -608,6 +629,7 @@ async fn run(
       },
       launch=launch_dimensions(args.attention_read),
       module_bytes=attention_bytes,
+      decode_execution?=args.decode_execution,
     ) catch {
       _ => raise InvalidRuntime
     },

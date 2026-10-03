@@ -17,6 +17,41 @@ fn prepare_ingress_choice(
 ) -> (RuntimeBundleArguments, @luna_fusion_strategy.FusionSchedule) raise Qwen3FusedRuntimeBundleExportError {
   // Global ABI options are independent of the optional ingress experiment.
   // Peel the global suffix before interpreting that experiment's fixed arity.
+  if raw_args is [.. rest, "--decode-symbol", symbol] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    guard args.decode_function_symbol is None &&
+      args.decode_execution is Some(descriptor) &&
+      descriptor.matches_function_symbol(symbol) else {
+      raise InvalidArguments
+    }
+    return ({ ..args, decode_function_symbol: Some(symbol), }, choice)
+  }
+  if raw_args is [.. rest, "--decode-execution", law, rows, stages] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    guard !args.blockwise_decode &&
+      args.decode_execution is None &&
+      choice != Unfused else {
+      raise InvalidArguments
+    }
+    let descriptor = @luna_fused_artifact_admission.DecodeExecutionDescriptor::from_numeric_law(
+      law,
+      key_value_tile_rows=positive_int(rows),
+      pipeline_stages=positive_int(stages),
+    ) catch {
+      _ => raise InvalidArguments
+    }
+    return (
+      { ..args, blockwise_decode: true, decode_execution: Some(descriptor), },
+      choice,
+    )
+  }
+  if raw_args is [.. rest, "--step-rotary-cache"] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    guard !args.step_rotary_cache && choice == FullyFused else {
+      raise InvalidArguments
+    }
+    return ({ ..args, step_rotary_cache: true, }, choice)
+  }
   if raw_args is [.. rest, "--device-target", major, minor] {
     let (args, choice) = prepare_ingress_choice(rest)
     guard args.device_target is None else { raise InvalidArguments }
@@ -217,14 +252,22 @@ fn selected_ingress_modules(
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
       abi=if choice == FullyFused {
-        QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+        if args.step_rotary_cache {
+          AttentionIngressPreparedRotaryProductionV11
+        } else {
+          QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+        }
       } else {
         QwenQkNormPositionedRopePagedKvWriteProductionV2
       },
       first_operation~,
       operation_count~,
       function_symbol=if choice == FullyFused {
-        "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2"
+        if args.step_rotary_cache {
+          "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3"
+        } else {
+          "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2"
+        }
       } else {
         "lunaflux_qwen_qknorm_rope_kvwrite_bf16_head128_production_v2"
       },

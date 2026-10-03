@@ -72,6 +72,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_full_attention_ingress_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(AttentionIngressPreparedRotaryProductionV11)
+    is Some(module_) {
+    return Some(module_)
+  }
   self.module_for(QwenQkvQkNormPositionedRopePagedKvWriteProductionV4)
 }
 
@@ -119,6 +123,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_wide_query_prefill_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyExtendedDecodeProductionV11)
+    is Some(module_) {
+    return Some(module_)
+  }
   if self.module_for(
       PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10,
     )
@@ -163,6 +171,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_prefill_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyExtendedDecodeProductionV11)
+    is Some(module_) {
+    return Some(module_)
+  }
   if self.module_for(
       PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10,
     )
@@ -193,6 +205,10 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_module(
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_split_module(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> ApprovedReusableFusedRuntimeModule? {
+  if self.module_for(PagedAttentionReadOnlyExtendedDecodeProductionV11)
+    is Some(module_) {
+    return Some(module_)
+  }
   if self.module_for(
       PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10,
     )

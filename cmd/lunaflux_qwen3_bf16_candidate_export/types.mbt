@@ -112,6 +112,8 @@ priv struct Qwen3CandidateExportArguments {
   partitioned_resources : (String, String, String)?
   ingress_policy_records : (String, String, String)?
   ingress_policy_search : Bool
+  step_rotary_cache : Bool
+  prefill_approximate_exp2 : Bool
   ingress_shared_limit : Int64
   compiler_register_limit : Int
   prefill_candidate : Int?

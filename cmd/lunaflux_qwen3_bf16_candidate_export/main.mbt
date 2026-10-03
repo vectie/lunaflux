@@ -68,6 +68,8 @@ async fn run_qwen3_candidate_export(
       arguments.toolchain_sha256,
     ),
     ingress_policy_search=arguments.ingress_policy_search,
+    step_rotary_cache=arguments.step_rotary_cache,
+    prefill_approximate_exp2=arguments.prefill_approximate_exp2,
     ingress_shared_limit=arguments.ingress_shared_limit,
     decode_candidate?=arguments.decode_candidate,
     prefill_candidate?=arguments.prefill_candidate,
@@ -202,6 +204,7 @@ async fn run_qwen3_candidate_export(
     layout,
     qwen_fused.attention_decode,
     qwen_fused.attention_decode_frontier.digest().as_hex(),
+    selected_alias=true,
   )
   write_new_candidate_pair(decode_root, decode_source, decode_recipe)
   publish_decode_frontier(

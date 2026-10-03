@@ -167,6 +167,7 @@ pub struct FusedQwenQkvQkNormRopeKvWriteCudaCandidate {
 /// candidate. It is still inert until compiled and admitted by a runtime.
 pub struct FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate {
   priv qualification : FusedQwenQkvQkNormRopeKvWriteCudaCandidate
+  priv step_rotary_cache : Bool
   priv function_symbol : String
   priv source : Bytes
   priv source_digest : FusedParallelDigest

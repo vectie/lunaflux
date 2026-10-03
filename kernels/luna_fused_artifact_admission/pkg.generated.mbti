@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_capability_manifest",
   "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
 }
@@ -115,6 +116,7 @@ pub fn ApprovedReusableFusedRuntimeBundle::target(Self) -> @catalog.DeviceTarget
 pub struct ApprovedReusableFusedRuntimeModule {
   // private fields
 }
+pub fn ApprovedReusableFusedRuntimeModule::decode_execution(Self) -> DecodeExecutionDescriptor?
 pub fn ApprovedReusableFusedRuntimeModule::first_operation_index(Self) -> Int
 pub fn ApprovedReusableFusedRuntimeModule::function_symbol(Self) -> String
 pub fn ApprovedReusableFusedRuntimeModule::heads_per_cta(Self) -> Int
@@ -124,8 +126,33 @@ pub fn ApprovedReusableFusedRuntimeModule::module_bytes(Self) -> Bytes
 pub fn ApprovedReusableFusedRuntimeModule::module_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
 pub fn ApprovedReusableFusedRuntimeModule::operation_count(Self) -> Int
 pub fn ApprovedReusableFusedRuntimeModule::operation_span(Self) -> (Int, Int)
+pub fn ApprovedReusableFusedRuntimeModule::prefill_exponential_law(Self) -> PrefillExponentialLaw
 pub fn ApprovedReusableFusedRuntimeModule::query_metadata_version(Self) -> Int
 pub fn ApprovedReusableFusedRuntimeModule::query_tile_rows(Self) -> Int?
+
+pub struct DecodeExecutionDescriptor {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DecodeExecutionDescriptor::compute(Self) -> @luna_attention_strategy.AttentionTileCompute
+pub fn DecodeExecutionDescriptor::equal(Self, Self) -> Bool
+pub fn DecodeExecutionDescriptor::from_numeric_law(String, key_value_tile_rows~ : Int, pipeline_stages~ : Int) -> Self raise FusedArtifactAdmissionError
+pub fn DecodeExecutionDescriptor::function_symbol(Self) -> String
+pub fn DecodeExecutionDescriptor::matches_function_symbol(Self, String) -> Bool
+pub fn DecodeExecutionDescriptor::new(law~ : DecodeNumericLaw, key_value_tile_rows~ : Int, pipeline_stages~ : Int) -> Self raise FusedArtifactAdmissionError
+pub fn DecodeExecutionDescriptor::not_equal(Self, Self) -> Bool
+pub fn DecodeExecutionDescriptor::numeric_law(Self) -> String
+pub fn DecodeExecutionDescriptor::storage_geometry(Self) -> (Int, Int)
+
+pub(all) enum DecodeNumericLaw {
+  OrderedBlockwise
+  DualScoreBlockwise
+  ContractingBlockwise
+  OwnedSeparate(Int)
+  OwnedContracting(Int)
+  MatrixBf16
+} derive(Eq, @debug.Debug)
+pub fn DecodeNumericLaw::equal(Self, Self) -> Bool
+pub fn DecodeNumericLaw::not_equal(Self, Self) -> Bool
 
 pub(all) enum FusedArtifactAdmissionRule {
   Manifest
@@ -160,9 +187,16 @@ pub(all) enum FusedStandaloneFallbackRole {
   RmsNormFallback
 } derive(Eq, @debug.Debug)
 
+pub(all) enum PrefillExponentialLaw {
+  StrictNaturalExponential
+  ApproximateBaseTwoExponential
+} derive(Eq, @debug.Debug)
+pub fn PrefillExponentialLaw::numeric_law(Self) -> String
+
 pub(all) enum ReusableFusedRuntimeKernelAbi {
   ResidualRmsNormProductionV2
   QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+  AttentionIngressPreparedRotaryProductionV11
   QwenQkNormPositionedRopePagedKvWriteProductionV2
   QwenPagedAttentionPrefillPartitionedPartialProductionV4
   QwenPagedAttentionPrefillPartitionedMergeProductionV4
@@ -175,12 +209,14 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
   PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
   PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+  PagedAttentionReadOnlyExtendedDecodeProductionV11
 } derive(Eq, @debug.Debug)
+pub fn ReusableFusedRuntimeKernelAbi::is_compiler_blockwise_decode(Self) -> Bool
 
 pub struct ReusableFusedRuntimeModuleInput {
   // private fields
 }
-pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, query_tile_rows? : Int, query_metadata_version? : Int, heads_per_cta? : Int) -> Self raise FusedArtifactAdmissionError
+pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, query_tile_rows? : Int, query_metadata_version? : Int, heads_per_cta? : Int, decode_execution? : DecodeExecutionDescriptor, prefill_exponential_law? : PrefillExponentialLaw, allow_approximate_prefill_exponential? : Bool) -> Self raise FusedArtifactAdmissionError
 
 // Type aliases
 

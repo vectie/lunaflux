@@ -7,6 +7,7 @@ fn qwen_fused_source(
   tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   physical : QwenIngressPhysicalProgram,
   dispatch_canary : UInt?,
+  step_rotary_cache? : Bool = false,
 ) -> Bytes {
   let (input_width, output_width) = semantic.projection_shape()
   let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()
@@ -79,9 +80,15 @@ fn qwen_fused_source(
     "\n",
   )
   out.write_string(
-    @luna_cuda_attention_ingress_source.lower_prepared_attention_ingress_numerics(
-      physical.numerics,
-    ),
+    if step_rotary_cache {
+      @luna_cuda_attention_ingress_source.lower_cached_attention_ingress_numerics(
+        physical.numerics,
+      )
+    } else {
+      @luna_cuda_attention_ingress_source.lower_prepared_attention_ingress_numerics(
+        physical.numerics,
+      )
+    },
   )
   out.write_string(
     "#define LF_TOKENS_PER_PAGE " + layout.tokens_per_page().to_string() + "\n",
@@ -110,6 +117,11 @@ fn qwen_fused_source(
     "  const __nv_bfloat16* __restrict__ q_norm_weight, const __nv_bfloat16* __restrict__ k_norm_weight,\n" +
     "  __nv_bfloat16* __restrict__ rotated_qkv, __nv_bfloat16* __restrict__ key_cache,\n" +
     "  __nv_bfloat16* __restrict__ value_cache" +
+    (if step_rotary_cache {
+      ",\n  const float2* __restrict__ rotary_pairs"
+    } else {
+      ""
+    }) +
     canary_argument +
     ") {\n",
   )
@@ -180,7 +192,11 @@ fn qwen_fused_source(
     "    if (physical_page < 0 || physical_page >= LF_TOTAL_PAGE_COUNT) continue;\n" +
     "    // Row-scoped rotary operands remain live until every owned Q/K head retires.\n" +
     "    LfIngressRotaryValues rotary;\n" +
-    "    if (head_begin < LF_QK_HEADS) rotary = lf_ingress_prepare_rotary(position, lane);\n" +
+    (if step_rotary_cache {
+      "    if (head_begin < LF_QK_HEADS) rotary = lf_ingress_load_rotary(rotary_pairs, token, lane);\n"
+    } else {
+      "    if (head_begin < LF_QK_HEADS) rotary = lf_ingress_prepare_rotary(position, lane);\n"
+    }) +
     "    #pragma unroll\n" +
     "    for (int local_head = 0; local_head < LF_HEADS_PER_CTA; ++local_head) {\n" +
     "    const int head = head_begin + local_head;\n" +
@@ -190,7 +206,11 @@ fn qwen_fused_source(
     "    float* head_values = projected[local_row] + local_head * LF_HEAD_DIM;\n" +
     "    for (int component = lane; component < LF_HEAD_DIM; component += 32) head_values[component] =\n" +
     "      __bfloat162float(__float2bfloat16_rn(head_values[component]));\n" +
-    "    __syncwarp();\n" +
+    (if physical.numerics.pair_retention() is Some(_) {
+      ""
+    } else {
+      "    __syncwarp();\n"
+    }) +
     "    if (head < LF_QK_HEADS) {\n" +
     "      const __nv_bfloat16* norm_weight = is_query ? q_norm_weight : k_norm_weight;\n" +
     "      lf_ingress_norm_rotary_prepared(head_values, norm_weight, rotary, lane);\n" +
@@ -229,7 +249,11 @@ fn qwen_fused_source(
     "        value_cache[cache_index] = encoded;\n" +
     "      }\n" +
     "    }\n" +
-    "    __syncwarp();\n" +
+    (if physical.numerics.pair_retention() is Some(_) {
+      ""
+    } else {
+      "    __syncwarp();\n"
+    }) +
     "    }\n" +
     "  }\n",
   )
@@ -243,5 +267,10 @@ fn qwen_fused_source(
     None => ()
   }
   out.write_string("}\n")
+  if step_rotary_cache {
+    out.write_string(
+      qwen_step_rotary_preparation_source(symbol, physical.numerics, profile),
+    )
+  }
   @utf8.encode(out.to_string())
 }

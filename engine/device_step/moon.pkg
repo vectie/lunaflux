@@ -1,5 +1,7 @@
 import {
+  "vectie/lunaflux/compiler/elementwise_physical_ir",
   "vectie/lunaflux/kernels/luna_attention_metadata",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
   "vectie/lunaflux/kernels/luna_attention_tuning",
   "vectie/lunaflux/scheduler/work_plan",
   "moonbitlang/core/encoding/utf8",

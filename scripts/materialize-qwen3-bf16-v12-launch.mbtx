@@ -81,7 +81,9 @@ async fn main {
     .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v8\n") ||
     runtime_bytes
     .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v9\n") else {
+    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v9\n") ||
+    runtime_bytes.text()
+    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v10\n") else {
     println(
       command(repo + "/scripts/materialize-qwen3-bf16-v12-launch.sh", args),
     )

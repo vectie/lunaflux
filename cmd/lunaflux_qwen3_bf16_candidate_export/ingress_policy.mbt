@@ -46,7 +46,9 @@ fn prepare_qwen_ingress_resource_variants(
     }
     variants.push(
       @luna_cuda_fused_parallel_aot.lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
-        qualification, limits,
+        qualification,
+        limits,
+        step_rotary_cache=production.uses_step_rotary_cache(),
       ) catch {
         _ => raise QwenIngressPreparation
       },

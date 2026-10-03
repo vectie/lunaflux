@@ -13,6 +13,8 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
     ResidualRmsNormProductionV2 => "residual-rmsnorm-production-v2"
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 =>
       "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4"
+    AttentionIngressPreparedRotaryProductionV11 =>
+      "attention-ingress-prepared-rotary-production-v11"
     QwenQkNormPositionedRopePagedKvWriteProductionV2 =>
       "qwen-qknorm-positioned-rope-paged-kvwrite-production-v2"
     QwenPagedAttentionPrefillPartitionedPartialProductionV4 =>
@@ -37,6 +39,8 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
       "paged-attention-readonly-dual-score-blockwise-f32-decode-production-v10"
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 =>
       "paged-attention-readonly-blockwise-fma-f32-decode-production-v9"
+    PagedAttentionReadOnlyExtendedDecodeProductionV11 =>
+      "paged-attention-readonly-extended-decode-production-v11"
   }
 }
 
@@ -48,6 +52,8 @@ fn reusable_runtime_parse_abi(
     "residual-rmsnorm-production-v2" => ResidualRmsNormProductionV2
     "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4" =>
       QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+    "attention-ingress-prepared-rotary-production-v11" =>
+      AttentionIngressPreparedRotaryProductionV11
     "qwen-qknorm-positioned-rope-paged-kvwrite-production-v2" =>
       QwenQkNormPositionedRopePagedKvWriteProductionV2
     "qwen-paged-attention-prefill-partitioned-partial-production-v4" =>
@@ -72,6 +78,8 @@ fn reusable_runtime_parse_abi(
       PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
     "paged-attention-readonly-blockwise-fma-f32-decode-production-v9" =>
       PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+    "paged-attention-readonly-extended-decode-production-v11" =>
+      PagedAttentionReadOnlyExtendedDecodeProductionV11
     _ => raise InvalidFusedArtifact(Family)
   }
 }
@@ -83,6 +91,7 @@ fn reusable_runtime_required_operation_count(
   match abi {
     ResidualRmsNormProductionV2 => 2
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 4
+    AttentionIngressPreparedRotaryProductionV11 => 4
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => 3
     QwenPagedAttentionPrefillPartitionedPartialProductionV4 => 1
     QwenPagedAttentionPrefillPartitionedMergeProductionV4 => 1
@@ -95,6 +104,7 @@ fn reusable_runtime_required_operation_count(
     PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 => 1
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 => 1
     PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 => 1
+    PagedAttentionReadOnlyExtendedDecodeProductionV11 => 1
   }
 }
 
@@ -115,6 +125,8 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
     PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 => 11
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 => 12
     PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 => 13
+    AttentionIngressPreparedRotaryProductionV11 => 14
+    PagedAttentionReadOnlyExtendedDecodeProductionV11 => 15
   }
 }
 
@@ -142,7 +154,8 @@ fn reusable_runtime_is_qwen_attention_reader(
   abi == PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
   abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
   abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
-  abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+  abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 ||
+  abi == PagedAttentionReadOnlyExtendedDecodeProductionV11
 }
 
 ///|
@@ -152,7 +165,8 @@ fn reusable_runtime_is_decode(abi : ReusableFusedRuntimeKernelAbi) -> Bool {
   | PagedAttentionReadOnlyCompilerDecodeProductionV7
   | PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
   | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
-  | PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10)
+  | PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+  | PagedAttentionReadOnlyExtendedDecodeProductionV11)
 }
 
 ///|
@@ -161,6 +175,7 @@ fn reusable_runtime_qwen_ingress_terminal_offset(
 ) -> Int? {
   match abi {
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => Some(3)
+    AttentionIngressPreparedRotaryProductionV11 => Some(3)
     QwenQkNormPositionedRopePagedKvWriteProductionV2 => Some(2)
     _ => None
   }
@@ -242,7 +257,21 @@ pub fn ReusableFusedRuntimeModuleInput::new(
   query_tile_rows? : Int,
   query_metadata_version? : Int = 0,
   heads_per_cta? : Int = 1,
+  decode_execution? : DecodeExecutionDescriptor,
+  prefill_exponential_law? : PrefillExponentialLaw = StrictNaturalExponential,
+  allow_approximate_prefill_exponential? : Bool = false,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
+  reusable_runtime_validate_prefill_exponential(
+    abi, prefill_exponential_law, function_symbol, allow_approximate_prefill_exponential,
+  )
+  let decode_execution = reusable_runtime_decode_execution(
+    abi, decode_execution,
+  )
+  if abi == PagedAttentionReadOnlyExtendedDecodeProductionV11 &&
+    decode_execution is Some(descriptor) &&
+    !descriptor.matches_function_symbol(function_symbol) {
+    raise InvalidFusedArtifact(KernelAbi)
+  }
   reusable_runtime_validate_head_ownership(abi, heads_per_cta, query_tile_rows)
   if query_metadata_version != 0 &&
     (
@@ -267,6 +296,8 @@ pub fn ReusableFusedRuntimeModuleInput::new(
     query_tile_rows,
     query_metadata_version,
     heads_per_cta,
+    decode_execution,
+    prefill_exponential_law,
     module_bytes,
   }
 }
@@ -361,100 +392,6 @@ fn reusable_runtime_validate_unique_approved(
 }
 
 ///|
-fn reusable_runtime_append_target(
-  out : StringBuilder,
-  target : @catalog.DeviceTarget,
-) -> Unit {
-  out.write_string("compute_major=" + target.compute_major().to_string() + "\n")
-  out.write_string("compute_minor=" + target.compute_minor().to_string() + "\n")
-  out.write_string(
-    "supports_bf16=" + (if target.supports_bf16() { "1" } else { "0" }) + "\n",
-  )
-  out.write_string(
-    "supports_cublas_lt=" +
-    (if target.supports_cublas_lt() { "1" } else { "0" }) +
-    "\n",
-  )
-}
-
-///|
-fn reusable_runtime_append_module(
-  out : StringBuilder,
-  ordinal : Int,
-  module_ : ReusableFusedRuntimeModuleInput,
-  metadata : Bool,
-  ownership : Bool,
-) -> Unit raise FusedArtifactAdmissionError {
-  let prefix = "module_" + ordinal.to_string() + "_"
-  out.write_string(
-    prefix + "abi=" + reusable_runtime_abi_name(module_.abi) + "\n",
-  )
-  out.write_string(
-    prefix + "first_operation=" + module_.first_operation.to_string() + "\n",
-  )
-  out.write_string(
-    prefix + "operation_count=" + module_.operation_count.to_string() + "\n",
-  )
-  out.write_string(prefix + "function_symbol=" + module_.symbol + "\n")
-  let query_tile_rows = match module_.query_tile_rows {
-    Some(rows) => rows
-    None => 0
-  }
-  out.write_string(
-    prefix + "query_tile_rows=" + query_tile_rows.to_string() + "\n",
-  )
-  if metadata {
-    out.write_string(
-      prefix +
-      "query_metadata_version=" +
-      module_.query_metadata_version.to_string() +
-      "\n",
-    )
-  }
-  if ownership {
-    out.write_string(
-      prefix + "heads_per_cta=" + module_.heads_per_cta.to_string() + "\n",
-    )
-  }
-  out.write_string(
-    prefix + "grid_x=" + module_.launch.grid_x().to_string() + "\n",
-  )
-  out.write_string(
-    prefix + "grid_y=" + module_.launch.grid_y().to_string() + "\n",
-  )
-  out.write_string(
-    prefix + "grid_z=" + module_.launch.grid_z().to_string() + "\n",
-  )
-  out.write_string(
-    prefix + "block_x=" + module_.launch.block_x().to_string() + "\n",
-  )
-  out.write_string(
-    prefix + "block_y=" + module_.launch.block_y().to_string() + "\n",
-  )
-  out.write_string(
-    prefix + "block_z=" + module_.launch.block_z().to_string() + "\n",
-  )
-  out.write_string(
-    prefix +
-    "shared_bytes=" +
-    module_.launch.shared_memory_bytes().to_string() +
-    "\n",
-  )
-  out.write_string(
-    prefix +
-    "module_sha256=" +
-    fused_artifact_digest(module_.module_bytes).as_hex() +
-    "\n",
-  )
-  out.write_string(
-    prefix +
-    "module_hex=" +
-    @crypto.bytes_to_hex_string(module_.module_bytes) +
-    "\n",
-  )
-}
-
-///|
 /// Canonically packages a fixed-size set of heterogeneous production modules.
 /// The resulting bytes remain inert until admitted against their exact SHA-256.
 pub fn export_reusable_fused_runtime_bundle(
@@ -471,17 +408,38 @@ pub fn export_reusable_fused_runtime_bundle(
   }
   reusable_runtime_validate_unique_inputs(modules)
   let out = StringBuilder()
-  let ownership = modules.any(m => {
-    m.heads_per_cta != 1 ||
-    m.abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
-    m.abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
-    m.abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+  let prefill_metadata = modules.any(m => {
+    m.prefill_exponential_law == ApproximateBaseTwoExponential
   })
+  let decode_metadata = prefill_metadata ||
+    modules.any(m => {
+      m.abi == PagedAttentionReadOnlyExtendedDecodeProductionV11 ||
+      (match m.decode_execution {
+        Some(descriptor) => descriptor.storage_geometry() != (32, 2)
+        None => false
+      })
+    })
+  let ownership = prefill_metadata ||
+    modules.any(m => {
+      m.heads_per_cta != 1 ||
+      m.abi == AttentionIngressPreparedRotaryProductionV11 ||
+      m.abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
+      m.abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
+      m.abi.is_compiler_blockwise_decode()
+    })
   let metadata = ownership ||
     attention_bucket_routes is Some(_) ||
     modules.any(m => m.query_metadata_version != 0)
   out.write_string(
-    if modules.any(m => {
+    if prefill_metadata {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v12\n"
+    } else if decode_metadata {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v11\n"
+    } else if modules.any(m => {
+        m.abi == AttentionIngressPreparedRotaryProductionV11
+      }) {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v10\n"
+    } else if modules.any(m => {
         m.abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
       }) {
       "schema=lunaflux-reusable-fused-runtime-bundle.v9\n"
@@ -502,6 +460,9 @@ pub fn export_reusable_fused_runtime_bundle(
   out.write_string("model_content_sha256=" + model_content_sha256 + "\n")
   out.write_string("model_plan_sha256=" + model_plan_sha256 + "\n")
   reusable_runtime_append_target(out, target)
+  if prefill_metadata {
+    out.write_string("allow_approximate_prefill_exponential=1\n")
+  }
   if attention_bucket_routes is Some(routes) {
     if routes.is_empty() || routes.length() > 1048576 {
       raise InvalidFusedArtifact(Manifest)
@@ -530,13 +491,15 @@ pub fn export_reusable_fused_runtime_bundle(
     PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8,
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9,
     PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10,
+    AttentionIngressPreparedRotaryProductionV11,
+    PagedAttentionReadOnlyExtendedDecodeProductionV11,
   ]
   let mut ordinal = 0
   for abi in canonical_abis {
     for module_ in modules {
       if module_.abi == abi {
         reusable_runtime_append_module(
-          out, ordinal, module_, metadata, ownership,
+          out, ordinal, module_, metadata, ownership, decode_metadata, prefill_metadata,
         )
         ordinal += 1
       }
@@ -572,6 +535,9 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     has_bucket_routes,
     has_ownership,
   ) = match schema {
+    "lunaflux-reusable-fused-runtime-bundle.v12" => (true, true, true, true)
+    "lunaflux-reusable-fused-runtime-bundle.v11" => (true, true, true, true)
+    "lunaflux-reusable-fused-runtime-bundle.v10" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v9" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v8" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v7" => (true, true, true, true)
@@ -581,6 +547,10 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false, false, false)
     _ => raise InvalidFusedArtifact(Manifest)
   }
+  let has_prefill_metadata = schema ==
+    "lunaflux-reusable-fused-runtime-bundle.v12"
+  let has_decode_metadata = has_prefill_metadata ||
+    schema == "lunaflux-reusable-fused-runtime-bundle.v11"
   let model_content = fused_deployment_digest(
     reader.value("model_content_sha256"),
   )
@@ -603,6 +573,14 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   }
   if !target.supports_bf16() {
     raise InvalidFusedArtifact(Target)
+  }
+  let allow_approximate_prefill = if has_prefill_metadata {
+    if reader.int("allow_approximate_prefill_exponential") != 1 {
+      raise InvalidFusedArtifact(KernelAbi)
+    }
+    true
+  } else {
+    false
   }
   let attention_bucket_routes = if has_bucket_routes {
     let encoded_routes = reader.value("attention_bucket_routes_hex")
@@ -652,24 +630,64 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     } else {
       1
     }
+    let supplied_decode_execution = if has_decode_metadata {
+      let law = reader.value(prefix + "decode_numeric_law")
+      let rows = reader.int(prefix + "decode_key_value_tile_rows")
+      let stages = reader.int(prefix + "decode_pipeline_stages")
+      if law == "-" {
+        if rows != 0 || stages != 0 {
+          raise InvalidFusedArtifact(KernelAbi)
+        }
+        None
+      } else {
+        Some(
+          DecodeExecutionDescriptor::from_numeric_law(
+            law,
+            key_value_tile_rows=rows,
+            pipeline_stages=stages,
+          ),
+        )
+      }
+    } else {
+      None
+    }
+    let decode_execution = reusable_runtime_decode_execution(
+      abi, supplied_decode_execution,
+    )
+    if abi == PagedAttentionReadOnlyExtendedDecodeProductionV11 &&
+      decode_execution is Some(descriptor) &&
+      !descriptor.matches_function_symbol(symbol) {
+      raise InvalidFusedArtifact(KernelAbi)
+    }
+    let prefill_exponential_law = reusable_runtime_read_prefill_exponential(
+      reader, prefix, abi, symbol, has_prefill_metadata, allow_approximate_prefill,
+    )
     reusable_runtime_validate_head_ownership(
       abi, heads_per_cta, query_tile_rows,
     )
     if abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 &&
       schema != "lunaflux-reusable-fused-runtime-bundle.v8" &&
-      schema != "lunaflux-reusable-fused-runtime-bundle.v9" {
+      schema != "lunaflux-reusable-fused-runtime-bundle.v9" &&
+      schema != "lunaflux-reusable-fused-runtime-bundle.v10" &&
+      !has_decode_metadata {
       raise InvalidFusedArtifact(KernelAbi)
     }
     if abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 &&
-      schema != "lunaflux-reusable-fused-runtime-bundle.v9" {
+      schema != "lunaflux-reusable-fused-runtime-bundle.v9" &&
+      schema != "lunaflux-reusable-fused-runtime-bundle.v10" &&
+      !has_decode_metadata {
       raise InvalidFusedArtifact(KernelAbi)
     }
-    if (
-        abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
-        abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
-        abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
-      ) &&
-      !has_ownership {
+    if abi == AttentionIngressPreparedRotaryProductionV11 &&
+      schema != "lunaflux-reusable-fused-runtime-bundle.v10" &&
+      !has_decode_metadata {
+      raise InvalidFusedArtifact(KernelAbi)
+    }
+    if abi == PagedAttentionReadOnlyExtendedDecodeProductionV11 &&
+      !has_decode_metadata {
+      raise InvalidFusedArtifact(KernelAbi)
+    }
+    if abi.is_compiler_blockwise_decode() && !has_ownership {
       raise InvalidFusedArtifact(KernelAbi)
     }
     if query_metadata_version != 0 &&
@@ -712,6 +730,8 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
       query_tile_rows,
       query_metadata_version,
       heads_per_cta,
+      decode_execution,
+      prefill_exponential_law,
       module_digest,
       module_bytes,
     })

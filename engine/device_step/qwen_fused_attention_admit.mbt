@@ -260,6 +260,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     runtime.target() != blueprint.target() {
     raise MismatchedFusedGroupedOperation(ModelIdentity)
   }
+  admit_prefill_exponential_model_contract(plan, runtime)
   let ingress_selection = match runtime.qwen_full_attention_ingress_module() {
     Some(module_) => Some((module_, true))
     None =>
@@ -306,8 +307,12 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     (
       (
         includes_projection &&
-        postprocess.kernel_abi() ==
-        QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 &&
+        (
+          postprocess.kernel_abi() ==
+          QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 ||
+          postprocess.kernel_abi() ==
+          AttentionIngressPreparedRotaryProductionV11
+        ) &&
         postprocess.operation_count() == 4
       ) ||
       (
@@ -330,12 +335,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
       decode_module.kernel_abi() ==
       PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
-      decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
-      decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
-      decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+      decode_module.kernel_abi().is_compiler_blockwise_decode()
     ) &&
     runtime.qwen_paged_attention_readonly_operation_index()
     is Some(readonly_attention) &&
@@ -388,18 +388,37 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     query_heads % kv_heads == 0 else {
     raise MismatchedFusedGroupedOperation(Launch)
   }
-  let blockwise_decode = decode_module.kernel_abi()
-    is (PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
-    | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
-    | PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10)
-  let expected_blockwise_symbol = match decode_module.kernel_abi() {
-    PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 =>
-      "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
-    PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 =>
-      "lunaflux_attention_decode_tile_compiler_v1_dual_score_blockwise_f32_v2"
-    PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 =>
-      "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3"
-    _ => ""
+  let blockwise_decode = decode_module
+    .kernel_abi()
+    .is_compiler_blockwise_decode()
+  let (expected_blockwise_symbol, expected_grouped_threads, expected_shared) = match
+    decode_module.decode_execution() {
+    Some(descriptor) => {
+      let shape = @luna_attention_strategy.AttentionShape::new(
+        query_heads~,
+        kv_heads~,
+        head_dimension~,
+        tokens_per_page=blueprint.layout().tokens_per_page(),
+      ) catch {
+        _ => raise MismatchedFusedGroupedOperation(Launch)
+      }
+      let (rows, stages) = descriptor.storage_geometry()
+      let (_, _, threads, shared) = @luna_cuda_paged_attention_aot.blockwise_decode_execution_launch_geometry(
+        shape,
+        8,
+        descriptor.compute(),
+        rows,
+        stages,
+      ) catch {
+        _ => raise MismatchedFusedGroupedOperation(Launch)
+      }
+      if !descriptor.matches_function_symbol(decode_module.function_symbol()) {
+        raise MismatchedFusedGroupedOperation(KernelAbi)
+      }
+      (decode_module.function_symbol(), threads, shared.to_int())
+    }
+    None =>
+      ("", query_heads / kv_heads * 32, decode_launch.shared_memory_bytes())
   }
   if (
       blockwise_decode &&
@@ -413,8 +432,9 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     "lunaflux_attention_decode_tile_compiler_v1"
   let grouped_decode = compiler_decode &&
     decode_launch.grid_y() == kv_heads &&
-    decode_launch.block_x() == query_heads / kv_heads * 32 &&
-    decode_launch.shared_memory_bytes() > 0
+    decode_launch.block_x() == expected_grouped_threads &&
+    decode_launch.shared_memory_bytes() == expected_shared &&
+    expected_shared > 0
   let direct_decode = compiler_decode &&
     decode_launch.grid_y() == query_heads &&
     decode_launch.block_x() == 32 &&
@@ -506,12 +526,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
       decode_module.kernel_abi() ==
       PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
-      decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
-      decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
-      decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+      decode_module.kernel_abi().is_compiler_blockwise_decode()
     ) &&
     readonly_launch.grid_x() == compiler_prefill_grid &&
     readonly_launch.shared_memory_bytes() > 0 &&
@@ -524,7 +539,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   let valid_decode_launch = if grouped_decode {
     decode_launch.grid_x() == maximum_rows &&
     decode_launch.grid_y() == kv_heads &&
-    decode_launch.block_x() == query_heads / kv_heads * 32 &&
+    decode_launch.block_x() == expected_grouped_threads &&
     decode_launch.shared_memory_bytes() > 0 &&
     decode_launch.shared_memory_bytes() <= 100000
   } else if direct_decode {
@@ -598,6 +613,23 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   )
   let operations = plan.operations()
   let spans : Array[ApprovedQwenFusedAttentionSpan] = []
+  let step_rotary_cache = if postprocess.kernel_abi() ==
+    AttentionIngressPreparedRotaryProductionV11 {
+    if postprocess.function_symbol() !=
+      "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3" {
+      raise MismatchedFusedGroupedOperation(KernelAbi)
+    }
+    guard @elementwise_physical_ir.StepRotaryCachePlan::new(
+        maximum_tokens=blueprint.profile().max_query_tokens(),
+        head_dimension~,
+      )
+      is Some(cache) else {
+      raise MismatchedFusedGroupedOperation(Launch)
+    }
+    Some(cache)
+  } else {
+    None
+  }
   if operations.length() < 4 {
     raise MismatchedFusedGroupedOperation(OperationOrder)
   }
@@ -613,6 +645,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       runtime_digest: runtime.source_digest(),
       measured_attention_candidates,
       ingress_includes_projection: includes_projection,
+      step_rotary_cache,
       ingress_query_tile_rows: if includes_projection {
         postprocess.query_tile_rows().unwrap_or(16)
       } else {

@@ -73,11 +73,13 @@ fn qwen_fused_test_runtime(
   direct_compiler_decode? : Bool = false,
   split_compiler_decode? : Bool = false,
   full_ingress? : Bool = false,
+  step_rotary_cache? : Bool = false,
   ingress_query_tile_rows? : Int,
   ingress_heads_per_cta? : Int = 1,
   blockwise_decode? : Bool = false,
   contracting_decode? : Bool = false,
   dual_score_decode? : Bool = false,
+  decode_execution? : @luna_fused_artifact_admission.DecodeExecutionDescriptor,
   mismatched_decode_law? : Bool = false,
   ingress_grid_x? : Int = -1,
   wide_query_prefill? : Bool = false,
@@ -93,14 +95,22 @@ fn qwen_fused_test_runtime(
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=if full_ingress {
-      QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+      if step_rotary_cache {
+        AttentionIngressPreparedRotaryProductionV11
+      } else {
+        QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+      }
     } else {
       QwenQkNormPositionedRopePagedKvWriteProductionV2
     },
     first_operation=if full_ingress { 2 } else { 3 },
     operation_count=if full_ingress { 4 } else { 3 },
     function_symbol=if full_ingress {
-      "qwen_full_ingress"
+      if step_rotary_cache {
+        "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3"
+      } else {
+        "qwen_full_ingress"
+      }
     } else {
       "qwen_postprocess"
     },
@@ -187,9 +197,31 @@ fn qwen_fused_test_runtime(
     )
   }
   if phase_specific_attention {
+    let descriptor_geometry = match decode_execution {
+      Some(descriptor) => {
+        let (rows, stages) = descriptor.storage_geometry()
+        Some(
+          @luna_cuda_paged_attention_aot.blockwise_decode_execution_launch_geometry(
+            @luna_attention_strategy.AttentionShape::new(
+              query_heads=16,
+              kv_heads=8,
+              head_dimension=128,
+              tokens_per_page=blueprint.layout().tokens_per_page(),
+            ),
+            8,
+            descriptor.compute(),
+            rows,
+            stages,
+          ),
+        )
+      }
+      None => None
+    }
     modules.push(
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-        abi=if dual_score_decode {
+        abi=if decode_execution is Some(_) {
+          PagedAttentionReadOnlyExtendedDecodeProductionV11
+        } else if dual_score_decode {
           PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
         } else if contracting_decode {
           PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
@@ -200,7 +232,9 @@ fn qwen_fused_test_runtime(
         },
         first_operation=5,
         operation_count=1,
-        function_symbol=if dual_score_decode && !mismatched_decode_law {
+        function_symbol=if decode_execution is Some(descriptor) {
+          descriptor.function_symbol()
+        } else if dual_score_decode && !mismatched_decode_law {
           "lunaflux_attention_decode_tile_compiler_v1_dual_score_blockwise_f32_v2"
         } else if contracting_decode && !mismatched_decode_law {
           "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3"
@@ -213,7 +247,9 @@ fn qwen_fused_test_runtime(
           grid_x=blueprint.profile().max_query_rows(),
           grid_y=if direct_compiler_decode { 16 } else { 8 },
           grid_z=1,
-          block_x=if direct_compiler_decode {
+          block_x=if descriptor_geometry is Some(geometry) {
+            geometry.2
+          } else if direct_compiler_decode {
             32
           } else if split_compiler_decode {
             256
@@ -222,9 +258,18 @@ fn qwen_fused_test_runtime(
           },
           block_y=1,
           block_z=1,
-          shared_memory_bytes=if direct_compiler_decode { 0 } else { 34076 },
+          shared_memory_bytes=if descriptor_geometry is Some(geometry) {
+            geometry.3.to_int()
+          } else if direct_compiler_decode {
+            0
+          } else if blockwise_decode || contracting_decode || dual_score_decode {
+            33040
+          } else {
+            34076
+          },
         ),
         module_bytes=b"qwen-decode-module",
+        decode_execution?,
       ),
     )
   }

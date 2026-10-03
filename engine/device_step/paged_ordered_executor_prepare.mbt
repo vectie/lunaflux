@@ -125,6 +125,8 @@ fn prepare_qwen_graph_launch_contract(
   let decode_launches = FixedArray::make(steps.length(), FixedBucketLaunch)
   prepare_projection_bucket_launches(blueprint, steps, launches)
   prepare_projection_bucket_launches(blueprint, steps, decode_launches)
+  prepare_qwen_rotary_bucket_launches(blueprint, steps, spans, launches)
+  prepare_qwen_rotary_bucket_launches(blueprint, steps, spans, decode_launches)
   prepare_residual_bucket_launches(blueprint, steps, residual_spans, launches)
   prepare_residual_bucket_launches(
     blueprint, steps, residual_spans, decode_launches,
@@ -199,6 +201,9 @@ fn prepare_qwen_graph_launch_contract(
         FixedBucketLaunch,
       )
       prepare_projection_bucket_launches(blueprint, selected, split_launches)
+      prepare_qwen_rotary_bucket_launches(
+        blueprint, selected, spans, split_launches,
+      )
       prepare_residual_bucket_launches(
         blueprint, selected, residual_spans, split_launches,
       )
@@ -304,6 +309,7 @@ fn paged_bucket_launch(
     QueryTokenCappedGridX(value)
     | ProjectionBoundedWorkGridX(value, _)
     | QueryTileCappedGridX(value, _)
+    | QueryCellCappedGridX(value, _)
     | QueryMetadataCappedGridX(value, _, _)
     | ProjectionTensorCoreGridX(value, _)
     | ProjectionScalarGridX(value, _)

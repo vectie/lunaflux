@@ -123,6 +123,7 @@ pub struct ApprovedReusableFusedResidualRuntime {
 pub(all) enum ReusableFusedRuntimeKernelAbi {
   ResidualRmsNormProductionV2
   QwenQkvQkNormPositionedRopePagedKvWriteProductionV4
+  AttentionIngressPreparedRotaryProductionV11
   QwenQkNormPositionedRopePagedKvWriteProductionV2
   QwenPagedAttentionPrefillPartitionedPartialProductionV4
   QwenPagedAttentionPrefillPartitionedMergeProductionV4
@@ -135,6 +136,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
   PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
   PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+  PagedAttentionReadOnlyExtendedDecodeProductionV11
 } derive(Debug, Eq)
 
 ///|
@@ -150,6 +152,8 @@ pub struct ReusableFusedRuntimeModuleInput {
   priv query_tile_rows : Int?
   priv query_metadata_version : Int
   priv heads_per_cta : Int
+  priv decode_execution : DecodeExecutionDescriptor?
+  priv prefill_exponential_law : PrefillExponentialLaw
   priv module_bytes : Bytes
 }
 
@@ -166,6 +170,8 @@ pub struct ApprovedReusableFusedRuntimeModule {
   priv query_tile_rows : Int?
   priv query_metadata_version : Int
   priv heads_per_cta : Int
+  priv decode_execution : DecodeExecutionDescriptor?
+  priv prefill_exponential_law : PrefillExponentialLaw
   priv module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv module_bytes : Bytes
 }

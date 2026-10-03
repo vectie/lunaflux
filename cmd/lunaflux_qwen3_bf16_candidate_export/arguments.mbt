@@ -73,6 +73,18 @@ fn parse_qwen3_candidate_export_arguments(
     continue index + 1
   }
   let arguments = filtered
+  let approximate_flags = arguments.filter(value => {
+    value == "--prefill-approximate-exp2"
+  })
+  guard approximate_flags.length() <= 1 else { raise InvalidArguments }
+  let prefill_approximate_exp2 = !approximate_flags.is_empty()
+  let arguments = arguments.filter(value => {
+    value != "--prefill-approximate-exp2"
+  })
+  let cache_flags = arguments.filter(value => value == "--step-rotary-cache")
+  guard cache_flags.length() <= 1 else { raise InvalidArguments }
+  let step_rotary_cache = !cache_flags.is_empty()
+  let arguments = arguments.filter(value => value != "--step-rotary-cache")
   let flags = arguments.filter(value => value == "--ingress-policy-search")
   guard flags.length() <= 1 else { raise InvalidArguments }
   let ingress_policy_search = !flags.is_empty()
@@ -114,6 +126,26 @@ fn parse_qwen3_candidate_export_arguments(
     continue index + 1
   }
   let arguments = filtered
+  for selected in [prefill_candidate, wide_prefill_candidate] {
+    if selected is Some(id) &&
+      !prefill_approximate_exp2 &&
+      @luna_attention_strategy.attention_candidate_requires_approximate_exponential(
+        id,
+      ) {
+      raise InvalidArguments
+    }
+  }
+  // The opt-in namespace identifies the selected elementary law, not merely
+  // availability in the frontier. Never export a strict winner under the
+  // approximate baseline/wide symbols.
+  if prefill_approximate_exp2 {
+    guard prefill_candidate is Some(id) &&
+      @luna_attention_strategy.attention_candidate_requires_approximate_exponential(
+        id,
+      ) else {
+      raise InvalidArguments
+    }
+  }
   let mut compiler_register_limit = 128
   let mut register_limit_seen = false
   let filtered : Array[String] = []
@@ -262,6 +294,8 @@ fn parse_qwen3_candidate_export_arguments(
     partitioned_resources,
     ingress_policy_records,
     ingress_policy_search,
+    step_rotary_cache,
+    prefill_approximate_exp2,
     ingress_shared_limit,
     compiler_register_limit,
     prefill_candidate,

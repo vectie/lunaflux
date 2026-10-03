@@ -170,6 +170,7 @@ fn qwen_fused_production_recipe(
   source_digest : FusedParallelDigest,
   qualification : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
   symbol : String,
+  step_rotary_cache? : Bool = false,
 ) -> Bytes {
   let semantic = qualification.semantic
   let (qkv_index, qk_norm_index, rope_index, attention_index) = semantic.operation_indices()
@@ -263,7 +264,13 @@ fn qwen_fused_production_recipe(
     qualification.kv_write_fallback.source_digest().as_hex() +
     "\nabi=step_counts,query_positions,query_row_offsets,sequence_lengths," +
     "page_table_offsets,page_table_page_indices,input,q_weight,k_weight," +
-    "v_weight,q_norm_weight,k_norm_weight,rotated_qkv,key_cache,value_cache\n" +
+    "v_weight,q_norm_weight,k_norm_weight,rotated_qkv,key_cache,value_cache" +
+    (if step_rotary_cache { ",rotary_pairs\n" } else { "\n" }) +
+    (if step_rotary_cache {
+      qwen_step_rotary_recipe(symbol, profile, head_dimension)
+    } else {
+      ""
+    }) +
     "reference_fallback=four-distinct-correctness-kernels\n" +
     "aot_only=true\nruntime_jit=false\n" +
     "release_binding=external-approval-and-production-physical-gate-required\n" +
@@ -484,8 +491,13 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
 pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
   qualification : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
   limits : FusedParallelAotLimits,
+  step_rotary_cache? : Bool = false,
 ) -> FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate raise FusedParallelAotError {
-  let function_symbol = "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2"
+  let function_symbol = if step_rotary_cache {
+    "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3"
+  } else {
+    "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_v2"
+  }
   let source = qwen_fused_source(
     function_symbol,
     qualification.semantic,
@@ -494,13 +506,17 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
     qualification.tile_compilation,
     qualification.physical_program,
     None,
+    step_rotary_cache~,
   )
   if source.length() > limits.maximum_source_bytes {
     raise FusedParallelLimitExceeded(Source)
   }
   let source_digest = fused_parallel_digest(source)
   let recipe = qwen_fused_production_recipe(
-    source_digest, qualification, function_symbol,
+    source_digest,
+    qualification,
+    function_symbol,
+    step_rotary_cache~,
   )
   if recipe.length() > limits.maximum_recipe_bytes {
     raise FusedParallelLimitExceeded(Recipe)
@@ -508,6 +524,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
   let recipe_digest = fused_parallel_digest(recipe)
   {
     qualification,
+    step_rotary_cache,
     function_symbol,
     source,
     source_digest,

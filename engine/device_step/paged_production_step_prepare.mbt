@@ -336,7 +336,24 @@ fn prepare_paged_production_steps(
     }
     None => None
   }
-  let expanded = ReadOnlyArray::from_array(expanded)
+  let rotary_preparation = match
+    (qwen_fused_attention_functions, qwen_fused_attention_spans.get(0)) {
+    (Some(functions), Some(span)) =>
+      prepare_qwen_step_rotary(
+        blueprint, span, functions, descriptor, weight, activation, kv,
+      )
+    _ => None
+  }
+  let expanded = prepend_qwen_step_rotary(
+    ReadOnlyArray::from_array(expanded),
+    rotary_preparation,
+  )
+  let expanded_decode = expanded_decode.map(steps => {
+    prepend_qwen_step_rotary(steps, rotary_preparation)
+  })
+  let expanded_wide_prefill = expanded_wide_prefill.map(steps => {
+    prepend_qwen_step_rotary(steps, rotary_preparation)
+  })
   let partitioned_prefill = prepare_qwen_partitioned_prefill_steps(
     context, blueprint, expanded, qwen_fused_attention_spans, descriptor, weight,
     activation, kv, resources,

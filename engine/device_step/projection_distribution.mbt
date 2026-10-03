@@ -19,6 +19,12 @@ fn prepare_projection_bucket_launches(
 ) -> Unit raise DeviceStepError {
   let mlp_occurrences : Array[Int] = []
   for index, prepared in steps {
+    if !blueprint
+      .steps()
+      .any(step => step.operation_id() == prepared.operation_id) &&
+      prepared.operation_id == qwen_step_rotary_operation(blueprint) {
+      continue
+    }
     let step = paged_blueprint_step(blueprint, prepared.operation_id)
     let source = step.dimensions()
     match step.operation_kind() {
@@ -102,6 +108,15 @@ fn paged_projection_bucket_grid_x(
       Int::min(source.grid_x(), query_token_bound)
     QueryTileCappedGridX(source, query_tile) =>
       Int::min(source.grid_x(), paged_ceil_div(query_token_bound, query_tile))
+    QueryCellCappedGridX(source, cells_per_token) => {
+      if cells_per_token <= 0 || source.block_x() <= 0 {
+        raise InvalidExecutor(GraphBucket)
+      }
+      let cells = query_token_bound.to_int64() * cells_per_token.to_int64()
+      let blocks = (cells + source.block_x().to_int64() - 1L) /
+        source.block_x().to_int64()
+      Int64::min(source.grid_x().to_int64(), blocks).to_int()
+    }
     QueryMetadataCappedGridX(source, query_tile, maximum_rows) => {
       guard @luna_attention_metadata.AttentionMetadataLayout::new(
           maximum_rows=Int::min(maximum_rows, query_token_bound),

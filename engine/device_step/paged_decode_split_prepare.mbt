@@ -542,7 +542,9 @@ fn prepare_paged_decode_split_steps(
       Some(shape) => {
         guard resources.qwen_fused_attention_sidecar is Some(sidecar) &&
           sidecar.open &&
-          sidecar.resource.byte_count() == shape.0 else {
+          sidecar.resource.byte_count() ==
+          shape.0 +
+          qwen_step_rotary_bytes_for_operation(blueprint, operation, qwen_spans) else {
           raise executor_operation_error(operation, ResourceState)
         }
         Some(sidecar.resource)

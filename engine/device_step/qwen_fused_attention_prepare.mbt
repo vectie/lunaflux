@@ -11,6 +11,7 @@ fn qwen_fused_full_ingress_argument_count() -> Int {
 ///|
 priv struct PreparedQwenFusedAttentionResources {
   ingress_function : Int
+  rotary_prepare_function : Int?
   prefill_function : Int
   wide_prefill_function : Int?
   decode_function : Int
@@ -59,10 +60,14 @@ fn prepare_qwen_fused_attention_resources(
   guard spans.get(0) is Some(first) else {
     raise InvalidExecutor(ResourceState)
   }
-  let sidecar_shape = qwen_fused_attention_sidecar_shape(blueprint, first)
+  let rotated_shape = qwen_fused_attention_sidecar_shape(blueprint, first)
+  let sidecar_shape = qwen_step_rotary_sidecar_shape(
+    rotated_shape,
+    first.step_rotary_cache,
+  )
   for span in spans {
     if !span.same_runtime_modules(first) ||
-      qwen_fused_attention_sidecar_shape(blueprint, span) != sidecar_shape {
+      qwen_fused_attention_sidecar_shape(blueprint, span) != rotated_shape {
       raise InvalidExecutor(ResourceState)
     }
   }
@@ -78,6 +83,18 @@ fn prepare_qwen_fused_attention_resources(
     first.readonly_function_symbol(),
     resources,
   )
+  let rotary_prepare_function = match first.step_rotary_cache {
+    Some(_) =>
+      Some(
+        prepare_composite_function(
+          context,
+          first.postprocess_module_bytes(),
+          first.postprocess_function_symbol() + "_rotary_prepare",
+          resources,
+        ),
+      )
+    None => None
+  }
   let decode_function = if first.has_phase_specific_attention() {
     prepare_composite_function(
       context,
@@ -123,6 +140,7 @@ fn prepare_qwen_fused_attention_resources(
   }
   {
     ingress_function: postprocess,
+    rotary_prepare_function,
     prefill_function: readonly_function,
     wide_prefill_function,
     decode_function,
@@ -176,6 +194,7 @@ fn prepare_qwen_fused_attention_launch(
   kv : @device.Allocation,
   prefill_only? : Bool = false,
   metadata? : @device.KernelArgument,
+  rotary_cache? : @device.KernelArgument,
 ) -> PreparedPagedGraphStep raise DeviceStepError {
   if sidecar_binding_index < 0 || sidecar_binding_index >= bindings.length() {
     raise executor_operation_error(operation, ResourceState)
@@ -194,6 +213,9 @@ fn prepare_qwen_fused_attention_launch(
         composite_binding_argument(binding, descriptor, weight, activation, kv)
       },
     )
+  }
+  if rotary_cache is Some(argument) {
+    arguments.push(argument)
   }
   let packed = @device.KernelArguments::new(arguments) catch {
     error => raise ExecutorDevice(KernelArguments, error)
@@ -350,6 +372,10 @@ fn prepare_qwen_fused_attention_steps(
       weight,
       activation,
       kv,
+      rotary_cache?=match span.step_rotary_cache {
+        Some(cache) => Some(qwen_step_rotary_argument(sidecar, cache))
+        None => None
+      },
     ),
     prepare_qwen_fused_attention_launch(
       attention_step.operation_id(),

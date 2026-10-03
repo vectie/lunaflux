@@ -117,6 +117,7 @@ fn prepare_qwen_compiler_prefill(
   tuning? : (Bytes, String, String)? = None,
   resources? : (Bytes, String, String)? = None,
   query_metadata? : Bool = false,
+  approximate_exponential? : Bool = false,
   explicit_candidate? : Int,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   guard plan.operations()[qkv_index].shape()
@@ -145,6 +146,7 @@ fn prepare_qwen_compiler_prefill(
     context_tokens=plan.shape_constraints().max_sequence_tokens(),
     causal=true,
     allow_alternative_softmax_reduction=true,
+    allow_approximate_exponential=approximate_exponential,
     // Device-step preflight constructs each row's positions as start + index.
     // Carry this producer law into the immutable compiler problem, rather than
     // rediscovering contiguous positions in every KV vector load. Frontends
@@ -204,7 +206,11 @@ fn prepare_qwen_compiler_prefill(
       maximum_page_entries=set.profile().max_page_table_entries(),
       query_metadata~,
     ),
-    symbol="lunaflux_attention_prefill_tile_compiler_v1",
+    symbol=if approximate_exponential {
+      "lunaflux_attention_prefill_tile_compiler_exp2_v1"
+    } else {
+      "lunaflux_attention_prefill_tile_compiler_v1"
+    },
     maximum_source_bytes=1048576,
   ) catch {
     _ => raise QwenReadOnlyPreparation

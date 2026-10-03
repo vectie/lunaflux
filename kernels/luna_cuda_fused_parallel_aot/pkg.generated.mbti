@@ -42,7 +42,7 @@ pub fn lower_fused_qkv_rope_paged_kv_write_production_candidate(FusedQkvRopeKvWr
 
 pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(@plan.ModelPlan, @device_layout.DeviceKvLayout, @luna_cuda_projection_aot.ProjectionCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, FusedParallelAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice], ingress_policy? : @resource_policy.Policy, maximum_shared_bytes? : Int64) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError
 
-pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(FusedQwenQkvQkNormRopeKvWriteCudaCandidate, FusedParallelAotLimits) -> FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate raise FusedParallelAotError
+pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(FusedQwenQkvQkNormRopeKvWriteCudaCandidate, FusedParallelAotLimits, step_rotary_cache? : Bool) -> FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate raise FusedParallelAotError
 
 pub fn lower_fused_residual_rmsnorm_candidate(@plan.ModelPlan, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @luna_cuda_pointwise_aot.PointwiseCudaLowering, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, FusedParallelAotLimits) -> FusedResidualRmsNormCudaCandidate raise FusedParallelAotError
 
@@ -268,6 +268,7 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::source_bytes(Self) 
 pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::source_digest(Self) -> FusedParallelDigest
 pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::target(Self) -> @catalog.DeviceTarget
 pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::tile_compilation(Self) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::uses_step_rotary_cache(Self) -> Bool
 
 pub struct FusedResidualRmsNormCudaCandidate {
   // private fields

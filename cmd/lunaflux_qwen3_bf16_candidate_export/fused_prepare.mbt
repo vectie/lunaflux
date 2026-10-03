@@ -85,6 +85,8 @@ fn prepare_qwen_fused_production_set(
   partitioned_resources? : (Bytes, String, String)? = None,
   ingress_policy_records? : (Bytes, String, String)? = None,
   ingress_policy_search? : Bool = false,
+  step_rotary_cache? : Bool = false,
+  prefill_approximate_exp2? : Bool = false,
   ingress_shared_limit? : Int64 = 49152L,
   decode_candidate? : Int,
   prefill_candidate? : Int,
@@ -195,6 +197,7 @@ fn prepare_qwen_fused_production_set(
         maximum_recipe_bytes=65536,
         maximum_promotion_bytes=65536,
       ),
+      step_rotary_cache~,
     ) catch {
       _ => raise QwenIngressPreparation
     }
@@ -267,6 +270,7 @@ fn prepare_qwen_fused_production_set(
       tuning~,
       resources~,
       query_metadata~,
+      approximate_exponential=prefill_approximate_exp2,
       explicit_candidate?=prefill_candidate,
     )
     let attention_prefill_partitioned = prepare_qwen_compiler_partitioned_prefill(

@@ -8,7 +8,10 @@ fn reusable_runtime_validate_head_ownership(
     (
       heads != 1 &&
       (
-        abi != QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 ||
+        (
+          abi != QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 &&
+          abi != AttentionIngressPreparedRotaryProductionV11
+        ) ||
         rows is None
       )
     ) {

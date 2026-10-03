@@ -63,12 +63,12 @@ fn qwen_compiler_attention_recipe(
     lowering.digest().as_hex() +
     "\ncandidate_stable_id=" +
     candidate.stable_id().to_string() +
-    (if candidate.compute() == AttentionGroupedQueryFmaBlockwiseDot {
-      "\nnumeric_law=blockwise-fma-f32-probability-v3"
-    } else if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
-      "\nnumeric_law=blockwise-f32-probability-v1"
-    } else if candidate.compute() == AttentionGroupedQueryDualScoreBlockwiseDot {
-      "\nnumeric_law=dual-score-blockwise-f32-probability-v2"
+    (if candidate.compute() == AttentionMatrixQkPvApproxExp {
+      "\nnumeric_law=approx-base2-f32-v1\nsubnormal=flush-permitted"
+    } else if candidate.compute() == AttentionMatrixQkPv {
+      "\nnumeric_law=strict-natural-exponential-v1"
+    } else if qwen_decode_physical_numeric_law(lowering) is Some(law) {
+      "\nnumeric_law=\{law}"
     } else {
       ""
     }) +
@@ -78,6 +78,8 @@ fn qwen_compiler_attention_recipe(
     compiled.source().abi().query_metadata_version().to_string() +
     "\nkey_value_tile_rows=" +
     key_value_tile_rows.to_string() +
+    "\npipeline_stages=" +
+    lowering.pipeline().0.to_string() +
     "\nhead_columns=" +
     head_columns.to_string() +
     frontier_record +
@@ -138,6 +140,7 @@ fn qwen_compiler_partitioned_attention_recipe(
   let lowering = compiled.lowering()
   let (grid_x, grid_y, block_x, shared) = lowering.launch()
   let (partial_symbol, merge_symbol) = source.symbols()
+  let compute = compiled.functional().plan().candidate().compute()
   let (query_tile_rows, _, _) = compiled
     .functional()
     .plan()
@@ -173,6 +176,11 @@ fn qwen_compiler_partitioned_attention_recipe(
     identity.patch().to_string() +
     "\nsource_sha256=" +
     source.digest().as_hex() +
+    (if compute == AttentionMatrixQkPvApproxExp {
+      "\nnumeric_law=approx-base2-f32-v1\nsubnormal=flush-permitted"
+    } else {
+      ""
+    }) +
     "\noptimization=" +
     compiler.optimization_level().to_string() +
     "\nfmad=" +

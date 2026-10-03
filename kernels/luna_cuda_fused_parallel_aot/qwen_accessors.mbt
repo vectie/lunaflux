@@ -130,6 +130,13 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::qualification_candi
 }
 
 ///|
+pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::uses_step_rotary_cache(
+  self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
+) -> Bool {
+  self.step_rotary_cache
+}
+
+///|
 pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::semantic_plan(
   self : FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
 ) -> @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan {

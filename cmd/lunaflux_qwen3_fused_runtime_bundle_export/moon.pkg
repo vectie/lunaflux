@@ -15,4 +15,8 @@ import {
 
 supported_targets = "native"
 
+import {
+  "moonbitlang/core/encoding/utf8",
+} for "wbtest"
+
 pkgtype(kind: "executable")
