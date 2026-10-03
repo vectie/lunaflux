@@ -134,6 +134,7 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   PagedAttentionReadOnlyCompilerDecodeProductionV7
   PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
   PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+  PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
 } derive(Debug, Eq)
 
 ///|

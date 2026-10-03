@@ -30,6 +30,16 @@ fn prepare_ingress_choice(
     }
     return ({ ..args, device_target: Some(target), }, choice)
   }
+  if raw_args is [.. rest, "--decode-dual-score-blockwise-f32-v2"] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    if args.blockwise_decode || choice == Unfused {
+      raise InvalidArguments
+    }
+    return (
+      { ..args, blockwise_decode: true, dual_score_decode: true, },
+      choice,
+    )
+  }
   if raw_args is [.. rest, "--decode-blockwise-fma-f32-v3"] {
     let (args, choice) = prepare_ingress_choice(rest)
     if args.blockwise_decode || choice == Unfused {

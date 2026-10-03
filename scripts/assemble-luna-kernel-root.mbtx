@@ -112,6 +112,7 @@ async fn main {
         "schema=lunaflux-reusable-fused-runtime-bundle.v3", "schema=lunaflux-reusable-fused-runtime-bundle.v4",
         "schema=lunaflux-reusable-fused-runtime-bundle.v5", "schema=lunaflux-reusable-fused-runtime-bundle.v6",
         "schema=lunaflux-reusable-fused-runtime-bundle.v7", "schema=lunaflux-reusable-fused-runtime-bundle.v8",
+        "schema=lunaflux-reusable-fused-runtime-bundle.v9",
       ].contains(schema.to_owned()) else {
         fail("runtime schema")
       }

@@ -333,7 +333,9 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module.kernel_abi() ==
       PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
       decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+      PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
+      decode_module.kernel_abi() ==
+      PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
     ) &&
     runtime.qwen_paged_attention_readonly_operation_index()
     is Some(readonly_attention) &&
@@ -388,10 +390,13 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   }
   let blockwise_decode = decode_module.kernel_abi()
     is (PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
-    | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9)
+    | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+    | PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10)
   let expected_blockwise_symbol = match decode_module.kernel_abi() {
     PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 =>
       "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
+    PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 =>
+      "lunaflux_attention_decode_tile_compiler_v1_dual_score_blockwise_f32_v2"
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 =>
       "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3"
     _ => ""
@@ -504,7 +509,9 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       decode_module.kernel_abi() ==
       PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
       decode_module.kernel_abi() ==
-      PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+      PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
+      decode_module.kernel_abi() ==
+      PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
     ) &&
     readonly_launch.grid_x() == compiler_prefill_grid &&
     readonly_launch.shared_memory_bytes() > 0 &&

@@ -33,6 +33,8 @@ fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
       "paged-attention-readonly-compiler-decode-production-v7"
     PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 =>
       "paged-attention-readonly-blockwise-f32-decode-production-v8"
+    PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 =>
+      "paged-attention-readonly-dual-score-blockwise-f32-decode-production-v10"
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 =>
       "paged-attention-readonly-blockwise-fma-f32-decode-production-v9"
   }
@@ -66,6 +68,8 @@ fn reusable_runtime_parse_abi(
       PagedAttentionReadOnlyCompilerDecodeProductionV7
     "paged-attention-readonly-blockwise-f32-decode-production-v8" =>
       PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
+    "paged-attention-readonly-dual-score-blockwise-f32-decode-production-v10" =>
+      PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
     "paged-attention-readonly-blockwise-fma-f32-decode-production-v9" =>
       PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
     _ => raise InvalidFusedArtifact(Family)
@@ -90,6 +94,7 @@ fn reusable_runtime_required_operation_count(
     PagedAttentionReadOnlyCompilerDecodeProductionV7 => 1
     PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 => 1
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 => 1
+    PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 => 1
   }
 }
 
@@ -109,6 +114,7 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
     PagedAttentionReadOnlyCompilerDecodeProductionV7 => 10
     PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 => 11
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 => 12
+    PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 => 13
   }
 }
 
@@ -135,7 +141,8 @@ fn reusable_runtime_is_qwen_attention_reader(
   abi == QwenPagedAttentionReadOnlyDecodeSplitProductionV3 ||
   abi == PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
   abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
-  abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+  abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
+  abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
 }
 
 ///|
@@ -144,7 +151,8 @@ fn reusable_runtime_is_decode(abi : ReusableFusedRuntimeKernelAbi) -> Bool {
   is (QwenPagedAttentionReadOnlyDecodeSplitProductionV3
   | PagedAttentionReadOnlyCompilerDecodeProductionV7
   | PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
-  | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9)
+  | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+  | PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10)
 }
 
 ///|
@@ -466,13 +474,18 @@ pub fn export_reusable_fused_runtime_bundle(
   let ownership = modules.any(m => {
     m.heads_per_cta != 1 ||
     m.abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
-    m.abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+    m.abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
+    m.abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
   })
   let metadata = ownership ||
     attention_bucket_routes is Some(_) ||
     modules.any(m => m.query_metadata_version != 0)
   out.write_string(
     if modules.any(m => {
+        m.abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+      }) {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v9\n"
+    } else if modules.any(m => {
         m.abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
       }) {
       "schema=lunaflux-reusable-fused-runtime-bundle.v8\n"
@@ -516,6 +529,7 @@ pub fn export_reusable_fused_runtime_bundle(
     PagedAttentionReadOnlyCompilerDecodeProductionV7,
     PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8,
     PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9,
+    PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10,
   ]
   let mut ordinal = 0
   for abi in canonical_abis {
@@ -558,6 +572,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     has_bucket_routes,
     has_ownership,
   ) = match schema {
+    "lunaflux-reusable-fused-runtime-bundle.v9" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v8" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v7" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v6" => (true, true, true, false)
@@ -641,12 +656,18 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
       abi, heads_per_cta, query_tile_rows,
     )
     if abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 &&
-      schema != "lunaflux-reusable-fused-runtime-bundle.v8" {
+      schema != "lunaflux-reusable-fused-runtime-bundle.v8" &&
+      schema != "lunaflux-reusable-fused-runtime-bundle.v9" {
+      raise InvalidFusedArtifact(KernelAbi)
+    }
+    if abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10 &&
+      schema != "lunaflux-reusable-fused-runtime-bundle.v9" {
       raise InvalidFusedArtifact(KernelAbi)
     }
     if (
         abi == PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8 ||
-        abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
+        abi == PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9 ||
+        abi == PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
       ) &&
       !has_ownership {
       raise InvalidFusedArtifact(KernelAbi)

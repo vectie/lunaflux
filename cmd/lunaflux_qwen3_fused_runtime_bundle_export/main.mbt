@@ -25,6 +25,7 @@ priv struct RuntimeBundleArguments {
   ingress_heads_per_cta : Int?
   blockwise_decode : Bool
   contracting_decode : Bool
+  dual_score_decode : Bool
   query_metadata : Bool
   model_content : String
   model_plan : String
@@ -396,6 +397,7 @@ fn parse_arguments(
     ingress_heads_per_cta: None,
     blockwise_decode: false,
     contracting_decode: false,
+    dual_score_decode: false,
     residual,
     ingress,
     attention_prefill,
@@ -584,7 +586,9 @@ async fn run(
   )
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=if args.contracting_decode {
+      abi=if args.dual_score_decode {
+        PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
+      } else if args.contracting_decode {
         PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
       } else if args.blockwise_decode {
         PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
@@ -593,7 +597,9 @@ async fn run(
       },
       first_operation=args.attention_read.first_operation,
       operation_count=1,
-      function_symbol=if args.contracting_decode {
+      function_symbol=if args.dual_score_decode {
+        "lunaflux_attention_decode_tile_compiler_v1_dual_score_blockwise_f32_v2"
+      } else if args.contracting_decode {
         "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3"
       } else if args.blockwise_decode {
         "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
