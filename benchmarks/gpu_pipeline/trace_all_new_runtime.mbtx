@@ -5,6 +5,20 @@ import {
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
   "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn available() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("MemAvailable")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
 }
 
 ///|
@@ -14,7 +28,31 @@ async fn capture(
   command : String,
   args : Array[String],
 ) -> Unit {
-  let result = @shell.Cmd(command, args).output(max_output_bytes=16777216)
+  let samples = StringBuilder()
+  let mut done = false
+  errdefer @fs.write_file(
+    root + "/" + label + ".memory-interrupted.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  let result = @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = available()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(500)
+      }
+    })
+    let result = @shell.Cmd(command, args).output(max_output_bytes=16777216)
+    done = true
+    result
+  })
+  @fs.write_file(
+    root + "/" + label + ".memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
   @fs.write_file(
     root + "/" + label + ".stdout",
     result.stdout(),
@@ -64,6 +102,7 @@ async fn main {
   ]).output()
   gpu.check()
   guard gpu.stdout().trim().is_empty() else { fail("GPU occupied") }
+  guard available() >= 33554432L else { fail("32 GiB reserve absent") }
   @shell.Cmd("ln", ["-s", serving + "/toolchain", root + "/toolchain"]).run()
   // The bridge validates canonical executable paths, including parent paths.
   @fs.mkdir(root + "/source")
@@ -261,6 +300,7 @@ async fn main {
   ]).run()
   let mut ready = false
   for _ in 0..<180 {
+    guard available() >= 33554432L else { fail("32 GiB reserve breached") }
     for service in units {
       let state = @shell.Cmd("systemctl", ["--user", "is-failed", service]).output()
       guard state.stdout().trim() != "failed" else {
