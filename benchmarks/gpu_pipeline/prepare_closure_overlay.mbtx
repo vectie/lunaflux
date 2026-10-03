@@ -15,6 +15,8 @@ fn eligible(path : String) -> Bool {
     path.has_suffix(".mbt") ||
     path.has_suffix(".mbti") ||
     path.has_suffix("/moon.pkg") ||
+    path == "scripts/materialize-qwen3-bf16-v12-launch.mbtx" ||
+    path == "scripts/assemble-luna-kernel-root.mbtx" ||
     path.has_suffix(".c") ||
     path.has_suffix(".h")
   )
@@ -29,27 +31,41 @@ test "overlay never includes pre-existing dirty region or documentation" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, repository, destination, archive, .. packages] &&
-    !packages.is_empty() &&
-    packages.all(x => !x.contains("..") && !x.has_prefix("/")) else {
-    fail("REPOSITORY NEW_DESTINATION NEW_ARCHIVE PACKAGE...")
+  let (repository, destination, archive, paths) = match @env.args() {
+    [_, "--refresh", repository, previous, destination, archive, .. extra] => {
+      let paths = @fs.read_file(previous + "/FILES.txt")
+        .text().split("\n").filter(x => !x.is_empty())
+        .map(x => x.to_owned()).to_array()
+      for path in extra {
+        if !paths.contains(path) { paths.push(path) }
+      }
+      guard paths.all(eligible) else { fail("invalid frozen manifest refresh") }
+      (repository, destination, archive, paths)
+    }
+    [_, repository, destination, archive, .. packages] => {
+      guard !packages.is_empty() &&
+        packages.all(x => !x.contains("..") && !x.has_prefix("/")) else {
+        fail("explicit scoped packages required")
+      }
+      let paths : Array[String] = []
+      for args in [
+        ["diff", "--name-only", "--", ..packages],
+        ["ls-files", "--others", "--exclude-standard", "--", ..packages],
+      ] {
+        let result = @shell.Cmd("git", args, cwd=repository).output()
+        result.check()
+        for path in result.stdout().split("\n").map(x => x.to_owned()) {
+          if eligible(path) && !path.is_empty() && !paths.contains(path) {
+            paths.push(path)
+          }
+        }
+      }
+      (repository, destination, archive, paths)
+    }
+    _ => fail("REPOSITORY NEW_DESTINATION NEW_ARCHIVE PACKAGE... | --refresh REPOSITORY PREVIOUS_OVERLAY NEW_DESTINATION NEW_ARCHIVE EXTRA_FILE...")
   }
   guard !@fs.exists(destination) && !@fs.exists(archive) else {
     fail("non-overwriting output required")
-  }
-  let paths : Array[String] = []
-  for
-    args in [
-      ["diff", "--name-only", "--", ..packages],
-      ["ls-files", "--others", "--exclude-standard", "--", ..packages],
-    ] {
-    let result = @shell.Cmd("git", args, cwd=repository).output()
-    result.check()
-    for path in result.stdout().split("\n").map(x => x.to_owned()) {
-      if eligible(path) && !path.is_empty() && !paths.contains(path) {
-        paths.push(path)
-      }
-    }
   }
   guard !paths.is_empty() else { fail("no source changes") }
   paths.sort()
@@ -71,7 +87,9 @@ async fn main {
     paths.join("\n") + "\n",
     create_mode=CreateNew,
   )
-  @shell.Cmd("tar", ["-czf", archive, "-C", destination, "FILES.txt", ..paths]).run()
+  @shell.Cmd("tar", ["--no-xattrs", "-czf", archive, "-C", destination, "FILES.txt", ..paths], env={
+    "COPYFILE_DISABLE": "1",
+  }).run()
   let digest = @shell.Cmd("shasum", ["-a", "256", archive]).output()
   digest.check()
   println(digest.stdout())

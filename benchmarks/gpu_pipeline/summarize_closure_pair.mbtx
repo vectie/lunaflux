@@ -1,0 +1,61 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let cells = []
+  let text = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      cells.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  cells.push(text.to_string())
+  cells
+}
+
+///|
+fn metrics(text : String) -> Map[String, String] raise {
+  let lines = text.split("\n").filter(x => x.has_prefix("\"")).to_array()
+  guard lines is [header, _, row, ..] else {
+    fail("header/units/data required")
+  }
+  let names = csv(header)
+  let values = csv(row)
+  guard names.length() == values.length() else { fail("CSV geometry") }
+  Map(Array::makei(names.length(), i => (names[i], values[i])))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("PAIRED_COUNTER_ROOT") }
+  let old = metrics(@fs.read_file(root + "/old-raw.stdout").text())
+  let fresh = metrics(@fs.read_file(root + "/new-raw.stdout").text())
+  let keys = [
+    "gpu__time_duration.sum", "smsp__inst_executed.sum", "launch__registers_per_thread",
+    "launch__shared_mem_per_block", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "smsp__average_warp_latency_per_inst_issued.ratio", "smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio",
+    "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio", "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio",
+    "smsp__average_warps_issue_stalled_wait_per_issue_active.ratio", "smsp__issue_active.avg.pct_of_peak_sustained_active",
+    "derived__memory_l1_wavefronts_shared_excessive", "derived__local_spilling_requests",
+  ]
+  for key in keys {
+    println(
+      key +
+      " old=" +
+      old.get(key).unwrap_or("unavailable") +
+      " new=" +
+      fresh.get(key).unwrap_or("unavailable"),
+    )
+  }
+}

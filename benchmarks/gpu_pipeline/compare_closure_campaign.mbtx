@@ -1,0 +1,130 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number required")
+  }
+}
+
+///|
+fn input_ids(body : Json) -> Json raise {
+  match body {
+    { "input_token_ids": Array(ids), .. }
+    | { "input_ids": Array(ids), .. }
+    | { "prompt": Array(ids), .. } => Json(ids)
+    _ => fail("literal token inputs required")
+  }
+}
+
+///|
+fn first_difference(old : Array[Json], fresh : Array[Json]) -> Json raise {
+  assert_eq(old.length(), fresh.length())
+  for i in 0..<old.length() {
+    if old[i] != fresh[i] {
+      return { "position": i, "before": old[i], "after": fresh[i] }
+    }
+  }
+  Json::null()
+}
+
+///|
+test "input aliases and first token divergence preserve identity" {
+  assert_eq(input_ids({ "input_ids": [1, 2] }), Json([1, 2]))
+  assert_eq(first_difference([Json(1)], [Json(1)]), Json::null())
+  assert_eq(first_difference([Json(1), Json(2)], [Json(1), Json(3)]), {
+    "position": 1, "before": 2, "after": 3,
+  })
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, old_root, fresh_root, output] else {
+    fail("COMPLETED_CONTROL COMPLETED_CURRENT NEW_COMPARISON_JSON")
+  }
+  for root in [old_root, fresh_root] {
+    guard @fs.read_file(root + "/RESULT.txt").text()
+      .has_prefix("outcome=completed\n") else { fail("incomplete campaign") }
+  }
+  let before = @json.parse(@fs.read_file(old_root + "/summary.json").text())
+  let after = @json.parse(@fs.read_file(fresh_root + "/summary.json").text())
+  guard before is { "cells": Array(old_cells), .. } &&
+    after is { "cells": Array(fresh_cells), .. } &&
+    old_cells.length() == fresh_cells.length() else { fail("cell geometry") }
+  let cells : Array[Json] = []
+  let differences : Array[Json] = []
+  let mut requests = 0
+  for i in 0..<old_cells.length() {
+    guard old_cells[i] is {
+      "input": input, "output": tokens, "concurrency": concurrency,
+      "engines": { "luna-full": { "wall": { "median_ms": old_ms, .. }, .. }, .. }, ..
+    } && fresh_cells[i] is {
+      "input": fresh_input, "output": fresh_tokens, "concurrency": fresh_concurrency,
+      "engines": { "luna-full": { "wall": { "median_ms": fresh_ms, .. }, .. }, .. }, ..
+    } else { fail("complete serving cell required") }
+    assert_eq(input, fresh_input)
+    assert_eq(tokens, fresh_tokens)
+    assert_eq(concurrency, fresh_concurrency)
+    assert_eq(number(concurrency), 16.0)
+    let in_count = number(input).to_int()
+    let out_count = number(tokens).to_int()
+    let stem = "i\{in_count}-o\{out_count}-c16-t1"
+    for round in 0..<3 {
+      let old_dir = old_root + "/r\{round}-luna-full/requests/"
+      let fresh_dir = fresh_root + "/r\{round}-luna-full/requests/"
+      guard @json.parse(@fs.read_file(old_dir + stem + ".json").text())
+        is { "requests": Array(old_requests), .. } &&
+        @json.parse(@fs.read_file(fresh_dir + stem + ".json").text())
+        is { "requests": Array(fresh_requests), .. } &&
+        old_requests.length() == 16 && fresh_requests.length() == 16 else {
+        fail("complete request vector required")
+      }
+      for row in 0..<16 {
+        assert_eq(
+          input_ids(@json.parse(@fs.read_file(old_dir + stem + "-r\{row}.body.json").text())),
+          input_ids(@json.parse(@fs.read_file(fresh_dir + stem + "-r\{row}.body.json").text())),
+          msg="input work changed",
+        )
+        guard old_requests[row] is { "token_ids": Array(old_ids), .. } &&
+          fresh_requests[row] is { "token_ids": Array(fresh_ids), .. } &&
+          old_ids.length() == out_count && fresh_ids.length() == out_count else {
+          fail("incomplete generated work")
+        }
+        requests += 1
+        let difference = first_difference(old_ids, fresh_ids)
+        if difference != Json::null() {
+          differences.push({
+            "input": input, "output": tokens, "round": round, "row": row,
+            "difference": difference,
+          })
+        }
+      }
+    }
+    let old_time = number(old_ms)
+    let fresh_time = number(fresh_ms)
+    assert_true(old_time > 0.0 && fresh_time > 0.0)
+    cells.push({
+      "input": input, "output": tokens, "concurrency": concurrency,
+      "before_ms": old_time, "after_ms": fresh_time,
+      "less_completion_time_percent": (1.0 - fresh_time / old_time) * 100.0,
+      "output_tokens_per_second": 16.0 * out_count.to_double() * 1000.0 / fresh_time,
+    })
+  }
+  let result : Json = {
+    "schema": "lunaflux.closure-control-comparison.v1",
+    "cells": cells, "compared_requests": requests,
+    "same_outputs_as_control": differences.is_empty(), "different_requests": differences,
+    "scope": "matched literal token inputs, three fresh-start rounds, no statistical significance claim",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(result.stringify(indent=2))
+}

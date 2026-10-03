@@ -24,6 +24,14 @@ static Fields fields(const std::string& path) {
 }
 static int number(const Fields& f,const char* key){return std::stoi(f.at(key));}
 static std::vector<int> tuple(std::string s){std::replace(s.begin(),s.end(),',',' ');std::istringstream in(s);std::vector<int> out;int n;while(in>>n)out.push_back(n);return out;}
+static bool split_decode_law(const std::string& law) {
+  for(const char* supported:{"blockwise-f32-probability-v1","dual-score-blockwise-f32-probability-v2",
+      "blockwise-fma-f32-probability-v3","owned2-blockwise-fma-f32-probability-v4",
+      "owned4-blockwise-f32-probability-v4","owned4-blockwise-fma-f32-probability-v4",
+      "owned8-blockwise-f32-probability-v4","owned8-blockwise-fma-f32-probability-v4",
+      "grouped-head-matrix-bf16-probability-v1"})if(law==supported)return true;
+  return false;
+}
 struct Buffer {
   void* p=nullptr; size_t bytes;
   explicit Buffer(size_t n):bytes(n){CK(cudaMalloc(&p,n));clear();}
@@ -38,8 +46,17 @@ struct Kernel {
   unsigned gx,gy,gz,b,shared,merge_y=0,rotary_grid=0,rotary_block=0;
   int regs,resident,local; std::string law; size_t rotary_bytes=0;
   void* workspace=nullptr;
-  explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode, bool postprocess=false){
-    auto r=fields(root+"/kernel.recipe");auto grid=tuple(r.at("grid")),block=tuple(r.at("block"));
+  explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode, bool postprocess=false, bool partitioned=false){
+    auto r=fields(root+"/kernel.recipe");
+    if(partitioned && !r.count("merge_function_symbol")) {
+      if(!decode || !r.count("partition_function_symbol") || !r.count("partition_merge_function_symbol"))std::exit(1);
+      r["function_symbol"]=r.at("partition_function_symbol");
+      r["merge_function_symbol"]=r.at("partition_merge_function_symbol");
+      r["grid"]=r.at("partition_grid");r["merge_grid"]=r.at("partition_merge_grid");
+      r["block"]=r.at("partition_block");r["shared_memory_bytes"]=r.at("partition_shared_memory_bytes");
+      r["workspace_bytes"]=r.at("partition_workspace_bytes");r["numeric_law"]=r.at("partition_numeric_law");
+    }
+    auto grid=tuple(r.at("grid")),block=tuple(r.at("block"));
     gx=grid.at(0);gy=grid.at(1);gz=grid.at(2);b=block.at(0);shared=number(r,"shared_memory_bytes");
     const int tile=(decode||postprocess) ? 1 : number(r,"query_tile_rows");
     const bool metadata=!ingress&&!decode&&!postprocess&&number(r,"query_metadata_version")==1;
@@ -56,9 +73,7 @@ struct Kernel {
       if(rotary_grid==0 || rotary_block==0 || rotary_block>1024)std::exit(1);
     }
     if(r.count("merge_function_symbol")) {
-      if(!decode || gz<=1 || (law!="blockwise-f32-probability-v1" &&
-          law!="dual-score-blockwise-f32-probability-v2" &&
-          law!="blockwise-fma-f32-probability-v3"))std::exit(1);
+      if(!decode || gz<=1 || !split_decode_law(law))std::exit(1);
       CK(cuModuleGetFunction(&merge,module,r.at("merge_function_symbol").c_str()));
       auto bytes=std::stoull(r.at("workspace_bytes"));
       if(bytes==0 || bytes>16777216)std::exit(1);
@@ -101,12 +116,13 @@ static std::vector<__nv_bfloat16> values(size_t n,int salt){
 static bool same(const std::vector<__nv_bfloat16>& a,const std::vector<__nv_bfloat16>& b){return a.size()==b.size()&&!std::memcmp(a.data(),b.data(),a.size()*2);}
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc<7 || argc>10)return 1;
-  bool check_only=false,mixed=false,decode_envelope=false;
+  if(argc<7 || argc>11)return 1;
+  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
     else if(std::string(argv[i])=="--decode-envelope" && !decode_envelope)decode_envelope=true;
+    else if(std::string(argv[i])=="--decode-partitioned" && !partitioned)partitioned=true;
     else return 1;
   }
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
@@ -116,12 +132,12 @@ int main(int argc,char**argv){
   const int input_width=number(spec,"input_width"),page=number(spec,"tokens_per_page"),stride=number(spec,"page_stride_values");
   const int max_rows=number(spec,"maximum_rows"),max_tokens=number(spec,"maximum_tokens"),max_pages=number(spec,"maximum_pages");
   if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||past<0||past>8192||(decode&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
-  if(decode_envelope && !decode)return 1;
+  if((decode_envelope || partitioned) && !decode)return 1;
   // Explicit replay of a traced capacity-grid graph, including inactive rows.
   // Do not silently treat a compact synthetic bucket as the serving envelope.
   const int bucket_tokens=decode_envelope?max_rows:selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
-  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess),candidate(argv[3],bucket_tokens,max_rows,ingress,decode,postprocess);
+  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned),candidate(argv[3],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned);
   std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u numeric_law=%s\n",
     decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
@@ -134,6 +150,11 @@ int main(int argc,char**argv){
     po.push_back(int(pages.size()));
   }
   if(int(pages.size())>max_pages)return 1;
+  // A bounded bijection breaks the logical-page == physical-page shortcut.
+  // Reverse and rotate is legal for every page count, unlike an unchecked
+  // odd-multiplier hash whose coprimality depends on workload shape.
+  const int physical_pages=int(pages.size());
+  for(int i=0;i<physical_pages;i++)pages[i]=(physical_pages-1-i+physical_pages/3)%physical_pages;
   std::vector<int> counts{decode?0:(mixed?rows-1:rows),decode?rows:(mixed?1:0),rows,tokens,int(pages.size())};
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
   std::vector<int> metadata(4,0);

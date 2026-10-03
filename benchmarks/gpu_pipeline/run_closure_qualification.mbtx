@@ -23,14 +23,16 @@ fn overlay_path(path : String) -> Bool {
   !path.has_prefix("/") &&
   [
     "compiler/", "kernels/", "cmd/", "engine/", "device/", "internal/", "model/",
-    "tests/",
+    "tests/", "scripts/",
   ].any(prefix => path.has_prefix(prefix)) &&
   (
     path.has_suffix(".mbt") ||
     path.has_suffix(".mbti") ||
     path.has_suffix(".c") ||
     path.has_suffix(".h") ||
-    path.has_suffix("/moon.pkg")
+    path.has_suffix("/moon.pkg") ||
+    path == "scripts/materialize-qwen3-bf16-v12-launch.mbtx" ||
+    path == "scripts/assemble-luna-kernel-root.mbtx"
   )
 }
 
@@ -54,6 +56,7 @@ async fn record(
   args : Array[String],
   cwd? : String = ".",
   export_partitions? : Bool = false,
+  toolchain? : String = "",
 ) -> String {
   @fs.write_file(
     root + "/" + label + ".command.json",
@@ -62,8 +65,8 @@ async fn record(
   )
   println("starting " + label)
   let out = @shell.Cmd(exe, args, cwd~, env={
-    "PATH": root +
-    "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/local/bin:/usr/bin:/bin",
+    "PATH": (if toolchain.is_empty() { root + "/toolchain" } else { toolchain }) +
+    "/bin:/usr/local/cuda-13.0/bin:/usr/local/bin:/usr/bin:/bin",
     "LUNA_EXPORT_BLOCKWISE_PARTITIONS": if export_partitions {
       "1"
     } else {
@@ -180,6 +183,58 @@ async fn prepare(base : String, overlay : String, root : String) -> Unit {
 }
 
 ///|
+fn same_decode_fold_geometry(before : String, after : String) -> Bool {
+  let keys = ["LF_KEY_VALUE_TILE", "LF_HEAD_DIMENSION", "LF_SCORE_OWNERS"]
+  keys.all(key => {
+    let prefix = "#define " + key + " "
+    let a = before.split("\n").filter(x => x.has_prefix(prefix)).to_array()
+    let b = after.split("\n").filter(x => x.has_prefix(prefix)).to_array()
+    !a.is_empty() &&
+    !b.is_empty() &&
+    a.all(x => x == a[0]) &&
+    b.all(x => x == a[0])
+  })
+}
+
+///|
+fn same_prefill_fold_geometry(before : String, after : String) -> Bool {
+  [
+    "#define LF_KEY_VALUE_TILE ", "#define LF_HEAD_DIMENSION ", "#define LF_QUERY_TILE ",
+  ].all(prefix => {
+    let a = before.split("\n").filter(x => x.has_prefix(prefix)).to_array()
+    let b = after.split("\n").filter(x => x.has_prefix(prefix)).to_array()
+    !a.is_empty() &&
+    !b.is_empty() &&
+    a.all(x => x == a[0]) &&
+    b.all(x => x == a[0])
+  })
+}
+
+///|
+test "prefill geometry changes require an envelope, not a bitwise claim" {
+  let source = "#define LF_KEY_VALUE_TILE 64\n#define LF_HEAD_DIMENSION 128\n#define LF_QUERY_TILE 32\n"
+  assert_true(same_prefill_fold_geometry(source, source))
+  assert_false(
+    same_prefill_fold_geometry(
+      source,
+      source.replace(old="TILE 64", new="TILE 128"),
+    ),
+  )
+}
+
+///|
+test "same law is not bitwise identity across softmax tile boundaries" {
+  let source = "#define LF_KEY_VALUE_TILE 32\n#define LF_HEAD_DIMENSION 128\n#define LF_SCORE_OWNERS 2\n"
+  assert_true(same_decode_fold_geometry(source, source))
+  assert_false(
+    same_decode_fold_geometry(
+      source,
+      source.replace(old="TILE 32", new="TILE 64"),
+    ),
+  )
+}
+
+///|
 async fn module_pair(
   root : String,
   label : String,
@@ -189,7 +244,9 @@ async fn module_pair(
   probe : String,
   kind : String,
 ) -> Unit {
-  guard ["decode", "prefill", "ingress"].contains(kind) &&
+  let decode = kind.has_prefix("decode")
+  let partitioned = kind == "decode-partitioned"
+  guard ["decode", "decode-partitioned", "prefill", "ingress"].contains(kind) &&
     !label.is_empty() &&
     !label.contains("/") &&
     !label.contains("..") else {
@@ -201,6 +258,20 @@ async fn module_pair(
   let same_law = recipe.contains("numeric_law=") &&
     baseline_recipe.contains("numeric_law=") &&
     field(recipe, "numeric_law") == field(baseline_recipe, "numeric_law")
+  let same_fold = if !same_law || !@fs.exists(baseline + "/kernel.cu") {
+    // Legacy serving directories can carry sealed cubins/recipes but no
+    // source. The independent oracle remains mandatory; do not infer a
+    // bitwise identity from an unavailable fold geometry.
+    false
+  } else {
+    let before_source = @fs.read_file(baseline + "/kernel.cu").text()
+    let after_source = @fs.read_file(source + "/kernel.cu").text()
+    if decode {
+      same_decode_fold_geometry(before_source, after_source)
+    } else if kind == "prefill" {
+      same_prefill_fold_geometry(before_source, after_source)
+    } else { true }
+  }
   assert_eq(field(recipe, "source_sha256"), sha(source + "/kernel.cu"))
   let directory = root + "/" + label
   guard !@fs.exists(directory) else { fail("module output exists") }
@@ -249,7 +320,7 @@ async fn module_pair(
     @fs.read_file(directory + "/first.cubin"),
     create_mode=CreateNew,
   )
-  let workloads : Array[(Int, Int, Int, Bool)] = if kind == "decode" {
+  let workloads : Array[(Int, Int, Int, Bool)] = if decode {
     let histories = [0, 1, 31, 32, 127, 4096, 8191]
     let rows = [1, 8, 16]
     Array::makei(histories.length() * rows.length(), index => {
@@ -277,7 +348,8 @@ async fn module_pair(
         history.to_string(),
       ] +
       (if mixed { ["--mixed"] } else { [] }) +
-      (if kind == "decode" { ["--decode-envelope"] } else { [] })
+      (if decode { ["--decode-envelope"] } else { [] }) +
+      (if partitioned { ["--decode-partitioned"] } else { [] })
     let out = record(
       root,
       "\{label}-q\{tokens}-r\{rows}-h\{history}-m\{mixed}",
@@ -290,7 +362,7 @@ async fn module_pair(
     // Ingress and pure same-law rewrites are bitwise checked. Decode alternatives
     // can declare a different reduction law; the independent probe enforces its
     // differential/scalar error envelope, not a fake bitwise-equivalence claim.
-    if kind == "ingress" || same_law {
+    if kind == "ingress" || (same_law && same_fold) {
       guard !out.contains("bitwise=false") else {
         fail("ingress numeric regression")
       }
@@ -305,7 +377,7 @@ async fn module_pair(
         spec,
         baseline,
         directory,
-        if kind == "decode" {
+        if decode {
           "16"
         } else {
           "129"
@@ -314,7 +386,8 @@ async fn module_pair(
         "4096",
         "--check-only",
       ] +
-      (if kind == "decode" { ["--decode-envelope"] } else { ["--mixed"] })
+      (if decode { ["--decode-envelope"] } else { ["--mixed"] }) +
+      (if partitioned { ["--decode-partitioned"] } else { [] })
     ignore(
       record(
         root,
@@ -354,7 +427,19 @@ async fn partition_export(
     ],
     cwd=origin + "/source",
     export_partitions=true,
+    toolchain=origin + "/toolchain",
   )
+  ignore(extract_partition(root, text, id, partitions))
+}
+
+///|
+async fn extract_partition(
+  root : String,
+  text : String,
+  id : Int,
+  partitions : Int,
+) -> String {
+  let label = "c\{id}-p\{partitions}"
   guard text.split("LUNA_PARTIAL_BEGIN ").to_array()[1:].filter(x => {
       x.has_prefix(label + "\n")
     })
@@ -382,6 +467,7 @@ async fn partition_export(
     "\n",
     create_mode=CreateNew,
   )
+  destination
 }
 
 ///|
@@ -397,6 +483,60 @@ async fn main {
         @string.parse_int(id),
         @string.parse_int(partitions),
       )
+    [_, "--export", root, base, label, prefill, decode, .. flags] => {
+      guard !label.contains("/") &&
+        !label.contains("..") &&
+        flags.all(x => {
+          ["--step-rotary-cache", "--prefill-approximate-exp2"].contains(x)
+        }) else {
+        fail("explicit export options")
+      }
+      guard @json.parse(@fs.read_file(base + "/export.command.json").text())
+        is Array(values) else {
+        fail("saved exporter command")
+      }
+      let argv = values.map(x => {
+        guard x is String(s) else { fail("export argument") }
+        s
+      })
+      let args = argv[1:].to_owned()
+      guard args.length() > 16 && args[16] == base + "/candidate" else {
+        fail("frozen export destination")
+      }
+      args[16] = root + "/" + label
+      for i in 0..<(args.length() - 1) {
+        if args[i] == "--prefill-candidate" {
+          args[i + 1] = prefill
+        }
+        if args[i] == "--decode-candidate" {
+          args[i + 1] = decode
+        }
+      }
+      ignore(
+        record(
+          root,
+          label + "-export",
+          root +
+          "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+          [..args, ..flags],
+        ),
+      )
+    }
+    [_, "--decode-sweep", root, saved, baseline, spec, probe, .. ids] => {
+      let text = @fs.read_file(saved).text()
+      for id in ids {
+        let source = extract_partition(root, text, @string.parse_int(id), 8)
+        module_pair(
+          root,
+          "decode-c" + id + "-p8",
+          source,
+          baseline,
+          spec,
+          probe,
+          "decode",
+        )
+      }
+    }
     _ =>
       fail(
         "--prepare BASE OVERLAY NEW_ROOT | --module ROOT LABEL SOURCE BASELINE SPEC PROBE KIND",

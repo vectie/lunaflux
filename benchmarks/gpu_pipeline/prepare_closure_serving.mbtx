@@ -1,0 +1,572 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("exact field required: " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn unique_index(values : Array[String], value : String) -> Int raise {
+  let found : Array[Int] = []
+  for i, item in values {
+    if item == value {
+      found.push(i)
+    }
+  }
+  guard found is [index] else { fail("exact argument required: " + value) }
+  index
+}
+
+///|
+fn option(args : Array[String], flag : String, value : String) -> Unit raise {
+  let index = unique_index(args, flag)
+  guard index + 1 < args.length() else { fail("missing option value") }
+  args[index + 1] = value
+}
+
+///|
+fn geometry(args : Array[String], path : String, recipe : String) -> Unit raise {
+  let index = unique_index(args, path)
+  guard index >= 6 &&
+    field(recipe, "grid").split(",").to_array() is [gx, gy, gz] &&
+    field(recipe, "block").split(",").to_array() is [bx, "1", "1"] else {
+    fail("unsupported exported geometry")
+  }
+  args[index - 5] = gx.to_owned()
+  args[index - 4] = gy.to_owned()
+  args[index - 3] = gz.to_owned()
+  args[index - 2] = bx.to_owned()
+  args[index - 1] = field(recipe, "shared_memory_bytes")
+}
+
+///|
+fn module_index(bundle : String, key : String, value : String) -> Int raise {
+  let count = @string.parse_int(field(bundle, "module_count"))
+  let matches : Array[Int] = []
+  for i in 0..<count {
+    if field(bundle, "module_\{i}_" + key) == value {
+      matches.push(i)
+    }
+  }
+  guard matches is [index] else {
+    fail("exact bundle module required: " + value)
+  }
+  index
+}
+
+///|
+fn decode_options(recipe : String) -> Array[String] raise {
+  let law = field(recipe, "numeric_law")
+  guard [
+    "blockwise-f32-probability-v1", "dual-score-blockwise-f32-probability-v2", "blockwise-fma-f32-probability-v3",
+    "owned2-blockwise-fma-f32-probability-v4", "owned4-blockwise-f32-probability-v4",
+    "owned4-blockwise-fma-f32-probability-v4", "owned8-blockwise-f32-probability-v4",
+    "owned8-blockwise-fma-f32-probability-v4", "grouped-head-matrix-bf16-probability-v1",
+  ].contains(law) else {
+    fail("closed decode law")
+  }
+  [
+    "--decode-execution",
+    law,
+    field(recipe, "key_value_tile_rows"),
+    field(recipe, "pipeline_stages"),
+    "--decode-symbol",
+    field(recipe, "function_symbol"),
+  ]
+}
+
+///|
+fn approximate_prefill(recipe : String) -> Bool raise {
+  match field(recipe, "numeric_law") {
+    "strict-natural-exponential-v1" => false
+    "approx-base2-f32-v1" => true
+    _ => fail("explicit prefill numeric law required")
+  }
+}
+
+///|
+test "module identity is independent of canonical ordering" {
+  let before = "module_count=2\nmodule_0_abi=old\nmodule_1_abi=unchanged\n"
+  let after = "module_count=2\nmodule_0_abi=unchanged\nmodule_1_abi=cached\n"
+  assert_eq(module_index(before, "abi", "unchanged"), 1)
+  assert_eq(module_index(after, "abi", "unchanged"), 0)
+}
+
+///|
+test "qualified geometry replaces launch dimensions, not semantic operation" {
+  let args = ["2", "1", "1", "1", "128", "0", "/new/ingress.cubin"]
+  geometry(
+    args, "/new/ingress.cubin", "grid=16,8,1\nblock=128,1,1\nshared_memory_bytes=512\n",
+  )
+  assert_eq(args, ["2", "16", "8", "1", "128", "512", "/new/ingress.cubin"])
+}
+
+///|
+test "numerical permission and decode geometry propagate from exact recipe" {
+  assert_true(approximate_prefill("numeric_law=approx-base2-f32-v1\n"))
+  assert_false(
+    approximate_prefill("numeric_law=strict-natural-exponential-v1\n"),
+  )
+  let recipe = "numeric_law=owned4-blockwise-fma-f32-probability-v4\nkey_value_tile_rows=64\npipeline_stages=2\nfunction_symbol=lunaflux_attention_decode_tile_compiler_v1_owned4_blockwise_fma_f32_v4\n"
+  assert_eq(decode_options(recipe), [
+    "--decode-execution", "owned4-blockwise-fma-f32-probability-v4", "64", "2", "--decode-symbol",
+    "lunaflux_attention_decode_tile_compiler_v1_owned4_blockwise_fma_f32_v4",
+  ])
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  println("starting " + label)
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd=root + "/source", env={
+    "PATH": root +
+    "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/local/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed " + label)
+  out.stdout()
+}
+
+///|
+async fn reserve() -> Unit {
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let gpu = @shell.Cmd("nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ]).output()
+  gpu.check()
+  assert_eq(
+    gpu.stdout().trim().to_owned(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [available] &&
+    @string.parse_int64(
+      available.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB available-memory reserve required")
+  }
+}
+
+///|
+async fn qualified(directory : String) -> String {
+  guard @fs.read_file(directory + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\nscope=paired-kernel-not-serving\n") else {
+    fail("selected module has not passed its paired physical gate")
+  }
+  let recipe = @fs.read_file(directory + "/kernel.recipe").text()
+  assert_eq(field(recipe, "source_sha256"), sha(directory + "/kernel.cu"))
+  guard @fs.exists(directory + "/kernel.cubin") else {
+    fail("qualified module absent")
+  }
+  recipe
+}
+
+///|
+async fn verify_overlay(source_root : String, destination : String) -> Unit {
+  let receipt = @fs.read_file(source_root + "/overlay-identities.stdout").text()
+  guard !receipt.trim().is_empty() else {
+    fail("scoped source identity receipt absent")
+  }
+  for line in receipt.split("\n").filter(x => !x.is_empty()) {
+    guard line.split("  ").to_array() is [digest, path] &&
+      path.has_prefix(source_root + "/source/") else {
+      fail("source identity receipt")
+    }
+    let relative = path[(source_root + "/source/").length():].to_owned()
+    guard !relative.contains("..") && !relative.has_prefix("/") else {
+      fail("source path")
+    }
+    assert_eq(sha(destination + "/" + relative), digest.to_owned())
+  }
+}
+
+///|
+async fn verify_bundle(
+  base : String,
+  root : String,
+  recipes : Array[String],
+) -> Unit {
+  let before = @fs.read_file(base + "/fused/reusable-fused-runtime-bundle.v3").text()
+  let after = @fs.read_file(root + "/fused/reusable-fused-runtime-bundle.v3").text()
+  assert_eq(field(before, "module_count"), "9")
+  assert_eq(field(after, "module_count"), "9")
+  let approximate = approximate_prefill(recipes[1])
+  assert_eq(
+    field(after, "schema"),
+    "lunaflux-reusable-fused-runtime-bundle.v" +
+    (if approximate { "12" } else { "11" }),
+  )
+  let changed_abis = [
+    "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4", "qwen-paged-attention-readonly-production-v2",
+    "paged-attention-readonly-dual-score-blockwise-f32-decode-production-v10",
+  ]
+  let stable_keys = [
+    "first_operation", "operation_count", "function_symbol", "query_tile_rows", "query_metadata_version",
+    "heads_per_cta", "grid_x", "grid_y", "grid_z", "block_x", "block_y", "block_z",
+    "shared_bytes", "module_sha256",
+  ]
+  let mut unchanged = 0
+  for i in 0..<9 {
+    let abi = field(before, "module_\{i}_abi")
+    if !changed_abis.contains(abi) {
+      let j = module_index(after, "abi", abi)
+      for key in stable_keys {
+        assert_eq(
+          field(before, "module_\{i}_" + key),
+          field(after, "module_\{j}_" + key),
+          msg=abi + ":" + key,
+        )
+      }
+      unchanged += 1
+    }
+  }
+  assert_eq(unchanged, 6)
+  if approximate {
+    let wide = module_index(
+      after, "abi", "qwen-paged-attention-prefill-wide-query-production-v5",
+    )
+    assert_eq(
+      field(after, "module_\{wide}_prefill_exponential_law"),
+      "strict-natural-exponential-v1",
+    )
+    let prefill = module_index(
+      after,
+      "function_symbol",
+      field(recipes[1], "function_symbol"),
+    )
+    assert_eq(
+      field(after, "module_\{prefill}_prefill_exponential_law"),
+      "approx-base2-f32-v1",
+    )
+  }
+  for index, name in ["ingress", "prefill", "attention"] {
+    let recipe = recipes[index]
+    let i = module_index(
+      after,
+      "function_symbol",
+      field(recipe, "function_symbol"),
+    )
+    assert_eq(
+      field(after, "module_\{i}_module_sha256"),
+      sha(root + "/fused/" + name + ".cubin"),
+    )
+    guard field(recipe, "grid").split(",").to_array() is [gx, gy, gz] else {
+      fail("grid")
+    }
+    for (key, value) in [("grid_x", gx), ("grid_y", gy), ("grid_z", gz)] {
+      assert_eq(field(after, "module_\{i}_" + key), value.to_owned())
+    }
+  }
+  ignore(
+    module_index(
+      after, "abi", "attention-ingress-prepared-rotary-production-v11",
+    ),
+  )
+  let decode = module_index(
+    after, "abi", "paged-attention-readonly-extended-decode-production-v11",
+  )
+  for
+    (signed, recipe_key) in [
+      ("decode_numeric_law", "numeric_law"),
+      ("decode_key_value_tile_rows", "key_value_tile_rows"),
+      ("decode_pipeline_stages", "pipeline_stages"),
+    ] {
+    assert_eq(
+      field(after, "module_\{decode}_" + signed),
+      field(recipes[2], recipe_key),
+    )
+  }
+}
+
+///|
+// Selected modules alone are qualified; failed alternatives are irrelevant.
+// The cache ABI requires rebuilt control binaries and fresh module-bound routes.
+// No server, benchmark, or production promotion is started by this helper.
+async fn main {
+  guard @env.args()
+    is [
+      _,
+      base,
+      source_root,
+      ingress,
+      prefill,
+      decode,
+      measure,
+      calibration,
+      probe,
+      root,
+      "--decode-partition-qualification",
+      partition_qualification,
+    ] else {
+    fail(
+      "FROZEN_SERVING SOURCE_ROOT INGRESS_DIR PREFILL_DIR DECODE_DIR ROUTE_MEASURE_MBtx CALIBRATION CHECK_PROBE NEW_SERVING_ROOT --decode-partition-qualification QUALIFIED_PARTITION_DIR",
+    )
+  }
+  guard root.has_prefix("/") &&
+    !root.contains("..") &&
+    !@fs.exists(root) &&
+    root != base &&
+    root != source_root &&
+    @fs.exists(measure) &&
+    @fs.exists(probe) else {
+    fail(
+      "new absolute non-overwriting serving root and explicit tools required",
+    )
+  }
+  guard @fs.read_file(base + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") &&
+    @fs.read_file(source_root + "/PREPARED.txt").text() ==
+    "scope=current-compiler-scoped-overlay\n" else {
+    fail("frozen serving and prepared scoped source required")
+  }
+  let recipes = [qualified(ingress), qualified(prefill), qualified(decode)]
+  // The selected composed module is used for both ordinary and split decode.
+  // Require qualification of both entries on the exact same source and bytes.
+  ignore(qualified(partition_qualification))
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    assert_eq(
+      sha(decode + "/" + name),
+      sha(partition_qualification + "/" + name),
+    )
+  }
+  let cached = recipes[0]
+  assert_eq(field(cached, "rotary_cache_policy"), "step-prepared-f32-pairs-v1")
+  assert_eq(
+    field(cached, "rotary_prepare_effect"),
+    "produce-before-all-layer-consumers",
+  )
+  assert_eq(
+    field(cached, "rotary_prepare_symbol"),
+    field(cached, "function_symbol") + "_rotary_prepare",
+  )
+  let approximate = approximate_prefill(recipes[1])
+  assert_eq(
+    field(recipes[1], "function_symbol"),
+    if approximate {
+      "lunaflux_attention_prefill_tile_compiler_exp2_v1"
+    } else {
+      "lunaflux_attention_prefill_tile_compiler_v1"
+    },
+  )
+  let decode_args = decode_options(recipes[2])
+  reserve()
+  @fs.mkdir(root)
+  @shell.Cmd("cp", ["-a", source_root + "/source", root + "/source"]).run()
+  verify_overlay(source_root, root + "/source")
+  for name in ["release", "candidate", "fused"] {
+    @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+  }
+  for
+    (selected, name) in [
+      (ingress, "ingress"),
+      (prefill, "prefill"),
+      (decode, "decode"),
+    ] {
+    @shell.Cmd("cp", ["-a", selected, root + "/" + name + "-selected"]).run()
+    @fs.write_file(
+      root + "/" + name + "-selected/INTEGRATION_IDENTITY.txt",
+      "source_sha256=" +
+      sha(selected + "/kernel.cu") +
+      "\nrecipe_sha256=" +
+      sha(selected + "/kernel.recipe") +
+      "\nmodule_sha256=" +
+      sha(selected + "/kernel.cubin") +
+      "\n",
+      create_mode=CreateNew,
+    )
+  }
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  @shell.Cmd("cp", ["-a", probe, root + "/check-probe"]).run()
+  for
+    name in [
+      "convert.stdout", "bind.stdout", "export.stdout", "toolchain.v1", "benchmark.mbtx",
+      "prepare-full.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/SOURCE_PREPARED.txt",
+    @fs.read_file(source_root + "/PREPARED.txt"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/SOURCE_IDENTITIES.txt",
+    @fs.read_file(source_root + "/overlay-identities.stdout"),
+    create_mode=CreateNew,
+  )
+  guard @fs.read_file(root + "/prepare-full.mbtx")
+    .text()
+    .contains("/fused-routed/reusable-fused-runtime-bundle.v3") else {
+    fail("materializer must consume the freshly routed bundle")
+  }
+  let moon = root + "/toolchain/bin/moon"
+  ignore(
+    record(root, "build-current-runtime", moon, [
+      "build", "cmd/lunaflux_qwen3_fused_runtime_bundle_export", "cmd/device_worker_child",
+      "cmd/lunaflux", "cmd/lunaflux_qwen3_token_id_bridge", "tests/qwen3_bf16_serving_supervisor",
+      "--target", "native", "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+      "-j", "2",
+    ]),
+  )
+  let identity : Array[String] = []
+  for
+    command in [
+      "device_worker_child", "lunaflux", "lunaflux_qwen3_token_id_bridge",
+    ] {
+    let relative = "source/_build/native/release/build/cmd/" +
+      command +
+      "/" +
+      command +
+      ".exe"
+    identity.push(command + "_sha256=" + sha(root + "/" + relative))
+  }
+  @fs.write_file(
+    root + "/RUNTIME_IDENTITIES.txt",
+    identity.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  for
+    (name, selected) in [
+      ("ingress", ingress),
+      ("prefill", prefill),
+      ("attention", decode),
+    ] {
+    @shell.Cmd("mv", [
+      root + "/fused/" + name + ".cubin",
+      root + "/fused/frozen-" + name + ".cubin",
+    ]).run()
+    @shell.Cmd("cp", [
+      selected + "/kernel.cubin",
+      root + "/fused/" + name + ".cubin",
+    ]).run()
+    assert_eq(
+      sha(selected + "/kernel.cubin"),
+      sha(root + "/fused/" + name + ".cubin"),
+    )
+  }
+  let args = @fs.read_file(base + "/fused/export.arguments")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => x.to_owned().replace(old=base + "/", new=root + "/"))
+    .filter(x => !x.has_prefix("--decode-"))
+    .to_array()
+  for index, name in ["ingress", "prefill", "attention"] {
+    geometry(args, root + "/fused/" + name + ".cubin", recipes[index])
+  }
+  option(args, "--ingress-query-tile", field(cached, "query_tile_rows"))
+  option(args, "--ingress-heads-per-cta", field(cached, "heads_per_cta"))
+  let bundle_path = root + "/fused/reusable-fused-runtime-bundle.v3"
+  let bundle_index = unique_index(args, bundle_path)
+  guard bundle_index >= 4 else {
+    fail("prefill query tile positional contract")
+  }
+  args[bundle_index - 4] = field(recipes[1], "query_tile_rows")
+  guard !args.contains("--step-rotary-cache") else {
+    fail("frozen cache ABI must not be silently reused")
+  }
+  args.push("--step-rotary-cache")
+  args.append(decode_args)
+  if approximate {
+    args.push("--prefill-approximate-exp2")
+  }
+  for
+    name in [
+      "reusable-fused-runtime-bundle.v3", "export.arguments", "export.stdout",
+    ] {
+    @shell.Cmd("mv", [root + "/fused/" + name, root + "/fused/frozen-" + name]).run()
+  }
+  @fs.write_file(
+    root + "/fused/export.arguments",
+    args.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  let exporter = root +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe"
+  let exported = record(root, "reexport-bundle", exporter, args)
+  @fs.write_file(root + "/fused/export.stdout", exported, create_mode=CreateNew)
+  verify_bundle(base, root, recipes)
+  @fs.write_file(
+    root + "/MODULE_DIFF.txt",
+    "selected ingress/prefill/decode modules and rebuilt cache-aware control runtime; six remaining modules unchanged by ABI identity\n",
+    create_mode=CreateNew,
+  )
+  reserve()
+  ignore(
+    record(root, "measure-routes", moon, ["run", measure, root, calibration]),
+  )
+  guard @fs.read_file(root + "/decode-route-measurements/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\n") else {
+    fail("fresh module-bound route measurements failed")
+  }
+  for phase in ["materialize", "capacity"] {
+    reserve()
+    ignore(
+      record(root, "prepare-" + phase, moon, [
+        "run",
+        root + "/prepare-full.mbtx",
+        root,
+        phase,
+      ]),
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=qualified-selected-modules-with-rebuilt-cache-runtime-and-fresh-routes-not-throughput\n",
+    create_mode=CreateNew,
+  )
+}

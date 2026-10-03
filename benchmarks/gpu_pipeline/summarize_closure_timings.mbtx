@@ -1,0 +1,51 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard values.length() == 5 else { fail("five ordinary samples required") }
+  values.sort()
+  values[2]
+}
+
+///|
+fn times(text : String, key : String) -> Array[Double] raise {
+  let result = []
+  for line in text.split("\n").filter(x => x.has_prefix("tokens=")) {
+    guard line.split(" ").filter(x => x.has_prefix(key + "=")).to_array()
+      is [cell] else {
+      fail("one timing field")
+    }
+    result.push(@string.parse_double(cell[key.length() + 1:]))
+  }
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. labels] && !labels.is_empty() else {
+    fail("QUALIFICATION_ROOT LABEL...")
+  }
+  for label in labels {
+    for history in [0, 4096, 8191] {
+      for rows in [1, 8, 16] {
+        let path = root +
+          "/\{label}-q\{rows}-r\{rows}-h\{history}-mfalse.stdout"
+        if !@fs.exists(path) {
+          continue
+        }
+        let text = @fs.read_file(path).text()
+        let before = median(times(text, "old_us"))
+        let after = median(times(text, "new_us"))
+        println(
+          "\{label} C\{rows} H\{history} old_us=\{before} new_us=\{after} ratio=\{after/before}",
+        )
+      }
+    }
+  }
+}
