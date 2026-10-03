@@ -255,5 +255,101 @@ include source/build caches and deployment/model copies, not silently missing
 profiler logs. The full original remote roots remain in place. Archive SHA-256,
 verified after downloading without overwrite, is
 `5605c248e41a3720f8cab72643901b8ac4b04cc52f561016dcb9c01f2d852498`.
+
+## Follow-up: load readiness remains unresolved
+
+The terminal instruction repairs above did not fix attention's asynchronous
+copy completion and workgroup-publication dependencies. The latest mixed
+prefill result remains almost flat; the selected partitioned decode was not
+changed by those repairs. It is incorrect to call the load/barrier bottleneck
+solved on the strength of fewer address or register-copy instructions.
+
+An independent K/V single-slot experiment tested a concrete alternative,
+without modifying production source or selecting new serving modules. It
+retains candidate c454's dual-score numerical law, KV32, two query heads per
+KV head, eight partitions, capacity grid 32×8×8, ordered fold and merge. Both
+arms are compiled for sm121 with identical strict arithmetic flags and a
+128-register cap. Current K acquisition publishes the previous V readers,
+then issues current V; current V acquisition publishes completed K readers,
+then issues next K. K copies overlap PV; V copies overlap QK. The two
+publications per tile and terminal reader handoff remain necessary.
+
+| Resource | Paired stages | Independent single slots |
+| --- | ---: | ---: |
+| Dynamic shared bytes | 33,040 | 16,656 |
+| Registers/thread | 92 | 114 |
+| Maximum resident blocks/SM | 2 | 5 |
+| Compiler-reported local/spill bytes | 0 | 0 |
+
+Ordinary CUDA-event medians of five alternating samples include the identical
+partition merge. These are synthetic equal-history vectors using the traced
+capacity grid, **not a fresh serving or reference-framework benchmark**.
+
+| Rows | History | Before µs | After µs | Latency change |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 127 | 14.374 | 12.261 | −14.70% |
+| 8 | 127 | 20.860 | 15.869 | −23.93% |
+| 16 | 127 | 30.762 | 20.518 | −33.30% |
+| 1 | 4096 | 57.035 | 62.624 | +9.80% |
+| 8 | 4096 | 597.285 | 609.799 | +2.10% |
+| 16 | 4096 | 1177.818 | 1192.216 | +1.22% |
+| 1 | 8191 | 144.898 | 157.187 | +8.48% |
+| 8 | 8191 | 1177.239 | 1207.367 | +2.56% |
+| 16 | 8191 | 2320.761 | 2345.339 | +1.06% |
+
+All nine vectors are bitwise equal to the same-law control and pass the
+independent scalar oracle (maximum absolute error about 0.000244). Memcheck
+with full leak checking, racecheck and synccheck pass. A short-history win is
+not a long-context fix: this alternative is **not promoted into production**.
+
+Fresh cold-cache Nsight Compute capture of one partial invocation, C16/4096:
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| Executed warp instructions | 46,967,552 | 48,340,224 |
+| Active warps, percentage of sustained active peak | 8.22% | 20.12% |
+| Eligible warps/scheduler/active cycle | 0.09 | 0.10 |
+| Average warp latency/issued instruction, cycles | 12.12 | 28.24 |
+| Long-scoreboard stalls/active issue | 6.16 | 13.41 |
+| Barrier stalls/active issue | 1.68 | 3.27 |
+| Short-scoreboard stalls/active issue | 2.08 | 5.89 |
+| MIO-throttle stalls/active issue | 0.14 | 2.49 |
+| Source-correlated excessive shared wavefronts | 0 | 0 |
+| Profiled partial invocation µs | 1216.608 | 1216.800 |
+
+These ratios are not percentages of wall time. Increased residency creates
+more stalled resident warps without materially increasing eligible warps;
+it does not prove that absolute memory latency doubled. In the original,
+the hottest sampled PC is `BAR.SYNC.DEFER_BLOCKING` immediately after
+`DEPBAR.LE SB0, 0x1`. In the alternative, the hottest two sampled PCs are
+adjacent to `DEPBAR.LE SB0, 0x0` and their subsequent publications. The sampled
+`UMOV` is not itself a global load; disassembly identifies the preceding
+copy-completion dependency. Both arms still stop on operand readiness.
+
+This falsifies the proposed shortcut that halving staging storage and raising
+residency alone closes the long-history gap. Future changes must demonstrate
+reduced copy/address dependency latency or more useful work issued while
+transfers are outstanding. Independent producer/consumer issue, future-page
+offset reuse and alternative key-parallel ownership remain experiments, not
+completed fixes or promised speedups. The same applies separately to matrix
+prefill, which this decode-only experiment does not modify.
+
+Runner: `benchmarks/gpu_pipeline/measure_split_operand_lifetime.mbtx`, with
+`--summarize` and `--source-stalls` for bounded result inspection. Three native
+runner regressions and the local affected source package's 67 tests pass.
+GPU jobs were serialized, bounded to 8 GiB without swap and admitted with a
+32 GiB available-memory reserve. Preliminary attempts (stale frozen digest
+test, unused-variable compile error and an experimental validity-offset
+error) are preserved and contribute no timing result. No production source,
+module, model or container was changed.
+
+Completed ordinary experiment:
+`/home/wlc004s/lunaflux-independent-kv-v4-20261003.q3jdnqeK`.
+Counters:
+`/home/wlc004s/lunaflux-independent-kv-counters-20261003.YpDcIVtv`.
+Downloaded archive (119 files, including preliminary failures):
+`/private/tmp/lunaflux-independent-kv-20261003.mW7sZNMC/gap-repairs.tar.gz`.
+Local SHA-256 matches the remote archive:
+`fcf7f1c883991b8dbe91a1d1507f4b69a78c7422e23b100433c6038954735c18`.
 Local download:
 `/private/tmp/lunaflux-chain-results-20261003.WDsaMhp9/gap-repairs.tar.gz`.

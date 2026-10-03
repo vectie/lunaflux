@@ -1,0 +1,479 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  let pieces = text.split(before).to_array()
+  guard pieces.length() == 2 else { fail("source seam: " + before) }
+  pieces.join(after)
+}
+
+///|
+// Offline controlled ablation, not a production source generator. Preserve
+// the exact fold, geometry and partition merge; change only operand lifetimes.
+// Each buffer has one slot. K refill follows the current K readers (at V's
+// publication); V refill follows the previous V readers (at K's publication).
+fn split_operands(source : String) -> String raise {
+  let start = "  auto stage_tile = [&](int key_base, int slot) {"
+  guard source.split(start).to_array() is [prefix, tail] else {
+    fail("one paired-transfer lambda")
+  }
+  guard tail.split("  };\n").to_array() is [pair, suffix] else {
+    fail("one lambda end")
+  }
+  let commit = "    asm volatile(\"cp.async.commit_group;\" ::: \"memory\");"
+  guard pair.split(commit).to_array() is [key, value, last] &&
+    last.trim().is_empty() else {
+    fail("two independent committed transfer groups")
+  }
+  let declarations : Array[String] = []
+  let mut key = once(
+    key.to_owned(),
+    "    __nv_bfloat16 *value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;",
+    "",
+  )
+  for i in 0..<8 {
+    let address = "    unsigned long long retained_address_\{i} = 0;"
+    let size = "    int retained_size_\{i} = 0;"
+    key = once(key, address, "")
+    key = once(key, size, "")
+    declarations.append([address, size])
+  }
+  let generated = prefix.to_owned() +
+    declarations.join("\n") +
+    "\n" +
+    "  auto stage_key = [&](int key_base, int slot) {" +
+    key +
+    commit +
+    "\n  };\n  auto stage_value = [&]() {\n" +
+    value.to_owned() +
+    commit +
+    "\n  };\n" +
+    suffix.to_owned()
+  let generated = once(
+    generated, "if (thread == 0) { stage_valid[0] = 1; stage_valid[1] = 1; }", "if (thread == 0) stage_valid[0] = 1;",
+  )
+  let generated = once(
+    generated, "if (key_begin < key_limit) stage_tile(key_begin, 0);", "if (key_begin < key_limit) stage_key(key_begin, 0);",
+  )
+  let generated = once(
+    generated, "const int slot = ((key_base - key_begin) / LF_KEY_VALUE_TILE) & 1;",
+    "const int slot = 0;",
+  )
+  let generated = once(
+    generated, "asm volatile(\"cp.async.wait_group 1;\" ::: \"memory\");", "asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");",
+  )
+  let generated = once(
+    generated,
+    "    value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;",
+    "    value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;\n" +
+    "    if (!stage_valid[0]) return;\n    stage_value();",
+  )
+  let generated = once(
+    generated, "stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1);", "stage_key(key_base + LF_KEY_VALUE_TILE, 0);",
+  )
+  let old_offset = "stage_arena + 4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION"
+  guard generated.split(old_offset).to_array().length() == 3 else {
+    fail("score and validity storage offsets")
+  }
+  let generated = generated
+    .split(old_offset)
+    .to_array()
+    .join("stage_arena + 2 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION")
+  assert_false(generated.contains(old_offset))
+  assert_false(generated.contains("stage_tile("))
+  assert_false(generated.contains("cp.async.wait_group 1;"))
+  assert_true(generated.contains("stage_key(key_base + LF_KEY_VALUE_TILE, 0)"))
+  assert_true(generated.contains("stage_value();"))
+  generated
+}
+
+///|
+test "independent-slot ablation moves both storage boundaries and retains fold" {
+  let declarations = Array::makei(8, i => {
+    "    unsigned long long retained_address_\{i} = 0;\n    int retained_size_\{i} = 0;"
+  }).join("\n")
+  let fixture = (
+      #|scores = stage_arena + 4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+      #|valid = stage_arena + 4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+      #|  auto stage_tile = [&](int key_base, int slot) {
+      #|    __nv_bfloat16 *value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+    ) +
+    "\n" +
+    declarations +
+    "\n" +
+    (
+      #|    asm volatile("cp.async.commit_group;" ::: "memory");
+      #|    copy_value();
+      #|    asm volatile("cp.async.commit_group;" ::: "memory");
+      #|  };
+      #|if (thread == 0) { stage_valid[0] = 1; stage_valid[1] = 1; }
+      #|if (key_begin < key_limit) stage_tile(key_begin, 0);
+      #|const int slot = ((key_base - key_begin) / LF_KEY_VALUE_TILE) & 1;
+      #|asm volatile("cp.async.wait_group 1;" ::: "memory");
+      #|    value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+      #|ordered_QK_and_softmax();
+      #|stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1);
+      #|ordered_PV_and_merge();
+    )
+  let output = split_operands(fixture)
+  assert_eq(output.split("stage_arena + 2 *").to_array().length(), 3)
+  assert_true(output.contains("ordered_QK_and_softmax();"))
+  assert_true(output.contains("ordered_PV_and_merge();"))
+  assert_eq(output.split("retained_address_0 = 0;").to_array().length(), 2)
+  try split_operands(fixture + fixture) catch {
+    _ => ()
+  } noraise {
+    _ => fail("accepted ambiguous experiment input")
+  }
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+  env? : Map[String, String] = {},
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args, cwd~, env~).output(
+    max_output_bytes=33554432,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(label + " completed")
+  result.stdout()
+}
+
+///|
+async fn reserve() -> Unit {
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory unavailable")
+  }
+  guard @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+}
+
+///|
+fn median(text : String, key : String) -> Double raise {
+  let values : Array[Double] = []
+  for line in text.split("\n").filter(x => x.has_prefix("tokens=")) {
+    guard line.contains(" bitwise=true ") else { fail("numeric regression") }
+    guard line.split(" ").find_first(x => x.has_prefix(key + "="))
+      is Some(value) else {
+      fail("missing timing")
+    }
+    let time = @string.parse_double(value.strip_prefix(key + "=").unwrap())
+    guard !time.is_inf() && !time.is_nan() && time > 0.0 else {
+      fail("nonfinite timing")
+    }
+    values.push(time)
+  }
+  assert_eq(values.length(), 5)
+  values.sort()
+  values[2]
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let result : Array[String] = []
+  let mut quoted = false
+  let cell = StringBuilder()
+  let characters = line.to_owned().to_array()
+  let mut i = 0
+  while i < characters.length() {
+    let c = characters[i]
+    if c == '"' {
+      if quoted && i + 1 < characters.length() && characters[i + 1] == '"' {
+        cell.write_char('"')
+        i += 1
+      } else {
+        quoted = !quoted
+      }
+    } else if c == ',' && !quoted {
+      result.push(cell.to_string())
+      cell.reset()
+    } else {
+      cell.write_char(c)
+    }
+    i += 1
+  }
+  result.push(cell.to_string())
+  result
+}
+
+///|
+test "source CSV retains quoted instructions and escaped quotes" {
+  assert_eq(csv("\"Address\",\"LDGSTS [R0], R2\",\"a\"\"b\""), [
+    "Address", "LDGSTS [R0], R2", "a\"b",
+  ])
+}
+
+///|
+fn source_stalls(text : String) -> Unit raise {
+  let mut header : Array[String] = []
+  let records : Array[(Int64, String)] = []
+  for line in text.split("\n") {
+    let row = csv(line)
+    if row[0] == "Address" {
+      header = row
+      continue
+    }
+    if row.length() != header.length() || !row[0].has_prefix("0x") {
+      continue
+    }
+    let fields = [
+      "stall_long_sb", "stall_barrier", "stall_short_sb", "stall_mio",
+    ]
+    let counts = fields.map(name => {
+      guard header.search(name) is Some(index) else {
+        fail("missing sample column")
+      }
+      @string.parse_int64(row[index])
+    })
+    let samples = counts.fold(init=0L, (total, value) => total + value)
+    records.push(
+      (
+        samples,
+        "\{row[0]} \{row[1]} long=\{counts[0]} barrier=\{counts[1]} short=\{counts[2]} mio=\{counts[3]}",
+      ),
+    )
+  }
+  guard !records.is_empty() else { fail("source counters absent") }
+  records.sort_by((a, b) => b.0.compare(a.0))
+  for (_, line) in records[:Int::min(12, records.length())] {
+    println(line)
+  }
+}
+
+///|
+test "timing summary rejects failures and reports median, not best sample" {
+  let text = Array::makei(5, i => {
+    "tokens=16 old_us=\{5-i} new_us=\{i+1} bitwise=true maxabs=0"
+  }).join("\n")
+  assert_eq(median(text, "old_us"), 3.0)
+  assert_eq(median(text, "new_us"), 3.0)
+  try
+    median(text.replace(old="bitwise=true", new="bitwise=false"), "old_us")
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("accepted incorrect output")
+  }
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--source-stalls", root] {
+    for arm in ["old", "new"] {
+      println(arm + " sampled PCs (samples, not wall-time percentages)")
+      source_stalls(@fs.read_file(root + "/" + arm + "-source.stdout").text())
+    }
+    return
+  }
+  if @env.args() is [_, "--summarize", root] {
+    guard @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=passed\n") else {
+      fail("incomplete experiment")
+    }
+    println("rows\thistory\tbefore_us\tafter_us\tlatency_change_percent")
+    for history in [127, 4096, 8191] {
+      for rows in [1, 8, 16] {
+        let text = @fs.read_file(root + "/r\{rows}-h\{history}.stdout").text()
+        let old = median(text, "old_us")
+        let selected = median(text, "new_us")
+        println(
+          "\{rows}\t\{history}\t\{old}\t\{selected}\t\{(selected / old - 1.0) * 100.0}",
+        )
+      }
+    }
+    return
+  }
+  guard @env.args() is [_, base, spec, probe, root] else {
+    fail(
+      "FROZEN_SOURCE_WITH_TOOLCHAIN DECODE_SPEC EXACT_BUCKET_PROBE NEW_EMPTY_ROOT",
+    )
+  }
+  reserve()
+  let moon = base + "/toolchain/bin/moon"
+  let exported = record(
+    root,
+    "export",
+    moon,
+    [
+      "test", "kernels/luna_cuda_attention_tile_source/blockwise_decode_wbtest.mbt",
+      "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+    ],
+    cwd=base + "/source",
+    env={
+      "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1",
+      "PATH": base + "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/bin:/bin",
+    },
+  )
+  guard exported.split("LUNA_PARTIAL_BEGIN ").to_array()[1:].filter(x => {
+      x.has_prefix("c454-p8\n")
+    })
+    is [section] else {
+    fail("one selected partitioned dual-score source")
+  }
+  guard section.split("\nLUNA_PARTIAL_SOURCE\n").to_array()
+    is [header, source_tail] else {
+    fail("framing")
+  }
+  let recipe = header.split("\n").to_array()[1:].join("\n") + "\n"
+  let source = source_tail.split("\nLUNA_PARTIAL_END").to_array()[0].to_owned()
+  guard recipe.contains("shared_memory_bytes=33040\n") &&
+    recipe.contains("numeric_law=dual-score-blockwise-f32-probability-v2\n") else {
+    fail("bounded test geometry/law")
+  }
+  let after = split_operands(source)
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  for
+    (name, cu, contract) in [
+      ("before", source, recipe),
+      (
+        "after",
+        after,
+        once(
+          recipe, "shared_memory_bytes=33040\n", "shared_memory_bytes=16656\n",
+        ),
+      ),
+    ] {
+    let dir = root + "/" + name
+    @fs.mkdir(dir)
+    @fs.write_file(dir + "/kernel.cu", cu, create_mode=CreateNew)
+    @fs.write_file(dir + "/kernel.recipe", contract, create_mode=CreateNew)
+    ignore(
+      record(root, "compile-" + name, nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--Werror",
+        "all-warnings",
+        "--maxrregcount=128",
+        "-Xptxas=-v",
+        "-lineinfo",
+        "-cubin",
+        dir + "/kernel.cu",
+        "-o",
+        dir + "/kernel.cubin",
+      ]),
+    )
+  }
+  let container = [
+    "run", "--rm", "--gpus", "all", "--network", "none", "--memory", "8g", "--memory-swap",
+    "8g", "--mount", "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+    "nvcr.io/nvidia/vllm:26.01-py3",
+  ]
+  for history in [127, 4096, 8191] {
+    for rows in [1, 8, 16] {
+      reserve()
+      ignore(
+        record(
+          root,
+          "r\{rows}-h\{history}",
+          "docker",
+          container +
+          [
+            probe,
+            spec,
+            root + "/before",
+            root + "/after",
+            rows.to_string(),
+            rows.to_string(),
+            history.to_string(),
+            "--decode-envelope",
+          ],
+        ),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/profile.command.json",
+    Json([
+      probe,
+      spec,
+      root + "/before",
+      root + "/after",
+      "16",
+      "16",
+      "4096",
+      "--decode-envelope",
+    ]).stringify(),
+    create_mode=CreateNew,
+  )
+  for tool in ["memcheck", "racecheck", "synccheck"] {
+    reserve()
+    ignore(
+      record(
+        root,
+        tool,
+        "docker",
+        container[:container.length() - 1].to_owned() +
+        [
+          "--mount", "type=bind,source=/usr/local/cuda-13.0,target=/opt/host-cuda,readonly",
+          "nvcr.io/nvidia/vllm:26.01-py3", "/opt/host-cuda/bin/compute-sanitizer",
+          "--tool", tool, "--error-exitcode", "99",
+        ] +
+        (if tool == "memcheck" { ["--leak-check", "full"] } else { [] }) +
+        [
+          probe,
+          spec,
+          root + "/before",
+          root + "/after",
+          "16",
+          "16",
+          "4096",
+          "--decode-envelope",
+          "--check-only",
+        ],
+      ),
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=single-slot-independent-KV-experiment-not-production\n",
+    create_mode=CreateNew,
+  )
+}
