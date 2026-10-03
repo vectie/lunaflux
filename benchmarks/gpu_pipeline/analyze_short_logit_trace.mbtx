@@ -1,0 +1,257 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json, key : String) -> Int raise {
+  guard value is Object(fields) && fields.get(key) is Some(Number(number, ..)) else {
+    fail(key)
+  }
+  number.to_int()
+}
+
+///|
+fn text(value : Json, key : String) -> String raise {
+  guard value is Object(fields) && fields.get(key) is Some(String(value)) else {
+    fail(key)
+  }
+  value
+}
+
+///|
+fn chronological_groups(records : Array[Json]) -> Array[Array[Json]] raise {
+  let groups : Map[String, Array[Json]] = Map([])
+  let order : Array[String] = []
+  for record in records {
+    let key = text(record, "request") + ":" + text(record, "generation")
+    if !groups.contains(key) {
+      groups[key] = []
+      order.push(key)
+    }
+    let group = groups[key]
+    assert_eq(
+      integer(record, "sample"),
+      group.length(),
+      msg="missing/reordered sample",
+    )
+    group.push(record)
+  }
+  order.map(key => groups[key])
+}
+
+///|
+fn tokens(group : Array[Json]) -> Array[Json] raise {
+  group.map(record => integer(record, "selected").to_json())
+}
+
+///|
+fn first_three(group : Array[Json]) -> Array[Json] {
+  group[:3].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("DOWNLOADED_ROOT NEW_REPORT_JSON")
+  }
+  guard @json.parse(@fs.read_file(root + "/margins-enhanced.json").text())
+    is {
+      "records": Array(records),
+      "gpu_cpu_argmax_mismatches": mismatches,
+      "exact_top_two_ties": ties,
+      ..
+    } else {
+    fail("enriched margins required")
+  }
+  let groups = chronological_groups(records)
+  assert_eq(groups.length(), 32, msg="two complete C16 trials required")
+  assert_true(groups.all(group => group.length() == 32))
+  for group in groups {
+    for sample, record in group {
+      assert_eq(
+        integer(record, "position"),
+        127 + sample,
+        msg="sample/position progression differs from 128-token prompt",
+      )
+    }
+  }
+  let mut first_last = 0L
+  let mut second_first = 9223372036854775807L
+  for i, group in groups {
+    let first = @string.parse_int64(text(group[0], "epoch"))
+    let last = @string.parse_int64(text(group[31], "epoch"))
+    if i < 16 {
+      first_last = Int64::max(first_last, last)
+    } else {
+      second_first = Int64::min(second_first, first)
+    }
+  }
+  assert_true(
+    first_last < second_first,
+    msg="trial request lifetimes overlap; cannot assign chronological trial",
+  )
+  let correlated : Array[Json] = []
+  let repeated : Array[Json] = []
+  for trial in 0..<2 {
+    guard @json.parse(
+        @fs.read_file(root + "/i128-o32-c16-t\{trial}.json").text(),
+      )
+      is { "requests": Array(requests), .. } else {
+      fail("requests")
+    }
+    assert_eq(requests.length(), 16)
+    let actual_groups = groups[trial * 16:(trial + 1) * 16].to_owned()
+    for client_row, response in requests {
+      guard response is { "token_ids": Array(expected), .. } else {
+        fail("tokens")
+      }
+      let matched = actual_groups.filter(group => tokens(group) == expected)
+      assert_true(
+        !matched.is_empty(),
+        msg="client response has no exact full-vector trace group",
+      )
+      correlated.push({
+        "trial": trial,
+        "client_row": client_row,
+        "matching_trace_groups": matched.map(group => first_three(group)),
+      })
+    }
+    let body0 = @fs.read_file(root + "/i128-o32-c16-t\{trial}-r0.body.json").text()
+    let body12 = @fs.read_file(root + "/i128-o32-c16-t\{trial}-r12.body.json").text()
+    assert_eq(
+      body0,
+      body12,
+      msg="client rows 0 and 12 are not literal identical requests",
+    )
+    guard @json.parse(body0) is { "input_token_ids": Array(input), .. } else {
+      fail("input")
+    }
+    assert_eq(input.length(), 128)
+    guard requests[0] is { "token_ids": Array(a), .. } &&
+      requests[12] is { "token_ids": Array(b), .. } else {
+      fail("repeated tokens")
+    }
+    let difference = for i in 0..<a.length() {
+      if a[i] != b[i] {
+        break i
+      }
+    } nobreak {
+      -1
+    }
+    repeated.push({
+      "trial": trial,
+      "identical_body": true,
+      "first_difference": difference,
+      "row0_tokens": a,
+      "row12_tokens": b,
+    })
+  }
+  let ambiguous = correlated.filter(record => {
+    match record {
+      { "matching_trace_groups": Array(found), .. } => found.length() > 1
+      _ => false
+    }
+  })
+  let equal = records.filter(record => {
+    integer(record, "best_bits") == integer(record, "second_bits")
+  })
+  let tracked_close : Array[Json] = []
+  for record in records {
+    if integer(record, "position") > 129 || integer(record, "position") < 127 {
+      continue
+    }
+    guard record is { "tracked_logits": { "624": a, "382": b, .. }, .. } else {
+      fail("624/382 trace absent")
+    }
+    let distance = (integer(a, "bits") - integer(b, "bits")).abs()
+    if distance <= 1 {
+      tracked_close.push(record)
+    }
+  }
+  let report : Json = {
+    "scope": "two diagnostic C16 short trials; not a performance sample",
+    "limitation": "Correct sampled argmax and schedule-correlated BF16 logits do not exclude an upstream arithmetic, memory, or race fault. Identical-schedule replay and earlier activation boundaries are not established by this capture.",
+    "gpu_cpu_argmax_mismatches": mismatches,
+    "exact_top_two_ties": ties,
+    "first_trial_last_epoch": first_last.to_string(),
+    "second_trial_first_epoch": second_first.to_string(),
+    "request_correlation": "full 32-token response vectors within disjoint chronological trial lifetimes; no assumption that request ID equals client row; identical responses remain ambiguous",
+    "ambiguous_client_correlations": ambiguous.length(),
+    "repeated_body_rows_0_12": repeated,
+    "equal_top_two": equal,
+    "tracked_624_382_distance_le_one_bf16_ulp_positions_127_129": tracked_close,
+    "all_client_first_three": correlated,
+  }
+  @fs.write_file(output, report.stringify(), create_mode=CreateNew)
+  println(
+    "groups=\{groups.length()} exact_top_two_ties=\{ties.stringify()} argmax_mismatches=\{mismatches.stringify()} ambiguous_client_correlations=\{ambiguous.length()} close_624_382=\{tracked_close.length()}",
+  )
+  for record in equal {
+    println(record.stringify())
+  }
+  for entry in correlated {
+    if integer(entry, "client_row") == 0 || integer(entry, "client_row") == 12 {
+      println(entry.stringify())
+    }
+  }
+}
+
+///|
+test "request groups use explicit identity and sample rather than batch row" {
+  let records : Array[Json] = [
+    {
+      "request": "99",
+      "generation": "3",
+      "row": 0,
+      "sample": 0,
+      "selected": 44378,
+    },
+    {
+      "request": "7",
+      "generation": "2",
+      "row": 1,
+      "sample": 0,
+      "selected": 44378,
+    },
+    {
+      "request": "7",
+      "generation": "2",
+      "row": 0,
+      "sample": 1,
+      "selected": 12850,
+    },
+    {
+      "request": "99",
+      "generation": "3",
+      "row": 9,
+      "sample": 1,
+      "selected": 12850,
+    },
+  ]
+  let groups = chronological_groups(records)
+  assert_eq(groups.length(), 2)
+  assert_eq(text(groups[0][1], "request"), "99")
+  assert_eq(integer(groups[0][1], "row"), 9)
+  assert_eq(text(groups[1][1], "request"), "7")
+  assert_eq(tokens(groups[0]), tokens(groups[1]))
+}
+
+///|
+test "request grouping rejects missing samples instead of silently aligning rows" {
+  let records : Array[Json] = [
+    { "request": "99", "generation": "3", "sample": 0 },
+    { "request": "99", "generation": "3", "sample": 2 },
+  ]
+  let rejected = try {
+    ignore(chronological_groups(records))
+    false
+  } catch {
+    _ => true
+  }
+  assert_true(rejected)
+}
