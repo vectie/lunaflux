@@ -82,7 +82,6 @@ fn projection_matrix_pipeline_source(
       slot,
       "k_base",
       physical.effects.has_pending_transfers(),
-      initial_synchronous=true,
     )
   } else {
     (
@@ -93,11 +92,7 @@ fn projection_matrix_pipeline_source(
       $|          const bool valid = logical_row < pipeline_rows && token_row >= 0 && token_row < token_count;
       $|          const __nv_bfloat16 *source = valid ? input + (unsigned long long)token_row * \{input_width}ULL + k_base + k : input;
       $|          const unsigned address = (unsigned)__cvta_generic_to_shared(destination + operand_index(local_row, k));
-      $|          if (overlap) {
-      $|            \{projection_operand_transfer_source(asynchronous=physical.effects.has_pending_transfers())}
-      $|          } else {
-      $|            \{projection_operand_transfer_source(asynchronous=false)}
-      $|          }
+      $|          \{projection_operand_transfer_source(asynchronous=physical.effects.has_pending_transfers())}
       $|        }
     )
   }
@@ -131,11 +126,7 @@ fn projection_matrix_pipeline_source(
     storage="matrix_storage",
     consumers~,
   )
-  let lifetime = projection_fold_lifetime_source(
-    physical,
-    body,
-    phase_argument=true,
-  )
+  let lifetime = projection_fold_lifetime_source(physical, body)
   let source =
     $|  const int pipeline_rows = \{row_count};
     $|  if (pipeline_rows >= \{plan.minimum_rows()}\{if selected { " && pipeline_rows <= " + maximum_rows.to_string() } else { "" }}) {
@@ -148,7 +139,7 @@ fn projection_matrix_pipeline_source(
     $|      const int column_begin = (work % column_groups) * \{columns};
     $|      const int consumer_row = (warp / \{distribution.output_groups()}) * \{fold_rows};
     $|      const int consumer_column = warp % \{distribution.output_groups()};\{if hoisted { "\n" + address_declarations } else { "" }}
-    $|      auto stage_operands = [&](int k_base, int stage, bool overlap) {
+    $|      auto stage_operands = [&](int k_base, int stage) {
     $|        \{if hoisted { "" } else { "__nv_bfloat16 *destination = matrix_storage + stage * " + slot.to_string() + ";" }}
     $|\{input_copy}
     $|\{weight_copy}

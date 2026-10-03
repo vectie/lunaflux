@@ -106,6 +106,20 @@ test "independent reuse geometry preserves math and hoists only addresses" {
     )
     assert_true(parts[1].contains("input_address_base[address_slot] + k_base"))
     assert_true(parts[1].contains("__syncthreads"))
+    // Bootstrap obeys the same pending-transfer effect as the fold. It may
+    // not introduce a synchronous input-only phase before asynchronous weights.
+    assert_eq(
+      parts[1].contains("cp.async."),
+      pipeline.effects.has_pending_transfers(),
+    )
+    assert_false(parts[1].contains("bool overlap"))
+    assert_false(parts[1].contains("if (overlap)"))
+    assert_false(parts[1].contains("uint4 value ="))
+    assert_true(parts[1].contains("stage_operands(0, 0)"))
+    assert_eq(
+      parts[1].contains("cp.async.wait_group 0;"),
+      pipeline.effects.has_pending_transfers(),
+    )
     // The pure affine address plan still covers each physical copy vector once.
     for operand in [0, 1] {
       let addresses = pipeline.producer_addresses(operand).unwrap()

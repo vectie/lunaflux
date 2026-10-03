@@ -1,0 +1,214 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn save(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+  env? : Map[String, String] = {},
+) -> String {
+  let out = @shell.Cmd(exe, args, cwd~, env~).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " passed")
+  out.stdout()
+}
+
+///|
+fn field(source : String, name : String) -> String raise {
+  let prefix = "// " + name + "="
+  guard source.split("\n").filter(x => x.has_prefix(prefix)).to_array()
+    is [line] else {
+    fail(name)
+  }
+  line[prefix.length():].trim().to_owned()
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    assert_eq(field("// PROBE_PRIMARY_GRID=32\n", "PROBE_PRIMARY_GRID"), "32")
+    println("matrix bootstrap diagnostic regression passed")
+    return
+  }
+  guard @env.args() is [_, root, serving, overlay] else {
+    fail("NEW_ROOT FROZEN_SERVING SCOPED_OVERLAY")
+  }
+  let moon = serving + "/toolchain/bin/moon"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  let geometry : Map[String, Array[String]] = Map([])
+  for mode in ["old", "new"] {
+    let source = root + "/" + mode
+    ignore(
+      save(root, "copy-" + mode, "cp", ["-a", serving + "/source", source]),
+    )
+    if mode == "new" {
+      ignore(
+        save(root, "overlay", "cp", [
+          "-a",
+          overlay + "/kernels/luna_cuda_projection_aot/.",
+          source + "/kernels/luna_cuda_projection_aot",
+        ]),
+      )
+    }
+    for family in ["output", "qkv", "head"] {
+      let key = mode + "-" + family
+      let cuda = save(
+        root,
+        "export-" + key,
+        moon,
+        [
+          "run", "--target", "native", "--warn-list", "-79-20-29-25-92-14", "tests/projection_pipeline_cuda_source_probe",
+          "--", family, "2", "4", "1", "4", "4", "1", "255",
+        ],
+        cwd=source,
+        env={ "PATH": serving + "/toolchain/bin:/usr/bin:/bin" },
+      )
+      @fs.write_file(root + "/" + key + ".cu", cuda, create_mode=CreateNew)
+      geometry[key] = [
+        field(cuda, "PROBE_PRIMARY_GRID"),
+        field(cuda, "PROBE_PRIMARY_BLOCK"),
+        field(cuda, "PROBE_PRIMARY_SHARED"),
+      ]
+      ignore(
+        save(root, "compile-" + key, nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--fmad=false",
+          "--maxrregcount=255",
+          "-lineinfo",
+          "-Xptxas=-v",
+          "-cubin",
+          root + "/" + key + ".cu",
+          "-o",
+          root + "/" + key + ".cubin",
+        ]),
+      )
+    }
+  }
+  ignore(
+    save(root, "build-probe", nvcc, [
+      "-O3",
+      "-arch=sm_121",
+      overlay + "/benchmarks/gpu_pipeline/matrix_bootstrap_probe.cu",
+      "-lcuda",
+      "-o",
+      root + "/matrix-bootstrap-probe",
+    ]),
+  )
+  for family in ["output", "qkv", "head"] {
+    for tokens in [32, 129, 512, 2048] {
+      let idle = @shell.Cmd("nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ]).output()
+      idle.check()
+      guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+      guard @fs.read_file("/proc/meminfo")
+        .text()
+        .split("\n")
+        .filter(x => x.has_prefix("MemAvailable:"))
+        .to_array()
+        is [line] &&
+        @string.parse_int64(
+          line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+        ) >=
+        33554432L else {
+        fail("32GiB reserve")
+      }
+      let args = [
+        root + "/old-" + family + ".cubin",
+        root + "/new-" + family + ".cubin",
+        family,
+        "\{tokens}",
+        "32",
+        ..geometry["old-" + family],
+        ..geometry["new-" + family],
+      ]
+      let out = save(
+        root,
+        family + "-tokens-\{tokens}",
+        "docker",
+        [
+          "run",
+          "--rm",
+          "--gpus",
+          "all",
+          "--network",
+          "none",
+          "--memory",
+          "8g",
+          "--memory-swap",
+          "8g",
+          "--mount",
+          "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+          "nvcr.io/nvidia/vllm:26.01-py3",
+          root + "/matrix-bootstrap-probe",
+          ..args,
+        ],
+      )
+      guard out.contains("bitwise=true scalar_checks=passed") else {
+        fail("numeric differential")
+      }
+      if tokens == 2048 {
+        @fs.write_file(
+          root + "/" + family + "-counter-command.json",
+          Json([root + "/matrix-bootstrap-probe", ..args]).stringify(),
+          create_mode=CreateNew,
+        )
+      }
+    }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      ignore(
+        save(
+          root,
+          family + "-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "99",
+            root + "/matrix-bootstrap-probe",
+            root + "/old-" + family + ".cubin",
+            root + "/new-" + family + ".cubin",
+            family,
+            "129",
+            "32",
+            ..geometry["old-" + family],
+            ..geometry["new-" + family],
+            "--check",
+          ],
+        ),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=matrix-bootstrap A/B; no serving claim\n",
+    create_mode=CreateNew,
+  )
+}

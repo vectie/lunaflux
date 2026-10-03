@@ -39,18 +39,9 @@ fn projection_hoisted_transfer_source(
   slot_elements : Int,
   offset : String,
   asynchronous : Bool,
-  initial_synchronous? : Bool = false,
 ) -> String {
   let (vectors, workers, rounds) = plan.geometry()
-  let copy = if initial_synchronous {
-    "if (overlap) { " +
-    projection_operand_transfer_source(asynchronous~) +
-    " } else { " +
-    projection_operand_transfer_source(asynchronous=false) +
-    " }"
-  } else {
-    projection_operand_transfer_source(asynchronous~)
-  }
+  let copy = projection_operand_transfer_source(asynchronous~)
   (
     $|        #pragma unroll
     $|        for (int address_slot = 0; address_slot < \{rounds}; ++address_slot) {
