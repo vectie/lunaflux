@@ -33,6 +33,7 @@ async fn main {
     )
   }
   guard !@fs.exists(root) else { fail("non-overwriting root") }
+  guard @fs.exists(harness) else { fail("matched harness missing") }
   for serving in [baseline, partitioned] {
     guard @fs.read_file(serving + "/RESULT.txt")
       .text()
@@ -110,7 +111,7 @@ async fn main {
     "scope": if !options.contains("--compiler-module-ab") {
       "ordinary timing, diagnostic forced mixed dispatch, identical AOT modules; no production tuning records"
     } else {
-      "ordinary timing, identical runtime and other AOT modules, changed decode compiler module with fresh route measurements; diagnostic forced mixed dispatch in both arms"
+      "ordinary timing, identical runtime; scoped changed compiler modules with fresh route measurements; diagnostic forced mixed dispatch in both arms. See prepared runtime MODULE_DIFF or module verification for exact scope."
     },
   }
   @fs.write_file(

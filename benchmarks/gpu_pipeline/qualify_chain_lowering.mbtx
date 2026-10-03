@@ -1,0 +1,311 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  println("starting " + label)
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd=root + "/source", env={
+    "PATH": root +
+    "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/local/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed " + label)
+  out.stdout()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn reserve() -> Unit {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory")
+  }
+  guard @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+}
+
+///|
+// Paired qualification of terminal instruction changes. This deliberately
+// retains the baseline worker, physical schedule, numerical law and geometry.
+// It does not reuse timings or promote changed modules into serving routes.
+async fn main {
+  guard @env.args() is [_, base, overlay, calibration, root] else {
+    fail("FROZEN_SERVING SCOPED_OVERLAY CALIBRATION NEW_EMPTY_ROOT")
+  }
+  reserve()
+  guard @fs.read_file(base + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("baseline incomplete")
+  }
+  if !@fs.exists(root + "/export.stdout") {
+    @fs.mkdir(root + "/source")
+    @shell.Cmd("cp", ["-a", base + "/source/.", root + "/source/"]).run()
+    @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+    let allowed = [
+      "kernels/luna_cuda_projection_aot/", "kernels/luna_cuda_fused_parallel_aot/",
+      "kernels/luna_cuda_attention_tile_source/", "cmd/lunaflux_qwen3_bf16_candidate_export/",
+      "cmd/lunaflux_qwen3_fused_runtime_bundle_export/",
+    ]
+    let paths = @fs.read_file(overlay + "/FILES.txt")
+      .text()
+      .split("\n")
+      .filter(x => !x.is_empty())
+      .map(x => x.to_owned())
+      .to_array()
+    for path in paths {
+      guard !path.contains("..") &&
+        allowed.any(prefix => path.has_prefix(prefix)) else {
+        fail("overlay scope")
+      }
+      @shell.Cmd("cp", [overlay + "/" + path, root + "/source/" + path]).run()
+    }
+    ignore(
+      record(
+        root,
+        "overlay-identities",
+        "sha256sum",
+        paths.map(path => root + "/source/" + path),
+      ),
+    )
+    let moon = root + "/toolchain/bin/moon"
+    ignore(
+      record(root, "build-exporter", moon, [
+        "build", "cmd/lunaflux_qwen3_bf16_candidate_export", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+        "--target", "native", "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+        "-j", "2",
+      ]),
+    )
+    let command = @json.parse(
+      @fs.read_file(base + "/fresh-export.command.json").text(),
+    )
+    guard command is Array(values) else { fail("export command") }
+    let argv = values.map(x => {
+      guard x is String(s) else { fail("argument") }
+      s
+    })
+    let args = argv[1:].to_owned()
+    args[16] = root + "/candidate"
+    args.append([
+      "--ingress-policy-search", "--ingress-shared-limit", "98304", "--device-target",
+      "12", "1",
+    ])
+    ignore(
+      record(
+        root,
+        "export",
+        root +
+        "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+        args,
+      ),
+    )
+  }
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  for
+    (name, directory) in [
+      ("ingress", "reusable-qwen-full-ingress-ingress-g4-a2-s2-t2-f1-r4"),
+      ("prefill", "reusable-qwen-prefill-attention"),
+    ] {
+    if @fs.exists(root + "/deterministic-" + name + ".stdout") {
+      continue
+    }
+    let selected = root + "/candidate/" + directory
+    let recipe = @fs.read_file(selected + "/kernel.recipe").text()
+    assert_eq(field(recipe, "source_sha256"), sha(selected + "/kernel.cu"))
+    let frozen = if name == "ingress" {
+      calibration + "/selected/reusable-qwen-full-ingress"
+    } else {
+      base + "/prefill-selected"
+    }
+    let old_recipe = @fs.read_file(frozen + "/kernel.recipe").text()
+    assert_eq(field(recipe, "target"), "sm_121")
+    for
+      key in [
+        "function_symbol", "block", "grid", "shared_memory_bytes", "query_tile_rows",
+        "max_registers",
+      ] {
+      assert_eq(field(recipe, key), field(old_recipe, key))
+    }
+    guard field(recipe, "source_sha256") != field(old_recipe, "source_sha256") else {
+      fail("unchanged source")
+    }
+    @fs.mkdir(root + "/" + name + "-baseline")
+    @fs.write_file(
+      root + "/" + name + "-baseline/kernel.recipe",
+      old_recipe,
+      create_mode=CreateNew,
+    )
+    let old_module = if name == "ingress" {
+      base + "/fused/ingress.cubin"
+    } else {
+      base + "/prefill-selected/kernel.cubin"
+    }
+    @fs.write_file(
+      root + "/" + name + "-baseline/kernel.cubin",
+      @fs.read_file(old_module),
+      create_mode=CreateNew,
+    )
+    let destination = root + "/" + name + "-selected"
+    @fs.mkdir(destination)
+    for file in ["kernel.recipe", "kernel.cu"] {
+      @fs.write_file(
+        destination + "/" + file,
+        @fs.read_file(selected + "/" + file),
+        create_mode=CreateNew,
+      )
+    }
+    for suffix in ["first", "second"] {
+      ignore(
+        record(root, "compile-" + name + "-" + suffix, nvcc, [
+          "-O3",
+          "-arch=" + field(recipe, "target"),
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--maxrregcount=" + field(recipe, "max_registers"),
+          "--Werror",
+          "all-warnings",
+          "-Xptxas=-v",
+          "-cubin",
+          selected + "/kernel.cu",
+          "-o",
+          destination + "/" + suffix + ".cubin",
+        ]),
+      )
+    }
+    ignore(
+      record(root, "deterministic-" + name, "cmp", [
+        destination + "/first.cubin",
+        destination + "/second.cubin",
+      ]),
+    )
+    @fs.write_file(
+      destination + "/kernel.cubin",
+      @fs.read_file(destination + "/first.cubin"),
+      create_mode=CreateNew,
+    )
+  }
+  ignore(
+    record(root, "probe-build", nvcc, [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      root + "/source/benchmarks/gpu_pipeline/selected_policy_probe.cu",
+      "-lcuda",
+      "-o",
+      root + "/probe",
+    ]),
+  )
+  for name in ["ingress", "prefill"] {
+    let probe = if name == "ingress" {
+      root + "/probe"
+    } else {
+      "/home/wlc004s/lunaflux-final-gap-investigation-20260930.tiAzXMDJ/counter-luna-replay/attention-probe"
+    }
+    let common = [
+      calibration + "/" + name + ".spec",
+      root + "/" + name + "-baseline",
+      root + "/" + name + "-selected",
+    ]
+    for
+      (tokens, rows, history, mixed) in [
+        (2048, 1, 0, false),
+        (2048, 1, 2048, false),
+        (2048, 16, 4096, true),
+        (129, 16, 4096, true),
+        (2048, 16, 0, false),
+        (1, 1, 4096, false),
+      ] {
+      reserve()
+      let label = "\{name}-q\{tokens}-r\{rows}-h\{history}-m\{mixed}"
+      let out = record(
+        root,
+        label,
+        probe,
+        common +
+        [tokens.to_string(), rows.to_string(), history.to_string()] +
+        (if mixed { ["--mixed"] } else { [] }),
+      )
+      guard out.contains("bitwise=true") && !out.contains("bitwise=false") else {
+        fail("same-law mismatch")
+      }
+    }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      reserve()
+      ignore(
+        record(
+          root,
+          "sanitizer-" + name + "-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          ["--tool", tool, "--error-exitcode", "99"] +
+          (if tool == "memcheck" { ["--leak-check", "full"] } else { [] }) +
+          [probe] +
+          common +
+          ["129", "16", "4096", "--check-only", "--mixed"],
+        ),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=paired-chain-lowering-not-serving\n",
+    create_mode=CreateNew,
+  )
+}

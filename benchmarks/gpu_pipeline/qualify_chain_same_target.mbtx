@@ -1,0 +1,140 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  command : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json(command).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(command[0], command[1:].to_owned()).output(
+    max_output_bytes=33554432,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(label + " completed")
+  result.stdout()
+}
+
+///|
+fn command(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(values) else { fail("saved command") }
+  values.map(value => {
+    guard value is String(text) else { fail("command argument") }
+    text
+  })
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, qualified, frozen, root] else {
+    fail("QUALIFIED_CHAIN FROZEN_SERVING NEW_EMPTY_ROOT")
+  }
+  guard !@fs.exists(root) else { fail("non-overwriting root") }
+  for origin in [qualified, frozen] {
+    guard @fs.read_file(origin + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("incomplete source")
+    }
+  }
+  let old_source = frozen + "/fused/compiled/prefill/first/kernel.cu"
+  guard @fs.exists(old_source) else { fail("frozen prefill source missing") }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(line => line.has_prefix("MemAvailable:"))
+    .to_array()
+    is [memory] &&
+    @string.parse_int64(
+      memory.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+  @fs.mkdir(root)
+  @fs.mkdir(root + "/baseline")
+  // Recompile the actual old source with the exact new compile flags. This
+  // isolates lowering changes from the frozen sm120 -> sm121 target change.
+  let compile = command(
+    @fs.read_file(qualified + "/compile-prefill-first.command.json").text(),
+  )
+  assert_eq(compile.filter(x => x.has_prefix("-arch=")), ["-arch=sm_121"])
+  let source_index = compile.length() - 3
+  assert_true(compile[source_index].has_suffix("/kernel.cu"))
+  assert_eq(compile[source_index + 1], "-o")
+  @fs.write_file(
+    root + "/baseline/kernel.cu",
+    @fs.read_file(old_source),
+    create_mode=CreateNew,
+  )
+  let recipe = @fs.read_file(qualified + "/prefill-baseline/kernel.recipe").text()
+  assert_true(recipe.contains("target=sm_120\n"))
+  @fs.write_file(
+    root + "/baseline/kernel.recipe",
+    recipe.replace(old="target=sm_120\n", new="target=sm_121\n"),
+    create_mode=CreateNew,
+  )
+  compile[source_index] = root + "/baseline/kernel.cu"
+  compile[compile.length() - 1] = root + "/baseline/kernel.cubin"
+  ignore(capture(root, "compile-baseline", compile))
+  for
+    (tokens, rows, history, mixed) in [
+      (2048, 1, 0, false),
+      (2048, 1, 2048, false),
+      (2048, 16, 4096, true),
+      (129, 16, 4096, true),
+      (2048, 16, 0, false),
+      (1, 1, 4096, false),
+    ] {
+    let label = "prefill-q\{tokens}-r\{rows}-h\{history}-m\{mixed}"
+    let probe = command(
+      @fs.read_file(qualified + "/" + label + ".command.json").text(),
+    )
+    assert_eq(probe[2], qualified + "/prefill-baseline")
+    probe[2] = root + "/baseline"
+    let result = capture(root, label, probe)
+    assert_eq(
+      result
+      .split("\n")
+      .filter(x => x.has_prefix("tokens="))
+      .to_array()
+      .length(),
+      5,
+    )
+    guard result.contains("bitwise=true") && !result.contains("bitwise=false") else {
+      fail("same-law mismatch")
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=old-and-new-prefill-source-identical-sm121-flags\n",
+    create_mode=CreateNew,
+  )
+}

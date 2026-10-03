@@ -1,0 +1,60 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let result = []
+  let mut quoted = false
+  let mut field = StringBuilder()
+  for character in line {
+    if character == '"' {
+      quoted = !quoted
+    } else if character == ',' && !quoted {
+      result.push(field.to_string())
+      field = StringBuilder()
+    } else {
+      field.write_char(character)
+    }
+  }
+  result.push(field.to_string())
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_PAIRED_COUNTER_ROOT") }
+  guard @fs.read_file(root + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\n") else {
+    fail("incomplete")
+  }
+  let wanted = [
+    "gpu__time_duration.sum", "launch__registers_per_thread", "launch__occupancy_per_register_count",
+    "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "dram__bytes_read.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+    "smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio", "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio",
+    "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio",
+    "smsp__average_warps_issue_stalled_mio_throttle_per_issue_active.ratio", "derived__memory_l1_wavefronts_shared_excessive",
+  ]
+  for arm in ["old", "new"] {
+    let lines = @fs.read_file(root + "/" + arm + "-raw.stdout")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("\""))
+      .to_array()
+    guard lines is [header, _, row] else { fail("one capture per arm") }
+    let names = csv(header)
+    let values = csv(row)
+    assert_eq(names.length(), values.length())
+    println(arm + " (profiled replay, not service wall time)")
+    for name in wanted {
+      if names.search(name) is Some(index) {
+        println(name + "=" + values[index])
+      }
+    }
+  }
+}

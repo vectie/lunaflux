@@ -1,0 +1,209 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  executable : String,
+  args : Array[String],
+) -> String {
+  println("starting " + label)
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([executable, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(executable, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed " + label)
+  out.stdout()
+}
+
+///|
+// Frozen control executables and unchanged geometry isolate terminal lowering.
+// Module-bound route measurements are regenerated, not copied across cubins.
+async fn main {
+  guard @env.args()
+    is [_, base, qualified, measure, calibration, root, .. options] &&
+    (options.is_empty() || options is ["--finish"]) else {
+    fail(
+      "BASELINE QUALIFIED_CHAIN MEASURE_TOOL CALIBRATION NEW_ROOT [--finish]",
+    )
+  }
+  let finishing = options is ["--finish"]
+  guard @fs.exists(measure) else { fail("route measurement tool missing") }
+  guard !@fs.exists(root + "/RESULT.txt") && (finishing || !@fs.exists(root)) else {
+    fail("non-overwriting root")
+  }
+  for origin in [base, qualified] {
+    guard @fs.read_file(origin + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("incomplete qualification")
+    }
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  if !finishing {
+    @fs.mkdir(root)
+    @shell.Cmd("cp", ["-a", qualified + "/source", root + "/source"]).run()
+    for
+      name in [
+        "release", "candidate", "fused", "decode-selected", "check-probe",
+      ] {
+      @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+    }
+    for name in ["ingress-selected", "prefill-selected"] {
+      @shell.Cmd("cp", ["-a", qualified + "/" + name, root + "/" + name]).run()
+    }
+    @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+    for
+      name in [
+        "convert.stdout", "bind.stdout", "toolchain.v1", "benchmark.mbtx", "export.stdout",
+        "prepare-full.mbtx",
+      ] {
+      @fs.write_file(
+        root + "/" + name,
+        @fs.read_file(base + "/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    // Native executables are not rebuilt: absolute build-directory differences
+    // must not confound a paired kernel comparison.
+    for command in ["device_worker_child", "lunaflux"] {
+      let path = "source/_build/native/release/build/cmd/" +
+        command +
+        "/" +
+        command +
+        ".exe"
+      @shell.Cmd("cp", [base + "/" + path, root + "/" + path]).run()
+      assert_eq(
+        @fs.read_file(base + "/" + path).binary(),
+        @fs.read_file(root + "/" + path).binary(),
+      )
+    }
+    for name in ["ingress", "prefill"] {
+      @shell.Cmd("chmod", ["u+w", root + "/fused/" + name + ".cubin"]).run()
+      @shell.Cmd("cp", [
+        root + "/" + name + "-selected/kernel.cubin",
+        root + "/fused/" + name + ".cubin",
+      ]).run()
+    }
+    guard @json.parse(
+        @fs.read_file(base + "/reexport-bundle.command.json").text(),
+      )
+      is Array(values) else {
+      fail("frozen bundle command")
+    }
+    let argv = values.map(value => {
+      guard value is String(text) else { fail("command string") }
+      text.replace(old=base + "/", new=root + "/")
+    })
+    let args = argv[1:].to_owned()
+    for
+      name in [
+        "reusable-fused-runtime-bundle.v3", "export.arguments", "export.stdout",
+      ] {
+      @shell.Cmd("mv", [root + "/fused/" + name, root + "/fused/frozen-" + name]).run()
+    }
+    @fs.write_file(
+      root + "/fused/export.arguments",
+      args.join("\n") + "\n",
+      create_mode=CreateNew,
+    )
+    let report = record(root, "reexport-bundle", argv[0], args)
+    @fs.write_file(root + "/fused/export.stdout", report, create_mode=CreateNew)
+    let before = @fs.read_file(base + "/fused/reusable-fused-runtime-bundle.v3").text()
+    let after = @fs.read_file(root + "/fused/reusable-fused-runtime-bundle.v3").text()
+    assert_eq(field(before, "module_count"), "9")
+    assert_eq(field(after, "module_count"), "9")
+    for index in 0..<9 {
+      for
+        key in [
+          "abi", "first_operation", "operation_count", "function_symbol", "query_tile_rows",
+          "query_metadata_version", "heads_per_cta", "grid_x", "grid_y", "grid_z",
+          "block_x", "block_y", "block_z", "shared_bytes", "module_sha256",
+        ] {
+        let name = "module_\{index}_" + key
+        let changed = [
+          "qwen-qkv-qknorm-positioned-rope-paged-kvwrite-production-v4", "qwen-paged-attention-readonly-production-v2",
+        ].contains(field(before, "module_\{index}_abi"))
+        if changed && key == "module_sha256" {
+          assert_true(field(before, name) != field(after, name))
+        } else {
+          assert_eq(field(before, name), field(after, name), msg=name)
+        }
+      }
+    }
+    @fs.write_file(
+      root + "/MODULE_DIFF.txt",
+      "only ingress and readonly-prefill modules changed; geometry and seven other modules identical\n",
+      create_mode=CreateNew,
+    )
+  } else {
+    assert_eq(
+      @fs.read_file(root + "/MODULE_DIFF.txt").text(),
+      "only ingress and readonly-prefill modules changed; geometry and seven other modules identical\n",
+    )
+    guard !@fs.exists(root + "/decode-route-measurements") else {
+      fail("partial route measurement cannot be resumed")
+    }
+  }
+  let moon = root + "/toolchain/bin/moon"
+  ignore(
+    record(
+      root,
+      if finishing {
+        "measure-routes-complete"
+      } else {
+        "measure-routes"
+      },
+      moon,
+      ["run", measure, root, calibration],
+    ),
+  )
+  for phase in ["materialize", "capacity"] {
+    ignore(
+      record(root, "prepare-" + phase, moon, [
+        "run",
+        root + "/prepare-full.mbtx",
+        root,
+        phase,
+      ]),
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=qualified-chain-modules-with-fresh-routes-not-throughput\n",
+    create_mode=CreateNew,
+  )
+}

@@ -1,0 +1,119 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn value(line : StringView, key : String) -> Double raise {
+  guard line.split(" ").filter(x => x.has_prefix(key + "=")).to_array()
+    is [token] else {
+    fail(key)
+  }
+  let result = @string.parse_double(token[key.length() + 1:])
+  guard result > 0.0 && !result.is_inf() && !result.is_nan() else {
+    fail("invalid timing")
+  }
+  result
+}
+
+///|
+fn median(samples : Array[Double]) -> Double raise {
+  assert_eq(samples.length(), 5)
+  let sorted = samples.copy()
+  sorted.sort()
+  sorted[2]
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    let samples = [5.0, 2.0, 3.0, 1.0, 4.0]
+    assert_eq(median(samples), 3.0)
+    assert_eq(samples, [5.0, 2.0, 3.0, 1.0, 4.0])
+    assert_eq(value("old_us=1.25 new_us=2.0", "old_us"), 1.25)
+    for
+      malformed in [
+        "old_us=0", "old_us=-1", "old_us=inf", "old_us=NaN", "old_us=1 old_us=2",
+        "new_us=1",
+      ] {
+      try value(malformed, "old_us") catch {
+        _ => ()
+      } noraise {
+        _ => fail("invalid timing accepted")
+      }
+    }
+    println("chain timing summary regression passed")
+    return
+  }
+  guard @env.args() is [_, root, output, .. options] &&
+    (options.is_empty() || options is ["--prefill-same-target"]) &&
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n") else {
+    fail("QUALIFIED_CHAIN NEW_OUTPUT [--prefill-same-target] | --self-test")
+  }
+  let same_target = options is ["--prefill-same-target"]
+  if same_target {
+    assert_true(
+      @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .contains("scope=old-and-new-prefill-source-identical-sm121-flags\n"),
+    )
+  }
+  let cells : Array[Json] = []
+  for family in (if same_target { ["prefill"] } else { ["ingress", "prefill"] }) {
+    for
+      (tokens, rows, history, mixed) in [
+        (2048, 1, 0, false),
+        (2048, 1, 2048, false),
+        (2048, 16, 4096, true),
+        (129, 16, 4096, true),
+        (2048, 16, 0, false),
+        (1, 1, 4096, false),
+      ] {
+      let name = "\{family}-q\{tokens}-r\{rows}-h\{history}-m\{mixed}"
+      let lines = @fs.read_file(root + "/" + name + ".stdout")
+        .text()
+        .split("\n")
+        .filter(x => x.has_prefix("tokens="))
+        .to_array()
+      assert_eq(lines.length(), 5)
+      let old : Array[Double] = []
+      let fresh : Array[Double] = []
+      for trial, line in lines {
+        assert_true(line.contains("trial=\{trial} "))
+        assert_true(line.contains("bitwise=true"))
+        old.push(value(line, "old_us"))
+        fresh.push(value(line, "new_us"))
+      }
+      let before = median(old)
+      let after = median(fresh)
+      cells.push({
+        "family": family,
+        "tokens": tokens,
+        "rows": rows,
+        "history": history,
+        "mixed": mixed,
+        "before_us": old,
+        "after_us": fresh,
+        "before_median_us": before,
+        "after_median_us": after,
+        "time_reduction_percent": 100.0 * (1.0 - after / before),
+        "bitwise": true,
+      })
+    }
+  }
+  let result : Json = {
+    "schema": "lunaflux.chain-repair-pair.v1",
+    "cells": cells,
+    "scope": if same_target {
+      "Five alternating ordinary CUDA-event samples with identical sm121 flags, geometry and operands. No fresh reference framework ratio or confidence interval."
+    } else {
+      "Five alternating ordinary CUDA-event samples with unchanged geometry and operands; selected serving baseline cubins versus new sm121 cubins. No fresh reference framework ratio or confidence interval."
+    },
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(result.stringify(indent=2))
+}
