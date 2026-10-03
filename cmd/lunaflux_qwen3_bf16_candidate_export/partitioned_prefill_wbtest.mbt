@@ -13,7 +13,7 @@ test "partitioned prefill specializes the low-parallelism query tile" {
     context_tokens=40960,
     causal=true,
     allow_alternative_softmax_reduction=true,
-    key_value_read_view=DenseCurrentAndPagedHistory,
+    key_value_read_view=AffineDenseCurrentAndPagedHistory,
     required_fragment_ownership=Some(QueryOwnedFragments),
   )
   let specialized = qwen_partitioned_prefill_problem(maximum, 16)
@@ -24,7 +24,10 @@ test "partitioned prefill specializes the low-parallelism query tile" {
   assert_eq(specialized.batch_rows(), maximum.batch_rows())
   assert_eq(specialized.is_causal(), maximum.is_causal())
   assert_true(specialized.allows_alternative_softmax_reduction())
-  assert_eq(specialized.key_value_read_view(), DenseCurrentAndPagedHistory)
+  assert_eq(
+    specialized.key_value_read_view(),
+    AffineDenseCurrentAndPagedHistory,
+  )
   assert_eq(
     specialized.required_fragment_ownership(),
     Some(QueryOwnedFragments),

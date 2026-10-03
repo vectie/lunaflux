@@ -3,6 +3,7 @@
 /// synthetic timing observations choose a fixture, never enter a release.
 fn repair_prefill_lifetime_lowering(
   candidate_id : Int,
+  affine_current? : Bool = false,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -19,7 +20,11 @@ fn repair_prefill_lifetime_lowering(
     context_tokens=8192,
     causal=true,
     allow_alternative_softmax_reduction=true,
-    key_value_read_view=DenseCurrentAndPagedHistory,
+    key_value_read_view=if affine_current {
+      AffineDenseCurrentAndPagedHistory
+    } else {
+      DenseCurrentAndPagedHistory
+    },
   )
   let capabilities = @luna_attention_strategy.AttentionCompilerCapabilities::new(
     subgroup_width=32,

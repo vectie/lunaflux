@@ -104,7 +104,7 @@ fn emit_cuda_query_owned_attention_source(
     $|    const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
     $|    float maximum[2] = {-CUDART_INF_F,-CUDART_INF_F}, denominator[2] = {};
     $|    LfMatrixAccumulator out[LF_HEAD_DIMENSION/16] = {};
-    $|\{cuda_query_operand_bootstrap(fragments)}\{cuda_query_owned_stage(abi, lowering.reads_dense_current_key_value(), asynchronous, split~)}
+    $|\{cuda_query_operand_bootstrap(fragments)}\{cuda_query_owned_stage(abi, lowering.reads_dense_current_key_value(), asynchronous, split~, affine_positions=lowering.affine_current_positions())}
     $|    int slot=0;
     $|    if (key_begin<key_end) { \{cuda_query_owned_effects(effects, PrimeQueryFold)} }
     $|    for (int kb=key_begin; kb<key_end; kb+=LF_KEY_VALUE_TILE) {

@@ -7,6 +7,7 @@ fn cuda_query_owned_stage(
   dense : Bool,
   asynchronous : Bool,
   split? : Bool = false,
+  affine_positions? : Bool = false,
 ) -> String {
   let transfer = if asynchronous {
     let text =
@@ -69,6 +70,7 @@ fn cuda_query_owned_stage(
     vectors,
     transfer,
     commit,
+    affine_positions~,
   )
   if specialize {
     retained +
@@ -97,13 +99,14 @@ fn cuda_query_owned_stage_body(
   vectors : String,
   transfer : String,
   commit : String,
+  affine_positions? : Bool = false,
 ) -> String {
   let source =
     $|    auto \{name} = [&](int kb, int stage\{if split { ", int kind" } else { "" }}) {
     $|\{vectors}
     $|        const int r=vector*8/LF_HEAD_DIMENSION, c=vector*8%LF_HEAD_DIMENSION;
     $|        const int position=kb+r;
-    $|\{cuda_prefill_key_value_view_address(abi, true, dense~, retained_value=split)}
+    $|\{cuda_prefill_key_value_view_address(abi, true, dense~, retained_value=split, affine_positions~)}
     $|        auto *destination_k=kbuf+stage*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION+lf_operand_index(r,c,LF_HEAD_DIMENSION);
     $|        auto *destination_v=vbuf+stage*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION+lf_operand_index(r,c,LF_HEAD_DIMENSION);
     $|\{transfer}

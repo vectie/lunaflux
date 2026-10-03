@@ -1,11 +1,15 @@
 ///|
-/// Two realizations of the same immutable logical KV stream. The second
-/// requires current rows to contain exactly the K/V values committed to the
+/// Realizations of the same immutable logical KV stream. Dense-current views
+/// require current rows to contain exactly the K/V values committed to the
 /// cache (including normalization/position transforms). It does not authorize
 /// skipping the cache write needed by future requests.
 pub(all) enum AttentionKeyValueReadView {
   PagedCacheOnly
   DenseCurrentAndPagedHistory
+  /// The producer additionally guarantees position(row, i) = start(row) + i.
+  /// This is a semantic precondition, not a shape heuristic. Frontends with
+  /// arbitrary positions must retain DenseCurrentAndPagedHistory.
+  AffineDenseCurrentAndPagedHistory
 } derive(Debug, Eq)
 
 ///|
@@ -29,7 +33,7 @@ pub fn attention_key_value_read_address(
     current_begin > 2147483647 - current_count {
     return None
   }
-  if view == DenseCurrentAndPagedHistory &&
+  if view != PagedCacheOnly &&
     position >= current_begin &&
     position - current_begin < current_count {
     Some(CurrentRow(position - current_begin))

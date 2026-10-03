@@ -18,7 +18,7 @@ test "all exported prefill aliases select query ownership and current history re
         context_tokens=4096,
         causal=true,
         allow_alternative_softmax_reduction=true,
-        key_value_read_view=DenseCurrentAndPagedHistory,
+        key_value_read_view=AffineDenseCurrentAndPagedHistory,
         required_fragment_ownership=Some(QueryOwnedFragments),
       ),
       capabilities=@luna_attention_strategy.AttentionCompilerCapabilities::new(
@@ -63,6 +63,7 @@ test "all exported prefill aliases select query ownership and current history re
   assert_eq(selected.functional().plan().candidate().stable_id(), 318)
   assert_true(selected.lowering().query_owned_fragments())
   assert_true(selected.lowering().reads_dense_current_key_value())
+  assert_true(selected.lowering().affine_current_positions())
   assert_eq(selected.lowering().launch(), (128, 16, 128, 49168L))
   assert_eq(selected.lowering().compiler_register_ceiling(128), 255)
   assert_true(
@@ -71,6 +72,7 @@ test "all exported prefill aliases select query ownership and current history re
   let source = @utf8.decode(selected.source().bytes())
   assert_false(source.contains("lf_matrix_store_float"))
   assert_false(source.contains("lf_float_index"))
+  assert_false(source.contains("positions[begin+current_delta]==position"))
   guard qwen_wide_query_prefill_variant(frontier) is Some(alias_) else {
     fail("missing profile-valid alias")
   }

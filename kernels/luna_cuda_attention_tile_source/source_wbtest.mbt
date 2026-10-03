@@ -5,6 +5,7 @@ fn source_test_lowering(
   maximum_pipeline_stages : Int,
   candidate_id? : Int? = None,
   dense_current? : Bool = false,
+  affine_current? : Bool = false,
   partitioned? : Bool = false,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
@@ -21,7 +22,9 @@ fn source_test_lowering(
     context_tokens=4096,
     causal=true,
     allow_alternative_softmax_reduction=candidate_id is Some(_),
-    key_value_read_view=if dense_current {
+    key_value_read_view=if affine_current {
+      AffineDenseCurrentAndPagedHistory
+    } else if dense_current {
       DenseCurrentAndPagedHistory
     } else {
       PagedCacheOnly

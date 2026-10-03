@@ -1,0 +1,63 @@
+///|
+test "affine substitution retains interval and overflow boundaries" {
+  let views : Array[AttentionKeyValueReadView] = [
+    DenseCurrentAndPagedHistory,
+    AffineDenseCurrentAndPagedHistory,
+  ]
+  for view in views {
+    assert_eq(
+      attention_key_value_read_address(
+        view,
+        position=11,
+        current_begin=10,
+        current_count=2,
+      ),
+      Some(CurrentRow(1)),
+    )
+    assert_eq(
+      attention_key_value_read_address(
+        view,
+        position=9,
+        current_begin=10,
+        current_count=2,
+      ),
+      Some(HistoricalPosition(9)),
+    )
+    assert_eq(
+      attention_key_value_read_address(
+        view,
+        position=12,
+        current_begin=10,
+        current_count=2,
+      ),
+      Some(HistoricalPosition(12)),
+    )
+    assert_eq(
+      attention_key_value_read_address(
+        view,
+        position=10,
+        current_begin=10,
+        current_count=0,
+      ),
+      Some(HistoricalPosition(10)),
+    )
+    assert_eq(
+      attention_key_value_read_address(
+        view,
+        position=0,
+        current_begin=2147483647,
+        current_count=1,
+      ),
+      None,
+    )
+  }
+  assert_eq(
+    attention_key_value_read_address(
+      PagedCacheOnly,
+      position=11,
+      current_begin=10,
+      current_count=2,
+    ),
+    Some(HistoricalPosition(11)),
+  )
+}

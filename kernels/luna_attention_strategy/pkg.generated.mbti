@@ -134,6 +134,7 @@ pub(all) enum AttentionKeyValueReadAddress {
 pub(all) enum AttentionKeyValueReadView {
   PagedCacheOnly
   DenseCurrentAndPagedHistory
+  AffineDenseCurrentAndPagedHistory
 } derive(Eq, @debug.Debug)
 
 pub struct AttentionMatrixShape {

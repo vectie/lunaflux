@@ -162,6 +162,15 @@ pub fn CudaAttentionTileLowering::reads_dense_current_key_value(
 }
 
 ///|
+/// Producer-owned affine position contract carried by the generic problem.
+/// No backend infers it from a model name, batch size or observed trace.
+pub fn CudaAttentionTileLowering::affine_current_positions(
+  self : CudaAttentionTileLowering,
+) -> Bool {
+  self.affine_current_positions
+}
+
+///|
 /// The only terminal-plan entry. Source generators consume this refinement;
 /// they do not reverse-map CUDA instructions back into generic schedules.
 pub fn CudaAttentionTileLowering::physical_program(

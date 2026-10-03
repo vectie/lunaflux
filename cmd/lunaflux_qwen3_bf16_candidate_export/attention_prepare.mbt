@@ -145,7 +145,11 @@ fn prepare_qwen_compiler_prefill(
     context_tokens=plan.shape_constraints().max_sequence_tokens(),
     causal=true,
     allow_alternative_softmax_reduction=true,
-    key_value_read_view=DenseCurrentAndPagedHistory,
+    // Device-step preflight constructs each row's positions as start + index.
+    // Carry this producer law into the immutable compiler problem, rather than
+    // rediscovering contiguous positions in every KV vector load. Frontends
+    // accepting arbitrary positions must use the checked dense-current view.
+    key_value_read_view=AffineDenseCurrentAndPagedHistory,
     required_fragment_ownership=Some(QueryOwnedFragments),
   ) catch {
     _ => raise QwenReadOnlyPreparation

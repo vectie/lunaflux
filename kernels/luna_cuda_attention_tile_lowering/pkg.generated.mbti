@@ -40,6 +40,7 @@ pub(all) enum CudaAttentionCopyPrimitive {
 pub struct CudaAttentionTileLowering {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileLowering::affine_current_positions(Self) -> Bool
 pub fn CudaAttentionTileLowering::canonical_bytes(Self) -> Bytes
 pub fn CudaAttentionTileLowering::compiler_register_ceiling(Self, Int) -> Int
 pub fn CudaAttentionTileLowering::compute(Self) -> CudaAttentionComputePrimitive

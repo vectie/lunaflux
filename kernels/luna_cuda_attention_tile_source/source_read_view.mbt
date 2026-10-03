@@ -8,6 +8,7 @@ fn cuda_prefill_key_value_view_address(
   query_owned : Bool,
   dense? : Bool = true,
   retained_value? : Bool = false,
+  affine_positions? : Bool = false,
 ) -> String {
   let (heads, kv_heads, dimension, page_tokens) = abi.shape()
   let (row_width, page_stride, pages) = abi.layout()
@@ -54,7 +55,12 @@ fn cuda_prefill_key_value_view_address(
     "0"
   }
   let from_current = if dense {
-    "\{valid} && current_delta>=0 && current_delta<\{row_end}-\{row_begin} && \{positions}[\{row_begin}+current_delta]==\{position}"
+    "\{valid} && current_delta>=0 && current_delta<\{row_end}-\{row_begin}" +
+    (if affine_positions {
+      ""
+    } else {
+      " && \{positions}[\{row_begin}+current_delta]==\{position}"
+    })
   } else {
     "false"
   }

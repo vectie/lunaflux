@@ -53,6 +53,7 @@ pub struct CudaAttentionTileLowering {
     @luna_attention_tile_schedule.AttentionTileScheduleRule,
   ]
   priv reads_dense_current_key_value : Bool
+  priv affine_current_positions : Bool
   priv matrix_storage_layout : @luna_attention_tile_schedule.AttentionTileStorageLayout?
   priv canonical : Bytes
   priv digest : CudaAttentionTileLoweringDigest

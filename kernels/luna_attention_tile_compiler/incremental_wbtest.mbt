@@ -89,6 +89,7 @@ test "incremental compilation invalidates effects capabilities and numerical per
       (false, false, p.key_value_read_view()),
       (true, true, p.key_value_read_view()),
       (true, false, DenseCurrentAndPagedHistory),
+      (true, false, AffineDenseCurrentAndPagedHistory),
     ] {
     let problem = @luna_attention_strategy.AttentionCompileProblem::new(
       shape=p.shape(),

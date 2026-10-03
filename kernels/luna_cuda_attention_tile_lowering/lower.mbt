@@ -175,8 +175,10 @@ pub fn lower_attention_tile_schedule_to_cuda(
     SubgroupResidentOutputFold
   let query_owned_fragments = schedule.fragment_ownership() ==
     QueryOwnedFragments
-  let reads_dense_current_key_value = problem.key_value_read_view() ==
-    DenseCurrentAndPagedHistory
+  let reads_dense_current_key_value = problem.key_value_read_view() !=
+    PagedCacheOnly
+  let affine_current_positions = problem.key_value_read_view() ==
+    AffineDenseCurrentAndPagedHistory
   let transfer_readiness = schedule.transfer_readiness()
   let hoist_paged_key_value_page_lookup = schedule.hoists_paged_key_value_page_lookup()
   let reuse_online_softmax_tile_storage = schedule.reuses_online_softmax_tile_storage()
@@ -271,6 +273,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     prefill_fragments,
     physical_program,
     reads_dense_current_key_value,
+    affine_current_positions,
     matrix_storage_layout: schedule.matrix_storage_layout(),
     canonical,
     digest: CudaAttentionTileLoweringDigest(

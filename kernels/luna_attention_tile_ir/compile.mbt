@@ -217,6 +217,9 @@ fn canonical_attention_tile_program(
   }
   if problem.key_value_read_view() == DenseCurrentAndPagedHistory {
     builder <+ "kv_stream=dense-current-paged-history-v1\n"
+  } else if problem.key_value_read_view() == AffineDenseCurrentAndPagedHistory {
+    builder <+ "kv_stream=affine-dense-current-paged-history-v1\n"
+    builder <+ "position_map=row-start-plus-index-v1\n"
   }
   match problem.required_fragment_ownership() {
     Some(QueryOwnedFragments) =>
