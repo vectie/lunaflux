@@ -153,6 +153,16 @@ pub fn OrderedProbabilityPacking::peak_scalar_inputs(Self) -> Int
 pub fn OrderedProbabilityPacking::program(Self) -> OnlineFragmentProgram
 pub fn OrderedProbabilityPacking::to_repr(Self) -> @debug.Repr
 
+pub struct PagedCopyOrigin {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedCopyOrigin::equal(Self, Self) -> Bool
+pub fn PagedCopyOrigin::is_narrow(Self) -> Bool
+pub fn PagedCopyOrigin::new(page_stride~ : Int64, page_capacity~ : Int64, within_page_offset? : Int64) -> Self?
+pub fn PagedCopyOrigin::not_equal(Self, Self) -> Bool
+pub fn PagedCopyOrigin::page_origin(Self, Int64) -> Int64?
+pub fn PagedCopyOrigin::to_repr(Self) -> @debug.Repr
+
 pub struct PagedLookupLookahead {
   // private fields
 } derive(Eq, @debug.Debug)

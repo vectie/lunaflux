@@ -84,6 +84,7 @@ fn emit_cuda_blockwise_decode_source(
     value_ready~,
     key_released~,
     value_released=if effects.independently_refills() { release } else { "" },
+    steps=effects.blockwise_steps(fold),
   )
   let outer_release = if effects.independently_refills() { "" } else { release }
   let initialize = if effects.is_pipelined() {

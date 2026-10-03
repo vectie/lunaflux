@@ -217,11 +217,15 @@ pub fn lower_attention_tile_schedule_to_cuda(
     Ok(BlockwiseKeyProgram(_, effects))
     | Ok(GroupedMatrixKeyProgram(_, effects)) if effects.independently_refills() => {
       builder <+ "decode_operand_ring=independent-two-stage-v1\n"
-      builder <+ "decode_page_lookup=batched-future-owner-epoch-v1\n"
+      builder <+ "decode_page_lookup=batched-future-owner-origin-v2\n"
     }
     Ok(BlockwiseKeyProgram(_, effects)) if effects.is_pipelined() =>
       builder <+ "blockwise_terminal_release=after-key-loop-v1\n"
     _ => ()
+  }
+  if physical_program is Ok(BlockwiseKeyProgram(_, effects)) &&
+    effects.is_pipelined() {
+    builder <+ "decode_subgroup_publication=workgroup-subsumption-v1\n"
   }
   builder <+ "resident_output_fold=\{resident_output_fold}\n"
   if query_owned_fragments {

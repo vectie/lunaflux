@@ -6,6 +6,7 @@ fn cuda_blockwise_fold_body(
   value_ready? : String = "",
   key_released? : String = "",
   value_released? : String = "",
+  steps? : ReadOnlyArray[@attention_physical_ir.BlockwiseFoldStep] = fold.steps(),
 ) -> String {
   let dimensions = fold.dimensions().0
   let ownership = @attention_physical_ir.ValueComponentOwnership::new(
@@ -94,8 +95,7 @@ fn cuda_blockwise_fold_body(
       $|    }
     )
   }
-  let ordered = fold
-    .steps()
+  let ordered = steps
     .map(step => {
       match step {
         ComputeTileScores => scores + "\n" + key_released

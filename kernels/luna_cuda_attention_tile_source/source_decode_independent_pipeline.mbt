@@ -13,8 +13,19 @@ fn emit_decode_independent_stage(
   start_alignment : Int,
   storage_index : String,
 ) -> String {
-  let (_, _, _, page_rows) = abi.shape()
-  let epochs = if hoist_page_lookup {
+  let (_, heads, dimensions, page_rows) = abi.shape()
+  let (_, stride, capacity) = abi.layout()
+  let origins = @attention_physical_ir.PagedCopyOrigin::new(
+    page_stride=stride,
+    page_capacity=capacity,
+    within_page_offset=(heads - 1).to_int64() * dimensions.to_int64(),
+  )
+  let origin_type = if origins is Some(plan) && plan.is_narrow() {
+    "unsigned int"
+  } else {
+    "unsigned long long"
+  }
+  let epochs = if hoist_page_lookup && origins is Some(_) {
     @attention_physical_ir.PagedLookupLookahead::new(
       tile_rows~,
       page_rows~,
@@ -25,7 +36,8 @@ fn emit_decode_independent_stage(
     None
   }
   let declaration = if epochs is Some(_) {
-    "  int future_page_0 = -1, future_page_1 = -1;\n" +
+    "  \{origin_type} future_origin_0 = 0, future_origin_1 = 0;\n" +
+    "  int future_valid_0 = 0, future_valid_1 = 0;\n" +
     "  int lookup_epoch_begin = -1, lookup_epoch_page = -1;"
   } else {
     ""
@@ -41,26 +53,36 @@ fn emit_decode_independent_stage(
       "    }\n" +
       "    const int epoch_owner = (key_base - lookup_epoch_begin) / \{page_rows} + lane;\n" +
       "    const int epoch_page = __shfl_sync(0xffffffffU, lookup_epoch_page, min(31, epoch_owner));\n" +
-      "    if (slot == 0) future_page_0 = epoch_page; else future_page_1 = epoch_page;"
+      "    const int page_valid = epoch_page >= 0 && (unsigned long long)epoch_page < \{capacity}ULL;\n" +
+      "    const \{origin_type} page_origin = page_valid\n" +
+      "        ? (\{origin_type})((unsigned long long)epoch_page * \{stride}ULL + key_value_head * LF_HEAD_DIMENSION) : 0;\n" +
+      "    if (slot == 0) { future_origin_0 = page_origin; future_valid_0 = page_valid; }\n" +
+      "    else { future_origin_1 = page_origin; future_valid_1 = page_valid; }\n" +
+      "    if (lane < \{tile_rows / page_rows} && lane * \{page_rows} < active_keys && !page_valid) atomicExch(stage_valid + slot, 0);"
     None => ""
-  }
-  let retained_page = if epochs is Some(_) {
-    "      const int retained_page = __shfl_sync(0xffffffffU, slot == 0 ? future_page_0 : future_page_1, key / \{page_rows});"
-  } else {
-    ""
   }
   let vector_bytes = vector_elements * 2
   let (vectors, owners, slots) = retention.dimensions()
   let bodies = [
     for operand in 0..<2 => {
       let name = if operand == 0 { "key" } else { "value" }
-      let address = cuda_decode_row_address(
-        abi,
-        vector_elements,
-        hoist_page_lookup,
-        "atomicExch(stage_valid + \{operand * 2} + slot, 0)",
-        retained_page~,
-      )
+      let address = if epochs is Some(_) {
+        (
+          $|      const int page_owner = key / \{page_rows};
+          $|      const int page_valid = __shfl_sync(0xffffffffU, slot == 0 ? future_valid_0 : future_valid_1, page_owner);
+          $|      const \{origin_type} page_origin = __shfl_sync(0xffffffffU, slot == 0 ? future_origin_0 : future_origin_1, page_owner);
+          $|      const int row_valid = key < active_keys && page_valid;
+          $|      const unsigned long long cache_index = row_valid
+          $|          ? (unsigned long long)page_origin + (key % \{page_rows}) * \{heads * dimensions}ULL + component : 0;
+        )
+      } else {
+        cuda_decode_row_address(
+          abi,
+          vector_elements,
+          hoist_page_lookup,
+          "atomicExch(stage_valid + \{operand * 2} + slot, 0)",
+        )
+      }
       let copies = [
         for vector_slot in 0..<slots => {
           (
@@ -79,11 +101,19 @@ fn emit_decode_independent_stage(
           )
         }
       ]
+      let prepare_operand = if operand == 0 {
+        prepare
+      } else if epochs is Some(_) {
+        "    const int page_valid = slot == 0 ? future_valid_0 : future_valid_1;\n" +
+        "    if (lane < \{tile_rows / page_rows} && lane * \{page_rows} < active_keys && !page_valid) atomicExch(stage_valid + 2 + slot, 0);"
+      } else {
+        ""
+      }
       (
         $|  auto stage_\{name} = [&](int key_base, int slot) {
         $|    const int active_keys = max(0, min(LF_KEY_VALUE_TILE, key_limit - key_base));
         $|    __nv_bfloat16 *operand_tile = stage_arena + (slot * 2 + \{operand}) * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
-        $|\{if operand == 0 { prepare } else { "" }}
+        $|\{prepare_operand}
         $|\{copies.join("\n")}
         $|    // Empty tail transfers still commit: the readiness law stays four groups deep.
         $|    asm volatile("cp.async.commit_group;" ::: "memory");

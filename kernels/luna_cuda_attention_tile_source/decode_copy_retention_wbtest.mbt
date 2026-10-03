@@ -46,7 +46,8 @@ test "async decode consumes static retained copy ownership without indexed array
       }
     }
     if independent {
-      assert_true(source.contains("int future_page_0 = -1, future_page_1 = -1"))
+      assert_true(source.contains("future_origin_0 = 0, future_origin_1 = 0"))
+      assert_true(source.contains("future_valid_0 = 0, future_valid_1 = 0"))
       assert_true(source.contains("value_cache + cache_index"))
       assert_false(source.contains("retained_address_"))
     }

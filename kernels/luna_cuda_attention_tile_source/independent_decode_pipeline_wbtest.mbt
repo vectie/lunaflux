@@ -99,15 +99,22 @@ test "independent decode validates malformed future pages and zero fills tails" 
   )
   assert_true(source.contains("epoch_slot < page_end"))
   assert_true(source.contains("key_limit - key_base"))
-  assert_true(source.contains("page >= 0 && (unsigned long long)page <"))
-  assert_true(source.contains("key < active_keys && !row_valid"))
-  assert_true(source.contains("atomicExch(stage_valid + 0 + slot, 0)"))
+  assert_true(
+    source.contains("epoch_page >= 0 && (unsigned long long)epoch_page <"),
+  )
+  assert_true(source.contains("lane * 16 < active_keys && !page_valid"))
+  assert_true(source.contains("atomicExch(stage_valid + slot, 0)"))
   assert_true(source.contains("atomicExch(stage_valid + 2 + slot, 0)"))
   assert_eq(
     source.split("\"r\"(row_valid ? 16 : 0)").to_array().length(),
     2 * lowering.decode_copy_retention().unwrap().dimensions().2 + 1,
   )
   assert_eq(source.split("cp.async.commit_group;").to_array().length(), 3)
+  assert_eq(source.split("epoch_page <").to_array().length(), 2)
+  assert_false(source.contains("const int position = key_base + key"))
+  let value = source.split("auto stage_value").to_array()[1]
+  assert_false(value.contains("epoch_page <"))
+  assert_false(value.contains("epoch_page *"))
   let fallback = emit_decode_async_stage(
     source_test_abi(),
     effects,
@@ -120,4 +127,38 @@ test "independent decode validates malformed future pages and zero fills tails" 
   assert_false(fallback.contains("lookup_epoch_begin"))
   assert_true(fallback.contains("page_slot < page_end"))
   assert_true(fallback.contains("page < 0 || (unsigned long long)page >="))
+}
+
+///|
+test "retained page origin lowering keeps wide caches wide" {
+  let lowering = source_test_decode_lowering(candidate_id=460, alternative=true)
+  guard lowering.physical_program() is BlockwiseKeyProgram(_, effects) else {
+    fail("missing effects")
+  }
+  let abi = CudaPagedAttentionTileAbi::new(
+    query_heads=16,
+    key_value_heads=4,
+    head_dimension=128,
+    tokens_per_page=16,
+    input_row_width=3072,
+    page_stride_values=8192L,
+    physical_page_capacity=524288L,
+    maximum_query_rows=32,
+    maximum_query_tokens=2048,
+    maximum_page_entries=16384,
+  )
+  let source = emit_decode_async_stage(
+    abi,
+    effects,
+    true,
+    lowering.decode_copy_retention().unwrap(),
+    vector_elements=8,
+    tile_rows=32,
+    start_alignment=32,
+  )
+  assert_true(source.contains("unsigned long long future_origin_0"))
+  assert_true(source.contains("epoch_page < 524288ULL"))
+  assert_true(
+    source.contains("const unsigned long long page_origin = __shfl_sync"),
+  )
 }
