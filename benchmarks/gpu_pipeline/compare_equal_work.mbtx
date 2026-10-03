@@ -1,0 +1,321 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+struct Trace {
+  engine : String
+  occurrences : Map[String, Int64]
+  activities : Map[String, Map[String, (Int64, Int64)]]
+  groups : Map[String, Array[Json]]
+  ledger : Json
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    String(s) => @string.parse_int64(s)
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("integer required")
+  }
+}
+
+// Whole chains, not a guess at output/down from a shared GEMM symbol.
+
+///|
+fn category(name : String, engine : String, launch : String) -> String {
+  if name.contains("attention_") ||
+    name.contains("decode_split") ||
+    name.contains("BatchDecode") ||
+    name.contains("BatchPrefill") ||
+    name.contains("MergeStates") ||
+    name.contains("flash_fwd") {
+    "attention"
+  } else if name.contains("language_model_head") ||
+    name.contains("greedy_bf16") ||
+    name.contains("argmax") ||
+    name.contains("sampling") ||
+    (
+      engine != "luna" &&
+      name.contains("wmma_tensorop") &&
+      launch.contains(",1187,")
+    ) {
+    "head-sampling"
+  } else if name.contains("dense_projection") ||
+    name.contains("gated_mlp") ||
+    name.contains("fused_qwen_qkv") ||
+    name.contains("qknorm") ||
+    name.contains("QKApplyRotary") ||
+    name.contains("reshape_and_cache") ||
+    name.contains("silu") ||
+    name.contains("tensorop") ||
+    name.has_prefix("nvjet_") ||
+    name.contains("triton_red_fused") ||
+    name.contains("triton_poi_fused_2") ||
+    name.contains("triton_poi_fused_4") ||
+    name.contains("index_elementwise") {
+    "projection-postops"
+  } else if name.contains("rms") ||
+    name.contains("RMSNorm") ||
+    name.contains("embedding") ||
+    name.contains("mean_mul_pow_rsqrt") {
+    "norm-embedding"
+  } else {
+    "unmapped"
+  }
+}
+
+///|
+fn work_amount(work : String) -> (Int64, Int64, Int64, Int64) raise {
+  let mut tokens = 0L
+  let mut multi = 0L
+  let mut one = 0L
+  let mut pairs = 0L
+  for row in work.split(",") {
+    guard row.split(":").to_array() is [q, p] else { fail("row schema") }
+    let q = @string.parse_int64(q)
+    let p = @string.parse_int64(p)
+    guard q > 0L && p >= 0L else { fail("invalid row") }
+    tokens += q
+    if q > 1L {
+      multi += q
+    } else {
+      one += q
+    }
+    pairs += q * p + q * (q + 1L) / 2L
+  }
+  (tokens, multi, one, pairs)
+}
+
+///|
+async fn read_trace(engine : String, path : String) -> Trace {
+  guard @json.parse(@fs.read_file(path).text())
+    is { "steps": Array(steps), "kernels": Array(kernels), .. } else {
+    fail("work trace schema")
+  }
+  let occurrences : Map[String, Int64] = Map([])
+  let activities : Map[String, Map[String, (Int64, Int64)]] = Map([])
+  let groups : Map[String, Array[Json]] = Map([])
+  let mut tokens = 0L
+  let mut multi = 0L
+  let mut one = 0L
+  let mut pairs = 0L
+  let mut pure_c16 = 0
+  for step in steps {
+    guard step is { "work": String(work), .. } else { fail("step schema") }
+    let amount = work_amount(work)
+    tokens += amount.0
+    multi += amount.1
+    one += amount.2
+    pairs += amount.3
+    let rows = work.split(",").to_array()
+    if rows.length() == 16 && rows.all(x => x.has_prefix("1:")) {
+      pure_c16 += 1
+    }
+    occurrences[work] = occurrences.get(work).unwrap_or(0L) + 1L
+  }
+  let mut orphan_calls = 0L
+  let mut orphan_ns = 0L
+  for entry in kernels {
+    guard entry
+      is { "work_and_kernel": String(key), "calls": calls, "ns": ns, .. } else {
+      fail("kernel schema")
+    }
+    guard key.split(" | ").to_array() is [work, name, launch] else {
+      fail("kernel key")
+    }
+    let calls = integer(calls)
+    let ns = integer(ns)
+    guard calls > 0L && ns >= 0L else { fail("invalid activity") }
+    let work = work.to_owned()
+    if !occurrences.contains(work) {
+      orphan_calls += calls
+      orphan_ns += ns
+      continue
+    }
+    if !activities.contains(work) {
+      activities[work] = Map([])
+      groups[work] = []
+    }
+    let totals = activities[work]
+    let kind = category(name.to_owned(), engine, launch.to_owned())
+    let old = totals.get(kind).unwrap_or((0L, 0L))
+    totals[kind] = (old.0 + calls, old.1 + ns)
+    groups[work].push({
+      "chain": kind,
+      "kernel": name.to_owned(),
+      "launch": launch.to_owned(),
+      "calls": calls,
+      "ns": ns,
+    })
+  }
+  {
+    engine,
+    occurrences,
+    activities,
+    groups,
+    ledger: {
+      "engine": engine,
+      "steps": steps.length(),
+      "input_query_tokens": tokens,
+      "query_tokens_in_multi_query_rows": multi,
+      "query_tokens_in_one_query_rows": one,
+      "causal_query_key_pairs_per_query_head": pairs,
+      "pure_c16_steps": pure_c16,
+      "orphan_kernel_calls": orphan_calls,
+      "orphan_kernel_ns": orphan_ns,
+    },
+  }
+}
+
+///|
+fn compare(luna : Trace, reference : Trace) -> Json {
+  let keys = luna.occurrences
+    .keys()
+    .to_array()
+    .filter(x => reference.occurrences.contains(x))
+  keys.sort()
+  let matches : Array[Json] = []
+  let mut luna_steps = 0L
+  let mut reference_steps = 0L
+  for work in keys {
+    let lc = luna.occurrences[work]
+    let rc = reference.occurrences[work]
+    luna_steps += lc
+    reference_steps += rc
+    let chains : Array[Json] = []
+    for
+      kind in [
+        "attention", "projection-postops", "norm-embedding", "head-sampling", "unmapped",
+      ] {
+      let la = luna.activities
+        .get(work)
+        .unwrap_or(Map([]))
+        .get(kind)
+        .unwrap_or((0L, 0L))
+      let ra = reference.activities
+        .get(work)
+        .unwrap_or(Map([]))
+        .get(kind)
+        .unwrap_or((0L, 0L))
+      let lm = la.1.to_double() / lc.to_double() / 1000000.0
+      let rm = ra.1.to_double() / rc.to_double() / 1000000.0
+      chains.push({
+        "chain": kind,
+        "luna_calls_per_step": la.0.to_double() / lc.to_double(),
+        "reference_calls_per_step": ra.0.to_double() / rc.to_double(),
+        "luna_kernel_activity_ms_per_step": lm,
+        "reference_kernel_activity_ms_per_step": rm,
+        "luna_minus_reference_ms_per_step": lm - rm,
+      })
+    }
+    matches.push({
+      "work": work,
+      "luna_steps": lc,
+      "reference_steps": rc,
+      "chains": chains,
+      "luna_kernel_groups": luna.groups.get(work).unwrap_or([]),
+      "reference_kernel_groups": reference.groups.get(work).unwrap_or([]),
+    })
+  }
+  {
+    "reference": reference.engine,
+    "exact_common_vectors": keys.length(),
+    "matched_luna_steps": luna_steps,
+    "matched_reference_steps": reference_steps,
+    "matches": matches,
+  }
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    assert_eq(work_amount("2048:2048"), (2048L, 2048L, 0L, 6292480L))
+    assert_eq(work_amount("1:4,2:0"), (3L, 2L, 1L, 8L))
+    assert_eq(work_amount("2:0,1:4"), work_amount("1:4,2:0"))
+    assert_eq(
+      category("flash_fwd_splitkv_combine_kernel", "vllm", ""),
+      "attention",
+    )
+    assert_eq(
+      category("wmma_tensorop", "vllm", "grid=4,1187,1"),
+      "head-sampling",
+    )
+    assert_eq(
+      category("wmma_tensorop", "vllm", "grid=4,8,1"),
+      "projection-postops",
+    )
+    try work_amount("0:2") catch {
+      _ => ()
+    } noraise {
+      _ => fail("zero query accepted")
+    }
+    try work_amount("1:-1") catch {
+      _ => ()
+    } noraise {
+      _ => fail("negative history accepted")
+    }
+    let a : Trace = {
+      engine: "luna",
+      occurrences: Map([("1:4", 2L), ("1:8", 1L)]),
+      activities: Map([("1:4", Map([("attention", (4L, 2000000L))]))]),
+      groups: Map([]),
+      ledger: {},
+    }
+    let b : Trace = {
+      engine: "vllm",
+      occurrences: Map([("1:4", 1L)]),
+      activities: Map([("1:4", Map([("attention", (1L, 500000L))]))]),
+      groups: Map([]),
+      ledger: {},
+    }
+    guard compare(a, b)
+      is {
+        "exact_common_vectors": Number(1, ..),
+        "matched_luna_steps": matched,
+        "matches": [
+          {
+            "chains": [
+              {
+                "luna_kernel_activity_ms_per_step": Number(lm, ..),
+                "reference_kernel_activity_ms_per_step": Number(rm, ..),
+                ..
+              },
+              ..,
+            ],
+            ..
+          },
+        ],
+        ..
+      } else {
+      fail("comparison regression")
+    }
+    assert_eq(integer(matched), 2L)
+    assert_eq(lm, 1.0)
+    assert_eq(rm, 0.5)
+    println("equal-work ledger tests passed")
+    return
+  }
+  guard @env.args() is [_, luna_path, reference_root, output] else {
+    fail("LUNA_WORK_JSON REFERENCE_CAPTURE_ROOT NEW_OUTPUT | --self-test")
+  }
+  let luna = read_trace("luna", luna_path)
+  let vllm = read_trace("vllm", reference_root + "/vllm/work-shapes.json")
+  let sglang = read_trace("sglang", reference_root + "/sglang/work-shapes.json")
+  @fs.write_file(
+    output,
+    (
+      {
+        "schema": "lunaflux.equal-work-comparison.v1",
+        "ledgers": [luna.ledger, vllm.ledger, sglang.ledger],
+        "comparisons": [compare(luna, vllm), compare(luna, sglang)],
+        "scope": "exact sorted query/history vector intersections only; whole-chain kernel activity, not exclusive wall time or causal proof; operands, numeric laws, paging and hardware cache state differ; one-query rows are not necessarily decode; window clipping retained in orphan activity",
+      } : Json).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
