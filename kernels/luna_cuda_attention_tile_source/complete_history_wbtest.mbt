@@ -44,3 +44,18 @@ test "complete history specialization retains page validation and checked fallba
   assert_true(text.contains("stage_history_tile(kb,stage,kind)"))
   assert_true(text.contains("stage_mixed_tile(kb,stage,kind)"))
 }
+
+///|
+test "historical owner width saturates before large page multiplication" {
+  for dimension in [64, 128] {
+    let abi = {
+      ..source_test_abi(),
+      head_dimension: dimension,
+      tokens_per_page: 1073741824,
+    }
+    let body = cuda_query_complete_history_stage(abi, "", "", "")
+    assert_true(body.contains("lane%32==0"))
+    assert_true(body.contains("(lane/32)*32"))
+    assert_false(body.contains("lane%0"))
+  }
+}

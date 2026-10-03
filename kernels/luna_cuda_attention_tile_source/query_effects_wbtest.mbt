@@ -75,7 +75,6 @@ test "query-owned forwarding deterministically composes with every effect schedu
       #|1008/false/true:64fa0d25edb3cdbbffa028448febbb070cf4d4720f890eb86175f1f3986701b9
       #|1008/true/false:59b30d37bbb06917c51e9252e98fcc3d617f5e927fce3e01e6b580fed71e0ae3
       #|1008/true/true:dc1a82cae83f03280465a61ead4ccda0be237738601448061728b6b97f662050
-
     ),
   )
 }

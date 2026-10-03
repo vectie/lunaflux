@@ -121,7 +121,9 @@ fn cuda_query_complete_history_stage(
 ) -> String {
   let (heads, kv_heads, dimension, page_tokens) = abi.shape()
   let (_, page_stride, pages) = abi.layout()
-  let lanes_per_page = (page_tokens * (dimension / 8)).min(32)
+  // Saturate before multiplication: very large legal power-of-two pages must
+  // not overflow the host Int used by this offline physical binding.
+  let lanes_per_page = page_tokens.min(32 / (dimension / 8)) * (dimension / 8)
   (
     $|    auto stage_complete_history_tile = [&](int kb, int stage) {
     $|\{vectors}
