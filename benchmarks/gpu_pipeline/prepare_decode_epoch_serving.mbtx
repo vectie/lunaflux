@@ -1,0 +1,282 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn save(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd=root + "/source", env={
+    "PATH": root + "/toolchain/bin:/usr/local/cuda/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " passed")
+  out.stdout()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+// Change one compiler-produced AOT module, holding all runtime code and the
+// remaining modules fixed. Rebuild the compiler frontend, export a real
+// recipe, and remeasure module-bound routes instead of relabeling old data.
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    assert_eq(field("candidate=452\n", "candidate"), "452")
+    println("decode serving preparation regression passed")
+    return
+  }
+  guard @env.args() is [_, base, overlay, calibration, probe, root] else {
+    fail("PREPARED_SERVING SCOPED_OVERLAY CALIBRATION CHECK_PROBE NEW_ROOT")
+  }
+  guard !@fs.exists(root) else { fail("non-overwriting root") }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [available] &&
+    @string.parse_int64(
+      available.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  guard @fs.read_file(base + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("prepared serving required")
+  }
+  @fs.mkdir(root)
+  for name in ["source", "release", "candidate", "fused", "prefill-selected"] {
+    @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+  }
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  for
+    name in [
+      "convert.stdout", "bind.stdout", "export.stdout", "toolchain.v1", "benchmark.mbtx",
+      "prepare-full.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @shell.Cmd("cp", ["-a", probe, root + "/check-probe"]).run()
+  for
+    pkg in [
+      "compiler/attention_physical_ir", "kernels/luna_cuda_attention_tile_source",
+    ] {
+    @shell.Cmd("cp", ["-a", overlay + "/" + pkg + "/.", root + "/source/" + pkg]).run()
+  }
+  let moon = root + "/toolchain/bin/moon"
+  ignore(
+    save(root, "build-exporter", moon, [
+      "build", "cmd/lunaflux_qwen3_bf16_candidate_export", "--target", "native",
+      "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14", "-j", "2",
+    ]),
+  )
+  let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+  let converted = @fs.read_file(root + "/convert.stdout").text()
+  let args = [
+    model,
+    "config.json",
+    sha(model + "/config.json"),
+    sha(model + "/model.safetensors"),
+    "qwen.numeric",
+    field(converted, "output_artifact_sha256"),
+    field(converted, "route_manifest_sha256"),
+    sha(root + "/toolchain.v1"),
+    "13",
+    "0",
+    "88",
+    "8",
+    "16384",
+    "32",
+    "2048",
+    "16384",
+    root + "/fresh-candidate",
+    "--compiler-register-limit",
+    "255",
+    "--prefill-candidate",
+    "322",
+    "--decode-candidate",
+    "452",
+    "--query-metadata-v1",
+  ]
+  ignore(
+    save(
+      root,
+      "fresh-export",
+      root +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+      args,
+    ),
+  )
+  let selected = root + "/fresh-candidate/reusable-qwen-decode-attention"
+  let recipe = @fs.read_file(selected + "/kernel.recipe").text()
+  let prior = @fs.read_file(base + "/decode-selected/kernel.recipe").text()
+  for
+    key in [
+      "function_symbol", "candidate_stable_id", "grid", "block", "shared_memory_bytes",
+      "query_tile_rows", "key_value_tile_rows", "head_columns", "numeric_law", "partition_count",
+      "partition_grid", "partition_merge_grid", "partition_block", "partition_workspace_bytes",
+    ] {
+    assert_eq(field(recipe, key), field(prior, key))
+  }
+  assert_eq(field(recipe, "source_sha256"), sha(selected + "/kernel.cu"))
+  assert_true(
+    @fs.read_file(selected + "/kernel.cu")
+    .text()
+    .contains("Aligned page epochs"),
+  )
+  @fs.mkdir(root + "/decode-selected")
+  @fs.write_file(
+    root + "/decode-selected/kernel.recipe",
+    recipe,
+    create_mode=CreateNew,
+  )
+  let flags = [
+    "-O3",
+    "-arch=sm_121",
+    "--std=c++14",
+    "--fmad=false",
+    "--ftz=false",
+    "--prec-div=true",
+    "--prec-sqrt=true",
+    "--maxrregcount=255",
+    "-lineinfo",
+    "-cubin",
+    selected + "/kernel.cu",
+    "-o",
+  ]
+  for name in ["first", "second"] {
+    ignore(
+      save(
+        root,
+        "compile-" + name,
+        "/usr/local/cuda-13.0/bin/nvcc",
+        flags + [root + "/decode-selected/" + name + ".cubin"],
+      ),
+    )
+  }
+  ignore(
+    save(root, "deterministic-cubin", "cmp", [
+      root + "/decode-selected/first.cubin",
+      root + "/decode-selected/second.cubin",
+    ]),
+  )
+  @fs.write_file(
+    root + "/decode-selected/kernel.cubin",
+    @fs.read_file(root + "/decode-selected/first.cubin"),
+    create_mode=CreateNew,
+  )
+  // Preserve copied original artifacts before replacing the disposable module.
+  @shell.Cmd("mv", [
+    root + "/fused/attention.cubin",
+    root + "/fused/attention-original.cubin",
+  ]).run()
+  @fs.write_file(
+    root + "/fused/attention.cubin",
+    @fs.read_file(root + "/decode-selected/kernel.cubin"),
+    create_mode=CreateNew,
+  )
+  let export_args = @fs.read_file(root + "/fused/export.arguments")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => {
+      if x.has_prefix("/home/wlc004s/") && x.contains("/fused/") {
+        root + "/fused/" + x.split("/fused/").to_array()[1].to_owned()
+      } else {
+        x.to_owned()
+      }
+    })
+    .to_array()
+  for
+    name in [
+      "export.arguments", "export.stdout", "reusable-fused-runtime-bundle.v3",
+    ] {
+    @shell.Cmd("mv", [root + "/fused/" + name, root + "/fused/original-" + name]).run()
+  }
+  @fs.write_file(
+    root + "/fused/export.arguments",
+    export_args.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  let report = save(
+    root,
+    "reexport-bundle",
+    root +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+    export_args,
+  )
+  @fs.write_file(root + "/fused/export.stdout", report, create_mode=CreateNew)
+  ignore(
+    save(root, "measure-routes", moon, [
+      "run",
+      overlay + "/benchmarks/gpu_pipeline/measure_decode_routes.mbtx",
+      root,
+      calibration,
+    ]),
+  )
+  for phase in ["materialize", "capacity"] {
+    ignore(
+      save(root, "prepare-" + phase, moon, [
+        "run",
+        root + "/prepare-full.mbtx",
+        root,
+        phase,
+      ]),
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=decode-page-epochs compiler module A/B only; runtime and other modules unchanged\n",
+    create_mode=CreateNew,
+  )
+}

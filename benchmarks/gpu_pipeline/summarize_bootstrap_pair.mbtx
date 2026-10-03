@@ -1,0 +1,81 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn median_pair(text : String) -> (Double, Double) raise {
+  let old : Array[Double] = []
+  let fresh : Array[Double] = []
+  for
+    line in text
+    .split("\n")
+    .filter(x => x.has_prefix("trial=") || x.has_prefix("tokens=")) {
+    let fields : Map[String, String] = Map([])
+    for word in line.split(" ") {
+      if word.split("=").to_array() is [key, value] {
+        fields[key.to_owned()] = value.to_owned()
+      }
+    }
+    old.push(@string.parse_double(fields["old_us"]))
+    fresh.push(@string.parse_double(fields["new_us"]))
+  }
+  assert_eq(old.length(), 5)
+  assert_eq(fresh.length(), 5)
+  guard [..old, ..fresh].all(x => x > 0.0 && !x.is_nan() && !x.is_inf()) else {
+    fail("finite positive timings")
+  }
+  old.sort()
+  fresh.sort()
+  (old[2], fresh[2])
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    let lines = Array::makei(5, i => "trial=\{i} old_us=\{5-i} new_us=\{i+1}").join(
+      "\n",
+    )
+    assert_eq(median_pair(lines), (3.0, 3.0))
+    println("bootstrap summary regression passed")
+    return
+  }
+  guard @env.args() is [_, root, output] else {
+    fail("QUALIFIED_BOOTSTRAP_ROOT NEW_JSON")
+  }
+  guard @fs.read_file(root + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\n") else {
+    fail("qualification not completed")
+  }
+  let result : Array[Json] = []
+  for family in ["output", "qkv", "head"] {
+    for tokens in [32, 129, 512, 2048] {
+      let text = @fs.read_file(root + "/" + family + "-tokens-\{tokens}.stdout").text()
+      guard text.contains("bitwise=true scalar_checks=passed") else {
+        fail("correctness missing")
+      }
+      let (before, after) = median_pair(text)
+      result.push({
+        "family": family,
+        "tokens": tokens,
+        "rows": 32,
+        "old_us": before,
+        "new_us": after,
+        "less_time_percent": 100.0 * (1.0 - after / before),
+        "samples": 5,
+        "bitwise": true,
+      })
+    }
+  }
+  @fs.write_file(
+    output,
+    Json(result).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(Json(result).stringify(indent=2))
+}

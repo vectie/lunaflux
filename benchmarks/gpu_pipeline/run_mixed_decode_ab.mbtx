@@ -23,9 +23,10 @@ fn replace_once(
 // Reuse the existing bounded lifecycle harness unchanged for each fresh start.
 // ABBA order separates a dispatch change from an old/new machine-session shift.
 async fn main {
-  guard @env.args() is [_, baseline, partitioned, harness, root] else {
+  guard @env.args() is [_, baseline, partitioned, harness, root, .. options] &&
+    (options.is_empty() || options == ["--compiler-module-ab"]) else {
     fail(
-      "BASELINE_SERVING PARTITIONED_DIAGNOSTIC_SERVING MATCHED_HARNESS NEW_ROOT",
+      "BASELINE_SERVING PARTITIONED_DIAGNOSTIC_SERVING MATCHED_HARNESS NEW_ROOT [--compiler-module-ab]",
     )
   }
   guard !@fs.exists(root) else { fail("non-overwriting root") }
@@ -81,7 +82,11 @@ async fn main {
     "inputs": [4096],
     "outputs": [64, 256],
     "concurrency": [16],
-    "scope": "ordinary timing, diagnostic forced mixed dispatch, identical AOT modules; no production tuning records",
+    "scope": if options.is_empty() {
+      "ordinary timing, diagnostic forced mixed dispatch, identical AOT modules; no production tuning records"
+    } else {
+      "ordinary timing, identical runtime and other AOT modules, changed decode compiler module with fresh route measurements; diagnostic forced mixed dispatch in both arms"
+    },
   }
   @fs.write_file(
     root + "/CAMPAIGN.json",

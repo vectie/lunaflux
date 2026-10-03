@@ -1,0 +1,148 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn save(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " completed")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, saved, regex] else {
+    fail("NEW_ROOT PAIRED_COMMAND_JSON EXACT_KERNEL_REGEX")
+  }
+  guard @json.parse(@fs.read_file(saved).text()) is Array(values) else {
+    fail("command array")
+  }
+  let command = values.map(x => {
+    guard x is String(s) else { fail("command string") }
+    s
+  })
+  guard command.length() > 1 && command[0].has_prefix("/home/wlc004s/lunaflux-") else {
+    fail("bounded diagnostic executable")
+  }
+  let check = if command[0].has_suffix("projection-chain-probe") ||
+    command[0].has_suffix("matrix-bootstrap-probe") {
+    "--check"
+  } else {
+    "--check-only"
+  }
+  for ordinal in [0, 1] {
+    let idle = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    idle.check()
+    guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+    guard @fs.read_file("/proc/meminfo")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("MemAvailable:"))
+      .to_array()
+      is [line] &&
+      @string.parse_int64(
+        line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+      ) >=
+      33554432L else {
+      fail("32GiB reserve")
+    }
+    let label = if ordinal == 0 { "old" } else { "new" }
+    let args = [
+      "run",
+      "--rm",
+      "--gpus",
+      "all",
+      "--network",
+      "none",
+      "--memory",
+      "8g",
+      "--memory-swap",
+      "8g",
+      "--cap-add",
+      "SYS_ADMIN",
+      "--security-opt",
+      "seccomp=unconfined",
+      "--mount",
+      "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+      "--mount",
+      "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+      "--mount",
+      "type=bind,source=" + root + ",target=" + root,
+      "nvcr.io/nvidia/vllm:26.01-py3",
+      "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+      "--config-file",
+      "off",
+      "--clock-control",
+      "none",
+      "--cache-control",
+      "all",
+      "--kernel-name-base",
+      "function",
+      "--kernel-name",
+      regex,
+      "--launch-skip",
+      "\{ordinal}",
+      "--launch-count",
+      "1",
+    ]
+    for
+      section in [
+        "LaunchStats", "Occupancy", "SpeedOfLight", "SchedulerStats", "WarpStateStats",
+        "MemoryWorkloadAnalysis", "InstructionStats", "SourceCounters",
+      ] {
+      args.append(["--section", section])
+    }
+    args.append(["--export", root + "/" + label, ..command, check])
+    save(root, label, "docker", args)
+    for page in ["raw", "source"] {
+      save(
+        root,
+        label + "-" + page,
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+        [
+          "--import",
+          root + "/" + label + ".ncu-rep",
+          "--page",
+          page,
+          "--csv",
+          "--print-units",
+          "base",
+        ] +
+        (if page == "source" { ["--print-source", "sass"] } else { [] }),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=cold-cache paired counters, not service wall time\n",
+    create_mode=CreateNew,
+  )
+}

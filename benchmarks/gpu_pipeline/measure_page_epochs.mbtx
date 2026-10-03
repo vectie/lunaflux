@@ -1,0 +1,313 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn save(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+  env? : Map[String, String] = {},
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd~, env~).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " passed")
+  out.stdout()
+}
+
+///|
+async fn admission() -> Unit {
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+}
+
+///|
+fn median(text : String, field : String) -> Double raise {
+  let values : Array[Double] = []
+  for line in text.split("\n").filter(x => x.has_prefix("tokens=")) {
+    guard line.contains("bitwise=true") else { fail("bitwise mismatch") }
+    guard line.split(" ").filter(x => x.has_prefix(field + "=")).to_array()
+      is [value] else {
+      fail("timing field")
+    }
+    values.push(@string.parse_double(value[field.length() + 1:]))
+  }
+  assert_eq(values.length(), 5)
+  values.sort()
+  values[2]
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    let lines = Array::makei(5, i => {
+      "tokens=16 old_us=\{5-i} new_us=\{i+1} bitwise=true"
+    }).join("\n")
+    assert_eq(median(lines, "old_us"), 3.0)
+    assert_eq(median(lines, "new_us"), 3.0)
+    println("page epoch diagnostic regression passed")
+    return
+  }
+  guard @env.args() is [_, root, serving, overlay, spec, .. options] &&
+    (options.is_empty() || options == ["--quick"]) else {
+    fail("NEW_ROOT FROZEN_SERVING SCOPED_OVERLAY DECODE_SPEC [--quick]")
+  }
+  admission()
+  let moon = serving + "/toolchain/bin/moon"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  let outputs : Array[Json] = []
+  for mode in ["old", "new"] {
+    let build = root + "/" + mode
+    @fs.mkdir(build)
+    ignore(
+      save(root, "copy-" + mode, "cp", [
+        "-a",
+        serving + "/source",
+        build + "/source",
+      ]),
+    )
+    if mode == "new" {
+      for
+        pkg in [
+          "compiler/attention_physical_ir", "kernels/luna_cuda_attention_tile_source",
+          "kernels/luna_attention_tile_schedule",
+        ] {
+        ignore(
+          save(root, "overlay-" + pkg.replace(old="/", new="-"), "cp", [
+            "-a",
+            overlay + "/" + pkg + "/.",
+            build + "/source/" + pkg,
+          ]),
+        )
+      }
+    }
+    let exported = save(
+      root,
+      "export-" + mode,
+      moon,
+      [
+        "test", "kernels/luna_cuda_attention_tile_source", "--target", "native",
+        "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+      ],
+      cwd=build + "/source",
+      env={
+        "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1",
+        "PATH": serving + "/toolchain/bin:/usr/local/cuda/bin:/usr/bin:/bin",
+      },
+    )
+    for block in exported.split("LUNA_PARTIAL_BEGIN ").to_array()[1:] {
+      guard block.split("\nLUNA_PARTIAL_SOURCE\n").to_array()
+        is [header, remainder] else {
+        fail("export framing")
+      }
+      let fields = header.split("\n").to_array()
+      let id = fields[0].to_owned()
+      if !["c452-p8", "c454-p8"].contains(id) {
+        continue
+      }
+      let dst = build + "/" + id
+      @fs.mkdir(dst)
+      @fs.write_file(
+        dst + "/kernel.recipe",
+        fields[1:].map(x => x.to_owned()).join("\n") + "\n",
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        dst + "/kernel.cu",
+        remainder.split("\nLUNA_PARTIAL_END").to_array()[0].to_owned(),
+        create_mode=CreateNew,
+      )
+      ignore(
+        save(root, "compile-" + mode + "-" + id, nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--maxrregcount=128",
+          "-lineinfo",
+          "-Xptxas=-v",
+          "-cubin",
+          dst + "/kernel.cu",
+          "-o",
+          dst + "/kernel.cubin",
+        ]),
+      )
+    }
+  }
+  // Fragment physical pages to prevent accidental reliance on contiguous IDs.
+  let probe_source = @fs.read_file(
+      serving + "/source/benchmarks/gpu_pipeline/selected_policy_probe.cu",
+    )
+    .text()
+    .replace(
+      old="pages.push_back(int(pages.size()));",
+      new="pages.push_back(int(pages.size()) ^ 1);",
+    )
+    .replace(
+      old="auto key=values(size_t(pages.size())*stride,29)",
+      new="auto key=values(((pages.size()+1)&~size_t(1))*stride,29)",
+    )
+  @fs.write_file(root + "/probe.cu", probe_source, create_mode=CreateNew)
+  ignore(
+    save(root, "compile-probe", nvcc, [
+      "-O3",
+      "-std=c++17",
+      "-arch=sm_121",
+      "-I",
+      serving + "/source/benchmarks/gpu_pipeline",
+      root + "/probe.cu",
+      "-lcuda",
+      "-o",
+      root + "/probe",
+    ]),
+  )
+  for
+    id in (if options.is_empty() {
+      ["c452-p8", "c454-p8"]
+    } else {
+      ["c452-p8"]
+    }) {
+    for
+      history in (if options.is_empty() {
+        [126, 127, 4095, 4096, 8191]
+      } else {
+        [4095, 4096, 8191]
+      }) {
+      for rows in (if options.is_empty() { [1, 8, 16] } else { [1, 16] }) {
+        admission()
+        let label = id + "-r\{rows}-h\{history}"
+        let args = [
+          spec,
+          root + "/old/" + id,
+          root + "/new/" + id,
+          "\{rows}",
+          "\{rows}",
+          "\{history}",
+          "--decode-envelope",
+        ]
+        let out = save(
+          root,
+          label,
+          "docker",
+          [
+            "run",
+            "--rm",
+            "--gpus",
+            "all",
+            "--network",
+            "none",
+            "--memory",
+            "8g",
+            "--memory-swap",
+            "8g",
+            "--mount",
+            "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+            "nvcr.io/nvidia/vllm:26.01-py3",
+            root + "/probe",
+            ..args,
+          ],
+        )
+        let old_us = median(out, "old_us")
+        let new_us = median(out, "new_us")
+        outputs.push({
+          "candidate": id,
+          "rows": rows,
+          "history": history,
+          "old_us": old_us,
+          "new_us": new_us,
+          "less_time_percent": 100.0 * (1.0 - new_us / old_us),
+        })
+      }
+    }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      admission()
+      ignore(
+        save(
+          root,
+          id + "-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "99",
+            root + "/probe",
+            spec,
+            root + "/old/" + id,
+            root + "/new/" + id,
+            "16",
+            "16",
+            "4096",
+            "--decode-envelope",
+            "--check-only",
+          ],
+        ),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/summary.json",
+    Json(outputs).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/counter-command.json",
+    Json([
+      root + "/probe",
+      spec,
+      root + "/old/c452-p8",
+      root + "/new/c452-p8",
+      "16",
+      "16",
+      "4096",
+      "--decode-envelope",
+    ]).stringify(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=page-epoch A/B; no serving or reference-framework claim\n",
+    create_mode=CreateNew,
+  )
+}
