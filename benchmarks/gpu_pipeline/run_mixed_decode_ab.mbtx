@@ -24,9 +24,12 @@ fn replace_once(
 // ABBA order separates a dispatch change from an old/new machine-session shift.
 async fn main {
   guard @env.args() is [_, baseline, partitioned, harness, root, .. options] &&
-    (options.is_empty() || options == ["--compiler-module-ab"]) else {
+    options.length() <= 2 &&
+    options.filter(x => x == "--compiler-module-ab").length() <= 1 &&
+    options.filter(x => x == "--include-c8").length() <= 1 &&
+    options.all(x => x == "--compiler-module-ab" || x == "--include-c8") else {
     fail(
-      "BASELINE_SERVING PARTITIONED_DIAGNOSTIC_SERVING MATCHED_HARNESS NEW_ROOT [--compiler-module-ab]",
+      "BASELINE_SERVING PARTITIONED_DIAGNOSTIC_SERVING MATCHED_HARNESS NEW_ROOT [--compiler-module-ab] [--include-c8]",
     )
   }
   guard !@fs.exists(root) else { fail("non-overwriting root") }
@@ -44,13 +47,31 @@ async fn main {
     "  guard options.is_empty() &&",
     "  if options is [\"--trial\"] {\n    trial(serving, root, script, \"luna-full\")\n    return\n  }\n  guard options.is_empty() &&",
   )
+  // Basenames such as abba/r0-baseline recur across campaigns. Include the
+  // full diagnostic path so a retained transient unit cannot alias this run.
+  let source = replace_once(
+    source, "components[components.length() - 2].to_owned() +\n    \"-\" +\n    components.last().unwrap().to_owned()",
+    "components.join(\"-\")",
+  )
+  let source = replace_once(
+    source, "    for _ in 0..<240 {\n      let health", "    for _ in 0..<240 {\n      for service in units {\n        let state = @shell.Cmd(\"systemctl\", [\"--user\", \"is-failed\", service]).output()\n        guard state.stdout().trim() != \"failed\" else { fail(\"benchmark unit failed: \" + service) }\n      }\n      let health",
+  )
   @fs.write_file(runner, source, create_mode=CreateNew)
   let client = replace_once(
     @fs.read_file(baseline + "/benchmark.mbtx").text(),
     "[(128,32),(4096,64),(4096,256)]",
     "[(4096,64),(4096,256)]",
   )
-  let client = replace_once(client, "[1,8,16]", "[16]")
+  let include_c8 = options.contains("--include-c8")
+  let client = replace_once(
+    client,
+    "[1,8,16]",
+    if include_c8 {
+      "[8,16]"
+    } else {
+      "[16]"
+    },
+  )
   let client = replace_once(client, "0..<4", "0..<2")
   @fs.write_file(runner + ".client.mbtx", client, create_mode=CreateNew)
   let orders = ["baseline", "partitioned", "partitioned", "baseline"]
@@ -81,8 +102,12 @@ async fn main {
     "order": orders,
     "inputs": [4096],
     "outputs": [64, 256],
-    "concurrency": [16],
-    "scope": if options.is_empty() {
+    "concurrency": if include_c8 {
+      Json([8, 16])
+    } else {
+      Json([16])
+    },
+    "scope": if !options.contains("--compiler-module-ab") {
       "ordinary timing, diagnostic forced mixed dispatch, identical AOT modules; no production tuning records"
     } else {
       "ordinary timing, identical runtime and other AOT modules, changed decode compiler module with fresh route measurements; diagnostic forced mixed dispatch in both arms"

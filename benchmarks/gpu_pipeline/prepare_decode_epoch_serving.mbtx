@@ -18,6 +18,26 @@ fn field(text : String, key : String) -> String raise {
 }
 
 ///|
+fn execution_target_args(text : String) -> Array[String] raise {
+  guard @json.parse(text)
+    is {
+      "device_target": {
+        "compute_major": Number(major, ..),
+        "compute_minor": Number(minor, ..),
+        ..
+      },
+      ..
+    } &&
+    major > 0.0 &&
+    minor >= 0.0 &&
+    major == major.to_int().to_double() &&
+    minor == minor.to_int().to_double() else {
+    fail("execution device target")
+  }
+  [major.to_int().to_string(), minor.to_int().to_string()]
+}
+
+///|
 async fn save(
   root : String,
   label : String,
@@ -55,18 +75,63 @@ async fn sha(path : String) -> String {
 }
 
 ///|
-// Change one compiler-produced AOT module, holding all runtime code and the
-// remaining modules fixed. Rebuild the compiler frontend, export a real
+async fn verify_modules(base : String, root : String) -> Unit {
+  let before = @fs.read_file(base + "/fused/reusable-fused-runtime-bundle.v3").text()
+  let after = @fs.read_file(root + "/fused/reusable-fused-runtime-bundle.v3").text()
+  assert_eq(field(before, "module_count"), "9")
+  assert_eq(field(after, "module_count"), "9")
+  for index in 0..<8 {
+    for
+      key in [
+        "abi", "first_operation", "operation_count", "function_symbol", "query_tile_rows",
+        "query_metadata_version", "heads_per_cta", "grid_x", "grid_y", "grid_z",
+        "block_x", "block_y", "block_z", "shared_bytes", "module_sha256",
+      ] {
+      let name = "module_\{index}_" + key
+      assert_eq(field(before, name), field(after, name), msg=name)
+    }
+  }
+  assert_true(
+    field(before, "module_8_module_sha256") !=
+    field(after, "module_8_module_sha256"),
+  )
+  println("only decode AOT module differs; preceding eight modules match")
+}
+
+///|
+// Change one compiler-produced AOT module. Prepare both arms with this same
+// rebuilt runtime when testing a newly bindable numerical ABI. Export a real
 // recipe, and remeasure module-bound routes instead of relabeling old data.
 async fn main {
+  if @env.args() is [_, "--verify-modules", base, root] {
+    verify_modules(base, root)
+    return
+  }
   if @env.args() is [_, "--self-test"] {
     assert_eq(field("candidate=452\n", "candidate"), "452")
+    for (major, minor) in [(12, 1), (8, 9)] {
+      let manifest : Json = {
+        "device_target": { "compute_major": major, "compute_minor": minor },
+      }
+      assert_eq(execution_target_args(manifest.stringify()), [
+        major.to_string(),
+        minor.to_string(),
+      ])
+    }
     println("decode serving preparation regression passed")
     return
   }
-  guard @env.args() is [_, base, overlay, calibration, probe, root] else {
-    fail("PREPARED_SERVING SCOPED_OVERLAY CALIBRATION CHECK_PROBE NEW_ROOT")
+  guard @env.args() is [_, base, overlay, calibration, probe, root, .. options] &&
+    options.length() <= 2 &&
+    options.filter(x => x == "--dual-score").length() <= 1 &&
+    options.filter(x => x == "--reuse-runtime").length() <= 1 &&
+    options.all(x => x == "--dual-score" || x == "--reuse-runtime") else {
+    fail(
+      "PREPARED_SERVING SCOPED_OVERLAY CALIBRATION CHECK_PROBE NEW_ROOT [--dual-score] [--reuse-runtime]",
+    )
   }
+  let dual_score = options.contains("--dual-score")
+  let reuse_runtime = options.contains("--reuse-runtime")
   guard !@fs.exists(root) else { fail("non-overwriting root") }
   let idle = @shell.Cmd("nvidia-smi", [
     "--query-compute-apps=pid", "--format=csv,noheader",
@@ -110,16 +175,57 @@ async fn main {
   for
     pkg in [
       "compiler/attention_physical_ir", "kernels/luna_cuda_attention_tile_source",
+      "kernels/luna_attention_tile_schedule", "kernels/luna_fused_artifact_admission",
+      "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
     ] {
     @shell.Cmd("cp", ["-a", overlay + "/" + pkg + "/.", root + "/source/" + pkg]).run()
   }
+  for
+    file in [
+      "engine/device_step/qwen_fused_attention_admit.mbt", "engine/device_worker/decode_split_runtime.mbt",
+      "engine/device_worker_bootstrap/fused_runtime.mbt", "scripts/materialize-qwen3-bf16-v12-launch.mbtx",
+      "scripts/assemble-luna-kernel-root.mbtx",
+    ] {
+    @shell.Cmd("cp", [overlay + "/" + file, root + "/source/" + file]).run()
+  }
   let moon = root + "/toolchain/bin/moon"
-  ignore(
-    save(root, "build-exporter", moon, [
-      "build", "cmd/lunaflux_qwen3_bf16_candidate_export", "--target", "native",
-      "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14", "-j", "2",
-    ]),
-  )
+  if !reuse_runtime {
+    ignore(
+      save(root, "build-exporter", moon, [
+        "build", "cmd/lunaflux_qwen3_bf16_candidate_export", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+        "cmd/device_worker_child", "cmd/lunaflux", "--target", "native", "--release",
+        "--deny-warn", "--warn-list", "-79-20-29-25-92-14", "-j", "2",
+      ]),
+    )
+  }
+  if dual_score || reuse_runtime {
+    // Native builds can embed their absolute build directory. Reuse the
+    // newly rebuilt control executables, not a separately linked equivalent,
+    // so the serving comparison changes only the AOT decode artifact.
+    for
+      file in [
+        "engine/device_step/qwen_fused_attention_admit.mbt", "engine/device_worker/decode_split_runtime.mbt",
+        "engine/device_worker_bootstrap/fused_runtime.mbt", "kernels/luna_fused_artifact_admission/types.mbt",
+        "kernels/luna_fused_artifact_admission/reusable_runtime_bundle.mbt", "kernels/luna_fused_artifact_admission/reusable_runtime_bundle_accessors.mbt",
+        "cmd/lunaflux_qwen3_fused_runtime_bundle_export/main.mbt", "cmd/lunaflux_qwen3_fused_runtime_bundle_export/ingress_choice.mbt",
+      ] {
+      assert_eq(sha(base + "/source/" + file), sha(root + "/source/" + file))
+    }
+    for command in ["device_worker_child", "lunaflux"] {
+      let relative = "source/_build/native/release/build/cmd/" +
+        command +
+        "/" +
+        command +
+        ".exe"
+      @shell.Cmd("cp", [base + "/" + relative, root + "/" + relative]).run()
+      assert_eq(sha(base + "/" + relative), sha(root + "/" + relative))
+    }
+    @fs.write_file(
+      root + "/RUNTIME_REUSE.txt",
+      "same rebuilt native executables as " + base + "\n",
+      create_mode=CreateNew,
+    )
+  }
   let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
   let converted = @fs.read_file(root + "/convert.stdout").text()
   let args = [
@@ -145,7 +251,11 @@ async fn main {
     "--prefill-candidate",
     "322",
     "--decode-candidate",
-    "452",
+    if dual_score {
+      "454"
+    } else {
+      "452"
+    },
     "--query-metadata-v1",
   ]
   ignore(
@@ -162,12 +272,36 @@ async fn main {
   let prior = @fs.read_file(base + "/decode-selected/kernel.recipe").text()
   for
     key in [
-      "function_symbol", "candidate_stable_id", "grid", "block", "shared_memory_bytes",
-      "query_tile_rows", "key_value_tile_rows", "head_columns", "numeric_law", "partition_count",
-      "partition_grid", "partition_merge_grid", "partition_block", "partition_workspace_bytes",
+      "grid", "block", "shared_memory_bytes", "query_tile_rows", "key_value_tile_rows",
+      "head_columns", "partition_count", "partition_grid", "partition_merge_grid",
+      "partition_block", "partition_workspace_bytes",
     ] {
     assert_eq(field(recipe, key), field(prior, key))
   }
+  assert_eq(
+    field(recipe, "candidate_stable_id"),
+    if dual_score {
+      "454"
+    } else {
+      "452"
+    },
+  )
+  assert_eq(
+    field(recipe, "numeric_law"),
+    if dual_score {
+      "dual-score-blockwise-f32-probability-v2"
+    } else {
+      "blockwise-f32-probability-v1"
+    },
+  )
+  assert_eq(
+    field(recipe, "function_symbol"),
+    if dual_score {
+      "lunaflux_attention_decode_tile_compiler_v1_dual_score_blockwise_f32_v2"
+    } else {
+      "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
+    },
+  )
   assert_eq(field(recipe, "source_sha256"), sha(selected + "/kernel.cu"))
   assert_true(
     @fs.read_file(selected + "/kernel.cu")
@@ -232,11 +366,27 @@ async fn main {
     .map(x => {
       if x.has_prefix("/home/wlc004s/") && x.contains("/fused/") {
         root + "/fused/" + x.split("/fused/").to_array()[1].to_owned()
+      } else if dual_score && x == "--decode-blockwise-f32-v1" {
+        "--decode-dual-score-blockwise-f32-v2"
       } else {
         x.to_owned()
       }
     })
     .to_array()
+  // Exporter defaults are not the admitted device identity. Preserve the
+  // execution manifest's target when re-exporting an existing serving bundle.
+  let target_args = execution_target_args(
+    @fs.read_file(root + "/release/payload/lunaflux.execution.json").text(),
+  )
+  let export_args = if export_args.contains("--device-target") {
+    let index = export_args.search("--device-target").unwrap()
+    assert_true(index + 2 < export_args.length())
+    assert_eq(export_args[index + 1], target_args[0])
+    assert_eq(export_args[index + 2], target_args[1])
+    export_args
+  } else {
+    export_args + ["--device-target", ..target_args]
+  }
   for
     name in [
       "export.arguments", "export.stdout", "reusable-fused-runtime-bundle.v3",
@@ -256,6 +406,12 @@ async fn main {
     export_args,
   )
   @fs.write_file(root + "/fused/export.stdout", report, create_mode=CreateNew)
+  let emitted = @fs.read_file(root + "/fused/reusable-fused-runtime-bundle.v3").text()
+  assert_eq(field(emitted, "compute_major"), target_args[0])
+  assert_eq(field(emitted, "compute_minor"), target_args[1])
+  if dual_score {
+    verify_modules(base, root)
+  }
   ignore(
     save(root, "measure-routes", moon, [
       "run",
@@ -276,7 +432,7 @@ async fn main {
   }
   @fs.write_file(
     root + "/RESULT.txt",
-    "outcome=completed\nscope=decode-page-epochs compiler module A/B only; runtime and other modules unchanged\n",
+    "outcome=completed\nscope=decode compiler A/B; both arms require the same rebuilt runtime; other modules unchanged\n",
     create_mode=CreateNew,
   )
 }

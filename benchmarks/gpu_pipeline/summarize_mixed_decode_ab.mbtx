@@ -34,95 +34,110 @@ async fn main {
   let cells : Array[Json] = []
   let divergence : Array[Json] = []
   let minimum_memory = Ref(9223372036854775807L)
-  for output in [64, 256] {
-    let times : Map[String, Array[Double]] = Map([])
-    let expected_inputs : Array[Json] = []
-    let expected_outputs : Array[Json] = []
-    let stem = "i4096-o\{output}-c16-t1"
-    for round, kind in ["baseline", "partitioned", "partitioned", "baseline"] {
-      let dir = root + "/r\{round}-" + kind
-      guard @fs.read_file(dir + "/RESULT.txt")
-        .text()
-        .has_prefix("outcome=completed\n") else {
-        fail("incomplete trial")
-      }
-      let value = @json.parse(
-        @fs.read_file(dir + "/requests/" + stem + ".json").text(),
-      )
-      guard value
-        is {
-          "engine": String("luna-full"),
-          "input": input,
-          "output": outputs,
-          "concurrency": concurrency,
-          "warmup": False,
-          "trial": trial,
-          "wall_ms": wall,
-          "requests": Array(requests),
-          ..
-        } &&
-        number(input) == 4096.0 &&
-        number(outputs) == output.to_double() &&
-        number(concurrency) == 16.0 &&
-        number(trial) == 1.0 &&
-        requests.length() == 16 else {
-        fail("work vector or warm-up drift")
-      }
-      let samples = times.get(kind).unwrap_or([])
-      samples.push(number(wall))
-      times[kind] = samples
-      for row, request in requests {
-        guard request
-          is { "token_ids": Array(ids), "token_ms": Array(latencies), .. } &&
-          ids.length() == output &&
-          latencies.length() == output else {
-          fail("incomplete output")
+  guard @json.parse(@fs.read_file(root + "/CAMPAIGN.json").text())
+    is { "concurrency": Array(axes), .. } else {
+    fail("missing concurrency vector")
+  }
+  let concurrencies = axes.map(x => number(x).to_int())
+  guard concurrencies == [16] || concurrencies == [8, 16] else {
+    fail("unsupported concurrency vector")
+  }
+  for concurrency_count in concurrencies {
+    for output in [64, 256] {
+      let times : Map[String, Array[Double]] = Map([])
+      let expected_inputs : Array[Json] = []
+      let expected_outputs : Array[Json] = []
+      let stem = "i4096-o\{output}-c\{concurrency_count}-t1"
+      for round, kind in ["baseline", "partitioned", "partitioned", "baseline"] {
+        let dir = root + "/r\{round}-" + kind
+        guard @fs.read_file(dir + "/RESULT.txt")
+          .text()
+          .has_prefix("outcome=completed\n") else {
+          fail("incomplete trial")
         }
-        let body = @json.parse(
-          @fs.read_file(dir + "/requests/" + stem + "-r\{row}.body.json").text(),
+        let value = @json.parse(
+          @fs.read_file(dir + "/requests/" + stem + ".json").text(),
         )
-        guard body is { "input_token_ids": Array(inputs), .. } &&
-          inputs.length() == 4096 else {
-          fail("token-ID inputs required")
+        guard value
+          is {
+            "engine": String("luna-full"),
+            "input": input,
+            "output": outputs,
+            "concurrency": concurrency,
+            "warmup": False,
+            "trial": trial,
+            "wall_ms": wall,
+            "requests": Array(requests),
+            ..
+          } &&
+          number(input) == 4096.0 &&
+          number(outputs) == output.to_double() &&
+          number(concurrency) == concurrency_count.to_double() &&
+          number(trial) == 1.0 &&
+          requests.length() == concurrency_count else {
+          fail("work vector or warm-up drift")
         }
-        if round == 0 {
-          expected_inputs.push(Json(inputs))
-          expected_outputs.push(Json(ids))
-        } else {
-          assert_eq(expected_inputs[row], Json(inputs), msg="input drift")
-          if expected_outputs[row] != Json(ids) {
-            divergence.push({
-              "round": round,
-              "kind": kind,
-              "output": output,
-              "row": row,
-            })
+        let samples = times.get(kind).unwrap_or([])
+        samples.push(number(wall))
+        times[kind] = samples
+        for row, request in requests {
+          guard request
+            is { "token_ids": Array(ids), "token_ms": Array(latencies), .. } &&
+            ids.length() == output &&
+            latencies.length() == output else {
+            fail("incomplete output")
+          }
+          let body = @json.parse(
+            @fs.read_file(dir + "/requests/" + stem + "-r\{row}.body.json").text(),
+          )
+          guard body is { "input_token_ids": Array(inputs), .. } &&
+            inputs.length() == 4096 else {
+            fail("token-ID inputs required")
+          }
+          if round == 0 {
+            expected_inputs.push(Json(inputs))
+            expected_outputs.push(Json(ids))
+          } else {
+            assert_eq(expected_inputs[row], Json(inputs), msg="input drift")
+            if expected_outputs[row] != Json(ids) {
+              divergence.push({
+                "round": round,
+                "kind": kind,
+                "concurrency": concurrency_count,
+                "output": output,
+                "row": row,
+              })
+            }
+          }
+        }
+        for line in @fs.read_file(dir + "/memory.csv").text().split("\n") {
+          if !line.is_empty() {
+            guard line.split(",").to_array() is [_, kb] else {
+              fail("memory sample")
+            }
+            minimum_memory.val = minimum_memory.val.min(@string.parse_int64(kb))
           }
         }
       }
-      for line in @fs.read_file(dir + "/memory.csv").text().split("\n") {
-        if !line.is_empty() {
-          guard line.split(",").to_array() is [_, kb] else {
-            fail("memory sample")
-          }
-          minimum_memory.val = minimum_memory.val.min(@string.parse_int64(kb))
-        }
-      }
+      let baseline = median(times["baseline"])
+      let partitioned = median(times["partitioned"])
+      cells.push({
+        "input": 4096,
+        "output": output,
+        "concurrency": concurrency_count,
+        "baseline_wall_ms": times["baseline"],
+        "partitioned_wall_ms": times["partitioned"],
+        "baseline_median_ms": baseline,
+        "partitioned_median_ms": partitioned,
+        "time_reduction_percent": 100.0 * (1.0 - partitioned / baseline),
+        "baseline_tok_s": (concurrency_count * output).to_double() *
+        1000.0 /
+        baseline,
+        "partitioned_tok_s": (concurrency_count * output).to_double() *
+        1000.0 /
+        partitioned,
+      })
     }
-    let baseline = median(times["baseline"])
-    let partitioned = median(times["partitioned"])
-    cells.push({
-      "input": 4096,
-      "output": output,
-      "concurrency": 16,
-      "baseline_wall_ms": times["baseline"],
-      "partitioned_wall_ms": times["partitioned"],
-      "baseline_median_ms": baseline,
-      "partitioned_median_ms": partitioned,
-      "time_reduction_percent": 100.0 * (1.0 - partitioned / baseline),
-      "baseline_tok_s": (16 * output).to_double() * 1000.0 / baseline,
-      "partitioned_tok_s": (16 * output).to_double() * 1000.0 / partitioned,
-    })
   }
   assert_true(minimum_memory.val >= 33554432L)
   let summary : Json = {

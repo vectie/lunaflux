@@ -77,6 +77,38 @@ fn median(text : String, field : String) -> Double raise {
 
 ///|
 async fn main {
+  if @env.args() is [_, "--verify-leaks", root, spec, id] {
+    guard ["c452-p8", "c454-p8", "c455-p8", "c456-p8", "c457-p8"].contains(id) &&
+      @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=passed\n") else {
+      fail("completed paired campaign and known candidate required")
+    }
+    admission()
+    ignore(
+      save(
+        root,
+        id + "-full-leak",
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        [
+          "--tool",
+          "memcheck",
+          "--leak-check",
+          "full",
+          "--error-exitcode",
+          "99",
+          root + "/probe",
+          spec,
+          root + "/old/" + id,
+          root + "/new/" + id,
+          "16",
+          "16",
+          "4096",
+          "--decode-envelope",
+          "--check-only",
+        ],
+      ),
+    )
+    return
+  }
   if @env.args() is [_, "--self-test"] {
     let lines = Array::makei(5, i => {
       "tokens=16 old_us=\{5-i} new_us=\{i+1} bitwise=true"
@@ -87,8 +119,25 @@ async fn main {
     return
   }
   guard @env.args() is [_, root, serving, overlay, spec, .. options] &&
-    (options.is_empty() || options == ["--quick"]) else {
-    fail("NEW_ROOT FROZEN_SERVING SCOPED_OVERLAY DECODE_SPEC [--quick]")
+    (
+      options.is_empty() ||
+      options == ["--quick"] ||
+      options == ["--wide-dual"] ||
+      options == ["--contracted"]
+    ) else {
+    fail(
+      "NEW_ROOT FROZEN_SERVING SCOPED_OVERLAY DECODE_SPEC [--quick|--wide-dual|--contracted]",
+    )
+  }
+  let quick = options == ["--quick"]
+  let candidates = if options == ["--contracted"] {
+    ["c456-p8", "c457-p8"]
+  } else if options == ["--wide-dual"] {
+    ["c455-p8"]
+  } else if quick {
+    ["c452-p8"]
+  } else {
+    ["c452-p8", "c454-p8"]
   }
   admission()
   let moon = serving + "/toolchain/bin/moon"
@@ -140,7 +189,7 @@ async fn main {
       }
       let fields = header.split("\n").to_array()
       let id = fields[0].to_owned()
-      if !["c452-p8", "c454-p8"].contains(id) {
+      if !candidates.contains(id) {
         continue
       }
       let dst = build + "/" + id
@@ -202,19 +251,14 @@ async fn main {
       root + "/probe",
     ]),
   )
-  for
-    id in (if options.is_empty() {
-      ["c452-p8", "c454-p8"]
-    } else {
-      ["c452-p8"]
-    }) {
+  for id in candidates {
     for
-      history in (if options.is_empty() {
-        [126, 127, 4095, 4096, 8191]
-      } else {
+      history in (if quick {
         [4095, 4096, 8191]
+      } else {
+        [126, 127, 4095, 4096, 8191]
       }) {
-      for rows in (if options.is_empty() { [1, 8, 16] } else { [1, 16] }) {
+      for rows in (if quick { [1, 16] } else { [1, 8, 16] }) {
         admission()
         let label = id + "-r\{rows}-h\{history}"
         let args = [
@@ -262,6 +306,11 @@ async fn main {
     }
     for tool in ["memcheck", "racecheck", "synccheck"] {
       admission()
+      let leak_options = if tool == "memcheck" {
+        ["--leak-check", "full"]
+      } else {
+        []
+      }
       ignore(
         save(
           root,
@@ -270,6 +319,7 @@ async fn main {
           [
             "--tool",
             tool,
+            ..leak_options,
             "--error-exitcode",
             "99",
             root + "/probe",
@@ -296,8 +346,8 @@ async fn main {
     Json([
       root + "/probe",
       spec,
-      root + "/old/c452-p8",
-      root + "/new/c452-p8",
+      root + "/old/" + candidates[0],
+      root + "/new/" + candidates[0],
       "16",
       "16",
       "4096",
