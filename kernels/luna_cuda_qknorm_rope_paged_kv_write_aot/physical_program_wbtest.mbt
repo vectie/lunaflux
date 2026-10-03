@@ -8,7 +8,6 @@ test "ingress physical migration preserves source" {
     candidate.source_digest().as_hex(),
     content=(
       #|9650bc08a6a03daa7476d71954e27147976fc5001a75de9c645995b27d38c3c7
-
     ),
   )
 }

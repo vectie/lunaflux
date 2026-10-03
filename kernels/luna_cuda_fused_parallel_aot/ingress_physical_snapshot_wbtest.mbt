@@ -38,7 +38,6 @@ test "packed physical refinement emits deterministic full ingress source" {
       #|  "853d51a32eb86675f9c5742692f35121b52ca942056a1bc228361faff962e069",
       #|  "b26b246dda3942521bf415bd013f74d6f7b3783b53c32e18cdeb4cb042336ca8",
       #|]
-
     ),
   )
 }
