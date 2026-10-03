@@ -24,7 +24,9 @@ pub fn AttentionTileSchedule::transfer_readiness(
       self.compute == AttentionGroupedQuerySplitSubgroupDot ||
       self.compute == AttentionGroupedQueryBlockwiseDot ||
       self.compute == AttentionGroupedQueryDualScoreBlockwiseDot ||
-      self.compute == AttentionGroupedQueryFmaBlockwiseDot
+      self.compute == AttentionGroupedQueryFmaBlockwiseDot ||
+      self.compute == AttentionGroupedQueryMatrixQkPv ||
+      self.compute is AttentionGroupedQueryOwnedBlockwiseDot(..)
     ) &&
     self.memory == AttentionAsyncStagedShared &&
     self.pipeline_stages == 2 {

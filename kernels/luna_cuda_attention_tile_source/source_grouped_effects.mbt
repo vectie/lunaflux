@@ -35,6 +35,18 @@ fn cuda_grouped_effects(
         "if (key_base + LF_KEY_VALUE_TILE < key_limit)\n" +
         indent +
         "  stage_tile(key_base + LF_KEY_VALUE_TILE, slot ^ 1);"
+      ResetOperandValidity =>
+        "if (thread == 0) { stage_valid[0] = stage_valid[1] = stage_valid[2] = stage_valid[3] = 1; }"
+      PrimeOperandRings =>
+        "stage_key(key_begin, 0); stage_value(key_begin, 0);\n" +
+        indent +
+        "stage_key(key_begin + LF_KEY_VALUE_TILE, 1); stage_value(key_begin + LF_KEY_VALUE_TILE, 1);"
+      RequireValidKeyStage =>
+        "if (!stage_valid[slot]) { asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return; }"
+      RequireValidValueStage =>
+        "if (!stage_valid[2 + slot]) { asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return; }"
+      RefillKeyStage => "stage_key(key_base + 2 * LF_KEY_VALUE_TILE, slot);"
+      RefillValueStage => "stage_value(key_base + 2 * LF_KEY_VALUE_TILE, slot);"
     }
     indent + text
   })

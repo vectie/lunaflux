@@ -8,6 +8,8 @@ pub struct CudaPrefillFragmentBinding {
   priv score : @physical_tile_ir.FragmentForwarding
   priv value : @physical_tile_ir.FragmentForwarding
   priv query_lifetime : @attention_physical_ir.QueryOperandLifetime
+  priv probabilities : @attention_physical_ir.OrderedProbabilityPacking
+  priv value_addresses : @physical_tile_ir.OperandRowFactoring
 } derive(Eq, Debug)
 
 ///|
@@ -54,7 +56,52 @@ pub fn CudaPrefillFragmentBinding::new(
     is Some(query_lifetime) else {
     return None
   }
-  Some({ program, score, value, query_lifetime, })
+  guard program.pack_probabilities(
+      [0, 0, 1, 1, 0, 0, 1, 1],
+      elements_per_word=2,
+    )
+    is Some(probabilities) else {
+    return None
+  }
+  let (_, _, dimensions) = program.fold().geometry()
+  let rotations = if dimensions / 8 % 8 == 0 {
+    8
+  } else if dimensions / 8 % 4 == 0 {
+    4
+  } else {
+    2
+  }
+  guard @physical_tile_ir.OperandLayout::new(
+      columns=dimensions,
+      vector=8,
+      rotations~,
+      row_group=8 / rotations,
+    )
+    is Some(layout) else {
+    return None
+  }
+  Some({
+    program,
+    score,
+    value,
+    query_lifetime,
+    probabilities,
+    value_addresses: layout.factor_rows(),
+  })
+}
+
+///|
+pub fn CudaPrefillFragmentBinding::probabilities(
+  self : CudaPrefillFragmentBinding,
+) -> @attention_physical_ir.OrderedProbabilityPacking {
+  self.probabilities
+}
+
+///|
+pub fn CudaPrefillFragmentBinding::value_addresses(
+  self : CudaPrefillFragmentBinding,
+) -> @physical_tile_ir.OperandRowFactoring {
+  self.value_addresses
 }
 
 ///|

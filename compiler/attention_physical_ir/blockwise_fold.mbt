@@ -24,8 +24,12 @@ pub fn BlockwiseFold::new(
 ) -> BlockwiseFold? {
   if dimensions > 0 &&
     keys > 0 &&
-    (score_owners == 1 || score_owners == 2) &&
-    (!contraction || score_owners == 1) {
+    (
+      score_owners == 1 ||
+      score_owners == 2 ||
+      score_owners == 4 ||
+      score_owners == 8
+    ) {
     Some({ dimensions, keys, score_owners, contraction, })
   } else {
     None
@@ -39,12 +43,16 @@ pub fn BlockwiseFold::dimensions(self : BlockwiseFold) -> (Int, Int) {
 
 ///|
 pub fn BlockwiseFold::numeric_law(self : BlockwiseFold) -> String {
-  if self.contraction {
+  if self.contraction && self.score_owners > 1 {
+    "owned\{self.score_owners}-blockwise-fma-f32-probability-v4"
+  } else if self.contraction {
     "blockwise-fma-f32-probability-v3"
   } else if self.score_owners == 1 {
     "blockwise-f32-probability-v1"
-  } else {
+  } else if self.score_owners == 2 {
     "dual-score-blockwise-f32-probability-v2"
+  } else {
+    "owned\{self.score_owners}-blockwise-f32-probability-v4"
   }
 }
 

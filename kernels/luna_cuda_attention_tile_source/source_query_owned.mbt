@@ -68,7 +68,7 @@ fn emit_cuda_query_owned_attention_source(
     $|\{layout}
     $|\{cuda_attention_matrix_fragments(shared_scores=false, forwarded_right=fragments)}
     $|\{cuda_query_owned_score_fold()}
-    $|\{cuda_query_owned_numeric_primitives()}
+    $|\{cuda_query_owned_numeric_primitives(law=fold.exponential_law())}
     $|extern "C" __global__ void \{symbol}(
     $|    const int *counts, const int *positions, const int *offsets,
     $|    const int *lengths, const int *page_offsets, const int *page_indices,

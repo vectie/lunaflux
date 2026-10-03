@@ -1,6 +1,6 @@
 ///|
 test "blockwise lowering keeps terminal publication outside the KV loop" {
-  for id in [450, 451, 452, 453, 454, 455, 456, 457] {
+  for id in [450, 451, 452, 453, 454, 455, 456, 457, 460, 461] {
     let lowering = source_test_decode_lowering(
       candidate_id=id,
       alternative=true,
@@ -21,16 +21,22 @@ test "blockwise lowering keeps terminal publication outside the KV loop" {
     let sections = loop_and_tail[1].split("\n  }\n").to_array()
     let tile_body = sections[0]
     let tail = sections[1]
-    // Acquire K and V publish separately. Synchronous transfer additionally
-    // releases its single slot each epoch; asynchronous release is terminal.
+    // Independent rings publish readiness and retirement for each operand.
+    // Error-only publications drain live transfers before a uniform exit.
+    let ordinary = tile_body.split("__syncthreads(); return;").join("return;")
     assert_eq(
-      tile_body.split("__syncthreads();").to_array().length() - 1,
-      if effects.is_pipelined() {
+      ordinary.split("__syncthreads();").to_array().length() - 1,
+      if effects.independently_refills() {
+        4
+      } else if effects.is_pipelined() {
         2
       } else {
         3
       },
     )
-    assert_eq(tail.has_prefix("  __syncthreads();\n"), effects.is_pipelined())
+    assert_eq(
+      tail.contains("cp.async.wait_group 0;"),
+      effects.independently_refills(),
+    )
   }
 }

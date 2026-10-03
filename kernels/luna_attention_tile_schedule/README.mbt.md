@@ -60,6 +60,14 @@ separate K/V readiness in a two-slot ring. Backends render actions in order;
 they do not independently select wait counts or move the validity exit across
 outstanding transfers. Finite lifetime tests exercise tails, errors and reuse.
 
+New owned-score decode alternatives use explicitly independent two-stage
+operand rings. They prime K0/V0/K1/V1, retire and refill K after QK, and retire
+and refill V after PV. Out-of-domain transfers commit empty groups, preserving
+the four-group readiness law through one-tile and ragged partitions. Invalid
+operand exits drain all outstanding writers. Historical paired candidates
+remain the same-numeric-law controls; measured selection, not this effect
+capability, decides which route is used.
+
 `AttentionScoreTransferMode` covers shared-score prefill acquisition and reuse.
 It distinguishes cooperative transport, immediate asynchronous transport and
 lookahead: using an asynchronous instruction does not by itself imply overlap.

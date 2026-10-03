@@ -24,7 +24,10 @@ pub fn CudaAttentionTileLowering::decode_copy_retention(
 pub fn CudaAttentionTileLowering::decode_copy_elements(
   self : CudaAttentionTileLowering,
 ) -> Int {
-  if self.compute == CudaGroupedQueryBlockwiseShuffleDot &&
+  if (
+      self.compute == CudaGroupedQueryBlockwiseShuffleDot ||
+      self.compute == CudaMatrixQkPvMultiplyAccumulate
+    ) &&
     self.head_dimension % 8 == 0 {
     8
   } else {

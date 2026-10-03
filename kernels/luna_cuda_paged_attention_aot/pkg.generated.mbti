@@ -18,9 +18,11 @@ pub fn bind_manifest_paged_attention_cuda_aot(PagedAttentionCudaLowering, @plan.
 
 pub fn bind_manifest_paged_attention_decode_split_cuda_aot(PagedAttentionDecodeSplitCudaBundle, @plan.PlanOperation, @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract, Bytes) -> PagedAttentionDecodeSplitManifestCudaBinding raise PagedAttentionAotError
 
-pub fn bind_reusable_paged_attention_decode_split_cuda_aot(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, ArrayView[@launch_contract.AotOperand], Bytes, String, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, Int, Int64, compiler_readonly? : Bool, blockwise_readonly? : Bool) -> PagedAttentionDecodeSplitRuntimeCudaBinding raise PagedAttentionAotError
+pub fn bind_reusable_paged_attention_decode_split_cuda_aot(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @device_layout.DeviceKvLayout, @catalog.DeviceTarget, ArrayView[@launch_contract.AotOperand], Bytes, String, @catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId, Int, Int64, compiler_readonly? : Bool, blockwise_readonly? : Bool, blockwise_execution? : (@luna_attention_strategy.AttentionTileCompute, Int, Int)) -> PagedAttentionDecodeSplitRuntimeCudaBinding raise PagedAttentionAotError
 
-pub fn blockwise_decode_split_launch_geometry(@luna_attention_strategy.AttentionShape, Int) -> (Int, Int, Int, Int64) raise PagedAttentionAotError
+pub fn blockwise_decode_execution_launch_geometry(@luna_attention_strategy.AttentionShape, Int, @luna_attention_strategy.AttentionTileCompute, Int, Int) -> (Int, Int, Int, Int64) raise PagedAttentionAotError
+
+pub fn blockwise_decode_split_launch_geometry(@luna_attention_strategy.AttentionShape, Int, candidate_id? : Int) -> (Int, Int, Int, Int64) raise PagedAttentionAotError
 
 pub fn compile_blockwise_decode_split(@luna_attention_strategy.AttentionShape, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, Int64, Int64, Int, Int, Int64, candidate_id? : Int) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise PagedAttentionAotError
 

@@ -19,7 +19,7 @@ test "query-owned source carries QK softmax PV across register ownership" {
     )
     let text = @utf8.decode(source.bytes())
     assert_true(text.contains("LfMatrixAccumulator score["))
-    assert_true(text.contains("probability.x[pair]=lf_probability_pair("))
+    assert_true(text.contains("probability.x[0]=lf_probability_pair("))
     assert_true(text.contains("cvt.rn.bf16x2.f32"))
     assert_true(text.contains("__float_as_uint(value)&mask"))
     assert_false(text.contains("weight[item]=isinf"))
@@ -28,7 +28,7 @@ test "query-owned source carries QK softmax PV across register ownership" {
     )
     assert_false(text.contains("__expf("))
     assert_true(
-      text.contains("lf_matrix_mma_value(out[column],probability,current_v"),
+      text.contains("lf_matrix_mma_value(out[column],probability,value_address"),
     )
     assert_false(text.contains("float *scores"))
     assert_true(text.contains("lf_query_score_fold<false>"))

@@ -7,6 +7,7 @@ fn source_test_lowering(
   dense_current? : Bool = false,
   affine_current? : Bool = false,
   partitioned? : Bool = false,
+  approximate_exponential? : Bool = false,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -22,6 +23,7 @@ fn source_test_lowering(
     context_tokens=4096,
     causal=true,
     allow_alternative_softmax_reduction=candidate_id is Some(_),
+    allow_approximate_exponential=approximate_exponential,
     key_value_read_view=if affine_current {
       AffineDenseCurrentAndPagedHistory
     } else if dense_current {
@@ -151,9 +153,17 @@ fn source_test_decode_lowering(
     max_threads_per_block=256,
     max_shared_memory_bytes=100000L,
     max_pipeline_stages=2,
-    supports_async_copy=[440, 441, 452, 453, 454, 455, 456, 457].contains(
-      candidate_id,
+    matrix_shape=Some(
+      @luna_attention_strategy.AttentionMatrixShape::new(
+        rows=16,
+        columns=16,
+        reduction=16,
+      ),
     ),
+    supports_async_copy=[
+      440, 441, 452, 453, 454, 455, 456, 457, 460, 461, 462, 463, 464, 465, 466,
+      467, 468, 469, 470, 471, 482, 483,
+    ].contains(candidate_id),
     parallel_workgroup_target~,
   )
   guard @luna_attention_strategy.generate_attention_tile_candidates(

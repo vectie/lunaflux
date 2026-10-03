@@ -22,6 +22,7 @@ test "ingress numerics are independent of fusion placement and head count" {
   assert_eq(numerics.rotary_basis()[32], 0.001F)
   assert_true(numerics.rotary_basis()[63] > 0.000001F)
   assert_true(numerics != full.numerics(reduction_lanes=64))
+  assert_eq(numerics.pair_retention().unwrap().geometry(), (64, 32, 2))
 }
 
 ///|

@@ -65,26 +65,8 @@ fn cuda_online_fold_phase(
           #|        }
         )
       AccumulateProbabilityValue =>
-        (
-          $|        #pragma unroll
-          $|        for (int key=0;key<LF_KEY_VALUE_TILE/16;++key) {
-          $|          float weight[8];
-          $|          #pragma unroll
-          $|          for (int item=0;item<8;++item) {
-          $|            const int r=item%4/2;
-          $|            weight[item]=lf_masked_exp(score[key].x[item],score[key].x[item]-next[r]);
-          $|            sum[r]+=weight[item];
-          $|          }
-          $|          LfMatrixOperand probability;
-          $|          #pragma unroll
-          $|          for (int pair=0;pair<4;++pair) {
-          $|            probability.x[pair]=lf_probability_pair(weight[pair*2],weight[pair*2+1]);
-          $|          }
-          $|          #pragma unroll
-          $|          for (int column=0;column<\{value_columns};++column) {
-          $|            lf_matrix_mma_value(out[column],probability,current_v,key*\{value_quantum},column*16,LF_HEAD_DIMENSION);
-          $|          }
-          $|        }
+        cuda_streaming_probability_value(
+          fragments, value_columns, value_quantum,
         )
       UpdateDenominator =>
         (

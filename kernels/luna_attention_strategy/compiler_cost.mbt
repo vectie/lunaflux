@@ -34,9 +34,14 @@ fn attention_candidate_online_fold_steps(
   match candidate.compute {
     AttentionMatrixDot
     | AttentionMatrixQkPv
+    | AttentionMatrixQkPvApproxExp
     | AttentionGroupedQueryBlockwiseDot
     | AttentionGroupedQueryDualScoreBlockwiseDot
     | AttentionGroupedQueryFmaBlockwiseDot =>
+      attention_ceil_div(context, transfer_rows)
+    AttentionGroupedQueryMatrixQkPv =>
+      attention_ceil_div(context, transfer_rows)
+    AttentionGroupedQueryOwnedBlockwiseDot(..) =>
       attention_ceil_div(context, transfer_rows)
     AttentionGroupedQuerySplitSubgroupDot => {
       let (query_heads, kv_heads, _, _) = problem.shape.dimensions()
@@ -85,8 +90,20 @@ fn attention_candidate_cost_breakdown(
     | AttentionGroupedQueryDualScoreBlockwiseDot
     | AttentionGroupedQueryFmaBlockwiseDot =>
       candidate.subgroups_per_block.to_int64() * 8L
-    AttentionMatrixDot | AttentionMatrixQkPv =>
+    AttentionGroupedQueryOwnedBlockwiseDot(..) =>
+      candidate.subgroups_per_block.to_int64() * 8L
+    AttentionMatrixDot | AttentionMatrixQkPv | AttentionMatrixQkPvApproxExp =>
       candidate.subgroups_per_block.to_int64() * 64L
+    AttentionGroupedQueryMatrixQkPv => {
+      let (heads, kv_heads, _, _) = problem.shape.dimensions()
+      // The instruction always computes sixteen rows, even for a narrower
+      // GQA group. Charge inactive instruction rows before measured tuning;
+      // they are masked semantic rows, not free Tensor Core throughput.
+      candidate.subgroups_per_block.to_int64() *
+      64L *
+      (heads / kv_heads).to_int64() /
+      16L
+    }
   }
   let arithmetic_cost = attention_checked_product(
       dot_work,
@@ -111,7 +128,9 @@ fn attention_candidate_cost_breakdown(
       // live. Do not assume a twofold gain without a measured record; preserve
       // the synchronous default while autotune can select actual winners.
       match candidate.compute {
-        AttentionMatrixDot | AttentionMatrixQkPv => 2L
+        AttentionMatrixDot
+        | AttentionMatrixQkPv
+        | AttentionMatrixQkPvApproxExp => 2L
         _ => 1L
       }
   }
@@ -123,10 +142,15 @@ fn attention_candidate_cost_breakdown(
     | AttentionGroupedQueryDualScoreBlockwiseDot
     | AttentionGroupedQueryFmaBlockwiseDot =>
       (query_heads / key_value_heads).to_int64()
+    AttentionGroupedQueryOwnedBlockwiseDot(..) =>
+      (query_heads / key_value_heads).to_int64()
+    AttentionGroupedQueryMatrixQkPv =>
+      (query_heads / key_value_heads).to_int64()
     AttentionScalarDot
     | AttentionSubgroupDot
     | AttentionMatrixDot
-    | AttentionMatrixQkPv => 1L
+    | AttentionMatrixQkPv
+    | AttentionMatrixQkPvApproxExp => 1L
   }
   let memory_cost = attention_checked_product(
       attention_checked_product(key_value_bytes, memory_multiplier, Candidate),

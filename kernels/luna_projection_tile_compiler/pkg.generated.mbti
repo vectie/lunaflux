@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/luna_projection_tile_compiler"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/elementwise_physical_ir",
   "vectie/lunaflux/compiler/physical_tile_ir",
   "vectie/lunaflux/kernels/luna_projection_strategy",
 }
@@ -49,6 +50,7 @@ pub struct AttentionIngressNumerics {
 } derive(Eq, @debug.Debug)
 pub fn AttentionIngressNumerics::epsilon(Self) -> Float
 pub fn AttentionIngressNumerics::group_heads(Self, heads~ : Int, workgroup_lanes~ : Int) -> AttentionIngressHeadMap raise ProjectionTileCompilerError
+pub fn AttentionIngressNumerics::pair_retention(Self) -> @elementwise_physical_ir.SplitPairRetention?
 pub fn AttentionIngressNumerics::rotary_basis(Self) -> ReadOnlyArray[Float]
 pub fn AttentionIngressNumerics::shape(Self) -> (Int, Int)
 

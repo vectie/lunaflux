@@ -10,6 +10,10 @@ pub(all) enum AttentionPhysicalProgram {
     @attention_physical_ir.BlockwiseFold,
     AttentionGroupedEffectPlan
   )
+  GroupedMatrixKeyProgram(
+    @attention_physical_ir.GroupedMatrixDecodeFold,
+    AttentionGroupedEffectPlan
+  )
   SharedScoreProgram(AttentionSharedScoreProgram)
   QueryFragmentProgram(
     @attention_physical_ir.OnlineFold,
@@ -57,16 +61,43 @@ pub fn AttentionTileSchedule::physical_program(
     raise InvalidAttentionTileSchedule(InvalidTile)
   }
   match self.compute {
-    AttentionGroupedQueryBlockwiseDot
-    | AttentionGroupedQueryDualScoreBlockwiseDot
-    | AttentionGroupedQueryFmaBlockwiseDot => {
+    AttentionGroupedQueryMatrixQkPv => {
       let keys = if self.key_value_partitions == 1 {
         self.loops[2].tile
       } else {
         self.loops[3].tile
       }
-      let score_owners = if self.compute ==
-        AttentionGroupedQueryDualScoreBlockwiseDot {
+      guard @attention_physical_ir.GroupedMatrixDecodeFold::new(
+          heads=self.loops[1].tile,
+          keys~,
+          dimensions~,
+        )
+        is Some(fold) else {
+        raise InvalidAttentionTileSchedule(InvalidTile)
+      }
+      GroupedMatrixKeyProgram(
+        fold,
+        AttentionGroupedEffectPlan::new(
+          self.memory,
+          stages=self.pipeline_stages,
+          readiness=self.transfer_readiness(),
+          independent=self.memory == AttentionAsyncStagedShared,
+        ),
+      )
+    }
+    AttentionGroupedQueryBlockwiseDot
+    | AttentionGroupedQueryDualScoreBlockwiseDot
+    | AttentionGroupedQueryFmaBlockwiseDot
+    | AttentionGroupedQueryOwnedBlockwiseDot(..) => {
+      let keys = if self.key_value_partitions == 1 {
+        self.loops[2].tile
+      } else {
+        self.loops[3].tile
+      }
+      let score_owners = if self.compute
+        is AttentionGroupedQueryOwnedBlockwiseDot(score_owners~, ..) {
+        score_owners
+      } else if self.compute == AttentionGroupedQueryDualScoreBlockwiseDot {
         2
       } else {
         1
@@ -75,7 +106,11 @@ pub fn AttentionTileSchedule::physical_program(
           dimensions~,
           keys~,
           score_owners~,
-          contraction=self.compute == AttentionGroupedQueryFmaBlockwiseDot,
+          contraction=match self.compute {
+            AttentionGroupedQueryOwnedBlockwiseDot(contraction~, ..) =>
+              contraction
+            _ => self.compute == AttentionGroupedQueryFmaBlockwiseDot
+          },
         )
         is Some(fold) else {
         raise InvalidAttentionTileSchedule(InvalidTile)
@@ -86,6 +121,8 @@ pub fn AttentionTileSchedule::physical_program(
           self.memory,
           stages=self.pipeline_stages,
           readiness=self.transfer_readiness(),
+          independent=self.memory == AttentionAsyncStagedShared &&
+            self.compute is AttentionGroupedQueryOwnedBlockwiseDot(..),
         ),
       )
     }
@@ -107,7 +144,7 @@ pub fn AttentionTileSchedule::physical_program(
         GroupedKeyProgram(key_fold, effects)
       }
     }
-    AttentionMatrixDot | AttentionMatrixQkPv =>
+    AttentionMatrixDot | AttentionMatrixQkPv | AttentionMatrixQkPvApproxExp =>
       if self.fragment_ownership() == QueryOwnedFragments {
         guard self.physical_online_fold() is Some(fold) else {
           raise InvalidAttentionTileSchedule(InvalidTile)
@@ -121,7 +158,8 @@ pub fn AttentionTileSchedule::physical_program(
           ),
         )
       } else {
-        let matrix_probability = self.compute == AttentionMatrixQkPv
+        let matrix_probability = self.compute == AttentionMatrixQkPv ||
+          self.compute == AttentionMatrixQkPvApproxExp
         SharedScoreProgram({
           transfer: AttentionScoreTransferMode::from_schedule(
             self.memory,

@@ -130,6 +130,24 @@ pub fn SelectionReduction::equal(Self, Self) -> Bool
 pub fn SelectionReduction::not_equal(Self, Self) -> Bool
 pub fn SelectionReduction::to_repr(Self) -> @debug.Repr
 
+pub struct SplitPairRetention {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SplitPairRetention::components(Self, Int, Int) -> (Int, Int)?
+pub fn SplitPairRetention::equal(Self, Self) -> Bool
+pub fn SplitPairRetention::geometry(Self) -> (Int, Int, Int)
+pub fn SplitPairRetention::new(width~ : Int, owners~ : Int) -> Self?
+pub fn SplitPairRetention::not_equal(Self, Self) -> Bool
+pub fn SplitPairRetention::to_repr(Self) -> @debug.Repr
+
+pub struct StepRotaryCachePlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StepRotaryCachePlan::byte_count(Self) -> Int64
+pub fn StepRotaryCachePlan::cell_offset(Self, Int, Int) -> Int64?
+pub fn StepRotaryCachePlan::geometry(Self) -> (Int, Int)
+pub fn StepRotaryCachePlan::new(maximum_tokens~ : Int, head_dimension~ : Int) -> Self?
+
 pub(all) enum StochasticFinalStep {
   OrderedSoftmax
   RequireFiniteMass

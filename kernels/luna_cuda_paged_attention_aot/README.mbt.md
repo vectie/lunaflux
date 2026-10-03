@@ -51,3 +51,16 @@ paged launch schema owns one attention launch and no F32 partial-workspace
 operand. Production use therefore requires a versioned two-launch contract
 that explicitly names the partial and merge entry points plus the exact
 workspace bytes; the existing single-stage manifest path is unchanged.
+
+`compile_blockwise_decode_split` now specializes the selected typed blockwise
+or grouped-matrix candidate rather than replacing it with one of three fixed
+KV32 IDs. The candidate's exact tile, stages, storage and compute family govern
+the AOT launch. Exported ordinary and partitioned entries must have the same
+physical numerical law; KV64 and new owner counts cannot lose their selected
+geometry while being paired with a merge entry.
+
+`blockwise_decode_execution_launch_geometry` validates an already admitted
+compute/KV-tile/stage descriptor for startup binding without compiler search.
+It is separate from the offline candidate lookup adapter. The incumbent
+dual-score ABI and symbols are preserved for same-law candidates 460/461;
+other numerical laws require their explicit versioned admission contract.

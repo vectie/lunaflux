@@ -73,6 +73,7 @@ pub fn AttentionCompileProblem::new(
   context_tokens~ : Int,
   causal~ : Bool,
   allow_alternative_softmax_reduction? : Bool = false,
+  allow_approximate_exponential? : Bool = false,
   key_value_read_view? : AttentionKeyValueReadView = PagedCacheOnly,
   required_fragment_ownership? : AttentionFragmentOwnership? = None,
 ) -> AttentionCompileProblem raise AttentionStrategyError {
@@ -84,6 +85,14 @@ pub fn AttentionCompileProblem::new(
     context_tokens <= 0 ||
     context_tokens > 1048576 ||
     (phase == Decode && query_rows != 1) ||
+    (
+      allow_approximate_exponential &&
+      (
+        !allow_alternative_softmax_reduction ||
+        phase != Prefill ||
+        numeric_type != AttentionBFloat16
+      )
+    ) ||
     (
       required_fragment_ownership == Some(QueryOwnedFragments) &&
       (
@@ -103,6 +112,7 @@ pub fn AttentionCompileProblem::new(
     context_tokens,
     causal,
     allow_alternative_softmax_reduction,
+    allow_approximate_exponential,
     key_value_read_view,
     required_fragment_ownership,
   }

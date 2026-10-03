@@ -96,6 +96,15 @@ pub fn AttentionCompileProblem::allows_alternative_softmax_reduction(
 }
 
 ///|
+/// Explicit admission of approximate base-two score exponentiation. The
+/// default strict problem excludes these candidates even with reordered sums.
+pub fn AttentionCompileProblem::allows_approximate_exponential(
+  self : AttentionCompileProblem,
+) -> Bool {
+  self.allow_approximate_exponential
+}
+
+///|
 pub fn AttentionCompileProblem::key_value_read_view(
   self : AttentionCompileProblem,
 ) -> AttentionKeyValueReadView {

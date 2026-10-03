@@ -17,8 +17,14 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
   maximum_workspace_bytes : Int64,
   compiler_readonly? : Bool = false,
   blockwise_readonly? : Bool = false,
+  blockwise_execution? : (
+    @luna_attention_strategy.AttentionTileCompute,
+    Int,
+    Int,
+  ),
 ) -> PagedAttentionDecodeSplitRuntimeCudaBinding raise PagedAttentionAotError {
   if (compiler_readonly && blockwise_readonly) ||
+    (!blockwise_readonly && blockwise_execution is Some(_)) ||
     partial_entry_point_id == merge_entry_point_id ||
     module_bytes.is_empty() ||
     module_bytes.length() > 8388608 ||
@@ -122,7 +128,16 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
     "_ep_" +
     merge_entry_point_id.as_int().to_string()
   let (_, partial_heads, threads, shared) = if blockwise_readonly {
-    blockwise_decode_split_launch_geometry(shape, workspace_plan.split_count())
+    let (compute, rows, stages) = blockwise_execution.unwrap_or(
+      (AttentionGroupedQueryBlockwiseDot, 32, 2),
+    )
+    blockwise_decode_execution_launch_geometry(
+      shape,
+      workspace_plan.split_count(),
+      compute,
+      rows,
+      stages,
+    )
   } else if compiler_readonly {
     compiler_decode_launch_geometry(
       shape,

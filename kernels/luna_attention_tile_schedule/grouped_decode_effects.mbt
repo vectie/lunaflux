@@ -5,6 +5,7 @@ pub(all) enum AttentionGroupedEffectPoint {
   InitializeTransfers
   AcquireKeyOperands
   AcquireValueOperands
+  ReleaseKeyReaders
   PrefetchNextTile
   ReleaseTileReaders
   CompleteTileReaders
@@ -25,11 +26,18 @@ pub(all) enum AttentionGroupedEffect {
   RequireValidTile
   RequireValidStage
   StageNextPairInOtherSlot
+  ResetOperandValidity
+  PrimeOperandRings
+  RequireValidKeyStage
+  RequireValidValueStage
+  RefillKeyStage
+  RefillValueStage
 } derive(Debug, Eq)
 
 ///|
 pub struct AttentionGroupedEffectPlan {
   priv pipelined : Bool
+  priv independent : Bool
 } derive(Debug, Eq)
 
 ///|
@@ -39,13 +47,24 @@ pub fn AttentionGroupedEffectPlan::new(
   memory : @luna_attention_strategy.AttentionTileMemory,
   stages~ : Int,
   readiness~ : AttentionTransferReadiness,
+  independent? : Bool = false,
 ) -> AttentionGroupedEffectPlan raise AttentionTileScheduleError {
   let pipelined = match (memory, stages, readiness) {
     (AttentionStagedShared, 1, JoinedKeyValueReadiness) => false
     (AttentionAsyncStagedShared, 2, KeyScoreBeforeValueReadiness) => true
     _ => raise InvalidAttentionTileSchedule(InvalidLoopNest)
   }
-  { pipelined, }
+  guard !independent || pipelined else {
+    raise InvalidAttentionTileSchedule(InvalidLoopNest)
+  }
+  { pipelined, independent, }
+}
+
+///|
+pub fn AttentionGroupedEffectPlan::independently_refills(
+  self : AttentionGroupedEffectPlan,
+) -> Bool {
+  self.independent
 }
 
 ///|
@@ -60,6 +79,24 @@ pub fn AttentionGroupedEffectPlan::actions(
   self : AttentionGroupedEffectPlan,
   point : AttentionGroupedEffectPoint,
 ) -> ReadOnlyArray[AttentionGroupedEffect] {
+  if self.independent {
+    return match point {
+      InitializeTransfers =>
+        [ResetOperandValidity, PublishWorkgroup, PrimeOperandRings]
+      // Four committed groups are always present: K0,V0,K1,V1. Each
+      // reader waits only for the oldest group, then retires its own slot.
+      // Empty out-of-domain copies still commit a group, preserving the law.
+      AcquireKeyOperands =>
+        [AwaitPendingTransfers(3), PublishWorkgroup, RequireValidKeyStage]
+      ReleaseKeyReaders => [PublishWorkgroup, RefillKeyStage]
+      AcquireValueOperands =>
+        [AwaitPendingTransfers(3), PublishWorkgroup, RequireValidValueStage]
+      ReleaseTileReaders => [PublishWorkgroup, RefillValueStage]
+      CompleteTileReaders => [AwaitPendingTransfers(0), PublishWorkgroup]
+      PublishFoldPartials => [PublishWorkgroup]
+      PrefetchNextTile => []
+    }
+  }
   match (point, self.pipelined) {
     (InitializeTransfers, true) =>
       [ResetStageValidity, PublishWorkgroup, StageFirstPair]

@@ -64,7 +64,11 @@ test "offline export of the partitioned blockwise physical frontier" {
     maximum_query_tokens=2048,
     maximum_page_entries=16384,
   )
-  for id in [441, 452, 453, 454, 455, 456, 457] {
+  let variants = [
+    441, 452, 453, 454, 455, 456, 457, 460, 461, 462, 463, 464, 465, 466, 467, 468,
+    469, 470, 471, 480, 481, 482, 483,
+  ]
+  for id in variants {
     let lowering = source_test_decode_lowering(
       candidate_id=id,
       alternative=id >= 450,
@@ -76,18 +80,20 @@ test "offline export of the partitioned blockwise physical frontier" {
     )
     let law = match lowering.physical_program() {
       BlockwiseKeyProgram(fold, _) => fold.numeric_law()
+      GroupedMatrixKeyProgram(fold, _) => fold.numeric_law()
       _ => "ordered-online-f32-v1"
     }
     let (_, heads, threads, shared) = lowering.launch()
     println("LUNA_PARTIAL_BEGIN c\{id}-p1")
+    let registers = if id >= 480 { 255 } else { 128 }
     println(
-      "grid=32,\{heads},1\nblock=\{threads},1,1\nshared_memory_bytes=\{shared}\nquery_tile_rows=1\nquery_metadata_version=0\nfunction_symbol=\{source.symbol()}\nmax_registers=128\ntarget=sm_121\nnumeric_law=\{law}",
+      "grid=32,\{heads},1\nblock=\{threads},1,1\nshared_memory_bytes=\{shared}\nquery_tile_rows=1\nquery_metadata_version=0\nfunction_symbol=\{source.symbol()}\nmax_registers=\{registers}\ntarget=sm_121\nnumeric_law=\{law}",
     )
     println("LUNA_PARTIAL_SOURCE")
     println(@utf8.decode(source.bytes()))
     println("LUNA_PARTIAL_END")
   }
-  for id in [450, 451, 452, 453, 454, 455, 456, 457] {
+  for id in [450, 451, ..variants.filter(id => id >= 452)] {
     for target in [16, 32, 64] {
       let lowering = source_test_decode_lowering(
         candidate_id=id,
@@ -102,12 +108,14 @@ test "offline export of the partitioned blockwise physical frontier" {
       )
       let law = match lowering.physical_program() {
         BlockwiseKeyProgram(fold, _) => fold.numeric_law()
+        GroupedMatrixKeyProgram(fold, _) => fold.numeric_law()
         _ => fail("missing exported blockwise program")
       }
       let (_, heads, threads, shared) = lowering.launch()
       println("LUNA_PARTIAL_BEGIN c\{id}-p\{lowering.key_value_partitions()}")
+      let registers = if id >= 480 { 255 } else { 128 }
       println(
-        "grid=32,\{heads},\{lowering.key_value_partitions()}\nmerge_grid=32,16,1\nblock=\{threads},1,1\nshared_memory_bytes=\{shared}\nworkspace_bytes=\{source.workspace().total_bytes()}\nquery_tile_rows=1\nquery_metadata_version=0\nfunction_symbol=blockwise_partial\nmerge_function_symbol=blockwise_merge\nmax_registers=128\ntarget=sm_121\nnumeric_law=\{law}",
+        "grid=32,\{heads},\{lowering.key_value_partitions()}\nmerge_grid=32,16,1\nblock=\{threads},1,1\nshared_memory_bytes=\{shared}\nworkspace_bytes=\{source.workspace().total_bytes()}\nquery_tile_rows=1\nquery_metadata_version=0\nfunction_symbol=blockwise_partial\nmerge_function_symbol=blockwise_merge\nmax_registers=\{registers}\ntarget=sm_121\nnumeric_law=\{law}",
       )
       println("LUNA_PARTIAL_SOURCE")
       println(@utf8.decode(source.bytes()))

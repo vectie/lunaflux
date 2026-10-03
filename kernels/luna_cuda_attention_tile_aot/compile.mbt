@@ -59,7 +59,14 @@ pub fn compile_cuda_attention_tile_aot(
   ) catch {
     _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
   }
-  lower_cuda_attention_tile_aot_variant(request, functional, request.symbol)
+  lower_cuda_attention_tile_aot_variant(
+    request,
+    functional,
+    cuda_attention_numerical_symbol(
+      request.symbol,
+      functional.plan().candidate().compute(),
+    ),
+  )
 }
 
 ///|
@@ -108,10 +115,14 @@ pub fn compile_cuda_attention_tile_aot_frontier(
     // Preserve the long-lived production ABI symbol for the selected variant.
     // Non-selected frontier members receive stable candidate suffixes so a
     // bundle can retain them without breaking existing selected-only users.
+    let numerical_symbol = cuda_attention_numerical_symbol(
+      request.symbol,
+      compilation.plan().candidate().compute(),
+    )
     let symbol = if compilation == functional.selected() {
-      request.symbol
+      numerical_symbol
     } else {
-      request.symbol + "_c" + stable_id.to_string()
+      numerical_symbol + "_c" + stable_id.to_string()
     }
     try
       variants.push(

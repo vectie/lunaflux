@@ -24,6 +24,13 @@ consumer and can use the shared physical IR's register-forwarding transform.
 It does not reorder reduction steps, change probability precision, add
 storage, or move reads across transfer publication/release effects.
 
+`OrderedProbabilityPacking` refines the probability map/reduction into bounded
+word-sized consumers. Each scalar contributes to its row's F32 denominator in
+the original element order and then receives the original independent rounding
+before packing. This removes a whole-fragment temporary without changing the
+softmax law. Its immutable ownership table is supplied by device lowering;
+the generic program contains no warp, CUDA instruction or model identity.
+
 `QueryOperandLifetime` jointly refines the invariant Q operands and epoch-local
 score/PV fragment live ranges. A complete-fragment prefix may remain live across
 ascending KV epochs; its explicit representation size estimates fragment
@@ -94,3 +101,41 @@ implicit contraction globally. A distinct symbol, ABI and bundle schema carry
 this law through export, packaging, startup admission and split-route binding;
 strict bundles keep their existing identity. Numerical and whole-serving
 comparisons are required before selecting this alternative.
+
+`AttentionExponentialLaw` is independent of ownership and transfer scheduling.
+`StrictNaturalExponential` remains the default and retains its original fold
+identity. `ApproximateBaseTwoExponential` is a separately admitted numerical
+alternative (`approx-base2-f32-v1`, F32 subnormal flush permitted), not a pure
+equality rewrite. It retains denominator addition order and independent BF16
+rounding. Independent attention/error, logits and output tests must establish
+acceptable accuracy before measured selection; a latency improvement alone is
+not admission. CUDA realizes only these declared exponentials with the exp2
+intrinsic and explicit multiply, not a whole-module fastmath flag.
+
+Candidate and serving exporters require `--prefill-approximate-exp2` for that
+alternative. Its distinct symbol, source/recipe digests and per-module numerical
+law propagate into runtime-bundle v12 with a digest-bound startup permission;
+legacy bundles remain strict. Startup also verifies the unchanged BF16/F32,
+conversion and ordered-fold model contract. This does not make the approximate
+exponential bitwise equivalent or replace independent whole-model accuracy
+qualification. A default or measured serving route must not be promoted on
+the basis of kernel timing alone.
+The serving wide module has an independent `--prefill-wide-approximate-exp2`
+option; baseline permission cannot relabel a frozen strict wide artifact.
+Mixed-frontier source namespaces follow each variant's actual arithmetic,
+not the selected baseline's permission.
+
+`BlockwiseFold` can distribute score ownership across two, four or eight
+owners, independently of its explicit multiply/add contraction permission.
+The traversal remains a bijection over the head components and tail keys;
+alternative reduction association has a named numerical identity. The original
+dual-score law remains available for a matched arithmetic/pipeline comparison.
+
+`GroupedMatrixDecodeFold` maps heads of one GQA group to the rows of an ordered
+matrix fold. It does not batch unrelated sequences or invent temporal query
+tokens. Instruction rows outside the group are inactive; terminal writes use
+the same head ownership as QK/PV. Its BF16 probabilities are a distinct
+`grouped-head-matrix-bf16-probability-v1` alternative, not an exact replacement
+for the existing F32 probability law. The current executable realization covers
+head groups up to sixteen, head dimensions 64/128 and KV tiles 32/64. Unsupported
+shapes are excluded before selection, rather than silently falling back.

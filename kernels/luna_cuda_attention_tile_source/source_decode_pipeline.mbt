@@ -9,7 +9,14 @@ fn emit_decode_async_stage(
   vector_elements? : Int = 4,
   tile_rows~ : Int,
   start_alignment~ : Int,
+  storage_index? : String = "linear",
 ) -> String {
+  if effects.independently_refills() {
+    return emit_decode_independent_stage(
+      abi, effects, hoist_page_lookup, retention, vector_elements, tile_rows, start_alignment,
+      storage_index,
+    )
+  }
   let (_, _, _, page_rows) = abi.shape()
   let epochs = if hoist_page_lookup {
     @attention_physical_ir.PagedTileEpochs::new(

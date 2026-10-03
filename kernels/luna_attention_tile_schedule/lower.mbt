@@ -41,8 +41,12 @@ fn compute_code(compute : @luna_attention_strategy.AttentionTileCompute) -> Int 
     AttentionGroupedQueryBlockwiseDot => 7
     AttentionGroupedQueryDualScoreBlockwiseDot => 8
     AttentionGroupedQueryFmaBlockwiseDot => 9
+    AttentionGroupedQueryMatrixQkPv => 11
+    AttentionGroupedQueryOwnedBlockwiseDot(score_owners~, contraction~) =>
+      10 + score_owners * 2 + (if contraction { 1 } else { 0 })
     AttentionMatrixDot => 4
     AttentionMatrixQkPv => 5
+    AttentionMatrixQkPvApproxExp => 12
   }
 }
 
@@ -109,7 +113,17 @@ fn canonical_schedule(
   let (subgroups, stages, vector_bytes) = candidate.execution_geometry()
   let builder = StringBuilder()
   builder <+ "luna-attention-tile-schedule-v3\n"
-  if candidate.compute() == AttentionGroupedQueryFmaBlockwiseDot {
+  if candidate.compute() == AttentionGroupedQueryMatrixQkPv {
+    builder <+ "numeric=grouped-head-matrix-bf16-probability-v1\n"
+  } else if candidate.compute()
+    is AttentionGroupedQueryOwnedBlockwiseDot(score_owners~, contraction~) {
+    let law = if score_owners == 2 && !contraction {
+      "dual-score-blockwise-f32-probability-v2"
+    } else {
+      "owned\{score_owners}-blockwise-\{if contraction { "fma-" } else { "" }}f32-probability-v4"
+    }
+    builder <+ "numeric=\{law}\n"
+  } else if candidate.compute() == AttentionGroupedQueryFmaBlockwiseDot {
     builder <+ "numeric=blockwise-fma-f32-probability-v3\n"
   } else if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
     builder <+ "numeric=blockwise-f32-probability-v1\n"
@@ -258,10 +272,19 @@ fn schedule_attention_tile_program_with_partitions(
       let (query_heads, key_value_heads, _, _) = problem.shape().dimensions()
       query_heads / key_value_heads
     }
+    AttentionGroupedQueryOwnedBlockwiseDot(..) => {
+      let (query_heads, key_value_heads, _, _) = problem.shape().dimensions()
+      query_heads / key_value_heads
+    }
+    AttentionGroupedQueryMatrixQkPv => {
+      let (query_heads, key_value_heads, _, _) = problem.shape().dimensions()
+      query_heads / key_value_heads
+    }
     AttentionScalarDot
     | AttentionSubgroupDot
     | AttentionMatrixDot
-    | AttentionMatrixQkPv => 1
+    | AttentionMatrixQkPv
+    | AttentionMatrixQkPvApproxExp => 1
   }
   let prefix : Array[AttentionLoopCombinator] = [
     {
@@ -327,7 +350,10 @@ fn schedule_attention_tile_program_with_partitions(
   let loops = ReadOnlyArray::from_array(prefix)
   validate_schedule_loops(loops, key_value_partitions)
   let matrix_storage_layout = if reuse_online_softmax_tile_storage &&
-    candidate.compute() == AttentionMatrixQkPv {
+    (
+      candidate.compute() == AttentionMatrixQkPv ||
+      candidate.compute() == AttentionMatrixQkPvApproxExp
+    ) {
     Some(plan_attention_matrix_storage(program))
   } else {
     None

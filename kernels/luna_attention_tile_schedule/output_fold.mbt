@@ -16,7 +16,7 @@ fn output_fold_storage(
   // Bound the live accumulator to two matrix-row fragments per subgroup.
   // Wider query tiles retain the shared realization until a measured resource
   // model supports their longer register lifetimes.
-  if compute == AttentionMatrixQkPv &&
+  if (compute == AttentionMatrixQkPv || compute == AttentionMatrixQkPvApproxExp) &&
     query_tile > 0 &&
     head_dimension > 0 &&
     query_tile <= 32 &&

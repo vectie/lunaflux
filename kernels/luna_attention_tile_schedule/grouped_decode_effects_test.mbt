@@ -69,6 +69,7 @@ fn apply_grouped_effects(
           machine.issue([(next, epoch + 1)])
           machine.issue([(next + 1, epoch + 1)])
         }
+      _ => fail("independent effects require the operand-ring model")
     }
   }
   true

@@ -11,6 +11,14 @@ import {
 // Errors
 
 // Types and methods
+pub(all) enum AttentionExponentialLaw {
+  StrictNaturalExponential
+  ApproximateBaseTwoExponential
+} derive(Eq, @debug.Debug)
+pub fn AttentionExponentialLaw::equal(Self, Self) -> Bool
+pub fn AttentionExponentialLaw::not_equal(Self, Self) -> Bool
+pub fn AttentionExponentialLaw::to_repr(Self) -> @debug.Repr
+
 pub struct BlockwiseFold {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -76,6 +84,18 @@ pub fn FoldValue::equal(Self, Self) -> Bool
 pub fn FoldValue::not_equal(Self, Self) -> Bool
 pub fn FoldValue::to_repr(Self) -> @debug.Repr
 
+pub struct GroupedMatrixDecodeFold {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GroupedMatrixDecodeFold::active_head(Self, Int) -> Bool
+pub fn GroupedMatrixDecodeFold::equal(Self, Self) -> Bool
+pub fn GroupedMatrixDecodeFold::fold(Self) -> OnlineFold
+pub fn GroupedMatrixDecodeFold::head_rows(Self) -> Int
+pub fn GroupedMatrixDecodeFold::new(heads~ : Int, keys~ : Int, dimensions~ : Int) -> Self?
+pub fn GroupedMatrixDecodeFold::not_equal(Self, Self) -> Bool
+pub fn GroupedMatrixDecodeFold::numeric_law(Self) -> String
+pub fn GroupedMatrixDecodeFold::to_repr(Self) -> @debug.Repr
+
 pub struct KeyFold {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -100,6 +120,7 @@ pub struct OnlineFold {
 pub fn OnlineFold::canonical(Self) -> String
 pub fn OnlineFold::carried_state(Self) -> ReadOnlyArray[(FoldValue, FoldValue)]
 pub fn OnlineFold::equal(Self, Self) -> Bool
+pub fn OnlineFold::exponential_law(Self) -> AttentionExponentialLaw
 pub fn OnlineFold::fragment_products(Self, fragment_rows~ : Int, fragment_columns~ : Int, reduction_quantum~ : Int) -> OnlineFragmentProgram?
 pub fn OnlineFold::geometry(Self) -> (Int, Int, Int)
 pub fn OnlineFold::new(queries~ : Int, keys~ : Int, dimensions~ : Int) -> Self?
@@ -107,6 +128,7 @@ pub fn OnlineFold::not_equal(Self, Self) -> Bool
 pub fn OnlineFold::score_phase(Self) -> ReadOnlyArray[FoldOperation]
 pub fn OnlineFold::to_repr(Self) -> @debug.Repr
 pub fn OnlineFold::value_phase(Self) -> ReadOnlyArray[FoldOperation]
+pub fn OnlineFold::with_exponential_law(Self, AttentionExponentialLaw) -> Self
 
 pub struct OnlineFragmentProgram {
   // private fields
@@ -115,9 +137,32 @@ pub fn OnlineFragmentProgram::equal(Self, Self) -> Bool
 pub fn OnlineFragmentProgram::fold(Self) -> OnlineFold
 pub fn OnlineFragmentProgram::geometry(Self) -> (Int, Int, Int)
 pub fn OnlineFragmentProgram::not_equal(Self, Self) -> Bool
+pub fn OnlineFragmentProgram::pack_probabilities(Self, ArrayView[Int], elements_per_word~ : Int) -> OrderedProbabilityPacking?
 pub fn OnlineFragmentProgram::score(Self) -> @physical_tile_ir.FragmentProgram
 pub fn OnlineFragmentProgram::to_repr(Self) -> @debug.Repr
 pub fn OnlineFragmentProgram::value(Self) -> @physical_tile_ir.FragmentProgram
+
+pub struct OrderedProbabilityPacking {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OrderedProbabilityPacking::equal(Self, Self) -> Bool
+pub fn OrderedProbabilityPacking::geometry(Self) -> (Int, Int)
+pub fn OrderedProbabilityPacking::not_equal(Self, Self) -> Bool
+pub fn OrderedProbabilityPacking::owner(Self, Int, Int) -> Int?
+pub fn OrderedProbabilityPacking::peak_scalar_inputs(Self) -> Int
+pub fn OrderedProbabilityPacking::program(Self) -> OnlineFragmentProgram
+pub fn OrderedProbabilityPacking::to_repr(Self) -> @debug.Repr
+
+pub struct PagedLookupLookahead {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PagedLookupLookahead::equal(Self, Self) -> Bool
+pub fn PagedLookupLookahead::new(tile_rows~ : Int, page_rows~ : Int, start_alignment~ : Int, owners~ : Int) -> Self?
+pub fn PagedLookupLookahead::not_equal(Self, Self) -> Bool
+pub fn PagedLookupLookahead::page_owner(Self, Int, Int) -> Int?
+pub fn PagedLookupLookahead::rows_per_epoch(Self) -> Int
+pub fn PagedLookupLookahead::tiles_per_epoch(Self) -> Int
+pub fn PagedLookupLookahead::to_repr(Self) -> @debug.Repr
 
 pub struct PagedRowOwnership {
   // private fields

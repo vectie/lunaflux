@@ -18,42 +18,78 @@ pub fn lower_attention_ingress_numerics(
 pub fn lower_prepared_attention_ingress_numerics(
   plan : @luna_projection_tile_compiler.AttentionIngressNumerics,
 ) -> String {
+  lower_attention_ingress_helper_graph(plan, cached_rotary=false)
+}
+
+///|
+/// Cache-bound terminal lowering. The caller must bind the matching per-step
+/// preparation producer and borrowed cache operand; this helper does not gain
+/// storage, launch, or cache-population authority.
+pub fn lower_cached_attention_ingress_numerics(
+  plan : @luna_projection_tile_compiler.AttentionIngressNumerics,
+) -> String {
+  lower_attention_ingress_helper_graph(plan, cached_rotary=true)
+}
+
+///|
+fn lower_attention_ingress_helper_graph(
+  plan : @luna_projection_tile_compiler.AttentionIngressNumerics,
+  cached_rotary~ : Bool,
+) -> String {
   let (dimension, lanes) = plan.shape()
   guard lanes == 32 else {
     abort("CUDA attention ingress requires a 32-lane numerical schedule")
   }
   let out = StringBuilder()
-  // Each lane reads a different frequency. CUDA constant memory broadcasts
-  // uniform addresses but serializes divergent ones; use read-only device
-  // storage so the lane-contiguous basis can be fetched together instead.
-  out <+ "static __device__ const float LF_ROPE_INV_FREQ[\{dimension / 2}] = {"
-  for index, frequency in plan.rotary_basis() {
-    if index > 0 {
-      out.write_string(", ")
-    }
-    out.write_string(
-      @luna_cuda_pointwise_aot.canonical_cuda_float_literal(
-        frequency.to_double(),
-      ),
-    )
-  }
-  out.write_string("};\n")
   let pairs_per_lane = (dimension / 2 - 1) / lanes + 1
   out <+
     "struct LfIngressRotaryValues { float sine[\{pairs_per_lane}], cosine[\{pairs_per_lane}]; };\n"
-  out <+
-    "static __device__ __forceinline__ LfIngressRotaryValues lf_ingress_prepare_rotary(int position, int lane) {\n"
-  out <+ "  LfIngressRotaryValues rotary;\n"
-  out <+ "  #pragma unroll\n"
-  out <+ "  for (int pair = lane; pair < \{dimension / 2}; pair += 32) {\n"
-  out <+ "    float sine, cosine;\n"
-  out <+
-    "    sincosf(__fmul_rn((float)position, LF_ROPE_INV_FREQ[pair]), &sine, &cosine);\n"
-  out <+
-    "    rotary.sine[pair / 32] = sine; rotary.cosine[pair / 32] = cosine;\n"
-  out <+ "  }\n  return rotary;\n}\n"
+  if cached_rotary {
+    out <+
+      "static __device__ __forceinline__ LfIngressRotaryValues lf_ingress_load_rotary(const float2* cache, int token, int lane) {\n"
+    out <+ "  LfIngressRotaryValues rotary;\n  #pragma unroll\n"
+    out <+ "  for (int pair = lane; pair < \{dimension / 2}; pair += 32) {\n"
+    out <+
+      "    const float2 value = cache[(unsigned long long)token * \{dimension / 2} + pair];\n"
+    out <+
+      "    rotary.sine[pair / 32] = value.x; rotary.cosine[pair / 32] = value.y;\n"
+    out <+ "  }\n  return rotary;\n}\n"
+  } else {
+    // Each lane reads a different frequency. CUDA constant memory broadcasts
+    // uniform addresses but serializes divergent ones; use read-only device
+    // storage so the lane-contiguous basis can be fetched together instead.
+    out <+
+      "static __device__ const float LF_ROPE_INV_FREQ[\{dimension / 2}] = {"
+    for index, frequency in plan.rotary_basis() {
+      if index > 0 {
+        out.write_string(", ")
+      }
+      out.write_string(
+        @luna_cuda_pointwise_aot.canonical_cuda_float_literal(
+          frequency.to_double(),
+        ),
+      )
+    }
+    out.write_string("};\n")
+    out <+
+      "static __device__ __forceinline__ LfIngressRotaryValues lf_ingress_prepare_rotary(int position, int lane) {\n"
+    out <+ "  LfIngressRotaryValues rotary;\n"
+    out <+ "  #pragma unroll\n"
+    out <+ "  for (int pair = lane; pair < \{dimension / 2}; pair += 32) {\n"
+    out <+ "    float sine, cosine;\n"
+    out <+
+      "    sincosf(__fmul_rn((float)position, LF_ROPE_INV_FREQ[pair]), &sine, &cosine);\n"
+    out <+
+      "    rotary.sine[pair / 32] = sine; rotary.cosine[pair / 32] = cosine;\n"
+    out <+ "  }\n  return rotary;\n}\n"
+  }
   out <+
     "static __device__ __forceinline__ void lf_ingress_norm_rotary_prepared(float* values, const __nv_bfloat16* weight, const LfIngressRotaryValues& rotary, int lane) {\n"
+  if plan.pair_retention() is Some(retention) {
+    out.write_string(lower_retained_attention_ingress_numerics(plan, retention))
+    out <+ "}\n"
+    return out.to_string()
+  }
   out <+ "  float square_sum = 0.0f;\n"
   out <+
     "  for (int component = lane; component < \{dimension}; component += 32) square_sum = __fadd_rn(square_sum, __fmul_rn(values[component], values[component]));\n"

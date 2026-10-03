@@ -31,7 +31,7 @@ test "retained queries are executable distinct same-law alternatives" {
     assert_true(source.contains("query_operand_0=lf_matrix_load(qbuf,qr,0"))
     assert_true(source.contains("if (qr<active && key_begin<key_end)"))
     assert_true(source.contains("lf_matrix_mma_key(score[key],query_operand_0"))
-    assert_true(source.contains("lf_masked_exp(score[key].x[item]"))
+    assert_true(source.contains("lf_masked_exp(score[key].x[0]"))
     assert_true(
       source.contains("denominator[r]=denominator[r]*alpha[r]+sum[r]"),
     )
@@ -99,7 +99,7 @@ test "query lifetimes compose with paged dense split and transfer schedules" {
           // Retention cannot replace visibility or output-tail guards.
           assert_true(source.contains("positions[token_base+query0]"))
           assert_true(source.contains("if (query<active)"))
-          assert_true(source.contains("lf_masked_exp(score[key].x[item]"))
+          assert_true(source.contains("lf_masked_exp(score[key].x[0]"))
           assert_false(source.contains("exp2"))
         }
       }

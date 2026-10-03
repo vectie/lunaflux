@@ -19,8 +19,18 @@ pub(all) enum AttentionTileCompute {
   /// Explicit F32 contraction in the blockwise dot/value/state folds; not
   /// permission for global reassociation or approximate exponentiation.
   AttentionGroupedQueryFmaBlockwiseDot
+  /// Explicitly partition score ownership without changing the F32 PV law.
+  /// Owner count and multiply/add contraction both participate in identity.
+  AttentionGroupedQueryOwnedBlockwiseDot(
+    score_owners~ : Int,
+    contraction~ : Bool
+  )
+  /// Matrix rows represent query heads, not additional sequence tokens.
+  AttentionGroupedQueryMatrixQkPv
   AttentionMatrixDot
   AttentionMatrixQkPv
+  /// Explicit opt-in approximate base-two exponential; strict law retained.
+  AttentionMatrixQkPvApproxExp
 } derive(Debug, Eq)
 
 ///|
@@ -81,6 +91,7 @@ pub struct AttentionCompileProblem {
   priv context_tokens : Int
   priv causal : Bool
   priv allow_alternative_softmax_reduction : Bool
+  priv allow_approximate_exponential : Bool
   priv key_value_read_view : AttentionKeyValueReadView
   priv required_fragment_ownership : AttentionFragmentOwnership?
 } derive(Debug, Eq)

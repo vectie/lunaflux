@@ -213,6 +213,7 @@ pub(all) enum AttentionTileCompute {
   AttentionGroupedQueryBlockwiseDot
   AttentionGroupedQueryDualScoreBlockwiseDot
   AttentionGroupedQueryFmaBlockwiseDot
+  AttentionGroupedQueryOwnedBlockwiseDot(score_owners~ : Int, contraction~ : Bool)
   AttentionMatrixDot
   AttentionMatrixQkPv
 } derive(Eq, @debug.Debug)

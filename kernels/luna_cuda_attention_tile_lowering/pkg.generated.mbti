@@ -89,11 +89,13 @@ pub struct CudaPrefillFragmentBinding {
 pub fn CudaPrefillFragmentBinding::equal(Self, Self) -> Bool
 pub fn CudaPrefillFragmentBinding::new(@attention_physical_ir.OnlineFragmentProgram, subgroup_lanes~ : Int, operand_vector_elements~ : Int, retained_query_dimensions? : Int, joint_query_consumers? : Bool) -> Self?
 pub fn CudaPrefillFragmentBinding::not_equal(Self, Self) -> Bool
+pub fn CudaPrefillFragmentBinding::probabilities(Self) -> @attention_physical_ir.OrderedProbabilityPacking
 pub fn CudaPrefillFragmentBinding::program(Self) -> @attention_physical_ir.OnlineFragmentProgram
 pub fn CudaPrefillFragmentBinding::query_lifetime(Self) -> @attention_physical_ir.QueryOperandLifetime
 pub fn CudaPrefillFragmentBinding::score(Self) -> @physical_tile_ir.FragmentForwarding
 pub fn CudaPrefillFragmentBinding::to_repr(Self) -> @debug.Repr
 pub fn CudaPrefillFragmentBinding::value(Self) -> @physical_tile_ir.FragmentForwarding
+pub fn CudaPrefillFragmentBinding::value_addresses(Self) -> @physical_tile_ir.OperandRowFactoring
 
 // Type aliases
 

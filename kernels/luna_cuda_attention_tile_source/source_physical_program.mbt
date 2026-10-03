@@ -35,6 +35,10 @@ fn cuda_emit_physical_attention(
       emit_cuda_blockwise_decode_source(
         lowering, abi, symbol, maximum_source_bytes, fold, effects,
       )
+    (Decode, GroupedMatrixKeyProgram(fold, effects)) =>
+      emit_cuda_grouped_matrix_decode_source(
+        lowering, abi, symbol, maximum_source_bytes, fold, effects,
+      )
     _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
 }

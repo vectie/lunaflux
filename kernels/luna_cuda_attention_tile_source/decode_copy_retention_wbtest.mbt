@@ -1,6 +1,6 @@
 ///|
 test "async decode consumes static retained copy ownership without indexed arrays" {
-  for id in [440, 441, 452, 453, 454, 455] {
+  for id in [440, 441, 452, 453, 454, 455, 460, 461] {
     let lowering = source_test_decode_lowering(
       candidate_id=id,
       alternative=id >= 450,
@@ -29,15 +29,26 @@ test "async decode consumes static retained copy ownership without indexed array
     assert_false(source.contains("addresses[item]"))
     assert_false(source.contains("sizes[item]"))
     assert_true(source.contains("[%0], [%1], \{elements * 2}, %2;"))
+    let independent = match lowering.physical_program() {
+      BlockwiseKeyProgram(_, effects) => effects.independently_refills()
+      _ => false
+    }
     for slot in 0..<slots {
-      assert_true(
-        source.contains("unsigned long long retained_address_\{slot} = 0"),
-      )
       assert_true(
         source.contains("const int vector = thread + \{slot * owners}"),
       )
-      assert_true(source.contains("value_cache + retained_address_\{slot}"))
-      assert_true(source.contains("\"r\"(retained_size_\{slot})"))
+      if !independent {
+        assert_true(
+          source.contains("unsigned long long retained_address_\{slot} = 0"),
+        )
+        assert_true(source.contains("value_cache + retained_address_\{slot}"))
+        assert_true(source.contains("\"r\"(retained_size_\{slot})"))
+      }
+    }
+    if independent {
+      assert_true(source.contains("int future_page_0 = -1, future_page_1 = -1"))
+      assert_true(source.contains("value_cache + cache_index"))
+      assert_false(source.contains("retained_address_"))
     }
   }
   assert_eq(

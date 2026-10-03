@@ -20,3 +20,20 @@ test "query ownership search is Cartesian with unique stable identities" {
     }
   }
 }
+
+///|
+test "approximate query ownership is an injective separate identity domain" {
+  let strict = query_owned_attention_specs()
+  let approximate = approximate_query_owned_attention_specs()
+  assert_eq(approximate.length(), strict.length())
+  for index in 0..<strict.length() {
+    let old = strict[index]
+    let next = approximate[index]
+    assert_eq(next.stable_id, old.stable_id + 30000)
+    assert_eq(next.compute, AttentionMatrixQkPvApproxExp)
+    assert_eq(next.query_rows, old.query_rows)
+    assert_eq(next.key_value_rows, old.key_value_rows)
+    assert_eq(next.memory, old.memory)
+    assert_eq(next.pipeline_stages, old.pipeline_stages)
+  }
+}

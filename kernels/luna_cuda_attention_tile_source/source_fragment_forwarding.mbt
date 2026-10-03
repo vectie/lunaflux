@@ -17,11 +17,19 @@ fn cuda_forwarded_matrix_products(
     let b01 = plan.word(0, 1).unwrap()
     let b10 = plan.word(1, 0).unwrap()
     let b11 = plan.word(1, 1).unwrap()
+    let (parameters, address) = if name == "value" {
+      ("unsigned address", "")
+    } else {
+      (
+        "const __nv_bfloat16 *p, int row, int column, int columns",
+        "  const int lane = threadIdx.x % 32;\n" +
+        "  const unsigned address = (unsigned)__cvta_generic_to_shared(p + lf_operand_index(row + lane % 16, column + lane / 16 * 8, columns));\n",
+      )
+    }
     source.write_string(
       (
-        $|static __device__ __forceinline__ void lf_matrix_mma_\{name}(LfMatrixAccumulator &c, const LfMatrixOperand &a, const __nv_bfloat16 *p, int row, int column, int columns) {
-        $|  const int lane = threadIdx.x % 32;
-        $|  const unsigned address = (unsigned)__cvta_generic_to_shared(p + lf_operand_index(row + lane % 16, column + lane / 16 * 8, columns));
+        $|static __device__ __forceinline__ void lf_matrix_mma_\{name}(LfMatrixAccumulator &c, const LfMatrixOperand &a, \{parameters}) {
+        $|\{address}
         $|  asm volatile(
         $|    "{ .reg .b32 b<4>;"
         $|    "ldmatrix.sync.aligned.m8n8.x4\{transpose}.shared.b16 {b0,b1,b2,b3}, [%12];"

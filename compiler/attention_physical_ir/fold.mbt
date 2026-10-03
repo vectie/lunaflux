@@ -72,6 +72,21 @@ pub fn FoldOperation::writes(self : FoldOperation) -> ReadOnlyArray[FoldValue] {
 }
 
 ///|
+/// Numerical contract carried independently of memory ownership and schedule.
+pub(all) enum AttentionExponentialLaw {
+  StrictNaturalExponential
+  /// Explicitly permits base-two approximation and F32 subnormal flush. This
+  /// is a numerical alternative, not an equality-preserving compiler rewrite.
+  ApproximateBaseTwoExponential
+} derive(Eq, Debug)
+
+///|
+pub extend AttentionExponentialLaw with Eq::{equal, not_equal}
+
+///|
+pub extend AttentionExponentialLaw with @debug.Debug::{to_repr}
+
+///|
 /// A closed physical state program for register-owned online softmax. Geometry
 /// is scalar and construction is constant-space. There is no CUDA, model name,
 /// source string, memory allocation or transfer scheduling authority here.
@@ -79,6 +94,7 @@ pub struct OnlineFold {
   priv queries : Int
   priv keys : Int
   priv dimensions : Int
+  priv exponential : AttentionExponentialLaw
 } derive(Eq, Debug)
 
 ///|
@@ -100,7 +116,24 @@ pub fn OnlineFold::new(
     queries.to_int64() * dimensions.to_int64() <= 2147483647L else {
     return None
   }
-  Some({ queries, keys, dimensions, })
+  Some({ queries, keys, dimensions, exponential: StrictNaturalExponential, })
+}
+
+///|
+/// Semantic admission supplies the law; scheduling and lowering must retain it.
+/// The existing strict program is never mutated or reinterpreted.
+pub fn OnlineFold::with_exponential_law(
+  self : OnlineFold,
+  exponential : AttentionExponentialLaw,
+) -> OnlineFold {
+  { ..self, exponential, }
+}
+
+///|
+pub fn OnlineFold::exponential_law(
+  self : OnlineFold,
+) -> AttentionExponentialLaw {
+  self.exponential
 }
 
 ///|
@@ -145,5 +178,10 @@ pub fn OnlineFold::carried_state(
 
 ///|
 pub fn OnlineFold::canonical(self : OnlineFold) -> String {
-  "attention-online-fold-v1;queries=\{self.queries};keys=\{self.keys};dimensions=\{self.dimensions};order=ascending-key;probability=bf16-rne;denominator=unrounded-f32;empty-maximum=negative-infinity;empty-denominator=zero;empty-output=zero"
+  let strict = "attention-online-fold-v1;queries=\{self.queries};keys=\{self.keys};dimensions=\{self.dimensions};order=ascending-key;probability=bf16-rne;denominator=unrounded-f32;empty-maximum=negative-infinity;empty-denominator=zero;empty-output=zero"
+  match self.exponential {
+    StrictNaturalExponential => strict
+    ApproximateBaseTwoExponential =>
+      strict + ";exponential=approx-base2-f32-v1;subnormal=flush-permitted"
+  }
 }

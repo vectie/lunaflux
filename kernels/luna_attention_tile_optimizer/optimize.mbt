@@ -286,6 +286,8 @@ fn attention_partition_count(
     | AttentionGroupedQueryBlockwiseDot
     | AttentionGroupedQueryDualScoreBlockwiseDot
     | AttentionGroupedQueryFmaBlockwiseDot => key_value_heads
+    AttentionGroupedQueryOwnedBlockwiseDot(..) => key_value_heads
+    AttentionGroupedQueryMatrixQkPv => key_value_heads
     _ => query_heads
   }
   // Valid problem dimensions can produce more than 2^31 workgroups. Keep

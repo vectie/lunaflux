@@ -61,6 +61,7 @@ pub struct OperandLayout {
 } derive(Eq, @debug.Debug)
 pub fn OperandLayout::canonical(Self) -> String
 pub fn OperandLayout::equal(Self, Self) -> Bool
+pub fn OperandLayout::factor_rows(Self) -> OperandRowFactoring
 pub fn OperandLayout::geometry(Self) -> (Int, Int, Int, Int)
 pub fn OperandLayout::new(columns~ : Int, vector~ : Int, rotations~ : Int, row_group~ : Int) -> Self?
 pub fn OperandLayout::not_equal(Self, Self) -> Bool
@@ -77,6 +78,16 @@ pub fn OperandRegion::not_equal(Self, Self) -> Bool
 pub fn OperandRegion::offset(Self, Int, Int) -> Int?
 pub fn OperandRegion::ownership(Self) -> VectorOwnership
 pub fn OperandRegion::to_repr(Self) -> @debug.Repr
+
+pub struct OperandRowFactoring {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OperandRowFactoring::column(Self, Int, Int) -> Int?
+pub fn OperandRowFactoring::equal(Self, Self) -> Bool
+pub fn OperandRowFactoring::layout(Self) -> OperandLayout
+pub fn OperandRowFactoring::not_equal(Self, Self) -> Bool
+pub fn OperandRowFactoring::row(Self, Int) -> (Int, Int)?
+pub fn OperandRowFactoring::to_repr(Self) -> @debug.Repr
 
 pub struct OperandStorage {
   // private fields

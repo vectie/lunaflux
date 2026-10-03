@@ -9,6 +9,7 @@ pub struct AttentionIngressNumerics {
   priv reduction_lanes : Int
   priv norm_epsilon : Float
   priv inverse_frequencies : ReadOnlyArray[Float]
+  priv pair_retention : @elementwise_physical_ir.SplitPairRetention?
 } derive(Debug, Eq)
 
 ///|
@@ -42,6 +43,10 @@ pub fn ProjectionAttentionIngressEpilogue::numerics(
     reduction_lanes,
     norm_epsilon: epsilon,
     inverse_frequencies: ReadOnlyArray::from_array(frequencies),
+    pair_retention: @elementwise_physical_ir.SplitPairRetention::new(
+      width=self.head_dimension,
+      owners=reduction_lanes,
+    ),
   }
 }
 
@@ -67,4 +72,13 @@ pub fn AttentionIngressNumerics::rotary_basis(
   self : AttentionIngressNumerics,
 ) -> ReadOnlyArray[Float] {
   self.inverse_frequencies
+}
+
+///|
+/// A physical exact-order refinement, independent of model or backend names.
+/// Non-aligned split halves retain the established scratch ownership instead.
+pub fn AttentionIngressNumerics::pair_retention(
+  self : AttentionIngressNumerics,
+) -> @elementwise_physical_ir.SplitPairRetention? {
+  self.pair_retention
 }

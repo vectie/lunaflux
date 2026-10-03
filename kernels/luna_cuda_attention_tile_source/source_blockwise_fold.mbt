@@ -4,6 +4,8 @@
 fn cuda_blockwise_fold_body(
   fold : @attention_physical_ir.BlockwiseFold,
   value_ready? : String = "",
+  key_released? : String = "",
+  value_released? : String = "",
 ) -> String {
   let dimensions = fold.dimensions().0
   let ownership = @attention_physical_ir.ValueComponentOwnership::new(
@@ -96,7 +98,7 @@ fn cuda_blockwise_fold_body(
     .steps()
     .map(step => {
       match step {
-        ComputeTileScores => scores
+        ComputeTileScores => scores + "\n" + key_released
         PublishTileScores => "    __syncwarp();"
         ReduceTileMaximum =>
           (
@@ -123,7 +125,8 @@ fn cuda_blockwise_fold_body(
             #|    tile_denominator = __shfl_sync(0xffffffffU, tile_denominator, 0);
           )
         PublishTileProbabilities => "    __syncwarp();"
-        AccumulateTileValues => value_ready + "\n" + accumulate
+        AccumulateTileValues =>
+          value_ready + "\n" + accumulate + "\n" + value_released
         MergeTileState =>
           (
             #|    const float next_maximum = fmaxf(maximum, tile_maximum);
@@ -145,25 +148,33 @@ fn cuda_blockwise_fold_body(
     // The module still compiles with global --fmad=false; expf, owner reduction
     // order and probability precision are unchanged.
     ordered
-    .replace(
-      old="dot += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);",
-      new="dot = fmaf(query_fragment[item], __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]), dot);",
+    .split(
+      "dot += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);",
     )
-    .replace(
-      old="tile_numerator[item] += probability * values[item];",
-      new="tile_numerator[item] = fmaf(probability, values[item], tile_numerator[item]);",
+    .join(
+      "dot = fmaf(query_fragment[item], __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]), dot);",
     )
-    .replace(
-      old="tile_numerator[item] += probability * __bfloat162float(value_tile[key * LF_HEAD_DIMENSION + component]);",
-      new="tile_numerator[item] = fmaf(probability, __bfloat162float(value_tile[key * LF_HEAD_DIMENSION + component]), tile_numerator[item]);",
+    .split("tile_numerator[item] += probability * values[item];")
+    .join(
+      "tile_numerator[item] = fmaf(probability, values[item], tile_numerator[item]);",
     )
-    .replace(
-      old="denominator = denominator * old_scale + tile_denominator * tile_scale;",
-      new="denominator = fmaf(denominator, old_scale, tile_denominator * tile_scale);",
+    .split(
+      "tile_numerator[item] += probability * __bfloat162float(value_tile[key * LF_HEAD_DIMENSION + component]);",
     )
-    .replace(
-      old="accumulator[item] = accumulator[item] * old_scale + tile_numerator[item] * tile_scale;",
-      new="accumulator[item] = fmaf(accumulator[item], old_scale, tile_numerator[item] * tile_scale);",
+    .join(
+      "tile_numerator[item] = fmaf(probability, __bfloat162float(value_tile[key * LF_HEAD_DIMENSION + component]), tile_numerator[item]);",
+    )
+    .split(
+      "denominator = denominator * old_scale + tile_denominator * tile_scale;",
+    )
+    .join(
+      "denominator = fmaf(denominator, old_scale, tile_denominator * tile_scale);",
+    )
+    .split(
+      "accumulator[item] = accumulator[item] * old_scale + tile_numerator[item] * tile_scale;",
+    )
+    .join(
+      "accumulator[item] = fmaf(accumulator[item], old_scale, tile_numerator[item] * tile_scale);",
     )
   }
 }

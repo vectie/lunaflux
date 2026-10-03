@@ -8,7 +8,8 @@ fn apply_shared_key_query_map_pass(
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
 ) -> AttentionRewritePassResult {
   match program.candidate().compute() {
-    AttentionMatrixDot | AttentionMatrixQkPv => ()
+    AttentionMatrixDot | AttentionMatrixQkPv | AttentionMatrixQkPvApproxExp =>
+      ()
     _ => return { regions, changed: false, }
   }
   for binding in program.bindings() {

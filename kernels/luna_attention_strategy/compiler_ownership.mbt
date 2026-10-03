@@ -14,7 +14,7 @@ pub fn attention_fragment_ownership(
   head_columns~ : Int,
   subgroups~ : Int,
 ) -> AttentionFragmentOwnership {
-  if compute == AttentionMatrixQkPv &&
+  if (compute == AttentionMatrixQkPv || compute == AttentionMatrixQkPvApproxExp) &&
     (query_rows == 32 || query_rows == 64) &&
     (key_rows == 32 || key_rows == 64 || key_rows == 128) &&
     (head_columns == 64 || head_columns == 128) &&

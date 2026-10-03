@@ -17,5 +17,11 @@ fn AttentionTileSchedule::physical_online_fold(
     queries=self.loops[0].tile,
     keys~,
     dimensions=self.loops[self.loops.length() - 1].extent,
-  )
+  ).map(fold => {
+    if self.compute == AttentionMatrixQkPvApproxExp {
+      fold.with_exponential_law(ApproximateBaseTwoExponential)
+    } else {
+      fold
+    }
+  })
 }

@@ -42,13 +42,8 @@ fn emit_cuda_blockwise_decode_source(
     requested_symbol
   } else {
     requested_symbol +
-    (if fold.contracts_multiply_add() {
-      "_blockwise_fma_f32_v3"
-    } else if fold.score_owners() == 1 {
-      "_blockwise_f32_v1"
-    } else {
-      "_dual_score_blockwise_f32_v2"
-    })
+    "_" +
+    fold.numeric_law().replace(old="-probability", new="").split("-").join("_")
   }
   guard valid_cuda_symbol(symbol) else {
     raise InvalidCudaAttentionTileSource(InvalidSymbol)
@@ -78,7 +73,19 @@ fn emit_cuda_blockwise_decode_source(
   } else {
     ""
   }
-  let body = cuda_blockwise_fold_body(fold, value_ready~)
+  let key_released = cuda_grouped_effects(
+    effects,
+    ReleaseKeyReaders,
+    "",
+    "    ",
+  )
+  let body = cuda_blockwise_fold_body(
+    fold,
+    value_ready~,
+    key_released~,
+    value_released=if effects.independently_refills() { release } else { "" },
+  )
+  let outer_release = if effects.independently_refills() { "" } else { release }
   let initialize = if effects.is_pipelined() {
     emit_decode_async_stage(
       abi,
@@ -214,7 +221,7 @@ fn emit_cuda_blockwise_decode_source(
     $|    const int active_keys = min(LF_KEY_VALUE_TILE, key_limit - key_base);
     $|\{acquire}
     $|\{body}
-    $|\{release}
+    $|\{outer_release}
     $|  }
     $|\{complete}
     $|\{epilogue}

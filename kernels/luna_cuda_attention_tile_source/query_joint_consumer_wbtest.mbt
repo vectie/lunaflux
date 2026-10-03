@@ -61,7 +61,7 @@ test "joint query fanout binds one operand and preserves ordered matrix products
     assert_true(
       source.contains("denominator[r]=denominator[r]*alpha[r]+sum[r]"),
     )
-    assert_true(source.contains("lf_masked_exp(score[key].x[item]"))
+    assert_true(source.contains("lf_masked_exp(score[key].x[0]"))
     assert_false(source.contains("exp2"))
     assert_true(
       @utf8.decode(lowering.canonical_bytes()).contains(

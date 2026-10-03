@@ -28,6 +28,14 @@ lifetime across complete-head consumers. Resource policies decide the retained
 column window; the terminal backend is responsible for realizing that lifetime,
 not for inventing a model-specific fusion or numeric reassociation.
 
+Aligned split-half normalization/rotary pairs now retain their original
+strided component owner through `SplitPairRetention`. The physical refinement
+loads first-half components followed by second-half components, preserving the
+original square-sum order and both BF16 rounding boundaries. CUDA can retain
+the normalized pair in registers rather than publish/reload it through shared
+scratch. Cross-owner halves keep their existing explicit publication path;
+alignment is a legality decision, not an unmeasured performance claim.
+
 The ingress numerical plan can group independent complete head folds into a
 workgroup. `AttentionIngressHeadMap` distributes only the product's head axis;
 the lane count, ordered reduction, rotary basis, and BF16 rounding boundaries

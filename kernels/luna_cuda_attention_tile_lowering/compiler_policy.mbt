@@ -7,7 +7,11 @@ pub fn CudaAttentionTileLowering::compiler_register_ceiling(
   self : CudaAttentionTileLowering,
   existing_ceiling : Int,
 ) -> Int {
-  if self.query_owned_fragments() {
+  if self.query_owned_fragments() ||
+    (
+      self.phase() == Decode &&
+      self.compute() == CudaMatrixQkPvMultiplyAccumulate
+    ) {
     255
   } else {
     existing_ceiling

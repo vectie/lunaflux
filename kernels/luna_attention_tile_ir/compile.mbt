@@ -151,8 +151,12 @@ fn attention_compute_code(
     AttentionGroupedQueryBlockwiseDot => 7
     AttentionGroupedQueryDualScoreBlockwiseDot => 8
     AttentionGroupedQueryFmaBlockwiseDot => 9
+    AttentionGroupedQueryMatrixQkPv => 11
+    AttentionGroupedQueryOwnedBlockwiseDot(score_owners~, contraction~) =>
+      10 + score_owners * 2 + (if contraction { 1 } else { 0 })
     AttentionMatrixDot => 4
     AttentionMatrixQkPv => 5
+    AttentionMatrixQkPvApproxExp => 12
   }
 }
 
@@ -206,7 +210,20 @@ fn canonical_attention_tile_program(
     "shape=\{query_heads},\{key_value_heads},\{head_dimension},\{tokens_per_page}\n"
   builder <+
     "problem=\{attention_phase_code(problem.phase())},\{attention_numeric_code(problem.numeric_type())},\{problem.batch_rows()},\{query_rows},\{context_tokens},\{problem.is_causal()}\n"
-  if candidate.compute() == AttentionGroupedQueryFmaBlockwiseDot {
+  if problem.allows_approximate_exponential() {
+    builder <+ "exponential_permission=approximate-base-two-v1\n"
+  }
+  if candidate.compute() == AttentionGroupedQueryMatrixQkPv {
+    builder <+ "softmax_reduction=grouped-head-matrix-bf16-probability-v1\n"
+  } else if candidate.compute()
+    is AttentionGroupedQueryOwnedBlockwiseDot(score_owners~, contraction~) {
+    let law = if score_owners == 2 && !contraction {
+      "dual-score-blockwise-f32-probability-v2"
+    } else {
+      "owned\{score_owners}-blockwise-\{if contraction { "fma-" } else { "" }}f32-probability-v4"
+    }
+    builder <+ "softmax_reduction=\{law}\n"
+  } else if candidate.compute() == AttentionGroupedQueryFmaBlockwiseDot {
     builder <+ "softmax_reduction=blockwise-fma-f32-probability-v3\n"
   } else if candidate.compute() == AttentionGroupedQueryBlockwiseDot {
     builder <+ "softmax_reduction=blockwise-f32-probability-v1\n"

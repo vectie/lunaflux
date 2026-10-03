@@ -10,10 +10,12 @@ test "shared epilogue preserves fold and rounding boundaries across fusion cuts"
   let source = lower_attention_ingress_numerics(
     epilogue.numerics(reduction_lanes=32),
   )
-  assert_true(source.contains("component < 128; component += 32"))
+  assert_true(source.contains("float first_values[2], second_values[2]"))
   assert_true(source.contains("delta = 16; delta > 0; delta >>= 1"))
   assert_true(
-    source.contains("__float2bfloat16_rn(__fmul_rn(__fmul_rn(values[component]"),
+    source.contains(
+      "__float2bfloat16_rn(__fmul_rn(__fmul_rn(first_values[item]",
+    ),
   )
   assert_true(
     source.contains(
@@ -22,12 +24,13 @@ test "shared epilogue preserves fold and rounding boundaries across fusion cuts"
   )
   assert_true(
     source.contains(
-      "const float first = values[pair], second = values[pair + 64]",
+      "const float sine = rotary.sine[item], cosine = rotary.cosine[item]",
     ),
   )
   assert_false(source.contains("blockDim"))
   assert_false(source.contains("powf("))
   assert_false(source.contains("__syncthreads"))
+  assert_false(source.contains("__syncwarp"))
   assert_true(
     source.contains("static __device__ const float LF_ROPE_INV_FREQ[64]"),
   )

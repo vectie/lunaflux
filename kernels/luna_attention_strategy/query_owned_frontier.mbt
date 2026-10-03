@@ -53,3 +53,29 @@ fn query_owned_attention_specs() -> Array[AttentionCandidateSpec] {
   }
   specs
 }
+
+///|
+/// Identical physical ownership alternatives with a separately admitted
+/// numerical law. Distinct identities never reuse strict measured records.
+fn approximate_query_owned_attention_specs() -> Array[AttentionCandidateSpec] {
+  query_owned_attention_specs().map(spec => {
+    ..spec,
+    stable_id: spec.stable_id + 30000,
+    compute: AttentionMatrixQkPvApproxExp,
+  })
+}
+
+///|
+/// Startup/export admission of stable identities uses the same pure frontier
+/// catalog as candidate generation, including operand-lifetime variants.
+pub fn attention_candidate_requires_approximate_exponential(
+  stable_id : Int,
+) -> Bool {
+  approximate_query_owned_attention_specs().any(spec => {
+    stable_id == spec.stable_id ||
+    [0, 1].any(index => {
+      stable_id == 10000 + spec.stable_id * 2 + index ||
+      stable_id == 20000 + spec.stable_id * 2 + index
+    })
+  })
+}

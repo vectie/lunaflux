@@ -14,7 +14,9 @@ test "query-owned terminal lowering forwards single-use K V directly" {
     )
     assert_true(source.contains("lf_matrix_mma_key(score[key],a,current_k"))
     assert_true(
-      source.contains("lf_matrix_mma_value(out[column],probability,current_v"),
+      source.contains(
+        "lf_matrix_mma_value(out[column],probability,value_address",
+      ),
     )
     assert_true(source.contains(".reg .b32 b<4>"))
     assert_true(
@@ -34,7 +36,7 @@ test "query-owned terminal lowering forwards single-use K V directly" {
     assert_false(source.contains("const unsigned b0 = b.x["))
     // Reusable left values and probability rounding remain explicit.
     assert_true(source.contains("const auto a=lf_matrix_load(qbuf"))
-    assert_true(source.contains("probability.x[pair]=lf_probability_pair("))
+    assert_true(source.contains("probability.x[0]=lf_probability_pair("))
     assert_true(
       source.contains("denominator[r]=denominator[r]*alpha[r]+sum[r]"),
     )

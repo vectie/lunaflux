@@ -13,13 +13,17 @@ fn cuda_compute_primitive(
     | AttentionGroupedQueryDualScoreBlockwiseDot
     | AttentionGroupedQueryFmaBlockwiseDot =>
       CudaGroupedQueryBlockwiseShuffleDot
+    AttentionGroupedQueryOwnedBlockwiseDot(..) =>
+      CudaGroupedQueryBlockwiseShuffleDot
     AttentionMatrixDot =>
       if target.compute_major() >= 8 && target.supports_bf16() {
         CudaMatrixMultiplyAccumulate
       } else {
         raise InvalidCudaAttentionTileLowering(UnsupportedCompute)
       }
-    AttentionMatrixQkPv =>
+    AttentionMatrixQkPv
+    | AttentionMatrixQkPvApproxExp
+    | AttentionGroupedQueryMatrixQkPv =>
       if target.compute_major() >= 8 && target.supports_bf16() {
         CudaMatrixQkPvMultiplyAccumulate
       } else {
@@ -206,6 +210,15 @@ pub fn lower_attention_tile_schedule_to_cuda(
   )
   builder <+ "luna-cuda-attention-tile-lowering-v6\n"
   match physical_program {
+    Ok(QueryFragmentProgram(fold, _)) if fold.exponential_law() ==
+      ApproximateBaseTwoExponential =>
+      builder <+
+        "score_exponential=approx-base2-f32-v1;subnormal=flush-permitted\n"
+    Ok(BlockwiseKeyProgram(_, effects))
+    | Ok(GroupedMatrixKeyProgram(_, effects)) if effects.independently_refills() => {
+      builder <+ "decode_operand_ring=independent-two-stage-v1\n"
+      builder <+ "decode_page_lookup=batched-future-owner-epoch-v1\n"
+    }
     Ok(BlockwiseKeyProgram(_, effects)) if effects.is_pipelined() =>
       builder <+ "blockwise_terminal_release=after-key-loop-v1\n"
     _ => ()
@@ -214,6 +227,8 @@ pub fn lower_attention_tile_schedule_to_cuda(
   if query_owned_fragments {
     builder <+ "query_owned_fragments=true\n"
     builder <+ "fragment_representation=forward-single-use-right-v1\n"
+    builder <+ "probability_consumer=ordered-pair-v1\n"
+    builder <+ "value_operand_address=row-xor-column-factored-v1\n"
     if candidate.retained_query_dimensions() > 0 {
       builder <+
         "query_operand_lifetime=retained-prefix-v1,\{candidate.retained_query_dimensions()}\n"

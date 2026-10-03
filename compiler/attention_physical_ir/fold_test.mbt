@@ -102,3 +102,22 @@ test "canonical fold identity records geometry and floating point contract" {
   assert_true(make(64).canonical().contains("denominator=unrounded-f32"))
   assert_true(make(64).canonical().contains("probability=bf16-rne"))
 }
+
+///|
+test "approximate exponential law is immutable and distinct from strict fold" {
+  let strict = @attention_physical_ir.OnlineFold::new(
+    queries=16,
+    keys=64,
+    dimensions=128,
+  ).unwrap()
+  let approximate = strict.with_exponential_law(ApproximateBaseTwoExponential)
+  assert_eq(strict.exponential_law(), StrictNaturalExponential)
+  assert_eq(approximate.exponential_law(), ApproximateBaseTwoExponential)
+  assert_eq(strict.geometry(), approximate.geometry())
+  assert_eq(strict.value_phase(), approximate.value_phase())
+  assert_false(strict.canonical() == approximate.canonical())
+  assert_true(
+    approximate.canonical().contains("exponential=approx-base2-f32-v1"),
+  )
+  assert_true(approximate.canonical().contains("subnormal=flush-permitted"))
+}
