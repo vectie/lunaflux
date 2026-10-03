@@ -11,6 +11,10 @@ fn eligible(path : String) -> Bool {
   !path.contains("..") &&
   !path.has_prefix("/") &&
   path != "kernels/luna_fusion_plan/ingress_regions.mbt" &&
+  [
+    "compiler/", "kernels/", "cmd/", "engine/", "device/", "internal/", "model/",
+    "tests/", "scripts/",
+  ].any(prefix => path.has_prefix(prefix)) &&
   (
     path.has_suffix(".mbt") ||
     path.has_suffix(".mbti") ||
@@ -30,14 +34,83 @@ test "overlay never includes pre-existing dirty region or documentation" {
 }
 
 ///|
+fn merged_paths(
+  previous : Array[String],
+  committed : Array[String],
+  extra : Array[String],
+) -> Array[String] raise {
+  guard previous.all(eligible) && extra.all(eligible) else {
+    fail("invalid frozen manifest refresh")
+  }
+  let paths = previous.copy()
+  for path in [..committed.filter(eligible), ..extra] {
+    if !paths.contains(path) {
+      paths.push(path)
+    }
+  }
+  paths
+}
+
+///|
+test "refresh includes a binder committed after the previous source freeze" {
+  let binder = "engine/device_worker/decode_split_runtime.mbt"
+  assert_eq(
+    merged_paths(
+      ["compiler/physical_tile_ir/row_factoring.mbt"],
+      [
+        binder, "docs/PLAN.md", "benchmarks/gpu_pipeline/selected_policy_probe.c",
+      ],
+      [binder],
+    ),
+    ["compiler/physical_tile_ir/row_factoring.mbt", binder],
+  )
+}
+
+///|
 async fn main {
   let (repository, destination, archive, paths) = match @env.args() {
+    [
+      _,
+      "--refresh-committed",
+      repository,
+      previous,
+      baseline,
+      destination,
+      archive,
+      .. extra,
+    ] => {
+      let delta = @shell.Cmd(
+        "git",
+        ["diff", "--name-only", baseline, "HEAD", "--"],
+        cwd=repository,
+      ).output()
+      delta.check()
+      let previous_paths = @fs.read_file(previous + "/FILES.txt")
+        .text()
+        .split("\n")
+        .filter(x => !x.is_empty())
+        .map(x => x.to_owned())
+        .to_array()
+      let committed = delta
+        .stdout()
+        .split("\n")
+        .filter(x => !x.is_empty())
+        .map(x => x.to_owned())
+        .to_array()
+      let paths = merged_paths(previous_paths, committed, extra.to_owned())
+      (repository, destination, archive, paths)
+    }
     [_, "--refresh", repository, previous, destination, archive, .. extra] => {
       let paths = @fs.read_file(previous + "/FILES.txt")
-        .text().split("\n").filter(x => !x.is_empty())
-        .map(x => x.to_owned()).to_array()
+        .text()
+        .split("\n")
+        .filter(x => !x.is_empty())
+        .map(x => x.to_owned())
+        .to_array()
       for path in extra {
-        if !paths.contains(path) { paths.push(path) }
+        if !paths.contains(path) {
+          paths.push(path)
+        }
       }
       guard paths.all(eligible) else { fail("invalid frozen manifest refresh") }
       (repository, destination, archive, paths)
@@ -48,10 +121,11 @@ async fn main {
         fail("explicit scoped packages required")
       }
       let paths : Array[String] = []
-      for args in [
-        ["diff", "--name-only", "--", ..packages],
-        ["ls-files", "--others", "--exclude-standard", "--", ..packages],
-      ] {
+      for
+        args in [
+          ["diff", "--name-only", "--", ..packages],
+          ["ls-files", "--others", "--exclude-standard", "--", ..packages],
+        ] {
         let result = @shell.Cmd("git", args, cwd=repository).output()
         result.check()
         for path in result.stdout().split("\n").map(x => x.to_owned()) {
@@ -62,7 +136,10 @@ async fn main {
       }
       (repository, destination, archive, paths)
     }
-    _ => fail("REPOSITORY NEW_DESTINATION NEW_ARCHIVE PACKAGE... | --refresh REPOSITORY PREVIOUS_OVERLAY NEW_DESTINATION NEW_ARCHIVE EXTRA_FILE...")
+    _ =>
+      fail(
+        "REPOSITORY NEW_DESTINATION NEW_ARCHIVE PACKAGE... | --refresh REPOSITORY PREVIOUS_OVERLAY NEW_DESTINATION NEW_ARCHIVE EXTRA_FILE... | --refresh-committed REPOSITORY PREVIOUS_OVERLAY BASE_COMMIT NEW_DESTINATION NEW_ARCHIVE EXTRA_FILE...",
+      )
   }
   guard !@fs.exists(destination) && !@fs.exists(archive) else {
     fail("non-overwriting output required")
@@ -87,9 +164,11 @@ async fn main {
     paths.join("\n") + "\n",
     create_mode=CreateNew,
   )
-  @shell.Cmd("tar", ["--no-xattrs", "-czf", archive, "-C", destination, "FILES.txt", ..paths], env={
-    "COPYFILE_DISABLE": "1",
-  }).run()
+  @shell.Cmd(
+    "tar",
+    ["--no-xattrs", "-czf", archive, "-C", destination, "FILES.txt", ..paths],
+    env={ "COPYFILE_DISABLE": "1" },
+  ).run()
   let digest = @shell.Cmd("shasum", ["-a", "256", archive]).output()
   digest.check()
   println(digest.stdout())
