@@ -56,7 +56,17 @@ async fn capture(
 
 ///|
 async fn main {
-  guard @env.args()
+  let raw = @env.args()
+  let (raw, output_tokens) = match raw {
+    [.. args, "--output", "64"] => (args, "64")
+    [.. args, "--output", "256"] => (args, "256")
+    _ => (raw, "256")
+  }
+  let (raw, work_root) = match raw {
+    [.. args, "--work-rows", path] => (args, Some(path))
+    _ => (raw, None)
+  }
+  guard raw
     is [
       _,
       serving,
@@ -73,7 +83,7 @@ async fn main {
       options is ["--reuse-luna", _]
     ) else {
     fail(
-      "IMMUTABLE_SERVING COMPLETED_MATCHED_TIMING NEW_ROOT LUNA_TRACE_TOOL REFERENCE_TRACE_TOOL SUMMARY_TOOL [--prepare-only|--reuse-luna COMPLETED_CAPTURE]",
+      "IMMUTABLE_SERVING COMPLETED_MATCHED_TIMING NEW_ROOT LUNA_TRACE_TOOL REFERENCE_TRACE_TOOL SUMMARY_TOOL [--prepare-only|--reuse-luna COMPLETED_CAPTURE] [--work-rows INSTRUMENTATION_ROOT] [--output 64|256]",
     )
   }
   guard options is ["--prepare-only"] ||
@@ -87,7 +97,7 @@ async fn main {
   let client = replace_once(
     @fs.read_file(serving + "/benchmark.mbtx").text(),
     "[(128,32),(4096,64),(4096,256)]",
-    "[(4096,256)]",
+    "[(4096," + output_tokens + ")]",
   )
   let client = replace_once(client, "[1,8,16]", "[16]")
   let client = replace_once(client, "0..<4", "0..<1")
@@ -112,9 +122,20 @@ async fn main {
     Json(root + "/client.template.mbtx").stringify() +
     "), create_mode=CreateNew)",
   )
+  let reference = if work_root is Some(path) {
+    replace_once(
+      reference,
+      "    image,\n  ]",
+      "    \"--mount\",\n    \"type=bind,source=\" + " +
+      Json(path).stringify() +
+      " + \"/\" + engine + \"-work.py,target=/usr/local/lib/python3.12/dist-packages/\" + (if engine == \"vllm\" { \"vllm/v1/worker/gpu_model_runner.py\" } else { \"sglang/srt/model_executor/model_runner.py\" }) + \",readonly\",\n    image,\n  ]",
+    )
+  } else {
+    reference
+  }
   // Engine basenames alone collide with preserved earlier profiler containers.
   let reference = replace_once(
-    reference, "root.split(\"/\").to_array().last().unwrap().to_owned()", "root.split(\"/\").to_array()[root.split(\"/\").to_array().length()-2].to_owned() + \"-\" + root.split(\"/\").to_array().last().unwrap().to_owned()",
+    reference, "root.split(\"/\").to_array().last().unwrap().to_owned()", "root.replace(old=\"/\",new=\"-\")",
   )
   @fs.write_file(
     root + "/reference-trace.mbtx",
@@ -195,9 +216,28 @@ async fn main {
       }
       @fs.mkdir(dir)
       if engine == "luna-full" {
-        capture(root, engine, moon, [
-          "run", luna_tool, serving, dir, "--selected", "--long-c16-256",
-        ])
+        let row_options = match work_root {
+          Some(path) => ["--work-rows", path + "/install_execution_trace.mbtx"]
+          None => []
+        }
+        capture(
+          root,
+          engine,
+          moon,
+          [
+            "run",
+            luna_tool,
+            serving,
+            dir,
+            "--selected",
+            if output_tokens == "64" {
+              "--long-c16"
+            } else {
+              "--long-c16-256"
+            },
+          ] +
+          row_options,
+        )
       } else {
         capture(root, engine, moon, [
           "run",
@@ -209,7 +249,9 @@ async fn main {
         ])
       }
       let request = dir +
-        "/requests/i4096-o256-c16-t" +
+        "/requests/i4096-o" +
+        output_tokens +
+        "-c16-t" +
         (if engine == "luna-full" { "1" } else { "0" }) +
         ".json"
       capture(root, "summary-" + engine, moon, [
@@ -230,7 +272,9 @@ async fn main {
   )
   @fs.write_file(
     root + "/RESULT.txt",
-    "outcome=completed\nscope=fresh-three-framework-4096-256-C16-activity-not-throughput\n",
+    "outcome=completed\nscope=fresh-three-framework-4096-" +
+    output_tokens +
+    "-C16-activity-not-throughput\n",
     create_mode=CreateNew,
   )
 }

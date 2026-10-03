@@ -1,0 +1,335 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+struct Work {
+  query : Array[Int64]
+  past : Array[Int64]
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    String(s) => @string.parse_int64(s)
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("integer")
+  }
+}
+
+///|
+fn signature(work : Work) -> String raise {
+  guard !work.query.is_empty() && work.query.length() == work.past.length() else {
+    fail("row vector")
+  }
+  let pairs = Array::makei(work.query.length(), i => {
+    let q = work.query[i]
+    guard q > 0L && work.past[i] >= 0L else { fail("invalid logical row") }
+    (q, work.past[i])
+  })
+  pairs.sort_by((a, b) => {
+    if a.0 == b.0 {
+      a.1.compare(b.1)
+    } else {
+      a.0.compare(b.0)
+    }
+  })
+  pairs.map(x => "\{x.0}:\{x.1}").join(",")
+}
+
+///|
+fn fields(line : StringView, key : String) -> Int64 raise {
+  guard line.split(" ").filter(x => x.has_prefix(key + "=")).to_array()
+    is [value] else {
+    fail("marker field")
+  }
+  @string.parse_int64(value[key.length() + 1:])
+}
+
+///|
+fn luna_work(source : String) -> Array[Work] raise {
+  let result : Array[Work] = []
+  let query : Array[Int64] = []
+  let past : Array[Int64] = []
+  let mut state = 0
+  let mut rows = 0L
+  let mut tokens = 0L
+  for line in source.split("\n") {
+    if line.is_empty() {
+      continue
+    }
+    guard line.has_prefix("lf_exec ") else { fail("unexpected worker stderr") }
+    match fields(line, "kind") {
+      0L => {
+        assert_eq(state, 0)
+        rows = fields(line, "a")
+        tokens = fields(line, "b")
+        query.clear()
+        past.clear()
+        state = 1
+      }
+      1L | 2L => {
+        assert_eq(state, 1)
+        query.push(fields(line, "b"))
+        past.push(fields(line, "c"))
+      }
+      3L => {
+        assert_eq(state, 1)
+        assert_eq(query.length().to_int64(), rows)
+        assert_eq(query.fold(init=0L, (a, b) => a + b), tokens)
+        state = 2
+      }
+      4L => {
+        assert_eq(state, 2)
+        assert_eq(fields(line, "b"), 1L)
+        result.push({ query: query.copy(), past: past.copy(), })
+        state = 3
+      }
+      5L => {
+        assert_eq(state, 3)
+        state = 0
+      }
+      _ => fail("unknown marker")
+    }
+  }
+  assert_eq(state, 0)
+  result
+}
+
+///|
+async fn sql(db : String, query : String) -> Array[Json] {
+  let output = @shell.Cmd("sqlite3", ["-json", db, query]).output(
+    max_output_bytes=67108864,
+  )
+  output.check()
+  guard @json.parse(
+      if output.stdout().trim().is_empty() {
+        "[]"
+      } else {
+        output.stdout()
+      },
+    )
+    is Array(rows) else {
+    fail("SQL result")
+  }
+  rows
+}
+
+///|
+fn self_test() -> Unit raise {
+  let a : Work = { query: [2L, 1L], past: [8L, 16L], }
+  let b : Work = { query: [1L, 2L], past: [16L, 8L], }
+  assert_eq(signature(a), signature(b))
+  assert_false(signature(a) == signature({ query: [2L, 1L], past: [9L, 16L], }))
+  try signature({ query: [1L], past: [], }) catch {
+    _ => ()
+  } noraise {
+    _ => fail("unequal vector accepted")
+  }
+  try signature({ query: [0L], past: [1L], }) catch {
+    _ => ()
+  } noraise {
+    _ => fail("empty query accepted")
+  }
+  assert_eq(
+    luna_work(
+      "lf_exec kind=0 a=1 b=2\nlf_exec kind=1 b=2 c=8\nlf_exec kind=3\nlf_exec kind=4 b=1\nlf_exec kind=5\n",
+    ).length(),
+    1,
+  )
+  println(
+    "work-shape regressions passed: row permutation, history distinction, bounds and complete trace",
+  )
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    self_test()
+    return
+  }
+  guard @env.args() is [_, root, engine, request, output] &&
+    ["luna-full", "vllm", "sglang"].contains(engine) else {
+    fail("TRACE_ROOT ENGINE CLIENT_JSON NEW_OUTPUT | --self-test")
+  }
+  let db = root + "/trace.sqlite"
+  guard @json.parse(@fs.read_file(request).text())
+    is { "epoch_start_ns": start, "epoch_end_ns": finish, .. } else {
+    fail("client epoch")
+  }
+  guard sql(
+      db, "SELECT cast(utcEpochNs as text) epoch FROM TARGET_INFO_SESSION_START_TIME;",
+    )
+    is [{ "epoch": epoch, .. }] else {
+    fail("trace epoch")
+  }
+  let begin = integer(start) - integer(epoch)
+  let end = integer(finish) - integer(epoch)
+  let work_by_correlation : Map[Int64, Work] = Map([])
+  let step_records : Array[Json] = []
+  if engine == "luna-full" {
+    let works = luna_work(@fs.read_file(root + "/runtime.stderr").text())
+    let launches = sql(
+      db, "SELECT r.start,r.end,r.correlationId FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId WHERE s.value='cuGraphLaunch' ORDER BY r.start;",
+    )
+    assert_eq(
+      launches.length(),
+      works.length(),
+      msg="worker markers must match all graph launches, including warmup",
+    )
+    for i, launch in launches {
+      guard launch is { "start": lo, "correlationId": correlation, .. } else {
+        fail("graph launch")
+      }
+      work_by_correlation[integer(correlation)] = works[i]
+      if integer(lo) >= begin && integer(lo) < end {
+        step_records.push({
+          "work": signature(works[i]),
+          "query": works[i].query,
+          "past": works[i].past,
+          "cpu_start_ns": lo,
+        })
+      }
+    }
+  } else {
+    let marks = sql(
+      db, "SELECT n.start,n.globalTid,coalesce(n.text,s.value) text FROM NVTX_EVENTS n LEFT JOIN StringIds s ON s.id=n.textId WHERE coalesce(n.text,s.value) LIKE 'lf_work %' ORDER BY n.start;",
+    )
+    guard !marks.is_empty() else {
+      fail("reference logical work markers absent")
+    }
+    let per_thread : Map[Int64, Array[(Int64, Work)]] = Map([])
+    for mark in marks {
+      guard mark
+        is { "start": time, "globalTid": thread, "text": String(text), .. } else {
+        fail("NVTX marker")
+      }
+      guard @json.parse(text[8:])
+        is {
+          "engine": String(actual),
+          "rows": count,
+          "query": Array(q),
+          "past": Array(p),
+          ..
+        } &&
+        actual == engine else {
+        fail("reference marker schema")
+      }
+      let work : Work = { query: q.map(integer), past: p.map(integer), }
+      assert_eq(work.query.length().to_int64(), integer(count))
+      ignore(signature(work))
+      let t = integer(thread)
+      if !per_thread.contains(t) {
+        per_thread[t] = []
+      }
+      per_thread[t].push((integer(time), work))
+      if integer(time) >= begin && integer(time) < end {
+        step_records.push({
+          "work": signature(work),
+          "query": work.query,
+          "past": work.past,
+          "cpu_start_ns": time,
+        })
+      }
+    }
+    // Use CUDA API correlation IDs, not proximity of GPU execution timestamps.
+    // Same-thread CPU metadata is retained until the next forward marker. APIs
+    // on unmarked threads are deliberately left unmapped.
+    for
+      launch in sql(
+        db, "SELECT start,globalTid,correlationId FROM CUPTI_ACTIVITY_KIND_RUNTIME ORDER BY start;",
+      ) {
+      guard launch
+        is {
+          "start": time,
+          "globalTid": thread,
+          "correlationId": correlation,
+          ..
+        } else {
+        fail("CUDA launch")
+      }
+      if per_thread.get(integer(thread)) is Some(marks) {
+        let mut selected : Work? = None
+        for (at, work) in marks {
+          if at > integer(time) {
+            break
+          }
+          selected = Some(work)
+        }
+        if selected is Some(work) {
+          work_by_correlation[integer(correlation)] = work
+        }
+      }
+    }
+  }
+  let groups : Map[String, (Int, Int64)] = Map([])
+  let mut mapped = 0
+  let mut unmapped = 0
+  for
+    row in sql(
+      db,
+      "SELECT k.start,k.end,k.correlationId,s.value name,k.gridX,k.gridY,k.gridZ,k.blockX,k.blockY,k.blockZ,k.registersPerThread,k.staticSharedMemory+k.dynamicSharedMemory shared FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName WHERE k.start>=\{begin} AND k.start<\{end} ORDER BY k.start;",
+    ) {
+    guard row
+      is {
+        "start": lo,
+        "end": hi,
+        "correlationId": correlation,
+        "name": String(name),
+        "gridX": gx,
+        "gridY": gy,
+        "gridZ": gz,
+        "blockX": bx,
+        "blockY": by,
+        "blockZ": bz,
+        "registersPerThread": regs,
+        "shared": shared,
+        ..
+      } else {
+      fail("kernel metadata")
+    }
+    let work = match work_by_correlation.get(integer(correlation)) {
+      Some(work) => {
+        mapped += 1
+        signature(work)
+      }
+      None => {
+        unmapped += 1
+        "UNMAPPED"
+      }
+    }
+    let key = work +
+      " | " +
+      name +
+      " | grid=\{integer(gx)},\{integer(gy)},\{integer(gz)} block=\{integer(bx)},\{integer(by)},\{integer(bz)} regs=\{integer(regs)} shared=\{integer(shared)}"
+    let old = groups.get(key).unwrap_or((0, 0L))
+    groups[key] = (old.0 + 1, old.1 + integer(hi) - integer(lo))
+  }
+  guard mapped > 0 && !step_records.is_empty() else {
+    fail("no work-correlated kernels")
+  }
+  let ordered = groups.to_array()
+  ordered.sort_by((a, b) => b.1.1.compare(a.1.1))
+  let result : Json = {
+    "schema": "lunaflux.logical-work-trace.v1",
+    "engine": engine,
+    "client": request,
+    "steps": step_records,
+    "mapped_kernel_calls": mapped,
+    "unmapped_kernel_calls": unmapped,
+    "kernels": ordered.map(x => {
+      ({ "work_and_kernel": x.0, "calls": x.1.0, "ns": x.1.1 } : Json)
+    }),
+    "scope": "diagnostic CPU row metadata joined through same-thread CUDA API correlation; exact query/history vectors, no inference from grids; unmapped calls retained; not ordinary throughput or proof of equal numeric laws",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(
+    "\{engine}: steps=\{step_records.length()} mapped=\{mapped} unmapped=\{unmapped}",
+  )
+}

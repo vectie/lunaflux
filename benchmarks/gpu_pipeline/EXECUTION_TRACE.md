@@ -35,3 +35,40 @@ query/history and the selected kernel's actual launch geometry and tile plan
 to derive padding. Correlate kinds 4/5 with Nsight Systems CUDA graph nodes to
 separate device execution, completion waits, and inter-step GPU gaps. Do not
 subtract diagnostic stderr cost from end-to-end timing without measuring it.
+
+## Match logical work across frameworks
+
+`run_matched_trace_campaign.mbtx` accepts `--output 64` or `--output 256`
+and diagnostic-only `--work-rows INSTRUMENTATION_ROOT`. The instrumentation
+root holds `install_execution_trace.mbtx`, `vllm-work.py`, and
+`sglang-work.py`; generate the reference overrides from pinned source
+copies with `install_reference_work_rows.mbtx`. Never install them into a
+production container. Reference markers use existing CPU sequence metadata,
+not device-to-host reads or synchronization.
+
+Run `summarize_work_shapes.mbtx TRACE_ROOT ENGINE CLIENT_JSON NEW_OUTPUT`
+after the capture, once per framework.
+It joins CUDA launch correlations to CPU row markers and reports sorted
+`query:past` vectors with their multiplicity. Equal grids do not imply equal
+work: capacity CTAs may exit, and different engines use different prefill
+chunk sizes. Keep unmatched launches visible. Marker traces are attribution
+runs, not ordinary throughput measurements.
+
+`profile_matched_prefill.mbtx` checks the previously captured logical work
+before replaying the selected prefill invocation. Its reference operands are
+live, whereas LunaFlux's standalone probe uses deterministic synthetic
+operands; this is a matched-shape comparison, not identical operands.
+`profile_prefill_ablation.mbtx` instead captures both modules from a saved
+paired probe command on identical operands. Counter replay times must remain
+separate from unprofiled serving time.
+
+`prepare_affine_serving.mbtx` qualifies an isolated compiler artifact from a
+frozen runtime plus a scoped compiler overlay. It exports the actual compiler
+candidate, checks the source and functional identity, compiles deterministically,
+checks pure/mixed/tail outputs and sanitizers. Next,
+`recalibrate_affine_serving.mbtx FROZEN_SERVING QUALIFIED_AFFINE MEASURE_TOOL
+CALIBRATION NEW_EMPTY_ROOT` replaces only that prefill module, re-exports the
+bundle and measures fresh module-bound routes before materializing serving.
+All other modules and workers stay frozen. Old route observations cannot be
+relabeled for a changed module set. The normal source retains the checked view
+for arbitrary positions.

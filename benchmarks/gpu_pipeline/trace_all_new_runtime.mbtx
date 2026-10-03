@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/json",
 }
 
 ///|
@@ -33,13 +34,19 @@ async fn main {
     verify_trace(root)
     return
   }
-  guard @env.args() is [_, serving, root, .. options] &&
-    (
-      options.is_empty() ||
-      options is ["--selected"] ||
-      options is ["--selected", "--long-c16"] ||
-      options is ["--selected", "--long-c16-256"]
-    ) else {
+  guard @env.args() is [_, serving, root, .. raw_options] else {
+    fail(
+      "COMPLETED_SERVING NEW_EMPTY_ROOT [--selected [--long-c16|--long-c16-256]] [--work-rows INSTALLER]",
+    )
+  }
+  let (options, installer) = match raw_options {
+    [.. options, "--work-rows", installer] => (options, Some(installer))
+    _ => (raw_options, None)
+  }
+  guard options.is_empty() ||
+    options is ["--selected"] ||
+    options is ["--selected", "--long-c16"] ||
+    options is ["--selected", "--long-c16-256"] else {
     fail(
       "COMPLETED_SERVING NEW_EMPTY_ROOT [--selected [--long-c16|--long-c16-256]]",
     )
@@ -92,6 +99,46 @@ async fn main {
     ),
   )
   let moon = root + "/toolchain/bin/moon"
+  if installer is Some(path) {
+    capture(root, "install-work-rows", moon, ["run", path, root + "/source"])
+    @fs.write_file(
+      root + "/WORK_ROWS.txt",
+      "diagnostic-only worker row markers; AOT kernels unchanged\n",
+      create_mode=CreateNew,
+    )
+    capture(root, "diagnostic-worker-build", moon, [
+      "-C",
+      root + "/source",
+      "build",
+      "cmd/device_worker_child",
+      "--target",
+      "native",
+      "--release",
+      "-j",
+      "2",
+      "--warn-list",
+      "-79-20-29-25-92-14",
+    ])
+    let worker = root + "/deployment/bin/lunaflux-device-worker"
+    @shell.Cmd("chmod", ["u+w", worker]).run()
+    @shell.Cmd("cp", [
+      root +
+      "/source/_build/native/release/build/cmd/device_worker_child/device_worker_child.exe",
+      worker,
+    ]).run()
+    let digest = @shell.Cmd("sha256sum", [worker]).output()
+    digest.check()
+    let launch_path = root + "/deployment/lunaflux.launch.json"
+    guard @json.parse(@fs.read_file(launch_path).text()) is Object(launch) else {
+      fail("launch envelope")
+    }
+    launch["worker_executable"] = {
+      "path": worker,
+      "sha256": digest.stdout().split(" ").to_array()[0].to_owned(),
+    }
+    @shell.Cmd("chmod", ["u+w", launch_path]).run()
+    @fs.write_file(launch_path, Json(launch).stringify())
+  }
   let build = @shell.Cmd(
     moon,
     [
@@ -128,10 +175,16 @@ async fn main {
     .map(x => x.split(" ").to_array()[0])
     .to_array()
   assert_eq(hashes.length(), 2)
-  assert_eq(hashes[0], hashes[1])
+  if installer is None {
+    assert_eq(hashes[0], hashes[1])
+  }
   @fs.write_file(
     root + "/SCOPE.txt",
-    "Isolated profiler-environment launcher; unchanged measured worker and AOT kernels. Not a timing benchmark or deployable runtime.\n",
+    if installer is None {
+      "Isolated profiler-environment launcher; unchanged measured worker and AOT kernels. Not a timing benchmark or deployable runtime.\n"
+    } else {
+      "Isolated profiler-environment launcher and row-marker worker; unchanged AOT kernels. Diagnostic overhead: not a timing benchmark or deployable runtime.\n"
+    },
     create_mode=CreateNew,
   )
   if selected {
@@ -169,8 +222,7 @@ async fn main {
     client
   }
   @fs.write_file(root + "/client.mbtx", client, create_mode=CreateNew)
-  let unit = "lunaflux-allnew-trace-" +
-    root.split("/").to_array().last().unwrap().to_owned()
+  let unit = "lunaflux-allnew-trace-" + root.split("/").to_array().join("-")
   let units = [unit + "-bridge.service", unit + "-serve.service"]
   errdefer ignore(@shell.Cmd("systemctl", ["--user", "stop"] + units).output())
   @shell.Cmd("systemd-run", [
@@ -266,8 +318,17 @@ async fn verify_trace(root : String) -> Unit {
   for field in ["drain_acknowledged=1", "child_exit_code=0", "child_closed=1"] {
     guard supervisor.contains(field) else { fail("trace missing " + field) }
   }
-  guard @fs.read_file(root + "/runtime.stderr").text().is_empty() else {
-    fail("trace runtime stderr")
+  let stderr = @fs.read_file(root + "/runtime.stderr").text()
+  if @fs.exists(root + "/WORK_ROWS.txt") {
+    guard stderr.contains("lf_exec kind=0 ") &&
+      stderr.contains("lf_exec kind=5 ") &&
+      stderr
+      .split("\n")
+      .all(line => line.is_empty() || line.has_prefix("lf_exec ")) else {
+      fail("invalid diagnostic row stderr")
+    }
+  } else {
+    guard stderr.is_empty() else { fail("trace runtime stderr") }
   }
   if !@fs.exists(root + "/trace.sqlite") {
     capture(root, "nsight-export", "/usr/local/bin/nsys", [

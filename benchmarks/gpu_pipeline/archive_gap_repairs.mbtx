@@ -11,8 +11,12 @@ import {
 // Snapshot only explicitly supplied, idle diagnostic roots. Unreadable files
 // from failed privileged captures are listed as exclusions, never mutated.
 async fn main {
-  guard @env.args() is [_, destination, .. roots] && roots.length() > 0 else {
-    fail("NEW_ARCHIVE_DIRECTORY DIAGNOSTIC_ROOT...")
+  let (args, compact_serving) = match @env.args() {
+    [.. args, "--compact-serving"] => (args, true)
+    args => (args, false)
+  }
+  guard args is [_, destination, .. roots] && roots.length() > 0 else {
+    fail("NEW_ARCHIVE_DIRECTORY DIAGNOSTIC_ROOT... [--compact-serving]")
   }
   guard !@fs.exists(destination) else { fail("non-overwriting archive") }
   let idle = @shell.Cmd("nvidia-smi", [
@@ -46,6 +50,7 @@ async fn main {
           x == "toolchain" ||
           x == "source" ||
           x == "model-root" ||
+          (compact_serving && (x == "release" || x.has_prefix("deployment"))) ||
           x == ".git"
         }) {
         excluded.push(relative)

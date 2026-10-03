@@ -1,0 +1,141 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn record(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(name + " completed")
+}
+
+///|
+// Old route measurements bind the complete module set and cannot be copied
+// onto a changed cubin. Measure the new set; never relabel old observations.
+async fn main {
+  guard @env.args() is [_, base, qualified, measure, calibration, root] else {
+    fail(
+      "FROZEN_SERVING QUALIFIED_AFFINE MEASURE_TOOL CALIBRATION NEW_EMPTY_ROOT",
+    )
+  }
+  guard !@fs.exists(root) else { fail("non-overwriting root") }
+  for origin in [base, qualified] {
+    guard @fs.read_file(origin + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("complete qualification required")
+    }
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  @fs.mkdir(root)
+  for name in ["source", "release", "prefill-selected"] {
+    @shell.Cmd("cp", ["-a", qualified + "/" + name, root + "/" + name]).run()
+  }
+  // Unchanged alternatives need their frozen recipes, not the newly exported
+  // frontend defaults (which can name different symbols in the same family).
+  for name in ["candidate", "fused", "decode-selected", "check-probe"] {
+    @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+  }
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  for
+    name in [
+      "convert.stdout", "bind.stdout", "toolchain.v1", "benchmark.mbtx", "export.stdout",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(qualified + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/prepare-full.mbtx",
+    @fs.read_file(base + "/prepare-routed.mbtx"),
+    create_mode=CreateNew,
+  )
+  let args = @fs.read_file(base + "/fused/export.arguments")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => x.to_owned().replace(old=base + "/", new=root + "/"))
+    .to_array()
+  // Only this disposable copy becomes writable; the frozen cubin stays sealed.
+  @shell.Cmd("chmod", ["u+w", root + "/fused/prefill.cubin"]).run()
+  @shell.Cmd("cp", [
+    root + "/prefill-selected/kernel.cubin",
+    root + "/fused/prefill.cubin",
+  ]).run()
+  let original = root + "/fused/reusable-fused-runtime-bundle.v3"
+  // Preserve the copied unmodified bundle, rather than overwriting it.
+  @shell.Cmd("mv", [original, root + "/fused/frozen-original-bundle.v3"]).run()
+  @shell.Cmd("mv", [
+    root + "/fused/export.arguments",
+    root + "/fused/frozen-original.arguments",
+  ]).run()
+  @fs.write_file(
+    root + "/fused/export.arguments",
+    args.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  let exporter = root +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe"
+  record(root, "fused-reexport", exporter, args)
+  // The measurement tool reads this report and validates the regenerated scope.
+  @shell.Cmd("mv", [
+    root + "/fused/export.stdout",
+    root + "/fused/frozen-original.stdout",
+  ]).run()
+  @fs.write_file(
+    root + "/fused/export.stdout",
+    @fs.read_file(root + "/fused-reexport.stdout"),
+    create_mode=CreateNew,
+  )
+  let moon = root + "/toolchain/bin/moon"
+  record(root, "measure-routes", moon, ["run", measure, root, calibration])
+  for phase in ["materialize", "capacity"] {
+    record(root, "prepare-" + phase, moon, [
+      "run",
+      root + "/prepare-full.mbtx",
+      root,
+      phase,
+    ])
+  }
+  @fs.write_file(
+    root + "/SCOPE.txt",
+    "Compiler-qualified affine module; unchanged worker and other modules. Newly measured module-bound attention routes. No reused or relabeled timing observations. Benchmark only, not production promotion.\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=affine-qualified-recalibrated-not-throughput\n",
+    create_mode=CreateNew,
+  )
+}

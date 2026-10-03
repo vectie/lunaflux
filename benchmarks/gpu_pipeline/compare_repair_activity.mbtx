@@ -1,0 +1,108 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(j : Json) -> Int64 raise {
+  match j {
+    String(s) => @string.parse_int64(s)
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("integer")
+  }
+}
+
+///|
+fn summarize(j : Json) -> Json raise {
+  guard j
+    is {
+      "input": i,
+      "output": o,
+      "concurrency": c,
+      "window_ns": window,
+      "configurations": Array(configs),
+      ..
+    } &&
+    integer(i) == 4096L &&
+    integer(o) == 64L &&
+    integer(c) == 16L else {
+    fail("equal workload required")
+  }
+  let sums : Map[String, Int64] = Map([])
+  let counts : Map[String, Int64] = Map([])
+  let selected : Array[Json] = []
+  for config in configs {
+    guard config is { "config": String(name), "ns": time, "calls": calls, .. } else {
+      fail("configuration")
+    }
+    let family = if name.has_prefix(
+        "lunaflux_attention_prefill_tile_compiler_v1 grid=",
+      ) {
+      selected.push(config)
+      "repaired-prefill"
+    } else if name.contains("decode_split_partial") {
+      "partitioned-decode-partial"
+    } else if name.contains("attention") || name.contains("decode_split_merge") {
+      "other-attention"
+    } else {
+      "other-kernels"
+    }
+    sums[family] = sums.get(family).unwrap_or(0L) + integer(time)
+    counts[family] = counts.get(family).unwrap_or(0L) + integer(calls)
+  }
+  guard !selected.is_empty() else { fail("repaired kernel not launched") }
+  {
+    "window_ns": window,
+    "kernel_sums_ns_not_additive": sums,
+    "calls": counts,
+    "repaired_kernel_configurations": selected,
+    "repaired_kernel_time_over_window_percent": sums["repaired-prefill"].to_double() *
+    100.0 /
+    integer(window).to_double(),
+  }
+}
+
+///|
+fn work_counts(j : Json) -> Map[String, Int] raise {
+  guard j is { "steps": Array(steps), .. } else { fail("logical work steps") }
+  let counts : Map[String, Int] = Map([])
+  for step in steps {
+    guard step is { "work": String(work), .. } else {
+      fail("logical work signature")
+    }
+    counts[work] = counts.get(work).unwrap_or(0) + 1
+  }
+  counts
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, old, fresh, output, .. options] else {
+    fail(
+      "OLD_MATCHED_SUMMARY NEW_MATCHED_SUMMARY NEW_OUTPUT [--work OLD_WORK NEW_WORK]",
+    )
+  }
+  let equal_work : Json = match options {
+    [] => Json::null()
+    ["--work", old_work, new_work] => {
+      let a = work_counts(@json.parse(@fs.read_file(old_work).text()))
+      let b = work_counts(@json.parse(@fs.read_file(new_work).text()))
+      Json(a == b)
+    }
+    _ => fail("work options")
+  }
+  let a = summarize(@json.parse(@fs.read_file(old).text()))
+  let b = summarize(@json.parse(@fs.read_file(fresh).text()))
+  let result : Json = {
+    "before": a,
+    "after": b,
+    "equal_logical_work_vector_counts": equal_work,
+    "scope": "Measured-window kernel sums, not a dependency critical path. The repaired fraction estimates dilution, not an additive attribution or an end-to-end speedup proof.",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(result.stringify(indent=2))
+}

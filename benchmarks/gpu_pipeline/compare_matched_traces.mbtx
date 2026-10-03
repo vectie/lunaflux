@@ -17,7 +17,10 @@ fn integer(value : Json) -> Int64 raise {
 }
 
 ///|
-fn activity(value : Json) -> Map[String, Int64] raise {
+fn activity(
+  value : Json,
+  output_tokens? : Int = 256,
+) -> Map[String, Int64] raise {
   guard value
     is {
       "schema": "lunaflux.matched-chain-trace.v1",
@@ -29,7 +32,7 @@ fn activity(value : Json) -> Map[String, Int64] raise {
       ..
     } &&
     integer(i) == 4096L &&
-    integer(o) == 256L &&
+    integer(o) == output_tokens.to_int64() &&
     integer(c) == 16L else {
     fail("trace work vector mismatch")
   }
@@ -66,6 +69,15 @@ fn self_test() -> Unit raise {
   } noraise {
     _ => fail("different work accepted")
   }
+  let short : Json = {
+    "schema": "lunaflux.matched-chain-trace.v1",
+    "input": 4096,
+    "output": 64,
+    "concurrency": 16,
+    "window_ns": "20",
+    "exclusive_activity_ns": { "attention-all-phases": "20" },
+  }
+  assert_eq(activity(short, output_tokens=64)["attention-all-phases"], 20L)
   println(
     "matched trace comparison passed: additive budgets and unequal-work rejection",
   )
@@ -77,9 +89,16 @@ async fn main {
     self_test()
     return
   }
-  guard @env.args() is [_, root, output] &&
+  let (args, output_tokens) = match @env.args() {
+    [.. args, "--output", "64"] => (args, 64)
+    [.. args, "--output", "256"] => (args, 256)
+    args => (args, 256)
+  }
+  guard args is [_, root, output] &&
     @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n") else {
-    fail("COMPLETED_MATCHED_TRACE_CAMPAIGN NEW_OUTPUT | --self-test")
+    fail(
+      "COMPLETED_MATCHED_TRACE_CAMPAIGN NEW_OUTPUT [--output 64|256] | --self-test",
+    )
   }
   let budgets : Map[String, Map[String, Int64]] = Map([])
   let summaries : Map[String, Json] = Map([])
@@ -90,7 +109,7 @@ async fn main {
     let summary = @json.parse(
       @fs.read_file(root + "/" + engine + "/matched-summary.json").text(),
     )
-    budgets[engine] = activity(summary)
+    budgets[engine] = activity(summary, output_tokens~)
     summaries[engine] = summary
     guard summary
       is { "engine": String(actual), "client_trial": String(client), .. } &&
@@ -104,7 +123,8 @@ async fn main {
     }
     let stem = client[:client.length() - 5].to_owned()
     for row, response in responses {
-      guard response is { "token_ids": Array(ids), .. } && ids.length() == 256 else {
+      guard response is { "token_ids": Array(ids), .. } &&
+        ids.length() == output_tokens else {
         fail("output vector")
       }
       let body = @json.parse(@fs.read_file(stem + "-r\{row}.body.json").text())

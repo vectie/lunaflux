@@ -1,0 +1,245 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn replace_once(
+  source : String,
+  before : String,
+  after : String,
+) -> String raise {
+  let pieces = source.split(before).to_array()
+  guard pieces.length() == 2 else { fail("counter helper seam changed") }
+  pieces.join(after)
+}
+
+///|
+async fn save(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn memory() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [_, serving, work_capture, root, reference_helper, probe, spec] else {
+    fail(
+      "QUALIFIED_SERVING COMPLETED_WORK_CAPTURE NEW_ROOT REFERENCE_HELPER PROBE SPEC",
+    )
+  }
+  guard @fs.read_file(work_capture + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("measure actual work first")
+  }
+  let moon = serving + "/toolchain/bin/moon"
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() && memory() >= 33554432L else {
+    fail("GPU/memory admission")
+  }
+  let trace = @json.parse(
+    @fs.read_file(work_capture + "/vllm/work-shapes.json").text(),
+  )
+  guard trace
+    is {
+      "steps": Array(
+        [{ "work": "2048:0", .. }, { "work": "2048:2048", .. }, ..]
+      ),
+      ..
+    } else {
+    fail(
+      "reference schedule changed: skip 28 no longer identifies matched step",
+    )
+  }
+  let luna = @json.parse(
+    @fs.read_file(work_capture + "/luna-full/work-shapes.json").text(),
+  )
+  guard luna
+    is {
+      "steps": Array(
+        [{ "work": "2048:0", .. }, { "work": "2048:2048", .. }, ..]
+      ),
+      ..
+    } else {
+    fail("Luna work changed")
+  }
+  @fs.write_file(
+    root + "/SCOPE.txt",
+    "Logical Q2048/past2048/D128/QH16/KVH8. Luna uses its unchanged selected cubin with deterministic synthetic operands; vLLM uses live serving operands. Cold-cache replay and reduced reference KV reserve are diagnostics, not throughput, operand-identical replay or a numeric-law equivalence claim.\n",
+    create_mode=CreateNew,
+  )
+  let mut done = false
+  let samples = StringBuilder()
+  errdefer @fs.write_file(
+    root + "/memory-failure.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = memory()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32GiB reserve") }
+        @async.sleep(500)
+      }
+    })
+    @fs.mkdir(root + "/luna")
+    let ncu = "/opt/host-nvidia/nsight-compute/2025.3.1/ncu"
+    let selected = serving + "/prefill-selected"
+    let args = [
+      "run",
+      "--rm",
+      "--gpus",
+      "all",
+      "--network",
+      "none",
+      "--memory",
+      "8g",
+      "--memory-swap",
+      "8g",
+      "--cap-add",
+      "SYS_ADMIN",
+      "--security-opt",
+      "seccomp=unconfined",
+      "--mount",
+      "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+      "--mount",
+      "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+      "--mount",
+      "type=bind,source=" + root + ",target=" + root,
+      "nvcr.io/nvidia/vllm:26.01-py3",
+      ncu,
+      "--config-file",
+      "off",
+      "--clock-control",
+      "none",
+      "--cache-control",
+      "all",
+      "--kernel-name-base",
+      "demangled",
+      "--kernel-name",
+      "regex:lunaflux_attention_prefill_tile_compiler_v1",
+      "--launch-count",
+      "1",
+    ]
+    for
+      section in [
+        "LaunchStats", "Occupancy", "SpeedOfLight", "SchedulerStats", "WarpStateStats",
+        "MemoryWorkloadAnalysis", "InstructionStats", "SourceCounters",
+      ] {
+      args.append(["--section", section])
+    }
+    args.append([
+      "--export",
+      root + "/luna/counter",
+      probe,
+      spec,
+      selected,
+      selected,
+      "2048",
+      "1",
+      "2048",
+      "--check-only",
+    ])
+    save(root, "luna-counter", "docker", args)
+    let helper = replace_once(
+      @fs.read_file(reference_helper).text(),
+      "      \"--cache-control\",\n      \"none\",",
+      "      \"--cache-control\",\n      \"all\",\n      \"--launch-skip\",\n      \"28\",",
+    )
+    // One global matching launch, not one launch per later mixed configuration.
+    let helper = replace_once(
+      helper, "      \"per-launch-config\",", "      \"global\",",
+    )
+    let helper = replace_once(
+      helper, "root.split(\"/\").to_array().last().unwrap().to_owned()", "root.replace(old=\"/\",new=\"-\")",
+    )
+    @fs.write_file(
+      root + "/reference-counter.mbtx",
+      helper,
+      create_mode=CreateNew,
+    )
+    @fs.mkdir(root + "/vllm")
+    save(root, "vllm-counter", moon, [
+      "run",
+      root + "/reference-counter.mbtx",
+      serving,
+      root + "/vllm",
+      "vllm",
+      "counter",
+      "regex:.*flash_fwd_splitkv_kernel.*Flash_fwd_kernel_traits.*128.*64.*128.*",
+    ])
+    for engine in ["luna", "vllm"] {
+      save(root, engine + "-raw", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+        "--import",
+        root + "/" + engine + "/counter.ncu-rep",
+        "--page",
+        "raw",
+        "--csv",
+      ])
+      save(root, engine + "-sass", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+        "--import",
+        root + "/" + engine + "/counter.ncu-rep",
+        "--page",
+        "source",
+        "--print-source",
+        "sass",
+        "--csv",
+      ])
+    }
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=logical-shape-matched-cold-replay-not-identical-operands\n",
+    create_mode=CreateNew,
+  )
+}

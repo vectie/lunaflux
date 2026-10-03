@@ -1,0 +1,47 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("NEW_EMPTY_OUTPUT_DIRECTORY") }
+  let result = @shell.Cmd(
+    "moon",
+    [
+      "test", "kernels/luna_cuda_attention_tile_source/affine_read_view_wbtest.mbt",
+      "--filter", "export compiler affine prefill comparison", "--target", "native",
+      "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+    ],
+    env={ "LUNA_EXPORT_AFFINE_PREFILL": "1" },
+  ).output(max_output_bytes=4194304)
+  @fs.write_file(
+    root + "/export.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/export.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  let expected = ["compiler-affine-false", "compiler-affine-true"]
+  let seen = []
+  for section in result.stdout().split("LUNA_SOURCE_BEGIN ").to_array()[1:] {
+    let lines = section.split("\n").to_array()
+    let name = lines[0].to_owned()
+    guard expected.contains(name) && !seen.contains(name) else {
+      fail("export identity")
+    }
+    let body = lines[1:].join("\n").split("LUNA_SOURCE_END").to_array()
+    guard body is [source, _] else { fail("source framing") }
+    @fs.write_file(root + "/" + name + ".cu", source, create_mode=CreateNew)
+    seen.push(name)
+  }
+  assert_eq(seen, expected)
+  println("compiler affine A/B sources exported")
+}

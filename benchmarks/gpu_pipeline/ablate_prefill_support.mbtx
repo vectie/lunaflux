@@ -1,0 +1,341 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x@0.4.48/crypto",
+}
+
+///|
+fn replace_once(
+  source : String,
+  before : String,
+  after : String,
+) -> String raise {
+  guard source.split(before).to_array() is [left, right] else {
+    fail("selected-source ablation seam changed")
+  }
+  left.to_owned() + after + right.to_owned()
+}
+
+///|
+fn digest(source : String) -> String {
+  @crypto.bytes_to_hex_string(@crypto.sha256(@utf8.encode(source)))
+}
+
+///|
+fn bounded_extent(spec : String, a : String, b : String) -> Bool raise {
+  fn value(key : String) -> Int64 raise {
+    guard spec.split("\n").filter(line => line.has_prefix(key + "=")).to_array()
+      is [line] else {
+      fail(key)
+    }
+    @string.parse_int64(line[key.length() + 1:])
+  }
+  let left = value(a)
+  let right = value(b)
+  left > 0L && right > 0L && left <= 2147483647L / right
+}
+
+///|
+fn compact_probabilities(source : String) -> String raise {
+  let before =
+    #|        #pragma unroll
+    #|        for (int key=0;key<LF_KEY_VALUE_TILE/16;++key) {
+    #|          float weight[8];
+    #|          #pragma unroll
+    #|          for (int item=0;item<8;++item) {
+    #|            const int r=item%4/2;
+    #|            weight[item]=lf_masked_exp(score[key].x[item],score[key].x[item]-next[r]);
+    #|            sum[r]+=weight[item];
+    #|          }
+    #|          LfMatrixOperand probability;
+    #|          #pragma unroll
+    #|          for (int pair=0;pair<4;++pair) {
+    #|            probability.x[pair]=lf_probability_pair(weight[pair*2],weight[pair*2+1]);
+    #|          }
+    #|          #pragma unroll
+    #|          for (int column=0;column<8;++column) {
+    #|            lf_matrix_mma_value(out[column],probability,current_v,key*16,column*16,LF_HEAD_DIMENSION);
+    #|          }
+    #|        }
+  let after =
+    #|        // DIAGNOSTIC: retire all F32 scores before consuming V.
+    #|        // Sum order, BF16 RNE and ordered PV products are unchanged.
+    #|        LfMatrixOperand probabilities[LF_KEY_VALUE_TILE/16];
+    #|        #pragma unroll
+    #|        for (int key=0;key<LF_KEY_VALUE_TILE/16;++key) {
+    #|          float weight[8];
+    #|          #pragma unroll
+    #|          for (int item=0;item<8;++item) {
+    #|            const int r=item%4/2;
+    #|            weight[item]=lf_masked_exp(score[key].x[item],score[key].x[item]-next[r]);
+    #|            sum[r]+=weight[item];
+    #|          }
+    #|          #pragma unroll
+    #|          for (int pair=0;pair<4;++pair) {
+    #|            probabilities[key].x[pair]=lf_probability_pair(weight[pair*2],weight[pair*2+1]);
+    #|          }
+    #|        }
+    #|        #pragma unroll
+    #|        for (int key=0;key<LF_KEY_VALUE_TILE/16;++key) {
+    #|          #pragma unroll
+    #|          for (int column=0;column<8;++column) {
+    #|            lf_matrix_mma_value(out[column],probabilities[key],current_v,key*16,column*16,LF_HEAD_DIMENSION);
+    #|          }
+    #|        }
+  replace_once(source, before, after)
+}
+
+///|
+fn compact_addresses(source : String) -> String raise {
+  // This diagnostic ABI fits both immutable origins in 31-bit BF16 offsets.
+  // Tag the origin explicitly; reserve all-ones for the existing zero-fill.
+  let source = replace_once(
+    source, "const __nv_bfloat16 *pending_values[LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8/LF_BLOCK_THREADS];",
+    "unsigned pending_offsets[LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION/8/LF_BLOCK_THREADS];",
+  )
+  let producers = source
+    .split("pending_values[index]=kv_source_valid?kv_value_source:nullptr;")
+    .to_array()
+  guard producers.length() == 3 else { fail("two address producers required") }
+  let source = producers.join(
+    "pending_offsets[index]=kv_source_valid?(from_current?(unsigned)(kv_value_source-input)|0x80000000U:(unsigned)(kv_value_source-values)):0xffffffffU;",
+  )
+  guard !source.contains("pending_values[index]=kv_source_valid") else {
+    fail("address producer")
+  }
+  let consumers = source
+    .split(
+      "kv_value_source=pending_values[index];\n        kv_source_valid=kv_value_source!=nullptr;",
+    )
+    .to_array()
+  guard consumers.length() == 3 else { fail("two address consumers required") }
+  consumers.join(
+    "const unsigned pending=pending_offsets[index];\n        kv_source_valid=pending!=0xffffffffU;\n        kv_value_source=kv_source_valid?((pending&0x80000000U)?input+(pending&0x7fffffffU):values+pending):values;",
+  )
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".exit",
+    result.exit_code().to_string(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println("completed=" + label)
+}
+
+///|
+async fn memory() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn main {
+  let (args, labels) = match @env.args() {
+    [.. args, "--offsets"] => (args, ["offsets", "compact-offsets"])
+    [.. args, "--affine"] => (args, ["affine", "affine-offsets"])
+    args => (args, ["compact", "exp2", "compact-exp2"])
+  }
+  guard args is [_, selected, original_source, spec, probe, root] else {
+    fail(
+      "IMMUTABLE_SELECTED ORIGINAL_SOURCE SPEC PROBE NEW_EMPTY_ROOT [--offsets|--affine]",
+    )
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() && memory() >= 33554432L else {
+    fail("GPU/memory admission")
+  }
+  let source = @fs.read_file(original_source).text()
+  let recipe = @fs.read_file(selected + "/kernel.recipe").text()
+  if labels.any(label => label.contains("offsets")) {
+    let contract = @fs.read_file(spec).text()
+    guard bounded_extent(contract, "maximum_pages", "page_stride_values") &&
+      bounded_extent(contract, "maximum_tokens", "input_width") else {
+      fail("tagged 31-bit operand offsets require bounded diagnostic extents")
+    }
+  }
+  guard recipe.contains("source_sha256=" + digest(source) + "\n") &&
+    recipe.contains("candidate_stable_id=322\n") &&
+    recipe.contains("query_metadata_version=1\n") else {
+    fail("experiment requires exact selected c322 source/ABI")
+  }
+  @fs.write_file(
+    root + "/SCOPE.txt",
+    "Offline supporting-instruction ablation only. compact and offsets preserve the declared numeric law; affine additionally requires the probe's position=start+index producer contract. exp2 changes exponential approximation explicitly and is NOT a production artifact. Same immutable operands/geometry and alternating CUDA-event trials; sampled FP64 oracle is not full-model qualification. No runtime or manifest changed.\n",
+    create_mode=CreateNew,
+  )
+  let mut done = false
+  let samples = StringBuilder()
+  errdefer @fs.write_file(
+    root + "/memory-interrupted.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = memory()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32GiB reserve") }
+        @async.sleep(500)
+      }
+    })
+    record(root, "device", "nvidia-smi", [
+      "--query-gpu=uuid,pci.bus_id,name", "--format=csv",
+    ])
+    for label in labels {
+      let variant = if label.has_prefix("compact") {
+        compact_probabilities(source)
+      } else {
+        source
+      }
+      let variant = if label.contains("offsets") {
+        compact_addresses(variant)
+      } else {
+        variant
+      }
+      guard !label.contains("offsets") || !variant.contains("pending_values") else {
+        fail("unconsumed address ablation")
+      }
+      let variant = if label.has_prefix("affine") {
+        // The probe constructs positions as start+i. This is a diagnostic
+        // substitution, not permission to relax the general source ABI.
+        replace_once(
+          variant, " && positions[begin+current_delta]==position", "",
+        )
+      } else {
+        variant
+      }
+      let variant = if label.contains("exp2") {
+        replace_once(
+          variant, "const float value=expf(delta);", "float value;\n  const float binary_delta=delta*1.4426950408889634f;\n  asm(\"ex2.approx.ftz.f32 %0, %1;\" : \"=f\"(value) : \"f\"(binary_delta));",
+        )
+      } else {
+        variant
+      }
+      let directory = root + "/" + label
+      @fs.mkdir(directory)
+      @fs.write_file(directory + "/kernel.cu", variant, create_mode=CreateNew)
+      // Never retain compiler/functional digests for a textual ablation.
+      let diagnostic_recipe = recipe
+        .split("\n")
+        .filter(line => {
+          !line.has_prefix("schema=") &&
+          !line.has_prefix("source_sha256=") &&
+          !line.has_prefix("functional_sha256=") &&
+          !line.has_prefix("schedule_sha256=") &&
+          !line.has_prefix("lowering_sha256=") &&
+          !line.has_prefix("frontier_sha256=") &&
+          !line.is_empty()
+        })
+        .map(line => line.to_owned())
+        .to_array()
+        .join("\n")
+      @fs.write_file(
+        directory + "/kernel.recipe",
+        "schema=diagnostic-prefill-support-ablation.v1\nsource_sha256=" +
+        digest(variant) +
+        "\nmanifest_bindable=false\nnumeric_law=" +
+        (if label.contains("exp2") {
+          "diagnostic-exp2-approx-v1"
+        } else {
+          "query-owner-v1"
+        }) +
+        "\n" +
+        diagnostic_recipe +
+        "\n",
+        create_mode=CreateNew,
+      )
+      record(root, "compile-" + label, "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-arch=sm_120",
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=255",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        directory + "/kernel.cu",
+        "-o",
+        directory + "/kernel.cubin",
+      ])
+      for
+        (tokens, rows, past, mixed) in [
+          (2048, 1, 2048, false),
+          (2048, 1, 0, false),
+          (2048, 1, 4096, false),
+          (2048, 16, 4096, true),
+          (129, 16, 4096, true),
+          (2048, 16, 0, false),
+        ] {
+        record(
+          root,
+          "time-" + label + "-q\{tokens}-r\{rows}-h\{past}-m\{mixed}",
+          probe,
+          [
+            spec,
+            selected,
+            directory,
+            tokens.to_string(),
+            rows.to_string(),
+            past.to_string(),
+          ] +
+          (if mixed { ["--mixed"] } else { [] }),
+        )
+      }
+    }
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=diagnostic-no-production-selection\n",
+    create_mode=CreateNew,
+  )
+}

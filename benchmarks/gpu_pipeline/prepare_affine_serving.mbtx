@@ -1,0 +1,295 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn sha(path : String) -> String {
+  // Weight files can exceed MoonBit's single-allocation limit. Stream them
+  // through the host hash tool instead of loading the entire model in RAM.
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd=root + "/source", env={
+    "PATH": root +
+    "/toolchain/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(name + " completed")
+  out.stdout()
+}
+
+///|
+// Qualify the selected c322 module. Serving materialization is a separate
+// recalibrate_affine_serving.mbtx step: old routes bind the old module set.
+// No source-text substitution or fabricated compiler recipe is used.
+async fn main {
+  guard @env.args() is [_, base, overlay, root] else {
+    fail("FROZEN_SERVING SCOPED_OVERLAY NEW_EMPTY_ROOT")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory")
+  }
+  guard @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  guard @fs.read_file(base + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("baseline incomplete")
+  }
+  for name in ["source", "release"] {
+    @fs.mkdir(root + "/" + name)
+    @shell.Cmd("cp", ["-a", base + "/" + name + "/.", root + "/" + name + "/"]).run()
+  }
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  for
+    name in ["convert.stdout", "bind.stdout", "toolchain.v1", "benchmark.mbtx"] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  // The overlay is restricted to compiler packages and the exporter frontend.
+  let paths = @fs.read_file(overlay + "/FILES.txt")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => x.to_owned())
+    .to_array()
+  let allowed = [
+    "kernels/luna_attention_strategy/", "kernels/luna_attention_tile_ir/", "kernels/luna_cuda_attention_tile_lowering/",
+    "kernels/luna_cuda_attention_tile_source/", "cmd/lunaflux_qwen3_bf16_candidate_export/",
+  ]
+  for path in paths {
+    guard !path.contains("..") && allowed.any(prefix => path.has_prefix(prefix)) else {
+      fail("overlay scope")
+    }
+    @shell.Cmd("cp", [overlay + "/" + path, root + "/source/" + path]).run()
+  }
+  ignore(
+    record(
+      root,
+      "overlay-identities",
+      "sha256sum",
+      paths.map(path => root + "/source/" + path),
+    ),
+  )
+  let moon = root + "/toolchain/bin/moon"
+  ignore(
+    record(root, "build-exporter", moon, [
+      "build", "cmd/lunaflux_qwen3_bf16_candidate_export", "--target", "native",
+      "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14", "-j", "2",
+    ]),
+  )
+  let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+  let converted = @fs.read_file(root + "/convert.stdout").text()
+  let exporter = root +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe"
+  ignore(
+    record(root, "export", exporter, [
+      model,
+      "config.json",
+      sha(model + "/config.json"),
+      sha(model + "/model.safetensors"),
+      "qwen.numeric",
+      field(converted, "output_artifact_sha256"),
+      field(converted, "route_manifest_sha256"),
+      sha(root + "/toolchain.v1"),
+      "13",
+      "0",
+      "88",
+      "8",
+      "16384",
+      "32",
+      "2048",
+      "16384",
+      root + "/candidate",
+      "--prefill-candidate",
+      "322",
+      "--query-metadata-v1",
+    ]),
+  )
+  let selected = root + "/candidate/reusable-qwen-prefill-attention"
+  let recipe = @fs.read_file(selected + "/kernel.recipe").text()
+  let source = @fs.read_file(selected + "/kernel.cu").text()
+  assert_eq(field(recipe, "candidate_stable_id"), "322")
+  assert_eq(field(recipe, "source_sha256"), sha(selected + "/kernel.cu"))
+  guard !source.contains("positions[begin+current_delta]==position") &&
+    source.contains("const float value=expf(delta)") else {
+    fail("affine propagation/numeric law")
+  }
+  let baseline_recipe = @fs.read_file(base + "/prefill-selected/kernel.recipe").text()
+  for
+    key in [
+      "function_symbol", "target", "block", "shared_memory_bytes", "query_tile_rows",
+      "query_metadata_version", "key_value_tile_rows", "head_columns", "max_registers",
+    ] {
+    assert_eq(field(recipe, key), field(baseline_recipe, key))
+  }
+  guard field(recipe, "functional_sha256") !=
+    field(baseline_recipe, "functional_sha256") else {
+    fail("producer law missing from compiler identity")
+  }
+  @fs.mkdir(root + "/prefill-selected")
+  @fs.write_file(
+    root + "/prefill-selected/kernel.recipe",
+    recipe,
+    create_mode=CreateNew,
+  )
+  let flags = [
+    "-O3",
+    "-arch=" + field(recipe, "target"),
+    "--std=c++14",
+    "--fmad=false",
+    "--ftz=false",
+    "--prec-div=true",
+    "--prec-sqrt=true",
+    "--maxrregcount=255",
+    "--Werror",
+    "all-warnings",
+    "-cubin",
+    selected + "/kernel.cu",
+    "-o",
+  ]
+  for name in ["first", "second"] {
+    ignore(
+      record(
+        root,
+        "compile-" + name,
+        "/usr/local/cuda-13.0/bin/nvcc",
+        flags + [root + "/prefill-selected/" + name + ".cubin"],
+      ),
+    )
+  }
+  ignore(
+    record(root, "deterministic-cubin", "cmp", [
+      root + "/prefill-selected/first.cubin",
+      root + "/prefill-selected/second.cubin",
+    ]),
+  )
+  @fs.write_file(
+    root + "/prefill-selected/kernel.cubin",
+    @fs.read_file(root + "/prefill-selected/first.cubin"),
+    create_mode=CreateNew,
+  )
+  let probe = "/home/wlc004s/lunaflux-final-gap-investigation-20260930.tiAzXMDJ/counter-luna-replay/attention-probe"
+  let spec = "/home/wlc004s/lunaflux-positive-repair-20260930.nHyfgw10/integrated-fma1/selected-final/prefill.spec"
+  for
+    (tokens, rows, history, mixed) in [
+      (2048, 1, 2048, false),
+      (2048, 1, 0, false),
+      (2048, 1, 4096, false),
+      (2048, 16, 4096, true),
+      (129, 16, 4096, true),
+      (2048, 16, 0, false),
+    ] {
+    let label = "q\{tokens}-r\{rows}-h\{history}-m\{mixed}"
+    let out = record(
+      root,
+      label,
+      probe,
+      [
+        spec,
+        base + "/prefill-selected",
+        root + "/prefill-selected",
+        tokens.to_string(),
+        rows.to_string(),
+        history.to_string(),
+      ] +
+      (if mixed { ["--mixed"] } else { [] }),
+    )
+    let trials = out
+      .split("\n")
+      .filter(line => line.has_prefix("tokens="))
+      .to_array()
+    guard trials.length() == 5 &&
+      trials.all(line => line.contains("bitwise=true maxabs=0")) else {
+      fail("same-law output mismatch")
+    }
+  }
+  for tool in ["memcheck", "racecheck", "synccheck"] {
+    ignore(
+      record(
+        root,
+        "sanitizer-" + tool,
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        ["--tool", tool, "--error-exitcode", "99"] +
+        (if tool == "memcheck" { ["--leak-check", "full"] } else { [] }) +
+        [
+          probe,
+          spec,
+          base + "/prefill-selected",
+          root + "/prefill-selected",
+          "129",
+          "16",
+          "4096",
+          "--check-only",
+          "--mixed",
+        ],
+      ),
+    )
+  }
+  @fs.write_file(
+    root + "/SCOPE.txt",
+    "Exact compiler-exported affine producer specialization; deterministic cubin and same-law probes qualified. No serving package yet: regenerate module-bound route measurements with recalibrate_affine_serving.mbtx before materialization. Benchmark-only, not production promotion.\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=compiler-affine-qualification-not-throughput\n",
+    create_mode=CreateNew,
+  )
+}
