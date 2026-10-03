@@ -1,0 +1,96 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn replace_once(
+  source : String,
+  before : String,
+  after : String,
+) -> String raise {
+  guard source.split(before).to_array().length() == 2 else {
+    fail("harness seam " + before)
+  }
+  source.replace(old=before, new=after)
+}
+
+///|
+// Reuse the existing bounded lifecycle harness unchanged for each fresh start.
+// ABBA order separates a dispatch change from an old/new machine-session shift.
+async fn main {
+  guard @env.args() is [_, baseline, partitioned, harness, root] else {
+    fail(
+      "BASELINE_SERVING PARTITIONED_DIAGNOSTIC_SERVING MATCHED_HARNESS NEW_ROOT",
+    )
+  }
+  guard !@fs.exists(root) else { fail("non-overwriting root") }
+  for serving in [baseline, partitioned] {
+    guard @fs.read_file(serving + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("prepared runtime required")
+    }
+  }
+  @fs.mkdir(root)
+  let runner = root + "/trial.mbtx"
+  let source = replace_once(
+    @fs.read_file(harness).text(),
+    "  guard options.is_empty() &&",
+    "  if options is [\"--trial\"] {\n    trial(serving, root, script, \"luna-full\")\n    return\n  }\n  guard options.is_empty() &&",
+  )
+  @fs.write_file(runner, source, create_mode=CreateNew)
+  let client = replace_once(
+    @fs.read_file(baseline + "/benchmark.mbtx").text(),
+    "[(128,32),(4096,64),(4096,256)]",
+    "[(4096,64),(4096,256)]",
+  )
+  let client = replace_once(client, "[1,8,16]", "[16]")
+  let client = replace_once(client, "0..<4", "0..<2")
+  @fs.write_file(runner + ".client.mbtx", client, create_mode=CreateNew)
+  let orders = ["baseline", "partitioned", "partitioned", "baseline"]
+  let moon = baseline + "/toolchain/bin/moon"
+  for round, kind in orders {
+    let serving = if kind == "baseline" { baseline } else { partitioned }
+    let trial = root + "/r\{round}-" + kind
+    let result = @shell.Cmd(moon, [
+      "run", runner, serving, trial, runner, "--trial",
+    ]).output(max_output_bytes=33554432)
+    @fs.write_file(
+      root + "/r\{round}.stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/r\{round}.stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    println("round \{round} " + kind + " completed")
+  }
+  let campaign : Json = {
+    "schema": "lunaflux.mixed-decode-ab.v1",
+    "baseline": baseline,
+    "partitioned": partitioned,
+    "order": orders,
+    "inputs": [4096],
+    "outputs": [64, 256],
+    "concurrency": [16],
+    "scope": "ordinary timing, diagnostic forced mixed dispatch, identical AOT modules; no production tuning records",
+  }
+  @fs.write_file(
+    root + "/CAMPAIGN.json",
+    campaign.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=ordinary-mixed-decode-ABBA\n",
+    create_mode=CreateNew,
+  )
+}

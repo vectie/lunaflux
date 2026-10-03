@@ -128,6 +128,20 @@ once for eligible base, split, and wide prefill paths, using the existing fixed
 bucket table. Multi-token and decode selection remain unchanged, and a
 one-token-only profile uses its existing maximum owner without duplication.
 
+Mixed attention graphs can use either an ordinary decode companion or an
+ordered read-only partition/merge sequence. A pure startup rewrite narrows
+prefill to its row domain, appends the disjoint decode writer after the final
+prefill writer, and retains upstream KV writes and downstream consumers once.
+The partitioned alternative reuses the already-owned decode scratch and AOT
+functions; it creates no additional KV arena. Measured route 7 names this
+complete mixed graph, not a pure-decode kernel measurement. It is legal only
+in mixed buckets and is prepared only for measured winners, within the existing
+graph-memory budget. Missing companions or failed capture cannot silently
+substitute an ordinary graph for that measured choice. Unmeasured buckets and
+measured baseline choices retain their original policy. All graph construction
+and route validation happen at startup; token steps select retained scalar
+owner indices without tuning, graph mutation, or new host allocation.
+
 The reusable FP8-v3 frame route keeps one scalar admission record for the
 executor lifetime. Each accepted frame mutates that record in place and clears
 it on consume or poison, so publication does not box per-frame evidence. It

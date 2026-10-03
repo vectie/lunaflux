@@ -346,12 +346,23 @@ async fn verify_trace(root : String) -> Unit {
   ])
   let kernels = @fs.read_file(root + "/selected-kernels.stdout").text()
   let selected = @fs.exists(root + "/SELECTED_MODE.txt")
-  guard kernels.contains(
-      if selected {
-        "lunaflux_attention_decode_tile_compiler_v1"
-      } else {
-        "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
-      },
+  guard (
+      kernels.contains(
+        if selected {
+          "lunaflux_attention_decode_tile_compiler_v1"
+        } else {
+          "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1"
+        },
+      ) ||
+      (
+        selected &&
+        kernels.contains(
+          "lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903",
+        ) &&
+        kernels.contains(
+          "lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904",
+        )
+      )
     ) &&
     (
       kernels.contains(

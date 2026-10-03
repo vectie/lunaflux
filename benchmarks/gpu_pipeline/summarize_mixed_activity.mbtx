@@ -1,0 +1,110 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn phase(work : String) -> String raise {
+  let mut one = false
+  let mut multi = false
+  for row in work.split(",") {
+    guard row.split(":").to_array() is [q, _] else { fail("row vector") }
+    let q = @string.parse_int(q)
+    if q == 1 {
+      one = true
+    } else if q > 1 {
+      multi = true
+    } else {
+      fail("positive query")
+    }
+  }
+  if one && multi {
+    "mixed"
+  } else if multi {
+    "multi-query-only"
+  } else {
+    "one-query-only"
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, input, output] else {
+    fail("EQUAL_WORK_LUNA_AB NEW_OUTPUT")
+  }
+  guard @json.parse(@fs.read_file(input).text())
+    is {
+      "schema": String("lunaflux.equal-work-luna-ab.v1"),
+      "comparison": { "matches": Array(matches), .. },
+      ..
+    } else {
+    fail("equal-work comparison required")
+  }
+  let budgets : Map[String, (Double, Double)] = Map([])
+  let counts : Map[String, Int] = Map([])
+  for item in matches {
+    guard item
+      is {
+        "work": String(work),
+        "luna_steps": l,
+        "reference_steps": r,
+        "chains": Array(chains),
+        ..
+      } &&
+      number(l) == number(r) else {
+      fail("equal occurrence counts required for an additive ledger")
+    }
+    let kind = phase(work)
+    counts[kind] = counts.get(kind).unwrap_or(0) + number(l).to_int()
+    for chain in chains {
+      guard chain
+        is {
+          "chain": String(name),
+          "luna_kernel_activity_ms_per_step": new_time,
+          "reference_kernel_activity_ms_per_step": old_time,
+          ..
+        } else {
+        fail("chain")
+      }
+      for key in [kind + "/" + name, "all/" + name] {
+        let (old, new) = budgets.get(key).unwrap_or((0.0, 0.0))
+        budgets[key] = (
+          old + number(r) * number(old_time),
+          new + number(l) * number(new_time),
+        )
+      }
+    }
+  }
+  let keys = budgets.keys().to_array()
+  keys.sort()
+  let summary : Json = {
+    "schema": "lunaflux.mixed-activity-budget.v1",
+    "steps_by_query_domain": counts,
+    "budgets": keys.map(key => {
+      let (old, new) = budgets[key]
+      (
+        {
+          "domain_and_chain": key,
+          "baseline_ms": old,
+          "partitioned_ms": new,
+          "reduction_ms": old - new,
+        } : Json)
+    }),
+    "limits": "GPU kernel activity sums from two separate profiled sessions, not critical-path wall attribution. The ordinary ABBA timing controls the causal speed claim.",
+  }
+  @fs.write_file(output, summary.stringify(indent=2), create_mode=CreateNew)
+  println(summary.stringify(indent=2))
+}

@@ -1,0 +1,200 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  let result = @shell.Cmd(exe, args, env={
+    "PATH": root +
+    "/toolchain/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(label + " passed")
+}
+
+///|
+// Offline A/B only. The treatment forces the alternative in a disposable
+// source copy; no invented measurements or production route records are used.
+async fn main {
+  guard @env.args() is [_, base, overlay, root, mode] &&
+    (mode == "baseline" || mode == "partitioned") else {
+    fail("FROZEN_SERVING SCOPED_OVERLAY NEW_ROOT baseline|partitioned")
+  }
+  guard !@fs.exists(root) else { fail("non-overwriting root") }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(line => line.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  guard @fs.read_file(base + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("incomplete frozen runtime")
+  }
+  @fs.mkdir(root)
+  for
+    name in [
+      "source", "release", "candidate", "fused", "fused-routed", "decode-selected",
+      "prefill-selected",
+    ] {
+    @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+  }
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  for
+    name in [
+      "convert.stdout", "bind.stdout", "export.stdout", "toolchain.v1", "benchmark.mbtx",
+      "prepare-full.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  let paths = @fs.read_file(overlay + "/FILES.txt")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => x.to_owned())
+    .to_array()
+  for path in paths {
+    guard !path.contains("..") &&
+      [
+        "engine/device_step/", "cmd/lunaflux_qwen3_fused_runtime_bundle_export/",
+        "tests/fixtures/attention_phase_rows.cu",
+      ].any(prefix => path.has_prefix(prefix)) else {
+      fail("overlay scope")
+    }
+    // This A/B holds AOT export fixed. The current exporter has independent
+    // ABI additions absent from the older frozen source; it is checked in the
+    // current workspace, not substituted into this runtime-only comparison.
+    if path.has_prefix("cmd/") {
+      continue
+    }
+    @shell.Cmd("cp", [overlay + "/" + path, root + "/source/" + path]).run()
+  }
+  record(
+    root,
+    "source-identities",
+    "sha256sum",
+    paths.map(path => root + "/source/" + path),
+  )
+  if mode == "partitioned" {
+    let path = root + "/source/engine/device_step/attention_phase_executor.mbt"
+    let source = @fs.read_file(path).text()
+    let needle = "context, steps, launches, resources, owner_index,\n    )"
+    guard source.split(needle).to_array().length() == 2 else {
+      fail("diagnostic dispatch seam")
+    }
+    @fs.write_file(
+      root + "/attention_phase_executor.original.mbt",
+      source,
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      path,
+      source.replace(
+        old=needle,
+        new="context, steps, launches, resources, owner_index,\n      partitioned_decode=true,\n    )",
+      ),
+    )
+    @fs.write_file(
+      root + "/DIAGNOSTIC_ONLY.txt",
+      "Force mixed partitioned decode for causal whole-graph A/B; never deploy. No fabricated tuning records.\n",
+      create_mode=CreateNew,
+    )
+  }
+  let moon = root + "/toolchain/bin/moon"
+  record(root, "native-check", moon, [
+    "-C",
+    root + "/source",
+    "check",
+    "--target",
+    "native",
+    "--deny-warn",
+    "--warn-list",
+    "-79-20-29-25-92-14",
+    "-j",
+    "2",
+  ])
+  record(root, "device-step-tests", moon, [
+    "-C",
+    root + "/source",
+    "test",
+    "--target",
+    "native",
+    "--deny-warn",
+    "--warn-list",
+    "-79-20-29-25-92-14",
+    "-p",
+    "vectie/lunaflux/engine/device_step",
+    "-j",
+    "2",
+  ])
+  for target in ["cmd/device_worker_child", "cmd/lunaflux"] {
+    record(
+      root,
+      "build-" + target.split("/").last().unwrap().to_owned(),
+      moon,
+      [
+        "-C",
+        root + "/source",
+        "build",
+        target,
+        "--target",
+        "native",
+        "--release",
+        "--deny-warn",
+        "--warn-list",
+        "-79-20-29-25-92-14",
+        "-j",
+        "2",
+      ],
+    )
+  }
+  for phase in ["materialize", "capacity"] {
+    record(root, "prepare-" + phase, moon, [
+      "run",
+      root + "/prepare-full.mbtx",
+      root,
+      phase,
+    ])
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=mixed-decode-" + mode + "-benchmark-only\n",
+    create_mode=CreateNew,
+  )
+}

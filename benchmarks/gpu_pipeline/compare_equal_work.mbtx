@@ -234,6 +234,22 @@ fn compare(luna : Trace, reference : Trace) -> Json {
 
 ///|
 async fn main {
+  if @env.args() is [_, "--luna-ab", baseline_path, treatment_path, output] {
+    let baseline = read_trace("luna", baseline_path)
+    let treatment = read_trace("luna", treatment_path)
+    let result : Json = {
+      "schema": "lunaflux.equal-work-luna-ab.v1",
+      "baseline_path": baseline_path,
+      "treatment_path": treatment_path,
+      "luna_fields": "partitioned mixed treatment",
+      "reference_fields": "ordinary mixed baseline",
+      "ledgers": [baseline.ledger, treatment.ledger],
+      "comparison": compare(treatment, baseline),
+      "scope": "Only exactly matching query/history vectors; kernel activity sums are not wall latency or a dependency critical path. Existing baseline capture and fresh treatment capture; ordinary causal timing is a separate ABBA campaign.",
+    }
+    @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+    return
+  }
   if @env.args() is [_, "--self-test"] {
     assert_eq(work_amount("2048:2048"), (2048L, 2048L, 0L, 6292480L))
     assert_eq(work_amount("1:4,2:0"), (3L, 2L, 1L, 8L))

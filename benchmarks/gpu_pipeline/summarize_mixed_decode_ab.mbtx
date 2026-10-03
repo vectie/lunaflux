@@ -1,0 +1,141 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(samples : Array[Double]) -> Double raise {
+  guard samples.length() == 2 &&
+    samples.all(x => x > 0.0 && !x.is_nan() && !x.is_inf()) else {
+    fail("two finite positive fresh-start samples required")
+  }
+  (samples[0] + samples[1]) / 2.0
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, destination] &&
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n") else {
+    fail("COMPLETED_ABBA_ROOT NEW_OUTPUT")
+  }
+  let cells : Array[Json] = []
+  let divergence : Array[Json] = []
+  let minimum_memory = Ref(9223372036854775807L)
+  for output in [64, 256] {
+    let times : Map[String, Array[Double]] = Map([])
+    let expected_inputs : Array[Json] = []
+    let expected_outputs : Array[Json] = []
+    let stem = "i4096-o\{output}-c16-t1"
+    for round, kind in ["baseline", "partitioned", "partitioned", "baseline"] {
+      let dir = root + "/r\{round}-" + kind
+      guard @fs.read_file(dir + "/RESULT.txt")
+        .text()
+        .has_prefix("outcome=completed\n") else {
+        fail("incomplete trial")
+      }
+      let value = @json.parse(
+        @fs.read_file(dir + "/requests/" + stem + ".json").text(),
+      )
+      guard value
+        is {
+          "engine": String("luna-full"),
+          "input": input,
+          "output": outputs,
+          "concurrency": concurrency,
+          "warmup": False,
+          "trial": trial,
+          "wall_ms": wall,
+          "requests": Array(requests),
+          ..
+        } &&
+        number(input) == 4096.0 &&
+        number(outputs) == output.to_double() &&
+        number(concurrency) == 16.0 &&
+        number(trial) == 1.0 &&
+        requests.length() == 16 else {
+        fail("work vector or warm-up drift")
+      }
+      let samples = times.get(kind).unwrap_or([])
+      samples.push(number(wall))
+      times[kind] = samples
+      for row, request in requests {
+        guard request
+          is { "token_ids": Array(ids), "token_ms": Array(latencies), .. } &&
+          ids.length() == output &&
+          latencies.length() == output else {
+          fail("incomplete output")
+        }
+        let body = @json.parse(
+          @fs.read_file(dir + "/requests/" + stem + "-r\{row}.body.json").text(),
+        )
+        guard body is { "input_token_ids": Array(inputs), .. } &&
+          inputs.length() == 4096 else {
+          fail("token-ID inputs required")
+        }
+        if round == 0 {
+          expected_inputs.push(Json(inputs))
+          expected_outputs.push(Json(ids))
+        } else {
+          assert_eq(expected_inputs[row], Json(inputs), msg="input drift")
+          if expected_outputs[row] != Json(ids) {
+            divergence.push({
+              "round": round,
+              "kind": kind,
+              "output": output,
+              "row": row,
+            })
+          }
+        }
+      }
+      for line in @fs.read_file(dir + "/memory.csv").text().split("\n") {
+        if !line.is_empty() {
+          guard line.split(",").to_array() is [_, kb] else {
+            fail("memory sample")
+          }
+          minimum_memory.val = minimum_memory.val.min(@string.parse_int64(kb))
+        }
+      }
+    }
+    let baseline = median(times["baseline"])
+    let partitioned = median(times["partitioned"])
+    cells.push({
+      "input": 4096,
+      "output": output,
+      "concurrency": 16,
+      "baseline_wall_ms": times["baseline"],
+      "partitioned_wall_ms": times["partitioned"],
+      "baseline_median_ms": baseline,
+      "partitioned_median_ms": partitioned,
+      "time_reduction_percent": 100.0 * (1.0 - partitioned / baseline),
+      "baseline_tok_s": (16 * output).to_double() * 1000.0 / baseline,
+      "partitioned_tok_s": (16 * output).to_double() * 1000.0 / partitioned,
+    })
+  }
+  assert_true(minimum_memory.val >= 33554432L)
+  let summary : Json = {
+    "schema": "lunaflux.mixed-decode-ab-summary.v1",
+    "cells": cells,
+    "token_sequence_differences": divergence,
+    "minimum_mem_available_kib": minimum_memory.val,
+    "limits": "Two fresh starts per route, one measured trial per workload after warm-up; no confidence interval. Forced diagnostic dispatch, no production promotion.",
+  }
+  @fs.write_file(
+    destination,
+    summary.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(summary.stringify(indent=2))
+}

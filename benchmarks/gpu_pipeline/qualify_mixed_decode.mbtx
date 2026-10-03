@@ -1,0 +1,80 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, baseline, overlay, fixture, root] &&
+    !@fs.exists(root) else {
+    fail("PREPARED_BASELINE OVERLAY COMPILED_FIXTURE NEW_ROOT")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  @fs.mkdir(root)
+  @shell.Cmd("cp", ["-a", baseline + "/source", root + "/source"]).run()
+  @shell.Cmd("cp", [
+    overlay + "/engine/device_step/attention_phase_physical_wbtest.mbt",
+    root + "/source/engine/device_step/attention_phase_physical_wbtest.mbt",
+  ]).run()
+  let moon = baseline + "/toolchain/bin/moon"
+  let test_args = [
+    "-C",
+    root + "/source",
+    "test",
+    "engine/device_step/attention_phase_physical_wbtest.mbt",
+    "--target",
+    "native",
+    "--deny-warn",
+    "--warn-list",
+    "-79-20-29-25-92-14",
+    "-j",
+    "2",
+  ]
+  for mode in ["ordinary", "memcheck", "racecheck", "synccheck"] {
+    let command = if mode == "ordinary" {
+      moon
+    } else {
+      "/usr/local/cuda/bin/compute-sanitizer"
+    }
+    let args = if mode == "ordinary" {
+      test_args
+    } else {
+      [
+        "--target-processes", "all", "--tool", mode, "--error-exitcode", "99", moon,
+        ..test_args,
+      ]
+    }
+    let result = @shell.Cmd(command, args, env={
+      "LUNAFLUX_ATTENTION_PHASE_FIXTURE": fixture,
+      "PATH": baseline +
+      "/toolchain/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/bin:/bin",
+    }).output(max_output_bytes=33554432)
+    @fs.write_file(
+      root + "/" + mode + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + mode + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    guard result.stdout().contains("Total tests: 2, passed: 2, failed: 0.") else {
+      fail("physical tests not run")
+    }
+    println(mode + " passed")
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=eager-captured-mixed-sequence-ownership-cleanup-not-model-numerics\n",
+    create_mode=CreateNew,
+  )
+}
