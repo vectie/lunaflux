@@ -1,0 +1,368 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn replace_once(text : String, before : String, after : String) -> String raise {
+  let pieces = text.split(before).to_array()
+  guard pieces.length() == 2 else { fail("diagnostic seam changed: " + before) }
+  pieces.join(after)
+}
+
+///|
+async fn save(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " completed")
+  out.stdout()
+}
+
+///|
+async fn memory() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("MemAvailable")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+fn first_decode(trace : Json) -> Json raise {
+  guard trace is { "steps": Array(steps), .. } else { fail("work trace") }
+  for step in steps {
+    if step is { "query": Array(q), "past": Array(p), .. } &&
+      q.length() == 16 &&
+      p.length() == 16 &&
+      q.all(x => x == Json("1")) {
+      return step
+    }
+  }
+  fail("no actual C16 pure decode")
+}
+
+///|
+fn histories(step : Json) -> String raise {
+  guard step is { "past": Array(p), .. } else { fail("history vector") }
+  p
+  .map(x => {
+    match x {
+      String(s) => s
+      _ => fail("history representation")
+    }
+  })
+  .join(",")
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    let rows : Array[Json] = Array::make(16, Json("1"))
+    let past : Array[Json] = Array::make(16, Json("4096"))
+    let step : Json = { "query": rows, "past": past }
+    assert_eq(
+      first_decode({ "steps": [{ "query": ["2"], "past": ["0"] }, step] }),
+      step,
+    )
+    assert_eq(histories(step), Array::make(16, "4096").join(","))
+    assert_eq(replace_once("a seam b", "seam", "new"), "a new b")
+    try replace_once("seam seam", "seam", "new") catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous probe seam accepted")
+    }
+    try
+      first_decode({ "steps": [{ "query": ["1"], "past": ["4096"] }] })
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("non C16 step accepted")
+    }
+    println("partitioned replay selection regression passed")
+    return
+  }
+  guard @env.args()
+    is [_, serving, capture, current_trace, root, helper, probe_source, spec] else {
+    fail(
+      "QUALIFIED_SERVING ORIGINAL_THREE_FRAMEWORK_CAPTURE CURRENT_LUNA_TRACE NEW_ROOT REFERENCE_HELPER PROBE_SOURCE DECODE_SPEC",
+    )
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() && memory() >= 33554432L else {
+    fail("GPU/memory admission")
+  }
+  let selected = serving + "/decode-route-measurements/partitioned"
+  let hash = save(root, "selected-identity", "sha256sum", [
+    selected + "/kernel.cubin",
+  ])
+  guard hash.has_prefix(
+    "bf663e1055588f47ff62c733714df00baae8e9999b281ef052a243c25f5bbd5e ",
+  ) else {
+    fail("not the traced selected module")
+  }
+  let recipe = @fs.read_file(selected + "/kernel.recipe").text()
+  for
+    field in [
+      "candidate_stable_id=452\n", "partition_count=8\n", "grid=32,8,8\n", "block=64,1,1\n",
+    ] {
+    guard recipe.contains(field) else { fail("selected launch changed") }
+  }
+  @fs.write_file(root + "/selected.recipe", recipe, create_mode=CreateNew)
+  let works : Map[String, Json] = Map([])
+  for
+    (engine, path) in [
+      ("luna", current_trace + "/work-shapes.json"),
+      ("vllm", capture + "/vllm/work-shapes.json"),
+      ("sglang", capture + "/sglang/work-shapes.json"),
+    ] {
+    works[engine] = first_decode(@json.parse(@fs.read_file(path).text()))
+  }
+  @fs.write_file(
+    root + "/work-vectors.json",
+    Json(works).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  // Offline probe only. Replay actual ragged histories without modifying any
+  // kernel, production ABI or serving metadata path.
+  let source = replace_once(
+    @fs.read_file(probe_source).text(),
+    "argc>10",
+    "argc>11",
+  )
+  let source = replace_once(
+    source, "  bool check_only=false,mixed=false,decode_envelope=false;", "  bool check_only=false,mixed=false,decode_envelope=false;\n  std::vector<int> past_vector;",
+  )
+  let source = replace_once(
+    source, "    else return 1;\n  }\n  auto spec=fields", "    else if(std::string(argv[i]).rfind(\"--past-vector=\",0)==0 && past_vector.empty())past_vector=tuple(std::string(argv[i]).substr(14));\n    else return 1;\n  }\n  auto spec=fields",
+  )
+  let source = replace_once(
+    source, "  if(decode_envelope && !decode)return 1;", "  if(decode_envelope && !decode)return 1;\n  if(!past_vector.empty() && (!decode || int(past_vector.size())!=rows || std::any_of(past_vector.begin(),past_vector.end(),[](int x){return x<0||x>8192;})))return 1;",
+  )
+  let source = replace_once(
+    source, "length=past+n;\n    lengths.push_back(length);for(int t=0;t<n;t++)positions.push_back(past+t);",
+    "row_past=past_vector.empty()?past:past_vector[r],length=row_past+n;\n    lengths.push_back(length);for(int t=0;t<n;t++)positions.push_back(row_past+t);",
+  )
+  @fs.write_file(root + "/probe.cu", source, create_mode=CreateNew)
+  let path_parts = probe_source.split("/").to_array()
+  let parent = path_parts[:path_parts.length() - 1]
+    .map(x => x.to_owned())
+    .join("/")
+  @fs.write_file(
+    root + "/selected_policy_geometry.h",
+    @fs.read_file(parent + "/selected_policy_geometry.h"),
+    create_mode=CreateNew,
+  )
+  let probe = root + "/probe"
+  ignore(
+    save(root, "build-probe", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-O3",
+      "-std=c++17",
+      "-arch=sm_121",
+      root + "/probe.cu",
+      "-lcuda",
+      "-o",
+      probe,
+    ]),
+  )
+  let samples = StringBuilder()
+  let mut done = false
+  errdefer @fs.write_file(
+    root + "/memory-failure.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = memory()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32GiB reserve") }
+        @async.sleep(500)
+      }
+    })
+    for engine in ["luna", "vllm", "sglang"] {
+      let dir = root + "/" + engine + "-shape"
+      @fs.mkdir(dir)
+      let invocation = [
+        probe,
+        spec,
+        selected,
+        selected,
+        "16",
+        "16",
+        "4096",
+        "--decode-envelope",
+        "--past-vector=" + histories(works[engine]),
+      ]
+      ignore(
+        save(
+          dir,
+          "timing",
+          "docker",
+          [
+            "run", "--rm", "--gpus", "all", "--network", "none", "--memory", "8g",
+            "--memory-swap", "8g", "--mount", "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+            "nvcr.io/nvidia/vllm:26.01-py3", ..invocation,
+          ],
+        ),
+      )
+      let args = [
+        "run",
+        "--rm",
+        "--gpus",
+        "all",
+        "--network",
+        "none",
+        "--memory",
+        "8g",
+        "--memory-swap",
+        "8g",
+        "--cap-add",
+        "SYS_ADMIN",
+        "--security-opt",
+        "seccomp=unconfined",
+        "--mount",
+        "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+        "--mount",
+        "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+        "--mount",
+        "type=bind,source=" + dir + ",target=" + dir,
+        "nvcr.io/nvidia/vllm:26.01-py3",
+        "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+        "--config-file",
+        "off",
+        "--clock-control",
+        "none",
+        "--cache-control",
+        "all",
+        "--kernel-name-base",
+        "function",
+        "--kernel-name",
+        "regex:lunaflux_paged_attention_bf16_decode_split_(partial|merge)_v3_ep_390[34]",
+        "--launch-count",
+        "2",
+      ]
+      for
+        section in [
+          "LaunchStats", "Occupancy", "SpeedOfLight", "SchedulerStats", "WarpStateStats",
+          "MemoryWorkloadAnalysis", "InstructionStats", "SourceCounters",
+        ] {
+        args.append(["--section", section])
+      }
+      args.append(["--export", dir + "/counter", ..invocation, "--check-only"])
+      ignore(save(dir, "profile", "docker", args))
+      for page in ["raw", "source"] {
+        ignore(
+          save(
+            dir,
+            "counter-" + page,
+            "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+            [
+              "--import",
+              dir + "/counter.ncu-rep",
+              "--page",
+              page,
+              "--csv",
+              "--print-units",
+              "base",
+            ] +
+            (if page == "source" { ["--print-source", "sass"] } else { [] }),
+          ),
+        )
+      }
+    }
+    // Reference counters are near-envelope live runs, not an exact vector
+    // match: admission timing may change ragged rows across launches. The
+    // retained work traces and separate Luna replay vectors expose that limit.
+    for engine in ["vllm", "sglang"] {
+      let dir = root + "/" + engine + "-live"
+      @fs.mkdir(dir)
+      let source = replace_once(
+        @fs.read_file(helper).text(),
+        "      \"per-launch-config\",",
+        "      \"global\",",
+      )
+      let source = replace_once(
+        source,
+        "      \"--cache-control\",\n      \"none\",",
+        "      \"--cache-control\",\n      \"all\",\n      \"--launch-skip\",\n      \"" +
+        (if engine == "vllm" { "924" } else { "0" }) +
+        "\",",
+      )
+      let source = replace_once(
+        source, "root.split(\"/\").to_array().last().unwrap().to_owned()", "root.split(\"/\").to_array().join(\"-\")",
+      )
+      let tool = dir + "/reference.mbtx"
+      @fs.write_file(tool, source, create_mode=CreateNew)
+      ignore(
+        save(dir, "run", serving + "/toolchain/bin/moon", [
+          "run",
+          tool,
+          serving,
+          dir,
+          engine,
+          "counter",
+          if engine == "vllm" {
+            "regex:.*flash_fwd_splitkv_kernel.*"
+          } else {
+            "regex:.*BatchDecodeWithPagedKVCacheKernel.*"
+          },
+        ]),
+      )
+      ignore(
+        save(dir, "counter-source", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+          "--import",
+          dir + "/counter.ncu-rep",
+          "--page",
+          "source",
+          "--print-source",
+          "sass",
+          "--csv",
+        ]),
+      )
+    }
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=selected partial+merge; actual traced history-vector synthetic replay, reference near-envelope cold live replay; not serving throughput or operand-identical comparison\n",
+    create_mode=CreateNew,
+  )
+}

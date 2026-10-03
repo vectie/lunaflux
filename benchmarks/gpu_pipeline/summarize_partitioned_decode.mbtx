@@ -1,0 +1,157 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    String(s) => @string.parse_int64(s)
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("integer")
+  }
+}
+
+///|
+fn is_pure_c16(work : String) -> Bool {
+  let rows = work.split(",").to_array()
+  rows.length() == 16 && rows.all(x => x.has_prefix("1:"))
+}
+
+///|
+fn category(engine : String, kernel : String) -> String {
+  if engine == "luna" {
+    if kernel.contains("decode_split_partial") {
+      "attention-partial"
+    } else if kernel.contains("decode_split_merge") {
+      "attention-merge"
+    } else {
+      "other"
+    }
+  } else if engine == "vllm" {
+    if kernel.contains("flash_fwd_splitkv_kernel") {
+      "attention-partial"
+    } else if kernel.contains("flash_fwd_splitkv_combine_kernel") {
+      "attention-merge"
+    } else {
+      "other"
+    }
+  } else if kernel.contains("BatchDecodeWithPagedKVCacheKernel") {
+    "attention-partial"
+  } else if kernel.contains("VariableLengthMergeStatesKernel") {
+    "attention-merge"
+  } else {
+    "other"
+  }
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    let pure = Array::make(16, "1:4096").join(",")
+    assert_true(is_pure_c16(pure))
+    assert_false(is_pure_c16(Array::make(15, "1:4096").join(",")))
+    assert_false(is_pure_c16("2:4096," + Array::make(15, "1:4096").join(",")))
+    assert_eq(category("luna", "decode_split_partial_v3"), "attention-partial")
+    assert_eq(category("luna", "decode_split_merge_v3"), "attention-merge")
+    assert_eq(
+      category("vllm", "flash_fwd_splitkv_combine_kernel"),
+      "attention-merge",
+    )
+    assert_eq(
+      category("sglang", "PersistentVariableLengthMergeStatesKernel"),
+      "attention-merge",
+    )
+    assert_eq(category("luna", "decode_blockwise_v3"), "other")
+    assert_eq(integer(Json("123456789")), 123456789L)
+    println("pure C16 attribution regression passed")
+    return
+  }
+  guard @env.args() is [_, current_luna, references, output] else {
+    fail("CURRENT_LUNA_TRACE ORIGINAL_REFERENCE_CAPTURE NEW_OUTPUT")
+  }
+  let results : Array[Json] = []
+  for engine in ["luna", "vllm", "sglang"] {
+    let path = if engine == "luna" {
+      current_luna
+    } else {
+      references + "/" + engine
+    }
+    guard @json.parse(@fs.read_file(path + "/work-shapes.json").text())
+      is { "steps": Array(steps), "kernels": Array(kernels), .. } else {
+      fail("trace schema")
+    }
+    let pure_steps = steps.filter(x => {
+      match x {
+        { "work": String(work), .. } => is_pure_c16(work)
+        _ => false
+      }
+    })
+    guard pure_steps.length() > 0 else { fail("no pure C16 steps") }
+    let totals : Map[String, (Int64, Int64)] = Map([])
+    let individual : Array[Json] = []
+    for entry in kernels {
+      guard entry
+        is {
+          "work_and_kernel": String(key),
+          "calls": calls,
+          "ns": duration,
+          ..
+        } else {
+        fail("kernel group")
+      }
+      guard key.split(" | ").to_array() is [work, kernel, launch] else {
+        fail("group key")
+      }
+      if !is_pure_c16(work.to_owned()) {
+        continue
+      }
+      let kind = category(engine, kernel.to_owned())
+      let c = integer(calls)
+      let ns = integer(duration)
+      let old = totals.get(kind).unwrap_or((0L, 0L))
+      totals[kind] = (old.0 + c, old.1 + ns)
+      if kind != "other" {
+        individual.push({
+          "work": work.to_owned(),
+          "kernel": kernel.to_owned(),
+          "launch": launch.to_owned(),
+          "calls": c,
+          "ns": ns,
+          "mean_us": ns.to_double() / c.to_double() / 1000.0,
+        })
+      }
+    }
+    results.push({
+      "engine": engine,
+      "pure_c16_steps": pure_steps.length(),
+      "first_step": pure_steps[0],
+      "totals": totals
+      .to_array()
+      .map(x => {
+        (
+          {
+            "category": x.0,
+            "calls": x.1.0,
+            "ns": x.1.1,
+            "mean_us": x.1.1.to_double() / x.1.0.to_double() / 1000.0,
+          } : Json)
+      }),
+      "attention_groups": individual,
+    })
+  }
+  @fs.write_file(
+    output,
+    (
+      {
+        "schema": "lunaflux.partitioned-decode-attribution.v1",
+        "engines": results,
+        "scope": "pure C16 query rows only, partial and merge separated; row history vectors and numeric laws differ across serving traces; activity sums are not critical-path or ordinary throughput comparisons",
+      } : Json).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
