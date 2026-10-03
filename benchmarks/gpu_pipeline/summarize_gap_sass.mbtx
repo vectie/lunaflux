@@ -1,0 +1,167 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields = []
+  let text = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      fields.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  fields.push(text.to_string())
+  fields
+}
+
+///|
+fn number(text : String) -> Int64 raise {
+  if text.is_empty() || text == "-" {
+    0L
+  } else {
+    @string.parse_int64(text)
+  }
+}
+
+///|
+async fn main {
+  let (path, output) = match @env.args() {
+    [_, root] =>
+      (
+        if @fs.exists(root + "/counter-source-v2.stdout") {
+          root + "/counter-source-v2.stdout"
+        } else {
+          root + "/counter-source.stdout"
+        },
+        root + "/sass-summary-v2.json",
+      )
+    [_, path, output] => (path, output)
+    _ => fail("COUNTER_ROOT | SOURCE_CSV NEW_SUMMARY_JSON")
+  }
+  let records : Array[Json] = []
+  let mut name = ""
+  let mut header : Array[String] = []
+  let mut ops : Map[String, Int64] = Map([])
+  let mut stalls : Array[(Int64, Json)] = []
+  let mut sectors = 0L
+  let mut conflicts = 0L
+  fn finish() -> Unit {
+    if name.is_empty() {
+      return
+    }
+    let ordered = ops.to_array()
+    ordered.sort_by((a, b) => b.1.compare(a.1))
+    stalls.sort_by((a, b) => b.0.compare(a.0))
+    let opcodes : Array[Json] = ordered.map(p => {
+      "opcode": p.0,
+      "executed": if header.contains("Instructions Executed") {
+        Json(p.1)
+      } else {
+        Json::null()
+      },
+    })
+    records.push({
+      "kernel": name,
+      "ordinal": records.length(),
+      "source_execution_metrics_collected": header.contains(
+        "Instructions Executed",
+      ),
+      "scope": "Source entries may include aliased functions; raw report IDs own launch counts",
+      "opcodes": opcodes,
+      "local_theoretical_sectors": if header.contains(
+          "L2 Theoretical Sectors Local",
+        ) {
+        Json(sectors)
+      } else {
+        Json::null()
+      },
+      "shared_excessive_wavefronts": if header.contains(
+          "L1 Wavefronts Shared Excessive",
+        ) {
+        Json(conflicts)
+      } else {
+        Json::null()
+      },
+      "top_stall_pcs": stalls[:Int::min(12, stalls.length())].map(p => p.1),
+    })
+  }
+  for line in @fs.read_file(path).text().split("\n") {
+    let row = csv(line)
+    if row.length() > 1 && row[0] == "Kernel Name" {
+      finish()
+      name = row[1]
+      header = []
+      ops = Map([])
+      stalls = []
+      sectors = 0L
+      conflicts = 0L
+      continue
+    }
+    if row.length() > 1 && row[0] == "Address" {
+      header = row
+      continue
+    }
+    if header.is_empty() ||
+      row.length() != header.length() ||
+      !row[0].has_prefix("0x") {
+      continue
+    }
+    let values : Map[String, String] = Map([])
+    for i in 0..<header.length() {
+      values[header[i]] = row[i]
+    }
+    let words = row[1].split(" ").filter(w => !w.is_empty()).to_array()
+    if words.is_empty() {
+      continue
+    }
+    let opcode = words[if words[0].has_prefix("@") { 1 } else { 0 }].to_owned()
+    ops[opcode] = ops.get(opcode).unwrap_or(0L) +
+      number(values.get("Instructions Executed").unwrap_or("0"))
+    sectors += number(values.get("L2 Theoretical Sectors Local").unwrap_or("0"))
+    conflicts += number(
+      values.get("L1 Wavefronts Shared Excessive").unwrap_or("0"),
+    )
+    let samples = number(values.get("# Samples").unwrap_or("0"))
+    if samples > 0 {
+      stalls.push(
+        (
+          samples,
+          {
+            "pc": row[0],
+            "instruction": row[1],
+            "samples": samples,
+            "load_dependency": number(
+              values.get("stall_long_sb").unwrap_or("0"),
+            ),
+            "barrier": number(values.get("stall_barrier").unwrap_or("0")),
+            "math": number(values.get("stall_math").unwrap_or("0")),
+            "short_dependency": number(
+              values.get("stall_short_sb").unwrap_or("0"),
+            ),
+            "sleep": number(values.get("stall_sleep").unwrap_or("0")),
+          },
+        ),
+      )
+    }
+  }
+  finish()
+  guard !records.is_empty() else { fail("SASS absent") }
+  @fs.write_file(
+    output,
+    Json(records).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("\{records.length()} source-correlated kernel summaries")
+}
