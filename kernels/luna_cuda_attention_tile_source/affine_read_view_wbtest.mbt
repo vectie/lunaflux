@@ -1,6 +1,6 @@
 ///|
 test "affine producer guarantee reaches query-owned terminal lowering" {
-  for id in [318, 320, 322, 323, 324] {
+  for id in [318, 320, 322, 323, 324, 2001] {
     let generic = source_test_lowering(
       true,
       100000L,

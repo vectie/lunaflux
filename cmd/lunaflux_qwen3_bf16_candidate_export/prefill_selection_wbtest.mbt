@@ -83,6 +83,12 @@ test "all exported prefill aliases select query ownership and current history re
     fail("missing explicit legal wide-query alternative")
   }
   assert_eq(wide.functional().plan().candidate().stable_id(), 2001)
+  assert_true(wide.lowering().affine_current_positions())
+  assert_false(
+    @utf8.decode(wide.source().bytes()).contains(
+      "positions[begin+current_delta]==position",
+    ),
+  )
   assert_true(wide.digest() != selected.digest())
   assert_true(
     qwen_wide_query_prefill_variant(frontier, explicit_candidate=9999) is None,
