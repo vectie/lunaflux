@@ -73,21 +73,110 @@ fn cuda_query_owned_stage(
     affine_positions~,
   )
   if specialize {
+    let current = if affine_positions {
+      cuda_query_current_stage(abi, vectors, transfer, commit)
+    } else {
+      ""
+    }
+    let current_dispatch = if affine_positions {
+      "      if (kind==0 && kb>=row_position_begin && (long long)kb+LF_KEY_VALUE_TILE<=row_position_begin+(end-begin) && (long long)kb+LF_KEY_VALUE_TILE<=key_end) stage_current_tile(kb,stage);\n      else "
+    } else {
+      "      "
+    }
+    let historical = cuda_query_complete_history_stage(
+      abi, vectors, transfer, commit,
+    )
+    let page_tokens = abi.shape().3
     retained +
     mixed +
     cuda_query_owned_stage_body(
       abi, false, split, "stage_history_tile", vectors, transfer, commit,
     ) +
+    current +
+    historical +
     (
-      #|    auto stage_query_tile = [&](int kb, int stage, int kind) {
-      #|      if (kind==0 && (long long)kb+LF_KEY_VALUE_TILE<=row_position_begin)
-      #|        stage_history_tile(kb,stage,kind);
-      #|      else stage_mixed_tile(kb,stage,kind);
-      #|    };
+      $|    auto stage_query_tile = [&](int kb, int stage, int kind) {
+      $|\{current_dispatch}if (kind==0 && kb%\{page_tokens}==0 && (long long)kb+LF_KEY_VALUE_TILE<=min(row_position_begin,key_end))
+      $|        stage_complete_history_tile(kb,stage);
+      $|      else if (kind==0 && (long long)kb+LF_KEY_VALUE_TILE<=row_position_begin)
+      $|        stage_history_tile(kb,stage,kind);
+      $|      else stage_mixed_tile(kb,stage,kind);
+      $|    };
     )
   } else {
     retained + mixed
   }
+}
+
+///|
+/// On a complete page-aligned historical interval, subgroup lanes share the
+/// same immutable page lookup. Derive the sharing width from the ABI, not a
+/// model or device shape. Validate each page at its owner before broadcasting;
+/// retain V addresses and preserve the existing invalid-page publication.
+fn cuda_query_complete_history_stage(
+  abi : CudaPagedAttentionTileAbi,
+  vectors : String,
+  transfer : String,
+  commit : String,
+) -> String {
+  let (heads, kv_heads, dimension, page_tokens) = abi.shape()
+  let (_, page_stride, pages) = abi.layout()
+  let lanes_per_page = (page_tokens * (dimension / 8)).min(32)
+  (
+    $|    auto stage_complete_history_tile = [&](int kb, int stage) {
+    $|\{vectors}
+    $|        const int r=vector*8/LF_HEAD_DIMENSION, c=vector*8%LF_HEAD_DIMENSION;
+    $|        const int position=kb+r;
+    $|        int kv_page=-1;
+    $|        if (lane%\{lanes_per_page}==0) {
+    $|          kv_page=page_indices[page_begin+position/\{page_tokens}];
+    $|          if (kv_page<0 || (unsigned long long)kv_page>=\{pages}ULL) { atomicExch(control,0); kv_page=-1; }
+    $|        }
+    $|        kv_page=__shfl_sync(0xffffffffU,kv_page,(lane/\{lanes_per_page})*\{lanes_per_page});
+    $|        const bool kv_source_valid=kv_page>=0;
+    $|        const unsigned long long source=kv_source_valid?(unsigned long long)kv_page*\{page_stride}ULL+((unsigned long long)(position%\{page_tokens})*\{kv_heads}ULL+head/\{heads/kv_heads})*LF_HEAD_DIMENSION+c:0ULL;
+    $|        const __nv_bfloat16 *kv_key_source=keys+source, *kv_value_source=values+source;
+    $|        pending_values[index]=kv_source_valid?kv_value_source:nullptr;
+    $|        const int kind=0;
+    $|        auto *destination_k=kbuf+stage*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION+lf_operand_index(r,c,LF_HEAD_DIMENSION);
+    $|        auto *destination_v=vbuf+stage*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION+lf_operand_index(r,c,LF_HEAD_DIMENSION);
+    $|\{transfer}
+    $|      }
+    $|      \{commit}
+    $|    };
+  )
+}
+
+///|
+/// Refine a complete affine current interval before emitting its vector map.
+/// The retained read-view proves equivalence to committed KV. No page lookup,
+/// masked transfer or per-vector interval test is needed in this subdomain;
+/// mixed and historical intervals keep the original checked read map.
+fn cuda_query_current_stage(
+  abi : CudaPagedAttentionTileAbi,
+  vectors : String,
+  transfer : String,
+  commit : String,
+) -> String {
+  let (heads, kv_heads, _, _) = abi.shape()
+  let (row_width, _, _) = abi.layout()
+  (
+    $|    auto stage_current_tile = [&](int kb, int stage) {
+    $|\{vectors}
+    $|        const int r=vector*8/LF_HEAD_DIMENSION, c=vector*8%LF_HEAD_DIMENSION;
+    $|        const unsigned long long source=(unsigned long long)(begin+kb-row_position_begin+r)*\{row_width}ULL+(\{heads}ULL+head/\{heads/kv_heads})*LF_HEAD_DIMENSION+c;
+    $|        const __nv_bfloat16 *kv_key_source=input+source;
+    $|        const __nv_bfloat16 *kv_value_source=kv_key_source+\{kv_heads}*LF_HEAD_DIMENSION;
+    $|        const bool kv_source_valid=true;
+    $|        const int kind=0;
+    $|        pending_values[index]=kv_value_source;
+    $|        auto *destination_k=kbuf+stage*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION+lf_operand_index(r,c,LF_HEAD_DIMENSION);
+    $|        auto *destination_v=vbuf+stage*LF_KEY_VALUE_TILE*LF_HEAD_DIMENSION+lf_operand_index(r,c,LF_HEAD_DIMENSION);
+    $|\{transfer}
+    $|      }
+    $|      \{commit}
+    $|    };
+  )
 }
 
 ///|
