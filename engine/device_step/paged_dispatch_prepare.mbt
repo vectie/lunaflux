@@ -392,6 +392,10 @@ fn prepare_paged_ordered_executors(
     }
     None => -1
   }
+  let mixed_decode_split_slots = prepare_measured_mixed_decode_split_owners(
+    context, steps, resources, table, measured_attention_candidates, slot_owner_indices,
+    fallback_owner_index,
+  )
   {
     measured_owner_indices: map_measured_attention_owners(
       measured_attention_candidates,
@@ -405,6 +409,7 @@ fn prepare_paged_ordered_executors(
       prefill_split=Some(prefill_split_slot_owner_indices),
       prefill_split_fallback=prefill_split_owner_index,
       deep_prefill_split_fallback=deep_prefill_split_owner_index,
+      mixed_decode_split=Some(mixed_decode_split_slots),
     ),
     slot_owner_indices,
     prefill_wide_slot_owner_indices,

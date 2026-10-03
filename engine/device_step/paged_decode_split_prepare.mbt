@@ -570,7 +570,7 @@ fn prepare_paged_decode_split_steps(
       loaded_functions,
       resources,
     )
-    prepared.push({
+    let companion : PreparedPagedDecodeSplit = {
       operation_id: operation,
       partial: prepare_paged_decode_split_launch(
         operation,
@@ -596,7 +596,14 @@ fn prepare_paged_decode_split_steps(
         activation,
         kv,
       ),
-    })
+    }
+    prepared.push(companion)
+    // Read-only split kernels index decode rows after the prefill prefix.
+    // Their scratch is already owned by this executor; mixed graphs reuse it
+    // serially rather than allocating a second KV or workspace arena.
+    if binding.is_blockwise_readonly() || binding.is_compiler_readonly() {
+      resources.attention_partitioned_decode_companions.push(companion)
+    }
   }
   let replacements : Array[
     (Int, PreparedPagedGraphStep, PreparedPagedGraphStep),

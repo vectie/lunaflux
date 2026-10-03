@@ -124,6 +124,7 @@ priv struct PagedGraphResources {
   functions : Array[PagedOwnedFunction]
   projection_variants : Array[PagedProjectionVariant]
   attention_phase_replacements : Array[PagedAttentionPhaseReplacement]
+  attention_partitioned_decode_companions : Array[PreparedPagedDecodeSplit]
   ordered_executors : Array[PagedOwnedOrderedExecutor]
   mut effect_operation_prefix : Int
   mut effect_capture_budget : @luna_execution_graph_strategy.ExecutionGraphVariantBudget

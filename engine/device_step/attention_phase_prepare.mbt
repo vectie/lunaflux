@@ -9,6 +9,19 @@ priv struct PagedAttentionPhaseReplacement {
 }
 
 ///|
+fn[T] find_mixed_attention_item(
+  items : ArrayView[T],
+  matches : (T) -> Bool,
+) -> T? {
+  for item in items {
+    if matches(item) {
+      return Some(item)
+    }
+  }
+  None
+}
+
+///|
 fn paged_attention_phase_replacement(
   replacements : ArrayView[PagedAttentionPhaseReplacement],
   step : PreparedPagedGraphStep,
@@ -63,7 +76,7 @@ fn register_attention_phase_replacement(
 /// original downstream consumer executes once. This runs only at startup.
 fn[Step] specialize_attention_phase_list(
   steps : ReadOnlyArray[Step],
-  replacement : (Step) -> (Step, Step?)?,
+  replacement : (Step) -> (Step, ReadOnlyArray[Step])?,
 ) -> ReadOnlyArray[Step]? {
   let output : Array[Step] = []
   let mut changed = false
@@ -72,7 +85,7 @@ fn[Step] specialize_attention_phase_list(
       Some((prefill, decode)) => {
         changed = true
         output.push(prefill)
-        if decode is Some(companion) {
+        for companion in decode {
           output.push(companion)
         }
       }
@@ -90,20 +103,56 @@ fn[Step] specialize_attention_phase_list(
 fn mixed_attention_steps(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   resources : PagedGraphResources,
+  partitioned_decode? : Bool = false,
 ) -> ReadOnlyArray[PreparedPagedGraphStep]? {
+  // Reject an incomplete alternative before materializing any graph. Never
+  // silently mix measured split choices with ordinary decode companions.
+  if partitioned_decode {
+    let mut writers = 0
+    for step in steps {
+      if paged_attention_phase_replacement(
+          resources.attention_phase_replacements[:],
+          step,
+        )
+        is Some(replacement) &&
+        replacement.decode_companion is Some(_) {
+        writers += 1
+        if !resources.attention_partitioned_decode_companions.any(item => {
+            item.operation_id == step.operation_id
+          }) {
+          return None
+        }
+      }
+    }
+    if writers == 0 {
+      return None
+    }
+  }
   specialize_attention_phase_list(steps, step => {
     match
       paged_attention_phase_replacement(
         resources.attention_phase_replacements[:],
         step,
       ) {
-      Some(replacement) =>
+      Some(replacement) => {
+        let companions : ReadOnlyArray[PreparedPagedGraphStep] = match
+          replacement.decode_companion {
+          None => []
+          Some(decode) =>
+            if partitioned_decode {
+              let split = find_mixed_attention_item(
+                resources.attention_partitioned_decode_companions[:],
+                item => item.operation_id == step.operation_id,
+              ).unwrap()
+              [split.partial, split.merge]
+            } else {
+              [decode]
+            }
+        }
         Some(
-          (
-            { ..step, arguments: replacement.prefill_arguments, },
-            replacement.decode_companion,
-          ),
+          ({ ..step, arguments: replacement.prefill_arguments, }, companions),
         )
+      }
       None => None
     }
   })

@@ -70,8 +70,8 @@ test "attention phase rewrite preserves effect order and inserts decode after me
   ]
   let result = specialize_attention_phase_list(source, step => {
     match step {
-      "attention_partial" => Some(("prefill_partial", None))
-      "attention_merge" => Some(("prefill_merge", Some("decode")))
+      "attention_partial" => Some(("prefill_partial", []))
+      "attention_merge" => Some(("prefill_merge", ["decode"]))
       _ => None
     }
   })
@@ -86,6 +86,28 @@ test "attention phase rewrite preserves effect order and inserts decode after me
   assert_eq(specialize_attention_phase_list(source, _ => None), None)
   let empty : ReadOnlyArray[String] = []
   assert_eq(specialize_attention_phase_list(empty, _ => None), None)
+}
+
+///|
+test "mixed phase sequence retains split order and executes downstream once" {
+  let steps : ReadOnlyArray[String] = [
+    "ingress", "kv_write", "attention", "output", "sampling",
+  ]
+  assert_eq(
+    specialize_attention_phase_list(steps, step => {
+      if step == "attention" {
+        Some(("prefill", ["decode_partial", "decode_merge"]))
+      } else {
+        None
+      }
+    }),
+    Some(
+      ReadOnlyArray::from_array([
+        "ingress", "kv_write", "prefill", "decode_partial", "decode_merge", "output",
+        "sampling",
+      ]),
+    ),
+  )
 }
 
 ///|

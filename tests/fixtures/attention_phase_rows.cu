@@ -29,3 +29,21 @@ extern "C" __global__ void phase_output(const int* counts, int* state) {
                        state[32 + token] == 1 ? 1 : -1;
   }
 }
+
+extern "C" __global__ void phase_decode_partial(const int* counts, int* state) {
+  const int start = counts[3] - counts[1];
+  for (int row = threadIdx.x; row < counts[1]; row += blockDim.x) {
+    const int token = start + row;
+    state[token] += 50;
+  }
+}
+
+extern "C" __global__ void phase_decode_merge(const int* counts, int* state) {
+  const int start = counts[3] - counts[1];
+  for (int row = threadIdx.x; row < counts[1]; row += blockDim.x) {
+    const int token = start + row;
+    // Detect absent/out-of-order partial execution, not only double writers.
+    state[token] = state[token] == 1050 + token ? 1100 + token : -1;
+    state[32 + token] += 1;
+  }
+}

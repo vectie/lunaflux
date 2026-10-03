@@ -130,3 +130,96 @@ test "measured baseline overrides heuristic while unmeasured buckets retain it" 
     11,
   )
 }
+
+///|
+test "mixed partitioned route requires its own prepared whole-graph owner" {
+  let (table, _, base) = graph_dispatch_fixture(7)
+  let bucket = graph_dispatch_bucket(table, MixedGraph, 2, 64, 8192)
+  let ids = Array::make(table.bucket_count(), -1)
+  ids[bucket.slot()] = 7
+  let split = FixedArray::make(table.bucket_count(), -1)
+  split[bucket.slot()] = 31
+  let mapped = map_measured_attention_owners(
+    Some(ReadOnlyArray::from_array(ids)),
+    base.slot_owner_indices,
+    7,
+    base.prefill_wide_slot_owner_indices,
+    11,
+    mixed_decode_split=Some(split),
+  )
+  assert_eq(mapped[bucket.slot()], 31)
+  let dispatch : PagedOrderedExecutorDispatch = {
+    ..base,
+    measured_owner_indices: mapped,
+  }
+  assert_eq(dispatch.select(bucket), 31)
+  try
+    map_measured_attention_owners(
+      Some(ReadOnlyArray::from_array(ids)),
+      base.slot_owner_indices,
+      7,
+      base.prefill_wide_slot_owner_indices,
+      11,
+      decode_split_fallback=23,
+    )
+  catch {
+    InvalidExecutor(GraphBucket) => ()
+    _ => fail("wrong missing mixed owner error")
+  } noraise {
+    _ => fail("pure decode owner substituted for mixed winner")
+  }
+}
+
+///|
+test "mixed partitioned measurements cannot be admitted as pure phase routes" {
+  let plan = qwen_fused_test_plan()
+  let blueprint = qwen_fused_test_blueprint(plan)
+  let original = qwen_fused_test_runtime(
+    plan,
+    blueprint,
+    phase_specific_attention=true,
+    wide_query_prefill=true,
+  )
+  let scope = original.attention_route_scope()
+  for phase in ["mixed", "prefill", "decode"] {
+    let queries = if phase == "decode" { 2 } else { 4 }
+    let runtime = qwen_fused_test_runtime(
+      plan,
+      blueprint,
+      phase_specific_attention=true,
+      wide_query_prefill=true,
+      attention_bucket_routes=@utf8.encode(
+        "luna-attention-buckets-v1\nscope\t" +
+        scope +
+        "\nrecord\t\{phase}\t2\t\{queries}\t4096\t1\t100\t5\nrecord\t\{phase}\t2\t\{queries}\t4096\t7\t80\t5\n",
+      ),
+    )
+    if phase == "mixed" {
+      let spans = admit_reusable_qwen_fused_attention_spans(
+        plan,
+        @worker_protocol.ModelPlanGeneration::first(),
+        blueprint,
+        runtime,
+      )
+      let table = new_paged_graph_bucket_table(blueprint.profile())
+      let bucket = graph_dispatch_bucket(table, MixedGraph, 2, queries, 4096)
+      assert_eq(
+        qwen_measured_attention_candidates(spans).unwrap()[bucket.slot()],
+        7,
+      )
+    } else {
+      try
+        admit_reusable_qwen_fused_attention_spans(
+          plan,
+          @worker_protocol.ModelPlanGeneration::first(),
+          blueprint,
+          runtime,
+        )
+      catch {
+        _ => ()
+      } noraise {
+        _ => fail("mixed route admitted outside mixed phase")
+      }
+    }
+  }
+}

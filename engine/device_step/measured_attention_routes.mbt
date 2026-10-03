@@ -1,7 +1,8 @@
 ///|
 /// Stable routes name complete executable graphs, not isolated kernels:
 /// 1 baseline, 2 wide prefill, 3 ordinary decode, 4 partitioned decode,
-/// 5 partitioned prefill, 6 deep partitioned prefill.
+/// 5 partitioned prefill, 6 deep partitioned prefill,
+/// 7 mixed prefill plus partitioned decode.
 /// The immutable measurements are consumed once, before resource preparation.
 fn admit_qwen_attention_routes(
   runtime : @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle,
@@ -17,7 +18,7 @@ fn admit_qwen_attention_routes(
     },
     table,
     baseline=1,
-    [1, 2, 3, 4, 5, 6],
+    [1, 2, 3, 4, 5, 6, 7],
   ) catch {
     _ => raise MismatchedFusedGroupedOperation(Launch)
   }
@@ -28,6 +29,7 @@ fn admit_qwen_attention_routes(
     }
     if (candidate == 2 && !has_wide) ||
       ((candidate == 3 || candidate == 4) && bucket.phase() != DecodeGraph) ||
+      (candidate == 7 && bucket.phase() != MixedGraph) ||
       (
         (candidate == 2 || candidate == 5 || candidate == 6) &&
         bucket.phase() == DecodeGraph
@@ -63,12 +65,13 @@ fn map_measured_attention_owners(
   prefill_split? : FixedArray[Int]? = None,
   prefill_split_fallback? : Int = -1,
   deep_prefill_split_fallback? : Int = -1,
+  mixed_decode_split? : FixedArray[Int]? = None,
 ) -> ReadOnlyArray[Int] raise DeviceStepError {
   guard candidates is Some(ids) else { return ReadOnlyArray::from_array([]) }
   if ids.length() != baseline.length() || ids.length() != wide.length() {
     raise InvalidExecutor(GraphBucket)
   }
-  for indices in [decode_split, prefill_split] {
+  for indices in [decode_split, prefill_split, mixed_decode_split] {
     if indices is Some(values) && values.length() != ids.length() {
       raise InvalidExecutor(GraphBucket)
     }
@@ -82,11 +85,12 @@ fn map_measured_attention_owners(
       4 => measured_graph_owner(decode_split, slot, decode_split_fallback)
       5 => measured_graph_owner(prefill_split, slot, prefill_split_fallback)
       6 => deep_prefill_split_fallback
+      7 => measured_graph_owner(mixed_decode_split, slot, -1)
       _ => -1
     }
   })
   for slot, candidate in ids {
-    if candidate != -1 && (candidate < 1 || candidate > 6 || owners[slot] < 0) {
+    if candidate != -1 && (candidate < 1 || candidate > 7 || owners[slot] < 0) {
       raise InvalidExecutor(GraphBucket)
     }
   }

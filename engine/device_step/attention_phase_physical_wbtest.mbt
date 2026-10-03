@@ -23,6 +23,10 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
   defer (try! decode.close())
   let output = loaded.load_function(b"phase_output")
   defer (try! output.close())
+  let partial = loaded.load_function(b"phase_decode_partial")
+  defer (try! partial.close())
+  let merge = loaded.load_function(b"phase_decode_merge")
+  defer (try! merge.close())
   let dimensions = @device.KernelLaunchDimensions::new(
     grid_x=1,
     grid_y=1,
@@ -58,7 +62,7 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
   ])
   let resources = empty_paged_resources()
   resources.stream = Some({ resource: stream, open: true, })
-  for function in [ingress, attention, decode, output] {
+  for function in [ingress, attention, decode, output, partial, merge] {
     resources.functions.push({
       resource: function,
       module_index: 0,
@@ -89,6 +93,14 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
     { ..steps[1], arguments: prefill_arguments, },
     Some({ ..steps[1], function_index: 2, }),
   )
+  assert_true(
+    mixed_attention_steps(steps, resources, partitioned_decode=true) is None,
+  )
+  resources.attention_partitioned_decode_companions.push({
+    operation_id: steps[1].operation_id,
+    partial: { ..steps[1], function_index: 4, },
+    merge: { ..steps[1], function_index: 5, },
+  })
   let launches = paged_ordered_launches(steps, resources)
   for policy in [@device.OrderedKernelEagerOnly, OrderedKernelCaptureRequired] {
     resources.effect_capture_budget = effect_capture_budget(GraphMemoryAbsent)
@@ -104,6 +116,36 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
     assert_true(mixed != base)
     assert_eq(resources.ordered_executors[base].resource.kernel_count(), 3)
     assert_eq(resources.ordered_executors[mixed].resource.kernel_count(), 4)
+    let split = prepare_mixed_attention_variant(
+      context,
+      steps,
+      launches[:],
+      resources,
+      base,
+      partitioned_decode=true,
+    ).unwrap()
+    assert_eq(resources.ordered_executors[split].resource.kernel_count(), 5)
+    let (table, _, _) = graph_dispatch_fixture(base)
+    let candidates = Array::make(table.bucket_count(), -1)
+    let first = graph_dispatch_bucket(table, MixedGraph, 2, 64, 4096)
+    let second = graph_dispatch_bucket(table, MixedGraph, 2, 64, 8192)
+    candidates[first.slot()] = 7
+    candidates[second.slot()] = 7
+    let measured = prepare_measured_mixed_decode_split_owners(
+      context,
+      steps,
+      resources,
+      table,
+      Some(ReadOnlyArray::from_array(candidates)),
+      FixedArray::make(table.bucket_count(), -1),
+      base,
+    )
+    assert_eq(measured[first.slot()], measured[second.slot()])
+    let selected_split = measured[first.slot()]
+    assert_eq(
+      resources.ordered_executors[selected_split].resource.kernel_count(),
+      5,
+    )
     assert_eq(
       select_paged_attention_phase_owner(resources, base, PrefillGraph),
       base,
@@ -131,7 +173,7 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
         write_i32(host, cell, value)
       }
       counts.copy_from_host(Bytes::from_array(host), 0L, 0L, 40L)
-      for owner_index in [base, mixed] {
+      for owner_index in [base, mixed, split, selected_split] {
         let executor = resources.ordered_executors[owner_index].resource
         if executor.execution_mode() == OrderedKernelCaptured {
           executor.launch_captured()
@@ -164,6 +206,17 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
   assert_eq(
     select_paged_attention_phase_owner(resources, budgeted, MixedGraph),
     budgeted,
+  )
+  assert_eq(
+    prepare_mixed_attention_variant(
+      context,
+      steps,
+      launches[:],
+      resources,
+      budgeted,
+      partitioned_decode=true,
+    ),
+    None,
   )
   println(
     "attention_phase_physical=passed ordered=passed captured=passed mixed_disjoint=passed original_effect_order=passed pure_launch_count=unchanged budget_fallback=preserved",

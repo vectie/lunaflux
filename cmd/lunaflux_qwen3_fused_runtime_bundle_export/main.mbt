@@ -635,7 +635,7 @@ async fn run(
       scope=route_scope,
       table,
       baseline=1,
-      [1, 2, 3, 4, 5, 6],
+      [1, 2, 3, 4, 5, 6, 7],
     ) catch {
       _ => raise InvalidRuntime
     }
