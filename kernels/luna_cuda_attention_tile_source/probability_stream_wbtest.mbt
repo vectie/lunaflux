@@ -61,9 +61,9 @@ test "approximate exponential source requires distinct admitted candidate" {
       1048576,
     ).bytes(),
   )
-  assert_true(
-    source.contains("__exp2f(__fmul_rn(delta, 1.4426950408889634074f))"),
-  )
+  assert_true(source.contains("ex2.approx.ftz.f32 %0, %1;"))
+  assert_true(source.contains("__fmul_rn(delta, 1.4426950408889634074f)"))
+  assert_false(source.contains("__exp2f("))
   assert_false(source.contains("expf(delta)"))
   assert_false(source.contains("--use_fast_math"))
   assert_false(source.contains("fmaf("))

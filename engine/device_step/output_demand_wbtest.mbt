@@ -23,6 +23,22 @@ test "effect-only lowering retains split effects and omits the pure suffix" {
 }
 
 ///|
+test "mandatory compiler preparation does not disable semantic output-demand pruning" {
+  let operations = ReadOnlyArray::from_array(
+    [99, 0, 1, 2, 2, 3, 4, 5, 5].map(value => try! @plan.OperationId::new(value)),
+  )
+  assert_eq(effect_only_launch_count(operations, 3), 9)
+  assert_eq(effect_only_launch_count(operations, 3, preparation_prefix=1), 5)
+  assert_eq(effect_only_launch_count(operations, 6, preparation_prefix=1), 9)
+  assert_eq(effect_only_launch_count(operations, 0, preparation_prefix=1), 9)
+  assert_eq(effect_only_launch_count(operations, 3, preparation_prefix=10), 9)
+  let reordered = ReadOnlyArray::from_array(
+    [99, 0, 5, 2].map(value => try! @plan.OperationId::new(value)),
+  )
+  assert_eq(effect_only_launch_count(reordered, 3, preparation_prefix=1), 4)
+}
+
+///|
 test "model output demand retains KV effects without requiring terminal logits" {
   let model = step_test_model_plan()
   let operations = model.operations()

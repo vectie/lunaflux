@@ -27,13 +27,19 @@ fn effect_capture_budget(
 fn effect_only_launch_count(
   operations : ReadOnlyArray[@plan.OperationId],
   semantic_prefix : Int,
+  preparation_prefix? : Int = 0,
 ) -> Int {
-  if semantic_prefix <= 0 {
+  if semantic_prefix <= 0 ||
+    preparation_prefix < 0 ||
+    preparation_prefix >= operations.length() {
     return operations.length()
   }
-  let mut count = 0
+  let mut count = preparation_prefix
   let mut previous = -1
   for index, operation in operations {
+    if index < preparation_prefix {
+      continue
+    }
     let value = operation.as_int()
     if value < previous {
       return operations.length()
@@ -43,7 +49,7 @@ fn effect_only_launch_count(
     }
     previous = value
   }
-  if count == 0 {
+  if count == preparation_prefix {
     operations.length()
   } else {
     count
@@ -65,6 +71,7 @@ fn prepare_paged_effect_only_executor(
   let count = effect_only_launch_count(
     operation_ids,
     resources.effect_operation_prefix,
+    preparation_prefix=resources.effect_preparation_prefix,
   )
   if count >= launches.length() {
     return

@@ -97,3 +97,28 @@ test "a single preparation precedes every borrowed layer without changing legacy
     assert_eq(prepared.length(), route.length() + 1)
   }
 }
+
+///|
+test "split and mixed route expansion retain one preparation before every consumer" {
+  let prepared = prepend_qwen_step_rotary(
+    ReadOnlyArray::from_array([10, 20, 30, 40]),
+    Some(99),
+  )
+  let split = replace_paged_decode_split_steps(
+    prepared,
+    ReadOnlyArray::from_array([(20, 21, 22)]),
+    item => item,
+  )
+  let mixed = specialize_attention_phase_list(prepared, item => {
+    if item == 20 {
+      Some((21, ReadOnlyArray::from_array([22, 23])))
+    } else {
+      None
+    }
+  }).unwrap()
+  for route in [prepared, split, mixed] {
+    assert_eq(route[0], 99)
+    assert_eq(route.filter(item => item == 99).length(), 1)
+    assert_eq(route[route.length() - 1], 40)
+  }
+}

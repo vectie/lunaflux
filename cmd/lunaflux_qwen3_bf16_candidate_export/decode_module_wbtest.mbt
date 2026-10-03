@@ -55,7 +55,8 @@ test "selected serving alias preserves candidate qualified frontier identity" {
     (id, suffix) in [
       (460, "dual_score_blockwise_f32_v2"),
       (466, "owned4_blockwise_fma_f32_v4"),
-      (483, "grouped_head_matrix_bf16_v1"),
+      (480, "grouped_head_matrix_bf16_v1"),
+      (482, "grouped_head_matrix_bf16_v1"),
     ] {
     let qualified = "lunaflux_attention_decode_tile_compiler_v1_c\{id}"
     let request = @luna_cuda_attention_tile_aot.CudaAttentionTileAotRequest::new(
@@ -78,20 +79,7 @@ test "selected serving alias preserves candidate qualified frontier identity" {
         causal=true,
         allow_alternative_softmax_reduction=true,
       ),
-      capabilities=@luna_attention_strategy.AttentionCompilerCapabilities::new(
-        subgroup_width=32,
-        max_threads_per_block=256,
-        max_shared_memory_bytes=100000L,
-        max_pipeline_stages=2,
-        supports_async_copy=true,
-        matrix_shape=Some(
-          @luna_attention_strategy.AttentionMatrixShape::new(
-            rows=16,
-            columns=16,
-            reduction=16,
-          ),
-        ),
-      ),
+      capabilities=@luna_cuda_attention_autotune.cuda_sm120_decode_compiler_capabilities(),
       device_target=@catalog.DeviceTarget::new(
         compute_major=12,
         compute_minor=1,

@@ -54,6 +54,59 @@ fn median(output : String, name : String) -> Int64 raise {
 }
 
 ///|
+fn partitioned_decode_recipe(recipe : String) -> String raise {
+  let law = field(recipe, "partition_numeric_law")
+  guard [
+    "blockwise-f32-probability-v1", "dual-score-blockwise-f32-probability-v2", "blockwise-fma-f32-probability-v3",
+    "owned2-blockwise-fma-f32-probability-v4", "owned4-blockwise-f32-probability-v4",
+    "owned4-blockwise-fma-f32-probability-v4", "owned8-blockwise-f32-probability-v4",
+    "owned8-blockwise-fma-f32-probability-v4", "grouped-head-matrix-bf16-probability-v1",
+  ].contains(law) else {
+    fail("unsupported explicit partition numerical law")
+  }
+  let replacements = [
+    ("function_symbol", "partition_function_symbol"),
+    ("merge_function_symbol", "partition_merge_function_symbol"),
+    ("grid", "partition_grid"),
+    ("merge_grid", "partition_merge_grid"),
+    ("block", "partition_block"),
+    ("shared_memory_bytes", "partition_shared_memory_bytes"),
+    ("workspace_bytes", "partition_workspace_bytes"),
+    ("numeric_law", "partition_numeric_law"),
+    ("key_value_tile_rows", "partition_key_value_tile_rows"),
+    ("pipeline_stages", "partition_pipeline_stages"),
+  ]
+  let retained = recipe
+    .split("\n")
+    .filter(line => {
+      !line.is_empty() &&
+      !replacements.any(pair => line.has_prefix(pair.0 + "="))
+    })
+    .to_array()
+    .join("\n")
+  let out : Array[String] = [retained]
+  for (target, source) in replacements {
+    out.push(target + "=" + field(recipe, source))
+  }
+  out.join("\n") + "\n"
+}
+
+///|
+test "partition route uses selected companion symbols and storage, not frozen defaults" {
+  let recipe = "numeric_law=owned4-blockwise-fma-f32-probability-v4\nfunction_symbol=ordinary\ngrid=32,8,1\nblock=64,1,1\nshared_memory_bytes=33040\nkey_value_tile_rows=64\npipeline_stages=2\npartition_numeric_law=owned4-blockwise-fma-f32-probability-v4\npartition_function_symbol=selected_partial\npartition_merge_function_symbol=selected_merge\npartition_grid=32,8,8\npartition_merge_grid=32,16,1\npartition_block=64,1,1\npartition_shared_memory_bytes=66064\npartition_workspace_bytes=2129920\npartition_key_value_tile_rows=64\npartition_pipeline_stages=2\n"
+  let selected = partitioned_decode_recipe(recipe)
+  assert_eq(field(selected, "function_symbol"), "selected_partial")
+  assert_eq(field(selected, "merge_function_symbol"), "selected_merge")
+  assert_eq(field(selected, "grid"), "32,8,8")
+  assert_eq(
+    field(selected, "numeric_law"),
+    "owned4-blockwise-fma-f32-probability-v4",
+  )
+  assert_eq(field(selected, "key_value_tile_rows"), "64")
+  assert_eq(field(selected, "pipeline_stages"), "2")
+}
+
+///|
 async fn main {
   guard @env.args() is [_, serving, calibration] else {
     fail("SERVING PREPARED_CALIBRATION")
@@ -78,35 +131,13 @@ async fn main {
     fail("32 GiB reserve")
   }
   let recipe = @fs.read_file(serving + "/decode-selected/kernel.recipe").text()
-  let blockwise = [
-    "blockwise-f32-probability-v1", "dual-score-blockwise-f32-probability-v2", "blockwise-fma-f32-probability-v3",
-  ].any(law => recipe.contains("partition_numeric_law=" + law + "\n"))
+  let blockwise = recipe.contains("partition_numeric_law=")
   let root = serving + "/decode-route-measurements"
   @fs.mkdir(root)
   let partial = root + "/partitioned"
   if blockwise {
     @fs.mkdir(partial)
-    let text = recipe
-      .split("\n")
-      .filter(x => {
-        !["function_symbol=", "grid=", "block=", "shared_memory_bytes="].any(prefix => {
-          x.has_prefix(prefix)
-        })
-      })
-      .to_array()
-      .join("\n") +
-      "function_symbol=lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903\nmerge_function_symbol=lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904\n" +
-      "grid=" +
-      field(recipe, "partition_grid") +
-      "\nmerge_grid=" +
-      field(recipe, "partition_merge_grid") +
-      "\nblock=" +
-      field(recipe, "partition_block") +
-      "\nshared_memory_bytes=" +
-      field(recipe, "partition_shared_memory_bytes") +
-      "\nworkspace_bytes=" +
-      field(recipe, "partition_workspace_bytes") +
-      "\n"
+    let text = partitioned_decode_recipe(recipe)
     @fs.write_file(partial + "/kernel.recipe", text, create_mode=CreateNew)
     @fs.write_file(
       partial + "/kernel.cubin",

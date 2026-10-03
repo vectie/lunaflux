@@ -40,6 +40,13 @@ fn admit_reusable_qwen_decode_split_bindings(
   let bindings : Array[
     @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ] = []
+  let blockwise_execution = match module_.decode_execution() {
+    Some(descriptor) => {
+      let (rows, stages) = descriptor.storage_geometry()
+      Some((descriptor.compute(), rows, stages))
+    }
+    None => None
+  }
   for operation in model_plan.operations() {
     if operation.kind() != CausalAttention {
       continue
@@ -63,10 +70,8 @@ fn admit_reusable_qwen_decode_split_bindings(
         268435456L,
         compiler_readonly=module_.kernel_abi() ==
           PagedAttentionReadOnlyCompilerDecodeProductionV7,
-        blockwise_readonly=module_.kernel_abi()
-          is (PagedAttentionReadOnlyBlockwiseF32DecodeProductionV8
-          | PagedAttentionReadOnlyBlockwiseFmaF32DecodeProductionV9
-          | PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10),
+        blockwise_readonly=module_.kernel_abi().is_compiler_blockwise_decode(),
+        blockwise_execution?,
       ) catch {
         _ => raise Invalid(ResourceState)
       },

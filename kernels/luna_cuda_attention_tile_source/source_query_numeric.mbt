@@ -1,7 +1,7 @@
 ///|
 /// If-convert a pure scalar selection while retaining the explicitly admitted
 /// exponential law. The strict route preserves expf and its rounding; only the
-/// distinct approximate route emits the base-two intrinsic.
+/// distinct approximate route emits the declared base-two SFU instruction.
 /// CUDA has no observable floating-point trap/errno here: evaluating the
 /// unselected exponential is safe, including inf-inf. A bit mask (not a
 /// multiply) maps that result to positive zero, even when it is NaN.
@@ -11,9 +11,22 @@ fn cuda_query_owned_numeric_primitives(
 ) -> String {
   let value = match law {
     StrictNaturalExponential => "expf(delta)"
-    ApproximateBaseTwoExponential =>
-      "__exp2f(__fmul_rn(delta, 1.4426950408889634074f))"
+    ApproximateBaseTwoExponential => "lf_approx_base_two_exp(delta)"
   }
+  let approximate_primitive = match law {
+    StrictNaturalExponential => ""
+    ApproximateBaseTwoExponential =>
+      (
+        $|static __device__ __forceinline__ float lf_approx_base_two_exp(float delta) {
+        $|  const float base_two=__fmul_rn(delta, 1.4426950408889634074f);
+        $|  float result;
+        $|  asm("ex2.approx.ftz.f32 %0, %1;" : "=f"(result) : "f"(base_two));
+        $|  return result;
+        $|}
+      ) +
+      "\n"
+  }
+  approximate_primitive +
   (
     $|static __device__ __forceinline__ float lf_masked_exp(float score, float delta) {
     $|  const float value=\{value};

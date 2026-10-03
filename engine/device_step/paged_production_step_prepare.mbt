@@ -348,6 +348,13 @@ fn prepare_paged_production_steps(
     ReadOnlyArray::from_array(expanded),
     rotary_preparation,
   )
+  // Compiler preparation effects are mandatory, but have no semantic model
+  // ordinal. Keep this explicit prefix before translating output demand.
+  resources.effect_preparation_prefix = if rotary_preparation is Some(_) {
+    1
+  } else {
+    0
+  }
   let expanded_decode = expanded_decode.map(steps => {
     prepend_qwen_step_rotary(steps, rotary_preparation)
   })

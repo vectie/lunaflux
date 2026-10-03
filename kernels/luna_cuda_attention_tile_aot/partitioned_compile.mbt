@@ -17,8 +17,13 @@ fn finish_cuda_partitioned_attention_tile_aot(
   let source = @luna_cuda_attention_tile_source.emit_cuda_partitioned_attention_tile_source(
     lowering,
     request.abi,
-    partial_symbol,
-    merge_symbol,
+    cuda_attention_numerical_symbol(
+      partial_symbol,
+      functional.plan().candidate().compute(),
+    ),
+    // Partition merge uses its separately ordered natural exponential. The
+    // local QK/PV approximation does not grant merge arithmetic permission.
+    cuda_attention_numerical_symbol(merge_symbol, AttentionMatrixQkPv),
     request.maximum_workspace_bytes,
     request.maximum_source_bytes,
   ) catch {

@@ -22,6 +22,7 @@ fn empty_paged_resources() -> PagedGraphResources {
     attention_partitioned_decode_companions: [],
     ordered_executors: [],
     effect_operation_prefix: 0,
+    effect_preparation_prefix: 0,
     effect_capture_budget: effect_capture_budget(GraphMemoryUnsupported),
     graph_launch_contract: None,
     numeric_weights: None,

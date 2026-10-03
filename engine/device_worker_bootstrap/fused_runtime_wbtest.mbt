@@ -56,8 +56,8 @@ fn bootstrap_reusable_qwen_bundle(
 }
 
 ///|
-test "fused runtime schema selects reusable bundles including explicit FMA decode v8" {
-  for version in [3, 4, 5, 6, 7, 8] {
+test "fused runtime schema selects reusable bundles including explicit numerical v12" {
+  for version in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12] {
     match
       classify_fused_runtime_source(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\nmodule-count=2\n",
