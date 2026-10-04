@@ -1,0 +1,120 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn archive_member(path : String) -> Bool {
+  if path
+    .split("/")
+    .any(x => {
+      ["source", "_build", ".mooncakes", "toolchain", "model", "model_runtime"].contains(
+        x.to_owned(),
+      )
+    }) {
+    return false
+  }
+  if path.has_suffix(".tar.gz") ||
+    path.has_suffix(".tar.gz.sha256") ||
+    path == "MEASUREMENT.sha256" {
+    return false
+  }
+  path.has_suffix(".stdout") ||
+  path.has_suffix(".stderr") ||
+  path.has_suffix(".json") ||
+  path.has_suffix(".txt") ||
+  path.has_suffix(".csv") ||
+  path.has_suffix(".v1") ||
+  path.has_suffix(".v11") ||
+  path.has_suffix(".v12") ||
+  path.has_suffix(".records") ||
+  path.has_suffix(".sha256") ||
+  path.has_suffix(".ncu-rep") ||
+  path.has_suffix(".nsys-rep") ||
+  path.has_suffix(".sqlite") ||
+  path.has_suffix(".cu") ||
+  path.has_suffix(".cubin") ||
+  path.has_suffix(".recipe") ||
+  path.has_suffix(".mbtx") ||
+  path.has_suffix(".exe") ||
+  path.has_suffix("/lunaflux-device-worker") ||
+  path == "RUNTIME_IDENTITIES.txt"
+}
+
+///|
+test "archive excludes build caches model weights and itself" {
+  for
+    path in [
+      "source/a.cu", "campaign/luna-full/source/_build/a.exe", "model/model.safetensors",
+      "measurement.tar.gz", "measurement.tar.gz.sha256",
+    ] {
+    assert_false(archive_member(path))
+  }
+  for
+    path in [
+      "fused/ingress/kernel.cubin", "campaign/luna-full/trace.sqlite", "r0-new/r0-luna-full/requests/i4096-o256-c16-t0.json",
+      "RESULT.txt",
+    ] {
+    assert_true(archive_member(path))
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_TRIAL_ROOT") }
+  let status = @fs.read_file(root + "/RESULT.txt").text()
+  guard status.has_prefix("outcome=completed\n") ||
+    status.has_prefix("outcome=qualified\n") else {
+    fail("not terminal")
+  }
+  let archive = root + "/measurement.tar.gz"
+  guard !@fs.exists(archive) && !@fs.exists(root + "/MEASUREMENT.sha256") else {
+    fail("non-overwriting archive")
+  }
+  let found = @shell.Cmd("find", [root, "-type", "f"]).output(
+    max_output_bytes=16777216,
+  )
+  found.check()
+  let files = found
+    .stdout()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(x => {
+      guard x.strip_prefix(root + "/") is Some(path) && !path.contains("..") else {
+        fail("scope")
+      }
+      path.to_owned()
+    })
+    .filter(archive_member)
+  files.sort()
+  guard files.contains("RESULT.txt") else { fail("missing terminal result") }
+  let manifest = StringBuilder()
+  for path in files {
+    let hash = @shell.Cmd("sha256sum", [root + "/" + path]).output()
+    hash.check()
+    manifest.write_string(
+      hash.stdout().split(" ").to_array()[0].to_owned() + "  " + path + "\n",
+    )
+  }
+  @fs.write_file(
+    root + "/MEASUREMENT.sha256",
+    manifest.to_string(),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(
+    "tar",
+    ["-czf", archive, "-C", root, "MEASUREMENT.sha256", ..files],
+  ).run()
+  let digest = @shell.Cmd("sha256sum", [archive]).output()
+  digest.check()
+  @fs.write_file(
+    root + "/measurement.tar.gz.sha256",
+    digest.stdout(),
+    create_mode=CreateNew,
+  )
+  println(digest.stdout())
+}

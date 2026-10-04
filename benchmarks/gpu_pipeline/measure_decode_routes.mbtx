@@ -154,8 +154,12 @@ async fn main {
   @fs.write_file(
     wide + "/kernel.recipe",
     @fs.read_file(
-      serving +
-      "/candidate/reusable-qwen-prefill-wide-query-attention/kernel.recipe",
+      if @fs.exists(serving + "/wide-prefill-selected/kernel.recipe") {
+        serving + "/wide-prefill-selected/kernel.recipe"
+      } else {
+        serving +
+        "/candidate/reusable-qwen-prefill-wide-query-attention/kernel.recipe"
+      },
     ),
     create_mode=CreateNew,
   )
@@ -229,6 +233,11 @@ async fn main {
                 tool,
                 "--error-exitcode",
                 "99",
+                ..if tool == "racecheck" {
+                  ["--racecheck-num-workers", "1"]
+                } else {
+                  []
+                },
                 serving + "/check-probe",
               ] +
               args +

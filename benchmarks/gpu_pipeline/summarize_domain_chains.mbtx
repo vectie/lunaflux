@@ -1,0 +1,144 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+fn operation(name : String) -> String {
+  if name.has_prefix("lunaflux_fused_qwen_qkv_") {
+    "qkv-chain"
+  } else if name == "lunaflux_luna_dense_projection_bf16_release_v1" {
+    "output"
+  } else if name == "lunaflux_luna_gated_mlp_bf16_release_v1" {
+    "gate-up-chain"
+  } else if name == "lunaflux_luna_gated_mlp_bf16_release_v1_down" {
+    "down"
+  } else {
+    "other"
+  }
+}
+
+///|
+test "QKV chain includes rotary preparation without conflating output or down" {
+  assert_eq(
+    operation(
+      "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3_rotary_prepare",
+    ),
+    "qkv-chain",
+  )
+  assert_eq(
+    operation("lunaflux_luna_dense_projection_bf16_release_v1"),
+    "output",
+  )
+  assert_eq(operation("lunaflux_luna_gated_mlp_bf16_release_v1_down"), "down")
+  assert_eq(operation("unknown_projection"), "other")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, trace, output] else {
+    fail("COMPLETED_MATCHED_TRACE NEW_OUTPUT")
+  }
+  guard @json.parse(@fs.read_file(trace + "/equal-work.json").text())
+    is { "comparisons": Array(comparisons), .. } else {
+    fail("exact work")
+  }
+  guard @json.parse(@fs.read_file(trace + "/projection-order-vllm.json").text())
+    is { "steps": Array(steps), .. } else {
+    fail("source-bound order")
+  }
+  let result : Array[Json] = []
+  for comparison in comparisons {
+    guard comparison
+      is { "reference": String("vllm"), "matches": Array(matches), .. } else {
+      continue
+    }
+    for item in matches {
+      guard item
+        is {
+          "work": String(work),
+          "luna_steps": count,
+          "luna_kernel_groups": Array(groups),
+          ..
+        } else {
+        fail("matched groups")
+      }
+      let totals : Map[String, Int64] = Map([])
+      for group in groups {
+        guard group is { "kernel": String(name), "ns": ns, .. } else {
+          fail("kernel row")
+        }
+        let op = operation(name)
+        if op != "other" {
+          totals[op] = totals.get(op).unwrap_or(0L) + integer(ns)
+        }
+      }
+      let reference : Map[String, Int64] = Map([])
+      let mut reference_steps = 0
+      for step in steps {
+        guard step
+          is {
+            "work": String(selected),
+            "operation_ns": Object(operations),
+            ..
+          } else {
+          fail("operation schema")
+        }
+        if selected != work {
+          continue
+        }
+        reference_steps += 1
+        for name, ns in operations {
+          let op = match name {
+            "qkv" | "qkv-postops" => "qkv-chain"
+            "gate-up" | "gate-up-postops" => "gate-up-chain"
+            _ => name
+          }
+          reference[op] = reference.get(op).unwrap_or(0L) + integer(ns)
+        }
+      }
+      guard reference_steps > 0 else { continue }
+      for op in ["qkv-chain", "output", "gate-up-chain", "down"] {
+        let luna = totals.get(op).unwrap_or(0L).to_double() /
+          integer(count).to_double() /
+          1000000.0
+        let baseline = reference.get(op).unwrap_or(0L).to_double() /
+          reference_steps.to_double() /
+          1000000.0
+        guard luna > 0 && baseline > 0 else { fail("unmapped chain") }
+        result.push({
+          "work": work,
+          "chain": op,
+          "luna_ms": luna,
+          "vllm_ms": baseline,
+          "difference_ms": luna - baseline,
+        })
+      }
+    }
+  }
+  guard !result.is_empty() else { fail("no matched source-bound chains") }
+  @fs.write_file(
+    output,
+    (
+      {
+        "schema": "lunaflux.domain-matched-chains.v1",
+        "rows": result,
+        "scope": "Exact query/history vectors and source-bound vLLM projection order. Includes QKV normalization rotary and KV-write, and gate-up activation. Kernel activity rather than exclusive wall time. No SGLang exact-vector intersection in this capture; no inferred matched result for SGLang.",
+      } : Json).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(Json(result).stringify(indent=2))
+}

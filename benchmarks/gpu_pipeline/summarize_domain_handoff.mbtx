@@ -1,0 +1,205 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number required")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() &&
+    values.all(x => x > 0.0 && !x.is_nan() && !x.is_inf()) else {
+    fail("finite positive timings")
+  }
+  let sorted = values.copy()
+  sorted.sort_by((a, b) => a.compare(b))
+  let at = sorted.length() / 2
+  if sorted.length() % 2 == 0 {
+    (sorted[at - 1] + sorted[at]) / 2.0
+  } else {
+    sorted[at]
+  }
+}
+
+///|
+test "positive timing medians preserve input and reject invalid samples" {
+  let samples = [3.0, 1.0, 2.0]
+  assert_eq(median(samples), 2.0)
+  assert_eq(samples, [3.0, 1.0, 2.0])
+  assert_eq(median([4.0, 2.0]), 3.0)
+  for invalid in [[], [0.0], [-1.0]] {
+    try median(invalid) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid timing accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  let (args, serving) = match @env.args() {
+    [.. args, "--measured-serving", serving] => (args, Some(serving))
+    args => (args, None)
+  }
+  guard args is [_, root, output_path] &&
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n") else {
+    fail("COMPLETED_PAIRED_CAMPAIGN NEW_OUTPUT")
+  }
+  let cells : Array[Json] = []
+  let divergences : Array[Json] = []
+  let first_tokens : Map[String, Json] = Map([])
+  let first_inputs : Map[String, Json] = Map([])
+  let mut reserve = 9223372036854775807L
+  for (input, output) in [(128, 32), (4096, 64), (4096, 256)] {
+    let times : Map[String, Array[Double]] = Map([])
+    let ttfts : Map[String, Array[Double]] = Map([])
+    for round in 0..<3 {
+      for engine in ["old", "new"] {
+        let dir = root + "/r\{round}-" + engine + "/r0-luna-full"
+        guard @fs.read_file(dir + "/RESULT.txt")
+          .text()
+          .has_prefix("outcome=completed\n") else {
+          fail("incomplete trial")
+        }
+        let stem = "i\{input}-o\{output}-c16-t1"
+        let value = @json.parse(
+          @fs.read_file(dir + "/requests/" + stem + ".json").text(),
+        )
+        guard value
+          is {
+            "engine": "luna-full",
+            "input": i,
+            "output": o,
+            "concurrency": c,
+            "trial": t,
+            "warmup": False,
+            "wall_ms": wall,
+            "requests": Array(requests),
+            ..
+          } &&
+          number(i) == input.to_double() &&
+          number(o) == output.to_double() &&
+          number(c) == 16.0 &&
+          number(t) == 1.0 &&
+          requests.length() == 16 else {
+          fail("workload drift")
+        }
+        let sequence = times.get(engine).unwrap_or([])
+        sequence.push(number(wall))
+        times[engine] = sequence
+        let latency = ttfts.get(engine).unwrap_or([])
+        for row, request in requests {
+          guard request
+            is {
+              "token_ids": Array(ids),
+              "token_ms": Array(token_ms),
+              "ttft_ms": first,
+              ..
+            } &&
+            ids.length() == output &&
+            token_ms.length() == output else {
+            fail("incomplete token sequence")
+          }
+          latency.push(number(first))
+          let body = @json.parse(
+            @fs.read_file(dir + "/requests/" + stem + "-r\{row}.body.json").text(),
+          )
+          let prompt = match body {
+            { "input_token_ids": Array(ids), .. } => ids
+            { "prompt": Array(ids), .. } => ids
+            _ => fail("token prompt required")
+          }
+          assert_eq(prompt.length(), input)
+          let key = "\{input}/\{output}/\{row}"
+          if round == 0 && engine == "old" {
+            first_tokens[key] = Json(ids)
+            first_inputs[key] = Json(prompt)
+          } else {
+            assert_eq(first_inputs[key], Json(prompt), msg="changed input")
+            if first_tokens[key] != Json(ids) {
+              divergences.push({
+                "input": input,
+                "output": output,
+                "round": round,
+                "engine": engine,
+                "row": row,
+              })
+            }
+          }
+        }
+        ttfts[engine] = latency
+        for
+          sample in @fs.read_file(dir + "/memory.csv")
+          .text()
+          .split("\n")
+          .filter(x => !x.is_empty()) {
+          reserve = Int64::min(
+            reserve,
+            @string.parse_int64(sample.split(",").to_array()[1]),
+          )
+        }
+      }
+    }
+    let old = median(times["old"])
+    let new = median(times["new"])
+    cells.push({
+      "input": input,
+      "output": output,
+      "concurrency": 16,
+      "old_ms": old,
+      "new_ms": new,
+      "old_trials_ms": times["old"],
+      "new_trials_ms": times["new"],
+      "old_tok_s": (16 * output).to_double() * 1000.0 / old,
+      "new_tok_s": (16 * output).to_double() * 1000.0 / new,
+      "completion_reduction_percent": (1.0 - new / old) * 100.0,
+      "old_ttft_median_ms": median(ttfts["old"]),
+      "new_ttft_median_ms": median(ttfts["new"]),
+    })
+  }
+  assert_true(reserve >= 33554432L, msg="32 GiB reserve")
+  let report : Json = {
+    "schema": "lunaflux.domain-handoff-comparison.v1",
+    "cells": cells,
+    "token_agreement": divergences.is_empty(),
+    "divergences": divergences,
+    "minimum_memavailable_kib": reserve,
+    "scope": "Three alternating fresh-start trials, old versus new LunaFlux; exact token inputs and within-engine output comparison. This does not isolate kernel from host contributions or establish statistical significance.",
+  }
+  @fs.write_file(output_path, report.stringify(indent=2), create_mode=CreateNew)
+  if serving is Some(path) {
+    guard @json.parse(@fs.read_file(root + "/r0-new/campaign.json").text())
+      is { "serving_root": String(actual), .. } &&
+      actual == path else {
+      fail("serving provenance")
+    }
+    let prepared = @fs.read_file(path + "/RESULT.txt").text()
+    guard prepared.has_prefix("outcome=prepared\n") else {
+      fail("prepared transaction")
+    }
+    @fs.write_file(
+      path + "/PREPARED_TRANSACTION.txt",
+      prepared,
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      path + "/RESULT.txt",
+      "outcome=completed\nscope=ordinary-paired-benchmark-completed-not-production-promotion\ncomparison=" +
+      output_path +
+      "\ntoken_agreement=\{divergences.is_empty()}\n",
+    )
+  }
+  println(report.stringify(indent=2))
+}

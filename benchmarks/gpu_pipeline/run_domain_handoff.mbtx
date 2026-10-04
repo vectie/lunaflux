@@ -1,0 +1,83 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, replacement : String) -> String raise {
+  let parts = text.split(old).to_array()
+  guard parts.length() == 2 else { fail("benchmark seam changed") }
+  parts.join(replacement)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, baseline, treatment, root, template] else {
+    fail(
+      "BASELINE_SERVING TREATMENT_SERVING NEW_EMPTY_ROOT MATCHED_CAMPAIGN_TOOL",
+    )
+  }
+  // Use the existing memory-bounded launcher/client unchanged. Each invocation
+  // is one fresh-start trial, alternating old/new instead of grouping runs.
+  let original = @fs.read_file(template).text()
+  let tool = if original.contains(
+      "[[\"luna-full\"], [\"luna-full\"], [\"luna-full\"]]",
+    ) {
+    once(
+      original, "[[\"luna-full\"], [\"luna-full\"], [\"luna-full\"]]", "[[\"luna-full\"]]",
+    )
+  } else {
+    assert_eq(original.split("[[\"luna-full\"]]").to_array().length(), 2)
+    original
+  }
+  // Include the campaign directory, not just r0-old/r0-luna-full. Failed
+  // transient units from preserved campaigns must not collide with retries.
+  let seam = "components[components.length() - 2].to_owned()"
+  assert_eq(tool.split(seam).to_array().length(), 2)
+  let tool = tool.replace(
+    old=seam,
+    new="components[components.length() - 3].to_owned() + \"-\" + components[components.length() - 2].to_owned()",
+  )
+  let tool = once(
+    tool, "@fs.read_file(serving + \"/RESULT.txt\")\n    .text()\n    .has_prefix(\"outcome=completed\\n\")",
+    "(@fs.read_file(serving + \"/RESULT.txt\").text().has_prefix(\"outcome=completed\\n\") || (@fs.read_file(serving + \"/RESULT.txt\").text().has_prefix(\"outcome=prepared\\n\") && @fs.exists(serving + \"/ONLINE_TERMINAL_QUALIFIED.txt\")))",
+  )
+  let orders = [["old", "new"], ["new", "old"], ["old", "new"]]
+  @fs.write_file(
+    root + "/orders.json",
+    Json(orders).stringify(),
+    create_mode=CreateNew,
+  )
+  for round, order in orders {
+    for name in order {
+      let dir = root + "/r\{round}-" + name
+      @fs.mkdir(dir)
+      let script = dir + "/campaign.mbtx"
+      @fs.write_file(script, tool, create_mode=CreateNew)
+      let serving = if name == "old" { baseline } else { treatment }
+      let command = ["run", script, serving, dir, script, "--luna-only"]
+      @fs.write_file(
+        dir + "/command.json",
+        Json([serving + "/toolchain/bin/moon", ..command]).stringify(),
+        create_mode=CreateNew,
+      )
+      println("starting=r\{round}-" + name)
+      let result = @shell.Cmd(serving + "/toolchain/bin/moon", command).output(
+        max_output_bytes=33554432,
+      )
+      @fs.write_file(dir + "/stdout", result.stdout(), create_mode=CreateNew)
+      @fs.write_file(dir + "/stderr", result.stderr(), create_mode=CreateNew)
+      result.check()
+      println("completed=r\{round}-" + name)
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=alternating-fresh-start-C16-token-vector\n",
+    create_mode=CreateNew,
+  )
+}

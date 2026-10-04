@@ -1,0 +1,493 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  println("starting=" + label)
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd=root + "/source", env={
+    "PATH": root + "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+  out.stdout()
+}
+
+///|
+async fn reserve() -> Unit {
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let line = @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .find_first(x => x.has_prefix("MemAvailable:"))
+    .unwrap()
+  guard @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+fn command(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(values) else { fail("command") }
+  values.map(v => {
+    guard v is String(s) else { fail("argument") }
+    s
+  })
+}
+
+///|
+async fn main {
+  let (args, calibration) = match @env.args() {
+    [.. args, "--calibration", calibration] => (args, calibration)
+    args => (args, "")
+  }
+  guard args is [_, base, prior, root, phase] else {
+    fail(
+      "BASELINE_SERVING CLOSURE_ROOT NEW_ROOT prepare|qualify|integrate [--calibration ROOT]",
+    )
+  }
+  reserve()
+  let moon = root + "/toolchain/bin/moon"
+  if phase == "prepare" ||
+    phase == "resume-prepare" ||
+    phase == "resume-clean" ||
+    phase == "resume-export" {
+    if phase == "prepare" {
+      guard !@fs.exists(root + "/source") else {
+        fail("non-overwriting source")
+      }
+      @shell.Cmd("cp", ["-a", base + "/source", root + "/source"]).run()
+      @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+      ignore(
+        record(root, "overlay", "tar", [
+          "-xzf",
+          root + "/overlay-clean.tar.gz",
+          "-C",
+          root + "/source",
+        ]),
+      )
+    }
+    if phase == "resume-clean" {
+      let listing = @shell.Cmd("find", [root + "/source", "-name", "._*"]).output()
+      listing.check()
+      for path in listing.stdout().split("\n").filter(x => !x.is_empty()) {
+        guard path.has_prefix(root + "/source/") else { fail("metadata scope") }
+        let name = path[root.length() + "/source/".length():]
+          .to_owned()
+          .split("/")
+          .to_array()
+          .join("-")
+        @shell.Cmd("mv", [path.to_owned(), root + "/appledouble/" + name]).run()
+      }
+    }
+    if phase != "resume-export" {
+      ignore(
+        record(
+          root,
+          if phase == "prepare" {
+            "build"
+          } else if phase == "resume-clean" {
+            "build-clean"
+          } else {
+            "build-resume"
+          },
+          moon,
+          [
+            "build", "cmd/lunaflux_qwen3_bf16_candidate_export", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+            "cmd/device_worker_child", "cmd/lunaflux", "cmd/lunaflux_qwen3_token_id_bridge",
+            "tests/qwen3_bf16_serving_supervisor", "tests/worker_service_e2e", "cmd/worker_echo",
+            "--target", "native", "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+            "-j", "2",
+          ],
+        ),
+      )
+      let original = command(
+        @fs.read_file(prior + "/cache-strict-c468-export.command.json").text(),
+      )
+      let args = original[1:].map(s => {
+        s.replace(old=prior + "/cache-strict-c468", new=root + "/candidates")
+      })
+      ignore(
+        record(
+          root,
+          "export",
+          root +
+          "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+          args,
+        ),
+      )
+    }
+    let recipe = @fs.read_file(
+      prior + "/serving/ingress-selected/kernel.recipe",
+    ).text()
+    let listing = @shell.Cmd("find", [
+      root + "/candidates",
+      "-mindepth",
+      "1",
+      "-maxdepth",
+      "1",
+      "-type",
+      "d",
+    ]).output()
+    listing.check()
+    let matches : Array[String] = []
+    for
+      path in listing
+      .stdout()
+      .split("\n")
+      .filter(x => x.contains("/reusable-qwen-full-ingress-")) {
+      let candidate = @fs.read_file(path.to_owned() + "/kernel.recipe").text()
+      let name = path.split("/").to_array().last().unwrap().to_owned()
+      let prior_path = prior + "/cache-strict-c468/" + name + "/kernel.recipe"
+      if field(candidate, "tile_schedule_sha256") ==
+        field(recipe, "tile_schedule_sha256") &&
+        @fs.exists(prior_path) &&
+        field(@fs.read_file(prior_path).text(), "source_sha256") ==
+        field(recipe, "source_sha256") {
+        matches.push(path.to_owned())
+      }
+    }
+    guard !matches.is_empty() else { fail("unchanged ingress source/schedule") }
+    matches.sort()
+    let selected = matches[0]
+    // Several alignment policies intentionally lower to identical code here.
+    // Admit equivalence only after checking both old and new exact sources.
+    let selected_sha = sha(selected + "/kernel.cu")
+    for path in matches {
+      assert_eq(sha(path + "/kernel.cu"), selected_sha)
+    }
+    @shell.Cmd("cp", ["-a", selected, root + "/new-ingress"]).run()
+    @shell.Cmd("cp", [
+      "-a",
+      prior + "/serving/ingress-selected",
+      root + "/old-ingress",
+    ]).run()
+    let new_recipe = @fs.read_file(root + "/new-ingress/kernel.recipe").text()
+    assert_true(
+      field(new_recipe, "source_sha256") != field(recipe, "source_sha256"),
+    )
+    for
+      key in [
+        "shape", "grid", "block", "shared_memory_bytes", "query_tile_rows", "function_symbol",
+        "tile_schedule_sha256",
+      ] {
+      assert_eq(field(new_recipe, key), field(recipe, key))
+    }
+    ignore(
+      record(root, "compile-ingress", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-std=c++14",
+        "-arch=sm_121",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=255",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        root + "/new-ingress/kernel.cu",
+        "-o",
+        root + "/new-ingress/kernel.cubin",
+      ]),
+    )
+    @fs.write_file(
+      root + "/ingress.spec",
+      "kind=ingress\nquery_heads=16\nkey_value_heads=8\nhead_dimension=128\ninput_width=1024\ntokens_per_page=8\npage_stride_values=8192\nmaximum_rows=32\nmaximum_tokens=2048\nmaximum_pages=16384\nquery_metadata_version=0\n",
+      create_mode=CreateNew,
+    )
+    ignore(
+      record(root, "build-probe", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-std=c++17",
+        "-arch=sm_121",
+        root + "/selected_policy_probe.cu",
+        "-lcuda",
+        "-o",
+        root + "/probe",
+      ]),
+    )
+    return
+  }
+  if phase == "qualify-online" || phase == "qualify-online-terminal" {
+    let label = if phase == "qualify-online" {
+      "online-cancellation-retry"
+    } else {
+      "online-terminal-handoff"
+    }
+    ignore(
+      record(
+        root,
+        label,
+        root +
+        "/source/_build/native/release/build/tests/worker_service_e2e/worker_service_e2e.exe",
+        [
+          "--coalesced-progress",
+          root +
+          "/source/_build/native/release/build/cmd/worker_echo/worker_echo.exe",
+          root,
+        ],
+      ),
+    )
+    @fs.write_file(
+      root +
+      (if phase == "qualify-online" {
+        "/ONLINE_QUALIFIED.txt"
+      } else {
+        "/ONLINE_TERMINAL_QUALIFIED.txt"
+      }),
+      "outcome=passed\nscope=coalesced-completion-publication-cancellation-terminal-handoff\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if phase == "qualify-kernels" {
+    for tokens in [1, 2, 8, 16, 17, 32, 33, 48, 49, 64, 65, 2048] {
+      for trial in 0..<2 {
+        ignore(
+          record(root, "qkv-\{tokens}-r\{trial}", root + "/probe", [
+            root + "/ingress.spec",
+            root + "/old-ingress",
+            root + "/new-ingress",
+            "\{tokens}",
+            if tokens <= 32 {
+              "\{tokens}"
+            } else {
+              "1"
+            },
+            "0",
+          ]),
+        )
+      }
+    }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      ignore(
+        record(
+          root,
+          tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "86",
+            "--force-blocking-launches",
+            ..if tool == "memcheck" {
+              ["--leak-check", "full"]
+            } else if tool == "racecheck" {
+              ["--racecheck-num-workers", "1"]
+            } else {
+              []
+            },
+            root + "/probe",
+            root + "/ingress.spec",
+            root + "/old-ingress",
+            root + "/new-ingress",
+            "65",
+            "1",
+            "0",
+            "--check-only",
+          ],
+        ),
+      )
+    }
+    @fs.write_file(
+      root + "/QUALIFIED.txt",
+      "outcome=passed\nscope=exact-ingress-AOT-pair\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  guard (phase == "integrate" || phase == "resume-integrate") &&
+    @fs.exists(root + "/QUALIFIED.txt") &&
+    @fs.exists(root + "/ONLINE_QUALIFIED.txt") else {
+    fail("phase/qualification")
+  }
+  guard !calibration.is_empty() else {
+    fail("new compiled bundle requires fresh route calibration")
+  }
+  if phase == "integrate" {
+    for name in ["release", "candidate", "fused"] {
+      @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+    }
+  }
+  // Candidate export and model export are different transactions. Preserve
+  // the former before copying the baseline's model-binding metadata.
+  @shell.Cmd("mv", [root + "/export.stdout", root + "/candidate-export.stdout"]).run()
+  for
+    name in [
+      "convert.stdout", "bind.stdout", "export.stdout", "toolchain.v1", "benchmark.mbtx",
+      "prepare-full.mbtx",
+    ] {
+    if phase == "resume-integrate" && @fs.exists(root + "/" + name) {
+      assert_eq(
+        @fs.read_file(root + "/" + name).text(),
+        @fs.read_file(base + "/" + name).text(),
+      )
+      continue
+    }
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @shell.Cmd("chmod", ["u+w", root + "/fused/ingress.cubin"]).run()
+  @shell.Cmd("cp", [
+    root + "/new-ingress/kernel.cubin",
+    root + "/fused/ingress.cubin",
+  ]).run()
+  let original = @fs.read_file(base + "/fused/export.arguments")
+    .text()
+    .split("\n")
+    .filter(s => !s.is_empty())
+    .to_array()
+  let args = original.map(s => {
+    if s.contains("/fused/") && s.has_prefix("/home/wlc004s/") {
+      root + "/fused/" + s.split("/").to_array().last().unwrap().to_owned()
+    } else if s.has_prefix("/") && s.has_suffix(".v3") {
+      root + "/fused/reusable-fused-runtime-bundle.v3"
+    } else {
+      s.to_owned()
+    }
+  })
+  // Only the copied bundle is replaced, never the immutable baseline.
+  @shell.Cmd("mv", [
+    root + "/fused/reusable-fused-runtime-bundle.v3",
+    root + "/fused/prior-bundle.v3",
+  ]).run()
+  ignore(
+    record(
+      root,
+      "bundle",
+      root +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+      args,
+    ),
+  )
+  @fs.write_file(root + "/fused/export.arguments", args.join("\n") + "\n")
+  @fs.write_file(
+    root + "/fused/export.stdout",
+    @fs.read_file(root + "/bundle.stdout"),
+  )
+  let before = @fs.read_file(base + "/fused/reusable-fused-runtime-bundle.v3").text()
+  let after = @fs.read_file(root + "/fused/reusable-fused-runtime-bundle.v3").text()
+  assert_eq(field(before, "module_count"), field(after, "module_count"))
+  let count = @string.parse_int(field(before, "module_count"))
+  for index in 0..<count {
+    let prefix = "module_\{index}_"
+    for
+      key in [
+        "abi", "function_symbol", "grid_x", "grid_y", "grid_z", "block_x", "shared_bytes",
+      ] {
+      assert_eq(field(before, prefix + key), field(after, prefix + key))
+    }
+    if !field(before, prefix + "abi").contains("qwen-qkv-qknorm") &&
+      !field(before, prefix + "abi").contains("prepared-rotary") {
+      assert_eq(
+        field(before, prefix + "module_sha256"),
+        field(after, prefix + "module_sha256"),
+      )
+    }
+  }
+  // Routing scope covers every module in the compiled chain. Replacing even
+  // the common ingress invalidates the old scope: measure afresh, don't carry
+  // a stale table or relabel its samples under the replacement artifact.
+  for name in ["prefill-selected", "decode-selected", "check-probe"] {
+    @shell.Cmd("cp", ["-a", prior + "/serving/" + name, root + "/" + name]).run()
+  }
+  @shell.Cmd("cp", [
+    "-a",
+    prior + "/serving/candidate/reusable-qwen-prefill-wide-query-attention",
+    root + "/wide-prefill-selected",
+  ]).run()
+  assert_eq(
+    sha(root + "/fused/prefill_wide.cubin"),
+    sha(prior + "/serving/fused/prefill_wide.cubin"),
+  )
+  ignore(
+    record(root, "fresh-routes", "systemd-run", [
+      "--user",
+      "--wait",
+      "--pipe",
+      "--collect",
+      "--unit=lunaflux-domain-integration-routes",
+      "--property=MemoryMax=8G",
+      "--property=MemorySwapMax=0",
+      moon,
+      "run",
+      root + "/measure_decode_routes.mbtx",
+      root,
+      calibration,
+    ]),
+  )
+  for phase in ["materialize", "capacity"] {
+    ignore(
+      record(root, "prepare-" + phase, moon, [
+        "run",
+        root + "/prepare-full.mbtx",
+        root,
+        phase,
+      ]),
+    )
+  }
+  @fs.write_file(
+    root + "/RUNTIME_IDENTITIES.txt",
+    "ingress=" + sha(root + "/fused/ingress.cubin") + "\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=prepared\nscope=isolated-QKV-and-host-coalescing-runtime-not-serving-success\n",
+    create_mode=CreateNew,
+  )
+}
