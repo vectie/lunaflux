@@ -304,9 +304,9 @@ pub fn PlanFrameBuffer::load(
     self.validation_requests,
     self.validation_slots,
   )
-  for index in 0..<length {
-    self.storage[self.frame_offset + index] = source[index]
-  }
+  // Exact source length and destination capacity are proved above; retain the
+  // ownership copy but lower it as one bounded native bulk effect.
+  FixedArray::unsafe_blit(self.storage, self.frame_offset, source, 0, length)
   self.epoch += 1UL
   self.length = length
   ValidatedPlanFrame(self, self.epoch)
@@ -325,8 +325,11 @@ pub fn ValidatedPlanFrame::copy_to(
     owner.length > destination.length() - destination_offset {
     raise DestinationTooSmall
   }
-  for index in 0..<owner.length {
-    destination[destination_offset + index] = owner.storage[owner.frame_offset +
-      index]
-  }
+  FixedArray::unsafe_blit(
+    destination,
+    destination_offset,
+    owner.storage,
+    owner.frame_offset,
+    owner.length,
+  )
 }

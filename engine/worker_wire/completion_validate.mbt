@@ -124,9 +124,9 @@ pub fn CompletionFrameBuffer::load(
     self.validation_slots,
   )
   self.clear_slot_index()
-  for index in 0..<length {
-    self.storage[index] = source[index]
-  }
+  // Validation bounds both arrays before the ownership copy; no partial frame
+  // is installed on failure, and the intrinsic preserves overlap semantics.
+  FixedArray::unsafe_blit(self.storage, 0, source, 0, length)
   self.epoch += 1UL
   self.length = length
   self.rebuild_slot_index(count)
@@ -146,7 +146,11 @@ pub fn ValidatedCompletionFrame::copy_to(
     owner.length > destination.length() - destination_offset {
     raise DestinationTooSmall
   }
-  for index in 0..<owner.length {
-    destination[destination_offset + index] = owner.storage[index]
-  }
+  FixedArray::unsafe_blit(
+    destination,
+    destination_offset,
+    owner.storage,
+    0,
+    owner.length,
+  )
 }
