@@ -1,0 +1,54 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, nvcc, generated, output_root] else {
+    fail("REFERENCE_ROOT NVCC GENERATED_ROOT NEW_OUTPUT_ROOT")
+  }
+  guard !@fs.exists(output_root) else { fail("no overwrite") }
+  @fs.mkdir(output_root)
+  for backend in ["flash-prefill", "flash-decode", "infer-decode"] {
+    let args = [
+      "-O3",
+      "-std=c++17",
+      "-arch=sm_121",
+      "--expt-relaxed-constexpr",
+      "--expt-extended-lambda",
+      "-DNDEBUG",
+      "-lineinfo",
+      "-Xptxas=-v",
+      "-I" + root + "/adapted",
+      "-I" + root + "/cutlass",
+      "-I" + root + "/flashinfer",
+      "-cubin",
+      generated + "/" + backend + ".cu",
+      "-o",
+      output_root + "/" + backend + ".cubin",
+    ]
+    @fs.write_file(
+      output_root + "/" + backend + ".command.json",
+      Json([nvcc, ..args]).stringify(),
+      create_mode=CreateNew,
+    )
+    let output = @shell.Cmd(nvcc, args).output(max_output_bytes=8388608)
+    @fs.write_file(
+      output_root + "/" + backend + ".stdout",
+      output.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      output_root + "/" + backend + ".stderr",
+      output.stderr(),
+      create_mode=CreateNew,
+    )
+    output.check()
+    println("compiled=" + backend)
+  }
+}

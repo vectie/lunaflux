@@ -1,0 +1,67 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("REFERENCE_ROOT") }
+  guard @fs.read_file(root + "/qualification-v4/RESULT.txt").text() ==
+    "outcome=passed\nscope=BF16-native-reference-qualification-not-serving\n" else {
+    fail("unfinished qualification")
+  }
+  guard !@fs.exists(root + "/REFERENCE_FILES.sha256") &&
+    !@fs.exists(root + "/reference-attention.tar.gz") else {
+    fail("no overwrite")
+  }
+  let found = @shell.Cmd("find", [root, "-type", "f"]).output(
+    max_output_bytes=16777216,
+  )
+  found.check()
+  let files = found
+    .stdout()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(x => {
+      guard x.strip_prefix(root + "/") is Some(path) && !path.contains("..") else {
+        fail("path scope")
+      }
+      path.to_owned()
+    })
+    .filter(path => {
+      !path.has_prefix("_build/") && !path.has_prefix(".mooncakes/")
+    })
+  files.sort()
+  let hashes = @shell.Cmd("sha256sum", files, cwd=root).output(
+    max_output_bytes=16777216,
+  )
+  hashes.check()
+  @fs.write_file(
+    root + "/REFERENCE_FILES.sha256",
+    hashes.stdout(),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(
+    "tar",
+    [
+      "-czf",
+      root + "/reference-attention.tar.gz",
+      "-C",
+      root,
+      "REFERENCE_FILES.sha256",
+      ..files,
+    ],
+  ).run()
+  let digest = @shell.Cmd("sha256sum", [root + "/reference-attention.tar.gz"]).output()
+  digest.check()
+  @fs.write_file(
+    root + "/reference-attention.tar.gz.sha256",
+    digest.stdout(),
+    create_mode=CreateNew,
+  )
+  println(digest.stdout())
+}

@@ -1,0 +1,47 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, moon, source, root] else {
+    fail("MOON SOURCE_ROOT NEW_OUTPUT_ROOT")
+  }
+  guard !@fs.exists(root) else { fail("no overwrite") }
+  @fs.mkdir(root)
+  for backend in ["flash-prefill", "flash-decode", "infer-decode"] {
+    let args = [
+      "run", "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+      "tests/reference_attention_cuda_source_probe", "--", backend,
+    ]
+    let output = @shell.Cmd(moon, args, cwd=source).output(
+      max_output_bytes=1048576,
+    )
+    @fs.write_file(
+      root + "/" + backend + ".command.json",
+      Json([moon, ..args]).stringify(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + backend + ".stderr",
+      output.stderr(),
+      create_mode=CreateNew,
+    )
+    output.check()
+    guard output.stdout().has_prefix("#include") &&
+      output.stdout().contains("// launch=") else {
+      fail("invalid CUDA source output")
+    }
+    @fs.write_file(
+      root + "/" + backend + ".cu",
+      output.stdout(),
+      create_mode=CreateNew,
+    )
+    println("exported=" + backend)
+  }
+}

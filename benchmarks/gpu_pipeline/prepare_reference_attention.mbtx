@@ -1,0 +1,93 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(source : String, before : String, after : String) -> String raise {
+  guard source.split(before).to_array() is [first, last] else {
+    fail("pinned reference source seam changed")
+  }
+  first.to_owned() + after + last.to_owned()
+}
+
+///|
+async fn hash(path : String) -> String {
+  let result = @shell.Cmd("sha256sum", [path]).output()
+  result.check()
+  result.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("NEW_REFERENCE_SOURCE_ROOT") }
+  guard !@fs.exists(root + "/adapted") else { fail("no overwrite") }
+  let kernel_path = root + "/flash/flash_fwd_kernel.h"
+  guard hash(kernel_path) ==
+    "242cbc331bd09d6ccfd023aae2d31461484b2a4801dcf66733b4151f9018622a" else {
+    fail("FlashAttention source differs from measured pinned image")
+  }
+  @shell.Cmd("cp", ["-a", root + "/flash", root + "/adapted"]).run()
+  let kernel = @fs.read_file(kernel_path).text()
+  // Retain only the unchanged inference split-KV function and its includes.
+  // This removes the unused dropout function that imports ATen RNG state.
+  guard kernel
+    .split("template<typename Kernel_traits, bool Is_dropout, bool Is_causal")
+    .to_array()
+    is [prefix, _, tail] else {
+    fail("no-dropout function boundaries")
+  }
+  guard kernel
+    .split(
+      "template<typename Kernel_traits, bool Is_causal, bool Is_local, bool Has_alibi, bool Is_even_MN, bool Is_even_K, bool Is_softcap, bool Split, bool Append_KV, typename Params>",
+    )
+    .to_array()
+    is [_, device, _] else {
+    fail("split-KV function boundaries")
+  }
+  let prefix = once(
+    prefix.to_owned(),
+    "#include \"philox_unpack.cuh\" // For at::cuda::philox::unpack\n",
+    "",
+  )
+  // Output-only inference does not expose log-sum-exp. No scratch writes or
+  // numerical operations are substituted; the two dead LSE stores are omitted.
+  let device = once(
+    device.to_owned(),
+    "if (row < binfo.actual_seqlen_q - m_block * kBlockM && get<1>(tOcO(0, m, 0)) == 0) { gLSEaccum(row) = Split ? -INFINITY : INFINITY; }",
+    "if (params.softmax_lse_ptr != nullptr && row < binfo.actual_seqlen_q - m_block * kBlockM && get<1>(tOcO(0, m, 0)) == 0) { gLSEaccum(row) = Split ? -INFINITY : INFINITY; }",
+  )
+  let device = once(
+    device, "if (row < binfo.actual_seqlen_q - m_block * kBlockM) { gLSEaccum(row) = lse(mi); }",
+    "if (params.softmax_lse_ptr != nullptr && row < binfo.actual_seqlen_q - m_block * kBlockM) { gLSEaccum(row) = lse(mi); }",
+  )
+  ignore(tail)
+  let adapted = prefix +
+    "template<typename Kernel_traits, bool Is_causal, bool Is_local, bool Has_alibi, bool Is_even_MN, bool Is_even_K, bool Is_softcap, bool Split, bool Append_KV, typename Params>" +
+    device +
+    "\n} // namespace FLASH_NAMESPACE\n"
+  @fs.write_file(root + "/adapted/flash_fwd_kernel.h", adapted)
+  let params = once(
+    @fs.read_file(root + "/flash/flash.h").text(),
+    "#include <ATen/cuda/CUDAGeneratorImpl.h> // For at::Generator and at::PhiloxCudaState",
+    "// AOT inference-only parameter vocabulary; no host framework dependency.",
+  )
+  let params = once(params, "    at::PhiloxCudaState philox_args;", "")
+  @fs.write_file(root + "/adapted/flash.h", params)
+  @fs.write_file(
+    root + "/REFERENCE_SOURCE.json",
+    Json({
+      "image": "sha256:73e1b0f3230a9377a3109d20be7f8607963a41a715eb3000bc647f5f73c198ff",
+      "upstream_kernel_sha256": hash(kernel_path),
+      "adapted_kernel_sha256": hash(root + "/adapted/flash_fwd_kernel.h"),
+      "adapted_parameters_sha256": hash(root + "/adapted/flash.h"),
+      "scope": "inference-only split-KV; no dropout/ATen; nullable LSE stores",
+    }).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("reference sources prepared; no GPU workload")
+}

@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_reference_attention"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_source",
+  "vectie/lunaflux/model/numeric_contract",
+}
+
+// Values
+
+// Errors
+pub(all) suberror ReferenceAttentionError {
+  UnsupportedReferenceAttention
+  UnsupportedReferenceAttentionFormat
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum ReferenceAttentionBackend {
+  FlashAttentionPrefill
+  FlashAttentionDecode
+  FlashInferDecode
+} derive(Eq, @debug.Debug)
+
+pub struct ReferenceAttentionPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ReferenceAttentionPlan::launch(Self) -> (Int, Int, Int, Int, Int, Int, Int)
+pub fn ReferenceAttentionPlan::new(backend~ : ReferenceAttentionBackend, abi~ : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi, query_dtype? : @numeric_contract.ComputeDType, kv_dtype? : @numeric_contract.ComputeDType, output_dtype? : @numeric_contract.ComputeDType, accumulator? : @numeric_contract.AccumulatorDType) -> Self raise ReferenceAttentionError
+pub fn ReferenceAttentionPlan::numeric_law(Self) -> String
+pub fn ReferenceAttentionPlan::operand_formats(Self) -> (@numeric_contract.ComputeDType, @numeric_contract.ComputeDType, @numeric_contract.ComputeDType, @numeric_contract.AccumulatorDType)
+pub fn ReferenceAttentionPlan::source(Self) -> Bytes
+pub fn ReferenceAttentionPlan::source_sha256(Self) -> String
+pub fn ReferenceAttentionPlan::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/kernels/luna_cuda_reference_attention" @reference,
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_source" @abi,
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+}
+
+pkgtype(kind: "executable")
+
+supported_targets = "native"

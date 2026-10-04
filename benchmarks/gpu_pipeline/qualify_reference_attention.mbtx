@@ -1,0 +1,193 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=8388608)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+  out.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, modules, output, probe_source] else {
+    fail("REFERENCE_ROOT MODULE_ROOT NEW_QUALIFICATION_ROOT PROBE_SOURCE")
+  }
+  guard !@fs.exists(output) else { fail("no overwrite") }
+  @fs.mkdir(output)
+  let identity = record(output, "identity", "nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ])
+  guard identity.trim() == "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6" else {
+    fail("GPU identity")
+  }
+  let idle = record(output, "idle", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  guard idle.trim().is_empty() else { fail("GPU busy") }
+  let memory = @fs.read_file("/proc/meminfo").text()
+  guard memory.split("\n").find_first(x => x.has_prefix("MemAvailable:"))
+    is Some(line) else {
+    fail("memory inventory")
+  }
+  let parts = line.split(" ").filter(x => !x.is_empty()).to_array()
+  guard @string.parse_int64(parts[1]) >= 33554432L else {
+    fail("32 GiB reserve")
+  }
+  @fs.write_file(output + "/memory-before.txt", memory, create_mode=CreateNew)
+  ignore(
+    record(output, "build", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-O3",
+      "-std=c++17",
+      "-arch=sm_121",
+      probe_source,
+      "-lcuda",
+      "-o",
+      output + "/reference-attention-probe",
+    ]),
+  )
+  for
+    (backend, rows, queries, history, fragmented) in [
+      ("flash-prefill", 1, 7, 19, 1),
+      ("flash-prefill", 8, 128, 1024, 1),
+      ("flash-prefill", 16, 128, 4096, 0),
+      ("flash-decode", 1, 1, 19, 1),
+      ("flash-decode", 16, 1, 4096, 1),
+      ("infer-decode", 1, 1, 19, 1),
+      ("infer-decode", 16, 1, 4096, 1),
+    ] {
+    let label = backend + "-" + rows.to_string() + "-" + history.to_string()
+    let args = [
+      backend,
+      modules + "/" + backend + ".cubin",
+      rows.to_string(),
+      queries.to_string(),
+      history.to_string(),
+      fragmented.to_string(),
+      "10",
+    ]
+    let result = record(
+      output,
+      label,
+      output + "/reference-attention-probe",
+      args,
+    )
+    guard result.contains("outcome=passed") else {
+      fail("missing numerical result")
+    }
+  }
+  for backend in ["flash-prefill", "flash-decode", "infer-decode"] {
+    ignore(
+      record(
+        output,
+        backend + "-memcheck",
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        [
+          "--tool",
+          "memcheck",
+          "--leak-check",
+          "full",
+          "--error-exitcode",
+          "99",
+          output + "/reference-attention-probe",
+          backend,
+          modules + "/" + backend + ".cubin",
+          "1",
+          if backend == "flash-prefill" {
+            "7"
+          } else {
+            "1"
+          },
+          "19",
+          "1",
+          "1",
+        ],
+      ),
+    )
+    for tool in ["racecheck", "synccheck"] {
+      ignore(
+        record(
+          output,
+          backend + "-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "99",
+            output + "/reference-attention-probe",
+            backend,
+            modules + "/" + backend + ".cubin",
+            "1",
+            if backend == "flash-prefill" {
+              "7"
+            } else {
+              "1"
+            },
+            "19",
+            "1",
+            "1",
+          ],
+        ),
+      )
+    }
+  }
+  if @fs.exists(root + "/compiler-owned8.cubin") {
+    for backend in ["flash-decode", "infer-decode"] {
+      for (rows, history) in [(1, 128), (8, 1024), (16, 4096)] {
+        ignore(
+          record(
+            output,
+            backend + "-paired-" + rows.to_string() + "-" + history.to_string(),
+            output + "/reference-attention-probe",
+            [
+              backend,
+              modules + "/" + backend + ".cubin",
+              rows.to_string(),
+              "1",
+              history.to_string(),
+              "1",
+              "20",
+              "--compiler",
+              root + "/compiler-owned8.cubin",
+              "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4",
+            ],
+          ),
+        )
+      }
+    }
+  }
+  @fs.write_file(
+    output + "/RESULT.txt",
+    "outcome=passed\nscope=BF16-native-reference-qualification-not-serving\n",
+    create_mode=CreateNew,
+  )
+}
