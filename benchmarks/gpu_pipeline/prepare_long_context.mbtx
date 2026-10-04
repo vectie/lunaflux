@@ -1,0 +1,172 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn object(value : Json) -> Map[String, Json] raise {
+  guard value is Object(fields) else { fail("object required") }
+  fields
+}
+
+///|
+async fn sha(path : String) -> String {
+  let result = @shell.Cmd("sha256sum", [path]).output()
+  result.check()
+  result.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn publish(path : String, value : Json) -> String {
+  @fs.write_file(
+    path,
+    value.stringify() + "\n",
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  sha(path)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root] else {
+    fail("IMMUTABLE_SERVING NEW_EMPTY_ROOT")
+  }
+  let old = base + "/deployment"
+  let deployment = root + "/deployment"
+  guard !@fs.exists(deployment) else { fail("non-overwriting deployment") }
+  @fs.mkdir(deployment)
+  for
+    dir in [
+      "model-root", "model-root/runtime", "policy-root", "policy-root/instance",
+      "evidence",
+    ] {
+    @fs.mkdir(deployment + "/" + dir)
+  }
+  for dir in ["kernel-release", "bin", "corpus"] {
+    @shell.Cmd("cp", ["-a", old + "/" + dir, deployment + "/" + dir]).run()
+  }
+  for name in ["config.json", "tokenizer.json", "qwen.numeric"] {
+    @shell.Cmd("cp", [
+      "-a",
+      old + "/model-root/" + name,
+      deployment + "/model-root/" + name,
+    ]).run()
+  }
+  @shell.Cmd("cp", [
+    "-a",
+    old + "/evidence/release-bind.v1",
+    deployment + "/evidence/release-bind.v1",
+  ]).run()
+  let descriptor = object(
+    @json.parse(
+      @fs.read_file(old + "/model-root/runtime/descriptor.json").text(),
+    ),
+  )
+  let limits = object(descriptor["inference_limits"])
+  assert_eq(limits["max_input_tokens"], Json(4096))
+  limits["max_input_tokens"] = Json(32512)
+  descriptor["inference_limits"] = Json::object(limits)
+  // The existing artifact already covers context 40960 and 2048-token chunks.
+  // Keep the KV arena, kernels, scheduling policy and worker binary unchanged.
+  let descriptor_sha = publish(
+    deployment + "/model-root/runtime/descriptor.json",
+    Json::object(descriptor),
+  )
+  let policy = object(
+    @json.parse(@fs.read_file(old + "/policy-root/instance/policy.json").text()),
+  )
+  policy["runtime_descriptor_sha256"] = Json(descriptor_sha)
+  let preparation = object(policy["preparation"])
+  assert_eq(preparation["lane_count"], Json(64))
+  assert_eq(preparation["storage_int_cells"], Json(38282560))
+  // validate_pool_storage adds one LunaTokenBufferStorage cell per input token
+  // per lane. All other host envelopes remain unchanged.
+  preparation["storage_int_cells"] = Json(38282560 + 64 * (32512 - 4096))
+  policy["preparation"] = Json::object(preparation)
+  let policy_sha = publish(
+    deployment + "/policy-root/instance/policy.json",
+    Json::object(policy),
+  )
+  let launch = object(
+    @json.parse(@fs.read_file(old + "/lunaflux.launch.json").text()),
+  )
+  launch["model_root"] = Json(deployment + "/model-root")
+  launch["kernel_root"] = Json(deployment + "/kernel-release/kernel-root")
+  launch["policy_root"] = Json(deployment + "/policy-root")
+  let worker = object(launch["worker_executable"])
+  worker["path"] = Json(deployment + "/bin/lunaflux-device-worker")
+  launch["worker_executable"] = Json::object(worker)
+  launch["runtime_descriptor"] = {
+    "locator": "runtime/descriptor.json",
+    "sha256": descriptor_sha,
+  }
+  launch["instance_policy"] = {
+    "locator": "instance/policy.json",
+    "sha256": policy_sha,
+  }
+  let launch_sha = publish(
+    deployment + "/lunaflux.launch.json",
+    Json::object(launch),
+  )
+  let cmd = base + "/source/_build/native/release/build/cmd/"
+  let runtime = cmd + "lunaflux/lunaflux.exe"
+  let bridge = cmd +
+    "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe"
+  let check = @shell.Cmd(runtime, [
+    "validate-release",
+    deployment + "#sha256=" + launch_sha,
+  ]).output()
+  @fs.write_file(
+    root + "/preflight.stdout",
+    check.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/preflight.stderr",
+    check.stderr(),
+    create_mode=CreateNew,
+  )
+  check.check()
+  let receipt = @shell.Cmd(
+    base + "/source/scripts/materialize-qwen3-authenticated-capacity.sh",
+    [
+      base + "/bind.stdout#sha256=" + sha(base + "/bind.stdout"),
+      deployment + "#sha256=" + launch_sha,
+      runtime + "#sha256=" + sha(runtime),
+      bridge + "#sha256=" + sha(bridge),
+      root + "/capacity.json",
+    ],
+  ).output()
+  @fs.write_file(
+    root + "/capacity.stdout",
+    receipt.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/capacity.stderr",
+    receipt.stderr(),
+    create_mode=CreateNew,
+  )
+  receipt.check()
+  let prepared : Json = {
+    "base_serving": base,
+    "launch_sha256": launch_sha,
+    "worker_sha256": sha(deployment + "/bin/lunaflux-device-worker"),
+    "max_input_tokens": 32512,
+    "max_output_tokens": 256,
+    "aggregate_kv_tokens": 131072,
+    "kv_bytes": Json(15032385536L),
+    "scope": "benchmark-only capacity rebind; unchanged AOT kernels and runtime",
+  }
+  @fs.write_file(
+    root + "/PREPARED.json",
+    prepared.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("prepared=" + deployment + "#sha256=" + launch_sha)
+}

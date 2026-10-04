@@ -1,0 +1,337 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn inputs(input : Int, concurrency : Int) -> Array[Int] {
+  Array::make(concurrency, input)
+}
+
+///|
+fn matrix() -> Array[(String, Array[Int], Int, String)] {
+  let cells : Array[(String, Array[Int], Int, String)] = []
+  for input in [4096, 8192, 16384, 32512] {
+    let concurrencies = if input == 4096 {
+      [1, 2, 4, 8, 16]
+    } else if input == 8192 {
+      [1, 2, 4, 8]
+    } else if input == 16384 {
+      [1, 2, 4]
+    } else {
+      [1, 2]
+    }
+    for output in [64, 256] {
+      for concurrency in concurrencies {
+        cells.push(
+          (
+            "i\{input}-o\{output}-c\{concurrency}-varied",
+            inputs(input, concurrency),
+            output,
+            "varied",
+          ),
+        )
+      }
+    }
+  }
+  for output in [64, 256] {
+    cells.push(
+      (
+        "mixed-o\{output}-c4-varied",
+        [4096, 8192, 16384, 32512],
+        output,
+        "varied",
+      ),
+    )
+  }
+  for input in [4096, 32512] {
+    cells.push(("i\{input}-o64-c1-periodic", [input], 64, "periodic"))
+  }
+  cells
+}
+
+///|
+fn token_ids(count : Int, row : Int, distribution : String) -> Array[Json] {
+  // Low-ID tokens keep the 32K request inside the existing diagnostic HTTP
+  // adapter's 128 KiB body bound, without changing runtime or kernel code.
+  let pool = [840, 304, 825, 13, 198, 11, 271, 279, 315, 389, 499, 510]
+  let mut state = 1234567U + row.reinterpret_as_uint() * 7919U
+  Array::makei(count, i => {
+    state = state * 1664525U + 1013904223U
+    let index = if distribution == "periodic" {
+      (i + row * 5) % pool.length()
+    } else {
+      ((state >> 16) % pool.length().reinterpret_as_uint()).reinterpret_as_int()
+    }
+    Json(pool[index])
+  })
+}
+
+///|
+fn endpoint(engine : String) -> String {
+  match engine {
+    "vllm" => "http://127.0.0.1:8101/v1/completions"
+    "sglang" => "http://127.0.0.1:8102/generate"
+    _ => "http://127.0.0.1:5062/benchmark/v1/token-ids"
+  }
+}
+
+///|
+fn body(engine : String, ids : Array[Json], count : Int) -> Json {
+  match engine {
+    "vllm" =>
+      {
+        "model": "Qwen3-0.6B",
+        "prompt": ids,
+        "max_tokens": count,
+        "temperature": 0,
+        "top_p": 1,
+        "seed": 0,
+        "ignore_eos": true,
+        "stream": true,
+        "return_token_ids": true,
+      }
+    "sglang" =>
+      {
+        "input_ids": ids,
+        "sampling_params": {
+          "max_new_tokens": count,
+          "temperature": 0,
+          "top_k": 1,
+          "top_p": 1,
+          "min_p": 0,
+          "frequency_penalty": 0,
+          "presence_penalty": 0,
+          "repetition_penalty": 1,
+          "ignore_eos": true,
+          "stream_interval": 1,
+        },
+        "stream": true,
+      }
+    _ =>
+      {
+        "schema": "lunaflux.benchmark-token-ids-request.v1",
+        "model": "Qwen3-0.6B",
+        "input_token_ids": ids,
+        "max_output_tokens": count,
+        "sampling": {
+          "mode": "greedy",
+          "temperature": 0,
+          "top_p": 1,
+          "seed": 0,
+          "ignore_eos": true,
+        },
+        "stream": true,
+      }
+  }
+}
+
+///|
+async fn request(
+  root : String,
+  engine : String,
+  name : String,
+  count : Int,
+) -> Json {
+  let started = @async.now()
+  let ids : Array[Json] = []
+  let times : Array[Int64] = []
+  let raw = StringBuilder()
+  let mut terminal = false
+  let status = @shell.Cmd("curl", [
+    "--fail",
+    "--silent",
+    "--show-error",
+    "--no-buffer",
+    "--max-time",
+    "180",
+    "-H",
+    "Content-Type: application/json",
+    "--data-binary",
+    "@" + root + "/" + name + ".body.json",
+    endpoint(engine),
+  ]).each_line(line => {
+    raw.write_string(line + "\n")
+    let line = line.trim().to_owned()
+    if line == "data: [DONE]" {
+      terminal = true
+      return
+    }
+    if !line.has_prefix("data: ") {
+      return
+    }
+    let event = @json.parse(line[6:].to_owned())
+    let fresh : Array[Json] = []
+    match engine {
+      "vllm" =>
+        if event is { "choices": Array(choices), .. } {
+          for choice in choices {
+            if choice is { "token_ids": Array(xs), .. } {
+              fresh.append(xs)
+            }
+          }
+        }
+      "sglang" =>
+        if event is { "output_ids": Array(xs), .. } {
+          guard xs.length() >= ids.length() else {
+            fail("noncumulative output")
+          }
+          for i in 0..<ids.length() {
+            assert_eq(xs[i], ids[i])
+          }
+          fresh.append(xs[ids.length():])
+        }
+      _ => {
+        if event
+          is {
+            "schema": String("lunaflux.benchmark-token.v1"),
+            "token_id": id,
+            ..
+          } {
+          fresh.push(id)
+        }
+        if event is { "schema": String("lunaflux.benchmark-terminal.v1"), .. } {
+          terminal = true
+        }
+      }
+    }
+    for id in fresh {
+      ids.push(id)
+      times.push(@async.now() - started)
+    }
+  })
+  @fs.write_file(
+    root + "/" + name + ".sse",
+    raw.to_string(),
+    create_mode=CreateNew,
+  )
+  guard status == 0 && terminal && ids.length() == count else {
+    fail("incomplete " + name + " tokens=\{ids.length()}")
+  }
+  let result : Json = {
+    "elapsed_ms": @async.now() - started,
+    "ttft_ms": times[0],
+    "token_ms": times,
+    "token_ids": ids,
+    "post_first_token_ms": times.last().unwrap() - times[0],
+    "mean_tpot_ms": (times.last().unwrap() - times[0]).to_double() /
+    (count - 1).to_double(),
+  }
+  @fs.write_file(
+    root + "/" + name + ".json",
+    result.stringify(),
+    create_mode=CreateNew,
+  )
+  result
+}
+
+///|
+fn fits(lengths : Array[Int], output : Int) -> Bool {
+  lengths.all(n => n > 0 && n + output <= 32768) &&
+  lengths.fold(init=0, (a, n) => a + (n + output + 7) / 8) + 1 <= 16384
+}
+
+///|
+test "long context matrix stays inside model and aggregate KV capacity" {
+  for (_, lengths, output, _) in matrix() {
+    assert_true(fits(lengths, output))
+  }
+  assert_false(fits(inputs(32768, 4), 64))
+  assert_false(fits([32513], 256))
+  assert_eq(token_ids(128, 0, "varied"), token_ids(128, 0, "varied"))
+  assert_true(token_ids(128, 0, "varied") != token_ids(128, 1, "varied"))
+  assert_true(token_ids(128, 0, "varied") != token_ids(128, 0, "periodic"))
+  assert_true(
+    body("luna-full", token_ids(32512, 0, "varied"), 256).stringify().length() <=
+    131072,
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, engine, root, .. options] else {
+    fail("ENGINE NEW_REQUEST_ROOT [--smoke]")
+  }
+  @fs.mkdir(root)
+  let cells = if options is ["--smoke"] {
+    [("i32512-o64-c1-varied", [32512], 64, "varied")]
+  } else {
+    matrix()
+  }
+  let matrix_json : Array[Json] = cells.map(cell => {
+    let (name, lengths, output, distribution) = cell
+    {
+      "cell": name,
+      "inputs": lengths,
+      "output": output,
+      "distribution": distribution,
+    }
+  })
+  @fs.write_file(
+    root + "/matrix.json",
+    Json(matrix_json).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  for (cell, lengths, output, distribution) in cells {
+    assert_true(fits(lengths, output))
+    let concurrency = lengths.length()
+    let memory = @fs.read_file("/proc/meminfo").text()
+    let line = memory
+      .split("\n")
+      .find_first(x => x.has_prefix("MemAvailable:"))
+      .unwrap()
+    guard @string.parse_int64(
+        line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+      ) >=
+      33554432L else {
+      fail("32 GiB reserve")
+    }
+    @fs.write_file(
+      root + "/" + cell + ".memory-before.txt",
+      memory,
+      create_mode=CreateNew,
+    )
+    let trials = if options is ["--smoke"] { 1 } else { 4 }
+    for trial in 0..<trials {
+      let name = cell + "-t\{trial}"
+      let jobs : Array[async () -> Json] = []
+      for row, input in lengths {
+        let rowname = name + "-r\{row}"
+        @fs.write_file(
+          root + "/" + rowname + ".body.json",
+          body(engine, token_ids(input, row, distribution), output).stringify(),
+          create_mode=CreateNew,
+        )
+        jobs.push(() => request(root, engine, rowname, output))
+      }
+      let started = @async.now()
+      let requests = @async.all(jobs, max_concurrent=concurrency)
+      let elapsed = @async.now() - started
+      let result : Json = {
+        "engine": engine,
+        "cell": cell,
+        "input_vector": lengths,
+        "output": output,
+        "concurrency": concurrency,
+        "trial": trial,
+        "warmup": trial == 0,
+        "wall_ms": elapsed,
+        "output_tokens_per_second": (output * concurrency).to_double() *
+        1000.0 /
+        elapsed.to_double(),
+        "requests": requests,
+      }
+      @fs.write_file(
+        root + "/" + name + ".json",
+        result.stringify(),
+        create_mode=CreateNew,
+      )
+      println("\{engine} \{name} \{elapsed} ms")
+    }
+  }
+}

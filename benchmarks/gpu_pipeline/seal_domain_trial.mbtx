@@ -24,6 +24,7 @@ fn archive_member(path : String) -> Bool {
   }
   path.has_suffix(".stdout") ||
   path.has_suffix(".stderr") ||
+  path.has_suffix(".sse") ||
   path.has_suffix(".json") ||
   path.has_suffix(".txt") ||
   path.has_suffix(".csv") ||
@@ -56,7 +57,7 @@ test "archive excludes build caches model weights and itself" {
   for
     path in [
       "fused/ingress/kernel.cubin", "campaign/luna-full/trace.sqlite", "r0-new/r0-luna-full/requests/i4096-o256-c16-t0.json",
-      "RESULT.txt",
+      "campaign/luna-full/requests/i32512-o256-c2-t3-r1.sse", "RESULT.txt",
     ] {
     assert_true(archive_member(path))
   }

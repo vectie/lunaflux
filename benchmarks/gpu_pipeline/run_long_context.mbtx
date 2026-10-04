@@ -1,0 +1,207 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, replacement : String) -> String raise {
+  let parts = text.split(old).to_array()
+  guard parts.length() == 2 else { fail("launcher seam changed: " + old) }
+  parts.join(replacement)
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, template, phase] &&
+    (phase.has_prefix("smoke") || phase == "measure") else {
+    fail("IMMUTABLE_BASE PREPARED_CONTEXT_ROOT MATCHED_LAUNCHER smoke|measure")
+  }
+  guard @fs.exists(root + "/PREPARED.json") else {
+    fail("prepared context deployment required")
+  }
+  let moon = base + "/toolchain/bin/moon"
+  let smoke = phase.has_prefix("smoke")
+  if smoke {
+    for name in ["toolchain", "source", "export.stdout"] {
+      if !@fs.exists(root + "/" + name) {
+        @shell.Cmd("ln", ["-s", base + "/" + name, root + "/" + name]).run()
+      }
+    }
+  } else {
+    guard @fs.exists(root + "/LONG_CONTEXT_SMOKE.txt") else {
+      fail("longest-context smoke first")
+    }
+  }
+  let campaign = root + "/" + phase
+  @fs.mkdir(campaign)
+  let original = @fs.read_file(template).text()
+  let tool = once(
+    original,
+    "let cmd = serving + \"/source/_build/native/release/build/cmd/\"",
+    "let cmd = " +
+    Json(base + "/source/_build/native/release/build/cmd/").stringify(),
+  )
+  let tool = once(tool, "        \"4096\",", "        \"32512\",")
+  let tool = once(
+    tool, "@fs.read_file(serving + \"/RESULT.txt\")\n    .text()\n    .has_prefix(\"outcome=completed\\n\")",
+    "@fs.exists(serving + \"/PREPARED.json\")",
+  )
+  let orders_start = "  // Latin square across three fresh starts; one identical warm-up per cell.\n"
+  let prefix = tool.split(orders_start).to_array()
+  guard prefix.length() == 2 else { fail("orders seam") }
+  let suffix = prefix[1].split("  let provenance : Json = {").to_array()
+  guard suffix.length() == 2 else { fail("provenance seam") }
+  let orders = if smoke {
+    [["luna-full"]]
+  } else {
+    [["vllm", "luna-full", "sglang"]]
+  }
+  let tool = prefix[0].to_owned() +
+    "  let orders = " +
+    Json(orders).stringify() +
+    "\n  let provenance : Json = {" +
+    suffix[1].to_owned()
+  let tool = once(
+    tool, "\"input_output_vector\": [[128, 32], [4096, 64], [4096, 256]],", "\"matrix\": \"client matrix.json records exact per-request lengths\",",
+  )
+  let tool = once(
+    tool, "\"concurrency_vector\": [16],", "\"max_input_tokens\": 32512,",
+  )
+  let tool = once(
+    tool, "--property=RuntimeMaxSec=900", "--property=RuntimeMaxSec=7200",
+  )
+  let tool = once(
+    tool, "components[components.length() - 2].to_owned()", "components[components.length() - 3].to_owned() + \"-\" + components[components.length() - 2].to_owned()",
+  )
+  let tool = once(
+    tool, "\"--property=MemoryMax=64G\",", "if phase == \"bridge\" { \"--property=MemoryMax=2G\" } else { \"--property=MemoryMax=64G\" },",
+  )
+  let prefix = "lunaflux-long-" +
+    root.split("/").to_array().last().unwrap().to_owned() +
+    "-"
+  let tool = once(
+    tool,
+    "\"lunaflux-remeasure-\" + engine + \"-53deab59\"",
+    Json(prefix).stringify() + " + engine",
+  )
+  let tool = once(
+    tool, "outcome=completed\\nscope=counterbalanced-C16-token-vector\\n", "outcome=completed\\nscope=long-context-within-model-capacity\\n",
+  )
+  let tool = if smoke {
+    once(
+      tool, "        root + \"/requests\",", "        root + \"/requests\",\n        \"--smoke\",",
+    )
+  } else {
+    tool
+  }
+  let script = campaign + "/launcher.mbtx"
+  @fs.write_file(script, tool, create_mode=CreateNew)
+  @fs.write_file(
+    script + ".client.mbtx",
+    @fs.read_file(root + "/long_context_client.mbtx"),
+    create_mode=CreateNew,
+  )
+  ignore(capture(campaign, "launcher-check", moon, ["check", script]))
+  ignore(
+    capture(campaign, "client-check", moon, [
+      "check",
+      script + ".client.mbtx",
+      "--deny-warn",
+    ]),
+  )
+  if phase == "measure" {
+    for engine in ["vllm", "sglang"] {
+      let inventory = @json.parse(
+        capture(campaign, engine + "-original", "docker", [
+          "inspect",
+          "lunaflux-remeasure-" + engine + "-53deab59",
+        ]),
+      )
+      guard inventory
+        is Array(
+          [{ "Image": String(image), "Config": { "Cmd": Array(raw), .. }, .. }]
+        ) else {
+        fail("reference image/config")
+      }
+      let command = raw.map(x => {
+        guard x is String(s) else { fail("argument") }
+        s
+      })
+      for i in 0..<(command.length() - 1) {
+        if command[i] == "--gpu-memory-utilization" ||
+          command[i] == "--mem-fraction-static" {
+          command[i + 1] = "0.4"
+        }
+      }
+      ignore(
+        capture(
+          campaign,
+          engine + "-create",
+          "docker",
+          [
+            "create",
+            "--name",
+            prefix + engine,
+            "--gpus",
+            "all",
+            "--network",
+            "host",
+            "--ipc",
+            "host",
+            "--memory",
+            "64g",
+            "--memory-swap",
+            "64g",
+            "--mount",
+            "type=bind,source=/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b,target=/model,readonly",
+            image,
+            ..command,
+          ],
+        ),
+      )
+    }
+  }
+  println("starting=" + phase)
+  ignore(
+    capture(campaign, "campaign", moon, ["run", script, root, campaign, script]),
+  )
+  if smoke {
+    @fs.write_file(
+      root + "/LONG_CONTEXT_SMOKE.txt",
+      campaign + "\n",
+      create_mode=CreateNew,
+    )
+  }
+  println("completed=" + phase)
+}

@@ -1,0 +1,157 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+fn reserve_min(text : String) -> Int64 raise {
+  let values = text
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(line => {
+      guard line.split(",").to_array() is [_, free] else {
+        fail("memory sample")
+      }
+      @string.parse_int64(free)
+    })
+  guard !values.is_empty() else { fail("memory samples missing") }
+  values.fold(init=values[0], (a, b) => Int64::min(a, b))
+}
+
+///|
+test "memory summary does not ignore a transient minimum" {
+  assert_eq(reserve_min("1,90000000\n2,33554432\n3,80000000\n"), 33554432L)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, summarizer, sealer] else {
+    fail("COMPLETED_CONTEXT_ROOT SUMMARIZER SEALER")
+  }
+  guard @fs.read_file(root + "/measure/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("unfinished matrix")
+  }
+  guard @json.parse(@fs.read_file(root + "/PREPARED.json").text())
+    is { "base_serving": String(base), .. } else {
+    fail("prepared base")
+  }
+  let moon = base + "/toolchain/bin/moon"
+  ignore(
+    capture(root, "summary", moon, [
+      "run",
+      summarizer,
+      root + "/measure",
+      root + "/comparison.json",
+    ]),
+  )
+  let memory : Map[String, Json] = Map([])
+  for engine in ["vllm", "luna-full", "sglang"] {
+    let minimum = reserve_min(
+      @fs.read_file(root + "/measure/r0-" + engine + "/memory.csv").text(),
+    )
+    guard minimum >= 33554432L else { fail("memory reserve breached") }
+    memory[engine] = { "minimum_mem_available_kib": minimum }
+    if engine != "luna-full" {
+      let container = "lunaflux-long-" +
+        root.split("/").to_array().last().unwrap().to_owned() +
+        "-" +
+        engine
+      ignore(capture(root, engine + "-logs", "docker", ["logs", container]))
+      let inventory = @json.parse(
+        capture(root, engine + "-terminal", "docker", ["inspect", container]),
+      )
+      guard inventory
+        is Array(
+          [{ "State": { "OOMKilled": False, "Running": False, .. }, .. }]
+        ) else {
+        fail("reference still running or OOM killed")
+      }
+    }
+  }
+  let idle = capture(root, "gpu-idle", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  guard idle.trim().is_empty() else { fail("GPU occupied after matrix") }
+  ignore(
+    capture(root, "gpu-identity", "nvidia-smi", [
+      "--query-gpu=uuid,name,memory.total", "--format=csv",
+    ]),
+  )
+  ignore(capture(root, "host-final", "cat", ["/proc/meminfo"]))
+  let bundle = root +
+    "/deployment/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3"
+  ignore(
+    capture(root, "attention-route-hex", "awk", [
+      "-F=", "$1==\"attention_bucket_routes_hex\" {print $2}", bundle,
+    ]),
+  )
+  let routes = capture(root, "attention-routes", "xxd", [
+    "-r",
+    "-p",
+    root + "/attention-route-hex.stdout",
+  ])
+  let mut maximum_context = 0
+  for line in routes.split("\n") {
+    if line.split("\t").to_array() is ["record", _, _, _, context, _, _, _] {
+      maximum_context = Int::max(maximum_context, @string.parse_int(context))
+    }
+  }
+  let coverage : Json = {
+    "maximum_measured_context_tokens": maximum_context,
+    "scope": "artifact route observations, not proof of executed route or bottleneck",
+  }
+  @fs.write_file(
+    root + "/route-coverage.json",
+    coverage.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "runtime-identities", "sha256sum", [
+      base + "/source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+      root + "/deployment/bin/lunaflux-device-worker",
+      bundle,
+    ]),
+  )
+  @fs.write_file(
+    root + "/memory-summary.json",
+    Json::object(memory).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=32-cell-long-context-comparison-not-1M-or-quality-validation\n",
+    create_mode=CreateNew,
+  )
+  ignore(capture(root, "archive", moon, ["run", sealer, root]))
+  println("completed=" + root)
+}

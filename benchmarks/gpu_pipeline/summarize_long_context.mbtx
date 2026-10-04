@@ -1,0 +1,232 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn numeric(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number required")
+  }
+}
+
+///|
+fn quantile(values : Array[Double], percentile : Double) -> Double raise {
+  guard !values.is_empty() else { fail("empty samples") }
+  let sorted = values.copy()
+  sorted.sort_by((a, b) => a.compare(b))
+  let position = (sorted.length() - 1).to_double() * percentile
+  let lower = position.to_int()
+  let upper = Int::min(lower + 1, sorted.length() - 1)
+  sorted[lower] +
+  (sorted[upper] - sorted[lower]) * (position - lower.to_double())
+}
+
+///|
+fn stats(values : Array[Double]) -> Json raise {
+  {
+    "p50_ms": quantile(values, 0.5),
+    "p95_ms": quantile(values, 0.95),
+    "min_ms": quantile(values, 0.0),
+    "max_ms": quantile(values, 1.0),
+    "samples_ms": values,
+  }
+}
+
+///|
+fn first_difference(a : Json, b : Json) -> Json raise {
+  guard a is Array(xs) && b is Array(ys) && xs.length() == ys.length() else {
+    fail("output lengths differ")
+  }
+  for i in 0..<xs.length() {
+    if xs[i] != ys[i] {
+      return { "index": i, "vllm_token": xs[i], "actual_token": ys[i] }
+    }
+  }
+  Json::null()
+}
+
+///|
+test "summary uses interpolated quantiles and detects token divergence" {
+  assert_eq(quantile([4.0, 1.0, 3.0, 2.0], 0.5), 2.5)
+  assert_eq(quantile([10.0], 0.95), 10.0)
+  assert_eq(numeric(Json("7319")), 7319.0)
+  assert_eq(first_difference(Json([1, 2]), Json([1, 2])), Json::null())
+  assert_true(first_difference(Json([1, 2]), Json([1, 3])) != Json::null())
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, campaign, output] else {
+    fail("COMPLETED_LONG_CONTEXT_CAMPAIGN NEW_JSON")
+  }
+  guard @fs.read_file(campaign + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("incomplete campaign")
+  }
+  guard @json.parse(
+      @fs.read_file(campaign + "/r0-vllm/requests/matrix.json").text(),
+    )
+    is Array(matrix) else {
+    fail("matrix")
+  }
+  let results : Array[Json] = []
+  for cell in matrix {
+    guard cell
+      is {
+        "cell": String(name),
+        "inputs": Array(inputs),
+        "output": Number(out, ..),
+        ..
+      } else {
+      fail("cell")
+    }
+    let engines : Map[String, Json] = Map([])
+    let mismatches : Array[Json] = []
+    let repeats : Array[Json] = []
+    let output_count = out.to_int()
+    for engine in ["vllm", "luna-full", "sglang"] {
+      let wall : Array[Double] = []
+      let ttft : Array[Double] = []
+      let tpot : Array[Double] = []
+      let intervals : Array[Double] = []
+      let decode : Array[Double] = []
+      let row_ttft : Array[Array[Double]] = Array::makei(inputs.length(), _ => {
+        []
+      })
+      let row_tpot : Array[Array[Double]] = Array::makei(inputs.length(), _ => {
+        []
+      })
+      let reference = @json.parse(
+        @fs.read_file(campaign + "/r0-vllm/requests/" + name + "-t1.json").text(),
+      )
+      guard reference is { "requests": Array(reference_requests), .. } else {
+        fail("reference")
+      }
+      let own = @json.parse(
+        @fs.read_file(
+          campaign + "/r0-" + engine + "/requests/" + name + "-t1.json",
+        ).text(),
+      )
+      guard own is { "requests": Array(own_requests), .. } else {
+        fail("engine reference")
+      }
+      for trial in 1..<4 {
+        let value = @json.parse(
+          @fs.read_file(
+            campaign + "/r0-" + engine + "/requests/" + name + "-t\{trial}.json",
+          ).text(),
+        )
+        guard value
+          is {
+            "warmup": False,
+            "input_vector": Array(actual_inputs),
+            "wall_ms": elapsed,
+            "requests": Array(requests),
+            ..
+          } &&
+          actual_inputs == inputs &&
+          requests.length() == inputs.length() else {
+          fail("work vector changed")
+        }
+        wall.push(numeric(elapsed))
+        for row, request in requests {
+          guard request
+            is {
+              "ttft_ms": first,
+              "mean_tpot_ms": mean,
+              "post_first_token_ms": post,
+              "token_ids": Array(ids),
+              "token_ms": Array(times),
+              ..
+            } &&
+            ids.length() == output_count &&
+            times.length() == output_count else {
+            fail("incomplete request")
+          }
+          ttft.push(numeric(first))
+          tpot.push(numeric(mean))
+          row_ttft[row].push(numeric(first))
+          row_tpot[row].push(numeric(mean))
+          decode.push(numeric(post))
+          for i in 1..<times.length() {
+            intervals.push(numeric(times[i]) - numeric(times[i - 1]))
+          }
+          guard reference_requests[row] is { "token_ids": expected, .. } else {
+            fail("reference ids")
+          }
+          let different = first_difference(expected, Json(ids))
+          if different != Json::null() {
+            mismatches.push({
+              "engine": engine,
+              "trial": trial,
+              "row": row,
+              "difference": different,
+            })
+          }
+          guard own_requests[row] is { "token_ids": own_ids, .. } else {
+            fail("engine reference ids")
+          }
+          let repeated = first_difference(own_ids, Json(ids))
+          if repeated != Json::null() {
+            repeats.push({
+              "engine": engine,
+              "trial": trial,
+              "row": row,
+              "difference": repeated,
+            })
+          }
+        }
+      }
+      let wall_median = quantile(wall, 0.5)
+      engines[engine] = {
+        "wall": stats(wall),
+        "ttft": stats(ttft),
+        "mean_tpot": stats(tpot),
+        "post_first_token": stats(decode),
+        "inter_token_arrival": stats(intervals),
+        "request_rows": Array::makei(inputs.length(), row => {
+          let record : Json = {
+            "row": row,
+            "input_tokens": inputs[row],
+            "ttft": stats(row_ttft[row]),
+            "mean_tpot": stats(row_tpot[row]),
+          }
+          record
+        }),
+        "output_tokens_per_second": (output_count * inputs.length()).to_double() *
+        1000.0 /
+        wall_median,
+      }
+      println(
+        "\{name} \{engine}: wall=\{wall_median} ms ttft=\{quantile(ttft, 0.5)} ms tpot=\{quantile(tpot, 0.5)} ms",
+      )
+    }
+    results.push({
+      "cell": cell,
+      "engines": Json::object(engines),
+      "token_agreement": mismatches.is_empty(),
+      "token_mismatches": mismatches,
+      "within_engine_repeatable": repeats.is_empty(),
+      "within_engine_mismatches": repeats,
+    })
+  }
+  let result : Json = {
+    "schema": "lunaflux.long-context-comparison.v1",
+    "campaign": campaign,
+    "trials_per_cell": 3,
+    "fresh_starts_per_engine": 1,
+    "warmups_excluded": true,
+    "time_resolution_ms": 1,
+    "decode_metric_scope": "client token arrivals after first token, includes scheduling, transport and mixed prefill; not isolated GPU decode",
+    "cells": results,
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+}
