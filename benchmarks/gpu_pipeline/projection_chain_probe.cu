@@ -87,7 +87,9 @@ struct Module {
     if (part != 2) launch_one(primary, first, args);
     if (secondary && part != 1) launch_one(secondary, second, args);
   }
-  float time(void** args, int part, const std::vector<void*>& weights) {
+  float time(void** args, int part, const std::vector<void*>& weights,
+             const std::vector<void*>& gate_weights,
+             const std::vector<void*>& up_weights) {
     for (int i = 0; i < 3; ++i) launch(args, part);
     CK(cudaDeviceSynchronize());
     cudaEvent_t begin, end;
@@ -99,6 +101,10 @@ struct Module {
         void* current[7];
         for (int j = 0; j < 7; ++j) current[j] = args[j];
         current[4] = const_cast<void**>(&weights[size_t(i) % weights.size()]);
+        if (!gate_weights.empty()) {
+          current[2] = const_cast<void**>(&gate_weights[size_t(i) % gate_weights.size()]);
+          current[3] = const_cast<void**>(&up_weights[size_t(i) % up_weights.size()]);
+        }
         launch(current, part);
       }
     }
@@ -116,19 +122,20 @@ static float at(const std::vector<unsigned char>& bytes, size_t index) {
 }
 
 int main(int argc, char** argv) {
-  if (argc < 18 || argc > 22) {
-    std::fprintf(stderr, "KIND OLD NEW TOKENS ROWS OLD_PRIMARY(grid block shared) OLD_DOWN(grid block shared) NEW_PRIMARY(grid block shared) NEW_DOWN(grid block shared) [--check] [--bounded-symbols] [--down-only-change] [--streaming-weights]\n");
+  if (argc < 18 || argc > 23) {
+    std::fprintf(stderr, "KIND OLD NEW TOKENS ROWS OLD_PRIMARY(grid block shared) OLD_DOWN(grid block shared) NEW_PRIMARY(grid block shared) NEW_DOWN(grid block shared) [--check] [--bounded-symbols] [--down-only-change] [--streaming-weights|--streaming-all-weights]\n");
     return 1;
   }
   const bool mlp = std::strcmp(argv[1], "mlp") == 0;
   if (!mlp && std::strcmp(argv[1], "output") != 0) return 1;
   const unsigned tokens = number(argv[4], 2048), rows = number(argv[5], 32);
-  bool check_only = false, bounded_symbols = false, down_only_change = false, streaming_weights = false;
+  bool check_only = false, bounded_symbols = false, down_only_change = false, streaming_weights = false, streaming_all = false;
   for (int i = 18; i < argc; ++i) {
     if (std::strcmp(argv[i], "--check") == 0 && !check_only) check_only = true;
     else if (std::strcmp(argv[i], "--bounded-symbols") == 0 && !bounded_symbols) bounded_symbols = true;
     else if (std::strcmp(argv[i], "--down-only-change") == 0 && !down_only_change && mlp) down_only_change = true;
     else if (std::strcmp(argv[i], "--streaming-weights") == 0 && !streaming_weights && mlp) streaming_weights = true;
+    else if (std::strcmp(argv[i], "--streaming-all-weights") == 0 && !streaming_weights && mlp) { streaming_weights = true; streaming_all = true; }
     else return 1;
   }
   if (tokens < rows || (bounded_symbols && tokens > 16)) return 1;
@@ -196,6 +203,7 @@ int main(int argc, char** argv) {
   if (check_only) return 0;
   std::vector<std::unique_ptr<Buffer>> weight_storage;
   std::vector<void*> weights;
+  std::vector<void*> gate_weights, up_weights;
   if (streaming_weights) {
     // Match a decoder's distinct layer-weight working set without timing
     // uploads or cache-flush kernels. Data are identical for A/B correctness.
@@ -203,14 +211,22 @@ int main(int argc, char** argv) {
       weight_storage.emplace_back(new Buffer(down.bytes));
       weight_storage.back()->fill(13);
       weights.push_back(weight_storage.back()->pointer);
+      if (streaming_all) {
+        weight_storage.emplace_back(new Buffer(gate.bytes));
+        weight_storage.back()->fill(7);
+        gate_weights.push_back(weight_storage.back()->pointer);
+        weight_storage.emplace_back(new Buffer(up.bytes));
+        weight_storage.back()->fill(11);
+        up_weights.push_back(weight_storage.back()->pointer);
+      }
     }
-    std::printf("weight_working_set=28-distinct-down-matrices bytes=%zu\n", 28 * down.bytes);
+    std::printf("weight_working_set=%s bytes=%zu\n", streaming_all ? "28-distinct-gate-up-down-matrices" : "28-distinct-down-matrices", 28 * (down.bytes + (streaming_all ? gate.bytes + up.bytes : 0)));
   }
   for (int part : mlp ? std::vector<int>{1, 2, 0} : std::vector<int>{0})
     for (int trial = 0; trial < 5; ++trial) {
       float before, after;
-      if (trial % 2) { after = now.time(args, part, weights); before = old.time(args, part, weights); }
-      else { before = old.time(args, part, weights); after = now.time(args, part, weights); }
+      if (trial % 2) { after = now.time(args, part, weights, gate_weights, up_weights); before = old.time(args, part, weights, gate_weights, up_weights); }
+      else { before = old.time(args, part, weights, gate_weights, up_weights); after = now.time(args, part, weights, gate_weights, up_weights); }
       std::printf("tokens=%u rows=%u part=%d trial=%d old_us=%.6f new_us=%.6f\n",
         tokens, rows, part, trial, before, after);
     }

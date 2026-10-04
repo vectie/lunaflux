@@ -1,0 +1,198 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn scalar(line : StringView, key : String) -> Double raise {
+  guard line.split(" ").filter(s => s.has_prefix(key + "=")).to_array()
+    is [field] else {
+    fail("exact timing field")
+  }
+  let value = @string.parse_double(field[key.length() + 1:])
+  guard value > 0.0 && value < 1.0e9 else { fail("positive finite timing") }
+  value
+}
+
+///|
+fn paired(output : String, part : Int) -> Json raise {
+  assert_true(output.contains("correctness=passed bitwise_chain=true"))
+  let lines = output
+    .split("\n")
+    .filter(s => s.has_prefix("tokens=") && s.contains(" part=\{part} "))
+    .to_array()
+  guard lines.length() == 5 else { fail("five paired measurements") }
+  let old : Array[Double] = []
+  let fresh : Array[Double] = []
+  let gains : Array[Double] = []
+  for i, line in lines {
+    assert_true(line.contains(" trial=\{i} "))
+    let a = scalar(line, "old_us")
+    let b = scalar(line, "new_us")
+    old.push(a)
+    fresh.push(b)
+    gains.push(1.0 - b / a)
+  }
+  let samples : Json = {
+    "baseline_us": old,
+    "candidate_us": fresh,
+    "paired_gain": gains,
+  }
+  old.sort()
+  fresh.sort()
+  gains.sort()
+  {
+    "part": part,
+    "samples": samples,
+    "baseline_median_us": old[2],
+    "candidate_median_us": fresh[2],
+    "median_paired_gain": gains[2],
+    "minimum_paired_gain": gains[0],
+    "decision": if gains[0] >= 0.03 {
+      "improved"
+    } else if gains[2] < 0.0 {
+      "regression"
+    } else {
+      "inconclusive"
+    },
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] && !@fs.exists(root + "/RESULT.txt") else {
+    fail("UNSEALED_EXPERIMENT_ROOT")
+  }
+  let mlp : Array[Json] = []
+  for tokens in [2, 8, 16] {
+    for variant in ["reservation", "bootstrap"] {
+      for cache in ["warm", "stream"] {
+        let label = variant + "-r\{tokens}-" + cache
+        let output = @fs.read_file(root + "/" + label + ".stdout").text()
+        assert_true(
+          @fs.read_file(root + "/" + label + ".stderr").text().is_empty(),
+        )
+        let record : Json = {
+          "label": label,
+          "parts": [paired(output, 1), paired(output, 2), paired(output, 0)],
+        }
+        mlp.push(record)
+        println(record.stringify())
+      }
+    }
+  }
+  let ingress : Array[Json] = []
+  for label in ["qkv", "qkv-controlled", "qkv-stream", "qkv-controlled-stream"] {
+    let records = @json.parse(
+      @fs.read_file(root + "/" + label + "-trial/summary.json").text(),
+    )
+    assert_true(
+      @fs.read_file(root + "/" + label + "-paired.stderr").text().is_empty(),
+    )
+    ingress.push({ "label": label, "workloads": records })
+  }
+  for prefix in ["", "ingress-t2-", "ingress-t4-"] {
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let output = @fs.read_file(root + "/" + prefix + tool + ".stdout").text()
+      assert_true(output.contains("correctness=passed"))
+      assert_true(output.contains("0 errors") || output.contains("0 hazards"))
+    }
+  }
+  let leak = @fs.read_file(root + "/ingress-stream-leak.stdout").text()
+  assert_true(leak.contains("LEAK SUMMARY: 0 bytes leaked"))
+  let summary : Json = {
+    "scope": "kernel diagnostics; no serving schedule promoted",
+    "projection": mlp,
+    "ingress": ingress,
+  }
+  @fs.write_file(
+    root + "/summary.json",
+    summary.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=two bounded compiler experiments; production changes rejected; shape/cache-sensitive QKV opportunity only\n",
+    create_mode=CreateNew,
+  )
+  // Archive only measured alternatives, not the exporter's untested frontier.
+  let listing = @shell.Cmd("find", [
+    root, "-maxdepth", "1", "-type", "f", "-printf", "%f\n",
+  ]).output()
+  listing.check()
+  let names = listing
+    .stdout()
+    .split("\n")
+    .filter(s => !s.is_empty())
+    .map(s => s.to_owned())
+    .to_array()
+  assert_true(names.all(s => !s.contains("/") && !s.contains("..")))
+  let directories = [
+    "qkv-baseline", "qkv-trial", "qkv-controlled-trial", "qkv-stream-trial", "qkv-controlled-stream-trial",
+    "qkv-candidates/reusable-qwen-full-ingress-ingress-g4-a2-s2-t2-f1", "qkv-candidates/reusable-qwen-full-ingress-ingress-g4-a2-s2-t4-f1",
+  ]
+  let sources = @shell.Cmd(
+    "find",
+    directories.map(s => root + "/" + s) + ["-type", "f"],
+  ).output()
+  sources.check()
+  let files = names.map(s => root + "/" + s) +
+    sources
+    .stdout()
+    .split("\n")
+    .filter(s => !s.is_empty())
+    .map(s => s.to_owned())
+    .to_array()
+  let hashes = @shell.Cmd("sha256sum", files).output(max_output_bytes=16777216)
+  hashes.check()
+  @fs.write_file(root + "/FILES.sha256", hashes.stdout(), create_mode=CreateNew)
+  let archive = root + "/measurement.tar.gz"
+  assert_false(@fs.exists(archive))
+  @shell.Cmd(
+    "tar",
+    [
+      "-czf", archive, "--exclude=_build", "--exclude=.mooncakes", "-C", root, ..names,
+      "FILES.sha256", ..directories,
+    ],
+  ).run()
+  let digest = @shell.Cmd("sha256sum", [archive]).output()
+  digest.check()
+  @fs.write_file(archive + ".sha256", digest.stdout(), create_mode=CreateNew)
+  @shell.Cmd("chmod", ["0444", archive]).run()
+  println(digest.stdout())
+}
+
+///|
+test "paired decision retains one losing sample instead of selecting median only" {
+  let text = "correctness=passed bitwise_chain=true\n" +
+    [0, 1, 2, 3, 4]
+    .map(i => {
+      "tokens=16 rows=16 part=1 trial=\{i} old_us=100 new_us=\{if i == 4 { 110 } else { 90 }}\n"
+    })
+    .join("")
+  guard paired(text, 1) is { "decision": String("inconclusive"), .. } else {
+    fail("lost regression")
+  }
+  for
+    invalid in [
+      "",
+      "correctness=passed bitwise_chain=true\n",
+      text + "tokens=16 rows=16 part=1 trial=5 old_us=100 new_us=90\n",
+    ] {
+    try paired(invalid, 1) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid sample count")
+    }
+  }
+}

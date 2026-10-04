@@ -1,0 +1,109 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("EXISTING_EXPERIMENT_ROOT") }
+  for schedule in ["t2", "t4"] {
+    let candidate = root +
+      "/qkv-candidates/reusable-qwen-full-ingress-ingress-g4-a2-s2-" +
+      schedule +
+      "-f1"
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let label = "ingress-" + schedule + "-" + tool
+      let args = [
+        "--tool",
+        tool,
+        "--error-exitcode",
+        "7",
+        "--force-blocking-launches",
+        ..if tool == "memcheck" {
+          ["--leak-check", "full"]
+        } else if tool == "racecheck" {
+          ["--racecheck-num-workers", "1"]
+        } else {
+          []
+        },
+        root + "/qkv-probe-stream",
+        root + "/ingress.spec",
+        root + "/qkv-baseline",
+        candidate,
+        "65",
+        "1",
+        "0",
+        "--check-only",
+      ]
+      @fs.write_file(
+        root + "/" + label + ".command.json",
+        Json(args).stringify(),
+        create_mode=CreateNew,
+      )
+      let result = @shell.Cmd(
+        "/usr/local/cuda-13.0/bin/compute-sanitizer", args,
+      ).output(max_output_bytes=16777216)
+      @fs.write_file(
+        root + "/" + label + ".stdout",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/" + label + ".stderr",
+        result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+      assert_true(result.stdout().contains("correctness=passed bitwise=true"))
+      assert_true(
+        result.stdout().contains("0 errors") ||
+        result.stdout().contains("0 hazards"),
+      )
+      println("completed=" + label)
+    }
+  }
+  // Exercise and release the new 28-allocation working-set mode under leak
+  // checking. Timing under the sanitizer is not used for speed decisions.
+  let args = [
+    "--tool",
+    "memcheck",
+    "--leak-check",
+    "full",
+    "--error-exitcode",
+    "7",
+    root + "/qkv-probe-stream",
+    root + "/ingress.spec",
+    root + "/qkv-baseline",
+    root + "/qkv-candidates/reusable-qwen-full-ingress-ingress-g4-a2-s2-t4-f1",
+    "16",
+    "16",
+    "0",
+    "--streaming-ingress-weights",
+  ]
+  @fs.write_file(
+    root + "/ingress-stream-leak.command.json",
+    Json(args).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd("/usr/local/cuda-13.0/bin/compute-sanitizer", args).output(
+    max_output_bytes=16777216,
+  )
+  @fs.write_file(
+    root + "/ingress-stream-leak.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/ingress-stream-leak.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  assert_true(result.stdout().contains("0 errors"))
+  assert_true(result.stdout().contains("LEAK SUMMARY: 0 bytes leaked"))
+  println("completed=ingress-stream-leak")
+}

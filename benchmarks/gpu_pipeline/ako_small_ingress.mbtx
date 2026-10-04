@@ -1,0 +1,185 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, .. options] &&
+    (options.is_empty() || options is ["controlled"]) else {
+    fail("IMMUTABLE_BASE EXPERIMENT_ROOT [controlled]")
+  }
+  let controlled = options is ["controlled"]
+  if !controlled {
+    guard @json.parse(
+        @fs.read_file(
+          "/home/wlc004s/lunaflux-domain-handoff-20261004.mHep11D2/export.command.json",
+        ).text(),
+      )
+      is Array(raw) else {
+      fail("export command")
+    }
+    let args = raw[1:].map(item => {
+      guard item is String(s) else { fail("argument") }
+      if s ==
+        "/home/wlc004s/lunaflux-domain-handoff-20261004.mHep11D2/candidates" {
+        root + "/qkv-candidates"
+      } else {
+        s
+      }
+    })
+    let exe = base +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe"
+    ignore(capture(root, "qkv-export", exe, args))
+    @fs.mkdir(root + "/qkv-baseline")
+    for name in ["kernel.cu", "kernel.recipe"] {
+      @fs.write_file(
+        root + "/qkv-baseline/" + name,
+        @fs.read_file(base + "/new-ingress/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      root + "/qkv-baseline/kernel.cubin",
+      @fs.read_file(base + "/fused/ingress.cubin"),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/ingress.spec",
+      @fs.read_file(base + "/ingress.spec"),
+      create_mode=CreateNew,
+    )
+  }
+  let candidate = root +
+    (if controlled {
+      "/qkv-candidates/reusable-qwen-full-ingress-ingress-g4-a2-s2-t2-f1"
+    } else {
+      "/qkv-candidates/reusable-qwen-full-ingress-ingress-g4-a2-s2-t4-f1"
+    })
+  let label = if controlled { "qkv-controlled" } else { "qkv" }
+  if controlled {
+    assert_eq(
+      @fs.read_file(
+        root +
+        "/qkv-candidates/reusable-qwen-full-ingress-ingress-g4-a2-s2-t2-f1-r4/kernel.cu",
+      ).text(),
+      @fs.read_file(root + "/qkv-baseline/kernel.cu").text(),
+    )
+  }
+  let recipe = @fs.read_file(candidate + "/kernel.recipe").text()
+  assert_eq(field(recipe, "query_tile_rows"), "16")
+  assert_eq(
+    field(recipe, "function_symbol"),
+    field(
+      @fs.read_file(root + "/qkv-baseline/kernel.recipe").text(),
+      "function_symbol",
+    ),
+  )
+  ignore(
+    capture(root, label + "-build", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      "--maxrregcount=255",
+      "-cubin",
+      candidate + "/kernel.cu",
+      "-o",
+      candidate + "/kernel.cubin",
+    ]),
+  )
+  if !controlled {
+    ignore(
+      capture(root, "qkv-probe-build", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        root + "/selected_policy_probe.cu",
+        "-lcuda",
+        "-o",
+        root + "/qkv-probe",
+      ]),
+    )
+  }
+  let workloads : Array[Json] = []
+  for tokens in [1, 2, 8, 16, 17, 32, 64, 128, 512] {
+    workloads.push({
+      "label": "t\{tokens}",
+      "args": [
+        root + "/ingress.spec",
+        root + "/qkv-baseline",
+        candidate,
+        tokens.to_string(),
+        (if tokens <= 32 { tokens } else { 1 }).to_string(),
+        "0",
+      ],
+    })
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": root + "/qkv-probe",
+    "artifacts": [
+      root + "/qkv-baseline/kernel.cubin",
+      root + "/qkv-baseline/kernel.recipe",
+      candidate + "/kernel.cubin",
+      candidate + "/kernel.recipe",
+      candidate + "/kernel.cu",
+    ],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/" + label + "-contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, label + "-paired", base + "/toolchain/bin/moon", [
+      "run",
+      root + "/ako_trial.mbtx",
+      root + "/" + label + "-contract.json",
+      root + "/" + label + "-trial",
+    ]),
+  )
+}

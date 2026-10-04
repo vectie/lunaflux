@@ -1,0 +1,93 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root] else {
+    fail("IMMUTABLE_BASE EXISTING_EXPERIMENT_ROOT")
+  }
+  capture(root, "qkv-stream-build", "/usr/local/cuda-13.0/bin/nvcc", [
+    "-O3",
+    "-arch=sm_121",
+    "--fmad=false",
+    root + "/selected_policy_probe_stream.cu",
+    "-lcuda",
+    "-o",
+    root + "/qkv-probe-stream",
+  ])
+  for label in ["qkv", "qkv-controlled"] {
+    guard @json.parse(
+        @fs.read_file(root + "/" + label + "-contract.json").text(),
+      )
+      is Object(fields) else {
+      fail("existing contract")
+    }
+    let fresh = fields.copy()
+    fresh["program"] = Json(root + "/qkv-probe-stream")
+    guard fresh["workloads"] is Array(workloads) else { fail("workloads") }
+    fresh["workloads"] = Json(
+      workloads.map(workload => {
+        guard workload is Object(old) && old["args"] is Array(args) else {
+          fail("arguments")
+        }
+        let changed = old.copy()
+        changed["args"] = Json([..args, Json("--streaming-ingress-weights")])
+        Json(changed)
+      }),
+    )
+    fresh["artifacts"] = Json(
+      [
+        Json(root + "/selected_policy_probe_stream.cu"),
+        Json(root + "/selected_policy_geometry.h"),
+        ..match fresh["artifacts"] {
+          Array(a) => a
+          _ => fail("artifacts")
+        },
+      ],
+    )
+    let contract = root + "/" + label + "-stream-contract.json"
+    @fs.write_file(
+      contract,
+      Json(fresh).stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    capture(root, label + "-stream-paired", base + "/toolchain/bin/moon", [
+      "run",
+      root + "/ako_trial.mbtx",
+      contract,
+      root + "/" + label + "-stream-trial",
+    ])
+  }
+}

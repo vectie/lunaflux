@@ -1,0 +1,183 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root] else {
+    fail("IMMUTABLE_BASE NEW_EXPERIMENT_ROOT")
+  }
+  let device = capture(root, "device", "nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ])
+  assert_eq(device.trim(), "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6")
+  assert_true(
+    capture(root, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  let available = @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .find_first(s => s.has_prefix("MemAvailable:"))
+    .unwrap()
+  assert_true(
+    @string.parse_int64(
+      available.split(" ").filter(s => !s.is_empty()).to_array()[1],
+    ) >=
+    33554432L,
+  )
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  ignore(
+    capture(root, "build-probe", nvcc, [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      root + "/projection_chain_probe.cu",
+      "-lcuda",
+      "-o",
+      root + "/probe-stream",
+    ]),
+  )
+  for name in ["gate-before", "gate-after-v2"] {
+    ignore(
+      capture(root, "build-" + name, nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        "--maxrregcount=255",
+        "-cubin",
+        root + "/" + name + ".cu",
+        "-o",
+        root + "/" + name + ".cubin",
+      ]),
+    )
+  }
+  let old = base +
+    "/release/payload/sha256/bf10e22f8213f89a8a99f4530e1928051111f670101b84b0785201918ab949fe.cubin"
+  ignore(
+    capture(root, "hashes", "sha256sum", [
+      old,
+      root + "/gate-before.cubin",
+      root + "/gate-after-v2.cubin",
+      root + "/probe-stream",
+    ]),
+  )
+  for tokens in [2, 8, 16] {
+    for
+      (name, candidate, shared) in [
+        ("reservation", old, "0"),
+        ("bootstrap", root + "/gate-after-v2.cubin", "16384"),
+      ] {
+      for streaming in [false, true] {
+        let label = name +
+          "-r\{tokens}-" +
+          (if streaming { "stream" } else { "warm" })
+        let args = [
+            "mlp",
+            old,
+            candidate,
+            tokens.to_string(),
+            tokens.to_string(),
+            "96",
+            "64",
+            "16384",
+            "64",
+            "32",
+            "0",
+            "96",
+            "64",
+            shared,
+            "64",
+            "32",
+            "0",
+            "--bounded-symbols",
+          ] +
+          (if streaming { ["--streaming-all-weights"] } else { [] })
+        let out = capture(root, label, root + "/probe-stream", args)
+        assert_true(out.contains("correctness=passed bitwise_chain=true"))
+        println("completed=" + label)
+      }
+    }
+  }
+  for tool in ["memcheck", "racecheck", "synccheck"] {
+    let out = capture(
+      root,
+      tool,
+      "/usr/local/cuda-13.0/bin/compute-sanitizer",
+      [
+        "--tool",
+        tool,
+        "--error-exitcode",
+        "7",
+        "--force-blocking-launches",
+        ..if tool == "memcheck" {
+          ["--leak-check", "full"]
+        } else {
+          []
+        },
+        root + "/probe-stream",
+        "mlp",
+        old,
+        root + "/gate-after-v2.cubin",
+        "16",
+        "16",
+        "96",
+        "64",
+        "16384",
+        "64",
+        "32",
+        "0",
+        "96",
+        "64",
+        "16384",
+        "64",
+        "32",
+        "0",
+        "--bounded-symbols",
+        "--check",
+      ],
+    )
+    assert_true(out.contains("correctness=passed"))
+  }
+  @fs.write_file(
+    root + "/PROJECTION_RESULT.txt",
+    "outcome=completed\nscope=paired small-row gate/up bootstrap and launch-reservation diagnostics; serving not yet changed\n",
+    create_mode=CreateNew,
+  )
+}

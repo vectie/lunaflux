@@ -10,6 +10,7 @@
 #include <cstring>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -100,10 +101,21 @@ struct Kernel {
       CK(cuLaunchKernel(merge,gx,merge_y,1,b,1,1,0,nullptr,combine,nullptr));
     }else{CK(cuLaunchKernel(function,gx,gy,1,b,1,1,shared,nullptr,a,nullptr));}
   }
-  double time(void** a){
-    for(int i=0;i<3;i++)launch(a);CK(cudaDeviceSynchronize());
+  double time(void** a,const std::vector<std::unique_ptr<Buffer>>& weights={}){
+    auto repeat=[&](int i){
+      if(weights.empty()){launch(a);return;}
+      // Immutable, independently allocated layer operands. Pointer selection
+      // is outside the device work; no uploads or cache flushes are timed.
+      void* selected[16];std::copy(a,a+16,selected);
+      const int layer=i%28;
+      selected[7]=&weights[layer*3]->p;
+      selected[8]=&weights[layer*3+1]->p;
+      selected[9]=&weights[layer*3+2]->p;
+      launch(selected);
+    };
+    for(int i=0;i<(weights.empty()?3:28);i++)repeat(i);CK(cudaDeviceSynchronize());
     cudaEvent_t start,end;CK(cudaEventCreate(&start));CK(cudaEventCreate(&end));
-    CK(cudaEventRecord(start));for(int i=0;i<30;i++)launch(a);
+    CK(cudaEventRecord(start));for(int i=0;i<30;i++)repeat(i);
     CK(cudaEventRecord(end));CK(cudaEventSynchronize(end));float ms;CK(cudaEventElapsedTime(&ms,start,end));
     CK(cudaEventDestroy(start));CK(cudaEventDestroy(end));return ms*1000.0/30;
   }
@@ -116,17 +128,19 @@ static std::vector<__nv_bfloat16> values(size_t n,int salt){
 static bool same(const std::vector<__nv_bfloat16>& a,const std::vector<__nv_bfloat16>& b){return a.size()==b.size()&&!std::memcmp(a.data(),b.data(),a.size()*2);}
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc<7 || argc>11)return 1;
-  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false;
+  if(argc<7 || argc>12)return 1;
+  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
     else if(std::string(argv[i])=="--decode-envelope" && !decode_envelope)decode_envelope=true;
     else if(std::string(argv[i])=="--decode-partitioned" && !partitioned)partitioned=true;
+    else if(std::string(argv[i])=="--streaming-ingress-weights" && !streaming)streaming=true;
     else return 1;
   }
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
   const bool ingress=kind=="ingress",decode=kind=="decode",postprocess=kind=="postprocess";
+  if(streaming&&!ingress)return 1;
   const int tokens=std::stoi(argv[4]),rows=std::stoi(argv[5]),past=std::stoi(argv[6]);
   const int qh=number(spec,"query_heads"),kh=number(spec,"key_value_heads"),d=number(spec,"head_dimension");
   const int input_width=number(spec,"input_width"),page=number(spec,"tokens_per_page"),stride=number(spec,"page_stride_values");
@@ -266,8 +280,27 @@ int main(int argc,char**argv){
     std::printf("rotary_cache preparation_us=%.6f bytes=%zu consumer_timing_excludes_preparation=true\n",ms*10.0,rotary.bytes);
   }
   if(check_only){std::printf("correctness=passed bitwise=%s maxabs=%g oracle_maxabs=%g\n",bitwise?"true":"false",error,oracle_error);return 0;}
+  std::vector<std::unique_ptr<Buffer>> layer_weights;
+  if(streaming){
+    size_t total=28*(qw.bytes+kw.bytes+vw.bytes);
+    if(total>1024ULL*1024*1024)return 1;
+    for(int layer=0;layer<28;layer++)for(int operand=0;operand<3;operand++){
+      size_t bytes=operand==0?qw.bytes:kw.bytes;
+      auto weight=std::make_unique<Buffer>(bytes);
+      weight->put(values(bytes/2,operand==0?7:(operand==1?11:13)));
+      layer_weights.push_back(std::move(weight));
+    }
+    std::printf("working_set mode=distinct-layer-weights layers=28 bytes=%zu identical_values=true\n",total);
+    // Validate every rotated allocation, not just the original oracle pair.
+    for(int layer=0;layer<28;layer++){
+      void* selected[16];std::copy(args,args+16,selected);
+      for(int operand=0;operand<3;operand++)selected[7+operand]=&layer_weights[layer*3+operand]->p;
+      candidate.launch(selected);CK(cudaDeviceSynchronize());
+      if(!same(expected,out.read())||!same(expected_key,dk.read())||!same(expected_value,dv.read()))return 3;
+    }
+  }
   for(int trial=0;trial<5;trial++){
-    double a,b;if(trial%2){b=candidate.time(args);a=baseline.time(args);}else{a=baseline.time(args);b=candidate.time(args);}
+    double a,b;if(trial%2){b=candidate.time(args,layer_weights);a=baseline.time(args,layer_weights);}else{a=baseline.time(args,layer_weights);b=candidate.time(args,layer_weights);}
     std::printf("tokens=%d rows=%d history=%d trial=%d old_us=%.6f new_us=%.6f bitwise=%s maxabs=%g oracle_maxabs=%g\n",tokens,rows,past,trial,a,b,bitwise?"true":"false",error,oracle_error);
   }
 }
