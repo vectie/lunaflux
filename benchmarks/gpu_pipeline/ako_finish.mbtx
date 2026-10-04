@@ -1,0 +1,197 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, phase] else {
+    fail("COMPLETED_AB_ROOT validate|confirm-admin|seal")
+  }
+  for side in ["control", "tuned"] {
+    assert_true(
+      @fs.read_file(root + "/" + side + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    for round in 0..<2 {
+      let run = root + "/" + side + "/r\{round}-luna-full"
+      assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+      for line in @fs.read_file(run + "/memory.csv").text().split("\n") {
+        if !line.is_empty() {
+          assert_true(
+            @string.parse_int64(line.split(",").to_array()[1]) >= 33554432L,
+          )
+        }
+      }
+    }
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  if phase == "validate" {
+    @fs.mkdir(root + "/validation")
+    let out = root + "/validation"
+    let args = [
+      root + "/prefill.spec",
+      root + "/baseline",
+      root + "/candidate-probe",
+      "1792",
+      "1",
+      "30720",
+      "--check-only",
+    ]
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let text = capture(
+        out,
+        tool,
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        ["--tool", tool, "--error-exitcode", "99", root + "/probe", ..args],
+      )
+      assert_true(text.contains("0 errors") || text.contains("0 hazards"))
+    }
+    ignore(
+      capture(
+        out,
+        "counters",
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+        [
+          "--set",
+          "basic",
+          "--clock-control",
+          "none",
+          "--cache-control",
+          "all",
+          "--export",
+          out + "/selected-kernels",
+          "--target-processes",
+          "all",
+          root + "/probe",
+          ..args,
+        ],
+      ),
+    )
+    @fs.write_file(
+      out + "/RESULT.txt",
+      "outcome=passed\nscope=32K partial-chunk selected kernel pair\n",
+      create_mode=CreateNew,
+    )
+  } else if phase == "confirm-admin" {
+    let out = root + "/validation"
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let text = @fs.read_file(out + "/" + tool + ".stdout").text()
+      assert_true(text.contains("0 errors") || text.contains("0 hazards"))
+      assert_true(text.contains("correctness=passed"))
+    }
+    // Read the completed, externally memory/time-bounded administrator replay.
+    // Never change counter permissions or silently erase the non-admin failure.
+    ignore(
+      capture(
+        out,
+        "counter-import",
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+        [
+          "--import",
+          out + "/selected-kernels-admin.ncu-rep",
+          "--page",
+          "raw",
+          "--csv",
+        ],
+      ),
+    )
+    @fs.write_file(
+      out + "/RESULT.txt",
+      "outcome=passed\nscope=32K partial-chunk pair; admin counter replay after preserved permission failure\n",
+      create_mode=CreateNew,
+    )
+  } else if phase == "seal" {
+    assert_true(@fs.exists(root + "/serving-comparison.json"))
+    assert_true(@fs.exists(root + "/validation/RESULT.txt"))
+    assert_true(!@fs.exists(root + "/measurement.tar.gz"))
+    ignore(
+      capture(root, "archive", "tar", [
+        "-czf",
+        root + "/measurement.tar.gz",
+        "--exclude=_build",
+        "--exclude=.mooncakes",
+        "-C",
+        root,
+        "trial",
+        "control",
+        "tuned",
+        "validation",
+        "routes.v1",
+        "rebind.stdout",
+        "serving-comparison.json",
+        "long/PREPARED.json",
+        "long/preflight.stdout",
+        "long/preflight.stderr",
+        "trial.json",
+        "prefill.spec",
+        "baseline",
+        "candidate-probe",
+        "probe",
+        "selected_policy_probe.cu",
+        "selected_policy_geometry.h",
+        "ako_trial.mbtx",
+        "ako_long_prefill.mbtx",
+        "ako_serving_trial_v2.mbtx",
+        "ako_report.mbtx",
+        "ako_finish_admin.mbtx",
+        "prepare-canonical-release.mbtx",
+        "prepare-long-canonical.mbtx",
+        "fused-routed/reusable-fused-runtime-bundle.v3",
+      ]),
+    )
+    let hash = capture(root, "archive-sha", "sha256sum", [
+      root + "/measurement.tar.gz",
+    ])
+    @fs.write_file(
+      root + "/measurement.tar.gz.sha256",
+      hash,
+      create_mode=CreateNew,
+    )
+    @shell.Cmd("chmod", ["0444", root + "/measurement.tar.gz"]).run()
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=offline AKO route-selection experiment; not production promotion\n",
+      create_mode=CreateNew,
+    )
+  } else {
+    fail("phase")
+  }
+}
