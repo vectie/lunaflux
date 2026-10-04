@@ -36,6 +36,38 @@ fn number(text : String) -> Int64 raise {
 }
 
 ///|
+// A stall sample names a waiting instruction, not necessarily its producer.
+// Preserve nearby SASS for inspection without inventing a dependency edge:
+// predicates, dynamic execution and scoreboard IDs require separate analysis.
+fn instruction_window(
+  instructions : Array[Json],
+  pc : String,
+) -> Array[Json] {
+  for index, instruction in instructions {
+    if instruction is { "pc": String(address), .. } && address == pc {
+      let first = Int::max(0, index - 8)
+      let last = Int::min(instructions.length(), index + 3)
+      return instructions[first:last].to_owned()
+    }
+  }
+  []
+}
+
+///|
+test "sample windows retain producers without claiming causality" {
+  let instructions : Array[Json] = Array::makei(16, i => {
+    "pc": "p\{i}", "instruction": "instruction\{i}",
+  })
+  let middle = instruction_window(instructions, "p10")
+  assert_eq(middle.length(), 11)
+  assert_eq(middle[0], instructions[2])
+  assert_eq(middle[10], instructions[12])
+  assert_eq(instruction_window(instructions, "p0").length(), 3)
+  assert_eq(instruction_window(instructions, "p15").length(), 9)
+  assert_eq(instruction_window(instructions, "absent"), [])
+}
+
+///|
 async fn main {
   let (path, output) = match @env.args() {
     [_, root] =>
@@ -57,6 +89,7 @@ async fn main {
   let mut stalls : Array[(Int64, Json)] = []
   let mut sectors = 0L
   let mut conflicts = 0L
+  let mut instructions : Array[Json] = []
   fn finish() -> Unit {
     if name.is_empty() {
       return
@@ -95,6 +128,17 @@ async fn main {
         Json::null()
       },
       "top_stall_pcs": stalls[:Int::min(12, stalls.length())].map(p => p.1),
+      "sample_instruction_windows": stalls[:Int::min(12, stalls.length())]
+        .map(p => {
+          match p.1 {
+            { "pc": String(pc), .. } => Json({
+              "sample": p.1,
+              "instructions": Json(instruction_window(instructions, pc)),
+              "scope": "static context only; sample identifies a waiting instruction, not its producer or root cause",
+            })
+            _ => Json::null()
+          }
+        }),
     })
   }
   for line in @fs.read_file(path).text().split("\n") {
@@ -107,6 +151,7 @@ async fn main {
       stalls = []
       sectors = 0L
       conflicts = 0L
+      instructions = []
       continue
     }
     if row.length() > 1 && row[0] == "Address" {
@@ -127,6 +172,7 @@ async fn main {
       continue
     }
     let opcode = words[if words[0].has_prefix("@") { 1 } else { 0 }].to_owned()
+    instructions.push({ "pc": row[0], "instruction": row[1] })
     ops[opcode] = ops.get(opcode).unwrap_or(0L) +
       number(values.get("Instructions Executed").unwrap_or("0"))
     sectors += number(values.get("L2 Theoretical Sectors Local").unwrap_or("0"))

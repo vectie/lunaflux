@@ -37,6 +37,15 @@ fn metrics(text : String) -> Map[String, String] raise {
 }
 
 ///|
+test "missing memory counters remain unavailable, distinct from measured zero" {
+  let values = metrics("\"gpu__time_duration.sum\",\"derived__local_spilling_requests\"\n\"ns\",\"requests\"\n\"123456\",\"0\"\n")
+  assert_eq(values.get("gpu__time_duration.sum"), Some("123456"))
+  assert_eq(values.get("derived__local_spilling_requests"), Some("0"))
+  assert_eq(values.get("dram__bytes_read.sum"), None)
+  assert_eq(values.get("dram__bytes_read.sum").unwrap_or("unavailable"), "unavailable")
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root] else { fail("PAIRED_COUNTER_ROOT") }
   let old = metrics(@fs.read_file(root + "/old-raw.stdout").text())
@@ -48,6 +57,10 @@ async fn main {
     "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio", "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio",
     "smsp__average_warps_issue_stalled_wait_per_issue_active.ratio", "smsp__issue_active.avg.pct_of_peak_sustained_active",
     "derived__memory_l1_wavefronts_shared_excessive", "derived__local_spilling_requests",
+    "dram__bytes_read.sum", "dram__bytes_write.sum", "dram__bytes.sum",
+    "dram__throughput.avg.pct_of_peak_sustained_elapsed",
+    "lts__throughput.avg.pct_of_peak_sustained_elapsed",
+    "smsp__warps_eligible.avg.per_cycle_active",
   ]
   for key in keys {
     println(
