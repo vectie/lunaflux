@@ -1,0 +1,179 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn captured(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(program, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+fn decode_spec(ingress : String) -> String {
+  // Attention consumes concatenated Q/K/V, not the projection input width.
+  ingress
+  .replace(old="kind=ingress", new="kind=decode")
+  .replace(old="input_width=1024", new="input_width=4096")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root] else { fail("IMMUTABLE_BASE NEW_ROOT") }
+  @fs.mkdir(root)
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  captured(root, "build-probe", nvcc, [
+    "-O3",
+    "-arch=sm_121",
+    "--fmad=false",
+    root + "/../selected_policy_probe.cu",
+    "-lcuda",
+    "-o",
+    root + "/probe",
+  ])
+  @fs.write_file(
+    root + "/decode.spec",
+    decode_spec(@fs.read_file(base + "/ingress.spec").text()),
+    create_mode=CreateNew,
+  )
+  @fs.mkdir(root + "/baseline")
+  @fs.write_file(
+    root + "/baseline/kernel.recipe",
+    @fs.read_file(base + "/decode-selected/kernel.recipe"),
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  @fs.write_file(
+    root + "/baseline/kernel.cubin",
+    @fs.read_file(base + "/fused/attention.cubin"),
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  // Finite, predeclared alternatives: serial, blockwise single-stage, and
+  // blockwise four-owner. No FMA/reassociation relaxation is introduced.
+  for id in [400, 450, 464] {
+    let candidate = root + "/c\{id}"
+    @fs.mkdir(candidate)
+    let source = base + "/candidate/reusable-qwen-decode-attention-c\{id}"
+    for name in ["kernel.cu", "kernel.recipe"] {
+      @fs.write_file(
+        candidate + "/" + name,
+        @fs.read_file(source + "/" + name),
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+    }
+    captured(root, "build-c\{id}", nvcc, [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      "--maxrregcount=255",
+      "-cubin",
+      candidate + "/kernel.cu",
+      "-o",
+      candidate + "/kernel.cubin",
+    ])
+    let workloads : Array[Json] = []
+    for rows in [1, 8, 16] {
+      for history in [128, 256, 512, 1024, 4096] {
+        workloads.push({
+          "label": "r\{rows}-h\{history}",
+          "args": [
+            root + "/decode.spec",
+            root + "/baseline",
+            candidate,
+            rows.to_string(),
+            rows.to_string(),
+            history.to_string(),
+          ],
+        })
+      }
+    }
+    let contract : Json = {
+      "schema": "lunaflux-ako-trial-v1",
+      "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.03,
+      "program": root + "/probe",
+      "artifacts": [
+        root + "/decode.spec",
+        root + "/baseline/kernel.recipe",
+        root + "/baseline/kernel.cubin",
+        candidate + "/kernel.recipe",
+        candidate + "/kernel.cubin",
+        candidate + "/kernel.cu",
+      ],
+      "workloads": workloads,
+    }
+    @fs.write_file(
+      root + "/c\{id}.json",
+      contract.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    // Keep each failed candidate and continue the declared experiment set.
+    let result = @shell.Cmd(base + "/toolchain/bin/moon", [
+      "run",
+      root + "/../ako_trial.mbtx",
+      root + "/c\{id}.json",
+      root + "/trial-c\{id}",
+    ]).output(max_output_bytes=16777216)
+    @fs.write_file(
+      root + "/trial-c\{id}.stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/trial-c\{id}.stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    let succeeded = try {
+      result.check()
+      true
+    } catch {
+      _ => false
+    }
+    @fs.write_file(
+      root + "/trial-c\{id}.status",
+      if succeeded {
+        "completed\n"
+      } else {
+        "failed; inspect retained evidence\n"
+      },
+      create_mode=CreateNew,
+    )
+  }
+  println("finite alternatives completed=" + root)
+}
+
+///|
+test "decode calibration consumes complete QKV rows" {
+  assert_eq(
+    decode_spec("kind=ingress\ninput_width=1024\n"),
+    "kind=decode\ninput_width=4096\n",
+  )
+}

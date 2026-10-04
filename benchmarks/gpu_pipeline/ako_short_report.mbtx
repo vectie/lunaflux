@@ -1,0 +1,171 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("empty measurements") }
+  let sorted = values.copy()
+  sorted.sort()
+  (sorted[(sorted.length() - 1) / 2] + sorted[sorted.length() / 2]) / 2.0
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_SHORT_EXPERIMENT") }
+  assert_true(
+    @fs.read_file(root + "/control/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  let serving : Array[Json] = []
+  for (input, output) in [(128, 32), (512, 64)] {
+    for rows in [1, 8, 16] {
+      let cell = "i\{input}-o\{output}-c\{rows}"
+      let wall : Array[Double] = []
+      let first : Array[Double] = []
+      let gaps : Array[Double] = []
+      let vectors : Array[Json] = []
+      let mut same_vectors = 0
+      for round in 0..<3 {
+        for trial in 1..<4 {
+          let record = @json.parse(
+            @fs.read_file(
+              root +
+              "/control/r\{round}-luna-full/requests/\{cell}-t\{trial}.json",
+            ).text(),
+          )
+          guard record
+            is {
+              "wall_ms": time,
+              "warmup": false,
+              "requests": Array(requests),
+              ..
+            } else {
+            fail("measured request set")
+          }
+          assert_eq(requests.length(), rows)
+          wall.push(number(time))
+          let current : Array[Json] = []
+          for request in requests {
+            guard request
+              is {
+                "ttft_ms": ttft,
+                "token_ms": Array(token_ms),
+                "token_ids": Array(token_ids),
+                ..
+              } else {
+              fail("token vectors")
+            }
+            assert_eq(token_ids.length(), output)
+            assert_eq(token_ms.length(), output)
+            first.push(number(ttft))
+            for i in 1..<output {
+              gaps.push(number(token_ms[i]) - number(token_ms[i - 1]))
+            }
+            current.push(Json(token_ids))
+          }
+          let current = Json(current)
+          if vectors.is_empty() || current == vectors[0] {
+            same_vectors += 1
+          }
+          vectors.push(current)
+        }
+      }
+      let record : Json = {
+        "cell": cell,
+        "wall_ms": wall,
+        "median_wall_ms": median(wall),
+        "output_tokens_per_second": output.to_double() *
+        rows.to_double() *
+        1000.0 /
+        median(wall),
+        "request_median_ttft_ms": median(first),
+        "request_median_token_gap_ms": median(gaps),
+        "same_output_vectors_as_first": same_vectors,
+        "measured_waves": 9,
+        "scope": "fixed-work serving; output-vector reproducibility is not quality/reference parity",
+      }
+      serving.push(record)
+      println(record.stringify())
+    }
+  }
+  let decode : Array[Json] = []
+  for id in [400, 450, 464] {
+    let records = @json.parse(
+      @fs.read_file(root + "/decode-v2/trial-c\{id}/summary.json").text(),
+    )
+    guard records is Array(records) else { fail("paired records") }
+    for record in records {
+      guard record
+        is {
+          "label": String(label),
+          "metrics": {
+            "baseline_median_us": old,
+            "candidate_median_us": fresh,
+            "minimum_paired_gain": minimum,
+            "decision": verdict,
+            ..
+          },
+          ..
+        } else {
+        fail("paired metrics")
+      }
+      let compact : Json = {
+        "candidate": id,
+        "shape": label,
+        "baseline_us": old,
+        "candidate_us": fresh,
+        "minimum_paired_gain": minimum,
+        "decision": verdict,
+      }
+      decode.push(compact)
+      println(compact.stringify())
+    }
+  }
+  let counters = @shell.Cmd("/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+    "--import",
+    root + "/decode-v2/c464-short-counters.ncu-rep",
+    "--page",
+    "raw",
+    "--csv",
+  ]).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/counters.csv",
+    counters.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/counters.stderr",
+    counters.stderr(),
+    create_mode=CreateNew,
+  )
+  counters.check()
+  let summary : Json = { "serving": serving, "decode": decode }
+  @fs.write_file(
+    root + "/summary.json",
+    summary.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "median supports the nine-wave serving and five-pair probe counts" {
+  assert_eq(median([9.0, 1.0, 7.0, 2.0, 3.0, 8.0, 4.0, 5.0, 6.0]), 5.0)
+  assert_eq(median([2.0, 1.0]), 1.5)
+}

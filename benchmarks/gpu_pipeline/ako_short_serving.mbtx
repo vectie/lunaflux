@@ -1,0 +1,118 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  let parts = text.split(before).to_array()
+  guard parts.length() == 2 else { fail("frozen campaign seam changed") }
+  parts.join(after)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, serving, base, root, mode] else {
+    fail(
+      "FROZEN_CAMPAIGN PREPARED_SERVING IMMUTABLE_BASE NEW_ROOT timing|trace",
+    )
+  }
+  guard mode == "timing" || mode == "trace" else { fail("mode") }
+  @fs.mkdir(root)
+  let moon = base + "/toolchain/bin/moon"
+  let client = once(
+    @fs.read_file(base + "/benchmark.mbtx").text(),
+    "[(128,32),(4096,64),(4096,256)]",
+    if mode == "trace" {
+      "[(128,32)]"
+    } else {
+      "[(128,32),(512,64)]"
+    },
+  )
+  let client = if mode == "trace" {
+    once(once(client, "[1,8,16]", "[16]"), "0..<4", "0..<2")
+  } else {
+    client
+  }
+  let tool = once(
+    @fs.read_file(frozen + "/measure/launcher.mbtx").text(),
+    "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]",
+    if mode == "trace" {
+      "let orders = [[\"luna-full\"]]"
+    } else {
+      "let orders = [[\"luna-full\"],[\"luna-full\"],[\"luna-full\"]]"
+    },
+  )
+  let tool = if mode == "trace" {
+    // Reuse the qualified offline profiler launcher, not the marker worker.
+    // The serving launch retains the immutable ordinary worker and AOT set.
+    let diagnostic = "/home/wlc004s/lunaflux-domain-handoff-trace-20261004.hlmKsGE4/campaign/luna-full/source/_build/native/release/build/"
+    let tool = once(
+      tool,
+      "let cmd = \"/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/source/_build/native/release/build/cmd/\"",
+      "let cmd = \"" + diagnostic + "cmd/\"",
+    )
+    once(
+      tool,
+      "serving +\n        \"/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe\",\n        [",
+      "\"/usr/local/bin/nsys\",\n        [\"profile\",\"--trace=cuda\",\"--sample=none\",\"--cpuctxsw=none\",\"--cuda-graph-trace=node\",\"--trace-fork-before-exec=true\",\"--wait=all\",\"-o\",root+\"/trace\",\"" +
+      diagnostic +
+      "tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe\",",
+    )
+  } else {
+    tool
+  }
+  let script = root + "/launcher.mbtx"
+  @fs.write_file(script, tool, create_mode=CreateNew)
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  for path in [script, script + ".client.mbtx"] {
+    @shell.Cmd(moon, ["check", path]).run()
+  }
+  let result = @shell.Cmd(moon, ["run", script, serving, root, script]).output(
+    max_output_bytes=33554432,
+  )
+  @fs.write_file(
+    root + "/campaign.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/campaign.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  if mode == "trace" {
+    let trial = root + "/r0-luna-full"
+    @shell.Cmd("/usr/local/bin/nsys", [
+      "export",
+      "--type=sqlite",
+      "--output=" + trial + "/trace.sqlite",
+      trial + "/trace.nsys-rep",
+    ]).run()
+    let query = @shell.Cmd("sqlite3", [
+      "-header",
+      "-csv",
+      trial + "/trace.sqlite",
+      "SELECT s.value AS kernel,k.gridX,k.gridY,k.blockX,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.blockX ORDER BY total_ms DESC;",
+    ]).output()
+    @fs.write_file(root + "/kernels.csv", query.stdout(), create_mode=CreateNew)
+    query.check()
+  }
+  println("completed=" + root)
+}
+
+///|
+test "frozen seams cannot silently miss or multiply replacements" {
+  assert_eq(once("a-x-b", "x", "y"), "a-y-b")
+  for input in ["absent", "xx"] {
+    try once(input, "x", "y") catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous seam accepted")
+    }
+  }
+}
