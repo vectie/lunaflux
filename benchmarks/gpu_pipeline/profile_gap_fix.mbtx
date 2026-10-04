@@ -1,0 +1,138 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+}
+
+///|
+async fn main {
+  let (args, container) = match @env.args() {
+    [.. args, "--container"] => (args, true)
+    args => (args, false)
+  }
+  guard args is [_, root, label, saved, regex] else {
+    fail(
+      "EXISTING_ROOT NEW_LABEL PAIRED_COMMAND_JSON EXACT_KERNEL_REGEX [--container]",
+    )
+  }
+  guard @json.parse(@fs.read_file(saved).text()) is Array(values) else {
+    fail("command array")
+  }
+  let command = values.map(value => {
+    guard value is String(text) else { fail("command string") }
+    text
+  })
+  guard command.length() > 1 && command[0].has_prefix(root + "/") else {
+    fail("scoped diagnostic executable")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  let check = if command[0].has_suffix("projection-chain-probe") {
+    "--check"
+  } else {
+    "--check-only"
+  }
+  for ordinal in [0, 1] {
+    let name = label + "-\{ordinal}"
+    let args = [
+      "--config-file",
+      "off",
+      "--clock-control",
+      "none",
+      "--cache-control",
+      "all",
+      "--kernel-name-base",
+      "function",
+      "--kernel-name",
+      regex,
+      "--launch-skip",
+      ordinal.to_string(),
+      "--launch-count",
+      "1",
+    ]
+    let sections = [
+        "LaunchStats", "Occupancy", "SpeedOfLight", "WarpStateStats", "MemoryWorkloadAnalysis",
+        "InstructionStats", "SourceCounters",
+      ]
+      .iter()
+      .flat_map(s => ["--section", s].iter())
+      .to_array()
+    let target = args +
+      sections +
+      ["--export", root + "/" + name] +
+      command +
+      [check]
+    let (exe, prefix) = if container {
+      (
+        "docker",
+        [
+          "run",
+          "--rm",
+          "--gpus",
+          "all",
+          "--memory",
+          "8g",
+          "--memory-swap",
+          "8g",
+          "--cap-add",
+          "SYS_ADMIN",
+          "--security-opt",
+          "seccomp=unconfined",
+          "--mount",
+          "type=bind,source=" + root + ",target=" + root,
+          "--mount",
+          "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+          "--entrypoint",
+          "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+        "sha256:73e1b0f3230a9377a3109d20be7f8607963a41a715eb3000bc647f5f73c198ff",
+        ],
+      )
+    } else {
+      ("sudo", ["-n", ncu])
+    }
+    record(root, name, exe, prefix + target)
+    for page in ["raw", "source", "details"] {
+      record(
+        root,
+        name + "-" + page,
+        ncu,
+        ["--import", root + "/" + name + ".ncu-rep", "--page", page, "--csv"] +
+        (if page == "source" { ["--print-source", "sass"] } else { [] }),
+      )
+    }
+  }
+}

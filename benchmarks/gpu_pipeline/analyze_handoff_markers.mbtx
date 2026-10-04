@@ -1,0 +1,146 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("COMPLETED_CAPTURE NEW_JSON")
+  }
+  let request = root + "/requests/i4096-o256-c16-t1.json"
+  let bounds = "WITH bounds AS (SELECT cast(json_extract(readfile('" +
+    request +
+    "'),'$.epoch_start_ns') AS integer)-utcEpochNs lo,cast(json_extract(readfile('" +
+    request +
+    "'),'$.epoch_end_ns') AS integer)-utcEpochNs hi FROM TARGET_INFO_SESSION_START_TIME) "
+  let result = @shell.Cmd("sqlite3", [
+    root + "/trace.sqlite",
+    bounds +
+    "SELECT count(*) FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId,bounds WHERE s.value='cuGraphLaunch' AND r.start>=lo AND r.start<hi;",
+  ]).output()
+  result.check()
+  let steps = @string.parse_int(result.stdout().trim())
+  guard steps > 1 else { fail("measured graph window absent") }
+  let markers : Map[String, Map[String, Int64]] = Map([])
+  let sequences : Array[String] = []
+  let mut read_start : Int64? = None
+  let mut read_end : Int64? = None
+  for line in @fs.read_file(root + "/runtime.stderr").text().split("\n") {
+    if !line.has_prefix("lf_handoff ") {
+      continue
+    }
+    let fields : Map[String, String] = Map([])
+    for field in line.split(" ").to_array()[1:] {
+      guard field.split("=").to_array() is [key, value] else {
+        fail("marker field")
+      }
+      fields[key.to_owned()] = value.to_owned()
+    }
+    let sequence = fields["seq"]
+    let kind = fields["kind"]
+    let time = @string.parse_int64(fields["ns"])
+    if kind == "10" {
+      read_start = Some(time)
+      continue
+    }
+    if kind == "11" {
+      guard read_start is Some(start) && time >= start else {
+        fail("read ordering")
+      }
+      read_end = Some(time)
+      continue
+    }
+    let row = match markers.get(sequence) {
+      Some(row) => row
+      None => {
+        let row : Map[String, Int64] = Map([])
+        markers[sequence] = row
+        row
+      }
+    }
+    guard row.get(kind) is None else { fail("duplicate marker") }
+    row[kind] = time
+    if kind == "12" {
+      guard read_start is Some(start) && read_end is Some(end) && time >= end else {
+        fail("validated read missing")
+      }
+      row["10"] = start
+      row["11"] = end
+      read_start = None
+      read_end = None
+    }
+    if kind == "21" {
+      sequences.push(sequence)
+    }
+  }
+  // The isolated capture ends immediately after the measured trial and drain.
+  // Select the terminal graph-step count, not all warm-up transitions. Every
+  // selected step must contain complete parent/child markers exactly once.
+  guard sequences.length() >= steps else { fail("missing graph transitions") }
+  let selected = sequences[sequences.length() - steps:].to_owned()
+  for sequence in selected {
+    for
+      kind in ["19", "20", "21", "22", "23", "24", "30", "31", "32", "33", "34"] {
+      guard markers[sequence].get(kind) is Some(_) else {
+        fail("incomplete transition")
+      }
+    }
+  }
+  let rows : Array[Json] = []
+  let totals : Map[String, Int64] = Map([])
+  for index in 0..<(selected.length() - 1) {
+    let before = markers[selected[index]]
+    let after = markers[selected[index + 1]]
+    let child = if after.get("12") is Some(_) {
+      [
+        ("child_ipc_handoff", after["11"] - after["32"]),
+        ("plan_validate_copy", after["12"] - after["11"]),
+        ("completion_writer_setup", after["19"] - after["12"]),
+      ]
+    } else {
+      [("child_read_validate", after["19"] - after["32"])]
+    }
+    let parts = [
+      ("child_retire", before["24"] - before["23"]),
+      ("completion_publish_read", before["33"] - before["24"]),
+      ("parent_completion_validate", before["34"] - before["33"]),
+      ("parent_publish_schedule", after["30"] - before["34"]),
+      ("plan_encode_begin_write", after["31"] - after["30"]),
+      ("parent_write_progress", after["32"] - after["31"]),
+      ..child,
+      ("child_executor_preflight", after["20"] - after["19"]),
+    ]
+    let fields : Map[String, Json] = { "sequence": Json(selected[index]) }
+    let mut sum = 0L
+    for (name, ns) in parts {
+      totals[name] = totals.get(name).unwrap_or(0L) + ns
+      fields[name + "_ns"] = Json(ns)
+      sum += ns
+    }
+    assert_eq(sum, after["20"] - before["23"])
+    fields["total_ns"] = Json(sum)
+    rows.push(Json(fields))
+  }
+  @fs.write_file(
+    output,
+    Json({
+      "schema": Json("lunaflux.handoff-markers.v1"),
+      "steps": Json(steps),
+      "rows": Json(rows),
+      "totals_ns": Json(totals),
+      "scope": Json(
+        "Diagnostic monotonic transition spans; preserve signed concurrent boundaries. Not an uninstrumented throughput result. Terminal trial only; default kernels unchanged.",
+      ),
+    }).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  for (name, ns) in totals {
+    println(name + "=" + (ns.to_double() / 1000000.0).to_string() + " ms")
+  }
+}

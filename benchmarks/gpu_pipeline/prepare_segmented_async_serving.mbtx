@@ -1,0 +1,472 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn sha(path : String) -> String {
+  let result = @shell.Cmd("sha256sum", [path]).output()
+  result.check()
+  result.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  println("starting=" + label)
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd=root + "/source", env={
+    "PATH": root +
+    "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/local/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+}
+
+///|
+fn generated(source : String) -> String raise {
+  guard source.split("\n// max_registers=255\n").to_array() is [text, _] else {
+    fail("explicit compiler export metadata required")
+  }
+  text.trim_end().to_owned() + "\n"
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn chain_median_ns(text : String, key : String) -> Int64 raise {
+  let samples : Array[Double] = []
+  for
+    line in text
+    .split("\n")
+    .filter(x => x.has_prefix("tokens=2048 ") && x.contains(" part=0 ")) {
+    guard line.split(" ").find_first(x => x.has_prefix(key + "=")) is Some(item) else {
+      fail("chain sample")
+    }
+    samples.push(@string.parse_double(item.strip_prefix(key + "=").unwrap()))
+  }
+  assert_eq(samples.length(), 5)
+  samples.sort()
+  (samples[2] * 1000.0).to_int64()
+}
+
+///|
+// An isolated AOT comparison runtime, not a production promotion. Only the
+// already-qualified MLP transfer effect changes; the complete prior small-row
+// schedules, down schedule, attention modules and ingress module are retained.
+async fn main {
+  if @env.args() is [_, "--finish-selection", base, root, physical, historical] {
+    guard !@fs.exists(root + "/RESULT.txt") &&
+      @fs.read_file(physical + "/serial-vs-async-active/RESULT.txt")
+      .text()
+      .has_prefix("outcome=passed\n") else {
+      fail("fresh qualified comparison required")
+    }
+    let prior = @fs.read_file(historical).text()
+    let lines = prior.split("\n").to_array()
+    assert_eq(lines[0].to_owned(), "luna-projection-fold-v3")
+    let source = generated(@fs.read_file(physical + "/serial.cu").text())
+    assert_eq(
+      source,
+      @fs.read_file(
+        root +
+        "/inspect-candidate/candidate-root/sources/op_00000009_gated_mlp.cu",
+      ).text(),
+    )
+    @fs.write_file(
+      root + "/measured-default-mlp.cu",
+      source,
+      create_mode=CreateNew,
+    )
+    let before = sha(root + "/measured-default-mlp.cu")
+    let after = sha(root + "/selected-mlp.cu")
+    assert_eq(
+      @fs.read_file(root + "/selected-mlp.cu").text(),
+      generated(@fs.read_file(physical + "/async.cu").text()),
+    )
+    let timing = @fs.read_file(
+      physical + "/serial-vs-async-active/tokens-2048.stdout",
+    ).text()
+    let old_ns = chain_median_ns(timing, "old_us")
+    let new_ns = chain_median_ns(timing, "new_us")
+    guard new_ns * 100L < old_ns * 98L else {
+      fail("no measured chain benefit")
+    }
+    let records = "luna-projection-fold-v4\n" +
+      lines[1].to_owned() +
+      "\n" +
+      lines[2:]
+      .filter(x => x.has_prefix("record\t") && !x.contains(before))
+      .join("\n") +
+      "\n" +
+      "record\t\{before}\t\{before}\t\{old_ns}\t5\t-\n" +
+      "record\t\{before}\t\{after}\t\{new_ns}\t5\tintermediate:2:4:1:8:0:1,sibling:2:4:1:1:2:0:2:16,execution:overlapped\n"
+    @fs.write_file(
+      root + "/projection-folds-v4.records",
+      records,
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/SELECTION_MEASUREMENTS.txt",
+      "MLP objective=2048 tokens/32 rows five matched full-chain event trials in " +
+      physical +
+      "; dense projection records retained unchanged from " +
+      historical +
+      ". No synthetic timings.\n",
+      create_mode=CreateNew,
+    )
+    let moon = root + "/toolchain/bin/moon"
+    let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+    let converted = @fs.read_file(base + "/convert.stdout").text()
+    let common = [
+      model,
+      "config.json",
+      sha(model + "/config.json"),
+      sha(model + "/model.safetensors"),
+      "qwen.numeric",
+      field(converted, "output_artifact_sha256"),
+      field(converted, "route_manifest_sha256"),
+    ]
+    let toolsha = sha(root + "/toolchain.v1")
+    let geometry = ["13", "0", "88", "8", "16384", "32", "2048", "16384"]
+    let selection = [
+      "--compiler-register-limit",
+      "255",
+      "--projection-folds",
+      root + "/projection-folds-v4.records",
+      sha(root + "/projection-folds-v4.records"),
+      "perf-v1:gb10-sm121-sm48-unified128g-clockdefault-powerdefault",
+    ]
+    record(
+      root,
+      "selected-export",
+      root +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+      [
+        ..common,
+        toolsha,
+        ..geometry,
+        root + "/selected-candidate",
+        ..selection,
+        "--device-target",
+        "12",
+        "1",
+      ],
+    )
+    for
+      line in @fs.read_file(base + "/candidate/candidate-root/candidate-set.v1")
+      .text()
+      .split("\n") {
+      if !line.has_prefix("candidate=") {
+        continue
+      }
+      let key = line.strip_prefix("candidate=").unwrap().split(",").to_array()[0].to_owned()
+      for (folder, suffix) in [("sources", ".cu"), ("recipes", ".recipe")] {
+        let relative = "/candidate-root/" + folder + "/" + key + suffix
+        assert_eq(
+          sha(root + "/selected-candidate" + relative),
+          sha(root + "/candidate" + relative),
+          msg="compiler-selected bytes must equal qualified input: " + relative,
+        )
+      }
+    }
+    // Rebind through the normal verifier with exactly the same observations,
+    // target and register envelope as the compiler exporter and actual producer.
+    record(
+      root,
+      "selected-bind",
+      root +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_release_bind/lunaflux_qwen3_bf16_release_bind.exe",
+      [
+        ..common,
+        root + "/compiled",
+        root + "/toolchain.v1",
+        toolsha,
+        ..geometry,
+        root + "/release",
+        ..selection,
+      ],
+    )
+    @fs.write_file(
+      root + "/bind.stdout",
+      @fs.read_file(root + "/selected-bind.stdout"),
+    )
+    for phase in ["materialize", "capacity"] {
+      record(root, "selected-" + phase, moon, [
+        "run",
+        root + "/prepare-full.mbtx",
+        root,
+        phase,
+      ])
+    }
+    @fs.write_file(
+      root + "/MODULE_DIFF.txt",
+      "Only MLP segmented transfer effects changed. Exact compiler-selected source and recipe identities verified for all 283 operations. Attention, ingress, down schedules and bounded launch dimensions retained; validated frame copies lower to bulk operations.\n",
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=prepared-exact-transfer-and-host-copy-comparison-not-throughput\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if @env.args() is [_, "--inspect-baseline", base, root] {
+    let moon = root + "/toolchain/bin/moon"
+    record(root, "build-inspect-exporter", moon, [
+      "build", "cmd/lunaflux_qwen3_bf16_candidate_export", "--target", "native",
+      "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14", "-j", "2",
+    ])
+    let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+    let converted = @fs.read_file(base + "/convert.stdout").text()
+    record(
+      root,
+      "inspect-export",
+      root +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+      [
+        model,
+        "config.json",
+        sha(model + "/config.json"),
+        sha(model + "/model.safetensors"),
+        "qwen.numeric",
+        field(converted, "output_artifact_sha256"),
+        field(converted, "route_manifest_sha256"),
+        sha(root + "/toolchain.v1"),
+        "13",
+        "0",
+        "88",
+        "8",
+        "16384",
+        "32",
+        "2048",
+        "16384",
+        root + "/inspect-candidate",
+        "--compiler-register-limit",
+        "255",
+        "--query-metadata-v1",
+        "--device-target",
+        "12",
+        "1",
+      ],
+    )
+    let differences = StringBuilder()
+    for
+      line in @fs.read_file(base + "/candidate/candidate-root/candidate-set.v1")
+      .text()
+      .split("\n") {
+      if !line.has_prefix("candidate=") {
+        continue
+      }
+      guard line.strip_prefix("candidate=") is Some(value) &&
+        value.split(",").to_array() is [key, _, family] else {
+        fail("candidate")
+      }
+      let path = "/candidate-root/sources/" + key.to_owned() + ".cu"
+      let prior = sha(base + "/candidate" + path)
+      let current = sha(root + "/inspect-candidate" + path)
+      if prior != current {
+        differences.write_string(
+          key.to_owned() +
+          " " +
+          family.to_owned() +
+          " " +
+          prior +
+          " " +
+          current +
+          "\n",
+        )
+      }
+    }
+    @fs.write_file(
+      root + "/BASELINE_SOURCE_DIFF.txt",
+      differences.to_string(),
+      create_mode=CreateNew,
+    )
+    println(differences.to_string())
+    return
+  }
+  guard @env.args() is [_, base, root, overlay, expected, physical] else {
+    fail(
+      "IMMUTABLE_SERVING NEW_EMPTY_ROOT SOURCE_OVERLAY SHA256 EXACT_AOT_CAMPAIGN",
+    )
+  }
+  assert_eq(sha(overlay), expected)
+  guard @fs.read_file(base + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") &&
+    @fs.read_file(physical + "/serial-vs-async-active/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\n") &&
+    !@fs.exists(root + "/source") else {
+    fail("prepared or unqualified input")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  @fs.mkdir(root + "/source")
+  @shell.Cmd("cp", ["-a", base + "/source/.", root + "/source/"]).run()
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  @fs.mkdir(root + "/overlay")
+  @shell.Cmd("tar", ["-xzf", overlay, "-C", root + "/overlay"]).run()
+  let paths = @fs.read_file(root + "/overlay/FILES.txt")
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => x.to_owned())
+    .to_array()
+  let source_ids = StringBuilder()
+  for path in paths {
+    guard !path.contains("..") &&
+      !path.has_prefix("/") &&
+      [
+        "engine/worker_wire/", "kernels/luna_projection_tile_compiler/", "kernels/luna_projection_tuning/",
+        "kernels/luna_cuda_projection_aot/",
+      ].any(p => path.has_prefix(p)) else {
+      fail("out-of-scope source")
+    }
+    @fs.write_file(
+      root + "/source/" + path,
+      @fs.read_file(root + "/overlay/" + path),
+    )
+    source_ids.write_string(sha(root + "/source/" + path) + "  " + path + "\n")
+  }
+  @fs.write_file(
+    root + "/SOURCE_IDENTITIES.txt",
+    source_ids.to_string(),
+    create_mode=CreateNew,
+  )
+  let moon = root + "/toolchain/bin/moon"
+  record(root, "affected-tests", moon, [
+    "test", "engine/worker_wire", "kernels/luna_projection_tile_compiler", "kernels/luna_projection_tuning",
+    "kernels/luna_cuda_projection_aot", "--target", "native", "--deny-warn", "--warn-list",
+    "-79-20-29-25-92-14",
+  ])
+  record(root, "build-control", moon, [
+    "build", "cmd/lunaflux", "cmd/device_worker_child", "cmd/lunaflux_qwen3_token_id_bridge",
+    "cmd/lunaflux_qwen3_bf16_release_bind", "tests/qwen3_bf16_serving_supervisor",
+    "--target", "native", "--release", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+    "-j", "2",
+  ])
+  for name in ["candidate", "fused", "fused-routed"] {
+    @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+  }
+  @shell.Cmd("chmod", ["-R", "u+w", root + "/candidate"]).run()
+  for
+    name in [
+      "convert.stdout", "export.stdout", "toolchain.v1", "prepare-full.mbtx", "benchmark.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  let before = generated(@fs.read_file(physical + "/serial.cu").text())
+  let after = generated(@fs.read_file(physical + "/async.cu").text())
+  guard before != after else { fail("unchanged executable") }
+  @fs.write_file(root + "/selected-mlp.cu", after, create_mode=CreateNew)
+  let digest = sha(root + "/selected-mlp.cu")
+  let candidate = root + "/candidate/candidate-root"
+  let set = @fs.read_file(candidate + "/candidate-set.v1").text()
+  let mut replaced = 0
+  for line in set.split("\n") {
+    if !line.has_suffix(",gated_mlp") {
+      continue
+    }
+    guard line.strip_prefix("candidate=") is Some(value) &&
+      value.split(",").to_array() is [key, _, _] else {
+      fail("MLP candidate row")
+    }
+    let key = key.to_owned()
+    let source = candidate + "/sources/" + key + ".cu"
+    let recipe_path = candidate + "/recipes/" + key + ".recipe"
+    assert_eq(
+      @fs.read_file(source).text(),
+      before,
+      msg="must preserve exact prior selected module",
+    )
+    let old = @fs.read_file(recipe_path).text()
+    let old_digest = field(old, "source_sha256")
+    assert_eq(sha(source), old_digest)
+    @fs.write_file(source, after)
+    @fs.write_file(
+      recipe_path,
+      old.replace(
+        old="source_sha256=" + old_digest + "\n",
+        new="source_sha256=" + digest + "\n",
+      ) +
+      "sibling_transfer_execution=overlapped\n",
+    )
+    replaced += 1
+  }
+  guard replaced > 0 else { fail("no selected MLP modules") }
+  let inventory_path = root + "/candidate/candidate.files.sha256"
+  let inventory = StringBuilder()
+  for
+    line in @fs.read_file(inventory_path)
+    .text()
+    .split("\n")
+    .filter(x => !x.is_empty()) {
+    guard line.split("  ").to_array() is [_, path] &&
+      !path.contains("..") &&
+      !path.has_prefix("/") else {
+      fail("inventory")
+    }
+    let path = path.to_owned()
+    inventory.write_string(sha(candidate + "/" + path) + "  " + path + "\n")
+  }
+  @fs.write_file(inventory_path, inventory.to_string())
+  record(
+    root,
+    "compile-kernel-set",
+    root + "/source/scripts/build-luna-bf16-kernel-set.sh",
+    [
+      "/usr/local/cuda-13.0/bin/nvcc",
+      root + "/toolchain.v1#sha256=" + sha(root + "/toolchain.v1"),
+      candidate,
+      inventory_path + "#sha256=" + sha(inventory_path),
+      root + "/compiled",
+    ],
+  )
+  @fs.write_file(
+    root + "/COMPILED.txt",
+    "scope=compiled-comparison-only\nmlp_layers=" + replaced.to_string() + "\n",
+    create_mode=CreateNew,
+  )
+  println(
+    "compiled comparison; inspect the current compiler baseline and finish-selection with matched observations before materialization",
+  )
+}

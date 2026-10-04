@@ -1,0 +1,57 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+/// Reuses the existing memory-bounded, disposable-source capture workflow.
+/// CUDA plus OS-runtime timestamps are needed to separate idle socket waits
+/// from mandatory feedback fences. This does not change any runtime kernel.
+async fn main {
+  guard @env.args() is [_, capture_runner, serving, root, .. options] else {
+    fail("CAPTURE_RUNNER IMMUTABLE_SERVING NEW_EMPTY_ROOT [CAPTURE_OPTIONS]")
+  }
+  let original = @fs.read_file(capture_runner).text()
+  guard original.split("\"--trace=cuda\"").to_array().length() == 2 else {
+    fail("inspect changed Nsight capture arguments")
+  }
+  let instrumented = options.contains("--work-rows")
+  if instrumented {
+    for
+      target in [
+        "lf_exec kind=0 ", "lf_exec kind=5 ", "line.has_prefix(\"lf_exec \")",
+      ] {
+      guard original.split(target).to_array().length() == 2 else {
+        fail("inspect changed diagnostic stderr validator")
+      }
+    }
+  }
+  let original = if instrumented {
+    original
+    .replace(old="lf_exec kind=0 ", new="lf_handoff kind=20 ")
+    .replace(old="lf_exec kind=5 ", new="lf_handoff kind=34 ")
+    .replace(
+      old="line.has_prefix(\"lf_exec \")",
+      new="line.has_prefix(\"lf_handoff \")",
+    )
+    .replace(
+      old="diagnostic-only worker row markers; AOT kernels unchanged",
+      new="diagnostic-only parent/worker handoff markers; AOT kernels unchanged",
+    )
+  } else {
+    original
+  }
+  let runner = root + "/host-waits-capture.mbtx"
+  @fs.write_file(
+    runner,
+    original.replace(old="\"--trace=cuda\"", new="\"--trace=cuda,osrt\""),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(
+    serving + "/toolchain/bin/moon",
+    ["run", runner, serving, root] + options.to_owned(),
+  ).run()
+}

@@ -1,0 +1,50 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. flags] &&
+    (flags.is_empty() || flags is ["--aot"] || flags is ["--baseline-aot"]) else {
+    fail("NEW_EMPTY_ROOT [--aot|--baseline-aot]")
+  }
+  let output = @shell.Cmd(
+    "moon",
+    [
+      "test", "kernels/luna_cuda_projection_aot/segmented_async_wbtest.mbt", "--target",
+      "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+    ],
+    env=if flags.is_empty() {
+      { "LUNA_EXPORT_SEGMENTED_ASYNC": "1" }
+    } else if flags is ["--baseline-aot"] {
+      { "LUNA_EXPORT_SEGMENTED_AOT": "1", "LUNA_EXPORT_DEFAULT_BASELINE": "1" }
+    } else {
+      { "LUNA_EXPORT_SEGMENTED_AOT": "1" }
+    },
+  ).output(max_output_bytes=4194304)
+  @fs.write_file(
+    root + "/export.stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/export.stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+  let sections = output.stdout().split("LUNA_SOURCE_BEGIN ").to_array()
+  assert_eq(sections.length(), 3)
+  for section in sections[1:] {
+    let lines = section.split("\n").to_array()
+    let label = lines[0].to_owned()
+    guard label == "serial" || label == "async" else { fail("source label") }
+    let body = lines[1:].join("\n").split("LUNA_SOURCE_END").to_array()
+    assert_eq(body.length(), 2)
+    @fs.write_file(root + "/" + label + ".cu", body[0], create_mode=CreateNew)
+  }
+}

@@ -1,0 +1,174 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn seam(source : String, before : String, after : String) -> String raise {
+  guard source.split(before).to_array().length() == 2 else {
+    fail("inspect changed handoff diagnostic seam: " + before)
+  }
+  source.replace(old=before, new=after)
+}
+
+///|
+async fn add_clock(
+  root : String,
+  package_path : String,
+  suffix : String,
+) -> Unit {
+  let path = root + "/" + package_path
+  let pkg = @fs.read_file(path + "/moon.pkg").text()
+  guard !pkg.contains("native-stub") else {
+    fail("inspect package native stubs before adding diagnostic clock")
+  }
+  @fs.write_file(
+    path + "/diagnostic_handoff.mbt",
+    "///|\nextern \"c\" fn handoff_trace(kind : Int, sequence : UInt64) = \"lf_handoff_" +
+    suffix +
+    "\"\n",
+    create_mode=CreateNew,
+  )
+  let stub =
+    #|#define _POSIX_C_SOURCE 200809L
+    #|#include <moonbit.h>
+    #|#include <stdint.h>
+    #|#include <stdio.h>
+    #|#include <stdlib.h>
+    #|#include <time.h>
+    #|#include <unistd.h>
+    #|#include <errno.h>
+    #|MOONBIT_FFI_EXPORT void LF_SYMBOL(int kind, uint64_t sequence) {
+    #|  struct timespec t; if(clock_gettime(CLOCK_MONOTONIC,&t)) abort();
+    #|  uint64_t ns = (uint64_t)t.tv_sec*1000000000ULL+t.tv_nsec;
+    #|  char buf[160]; int n = snprintf(buf,sizeof(buf),"lf_handoff kind=%d ns=%llu seq=%llu pid=%ld\n",kind,(unsigned long long)ns,(unsigned long long)sequence,(long)getpid());
+    #|  if(n<=0 || n>=(int)sizeof(buf)) abort();
+    #|  for(int i=0;i<n;) { ssize_t w=write(2,buf+i,(size_t)(n-i)); if(w<0 && errno==EINTR)continue; if(w<=0)abort(); i+=(int)w; }
+    #|}
+  @fs.write_file(
+    path + "/diagnostic_handoff.c",
+    stub.replace(old="LF_SYMBOL", new="lf_handoff_" + suffix),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    path + "/moon.pkg",
+    pkg + "\noptions(\"native-stub\": [\"diagnostic_handoff.c\"])\n",
+  )
+}
+
+///|
+/// Only disposable diagnostic sources are accepted. No kernel, serving-loop
+/// policy or IPC validity rule is changed. Each marker has a monotonic clock,
+/// process identity and exact worker sequence; no marker runs on polling turns.
+async fn main {
+  guard @env.args() is [_, root] else { fail("DISPOSABLE_SOURCE_COPY") }
+  guard @fs.exists(root + "/moon.mod") else { fail("source copy absent") }
+  let spawn_path = root + "/internal/process/process_approved_spawn.c"
+  let spawn = @fs.read_file(spawn_path).text()
+  // Nsight injects non-CLOEXEC descriptors at 6/7. This benchmark provides no
+  // inherited secret handoff: move only the diagnostic startup ABI away from
+  // profiler channels, retaining the same absent/invalid/valid checks. Never
+  // apply this relocation to a production launcher or credential supplier.
+  let credential_path = root +
+    "/internal/inference_credential/inference_credential.c"
+  @fs.write_file(
+    credential_path,
+    seam(
+      @fs.read_file(credential_path).text(),
+      "#define LF_CREDENTIAL_FIXED_FD 6",
+      "#define LF_CREDENTIAL_FIXED_FD 196 /* OFFLINE PROFILE ONLY */",
+    ),
+  )
+  let verifier_path = root +
+    "/internal/promotion_verifier_key/promotion_verifier_key.c"
+  @fs.write_file(
+    verifier_path,
+    seam(
+      @fs.read_file(verifier_path).text(),
+      "#define LF_PROMOTION_KEY_FIXED_FD 7",
+      "#define LF_PROMOTION_KEY_FIXED_FD 197 /* OFFLINE PROFILE ONLY */",
+    ),
+  )
+  let worker_path = root + "/engine/device_worker/execute.mbt"
+  let worker = @fs.read_file(worker_path).text()
+  let worker = seam(
+    worker, "  let executor = ready_executor(self.resources) catch {", "  let sequence = frame.sequence_value() catch { error => return fail_execution(self, writer, Wire(error)) }\n  handoff_trace(19, sequence)\n  let executor = ready_executor(self.resources) catch {",
+  )
+  let worker = seam(
+    worker, "  let staged = executor.stage_frame(frame) catch {", "  handoff_trace(20, sequence)\n  let staged = executor.stage_frame(frame) catch {",
+  )
+  let worker = seam(
+    worker, "  let executed = executor.execute(staged) catch {", "  handoff_trace(21, sequence)\n  let executed = executor.execute(staged) catch {",
+  )
+  let worker = seam(
+    worker, "  executor.sample_completion_frame(executed, frame, writer) catch {",
+    "  handoff_trace(22, sequence)\n  executor.sample_completion_frame(executed, frame, writer) catch {",
+  )
+  let worker = seam(
+    worker, "  executor.finish(executed) catch {", "  handoff_trace(23, sequence)\n  executor.finish(executed) catch {",
+  )
+  let worker = seam(
+    worker, "  writer.submit() catch {", "  handoff_trace(24, sequence)\n  writer.submit() catch {",
+  )
+  let parent_path = root + "/engine/worker_process/root_bound_exchange.mbt"
+  let parent = @fs.read_file(parent_path).text()
+  let parent = seam(
+    parent, "  let side = self.process.begin_exchange_write(", "  handoff_trace(30, plan.sequence_wire() catch { error => raise RootBoundFailure(Process(Protocol(error))) })\n  let side = self.process.begin_exchange_write(",
+  )
+  let parent = seam(
+    parent, "  let epoch = self.exchange_epoch + 1UL", "  handoff_trace(31, sequence)\n  let epoch = self.exchange_epoch + 1UL",
+  )
+  let parent = seam(
+    parent, "    self.exchange_phase = EXCHANGE_READING_COMPLETION", "    handoff_trace(32, self.exchange_sequence)\n    self.exchange_phase = EXCHANGE_READING_COMPLETION",
+  )
+  let parent = seam(
+    parent, "    self.process.accept_exchange_completion_bytes(", "    handoff_trace(33, self.exchange_sequence)\n    self.process.accept_exchange_completion_bytes(",
+  )
+  let parent = seam(
+    parent, "    if !@worker_wire.worker_graph_telemetry_sample_required(", "    handoff_trace(34, self.exchange_sequence)\n    if !@worker_wire.worker_graph_telemetry_sample_required(",
+  )
+  add_clock(root, "engine/device_worker", "worker")
+  add_clock(root, "engine/worker_process", "parent")
+  add_clock(root, "engine/device_worker_child", "child")
+  let child_path = root + "/engine/device_worker_child/run.mbt"
+  let child = @fs.read_file(child_path).text()
+  let child = seam(child,
+    "      let length = channel.read_frame_or_eof(buffers.input) catch {",
+    "      handoff_trace(10, 0UL)\n      let length = channel.read_frame_or_eof(buffers.input) catch {",
+  )
+  let child = seam(child,
+    "      buffers.plan_owner.load(buffers.input, length) catch {",
+    "      handoff_trace(11, 0UL)\n      let loaded = buffers.plan_owner.load(buffers.input, length) catch {",
+  )
+  let child = seam(child,
+    "      let loaded = buffers.plan_owner.load(buffers.input, length) catch {\n        _ => raise StartupFailed\n      }",
+    "      let loaded = buffers.plan_owner.load(buffers.input, length) catch {\n        _ => raise StartupFailed\n      }\n      handoff_trace(12, loaded.sequence_value() catch { _ => raise StartupFailed })\n      loaded",
+  )
+  @fs.write_file(child_path, child)
+  @fs.write_file(worker_path, worker)
+  @fs.write_file(parent_path, parent)
+  let main_path = root + "/cmd/lunaflux/main.mbt"
+  @fs.write_file(
+    main_path,
+    seam(
+      @fs.read_file(main_path).text(),
+      "  try! run_cli(@env.args())",
+      "  run_cli(@env.args()) catch { error => { println(\"diagnostic_startup_error=\" + error.to_string()); ignore(raw_native_stdout_flush()); raise error } }",
+    ),
+  )
+  if spawn.contains("    if (close(2) != 0 && errno != EBADF) _exit(126);") {
+    @fs.write_file(
+      spawn_path,
+      seam(
+        spawn, "    if (close(2) != 0 && errno != EBADF) _exit(126);", "    /* DIAGNOSTIC ONLY: retain inherited stderr for handoff markers. */",
+      ),
+    )
+  } else {
+    guard spawn.contains("DIAGNOSTIC ONLY") else {
+      fail("inspect child stderr isolation")
+    }
+  }
+  println("diagnostic-only parent/worker handoff markers installed")
+}

@@ -1,0 +1,206 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int raise {
+  match value {
+    String(text) => @string.parse_int(text)
+    Number(number, ..) => number.to_int()
+    _ => fail("integer")
+  }
+}
+
+///|
+fn middle(values : Array[Int]) -> Int raise {
+  guard values.length() == 3 else { fail("three independent starts required") }
+  let ordered = values.copy()
+  ordered.sort()
+  ordered[1]
+}
+
+///|
+async fn output_ids(base : String, input : Int, output : Int) -> Array[Json] {
+  let rows : Array[Json] = []
+  let pool = [
+    840, 20772, 304, 825, 2805, 11652, 3170, 72349, 44378, 12850, 13, 198,
+  ]
+  for row in 0..<16 {
+    let name = base + "/requests/i\{input}-o\{output}-c16-t1-r\{row}"
+    let body = @json.parse(@fs.read_file(name + ".body.json").text())
+    let prompt = match body {
+      { "input_token_ids": Array(ids), .. } => ids
+      { "input_ids": Array(ids), .. } => ids
+      { "prompt": Array(ids), .. } => ids
+      _ => fail("prompt schema")
+    }
+    assert_eq(prompt.length(), input)
+    for i in 0..<input {
+      assert_eq(integer(prompt[i]), pool[(i + row * 5) % pool.length()])
+    }
+    let result = @json.parse(@fs.read_file(name + ".json").text())
+    guard result is { "token_ids": Array(ids), .. } && ids.length() == output else {
+      fail("complete generated token IDs required")
+    }
+    rows.push(Json(ids))
+  }
+  rows
+}
+
+///|
+fn differences(actual : Array[Json], reference : Array[Json]) -> Json raise {
+  let mismatch : Array[Json] = []
+  for row in 0..<16 {
+    guard actual[row] is Array(a) && reference[row] is Array(b) else {
+      fail("ids")
+    }
+    let mut different = 0
+    let mut first = -1
+    for i in 0..<a.length() {
+      if a[i] != b[i] {
+        different += 1
+        if first < 0 {
+          first = i
+        }
+      }
+    }
+    if different > 0 {
+      mismatch.push({
+        "request_row": row,
+        "different_tokens": different,
+        "first_different_token": first,
+        "actual": a[first],
+        "reference": b[first],
+      })
+    }
+  }
+  { "mismatched_requests": mismatch.length(), "details": mismatch }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, prior, output, .. options] &&
+    options.length() <= 1 else {
+    fail(
+      "COMPLETED_CURRENT_CAMPAIGN COMPLETED_PRIOR_CAMPAIGN NEW_JSON [FRESH_LUNA_CONTROL]",
+    )
+  }
+  for path in [root, prior, ..options] {
+    guard @fs.read_file(path + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("completed campaign required")
+    }
+  }
+  let rows : Array[Json] = []
+  for (input, count) in [(128, 32), (4096, 64), (4096, 256)] {
+    let request = "/requests/i\{input}-o\{count}-c16-t1.json"
+    let expected = output_ids(prior + "/r0-luna-full", input, count)
+    let engines : Array[Json] = []
+    let medians : Map[String, Int] = Map([])
+    let sources = [
+      ("prior-luna", prior, "luna-full"),
+      ("luna", root, "luna-full"),
+      ("vllm", root, "vllm"),
+      ("sglang", root, "sglang"),
+    ]
+    if options is [control] {
+      sources.push(("fresh-control-luna", control, "luna-full"))
+    }
+    for (name, origin, engine) in sources {
+      let walls : Array[Int] = []
+      let ttfts : Array[Int] = []
+      let comparisons : Array[Json] = []
+      let first = output_ids(origin + "/r0-" + engine, input, count)
+      for round in 0..<3 {
+        let result = @json.parse(
+          @fs.read_file(origin + "/r\{round}-" + engine + request).text(),
+        )
+        let ids = output_ids(origin + "/r\{round}-" + engine, input, count)
+        comparisons.push({
+          "round": round,
+          "against_prior_luna_round0": differences(ids, expected),
+          "against_same_engine_round0": differences(ids, first),
+        })
+        guard result
+          is {
+            "wall_ms": wall,
+            "requests": Array(requests),
+            "warmup": false,
+            ..
+          } &&
+          requests.length() == 16 else {
+          fail("request schema")
+        }
+        walls.push(integer(wall))
+        let firsts = requests.map(request => {
+          guard request is { "ttft_ms": first, .. } else { fail("TTFT") }
+          integer(first)
+        })
+        firsts.sort()
+        ttfts.push(firsts[8])
+      }
+      let median = middle(walls)
+      medians[name] = median
+      engines.push({
+        "engine": name,
+        "wall_ms_trials": walls,
+        "median_wall_ms": median,
+        "output_tokens_per_second": count.to_double() *
+        16.0 *
+        1000.0 /
+        median.to_double(),
+        "median_request_ttft_ms_by_round": ttfts,
+        "token_comparisons": comparisons,
+      })
+    }
+    let speedup = 100.0 *
+      (1.0 - medians["luna"].to_double() / medians["prior-luna"].to_double())
+    let row : Json = {
+      "input": input,
+      "output": count,
+      "concurrency": 16,
+      "engines": engines,
+      "wall_time_reduction_percent": speedup,
+      "reduction_vs_fresh_control_percent": if medians.contains(
+          "fresh-control-luna",
+        ) {
+        Json(
+          100.0 *
+          (
+            1.0 -
+            medians["luna"].to_double() /
+            medians["fresh-control-luna"].to_double()
+          ),
+        )
+      } else {
+        Json::null()
+      },
+      "luna_time_gap_to_vllm_percent": 100.0 *
+      (medians["luna"].to_double() / medians["vllm"].to_double() - 1.0),
+      "luna_time_gap_to_sglang_percent": 100.0 *
+      (medians["luna"].to_double() / medians["sglang"].to_double() - 1.0),
+    }
+    rows.push(row)
+  }
+  let summary : Json = {
+    "schema": "lunaflux.segmented-transfer-serving.v2",
+    "identical_input_token_ids_and_output_lengths_verified": true,
+    "prior_campaign": prior,
+    "current_campaign": root,
+    "fresh_control_campaign": if options is [control] {
+      Json(control)
+    } else {
+      Json::null()
+    },
+    "rows": rows,
+    "scope": "Three unprofiled fresh starts per framework, C16, BF16 Qwen3-0.6B. Outputs compared by request filename, not completion order. Token differences are explicitly reported, not treated as equivalent-output validation. Prior Luna controls are earlier on the same day; an optional fresh control is later, neither interleaved nor a statistical proof of sub-percent gain. Kernel and host-copy changes are combined, not causally separated.",
+  }
+  @fs.write_file(output, summary.stringify(indent=2), create_mode=CreateNew)
+  println(summary.stringify(indent=2))
+}

@@ -1,0 +1,104 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let result = []
+  let mut quoted = false
+  let text = StringBuilder()
+  for c in line {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      result.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  result.push(text.to_string())
+  result
+}
+
+///|
+fn median(values : Array[Double]) -> Double {
+  let sorted = values.copy()
+  sorted.sort()
+  sorted[sorted.length() / 2]
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, .. paths] else {
+    fail("counters|times FILE...")
+  }
+  for path in paths {
+    let input = @fs.read_file(path).text()
+    println("file=" + path)
+    if mode == "counters" {
+      let rows = input.split("\n").filter(s => s.has_prefix("\"")).to_array()
+      guard rows.length() >= 3 else { fail("counter capture absent") }
+      let keys = csv(rows[0])
+      let units = csv(rows[1])
+      assert_eq(units.length(), keys.length())
+      for line in rows[2:] {
+        let values = csv(line)
+        assert_eq(values.length(), keys.length())
+        for
+          key in [
+            "gpu__time_duration.sum", "launch__registers_per_thread", "launch__grid_size",
+            "launch__block_size", "sm__warps_active.avg.pct_of_peak_sustained_active",
+            "smsp__inst_executed.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum",
+            "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum", "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct",
+            "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+            "smsp__average_warp_latency_per_inst_issued.ratio",
+            "smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio",
+            "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio",
+            "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio",
+            "smsp__average_warps_issue_stalled_membar_per_issue_active.ratio",
+            "dram__bytes_read.sum",
+            "dram__throughput.avg.pct_of_peak_sustained_elapsed",
+            "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+          ] {
+          if keys.search(key) is Some(index) {
+            println(key + "=" + values[index] + " unit=" + units[index])
+          }
+        }
+      }
+    } else if mode == "times" {
+      let parts : Map[String, (Array[Double], Array[Double])] = Map([])
+      for line in input.split("\n").filter(s => s.has_prefix("tokens=")) {
+        let fields : Map[String, String] = Map([])
+        for word in line.split(" ") {
+          if word.split("=").to_array() is [key, value] {
+            fields[key.to_owned()] = value.to_owned()
+          }
+        }
+        let part = fields.get("part").unwrap_or("attention")
+        if !parts.contains(part) {
+          parts[part] = ([], [])
+        }
+        let (before, after) = parts[part]
+        before.push(@string.parse_double(fields["old_us"]))
+        after.push(@string.parse_double(fields["new_us"]))
+      }
+      for part, values in parts {
+        let (before, after) = values
+        assert_eq(before.length(), 5)
+        assert_eq(after.length(), 5)
+        let old = median(before)
+        let now = median(after)
+        println(
+          "part=\{part} old_median_us=\{old} new_median_us=\{now} time_reduction_pct=\{100.0 * (1.0 - now / old)}",
+        )
+      }
+    } else {
+      fail("mode")
+    }
+  }
+}

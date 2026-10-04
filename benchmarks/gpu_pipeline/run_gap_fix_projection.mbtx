@@ -1,0 +1,165 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(source : String, key : String) -> String raise {
+  let prefix = "// " + key + "="
+  let lines = source.split("\n").filter(s => s.has_prefix(prefix)).to_array()
+  guard lines.length() == 1 else { fail("missing/duplicate " + key) }
+  let value = lines[0].strip_prefix(prefix).unwrap().trim().to_owned()
+  let n = @string.parse_int(value)
+  guard n >= 0 else { fail("negative geometry") }
+  value
+}
+
+///|
+fn geometry(source : String, mlp : Bool, active : Bool) -> Array[String] raise {
+  let grid = if active { "ACTIVE_GRID" } else { "GRID" }
+  let first = [
+    field(source, "PROBE_PRIMARY_" + grid),
+    field(source, "PROBE_PRIMARY_BLOCK"),
+    field(source, "PROBE_PRIMARY_SHARED"),
+  ]
+  if mlp {
+    first +
+    [
+      field(source, "PROBE_DOWN_" + grid),
+      field(source, "PROBE_DOWN_BLOCK"),
+      field(source, "PROBE_DOWN_SHARED"),
+    ]
+  } else {
+    first + ["0", "0", "0"]
+  }
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=4194304)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " passed")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, kind, before, after, mode] else {
+    fail("PREPARED_ROOT output|mlp OLD_LABEL NEW_LABEL envelope|active")
+  }
+  guard kind == "output" || kind == "mlp" else { fail("kind") }
+  guard mode == "envelope" || mode == "active" else { fail("mode") }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  let memory = @fs.read_file("/proc/meminfo").text()
+  let available = memory
+    .split("\n")
+    .filter(s => s.has_prefix("MemAvailable:"))
+    .to_array()
+  guard available.length() == 1 else { fail("memory unavailable") }
+  let words = available[0].split(" ").filter(s => !s.is_empty()).to_array()
+  guard @string.parse_int64(words[1]) >= 33554432L else {
+    fail("32GiB reserve")
+  }
+  let logs = root + "/" + before + "-vs-" + after + "-" + mode
+  @fs.mkdir(logs)
+  run(logs, "identity", "nvidia-smi", [
+    "--query-gpu=uuid,name,memory.total", "--format=csv,noheader",
+  ])
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  for name in [before, after] {
+    let source = @fs.read_file(root + "/" + name + ".cu").text()
+    run(logs, "build-" + name, nvcc, [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      "--maxrregcount=" + field(source, "max_registers"),
+      "-lineinfo",
+      "-Xptxas=-v",
+      "-cubin",
+      root + "/" + name + ".cu",
+      "-o",
+      logs + "/" + name + ".cubin",
+    ])
+  }
+  let old_geometry = geometry(
+    @fs.read_file(root + "/" + before + ".cu").text(),
+    kind == "mlp",
+    mode == "active",
+  )
+  let new_geometry = geometry(
+    @fs.read_file(root + "/" + after + ".cu").text(),
+    kind == "mlp",
+    mode == "active",
+  )
+  for tokens in [32, 129, 512, 2048] {
+    run(
+      logs,
+      "tokens-\{tokens}",
+      root + "/projection-chain-probe",
+      [
+        kind,
+        logs + "/" + before + ".cubin",
+        logs + "/" + after + ".cubin",
+        tokens.to_string(),
+        "32",
+      ] +
+      old_geometry +
+      new_geometry,
+    )
+  }
+  for check in ["memcheck", "racecheck", "synccheck"] {
+    run(
+      logs,
+      check,
+      "/usr/local/cuda-13.0/bin/compute-sanitizer",
+      [
+        "--tool",
+        check,
+        "--error-exitcode",
+        "9",
+        root + "/projection-chain-probe",
+        kind,
+        logs + "/" + before + ".cubin",
+        logs + "/" + after + ".cubin",
+        "129",
+        "32",
+      ] +
+      old_geometry +
+      new_geometry +
+      ["--check"],
+    )
+  }
+  @fs.write_file(
+    logs + "/RESULT.txt",
+    "outcome=passed\nscope=bounded compiler alternatives, not full-serving validation\n",
+    create_mode=CreateNew,
+  )
+}
