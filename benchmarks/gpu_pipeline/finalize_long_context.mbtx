@@ -61,6 +61,11 @@ async fn main {
     .has_prefix("outcome=completed\n") else {
     fail("unfinished matrix")
   }
+  guard @fs.read_file(root + "/diversity/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("diverse-token control unfinished")
+  }
   guard @json.parse(@fs.read_file(root + "/PREPARED.json").text())
     is { "base_serving": String(base), .. } else {
     fail("prepared base")
@@ -74,27 +79,51 @@ async fn main {
       root + "/comparison.json",
     ]),
   )
+  ignore(
+    capture(root, "diversity-summary", moon, [
+      "run",
+      summarizer,
+      root + "/diversity",
+      root + "/diversity-comparison.json",
+    ]),
+  )
   let memory : Map[String, Json] = Map([])
   for engine in ["vllm", "luna-full", "sglang"] {
     let minimum = reserve_min(
       @fs.read_file(root + "/measure/r0-" + engine + "/memory.csv").text(),
     )
-    guard minimum >= 33554432L else { fail("memory reserve breached") }
-    memory[engine] = { "minimum_mem_available_kib": minimum }
+    let diverse_minimum = reserve_min(
+      @fs.read_file(root + "/diversity/r0-" + engine + "/memory.csv").text(),
+    )
+    guard Int64::min(minimum, diverse_minimum) >= 33554432L else {
+      fail("memory reserve breached")
+    }
+    memory[engine] = {
+      "minimum_mem_available_kib": Int64::min(minimum, diverse_minimum),
+      "main_minimum_mem_available_kib": minimum,
+      "diversity_minimum_mem_available_kib": diverse_minimum,
+    }
     if engine != "luna-full" {
-      let container = "lunaflux-long-" +
-        root.split("/").to_array().last().unwrap().to_owned() +
-        "-" +
-        engine
-      ignore(capture(root, engine + "-logs", "docker", ["logs", container]))
-      let inventory = @json.parse(
-        capture(root, engine + "-terminal", "docker", ["inspect", container]),
-      )
-      guard inventory
-        is Array(
-          [{ "State": { "OOMKilled": False, "Running": False, .. }, .. }]
-        ) else {
-        fail("reference still running or OOM killed")
+      for phase in ["", "-diversity"] {
+        let container = "lunaflux-long-" +
+          root.split("/").to_array().last().unwrap().to_owned() +
+          phase +
+          "-" +
+          engine
+        ignore(
+          capture(root, engine + phase + "-logs", "docker", ["logs", container]),
+        )
+        let inventory = @json.parse(
+          capture(root, engine + phase + "-terminal", "docker", [
+            "inspect", container,
+          ]),
+        )
+        guard inventory
+          is Array(
+            [{ "State": { "OOMKilled": False, "Running": False, .. }, .. }]
+          ) else {
+          fail("reference still running or OOM killed")
+        }
       }
     }
   }
@@ -149,7 +178,7 @@ async fn main {
   )
   @fs.write_file(
     root + "/RESULT.txt",
-    "outcome=completed\nscope=32-cell-long-context-comparison-not-1M-or-quality-validation\n",
+    "outcome=completed\nscope=32-cell-long-context-comparison-plus-diversity-control-not-1M-or-quality-validation\n",
     create_mode=CreateNew,
   )
   ignore(capture(root, "archive", moon, ["run", sealer, root]))

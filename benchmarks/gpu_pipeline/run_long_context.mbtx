@@ -44,8 +44,10 @@ async fn capture(
 ///|
 async fn main {
   guard @env.args() is [_, base, root, template, phase] &&
-    (phase.has_prefix("smoke") || phase == "measure") else {
-    fail("IMMUTABLE_BASE PREPARED_CONTEXT_ROOT MATCHED_LAUNCHER smoke|measure")
+    (phase.has_prefix("smoke") || phase == "measure" || phase == "diversity") else {
+    fail(
+      "IMMUTABLE_BASE PREPARED_CONTEXT_ROOT MATCHED_LAUNCHER smoke|measure|diversity",
+    )
   }
   guard @fs.exists(root + "/PREPARED.json") else {
     fail("prepared context deployment required")
@@ -109,6 +111,7 @@ async fn main {
   )
   let prefix = "lunaflux-long-" +
     root.split("/").to_array().last().unwrap().to_owned() +
+    (if phase == "diversity" { "-diversity" } else { "" }) +
     "-"
   let tool = once(
     tool,
@@ -122,6 +125,10 @@ async fn main {
     once(
       tool, "        root + \"/requests\",", "        root + \"/requests\",\n        \"--smoke\",",
     )
+  } else if phase == "diversity" {
+    once(
+      tool, "        root + \"/requests\",", "        root + \"/requests\",\n        \"--diversity\",",
+    )
   } else {
     tool
   }
@@ -129,7 +136,14 @@ async fn main {
   @fs.write_file(script, tool, create_mode=CreateNew)
   @fs.write_file(
     script + ".client.mbtx",
-    @fs.read_file(root + "/long_context_client.mbtx"),
+    @fs.read_file(
+      root +
+      (if phase == "diversity" {
+        "/long_context_diversity_client.mbtx"
+      } else {
+        "/long_context_client.mbtx"
+      }),
+    ),
     create_mode=CreateNew,
   )
   ignore(capture(campaign, "launcher-check", moon, ["check", script]))
@@ -140,7 +154,7 @@ async fn main {
       "--deny-warn",
     ]),
   )
-  if phase == "measure" {
+  if !smoke {
     for engine in ["vllm", "sglang"] {
       let inventory = @json.parse(
         capture(campaign, engine + "-original", "docker", [

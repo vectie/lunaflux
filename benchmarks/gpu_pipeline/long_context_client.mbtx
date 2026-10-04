@@ -63,6 +63,9 @@ fn token_ids(count : Int, row : Int, distribution : String) -> Array[Json] {
   let mut state = 1234567U + row.reinterpret_as_uint() * 7919U
   Array::makei(count, i => {
     state = state * 1664525U + 1013904223U
+    if distribution == "diverse" {
+      return Json(((state >> 16) % 1000U).reinterpret_as_int())
+    }
     let index = if distribution == "periodic" {
       (i + row * 5) % pool.length()
     } else {
@@ -250,6 +253,13 @@ test "long context matrix stays inside model and aggregate KV capacity" {
     body("luna-full", token_ids(32512, 0, "varied"), 256).stringify().length() <=
     131072,
   )
+  let diverse = token_ids(32512, 0, "diverse")
+  assert_true(body("luna-full", diverse, 256).stringify().length() <= 131072)
+  let unique : Map[String, Bool] = Map([])
+  for id in diverse {
+    unique[id.stringify()] = true
+  }
+  assert_eq(unique.length(), 1000)
 }
 
 ///|
@@ -260,6 +270,8 @@ async fn main {
   @fs.mkdir(root)
   let cells = if options is ["--smoke"] {
     [("i32512-o64-c1-varied", [32512], 64, "varied")]
+  } else if options is ["--diversity"] {
+    [("i32512-o64-c1-diverse", [32512], 64, "diverse")]
   } else {
     matrix()
   }
