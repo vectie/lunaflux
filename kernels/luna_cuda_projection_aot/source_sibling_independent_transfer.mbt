@@ -80,6 +80,7 @@ fn projection_sibling_transport_source(
         physical.operands,
         physical.transfer_segments,
         input_width,
+        asynchronous=physical.effects.has_pending_transfers(),
       )
     IndependentSiblingTransport =>
       projection_sibling_independent_transfer_source(physical, input_width)

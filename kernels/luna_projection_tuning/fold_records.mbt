@@ -9,6 +9,7 @@ pub struct ProjectionFoldRecord {
   priv choices : ReadOnlyArray[@compiler.ProjectionFoldChoice]
   priv sibling_ownership : @compiler.ProjectionSiblingOwnership
   priv sibling_transport : @compiler.ProjectionSiblingTransport
+  priv sibling_execution : @compiler.ProjectionTransferExecution?
 }
 
 ///|
@@ -55,7 +56,15 @@ pub fn ProjectionFoldRecord::sibling_ownership(
 pub fn ProjectionFoldRecord::is_baseline(self : ProjectionFoldRecord) -> Bool {
   self.choices.is_empty() &&
   self.sibling_ownership == SplitSiblingPlanes &&
-  self.sibling_transport == BaselineSiblingTransport
+  self.sibling_transport == BaselineSiblingTransport &&
+  self.sibling_execution is None
+}
+
+///|
+pub fn ProjectionFoldRecord::sibling_execution(
+  self : ProjectionFoldRecord,
+) -> @compiler.ProjectionTransferExecution? {
+  self.sibling_execution
 }
 
 ///|
@@ -75,6 +84,7 @@ fn fold_digest(value : StringView) -> Bool {
 /// denotes the baseline; other choices are role:stages:window:lookahead,
 /// separated by commas. V2 appends row_tiles:output_tiles:hoist, where zero
 /// geometry retains the ordinary schedule. Roles are matrix, sibling, intermediate.
+/// V4 adds execution:serial|prefetch|overlapped as an orthogonal effect choice.
 pub fn parse_projection_fold_records(
   bytes : Bytes,
   scope~ : String,
@@ -86,7 +96,8 @@ pub fn parse_projection_fold_records(
     (
       version == "luna-projection-fold-v1" ||
       version == "luna-projection-fold-v2" ||
-      version == "luna-projection-fold-v3"
+      version == "luna-projection-fold-v3" ||
+      version == "luna-projection-fold-v4"
     ) &&
     actual_scope == "scope\t" + scope else {
     raise ScopeMismatch
@@ -111,8 +122,24 @@ pub fn parse_projection_fold_records(
     let mut has_ownership = false
     let mut sibling_transport : @compiler.ProjectionSiblingTransport = BaselineSiblingTransport
     let mut has_transport = false
+    let mut sibling_execution : @compiler.ProjectionTransferExecution? = None
     if encoded != "-" {
       for item in encoded.split(",") {
+        if item.split(":").to_array() is ["execution", execution] {
+          guard version == "luna-projection-fold-v4" &&
+            sibling_execution is None else {
+            raise InvalidSnapshot
+          }
+          sibling_execution = Some(
+            match execution {
+              "serial" => @compiler.SerialTransfer
+              "prefetch" => CompletedPrefetch
+              "overlapped" => OverlappedTransfer
+              _ => raise InvalidSnapshot
+            },
+          )
+          continue
+        }
         if item.split(":").to_array() is ["transport", transport] {
           guard version != "luna-projection-fold-v1" && !has_transport else {
             raise InvalidSnapshot
@@ -153,7 +180,8 @@ pub fn parse_projection_fold_records(
             (role, stages, window, fragments, None, None, false, None, None)
           [role, stages, window, fragments, rows, columns, addresses, .. groups] if version ==
             "luna-projection-fold-v2" ||
-            version == "luna-projection-fold-v3" => {
+            version == "luna-projection-fold-v3" ||
+            version == "luna-projection-fold-v4" => {
             let rows = integer(rows)
             let columns = integer(columns)
             guard addresses == "0" || addresses == "1" else {
@@ -162,7 +190,8 @@ pub fn parse_projection_fold_records(
             let (groups, bound) = match groups {
               [] => (None, None)
               [groups] => (Some(integer(groups)), None)
-              [groups, bound] if version == "luna-projection-fold-v3" =>
+              [groups, bound] if version == "luna-projection-fold-v3" ||
+                version == "luna-projection-fold-v4" =>
                 (Some(integer(groups)), Some(integer(bound)))
               _ => raise InvalidSnapshot
             }
@@ -229,6 +258,7 @@ pub fn parse_projection_fold_records(
       choices: ReadOnlyArray::from_array(choices),
       sibling_ownership,
       sibling_transport,
+      sibling_execution,
     })
   }
   // Relative improvements require a matched baseline measurement.

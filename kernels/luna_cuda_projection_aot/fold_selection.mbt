@@ -59,6 +59,7 @@ pub fn lower_measured_projection_cuda_aot_candidate(
       fold_choices=record.fold_choices()[:],
       sibling_ownership=record.sibling_ownership(),
       sibling_transport=record.sibling_transport(),
+      sibling_execution?=record.sibling_execution(),
     ) catch {
       LimitExceeded(LaunchDimensions) => continue selected, cost
       error => raise error

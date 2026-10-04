@@ -94,6 +94,7 @@ pub fn PhysicalProjectionTileCompilation::not_equal(Self, Self) -> Bool
 pub fn PhysicalProjectionTileCompilation::program(Self) -> ProjectionTileProgram
 pub fn PhysicalProjectionTileCompilation::schedule(Self) -> ProjectionTileSchedule
 pub fn PhysicalProjectionTileCompilation::to_repr(Self) -> @debug.Repr
+pub fn PhysicalProjectionTileCompilation::with_sibling_execution(Self, ProjectionTransferExecution) -> Self
 
 pub struct ProjectionAttentionIngressEpilogue {
   // private fields

@@ -35,6 +35,7 @@ pub fn ProjectionFoldRecord::fold_choices(Self) -> ReadOnlyArray[@luna_projectio
 pub fn ProjectionFoldRecord::is_baseline(Self) -> Bool
 pub fn ProjectionFoldRecord::median_latency_ns(Self) -> Int64
 pub fn ProjectionFoldRecord::sample_count(Self) -> Int
+pub fn ProjectionFoldRecord::sibling_execution(Self) -> @luna_projection_tile_compiler.ProjectionTransferExecution?
 pub fn ProjectionFoldRecord::sibling_ownership(Self) -> @luna_projection_tile_compiler.ProjectionSiblingOwnership
 pub fn ProjectionFoldRecord::sibling_transport(Self) -> @luna_projection_tile_compiler.ProjectionSiblingTransport
 

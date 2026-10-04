@@ -46,10 +46,7 @@ test "sibling producer transport is orthogonal to immutable ownership" {
       assert_eq(sibling.fragments, ordinary.sibling.unwrap().fragments)
       assert_eq(sibling.operands, ordinary.sibling.unwrap().operands)
       assert_eq(sibling.effects.has_pending_transfers(), false)
-      assert_eq(
-        sibling.effects.overlaps(),
-        transport == IndependentSiblingTransport,
-      )
+      assert_eq(sibling.effects.overlaps(), true)
     }
   }
 }

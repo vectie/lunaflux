@@ -10,6 +10,7 @@ fn projection_sibling_phased_transfer_source(
   operands : @physical_tile_ir.OperandStorage,
   segments : ArrayView[@luna_projection_tile_compiler.ProjectionTransferSegment],
   input_width : Int,
+  asynchronous? : Bool = false,
 ) -> String {
   guard operands.has_concatenated_layout() else {
     abort("phased transfer requires compatible concatenated operand layout")
@@ -58,6 +59,27 @@ fn projection_sibling_phased_transfer_source(
       addresses <+ "          }\n"
     }
     addresses <+ "        }\n"
+  }
+  if asynchronous {
+    return (
+      $|const __nv_bfloat16 *transfer_sources[\{batches}] = {};
+      $|      bool transfer_active[\{batches}] = {};
+      $|\{addresses.to_string()}
+      $|      auto stage_operands = [&](int k_base, int stage) {
+      $|        __nv_bfloat16 *destination = sibling_storage + stage * \{elements};
+      $|        #pragma unroll
+      $|        for (int slot=0;slot<\{batches};++slot) {
+      $|          if (threadIdx.x + slot * \{threads} < \{vectors}) {
+      $|            const int element = (threadIdx.x + slot * \{threads}) * 8;
+      $|            const unsigned address = (unsigned)__cvta_generic_to_shared(destination + operand_index(element / \{width}, element % \{width}));
+      $|            const bool valid = transfer_active[slot];
+      $|            const __nv_bfloat16 *source = valid ? transfer_sources[slot] + k_base : input;
+      $|            \{projection_operand_transfer_source(asynchronous=true)}
+      $|          }
+      $|        }
+      $|        asm volatile("cp.async.commit_group;" ::: "memory");
+      $|      };
+    )
   }
   (
     $|const __nv_bfloat16 *transfer_sources[\{batches}] = {};

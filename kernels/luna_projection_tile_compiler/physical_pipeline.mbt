@@ -137,13 +137,7 @@ pub fn ProjectionPhysicalPipeline::new(
     operands,
     fragments,
     distribution,
-    effects: schedule.effect_plan(
-      if transport == SegmentedSiblingTransport {
-        SerialTransfer
-      } else {
-        execution
-      },
-    ),
+    effects: schedule.effect_plan(execution),
     sibling_reuse: reuse is Some(_),
     sibling_transport: transport,
     owners_per_group,

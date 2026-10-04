@@ -27,6 +27,26 @@ pub extend PhysicalProjectionTileCompilation with @debug.Debug::{to_repr}
 pub extend PhysicalProjectionTileCompilation with Eq::{equal, not_equal}
 
 ///|
+/// Refine only the sibling's explicit transfer lifetime. Storage ownership,
+/// fragment geometry and numerical order remain immutable and unchanged.
+pub fn PhysicalProjectionTileCompilation::with_sibling_execution(
+  self : PhysicalProjectionTileCompilation,
+  execution : ProjectionTransferExecution,
+) -> PhysicalProjectionTileCompilation {
+  match self.sibling {
+    Some(sibling) =>
+      {
+        ..self,
+        sibling: Some({
+          ..sibling,
+          effects: sibling.schedule.effect_plan(execution),
+        }),
+      }
+    None => self
+  }
+}
+
+///|
 pub fn ScheduledProjectionTileCompilation::refine_physical(
   self : ScheduledProjectionTileCompilation,
   layout : (Int) -> @physical_tile_ir.OperandLayout?,

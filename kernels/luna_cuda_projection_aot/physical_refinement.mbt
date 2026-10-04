@@ -11,6 +11,7 @@ fn projection_refine_physical(
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
   sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
+  sibling_execution? : @luna_projection_tile_compiler.ProjectionTransferExecution,
 ) -> @luna_projection_tile_compiler.PhysicalProjectionTileCompilation raise ProjectionAotError {
   let physical = compilation.refine_physical(
     width => {
@@ -28,5 +29,21 @@ fn projection_refine_physical(
     sibling_transport~,
   )
   guard physical is Some(physical) else { raise Unsupported(Strategy) }
-  physical
+  // Preserve the measured default at the backend policy boundary, not as a
+  // hidden restriction of the generic ownership/transport product.
+  match physical.sibling {
+    Some(sibling) => {
+      let execution = match sibling_execution {
+        Some(execution) => Some(execution)
+        None if sibling.sibling_transport == SegmentedSiblingTransport =>
+          Some(@luna_projection_tile_compiler.SerialTransfer)
+        None => None
+      }
+      match execution {
+        Some(execution) => physical.with_sibling_execution(execution)
+        None => physical
+      }
+    }
+    None => physical
+  }
 }

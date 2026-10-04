@@ -12,6 +12,7 @@ fn projection_row_variant_sources(
   max_registers~ : Int,
   sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
   sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
+  sibling_execution? : @luna_projection_tile_compiler.ProjectionTransferExecution,
   fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> (String, ReadOnlyArray[@artifact.KernelRowVariant]) raise ProjectionAotError {
   let sources = StringBuilder()
@@ -106,6 +107,7 @@ fn projection_row_variant_sources(
         compilation,
         sibling_ownership~,
         sibling_transport~,
+        sibling_execution?,
       ),
       false,
       dimensions.shared_memory_bytes() > 0,

@@ -1,4 +1,52 @@
 ///|
+test "v4 transfer effects are independent source-bound alternatives" {
+  let a = "a".repeat(64)
+  let b = "b".repeat(64)
+  let baseline = "record\t\{a}\t\{a}\t100\t3\t-\n"
+  for
+    (token, execution) in [
+      ("serial", @compiler.SerialTransfer),
+      ("prefetch", CompletedPrefetch),
+      ("overlapped", OverlappedTransfer),
+    ] {
+    let records = parse_projection_fold_records(
+      @utf8.encode(
+        "luna-projection-fold-v4\nscope\ttest\n" +
+        baseline +
+        "record\t\{a}\t\{b}\t50\t3\texecution:\{token}\n",
+      ),
+      scope="test",
+    )
+    assert_true(records[0].is_baseline())
+    assert_false(records[1].is_baseline())
+    assert_eq(records[1].sibling_execution(), Some(execution))
+    assert_true(records[1].fold_choices().is_empty())
+  }
+  for
+    (version, choice) in [
+      ("v3", "execution:overlapped"),
+      ("v4", "execution:unknown"),
+      ("v4", "execution:overlapped,execution:serial"),
+    ] {
+    try
+      parse_projection_fold_records(
+        @utf8.encode(
+          "luna-projection-fold-\{version}\nscope\ttest\n" +
+          baseline +
+          "record\t\{a}\t\{b}\t50\t3\t\{choice}\n",
+        ),
+        scope="test",
+      )
+    catch {
+      InvalidSnapshot => ()
+      _ => fail("unexpected error")
+    } noraise {
+      _ => fail("invalid transfer choice accepted")
+    }
+  }
+}
+
+///|
 test "v3 row domains compose global and bounded schedules without duplicate domains" {
   let a = "a".repeat(64)
   let b = "b".repeat(64)
