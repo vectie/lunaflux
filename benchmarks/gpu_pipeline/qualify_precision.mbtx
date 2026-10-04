@@ -1,0 +1,209 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=8388608)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+  out.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, export_root, remote, output, probe] else {
+    fail("EXPORTED_ROOT REMOTE_NEW_ROOT LOCAL_NEW_OUTPUT PROBE_SOURCE")
+  }
+  if probe != "benchmarks/gpu_pipeline/precision_probe.cu" &&
+    probe != "benchmarks/gpu_pipeline/precision_projection_probe.cu" {
+    fail("probe source")
+  }
+  let probe_name = probe.split("/").to_array().last().unwrap().to_owned()
+  if @fs.exists(output) {
+    fail("no overwrite")
+  }
+  if !remote.has_prefix("/home/wlc004s/lunaflux-precision-") ||
+    remote.contains("..") ||
+    remote.contains(" ") ||
+    remote.contains("'") ||
+    remote.contains("\n") {
+    fail("remote root")
+  }
+  @fs.mkdir(output)
+  let ssh = [
+    "-S", "/tmp/lunaflux-next-20261004.sock", "-p", "10422", "-o", "BatchMode=yes",
+    "wlc004s@106.39.18.146",
+  ]
+  let identity = record(
+    output,
+    "identity",
+    "ssh",
+    [..ssh, "nvidia-smi --query-gpu=uuid --format=csv,noheader"],
+  )
+  if identity.trim() != "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6" {
+    fail("GPU identity")
+  }
+  let idle = record(
+    output,
+    "idle",
+    "ssh",
+    [..ssh, "nvidia-smi --query-compute-apps=pid --format=csv,noheader"],
+  )
+  if !idle.trim().is_empty() {
+    fail("GPU busy")
+  }
+  let memory = record(
+    output,
+    "memory",
+    "ssh",
+    [..ssh, "head -100 /proc/meminfo"],
+  )
+  guard memory.split("\n").find_first(x => x.has_prefix("MemAvailable:"))
+    is Some(line) else {
+    fail("memory")
+  }
+  let parts = line.split(" ").filter(x => !x.is_empty()).to_array()
+  if @string.parse_int64(parts[1]) < 33554432L {
+    fail("32 GiB reserve")
+  }
+  ignore(
+    record(output, "upload", "scp", [
+      "-o",
+      "ControlPath=/tmp/lunaflux-next-20261004.sock",
+      "-P",
+      "10422",
+      export_root + "/precision_kernels.cuh",
+      export_root + "/precision_fixture.h",
+      export_root + "/REPRESENTATIONS.txt",
+      probe,
+      "wlc004s@106.39.18.146:" + remote + "/",
+    ]),
+  )
+  let bounded = "systemd-run --user --scope --quiet -p MemoryMax=8G -p MemorySwapMax=0 -- "
+  ignore(
+    record(
+      output,
+      "build",
+      "ssh",
+      [
+        ..ssh,
+        bounded +
+        "/usr/local/cuda-13.0/bin/nvcc -O3 --ftz=false --fmad=false -std=c++17 -arch=sm_121 " +
+        remote +
+        "/" +
+        probe_name +
+        " -o " +
+        remote +
+        "/precision-probe",
+      ],
+    ),
+  )
+  let numerical = record(
+    output,
+    "correctness",
+    "ssh",
+    [..ssh, bounded + remote + "/precision-probe"],
+  )
+  if !numerical.contains("outcome=passed cases=36") {
+    fail("missing numerical result")
+  }
+  for tool in ["memcheck", "racecheck", "synccheck"] {
+    let extra = if tool == "memcheck" { " --leak-check full" } else { "" }
+    let result = record(
+      output,
+      tool,
+      "ssh",
+      [
+        ..ssh,
+        bounded +
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+        tool +
+        extra +
+        " --error-exitcode 99 " +
+        remote +
+        "/precision-probe",
+      ],
+    )
+    if !result.contains("outcome=passed cases=36") ||
+      !(if tool == "racecheck" {
+        result.contains(
+          "RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)",
+        )
+      } else {
+        result.contains("ERROR SUMMARY: 0 errors")
+      }) {
+      fail("sanitizer result")
+    }
+  }
+  let sha = record(
+    output,
+    "remote-hashes",
+    "ssh",
+    [
+      ..ssh,
+      "sha256sum " +
+      remote +
+      "/precision-probe " +
+      remote +
+      "/precision_kernels.cuh " +
+      remote +
+      "/precision_fixture.h " +
+      remote +
+      "/" +
+      probe_name,
+    ],
+  )
+  ignore(
+    record(output, "download", "scp", [
+      "-o",
+      "ControlPath=/tmp/lunaflux-next-20261004.sock",
+      "-P",
+      "10422",
+      "wlc004s@106.39.18.146:" + remote + "/precision-probe",
+      output + "/precision-probe",
+    ]),
+  )
+  let downloaded = record(output, "local-hash", "shasum", [
+    "-a",
+    "256",
+    output + "/precision-probe",
+  ])
+  if !sha.has_prefix(downloaded.split(" ").to_array()[0]) {
+    fail("download hash mismatch")
+  }
+  @fs.write_file(
+    output + "/RESULT.txt",
+    "outcome=passed\nformat_cases=36\nscope=GPU-precision-kernel-qualification-not-model-serving\nremote=" +
+    remote +
+    "\n" +
+    sha,
+    create_mode=CreateNew,
+  )
+}

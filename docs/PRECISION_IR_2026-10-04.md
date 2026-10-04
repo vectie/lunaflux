@@ -107,9 +107,14 @@ reserve, and serial GPU execution.
   were preserved, not relabeled.
 
 Local records: `benchmarks/results/precision-20261004.J8Gma9/` (ignored artifacts).
-Passing conversion root: `qualification3`; passing projection root:
+Passing current conversion root: `qualification-launch-final`; passing projection root:
 `projection-qualification2`. Downloaded executable SHA-256 values are recorded
 and checked against their remote originals in each campaign.
+
+The affected-package native suite passed 230 tests; the final full native suite
+passed 4,399/4,399. Native check/test use the
+repository's existing migration-warning exclusions (`-79-20-29-25-92-14`), not
+new per-package suppressions. New packages use explicit trait extensions.
 
 ## Deliberately unfinished integration
 
