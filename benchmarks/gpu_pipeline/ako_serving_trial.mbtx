@@ -1,0 +1,87 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  let parts = text.split(before).to_array()
+  guard parts.length() == 2 else { fail("frozen launcher/client seam changed") }
+  parts.join(after)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, serving, root] else {
+    fail("FROZEN_LONG_CONTEXT PREPARED_SERVING NEW_OUTPUT")
+  }
+  guard @fs.exists(serving + "/PREPARED.json") else { fail("prepared serving") }
+  for name in ["source", "toolchain", "export.stdout"] {
+    if !@fs.exists(serving + "/" + name) {
+      @shell.Cmd("ln", ["-s", frozen + "/" + name, serving + "/" + name]).run()
+    }
+  }
+  @fs.mkdir(root)
+  let tool = once(
+    @fs.read_file(frozen + "/measure/launcher.mbtx").text(),
+    "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]",
+    "let orders = [[\"luna-full\"],[\"luna-full\"]]",
+  )
+  let client = @fs.read_file(frozen + "/long_context_client.mbtx").text()
+  let begin = client
+    .split("  let cells = if options is [\"--smoke\"] {")
+    .to_array()
+  assert_eq(begin.length(), 2)
+  let end = begin[1].split("  let matrix_json : Array[Json]").to_array()
+  assert_eq(end.length(), 2)
+  // Identical token generator, warmup and three measured trials per cell.
+  // Do not mix a route microbenchmark with end-to-end timing.
+  let client = begin[0].to_owned() +
+    "  let cells = [(\"i4096-o64-c1-varied\",[4096],64,\"varied\")," +
+    "(\"i8192-o64-c1-varied\",[8192],64,\"varied\")," +
+    "(\"i16384-o64-c1-varied\",[16384],64,\"varied\")," +
+    "(\"i32512-o64-c1-varied\",[32512],64,\"varied\")," +
+    "(\"i32512-o64-c2-varied\",[32512,32512],64,\"varied\")," +
+    "(\"mixed-o64-c4-varied\",[4096,8192,16384,32512],64,\"varied\")," +
+    "(\"i32512-o64-c1-diverse\",[32512],64,\"diverse\")];\n" +
+    "  let matrix_json : Array[Json]" +
+    end[1].to_owned()
+  let script = root + "/launcher.mbtx"
+  @fs.write_file(script, tool, create_mode=CreateNew)
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  let moon = frozen + "/toolchain/bin/moon"
+  for file in [script, script + ".client.mbtx"] {
+    @shell.Cmd(moon, ["check", file]).run()
+  }
+  let result = @shell.Cmd(moon, ["run", script, serving, root, script]).output(
+    max_output_bytes=33554432,
+  )
+  @fs.write_file(
+    root + "/campaign.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/campaign.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  let metadata : Json = {
+    "scope": "LunaFlux route-only A/B; reference framework results not remeasured",
+    "serving": serving,
+    "fresh_starts": 2,
+    "warmups_per_cell_per_start": 1,
+    "measured_trials_per_cell_per_start": 3,
+    "cells": 7,
+  }
+  @fs.write_file(
+    root + "/EXPERIMENT.json",
+    metadata.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}

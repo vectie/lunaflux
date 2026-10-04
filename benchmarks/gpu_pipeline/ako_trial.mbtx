@@ -1,0 +1,282 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn scalar(line : String, key : String) -> Double raise {
+  guard line.split(" ").filter(s => s.has_prefix(key + "=")).to_array()
+    is [field] else {
+    fail("missing/duplicate " + key)
+  }
+  let value = @string.parse_double(field[key.length() + 1:])
+  guard value > 0.0 && value < 1.0e9 else { fail("invalid latency") }
+  value
+}
+
+///|
+fn checked_error(line : String, key : String) -> Unit raise {
+  guard line.split(" ").filter(s => s.has_prefix(key + "=")).to_array()
+    is [field] else {
+    fail("missing/duplicate correctness error")
+  }
+  let value = @string.parse_double(field[key.length() + 1:])
+  guard value >= 0.0 && value <= 0.003 else {
+    fail("BF16 probe correctness tolerance exceeded")
+  }
+}
+
+///|
+// Probe-owned correctness must finish before it prints paired timing rows.
+// Validate every row as well: do not admit a partial or failed timing capture.
+fn summarize(output : String, min_gain : Double) -> Json raise {
+  let lines = output.split("\n").filter(s => s.has_prefix("tokens=")).to_array()
+  guard lines.length() == 5 else { fail("five paired trials required") }
+  let old : Array[Double] = []
+  let fresh : Array[Double] = []
+  let gains : Array[Double] = []
+  for i, line in lines {
+    guard line.contains("trial=\{i} ") &&
+      line.contains("oracle_maxabs=") &&
+      line.contains("bitwise=") else {
+      fail("trial/correctness fields")
+    }
+    let a = scalar(line.to_owned(), "old_us")
+    let b = scalar(line.to_owned(), "new_us")
+    checked_error(line.to_owned(), "maxabs")
+    checked_error(line.to_owned(), "oracle_maxabs")
+    old.push(a)
+    fresh.push(b)
+    gains.push(1.0 - b / a)
+  }
+  let raw : Json = {
+    "baseline_us": old,
+    "candidate_us": fresh,
+    "paired_gain": gains,
+  }
+  old.sort()
+  fresh.sort()
+  gains.sort()
+  {
+    "samples": raw,
+    "baseline_median_us": old[2],
+    "candidate_median_us": fresh[2],
+    "candidate_min_us": fresh[0],
+    "candidate_max_us": fresh[4],
+    "median_paired_gain": gains[2],
+    "minimum_paired_gain": gains[0],
+    "decision": if gains[0] >= min_gain {
+      "improved"
+    } else if gains[2] < 0.0 {
+      "regression"
+    } else {
+      "inconclusive"
+    },
+  }
+}
+
+///|
+fn memory_kib(text : String) -> Int64 raise {
+  guard text.split("\n").filter(s => s.has_prefix("MemAvailable:")).to_array()
+    is [line] else {
+    fail("MemAvailable")
+  }
+  guard line.split(" ").filter(s => !s.is_empty()).to_array()
+    is [_, amount, "kB"] else {
+    fail("memory unit")
+  }
+  @string.parse_int64(amount)
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(program, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, contract, root] else {
+    fail("CONTRACT_JSON NEW_ROOT")
+  }
+  let config = @json.parse(@fs.read_file(contract).text())
+  guard config
+    is {
+      "schema": "lunaflux-ako-trial-v1",
+      "gpu_uuid": String(uuid),
+      "reserve_kib": Number(reserve, ..),
+      "minimum_gain": Number(gain, ..),
+      "program": String(program),
+      "artifacts": Array(artifacts),
+      "workloads": Array(workloads),
+      ..
+    } &&
+    program.has_prefix("/") &&
+    reserve >= 33554432.0 &&
+    gain >= 0.0 &&
+    gain < 1.0 &&
+    workloads.length() > 0 &&
+    workloads.length() <= 32 else {
+    fail("bounded trial contract")
+  }
+  @fs.mkdir(root)
+  @fs.write_file(
+    root + "/contract.json",
+    config.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let idle = capture(root, "idle-before", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  guard idle.trim().is_empty() else { fail("GPU busy") }
+  let device = capture(root, "device", "nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ])
+  guard device.trim() == uuid else { fail("GPU identity") }
+  let paths = artifacts.map(item => {
+    guard item is String(path) && path.has_prefix("/") else {
+      fail("absolute artifact path")
+    }
+    path
+  })
+  guard !paths.is_empty() else { fail("artifacts required") }
+  let identity = capture(
+    root,
+    "identities-before",
+    "sha256sum",
+    [program, ..paths],
+  )
+  let records : Array[Json] = []
+  for index, workload in workloads {
+    guard workload is { "label": String(label), "args": Array(raw), .. } &&
+      !label.is_empty() &&
+      label.length() <= 80 &&
+      label.iter().all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '-')) else {
+      fail("workload label")
+    }
+    let args = raw.map(value => {
+      guard value is String(arg) else { fail("argument") }
+      arg
+    })
+    let available = memory_kib(@fs.read_file("/proc/meminfo").text())
+    guard available.to_double() >= reserve else {
+      fail("memory reserve before probe")
+    }
+    let result = capture(root, "w\{index}-" + label, program, args)
+    let metrics = summarize(result, gain)
+    let after = memory_kib(@fs.read_file("/proc/meminfo").text())
+    guard after.to_double() >= reserve else {
+      fail("memory reserve after probe")
+    }
+    let record : Json = {
+      "label": label,
+      "args": args,
+      "mem_available_kib_before": Json(available),
+      "mem_available_kib_after": Json(after),
+      "metrics": metrics,
+    }
+    @fs.write_file(
+      root + "/w\{index}-" + label + ".json",
+      record.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    records.push(record)
+    println(record.stringify())
+  }
+  let after = capture(root, "identities-after", "sha256sum", [program, ..paths])
+  assert_eq(after, identity)
+  let idle = capture(root, "idle-after", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  guard idle.trim().is_empty() else { fail("GPU not released") }
+  @fs.write_file(
+    root + "/summary.json",
+    Json(records).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=paired-selected-kernel-experiment; not serving promotion\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "paired verdict retains all samples and rejects partial captures" {
+  let output = [
+    for i in 0..<5 => {
+      "tokens=2048 rows=1 history=14336 trial=\{i} old_us=100 new_us=50 bitwise=true maxabs=0 oracle_maxabs=0.001"
+    }
+  ].join("\n")
+  guard summarize(output, 0.03)
+    is {
+      "decision": "improved",
+      "baseline_median_us": 100,
+      "candidate_median_us": 50,
+      ..
+    } else {
+    fail("paired win")
+  }
+  try summarize(output + "\n" + output, 0.03) catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate trials accepted")
+  }
+  try summarize(output.replace(old="new_us=50", new="new_us=nan"), 0.03) catch {
+    _ => ()
+  } noraise {
+    _ => fail("nonfinite accepted")
+  }
+  try
+    summarize(
+      output.replace(old="oracle_maxabs=0.001", new="oracle_maxabs=0.1"),
+      0.03,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("incorrect winner accepted")
+  }
+}
+
+///|
+test "one paired regression prevents a robust win" {
+  let output = [
+    for i in 0..<5 => {
+      "tokens=2048 rows=1 history=8192 trial=\{i} old_us=100 new_us=\{if i == 4 { 110 } else { 90 }} bitwise=true maxabs=0 oracle_maxabs=0"
+    }
+  ].join("\n")
+  guard summarize(output, 0.03) is { "decision": "inconclusive", .. } else {
+    fail("noise must not become a win")
+  }
+  assert_eq(
+    memory_kib("MemTotal: 10 kB\nMemAvailable:     33554432 kB\n"),
+    33554432L,
+  )
+}

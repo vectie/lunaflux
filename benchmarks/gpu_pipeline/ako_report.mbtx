@@ -1,0 +1,116 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double {
+  let sorted = values.copy()
+  sorted.sort()
+  (sorted[2] + sorted[3]) / 2.0
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_AB_ROOT") }
+  let cells = [
+    "i4096-o64-c1-varied", "i8192-o64-c1-varied", "i16384-o64-c1-varied", "i32512-o64-c1-varied",
+    "i32512-o64-c2-varied", "mixed-o64-c4-varied", "i32512-o64-c1-diverse",
+  ]
+  for side in ["control", "tuned"] {
+    assert_true(
+      @fs.read_file(root + "/" + side + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+  }
+  let report : Array[Json] = []
+  for cell in cells {
+    let times : Array[Array[Double]] = []
+    let ttfts : Array[Array[Double]] = []
+    let tokens : Array[Array[Json]] = []
+    for side in ["control", "tuned"] {
+      let wall : Array[Double] = []
+      let first : Array[Double] = []
+      let outputs : Array[Json] = []
+      for round in 0..<2 {
+        for trial in 1..<4 {
+          let json = @json.parse(
+            @fs.read_file(
+              root +
+              "/" +
+              side +
+              "/r\{round}-luna-full/requests/" +
+              cell +
+              "-t\{trial}.json",
+            ).text(),
+          )
+          guard json
+            is {
+              "wall_ms": wall_ms,
+              "warmup": false,
+              "requests": Array(requests),
+              ..
+            } else {
+            fail("measured row")
+          }
+          wall.push(number(wall_ms))
+          let row_first : Array[Double] = []
+          let row_tokens : Array[Json] = []
+          for request in requests {
+            guard request is { "ttft_ms": ttft, "token_ids": Array(ids), .. } else {
+              fail("output vector")
+            }
+            assert_eq(ids.length(), 64)
+            row_first.push(number(ttft))
+            row_tokens.push(Json(ids))
+          }
+          first.push(
+            row_first.fold(init=0.0, (a, b) => a + b) /
+            row_first.length().to_double(),
+          )
+          outputs.push(Json(row_tokens))
+        }
+      }
+      times.push(wall)
+      ttfts.push(first)
+      tokens.push(outputs)
+    }
+    let paired = Array::makei(6, i => tokens[0][i] == tokens[1][i])
+    report.push({
+      "cell": cell,
+      "baseline_wall_ms": times[0],
+      "tuned_wall_ms": times[1],
+      "baseline_median_ms": median(times[0]),
+      "tuned_median_ms": median(times[1]),
+      "completion_reduction": 1.0 - median(times[1]) / median(times[0]),
+      "baseline_ttft_ms": ttfts[0],
+      "tuned_ttft_ms": ttfts[1],
+      "baseline_median_ttft_ms": median(ttfts[0]),
+      "tuned_median_ttft_ms": median(ttfts[1]),
+      "same_trial_output_vectors": paired,
+      "baseline_output_vectors": tokens[0],
+      "tuned_output_vectors": tokens[1],
+      "scope": "fixed-work timing; inspect output-vector agreement separately",
+    })
+  }
+  @fs.write_file(
+    root + "/serving-comparison.json",
+    Json(report).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(Json(report).stringify())
+}

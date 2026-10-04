@@ -1,0 +1,298 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn captured(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn median_ns(text : String, key : String) -> Int64 raise {
+  let values : Array[Double] = []
+  for line in text.split("\n").filter(s => s.has_prefix("tokens=")) {
+    guard line.split(" ").filter(s => s.has_prefix(key + "=")).to_array() is [f] else {
+      fail(key)
+    }
+    values.push(@string.parse_double(f[key.length() + 1:]))
+  }
+  assert_eq(values.length(), 5)
+  values.sort()
+  (values[2] * 1000.0).to_int64()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, phase] else {
+    fail("IMMUTABLE_BASE NEW_ROOT prepare|bind")
+  }
+  let moon = base + "/toolchain/bin/moon"
+  if phase == "prepare" {
+    guard !@fs.exists(root + "/probe") else { fail("new pilot root required") }
+    ignore(
+      captured(root, "build-probe", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        root + "/selected_policy_probe.cu",
+        "-lcuda",
+        "-o",
+        root + "/probe",
+      ]),
+    )
+    let spec = @fs.read_file(base + "/ingress.spec")
+      .text()
+      .replace(old="kind=ingress", new="kind=prefill")
+      .replace(old="input_width=1024", new="input_width=4096")
+      .replace(old="query_metadata_version=0", new="query_metadata_version=1")
+    @fs.write_file(root + "/prefill.spec", spec, create_mode=CreateNew)
+    for
+      (name, recipe, binary) in [
+        ("baseline", "wide-prefill-selected", "prefill_wide.cubin"),
+        ("candidate-probe", "prefill-selected", "prefill.cubin"),
+      ] {
+      @fs.mkdir(root + "/" + name)
+      @fs.write_file(
+        root + "/" + name + "/kernel.recipe",
+        @fs.read_file(base + "/" + recipe + "/kernel.recipe"),
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+      @fs.write_file(
+        root + "/" + name + "/kernel.cubin",
+        @fs.read_file(base + "/fused/" + binary),
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+    }
+    // Reproduce the unmeasured wide fallback vs the existing compiler c322.
+    // No kernel implementation or numerical law changes in this experiment.
+    let workloads : Array[Json] = []
+    for rows in [1, 2, 4] {
+      for context in [8192, 16384, 32768] {
+        workloads.push({
+          "label": "r\{rows}-ctx\{context}",
+          "args": [
+            root + "/prefill.spec",
+            root + "/baseline",
+            root + "/candidate-probe",
+            "2048",
+            rows.to_string(),
+            (context - 2048 / rows).to_string(),
+          ],
+        })
+      }
+    }
+    workloads.push({
+      "label": "r1-tail32512",
+      "args": [
+        root + "/prefill.spec",
+        root + "/baseline",
+        root + "/candidate-probe",
+        "1792",
+        "1",
+        "30720",
+      ],
+    })
+    let config : Json = {
+      "schema": "lunaflux-ako-trial-v1",
+      "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.03,
+      "program": root + "/probe",
+      "artifacts": [
+        root + "/prefill.spec",
+        root + "/candidate-probe/kernel.recipe",
+        root + "/candidate-probe/kernel.cubin",
+        root + "/baseline/kernel.recipe",
+        root + "/baseline/kernel.cubin",
+      ],
+      "workloads": workloads,
+    }
+    @fs.write_file(
+      root + "/trial.json",
+      config.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    println("prepared=" + root)
+  } else if phase == "bind" {
+    guard @fs.read_file(root + "/trial/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("completed trial")
+    }
+    let old = @fs.read_file(base + "/decode-route-measurements/routes.v1").text()
+    let mut routes = old
+    let mut index = 0
+    for rows in [1, 2, 4] {
+      for context in [8192, 16384, 32768] {
+        let label = "w\{index}-r\{rows}-ctx\{context}"
+        let output = @fs.read_file(root + "/trial/" + label + ".stdout").text()
+        // 8K is a measured control already present in the frozen table.
+        // Add only missing contexts, with no cross-bucket extrapolation.
+        if context > 8192 {
+          routes += "record\tprefill\t\{rows}\t2048\t\{context}\t1\t\{median_ns(output, "new_us")}\t5\nrecord\tprefill\t\{rows}\t2048\t\{context}\t2\t\{median_ns(output, "old_us")}\t5\n"
+        }
+        index += 1
+      }
+    }
+    let report = @fs.read_file(base + "/fresh-current-rebind.stdout").text()
+    let parts = routes.split("\n").to_array()
+    assert_true(parts[1].has_prefix("scope\t"))
+    parts[1] = "scope\t" + field(report, "attention_route_scope")
+    @fs.write_file(
+      root + "/routes.v1",
+      parts.join("\n"),
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+    let digest = captured(root, "route-sha", "sha256sum", [root + "/routes.v1"])
+    .split(" ")
+    .to_array()[0].to_owned()
+    @fs.mkdir(root + "/fused-routed")
+    let bundle = root + "/fused-routed/reusable-fused-runtime-bundle.v3"
+    let args = @fs.read_file(base + "/fused/export.arguments")
+      .text()
+      .split("\n")
+      .filter(s => !s.is_empty())
+      .map(s => {
+        if s == base + "/fused/reusable-fused-runtime-bundle.v3" {
+          bundle
+        } else {
+          s.to_owned()
+        }
+      })
+      .to_array()
+    args.append(["--attention-buckets", root + "/routes.v1", digest])
+    ignore(
+      captured(
+        root,
+        "rebind",
+        base +
+        "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+        args,
+      ),
+    )
+    for name in ["source", "toolchain", "toolchain.v1", "release", "candidate"] {
+      @shell.Cmd("ln", ["-s", base + "/" + name, root + "/" + name]).run()
+    }
+    for
+      name in [
+        "convert.stdout", "bind.stdout", "export.stdout", "prepare-full.mbtx",
+      ] {
+      @fs.write_file(
+        root + "/" + name,
+        @fs.read_file(base + "/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    println("routes-bound=" + root)
+  } else if phase == "serve-prepare" {
+    guard !@fs.exists(root + "/deployment") else {
+      fail("fresh deployment required")
+    }
+    if !@fs.exists(root + "/toolchain.v1") {
+      @shell.Cmd("ln", ["-s", base + "/toolchain.v1", root + "/toolchain.v1"]).run()
+    }
+    // Use canonical executable identities, not source symlink aliases.
+    let prepare = @fs.read_file(base + "/prepare-full.mbtx")
+      .text()
+      .replace(
+        old="let cli = source+\"/_build/native/release/build/cmd/\"",
+        new="let cli = " +
+          Json(base + "/source/_build/native/release/build/cmd/").stringify(),
+      )
+      .split("root+\"/release\"")
+      .to_array()
+      .join(Json(base + "/release").stringify())
+      .replace(
+        old="run(root,\"materialize\",",
+        new="run(root,\"materialize-canonical-release\",",
+      )
+      .replace(
+        old="run(root,\"capacity\",",
+        new="run(root,\"capacity-canonical-release\",",
+      )
+    @fs.write_file(
+      root + "/prepare-canonical-release.mbtx",
+      prepare,
+      create_mode=CreateNew,
+    )
+    for action in ["materialize", "capacity"] {
+      ignore(
+        captured(root, "canonical-release-" + action, moon, [
+          "run",
+          root + "/prepare-canonical-release.mbtx",
+          root,
+          action,
+        ]),
+      )
+    }
+    @fs.mkdir(root + "/long")
+    let long_prepare = @fs.read_file(root + "/prepare_long_context.mbtx")
+      .text()
+      .replace(
+        old="let cmd = base + \"/source/_build/native/release/build/cmd/\"",
+        new="let cmd = " +
+          Json(base + "/source/_build/native/release/build/cmd/").stringify(),
+      )
+    @fs.write_file(
+      root + "/prepare-long-canonical.mbtx",
+      long_prepare,
+      create_mode=CreateNew,
+    )
+    ignore(
+      captured(root, "long-context", moon, [
+        "run",
+        root + "/prepare-long-canonical.mbtx",
+        root,
+        root + "/long",
+      ]),
+    )
+    @fs.write_file(
+      root + "/long/benchmark-base.txt",
+      base,
+      create_mode=CreateNew,
+    )
+    println("bound=" + root + "/long")
+  } else {
+    fail("phase")
+  }
+}

@@ -131,7 +131,12 @@ int main(int argc,char**argv){
   const int qh=number(spec,"query_heads"),kh=number(spec,"key_value_heads"),d=number(spec,"head_dimension");
   const int input_width=number(spec,"input_width"),page=number(spec,"tokens_per_page"),stride=number(spec,"page_stride_values");
   const int max_rows=number(spec,"maximum_rows"),max_tokens=number(spec,"maximum_tokens"),max_pages=number(spec,"maximum_pages");
-  if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||past<0||past>8192||(decode&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
+  // History is limited by the declared page arena, not an old 8K experiment.
+  // Bound before host/device allocation, including uneven per-request tails.
+  if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||page<1||max_pages<1||past<0||
+     (decode&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
+  const int64_t largest_row=mixed?(int64_t(tokens)-1+rows-2)/(rows-1):(int64_t(tokens)+rows-1)/rows;
+  if(int64_t(past)+largest_row>int64_t(page)*max_pages)return 1;
   if((decode_envelope || partitioned) && !decode)return 1;
   // Explicit replay of a traced capacity-grid graph, including inactive rows.
   // Do not silently treat a compact synthetic bucket as the serving envelope.
