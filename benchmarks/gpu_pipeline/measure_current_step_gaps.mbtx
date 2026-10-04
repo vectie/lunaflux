@@ -1,0 +1,57 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn quoted(value : String) -> String {
+  "'" + value.split("'").to_array().join("''") + "'"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("COMPLETED_MEASUREMENT NEW_OUTPUT")
+  }
+  let results : Array[Json] = []
+  for engine in ["luna-full", "vllm", "sglang"] {
+    let dir = root + "/campaign/" + engine
+    let trial = if engine == "luna-full" { "1" } else { "0" }
+    let request = quoted(dir + "/requests/i4096-o256-c16-t" + trial + ".json")
+    let bounds = "WITH bounds AS (SELECT cast(json_extract(readfile(" +
+      request +
+      "),'$.epoch_start_ns') as integer)-utcEpochNs lo,cast(json_extract(readfile(" +
+      request +
+      "),'$.epoch_end_ns') as integer)-utcEpochNs hi FROM TARGET_INFO_SESSION_START_TIME), "
+    let mapping = if engine == "luna-full" {
+      "mapped AS (SELECT r.correlationId,r.start step FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId,bounds WHERE s.value='cuGraphLaunch' AND r.start>=lo AND r.start<hi), "
+    } else {
+      "markers AS MATERIALIZED (SELECT n.start,n.globalTid FROM NVTX_EVENTS n LEFT JOIN StringIds s ON s.id=n.textId,bounds WHERE coalesce(n.text,s.value) LIKE 'lf_work %' AND n.start>=lo AND n.start<hi), mapped AS MATERIALIZED (SELECT r.correlationId,(SELECT max(m.start) FROM markers m WHERE m.globalTid=r.globalTid AND m.start<=r.start) step FROM CUPTI_ACTIVITY_KIND_RUNTIME r,bounds WHERE r.start>=lo AND r.start<hi), "
+    }
+    let query = bounds +
+      mapping +
+      "steps AS (SELECT m.step,min(k.start) a,max(k.end) b,count(*) calls FROM mapped m JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=m.correlationId,bounds WHERE m.step IS NOT NULL AND k.start>=lo AND k.start<hi GROUP BY m.step), gaps AS (SELECT *,max(b) OVER(ORDER BY step ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) previous FROM steps) SELECT count(*) steps,round(sum(max(0,a-previous))/1e6,6) between_step_kernel_gap_ms,round((min(a)-(SELECT lo FROM bounds))/1e6,6) leading_ms,round(((SELECT hi FROM bounds)-max(b))/1e6,6) trailing_ms,min(calls) min_kernel_calls,max(calls) max_kernel_calls FROM gaps;"
+    @fs.write_file(
+      root + "/gap-query-v2-" + engine + ".sql",
+      query,
+      create_mode=CreateNew,
+    )
+    let response = @shell.Cmd("sqlite3", ["-json", dir + "/trace.sqlite", query]).output()
+    response.check()
+    guard @json.parse(response.stdout()) is Array([value]) else {
+      fail("gap query")
+    }
+    results.push({ "engine": engine, "measurement": value })
+  }
+  let result : Json = {
+    "schema": "lunaflux.current-step-gaps.v1",
+    "engines": results,
+    "scope": "GPU kernel envelope gaps joined through exact graph correlations or same-thread CPU work markers; running previous-end maximum avoids overlap double counting. Gaps can contain transfers and profiler overhead, not proved scheduler CPU time. Window-edge time is separate.",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(result.stringify(indent=2))
+}

@@ -1,0 +1,133 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn bounded_reference_source(original : String) -> String raise {
+  guard original.split("\"80g\"").to_array().length() == 3 else {
+    fail("inspect reference memory limit")
+  }
+  original.split("\"80g\"").to_array().join("\"64g\"")
+}
+
+///|
+test "both reference memory and memory-swap limits are bounded" {
+  assert_eq(
+    bounded_reference_source("[\"--memory\",\"80g\",\"--memory-swap\",\"80g\"]"),
+    "[\"--memory\",\"64g\",\"--memory-swap\",\"64g\"]",
+  )
+}
+
+///|
+async fn run(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  let (args, reuse) = match @env.args() {
+    [.. args, "--reuse-luna", path] => (args, ["--reuse-luna", path])
+    args => (args, [])
+  }
+  guard args is [_, root, serving, measured, originals] else {
+    fail(
+      "NEW_TOOL_ROOT IMMUTABLE_SERVING COMPLETED_TIMING PINNED_REFERENCE_ORIGINALS",
+    )
+  }
+  let moon = serving + "/toolchain/bin/moon"
+  let original = @fs.read_file(root + "/profile_reference_gap.mbtx").text()
+  @fs.write_file(
+    root + "/reference-bounded.mbtx",
+    bounded_reference_source(original),
+    create_mode=CreateNew,
+  )
+  let work = root + "/work"
+  @fs.mkdir(work)
+  for engine in ["vllm", "sglang"] {
+    @fs.write_file(
+      work + "/" + engine + "-original.py",
+      @fs.read_file(originals + "/" + engine + "-original.py"),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    work + "/install_execution_trace.mbtx",
+    @fs.read_file(root + "/install_execution_trace.mbtx"),
+    create_mode=CreateNew,
+  )
+  run(root, "reference-markers", moon, [
+    "run",
+    root + "/install_reference_work_rows.mbtx",
+    work,
+  ])
+  let campaign = root + "/campaign"
+  @fs.mkdir(campaign)
+  run(
+    root,
+    "campaign",
+    moon,
+    [
+      "run",
+      root + "/run_matched_trace_campaign.mbtx",
+      serving,
+      measured,
+      campaign,
+      root + "/trace_all_new_runtime.mbtx",
+      root + "/reference-bounded.mbtx",
+      root + "/summarize_matched_trace.mbtx",
+    ] +
+    reuse +
+    ["--work-rows", work, "--output", "256"],
+  )
+  run(root, "comparison", moon, [
+    "run",
+    root + "/compare_matched_traces.mbtx",
+    campaign,
+    root + "/comparison.json",
+  ])
+  for engine in ["luna-full", "vllm", "sglang"] {
+    let dir = campaign + "/" + engine
+    let trial = if engine == "luna-full" { "1" } else { "0" }
+    run(root, "work-" + engine, moon, [
+      "run",
+      root + "/summarize_work_shapes.mbtx",
+      dir,
+      engine,
+      dir + "/requests/i4096-o256-c16-t" + trial + ".json",
+      dir + "/work-shapes.json",
+    ])
+  }
+  run(root, "equal-work", moon, [
+    "run",
+    root + "/compare_equal_work.mbtx",
+    campaign + "/luna-full/work-shapes.json",
+    campaign,
+    root + "/equal-work.json",
+  ])
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=current-full-step-diagnostics-not-throughput\n",
+    create_mode=CreateNew,
+  )
+  println("fresh full-step measurements complete: " + root)
+}

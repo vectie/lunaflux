@@ -135,7 +135,7 @@ async fn main {
   }
   // Engine basenames alone collide with preserved earlier profiler containers.
   let reference = replace_once(
-    reference, "root.split(\"/\").to_array().last().unwrap().to_owned()", "root.replace(old=\"/\",new=\"-\")",
+    reference, "root.split(\"/\").to_array().last().unwrap().to_owned()", "root.split(\"/\").to_array().join(\"-\")",
   )
   @fs.write_file(
     root + "/reference-trace.mbtx",

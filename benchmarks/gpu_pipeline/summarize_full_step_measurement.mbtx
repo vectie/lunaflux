@@ -1,0 +1,211 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+fn phase(work : String) -> String {
+  let rows = work.split(",").to_array()
+  let single = rows.filter(row => row.has_prefix("1:"))
+  if single.length() == rows.length() {
+    if rows.length() == 16 {
+      "one-query-C16"
+    } else {
+      "one-query-tail"
+    }
+  } else if single.is_empty() {
+    "multi-query-only"
+  } else {
+    "mixed-query"
+  }
+}
+
+///|
+fn chain(name : String, engine : String, launch : String) -> String {
+  if name.contains("attention_") ||
+    name.contains("decode_split") ||
+    name.contains("BatchDecode") ||
+    name.contains("BatchPrefill") ||
+    name.contains("MergeStates") ||
+    name.contains("flash_fwd") {
+    "attention"
+  } else if name.contains("language_model_head") ||
+    name.contains("greedy_bf16") ||
+    name.contains("argmax") ||
+    name.contains("sampling") ||
+    (
+      engine != "luna-full" &&
+      name.contains("wmma_tensorop") &&
+      launch.contains(",1187,")
+    ) {
+    "head-sampling"
+  } else if name.contains("dense_projection") ||
+    name.contains("gated_mlp") ||
+    name.contains("fused_qwen_qkv") ||
+    name.contains("qknorm") ||
+    name.contains("QKApplyRotary") ||
+    name.contains("reshape_and_cache") ||
+    name.contains("silu") ||
+    name.contains("tensorop") ||
+    name.has_prefix("nvjet_") ||
+    name.contains("triton_red_fused") ||
+    name.contains("triton_poi_fused_2") ||
+    name.contains("triton_poi_fused_4") ||
+    name.contains("index_elementwise") {
+    "projection-postops"
+  } else if name.contains("rms") ||
+    name.contains("RMSNorm") ||
+    name.contains("embedding") ||
+    name.contains("mean_mul_pow_rsqrt") {
+    "norm-embedding"
+  } else {
+    "unmapped"
+  }
+}
+
+///|
+test "single query is not inferred to be decode from a grid" {
+  assert_eq(phase(Array::make(16, "1:4096").join(",")), "one-query-C16")
+  assert_eq(phase("1:4096,2047:0"), "mixed-query")
+  assert_eq(phase("2048:2048"), "multi-query-only")
+  assert_eq(chain("unknown", "vllm", ""), "unmapped")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("COMPLETED_CAMPAIGN NEW_OUTPUT")
+  }
+  let engines : Array[Json] = []
+  for engine in ["luna-full", "vllm", "sglang"] {
+    guard @json.parse(
+        @fs.read_file(root + "/campaign/" + engine + "/work-shapes.json").text(),
+      )
+      is {
+        "steps": Array(steps),
+        "kernels": Array(kernels),
+        "unmapped_kernel_calls": unmapped,
+        ..
+      } else {
+      fail("work schema")
+    }
+    let counts : Map[String, Int] = Map([])
+    let work_counts : Map[String, Int] = Map([])
+    let totals : Map[String, Int64] = Map([])
+    let top : Map[String, Int64] = Map([])
+    for step in steps {
+      guard step is { "work": String(work), .. } else { fail("step") }
+      let p = phase(work)
+      counts[p] = counts.get(p).unwrap_or(0) + 1
+      work_counts[work] = work_counts.get(work).unwrap_or(0) + 1
+    }
+    for k in kernels {
+      guard k is { "work_and_kernel": String(key), "ns": ns, .. } else {
+        fail("kernel")
+      }
+      guard key.split(" | ").to_array() is [work, name, launch] else {
+        fail("kernel key")
+      }
+      let work = work.to_owned()
+      let p = if work_counts.contains(work) {
+        phase(work)
+      } else {
+        "unmapped-work"
+      }
+      let kind = chain(name.to_owned(), engine, launch.to_owned())
+      let key = p + " | " + kind
+      totals[key] = totals.get(key).unwrap_or(0L) + integer(ns)
+      let key = p + " | " + name.to_owned() + " | " + launch.to_owned()
+      top[key] = top.get(key).unwrap_or(0L) + integer(ns)
+    }
+    let groups = totals.to_array()
+    groups.sort_by((a, b) => a.0.compare(b.0))
+    let ordered = top.to_array()
+    ordered.sort_by((a, b) => b.1.compare(a.1))
+    engines.push({
+      "engine": engine,
+      "phase_steps": counts,
+      "unmapped_kernel_calls": unmapped,
+      "groups": groups.map(x => {
+        let p = x.0.split(" | ").to_array()[0].to_owned()
+        let n = counts.get(p).unwrap_or(0)
+        (
+          {
+            "phase_chain": x.0,
+            "kernel_ms": x.1.to_double() / 1000000.0,
+            "ms_per_phase_step": if n == 0 {
+              Json::null()
+            } else {
+              Json(x.1.to_double() / 1000000.0 / n.to_double())
+            },
+          } : Json)
+      }),
+      "top_kernel_groups": ordered[:Int::min(ordered.length(), 32)].map(x => {
+        (
+          { "phase_kernel": x.0, "kernel_ms": x.1.to_double() / 1000000.0 } :
+          Json)
+      }),
+    })
+  }
+  guard @json.parse(@fs.read_file(root + "/equal-work.json").text())
+    is { "comparisons": Array(comparisons), "ledgers": ledgers, .. } else {
+    fail("equal work comparison")
+  }
+  let matched = comparisons.map(value => {
+    guard value
+      is {
+        "reference": reference,
+        "exact_common_vectors": count,
+        "matches": Array(matches),
+        ..
+      } else {
+      fail("comparison")
+    }
+    (
+      {
+        "reference": reference,
+        "exact_common_vectors": count,
+        "matches": matches.map(value => {
+          guard value is { "work": work, "chains": chains, .. } else {
+            fail("match")
+          }
+          ({ "work": work, "chains": chains } : Json)
+        }),
+      } : Json)
+  })
+  let result : Json = {
+    "schema": "lunaflux.current-full-step-measurement.v1",
+    "engines": engines,
+    "ledgers": ledgers,
+    "exact_work_matches": matched,
+    "scope": "All raw kernel activity retained by observed query phase; means are not exact-work matches or additive wall time; use equal-work.json for exact query/history intersections and comparison.json for exclusive wall accounting.",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(
+    (
+      {
+        "engines": engines.map(value => {
+          guard value
+            is { "engine": engine, "phase_steps": steps, "groups": groups, .. } else {
+            fail("summary")
+          }
+          ({ "engine": engine, "phase_steps": steps, "groups": groups } : Json)
+        }),
+        "ledgers": ledgers,
+        "exact_work_matches": matched,
+      } : Json).stringify(indent=2),
+  )
+}

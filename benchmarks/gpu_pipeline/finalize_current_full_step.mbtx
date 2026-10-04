@@ -1,0 +1,120 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn memory_minimum(text : String) -> Int64 raise {
+  let rows = text.split("\n").filter(x => !x.is_empty()).to_array()
+  guard !rows.is_empty() else { fail("empty memory samples") }
+  let mut minimum = 9223372036854775807L
+  for row in rows {
+    guard row.split(",").to_array() is [_, value] else { fail("memory row") }
+    minimum = Int64::min(minimum, @string.parse_int64(value))
+  }
+  minimum
+}
+
+///|
+test "sampled minimum is not the final memory value" {
+  assert_eq(memory_minimum("1,100\n2,80\n3,90\n"), 80L)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, first, completed, serving] else {
+    fail("FIRST_CAPTURE COMPLETED_COMPARISON IMMUTABLE_SERVING")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU not idle") }
+  let samples = [
+    first + "/campaign/memory-interrupted.csv",
+    completed + "/campaign/memory.csv",
+    completed + "/campaign/vllm/memory.csv",
+    completed + "/campaign/sglang/memory.csv",
+  ]
+  let memory : Array[Json] = []
+  for path in samples {
+    let minimum = memory_minimum(@fs.read_file(path).text())
+    guard minimum >= 33554432L else { fail("32 GiB reserve breached") }
+    memory.push({ "path": path, "minimum_available_kib": minimum })
+  }
+  let containers = ["vllm", "sglang"].map(engine => {
+    "lunaflux-gap-" +
+    engine +
+    "-trace-" +
+    (completed + "/campaign/" + engine).split("/").to_array().join("-")
+  })
+  let commands = [
+    (
+      "final-gpu",
+      "nvidia-smi",
+      ["--query-gpu=name,uuid,memory.total,memory.used", "--format=csv"],
+    ),
+    ("final-memory", "free", ["-k"]),
+    ("final-containers", "docker", ["inspect", ..containers]),
+    (
+      "final-worker-identity",
+      "sha256sum",
+      [serving + "/deployment/bin/lunaflux-device-worker"],
+    ),
+  ]
+  for (label, exe, args) in commands {
+    let result = @shell.Cmd(exe, args).output(max_output_bytes=4194304)
+    @fs.write_file(
+      completed + "/" + label + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      completed + "/" + label + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    if label == "final-containers" {
+      guard @json.parse(result.stdout()) is Array(entries) &&
+        entries.length() == 2 else {
+        fail("reference container inventory")
+      }
+      for entry in entries {
+        guard entry
+          is {
+            "State": { "Running": False, "OOMKilled": False, .. },
+            "HostConfig": {
+              "Memory": Number(limit, ..),
+              "MemorySwap": Number(swap, ..),
+              ..
+            },
+            ..
+          } &&
+          limit == 68719476736.0 &&
+          swap == limit else {
+          fail("reference memory bound or OOM")
+        }
+      }
+    }
+  }
+  let summary : Json = {
+    "schema": "lunaflux.full-step-final-health.v1",
+    "gpu_idle": true,
+    "reserve_kib": 33554432,
+    "memory_samples": memory,
+    "reference_containers": containers,
+    "scope": "Read-only post-campaign health and identity checks; no GPU workload or production changes.",
+  }
+  @fs.write_file(
+    completed + "/final-health.json",
+    summary.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(summary.stringify(indent=2))
+}
