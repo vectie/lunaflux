@@ -1,0 +1,95 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    ["aot", "benchmark", "trace"].contains(mode) else {
+    fail("COMPLETED_ROOT aot|benchmark|trace")
+  }
+  guard @fs.read_file(root + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("incomplete root")
+  }
+  let archive = root + "/measurement.tar.gz"
+  guard !@fs.exists(archive) && !@fs.exists(root + "/MEASUREMENT.sha256") else {
+    fail("non-overwriting archive")
+  }
+  let found = @shell.Cmd("find", [root, "-type", "f"]).output(
+    max_output_bytes=16777216,
+  )
+  found.check()
+  let relative = found
+    .stdout()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(x => {
+      guard x.strip_prefix(root + "/") is Some(path) && !path.contains("..") else {
+        fail("scope")
+      }
+      path.to_owned()
+    })
+    .filter(path => {
+      if mode == "aot" {
+        path.has_prefix("qualification/") ||
+        [
+          "projection-folds-v4.records", "MODULE_DIFF.txt", "RESULT.txt", "selected.cu",
+          "default.cu", "whole-module-objective.stdout", "whole-module-objective.stderr",
+          "selected-export.command.json", "selected-export.stdout", "selected-bind.command.json",
+          "selected-bind.stdout",
+        ].contains(path)
+      } else if mode == "benchmark" {
+        (
+          path.has_prefix("r") &&
+          (
+            path.contains("/requests/") ||
+            path.has_suffix("/memory.csv") ||
+            path.has_suffix("/RESULT.txt") ||
+            path.has_suffix("/runtime.stderr") ||
+            path.has_suffix("/client.stdout")
+          )
+        ) ||
+        ["campaign.json", "RESULT.txt", "summary.json"].contains(path)
+      } else {
+        [
+          "trace.nsys-rep", "trace.sqlite", "selected-kernels.stdout", "requests/i4096-o256-c16-t1.json",
+          "worker-identities.stdout", "matched-summary.json", "RESULT.txt", "SCOPE.txt",
+        ].contains(path)
+      }
+    })
+  let files = relative.copy()
+  files.sort()
+  guard !files.is_empty() else { fail("empty archive") }
+  let manifest = StringBuilder()
+  for path in files {
+    let hash = @shell.Cmd("sha256sum", [root + "/" + path]).output()
+    hash.check()
+    manifest.write_string(
+      hash.stdout().split(" ").to_array()[0].to_owned() + "  " + path + "\n",
+    )
+  }
+  @fs.write_file(
+    root + "/MEASUREMENT.sha256",
+    manifest.to_string(),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(
+    "tar",
+    ["-czf", archive, "-C", root, "MEASUREMENT.sha256", ..files],
+  ).run()
+  let digest = @shell.Cmd("sha256sum", [archive]).output()
+  digest.check()
+  @fs.write_file(
+    root + "/measurement.tar.gz.sha256",
+    digest.stdout(),
+    create_mode=CreateNew,
+  )
+  println(digest.stdout())
+}

@@ -1,0 +1,88 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn seam(text : String, before : String, after : String) -> String raise {
+  guard text.split(before).to_array().length() == 2 else {
+    fail("inspect diagnostic seam: " + before)
+  }
+  text.replace(old=before, new=after)
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  moon : String,
+  args : Array[String],
+) -> Unit {
+  let result = @shell.Cmd(moon, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+// Profiler channels can occupy the production startup descriptor numbers.
+// Relocate them only in the already-disposable diagnostic copy, retaining
+// their existing admission rules. No production launcher is changed.
+async fn main {
+  guard @env.args() is [_, root, serving, measured, originals] else {
+    fail(
+      "NEW_TOOL_ROOT QUALIFIED_CURRENT_SERVING COMPLETED_CURRENT_TIMING PINNED_REFERENCE_ORIGINALS",
+    )
+  }
+  let original = @fs.read_file(root + "/install_execution_trace.base.mbtx").text()
+  let relocation =
+    #|  for (relative, before, after) in [
+    #|    ("internal/inference_credential/inference_credential.c", "#define LF_CREDENTIAL_FIXED_FD 6", "#define LF_CREDENTIAL_FIXED_FD 196 /* OFFLINE PROFILE ONLY */"),
+    #|    ("internal/promotion_verifier_key/promotion_verifier_key.c", "#define LF_PROMOTION_KEY_FIXED_FD 7", "#define LF_PROMOTION_KEY_FIXED_FD 197 /* OFFLINE PROFILE ONLY */"),
+    #|  ] {
+    #|    let path = args[1] + "/" + relative
+    #|    let text = @fs.read_file(path).text()
+    #|    @fs.write_file(path, replace_exact(text, before, after, 1))
+    #|  }
+    #|  let root = args[1] + "/engine/device_step/"
+  @fs.write_file(
+    root + "/install_execution_trace.mbtx",
+    seam(
+      original, "  let root = args[1] + \"/engine/device_step/\"", relocation,
+    ),
+    create_mode=CreateNew,
+  )
+  let moon = serving + "/toolchain/bin/moon"
+  run(root, "full-step", moon, [
+    "run",
+    root + "/measure_current_full_step.mbtx",
+    root,
+    serving,
+    measured,
+    originals,
+  ])
+  run(root, "full-step-summary", moon, [
+    "run",
+    root + "/summarize_full_step_measurement.mbtx",
+    root,
+    root + "/full-step-summary.json",
+  ])
+  run(root, "step-gaps", moon, [
+    "run",
+    root + "/measure_current_step_gaps.mbtx",
+    root,
+    root + "/step-gaps.json",
+  ])
+  println("Current selected full-serving attribution complete: " + root)
+}

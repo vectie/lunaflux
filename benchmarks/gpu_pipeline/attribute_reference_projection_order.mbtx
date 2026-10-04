@@ -1,0 +1,209 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer required")
+  }
+}
+
+///|
+fn matrix(name : String) -> Bool {
+  name.contains("cutlass::Kernel2<") || name.has_prefix("nvjet_")
+}
+
+///|
+fn attention(name : String) -> Bool {
+  name.contains("flash_fwd") ||
+  name.contains("BatchDecode") ||
+  name.contains("BatchPrefill")
+}
+
+///|
+// Source-bound diagnostic, not symbol or launch-geometry guessing. Accept
+// only complete single-GPU decoder cycles, with attention and activation
+// between the expected projections. Additional matrix invocations invalidate
+// the step rather than being assigned a semantic operation.
+fn labels(names : Array[String], layers : Int) -> Array[String] raise {
+  let result = Array::make(names.length(), "other")
+  let mut projection = 0
+  let mut saw_attention = false
+  let mut saw_activation = false
+  for i, name in names {
+    if attention(name) {
+      saw_attention = true
+    }
+    if name.contains("silu") {
+      saw_activation = true
+    }
+    if matrix(name) {
+      if projection < layers * 4 {
+        let stage = projection % 4
+        if stage == 1 {
+          guard saw_attention else { fail("missing attention anchor") }
+        }
+        if stage == 3 {
+          guard saw_activation else { fail("missing activation anchor") }
+        }
+        result[i] = ["qkv", "output", "gate-up", "down"][stage]
+        if stage == 0 {
+          saw_attention = false
+        }
+        if stage == 2 {
+          saw_activation = false
+        }
+      } else {
+        guard projection == layers * 4 else { fail("extra matrix invocation") }
+        result[i] = "head"
+      }
+      projection += 1
+    } else if projection > 0 && projection <= layers * 4 {
+      let preceding = (projection - 1) % 4
+      if preceding == 0 &&
+        !saw_attention &&
+        (
+          name.contains("triton_red_fused") ||
+          name.contains("triton_poi_fused") ||
+          name.contains("reshape_and_cache") ||
+          name.contains("QKApplyRotary")
+        ) {
+        result[i] = "qkv-postops"
+      } else if preceding == 2 && name.contains("silu") {
+        result[i] = "gate-up-postops"
+      }
+    }
+  }
+  guard projection == layers * 4 || projection == layers * 4 + 1 else {
+    fail("incomplete decoder matrix cycle")
+  }
+  result
+}
+
+///|
+fn self_test() -> Unit raise {
+  assert_eq(
+    labels(["nvjet_q", "flash_fwd", "nvjet_o", "nvjet_g", "silu", "nvjet_d"], 1),
+    ["qkv", "other", "output", "gate-up", "gate-up-postops", "down"],
+  )
+  for
+    names in [
+      ["nvjet_q", "nvjet_o", "nvjet_g", "silu", "nvjet_d"],
+      ["nvjet_q", "flash_fwd", "nvjet_o", "nvjet_g", "nvjet_d"],
+      ["nvjet_q", "flash_fwd", "nvjet_o"],
+    ] {
+    try labels(names, 1) catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous sequence accepted")
+    }
+  }
+  println("Reference operation-order regressions passed")
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    self_test()
+    return
+  }
+  guard @env.args() is [_, root, engine, layer_count, output] &&
+    engine == "vllm" else {
+    fail(
+      "MEASUREMENT_ROOT vllm PINNED_MODEL_LAYER_COUNT NEW_OUTPUT | --self-test",
+    )
+  }
+  let layers = @string.parse_int(layer_count)
+  guard layers > 0 else { fail("invalid layer count") }
+  let dir = root + "/campaign/" + engine
+  guard @json.parse(@fs.read_file(dir + "/work-shapes.json").text())
+    is { "steps": Array(steps), .. } else {
+    fail("work steps absent")
+  }
+  let sql = "WITH markers AS MATERIALIZED (SELECT n.start,n.globalTid FROM NVTX_EVENTS n LEFT JOIN StringIds s ON s.id=n.textId WHERE coalesce(n.text,s.value) LIKE 'lf_work %'), mapped AS MATERIALIZED (SELECT r.correlationId,(SELECT max(m.start) FROM markers m WHERE m.globalTid=r.globalTid AND m.start<=r.start) step FROM CUPTI_ACTIVITY_KIND_RUNTIME r) SELECT m.step,k.start,k.end,s.value name FROM mapped m JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=m.correlationId JOIN StringIds s ON s.id=k.demangledName WHERE m.step IS NOT NULL ORDER BY m.step,k.start;"
+  let response = @shell.Cmd("sqlite3", ["-json", dir + "/trace.sqlite", sql]).output(
+    max_output_bytes=67108864,
+  )
+  response.check()
+  guard @json.parse(response.stdout()) is Array(kernels) else {
+    fail("SQL kernel rows")
+  }
+  let by_step : Map[Int64, Array[Json]] = Map([])
+  for row in kernels {
+    guard row is { "step": step, .. } else { fail("step correlation") }
+    let step = integer(step)
+    if !by_step.contains(step) {
+      by_step[step] = []
+    }
+    by_step[step].push(row)
+  }
+  let totals : Map[String, Int64] = Map([])
+  let records : Array[Json] = []
+  let rejected : Array[Json] = []
+  for step in steps {
+    guard step
+      is { "cpu_start_ns": at, "work": String(work), "query": Array(query), .. } else {
+      fail("work metadata")
+    }
+    let rows = by_step.get(integer(at)).unwrap()
+    let names = rows.map(row => {
+      guard row is { "name": String(name), .. } else { fail("name") }
+      name
+    })
+    let assignments = labels(names, layers) catch {
+      error => {
+        rejected.push({
+          "work": work,
+          "cpu_start_ns": at,
+          "matrix_calls": names.filter(matrix).length(),
+          "reason": "\{error}",
+        })
+        continue
+      }
+    }
+    let phase = if query.all(q => integer(q) == 1L) {
+      "single-query"
+    } else {
+      "multi-query"
+    }
+    let per_step : Map[String, Int64] = Map([])
+    for i, row in rows {
+      guard row is { "start": start, "end": end, .. } else {
+        fail("kernel duration")
+      }
+      let op = assignments[i]
+      if op != "other" && op != "head" {
+        let elapsed = integer(end) - integer(start)
+        per_step[op] = per_step.get(op).unwrap_or(0L) + elapsed
+        let key = phase + " | " + op
+        totals[key] = totals.get(key).unwrap_or(0L) + elapsed
+      }
+    }
+    records.push({ "work": work, "cpu_start_ns": at, "operation_ns": per_step })
+  }
+  let ordered = totals.to_array()
+  ordered.sort_by((a, b) => a.0.compare(b.0))
+  let result : Json = {
+    "schema": "lunaflux.source-bound-reference-projection.v1",
+    "engine": engine,
+    "validated_steps": records.length(),
+    "layers": layers,
+    "totals_ms": ordered.map(x => {
+      ({ "phase_operation": x.0, "ms": x.1.to_double() / 1000000.0 } : Json)
+    }),
+    "steps": records,
+    "unresolved_steps": rejected,
+    "scope": "Pinned Qwen3Attention/Qwen2MLP sequential single-GPU source order plus attention/SiLU anchors and complete 4-projection layer counts. No grid-based attribution. Kernel activity, not exclusive wall time; head and unknown operations excluded. Revalidate source order for any other model/runtime.",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println("Validated projection order for \{records.length()} steps: " + output)
+}
