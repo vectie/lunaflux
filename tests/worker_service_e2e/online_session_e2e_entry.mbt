@@ -1,6 +1,17 @@
 ///|
 async fn main {
   match @env.args() {
+    [_, "--coalesced-progress", executable, fixture_root] =>
+      try
+        run_online_coalesced_evidence(@utf8.encode(executable), fixture_root~)
+      catch {
+        error => {
+          println("coalesced-progress failure=\{Repr(error)}")
+          raise error
+        }
+      } noraise {
+        _ => println("coalesced-progress passed")
+      }
     [_, "--framed-connection-pool", executable, fixture_root] =>
       try
         run_luna_framed_pool_evidence(@utf8.encode(executable), fixture_root)

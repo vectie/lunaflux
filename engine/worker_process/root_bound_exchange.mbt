@@ -226,7 +226,10 @@ pub fn RootBoundWorkerProcessSupervisor::active_exchange_sequence(
 }
 
 ///|
-/// Advances at most one native pending-frame syscall. Completion is retained
+/// Advances at most one syscall per exchange phase (three phases maximum).
+/// A ready phase flows into its successor without an extra reactor turn;
+/// any pending syscall yields immediately, without polling or spinning.
+/// Completion is retained
 /// in the existing received side and resolved with `received_for_sequence`.
 pub fn RootBoundWorkerProcessSupervisor::progress_exchange(
   self : RootBoundWorkerProcessSupervisor,
@@ -253,7 +256,6 @@ pub fn RootBoundWorkerProcessSupervisor::progress_exchange(
       error => self.fail_exchange(transport_error(error))
     }
     self.exchange_phase = EXCHANGE_READING_COMPLETION
-    return ExchangePending
   }
   if self.exchange_phase == EXCHANGE_READING_COMPLETION {
     let plan = self.exchange_plan.current() catch {
@@ -289,7 +291,6 @@ pub fn RootBoundWorkerProcessSupervisor::progress_exchange(
       error => self.fail_exchange(transport_error(error))
     }
     self.exchange_phase = EXCHANGE_READING_GRAPH_TELEMETRY
-    return ExchangePending
   }
   if self.exchange_phase != EXCHANGE_READING_GRAPH_TELEMETRY {
     self.fail_exchange(Invalid(Completion))

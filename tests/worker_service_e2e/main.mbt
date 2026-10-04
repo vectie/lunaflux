@@ -159,13 +159,15 @@ fn online_request(
 }
 
 ///|
-fn startup() -> @worker_wire.WorkerStartupContract raise {
+fn startup(
+  fixture_root? : String = "/private/tmp",
+) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=identity(),
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
-    bootstrap_source_digest=bootstrap_source().digest(),
+    bootstrap_source_digest=bootstrap_source_for_root(fixture_root).digest(),
     device_ordinal=0,
     model_generation_value=1UL,
     worker_limits=worker_limits(),
@@ -176,12 +178,14 @@ fn startup() -> @worker_wire.WorkerStartupContract raise {
 }
 
 ///|
-fn service_binding() -> @worker_service.WorkerServiceBinding raise {
+fn service_binding(
+  fixture_root? : String = "/private/tmp",
+) -> @worker_service.WorkerServiceBinding raise {
   @worker_service.WorkerServiceBinding::new(
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     ),
-    bootstrap_source_digest=bootstrap_source().digest(),
+    bootstrap_source_digest=bootstrap_source_for_root(fixture_root).digest(),
     device_ordinal=0,
     inference_limits=inference_limits(),
   )
@@ -436,6 +440,7 @@ async fn run(
   run_reservation_classification_evidence(executable)
   run_worker_plan_overlap_evidence(executable)
   run_online_lease_evidence(executable)
+  run_online_coalesced_evidence(executable)
   run_online_session_foundation(executable)
   run_online_framed_outbound_evidence(executable)
   run_online_framed_coordinator_evidence(executable)

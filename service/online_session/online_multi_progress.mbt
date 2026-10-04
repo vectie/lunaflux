@@ -411,7 +411,15 @@ fn LunaOnlineInstance::progress_multi(
           LunaOnlineInstancePending
         }
       }
-      OnlineWorkerAdvanced => LunaOnlineInstancePending
+      OnlineWorkerAdvanced =>
+        // Route a newly committed publication in this owner turn. This does
+        // not acknowledge it or submit another plan: event credit and caller
+        // stop/cancel handling remain the successor's ownership boundary.
+        if self.multi_route_one_publication() && self.events.has_event() {
+          LunaOnlineInstanceEventReady
+        } else {
+          LunaOnlineInstancePending
+        }
       OnlineWorkerWaiting | OnlineWorkerRetryable => LunaOnlineInstanceWaiting
     }
   }

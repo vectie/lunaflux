@@ -2,15 +2,16 @@
 fn owned_online_lease(
   executable : Bytes,
   clock : @monotonic_clock.MonotonicClock,
+  fixture_root? : String = "/private/tmp",
 ) -> @worker_service.OnlineWorkerLease raise {
-  let model = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
-  let kernel = @approved_fs.ApprovedRoot::open_absolute("/private/tmp")
+  let model = @approved_fs.ApprovedRoot::open_absolute(fixture_root)
+  let kernel = @approved_fs.ApprovedRoot::open_absolute(fixture_root)
   let prepared = @worker_service.prepare_owned_approved(
     scheduler_blueprint(),
-    service_binding(),
+    service_binding(fixture_root~),
     @worker_executable_fixture.admit(executable),
-    startup(),
-    bootstrap_source(),
+    startup(fixture_root~),
+    bootstrap_source_for_root(fixture_root),
     process_limits(),
     model,
     kernel,

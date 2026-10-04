@@ -24,6 +24,19 @@ fn run_worker() -> Unit raise {
   if source.digest() != startup.bootstrap_source_digest() {
     raise Failure("worker bootstrap source mismatch")
   }
+  // The diagnostic worker participates in the same startup framing as the
+  // device child; an attestation is never a schedule-plan frame.
+  let approval_input = FixedArray::make(
+    @worker_wire.parent_approval_attestation_capacity(),
+    b'\x00',
+  )
+  let approval_length = channel.read_frame(approval_input)
+  if @worker_wire.decode_parent_approval_attestation_v1(
+      approval_input, approval_length,
+    )
+    is Some(_) {
+    raise Failure("echo worker cannot execute an approved device runtime")
+  }
   let limits = startup.worker_limits()
   let inference = startup.inference_limits()
   let plan_owner = @worker_wire.PlanFrameBuffer::new(limits, inference)

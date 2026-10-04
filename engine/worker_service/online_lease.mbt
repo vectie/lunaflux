@@ -132,7 +132,7 @@ fn classify_online_worker_error(error : WorkerServiceError) -> Int {
 }
 
 ///|
-/// Advances one online worker transition and returns only the product-safe
+/// Advances a bounded online transition chain and returns only the product-safe
 /// disposition needed by the owning aggregate. A physical process failure is
 /// classified only after the lower service has retained recovery authority;
 /// a received completion validation failure is classified as invalid output.
@@ -140,7 +140,7 @@ pub fn OnlineWorkerLease::progress_status(
   self : OnlineWorkerLease,
 ) -> OnlineWorkerStep raise WorkerServiceError {
   let service = self.require_current()
-  try self.progress() catch {
+  try self.progress_online_chain() catch {
     error => {
       let disposition = classify_online_worker_error(error)
       if disposition == 0 {
