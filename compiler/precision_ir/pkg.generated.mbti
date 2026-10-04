@@ -1,0 +1,182 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/precision_ir"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/physical_tile_ir",
+  "vectie/lunaflux/model/precision_format",
+}
+
+// Values
+pub fn plan_operand(role~ : OperandRole, representation~ : @precision_format.Representation, placement~ : Placement, supported_placements~ : ArrayView[Placement], accuracy~ : Accuracy, memory_ceiling~ : Int64, tile_elements? : Int) -> OperandPlan raise PrecisionPlanError
+
+// Errors
+pub(all) suberror PrecisionPlanError {
+  IllegalPlacement
+  MissingAccuracyContract
+  MemoryBudgetExceeded
+  ArithmeticOverflow
+  NoImplementation
+} derive(Eq, @debug.Debug)
+pub fn PrecisionPlanError::equal(Self, Self) -> Bool
+pub fn PrecisionPlanError::not_equal(Self, Self) -> Bool
+pub fn PrecisionPlanError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum Accumulator {
+  F32
+} derive(Eq, @debug.Debug)
+pub fn Accumulator::equal(Self, Self) -> Bool
+pub fn Accumulator::not_equal(Self, Self) -> Bool
+pub fn Accumulator::to_repr(Self) -> @debug.Repr
+
+pub struct Accuracy {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Accuracy::bounds(Self) -> (Double, Double)
+pub fn Accuracy::equal(Self, Self) -> Bool
+pub fn Accuracy::new(absolute~ : Double, relative~ : Double) -> Self raise PrecisionPlanError
+pub fn Accuracy::not_equal(Self, Self) -> Bool
+pub fn Accuracy::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ComputeRoute {
+  Native
+  DecodeToBf16
+  StartupBf16
+} derive(Eq, @debug.Debug)
+pub fn ComputeRoute::equal(Self, Self) -> Bool
+pub fn ComputeRoute::not_equal(Self, Self) -> Bool
+pub fn ComputeRoute::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Conversion {
+  DecodeElement
+  ApplyLocalScaleF32
+  ApplyGlobalScaleF32
+  RoundBf16
+} derive(Eq, @debug.Debug)
+pub fn Conversion::equal(Self, Self) -> Bool
+pub fn Conversion::not_equal(Self, Self) -> Bool
+pub fn Conversion::to_repr(Self) -> @debug.Repr
+
+pub struct LinearPrecision {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn LinearPrecision::accumulator(Self) -> Accumulator
+pub fn LinearPrecision::equal(Self, Self) -> Bool
+pub fn LinearPrecision::new(activation~ : OperandPlan, weight~ : OperandPlan, output~ : OperandPlan, route~ : ComputeRoute, accumulator~ : Accumulator) -> Self raise PrecisionPlanError
+pub fn LinearPrecision::not_equal(Self, Self) -> Bool
+pub fn LinearPrecision::operands(Self) -> (OperandPlan, OperandPlan, OperandPlan)
+pub fn LinearPrecision::route(Self) -> ComputeRoute
+pub fn LinearPrecision::to_repr(Self) -> @debug.Repr
+
+pub(all) enum NumericEffect {
+  Pure
+  StartupWrite
+  StepWrite
+  CacheCommit
+} derive(Eq, @debug.Debug)
+pub fn NumericEffect::equal(Self, Self) -> Bool
+pub fn NumericEffect::not_equal(Self, Self) -> Bool
+pub fn NumericEffect::to_repr(Self) -> @debug.Repr
+
+pub struct OperandPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OperandPlan::accuracy(Self) -> Accuracy
+pub fn OperandPlan::canonical(Self) -> String
+pub fn OperandPlan::effect(Self) -> NumericEffect
+pub fn OperandPlan::equal(Self, Self) -> Bool
+pub fn OperandPlan::memory(Self) -> (Int64, Int64)
+pub fn OperandPlan::not_equal(Self, Self) -> Bool
+pub fn OperandPlan::placement(Self) -> Placement
+pub fn OperandPlan::quantization(Self) -> QuantizationPlan raise PrecisionPlanError
+pub fn OperandPlan::refine_region(Self, @physical_tile_ir.OperandRegion) -> PhysicalOperand raise PrecisionPlanError
+pub fn OperandPlan::representation(Self) -> @precision_format.Representation
+pub fn OperandPlan::role(Self) -> OperandRole
+pub fn OperandPlan::to_repr(Self) -> @debug.Repr
+
+pub(all) enum OperandRole {
+  Weight
+  Activation
+  KeyCache
+  ValueCache
+  Output
+} derive(Eq, @debug.Debug)
+pub fn OperandRole::equal(Self, Self) -> Bool
+pub fn OperandRole::not_equal(Self, Self) -> Bool
+pub fn OperandRole::to_repr(Self) -> @debug.Repr
+
+pub struct PhysicalOperand {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PhysicalOperand::canonical(Self) -> String
+pub fn PhysicalOperand::conversions(Self) -> ReadOnlyArray[Conversion]
+pub fn PhysicalOperand::equal(Self, Self) -> Bool
+pub fn PhysicalOperand::not_equal(Self, Self) -> Bool
+pub fn PhysicalOperand::plan(Self) -> OperandPlan
+pub fn PhysicalOperand::region(Self) -> @physical_tile_ir.OperandRegion
+pub fn PhysicalOperand::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Placement {
+  NativeOperand
+  DecodeInOperandTile
+  StartupExpandBf16
+  QuantizeBeforeConsumer
+  QuantizeOnCacheWrite
+} derive(Eq, @debug.Debug)
+pub fn Placement::equal(Self, Self) -> Bool
+pub fn Placement::not_equal(Self, Self) -> Bool
+pub fn Placement::to_repr(Self) -> @debug.Repr
+
+pub(all) enum QuantizationPass {
+  GlobalAmax
+  ScaleAmax
+  EncodePayload
+} derive(Eq, @debug.Debug)
+pub fn QuantizationPass::equal(Self, Self) -> Bool
+pub fn QuantizationPass::not_equal(Self, Self) -> Bool
+pub fn QuantizationPass::to_repr(Self) -> @debug.Repr
+
+pub struct QuantizationPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn QuantizationPlan::canonical(Self) -> String
+pub fn QuantizationPlan::effect(Self) -> NumericEffect
+pub fn QuantizationPlan::equal(Self, Self) -> Bool
+pub fn QuantizationPlan::not_equal(Self, Self) -> Bool
+pub fn QuantizationPlan::operand(Self) -> OperandPlan
+pub fn QuantizationPlan::passes(Self) -> ReadOnlyArray[QuantizationPass]
+pub fn QuantizationPlan::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ScratchLifetime {
+  Sequential
+  Concurrent
+} derive(Eq, @debug.Debug)
+pub fn ScratchLifetime::equal(Self, Self) -> Bool
+pub fn ScratchLifetime::not_equal(Self, Self) -> Bool
+pub fn ScratchLifetime::to_repr(Self) -> @debug.Repr
+
+pub struct WeightBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WeightBinding::equal(Self, Self) -> Bool
+pub fn WeightBinding::not_equal(Self, Self) -> Bool
+pub fn WeightBinding::offset(Self) -> Int64
+pub fn WeightBinding::operand(Self) -> OperandPlan
+pub fn WeightBinding::ordinal(Self) -> Int
+pub fn WeightBinding::to_repr(Self) -> @debug.Repr
+
+pub struct WeightSchema {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WeightSchema::bindings(Self) -> ReadOnlyArray[WeightBinding]
+pub fn WeightSchema::canonical(Self) -> String
+pub fn WeightSchema::equal(Self, Self) -> Bool
+pub fn WeightSchema::memory(Self) -> (Int64, Int64)
+pub fn WeightSchema::new(ArrayView[OperandPlan], alignment_bytes~ : Int64, scratch_lifetime~ : ScratchLifetime, device_memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
+pub fn WeightSchema::not_equal(Self, Self) -> Bool
+pub fn WeightSchema::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/precision_materialize"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/model/precision_format",
+}
+
+// Values
+pub fn stream_bf16_weight(@precision_ir.OperandPlan, global_scale? : Float, chunk_elements~ : Int, host_scratch_ceiling~ : Int64, (SourcePlane, Int64, Int) -> Bytes raise MaterializeError, (Int64, Bytes) -> Unit raise MaterializeError) -> Unit raise MaterializeError
+
+pub fn stream_bf16_weights(@precision_ir.WeightSchema, ArrayView[Float], chunk_elements~ : Int, host_scratch_ceiling~ : Int64, (Int, SourcePlane, Int64, Int) -> Bytes raise MaterializeError, (Int64, Bytes) -> Unit raise MaterializeError) -> Unit raise MaterializeError
+
+// Errors
+pub(all) suberror MaterializeError {
+  WrongPlan
+  Conversion(@precision_format.PrecisionError)
+} derive(Eq, @debug.Debug)
+pub fn MaterializeError::equal(Self, Self) -> Bool
+pub fn MaterializeError::not_equal(Self, Self) -> Bool
+pub fn MaterializeError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum SourcePlane {
+  Payload
+  Scales
+} derive(Eq, @debug.Debug)
+pub fn SourcePlane::equal(Self, Self) -> Bool
+pub fn SourcePlane::not_equal(Self, Self) -> Bool
+pub fn SourcePlane::to_repr(Self) -> @debug.Repr
+
+pub struct StartupWeight {
+  // private fields
+}
+pub fn StartupWeight::bytes(Self) -> Int64
+pub fn StartupWeight::new(@precision_ir.OperandPlan, @precision_format.PackedTensor) -> Self raise MaterializeError
+pub fn StartupWeight::write_chunk(Self, Int64, Int, FixedArray[Byte], offset? : Int) -> Unit raise MaterializeError
+
+// Type aliases
+
+// Traits

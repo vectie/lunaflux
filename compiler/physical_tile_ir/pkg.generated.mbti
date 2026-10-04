@@ -74,6 +74,7 @@ pub struct OperandRegion {
 pub fn OperandRegion::copy_at(Self, Int, Int) -> (Int, Int, Int)?
 pub fn OperandRegion::equal(Self, Self) -> Bool
 pub fn OperandRegion::geometry(Self) -> (Int, Int, Int)
+pub fn OperandRegion::layout(Self) -> OperandLayout
 pub fn OperandRegion::not_equal(Self, Self) -> Bool
 pub fn OperandRegion::offset(Self, Int, Int) -> Int?
 pub fn OperandRegion::ownership(Self) -> VectorOwnership

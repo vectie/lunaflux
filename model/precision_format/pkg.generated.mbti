@@ -1,0 +1,129 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/precision_format"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn decode_element(Element, UInt) -> Float raise PrecisionError
+
+pub fn decode_scale(ScaleElement, UInt) -> Float raise PrecisionError
+
+pub fn encode_element(Element, Float) -> UInt raise PrecisionError
+
+pub fn encode_scale(ScaleElement, Float) -> UInt raise PrecisionError
+
+pub fn quantize(Representation, ArrayView[Float]) -> PackedTensor raise PrecisionError
+
+// Errors
+pub(all) suberror PrecisionError {
+  InvalidShape
+  InvalidGrouping
+  SizeOverflow
+  InvalidCode(Int)
+  NonFiniteValue
+  InvalidScale
+  PayloadMismatch
+  InvalidPadding
+  IndexOutOfBounds
+  OutputTooSmall
+} derive(Eq, @debug.Debug)
+pub fn PrecisionError::equal(Self, Self) -> Bool
+pub fn PrecisionError::not_equal(Self, Self) -> Bool
+pub fn PrecisionError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum Element {
+  Bf16
+  Fp16
+  F32
+  E4M3
+  E5M2
+  Signed8
+  Signed4
+  E2M1
+} derive(Eq, @debug.Debug)
+pub fn Element::bits(Self) -> Int
+pub fn Element::equal(Self, Self) -> Bool
+pub fn Element::maximum(Self) -> Float
+pub fn Element::not_equal(Self, Self) -> Bool
+pub fn Element::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Format {
+  Bf16
+  Fp16
+  F32
+  Fp8E4M3
+  Fp8E5M2
+  Int8
+  Int4
+  Fp4E2M1
+  NvFp4
+  MxFp4
+  MxFp8E4M3
+  MxFp8E5M2
+} derive(Eq, @debug.Debug)
+pub fn Format::element(Self) -> Element
+pub fn Format::equal(Self, Self) -> Bool
+pub fn Format::name(Self) -> String
+pub fn Format::not_equal(Self, Self) -> Bool
+pub fn Format::to_repr(Self) -> @debug.Repr
+
+pub struct PackedTensor {
+  // private fields
+}
+pub fn PackedTensor::decode(Self, Int, Int) -> Float raise PrecisionError
+pub fn PackedTensor::decode_bf16_chunk(Self, Int64, Int, FixedArray[Byte], destination_offset? : Int) -> Unit raise PrecisionError
+pub fn PackedTensor::global_scale(Self) -> Float
+pub fn PackedTensor::new(Representation, payload~ : Bytes, scales~ : Bytes, global_scale? : Float) -> Self raise PrecisionError
+pub fn PackedTensor::payload(Self) -> Bytes
+pub fn PackedTensor::representation(Self) -> Representation
+pub fn PackedTensor::scales(Self) -> Bytes
+
+pub struct Representation {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Representation::canonical(Self) -> String
+pub fn Representation::digest(Self) -> String
+pub fn Representation::element(Self) -> Element
+pub fn Representation::equal(Self, Self) -> Bool
+pub fn Representation::format(Self) -> Format
+pub fn Representation::grouping(Self) -> ScaleGrouping
+pub fn Representation::has_global_scale(Self) -> Bool
+pub fn Representation::new(format~ : Format, rows~ : Int, columns~ : Int, grouping? : ScaleGrouping) -> Self raise PrecisionError
+pub fn Representation::not_equal(Self, Self) -> Bool
+pub fn Representation::payload_bytes(Self) -> Int64
+pub fn Representation::row_bytes(Self) -> Int64
+pub fn Representation::scale_bytes(Self) -> Int64
+pub fn Representation::scale_element(Self) -> ScaleElement
+pub fn Representation::scale_index(Self, Int, Int) -> Int64 raise PrecisionError
+pub fn Representation::scale_shape(Self) -> (Int, Int)
+pub fn Representation::shape(Self) -> (Int, Int)
+pub fn Representation::to_repr(Self) -> @debug.Repr
+pub fn Representation::total_bytes(Self) -> Int64 raise PrecisionError
+
+pub(all) enum ScaleElement {
+  Absent
+  F32
+  Ue8M0
+  E4M3
+} derive(Eq, @debug.Debug)
+pub fn ScaleElement::bytes(Self) -> Int
+pub fn ScaleElement::equal(Self, Self) -> Bool
+pub fn ScaleElement::not_equal(Self, Self) -> Bool
+pub fn ScaleElement::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ScaleGrouping {
+  Absent
+  Tensor
+  Row
+  Block(rows~ : Int, columns~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn ScaleGrouping::equal(Self, Self) -> Bool
+pub fn ScaleGrouping::not_equal(Self, Self) -> Bool
+pub fn ScaleGrouping::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

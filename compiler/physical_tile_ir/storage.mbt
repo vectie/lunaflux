@@ -26,6 +26,12 @@ pub fn OperandRegion::ownership(self : OperandRegion) -> VectorOwnership {
 }
 
 ///|
+/// Numeric representation refinement retains this same immutable address map.
+pub fn OperandRegion::layout(self : OperandRegion) -> OperandLayout {
+  self.layout
+}
+
+///|
 /// Allocation-relative element offset, bounded to this operand's own rows.
 pub fn OperandRegion::offset(
   self : OperandRegion,

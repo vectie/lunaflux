@@ -1,0 +1,7 @@
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/precision_format" @format,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+}
+
+supported_targets = "native"
