@@ -1,0 +1,149 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+}
+
+///|
+fn module_path(receipt : String) -> String raise {
+  guard receipt
+    .split("\n")
+    .filter(x => x.has_prefix("module_relative_path="))
+    .to_array()
+    is [line] else {
+    fail("module")
+  }
+  line.strip_prefix("module_relative_path=").unwrap().to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, serving, root, profile_script] else {
+    fail("BASE NEW_SERVING NEW_ROOT PROFILE_SCRIPT")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  @fs.mkdir(root)
+  for (name, path) in [("old", base), ("new", serving)] {
+    let receipt = @fs.read_file(
+      path + "/compiled/receipts/op_00000009_gated_mlp.receipt.v1",
+    ).text()
+    @shell.Cmd("cp", [
+      path + "/compiled/" + module_path(receipt),
+      root + "/" + name + ".cubin",
+    ]).run()
+    @fs.write_file(
+      root + "/" + name + ".receipt.v1",
+      receipt,
+      create_mode=CreateNew,
+    )
+  }
+  @shell.Cmd("cp", [
+    serving + "/projection-chain-probe",
+    root + "/projection-chain-probe",
+  ]).run()
+  for (tokens, rows) in [(8, 8), (16, 16), (2048, 32)] {
+    let small = tokens <= 16
+    let args = [
+      "mlp",
+      root + "/old.cubin",
+      root + "/new.cubin",
+      tokens.to_string(),
+      rows.to_string(),
+      ..if small {
+        [
+          "96", "64", "16384", "16", "128", "0", "96", "64", "16384", "64", "32",
+          "0",
+        ]
+      } else {
+        [
+          "1536", "512", "16384", "256", "128", "0", "1536", "512", "16384", "256",
+          "128", "0",
+        ]
+      },
+      ..if small {
+        ["--bounded-symbols"]
+      } else {
+        []
+      },
+      "--streaming-weights",
+    ]
+    capture(
+      root,
+      "tokens-" + tokens.to_string(),
+      root + "/projection-chain-probe",
+      args,
+    )
+    if tokens == 16 {
+      capture(
+        root,
+        "memcheck",
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        [
+          "--tool",
+          "memcheck",
+          "--leak-check",
+          "full",
+          "--error-exitcode",
+          "86",
+          root + "/projection-chain-probe",
+          ..args,
+          "--check",
+        ],
+      )
+      @fs.write_file(
+        root + "/paired.command.json",
+        Json([root + "/projection-chain-probe", ..args]).stringify(),
+        create_mode=CreateNew,
+      )
+    }
+  }
+  capture(root, "profile", serving + "/toolchain/bin/moon", [
+    "run",
+    profile_script,
+    "--",
+    root,
+    "selected-down",
+    root + "/paired.command.json",
+    "regex:lunaflux_luna_gated_mlp_bf16_release_v1_rows16_down$",
+    "--container",
+  ])
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=exact-AOT-chain-and-counters-not-serving\n",
+    create_mode=CreateNew,
+  )
+}

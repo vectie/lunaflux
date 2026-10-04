@@ -1,0 +1,242 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix("// " + key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line.strip_prefix("// " + key + "=").unwrap().trim().to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd : String,
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd~, env={
+    "PATH": "/usr/local/cuda-13.0/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=8388608)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+  out.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, serving, mode] &&
+    ["small", "long"].contains(mode) else {
+    fail("NEW_ROOT CURRENT_SERVING small|long")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  let memory = @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .find_first(x => x.has_prefix("MemAvailable:"))
+    .unwrap()
+  guard @string.parse_int64(
+      memory.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+  let moon = serving + "/toolchain/bin/moon"
+  ignore(
+    record(
+      root,
+      "clone",
+      "cp",
+      ["-a", serving + "/source", root + "/source"],
+      root,
+    ),
+  )
+  ignore(
+    record(
+      root,
+      "build-probe",
+      "/usr/local/cuda-13.0/bin/nvcc",
+      [
+        "-O3",
+        "-std=c++17",
+        "-arch=sm_121",
+        root + "/projection_chain_probe.cu",
+        "-lcuda",
+        "-o",
+        root + "/projection-chain-probe",
+      ],
+      root,
+    ),
+  )
+  let baseline = serving +
+    "/compiled/sha256/fed4d5aac7c733fc396e3ca53b6c00530096cd68acd7af6f77f9da1ec0a7cc39.cubin"
+  let cases = [
+    ("small-g1-w4", 16, 1, 1, 2, 4, 1),
+    ("small-g2-w4", 16, 1, 2, 2, 4, 1),
+    ("small-g1-w8", 16, 1, 1, 2, 8, 1),
+    ("small-g2-w8", 16, 1, 2, 2, 8, 1),
+    ("small-g4-w8", 16, 1, 4, 2, 8, 1),
+    ("long-r2-w4", 2048, 2, 4, 2, 4, 1),
+    ("long-r4-w4", 2048, 4, 4, 2, 4, 1),
+    ("long-r2-w8", 2048, 2, 4, 2, 8, 1),
+    ("long-r2-w8-f2", 2048, 2, 4, 2, 8, 2),
+    ("long-r4-w4-f2", 2048, 4, 4, 2, 4, 2),
+    ("long-r4-w4-s3", 2048, 4, 4, 3, 4, 1),
+  ]
+  for (label, tokens, row_tiles, groups, stages, width, fragments) in cases {
+    if (tokens == 16) != (mode == "small") {
+      continue
+    }
+    let options = if tokens == 16 {
+      [
+        "intermediate",
+        stages.to_string(),
+        width.to_string(),
+        fragments.to_string(),
+        row_tiles.to_string(),
+        groups.to_string(),
+        "1",
+        groups.to_string(),
+        "255",
+        tokens.to_string(),
+      ]
+    } else {
+      [
+        "intermediate",
+        stages.to_string(),
+        width.to_string(),
+        fragments.to_string(),
+        row_tiles.to_string(),
+        "1",
+        "255",
+      ]
+    }
+    let source = record(
+      root,
+      label + "-export",
+      moon,
+      [
+        "run", "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+        "tests/projection_pipeline_cuda_source_probe", "--", ..options,
+      ],
+      root + "/source",
+    )
+    @fs.write_file(root + "/" + label + ".cu", source, create_mode=CreateNew)
+    ignore(
+      record(
+        root,
+        label + "-compile",
+        "/usr/local/cuda-13.0/bin/nvcc",
+        [
+          "-O3",
+          "-std=c++17",
+          "-arch=sm_121",
+          "--fmad=false",
+          "--maxrregcount=255",
+          "-lineinfo",
+          "-Xptxas=-v",
+          "-cubin",
+          root + "/" + label + ".cu",
+          "-o",
+          root + "/" + label + ".cubin",
+        ],
+        root,
+      ),
+    )
+    let small = tokens == 16
+    let first = if small {
+      [
+        field(source, "ROWS16_PRIMARY_GRID"),
+        field(source, "ROWS16_PRIMARY_BLOCK"),
+        field(source, "ROWS16_PRIMARY_SHARED"),
+      ]
+    } else {
+      [
+        field(source, "probe_sibling_active_grid"),
+        field(source, "PROBE_PRIMARY_BLOCK"),
+        field(source, "PROBE_PRIMARY_SHARED"),
+      ]
+    }
+    let second = [
+      (if small {
+        1024 / (groups * 16)
+      } else {
+        2048 / (row_tiles * 16) * (1024 / (groups * 16))
+      }).to_string(),
+      (groups * 32).to_string(),
+      if small {
+        field(source, "ROWS16_DOWN_SHARED")
+      } else {
+        field(source, "PROBE_DOWN_SHARED")
+      },
+    ]
+    let args = [
+      "mlp",
+      baseline,
+      root + "/" + label + ".cubin",
+      tokens.to_string(),
+      if small {
+        "16"
+      } else {
+        "32"
+      },
+      ..if small {
+        ["96", "64", "16384", "16", "128", "0"]
+      } else {
+        ["1536", "512", "16384", "256", "128", "0"]
+      },
+      ..first,
+      ..second,
+      ..if small {
+        ["--bounded-symbols"]
+      } else {
+        []
+      },
+      "--down-only-change",
+      "--streaming-weights",
+    ]
+    ignore(
+      record(
+        root,
+        label + "-measure",
+        root + "/projection-chain-probe",
+        args,
+        root,
+      ),
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=selected-down-shape-search-not-serving\n",
+    create_mode=CreateNew,
+  )
+}

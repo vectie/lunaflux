@@ -26,7 +26,43 @@ fn main raise {
     _ => (BaselineSiblingTransport, options)
   }
   let mut max_registers = 128
+  let mut sibling_execution : @luna_projection_tile_compiler.ProjectionTransferExecution? = None
   match options {
+    ["small-batch-down"] => {
+      max_registers = 255
+      sibling_execution = Some(OverlappedTransfer)
+      choices.append([
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          IntermediateFold,
+          stages=2,
+          transfer_tiles=4,
+          fragment_stages=1,
+          row_tiles=8,
+          hoist_addresses=true,
+        ),
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          SiblingFold,
+          stages=2,
+          transfer_tiles=4,
+          fragment_stages=1,
+          row_tiles=1,
+          output_tiles=2,
+          consumer_groups=2,
+          maximum_token_rows=16,
+        ),
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          IntermediateFold,
+          stages=2,
+          transfer_tiles=8,
+          fragment_stages=1,
+          row_tiles=1,
+          output_tiles=1,
+          consumer_groups=1,
+          hoist_addresses=true,
+          maximum_token_rows=16,
+        ),
+      ])
+    }
     ["small-batch-gate"] => {
       max_registers = 255
       choices.push(
@@ -259,6 +295,7 @@ fn main raise {
     fold_choices=choices,
     sibling_ownership~,
     sibling_transport~,
+    sibling_execution?,
   )
   println(@utf8.decode(compiled.source_bytes()))
   probe_row_variants(compiled)

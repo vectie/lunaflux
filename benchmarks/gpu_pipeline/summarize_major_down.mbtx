@@ -1,0 +1,107 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let result : Array[String] = []
+  let field = StringBuilder()
+  let mut quoted = false
+  for c in line {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      result.push(field.to_string())
+      field.reset()
+    } else {
+      field.write_char(c)
+    }
+  }
+  result.push(field.to_string())
+  result
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  assert_eq(values.length(), 5)
+  values.sort()
+  values[2]
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("QUALIFIED_ROOT NEW_OUTPUT")
+  }
+  let captures : Array[Json] = []
+  let wanted = [
+    "smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio", "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio",
+    "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio",
+    "sm__issue_active.avg.pct_of_peak_sustained_elapsed", "smsp__issue_active.avg.per_cycle_active",
+    "gpu__time_duration.sum", "launch__grid_size", "launch__registers_per_thread",
+    "launch__block_size", "launch__waves_per_multiprocessor", "smsp__inst_executed.sum",
+    "dram__bytes_read.sum", "dram__throughput.avg.pct_of_peak_sustained_elapsed",
+    "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed", "sm__warps_active.avg.pct_of_peak_sustained_active",
+    "smsp__warps_eligible.avg.per_cycle_active", "smsp__issue_active.avg.pct_of_peak_sustained_active",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+    "smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum",
+    "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+  ]
+  for ordinal in [0, 1] {
+    let rows = @fs.read_file(root + "/selected-down-\{ordinal}-raw.stdout")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("\""))
+      .map(csv)
+      .to_array()
+    guard rows.length() == 3 && rows[0].length() == rows[2].length() else {
+      fail("single counter capture")
+    }
+    let metrics : Map[String, Json] = Map([])
+    for name in wanted {
+      if rows[0].search(name) is Some(i) {
+        metrics[name] = { "value": rows[2][i], "unit": rows[1][i] }
+      }
+    }
+    captures.push({ "ordinal": ordinal, "metrics": metrics })
+  }
+  let timings : Array[Json] = []
+  for tokens in [8, 16, 2048] {
+    let text = @fs.read_file(root + "/tokens-\{tokens}.stdout").text()
+    for part in [0, 1, 2] {
+      let old : Array[Double] = []
+      let fresh : Array[Double] = []
+      for
+        line in text
+        .split("\n")
+        .filter(x => x.has_prefix("tokens=") && x.contains(" part=\{part} ")) {
+        for (key, values) in [("old_us", old), ("new_us", fresh)] {
+          guard line.split(" ").find_first(x => x.has_prefix(key + "="))
+            is Some(item) else {
+            fail("timing")
+          }
+          values.push(
+            @string.parse_double(item.strip_prefix(key + "=").unwrap()),
+          )
+        }
+      }
+      timings.push({
+        "tokens": tokens,
+        "part": part,
+        "old_median_us": median(old),
+        "new_median_us": median(fresh),
+      })
+    }
+  }
+  let summary : Json = {
+    "captures": captures,
+    "timings": timings,
+    "scope": "matched exact AOT modules; counters are replay, timings use 28 rotating down weights; not full serving",
+  }
+  @fs.write_file(output, summary.stringify(indent=2), create_mode=CreateNew)
+}

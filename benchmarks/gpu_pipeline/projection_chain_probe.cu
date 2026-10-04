@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <memory>
 #include <vector>
 
 #define CK(expr) do { auto status = (expr); if (status != 0) { \
@@ -55,13 +57,15 @@ struct Module {
   CUmodule module;
   CUfunction primary, secondary = nullptr;
   Geometry first, second;
-  Module(const char* path, bool mlp, Geometry a, Geometry b) : first(a), second(b) {
+  Module(const char* path, bool mlp, Geometry a, Geometry b, unsigned bounded_rows = 0) : first(a), second(b) {
     CK(cuModuleLoad(&module, path));
-    CK(cuModuleGetFunction(&primary, module, mlp
+    std::string symbol = mlp
       ? "lunaflux_luna_gated_mlp_bf16_release_v1"
-      : "lunaflux_luna_dense_projection_bf16_release_v1"));
-    if (mlp) CK(cuModuleGetFunction(&secondary, module,
-      "lunaflux_luna_gated_mlp_bf16_release_v1_down"));
+      : "lunaflux_luna_dense_projection_bf16_release_v1";
+    if (bounded_rows) symbol += "_rows" + std::to_string(bounded_rows);
+    CK(cuModuleGetFunction(&primary, module, symbol.c_str()));
+    if (mlp) CK(cuModuleGetFunction(&secondary, module, (symbol + "_down").c_str()));
+    std::printf("selected_symbol=%s\n", symbol.c_str());
     describe(path, "primary", primary, first);
     if (mlp) describe(path, "down", secondary, second);
   }
@@ -83,13 +87,21 @@ struct Module {
     if (part != 2) launch_one(primary, first, args);
     if (secondary && part != 1) launch_one(secondary, second, args);
   }
-  float time(void** args, int part) {
+  float time(void** args, int part, const std::vector<void*>& weights) {
     for (int i = 0; i < 3; ++i) launch(args, part);
     CK(cudaDeviceSynchronize());
     cudaEvent_t begin, end;
     CK(cudaEventCreate(&begin)); CK(cudaEventCreate(&end));
     CK(cudaEventRecord(begin));
-    for (int i = 0; i < 20; ++i) launch(args, part);
+    for (int i = 0; i < 20; ++i) {
+      if (weights.empty()) launch(args, part);
+      else {
+        void* current[7];
+        for (int j = 0; j < 7; ++j) current[j] = args[j];
+        current[4] = const_cast<void**>(&weights[size_t(i) % weights.size()]);
+        launch(current, part);
+      }
+    }
     CK(cudaEventRecord(end)); CK(cudaEventSynchronize(end));
     float millis = 0; CK(cudaEventElapsedTime(&millis, begin, end));
     CK(cudaEventDestroy(begin)); CK(cudaEventDestroy(end));
@@ -104,14 +116,22 @@ static float at(const std::vector<unsigned char>& bytes, size_t index) {
 }
 
 int main(int argc, char** argv) {
-  if (argc != 18 && argc != 19) {
-    std::fprintf(stderr, "KIND OLD NEW TOKENS ROWS OLD_PRIMARY(grid block shared) OLD_DOWN(grid block shared) NEW_PRIMARY(grid block shared) NEW_DOWN(grid block shared) [--check]\n");
+  if (argc < 18 || argc > 22) {
+    std::fprintf(stderr, "KIND OLD NEW TOKENS ROWS OLD_PRIMARY(grid block shared) OLD_DOWN(grid block shared) NEW_PRIMARY(grid block shared) NEW_DOWN(grid block shared) [--check] [--bounded-symbols] [--down-only-change] [--streaming-weights]\n");
     return 1;
   }
   const bool mlp = std::strcmp(argv[1], "mlp") == 0;
   if (!mlp && std::strcmp(argv[1], "output") != 0) return 1;
   const unsigned tokens = number(argv[4], 2048), rows = number(argv[5], 32);
-  if (tokens < rows || (argc == 19 && std::strcmp(argv[18], "--check") != 0)) return 1;
+  bool check_only = false, bounded_symbols = false, down_only_change = false, streaming_weights = false;
+  for (int i = 18; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--check") == 0 && !check_only) check_only = true;
+    else if (std::strcmp(argv[i], "--bounded-symbols") == 0 && !bounded_symbols) bounded_symbols = true;
+    else if (std::strcmp(argv[i], "--down-only-change") == 0 && !down_only_change && mlp) down_only_change = true;
+    else if (std::strcmp(argv[i], "--streaming-weights") == 0 && !streaming_weights && mlp) streaming_weights = true;
+    else return 1;
+  }
+  if (tokens < rows || (bounded_symbols && tokens > 16)) return 1;
   const unsigned hidden = 1024, intermediate = 3072, input_width = mlp ? hidden : 2048;
   CK(cudaSetDevice(0)); CK(cudaFree(nullptr));
   Buffer counts(20), input(size_t(2048) * input_width * 2),
@@ -121,8 +141,16 @@ int main(int argc, char** argv) {
   int live[5] = {int(rows), 0, int(rows), int(tokens), int(rows)};
   CK(cudaMemcpy(counts.pointer, live, sizeof(live), cudaMemcpyHostToDevice));
   auto x = input.fill(3), g = gate.fill(7), u = up.fill(11), d = down.fill(13);
-  Module old(argv[2], mlp, geometry(argv, 6, false), geometry(argv, 9, !mlp));
-  Module now(argv[3], mlp, geometry(argv, 12, false), geometry(argv, 15, !mlp));
+  const unsigned bounded_rows = bounded_symbols ? (tokens <= 8 ? 8 : 16) : 0;
+  Module old(argv[2], mlp, geometry(argv, 6, false), geometry(argv, 9, !mlp), bounded_rows);
+  Module now(argv[3], mlp, geometry(argv, 12, false), geometry(argv, 15, !mlp), bounded_rows);
+  // Controlled diagnostic ablation: the production producer remains identical.
+  // Both modules stay live through all trials; no artifact is modified.
+  if (down_only_change) {
+    now.primary = old.primary;
+    now.first = old.first;
+    std::printf("ablation=down-only-change producer=old-module\n");
+  }
   void* mlp_args[] = {&counts.pointer, &input.pointer, &gate.pointer, &up.pointer,
                      &down.pointer, &output.pointer, &workspace.pointer};
   void* output_args[] = {&counts.pointer, &input.pointer, &gate.pointer, &output.pointer};
@@ -165,12 +193,24 @@ int main(int argc, char** argv) {
     }
   }
   std::printf("correctness=passed bitwise_chain=true scalar_maxabs=%.9g\n", max_error);
-  if (argc == 19) return 0;
+  if (check_only) return 0;
+  std::vector<std::unique_ptr<Buffer>> weight_storage;
+  std::vector<void*> weights;
+  if (streaming_weights) {
+    // Match a decoder's distinct layer-weight working set without timing
+    // uploads or cache-flush kernels. Data are identical for A/B correctness.
+    for (int layer = 0; layer < 28; ++layer) {
+      weight_storage.emplace_back(new Buffer(down.bytes));
+      weight_storage.back()->fill(13);
+      weights.push_back(weight_storage.back()->pointer);
+    }
+    std::printf("weight_working_set=28-distinct-down-matrices bytes=%zu\n", 28 * down.bytes);
+  }
   for (int part : mlp ? std::vector<int>{1, 2, 0} : std::vector<int>{0})
     for (int trial = 0; trial < 5; ++trial) {
       float before, after;
-      if (trial % 2) { after = now.time(args, part); before = old.time(args, part); }
-      else { before = old.time(args, part); after = now.time(args, part); }
+      if (trial % 2) { after = now.time(args, part, weights); before = old.time(args, part, weights); }
+      else { before = old.time(args, part, weights); after = now.time(args, part, weights); }
       std::printf("tokens=%u rows=%u part=%d trial=%d old_us=%.6f new_us=%.6f\n",
         tokens, rows, part, trial, before, after);
     }

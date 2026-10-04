@@ -1,0 +1,386 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd=root + "/source", env={
+    "PATH": root + "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+  out.stdout()
+}
+
+///|
+fn meta(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix("// " + key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line.strip_prefix("// " + key + "=").unwrap().trim().to_owned()
+}
+
+///|
+fn median(text : String, key : String) -> Int64 raise {
+  let values : Array[Double] = []
+  for
+    line in text
+    .split("\n")
+    .filter(x => x.has_prefix("tokens=2048 ") && x.contains(" part=0 ")) {
+    guard line.split(" ").find_first(x => x.has_prefix(key + "=")) is Some(item) else {
+      fail(key)
+    }
+    values.push(@string.parse_double(item.strip_prefix(key + "=").unwrap()))
+  }
+  assert_eq(values.length(), 5)
+  values.sort()
+  (values[2] * 1000.0).to_int64()
+}
+
+///|
+fn command(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(values) else { fail("command") }
+  values.map(v => {
+    guard v is String(s) else { fail("command string") }
+    s
+  })
+}
+
+// Offline, measured device-scoped selection. No scheduling constant is added
+// to the generic compiler or model builder. Existing operation sources and
+// the producer/consumer numerical contract must survive the normal exporter.
+
+///|
+async fn main {
+  if @env.args() is [_, "--capacity-only", root] {
+    guard @fs.exists(root + "/deployment/lunaflux.launch.json") &&
+      !@fs.exists(root + "/capacity.json") else {
+      fail("capacity continuation")
+    }
+    ignore(
+      record(root, "prepare-capacity", root + "/toolchain/bin/moon", [
+        "run",
+        root + "/prepare-full.mbtx",
+        root,
+        "capacity",
+      ]),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=prepared-small-down-comparison-not-throughput\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if @env.args() is [_, "--finish", base, root] {
+    guard !@fs.exists(root + "/compiled") && !@fs.exists(root + "/RESULT.txt") else {
+      fail("non-overwriting compiler continuation")
+    }
+    let inventory = root + "/selected-candidate/candidate.files.sha256"
+    ignore(
+      record(
+        root,
+        "compile-resume",
+        root + "/source/scripts/build-luna-bf16-kernel-set.sh",
+        [
+          "/usr/local/cuda-13.0/bin/nvcc",
+          root + "/toolchain.v1#sha256=" + sha(root + "/toolchain.v1"),
+          root + "/selected-candidate/candidate-root",
+          inventory + "#sha256=" + sha(inventory),
+          root + "/compiled",
+        ],
+      ),
+    )
+    let bind = command(
+      @fs.read_file(base + "/selected-bind.command.json").text(),
+    )
+    let args = bind[1:].map(x => x.replace(old=base, new=root))
+    for i in 0..<(args.length() - 2) {
+      if args[i] == "--projection-folds" {
+        args[i + 2] = sha(root + "/projection-folds-v4.records")
+      }
+    }
+    let receipt = record(
+      root,
+      "selected-bind",
+      bind[0].replace(old=base, new=root),
+      args,
+    )
+    @fs.write_file(root + "/bind.stdout", receipt, create_mode=CreateNew)
+    for phase in ["materialize", "capacity"] {
+      ignore(
+        record(root, "prepare-" + phase, root + "/toolchain/bin/moon", [
+          "run",
+          root + "/prepare-full.mbtx",
+          root,
+          phase,
+        ]),
+      )
+    }
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=prepared-small-down-comparison-not-throughput\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  guard @env.args() is [_, base, root, probe_source, chain_source] else {
+    fail("CURRENT_SERVING NEW_ROOT PROBE_SOURCE CHAIN_SOURCE")
+  }
+  guard !@fs.exists(root + "/source") else { fail("nonempty destination") }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  let line = @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .find_first(x => x.has_prefix("MemAvailable:"))
+    .unwrap()
+  guard @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32 GiB reserve")
+  }
+  @shell.Cmd("cp", ["-a", base + "/source", root + "/source"]).run()
+  @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+  @fs.write_file(
+    root + "/source/tests/projection_pipeline_cuda_source_probe/main.mbt",
+    @fs.read_file(probe_source),
+  )
+  for
+    name in [
+      "toolchain.v1", "convert.stdout", "export.stdout", "prepare-full.mbtx", "benchmark.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(base + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  for name in ["fused", "fused-routed"] {
+    @shell.Cmd("cp", ["-a", base + "/" + name, root + "/" + name]).run()
+  }
+  let moon = root + "/toolchain/bin/moon"
+  let exports : Array[String] = []
+  for (name, option) in [("default", "255"), ("selected", "small-batch-down")] {
+    let source = record(root, name + "-source", moon, [
+      "run", "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+      "tests/projection_pipeline_cuda_source_probe", "--", option,
+    ])
+    exports.push(source)
+    guard source.split("\n// ROWS8_PRIMARY_GRID=").to_array() is [body, _] else {
+      fail("metadata")
+    }
+    @fs.write_file(
+      root + "/" + name + ".cu",
+      body.trim_end().to_owned() + "\n",
+      create_mode=CreateNew,
+    )
+    ignore(
+      record(root, name + "-compile", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-std=c++17",
+        "-arch=sm_120",
+        "--fmad=false",
+        "--maxrregcount=255",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        root + "/" + name + ".cu",
+        "-o",
+        root + "/" + name + ".cubin",
+      ]),
+    )
+  }
+  assert_eq(
+    sha(root + "/default.cu"),
+    "d89f59217fc573d233b3e6427c5231fc0f59a457b03d9b19e62f9432a4e8da31",
+  )
+  ignore(
+    record(root, "build-chain", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-O3",
+      "-std=c++17",
+      "-arch=sm_121",
+      chain_source,
+      "-lcuda",
+      "-o",
+      root + "/projection-chain-probe",
+    ]),
+  )
+  let geometries = exports.map(s => {
+    [
+      meta(s, "probe_sibling_active_grid"),
+      meta(s, "PROBE_PRIMARY_BLOCK"),
+      meta(s, "PROBE_PRIMARY_SHARED"),
+      meta(s, "probe_intermediate_active_grid"),
+      meta(s, "PROBE_DOWN_BLOCK"),
+      meta(s, "PROBE_DOWN_SHARED"),
+    ]
+  })
+  let timing = record(
+    root,
+    "whole-module-objective",
+    root + "/projection-chain-probe",
+    [
+      "mlp",
+      root + "/default.cubin",
+      root + "/selected.cubin",
+      "2048",
+      "32",
+      ..geometries[0],
+      ..geometries[1],
+      "--streaming-weights",
+    ],
+  )
+  let before = sha(root + "/default.cu")
+  let after = sha(root + "/selected.cu")
+  let old_ns = median(timing, "old_us")
+  let new_ns = median(timing, "new_us")
+  guard new_ns * 100L < old_ns * 98L else {
+    fail("no measured whole-module benefit")
+  }
+  let prior = @fs.read_file(base + "/projection-folds-v4.records")
+    .text()
+    .split("\n")
+    .to_array()
+  let retained = prior
+    .filter(x => x.has_prefix("record\t") && !x.contains(before))
+    .join("\n")
+  let records = "luna-projection-fold-v4\n" +
+    prior[1].to_owned() +
+    "\n" +
+    retained +
+    "\n" +
+    "record\t\{before}\t\{before}\t\{old_ns}\t5\t-\n" +
+    "record\t\{before}\t\{after}\t\{new_ns}\t5\tintermediate:2:4:1:8:0:1,sibling:2:4:1:1:2:0:2:16,intermediate:2:8:1:1:1:1:1:16,execution:overlapped\n"
+  @fs.write_file(
+    root + "/projection-folds-v4.records",
+    records,
+    create_mode=CreateNew,
+  )
+  let export_cmd = command(
+    @fs.read_file(base + "/selected-export.command.json").text(),
+  )
+  let export_args = export_cmd[1:].map(x => x.replace(old=base, new=root))
+  // Locate the snapshot argument by name rather than relying on suffix length.
+  for i in 0..<(export_args.length() - 2) {
+    if export_args[i] == "--projection-folds" {
+      export_args[i + 2] = sha(root + "/projection-folds-v4.records")
+    }
+  }
+  // The copied exporter is the same compiler implementation; the source probe
+  // alone gained a diagnostic entry point, never a runtime special case.
+  ignore(
+    record(
+      root,
+      "selected-export",
+      export_cmd[0].replace(old=base, new=root),
+      export_args,
+    ),
+  )
+  let candidate = root + "/selected-candidate/candidate-root"
+  assert_eq(sha(candidate + "/sources/op_00000009_gated_mlp.cu"), after)
+  let differences = StringBuilder()
+  for
+    entry in @fs.read_file(candidate + "/candidate-set.v1")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("candidate=")) {
+    let key = entry.strip_prefix("candidate=").unwrap().split(",").to_array()[0].to_owned()
+    let relative = "/sources/" + key + ".cu"
+    if sha(candidate + relative) !=
+      sha(base + "/candidate/candidate-root" + relative) {
+      guard entry.has_suffix(",gated_mlp") else {
+        fail("unrelated executable changed")
+      }
+      differences.write_string(key + " " + sha(candidate + relative) + "\n")
+    }
+  }
+  @fs.write_file(
+    root + "/MODULE_DIFF.txt",
+    differences.to_string(),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("cp", ["-a", root + "/selected-candidate", root + "/candidate"]).run()
+  let inventory = root + "/candidate/candidate.files.sha256"
+  ignore(
+    record(
+      root,
+      "compile-kernel-set",
+      root + "/source/scripts/build-luna-bf16-kernel-set.sh",
+      [
+        "/usr/local/cuda-13.0/bin/nvcc",
+        root + "/toolchain.v1#sha256=" + sha(root + "/toolchain.v1"),
+        candidate,
+        inventory + "#sha256=" + sha(inventory),
+        root + "/compiled",
+      ],
+    ),
+  )
+  let bind = command(@fs.read_file(base + "/selected-bind.command.json").text())
+  let bind_args = bind[1:].map(x => x.replace(old=base, new=root))
+  for i in 0..<(bind_args.length() - 2) {
+    if bind_args[i] == "--projection-folds" {
+      bind_args[i + 2] = sha(root + "/projection-folds-v4.records")
+    }
+  }
+  let receipt = record(
+    root,
+    "selected-bind",
+    bind[0].replace(old=base, new=root),
+    bind_args,
+  )
+  @fs.write_file(root + "/bind.stdout", receipt, create_mode=CreateNew)
+  for phase in ["materialize", "capacity"] {
+    ignore(
+      record(root, "prepare-" + phase, moon, [
+        "run",
+        root + "/prepare-full.mbtx",
+        root,
+        phase,
+      ]),
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=prepared-small-down-comparison-not-throughput\n",
+    create_mode=CreateNew,
+  )
+}
