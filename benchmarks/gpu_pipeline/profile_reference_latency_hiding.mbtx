@@ -1,0 +1,212 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn replace_once(
+  source : String,
+  before : String,
+  after : String,
+) -> String raise {
+  let pieces = source.split(before).to_array()
+  guard pieces.length() == 2 else { fail("pinned diagnostic seam changed") }
+  pieces.join(after)
+}
+
+///|
+test "configuration edits reject missing and ambiguous seams" {
+  assert_eq(replace_once("a80gb", "80g", "64g"), "a64gb")
+  for source in ["absent", "80g80g"] {
+    try replace_once(source, "80g", "64g") catch {
+      _ => ()
+    } noraise {
+      _ => fail("non-unique diagnostic seam accepted")
+    }
+  }
+}
+
+///|
+async fn save(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " completed")
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [
+      _,
+      serving,
+      previous,
+      root,
+      helper,
+      pair_helper,
+      luna_command,
+      sass_helper,
+      metric_helper,
+    ] else {
+    fail(
+      "SERVING PREVIOUS_REFERENCE_CAPTURE NEW_EMPTY_ROOT REFERENCE_HELPER PAIR_HELPER LUNA_COMMAND SASS_HELPER METRIC_HELPER",
+    )
+  }
+  let moon = serving + "/toolchain/bin/moon"
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  save(root, "gpu", "nvidia-smi", [
+    "--query-gpu=uuid,name,compute_cap", "--format=csv,noheader",
+  ])
+  guard @fs.read_file(root + "/gpu.stdout")
+    .text()
+    .has_prefix("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6,") else {
+    fail("assigned GPU identity changed")
+  }
+  save(root, "tools", "sha256sum", [
+    "/usr/local/cuda-13.0/bin/nvcc", "/opt/nvidia/nsight-compute/2025.3.1/ncu", helper,
+    pair_helper,
+  ])
+  guard @json.parse(@fs.read_file(luna_command).text()) is Array(raw) else {
+    fail("paired command")
+  }
+  let command = raw.map(x => {
+    guard x is String(s) else { fail("command string") }
+    s
+  })
+  guard command.length() == 8 && command[4:7] == ["16", "16", "4096"] else {
+    fail("C16/H4096 decode envelope")
+  }
+  // Repeat the unchanged selected module, not the rejected experimental module.
+  command[3] = command[2]
+  let luna = root + "/luna"
+  @fs.mkdir(luna)
+  @fs.write_file(
+    luna + "/probe.command.json",
+    Json(command).stringify(),
+    create_mode=CreateNew,
+  )
+  save(root, "luna-run", moon, [
+    "run",
+    pair_helper,
+    luna,
+    luna + "/probe.command.json",
+    "regex:^lunaflux_attention_decode_tile_compiler_v1.*",
+  ])
+  for label in ["old", "new"] {
+    save(luna, label + "-sass-summary", moon, [
+      "run",
+      sass_helper,
+      luna + "/" + label + "-source.stdout",
+      luna + "/" + label + "-sass.json",
+    ])
+    save(luna, label + "-metrics-summary", moon, [
+      "run",
+      metric_helper,
+      luna + "/" + label + "-raw.stdout",
+      luna + "/" + label + "-metrics.json",
+    ])
+  }
+  for engine in ["vllm", "sglang"] {
+    let dir = root + "/" + engine
+    @fs.mkdir(dir)
+    let source = replace_once(
+      @fs.read_file(helper).text(),
+      "root.split(\"/\").to_array().last().unwrap().to_owned()",
+      "root.split(\"/\").to_array().join(\"-\")",
+    )
+    let source = replace_once(
+      source, "    \"80g\",\n    \"--memory-swap\",\n    \"80g\",", "    \"64g\",\n    \"--memory-swap\",\n    \"64g\",",
+    )
+    let source = replace_once(
+      source, "      \"per-launch-config\",", "      \"global\",",
+    )
+    let source = replace_once(
+      source,
+      "      \"--cache-control\",\n      \"none\",",
+      "      \"--cache-control\",\n      \"all\",\n      \"--launch-skip\",\n      \"" +
+      (if engine == "vllm" { "924" } else { "0" }) +
+      "\",",
+    )
+    @fs.write_file(dir + "/reference.mbtx", source, create_mode=CreateNew)
+    save(dir, "run", moon, [
+      "run",
+      dir + "/reference.mbtx",
+      serving,
+      dir,
+      engine,
+      "counter",
+      if engine == "vllm" {
+        "regex:.*flash_fwd_splitkv_kernel.*"
+      } else {
+        "regex:.*BatchDecodeWithPagedKVCacheKernel.*"
+      },
+    ])
+    save(dir, "counter-source", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+      "--import",
+      dir + "/counter.ncu-rep",
+      "--page",
+      "source",
+      "--print-source",
+      "sass",
+      "--csv",
+    ])
+    save(dir, "sass-summary", moon, [
+      "run",
+      sass_helper,
+      dir + "/counter-source.stdout",
+      dir + "/sass.json",
+    ])
+    save(dir, "metrics-summary", moon, [
+      "run",
+      metric_helper,
+      dir + "/counter-raw.stdout",
+      dir + "/metrics.json",
+    ])
+  }
+  for
+    file in [
+      "flashinfer-decode.cuh", "vllm-flash-attn-interface.py", "work-vectors.json",
+    ] {
+    @fs.write_file(
+      root + "/" + file,
+      @fs.read_file(previous + "/" + file),
+      create_mode=CreateNew,
+    )
+  }
+  save(root, "idle-final", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=fresh C16 near-envelope cold-cache counters; Luna synthetic selected-module replay versus live reference operands; not exact-workload speedup or serving throughput\nreference_source_scope=retained pinned FlashInfer header and vLLM interface; FlashAttention device source requires separate identity verification\n",
+    create_mode=CreateNew,
+  )
+}
