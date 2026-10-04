@@ -1,0 +1,66 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/luna_cuda_precision"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/model/precision_format",
+}
+
+// Values
+pub fn decode_source(@precision_ir.OperandPlan, symbol~ : String) -> ConversionSource raise LoweringError
+
+pub fn quantize_source(@precision_ir.OperandPlan, symbol~ : String) -> QuantizationSource raise LoweringError
+
+pub fn tile_load_source(@precision_ir.PhysicalOperand, symbol~ : String) -> String raise LoweringError
+
+// Errors
+pub(all) suberror LoweringError {
+  InvalidSymbol
+  UnsupportedPlacement
+  UnsupportedGeometry
+} derive(Eq, @debug.Debug)
+pub fn LoweringError::equal(Self, Self) -> Bool
+pub fn LoweringError::not_equal(Self, Self) -> Bool
+pub fn LoweringError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct ConversionLaunch {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ConversionLaunch::dimensions(Self) -> (Int, Int)
+pub fn ConversionLaunch::equal(Self, Self) -> Bool
+pub fn ConversionLaunch::not_equal(Self, Self) -> Bool
+pub fn ConversionLaunch::to_repr(Self) -> @debug.Repr
+
+pub struct ConversionSource {
+  // private fields
+}
+pub fn ConversionSource::digest(Self) -> String
+pub fn ConversionSource::launch(Self) -> ConversionLaunch
+pub fn ConversionSource::representation(Self) -> @precision_format.Representation
+pub fn ConversionSource::source(Self) -> String
+pub fn ConversionSource::symbol(Self) -> String
+
+pub struct QuantizationSource {
+  // private fields
+}
+pub fn QuantizationSource::launches(Self) -> ReadOnlyArray[ConversionLaunch]
+pub fn QuantizationSource::plan(Self) -> @precision_ir.QuantizationPlan
+pub fn QuantizationSource::representation(Self) -> @precision_format.Representation
+pub fn QuantizationSource::source(Self) -> String
+pub fn QuantizationSource::stages(Self) -> ReadOnlyArray[QuantizationStage]
+pub fn QuantizationSource::symbol(Self) -> String
+
+pub(all) enum QuantizationStage {
+  GlobalScale
+  BlockScales
+  Pack
+} derive(Eq, @debug.Debug)
+pub fn QuantizationStage::equal(Self, Self) -> Bool
+pub fn QuantizationStage::not_equal(Self, Self) -> Bool
+pub fn QuantizationStage::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

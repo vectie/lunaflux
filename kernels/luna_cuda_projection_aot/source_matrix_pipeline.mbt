@@ -5,6 +5,8 @@ fn projection_matrix_pipeline_source(
   parameters : ProjectionParameters,
   compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
   maximum_rows : Int,
+  precision? : @precision.PhysicalOperand,
+  precision_symbol? : String = "lf_projection_compact_weight",
 ) -> String {
   guard compilation.matrix is Some(physical) else { return "" }
   let plan = physical.schedule
@@ -45,7 +47,7 @@ fn projection_matrix_pipeline_source(
   }
   let input_addresses = physical.producer_addresses(0).unwrap()
   let weight_addresses = physical.producer_addresses(1).unwrap()
-  let hoisted = input_addresses.hoisted()
+  let hoisted = input_addresses.hoisted() && precision is None
   let address_declarations = if hoisted {
     projection_producer_address_source(
       input_addresses,
@@ -96,7 +98,19 @@ fn projection_matrix_pipeline_source(
       $|        }
     )
   }
-  let weight_copy = if hoisted {
+  let weight_copy = if precision is Some(_) {
+    (
+      $|        \{projection_physical_transfer_map_loop(weight_region.ownership())} {
+      $|          const int local_row=vector/\{weight_plan.row_vectors()}, k=(vector%\{weight_plan.row_vectors()})*8;
+      $|          const int logical_column=column_begin+local_row;
+      $|          #pragma unroll
+      $|          for(int item=0;item<8;++item) {
+      $|            const int column=k_base+k+item;
+      $|            destination[\{input_elements}+operand_index(local_row,k+item)]=logical_column<\{output_width} && column<\{input_width} ? \{precision_symbol}(weight,weight_scale,weight_global,logical_column,column) : __float2bfloat16_rn(0.0f);
+      $|          }
+      $|        }
+    )
+  } else if hoisted {
     projection_hoisted_transfer_source(
       weight_addresses,
       "weight_address",

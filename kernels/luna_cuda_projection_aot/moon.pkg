@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/luna_cuda_precision" @precision_cuda,
   "vectie/lunaflux/compiler/physical_tile_ir",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
@@ -17,6 +19,7 @@ supported_targets = "native"
 
 import {
   "moonbitlang/core/env",
+  "vectie/lunaflux/model/precision_format" @format,
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan_test_fixture",
   "vectie/lunaflux/model/spec",

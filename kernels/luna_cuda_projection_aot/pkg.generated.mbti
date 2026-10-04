@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/luna_cuda_projection_aot"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
@@ -28,6 +29,8 @@ pub fn lower_reusable_projection_cuda_aot_candidate(@plan.PlanOperation, @launch
 
 pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], @luna_projection_strategy.ProjectionRuntimeDispatch, ProjectionAotLimits, fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice], sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership, sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport, sibling_execution? : @luna_projection_tile_compiler.ProjectionTransferExecution) -> ProjectionCudaLowering raise ProjectionAotError
 
+pub fn precision_projection_source(@luna_projection_tile_compiler.PhysicalProjectionTileCompilation, @precision_ir.LinearPrecision, symbol~ : String) -> PrecisionProjectionSource raise ProjectionAotError
+
 pub fn prepare_projection_cuda_runtime_dispatch(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, ArrayView[@launch_contract.AotOperand], ArrayView[@luna_projection_strategy.ProjectionAutotuneRecord]) -> @luna_projection_strategy.ProjectionRuntimeDispatch raise ProjectionAotError
 
 pub fn projection_content_addressed_cubin_path(String) -> String raise ProjectionAotError
@@ -46,6 +49,14 @@ pub struct CudaProjectionFoldBody {
   // private fields
 }
 pub fn CudaProjectionFoldBody::ingress(@luna_projection_tile_compiler.ProjectionPhysicalPipeline) -> Self?
+
+pub struct PrecisionProjectionSource {
+  // private fields
+}
+pub fn PrecisionProjectionSource::launch(Self) -> (Int, Int)
+pub fn PrecisionProjectionSource::physical(Self) -> @luna_projection_tile_compiler.PhysicalProjectionTileCompilation
+pub fn PrecisionProjectionSource::precision(Self) -> @precision_ir.LinearPrecision
+pub fn PrecisionProjectionSource::source_bytes(Self) -> Bytes
 
 pub(all) enum ProjectionAotFamily {
   QkvProjection

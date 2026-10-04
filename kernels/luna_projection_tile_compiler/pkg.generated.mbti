@@ -428,6 +428,7 @@ pub fn ProjectionTileProgram::demand(Self) -> ProjectionResultDemand
 pub fn ProjectionTileProgram::digest(Self) -> ProjectionTileProgramDigest
 pub fn ProjectionTileProgram::epilogue(Self) -> ProjectionTileEpilogue
 pub fn ProjectionTileProgram::root(Self) -> ProjectionTileValueId
+pub fn ProjectionTileProgram::shape(Self) -> @luna_projection_strategy.ProjectionShape
 
 pub struct ProjectionTileProgramDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionTileProgramDigest::as_hex(Self) -> String

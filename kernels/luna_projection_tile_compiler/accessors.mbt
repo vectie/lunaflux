@@ -25,6 +25,13 @@ pub fn ProjectionTileBinding::expression(
 }
 
 ///|
+pub fn ProjectionTileProgram::shape(
+  self : ProjectionTileProgram,
+) -> @luna_projection_strategy.ProjectionShape {
+  self.shape
+}
+
+///|
 pub fn ProjectionTileProgram::bindings(
   self : ProjectionTileProgram,
 ) -> ReadOnlyArray[ProjectionTileBinding] {

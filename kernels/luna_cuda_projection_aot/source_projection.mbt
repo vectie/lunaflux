@@ -67,16 +67,23 @@ fn projection_tensor_core_direct_dense_source(
   maximum_tokens : Int,
   maximum_rows : Int,
   tile_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
+  precision? : @precision.PhysicalOperand,
 ) -> Bytes {
   let demand : @luna_projection_tile_compiler.ProjectionResultDemand = tile_compilation
     .schedule()
     .demand()
+  let precision_symbol = symbol + "_weight_load"
   let query_row_ends = demand == QueryRowEnds
   let groups = tile_compilation.schedule().output_tiles_per_workgroup()
   let cooperative_column_tail = query_row_ends &&
     parameters.output_width % (groups * 16) != 0
   @utf8.encode(
     projection_tensor_core_prelude() +
+    (match precision {
+      Some(physical) =>
+        try! @precision_cuda.tile_load_source(physical, symbol=precision_symbol)
+      None => ""
+    }) +
     "extern \"C\" __global__ void " +
     symbol +
     (if query_row_ends {
@@ -84,12 +91,20 @@ fn projection_tensor_core_direct_dense_source(
     } else {
       "(const int32_t *counts, const __nv_bfloat16 *input, "
     }) +
-    "const __nv_bfloat16 *weight, __nv_bfloat16 *output) {\n" +
+    (if precision is Some(_) {
+      "const unsigned char *weight, const unsigned char *weight_scale, const float *weight_global, __nv_bfloat16 *output) {\n"
+    } else {
+      "const __nv_bfloat16 *weight, __nv_bfloat16 *output) {\n"
+    }) +
     projection_count_guard(maximum_tokens) +
     "  const int warp = (int)threadIdx.x >> 5;\n" +
     "  const int lane = (int)threadIdx.x & 31;\n" +
     projection_matrix_pipeline_source(
-      parameters, tile_compilation, maximum_rows,
+      parameters,
+      tile_compilation,
+      maximum_rows,
+      precision?,
+      precision_symbol~,
     ) +
     (if !query_row_ends {
       "  if (token_count == 1) {\n" +
@@ -103,7 +118,11 @@ fn projection_tensor_core_direct_dense_source(
         {
           accumulator: "value",
           left: "__bfloat162float(input[inner])",
-          right: "__bfloat162float(weight[weight_base + inner])",
+          right: if precision is Some(_) {
+            "__bfloat162float(\{precision_symbol}(weight,weight_scale,weight_global,output_column,inner))"
+          } else {
+            "__bfloat162float(weight[weight_base + inner])"
+          },
         },
       ]) +
       "    if (lane == 0) output[output_column] = __float2bfloat16_rn(value);\n" +
@@ -152,7 +171,11 @@ fn projection_tensor_core_direct_dense_source(
         {
           accumulator: "value",
           left: "__bfloat162float(input[input_base + inner])",
-          right: "__bfloat162float(weight[weight_base + inner])",
+          right: if precision is Some(_) {
+            "__bfloat162float(\{precision_symbol}(weight,weight_scale,weight_global,output_column,inner))"
+          } else {
+            "__bfloat162float(weight[weight_base + inner])"
+          },
         },
       ]) +
       "      if (lane == 0) output[output_base + output_column] = __float2bfloat16_rn(value);\n" +
