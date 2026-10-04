@@ -15,6 +15,14 @@ Both descriptors are immutable, constant-space, and checked at construction.
 They contain no model names, CUDA instructions, warp width, or runtime state.
 The CUDA backend binds values to buffers and instructions only at emission.
 
+`FragmentRowDomain` describes the live prefix of instruction row groups. A
+partially live final group retains its padded arithmetic; wholly inactive
+groups have no producer reads, fragment products or publications. Projection
+physical planning constructs this immutable domain once, and the fused-ingress
+CUDA backend consumes the same value at all three boundaries. Its finite
+specialization dispatch is outside the reduction loop, not a per-MMA runtime
+predicate. Full groups retain their original joint product association.
+
 `FragmentProgram::forward_right` performs single-use register forwarding:
 one-row, one-slot products may bind each packed producer word directly to its
 ordered consumer operand. A bounded bijection rejects omitted, repeated or

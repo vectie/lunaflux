@@ -54,7 +54,17 @@ pub fn FragmentProgram::primes_operands(Self) -> Bool
 pub fn FragmentProgram::product(Self, Int) -> (Int, Int, Int)?
 pub fn FragmentProgram::product_count(Self) -> Int
 pub fn FragmentProgram::read_at(Self, Int, next~ : Bool) -> (Int, Int)?
+pub fn FragmentProgram::row_domain(Self, quantum~ : Int) -> FragmentRowDomain?
 pub fn FragmentProgram::to_repr(Self) -> @debug.Repr
+
+pub struct FragmentRowDomain {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn FragmentRowDomain::active_groups(Self, Int) -> Int
+pub fn FragmentRowDomain::equal(Self, Self) -> Bool
+pub fn FragmentRowDomain::geometry(Self) -> (Int, Int)
+pub fn FragmentRowDomain::not_equal(Self, Self) -> Bool
+pub fn FragmentRowDomain::to_repr(Self) -> @debug.Repr
 
 pub struct OperandLayout {
   // private fields

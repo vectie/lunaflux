@@ -8,7 +8,10 @@ priv enum CudaProjectionFragmentForm {
     column_owner~ : String,
     weight_displacement~ : String
   )
-  HeadColumns(input_elements~ : Int)
+  HeadColumns(
+    input_elements~ : Int,
+    domain~ : @physical_tile_ir.FragmentRowDomain
+  )
 }
 
 ///|
@@ -124,7 +127,7 @@ pub fn CudaProjectionFoldBody::ingress(
   }
   Some({
     program: physical.fragments,
-    form: HeadColumns(input_elements~),
+    form: HeadColumns(input_elements~, domain=physical.row_domain),
     storage: "ingress_operands",
     slot_elements,
     consumers: None,
@@ -161,8 +164,8 @@ fn CudaProjectionFoldBody::source(self : CudaProjectionFoldBody) -> String {
         column_owner~,
         weight_displacement~,
       )
-    HeadColumns(input_elements~) =>
-      projection_head_fragment_source(self.program, input_elements)
+    HeadColumns(input_elements~, domain~) =>
+      projection_head_fragment_source(self.program, input_elements, domain)
   }
   let prefix = "const __nv_bfloat16 *current = \{self.storage} + stage * \{self.slot_elements};\n"
   match self.consumers {

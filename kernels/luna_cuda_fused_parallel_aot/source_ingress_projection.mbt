@@ -22,6 +22,7 @@ fn ingress_matrix_projection_source(
   let input_vectors = input_region.ownership().geometry().0
   let weight_vectors = weight_region.ownership().geometry().0
   let row_fragments = physical.pipeline.fragments.geometry().0
+  let (domain_rows, row_quantum) = physical.pipeline.row_domain.geometry()
   let declaration = if physical.scratch.reuses_storage() ||
     physical.scratch.allocation_bytes() > 49152L {
     "    __nv_bfloat16 *ingress_operands = reinterpret_cast<__nv_bfloat16 *>(ingress_scratch);"
@@ -33,11 +34,21 @@ fn ingress_matrix_projection_source(
   } else {
     ""
   }
+  // Specialize the complete lifetime once, rather than selecting MMA fan-out
+  // inside every reduction iteration. Each branch consumes the same prefix
+  // domain for staging, fragment products and publication.
+  let dispatch = Array::makei(domain_rows, index => {
+    let active = domain_rows - index
+    "\{if index == 0 { "if" } else { "else if" }} (live_row_fragments == \{active}) project_live_domain(std::integral_constant<int, \{active}>{});"
+  }).join("\n    ")
   let source =
     $|\{declaration}
+    $|    const int live_row_fragments = min(\{domain_rows}, 1 + (tokens - token_begin - 1) / \{row_quantum});
+    $|    auto project_live_domain = [&](auto live_row_domain) {
+    $|    constexpr int ingress_active_fragments = decltype(live_row_domain)::value;
     $|    auto stage_operands = [&](int offset, int stage) {
     $|      __nv_bfloat16 *destination = ingress_operands + stage * \{slot_elements};
-    $|      for (int vector = (int)threadIdx.x; vector < \{input_vectors}; vector += LF_BLOCK_THREADS) {
+    $|      for (int vector = (int)threadIdx.x; vector < min(\{input_vectors}, ingress_active_fragments * \{row_quantum * width / 8}); vector += LF_BLOCK_THREADS) {
     $|        const int local_row = vector / \{width / 8}, local_inner = (vector % \{width / 8}) * 8;
     $|        const bool valid = token_begin + local_row < tokens;
     $|        const __nv_bfloat16 *source = valid ? input + (unsigned long long)(token_begin + local_row) * LF_INPUT_WIDTH + offset + local_inner : input;
@@ -66,7 +77,7 @@ fn ingress_matrix_projection_source(
     $|        const int column_base = ((window * LF_LIVE_COLUMNS + slot) * LF_WARPS + warp) * 16;
     $|        #pragma unroll
     $|        for (int row_fragment=0; row_fragment<\{row_fragments}; ++row_fragment)
-    $|          if (column_base < LF_PROJECTION_WIDTH) {
+    $|          if (column_base < LF_PROJECTION_WIDTH && row_fragment < ingress_active_fragments) {
     $|            #pragma unroll
     $|            for (int item=0;item<8;++item) {
     $|              const int row=row_fragment*16+lane/4+(item%4/2)*8;
@@ -76,6 +87,8 @@ fn ingress_matrix_projection_source(
     $|          }
     $|      }
     $|    }
+    $|    };
+    $|    \{dispatch}
     $|
   source
 }

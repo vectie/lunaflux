@@ -5,9 +5,11 @@
 fn projection_head_fragment_source(
   program : @physical_tile_ir.FragmentProgram,
   input_elements : Int,
+  domain : @physical_tile_ir.FragmentRowDomain,
 ) -> String {
   let (rows, live, width, quantum, fragments) = program.geometry()
-  guard rows > 0 && quantum == 16 else {
+  let (domain_rows, row_quantum) = domain.geometry()
+  guard rows > 0 && quantum == 16 && domain_rows == rows && row_quantum == 16 else {
     abort("unsupported head fragment binding")
   }
   let load = fn(offset : String, slot : String) -> String {
@@ -16,6 +18,7 @@ fn projection_head_fragment_source(
       $|          #pragma unroll
       $|          for (int row_fragment=0; row_fragment<\{rows}; ++row_fragment)
       $|          {
+      $|            if (row_fragment >= lf_active_row_fragments) break;
       $|            unsigned *operand=a[\{slot}][row_fragment];
       $|            const unsigned address=(unsigned)__cvta_generic_to_shared(current + (row_fragment*16+lane%16)*\{width} + \{offset} + lane/16*8);
       $|            asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];" : "=r"(operand[0]),"=r"(operand[1]),"=r"(operand[2]),"=r"(operand[3]) : "r"(address));
@@ -46,11 +49,22 @@ fn projection_head_fragment_source(
           "if (fragment_inner + \{quantum} < \{width}) {\n" +
           load("fragment_inner + \{quantum}", "fragment_stage ^ 1") +
           "\n}"
-        AccumulateCurrent => projection_head_joint_fold_source(rows, live)
+        AccumulateCurrent => {
+          // Joint register binding is retained for each live prefix. Do not
+          // turn this into one asm region per MMA and reintroduce tuple MOVs.
+          let branches = Array::makei(rows, index => {
+            let active = rows - index
+            "\{if index == 0 { "if" } else { "else if" }} (lf_active_row_fragments == \{active}) {\n" +
+            projection_head_joint_fold_source(active, live) +
+            "\n}"
+          })
+          branches.join("\n")
+        }
       }
     })
     .join("\n")
   (
+    $|      constexpr int lf_active_row_fragments = decltype(live_row_domain)::value;
     $|      unsigned a[\{fragments}][\{rows}][4];
     $|      unsigned b[\{fragments}][\{live}][4];
     $|      \{if program.primes_operands() { load("0", "0") } else { "" }}

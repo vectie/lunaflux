@@ -5,6 +5,7 @@ pub struct ProjectionPhysicalPipeline {
   schedule : ProjectionFoldPipeline
   operands : @physical_tile_ir.OperandStorage
   fragments : @physical_tile_ir.FragmentProgram
+  row_domain : @physical_tile_ir.FragmentRowDomain
   effects : ProjectionFoldEffectPlan
   distribution : ProjectionProductFoldDistribution
   sibling_reuse : Bool
@@ -136,6 +137,7 @@ pub fn ProjectionPhysicalPipeline::new(
     schedule,
     operands,
     fragments,
+    row_domain: fragments.row_domain(quantum=schedule.tile_width()).unwrap(),
     distribution,
     effects: schedule.effect_plan(execution),
     sibling_reuse: reuse is Some(_),
