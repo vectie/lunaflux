@@ -159,6 +159,11 @@ The new SASS hot short-dependency samples instead include the `FMNMX` max-fold
 chain (2,416 and 1,377 samples at two PCs); the hottest load-dependency PC is
 a metadata `SHFL.IDX` (4,096 samples). A sampled instruction is the dependency
 consumer, not necessarily the original memory instruction that caused waiting.
+The [next dependency experiments](BENCHMARK_DECODE_DEPENDENCY_EXPERIMENTS_2026-10-04.md)
+inspect the neighboring SASS and correct the interpretation further: the hot
+`FMNMX` follows a shared score load. Removing that exchange moves the waiting
+sample but does not improve C16 time. Scoped FMA removes 20.56% of instructions
+with neutral C16 time; no new experimental path was enabled in serving.
 This is why deleting the previous validity reload does not imply deletion of
 the next critical dependency.
 
