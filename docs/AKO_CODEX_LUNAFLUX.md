@@ -223,3 +223,11 @@ cells remain bitwise-equal, but QK pairing regresses and PV pairing is inconclus
 The matched counter pair shows unchanged MMA/copy work, 52% more NOPs and poorer
 issue activity. It remains offline-only; no production lowering or serving route
 is changed. Both archives and all 233 manifest members verify locally.
+
+The [dual-Spark long-history exponential sweep](BENCHMARK_AKO_LONG_EXPONENTIAL_2026-10-05.md)
+runs six host/workload cells concurrently across the two Sparks. Existing c30322
+explicit approximate arithmetic gives 4.4–5.4% median paired kernel-time gains;
+three cells pass the conservative all-pairs criterion. Matched counters show
+about 17% fewer instructions but unchanged MMA/copy work and substantial
+remaining dependency waits. It is non-bitwise and not serving-selected by this
+experiment; strict numerical policy and production routes remain unchanged.
