@@ -58,7 +58,8 @@ larger prefill retains the baseline.
 ## Exact experiment
 
 GB10 DGX Spark, `sm_121`, CUDA 13.0.88, UUID
-`GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6`. Pinned nvcc SHA-256:
+`GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6`. Supplied toolchain-policy digest
+(not the nvcc executable SHA-256):
 `c3e8741c84713f825ef038de8f80529fbeb55abe9e85066ec89cc7f9aa862857`.
 Model: Qwen3-0.6B BF16, the frozen model/tokenizer and capacity contract.
 

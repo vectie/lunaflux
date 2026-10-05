@@ -1,0 +1,75 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn local_manifest(
+  input : String,
+  remote : String,
+  destination : String,
+) -> String {
+  input
+  .split("\n")
+  .map(line => {
+    line
+    .to_owned()
+    .replace(old="  " + remote + "/", new="  " + destination + "/")
+    .replace(old="  ./", new="  " + destination + "/")
+  })
+  .to_array()
+  .join("\n")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, remote] &&
+    root.has_prefix("/") &&
+    remote.has_prefix("/") else {
+    fail("LOCAL_EVIDENCE REMOTE_ROOT")
+  }
+  let original = @fs.read_file(root + "/FILES.sha256").text()
+  let adapted = root + "/FILES.local.sha256"
+  @fs.write_file(
+    adapted,
+    local_manifest(original, remote, root),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd("shasum", ["-a", "256", "-c", adapted]).output(
+    max_output_bytes=16777216,
+  )
+  @fs.write_file(
+    root + "/LOCAL_VERIFY.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/LOCAL_VERIFY.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(
+    "verified " +
+    result
+    .stdout()
+    .split("\n")
+    .filter(s => s.has_suffix(": OK"))
+    .count()
+    .to_string() +
+    " manifest files",
+  )
+}
+
+///|
+test "manifest relocates every line without modifying the original" {
+  assert_eq(
+    local_manifest(
+      "abc  ./one\ndef  /remote/two\nghi  /remote/three\n", "/remote", "/local",
+    ),
+    "abc  /local/one\ndef  /local/two\nghi  /local/three\n",
+  )
+}

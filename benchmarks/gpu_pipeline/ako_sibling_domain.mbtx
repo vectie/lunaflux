@@ -179,24 +179,21 @@ async fn main {
     files.check()
     @fs.write_file(
       root + "/FILES.sha256",
-      files.stdout().replace(old=root + "/", new="./"),
+      files
+      .stdout()
+      .split("\n")
+      .map(line => line.to_owned().replace(old=root + "/", new="./"))
+      .to_array()
+      .join("\n"),
       create_mode=CreateNew,
     )
     // Keep the archive outside the directory being read: otherwise tar may
     // report a changed directory even when the archive itself is excluded.
     let archive_path = root + ".measurement.tar.gz"
-    guard !@fs.exists(archive_path) else {
-      fail("non-overwriting archive")
-    }
+    guard !@fs.exists(archive_path) else { fail("non-overwriting archive") }
     let archive = @shell.Cmd("tar", [
-      "-czf",
-      archive_path,
-      "--exclude=./_build",
-      "--exclude=./counter-driver-build",
-      "--exclude=./measurement.tar.gz",
-      "-C",
-      root,
-      ".",
+      "-czf", archive_path, "--exclude=./_build", "--exclude=./counter-driver-build",
+      "--exclude=./measurement.tar.gz", "-C", root, ".",
     ]).output()
     archive.check()
     let hash = @shell.Cmd("sha256sum", [archive_path]).output()
