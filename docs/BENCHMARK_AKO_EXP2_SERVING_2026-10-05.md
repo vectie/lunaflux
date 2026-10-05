@@ -4,8 +4,10 @@
 
 The [dual-Spark kernel comparison](BENCHMARK_AKO_LONG_EXPONENTIAL_2026-10-05.md)
 found a 4.37–5.36% median selected-kernel gain. This follow-up tests whether that
-gain survives real serving. End-to-end results are pending; the kernel gain must
-not be reported as whole-engine gain.
+gain survives real serving. The four-start ABBA comparison completed: median
+completion time improves 0.84% at 16K/C1, 2.09% at 32K/C1 and 1.95% at 32K/C2.
+The kernel gain is not whole-engine gain. A separate completed trace confirms
+the approximate symbol executes in serving; it is not a throughput measurement.
 
 `.178` and `.179` are available concurrently. The preceding sweep split paired
 cells across both GPUs. This follow-up separates long-history memory checking
@@ -44,6 +46,81 @@ Retain completion time, TTFT, TPOT, throughput and every per-request output
 token vector, including repeated-start differences. Non-bitwise BF16 probe
 acceptance is not model-quality or deterministic-token parity admission.
 No fresh vLLM/SGLang result or current cross-framework gap is claimed here.
+
+### Completed unprofiled ABBA results
+
+All requests produced 64 output tokens. Completion and TTFT are milliseconds;
+throughput counts output tokens only. Each side has two fresh starts and six
+measured trials per cell; warmup vectors are retained separately in the report.
+
+| Input / concurrency | Strict completion | Approximate completion | Reduction | Strict / approximate TTFT | Strict / approximate output tok/s |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 16,384 / C1 | 2,019 | 2,002 | 0.84% | 1,056.5 / 1,040 | 31.70 / 31.97 |
+| 32,512 / C1 | 4,606.5 | 4,510 | 2.09% | 3,137 / 3,043.5 | 13.89 / 14.19 |
+| 32,512 / C2 | 8,932.5 | 8,758 | 1.95% | 4,743.5 / 4,616.5 | 14.33 / 14.62 |
+
+TPOT strict/approximate: 14.920635/14.920635, 23.047619/23.015873 and
+65.928571/65.293651 ms, respectively. Most savings occur before the first
+token, consistent with the changed prefill path. C1 token vectors are stable
+across repeats and match across sides. C2 has repeat differences on **both**
+sides (up to 41 changed positions strict and 45 approximate); cross-side
+comparisons have up to 52 changed positions. This remains an unresolved
+numerical/trajectory issue, not deterministic or model-quality admission.
+
+Remote: experiment root below, `abba`. Local archive:
+`/tmp/lunaflux-ako-exp2-serving-20261005.VLE9f1Iv/abba179.tar.gz`.
+SHA-256 `7d21d11d62a8b1f31565cc47b247390b768e2679a0613826042f78da298e1128`;
+remote/local hashes match and all 366 manifest entries verify. Raw request
+vectors and timings remain in the archive, not just these medians.
+
+### Executed selection
+
+The completed diagnostic trace records the approximate prefill symbol with
+grid63×16×1, block128, 234 registers/thread: 672 calls in two C1 waves and
+1,400 calls in two C2 waves. The unchanged strict wide-prefill module also
+executes (224/392 calls); this is not a claim that every prefill call is exp2.
+Partitioned decode remains selected. Trace timings are not substituted for
+unprofiled ABBA timings.
+
+Remote trace:
+`/home/wlc004s/lunaflux-ako-exp2-selected-trace-v2-20261005.zlWwfeeZ`.
+Archive SHA-256:
+`d083d0109ae08c7f97e76f06dee046c3d247a809209df6c239435a0b3e1ca137`.
+Local archive:
+`/tmp/lunaflux-ako-exp2-serving-20261005.VLE9f1Iv/selected-trace179.tar.gz`;
+remote/local hashes match and all 105 manifest entries verify.
+The first trace at `lunaflux-ako-exp2-selected-trace-20261005.yB4UoqjQ`
+preserves a profiler-injection failure: the normal parent's sanitized spawn
+environment strips CUPTI injection, so no CUDA kernel table was collected.
+The replacement reuses the existing private diagnostic parent; production
+spawn isolation, worker and kernel artifacts were not changed.
+
+### Parallel larger-batch probes on `.178`
+
+Five paired samples per cell, query2048, runtime bucket2048/rows32. These are
+kernel probes, not serving C4/C8/C16 measurements. Histories differ to remain
+within the pinned aggregate KV capacity; do not compare them as equal-history
+batch scaling.
+
+| Active rows / history | Strict / approximate median (µs) | Median gain | Worst paired gain | Decision |
+| --- | ---: | ---: | ---: | --- |
+| 4 / 28,672 | 7,589.45 / 7,304.51 | 3.75% | 2.79% | Inconclusive against conservative threshold |
+| 8 / 14,336 | 4,051.42 / 3,871.96 | 4.43% | 2.15% | Inconclusive |
+| 16 / 7,168 | 3,017.32 / 2,989.68 | 0.92% | −0.74% | Inconclusive |
+
+The original rows8/history28672 case was rejected before allocation: it
+requires 231,424 aggregate KV tokens versus the pinned 131,072 capacity.
+This is an artifact capacity bound, not physical-memory exhaustion. The
+replacement cells each need 116,736 aggregate tokens. No capacity was raised
+or sealed artifact overwritten. R8/R16 maxabs is 0.000488281; FP64 oracle
+errors are 0.000419239/0.000389352, below ceiling0.003.
+
+Local archives under `/tmp/lunaflux-ako-exp2-serving-20261005.VLE9f1Iv`:
+`larger-batch-failed178.tar.gz` (preserved partial/failure), SHA-256
+`ab7d74191a32a9d07d6a8950d419867523e4c320cb77cd5a733812486b20ac12`;
+`larger-batch-bounded178.tar.gz` (completed), SHA-256
+`c1b42b82502abc6d23b9bb90ae0475d6bae694e74e54af51656c2264493416c1`.
+Both download hashes match; all 27 completed manifest entries verify.
 
 Serving children retain MemoryMax64G, MemorySwapMax0 and continuous 32GiB
 MemAvailable reserve monitoring. The outer automation's smaller CPU limit is
