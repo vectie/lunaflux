@@ -8,6 +8,7 @@ fn cuda_query_owned_stage(
   asynchronous : Bool,
   split? : Bool = false,
   affine_positions? : Bool = false,
+  key_rows? : Int = 0,
 ) -> String {
   let transfer = if asynchronous {
     let text =
@@ -84,7 +85,11 @@ fn cuda_query_owned_stage(
       "      "
     }
     let historical = cuda_query_complete_history_stage(
-      abi, vectors, transfer, commit,
+      abi,
+      vectors,
+      transfer,
+      commit,
+      key_rows~,
     )
     let page_tokens = abi.shape().3
     retained +
@@ -118,23 +123,52 @@ fn cuda_query_complete_history_stage(
   vectors : String,
   transfer : String,
   commit : String,
+  key_rows? : Int = 0,
 ) -> String {
   let (heads, kv_heads, dimension, page_tokens) = abi.shape()
   let (_, page_stride, pages) = abi.layout()
   // Saturate before multiplication: very large legal power-of-two pages must
   // not overflow the host Int used by this offline physical binding.
   let lanes_per_page = page_tokens.min(32 / (dimension / 8)) * (dimension / 8)
+  let epoch = @attention_physical_ir.PagedTileEpochs::new(
+    tile_rows=key_rows,
+    page_rows=page_tokens,
+    start_alignment=page_tokens,
+    owners=32,
+  )
+  let (page_producers, page_consumer) = match epoch {
+    Some(plan) =>
+      (
+        (
+          $|      // page-batch-ownership-v1: immutable page producers precede vector consumers.
+          $|      int staged_page=-1;
+          $|      if (lane<\{plan.page_count()}) {
+          $|        staged_page=page_indices[page_begin+kb/\{page_tokens}+lane];
+          $|        if (staged_page<0 || (unsigned long long)staged_page>=\{pages}ULL) { atomicExch(control,0); staged_page=-1; }
+          $|      }
+        ),
+        "        const int kv_page=__shfl_sync(0xffffffffU,staged_page,r/\{page_tokens});",
+      )
+    None =>
+      (
+        "",
+        (
+          $|        int kv_page=-1;
+          $|        if (lane%\{lanes_per_page}==0) {
+          $|          kv_page=page_indices[page_begin+position/\{page_tokens}];
+          $|          if (kv_page<0 || (unsigned long long)kv_page>=\{pages}ULL) { atomicExch(control,0); kv_page=-1; }
+          $|        }
+          $|        kv_page=__shfl_sync(0xffffffffU,kv_page,(lane/\{lanes_per_page})*\{lanes_per_page});
+        ),
+      )
+  }
   (
     $|    auto stage_complete_history_tile = [&](int kb, int stage) {
+    $|\{page_producers}
     $|\{vectors}
     $|        const int r=vector*8/LF_HEAD_DIMENSION, c=vector*8%LF_HEAD_DIMENSION;
     $|        const int position=kb+r;
-    $|        int kv_page=-1;
-    $|        if (lane%\{lanes_per_page}==0) {
-    $|          kv_page=page_indices[page_begin+position/\{page_tokens}];
-    $|          if (kv_page<0 || (unsigned long long)kv_page>=\{pages}ULL) { atomicExch(control,0); kv_page=-1; }
-    $|        }
-    $|        kv_page=__shfl_sync(0xffffffffU,kv_page,(lane/\{lanes_per_page})*\{lanes_per_page});
+    $|\{page_consumer}
     $|        const bool kv_source_valid=kv_page>=0;
     $|        const unsigned long long source=kv_source_valid?(unsigned long long)kv_page*\{page_stride}ULL+((unsigned long long)(position%\{page_tokens})*\{kv_heads}ULL+head/\{heads/kv_heads})*LF_HEAD_DIMENSION+c:0ULL;
     $|        const __nv_bfloat16 *kv_key_source=keys+source, *kv_value_source=values+source;

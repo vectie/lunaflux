@@ -2,6 +2,17 @@
 
 ## Composed prefill scheduling
 
+The split query-owned lowering consumes the portable `PagedTileEpochs` relation
+for complete page-aligned historical tiles. Each subgroup loads the tile's page
+IDs together into one retained register per owner lane; vector consumers borrow
+that validated identity rather than issuing serial page-table reads. Partial,
+mixed and current intervals keep their established read maps. Fragmented page
+numbers, invalid-page publication, zero filling, retained V addresses, numerical
+fold order and transfer/barrier lifetimes are unchanged. Shapes whose page set
+does not fit the owner group retain the checked general map. This is static
+ownership lowering, not a runtime cache, JIT or model-specific branch. See
+[dual-Spark measurements](../../docs/BENCHMARK_AKO_PAGE_BATCH_2026-10-05.md).
+
 Candidates 322/323 split K and V readiness while reusing one storage set.
 This avoids the extra shared-memory footprint of 320/321; it does not imply
 that async is always preferable. Interior/boundary score transforms share the
