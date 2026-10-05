@@ -126,6 +126,7 @@ async fn main {
     ["unit-rescale-v1"] => ["unitrescale"]
     ["page-batch-v1"] => ["pagebatch"]
     ["page-lookahead-v1"] => ["lookahead"]
+    ["page-origin-v1"] => ["pageorigin"]
     _ => fail("bounded experiment kind")
   }
   let rows : Array[Json] = []

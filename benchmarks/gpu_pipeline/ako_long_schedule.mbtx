@@ -29,6 +29,7 @@ fn alternatives(kind : String) -> Array[(String, Int, Int)] raise {
     "unit-rescale-v1" => [("unitrescale", 30322, 64)]
     "page-batch-v1" => [("pagebatch", 30322, 64)]
     "page-lookahead-v1" => [("lookahead", 30322, 64)]
+    "page-origin-v1" => [("pageorigin", 30322, 64)]
     _ => fail("unknown bounded experiment kind")
   }
 }
@@ -328,7 +329,7 @@ async fn main {
       kind == "epoch-local-v1" ||
       kind == "value-readiness-v1" ||
       kind == "unit-rescale-v1" ||
-      kind == "page-batch-v1" || kind == "page-lookahead-v1" => kind
+      kind == "page-batch-v1" || kind == "page-lookahead-v1" || kind == "page-origin-v1" => kind
     _ => fail("bounded experiment arguments")
   }
   let choices = alternatives(kind)
@@ -345,7 +346,7 @@ async fn main {
     .trim()
     .is_empty(),
   )
-  let (baseline, expected) = if kind == "page-lookahead-v1" {
+  let (baseline, expected) = if kind == "page-lookahead-v1" || kind == "page-origin-v1" {
     (frozen + "/pagebatch", "7b42b3531466f5fe22c59e5aac2883db68984907c49a5637ac5f1358ad2eab57")
   } else {
     (frozen + "/approximate", "66881bc0055ce4c4340e6001e7746d0abd64a8b7f9a02b741e6b87463f0e2922")
@@ -454,6 +455,7 @@ test "schedule alternatives retain explicit approximation and independent identi
   assert_eq(alternatives("epoch-local-v1"), [("epochjoint", 130322, 64)])
   assert_eq(alternatives("value-readiness-v1"), [("valueoverlap", 30322, 64)])
   assert_eq(alternatives("page-lookahead-v1"), [("lookahead", 30322, 64)])
+  assert_eq(alternatives("page-origin-v1"), [("pageorigin", 30322, 64)])
   let command = ["/home/q/candidate", "--prefill-candidate", "322"]
   for
     kind in [
