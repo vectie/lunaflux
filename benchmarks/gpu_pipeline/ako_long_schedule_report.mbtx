@@ -115,13 +115,20 @@ fn opcodes(text : String) -> Array[Json] raise {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root] else { fail("LOCAL_RESULTS_ROOT") }
+  guard @env.args() is [_, root, .. kind_args] else {
+    fail("LOCAL_RESULTS_ROOT [query-lifetime-v1]")
+  }
+  let names = match kind_args {
+    [] => ["kv128", "retain128"]
+    ["query-lifetime-v1"] => ["retain64", "joint64", "joint128"]
+    _ => fail("bounded experiment kind")
+  }
   let rows : Array[Json] = []
   for host in ["178", "179"] {
     guard @json.parse(@fs.read_file(root + "/summary" + host + ".json").text())
       is Array(records) &&
-      records.length() == 6 else {
-      fail("six cells per host")
+      records.length() == names.length() * 3 else {
+      fail("complete cells per host")
     }
     for record in records {
       guard record
@@ -138,7 +145,7 @@ async fn main {
         } else {
         fail("metrics")
       }
-      assert_eq(decision, "regression")
+      assert_true(decision is ("regression" | "inconclusive" | "improved"))
       let row : Json = {
         "host": host,
         "label": label,
@@ -153,7 +160,7 @@ async fn main {
   }
   let profiles : Map[String, Json] = Map([])
   let compact : Map[String, Json] = Map([])
-  for name in ["kv128", "retain128"] {
+  for name in names {
     let measured = counters(
       @fs.read_file(root + "/" + name + "-raw.stdout").text(),
     )

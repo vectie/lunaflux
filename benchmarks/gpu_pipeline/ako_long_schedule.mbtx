@@ -17,10 +17,22 @@ fn field(text : String, key : String) -> String raise {
 }
 
 ///|
-fn alternatives() -> Array[(String, Int, Int)] {
-  // Existing pure frontier identities: Q64/K128/split-single-slot and
-  // Q64/K64/split-single-slot with complete immutable query retention.
-  [("kv128", 32004, 128), ("retain128", 70645, 64)]
+fn alternatives(kind : String) -> Array[(String, Int, Int)] raise {
+  match kind {
+    "schedule-v1" => [("kv128", 32004, 128), ("retain128", 70645, 64)]
+    // Half/full invariant retention and joint RHS consumption are already
+    // pure frontier alternatives; this driver measures, not invents, them.
+    "query-lifetime-v1" =>
+      [("retain64", 70644, 64), ("joint64", 80644, 64), ("joint128", 80645, 64)]
+    _ => fail("unknown bounded experiment kind")
+  }
+}
+
+///|
+async fn selected_alternatives(root : String) -> Array[(String, Int, Int)] {
+  alternatives(
+    @fs.read_file(root + "/experiment-kind.txt").text().trim().to_owned(),
+  )
 }
 
 ///|
@@ -81,14 +93,15 @@ async fn identity(root : String, label : String, path : String) -> String {
 
 ///|
 async fn write_contract(root : String, uuid : String) -> Unit {
+  let choices = selected_alternatives(root)
   let workloads : Array[Json] = []
   let artifacts : Array[String] = [root + "/prefill.spec"]
-  for name in ["baseline", "kv128", "retain128"] {
+  for name in ["baseline", ..choices.map(x => x.0)] {
     for file in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
       artifacts.push(root + "/" + name + "/" + file)
     }
   }
-  for (name, _, _) in alternatives() {
+  for (name, _, _) in choices {
     for (rows, history) in [(1, 28672), (2, 28672), (2, 8192)] {
       workloads.push({
         "label": "\{name}-q2048-r\{rows}-h\{history}",
@@ -121,13 +134,45 @@ async fn write_contract(root : String, uuid : String) -> Unit {
 
 ///|
 async fn main {
+  if @env.args() is [_, "query", frozen_query, new_query, exporter] {
+    guard exporter.has_prefix("/") && @fs.exists(exporter) else {
+      fail("built exporter path")
+    }
+    guard @json.parse(
+        @fs.read_file(frozen_query + "/export.command.json").text(),
+      )
+      is Array(values) else {
+      fail("frozen command")
+    }
+    let raw = values.map(x => {
+      guard x is String(v) else { fail("argument") }
+      v
+    })
+    assert_eq(raw.filter(x => x == frozen_query + "/candidate").length(), 1)
+    let command = raw.map(x => {
+      if x == frozen_query + "/candidate" {
+        new_query + "/candidate"
+      } else {
+        x
+      }
+    })
+    command[0] = exporter
+    @fs.mkdir(new_query)
+    @fs.write_file(
+      new_query + "/export.command.json",
+      Json(command).stringify(),
+      create_mode=CreateNew,
+    )
+    ignore(identity(new_query, "exporter", exporter))
+    return
+  }
   if @env.args() is [_, "contract", root, uuid] {
     write_contract(root, uuid)
     return
   }
   if @env.args() is [_, "validate", root] {
     @fs.mkdir(root + "/validation")
-    for (name, _, _) in alternatives() {
+    for (name, _, _) in selected_alternatives(root) {
       for tool in ["memcheck", "racecheck", "synccheck"] {
         let result = capture(
           root + "/validation",
@@ -160,7 +205,7 @@ async fn main {
     return
   }
   if @env.args() is [_, "profile", root, name] {
-    assert_true(alternatives().any(x => x.0 == name))
+    assert_true(selected_alternatives(root).any(x => x.0 == name))
     @fs.mkdir(root + "/profile-" + name)
     let out = root + "/profile-" + name
     let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
@@ -228,8 +273,8 @@ async fn main {
     )
     guard @json.parse(@fs.read_file(root + "/trial/summary.json").text())
       is Array(rows) &&
-      rows.length() == 6 else {
-      fail("six cells")
+      rows.length() == selected_alternatives(root).length() * 3 else {
+      fail("all bounded workload cells")
     }
     assert_true(
       capture(root, "terminal-idle", "nvidia-smi", [
@@ -240,17 +285,28 @@ async fn main {
     )
     @fs.write_file(
       root + "/RESULT.txt",
-      "outcome=completed\nscope=two existing general attention schedules, three workloads, five pairs; no serving/quality admission\n",
+      "outcome=completed\nscope=bounded existing attention schedules, three workloads, five pairs; no serving/quality admission\n",
       create_mode=CreateNew,
     )
     return
   }
-  guard @env.args() is [_, "prepare", query, frozen, root] else {
+  guard @env.args() is [_, "prepare", query, frozen, root, .. kind_args] else {
     fail(
-      "prepare QUERY_ROOT FROZEN_EXP2_ROOT NEW_ROOT | contract ROOT UUID | validate ROOT | profile ROOT NAME | finish ROOT",
+      "prepare QUERY_ROOT FROZEN_EXP2_ROOT NEW_ROOT [query-lifetime-v1] | contract ROOT UUID | validate ROOT | profile ROOT NAME | finish ROOT",
     )
   }
+  let kind = match kind_args {
+    [] => "schedule-v1"
+    ["query-lifetime-v1"] => "query-lifetime-v1"
+    _ => fail("bounded experiment arguments")
+  }
+  let choices = alternatives(kind)
   @fs.mkdir(root)
+  @fs.write_file(
+    root + "/experiment-kind.txt",
+    kind + "\n",
+    create_mode=CreateNew,
+  )
   assert_true(
     capture(root, "idle", "nvidia-smi", [
       "--query-compute-apps=pid", "--format=csv,noheader",
@@ -286,7 +342,7 @@ async fn main {
     v
   })
   ignore(identity(root, "exporter", command[0]))
-  for (name, id, keys) in alternatives() {
+  for (name, id, keys) in choices {
     ignore(
       capture(
         root,
@@ -353,15 +409,25 @@ async fn main {
 
 ///|
 test "schedule alternatives retain explicit approximation and independent identities" {
-  assert_eq(alternatives(), [("kv128", 32004, 128), ("retain128", 70645, 64)])
+  assert_eq(alternatives("schedule-v1"), [
+    ("kv128", 32004, 128),
+    ("retain128", 70645, 64),
+  ])
+  assert_eq(alternatives("query-lifetime-v1"), [
+    ("retain64", 70644, 64),
+    ("joint64", 80644, 64),
+    ("joint128", 80645, 64),
+  ])
   let command = ["/home/q/candidate", "--prefill-candidate", "322"]
-  for (name, id, _) in alternatives() {
-    assert_eq(exporter_args(command, "/home/q", "/home/new", name, id), [
-      "/home/new/export-" + name,
-      "--prefill-candidate",
-      id.to_string(),
-      "--prefill-approximate-exp2",
-    ])
+  for kind in ["schedule-v1", "query-lifetime-v1"] {
+    for (name, id, _) in alternatives(kind) {
+      assert_eq(exporter_args(command, "/home/q", "/home/new", name, id), [
+        "/home/new/export-" + name,
+        "--prefill-candidate",
+        id.to_string(),
+        "--prefill-approximate-exp2",
+      ])
+    }
   }
   for
     bad in [
