@@ -1,0 +1,228 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+// Offline ablation: shared reads remain convergent, volatile memory effects;
+// dependent arithmetic is pure. Never a production artifact/admission receipt.
+fn product(body : String, value : Bool) -> String raise {
+  guard body.split("\n  asm volatile(").to_array() is [prefix, assembly] &&
+    assembly.contains(".reg .b32 b<4>;") &&
+    assembly.contains(" : \"memory\");") else {
+    fail("frozen forwarded product required")
+  }
+  let trans = if value { ".trans" } else { "" }
+  let halves = if value { [(0, 1), (2, 3)] } else { [(0, 2), (1, 3)] }
+  let source = StringBuilder()
+  source.write_string(prefix.to_owned() + "\n  unsigned b[4];\n")
+  source.write_string(
+    "  asm volatile(\"ldmatrix.sync.aligned.m8n8.x4" +
+    trans +
+    ".shared.b16 {%0,%1,%2,%3}, [%4];\"\n" +
+    "    : \"=r\"(b[0]),\"=r\"(b[1]),\"=r\"(b[2]),\"=r\"(b[3])\n" +
+    "    : \"r\"(address) : \"memory\");\n  asm(\n",
+  )
+  for half, (left, right) in halves {
+    let start = half * 4
+    source.write_string(
+      "    \"mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%\{start},%\{start+1},%\{start+2},%\{start+3}}, {%8,%9,%10,%11}, {%\{12+left},%\{12+right}}, {%\{start},%\{start+1},%\{start+2},%\{start+3}};\"\n",
+    )
+  }
+  source.write_string("    : ")
+  source.write_string(Array::makei(8, i => "\"+f\"(c.x[\{i}])").join(","))
+  source.write_string(
+    "\n    : \"r\"(a.x[0]),\"r\"(a.x[1]),\"r\"(a.x[2]),\"r\"(a.x[3])," +
+    "\"r\"(b[0]),\"r\"(b[1]),\"r\"(b[2]),\"r\"(b[3]));",
+  )
+  source.to_string()
+}
+
+///|
+fn variant(source : String) -> String raise {
+  let mut fresh = source
+  for name in ["key", "value"] {
+    let marker = "static __device__ __forceinline__ void lf_matrix_mma_" +
+      name +
+      "("
+    guard fresh.split(marker).to_array() is [before, after] else {
+      fail("unique original product helper")
+    }
+    let parts = after.split("\n}\n").to_array()
+    guard parts.length() > 1 else { fail("helper end") }
+    fresh = before.to_owned() +
+      marker +
+      product(parts[0].to_owned(), name == "value") +
+      "\n}\n" +
+      parts[1:].join("\n}\n")
+  }
+  fresh
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+test "effects split preserves word binding and ordered accumulator halves" {
+  let original = "parameters) {\n  asm volatile(\".reg .b32 b<4>;\" : \"memory\");"
+  for value in [false, true] {
+    let fresh = product(original, value)
+    assert_true(fresh.contains("asm volatile(\"ldmatrix.sync.aligned"))
+    assert_true(fresh.contains("\"r\"(address) : \"memory\");\n  asm("))
+    assert_true(fresh.contains(if value { "{%12,%13}" } else { "{%12,%14}" }))
+    assert_true(fresh.contains(if value { "{%14,%15}" } else { "{%13,%15}" }))
+    assert_eq(fresh.split("mma.sync").to_array().length(), 3)
+    assert_eq(fresh.split("asm volatile").to_array().length(), 2)
+  }
+  try variant("no helper") catch {
+    _ => ()
+  } noraise {
+    _ => fail("expected missing helper rejection")
+  }
+  try product(original + "\n  asm volatile(duplicate", false) catch {
+    _ => ()
+  } noraise {
+    _ => fail("expected ambiguous body rejection")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, uuid] && root.has_prefix("/home/") else {
+    fail("FROZEN_EXPERIMENT NEW_ROOT GPU_UUID")
+  }
+  @fs.mkdir(root)
+  assert_eq(
+    capture(root, "gpu", "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    uuid,
+  )
+  assert_true(
+    capture(root, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  let baseline = base + "/baseline"
+  let source_hash = "55ceeda9b04e30239ef289004bd64bdafc4b3436dc0d0557d2bde7b1310b9f9e"
+  for
+    (path, expected) in [
+      (baseline + "/kernel.cu", source_hash),
+      (
+        baseline + "/kernel.cubin",
+        "7b42b3531466f5fe22c59e5aac2883db68984907c49a5637ac5f1358ad2eab57",
+      ),
+      (
+        "/usr/local/cuda-13.0/bin/nvcc", "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+      ),
+    ] {
+    assert_true(
+      capture(
+        root,
+        "identity-\{path.split("/").last().unwrap()}",
+        "sha256sum",
+        [path],
+      ).has_prefix(expected + " "),
+    )
+  }
+  @fs.mkdir(root + "/baseline")
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/baseline/" + name,
+      @fs.read_file(baseline + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  for name in ["probe", "prefill.spec"] {
+    @shell.Cmd("cp", ["--update=none", base + "/" + name, root + "/" + name]).run()
+  }
+  let output = root + "/pureproduct"
+  @fs.mkdir(output)
+  @fs.write_file(
+    output + "/kernel.cu",
+    variant(@fs.read_file(baseline + "/kernel.cu").text()),
+    create_mode=CreateNew,
+  )
+  let hash = capture(root, "candidate-source", "sha256sum", [
+    output + "/kernel.cu",
+  ])
+  .split(" ")
+  .to_array()[0].to_owned()
+  @fs.write_file(
+    output + "/kernel.recipe",
+    @fs.read_file(baseline + "/kernel.recipe")
+    .text()
+    .replace(old="source_sha256=" + source_hash, new="source_sha256=" + hash) +
+    "experimental_lowering=split-read-pure-product-v1\nproduction_admission=false\n",
+    create_mode=CreateNew,
+  )
+  for suffix in ["", ".repeat"] {
+    ignore(
+      capture(root, "compile" + suffix, "/usr/local/cuda-13.0/bin/nvcc", [
+        "--cubin",
+        "--std=c++14",
+        "-arch=sm_121",
+        "-O3",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=255",
+        "--Werror",
+        "all-warnings",
+        "-lineinfo",
+        "-Xptxas=-v",
+        output + "/kernel.cu",
+        "-o",
+        output + "/kernel.cubin" + suffix,
+      ]),
+    )
+  }
+  let hashes = capture(root, "candidate-binaries", "sha256sum", [
+      output + "/kernel.cubin",
+      output + "/kernel.cubin.repeat",
+    ])
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+  assert_eq(
+    hashes[0].split(" ").to_array()[0],
+    hashes[1].split(" ").to_array()[0],
+  )
+  @fs.write_file(
+    root + "/experiment-kind.txt",
+    "product-effects-v1\n",
+    create_mode=CreateNew,
+  )
+  println("prepared=" + root)
+}

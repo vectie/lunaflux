@@ -35,6 +35,7 @@ fn alternatives(kind : String) -> Array[(String, Int, Int)] raise {
     "value-window-v1" => [("valuewindow", 30322, 64)]
     "probability-mask-v1" => [("rowmask", 30322, 64)]
     "maximum-tree-v1" => [("maxtree", 30322, 64)]
+    "product-effects-v1" => [("pureproduct", 30322, 64)]
     _ => fail("unknown bounded experiment kind")
   }
 }
@@ -523,6 +524,7 @@ test "schedule alternatives retain explicit approximation and independent identi
   assert_eq(alternatives("value-window-v1"), [("valuewindow", 30322, 64)])
   assert_eq(alternatives("probability-mask-v1"), [("rowmask", 30322, 64)])
   assert_eq(alternatives("maximum-tree-v1"), [("maxtree", 30322, 64)])
+  assert_eq(alternatives("product-effects-v1"), [("pureproduct", 30322, 64)])
   let command = ["/home/q/candidate", "--prefill-candidate", "322"]
   for
     kind in [

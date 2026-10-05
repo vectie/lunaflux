@@ -134,6 +134,7 @@ async fn main {
     ["value-window-v1"] => ["valuewindow"]
     ["probability-mask-v1"] => ["rowmask"]
     ["maximum-tree-v1"] => ["maxtree"]
+    ["product-effects-v1"] => ["pureproduct"]
     _ => fail("bounded experiment kind")
   }
   let rows : Array[Json] = []
