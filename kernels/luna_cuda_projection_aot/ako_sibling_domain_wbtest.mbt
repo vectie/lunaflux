@@ -104,6 +104,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
       ("r64-c8", 4, 8),
       ("r128-c16", 8, 16),
       ("r128-c8", 8, 8),
+      ("r64-coowned-c16", 4, 16),
     ] {
     let candidate = if label == "baseline" {
       baseline
@@ -130,11 +131,28 @@ test "AKO sibling row ownership changes only the primary physical domain" {
         ],
         sibling_execution=OverlappedTransfer,
         sibling_transport=SegmentedSiblingTransport,
+        sibling_ownership=if label == "r64-coowned-c16" {
+          CoownedSiblingValues
+        } else {
+          SplitSiblingPlanes
+        },
       )
     }
     let after = @utf8.decode(candidate.source_bytes())
     for i in [0, 1] {
-      assert_eq(candidate.row_variants[i], baseline.row_variants[i])
+      if label == "r64-coowned-c16" {
+        let a = candidate.row_variants[i]
+        let b = baseline.row_variants[i]
+        assert_eq(a.maximum_token_rows(), b.maximum_token_rows())
+        assert_eq(a.function_symbol(), b.function_symbol())
+        assert_eq(a.dimensions().grid_x(), b.dimensions().grid_x())
+        assert_eq(a.dimensions().block_x(), b.dimensions().block_x())
+        assert_eq(a.dimensions().shared_memory_bytes(), 0)
+        assert_eq(a.companion_dimensions(), b.companion_dimensions())
+        assert_eq(a.bounded_work_grid_x(), b.bounded_work_grid_x())
+      } else {
+        assert_eq(candidate.row_variants[i], baseline.row_variants[i])
+      }
     }
     assert_eq(candidate.companion_dimensions, baseline.companion_dimensions)
     assert_eq(
@@ -148,7 +166,28 @@ test "AKO sibling row ownership changes only the primary physical domain" {
     if label != "baseline" {
       assert_false(candidate.source_digest() == baseline.source_digest())
     }
-    if @env.get_env_var("LUNA_EXPORT_AKO_SIBLING_DOMAIN") == Some("1") {
+    if label == "r64-coowned-c16" {
+      assert_eq(
+        candidate.launch_dimensions().grid_x(),
+        baseline.launch_dimensions().grid_x(),
+      )
+      assert_eq(
+        candidate.launch_dimensions().block_x(),
+        baseline.launch_dimensions().block_x(),
+      )
+      assert_eq(candidate.launch_dimensions().shared_memory_bytes(), 0)
+      let primary = after.split(down).to_array()[0]
+      assert_true(primary.contains("float cg[1][8]"))
+      assert_true(primary.contains("cu[1][8]"))
+      assert_false(primary.contains("sibling_output_bytes"))
+    }
+    let export_old = @env.get_env_var("LUNA_EXPORT_AKO_SIBLING_DOMAIN") ==
+      Some("1") &&
+      label != "r64-coowned-c16"
+    let export_coowned = @env.get_env_var("LUNA_EXPORT_AKO_COOWNED_C16") ==
+      Some("1") &&
+      (label == "baseline" || label == "r64-coowned-c16")
+    if export_old || export_coowned {
       let geometries : Array[Array[Int]] = []
       for
         (name, geometry) in [

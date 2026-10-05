@@ -83,7 +83,14 @@ async fn main {
     fail("export|run|counters|report NEW_ROOT MOON")
   }
   if phase == "report" {
-    for candidate in ["r64-c8", "r128-c16", "r128-c8"] {
+    guard @json.parse(@fs.read_file(root + "/records.json").text())
+      is Array(records) else {
+      fail("records")
+    }
+    for i = 1; i < records.length(); i = i + 1 {
+      guard records[i] is { "label": String(candidate), .. } else {
+        fail("label")
+      }
       guard @json.parse(
           @fs.read_file(root + "/trial-" + candidate + "/summary.json").text(),
         )
@@ -111,7 +118,16 @@ async fn main {
     return
   }
   if phase == "seal" {
-    for label in ["r64-c8", "r128-c16", "r128-c8", "confirmation"] {
+    guard @json.parse(@fs.read_file(root + "/records.json").text())
+      is Array(records) else {
+      fail("records")
+    }
+    let labels = ["confirmation"]
+    for i = 1; i < records.length(); i = i + 1 {
+      guard records[i] is { "label": String(label), .. } else { fail("label") }
+      labels.push(label)
+    }
+    for label in labels {
       let directory = if label == "confirmation" {
         label
       } else {
@@ -158,7 +174,7 @@ async fn main {
     assert_true(idle.stdout().trim().is_empty())
     @fs.write_file(
       root + "/RESULT.txt",
-      "outcome=completed\nselection=unchanged\nscope=three offline sibling ownership schedules; no serving gain or promotion claimed\n",
+      "outcome=completed\nselection=unchanged\nscope=offline sibling ownership schedules; no serving gain or promotion claimed\n",
       create_mode=CreateNew,
     )
     let files = @shell.Cmd("find", [
@@ -207,19 +223,37 @@ async fn main {
     println(hash.stdout())
     return
   }
-  if phase == "export" {
+  if phase == "export" || phase == "export-coowned" {
+    let coowned = phase == "export-coowned"
+    let labels = if coowned {
+      ["baseline", "r64-coowned-c16"]
+    } else {
+      ["baseline", "r64-c8", "r128-c16", "r128-c8"]
+    }
     @fs.mkdir(root)
     let output = capture(root, "export", "/usr/bin/env", [
-      "LUNA_EXPORT_AKO_SIBLING_DOMAIN=1", moon, "test", "kernels/luna_cuda_projection_aot",
-      "--target", "native", "--filter", "AKO sibling row ownership*", "--deny-warn",
-      "--warn-list", "-79-29-25-20-92-14",
+      if coowned {
+        "LUNA_EXPORT_AKO_COOWNED_C16=1"
+      } else {
+        "LUNA_EXPORT_AKO_SIBLING_DOMAIN=1"
+      },
+      moon,
+      "test",
+      "kernels/luna_cuda_projection_aot",
+      "--target",
+      "native",
+      "--filter",
+      "AKO sibling row ownership*",
+      "--deny-warn",
+      "--warn-list",
+      "-79-29-25-20-92-14",
     ])
     let lines = output
       .split("\n")
       .filter(s => s.has_prefix("LUNA_DOMAIN_RECORD "))
       .to_array()
-    guard lines.length() == 4 else {
-      fail("baseline plus three alternatives required")
+    guard lines.length() == labels.length() else {
+      fail("baseline and configured alternatives required")
     }
     let records : Array[Json] = []
     for i, line in lines {
@@ -233,7 +267,7 @@ async fn main {
           "source_sha256": String(digest),
           ..
         } &&
-        label == ["baseline", "r64-c8", "r128-c16", "r128-c8"][i] else {
+        label == labels[i] else {
         fail("export label")
       }
       let path = root + "/" + label + ".cu"
@@ -270,14 +304,15 @@ async fn main {
   guard idle.trim().is_empty() else { fail("GPU busy") }
   guard @json.parse(@fs.read_file(root + "/records.json").text())
     is Array(records) &&
-    records.length() == 4 else {
+    (records.length() == 4 || records.length() == 2) else {
     fail("records")
   }
   if phase == "confirm" {
+    guard records[1] is { "label": String(label), .. } else { fail("label") }
     let args = [
       "mlp",
       root + "/baseline.cubin",
-      root + "/r64-c8.cubin",
+      root + "/" + label + ".cubin",
       "2048",
       "32",
       ..geometry(records[0]),
@@ -298,7 +333,7 @@ async fn main {
       "reserve_kib": 33554432,
       "minimum_gain": 0.03,
       "program": root + "/probe",
-      "artifacts": [root + "/baseline.cubin", root + "/r64-c8.cubin"],
+      "artifacts": [root + "/baseline.cubin", root + "/" + label + ".cubin"],
       "workloads": workloads,
     }
     let path = root + "/confirmation.json"
@@ -315,7 +350,7 @@ async fn main {
     let boundary = [
       "mlp",
       root + "/baseline.cubin",
-      root + "/r64-c8.cubin",
+      root + "/" + label + ".cubin",
       "129",
       "32",
       ..geometry(records[0]),
@@ -344,19 +379,44 @@ async fn main {
     println("confirmation and boundary sanitizers completed")
     return
   }
-  if phase == "run" {
+  if phase == "run" || phase == "run-coowned" {
+    let coowned = phase == "run-coowned"
     ignore(capture(root, "nvcc-version", nvcc, ["--version"]))
-    ignore(
-      capture(root, "build-probe", nvcc, [
-        "-O3",
-        "-arch=sm_121",
-        "--fmad=false",
-        root + "/projection_chain_probe.cu",
-        "-o",
-        root + "/probe",
-        "-lcuda",
-      ]),
-    )
+    if coowned {
+      guard records.length() == 2 &&
+        records[1] is { "label": "r64-coowned-c16", .. } else {
+        fail("coowned records")
+      }
+      let frozen = "/home/wlc004s/lunaflux-ako-sibling-20261005.yhSRAnaA"
+      for
+        (file, digest) in [
+          (
+            "probe", "b53dfa062454233386d7cb6199c602ad849a5d1e6904c6ce5e826195e1ead99c",
+          ),
+          (
+            "baseline.cubin", "a4b407cefc8bd16c57ef5b673fc7facdc49c06c90e7c7dd7b8b717cdcd245ffb",
+          ),
+        ] {
+        guard capture(root, "frozen-" + file, "sha256sum", [frozen + "/" + file]).has_prefix(
+          digest + " ",
+        ) else {
+          fail("frozen artifact changed")
+        }
+        @shell.Cmd("cp", ["-n", frozen + "/" + file, root + "/" + file]).run()
+      }
+    } else {
+      ignore(
+        capture(root, "build-probe", nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--fmad=false",
+          root + "/projection_chain_probe.cu",
+          "-o",
+          root + "/probe",
+          "-lcuda",
+        ]),
+      )
+    }
     for record in records {
       guard record
         is { "label": String(label), "source_sha256": String(digest), .. } else {
@@ -365,6 +425,13 @@ async fn main {
       let path = root + "/" + label + ".cu"
       let hash = capture(root, "source-" + label, "sha256sum", [path])
       guard hash.has_prefix(digest + " ") else { fail("source changed") }
+      if coowned && label == "baseline" {
+        guard digest ==
+          "c6b7f77a4f6c5e6bcd47d0f2c7a24ffcfa947c8d40d36a5217dc1971d2b96397" else {
+          fail("selected baseline source changed")
+        }
+        continue
+      }
       ignore(
         capture(root, "build-" + label, nvcc, [
           "-O3",
@@ -380,7 +447,7 @@ async fn main {
         ]),
       )
     }
-    for i in [1, 2, 3] {
+    for i = 1; i < records.length(); i = i + 1 {
       guard records[i] is { "label": String(label), .. } else { fail("label") }
       let workloads : Array[Json] = []
       for streamed in [false, true] {
@@ -433,7 +500,7 @@ async fn main {
   }
   guard phase == "counters" || phase == "counters-admin" else { fail("phase") }
   // Separate profiler runs: never mix replay timing into paired benchmark rows.
-  for i in [1, 2, 3] {
+  for i = 1; i < records.length(); i = i + 1 {
     guard records[i] is { "label": String(label), .. } else { fail("label") }
     let args = [
       "mlp",

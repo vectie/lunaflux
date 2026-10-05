@@ -50,7 +50,10 @@ async fn main {
     "l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum",
   ]
   let result : Array[Json] = []
-  for candidate in ["r64-c8", "r128-c16", "r128-c8"] {
+  guard @json.parse(@fs.read_file(root + "/records.json").text())
+    is Array(records) else { fail("records") }
+  for index = 1; index < records.length(); index = index + 1 {
+    guard records[index] is { "label": String(candidate), .. } else { fail("label") }
     let lines = @fs.read_file(root + "/counters-admin-" + candidate + ".stdout")
       .text()
       .split("\n")
