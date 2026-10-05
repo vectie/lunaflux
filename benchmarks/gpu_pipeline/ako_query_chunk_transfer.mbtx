@@ -1,0 +1,106 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn rebase_contract(
+  original : String,
+  source : String,
+  destination : String,
+  uuid : String,
+) -> String raise {
+  guard source.has_prefix("/home/") &&
+    destination.has_prefix("/home/") &&
+    uuid.has_prefix("GPU-") else {
+    fail("LOCAL_STAGING ORIGINAL_ROOT SECOND_HOST_ROOT SECOND_GPU_UUID")
+  }
+  guard @json.parse(original) is Object(config) &&
+    config["schema"] == "lunaflux-ako-trial-v1" &&
+    config["gpu_uuid"] == "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6" else {
+    fail("original bounded contract")
+  }
+  config["gpu_uuid"] = Json(uuid)
+  // Only path/device identity changes. Workload arguments, artifacts, reserve
+  // and repetitions remain exactly the same; each host has its own control.
+  let copied = Json::object(config)
+    .stringify(indent=2)
+    .split(source)
+    .to_array()
+    .join(destination)
+  assert_true(!copied.contains(source))
+  copied
+}
+
+///|
+test "every path is rebased while workload arguments and reserve are retained" {
+  let original : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "program": "/home/a/root/probe",
+    "artifacts": [
+      "/home/a/root/prefill.spec", "/home/a/root/selected/kernel.cubin",
+    ],
+    "workloads": [
+      {
+        "label": "tail",
+        "args": [
+          "/home/a/root/prefill.spec", "/home/a/root/selected", "7936", "1", "24576",
+        ],
+      },
+    ],
+  }
+  guard @json.parse(
+      rebase_contract(
+        original.stringify(),
+        "/home/a/root",
+        "/home/b/repeat",
+        "GPU-repeat",
+      ),
+    )
+    is {
+      "reserve_kib": 33554432,
+      "program": "/home/b/repeat/probe",
+      "artifacts": [
+        "/home/b/repeat/prefill.spec",
+        "/home/b/repeat/selected/kernel.cubin",
+      ],
+      "workloads": [
+        {
+          "args": [
+            "/home/b/repeat/prefill.spec",
+            "/home/b/repeat/selected",
+            "7936",
+            "1",
+            "24576",
+          ],
+          ..
+        },
+      ],
+      ..
+    } else {
+    fail("complete path rebase")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, staging, source, destination, uuid] else {
+    fail("LOCAL_STAGING ORIGINAL_ROOT SECOND_HOST_ROOT SECOND_GPU_UUID")
+  }
+  let copied = rebase_contract(
+    @fs.read_file(staging + "/contract.json").text(),
+    source,
+    destination,
+    uuid,
+  )
+  @fs.write_file(
+    staging + "/second-contract.json",
+    copied,
+    create_mode=CreateNew,
+  )
+}

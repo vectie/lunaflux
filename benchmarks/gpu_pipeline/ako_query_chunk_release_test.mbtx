@@ -10,7 +10,9 @@ import {
 ///|
 async fn command(exe : String, args : Array[String]) -> String {
   let out = @shell.Cmd(exe, args).output()
-  out.check() catch { _ => fail(exe + ": " + out.stdout() + out.stderr()) }
+  out.check() catch {
+    _ => fail(exe + ": " + out.stdout() + out.stderr())
+  }
   out.stdout()
 }
 
@@ -19,8 +21,12 @@ async fn sha(path : String) -> String {
   let first = @shell.Cmd("sha256sum", [path]).output()
   let out = try first.check() catch {
     _ => @shell.Cmd("shasum", ["-a", "256", path]).output()
-  } noraise { _ => first }
-  out.check() catch { _ => fail("digest: " + out.stdout() + out.stderr()) }
+  } noraise {
+    _ => first
+  }
+  out.check() catch {
+    _ => fail("digest: " + out.stdout() + out.stderr())
+  }
   out.stdout().split(" ").to_array()[0].to_owned()
 }
 
@@ -29,7 +35,9 @@ async fn sha(path : String) -> String {
 // intentionally has no GPU/model authority and cannot qualify physical serving.
 async fn main {
   guard @env.args() is [_, repo] else { fail("REPOSITORY_ROOT") }
-  let scratch = command("mktemp", ["-d", "/tmp/lunaflux-capacity-target.XXXXXXXX"])
+  let scratch = command("mktemp", [
+      "-d", "/tmp/lunaflux-capacity-target.XXXXXXXX",
+    ])
     .trim()
     .to_owned()
   let root = command("realpath", [scratch]).trim().to_owned()
@@ -105,7 +113,9 @@ async fn main {
       [..common, receipt],
     ).output()
     if ["sm_80", "sm_90", "sm_120", "sm_121"].contains(target) {
-      out.check() catch { _ => fail(target + ": " + out.stdout() + out.stderr()) }
+      out.check() catch {
+        _ => fail(target + ": " + out.stdout() + out.stderr())
+      }
       let verified = command(
         repo + "/scripts/verify-qwen3-authenticated-capacity.sh",
         [..common, receipt + "#sha256=" + sha(receipt)],

@@ -1,0 +1,206 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  let parts = text.split(old).to_array()
+  assert_eq(parts.length(), 2)
+  parts.join(fresh)
+}
+
+///|
+fn object(value : Json) -> Map[String, Json] raise {
+  guard value is Object(fields) else { fail("object") }
+  fields
+}
+
+///|
+async fn sha(path : String) -> String {
+  let result = @shell.Cmd("sha256sum", [path]).output()
+  result.check()
+  result.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  moon : String,
+  args : Array[String],
+) -> Unit {
+  let out = @shell.Cmd(moon, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, root, phase] &&
+    ["prepare", "measure"].contains(phase) else {
+    fail("FROZEN_LONG_CONTEXT QUERY_ROOT prepare|measure")
+  }
+  let moon = root + "/toolchain/bin/moon"
+  if phase == "prepare" {
+    for cap in [2048, 8192] {
+      let arm = root + "/c\{cap}-target121"
+      @fs.mkdir(arm)
+      for name in ["source", "toolchain"] {
+        @shell.Cmd("ln", ["-s", root + "/" + name, arm + "/" + name]).run()
+      }
+      @shell.Cmd("ln", [
+        "-s",
+        root + "/serving-export.stdout",
+        arm + "/export.stdout",
+      ]).run()
+      @shell.Cmd("ln", [
+        "-s",
+        root + "/bind-target121-budget.stdout",
+        arm + "/bind.stdout",
+      ]).run()
+      capture(arm, "prepare", moon, [
+        "run",
+        root + "/prepare_long_context.mbtx",
+        root,
+        arm,
+        root + "/bind-target121-budget.stdout",
+      ])
+      if cap == 2048 {
+        let deployment = arm + "/deployment"
+        let policy_path = deployment + "/policy-root/instance/policy.json"
+        let policy = object(@json.parse(@fs.read_file(policy_path).text()))
+        let scheduler = object(policy["scheduler"])
+        assert_eq(scheduler["step_token_budget"], Json(8192))
+        assert_eq(scheduler["prefill_chunk_tokens"], Json(8192))
+        scheduler["step_token_budget"] = Json(2048)
+        scheduler["prefill_chunk_tokens"] = Json(2048)
+        policy["scheduler"] = Json::object(scheduler)
+        @shell.Cmd("mv", [policy_path, policy_path + ".8192-reference"]).run()
+        @fs.write_file(
+          policy_path,
+          Json::object(policy).stringify() + "\n",
+          create_mode=CreateNew,
+          permission=0o444,
+        )
+        let launch_path = deployment + "/lunaflux.launch.json"
+        let launch = object(@json.parse(@fs.read_file(launch_path).text()))
+        launch["instance_policy"] = {
+          "locator": "instance/policy.json",
+          "sha256": sha(policy_path),
+        }
+        @shell.Cmd("mv", [launch_path, launch_path + ".8192-reference"]).run()
+        @fs.write_file(
+          launch_path,
+          Json::object(launch).stringify() + "\n",
+          create_mode=CreateNew,
+          permission=0o444,
+        )
+        @shell.Cmd("mv", [
+          arm + "/capacity.json",
+          arm + "/capacity.8192-reference.json",
+        ]).run()
+        let cli = root + "/source/_build/native/release/build/cmd/"
+        let validate = @shell.Cmd(cli + "lunaflux/lunaflux.exe", [
+          "validate-release",
+          deployment + "#sha256=" + sha(launch_path),
+        ]).output()
+        @fs.write_file(
+          arm + "/chunk-preflight.stdout",
+          validate.stdout(),
+          create_mode=CreateNew,
+        )
+        @fs.write_file(
+          arm + "/chunk-preflight.stderr",
+          validate.stderr(),
+          create_mode=CreateNew,
+        )
+        validate.check()
+        let receipt = @shell.Cmd(
+          root + "/source/scripts/materialize-qwen3-authenticated-capacity.sh",
+          [
+            root +
+            "/bind-target121-budget.stdout#sha256=" +
+            sha(root + "/bind-target121-budget.stdout"),
+            deployment + "#sha256=" + sha(launch_path),
+            cli +
+            "lunaflux/lunaflux.exe#sha256=" +
+            sha(cli + "lunaflux/lunaflux.exe"),
+            cli +
+            "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe#sha256=" +
+            sha(
+              cli +
+              "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+            ),
+            arm + "/capacity.json",
+          ],
+        ).output()
+        @fs.write_file(
+          arm + "/chunk-capacity.stdout",
+          receipt.stdout(),
+          create_mode=CreateNew,
+        )
+        @fs.write_file(
+          arm + "/chunk-capacity.stderr",
+          receipt.stderr(),
+          create_mode=CreateNew,
+        )
+        receipt.check()
+      }
+    }
+  } else {
+    let original = @fs.read_file(frozen + "/measure/launcher.mbtx").text()
+    let tool = once(
+      original,
+      "let cmd = \"/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/source/_build/native/release/build/cmd/\"",
+      "let cmd = " +
+      Json(root + "/source/_build/native/release/build/cmd/").stringify(),
+    )
+    let tool = once(
+      tool, "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]", "let orders = [[\"luna-full\"]]",
+    )
+    let raw = @fs.read_file(frozen + "/long_context_client.mbtx").text()
+    let start = raw
+      .split("  let cells = if options is [\"--smoke\"] {")
+      .to_array()
+    assert_eq(start.length(), 2)
+    let end = start[1].split("  let matrix_json : Array[Json]").to_array()
+    assert_eq(end.length(), 2)
+    let client = start[0].to_owned() +
+      "  let cells = [(\"i4096-o64-c1-varied\",[4096],64,\"varied\")," +
+      "(\"i16384-o64-c1-varied\",[16384],64,\"varied\")," +
+      "(\"i32512-o64-c1-varied\",[32512],64,\"varied\")," +
+      "(\"i32512-o64-c2-varied\",[32512,32512],64,\"varied\")];\n" +
+      "  let matrix_json : Array[Json]" +
+      end[1].to_owned()
+    for i, cap in [2048, 8192, 8192, 2048] {
+      let output = root + "/e2e-\{i}-c\{cap}"
+      @fs.mkdir(output)
+      let script = output + "/launcher.mbtx"
+      @fs.write_file(script, tool, create_mode=CreateNew)
+      @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+      capture(output, "check-launcher", moon, ["check", script])
+      capture(output, "check-client", moon, ["check", script + ".client.mbtx"])
+      capture(output, "campaign", moon, [
+        "run",
+        script,
+        root + "/c\{cap}-target121",
+        output,
+        script,
+      ])
+    }
+  }
+}

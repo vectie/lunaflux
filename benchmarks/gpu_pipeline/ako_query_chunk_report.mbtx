@@ -1,0 +1,247 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn labels(total : Int, capacity : Int) -> Array[String] raise {
+  guard [32768, 32512].contains(total) && [2048, 4096, 8192].contains(capacity) else {
+    fail("bounded equal-work comparison")
+  }
+  [
+    for h = 0; h < total; h = h + capacity => {
+      let q = Int::min(capacity, total - h)
+      let suffix = if q == capacity { "" } else { "-tail" }
+      "c\{capacity}-q\{q}-h\{h}" + suffix
+    }
+  ]
+}
+
+///|
+fn times(row : Json, key : String) -> Array[Double] raise {
+  guard row is { "metrics": { "samples": Object(samples), .. }, .. } &&
+    samples.get(key) is Some(Array(values)) &&
+    values.length() == 5 else {
+    fail("five repeated samples")
+  }
+  values.map(value => {
+    guard value is Number(n, ..) && n > 0.0 && n < 1.0e9 else {
+      fail("finite positive timing")
+    }
+    n
+  })
+}
+
+///|
+// Sum actual chunk measurements, not median(chunk) multiplied by chunk count.
+// The two vectors are repeat controls of the same compiled module. They are
+// neither a baseline/candidate admission nor a cross-chunk numerical oracle.
+fn aggregate(rows : Array[Json], total : Int, capacity : Int) -> Json raise {
+  let old = Array::make(5, 0.0)
+  let fresh = Array::make(5, 0.0)
+  let names = labels(total, capacity)
+  for name in names {
+    guard rows.filter(row => row is { "label": String(s), .. } && s == name)
+      is [row] else {
+      fail("unique workload: " + name)
+    }
+    let a = times(row, "baseline_us")
+    let b = times(row, "candidate_us")
+    for i in 0..<5 {
+      old[i] += a[i]
+      fresh[i] += b[i]
+    }
+  }
+  let ordered = [..old, ..fresh]
+  ordered.sort()
+  {
+    "total_tokens": total,
+    "chunk_capacity": capacity,
+    "chunk_count": names.length(),
+    "causal_scores_per_head": Json(
+      total.to_int64() * (total.to_int64() + 1L) / 2L,
+    ),
+    "sum_repeat_a_us": old,
+    "sum_repeat_b_us": fresh,
+    "median_sum_us": (ordered[4] + ordered[5]) / 2.0,
+    "minimum_sum_us": ordered[0],
+    "maximum_sum_us": ordered[9],
+  }
+}
+
+///|
+test "exact tails replace the final full chunk and retain every prefix" {
+  assert_eq(labels(32512, 8192), [
+    "c8192-q8192-h0", "c8192-q8192-h8192", "c8192-q8192-h16384", "c8192-q7936-h24576-tail",
+  ])
+  let rows : Array[Json] = labels(32768, 8192).map(name => {
+    "label": name,
+    "metrics": {
+      "samples": {
+        "baseline_us": [1, 2, 3, 4, 5],
+        "candidate_us": [2, 3, 4, 5, 6],
+      },
+    },
+  })
+  guard aggregate(rows, 32768, 8192)
+    is { "sum_repeat_a_us": [4, 8, 12, 16, 20], "median_sum_us": 14, .. } else {
+    fail("sum all chunks")
+  }
+  for invalid in [rows[:3].to_owned(), [..rows, rows[0]]] {
+    try aggregate(invalid, 32768, 8192) catch {
+      _ => ()
+    } noraise {
+      _ => fail("missing/duplicate work accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, phase] &&
+    ["report", "seal", "seal-repeat", "seal-measurements"].contains(phase) else {
+    fail("ROOT report|seal|seal-repeat|seal-measurements")
+  }
+  assert_true(
+    @fs.read_file(root + "/trial/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  guard @json.parse(@fs.read_file(root + "/trial/summary.json").text())
+    is Array(rows) &&
+    rows.length() == 31 else {
+    fail("complete workload vector")
+  }
+  if phase == "report" {
+    let mut reserve = 9223372036854775807L
+    for row in rows {
+      guard row
+        is {
+          "mem_available_kib_before": String(a),
+          "mem_available_kib_after": String(b),
+          ..
+        } else {
+        fail("memory observations")
+      }
+      reserve = Int64::min(reserve, @string.parse_int64(a))
+      reserve = Int64::min(reserve, @string.parse_int64(b))
+    }
+    assert_true(reserve >= 33554432L)
+    let metrics : Json = {
+      "scope": "single-layer equal-total-work attention microbenchmark; not full serving",
+      "numerical_scope": "full same-module output equality and sampled FP64 softmax oracle per workload; no cross-chunk token/logit equality",
+      "source": "9010b280 plus captured fused-profile/compiler-validation overlay",
+      "minimum_observed_mem_available_kib": Json(reserve),
+      "cells": [
+        for total in [32768, 32512] => {
+          [
+            for cap in [2048, 4096, 8192] => aggregate(rows, total, cap)
+          ]
+        }
+      ].flatten(),
+    }
+    @fs.write_file(
+      root + "/equal-work.json",
+      metrics.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    println(metrics.stringify(indent=2))
+  } else {
+    assert_true(@fs.exists(root + "/equal-work.json"))
+    for
+      tool in (if phase != "seal-repeat" {
+        ["memcheck", "racecheck", "synccheck"]
+      } else {
+        []
+      }) {
+      let text = @fs.read_file(root + "/sanitizer-" + tool + ".stdout").text()
+      assert_true(text.contains("oracle_maxabs="))
+      assert_true(text.contains("0 errors") || text.contains("0 hazards"))
+      assert_true(
+        @fs.read_file(root + "/sanitizer-" + tool + ".stderr").text().is_empty(),
+      )
+    }
+    let idle = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    idle.check()
+    assert_true(idle.stdout().trim().is_empty())
+    let excluded = if phase == "seal-measurements" {
+      [
+        "!", "-name", "qwen.numeric", "!", "-name", "model.safetensors", "!", "-name",
+        "*.exe", "!", "-name", "lunaflux-device-worker",
+      ]
+    } else {
+      []
+    }
+    if phase == "seal-measurements" {
+      let hashes = @shell.Cmd("find", [
+        root, "-type", "f", "!", "-path", "*/_build/*", "!", "-path", "*/.mooncakes/*",
+        "(", "-name", "qwen.numeric", "-o", "-name", "model.safetensors", "-o", "-name",
+        "*.exe", "-o", "-name", "lunaflux-device-worker", ")", "-exec", "sha256sum",
+        "{}", "+",
+      ]).output(max_output_bytes=33554432)
+      hashes.check()
+      @fs.write_file(
+        root + "/REMOTE_ONLY_ARTIFACTS.sha256",
+        hashes.stdout().split(root + "/").to_array().join("./"),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=offline-query-chunk-experiment\nserving_selection=unchanged\n" +
+      (if phase == "seal-measurements" {
+        "archive_scope=measurements-source-cubins; large weight and serving executable bytes retained remotely and named in REMOTE_ONLY_ARTIFACTS.sha256\nend_to_end_token_parity=not-established; see e2e-summary-audited.json\n"
+      } else {
+        ""
+      }),
+      create_mode=CreateNew,
+    )
+    let files = @shell.Cmd(
+      "find",
+      [
+        root, "-type", "f", "!", "-path", "*/_build/*", "!", "-path", "*/.mooncakes/*",
+        ..excluded, "-exec", "sha256sum", "{}", "+",
+      ],
+    ).output(max_output_bytes=33554432)
+    files.check()
+    @fs.write_file(
+      root + "/FILES.sha256",
+      files.stdout().split(root + "/").to_array().join("./"),
+      create_mode=CreateNew,
+    )
+    let archive = root + ".measurement.tar.gz"
+    assert_true(!@fs.exists(archive))
+    @shell.Cmd(
+      "tar",
+      [
+        "-czf",
+        archive,
+        "--exclude=*/_build",
+        "--exclude=*/.mooncakes",
+        "-C",
+        root,
+        ..if phase == "seal-measurements" {
+          [
+            "--exclude=qwen.numeric", "--exclude=model.safetensors", "--exclude=*.exe",
+            "--exclude=lunaflux-device-worker",
+          ]
+        } else {
+          []
+        },
+        ".",
+      ],
+    ).run()
+    let hash = @shell.Cmd("sha256sum", [archive]).output()
+    hash.check()
+    @fs.write_file(archive + ".sha256", hash.stdout(), create_mode=CreateNew)
+    @shell.Cmd("chmod", ["0444", archive]).run()
+    println(hash.stdout())
+  }
+}

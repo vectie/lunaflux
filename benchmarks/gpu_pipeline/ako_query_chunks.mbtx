@@ -1,0 +1,335 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn chunks(total : Int, capacity : Int) -> Array[(Int, Int)] raise {
+  guard total > 0 && total <= 32768 && [2048, 4096, 8192].contains(capacity) else {
+    fail("bounded chunk vector")
+  }
+  [
+    for history = 0; history < total; history = history + capacity => {
+      (Int::min(capacity, total - history), history)
+    }
+  ]
+}
+
+///|
+test "chunking preserves every causal score and exposes exact final tails" {
+  for total in [32768, 32512] {
+    for capacity in [2048, 4096, 8192] {
+      let work = chunks(total, capacity)
+      assert_eq(work.fold(init=0, (n, part) => n + part.0), total)
+      let scores = work.fold(init=0L, (n, part) => {
+        let (q, h) = part
+        n + q.to_int64() * (2L * h.to_int64() + q.to_int64() + 1L) / 2L
+      })
+      assert_eq(scores, total.to_int64() * (total.to_int64() + 1L) / 2L)
+    }
+  }
+  assert_eq(chunks(32512, 8192).last(), Some((7936, 24576)))
+  for pair in [(0, 8192), (32769, 8192), (32768, 1024)] {
+    try chunks(pair.0, pair.1) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid work accepted")
+    }
+  }
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("unique field: " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  phase : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + phase + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + phase + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + phase + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+async fn digest(path : String) -> String {
+  let result = @shell.Cmd("sha256sum", [path]).output()
+  result.check()
+  result.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root, phase] else {
+    fail("FROZEN_SERVING NEW_ROOT prepare|export|refresh|run|sanitize")
+  }
+  let moon = base + "/toolchain/bin/moon"
+  let frozen = "/home/wlc004s/lunaflux-ako-pilot-v2-20261004.bfWwShhe"
+  if phase == "prepare" || phase == "export" || phase == "refresh" {
+    assert_eq(
+      digest(root + "/source.tar.gz"),
+      "4901a30d59cab33215b201599949a2d10474e19de695006d00491c8f613a5447",
+    )
+    if phase == "prepare" {
+      @fs.mkdir(root + "/source")
+      ignore(
+        capture(root, "extract", "tar", [
+          "-xzf",
+          root + "/source.tar.gz",
+          "-C",
+          root + "/source",
+        ]),
+      )
+      ignore(
+        capture(root, "build", moon, [
+          "-C",
+          root + "/source",
+          "build",
+          "cmd/lunaflux_qwen3_bf16_candidate_export",
+          "--target",
+          "native",
+          "--release",
+          "--deny-warn",
+          "--warn-list",
+          "-79-29-25-20-92-14",
+          "-j",
+          "2",
+        ]),
+      )
+    }
+    if phase == "refresh" {
+      ignore(
+        capture(root, "patched-source", "sha256sum", [
+          root + "/source/kernels/luna_cuda_fused_parallel_aot/validation.mbt",
+          root +
+          "/source/kernels/luna_cuda_fused_parallel_aot/profile_wbtest.mbt",
+          root +
+          "/source/kernels/luna_cuda_fused_parallel_aot/fixture_wbtest.mbt",
+        ]),
+      )
+      ignore(
+        capture(root, "rebuild", moon, [
+          "-C",
+          root + "/source",
+          "build",
+          "cmd/lunaflux_qwen3_bf16_candidate_export",
+          "--target",
+          "native",
+          "--release",
+          "--deny-warn",
+          "--warn-list",
+          "-79-29-25-20-92-14",
+          "-j",
+          "2",
+        ]),
+      )
+    }
+    let converted = @fs.read_file(base + "/convert.stdout").text()
+    let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+    let exporter = root +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe"
+    ignore(
+      capture(
+        root,
+        if phase == "refresh" {
+          "export2"
+        } else {
+          "export"
+        },
+        exporter,
+        [
+          model,
+          "config.json",
+          digest(model + "/config.json"),
+          digest(model + "/model.safetensors"),
+          "qwen.numeric",
+          field(converted, "output_artifact_sha256"),
+          field(converted, "route_manifest_sha256"),
+          digest(base + "/toolchain.v1"),
+          "13",
+          "0",
+          "88",
+          "8",
+          "16384",
+          "32",
+          "8192",
+          "16384",
+          root + "/candidate",
+          "--device-target",
+          "12",
+          "1",
+          "--prefill-candidate",
+          "322",
+          "--query-metadata-v1",
+        ],
+      ),
+    )
+    @fs.mkdir(root + "/selected")
+    for name in ["kernel.cu", "kernel.recipe"] {
+      @fs.write_file(
+        root + "/selected/" + name,
+        @fs.read_file(
+          root + "/candidate/reusable-qwen-prefill-attention/" + name,
+        ),
+        create_mode=CreateNew,
+      )
+    }
+    let recipe = @fs.read_file(root + "/selected/kernel.recipe").text()
+    assert_eq(field(recipe, "candidate_stable_id"), "322")
+    assert_eq(
+      digest(root + "/selected/kernel.cu"),
+      field(recipe, "source_sha256"),
+    )
+    assert_eq(
+      digest("/usr/local/cuda-13.0/bin/nvcc"),
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+    )
+    ignore(
+      capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+        "--cubin",
+        "--std=c++14",
+        "-arch=sm_121",
+        "-O3",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=" + field(recipe, "max_registers"),
+        "--Werror",
+        "all-warnings",
+        root + "/selected/kernel.cu",
+        "-o",
+        root + "/selected/kernel.cubin",
+      ]),
+    )
+    assert_eq(
+      digest(frozen + "/probe"),
+      "014a0eeac3b27a3877eac139a0037e6615775dd0e75f477c41d442c7beccd66d",
+    )
+    @shell.Cmd("cp", ["--update=none", frozen + "/probe", root + "/probe"]).run()
+    let spec = @fs.read_file(frozen + "/prefill.spec").text()
+    assert_eq(field(spec, "maximum_tokens"), "2048")
+    @fs.write_file(
+      root + "/prefill.spec",
+      spec.replace(old="maximum_tokens=2048\n", new="maximum_tokens=8192\n"),
+      create_mode=CreateNew,
+    )
+    let workloads : Array[Json] = []
+    for capacity in [2048, 4096, 8192] {
+      for (q, h) in chunks(32768, capacity) {
+        workloads.push({
+          "label": "c\{capacity}-q\{q}-h\{h}",
+          "args": [
+            root + "/prefill.spec",
+            root + "/selected",
+            root + "/selected",
+            q.to_string(),
+            "1",
+            h.to_string(),
+          ],
+        })
+      }
+      let (q, h) = chunks(32512, capacity).last().unwrap()
+      workloads.push({
+        "label": "c\{capacity}-q\{q}-h\{h}-tail",
+        "args": [
+          root + "/prefill.spec",
+          root + "/selected",
+          root + "/selected",
+          q.to_string(),
+          "1",
+          h.to_string(),
+        ],
+      })
+    }
+    assert_eq(workloads.length(), 31)
+    let contract : Json = {
+      "schema": "lunaflux-ako-trial-v1",
+      "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.03,
+      "program": root + "/probe",
+      "artifacts": [
+        root + "/prefill.spec",
+        root + "/selected/kernel.recipe",
+        root + "/selected/kernel.cubin",
+      ],
+      "workloads": workloads,
+    }
+    @fs.write_file(
+      root + "/contract.json",
+      contract.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    println("prepared=" + root)
+  } else if phase == "run" {
+    println(
+      capture(root, "trial", moon, [
+        "run",
+        root + "/ako_trial.mbtx",
+        "--",
+        root + "/contract.json",
+        root + "/trial",
+      ]),
+    )
+  } else if phase == "sanitize" {
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      ignore(
+        capture(
+          root,
+          "sanitizer-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "99",
+            ..if tool == "memcheck" {
+              ["--leak-check", "full"]
+            } else {
+              []
+            },
+            root + "/probe",
+            root + "/prefill.spec",
+            root + "/selected",
+            root + "/selected",
+            "7936",
+            "1",
+            "24576",
+            "--check-only",
+          ],
+        ),
+      )
+    }
+  } else {
+    fail("phase")
+  }
+}

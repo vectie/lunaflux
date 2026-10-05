@@ -33,9 +33,10 @@ async fn publish(path : String, value : Json) -> String {
 
 ///|
 async fn main {
-  guard @env.args() is [_, base, root] else {
-    fail("IMMUTABLE_SERVING NEW_EMPTY_ROOT")
+  guard @env.args() is [_, base, root, .. rest] && rest.length() <= 1 else {
+    fail("IMMUTABLE_SERVING NEW_EMPTY_ROOT [BIND_RECEIPT]")
   }
+  let receipt_path = if rest is [path] { path } else { base + "/bind.stdout" }
   let old = base + "/deployment"
   let deployment = root + "/deployment"
   guard !@fs.exists(deployment) else { fail("non-overwriting deployment") }
@@ -135,7 +136,7 @@ async fn main {
   let receipt = @shell.Cmd(
     base + "/source/scripts/materialize-qwen3-authenticated-capacity.sh",
     [
-      base + "/bind.stdout#sha256=" + sha(base + "/bind.stdout"),
+      receipt_path + "#sha256=" + sha(receipt_path),
       deployment + "#sha256=" + launch_sha,
       runtime + "#sha256=" + sha(runtime),
       bridge + "#sha256=" + sha(bridge),

@@ -1,0 +1,223 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn object(value : Json) -> Map[String, Json] raise {
+  guard value is Object(fields) else { fail("object") }
+  fields
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("empty vector") }
+  let ordered = values.copy()
+  ordered.sort()
+  let n = ordered.length()
+  if n % 2 == 0 {
+    (ordered[n / 2 - 1] + ordered[n / 2]) / 2.0
+  } else {
+    ordered[n / 2]
+  }
+}
+
+///|
+test "even medians do not discard half the repeat vector" {
+  assert_eq(median([9.0, 1.0, 7.0, 3.0]), 5.0)
+  assert_eq(median([9.0, 1.0, 7.0]), 7.0)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. options] &&
+    (options.is_empty() || options is ["brief"]) else {
+    fail("COMPLETED_QUERY_EXPERIMENT [brief]")
+  }
+  if options is ["brief"] {
+    let report = object(
+      @json.parse(@fs.read_file(root + "/e2e-summary-audited.json").text()),
+    )
+    guard report["token_vector_mismatches"] is Array(mismatches) else {
+      fail("audited mismatches")
+    }
+    println(
+      Json(
+        mismatches.map(row => {
+          let fields = object(row)
+          let subset : Map[String, Json] = Map([])
+          for
+            key in [
+              "cell", "chunk_tokens", "run", "trial", "request_index", "first_different_token",
+              "different_token_count",
+            ] {
+            subset[key] = fields[key]
+          }
+          Json::object(subset)
+        }),
+      ).stringify(indent=2),
+    )
+    return
+  }
+  let caps = [2048, 8192, 8192, 2048]
+  let cells = [
+    "i4096-o64-c1-varied", "i16384-o64-c1-varied", "i32512-o64-c1-varied", "i32512-o64-c2-varied",
+  ]
+  let report : Array[Json] = []
+  let mut minimum_available = 9223372036854775807L
+  for i, cap in caps {
+    let campaign = root + "/e2e-\{i}-c\{cap}"
+    assert_true(
+      @fs.read_file(campaign + "/RESULT.txt")
+      .text()
+      .contains("outcome=completed"),
+    )
+    let run = campaign + "/r0-luna-full"
+    let supervisor = @fs.read_file(run + "/supervisor.stdout").text()
+    for field in ["drain_acknowledged=1", "child_exit_code=0", "child_closed=1"] {
+      assert_true(supervisor.contains(field))
+    }
+    assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+    for line in @fs.read_file(run + "/memory.csv").text().split("\n") {
+      if line.is_empty() {
+        continue
+      }
+      guard line.split(",").to_array() is [_, free] else {
+        fail("memory sample")
+      }
+      minimum_available = Int64::min(
+        minimum_available,
+        @string.parse_int64(free),
+      )
+    }
+  }
+  assert_true(minimum_available >= 33554432L)
+  let mut mismatch_count = 0
+  let mismatches : Array[Json] = []
+  for cell in cells {
+    let arms : Array[Json] = []
+    for cap in [2048, 8192] {
+      let walls : Array[Double] = []
+      let firsts : Array[Double] = []
+      let tpots : Array[Double] = []
+      let token_rates : Array[Double] = []
+      for i, selected in caps {
+        if selected != cap {
+          continue
+        }
+        let dir = root + "/e2e-\{i}-c\{cap}/r0-luna-full/requests/"
+        for trial in [1, 2, 3] {
+          let name = cell + "-t\{trial}"
+          let row = object(
+            @json.parse(@fs.read_file(dir + name + ".json").text()),
+          )
+          assert_eq(row["warmup"], Json(false))
+          assert_eq(row["output"], Json(64))
+          guard row["requests"] is Array(requests) &&
+            row["input_vector"] is Array(inputs) &&
+            requests.length() == inputs.length() else {
+            fail("exact request vector")
+          }
+          let wall = number(row["wall_ms"])
+          assert_true(wall > 0.0)
+          walls.push(wall)
+          token_rates.push(64.0 * requests.length().to_double() * 1000.0 / wall)
+          let reference_dir = root + "/e2e-0-c2048/r0-luna-full/requests/"
+          let reference = object(
+            @json.parse(@fs.read_file(reference_dir + name + ".json").text()),
+          )
+          guard reference["requests"] is Array(reference_requests) else {
+            fail("control requests")
+          }
+          assert_eq(row["input_vector"], reference["input_vector"])
+          for request_index, request in requests {
+            let fields = object(request)
+            guard fields["token_ids"] is Array(tokens) &&
+              tokens.length() == 64 &&
+              fields["token_ms"] is Array(times) &&
+              times.length() == 64 else {
+              fail("64 emitted tokens/times")
+            }
+            let expected = object(reference_requests[request_index])
+            let request_file = name + "-r\{request_index}.body.json"
+            assert_eq(
+              @json.parse(@fs.read_file(dir + request_file).text()),
+              @json.parse(@fs.read_file(reference_dir + request_file).text()),
+            )
+            if fields["token_ids"] != expected["token_ids"] {
+              mismatch_count += 1
+              guard expected["token_ids"] is Array(reference_tokens) else {
+                fail("reference tokens")
+              }
+              let differing = Array::makei(64, index => index).filter(index => {
+                tokens[index] != reference_tokens[index]
+              })
+              mismatches.push({
+                "cell": cell,
+                "chunk_tokens": cap,
+                "run": i,
+                "trial": trial,
+                "request_index": request_index,
+                "first_different_token": differing[0],
+                "different_token_count": differing.length(),
+                "control_token_ids": reference_tokens,
+                "observed_token_ids": tokens,
+              })
+            }
+            firsts.push(number(fields["ttft_ms"]))
+            tpots.push(number(fields["mean_tpot_ms"]))
+          }
+        }
+      }
+      assert_eq(walls.length(), 6)
+      arms.push({
+        "chunk_tokens": cap,
+        "wall_ms": walls,
+        "ttft_ms": firsts,
+        "mean_tpot_ms": tpots,
+        "output_tokens_per_second": token_rates,
+        "median_wall_ms": median(walls),
+        "median_ttft_ms": median(firsts),
+        "median_mean_tpot_ms": median(tpots),
+        "median_output_tokens_per_second": median(token_rates),
+      })
+    }
+    let a = object(arms[0])
+    let b = object(arms[1])
+    report.push({
+      "cell": cell,
+      "arms": arms,
+      "wall_reduction_percent": 100.0 *
+      (1.0 - number(b["median_wall_ms"]) / number(a["median_wall_ms"])),
+      "ttft_reduction_percent": 100.0 *
+      (1.0 - number(b["median_ttft_ms"]) / number(a["median_ttft_ms"])),
+    })
+  }
+  let summary : Json = {
+    "scope": "same 8192-capacity AOT bundle, scheduler chunks 2048 vs 8192; not versus frozen 2048-capacity serving or external frameworks",
+    "order": caps,
+    "minimum_observed_mem_available_kib": Json(minimum_available),
+    "token_vector_mismatch_count": mismatch_count,
+    "token_vector_mismatches": mismatches,
+    "cells": report,
+  }
+  @fs.write_file(
+    root + "/e2e-summary-audited.json",
+    summary.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(summary.stringify(indent=2))
+}

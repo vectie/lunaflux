@@ -1,0 +1,359 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("unique field " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(program, args, cwd=root + "/source", env={
+    "PATH": root + "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+// CPU-only AOT preparation. Both scheduler arms will use these exact same
+// 8192-capacity artifacts; only chunk policy differs. No frozen source or
+// release is rewritten and no calibration occurs in the request path.
+async fn main {
+  guard @env.args() is [_, base, root, phase] &&
+    ["build", "compile", "rebind", "rebuild-binder", "fused", "materialize"].contains(
+      phase,
+    ) else {
+    fail(
+      "FROZEN_BASE PREPARED_QUERY_EXPERIMENT build|compile|fused|materialize",
+    )
+  }
+  let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+  let moon = base + "/toolchain/bin/moon"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  let cli = root + "/source/_build/native/release/build/cmd/"
+  let config = sha(model + "/config.json")
+  let content = sha(model + "/model.safetensors")
+  let converted = @fs.read_file(base + "/convert.stdout").text()
+  let common = [
+    model,
+    "config.json",
+    config,
+    content,
+    "qwen.numeric",
+    field(converted, "output_artifact_sha256"),
+    field(converted, "route_manifest_sha256"),
+  ]
+  let geometry = ["13", "0", "88", "8", "16384", "32", "8192", "16384"]
+  let candidate = root + "/serving-candidate"
+  let toolchain = root + "/toolchain.v1"
+  if phase == "build" {
+    @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
+    @fs.write_file(
+      toolchain,
+      @fs.read_file(base + "/toolchain.v1"),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(root + "/convert.stdout", converted, create_mode=CreateNew)
+    ignore(
+      capture(root, "serving-build", moon, [
+        "build", "--target", "native", "--release", "--deny-warn", "--warn-list",
+        "-79-29-25-20-92-14", "-j", "2", "cmd/lunaflux_qwen3_bf16_release_bind",
+        "cmd/lunaflux_qwen3_fused_runtime_bundle_export", "cmd/device_worker_child",
+        "cmd/lunaflux", "cmd/lunaflux_qwen3_token_id_bridge", "tests/qwen3_bf16_serving_supervisor",
+      ]),
+    )
+    ignore(
+      capture(
+        root,
+        "serving-export",
+        cli +
+        "lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+        [
+          ..common,
+          sha(toolchain),
+          ..geometry,
+          candidate,
+          "--device-target",
+          "12",
+          "1",
+          "--step-rotary-cache",
+          "--decode-candidate",
+          "468",
+          "--prefill-candidate",
+          "322",
+          "--query-metadata-v1",
+        ],
+      ),
+    )
+  } else if phase == "compile" || phase == "rebind" || phase == "rebuild-binder" {
+    if phase == "rebuild-binder" {
+      let files = [
+        "arguments.mbt", "prepare.mbt", "types.mbt", "projection_tuning.mbt", "compiled.mbt",
+        "publish.mbt", "main.mbt", "moon.pkg", "device_target_wbtest.mbt", "arguments_wbtest.mbt",
+      ]
+      ignore(
+        capture(
+          root,
+          "binder-overlay-budget",
+          "sha256sum",
+          files.map(name => {
+            root + "/source/cmd/lunaflux_qwen3_bf16_release_bind/" + name
+          }),
+        ),
+      )
+      ignore(
+        capture(root, "binder-rebuild-budget", moon, [
+          "build", "cmd/lunaflux_qwen3_bf16_release_bind", "--target", "native",
+          "--release", "--deny-warn", "--warn-list", "-79-29-25-20-92-14", "-j",
+          "2",
+        ]),
+      )
+      ignore(
+        capture(root, "binder-tests-budget", moon, [
+          "test", "cmd/lunaflux_qwen3_bf16_release_bind", "--target", "native", "--deny-warn",
+          "--warn-list", "-79-29-25-20-92-14", "-j", "2",
+        ]),
+      )
+    }
+    if phase == "compile" {
+      assert_eq(
+        sha(nvcc),
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+      )
+      ignore(
+        capture(
+          root,
+          "serving-compile",
+          root + "/source/scripts/build-luna-bf16-kernel-set.sh",
+          [
+            nvcc,
+            toolchain + "#sha256=" + sha(toolchain),
+            candidate + "/candidate-root",
+            candidate +
+            "/candidate.files.sha256#sha256=" +
+            sha(candidate + "/candidate.files.sha256"),
+            root + "/compiled",
+          ],
+        ),
+      )
+    }
+    ignore(
+      capture(
+        root,
+        "bind-target121-budget",
+        cli +
+        "lunaflux_qwen3_bf16_release_bind/lunaflux_qwen3_bf16_release_bind.exe",
+        [
+          ..common,
+          root + "/compiled",
+          toolchain,
+          sha(toolchain),
+          ..geometry,
+          root + "/release",
+          "--device-target",
+          "12",
+          "1",
+          "--activation-arena-gib",
+          "4",
+        ],
+      ),
+    )
+  } else if phase == "fused" {
+    let output = root + "/fused-routed"
+    @fs.mkdir(output)
+    let exported = @fs.read_file(root + "/serving-export.stdout").text()
+    let args = [content, field(exported, "model_plan_sha256")]
+    let modules = [
+      ("residual", "reusable-fused-residual", "residual_operation_id", ""),
+      ("ingress", "reusable-qwen-full-ingress", "qkv_operation_id", ""),
+      ("prefill", "reusable-qwen-prefill-attention", "model_operation_id", ""),
+      (
+        "prefill_wide", "reusable-qwen-prefill-wide-query-attention", "model_operation_id",
+        "",
+      ),
+      (
+        "prefill_partial", "reusable-qwen-prefill-partitioned-attention", "model_operation_id",
+        "partial_",
+      ),
+      (
+        "prefill_merge", "reusable-qwen-prefill-partitioned-attention", "model_operation_id",
+        "merge_",
+      ),
+      (
+        "prefill_partitioned8_partial", "reusable-qwen-prefill-partitioned-attention-p8",
+        "model_operation_id", "partial_",
+      ),
+      (
+        "prefill_partitioned8_merge", "reusable-qwen-prefill-partitioned-attention-p8",
+        "model_operation_id", "merge_",
+      ),
+      ("attention", "reusable-qwen-decode-attention", "model_operation_id", ""),
+    ]
+    let tiles : Array[String] = []
+    for (name, dir, operation, prefix) in modules {
+      let recipe = @fs.read_file(candidate + "/" + dir + "/kernel.recipe").text()
+      let source = candidate + "/" + dir + "/kernel.cu"
+      assert_eq(sha(source), field(recipe, "source_sha256"))
+      assert_eq(field(recipe, "target"), "sm_121")
+      assert_eq(field(recipe, "toolchain_sha256"), sha(toolchain))
+      let flags = [
+        "--cubin",
+        "--std=c++14",
+        "-arch=sm_121",
+        "-O3",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=" + field(recipe, "max_registers"),
+        "--Werror",
+        "all-warnings",
+        source,
+        "-o",
+      ]
+      for pass in ["first", "second"] {
+        ignore(
+          capture(
+            root,
+            "fused-" + name + "-" + pass,
+            nvcc,
+            [..flags, output + "/" + name + "-" + pass + ".cubin"],
+          ),
+        )
+      }
+      assert_eq(
+        sha(output + "/" + name + "-first.cubin"),
+        sha(output + "/" + name + "-second.cubin"),
+      )
+      args.append(
+        [
+          field(recipe, operation),
+          ..field(recipe, prefix + "grid")
+          .split(",")
+          .map(s => s.to_owned())
+          .to_array(),
+          field(recipe, "block").split(",").to_array()[0].to_owned(),
+          field(recipe, prefix + "shared_memory_bytes"),
+        ],
+      )
+      if name == "prefill_wide" {
+        args.push(field(recipe, "function_symbol"))
+      }
+      args.push(output + "/" + name + "-first.cubin")
+      if [
+          "prefill", "prefill_wide", "prefill_partial", "prefill_partitioned8_partial",
+        ].contains(name) {
+        assert_eq(field(recipe, "query_metadata_version"), "1")
+        tiles.push(field(recipe, "query_tile_rows"))
+      }
+    }
+    let ingress = @fs.read_file(
+      candidate + "/reusable-qwen-full-ingress/kernel.recipe",
+    ).text()
+    let decode = @fs.read_file(
+      candidate + "/reusable-qwen-decode-attention/kernel.recipe",
+    ).text()
+    assert_eq(field(decode, "candidate_stable_id"), "468")
+    args.append(
+      [
+        ..tiles,
+        output + "/reusable-fused-runtime-bundle.v3",
+        "--ingress-evaluate",
+        "full",
+        "--ingress-query-tile",
+        field(ingress, "query_tile_rows"),
+        "--ingress-heads-per-cta",
+        field(ingress, "heads_per_cta"),
+        "--query-metadata-v1",
+        "--device-target",
+        "12",
+        "1",
+        "--step-rotary-cache",
+        "--decode-execution",
+        field(decode, "numeric_law"),
+        field(decode, "key_value_tile_rows"),
+        field(decode, "pipeline_stages"),
+        "--decode-symbol",
+        field(decode, "function_symbol"),
+      ],
+    )
+    ignore(
+      capture(
+        root,
+        "serving-fused",
+        cli +
+        "lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+        args,
+      ),
+    )
+  } else {
+    let runtime = root + "/fused-routed/reusable-fused-runtime-bundle.v3"
+    ignore(
+      capture(root, "serving-materialize-target121", moon, [
+        "run",
+        root + "/source/scripts/materialize-qwen3-bf16-v12-launch.mbtx",
+        model,
+        config,
+        content,
+        sha(model + "/tokenizer.json"),
+        "qwen.numeric",
+        common[5],
+        common[6],
+        root + "/release",
+        root +
+        "/bind-target121-budget.stdout#sha256=" +
+        sha(root + "/bind-target121-budget.stdout"),
+        cli +
+        "device_worker_child/device_worker_child.exe#sha256=" +
+        sha(cli + "device_worker_child/device_worker_child.exe"),
+        "/home/wlc004s/lunaflux-spark-test.5kAEkw/bench-vllm/i128-o32-c1-t1-r0.json#sha256=" +
+        sha(
+          "/home/wlc004s/lunaflux-spark-test.5kAEkw/bench-vllm/i128-o32-c1-t1-r0.json",
+        ),
+        "5061",
+        root + "/deployment",
+        "native-framed-c32-benchmark-v1",
+        runtime + "#sha256=" + sha(runtime),
+      ]),
+    )
+  }
+}
