@@ -241,8 +241,8 @@ fn derive_qwen3_bootstrap_source(
       manifest_digest_sha256=root_plan.manifest_sha256(),
     ),
     @worker_wire.WorkerBootstrapExecution::new(
-      compute_major=12,
-      compute_minor=0,
+      compute_major=arguments.compute_major,
+      compute_minor=arguments.compute_minor,
       supports_bf16=true,
       supports_cublas_lt=false,
       tokens_per_page=arguments.tokens_per_page,
@@ -327,7 +327,7 @@ async fn publish_release_binding(
         staging,
         inputs,
         release_layout(inputs.plan, arguments),
-        release_target(),
+        release_target(arguments),
         root_plan,
         arguments,
       )

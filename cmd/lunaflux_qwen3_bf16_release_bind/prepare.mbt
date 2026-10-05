@@ -1,8 +1,10 @@
 ///|
-fn release_target() -> @catalog.DeviceTarget raise Qwen3Bf16ReleaseBindError {
+fn release_target(
+  arguments : Qwen3ReleaseBindArguments,
+) -> @catalog.DeviceTarget raise Qwen3Bf16ReleaseBindError {
   @catalog.DeviceTarget::new(
-    compute_major=12,
-    compute_minor=0,
+    compute_major=arguments.compute_major,
+    compute_minor=arguments.compute_minor,
     supports_bf16=true,
     supports_cublas_lt=false,
   ) catch {
@@ -11,6 +13,11 @@ fn release_target() -> @catalog.DeviceTarget raise Qwen3Bf16ReleaseBindError {
       raise KernelBinding
     }
   }
+}
+
+///|
+fn release_target_name(arguments : Qwen3ReleaseBindArguments) -> String {
+  "sm_\{arguments.compute_major * 10 + arguments.compute_minor}"
 }
 
 ///|
@@ -93,7 +100,7 @@ fn release_candidates(
     inputs.plan,
     release_layout(inputs.plan, arguments),
     profile,
-    release_target(),
+    release_target(arguments),
     release_compiler(arguments),
     @luna_bf16_kernel_producer.LunaBf16CandidateSetLimits::new(
       max_operations=4096,

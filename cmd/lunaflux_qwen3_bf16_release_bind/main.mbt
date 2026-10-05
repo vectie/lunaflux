@@ -10,7 +10,7 @@ async fn run_qwen3_release_bind(
   let release = @luna_bf16_kernel_producer.produce_luna_bf16_kernel_release(
     inputs.plan,
     release_layout(inputs.plan, arguments),
-    release_target(),
+    release_target(arguments),
     compilations,
     producer_limits(),
   ) catch {
@@ -27,7 +27,7 @@ async fn run_qwen3_release_bind(
     "weight_route_manifest_sha256=" + arguments.weight_route_manifest_sha256,
   )
   println("model_plan_sha256=" + evidence.model_plan_sha256)
-  println("target=sm_120")
+  println("target=" + release_target_name(arguments))
   println("tokens_per_page=" + arguments.tokens_per_page.to_string())
   println("total_page_count=" + arguments.total_page_count.to_string())
   println(
@@ -64,5 +64,19 @@ async fn run_qwen3_release_bind(
 
 ///|
 async fn main {
-  try! run_qwen3_release_bind(@env.args())
+  try run_qwen3_release_bind(@env.args()) catch {
+    error => {
+      let name = match error {
+        InvalidArguments => "invalid-arguments"
+        ModelAdmission => "model-admission"
+        CompiledSetAdmission(message) => "compiled-set-admission: " + message
+        KernelBinding => "kernel-binding"
+        Publication => "publication"
+      }
+      @stdio.stderr.write("outcome=failed\nerror=" + name + "\n")
+      abort("Qwen3 BF16 release binding failed")
+    }
+  } noraise {
+    _ => ()
+  }
 }

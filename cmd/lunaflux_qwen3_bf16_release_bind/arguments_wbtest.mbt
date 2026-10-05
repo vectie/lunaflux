@@ -156,7 +156,7 @@ test "Qwen release geometry and producer ceilings admit the full graph" {
   assert_eq(profile.max_query_rows(), 32)
   assert_eq(profile.max_query_tokens(), 32)
   assert_eq(profile.max_page_table_entries(), 5120)
-  ignore(release_target())
+  ignore(release_target(arguments))
   ignore(release_compiler(arguments))
   ignore(producer_limits())
 }

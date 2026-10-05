@@ -158,7 +158,8 @@ async fn admit_compiled_set(
         arguments.toolchain_sha256 ||
         require_record_value(compiled, "driver_identity_sha256") !=
         expected_driver ||
-        require_record_value(compiled, "target") != "sm_120" ||
+        require_record_value(compiled, "target") !=
+        release_target_name(arguments) ||
         require_record_value(compiled, "operation_count") !=
         candidates.operation_count().to_string() {
         raise CompiledSetAdmission("compiled-set identity mismatch")
@@ -210,7 +211,8 @@ async fn admit_compiled_set(
           arguments.toolchain_sha256 ||
           require_record_value(receipt, "driver_identity_sha256") !=
           expected_driver ||
-          require_record_value(receipt, "target") != "sm_120" ||
+          require_record_value(receipt, "target") !=
+          release_target_name(arguments) ||
           first_sha != module_sha ||
           second_sha != module_sha ||
           require_record_value(receipt, "module_relative_path") !=

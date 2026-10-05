@@ -9,6 +9,8 @@ suberror Qwen3Bf16ReleaseBindError {
 
 ///|
 struct Qwen3ReleaseBindArguments {
+  compute_major : Int
+  compute_minor : Int
   model_root : String
   config_locator : String
   config_sha256 : String
