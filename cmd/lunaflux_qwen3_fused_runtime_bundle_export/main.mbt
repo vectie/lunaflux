@@ -29,6 +29,7 @@ priv struct RuntimeBundleArguments {
   decode_execution : @luna_fused_artifact_admission.DecodeExecutionDescriptor?
   decode_function_symbol : String?
   step_rotary_cache : Bool
+  ingress_row_variant : IngressRowVariantArguments?
   query_metadata : Bool
   model_content : String
   model_plan : String
@@ -404,6 +405,7 @@ fn parse_arguments(
     decode_execution: None,
     decode_function_symbol: None,
     step_rotary_cache: false,
+    ingress_row_variant: None,
     residual,
     ingress,
     attention_prefill,
@@ -511,7 +513,14 @@ async fn run(
   let attention_bytes = read_module(args.attention_read.module_path)
   let target = runtime_device_target(args)
   let modules = selected_ingress_modules(
-    args, ingress_choice, residual_bytes, ingress_bytes,
+    args,
+    ingress_choice,
+    residual_bytes,
+    ingress_bytes,
+    row_variant?=match args.ingress_row_variant {
+      Some(variant) => Some(read_ingress_row_variant(args, variant))
+      None => None
+    },
   )
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(

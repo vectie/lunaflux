@@ -76,6 +76,7 @@ fn qwen_fused_test_runtime(
   step_rotary_cache? : Bool = false,
   ingress_query_tile_rows? : Int,
   ingress_heads_per_cta? : Int = 1,
+  ingress_row_variant? : @luna_fused_artifact_admission.ReusableFusedRuntimeRowVariant,
   blockwise_decode? : Bool = false,
   contracting_decode? : Bool = false,
   dual_score_decode? : Bool = false,
@@ -134,6 +135,7 @@ fn qwen_fused_test_runtime(
     module_bytes=b"qwen-postprocess-module",
     query_tile_rows?=ingress_query_tile_rows,
     heads_per_cta=ingress_heads_per_cta,
+    row_variant?=ingress_row_variant,
   )
   let modules : Array[
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput,

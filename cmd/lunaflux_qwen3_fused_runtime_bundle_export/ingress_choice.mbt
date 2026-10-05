@@ -15,6 +15,22 @@ fn positive_nanoseconds(
 fn prepare_ingress_choice(
   raw_args : ArrayView[String],
 ) -> (RuntimeBundleArguments, @luna_fusion_strategy.FusionSchedule) raise Qwen3FusedRuntimeBundleExportError {
+  if raw_args is [.. rest, "--ingress-row-variant", maximum, rows, shared, path] {
+    let (args, choice) = prepare_ingress_choice(rest)
+    guard args.ingress_row_variant is None &&
+      args.step_rotary_cache &&
+      choice == FullyFused &&
+      safe_absolute_file(path) else {
+      raise InvalidArguments
+    }
+    let variant : IngressRowVariantArguments = {
+      maximum_token_rows: positive_int(maximum),
+      query_tile_rows: positive_int(rows),
+      shared_bytes: non_negative_int(shared),
+      module_path: path,
+    }
+    return ({ ..args, ingress_row_variant: Some(variant), }, choice)
+  }
   // Global ABI options are independent of the optional ingress experiment.
   // Peel the global suffix before interpreting that experiment's fixed arity.
   if raw_args is [.. rest, "--decode-symbol", symbol] {
@@ -232,6 +248,7 @@ fn selected_ingress_modules(
   choice : @luna_fusion_strategy.FusionSchedule,
   residual_bytes : Bytes,
   ingress_bytes : Bytes,
+  row_variant? : @luna_fused_artifact_admission.ReusableFusedRuntimeRowVariant,
 ) -> Array[@luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput] raise Qwen3FusedRuntimeBundleExportError {
   let modules = [
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
@@ -275,6 +292,7 @@ fn selected_ingress_modules(
       query_tile_rows?=args.ingress_query_tile_rows,
       heads_per_cta=args.ingress_heads_per_cta.unwrap_or(1),
       module_bytes=ingress_bytes,
+      row_variant?,
     ) catch {
       _ => raise InvalidRuntime
     },

@@ -611,6 +611,11 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     blueprint.profile(),
     wide_query_prefill is Some(_),
   )
+  let ingress_row_variant = postprocess.row_variant()
+  if ingress_row_variant is Some(variant) &&
+    (!includes_projection || variant.maximum_token_rows() > maximum_tokens) {
+    raise MismatchedFusedGroupedOperation(Launch)
+  }
   let operations = plan.operations()
   let spans : Array[ApprovedQwenFusedAttentionSpan] = []
   let step_rotary_cache = if postprocess.kernel_abi() ==
@@ -645,6 +650,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       runtime_digest: runtime.source_digest(),
       measured_attention_candidates,
       ingress_includes_projection: includes_projection,
+      ingress_row_variant,
       step_rotary_cache,
       ingress_query_tile_rows: if includes_projection {
         postprocess.query_tile_rows().unwrap_or(16)

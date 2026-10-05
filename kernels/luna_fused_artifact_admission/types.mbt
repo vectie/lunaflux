@@ -155,6 +155,7 @@ pub struct ReusableFusedRuntimeModuleInput {
   priv decode_execution : DecodeExecutionDescriptor?
   priv prefill_exponential_law : PrefillExponentialLaw
   priv module_bytes : Bytes
+  priv row_variant : ReusableFusedRuntimeRowVariant?
 }
 
 ///|
@@ -174,6 +175,7 @@ pub struct ApprovedReusableFusedRuntimeModule {
   priv prefill_exponential_law : PrefillExponentialLaw
   priv module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv module_bytes : Bytes
+  priv row_variant : ReusableFusedRuntimeRowVariant?
 }
 
 ///|

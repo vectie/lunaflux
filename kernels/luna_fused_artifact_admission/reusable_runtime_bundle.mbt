@@ -260,6 +260,7 @@ pub fn ReusableFusedRuntimeModuleInput::new(
   decode_execution? : DecodeExecutionDescriptor,
   prefill_exponential_law? : PrefillExponentialLaw = StrictNaturalExponential,
   allow_approximate_prefill_exponential? : Bool = false,
+  row_variant? : ReusableFusedRuntimeRowVariant,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
   reusable_runtime_validate_prefill_exponential(
     abi, prefill_exponential_law, function_symbol, allow_approximate_prefill_exponential,
@@ -287,6 +288,9 @@ pub fn ReusableFusedRuntimeModuleInput::new(
   reusable_runtime_validate_module(
     abi, first_operation, operation_count, function_symbol, launch, module_bytes,
   )
+  reusable_runtime_validate_row_variant(
+    abi, function_symbol, launch, heads_per_cta, row_variant,
+  )
   {
     abi,
     first_operation,
@@ -299,95 +303,7 @@ pub fn ReusableFusedRuntimeModuleInput::new(
     decode_execution,
     prefill_exponential_law,
     module_bytes,
-  }
-}
-
-///|
-fn reusable_runtime_validate_unique_inputs(
-  modules : ArrayView[ReusableFusedRuntimeModuleInput],
-) -> Unit raise FusedArtifactAdmissionError {
-  if modules.is_empty() ||
-    modules.length() > REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES {
-    raise InvalidFusedArtifact(Binding)
-  }
-  let mut total_bytes = 0
-  for index, module_ in modules {
-    reusable_runtime_validate_module(
-      module_.abi,
-      module_.first_operation,
-      module_.operation_count,
-      module_.symbol,
-      module_.launch,
-      module_.module_bytes,
-    )
-    total_bytes += module_.module_bytes.length()
-    if total_bytes > REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES {
-      raise InvalidFusedArtifact(Module)
-    }
-    for prior in 0..<index {
-      if modules[prior].abi == module_.abi {
-        raise MismatchedFusedArtifact(Family)
-      }
-      if reusable_runtime_spans_overlap(
-          modules[prior].first_operation,
-          modules[prior].operation_count,
-          module_.first_operation,
-          module_.operation_count,
-        ) &&
-        !reusable_runtime_allows_terminal_qwen_attention_overlap(
-          modules[prior].abi,
-          modules[prior].first_operation,
-          module_.abi,
-          module_.first_operation,
-        ) {
-        raise MismatchedFusedArtifact(Binding)
-      }
-    }
-  }
-}
-
-///|
-fn reusable_runtime_validate_unique_approved(
-  modules : ArrayView[ApprovedReusableFusedRuntimeModule],
-) -> Unit raise FusedArtifactAdmissionError {
-  if modules.is_empty() ||
-    modules.length() > REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES {
-    raise InvalidFusedArtifact(Binding)
-  }
-  let mut total_bytes = 0
-  for index, module_ in modules {
-    reusable_runtime_validate_module(
-      module_.abi,
-      module_.first_operation,
-      module_.operation_count,
-      module_.symbol,
-      module_.launch,
-      module_.module_bytes,
-    )
-    total_bytes += module_.module_bytes.length()
-    if total_bytes > REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES {
-      raise InvalidFusedArtifact(Module)
-    }
-    for prior in 0..<index {
-      if reusable_runtime_abi_rank(modules[prior].abi) >=
-        reusable_runtime_abi_rank(module_.abi) {
-        raise MismatchedFusedArtifact(Family)
-      }
-      if reusable_runtime_spans_overlap(
-          modules[prior].first_operation,
-          modules[prior].operation_count,
-          module_.first_operation,
-          module_.operation_count,
-        ) &&
-        !reusable_runtime_allows_terminal_qwen_attention_overlap(
-          modules[prior].abi,
-          modules[prior].first_operation,
-          module_.abi,
-          module_.first_operation,
-        ) {
-        raise MismatchedFusedArtifact(Binding)
-      }
-    }
+    row_variant,
   }
 }
 
@@ -408,9 +324,11 @@ pub fn export_reusable_fused_runtime_bundle(
   }
   reusable_runtime_validate_unique_inputs(modules)
   let out = StringBuilder()
-  let prefill_metadata = modules.any(m => {
+  let row_metadata = modules.any(m => m.row_variant is Some(_))
+  let allow_approximate_prefill = modules.any(m => {
     m.prefill_exponential_law == ApproximateBaseTwoExponential
   })
+  let prefill_metadata = row_metadata || allow_approximate_prefill
   let decode_metadata = prefill_metadata ||
     modules.any(m => {
       m.abi == PagedAttentionReadOnlyExtendedDecodeProductionV11 ||
@@ -431,7 +349,9 @@ pub fn export_reusable_fused_runtime_bundle(
     attention_bucket_routes is Some(_) ||
     modules.any(m => m.query_metadata_version != 0)
   out.write_string(
-    if prefill_metadata {
+    if row_metadata {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v13\n"
+    } else if prefill_metadata {
       "schema=lunaflux-reusable-fused-runtime-bundle.v12\n"
     } else if decode_metadata {
       "schema=lunaflux-reusable-fused-runtime-bundle.v11\n"
@@ -461,7 +381,11 @@ pub fn export_reusable_fused_runtime_bundle(
   out.write_string("model_plan_sha256=" + model_plan_sha256 + "\n")
   reusable_runtime_append_target(out, target)
   if prefill_metadata {
-    out.write_string("allow_approximate_prefill_exponential=1\n")
+    out.write_string(
+      "allow_approximate_prefill_exponential=" +
+      (if allow_approximate_prefill { "1" } else { "0" }) +
+      "\n",
+    )
   }
   if attention_bucket_routes is Some(routes) {
     if routes.is_empty() || routes.length() > 1048576 {
@@ -500,6 +424,7 @@ pub fn export_reusable_fused_runtime_bundle(
       if module_.abi == abi {
         reusable_runtime_append_module(
           out, ordinal, module_, metadata, ownership, decode_metadata, prefill_metadata,
+          row_metadata,
         )
         ordinal += 1
       }
@@ -535,6 +460,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     has_bucket_routes,
     has_ownership,
   ) = match schema {
+    "lunaflux-reusable-fused-runtime-bundle.v13" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v12" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v11" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v10" => (true, true, true, true)
@@ -547,8 +473,9 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false, false, false)
     _ => raise InvalidFusedArtifact(Manifest)
   }
-  let has_prefill_metadata = schema ==
-    "lunaflux-reusable-fused-runtime-bundle.v12"
+  let has_row_metadata = schema == "lunaflux-reusable-fused-runtime-bundle.v13"
+  let has_prefill_metadata = has_row_metadata ||
+    schema == "lunaflux-reusable-fused-runtime-bundle.v12"
   let has_decode_metadata = has_prefill_metadata ||
     schema == "lunaflux-reusable-fused-runtime-bundle.v11"
   let model_content = fused_deployment_digest(
@@ -575,10 +502,11 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     raise InvalidFusedArtifact(Target)
   }
   let allow_approximate_prefill = if has_prefill_metadata {
-    if reader.int("allow_approximate_prefill_exponential") != 1 {
+    let enabled = reader.int("allow_approximate_prefill_exponential")
+    if enabled != 1 && !(has_row_metadata && enabled == 0) {
       raise InvalidFusedArtifact(KernelAbi)
     }
-    true
+    enabled == 1
   } else {
     false
   }
@@ -721,6 +649,14 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     if fused_artifact_digest(module_bytes) != module_digest {
       raise MismatchedFusedArtifact(Module)
     }
+    let row_variant = if has_row_metadata {
+      reusable_runtime_read_row_variant(reader, prefix)
+    } else {
+      None
+    }
+    reusable_runtime_validate_row_variant(
+      abi, symbol, launch, heads_per_cta, row_variant,
+    )
     modules.push({
       abi,
       first_operation,
@@ -734,6 +670,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
       prefill_exponential_law,
       module_digest,
       module_bytes,
+      row_variant,
     })
   }
   if reader.cursor != reader.lines.length() - 1 {

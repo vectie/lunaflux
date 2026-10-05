@@ -49,6 +49,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv measured_attention_candidates : ReadOnlyArray[Int]?
   priv ingress_includes_projection : Bool
   priv ingress_query_tile_rows : Int
+  priv ingress_row_variant : @luna_fused_artifact_admission.ReusableFusedRuntimeRowVariant?
   priv step_rotary_cache : @elementwise_physical_ir.StepRotaryCachePlan?
   priv postprocess_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv postprocess_module_bytes : Bytes
@@ -102,6 +103,7 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
   self.runtime_digest == other.runtime_digest &&
   self.ingress_includes_projection == other.ingress_includes_projection &&
   self.ingress_query_tile_rows == other.ingress_query_tile_rows &&
+  self.ingress_row_variant == other.ingress_row_variant &&
   self.step_rotary_cache == other.step_rotary_cache &&
   self.postprocess_module_digest == other.postprocess_module_digest &&
   self.postprocess_symbol == other.postprocess_symbol &&

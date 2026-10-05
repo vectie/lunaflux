@@ -77,6 +77,23 @@ fn prepare_qwen_fused_attention_resources(
     first.postprocess_function_symbol(),
     resources,
   )
+  if first.ingress_row_variant is Some(variant) {
+    let function_index = prepare_composite_function(
+      context,
+      variant.module_bytes(),
+      variant.function_symbol(),
+      resources,
+    )
+    resources.projection_variants.push({
+      base_function_index: postprocess,
+      maximum_token_rows: variant.maximum_token_rows(),
+      function_index,
+      launch: QueryTileCappedGridX(
+        variant.launch_dimensions(),
+        variant.query_tile_rows(),
+      ),
+    })
+  }
   let readonly_function = prepare_composite_function(
     context,
     first.readonly_module_bytes(),

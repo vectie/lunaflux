@@ -129,6 +129,7 @@ pub fn ApprovedReusableFusedRuntimeModule::operation_span(Self) -> (Int, Int)
 pub fn ApprovedReusableFusedRuntimeModule::prefill_exponential_law(Self) -> PrefillExponentialLaw
 pub fn ApprovedReusableFusedRuntimeModule::query_metadata_version(Self) -> Int
 pub fn ApprovedReusableFusedRuntimeModule::query_tile_rows(Self) -> Int?
+pub fn ApprovedReusableFusedRuntimeModule::row_variant(Self) -> ReusableFusedRuntimeRowVariant?
 
 pub struct DecodeExecutionDescriptor {
   // private fields
@@ -216,7 +217,17 @@ pub fn ReusableFusedRuntimeKernelAbi::is_compiler_blockwise_decode(Self) -> Bool
 pub struct ReusableFusedRuntimeModuleInput {
   // private fields
 }
-pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, query_tile_rows? : Int, query_metadata_version? : Int, heads_per_cta? : Int, decode_execution? : DecodeExecutionDescriptor, prefill_exponential_law? : PrefillExponentialLaw, allow_approximate_prefill_exponential? : Bool) -> Self raise FusedArtifactAdmissionError
+pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi, first_operation~ : Int, operation_count~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, query_tile_rows? : Int, query_metadata_version? : Int, heads_per_cta? : Int, decode_execution? : DecodeExecutionDescriptor, prefill_exponential_law? : PrefillExponentialLaw, allow_approximate_prefill_exponential? : Bool, row_variant? : ReusableFusedRuntimeRowVariant) -> Self raise FusedArtifactAdmissionError
+
+pub struct ReusableFusedRuntimeRowVariant {
+  // private fields
+} derive(Eq)
+pub fn ReusableFusedRuntimeRowVariant::function_symbol(Self) -> String
+pub fn ReusableFusedRuntimeRowVariant::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn ReusableFusedRuntimeRowVariant::maximum_token_rows(Self) -> Int
+pub fn ReusableFusedRuntimeRowVariant::module_bytes(Self) -> Bytes
+pub fn ReusableFusedRuntimeRowVariant::new(maximum_token_rows~ : Int, query_tile_rows~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes) -> Self raise FusedArtifactAdmissionError
+pub fn ReusableFusedRuntimeRowVariant::query_tile_rows(Self) -> Int
 
 // Type aliases
 

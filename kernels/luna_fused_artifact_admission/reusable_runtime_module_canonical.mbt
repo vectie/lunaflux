@@ -24,6 +24,7 @@ fn reusable_runtime_append_module(
   ownership : Bool,
   decode_metadata : Bool,
   prefill_metadata : Bool,
+  row_metadata : Bool,
 ) -> Unit raise FusedArtifactAdmissionError {
   let prefix = "module_" + ordinal.to_string() + "_"
   out.write_string(
@@ -115,4 +116,7 @@ fn reusable_runtime_append_module(
     @crypto.bytes_to_hex_string(module_.module_bytes) +
     "\n",
   )
+  if row_metadata {
+    reusable_runtime_append_row_variant(out, prefix, module_.row_variant)
+  }
 }

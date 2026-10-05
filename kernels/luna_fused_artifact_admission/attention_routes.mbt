@@ -60,6 +60,9 @@ pub fn ApprovedReusableFusedRuntimeBundle::attention_route_scope(
         "heads_per_cta=" + module_.heads_per_cta.to_string() + "\n",
       )
     }
+    if module_.row_variant is Some(variant) {
+      reusable_runtime_append_row_variant(out, "row_variant_", Some(variant))
+    }
   }
   @crypto.bytes_to_hex_string(@crypto.sha256(@utf8.encode(out.to_string())))
 }
