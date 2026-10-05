@@ -131,6 +131,7 @@ async fn main {
     ["page-origin-v1"] => ["pageorigin"]
     ["page-readiness-v1"] => ["pageready"]
     ["query-reuse128-v1"] => ["query128"]
+    ["value-window-v1"] => ["valuewindow"]
     _ => fail("bounded experiment kind")
   }
   let rows : Array[Json] = []

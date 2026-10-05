@@ -1,0 +1,188 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x@0.4.48/crypto",
+}
+
+///|
+fn little(bytes : Bytes, offset : Int, width : Int) -> Int64 raise {
+  guard offset >= 0 &&
+    width > 0 &&
+    width <= 8 &&
+    offset <= bytes.length() - width else {
+    fail("ELF field bounds")
+  }
+  for i in 0..<width; value = 0L {
+    continue value | (bytes[offset + i].to_int().to_int64() << (i * 8))
+  } nobreak {
+    value
+  }
+}
+
+///|
+fn offset(bytes : Bytes, at : Int, width : Int) -> Int raise {
+  let value = little(bytes, at, width)
+  guard value >= 0L && value <= bytes.length().to_int64() else {
+    fail("bounded ELF offset")
+  }
+  value.to_int()
+}
+
+///|
+/// Compare executable text, not debug names, build paths or whole-container SHA.
+/// Narrow ELF64/little-endian parser for offline cubins; never a runtime loader.
+fn text_section(bytes : Bytes, symbol : String) -> Bytes raise {
+  guard bytes.length() >= 64 &&
+    bytes.length() <= 16777216 &&
+    bytes[:6].to_owned() == b"\x7fELF\x02\x01" else {
+    fail("ELF64 little endian")
+  }
+  let table = offset(bytes, 40, 8)
+  let stride = little(bytes, 58, 2).to_int()
+  let count = little(bytes, 60, 2).to_int()
+  let strings = little(bytes, 62, 2).to_int()
+  guard stride >= 64 &&
+    count > 0 &&
+    strings < count &&
+    table.to_int64() + stride.to_int64() * count.to_int64() <=
+    bytes.length().to_int64() else {
+    fail("bounded ELF section table")
+  }
+  let names_header = table + strings * stride
+  let names_begin = offset(bytes, names_header + 24, 8)
+  let names_size = offset(bytes, names_header + 32, 8)
+  guard names_begin <= bytes.length() - names_size else {
+    fail("ELF names range")
+  }
+  let target = @utf8.encode(".text." + symbol)
+  let matches : Array[Bytes] = []
+  for i in 0..<count {
+    let header = table + i * stride
+    let name = offset(bytes, header, 4)
+    guard name < names_size else { fail("ELF name offset") }
+    let start = names_begin + name
+    let end = for p = start; p < names_begin + names_size; p = p + 1 {
+      if bytes[p] == 0 {
+        break p
+      }
+    } nobreak {
+      fail("ELF terminated name")
+    }
+    if bytes[start:end].to_owned() == target {
+      guard little(bytes, header + 4, 4) == 1L &&
+        (little(bytes, header + 8, 8) & 4L) == 4L else {
+        fail("executable PROGBITS text")
+      }
+      let begin = offset(bytes, header + 24, 8)
+      let size = offset(bytes, header + 32, 8)
+      guard size > 0 && begin <= bytes.length() - size else {
+        fail("ELF text range")
+      }
+      matches.push(bytes[begin:begin + size].to_owned())
+    }
+  }
+  guard matches is [code] else { fail("one executable symbol section") }
+  code
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, old, fresh, symbol, output] else {
+    fail("OLD_CUBIN NEW_CUBIN SYMBOL NEW_OUTPUT_JSON")
+  }
+  let a = text_section(@fs.read_file(old).binary(), symbol)
+  let b = text_section(@fs.read_file(fresh).binary(), symbol)
+  let result : Json = {
+    "symbol": symbol,
+    "baseline_text_bytes": a.length(),
+    "candidate_text_bytes": b.length(),
+    "baseline_text_sha256": @crypto.bytes_to_hex_string(@crypto.sha256(a)),
+    "candidate_text_sha256": @crypto.bytes_to_hex_string(@crypto.sha256(b)),
+    "executable_text_equal": a == b,
+    "scope": "symbol text only; resource metadata and launch geometry must be checked independently",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(result.stringify(indent=2))
+}
+
+///|
+test "ELF field decoder bounds and endian order" {
+  assert_eq(little(b"\x01\x02\x03\x04", 0, 4), 67305985L)
+  assert_eq(little(b"\x00\xff", 1, 1), 255L)
+  try little(b"a", 1, 1) catch {
+    _ => ()
+  } noraise {
+    _ => fail("bounds")
+  }
+  try text_section(b"not an ELF", "kernel") catch {
+    _ => ()
+  } noraise {
+    _ => fail("header")
+  }
+}
+
+///|
+fn fixture_field(
+  bytes : Array[Byte],
+  at : Int,
+  value : Int,
+  width : Int,
+) -> Unit {
+  for i in 0..<width {
+    bytes[at + i] = ((value.to_int64() >> (i * 8)) & 255L).to_byte()
+  }
+}
+
+///|
+fn fixture_elf(executable : Bool, text_size : Int) -> Bytes {
+  let bytes : Array[Byte] = Array::make(324, 0)
+  let header = b"\x7fELF\x02\x01"
+  for i in 0..<header.length() {
+    bytes[i] = header[i]
+  }
+  fixture_field(bytes, 40, 64, 8)
+  fixture_field(bytes, 58, 64, 2)
+  fixture_field(bytes, 60, 3, 2)
+  fixture_field(bytes, 62, 1, 2)
+  let names = b"\x00.shstrtab\x00.text.kernel\x00"
+  fixture_field(bytes, 128, 1, 4)
+  fixture_field(bytes, 152, 256, 8)
+  fixture_field(bytes, 160, names.length(), 8)
+  for i in 0..<names.length() {
+    bytes[256 + i] = names[i]
+  }
+  fixture_field(bytes, 192, 11, 4)
+  fixture_field(bytes, 196, 1, 4)
+  fixture_field(bytes, 200, if executable { 4 } else { 0 }, 8)
+  fixture_field(bytes, 216, 320, 8)
+  fixture_field(bytes, 224, text_size, 8)
+  bytes[320] = 1
+  bytes[321] = 2
+  bytes[322] = 3
+  bytes[323] = 4
+  Bytes::from_array(bytes)
+}
+
+///|
+test "exact executable symbol extraction excludes metadata" {
+  assert_eq(text_section(fixture_elf(true, 4), "kernel"), b"\x01\x02\x03\x04")
+  try text_section(fixture_elf(false, 4), "kernel") catch {
+    _ => ()
+  } noraise {
+    _ => fail("non-executable section")
+  }
+  try text_section(fixture_elf(true, 5), "kernel") catch {
+    _ => ()
+  } noraise {
+    _ => fail("text overrun")
+  }
+  try text_section(fixture_elf(true, 4), "missing") catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing symbol")
+  }
+}

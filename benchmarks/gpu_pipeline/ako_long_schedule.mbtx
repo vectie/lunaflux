@@ -32,6 +32,7 @@ fn alternatives(kind : String) -> Array[(String, Int, Int)] raise {
     "page-origin-v1" => [("pageorigin", 30322, 64)]
     "page-readiness-v1" => [("pageready", 30322, 64)]
     "query-reuse128-v1" => [("query128", 31022, 64)]
+    "value-window-v1" => [("valuewindow", 30322, 64)]
     _ => fail("unknown bounded experiment kind")
   }
 }
@@ -335,7 +336,8 @@ async fn main {
       kind == "page-lookahead-v1" ||
       kind == "page-origin-v1" ||
       kind == "page-readiness-v1" ||
-      kind == "query-reuse128-v1" => kind
+      kind == "query-reuse128-v1" ||
+      kind == "value-window-v1" => kind
     _ => fail("bounded experiment arguments")
   }
   let choices = alternatives(kind)
@@ -355,7 +357,8 @@ async fn main {
   let (baseline, expected) = if kind == "page-lookahead-v1" ||
     kind == "page-origin-v1" ||
     kind == "page-readiness-v1" ||
-    kind == "query-reuse128-v1" {
+    kind == "query-reuse128-v1" ||
+    kind == "value-window-v1" {
     (
       frozen + "/pagebatch",
       "7b42b3531466f5fe22c59e5aac2883db68984907c49a5637ac5f1358ad2eab57",
@@ -488,6 +491,7 @@ test "schedule alternatives retain explicit approximation and independent identi
   assert_eq(alternatives("page-origin-v1"), [("pageorigin", 30322, 64)])
   assert_eq(alternatives("page-readiness-v1"), [("pageready", 30322, 64)])
   assert_eq(alternatives("query-reuse128-v1"), [("query128", 31022, 64)])
+  assert_eq(alternatives("value-window-v1"), [("valuewindow", 30322, 64)])
   let command = ["/home/q/candidate", "--prefill-candidate", "322"]
   for
     kind in [
