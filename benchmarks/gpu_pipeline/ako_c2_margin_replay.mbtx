@@ -1,0 +1,298 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(source : String, old : String, fresh : String) -> String raise {
+  guard source.split(old).to_array() is [before, after] else {
+    fail("unique source seam: " + old)
+  }
+  before.to_owned() + fresh + after.to_owned()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " completed")
+}
+
+///|
+fn client(original : String, path : String) -> String raise {
+  guard original.split("///|\nasync fn main {").to_array() is [helpers, _] else {
+    fail("client main seam")
+  }
+  let main =
+    #|///|
+    #|async fn main {
+    #|  guard @env.args() is [_, engine, root] && engine == "luna-full" else { fail("luna-full NEW_ROOT") }
+    #|  @fs.mkdir(root)
+    #|  guard @json.parse(@fs.read_file(BODIES_PATH).text()) is Array(bodies) && bodies.length() == 2 else { fail("saved pair") }
+    #|  let samples : Array[Json] = []
+    #|  for trial in 0..<2 {
+    #|    for mode in ["solo0", "solo1", "pair01", "pair10"] {
+    #|      let rows = match mode { "solo0" => [0]; "solo1" => [1]; "pair10" => [1,0]; _ => [0,1] }
+    #|      let label = mode + "-t\{trial}"
+    #|      for row in rows { @fs.write_file(root + "/" + label + "-r\{row}.body.json", bodies[row].stringify(), create_mode=CreateNew) }
+    #|      let jobs : Array[async () -> Json] = rows.map(row => {
+    #|        () => { let result = request(root, engine, label + "-r\{row}", 64); { "request_row": row, "result": result } }
+    #|      })
+    #|      let requests = @async.all(jobs, max_concurrent=rows.length())
+    #|      let sample : Json = { "mode": mode, "trial": trial, "requests": requests }
+    #|      samples.push(sample)
+    #|      @fs.write_file(root + "/" + label + ".json", sample.stringify(), create_mode=CreateNew)
+    #|      println(label + " complete")
+    #|    }
+    #|  }
+    #|  @fs.write_file(root + "/replay.json", Json(samples).stringify(), create_mode=CreateNew)
+    #|}
+  helpers.to_owned() + once(main, "BODIES_PATH", Json(path).stringify())
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, query, measured, root, phase] &&
+    ["prepare", "run", "prepare-ordinary-decode", "run-ordinary-decode"].contains(
+      phase,
+    ) &&
+    root.has_prefix("/home/wlc004s/lunaflux-ako-chunk-trace-c2-") else {
+    fail("FROZEN QUERY MEASURED NEW_C2_ROOT prepare|run")
+  }
+  let moon = query + "/toolchain/bin/moon"
+  let cli = root + "/source/_build/native/release/build/cmd/"
+  let ordinary_decode = phase.has_suffix("-ordinary-decode")
+  if phase.has_prefix("prepare") {
+    assert_false(@fs.exists(root + "/source"))
+    @shell.Cmd("ln", ["-s", query + "/toolchain", root + "/toolchain"]).run()
+    @fs.mkdir(root + "/source")
+    // Reuse the completed dispatch source: exact frozen model/kernel code,
+    // execution and measured-route markers already installed. Add only margins.
+    @shell.Cmd("cp", [
+      "-a",
+      measured + "/lunaflux-ako-chunk-trace-selected/source/.",
+      root + "/source/",
+    ]).run()
+    @shell.Cmd("chmod", ["-R", "u+w", root + "/source"]).run()
+    if ordinary_decode {
+      let path = root + "/source/engine/device_step/graph_bucket.mbt"
+      @fs.write_file(
+        path,
+        once(
+          @fs.read_file(path).text(),
+          "  if paged_attention_phase_route(",
+          "  // Disposable diagnosis only: hold other graph choices unchanged.\n  if false && paged_attention_phase_route(",
+        ),
+      )
+    }
+    let prepare = root + "/source/engine/device_step/paged_dispatch_prepare.mbt"
+    @fs.write_file(
+      prepare,
+      once(
+        @fs.read_file(prepare).text(),
+        "  {\n    measured_owner_indices: map_measured_attention_owners(",
+        "  trace_event(18, 0UL, decode_owner_index, decode_split_owner_index, 0, 0, 0, 0, 0UL)\n  {\n    measured_owner_indices: map_measured_attention_owners(",
+      ),
+    )
+    capture(root, "install-margins", moon, [
+      "run",
+      root + "/install_logit_margin_trace.mbtx",
+      root + "/source",
+      "--tracked-tokens",
+      "315,389,279,198,13,271",
+    ])
+    capture(root, "build", moon, [
+      "-C",
+      root + "/source",
+      "build",
+      "--target",
+      "native",
+      "--release",
+      "--deny-warn",
+      "--warn-list",
+      "-79-29-25-20-92-14",
+      "-j",
+      "2",
+      "cmd/device_worker_child",
+      "cmd/lunaflux",
+    ])
+    for cap in [2048, 8192] {
+      let arm = root + "/c\{cap}"
+      @fs.mkdir(arm)
+      for name in ["source", "toolchain"] {
+        @shell.Cmd("ln", ["-s", root + "/" + name, arm + "/" + name]).run()
+      }
+      @shell.Cmd("ln", [
+        "-s",
+        query + "/serving-export.stdout",
+        arm + "/export.stdout",
+      ]).run()
+      @shell.Cmd("cp", [
+        "-a",
+        measured + "/c\{cap}/deployment",
+        arm + "/deployment",
+      ]).run()
+      let path = arm + "/deployment/lunaflux.launch.json"
+      guard @json.parse(@fs.read_file(path).text()) is Object(launch) else {
+        fail("launch")
+      }
+      let worker = arm + "/deployment/bin/lunaflux-device-worker"
+      @shell.Cmd("chmod", ["u+w", worker, path]).run()
+      @shell.Cmd("cp", [
+        cli + "device_worker_child/device_worker_child.exe",
+        worker,
+      ]).run()
+      launch["worker_executable"] = { "path": worker, "sha256": sha(worker) }
+      @fs.write_file(path, Json(launch).stringify() + "\n")
+      capture(
+        root,
+        "capacity-c\{cap}",
+        query + "/source/scripts/materialize-qwen3-authenticated-capacity.sh",
+        [
+          query +
+          "/bind-target121-budget.stdout#sha256=" +
+          sha(query + "/bind-target121-budget.stdout"),
+          arm + "/deployment#sha256=" + sha(path),
+          cli +
+          "lunaflux/lunaflux.exe#sha256=" +
+          sha(cli + "lunaflux/lunaflux.exe"),
+          cli +
+          "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe#sha256=" +
+          sha(
+            cli +
+            "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+          ),
+          arm + "/capacity.json",
+        ],
+      )
+      @fs.write_file(
+        arm + "/PREPARED.json",
+        "{\"scope\":\"C2 diagnostic only, not timing\"}",
+        create_mode=CreateNew,
+      )
+    }
+    let bodies : Array[Json] = []
+    for row in [0, 1] {
+      bodies.push(
+        @json.parse(
+          @fs.read_file(
+            measured +
+            "/e2e-1-measured/r0-luna-full/requests/i32512-o64-c2-varied-t1-r\{row}.body.json",
+          ).text(),
+        ),
+      )
+    }
+    for body in bodies {
+      guard body
+        is { "input_token_ids": Array(ids), "max_output_tokens": 64, .. } &&
+        ids.length() == 32512 else {
+        fail("exact saved workload")
+      }
+    }
+    @fs.write_file(
+      root + "/bodies.json",
+      Json(bodies).stringify(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/SCOPE.txt",
+      "disposable synchronous logits readback; authentic measured prefill routes; ordinary-decode-intervention=" +
+      ordinary_decode.to_string() +
+      "; no timing or deployment claim\n",
+      create_mode=CreateNew,
+    )
+  } else {
+    assert_true(@fs.exists(root + "/SCOPE.txt"))
+    let tool = @fs.read_file(measured + "/e2e-1-measured/launcher.mbtx").text()
+    let tool = once(
+      tool,
+      "let cmd = " +
+      Json(query + "/source/_build/native/release/build/cmd/").stringify(),
+      "let cmd = " + Json(cli).stringify(),
+    )
+    let tool = once(
+      tool, "guard @fs.read_file(root + \"/runtime.stderr\").text().is_empty() else",
+      "guard @fs.read_file(root + \"/runtime.stderr\").text().split(\"\\n\").all(line => line.is_empty() || line.has_prefix(\"lf_exec \")) else",
+    )
+    let tool = once(
+      tool, "unprofiled timing, fresh starts, unchanged qualified worker/cubins; not current dirty-tree deployment",
+      "diagnostic-only logits readback, not timing or deployment",
+    )
+    let probe = client(
+      @fs.read_file(frozen + "/long_context_client.mbtx").text(),
+      root + "/bodies.json",
+    )
+    // Three fresh starts for reproduction, one bounded causal intervention.
+    let capacities = if ordinary_decode { [2048] } else { [2048, 8192, 2048] }
+    for index, cap in capacities {
+      let output = root + "/replay-\{index}-c\{cap}"
+      @fs.mkdir(output)
+      let script = output + "/launcher.mbtx"
+      @fs.write_file(script, tool, create_mode=CreateNew)
+      @fs.write_file(script + ".client.mbtx", probe, create_mode=CreateNew)
+      capture(root, "replay-\{index}", moon, [
+        "run",
+        script,
+        root + "/c\{cap}",
+        output,
+        script,
+      ])
+      capture(root, "margins-\{index}", moon, [
+        "run",
+        root + "/summarize_logit_margins.mbtx",
+        output + "/r0-luna-full/runtime.stderr",
+        output + "/margins.json",
+      ])
+    }
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=C2 top-two and batch-plan diagnosis, no performance admission\n",
+      create_mode=CreateNew,
+    )
+  }
+}
+
+///|
+test "replay preserves saved row identity across solo and reversed pair" {
+  let source = client("helpers\n///|\nasync fn main { old }", "/saved.json")
+  assert_false(source.contains("old"))
+  assert_true(source.contains("\"pair10\" => [1,0]"))
+  assert_true(source.contains("\"request_row\": row"))
+  assert_true(source.contains("max_concurrent=rows.length()"))
+  try once("ambiguous ambiguous", "ambiguous", "new") catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate seam accepted")
+  }
+}

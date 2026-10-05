@@ -159,13 +159,14 @@ static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
   if(argc<7 || argc>15)return 1;
-  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false;
+  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false;
   int chunk_tokens=0;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
     else if(std::string(argv[i])=="--decode-envelope" && !decode_envelope)decode_envelope=true;
     else if(std::string(argv[i])=="--decode-partitioned" && !partitioned)partitioned=true;
+    else if(std::string(argv[i])=="--decode-chain-comparison" && !partitioned){partitioned=true;decode_chain_comparison=true;}
     else if(std::string(argv[i])=="--streaming-ingress-weights" && !streaming)streaming=true;
     else if(std::string(argv[i])=="--prefill-decode-parity" && !phase_parity)phase_parity=true;
     else if(std::string(argv[i])=="--prefill-partitioned" && !prefill_partitioned)prefill_partitioned=true;
@@ -192,11 +193,12 @@ int main(int argc,char**argv){
   const int64_t largest_row=mixed?(int64_t(tokens)-1+rows-2)/(rows-1):(int64_t(tokens)+rows-1)/rows;
   if(int64_t(past)+largest_row>int64_t(page)*max_pages)return 1;
   if((decode_envelope || partitioned) && !decode && !phase_parity)return 1;
+  if(decode_chain_comparison && (!decode || phase_parity))return 1;
   // Explicit replay of a traced capacity-grid graph, including inactive rows.
   // Do not silently treat a compact synthetic bucket as the serving envelope.
   const int bucket_tokens=decode_envelope?max_rows:selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
-  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned,prefill_partitioned);
+  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity&&!decode_chain_comparison),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned,prefill_partitioned);
   std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u numeric_law=%s\n",
     decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;

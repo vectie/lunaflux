@@ -1,0 +1,273 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn get(value : Json, key : String) -> Json raise {
+  guard value is Object(fields) && fields.get(key) is Some(found) else {
+    fail("missing " + key)
+  }
+  found
+}
+
+///|
+fn array(value : Json) -> Array[Json] raise {
+  guard value is Array(values) else { fail("array") }
+  values
+}
+
+///|
+fn integer(value : Json) -> Int raise {
+  guard value is Number(n, ..) && n == n.to_int().to_double() else {
+    fail("integer")
+  }
+  n.to_int()
+}
+
+///|
+fn first_difference(a : Array[Json], b : Array[Json]) -> Int raise {
+  assert_eq(a.length(), b.length())
+  for i, token in a {
+    if token != b[i] {
+      return i
+    }
+  }
+  -1
+}
+
+///|
+fn matching_groups(
+  tokens : Array[Json],
+  groups : Array[Array[Json]],
+) -> Array[Int] raise {
+  let matches : Array[Int] = []
+  for i, group in groups {
+    if first_difference(tokens, group.map(record => get(record, "selected"))) <
+      0 {
+      matches.push(i)
+    }
+  }
+  matches
+}
+
+///|
+fn observation_at(observation : Json, sample : Int) -> Json raise {
+  let groups = array(get(observation, "matching_margin_groups"))
+  // Ambiguity is retained explicitly; never assign request IDs from arrival order.
+  Json(groups.map(group => array(group)[sample]))
+}
+
+///|
+fn comparison(reference : Json, observed : Json) -> Json raise {
+  let a = array(get(reference, "tokens"))
+  let b = array(get(observed, "tokens"))
+  let first = first_difference(a, b)
+  let changed = a.foldi(init=0, (i, count, value) => {
+    count + (if value == b[i] { 0 } else { 1 })
+  })
+  let mut first_tracked = -1
+  // Compare only unique identity joins, and only before histories have diverged.
+  let ga = array(get(reference, "matching_margin_groups"))
+  let gb = array(get(observed, "matching_margin_groups"))
+  if ga.length() == 1 && gb.length() == 1 {
+    let limit = if first < 0 { a.length() } else { first + 1 }
+    for sample in 0..<limit {
+      if get(array(ga[0])[sample], "tracked_logits") !=
+        get(array(gb[0])[sample], "tracked_logits") {
+        // Row addresses can legitimately change; compare only logit bits.
+        guard get(array(ga[0])[sample], "tracked_logits") is Object(la) &&
+          get(array(gb[0])[sample], "tracked_logits") is Object(lb) else {
+          fail("tracked")
+        }
+        for token, value in la {
+          guard lb.get(token) is Some(other) else { fail("tracked ID set") }
+          if get(value, "bits") != get(other, "bits") {
+            first_tracked = sample
+            break
+          }
+        }
+        if first_tracked >= 0 {
+          break
+        }
+      }
+    }
+  }
+  {
+    "reference": get(reference, "label"),
+    "observed": get(observed, "label"),
+    "first_token_difference": first,
+    "changed_tokens": changed,
+    "first_tracked_logit_difference_before_history_divergence": first_tracked,
+    "reference_first_divergent_margin": if first >= 0 {
+      observation_at(reference, first)
+    } else {
+      Json::null()
+    },
+    "observed_first_divergent_margin": if first >= 0 {
+      observation_at(observed, first)
+    } else {
+      Json::null()
+    },
+  }
+}
+
+///|
+fn replay_report(margins : Json, replay : Json, label : String) -> Json raise {
+  let records = array(get(margins, "records"))
+  assert_eq(records.length(), 768)
+  let keys : Array[String] = []
+  let grouped : Map[String, Array[Json]] = Map([])
+  for record in records {
+    let key = get(record, "request").stringify() +
+      ":" +
+      get(record, "generation").stringify()
+    if !grouped.contains(key) {
+      keys.push(key)
+      grouped[key] = []
+    }
+    grouped[key].push(record)
+  }
+  assert_eq(keys.length(), 12)
+  for key in keys {
+    let group = grouped[key]
+    assert_eq(group.length(), 64)
+    for sample, record in group {
+      assert_eq(integer(get(record, "sample")), sample)
+    }
+  }
+  let observations : Array[Json] = []
+  let mut cursor = 0
+  for wave in array(replay) {
+    let requests = array(get(wave, "requests"))
+    let groups = keys[cursor:cursor + requests.length()]
+      .to_owned()
+      .map(key => grouped[key])
+    let used : Array[Int] = []
+    for request in requests {
+      let tokens = array(get(get(request, "result"), "token_ids"))
+      assert_eq(tokens.length(), 64)
+      let matches = matching_groups(tokens, groups)
+      assert_true(
+        matches.length() > 0,
+        msg="client/trace token-vector mismatch",
+      )
+      if matches.length() == 1 {
+        assert_false(used.contains(matches[0]), msg="duplicate unique identity")
+        used.push(matches[0])
+      }
+      let row = integer(get(request, "request_row"))
+      let trial = integer(get(wave, "trial"))
+      guard get(wave, "mode") is String(mode) else { fail("mode") }
+      observations.push({
+        "label": label + "/" + mode + "-t\{trial}-r\{row}",
+        "mode": mode,
+        "trial": trial,
+        "request_row": row,
+        "tokens": tokens,
+        "identity_join": if matches.length() == 1 {
+          "unique"
+        } else {
+          "ambiguous-token-vector"
+        },
+        "matching_margin_groups": matches.map(index => Json(groups[index])),
+      })
+    }
+    cursor += requests.length()
+  }
+  assert_eq(cursor, keys.length())
+  let comparisons : Array[Json] = []
+  for observation in observations {
+    let row = integer(get(observation, "request_row"))
+    comparisons.push(comparison(observations[row], observation))
+  }
+  {
+    "label": label,
+    "observations": observations,
+    "comparisons": comparisons,
+    "gpu_cpu_argmax_mismatches": get(margins, "gpu_cpu_argmax_mismatches"),
+    "exact_top_two_ties": get(margins, "exact_top_two_ties"),
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("COMPLETED_C2_ROOT NEW_JSON")
+  }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  let reports : Array[Json] = []
+  let capacities = if @fs.exists(root + "/replay-1-c8192") {
+    [2048, 8192, 2048]
+  } else {
+    [2048]
+  }
+  for index, cap in capacities {
+    let label = "replay-\{index}-c\{cap}"
+    let path = root + "/" + label
+    reports.push(
+      replay_report(
+        @json.parse(@fs.read_file(path + "/margins.json").text()),
+        @json.parse(
+          @fs.read_file(path + "/r0-luna-full/requests/replay.json").text(),
+        ),
+        label,
+      ),
+    )
+  }
+  let cross : Array[Json] = []
+  let base = array(get(reports[0], "observations"))
+  for report in reports[1:] {
+    let observations = array(get(report, "observations"))
+    for i, observation in observations {
+      cross.push(comparison(base[i], observation))
+    }
+  }
+  let result : Json = {
+    "schema": "lunaflux.c2-margin-replay.v1",
+    "scope": "diagnostic synchronous readback; no timing or quality admission",
+    "replays": reports,
+    "cross_start_comparisons": cross,
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  for report in reports {
+    let comparisons : Array[Json] = array(get(report, "comparisons")).map(value => {
+      "observed": get(value, "observed"),
+      "first_token_difference": get(value, "first_token_difference"),
+      "changed_tokens": get(value, "changed_tokens"),
+      "first_tracked_logit_difference_before_history_divergence": get(
+        value, "first_tracked_logit_difference_before_history_divergence",
+      ),
+    })
+    println(
+      Json({
+        "label": get(report, "label"),
+        "comparisons": Json(comparisons),
+        "gpu_cpu_argmax_mismatches": get(report, "gpu_cpu_argmax_mismatches"),
+        "exact_top_two_ties": get(report, "exact_top_two_ties"),
+      }).stringify(),
+    )
+  }
+}
+
+///|
+test "first divergence does not count propagated changes as independent causes" {
+  assert_eq(
+    first_difference([Json(1), Json(2), Json(3)], [Json(1), Json(4), Json(5)]),
+    1,
+  )
+  assert_eq(first_difference([Json(1)], [Json(1)]), -1)
+}
+
+///|
+test "identity reconciliation retains ambiguity instead of assuming arrival order" {
+  let a : Array[Json] = [{ "selected": 1 }, { "selected": 2 }]
+  let b : Array[Json] = [{ "selected": 1 }, { "selected": 3 }]
+  assert_eq(matching_groups([Json(1), Json(2)], [b, a]), [1])
+  assert_eq(matching_groups([Json(1), Json(2)], [a, a]), [0, 1])
+}
