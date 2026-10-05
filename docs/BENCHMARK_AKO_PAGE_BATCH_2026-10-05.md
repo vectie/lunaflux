@@ -64,6 +64,22 @@ maxabs0.000330008, below ceiling0.003. Scoped native checks and affected tests p
 120/120 with the repository's existing warning exclusions20/79/29/25; this is not
 a claim that unrelated dirty packages pass warning-denied aggregate checks.
 
+Parallel .178 coverage retains the same pinned aggregate KV capacity; history
+decreases as active rows increase. All outputs match bitwise. These are separate
+kernel shapes, not an equal-history serving batching curve:
+
+| Q / rows / history | Baseline / batched µs | Median paired reduction | Worst pair | Decision |
+| --- | ---: | ---: | ---: | --- |
+| 129 / 2 / 127 | 17.180 / 17.159 | 0.12% | −3.51% | Inconclusive |
+| 2048 / 4 / 28672 | 7293.46 / 6497.59 | 11.19% | 10.31% | Improved |
+| 2048 / 8 / 14336 | 3972.78 / 3582.21 | 9.92% | 8.04% | Improved |
+| 2048 / 16 / 7168 | 2963.33 / 2874.07 | 3.12% | 1.36% | Inconclusive at conservative gate |
+
+The optimization is not credited as a short-tail/C16 robust win. Sealed extra
+archive `larger-trial178/measurement.tar.gz`, SHA-256
+`93fc9a7d29d30c7c51f44a44611a249115d9046e64501baf08a6471d70590780`;
+download hash and all manifest entries verify.
+
 ## Matched hardware counters
 
 Same Q2048/R2/H28672 launches, baseline then batched, NCU179. These profiled
@@ -144,7 +160,51 @@ launch geometries are checked unchanged. Fresh route scope
 `015b96fb10d16359e7b9fb77c86401a69af408366850fe96469a7aa1fa7b5b66`.
 Six scope-bound route cells complete before serving admission. The comparator is
 the latest measured exp2 serving bundle, not strict prefill, so earlier exp2 or
-partitioned-decode gains cannot be credited twice. End-to-end results pending.
+partitioned-decode gains cannot be credited twice. The six cells select ordinary
+prefill/mixed and partitioned pure C2 decode. Their slow partitioned-prefill
+alternatives are not reported as a regression against the old ordinary kernel.
+
+The unprofiled four-start ABBA comparison completes on .179, with identical
+request bodies, one warmup and three measured trials per cell per fresh start.
+Each side has two fresh starts/six measured trials. All requests produce64 output
+tokens. Completion/TTFT below are milliseconds; tok/s counts output tokens only.
+
+| Input / concurrency | Baseline completion | Batched completion | Reduction | Baseline / batched TTFT | Baseline / batched output tok/s |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 16,384 / C1 | 1994.5 | 1965 | 1.48% | 1040 / 1007 | 32.09 / 32.57 |
+| 32,512 / C1 | 4520 | 4356 | 3.63% | 3049 / 2874.5 | 14.16 / 14.69 |
+| 32,512 / C2 | 8752 | 8398 | 4.04% | 4611 / 4349 | 14.63 / 15.24 |
+
+TPOT baseline/batched:14.888889/14.888889,23.007937/23.126984 and
+65.111111/63.888889ms. The expected prefill saving survives serving; kernel10%
+does not become whole-engine10%. Both long-cell TTFT reductions are approximately
+5.7%. C1 token vectors match across sides and repeats. C2 has up to45 changed
+positions within each side and across sides, including warmup vectors. This is
+the pre-existing unresolved C2 trajectory issue, not deterministic or quality
+parity admission. Raw timing samples, request bodies and token vectors are retained.
+
+Serving archive `abba179/measurement.tar.gz`, SHA-256
+`238f13b518722dd4a902cdbccb372cdc11c19d05a779f5e04de817c919965226`;
+download hash and all manifest entries verify. The parent comparison finishes
+within its600-second deadline (364.7s), zero swap. A separate selected-symbol
+trace is a dispatch check, not an unprofiled performance sample.
+
+Fresh C1/C2 Nsight traces confirm the selected approximate entry point executes:
+672/1400 calls, grid63×16×1, block128,234 registers/thread. The separate unchanged
+strict wide-prefill module also executes224/392 calls; not every prefill call is
+this changed path. The model descriptor pins fused bundle
+`add504e337b0ad8867342d043ed96cb3a11212f74231984925dc7ca6ecb79724`;
+the assembled kernel-root bundle has that hash and its embedded module6 is exactly
+the new `7b42b353...` cubin. Its copied local hash verifies. This fused sidecar is
+embedded in `kernel-release/kernel-root/reusable-fused-runtime-bundle.v3`, not a
+standalone entry in the base execution manifest's `sha256/*.cubin` directory.
+Worker hash remains `dd4e8e2b5ddfb66cc6c901cf96b5ca14f12f9138841644c4fc2c4b4480928622`.
+
+Trace archive `trace179/measurement.tar.gz`, SHA-256
+`66712b05fe50dc86e2b9bb3723d4f62f2294d44d858aa226d540679bb32807db`;
+download hash and all manifest entries verify. Both GPUs are idle after the
+completed campaigns. These measurements do not imply a production deployment or
+a new benchmark against vLLM/SGLang.
 
 The initial `abba` launcher stopped before inference because its basename
 reused a transient bridge unit from an earlier campaign. The failed output is
