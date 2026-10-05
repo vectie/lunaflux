@@ -10,28 +10,41 @@ import {
 ///|
 fn workloads(root : String, mode : String) -> Array[Json] raise {
   match mode {
-    "mixed" =>
-      [(1537, 30976, 32512), (2049, 28672, 32512)].map(shape => {
+    "mixed" | "mixed-decode" => {
+      let shapes = if mode == "mixed-decode" {
+        [(1537, 30976, 32512), (513, 32000, 32512)]
+      } else {
+        [(1537, 30976, 32512), (2049, 28672, 32512)]
+      }
+      shapes.map(shape => {
         let (tokens, history, decode_history) = shape
         {
           "label": "mixed-q\{tokens}-r2-h\{history}-d\{decode_history}",
           "args": [
             root + "/prefill.spec",
             root + "/prefill",
-            root + "/partitioned",
+            root +
+            (if mode == "mixed-decode" { "/prefill" } else { "/partitioned" }),
             "\{tokens}",
             "2",
             "\{history}",
-            "--mixed-chain",
+            if mode == "mixed-decode" {
+              "--mixed-decode-chain"
+            } else {
+              "--mixed-chain"
+            },
             root + "/decode",
             "--decode-history",
             "\{decode_history}",
           ],
         }
       })
-    "decode" | "decode-frontier" => {
+    }
+    "decode" | "decode-frontier" | "decode-long" => {
       let shapes = if mode == "decode-frontier" {
         [(4, 32512), (8, 16376)]
+      } else if mode == "decode-long" {
+        [(1, 65535), (2, 65535)]
       } else {
         [(1, 32513), (2, 32513), (2, 32515)]
       }
@@ -51,7 +64,7 @@ fn workloads(root : String, mode : String) -> Array[Json] raise {
         }
       })
     }
-    _ => fail("mixed, decode or decode-frontier")
+    _ => fail("mixed, mixed-decode, decode, decode-frontier or decode-long")
   }
 }
 
@@ -159,8 +172,11 @@ async fn main {
     uuid.has_prefix("GPU-") else {
     fail("REMOTE_ROOT GPU_UUID mixed|decode PREFILL_SPEC NEW_LOCAL_DIRECTORY")
   }
+  let is_mixed = mode == "mixed" || mode == "mixed-decode"
   let directories = if mode == "mixed" {
     ["prefill", "partitioned", "decode"]
+  } else if is_mixed {
+    ["prefill", "decode"]
   } else {
     ["decode"]
   }
@@ -168,7 +184,7 @@ async fn main {
     "/usr/local/cuda-13.0/bin/nvcc",
     root + "/selected_policy_probe.cu",
     root + "/selected_policy_geometry.h",
-    root + "/\{if mode == "mixed" { "prefill" } else { "decode" }}.spec",
+    root + "/\{if is_mixed { "prefill" } else { "decode" }}.spec",
   ]
   for name in directories {
     artifacts.append([
@@ -192,8 +208,8 @@ async fn main {
   )
   let text = @fs.read_file(spec).text()
   @fs.write_file(
-    output + "/\{if mode == "mixed" { "prefill" } else { "decode" }}.spec",
-    if mode == "mixed" {
+    output + "/\{if is_mixed { "prefill" } else { "decode" }}.spec",
+    if is_mixed {
       text
     } else {
       decode_spec(text)
@@ -224,6 +240,28 @@ test "mixed chain retains unequal histories and both phase operands" {
   }
   assert_eq(workloads("/home/trial", "decode").length(), 3)
   assert_eq(workloads("/home/trial", "decode-frontier").length(), 2)
+  guard workloads("/home/trial", "mixed-decode")[0]
+    is {
+      "args": [
+        _,
+        "/home/trial/prefill",
+        "/home/trial/prefill",
+        "1537",
+        "2",
+        "30976",
+        "--mixed-decode-chain",
+        _,
+        "--decode-history",
+        "32512",
+      ],
+      ..
+    } else {
+    fail("changed prefill in decode companion comparison")
+  }
+  guard workloads("/home/trial", "decode-long")[1]
+    is { "args": [_, _, _, "2", "2", "65535", "--decode-chain-comparison"], .. } else {
+    fail("64K aggregate page frontier")
+  }
   assert_eq(
     decode_spec("kind=prefill\nquery_metadata_version=1\n"),
     "kind=decode\nquery_metadata_version=0\n",

@@ -74,7 +74,14 @@ fn routes(summary : Json, scope : String) -> String raise {
       assert_eq(args[6], "--prefill-partitioned")
       ("prefill", history + (query + rows - 1) / rows)
     } else {
-      assert_eq(args[6], "--mixed-chain")
+      assert_true(["--mixed-chain", "--mixed-decode-chain"].contains(args[6]))
+      if args[6] == "--mixed-decode-chain" {
+        assert_eq(
+          args[1],
+          args[2],
+          msg="same prefill artifact; only decode companion changes",
+        )
+      }
       assert_eq(args[8], "--decode-history")
       guard rows >= 2 && query > rows && args[7].has_prefix("/") else {
         fail("mixed rows and immutable decode companion")
@@ -92,7 +99,8 @@ fn routes(summary : Json, scope : String) -> String raise {
       )
     }
     text += "record\t\{phase}\t\{rows}\t\{query}\t\{context}\t1\t\{(old * 1000.0).to_int64()}\t5\n"
-    text += "record\t\{phase}\t\{rows}\t\{query}\t\{context}\t5\t\{(fresh * 1000.0).to_int64()}\t5\n"
+    let candidate = if args[6] == "--mixed-decode-chain" { 7 } else { 5 }
+    text += "record\t\{phase}\t\{rows}\t\{query}\t\{context}\t\{candidate}\t\{(fresh * 1000.0).to_int64()}\t5\n"
   }
   text
 }
@@ -108,7 +116,37 @@ fn append_routes(prior : String, fresh : String) -> String raise {
     records.all(line => line.has_prefix("record\tmixed\t")) else {
     fail("same-scope additive mixed measurements")
   }
-  prior + records.join("\n") + "\n"
+  // Replace a complete measured bucket, never mix its historical baseline
+  // with a new companion comparison. Unaffected pure/mixed records survive.
+  let keys = records.map(line => route_bucket(line.to_owned()))
+  let kept : Array[String] = []
+  for line in prior.split("\n") {
+    if !line.has_prefix("record\t") ||
+      !keys.contains(route_bucket(line.to_owned())) {
+      kept.push(line.to_owned())
+    }
+  }
+  kept.join("\n") + records.join("\n") + "\n"
+}
+
+///|
+fn route_bucket(line : String) -> String raise {
+  guard line.split("\t").to_array()
+    is ["record", phase, rows, queries, context, _, _, _] else {
+    fail("measured record")
+  }
+  let bounds = [rows, queries, context].map(text => {
+    let value = @string.parse_int(text)
+    guard value > 0 && value <= 1073741824 else {
+      fail("bounded bucket dimension")
+    }
+    for bound = 1; bound < value; bound = bound * 2 {
+
+    } nobreak {
+      bound.to_string()
+    }
+  })
+  phase.to_owned() + "\t" + bounds.join("\t")
 }
 
 ///|
@@ -419,6 +457,16 @@ test "mixed context retains the independent decode history and prior routes" {
   let combined = append_routes(prior, fresh)
   assert_true(combined.has_prefix(prior))
   assert_eq(combined.split("luna-attention-buckets-v1").to_array().length(), 2)
+  let same_bucket = fresh.replace(old="1537", new="1792")
+  assert_eq(append_routes(same_bucket, fresh), fresh)
+  let companion = object(record)
+  companion["args"] = Json([
+    "/s", "/a", "/a", "1537", "2", "30976", "--mixed-decode-chain", "/decode", "--decode-history",
+    "32512",
+  ])
+  let decode = routes(Json([Json::object(companion)]), "scope")
+  assert_true(decode.contains("mixed\t2\t1537\t32513\t7\t21000\t5"))
+  assert_false(append_routes(fresh, decode).contains("\t5\t21000\t5"))
   try
     append_routes(prior, fresh.replace(old="scope\tscope", new="scope\tother"))
   catch {

@@ -166,7 +166,7 @@ static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
   if(argc<7 || argc>15)return 1;
-  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false;
+  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false,mixed_decode_comparison=false;
   int chunk_tokens=0,decode_history=-1;
   std::string mixed_companion_root;
   for(int i=7;i<argc;i++){
@@ -180,6 +180,9 @@ int main(int argc,char**argv){
     else if(std::string(argv[i])=="--prefill-partitioned" && !prefill_partitioned)prefill_partitioned=true;
     else if(std::string(argv[i])=="--mixed-chain" && mixed_companion_root.empty() && !mixed && !prefill_partitioned && i+1<argc){
       mixed_companion_root=argv[++i];mixed=true;prefill_partitioned=true;
+    }
+    else if(std::string(argv[i])=="--mixed-decode-chain" && mixed_companion_root.empty() && !mixed && !prefill_partitioned && i+1<argc){
+      mixed_companion_root=argv[++i];mixed=true;mixed_decode_comparison=true;
     }
     else if(std::string(argv[i])=="--decode-history" && decode_history<0 && i+1<argc){decode_history=std::stoi(argv[++i]);if(decode_history<0)return 1;}
     else if(std::string(argv[i])=="--prefill-chunk-parity" && !chunk_tokens && i+1<argc){chunk_tokens=std::stoi(argv[++i]);if(chunk_tokens<1)return 1;}
@@ -214,8 +217,9 @@ int main(int argc,char**argv){
   const int bucket_tokens=decode_envelope?max_rows:selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
   Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity&&!decode_chain_comparison),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned,prefill_partitioned);
-  std::unique_ptr<Kernel> mixed_companion;
+  std::unique_ptr<Kernel> mixed_companion, mixed_decode_candidate;
   if(mixed_chain)mixed_companion=std::make_unique<Kernel>(mixed_companion_root,bucket_tokens,max_rows,false,true);
+  if(mixed_decode_comparison)mixed_decode_candidate=std::make_unique<Kernel>(mixed_companion_root,bucket_tokens,max_rows,false,true,false,true);
   std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u numeric_law=%s\n",
     decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
@@ -237,8 +241,8 @@ int main(int argc,char**argv){
   std::vector<int> counts{decode?0:(mixed?rows-1:rows),decode?rows:(mixed?1:0),rows,tokens,int(pages.size())};
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
   auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens,mixed_chain?rows-1:rows);
-  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=1 prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=2 new_launches=3\n",
-    rows-1,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz);
+  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=1 prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=2 new_launches=3 comparison=%s\n",
+    rows-1,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz,mixed_decode_comparison?"decode-companion":"prefill-partition");
   auto x=values(size_t(tokens)*input_width,3);
   auto key=values(size_t(pages.size())*stride,29),value=values(key.size(),31);
   if(!ingress&&!postprocess){
@@ -252,6 +256,7 @@ int main(int argc,char**argv){
   Buffer dc(20),dp(positions.size()*4),doff(offsets.size()*4),dl(lengths.size()*4),dpo(po.size()*4),dpi(pages.size()*4),dm(metadata.size()*4);
   dc.put(counts);dp.put(positions);doff.put(offsets);dl.put(lengths);dpo.put(po);dpi.put(pages);dm.put(metadata);
   candidate.merge_row_offsets=doff.p;
+  if(mixed_decode_candidate)mixed_decode_candidate->merge_row_offsets=doff.p;
   Buffer dx(x.size()*2),dk(key.size()*2),dv(value.size()*2),out(size_t(tokens)*((ingress||postprocess)?(qh+2*kh)*d:qh*d)*2);
   dx.put(x);dk.put(key);dv.put(value);
   Buffer qw(size_t(qh)*d*(ingress?input_width:1)*2),kw(size_t(kh)*d*(ingress?input_width:1)*2),vw(kw.bytes),norm(d*2);
@@ -293,7 +298,8 @@ int main(int argc,char**argv){
     }
   } else {
     candidate.launch(candidate_args);
-    if(mixed_companion)mixed_companion->launch(mixed_args);
+    if(mixed_decode_candidate)mixed_decode_candidate->launch(mixed_args);
+    else if(mixed_companion)mixed_companion->launch(mixed_args);
     CK(cudaDeviceSynchronize());
   }
   auto actual=out.read();
@@ -386,8 +392,9 @@ int main(int argc,char**argv){
   }
   for(int trial=0;trial<5;trial++){
     double a,b;
-    if(trial%2){b=candidate.time(args,layer_weights,mixed_companion.get(),mixed_args);a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);}
-    else{a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);b=candidate.time(args,layer_weights,mixed_companion.get(),mixed_args);}
+    Kernel* candidate_companion=mixed_decode_candidate?mixed_decode_candidate.get():mixed_companion.get();
+    if(trial%2){b=candidate.time(args,layer_weights,candidate_companion,mixed_args);a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);}
+    else{a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);b=candidate.time(args,layer_weights,candidate_companion,mixed_args);}
     std::printf("tokens=%d rows=%d history=%d trial=%d old_us=%.6f new_us=%.6f bitwise=%s maxabs=%g oracle_maxabs=%g\n",tokens,rows,past,trial,a,b,bitwise?"true":"false",error,oracle_error);
   }
 }
