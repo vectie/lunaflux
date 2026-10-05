@@ -93,3 +93,98 @@ Archive SHA-256: `76cdf9f9784fd46005fbf86464c92649fd396f719c135f60e74ce202dc5356
 All **164 manifest files** verified after download. GPU work serialized;
 systemd units configured MemoryMax=8G, MemorySwapMax=0 and finite runtime limits;
 timing probes preserve the 32 GiB MemAvailable reserve.
+
+## Follow-up: resource target restored, no robust selection win
+
+The one additional experiment extends the existing CUDA launch-bound policy to
+explicit coownership only when all 16 launched consumer groups are active and
+each consumer owns one row tile of each product. It retains the caller's
+register-budget guard, excludes smaller workgroups and larger live row products,
+and leaves the down entry point unqualified. This is a physical-topology policy,
+not a model-name or token-count special case. No new IR layer, runtime tuning,
+allocation or request-path validation was introduced.
+
+Changed implementation: `kernels/luna_cuda_projection_aot/source_sibling_resources.mbt`.
+Regression: `sibling_resources_wbtest.mbt` covers budgets 32/63/64/128/255,
+fully occupied C16, larger row products, smaller consumer maps and unchanged
+down qualification. Actual source hash:
+`6c6f89472bf902923f8c883f8bf49d7b00731e9cda8cb1f2b8d6af5c6e6810cf`.
+The selected baseline's source hash remains unchanged.
+
+The emitted target propagates to the compiled artifact: registers drop from 72
+to 60 with zero stack/spill loads/stores, and static shared storage stays 24576
+bytes. Fresh paired counters confirm restored residency; this is not inferred
+solely from `__launch_bounds__`.
+
+### All follow-up whole-chain paired reductions
+
+| Tokens | Cached | Distinct layers |
+| --- | ---: | ---: |
+| 32 | −1.09% | −0.20% |
+| 129 | −1.56% | −1.39% |
+| 512 | +1.31% | +0.49% |
+| 2048 | +0.15% | +0.39% |
+
+None clears the all-pairs 3% rule. Five more distinct-layer/2048 processes:
+
+| Repeat | Median paired reduction | Worst pair | Decision |
+| --- | ---: | ---: | --- |
+| 0 | +2.46% | −0.88% | inconclusive |
+| 1 | +0.30% | −3.23% | inconclusive |
+| 2 | +0.74% | −3.82% | inconclusive |
+| 3 | +0.11% | −4.54% | inconclusive |
+| 4 | +2.17% | −6.51% | inconclusive |
+
+The severe unbounded-coownership regression is largely removed, but that is
+not improvement over the selected baseline. The candidate remains unselected.
+No new end-to-end or vLLM/SGLang claim follows from these measurements.
+
+### Fresh counters after fixing the resource target
+
+| Metric | Paired baseline | Resource-bounded coowned C16 |
+| --- | ---: | ---: |
+| Executed warp instructions | 93020160 | 69623808 |
+| Registers/thread | 58 | 60 |
+| Waves/SM | 16 | 16 |
+| Active warps/scheduler active cycle | 7.88 | 7.85 |
+| Eligible warps/scheduler active cycle | 0.77 | 0.53 |
+| Issue-active | 31.41% | 23.89% |
+| Average warp latency/instruction issued | 25.07 cycles | 32.84 cycles |
+| Barrier ratio per issue-active | 7.73 | 10.96 |
+| Long-scoreboard ratio per issue-active | 2.88 | 7.44 |
+| Tensor activity, elapsed-normalized | 34.50% | 34.19% |
+| Local spilling requests | 0 | 0 |
+
+Instructions fall **25.15%**, but issue-active falls **23.94%** and eligible
+warps fall **31.17%** despite matching residency. Tensor activity is effectively
+unchanged. These counters explain why instruction removal does not translate
+into a robust latency win. The increased normalized stall ratios are not proof
+that absolute barrier time increased by the same percentage: their issue-active
+denominator changed substantially.
+
+The split renderer consumes one weight fragment across two row folds; the
+coowned renderer consumes two weight products in one row fold, through the same
+packed-fragment lowering. Both retain the ordered reductions and shared operand
+ring. After correcting residency, remaining differences concern ready-work and
+operand/fragment dependency scheduling, not the removed epilogue alone. The
+counter capture does **not** pinpoint an individual load instruction; a next
+experiment needs source-correlated dependency/SASS isolation before changing
+that pipeline. Neither occupancy nor instruction count alone should select it.
+
+### Follow-up validation and archive
+
+All 8 workloads and 5 confirmation processes pass full output/workspace bitwise
+comparison and the sampled scalar oracle (reported error 0). Tail 129 again
+passes memcheck/racecheck/synccheck with zero leaks. Projection tests **107/107**
+and warning-denied affected-package check pass with the existing migration
+warning exclusions. `moon info --target native` completes with zero errors and
+4250 preexisting whole-tree migration warnings; this is not a warning-clean
+whole-tree release claim. No unrelated dirty files were staged.
+
+Remote: `/home/wlc004s/lunaflux-ako-coowned-bound-20261005.3aI9tQz8`.
+Local: `benchmarks/qwen3_comparison/results/ako-coowned-bound-20261005.5dMLy2dr/measurement.tar.gz`.
+Archive SHA-256: `06b39ad8c19a00f0a9094e4ca3976708248b3dd7fc52a329f819302ecfd788a3`.
+All **164 manifest files** verified locally. Same serialized GPU, memory reserve
+and configured finite systemd bounds as the first experiment. The finite budget
+of one ownership candidate plus one counter-driven resource follow-up is
+complete; no production selector change or additional blind sweep is made.

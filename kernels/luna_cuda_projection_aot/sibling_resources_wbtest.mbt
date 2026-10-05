@@ -223,3 +223,69 @@ test "bounded row variants do not inherit the larger sibling reuse resource poli
     assert_false(source.contains("__launch_bounds__"))
   }
 }
+
+///|
+test "fully occupied coowned sibling target preserves budget and excludes larger live products" {
+  let parameters = sibling_resource_test_parameters()
+  let runtime = projection_build_runtime_dispatch(
+    parameters,
+    2048,
+    projection_fixture_target(),
+    [],
+  )
+  for
+    (row_tiles, consumers, qualifies) in [
+      (4, 16, true),
+      (8, 16, false),
+      (4, 8, false),
+    ] {
+    let compiled = projection_row_variant_compilation(
+      parameters,
+      runtime.dispatch_plan(2048),
+      32,
+      2048,
+      fold_choices=[
+        @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+          SiblingFold,
+          stages=2,
+          transfer_tiles=2,
+          fragment_stages=1,
+          row_tiles~,
+          output_tiles=4,
+          consumer_groups=consumers,
+        ),
+      ],
+    )
+    let physical = projection_refine_physical(
+      compiled,
+      sibling_ownership=CoownedSiblingValues,
+      sibling_transport=SegmentedSiblingTransport,
+      sibling_execution=OverlappedTransfer,
+    )
+    assert_false(physical.sibling.unwrap().sibling_reuse)
+    for max_registers in [32, 63, 64, 128, 255] {
+      assert_eq(
+        projection_sibling_launch_bounds_source(physical, max_registers~),
+        if qualifies && max_registers >= 64 {
+          "__launch_bounds__(512, 2) "
+        } else {
+          ""
+        },
+      )
+    }
+    let source = @utf8.decode(
+      projection_matrix_mlp_source(
+        "coowned_resource",
+        parameters,
+        2048,
+        physical,
+        max_registers=255,
+      ),
+    )
+    assert_eq(source.contains("__launch_bounds__"), qualifies)
+    assert_true(
+      source.contains("extern \"C\" __global__ void coowned_resource_down("),
+    )
+    assert_false(source.contains("sibling_output_bytes"))
+  }
+}

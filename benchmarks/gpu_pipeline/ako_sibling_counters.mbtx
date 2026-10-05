@@ -51,9 +51,13 @@ async fn main {
   ]
   let result : Array[Json] = []
   guard @json.parse(@fs.read_file(root + "/records.json").text())
-    is Array(records) else { fail("records") }
+    is Array(records) else {
+    fail("records")
+  }
   for index = 1; index < records.length(); index = index + 1 {
-    guard records[index] is { "label": String(candidate), .. } else { fail("label") }
+    guard records[index] is { "label": String(candidate), .. } else {
+      fail("label")
+    }
     let lines = @fs.read_file(root + "/counters-admin-" + candidate + ".stdout")
       .text()
       .split("\n")
