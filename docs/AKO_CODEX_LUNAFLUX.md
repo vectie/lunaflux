@@ -216,3 +216,10 @@ Token trajectories are not equivalent and some C2 repeats vary, so this stays
 experimental, not a default or release claim. Selected c322 counters identify
 fixed instruction dependencies as the leading warp-latency contribution;
 global-load stalls and barriers alone are no longer the complete hypothesis.
+
+The [dual-Spark independent-product experiment](BENCHMARK_AKO_ATTENTION_PRODUCT_PAIR_2026-10-05.md)
+tests a concrete instruction-scheduling alternative on both devices. All eighteen
+cells remain bitwise-equal, but QK pairing regresses and PV pairing is inconclusive.
+The matched counter pair shows unchanged MMA/copy work, 52% more NOPs and poorer
+issue activity. It remains offline-only; no production lowering or serving route
+is changed. Both archives and all 233 manifest members verify locally.

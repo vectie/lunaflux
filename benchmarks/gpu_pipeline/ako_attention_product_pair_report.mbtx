@@ -1,0 +1,185 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields = []
+  let mut quoted = false
+  let mut value = StringBuilder()
+  let mut i = 0
+  while i < line.length() {
+    let c = line[i]
+    if c == '"' {
+      if quoted && i + 1 < line.length() && line[i + 1] == '"' {
+        value.write_char('"')
+        i += 1
+      } else {
+        quoted = !quoted
+      }
+    } else if c == ',' && !quoted {
+      fields.push(value.to_string())
+      value = StringBuilder()
+    } else {
+      value.write_view(line[i:i + 1])
+    }
+    i += 1
+  }
+  fields.push(value.to_string())
+  fields
+}
+
+///|
+fn number(value : String) -> Double raise {
+  @string.parse_double(value.split(",").join(""))
+}
+
+///|
+fn counters(source : String) -> Array[Json] raise {
+  guard source.split("\n").filter(x => x.has_prefix("\"")).to_array()
+    is [header, _, a, b] else {
+    fail("two exact selected launches")
+  }
+  let keys = csv(header)
+  let wanted = [
+    "Grid Size", "Block Size", "gpu__time_duration.sum", "launch__registers_per_thread",
+    "launch__occupancy_limit_registers", "derived__local_spilling_requests", "derived__memory_l1_wavefronts_shared_excessive",
+    "smsp__inst_executed.sum", "smsp__warps_eligible.avg.per_cycle_active", "smsp__issue_active.avg.pct_of_peak_sustained_active",
+    "smsp__average_warp_latency_per_inst_issued.ratio", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+  ]
+  [a, b].map(line => {
+    let values = csv(line)
+    assert_eq(keys.length(), values.length())
+    let latency = number(
+      values[keys
+      .search("smsp__average_warp_latency_per_inst_issued.ratio")
+      .unwrap()],
+    )
+    guard latency > 0.0 else { fail("latency denominator") }
+    let fields : Map[String, Json] = Map([])
+    let stalls : Map[String, Json] = Map([])
+    for i, key in keys {
+      if wanted.contains(key) {
+        fields[key] = Json(values[i])
+      }
+      if key.has_prefix("smsp__average_warps_issue_stalled_") {
+        stalls[key] = Json(100.0 * number(values[i]) / latency)
+      }
+    }
+    {
+      "raw": Json::object(fields),
+      "warp_latency_percent": Json::object(stalls),
+    }
+  })
+}
+
+///|
+fn opcodes(source : String) -> Array[Json] raise {
+  let result : Array[Json] = []
+  let mut keys : Array[String] = []
+  let mut totals : Map[String, Double] = Map([])
+  for line in source.split("\n") {
+    if !line.has_prefix("\"") {
+      continue
+    }
+    let fields = csv(line)
+    if fields[0] == "Kernel Name" {
+      if !totals.is_empty() {
+        result.push(Json::object(totals.map((_, x) => Json(x))))
+      }
+      totals = Map([])
+      keys = []
+    } else if fields[0] == "Address" {
+      keys = fields
+    } else if !keys.is_empty() {
+      assert_eq(fields.length(), keys.length())
+      let words = fields[keys.search("Source").unwrap()]
+        .trim()
+        .split(" ")
+        .filter(x => !x.is_empty())
+        .to_array()
+      guard words is [first, .. rest] else { continue }
+      let op = (if first.has_prefix("@") { rest[0] } else { first }).to_owned()
+      let count = fields[keys.search("Instructions Executed").unwrap()]
+      totals[op] = totals.get(op).unwrap_or(0.0) + number(count)
+    }
+  }
+  if !totals.is_empty() {
+    result.push(Json::object(totals.map((_, x) => Json(x))))
+  }
+  assert_eq(result.length(), 2)
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("LOCAL_PAIRED_RESULTS_DIRECTORY") }
+  let records : Array[Json] = []
+  for host in ["178", "179"] {
+    guard @json.parse(@fs.read_file(root + "/summary" + host + ".json").text())
+      is Array(cells) &&
+      cells.length() == 9 else {
+      fail("complete paired cells")
+    }
+    for cell in cells {
+      guard cell
+        is {
+          "label": String(label),
+          "metrics": {
+            "baseline_median_us": Number(old, ..),
+            "candidate_median_us": Number(fresh, ..),
+            "median_paired_gain": Number(gain, ..),
+            "minimum_paired_gain": Number(worst, ..),
+            "decision": String(decision),
+            ..
+          },
+          ..
+        } else {
+        fail("measurement record")
+      }
+      records.push({
+        "gpu": host,
+        "label": label,
+        "baseline_us": old,
+        "candidate_us": fresh,
+        "median_paired_gain_percent": 100.0 * gain,
+        "worst_pair_gain_percent": 100.0 * worst,
+        "decision": decision,
+      })
+      println(
+        "gpu=" +
+        host +
+        " " +
+        label +
+        " old_us=\{old} new_us=\{fresh} paired_gain_percent=\{100.0*gain} worst_percent=\{100.0*worst}",
+      )
+    }
+  }
+  let report : Json = {
+    "scope": "diagnostic independent-product lowering; no serving selection change",
+    "cells": records,
+    "profile179_baseline_then_both": counters(
+      @fs.read_file(root + "/raw.csv").text(),
+    ),
+    "opcodes179_baseline_then_both": opcodes(
+      @fs.read_file(root + "/sass.csv").text(),
+    ),
+  }
+  @fs.write_file(
+    root + "/report.json",
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(report.stringify(indent=2))
+}
+
+///|
+test "CSV keeps source predicates and grouped numeric counters" {
+  assert_eq(csv("\"a,b\",\"c\"\"d\",\"\""), ["a,b", "c\"d", ""])
+  assert_eq(number("1,234,567"), 1234567.0)
+}

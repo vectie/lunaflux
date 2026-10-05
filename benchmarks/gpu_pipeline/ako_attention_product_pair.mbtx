@@ -1,0 +1,442 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+// Diagnostic terminal CUDA lowering only. Independent output products may
+// interleave, but every accumulator retains its original reduction order.
+// Nothing here is linked into serving or changes the semantic/numeric IR.
+fn pair_product(name : String) -> String {
+  let value = name == "value"
+  let parameters = if value {
+    "unsigned address0, unsigned address1"
+  } else {
+    "const __nv_bfloat16 *p, int row, int column, int columns"
+  }
+  let address = if value {
+    ""
+  } else {
+    "  const int lane=threadIdx.x%32;\n" +
+    "  const unsigned address0=(unsigned)__cvta_generic_to_shared(p+lf_operand_index(row+lane%16,column+lane/16*8,columns));\n" +
+    "  const unsigned address1=address0+16*columns*2;\n"
+  }
+  let source = StringBuilder()
+  source.write_string(
+    "static __device__ __forceinline__ void lf_matrix_mma_" +
+    name +
+    "_pair(LfMatrixAccumulator &c, LfMatrixAccumulator &d, const LfMatrixOperand &a, " +
+    parameters +
+    ") {\n" +
+    address +
+    "  asm volatile(\n    \"{ .reg .b32 b<8>;\"\n",
+  )
+  let trans = if value { ".trans" } else { "" }
+  for (first, input) in [(0, 20), (4, 21)] {
+    source.write_string(
+      "    \"ldmatrix.sync.aligned.m8n8.x4" +
+      trans +
+      ".shared.b16 {b\{first},b\{first+1},b\{first+2},b\{first+3}}, [%\{input}];\"\n",
+    )
+  }
+  // Half-major issue order separates successive dependent tensor operations
+  // without changing any output's arithmetic or increasing memory traffic.
+  for half in 0..<2 {
+    for product in 0..<2 {
+      let output = product * 8 + half * 4
+      let rhs = product * 4 + (if value { half * 2 } else { half })
+      let rhs1 = rhs + (if value { 1 } else { 2 })
+      source.write_string(
+        "    \"mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%\{output},%\{output+1},%\{output+2},%\{output+3}}, {%16,%17,%18,%19}, {b\{rhs},b\{rhs1}}, {%\{output},%\{output+1},%\{output+2},%\{output+3}};\"\n",
+      )
+    }
+  }
+  source.write_string("    \"}\"\n    : ")
+  let outputs : Array[String] = []
+  for owner in ["c", "d"] {
+    for item in 0..<8 {
+      outputs.push("\"+f\"(" + owner + ".x[\{item}])")
+    }
+  }
+  source.write_string(outputs.join(","))
+  source.write_string(
+    "\n    : \"r\"(a.x[0]),\"r\"(a.x[1]),\"r\"(a.x[2]),\"r\"(a.x[3]),\"r\"(address0),\"r\"(address1) : \"memory\");\n}\n",
+  )
+  source.to_string()
+}
+
+///|
+fn replace_once(source : String, old : String, fresh : String) -> String raise {
+  guard source.split(old).to_array() is [a, b] else {
+    fail("unique frozen c322 lowering site required")
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+fn variant(source : String, mode : String) -> String raise {
+  guard ["qk", "pv", "both"].contains(mode) else { fail("pair mode") }
+  let mut fresh = source
+  if mode != "pv" {
+    fresh = remove_product(fresh, "key")
+    fresh = replace_once(
+      fresh, "for (int key=0; key<4; ++key) {\n            lf_matrix_mma_key(score[key],a,current_k,key*16,reduction,LF_HEAD_DIMENSION);",
+      "for (int key=0; key<4; key+=2) {\n            lf_matrix_mma_key_pair(score[key],score[key+1],a,current_k,key*16,reduction,LF_HEAD_DIMENSION);",
+    )
+  }
+  if mode != "qk" {
+    fresh = remove_product(fresh, "value")
+    fresh = replace_once(
+      fresh, "for (int column=0;column<8;++column) {\n            const unsigned value_address=value_origin+((column*16)^value_column_xor)*2;\n            lf_matrix_mma_value(out[column],probability,value_address);",
+      "for (int column=0;column<8;column+=2) {\n            const unsigned value_address=value_origin+((column*16)^value_column_xor)*2;\n            const unsigned next_address=value_origin+(((column+1)*16)^value_column_xor)*2;\n            lf_matrix_mma_value_pair(out[column],out[column+1],probability,value_address,next_address);",
+    )
+  }
+  replace_once(
+    fresh,
+    "extern \"C\" __global__ void lunaflux_attention_prefill_tile_compiler_v1(",
+    (if mode != "pv" { pair_product("key") } else { "" }) +
+    (if mode != "qk" { pair_product("value") } else { "" }) +
+    "extern \"C\" __global__ void lunaflux_attention_prefill_tile_compiler_v1(",
+  )
+}
+
+///|
+fn remove_product(source : String, name : String) -> String raise {
+  let marker = "static __device__ __forceinline__ void lf_matrix_mma_" +
+    name +
+    "("
+  guard source.split(marker).to_array() is [before, body] else {
+    fail("unique original product helper")
+  }
+  let parts = body.split("\n}\n").to_array()
+  guard parts.length() > 1 && parts[0].contains("asm volatile(") else {
+    fail("frozen product body")
+  }
+  before.to_owned() + parts[1:].join("\n}\n")
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  if @env.args() is [_, root, "validate"] {
+    @fs.mkdir(root + "/validation")
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let result = capture(
+        root + "/validation",
+        tool,
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        [
+          "--tool",
+          tool,
+          "--error-exitcode",
+          "99",
+          root + "/probe",
+          root + "/prefill.spec",
+          root + "/baseline",
+          root + "/both",
+          "129",
+          "2",
+          "128",
+          "--check-only",
+        ],
+      )
+      assert_true(result.contains("correctness=passed bitwise=true maxabs=0"))
+      assert_true(result.contains("0 errors") || result.contains("0 hazards"))
+    }
+    @fs.write_file(
+      root + "/validation/RESULT.txt",
+      "outcome=passed\nscope=paired-product diagnostic 129 queries, two rows, history128; not long-context sanitizer admission\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if @env.args() is [_, root, "finish"] {
+    assert_true(
+      @fs.read_file(root + "/trial/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    guard @json.parse(@fs.read_file(root + "/trial/summary.json").text())
+      is Array(records) &&
+      records.length() == 9 else {
+      fail("complete nine-cell trial")
+    }
+    for i, record in records {
+      guard record is { "label": String(label), .. } else { fail("label") }
+      let prefix = root + "/trial/w\{i}-" + label
+      assert_true(@fs.read_file(prefix + ".stderr").text().is_empty())
+      let lines = @fs.read_file(prefix + ".stdout")
+        .text()
+        .split("\n")
+        .filter(x => x.has_prefix("tokens="))
+        .to_array()
+      assert_eq(lines.length(), 5)
+      assert_true(lines.all(x => x.contains("bitwise=true maxabs=0")))
+    }
+    assert_true(
+      capture(root, "terminal-idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=half-major product-pair diagnostic; three ablations, three exact workload cells, five pairs; rejected, not serving-selected\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if @env.args() is [_, root, "profile"] {
+    assert_true(
+      capture(root, "profile-idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    ignore(
+      capture(root, "profile", ncu, [
+        "--section",
+        "InstructionStats",
+        "--section",
+        "SchedulerStats",
+        "--section",
+        "WarpStateStats",
+        "--section",
+        "LaunchStats",
+        "--section",
+        "SourceCounters",
+        "--kernel-name",
+        "regex:lunaflux_attention_prefill_tile_compiler_v1$",
+        "--launch-count",
+        "2",
+        "--export",
+        root + "/products",
+        root + "/probe",
+        root + "/prefill.spec",
+        root + "/baseline",
+        root + "/both",
+        "2048",
+        "2",
+        "28672",
+        "--check-only",
+      ]),
+    )
+    for (name, page) in [("raw", "raw"), ("sass", "source")] {
+      ignore(
+        capture(
+          root,
+          name,
+          ncu,
+          [
+            "--import",
+            root + "/products.ncu-rep",
+            "--csv",
+            "--page",
+            page,
+            ..if page == "source" {
+              ["--print-source", "sass"]
+            } else {
+              []
+            },
+          ],
+        ),
+      )
+    }
+    return
+  }
+  guard @env.args() is [_, base, root, uuid] && root.has_prefix("/home/") else {
+    fail("FROZEN_QUERY_ROOT NEW_ROOT GPU_UUID")
+  }
+  @fs.mkdir(root)
+  assert_eq(
+    capture(root, "gpu", "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    uuid,
+  )
+  assert_true(
+    capture(root, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  let baseline = base + "/selected"
+  let identity = capture(root, "frozen-identities", "sha256sum", [
+    baseline + "/kernel.cu",
+    baseline + "/kernel.cubin",
+    "/usr/local/cuda-13.0/bin/nvcc",
+  ])
+  assert_true(
+    identity.contains(
+      "a6c232ab5048ba8df9b1e61ce687b756326808f1ffedd26e22985865f8bb704b",
+    ),
+  )
+  assert_true(
+    identity.contains(
+      "9aedf7709b833ad4ba05bf017d54199b33908e89d63c7fae51e73f94cf0a655d",
+    ),
+  )
+  assert_true(
+    identity.contains(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+    ),
+  )
+  let source = @fs.read_file(baseline + "/kernel.cu").text()
+  let recipe = @fs.read_file(baseline + "/kernel.recipe").text()
+  @fs.mkdir(root + "/baseline")
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/baseline/" + name,
+      @fs.read_file(baseline + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  for name in ["prefill.spec", "probe"] {
+    @shell.Cmd("cp", ["--update=none", base + "/" + name, root + "/" + name]).run()
+  }
+  let workloads : Array[Json] = []
+  let artifacts : Array[String] = [
+    root + "/baseline/kernel.cubin",
+    root + "/baseline/kernel.recipe",
+    root + "/prefill.spec",
+    "/usr/local/cuda-13.0/bin/nvcc",
+  ]
+  for mode in ["qk", "pv", "both"] {
+    let output = root + "/" + mode
+    @fs.mkdir(output)
+    @fs.write_file(
+      output + "/kernel.cu",
+      variant(source, mode),
+      create_mode=CreateNew,
+    )
+    let hash = capture(root, mode + "-sha", "sha256sum", [output + "/kernel.cu"])
+    .split(" ")
+    .to_array()[0].to_owned()
+    @fs.write_file(
+      output + "/kernel.recipe",
+      replace_once(
+        recipe,
+        "source_sha256=a6c232ab5048ba8df9b1e61ce687b756326808f1ffedd26e22985865f8bb704b",
+        "source_sha256=" + hash,
+      ) +
+      "experimental_lowering=half-major-product-pair-v1-" +
+      mode +
+      "\n",
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, mode + "-compile", "/usr/local/cuda-13.0/bin/nvcc", [
+        "--cubin",
+        "--std=c++14",
+        "-arch=sm_121",
+        "-O3",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=255",
+        "--Werror",
+        "all-warnings",
+        "-lineinfo",
+        "-Xptxas=-v",
+        output + "/kernel.cu",
+        "-o",
+        output + "/kernel.cubin",
+      ]),
+    )
+    artifacts.append([
+      output + "/kernel.cu",
+      output + "/kernel.cubin",
+      output + "/kernel.recipe",
+    ])
+    for
+      (query, rows, history) in [
+        (2048, 1, 28672),
+        (2048, 2, 28672),
+        (2048, 2, 8192),
+      ] {
+      workloads.push({
+        "label": mode + "-q\{query}-r\{rows}-h\{history}",
+        "args": [
+          root + "/prefill.spec",
+          root + "/baseline",
+          output,
+          "\{query}",
+          "\{rows}",
+          "\{history}",
+        ],
+      })
+    }
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": uuid,
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": root + "/probe",
+    "artifacts": artifacts,
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("prepared=" + root)
+}
+
+///|
+test "product pair preserves per-output instruction order and RHS permutation" {
+  for name in ["key", "value"] {
+    let source = pair_product(name)
+    assert_eq(source.split("ldmatrix.sync").to_array().length(), 3)
+    assert_eq(source.split("mma.sync").to_array().length(), 5)
+    assert_true(source.contains("{%0,%1,%2,%3}"))
+    assert_true(source.contains("{%8,%9,%10,%11}"))
+    assert_true(
+      source.contains(if name == "key" { "{b0,b2}" } else { "{b0,b1}" }),
+    )
+    assert_true(
+      source.contains(if name == "key" { "{b5,b7}" } else { "{b6,b7}" }),
+    )
+  }
+  try replace_once("same same", "same", "other") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous source accepted")
+  }
+}
