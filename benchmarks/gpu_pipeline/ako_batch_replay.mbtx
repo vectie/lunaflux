@@ -1,0 +1,168 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  let parts = text.split(old).to_array()
+  assert_eq(parts.length(), 2, msg=old)
+  parts.join(fresh)
+}
+
+///|
+fn replay_client(original : String, bodies_path : String) -> String raise {
+  guard original.split("///|\nasync fn main {").to_array() is [helpers, _] else {
+    fail("client main boundary")
+  }
+  let helpers = once(
+    helpers.to_owned(),
+    "  count : Int,\n) -> Json {",
+    "  count : Int,\n  first? : () -> Unit,\n) -> Json {",
+  )
+  let helpers = once(
+    helpers, "    for id in fresh {\n      ids.push(id)", "    for id in fresh {\n      if ids.is_empty() && first is Some(notify) { notify() }\n      ids.push(id)",
+  )
+  let main =
+    #|///|
+    #|async fn main {
+    #|  guard @env.args() is [_, engine, root] && engine == "luna-full" else { fail("luna-full NEW_ROOT") }
+    #|  @fs.mkdir(root)
+    #|  guard @json.parse(@fs.read_file(REPLAY_BODIES_PATH).text()) is Array(bodies) && bodies.length() == 2 else { fail("two saved bodies") }
+    #|  let samples : Array[Json] = []
+    #|  for trial in 0..<2 {
+    #|    for mode in ["solo0", "solo1", "pair01", "pair10", "after-first-token"] {
+    #|      let rows = match mode { "solo0" => [0]; "solo1" => [1]; "pair10" => [1,0]; _ => [0,1] }
+    #|      let label = mode + "-t\{trial}"
+    #|      for row in rows {
+    #|        @fs.write_file(root + "/" + label + "-r\{row}.body.json", bodies[row].stringify(), create_mode=CreateNew)
+    #|      }
+    #|      let first_seen = Ref(false)
+    #|      let jobs : Array[async () -> Json] = rows.map(row => {
+    #|        () => {
+    #|          if mode == "after-first-token" && row == 1 {
+    #|            let start = @async.now()
+    #|            while !first_seen.val { if @async.now() - start > 60000L { fail("first-token deadline") }; @async.sleep(1) }
+    #|          }
+    #|          let submitted = @async.now()
+    #|          let result = request(root, engine, label + "-r\{row}", 64, first=() => { if row == 0 { first_seen.val = true } })
+    #|          { "request_row": row, "submitted_ms": Json(submitted), "result": result }
+    #|        }
+    #|      })
+    #|      let started = @async.now()
+    #|      let requests = @async.all(jobs, max_concurrent=rows.length())
+    #|      let sample : Json = { "mode": mode, "trial": trial, "wall_ms": Json(@async.now() - started), "requests": requests }
+    #|      samples.push(sample)
+    #|      @fs.write_file(root + "/" + label + ".json", sample.stringify(), create_mode=CreateNew)
+    #|      println(label + " complete")
+    #|    }
+    #|  }
+    #|  @fs.write_file(root + "/replay.json", Json(samples).stringify(indent=2), create_mode=CreateNew)
+    #|}
+  helpers + once(main, "REPLAY_BODIES_PATH", Json(bodies_path).stringify())
+}
+
+///|
+test "replay uses saved request bodies and explicit first-token handoff" {
+  let original =
+    #|async fn request(
+    #|  count : Int,
+    #|) -> Json {
+    #|    for id in fresh {
+    #|      ids.push(id)
+    #|    }
+    #|}
+    #|///|
+    #|async fn main { }
+  let source = replay_client(original, "/experiment/replay-bodies.json")
+  assert_false(source.contains("REPLAY_BODIES"))
+  assert_true(source.contains("first_seen.val = true"))
+  assert_true(
+    source.contains(
+      "[\"solo0\", \"solo1\", \"pair01\", \"pair10\", \"after-first-token\"]",
+    ),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, query, root] && !@fs.exists(root) else {
+    fail("FROZEN_LONG_CONTEXT SEALED_QUERY_EXPERIMENT NEW_OUTPUT")
+  }
+  @fs.mkdir(root)
+  let moon = query + "/toolchain/bin/moon"
+  let launcher = @fs.read_file(frozen + "/measure/launcher.mbtx").text()
+  let launcher = once(
+    launcher,
+    "let cmd = \"/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/source/_build/native/release/build/cmd/\"",
+    "let cmd = " +
+    Json(query + "/source/_build/native/release/build/cmd/").stringify(),
+  )
+  let launcher = once(
+    launcher, "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]", "let orders = [[\"luna-full\"]]",
+  )
+  let requests = query + "/e2e-0-c2048/r0-luna-full/requests/"
+  let bodies : Array[Json] = []
+  for row in [0, 1] {
+    bodies.push(
+      @json.parse(
+        @fs.read_file(requests + "i32512-o64-c2-varied-t1-r\{row}.body.json").text(),
+      ),
+    )
+  }
+  for body in bodies {
+    guard body
+      is {
+        "schema": "lunaflux.benchmark-token-ids-request.v1",
+        "input_token_ids": Array(ids),
+        "max_output_tokens": 64,
+        ..
+      } &&
+      ids.length() == 32512 else {
+      fail("exact saved workload")
+    }
+  }
+  let bodies_path = root + "/replay-bodies.json"
+  @fs.write_file(bodies_path, Json(bodies).stringify(), create_mode=CreateNew)
+  let client = replay_client(
+    @fs.read_file(frozen + "/long_context_client.mbtx").text(),
+    bodies_path,
+  )
+  for cap in [2048, 8192] {
+    let output = root + "/c\{cap}"
+    @fs.mkdir(output)
+    let script = output + "/launcher.mbtx"
+    @fs.write_file(script, launcher, create_mode=CreateNew)
+    @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+    for path in [script, script + ".client.mbtx"] {
+      @shell.Cmd(moon, ["check", path]).run()
+    }
+    let result = @shell.Cmd(moon, [
+      "run",
+      script,
+      query + "/c\{cap}-target121",
+      output,
+      script,
+    ]).output(max_output_bytes=33554432)
+    @fs.write_file(
+      output + "/campaign.stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      output + "/campaign.stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=fixed-input-batch-replay; not performance promotion\n",
+    create_mode=CreateNew,
+  )
+}

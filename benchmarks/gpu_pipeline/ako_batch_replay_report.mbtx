@@ -1,0 +1,221 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn request(
+  samples : Array[Json],
+  mode : String,
+  trial : Int,
+  row : Int,
+) -> Json raise {
+  guard samples.filter(sample => {
+      sample is { "mode": String(m), "trial": Number(t, ..), .. } &&
+      m == mode &&
+      t == trial.to_double()
+    })
+    is [sample] else {
+    fail("unique replay wave")
+  }
+  guard sample is { "requests": Array(requests), .. } else { fail("requests") }
+  guard requests.filter(request => {
+      request is { "request_row": Number(r, ..), .. } && r == row.to_double()
+    })
+    is [{ "result": result, .. }] else {
+    fail("unique request row")
+  }
+  result
+}
+
+///|
+fn tokens(result : Json) -> Array[Json] raise {
+  guard result is { "token_ids": Array(ids), "token_ms": Array(times), .. } &&
+    ids.length() == 64 &&
+    times.length() == 64 else {
+    fail("complete token/timing vector")
+  }
+  for id in ids {
+    guard id is Number(n, ..) &&
+      n >= 0.0 &&
+      n <= 151935.0 &&
+      n == n.to_int().to_double() else {
+      fail("valid Qwen token")
+    }
+  }
+  ids
+}
+
+///|
+fn difference(reference : Json, actual : Json) -> Json raise {
+  let a = tokens(reference)
+  let b = tokens(actual)
+  let mut first = -1
+  let mut changed = 0
+  for i in 0..<64 {
+    if a[i] != b[i] {
+      if first == -1 {
+        first = i
+      }
+      changed += 1
+    }
+  }
+  {
+    "equal": changed == 0,
+    "first_difference": first,
+    "changed_tokens": changed,
+  }
+}
+
+///|
+fn summarize(samples : Array[Json]) -> Json raise {
+  assert_eq(samples.length(), 10)
+  let comparisons : Array[Json] = []
+  for row in [0, 1] {
+    let solo = "solo\{row}"
+    let reference = request(samples, solo, 0, row)
+    for trial in 0..<2 {
+      for mode in [solo, "pair01", "pair10", "after-first-token"] {
+        let actual = request(samples, mode, trial, row)
+        comparisons.push({
+          "row": row,
+          "mode": mode,
+          "trial": trial,
+          "against_solo_t0": difference(reference, actual),
+          "against_same_mode_t0": difference(
+            request(samples, mode, 0, row),
+            actual,
+          ),
+          "result": actual,
+        })
+      }
+    }
+  }
+  { "comparisons": comparisons, "raw_waves": samples }
+}
+
+///|
+test "differences preserve first position and reject incomplete vectors" {
+  let ids = Array::make(64, Json(198))
+  let baseline : Json = {
+    "token_ids": ids,
+    "token_ms": Array::make(64, Json("1")),
+  }
+  let fresh = ids.copy()
+  fresh[4] = Json(315)
+  let candidate : Json = {
+    "token_ids": fresh,
+    "token_ms": Array::make(64, Json("1")),
+  }
+  assert_eq(difference(baseline, candidate), {
+    "equal": false,
+    "first_difference": 4,
+    "changed_tokens": 1,
+  })
+  let partial : Json = { "token_ids": ids[:63].to_owned(), "token_ms": [] }
+  try difference(baseline, partial) catch {
+    _ => ()
+  } noraise {
+    _ => fail("partial output accepted")
+  }
+}
+
+///|
+fn compact(report : Json) -> Json raise {
+  guard report is { "arms": Array(arms), "cross_chunk": cross, .. } else {
+    fail("audit")
+  }
+  let summaries : Array[Json] = []
+  for arm in arms {
+    guard arm
+      is {
+        "query_chunk": cap,
+        "audit": { "comparisons": Array(comparisons), .. },
+        ..
+      } else {
+      fail("arm")
+    }
+    summaries.push({
+      "query_chunk": cap,
+      "comparisons": comparisons.map(row => {
+        guard row
+          is {
+            "row": id,
+            "mode": mode,
+            "trial": trial,
+            "against_solo_t0": solo,
+            "against_same_mode_t0": repeat,
+            ..
+          } else {
+          fail("comparison")
+        }
+        {
+          "row": id,
+          "mode": mode,
+          "trial": trial,
+          "against_solo_t0": solo,
+          "against_same_mode_t0": repeat,
+        }
+      }),
+    })
+  }
+  { "arms": summaries, "cross_chunk": cross }
+}
+
+///|
+async fn main {
+  let args = @env.args()
+  guard args.length() == 2 || (args.length() == 3 && args[2] == "summary") else {
+    fail("COMPLETED_REPLAY_ROOT [summary]")
+  }
+  let root = args[1]
+  if args.length() == 3 {
+    println(
+      compact(@json.parse(@fs.read_file(root + "/numerical-audit.json").text())).stringify(),
+    )
+    return
+  }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  let arms : Array[Json] = []
+  let waves : Array[Array[Json]] = []
+  for cap in [2048, 8192] {
+    let path = root + "/c\{cap}/r0-luna-full/requests/replay.json"
+    guard @json.parse(@fs.read_file(path).text()) is Array(samples) else {
+      fail("replay array")
+    }
+    waves.push(samples)
+    arms.push({ "query_chunk": cap, "audit": summarize(samples) })
+  }
+  let cross_chunk : Array[Json] = []
+  for row in [0, 1] {
+    for trial in 0..<2 {
+      for mode in ["solo\{row}", "pair01", "pair10", "after-first-token"] {
+        cross_chunk.push({
+          "row": row,
+          "mode": mode,
+          "trial": trial,
+          "difference": difference(
+            request(waves[0], mode, trial, row),
+            request(waves[1], mode, trial, row),
+          ),
+        })
+      }
+    }
+  }
+  let report : Json = {
+    "scope": "fixed-input batch/phase numerical isolation; no performance admission",
+    "arms": arms,
+    "cross_chunk": cross_chunk,
+  }
+  @fs.write_file(
+    root + "/numerical-audit.json",
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(compact(report).stringify())
+}

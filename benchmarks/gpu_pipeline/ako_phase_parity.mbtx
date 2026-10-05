@@ -1,0 +1,150 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Json {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  {
+    "label": label,
+    "exit_status": out.exit_code(),
+    "stdout": out.stdout(),
+    "stderr": out.stderr(),
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    @fs.exists(root + "/selected_policy_probe.cu") else {
+    fail("PREPARED_NONOVERWRITING_ROOT")
+  }
+  let identity = @shell.Cmd("nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ]).output()
+  identity.check()
+  assert_eq(
+    identity.stdout().trim(),
+    "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f",
+  )
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  @fs.write_file(root + "/gpu.txt", identity.stdout(), create_mode=CreateNew)
+  let paths = [
+    "selected_policy_probe.cu", "selected_policy_geometry.h", "prefill.spec", "prefill/kernel.recipe",
+    "prefill/kernel.cubin", "decode/kernel.recipe", "decode/kernel.cubin",
+  ].map(name => root + "/" + name)
+  let identities = @shell.Cmd(
+    "sha256sum",
+    ["/usr/local/cuda-13.0/bin/nvcc", ..paths],
+  ).output()
+  identities.check()
+  assert_true(
+    identities
+    .stdout()
+    .has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+    ),
+  )
+  @fs.write_file(
+    root + "/identities.txt",
+    identities.stdout(),
+    create_mode=CreateNew,
+  )
+  let built = capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+    "-O3",
+    "-arch=sm_121",
+    "--fmad=false",
+    root + "/selected_policy_probe.cu",
+    "-lcuda",
+    "-o",
+    root + "/probe",
+  ])
+  guard built is { "exit_status": 0, .. } else { fail("probe build") }
+  let results : Array[Json] = []
+  for history in [1024, 32512] {
+    for rows in [1, 2] {
+      for split in [false, true] {
+        for repeat in 0..<2 {
+          let memory = @fs.read_file("/proc/meminfo").text()
+          let line = memory
+            .split("\n")
+            .find_first(s => s.has_prefix("MemAvailable:"))
+            .unwrap()
+          assert_true(
+            @string.parse_int64(
+              line.split(" ").filter(s => !s.is_empty()).to_array()[1],
+            ) >=
+            33554432L,
+          )
+          let label = "h\{history}-r\{rows}-split\{split}-t\{repeat}"
+          @fs.write_file(
+            root + "/" + label + ".memory.txt",
+            memory,
+            create_mode=CreateNew,
+          )
+          let args = [
+            root + "/prefill.spec",
+            root + "/prefill",
+            root + "/decode",
+            rows.to_string(),
+            rows.to_string(),
+            history.to_string(),
+            "--prefill-decode-parity",
+            "--check-only",
+          ]
+          if split {
+            args.push("--decode-partitioned")
+          }
+          let result = capture(root, label, root + "/probe", args)
+          results.push(result)
+          println(result.stringify())
+        }
+      }
+    }
+  }
+  @fs.write_file(
+    root + "/summary.json",
+    Json(results).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=cross-phase-synthetic-parity-diagnostic-not-model-accuracy\n",
+    create_mode=CreateNew,
+  )
+}

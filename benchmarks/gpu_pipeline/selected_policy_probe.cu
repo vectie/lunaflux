@@ -128,18 +128,22 @@ static std::vector<__nv_bfloat16> values(size_t n,int salt){
 static bool same(const std::vector<__nv_bfloat16>& a,const std::vector<__nv_bfloat16>& b){return a.size()==b.size()&&!std::memcmp(a.data(),b.data(),a.size()*2);}
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc<7 || argc>12)return 1;
-  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false;
+  if(argc<7 || argc>13)return 1;
+  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
     else if(std::string(argv[i])=="--decode-envelope" && !decode_envelope)decode_envelope=true;
     else if(std::string(argv[i])=="--decode-partitioned" && !partitioned)partitioned=true;
     else if(std::string(argv[i])=="--streaming-ingress-weights" && !streaming)streaming=true;
+    else if(std::string(argv[i])=="--prefill-decode-parity" && !phase_parity)phase_parity=true;
     else return 1;
   }
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
   const bool ingress=kind=="ingress",decode=kind=="decode",postprocess=kind=="postprocess";
+  // Diagnostic-only metamorphic comparison of the same query/KV under two
+  // phase laws. Never report this cross-phase replay as a paired timing win.
+  if(phase_parity && (kind!="prefill" || !check_only || mixed || decode_envelope || streaming))return 1;
   if(streaming&&!ingress)return 1;
   const int tokens=std::stoi(argv[4]),rows=std::stoi(argv[5]),past=std::stoi(argv[6]);
   const int qh=number(spec,"query_heads"),kh=number(spec,"key_value_heads"),d=number(spec,"head_dimension");
@@ -148,15 +152,15 @@ int main(int argc,char**argv){
   // History is limited by the declared page arena, not an old 8K experiment.
   // Bound before host/device allocation, including uneven per-request tails.
   if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||page<1||max_pages<1||past<0||
-     (decode&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
+     ((decode||phase_parity)&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
   const int64_t largest_row=mixed?(int64_t(tokens)-1+rows-2)/(rows-1):(int64_t(tokens)+rows-1)/rows;
   if(int64_t(past)+largest_row>int64_t(page)*max_pages)return 1;
-  if((decode_envelope || partitioned) && !decode)return 1;
+  if((decode_envelope || partitioned) && !decode && !phase_parity)return 1;
   // Explicit replay of a traced capacity-grid graph, including inactive rows.
   // Do not silently treat a compact synthetic bucket as the serving envelope.
   const int bucket_tokens=decode_envelope?max_rows:selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
-  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned),candidate(argv[3],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned);
+  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned);
   std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u numeric_law=%s\n",
     decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
@@ -209,11 +213,15 @@ int main(int argc,char**argv){
   void* ingress_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&qw.p,&kw.p,&vw.p,&norm.p,&norm.p,&out.p,&dk.p,&dv.p,&rotary.p};
   void* postprocess_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&norm.p,&norm.p,&out.p,&dk.p,&dv.p};
   void** args=ingress?ingress_args:(postprocess?postprocess_args:attention_args);
+  Buffer decode_counts(20);
+  void* phase_args[]={&decode_counts.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&out.p,&dk.p,&dv.p};
+  if(phase_parity)decode_counts.put(std::vector<int>{0,rows,rows,tokens,int(pages.size())});
+  void** candidate_args=phase_parity?phase_args:args;
   baseline.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
   baseline.launch(args);CK(cudaDeviceSynchronize());auto expected=out.read(),expected_key=dk.read(),expected_value=dv.read();
   out.clear();dk.put(key);dv.put(value);
   candidate.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
-  candidate.launch(args);CK(cudaDeviceSynchronize());auto actual=out.read();
+  candidate.launch(candidate_args);CK(cudaDeviceSynchronize());auto actual=out.read();
   double error=0;bool nonzero=false;
   for(size_t i=0;i<actual.size();i++){
     float a=__bfloat162float(actual[i]),b=__bfloat162float(expected[i]);
@@ -268,6 +276,7 @@ int main(int argc,char**argv){
     if(oracle_error>0.003){std::fprintf(stderr,"oracle failed error=%g\n",oracle_error);return 4;}
   }
   std::printf("resources registers=%d resident_blocks=%d local_bytes=%d\n",candidate.regs,candidate.resident,candidate.local);
+  if(phase_parity)std::printf("phase_parity baseline_law=%s candidate_law=%s bitwise=%s maxabs=%g oracle_maxabs=%g scope=synthetic-identical-query-kv-not-model-logits\n",baseline.law.c_str(),candidate.law.c_str(),bitwise?"true":"false",error,oracle_error);
   if(candidate.rotary_prepare) {
     // Kernel timing below measures the consumer. Preparation is once per whole
     // decoder step, not once per layer; report it independently rather than
