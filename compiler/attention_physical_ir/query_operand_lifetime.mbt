@@ -35,8 +35,7 @@ pub fn QueryOperandLifetime::new(
     operand_words > 0 &&
     operand_words <= 1024 &&
     accumulator_words > 0 &&
-    accumulator_words <= 1024 &&
-    (!joint_right_consumers || retained_dimensions > 0) else {
+    accumulator_words <= 1024 else {
     return None
   }
   Some({
@@ -52,6 +51,9 @@ pub fn QueryOperandLifetime::new(
 /// All independent right-column products consume the same immutable query
 /// representation in one instruction region. Their per-accumulator ordered
 /// reduction remains unchanged; this refines consumption, not the fold law.
+/// With a zero retained prefix, that region is epoch-local: load one query
+/// fragment, consume its right columns, then end its lifetime before the next
+/// reduction fragment. Joint consumption does not imply cross-epoch storage.
 pub fn QueryOperandLifetime::joint_right_consumers(
   self : QueryOperandLifetime,
 ) -> Bool {

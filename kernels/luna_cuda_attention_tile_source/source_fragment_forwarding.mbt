@@ -15,11 +15,15 @@ fn cuda_forwarded_matrix_products(
       ("value", binding.value(), ".trans"),
     ] {
     // Complete joint consumption has no remaining per-key call. Emitting an
-    // unused helper fails warning-denied AOT compilation; partial and ordinary
-    // consumers still need it. Derive reachability from the immutable plan.
+    // unused helper fails warning-denied AOT compilation. Epoch-local joint
+    // consumption also covers every reduction fragment; partial retention
+    // still needs the ordinary remainder. Derive reachability from the plan.
     if name == "key" &&
       lifetime.joint_right_consumers() &&
-      lifetime.retained_dimensions() == lifetime.program().fold().geometry().2 {
+      (
+        lifetime.retained_dimensions() == 0 ||
+        lifetime.retained_dimensions() == lifetime.program().fold().geometry().2
+      ) {
       continue
     }
     let b00 = plan.word(0, 0).unwrap()

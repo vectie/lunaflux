@@ -1,5 +1,6 @@
 ///|
-/// Consume one retained Q representation in a single ordered fan-out region.
+/// Consume one Q representation in a single ordered fan-out region. The
+/// lifetime plan chooses an invariant binding or an epoch-local binding.
 /// The row XOR repeats every eight rows, so sixteen-row instruction strides
 /// preserve it. One K scratch fragment is consumed before reuse. No extra K
 /// live state or per-accumulator numerical reassociation is introduced.
@@ -16,6 +17,11 @@ fn cuda_joint_query_consumer(
   }
   let operand_base = columns * 8
   let address_operand = operand_base + 4
+  let query_operand = if binding.query_lifetime().retained_fragments() == 0 {
+    "query_operand"
+  } else {
+    "query_operand_\{query_fragment}"
+  }
   let b00 = plan.word(0, 0).unwrap()
   let b01 = plan.word(0, 1).unwrap()
   let b10 = plan.word(1, 0).unwrap()
@@ -52,9 +58,7 @@ fn cuda_joint_query_consumer(
     }
   }
   source <+ "            : \{outputs.join(",")}\n"
-  let inputs = [
-    for item in 0..<4 => "\"r\"(query_operand_\{query_fragment}.x[\{item}])"
-  ]
+  let inputs = [ for item in 0..<4 => "\"r\"(\{query_operand}.x[\{item}])" ]
   source <+ "            : \{inputs.join(",")},\"r\"(key_base) : \"memory\");\n"
   source <+ "        }\n"
   source.to_string()

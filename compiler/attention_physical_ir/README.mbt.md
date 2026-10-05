@@ -37,6 +37,10 @@ ascending KV epochs; its explicit representation size estimates fragment
 storage, not the hardware register count. The selected lowering retains this
 plan and materializes separately named Q operands before the KV loop. No-retain,
 half-prefix and full-prefix AOT alternatives preserve the same numerical fold.
+Joint right-column consumption is orthogonal to retention: its zero-prefix
+alternative loads one Q fragment inside an epoch, consumes its ordered right
+columns, then expires that binding before the next reduction fragment. It
+adds no cross-epoch query state and preserves load counts and the fold law.
 Register lifetime and saved shared loads must be measured together; unchanged
 static cost and stable-ID ties retain the prior default without fabricating a
 performance win or growing KV width first.

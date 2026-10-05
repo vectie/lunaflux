@@ -35,5 +35,15 @@ test "approximate query ownership is an injective separate identity domain" {
     assert_eq(next.key_value_rows, old.key_value_rows)
     assert_eq(next.memory, old.memory)
     assert_eq(next.pipeline_stages, old.pipeline_stages)
+    assert_true(
+      attention_candidate_requires_approximate_exponential(
+        100000 + next.stable_id,
+      ),
+    )
+    assert_false(
+      attention_candidate_requires_approximate_exponential(
+        100000 + old.stable_id,
+      ),
+    )
   }
 }

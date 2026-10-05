@@ -6,6 +6,7 @@ test "matrix helper emission follows joint consumer reachability for both numeri
       (10645, 70645, true),
       (20644, 80644, true),
       (20645, 80645, false),
+      (100322, 130322, false),
     ] {
     for approximate_exponential in [false, true] {
       let id = if approximate_exponential { approximate } else { strict }
@@ -29,6 +30,58 @@ test "matrix helper emission follows joint consumer reachability for both numeri
       assert_true(source.contains("void lf_matrix_mma_value("))
       assert_true(source.contains("lf_matrix_mma_value(out[column],"))
     }
+  }
+}
+
+///|
+test "epoch-local joint query consumption does not retain invariant fragments" {
+  for (id, approximate_exponential) in [(100322, false), (130322, true)] {
+    let lowering = source_test_lowering(
+      true,
+      100000L,
+      2,
+      candidate_id=Some(id),
+      approximate_exponential~,
+    )
+    let binding = lowering.prefill_fragments().unwrap()
+    let lifetime = binding.query_lifetime()
+    assert_true(lifetime.joint_right_consumers())
+    assert_eq(lifetime.retained_fragments(), 0)
+    assert_eq(lifetime.query_load_count(0), Some(0L))
+    assert_eq(lifetime.query_load_count(448), Some(3584L))
+    assert_eq(cuda_query_operand_bootstrap(binding), "")
+    let products = cuda_retained_query_score_product(binding)
+    assert_eq(
+      products.split("const auto query_operand=").to_array().length() - 1,
+      8,
+    )
+    assert_eq(
+      products.split("mma.sync.aligned.m16n8k16").to_array().length() - 1,
+      64,
+    )
+    assert_false(products.contains("query_operand_"))
+    assert_false(products.contains("lf_matrix_mma_key"))
+    for index in 0..<8 {
+      assert_true(
+        products.contains(
+          "lf_matrix_load(qbuf,qr,\{index * 16},LF_HEAD_DIMENSION)",
+        ),
+      )
+    }
+    let base = source_test_lowering(
+      true,
+      100000L,
+      2,
+      candidate_id=Some(if approximate_exponential { 30322 } else { 322 }),
+      approximate_exponential~,
+    )
+    assert_eq(lowering.launch(), base.launch())
+    assert_eq(lifetime.program(), base.prefill_fragments().unwrap().program())
+    assert_eq(
+      lifetime.peak_fragment_words(),
+      base.prefill_fragments().unwrap().query_lifetime().peak_fragment_words(),
+    )
+    assert_false(lowering.digest() == base.digest())
   }
 }
 

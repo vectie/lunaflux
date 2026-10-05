@@ -31,6 +31,19 @@ fn cuda_retained_query_score_product(
   let lifetime = binding.query_lifetime()
   let (_, columns, _, quantum, _) = binding.score().program().geometry()
   let source = StringBuilder()
+  if lifetime.joint_right_consumers() && lifetime.retained_fragments() == 0 {
+    let (_, _, dimensions) = lifetime.program().fold().geometry()
+    for index in 0..<(dimensions / quantum) {
+      // One lexical/physical lifetime per ordered reduction fragment. No
+      // invariant aggregate is carried across epochs or dynamically indexed.
+      source <+ "        {\n"
+      source <+
+        "          const auto query_operand=lf_matrix_load(qbuf,qr,\{index * quantum},LF_HEAD_DIMENSION);\n"
+      source.write_string(cuda_joint_query_consumer(binding, index))
+      source <+ "        }\n"
+    }
+    return source.to_string()
+  }
   for index in 0..<lifetime.retained_fragments() {
     if lifetime.joint_right_consumers() {
       source.write_string(cuda_joint_query_consumer(binding, index))

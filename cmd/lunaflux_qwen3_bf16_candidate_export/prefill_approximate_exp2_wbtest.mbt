@@ -36,7 +36,7 @@ test "export CLI requires explicit approximate exponential permission" {
 ///|
 test "wide and retained approximate identities cannot bypass CLI permission" {
   for option in ["--prefill-candidate", "--wide-prefill-candidate"] {
-    for id in [30322, 70644, 80645] {
+    for id in [30322, 70644, 80645, 130322] {
       let raw = approximate_cli_base()
       raw.append([option, id.to_string()])
       try parse_qwen3_candidate_export_arguments(raw) catch {
@@ -51,6 +51,14 @@ test "wide and retained approximate identities cannot bypass CLI permission" {
   strict.append(["--prefill-candidate", "322"])
   assert_false(
     parse_qwen3_candidate_export_arguments(strict).prefill_approximate_exp2,
+  )
+  let epoch_joint = approximate_cli_base()
+  epoch_joint.append([
+    "--prefill-candidate", "130322", "--prefill-approximate-exp2",
+  ])
+  assert_eq(
+    parse_qwen3_candidate_export_arguments(epoch_joint).prefill_candidate,
+    Some(130322),
   )
 }
 

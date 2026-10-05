@@ -156,13 +156,12 @@ fn attention_candidate_compatible(
     return false
   }
   if candidate.retained_query_dimensions < 0 ||
-    (
-      candidate.joint_query_consumers &&
-      candidate.retained_query_dimensions == 0
-    ) ||
     candidate.retained_query_dimensions > head_columns ||
     (
-      candidate.retained_query_dimensions > 0 &&
+      (
+        candidate.retained_query_dimensions > 0 ||
+        candidate.joint_query_consumers
+      ) &&
       ownership != QueryOwnedFragments
     ) {
     return false

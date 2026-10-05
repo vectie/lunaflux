@@ -18,6 +18,14 @@ fn retained_query_attention_candidates(
       QueryOwnedFragments {
       continue
     }
+    // Consumer sharing and invariant retention are orthogonal. This variant
+    // expires each query representation inside its KV epoch, so all output
+    // consumers share it without carrying additional state through the fold.
+    variants.push({
+      ..candidate,
+      stable_id: 100000 + candidate.stable_id,
+      joint_query_consumers: true,
+    })
     // Prefix and complete retention are separate live ranges. These ranges
     // are derived from the existing reduction extent, never target names.
     for index, retained in [dimensions / 2, dimensions] {

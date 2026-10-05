@@ -62,7 +62,7 @@ test "joint operand fanout refines consumption without enlarging fragment state"
       reduction_quantum=16,
     )
     .unwrap()
-  for retained in [64, 128] {
+  for retained in [0, 64, 128] {
     let prior = @attention_physical_ir.QueryOperandLifetime::new(
       program,
       retained_dimensions=retained,
@@ -81,16 +81,6 @@ test "joint operand fanout refines consumption without enlarging fragment state"
     assert_eq(prior.peak_fragment_words(), joint.peak_fragment_words())
     assert_eq(prior.query_load_count(128), joint.query_load_count(128))
   }
-  assert_eq(
-    @attention_physical_ir.QueryOperandLifetime::new(
-      program,
-      retained_dimensions=0,
-      operand_words=4,
-      accumulator_words=8,
-      joint_right_consumers=true,
-    ),
-    None,
-  )
 }
 
 ///|
