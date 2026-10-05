@@ -127,6 +127,7 @@ async fn main {
     ["page-batch-v1"] => ["pagebatch"]
     ["page-lookahead-v1"] => ["lookahead"]
     ["page-origin-v1"] => ["pageorigin"]
+    ["page-readiness-v1"] => ["pageready"]
     _ => fail("bounded experiment kind")
   }
   let rows : Array[Json] = []
