@@ -3,6 +3,21 @@ import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn tracked_token_ids(text : String) -> Array[Int] raise {
+  let ids = text.split(",").to_array().map(id => @string.parse_int(id))
+  guard ids.length() > 0 && ids.length() <= 32 else {
+    fail("1..32 tracked token IDs")
+  }
+  for i, id in ids {
+    guard id >= 0 && ids[:i].all(previous => previous != id) else {
+      fail("nonnegative unique tracked IDs")
+    }
+  }
+  ids
 }
 
 // Run after install_execution_trace, and only in a disposable source tree.
@@ -53,7 +68,11 @@ fn margin_request_markers(source : String) -> String raise {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root] else { fail("DISPOSABLE_TRACE_SOURCE") }
+  let (root, tracked) = match @env.args() {
+    [_, root] => (root, [624, 382])
+    [_, root, "--tracked-tokens", ids] => (root, tracked_token_ids(ids))
+    _ => fail("DISPOSABLE_TRACE_SOURCE [--tracked-tokens ID,ID,...]")
+  }
   let directory = root + "/engine/device_step/"
   let events = directory + "diagnostic_execution.mbt"
   assert_true(@fs.exists(events))
@@ -99,6 +118,11 @@ async fn main {
     #|    }
     #|  }
     #|}
+  let function = replace_exact(
+    function,
+    "[624, 382]",
+    tracked.to_json().stringify(),
+  )
   @fs.write_file(
     directory + "diagnostic_logit_margin.mbt",
     function,
@@ -112,8 +136,22 @@ async fn main {
     ),
   )
   println(
-    "diagnostic-only epoch-correlated top-two and 624/382 logits installed",
+    "diagnostic-only epoch-correlated top-two and explicit token logits installed",
   )
+}
+
+///|
+test "tracked IDs are explicit and bounded without changing the default trace" {
+  assert_eq(tracked_token_ids("315,389,279,198,13,271"), [
+    315, 389, 279, 198, 13, 271,
+  ])
+  for invalid in ["", "315,315", "-1", "x"] {
+    try tracked_token_ids(invalid) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid tracked IDs")
+    }
+  }
 }
 
 ///|

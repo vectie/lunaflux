@@ -1,0 +1,241 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn workloads() -> Array[(Int, Int, Int)] {
+  let shapes : Array[(Int, Int, Int)] = []
+  for (tokens, history) in [(8192, 0), (8192, 24576), (7936, 24576)] {
+    for chunk in [2048, 4096] {
+      shapes.push((tokens, history, chunk))
+    }
+  }
+  shapes
+}
+
+///|
+fn sanitizer_workload(tool : String) -> (Int, Int, Int) {
+  // Full long-history pointer domain for memcheck; a boundary/tail fixture
+  // keeps shared-access and synchronization instrumentation bounded.
+  if tool == "memcheck" {
+    (7936, 24576, 2048)
+  } else {
+    (129, 1024, 64)
+  }
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Json {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  {
+    "label": label,
+    "exit_status": result.exit_code(),
+    "stdout": result.stdout(),
+    "stderr": result.stderr(),
+  }
+}
+
+///|
+async fn main {
+  let (root, sanitizers) = match @env.args() {
+    [_, root] => (root, false)
+    [_, root, "--sanitizers"] => (root, true)
+    _ => fail("NEW_PREPARED_CHUNK_PARITY_ROOT [--sanitizers]")
+  }
+  assert_true(root.has_prefix("/home/wlc003s/lunaflux-ako-chunk-parity-"))
+  let identity = @shell.Cmd("nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ]).output()
+  identity.check()
+  assert_eq(
+    identity.stdout().trim(),
+    "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f",
+  )
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  if sanitizers {
+    assert_true(
+      @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let (tokens, history, chunk) = sanitizer_workload(tool)
+      let memory = @fs.read_file("/proc/meminfo").text()
+      let line = memory
+        .split("\n")
+        .find_first(s => s.has_prefix("MemAvailable:"))
+        .unwrap()
+      assert_true(
+        @string.parse_int64(
+          line.split(" ").filter(s => !s.is_empty()).to_array()[1],
+        ) >=
+        33554432L,
+      )
+      @fs.write_file(
+        root + "/sanitizer-" + tool + ".memory.txt",
+        memory,
+        create_mode=CreateNew,
+      )
+      let result = capture(
+        root,
+        "sanitizer-" + tool,
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        [
+          "--tool",
+          tool,
+          "--error-exitcode",
+          "99",
+          root + "/probe",
+          root + "/prefill.spec",
+          root + "/prefill",
+          root + "/prefill",
+          tokens.to_string(),
+          "1",
+          history.to_string(),
+          "--prefill-chunk-parity",
+          chunk.to_string(),
+          "--check-only",
+        ],
+      )
+      guard result
+        is { "exit_status": 0, "stderr": "", "stdout": String(log), .. } &&
+        log.contains("correctness=passed") &&
+        (log.contains("0 errors") || log.contains("0 hazards")) else {
+        fail("sanitizer " + tool)
+      }
+      println(tool + " passed")
+    }
+    @fs.write_file(
+      root + "/SANITIZERS_RESULT.txt",
+      "outcome=passed\nscope=diagnostic-pointer-domains-not-new-production-kernel\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  @fs.write_file(root + "/gpu.txt", identity.stdout(), create_mode=CreateNew)
+  let hashes = @shell.Cmd(
+    "sha256sum",
+    [
+      "/usr/local/cuda-13.0/bin/nvcc",
+      ..[
+        "selected_policy_probe.cu", "selected_policy_geometry.h", "prefill.spec",
+        "prefill/kernel.recipe", "prefill/kernel.cubin",
+      ].map(name => root + "/" + name),
+    ],
+  ).output()
+  hashes.check()
+  assert_true(
+    hashes
+    .stdout()
+    .has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+    ),
+  )
+  @fs.write_file(
+    root + "/identities.txt",
+    hashes.stdout(),
+    create_mode=CreateNew,
+  )
+  let built = capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+    "-O3",
+    "-arch=sm_121",
+    "--fmad=false",
+    root + "/selected_policy_probe.cu",
+    "-lcuda",
+    "-o",
+    root + "/probe",
+  ])
+  guard built is { "exit_status": 0, .. } else { fail("probe build") }
+  let results : Array[Json] = []
+  for (tokens, history, chunk) in workloads() {
+    for repeat in 0..<2 {
+      let memory = @fs.read_file("/proc/meminfo").text()
+      let line = memory
+        .split("\n")
+        .find_first(s => s.has_prefix("MemAvailable:"))
+        .unwrap()
+      assert_true(
+        @string.parse_int64(
+          line.split(" ").filter(s => !s.is_empty()).to_array()[1],
+        ) >=
+        33554432L,
+      )
+      let label = "q\{tokens}-h\{history}-chunk\{chunk}-t\{repeat}"
+      @fs.write_file(
+        root + "/" + label + ".memory.txt",
+        memory,
+        create_mode=CreateNew,
+      )
+      let result = capture(root, label, root + "/probe", [
+        root + "/prefill.spec",
+        root + "/prefill",
+        root + "/prefill",
+        tokens.to_string(),
+        "1",
+        history.to_string(),
+        "--prefill-chunk-parity",
+        chunk.to_string(),
+        "--check-only",
+      ])
+      results.push(result)
+      println(result.stringify())
+    }
+  }
+  @fs.write_file(
+    root + "/summary.json",
+    Json(results).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=synthetic-identical-query-kv-chunk-diagnostic-not-model-accuracy\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "bounded grid includes exact last serving chunk and long history" {
+  let grid = workloads()
+  assert_eq(grid.length(), 6)
+  assert_true(grid.contains((7936, 24576, 2048)))
+  assert_true(grid.contains((8192, 0, 4096)))
+  assert_true(
+    grid.all(shape => {
+      let (tokens, history, chunk) = shape
+      tokens <= 8192 && tokens + history <= 32768 && chunk < tokens
+    }),
+  )
+  assert_eq(sanitizer_workload("memcheck"), (7936, 24576, 2048))
+  assert_eq(sanitizer_workload("racecheck"), (129, 1024, 64))
+  assert_eq(sanitizer_workload("synccheck"), (129, 1024, 64))
+}

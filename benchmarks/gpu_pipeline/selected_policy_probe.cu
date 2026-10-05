@@ -126,10 +126,26 @@ static std::vector<__nv_bfloat16> values(size_t n,int salt){
   return v;
 }
 static bool same(const std::vector<__nv_bfloat16>& a,const std::vector<__nv_bfloat16>& b){return a.size()==b.size()&&!std::memcmp(a.data(),b.data(),a.size()*2);}
+static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
+    const std::vector<int>& lengths,const std::vector<int>& po,
+    const std::vector<int>& positions,int max_rows,int max_tokens) {
+  std::vector<int> metadata(4,0);
+  for(int bucket=0;bucket<4;bucket++){
+    int width=16<<bucket,capacity=max_rows+(max_tokens-max_rows)/width,base=metadata.size(),count=0;
+    metadata.resize(base+capacity*8);
+    for(int r=0;r<int(lengths.size());r++)for(int t=offsets[r];t<offsets[r+1];t+=width){
+      int record[8]={r,t,offsets[r],offsets[r+1],lengths[r],po[r],po[r+1],positions[std::min(t+width,offsets[r+1])-1]+1};
+      if(count>=capacity)std::exit(1);std::copy(record,record+8,metadata.begin()+base+count*8);count++;
+    }
+    metadata[bucket]=count;
+  }
+  return metadata;
+}
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc<7 || argc>13)return 1;
+  if(argc<7 || argc>15)return 1;
   bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false;
+  int chunk_tokens=0;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
@@ -137,6 +153,7 @@ int main(int argc,char**argv){
     else if(std::string(argv[i])=="--decode-partitioned" && !partitioned)partitioned=true;
     else if(std::string(argv[i])=="--streaming-ingress-weights" && !streaming)streaming=true;
     else if(std::string(argv[i])=="--prefill-decode-parity" && !phase_parity)phase_parity=true;
+    else if(std::string(argv[i])=="--prefill-chunk-parity" && !chunk_tokens && i+1<argc){chunk_tokens=std::stoi(argv[++i]);if(chunk_tokens<1)return 1;}
     else return 1;
   }
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
@@ -144,11 +161,13 @@ int main(int argc,char**argv){
   // Diagnostic-only metamorphic comparison of the same query/KV under two
   // phase laws. Never report this cross-phase replay as a paired timing win.
   if(phase_parity && (kind!="prefill" || !check_only || mixed || decode_envelope || streaming))return 1;
+  if(chunk_tokens && (chunk_tokens<1 || kind!="prefill" || !check_only || mixed || phase_parity || decode_envelope || streaming || partitioned))return 1;
   if(streaming&&!ingress)return 1;
   const int tokens=std::stoi(argv[4]),rows=std::stoi(argv[5]),past=std::stoi(argv[6]);
   const int qh=number(spec,"query_heads"),kh=number(spec,"key_value_heads"),d=number(spec,"head_dimension");
   const int input_width=number(spec,"input_width"),page=number(spec,"tokens_per_page"),stride=number(spec,"page_stride_values");
   const int max_rows=number(spec,"maximum_rows"),max_tokens=number(spec,"maximum_tokens"),max_pages=number(spec,"maximum_pages");
+  if(chunk_tokens && (rows!=1 || chunk_tokens>=tokens || number(spec,"query_metadata_version")!=1))return 1;
   // History is limited by the declared page arena, not an old 8K experiment.
   // Bound before host/device allocation, including uneven per-request tails.
   if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||page<1||max_pages<1||past<0||
@@ -180,16 +199,7 @@ int main(int argc,char**argv){
   for(int i=0;i<physical_pages;i++)pages[i]=(physical_pages-1-i+physical_pages/3)%physical_pages;
   std::vector<int> counts{decode?0:(mixed?rows-1:rows),decode?rows:(mixed?1:0),rows,tokens,int(pages.size())};
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
-  std::vector<int> metadata(4,0);
-  for(int bucket=0;bucket<4;bucket++){
-    int width=16<<bucket,capacity=max_rows+(max_tokens-max_rows)/width,base=metadata.size(),count=0;
-    metadata.resize(base+capacity*8);
-    for(int r=0;r<rows;r++)for(int t=offsets[r];t<offsets[r+1];t+=width){
-      int record[8]={r,t,offsets[r],offsets[r+1],lengths[r],po[r],po[r+1],positions[std::min(t+width,offsets[r+1])-1]+1};
-      if(count>=capacity)return 1;std::copy(record,record+8,metadata.begin()+base+count*8);count++;
-    }
-    metadata[bucket]=count;
-  }
+  auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens);
   auto x=values(size_t(tokens)*input_width,3);
   auto key=values(size_t(pages.size())*stride,29),value=values(key.size(),31);
   if(!ingress&&!postprocess){
@@ -221,7 +231,25 @@ int main(int argc,char**argv){
   baseline.launch(args);CK(cudaDeviceSynchronize());auto expected=out.read(),expected_key=dk.read(),expected_value=dv.read();
   out.clear();dk.put(key);dv.put(value);
   candidate.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
-  candidate.launch(candidate_args);CK(cudaDeviceSynchronize());auto actual=out.read();
+  if(chunk_tokens) {
+    // Preserve every query and its original immutable KV. Only the submitted
+    // query domain and dense-current versus paged-history ownership change.
+    // This path is check-only and never supplies timing samples.
+    for(int begin=0;begin<tokens;begin+=chunk_tokens) {
+      const int n=std::min(chunk_tokens,tokens-begin);
+      std::vector<int> local_positions(positions.begin()+begin,positions.begin()+begin+n);
+      dc.put(std::vector<int>{1,0,1,n,int(pages.size())});
+      dl.put(std::vector<int>{past+begin+n});
+      dm.put(prefill_metadata({0,n},{past+begin+n},po,local_positions,max_rows,max_tokens));
+      void* chunk_positions=static_cast<char*>(dp.p)+size_t(begin)*4;
+      void* chunk_input=static_cast<char*>(dx.p)+size_t(begin)*input_width*2;
+      void* chunk_output=static_cast<char*>(out.p)+size_t(begin)*qh*d*2;
+      void* chunk_args[]={&dc.p,&chunk_positions,&dm.p,&dl.p,&dpo.p,&dpi.p,&chunk_input,&chunk_output,&dk.p,&dv.p};
+      Kernel chunk(argv[3],selected_bucket_tokens(n,max_tokens),max_rows,false,false);
+      chunk.launch(chunk_args);CK(cudaDeviceSynchronize());
+    }
+  } else { candidate.launch(candidate_args);CK(cudaDeviceSynchronize()); }
+  auto actual=out.read();
   double error=0;bool nonzero=false;
   for(size_t i=0;i<actual.size();i++){
     float a=__bfloat162float(actual[i]),b=__bfloat162float(expected[i]);
@@ -277,6 +305,7 @@ int main(int argc,char**argv){
   }
   std::printf("resources registers=%d resident_blocks=%d local_bytes=%d\n",candidate.regs,candidate.resident,candidate.local);
   if(phase_parity)std::printf("phase_parity baseline_law=%s candidate_law=%s bitwise=%s maxabs=%g oracle_maxabs=%g scope=synthetic-identical-query-kv-not-model-logits\n",baseline.law.c_str(),candidate.law.c_str(),bitwise?"true":"false",error,oracle_error);
+  if(chunk_tokens)std::printf("chunk_parity total_queries=%d chunk_queries=%d history=%d bitwise=%s maxabs=%g oracle_maxabs=%g scope=synthetic-identical-query-kv-not-model-logits\n",tokens,chunk_tokens,past,bitwise?"true":"false",error,oracle_error);
   if(candidate.rotary_prepare) {
     // Kernel timing below measures the consumer. Preparation is once per whole
     // decoder step, not once per layer; report it independently rather than

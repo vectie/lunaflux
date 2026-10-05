@@ -1,0 +1,184 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(record : Json, name : String) -> Json raise {
+  guard record is Object(fields) && fields.get(name) is Some(value) else {
+    fail(name)
+  }
+  value
+}
+
+///|
+fn group(records : Array[Json]) -> Array[Array[Json]] raise {
+  let groups : Array[Array[Json]] = []
+  let identities : Array[(Json, Json)] = []
+  for record in records {
+    let identity = (field(record, "request"), field(record, "generation"))
+    if identities.last() != Some(identity) {
+      assert_false(
+        identities.contains(identity),
+        msg="request lifetimes interleaved",
+      )
+      identities.push(identity)
+      groups.push([])
+    }
+    let samples = groups.last().unwrap()
+    assert_eq(field(record, "sample"), Json(samples.length()))
+    assert_eq(field(record, "position"), Json(32511 + samples.length()))
+    samples.push(record)
+  }
+  assert_eq(groups.length(), 4)
+  assert_true(groups.all(samples => samples.length() == 64))
+  groups
+}
+
+///|
+fn compare(a : Array[Json], b : Array[Json]) -> Json raise {
+  let mut first = -1
+  let mut changed = 0
+  let mut first_logits = -1
+  for i in 0..<64 {
+    if logit_bits(a[i]) != logit_bits(b[i]) && first_logits == -1 {
+      first_logits = i
+    }
+    if field(a[i], "selected") != field(b[i], "selected") {
+      if first == -1 {
+        first = i
+      }
+      changed += 1
+    }
+  }
+  {
+    "first_token_difference": first,
+    "changed_tokens": changed,
+    "first_tracked_logit_difference": first_logits,
+    "left_first_steps": a[:Int::min(5, if first < 0 { 5 } else { first + 1 })].to_owned(),
+    "right_first_steps": b[:Int::min(5, if first < 0 { 5 } else { first + 1 })].to_owned(),
+  }
+}
+
+///|
+fn logit_bits(record : Json) -> Json raise {
+  guard field(record, "tracked_logits") is Object(logits) else {
+    fail("tracked logits")
+  }
+  let bits : Map[String, Json] = Map([])
+  for token, value in logits {
+    bits[token] = field(value, "bits")
+  }
+  bits.to_json()
+}
+
+///|
+async fn main {
+  let (root, output, baseline) = match @env.args() {
+    [_, root] => (root, "trace-audit.json", None)
+    [_, root, "--corrected-report"] => (root, "trace-audit-bits.json", None)
+    [_, root, "--baseline", previous] =>
+      (root, "trace-audit-confirmed.json", Some(previous))
+    _ =>
+      fail(
+        "COMPLETED_CHUNK_TRACE_ROOT [--corrected-report|--baseline UNINSTRUMENTED_ROOT]",
+      )
+  }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  let arms : Array[Array[Array[Json]]] = []
+  let audits : Array[Json] = []
+  for cap in [2048, 8192] {
+    let prefix = root + "/replay-c\{cap}"
+    guard @json.parse(@fs.read_file(prefix + "/margins.json").text())
+      is {
+        "records": Array(records),
+        "gpu_cpu_argmax_mismatches": mismatches,
+        "exact_top_two_ties": ties,
+        ..
+      } else {
+      fail("margins")
+    }
+    let groups = group(records)
+    // Only one request is submitted at a time, in row0,row1,row0,row1 order.
+    // Validate every server vector against its corresponding saved client result.
+    for i, samples in groups {
+      guard @json.parse(
+          @fs.read_file(
+            prefix + "/r0-luna-full/requests/solo-r\{i%2}-t\{i/2}.json",
+          ).text(),
+        )
+        is { "token_ids": Array(tokens), .. } else {
+        fail("client tokens")
+      }
+      assert_eq(samples.map(record => field(record, "selected")), tokens)
+      if baseline is Some(previous) {
+        let path = previous +
+          "/campaign-r2/c\{cap}/r0-luna-full/requests/solo\{i%2}-t\{i/2}-r\{i%2}"
+        let saved = @json.parse(@fs.read_file(path + ".json").text())
+        assert_eq(field(saved, "token_ids"), Json(tokens))
+        assert_eq(
+          @json.parse(@fs.read_file(path + ".body.json").text()),
+          @json.parse(
+            @fs.read_file(
+              prefix + "/r0-luna-full/requests/solo-r\{i%2}-t\{i/2}.body.json",
+            ).text(),
+          ),
+          msg="exact saved inputs",
+        )
+      }
+    }
+    arms.push(groups)
+    audits.push({
+      "query_chunk": cap,
+      "gpu_cpu_argmax_mismatches": mismatches,
+      "exact_top_two_ties": ties,
+      "repeat_row0": compare(groups[0], groups[2]),
+      "repeat_row1": compare(groups[1], groups[3]),
+    })
+  }
+  let cross : Array[Json] = []
+  for trial in 0..<2 {
+    for row in [0, 1] {
+      cross.push({
+        "trial": trial,
+        "row": row,
+        "comparison": compare(
+          arms[0][trial * 2 + row],
+          arms[1][trial * 2 + row],
+        ),
+      })
+    }
+  }
+  let report : Json = {
+    "scope": "diagnostic-readback-no-performance-claim",
+    "uninstrumented_vectors_confirmed": baseline is Some(_),
+    "arms": audits,
+    "cross_chunk": cross,
+  }
+  @fs.write_file(
+    root + "/" + output,
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("saved " + root + "/" + output)
+}
+
+///|
+test "logit comparison excludes physical row ownership metadata" {
+  let a : Json = {
+    "tracked_logits": { "389": { "bits": 16785, "packed_token_row": 1791 } },
+  }
+  let b : Json = {
+    "tracked_logits": { "389": { "bits": 16785, "packed_token_row": 7935 } },
+  }
+  let c : Json = {
+    "tracked_logits": { "389": { "bits": 16786, "packed_token_row": 1791 } },
+  }
+  assert_eq(logit_bits(a), logit_bits(b))
+  assert_not_eq(logit_bits(a), logit_bits(c))
+}
