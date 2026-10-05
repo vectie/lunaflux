@@ -117,7 +117,7 @@ async fn main {
     }
     return
   }
-  if phase == "seal" {
+  if phase == "seal" || phase == "seal-large" {
     guard @json.parse(@fs.read_file(root + "/records.json").text())
       is Array(records) else {
       fail("records")
@@ -223,16 +223,21 @@ async fn main {
     println(hash.stdout())
     return
   }
-  if phase == "export" || phase == "export-coowned" {
+  if phase == "export" || phase == "export-coowned" || phase == "export-large" {
     let coowned = phase == "export-coowned"
-    let labels = if coowned {
+    let large = phase == "export-large"
+    let labels = if large {
+      ["baseline", "r64-c8", "r128-c16", "r128-c8", "r64-coowned-c16"]
+    } else if coowned {
       ["baseline", "r64-coowned-c16"]
     } else {
       ["baseline", "r64-c8", "r128-c16", "r128-c8"]
     }
     @fs.mkdir(root)
     let output = capture(root, "export", "/usr/bin/env", [
-      if coowned {
+      if large {
+        "LUNA_EXPORT_AKO_LARGE_CHUNKS=1"
+      } else if coowned {
         "LUNA_EXPORT_AKO_COOWNED_C16=1"
       } else {
         "LUNA_EXPORT_AKO_SIBLING_DOMAIN=1"
@@ -304,27 +309,34 @@ async fn main {
   guard idle.trim().is_empty() else { fail("GPU busy") }
   guard @json.parse(@fs.read_file(root + "/records.json").text())
     is Array(records) &&
-    (records.length() == 4 || records.length() == 2) else {
+    (records.length() == 4 || records.length() == 2 || records.length() == 5) else {
     fail("records")
   }
-  if phase == "confirm" {
-    guard records[1] is { "label": String(label), .. } else { fail("label") }
+  if phase == "confirm" || phase == "confirm-large" {
+    let large = phase == "confirm-large"
+    // The predeclared large-chunk search found r64-c8 at 8192; confirm that
+    // whole-chain winner independently, not the later coowned alternative.
+    let index = 1
+    guard records[index] is { "label": String(label), .. } else {
+      fail("label")
+    }
     let args = [
       "mlp",
       root + "/baseline.cubin",
       root + "/" + label + ".cubin",
-      "2048",
+      if large {
+        "8192"
+      } else {
+        "2048"
+      },
       "32",
       ..geometry(records[0]),
-      ..geometry(records[1]),
+      ..geometry(records[index]),
       "--streaming-all-weights",
     ]
     let workloads : Array[Json] = []
     for i in [0, 1, 2, 3, 4] {
-      workloads.push({
-        "label": "stream-2048-repeat-" + i.to_string(),
-        "args": args,
-      })
+      workloads.push({ "label": "stream-repeat-" + i.to_string(), "args": args })
     }
     let contract : Json = {
       "schema": "lunaflux-ako-trial-v1",
@@ -351,10 +363,14 @@ async fn main {
       "mlp",
       root + "/baseline.cubin",
       root + "/" + label + ".cubin",
-      "129",
+      if large {
+        "8191"
+      } else {
+        "129"
+      },
       "32",
       ..geometry(records[0]),
-      ..geometry(records[1]),
+      ..geometry(records[index]),
       "--check",
     ]
     for tool in ["memcheck", "racecheck", "synccheck"] {
@@ -379,8 +395,17 @@ async fn main {
     println("confirmation and boundary sanitizers completed")
     return
   }
-  if phase == "run" || phase == "run-coowned" {
+  if phase == "run" || phase == "run-coowned" || phase == "run-large" {
     let coowned = phase == "run-coowned"
+    let large = phase == "run-large"
+    if large {
+      guard records.length() == 5 else { fail("five large-chunk records") }
+      for record in records {
+        guard record is { "maximum_query_tokens": 8192, .. } else {
+          fail("large-chunk AOT capacity")
+        }
+      }
+    }
     ignore(capture(root, "nvcc-version", nvcc, ["--version"]))
     if coowned {
       guard records.length() == 2 &&
@@ -451,7 +476,12 @@ async fn main {
       guard records[i] is { "label": String(label), .. } else { fail("label") }
       let workloads : Array[Json] = []
       for streamed in [false, true] {
-        for tokens in [32, 129, 512, 2048] {
+        for
+          tokens in (if large {
+            [2048, 4096, 8192]
+          } else {
+            [32, 129, 512, 2048]
+          }) {
           let args = [
             "mlp",
             root + "/baseline.cubin",
@@ -498,15 +528,25 @@ async fn main {
     }
     return
   }
-  guard phase == "counters" || phase == "counters-admin" else { fail("phase") }
+  let large = phase == "counters-large-admin"
+  guard phase == "counters" || phase == "counters-admin" || large else {
+    fail("phase")
+  }
   // Separate profiler runs: never mix replay timing into paired benchmark rows.
   for i = 1; i < records.length(); i = i + 1 {
+    if large && i != 1 && i != 4 {
+      continue
+    }
     guard records[i] is { "label": String(label), .. } else { fail("label") }
     let args = [
       "mlp",
       root + "/baseline.cubin",
       root + "/" + label + ".cubin",
-      "2048",
+      if large {
+        "8192"
+      } else {
+        "2048"
+      },
       "32",
       ..geometry(records[0]),
       ..geometry(records[i]),

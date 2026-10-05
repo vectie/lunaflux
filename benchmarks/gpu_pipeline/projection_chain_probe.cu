@@ -128,7 +128,9 @@ int main(int argc, char** argv) {
   }
   const bool mlp = std::strcmp(argv[1], "mlp") == 0;
   if (!mlp && std::strcmp(argv[1], "output") != 0) return 1;
-  const unsigned tokens = number(argv[4], 2048), rows = number(argv[5], 32);
+  // Offline chunk experiment only. The supplied AOT modules must carry this
+  // capacity too; raising a probe limit cannot extend a serving bundle.
+  const unsigned tokens = number(argv[4], 8192), rows = number(argv[5], 32);
   bool check_only = false, bounded_symbols = false, down_only_change = false, streaming_weights = false, streaming_all = false;
   for (int i = 18; i < argc; ++i) {
     if (std::strcmp(argv[i], "--check") == 0 && !check_only) check_only = true;
@@ -141,10 +143,10 @@ int main(int argc, char** argv) {
   if (tokens < rows || (bounded_symbols && tokens > 16)) return 1;
   const unsigned hidden = 1024, intermediate = 3072, input_width = mlp ? hidden : 2048;
   CK(cudaSetDevice(0)); CK(cudaFree(nullptr));
-  Buffer counts(20), input(size_t(2048) * input_width * 2),
+  Buffer counts(20), input(size_t(tokens) * input_width * 2),
     gate(size_t(mlp ? intermediate : hidden) * input_width * 2),
     up(size_t(intermediate) * hidden * 2), down(size_t(intermediate) * hidden * 2),
-    output(size_t(2048) * hidden * 2), workspace(size_t(2048) * intermediate * 2);
+    output(size_t(tokens) * hidden * 2), workspace(size_t(tokens) * intermediate * 2);
   int live[5] = {int(rows), 0, int(rows), int(tokens), int(rows)};
   CK(cudaMemcpy(counts.pointer, live, sizeof(live), cudaMemcpyHostToDevice));
   auto x = input.fill(3), g = gate.fill(7), u = up.fill(11), d = down.fill(13);

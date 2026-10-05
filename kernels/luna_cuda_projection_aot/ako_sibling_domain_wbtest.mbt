@@ -2,6 +2,9 @@
 // Bounded offline schedule experiment. These alternatives preserve the ordered
 // fold and down program; none changes a serving default.
 test "AKO sibling row ownership changes only the primary physical domain" {
+  let large_chunks = @env.get_env_var("LUNA_EXPORT_AKO_LARGE_CHUNKS") ==
+    Some("1")
+  let capacity = if large_chunks { 8192 } else { 2048 }
   let input = @plan.ActivationRef::new(8)
   let weights = [9, 10, 11].map(i => @plan.TensorRef::new(i))
   let operation = projection_fixture_operation(
@@ -14,7 +17,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
   let profile = @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
     max_query_rows=32,
-    max_query_tokens=2048,
+    max_query_tokens=capacity,
     max_page_table_entries=16384,
   )
   let target = @catalog.DeviceTarget::new(
@@ -37,14 +40,18 @@ test "AKO sibling row ownership changes only the primary physical domain" {
   )
   let operands = [
     projection_fixture_operand(RuntimeInput(StepCounts), 20L, 4L),
-    projection_fixture_operand(ActivationInput(input), 4194304L, 16L),
+    projection_fixture_operand(
+      ActivationInput(input),
+      capacity.to_int64() * 2048L,
+      16L,
+    ),
     ..weights.map(w => projection_fixture_operand(WeightInput(w), 6291456L, 16L)),
     projection_fixture_operand(
       ActivationOutput(@plan.ActivationRef::new(9)),
-      4194304L,
+      capacity.to_int64() * 2048L,
       16L,
     ),
-    projection_fixture_operand(Workspace, 12582912L, 16L),
+    projection_fixture_operand(Workspace, capacity.to_int64() * 6144L, 16L),
   ]
   let dispatch = prepare_projection_cuda_runtime_dispatch(
     operation,
@@ -139,6 +146,15 @@ test "AKO sibling row ownership changes only the primary physical domain" {
       )
     }
     let after = @utf8.decode(candidate.source_bytes())
+    // Both primary and down carry the same exported ceiling. The probe must
+    // never silently measure an AOT guard returning early at larger chunks.
+    let capacity_guard = "if (token_count <= 0 || token_count > " +
+      capacity.to_string() +
+      ") return;"
+    assert_eq(after.split(capacity_guard).count(), 3)
+    assert_false(
+      after.contains("token_count > " + (capacity + 1).to_string() + ")"),
+    )
     for i in [0, 1] {
       if label == "r64-coowned-c16" {
         let a = candidate.row_variants[i]
@@ -187,7 +203,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
     let export_coowned = @env.get_env_var("LUNA_EXPORT_AKO_COOWNED_C16") ==
       Some("1") &&
       (label == "baseline" || label == "r64-coowned-c16")
-    if export_old || export_coowned {
+    if export_old || export_coowned || large_chunks {
       let geometries : Array[Array[Int]] = []
       for
         (name, geometry) in [
@@ -206,6 +222,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
         "source": after,
         "source_sha256": candidate.source_digest().as_hex(),
         "geometry": geometries,
+        "maximum_query_tokens": capacity,
       }
       println("LUNA_DOMAIN_RECORD " + record.stringify())
     }

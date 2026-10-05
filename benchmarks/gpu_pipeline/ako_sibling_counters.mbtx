@@ -36,9 +36,15 @@ fn csv_fields(line : StringView) -> Array[String] {
 ///|
 async fn main {
   guard @env.args() is [_, root, .. options] &&
-    (options.is_empty() || options is ["names"] || options is ["print"]) else {
-    fail("COUNTER_DIRECTORY [names|print]")
+    (
+      options.is_empty() ||
+      options is ["names"] ||
+      options is ["print"] ||
+      options is ["large"]
+    ) else {
+    fail("COUNTER_DIRECTORY [names|print|large]")
   }
+  let large = options is ["large"]
   let wanted = [
     "inst_executed", "smsp__average_warp_latency_per_inst_issued.ratio", "smsp__warps_active.avg.per_cycle_active",
     "gpu__time_duration.sum", "launch__registers_per_thread", "launch__waves_per_multiprocessor",
@@ -55,10 +61,14 @@ async fn main {
     fail("records")
   }
   for index = 1; index < records.length(); index = index + 1 {
+    if large && index != 1 && index != 4 {
+      continue
+    }
     guard records[index] is { "label": String(candidate), .. } else {
       fail("label")
     }
-    let lines = @fs.read_file(root + "/counters-admin-" + candidate + ".stdout")
+    let prefix = if large { "counters-large-admin-" } else { "counters-admin-" }
+    let lines = @fs.read_file(root + "/" + prefix + candidate + ".stdout")
       .text()
       .split("\n")
       .filter(s => s.has_prefix("\""))
@@ -104,7 +114,7 @@ async fn main {
       result.push({ "candidate": candidate, "arm": i - 2, "metrics": metrics })
     }
   }
-  if options.is_empty() {
+  if options.is_empty() || large {
     @fs.write_file(
       root + "/counter-summary.json",
       Json(result).stringify(indent=2),

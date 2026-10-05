@@ -1,0 +1,190 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+// Fixed query work, varied history. This intentionally measures kernels, not
+// model context support: H=32768 plus Q=2048 exceeds Qwen3-0.6B's 32768 limit.
+async fn main {
+  guard @env.args() is [_, phase, root, moon] && root.has_prefix("/") else {
+    fail("run|seal NEW_ROOT MOON")
+  }
+  if phase == "seal" {
+    assert_true(
+      @fs.read_file(root + "/trial/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    guard @json.parse(@fs.read_file(root + "/trial/summary.json").text())
+      is Array(records) &&
+      records.length() == 7 else {
+      fail("seven workload cells")
+    }
+    for record in records {
+      guard record
+        is {
+          "mem_available_kib_before": String(before),
+          "mem_available_kib_after": String(after),
+          ..
+        } &&
+        @string.parse_int64(before) >= 33554432L &&
+        @string.parse_int64(after) >= 33554432L else {
+        fail("memory reserve")
+      }
+    }
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=fixed-query long-history kernel comparison; not serving promotion\n",
+      create_mode=CreateNew,
+    )
+    let files = @shell.Cmd("find", [
+      root,
+      "-type",
+      "f",
+      "!",
+      "-path",
+      root + "/_build/*",
+      "-exec",
+      "sha256sum",
+      "{}",
+      "+",
+    ]).output(max_output_bytes=16777216)
+    files.check()
+    @fs.write_file(
+      root + "/FILES.sha256",
+      files
+      .stdout()
+      .split("\n")
+      .map(line => line.to_owned().replace(old=root + "/", new="./"))
+      .to_array()
+      .join("\n"),
+      create_mode=CreateNew,
+    )
+    let archive = root + ".measurement.tar.gz"
+    guard !@fs.exists(archive) else { fail("archive exists") }
+    @shell.Cmd("tar", ["-czf", archive, "--exclude=./_build", "-C", root, "."]).run()
+    let hash = @shell.Cmd("sha256sum", [archive]).output()
+    hash.check()
+    @fs.write_file(archive + ".sha256", hash.stdout(), create_mode=CreateNew)
+    @shell.Cmd("chmod", ["0444", archive]).run()
+    println(hash.stdout())
+    return
+  }
+  guard phase == "run" else { fail("phase") }
+  let frozen = "/home/wlc004s/lunaflux-ako-pilot-v2-20261004.bfWwShhe"
+  let identities = [
+    (
+      "probe", "014a0eeac3b27a3877eac139a0037e6615775dd0e75f477c41d442c7beccd66d",
+    ),
+    (
+      "prefill.spec", "73f345e18cec7e739f64cfba2b5d368380ddfcc2e8d92ec0b691f21aa45faa2a",
+    ),
+    (
+      "baseline/kernel.recipe", "0380e62ea88b6c39ee893075724015aa49d11839f27d37da2c5c77c8ec2f7c18",
+    ),
+    (
+      "baseline/kernel.cubin", "5063f99a27f4ce09ba614bfd8b5f32219c1309553bbd9ff40fe5f3faa1c39e43",
+    ),
+    (
+      "candidate-probe/kernel.recipe", "52e196c94e37cc897fba59680b27718f5201281b3c554d5363004b631de42e2e",
+    ),
+    (
+      "candidate-probe/kernel.cubin", "e258f1fd1469812a6891f7664cbe9fc94acb8122886f69c9b0721cecf87d627a",
+    ),
+  ]
+  @fs.mkdir(root + "/baseline")
+  @fs.mkdir(root + "/candidate-probe")
+  for i, (file, digest) in identities {
+    let hash = capture(root, "frozen-" + i.to_string(), "sha256sum", [
+      frozen + "/" + file,
+    ])
+    guard hash.has_prefix(digest + " ") else { fail("frozen artifact changed") }
+    guard !@fs.exists(root + "/" + file) else { fail("copy would overwrite") }
+    @shell.Cmd("cp", ["-n", frozen + "/" + file, root + "/" + file]).run()
+  }
+  let workloads : Array[Json] = []
+  for history in [8192, 16384, 32768] {
+    for rows in [1, 2] {
+      workloads.push({
+        "label": "q2048-r" + rows.to_string() + "-h" + history.to_string(),
+        "args": [
+          root + "/prefill.spec",
+          root + "/baseline",
+          root + "/candidate-probe",
+          "2048",
+          rows.to_string(),
+          history.to_string(),
+        ],
+      })
+    }
+  }
+  workloads.push({
+    "label": "q1792-r1-h30720-model-tail",
+    "args": [
+      root + "/prefill.spec",
+      root + "/baseline",
+      root + "/candidate-probe",
+      "1792",
+      "1",
+      "30720",
+    ],
+  })
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": root + "/probe",
+    "artifacts": identities
+    .filter(pair => pair.0 != "probe")
+    .map(pair => root + "/" + pair.0),
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(),
+    create_mode=CreateNew,
+  )
+  println(
+    capture(root, "trial", moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      "--",
+      root + "/contract.json",
+      root + "/trial",
+    ]),
+  )
+}
