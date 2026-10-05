@@ -232,7 +232,12 @@ async fn main {
     )
   }
   let moon = query + "/toolchain/bin/moon"
-  let cli = query + "/source/_build/native/release/build/cmd/"
+  // A numerical facade reuses the frozen source through a symlink. Capacity
+  // receipts require canonical executable identities, not alias paths.
+  let resolved = @shell.Cmd("realpath", [query + "/source"]).output()
+  resolved.check()
+  let cli = resolved.stdout().trim().to_owned() +
+    "/_build/native/release/build/cmd/"
   if phase.has_prefix("bind") {
     assert_true(
       @fs.read_file(root + "/trial/RESULT.txt")

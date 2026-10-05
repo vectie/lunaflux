@@ -1,0 +1,423 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn strings(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(values) else { fail("command") }
+  values.map(value => {
+    guard value is String(s) else { fail("argument") }
+    s
+  })
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("unique field " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  guard text.split(before).to_array() is [a, b] else { fail("unique seam") }
+  a.to_owned() + after + b.to_owned()
+}
+
+///|
+fn numerical_bundle(
+  args : Array[String],
+  query : String,
+  root : String,
+  approximate : String,
+) -> Array[String] raise {
+  assert_false(args.contains("--prefill-approximate-exp2"))
+  assert_false(args.contains("--attention-buckets"))
+  let selected = query + "/fused-routed/prefill-first.cubin"
+  assert_eq(args.filter(s => s == selected).length(), 1)
+  let bundle = query + "/fused-routed/reusable-fused-runtime-bundle.v3"
+  assert_eq(args.filter(s => s == bundle).length(), 1)
+  let result = args.map(s => {
+    if s == selected {
+      approximate + "/kernel.cubin"
+    } else if s == bundle {
+      root + "/fused-routed/reusable-fused-runtime-bundle.v3"
+    } else {
+      s
+    }
+  })
+  result.push("--prefill-approximate-exp2")
+  result
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  query : String,
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  // Materialization invokes `moon` itself; systemd does not inherit the
+  // interactive toolchain PATH. Pin nested tools as well as the outer command.
+  let out = @shell.Cmd(exe, args, cwd=query + "/source", env={
+    "PATH": query +
+    "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/local/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+async fn prepare(
+  query : String,
+  experiment : String,
+  calibration : String,
+  decode : String,
+  root : String,
+) -> Unit {
+  assert_false(@fs.exists(root))
+  let approximate = experiment + "/approximate"
+  let recipe = @fs.read_file(approximate + "/kernel.recipe").text()
+  assert_eq(field(recipe, "numeric_law"), "approx-base2-f32-v1")
+  assert_eq(
+    field(recipe, "function_symbol"),
+    "lunaflux_attention_prefill_tile_compiler_exp2_v1",
+  )
+  assert_eq(sha(approximate + "/kernel.cu"), field(recipe, "source_sha256"))
+  assert_eq(
+    sha(approximate + "/kernel.cubin"),
+    "66881bc0055ce4c4340e6001e7746d0abd64a8b7f9a02b741e6b87463f0e2922",
+  )
+  assert_true(
+    @fs.read_file(experiment + "/trial/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  @fs.mkdir(root)
+  @fs.mkdir(root + "/fused-routed")
+  for name in ["source", "toolchain", "release"] {
+    @shell.Cmd("ln", ["-s", query + "/" + name, root + "/" + name]).run()
+  }
+  for name in ["serving-export.stdout", "bind-target121-budget.stdout"] {
+    @fs.write_file(
+      root + "/" + name,
+      @fs.read_file(query + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  let command = strings(
+    @fs.read_file(query + "/serving-fused.command.json").text(),
+  )
+  let args = numerical_bundle(command[1:].to_owned(), query, root, approximate)
+  let report = capture(root, "serving-fused", command[0], args, query)
+  let scope = field(report, "attention_route_scope")
+  assert_true(
+    scope !=
+    field(
+      @fs.read_file(query + "/serving-fused.stdout").text(),
+      "attention_route_scope",
+    ),
+  )
+  let original = @fs.read_file(
+    query + "/fused-routed/reusable-fused-runtime-bundle.v3",
+  ).text()
+  let fresh = @fs.read_file(
+    root + "/fused-routed/reusable-fused-runtime-bundle.v3",
+  ).text()
+  assert_eq(
+    field(fresh, "schema"),
+    "lunaflux-reusable-fused-runtime-bundle.v12",
+  )
+  assert_eq(field(fresh, "module_count"), field(original, "module_count"))
+  let prefill : Array[Int] = []
+  for i in 0..<9 {
+    if field(fresh, "module_\{i}_function_symbol") ==
+      field(recipe, "function_symbol") {
+      prefill.push(i)
+    }
+  }
+  guard prefill is [index] else { fail("one approximate module") }
+  assert_eq(
+    field(fresh, "module_\{index}_prefill_exponential_law"),
+    "approx-base2-f32-v1",
+  )
+  assert_eq(
+    field(fresh, "module_\{index}_module_sha256"),
+    sha(approximate + "/kernel.cubin"),
+  )
+  for i in 0..<9 {
+    let abi = field(original, "module_\{i}_abi")
+    let matches = [
+      for j in 0..<9 if field(fresh, "module_\{j}_abi") == abi => j
+    ]
+    guard matches is [j] else { fail("unchanged ABI") }
+    if j != index {
+      for
+        key in [
+          "module_sha256", "function_symbol", "grid_x", "grid_y", "grid_z", "block_x",
+          "shared_bytes",
+        ] {
+        assert_eq(
+          field(original, "module_\{i}_" + key),
+          field(fresh, "module_\{j}_" + key),
+        )
+      }
+    }
+  }
+  let materialize = strings(
+    @fs.read_file(query + "/serving-materialize-target121.command.json").text(),
+  )
+  let materialize_args = materialize[1:]
+    .to_owned()
+    .map(s => {
+      if s == query + "/deployment" {
+        root + "/deployment"
+      } else if s.has_prefix(
+          query + "/fused-routed/reusable-fused-runtime-bundle.v3#sha256=",
+        ) {
+        root +
+        "/fused-routed/reusable-fused-runtime-bundle.v3#sha256=" +
+        field(report, "runtime_sha256")
+      } else {
+        s
+      }
+    })
+  // Capture under the facade names consumed by the existing measured-route helper.
+  ignore(
+    capture(
+      root,
+      "serving-materialize-target121",
+      materialize[0],
+      materialize_args,
+      query,
+    ),
+  )
+  let route = root + "/routes"
+  @fs.mkdir(route)
+  @fs.write_file(
+    route + "/prepare_long_context.mbtx",
+    @fs.read_file(calibration + "/prepare_long_context.mbtx"),
+    create_mode=CreateNew,
+  )
+  let workloads : Array[Json] = [
+    (2048, 1, 8192),
+    (1792, 1, 30720),
+    (2048, 2, 28672),
+  ].map(shape => {
+    let (q, rows, history) = shape
+    {
+      "label": "exp2-q\{q}-r\{rows}-h\{history}-p2",
+      "args": [
+        calibration + "/prefill.spec",
+        approximate,
+        calibration + "/partitioned",
+        "\{q}",
+        "\{rows}",
+        "\{history}",
+        "--prefill-partitioned",
+      ],
+    }
+  })
+  for (q, history) in [(1537, 30976), (2049, 28672)] {
+    workloads.push({
+      "label": "exp2-mixed-q\{q}-h\{history}",
+      "args": [
+        calibration + "/prefill.spec",
+        approximate,
+        calibration + "/partitioned",
+        "\{q}",
+        "2",
+        "\{history}",
+        "--mixed-chain",
+        decode + "/decode",
+        "--decode-history",
+        "32512",
+      ],
+    })
+  }
+  workloads.push({
+    "label": "decode-envelope-r2-h32513",
+    "args": [
+      decode + "/decode.spec",
+      decode + "/decode",
+      decode + "/decode",
+      "2",
+      "2",
+      "32513",
+      "--decode-chain-comparison",
+      "--query-bucket-bound",
+      "8",
+    ],
+  })
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": decode + "/probe",
+    "artifacts": [
+      approximate + "/kernel.cu",
+      approximate + "/kernel.recipe",
+      approximate + "/kernel.cubin",
+      calibration + "/partitioned/kernel.cubin",
+      calibration + "/partitioned/kernel.recipe",
+      calibration + "/prefill.spec",
+      decode + "/decode.spec",
+      decode + "/decode/kernel.cubin",
+      decode + "/decode/kernel.recipe",
+    ],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    route + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("prepared_scope=" + scope)
+}
+
+///|
+async fn measure(
+  frozen : String,
+  query : String,
+  baseline : String,
+  selected : String,
+  root : String,
+) -> Unit {
+  @fs.mkdir(root)
+  let cli = query + "/source/_build/native/release/build/cmd/"
+  let tool = once(
+    @fs.read_file(frozen + "/measure/launcher.mbtx").text(),
+    "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]",
+    "let orders = [[\"luna-full\"]]",
+  )
+  let tool = once(
+    tool,
+    "let cmd = \"/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/source/_build/native/release/build/cmd/\"",
+    "let cmd = " + Json(cli).stringify(),
+  )
+  let raw = @fs.read_file(frozen + "/long_context_client.mbtx").text()
+  guard raw.split("  let cells = if options is [\"--smoke\"] {").to_array()
+    is [a, rest] &&
+    rest.split("  let matrix_json : Array[Json]").to_array() is [_, b] else {
+    fail("bounded client seam")
+  }
+  let client = a.to_owned() +
+    "  let cells = [(\"i16384-o64-c1-varied\",[16384],64,\"varied\")," +
+    "(\"i32512-o64-c1-varied\",[32512],64,\"varied\")," +
+    "(\"i32512-o64-c2-varied\",[32512,32512],64,\"varied\")];\n" +
+    "  let matrix_json : Array[Json]" +
+    b.to_owned()
+  for i, candidate in [false, true, true, false] {
+    let out = root +
+      "/e2e-\{i}-" +
+      (if candidate { "measured" } else { "baseline" })
+    @fs.mkdir(out)
+    let script = out + "/launcher.mbtx"
+    @fs.write_file(script, tool, create_mode=CreateNew)
+    @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+    ignore(
+      capture(
+        root,
+        "e2e-\{i}",
+        query + "/toolchain/bin/moon",
+        [
+          "run",
+          script,
+          if candidate {
+            selected
+          } else {
+            baseline
+          },
+          out,
+          script,
+        ],
+        query,
+      ),
+    )
+    println("completed_fresh_start=\{i}")
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=explicit exp2 vs strict selected serving ABBA, same pinned worker; not model-quality admission\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+async fn main {
+  match @env.args() {
+    [_, query, experiment, calibration, decode, root, "prepare"] =>
+      prepare(query, experiment, calibration, decode, root)
+    [_, frozen, query, baseline, selected, root, "measure"] =>
+      measure(frozen, query, baseline, selected, root)
+    [_, completed, root, "stage-bind"] => {
+      assert_false(@fs.exists(root))
+      assert_true(
+        @fs.read_file(completed + "/trial/RESULT.txt")
+        .text()
+        .has_prefix("outcome=completed\n"),
+      )
+      @fs.mkdir(root)
+      // Reuse the exact completed, scope-bound measurements after an offline
+      // binding failure; do not remeasure or alter their records.
+      @shell.Cmd("cp", ["-a", completed + "/trial", root + "/trial"]).run()
+      @fs.write_file(
+        root + "/prepare_long_context.mbtx",
+        @fs.read_file(completed + "/prepare_long_context.mbtx"),
+        create_mode=CreateNew,
+      )
+    }
+    _ =>
+      fail(
+        "QUERY EXPERIMENT CALIBRATION DECODE NEW_ROOT prepare | FROZEN QUERY STRICT SELECTED NEW_ROOT measure | COMPLETED_ROUTES NEW_ROOT stage-bind",
+      )
+  }
+}
+
+///|
+test "explicit law changes exactly baseline prefill, never strict wide symbol" {
+  let raw = [
+    "/q/fused-routed/prefill-first.cubin", "lunaflux_attention_prefill_tile_compiler_v1",
+    "/q/fused-routed/reusable-fused-runtime-bundle.v3",
+  ]
+  assert_eq(numerical_bundle(raw, "/q", "/r", "/a"), [
+    "/a/kernel.cubin", "lunaflux_attention_prefill_tile_compiler_v1", "/r/fused-routed/reusable-fused-runtime-bundle.v3",
+    "--prefill-approximate-exp2",
+  ])
+  try numerical_bundle([..raw, "--attention-buckets"], "/q", "/r", "/a") catch {
+    _ => ()
+  } noraise {
+    _ => fail("old scope-bound measurements reused")
+  }
+}

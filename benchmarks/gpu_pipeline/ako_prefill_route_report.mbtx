@@ -58,10 +58,15 @@ fn changed(a : Array[Json], b : Array[Json]) -> Int raise {
 ///|
 async fn main {
   guard @env.args() is [_, root, output, .. options] &&
-    (options.is_empty() || options == ["--mixed"]) else {
-    fail("COMPLETED_ABBA_ROOT NEW_REPORT [--mixed]")
+    (
+      options.is_empty() ||
+      options == ["--mixed"] ||
+      options == ["--no-control"]
+    ) else {
+    fail("COMPLETED_ABBA_ROOT NEW_REPORT [--mixed|--no-control]")
   }
   let mixed = options == ["--mixed"]
+  let control_enabled = options.is_empty()
   assert_true(
     @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
   )
@@ -74,7 +79,7 @@ async fn main {
   for cell in cells {
     let summaries : Array[Json] = []
     let vectors : Array[Array[Array[Json]]] = []
-    let sides = if mixed {
+    let sides = if !control_enabled {
       [("baseline", [0, 3]), ("measured", [1, 2])]
     } else {
       [("baseline", [0, 3]), ("measured", [1, 2]), ("control8192", [4])]
@@ -169,7 +174,7 @@ async fn main {
     for i, vector in vectors[1] {
       cross.push(changed(vectors[0][i % rows], vector))
     }
-    if !mixed {
+    if control_enabled {
       for i, vector in vectors[2] {
         control.push(changed(vectors[1][i % rows], vector))
       }
@@ -190,7 +195,11 @@ async fn main {
     } else {
       "lunaflux.prefill-route-abba.v1"
     },
-    "scope": "uninstrumented same-worker same-AOT route-only serving; not reference quality or other-framework rerun",
+    "scope": if options == ["--no-control"] {
+      "uninstrumented ABBA serving comparison; identities and changed modules declared by caller; not reference quality or other-framework rerun"
+    } else {
+      "uninstrumented same-worker same-AOT route-only serving; not reference quality or other-framework rerun"
+    },
     "cells": reports,
   }
   @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)

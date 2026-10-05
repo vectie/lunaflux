@@ -122,6 +122,43 @@ async fn contract(root : String, uuid : String, second : Bool) -> Unit {
 
 ///|
 async fn main {
+  if @env.args() is [_, root, output, "memcheck-long"] {
+    @fs.mkdir(output)
+    assert_true(
+      capture(output, "idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    let result = capture(
+      output,
+      "memcheck",
+      "/usr/local/cuda-13.0/bin/compute-sanitizer",
+      [
+        "--tool",
+        "memcheck",
+        "--error-exitcode",
+        "99",
+        root + "/probe",
+        root + "/prefill.spec",
+        root + "/baseline",
+        root + "/approximate",
+        "2048",
+        "2",
+        "28672",
+        "--check-only",
+      ],
+    )
+    assert_true(result.contains("correctness=passed"))
+    assert_true(result.contains("ERROR SUMMARY: 0 errors"))
+    @fs.write_file(
+      output + "/RESULT.txt",
+      "outcome=completed\nscope=Q2048 R2 H28672 memcheck and existing FP64 oracle; not model quality\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
   if @env.args() is [_, root, "profile"] {
     assert_true(
       capture(root, "profile-idle", "nvidia-smi", [
