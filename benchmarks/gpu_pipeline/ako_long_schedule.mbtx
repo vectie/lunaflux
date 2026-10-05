@@ -34,6 +34,7 @@ fn alternatives(kind : String) -> Array[(String, Int, Int)] raise {
     "query-reuse128-v1" => [("query128", 31022, 64)]
     "value-window-v1" => [("valuewindow", 30322, 64)]
     "probability-mask-v1" => [("rowmask", 30322, 64)]
+    "maximum-tree-v1" => [("maxtree", 30322, 64)]
     _ => fail("unknown bounded experiment kind")
   }
 }
@@ -178,6 +179,29 @@ async fn main {
   }
   if @env.args() is [_, "contract", root, uuid] {
     write_contract(root, uuid)
+    return
+  }
+  if @env.args() is [_, "numeric", root, program] {
+    assert_true(program.has_prefix("/"))
+    let out = root + "/numeric"
+    @fs.mkdir(out)
+    let result = capture(out, "maximum", program, [])
+    assert_true(result.contains("correctness=passed bitwise_maximum=true"))
+    let sanitized = capture(
+      out,
+      "memcheck",
+      "/usr/local/cuda-13.0/bin/compute-sanitizer",
+      [
+        "--tool", "memcheck", "--leak-check", "full", "--error-exitcode", "99", program,
+      ],
+    )
+    assert_true(sanitized.contains("0 errors"))
+    assert_true(sanitized.contains("correctness=passed bitwise_maximum=true"))
+    @fs.write_file(
+      out + "/RESULT.txt",
+      "outcome=completed\nscope=maximum primitive bitwise edge cases and explicit release\n",
+      create_mode=CreateNew,
+    )
     return
   }
   if @env.args() is [_, phase, root] &&
@@ -339,7 +363,8 @@ async fn main {
       kind == "page-readiness-v1" ||
       kind == "query-reuse128-v1" ||
       kind == "value-window-v1" ||
-      kind == "probability-mask-v1" => kind
+      kind == "probability-mask-v1" ||
+      kind == "maximum-tree-v1" => kind
     _ => fail("bounded experiment arguments")
   }
   let choices = alternatives(kind)
@@ -361,7 +386,8 @@ async fn main {
     kind == "page-readiness-v1" ||
     kind == "query-reuse128-v1" ||
     kind == "value-window-v1" ||
-    kind == "probability-mask-v1" {
+    kind == "probability-mask-v1" ||
+    kind == "maximum-tree-v1" {
     (
       frozen + "/pagebatch",
       "7b42b3531466f5fe22c59e5aac2883db68984907c49a5637ac5f1358ad2eab57",
@@ -496,6 +522,7 @@ test "schedule alternatives retain explicit approximation and independent identi
   assert_eq(alternatives("query-reuse128-v1"), [("query128", 31022, 64)])
   assert_eq(alternatives("value-window-v1"), [("valuewindow", 30322, 64)])
   assert_eq(alternatives("probability-mask-v1"), [("rowmask", 30322, 64)])
+  assert_eq(alternatives("maximum-tree-v1"), [("maxtree", 30322, 64)])
   let command = ["/home/q/candidate", "--prefill-candidate", "322"]
   for
     kind in [

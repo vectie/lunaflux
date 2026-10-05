@@ -1,0 +1,127 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields : Array[String] = []
+  let field = StringBuilder()
+  for i = 0, quoted = false; i < line.length(); {
+    if line[i] == '"' {
+      if quoted && i + 1 < line.length() && line[i + 1] == '"' {
+        field.write_string("\"")
+        continue i + 2, quoted
+      }
+      continue i + 1, !quoted
+    }
+    if line[i] == ',' && !quoted {
+      fields.push(field.to_string())
+      field.reset()
+    } else {
+      field.write_string(line[i:i + 1].to_owned())
+    }
+    continue i + 1, quoted
+  }
+  fields.push(field.to_string())
+  fields
+}
+
+///|
+fn chains(text : String) -> Array[Json] {
+  let results : Array[Json] = []
+  let mut columns : Array[String] = []
+  let mut complete = false
+  let mut depths : Map[String, Int] = Map([])
+  let mut operations = 0
+  let mut maximum_depth = 0
+  for line in text.split("\n") {
+    if !line.has_prefix("\"") {
+      continue
+    }
+    let values = csv(line)
+    if values[0] == "Kernel Name" {
+      columns = []
+      depths = Map([])
+      complete = false
+      operations = 0
+      maximum_depth = 0
+    } else if values[0] == "Address" {
+      columns = values
+    } else if !columns.is_empty() && !complete {
+      let source = values[columns.search("Source").unwrap()].trim()
+      let words = source.split(" ").filter(x => !x.is_empty()).to_array()
+      guard words is [op, .. args] else { continue }
+      if op == "MUFU.EX2" && operations > 0 {
+        results.push({
+          "maximum_only_depth": maximum_depth,
+          "maximum_operations": operations,
+          "root_register_depths": Json::object(depths.map((_, x) => Json(x))),
+          "scope": "maximum section before first exponential; butterfly copies retain depth; per-iteration selection dependencies, not elapsed cycles",
+        })
+        complete = true
+      } else if op == "FMNMX" && args.length() >= 3 {
+        let destination = args[0].trim_end(chars=",").to_owned()
+        let left = args[1].trim_end(chars=",").to_owned()
+        let right = args[2].trim_end(chars=",").to_owned()
+        let a = depths.get(left).unwrap_or(0)
+        let b = depths.get(right).unwrap_or(0)
+        let depth = if a > b { a } else { b }
+        depths[destination] = 1 + depth
+        if 1 + depth > maximum_depth {
+          maximum_depth = 1 + depth
+        }
+        operations += 1
+      } else if op == "SHFL.BFLY" && args.length() >= 3 {
+        let destination = args[1].trim_end(chars=",").to_owned()
+        let input = args[2].trim_end(chars=",").to_owned()
+        depths[destination] = depths.get(input).unwrap_or(0)
+      } else if args.length() > 0 {
+        // A non-maximum definition starts a new value for the destination.
+        let destination = args[0].trim_end(chars=",").to_owned()
+        ignore(depths.remove(destination))
+      }
+    }
+  }
+  results
+}
+
+///|
+test "maximum chains track register replacement and butterfly propagation" {
+  let header = "\"Kernel Name\",\"x\"\n\"Address\",\"Source\"\n"
+  let body = "\"1\",\"FMNMX R0, R1, -INF , !PT\"\n" +
+    "\"2\",\"FMNMX R0, R0, R2, !PT\"\n" +
+    "\"3\",\"SHFL.BFLY PT, R3, R0, 0x1, 0x3\"\n" +
+    "\"4\",\"FMNMX R0, R0, R3, !PT\"\n" +
+    "\"5\",\"MOV R0, RZ\"\n" +
+    "\"6\",\"FMNMX R0, R0, R4, !PT\"\n" +
+    "\"7\",\"MUFU.EX2 R5, R5\"\n"
+  let result = chains(header + body + header + body)
+  assert_eq(result.length(), 2)
+  for record in result {
+    guard record
+      is {
+        "maximum_only_depth": Number(3.0, ..),
+        "maximum_operations": Number(4.0, ..),
+        ..
+      } else {
+      fail("SSA maximum depth")
+    }
+  }
+  assert_eq(csv("\"a,b\",\"c\"\"d\""), ["a,b", "c\"d"])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, input, output] else {
+    fail("NCU_SOURCE_CSV NEW_JSON")
+  }
+  let result = chains(@fs.read_file(input).text())
+  assert_eq(result.length(), 2)
+  let json = Json(result).stringify(indent=2)
+  @fs.write_file(output, json, create_mode=CreateNew)
+  println(json)
+}
