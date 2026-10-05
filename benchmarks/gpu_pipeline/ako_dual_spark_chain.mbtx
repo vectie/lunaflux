@@ -1,0 +1,224 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn workloads(root : String, mode : String) -> Array[Json] raise {
+  match mode {
+    "mixed" =>
+      [(1537, 30976, 32512), (2049, 28672, 32512)].map(shape => {
+        let (tokens, history, decode_history) = shape
+        {
+          "label": "mixed-q\{tokens}-r2-h\{history}-d\{decode_history}",
+          "args": [
+            root + "/prefill.spec",
+            root + "/prefill",
+            root + "/partitioned",
+            "\{tokens}",
+            "2",
+            "\{history}",
+            "--mixed-chain",
+            root + "/decode",
+            "--decode-history",
+            "\{decode_history}",
+          ],
+        }
+      })
+    "decode" =>
+      [(1, 32513), (2, 32513), (2, 32515)].map(shape => {
+        let (rows, history) = shape
+        {
+          "label": "decode-r\{rows}-h\{history}",
+          "args": [
+            root + "/decode.spec",
+            root + "/decode",
+            root + "/decode",
+            "\{rows}",
+            "\{rows}",
+            "\{history}",
+            "--decode-chain-comparison",
+          ],
+        }
+      })
+    _ => fail("mixed or decode")
+  }
+}
+
+///|
+fn decode_spec(prefill : String) -> String raise {
+  guard prefill.split("kind=prefill\n").to_array() is [a, b] else {
+    fail("unique phase")
+  }
+  let text = a.to_owned() + "kind=decode\n" + b.to_owned()
+  guard text.split("query_metadata_version=1\n").to_array() is [a, b] else {
+    fail("unique metadata ABI")
+  }
+  a.to_owned() + "query_metadata_version=0\n" + b.to_owned()
+}
+
+///|
+async fn main {
+  if @env.args() is [_, root, "validate"] {
+    guard @json.parse(@fs.read_file(root + "/contract.json").text())
+      is {
+        "program": String(program),
+        "workloads": [{ "args": Array(raw), .. }, ..],
+        ..
+      } else {
+      fail("first exact chain workload")
+    }
+    let args = raw.map(value => {
+      guard value is String(text) else { fail("argument") }
+      text
+    })
+    @fs.mkdir(root + "/validation")
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let command = [
+        "--tool", tool, "--error-exitcode", "99", program, ..args, "--check-only",
+      ]
+      @fs.write_file(
+        root + "/validation/" + tool + ".command.json",
+        Json(["/usr/local/cuda-13.0/bin/compute-sanitizer", ..command]).stringify(),
+        create_mode=CreateNew,
+      )
+      let result = @shell.Cmd(
+        "/usr/local/cuda-13.0/bin/compute-sanitizer", command,
+      ).output(max_output_bytes=33554432)
+      @fs.write_file(
+        root + "/validation/" + tool + ".stdout",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/validation/" + tool + ".stderr",
+        result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+      assert_true(result.stdout().contains("correctness=passed"))
+      assert_true(
+        result.stdout().contains("0 errors") ||
+        result.stdout().contains("0 hazards"),
+      )
+    }
+    @fs.write_file(
+      root + "/validation/RESULT.txt",
+      "outcome=passed\nscope=first exact mixed chain; offline launch adapter only\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if @env.args() is [_, root, "finish"] {
+    assert_true(
+      @fs.read_file(root + "/trial/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    guard @json.parse(@fs.read_file(root + "/trial/summary.json").text())
+      is Array(records) else {
+      fail("completed measurements")
+    }
+    for index, record in records {
+      guard record is { "label": String(label), .. } else { fail("label") }
+      assert_true(
+        @fs.read_file(root + "/trial/w\{index}-" + label + ".stderr")
+        .text()
+        .is_empty(),
+      )
+    }
+    let idle = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    idle.check()
+    assert_true(idle.stdout().trim().is_empty())
+    @fs.write_file(
+      root + "/idle-terminal.stdout",
+      idle.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=device-local selected attention chains; no serving or model-quality claim\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  guard @env.args() is [_, root, uuid, mode, spec, output] &&
+    root.has_prefix("/home/") &&
+    uuid.has_prefix("GPU-") else {
+    fail("REMOTE_ROOT GPU_UUID mixed|decode PREFILL_SPEC NEW_LOCAL_DIRECTORY")
+  }
+  let directories = if mode == "mixed" {
+    ["prefill", "partitioned", "decode"]
+  } else {
+    ["decode"]
+  }
+  let artifacts = [
+    "/usr/local/cuda-13.0/bin/nvcc",
+    root + "/selected_policy_probe.cu",
+    root + "/selected_policy_geometry.h",
+    root + "/\{if mode == "mixed" { "prefill" } else { "decode" }}.spec",
+  ]
+  for name in directories {
+    artifacts.append([
+      root + "/" + name + "/kernel.recipe",
+      root + "/" + name + "/kernel.cubin",
+    ])
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": uuid,
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": root + "/probe",
+    "artifacts": artifacts,
+    "workloads": workloads(root, mode),
+  }
+  @fs.write_file(
+    output + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let text = @fs.read_file(spec).text()
+  @fs.write_file(
+    output + "/\{if mode == "mixed" { "prefill" } else { "decode" }}.spec",
+    if mode == "mixed" {
+      text
+    } else {
+      decode_spec(text)
+    },
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "mixed chain retains unequal histories and both phase operands" {
+  guard workloads("/home/trial", "mixed")[0]
+    is {
+      "args": [
+        "/home/trial/prefill.spec",
+        "/home/trial/prefill",
+        "/home/trial/partitioned",
+        "1537",
+        "2",
+        "30976",
+        "--mixed-chain",
+        "/home/trial/decode",
+        "--decode-history",
+        "32512",
+      ],
+      ..
+    } else {
+    fail("traced mixed workload was simplified")
+  }
+  assert_eq(workloads("/home/trial", "decode").length(), 3)
+  assert_eq(
+    decode_spec("kind=prefill\nquery_metadata_version=1\n"),
+    "kind=decode\nquery_metadata_version=0\n",
+  )
+}

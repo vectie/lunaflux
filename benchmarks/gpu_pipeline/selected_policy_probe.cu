@@ -116,9 +116,14 @@ struct Kernel {
       CK(cuLaunchKernel(merge,gx,merge_y,1,b,1,1,0,nullptr,combine,nullptr));
     }else{CK(cuLaunchKernel(function,gx,gy,1,b,1,1,shared,nullptr,a,nullptr));}
   }
-  double time(void** a,const std::vector<std::unique_ptr<Buffer>>& weights={}){
+  double time(void** a,const std::vector<std::unique_ptr<Buffer>>& weights={},
+              Kernel* companion=nullptr,void** companion_args=nullptr){
     auto repeat=[&](int i){
-      if(weights.empty()){launch(a);return;}
+      if(weights.empty()){
+        launch(a);
+        if(companion)companion->launch(companion_args);
+        return;
+      }
       // Immutable, independently allocated layer operands. Pointer selection
       // is outside the device work; no uploads or cache flushes are timed.
       void* selected[16];std::copy(a,a+16,selected);
@@ -143,12 +148,14 @@ static std::vector<__nv_bfloat16> values(size_t n,int salt){
 static bool same(const std::vector<__nv_bfloat16>& a,const std::vector<__nv_bfloat16>& b){return a.size()==b.size()&&!std::memcmp(a.data(),b.data(),a.size()*2);}
 static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
     const std::vector<int>& lengths,const std::vector<int>& po,
-    const std::vector<int>& positions,int max_rows,int max_tokens) {
+    const std::vector<int>& positions,int max_rows,int max_tokens,int prefill_rows=-1) {
+  if(prefill_rows<0)prefill_rows=int(lengths.size());
+  if(prefill_rows>int(lengths.size()))std::exit(1);
   std::vector<int> metadata(4,0);
   for(int bucket=0;bucket<4;bucket++){
     int width=16<<bucket,capacity=max_rows+(max_tokens-max_rows)/width,base=metadata.size(),count=0;
     metadata.resize(base+capacity*8);
-    for(int r=0;r<int(lengths.size());r++)for(int t=offsets[r];t<offsets[r+1];t+=width){
+    for(int r=0;r<prefill_rows;r++)for(int t=offsets[r];t<offsets[r+1];t+=width){
       int record[8]={r,t,offsets[r],offsets[r+1],lengths[r],po[r],po[r+1],positions[std::min(t+width,offsets[r+1])-1]+1};
       if(count>=capacity)std::exit(1);std::copy(record,record+8,metadata.begin()+base+count*8);count++;
     }
@@ -160,7 +167,8 @@ int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
   if(argc<7 || argc>15)return 1;
   bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false;
-  int chunk_tokens=0;
+  int chunk_tokens=0,decode_history=-1;
+  std::string mixed_companion_root;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
@@ -170,15 +178,21 @@ int main(int argc,char**argv){
     else if(std::string(argv[i])=="--streaming-ingress-weights" && !streaming)streaming=true;
     else if(std::string(argv[i])=="--prefill-decode-parity" && !phase_parity)phase_parity=true;
     else if(std::string(argv[i])=="--prefill-partitioned" && !prefill_partitioned)prefill_partitioned=true;
+    else if(std::string(argv[i])=="--mixed-chain" && mixed_companion_root.empty() && !mixed && !prefill_partitioned && i+1<argc){
+      mixed_companion_root=argv[++i];mixed=true;prefill_partitioned=true;
+    }
+    else if(std::string(argv[i])=="--decode-history" && decode_history<0 && i+1<argc){decode_history=std::stoi(argv[++i]);if(decode_history<0)return 1;}
     else if(std::string(argv[i])=="--prefill-chunk-parity" && !chunk_tokens && i+1<argc){chunk_tokens=std::stoi(argv[++i]);if(chunk_tokens<1)return 1;}
     else return 1;
   }
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
   const bool ingress=kind=="ingress",decode=kind=="decode",postprocess=kind=="postprocess";
+  const bool mixed_chain=!mixed_companion_root.empty();
+  if(mixed_chain!=(decode_history>=0) || (mixed_chain && (kind!="prefill" || number(spec,"query_metadata_version")!=1)))return 1;
   // Diagnostic-only metamorphic comparison of the same query/KV under two
   // phase laws. Never report this cross-phase replay as a paired timing win.
   if(phase_parity && (kind!="prefill" || !check_only || mixed || decode_envelope || streaming))return 1;
-  if(prefill_partitioned && (kind!="prefill" || mixed || phase_parity || chunk_tokens || decode_envelope || streaming || partitioned))return 1;
+  if(prefill_partitioned && (kind!="prefill" || (mixed&&!mixed_chain) || phase_parity || chunk_tokens || decode_envelope || streaming || partitioned))return 1;
   if(chunk_tokens && (chunk_tokens<1 || kind!="prefill" || !check_only || mixed || phase_parity || decode_envelope || streaming || partitioned))return 1;
   if(streaming&&!ingress)return 1;
   const int tokens=std::stoi(argv[4]),rows=std::stoi(argv[5]),past=std::stoi(argv[6]);
@@ -192,6 +206,7 @@ int main(int argc,char**argv){
      ((decode||phase_parity)&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
   const int64_t largest_row=mixed?(int64_t(tokens)-1+rows-2)/(rows-1):(int64_t(tokens)+rows-1)/rows;
   if(int64_t(past)+largest_row>int64_t(page)*max_pages)return 1;
+  if(mixed_chain && int64_t(decode_history)+1>int64_t(page)*max_pages)return 1;
   if((decode_envelope || partitioned) && !decode && !phase_parity)return 1;
   if(decode_chain_comparison && (!decode || phase_parity))return 1;
   // Explicit replay of a traced capacity-grid graph, including inactive rows.
@@ -199,13 +214,16 @@ int main(int argc,char**argv){
   const int bucket_tokens=decode_envelope?max_rows:selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
   Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity&&!decode_chain_comparison),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned,prefill_partitioned);
+  std::unique_ptr<Kernel> mixed_companion;
+  if(mixed_chain)mixed_companion=std::make_unique<Kernel>(mixed_companion_root,bucket_tokens,max_rows,false,true);
   std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u numeric_law=%s\n",
     decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
   for(int r=0;r<rows;r++){
     const int prefill_rows=mixed?rows-1:rows,prefill_tokens=mixed?tokens-1:tokens;
-    int n=mixed&&r==rows-1?1:prefill_tokens/prefill_rows+(r<prefill_tokens%prefill_rows),length=past+n;
-    lengths.push_back(length);for(int t=0;t<n;t++)positions.push_back(past+t);
+    int n=mixed&&r==rows-1?1:prefill_tokens/prefill_rows+(r<prefill_tokens%prefill_rows);
+    const int row_past=mixed_chain&&r==rows-1?decode_history:past,length=row_past+n;
+    lengths.push_back(length);for(int t=0;t<n;t++)positions.push_back(row_past+t);
     offsets.push_back(offsets.back()+n);
     for(int p=0;p<(length+page-1)/page;p++)pages.push_back(int(pages.size()));
     po.push_back(int(pages.size()));
@@ -218,7 +236,9 @@ int main(int argc,char**argv){
   for(int i=0;i<physical_pages;i++)pages[i]=(physical_pages-1-i+physical_pages/3)%physical_pages;
   std::vector<int> counts{decode?0:(mixed?rows-1:rows),decode?rows:(mixed?1:0),rows,tokens,int(pages.size())};
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
-  auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens);
+  auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens,mixed_chain?rows-1:rows);
+  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=1 prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=2 new_launches=3\n",
+    rows-1,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz);
   auto x=values(size_t(tokens)*input_width,3);
   auto key=values(size_t(pages.size())*stride,29),value=values(key.size(),31);
   if(!ingress&&!postprocess){
@@ -245,10 +265,13 @@ int main(int argc,char**argv){
   void** args=ingress?ingress_args:(postprocess?postprocess_args:attention_args);
   Buffer decode_counts(20);
   void* phase_args[]={&decode_counts.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&out.p,&dk.p,&dv.p};
+  void* mixed_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&out.p,&dk.p,&dv.p};
   if(phase_parity)decode_counts.put(std::vector<int>{0,rows,rows,tokens,int(pages.size())});
   void** candidate_args=phase_parity?phase_args:args;
   baseline.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
-  baseline.launch(args);CK(cudaDeviceSynchronize());auto expected=out.read(),expected_key=dk.read(),expected_value=dv.read();
+  baseline.launch(args);
+  if(mixed_companion)mixed_companion->launch(mixed_args);
+  CK(cudaDeviceSynchronize());auto expected=out.read(),expected_key=dk.read(),expected_value=dv.read();
   out.clear();dk.put(key);dv.put(value);
   candidate.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
   if(chunk_tokens) {
@@ -268,7 +291,11 @@ int main(int argc,char**argv){
       Kernel chunk(argv[3],selected_bucket_tokens(n,max_tokens),max_rows,false,false);
       chunk.launch(chunk_args);CK(cudaDeviceSynchronize());
     }
-  } else { candidate.launch(candidate_args);CK(cudaDeviceSynchronize()); }
+  } else {
+    candidate.launch(candidate_args);
+    if(mixed_companion)mixed_companion->launch(mixed_args);
+    CK(cudaDeviceSynchronize());
+  }
   auto actual=out.read();
   double error=0;bool nonzero=false;
   for(size_t i=0;i<actual.size();i++){
@@ -358,7 +385,9 @@ int main(int argc,char**argv){
     }
   }
   for(int trial=0;trial<5;trial++){
-    double a,b;if(trial%2){b=candidate.time(args,layer_weights);a=baseline.time(args,layer_weights);}else{a=baseline.time(args,layer_weights);b=candidate.time(args,layer_weights);}
+    double a,b;
+    if(trial%2){b=candidate.time(args,layer_weights,mixed_companion.get(),mixed_args);a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);}
+    else{a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);b=candidate.time(args,layer_weights,mixed_companion.get(),mixed_args);}
     std::printf("tokens=%d rows=%d history=%d trial=%d old_us=%.6f new_us=%.6f bitwise=%s maxabs=%g oracle_maxabs=%g\n",tokens,rows,past,trial,a,b,bitwise?"true":"false",error,oracle_error);
   }
 }
