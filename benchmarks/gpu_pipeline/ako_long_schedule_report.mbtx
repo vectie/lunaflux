@@ -116,7 +116,9 @@ fn opcodes(text : String) -> Array[Json] raise {
 ///|
 async fn main {
   guard @env.args() is [_, root, .. kind_args] else {
-    fail("LOCAL_RESULTS_ROOT [query-lifetime-v1|epoch-local-v1|value-readiness-v1]")
+    fail(
+      "LOCAL_RESULTS_ROOT [query-lifetime-v1|epoch-local-v1|value-readiness-v1]",
+    )
   }
   let names = match kind_args {
     [] => ["kv128", "retain128"]
@@ -128,6 +130,7 @@ async fn main {
     ["page-lookahead-v1"] => ["lookahead"]
     ["page-origin-v1"] => ["pageorigin"]
     ["page-readiness-v1"] => ["pageready"]
+    ["query-reuse128-v1"] => ["query128"]
     _ => fail("bounded experiment kind")
   }
   let rows : Array[Json] = []
@@ -203,15 +206,23 @@ fn dependency_sites(text : String) -> Array[Json] raise {
   fn finish() -> Json {
     sites.sort_by((a, b) => b.0.compare(a.0))
     {
-      "top_not_issued_dependency_pcs": sites.iter().take(12).map(x => x.1).to_array(),
+      "top_not_issued_dependency_pcs": sites
+      .iter()
+      .take(12)
+      .map(x => x.1)
+      .to_array(),
       "opcode_sample_totals": Json::object(groups.map((_, x) => Json(x))),
     }
   }
   for line in text.split("\n") {
-    if !line.has_prefix("\"") { continue }
+    if !line.has_prefix("\"") {
+      continue
+    }
     let values = csv(line)
     if values[0] == "Kernel Name" {
-      if !keys.is_empty() { kernels.push(finish()) }
+      if !keys.is_empty() {
+        kernels.push(finish())
+      }
       keys = []
       sites = []
       groups = Map([])
@@ -221,25 +232,44 @@ fn dependency_sites(text : String) -> Array[Json] raise {
       assert_eq(values.length(), keys.length())
       let source = values[keys.search("Source").unwrap()]
       let words = source.trim().split(" ").filter(x => !x.is_empty()).to_array()
-      guard words is [first, ..rest] else { continue }
+      guard words is [first, .. rest] else { continue }
       let op = (if first.has_prefix("@") { rest[0] } else { first }).to_owned()
       let stalls : Map[String, Json] = Map([])
       let mut dependency = 0.0
-      for metric in ["stall_wait", "stall_long_sb", "stall_short_sb", "stall_barrier", "stall_math"] {
+      for
+        metric in [
+          "stall_wait", "stall_long_sb", "stall_short_sb", "stall_barrier", "stall_math",
+        ] {
         for key in [metric, metric + " (Not Issued)"] {
           let sample = number(values[keys.search(key).unwrap()])
           stalls[key] = Json(sample)
-          groups[op + "/" + key] = groups.get(op + "/" + key).unwrap_or(0.0) + sample
-          if key.has_suffix(" (Not Issued)") && metric != "stall_barrier" && metric != "stall_math" { dependency += sample }
+          groups[op + "/" + key] = groups.get(op + "/" + key).unwrap_or(0.0) +
+            sample
+          if key.has_suffix(" (Not Issued)") &&
+            metric != "stall_barrier" &&
+            metric != "stall_math" {
+            dependency += sample
+          }
         }
       }
-      sites.push((dependency, {
-        "address": values[0], "sass": source, "samples": Json::object(stalls),
-        "executed": number(values[keys.search("Instructions Executed").unwrap()]),
-      }))
+      sites.push(
+        (
+          dependency,
+          {
+            "address": values[0],
+            "sass": source,
+            "samples": Json::object(stalls),
+            "executed": number(
+              values[keys.search("Instructions Executed").unwrap()],
+            ),
+          },
+        ),
+      )
     }
   }
-  if !keys.is_empty() { kernels.push(finish()) }
+  if !keys.is_empty() {
+    kernels.push(finish())
+  }
   assert_eq(kernels.length(), 2)
   kernels
 }
@@ -253,19 +283,24 @@ test "CSV preserves grouped numeric values and escaped quotes" {
 ///|
 test "dependency attribution retains two kernels and ranks sampled instruction PCs" {
   let labels = ["Address", "Source", "Instructions Executed"]
-  for key in ["stall_wait", "stall_long_sb", "stall_short_sb", "stall_barrier", "stall_math"] {
+  for
+    key in [
+      "stall_wait", "stall_long_sb", "stall_short_sb", "stall_barrier", "stall_math",
+    ] {
     labels.push(key)
     labels.push(key + " (Not Issued)")
   }
   let header = labels.map(x => "\"" + x + "\"").join(",")
   let source = [
-    "\"Kernel Name\",\"first\"", header,
-    "\"0x0\",\" ISETP\",\"10\",\"0\",\"0\",\"15\",\"12\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"",
-    "\"Kernel Name\",\"second\"", header,
-    "\"0x1\",\" MOV\",\"5\",\"4\",\"3\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"",
+    "\"Kernel Name\",\"first\"", header, "\"0x0\",\" ISETP\",\"10\",\"0\",\"0\",\"15\",\"12\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"",
+    "\"Kernel Name\",\"second\"", header, "\"0x1\",\" MOV\",\"5\",\"4\",\"3\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"",
   ].join("\n")
   let result = dependency_sites(source)
   assert_eq(result.length(), 2)
-  assert_true(result[0].stringify().contains("\"ISETP/stall_long_sb (Not Issued)\":12"))
-  assert_true(result[1].stringify().contains("\"MOV/stall_wait (Not Issued)\":3"))
+  assert_true(
+    result[0].stringify().contains("\"ISETP/stall_long_sb (Not Issued)\":12"),
+  )
+  assert_true(
+    result[1].stringify().contains("\"MOV/stall_wait (Not Issued)\":3"),
+  )
 }
