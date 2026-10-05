@@ -78,11 +78,15 @@ and invalid phase shapes are rejected. A 1% improvement margin retains the
 baseline for noise. Unmeasured buckets return no override.
 
 The fused-runtime exporter now accepts a final
-`--attention-buckets ABSOLUTE_PATH SHA256` suffix. It emits bundle V6 and an
+`--attention-buckets ABSOLUTE_PATH SHA256` suffix. It emits a versioned bundle and an
 `attention_route_scope` binding the model, plan, target and complete compiled
-module/launch chain (excluding observations). The runtime adapter uses candidate
-1 for the baseline graph and 2 for its wide-prefill variant; decode overrides
-are rejected. These adapter IDs are not compiler frontier IDs such as 322/324.
+module/launch chain (excluding observations). The runtime adapter uses stable
+IDs for complete executable graphs: 1 baseline, 2 wide prefill, 3 ordinary
+decode, 4 partitioned decode, 5 partitioned prefill, 6 deep-partitioned prefill,
+and 7 mixed prefill/partitioned decode. Phase-incompatible choices and variants
+without prepared graph owners are rejected. These adapter IDs are not compiler
+frontier IDs such as 322/324. Partitioned measurements include partial and
+merge launches, with the runtime's actual launch geometry and operands.
 The device assignment remains deployment-owned; this scope does not independently
 assert a physical GPU UUID and measurements must not be reused across devices.
 

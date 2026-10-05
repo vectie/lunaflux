@@ -1,0 +1,199 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn get(value : Json, key : String) -> Json raise {
+  guard value is Object(fields) && fields.get(key) is Some(found) else {
+    fail("missing " + key)
+  }
+  found
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("no measurements") }
+  let sorted = values.copy()
+  sorted.sort()
+  let n = sorted.length()
+  if n % 2 == 1 {
+    sorted[n / 2]
+  } else {
+    (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+  }
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  let n = match value {
+    Number(n, ..) => n
+    String(text) => @string.parse_double(text)
+    _ => fail("numeric metric")
+  }
+  guard n >= 0.0 else { fail("nonnegative metric") }
+  n
+}
+
+///|
+fn tokens(value : Json) -> Array[Json] raise {
+  guard get(value, "token_ids") is Array(ids) && ids.length() == 64 else {
+    fail("complete output vector")
+  }
+  ids
+}
+
+///|
+fn changed(a : Array[Json], b : Array[Json]) -> Int raise {
+  assert_eq(a.length(), b.length())
+  a.foldi(init=0, (i, count, token) => {
+    count + (if token == b[i] { 0 } else { 1 })
+  })
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("COMPLETED_ABBA_ROOT NEW_REPORT")
+  }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  let cells = [
+    "i16384-o64-c1-varied", "i32512-o64-c1-varied", "i32512-o64-c2-varied",
+  ]
+  let reports : Array[Json] = []
+  for cell in cells {
+    let summaries : Array[Json] = []
+    let vectors : Array[Array[Array[Json]]] = []
+    for
+      (side, starts) in [
+        ("baseline", [0, 3]),
+        ("measured", [1, 2]),
+        ("control8192", [4]),
+      ] {
+      let elapsed : Array[Double] = []
+      let first : Array[Double] = []
+      let tpot : Array[Double] = []
+      let throughput : Array[Double] = []
+      let side_vectors : Array[Array[Json]] = []
+      for index in starts {
+        let label = if index == 0 || index == 3 {
+          "baseline"
+        } else {
+          "measured"
+        }
+        let run = root + "/e2e-\{index}-" + label + "/r0-luna-full"
+        assert_true(
+          @fs.read_file(run + "/RESULT.txt")
+          .text()
+          .has_prefix("outcome=completed\n"),
+        )
+        assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+        for line in @fs.read_file(run + "/memory.csv").text().split("\n") {
+          if !line.is_empty() {
+            assert_true(
+              @string.parse_int64(line.split(",").to_array()[1]) >= 33554432L,
+            )
+          }
+        }
+        // Retain warmup vectors for numerical consistency but exclude timings.
+        for trial in 0..<4 {
+          let value = @json.parse(
+            @fs.read_file(run + "/requests/" + cell + "-t\{trial}.json").text(),
+          )
+          assert_eq(get(value, "warmup"), Json(trial == 0))
+          guard get(value, "requests") is Array(requests) else {
+            fail("requests")
+          }
+          for row in requests {
+            side_vectors.push(tokens(row))
+            if trial > 0 {
+              first.push(number(get(row, "ttft_ms")))
+              tpot.push(number(get(row, "mean_tpot_ms")))
+            }
+          }
+          if trial > 0 {
+            elapsed.push(number(get(value, "wall_ms")))
+            throughput.push(number(get(value, "output_tokens_per_second")))
+          }
+        }
+      }
+      let rows = if cell.contains("c2") { 2 } else { 1 }
+      let within : Array[Int] = []
+      for i, vector in side_vectors {
+        within.push(changed(side_vectors[i % rows], vector))
+      }
+      summaries.push({
+        "side": side,
+        "fresh_starts": starts.length(),
+        "samples": {
+          "wall_ms": elapsed,
+          "ttft_ms": first,
+          "tpot_ms": tpot,
+          "output_tok_s": throughput,
+        },
+        "median_wall_ms": median(elapsed),
+        "median_ttft_ms": median(first),
+        "median_tpot_ms": median(tpot),
+        "median_output_tok_s": median(throughput),
+        "token_changes_vs_first_same_row": within,
+        "token_vectors": side_vectors,
+      })
+      vectors.push(side_vectors)
+    }
+    let rows = if cell.contains("c2") { 2 } else { 1 }
+    let cross : Array[Int] = []
+    let control : Array[Int] = []
+    for i, vector in vectors[1] {
+      cross.push(changed(vectors[0][i % rows], vector))
+    }
+    for i, vector in vectors[2] {
+      control.push(changed(vectors[1][i % rows], vector))
+    }
+    reports.push({
+      "cell": cell,
+      "sides": summaries,
+      "measured_completion_reduction": 1.0 -
+      number(get(summaries[1], "median_wall_ms")) /
+      number(get(summaries[0], "median_wall_ms")),
+      "measured_vs_baseline_token_changes": cross,
+      "8192_vs_measured2048_token_changes": control,
+    })
+  }
+  let report : Json = {
+    "schema": "lunaflux.prefill-route-abba.v1",
+    "scope": "uninstrumented same-worker same-AOT route-only serving; not reference quality or other-framework rerun",
+    "cells": reports,
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  for cell in reports {
+    guard get(cell, "sides") is Array(sides) else { fail("sides") }
+    let compact : Json = {
+      "cell": get(cell, "cell"),
+      "completion_reduction": get(cell, "measured_completion_reduction"),
+      "sides": sides.map(side => {
+        "side": get(side, "side"),
+        "wall_ms": get(side, "median_wall_ms"),
+        "ttft_ms": get(side, "median_ttft_ms"),
+        "tok_s": get(side, "median_output_tok_s"),
+        "repeat_token_changes": get(side, "token_changes_vs_first_same_row"),
+      }),
+      "control_chunk_token_changes": get(
+        cell, "8192_vs_measured2048_token_changes",
+      ),
+    }
+    println(compact.stringify())
+  }
+}
+
+///|
+test "median excludes order bias; vectors count every output position" {
+  assert_eq(median([4.0, 1.0, 3.0, 2.0]), 2.5)
+  assert_eq(number(Json(42L)), 42.0)
+  assert_eq(changed([Json(1), Json(2)], [Json(1), Json(3)]), 1)
+}

@@ -1,0 +1,131 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn compact(csv : String) -> Array[Json] raise {
+  let lines = csv.split("\n").filter(x => x.has_prefix("\"")).to_array()
+  guard lines.length() >= 3 else { fail("raw Nsight CSV") }
+  let cells = fn(line : StringView) {
+    line[1:line.length() - 1].split("\",\"").map(x => x.to_owned()).to_array()
+  }
+  let keys = cells(lines[0])
+  let selected = [
+    "Kernel Name", "Grid Size", "gpu__time_duration.sum", "launch__registers_per_thread",
+    "launch__shared_mem_per_block_allocated", "launch__occupancy_limit_shared_mem",
+    "launch__waves_per_multiprocessor", "sm__warps_active.avg.pct_of_peak_sustained_active",
+    "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed", "smsp__inst_executed.sum",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+  ]
+  let result : Array[Json] = []
+  for line in lines[2:] {
+    let values = cells(line)
+    assert_eq(values.length(), keys.length())
+    let fields : Map[String, Json] = Map([])
+    for index, key in keys {
+      if selected.contains(key) {
+        fields[key] = Json(values[index])
+      }
+    }
+    result.push(Json::object(fields))
+  }
+  result
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(program, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix] && suffix == "gK1oe7nW" else {
+    fail("COMPLETED_SPARK178_ROOT UNIT_SUFFIX")
+  }
+  assert_true(
+    @fs.read_file(root + "/trial/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  let records : Array[Json] = []
+  for label in ["admin", "detail"] {
+    let csv = capture(
+      root,
+      "counter-" + label,
+      "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+      [
+        "--import",
+        root + "/split-vs-unsplit-" + label + ".ncu-rep",
+        "--page",
+        "raw",
+        "--csv",
+      ],
+    )
+    records.push({ "capture": label, "kernels": compact(csv) })
+    ignore(
+      capture(root, "journal-" + label, "journalctl", [
+        "-u",
+        "lunaflux-route-counter-" + label + "-" + suffix + ".service",
+        "--no-pager",
+      ]),
+    )
+  }
+  ignore(
+    capture(root, "journal-permission-failure", "journalctl", [
+      "--user",
+      "-u",
+      "lunaflux-route-counter-" + suffix + ".service",
+      "--no-pager",
+    ]),
+  )
+  let idle = capture(root, "idle-terminal", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  assert_true(idle.trim().is_empty())
+  @fs.write_file(
+    root + "/counter-summary.json",
+    Json(records).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=paired-frontier-C2-probes-and-selected-chain-counters; not serving\n",
+    create_mode=CreateNew,
+  )
+  println(Json(records).stringify(indent=2))
+}
+
+///|
+test "quoted grid commas do not shift counter columns" {
+  let result = compact(
+    "\"ID\",\"Kernel Name\",\"Grid Size\",\"smsp__inst_executed.sum\"\n\"\",\"\",\"\",\"inst\"\n\"0\",\"attention\",\"(32, 16, 2)\",\"1,024\"\n",
+  )
+  assert_eq(result.length(), 1)
+  assert_true(result[0].stringify().contains("(32, 16, 2)"))
+}

@@ -1,0 +1,193 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  let parts = text.split(old).to_array()
+  assert_eq(parts.length(), 2, msg=old)
+  parts.join(fresh)
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(program, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, query, measured] else {
+    fail("FROZEN_LONG QUERY COMPLETED_MEASURED_ROOT")
+  }
+  assert_true(@fs.exists(measured + "/serving-comparison.json"))
+  let root = measured + "/lunaflux-ako-chunk-trace-selected"
+  @fs.mkdir(root)
+  let moon = query + "/toolchain/bin/moon"
+  @fs.mkdir(root + "/source")
+  @shell.Cmd("cp", ["-a", query + "/source/.", root + "/source/"]).run()
+  @shell.Cmd("chmod", ["-R", "u+w", root + "/source"]).run()
+  for
+    script in [
+      "install_execution_trace.mbtx", "install_prefill_route_diagnostic.mbtx",
+    ] {
+    capture(root, script, moon, [
+      "run",
+      measured + "/" + script,
+      root + "/source",
+    ])
+  }
+  capture(root, "build", moon, [
+    "-C",
+    root + "/source",
+    "build",
+    "--target",
+    "native",
+    "--release",
+    "--deny-warn",
+    "--warn-list",
+    "-79-29-25-20-92-14",
+    "-j",
+    "2",
+    "cmd/device_worker_child",
+    "cmd/lunaflux",
+  ])
+  let cli = root + "/source/_build/native/release/build/cmd/"
+  @shell.Cmd("ln", ["-s", query + "/toolchain", root + "/toolchain"]).run()
+  @shell.Cmd("ln", [
+    "-s",
+    query + "/serving-export.stdout",
+    root + "/export.stdout",
+  ]).run()
+  @shell.Cmd("cp", ["-a", measured + "/c2048/deployment", root + "/deployment"]).run()
+  let path = root + "/deployment/lunaflux.launch.json"
+  guard @json.parse(@fs.read_file(path).text()) is Object(launch) else {
+    fail("launch")
+  }
+  let worker = root + "/deployment/bin/lunaflux-device-worker"
+  @shell.Cmd("chmod", ["u+w", worker, path]).run()
+  @shell.Cmd("cp", [cli + "device_worker_child/device_worker_child.exe", worker]).run()
+  launch["worker_executable"] = { "path": worker, "sha256": sha(worker) }
+  @fs.write_file(path, Json(launch).stringify() + "\n")
+  // Keep canonical model/kernel/policy paths and the exact measured bundle.
+  capture(
+    root,
+    "capacity",
+    query + "/source/scripts/materialize-qwen3-authenticated-capacity.sh",
+    [
+      query +
+      "/bind-target121-budget.stdout#sha256=" +
+      sha(query + "/bind-target121-budget.stdout"),
+      root + "/deployment#sha256=" + sha(path),
+      cli + "lunaflux/lunaflux.exe#sha256=" + sha(cli + "lunaflux/lunaflux.exe"),
+      cli +
+      "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe#sha256=" +
+      sha(
+        cli +
+        "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+      ),
+      root + "/capacity.json",
+    ],
+  )
+  @fs.write_file(
+    root + "/PREPARED.json",
+    "{\"scope\":\"diagnostic measured dispatch only; no timing\"}",
+    create_mode=CreateNew,
+  )
+  let tool = once(
+    @fs.read_file(frozen + "/measure/launcher.mbtx").text(),
+    "let cmd = \"/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/source/_build/native/release/build/cmd/\"",
+    "let cmd = " + Json(cli).stringify(),
+  )
+  let tool = once(
+    tool, "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]", "let orders = [[\"luna-full\"]]",
+  )
+  let tool = once(
+    tool, "guard @fs.read_file(root + \"/runtime.stderr\").text().is_empty() else",
+    "guard @fs.read_file(root + \"/runtime.stderr\").text().split(\"\\n\").all(line => line.is_empty() || line.has_prefix(\"lf_exec \")) else",
+  )
+  let tool = once(
+    tool, "unprofiled timing, fresh starts, unchanged qualified worker/cubins; not current dirty-tree deployment",
+    "diagnostic route markers; not a timing sample or deployable worker",
+  )
+  let raw = @fs.read_file(frozen + "/long_context_client.mbtx").text()
+  let begin = raw
+    .split("  let cells = if options is [\"--smoke\"] {")
+    .to_array()
+  assert_eq(begin.length(), 2)
+  let end = begin[1].split("  let matrix_json : Array[Json]").to_array()
+  assert_eq(end.length(), 2)
+  let client = once(
+    begin[0].to_owned() +
+    "  let cells = [(\"i32512-o64-c1-varied\",[32512],64,\"varied\")];\n  let matrix_json : Array[Json]" +
+    end[1].to_owned(),
+    "let trials = if options is [\"--smoke\"] { 1 } else { 4 }",
+    "let trials = 1",
+  )
+  let output = root + "/replay"
+  @fs.mkdir(output)
+  let script = output + "/launcher.mbtx"
+  @fs.write_file(script, tool, create_mode=CreateNew)
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  capture(root, "dispatch", moon, ["run", script, root, output, script])
+  let trace = @fs.read_file(output + "/r0-luna-full/runtime.stderr").text()
+  let selected = trace
+    .split("\n")
+    .filter(x => x.contains("kind=17 "))
+    .map(x => x.to_owned())
+    .to_array()
+  assert_true(selected.length() > 0)
+  @fs.write_file(
+    root + "/selected-owners.txt",
+    selected.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  println(selected.join("\n"))
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=measured-owner-dispatch-diagnostic; not timing\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "diagnostic overlay refuses an ambiguous source seam" {
+  assert_eq(once("left seam right", "seam", "marker"), "left marker right")
+  try once("seam seam", "seam", "marker") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous overlay accepted")
+  }
+}

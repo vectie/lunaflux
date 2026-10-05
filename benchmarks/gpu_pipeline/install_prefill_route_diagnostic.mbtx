@@ -15,6 +15,10 @@ fn once(source : String, old : String, fresh : String) -> String raise {
 ///|
 fn install(source : String, unsplit : Bool) -> String raise {
   let source = once(
+    source, "let owner = self.measured_owner_indices[bucket.slot()]\n    if owner >= 0 {\n      return owner",
+    "let owner = self.measured_owner_indices[bucket.slot()]\n    if owner >= 0 {\n      trace_event(17, 0UL, bucket.slot(), owner, bucket.batch_rows(), bucket.query_tokens(), bucket.context_tokens(), 0, 0UL)\n      return owner",
+  )
+  let source = once(
     source, "  let batch_rows = bucket.batch_rows()", "  trace_event(15, 0UL, bucket.slot(), (if bucket.slot() >= 0 && bucket.slot() < self.prefill_split_slot_owner_indices.length() { self.prefill_split_slot_owner_indices[bucket.slot()] } else { -1 }), self.deep_prefill_split_owner_index, (if bucket.slot() >= 0 && bucket.slot() < self.prefill_wide_slot_owner_indices.length() { self.prefill_wide_slot_owner_indices[bucket.slot()] } else { -1 }), self.prefill_split_minimum_context_tokens, self.prefill_split_partition_count, 0UL)\n  let batch_rows = bucket.batch_rows()",
   )
   let source = once(
@@ -69,6 +73,9 @@ async fn main {
 ///|
 test "route override requires both split seams and keeps decode unchanged" {
   let source =
+    #|  let owner = self.measured_owner_indices[bucket.slot()]
+    #|    if owner >= 0 {
+    #|      return owner
     #|  let batch_rows = bucket.batch_rows()
     #|  if self.deep_prefill_split_owner_index >= 0 &&
     #|    return self.deep_prefill_split_owner_index
@@ -87,4 +94,5 @@ test "route override requires both split seams and keeps decode unchanged" {
   assert_true(result.contains("if false && self.prefill_split"))
   assert_true(result.contains("if decode_guard { return decode_owner }"))
   assert_false(install(source, false).contains("if false"))
+  assert_true(install(source, false).contains("trace_event(17"))
 }

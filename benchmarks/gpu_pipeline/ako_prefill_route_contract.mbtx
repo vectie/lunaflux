@@ -1,0 +1,74 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+// Offline contract generation only. Each GPU measures its own route records.
+// The executable uses runtime query-tile geometry and times partial + merge.
+fn workloads(root : String, frontier : Bool) -> Array[Json] {
+  let shapes = if frontier {
+    [(64, 1, 32768), (2048, 2, 8192), (2048, 2, 28672)]
+  } else {
+    [
+      (2048, 1, 8192),
+      (1792, 1, 30720),
+      (2048, 2, 12288),
+      (2048, 2, 28672),
+      (7936, 1, 24576),
+    ]
+  }
+  shapes.map(shape => {
+    let (query, rows, history) = shape
+    {
+      "label": "q\{query}-r\{rows}-h\{history}-p2",
+      "args": [
+        root + "/prefill.spec",
+        root + "/prefill",
+        root + "/partitioned",
+        "\{query}",
+        "\{rows}",
+        "\{history}",
+        "--prefill-partitioned",
+      ],
+    }
+  })
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, uuid, output, mode] &&
+    root.has_prefix("/home/") &&
+    uuid.has_prefix("GPU-") &&
+    ["serving-buckets", "frontier"].contains(mode) else {
+    fail("REMOTE_ROOT GPU_UUID NEW_CONTRACT serving-buckets|frontier")
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": uuid,
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": root + "/probe",
+    "artifacts": [
+      "/usr/local/cuda-13.0/bin/nvcc",
+      root + "/selected_policy_probe.cu",
+      root + "/selected_policy_geometry.h",
+      root + "/prefill.spec",
+      root + "/prefill/kernel.recipe",
+      root + "/prefill/kernel.cubin",
+      root + "/partitioned/kernel.recipe",
+      root + "/partitioned/kernel.cubin",
+    ],
+    "workloads": workloads(root, mode == "frontier"),
+  }
+  @fs.write_file(output, contract.stringify(indent=2), create_mode=CreateNew)
+}
+
+///|
+test "serving representatives and underpopulated frontier remain separate" {
+  assert_eq(workloads("/home/test", false).length(), 5)
+  assert_eq(workloads("/home/test", true).length(), 3)
+  assert_true(workloads("/home/test", true)[0].stringify().contains("q64-r1"))
+}

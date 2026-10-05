@@ -1,0 +1,362 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  let parts = text.split(old).to_array()
+  assert_eq(parts.length(), 2, msg=old)
+  parts.join(fresh)
+}
+
+///|
+fn object(value : Json) -> Map[String, Json] raise {
+  guard value is Object(fields) else { fail("object required") }
+  fields
+}
+
+///|
+fn strings(value : Json) -> Array[String] raise {
+  guard value is Array(values) else { fail("string array") }
+  values.map(value => {
+    guard value is String(text) else { fail("string") }
+    text
+  })
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+// Keep one actual representative per bucket. The parser rejects duplicate
+// candidates/buckets, missing baselines, unequal shapes or unequal samples.
+fn routes(summary : Json, scope : String) -> String raise {
+  guard summary is Array(records) else { fail("completed paired summary") }
+  let mut text = "luna-attention-buckets-v1\nscope\t" + scope + "\n"
+  for record in records {
+    guard record is { "args": args, "metrics": metrics, .. } else {
+      fail("paired record")
+    }
+    let args = strings(args)
+    assert_eq(args.length(), 7)
+    assert_eq(args[6], "--prefill-partitioned")
+    let query = @string.parse_int(args[3])
+    let rows = @string.parse_int(args[4])
+    let history = @string.parse_int(args[5])
+    guard query >= rows && rows > 0 && history >= 0 else { fail("shape") }
+    guard metrics
+      is {
+        "baseline_median_us": Number(old, ..),
+        "candidate_median_us": Number(fresh, ..),
+        "samples": { "baseline_us": Array(a), "candidate_us": Array(b), .. },
+        ..
+      } &&
+      a.length() == 5 &&
+      b.length() == 5 &&
+      old > 0.0 &&
+      fresh > 0.0 else {
+      fail("five completed paired measurements")
+    }
+    let context = history + (query + rows - 1) / rows
+    text += "record\tprefill\t\{rows}\t\{query}\t\{context}\t1\t\{(old * 1000.0).to_int64()}\t5\n"
+    text += "record\tprefill\t\{rows}\t\{query}\t\{context}\t5\t\{(fresh * 1000.0).to_int64()}\t5\n"
+  }
+  text
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+  query : String,
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(program, args, cwd=query + "/source", env={
+    "PATH": query + "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println(label + " completed")
+  out.stdout()
+}
+
+///|
+async fn publish(path : String, value : Json) -> String {
+  @shell.Cmd("mv", [path, path + ".8192-reference"]).run()
+  @fs.write_file(
+    path,
+    value.stringify() + "\n",
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  sha(path)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, query, root, phase] &&
+    ["bind", "measure"].contains(phase) else {
+    fail("FROZEN_LONG IMMUTABLE_QUERY COMPLETED_PROBE_ROOT bind|measure")
+  }
+  let moon = query + "/toolchain/bin/moon"
+  let cli = query + "/source/_build/native/release/build/cmd/"
+  if phase == "bind" {
+    assert_true(
+      @fs.read_file(root + "/trial/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    assert_eq(
+      @fs.read_file(root + "/trial/device.stdout").text().trim(),
+      "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    )
+    let scope = field(
+      @fs.read_file(query + "/serving-fused.stdout").text(),
+      "attention_route_scope",
+    )
+    @fs.write_file(
+      root + "/routes.v1",
+      routes(
+        @json.parse(@fs.read_file(root + "/trial/summary.json").text()),
+        scope,
+      ),
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+    let bundle = root + "/measured-runtime.v11"
+    let command = strings(
+      @json.parse(@fs.read_file(query + "/serving-fused.command.json").text()),
+    )
+    let args = command[1:]
+      .to_owned()
+      .map(arg => {
+        if arg == query + "/fused-routed/reusable-fused-runtime-bundle.v3" {
+          bundle
+        } else {
+          arg
+        }
+      })
+    args.append([
+      "--attention-buckets",
+      root + "/routes.v1",
+      sha(root + "/routes.v1"),
+    ])
+    let report = capture(root, "rebind", command[0], args, query)
+    assert_eq(field(report, "attention_route_scope"), scope)
+    let command = strings(
+      @json.parse(
+        @fs.read_file(query + "/serving-materialize-target121.command.json").text(),
+      ),
+    )
+    let args = command[1:]
+      .to_owned()
+      .map(arg => {
+        if arg == query + "/deployment" {
+          root + "/deployment"
+        } else if arg.has_prefix(
+            query + "/fused-routed/reusable-fused-runtime-bundle.v3#sha256=",
+          ) {
+          bundle + "#sha256=" + field(report, "runtime_sha256")
+        } else {
+          arg
+        }
+      })
+    ignore(capture(root, "materialize", command[0], args, query))
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", query + "/" + name, root + "/" + name]).run()
+    }
+    let prepare = once(
+      @fs.read_file(root + "/prepare_long_context.mbtx").text(),
+      "let cmd = base + \"/source/_build/native/release/build/cmd/\"",
+      "let cmd = " + Json(cli).stringify(),
+    )
+    @fs.write_file(
+      root + "/prepare-canonical.mbtx",
+      prepare,
+      create_mode=CreateNew,
+    )
+    for cap in [2048, 8192] {
+      let arm = root + "/c\{cap}"
+      @fs.mkdir(arm)
+      for name in ["source", "toolchain"] {
+        @shell.Cmd("ln", ["-s", query + "/" + name, arm + "/" + name]).run()
+      }
+      @shell.Cmd("ln", [
+        "-s",
+        query + "/serving-export.stdout",
+        arm + "/export.stdout",
+      ]).run()
+      ignore(
+        capture(
+          root,
+          "prepare-c\{cap}",
+          moon,
+          [
+            "run",
+            root + "/prepare-canonical.mbtx",
+            root,
+            arm,
+            query + "/bind-target121-budget.stdout",
+          ],
+          query,
+        ),
+      )
+      if cap == 2048 {
+        let deployment = arm + "/deployment"
+        let policy_path = deployment + "/policy-root/instance/policy.json"
+        let policy = object(@json.parse(@fs.read_file(policy_path).text()))
+        let scheduler = object(policy["scheduler"])
+        scheduler["step_token_budget"] = Json(2048)
+        scheduler["prefill_chunk_tokens"] = Json(2048)
+        policy["scheduler"] = Json::object(scheduler)
+        let policy_sha = publish(policy_path, Json::object(policy))
+        let launch_path = deployment + "/lunaflux.launch.json"
+        let launch = object(@json.parse(@fs.read_file(launch_path).text()))
+        launch["instance_policy"] = {
+          "locator": "instance/policy.json",
+          "sha256": policy_sha,
+        }
+        let launch_sha = publish(launch_path, Json::object(launch))
+        @shell.Cmd("mv", [
+          arm + "/capacity.json",
+          arm + "/capacity.8192-reference.json",
+        ]).run()
+        ignore(
+          capture(
+            root,
+            "capacity-c2048",
+            query +
+            "/source/scripts/materialize-qwen3-authenticated-capacity.sh",
+            [
+              query +
+              "/bind-target121-budget.stdout#sha256=" +
+              sha(query + "/bind-target121-budget.stdout"),
+              deployment + "#sha256=" + launch_sha,
+              cli +
+              "lunaflux/lunaflux.exe#sha256=" +
+              sha(cli + "lunaflux/lunaflux.exe"),
+              cli +
+              "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe#sha256=" +
+              sha(
+                cli +
+                "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+              ),
+              arm + "/capacity.json",
+            ],
+            query,
+          ),
+        )
+      }
+    }
+  } else {
+    let tool = once(
+      @fs.read_file(frozen + "/measure/launcher.mbtx").text(),
+      "let cmd = \"/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/source/_build/native/release/build/cmd/\"",
+      "let cmd = " + Json(cli).stringify(),
+    )
+    let tool = once(
+      tool, "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]", "let orders = [[\"luna-full\"]]",
+    )
+    let raw = @fs.read_file(frozen + "/long_context_client.mbtx").text()
+    let begin = raw
+      .split("  let cells = if options is [\"--smoke\"] {")
+      .to_array()
+    assert_eq(begin.length(), 2)
+    let end = begin[1].split("  let matrix_json : Array[Json]").to_array()
+    assert_eq(end.length(), 2)
+    let client = begin[0].to_owned() +
+      "  let cells = [(\"i16384-o64-c1-varied\",[16384],64,\"varied\")," +
+      "(\"i32512-o64-c1-varied\",[32512],64,\"varied\")," +
+      "(\"i32512-o64-c2-varied\",[32512,32512],64,\"varied\")];\n" +
+      "  let matrix_json : Array[Json]" +
+      end[1].to_owned()
+    // ABBA fresh starts at the same 2K scheduler policy, then an 8K control.
+    for
+      index, (measured, cap) in [
+        (false, 2048),
+        (true, 2048),
+        (true, 2048),
+        (false, 2048),
+        (true, 8192),
+      ] {
+      let output = root +
+        "/e2e-\{index}-" +
+        (if measured { "measured" } else { "baseline" })
+      @fs.mkdir(output)
+      let script = output + "/launcher.mbtx"
+      @fs.write_file(script, tool, create_mode=CreateNew)
+      @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+      let arm = if measured {
+        root + "/c\{cap}"
+      } else {
+        query + "/c\{cap}-target121"
+      }
+      ignore(
+        capture(
+          root,
+          "e2e-\{index}",
+          moon,
+          ["run", script, arm, output, script],
+          query,
+        ),
+      )
+    }
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=per-device-measured-prefill-route; uninstrumented-serving-ABBA\n",
+      create_mode=CreateNew,
+    )
+  }
+}
+
+///|
+test "measurements describe complete split graph and actual row contexts" {
+  let record : Json = {
+    "args": ["/s", "/a", "/b", "2048", "2", "12288", "--prefill-partitioned"],
+    "metrics": {
+      "baseline_median_us": 3.0,
+      "candidate_median_us": 9.0,
+      "samples": {
+        "baseline_us": [3, 3, 3, 3, 3],
+        "candidate_us": [9, 9, 9, 9, 9],
+      },
+    },
+  }
+  let text = routes(Json([record]), "scope")
+  assert_true(text.contains("prefill\t2\t2048\t13312\t1\t3000\t5"))
+  assert_true(text.contains("prefill\t2\t2048\t13312\t5\t9000\t5"))
+}
