@@ -1,0 +1,479 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+fn geometry(record : Json) -> Array[String] raise {
+  guard record is { "geometry": Array(parts), .. } && parts.length() == 2 else {
+    fail("geometry")
+  }
+  let result : Array[String] = []
+  for part in parts {
+    guard part is Array(values) && values.length() == 3 else {
+      fail("geometry part")
+    }
+    for value in values {
+      guard value is Number(n, ..) && n >= 0.0 && n == n.floor() else {
+        fail("geometry number")
+      }
+      result.push(n.to_int().to_string())
+    }
+  }
+  result
+}
+
+///|
+fn compact(metrics : Json) -> Json raise {
+  guard metrics
+    is {
+      "baseline_median_us": old,
+      "candidate_median_us": fresh,
+      "median_paired_gain": gain,
+      "minimum_paired_gain": minimum,
+      "decision": decision,
+      ..
+    } else {
+    fail("metric fields")
+  }
+  {
+    "old_us": old,
+    "new_us": fresh,
+    "gain": gain,
+    "minimum_gain": minimum,
+    "decision": decision,
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, phase, root, moon] else {
+    fail("export|run|counters|report NEW_ROOT MOON")
+  }
+  if phase == "report" {
+    for candidate in ["r64-c8", "r128-c16", "r128-c8"] {
+      guard @json.parse(
+          @fs.read_file(root + "/trial-" + candidate + "/summary.json").text(),
+        )
+        is Array(records) else {
+        fail("summary")
+      }
+      for record in records {
+        guard record
+          is {
+            "label": String(label),
+            "metrics": { "components": Array(parts), "whole_chain": chain, .. },
+            ..
+          } else {
+          fail("metrics")
+        }
+        let row : Json = {
+          "candidate": candidate,
+          "workload": label,
+          "gate_up": compact(parts[0]),
+          "whole_chain": compact(chain),
+        }
+        println(row.stringify())
+      }
+    }
+    return
+  }
+  if phase == "seal" {
+    for label in ["r64-c8", "r128-c16", "r128-c8", "confirmation"] {
+      let directory = if label == "confirmation" {
+        label
+      } else {
+        "trial-" + label
+      }
+      assert_true(
+        @fs.read_file(root + "/" + directory + "/RESULT.txt")
+        .text()
+        .has_prefix("outcome=completed\n"),
+      )
+      guard @json.parse(
+          @fs.read_file(root + "/" + directory + "/summary.json").text(),
+        )
+        is Array(records) else {
+        fail("summary")
+      }
+      for record in records {
+        guard record
+          is {
+            "mem_available_kib_before": String(before),
+            "mem_available_kib_after": String(after),
+            ..
+          } &&
+          @string.parse_int64(before) >= 33554432L &&
+          @string.parse_int64(after) >= 33554432L else {
+          fail("reserve")
+        }
+      }
+    }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let log = @fs.read_file(root + "/sanitizer-" + tool + ".stdout").text()
+      assert_true(
+        log.contains("correctness=passed") &&
+        (log.contains("0 errors") || log.contains("0 hazards")),
+      )
+      assert_true(
+        @fs.read_file(root + "/sanitizer-" + tool + ".stderr").text().is_empty(),
+      )
+    }
+    let idle = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    idle.check()
+    assert_true(idle.stdout().trim().is_empty())
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nselection=unchanged\nscope=three offline sibling ownership schedules; no serving gain or promotion claimed\n",
+      create_mode=CreateNew,
+    )
+    let files = @shell.Cmd("find", [
+      root,
+      "-type",
+      "f",
+      "!",
+      "-path",
+      root + "/_build/*",
+      "!",
+      "-path",
+      root + "/counter-driver-build/*",
+      "-exec",
+      "sha256sum",
+      "{}",
+      "+",
+    ]).output(max_output_bytes=16777216)
+    files.check()
+    @fs.write_file(
+      root + "/FILES.sha256",
+      files.stdout().replace(old=root + "/", new="./"),
+      create_mode=CreateNew,
+    )
+    // Keep the archive outside the directory being read: otherwise tar may
+    // report a changed directory even when the archive itself is excluded.
+    let archive_path = root + ".measurement.tar.gz"
+    guard !@fs.exists(archive_path) else {
+      fail("non-overwriting archive")
+    }
+    let archive = @shell.Cmd("tar", [
+      "-czf",
+      archive_path,
+      "--exclude=./_build",
+      "--exclude=./counter-driver-build",
+      "--exclude=./measurement.tar.gz",
+      "-C",
+      root,
+      ".",
+    ]).output()
+    archive.check()
+    let hash = @shell.Cmd("sha256sum", [archive_path]).output()
+    hash.check()
+    @fs.write_file(
+      archive_path + ".sha256",
+      hash.stdout(),
+      create_mode=CreateNew,
+    )
+    @shell.Cmd("chmod", ["0444", archive_path]).run()
+    println(hash.stdout())
+    return
+  }
+  if phase == "export" {
+    @fs.mkdir(root)
+    let output = capture(root, "export", "/usr/bin/env", [
+      "LUNA_EXPORT_AKO_SIBLING_DOMAIN=1", moon, "test", "kernels/luna_cuda_projection_aot",
+      "--target", "native", "--filter", "AKO sibling row ownership*", "--deny-warn",
+      "--warn-list", "-79-29-25-20-92-14",
+    ])
+    let lines = output
+      .split("\n")
+      .filter(s => s.has_prefix("LUNA_DOMAIN_RECORD "))
+      .to_array()
+    guard lines.length() == 4 else {
+      fail("baseline plus three alternatives required")
+    }
+    let records : Array[Json] = []
+    for i, line in lines {
+      let record = @json.parse(
+        line.strip_prefix("LUNA_DOMAIN_RECORD ").unwrap(),
+      )
+      guard record
+        is {
+          "label": String(label),
+          "source": String(source),
+          "source_sha256": String(digest),
+          ..
+        } &&
+        label == ["baseline", "r64-c8", "r128-c16", "r128-c8"][i] else {
+        fail("export label")
+      }
+      let path = root + "/" + label + ".cu"
+      @fs.write_file(path, source, create_mode=CreateNew)
+      let hash = capture(root, "hash-" + label, "shasum", ["-a", "256", path])
+      guard hash.has_prefix(digest + " ") else { fail("export hash") }
+      ignore(geometry(record))
+      records.push(record)
+    }
+    @fs.write_file(
+      root + "/records.json",
+      Json(records).stringify(),
+      create_mode=CreateNew,
+    )
+    println("exported exact compiler sources")
+    return
+  }
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  let hash = capture(root, "nvcc-executable-" + phase, "sha256sum", [nvcc])
+  guard hash.has_prefix(
+    "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+  ) else {
+    fail("nvcc executable changed")
+  }
+  let device = capture(root, "device-" + phase, "nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ])
+  guard device.trim() == "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6" else {
+    fail("device")
+  }
+  let idle = capture(root, "idle-" + phase, "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  guard idle.trim().is_empty() else { fail("GPU busy") }
+  guard @json.parse(@fs.read_file(root + "/records.json").text())
+    is Array(records) &&
+    records.length() == 4 else {
+    fail("records")
+  }
+  if phase == "confirm" {
+    let args = [
+      "mlp",
+      root + "/baseline.cubin",
+      root + "/r64-c8.cubin",
+      "2048",
+      "32",
+      ..geometry(records[0]),
+      ..geometry(records[1]),
+      "--streaming-all-weights",
+    ]
+    let workloads : Array[Json] = []
+    for i in [0, 1, 2, 3, 4] {
+      workloads.push({
+        "label": "stream-2048-repeat-" + i.to_string(),
+        "args": args,
+      })
+    }
+    let contract : Json = {
+      "schema": "lunaflux-ako-trial-v1",
+      "timing_kind": "mlp-chain-v1",
+      "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.03,
+      "program": root + "/probe",
+      "artifacts": [root + "/baseline.cubin", root + "/r64-c8.cubin"],
+      "workloads": workloads,
+    }
+    let path = root + "/confirmation.json"
+    @fs.write_file(path, contract.stringify(), create_mode=CreateNew)
+    ignore(
+      capture(root, "confirmation", moon, [
+        "run",
+        root + "/ako_trial.mbtx",
+        "--",
+        path,
+        root + "/confirmation",
+      ]),
+    )
+    let boundary = [
+      "mlp",
+      root + "/baseline.cubin",
+      root + "/r64-c8.cubin",
+      "129",
+      "32",
+      ..geometry(records[0]),
+      ..geometry(records[1]),
+      "--check",
+    ]
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let flags = if tool == "memcheck" { ["--leak-check", "full"] } else { [] }
+      ignore(
+        capture(
+          root,
+          "sanitizer-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "9",
+            ..flags,
+            root + "/probe",
+            ..boundary,
+          ],
+        ),
+      )
+    }
+    println("confirmation and boundary sanitizers completed")
+    return
+  }
+  if phase == "run" {
+    ignore(capture(root, "nvcc-version", nvcc, ["--version"]))
+    ignore(
+      capture(root, "build-probe", nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        root + "/projection_chain_probe.cu",
+        "-o",
+        root + "/probe",
+        "-lcuda",
+      ]),
+    )
+    for record in records {
+      guard record
+        is { "label": String(label), "source_sha256": String(digest), .. } else {
+        fail("record")
+      }
+      let path = root + "/" + label + ".cu"
+      let hash = capture(root, "source-" + label, "sha256sum", [path])
+      guard hash.has_prefix(digest + " ") else { fail("source changed") }
+      ignore(
+        capture(root, "build-" + label, nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--fmad=false",
+          "--maxrregcount=255",
+          "-lineinfo",
+          "-Xptxas=-v",
+          "-cubin",
+          path,
+          "-o",
+          root + "/" + label + ".cubin",
+        ]),
+      )
+    }
+    for i in [1, 2, 3] {
+      guard records[i] is { "label": String(label), .. } else { fail("label") }
+      let workloads : Array[Json] = []
+      for streamed in [false, true] {
+        for tokens in [32, 129, 512, 2048] {
+          let args = [
+            "mlp",
+            root + "/baseline.cubin",
+            root + "/" + label + ".cubin",
+            tokens.to_string(),
+            "32",
+            ..geometry(records[0]),
+            ..geometry(records[i]),
+          ]
+          let args = if streamed {
+            args + ["--streaming-all-weights"]
+          } else {
+            args
+          }
+          workloads.push({
+            "label": (if streamed { "stream-" } else { "warm-" }) +
+            tokens.to_string(),
+            "args": args,
+          })
+        }
+      }
+      let contract : Json = {
+        "schema": "lunaflux-ako-trial-v1",
+        "timing_kind": "mlp-chain-v1",
+        "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+        "reserve_kib": 33554432,
+        "minimum_gain": 0.03,
+        "program": root + "/probe",
+        "artifacts": [root + "/baseline.cubin", root + "/" + label + ".cubin"],
+        "workloads": workloads,
+      }
+      let path = root + "/contract-" + label + ".json"
+      @fs.write_file(path, contract.stringify(), create_mode=CreateNew)
+      ignore(
+        capture(root, "trial-" + label, moon, [
+          "run",
+          root + "/ako_trial.mbtx",
+          "--",
+          path,
+          root + "/trial-" + label,
+        ]),
+      )
+      println(label + " completed")
+    }
+    return
+  }
+  guard phase == "counters" || phase == "counters-admin" else { fail("phase") }
+  // Separate profiler runs: never mix replay timing into paired benchmark rows.
+  for i in [1, 2, 3] {
+    guard records[i] is { "label": String(label), .. } else { fail("label") }
+    let args = [
+      "mlp",
+      root + "/baseline.cubin",
+      root + "/" + label + ".cubin",
+      "2048",
+      "32",
+      ..geometry(records[0]),
+      ..geometry(records[i]),
+      "--check",
+    ]
+    ignore(
+      capture(
+        root,
+        phase + "-" + label,
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+        [
+          "--csv",
+          "--page",
+          "raw",
+          "--section",
+          "SpeedOfLight",
+          "--section",
+          "SchedulerStats",
+          "--section",
+          "WarpStateStats",
+          "--section",
+          "MemoryWorkloadAnalysis",
+          "--kernel-name",
+          "regex:lunaflux_luna_gated_mlp_bf16_release_v1$",
+          "--launch-count",
+          "2",
+          root + "/probe",
+          ..args,
+        ],
+      ),
+    )
+    println(label + " counters completed")
+  }
+}

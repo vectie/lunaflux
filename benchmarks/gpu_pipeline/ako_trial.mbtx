@@ -81,6 +81,82 @@ fn summarize(output : String, min_gain : Double) -> Json raise {
 }
 
 ///|
+// The MLP probe emits three complete five-pair component groups. Only part=0
+// is a whole-chain decision; isolated gate/up wins must not replace it.
+fn summarize_mlp(output : String, min_gain : Double) -> Json raise {
+  let headers = output
+    .split("\n")
+    .filter(s => s.has_prefix("correctness="))
+    .to_array()
+  guard headers is [header] &&
+    header.has_prefix("correctness=passed bitwise_chain=true ") else {
+    fail("MLP full output/workspace equality required")
+  }
+  let oracle = scalar_error(header.to_owned(), "scalar_maxabs", 0.02)
+  let lines = output.split("\n").filter(s => s.has_prefix("tokens=")).to_array()
+  guard lines.length() == 15 else { fail("three complete MLP groups required") }
+  let records : Array[Json] = []
+  for part in [1, 2, 0] {
+    let group = lines.filter(s => s.contains(" part=\{part} "))
+    guard group.length() == 5 else { fail("MLP part/trial count") }
+    let old : Array[Double] = []
+    let fresh : Array[Double] = []
+    let gains : Array[Double] = []
+    for i, line in group {
+      guard line.contains(" trial=\{i} ") else { fail("MLP paired order") }
+      let a = scalar(line.to_owned(), "old_us")
+      let b = scalar(line.to_owned(), "new_us")
+      old.push(a)
+      fresh.push(b)
+      gains.push(1.0 - b / a)
+    }
+    let samples : Json = {
+      "baseline_us": old,
+      "candidate_us": fresh,
+      "paired_gain": gains,
+    }
+    old.sort()
+    fresh.sort()
+    gains.sort()
+    records.push({
+      "part": part,
+      "samples": samples,
+      "baseline_median_us": old[2],
+      "candidate_median_us": fresh[2],
+      "median_paired_gain": gains[2],
+      "minimum_paired_gain": gains[0],
+      "decision": if gains[0] >= min_gain {
+        "improved"
+      } else if gains[2] < 0.0 {
+        "regression"
+      } else {
+        "inconclusive"
+      },
+    })
+  }
+  {
+    "components": records,
+    "whole_chain": records[2],
+    "bitwise_chain": true,
+    "sampled_scalar_maxabs": oracle,
+    "correctness_scope": "full baseline output/workspace equality plus sampled scalar oracle; not model quality",
+  }
+}
+
+///|
+fn scalar_error(line : String, key : String, ceiling : Double) -> Double raise {
+  guard line.split(" ").filter(s => s.has_prefix(key + "=")).to_array()
+    is [field] else {
+    fail("missing/duplicate oracle error")
+  }
+  let value = @string.parse_double(field[key.length() + 1:])
+  guard value >= 0.0 && value <= ceiling else {
+    fail("scalar oracle tolerance")
+  }
+  value
+}
+
+///|
 fn memory_kib(text : String) -> Int64 raise {
   guard text.split("\n").filter(s => s.has_prefix("MemAvailable:")).to_array()
     is [line] else {
@@ -126,6 +202,11 @@ async fn main {
     fail("CONTRACT_JSON NEW_ROOT")
   }
   let config = @json.parse(@fs.read_file(contract).text())
+  let mlp = match config {
+    { "timing_kind": "mlp-chain-v1", .. } => true
+    { "timing_kind"? : None, .. } => false
+    _ => fail("unknown paired timing kind")
+  }
   guard config
     is {
       "schema": "lunaflux-ako-trial-v1",
@@ -189,7 +270,11 @@ async fn main {
       fail("memory reserve before probe")
     }
     let result = capture(root, "w\{index}-" + label, program, args)
-    let metrics = summarize(result, gain)
+    let metrics = if mlp {
+      summarize_mlp(result, gain)
+    } else {
+      summarize(result, gain)
+    }
     let after = memory_kib(@fs.read_file("/proc/meminfo").text())
     guard after.to_double() >= reserve else {
       fail("memory reserve after probe")
@@ -279,4 +364,34 @@ test "one paired regression prevents a robust win" {
     memory_kib("MemTotal: 10 kB\nMemAvailable:     33554432 kB\n"),
     33554432L,
   )
+}
+
+///|
+test "MLP decision uses the complete chain and rejects missing components" {
+  let output = "correctness=passed bitwise_chain=true scalar_maxabs=0\n" +
+    [
+      for part in [1, 2, 0] => {
+        [
+          for i in 0..<5 => {
+            "tokens=2048 rows=32 part=\{part} trial=\{i} old_us=100 new_us=\{if part == 1 { 50 } else { 110 }}"
+          }
+        ].join("\n")
+      }
+    ].join("\n")
+  guard summarize_mlp(output, 0.03)
+    is { "whole_chain": { "decision": "regression", .. }, .. } else {
+    fail("isolated component gain is not a chain win")
+  }
+  for
+    bad in [
+      output.replace(old="part=2 trial=0", new="part=0 trial=0"),
+      output.replace(old="bitwise_chain=true", new="bitwise_chain=false"),
+      output.replace(old="scalar_maxabs=0", new="scalar_maxabs=nan"),
+    ] {
+    try summarize_mlp(bad, 0.03) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid MLP capture accepted")
+    }
+  }
 }

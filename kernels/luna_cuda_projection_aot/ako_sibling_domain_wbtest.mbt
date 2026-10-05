@@ -1,0 +1,174 @@
+///|
+// Bounded offline schedule experiment. These alternatives preserve the ordered
+// fold and down program; none changes a serving default.
+test "AKO sibling row ownership changes only the primary physical domain" {
+  let input = @plan.ActivationRef::new(8)
+  let weights = [9, 10, 11].map(i => @plan.TensorRef::new(i))
+  let operation = projection_fixture_operation(
+    9,
+    GatedMlp,
+    [Activation(input), ..weights.map(w => @plan.ValueRef::Tensor(w))],
+    GatedMlpShape(hidden_size=1024, intermediate_size=3072),
+    @plan.KernelCapabilityId::gated_mlp(),
+  )
+  let profile = @launch_contract.PagedKernelProfile::new(
+    id=@launch_contract.KernelProfileId::from_stable_int(1),
+    max_query_rows=32,
+    max_query_tokens=2048,
+    max_page_table_entries=16384,
+  )
+  let target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=1,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  let compiler = @luna_specialization.LunaCompilerPolicy::new(
+    identity=@luna_specialization.LunaCompilerIdentity::new(
+      toolchain_digest_sha256="0".repeat(64),
+      major=13,
+      minor=0,
+      patch=88,
+    ),
+    optimization_level=3,
+    fused_multiply_add=false,
+    reassociate=false,
+    max_registers=255,
+  )
+  let operands = [
+    projection_fixture_operand(RuntimeInput(StepCounts), 20L, 4L),
+    projection_fixture_operand(ActivationInput(input), 4194304L, 16L),
+    ..weights.map(w => projection_fixture_operand(WeightInput(w), 6291456L, 16L)),
+    projection_fixture_operand(
+      ActivationOutput(@plan.ActivationRef::new(9)),
+      4194304L,
+      16L,
+    ),
+    projection_fixture_operand(Workspace, 12582912L, 16L),
+  ]
+  let dispatch = prepare_projection_cuda_runtime_dispatch(
+    operation,
+    profile,
+    target,
+    operands,
+    [],
+  )
+  let limits = projection_fixture_limits(max_source_bytes=1048576)
+  let retained = [
+    @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+      IntermediateFold,
+      stages=2,
+      transfer_tiles=4,
+      fragment_stages=1,
+      row_tiles=8,
+      hoist_addresses=true,
+    ),
+    @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+      SiblingFold,
+      stages=2,
+      transfer_tiles=4,
+      fragment_stages=1,
+      row_tiles=1,
+      output_tiles=2,
+      consumer_groups=2,
+      maximum_token_rows=16,
+    ),
+    @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+      IntermediateFold,
+      stages=2,
+      transfer_tiles=8,
+      fragment_stages=1,
+      row_tiles=1,
+      output_tiles=1,
+      hoist_addresses=true,
+      consumer_groups=1,
+      maximum_token_rows=16,
+    ),
+  ]
+  let baseline = lower_reusable_projection_cuda_aot_candidate_with_dispatch(
+    operation,
+    profile,
+    target,
+    compiler,
+    operands,
+    dispatch,
+    limits,
+    fold_choices=retained,
+    sibling_execution=OverlappedTransfer,
+  )
+  let before = @utf8.decode(baseline.source_bytes())
+  let down = "extern \"C\" __global__ void lunaflux_luna_gated_mlp_bf16_release_v1_down("
+  for
+    (label, row_tiles, consumers) in [
+      ("baseline", 4, 16),
+      ("r64-c8", 4, 8),
+      ("r128-c16", 8, 16),
+      ("r128-c8", 8, 8),
+    ] {
+    let candidate = if label == "baseline" {
+      baseline
+    } else {
+      lower_reusable_projection_cuda_aot_candidate_with_dispatch(
+        operation,
+        profile,
+        target,
+        compiler,
+        operands,
+        dispatch,
+        limits,
+        fold_choices=[
+          ..retained,
+          @luna_projection_tile_compiler.ProjectionFoldChoice::new(
+            SiblingFold,
+            stages=2,
+            transfer_tiles=2,
+            fragment_stages=1,
+            row_tiles~,
+            output_tiles=4,
+            consumer_groups=consumers,
+          ),
+        ],
+        sibling_execution=OverlappedTransfer,
+        sibling_transport=SegmentedSiblingTransport,
+      )
+    }
+    let after = @utf8.decode(candidate.source_bytes())
+    for i in [0, 1] {
+      assert_eq(candidate.row_variants[i], baseline.row_variants[i])
+    }
+    assert_eq(candidate.companion_dimensions, baseline.companion_dimensions)
+    assert_eq(
+      before.split(down).to_array()[1]
+      .split("extern \"C\" __global__")
+      .to_array()[0],
+      after.split(down).to_array()[1]
+      .split("extern \"C\" __global__")
+      .to_array()[0],
+    )
+    if label != "baseline" {
+      assert_false(candidate.source_digest() == baseline.source_digest())
+    }
+    if @env.get_env_var("LUNA_EXPORT_AKO_SIBLING_DOMAIN") == Some("1") {
+      let geometries : Array[Array[Int]] = []
+      for
+        (name, geometry) in [
+          ("PRIMARY", candidate.launch_dimensions()),
+          ("DOWN", candidate.companion_dimensions.unwrap()),
+        ] {
+        ignore(name)
+        geometries.push([
+          geometry.grid_x(),
+          geometry.block_x(),
+          geometry.shared_memory_bytes(),
+        ])
+      }
+      let record : Json = {
+        "label": label,
+        "source": after,
+        "source_sha256": candidate.source_digest().as_hex(),
+        "geometry": geometries,
+      }
+      println("LUNA_DOMAIN_RECORD " + record.stringify())
+    }
+  }
+}

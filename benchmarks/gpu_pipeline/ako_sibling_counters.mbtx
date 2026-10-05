@@ -1,0 +1,114 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn csv_fields(line : StringView) -> Array[String] {
+  let fields : Array[String] = []
+  let mut quoted = false
+  let mut value = StringBuilder()
+  let mut i = 0
+  while i < line.length() {
+    let c = line[i]
+    if c == '"' {
+      if quoted && i + 1 < line.length() && line[i + 1] == '"' {
+        value.write_char('"')
+        i += 1
+      } else {
+        quoted = !quoted
+      }
+    } else if c == ',' && !quoted {
+      fields.push(value.to_string())
+      value = StringBuilder()
+    } else {
+      value.write_view(line[i:i + 1])
+    }
+    i += 1
+  }
+  fields.push(value.to_string())
+  fields
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. options] &&
+    (options.is_empty() || options is ["names"] || options is ["print"]) else {
+    fail("COUNTER_DIRECTORY [names|print]")
+  }
+  let wanted = [
+    "inst_executed", "smsp__average_warp_latency_per_inst_issued.ratio", "smsp__warps_active.avg.per_cycle_active",
+    "gpu__time_duration.sum", "launch__registers_per_thread", "launch__waves_per_multiprocessor",
+    "smsp__inst_executed.sum", "smsp__warps_eligible.avg.per_cycle_active", "smsp__issue_active.avg.pct_of_peak_sustained_active",
+    "sm__warps_active.avg.pct_of_peak_sustained_active", "smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio",
+    "smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio",
+    "smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio", "smsp__average_warps_issue_stalled_wait_per_issue_active.ratio",
+    "derived__local_spilling_requests", "dram__bytes_read.sum", "l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum",
+    "l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum",
+  ]
+  let result : Array[Json] = []
+  for candidate in ["r64-c8", "r128-c16", "r128-c8"] {
+    let lines = @fs.read_file(root + "/counters-admin-" + candidate + ".stdout")
+      .text()
+      .split("\n")
+      .filter(s => s.has_prefix("\""))
+      .to_array()
+    guard lines.length() == 4 else { fail("two selected invocations required") }
+    let names = csv_fields(lines[0])
+    let units = csv_fields(lines[1])
+    if options is ["names"] {
+      for name in names {
+        if name.contains("inst_") ||
+          name.contains("bytes") ||
+          name.contains("warps_active") {
+          println(name)
+        }
+      }
+      return
+    }
+    for i in [2, 3] {
+      let values = csv_fields(lines[i])
+      assert_eq(names.length(), values.length())
+      let metrics : Array[Json] = []
+      for index, name in names {
+        if wanted.contains(name) || name.contains("pipe_tensor_cycles_active") {
+          let metric : Json = {
+            "metric": name,
+            "value": values[index],
+            "unit": units[index],
+          }
+          metrics.push(metric)
+          println(
+            candidate +
+            " " +
+            (if i == 2 { "baseline" } else { "candidate" }) +
+            " " +
+            name +
+            "=" +
+            values[index] +
+            " " +
+            units[index],
+          )
+        }
+      }
+      result.push({ "candidate": candidate, "arm": i - 2, "metrics": metrics })
+    }
+  }
+  if options.is_empty() {
+    @fs.write_file(
+      root + "/counter-summary.json",
+      Json(result).stringify(indent=2),
+      create_mode=CreateNew,
+    )
+  }
+}
+
+///|
+test "Nsight quoted numbers and escaped fields stay intact" {
+  assert_eq(csv_fields("\"count\",\"12,345\",\"a\"\"b\""), [
+    "count", "12,345", "a\"b",
+  ])
+}
