@@ -116,12 +116,13 @@ fn opcodes(text : String) -> Array[Json] raise {
 ///|
 async fn main {
   guard @env.args() is [_, root, .. kind_args] else {
-    fail("LOCAL_RESULTS_ROOT [query-lifetime-v1|epoch-local-v1]")
+    fail("LOCAL_RESULTS_ROOT [query-lifetime-v1|epoch-local-v1|value-readiness-v1]")
   }
   let names = match kind_args {
     [] => ["kv128", "retain128"]
     ["query-lifetime-v1"] => ["retain64", "joint64", "joint128"]
     ["epoch-local-v1"] => ["epochjoint"]
+    ["value-readiness-v1"] => ["valueoverlap"]
     _ => fail("bounded experiment kind")
   }
   let rows : Array[Json] = []
