@@ -1,0 +1,378 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("unique field " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn alternatives() -> Array[(String, Int, Int)] {
+  // Existing pure frontier identities: Q64/K128/split-single-slot and
+  // Q64/K64/split-single-slot with complete immutable query retention.
+  [("kv128", 32004, 128), ("retain128", 70645, 64)]
+}
+
+///|
+fn exporter_args(
+  command : Array[String],
+  query : String,
+  root : String,
+  label : String,
+  candidate : Int,
+) -> Array[String] raise {
+  guard command.filter(x => x == "--prefill-candidate").length() == 1 &&
+    !command.contains("--prefill-approximate-exp2") &&
+    command.filter(x => x == query + "/candidate").length() == 1 else {
+    fail("frozen strict exporter")
+  }
+  let args = command.copy()
+  let i = args.search("--prefill-candidate").unwrap()
+  guard i + 1 < args.length() && args[i + 1] == "322" else {
+    fail("strict candidate identity")
+  }
+  args[i + 1] = candidate.to_string()
+  args[args.search(query + "/candidate").unwrap()] = root + "/export-" + label
+  args.push("--prefill-approximate-exp2")
+  args
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(program, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn identity(root : String, label : String, path : String) -> String {
+  capture(root, label, "sha256sum", [path]).split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn write_contract(root : String, uuid : String) -> Unit {
+  let workloads : Array[Json] = []
+  let artifacts : Array[String] = [root + "/prefill.spec"]
+  for name in ["baseline", "kv128", "retain128"] {
+    for file in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+      artifacts.push(root + "/" + name + "/" + file)
+    }
+  }
+  for (name, _, _) in alternatives() {
+    for (rows, history) in [(1, 28672), (2, 28672), (2, 8192)] {
+      workloads.push({
+        "label": "\{name}-q2048-r\{rows}-h\{history}",
+        "args": [
+          root + "/prefill.spec",
+          root + "/baseline",
+          root + "/" + name,
+          "2048",
+          rows.to_string(),
+          history.to_string(),
+        ],
+      })
+    }
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    (
+      {
+        "schema": "lunaflux-ako-trial-v1",
+        "gpu_uuid": uuid,
+        "reserve_kib": 33554432,
+        "minimum_gain": 0.03,
+        "program": root + "/probe",
+        "artifacts": artifacts,
+        "workloads": workloads,
+      } : Json).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "contract", root, uuid] {
+    write_contract(root, uuid)
+    return
+  }
+  if @env.args() is [_, "validate", root] {
+    @fs.mkdir(root + "/validation")
+    for (name, _, _) in alternatives() {
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        let result = capture(
+          root + "/validation",
+          name + "-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "99",
+            root + "/probe",
+            root + "/prefill.spec",
+            root + "/baseline",
+            root + "/" + name,
+            "129",
+            "2",
+            "128",
+            "--check-only",
+          ],
+        )
+        assert_true(result.contains("correctness=passed"))
+        assert_true(result.contains("0 errors") || result.contains("0 hazards"))
+      }
+    }
+    @fs.write_file(
+      root + "/validation/RESULT.txt",
+      "outcome=completed\nscope=Q129 R2 H128 irregular-tail sanitizer; not whole-model quality\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if @env.args() is [_, "profile", root, name] {
+    assert_true(alternatives().any(x => x.0 == name))
+    @fs.mkdir(root + "/profile-" + name)
+    let out = root + "/profile-" + name
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    ignore(
+      capture(out, "capture", ncu, [
+        "--section",
+        "InstructionStats",
+        "--section",
+        "SchedulerStats",
+        "--section",
+        "WarpStateStats",
+        "--section",
+        "LaunchStats",
+        "--section",
+        "SourceCounters",
+        "--kernel-name",
+        "regex:lunaflux_attention_prefill_tile_compiler_exp2_v1$",
+        "--launch-count",
+        "2",
+        "--export",
+        out + "/selected",
+        root + "/probe",
+        root + "/prefill.spec",
+        root + "/baseline",
+        root + "/" + name,
+        "2048",
+        "2",
+        "28672",
+        "--check-only",
+      ]),
+    )
+    for page in ["raw", "source"] {
+      ignore(
+        capture(
+          out,
+          page,
+          ncu,
+          [
+            "--import",
+            out + "/selected.ncu-rep",
+            "--csv",
+            "--page",
+            page,
+            ..if page == "source" {
+              ["--print-source", "sass"]
+            } else {
+              []
+            },
+          ],
+        ),
+      )
+    }
+    @fs.write_file(
+      out + "/RESULT.txt",
+      "outcome=completed\nscope=two matched instrumented launches; not serving timing\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if @env.args() is [_, "finish", root] {
+    assert_true(
+      @fs.read_file(root + "/trial/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    guard @json.parse(@fs.read_file(root + "/trial/summary.json").text())
+      is Array(rows) &&
+      rows.length() == 6 else {
+      fail("six cells")
+    }
+    assert_true(
+      capture(root, "terminal-idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=two existing general attention schedules, three workloads, five pairs; no serving/quality admission\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  guard @env.args() is [_, "prepare", query, frozen, root] else {
+    fail(
+      "prepare QUERY_ROOT FROZEN_EXP2_ROOT NEW_ROOT | contract ROOT UUID | validate ROOT | profile ROOT NAME | finish ROOT",
+    )
+  }
+  @fs.mkdir(root)
+  assert_true(
+    capture(root, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  assert_eq(
+    identity(root, "baseline-cubin", frozen + "/approximate/kernel.cubin"),
+    "66881bc0055ce4c4340e6001e7746d0abd64a8b7f9a02b741e6b87463f0e2922",
+  )
+  assert_eq(
+    identity(root, "nvcc", "/usr/local/cuda-13.0/bin/nvcc"),
+    "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+  )
+  @fs.mkdir(root + "/baseline")
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/baseline/" + name,
+      @fs.read_file(frozen + "/approximate/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  for name in ["probe", "prefill.spec"] {
+    @shell.Cmd("cp", ["--update=none", frozen + "/" + name, root + "/" + name]).run()
+  }
+  guard @json.parse(@fs.read_file(query + "/export.command.json").text())
+    is Array(values) else {
+    fail("export command")
+  }
+  let command = values.map(x => {
+    guard x is String(v) else { fail("argument") }
+    v
+  })
+  ignore(identity(root, "exporter", command[0]))
+  for (name, id, keys) in alternatives() {
+    ignore(
+      capture(
+        root,
+        "export-" + name,
+        command[0],
+        exporter_args(command[1:].to_owned(), query, root, name, id),
+      ),
+    )
+    @fs.mkdir(root + "/" + name)
+    let output = root + "/" + name
+    for file in ["kernel.cu", "kernel.recipe"] {
+      @fs.write_file(
+        output + "/" + file,
+        @fs.read_file(
+          root + "/export-" + name + "/reusable-qwen-prefill-attention/" + file,
+        ),
+        create_mode=CreateNew,
+      )
+    }
+    let recipe = @fs.read_file(output + "/kernel.recipe").text()
+    assert_eq(field(recipe, "candidate_stable_id"), id.to_string())
+    assert_eq(field(recipe, "numeric_law"), "approx-base2-f32-v1")
+    assert_eq(field(recipe, "query_tile_rows"), "64")
+    assert_eq(field(recipe, "key_value_tile_rows"), keys.to_string())
+    assert_eq(field(recipe, "pipeline_stages"), "1")
+    assert_eq(
+      identity(root, name + "-source", output + "/kernel.cu"),
+      field(recipe, "source_sha256"),
+    )
+    for
+      (tag, path) in [
+        ("first", output + "/kernel.cubin"),
+        ("second", output + "/second.cubin"),
+      ] {
+      ignore(
+        capture(root, name + "-" + tag, "/usr/local/cuda-13.0/bin/nvcc", [
+          "--cubin",
+          "--std=c++14",
+          "-arch=sm_121",
+          "-O3",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--maxrregcount=" + field(recipe, "max_registers"),
+          "--Werror",
+          "all-warnings",
+          "-lineinfo",
+          "-Xptxas=-v",
+          output + "/kernel.cu",
+          "-o",
+          path,
+        ]),
+      )
+    }
+    assert_eq(
+      identity(root, name + "-first-hash", output + "/kernel.cubin"),
+      identity(root, name + "-second-hash", output + "/second.cubin"),
+    )
+  }
+  write_contract(root, "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6")
+  println("prepared=" + root)
+}
+
+///|
+test "schedule alternatives retain explicit approximation and independent identities" {
+  assert_eq(alternatives(), [("kv128", 32004, 128), ("retain128", 70645, 64)])
+  let command = ["/home/q/candidate", "--prefill-candidate", "322"]
+  for (name, id, _) in alternatives() {
+    assert_eq(exporter_args(command, "/home/q", "/home/new", name, id), [
+      "/home/new/export-" + name,
+      "--prefill-candidate",
+      id.to_string(),
+      "--prefill-approximate-exp2",
+    ])
+  }
+  for
+    bad in [
+      ["--prefill-candidate", "30322"],
+      [..command, "--prefill-approximate-exp2"],
+      [..command, "--prefill-candidate", "322"],
+    ] {
+    try exporter_args(bad, "/home/q", "/home/new", "kv128", 32004) catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous exporter")
+    }
+  }
+}
