@@ -26,6 +26,8 @@ fn alternatives(kind : String) -> Array[(String, Int, Int)] raise {
       [("retain64", 70644, 64), ("joint64", 80644, 64), ("joint128", 80645, 64)]
     "epoch-local-v1" => [("epochjoint", 130322, 64)]
     "value-readiness-v1" => [("valueoverlap", 30322, 64)]
+    "unit-rescale-v1" => [("unitrescale", 30322, 64)]
+    "page-batch-v1" => [("pagebatch", 30322, 64)]
     _ => fail("unknown bounded experiment kind")
   }
 }
@@ -299,7 +301,7 @@ async fn main {
   }
   let kind = match kind_args {
     [] => "schedule-v1"
-    [kind] if kind == "query-lifetime-v1" || kind == "epoch-local-v1" || kind == "value-readiness-v1" => kind
+    [kind] if kind == "query-lifetime-v1" || kind == "epoch-local-v1" || kind == "value-readiness-v1" || kind == "unit-rescale-v1" || kind == "page-batch-v1" => kind
     _ => fail("bounded experiment arguments")
   }
   let choices = alternatives(kind)

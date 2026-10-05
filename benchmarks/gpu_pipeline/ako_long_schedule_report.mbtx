@@ -123,6 +123,8 @@ async fn main {
     ["query-lifetime-v1"] => ["retain64", "joint64", "joint128"]
     ["epoch-local-v1"] => ["epochjoint"]
     ["value-readiness-v1"] => ["valueoverlap"]
+    ["unit-rescale-v1"] => ["unitrescale"]
+    ["page-batch-v1"] => ["pagebatch"]
     _ => fail("bounded experiment kind")
   }
   let rows : Array[Json] = []
@@ -169,6 +171,9 @@ async fn main {
     compact[name] = Json(measured)
     profiles[name] = {
       "baseline_then_candidate": measured,
+      "sampled_dependency_sites": dependency_sites(
+        @fs.read_file(root + "/" + name + "-source.stdout").text(),
+      ),
       "opcodes": opcodes(
         @fs.read_file(root + "/" + name + "-source.stdout").text(),
       ),
@@ -185,7 +190,79 @@ async fn main {
 }
 
 ///|
+/// Attribute sampled stalls to instruction PCs. Samples are observations, not
+/// elapsed cycles or an additive allocation of a framework completion gap.
+fn dependency_sites(text : String) -> Array[Json] raise {
+  let kernels : Array[Json] = []
+  let mut keys : Array[String] = []
+  let mut sites : Array[(Double, Json)] = []
+  let mut groups : Map[String, Double] = Map([])
+  fn finish() -> Json {
+    sites.sort_by((a, b) => b.0.compare(a.0))
+    {
+      "top_not_issued_dependency_pcs": sites.iter().take(12).map(x => x.1).to_array(),
+      "opcode_sample_totals": Json::object(groups.map((_, x) => Json(x))),
+    }
+  }
+  for line in text.split("\n") {
+    if !line.has_prefix("\"") { continue }
+    let values = csv(line)
+    if values[0] == "Kernel Name" {
+      if !keys.is_empty() { kernels.push(finish()) }
+      keys = []
+      sites = []
+      groups = Map([])
+    } else if values[0] == "Address" {
+      keys = values
+    } else if !keys.is_empty() {
+      assert_eq(values.length(), keys.length())
+      let source = values[keys.search("Source").unwrap()]
+      let words = source.trim().split(" ").filter(x => !x.is_empty()).to_array()
+      guard words is [first, ..rest] else { continue }
+      let op = (if first.has_prefix("@") { rest[0] } else { first }).to_owned()
+      let stalls : Map[String, Json] = Map([])
+      let mut dependency = 0.0
+      for metric in ["stall_wait", "stall_long_sb", "stall_short_sb", "stall_barrier", "stall_math"] {
+        for key in [metric, metric + " (Not Issued)"] {
+          let sample = number(values[keys.search(key).unwrap()])
+          stalls[key] = Json(sample)
+          groups[op + "/" + key] = groups.get(op + "/" + key).unwrap_or(0.0) + sample
+          if key.has_suffix(" (Not Issued)") && metric != "stall_barrier" && metric != "stall_math" { dependency += sample }
+        }
+      }
+      sites.push((dependency, {
+        "address": values[0], "sass": source, "samples": Json::object(stalls),
+        "executed": number(values[keys.search("Instructions Executed").unwrap()]),
+      }))
+    }
+  }
+  if !keys.is_empty() { kernels.push(finish()) }
+  assert_eq(kernels.length(), 2)
+  kernels
+}
+
+///|
 test "CSV preserves grouped numeric values and escaped quotes" {
   assert_eq(csv("\"a,b\",\"c\"\"d\",\"\""), ["a,b", "c\"d", ""])
   assert_eq(number("1,234,567"), 1234567.0)
+}
+
+///|
+test "dependency attribution retains two kernels and ranks sampled instruction PCs" {
+  let labels = ["Address", "Source", "Instructions Executed"]
+  for key in ["stall_wait", "stall_long_sb", "stall_short_sb", "stall_barrier", "stall_math"] {
+    labels.push(key)
+    labels.push(key + " (Not Issued)")
+  }
+  let header = labels.map(x => "\"" + x + "\"").join(",")
+  let source = [
+    "\"Kernel Name\",\"first\"", header,
+    "\"0x0\",\" ISETP\",\"10\",\"0\",\"0\",\"15\",\"12\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"",
+    "\"Kernel Name\",\"second\"", header,
+    "\"0x1\",\" MOV\",\"5\",\"4\",\"3\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"",
+  ].join("\n")
+  let result = dependency_sites(source)
+  assert_eq(result.length(), 2)
+  assert_true(result[0].stringify().contains("\"ISETP/stall_long_sb (Not Issued)\":12"))
+  assert_true(result[1].stringify().contains("\"MOV/stall_wait (Not Issued)\":3"))
 }
