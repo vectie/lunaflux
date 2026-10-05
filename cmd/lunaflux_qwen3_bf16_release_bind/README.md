@@ -20,3 +20,9 @@ empty captured output.
 
 Target and option-composition regressions run in `device_target_wbtest.mbt`.
 An accepted parser target is not physical qualification or serving promotion.
+
+`--activation-arena-gib N` explicitly budgets the startup activation arena
+(1–64 GiB, default 2 GiB). The same immutable value supplies memory planning,
+the bootstrap-source digest, and the printed release receipt. It is a ceiling,
+not an allocation or permission to consume the host reserve. The launch
+materializer must carry that receipt value into the runtime descriptor.

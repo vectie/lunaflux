@@ -4,6 +4,7 @@ suberror Qwen3Bf16ReleaseBindError {
   ModelAdmission
   CompiledSetAdmission(String)
   KernelBinding
+  BootstrapAdmission(@execution_manifest_file.ExecutionManifestAdmissionStage)
   Publication
 } derive(Debug, Eq)
 
@@ -11,6 +12,7 @@ suberror Qwen3Bf16ReleaseBindError {
 struct Qwen3ReleaseBindArguments {
   compute_major : Int
   compute_minor : Int
+  max_activation_arena_bytes : Int64
   model_root : String
   config_locator : String
   config_sha256 : String
@@ -43,6 +45,7 @@ struct Qwen3ReleaseBindInputs {
 
 ///|
 struct Qwen3ReleaseBindEvidence {
+  planned_activation_arena_bytes : Int64
   model_plan_sha256 : String
   manifest_sha256 : String
   bootstrap_sha256 : String

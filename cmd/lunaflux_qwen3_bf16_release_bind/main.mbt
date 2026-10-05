@@ -28,6 +28,10 @@ async fn run_qwen3_release_bind(
   )
   println("model_plan_sha256=" + evidence.model_plan_sha256)
   println("target=" + release_target_name(arguments))
+  println(
+    "max_activation_arena_bytes=" +
+    arguments.max_activation_arena_bytes.to_string(),
+  )
   println("tokens_per_page=" + arguments.tokens_per_page.to_string())
   println("total_page_count=" + arguments.total_page_count.to_string())
   println(
@@ -49,6 +53,10 @@ async fn run_qwen3_release_bind(
   println("bootstrap_source_sha256=" + evidence.bootstrap_source_sha256)
   println("kernel_inventory_sha256=" + evidence.inventory_sha256)
   println("kernel_root_plan_sha256=" + evidence.plan_sha256)
+  println(
+    "planned_activation_arena_bytes=" +
+    evidence.planned_activation_arena_bytes.to_string(),
+  )
   println("compiler_invoked=0")
   println("device_opened=0")
   println("runtime_authority=0")
@@ -71,6 +79,8 @@ async fn main {
         ModelAdmission => "model-admission"
         CompiledSetAdmission(message) => "compiled-set-admission: " + message
         KernelBinding => "kernel-binding"
+        BootstrapAdmission(stage) =>
+          "bootstrap-admission: " + @debug.to_string(stage)
         Publication => "publication"
       }
       @stdio.stderr.write("outcome=failed\nerror=" + name + "\n")

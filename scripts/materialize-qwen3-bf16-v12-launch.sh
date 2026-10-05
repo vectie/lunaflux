@@ -116,7 +116,21 @@ bind_value() {
   fail 'release-bind model content differs'
 [ "$(bind_value weight_route_manifest_sha256)" = "$route_sha" ] ||
   fail 'release-bind weight route differs'
-[ "$(bind_value target)" = sm_120 ] || fail 'release-bind target is not sm120'
+target=$(bind_value target)
+case "$target" in sm_[0-9][0-9]|sm_[0-9][0-9][0-9]) ;; *) fail 'release-bind target is malformed' ;; esac
+target_number=${target#sm_}
+[ "$target_number" -ge 80 ] || fail 'release-bind target does not support BF16'
+compute_major=$((target_number / 10))
+compute_minor=$((target_number % 10))
+# Old receipts omit this field and retain the original 2 GiB startup ceiling.
+# New receipts bind this exact value into their bootstrap-source digest.
+activation_arena_bytes=2147483648
+if grep -q '^max_activation_arena_bytes=' "$bind_stdout"; then
+  activation_arena_bytes=$(bind_value max_activation_arena_bytes)
+fi
+case "$activation_arena_bytes" in ''|*[!0-9]*) fail 'activation arena budget is malformed' ;; esac
+[ "$activation_arena_bytes" -ge 1073741824 ] &&
+  [ "$activation_arena_bytes" -le 68719476736 ] || fail 'activation arena budget is outside 1..64 GiB'
 [ "$(bind_value compiler_invoked)" = 0 ] &&
   [ "$(bind_value device_opened)" = 0 ] &&
   [ "$(bind_value runtime_authority)" = 0 ] ||
@@ -319,7 +333,7 @@ cp "$scratch/kernel-assemble.stdout" "$output/evidence/kernel-assemble.stdout"
 cp "$scratch/kernel-assemble.stderr" "$output/evidence/kernel-assemble.stderr"
 
 descriptor=$output/model-root/runtime/descriptor.json
-printf '%s\n' "{\"schema_version\":\"$descriptor_schema\",\"model\":{\"family\":\"qwen3\",\"config_locator\":\"config.json\",\"config_sha256\":\"$config_sha\",\"content_sha256\":\"$model_content_sha\",\"numeric_weights_locator\":\"$numeric_locator\",\"numeric_weight_artifact_sha256\":\"$numeric_sha\",\"weight_manifest_sha256\":\"$route_sha\",\"tied_embeddings\":true,\"max_batch_rows\":$max_batch_rows},\"kernels\":{\"manifest_locator\":\"$manifest_relative\",\"manifest_sha256\":\"$manifest_sha\",\"policy\":\"deployment_approved_aot_only\",\"admitted_bootstrap_sha256\":\"$bootstrap_sha\"$sampling_runtime_json$fused_runtime_json},\"execution\":{\"device_ordinal\":0,\"compute_major\":12,\"compute_minor\":0,\"supports_bf16\":true,\"supports_cublas_lt\":false,\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"model_generation\":1},\"worker_limits\":{\"max_prefill_rows\":$max_prefill_rows,\"max_decode_rows\":$max_decode_rows,\"max_plan_rows\":$max_plan_rows,\"max_plan_tokens\":$max_plan_tokens,\"max_plan_pages\":$max_plan_pages,\"max_capabilities\":1024,\"max_completion_slots\":$max_completion_slots,\"max_sequence_tokens\":$max_sequence_tokens,\"max_token_id\":151935},\"inference_limits\":{\"max_text_bytes\":65536,\"max_input_tokens\":4096,\"max_new_tokens\":256,\"max_context_tokens\":$max_sequence_tokens,\"max_token_id\":151935,\"max_stop_token_ids\":16,\"max_stop_strings\":16,\"max_stop_string_bytes\":256,\"max_trace_bytes\":128,\"max_cache_scope_bytes\":64,\"max_decoded_delta_bytes\":$max_decoded_delta_bytes,\"max_deadline_millis\":60000,\"max_top_k\":151936,\"max_temperature\":2.0},\"ceilings\":{\"max_model_config_bytes\":1048576,\"max_weight_file_bytes\":3221225472,\"max_weight_arena_bytes\":3221225472,\"max_activation_arena_bytes\":2147483648,\"max_kv_arena_bytes\":17179869184,\"max_execution_manifest_bytes\":1048576,\"max_module_bytes\":4194304,\"max_total_module_bytes\":2147483647}}" >"$descriptor"
+printf '%s\n' "{\"schema_version\":\"$descriptor_schema\",\"model\":{\"family\":\"qwen3\",\"config_locator\":\"config.json\",\"config_sha256\":\"$config_sha\",\"content_sha256\":\"$model_content_sha\",\"numeric_weights_locator\":\"$numeric_locator\",\"numeric_weight_artifact_sha256\":\"$numeric_sha\",\"weight_manifest_sha256\":\"$route_sha\",\"tied_embeddings\":true,\"max_batch_rows\":$max_batch_rows},\"kernels\":{\"manifest_locator\":\"$manifest_relative\",\"manifest_sha256\":\"$manifest_sha\",\"policy\":\"deployment_approved_aot_only\",\"admitted_bootstrap_sha256\":\"$bootstrap_sha\"$sampling_runtime_json$fused_runtime_json},\"execution\":{\"device_ordinal\":0,\"compute_major\":$compute_major,\"compute_minor\":$compute_minor,\"supports_bf16\":true,\"supports_cublas_lt\":false,\"tokens_per_page\":$tokens_per_page,\"total_page_count\":$total_page_count,\"model_generation\":1},\"worker_limits\":{\"max_prefill_rows\":$max_prefill_rows,\"max_decode_rows\":$max_decode_rows,\"max_plan_rows\":$max_plan_rows,\"max_plan_tokens\":$max_plan_tokens,\"max_plan_pages\":$max_plan_pages,\"max_capabilities\":1024,\"max_completion_slots\":$max_completion_slots,\"max_sequence_tokens\":$max_sequence_tokens,\"max_token_id\":151935},\"inference_limits\":{\"max_text_bytes\":65536,\"max_input_tokens\":4096,\"max_new_tokens\":256,\"max_context_tokens\":$max_sequence_tokens,\"max_token_id\":151935,\"max_stop_token_ids\":16,\"max_stop_strings\":16,\"max_stop_string_bytes\":256,\"max_trace_bytes\":128,\"max_cache_scope_bytes\":64,\"max_decoded_delta_bytes\":$max_decoded_delta_bytes,\"max_deadline_millis\":60000,\"max_top_k\":151936,\"max_temperature\":2.0},\"ceilings\":{\"max_model_config_bytes\":1048576,\"max_weight_file_bytes\":3221225472,\"max_weight_arena_bytes\":3221225472,\"max_activation_arena_bytes\":$activation_arena_bytes,\"max_kv_arena_bytes\":17179869184,\"max_execution_manifest_bytes\":1048576,\"max_module_bytes\":4194304,\"max_total_module_bytes\":2147483647}}" >"$descriptor"
 descriptor_sha=$(bundle_sha256_file "$descriptor")
 
 policy=$output/policy-root/instance/policy.json

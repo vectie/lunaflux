@@ -118,6 +118,7 @@ fn step_limits(
 ///|
 fn execution_limits(
   operation_count : Int,
+  arguments : Qwen3ReleaseBindArguments,
 ) -> @execution_manifest_file.ExecutionManifestFileLimits raise Qwen3Bf16ReleaseBindError {
   @execution_manifest_file.ExecutionManifestFileLimits::new(
     max_manifest_bytes=1048576L,
@@ -126,7 +127,7 @@ fn execution_limits(
     max_operations=operation_count,
     device_memory=@device_memory.DeviceMemoryLimits::new(
       activation_alignment=256L,
-      max_arena_bytes=2147483648L,
+      max_arena_bytes=arguments.max_activation_arena_bytes,
     ),
     launch_contract=@launch_contract.LaunchContractLimits::new(
       max_profiles=1,
@@ -161,14 +162,14 @@ fn derive_bootstrap(
   target : @catalog.DeviceTarget,
   root_plan : @kernel_root.LunaKernelRootPlan,
   arguments : Qwen3ReleaseBindArguments,
-) -> String raise Qwen3Bf16ReleaseBindError {
+) -> (String, Int64) raise Qwen3Bf16ReleaseBindError {
   let root = @approved_fs.ApprovedRoot::open_absolute(staging + "/payload") catch {
     error => {
       ignore(error)
       raise KernelBinding
     }
   }
-  let result : Result[String, Qwen3Bf16ReleaseBindError] = Ok(
+  let result : Result[(String, Int64), Qwen3Bf16ReleaseBindError] = Ok(
     {
       let operation_count = inputs.plan.operations().length()
       let execution = @execution_manifest_file.load_paged(
@@ -182,25 +183,28 @@ fn derive_bootstrap(
         layout,
         target,
         step_limits(inputs, arguments),
-        execution_limits(operation_count),
+        execution_limits(operation_count, arguments),
       )
-      @device_step.admit_device_worker_bootstrap(
-        execution.blueprint(),
-        execution.artifacts(),
-        device_ordinal=0,
-        @device_step.DeviceBootstrapLimits::new(
-          max_modules=operation_count,
-          max_entry_points=operation_count,
-          max_steps=operation_count,
-          max_operands_per_step=32,
-          max_symbol_bytes=1024,
-          max_canonical_bytes=16777216,
-        ),
-      )
-      .digest()
-      .as_hex()
+      let bootstrap = @device_step.admit_device_worker_bootstrap(
+          execution.blueprint(),
+          execution.artifacts(),
+          device_ordinal=0,
+          @device_step.DeviceBootstrapLimits::new(
+            max_modules=operation_count,
+            max_entry_points=operation_count,
+            max_steps=operation_count,
+            max_operands_per_step=32,
+            max_symbol_bytes=1024,
+            max_canonical_bytes=16777216,
+          ),
+        )
+        .digest()
+        .as_hex()
+      (bootstrap, execution.memory_plan().arena_bytes())
     },
   ) catch {
+    @execution_manifest_file.AdmissionRejected(stage) =>
+      Err(BootstrapAdmission(stage))
     error => {
       ignore(error)
       Err(KernelBinding)
@@ -214,6 +218,7 @@ fn derive_bootstrap(
   }
   match (result, close_result) {
     (Ok(value), Ok(_)) => value
+    (Err(BootstrapAdmission(stage)), Ok(_)) => raise BootstrapAdmission(stage)
     _ => raise KernelBinding
   }
 }
@@ -252,7 +257,7 @@ fn derive_qwen3_bootstrap_source(
       max_model_config_bytes=1048576,
       max_weight_file_bytes=3221225472L,
       max_weight_arena_bytes=3221225472L,
-      max_activation_arena_bytes=2147483648L,
+      max_activation_arena_bytes=arguments.max_activation_arena_bytes,
       max_kv_arena_bytes=17179869184L,
       max_execution_manifest_bytes=1048576L,
       max_module_bytes=4194304L,
@@ -323,7 +328,7 @@ async fn publish_release_binding(
       }
       write_new(staging + "/kernel.files.sha256", root_plan.inventory_bytes())
       write_new(staging + "/kernel-root.plan.v1", root_plan.evidence_bytes())
-      let bootstrap = derive_bootstrap(
+      let (bootstrap, planned_activation_arena_bytes) = derive_bootstrap(
         staging,
         inputs,
         release_layout(inputs.plan, arguments),
@@ -343,6 +348,7 @@ async fn publish_release_binding(
         }
       }
       {
+        planned_activation_arena_bytes,
         model_plan_sha256: inputs.plan.identity().plan().as_hex(),
         manifest_sha256: root_plan.manifest_sha256(),
         bootstrap_sha256: bootstrap,
@@ -352,6 +358,7 @@ async fn publish_release_binding(
       }
     },
   ) catch {
+    BootstrapAdmission(stage) => Err(BootstrapAdmission(stage))
     error => {
       ignore(error)
       Err(Publication)

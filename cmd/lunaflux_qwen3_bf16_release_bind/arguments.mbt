@@ -46,8 +46,20 @@ fn parse_qwen3_release_bind_arguments(
   let mut compute_major = 12
   let mut compute_minor = 0
   let mut target_seen = false
+  let mut max_activation_arena_bytes = 2147483648L
+  let mut arena_seen = false
   let filtered : Array[String] = []
   for index = 0; index < arguments.length(); {
+    if arguments[index] == "--activation-arena-gib" {
+      guard !arena_seen && index + 1 < arguments.length() else {
+        raise InvalidArguments
+      }
+      let gib = parse_positive_int(arguments[index + 1])
+      guard gib <= 64 else { raise InvalidArguments }
+      max_activation_arena_bytes = gib.to_int64() * 1073741824L
+      arena_seen = true
+      continue index + 2
+    }
     if arguments[index] == "--device-target" {
       guard !target_seen && index + 2 < arguments.length() else {
         raise InvalidArguments
@@ -119,6 +131,7 @@ fn parse_qwen3_release_bind_arguments(
   {
     compute_major,
     compute_minor,
+    max_activation_arena_bytes,
     model_root,
     config_locator,
     config_sha256,
