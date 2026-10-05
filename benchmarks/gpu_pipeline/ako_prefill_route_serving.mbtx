@@ -50,8 +50,9 @@ fn routes(summary : Json, scope : String) -> String raise {
       fail("paired record")
     }
     let args = strings(args)
-    assert_eq(args.length(), 7)
-    assert_eq(args[6], "--prefill-partitioned")
+    guard args.length() == 7 || args.length() == 10 else {
+      fail("complete prefill or mixed-chain arguments")
+    }
     let query = @string.parse_int(args[3])
     let rows = @string.parse_int(args[4])
     let history = @string.parse_int(args[5])
@@ -69,11 +70,45 @@ fn routes(summary : Json, scope : String) -> String raise {
       fresh > 0.0 else {
       fail("five completed paired measurements")
     }
-    let context = history + (query + rows - 1) / rows
-    text += "record\tprefill\t\{rows}\t\{query}\t\{context}\t1\t\{(old * 1000.0).to_int64()}\t5\n"
-    text += "record\tprefill\t\{rows}\t\{query}\t\{context}\t5\t\{(fresh * 1000.0).to_int64()}\t5\n"
+    let (phase, context) = if args.length() == 7 {
+      assert_eq(args[6], "--prefill-partitioned")
+      ("prefill", history + (query + rows - 1) / rows)
+    } else {
+      assert_eq(args[6], "--mixed-chain")
+      assert_eq(args[8], "--decode-history")
+      guard rows >= 2 && query > rows && args[7].has_prefix("/") else {
+        fail("mixed rows and immutable decode companion")
+      }
+      let decode_history = @string.parse_int(args[9])
+      guard decode_history >= 0 else { fail("decode history") }
+      // One decode row has its own history; do not divide the entire token
+      // domain evenly and accidentally register a smaller context bucket.
+      (
+        "mixed",
+        Int::max(
+          history + (query - 1 + rows - 2) / (rows - 1),
+          decode_history + 1,
+        ),
+      )
+    }
+    text += "record\t\{phase}\t\{rows}\t\{query}\t\{context}\t1\t\{(old * 1000.0).to_int64()}\t5\n"
+    text += "record\t\{phase}\t\{rows}\t\{query}\t\{context}\t5\t\{(fresh * 1000.0).to_int64()}\t5\n"
   }
   text
+}
+
+///|
+fn append_routes(prior : String, fresh : String) -> String raise {
+  guard prior.split("\n").to_array() is [header, scope, .., ""] &&
+    fresh.split("\n").to_array() is [same_header, same_scope, .. records, ""] &&
+    header == "luna-attention-buckets-v1" &&
+    header == same_header &&
+    scope == same_scope &&
+    records.length() > 0 &&
+    records.all(line => line.has_prefix("record\tmixed\t")) else {
+    fail("same-scope additive mixed measurements")
+  }
+  prior + records.join("\n") + "\n"
 }
 
 ///|
@@ -128,13 +163,20 @@ async fn publish(path : String, value : Json) -> String {
 
 ///|
 async fn main {
-  guard @env.args() is [_, frozen, query, root, phase] &&
-    ["bind", "measure"].contains(phase) else {
-    fail("FROZEN_LONG IMMUTABLE_QUERY COMPLETED_PROBE_ROOT bind|measure")
+  guard @env.args() is [_, frozen, query, root, phase, .. extra] &&
+    ["bind", "measure", "bind-mixed", "measure-mixed"].contains(phase) &&
+    (if phase.has_suffix("-mixed") {
+      extra.length() == 1
+    } else {
+      extra.is_empty()
+    }) else {
+    fail(
+      "FROZEN_LONG IMMUTABLE_QUERY COMPLETED_PROBE_ROOT bind|measure|bind-mixed|measure-mixed [PRIOR_MEASURED_ROOT]",
+    )
   }
   let moon = query + "/toolchain/bin/moon"
   let cli = query + "/source/_build/native/release/build/cmd/"
-  if phase == "bind" {
+  if phase.has_prefix("bind") {
     assert_true(
       @fs.read_file(root + "/trial/RESULT.txt")
       .text()
@@ -148,12 +190,18 @@ async fn main {
       @fs.read_file(query + "/serving-fused.stdout").text(),
       "attention_route_scope",
     )
+    let measured = routes(
+      @json.parse(@fs.read_file(root + "/trial/summary.json").text()),
+      scope,
+    )
+    let measured = if phase == "bind-mixed" {
+      append_routes(@fs.read_file(extra[0] + "/routes.v1").text(), measured)
+    } else {
+      measured
+    }
     @fs.write_file(
       root + "/routes.v1",
-      routes(
-        @json.parse(@fs.read_file(root + "/trial/summary.json").text()),
-        scope,
-      ),
+      measured,
       create_mode=CreateNew,
       permission=0o444,
     )
@@ -298,21 +346,25 @@ async fn main {
     assert_eq(begin.length(), 2)
     let end = begin[1].split("  let matrix_json : Array[Json]").to_array()
     assert_eq(end.length(), 2)
-    let client = begin[0].to_owned() +
+    let cells = if phase == "measure-mixed" {
+      "  let cells = [(\"i32512-o64-c1-varied\",[32512],64,\"varied\")," +
+      "(\"i32512-o64-c2-varied\",[32512,32512],64,\"varied\")];\n"
+    } else {
       "  let cells = [(\"i16384-o64-c1-varied\",[16384],64,\"varied\")," +
       "(\"i32512-o64-c1-varied\",[32512],64,\"varied\")," +
-      "(\"i32512-o64-c2-varied\",[32512,32512],64,\"varied\")];\n" +
+      "(\"i32512-o64-c2-varied\",[32512,32512],64,\"varied\")];\n"
+    }
+    let client = begin[0].to_owned() +
+      cells +
       "  let matrix_json : Array[Json]" +
       end[1].to_owned()
     // ABBA fresh starts at the same 2K scheduler policy, then an 8K control.
-    for
-      index, (measured, cap) in [
-        (false, 2048),
-        (true, 2048),
-        (true, 2048),
-        (false, 2048),
-        (true, 8192),
-      ] {
+    let starts = if phase == "measure-mixed" {
+      [(false, 2048), (true, 2048), (true, 2048), (false, 2048)]
+    } else {
+      [(false, 2048), (true, 2048), (true, 2048), (false, 2048), (true, 8192)]
+    }
+    for index, (measured, cap) in starts {
       let output = root +
         "/e2e-\{index}-" +
         (if measured { "measured" } else { "baseline" })
@@ -322,6 +374,8 @@ async fn main {
       @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
       let arm = if measured {
         root + "/c\{cap}"
+      } else if phase == "measure-mixed" {
+        extra[0] + "/c\{cap}"
       } else {
         query + "/c\{cap}-target121"
       }
@@ -340,6 +394,37 @@ async fn main {
       "outcome=completed\nscope=per-device-measured-prefill-route; uninstrumented-serving-ABBA\n",
       create_mode=CreateNew,
     )
+  }
+}
+
+///|
+test "mixed context retains the independent decode history and prior routes" {
+  let record : Json = {
+    "args": [
+      "/s", "/a", "/b", "1537", "2", "30976", "--mixed-chain", "/decode", "--decode-history",
+      "32512",
+    ],
+    "metrics": {
+      "baseline_median_us": 7.0,
+      "candidate_median_us": 21.0,
+      "samples": {
+        "baseline_us": [7, 7, 7, 7, 7],
+        "candidate_us": [21, 21, 21, 21, 21],
+      },
+    },
+  }
+  let fresh = routes(Json([record]), "scope")
+  assert_true(fresh.contains("mixed\t2\t1537\t32513\t1\t7000\t5"))
+  let prior = "luna-attention-buckets-v1\nscope\tscope\nrecord\tprefill\t1\t64\t64\t1\t50\t5\n"
+  let combined = append_routes(prior, fresh)
+  assert_true(combined.has_prefix(prior))
+  assert_eq(combined.split("luna-attention-buckets-v1").to_array().length(), 2)
+  try
+    append_routes(prior, fresh.replace(old="scope\tscope", new="scope\tother"))
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("cross-device/source scope accepted")
   }
 }
 

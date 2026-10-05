@@ -49,42 +49,65 @@ async fn capture(
 
 ///|
 async fn main {
-  guard @env.args() is [_, frozen, query, measured] else {
-    fail("FROZEN_LONG QUERY COMPLETED_MEASURED_ROOT")
+  guard @env.args() is [_, frozen, query, measured, .. options] &&
+    (options.is_empty() || options.length() == 1) else {
+    fail(
+      "FROZEN_LONG QUERY COMPLETED_MEASURED_ROOT [EXISTING_INSTRUMENTED_SOURCE]",
+    )
   }
   assert_true(@fs.exists(measured + "/serving-comparison.json"))
-  let root = measured + "/lunaflux-ako-chunk-trace-selected"
+  let root = measured +
+    (if options.is_empty() {
+      "/lunaflux-ako-chunk-trace-selected"
+    } else {
+      "/lunaflux-ako-chunk-trace-mixed-" +
+      measured.split("/").to_array().last().unwrap().to_owned()
+    })
   @fs.mkdir(root)
   let moon = query + "/toolchain/bin/moon"
-  @fs.mkdir(root + "/source")
-  @shell.Cmd("cp", ["-a", query + "/source/.", root + "/source/"]).run()
-  @shell.Cmd("chmod", ["-R", "u+w", root + "/source"]).run()
-  for
-    script in [
-      "install_execution_trace.mbtx", "install_prefill_route_diagnostic.mbtx",
-    ] {
-    capture(root, script, moon, [
-      "run",
-      measured + "/" + script,
+  if options.is_empty() {
+    @fs.mkdir(root + "/source")
+    @shell.Cmd("cp", ["-a", query + "/source/.", root + "/source/"]).run()
+    @shell.Cmd("chmod", ["-R", "u+w", root + "/source"]).run()
+    for
+      script in [
+        "install_execution_trace.mbtx", "install_prefill_route_diagnostic.mbtx",
+      ] {
+      capture(root, script, moon, [
+        "run",
+        measured + "/" + script,
+        root + "/source",
+      ])
+    }
+    capture(root, "build", moon, [
+      "-C",
       root + "/source",
+      "build",
+      "--target",
+      "native",
+      "--release",
+      "--deny-warn",
+      "--warn-list",
+      "-79-29-25-20-92-14",
+      "-j",
+      "2",
+      "cmd/device_worker_child",
+      "cmd/lunaflux",
     ])
+  } else {
+    // Reuse an already built diagnostic worker, never modify the frozen source.
+    assert_true(
+      @fs.exists(
+        options[0] +
+        "/_build/native/release/build/cmd/device_worker_child/device_worker_child.exe",
+      ),
+    )
+    @shell.Cmd("ln", ["-s", options[0], root + "/source"]).run()
   }
-  capture(root, "build", moon, [
-    "-C",
-    root + "/source",
-    "build",
-    "--target",
-    "native",
-    "--release",
-    "--deny-warn",
-    "--warn-list",
-    "-79-29-25-20-92-14",
-    "-j",
-    "2",
-    "cmd/device_worker_child",
-    "cmd/lunaflux",
-  ])
-  let cli = root + "/source/_build/native/release/build/cmd/"
+  let resolved = @shell.Cmd("realpath", [root + "/source"]).output()
+  resolved.check()
+  let cli = resolved.stdout().trim().to_owned() +
+    "/_build/native/release/build/cmd/"
   @shell.Cmd("ln", ["-s", query + "/toolchain", root + "/toolchain"]).run()
   @shell.Cmd("ln", [
     "-s",
@@ -151,7 +174,11 @@ async fn main {
   assert_eq(end.length(), 2)
   let client = once(
     begin[0].to_owned() +
-    "  let cells = [(\"i32512-o64-c1-varied\",[32512],64,\"varied\")];\n  let matrix_json : Array[Json]" +
+    (if options.is_empty() {
+      "  let cells = [(\"i32512-o64-c1-varied\",[32512],64,\"varied\")];\n  let matrix_json : Array[Json]"
+    } else {
+      "  let cells = [(\"i32512-o64-c2-varied\",[32512,32512],64,\"varied\")];\n  let matrix_json : Array[Json]"
+    }) +
     end[1].to_owned(),
     "let trials = if options is [\"--smoke\"] { 1 } else { 4 }",
     "let trials = 1",

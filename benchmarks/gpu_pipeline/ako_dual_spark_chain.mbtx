@@ -29,8 +29,13 @@ fn workloads(root : String, mode : String) -> Array[Json] raise {
           ],
         }
       })
-    "decode" =>
-      [(1, 32513), (2, 32513), (2, 32515)].map(shape => {
+    "decode" | "decode-frontier" => {
+      let shapes = if mode == "decode-frontier" {
+        [(4, 32512), (8, 16376)]
+      } else {
+        [(1, 32513), (2, 32513), (2, 32515)]
+      }
+      shapes.map(shape => {
         let (rows, history) = shape
         {
           "label": "decode-r\{rows}-h\{history}",
@@ -45,7 +50,8 @@ fn workloads(root : String, mode : String) -> Array[Json] raise {
           ],
         }
       })
-    _ => fail("mixed or decode")
+    }
+    _ => fail("mixed, decode or decode-frontier")
   }
 }
 
@@ -217,6 +223,7 @@ test "mixed chain retains unequal histories and both phase operands" {
     fail("traced mixed workload was simplified")
   }
   assert_eq(workloads("/home/trial", "decode").length(), 3)
+  assert_eq(workloads("/home/trial", "decode-frontier").length(), 2)
   assert_eq(
     decode_spec("kind=prefill\nquery_metadata_version=1\n"),
     "kind=decode\nquery_metadata_version=0\n",

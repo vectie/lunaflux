@@ -35,7 +35,7 @@ fn number(value : Json) -> Double raise {
     String(text) => @string.parse_double(text)
     _ => fail("numeric metric")
   }
-  guard n >= 0.0 else { fail("nonnegative metric") }
+  guard n >= 0.0 && !n.is_inf() else { fail("finite nonnegative metric") }
   n
 }
 
@@ -57,25 +57,30 @@ fn changed(a : Array[Json], b : Array[Json]) -> Int raise {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, output] else {
-    fail("COMPLETED_ABBA_ROOT NEW_REPORT")
+  guard @env.args() is [_, root, output, .. options] &&
+    (options.is_empty() || options == ["--mixed"]) else {
+    fail("COMPLETED_ABBA_ROOT NEW_REPORT [--mixed]")
   }
+  let mixed = options == ["--mixed"]
   assert_true(
     @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
   )
-  let cells = [
-    "i16384-o64-c1-varied", "i32512-o64-c1-varied", "i32512-o64-c2-varied",
-  ]
+  let cells = if mixed {
+    ["i32512-o64-c1-varied", "i32512-o64-c2-varied"]
+  } else {
+    ["i16384-o64-c1-varied", "i32512-o64-c1-varied", "i32512-o64-c2-varied"]
+  }
   let reports : Array[Json] = []
   for cell in cells {
     let summaries : Array[Json] = []
     let vectors : Array[Array[Array[Json]]] = []
-    for
-      (side, starts) in [
-        ("baseline", [0, 3]),
-        ("measured", [1, 2]),
-        ("control8192", [4]),
-      ] {
+    let sides = if mixed {
+      [("baseline", [0, 3]), ("measured", [1, 2])]
+    } else {
+      [("baseline", [0, 3]), ("measured", [1, 2]), ("control8192", [4])]
+    }
+    let bodies : Map[Int, String] = Map([])
+    for (side, starts) in sides {
       let elapsed : Array[Double] = []
       let first : Array[Double] = []
       let tpot : Array[Double] = []
@@ -110,7 +115,19 @@ async fn main {
           guard get(value, "requests") is Array(requests) else {
             fail("requests")
           }
-          for row in requests {
+          for row_index, row in requests {
+            let body = @fs.read_file(
+              run + "/requests/" + cell + "-t\{trial}-r\{row_index}.body.json",
+            ).text()
+            match bodies.get(row_index) {
+              Some(expected) =>
+                assert_eq(
+                  body,
+                  expected,
+                  msg="identical request body across trials and fresh starts",
+                )
+              None => bodies[row_index] = body
+            }
             side_vectors.push(tokens(row))
             if trial > 0 {
               first.push(number(get(row, "ttft_ms")))
@@ -152,8 +169,10 @@ async fn main {
     for i, vector in vectors[1] {
       cross.push(changed(vectors[0][i % rows], vector))
     }
-    for i, vector in vectors[2] {
-      control.push(changed(vectors[1][i % rows], vector))
+    if !mixed {
+      for i, vector in vectors[2] {
+        control.push(changed(vectors[1][i % rows], vector))
+      }
     }
     reports.push({
       "cell": cell,
@@ -166,7 +185,11 @@ async fn main {
     })
   }
   let report : Json = {
-    "schema": "lunaflux.prefill-route-abba.v1",
+    "schema": if mixed {
+      "lunaflux.mixed-route-abba.v1"
+    } else {
+      "lunaflux.prefill-route-abba.v1"
+    },
     "scope": "uninstrumented same-worker same-AOT route-only serving; not reference quality or other-framework rerun",
     "cells": reports,
   }
