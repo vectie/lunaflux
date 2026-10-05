@@ -1,0 +1,103 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn compact(part : Json) -> Json raise {
+  guard part
+    is {
+      "baseline_median_us": old,
+      "candidate_median_us": fresh,
+      "median_paired_gain": gain,
+      "minimum_paired_gain": minimum,
+      "decision": decision,
+      ..
+    } else {
+    fail("metrics")
+  }
+  {
+    "old_us": old,
+    "new_us": fresh,
+    "gain": gain,
+    "minimum": minimum,
+    "decision": decision,
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. names] else { fail("ROOT [TRIAL_NAMES]") }
+  if names is ["source"] {
+    guard @json.parse(@fs.read_file(root + "/source-sass-summary.json").text())
+      is Array(rows) else {
+      fail("source summary")
+    }
+    for row in rows {
+      guard row is { "ordinal": ordinal, "opcodes": Array(ops), .. } else {
+        fail("opcodes")
+      }
+      let result : Json = {
+        "ordinal": ordinal,
+        "opcodes": ops[:Int::min(15, ops.length())].to_owned(),
+      }
+      println(result.stringify())
+    }
+    return
+  }
+  let names = if names.is_empty() {
+    [
+      "r64-c8-f2-vs-baseline", "r64-c8-f2-vs-r64-c8", "r64-coowned-c16-f2-vs-baseline",
+      "r64-coowned-c16-f2-vs-r64-coowned-c16",
+    ]
+  } else {
+    names.to_owned()
+  }
+  let mut minimum_reserve = 9223372036854775807L
+  let mut cells = 0
+  for name in names {
+    guard @json.parse(
+        @fs.read_file(root + "/trial-" + name + "/summary.json").text(),
+      )
+      is Array(rows) else {
+      fail("summary")
+    }
+    for row in rows {
+      guard row
+        is {
+          "mem_available_kib_before": String(before),
+          "mem_available_kib_after": String(after),
+          ..
+        } else {
+        fail("reserve")
+      }
+      minimum_reserve = Int64::min(
+        minimum_reserve,
+        Int64::min(@string.parse_int64(before), @string.parse_int64(after)),
+      )
+      cells += 1
+      guard row
+        is {
+          "label": label,
+          "metrics": { "components": Array(parts), "whole_chain": chain, .. },
+          ..
+        } &&
+        parts.length() == 3 else {
+        fail("row")
+      }
+      let result : Json = {
+        "comparison": name,
+        "workload": label,
+        "primary": compact(parts[0]),
+        "down": compact(parts[1]),
+        "chain": compact(chain),
+      }
+      println(result.stringify())
+    }
+  }
+  println("cells=\{cells} minimum_available_kib=\{minimum_reserve}")
+}

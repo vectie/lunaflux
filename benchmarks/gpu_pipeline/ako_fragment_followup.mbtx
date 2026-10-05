@@ -1,0 +1,90 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+test "frozen parent renaming preserves source and both launch envelopes" {
+  let old : Json = {
+    "label": "parent-f2",
+    "source": "unchanged",
+    "source_sha256": "digest",
+    "geometry": [[1, 32, 0], [2, 64, 0]],
+    "maximum_query_tokens": 8192,
+  }
+  assert_eq(renamed(old, "parent"), {
+    "label": "parent",
+    "source": "unchanged",
+    "source_sha256": "digest",
+    "geometry": [[1, 32, 0], [2, 64, 0]],
+    "maximum_query_tokens": 8192,
+  })
+}
+
+///|
+fn renamed(record : Json, name : String) -> Json raise {
+  guard record
+    is {
+      "source": source,
+      "source_sha256": digest,
+      "geometry": geometry,
+      "maximum_query_tokens": capacity,
+      ..
+    } else {
+    fail("record")
+  }
+  {
+    "label": name,
+    "source": source,
+    "source_sha256": digest,
+    "geometry": geometry,
+    "maximum_query_tokens": capacity,
+  }
+}
+
+///|
+// Freeze previous executable references, not regenerated replacements. New
+// source bytes are exported from the compiler; no CUDA text substitution.
+async fn main {
+  guard @env.args() is [_, raw, frozen, destination] else {
+    fail("RAW_EXPORT FROZEN_ROOT NEW_ROOT")
+  }
+  guard @json.parse(@fs.read_file(raw + "/records.json").text()) is Array(fresh) &&
+    fresh.length() == 5 else {
+    fail("fresh records")
+  }
+  guard @json.parse(@fs.read_file(frozen + "/records.json").text())
+    is Array(old) &&
+    old.length() == 5 else {
+    fail("frozen records")
+  }
+  @fs.mkdir(destination)
+  let records = [
+    old[0],
+    renamed(old[2], "r64-c8"),
+    fresh[2],
+    renamed(old[4], "r64-coowned-c16"),
+    fresh[4],
+  ]
+  for record in records {
+    guard record is { "label": String(name), "source": String(source), .. } else {
+      fail("source")
+    }
+    @fs.write_file(
+      destination + "/" + name + ".cu",
+      source,
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    destination + "/records.json",
+    Json(records).stringify(),
+    create_mode=CreateNew,
+  )
+  println(
+    "prepared exact joint-binding sources and frozen one-change references",
+  )
+}

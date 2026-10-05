@@ -1,0 +1,121 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+fn geometry(record : Json) -> Array[String] raise {
+  guard record is { "geometry": Array(parts), .. } && parts.length() == 2 else {
+    fail("geometry")
+  }
+  let result : Array[String] = []
+  for part in parts {
+    guard part is Array(values) && values.length() == 3 else {
+      fail("geometry")
+    }
+    for value in values {
+      guard value is Number(n, ..) && n >= 0.0 && n == n.floor() else {
+        fail("number")
+      }
+      result.push(n.to_int().to_string())
+    }
+  }
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("ROOT") }
+  assert_eq(
+    capture(root, "source-device", "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  assert_true(
+    capture(root, "source-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  guard @json.parse(@fs.read_file(root + "/records.json").text())
+    is Array(records) &&
+    records.length() == 5 else {
+    fail("records")
+  }
+  ignore(
+    capture(
+      root,
+      "source-profile",
+      ncu,
+      [
+        "--section",
+        "InstructionStats",
+        "--section",
+        "SourceCounters",
+        "--section",
+        "LaunchStats",
+        "--kernel-name",
+        "regex:lunaflux_luna_gated_mlp_bf16_release_v1$",
+        "--launch-count",
+        "2",
+        "--export",
+        root + "/fragment-source",
+        root + "/probe",
+        "mlp",
+        root + "/r64-coowned-c16.cubin",
+        root + "/r64-coowned-c16-f2.cubin",
+        "8192",
+        "32",
+        ..geometry(records[3]),
+        ..geometry(records[4]),
+        "--check",
+      ],
+    ),
+  )
+  ignore(
+    capture(root, "source-sass", ncu, [
+      "--import",
+      root + "/fragment-source.ncu-rep",
+      "--csv",
+      "--page",
+      "source",
+      "--print-source",
+      "sass",
+    ]),
+  )
+  println("instruction source capture completed")
+}

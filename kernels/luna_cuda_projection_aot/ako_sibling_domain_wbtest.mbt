@@ -4,7 +4,9 @@
 test "AKO sibling row ownership changes only the primary physical domain" {
   let large_chunks = @env.get_env_var("LUNA_EXPORT_AKO_LARGE_CHUNKS") ==
     Some("1")
-  let capacity = if large_chunks { 8192 } else { 2048 }
+  let lookahead = @env.get_env_var("LUNA_EXPORT_AKO_FRAGMENT_LOOKAHEAD") ==
+    Some("1")
+  let capacity = if large_chunks || lookahead { 8192 } else { 2048 }
   let input = @plan.ActivationRef::new(8)
   let weights = [9, 10, 11].map(i => @plan.TensorRef::new(i))
   let operation = projection_fixture_operation(
@@ -105,14 +107,24 @@ test "AKO sibling row ownership changes only the primary physical domain" {
   )
   let before = @utf8.decode(baseline.source_bytes())
   let down = "extern \"C\" __global__ void lunaflux_luna_gated_mlp_bf16_release_v1_down("
-  for
-    (label, row_tiles, consumers) in [
-      ("baseline", 4, 16),
-      ("r64-c8", 4, 8),
-      ("r128-c16", 8, 16),
-      ("r128-c8", 8, 8),
-      ("r64-coowned-c16", 4, 16),
-    ] {
+  let experiments = if lookahead {
+    [
+      ("baseline", 4, 16, 1, false),
+      ("r64-c8", 4, 8, 1, false),
+      ("r64-c8-f2", 4, 8, 2, false),
+      ("r64-coowned-c16", 4, 16, 1, true),
+      ("r64-coowned-c16-f2", 4, 16, 2, true),
+    ]
+  } else {
+    [
+      ("baseline", 4, 16, 1, false),
+      ("r64-c8", 4, 8, 1, false),
+      ("r128-c16", 8, 16, 1, false),
+      ("r128-c8", 8, 8, 1, false),
+      ("r64-coowned-c16", 4, 16, 1, true),
+    ]
+  }
+  for (label, row_tiles, consumers, fragment_stages, coowned) in experiments {
     let candidate = if label == "baseline" {
       baseline
     } else {
@@ -130,7 +142,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
             SiblingFold,
             stages=2,
             transfer_tiles=2,
-            fragment_stages=1,
+            fragment_stages~,
             row_tiles~,
             output_tiles=4,
             consumer_groups=consumers,
@@ -138,7 +150,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
         ],
         sibling_execution=OverlappedTransfer,
         sibling_transport=SegmentedSiblingTransport,
-        sibling_ownership=if label == "r64-coowned-c16" {
+        sibling_ownership=if coowned {
           CoownedSiblingValues
         } else {
           SplitSiblingPlanes
@@ -156,7 +168,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
       after.contains("token_count > " + (capacity + 1).to_string() + ")"),
     )
     for i in [0, 1] {
-      if label == "r64-coowned-c16" {
+      if coowned {
         let a = candidate.row_variants[i]
         let b = baseline.row_variants[i]
         assert_eq(a.maximum_token_rows(), b.maximum_token_rows())
@@ -182,7 +194,13 @@ test "AKO sibling row ownership changes only the primary physical domain" {
     if label != "baseline" {
       assert_false(candidate.source_digest() == baseline.source_digest())
     }
-    if label == "r64-coowned-c16" {
+    if fragment_stages == 2 {
+      let primary = after.split(down).to_array()[0]
+      assert_true(primary.contains("fragments_a[2]"))
+      assert_true(primary.contains("read_fragment(0,0);"))
+      assert_true(primary.contains("read_fragment(k+16,(slot+1)%2);"))
+    }
+    if coowned {
       assert_eq(
         candidate.launch_dimensions().grid_x(),
         baseline.launch_dimensions().grid_x(),
@@ -203,7 +221,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
     let export_coowned = @env.get_env_var("LUNA_EXPORT_AKO_COOWNED_C16") ==
       Some("1") &&
       (label == "baseline" || label == "r64-coowned-c16")
-    if export_old || export_coowned || large_chunks {
+    if export_old || export_coowned || large_chunks || lookahead {
       let geometries : Array[Array[Int]] = []
       for
         (name, geometry) in [

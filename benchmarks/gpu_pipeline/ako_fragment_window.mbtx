@@ -1,0 +1,447 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+fn label(record : Json) -> String raise {
+  guard record is { "label": String(name), .. } else { fail("label") }
+  name
+}
+
+///|
+fn geometry(record : Json) -> Array[String] raise {
+  guard record is { "geometry": Array(parts), .. } && parts.length() == 2 else {
+    fail("geometry")
+  }
+  let result : Array[String] = []
+  for part in parts {
+    guard part is Array(values) && values.length() == 3 else {
+      fail("geometry part")
+    }
+    for value in values {
+      guard value is Number(n, ..) &&
+        n >= 0.0 &&
+        n <= 2147483647.0 &&
+        n == n.floor() else {
+        fail("geometry number")
+      }
+      result.push(n.to_int().to_string())
+    }
+  }
+  result
+}
+
+///|
+test "paired MLP geometry keeps both launches and rejects invalid bounds" {
+  let valid : Json = { "geometry": [[6144, 256, 16384], [1024, 128, 0]] }
+  assert_eq(geometry(valid), ["6144", "256", "16384", "1024", "128", "0"])
+  for
+    bad in [
+      @json.parse("{\"geometry\":[[1,32,0]]}"),
+      @json.parse("{\"geometry\":[[1,32,0],[1,32,-1]]}"),
+      @json.parse("{\"geometry\":[[1,32,0],[1.5,32,0]]}"),
+      @json.parse("{\"geometry\":[[1,32,0],[2147483648,32,0]]}"),
+    ] {
+    try geometry(bad) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid geometry accepted")
+    }
+  }
+}
+
+///|
+fn probe_args(
+  root : String,
+  records : Array[Json],
+  old : Int,
+  fresh : Int,
+  tokens : Int,
+  stream? : Bool = false,
+  check? : Bool = false,
+) -> Array[String] raise {
+  [
+    "mlp",
+    root + "/" + label(records[old]) + ".cubin",
+    root + "/" + label(records[fresh]) + ".cubin",
+    tokens.to_string(),
+    "32",
+    ..geometry(records[old]),
+    ..geometry(records[fresh]),
+    ..if stream {
+      ["--streaming-all-weights"]
+    } else {
+      []
+    },
+    ..if check {
+      ["--check"]
+    } else {
+      []
+    },
+  ]
+}
+
+///|
+async fn trial(
+  root : String,
+  moon : String,
+  records : Array[Json],
+  old : Int,
+  fresh : Int,
+  name : String,
+  workloads : Array[Json],
+) -> Unit {
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "timing_kind": "mlp-chain-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": root + "/probe",
+    "artifacts": [
+      root + "/" + label(records[old]) + ".cubin",
+      root + "/" + label(records[fresh]) + ".cubin",
+    ],
+    "workloads": workloads,
+  }
+  let path = root + "/contract-" + name + ".json"
+  @fs.write_file(path, contract.stringify(), create_mode=CreateNew)
+  ignore(
+    capture(root, "trial-" + name, moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      "--",
+      path,
+      root + "/trial-" + name,
+    ]),
+  )
+  println(name + " completed")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, phase, root, moon, .. options] else {
+    fail("PHASE NEW_ROOT MOON [candidate-index]")
+  }
+  if phase == "export" {
+    @fs.mkdir(root)
+    let out = capture(root, "export", "/usr/bin/env", [
+      "LUNA_EXPORT_AKO_FRAGMENT_LOOKAHEAD=1", moon, "test", "kernels/luna_cuda_projection_aot",
+      "--target", "native", "--filter", "AKO sibling row ownership*", "--deny-warn",
+      "--warn-list", "-79-29-25-20-92-14",
+    ])
+    let lines = out
+      .split("\n")
+      .filter(s => s.has_prefix("LUNA_DOMAIN_RECORD "))
+      .to_array()
+    assert_eq(lines.length(), 5)
+    let names = [
+      "baseline", "r64-c8", "r64-c8-f2", "r64-coowned-c16", "r64-coowned-c16-f2",
+    ]
+    let records : Array[Json] = []
+    for i, line in lines {
+      let record = @json.parse(
+        line.strip_prefix("LUNA_DOMAIN_RECORD ").unwrap(),
+      )
+      guard record
+        is {
+          "source": String(source),
+          "source_sha256": String(digest),
+          "maximum_query_tokens": 8192,
+          ..
+        } &&
+        label(record) == names[i] else {
+        fail("exact export")
+      }
+      let path = root + "/" + names[i] + ".cu"
+      @fs.write_file(path, source, create_mode=CreateNew)
+      assert_true(
+        capture(root, "hash-" + names[i], "shasum", ["-a", "256", path]).has_prefix(
+          digest + " ",
+        ),
+      )
+      ignore(geometry(record))
+      records.push(record)
+    }
+    @fs.write_file(
+      root + "/records.json",
+      Json(records).stringify(),
+      create_mode=CreateNew,
+    )
+    println("exported immutable fragment-window alternatives")
+    return
+  }
+  guard @json.parse(@fs.read_file(root + "/records.json").text())
+    is Array(records) &&
+    records.length() == 5 else {
+    fail("five records")
+  }
+  if phase == "report" {
+    for fresh in [2, 4] {
+      for old in [0, fresh - 1] {
+        let name = label(records[fresh]) + "-vs-" + label(records[old])
+        guard @json.parse(
+            @fs.read_file(root + "/trial-" + name + "/summary.json").text(),
+          )
+          is Array(rows) else {
+          fail("summary")
+        }
+        for row in rows {
+          guard row
+            is {
+              "label": workload,
+              "metrics": {
+                "components": Array(parts),
+                "whole_chain": chain,
+                ..
+              },
+              ..
+            } else {
+            fail("metrics")
+          }
+          let result : Json = {
+            "comparison": name,
+            "workload": workload,
+            "primary": parts[0],
+            "chain": chain,
+          }
+          println(result.stringify())
+        }
+      }
+    }
+    return
+  }
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  assert_true(
+    capture(root, "nvcc-" + phase, "sha256sum", [nvcc]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  assert_eq(
+    capture(root, "device-" + phase, "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  assert_true(
+    capture(root, "idle-" + phase, "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  if phase == "run" || phase == "run-joint" {
+    let joint = phase == "run-joint"
+    let frozen = if joint {
+      "/home/wlc004s/lunaflux-ako-fragment-20261005.Ss6IOvJd"
+    } else {
+      "/home/wlc004s/lunaflux-ako-large-chunks-20261005.u39N3uQA"
+    }
+    for
+      (file, digest) in [
+        (
+          "probe", "949b2c88dc589227ddfa309579baffcf5a13fb16d217bd004a9a7e3750db530e",
+        ),
+        (
+          "baseline.cubin", "f20ccd71eeba20a9f12a998ca5a0f1256e06299d1fd1586f233b21ed95b6ce8e",
+        ),
+        (
+          "r64-c8.cubin",
+          if joint {
+            "de31f2ead4d64a9384b961931699ba960d1ae65baff835c7a5d50d173d0515dd"
+          } else {
+            "eddebf9a2dfacea0d37dbb90559ba3759d228f544ff57a00305fbcde06eb285f"
+          },
+        ),
+        (
+          "r64-coowned-c16.cubin",
+          if joint {
+            "2c56e927f490e53ca7d06d822e65c64fe000822f86ced77753b835ea6b464062"
+          } else {
+            "a5c6a5997838f1692db32bade2e0492de8229ddadf251120f64cd4aa6d36fab5"
+          },
+        ),
+      ] {
+      let original = if joint &&
+        file.has_suffix(".cubin") &&
+        file != "baseline.cubin" {
+        file.strip_suffix(".cubin").unwrap().to_owned() + "-f2.cubin"
+      } else {
+        file
+      }
+      assert_true(
+        capture(root, "frozen-" + file, "sha256sum", [frozen + "/" + original]).has_prefix(
+          digest + " ",
+        ),
+      )
+      guard !@fs.exists(root + "/" + file) else { fail("control exists") }
+      @shell.Cmd("cp", ["-n", frozen + "/" + original, root + "/" + file]).run()
+    }
+    for i, record in records {
+      let name = label(record)
+      guard record is { "source_sha256": String(digest), .. } else {
+        fail("digest")
+      }
+      assert_true(
+        capture(root, "source-" + name, "sha256sum", [root + "/" + name + ".cu"]).has_prefix(
+          digest + " ",
+        ),
+      )
+      if i == 2 || i == 4 {
+        ignore(
+          capture(root, "build-" + name, nvcc, [
+            "-O3",
+            "-arch=sm_121",
+            "--fmad=false",
+            "--maxrregcount=255",
+            "-lineinfo",
+            "-Xptxas=-v",
+            "-cubin",
+            root + "/" + name + ".cu",
+            "-o",
+            root + "/" + name + ".cubin",
+          ]),
+        )
+      } else {
+        let original = if joint && name != "baseline" {
+          name + "-f2"
+        } else {
+          name
+        }
+        assert_eq(
+          @fs.read_file(root + "/" + name + ".cu").text(),
+          @fs.read_file(frozen + "/" + original + ".cu").text(),
+        )
+      }
+    }
+    for fresh in [2, 4] {
+      for old in [0, fresh - 1] {
+        let workloads : Array[Json] = []
+        for stream in [false, true] {
+          for tokens in [32, 129, 512, 2048, 4096, 8192] {
+            workloads.push({
+              "label": (if stream { "stream-" } else { "warm-" }) +
+              tokens.to_string(),
+              "args": probe_args(root, records, old, fresh, tokens, stream~),
+            })
+          }
+        }
+        trial(
+          root,
+          moon,
+          records,
+          old,
+          fresh,
+          label(records[fresh]) + "-vs-" + label(records[old]),
+          workloads,
+        )
+      }
+    }
+    return
+  }
+  guard options is [raw] else { fail("candidate index required") }
+  let fresh = @string.parse_int(raw)
+  guard fresh == 2 || fresh == 4 else { fail("candidate index") }
+  if phase == "confirm" {
+    let workloads : Array[Json] = []
+    for tokens in [2048, 8192] {
+      for repeat in [0, 1, 2, 3, 4] {
+        workloads.push({
+          "label": "stream-\{tokens}-repeat-\{repeat}",
+          "args": probe_args(root, records, 0, fresh, tokens, stream=true),
+        })
+      }
+    }
+    trial(root, moon, records, 0, fresh, "confirmation", workloads)
+    for tokens in [129, 8191] {
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        ignore(
+          capture(
+            root,
+            "sanitizer-\{tokens}-" + tool,
+            "/usr/local/cuda-13.0/bin/compute-sanitizer",
+            [
+              "--tool",
+              tool,
+              "--error-exitcode",
+              "9",
+              ..if tool == "memcheck" {
+                ["--leak-check", "full"]
+              } else {
+                []
+              },
+              root + "/probe",
+              ..probe_args(root, records, 0, fresh, tokens, check=true),
+            ],
+          ),
+        )
+      }
+    }
+    return
+  }
+  guard phase == "counters-admin" || phase == "counters-coowned-admin" else {
+    fail("phase")
+  }
+  for tokens in [2048, 8192] {
+    ignore(
+      capture(
+        root,
+        "counters-\{tokens}-" + label(records[fresh]),
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+        [
+          "--csv",
+          "--page",
+          "raw",
+          "--section",
+          "SpeedOfLight",
+          "--section",
+          "SchedulerStats",
+          "--section",
+          "WarpStateStats",
+          "--section",
+          "MemoryWorkloadAnalysis",
+          "--kernel-name",
+          "regex:lunaflux_luna_gated_mlp_bf16_release_v1$",
+          "--launch-count",
+          "2",
+          root + "/probe",
+          ..probe_args(root, records, fresh - 1, fresh, tokens, check=true),
+        ],
+      ),
+    )
+    println("counter \{tokens} completed")
+  }
+}

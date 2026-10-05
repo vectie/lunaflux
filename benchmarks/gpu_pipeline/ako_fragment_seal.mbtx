@@ -1,0 +1,181 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+test "sealing requires bitwise correctness and memory reserve on both sides" {
+  let valid : Json = {
+    "mem_available_kib_before": "33554432",
+    "mem_available_kib_after": "33554432",
+    "metrics": { "bitwise_chain": true },
+  }
+  reserve(valid)
+  for
+    bad in [
+      @json.parse(
+        "{\"mem_available_kib_before\":\"33554431\",\"mem_available_kib_after\":\"33554432\",\"metrics\":{\"bitwise_chain\":true}}",
+      ),
+      @json.parse(
+        "{\"mem_available_kib_before\":\"33554432\",\"mem_available_kib_after\":\"33554431\",\"metrics\":{\"bitwise_chain\":true}}",
+      ),
+      @json.parse(
+        "{\"mem_available_kib_before\":\"33554432\",\"mem_available_kib_after\":\"33554432\",\"metrics\":{\"bitwise_chain\":false}}",
+      ),
+    ] {
+    try reserve(bad) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid completed campaign accepted")
+    }
+  }
+}
+
+///|
+fn reserve(row : Json) -> Unit raise {
+  guard row
+    is {
+      "mem_available_kib_before": String(before),
+      "mem_available_kib_after": String(after),
+      "metrics": { "bitwise_chain": true, .. },
+      ..
+    } &&
+    @string.parse_int64(before) >= 33554432L &&
+    @string.parse_int64(after) >= 33554432L else {
+    fail("correctness/reserve")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    (mode == "confirmed-large-chunk" || mode == "rejected") else {
+    fail("ROOT confirmed-large-chunk|rejected")
+  }
+  guard @json.parse(@fs.read_file(root + "/records.json").text())
+    is Array(records) &&
+    records.length() == 5 else {
+    fail("records")
+  }
+  for fresh in [2, 4] {
+    for old in [0, fresh - 1] {
+      guard records[fresh] is { "label": String(candidate), .. } &&
+        records[old] is { "label": String(baseline), .. } else {
+        fail("label")
+      }
+      let name = candidate + "-vs-" + baseline
+      assert_true(
+        @fs.read_file(root + "/trial-" + name + "/RESULT.txt")
+        .text()
+        .has_prefix("outcome=completed\n"),
+      )
+      guard @json.parse(
+          @fs.read_file(root + "/trial-" + name + "/summary.json").text(),
+        )
+        is Array(rows) &&
+        rows.length() == 12 else {
+        fail("summary")
+      }
+      for row in rows {
+        reserve(row)
+      }
+    }
+  }
+  if mode == "confirmed-large-chunk" {
+    assert_true(
+      @fs.read_file(root + "/trial-confirmation/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    guard @json.parse(
+        @fs.read_file(root + "/trial-confirmation/summary.json").text(),
+      )
+      is Array(rows) &&
+      rows.length() == 10 else {
+      fail("confirmations")
+    }
+    for row in rows {
+      reserve(row)
+      guard row
+        is {
+          "label": String(name),
+          "metrics": { "whole_chain": chain, .. },
+          ..
+        } else {
+        fail("confirmation")
+      }
+      if name.has_prefix("stream-8192-") {
+        guard chain is { "decision": "improved", .. } else {
+          fail("large-chunk confirmation")
+        }
+      }
+    }
+    for tokens in [129, 8191] {
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        let name = "sanitizer-\{tokens}-" + tool
+        let log = @fs.read_file(root + "/" + name + ".stdout").text()
+        assert_true(
+          log.contains("correctness=passed") &&
+          (log.contains("0 errors") || log.contains("0 hazards")),
+        )
+        assert_true(
+          @fs.read_file(root + "/" + name + ".stderr").text().is_empty(),
+        )
+      }
+    }
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nexperiment=" +
+    mode +
+    "\nselection=unchanged\nscope=offline fragment lowering; no serving gain claimed\n",
+    create_mode=CreateNew,
+  )
+  let files = @shell.Cmd("find", [
+    root,
+    "-type",
+    "f",
+    "!",
+    "-path",
+    root + "/_build/*",
+    "!",
+    "-path",
+    root + "/counter-driver-build/*",
+    "-exec",
+    "sha256sum",
+    "{}",
+    "+",
+  ]).output(max_output_bytes=16777216)
+  files.check()
+  @fs.write_file(
+    root + "/FILES.sha256",
+    files
+    .stdout()
+    .split("\n")
+    .map(line => line.to_owned().replace(old=root + "/", new="./"))
+    .to_array()
+    .join("\n"),
+    create_mode=CreateNew,
+  )
+  let archive = root + ".measurement.tar.gz"
+  guard !@fs.exists(archive) else { fail("archive exists") }
+  @shell.Cmd("tar", [
+    "-czf", archive, "--exclude=./_build", "--exclude=./counter-driver-build", "-C",
+    root, ".",
+  ]).run()
+  let hash = @shell.Cmd("sha256sum", [archive]).output()
+  hash.check()
+  @fs.write_file(archive + ".sha256", hash.stdout(), create_mode=CreateNew)
+  @shell.Cmd("chmod", ["0444", archive]).run()
+  println(hash.stdout())
+}
