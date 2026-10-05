@@ -8,11 +8,20 @@ fn cuda_forwarded_matrix_products(
   binding : @luna_cuda_attention_tile_lowering.CudaPrefillFragmentBinding,
 ) -> String {
   let source = StringBuilder()
+  let lifetime = binding.query_lifetime()
   for
     (name, plan, transpose) in [
       ("key", binding.score(), ""),
       ("value", binding.value(), ".trans"),
     ] {
+    // Complete joint consumption has no remaining per-key call. Emitting an
+    // unused helper fails warning-denied AOT compilation; partial and ordinary
+    // consumers still need it. Derive reachability from the immutable plan.
+    if name == "key" &&
+      lifetime.joint_right_consumers() &&
+      lifetime.retained_dimensions() == lifetime.program().fold().geometry().2 {
+      continue
+    }
     let b00 = plan.word(0, 0).unwrap()
     let b01 = plan.word(0, 1).unwrap()
     let b10 = plan.word(1, 0).unwrap()

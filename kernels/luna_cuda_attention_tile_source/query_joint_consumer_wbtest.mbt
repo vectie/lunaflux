@@ -1,4 +1,38 @@
 ///|
+test "matrix helper emission follows joint consumer reachability for both numeric laws" {
+  for
+    (strict, approximate, needs_key) in [
+      (322, 30322, true),
+      (10645, 70645, true),
+      (20644, 80644, true),
+      (20645, 80645, false),
+    ] {
+    for approximate_exponential in [false, true] {
+      let id = if approximate_exponential { approximate } else { strict }
+      let lowering = source_test_lowering(
+        true,
+        100000L,
+        2,
+        candidate_id=Some(id),
+        approximate_exponential~,
+      )
+      let source = @utf8.decode(
+        emit_cuda_attention_tile_source(
+          lowering,
+          source_test_abi(),
+          "reachable_helpers",
+          1048576,
+        ).bytes(),
+      )
+      assert_eq(source.contains("void lf_matrix_mma_key("), needs_key)
+      assert_eq(source.contains("lf_matrix_mma_key(score[key],"), needs_key)
+      assert_true(source.contains("void lf_matrix_mma_value("))
+      assert_true(source.contains("lf_matrix_mma_value(out[column],"))
+    }
+  }
+}
+
+///|
 test "joint query fanout binds one operand and preserves ordered matrix products" {
   for (id, retained) in [(20644, 64), (20645, 128)] {
     let lowering = source_test_lowering(true, 100000L, 2, candidate_id=Some(id))
