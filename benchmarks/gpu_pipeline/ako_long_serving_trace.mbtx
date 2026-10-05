@@ -1,0 +1,170 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("unique frozen seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+fn client(text : String, concurrency : Int) -> String raise {
+  assert_true(concurrency == 1 || concurrency == 2)
+  guard text.split("  let cells = if options is [\"--smoke\"] {").to_array()
+    is [a, rest] &&
+    rest.split("  let matrix_json : Array[Json]").to_array() is [_, b] else {
+    fail("bounded long-context client seam")
+  }
+  let inputs = if concurrency == 1 { "[32512]" } else { "[32512,32512]" }
+  once(
+    a.to_owned() +
+    "  let cells = [(\"i32512-o64-c\{concurrency}-varied\",\{inputs},64,\"varied\")];\n  let matrix_json : Array[Json]" +
+    b.to_owned(),
+    "let trials = if options is [\"--smoke\"] { 1 } else { 4 }",
+    "let trials = 2",
+  )
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, query, selected, diagnostic, root] else {
+    fail("FROZEN_LONG QUERY SELECTED_SERVING DIAGNOSTIC_PARENT_SOURCE NEW_ROOT")
+  }
+  let moon = query + "/toolchain/bin/moon"
+  let resolved = @shell.Cmd("realpath", [diagnostic]).output()
+  resolved.check()
+  let build = resolved.stdout().trim().to_owned() +
+    "/_build/native/release/build/"
+  let supervisor = build +
+    "tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe"
+  let cli = build + "cmd/"
+  assert_true(@fs.exists(supervisor))
+  assert_false(@fs.exists(root + "/RESULT.txt"))
+  @fs.write_file(
+    root + "/SCOPE.txt",
+    "Offline Nsight timeline only. Reused injection-capable parent; unchanged selected worker and AOT modules. Two waves per cell, not unprofiled performance or deployment.\n",
+    create_mode=CreateNew,
+  )
+  let hashes = @shell.Cmd("sha256sum", [
+    supervisor,
+    cli + "lunaflux/lunaflux.exe",
+    selected + "/deployment/bin/lunaflux-device-worker",
+    selected + "/deployment/lunaflux.launch.json",
+    "/usr/local/bin/nsys",
+  ]).output()
+  hashes.check()
+  @fs.write_file(
+    root + "/IDENTITIES.sha256",
+    hashes.stdout(),
+    create_mode=CreateNew,
+  )
+  for concurrency in [1, 2] {
+    let out = root + "/c\{concurrency}"
+    @fs.mkdir(out)
+    let tool = once(
+      @fs.read_file(frozen + "/measure/launcher.mbtx").text(),
+      "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]",
+      "let orders = [[\"luna-full\"]]",
+    )
+    let tool = once(
+      tool,
+      "let cmd = \"/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/source/_build/native/release/build/cmd/\"",
+      "let cmd = " + Json(cli).stringify(),
+    )
+    let tool = once(
+      tool,
+      "serving +\n        \"/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe\",\n        [",
+      "\"/usr/local/bin/nsys\",\n        [\"profile\",\"--trace=cuda\",\"--sample=none\",\"--cpuctxsw=none\",\"--cuda-graph-trace=node\",\"--trace-fork-before-exec=true\",\"--wait=all\",\"-o\",root+\"/trace\"," +
+      Json(supervisor).stringify() +
+      ",",
+    )
+    let script = out + "/launcher.mbtx"
+    @fs.write_file(script, tool, create_mode=CreateNew)
+    @fs.write_file(
+      script + ".client.mbtx",
+      client(
+        @fs.read_file(frozen + "/long_context_client.mbtx").text(),
+        concurrency,
+      ),
+      create_mode=CreateNew,
+    )
+    capture(out, "campaign", moon, ["run", script, selected, out, script])
+    let trial = out + "/r0-luna-full"
+    capture(out, "export", "/usr/local/bin/nsys", [
+      "export",
+      "--type=sqlite",
+      "--output=" + trial + "/trace.sqlite",
+      trial + "/trace.nsys-rep",
+    ])
+    capture(out, "kernels", "sqlite3", [
+      "-header",
+      "-csv",
+      trial + "/trace.sqlite",
+      "SELECT s.value AS kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread ORDER BY total_ms DESC;",
+    ])
+    // Retain every invocation, not only aggregates: later attribution must
+    // separate startup, prefill and decode instead of inferring from one mean.
+    capture(out, "invocations", "sqlite3", [
+      "-header",
+      "-csv",
+      trial + "/trace.sqlite",
+      "SELECT k.start,k.end,s.value AS kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.correlationId,k.graphNodeId FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName ORDER BY k.start;",
+    ])
+    println("timeline_completed=C\{concurrency}")
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=profiled-long-context-selected-serving; not throughput\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "unique seam and bounded concurrency preserve workload count" {
+  assert_eq(once("a-x-b", "x", "y"), "a-y-b")
+  for text in ["absent", "xx"] {
+    try once(text, "x", "y") catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous seam")
+    }
+  }
+  let fixture = "header\n  let cells = if options is [\"--smoke\"] { old }\n  let matrix_json : Array[Json] = []; let trials = if options is [\"--smoke\"] { 1 } else { 4 }"
+  assert_true(client(fixture, 2).contains("[32512,32512]"))
+  assert_true(client(fixture, 1).contains("[32512]"))
+  assert_true(client(fixture, 2).contains("let trials = 2"))
+}

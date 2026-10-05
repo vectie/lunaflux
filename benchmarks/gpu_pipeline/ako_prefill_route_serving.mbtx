@@ -50,8 +50,8 @@ fn routes(summary : Json, scope : String) -> String raise {
       fail("paired record")
     }
     let args = strings(args)
-    guard args.length() == 7 || args.length() == 10 else {
-      fail("complete prefill or mixed-chain arguments")
+    guard args.length() == 7 || args.length() == 9 || args.length() == 10 else {
+      fail("complete prefill, decode-envelope or mixed-chain arguments")
     }
     let query = @string.parse_int(args[3])
     let rows = @string.parse_int(args[4])
@@ -73,6 +73,15 @@ fn routes(summary : Json, scope : String) -> String raise {
     let (phase, context) = if args.length() == 7 {
       assert_eq(args[6], "--prefill-partitioned")
       ("prefill", history + (query + rows - 1) / rows)
+    } else if args.length() == 9 {
+      assert_eq(args[6], "--decode-chain-comparison")
+      assert_eq(args[7], "--query-bucket-bound")
+      assert_eq(query, rows)
+      let bound = @string.parse_int(args[8])
+      guard bound >= rows && bound <= 32 && (bound & (bound - 1)) == 0 else {
+        fail("decode capture envelope")
+      }
+      ("decode", history + 1)
     } else {
       assert_true(["--mixed-chain", "--mixed-decode-chain"].contains(args[6]))
       if args[6] == "--mixed-decode-chain" {
@@ -98,8 +107,16 @@ fn routes(summary : Json, scope : String) -> String raise {
         ),
       )
     }
+    // Candidate 1 is the table's required baseline; in a decode bucket its
+    // ordinary owner is the exact chain timed by the probe.
     text += "record\t\{phase}\t\{rows}\t\{query}\t\{context}\t1\t\{(old * 1000.0).to_int64()}\t5\n"
-    let candidate = if args[6] == "--mixed-decode-chain" { 7 } else { 5 }
+    let candidate = if phase == "decode" {
+      4
+    } else if args[6] == "--mixed-decode-chain" {
+      7
+    } else {
+      5
+    }
     text += "record\t\{phase}\t\{rows}\t\{query}\t\{context}\t\{candidate}\t\{(fresh * 1000.0).to_int64()}\t5\n"
   }
   text
@@ -113,8 +130,10 @@ fn append_routes(prior : String, fresh : String) -> String raise {
     header == same_header &&
     scope == same_scope &&
     records.length() > 0 &&
-    records.all(line => line.has_prefix("record\tmixed\t")) else {
-    fail("same-scope additive mixed measurements")
+    records.all(line => {
+      line.has_prefix("record\tmixed\t") || line.has_prefix("record\tdecode\t")
+    }) else {
+    fail("same-scope additive mixed/decode measurements")
   }
   // Replace a complete measured bucket, never mix its historical baseline
   // with a new companion comparison. Unaffected pure/mixed records survive.
@@ -467,6 +486,15 @@ test "mixed context retains the independent decode history and prior routes" {
   let decode = routes(Json([Json::object(companion)]), "scope")
   assert_true(decode.contains("mixed\t2\t1537\t32513\t7\t21000\t5"))
   assert_false(append_routes(fresh, decode).contains("\t5\t21000\t5"))
+  let pure = object(record)
+  pure["args"] = Json([
+    "/s", "/a", "/a", "2", "2", "32513", "--decode-chain-comparison", "--query-bucket-bound",
+    "8",
+  ])
+  let pure_routes = routes(Json([Json::object(pure)]), "scope")
+  assert_true(pure_routes.contains("decode\t2\t2\t32514\t1\t7000\t5"))
+  assert_true(pure_routes.contains("decode\t2\t2\t32514\t4\t21000\t5"))
+  assert_true(append_routes(prior, pure_routes).has_prefix(prior))
   try
     append_routes(prior, fresh.replace(old="scope\tscope", new="scope\tother"))
   catch {

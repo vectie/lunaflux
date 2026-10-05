@@ -40,11 +40,13 @@ fn workloads(root : String, mode : String) -> Array[Json] raise {
         }
       })
     }
-    "decode" | "decode-frontier" | "decode-long" => {
+    "decode" | "decode-frontier" | "decode-long" | "decode-serving" => {
       let shapes = if mode == "decode-frontier" {
         [(4, 32512), (8, 16376)]
       } else if mode == "decode-long" {
         [(1, 65535), (2, 65535)]
+      } else if mode == "decode-serving" {
+        [(2, 32513)]
       } else {
         [(1, 32513), (2, 32513), (2, 32515)]
       }
@@ -60,11 +62,19 @@ fn workloads(root : String, mode : String) -> Array[Json] raise {
             "\{rows}",
             "\{history}",
             "--decode-chain-comparison",
+            ..if mode == "decode-serving" {
+              [Json("--query-bucket-bound"), Json("8")]
+            } else {
+              []
+            },
           ],
         }
       })
     }
-    _ => fail("mixed, mixed-decode, decode, decode-frontier or decode-long")
+    _ =>
+      fail(
+        "mixed, mixed-decode, decode, decode-frontier, decode-long or decode-serving",
+      )
   }
 }
 
@@ -127,7 +137,7 @@ async fn main {
     }
     @fs.write_file(
       root + "/validation/RESULT.txt",
-      "outcome=passed\nscope=first exact mixed chain; offline launch adapter only\n",
+      "outcome=passed\nscope=first exact contract workload; offline launch adapter only\n",
       create_mode=CreateNew,
     )
     return
@@ -240,6 +250,23 @@ test "mixed chain retains unequal histories and both phase operands" {
   }
   assert_eq(workloads("/home/trial", "decode").length(), 3)
   assert_eq(workloads("/home/trial", "decode-frontier").length(), 2)
+  guard workloads("/home/trial", "decode-serving")[0]
+    is {
+      "args": [
+        _,
+        _,
+        _,
+        "2",
+        "2",
+        "32513",
+        "--decode-chain-comparison",
+        "--query-bucket-bound",
+        "8",
+      ],
+      ..
+    } else {
+    fail("actual C2 capture has eight-row envelope")
+  }
   guard workloads("/home/trial", "mixed-decode")[0]
     is {
       "args": [

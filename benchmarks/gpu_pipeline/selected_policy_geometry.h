@@ -11,6 +11,14 @@ inline int selected_bucket_tokens(int tokens, int maximum) {
   while (bound < tokens && bound < maximum) bound = std::min(maximum, bound * 2);
   return bound;
 }
+// Captured graphs may deliberately use a minimum bucket larger than the
+// logical batch. An explicit traced bound reproduces that launch envelope.
+inline int selected_capture_bound(int tokens, int maximum, int traced = 0) {
+  if (!traced) return selected_bucket_tokens(tokens, maximum);
+  if (tokens <= 0 || traced < tokens || traced > maximum || (traced & (traced - 1)))
+    throw std::invalid_argument("traced capture bound");
+  return traced;
+}
 inline int selected_grid_x(int envelope, int bucket_tokens, int profile_rows,
                            int query_tile, bool metadata, bool decode) {
   if (envelope <= 0 || bucket_tokens <= 0 || profile_rows <= 0 || query_tile <= 0)

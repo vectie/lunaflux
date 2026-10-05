@@ -202,3 +202,17 @@ reserve. All four serving instances acknowledged drain, exited zero and closed
 their children; GPU returned idle. No production release or driver setting was
 changed. This is a completed offline pilot with a reproducible C1 performance
 win; concurrent numerical stability remains an explicit follow-up, not a pass.
+
+## Dual-Spark follow-up: serving attribution before another kernel rewrite
+
+The [long-stage and C2 decode experiment](BENCHMARK_AKO_LONG_STAGE_AND_C2_DECODE_2026-10-05.md)
+uses both Sparks independently. Kernel symbols correct the earlier owner-ID
+interpretation: pure C2 was ordinary, not partitioned. Reproducing its actual
+eight-row graph envelope gives a 21.0% decode-chain gain on .179 and 19.7% on
+.178. A device-local startup table propagates the route to real serving:
+C2 completion improves 5.47% (9467.5 → 8949.5 ms); C1 is unchanged within noise.
+The independent timeline's decode reduction agrees with the full-request delta.
+Token trajectories are not equivalent and some C2 repeats vary, so this stays
+experimental, not a default or release claim. Selected c322 counters identify
+fixed instruction dependencies as the leading warp-latency contribution;
+global-load stalls and barriers alone are no longer the complete hypothesis.

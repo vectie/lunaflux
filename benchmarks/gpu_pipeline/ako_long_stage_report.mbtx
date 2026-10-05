@@ -1,0 +1,150 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn quoted(line : StringView) -> Array[String] {
+  line[1:line.length() - 1].split("\",\"").map(x => x.to_owned()).to_array()
+}
+
+///|
+fn counters(csv : String) -> Json raise {
+  guard csv.split("\n").filter(x => x.has_prefix("\"")).to_array()
+    is [header, _, data, ..] else {
+    fail("raw counter header, units and data")
+  }
+  let keys = quoted(header)
+  let values = quoted(data)
+  assert_eq(keys.length(), values.length())
+  let selected = [
+    "Kernel Name", "gpu__time_duration.sum", "launch__registers_per_thread", "derived__local_spilling_requests",
+    "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "smsp__issue_active.avg.pct_of_peak_sustained_active", "smsp__warps_eligible.avg.per_cycle_active",
+    "smsp__average_warp_latency_per_inst_issued.ratio", "derived__memory_l1_wavefronts_shared_excessive",
+  ]
+  let fields : Map[String, Json] = Map([])
+  let mut latency = 0.0
+  for i, key in keys {
+    if selected.contains(key) ||
+      key.has_prefix("smsp__average_warps_issue_stalled_") {
+      fields[key] = Json(values[i])
+    }
+    if key == "smsp__average_warp_latency_per_inst_issued.ratio" {
+      latency = @string.parse_double(values[i])
+    }
+  }
+  guard latency > 0.0 else { fail("warp latency denominator") }
+  let contributions : Map[String, Json] = Map([])
+  for i, key in keys {
+    if key.has_prefix("smsp__average_warps_issue_stalled_") {
+      contributions[key] = Json(
+        100.0 * @string.parse_double(values[i]) / latency,
+      )
+    }
+  }
+  {
+    "raw": Json::object(fields),
+    "warp_latency_percent": Json::object(contributions),
+  }
+}
+
+///|
+fn instructions(csv : String) -> Array[Json] raise {
+  let lines = csv.split("\n").filter(x => x.has_prefix("\"")).to_array()
+  guard lines is [_, header, .. data] else { fail("SASS source table") }
+  let keys = quoted(header)
+  let source = keys.search("Source").unwrap()
+  let count = keys.search("Instructions Executed").unwrap()
+  let waiting = keys.search("stall_wait").unwrap()
+  let totals : Map[String, (Double, Double)] = Map([])
+  for line in data {
+    let cells = quoted(line)
+    assert_eq(cells.length(), keys.length())
+    let words = cells[source]
+      .trim()
+      .split(" ")
+      .filter(x => !x.is_empty())
+      .to_array()
+    guard words is [first, .. rest] else { continue }
+    let opcode = (if first.has_prefix("@") { rest[0] } else { first }).to_owned()
+    let (old, wait) = totals.get(opcode).unwrap_or((0.0, 0.0))
+    totals[opcode] = (
+      old + @string.parse_double(cells[count]),
+      wait + @string.parse_double(cells[waiting]),
+    )
+  }
+  let sorted = totals.to_array()
+  sorted.sort_by((a, b) => b.1.0.compare(a.1.0))
+  sorted.map(x => {
+    "opcode": x.0,
+    "warp_instructions": x.1.0,
+    "fixed_latency_samples": x.1.1,
+  })
+}
+
+///|
+fn timeline(csv : String) -> Json raise {
+  let lines = csv.split("\n").filter(x => !x.is_empty()).to_array()
+  assert_eq(
+    lines[0],
+    "kernel,gridX,gridY,gridZ,blockX,registersPerThread,calls,total_ms",
+  )
+  let entries : Array[Json] = []
+  let mut total = 0.0
+  for line in lines[1:] {
+    guard line.split(",").to_array()
+      is [name, gx, gy, gz, bx, regs, calls, duration] else {
+      fail("aggregate kernel row")
+    }
+    let millis = @string.parse_double(duration)
+    total += millis
+    entries.push({
+      "kernel": name.to_owned(),
+      "grid": [gx.to_owned(), gy.to_owned(), gz.to_owned()],
+      "threads": @string.parse_int(bx),
+      "registers": @string.parse_int(regs),
+      "calls": @string.parse_int(calls),
+      "two_wave_gpu_ms": millis,
+    })
+  }
+  {
+    "scope": "profiled two-wave sum, not request wall time or throughput",
+    "sum_gpu_ms": total,
+    "entries": entries,
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else {
+    fail("LOCAL_RAW_COUNTER_AND_TIMELINE_DIRECTORY")
+  }
+  let report : Json = {
+    "prefill_r1": counters(@fs.read_file(root + "/q2048-r1.raw.csv").text()),
+    "prefill_r2": counters(@fs.read_file(root + "/q2048-r2.raw.csv").text()),
+    "prefill_r2_opcode": instructions(
+      @fs.read_file(root + "/q2048-r2.sass.csv").text(),
+    ),
+    "c1": timeline(@fs.read_file(root + "/c1-kernels.csv").text()),
+    "c2": timeline(@fs.read_file(root + "/c2-kernels.csv").text()),
+  }
+  @fs.write_file(
+    root + "/stage-counter-report.json",
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("report=" + root + "/stage-counter-report.json")
+}
+
+///|
+test "quoted commas and stall denominator stay explicit" {
+  assert_eq(quoted("\"a\",\"(8, 8, 1)\""), ["a", "(8, 8, 1)"])
+  let result = counters(
+    "\"smsp__average_warp_latency_per_inst_issued.ratio\",\"smsp__average_warps_issue_stalled_wait_per_issue_active.ratio\"\n\"cycle\",\"cycle\"\n\"5\",\"2\"\n",
+  )
+  assert_true(result.stringify().contains("40"))
+}

@@ -167,7 +167,7 @@ int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
   if(argc<7 || argc>15)return 1;
   bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false,mixed_decode_comparison=false;
-  int chunk_tokens=0,decode_history=-1;
+  int chunk_tokens=0,decode_history=-1,traced_bucket=0;
   std::string mixed_companion_root;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
@@ -185,6 +185,7 @@ int main(int argc,char**argv){
       mixed_companion_root=argv[++i];mixed=true;mixed_decode_comparison=true;
     }
     else if(std::string(argv[i])=="--decode-history" && decode_history<0 && i+1<argc){decode_history=std::stoi(argv[++i]);if(decode_history<0)return 1;}
+    else if(std::string(argv[i])=="--query-bucket-bound" && !traced_bucket && i+1<argc){traced_bucket=std::stoi(argv[++i]);if(traced_bucket<1)return 1;}
     else if(std::string(argv[i])=="--prefill-chunk-parity" && !chunk_tokens && i+1<argc){chunk_tokens=std::stoi(argv[++i]);if(chunk_tokens<1)return 1;}
     else return 1;
   }
@@ -212,9 +213,10 @@ int main(int argc,char**argv){
   if(mixed_chain && int64_t(decode_history)+1>int64_t(page)*max_pages)return 1;
   if((decode_envelope || partitioned) && !decode && !phase_parity)return 1;
   if(decode_chain_comparison && (!decode || phase_parity))return 1;
+  if(traced_bucket && (!decode || decode_envelope || mixed || phase_parity))return 1;
   // Explicit replay of a traced capacity-grid graph, including inactive rows.
   // Do not silently treat a compact synthetic bucket as the serving envelope.
-  const int bucket_tokens=decode_envelope?max_rows:selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
+  const int bucket_tokens=decode_envelope?max_rows:selected_capture_bound(tokens,decode?max_rows:max_tokens,traced_bucket);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
   Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity&&!decode_chain_comparison),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned,prefill_partitioned);
   std::unique_ptr<Kernel> mixed_companion, mixed_decode_candidate;

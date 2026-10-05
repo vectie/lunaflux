@@ -2,8 +2,12 @@
 
 ## Hypothesis and corrected priority
 
-Pure C1/C2 decode already selects partitioned graphs in the measured serving
-trace. The remaining selection gap is the **mixed** graph's ordinary c468
+Correction after the fresh kernel-symbol timeline collected later on October 5:
+pure C1 selects partitioned decode, but pure C2 still selects ordinary decode.
+The earlier interpretation of numeric owner 77 as partitioned was incorrect;
+owner IDs alone are not kernel identity. See the
+[subsequent long-stage report](BENCHMARK_AKO_LONG_STAGE_AND_C2_DECODE_2026-10-05.md).
+This experiment targeted the **mixed** graph's ordinary c468
 decode companion. Route 7 already represents unsplit prefill followed by
 partitioned decode; its executable preparation exists, but the completed
 mixed-route table selected route 1 and contained no route-7 measurements.

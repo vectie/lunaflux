@@ -1,0 +1,92 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(program, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, query] else {
+    fail("COMPLETED_COUNTER_ROOT UNIT_SUFFIX FROZEN_QUERY_ROOT")
+  }
+  for rows in [1, 2] {
+    let unit = "lunaflux-prefill-detail-r\{rows}-" + suffix + ".service"
+    let status = capture(root, "status-r\{rows}", "systemctl", [
+      "show", unit, "-p", "ActiveState", "-p", "Result", "-p", "ExecMainStatus",
+    ])
+    // Successful transient units can be garbage-collected before collection.
+    // Preserve that status; require the actual terminal journal below instead.
+    assert_false(status.contains("ActiveState=active"))
+    let journal = capture(root, "journal-r\{rows}", "journalctl", [
+      "-u", unit, "--no-pager",
+    ])
+    assert_true(journal.contains("correctness=passed bitwise=true maxabs=0"))
+    assert_false(journal.contains("Failed with result"))
+    ignore(
+      capture(
+        root,
+        "details-r\{rows}",
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+        [
+          "--import",
+          root + "/q2048-r\{rows}.ncu-rep",
+          "--page",
+          "details",
+          "--csv",
+        ],
+      ),
+    )
+  }
+  ignore(
+    capture(root, "artifacts", "sha256sum", [
+      "/usr/local/cuda-13.0/bin/nvcc",
+      "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+      query + "/probe",
+      query + "/selected/kernel.cubin",
+      query + "/prefill.spec",
+    ]),
+  )
+  let uuid = capture(root, "gpu", "nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ])
+  assert_eq(uuid.trim(), "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f")
+  // This check does not require the second, independent GPU to be idle.
+  let idle = capture(root, "idle-terminal", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  assert_true(idle.trim().is_empty())
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=two selected c322 counter captures on synthetic operands; not serving timing or baseline comparison\n",
+    create_mode=CreateNew,
+  )
+}
