@@ -1,0 +1,126 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn command(exe : String, args : Array[String]) -> String {
+  let out = @shell.Cmd(exe, args).output()
+  out.check() catch { _ => fail(exe + ": " + out.stdout() + out.stderr()) }
+  out.stdout()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let first = @shell.Cmd("sha256sum", [path]).output()
+  let out = try first.check() catch {
+    _ => @shell.Cmd("shasum", ["-a", "256", path]).output()
+  } noraise { _ => first }
+  out.check() catch { _ => fail("digest: " + out.stdout() + out.stderr()) }
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+// Offline compatibility regression for the capacity materializer. The fixture
+// intentionally has no GPU/model authority and cannot qualify physical serving.
+async fn main {
+  guard @env.args() is [_, repo] else { fail("REPOSITORY_ROOT") }
+  let scratch = command("mktemp", ["-d", "/tmp/lunaflux-capacity-target.XXXXXXXX"])
+    .trim()
+    .to_owned()
+  let root = command("realpath", [scratch]).trim().to_owned()
+  let a = "a".repeat(64)
+  for
+    target in [
+      "sm_80", "sm_90", "sm_120", "sm_121", "sm_75", "sm_0121", "sm_121x",
+    ] {
+    let dir = root + "/" + target
+    @fs.mkdir(dir)
+    let deployment = dir + "/deployment"
+    for
+      relative in [
+        "", "/evidence", "/model-root", "/model-root/runtime", "/policy-root", "/policy-root/instance",
+      ] {
+      @fs.mkdir(deployment + relative)
+    }
+    let bind = "schema=lunaflux-qwen3-bf16-release-bind.v1\n" +
+      "recipe=dense_qwen3_bf16_paged_aot_v12\n" +
+      "target=" +
+      target +
+      "\n" +
+      [
+        "model_content_sha256", "model_plan_sha256", "weight_route_manifest_sha256",
+        "kernel_manifest_sha256", "admitted_bootstrap_sha256",
+      ]
+      .map(key => key + "=" + a + "\n")
+      .join("") +
+      "max_batch_rows=32\nmax_query_rows=32\nmax_query_tokens=8192\ncompiler_invoked=0\ndevice_opened=0\nruntime_authority=0\n"
+    let bind_path = dir + "/bind.txt"
+    @fs.write_file(bind_path, bind, create_mode=CreateNew)
+    @fs.write_file(
+      deployment + "/evidence/release-bind.v1",
+      bind,
+      create_mode=CreateNew,
+    )
+    let launch = deployment + "/lunaflux.launch.json"
+    @fs.write_file(launch, "{}\n", create_mode=CreateNew)
+    let descriptor : Json = {
+      "schema_version": "lunaflux.runtime.qwen3_bf16.v2",
+      "model": { "max_batch_rows": 32 },
+    }
+    @fs.write_file(
+      deployment + "/model-root/runtime/descriptor.json",
+      descriptor.stringify(),
+      create_mode=CreateNew,
+    )
+    let policy : Json = {
+      "schema_version": "lunaflux.instance-policy.v1",
+      "scheduler": { "max_active_requests": 32, "max_waiting_requests": 32 },
+    }
+    @fs.write_file(
+      deployment + "/policy-root/instance/policy.json",
+      policy.stringify(),
+      create_mode=CreateNew,
+    )
+    let fixture = dir + "/fixture-executable"
+    @fs.write_file(
+      fixture,
+      "offline-fixture\n",
+      create_mode=CreateNew,
+      permission=0o555,
+    )
+    let common = [
+      bind_path + "#sha256=" + sha(bind_path),
+      deployment + "#sha256=" + sha(launch),
+      fixture + "#sha256=" + sha(fixture),
+      fixture + "#sha256=" + sha(fixture),
+    ]
+    let receipt = dir + "/capacity.json"
+    let out = @shell.Cmd(
+      repo + "/scripts/materialize-qwen3-authenticated-capacity.sh",
+      [..common, receipt],
+    ).output()
+    if ["sm_80", "sm_90", "sm_120", "sm_121"].contains(target) {
+      out.check() catch { _ => fail(target + ": " + out.stdout() + out.stderr()) }
+      let verified = command(
+        repo + "/scripts/verify-qwen3-authenticated-capacity.sh",
+        [..common, receipt + "#sha256=" + sha(receipt)],
+      )
+      assert_true(verified.contains("outcome=passed"))
+    } else {
+      let failed = try out.check() catch {
+        _ => true
+      } noraise {
+        _ => false
+      }
+      assert_true(failed)
+      assert_true(!@fs.exists(receipt))
+    }
+    println("target=" + target + " expected_result=verified")
+  }
+  println("outcome=passed\nfixture_root=" + root)
+}

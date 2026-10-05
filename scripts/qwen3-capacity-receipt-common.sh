@@ -88,9 +88,14 @@ qcap_admit_inputs() {
   [ -x "$qcap_bridge_path" ] || qcap_fail 'Qwen token-ID bridge is not executable'
 
   [ "$(qcap_bind_value schema)" = lunaflux-qwen3-bf16-release-bind.v1 ] &&
-    [ "$(qcap_bind_value recipe)" = dense_qwen3_bf16_paged_aot_v12 ] &&
-    [ "$(qcap_bind_value target)" = sm_120 ] ||
-    qcap_fail 'release binding is not the Qwen3 BF16 v12 sm120 route'
+    [ "$(qcap_bind_value recipe)" = dense_qwen3_bf16_paged_aot_v12 ] ||
+    qcap_fail 'release binding is not the Qwen3 BF16 v12 route'
+  # The exact target is already bound by the receipt digest and native preflight.
+  # Capacity is not tied to one CUDA architecture.
+  case "$(qcap_bind_value target)" in
+    sm_[8-9][0-9]|sm_[1-9][0-9][0-9]) ;;
+    *) qcap_fail 'release binding target is not a canonical BF16 CUDA target' ;;
+  esac
   qcap_model_content_sha=$(qcap_bind_value model_content_sha256)
   qcap_model_plan_sha=$(qcap_bind_value model_plan_sha256)
   qcap_route_sha=$(qcap_bind_value weight_route_manifest_sha256)
