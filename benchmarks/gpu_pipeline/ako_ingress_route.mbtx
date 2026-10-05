@@ -1,0 +1,400 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn captured(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String,
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd?, env={
+    "PATH": "/usr/local/cuda-13.0/bin:/usr/local/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, previous, root, phase] else {
+    fail(
+      "FROZEN_BASE PREVIOUS_KERNEL_EXPERIMENT NEW_ROOT prepare|stage|routes|materialize",
+    )
+  }
+  let moon = base + "/toolchain/bin/moon"
+  if phase == "refresh" {
+    assert_true(
+      captured(root, "final-overlay-hash", "sha256sum", [
+        root + "/final-overlay.tar.gz",
+      ]).has_prefix(
+        "363fc2a9c0580be4c6950dc93821fec01fb3524595a5d40417a21f06a68cabc0 ",
+      ),
+    )
+    ignore(
+      captured(root, "final-overlay", "tar", [
+        "-xzf",
+        root + "/final-overlay.tar.gz",
+        "-C",
+        root + "/source",
+      ]),
+    )
+    ignore(
+      captured(
+        root,
+        "final-build",
+        moon,
+        [
+          "build", "--target", "native", "--release", "--deny-warn", "--warn-list",
+          "-79-20-29-25-92-14", "-j", "2", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+          "cmd/device_worker_child", "cmd/lunaflux", "cmd/lunaflux_qwen3_token_id_bridge",
+          "tests/qwen3_bf16_serving_supervisor",
+        ],
+        cwd=root + "/source",
+      ),
+    )
+    ignore(
+      captured(
+        root,
+        "final-tests",
+        moon,
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+          "-j", "2", "kernels/luna_fused_artifact_admission", "engine/device_step",
+          "engine/device_worker_bootstrap", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+        ],
+        cwd=root + "/source",
+      ),
+    )
+    return
+  }
+  if phase == "prepare" {
+    guard !@fs.exists(root + "/source") else {
+      fail("new source root required")
+    }
+    @fs.mkdir(root + "/source")
+    @shell.Cmd("cp", ["-a", base + "/source/.", root + "/source"]).run()
+    assert_true(
+      captured(root, "overlay-hash", "sha256sum", [root + "/overlay.tar.gz"]).has_prefix(
+        "a09e8de62e752f0dfabba5e50b5bea231ce35a4e9f3a1bbfbe831bb59fec67ee ",
+      ),
+    )
+    ignore(
+      captured(root, "overlay", "tar", [
+        "-xzf",
+        root + "/overlay.tar.gz",
+        "-C",
+        root + "/source",
+      ]),
+    )
+    ignore(
+      captured(
+        root,
+        "build",
+        moon,
+        [
+          "build", "--target", "native", "--release", "--deny-warn", "--warn-list",
+          "-79-20-29-25-92-14", "-j", "2", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+          "cmd/device_worker_child", "cmd/lunaflux", "cmd/lunaflux_qwen3_token_id_bridge",
+          "tests/qwen3_bf16_serving_supervisor",
+        ],
+        cwd=root + "/source",
+      ),
+    )
+    ignore(
+      captured(
+        root,
+        "tests",
+        moon,
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25-92-14",
+          "-j", "2", "kernels/luna_fused_artifact_admission", "engine/device_step",
+          "engine/device_worker_bootstrap", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+        ],
+        cwd=root + "/source",
+      ),
+    )
+    return
+  }
+  let exporter = root +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe"
+  if phase == "stage" {
+    @fs.mkdir(root + "/calibration")
+    let spec = @fs.read_file(base + "/ingress.spec").text()
+    let decode = spec
+      .replace(old="kind=ingress", new="kind=decode")
+      .replace(old="input_width=1024", new="input_width=4096")
+    let prefill = spec
+      .replace(old="kind=ingress", new="kind=prefill")
+      .replace(old="input_width=1024", new="input_width=4096")
+      .replace(old="query_metadata_version=0", new="query_metadata_version=1")
+    @fs.write_file(
+      root + "/calibration/decode.spec",
+      decode,
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/calibration/prefill.spec",
+      prefill,
+      create_mode=CreateNew,
+    )
+  }
+  for name in ["control", "candidate"] {
+    let serving = root + "/" + name
+    if phase == "stage" {
+      @fs.mkdir(serving)
+      @shell.Cmd("ln", ["-s", root + "/source", serving + "/source"]).run()
+      @shell.Cmd("ln", ["-s", base + "/toolchain", serving + "/toolchain"]).run()
+      for
+        dir in [
+          "release", "fused", "prefill-selected", "decode-selected", "wide-prefill-selected",
+        ] {
+        @shell.Cmd("cp", ["-a", base + "/" + dir, serving + "/" + dir]).run()
+      }
+      @shell.Cmd("ln", ["-s", base + "/candidate", serving + "/candidate"]).run()
+      for
+        file in [
+          "toolchain.v1", "convert.stdout", "bind.stdout", "export.stdout", "benchmark.mbtx",
+          "check-probe",
+        ] {
+        @fs.write_file(
+          serving + "/" + file,
+          @fs.read_file(base + "/" + file),
+          create_mode=CreateNew,
+          permission=if file == "check-probe" { 0o755 } else { 0o444 },
+        )
+      }
+      let prepare = @fs.read_file(base + "/prepare-full.mbtx")
+        .text()
+        .replace(
+          old="let cli = source+\"/_build/native/release/build/cmd/\"",
+          new="let cli = " +
+            Json(root + "/source/_build/native/release/build/cmd/").stringify(),
+        )
+      @fs.write_file(
+        serving + "/prepare-full.mbtx",
+        prepare,
+        create_mode=CreateNew,
+      )
+      @shell.Cmd("mv", [
+        serving + "/fused/reusable-fused-runtime-bundle.v3",
+        serving + "/fused/prior-bundle.v3",
+      ]).run()
+      let args = @fs.read_file(base + "/fused/export.arguments")
+        .text()
+        .split("\n")
+        .filter(s => !s.is_empty())
+        .map(s => {
+          s.to_owned().replace(old=base + "/fused/", new=serving + "/fused/")
+        })
+        .to_array()
+      if name == "candidate" {
+        let dir = previous +
+          "/qkv-candidates/reusable-qwen-full-ingress-ingress-g4-a2-s2-t4-f1"
+        assert_eq(
+          field(@fs.read_file(dir + "/kernel.recipe").text(), "source_sha256"),
+          "c8d0b7718d7bcbfedff43c20a1e145fe5eb42cfbafc71e38431cc16f86740c69",
+        )
+        @fs.mkdir(serving + "/small-ingress")
+        for file in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+          @fs.write_file(
+            serving + "/small-ingress/" + file,
+            @fs.read_file(dir + "/" + file),
+            create_mode=CreateNew,
+            permission=0o444,
+          )
+        }
+        args.append([
+          "--ingress-row-variant",
+          "64",
+          "16",
+          "0",
+          serving + "/small-ingress/kernel.cubin",
+        ])
+      }
+      ignore(captured(serving, "bundle", exporter, args))
+      @fs.write_file(
+        serving + "/fused/export.arguments",
+        args.join("\n") + "\n",
+      )
+      @fs.write_file(
+        serving + "/fused/export.stdout",
+        @fs.read_file(serving + "/bundle.stdout"),
+      )
+    } else if phase == "routes" {
+      // Measure the exact current attention implementations under each new
+      // immutable chain scope; never relabel old measurements as new captures.
+      ignore(
+        captured(serving, "routes", "systemd-run", [
+          "--user",
+          "--wait",
+          "--pipe",
+          "--collect",
+          "--unit=lunaflux-ako-ingress-routes-" + name,
+          "--property=MemoryMax=8G",
+          "--property=MemorySwapMax=0",
+          "--property=RuntimeMaxSec=1800",
+          moon,
+          "run",
+          root + "/measure_decode_routes.mbtx",
+          serving,
+          root + "/calibration",
+        ]),
+      )
+    } else if phase == "finalize-bundles" {
+      // Preserve the measured chain scope while rebinding the final exact
+      // source. Row variants must not silently enable approximate arithmetic.
+      let old_report = @fs.read_file(serving + "/fused/export.stdout").text()
+      let original = serving + "/fused/reusable-fused-runtime-bundle.v3"
+      let routed = serving + "/fused-routed/reusable-fused-runtime-bundle.v3"
+      for path in [original, routed] {
+        @shell.Cmd("mv", [path, path + ".before-final"]).run()
+      }
+      let args = @fs.read_file(serving + "/fused/export.arguments")
+        .text()
+        .split("\n")
+        .filter(s => !s.is_empty())
+        .map(s => s.to_owned())
+        .to_array()
+      let current = captured(serving, "final-bundle", exporter, args)
+      assert_eq(
+        field(old_report, "attention_route_scope"),
+        field(current, "attention_route_scope"),
+      )
+      let routes = serving + "/decode-route-measurements/routes.v1"
+      let digest = captured(serving, "final-routes-hash", "sha256sum", [routes])
+      .split(" ")
+      .to_array()[0].to_owned()
+      let routed_args = args.map(s => if s == original { routed } else { s })
+      routed_args.append(["--attention-buckets", routes, digest])
+      ignore(captured(serving, "final-routed-bundle", exporter, routed_args))
+    } else if phase == "materialize" || phase == "materialize-repaired" {
+      if @fs.exists(serving + "/long/PREPARED.json") {
+        continue
+      }
+      if phase == "materialize-repaired" &&
+        (
+          @fs.exists(serving + "/deployment") ||
+          @fs.exists(serving + "/deployment.base")
+        ) &&
+        !@fs.exists(serving + "/deployment/lunaflux.launch.json") {
+        let failed = serving +
+          (if @fs.exists(serving + "/materialize-failed") {
+            "/materialize-failed-base"
+          } else {
+            "/materialize-failed"
+          })
+        @fs.mkdir(failed)
+        for dir in ["deployment", "deployment.base"] {
+          if @fs.exists(serving + "/" + dir) {
+            @shell.Cmd("mv", [serving + "/" + dir, failed + "/" + dir]).run()
+          }
+        }
+        for
+          file in [
+            "driver-materialize.command.json", "driver-materialize.stdout", "driver-materialize.stderr",
+            "materialize.stdout", "materialize.stderr",
+          ] {
+          if @fs.exists(serving + "/" + file) {
+            @shell.Cmd("mv", [serving + "/" + file, failed + "/" + file]).run()
+          }
+        }
+      }
+      for action in ["materialize", "capacity"] {
+        if action == "materialize" &&
+          @fs.exists(serving + "/deployment/lunaflux.launch.json") {
+          assert_true(
+            @fs.read_file(serving + "/materialize.stdout")
+            .text()
+            .has_prefix("schema=lunaflux-qwen3-v12-launch-materialization.v2\n"),
+          )
+          continue
+        }
+        if action == "capacity" &&
+          @fs.exists(serving + "/capacity.stderr") &&
+          !@fs.exists(serving + "/capacity.json") {
+          assert_true(
+            @fs.read_file(serving + "/capacity.stdout")
+            .text()
+            .contains("unknown phase"),
+          )
+          for extension in ["stdout", "stderr", "command.json"] {
+            @shell.Cmd("mv", [
+              serving + "/capacity." + extension,
+              serving + "/capacity.failed-helper." + extension,
+            ]).run()
+          }
+        }
+        ignore(
+          captured(serving, "driver-" + action, moon, [
+            "run",
+            serving + "/prepare-full.mbtx",
+            serving,
+            action,
+          ]),
+        )
+      }
+      @fs.mkdir(serving + "/long")
+      let prepare = @fs.read_file(root + "/prepare_long_context.mbtx")
+        .text()
+        .replace(
+          old="let cmd = base + \"/source/_build/native/release/build/cmd/\"",
+          new="let cmd = " +
+            Json(root + "/source/_build/native/release/build/cmd/").stringify(),
+        )
+      @fs.write_file(
+        serving + "/prepare-long.mbtx",
+        prepare,
+        create_mode=CreateNew,
+      )
+      ignore(
+        captured(serving, "long", moon, [
+          "run",
+          serving + "/prepare-long.mbtx",
+          serving,
+          serving + "/long",
+        ]),
+      )
+      for target in ["source", "toolchain", "export.stdout"] {
+        @shell.Cmd("ln", [
+          "-s",
+          serving + "/" + target,
+          serving + "/long/" + target,
+        ]).run()
+      }
+    } else {
+      fail("phase")
+    }
+  }
+}

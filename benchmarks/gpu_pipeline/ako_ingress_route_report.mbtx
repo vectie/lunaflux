@@ -1,0 +1,180 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("empty samples") }
+  let sorted = values.copy()
+  sorted.sort()
+  (sorted[(sorted.length() - 1) / 2] + sorted[sorted.length() / 2]) / 2.0
+}
+
+///|
+async fn route_winners(
+  root : String,
+  name : String,
+) -> Map[String, (Int64, Int)] {
+  let text = @fs.read_file(
+    root + "/" + name + "/decode-route-measurements/routes.v1",
+  ).text()
+  let winners : Map[String, (Int64, Int)] = Map([])
+  for line in text.split("\n").filter(s => s.has_prefix("record\t")) {
+    let fields = line.split("\t").to_array()
+    assert_eq(fields.length(), 8)
+    let key = fields[1:5].join("/")
+    let candidate = @string.parse_int(fields[5])
+    let time = @string.parse_int64(fields[6])
+    if winners.get(key) is Some((prior, id)) {
+      if time < prior || (time == prior && candidate < id) {
+        winners[key] = (time, candidate)
+      }
+    } else {
+      winners[key] = (time, candidate)
+    }
+  }
+  winners
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] else { fail("EXPERIMENT routes|timing") }
+  let baseline = route_winners(root, "control")
+  let candidate = route_winners(root, "candidate")
+  assert_eq(baseline.length(), candidate.length())
+  let changed : Array[Json] = []
+  for key, (_, id) in baseline {
+    let (_, other) = candidate[key]
+    if id != other {
+      changed.push({ "bucket": key, "control": id, "candidate": other })
+    }
+  }
+  println("attention_route_choices=" + baseline.length().to_string())
+  println("attention_route_choice_differences=" + Json(changed).stringify())
+  if mode == "routes" {
+    return
+  }
+  assert_eq(mode, "timing")
+  let indices = [[0, 3, 4], [1, 2, 5]]
+  let report : Array[Json] = []
+  for (input, output) in [(128, 32), (512, 64), (4096, 64)] {
+    for rows in [1, 8, 16] {
+      let cell = "i\{input}-o\{output}-c\{rows}"
+      let times : Array[Array[Double]] = []
+      let ttfts : Array[Array[Double]] = []
+      let gaps : Array[Array[Double]] = []
+      let vectors : Array[Array[Json]] = []
+      for side, name in ["control", "candidate"] {
+        let wall : Array[Double] = []
+        let first : Array[Double] = []
+        let gap : Array[Double] = []
+        let outputs : Array[Json] = []
+        for index in indices[side] {
+          let trial_root = root + "/timing-\{index}-\{name}"
+          assert_true(
+            @fs.read_file(trial_root + "/RESULT.txt")
+            .text()
+            .has_prefix("outcome=completed\n"),
+          )
+          let run = trial_root + "/r0-luna-full"
+          assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+          for trial in 1..<4 {
+            let record = @json.parse(
+              @fs.read_file(run + "/requests/\{cell}-t\{trial}.json").text(),
+            )
+            guard record
+              is {
+                "wall_ms": time,
+                "warmup": false,
+                "requests": Array(requests),
+                ..
+              } else {
+              fail("measured request set")
+            }
+            assert_eq(requests.length(), rows)
+            wall.push(number(time))
+            let current : Array[Json] = []
+            for request in requests {
+              guard request
+                is {
+                  "ttft_ms": ttft,
+                  "token_ms": Array(token_ms),
+                  "token_ids": Array(token_ids),
+                  ..
+                } else {
+                fail("token vectors")
+              }
+              assert_eq(token_ids.length(), output)
+              assert_eq(token_ms.length(), output)
+              first.push(number(ttft))
+              for i in 1..<output {
+                gap.push(number(token_ms[i]) - number(token_ms[i - 1]))
+              }
+              current.push(Json(token_ids))
+            }
+            outputs.push(Json(current))
+          }
+        }
+        times.push(wall)
+        ttfts.push(first)
+        gaps.push(gap)
+        vectors.push(outputs)
+      }
+      let paired = Array::makei(9, i => vectors[0][i] == vectors[1][i])
+      let record : Json = {
+        "cell": cell,
+        "control_wall_ms": times[0],
+        "candidate_wall_ms": times[1],
+        "control_median_ms": median(times[0]),
+        "candidate_median_ms": median(times[1]),
+        "completion_reduction": 1.0 - median(times[1]) / median(times[0]),
+        "control_output_tokens_per_second": output.to_double() *
+        rows.to_double() *
+        1000.0 /
+        median(times[0]),
+        "candidate_output_tokens_per_second": output.to_double() *
+        rows.to_double() *
+        1000.0 /
+        median(times[1]),
+        "control_median_ttft_ms": median(ttfts[0]),
+        "candidate_median_ttft_ms": median(ttfts[1]),
+        "control_median_token_gap_ms": median(gaps[0]),
+        "candidate_median_token_gap_ms": median(gaps[1]),
+        "paired_same_output_vectors": paired,
+        "control_reproducible_vectors": vectors[0]
+        .filter(v => v == vectors[0][0])
+        .length(),
+        "candidate_reproducible_vectors": vectors[1]
+        .filter(v => v == vectors[1][0])
+        .length(),
+        "control_output_vectors": vectors[0],
+        "candidate_output_vectors": vectors[1],
+      }
+      report.push(record)
+      println(
+        "\{cell}: control_ms=\{median(times[0])} candidate_ms=\{median(times[1])} reduction=\{1.0-median(times[1])/median(times[0])} vectors=\{paired.filter(b => b).length()}/9",
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/serving-comparison.json",
+    Json({ "attention_route_choice_differences": changed, "cells": report }).stringify(
+      indent=2,
+    ),
+    create_mode=CreateNew,
+  )
+}

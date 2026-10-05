@@ -1,0 +1,295 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn portable_inventory(text : String, root : String) -> String {
+  text
+  .split("\n")
+  .map(line => line.to_owned().replace(old="  " + root + "/", new="  "))
+  .to_array()
+  .join("\n")
+}
+
+///|
+async fn checked(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  if @env.args() is [_, local_root, "--verify-downloaded", remote_root] {
+    @fs.write_file(
+      local_root + "/FILES.portable.sha256",
+      portable_inventory(
+        @fs.read_file(local_root + "/FILES.sha256").text(),
+        remote_root,
+      ),
+      create_mode=CreateNew,
+    )
+    let result = @shell.Cmd(
+      "shasum",
+      ["-a", "256", "-c", "FILES.portable.sha256"],
+      cwd=local_root,
+    ).output(max_output_bytes=33554432)
+    @fs.write_file(
+      local_root + "/inventory-verification.stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      local_root + "/inventory-verification.stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    println("downloaded inventory verified")
+    return
+  }
+  let (root, blocked) = match @env.args() {
+    [_, root] => (root, false)
+    [_, root, "--preserve-validation-blocker"] => (root, true)
+    _ => fail("COMPLETED_INGRESS_AB [--preserve-validation-blocker]")
+  }
+  let order = [
+    "control", "candidate", "candidate", "control", "control", "candidate",
+  ]
+  let paths : Array[String] = [
+    "overlay.tar.gz", "final-overlay.tar.gz", "ako_ingress_route.mbtx", "ako_ingress_route_serving.mbtx",
+    "ako_ingress_route_report.mbtx", "ako_ingress_route_finish.mbtx", "measure_decode_routes.mbtx",
+    "prepare_long_context.mbtx", "calibration", "serving-comparison.json", "source/scripts/assemble-luna-kernel-root.mbtx",
+    "source/scripts/materialize-qwen3-bf16-v12-launch.mbtx", "trace-0-candidate",
+    "diagnostic-spawn.original.c", "DIAGNOSTIC_SCOPE.txt", "diagnostic-source/internal/process/process_approved_spawn.c",
+    "memcheck-0-candidate",
+  ]
+  let trials : Array[String] = []
+  let mut minimum = 9223372036854775807L
+  for index, name in order {
+    let trial = "timing-\{index}-\{name}"
+    assert_true(
+      @fs.read_file(root + "/" + trial + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    assert_true(
+      @fs.read_file(root + "/" + trial + "/r0-luna-full/runtime.stderr")
+      .text()
+      .is_empty(),
+    )
+    paths.push(trial)
+    trials.push(trial)
+  }
+  for mode in ["trace", "memcheck"] {
+    if mode == "memcheck" && blocked {
+      continue
+    }
+    let trial = if mode == "trace" {
+      "trace-1-candidate"
+    } else {
+      "memcheck-0-candidate"
+    }
+    assert_true(
+      @fs.read_file(root + "/" + trial + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    assert_true(
+      @fs.read_file(root + "/" + trial + "/r0-luna-full/runtime.stderr")
+      .text()
+      .is_empty(),
+    )
+    paths.push(trial)
+    trials.push(trial)
+  }
+  let mut sanitizer = @fs.read_file(
+      root + "/memcheck-0-candidate/r0-luna-full/supervisor.stdout",
+    ).text() +
+    @fs.read_file(root + "/memcheck-0-candidate/r0-luna-full/supervisor.stderr").text()
+  let logs = @shell.Cmd("find", [
+    root + "/memcheck-0-candidate/r0-luna-full",
+    "-maxdepth",
+    "1",
+    "-name",
+    "sanitizer.*.log",
+    "-type",
+    "f",
+  ]).output()
+  logs.check()
+  let log_paths = logs
+    .stdout()
+    .split("\n")
+    .filter(s => !s.is_empty())
+    .to_array()
+  assert_true(!log_paths.is_empty())
+  for path in log_paths {
+    let log = @fs.read_file(path.to_owned()).text()
+    if !blocked {
+      assert_true(log.contains("ERROR SUMMARY: 0 errors"))
+    }
+    sanitizer += log
+  }
+  if blocked {
+    assert_true(
+      sanitizer.contains(
+        "Target application terminated before first instrumented API call",
+      ),
+    )
+    assert_true(sanitizer.contains("supervisor_status=4"))
+  } else {
+    assert_true(sanitizer.contains("ERROR SUMMARY: 0 errors"))
+    assert_true(sanitizer.contains("LEAK SUMMARY: 0 bytes leaked"))
+  }
+  let kernel_summary = @fs.read_file(root + "/trace-1-candidate/kernels.stdout").text()
+  assert_true(
+    kernel_summary.contains("production_cached_rotary_v3,1,32,128,75,"),
+  )
+  assert_true(
+    kernel_summary.contains("production_cached_rotary_v3,32,32,128,116,"),
+  )
+  for name in ["control", "candidate"] {
+    for
+      file in [
+        "fused", "fused-routed", "decode-route-measurements", "prefill-selected",
+        "decode-selected", "wide-prefill-selected", "prepare-full.mbtx", "prepare-long.mbtx",
+        "long/PREPARED.json", "long/capacity.json", "long/preflight.stdout", "long/preflight.stderr",
+        "long/deployment/lunaflux.launch.json", "long/deployment/model-root/runtime/descriptor.json",
+        "long/deployment/policy-root/instance/policy.json", "long/deployment/bin/lunaflux-device-worker",
+      ] {
+      paths.push(name + "/" + file)
+    }
+    if name == "candidate" {
+      paths.push(name + "/small-ingress")
+    }
+  }
+  let top = checked(root, "list-top", "find", [
+    root, "-maxdepth", "2", "-type", "f",
+  ])
+  for path in top.split("\n").filter(s => !s.is_empty()) {
+    let relative = path[root.length() + 1:].to_owned()
+    if relative.has_suffix(".stdout") ||
+      relative.has_suffix(".stderr") ||
+      relative.has_suffix(".command.json") {
+      if !paths.contains(relative) &&
+        !relative.has_prefix("timing-") &&
+        !relative.has_prefix("trace-") &&
+        !relative.has_prefix("memcheck-") {
+        paths.push(relative)
+      }
+    }
+  }
+  for trial in trials {
+    for
+      line in @fs.read_file(root + "/" + trial + "/r0-luna-full/memory.csv")
+      .text()
+      .split("\n")
+      .filter(s => !s.is_empty()) {
+      let free = @string.parse_int64(line.split(",").to_array()[1])
+      assert_true(free >= 33554432L)
+      minimum = minimum.min(free)
+    }
+  }
+  let gpu = checked(root, "terminal-gpu", "nvidia-smi", [
+    "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+  ])
+  assert_true(gpu.contains("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6"))
+  assert_true(
+    checked(root, "terminal-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=" +
+    (if blocked { "completed-with-validation-blocker" } else { "completed" }) +
+    "\nscope=bounded-ingress-serving-ab; not production promotion\nminimum_memavailable_kib=\{minimum}\nserving_memcheck=" +
+    (if blocked { "blocked-before-first-instrumented-api" } else { "passed" }) +
+    "\n",
+    create_mode=CreateNew,
+  )
+  paths.append(["RESULT.txt", "terminal-gpu.stdout", "terminal-idle.stdout"])
+  let files : Array[String] = []
+  for path in paths {
+    let found = @shell.Cmd("find", [root + "/" + path, "-type", "f"]).output()
+    found.check()
+    for file in found.stdout().split("\n").filter(s => !s.is_empty()) {
+      let file = file.to_owned()
+      if !file.contains("/_build/") &&
+        !file.contains("/.mooncakes/") &&
+        !file.has_suffix(".sqlite") &&
+        !files.contains(file) {
+        files.push(file)
+      }
+    }
+  }
+  files.sort()
+  let hashes = checked(root, "inventory", "sha256sum", ["--", ..files])
+  @fs.write_file(
+    root + "/FILES.sha256",
+    portable_inventory(hashes, root),
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  paths.push("FILES.sha256")
+  assert_true(!@fs.exists(root + "/measurement.tar.gz"))
+  ignore(
+    checked(
+      root,
+      "archive",
+      "tar",
+      [
+        "-czf",
+        root + "/measurement.tar.gz",
+        "--exclude=_build",
+        "--exclude=.mooncakes",
+        "--exclude=*.sqlite",
+        "-C",
+        root,
+        ..paths,
+      ],
+    ),
+  )
+  let digest = checked(root, "archive-hash", "sha256sum", [
+    root + "/measurement.tar.gz",
+  ])
+  println(digest)
+}
+
+///|
+test "every inventory path is portable, not just the first" {
+  assert_eq(
+    portable_inventory(
+      "aa  /remote/one\nbb  /remote/two\ncc  relative\n", "/remote",
+    ),
+    "aa  one\nbb  two\ncc  relative\n",
+  )
+}

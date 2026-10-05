@@ -1,0 +1,196 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  let parts = text.split(before).to_array()
+  guard parts.length() == 2 else { fail("frozen campaign seam changed") }
+  parts.join(after)
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  executable : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([executable, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(executable, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, base, experiment, mode] else {
+    fail(
+      "FROZEN_CAMPAIGN IMMUTABLE_BASE EXPERIMENT timing|trace|trace-retry|memcheck",
+    )
+  }
+  guard ["timing", "trace", "trace-retry", "memcheck"].contains(mode) else {
+    fail("mode")
+  }
+  let tracing = mode == "trace" || mode == "trace-retry"
+  let moon = base + "/toolchain/bin/moon"
+  let cmd = experiment + "/source/_build/native/release/build/cmd/"
+  let diagnostic = experiment + "/diagnostic-source"
+  if mode == "trace-retry" {
+    @fs.mkdir(diagnostic)
+    @shell.Cmd("cp", ["-a", experiment + "/source/.", diagnostic + "/"]).run()
+    let path = diagnostic + "/internal/process/process_approved_spawn.c"
+    let original = @fs.read_file(path).text()
+    @fs.write_file(
+      experiment + "/diagnostic-spawn.original.c",
+      original,
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      path,
+      once(
+        original, "fexecve(5, argv, sanitized_environment);", "/* OFFLINE DIAGNOSTIC ONLY: never deploy. */\n    extern char **environ;\n    (void)sanitized_environment;\n    fexecve(5, argv, environ);",
+      ),
+    )
+    capture(experiment, "diagnostic-build", "systemd-run", [
+      "--user", "--wait", "--pipe", "--collect", "--unit=lunaflux-ingress-route-diagnostic-build",
+      "--property=MemoryMax=8G", "--property=MemorySwapMax=0", "--property=RuntimeMaxSec=1800",
+      moon, "-C", diagnostic, "build", "cmd/lunaflux", "--target", "native", "--release",
+      "-j", "2", "--warn-list", "-79-20-29-25-92-14",
+    ])
+    @fs.write_file(
+      experiment + "/DIAGNOSTIC_SCOPE.txt",
+      "Offline parent retains injection only; unchanged production worker and AOT cubins. Not deployable; not a timing result.\n",
+      create_mode=CreateNew,
+    )
+  }
+  let supervisor = experiment +
+    "/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe"
+  let order = if mode != "timing" {
+    ["candidate"]
+  } else {
+    ["control", "candidate", "candidate", "control", "control", "candidate"]
+  }
+  for index, name in order {
+    let root = experiment +
+      "/" +
+      (if mode == "trace-retry" {
+        "trace-1"
+      } else {
+        mode + "-" + index.to_string()
+      }) +
+      "-" +
+      name
+    @fs.mkdir(root)
+    let client = once(
+      @fs.read_file(base + "/benchmark.mbtx").text(),
+      "[(128,32),(4096,64),(4096,256)]",
+      if tracing {
+        "[(128,32),(512,64),(4096,64)]"
+      } else {
+        "[(128,32),(512,64),(4096,64)]"
+      },
+    )
+    let client = if mode != "timing" {
+      once(once(client, "[1,8,16]", "[16]"), "0..<4", "0..<2")
+    } else {
+      client
+    }
+    let tool = once(
+      @fs.read_file(frozen + "/measure/launcher.mbtx").text(),
+      "let orders = [[\"vllm\",\"luna-full\",\"sglang\"]]",
+      "let orders = [[\"luna-full\"]]",
+    )
+    let tool = once(
+      tool,
+      "let cmd = \"/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/source/_build/native/release/build/cmd/\"",
+      "let cmd = " + Json(cmd).stringify(),
+    )
+    let tool = if mode == "trace-retry" || mode == "memcheck" {
+      once(
+        tool,
+        "cmd + \"lunaflux/lunaflux.exe\",",
+        Json(
+          diagnostic + "/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+        ).stringify() +
+        ",",
+      )
+    } else {
+      tool
+    }
+    let seam = "serving +\n        \"/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe\",\n        ["
+    let tool = once(
+      tool,
+      seam,
+      if tracing {
+        "\"/usr/local/bin/nsys\",\n        [\"profile\",\"--trace=cuda\",\"--sample=none\",\"--cpuctxsw=none\",\"--cuda-graph-trace=node\",\"--trace-fork-before-exec=true\",\"--wait=all\",\"-o\",root+\"/trace\"," +
+        Json(supervisor).stringify() +
+        ","
+      } else if mode == "memcheck" {
+        "\"/usr/local/cuda-13.0/bin/compute-sanitizer\",\n        [\"--tool\",\"memcheck\",\"--leak-check\",\"full\",\"--target-processes\",\"all\",\"--log-file\",root+\"/sanitizer.%p.log\",\"--error-exitcode\",\"99\"," +
+        Json(supervisor).stringify() +
+        ","
+      } else {
+        Json(supervisor).stringify() + ",\n        ["
+      },
+    )
+    let script = root + "/launcher.mbtx"
+    @fs.write_file(script, tool, create_mode=CreateNew)
+    @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+    for file in [script, script + ".client.mbtx"] {
+      @shell.Cmd(moon, ["check", file]).run()
+    }
+    capture(root, "campaign", moon, [
+      "run",
+      script,
+      experiment + "/" + name + "/long",
+      root,
+      script,
+    ])
+    if tracing {
+      let trial = root + "/r0-luna-full"
+      capture(root, "export", "/usr/local/bin/nsys", [
+        "export",
+        "--type=sqlite",
+        "--output=" + trial + "/trace.sqlite",
+        trial + "/trace.nsys-rep",
+      ])
+      capture(root, "kernels", "sqlite3", [
+        "-header",
+        "-csv",
+        trial + "/trace.sqlite",
+        "SELECT s.value AS kernel,k.gridX,k.gridY,k.blockX,k.registersPerThread,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.blockX,k.registersPerThread ORDER BY total_ms DESC;",
+      ])
+    }
+  }
+}
+
+///|
+test "campaign seams reject absent or ambiguous substitutions" {
+  assert_eq(once("a-x-b", "x", "y"), "a-y-b")
+  for text in ["absent", "xx"] {
+    try once(text, "x", "y") catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous seam accepted")
+    }
+  }
+}

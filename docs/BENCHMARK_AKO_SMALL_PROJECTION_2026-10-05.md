@@ -2,6 +2,11 @@
 
 ## Decision
 
+Follow-up: [bounded ingress routing](BENCHMARK_AKO_INGRESS_ROUTING_2026-10-05.md)
+now propagates the alternative into serving buckets and records fresh A/B
+results. It remains opt-in, with serving sanitizer qualification blocked.
+The kernel-only conclusions and retained regressions below are unchanged.
+
 The finite gate/up and QKV experiments are complete. **No production schedule
 was promoted and no new serving throughput is claimed.** The experimental
 gate/up bootstrap lowering was removed after it failed the paired performance
