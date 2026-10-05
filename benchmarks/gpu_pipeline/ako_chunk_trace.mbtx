@@ -104,6 +104,14 @@ async fn main {
       "--tracked-tokens",
       "315,389,279,198,13,271",
     ])
+    if @fs.exists(root + "/install_prefill_route_diagnostic.mbtx") {
+      capture(root, "install-routes", moon, [
+        "run",
+        root + "/install_prefill_route_diagnostic.mbtx",
+        root + "/source",
+        "--unsplit-prefill",
+      ])
+    }
     capture(root, "build", moon, [
       "-C",
       root + "/source",

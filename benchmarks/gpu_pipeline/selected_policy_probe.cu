@@ -46,9 +46,17 @@ struct Kernel {
   CUmodule module; CUfunction function,merge=nullptr,rotary_prepare=nullptr;
   unsigned gx,gy,gz,b,shared,merge_y=0,rotary_grid=0,rotary_block=0;
   int regs,resident,local; std::string law; size_t rotary_bytes=0;
-  void* workspace=nullptr;
-  explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode, bool postprocess=false, bool partitioned=false){
+  void* workspace=nullptr; void* merge_row_offsets=nullptr; bool prefill_split=false;
+  explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode, bool postprocess=false, bool partitioned=false, bool prefill_partitioned=false){
     auto r=fields(root+"/kernel.recipe");
+    if(prefill_partitioned) {
+      if(ingress || decode || postprocess || partitioned ||
+         r.at("schema")!="lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1")std::exit(1);
+      r["function_symbol"]=r.at("partial_function_symbol");
+      r["grid"]=r.at("partial_grid");
+      r["shared_memory_bytes"]=r.at("partial_shared_memory_bytes");
+      prefill_split=true;
+    }
     if(partitioned && !r.count("merge_function_symbol")) {
       if(!decode || !r.count("partition_function_symbol") || !r.count("partition_merge_function_symbol"))std::exit(1);
       r["function_symbol"]=r.at("partition_function_symbol");
@@ -60,7 +68,10 @@ struct Kernel {
     auto grid=tuple(r.at("grid")),block=tuple(r.at("block"));
     gx=grid.at(0);gy=grid.at(1);gz=grid.at(2);b=block.at(0);shared=number(r,"shared_memory_bytes");
     const int tile=(decode||postprocess) ? 1 : number(r,"query_tile_rows");
-    const bool metadata=!ingress&&!decode&&!postprocess&&number(r,"query_metadata_version")==1;
+    // The runtime split contract is QueryTileCappedGridX for both launches;
+    // unsplit attention uses QueryMetadataCappedGridX. Do not overlaunch the
+    // split pair merely because its partial operand is tile metadata.
+    const bool metadata=!ingress&&!decode&&!postprocess&&!prefill_split&&number(r,"query_metadata_version")==1;
     gx=postprocess?std::min(gx,unsigned(bucket_tokens)):selected_grid_x(gx,bucket_tokens,profile_rows,tile,metadata,decode);
     law=r.count("numeric_law") ? r.at("numeric_law") : "legacy-declared-law";
     CK(cuModuleLoad(&module,(root+"/kernel.cubin").c_str()));
@@ -74,10 +85,10 @@ struct Kernel {
       if(rotary_grid==0 || rotary_block==0 || rotary_block>1024)std::exit(1);
     }
     if(r.count("merge_function_symbol")) {
-      if(!decode || gz<=1 || !split_decode_law(law))std::exit(1);
+      if(gz<=1 || (!prefill_split && (!decode || !split_decode_law(law))))std::exit(1);
       CK(cuModuleGetFunction(&merge,module,r.at("merge_function_symbol").c_str()));
       auto bytes=std::stoull(r.at("workspace_bytes"));
-      if(bytes==0 || bytes>16777216)std::exit(1);
+      if(bytes==0 || bytes>(prefill_split?268435456ULL:16777216ULL))std::exit(1);
       CK(cudaMalloc(&workspace,bytes));CK(cudaMemset(workspace,0,bytes));
       merge_y=tuple(r.at("merge_grid")).at(1);
     }
@@ -96,7 +107,11 @@ struct Kernel {
   void launch(void** a){
     if(merge){
       void* partial[]={a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[8],a[9],&workspace};
-      void* combine[]={a[0],a[2],&workspace,a[7]};
+      // The prefill partial consumes tile metadata, but its merge consumes
+      // CSR row offsets. They are distinct runtime operands, not aliases.
+      if(prefill_split && !merge_row_offsets)std::exit(1);
+      void* merge_rows=prefill_split?merge_row_offsets:*static_cast<void**>(a[2]);
+      void* combine[]={a[0],&merge_rows,&workspace,a[7]};
       CK(cuLaunchKernel(function,gx,gy,gz,b,1,1,shared,nullptr,partial,nullptr));
       CK(cuLaunchKernel(merge,gx,merge_y,1,b,1,1,0,nullptr,combine,nullptr));
     }else{CK(cuLaunchKernel(function,gx,gy,1,b,1,1,shared,nullptr,a,nullptr));}
@@ -144,7 +159,7 @@ static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
   if(argc<7 || argc>15)return 1;
-  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false;
+  bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false;
   int chunk_tokens=0;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
@@ -153,6 +168,7 @@ int main(int argc,char**argv){
     else if(std::string(argv[i])=="--decode-partitioned" && !partitioned)partitioned=true;
     else if(std::string(argv[i])=="--streaming-ingress-weights" && !streaming)streaming=true;
     else if(std::string(argv[i])=="--prefill-decode-parity" && !phase_parity)phase_parity=true;
+    else if(std::string(argv[i])=="--prefill-partitioned" && !prefill_partitioned)prefill_partitioned=true;
     else if(std::string(argv[i])=="--prefill-chunk-parity" && !chunk_tokens && i+1<argc){chunk_tokens=std::stoi(argv[++i]);if(chunk_tokens<1)return 1;}
     else return 1;
   }
@@ -161,6 +177,7 @@ int main(int argc,char**argv){
   // Diagnostic-only metamorphic comparison of the same query/KV under two
   // phase laws. Never report this cross-phase replay as a paired timing win.
   if(phase_parity && (kind!="prefill" || !check_only || mixed || decode_envelope || streaming))return 1;
+  if(prefill_partitioned && (kind!="prefill" || mixed || phase_parity || chunk_tokens || decode_envelope || streaming || partitioned))return 1;
   if(chunk_tokens && (chunk_tokens<1 || kind!="prefill" || !check_only || mixed || phase_parity || decode_envelope || streaming || partitioned))return 1;
   if(streaming&&!ingress)return 1;
   const int tokens=std::stoi(argv[4]),rows=std::stoi(argv[5]),past=std::stoi(argv[6]);
@@ -179,7 +196,7 @@ int main(int argc,char**argv){
   // Do not silently treat a compact synthetic bucket as the serving envelope.
   const int bucket_tokens=decode_envelope?max_rows:selected_bucket_tokens(tokens,decode?max_rows:max_tokens);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
-  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned);
+  Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned,prefill_partitioned);
   std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u numeric_law=%s\n",
     decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
@@ -212,6 +229,7 @@ int main(int argc,char**argv){
   }
   Buffer dc(20),dp(positions.size()*4),doff(offsets.size()*4),dl(lengths.size()*4),dpo(po.size()*4),dpi(pages.size()*4),dm(metadata.size()*4);
   dc.put(counts);dp.put(positions);doff.put(offsets);dl.put(lengths);dpo.put(po);dpi.put(pages);dm.put(metadata);
+  candidate.merge_row_offsets=doff.p;
   Buffer dx(x.size()*2),dk(key.size()*2),dv(value.size()*2),out(size_t(tokens)*((ingress||postprocess)?(qh+2*kh)*d:qh*d)*2);
   dx.put(x);dk.put(key);dv.put(value);
   Buffer qw(size_t(qh)*d*(ingress?input_width:1)*2),kw(size_t(kh)*d*(ingress?input_width:1)*2),vw(kw.bytes),norm(d*2);

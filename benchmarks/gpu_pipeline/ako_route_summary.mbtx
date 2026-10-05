@@ -1,0 +1,61 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(value : Json, name : String) -> Json raise {
+  guard value is Object(fields) && fields.get(name) is Some(found) else {
+    fail("missing " + name)
+  }
+  found
+}
+
+///|
+test "summary refuses missing metrics instead of treating them as zero" {
+  assert_eq(field({ "changed_tokens": 0 }, "changed_tokens"), Json(0))
+  try field({}, "changed_tokens") catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing metric accepted")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, report] else { fail("CHUNK_TRACE_REPORT") }
+  let source = @json.parse(@fs.read_file(report).text())
+  guard field(source, "arms") is Array(arms) &&
+    field(source, "cross_chunk") is Array(cross) else {
+    fail("report arrays")
+  }
+  let summary : Json = {
+    "arms": arms.map(arm => {
+      let compact : Json = {
+        "chunk": field(arm, "query_chunk"),
+        "sampler_mismatches": field(arm, "gpu_cpu_argmax_mismatches"),
+        "repeat_changes": ["repeat_row0", "repeat_row1"].map(key => {
+          field(field(arm, key), "changed_tokens")
+        }),
+      }
+      compact
+    }),
+    "cross_chunk": cross.map(item => {
+      let comparison = field(item, "comparison")
+      let compact : Json = {
+        "row": field(item, "row"),
+        "trial": field(item, "trial"),
+        "first_token_difference": field(comparison, "first_token_difference"),
+        "changed_tokens": field(comparison, "changed_tokens"),
+        "first_tracked_logit_difference": field(
+          comparison, "first_tracked_logit_difference",
+        ),
+      }
+      compact
+    }),
+  }
+  println(summary.stringify(indent=2))
+}

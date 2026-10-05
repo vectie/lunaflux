@@ -1,0 +1,90 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn once(source : String, old : String, fresh : String) -> String raise {
+  let parts = source.split(old).to_array()
+  assert_eq(parts.length(), 2, msg=old)
+  parts.join(fresh)
+}
+
+///|
+fn install(source : String, unsplit : Bool) -> String raise {
+  let source = once(
+    source, "  let batch_rows = bucket.batch_rows()", "  trace_event(15, 0UL, bucket.slot(), (if bucket.slot() >= 0 && bucket.slot() < self.prefill_split_slot_owner_indices.length() { self.prefill_split_slot_owner_indices[bucket.slot()] } else { -1 }), self.deep_prefill_split_owner_index, (if bucket.slot() >= 0 && bucket.slot() < self.prefill_wide_slot_owner_indices.length() { self.prefill_wide_slot_owner_indices[bucket.slot()] } else { -1 }), self.prefill_split_minimum_context_tokens, self.prefill_split_partition_count, 0UL)\n  let batch_rows = bucket.batch_rows()",
+  )
+  let source = once(
+    source, "    return self.deep_prefill_split_owner_index", "    trace_event(16, 0UL, bucket.slot(), self.deep_prefill_split_owner_index, 3, batch_rows, query_tokens, context_tokens, 0UL)\n    return self.deep_prefill_split_owner_index",
+  )
+  let source = once(
+    source, "    return self.prefill_split_owner_index", "    trace_event(16, 0UL, bucket.slot(), self.prefill_split_owner_index, 2, batch_rows, query_tokens, context_tokens, 0UL)\n    return self.prefill_split_owner_index",
+  )
+  let source = once(
+    source, "    return self.prefill_wide_owner_index", "    trace_event(16, 0UL, bucket.slot(), self.prefill_wide_owner_index, 4, batch_rows, query_tokens, context_tokens, 0UL)\n    return self.prefill_wide_owner_index",
+  )
+  // Specialized owners return before their fallback. Tag those two seams
+  // explicitly; never infer a selected family from an owner number alone.
+  let source = once(
+    source, "let owner = self.prefill_split_slot_owner_indices[slot]\n      if owner >= 0 {\n        return owner",
+    "let owner = self.prefill_split_slot_owner_indices[slot]\n      if owner >= 0 {\n        trace_event(16, 0UL, slot, owner, 2, batch_rows, query_tokens, context_tokens, 0UL)\n        return owner",
+  )
+  let source = once(
+    source, "let owner = self.prefill_wide_slot_owner_indices[slot]\n      if owner >= 0 {\n        return owner",
+    "let owner = self.prefill_wide_slot_owner_indices[slot]\n      if owner >= 0 {\n        trace_event(16, 0UL, slot, owner, 4, batch_rows, query_tokens, context_tokens, 0UL)\n        return owner",
+  )
+  if unsplit {
+    let source = once(
+      source, "  if self.deep_prefill_split_owner_index >= 0 &&", "  // Disposable numerical isolation: never a production route default.\n  if false && self.deep_prefill_split_owner_index >= 0 &&",
+    )
+    once(
+      source, "  if self.prefill_split_owner_index >= 0 &&", "  if false && self.prefill_split_owner_index >= 0 &&",
+    )
+  } else {
+    source
+  }
+}
+
+///|
+async fn main {
+  let (root, unsplit) = match @env.args() {
+    [_, root] => (root, false)
+    [_, root, "--unsplit-prefill"] => (root, true)
+    _ => fail("DISPOSABLE_TRACE_SOURCE [--unsplit-prefill]")
+  }
+  guard root.contains("/lunaflux-ako-chunk-trace-") &&
+    @fs.exists(root + "/engine/device_step/diagnostic_execution.mbt") else {
+    fail("requires a dedicated execution-trace copy")
+  }
+  let path = root + "/engine/device_step/graph_bucket.mbt"
+  @fs.write_file(path, install(@fs.read_file(path).text(), unsplit))
+  println(
+    "diagnostic route tags installed; unsplit-prefill=" + unsplit.to_string(),
+  )
+}
+
+///|
+test "route override requires both split seams and keeps decode unchanged" {
+  let source =
+    #|  let batch_rows = bucket.batch_rows()
+    #|  if self.deep_prefill_split_owner_index >= 0 &&
+    #|    return self.deep_prefill_split_owner_index
+    #|  if self.prefill_split_owner_index >= 0 &&
+    #|    let owner = self.prefill_split_slot_owner_indices[slot]
+    #|      if owner >= 0 {
+    #|        return owner
+    #|    return self.prefill_split_owner_index
+    #|    let owner = self.prefill_wide_slot_owner_indices[slot]
+    #|      if owner >= 0 {
+    #|        return owner
+    #|    return self.prefill_wide_owner_index
+    #|  if decode_guard { return decode_owner }
+  let result = install(source, true)
+  assert_true(result.contains("if false && self.deep_prefill_split"))
+  assert_true(result.contains("if false && self.prefill_split"))
+  assert_true(result.contains("if decode_guard { return decode_owner }"))
+  assert_false(install(source, false).contains("if false"))
+}

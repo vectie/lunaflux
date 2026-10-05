@@ -44,6 +44,7 @@ fn archive_member(path : String) -> Bool {
   path.has_suffix(".mbtx") ||
   path.has_suffix(".exe") ||
   path == "probe" ||
+  path.has_suffix("/probe") ||
   path == "chunk-parity" ||
   path.has_suffix("/lunaflux-device-worker") ||
   path == "RUNTIME_IDENTITIES.txt"
@@ -62,7 +63,7 @@ test "archive excludes build caches model weights and itself" {
     path in [
       "fused/ingress/kernel.cubin", "campaign/luna-full/trace.sqlite", "r0-new/r0-luna-full/requests/i4096-o256-c16-t0.json",
       "campaign/luna-full/requests/i32512-o256-c2-t3-r1.sse", "RESULT.txt", "prefill.spec",
-      "selected_policy_geometry.h", "probe", "chunk-parity",
+      "selected_policy_geometry.h", "probe", "runtime-geometry/probe", "chunk-parity",
     ] {
     assert_true(archive_member(path))
   }
