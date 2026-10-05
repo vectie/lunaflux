@@ -22,14 +22,22 @@ Both remain inert until their own content-addressed CUBIN and startup authority
 are admitted; the current approval record covers only qualification and cannot
 be projected into production runtime authority.
 
-Both candidates require block size 128, bounded paged profiles (up to 2,048
-query tokens and 8,192 page-table entries), canonical BF16
+The legacy families require block size 128 and bounded paged profiles (up to
+8,192 query tokens and 16,384 aggregate page-table entries), canonical BF16
 layout, an explicitly supported CUDA target, strict non-reassociating compiler
 policy, and exact alignment. Their recipes bind the model and operation chain,
 layout, source, compiler/toolchain, numerical policy, diagnostic policy, and every
 standalone correctness-kernel source and recipe digest. The fallback kernels
 remain distinct and available; these candidates do not replace their catalog
 entries.
+
+The query bound is an offline compilation envelope, not the default scheduler
+chunk or a performance decision. Concrete operand extents, physical programs,
+launches and source guards are regenerated from the requested profile. Known
+strict toolchain identities are CUDA 13.0.88 and 13.1.115; recipes retain the
+actual version and digest. Other versions remain unsupported. Larger envelopes
+still require their own physical correctness, sanitizer and whole-serving gates;
+acceptance by the source exporter does not promote an 8192-token serving route.
 
 Offline CUBIN output can now be joined to each candidate through
 `FusedParallelCompiledArtifactBinding`. The binder requires two byte-identical

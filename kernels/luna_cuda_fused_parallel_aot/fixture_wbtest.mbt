@@ -38,13 +38,16 @@ fn fused_test_plan() -> @plan.ModelPlan raise {
 ///|
 fn fused_test_compiler(
   reassociate? : Bool = false,
+  major? : Int = 13,
+  minor? : Int = 1,
+  patch? : Int = 115,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(
       toolchain_digest_sha256="b".repeat(64),
-      major=13,
-      minor=1,
-      patch=115,
+      major~,
+      minor~,
+      patch~,
     ),
     optimization_level=3,
     fused_multiply_add=false,

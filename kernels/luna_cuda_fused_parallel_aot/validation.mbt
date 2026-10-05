@@ -2,7 +2,10 @@
 const FUSED_PARALLEL_THREADS : Int = 128
 
 ///|
-const FUSED_PARALLEL_MAX_QUERY_TOKENS : Int = 2048
+// Offline compilation envelope, not a scheduler default or a measured winner.
+// Operand extents and emitted guards still use each concrete profile. Even at
+// the maximum supported width this bound keeps token*width within signed Int.
+const FUSED_PARALLEL_MAX_QUERY_TOKENS : Int = 8192
 
 ///|
 // Entries cover all rows in a submitted batch, not just prompt tokens.
@@ -56,9 +59,12 @@ fn fused_validate_common(
     raise FusedParallelUnsupported(DeviceTarget)
   }
   let compiler_identity = compiler.identity()
-  if compiler_identity.major() != 13 ||
-    compiler_identity.minor() != 1 ||
-    compiler_identity.patch() != 115 ||
+  let known_version = compiler_identity.major() == 13 &&
+    (
+      (compiler_identity.minor() == 1 && compiler_identity.patch() == 115) ||
+      (compiler_identity.minor() == 0 && compiler_identity.patch() == 88)
+    )
+  if !known_version ||
     compiler.optimization_level() != 3 ||
     compiler.fused_multiply_add() ||
     compiler.reassociate() ||
