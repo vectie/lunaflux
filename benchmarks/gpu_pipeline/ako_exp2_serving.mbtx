@@ -104,9 +104,13 @@ async fn prepare(
   calibration : String,
   decode : String,
   root : String,
+  variant? : String = "approximate",
+  expected_cubin? : String = "66881bc0055ce4c4340e6001e7746d0abd64a8b7f9a02b741e6b87463f0e2922",
 ) -> Unit {
   assert_false(@fs.exists(root))
-  let approximate = experiment + "/approximate"
+  assert_true(variant == "approximate" || variant == "pagebatch")
+  assert_eq(expected_cubin.length(), 64)
+  let approximate = experiment + "/" + variant
   let recipe = @fs.read_file(approximate + "/kernel.recipe").text()
   assert_eq(field(recipe, "numeric_law"), "approx-base2-f32-v1")
   assert_eq(
@@ -114,10 +118,7 @@ async fn prepare(
     "lunaflux_attention_prefill_tile_compiler_exp2_v1",
   )
   assert_eq(sha(approximate + "/kernel.cu"), field(recipe, "source_sha256"))
-  assert_eq(
-    sha(approximate + "/kernel.cubin"),
-    "66881bc0055ce4c4340e6001e7746d0abd64a8b7f9a02b741e6b87463f0e2922",
-  )
+  assert_eq(sha(approximate + "/kernel.cubin"), expected_cubin)
   assert_true(
     @fs.read_file(experiment + "/trial/RESULT.txt")
     .text()
@@ -369,7 +370,7 @@ async fn measure(
   }
   @fs.write_file(
     root + "/RESULT.txt",
-    "outcome=completed\nscope=explicit exp2 vs strict selected serving ABBA, same pinned worker; not model-quality admission\n",
+    "outcome=completed\nscope=exact artifact-bound selected serving ABBA, same pinned worker; not model-quality admission\n",
     create_mode=CreateNew,
   )
 }
@@ -379,6 +380,26 @@ async fn main {
   match @env.args() {
     [_, query, experiment, calibration, decode, root, "prepare"] =>
       prepare(query, experiment, calibration, decode, root)
+    [
+      _,
+      query,
+      experiment,
+      calibration,
+      decode,
+      root,
+      variant,
+      expected,
+      "prepare",
+    ] =>
+      prepare(
+        query,
+        experiment,
+        calibration,
+        decode,
+        root,
+        variant~,
+        expected_cubin=expected,
+      )
     [_, frozen, query, baseline, selected, root, "measure"] =>
       measure(frozen, query, baseline, selected, root)
     [_, completed, root, "stage-bind"] => {
@@ -400,7 +421,7 @@ async fn main {
     }
     _ =>
       fail(
-        "QUERY EXPERIMENT CALIBRATION DECODE NEW_ROOT prepare | FROZEN QUERY STRICT SELECTED NEW_ROOT measure | COMPLETED_ROUTES NEW_ROOT stage-bind",
+        "QUERY EXPERIMENT CALIBRATION DECODE NEW_ROOT [VARIANT EXPECTED_CUBIN] prepare | FROZEN QUERY BASELINE SELECTED NEW_ROOT measure | COMPLETED_ROUTES NEW_ROOT stage-bind",
       )
   }
 }

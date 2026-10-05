@@ -174,12 +174,20 @@ async fn main {
     write_contract(root, uuid)
     return
   }
-  if @env.args() is [_, "validate", root] {
-    @fs.mkdir(root + "/validation")
+  if @env.args() is [_, phase, root] &&
+    (phase == "validate" || phase == "validate-long") {
+    let long = phase == "validate-long"
+    let out = root + (if long { "/validation-long" } else { "/validation" })
+    @fs.mkdir(out)
     for (name, _, _) in selected_alternatives(root) {
-      for tool in ["memcheck", "racecheck", "synccheck"] {
+      for
+        tool in (if long {
+          ["memcheck"]
+        } else {
+          ["memcheck", "racecheck", "synccheck"]
+        }) {
         let result = capture(
-          root + "/validation",
+          out,
           name + "-" + tool,
           "/usr/local/cuda-13.0/bin/compute-sanitizer",
           [
@@ -191,9 +199,17 @@ async fn main {
             root + "/prefill.spec",
             root + "/baseline",
             root + "/" + name,
-            "129",
+            if long {
+              "2048"
+            } else {
+              "129"
+            },
             "2",
-            "128",
+            if long {
+              "28672"
+            } else {
+              "128"
+            },
             "--check-only",
           ],
         )
@@ -202,8 +218,14 @@ async fn main {
       }
     }
     @fs.write_file(
-      root + "/validation/RESULT.txt",
-      "outcome=completed\nscope=Q129 R2 H128 irregular-tail sanitizer; not whole-model quality\n",
+      out + "/RESULT.txt",
+      "outcome=completed\nscope=" +
+      (if long {
+        "Q2048 R2 H28672 memory check"
+      } else {
+        "Q129 R2 H128 irregular-tail sanitizer"
+      }) +
+      "; not whole-model quality\n",
       create_mode=CreateNew,
     )
     return
@@ -301,7 +323,11 @@ async fn main {
   }
   let kind = match kind_args {
     [] => "schedule-v1"
-    [kind] if kind == "query-lifetime-v1" || kind == "epoch-local-v1" || kind == "value-readiness-v1" || kind == "unit-rescale-v1" || kind == "page-batch-v1" => kind
+    [kind] if kind == "query-lifetime-v1" ||
+      kind == "epoch-local-v1" ||
+      kind == "value-readiness-v1" ||
+      kind == "unit-rescale-v1" ||
+      kind == "page-batch-v1" => kind
     _ => fail("bounded experiment arguments")
   }
   let choices = alternatives(kind)
@@ -425,7 +451,10 @@ test "schedule alternatives retain explicit approximation and independent identi
   assert_eq(alternatives("epoch-local-v1"), [("epochjoint", 130322, 64)])
   assert_eq(alternatives("value-readiness-v1"), [("valueoverlap", 30322, 64)])
   let command = ["/home/q/candidate", "--prefill-candidate", "322"]
-  for kind in ["schedule-v1", "query-lifetime-v1", "epoch-local-v1", "value-readiness-v1"] {
+  for
+    kind in [
+      "schedule-v1", "query-lifetime-v1", "epoch-local-v1", "value-readiness-v1",
+    ] {
     for (name, id, _) in alternatives(kind) {
       assert_eq(exporter_args(command, "/home/q", "/home/new", name, id), [
         "/home/new/export-" + name,
