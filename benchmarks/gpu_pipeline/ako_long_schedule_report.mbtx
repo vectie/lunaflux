@@ -125,6 +125,7 @@ async fn main {
     ["value-readiness-v1"] => ["valueoverlap"]
     ["unit-rescale-v1"] => ["unitrescale"]
     ["page-batch-v1"] => ["pagebatch"]
+    ["page-lookahead-v1"] => ["lookahead"]
     _ => fail("bounded experiment kind")
   }
   let rows : Array[Json] = []
