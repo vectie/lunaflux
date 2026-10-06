@@ -1,0 +1,168 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    String(s) => @string.parse_int64(s)
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("integer")
+  }
+}
+
+///|
+async fn sql(db : String, query : String) -> Json {
+  let r = @shell.Cmd("sqlite3", ["-json", db, query]).output(
+    max_output_bytes=67108864,
+  )
+  r.check()
+  @json.parse(if r.stdout().trim().is_empty() { "[]" } else { r.stdout() })
+}
+
+///|
+// Input is ordered by start. Overlapping kernels and copies count once.
+fn activity_union(activities : Array[Json], lo : Int64) -> Int64 raise {
+  let mut union = 0L
+  let mut tail = lo
+  for activity in activities {
+    guard activity is { "start": a, "end": b, .. } else { fail("activity") }
+    let a = integer(a)
+    let b = integer(b)
+    guard b >= a else { fail("negative activity interval") }
+    union += Int64::max(0L, b - Int64::max(a, tail))
+    tail = Int64::max(tail, b)
+  }
+  union
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, engine, cell, .. options] else {
+    fail("ARM ENGINE CELL [EXACT_WAVE_JSON]")
+  }
+  let db = root + "/trace.sqlite"
+  let path = match options {
+    [] => root + "/r0-" + engine + "/requests/" + cell + "-t1.json"
+    [path] => path
+    _ => fail("wave path")
+  }
+  let wave = @json.parse(@fs.read_file(path).text())
+  guard wave
+    is {
+      "epoch_start_ns": begin,
+      "epoch_end_ns": end,
+      "wall_ms": wall,
+      "requests": Array(requests),
+      ..
+    } else {
+    fail("wave bounds")
+  }
+  guard sql(db, "SELECT utcEpochNs FROM TARGET_INFO_SESSION_START_TIME;")
+    is Array([{ "utcEpochNs": epoch, .. }]) else {
+    fail("trace epoch")
+  }
+  let lo = integer(begin) - integer(epoch)
+  let hi = integer(end) - integer(epoch)
+  let bounds = " WHERE start>=\{lo} AND end<=\{hi}"
+  let kernel_bounds = " WHERE k.start>=\{lo} AND k.end<=\{hi}"
+  let kernels = sql(
+    db,
+    "SELECT k.start,k.end,s.value name,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread,k.staticSharedMemory,k.dynamicSharedMemory,k.correlationId,k.graphNodeId FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName" +
+    kernel_bounds +
+    " ORDER BY k.start;",
+  )
+  guard kernels is Array(rows) && !rows.is_empty() else { fail("no kernels") }
+  let select : Array[String] = []
+  for
+    table in [
+      "CUPTI_ACTIVITY_KIND_KERNEL", "CUPTI_ACTIVITY_KIND_MEMCPY", "CUPTI_ACTIVITY_KIND_MEMSET",
+    ] {
+    if sql(db, "SELECT name FROM sqlite_master WHERE name='\{table}';")
+      is Array([_]) {
+      select.push("SELECT start,end,'\{table}' kind FROM \{table}" + bounds)
+    }
+  }
+  guard sql(db, select.join(" UNION ALL ") + " ORDER BY start;")
+    is Array(activities) else {
+    fail("activities")
+  }
+  let union = activity_union(activities, lo)
+  let groups = sql(
+    db,
+    "SELECT s.value name,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread,count(*) calls,sum(k.end-k.start)/1e6 total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName" +
+    kernel_bounds +
+    " GROUP BY name,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread ORDER BY total_ms DESC;",
+  )
+  let runtime = sql(
+    db,
+    "SELECT s.value name,count(*) calls,sum(r.end-r.start)/1e6 total_ms FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId WHERE r.start>=\{lo} AND r.end<=\{hi} GROUP BY name ORDER BY total_ms DESC;",
+  )
+  let steps = if engine == "luna-full" {
+    sql(
+      db,
+      "SELECT r.start submit,r.end submit_end,r.correlationId,min(k.start) gpu_start,max(k.end) gpu_end,sum(k.end-k.start)/1e6 kernel_ms,count(*) calls,max(CASE WHEN s.value LIKE '%attention_prefill%' THEN 1 ELSE 0 END) prefill,max(CASE WHEN s.value LIKE '%decode_split%' THEN 1 ELSE 0 END) partitioned,sum(CASE WHEN s.value LIKE '%attention_prefill%' THEN k.end-k.start ELSE 0 END)/1e6 prefill_ms,sum(CASE WHEN s.value LIKE '%attention_decode%' OR s.value LIKE '%decode_split%' THEN k.end-k.start ELSE 0 END)/1e6 decode_ms,max(CASE WHEN s.value LIKE '%fused_qwen_qkv%' THEN k.gridX ELSE 0 END) qkv_grid_x FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds n ON n.id=r.nameId JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=r.correlationId JOIN StringIds s ON s.id=k.demangledName WHERE n.value='cuGraphLaunch' AND r.start>=\{lo} AND r.end<=\{hi} GROUP BY r.correlationId ORDER BY r.start;",
+    )
+  } else {
+    @json.parse("null")
+  }
+  let span = hi - lo
+  let result : Json = {
+    "engine": engine,
+    "cell": cell,
+    "wall_ms": wall,
+    "trace_window_ns": span,
+    "activity_union_ns": union,
+    "no_gpu_activity_ns": span - union,
+    "groups": groups,
+    "runtime": runtime,
+    "graph_steps": steps,
+    "requests": requests,
+    "scope": "Exact measured client wave, excludes warmup and startup. Trace overhead is not throughput. API sum overlaps GPU work and is not additive. Kernel groups do not attribute host gaps.",
+  }
+  @fs.write_file(
+    root + "/" + cell + ".analysis.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(
+    "\{engine} \{cell}: wall=\{wall.stringify()} ms active=\{union.to_double()/1000000.0} ms no-activity=\{(span-union).to_double()/1000000.0} ms kernels=\{rows.length()}",
+  )
+  if groups is Array(xs) {
+    for x in xs[:Int::min(18, xs.length())] {
+      println(x.stringify())
+    }
+  }
+  if steps is Array(xs) {
+    println("graph-steps=\{xs.length()}")
+    for x in xs {
+      if x is { "prefill": Number(p, ..), .. } && p > 0.0 {
+        println(x.stringify())
+      }
+    }
+  }
+}
+
+///|
+test "union avoids charging overlap twice and preserves nanosecond integers" {
+  assert_eq(
+    activity_union(
+      [
+        { "start": 100, "end": 200 },
+        { "start": 150, "end": 180 },
+        { "start": 180, "end": 250 },
+        { "start": 300, "end": 310 },
+      ],
+      90L,
+    ),
+    160L,
+  )
+  assert_eq(activity_union([], 0L), 0L)
+  assert_eq(integer(Json("1780000000000000001")), 1780000000000000001L)
+}

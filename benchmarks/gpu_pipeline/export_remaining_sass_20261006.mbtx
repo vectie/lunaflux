@@ -1,0 +1,103 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--receipt", root, serving] {
+    let commands = [
+      (
+        "terminal-gpu",
+        "nvidia-smi",
+        ["--query-compute-apps=pid", "--format=csv,noheader"],
+      ),
+      (
+        "gpu-identity",
+        "nvidia-smi",
+        [
+          "--query-gpu=uuid,name,pci.bus_id,driver_version", "--format=csv,noheader",
+        ],
+      ),
+      (
+        "selected-hashes",
+        "sha256sum",
+        [
+          serving + "/decode-selected/kernel.cubin",
+          serving + "/decode-selected/kernel.recipe",
+          serving + "/decode-route-measurements/partitioned/kernel.cubin",
+          serving + "/check-probe",
+          serving + "/long-final/deployment/lunaflux.launch.json",
+        ],
+      ),
+      (
+        "failed-luna-stderr-copy",
+        "docker",
+        [
+          "cp",
+          "lunaflux-gap-luna-capture:/home/wlc004s/lunaflux-remaining-counters-20261006.ZeAoNRCq/luna/capture/runtime.stdout",
+          root + "/failed-luna-runtime-copy.stdout",
+        ],
+      ),
+    ]
+    for (label, exe, args) in commands {
+      @fs.write_file(
+        root + "/" + label + ".command.json",
+        Json([exe, ..args]).stringify(),
+        create_mode=CreateNew,
+      )
+      let r = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+      @fs.write_file(
+        root + "/" + label + ".stdout",
+        r.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/" + label + ".stderr",
+        r.stderr(),
+        create_mode=CreateNew,
+      )
+      r.check()
+      if label == "terminal-gpu" && !r.stdout().trim().is_empty() {
+        fail("GPU still occupied")
+      }
+    }
+    return
+  }
+  guard @env.args() is [_, .. roots] && !roots.is_empty() else {
+    fail("COMPLETED_NCU_ROOT...")
+  }
+  for root in roots {
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    let args = [
+      "--import",
+      root + "/counter.ncu-rep",
+      "--page",
+      "source",
+      "--print-source",
+      "sass",
+      "--csv",
+    ]
+    @fs.write_file(
+      root + "/counter-source.command.json",
+      Json([ncu, ..args]).stringify(),
+      create_mode=CreateNew,
+    )
+    let r = @shell.Cmd(ncu, args).output(max_output_bytes=67108864)
+    @fs.write_file(
+      root + "/counter-source.stdout",
+      r.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/counter-source.stderr",
+      r.stderr(),
+      create_mode=CreateNew,
+    )
+    r.check()
+  }
+}

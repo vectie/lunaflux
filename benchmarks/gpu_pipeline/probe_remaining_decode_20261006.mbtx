@@ -1,0 +1,197 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn available() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("MemAvailable")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, root] else {
+    fail("IMMUTABLE_REPAIR_ROOT NEW_EMPTY_ROOT")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() && available() >= 33554432L else {
+    fail("GPU occupied or reserve")
+  }
+  let original = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+  guard original.split("maximum_rows=32\n").to_array() is [prefix, suffix] else {
+    fail("frozen row limit")
+  }
+  // Diagnostic launch envelope only; the unchanged cubin still owns its
+  // original 32-row workspace indexing. Eight matches the serving graph.
+  let spec = root + "/traced-bucket.spec"
+  @fs.write_file(
+    spec,
+    prefix.to_owned() + "maximum_rows=8\n" + suffix.to_owned(),
+    create_mode=CreateNew,
+  )
+  let args = [
+    spec,
+    base + "/decode-selected",
+    base + "/decode-route-measurements/partitioned",
+    "2",
+    "2",
+    "32511",
+    "--decode-envelope",
+  ]
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  let name = "lunaflux-remaining-isolated-decode-" +
+    root.split("/").to_array().last().unwrap().to_owned()
+  errdefer ignore(@shell.Cmd("docker", ["stop", "--time", "15", name]).output())
+  let samples = StringBuilder()
+  let mut done = false
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = available()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(500)
+      }
+    })
+    // The compact probe uses bucket2; explicit envelope replay uses bucket8.
+    // The candidate recipe owns both partial and merge.
+    let timing = capture(root, "timing", base + "/check-probe", args)
+    guard timing.contains("bucket_tokens=8") &&
+      timing.contains("old_grid=8,8,1 new_grid=8,8,8") &&
+      timing.contains("oracle_maxabs=") else {
+      fail("traced decode geometry")
+    }
+    // This counter replay bypasses the profiler's failing fork/fexecve seam.
+    // It uses unchanged serving cubins, explicit traced bucket geometry and
+    // synthetic immutable KV. It is not a serving request counter capture.
+    ignore(
+      capture(
+        root,
+        "counter-run",
+        "docker",
+        [
+          "run",
+          "--name",
+          name,
+          "--gpus",
+          "all",
+          "--memory",
+          "8g",
+          "--memory-swap",
+          "8g",
+          "--cap-add",
+          "SYS_ADMIN",
+          "--security-opt",
+          "seccomp=unconfined",
+          "--mount",
+          "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+          "--mount",
+          "type=bind,source=" + base + ",target=" + base + ",readonly",
+          "--mount",
+          "type=bind,source=" + root + ",target=" + root,
+          "nvcr.io/nvidia/vllm:26.01-py3",
+          "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+          "--config-file",
+          "off",
+          "--clock-control",
+          "none",
+          "--cache-control",
+          "none",
+          "--filter-mode",
+          "global",
+          "--kernel-name-base",
+          "function",
+          "--kernel-name",
+          "regex:lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4|lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903",
+          "--launch-count",
+          "2",
+          "--section",
+          "LaunchStats",
+          "--section",
+          "Occupancy",
+          "--section",
+          "SpeedOfLight",
+          "--section",
+          "SchedulerStats",
+          "--section",
+          "WarpStateStats",
+          "--section",
+          "MemoryWorkloadAnalysis",
+          "--section",
+          "InstructionStats",
+          "--section",
+          "SourceCounters",
+          "--export",
+          root + "/counter",
+          base + "/check-probe",
+          ..args,
+        ],
+      ),
+    )
+    ignore(
+      capture(root, "counter-raw", ncu, [
+        "--import",
+        root + "/counter.ncu-rep",
+        "--page",
+        "raw",
+        "--csv",
+        "--print-units",
+        "base",
+      ]),
+    )
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=synthetic immutable KV, traced C2 bucket8/history32512, unchanged AOT ordinary and split+merge chain; not serving throughput\n",
+    create_mode=CreateNew,
+  )
+}

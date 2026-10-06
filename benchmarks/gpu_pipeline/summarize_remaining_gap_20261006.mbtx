@@ -1,0 +1,118 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(x : Json) -> Double raise {
+  match x {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+// Attention is classified by the exact traced symbol. Everything else remains
+// an aggregate: equal-looking GEMM grids alone do not prove equal operations.
+fn family(engine : String, name : String) -> String {
+  if engine == "luna-full" {
+    if name.contains("attention_prefill") {
+      "prefill-attention"
+    } else if name.contains("attention_decode") || name.contains("decode_split") {
+      "decode-attention+merge"
+    } else {
+      "other-kernels"
+    }
+  } else if engine == "vllm" {
+    if name.contains("flash_fwd_splitkv_combine_kernel") {
+      "decode-attention+merge"
+    } else if name.contains("flash_fwd_splitkv_kernel") {
+      if name.contains(">>, (bool)1,") {
+        "prefill-attention"
+      } else {
+        "decode-attention+merge"
+      }
+    } else {
+      "other-kernels"
+    }
+  } else if name.contains("BatchPrefillWith") ||
+    name.contains("MergeStateKernel") {
+    "prefill-attention"
+  } else if name.contains("BatchDecodeWith") ||
+    name.contains("VariableLengthMergeStates") {
+    "decode-attention+merge"
+  } else {
+    "other-kernels"
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, .. paths] && !paths.is_empty() else {
+    fail("EXACT_WAVE_ANALYSIS_JSON...")
+  }
+  for path in paths {
+    let analysis = @json.parse(@fs.read_file(path).text())
+    guard analysis
+      is {
+        "engine": String(engine),
+        "groups": Array(groups),
+        "requests": Array(requests),
+        ..
+      } else {
+      fail("wave analysis")
+    }
+    let totals : Map[String, Double] = Map([])
+    for group in groups {
+      guard group is { "name": String(name), "total_ms": time, .. } else {
+        fail("group")
+      }
+      let key = family(engine, name)
+      totals[key] = totals.get(key).unwrap_or(0.0) + number(time)
+    }
+    println("\{engine}: \{Json(totals).stringify()}")
+    for i, request in requests {
+      guard request
+        is {
+          "ttft_ms": ttft,
+          "elapsed_ms": elapsed,
+          "token_ms": Array(tokens),
+          ..
+        } else {
+        fail("request")
+      }
+      let intervals : Array[Double] = []
+      for j in 1..<tokens.length() {
+        intervals.push(number(tokens[j]) - number(tokens[j - 1]))
+      }
+      let max_gap = intervals.fold(init=0.0, Double::max)
+      let long_gaps = intervals.filter(x => x > 100.0)
+      intervals.sort()
+      println(
+        "request=\{i} ttft_ms=\{number(ttft)} elapsed_ms=\{number(elapsed)} max_token_gap_ms=\{max_gap} median_token_gap_ms=\{intervals[intervals.length()/2]} gaps_over_100ms=\{Json(long_gaps).stringify()}",
+      )
+    }
+  }
+}
+
+///|
+test "separate prefill and decode symbols, leave projections unattributed" {
+  assert_eq(
+    family("vllm", "flash_fwd_splitkv_kernel<T>>, (bool)1, x"),
+    "prefill-attention",
+  )
+  assert_eq(
+    family("vllm", "flash_fwd_splitkv_kernel<T>>, (bool)0, x"),
+    "decode-attention+merge",
+  )
+  assert_eq(
+    family("sglang", "VariableLengthMergeStatesKernel"),
+    "decode-attention+merge",
+  )
+  assert_eq(family("vllm", "cutlass_80_wmma_tensorop"), "other-kernels")
+}

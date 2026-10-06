@@ -1,0 +1,232 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// Offline diagnostic only. Frozen worker, kernels, model and reference commands
+// are reused; trace timing is not an unprofiled throughput measurement.
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  guard text.split(before).to_array() is [a, b] else {
+    fail("ambiguous frozen seam: " + before)
+  }
+  a.to_owned() + after + b.to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [_, serving, root, template, client_template, moon, diagnostic] else {
+    fail(
+      "REPAIRED_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER FROZEN_CLIENT MOON DIAGNOSTIC_PARENT",
+    )
+  }
+  let launcher = @fs.read_file(template).text()
+  let frozen_client = @fs.read_file(client_template).text()
+  guard frozen_client
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+    is [prefix, rest] else {
+    fail("matrix begin")
+  }
+  guard rest.split("///|\nfn token_ids").to_array() is [_, suffix] else {
+    fail("matrix end")
+  }
+  let client = prefix.to_owned() +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n [(\"i128-o256-c1-varied\",[128],256,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]\n}\n\n///|\nfn token_ids" +
+    suffix.to_owned()
+  let client = once(
+    client, "let trials = if options is [\"--smoke\"] { 1 } else { 4 }", "let trials = 2",
+  )
+  let client = once(
+    client, "      let started = @async.now()\n      let requests", "      let epoch_begin = @shell.Cmd(\"date\",[\"+%s%N\"]).output()\n      epoch_begin.check()\n      let started = @async.now()\n      let requests",
+  )
+  let client = once(
+    client, "      let elapsed = @async.now() - started\n      let result", "      let elapsed = @async.now() - started\n      let epoch_end = @shell.Cmd(\"date\",[\"+%s%N\"]).output()\n      epoch_end.check()\n      let result",
+  )
+  let client = once(
+    client, "        \"wall_ms\": elapsed,", "        \"wall_ms\": elapsed,\n        \"epoch_start_ns\": epoch_begin.stdout().trim().to_owned(),\n        \"epoch_end_ns\": epoch_end.stdout().trim().to_owned(),",
+  )
+  for engine in ["luna-full", "vllm", "sglang"] {
+    let arm = root + "/" + engine
+    @fs.mkdir(arm)
+    let container = "lunaflux-remaining-" +
+      root.split("/").to_array().last().unwrap().to_owned() +
+      "-" +
+      engine
+    let tool = once(
+      launcher,
+      "  let orders = [[\"vllm\", \"luna-full\", \"sglang\"], [\"sglang\", \"luna-full\", \"vllm\"]]",
+      "  let orders = [[" + Json(engine).stringify() + "]]",
+    )
+    let tool = once(
+      tool,
+      "  let container = \"lunaflux-bench-lunaflux-benchmark-20261006.B5GyxQoX-\" + engine",
+      "  let container = " + Json(container).stringify(),
+    )
+    let tool = if engine == "luna-full" {
+      let build = diagnostic + "/_build/native/release/build/"
+      let tool = once(
+        tool,
+        "cmd + \"lunaflux/lunaflux.exe\",",
+        Json(build + "cmd/lunaflux/lunaflux.exe").stringify() + ",",
+      )
+      once(
+        tool,
+        "serving +\n        \"/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe\",\n        [",
+        "\"/usr/local/bin/nsys\",\n        [\"profile\",\"--trace=cuda\",\"--sample=none\",\"--cpuctxsw=none\",\"--cuda-graph-trace=node\",\"--trace-fork-before-exec=true\",\"--wait=all\",\"-o\",root+\"/trace\"," +
+        Json(
+          build +
+          "tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe",
+        ).stringify() +
+        ",",
+      )
+    } else {
+      let saved = @json.parse(
+        capture(arm, "pinned", "docker", [
+          "inspect",
+          "lunaflux-bench-lunaflux-benchmark-20261006.B5GyxQoX-" + engine,
+        ]),
+      )
+      guard saved
+        is Array(
+          [{ "Image": String(image), "Config": { "Cmd": Array(raw), .. }, .. }]
+        ) else {
+        fail("pinned configuration")
+      }
+      let command = raw.map(x => {
+        match x {
+          String(s) => s
+          _ => fail("command")
+        }
+      })
+      let flags = [
+        "run",
+        "-d",
+        "--name",
+        container,
+        "--gpus",
+        "all",
+        "--network",
+        "host",
+        "--ipc",
+        "host",
+        "--memory",
+        "64g",
+        "--memory-swap",
+        "64g",
+        "--cap-add",
+        "SYS_ADMIN",
+        "--security-opt",
+        "seccomp=unconfined",
+        "--mount",
+        "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+        "--mount",
+        "type=bind,source=" + arm + ",target=" + arm,
+        "--mount",
+        "type=bind,source=/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b,target=/model,readonly",
+        image,
+        "/opt/host-nvidia/nsight-systems/2025.3.2/bin/nsys",
+        "profile",
+        "--trace=cuda,nvtx",
+        "--sample=none",
+        "--cpuctxsw=none",
+        "--cuda-graph-trace=node",
+        "--wait=all",
+        "--output=" + arm + "/trace",
+        ..command,
+      ]
+      ignore(capture(arm, "create", "docker", ["create", ..flags[2:]]))
+      tool
+    }
+    let script = arm + "/launcher.mbtx"
+    @fs.write_file(script, tool, create_mode=CreateNew)
+    @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+    for file in [script, script + ".client.mbtx"] {
+      ignore(
+        capture(
+          arm,
+          if file == script {
+            "launcher-check"
+          } else {
+            "client-check"
+          },
+          moon,
+          ["check", file, "--deny-warn"],
+        ),
+      )
+    }
+    ignore(
+      capture(arm, "campaign", moon, ["run", script, serving, arm, script]),
+    )
+    let trace = if engine == "luna-full" {
+      arm + "/r0-luna-full/trace"
+    } else {
+      arm + "/trace"
+    }
+    ignore(
+      capture(arm, "export", "/usr/local/bin/nsys", [
+        "export",
+        "--type=sqlite",
+        "--output=" + arm + "/trace.sqlite",
+        trace + ".nsys-rep",
+      ]),
+    )
+    ignore(
+      capture(arm, "selected", "sqlite3", [
+        "-header",
+        "-csv",
+        arm + "/trace.sqlite",
+        "SELECT s.value AS kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread ORDER BY total_ms DESC;",
+      ]),
+    )
+    println("completed=" + arm)
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=32K-C2-and-short-selected-traces; not unprofiled throughput\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "frozen seam is unique" {
+  assert_eq(once("a-x-b", "x", "y"), "a-y-b")
+  try once("xx", "x", "y") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous seam accepted")
+  }
+}

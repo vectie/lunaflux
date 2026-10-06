@@ -1,0 +1,172 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  guard text.split(before).to_array() is [a, b] else {
+    fail("ambiguous seam: " + before)
+  }
+  a.to_owned() + after + b.to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [
+      _,
+      serving,
+      traces,
+      root,
+      luna_template,
+      reference_template,
+      moon,
+      diagnostic,
+      phase,
+    ] else {
+    fail(
+      "SERVING COMPLETED_TRACES NEW_ROOT LUNA_TEMPLATE REFERENCE_TEMPLATE MOON DIAGNOSTIC_SOURCE luna|vllm|sglang|sglang-trace",
+    )
+  }
+  guard ["luna", "vllm", "sglang", "sglang-trace"].contains(phase) else {
+    fail("phase")
+  }
+  let engine = if phase == "luna" {
+    "luna-full"
+  } else if phase == "vllm" {
+    "vllm"
+  } else {
+    "sglang"
+  }
+  let original = @fs.read_file(
+    traces + "/" + engine + "/launcher.mbtx.client.mbtx",
+  ).text()
+  let client = once(
+    original, "[(\"i128-o256-c1-varied\",[128],256,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]",
+    "[(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]",
+  )
+  let client = once(client, "let trials = 2", "let trials = 1")
+  let profile = if phase == "luna" {
+    let profile = @fs.read_file(luna_template).text()
+    let profile = once(profile, "\"per-launch-config\"", "\"global\"")
+    let profile = once(
+      profile, "    \"--launch-count\",\n    \"1\",", "    \"--launch-count\",\n    \"1\",\n    \"--launch-skip\",\n    \"28\",",
+    )
+    once(profile, "    \"4096\",\n    \"256\",", "    \"32512\",\n    \"256\",")
+  } else {
+    let profile = @fs.read_file(reference_template).text()
+    let profile = once(
+      profile, "\"lunaflux-remeasure-\" + engine + \"-53deab59\"", "\"lunaflux-bench-lunaflux-benchmark-20261006.B5GyxQoX-\" + engine",
+    )
+    let profile = once(
+      profile, "    \"80g\",\n    \"--memory-swap\",\n    \"80g\",", "    \"64g\",\n    \"--memory-swap\",\n    \"64g\",",
+    )
+    let a = profile
+      .split("  let base = @fs.read_file(completed + \"/benchmark.mbtx\")")
+      .to_array()
+    guard a is [prefix, tail] else { fail("reference client begin") }
+    guard tail
+      .split("  let moon = completed + \"/toolchain/bin/moon\"")
+      .to_array()
+      is [_, suffix] else {
+      fail("reference client end")
+    }
+    let profile = prefix.to_owned() +
+      "  @fs.write_file(root + \"/client.mbtx\", @fs.read_file(completed + \"/client.mbtx\").text(), create_mode=CreateNew)\n  let moon = completed + \"/toolchain/bin/moon\"" +
+      suffix.to_owned()
+    let profile = once(profile, "\"per-launch-config\"", "\"global\"")
+    // vLLM trace has sixteen single-request decode steps before two-request
+    // steady decode. Skip those 16*28 matched layer invocations, not prefill.
+    if phase == "vllm" {
+      once(
+        profile, "      \"--launch-count\",\n      \"1\",", "      \"--launch-count\",\n      \"1\",\n      \"--launch-skip\",\n      \"448\",",
+      )
+    } else {
+      profile
+    }
+  }
+  let prepared = root + "/prepared"
+  @fs.mkdir(prepared)
+  @fs.write_file(prepared + "/client.mbtx", client, create_mode=CreateNew)
+  ignore(
+    capture(root, "toolchain-link", "ln", [
+      "-s",
+      serving + "/toolchain",
+      prepared + "/toolchain",
+    ]),
+  )
+  ignore(
+    capture(root, "source-link", "ln", ["-s", diagnostic, prepared + "/source"]),
+  )
+  let script = root + "/profile.mbtx"
+  @fs.write_file(script, profile, create_mode=CreateNew)
+  ignore(capture(root, "check", moon, ["check", script, "--deny-warn"]))
+  let out = root + "/capture"
+  @fs.mkdir(out)
+  let args = if phase == "luna" {
+    [
+      "run", script, serving, out, "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4",
+      "--diagnostic-launcher", prepared,
+    ]
+  } else if phase == "sglang-trace" {
+    ["run", script, prepared, out, "sglang", "trace"]
+  } else {
+    [
+      "run",
+      script,
+      prepared,
+      out,
+      engine,
+      "counter",
+      if engine == "vllm" {
+        "regex:.*flash_fwd_splitkv_kernel.*>>, \\(bool\\)0, \\(bool\\)0.*"
+      } else {
+        "regex:.*BatchDecodeWithPagedKVCache.*"
+      },
+    ]
+  }
+  ignore(capture(root, "run", moon, args))
+  println("completed=" + root)
+}
+
+///|
+test "reject ambiguous diagnostic patch" {
+  assert_eq(once("abc", "b", "x"), "axc")
+  try once("bb", "b", "x") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous")
+  }
+}
