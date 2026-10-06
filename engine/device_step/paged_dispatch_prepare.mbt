@@ -43,6 +43,23 @@ fn prepare_paged_ordered_executors(
   decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
   decode_split_maximum_batch_rows? : Int = 2147483647,
 ) -> PagedOrderedExecutorDispatch raise DeviceStepError {
+  let has_measured_mixed_split = measured_attention_candidates is Some(ids) &&
+    ids.contains(7)
+  if has_measured_mixed_split {
+    guard prefill_wide_steps is Some(wide) &&
+      mixed_attention_steps(wide, resources, partitioned_decode=true)
+      is Some(mixed) else {
+      raise InvalidExecutor(GraphBucket)
+    }
+    if graph_policy != PagedOrderedEagerOnly {
+      resources.effect_capture_budget = reserve_measured_mixed_capture_budget(
+        resources.effect_capture_budget,
+        table,
+        measured_attention_candidates,
+        mixed.length(),
+      )
+    }
+  }
   let maximum_query_bound = paged_maximum_profile_query_bound(
     profile,
     resources.graph_launch_contract is Some(_),
@@ -393,8 +410,16 @@ fn prepare_paged_ordered_executors(
     None => -1
   }
   let mixed_decode_split_slots = prepare_measured_mixed_decode_split_owners(
-    context, steps, resources, table, measured_attention_candidates, slot_owner_indices,
-    fallback_owner_index,
+    context,
+    prefill_wide_steps.unwrap_or(steps),
+    resources,
+    table,
+    measured_attention_candidates,
+    prefill_wide_slot_owner_indices,
+    prefill_wide_owner_index,
+    phase=WidePrefillLaunch,
+    capture_budget_reserved=has_measured_mixed_split &&
+      graph_policy != PagedOrderedEagerOnly,
   )
   {
     measured_owner_indices: map_measured_attention_owners(

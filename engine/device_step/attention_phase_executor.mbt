@@ -27,6 +27,8 @@ fn prepare_mixed_attention_variant(
   resources : PagedGraphResources,
   owner_index : Int,
   partitioned_decode? : Bool = false,
+  capture_budget_reserved? : Bool = false,
+  decode_row_bound? : Int? = None,
 ) -> Int? raise DeviceStepError {
   if steps.length() != launches.length() {
     raise InvalidExecutor(GraphBucket)
@@ -37,12 +39,12 @@ fn prepare_mixed_attention_variant(
   }
   let owner = resources.ordered_executors[owner_index]
   let captured = owner.resource.execution_mode() == OrderedKernelCaptured
-  let reservation = if captured {
+  let reservation = if captured && !capture_budget_reserved {
     resources.effect_capture_budget.reserve(mixed.length())
   } else {
     None
   }
-  if captured && reservation is None {
+  if captured && !capture_budget_reserved && reservation is None {
     return None
   }
   guard resources.stream is Some(stream) && stream.open else {
@@ -78,10 +80,28 @@ fn prepare_mixed_attention_variant(
             function.open else {
             raise InvalidExecutor(ResourceState)
           }
+          let dimensions = if partitioned_decode &&
+            decode_row_bound is Some(bound) {
+            let split = find_mixed_attention_item(
+              resources.attention_partitioned_decode_companions[:],
+              item => item.operation_id == step.operation_id,
+            ).unwrap()
+            let admitted = if decode.function_index ==
+              split.partial.function_index {
+              split.partial_dimensions
+            } else {
+              split.merge_dimensions
+            }
+            paged_device_launch_dimensions(
+              paged_capped_query_token_launch(admitted, bound),
+            )
+          } else {
+            decode.dimensions
+          }
           selected.push(
             @device.OrderedKernelLaunch::new(
               function.resource,
-              decode.dimensions,
+              dimensions,
               decode.arguments,
             ),
           )
