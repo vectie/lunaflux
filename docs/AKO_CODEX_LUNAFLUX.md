@@ -231,3 +231,31 @@ three cells pass the conservative all-pairs criterion. Matched counters show
 about 17% fewer instructions but unchanged MMA/copy work and substantial
 remaining dependency waits. It is non-bitwise and not serving-selected by this
 experiment; strict numerical policy and production routes remain unchanged.
+
+## Capacity experiments must preserve selected projection policy
+
+The [October 6 paired regression investigation](BENCHMARK_PROJECTION_PROPAGATION_REPAIR_2026-10-06.md)
+found a propagation bug, not a new attention bottleneck. Rebuilding the query
+envelope omitted the previous register policy and measured projection folds
+at candidate export and release bind. Full QKV consequently launched four
+times as many CTAs. Long-context attention improved while C16 serving regressed.
+
+For subsequent experiments:
+
+- Keep input-context admission, AOT query envelope and scheduler step budget
+  explicit and independent. Do not regenerate every kernel just to increase
+  model input admission.
+- Pass `--projection-policy EXPORT_COMMAND_JSON BIND_COMMAND_JSON` to
+  `ako_query_chunk_serving.mbtx`, preserving matching projection options at
+  both ends. Its receipt pins command hashes across phases. Defaults require
+  an explicit `--unmeasured-projection`; absence is not an implicit downgrade.
+- Reuse unchanged qualified artifacts where possible. A changed kernel requires
+  new scope-bound calibration; never retag old records as measurements of it.
+- Test an attention improvement with **the full tuned projection chain**, not
+  only a fresh-default bundle. Include short controls and long C1/C2 inputs.
+- Check executed grid, symbol and resources after selection. A generated
+  candidate, configuration flag or favorable microprobe alone does not prove
+  that previous optimizations survived into serving.
+
+These are offline preparation checks. They add no token-step filesystem,
+cryptography, calibration or runtime JIT work, and do not change functional IR.

@@ -1,0 +1,231 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, repair, abba, trace, phase, .. diagnosis] &&
+    ["sanitize", "seal"].contains(phase) else {
+    fail("REPAIR ABBA TRACE sanitize|seal")
+  }
+  assert_true(
+    @fs.read_file(abba + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  assert_true(
+    @fs.read_file(repair + "/decode-route-measurements/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\n"),
+  )
+  for (index, side) in [(0, "old"), (1, "current"), (2, "current"), (3, "old")] {
+    let run = abba + "/s\{index}-" + side + "/r0-luna-full"
+    assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+    for line in @fs.read_file(run + "/memory.csv").text().split("\n") {
+      if !line.is_empty() {
+        assert_true(
+          @string.parse_int64(line.split(",").to_array()[1]) >= 33554432L,
+        )
+      }
+    }
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  let identity = capture(repair, phase + "-gpu-identity-v3", "nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ])
+  assert_eq(identity.trim(), "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6")
+  let validation = repair + "/validation-v3"
+  if phase == "sanitize" {
+    if @fs.exists(repair + "/validation-v2/long-tail-racecheck.command.json") &&
+      !@fs.exists(repair + "/validation-v2/RESULT.txt") {
+      @fs.write_file(
+        repair + "/validation-v2/INTERRUPTED.txt",
+        "outcome=interrupted\nreason=large full-matrix racecheck instrumentation budget; not a sanitizer pass\nreplacement=odd partial query tiles over the same 32K histories; full-size memcheck and synccheck retained\n",
+        create_mode=CreateNew,
+      )
+      ignore(
+        capture(repair, "large-racecheck-interruption", "journalctl", [
+          "--user", "-u", "lunaflux-propagation-sanitize-v2-20261006-kKDWuXV4.service",
+          "--no-pager",
+        ]),
+      )
+    }
+    @fs.mkdir(validation)
+    for
+      (label, q, rows, history) in [
+        ("short", "128", "1", "0"),
+        ("long-tail", "1792", "1", "30720"),
+        ("long-r2", "2048", "2", "31744"),
+      ] {
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        // Racecheck observes the same compiled shared ownership/barriers and
+        // long-history loop using odd tail tiles, instead of instrumenting
+        // thousands of redundant full tiles. Address and sync gates retain
+        // the full serving query envelope. This is scoped, not exhaustive.
+        let (checked_q, checked_history) = if tool == "racecheck" {
+          match label {
+            "short" => ("65", "0")
+            "long-tail" => ("65", "32447")
+            _ => ("129", "32703")
+          }
+        } else {
+          (q, history)
+        }
+        let output = capture(
+          validation,
+          label + "-" + tool,
+          "/usr/local/cuda-13.0/bin/compute-sanitizer",
+          [
+            "--tool",
+            tool,
+            "--error-exitcode",
+            "99",
+            ..if tool == "memcheck" {
+              ["--leak-check", "full"]
+            } else if tool == "racecheck" {
+              ["--racecheck-num-workers", "1"]
+            } else {
+              []
+            },
+            repair + "/check-probe",
+            repair + "/calibration-spec/prefill.spec",
+            repair + "/prefill-selected",
+            repair + "/decode-route-measurements/wide-prefill",
+            checked_q,
+            rows,
+            checked_history,
+            "--check-only",
+          ],
+        )
+        assert_true(output.contains("correctness=passed"))
+        assert_true(output.contains("0 errors") || output.contains("0 hazards"))
+      }
+    }
+    @fs.write_file(
+      validation + "/RESULT.txt",
+      "outcome=passed\nscope=changed-2K-attention; full-query memcheck-leaks and synccheck; odd-query long-history racecheck; not exhaustive full-matrix racecheck\n",
+      create_mode=CreateNew,
+    )
+  } else {
+    assert_true(
+      @fs.read_file(validation + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=passed\n"),
+    )
+    assert_true(
+      @fs.read_file(trace + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    assert_true(@fs.exists(abba + "/comparison.json"))
+    let archive = repair + "/verified-measurements.tar.gz"
+    assert_false(@fs.exists(archive))
+    let archive_args = [
+      "-czf",
+      archive,
+      "--exclude=_build",
+      "--exclude=.mooncakes",
+      "-C",
+      repair,
+      "validation-v3",
+      "validation-v2",
+      "validation",
+      "decode-route-measurements",
+      "calibration-spec",
+      "fused",
+      "fused-routed",
+      "prefill-selected",
+      "wide-prefill-selected",
+      "check-probe",
+      "attention-first.cubin",
+      "attention-second.cubin",
+      "attention-export",
+      "bundle.arguments.json",
+      "bind.stdout",
+      "export.stdout",
+      "convert.stdout",
+      "toolchain.v1",
+      "long-final/PREPARED.json",
+      "long-final/capacity.json",
+      "long-final/preflight.stdout",
+      "long-final/preflight.stderr",
+      "long-final/deployment/lunaflux.launch.json",
+      "-C",
+      abba + "/..",
+      abba.split("/").to_array().last().unwrap().to_owned(),
+      "-C",
+      trace + "/..",
+      trace.split("/").to_array().last().unwrap().to_owned(),
+    ]
+    for directory in diagnosis {
+      guard directory.has_prefix("/") && @fs.exists(directory + "/RESULT.txt") else {
+        fail("completed diagnosis directory")
+      }
+      archive_args.append([
+        "-C",
+        directory + "/..",
+        directory.split("/").to_array().last().unwrap().to_owned(),
+      ])
+    }
+    // Preserve rejected harness attempts as well as successful measurements.
+    // File discovery is read-only and restricted to this experiment root.
+    let logs = @shell.Cmd("find", [
+      repair, "-maxdepth", "1", "-type", "f", "(", "-name", "*.command.json", "-o",
+      "-name", "*.stdout", "-o", "-name", "*.stderr", "-o", "-name", "*.mbtx", ")",
+    ]).output()
+    logs.check()
+    archive_args.append(["-C", repair, "calibration-rejected-8k-spec"])
+    for path in logs.stdout().split("\n").filter(s => !s.is_empty()) {
+      guard path.has_prefix(repair + "/") else { fail("experiment log path") }
+      let name = path[repair.length() + 1:].to_owned()
+      // These are already explicitly listed; avoid duplicate tar members.
+      if !["bind.stdout", "export.stdout", "convert.stdout"].contains(name) {
+        archive_args.push(name)
+      }
+    }
+    ignore(capture(repair, "seal-archive", "tar", archive_args))
+    let hash = capture(repair, "seal-hash", "sha256sum", [archive])
+    @fs.write_file(archive + ".sha256", hash, create_mode=CreateNew)
+    @shell.Cmd("chmod", ["0444", archive, archive + ".sha256"]).run()
+    @fs.write_file(
+      repair + "/VERIFIED.txt",
+      "outcome=completed\nscope=benchmark-only projection-policy propagation repair; not production promotion\n",
+      create_mode=CreateNew,
+    )
+  }
+}
