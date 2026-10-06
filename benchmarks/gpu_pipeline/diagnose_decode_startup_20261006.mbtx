@@ -1,0 +1,67 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, bucket, root, serving] else {
+    fail("BUCKET NEW_ROOT SERVING")
+  }
+  let source = bucket + "/diagnostic-source"
+  let main = source + "/cmd/lunaflux/main.mbt"
+  let old = @fs.read_file(bucket + "/source/cmd/lunaflux/main.mbt").text()
+  guard old.split("  try! run_cli(@env.args())").to_array() is [a, b] else {
+    fail("one diagnostic error seam")
+  }
+  @fs.write_file(
+    main,
+    a.to_owned() +
+    "  run_cli(@env.args()) catch {\n @runtime_instance.RuntimeInstanceFailed(stage) => { println(\"diagnostic_stage=\" + stage.code()); ignore(flush_native_stdout_after_readiness_publication()) }\n @runtime_instance.RuntimeInstanceFailedAndCleanup(stage, cleanup) => { println(\"diagnostic_stage=\" + stage.code() + \",cleanup=\" + cleanup.code()); ignore(flush_native_stdout_after_readiness_publication()) }\n error => { println(\"diagnostic_startup_error=\" + error.to_string()); ignore(flush_native_stdout_after_readiness_publication()) }\n }" +
+    b.to_owned(),
+  )
+  let moon = bucket + "/toolchain/bin/moon"
+  let build = @shell.Cmd(
+    moon,
+    [
+      "build", "cmd/lunaflux", "--target", "native", "--release", "--deny-warn",
+      "--warn-list", "-79-20-29-25",
+    ],
+    cwd=source,
+  ).output(max_output_bytes=33554432)
+  @fs.write_file(root + "/build-v5.stdout", build.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/build-v5.stderr", build.stderr(), create_mode=CreateNew)
+  build.check()
+  let hash = @shell.Cmd("sha256sum", [
+    serving + "/deployment/lunaflux.launch.json",
+  ]).output()
+  hash.check()
+  let output = @shell.Cmd(
+    source +
+    "/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe",
+    [
+      source + "/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+      serving +
+      "/deployment#sha256=" +
+      hash.stdout().split(" ").to_array()[0].to_owned(),
+      root + "/runtime-v5.stdout",
+      root + "/runtime-v5.stderr",
+      root + "/drain-trigger",
+    ],
+  ).output(max_output_bytes=8388608)
+  @fs.write_file(
+    root + "/supervisor-v5.stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/supervisor-v5.stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  println(output.stdout())
+  println(@fs.read_file(root + "/runtime-v5.stdout").text())
+}

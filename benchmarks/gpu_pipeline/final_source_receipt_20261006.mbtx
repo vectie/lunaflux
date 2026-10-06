@@ -1,0 +1,62 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, repaired, root] else {
+    fail("FROZEN REPAIRED EMPTY_RECEIPT_ROOT")
+  }
+  for
+    file in [
+      "FINAL_VERIFICATION.txt", "runtime-identities.stdout", "tests.stdout", "tests.stderr",
+      "build.stdout", "build.stderr", "patch/attention_phase_executor.mbt", "patch/mixed_decode_split_prepare.mbt",
+      "patch/paged_dispatch_prepare.mbt", "patch/mixed_capture_budget_wbtest.mbt",
+      "overlay/engine/device_step/attention_phase_physical_wbtest.mbt", "physical-v2/ordinary.stdout",
+      "physical-v2/ordinary.stderr", "physical-v2/memcheck.stdout", "physical-v2/memcheck.stderr",
+      "physical-v2/racecheck.stdout", "physical-v2/racecheck.stderr", "physical-v2/synccheck.stdout",
+      "physical-v2/synccheck.stderr", "physical-v2/RESULT.txt",
+    ] {
+    @fs.write_file(
+      root + "/" + file.split("/").to_array().join("--"),
+      @fs.read_file(repaired + "/" + file),
+      create_mode=CreateNew,
+    )
+  }
+  @shell.Cmd("cp", [
+    "-a",
+    frozen + "/serving/decode-selected/kernel.cubin",
+    root + "/strict-c468.cubin",
+  ]).run()
+  let identities = StringBuilder()
+  for
+    archive in [
+      frozen + ".verified.tar.gz",
+      repaired + ".verified.tar.gz",
+      "/home/wlc004s/lunaflux-mixed-decode-fix-20261006.ckcbaxXd.verified.tar.gz",
+      "/home/wlc004s/lunaflux-split-bucket-fix-20261006.yvZtqp0y.verified.tar.gz",
+      "/home/wlc004s/lunaflux-mixed-final-benchmark-20261006.Xzq0NMMd.measurement.tar.gz",
+      "/home/wlc004s/lunaflux-mixed-final-trace-20261006.Iy8LiSeB.verified.tar.gz",
+    ] {
+    identities.write_string(@fs.read_file(archive + ".sha256").text())
+  }
+  @fs.write_file(
+    root + "/SEALED_ARCHIVES.sha256",
+    identities.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=compact exact-source, captured-owner sanitizer, runtime identity and remote archive receipt; no deployment or universal parity claim\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(frozen + "/toolchain/bin/moon", [
+    "run",
+    frozen + "/seal_decode_fix_20261006.v2.mbtx",
+    root,
+  ]).run()
+}

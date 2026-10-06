@@ -1,0 +1,48 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, destination, socket, .. archives] &&
+    !archives.is_empty() else {
+    fail("LOCAL_DIRECTORY SSH_SOCKET REMOTE_SEALED_ARCHIVES...")
+  }
+  for remote in archives {
+    guard remote.has_prefix("/home/wlc004s/lunaflux-") &&
+      remote.has_suffix(".tar.gz") else {
+      fail("scoped sealed archive")
+    }
+    let name = remote.split("/").to_array().last().unwrap().to_owned()
+    let target = destination + "/" + name
+    guard !@fs.exists(target) && !@fs.exists(target + ".sha256") else {
+      fail("non-overwriting download")
+    }
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      "-P",
+      "10422",
+      "wlc004s@106.39.18.146:" + remote,
+      "wlc004s@106.39.18.146:" + remote + ".sha256",
+      destination + "/",
+    ]).run()
+    let result = @shell.Cmd("shasum", ["-a", "256", target]).output()
+    result.check()
+    let expected = @fs.read_file(target + ".sha256")
+    .text()
+    .split(" ")
+    .to_array()[0].to_owned()
+    assert_eq(result.stdout().split(" ").to_array()[0], expected)
+    @fs.write_file(
+      target + ".local-verified.sha256",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    println("verified=" + name + " sha256=" + expected)
+  }
+}

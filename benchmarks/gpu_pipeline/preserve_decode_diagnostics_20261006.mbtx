@@ -1,0 +1,43 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [
+      _,
+      frozen,
+      row_source,
+      failed_benchmark,
+      startup_diagnosis,
+      row_benchmark,
+    ] else {
+    fail("FROZEN ROW_SOURCE FAILED_BENCHMARK STARTUP_DIAGNOSIS ROW_BENCHMARK")
+  }
+  for
+    (root, result) in [
+      (
+        row_source, "outcome=completed\nscope=row-domain source tests and materialization; serving benchmark retained separately; not final mixed-route verification\n",
+      ),
+      (
+        failed_benchmark, "outcome=failed\nscope=mixed route startup before readiness; no performance result\n",
+      ),
+      (
+        startup_diagnosis, "outcome=completed\nscope=diagnostic of failed startup; not successful serving or deployment\n",
+      ),
+    ] {
+    @fs.write_file(root + "/RESULT.txt", result, create_mode=CreateNew)
+  }
+  for root in [row_source, failed_benchmark, startup_diagnosis, row_benchmark] {
+    @shell.Cmd(frozen + "/toolchain/bin/moon", [
+      "run",
+      frozen + "/seal_decode_fix_20261006.v2.mbtx",
+      root,
+    ]).run()
+  }
+}

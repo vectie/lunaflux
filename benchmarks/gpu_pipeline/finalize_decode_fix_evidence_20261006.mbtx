@@ -1,0 +1,76 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [_, frozen, mixed, bucket, benchmark, trace, references, previous_trace] else {
+    fail("FROZEN MIXED BUCKET BENCHMARK TRACE REFERENCES PREVIOUS_TRACE")
+  }
+  let moon = frozen + "/toolchain/bin/moon"
+  for root in [mixed, bucket, benchmark, trace, references, previous_trace] {
+    guard @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("terminal success required before sealing")
+    }
+  }
+  guard @fs.read_file(bucket + "/FINAL_VERIFICATION.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("preparation alone is not final verification")
+  }
+  for
+    unit in [
+      "lunaflux-mixed-decode-publish-20261006.service", "lunaflux-mixed-decode-publish-bounded-20261006.service",
+      "lunaflux-mixed-decode-publish-complete-20261006.service", "lunaflux-mixed-decode-final-v2-20261006.service",
+      "lunaflux-mixed-decode-final-v3-20261006.service", "lunaflux-row-domain-only-20261006.service",
+      "lunaflux-mixed-capture-rebuild-20261006.service", "lunaflux-mixed-capture-rebuild-v2-20261006.service",
+      "lunaflux-mixed-capture-sanitizer-20261006.service", "lunaflux-mixed-capture-sanitizer-v2-20261006.service",
+      "lunaflux-mixed-capture-trace-prepare-20261006.service", "lunaflux-mixed-capture-final-20261006.service",
+    ] {
+    for
+      (label, exe, args) in [
+        (
+          "status",
+          "systemctl",
+          [
+            "--user", "show", unit, "-p", "Result", "-p", "ExecMainStatus", "-p",
+            "ActiveState", "-p", "MemoryPeak", "-p", "MemorySwapPeak",
+          ],
+        ),
+        ("journal", "journalctl", ["--user", "-u", unit, "--no-pager"]),
+      ] {
+      let output = @shell.Cmd(exe, args).output(max_output_bytes=8388608)
+      output.check()
+      @fs.write_file(
+        mixed + "/" + unit + "." + label,
+        output.stdout(),
+        create_mode=CreateNew,
+      )
+    }
+  }
+  @shell.Cmd(moon, [
+    "run",
+    frozen + "/seal_decode_fix_20261006.v2.mbtx",
+    frozen,
+    references,
+    previous_trace,
+  ]).run()
+  for root in [mixed, bucket, trace, previous_trace] {
+    @shell.Cmd(moon, ["run", frozen + "/seal_decode_fix_20261006.v2.mbtx", root]).run()
+  }
+  for root in [benchmark, references] {
+    @shell.Cmd(moon, [
+      "run",
+      frozen + "/summarize_frameworks_20261006.v2.mbtx",
+      root,
+      "seal",
+    ]).run()
+  }
+}
