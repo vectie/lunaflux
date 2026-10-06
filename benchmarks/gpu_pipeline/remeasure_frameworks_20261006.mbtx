@@ -1,0 +1,180 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// Offline campaign preparation: reuse accepted AOT binaries, not the dirty tree.
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  let parts = text.split(before).to_array()
+  guard parts.length() == 2 else { fail("changed seam: " + before) }
+  parts.join(after)
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, root, template, client_template, moon] else {
+    fail("ACCEPTED_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER CLIENT_TEMPLATE MOON")
+  }
+  let bundle = serving +
+    "/deployment/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3"
+  let hash = capture(root, "bundle-sha256", "sha256sum", [bundle])
+    .split(" ")
+    .to_array()[0]
+  guard hash ==
+    "add504e337b0ad8867342d043ed96cb3a11212f74231984925dc7ca6ecb79724" else {
+    fail("not the accepted page-batched AOT bundle")
+  }
+  ignore(
+    capture(root, "gpu", "nvidia-smi", [
+      "--query-gpu=uuid,name,driver_version", "--format=csv,noheader",
+    ]),
+  )
+  let prefix = "lunaflux-bench-" +
+    root.split("/").to_array().last().unwrap().to_owned() +
+    "-"
+  let launcher = once(
+    @fs.read_file(template).text(),
+    "  let orders = [[\"luna-full\"]]",
+    "  let orders = [[\"vllm\", \"luna-full\", \"sglang\"], [\"sglang\", \"luna-full\", \"vllm\"]]",
+  )
+  let launcher = once(
+    launcher,
+    "\"lunaflux-long-lunaflux-long-context-20261004.SqjTBeqG-\" + engine",
+    Json(prefix).stringify() + " + engine",
+  )
+  let launcher = once(
+    launcher, "///|\nfn replace_once(text : String, before : String, after : String) -> String raise {\n  let parts = text.split(before).to_array()\n  guard parts.length() == 2 else { fail(\"client seam changed: \" + before) }\n  parts.join(after)\n}\n\n",
+    "",
+  )
+  let client = @fs.read_file(client_template).text()
+  let start = client
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+  guard start.length() == 2 else { fail("matrix start") }
+  let end = start[1].split("///|\nfn token_ids").to_array()
+  guard end.length() == 2 else { fail("matrix end") }
+  let client = start[0].to_owned() +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n" +
+    "  [\n" +
+    "    (\"i128-o256-c1-varied\", [128], 256, \"varied\"),\n" +
+    "    (\"i4096-o64-c1-varied\", [4096], 64, \"varied\"),\n" +
+    "    (\"i4096-o64-c16-varied\", inputs(4096, 16), 64, \"varied\"),\n" +
+    "    (\"i16384-o64-c1-varied\", [16384], 64, \"varied\"),\n" +
+    "    (\"i32512-o64-c1-varied\", [32512], 64, \"varied\"),\n" +
+    "    (\"i32512-o64-c2-varied\", [32512,32512], 64, \"varied\"),\n" +
+    "    (\"i32512-o256-c1-varied\", [32512], 256, \"varied\"),\n" +
+    "    (\"i32512-o64-c1-diverse\", [32512], 64, \"diverse\"),\n" +
+    "  ]\n}\n\n///|\nfn token_ids" +
+    end[1].to_owned()
+  let script = root + "/campaign-launcher.mbtx"
+  @fs.write_file(script, launcher, create_mode=CreateNew)
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  ignore(
+    capture(root, "launcher-check", moon, ["check", script, "--deny-warn"]),
+  )
+  ignore(
+    capture(root, "client-check", moon, [
+      "check",
+      script + ".client.mbtx",
+      "--deny-warn",
+    ]),
+  )
+  for engine in ["vllm", "sglang"] {
+    let original = "lunaflux-long-lunaflux-long-context-20261004.SqjTBeqG-" +
+      engine
+    let raw = @json.parse(
+      capture(root, engine + "-original", "docker", ["inspect", original]),
+    )
+    guard raw
+      is Array(
+        [
+          {
+            "Image": String(image),
+            "Config": { "Cmd": Array(command), .. },
+            ..
+          },
+        ]
+      ) else {
+      fail("reference config")
+    }
+    let command = command.map(x => {
+      guard x is String(s) else { fail("argument") }
+      s
+    })
+    ignore(
+      capture(
+        root,
+        engine + "-create",
+        "docker",
+        [
+          "create",
+          "--name",
+          prefix + engine,
+          "--gpus",
+          "all",
+          "--network",
+          "host",
+          "--ipc",
+          "host",
+          "--memory",
+          "64g",
+          "--memory-swap",
+          "64g",
+          "--mount",
+          "type=bind,source=/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b,target=/model,readonly",
+          image,
+          ..command,
+        ],
+      ),
+    )
+  }
+  ignore(
+    capture(root, "campaign", moon, ["run", script, serving, root, script]),
+  )
+  println("completed=" + root)
+}
+
+///|
+test "template seams fail closed instead of changing several regions" {
+  assert_eq(once("a-b", "-", "+"), "a+b")
+  for text in ["ab", "a-b-c"] {
+    try once(text, "-", "+") catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous seam accepted")
+    }
+  }
+}

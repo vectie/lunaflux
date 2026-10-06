@@ -1,0 +1,256 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("empty samples") }
+  let sorted = values.copy()
+  sorted.sort()
+  let n = sorted.length()
+  if n % 2 == 0 {
+    (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+  } else {
+    sorted[n / 2]
+  }
+}
+
+///|
+async fn seal(root : String) -> Unit {
+  guard @fs.read_file(root + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("terminal campaign first")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU still occupied") }
+  let files = @shell.Cmd(
+    "find",
+    [
+      ".", "-type", "f", "-not", "-path", "*/_build/*", "-not", "-path", "*/.mooncakes/*",
+    ],
+    cwd=root,
+  ).output()
+  files.check()
+  let paths = files
+    .stdout()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .map(x => x.to_owned())
+    .to_array()
+  paths.sort()
+  let hashes = @shell.Cmd("sha256sum", paths, cwd=root).output(
+    max_output_bytes=33554432,
+  )
+  hashes.check()
+  @fs.write_file(root + "/FILES.sha256", hashes.stdout(), create_mode=CreateNew)
+  let check = @shell.Cmd("sha256sum", ["--check", "FILES.sha256"], cwd=root).output(
+    max_output_bytes=33554432,
+  )
+  check.check()
+  let archive = root + ".measurement.tar.gz"
+  guard !@fs.exists(archive) else { fail("archive exists") }
+  @shell.Cmd("tar", [
+    "-czf", archive, "--exclude=_build", "--exclude=.mooncakes", "-C", root, ".",
+  ]).run()
+  let sha = @shell.Cmd("sha256sum", [archive]).output()
+  sha.check()
+  @fs.write_file(archive + ".sha256", sha.stdout(), create_mode=CreateNew)
+  @shell.Cmd("chmod", ["0444", archive]).run()
+  println(sha.stdout())
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, phase] else {
+    fail("COMPLETED_ROOT summarize|seal")
+  }
+  if phase == "seal" {
+    seal(root)
+    return
+  }
+  guard phase == "summarize" && @fs.exists(root + "/RESULT.txt") else {
+    fail("completed campaign")
+  }
+  let engines = ["luna-full", "vllm", "sglang"]
+  for round in 0..<2 {
+    for engine in engines {
+      let run = root + "/r\{round}-" + engine
+      assert_true(
+        @fs.read_file(run + "/RESULT.txt")
+        .text()
+        .has_prefix("outcome=completed\n"),
+      )
+      if engine == "luna-full" {
+        assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+        let closed = @fs.read_file(run + "/supervisor.stdout").text()
+        for
+          key in ["drain_acknowledged=1", "child_exit_code=0", "child_closed=1"] {
+          assert_true(closed.contains(key))
+        }
+      }
+    }
+  }
+  let matrix = @json.parse(
+    @fs.read_file(root + "/r0-vllm/requests/matrix.json").text(),
+  )
+  guard matrix is Array(cells) else { fail("matrix") }
+  let reports : Array[Json] = []
+  for cell in cells {
+    guard cell
+      is { "cell": String(name), "output": output, "inputs": Array(inputs), .. } else {
+      fail("cell")
+    }
+    let output = number(output).to_int()
+    let metrics : Array[Json] = []
+    let vectors : Array[Array[Json]] = []
+    let walls : Array[Double] = []
+    for engine in engines {
+      let wall : Array[Double] = []
+      let first : Array[Double] = []
+      let decode : Array[Double] = []
+      let outputs : Array[Json] = []
+      let unique : Map[String, Bool] = Map([])
+      let mut minimum_memory = 1.0e15
+      for round in 0..<2 {
+        let run = root + "/r\{round}-" + engine
+        for line in @fs.read_file(run + "/memory.csv").text().split("\n") {
+          if !line.is_empty() {
+            let free = @string.parse_double(line.split(",").to_array()[1])
+            assert_true(free >= 33554432.0)
+            if free < minimum_memory {
+              minimum_memory = free
+            }
+          }
+        }
+        for trial in 1..<4 {
+          let row = @json.parse(
+            @fs.read_file(run + "/requests/" + name + "-t\{trial}.json").text(),
+          )
+          guard row
+            is {
+              "warmup": false,
+              "wall_ms": elapsed,
+              "requests": Array(requests),
+              ..
+            } else {
+            fail("measured row")
+          }
+          assert_eq(requests.length(), inputs.length())
+          wall.push(number(elapsed))
+          let row_first : Array[Double] = []
+          let row_decode : Array[Double] = []
+          let row_tokens : Array[Json] = []
+          for request in requests {
+            guard request
+              is {
+                "ttft_ms": ttft,
+                "post_first_token_ms": post,
+                "token_ids": Array(ids),
+                ..
+              } else {
+              fail("request")
+            }
+            assert_eq(ids.length(), output)
+            row_first.push(number(ttft))
+            row_decode.push(number(post))
+            row_tokens.push(Json(ids))
+          }
+          first.push(
+            row_first.fold(init=0.0, (a, b) => a + b) /
+            inputs.length().to_double(),
+          )
+          decode.push(
+            row_decode.fold(init=0.0, (a, b) => a + b) /
+            inputs.length().to_double(),
+          )
+          let vector = Json(row_tokens)
+          unique[vector.stringify()] = true
+          outputs.push(vector)
+        }
+      }
+      let mid = median(wall)
+      walls.push(mid)
+      vectors.push(outputs)
+      metrics.push({
+        "engine": engine,
+        "wall_ms": wall,
+        "ttft_ms": first,
+        "post_first_token_ms": decode,
+        "median_wall_ms": mid,
+        "median_ttft_ms": median(first),
+        "median_post_first_token_ms": median(decode),
+        "output_tok_s_including_prefill": (output * inputs.length()).to_double() *
+        1000.0 /
+        mid,
+        "unique_complete_output_vectors": unique.length(),
+        "minimum_mem_available_kib": minimum_memory,
+      })
+    }
+    let agreement : Array[Json] = []
+    for reference in [1, 2] {
+      agreement.push({
+        "reference": engines[reference],
+        "paired_complete_vector_agreement": Array::makei(6, i => {
+          vectors[0][i] == vectors[reference][i]
+        }),
+      })
+    }
+    reports.push({
+      "cell": name,
+      "input_vector": inputs,
+      "output_tokens_per_request": output,
+      "metrics": metrics,
+      "luna_completion_over_vllm": walls[0] / walls[1] - 1.0,
+      "luna_completion_over_sglang": walls[0] / walls[2] - 1.0,
+      "output_agreement": agreement,
+      "scope": "fixed input/output work, synthetic token vectors; not language quality parity",
+    })
+    println(
+      "\{name}: Luna=\{walls[0]}ms vLLM=\{walls[1]}ms SGLang=\{walls[2]}ms",
+    )
+  }
+  @fs.write_file(
+    root + "/comparison.json",
+    Json(reports).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let prefix = "lunaflux-bench-" +
+    root.split("/").to_array().last().unwrap().to_owned() +
+    "-"
+  for engine in ["vllm", "sglang"] {
+    let logs = @shell.Cmd("docker", ["logs", prefix + engine]).output(
+      max_output_bytes=33554432,
+    )
+    logs.check()
+    @fs.write_file(
+      root + "/" + engine + ".server.log",
+      logs.stdout() + logs.stderr(),
+      create_mode=CreateNew,
+    )
+  }
+}
+
+///|
+test "median handles odd and even sample vectors" {
+  assert_eq(median([3.0, 1.0, 2.0]), 2.0)
+  assert_eq(median([6.0, 1.0, 2.0, 5.0, 4.0, 3.0]), 3.5)
+}
