@@ -184,6 +184,9 @@ int main(int argc,char**argv){
     else if(std::string(argv[i])=="--mixed-decode-chain" && mixed_companion_root.empty() && !mixed && !prefill_partitioned && i+1<argc){
       mixed_companion_root=argv[++i];mixed=true;mixed_decode_comparison=true;
     }
+    else if(std::string(argv[i])=="--mixed-ordinary-chain" && mixed_companion_root.empty() && !mixed && !prefill_partitioned && i+1<argc){
+      mixed_companion_root=argv[++i];mixed=true;
+    }
     else if(std::string(argv[i])=="--decode-history" && decode_history<0 && i+1<argc){decode_history=std::stoi(argv[++i]);if(decode_history<0)return 1;}
     else if(std::string(argv[i])=="--query-bucket-bound" && !traced_bucket && i+1<argc){traced_bucket=std::stoi(argv[++i]);if(traced_bucket<1)return 1;}
     else if(std::string(argv[i])=="--prefill-chunk-parity" && !chunk_tokens && i+1<argc){chunk_tokens=std::stoi(argv[++i]);if(chunk_tokens<1)return 1;}
@@ -246,7 +249,7 @@ int main(int argc,char**argv){
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
   auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens,mixed_chain?rows-1:rows);
   if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=1 prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=2 new_launches=3 comparison=%s\n",
-    rows-1,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz,mixed_decode_comparison?"decode-companion":"prefill-partition");
+    rows-1,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz,mixed_decode_comparison?"decode-companion":prefill_partitioned?"prefill-partition":"ordinary-chain");
   auto x=values(size_t(tokens)*input_width,3);
   auto key=values(size_t(pages.size())*stride,29),value=values(key.size(),31);
   if(!ingress&&!postprocess){

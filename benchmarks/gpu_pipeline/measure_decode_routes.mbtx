@@ -54,6 +54,34 @@ fn median(output : String, name : String) -> Int64 raise {
 }
 
 ///|
+fn mixed_chain_arguments(
+  decode : String,
+  context : Int,
+  split : Bool,
+) -> Array[String] {
+  [
+    if split {
+      "--mixed-decode-chain"
+    } else {
+      "--mixed-ordinary-chain"
+    },
+    decode,
+    "--decode-history",
+    "\{context - 1}",
+  ]
+}
+
+///|
+test "mixed calibration times the companion and binds its independent history" {
+  assert_eq(mixed_chain_arguments("module", 32768, false), [
+    "--mixed-ordinary-chain", "module", "--decode-history", "32767",
+  ])
+  assert_eq(mixed_chain_arguments("module", 128, true), [
+    "--mixed-decode-chain", "module", "--decode-history", "127",
+  ])
+}
+
+///|
 fn partitioned_decode_recipe(recipe : String) -> String raise {
   let law = field(recipe, "partition_numeric_law")
   guard [
@@ -204,8 +232,10 @@ async fn main {
       fail("reused prefill scope differs")
     }
     for line in previous.split("\n") {
-      if line.has_prefix("record\tprefill\t") ||
-        line.has_prefix("record\tmixed\t") {
+      // Older mixed records timed only prefill, not the executed companion.
+      // Reuse exact prefill records, but never relabel those partial timings
+      // as measured mixed-graph choices.
+      if line.has_prefix("record\tprefill\t") {
         routes += line.to_owned() + "\n"
       }
     }
@@ -263,9 +293,34 @@ async fn main {
               "\{rows}",
               "\{history}",
             ] +
-            (if phase == "mixed" { ["--mixed"] } else { [] }),
+            (if phase == "mixed" {
+              mixed_chain_arguments(
+                serving + "/decode-selected",
+                context,
+                false,
+              )
+            } else {
+              []
+            }),
           )
           routes += "record\t\{phase}\t\{rows}\t\{queries}\t\{context}\t1\t\{median(output, "old_us")}\t5\nrecord\t\{phase}\t\{rows}\t\{queries}\t\{context}\t2\t\{median(output, "new_us")}\t5\n"
+          if phase == "mixed" && blockwise {
+            let split = checked(
+              root,
+              "mixed-split-q\{queries}-r\{rows}-h\{history}",
+              serving + "/check-probe",
+              [
+                calibration + "/prefill.spec",
+                wide,
+                wide,
+                "\{queries}",
+                "\{rows}",
+                "\{history}",
+              ] +
+              mixed_chain_arguments(serving + "/decode-selected", context, true),
+            )
+            routes += "record\t\{phase}\t\{rows}\t\{queries}\t\{context}\t7\t\{median(split, "new_us")}\t5\n"
+          }
           context *= 2
         }
       }
