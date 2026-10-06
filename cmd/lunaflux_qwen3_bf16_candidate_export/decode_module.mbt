@@ -60,9 +60,11 @@ fn qwen_decode_module_pair(
     "\n" +
     reset +
     "\n#include <cuda_bf16.h>\n#include <math_constants.h>\nnamespace lf_blockwise_partition_v3 {\n" +
-    (@utf8.decode(partitioned.source().bytes()) catch {
-      _ => raise Publication
-    }) +
+    qwen_decode_partition_helpers(
+      @utf8.decode(partitioned.source().bytes()) catch {
+        _ => raise Publication
+      },
+    ) +
     "\n}\n",
   )
   let digest = @crypto.bytes_to_hex_string(@crypto.sha256(source))
@@ -88,6 +90,35 @@ fn qwen_decode_module_pair(
     }) +
     "partition_grid=\{set.profile().max_query_rows()},\{partitioned.lowering().launch().1},8\npartition_merge_grid=\{set.profile().max_query_rows()},\{shape.dimensions().0},1\npartition_block=\{partitioned.lowering().launch().2},1,1\npartition_shared_memory_bytes=\{partitioned.lowering().launch().3}\npartition_workspace_bytes=\{partitioned.source().workspace().total_bytes()}\n"
   (source, @utf8.encode(text))
+}
+
+///|
+/// Terminal alpha-renaming of private helper identifiers. A C++ namespace
+/// alone is insufficient: ADL on CUDA's global BF16 type can discover the
+/// ordinary module's helper as well. Public entry symbols and numeric
+/// intrinsics remain unchanged; the composed source digest binds the result.
+fn qwen_decode_partition_helpers(source : String) -> String {
+  let output = StringBuilder()
+  let mut identifier = ""
+  for character in source {
+    if character is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_') {
+      identifier += character.to_string()
+    } else {
+      if identifier.has_prefix("lf_") {
+        output.write_string("lf_partition_" + identifier[3:].to_owned())
+      } else {
+        output.write_string(identifier)
+      }
+      identifier = ""
+      output.write_char(character)
+    }
+  }
+  if identifier.has_prefix("lf_") {
+    output.write_string("lf_partition_" + identifier[3:].to_owned())
+  } else {
+    output.write_string(identifier)
+  }
+  output.to_string()
 }
 
 ///|

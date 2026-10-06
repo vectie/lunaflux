@@ -1,4 +1,14 @@
 ///|
+test "partition helpers cannot collide through global BF16 argument lookup" {
+  assert_eq(
+    qwen_decode_partition_helpers(
+      "lf_matrix_load(p,0,0,128); lf_matrix_load (p); __half_as_ushort(x); my_lf_value; lunaflux_decode; lf_last",
+    ),
+    "lf_partition_matrix_load(p,0,0,128); lf_partition_matrix_load (p); __half_as_ushort(x); my_lf_value; lunaflux_decode; lf_partition_last",
+  )
+}
+
+///|
 test "decode module resets object and function macro identities" {
   assert_eq(
     qwen_decode_module_macro_reset(
