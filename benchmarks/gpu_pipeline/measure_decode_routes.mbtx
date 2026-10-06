@@ -116,6 +116,28 @@ fn calibration_context_limit(rows : Int, extended : Bool) -> Int {
 }
 
 ///|
+fn decode_calibration_histories(rows : Int, extended : Bool) -> Array[Int] {
+  let maximum = calibration_context_limit(rows, extended)
+  let histories : Array[Int] = []
+  let mut context = 128
+  while context <= maximum {
+    histories.push(context - 1)
+    context *= 2
+  }
+  histories
+}
+
+///|
+test "decode calibration covers every context bucket through the bounded limit" {
+  assert_eq(decode_calibration_histories(2, true), [
+    127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767,
+  ])
+  assert_eq(decode_calibration_histories(16, true).last(), Some(8191))
+  assert_eq(decode_calibration_histories(8, true).last(), Some(16383))
+  assert_eq(decode_calibration_histories(1, false).last(), Some(8191))
+}
+
+///|
 test "context coverage does not enlarge query capacity or exceed KV arena" {
   assert_eq(calibration_context_limit(1, false), 8192)
   assert_eq(calibration_context_limit(1, true), 32768)
@@ -126,9 +148,17 @@ test "context coverage does not enlarge query capacity or exceed KV arena" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, serving, calibration, .. options] &&
-    (options.is_empty() || options is ["--context-limit", "32768"]) else {
-    fail("SERVING PREPARED_CALIBRATION [--context-limit 32768]")
+  guard @env.args() is [_, serving, calibration, .. options] else {
+    fail(
+      "SERVING PREPARED_CALIBRATION [--context-limit 32768 [--reuse-prefill-routes EXACT_SCOPE_ROUTES]]",
+    )
+  }
+  let (extended, reused) = match options {
+    [] => (false, None)
+    ["--context-limit", "32768"] => (true, None)
+    ["--context-limit", "32768", "--reuse-prefill-routes", path] =>
+      (true, Some(path))
+    _ => fail("bounded calibration options")
   }
   let gpu = @shell.Cmd("nvidia-smi", [
     "--query-compute-apps=pid", "--format=csv,noheader",
@@ -168,6 +198,18 @@ async fn main {
   let mut routes = "luna-attention-buckets-v1\nscope\t" +
     field(report, "attention_route_scope") +
     "\n"
+  if reused is Some(path) {
+    let previous = @fs.read_file(path).text()
+    guard previous.has_prefix(routes) else {
+      fail("reused prefill scope differs")
+    }
+    for line in previous.split("\n") {
+      if line.has_prefix("record\tprefill\t") ||
+        line.has_prefix("record\tmixed\t") {
+        routes += line.to_owned() + "\n"
+      }
+    }
+  }
   let wide = root + "/wide-prefill"
   @fs.mkdir(wide)
   @fs.write_file(
@@ -187,10 +229,10 @@ async fn main {
     @fs.read_file(serving + "/fused/prefill_wide.cubin"),
     create_mode=CreateNew,
   )
-  for rows in [1, 2, 4, 8, 16] {
+  for rows in (if reused is None { [1, 2, 4, 8, 16] } else { [] }) {
     // Context coverage may grow independently of the query/AOT envelope.
     // Keep aggregate KV within the existing 131072-token diagnostic arena.
-    let maximum_context = calibration_context_limit(rows, !options.is_empty())
+    let maximum_context = calibration_context_limit(rows, extended)
     for phase in ["prefill", "mixed"] {
       if phase == "mixed" && rows == 1 {
         continue
@@ -233,7 +275,7 @@ async fn main {
     if !blockwise {
       continue
     }
-    for history in [127, 255, 4095, 8191] {
+    for history in decode_calibration_histories(rows, extended) {
       let args = [
         calibration + "/decode.spec",
         serving + "/decode-selected",
@@ -243,7 +285,8 @@ async fn main {
         "\{history}",
       ]
       // Isolated GPU probes are serialized, small and independently checked.
-      if (rows == 1 || rows == 16) && history == 4095 {
+      if (rows == 1 || rows == 2 || rows == 16) &&
+        history + 1 == calibration_context_limit(rows, extended) {
         for tool in ["memcheck", "racecheck", "synccheck"] {
           ignore(
             checked(

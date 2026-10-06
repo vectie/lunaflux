@@ -216,7 +216,9 @@ int main(int argc,char**argv){
   if(traced_bucket && (!decode || decode_envelope || mixed || phase_parity))return 1;
   // Explicit replay of a traced capacity-grid graph, including inactive rows.
   // Do not silently treat a compact synthetic bucket as the serving envelope.
-  const int bucket_tokens=decode_envelope?max_rows:selected_capture_bound(tokens,decode?max_rows:max_tokens,traced_bucket);
+  const int bucket_tokens=decode_envelope?max_rows:decode
+    ?selected_decode_capture_bound(rows,max_rows,traced_bucket)
+    :selected_capture_bound(tokens,max_tokens,traced_bucket);
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
   Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity&&!decode_chain_comparison),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned,prefill_partitioned);
   std::unique_ptr<Kernel> mixed_companion, mixed_decode_candidate;

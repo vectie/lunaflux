@@ -10,6 +10,20 @@ int main() {
   assert(selected_grid_x(32,8,32,1,false,true)==8);
   assert(selected_capture_bound(2,32)==2);
   assert(selected_capture_bound(2,32,8)==8);
+  assert(selected_decode_capture_bound(1,32)==1);
+  assert(selected_decode_capture_bound(2,32)==8);
+  assert(selected_decode_capture_bound(4,32)==8);
+  assert(selected_decode_capture_bound(8,32)==8);
+  assert(selected_decode_capture_bound(9,32)==16);
+  assert(selected_decode_capture_bound(17,32)==32);
+  assert(selected_decode_capture_bound(9,12)==12);
+  assert(selected_decode_capture_bound(9,12,12)==12);
+  for (int invalid : {1,2,4,64}) {
+    bool rejected=false;
+    try { (void)selected_decode_capture_bound(2,32,invalid); }
+    catch (const std::invalid_argument&) { rejected=true; }
+    assert(rejected);
+  }
   for (int invalid : {1,3,64}) {
     bool rejected=false;
     try { (void)selected_capture_bound(2,32,invalid); }
