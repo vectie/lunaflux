@@ -1,0 +1,438 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn command(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(values) else { fail("command") }
+  values.map(v => {
+    guard v is String(s) else { fail("argument") }
+    s
+  })
+}
+
+///|
+fn replace_attention_alternative(
+  original : Array[String],
+  old_module : String,
+  old_bundle : String,
+  new_module : String,
+  new_bundle : String,
+  recipe : String,
+) -> Array[String] raise {
+  assert_eq(original.filter(s => s == old_module).length(), 1)
+  assert_eq(original.filter(s => s == old_bundle).length(), 1)
+  assert_false(original.contains("--attention-buckets"))
+  assert_false(original.contains("--prefill-wide-approximate-exp2"))
+  assert_eq(field(recipe, "numeric_law"), "approx-base2-f32-v1")
+  let args = original.copy()
+  let i = args.search(old_module).unwrap()
+  let output = args.search(old_bundle).unwrap()
+  guard i >= 6 && output > i + 3 else { fail("complete module layout") }
+  guard field(recipe, "grid").split(",").map(s => s.to_owned()).to_array()
+    is [x, y, z] else {
+    fail("grid")
+  }
+  args[i - 6] = x
+  args[i - 5] = y
+  args[i - 4] = z
+  args[i - 3] = field(recipe, "block").split(",").to_array()[0].to_owned()
+  args[i - 2] = field(recipe, "shared_memory_bytes")
+  args[i - 1] = field(recipe, "function_symbol")
+  args[i] = new_module
+  args[output - 3] = field(recipe, "query_tile_rows")
+  args[output] = new_bundle
+  args.push("--prefill-wide-approximate-exp2")
+  args
+}
+
+///|
+test "attention composition preserves every selected non-attention argument" {
+  let original = [
+    "core-identity", "5", "158", "16", "1", "64", "73744", "strict", "/wide", "unchanged-core",
+    "64", "32", "64", "64", "/bundle", "--ingress-query-tile", "64", "--compiler-register-limit",
+    "255",
+  ]
+  let recipe = "grid=63,16,1\nblock=128,1,1\nshared_memory_bytes=49168\nfunction_symbol=alternate_exp2_v1\nquery_tile_rows=64\nnumeric_law=approx-base2-f32-v1\n"
+  let result = replace_attention_alternative(
+    original, "/wide", "/bundle", "/new-wide", "/new-bundle", recipe,
+  )
+  for i in [0, 1, 9, 10, 12, 13, 15, 16, 17, 18] {
+    assert_eq(result[i], original[i])
+  }
+  assert_eq(original[8], "/wide")
+  assert_eq(result[8], "/new-wide")
+  assert_eq(result[11], "64")
+  assert_eq(result[14], "/new-bundle")
+  try
+    replace_attention_alternative(
+      [..original, "--attention-buckets"],
+      "/wide",
+      "/bundle",
+      "/new",
+      "/new-bundle",
+      recipe,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("stale measured scope accepted")
+  }
+}
+
+///|
+async fn sha(path : String) -> String {
+  let out = @shell.Cmd("sha256sum", [path]).output()
+  out.check()
+  out.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd=root + "/source", env={
+    "PATH": root + "/toolchain/bin:/usr/local/cuda-13.0/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+  out.stdout()
+}
+
+///|
+// Preserve the qualified complete projection/reduction pipeline, not just its
+// model identity. Context admission is independent of the step query envelope.
+// Recompile only the new alternate attention for the same 2048-token envelope.
+async fn main {
+  guard @env.args()
+    is [_, frozen, query, accepted, root, calibration, phase, .. options] &&
+    [
+      "prepare", "calibrate", "calibrate-retry", "materialize", "materialize-retry",
+      "materialize-final", "long-only",
+    ].contains(phase) else {
+    fail(
+      "QUALIFIED_2K_SERVING CURRENT_QUERY ACCEPTED_PAGE_BATCH NEW_ROOT CALIBRATION prepare|calibrate|calibrate-retry|materialize|materialize-retry",
+    )
+  }
+  let moon = query + "/toolchain/bin/moon"
+  let resolved = @shell.Cmd("realpath", [query + "/source"]).output()
+  resolved.check()
+  let cli = resolved.stdout().trim().to_owned() +
+    "/_build/native/release/build/cmd/"
+  if phase == "prepare" {
+    guard options is ["--long-materializer", long_materializer] else {
+      fail("prepare requires --long-materializer ABSOLUTE_FROZEN_MBTX")
+    }
+    assert_false(@fs.exists(root + "/source"))
+    @fs.write_file(
+      root + "/prepare_long_context.mbtx",
+      @fs.read_file(long_materializer),
+      create_mode=CreateNew,
+    )
+    for
+      (name, target) in [
+        ("source", query + "/source"),
+        ("toolchain", query + "/toolchain"),
+        ("release", frozen + "/release"),
+      ] {
+      @shell.Cmd("ln", ["-s", target, root + "/" + name]).run()
+    }
+    for
+      name in [
+        "export.stdout", "bind.stdout", "convert.stdout", "toolchain.v1", "prepare-full.mbtx",
+      ] {
+      @fs.write_file(
+        root + "/" + name,
+        @fs.read_file(frozen + "/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    for name in ["fused", "prefill-selected", "decode-selected"] {
+      @shell.Cmd("cp", ["-a", frozen + "/" + name, root + "/" + name]).run()
+    }
+    @shell.Cmd("cp", [
+      "-a",
+      accepted + "/experiment/probe",
+      root + "/check-probe",
+    ]).run()
+    let original = command(
+      @fs.read_file(accepted + "/experiment/export-pagebatch.command.json").text(),
+    )
+    assert_eq(original[15], "8192")
+    let args = original[1:].to_owned()
+    args[14] = "2048"
+    args[16] = root + "/attention-export"
+    ignore(capture(root, "attention-export", original[0], args))
+    @fs.mkdir(root + "/wide-prefill-selected")
+    let generated = root + "/attention-export/reusable-qwen-prefill-attention"
+    for name in ["kernel.cu", "kernel.recipe"] {
+      @fs.write_file(
+        root + "/wide-prefill-selected/" + name,
+        @fs.read_file(generated + "/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    let recipe = @fs.read_file(generated + "/kernel.recipe").text()
+    assert_eq(field(recipe, "candidate_stable_id"), "30322")
+    assert_eq(field(recipe, "numeric_law"), "approx-base2-f32-v1")
+    assert_eq(sha(generated + "/kernel.cu"), field(recipe, "source_sha256"))
+    let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+    assert_eq(
+      sha(nvcc),
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+    )
+    let flags = [
+      "--cubin",
+      "--std=c++14",
+      "-arch=sm_121",
+      "-O3",
+      "--fmad=false",
+      "--ftz=false",
+      "--prec-div=true",
+      "--prec-sqrt=true",
+      "--maxrregcount=" + field(recipe, "max_registers"),
+      "--Werror",
+      "all-warnings",
+      generated + "/kernel.cu",
+      "-o",
+    ]
+    for pass in ["first", "second"] {
+      ignore(
+        capture(
+          root,
+          "attention-compile-" + pass,
+          nvcc,
+          [..flags, root + "/attention-" + pass + ".cubin"],
+        ),
+      )
+    }
+    assert_eq(
+      sha(root + "/attention-first.cubin"),
+      sha(root + "/attention-second.cubin"),
+    )
+    // The copied baseline bundle is never edited in place. Export a new
+    // scope from exact original arguments with one alternate module replaced.
+    let args = @fs.read_file(frozen + "/fused/export.arguments")
+      .text()
+      .split("\n")
+      .filter(s => !s.is_empty())
+      .map(s => s.to_owned())
+      .to_array()
+    let args = replace_attention_alternative(
+      args,
+      frozen + "/fused/prefill_wide.cubin",
+      frozen + "/fused/reusable-fused-runtime-bundle.v3",
+      root + "/attention-first.cubin",
+      root + "/unmeasured-runtime.v12",
+      recipe,
+    )
+    @fs.write_file(
+      root + "/bundle.arguments.json",
+      Json(args).stringify(),
+      create_mode=CreateNew,
+    )
+    let report = capture(
+      root,
+      "unmeasured-bundle",
+      cli +
+      "lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+      args,
+    )
+    // The calibration helper consumes these two module locations and report.
+    @shell.Cmd("mv", [
+      root + "/fused/prefill_wide.cubin",
+      root + "/fused/prefill_wide.original.cubin",
+    ]).run()
+    @shell.Cmd("cp", [
+      root + "/attention-first.cubin",
+      root + "/fused/prefill_wide.cubin",
+    ]).run()
+    @shell.Cmd("mv", [
+      root + "/fused/export.stdout",
+      root + "/fused/export.original.stdout",
+    ]).run()
+    @fs.write_file(root + "/fused/export.stdout", report, create_mode=CreateNew)
+    @shell.Cmd("mv", [
+      root + "/fused/export.arguments",
+      root + "/fused/export.original.arguments",
+    ]).run()
+    @fs.write_file(
+      root + "/fused/export.arguments",
+      args
+      .map(s => {
+        if s == root + "/unmeasured-runtime.v12" {
+          root + "/fused/reusable-fused-runtime-bundle.v3"
+        } else {
+          s
+        }
+      })
+      .join("\n") +
+      "\n",
+      create_mode=CreateNew,
+    )
+  } else if phase == "calibrate" || phase == "calibrate-retry" {
+    // Metadata plane offsets depend on the AOT query envelope, not merely
+    // the active query length. Never probe 2K artifacts with an 8K spec.
+    let spec = root + "/calibration-spec"
+    if !@fs.exists(spec) {
+      @fs.mkdir(spec)
+    }
+    for name in ["prefill.spec", "decode.spec"] {
+      if !@fs.exists(spec + "/" + name) {
+        let input = if name == "prefill.spec" {
+          calibration + "/" + name
+        } else {
+          guard @json.parse(
+              @fs.read_file(accepted + "/serving/routes/contract.json").text(),
+            )
+            is { "artifacts": Array(paths), .. } else {
+            fail("accepted probe artifacts")
+          }
+          guard paths.filter(p => {
+              match p {
+                String(s) => s.has_suffix("/decode.spec")
+                _ => false
+              }
+            })
+            is [String(path)] else {
+            fail("unique decode spec")
+          }
+          path
+        }
+        let text = @fs.read_file(input).text()
+        assert_eq(field(text, "maximum_tokens"), "8192")
+        @fs.write_file(
+          spec + "/" + name,
+          text.replace(old="maximum_tokens=8192\n", new="maximum_tokens=2048\n"),
+          create_mode=CreateNew,
+        )
+      }
+    }
+    ignore(
+      capture(root, phase, moon, [
+        "run",
+        root + "/measure_decode_routes.mbtx",
+        root,
+        spec,
+        "--context-limit",
+        "32768",
+      ]),
+    )
+  } else {
+    if phase != "long-only" {
+      // Admission deliberately rejects a symlink directory. Reuse the exact
+      // qualified release through its canonical path, without copying/rebinding
+      // it or mutating the frozen materializer. Keep driver and subprocess logs
+      // distinct, including when preserving a rejected admission attempt.
+      let release = @shell.Cmd("realpath", [root + "/release"]).output()
+      release.check()
+      let original = @fs.read_file(root + "/prepare-full.mbtx").text()
+      guard original.split("root+\"/release\"").to_array() is [a, b, c] else {
+        fail("two release seams")
+      }
+      let canonical = Json(release.stdout().trim().to_owned()).stringify()
+      let source = @shell.Cmd("realpath", [root + "/source"]).output()
+      source.check()
+      let materializer = (a.to_owned() +
+        canonical +
+        b.to_owned() +
+        canonical +
+        c.to_owned())
+        .replace(
+          old="run(root,\"materialize\",",
+          new="run(root,\"" + phase + "-inner\",",
+        )
+        .replace(
+          old="let source = root+\"/source\"",
+          new="let source = " +
+            Json(source.stdout().trim().to_owned()).stringify(),
+        )
+      @fs.write_file(
+        root + "/prepare-" + phase + ".mbtx",
+        materializer,
+        create_mode=CreateNew,
+      )
+      ignore(
+        capture(root, phase + "-driver", moon, [
+          "run",
+          root + "/prepare-" + phase + ".mbtx",
+          root,
+          "materialize",
+        ]),
+      )
+    }
+    let arm = root + "/long-final"
+    @fs.mkdir(arm)
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", root + "/" + name, arm + "/" + name]).run()
+    }
+    @fs.write_file(
+      arm + "/export.stdout",
+      @fs.read_file(root + "/export.stdout"),
+      create_mode=CreateNew,
+    )
+    let canonical_source = @shell.Cmd("realpath", [root + "/source"]).output()
+    canonical_source.check()
+    let long_source = @fs.read_file(root + "/prepare_long_context.mbtx").text()
+    guard long_source
+      .split("let cmd = base + \"/source/_build/native/release/build/cmd/\"")
+      .to_array()
+      is [before, after] else {
+      fail("unique long-context CLI seam")
+    }
+    let long_path = root + "/prepare-long-canonical.mbtx"
+    @fs.write_file(
+      long_path,
+      before.to_owned() +
+      "let cmd = " +
+      Json(
+        canonical_source.stdout().trim().to_owned() +
+        "/_build/native/release/build/cmd/",
+      ).stringify() +
+      after.to_owned(),
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, "long-capacity-canonical", moon, [
+        "run", long_path, root, arm,
+      ]),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=prepared\nscope=optimized-pipeline-preserved-new-attention-recalibrated; requires-serving-benchmark\n",
+      create_mode=CreateNew,
+    )
+  }
+}

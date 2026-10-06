@@ -1,0 +1,207 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  guard text.split(before).to_array() is [a, b] else {
+    fail("ambiguous frozen seam: " + before)
+  }
+  a.to_owned() + after + b.to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [_, old, current, root, template, client_template, moon, .. options] &&
+    (
+      options.is_empty() ||
+      options is ["--trace", _] ||
+      options is ["--validation"]
+    ) else {
+    fail(
+      "OLD_SERVING CURRENT_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER CLIENT_TEMPLATE MOON [--trace DIAGNOSTIC_PARENT_SOURCE]",
+    )
+  }
+  let tool = once(
+    @fs.read_file(template).text(),
+    "  let orders = [[\"vllm\", \"luna-full\", \"sglang\"], [\"sglang\", \"luna-full\", \"vllm\"]]",
+    "  let orders = [[\"luna-full\"]]",
+  )
+  let start = @fs.read_file(client_template)
+    .text()
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+  guard start is [prefix, rest] else { fail("matrix start") }
+  guard rest.split("///|\nfn token_ids").to_array() is [_, suffix] else {
+    fail("matrix end")
+  }
+  let tracing = options is ["--trace", _]
+  let client = prefix.to_owned() +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n  " +
+    (if tracing {
+      "[(\"i4096-o64-c16-varied\", inputs(4096,16), 64, \"varied\")]"
+    } else if options is ["--validation"] {
+      "[(\"i128-o256-c1-varied\", [128], 256, \"varied\"), (\"i4096-o64-c1-varied\", [4096], 64, \"varied\"), (\"i4096-o64-c16-varied\", inputs(4096,16), 64, \"varied\"), (\"i32512-o64-c1-varied\", [32512], 64, \"varied\"), (\"i32512-o64-c2-varied\", inputs(32512,2), 64, \"varied\")]"
+    } else {
+      "[(\"i4096-o64-c1-varied\", [4096], 64, \"varied\"), (\"i4096-o64-c16-varied\", inputs(4096,16), 64, \"varied\"), (\"i32512-o64-c1-varied\", [32512], 64, \"varied\")]"
+    }) +
+    "\n}\n\n///|\nfn token_ids" +
+    suffix.to_owned()
+  let client = if tracing {
+    once(
+      client, "let trials = if options is [\"--smoke\"] { 1 } else { 4 }", "let trials = 2",
+    )
+  } else {
+    client
+  }
+  let sides = if tracing {
+    ["old", "current"]
+  } else {
+    ["old", "current", "current", "old"]
+  }
+  for index, side in sides {
+    let serving = if side == "old" { old } else { current }
+    let arm = root + "/s\{index}-" + side
+    @fs.mkdir(arm)
+    let source = capture(arm, "source-realpath", "realpath", [
+        serving + "/source",
+      ])
+      .trim()
+      .to_owned()
+    let cmd = source + "/_build/native/release/build/cmd/"
+    let launcher = once(
+      tool,
+      "  let cmd = \"/home/wlc004s/lunaflux-ako-query-chunks-20261005.PCwRF4kW/source/_build/native/release/build/cmd/\"",
+      "  let cmd = " + Json(cmd).stringify(),
+    )
+    let launcher = if options is ["--trace", diagnostic] {
+      let build = diagnostic + "/_build/native/release/build/"
+      let launcher = once(
+        launcher,
+        "cmd + \"lunaflux/lunaflux.exe\",",
+        Json(build + "cmd/lunaflux/lunaflux.exe").stringify() + ",",
+      )
+      once(
+        launcher,
+        "serving +\n        \"/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe\",\n        [",
+        "\"/usr/local/bin/nsys\",\n        [\"profile\",\"--trace=cuda\",\"--sample=none\",\"--cpuctxsw=none\",\"--cuda-graph-trace=node\",\"--trace-fork-before-exec=true\",\"--wait=all\",\"-o\",root+\"/trace\"," +
+        Json(
+          build +
+          "tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe",
+        ).stringify() +
+        ",",
+      )
+    } else {
+      launcher
+    }
+    let script = arm + "/launcher.mbtx"
+    @fs.write_file(script, launcher, create_mode=CreateNew)
+    @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+    ignore(
+      capture(arm, "identities", "sha256sum", [
+        serving + "/deployment/bin/lunaflux-device-worker",
+        serving + "/deployment/lunaflux.launch.json",
+        serving +
+        "/deployment/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3",
+        cmd + "lunaflux/lunaflux.exe",
+      ]),
+    )
+    for file in [script, script + ".client.mbtx"] {
+      ignore(
+        capture(
+          arm,
+          if file == script {
+            "launcher-check"
+          } else {
+            "client-check"
+          },
+          moon,
+          ["check", file, "--deny-warn"],
+        ),
+      )
+    }
+    ignore(
+      capture(arm, "campaign", moon, ["run", script, serving, arm, script]),
+    )
+    if tracing {
+      let trial = arm + "/r0-luna-full"
+      ignore(
+        capture(arm, "export", "/usr/local/bin/nsys", [
+          "export",
+          "--type=sqlite",
+          "--output=" + trial + "/trace.sqlite",
+          trial + "/trace.nsys-rep",
+        ]),
+      )
+      ignore(
+        capture(arm, "kernels", "sqlite3", [
+          "-header",
+          "-csv",
+          trial + "/trace.sqlite",
+          "SELECT s.value AS kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread ORDER BY total_ms DESC;",
+        ]),
+      )
+      ignore(
+        capture(arm, "invocations", "sqlite3", [
+          "-header",
+          "-csv",
+          trial + "/trace.sqlite",
+          "SELECT k.start,k.end,s.value AS kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.correlationId,k.graphNodeId FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName ORDER BY k.start;",
+        ]),
+      )
+    }
+    println("completed=" + arm)
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    if tracing {
+      "outcome=completed\nscope=profiled-short-regression; not throughput\n"
+    } else {
+      "outcome=completed\nscope=old-current-short-regression-ABBA\n"
+    },
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "ambiguous template cannot silently change both arms" {
+  assert_eq(once("a-x-b", "x", "y"), "a-y-b")
+  try once("xx", "x", "y") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous seam accepted")
+  }
+}

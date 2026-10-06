@@ -54,16 +54,89 @@ async fn capture(
 }
 
 ///|
+// Capacity experiments must preserve the projection policy at both AOT ends.
+// Only the policy is inherited: identities, geometry and output paths are new.
+fn projection_policy(arguments : Array[String]) -> Array[String] raise {
+  let result : Array[String] = []
+  for
+    (option, width) in [
+      ("--compiler-register-limit", 1),
+      ("--projection-folds", 3),
+    ] {
+    let positions : Array[Int] = []
+    for index, argument in arguments {
+      if argument == option {
+        positions.push(index)
+      }
+    }
+    guard positions is [index] && index + width < arguments.length() else {
+      fail("missing or duplicate projection policy: " + option)
+    }
+    result.append(arguments[index:index + width + 1].to_owned())
+  }
+  result
+}
+
+///|
+fn command_arguments(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(values) else { fail("command array") }
+  values.map(value => {
+    guard value is String(text) else { fail("command string") }
+    text
+  })
+}
+
+///|
+test "projection policy survives export/bind without inheriting capacity" {
+  let policy = [
+    "--compiler-register-limit", "255", "--projection-folds", "/folds", "digest",
+    "device",
+  ]
+  let original = ["export", "2048", ..policy, "--device-target", "12", "1"]
+  assert_eq(projection_policy(original), policy)
+  assert_eq(projection_policy(["bind", "8192", ..policy]), policy)
+  assert_eq(original[1], "2048")
+  assert_true(
+    try {
+      ignore(projection_policy(["export"]))
+      false
+    } catch {
+      _ => true
+    },
+  )
+  assert_true(
+    try {
+      ignore(projection_policy([..policy, "--compiler-register-limit", "128"]))
+      false
+    } catch {
+      _ => true
+    },
+  )
+  assert_true(
+    try {
+      ignore(
+        projection_policy([
+          "--compiler-register-limit", "255", "--projection-folds", "/folds",
+        ]),
+      )
+      false
+    } catch {
+      _ => true
+    },
+  )
+}
+
+///|
 // CPU-only AOT preparation. Both scheduler arms will use these exact same
 // 8192-capacity artifacts; only chunk policy differs. No frozen source or
 // release is rewritten and no calibration occurs in the request path.
 async fn main {
-  guard @env.args() is [_, base, root, phase] &&
+  guard @env.args() is [_, base, root, phase, .. options] &&
     ["build", "compile", "rebind", "rebuild-binder", "fused", "materialize"].contains(
       phase,
     ) else {
     fail(
-      "FROZEN_BASE PREPARED_QUERY_EXPERIMENT build|compile|fused|materialize",
+      "FROZEN_BASE PREPARED_QUERY_EXPERIMENT PHASE (--projection-policy EXPORT_COMMAND_JSON BIND_COMMAND_JSON | --unmeasured-projection)",
     )
   }
   let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
@@ -85,6 +158,51 @@ async fn main {
   let geometry = ["13", "0", "88", "8", "16384", "32", "8192", "16384"]
   let candidate = root + "/serving-candidate"
   let toolchain = root + "/toolchain.v1"
+  let projection_options = match options {
+    ["--projection-policy", export_command, bind_command] => {
+      let exported = projection_policy(
+        command_arguments(@fs.read_file(export_command).text()),
+      )
+      let bound = projection_policy(
+        command_arguments(@fs.read_file(bind_command).text()),
+      )
+      assert_eq(exported, bound)
+      if phase == "build" {
+        let receipt : Json = {
+          "export_command_sha256": sha(export_command),
+          "bind_command_sha256": sha(bind_command),
+          "options": Json(exported),
+          "scope": "offline policy inheritance; existing record loader checks exact shape/backend/toolchain",
+        }
+        @fs.write_file(
+          root + "/projection-policy.json",
+          receipt.stringify(),
+          create_mode=CreateNew,
+        )
+      } else {
+        guard @json.parse(
+            @fs.read_file(root + "/projection-policy.json").text(),
+          )
+          is {
+            "export_command_sha256": String(export_sha),
+            "bind_command_sha256": String(bind_sha),
+            "options": recorded,
+            ..
+          } else {
+          fail("projection policy receipt")
+        }
+        assert_eq(export_sha, sha(export_command))
+        assert_eq(bind_sha, sha(bind_command))
+        assert_eq(recorded, Json(exported))
+      }
+      exported
+    }
+    ["--unmeasured-projection"] => []
+    _ =>
+      fail(
+        "projection policy must be explicit; refusing silent tuned-to-default downgrade",
+      )
+  }
   if phase == "build" {
     @shell.Cmd("ln", ["-s", base + "/toolchain", root + "/toolchain"]).run()
     @fs.write_file(
@@ -120,6 +238,7 @@ async fn main {
           "468",
           "--prefill-candidate",
           "322",
+          ..projection_options,
           "--query-metadata-v1",
         ],
       ),
@@ -194,6 +313,7 @@ async fn main {
           "1",
           "--activation-arena-gib",
           "4",
+          ..projection_options,
         ],
       ),
     )

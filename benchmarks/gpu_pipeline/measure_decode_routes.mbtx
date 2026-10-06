@@ -107,9 +107,28 @@ test "partition route uses selected companion symbols and storage, not frozen de
 }
 
 ///|
+fn calibration_context_limit(rows : Int, extended : Bool) -> Int {
+  if extended {
+    Int::min(32768, 131072 / rows)
+  } else {
+    8192
+  }
+}
+
+///|
+test "context coverage does not enlarge query capacity or exceed KV arena" {
+  assert_eq(calibration_context_limit(1, false), 8192)
+  assert_eq(calibration_context_limit(1, true), 32768)
+  assert_eq(calibration_context_limit(4, true), 32768)
+  assert_eq(calibration_context_limit(8, true), 16384)
+  assert_eq(calibration_context_limit(16, true), 8192)
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, serving, calibration] else {
-    fail("SERVING PREPARED_CALIBRATION")
+  guard @env.args() is [_, serving, calibration, .. options] &&
+    (options.is_empty() || options is ["--context-limit", "32768"]) else {
+    fail("SERVING PREPARED_CALIBRATION [--context-limit 32768]")
   }
   let gpu = @shell.Cmd("nvidia-smi", [
     "--query-compute-apps=pid", "--format=csv,noheader",
@@ -169,6 +188,9 @@ async fn main {
     create_mode=CreateNew,
   )
   for rows in [1, 2, 4, 8, 16] {
+    // Context coverage may grow independently of the query/AOT envelope.
+    // Keep aggregate KV within the existing 131072-token diagnostic arena.
+    let maximum_context = calibration_context_limit(rows, !options.is_empty())
     for phase in ["prefill", "mixed"] {
       if phase == "mixed" && rows == 1 {
         continue
@@ -183,7 +205,7 @@ async fn main {
         while context < current {
           context *= 2
         }
-        while context <= 8192 {
+        while context <= maximum_context {
           // One representative per context bucket. Sparse history vectors
           // leave intervening runtime slots unmeasured even at the same query.
           let history = context - current

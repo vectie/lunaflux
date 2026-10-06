@@ -1,0 +1,139 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("empty measurements") }
+  let sorted = values.copy()
+  sorted.sort()
+  (sorted[(sorted.length() - 1) / 2] + sorted[sorted.length() / 2]) / 2.0
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. options] &&
+    (options.is_empty() || options is ["--validation"]) else {
+    fail("COMPLETED_ABBA_ROOT [--validation]")
+  }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  let report : Array[Json] = []
+  let cells = if options.is_empty() {
+    ["i4096-o64-c1-varied", "i4096-o64-c16-varied", "i32512-o64-c1-varied"]
+  } else {
+    [
+      "i128-o256-c1-varied", "i4096-o64-c1-varied", "i4096-o64-c16-varied", "i32512-o64-c1-varied",
+      "i32512-o64-c2-varied",
+    ]
+  }
+  for cell in cells {
+    let output = if cell.contains("o256") { 256 } else { 64 }
+    let rows = if cell.contains("c16") {
+      16
+    } else if cell.contains("c2-") {
+      2
+    } else {
+      1
+    }
+    let arms : Array[Json] = []
+    for (side, starts) in [("old", [0, 3]), ("current", [1, 2])] {
+      let wall : Array[Double] = []
+      let first : Array[Double] = []
+      let vectors : Array[Json] = []
+      for start in starts {
+        for trial in 1..<4 {
+          let record = @json.parse(
+            @fs.read_file(
+              root +
+              "/s\{start}-" +
+              side +
+              "/r0-luna-full/requests/" +
+              cell +
+              "-t\{trial}.json",
+            ).text(),
+          )
+          guard record
+            is {
+              "wall_ms": time,
+              "warmup": false,
+              "requests": Array(requests),
+              ..
+            } else {
+            fail("measured wave")
+          }
+          wall.push(number(time))
+          let ids : Array[Json] = []
+          let ttft : Array[Double] = []
+          for request in requests {
+            guard request is { "ttft_ms": t, "token_ids": Array(tokens), .. } else {
+              fail("complete request")
+            }
+            assert_eq(tokens.length(), output)
+            ids.push(Json(tokens))
+            ttft.push(number(t))
+          }
+          first.push(
+            ttft.fold(init=0.0, (a, b) => a + b) / ttft.length().to_double(),
+          )
+          vectors.push(Json(ids))
+        }
+      }
+      let unique : Array[Json] = []
+      for v in vectors {
+        if !unique.contains(v) {
+          unique.push(v)
+        }
+      }
+      arms.push({
+        "side": side,
+        "wall_ms": wall,
+        "median_ms": median(wall),
+        "tokens_per_second": output.to_double() *
+        rows.to_double() *
+        1000.0 /
+        median(wall),
+        "mean_request_ttft_ms": first,
+        "median_ttft_ms": median(first),
+        "unique_output_vectors": unique.length(),
+        "output_vectors": vectors,
+      })
+    }
+    report.push({ "cell": cell, "arms": arms })
+  }
+  @fs.write_file(
+    root + "/comparison.json",
+    Json(report).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  for row in report {
+    guard row is { "cell": cell, "arms": Array(arms), .. } else {
+      fail("report")
+    }
+    for arm in arms {
+      guard arm is Object(fields) else { fail("arm") }
+      fields.remove("output_vectors") |> ignore
+      println(Json::object(fields).stringify() + " cell=" + cell.stringify())
+    }
+  }
+}
+
+///|
+test "median retains even paired samples" {
+  assert_eq(median([6.0, 1.0, 5.0, 2.0, 4.0, 3.0]), 3.5)
+}
