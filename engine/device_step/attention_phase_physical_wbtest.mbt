@@ -100,6 +100,8 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
     operation_id: steps[1].operation_id,
     partial: { ..steps[1], function_index: 4, },
     merge: { ..steps[1], function_index: 5, },
+    partial_dimensions: variant_test_launch(0),
+    merge_dimensions: variant_test_launch(0),
   })
   let launches = paged_ordered_launches(steps, resources)
   for policy in [@device.OrderedKernelEagerOnly, OrderedKernelCaptureRequired] {

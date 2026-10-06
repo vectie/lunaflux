@@ -15,6 +15,8 @@ priv struct PreparedPagedDecodeSplit {
   operation_id : @plan.OperationId
   partial : PreparedPagedGraphStep
   merge : PreparedPagedGraphStep
+  partial_dimensions : @launch_contract.AotLaunchDimensions
+  merge_dimensions : @launch_contract.AotLaunchDimensions
 }
 
 ///|
@@ -574,6 +576,8 @@ fn prepare_paged_decode_split_steps(
     )
     let companion : PreparedPagedDecodeSplit = {
       operation_id: operation,
+      partial_dimensions: launches[0].dimensions(),
+      merge_dimensions: launches[1].dimensions(),
       partial: prepare_paged_decode_split_launch(
         operation,
         step,

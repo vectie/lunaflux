@@ -41,6 +41,60 @@ test "split attention preserves following operation bucket rules after expansion
 }
 
 ///|
+test "admitted split row domains reach both partial and merge capture buckets" {
+  let operation = @plan.OperationId::new(2)
+  let launch = variant_test_launch(45056)
+  let merge = variant_test_launch(0)
+  let original = ReadOnlyArray::from_array([(operation, 2)])
+  let expanded = ReadOnlyArray::from_array([(operation, 20), (operation, 21)])
+  let contract : PagedGraphLaunchContract = {
+    step_launches: [FixedBucketLaunch],
+    decode_step_launches: [QueryTileCappedGridX(launch, 32)],
+    prefill_wide_step_launches: None,
+    prefill_split_step_launches: None,
+  }
+  let rules = remap_decode_split_bucket_rules(
+    original,
+    expanded,
+    contract,
+    row_bounded_replacements=ReadOnlyArray::from_array([
+      ((operation, 20), launch),
+      ((operation, 21), merge),
+    ]),
+  )
+  for bound in [1, 8, 16, 32] {
+    for index, source in [launch, merge] {
+      let selected = paged_bucket_launch(rules[index], bound)
+      assert_eq(selected.grid_x(), Int::min(source.grid_x(), bound))
+      assert_eq(selected.grid_y(), source.grid_y())
+      assert_eq(selected.grid_z(), source.grid_z())
+      assert_eq(selected.block_x(), source.block_x())
+      assert_eq(selected.shared_memory_bytes(), source.shared_memory_bytes())
+    }
+  }
+  for
+    invalid in [
+      [((operation, 20), launch), ((operation, 20), merge)],
+      [((operation, 2), launch)],
+      [((operation, 99), launch)],
+    ] {
+    try
+      remap_decode_split_bucket_rules(
+        original,
+        expanded,
+        contract,
+        row_bounded_replacements=ReadOnlyArray::from_array(invalid),
+      )
+    catch {
+      InvalidExecutor(GraphBucket) => ()
+      _ => fail("unexpected failure")
+    } noraise {
+      _ => fail("invalid replacement domain accepted")
+    }
+  }
+}
+
+///|
 test "split decode dispatch selects bounded owner and retains safe fallback" {
   let (table, _, base) = graph_dispatch_fixture(7)
   let dispatch : PagedOrderedExecutorDispatch = {
