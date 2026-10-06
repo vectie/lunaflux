@@ -1,0 +1,164 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn excluded_component(name : StringView) -> Bool {
+  [
+    "source", "diagnostic-source", "toolchain", "_build", ".mooncakes", "deployment",
+    "deployment-rejected-symlink",
+  ].contains(name.to_owned())
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. options] else {
+    fail("TERMINAL_EVIDENCE_ROOT [COMPLETED_BENCHMARK COMPLETED_TRACE]")
+  }
+  if options is [benchmark, trace] {
+    for path in [benchmark, trace] {
+      guard @fs.read_file(path + "/RESULT.txt")
+        .text()
+        .has_prefix("outcome=completed\n") else {
+        fail("benchmark and trace must be terminal")
+      }
+    }
+    guard @fs.read_file(root + "/serving/decode-route-measurements/RESULT.txt")
+      .text()
+      .has_prefix("outcome=passed\n") else {
+      fail("calibration must pass")
+    }
+    @fs.mkdir(root + "/owned-source")
+    for
+      path in [
+        "scheduler/core/planning_selection.mbt", "scheduler/core/preemption_wbtest.mbt",
+        "scheduler/core/completion_wbtest.mbt", "scheduler/work_plan/work.mbt", "scheduler/work_plan/work_test.mbt",
+        "cmd/lunaflux_qwen3_bf16_candidate_export/decode_module.mbt", "cmd/lunaflux_qwen3_bf16_candidate_export/decode_module_wbtest.mbt",
+      ] {
+      @fs.write_file(
+        root + "/owned-source/" + path.split("/").to_array().join("--"),
+        @fs.read_file(root + "/source/" + path),
+        create_mode=CreateNew,
+      )
+    }
+    let identity = @shell.Cmd("sha256sum", [
+      root + "/source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+      root +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+      root + "/serving/long-final/deployment/bin/lunaflux-device-worker",
+      root + "/serving/long-final/deployment/lunaflux.launch.json",
+      root + "/serving/long-final/capacity.json",
+      root + "/serving/fused-routed/reusable-fused-runtime-bundle.v3",
+      root + "/serving/decode-selected/kernel.cubin",
+      root + "/serving/decode-route-measurements/routes.v1",
+    ]).output()
+    identity.check()
+    @fs.write_file(
+      root + "/RUNTIME_IDENTITIES.txt",
+      identity.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=bounded decode calibration, numeric alternatives, scheduler fairness and selected-route serving diagnostics; not universal performance parity\nbenchmark=" +
+      benchmark +
+      "\ntrace=" +
+      trace +
+      "\n",
+      create_mode=CreateNew,
+    )
+  } else if !options.is_empty() {
+    fail("optional benchmark and trace required together")
+  }
+  guard @fs.exists(root + "/RESULT.txt") else {
+    fail("terminal evidence first")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU still occupied") }
+  let archive = root + ".verified.tar.gz"
+  guard !@fs.exists(archive) && !@fs.exists(root + "/FILES.sha256") else {
+    fail("non-overwriting seal")
+  }
+  let found = @shell.Cmd(
+    "find",
+    [
+      ".", "-type", "d", "(", "-name", "source", "-o", "-name", "diagnostic-source",
+      "-o", "-name", "toolchain", "-o", "-name", "_build", "-o", "-name", ".mooncakes",
+      "-o", "-name", "deployment", "-o", "-name", "deployment-rejected-symlink",
+      ")", "-prune", "-o", "-type", "f", "-print",
+    ],
+    cwd=root,
+  ).output(max_output_bytes=33554432)
+  found.check()
+  let files : Array[String] = []
+  let excluded = StringBuilder()
+  excluded.write_string(
+    "Build/dependency/source trees and materialized deployments excluded; owned source snapshots and executable identities must be retained separately. No originals deleted.\n",
+  )
+  for path in found.stdout().split("\n").filter(x => !x.is_empty()) {
+    let path = path.to_owned()
+    guard path.has_prefix("./") &&
+      !path.contains("\n") &&
+      !path.split("/").any(x => x == ".." || excluded_component(x)) else {
+      fail("scoped member")
+    }
+    let readable = @shell.Cmd("test", ["-r", root + "/" + path]).output()
+    if readable.exit_code() == 0 {
+      files.push(path)
+    } else {
+      excluded.write_string("unreadable=" + path + "\n")
+    }
+  }
+  files.sort()
+  @fs.write_file(
+    root + "/ARCHIVE_EXCLUSIONS.txt",
+    excluded.to_string(),
+    create_mode=CreateNew,
+  )
+  files.push("./ARCHIVE_EXCLUSIONS.txt")
+  let hashes = @shell.Cmd("sha256sum", files, cwd=root).output(
+    max_output_bytes=33554432,
+  )
+  hashes.check()
+  @fs.write_file(root + "/FILES.sha256", hashes.stdout(), create_mode=CreateNew)
+  let verified = @shell.Cmd("sha256sum", ["--check", "FILES.sha256"], cwd=root).output(
+    max_output_bytes=33554432,
+  )
+  verified.check()
+  files.push("./FILES.sha256")
+  @fs.write_file(
+    root + "/archive-members.txt",
+    files.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("tar", [
+    "-czf",
+    archive,
+    "-C",
+    root,
+    "-T",
+    root + "/archive-members.txt",
+  ]).run()
+  let hash = @shell.Cmd("sha256sum", [archive]).output()
+  hash.check()
+  @fs.write_file(archive + ".sha256", hash.stdout(), create_mode=CreateNew)
+  @shell.Cmd("chmod", ["0444", archive]).run()
+  println(hash.stdout())
+}
+
+///|
+test "exclude large source trees, keep owned source snapshots and counters" {
+  for name in ["source", "diagnostic-source", "deployment", "_build"] {
+    assert_true(excluded_component(name))
+  }
+  for name in ["owned-source", "patch", "trace.sqlite", "kernel.cubin"] {
+    assert_false(excluded_component(name))
+  }
+}

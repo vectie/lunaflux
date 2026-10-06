@@ -1,0 +1,127 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [_, frozen, mixed, bucket, bench, trace, references, template] else {
+    fail("FROZEN MIXED BUCKET BENCH TRACE REFERENCES FROZEN_LAUNCHER")
+  }
+  let deadline = @async.now() + 900000L
+  while !@fs.exists(mixed + "/RESULT.txt") {
+    guard @async.now() < deadline else { fail("bounded preparation wait") }
+    @async.sleep(1000)
+  }
+  guard @fs.read_file(mixed + "/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n") else {
+    fail("preparation result")
+  }
+  let moon = frozen + "/toolchain/bin/moon"
+  let serving = mixed + "/serving/long-final"
+  run(bench, "final-benchmark", moon, [
+    "run",
+    frozen + "/benchmark_remaining_fix_20261006.mbtx",
+    serving,
+    bench,
+    template,
+    "--luna-only",
+  ])
+  for round in 0..<2 {
+    for engine in ["vllm", "sglang"] {
+      let name = "/r" + round.to_string() + "-" + engine
+      @shell.Cmd("ln", ["-s", references + name, bench + name]).run()
+    }
+  }
+  let reference_scope : Json = {
+    "reference_campaign": references,
+    "scope": "New LunaFlux six-wave campaign compared with already-completed same-session reference waves; not newly interleaved framework runs",
+  }
+  @fs.write_file(
+    bench + "/REFERENCE_SCOPE.json",
+    reference_scope.stringify(),
+    create_mode=CreateNew,
+  )
+  run(bench, "summarize", moon, [
+    "run",
+    frozen + "/summarize_frameworks_20261006.v2.mbtx",
+    bench,
+    "summarize",
+  ])
+  run(trace, "final-trace", moon, [
+    "run",
+    mixed + "/investigate_remaining_gap_20261006.mbtx",
+    serving,
+    trace,
+    template,
+    template + ".client.mbtx",
+    moon,
+    bucket + "/diagnostic-source",
+    "--core-gaps",
+    "--luna-only",
+  ])
+  for cell in ["i4096-o64-c16-varied", "i32512-o64-c2-varied"] {
+    run(trace, cell + "-analysis", moon, [
+      "run",
+      frozen + "/analyze_remaining_gap_20261006.mbtx",
+      trace + "/luna-full",
+      "luna-full",
+      cell,
+    ])
+  }
+  run(trace, "trace-summary", moon, [
+    "run",
+    frozen + "/summarize_remaining_gap_20261006.mbtx",
+    trace + "/luna-full/i4096-o64-c16-varied.analysis.json",
+    trace + "/luna-full/i32512-o64-c2-varied.analysis.json",
+  ])
+  run(bucket, "runtime-identities", "sha256sum", [
+    bucket + "/source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+    serving + "/deployment/bin/lunaflux-device-worker",
+    serving + "/deployment/lunaflux.launch.json",
+    mixed + "/serving/fused-routed/reusable-fused-runtime-bundle.v3",
+    mixed + "/routes.v1",
+  ])
+  @fs.write_file(
+    bucket + "/RESULT.txt",
+    "outcome=completed\nscope=bounded row-domain and complete mixed-chain repair, benchmark and trace; not deployment\nbenchmark=" +
+    bench +
+    "\ntrace=" +
+    trace +
+    "\n",
+    create_mode=CreateNew,
+  )
+  println("completed=" + bench)
+}

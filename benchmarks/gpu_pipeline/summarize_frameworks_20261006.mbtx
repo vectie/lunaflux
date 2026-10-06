@@ -97,6 +97,10 @@ async fn main {
     seal(root)
     return
   }
+  if phase == "logs" {
+    preserve_server_logs(root)
+    return
+  }
   guard phase == "summarize" && @fs.exists(root + "/RESULT.txt") else {
     fail("completed campaign")
   }
@@ -264,11 +268,20 @@ async fn main {
     Json(reports).stringify(indent=2),
     create_mode=CreateNew,
   )
-  let prefix = "lunaflux-bench-" +
-    root.split("/").to_array().last().unwrap().to_owned() +
-    "-"
+  preserve_server_logs(root)
+}
+
+///|
+async fn preserve_server_logs(root : String) -> Unit {
   for engine in ["vllm", "sglang"] {
-    let logs = @shell.Cmd("docker", ["logs", prefix + engine]).output(
+    // Reused, pinned containers need not be named after this campaign root.
+    guard @json.parse(
+        @fs.read_file(root + "/r0-" + engine + "/container-before.stdout").text(),
+      )
+      is Array([{ "Name": String(name), .. }]) else {
+      fail("container identity")
+    }
+    let logs = @shell.Cmd("docker", ["logs", name]).output(
       max_output_bytes=33554432,
     )
     logs.check()

@@ -1,0 +1,141 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args, cwd~).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, root] else {
+    fail("FROZEN_DECODE_FIX EMPTY_ROOT_WITH_PATCH")
+  }
+  let moon = frozen + "/toolchain/bin/moon"
+  @fs.mkdir(root + "/source")
+  run(root, "copy-source", "cp", [
+    "-a",
+    "--reflink=auto",
+    frozen + "/source/.",
+    root + "/source",
+  ])
+  @shell.Cmd("ln", ["-s", frozen + "/toolchain", root + "/toolchain"]).run()
+  for
+    file in [
+      "decode_split_bucket_rules.mbt", "decode_split_bucket_rules_wbtest.mbt", "paged_decode_split_prepare.mbt",
+      "attention_phase_physical_wbtest.mbt",
+    ] {
+    @fs.write_file(
+      root + "/source/engine/device_step/" + file,
+      @fs.read_file(root + "/patch/" + file),
+    )
+  }
+  run(
+    root,
+    "tests",
+    moon,
+    [
+      "test", "engine/device_step", "--target", "native", "--deny-warn", "--warn-list",
+      "-79-20-29-25",
+    ],
+    cwd=root + "/source",
+  )
+  run(
+    root,
+    "build",
+    moon,
+    [
+      "build", "cmd/lunaflux", "cmd/device_worker_child", "cmd/lunaflux_qwen3_token_id_bridge",
+      "tests/qwen3_bf16_serving_supervisor", "--target", "native", "--release", "--deny-warn",
+      "--warn-list", "-79-20-29-25",
+    ],
+    cwd=root + "/source",
+  )
+  for name in ["fused-routed", "release"] {
+    @shell.Cmd("ln", [
+      "-s",
+      @fs.realpath(frozen + "/serving/" + name),
+      root + "/" + name,
+    ]).run()
+  }
+  for file in ["export.stdout", "convert.stdout", "bind.stdout", "toolchain.v1"] {
+    @fs.write_file(
+      root + "/" + file,
+      @fs.read_file(frozen + "/serving/" + file),
+      create_mode=CreateNew,
+    )
+  }
+  let materialize = @fs.read_file(
+      frozen + "/serving/prepare-materialize-retry.mbtx",
+    )
+    .text()
+    .replace(
+      old=Json(frozen + "/source").stringify(),
+      new=Json(root + "/source").stringify(),
+    )
+  guard materialize !=
+    @fs.read_file(frozen + "/serving/prepare-materialize-retry.mbtx").text() else {
+    fail("source seam")
+  }
+  @fs.write_file(root + "/prepare.mbtx", materialize, create_mode=CreateNew)
+  run(root, "materialize", moon, [
+    "run",
+    root + "/prepare.mbtx",
+    root,
+    "materialize",
+  ])
+  @fs.mkdir(root + "/long-final")
+  for name in ["source", "toolchain"] {
+    @shell.Cmd("ln", ["-s", root + "/" + name, root + "/long-final/" + name]).run()
+  }
+  @fs.write_file(
+    root + "/long-final/export.stdout",
+    @fs.read_file(root + "/export.stdout"),
+    create_mode=CreateNew,
+  )
+  let long = @fs.read_file(frozen + "/prepare_long_context.mbtx")
+    .text()
+    .replace(
+      old=Json(frozen + "/source/_build/native/release/build/cmd/").stringify(),
+      new=Json(root + "/source/_build/native/release/build/cmd/").stringify(),
+    )
+  guard long != @fs.read_file(frozen + "/prepare_long_context.mbtx").text() else {
+    fail("long source seam")
+  }
+  @fs.write_file(root + "/prepare-long.mbtx", long, create_mode=CreateNew)
+  run(root, "long", moon, [
+    "run",
+    root + "/prepare-long.mbtx",
+    root,
+    root + "/long-final",
+  ])
+  println("prepared=" + root)
+}

@@ -1,0 +1,65 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, root] else {
+    fail("FROZEN_DECODE_FIX NEW_ROOT")
+  }
+  let serving = frozen + "/serving"
+  let wide = serving + "/decode-route-measurements/wide-prefill"
+  let workloads : Array[Json] = []
+  for history in [0, 14335, 30720] {
+    workloads.push({
+      "label": "mixed-q2048-r2-prefh" + history.to_string(),
+      "args": [
+        serving + "/calibration-spec/prefill.spec",
+        wide,
+        wide,
+        "2048",
+        "2",
+        history.to_string(),
+        "--mixed-decode-chain",
+        serving + "/decode-selected",
+        "--decode-history",
+        "32511",
+      ],
+    })
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": frozen + "/check-probe",
+    "artifacts": [
+      serving + "/calibration-spec/prefill.spec",
+      wide + "/kernel.recipe",
+      wide + "/kernel.cubin",
+      serving + "/decode-selected/kernel.recipe",
+      serving + "/decode-selected/kernel.cubin",
+    ],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(frozen + "/toolchain/bin/moon", [
+    "run",
+    frozen + "/ako_trial.mbtx",
+    root + "/contract.json",
+    root + "/trial",
+  ]).output(max_output_bytes=67108864)
+  @fs.write_file(root + "/trial.stdout", out.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/trial.stderr", out.stderr(), create_mode=CreateNew)
+  out.check()
+  println(out.stdout())
+}

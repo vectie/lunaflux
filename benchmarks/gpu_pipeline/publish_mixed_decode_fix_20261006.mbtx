@@ -1,0 +1,241 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn median(text : String, key : String) -> Int64 raise {
+  let samples : Array[Double] = []
+  for line in text.split("\n").filter(s => s.has_prefix("tokens=")) {
+    guard line.split(" ").filter(s => s.has_prefix(key + "=")).to_array() is [v] else {
+      fail("timing field")
+    }
+    samples.push(@string.parse_double(v[key.length() + 1:]))
+  }
+  assert_eq(samples.length(), 5)
+  samples.sort()
+  (samples[2] * 1000.0).to_int64()
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, bucket, root] else {
+    fail("FROZEN BUCKET_FIX MIXED_TRIAL")
+  }
+  let old = frozen + "/serving"
+  let wide = old + "/decode-route-measurements/wide-prefill"
+  let ordinary = [
+    old + "/calibration-spec/prefill.spec",
+    old + "/prefill-selected",
+    wide,
+    "2048",
+    "16",
+    "3959",
+    "--mixed-ordinary-chain",
+    old + "/decode-selected",
+    "--decode-history",
+    "4095",
+  ]
+  let args = [
+    old + "/calibration-spec/prefill.spec",
+    wide,
+    wide,
+    "2048",
+    "2",
+    "30720",
+    "--mixed-decode-chain",
+    old + "/decode-selected",
+    "--decode-history",
+    "32511",
+  ]
+  for tool in ["memcheck", "racecheck", "synccheck"] {
+    ignore(
+      run(
+        root,
+        tool,
+        "/usr/local/cuda/bin/compute-sanitizer",
+        [
+          "--tool",
+          tool,
+          "--error-exitcode",
+          "99",
+          ..if tool == "racecheck" {
+            ["--racecheck-num-workers", "1"]
+          } else {
+            []
+          },
+          root + "/check-probe",
+          ..args,
+          "--check-only",
+        ],
+      ),
+    )
+  }
+  let output = run(root, "mixed-ordinary-c16", root + "/check-probe", ordinary)
+  let previous = @fs.read_file(old + "/decode-route-measurements/routes.v1").text()
+  let lines : Array[String] = previous
+    .split("\n")
+    .filter(s => !s.is_empty() && !s.has_prefix("record\tmixed\t"))
+    .map(s => s.to_owned())
+    .to_array()
+  for (id, key) in [(1, "old_us"), (2, "new_us")] {
+    lines.push(
+      "record\tmixed\t16\t2048\t4096\t" +
+      id.to_string() +
+      "\t" +
+      median(output, key).to_string() +
+      "\t5",
+    )
+  }
+  let mut baseline = 0L
+  let mut candidate = 0L
+  for (i, history) in [0, 14335, 30720].mapi((i, h) => (i, h)) {
+    let text = @fs.read_file(
+      root +
+      "/trial/w" +
+      i.to_string() +
+      "-mixed-q2048-r2-prefh" +
+      history.to_string() +
+      ".stdout",
+    ).text()
+    baseline = Int64::max(baseline, median(text, "old_us"))
+    candidate = Int64::max(candidate, median(text, "new_us"))
+  }
+  lines.push(
+    "record\tmixed\t2\t2048\t32768\t2\t" + baseline.to_string() + "\t5",
+  )
+  lines.push(
+    "record\tmixed\t2\t2048\t32768\t7\t" + candidate.to_string() + "\t5",
+  )
+  let path = root + "/routes.v1"
+  @fs.write_file(
+    path,
+    lines.join("\n") + "\n",
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  let digest = run(root, "route-sha", "sha256sum", [path]).split(" ").to_array()[0].to_owned()
+  let serving = root + "/serving"
+  @fs.mkdir(serving)
+  for
+    (name, source) in [
+      ("source", bucket + "/source"),
+      ("toolchain", bucket + "/toolchain"),
+      ("release", @fs.realpath(bucket + "/release")),
+    ] {
+    @shell.Cmd("ln", ["-s", source, serving + "/" + name]).run()
+  }
+  for name in ["bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1"] {
+    @fs.write_file(
+      serving + "/" + name,
+      @fs.read_file(bucket + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.mkdir(serving + "/fused-routed")
+  let destination = serving + "/fused-routed/reusable-fused-runtime-bundle.v3"
+  let export_args = @fs.read_file(old + "/fused/export.arguments")
+    .text()
+    .split("\n")
+    .filter(s => !s.is_empty())
+    .map(s => {
+      if s == old + "/fused/reusable-fused-runtime-bundle.v3" {
+        destination
+      } else {
+        s.to_owned()
+      }
+    })
+    .to_array()
+  guard export_args.contains(destination) else { fail("export output") }
+  export_args.append(["--attention-buckets", path, digest])
+  ignore(
+    run(
+      root,
+      "rebind",
+      frozen +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+      export_args,
+    ),
+  )
+  let materialize = @fs.read_file(bucket + "/prepare.mbtx").text()
+  @fs.write_file(serving + "/prepare.mbtx", materialize, create_mode=CreateNew)
+  let moon = bucket + "/toolchain/bin/moon"
+  ignore(
+    run(root, "materialize", moon, [
+      "run",
+      serving + "/prepare.mbtx",
+      serving,
+      "materialize",
+    ]),
+  )
+  @fs.mkdir(serving + "/long-final")
+  for name in ["source", "toolchain"] {
+    @shell.Cmd("ln", [
+      "-s",
+      serving + "/" + name,
+      serving + "/long-final/" + name,
+    ]).run()
+  }
+  @fs.write_file(
+    serving + "/long-final/export.stdout",
+    @fs.read_file(serving + "/export.stdout"),
+    create_mode=CreateNew,
+  )
+  ignore(
+    run(root, "long", moon, [
+      "run",
+      bucket + "/prepare-long.mbtx",
+      serving,
+      serving + "/long-final",
+    ]),
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=bounded full-chain mixed calibration and materialization; not deployment\n",
+    create_mode=CreateNew,
+  )
+  println("prepared=" + serving + "/long-final")
+}
+
+///|
+test "median requires complete measured chain samples" {
+  assert_eq(
+    median(
+      "tokens=1 old_us=3\ntokens=1 old_us=1\ntokens=1 old_us=5\ntokens=1 old_us=2\ntokens=1 old_us=4",
+      "old_us",
+    ),
+    3000L,
+  )
+}

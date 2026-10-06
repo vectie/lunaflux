@@ -1,0 +1,146 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("numeric value")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("empty sample") }
+  let sorted = values.copy()
+  sorted.sort()
+  (sorted[(sorted.length() - 1) / 2] + sorted[sorted.length() / 2]) / 2.0
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, baseline, combined, route_only, output, .. options] &&
+    (options.is_empty() || options is ["--paired-baseline"]) else {
+    fail(
+      "COMPLETED_BASELINE COMPLETED_COMBINED COMPLETED_ROUTE_ONLY NEW_OUTPUT_JSON",
+    )
+  }
+  let roots = [baseline, combined, route_only]
+  for root in roots {
+    guard @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n") else {
+      fail("terminal campaign required")
+    }
+  }
+  let reports : Array[Json] = []
+  for
+    cell in [
+      "i128-o256-c1-varied", "i4096-o64-c1-varied", "i4096-o64-c16-varied", "i32512-o64-c1-varied",
+      "i32512-o64-c2-varied",
+    ] {
+    let arms : Array[Json] = []
+    let medians : Array[Double] = []
+    let mut exact_work : Json? = None
+    for root in roots {
+      let times : Array[Double] = []
+      let gaps : Array[Double] = []
+      let first_tokens : Array[Double] = []
+      for round in 0..<2 {
+        let run = if root == baseline && options is ["--paired-baseline"] {
+          root + "/s\{round + 1}-current/r0-luna-full"
+        } else {
+          root + "/r\{round}-luna-full"
+        }
+        let closed = @fs.read_file(run + "/supervisor.stdout").text()
+        for
+          key in ["drain_acknowledged=1", "child_exit_code=0", "child_closed=1"] {
+          guard closed.contains(key) else { fail("drain receipt") }
+        }
+        guard @fs.read_file(run + "/runtime.stderr").text().is_empty() else {
+          fail("runtime stderr")
+        }
+        for trial in 1..<4 {
+          guard @json.parse(
+              @fs.read_file(run + "/requests/" + cell + "-t\{trial}.json").text(),
+            )
+            is {
+              "wall_ms": wall,
+              "input_vector": inputs,
+              "output": output_count,
+              "requests": Array(requests),
+              ..
+            } else {
+            fail("wave")
+          }
+          let work : Json = { "input_vector": inputs, "output": output_count }
+          if exact_work is Some(previous) {
+            assert_eq(work, previous)
+          } else {
+            exact_work = Some(work)
+          }
+          times.push(number(wall))
+          for request in requests {
+            guard request
+              is {
+                "token_ms": Array(tokens),
+                "token_ids": Array(ids),
+                "ttft_ms": first,
+                ..
+              } else {
+              fail("request")
+            }
+            assert_eq(ids.length().to_double(), number(output_count))
+            first_tokens.push(number(first))
+            let mut largest = 0.0
+            for i in 1..<tokens.length() {
+              largest = Double::max(
+                largest,
+                number(tokens[i]) - number(tokens[i - 1]),
+              )
+            }
+            gaps.push(largest)
+          }
+        }
+      }
+      let mid = median(times)
+      medians.push(mid)
+      arms.push({
+        "root": root,
+        "wall_ms": times,
+        "median_wall_ms": mid,
+        "median_ttft_ms": median(first_tokens),
+        "per_request_max_gap_ms": gaps,
+      })
+    }
+    reports.push({
+      "cell": cell,
+      "work": exact_work.unwrap(),
+      "arms": arms,
+      "route_only_time_change": medians[2] / medians[0] - 1.0,
+      "combined_time_change": medians[1] / medians[0] - 1.0,
+      "fairness_time_change_over_route_only": medians[1] / medians[2] - 1.0,
+      "scope": "separate unprofiled campaigns; not a paired kernel test or quality-parity claim",
+    })
+    println(
+      "\{cell}: baseline=\{medians[0]} combined=\{medians[1]} route-only=\{medians[2]} ms",
+    )
+  }
+  @fs.write_file(
+    output,
+    Json(reports).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "median preserves even-vector midpoint" {
+  assert_eq(median([6.0, 1.0, 3.0, 2.0, 4.0, 5.0]), 3.5)
+}

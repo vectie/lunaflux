@@ -64,7 +64,7 @@ fn strings(text : String) -> Array[String] raise {
 async fn main {
   guard @env.args() is [_, frozen, root, phase] else {
     fail(
-      "IMMUTABLE_REPAIR NEW_ROOT prepare|finish-prepare|alternatives|measure|measure-chain|calibrate|materialize|materialize-retry|trace-prepare",
+      "IMMUTABLE_REPAIR NEW_ROOT prepare|finish-prepare|alternatives|measure|measure-chain|calibrate|materialize|materialize-retry|trace-prepare|route-only",
     )
   }
   let moon = frozen + "/toolchain/bin/moon"
@@ -354,6 +354,42 @@ async fn main {
         root + "/prepare_long_context.mbtx",
         serving,
         serving + "/long-final",
+      ]),
+    )
+  } else if phase == "route-only" || phase == "route-only-canonical" {
+    // Isolate route selection from the scheduler change. Same new bundle and
+    // deployment recipe, but the frozen parent; publish a fresh capacity
+    // receipt bound to that executable rather than reuse the new-parent one.
+    let prepared = root + "/" + phase
+    @fs.mkdir(prepared)
+    @shell.Cmd("ln", ["-s", frozen + "/source", prepared + "/source"]).run()
+    @shell.Cmd("ln", ["-s", root + "/toolchain", prepared + "/toolchain"]).run()
+    @fs.write_file(
+      prepared + "/export.stdout",
+      @fs.read_file(root + "/serving/export.stdout"),
+      create_mode=CreateNew,
+    )
+    let body = @fs.read_file(frozen + "/prepare_long_context.mbtx")
+      .text()
+      .replace(
+        old="let cmd = base + \"/source/_build/native/release/build/cmd/\"",
+        new="let cmd = " +
+          Json(
+            @fs.realpath(frozen + "/source") +
+            "/_build/native/release/build/cmd/",
+          ).stringify(),
+      )
+    @fs.write_file(
+      root + "/prepare-" + phase + ".mbtx",
+      body,
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, phase, moon, [
+        "run",
+        root + "/prepare-" + phase + ".mbtx",
+        root + "/serving",
+        prepared,
       ]),
     )
   } else if phase == "trace-prepare" {
