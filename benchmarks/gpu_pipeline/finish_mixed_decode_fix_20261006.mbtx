@@ -53,7 +53,7 @@ async fn main {
   let serving = mixed + "/serving/long-final"
   run(bench, "final-benchmark", moon, [
     "run",
-    frozen + "/benchmark_remaining_fix_20261006.mbtx",
+    frozen + "/benchmark_remaining_fix_20261006.v2.mbtx",
     serving,
     bench,
     template,
@@ -112,10 +112,15 @@ async fn main {
     serving + "/deployment/bin/lunaflux-device-worker",
     serving + "/deployment/lunaflux.launch.json",
     mixed + "/serving/fused-routed/reusable-fused-runtime-bundle.v3",
-    mixed + "/routes.v1",
+    mixed + "/routes.v2",
   ])
   @fs.write_file(
-    bucket + "/RESULT.txt",
+    bucket +
+    (if @fs.exists(bucket + "/RESULT.txt") {
+      "/FINAL_VERIFICATION.txt"
+    } else {
+      "/RESULT.txt"
+    }),
     "outcome=completed\nscope=bounded row-domain and complete mixed-chain repair, benchmark and trace; not deployment\nbenchmark=" +
     bench +
     "\ntrace=" +

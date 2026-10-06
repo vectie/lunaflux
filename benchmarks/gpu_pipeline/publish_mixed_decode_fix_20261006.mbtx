@@ -50,9 +50,70 @@ async fn run(
 }
 
 ///|
+/// Selection needs a real candidate-1 baseline even when the paired split
+/// experiment compares candidates 2 and 7. Never relabel candidate 2 as 1.
+fn mixed_long_chain_records(
+  baseline : Int64,
+  wide_ordinary : Int64,
+  wide_split : Int64,
+) -> Array[String] raise {
+  [(1, baseline), (2, wide_ordinary), (7, wide_split)].map(item => {
+    guard item.1 > 0L else { fail("positive complete-chain measurement") }
+    "record\tmixed\t2\t2048\t32768\t" +
+    item.0.to_string() +
+    "\t" +
+    item.1.to_string() +
+    "\t5"
+  })
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, frozen, bucket, root] else {
-    fail("FROZEN BUCKET_FIX MIXED_TRIAL")
+  guard @env.args() is [_, frozen, bucket, root, .. options] &&
+    (
+      options.is_empty() ||
+      options is ["--bounded-sanitizer-retry"] ||
+      options is ["--resume-publish"]
+    ) else {
+    fail(
+      "FROZEN BUCKET_FIX MIXED_TRIAL [--bounded-sanitizer-retry|--resume-publish]",
+    )
+  }
+  let continuation = options is ["--resume-publish"]
+  let retry = !options.is_empty()
+  let device = run(
+    root,
+    (if continuation { "resume-" } else if retry { "bounded-" } else { "" }) +
+    "device",
+    "nvidia-smi",
+    ["--query-gpu=uuid", "--format=csv,noheader"],
+  )
+  guard device.trim() == "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6" else {
+    fail("GPU identity")
+  }
+  let available = @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(s => s.has_prefix("MemAvailable:"))
+    .to_array()
+  guard available is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(s => !s.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("memory reserve")
+  }
+  if retry {
+    guard @fs.read_file(root + "/memcheck.stdout")
+      .text()
+      .contains("ERROR SUMMARY: 0 errors") else {
+      fail("full-chain memcheck required")
+    }
+    let idle = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    idle.check()
+    guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
   }
   let old = frozen + "/serving"
   let wide = old + "/decode-route-measurements/wide-prefill"
@@ -72,7 +133,11 @@ async fn main {
     old + "/calibration-spec/prefill.spec",
     wide,
     wide,
-    "2048",
+    if retry {
+      "128"
+    } else {
+      "2048"
+    },
     "2",
     "30720",
     "--mixed-decode-chain",
@@ -80,11 +145,18 @@ async fn main {
     "--decode-history",
     "32511",
   ]
-  for tool in ["memcheck", "racecheck", "synccheck"] {
+  for
+    tool in (if continuation {
+      []
+    } else if retry {
+      ["racecheck", "synccheck"]
+    } else {
+      ["memcheck", "racecheck", "synccheck"]
+    }) {
     ignore(
       run(
         root,
-        tool,
+        (if retry { "bounded-" } else { "" }) + tool,
         "/usr/local/cuda/bin/compute-sanitizer",
         [
           "--tool",
@@ -103,7 +175,33 @@ async fn main {
       ),
     )
   }
-  let output = run(root, "mixed-ordinary-c16", root + "/check-probe", ordinary)
+  if continuation {
+    guard @fs.read_file(root + "/bounded-racecheck.stdout")
+      .text()
+      .contains("0 errors, 0 warnings") &&
+      @fs.read_file(root + "/bounded-synccheck.stdout")
+      .text()
+      .contains("ERROR SUMMARY: 0 errors") else {
+      fail("bounded sanitizer checks required")
+    }
+  }
+  let output = if continuation {
+    @fs.read_file(root + "/mixed-ordinary-c16.stdout").text()
+  } else {
+    run(root, "mixed-ordinary-c16", root + "/check-probe", ordinary)
+  }
+  let c2 = run(root, "mixed-ordinary-c2", root + "/check-probe", [
+    old + "/calibration-spec/prefill.spec",
+    old + "/prefill-selected",
+    wide,
+    "2048",
+    "2",
+    "30720",
+    "--mixed-ordinary-chain",
+    old + "/decode-selected",
+    "--decode-history",
+    "32511",
+  ])
   let previous = @fs.read_file(old + "/decode-route-measurements/routes.v1").text()
   let lines : Array[String] = previous
     .split("\n")
@@ -133,38 +231,61 @@ async fn main {
     baseline = Int64::max(baseline, median(text, "old_us"))
     candidate = Int64::max(candidate, median(text, "new_us"))
   }
-  lines.push(
-    "record\tmixed\t2\t2048\t32768\t2\t" + baseline.to_string() + "\t5",
+  lines.append(
+    mixed_long_chain_records(median(c2, "old_us"), baseline, candidate),
   )
-  lines.push(
-    "record\tmixed\t2\t2048\t32768\t7\t" + candidate.to_string() + "\t5",
-  )
-  let path = root + "/routes.v1"
+  let path = root + (if continuation { "/routes.v2" } else { "/routes.v1" })
   @fs.write_file(
     path,
     lines.join("\n") + "\n",
     create_mode=CreateNew,
     permission=0o444,
   )
-  let digest = run(root, "route-sha", "sha256sum", [path]).split(" ").to_array()[0].to_owned()
+  let digest = run(
+    root,
+    if continuation {
+      "route-sha-v2"
+    } else {
+      "route-sha"
+    },
+    "sha256sum",
+    [path],
+  )
+  .split(" ")
+  .to_array()[0].to_owned()
   let serving = root + "/serving"
-  @fs.mkdir(serving)
+  if !continuation {
+    @fs.mkdir(serving)
+  }
   for
     (name, source) in [
       ("source", bucket + "/source"),
       ("toolchain", bucket + "/toolchain"),
       ("release", @fs.realpath(bucket + "/release")),
     ] {
-    @shell.Cmd("ln", ["-s", source, serving + "/" + name]).run()
+    if continuation {
+      assert_eq(@fs.realpath(serving + "/" + name), @fs.realpath(source))
+    } else {
+      @shell.Cmd("ln", ["-s", source, serving + "/" + name]).run()
+    }
   }
   for name in ["bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1"] {
-    @fs.write_file(
-      serving + "/" + name,
-      @fs.read_file(bucket + "/" + name),
-      create_mode=CreateNew,
-    )
+    if continuation {
+      assert_eq(
+        @fs.read_file(serving + "/" + name).text(),
+        @fs.read_file(bucket + "/" + name).text(),
+      )
+    } else {
+      @fs.write_file(
+        serving + "/" + name,
+        @fs.read_file(bucket + "/" + name),
+        create_mode=CreateNew,
+      )
+    }
   }
-  @fs.mkdir(serving + "/fused-routed")
+  if !continuation {
+    @fs.mkdir(serving + "/fused-routed")
+  }
   let destination = serving + "/fused-routed/reusable-fused-runtime-bundle.v3"
   let export_args = @fs.read_file(old + "/fused/export.arguments")
     .text()
@@ -183,7 +304,11 @@ async fn main {
   ignore(
     run(
       root,
-      "rebind",
+      if continuation {
+        "rebind-v2"
+      } else {
+        "rebind"
+      },
       frozen +
       "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
       export_args,
@@ -223,7 +348,9 @@ async fn main {
   )
   @fs.write_file(
     root + "/RESULT.txt",
-    "outcome=completed\nscope=bounded full-chain mixed calibration and materialization; not deployment\n",
+    "outcome=completed\nscope=bounded full-chain mixed calibration and materialization; not deployment\nroute_records=" +
+    path +
+    "\n",
     create_mode=CreateNew,
   )
   println("prepared=" + serving + "/long-final")
@@ -238,4 +365,12 @@ test "median requires complete measured chain samples" {
     ),
     3000L,
   )
+}
+
+///|
+test "split experiment retains real baseline and ordinary companion records" {
+  assert_eq(mixed_long_chain_records(9000L, 8700L, 7900L), [
+    "record\tmixed\t2\t2048\t32768\t1\t9000\t5", "record\tmixed\t2\t2048\t32768\t2\t8700\t5",
+    "record\tmixed\t2\t2048\t32768\t7\t7900\t5",
+  ])
 }

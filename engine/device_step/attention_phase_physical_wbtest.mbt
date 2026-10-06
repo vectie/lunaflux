@@ -96,12 +96,23 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
   assert_true(
     mixed_attention_steps(steps, resources, partitioned_decode=true) is None,
   )
+  // Match this fixture's real one-block ABI. Projection fixture geometry
+  // (94x16, 256 threads) is not a valid row-domain proof for these kernels.
+  let admitted = @launch_contract.AotLaunchDimensions::new(
+    grid_x=1,
+    grid_y=1,
+    grid_z=1,
+    block_x=32,
+    block_y=1,
+    block_z=1,
+    shared_memory_bytes=0,
+  )
   resources.attention_partitioned_decode_companions.push({
     operation_id: steps[1].operation_id,
     partial: { ..steps[1], function_index: 4, },
     merge: { ..steps[1], function_index: 5, },
-    partial_dimensions: variant_test_launch(0),
-    merge_dimensions: variant_test_launch(0),
+    partial_dimensions: admitted,
+    merge_dimensions: admitted,
   })
   let launches = paged_ordered_launches(steps, resources)
   for policy in [@device.OrderedKernelEagerOnly, OrderedKernelCaptureRequired] {
@@ -133,6 +144,16 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
     let second = graph_dispatch_bucket(table, MixedGraph, 2, 64, 8192)
     candidates[first.slot()] = 7
     candidates[second.slot()] = 7
+    let captured = resources.ordered_executors[base].resource.execution_mode() ==
+      OrderedKernelCaptured
+    if captured {
+      // Simulate optional captures consuming the remainder after a mandatory
+      // five-node reservation. The selected graph must still materialize.
+      ignore(resources.effect_capture_budget.reserve(5).unwrap())
+      resources.effect_capture_budget = @luna_execution_graph_strategy.ExecutionGraphVariantBudget::new(
+        0, 0,
+      )
+    }
     let measured = prepare_measured_mixed_decode_split_owners(
       context,
       steps,
@@ -141,6 +162,7 @@ async test "physical mixed attention owns disjoint row writes and unchanged pure
       Some(ReadOnlyArray::from_array(candidates)),
       FixedArray::make(table.bucket_count(), -1),
       base,
+      capture_budget_reserved=captured,
     )
     assert_eq(measured[first.slot()], measured[second.slot()])
     let selected_split = measured[first.slot()]

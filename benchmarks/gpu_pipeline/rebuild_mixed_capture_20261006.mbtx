@@ -1,0 +1,133 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn run(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String,
+) -> Unit {
+  let command = match cwd {
+    Some(path) => @shell.Cmd(exe, args, cwd=path)
+    None => @shell.Cmd(exe, args)
+  }
+  let r = command.output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  println("completed=" + name)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, bucket, mixed, root] else {
+    fail("BUCKET MIXED EMPTY_ROOT_WITH_PATCH")
+  }
+  let source = root + "/source"
+  @fs.mkdir(source)
+  @shell.Cmd("cp", ["-a", "--reflink=auto", bucket + "/source/.", source]).run()
+  @shell.Cmd("ln", ["-s", bucket + "/toolchain", root + "/toolchain"]).run()
+  for
+    name in [
+      "attention_phase_executor.mbt", "mixed_decode_split_prepare.mbt", "paged_dispatch_prepare.mbt",
+      "mixed_capture_budget_wbtest.mbt",
+    ] {
+    @fs.write_file(
+      source + "/engine/device_step/" + name,
+      @fs.read_file(root + "/patch/" + name),
+    )
+  }
+  let moon = root + "/toolchain/bin/moon"
+  run(
+    root,
+    "tests",
+    moon,
+    [
+      "test", "engine/device_step", "--target", "native", "--deny-warn", "--warn-list",
+      "-79-20-29-25",
+    ],
+    cwd=source,
+  )
+  run(
+    root,
+    "build",
+    moon,
+    [
+      "build", "cmd/lunaflux", "cmd/device_worker_child", "cmd/lunaflux_qwen3_token_id_bridge",
+      "tests/qwen3_bf16_serving_supervisor", "--target", "native", "--release", "--deny-warn",
+      "--warn-list", "-79-20-29-25",
+    ],
+    cwd=source,
+  )
+  let serving = root + "/serving"
+  @fs.mkdir(serving)
+  for
+    (name, path) in [
+      ("source", source),
+      ("toolchain", root + "/toolchain"),
+      ("release", bucket + "/release"),
+    ] {
+    @shell.Cmd("ln", ["-s", path, serving + "/" + name]).run()
+  }
+  for name in ["bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1"] {
+    @fs.write_file(
+      serving + "/" + name,
+      @fs.read_file(mixed + "/serving/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @shell.Cmd("cp", [
+    "-a",
+    mixed + "/serving/fused-routed",
+    serving + "/fused-routed",
+  ]).run()
+  let prepare = @fs.read_file(bucket + "/prepare.mbtx")
+    .text()
+    .replace(old=bucket + "/source", new=source)
+  @fs.write_file(serving + "/prepare.mbtx", prepare, create_mode=CreateNew)
+  run(root, "materialize", moon, [
+    "run",
+    serving + "/prepare.mbtx",
+    serving,
+    "materialize",
+  ])
+  @fs.mkdir(serving + "/long-final")
+  for (name, path) in [("source", source), ("toolchain", root + "/toolchain")] {
+    @shell.Cmd("ln", ["-s", path, serving + "/long-final/" + name]).run()
+  }
+  @fs.write_file(
+    serving + "/long-final/export.stdout",
+    @fs.read_file(serving + "/export.stdout"),
+    create_mode=CreateNew,
+  )
+  let long = @fs.read_file(bucket + "/prepare-long.mbtx")
+    .text()
+    .replace(old=bucket + "/source", new=source)
+  @fs.write_file(root + "/prepare-long.mbtx", long, create_mode=CreateNew)
+  run(root, "long", moon, [
+    "run",
+    root + "/prepare-long.mbtx",
+    serving,
+    serving + "/long-final",
+  ])
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=bounded mixed-capture preparation, not deployment or benchmark success\n",
+    create_mode=CreateNew,
+  )
+}

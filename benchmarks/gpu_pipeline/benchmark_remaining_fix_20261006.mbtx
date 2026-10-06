@@ -24,7 +24,14 @@ async fn main {
   let old = @fs.read_file(launcher).text()
   // Executable admission requires a canonical locator, not serving/source's
   // convenience symlink. Keep startup authentication intact.
-  let canonical = @fs.realpath(serving + "/source")
+  // Use the host filesystem resolver. The script host's realpath may retain
+  // nested source symlinks, which executable admission intentionally rejects.
+  let resolved = @shell.Cmd("realpath", ["-e", serving + "/source"]).output()
+  resolved.check()
+  let canonical = resolved.stdout().trim().to_owned()
+  guard canonical.has_prefix("/") && !canonical.contains("\n") else {
+    fail("canonical source directory")
+  }
   let body = once(
     old,
     "let cmd = \"/home/wlc004s/lunaflux-ako-query-chunks-20261005.PCwRF4kW/source/_build/native/release/build/cmd/\"",
