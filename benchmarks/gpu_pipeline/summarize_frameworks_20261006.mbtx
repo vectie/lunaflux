@@ -31,6 +31,16 @@ fn median(values : Array[Double]) -> Double raise {
 }
 
 ///|
+fn prompt(value : Json) -> Array[Json] raise {
+  match value {
+    { "prompt": Array(ids), .. }
+    | { "input_ids": Array(ids), .. }
+    | { "input_token_ids": Array(ids), .. } => ids
+    _ => fail("token-ID input required")
+  }
+}
+
+///|
 async fn seal(root : String) -> Unit {
   guard @fs.read_file(root + "/RESULT.txt")
     .text()
@@ -159,7 +169,28 @@ async fn main {
           let row_first : Array[Double] = []
           let row_decode : Array[Double] = []
           let row_tokens : Array[Json] = []
-          for request in requests {
+          for row_index, request in requests {
+            let expected = prompt(
+              @json.parse(
+                @fs.read_file(
+                  root +
+                  "/r0-vllm/requests/" +
+                  name +
+                  "-t1-r\{row_index}.body.json",
+                ).text(),
+              ),
+            )
+            let actual = prompt(
+              @json.parse(
+                @fs.read_file(
+                  run +
+                  "/requests/" +
+                  name +
+                  "-t\{trial}-r\{row_index}.body.json",
+                ).text(),
+              ),
+            )
+            assert_eq(actual, expected)
             guard request
               is {
                 "ttft_ms": ttft,
@@ -253,4 +284,13 @@ async fn main {
 test "median handles odd and even sample vectors" {
   assert_eq(median([3.0, 1.0, 2.0]), 2.0)
   assert_eq(median([6.0, 1.0, 2.0, 5.0, 4.0, 3.0]), 3.5)
+}
+
+///|
+test "different adapters carry the same token-ID input" {
+  assert_eq(prompt({ "prompt": [1, 2, 3] }), prompt({ "input_ids": [1, 2, 3] }))
+  assert_eq(
+    prompt({ "prompt": [1, 2, 3] }),
+    prompt({ "input_token_ids": [1, 2, 3] }),
+  )
 }
