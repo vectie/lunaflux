@@ -48,9 +48,19 @@ async fn capture(
 ///|
 async fn main {
   guard @env.args()
-    is [_, serving, root, template, client_template, moon, diagnostic] else {
+    is [
+      _,
+      serving,
+      root,
+      template,
+      client_template,
+      moon,
+      diagnostic,
+      .. options,
+    ] &&
+    (options.is_empty() || options is ["--core-gaps"]) else {
     fail(
-      "REPAIRED_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER FROZEN_CLIENT MOON DIAGNOSTIC_PARENT",
+      "REPAIRED_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER FROZEN_CLIENT MOON DIAGNOSTIC_PARENT [--core-gaps]",
     )
   }
   let launcher = @fs.read_file(template).text()
@@ -64,8 +74,15 @@ async fn main {
   guard rest.split("///|\nfn token_ids").to_array() is [_, suffix] else {
     fail("matrix end")
   }
+  let cells = if options.is_empty() {
+    "[(\"i128-o256-c1-varied\",[128],256,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]"
+  } else {
+    "[(\"i4096-o64-c16-varied\",inputs(4096,16),64,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]"
+  }
   let client = prefix.to_owned() +
-    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n [(\"i128-o256-c1-varied\",[128],256,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]\n}\n\n///|\nfn token_ids" +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n " +
+    cells +
+    "\n}\n\n///|\nfn token_ids" +
     suffix.to_owned()
   let client = once(
     client, "let trials = if options is [\"--smoke\"] { 1 } else { 4 }", "let trials = 2",
@@ -216,7 +233,9 @@ async fn main {
   }
   @fs.write_file(
     root + "/RESULT.txt",
-    "outcome=completed\nscope=32K-C2-and-short-selected-traces; not unprofiled throughput\n",
+    "outcome=completed\nscope=" +
+    (if options.is_empty() { "32K-C2-and-short" } else { "4K-C16-and-32K-C2" }) +
+    "-selected-traces; not unprofiled throughput\n",
     create_mode=CreateNew,
   )
 }

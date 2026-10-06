@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn aged_prefill_token_budget(token_budget~ : Int, row_limit~ : Int, runnable_decodes~ : Int) -> Int
+
 pub fn prefill_query_count(computed~ : Int, target~ : Int, token_budget~ : Int, chunk_limit~ : Int, kv_token_capacity~ : Int) -> Int
 
 // Errors

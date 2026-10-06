@@ -1,0 +1,71 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(body : String, before : String, after : String) -> String raise {
+  guard body.split(before).to_array() is [a, b] else {
+    fail("non-unique frozen seam: " + before)
+  }
+  a.to_owned() + after + b.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, root, launcher, .. options] &&
+    (options.is_empty() || options is ["--luna-only"]) else {
+    fail("PREPARED_SERVING EMPTY_ROOT FROZEN_LAUNCHER [--luna-only]")
+  }
+  let old = @fs.read_file(launcher).text()
+  // Executable admission requires a canonical locator, not serving/source's
+  // convenience symlink. Keep startup authentication intact.
+  let canonical = @fs.realpath(serving + "/source")
+  let body = once(
+    old,
+    "let cmd = \"/home/wlc004s/lunaflux-ako-query-chunks-20261005.PCwRF4kW/source/_build/native/release/build/cmd/\"",
+    "let cmd = " +
+    Json(canonical + "/_build/native/release/build/cmd/").stringify(),
+  )
+  let body = if options.is_empty() {
+    body
+  } else {
+    once(
+      body, "  let orders = [[\"vllm\", \"luna-full\", \"sglang\"], [\"sglang\", \"luna-full\", \"vllm\"]]",
+      "  let orders = [[\"luna-full\"], [\"luna-full\"]]",
+    )
+  }
+  let client = @fs.read_file(launcher + ".client.mbtx").text()
+  guard client
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+    is [prefix, rest] &&
+    rest.split("///|\nfn token_ids").to_array() is [_, suffix] else {
+    fail("frozen client matrix")
+  }
+  let client = prefix.to_owned() +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n [(\"i128-o256-c1-varied\",[128],256,\"varied\"),(\"i4096-o64-c1-varied\",[4096],64,\"varied\"),(\"i4096-o64-c16-varied\",inputs(4096,16),64,\"varied\"),(\"i32512-o64-c1-varied\",[32512],64,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]\n}\n\n///|\nfn token_ids" +
+    suffix.to_owned()
+  let script = root + "/launcher.mbtx"
+  @fs.write_file(script, body, create_mode=CreateNew)
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  let moon = serving + "/toolchain/bin/moon"
+  for path in [script, script + ".client.mbtx"] {
+    @shell.Cmd(moon, ["check", path, "--deny-warn"]).run()
+  }
+  @shell.Cmd(moon, ["run", script, serving, root, script]).run()
+}
+
+///|
+test "replacement never silently patches ambiguous source" {
+  assert_eq(once("axb", "x", "y"), "ayb")
+  try once("xx", "x", "y") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous seam")
+  }
+}

@@ -1,0 +1,398 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// Finite diagnostic campaign. Frozen artifacts remain read-only; the only
+// runtime delta is allocation-free scheduler fairness planning. Offline export
+// also repairs helper composition; measured routes preserve the numeric law.
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String = ".",
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args, cwd~, env={
+    "PATH": root +
+    "/toolchain/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/bin:/bin",
+  }).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("field " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn strings(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(values) else { fail("command array") }
+  values.map(x => {
+    guard x is String(s) else { fail("argument") }
+    s
+  })
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, root, phase] else {
+    fail(
+      "IMMUTABLE_REPAIR NEW_ROOT prepare|finish-prepare|alternatives|measure|measure-chain|calibrate|materialize|materialize-retry|trace-prepare",
+    )
+  }
+  let moon = frozen + "/toolchain/bin/moon"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  if phase == "prepare" || phase == "finish-prepare" {
+    if phase == "prepare" {
+      @fs.mkdir(root + "/source")
+      ignore(
+        capture(root, "copy-source", "cp", [
+          "-a",
+          "--reflink=auto",
+          frozen + "/source/.",
+          root + "/source",
+        ]),
+      )
+      @shell.Cmd("ln", ["-s", frozen + "/toolchain", root + "/toolchain"]).run()
+      for
+        path in [
+          "scheduler/core/planning_selection.mbt", "scheduler/core/preemption_wbtest.mbt",
+          "scheduler/core/completion_wbtest.mbt", "scheduler/work_plan/work.mbt",
+          "scheduler/work_plan/work_test.mbt",
+        ] {
+        @fs.write_file(
+          root + "/source/" + path,
+          @fs.read_file(root + "/patch/" + path),
+        )
+      }
+      ignore(
+        capture(
+          root,
+          "scheduler-tests",
+          moon,
+          [
+            "test", "scheduler/core", "scheduler/work_plan", "--target", "native",
+            "--deny-warn", "--warn-list", "-79-20-29-25",
+          ],
+          cwd=root + "/source",
+        ),
+      )
+    }
+    ignore(
+      capture(
+        root,
+        "build-runtime",
+        moon,
+        [
+          "build", "cmd/lunaflux", "cmd/device_worker_child", "cmd/lunaflux_qwen3_token_id_bridge",
+          "tests/qwen3_bf16_serving_supervisor", "--target", "native", "--release",
+          "--deny-warn", "--warn-list", "-79-20-29-25",
+        ],
+        cwd=root + "/source",
+      ),
+    )
+    let serving = root + "/serving"
+    @fs.mkdir(serving)
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", root + "/" + name, serving + "/" + name]).run()
+    }
+    for
+      name in [
+        "fused", "decode-selected", "prefill-selected", "wide-prefill-selected",
+        "calibration-spec",
+      ] {
+      @shell.Cmd("cp", ["-a", frozen + "/" + name, serving + "/" + name]).run()
+    }
+    @shell.Cmd("ln", ["-s", frozen + "/release", serving + "/release"]).run()
+    for
+      name in ["export.stdout", "bind.stdout", "convert.stdout", "toolchain.v1"] {
+      @fs.write_file(
+        serving + "/" + name,
+        @fs.read_file(frozen + "/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      serving + "/check-probe",
+      @fs.read_file(root + "/check-probe"),
+      create_mode=CreateNew,
+      permission=0o755,
+    )
+    // Replace only the output locator; retain all selected projection policy.
+    let args = @fs.read_file(frozen + "/fused/export.arguments")
+      .text()
+      .replace(
+        old=frozen + "/fused/reusable-fused-runtime-bundle.v3",
+        new=serving + "/fused/reusable-fused-runtime-bundle.v3",
+      )
+    @fs.write_file(serving + "/fused/export.arguments", args)
+  } else if phase == "alternatives" {
+    // Existing general numerical/schedule alternatives, no silent
+    // reassociation or global --use_fast_math. Recipes explicitly bind laws.
+    let original = strings(
+      @fs.read_file(frozen + "/attention-export.command.json").text(),
+    )
+    for id in [470, 482] {
+      let label = if id == 482 { "482-fixed" } else { "\{id}" }
+      let output = root + "/candidate-" + label
+      let args = original[1:].map(s => {
+        if s == frozen + "/attention-export" {
+          output
+        } else {
+          s
+        }
+      })
+      args.append(["--decode-candidate", "\{id}"])
+      let report = if @fs.exists(root + "/export-" + label + ".stdout") {
+        @fs.read_file(root + "/export-" + label + ".stdout").text()
+      } else {
+        capture(
+          root,
+          "export-" + label,
+          root +
+          "/source/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe",
+          args,
+        )
+      }
+      let source = field(report, "reusable_qwen_decode_source")
+      let directory = source.split("/kernel.cu").to_array()[0].to_owned()
+      let recipe = @fs.read_file(directory + "/kernel.recipe").text()
+      if !@fs.exists(directory + "/kernel.cubin") {
+        ignore(
+          capture(root, "compile-" + label, nvcc, [
+            "-O3",
+            "-arch=sm_121",
+            "--std=c++14",
+            "--fmad=false",
+            "--ftz=false",
+            "--prec-div=true",
+            "--prec-sqrt=true",
+            "--maxrregcount=" + field(recipe, "max_registers"),
+            "-Xptxas=-v",
+            "-cubin",
+            source,
+            "-o",
+            directory + "/kernel.cubin",
+          ]),
+        )
+      }
+      if !@fs.exists(root + "/candidate-\{id}.path") {
+        @fs.write_file(
+          root + "/candidate-\{id}.path",
+          directory,
+          create_mode=CreateNew,
+        )
+      }
+    }
+  } else if phase == "measure" || phase == "measure-chain" {
+    let spec = frozen + "/calibration-spec/decode.spec"
+    let workloads : Array[Json] = []
+    let artifacts : Array[String] = [
+      spec,
+      frozen + "/decode-selected/kernel.recipe",
+      frozen + "/decode-selected/kernel.cubin",
+      frozen + "/decode-route-measurements/partitioned/kernel.recipe",
+      frozen + "/decode-route-measurements/partitioned/kernel.cubin",
+    ]
+    for id in (if phase == "measure" { [468, 470, 482] } else { [470, 482] }) {
+      let directory = if id == 468 {
+        frozen + "/decode-route-measurements/partitioned"
+      } else {
+        @fs.read_file(root + "/candidate-\{id}.path").text()
+      }
+      if id != 468 {
+        artifacts.append([
+          directory + "/kernel.recipe",
+          directory + "/kernel.cubin",
+        ])
+      }
+      for
+        (rows, history) in (if phase == "measure" {
+          [(1, 127), (16, 4095), (1, 32511), (2, 32511)]
+        } else {
+          [(16, 4095), (1, 32511), (2, 32511)]
+        }) {
+        let args = [
+          spec,
+          frozen + "/decode-selected",
+          directory,
+          "\{rows}",
+          "\{rows}",
+          "\{history}",
+        ]
+        if phase == "measure-chain" {
+          args.push("--decode-chain-comparison")
+        }
+        workloads.push({ "label": "c\{id}-r\{rows}-h\{history}", "args": args })
+      }
+    }
+    let contract : Json = {
+      "schema": "lunaflux-ako-trial-v1",
+      "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.03,
+      "program": root + "/check-probe",
+      "artifacts": artifacts,
+      "workloads": workloads,
+    }
+    @fs.write_file(
+      root + "/" + phase + ".json",
+      contract.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, phase + "-trial", moon, [
+        "run",
+        root + "/ako_trial.mbtx",
+        root + "/" + phase + ".json",
+        root + "/" + phase + "-trial",
+      ]),
+    )
+  } else if phase == "calibrate" {
+    ignore(
+      capture(root, "calibrate", moon, [
+        "run",
+        root + "/measure_decode_routes.mbtx",
+        root + "/serving",
+        root + "/serving/calibration-spec",
+        "--context-limit",
+        "32768",
+        "--reuse-prefill-routes",
+        frozen + "/decode-route-measurements/routes.v1",
+      ]),
+    )
+  } else if phase == "materialize" || phase == "materialize-retry" {
+    let serving = root + "/serving"
+    if phase == "materialize-retry" && @fs.exists(serving + "/deployment") {
+      @shell.Cmd("mv", [
+        serving + "/deployment",
+        serving + "/deployment-rejected-symlink",
+      ]).run()
+    }
+    let release = @shell.Cmd("realpath", [serving + "/release"]).output()
+    release.check()
+    let body = @fs.read_file(frozen + "/prepare-full.mbtx")
+      .text()
+      .split("root+\"/release\"")
+      .to_array()
+      .join(Json(release.stdout().trim().to_owned()).stringify())
+      .replace(
+        old="run(root,\"materialize\",",
+        new="run(root,\"" + phase + "-inner\",",
+      )
+      .replace(
+        old="let source = root+\"/source\"",
+        new="let source = " + Json(root + "/source").stringify(),
+      )
+    @fs.write_file(
+      serving + "/prepare-" + phase + ".mbtx",
+      body,
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, phase, moon, [
+        "run",
+        serving + "/prepare-" + phase + ".mbtx",
+        serving,
+        "materialize",
+      ]),
+    )
+    @fs.mkdir(serving + "/long-final")
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", [
+        "-s",
+        root + "/" + name,
+        serving + "/long-final/" + name,
+      ]).run()
+    }
+    @fs.write_file(
+      serving + "/long-final/export.stdout",
+      @fs.read_file(serving + "/export.stdout"),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/prepare_long_context.mbtx",
+      @fs.read_file(frozen + "/prepare_long_context.mbtx")
+      .text()
+      .replace(
+        old="let cmd = base + \"/source/_build/native/release/build/cmd/\"",
+        new="let cmd = " +
+          Json(root + "/source/_build/native/release/build/cmd/").stringify(),
+      ),
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, "long", moon, [
+        "run",
+        root + "/prepare_long_context.mbtx",
+        serving,
+        serving + "/long-final",
+      ]),
+    )
+  } else if phase == "trace-prepare" {
+    let diagnostic = root + "/diagnostic-source"
+    @fs.mkdir(diagnostic)
+    ignore(
+      capture(root, "copy-diagnostic", "cp", [
+        "-a",
+        "--reflink=auto",
+        root + "/source/.",
+        diagnostic,
+      ]),
+    )
+    let path = diagnostic + "/internal/process/process_approved_spawn.c"
+    let original = @fs.read_file(path).text()
+    guard original.split("fexecve(5, argv, sanitized_environment);").to_array()
+      is [a, b] else {
+      fail("diagnostic seam")
+    }
+    @fs.write_file(
+      path,
+      a.to_owned() +
+      "/* OFFLINE TRACE ONLY; NEVER DEPLOY. */\n    extern char **environ;\n    (void)sanitized_environment;\n    fexecve(5, argv, environ);" +
+      b.to_owned(),
+    )
+    ignore(
+      capture(
+        root,
+        "build-diagnostic",
+        moon,
+        [
+          "build", "cmd/lunaflux", "tests/qwen3_bf16_serving_supervisor", "--target",
+          "native", "--release", "--deny-warn", "--warn-list", "-79-20-29-25",
+        ],
+        cwd=diagnostic,
+      ),
+    )
+  } else {
+    fail("unknown phase")
+  }
+  println("completed=" + phase)
+}
