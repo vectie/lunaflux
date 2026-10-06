@@ -1,4 +1,23 @@
 ///|
+/// An aged prompt retains one row and one token of forward progress; ready
+/// decodes retain one token each within the remaining row/token domain.
+/// This is backend-neutral fairness planning, not a device tile heuristic.
+pub fn aged_prefill_token_budget(
+  token_budget~ : Int,
+  row_limit~ : Int,
+  runnable_decodes~ : Int,
+) -> Int {
+  if token_budget <= 0 || row_limit <= 0 {
+    return 0
+  }
+  let reserved = Int::min(
+    Int::max(runnable_decodes, 0),
+    Int::min(row_limit - 1, token_budget - 1),
+  )
+  token_budget - reserved
+}
+
+///|
 /// Pure progress-to-work calculation. Capacity is a logical token bound, not
 /// a device allocation. Zero means no runnable work under the supplied budget.
 pub fn prefill_query_count(

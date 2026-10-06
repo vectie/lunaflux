@@ -1,4 +1,52 @@
 ///|
+test "aged prefill budget preserves decode and prompt forward progress" {
+  assert_eq(
+    aged_prefill_token_budget(
+      token_budget=2048,
+      row_limit=32,
+      runnable_decodes=1,
+    ),
+    2047,
+  )
+  assert_eq(
+    aged_prefill_token_budget(
+      token_budget=2048,
+      row_limit=32,
+      runnable_decodes=16,
+    ),
+    2032,
+  )
+  assert_eq(
+    aged_prefill_token_budget(token_budget=2, row_limit=2, runnable_decodes=2),
+    1,
+  )
+  assert_eq(
+    aged_prefill_token_budget(token_budget=1, row_limit=2, runnable_decodes=1),
+    1,
+  )
+  assert_eq(
+    aged_prefill_token_budget(
+      token_budget=2048,
+      row_limit=1,
+      runnable_decodes=1,
+    ),
+    2048,
+  )
+  assert_eq(
+    aged_prefill_token_budget(
+      token_budget=2048,
+      row_limit=32,
+      runnable_decodes=0,
+    ),
+    2048,
+  )
+  assert_eq(
+    aged_prefill_token_budget(token_budget=0, row_limit=32, runnable_decodes=16),
+    0,
+  )
+}
+
+///|
 test "work ranges preserve KV effects when output is absent" {
   let work = RowWork::new(
     packed_start=17,

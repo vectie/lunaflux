@@ -94,6 +94,49 @@ fn Scheduler::is_aged(self : Scheduler, slot : Int) -> Bool {
 }
 
 ///|
+/// Read-only readiness snapshot. No authority acquisition, eviction, heap
+/// allocation or cursor publication; final selection still checks exact
+/// resources after the prompt debit. Only the active registry is visited.
+fn Scheduler::runnable_decode_count(
+  self : Scheduler,
+) -> Int raise SchedulerError {
+  let mut count = 0
+  let mut pages = 0
+  let mut capabilities = 0
+  let mut needed_pages = 0
+  let maximum = Int::min(
+    self.capacity.max_rows_per_step() - 1,
+    self.capacity.step_token_budget() - 1,
+  )
+  for index in 0..<self.active_count {
+    if count >= maximum {
+      break
+    }
+    self.selection_active_visits += 1
+    let slot = self.active_slots[index]
+    if self.slot_states[slot] == SLOT_DECODE && !self.in_flight[slot] {
+      let old_pages = self.table_page_count(slot)
+      let request = self.requests[slot].unwrap()
+      let target_pages = ceiling_pages(
+        request.input_tokens().length() + self.output_counts[slot],
+        self.capacity.tokens_per_page(),
+      )
+      let needed = target_pages - old_pages
+      if pages + target_pages <= self.capacity.worker_max_plan_pages() &&
+        capabilities + self.decode_recipe.length() <=
+        self.capacity.worker_max_capabilities() &&
+        needed_pages + needed <= self.page_allocator.free_page_count() {
+        count += 1
+        pages += target_pages
+        capabilities += self.decode_recipe.length()
+        needed_pages += needed
+      }
+    }
+  }
+  count
+}
+
+///|
 fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
   self.clear_selection()
   let row_limit = self.capacity.max_rows_per_step()
@@ -127,7 +170,11 @@ fn Scheduler::select_rows(self : Scheduler) -> Int raise SchedulerError {
     let chunk = @work_plan.prefill_query_count(
       computed=start,
       target~,
-      token_budget=token_left,
+      token_budget=@work_plan.aged_prefill_token_budget(
+        token_budget=token_left,
+        row_limit~,
+        runnable_decodes=self.runnable_decode_count(),
+      ),
       chunk_limit=self.capacity.prefill_chunk_tokens(),
       kv_token_capacity=target,
     )

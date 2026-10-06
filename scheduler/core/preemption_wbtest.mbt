@@ -181,6 +181,32 @@ test "eligible aged prompt is selected without destructive preemption" {
   assert_true(outcome.is_submitted())
   assert_eq(owner.status(active.request_id()).unwrap().state(), Decode)
   assert_eq(owner.allocated_block_table_count(), 2)
+  assert_eq(owner.prefill_tokens[0], 1)
+  assert_eq(owner.decode_count, 1)
+}
+
+///|
+test "aged resident prefill cannot consume the runnable decode token" {
+  let owner = wb_owner_with_capacity(2, 2)
+  let decoding = owner.admit(wb_request(753UL), 0UL)
+  make_decode_active(owner, decoding, 1, 7)
+  let prompt = owner.admit(wb_request(754UL), 0UL)
+  make_decode_active(owner, prompt, 0, 0)
+  owner.slot_states[prompt.slot().index()] = SLOT_PREFILL
+  owner.step = 2UL
+  assert_eq(try! owner.select_rows(), 2)
+  assert_eq(owner.prefill_tokens[0], 1)
+  assert_eq(owner.decode_slots[0], decoding.slot().index())
+  assert_true(owner.selection_active_visits <= owner.active_count * 4)
+  owner.in_flight[decoding.slot().index()] = true
+  assert_eq(try! owner.select_rows(), 2)
+  assert_eq(owner.prefill_tokens[0], 2)
+  assert_eq(owner.decode_count, 0)
+  owner.in_flight[decoding.slot().index()] = false
+  ignore(owner.cancel(decoding))
+  assert_eq(try! owner.select_rows(), 2)
+  assert_eq(owner.prefill_tokens[0], 2)
+  assert_eq(owner.decode_count, 0)
 }
 
 ///|

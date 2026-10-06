@@ -409,14 +409,20 @@ test "A side is reused for sequence three while B remains submitted" {
   assert_eq(owner.plan_b_sequence, 2UL)
   assert_eq(try! plan_b.sequence_wire(), 2UL)
   assert_eq(try! plan_three.prefill_count(), 1)
-  assert_eq(try! plan_three.decode_count(), 0)
+  assert_eq(try! plan_three.decode_count(), 1)
   let writer_three = try! owner.completion_writer(plan_three)
   let prefill = try! plan_three.prefill_row(0)
-  try! writer_three.append_final_prefill_completed(
+  try! writer_three.append_prefill_completed(
     slot=try! prefill.completion_slot(),
     request_id=try! prefill.request_id(),
     request_generation=try! prefill.request_generation(),
     processed_tokens=try! prefill.tokens().length(),
+  )
+  let decode = try! plan_three.decode_row(0)
+  try! writer_three.append_decode_completed(
+    slot=try! decode.completion_slot(),
+    request_id=try! decode.request_id(),
+    request_generation=try! decode.request_generation(),
     token_id=15,
   )
   let completion_three = try! writer_three.submit()
