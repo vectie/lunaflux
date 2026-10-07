@@ -53,7 +53,10 @@ fn text_field(text : String, key : String) -> String raise {
 }
 
 ///|
-fn winners(bundle : String) -> Map[String, (String, Int64)] raise {
+fn winners(
+  bundle : String,
+  startup_policy? : Bool = false,
+) -> Map[String, (String, Int64)] raise {
   let hex = text_field(bundle, "attention_bucket_routes_hex")
   assert_true(hex.length() > 0 && hex.length() % 2 == 0)
   let bytes = Array::makei(hex.length() / 2, i => {
@@ -62,6 +65,8 @@ fn winners(bundle : String) -> Map[String, (String, Int64)] raise {
   let text = @utf8.decode(Bytes::from_array(bytes))
   assert_true(text.has_prefix("luna-attention-buckets-v1\n"))
   let selected : Map[String, (String, Int64)] = Map([])
+  let records : Array[(String, String, Int64)] = []
+  let seen : Map[String, Bool] = Map([])
   for line in text.split("\n") {
     if !line.has_prefix("record\t") {
       continue
@@ -72,12 +77,40 @@ fn winners(bundle : String) -> Map[String, (String, Int64)] raise {
     let route = parts[5].to_owned()
     let elapsed = @string.parse_int64(parts[6])
     assert_true(elapsed > 0L && @string.parse_int(parts[7]) == 5)
+    assert_false(seen.contains(key + "/" + route))
+    seen[key + "/" + route] = true
+    records.push((key, route, elapsed))
+    if startup_policy && route != "1" {
+      continue
+    }
     match selected.get(key) {
       Some((_, old)) if old <= elapsed => ()
       _ => selected[key] = (route, elapsed)
     }
   }
   assert_true(!selected.is_empty())
+  if startup_policy {
+    let baseline = selected.copy()
+    for (key, route, elapsed) in records {
+      guard baseline.get(key) is Some((_, base)) else {
+        fail("startup selection requires authentic baseline")
+      }
+      let required = base / 100L + (if base % 100L == 0L { 0L } else { 1L })
+      let (old_route, old_time) = selected[key]
+      if route != "1" &&
+        elapsed <= base - required &&
+        (
+          elapsed < old_time ||
+          (
+            elapsed == old_time &&
+            old_route != "1" &&
+            @string.parse_int(route) < @string.parse_int(old_route)
+          )
+        ) {
+        selected[key] = (route, elapsed)
+      }
+    }
+  }
   selected
 }
 
@@ -116,6 +149,11 @@ async fn selection(root : String) -> Json {
   }
   let a = winners(bundles[0])
   let b = winners(bundles[1])
+  let policies = [
+    winners(bundles[0], startup_policy=true),
+    winners(bundles[1], startup_policy=true),
+  ]
+  let policy_changes : Array[Json] = []
   let differences : Array[Json] = []
   let new_buckets : Array[String] = []
   let missing_buckets : Array[String] = []
@@ -126,6 +164,15 @@ async fn selection(root : String) -> Json {
       continue
     }
     shared += 1
+    let (old_policy, _) = policies[0][key]
+    let (new_policy, _) = policies[1][key]
+    if old_policy != new_policy {
+      policy_changes.push({
+        "bucket": key,
+        "baseline": old_policy,
+        "candidate": new_policy,
+      })
+    }
     if before != after {
       differences.push({
         "bucket": key,
@@ -151,7 +198,21 @@ async fn selection(root : String) -> Json {
     "new_calibrated_buckets": new_buckets,
     "missing_calibrated_buckets": missing_buckets,
     "calibration_winner_changes": differences,
+    "startup_policy_changes": policy_changes,
+    "startup_policy": "baseline=1; ceil(1% baseline latency) margin; stable baseline ties; then lower candidate ID",
     "scope": "calibration minima, not proof of executed dispatch; serving trace remains independent",
+  }
+}
+
+///|
+fn validate_isolation(selection : Json) -> Unit raise {
+  assert_eq(get(selection, "baseline_calibrated_buckets"), Json(170))
+  assert_eq(get(selection, "candidate_calibrated_buckets"), Json(170))
+  for
+    key in [
+      "new_calibrated_buckets", "missing_calibrated_buckets", "startup_policy_changes",
+    ] {
+    assert_true(get(selection, key) is Array([]))
   }
 }
 
@@ -351,11 +412,20 @@ async fn main {
       "\{cell}: baseline=\{walls[0]} candidate=\{walls[1]} ms reduction=\{reduction}",
     )
   }
+  let configured = selection(root)
+  let isolated = @fs.exists(root + "/../ROUTE_SCOPE.txt")
+  if isolated {
+    validate_isolation(configured)
+  }
   let report : Json = {
     "schema": "lunaflux.typed-read-serving-abba.v1",
-    "scope": "freshly recalibrated complete configuration; unchanged non-attention module bytes, possible measured route changes; no reference-engine rerun or production promotion",
+    "scope": if isolated {
+      "controlled common-route configuration; original scope-specific measurements; unchanged non-attention module bytes; no reference-engine rerun or production promotion"
+    } else {
+      "freshly recalibrated complete configuration; unchanged non-attention module bytes, possible measured route changes; no reference-engine rerun or production promotion"
+    },
     "cells": reports,
-    "selection": selection(root),
+    "selection": configured,
   }
   @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
 }
@@ -379,4 +449,22 @@ test "bundle field lookup rejects duplicate identities" {
   } noraise {
     _ => fail("duplicate field accepted")
   }
+}
+
+///|
+test "startup policy distinguishes calibration minima and has stable numeric ties" {
+  let route_text = "luna-attention-buckets-v1\nscope\ttest\nrecord\tprefill\t1\t128\t128\t1\t101\t5\nrecord\tprefill\t1\t128\t128\t2\t100\t5\nrecord\tdecode\t2\t2\t32768\t1\t150\t5\nrecord\tdecode\t2\t2\t32768\t10\t100\t5\nrecord\tdecode\t2\t2\t32768\t4\t100\t5\n"
+  let hex = @utf8.encode(route_text)
+    .to_array()
+    .map(byte => {
+      let digits = "0123456789abcdef"
+      digits[byte.to_int() / 16:byte.to_int() / 16 + 1].to_owned() +
+      digits[byte.to_int() % 16:byte.to_int() % 16 + 1].to_owned()
+    })
+    .join("")
+  let bundle = "attention_bucket_routes_hex=" + hex + "\n"
+  assert_eq(winners(bundle)["prefill/1/128/128"].0, "2")
+  let selected = winners(bundle, startup_policy=true)
+  assert_eq(selected["prefill/1/128/128"].0, "1")
+  assert_eq(selected["decode/2/2/32768"].0, "4")
 }

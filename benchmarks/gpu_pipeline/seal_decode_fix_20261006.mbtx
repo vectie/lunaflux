@@ -7,11 +7,29 @@ import {
 }
 
 ///|
-fn excluded_component(name : StringView) -> Bool {
+fn excluded_components() -> Array[String] {
   [
     "source", "diagnostic-source", "toolchain", "_build", ".mooncakes", "deployment",
-    "deployment-rejected-symlink",
-  ].contains(name.to_owned())
+    "deployment.base", "deployment-rejected-symlink",
+  ]
+}
+
+///|
+fn excluded_component(name : StringView) -> Bool {
+  excluded_components().contains(name.to_owned())
+}
+
+///|
+fn member_search() -> Array[String] {
+  let args = [".", "-type", "d", "("]
+  for index, name in excluded_components() {
+    if index > 0 {
+      args.push("-o")
+    }
+    args.append(["-name", name])
+  }
+  args.append([")", "-prune", "-o", "-type", "f", "-print"])
+  args
 }
 
 ///|
@@ -86,16 +104,9 @@ async fn main {
   guard !@fs.exists(archive) && !@fs.exists(root + "/FILES.sha256") else {
     fail("non-overwriting seal")
   }
-  let found = @shell.Cmd(
-    "find",
-    [
-      ".", "-type", "d", "(", "-name", "source", "-o", "-name", "diagnostic-source",
-      "-o", "-name", "toolchain", "-o", "-name", "_build", "-o", "-name", ".mooncakes",
-      "-o", "-name", "deployment", "-o", "-name", "deployment-rejected-symlink",
-      ")", "-prune", "-o", "-type", "f", "-print",
-    ],
-    cwd=root,
-  ).output(max_output_bytes=33554432)
+  let found = @shell.Cmd("find", member_search(), cwd=root).output(
+    max_output_bytes=33554432,
+  )
   found.check()
   let files : Array[String] = []
   let excluded = StringBuilder()
@@ -154,9 +165,13 @@ async fn main {
 }
 
 ///|
-test "exclude large source trees, keep owned source snapshots and counters" {
-  for name in ["source", "diagnostic-source", "deployment", "_build"] {
+test "exclude large source trees and deployment backups, keep owned snapshots and counters" {
+  for
+    name in [
+      "source", "diagnostic-source", "deployment", "deployment.base", "_build",
+    ] {
     assert_true(excluded_component(name))
+    assert_true(member_search().contains(name))
   }
   for name in ["owned-source", "patch", "trace.sqlite", "kernel.cubin"] {
     assert_false(excluded_component(name))

@@ -1,0 +1,342 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("unique field " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn routes_from_bundle(bundle : String) -> String raise {
+  let hex = field(bundle, "attention_bucket_routes_hex")
+  assert_true(!hex.is_empty() && hex.length() % 2 == 0)
+  @utf8.decode(
+    Bytes::from_array(
+      Array::makei(hex.length() / 2, i => {
+        @string.parse_int(hex[i * 2:i * 2 + 2], base=16).to_byte()
+      }),
+    ),
+  )
+}
+
+///|
+fn records(text : String) -> Array[Array[String]] raise {
+  guard text.split("\n").to_array() is ["luna-attention-buckets-v1", scope, ..] &&
+    scope.has_prefix("scope\t") else {
+    fail("measured route schema")
+  }
+  text
+  .split("\n")
+  .filter(x => x.has_prefix("record\t"))
+  .to_array()
+  .map(line => {
+    let parts = line.split("\t").map(x => x.to_owned()).to_array()
+    assert_eq(parts.length(), 8)
+    assert_true(@string.parse_int64(parts[6]) > 0L && parts[7] == "5")
+    parts
+  })
+}
+
+///|
+fn bucket(record : Array[String]) -> String {
+  record[1:5].join("/")
+}
+
+///|
+fn qualifies(base : Array[String], candidate : Array[String]) -> Bool raise {
+  let ns = @string.parse_int64(base[6])
+  let required = ns / 100L + (if ns % 100L == 0L { 0L } else { 1L })
+  @string.parse_int64(candidate[6]) <= ns - required
+}
+
+///|
+// Common admissible choices isolate the changed cubin. Keep the required
+// baseline and actual timings in each original scope. If the old winner no
+// longer clears the 1% margin, both sides use their real baseline observation.
+// This is a controlled diagnostic, not a claim of fastest configuration.
+fn fixed_routes(
+  old : String,
+  measured : String,
+) -> (String, String, Int, Int) raise {
+  let observations = [records(old), records(measured)]
+  let indexed : Array[Map[String, Array[String]]] = [Map([]), Map([])]
+  let keys : Array[String] = []
+  for side in 0..<2 {
+    for record in observations[side] {
+      let key = bucket(record) + "/" + record[5]
+      assert_false(indexed[side].contains(key))
+      indexed[side][key] = record
+      if side == 0 && record[5] == "1" {
+        keys.push(bucket(record))
+      }
+    }
+  }
+  assert_true(!keys.is_empty())
+  keys.sort()
+  let filtered = [StringBuilder(), StringBuilder()]
+  filtered[0].write_string(old.split("\n").to_array()[:2].join("\n") + "\n")
+  filtered[1].write_string(
+    measured.split("\n").to_array()[:2].join("\n") + "\n",
+  )
+  let mut fallbacks = 0
+  for key in keys {
+    let base = indexed[0][key + "/1"]
+    let mut chosen = base
+    for record in observations[0] {
+      if bucket(record) == key &&
+        record[5] != "1" &&
+        qualifies(base, record) &&
+        (
+          @string.parse_int64(record[6]) < @string.parse_int64(chosen[6]) ||
+          (
+            @string.parse_int64(record[6]) == @string.parse_int64(chosen[6]) &&
+            @string.parse_int(record[5]) < @string.parse_int(chosen[5])
+          )
+        ) {
+        chosen = record
+      }
+    }
+    guard indexed[1].get(key + "/1") is Some(new_base) &&
+      indexed[1].get(key + "/" + chosen[5]) is Some(new_chosen) else {
+      fail("missing authentic common measurement")
+    }
+    let use_winner = chosen[5] != "1" && qualifies(new_base, new_chosen)
+    if chosen[5] != "1" && !use_winner {
+      fallbacks += 1
+    }
+    for side in 0..<2 {
+      filtered[side].write_string(indexed[side][key + "/1"].join("\t") + "\n")
+      if use_winner {
+        filtered[side].write_string(
+          indexed[side][key + "/" + chosen[5]].join("\t") + "\n",
+        )
+      }
+    }
+  }
+  (filtered[0].to_string(), filtered[1].to_string(), keys.length(), fallbacks)
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let output = @shell.Cmd(program, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".exit-status.txt",
+    output.exit_code().to_string() + "\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let output = @shell.Cmd("sha256sum", [path]).output()
+  output.check()
+  output.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, measured, root, mode] &&
+    ["prepare", "materialize", "run", "report"].contains(mode) else {
+    fail("FROZEN_RUNTIME SEALED_MEASURED_CONFIGURATION NEW_ROOT MODE")
+  }
+  let moon = frozen + "/toolchain/bin/moon"
+  if mode == "prepare" {
+    assert_true(
+      @fs.read_file(measured + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    let old_bundle = @fs.read_file(
+      frozen + "/serving/fused-routed/reusable-fused-runtime-bundle.v3",
+    ).text()
+    let new_bundle = @fs.read_file(
+      measured + "/fused-routed/reusable-fused-runtime-bundle.v3",
+    ).text()
+    for index in 0..<9 {
+      let name = "module_\{index}_module_sha256"
+      if index != 5 {
+        assert_eq(field(old_bundle, name), field(new_bundle, name))
+      }
+    }
+    let input = @fs.read_file(measured + "/decode-route-measurements/routes.v1").text()
+    let (old_filtered, new_filtered, count, fallbacks) = fixed_routes(
+      routes_from_bundle(old_bundle),
+      input,
+    )
+    assert_eq(count, 170)
+    @fs.write_file(
+      root + "/ROUTE_SCOPE.txt",
+      "selection=common-admissible-baseline-winners\nbuckets=170\ncommon-baseline-fallbacks=\{fallbacks}\nlatencies=original-scope-measurements-only\nnew-buckets=excluded-for-causal-isolation\nproduction=unchanged\n",
+      create_mode=CreateNew,
+    )
+    let prior = measured + "/fused/reusable-fused-runtime-bundle.v3"
+    let baseline_module = "/home/wlc004s/lunaflux-propagation-repair-20261006.kKDWuXV4/attention-first.cubin"
+    assert_eq(
+      sha(baseline_module),
+      "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb",
+    )
+    let exporter = frozen +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe"
+    assert_eq(
+      sha(exporter),
+      "04f9aa1f5e7ad7757576ec5c2f77f59f1b310325e633d877c426375eb3071eb2",
+    )
+    for (side, filtered) in [("old", old_filtered), ("new", new_filtered)] {
+      let prepared = root + "/" + side
+      @fs.mkdir(prepared)
+      @fs.write_file(
+        prepared + "/fixed-routes.v1",
+        filtered,
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+      for name in ["source", "toolchain", "fused"] {
+        @shell.Cmd("ln", ["-s", measured + "/" + name, prepared + "/" + name]).run()
+      }
+      for
+        name in [
+          "prepare-long.mbtx", "launcher.mbtx", "launcher.mbtx.client.mbtx", "typed_prefill_serving_20261007.mbtx",
+          "typed_prefill_serving_report_20261007.mbtx",
+        ] {
+        @fs.write_file(
+          prepared + "/" + name,
+          @fs.read_file(measured + "/" + name),
+          create_mode=CreateNew,
+        )
+      }
+      let target = prepared + "/fused-routed/reusable-fused-runtime-bundle.v3"
+      @fs.mkdir(prepared + "/fused-routed")
+      let changed_module = measured + "/fused/prefill_wide.cubin"
+      let args = @fs.read_file(measured + "/fused/export.arguments")
+        .text()
+        .split("\n")
+        .filter(x => !x.is_empty())
+        .map(x => {
+          if x == prior {
+            target
+          } else if side == "old" && x == changed_module {
+            baseline_module
+          } else {
+            x.to_owned()
+          }
+        })
+        .to_array()
+      assert_true(
+        args.contains(target) && !args.contains("--attention-buckets"),
+      )
+      args.append([
+        "--attention-buckets",
+        prepared + "/fixed-routes.v1",
+        sha(prepared + "/fixed-routes.v1"),
+      ])
+      capture(prepared, "rebind", exporter, args)
+      assert_eq(routes_from_bundle(@fs.read_file(target).text()), filtered)
+    }
+  } else if mode == "materialize" {
+    for side in ["old", "new"] {
+      let prepared = root + "/" + side
+      capture(prepared, "prepare-serving", moon, [
+        "run",
+        prepared + "/typed_prefill_serving_20261007.mbtx",
+        frozen,
+        "unused",
+        "unused",
+        prepared,
+        "materialize",
+      ])
+    }
+  } else if mode == "run" {
+    capture(root, "serving-abba", moon, [
+      "run",
+      root + "/new/typed_prefill_serving_20261007.mbtx",
+      root + "/old",
+      "unused",
+      "unused",
+      root + "/new",
+      "run",
+    ])
+  } else {
+    capture(root, "report", moon, [
+      "run",
+      root + "/new/typed_prefill_serving_report_20261007.mbtx",
+      root + "/new",
+      root + "/new/comparison.json",
+    ])
+  }
+}
+
+///|
+test "isolation retains baseline records and never manufactures a winning latency" {
+  let old = "luna-attention-buckets-v1\nscope\told\nrecord\tprefill\t2\t2048\t32768\t1\t90\t5\nrecord\tprefill\t2\t2048\t32768\t2\t80\t5\n"
+  let measured = "luna-attention-buckets-v1\nscope\tnew\nrecord\tprefill\t2\t2048\t32768\t1\t70\t5\nrecord\tprefill\t2\t2048\t32768\t2\t100\t5\nrecord\tmixed\t2\t2048\t32768\t7\t60\t5\n"
+  let (a, b, count, fallbacks) = fixed_routes(old, measured)
+  assert_eq(count, 1)
+  assert_eq(fallbacks, 1)
+  assert_eq(
+    a, "luna-attention-buckets-v1\nscope\told\nrecord\tprefill\t2\t2048\t32768\t1\t90\t5\n",
+  )
+  assert_eq(
+    b, "luna-attention-buckets-v1\nscope\tnew\nrecord\tprefill\t2\t2048\t32768\t1\t70\t5\n",
+  )
+}
+
+///|
+test "missing selected measurement and duplicate measurement fail closed" {
+  let old = "luna-attention-buckets-v1\nscope\told\nrecord\tdecode\t2\t2\t32768\t1\t150\t5\nrecord\tdecode\t2\t2\t32768\t4\t100\t5\n"
+  let record = "record\tdecode\t2\t2\t32768\t4\t120\t5\n"
+  for
+    measured in [
+      "luna-attention-buckets-v1\nscope\tnew\n",
+      "luna-attention-buckets-v1\nscope\tnew\n" + record + record,
+    ] {
+    try fixed_routes(old, measured) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid isolation accepted")
+    }
+  }
+}
+
+///|
+test "one percent policy margin is honored, including ceiling and stable baseline ties" {
+  let header = "luna-attention-buckets-v1\nscope\told\n"
+  let base = "record\tprefill\t1\t128\t128\t1\t101\t5\n"
+  let old = header + base + "record\tprefill\t1\t128\t128\t2\t100\t5\n"
+  let (a, b, _, fallbacks) = fixed_routes(old, old)
+  assert_eq(a, header + base)
+  assert_eq(a, b)
+  assert_eq(fallbacks, 0)
+}
