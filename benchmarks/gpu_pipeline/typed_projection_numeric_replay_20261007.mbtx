@@ -1,0 +1,205 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+}
+
+///|
+fn field(value : Json, key : String) -> Json raise {
+  guard value is Object(fields) && fields.get(key) is Some(found) else {
+    fail(key)
+  }
+  found
+}
+
+///|
+fn integer(value : Json) -> Int raise {
+  guard value is Number(n, ..) && n >= 0.0 && n == n.to_int().to_double() else {
+    fail("integer")
+  }
+  n.to_int()
+}
+
+///|
+fn bf16(word : Int) -> Float raise {
+  guard word >= 0 && word <= 65535 && (word & 0x7f80) != 0x7f80 else {
+    fail("finite BF16")
+  }
+  Float::reinterpret_from_int(word << 16)
+}
+
+///|
+fn rounded_bf16(value : Float) -> Int raise {
+  let bits = value.reinterpret_as_uint()
+  guard (bits & 0x7f800000U) != 0x7f800000U else { fail("finite f32") }
+  ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
+}
+
+///|
+fn projection(input : Array[Int], weights : Array[Int]) -> (Int, Double) raise {
+  assert_eq(input.length(), weights.length())
+  // Replay the actual single-row CUDA scalar law: 32 strided f32 folds,
+  // then the fixed shuffle-down pairwise tree. This is not the WMMA law.
+  let lanes : Array[Float] = Array::make(32, 0.0F)
+  let mut reference = 0.0
+  for i, word in input {
+    let x = bf16(word)
+    let w = bf16(weights[i])
+    // Explicit narrowing between operations prevents a host C compiler from
+    // contracting the product and sum into an FMA during this replay.
+    let product = Float::from_double(x.to_double() * w.to_double())
+    lanes[i % 32] = Float::from_double(
+      lanes[i % 32].to_double() + product.to_double(),
+    )
+    reference += x.to_double() * w.to_double()
+  }
+  for distance in [16, 8, 4, 2, 1] {
+    let old = lanes.copy()
+    for lane in 0..<(32 - distance) {
+      lanes[lane] = Float::from_double(
+        old[lane].to_double() + old[lane + distance].to_double(),
+      )
+    }
+  }
+  (rounded_bf16(lanes[0]), reference)
+}
+
+///|
+fn cut(
+  captures : Array[Json],
+  owner : String,
+  sample : Int,
+  operation : Int,
+) -> Array[Int] raise {
+  let selected = captures.filter(c => {
+    field(c, "request").stringify() + ":" + field(c, "generation").stringify() ==
+    owner &&
+    integer(field(c, "sample")) == sample &&
+    integer(field(c, "operation")) == operation
+  })
+  guard selected is [first, ..] && field(first, "words") is Array(words) else {
+    fail("live capture cut")
+  }
+  assert_true(selected.all(c => field(c, "words") == field(first, "words")))
+  words.map(integer)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, capture_root, model, output] else {
+    fail("SEALED_PHYSICAL_ACTIVATION_ROOT PINNED_MODEL_SAFETENSORS NEW_JSON")
+  }
+  let hash = @shell.Cmd("sha256sum", [model]).output()
+  hash.check()
+  assert_true(
+    hash
+    .stdout()
+    .has_prefix(
+      "f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b ",
+    ),
+  )
+  let comparison = @json.parse(
+    @fs.read_file(capture_root + "/activation-comparison.json").text(),
+  )
+  guard comparison is { "observations": Array(observations), .. } &&
+    @json.parse(@fs.read_file(capture_root + "/activations.json").text())
+    is { "captures": Array(captures), .. } else {
+    fail("corrected physical captures")
+  }
+  assert_eq(field(comparison, "attention_input_physical_sidecar"), Json(true))
+  let owners = ["solo0", "pair01"].map(mode => {
+    guard observations.filter(o => {
+        field(o, "mode") == Json(mode) && field(o, "request_row") == Json(0)
+      })
+      is [{ "owner": String(owner), .. }] else {
+      fail("request identity")
+    }
+    owner
+  })
+  let file = @fs.open(model, mode=ReadOnly)
+  defer file.close()
+  let prefix = file.read_exactly_at(8, position=0L)
+  let length = for i in 0..<8; n = 0L {
+    continue n | (prefix[i].to_int().to_int64() << (8 * i))
+  } nobreak {
+    n
+  }
+  assert_true(length > 0L && length <= 16777216L)
+  let header = @json.parse(
+    @utf8.decode(file.read_exactly_at(length.to_int(), position=8L)),
+  )
+  guard field(header, "model.layers.0.self_attn.v_proj.weight")
+    is {
+      "dtype": String("BF16"),
+      "shape": Array([Number(1024.0, ..), Number(1024.0, ..)]),
+      "data_offsets": Array([Number(start, ..), Number(end, ..)]),
+      ..
+    } else {
+    fail("V matrix")
+  }
+  assert_true(
+    start >= 0.0 &&
+    start == start.to_int64().to_double() &&
+    end - start == 2097152.0,
+  )
+  let records : Array[Json] = []
+  for sample in 1..<5 {
+    let input = cut(captures, owners[0], sample, 2)
+    assert_eq(input, cut(captures, owners[1], sample, 2))
+    assert_eq(input.length(), 1024)
+    let a = cut(captures, owners[0], sample, 5)
+    let b = cut(captures, owners[1], sample, 5)
+    assert_eq(a.length(), 4096)
+    assert_eq(b.length(), 4096)
+    for component in 3072..<4096 {
+      if a[component] == b[component] {
+        continue
+      }
+      let row = component - 3072
+      let bytes = file.read_exactly_at(
+        2048,
+        position=8L + length + start.to_int64() + row.to_int64() * 2048L,
+      )
+      let weights = Array::makei(1024, i => {
+        bytes[2 * i].to_int() | (bytes[2 * i + 1].to_int() << 8)
+      })
+      let (scalar, reference) = projection(input, weights)
+      assert_eq(scalar, a[component], msg="selected scalar numerical law")
+      records.push({
+        "sample": sample,
+        "component": component,
+        "scalar_replay_bits": scalar,
+        "solo_bits": a[component],
+        "mixed_bits": b[component],
+        "reference_fp64": reference,
+        "solo_abs_error": (bf16(a[component]).to_double() - reference).abs(),
+        "mixed_abs_error": (bf16(b[component]).to_double() - reference).abs(),
+      })
+    }
+  }
+  assert_true(!records.is_empty())
+  let report : Json = {
+    "schema": "lunaflux.projection-numeric-replay.v1",
+    "scope": "CPU exact operand replay of changed first-layer V components; not GPU timing, whole-model accuracy or WMMA replay",
+    "selected_scalar_law_reproduced": true,
+    "components": records,
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println("selected_scalar_law_reproduced=true components=\{records.length()}")
+}
+
+///|
+test "scalar strided tree and BF16 nearest-even preserve ties" {
+  assert_eq(rounded_bf16(Float::reinterpret_from_int(0x3f808000)), 0x3f80)
+  assert_eq(rounded_bf16(Float::reinterpret_from_int(0x3f818000)), 0x3f82)
+  let (word, reference) = projection(
+    Array::make(64, 0x3f80),
+    Array::make(64, 0x3f80),
+  )
+  assert_eq(word, 0x4280)
+  assert_eq(reference, 64.0)
+}

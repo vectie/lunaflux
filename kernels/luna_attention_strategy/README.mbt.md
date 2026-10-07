@@ -14,6 +14,14 @@ shared-memory demand before device lowering. Candidate generation, validation,
 and autotune scans are startup/compiler work and never execute in the token
 step.
 
+Query-owned matrix alternatives can carry explicit consumer-contiguous RHS
+reads with one or two operand slots. They have distinct stable and canonical
+identities, retain the historical alternatives and receive no invented static
+speedup. Unmeasured ties retain the historical choice; exact backend/device/
+problem measurements are required to prefer a read variant. Read-ahead is
+incompatible with retained-query and joint-query lifetimes until those
+combinations have a legal physical realization.
+
 `compile_attention_tile_candidate_plan` lets the higher functional compiler
 reify only members of this bounded set. It is the typed bridge for
 post-rewrite resource feedback and cannot admit arbitrary candidates or

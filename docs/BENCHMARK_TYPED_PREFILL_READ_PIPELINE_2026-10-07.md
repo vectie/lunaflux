@@ -77,16 +77,20 @@ completion-time savings. Remaining dependency scheduling, device-inserted
 waiting and other kernel work absorb much of the instruction reduction.
 Issue-normalized warp metrics must not be treated as elapsed-time shares.
 
-The next useful comparison is selected-route, uninstrumented serving A/B,
-including the short control and numerical output comparison. A kernel-only
-gain must not be added directly to token/s. The separate batched projection
-numerical investigation remains unresolved; this attention change does not
-answer it.
+The selected-route, uninstrumented ABBA serving comparison is now complete:
+[serving results and remaining gaps](BENCHMARK_TYPED_PREFILL_SERVING_2026-10-07.md).
+The recalibrated configuration gains approximately 1% at 32K, but has a losing
+short ABBA half and C16 output differences. A kernel-only gain must not be
+added directly to token/s. Exact scalar projection replay narrows the separate
+numerical investigation without resolving whole-model parity.
 
 ## Validation scope
 
 - 241 affected-package tests plus eight CUDA attention AOT tests passed.
 - The benchmark driver's contract-rebinding regression passed.
+- The full local native suite subsequently passed 4427/4427 with stripping and
+  warning exclusions `-79-20-29-25-92-14`; unrelated dirty packages remain
+  excluded from an unqualified warning-clean claim.
 - Affected native checks passed with legacy warning exclusions
   `-79-20-29-25`; this is not an unqualified warning-clean claim.
 - The full warning-denied check with those exclusions found warning 92 in

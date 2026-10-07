@@ -43,14 +43,22 @@ fn activity_union(activities : Array[Json], lo : Int64) -> Int64 raise {
 }
 
 ///|
+fn qkv_projection_grid() -> String {
+  // The cached-rotary preparation shares the QKV symbol prefix, but its
+  // one-dimensional grid is not projection work decomposition.
+  "CASE WHEN s.value LIKE '%fused_qwen_qkv%' AND substr(s.value,-15) <> '_rotary_prepare' THEN k.gridX ELSE 0 END"
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, engine, cell, .. options] else {
-    fail("ARM ENGINE CELL [EXACT_WAVE_JSON]")
+    fail("ARM ENGINE CELL [EXACT_WAVE_JSON [NEW_ANALYSIS_JSON]]")
   }
   let db = root + "/trace.sqlite"
   let path = match options {
     [] => root + "/r0-" + engine + "/requests/" + cell + "-t1.json"
     [path] => path
+    [path, _] => path
     _ => fail("wave path")
   }
   let wave = @json.parse(@fs.read_file(path).text())
@@ -107,7 +115,9 @@ async fn main {
   let steps = if engine == "luna-full" {
     sql(
       db,
-      "SELECT r.start submit,r.end submit_end,r.correlationId,min(k.start) gpu_start,max(k.end) gpu_end,sum(k.end-k.start)/1e6 kernel_ms,count(*) calls,max(CASE WHEN s.value LIKE '%attention_prefill%' THEN 1 ELSE 0 END) prefill,max(CASE WHEN s.value LIKE '%decode_split%' THEN 1 ELSE 0 END) partitioned,sum(CASE WHEN s.value LIKE '%attention_prefill%' THEN k.end-k.start ELSE 0 END)/1e6 prefill_ms,sum(CASE WHEN s.value LIKE '%attention_decode%' OR s.value LIKE '%decode_split%' THEN k.end-k.start ELSE 0 END)/1e6 decode_ms,max(CASE WHEN s.value LIKE '%fused_qwen_qkv%' THEN k.gridX ELSE 0 END) qkv_grid_x FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds n ON n.id=r.nameId JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=r.correlationId JOIN StringIds s ON s.id=k.demangledName WHERE n.value='cuGraphLaunch' AND r.start>=\{lo} AND r.end<=\{hi} GROUP BY r.correlationId ORDER BY r.start;",
+      "SELECT r.start submit,r.end submit_end,r.correlationId,min(k.start) gpu_start,max(k.end) gpu_end,sum(k.end-k.start)/1e6 kernel_ms,count(*) calls,max(CASE WHEN s.value LIKE '%attention_prefill%' THEN 1 ELSE 0 END) prefill,max(CASE WHEN s.value LIKE '%decode_split%' THEN 1 ELSE 0 END) partitioned,sum(CASE WHEN s.value LIKE '%attention_prefill%' THEN k.end-k.start ELSE 0 END)/1e6 prefill_ms,sum(CASE WHEN s.value LIKE '%attention_decode%' OR s.value LIKE '%decode_split%' THEN k.end-k.start ELSE 0 END)/1e6 decode_ms,max(" +
+      qkv_projection_grid() +
+      ") qkv_grid_x FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds n ON n.id=r.nameId JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=r.correlationId JOIN StringIds s ON s.id=k.demangledName WHERE n.value='cuGraphLaunch' AND r.start>=\{lo} AND r.end<=\{hi} GROUP BY r.correlationId ORDER BY r.start;",
     )
   } else {
     @json.parse("null")
@@ -124,10 +134,13 @@ async fn main {
     "runtime": runtime,
     "graph_steps": steps,
     "requests": requests,
-    "scope": "Exact measured client wave, excludes warmup and startup. Trace overhead is not throughput. API sum overlaps GPU work and is not additive. Kernel groups do not attribute host gaps.",
+    "scope": "Exact measured client wave, excludes warmup and startup. Trace overhead is not throughput. API sum overlaps GPU work and is not additive. Kernel groups do not attribute host gaps. QKV grid excludes separate rotary preparation.",
   }
   @fs.write_file(
-    root + "/" + cell + ".analysis.json",
+    match options {
+      [_, output] => output
+      _ => root + "/" + cell + ".analysis.json"
+    },
     result.stringify(indent=2),
     create_mode=CreateNew,
   )
@@ -165,4 +178,14 @@ test "union avoids charging overlap twice and preserves nanosecond integers" {
   )
   assert_eq(activity_union([], 0L), 0L)
   assert_eq(integer(Json("1780000000000000001")), 1780000000000000001L)
+}
+
+///|
+async test "QKV projection grid excludes cached rotary preparation" {
+  let query = "WITH k(gridX,value) AS (VALUES(32,'lunaflux_fused_qwen_qkv_v3'),(1024,'lunaflux_fused_qwen_qkv_v3_rotary_prepare')) SELECT max(" +
+    qkv_projection_grid() +
+    ") FROM k JOIN k AS s ON s.value=k.value;"
+  let result = @shell.Cmd("sqlite3", [":memory:", query]).output()
+  result.check()
+  assert_eq(result.stdout().trim(), "32")
 }

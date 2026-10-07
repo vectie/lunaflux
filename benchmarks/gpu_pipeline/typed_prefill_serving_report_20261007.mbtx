@@ -1,0 +1,382 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+}
+
+///|
+fn get(value : Json, key : String) -> Json raise {
+  guard value is Object(fields) && fields.get(key) is Some(found) else {
+    fail(key)
+  }
+  found
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  let n = match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("numeric metric")
+  }
+  guard n >= 0.0 && !n.is_inf() else { fail("finite nonnegative metric") }
+  n
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("empty measurements") }
+  let sorted = values.copy()
+  sorted.sort()
+  (sorted[(sorted.length() - 1) / 2] + sorted[sorted.length() / 2]) / 2.0
+}
+
+///|
+fn changed(a : Json, b : Json) -> Int raise {
+  guard a is Array(x) && b is Array(y) && x.length() == y.length() else {
+    fail("complete equal-sized output vectors")
+  }
+  x.foldi(init=0, (i, n, v) => n + (if v == y[i] { 0 } else { 1 }))
+}
+
+///|
+fn text_field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(line => line.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("unique bundle field " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn winners(bundle : String) -> Map[String, (String, Int64)] raise {
+  let hex = text_field(bundle, "attention_bucket_routes_hex")
+  assert_true(hex.length() > 0 && hex.length() % 2 == 0)
+  let bytes = Array::makei(hex.length() / 2, i => {
+    @string.parse_int(hex[i * 2:i * 2 + 2], base=16).to_byte()
+  })
+  let text = @utf8.decode(Bytes::from_array(bytes))
+  assert_true(text.has_prefix("luna-attention-buckets-v1\n"))
+  let selected : Map[String, (String, Int64)] = Map([])
+  for line in text.split("\n") {
+    if !line.has_prefix("record\t") {
+      continue
+    }
+    let parts = line.split("\t").to_array()
+    assert_eq(parts.length(), 8)
+    let key = parts[1:5].map(x => x.to_owned()).join("/")
+    let route = parts[5].to_owned()
+    let elapsed = @string.parse_int64(parts[6])
+    assert_true(elapsed > 0L && @string.parse_int(parts[7]) == 5)
+    match selected.get(key) {
+      Some((_, old)) if old <= elapsed => ()
+      _ => selected[key] = (route, elapsed)
+    }
+  }
+  assert_true(!selected.is_empty())
+  selected
+}
+
+///|
+async fn selection(root : String) -> Json {
+  let bundles : Array[String] = []
+  for arm in [0, 1] {
+    let campaign = @json.parse(
+      @fs.read_file(root + "/s\{arm}/campaign.json").text(),
+    )
+    guard get(campaign, "serving_root") is String(serving) else {
+      fail("serving root")
+    }
+    bundles.push(
+      @fs.read_file(
+        serving + "/../fused-routed/reusable-fused-runtime-bundle.v3",
+      ).text(),
+    )
+  }
+  assert_eq(text_field(bundles[0], "module_count"), "9")
+  assert_eq(text_field(bundles[1], "module_count"), "9")
+  for index in 0..<9 {
+    let key = "module_\{index}_module_sha256"
+    if index == 5 {
+      assert_eq(
+        text_field(bundles[0], key),
+        "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb",
+      )
+      assert_eq(
+        text_field(bundles[1], key),
+        "301f8fd9db1e0221e4b0b5048d08c03d55ee49f5f50d8ea04e5df33e4582ebf3",
+      )
+    } else {
+      assert_eq(text_field(bundles[0], key), text_field(bundles[1], key))
+    }
+  }
+  let a = winners(bundles[0])
+  let b = winners(bundles[1])
+  let differences : Array[Json] = []
+  let new_buckets : Array[String] = []
+  let missing_buckets : Array[String] = []
+  let mut shared = 0
+  for key, (before, old_time) in a {
+    guard b.get(key) is Some((after, new_time)) else {
+      missing_buckets.push(key)
+      continue
+    }
+    shared += 1
+    if before != after {
+      differences.push({
+        "bucket": key,
+        "baseline": before,
+        "candidate": after,
+        "baseline_selected_ns": old_time.to_string(),
+        "candidate_selected_ns": new_time.to_string(),
+      })
+    }
+  }
+  for key in b.keys() {
+    if !a.contains(key) {
+      new_buckets.push(key)
+    }
+  }
+  new_buckets.sort()
+  missing_buckets.sort()
+  {
+    "only_changed_module_index": 5,
+    "baseline_calibrated_buckets": a.length(),
+    "candidate_calibrated_buckets": b.length(),
+    "shared_calibrated_buckets": shared,
+    "new_calibrated_buckets": new_buckets,
+    "missing_calibrated_buckets": missing_buckets,
+    "calibration_winner_changes": differences,
+    "scope": "calibration minima, not proof of executed dispatch; serving trace remains independent",
+  }
+}
+
+///|
+async fn main {
+  if @env.args() is [_, root, output, "--brief"] {
+    assert_true(
+      @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    let report = @json.parse(@fs.read_file(output).text())
+    guard get(report, "cells") is Array(cells) else { fail("cells") }
+    for cell in cells {
+      println(
+        "cell=" +
+        get(cell, "cell").stringify() +
+        " paired_reductions=" +
+        get(cell, "abba_half_completion_reductions").stringify(),
+      )
+      guard get(cell, "sides") is Array(sides) else { fail("sides") }
+      for side in sides {
+        guard get(side, "within_side_token_changes") is Array(within) &&
+          get(side, "cross_side_token_changes") is Array(cross) else {
+          fail("token changes")
+        }
+        println(
+          "  " +
+          get(side, "side").stringify() +
+          " tok_s=" +
+          get(side, "median_output_tok_s").stringify() +
+          " ttft_ms=" +
+          get(side, "median_ttft_ms").stringify() +
+          " tpot_ms=" +
+          get(side, "median_tpot_ms").stringify() +
+          " within_changed_vectors=" +
+          within.filter(x => number(x) > 0.0).length().to_string() +
+          " cross_changed_vectors=" +
+          cross.filter(x => number(x) > 0.0).length().to_string(),
+        )
+      }
+    }
+    println(get(report, "selection").stringify())
+    return
+  }
+  guard @env.args() is [_, root, output] else {
+    fail("COMPLETED_ABBA_ROOT NEW_JSON [--brief]")
+  }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  let reports : Array[Json] = []
+  for
+    cell in [
+      "i128-o256-c1-varied", "i4096-o64-c1-varied", "i4096-o64-c16-varied", "i32512-o64-c1-varied",
+      "i32512-o64-c2-varied",
+    ] {
+    let bodies : Map[Int, String] = Map([])
+    let first_baseline : Map[Int, Json] = Map([])
+    let first_candidate : Map[Int, Json] = Map([])
+    let sides : Array[Json] = []
+    let walls : Array[Double] = []
+    let arm_walls : Array[Array[Double]] = []
+    let mut work : Json? = None
+    for (side, starts) in [("baseline", [0, 3]), ("candidate", [1, 2])] {
+      let elapsed : Array[Double] = []
+      let ttft : Array[Double] = []
+      let tpot : Array[Double] = []
+      let throughput : Array[Double] = []
+      let vectors : Array[Json] = []
+      let cross : Array[Int] = []
+      let within : Array[Int] = []
+      let arm_medians : Array[Double] = []
+      for start in starts {
+        let arm_elapsed : Array[Double] = []
+        for round in 0..<2 {
+          let run = root + "/s\{start}/r\{round}-luna-full"
+          assert_true(
+            @fs.read_file(run + "/RESULT.txt")
+            .text()
+            .has_prefix("outcome=completed\n"),
+          )
+          assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+          let closed = @fs.read_file(run + "/supervisor.stdout").text()
+          for
+            key in [
+              "drain_acknowledged=1", "child_exit_code=0", "child_closed=1",
+            ] {
+            assert_true(closed.contains(key))
+          }
+          for line in @fs.read_file(run + "/memory.csv").text().split("\n") {
+            if !line.is_empty() {
+              assert_true(
+                @string.parse_int64(line.split(",").to_array()[1]) >= 33554432L,
+              )
+            }
+          }
+          for trial in 0..<4 {
+            let value = @json.parse(
+              @fs.read_file(run + "/requests/" + cell + "-t\{trial}.json").text(),
+            )
+            assert_eq(get(value, "warmup"), Json(trial == 0))
+            let current_work : Json = {
+              "inputs": get(value, "input_vector"),
+              "output": get(value, "output"),
+            }
+            match work {
+              Some(expected) => assert_eq(current_work, expected)
+              None => work = Some(current_work)
+            }
+            guard get(value, "requests") is Array(requests) else {
+              fail("requests")
+            }
+            for row, request in requests {
+              let body = @fs.read_file(
+                run + "/requests/" + cell + "-t\{trial}-r\{row}.body.json",
+              ).text()
+              match bodies.get(row) {
+                Some(expected) => assert_eq(body, expected)
+                None => bodies[row] = body
+              }
+              let ids = get(request, "token_ids")
+              guard ids is Array(tokens) &&
+                tokens.length().to_double() == number(get(value, "output")) else {
+                fail("complete output vector")
+              }
+              if side == "baseline" {
+                match first_baseline.get(row) {
+                  Some(first) => within.push(changed(first, ids))
+                  None => first_baseline[row] = ids
+                }
+              } else {
+                cross.push(changed(first_baseline[row], ids))
+                match first_candidate.get(row) {
+                  Some(first) => within.push(changed(first, ids))
+                  None => first_candidate[row] = ids
+                }
+              }
+              vectors.push({
+                "start": start,
+                "round": round,
+                "trial": trial,
+                "row": row,
+                "ids": ids,
+                "token_ms": get(request, "token_ms"),
+              })
+              if trial > 0 {
+                ttft.push(number(get(request, "ttft_ms")))
+                tpot.push(number(get(request, "mean_tpot_ms")))
+              }
+            }
+            if trial > 0 {
+              elapsed.push(number(get(value, "wall_ms")))
+              arm_elapsed.push(number(get(value, "wall_ms")))
+              throughput.push(number(get(value, "output_tokens_per_second")))
+            }
+          }
+        }
+        assert_eq(arm_elapsed.length(), 6)
+        arm_medians.push(median(arm_elapsed))
+      }
+      assert_eq(elapsed.length(), 12)
+      arm_walls.push(arm_medians)
+      walls.push(median(elapsed))
+      sides.push({
+        "side": side,
+        "fresh_starts": 4,
+        "median_wall_ms": median(elapsed),
+        "median_ttft_ms": median(ttft),
+        "median_tpot_ms": median(tpot),
+        "median_output_tok_s": median(throughput),
+        "wall_ms": elapsed,
+        "arm_median_wall_ms": arm_medians,
+        "ttft_ms": ttft,
+        "tpot_ms": tpot,
+        "output_tok_s": throughput,
+        "token_vectors": vectors,
+        "within_side_token_changes": within,
+        "cross_side_token_changes": cross,
+      })
+    }
+    let reduction = 1.0 - walls[1] / walls[0]
+    // Match the two temporal halves of ABBA rather than hiding drift behind
+    // independent pooled medians. These remain descriptive, not a new gate.
+    let paired = [
+      1.0 - arm_walls[1][0] / arm_walls[0][0],
+      1.0 - arm_walls[1][1] / arm_walls[0][1],
+    ]
+    reports.push({
+      "cell": cell,
+      "work": work.unwrap(),
+      "sides": sides,
+      "completion_reduction": reduction,
+      "abba_half_completion_reductions": paired,
+    })
+    println(
+      "\{cell}: baseline=\{walls[0]} candidate=\{walls[1]} ms reduction=\{reduction}",
+    )
+  }
+  let report : Json = {
+    "schema": "lunaflux.typed-read-serving-abba.v1",
+    "scope": "freshly recalibrated complete configuration; unchanged non-attention module bytes, possible measured route changes; no reference-engine rerun or production promotion",
+    "cells": reports,
+    "selection": selection(root),
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+}
+
+///|
+test "reports retain even medians and reject truncated token vectors" {
+  assert_eq(median([4.0, 1.0, 2.0, 3.0]), 2.5)
+  assert_eq(changed(Json([1, 2]), Json([1, 3])), 1)
+  try changed(Json([1]), Json([1, 2])) catch {
+    _ => ()
+  } noraise {
+    _ => fail("truncated output accepted")
+  }
+}
+
+///|
+test "bundle field lookup rejects duplicate identities" {
+  assert_eq(text_field("a=1\nb=2\n", "a"), "1")
+  try text_field("a=1\na=2\n", "a") catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate field accepted")
+  }
+}

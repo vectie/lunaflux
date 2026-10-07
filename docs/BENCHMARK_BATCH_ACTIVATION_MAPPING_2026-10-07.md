@@ -25,9 +25,10 @@ and offset. The original run remains preserved and its corrected analysis
 marks that cut non-comparable.
 
 No production algorithm, numerical tolerance, selected module or policy is
-changed. The [October 6 end-to-end measurements](BENCHMARK_DECODE_ROUTE_AND_FAIRNESS_FIX_2026-10-06.md)
-remain the latest performance results: 4096/64/C16 is 225.13 tok/s versus
-243.03/241.85 for vLLM/SGLang; 32512/64/C2 is 16.95 versus 17.58/18.85.
+changed by this diagnostic. A later optional-configuration
+[serving retest](BENCHMARK_TYPED_PREFILL_SERVING_2026-10-07.md) now reports
+4096/64/C16 at 225.95 tok/s and 32512/64/C2 at 17.10 tok/s. Defaults remain
+unchanged and that configuration is not promoted.
 
 ## Exact workload and diagnostic execution
 
@@ -110,10 +111,11 @@ agrees with device sampling for all 32 outputs, and five top-two BF16 logit
 ties occur. This checks selection from the captured logits, not model quality
 or parity with reference engines.
 
-Projection schedule or reduction-order sensitivity is a plausible explanation
-for the V differences: the projection input matches, and V bypasses Q/K
-normalization. This remains an inference until exact input/weight replay checks
-the selected projection alternatives against their declared numerical law.
+Exact input/weight replay now reproduces all seven changed solo V components
+across samples 1–4 using the actual 32-lane scalar f32 reduction and BF16 RNE.
+Some FP64 reference sums are close to BF16 rounding midpoints. This narrows
+the question to projection reduction-order sensitivity at these cuts, without
+replaying WMMA or attributing all later token choices to this producer.
 The attention output comparison also needs the earlier historical cache before
 it can distinguish new V sensitivity from previously accumulated differences.
 
@@ -125,9 +127,10 @@ diagnostic overlays and binaries. The report rejects dead semantic storage as
 a causal numerical comparison and preserves physical sublaunch distinctions.
 Both helpers pass warning-denied native checks and six regression tests pass.
 
-The next numerical experiment should replay the first changed V projection
-with exact input and weights, rather than force all shapes onto one slower
-schedule for bitwise equality. Any production change must satisfy the actual
+The scalar replay is preserved in `projection-numeric-replay.json` in the
+[serving evidence](BENCHMARK_TYPED_PREFILL_SERVING_2026-10-07.md). Whole-model
+numerical parity remains unresolved; do not force all shapes onto one slower
+schedule merely for bitwise equality. Any production change must satisfy the actual
 numeric contract and preserve the generic schedule/ownership/lowering layers.
 The separate performance priority remains the tensor and fragment dependency
 chain identified by the [selected prefill instruction samples](BENCHMARK_PREFILL_OPERAND_PIPELINE_2026-10-07.md).

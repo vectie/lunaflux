@@ -1,0 +1,367 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn arguments(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(values) else { fail("frozen command") }
+  values.map(v => {
+    guard v is String(s) else { fail("argument") }
+    s
+  })
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [before, after] else {
+    fail("unique frozen launcher seam")
+  }
+  before.to_owned() + fresh + after.to_owned()
+}
+
+///|
+fn launch_identity_guard(text : String) -> String raise {
+  once(
+    text,
+    "\n  let idle = @shell.Cmd(\"nvidia-smi\", [",
+    "\n  let device = @shell.Cmd(\"nvidia-smi\", [\"--query-gpu=uuid\",\"--format=csv,noheader\"]).output()\n" +
+    "  device.check()\n  assert_eq(device.stdout().trim(),\"GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6\")\n" +
+    "  let idle = @shell.Cmd(\"nvidia-smi\", [",
+  )
+}
+
+///|
+fn substitute(
+  command : Array[String],
+  attention_module : String,
+  bundle : String,
+) -> Array[String] raise {
+  guard command.length() > 4 &&
+    command[command.length() - 3] == "--attention-buckets" else {
+    fail("complete frozen measured command")
+  }
+  let args = command[1:command.length() - 3].to_owned()
+  let old_module = "/home/wlc004s/lunaflux-propagation-repair-20261006.kKDWuXV4/attention-first.cubin"
+  let old_bundle = "/home/wlc004s/lunaflux-mixed-decode-fix-20261006.ckcbaxXd/serving/fused-routed/reusable-fused-runtime-bundle.v3"
+  assert_eq(args.filter(s => s == old_module).length(), 1)
+  assert_eq(args.filter(s => s == old_bundle).length(), 1)
+  args.map(s => {
+    if s == old_module {
+      attention_module
+    } else if s == old_bundle {
+      bundle
+    } else {
+      s
+    }
+  })
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println("completed=" + label)
+}
+
+///|
+async fn sha(path : String) -> String {
+  let r = @shell.Cmd("sha256sum", [path]).output()
+  r.check()
+  r.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, repair, typed, root, mode] &&
+    ["prepare", "calibrate", "materialize", "run", "finalize"].contains(mode) else {
+    fail(
+      "FROZEN_MIXED_RUNTIME FROZEN_PROPAGATION_REPAIR SEALED_TYPED_READ NEW_ROOT MODE",
+    )
+  }
+  let moon = frozen + "/toolchain/bin/moon"
+  if mode == "prepare" {
+    assert_true(
+      @fs.read_file(typed + "/RESULT.txt")
+      .text()
+      .contains("selection=unchanged"),
+    )
+    assert_eq(
+      sha(typed + "/candidate/kernel.cubin"),
+      "301f8fd9db1e0221e4b0b5048d08c03d55ee49f5f50d8ea04e5df33e4582ebf3",
+    )
+    let exporter = frozen +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe"
+    assert_eq(
+      sha(exporter),
+      "04f9aa1f5e7ad7757576ec5c2f77f59f1b310325e633d877c426375eb3071eb2",
+    )
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", frozen + "/" + name, root + "/" + name]).run()
+    }
+    for
+      name in [
+        "fused", "prefill-selected", "decode-selected", "calibration-spec",
+      ] {
+      @shell.Cmd("cp", ["-a", repair + "/" + name, root + "/" + name]).run()
+    }
+    @shell.Cmd("cp", [
+      "-a",
+      "/home/wlc004s/lunaflux-mixed-decode-fix-20261006.ckcbaxXd/check-probe",
+      root + "/check-probe",
+    ]).run()
+    assert_eq(
+      sha(root + "/check-probe"),
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66",
+    )
+    @fs.mkdir(root + "/wide-prefill-selected")
+    @fs.write_file(
+      root + "/wide-prefill-selected/kernel.recipe",
+      @fs.read_file(typed + "/candidate/kernel.recipe"),
+      create_mode=CreateNew,
+    )
+    for
+      name in [
+        "prefill_wide.cubin", "export.stdout", "export.arguments", "reusable-fused-runtime-bundle.v3",
+      ] {
+      @shell.Cmd("mv", [
+        root + "/fused/" + name,
+        root + "/fused/" + name + ".frozen-reference",
+      ]).run()
+    }
+    @fs.write_file(
+      root + "/fused/prefill_wide.cubin",
+      @fs.read_file(typed + "/candidate/kernel.cubin"),
+      create_mode=CreateNew,
+    )
+    let command = arguments(
+      @fs.read_file(root + "/frozen-rebind.command.json").text(),
+    )
+    let args = substitute(
+      command,
+      root + "/fused/prefill_wide.cubin",
+      root + "/fused/reusable-fused-runtime-bundle.v3",
+    )
+    @fs.write_file(
+      root + "/fused/export.arguments",
+      args.join("\n") + "\n",
+      create_mode=CreateNew,
+    )
+    capture(root + "/fused", "export", exporter, args)
+    @fs.write_file(
+      root + "/DIAGNOSTIC_ONLY.txt",
+      "New measured scope; unchanged frozen worker/projection/decode. No production change or fabricated route timings.\n",
+      create_mode=CreateNew,
+    )
+  } else if mode == "calibrate" {
+    capture(root, "calibration", "systemd-run", [
+      "--user",
+      "--scope",
+      "--quiet",
+      "-p",
+      "MemoryMax=8G",
+      "-p",
+      "MemorySwapMax=0",
+      "timeout",
+      "1800",
+      moon,
+      "run",
+      root + "/measure_decode_routes.mbtx",
+      root,
+      root + "/calibration-spec",
+      "--context-limit",
+      "32768",
+    ])
+  } else if mode == "materialize" {
+    let serving = root + "/serving"
+    @fs.mkdir(serving)
+    for name in ["source", "toolchain", "fused-routed"] {
+      @shell.Cmd("ln", ["-s", root + "/" + name, serving + "/" + name]).run()
+    }
+    for
+      name in [
+        "bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1", "prepare.mbtx",
+      ] {
+      @fs.write_file(
+        serving + "/" + name,
+        @fs.read_file(frozen + "/serving/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    capture(root, "materialize", moon, [
+      "run",
+      serving + "/prepare.mbtx",
+      serving,
+      "materialize",
+    ])
+    let long = serving + "/long-final"
+    @fs.mkdir(long)
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", root + "/" + name, long + "/" + name]).run()
+    }
+    @fs.write_file(
+      long + "/export.stdout",
+      @fs.read_file(serving + "/export.stdout"),
+      create_mode=CreateNew,
+    )
+    capture(root, "long-capacity", moon, [
+      "run",
+      root + "/prepare-long.mbtx",
+      serving,
+      long,
+    ])
+  } else if mode == "finalize" {
+    assert_true(
+      @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    assert_true(
+      @fs.read_file(root + "/selected-trace/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    assert_true(
+      @fs.exists(root + "/comparison.json") &&
+      @fs.exists(root + "/projection-numeric-replay.json"),
+    )
+    for
+      (source, name) in [
+        (
+          frozen + "/investigate_remaining_gap_20261006.mbtx",
+          "trace-controller.frozen.mbtx",
+        ),
+        (
+          "/home/wlc004s/lunaflux-decode-fix-20261006.2hRKeY3C/analyze_remaining_gap_20261006.mbtx",
+          "trace-analysis.original.mbtx",
+        ),
+        (
+          "/home/wlc004s/lunaflux-decode-fix-20261006.2hRKeY3C/summarize_remaining_gap_20261006.mbtx",
+          "trace-summary.frozen.mbtx",
+        ),
+      ] {
+      @fs.write_file(
+        root + "/" + name,
+        @fs.read_file(source),
+        create_mode=CreateNew,
+      )
+    }
+    let hashes = @shell.Cmd("sha256sum", [
+      frozen + "/source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+      frozen +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+      frozen + "/serving/long-final/deployment/bin/lunaflux-device-worker",
+      root + "/serving/long-final/deployment/bin/lunaflux-device-worker",
+      root + "/serving/long-final/deployment/lunaflux.launch.json",
+      root + "/fused-routed/reusable-fused-runtime-bundle.v3",
+      root + "/fused/prefill_wide.cubin",
+      root + "/check-probe",
+      "/usr/local/bin/nsys",
+    ]).output()
+    hashes.check()
+    @fs.write_file(
+      root + "/RUNTIME_IDENTITIES.txt",
+      hashes.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/FINAL_SCOPE.txt",
+      "Eight unprofiled ABBA starts; five workload cells; three measured waves plus warmup per start. Separate one-start two-wave selected-kernel trace. CPU replay after timing, no GPU. Fresh calibration has broader mixed coverage than the frozen baseline; this is not an isolated kernel-effect estimate. Defaults and production remain unchanged.\n",
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/seal.command.json",
+      Json([moon, "run", root + "/seal_decode_fix_20261006.mbtx", root]).stringify(),
+      create_mode=CreateNew,
+    )
+    @shell.Cmd(moon, ["run", root + "/seal_decode_fix_20261006.mbtx", root]).run()
+  } else {
+    let arm = root + "/serving/long-final"
+    let launcher = root + "/launch-identity.mbtx"
+    @fs.write_file(
+      launcher,
+      launch_identity_guard(@fs.read_file(root + "/launcher.mbtx").text()),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      launcher + ".client.mbtx",
+      @fs.read_file(root + "/launcher.mbtx.client.mbtx"),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/FINITE_BUDGET.txt",
+      "Four ABBA arms, two fresh starts per arm, fixed five-cell request matrix. No baseline rebuild, production change or automatic repetition.\n",
+      create_mode=CreateNew,
+    )
+    for
+      (index, serving) in [
+        (0, frozen + "/serving/long-final"),
+        (1, arm),
+        (2, arm),
+        (3, frozen + "/serving/long-final"),
+      ] {
+      let output = root + "/s\{index}"
+      @fs.mkdir(output)
+      capture(root, "benchmark-\{index}", moon, [
+        "run", launcher, serving, output, launcher,
+      ])
+    }
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=typed-attention-selected-serving-ABBA; freshly measured routes; not production promotion\n",
+      create_mode=CreateNew,
+    )
+  }
+}
+
+///|
+test "substitution removes stale measurements but preserves all other arguments" {
+  let old_module = "/home/wlc004s/lunaflux-propagation-repair-20261006.kKDWuXV4/attention-first.cubin"
+  let old_bundle = "/home/wlc004s/lunaflux-mixed-decode-fix-20261006.ckcbaxXd/serving/fused-routed/reusable-fused-runtime-bundle.v3"
+  let input = [
+    "exe", "model", old_module, "decode", old_bundle, "--attention-buckets", "old-records",
+    "digest",
+  ]
+  assert_eq(substitute(input, "new-module", "new-bundle"), [
+    "model", "new-module", "decode", "new-bundle",
+  ])
+  assert_eq(input[2], old_module)
+}
+
+///|
+test "GPU admission guard has exactly one insertion and rejects ambiguous launchers" {
+  let seam = "\n  let idle = @shell.Cmd(\"nvidia-smi\", ["
+  let nested = "\n    let idle = @shell.Cmd(\"nvidia-smi\", ["
+  let updated = launch_identity_guard("before" + seam + "after" + nested)
+  assert_true(updated.contains("--query-gpu=uuid"))
+  assert_eq(updated.split(seam).to_array().length(), 2)
+  try launch_identity_guard(seam + seam) catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous admission accepted")
+  }
+}

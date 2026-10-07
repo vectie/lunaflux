@@ -30,6 +30,15 @@ foreign words. Multi-row reuse and lookahead lifetimes are rejected rather than
 silently reloaded. This transform removes an intermediate representation;
 actual register moves are still decided by the device compiler.
 
+`FragmentReadOwnership` composes a forwarding bijection with read-provider
+groups. It preserves each source word while placing consumer pairs contiguously;
+device lowering supplies the provider width and instruction interpretation.
+`OrderedOperandReads` describes read-ahead within one already-published operand
+epoch. Slots are primed, consumed in ascending item order and rebound only after
+retirement. Both values are immutable; enumerating the bounded actions is
+compiler work. Neither transform reassociates arithmetic, changes shared storage
+or introduces a runtime publication barrier.
+
 `OperandStorage` packs disjoint row strips in a finite ring allocation.
 `VectorOwnership` assigns each copy vector to one owner/round pair. Producer
 and consumer bindings therefore derive their offsets from one plan rather than
