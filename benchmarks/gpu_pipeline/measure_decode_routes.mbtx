@@ -266,7 +266,13 @@ async fn main {
     @fs.write_file(partial + "/kernel.recipe", text, create_mode=CreateNew)
     @fs.write_file(
       partial + "/kernel.cubin",
-      @fs.read_file(serving + "/fused/attention.cubin"),
+      @fs.read_file(
+        if @fs.exists(serving + "/decode-selected/kernel.cubin") {
+          serving + "/decode-selected/kernel.cubin"
+        } else {
+          serving + "/fused/attention.cubin"
+        },
+      ),
       create_mode=CreateNew,
     )
   }
@@ -304,7 +310,13 @@ async fn main {
   )
   @fs.write_file(
     wide + "/kernel.cubin",
-    @fs.read_file(serving + "/fused/prefill_wide.cubin"),
+    @fs.read_file(
+      if @fs.exists(serving + "/wide-prefill-selected/kernel.cubin") {
+        serving + "/wide-prefill-selected/kernel.cubin"
+      } else {
+        serving + "/fused/prefill_wide.cubin"
+      },
+    ),
     create_mode=CreateNew,
   )
   for rows in [1, 2, 4, 8, 16] {
