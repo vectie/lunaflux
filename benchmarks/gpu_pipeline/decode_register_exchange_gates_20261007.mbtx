@@ -53,10 +53,11 @@ async fn reserve() -> Unit {
 fn variants(options : ArrayView[String]) -> Array[String] raise {
   let names = match options {
     [] => ["probability", "row"]
+    [only] => [only]
     [first, second] => [first, second]
-    _ => fail("exactly two diagnostic variants")
+    _ => fail("one or two diagnostic variants")
   }
-  assert_true(names[0] != names[1])
+  assert_true(names.length() == 1 || names[0] != names[1])
   for name in names {
     assert_true(!name.is_empty() && name.length() <= 32)
     assert_true(name.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')))
@@ -69,7 +70,7 @@ async fn main {
   guard @env.args() is [_, base, probe_root, root, mode, .. options] &&
     (mode == "boundary" || mode == "sanitizer") else {
     fail(
-      "FROZEN_BASE PROBE_ROOT TRIAL_ROOT boundary|sanitizer [VARIANT_A VARIANT_B]",
+      "FROZEN_BASE PROBE_ROOT TRIAL_ROOT boundary|sanitizer [VARIANT_A [VARIANT_B]]",
     )
   }
   let names = variants(options)
@@ -151,7 +152,7 @@ async fn main {
       }
     }
   }
-  assert_eq(count, if mode == "boundary" { 44 } else { 36 })
+  assert_eq(count, names.length() * 2 * histories.length() * tools.length())
   assert_true(
     capture(out, "idle-after", "nvidia-smi", [
       "--query-compute-apps=pid", "--format=csv,noheader",
@@ -170,7 +171,14 @@ async fn main {
 test "variant names retain the old invocation and reject traversal or aliases" {
   assert_eq(variants([]), ["probability", "row"])
   assert_eq(variants(["word32", "word64"]), ["word32", "word64"])
-  for names in [["../word32", "word64"], ["row", "row"], ["row"]] {
+  assert_eq(variants(["bypass"]), ["bypass"])
+  for
+    names in [
+      ["../word32", "word64"],
+      ["row", "row"],
+      ["../row"],
+      ["a", "b", "c"],
+    ] {
     try variants(names) catch {
       _ => ()
     } noraise {

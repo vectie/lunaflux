@@ -1,0 +1,189 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+// Offline cache-policy ablation. Both terminal entries retain their numerical
+// program, copy widths, storage ownership and publication order unchanged.
+fn bypass(source : String) -> String raise {
+  let marker = "cp.async.ca.shared.global [%0], [%1], 16, %2;"
+  // Eight scalar copy slots per operand, K/V in two terminal entries.
+  assert_eq(source.split(marker).length(), 33)
+  let result = source
+    .split(marker)
+    .join("cp.async.cg.shared.global [%0], [%1], 16, %2;")
+  assert_false(result.contains("cp.async.ca.shared.global"))
+  assert_eq(result.split("cp.async.cg.shared.global").length(), 33)
+  result
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let output = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+  output.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode, moon] else {
+    fail("FROZEN_BASE PROBE_ROOT NEW_ROOT build|run MOON")
+  }
+  let frozen = base + "/decode-selected"
+  let candidate = root + "/bypass"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  if mode == "build" {
+    assert_true(
+      capture(root, "source", "sha256sum", [frozen + "/kernel.cu"]).has_prefix(
+        "dc9f5a1a30e0d2f969f7a9e82cdcc7b8b9a8c80f2058c698b19ea9416e9d43b6 ",
+      ),
+    )
+    assert_true(
+      capture(root, "nvcc", "sha256sum", [nvcc]).has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    @fs.mkdir(candidate)
+    @fs.write_file(
+      candidate + "/kernel.cu",
+      bypass(@fs.read_file(frozen + "/kernel.cu").text()),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      candidate + "/kernel.recipe",
+      @fs.read_file(frozen + "/kernel.recipe").text() +
+      "diagnostic_only=true\ndiagnostic_cache_policy=bypass-l1\n",
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, "compile", nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--Werror",
+        "all-warnings",
+        "--maxrregcount=255",
+        "-Xptxas=-v",
+        "-cubin",
+        candidate + "/kernel.cu",
+        "-o",
+        candidate + "/kernel.cubin",
+      ]),
+    )
+    ignore(
+      capture(root, "identity", "sha256sum", [
+        candidate + "/kernel.cu",
+        candidate + "/kernel.cubin",
+      ]),
+    )
+    return
+  }
+  assert_eq(mode, "run")
+  let probe = probe_root + "/check-probe"
+  assert_true(
+    capture(root, "probe", "sha256sum", [probe]).has_prefix(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+  assert_eq(spec.split("maximum_rows=32\n").length(), 2)
+  let workloads : Array[Json] = []
+  for partitioned in [false, true] {
+    for
+      (rows, envelope, history) in [(16, 16, 4095), (2, 8, 32767), (1, 1, 127)] {
+      let label = "bypass-\{if partitioned { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+      let path = root + "/" + label + ".spec"
+      @fs.write_file(
+        path,
+        spec.replace(old="maximum_rows=32\n", new="maximum_rows=\{envelope}\n"),
+        create_mode=CreateNew,
+      )
+      let args = [
+        path,
+        frozen,
+        candidate,
+        rows.to_string(),
+        rows.to_string(),
+        history.to_string(),
+        "--decode-envelope",
+      ]
+      if partitioned {
+        args.push("--decode-partitioned")
+      }
+      workloads.push({ "label": label, "args": args })
+    }
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.01,
+    "require_bitwise": true,
+    "program": probe,
+    "artifacts": [frozen + "/kernel.cubin", candidate + "/kernel.cubin"],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "paired", moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      root + "/contract.json",
+      root + "/paired",
+    ]),
+  )
+}
+
+///|
+test "cache ablation is total, width-bound and preserves surrounding effects" {
+  let piece = "publish(); cp.async.ca.shared.global [%0], [%1], 16, %2; commit();"
+  assert_eq(
+    bypass(piece.repeat(32)),
+    "publish(); cp.async.cg.shared.global [%0], [%1], 16, %2; commit();".repeat(
+      32,
+    ),
+  )
+  try bypass(piece) catch {
+    _ => ()
+  } noraise {
+    _ => fail("partial entry silently accepted")
+  }
+  try bypass(piece.replace(old="16,", new="8,").repeat(32)) catch {
+    _ => ()
+  } noraise {
+    _ => fail("illegal cg width accepted")
+  }
+}

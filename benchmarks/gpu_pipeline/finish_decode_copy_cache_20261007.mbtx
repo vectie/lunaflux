@@ -1,0 +1,156 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn captured(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+fn launch_names(raw : String) -> Array[String] {
+  raw
+  .split("\n")
+  .filter_map(line => {
+    let fields = line.split("\",\"").to_array()
+    if fields.length() > 5 && fields[4].has_prefix("lunaflux_") {
+      Some(fields[4].to_owned())
+    } else {
+      None
+    }
+  })
+  .to_array()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, chain, failed, base, moon, sealer] else {
+    fail("CACHE_ROOT CHAIN_ROOT FAILED_PREPARATION FROZEN_BASE MOON SEALER")
+  }
+  for
+    unit in [
+      "lunaflux-decode-chain-counters-20261007-5lBX7ksU.service", "lunaflux-decode-copy-cache-build-20261007-jpdNuZXR.service",
+      "lunaflux-decode-copy-cache-run-20261007-jpdNuZXR.service", "lunaflux-decode-copy-cache-boundary-20261007-jpdNuZXR.service",
+      "lunaflux-decode-copy-cache-sanitizer-20261007-jpdNuZXR.service", "lunaflux-decode-copy-cache-counter-c16-20261007-jpdNuZXR.service",
+      "lunaflux-decode-copy-cache-counter-long-20261007-jpdNuZXR.service",
+    ] {
+    let state = captured(root, unit + "-terminal", "systemctl", [
+      "--user", "show", unit, "-p", "ActiveState", "-p", "ExecMainStatus",
+    ])
+    assert_true(
+      state.contains("ActiveState=inactive\n") &&
+      state.contains("ExecMainStatus=0\n"),
+    )
+  }
+  for
+    (path, prefix) in [
+      (root + "/paired/RESULT.txt", "outcome=completed\n"),
+      (root + "/boundary/RESULT.txt", "outcome=passed\ncases=22\n"),
+      (root + "/sanitizer/RESULT.txt", "outcome=passed\ncases=18\n"),
+      (root + "/counter-c16/COUNTER_RESULT.txt", "outcome=completed\n"),
+      (root + "/counter-long/COUNTER_RESULT.txt", "outcome=completed\n"),
+      (chain + "/COUNTER_RESULT.txt", "outcome=completed\n"),
+    ] {
+    assert_true(@fs.read_file(path).text().has_prefix(prefix))
+  }
+  let ordinary = "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4"
+  for profile in ["counter-c16", "counter-long"] {
+    assert_eq(
+      launch_names(
+        @fs.read_file(root + "/" + profile + "/counter-raw.stdout").text(),
+      ),
+      [ordinary, ordinary],
+    )
+  }
+  let partial = "lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903"
+  let merge = "lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904"
+  assert_eq(launch_names(@fs.read_file(chain + "/counter-raw.stdout").text()), [
+    partial, merge, partial, merge,
+  ])
+  @fs.mkdir(root + "/failed-preparation")
+  for
+    name in [
+      "decode_copy_cache_20261007.mbtx", "build.stderr", "source.stdout", "nvcc.stdout",
+    ] {
+    @fs.write_file(
+      root + "/failed-preparation/" + name,
+      @fs.read_file(failed + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  for target in [root, chain] {
+    @fs.mkdir(target + "/frozen-control")
+    for name in ["kernel.cu", "kernel.cubin", "kernel.recipe"] {
+      @fs.write_file(
+        target + "/frozen-control/" + name,
+        @fs.read_file(base + "/decode-selected/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      target + "/RESULT.txt",
+      "outcome=completed\nscope=decode chain attribution and finite copy-cache experiment; C16 not improved; no serving or production promotion\n",
+      create_mode=CreateNew,
+    )
+  }
+  assert_true(
+    captured(root, "final-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  @fs.write_file(
+    root + "/final-memory.txt",
+    @fs.read_file("/proc/meminfo"),
+    create_mode=CreateNew,
+  )
+  for target in [root, chain] {
+    // No writes inside a terminal evidence root after its manifest is sealed.
+    let seal_result = @shell.Cmd(moon, ["run", sealer, target]).output(
+      max_output_bytes=33554432,
+    )
+    seal_result.check()
+    println(seal_result.stdout())
+  }
+}
+
+///|
+test "launch inventory counts raw launches rather than repeated SASS aliases" {
+  let row = "\"0\",\"pid\",\"probe\",\"host\",\"lunaflux_partial\",\"ctx\""
+  assert_eq(
+    launch_names(
+      "\"ID\",\"Process ID\",\"Process Name\",\"Host Name\",\"Kernel Name\",\"Context\"\n" +
+      row,
+    ),
+    ["lunaflux_partial"],
+  )
+  assert_eq(launch_names("Kernel Name,lunaflux_partial\n"), [])
+}

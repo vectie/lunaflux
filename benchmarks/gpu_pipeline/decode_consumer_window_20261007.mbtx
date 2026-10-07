@@ -49,15 +49,115 @@ async fn available() -> Int64 {
 }
 
 ///|
+struct CapturePlan {
+  rows : String
+  envelope : String
+  history : String
+  paired : Bool
+  partitioned : Bool
+}
+
+///|
+fn capture_plan(mode : String) -> CapturePlan raise {
+  guard ["counter", "prepare", "window", "paired", "split", "split-paired"].contains(
+    mode,
+  ) else {
+    fail("unknown capture profile")
+  }
+  {
+    rows: if mode == "window" {
+      "2"
+    } else {
+      "16"
+    },
+    envelope: if mode == "window" {
+      "8"
+    } else {
+      "16"
+    },
+    history: if mode == "window" {
+      "32767"
+    } else {
+      "4095"
+    },
+    paired: ["window", "paired", "split-paired"].contains(mode),
+    partitioned: ["split", "split-paired"].contains(mode),
+  }
+}
+
+///|
+fn CapturePlan::kernel_filter(self : CapturePlan) -> String {
+  if self.partitioned {
+    "regex:^lunaflux_paged_attention_bf16_decode_split_(partial_v3_ep_3903|merge_v3_ep_3904)$"
+  } else {
+    "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4"
+  }
+}
+
+///|
+fn CapturePlan::launch_count(self : CapturePlan) -> String {
+  ((if self.paired { 2 } else { 1 }) * (if self.partitioned { 2 } else { 1 })).to_string()
+}
+
+///|
+fn CapturePlan::probe_args(
+  self : CapturePlan,
+  spec : String,
+  baseline : String,
+  artifact : String,
+) -> Array[String] {
+  let args = [
+    spec,
+    baseline,
+    artifact,
+    self.rows,
+    self.rows,
+    self.history,
+    "--decode-envelope",
+  ]
+  if self.partitioned {
+    args.push("--decode-partitioned")
+  }
+  args
+}
+
+///|
+fn CapturePlan::verify_launches(self : CapturePlan, raw : String) -> Unit raise {
+  let names = raw
+    .split("\n")
+    .filter_map(line => {
+      let columns = line.split("\",\"").to_array()
+      if columns.length() > 5 &&
+        columns[0].has_prefix("\"") &&
+        columns[4].has_prefix("lunaflux_") {
+        Some(columns[4].to_owned())
+      } else {
+        None
+      }
+    })
+    .to_array()
+  let chain = if self.partitioned {
+    [
+      "lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903", "lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904",
+    ]
+  } else {
+    ["lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4"]
+  }
+  assert_eq(names, if self.paired { [..chain, ..chain] } else { chain })
+}
+
+///|
 async fn main {
   guard @env.args() is [_, base, probe_root, root, mode, ..] &&
-    ["counter", "prepare", "window", "paired"].contains(mode) else {
+    ["counter", "prepare", "window", "paired", "split", "split-paired"].contains(
+      mode,
+    ) else {
     fail(
-      "IMMUTABLE_SERVING PROBE_ROOT NEW_ROOT counter|prepare|window|paired [MODULE]",
+      "IMMUTABLE_SERVING PROBE_ROOT NEW_ROOT counter|prepare|window|paired|split|split-paired [MODULE]",
     )
   }
-  let paired = mode == "window" || mode == "paired"
-  let artifact = if paired {
+  let plan = capture_plan(mode)
+  let artifact = if plan.paired {
     guard @env.args() is [_, _, _, _, _, artifact] else {
       fail("window module")
     }
@@ -65,9 +165,7 @@ async fn main {
   } else {
     base + "/decode-selected"
   }
-  let rows = if mode == "window" { "2" } else { "16" }
-  let envelope = if mode == "window" { "8" } else { "16" }
-  let history = if mode == "window" { "32767" } else { "4095" }
+  let { rows, envelope, history, .. } = plan
   let probe = probe_root + "/check-probe"
   let idle = capture(root, mode + "-idle", "nvidia-smi", [
     "--query-compute-apps=pid", "--format=csv,noheader",
@@ -100,15 +198,11 @@ async fn main {
     before.to_owned() + "maximum_rows=\{envelope}\n" + after.to_owned(),
     create_mode=CreateNew,
   )
-  let arguments = [
+  let arguments = plan.probe_args(
     root + "/traced.spec",
     base + "/decode-selected",
     artifact,
-    rows,
-    rows,
-    history,
-    "--decode-envelope",
-  ]
+  )
   if mode == "prepare" {
     ignore(capture(root, "baseline-timing", probe, arguments))
     return
@@ -177,13 +271,9 @@ async fn main {
           "--kernel-name-base",
           "function",
           "--kernel-name",
-          "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4",
+          plan.kernel_filter(),
           "--launch-count",
-          if paired {
-            "2"
-          } else {
-            "1"
-          },
+          plan.launch_count(),
           "--launch-skip",
           "0",
           "--section",
@@ -202,6 +292,8 @@ async fn main {
           "InstructionStats",
           "--section",
           "SourceCounters",
+          "--metrics",
+          "lts__t_sectors_op_read.sum,lts__t_sectors_op_write.sum",
           "--export",
           root + "/counter",
           probe,
@@ -216,8 +308,11 @@ async fn main {
     samples.to_string(),
     create_mode=CreateNew,
   )
-  ignore(
-    capture(root, "counter-raw", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+  let raw = capture(
+    root,
+    "counter-raw",
+    "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+    [
       "--import",
       root + "/counter.ncu-rep",
       "--page",
@@ -225,8 +320,9 @@ async fn main {
       "--csv",
       "--print-units",
       "base",
-    ]),
+    ],
   )
+  plan.verify_launches(raw)
   ignore(
     capture(root, "counter-source", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
       "--import",
@@ -240,7 +336,46 @@ async fn main {
   )
   @fs.write_file(
     root + "/COUNTER_RESULT.txt",
-    "outcome=completed\nscope=synthetic immutable KV, rows=\{rows}, envelope=\{envelope}, history=\{history}, module=\{artifact}; not serving counters or throughput\n",
+    "outcome=completed\npartitioned=\{plan.partitioned}\nlaunch_count=\{plan.launch_count()}\nscope=synthetic immutable KV, rows=\{rows}, envelope=\{envelope}, history=\{history}, module=\{artifact}; not serving counters or throughput\n",
     create_mode=CreateNew,
   )
+}
+
+///|
+test "partitioned capture retains both launches and the actual C16 envelope" {
+  let plan = capture_plan("split-paired")
+  assert_eq(plan.launch_count(), "4")
+  assert_eq(plan.probe_args("s", "b", "c"), [
+    "s", "b", "c", "16", "16", "4095", "--decode-envelope", "--decode-partitioned",
+  ])
+  assert_true(plan.kernel_filter().contains("partial_v3_ep_3903"))
+  assert_true(plan.kernel_filter().contains("merge_v3_ep_3904"))
+  assert_eq(capture_plan("split").launch_count(), "2")
+  let partial = "\"0\",\"p\",\"p\",\"host\",\"lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903\",\"c\""
+  let merge = "\"1\",\"p\",\"p\",\"host\",\"lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904\",\"c\""
+  plan.verify_launches([partial, merge, partial, merge].join("\n"))
+  for incomplete in [partial, [partial, partial, merge, merge].join("\n"), ""] {
+    try plan.verify_launches(incomplete) catch {
+      _ => ()
+    } noraise {
+      _ => fail("missing or reordered merge accepted")
+    }
+  }
+}
+
+///|
+test "ordinary profiles preserve their original workloads" {
+  assert_eq(capture_plan("counter").launch_count(), "1")
+  assert_eq(capture_plan("paired").launch_count(), "2")
+  let long = capture_plan("window")
+  assert_eq(long.envelope, "8")
+  assert_eq(long.history, "32767")
+  assert_false(long.probe_args("s", "b", "c").contains("--decode-partitioned"))
+  let rejected = try {
+    ignore(capture_plan("no-such-profile"))
+    false
+  } catch {
+    _ => true
+  }
+  assert_true(rejected)
 }
