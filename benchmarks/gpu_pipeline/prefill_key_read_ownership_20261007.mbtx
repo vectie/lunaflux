@@ -1,0 +1,408 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [first, last] else {
+    fail("one frozen site")
+  }
+  first.to_owned() + fresh + last.to_owned()
+}
+
+///|
+// Permute four eight-row address-provider groups before the shared read.
+// Loaded matrices change from [00,10,01,11] to [00,01,10,11]. The following
+// tensor consumers use adjacent word pairs, without changing their operands.
+// Producer storage, causal traversal, fold order and effects remain frozen.
+fn variant(text : String) -> String raise {
+  let marker = "static __device__ __forceinline__ void lf_matrix_mma_key("
+  guard text.split(marker).to_array() is [prefix, body] else {
+    fail("one key helper")
+  }
+  let regions = body.split("\n}\n").to_array()
+  guard regions.length() > 1 else { fail("complete key helper") }
+  let helper = once(
+    regions[0].to_owned(),
+    "row + lane % 16, column + lane / 16 * 8",
+    "row + (lane & 7) + lane / 16 * 8, column + (lane / 8 % 2) * 8",
+  )
+  let helper = once(helper, "{b0,b2}", "{b0,b1}")
+  let helper = once(helper, "{b1,b3}", "{b2,b3}")
+  prefix.to_owned() + marker + helper + "\n}\n" + regions[1:].join("\n}\n")
+}
+
+///|
+// Two immutable published-tile reads stay live until their ordered products.
+// The address-provider permutation remains consumer-contiguous. This is a
+// separate, explicit experiment, not a change to the admitted ownership trial.
+enum Action {
+  Read(column~ : Int, slot~ : Int)
+  Product(column~ : Int, slot~ : Int)
+} derive(Eq, Debug)
+
+///|
+fn actions(columns : Int) -> Array[Action] raise {
+  guard columns >= 2 && columns <= 8 else { fail("column frontier") }
+  let result = [Read(column=0, slot=0), Read(column=1, slot=1)]
+  for column in 0..<columns {
+    result.push(Product(column~, slot=column % 2))
+    if column + 2 < columns {
+      result.push(Read(column=column + 2, slot=column % 2))
+    }
+  }
+  result
+}
+
+///|
+fn pipeline_source(columns : Int) -> String raise {
+  let outputs = columns * 8
+  let address = outputs + 4
+  let step = address + 1
+  let text = StringBuilder()
+  text <+
+    "static __device__ __forceinline__ void lf_key_operand_pipeline(LfMatrixAccumulator (&score)[LF_KEY_VALUE_TILE/16], const LfMatrixOperand &a, const __nv_bfloat16 *p, int reduction) {\n"
+  text <+ "  const int lane=threadIdx.x%32;\n"
+  text <+
+    "  const unsigned origin=(unsigned)__cvta_generic_to_shared(p+lf_operand_index((lane&7)+lane/16*8,reduction+(lane/8%2)*8,LF_HEAD_DIMENSION));\n"
+  text <+
+    "  asm volatile(\n    \"{ .reg .b32 b<8>; .reg .u32 address; mov.u32 address, %\{address};\"\n"
+  for action in actions(columns) {
+    match action {
+      Read(column~, slot~) => {
+        if column > 0 {
+          text <+ "    \"add.u32 address, address, %\{step};\"\n"
+        }
+        let first = slot * 4
+        text <+
+          "    \"ldmatrix.sync.aligned.m8n8.x4.shared.b16 {b\{first},b\{first+1},b\{first+2},b\{first+3}}, [address];\"\n"
+      }
+      Product(column~, slot~) =>
+        for half in 0..<2 {
+          let c = column * 8 + half * 4
+          let b = slot * 4 + half * 2
+          text <+
+            "    \"mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%\{c},%\{c+1},%\{c+2},%\{c+3}}, {%\{outputs},%\{outputs+1},%\{outputs+2},%\{outputs+3}}, {b\{b},b\{b+1}}, {%\{c},%\{c+1},%\{c+2},%\{c+3}};\"\n"
+        }
+    }
+  }
+  text <+ "    \"}\"\n    : "
+  let results : Array[String] = []
+  for column in 0..<columns {
+    for item in 0..<8 {
+      results.push("\"+f\"(score[\{column}].x[\{item}])")
+    }
+  }
+  text.write_string(results.join(","))
+  text <+
+    "\n    : \"r\"(a.x[0]),\"r\"(a.x[1]),\"r\"(a.x[2]),\"r\"(a.x[3]),\"r\"(origin),\"n\"(16*LF_HEAD_DIMENSION*2) : \"memory\");\n}\n"
+  text.to_string()
+}
+
+///|
+fn pipelined(text : String) -> String raise {
+  let marker = "static __device__ __forceinline__ void lf_matrix_mma_key("
+  guard text.split(marker).to_array() is [prefix, body] else {
+    fail("one key helper")
+  }
+  let regions = body.split("\n}\n").to_array()
+  guard regions.length() > 1 else { fail("complete helper") }
+  once(
+    prefix.to_owned() + pipeline_source(4) + regions[1:].join("\n}\n"),
+    "#pragma unroll\n          for (int key=0; key<4; ++key) {\n            lf_matrix_mma_key(score[key],a,current_k,key*16,reduction,LF_HEAD_DIMENSION);\n          }",
+    "lf_key_operand_pipeline(score,a,current_k,reduction);",
+  )
+}
+
+///|
+fn rebind(text : String, base : String, root : String) -> String raise {
+  guard base != root && !root.contains(base) else { fail("distinct roots") }
+  let parts = text.split(base).to_array()
+  guard parts.length() > 1 else { fail("contract paths absent") }
+  let result = parts.join(root)
+  assert_false(result.contains(base))
+  ignore(@json.parse(result))
+  result
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  let args = @env.args()
+  let (base, probe, root, mode, read_ahead) = match args {
+    [_, base, probe, root, mode] => (base, probe, root, mode, false)
+    [_, base, probe, root, mode, "read-ahead"] =>
+      (base, probe, root, mode, true)
+    _ => fail("FROZEN_OPERAND_ROOT PROBE_ROOT NEW_ROOT MODE [read-ahead]")
+  }
+  guard ["prepare", "run", "validate", "profile", "finish"].contains(mode) else {
+    fail(
+      "FROZEN_OPERAND_ROOT PROBE_ROOT NEW_ROOT prepare|run|validate|profile|finish",
+    )
+  }
+  if mode != "prepare" {
+    assert_false(@fs.read_file(root + "/contract.json").text().contains(base))
+    // Reuse the already-verified profile controller, including exact digest
+    // receipts, UUID, idle checks, memory reserve and bounded Nsight scope.
+    let controller = if mode == "profile" {
+      "prefill_identity_rescale_20261007.mbtx"
+    } else {
+      "prefill_operand_pipeline_20261007.mbtx"
+    }
+    @shell.Cmd(probe + "/toolchain/bin/moon", [
+      "run",
+      root + "/" + controller,
+      base,
+      probe,
+      root,
+      mode,
+    ]).run()
+    return
+  }
+  assert_eq(
+    capture(root, "preflight-device", "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  assert_true(
+    capture(root, "preflight-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  for name in ["baseline", "candidate"] {
+    @fs.mkdir(root + "/" + name)
+  }
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/baseline/" + name,
+      @fs.read_file(base + "/baseline/" + name),
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+  }
+  @fs.write_file(
+    root + "/prefill.spec",
+    @fs.read_file(base + "/prefill.spec"),
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  for
+    (label, path, digest) in [
+      (
+        "baseline",
+        root + "/baseline/kernel.cubin",
+        "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb",
+      ),
+      (
+        "source",
+        root + "/baseline/kernel.cu",
+        "3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+      ),
+      (
+        "probe",
+        probe + "/check-probe",
+        "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536",
+      ),
+      (
+        "nvcc", "/usr/local/cuda-13.0/bin/nvcc", "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+      ),
+    ] {
+    assert_true(
+      capture(root, label + "-identity", "sha256sum", [path]).has_prefix(
+        digest + " ",
+      ),
+    )
+  }
+  let source = @fs.read_file(root + "/baseline/kernel.cu").text()
+  let source = variant(source)
+  let source = if read_ahead { pipelined(source) } else { source }
+  @fs.write_file(root + "/candidate/kernel.cu", source, create_mode=CreateNew)
+  let digest = capture(root, "candidate-source-identity", "sha256sum", [
+    root + "/candidate/kernel.cu",
+  ])
+  .split(" ")
+  .to_array()[0].to_owned()
+  @fs.write_file(
+    root + "/candidate/kernel.recipe",
+    once(
+      @fs.read_file(root + "/baseline/kernel.recipe").text(),
+      "source_sha256=3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+      "source_sha256=" + digest,
+    ) +
+    "\nexperimental_lowering=" +
+    (if read_ahead {
+      "consumer-contiguous-key-read-ahead-v1"
+    } else {
+      "consumer-contiguous-key-read-v1"
+    }) +
+    "\nproduction_admission=false\n",
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+      "--cubin",
+      "--std=c++14",
+      "-arch=sm_121",
+      "-O3",
+      "--fmad=false",
+      "--ftz=false",
+      "--prec-div=true",
+      "--prec-sqrt=true",
+      "--maxrregcount=255",
+      "--Werror",
+      "all-warnings",
+      root + "/candidate/kernel.cu",
+      "-o",
+      root + "/candidate/kernel.cubin",
+    ]),
+  )
+  ignore(
+    capture(root, "compiled-identity", "sha256sum", [
+      root + "/candidate/kernel.cubin",
+    ]),
+  )
+  @fs.write_file(
+    root + "/contract.json",
+    rebind(@fs.read_file(base + "/contract.json").text(), base, root),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "address-provider permutation preserves each complete source matrix" {
+  fn index(row : Int, column : Int, columns : Int) -> Int {
+    row * columns + (column ^ (row % 8 * 8))
+  }
+  for dimensions in [64, 128, 256] {
+    for row_base in [0, 16, 32, 48] {
+      for reduction in 0..<(dimensions / 16) {
+        for lane in 0..<32 {
+          let prior_lane = (lane & 7) + lane / 8 % 2 * 16 + lane / 16 * 8
+          let prior = index(
+            row_base + prior_lane % 16,
+            reduction * 16 + prior_lane / 16 * 8,
+            dimensions,
+          )
+          let fresh = index(
+            row_base + (lane & 7) + lane / 16 * 8,
+            reduction * 16 + lane / 8 % 2 * 8,
+            dimensions,
+          )
+          assert_eq(prior, fresh)
+        }
+      }
+    }
+  }
+}
+
+///|
+test "adjacent consumers receive the identical per-lane packed values" {
+  let matrix_order = [0, 2, 1, 3]
+  for lane in 0..<32 {
+    for word in 0..<4 {
+      for component in 0..<2 {
+        let old_word = matrix_order[word]
+        let old_row = old_word % 2 * 8 + lane / 4
+        let old_column = old_word / 2 * 8 + lane % 4 * 2 + component
+        let fresh_row = word / 2 * 8 + lane / 4
+        let fresh_column = word % 2 * 8 + lane % 4 * 2 + component
+        assert_eq((old_row, old_column), (fresh_row, fresh_column))
+      }
+    }
+  }
+  assert_eq([matrix_order[0], matrix_order[1]], [0, 2])
+  assert_eq([matrix_order[2], matrix_order[3]], [1, 3])
+}
+
+///|
+test "source rewrite is scoped to key read and rejects ambiguity" {
+  let helper = "static __device__ __forceinline__ void lf_matrix_mma_key(row + lane % 16, column + lane / 16 * 8) { {b0,b2}; {b1,b3};\n}\n"
+  let other = "value read row + lane % 16, column + lane / 16 * 8 {b0,b2};\n"
+  let transformed = variant("prefix\n" + helper + other)
+  assert_true(transformed.has_suffix(other))
+  assert_true(transformed.contains("(lane & 7) + lane / 16 * 8"))
+  try variant(helper + helper) catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous key helper")
+  }
+}
+
+///|
+test "read-ahead preserves source epoch and ordered products" {
+  for columns in 2..<=8 {
+    let slots = [-1, -1]
+    let products = []
+    for action in actions(columns) {
+      match action {
+        Read(column~, slot~) => {
+          assert_eq(slots[slot], -1)
+          slots[slot] = column
+        }
+        Product(column~, slot~) => {
+          assert_eq(slots[slot], column)
+          products.push(column)
+          slots[slot] = -1
+        }
+      }
+    }
+    assert_eq(products, Array::makei(columns, i => i))
+    assert_eq(slots, [-1, -1])
+  }
+  let source = pipeline_source(4)
+  assert_true(source.contains("{b0,b1}"))
+  assert_true(source.contains("{b6,b7}"))
+  assert_false(source.contains("{b0,b2}"))
+}
+
+///|
+test "read-ahead replacement preserves unrelated helpers and removes dead call" {
+  let helper = "static __device__ __forceinline__ void lf_matrix_mma_key(unused) {\n}\n"
+  let other = "static void value_helper() {}\n"
+  let call = "#pragma unroll\n          for (int key=0; key<4; ++key) {\n            lf_matrix_mma_key(score[key],a,current_k,key*16,reduction,LF_HEAD_DIMENSION);\n          }"
+  let result = pipelined(helper + other + call)
+  assert_true(result.contains(other))
+  assert_false(result.contains("lf_matrix_mma_key"))
+  assert_true(
+    result.contains("lf_key_operand_pipeline(score,a,current_k,reduction);"),
+  )
+  try pipelined(helper + other + call + call) catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicated consumer accepted")
+  }
+}
