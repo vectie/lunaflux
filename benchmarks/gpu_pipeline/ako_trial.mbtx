@@ -34,7 +34,11 @@ fn checked_error(line : String, key : String) -> Unit raise {
 ///|
 // Probe-owned correctness must finish before it prints paired timing rows.
 // Validate every row as well: do not admit a partial or failed timing capture.
-fn summarize(output : String, min_gain : Double) -> Json raise {
+fn summarize(
+  output : String,
+  min_gain : Double,
+  require_bitwise? : Bool = false,
+) -> Json raise {
   let lines = output.split("\n").filter(s => s.has_prefix("tokens=")).to_array()
   guard lines.length() == 5 else { fail("five paired trials required") }
   let old : Array[Double] = []
@@ -50,6 +54,19 @@ fn summarize(output : String, min_gain : Double) -> Json raise {
     let b = scalar(line.to_owned(), "new_us")
     checked_error(line.to_owned(), "maxabs")
     checked_error(line.to_owned(), "oracle_maxabs")
+    if require_bitwise {
+      guard line.split(" ").filter(s => s.has_prefix("bitwise=")).to_array()
+        is ["bitwise=true"] else {
+        fail("strict ordered-fold experiment changed output bits")
+      }
+      let error = line
+        .split(" ")
+        .filter(s => s.has_prefix("maxabs="))
+        .to_array()[0]
+      guard @string.parse_double(error[7:]) == 0.0 else {
+        fail("bitwise equality contradicts the numerical difference")
+      }
+    }
     old.push(a)
     fresh.push(b)
     gains.push(1.0 - b / a)
@@ -207,6 +224,12 @@ async fn main {
     { "timing_kind"? : None, .. } => false
     _ => fail("unknown paired timing kind")
   }
+  let require_bitwise = match config {
+    { "require_bitwise": True, .. } => true
+    { "require_bitwise": False, .. } | { "require_bitwise"? : None, .. } =>
+      false
+    _ => fail("boolean bitwise requirement")
+  }
   guard config
     is {
       "schema": "lunaflux-ako-trial-v1",
@@ -273,7 +296,7 @@ async fn main {
     let metrics = if mlp {
       summarize_mlp(result, gain)
     } else {
-      summarize(result, gain)
+      summarize(result, gain, require_bitwise~)
     }
     let after = memory_kib(@fs.read_file("/proc/meminfo").text())
     guard after.to_double() >= reserve else {
@@ -310,6 +333,45 @@ async fn main {
     "outcome=completed\nscope=paired-selected-kernel-experiment; not serving promotion\n",
     create_mode=CreateNew,
   )
+}
+
+///|
+test "strict ordered fold trials reject tolerated numerical changes" {
+  let output = [
+    for i in 0..<5 => {
+      "tokens=16 rows=16 history=4095 trial=\{i} old_us=100 new_us=90 bitwise=false maxabs=0.0001 oracle_maxabs=0.001"
+    }
+  ].join("\n")
+  ignore(summarize(output, 0.01))
+  try summarize(output, 0.01, require_bitwise=true) catch {
+    _ => ()
+  } noraise {
+    _ => fail("strict fold accepted changed bits")
+  }
+  ignore(
+    summarize(
+      output
+      .split("bitwise=false")
+      .to_array()
+      .join("bitwise=true")
+      .split("maxabs=0.0001")
+      .to_array()
+      .join("maxabs=0"),
+      0.01,
+      require_bitwise=true,
+    ),
+  )
+  try
+    summarize(
+      output.split("bitwise=false").to_array().join("bitwise=true"),
+      0.01,
+      require_bitwise=true,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("contradictory bitwise flag accepted")
+  }
 }
 
 ///|
