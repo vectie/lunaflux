@@ -1,0 +1,366 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn get(value : Json, key : String) -> Json raise {
+  guard value is Object(fields) && fields.get(key) is Some(found) else {
+    fail(key)
+  }
+  found
+}
+
+///|
+fn array(value : Json) -> Array[Json] raise {
+  guard value is Array(values) else { fail("array") }
+  values
+}
+
+///|
+fn integer(value : Json) -> Int raise {
+  guard value is Number(n, ..) && n == n.to_int().to_double() else {
+    fail("integer")
+  }
+  n.to_int()
+}
+
+///|
+fn identity(record : Json) -> String raise {
+  get(record, "request").stringify() +
+  ":" +
+  get(record, "generation").stringify()
+}
+
+///|
+fn first_difference(a : Array[Json], b : Array[Json]) -> Int raise {
+  assert_eq(a.length(), b.length())
+  for i, value in a {
+    if value != b[i] {
+      return i
+    }
+  }
+  -1
+}
+
+///|
+fn bf16(bits : Json) -> Double raise {
+  let word = integer(bits)
+  assert_true(word >= 0 && word <= 65535)
+  assert_true((word & 0x7f80) != 0x7f80, msg="non-finite activation")
+  Float::reinterpret_from_uint(word.reinterpret_as_uint() << 16).to_double()
+}
+
+///|
+fn delta(a : Array[Json], b : Array[Json]) -> Json raise {
+  assert_eq(a.length(), b.length())
+  let changed : Array[Int] = []
+  let mut maximum = 0.0
+  let mut total = 0.0
+  for i, value in a {
+    let x = bf16(value)
+    let y = bf16(b[i])
+    if value != b[i] {
+      changed.push(i)
+    }
+    let difference = (x - y).abs()
+    maximum = maximum.max(difference)
+    total += difference
+  }
+  {
+    "components": a.length(),
+    "changed": changed.length(),
+    "max_abs": maximum,
+    "sum_abs": total,
+    "first_changed_indices": changed[:Int::min(8, changed.length())].to_owned(),
+  }
+}
+
+// Preserve repeated launches explicitly: an operation can expand to multiple
+// physical kernels and its inputs need not stay live across those kernels.
+
+///|
+fn cuts(
+  captures : Array[Json],
+  owner : String,
+  position : Int,
+) -> Map[String, Array[Json]] raise {
+  let result : Map[String, Array[Json]] = Map([])
+  for capture in captures {
+    if identity(capture) != owner ||
+      integer(get(capture, "position")) != position {
+      continue
+    }
+    assert_eq(get(capture, "direction"), Json(0))
+    let key = get(capture, "operation").stringify() +
+      ":" +
+      get(capture, "activation").stringify()
+    if !result.contains(key) {
+      result[key] = []
+    }
+    result[key].push(capture)
+  }
+  result
+}
+
+///|
+fn observations(margins : Json, replay : Json) -> Array[Json] raise {
+  let records = array(get(margins, "records"))
+  assert_eq(records.length(), 32)
+  let keys : Array[String] = []
+  let groups : Map[String, Array[Json]] = Map([])
+  for record in records {
+    let key = identity(record)
+    if !groups.contains(key) {
+      keys.push(key)
+      groups[key] = []
+    }
+    groups[key].push(record)
+  }
+  assert_eq(keys.length(), 4)
+  for key in keys {
+    assert_eq(groups[key].length(), 8)
+    for sample, record in groups[key] {
+      assert_eq(get(record, "sample"), Json(sample))
+      assert_eq(get(record, "position"), Json(32511 + sample))
+    }
+  }
+  let result : Array[Json] = []
+  let mut cursor = 0
+  for wave in array(replay) {
+    let requests = array(get(wave, "requests"))
+    let wave_keys = keys[cursor:cursor + requests.length()].to_owned()
+    let used : Array[String] = []
+    for request in requests {
+      let tokens = array(get(get(request, "result"), "token_ids"))
+      assert_eq(tokens.length(), 8)
+      let matches = wave_keys.filter(key => {
+        groups[key].map(record => get(record, "selected")) == tokens
+      })
+      // Do not silently infer identities from arrival order if outputs collide.
+      assert_eq(
+        matches.length(),
+        1,
+        msg="ambiguous or missing complete-vector identity join",
+      )
+      let owner = matches[0]
+      assert_false(used.contains(owner))
+      used.push(owner)
+      result.push({
+        "mode": get(wave, "mode"),
+        "request_row": get(request, "request_row"),
+        "owner": owner,
+        "tokens": tokens,
+        "margins": groups[owner],
+      })
+    }
+    cursor += requests.length()
+  }
+  assert_eq(cursor, keys.length())
+  result
+}
+
+///|
+fn compare(
+  a : Json,
+  b : Json,
+  captures : Array[Json],
+  sidecar : Bool,
+) -> Json raise {
+  let tokens_a = array(get(a, "tokens"))
+  let tokens_b = array(get(b, "tokens"))
+  let first = first_difference(tokens_a, tokens_b)
+  let limit = Int::min(5, if first < 0 { 8 } else { first + 1 })
+  guard get(a, "owner") is String(owner_a) && get(b, "owner") is String(owner_b) else {
+    fail("owner")
+  }
+  let comparisons : Array[Json] = []
+  for sample in 0..<limit {
+    let left = cuts(captures, owner_a, 32511 + sample)
+    let right = cuts(captures, owner_b, 32511 + sample)
+    assert_eq(left.length(), right.length(), msg="capture cut sets differ")
+    assert_true(left.length() > 0, msg="no surviving cuts for sample")
+    for key, aa in left {
+      guard right.get(key) is Some(bb) else { fail("missing cut " + key) }
+      if integer(get(aa[0], "operation")) == 5 && !sidecar {
+        comparisons.push({
+          "sample": sample,
+          "operation": 5,
+          "activation": get(aa[0], "activation"),
+          "comparable": false,
+          "reason": "semantic arena input is rebound to physical sidecar; old readback is not consumed",
+        })
+        continue
+      }
+      let stable_a = aa.all(value => get(value, "words") == get(aa[0], "words"))
+      let stable_b = bb.all(value => get(value, "words") == get(bb[0], "words"))
+      if aa.length() != bb.length() && !(stable_a && stable_b) {
+        comparisons.push({
+          "sample": sample,
+          "operation": get(aa[0], "operation"),
+          "activation": get(aa[0], "activation"),
+          "comparable": false,
+          "reason": "different physical expansion with changing input storage",
+          "left_occurrences": aa.length(),
+          "right_occurrences": bb.length(),
+          "left_inputs_stable": stable_a,
+          "right_inputs_stable": stable_b,
+        })
+        continue
+      }
+      let compared = if aa.length() == bb.length() { aa } else { [aa[0]] }
+      for occurrence, ca in compared {
+        let cb = bb[occurrence]
+        comparisons.push({
+          "sample": sample,
+          "position": 32511 + sample,
+          "operation": get(ca, "operation"),
+          "activation": get(ca, "activation"),
+          "occurrence": occurrence,
+          "comparable": true,
+          "left_occurrences": aa.length(),
+          "right_occurrences": bb.length(),
+          "left_inputs_stable": stable_a,
+          "right_inputs_stable": stable_b,
+          "left_epoch": get(ca, "epoch"),
+          "right_epoch": get(cb, "epoch"),
+          "left_batch_tokens": get(ca, "batch_tokens"),
+          "right_batch_tokens": get(cb, "batch_tokens"),
+          "left_batch_rows": get(ca, "batch_rows"),
+          "right_batch_rows": get(cb, "batch_rows"),
+          "delta": delta(array(get(ca, "words")), array(get(cb, "words"))),
+        })
+      }
+    }
+  }
+  {
+    "request_row": get(a, "request_row"),
+    "first_token_difference": first,
+    "left_tokens": tokens_a,
+    "right_tokens": tokens_b,
+    "scope": "same consumed output prefix only; prefill history producer may differ",
+    "cuts": comparisons,
+  }
+}
+
+///|
+async fn main {
+  let (root, output, sidecar) = match @env.args() {
+    [_, root, output] => (root, output, false)
+    [_, root, output, "--sidecar"] => (root, output, true)
+    _ => fail("COMPLETED_DIAGNOSTIC_ROOT NEW_JSON [--sidecar]")
+  }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  let margins = @json.parse(@fs.read_file(root + "/margins.json").text())
+  let captures = array(
+    get(
+      @json.parse(@fs.read_file(root + "/activations.json").text()),
+      "captures",
+    ),
+  )
+  let rows = observations(
+    margins,
+    @json.parse(
+      @fs.read_file(root + "/campaign/r0-luna-full/requests/replay.json").text(),
+    ),
+  )
+  let comparisons : Array[Json] = []
+  for row in [0, 1] {
+    let solo = rows.filter(value => {
+      get(value, "request_row") == Json(row) &&
+      get(value, "mode") == Json("solo\{row}")
+    })
+    let pair = rows.filter(value => {
+      get(value, "request_row") == Json(row) &&
+      get(value, "mode") == Json("pair01")
+    })
+    assert_eq(solo.length(), 1)
+    assert_eq(pair.length(), 1)
+    comparisons.push(compare(solo[0], pair[0], captures, sidecar))
+  }
+  let result : Json = {
+    "schema": "lunaflux.activation-cut-diagnostic.v1",
+    "performance_measurement": false,
+    "attention_input_physical_sidecar": sidecar,
+    "observations": rows,
+    "comparisons": comparisons,
+    "capture_count": captures.length(),
+    "gpu_cpu_argmax_mismatches": get(margins, "gpu_cpu_argmax_mismatches"),
+    "exact_top_two_ties": get(margins, "exact_top_two_ties"),
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println("captures=\{captures.length()}")
+  for comparison in comparisons {
+    for cut in array(get(comparison, "cuts")) {
+      println(
+        Json({ "row": get(comparison, "request_row"), "cut": cut }).stringify(),
+      )
+    }
+  }
+}
+
+///|
+test "BF16 delta counts rounding changes, not row metadata" {
+  let result = delta([Json(0x3f80), Json(0x4000)], [Json(0x3f80), Json(0x4001)])
+  assert_eq(get(result, "changed"), Json(1))
+  assert_eq(get(result, "max_abs"), Json(0.015625))
+  assert_eq(first_difference([Json(1), Json(2)], [Json(1), Json(3)]), 1)
+}
+
+///|
+test "physical sublaunch inputs remain separate" {
+  let a : Json = {
+    "request": "r",
+    "generation": "g",
+    "position": 32511,
+    "direction": 0,
+    "operation": 9,
+    "activation": 8,
+    "words": [1],
+  }
+  let b : Json = {
+    "request": "r",
+    "generation": "g",
+    "position": 32511,
+    "direction": 0,
+    "operation": 9,
+    "activation": 8,
+    "words": [2],
+  }
+  let result = cuts([a, b], identity(a), 32511)
+  assert_eq(result["9:8"], [a, b])
+}
+
+///|
+test "dead semantic attention storage is never a numerical cause" {
+  let a : Json = { "owner": "\"a\":\"g\"", "tokens": [1], "request_row": 0 }
+  let b : Json = { "owner": "\"b\":\"g\"", "tokens": [2], "request_row": 0 }
+  let ca : Json = {
+    "request": "a",
+    "generation": "g",
+    "position": 32511,
+    "direction": 0,
+    "operation": 5,
+    "activation": 4,
+    "words": [0x3f80],
+  }
+  let cb : Json = {
+    "request": "b",
+    "generation": "g",
+    "position": 32511,
+    "direction": 0,
+    "operation": 5,
+    "activation": 4,
+    "words": [0x4000],
+  }
+  let report = compare(a, b, [ca, cb], false)
+  let cut = array(get(report, "cuts"))[0]
+  assert_eq(get(cut, "comparable"), Json(false))
+  guard cut is Object(fields) else { fail("cut") }
+  assert_false(fields.contains("delta"))
+}

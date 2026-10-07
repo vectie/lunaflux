@@ -1,0 +1,396 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(source : String, before : String, after : String) -> String raise {
+  guard source.split(before).to_array() is [left, right] else {
+    fail("one diagnostic seam: " + before)
+  }
+  left.to_owned() + after + right.to_owned()
+}
+
+///|
+fn overlay_name(path : String) -> String {
+  path.split("/").join("_") + ".txt"
+}
+
+///|
+test "overlay names flatten every directory component" {
+  assert_eq(
+    overlay_name("engine/device_step/diagnostic_activation.mbt"),
+    "engine_device_step_diagnostic_activation.mbt.txt",
+  )
+}
+
+///|
+/// Diagnostic fixture mapping verified against prepared fused/split arguments.
+/// Semantic activation 4 is rebound to the sidecar at offset zero, not to the
+/// old region in the shared activation arena. This is not a production pass.
+fn attention_sidecar_readback(source : String) -> String raise {
+  once(
+    source, "    descriptor.context.copy_to_fixed_host(activation, bytes,\n      region.offset_bytes() + (end - 1).to_int64() * stride, 0L, stride) catch {",
+    "    let (allocation, offset) = if operation.as_int() == 5 {\n      guard executor.resources.qwen_fused_attention_sidecar is Some(sidecar) && sidecar.open else { raise InvalidExecutor(ResourceState) }\n      (sidecar.resource, 0L)\n    } else { (activation, region.offset_bytes()) }\n    descriptor.context.copy_to_fixed_host(allocation, bytes,\n      offset + (end - 1).to_int64() * stride, 0L, stride) catch {",
+  )
+}
+
+///|
+test "fused attention readback follows physical sidecar rather than dead semantic storage" {
+  let rendered = attention_sidecar_readback(
+    "    descriptor.context.copy_to_fixed_host(activation, bytes,\n      region.offset_bytes() + (end - 1).to_int64() * stride, 0L, stride) catch {",
+  )
+  assert_true(rendered.contains("(sidecar.resource, 0L)"))
+  assert_true(rendered.contains("else { (activation, region.offset_bytes()) }"))
+  assert_false(rendered.contains("copy_to_fixed_host(activation, bytes"))
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println("completed=" + label)
+}
+
+///|
+async fn sha(path : String) -> String {
+  let result = @shell.Cmd("sha256sum", [path]).output()
+  result.check()
+  result.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+fn client(original : String, bodies : String) -> String raise {
+  guard original.split("///|\nasync fn main {").to_array() is [helpers, _] else {
+    fail("client main")
+  }
+  let main =
+    #|///|
+    #|async fn main {
+    #|  guard @env.args() is [_, engine, root] && engine == "luna-full" else { fail("luna-full NEW_ROOT") }
+    #|  @fs.mkdir(root)
+    #|  guard @json.parse(@fs.read_file(BODIES).text()) is Array(bodies) && bodies.length() == 2 else { fail("bodies") }
+    #|  let samples : Array[Json] = []
+    #|  for mode in ["solo0", "solo1", "pair01"] {
+    #|    let rows = match mode { "solo0" => [0]; "solo1" => [1]; _ => [0,1] }
+    #|    for row in rows { @fs.write_file(root + "/" + mode + "-r\{row}.body.json", bodies[row].stringify(), create_mode=CreateNew) }
+    #|    let jobs : Array[async () -> Json] = rows.map(row => () => {
+    #|      let result = request(root, engine, mode + "-r\{row}", 8)
+    #|      { "request_row": row, "result": result }
+    #|    })
+    #|    let requests = @async.all(jobs, max_concurrent=rows.length())
+    #|    samples.push({ "mode": mode, "trial": 0, "requests": requests })
+    #|    println(mode + " complete")
+    #|  }
+    #|  @fs.write_file(root + "/replay.json", Json(samples).stringify(), create_mode=CreateNew)
+    #|}
+  helpers.to_owned() + once(main, "BODIES", Json(bodies).stringify())
+}
+
+///|
+test "client keeps one saved-input solo and paired wave without treating readback as timing" {
+  let rendered = client(
+    "helpers\n///|\nasync fn main { old }", "/saved/bodies.json",
+  )
+  assert_true(rendered.contains("[\"solo0\", \"solo1\", \"pair01\"]"))
+  assert_true(rendered.contains("max_concurrent=rows.length()"))
+  assert_true(
+    rendered.contains("request(root, engine, mode + \"-r\\{row}\", 8)"),
+  )
+  assert_false(rendered.contains("old"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, baseline, benchmark, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-activation-latest-20261007.") &&
+    ["prepare", "run", "seal"].contains(mode) else {
+    fail("FROZEN_RUNTIME FINAL_BENCHMARK NEW_ROOT prepare|run|seal")
+  }
+  let source = root + "/source"
+  let moon = root + "/toolchain/bin/moon"
+  let serving = root + "/serving"
+  let cli = source + "/_build/native/release/build/cmd/"
+  if mode == "seal" {
+    assert_true(
+      @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    if !@fs.exists(root + "/overlay") {
+      @fs.mkdir(root + "/overlay")
+    }
+    for
+      path in [
+        "engine/device_step/diagnostic_activation.mbt", "engine/device_step/diagnostic_execution.mbt",
+        "engine/device_step/diagnostic_execution.c", "engine/device_step/diagnostic_logit_margin.mbt",
+        "engine/device_step/moon.pkg", "engine/device_step/paged_executor_run.mbt",
+        "engine/device_step/paged_executor_prepare.mbt", "engine/device_step/paged_executor_types.mbt",
+        "engine/device_step/numeric_bf16_executor.mbt", "engine/device_step/paged_executor_greedy_sampling.mbt",
+        "engine/device_step/qwen_fused_attention_prepare.mbt", "engine/device_step/paged_decode_split_prepare.mbt",
+        "internal/process/process_approved_spawn.c", "device/ordered_executor.mbt",
+      ] {
+      @fs.write_file(
+        root + "/overlay/" + overlay_name(path),
+        @fs.read_file(source + "/" + path),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.mkdir(root + "/binaries")
+    let binaries : Map[String, Json] = Map([])
+    for
+      path in [
+        "lunaflux/lunaflux.exe", "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+        "qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe",
+      ] {
+      // The supervisor belongs to tests, not cmd.
+      let binary = if path.has_prefix("qwen3_bf16_serving_supervisor/") {
+        source + "/_build/native/release/build/tests/" + path
+      } else {
+        cli + path
+      }
+      let destination = root +
+        "/binaries/" +
+        path.split("/").to_array()[1].to_owned()
+      assert_false(@fs.exists(destination))
+      @shell.Cmd("cp", [binary, destination]).run()
+      binaries[path] = Json(sha(binary))
+    }
+    let identities : Json = {
+      "frozen_runtime": baseline,
+      "saved_requests": benchmark,
+      "diagnostic_scope": @fs.read_file(root + "/SCOPE.txt").text(),
+      "diagnostic_worker_sha256": sha(
+        serving + "/deployment/bin/lunaflux-device-worker",
+      ),
+      "binaries": binaries.to_json(),
+    }
+    @fs.write_file(
+      root + "/RUNTIME_IDENTITIES.txt",
+      identities.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    capture(root, "seal", moon, ["run", root + "/seal_domain_trial.mbtx", root])
+    return
+  }
+  if mode == "prepare" {
+    assert_false(@fs.exists(source))
+    @fs.mkdir(source)
+    @shell.Cmd("cp", ["-a", "--reflink=auto", baseline + "/source/.", source]).run()
+    @shell.Cmd("ln", ["-s", baseline + "/toolchain", root + "/toolchain"]).run()
+    @shell.Cmd("chmod", ["-R", "u+w", source]).run()
+    capture(root, "install-execution", moon, [
+      "run",
+      root + "/install_execution_trace.mbtx",
+      source,
+    ])
+    capture(root, "install-margins", moon, [
+      "run",
+      root + "/install_logit_margin_trace.mbtx",
+      source,
+      "--tracked-tokens",
+      "315,389,279,13,198,271",
+    ])
+    capture(root, "install-activations", moon, [
+      "run",
+      root + "/install_activation_readback.mbtx",
+      source,
+      "2,3,5,6,9,12",
+      "0",
+      "180",
+      "all",
+      "input-only",
+    ])
+    let activation_path = source +
+      "/engine/device_step/diagnostic_activation.mbt"
+    let activation = once(
+      @fs.read_file(activation_path).text(),
+      "  let activation = open_activation_workspace(executor.resources)",
+      "  let position = read_paged_i32(descriptor.host.token_positions, end - 1)\n  if position < 32511 || position > 32515 { continue }\n  let activation = open_activation_workspace(executor.resources)",
+    )
+    @fs.write_file(activation_path, attention_sidecar_readback(activation))
+    capture(root, "build", moon, [
+      "-C", source, "build", "cmd/device_worker_child", "cmd/lunaflux", "cmd/lunaflux_qwen3_token_id_bridge",
+      "tests/qwen3_bf16_serving_supervisor", "--target", "native", "--release", "--deny-warn",
+      "--warn-list", "-79-20-29-25", "-j", "2",
+    ])
+    @fs.mkdir(serving)
+    @shell.Cmd("ln", ["-s", source, serving + "/source"]).run()
+    @shell.Cmd("ln", ["-s", baseline + "/toolchain", serving + "/toolchain"]).run()
+    @fs.write_file(
+      serving + "/export.stdout",
+      @fs.read_file(baseline + "/serving/long-final/export.stdout"),
+      create_mode=CreateNew,
+    )
+    @shell.Cmd("cp", [
+      "-a",
+      baseline + "/serving/long-final/deployment",
+      serving + "/deployment",
+    ]).run()
+    let launch_path = serving + "/deployment/lunaflux.launch.json"
+    guard @json.parse(@fs.read_file(launch_path).text()) is Object(launch) else {
+      fail("launch")
+    }
+    let worker = serving + "/deployment/bin/lunaflux-device-worker"
+    @shell.Cmd("chmod", ["u+w", worker, launch_path]).run()
+    @shell.Cmd("cp", [
+      cli + "device_worker_child/device_worker_child.exe",
+      worker,
+    ]).run()
+    launch["worker_executable"] = { "path": worker, "sha256": sha(worker) }
+    @fs.write_file(launch_path, Json(launch).stringify() + "\n")
+    capture(
+      root,
+      "capacity",
+      source + "/scripts/materialize-qwen3-authenticated-capacity.sh",
+      [
+        baseline +
+        "/serving/bind.stdout#sha256=" +
+        sha(baseline + "/serving/bind.stdout"),
+        serving + "/deployment#sha256=" + sha(launch_path),
+        cli +
+        "lunaflux/lunaflux.exe#sha256=" +
+        sha(cli + "lunaflux/lunaflux.exe"),
+        cli +
+        "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe#sha256=" +
+        sha(
+          cli +
+          "lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+        ),
+        serving + "/capacity.json",
+      ],
+    )
+    let bodies : Array[Json] = []
+    for row in [0, 1] {
+      guard @json.parse(
+          @fs.read_file(
+            benchmark +
+            "/r0-luna-full/requests/i32512-o64-c2-varied-t0-r\{row}.body.json",
+          ).text(),
+        )
+        is Object(body) &&
+        body.get("input_token_ids") is Some(Array(ids)) &&
+        ids.length() == 32512 else {
+        fail("exact saved input")
+      }
+      body["max_output_tokens"] = Json(8)
+      bodies.push(Json(body))
+    }
+    @fs.write_file(
+      root + "/bodies.json",
+      Json(bodies).stringify(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      serving + "/PREPARED.json",
+      "{\"scope\":\"diagnostic eager activation readback, never timing or deployment\"}",
+      create_mode=CreateNew,
+    )
+    let launcher = @fs.read_file(benchmark + "/launcher.mbtx").text()
+    let launcher = once(
+      launcher,
+      baseline + "/source/_build/native/release/build/cmd/",
+      cli,
+    )
+    let launcher = once(
+      launcher, "let orders = [[\"luna-full\"], [\"luna-full\"]]", "let orders = [[\"luna-full\"]]",
+    )
+    let launcher = once(
+      launcher, "guard @fs.read_file(root + \"/runtime.stderr\").text().is_empty() else",
+      "guard @fs.read_file(root + \"/runtime.stderr\").text().split(\"\\n\").all(line => line.is_empty() || line.has_prefix(\"lf_exec \")) else",
+    )
+    let launcher = once(
+      launcher, "unprofiled timing, fresh starts, unchanged qualified worker/cubins; not current dirty-tree deployment",
+      "diagnostic eager activation and margin readback; unchanged selected modules; not timing or deployment",
+    )
+    let launcher = once(
+      launcher, "--property=RuntimeMaxSec=7200", "--property=RuntimeMaxSec=900",
+    )
+    let launcher = once(
+      launcher, "--property=MemoryMax=64G", "--property=MemoryMax=48G",
+    )
+    @fs.write_file(root + "/launcher.mbtx", launcher, create_mode=CreateNew)
+    @fs.write_file(
+      root + "/launcher.mbtx.client.mbtx",
+      client(
+        @fs.read_file(benchmark + "/launcher.mbtx.client.mbtx").text(),
+        root + "/bodies.json",
+      ),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/SCOPE.txt",
+      "selected current runtime, first surviving layer boundaries, one fresh server, 32512 input/8 output, solo0/solo1/pair01; attention input reads actual fused sidecar at offset zero; explicit eager readback, no performance or quality admission\n",
+      create_mode=CreateNew,
+    )
+  } else {
+    let identity = @shell.Cmd("nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).output()
+    identity.check()
+    assert_eq(
+      identity.stdout().trim(),
+      "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    )
+    // The authoritative launcher writes campaign.json before making trial
+    // directories. A startup-only repair preserves the failed invocation.
+    assert_false(@fs.exists(root + "/campaign"), msg="never reuse a campaign")
+    @fs.mkdir(root + "/campaign")
+    let replay_label = if @fs.exists(root + "/replay.command.json") {
+      "replay-startup-repair"
+    } else {
+      "replay"
+    }
+    capture(root, replay_label, moon, [
+      "run",
+      root + "/launcher.mbtx",
+      serving,
+      root + "/campaign",
+      root + "/launcher.mbtx",
+      "--luna-only",
+    ])
+    let stderr = root + "/campaign/r0-luna-full/runtime.stderr"
+    capture(root, "activation-summary", moon, [
+      "run",
+      root + "/summarize_activation_readback.mbtx",
+      stderr,
+      root + "/activations.json",
+      "input-only",
+    ])
+    capture(root, "margin-summary", moon, [
+      "run",
+      root + "/summarize_logit_margins.mbtx",
+      stderr,
+      root + "/margins.json",
+    ])
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=selected activation and numerical diagnostic, not performance or production qualification\n",
+      create_mode=CreateNew,
+    )
+  }
+}
