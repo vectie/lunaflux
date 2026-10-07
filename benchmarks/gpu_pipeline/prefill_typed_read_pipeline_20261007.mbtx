@@ -1,0 +1,220 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+fn rebound(text : String, base : String, root : String) -> String raise {
+  guard base != root && !root.contains(base) else { fail("distinct roots") }
+  let result = text.split(base).to_array().join(root)
+  assert_false(result.contains(base))
+  ignore(@json.parse(result))
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, template, base, probe, root, mode] &&
+    ["prepare", "run", "validate", "profile", "finish"].contains(mode) else {
+    fail("EXPORT_TEMPLATE FROZEN_BASE PROBE_ROOT NEW_ROOT MODE")
+  }
+  let moon = probe + "/toolchain/bin/moon"
+  if mode != "prepare" {
+    let driver = if mode == "profile" {
+      "prefill_identity_rescale_20261007.mbtx"
+    } else {
+      "prefill_operand_pipeline_20261007.mbtx"
+    }
+    @shell.Cmd(moon, ["run", root + "/" + driver, base, probe, root, mode]).run()
+    return
+  }
+  assert_true(
+    capture(root, "archive-identity", "sha256sum", [
+      root + "/source-6d1a8644.tar.gz",
+    ]).has_prefix(
+      "fff1c1bb0b5006511eaabd1510347e130afa8c3296140ef003e44f8af23d994f ",
+    ),
+  )
+  assert_true(
+    capture(root, "nvcc-identity", "sha256sum", [
+      "/usr/local/cuda-13.0/bin/nvcc",
+    ]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  assert_true(
+    capture(root, "probe-identity", "sha256sum", [probe + "/check-probe"]).has_prefix(
+      "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536 ",
+    ),
+  )
+  let source = root + "/source"
+  @fs.mkdir(source)
+  ignore(
+    capture(root, "unpack", "tar", [
+      "-xzf",
+      root + "/source-6d1a8644.tar.gz",
+      "-C",
+      source,
+    ]),
+  )
+  // A new checkout only. Reuse immutable dependency contents, never model
+  // payloads or an old executable. All compilation occurs below the new root.
+  ignore(
+    capture(root, "dependencies", "cp", [
+      "-a",
+      probe + "/source/.mooncakes",
+      source + "/.mooncakes",
+    ]),
+  )
+  ignore(
+    capture(root, "build", "systemd-run", [
+      "--user", "--scope", "--quiet", "-p", "MemoryMax=8G", "-p", "MemorySwapMax=0",
+      "timeout", "900", moon, "-C", source, "build", "--release", "--target", "native",
+      "--deny-warn", "--warn-list", "-79-20-29-25", "cmd/lunaflux_qwen3_bf16_candidate_export",
+    ]),
+  )
+  guard @json.parse(
+      @fs.read_file(template + "/serving-export.command.json").text(),
+    )
+    is Array(values) &&
+    values.length() == 27 else {
+    fail("export template")
+  }
+  let command = values.map(v => {
+    guard v is String(text) else { fail("argument") }
+    text
+  })
+  assert_eq(command[24], "--prefill-candidate")
+  assert_eq(command[25], "322")
+  command[0] = source +
+    "/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe"
+  ignore(capture(root, "exporter-identity", "sha256sum", [command[0]]))
+  for (name, id) in [("baseline", 30322), ("candidate", 330322)] {
+    @fs.mkdir(root + "/" + name)
+    let output = root + "/" + name + "-export"
+    let args = command.copy()
+    args[15] = "2048"
+    args[17] = output
+    args[25] = id.to_string()
+    args.push("--prefill-approximate-exp2")
+    ignore(capture(root, name + "-export", args[0], args[1:].to_owned()))
+    for file in ["kernel.cu", "kernel.recipe"] {
+      @fs.write_file(
+        root + "/" + name + "/" + file,
+        @fs.read_file(output + "/reusable-qwen-prefill-attention/" + file),
+        create_mode=CreateNew,
+      )
+    }
+    let recipe = @fs.read_file(root + "/" + name + "/kernel.recipe").text()
+    assert_eq(field(recipe, "candidate_stable_id"), id.to_string())
+    assert_eq(field(recipe, "numeric_law"), "approx-base2-f32-v1")
+    if name == "candidate" {
+      let text = @fs.read_file(root + "/candidate/kernel.cu").text()
+      assert_true(
+        text.contains("lf_key_operand_pipeline(score,a,current_k,reduction);"),
+      )
+      assert_false(text.contains("lf_matrix_mma_key"))
+    }
+    ignore(
+      capture(root, name + "-compile", "/usr/local/cuda-13.0/bin/nvcc", [
+        "--cubin",
+        "--std=c++14",
+        "-arch=sm_121",
+        "-O3",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=" + field(recipe, "max_registers"),
+        "--Werror",
+        "all-warnings",
+        root + "/" + name + "/kernel.cu",
+        "-o",
+        root + "/" + name + "/kernel.cubin",
+      ]),
+    )
+    let digest = capture(
+      root,
+      if name == "baseline" {
+        "baseline-identity"
+      } else {
+        "compiled-identity"
+      },
+      "sha256sum",
+      [root + "/" + name + "/kernel.cubin"],
+    )
+    assert_true(
+      digest.has_prefix(
+        if name == "baseline" {
+          "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb "
+        } else {
+          "301f8fd9db1e0221e4b0b5048d08c03d55ee49f5f50d8ea04e5df33e4582ebf3 "
+        },
+      ),
+    )
+  }
+  @fs.write_file(
+    root + "/prefill.spec",
+    @fs.read_file(base + "/prefill.spec"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/contract.json",
+    rebound(@fs.read_file(base + "/contract.json").text(), base, root),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/PROPAGATION.txt",
+    "source_commit=6d1a8644\ncandidate_id=330322\ncompiled_bytes=identical-to-measured-read-ahead\nproduction_selection=unchanged\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "contract rebinding replaces all artifact and workload paths" {
+  let text = "{\"args\":[\"/old/base\",\"/old/base/c\"],\"artifacts\":[\"/old/base/k\"]}"
+  assert_eq(
+    rebound(text, "/old/base", "/new/root"),
+    "{\"args\":[\"/new/root\",\"/new/root/c\"],\"artifacts\":[\"/new/root/k\"]}",
+  )
+}
