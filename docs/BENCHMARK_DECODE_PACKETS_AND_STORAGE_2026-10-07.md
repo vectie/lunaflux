@@ -131,6 +131,10 @@ validity ownership proof, retain the conservative region where that proof is
 absent, and propagate the resulting launch contract through AOT generation.
 No source-string replacement belongs in that production pass.
 
+The [subsequent storage repair and load-lookahead campaign](BENCHMARK_DECODE_LOAD_LOOKAHEAD_2026-10-07.md)
+implements that pure live-extent legality plan without changing the selected
+reservation. Both load-lookahead variants fail the reliable speedup gate.
+
 ## Remaining work and serving status
 
 The previous exact serving attribution remains authoritative: decode attention

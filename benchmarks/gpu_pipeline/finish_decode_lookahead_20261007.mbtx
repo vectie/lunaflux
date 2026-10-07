@@ -1,0 +1,112 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, counters, base, probe, moon, sealer] else {
+    fail("TRIAL_ROOT COUNTER_ROOT FROZEN_BASE PROBE_ROOT MOON SEALER")
+  }
+  assert_true(
+    @fs.read_file(root + "/paired/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  guard @json.parse(@fs.read_file(root + "/paired/summary.json").text())
+    is Array(records) &&
+    records.length() == 12 else {
+    fail("twelve complete ordinary/chain workloads required")
+  }
+  for index, record in records {
+    guard record is { "label": String(label), .. } else { fail("label") }
+    let rows = @fs.read_file(root + "/paired/w\{index}-\{label}.stdout")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("tokens="))
+      .to_array()
+    assert_eq(rows.length(), 5)
+    for row in rows {
+      assert_eq(
+        row.split(" ").filter(x => x.has_prefix("bitwise=")).to_array(),
+        ["bitwise=true"],
+      )
+      assert_eq(
+        row.split(" ").filter(x => x.has_prefix("maxabs=")).to_array(),
+        ["maxabs=0"],
+      )
+    }
+  }
+  assert_true(
+    @fs.read_file(counters + "/COUNTER_RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  @fs.mkdir(root + "/counter-evidence")
+  for
+    file in [
+      "counter.ncu-rep", "counter-raw.stdout", "counter-source.stdout", "counter-run.stdout",
+      "counter-run.stderr", "counter-run.command.json", "counter-raw.command.json",
+      "counter-source.command.json", "memory.csv", "COUNTER_RESULT.txt", "decode_consumer_window_20261007.mbtx",
+    ] {
+    @fs.write_file(
+      root + "/counter-evidence/" + file,
+      @fs.read_file(counters + "/" + file),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.mkdir(root + "/frozen-control")
+  for file in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/frozen-control/" + file,
+      @fs.read_file(base + "/decode-selected/" + file),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/frozen-control/check-probe",
+    @fs.read_file(probe + "/check-probe"),
+    create_mode=CreateNew,
+  )
+  for
+    unit in [
+      "lunaflux-decode-lookahead-build-20261007-5ggIhQYP", "lunaflux-decode-lookahead-run-20261007-5ggIhQYP",
+      "lunaflux-lookahead-counters-20261007-dzAfwYdv",
+    ] {
+    let journal = @shell.Cmd("journalctl", ["--user", "-u", unit, "--no-pager"]).output(
+      max_output_bytes=16777216,
+    )
+    journal.check()
+    @fs.write_file(
+      root + "/" + unit + ".journal.txt",
+      journal.stdout(),
+      create_mode=CreateNew,
+    )
+    let status = @shell.Cmd("systemctl", [
+      "--user", "show", unit, "-p", "ActiveState", "-p", "ExecMainStatus", "-p",
+      "MemoryMax", "-p", "MemorySwapMax", "-p", "RuntimeMaxUSec",
+    ]).output()
+    status.check()
+    assert_true(status.stdout().contains("ActiveState=inactive"))
+    assert_true(status.stdout().contains("ExecMainStatus=0"))
+    @fs.write_file(
+      root + "/" + unit + ".status.txt",
+      status.stdout(),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=two strict score-load lookahead ablations, 60 paired rows, ordinary and full split chains; matched C16 replay counters\ncorrectness=bitwise equality and zero baseline output difference in every captured trial\ndecision=no production variant promoted; no stable all-pairs gain at 1 percent\nserving=unchanged; no new end-to-end throughput claim\n",
+    create_mode=CreateNew,
+  )
+  let output = @shell.Cmd(moon, ["run", sealer, root]).output(
+    max_output_bytes=33554432,
+  )
+  output.check()
+  println(output.stdout())
+}

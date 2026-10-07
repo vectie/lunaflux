@@ -1,0 +1,256 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+// Bounded offline scheduling ablation. Ownership, component order, numeric
+// law, launch geometry and copy pipeline remain frozen. Unlike score packets,
+// this preloads independent scalar operands without permuting the dot fold.
+fn score_loop(complete : Bool) -> String {
+  let original =
+    #|      for (int item = 0; item < LF_SCORE_QUERY_ITEMS; ++item) {
+    #|        const int component = LF_SCORE_COMPONENT(item);
+    #|        if (key < active_keys && component < LF_HEAD_DIMENSION)
+    #|          dot += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
+    #|      }
+  if complete {
+    original.replace(old="key < active_keys && component", new="component")
+  } else {
+    original
+  }
+}
+
+///|
+fn lookahead_loop(width : Int, complete : Bool) -> String {
+  let predicate = if complete { "" } else { "key < active_keys && " }
+  (
+    $|      for (int item = 0; item < LF_SCORE_QUERY_ITEMS; item += \{width}) {
+    $|        float products[\{width}] = {};
+    $|        #pragma unroll
+    $|        for (int ahead = 0; ahead < \{width}; ++ahead) {
+    $|          const int component = LF_SCORE_COMPONENT(item + ahead);
+    $|          if (\{predicate}component < LF_HEAD_DIMENSION)
+    $|            products[ahead] = query_fragment[item + ahead] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
+    $|        }
+    $|        #pragma unroll
+    $|        for (int ahead = 0; ahead < \{width}; ++ahead) {
+    $|          const int component = LF_SCORE_COMPONENT(item + ahead);
+    $|          if (\{predicate}component < LF_HEAD_DIMENSION) dot += products[ahead];
+    $|        }
+    $|      }
+  )
+}
+
+///|
+fn transform(source : String, width : Int) -> String raise {
+  assert_true(width == 2 || width == 4)
+  let definitions = source
+    .split("\n")
+    .filter(x => x.has_prefix("#define LF_SCORE_QUERY_ITEMS "))
+    .to_array()
+  assert_eq(definitions, [
+    "#define LF_SCORE_QUERY_ITEMS 32", "#define LF_SCORE_QUERY_ITEMS 32",
+  ])
+  for output = source, index = 0; index < 2; {
+    let complete = index == 0
+    let old = score_loop(complete)
+    assert_eq(output.split(old).length(), 3)
+    continue output.split(old).to_array().join(lookahead_loop(width, complete)),
+      index + 1
+  } nobreak {
+    output
+  }
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode, moon] else {
+    fail("FROZEN_BASE PROBE_ROOT NEW_ROOT build|run MOON")
+  }
+  let frozen = base + "/decode-selected"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  if mode == "build" {
+    assert_true(
+      capture(root, "source", "sha256sum", [frozen + "/kernel.cu"]).has_prefix(
+        "dc9f5a1a30e0d2f969f7a9e82cdcc7b8b9a8c80f2058c698b19ea9416e9d43b6 ",
+      ),
+    )
+    assert_true(
+      capture(root, "nvcc", "sha256sum", [nvcc]).has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    let original = @fs.read_file(frozen + "/kernel.cu").text()
+    let recipe = @fs.read_file(frozen + "/kernel.recipe").text()
+    for width in [2, 4] {
+      let directory = root + "/l\{width}"
+      @fs.mkdir(directory)
+      @fs.write_file(
+        directory + "/kernel.cu",
+        transform(original, width),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        directory + "/kernel.recipe",
+        recipe + "diagnostic_only=true\n",
+        create_mode=CreateNew,
+      )
+      ignore(
+        capture(root, "l\{width}-compile", nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--Werror",
+          "all-warnings",
+          "--maxrregcount=255",
+          "-Xptxas=-v",
+          "-cubin",
+          directory + "/kernel.cu",
+          "-o",
+          directory + "/kernel.cubin",
+        ]),
+      )
+      ignore(
+        capture(root, "l\{width}-identity", "sha256sum", [
+          directory + "/kernel.cu",
+          directory + "/kernel.cubin",
+        ]),
+      )
+    }
+    return
+  }
+  guard mode == "run" else { fail("mode") }
+  let probe = probe_root + "/check-probe"
+  assert_true(
+    capture(root, "probe", "sha256sum", [probe]).has_prefix(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  let workloads : Array[Json] = []
+  let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+  assert_eq(spec.split("maximum_rows=32\n").length(), 2)
+  for width in [2, 4] {
+    for partitioned in [false, true] {
+      for
+        (rows, envelope, history) in [
+          (16, 16, 4095),
+          (2, 8, 32767),
+          (1, 1, 127),
+        ] {
+        let label = "l\{width}-\{if partitioned { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+        @fs.write_file(
+          root + "/" + label + ".spec",
+          spec.replace(
+            old="maximum_rows=32\n",
+            new="maximum_rows=\{envelope}\n",
+          ),
+          create_mode=CreateNew,
+        )
+        let args = [
+          root + "/" + label + ".spec",
+          frozen,
+          root + "/l\{width}",
+          rows.to_string(),
+          rows.to_string(),
+          history.to_string(),
+          "--decode-envelope",
+        ]
+        if partitioned {
+          args.push("--decode-partitioned")
+        }
+        workloads.push({ "label": label, "args": args })
+      }
+    }
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.01,
+    "require_bitwise": true,
+    "program": probe,
+    "artifacts": [
+      frozen + "/kernel.cubin",
+      root + "/l2/kernel.cubin",
+      root + "/l4/kernel.cubin",
+    ],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "paired", moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      root + "/contract.json",
+      root + "/paired",
+    ]),
+  )
+}
+
+///|
+test "lookahead reaches both terminals without changing ownership or fold order" {
+  let compilation = [
+    for _ in 0..<2 => {
+      "#define LF_SCORE_QUERY_ITEMS 32\n" +
+      score_loop(true) +
+      "\n" +
+      score_loop(false)
+    }
+  ].join("\n")
+  for width in [2, 4] {
+    let source = transform(compilation, width)
+    assert_eq(source.split("float products[\{width}] = {};").length(), 5)
+    assert_false(source.contains(score_loop(false)))
+    assert_false(source.contains(score_loop(true)))
+    // Consecutive increasing logical items preserve each owner-local recurrence.
+    let order = [
+      for base = 0; base < 32; base = base + width => {
+        [
+          for ahead in 0..<width => base + ahead
+        ]
+      }
+    ].flatten()
+    assert_eq(order, [ for i in 0..<32 => i ])
+    assert_true(source.contains("dot += products[ahead];"))
+  }
+}
