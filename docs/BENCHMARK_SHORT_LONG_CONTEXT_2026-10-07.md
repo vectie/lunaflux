@@ -12,6 +12,11 @@ These are fixed-work throughput comparisons. Several complete generated
 token vectors differ across engines, and some batched vectors vary within an
 engine. The measurements do not establish numerical or language-quality parity.
 
+The subsequent [mixed calibration repair](BENCHMARK_MIXED_CALIBRATION_REPAIR_2026-10-07.md)
+reduces 8K/C8 LunaFlux completion time to 4972 ms and raises throughput to
+102.98 tok/s. The original frozen-selection measurements below remain intact;
+the repair is a separate alternating campaign with selected-route verification.
+
 ## Workload and timing boundary
 
 Eleven cells run on each engine in two fresh starts. Each start has one warmup

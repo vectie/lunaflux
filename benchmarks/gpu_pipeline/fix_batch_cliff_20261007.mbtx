@@ -1,0 +1,413 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".exit.txt",
+    r.exit_code().to_string(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  println("completed=" + name)
+  r.stdout()
+}
+
+///|
+fn median(text : String, key : String) -> Int64 raise {
+  let xs : Array[Double] = []
+  for s in text.split("\n").filter(s => s.has_prefix("tokens=")) {
+    guard s.split(" ").filter(p => p.has_prefix(key + "=")).to_array() is [p] else {
+      fail("sample")
+    }
+    xs.push(@string.parse_double(p[key.length() + 1:]))
+  }
+  assert_eq(xs.length(), 5)
+  xs.sort()
+  (xs[2] * 1000.0).to_int64()
+}
+
+///|
+fn arguments(text : String) -> Array[String] raise {
+  guard @json.parse(text) is Array(xs) else { fail("command") }
+  xs.map(x => {
+    guard x is String(s) else { fail("argument") }
+    s
+  })
+}
+
+///|
+async fn sha(path : String) -> String {
+  let r = @shell.Cmd("sha256sum", [path]).output()
+  r.check()
+  r.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+fn chain_arguments(
+  spec : String,
+  old : String,
+  wide : String,
+  decode : String,
+  rows : Int,
+  queries : Int,
+  context : Int,
+  prefill_rows : Int,
+  split : Bool,
+) -> Array[String] {
+  let current = (queries - (rows - prefill_rows) + prefill_rows - 1) /
+    prefill_rows
+  [
+    spec,
+    if split {
+      wide
+    } else {
+      old
+    },
+    wide,
+    queries.to_string(),
+    rows.to_string(),
+    (context - current).to_string(),
+    if split {
+      "--mixed-decode-chain"
+    } else {
+      "--mixed-ordinary-chain"
+    },
+    decode,
+    "--decode-history",
+    (context - 1).to_string(),
+    "--prefill-rows",
+    prefill_rows.to_string(),
+  ]
+}
+
+///|
+test "concentrated mixed domain matches the token budget and independent decode history" {
+  let concentrated = chain_arguments(
+    "s", "o", "w", "d", 8, 2048, 8192, 1, false,
+  )
+  assert_eq(concentrated[5], "6151")
+  assert_eq(concentrated[9], "8191")
+  assert_eq(concentrated[11], "1")
+  assert_eq(
+    chain_arguments("s", "o", "w", "d", 8, 2048, 8192, 7, true)[5],
+    "7899",
+  )
+  assert_eq(
+    median(
+      "tokens=1 new_us=5\ntokens=1 new_us=2\ntokens=1 new_us=3\ntokens=1 new_us=1\ntokens=1 new_us=4",
+      "new_us",
+    ),
+    3000L,
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    ["prepare", "measure", "measure-all-mixed", "materialize"].contains(mode) else {
+    fail("NEW_ROOT prepare|measure|measure-all-mixed|materialize")
+  }
+  guard root.has_prefix("/home/wlc004s/lunaflux-batch-cliff-fix-") else {
+    fail("dedicated directory")
+  }
+  let frozen = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z"
+  let repair = "/home/wlc004s/lunaflux-propagation-repair-20261006.kKDWuXV4"
+  let mixed = "/home/wlc004s/lunaflux-mixed-decode-fix-20261006.ckcbaxXd"
+  let moon = frozen + "/toolchain/bin/moon"
+  if mode == "prepare" {
+    for
+      (name, target) in [
+        ("source", frozen + "/source"),
+        ("toolchain", frozen + "/toolchain"),
+      ] {
+      @shell.Cmd("ln", ["-s", target, root + "/" + name]).run()
+    }
+    for
+      (name, cubin) in [
+        ("prefill-selected", repair + "/fused/prefill.cubin"),
+        ("wide-prefill-selected", repair + "/attention-first.cubin"),
+        (
+          "decode-selected", "/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/fused/attention.cubin",
+        ),
+      ] {
+      @fs.mkdir(root + "/" + name)
+      @fs.write_file(
+        root + "/" + name + "/kernel.recipe",
+        @fs.read_file(repair + "/" + name + "/kernel.recipe"),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/" + name + "/kernel.cubin",
+        @fs.read_file(cubin),
+        create_mode=CreateNew,
+      )
+    }
+    @shell.Cmd("cp", [
+      "-a",
+      repair + "/calibration-spec",
+      root + "/calibration-spec",
+    ]).run()
+    assert_eq(
+      sha("/usr/local/cuda-13.0/bin/nvcc"),
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+    )
+    ignore(
+      capture(root, "compile-probe", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "--std=c++17",
+        "-arch=sm_121",
+        root + "/selected_policy_probe.cu",
+        "-lcuda",
+        "-o",
+        root + "/check-probe",
+      ]),
+    )
+    ignore(
+      capture(root, "geometry-test-build", "c++", [
+        "-std=c++17",
+        root + "/selected_policy_geometry_test.cpp",
+        "-o",
+        root + "/geometry-test",
+      ]),
+    )
+    ignore(capture(root, "geometry-test", root + "/geometry-test", []))
+    return
+  }
+  if mode == "measure" || mode == "measure-all-mixed" {
+    assert_eq(
+      capture(root, "device", "nvidia-smi", [
+        "--query-gpu=uuid", "--format=csv,noheader",
+      ]).trim(),
+      "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    )
+    assert_true(
+      capture(root, "idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    guard @fs.read_file("/proc/meminfo")
+      .text()
+      .split("\n")
+      .filter(s => s.has_prefix("MemAvailable:"))
+      .to_array()
+      is [mem] else {
+      fail("memory")
+    }
+    assert_true(
+      @string.parse_int64(
+        mem.split(" ").filter(s => !s.is_empty()).to_array()[1],
+      ) >=
+      33554432L,
+    )
+    let prior = @fs.read_file(frozen + "/routes.v2").text()
+    let measured_rows = if mode == "measure-all-mixed" {
+      [2, 4, 8]
+    } else {
+      [8]
+    }
+    let fresh : Array[String] = []
+    // Both extrema of row distribution: one producing prefill row versus
+    // one decode row. Preserve the conservative complete-chain envelope.
+    for rows in measured_rows {
+      for context in [2048, 4096, 8192, 16384, 32768] {
+        if context > Int::min(32768, 131072 / rows) {
+          continue
+        }
+        let times : Array[(Int64, Int64, Int64)] = []
+        for prefill_rows in (if rows == 2 { [1] } else { [1, rows - 1] }) {
+          let args = chain_arguments(
+            root + "/calibration-spec/prefill.spec",
+            root + "/prefill-selected",
+            root + "/wide-prefill-selected",
+            root + "/decode-selected",
+            rows,
+            2048,
+            context,
+            prefill_rows,
+            false,
+          )
+          let ordinary = capture(
+            root,
+            "mixed-r\{rows}-h\{context}-p\{prefill_rows}",
+            root + "/check-probe",
+            args,
+          )
+          let split = capture(
+            root,
+            "split-r\{rows}-h\{context}-p\{prefill_rows}",
+            root + "/check-probe",
+            chain_arguments(
+              root + "/calibration-spec/prefill.spec",
+              root + "/prefill-selected",
+              root + "/wide-prefill-selected",
+              root + "/decode-selected",
+              rows,
+              2048,
+              context,
+              prefill_rows,
+              true,
+            ),
+          )
+          times.push(
+            (
+              median(ordinary, "old_us"),
+              median(ordinary, "new_us"),
+              median(split, "new_us"),
+            ),
+          )
+        }
+        for id in [1, 2, 7] {
+          let mut maximum = 0L
+          for (a, b, c) in times {
+            maximum = Int64::max(
+              maximum,
+              if id == 1 {
+                a
+              } else if id == 2 {
+                b
+              } else {
+                c
+              },
+            )
+          }
+          fresh.push(
+            "record\tmixed\t\{rows}\t2048\t\{context}\t\{id}\t\{maximum}\t5",
+          )
+        }
+      }
+    }
+    // The artifact identity is unchanged. No fabricated latencies or relabeled
+    // baseline: only formerly absent mixed buckets are added.
+    let retained = prior
+      .split("\n")
+      .filter(line => {
+        let parts = line.split("\t").to_array()
+        !(parts.length() == 8 &&
+        parts[0] == "record" &&
+        parts[1] == "mixed" &&
+        parts[3] == "2048" &&
+        measured_rows.any(rows => parts[2] == rows.to_string()))
+      })
+      .to_array()
+      .join("\n")
+      .trim_end()
+      .to_owned() +
+      "\n"
+    @fs.write_file(
+      root + "/routes.v1",
+      retained + fresh.join("\n") + "\n",
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+    println(fresh.join("\n"))
+    return
+  }
+  let serving = root + "/serving"
+  @fs.mkdir(serving)
+  for
+    (name, path) in [
+      ("source", frozen + "/source"),
+      ("toolchain", frozen + "/toolchain"),
+      ("release", frozen + "/serving/release"),
+    ] {
+    @shell.Cmd("ln", ["-s", path, serving + "/" + name]).run()
+  }
+  for
+    name in [
+      "bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1", "prepare.mbtx",
+    ] {
+    @fs.write_file(
+      serving + "/" + name,
+      @fs.read_file(frozen + "/serving/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.mkdir(serving + "/fused-routed")
+  let command = arguments(
+    @fs.read_file(mixed + "/rebind-v2.command.json").text(),
+  )
+  let target = serving + "/fused-routed/reusable-fused-runtime-bundle.v3"
+  let args = command[1:].map(s => {
+    if s == mixed + "/serving/fused-routed/reusable-fused-runtime-bundle.v3" {
+      target
+    } else {
+      s
+    }
+  })
+  guard args.length() > 3 &&
+    args[args.length() - 3] == "--attention-buckets" &&
+    args.contains(target) else {
+    fail("canonical export command")
+  }
+  args[args.length() - 2] = root + "/routes.v1"
+  args[args.length() - 1] = sha(root + "/routes.v1")
+  let exporter = frozen +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe"
+  assert_eq(
+    sha(exporter),
+    "04f9aa1f5e7ad7757576ec5c2f77f59f1b310325e633d877c426375eb3071eb2",
+  )
+  ignore(capture(root, "rebind", exporter, args))
+  ignore(
+    capture(root, "materialize", moon, [
+      "run",
+      serving + "/prepare.mbtx",
+      serving,
+      "materialize",
+    ]),
+  )
+  let long = serving + "/long-final"
+  @fs.mkdir(long)
+  for name in ["source", "toolchain"] {
+    @shell.Cmd("ln", ["-s", frozen + "/" + name, long + "/" + name]).run()
+  }
+  @fs.write_file(
+    long + "/export.stdout",
+    @fs.read_file(serving + "/export.stdout"),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "long", moon, [
+      "run",
+      frozen + "/prepare-long.mbtx",
+      serving,
+      long,
+    ]),
+  )
+  @fs.write_file(
+    root + "/PREPARED.txt",
+    "outcome=prepared\nscope=unchanged-kernels-complete-mixed-route-repair-not-deployment\n",
+    create_mode=CreateNew,
+  )
+}

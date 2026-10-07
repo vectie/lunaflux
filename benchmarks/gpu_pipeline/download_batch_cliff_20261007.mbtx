@@ -1,0 +1,79 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, destination, .. roots] && !roots.is_empty() else {
+    fail("NEW_LOCAL_DIRECTORY SEALED_REMOTE_ROOT ...")
+  }
+  for root in roots {
+    guard root.has_prefix("/home/wlc004s/lunaflux-batch-cliff-") else {
+      fail("dedicated evidence root")
+    }
+    let name = root.split("/").to_array().last().unwrap().to_owned()
+    let archive = destination + "/" + name + ".verified.tar.gz"
+    assert_false(@fs.exists(archive))
+    assert_false(@fs.exists(archive + ".sha256"))
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=/tmp/lunaflux-spark179-opt-20261007.sock",
+      "-P",
+      "10422",
+      "wlc004s@106.39.18.146:" + root + ".verified.tar.gz",
+      "wlc004s@106.39.18.146:" + root + ".verified.tar.gz.sha256",
+      destination,
+    ]).run()
+    let expected = @fs.read_file(archive + ".sha256")
+    .text()
+    .split(" ")
+    .to_array()[0].to_owned()
+    let hash = @shell.Cmd("shasum", ["-a", "256", archive]).output()
+    hash.check()
+    assert_eq(hash.stdout().split(" ").to_array()[0], expected)
+    let members = @shell.Cmd("tar", ["-tzf", archive]).output(
+      max_output_bytes=33554432,
+    )
+    members.check()
+    for path in members.stdout().split("\n").filter(x => !x.is_empty()) {
+      assert_true(path.has_prefix("./"))
+      assert_false(path.split("/").any(x => x == ".."))
+    }
+    let extracted = destination + "/" + name
+    @fs.mkdir(extracted)
+    @shell.Cmd("tar", ["-xzf", archive, "-C", extracted]).run()
+    let checked = @shell.Cmd(
+      "shasum",
+      ["-a", "256", "--check", "FILES.sha256"],
+      cwd=extracted,
+    ).output(max_output_bytes=33554432)
+    @fs.write_file(
+      destination + "/" + name + ".local-manifest-check.stdout",
+      checked.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      destination + "/" + name + ".local-manifest-check.stderr",
+      checked.stderr(),
+      create_mode=CreateNew,
+    )
+    checked.check()
+    println(
+      name +
+      " sha256=" +
+      expected +
+      " verified_members=" +
+      members
+      .stdout()
+      .split("\n")
+      .filter(x => !x.is_empty())
+      .to_array()
+      .length()
+      .to_string(),
+    )
+  }
+}

@@ -1,0 +1,78 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn get(value : Json, key : String) -> Json raise {
+  guard value is Object(fields) && fields.get(key) is Some(x) else { fail(key) }
+  x
+}
+
+///|
+fn changed(value : Json) -> String raise {
+  guard value is Array(xs) else { fail("agreement") }
+  "\{xs.filter(x => x == Json(false)).length()}/\{xs.length()}"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, .. paths] && !paths.is_empty() else {
+    fail("COMPARISON_OR_ANALYSIS_JSON ...")
+  }
+  for path in paths {
+    let value = @json.parse(@fs.read_file(path).text())
+    println(path)
+    if value is { "cells": Array(cells), .. } {
+      for cell in cells {
+        println(
+          "cell=" +
+          get(cell, "cell").stringify() +
+          " reduction=" +
+          get(cell, "completion_reduction").stringify(),
+        )
+        guard get(cell, "sides") is Array(sides) else { fail("sides") }
+        for side in sides {
+          println(
+            "  " +
+            get(side, "side").stringify() +
+            " wall_ms=" +
+            get(side, "median_wall_ms").stringify() +
+            " tok_s=" +
+            get(side, "output_tok_s").stringify() +
+            " ttft_ms=" +
+            get(side, "ttft_ms").stringify() +
+            " tpot_ms=" +
+            get(side, "tpot_ms").stringify() +
+            " min_free_kib=" +
+            get(side, "minimum_mem_available_kib").stringify() +
+            " within_changed=" +
+            changed(get(side, "within_side_equal")) +
+            " cross_changed=" +
+            changed(get(side, "cross_side_equal")),
+          )
+        }
+      }
+    } else if value is { "groups": Array(groups), .. } {
+      for
+        key in [
+          "engine", "cell", "wall_ms", "activity_union_ns", "no_gpu_activity_ns",
+        ] {
+        println(key + "=" + get(value, key).stringify())
+      }
+      for group in groups[:Int::min(10, groups.length())] {
+        println(group.stringify())
+      }
+    } else {
+      fail("unsupported report")
+    }
+  }
+}
+
+///|
+test "agreement counts preserve the complete vector boundary" {
+  assert_eq(changed([true, false, false]), "2/3")
+}

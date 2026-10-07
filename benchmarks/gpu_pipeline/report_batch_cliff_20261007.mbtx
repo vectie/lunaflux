@@ -1,0 +1,218 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn get(v : Json, k : String) -> Json raise {
+  guard v is Object(fields) && fields.get(k) is Some(x) else { fail(k) }
+  x
+}
+
+///|
+fn number(v : Json) -> Double raise {
+  match v {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(xs : Array[Double]) -> Double raise {
+  assert_true(!xs.is_empty())
+  let ordered = xs.copy()
+  ordered.sort()
+  (ordered[(ordered.length() - 1) / 2] + ordered[ordered.length() / 2]) / 2.0
+}
+
+///|
+fn field(s : String, k : String) -> String raise {
+  guard s.split("\n").filter(x => x.has_prefix(k + "=")).to_array() is [line] else {
+    fail(k)
+  }
+  line[k.length() + 1:].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, old_serving, new_serving] else {
+    fail("TERMINAL_ABBA BASELINE_SERVING CANDIDATE_SERVING")
+  }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  let bundles = [
+    @fs.read_file(
+      old_serving +
+      "/deployment/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3",
+    ).text(),
+    @fs.read_file(
+      new_serving +
+      "/deployment/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3",
+    ).text(),
+  ]
+  // Selection-only experiment: every executable module and mathematical law
+  // must remain identical; route records are the only permitted bundle change.
+  for i in 0..<9 {
+    assert_eq(
+      field(bundles[0], "module_\{i}_module_sha256"),
+      field(bundles[1], "module_\{i}_module_sha256"),
+    )
+  }
+  let reports : Array[Json] = []
+  for
+    cell in [
+      "i8192-o64-c8-varied", "i4096-o64-c16-varied", "i128-o256-c1-varied", "i32512-o64-c2-varied",
+    ] {
+    let bodies : Map[Int, String] = Map([])
+    let first : Map[(Int, Int), Json] = Map([])
+    let sides : Array[Json] = []
+    let walls : Array[Double] = []
+    let arm_walls : Array[Array[Double]] = []
+    for (side, starts) in [(0, [0, 3]), (1, [1, 2])] {
+      let elapsed : Array[Double] = []
+      let ttft : Array[Double] = []
+      let tpot : Array[Double] = []
+      let throughput : Array[Double] = []
+      let vectors : Array[Json] = []
+      let within : Array[Bool] = []
+      let cross : Array[Bool] = []
+      let per_start : Array[Double] = []
+      let mut free_min = 1.0e15
+      for start in starts {
+        let run = root + "/s\{start}/r0-luna-full"
+        assert_true(
+          @fs.read_file(run + "/RESULT.txt")
+          .text()
+          .has_prefix("outcome=completed\n"),
+        )
+        assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+        let closed = @fs.read_file(run + "/supervisor.stdout").text()
+        for
+          marker in [
+            "drain_acknowledged=1", "child_exit_code=0", "child_closed=1",
+          ] {
+          assert_true(closed.contains(marker))
+        }
+        for
+          line in @fs.read_file(run + "/memory.csv")
+          .text()
+          .split("\n")
+          .filter(s => !s.is_empty()) {
+          let free = @string.parse_double(line.split(",").to_array()[1])
+          assert_true(free >= 33554432.0)
+          free_min = Double::min(free_min, free)
+        }
+        let samples : Array[Double] = []
+        for trial in 0..<4 {
+          let wave = @json.parse(
+            @fs.read_file(run + "/requests/" + cell + "-t\{trial}.json").text(),
+          )
+          assert_eq(get(wave, "warmup"), Json(trial == 0))
+          guard get(wave, "requests") is Array(requests) else {
+            fail("requests")
+          }
+          for row, req in requests {
+            let body = @fs.read_file(
+              run + "/requests/" + cell + "-t\{trial}-r\{row}.body.json",
+            ).text()
+            match bodies.get(row) {
+              Some(prior) => assert_eq(body, prior)
+              None => bodies[row] = body
+            }
+            let ids = get(req, "token_ids")
+            guard ids is Array(tokens) &&
+              tokens.length().to_double() == number(get(wave, "output")) else {
+              fail("complete output")
+            }
+            if trial > 0 {
+              match first.get((side, row)) {
+                Some(prior) => within.push(prior == ids)
+                None => first[(side, row)] = ids
+              }
+              if side == 1 {
+                cross.push(first[(0, row)] == ids)
+              }
+            }
+            vectors.push({
+              "start": start,
+              "trial": trial,
+              "row": row,
+              "ids": ids,
+              "token_ms": get(req, "token_ms"),
+            })
+            if trial > 0 {
+              ttft.push(number(get(req, "ttft_ms")))
+              tpot.push(number(get(req, "mean_tpot_ms")))
+            }
+          }
+          if trial > 0 {
+            let wall = number(get(wave, "wall_ms"))
+            elapsed.push(wall)
+            samples.push(wall)
+            throughput.push(number(get(wave, "output_tokens_per_second")))
+          }
+        }
+        per_start.push(median(samples))
+      }
+      assert_eq(elapsed.length(), 6)
+      walls.push(median(elapsed))
+      arm_walls.push(per_start)
+      println(
+        "\{cell} side=\{side} tok_s=\{median(throughput)} ttft_ms=\{median(ttft)} tpot_ms=\{median(tpot)} min_free_kib=\{free_min} within_changed=\{within.filter(x => !x).length()}/\{within.length()} cross_changed=\{cross.filter(x => !x).length()}/\{cross.length()}",
+      )
+      sides.push({
+        "side": if side == 0 {
+          "baseline"
+        } else {
+          "candidate"
+        },
+        "wall_ms": elapsed,
+        "median_wall_ms": median(elapsed),
+        "output_tok_s": median(throughput),
+        "ttft_ms": median(ttft),
+        "tpot_ms": median(tpot),
+        "minimum_mem_available_kib": free_min,
+        "within_side_equal": within,
+        "cross_side_equal": cross,
+        "vectors": vectors,
+      })
+    }
+    let gain = 1.0 - walls[1] / walls[0]
+    let paired = [
+      1.0 - arm_walls[1][0] / arm_walls[0][0],
+      1.0 - arm_walls[1][1] / arm_walls[0][1],
+    ]
+    reports.push({
+      "cell": cell,
+      "completion_reduction": gain,
+      "paired_reductions": paired,
+      "sides": sides,
+    })
+    println(
+      "\{cell} old=\{walls[0]} new=\{walls[1]} ms gain=\{gain} paired=\{paired[0]},\{paired[1]}",
+    )
+  }
+  @fs.write_file(
+    root + "/comparison.json",
+    (
+      {
+        "schema": "lunaflux.batch-cliff-abba.v1",
+        "modules": "all-nine-unchanged",
+        "scope": "four unprofiled ABBA fresh starts; raw request vectors retained; not quality parity or production promotion",
+        "cells": reports,
+      } : Json).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "even medians and unique artifact identities" {
+  assert_eq(median([4.0, 1.0, 3.0, 2.0]), 2.5)
+  assert_eq(field("x=1\ny=2\n", "x"), "1")
+}

@@ -58,11 +58,17 @@ async fn main {
       diagnostic,
       .. options,
     ] &&
-    options.all(option => option == "--core-gaps" || option == "--luna-only") &&
+    options.all(option => {
+      option == "--core-gaps" ||
+      option == "--batch-cliff" ||
+      option == "--luna-only"
+    }) &&
     options.filter(option => option == "--core-gaps").length() <= 1 &&
+    options.filter(option => option == "--batch-cliff").length() <= 1 &&
+    !(options.contains("--core-gaps") && options.contains("--batch-cliff")) &&
     options.filter(option => option == "--luna-only").length() <= 1 else {
     fail(
-      "REPAIRED_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER FROZEN_CLIENT MOON DIAGNOSTIC_PARENT [--core-gaps] [--luna-only]",
+      "REPAIRED_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER FROZEN_CLIENT MOON DIAGNOSTIC_PARENT [--core-gaps|--batch-cliff] [--luna-only]",
     )
   }
   let launcher = @fs.read_file(template).text()
@@ -76,7 +82,9 @@ async fn main {
   guard rest.split("///|\nfn token_ids").to_array() is [_, suffix] else {
     fail("matrix end")
   }
-  let cells = if !options.contains("--core-gaps") {
+  let cells = if options.contains("--batch-cliff") {
+    batch_cliff_cells()
+  } else if !options.contains("--core-gaps") {
     "[(\"i128-o256-c1-varied\",[128],256,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]"
   } else {
     "[(\"i4096-o64-c16-varied\",inputs(4096,16),64,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]"
@@ -258,10 +266,29 @@ async fn main {
   @fs.write_file(
     root + "/RESULT.txt",
     "outcome=completed\nscope=" +
-    (if !options.contains("--core-gaps") { "32K-C2-and-short" } else { "4K-C16-and-32K-C2" }) +
+    (if options.contains("--batch-cliff") {
+      "8K-C8-and-4K-C16"
+    } else if !options.contains("--core-gaps") {
+      "32K-C2-and-short"
+    } else {
+      "4K-C16-and-32K-C2"
+    }) +
     "-selected-traces; not unprofiled throughput\n",
     create_mode=CreateNew,
   )
+}
+
+///|
+fn batch_cliff_cells() -> String {
+  "[(\"i8192-o64-c8-varied\",inputs(8192,8),64,\"varied\"),(\"i4096-o64-c16-varied\",inputs(4096,16),64,\"varied\")]"
+}
+
+///|
+test "batch cliff trace preserves equal aggregate prompt work and fixed output lengths" {
+  let cells = batch_cliff_cells()
+  assert_true(cells.contains("inputs(8192,8),64"))
+  assert_true(cells.contains("inputs(4096,16),64"))
+  assert_eq(8192 * 8, 4096 * 16)
 }
 
 ///|

@@ -1,0 +1,106 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [before, after] else {
+    fail("unique frozen seam: " + old)
+  }
+  before.to_owned() + fresh + after.to_owned()
+}
+
+///|
+fn cells() -> String {
+  "[(\"i8192-o64-c8-varied\",inputs(8192,8),64,\"varied\"),(\"i4096-o64-c16-varied\",inputs(4096,16),64,\"varied\"),(\"i128-o256-c1-varied\",[128],256,\"varied\"),(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")]"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, baseline, candidate, root, template] else {
+    fail("BASELINE CANDIDATE NEW_ROOT FROZEN_LAUNCHER")
+  }
+  let resolved = @shell.Cmd("realpath", ["-e", baseline + "/source"]).output()
+  resolved.check()
+  let canonical = resolved.stdout().trim().to_owned()
+  let launcher = once(
+    @fs.read_file(template).text(),
+    "let cmd = \"/home/wlc004s/lunaflux-ako-query-chunks-20261005.PCwRF4kW/source/_build/native/release/build/cmd/\"",
+    "let cmd = " +
+    Json(canonical + "/_build/native/release/build/cmd/").stringify(),
+  )
+  let launcher = once(
+    launcher, "  let orders = [[\"vllm\", \"luna-full\", \"sglang\"], [\"sglang\", \"luna-full\", \"vllm\"]]",
+    "  let orders = [[\"luna-full\"]]",
+  )
+  let launcher = once(
+    launcher, "\n  let idle = @shell.Cmd(\"nvidia-smi\", [", "\n  let identity = @shell.Cmd(\"nvidia-smi\",[\"--query-gpu=uuid\",\"--format=csv,noheader\"]).output()\n  identity.check()\n  assert_eq(identity.stdout().trim(),\"GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6\")\n  let idle = @shell.Cmd(\"nvidia-smi\", [",
+  )
+  let client = @fs.read_file(template + ".client.mbtx").text()
+  guard client
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+    is [before, rest] &&
+    rest.split("///|\nfn token_ids").to_array() is [_, after] else {
+    fail("client matrix")
+  }
+  let script = root + "/launcher.mbtx"
+  @fs.write_file(script, launcher, create_mode=CreateNew)
+  @fs.write_file(
+    script + ".client.mbtx",
+    before.to_owned() +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n" +
+    cells() +
+    "\n}\n\n///|\nfn token_ids" +
+    after.to_owned(),
+    create_mode=CreateNew,
+  )
+  let moon = baseline + "/toolchain/bin/moon"
+  for file in [script, script + ".client.mbtx"] {
+    @shell.Cmd(moon, ["check", file, "--deny-warn"]).run()
+  }
+  for
+    (index, serving) in [baseline, candidate, candidate, baseline].mapi((i, s) => {
+      (i, s)
+    }) {
+    let out = root + "/s\{index}"
+    @fs.mkdir(out)
+    let args = ["run", script, serving, out, script]
+    @fs.write_file(
+      root + "/s\{index}.command.json",
+      Json([moon, ..args]).stringify(),
+      create_mode=CreateNew,
+    )
+    let r = @shell.Cmd(moon, args).output(max_output_bytes=33554432)
+    @fs.write_file(
+      root + "/s\{index}.stdout",
+      r.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/s\{index}.stderr",
+      r.stderr(),
+      create_mode=CreateNew,
+    )
+    r.check()
+    println("completed=s\{index}")
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=unprofiled-four-start-ABBA-unchanged-kernels-mixed-route-selection\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "controls span short, batch cliff, equal token work and long contexts" {
+  for cell in ["i8192-o64-c8", "i4096-o64-c16", "i128-o256-c1", "i32512-o64-c2"] {
+    assert_true(cells().contains(cell))
+  }
+  assert_eq(once("abc", "b", "d"), "adc")
+}

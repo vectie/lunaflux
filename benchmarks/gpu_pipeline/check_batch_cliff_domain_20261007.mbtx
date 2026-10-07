@@ -1,0 +1,66 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("PREPARED_FIX_ROOT") }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  let args = [
+    "--tool",
+    "memcheck",
+    "--error-exitcode",
+    "99",
+    root + "/check-probe",
+    root + "/calibration-spec/prefill.spec",
+    root + "/prefill-selected",
+    root + "/wide-prefill-selected",
+    "2048",
+    "8",
+    "6151",
+    "--mixed-ordinary-chain",
+    root + "/decode-selected",
+    "--decode-history",
+    "8191",
+    "--prefill-rows",
+    "1",
+    "--check-only",
+  ]
+  @fs.write_file(
+    root + "/domain-memcheck.command.json",
+    Json(["/usr/local/cuda/bin/compute-sanitizer", ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd("/usr/local/cuda/bin/compute-sanitizer", args).output(
+    max_output_bytes=16777216,
+  )
+  @fs.write_file(
+    root + "/domain-memcheck.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/domain-memcheck.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/domain-memcheck.exit",
+    result.exit_code().to_string(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  assert_true(
+    (result.stdout() + result.stderr()).contains("ERROR SUMMARY: 0 errors"),
+  )
+  println("concentrated mixed domain passed memcheck")
+}

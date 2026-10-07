@@ -1,0 +1,35 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, bundle] else { fail("EXACT_BUNDLE") }
+  let text = @fs.read_file(bundle).text()
+  guard text
+    .split("\n")
+    .filter(x => x.has_prefix("attention_bucket_routes_hex="))
+    .to_array()
+    is [line] else {
+    fail("unique route field")
+  }
+  let hex = line["attention_bucket_routes_hex=".length():]
+  let routes = @utf8.decode(
+    Bytes::from_array(
+      Array::makei(hex.length() / 2, i => {
+        @string.parse_int(hex[i * 2:i * 2 + 2], base=16).to_byte()
+      }),
+    ),
+  )
+  for row in routes.split("\n") {
+    let p = row.split("\t").to_array()
+    if p.length() < 8 || (p[2] == "8" && (p[1] == "decode" || p[3] == "2048")) {
+      println(row)
+    }
+  }
+}

@@ -1,0 +1,79 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, fix, benchmark, trace, baseline_trace] else {
+    fail("FIX COMPLETED_ABBA COMPLETED_SELECTED_TRACE COMPLETED_BASELINE_TRACE")
+  }
+  for root in [benchmark, trace, baseline_trace] {
+    assert_true(
+      @fs.read_file(root + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+  }
+  assert_true(@fs.exists(benchmark + "/comparison.json"))
+  assert_true(
+    @fs.read_file(fix + "/PREPARED.txt").text().has_prefix("outcome=prepared\n"),
+  )
+  let identities = @shell.Cmd("sha256sum", [
+    fix + "/source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+    fix +
+    "/source/_build/native/release/build/cmd/lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe",
+    fix + "/serving/long-final/deployment/bin/lunaflux-device-worker",
+    fix + "/serving/long-final/deployment/lunaflux.launch.json",
+    fix + "/serving/long-final/capacity.json",
+    fix + "/serving/fused-routed/reusable-fused-runtime-bundle.v3",
+    fix + "/routes.v1",
+    "/usr/local/cuda-13.0/bin/nvcc",
+    "/usr/local/bin/nsys",
+  ]).output()
+  identities.check()
+  @fs.write_file(
+    fix + "/RUNTIME_IDENTITIES.txt",
+    identities.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    fix + "/RESULT.txt",
+    "outcome=completed\nscope=offline calibration coverage and mixed-route ABBA repair; unchanged executable kernels; not production promotion or quality parity\nbenchmark=" +
+    benchmark +
+    "\ntrace=" +
+    trace +
+    "\nbaseline_trace=" +
+    baseline_trace +
+    "\n",
+    create_mode=CreateNew,
+  )
+  let moon = fix + "/toolchain/bin/moon"
+  for root in [benchmark, trace, baseline_trace, fix] {
+    let args = ["run", fix + "/seal_decode_fix_20261006.mbtx", root]
+    @fs.write_file(
+      fix +
+      "/seal-" +
+      root.split("/").to_array().last().unwrap().to_owned() +
+      ".command.json",
+      Json([moon, ..args]).stringify(),
+      create_mode=CreateNew,
+    )
+    // Do not write output into a root after its manifest is sealed.
+    if @fs.exists(root + "/FILES.sha256") {
+      assert_true(@fs.exists(root + ".verified.tar.gz"))
+      let verified = @shell.Cmd(
+        "sha256sum",
+        ["--check", "FILES.sha256"],
+        cwd=root,
+      ).output(max_output_bytes=33554432)
+      verified.check()
+    } else {
+      @shell.Cmd(moon, args).run()
+    }
+  }
+}
