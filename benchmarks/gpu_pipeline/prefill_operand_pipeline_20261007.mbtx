@@ -129,6 +129,27 @@ async fn capture(
 }
 
 ///|
+// Sealing must retain the actual decision, not require a preselected failure.
+// A mixed winner stays diagnostic; no verdict here grants serving admission.
+fn verdict(cells : Array[Json]) -> String raise {
+  guard cells.length() == 3 else { fail("three completed workloads") }
+  let decisions = cells.map(cell => {
+    guard cell is { "metrics": { "decision": String(decision), .. }, .. } &&
+      ["improved", "regression", "inconclusive"].contains(decision) else {
+      fail("paired trial decision")
+    }
+    decision
+  })
+  if decisions.all(x => x == "improved") {
+    "kernel-win-serving-unverified"
+  } else if decisions.any(x => x == "regression") {
+    "contains-regression"
+  } else {
+    "inconclusive"
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, base, probe, root, mode] &&
     ["prepare", "run", "validate", "finish"].contains(mode) else {
@@ -344,15 +365,9 @@ async fn main {
       cells.length() == 3 else {
       fail("three completed workloads")
     }
+    let decision = verdict(cells)
     for i, cell in cells {
-      guard cell
-        is {
-          "label": String(label),
-          "metrics": { "decision": "inconclusive", .. },
-          ..
-        } else {
-        fail("inconclusive trial receipt")
-      }
+      guard cell is { "label": String(label), .. } else { fail("trial label") }
       let prefix = root + "/trial/w\{i}-" + label
       assert_true(@fs.read_file(prefix + ".stderr").text().is_empty())
       let rows = @fs.read_file(prefix + ".stdout")
@@ -388,9 +403,41 @@ async fn main {
     )
     @fs.write_file(
       root + "/RESULT.txt",
-      "outcome=completed\nselection=unchanged\nverdict=inconclusive\nscope=one rolling QK operand experiment; no serving benchmark or promotion\n",
+      "outcome=completed\nselection=unchanged\nverdict=" +
+      decision +
+      "\nscope=offline operand experiment; no serving benchmark or promotion\n",
       create_mode=CreateNew,
     )
+  }
+}
+
+///|
+test "finalizer preserves wins and regressions without promoting them" {
+  fn receipt(decision : String) -> Json {
+    { "metrics": { "decision": decision } }
+  }
+  assert_eq(
+    verdict([receipt("improved"), receipt("improved"), receipt("improved")]),
+    "kernel-win-serving-unverified",
+  )
+  assert_eq(
+    verdict([
+      receipt("improved"),
+      receipt("regression"),
+      receipt("inconclusive"),
+    ]),
+    "contains-regression",
+  )
+  assert_eq(
+    verdict([receipt("improved"), receipt("inconclusive"), receipt("improved")]),
+    "inconclusive",
+  )
+  try
+    verdict([receipt("unknown"), receipt("improved"), receipt("improved")])
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("unknown result accepted")
   }
 }
 

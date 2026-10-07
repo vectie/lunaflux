@@ -1,0 +1,456 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+// Offline experiment: a pure lifetime schedule over immutable published V.
+// One slot isolates joined emission; two slots isolate operand lookahead.
+enum Action {
+  Read(column~ : Int, slot~ : Int)
+  Product(column~ : Int, slot~ : Int)
+} derive(Eq, Debug)
+
+///|
+fn pipeline(columns : Int, slots : Int) -> Array[Action] raise {
+  guard columns >= 2 && columns <= 8 && (slots == 1 || slots == 2) else {
+    fail("bounded consumer frontier")
+  }
+  let actions : Array[Action] = []
+  for column in 0..<slots {
+    actions.push(Read(column~, slot=column))
+  }
+  for column in 0..<columns {
+    actions.push(Product(column~, slot=column % slots))
+    if column + slots < columns {
+      actions.push(Read(column=column + slots, slot=column % slots))
+    }
+  }
+  actions
+}
+
+///|
+fn helper(columns : Int, slots : Int) -> String raise {
+  let outputs = columns * 8
+  let origin = outputs + 4
+  let swizzle = origin + 1
+  let text = StringBuilder()
+  text <+
+    "static __device__ __forceinline__ void lf_value_operand_pipeline(LfMatrixAccumulator (&out)[LF_HEAD_DIMENSION/16], const LfMatrixOperand &a, unsigned origin, unsigned swizzle) {\n"
+  text <+
+    "  asm volatile(\n    \"{ .reg .b32 b<\{slots*4}>; .reg .u32 offset,address;\"\n"
+  for action in pipeline(columns, slots) {
+    match action {
+      Read(column~, slot~) => {
+        text <+
+          "    \"xor.b32 offset, %\{swizzle}, \{column*16}; shl.b32 offset,offset,1; add.u32 address,%\{origin},offset;\"\n"
+        let first = slot * 4
+        text <+
+          "    \"ldmatrix.sync.aligned.m8n8.x4.trans.shared.b16 {b\{first},b\{first+1},b\{first+2},b\{first+3}}, [address];\"\n"
+      }
+      Product(column~, slot~) =>
+        for half in 0..<2 {
+          let c = column * 8 + half * 4
+          let b = slot * 4 + half * 2
+          text <+
+            "    \"mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%\{c},%\{c+1},%\{c+2},%\{c+3}}, {%\{outputs},%\{outputs+1},%\{outputs+2},%\{outputs+3}}, {b\{b},b\{b+1}}, {%\{c},%\{c+1},%\{c+2},%\{c+3}};\"\n"
+        }
+    }
+  }
+  let results : Array[String] = []
+  for column in 0..<columns {
+    for item in 0..<8 {
+      results.push("\"+f\"(out[\{column}].x[\{item}])")
+    }
+  }
+  text <+ "    \"}\"\n    : "
+  text.write_string(results.join(","))
+  text <+
+    "\n    : \"r\"(a.x[0]),\"r\"(a.x[1]),\"r\"(a.x[2]),\"r\"(a.x[3]),\"r\"(origin),\"r\"(swizzle) : \"memory\");\n}\n"
+  text.to_string()
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [first, last] else {
+    fail("exact frozen site required")
+  }
+  first.to_owned() + fresh + last.to_owned()
+}
+
+///|
+fn variant(text : String, slots : Int) -> String raise {
+  let marker = "static __device__ __forceinline__ void lf_matrix_mma_value("
+  guard text.split(marker).to_array() is [first, body] else {
+    fail("PV helper")
+  }
+  let parts = body.split("\n}\n").to_array()
+  guard parts.length() > 1 && parts[0].contains(".x4.trans.shared.b16") else {
+    fail("transposed RHS helper")
+  }
+  let source = first.to_owned() + helper(8, slots) + parts[1:].join("\n}\n")
+  once(
+    source, "#pragma unroll\n          for (int column=0;column<8;++column) {\n            const unsigned value_address=value_origin+((column*16)^value_column_xor)*2;\n            lf_matrix_mma_value(out[column],probability,value_address);\n          }",
+    "lf_value_operand_pipeline(out,probability,value_origin,value_column_xor);",
+  )
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe, root, mode] &&
+    ["prepare", "qualify", "profile", "finish"].contains(mode) else {
+    fail(
+      "FROZEN_OPERAND_ROOT PROBE_ROOT NEW_ROOT prepare|qualify|profile|finish",
+    )
+  }
+  if mode == "finish" {
+    for label in ["joined", "lookahead"] {
+      let result = @fs.read_file(root + "/" + label + "/RESULT.txt").text()
+      assert_true(result.has_prefix("outcome=completed\nselection=unchanged\n"))
+      assert_true(result.contains("verdict=contains-regression\n"))
+      assert_true(
+        @fs.read_file(root + "/" + label + "/validation/RESULT.txt")
+        .text()
+        .has_prefix("outcome=passed\n"),
+      )
+    }
+    for label in ["baseline", "lookahead"] {
+      let path = root + "/counter2-" + label
+      assert_true(@fs.exists(path + "/counter.ncu-rep"))
+      assert_true(@fs.exists(path + "/sass-summary.json"))
+      assert_true(@fs.read_file(path + "/counter.stderr").text().is_empty())
+      assert_true(
+        @fs.read_file(path + "/counter-source.stderr").text().is_empty(),
+      )
+    }
+    assert_true(
+      capture(root, "terminal-idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nselection=unchanged\nverdict=contains-regression\nscope=two offline PV alternatives, three paired cells each, boundary sanitizers and matched counters; no serving speedup or promotion\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if mode == "qualify" {
+    for label in ["joined", "lookahead"] {
+      for action in ["validate", "finish"] {
+        @shell.Cmd(probe + "/toolchain/bin/moon", [
+          "run",
+          root + "/prefill_operand_pipeline_20261007.mbtx",
+          base,
+          probe,
+          root + "/" + label,
+          action,
+        ]).run()
+      }
+    }
+    return
+  }
+  if mode == "profile" {
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    for
+      (label, selected) in [
+        ("baseline", root + "/lookahead/baseline"),
+        ("lookahead", root + "/lookahead/candidate"),
+      ] {
+      let path = root + "/counter2-" + label
+      @fs.mkdir(path)
+      let uuid = @shell.Cmd("nvidia-smi", [
+        "--query-gpu=uuid", "--format=csv,noheader",
+      ]).output()
+      uuid.check()
+      assert_eq(
+        uuid.stdout().trim(),
+        "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      )
+      let idle = @shell.Cmd("nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ]).output()
+      idle.check()
+      assert_true(idle.stdout().trim().is_empty())
+      guard @fs.read_file("/proc/meminfo")
+        .text()
+        .split("\n")
+        .filter(s => s.has_prefix("MemAvailable:"))
+        .to_array()
+        is [memory] else {
+        fail("memory reserve unavailable")
+      }
+      let fields = memory.split(" ").filter(s => !s.is_empty()).to_array()
+      assert_true(@string.parse_int64(fields[1]) >= 33554432L)
+      ignore(
+        capture(path, "identity", "sha256sum", [
+          selected + "/kernel.cubin",
+          probe + "/check-probe",
+        ]),
+      )
+      ignore(
+        capture(path, "counter", "sudo", [
+          "-n",
+          "systemd-run",
+          "--scope",
+          "--quiet",
+          "-p",
+          "MemoryMax=8G",
+          "-p",
+          "MemorySwapMax=0",
+          "timeout",
+          "900",
+          ncu,
+          "--config-file",
+          "off",
+          "--section",
+          "SourceCounters",
+          "--section",
+          "WarpStateStats",
+          "--section",
+          "LaunchStats",
+          "--metrics",
+          "smsp__inst_executed.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+          "--kernel-name",
+          "lunaflux_attention_prefill_tile_compiler_exp2_v1",
+          "--launch-count",
+          "1",
+          "--export",
+          path + "/counter",
+          "--csv",
+          "--page",
+          "raw",
+          probe + "/check-probe",
+          root + "/lookahead/prefill.spec",
+          selected,
+          selected,
+          "2048",
+          "2",
+          "28672",
+          "--check-only",
+        ]),
+      )
+      ignore(
+        capture(path, "counter-source", ncu, [
+          "--import",
+          path + "/counter.ncu-rep",
+          "--page",
+          "source",
+          "--print-source",
+          "sass",
+          "--csv",
+        ]),
+      )
+    }
+    return
+  }
+  for (label, slots) in [("joined", 1), ("lookahead", 2)] {
+    let path = root + "/" + label
+    @fs.mkdir(path)
+    @fs.mkdir(path + "/baseline")
+    @fs.mkdir(path + "/candidate")
+    for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+      @fs.write_file(
+        path + "/baseline/" + name,
+        @fs.read_file(base + "/baseline/" + name),
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+    }
+    @fs.write_file(
+      path + "/prefill.spec",
+      @fs.read_file(base + "/prefill.spec"),
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+    for
+      (name, file, digest) in [
+        (
+          "baseline-identity",
+          path + "/baseline/kernel.cubin",
+          "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb",
+        ),
+        (
+          "source-identity",
+          path + "/baseline/kernel.cu",
+          "3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+        ),
+        (
+          "probe-identity",
+          probe + "/check-probe",
+          "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536",
+        ),
+        (
+          "nvcc-identity", "/usr/local/cuda-13.0/bin/nvcc", "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+        ),
+      ] {
+      assert_true(
+        capture(path, name, "sha256sum", [file]).has_prefix(digest + " "),
+      )
+    }
+    let source = @fs.read_file(path + "/baseline/kernel.cu").text()
+    assert_true(source.contains("#define LF_KEY_VALUE_TILE 64\n"))
+    assert_true(source.contains("#define LF_HEAD_DIMENSION 128\n"))
+    @fs.write_file(
+      path + "/candidate/kernel.cu",
+      variant(source, slots),
+      create_mode=CreateNew,
+    )
+    let digest = capture(path, "candidate-source-identity", "sha256sum", [
+      path + "/candidate/kernel.cu",
+    ])
+    .split(" ")
+    .to_array()[0].to_owned()
+    let recipe = once(
+      @fs.read_file(path + "/baseline/kernel.recipe").text(),
+      "source_sha256=3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+      "source_sha256=" + digest,
+    )
+    @fs.write_file(
+      path + "/candidate/kernel.recipe",
+      recipe + "\nexperimental_lowering=PV-" + label + "-v1\n",
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(path, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+        "--cubin",
+        "--std=c++14",
+        "-arch=sm_121",
+        "-O3",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=255",
+        "--Werror",
+        "all-warnings",
+        path + "/candidate/kernel.cu",
+        "-o",
+        path + "/candidate/kernel.cubin",
+      ]),
+    )
+    ignore(
+      capture(path, "compiled-identity", "sha256sum", [
+        path + "/candidate/kernel.cubin",
+      ]),
+    )
+    let workloads : Array[Json] = []
+    for
+      (name, tokens, rows, history) in [
+        ("tail", "1792", "1", "30720"),
+        ("mixed-size", "2048", "2", "28672"),
+        ("short-control", "2048", "16", "2048"),
+      ] {
+      workloads.push({
+        "label": name,
+        "args": [
+          path + "/prefill.spec",
+          path + "/baseline",
+          path + "/candidate",
+          tokens,
+          rows,
+          history,
+        ],
+      })
+    }
+    let contract : Json = {
+      "schema": "lunaflux-ako-trial-v1",
+      "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.03,
+      "program": probe + "/check-probe",
+      "workloads": workloads,
+      "artifacts": [
+        path + "/prefill.spec",
+        path + "/baseline/kernel.recipe",
+        path + "/baseline/kernel.cubin",
+        path + "/candidate/kernel.recipe",
+        path + "/candidate/kernel.cubin",
+      ],
+    }
+    @fs.write_file(
+      path + "/contract.json",
+      contract.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+  }
+}
+
+///|
+test "PV slot reuse preserves all ordered products" {
+  for columns in 2..<=8 {
+    for count in [1, 2] {
+      let slots = Array::make(count, -1)
+      let products : Array[Int] = []
+      for action in pipeline(columns, count) {
+        match action {
+          Read(column~, slot~) => {
+            assert_eq(slots[slot], -1)
+            slots[slot] = column
+          }
+          Product(column~, slot~) => {
+            assert_eq(slots[slot], column)
+            products.push(column)
+            slots[slot] = -1
+          }
+        }
+      }
+      assert_eq(products, Array::makei(columns, i => i))
+      assert_true(slots.all(x => x == -1))
+    }
+  }
+}
+
+///|
+test "PV XOR addresses retain the published producer layout" {
+  for lane in 0..<32 {
+    for key in 0..<4 {
+      let row = key * 16 + (lane & 15)
+      let swizzle = (lane / 16 * 8) ^ (row % 8 * 8)
+      for column in 0..<8 {
+        let address = row * 128 + ((column * 16) ^ swizzle)
+        let logical = column * 16 + lane / 16 * 8
+        assert_eq(address, row * 128 + (logical ^ (row % 8 * 8)))
+        assert_eq(address % 8, 0)
+        assert_true(address >= 0 && address + 7 < 64 * 128)
+      }
+    }
+  }
+  assert_true(helper(8, 2).contains(".x4.trans.shared.b16"))
+  assert_true(helper(8, 2).contains("{b0,b1}"))
+  assert_true(helper(8, 2).contains("{b2,b3}"))
+}

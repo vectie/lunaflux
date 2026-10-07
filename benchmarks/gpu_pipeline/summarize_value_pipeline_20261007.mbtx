@@ -1,0 +1,91 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields = []
+  let text = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      fields.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  fields.push(text.to_string())
+  fields
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("VALUE_EXPERIMENT_ROOT") }
+  for label in ["baseline", "lookahead"] {
+    let path = root + "/counter2-" + label
+    let mut header : Array[String] = []
+    let metrics : Map[String, String] = Map([])
+    for line in @fs.read_file(path + "/counter.stdout").text().split("\n") {
+      let row = csv(line)
+      if row.length() > 0 && row[0] == "ID" {
+        header = row
+      } else if !header.is_empty() &&
+        row.length() == header.length() &&
+        row[0] != "" {
+        for i, name in header {
+          if name == "smsp__inst_executed.sum" ||
+            name ==
+            "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed" ||
+            name == "sm__warps_active.avg.pct_of_peak_sustained_active" ||
+            name.has_prefix("smsp__average_warp_latency") ||
+            name.has_prefix("smsp__average_warps_issue_stalled") ||
+            name.has_prefix("launch__registers") {
+            metrics[name] = row[i]
+          }
+        }
+      }
+    }
+    guard @json.parse(@fs.read_file(path + "/sass-summary.json").text())
+      is Array([Object(sass)]) else {
+      fail("one selected kernel")
+    }
+    let output : Map[String, Json] = Map([])
+    output["variant"] = Json(label)
+    output["metrics"] = Json(metrics)
+    for
+      key in [
+        "opcodes", "fixed_wait_not_issued_by_opcode", "top_fixed_wait_sites", "local_theoretical_sectors",
+        "shared_excessive_wavefronts",
+      ] {
+      output[key] = sass.get(key).unwrap_or(Json::null())
+    }
+    @fs.write_file(
+      path + "/compact-v2.json",
+      Json(output).stringify(indent=2),
+      create_mode=CreateNew,
+    )
+    let fixed = match output["fixed_wait_not_issued_by_opcode"] {
+      Array(items) => items[:Int::min(5, items.length())].to_owned()
+      _ => []
+    }
+    println(
+      Json({
+        "variant": Json(label),
+        "metrics": Json(metrics),
+        "fixed_wait": Json(fixed),
+      }).stringify(indent=2),
+    )
+  }
+}
+
+///|
+test "CSV quoted commas retain metric column alignment" {
+  assert_eq(csv("\"0\",\"1,024\",\"6.11\""), ["0", "1,024", "6.11"])
+}
