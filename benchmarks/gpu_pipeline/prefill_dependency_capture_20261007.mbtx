@@ -1,0 +1,163 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let output = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+  output.stdout()
+}
+
+///|
+async fn admit() -> Unit {
+  let identity = @shell.Cmd("nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ]).output()
+  identity.check()
+  assert_eq(
+    identity.stdout().trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(s => s.has_prefix("MemAvailable:"))
+    .to_array()
+    is [available] else {
+    fail("available memory")
+  }
+  let cells = available.split(" ").filter(s => !s.is_empty()).to_array()
+  assert_true(@string.parse_int64(cells[1]) >= 33554432L)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, selected_root, probe_root, root, mode] &&
+    ["prepare", "counter", "source"].contains(mode) else {
+    fail("SELECTED_ROOT PROBE_ROOT NEW_ROOT prepare|counter|source")
+  }
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  if mode == "prepare" {
+    @fs.mkdir(root + "/selected")
+    for name in ["kernel.recipe", "kernel.cubin"] {
+      @fs.write_file(
+        root + "/selected/" + name,
+        @fs.read_file(selected_root + "/selected/" + name),
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+    }
+    @fs.write_file(
+      root + "/prefill.spec",
+      @fs.read_file(selected_root + "/prefill.spec"),
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+    let hashes = capture(root, "identity", "sha256sum", [
+      root + "/selected/kernel.cubin",
+      probe_root + "/check-probe",
+    ])
+    assert_true(
+      hashes.has_prefix(
+        "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb ",
+      ),
+    )
+    assert_true(
+      hashes.contains(
+        "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536 ",
+      ),
+    )
+  } else if mode == "counter" {
+    admit()
+    ignore(
+      capture(root, "counter", "systemd-run", [
+        "--scope",
+        "--quiet",
+        "-p",
+        "MemoryMax=8G",
+        "-p",
+        "MemorySwapMax=0",
+        "timeout",
+        "900",
+        ncu,
+        "--config-file",
+        "off",
+        "--section",
+        "SourceCounters",
+        "--section",
+        "WarpStateStats",
+        "--section",
+        "LaunchStats",
+        "--metrics",
+        "smsp__inst_executed.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+        "--kernel-name",
+        "lunaflux_attention_prefill_tile_compiler_exp2_v1",
+        "--launch-count",
+        "1",
+        "--export",
+        root + "/counter",
+        "--csv",
+        "--page",
+        "raw",
+        probe_root + "/check-probe",
+        root + "/prefill.spec",
+        root + "/selected",
+        root + "/selected",
+        "2048",
+        "2",
+        "28672",
+        "--check-only",
+      ]),
+    )
+    admit()
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=one selected synthetic prefill invocation; instruction samples are not additive elapsed gap\n",
+      create_mode=CreateNew,
+    )
+  } else {
+    ignore(
+      capture(root, "counter-source", ncu, [
+        "--import",
+        root + "/counter.ncu-rep",
+        "--page",
+        "source",
+        "--print-source",
+        "sass",
+        "--csv",
+      ]),
+    )
+  }
+}

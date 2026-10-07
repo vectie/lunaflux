@@ -36,13 +36,27 @@ fn number(text : String) -> Int64 raise {
 }
 
 ///|
+fn not_issued_fixed_wait(values : Map[String, String]) -> Int64 raise {
+  number(values.get("stall_wait (Not Issued)").unwrap_or("0"))
+}
+
+///|
+test "fixed wait aggregation does not substitute all samples for not-issued samples" {
+  assert_eq(
+    not_issued_fixed_wait({
+      "stall_wait": "100",
+      "stall_wait (Not Issued)": "9",
+    }),
+    9L,
+  )
+  assert_eq(not_issued_fixed_wait({ "stall_wait": "100" }), 0L)
+}
+
+///|
 // A stall sample names a waiting instruction, not necessarily its producer.
 // Preserve nearby SASS for inspection without inventing a dependency edge:
 // predicates, dynamic execution and scoreboard IDs require separate analysis.
-fn instruction_window(
-  instructions : Array[Json],
-  pc : String,
-) -> Array[Json] {
+fn instruction_window(instructions : Array[Json], pc : String) -> Array[Json] {
   for index, instruction in instructions {
     if instruction is { "pc": String(address), .. } && address == pc {
       let first = Int::max(0, index - 8)
@@ -56,7 +70,8 @@ fn instruction_window(
 ///|
 test "sample windows retain producers without claiming causality" {
   let instructions : Array[Json] = Array::makei(16, i => {
-    "pc": "p\{i}", "instruction": "instruction\{i}",
+    "pc": "p\{i}",
+    "instruction": "instruction\{i}",
   })
   let middle = instruction_window(instructions, "p10")
   assert_eq(middle.length(), 11)
@@ -87,6 +102,8 @@ async fn main {
   let mut header : Array[String] = []
   let mut ops : Map[String, Int64] = Map([])
   let mut stalls : Array[(Int64, Json)] = []
+  let mut fixed_wait_sites : Array[(Int64, Json)] = []
+  let mut fixed_wait_opcodes : Map[String, Int64] = Map([])
   let mut sectors = 0L
   let mut conflicts = 0L
   let mut instructions : Array[Json] = []
@@ -97,6 +114,9 @@ async fn main {
     let ordered = ops.to_array()
     ordered.sort_by((a, b) => b.1.compare(a.1))
     stalls.sort_by((a, b) => b.0.compare(a.0))
+    fixed_wait_sites.sort_by((a, b) => b.0.compare(a.0))
+    let fixed_totals = fixed_wait_opcodes.to_array()
+    fixed_totals.sort_by((a, b) => b.1.compare(a.1))
     let opcodes : Array[Json] = ordered.map(p => {
       "opcode": p.0,
       "executed": if header.contains("Instructions Executed") {
@@ -110,6 +130,9 @@ async fn main {
       "ordinal": records.length(),
       "source_execution_metrics_collected": header.contains(
         "Instructions Executed",
+      ),
+      "fixed_wait_not_issued_collected": header.contains(
+        "stall_wait (Not Issued)",
       ),
       "scope": "Source entries may include aliased functions; raw report IDs own launch counts",
       "opcodes": opcodes,
@@ -128,17 +151,34 @@ async fn main {
         Json::null()
       },
       "top_stall_pcs": stalls[:Int::min(12, stalls.length())].map(p => p.1),
-      "sample_instruction_windows": stalls[:Int::min(12, stalls.length())]
-        .map(p => {
-          match p.1 {
-            { "pc": String(pc), .. } => Json({
+      "fixed_wait_not_issued_by_opcode": fixed_totals.map(p => {
+        Json({ "opcode": Json(p.0), "samples": Json(p.1) })
+      }),
+      "top_fixed_wait_sites": fixed_wait_sites[:Int::min(
+        12,
+        fixed_wait_sites.length(),
+      )].map(p => {
+        match p.1 {
+          { "pc": String(pc), .. } =>
+            Json({
+              "sample": p.1,
+              "instructions": Json(instruction_window(instructions, pc)),
+              "scope": "sampled consumer context, not a proven producer or elapsed-cycle share",
+            })
+          _ => Json::null()
+        }
+      }),
+      "sample_instruction_windows": stalls[:Int::min(12, stalls.length())].map(p => {
+        match p.1 {
+          { "pc": String(pc), .. } =>
+            Json({
               "sample": p.1,
               "instructions": Json(instruction_window(instructions, pc)),
               "scope": "static context only; sample identifies a waiting instruction, not its producer or root cause",
             })
-            _ => Json::null()
-          }
-        }),
+          _ => Json::null()
+        }
+      }),
     })
   }
   for line in @fs.read_file(path).text().split("\n") {
@@ -149,6 +189,8 @@ async fn main {
       header = []
       ops = Map([])
       stalls = []
+      fixed_wait_sites = []
+      fixed_wait_opcodes = Map([])
       sectors = 0L
       conflicts = 0L
       instructions = []
@@ -180,6 +222,21 @@ async fn main {
       values.get("L1 Wavefronts Shared Excessive").unwrap_or("0"),
     )
     let samples = number(values.get("# Samples").unwrap_or("0"))
+    let fixed_wait = not_issued_fixed_wait(values)
+    fixed_wait_opcodes[opcode] = fixed_wait_opcodes.get(opcode).unwrap_or(0L) +
+      fixed_wait
+    if fixed_wait > 0 {
+      fixed_wait_sites.push(
+        (
+          fixed_wait,
+          {
+            "pc": row[0],
+            "instruction": row[1],
+            "not_issued_wait_samples": Json(fixed_wait),
+          },
+        ),
+      )
+    }
     if samples > 0 {
       stalls.push(
         (
@@ -195,6 +252,10 @@ async fn main {
             "math": number(values.get("stall_math").unwrap_or("0")),
             "short_dependency": number(
               values.get("stall_short_sb").unwrap_or("0"),
+            ),
+            "fixed_dependency": number(values.get("stall_wait").unwrap_or("0")),
+            "fixed_dependency_not_issued": number(
+              values.get("stall_wait (Not Issued)").unwrap_or("0"),
             ),
             "sleep": number(values.get("stall_sleep").unwrap_or("0")),
           },

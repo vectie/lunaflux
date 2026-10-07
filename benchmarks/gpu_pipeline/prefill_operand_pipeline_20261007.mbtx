@@ -1,0 +1,419 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+// Offline terminal instruction experiment. These actions only reorder reads
+// of an already-published immutable tile; every product keeps its original
+// left/right values and ascending reduction order. No request-path selection.
+enum Action {
+  Read(column~ : Int, slot~ : Int)
+  Product(column~ : Int, slot~ : Int)
+} derive(Eq, Debug)
+
+///|
+fn pipeline(columns : Int) -> Array[Action] raise {
+  guard columns >= 2 && columns <= 8 else { fail("column frontier") }
+  let actions = [Read(column=0, slot=0), Read(column=1, slot=1)]
+  for column in 0..<columns {
+    actions.push(Product(column~, slot=column % 2))
+    if column + 2 < columns {
+      actions.push(Read(column=column + 2, slot=column % 2))
+    }
+  }
+  actions
+}
+
+///|
+fn helper(columns : Int) -> String raise {
+  let outputs = columns * 8
+  let address = outputs + 4
+  let step = address + 1
+  let text = StringBuilder()
+  text <+
+    "static __device__ __forceinline__ void lf_key_operand_pipeline(LfMatrixAccumulator (&score)[LF_KEY_VALUE_TILE/16], const LfMatrixOperand &a, const __nv_bfloat16 *p, int reduction) {\n"
+  text <+ "  const int lane=threadIdx.x%32;\n"
+  text <+
+    "  const unsigned origin=(unsigned)__cvta_generic_to_shared(p+lf_operand_index(lane%16,reduction+lane/16*8,LF_HEAD_DIMENSION));\n"
+  text <+
+    "  asm volatile(\n    \"{ .reg .b32 b<8>; .reg .u32 address; mov.u32 address, %\{address};\"\n"
+  for action in pipeline(columns) {
+    match action {
+      Read(column~, slot~) => {
+        if column > 0 {
+          text <+ "    \"add.u32 address, address, %\{step};\"\n"
+        }
+        let first = slot * 4
+        text <+
+          "    \"ldmatrix.sync.aligned.m8n8.x4.shared.b16 {b\{first},b\{first+1},b\{first+2},b\{first+3}}, [address];\"\n"
+      }
+      Product(column~, slot~) =>
+        for half in 0..<2 {
+          let c = column * 8 + half * 4
+          let b = slot * 4 + half
+          text <+
+            "    \"mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%\{c},%\{c+1},%\{c+2},%\{c+3}}, {%\{outputs},%\{outputs+1},%\{outputs+2},%\{outputs+3}}, {b\{b},b\{b+2}}, {%\{c},%\{c+1},%\{c+2},%\{c+3}};\"\n"
+        }
+    }
+  }
+  text <+ "    \"}\"\n    : "
+  let results : Array[String] = []
+  for column in 0..<columns {
+    for item in 0..<8 {
+      results.push("\"+f\"(score[\{column}].x[\{item}])")
+    }
+  }
+  text.write_string(results.join(","))
+  text <+
+    "\n    : \"r\"(a.x[0]),\"r\"(a.x[1]),\"r\"(a.x[2]),\"r\"(a.x[3]),\"r\"(origin),\"n\"(16*LF_HEAD_DIMENSION*2) : \"memory\");\n}\n"
+  text.to_string()
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [first, last] else {
+    fail("one frozen site")
+  }
+  first.to_owned() + fresh + last.to_owned()
+}
+
+///|
+fn variant(text : String, columns : Int) -> String raise {
+  let marker = "static __device__ __forceinline__ void lf_matrix_mma_key("
+  guard text.split(marker).to_array() is [first, body] else {
+    fail("key helper")
+  }
+  let parts = body.split("\n}\n").to_array()
+  guard parts.length() > 1 && parts[0].contains("ldmatrix.sync") else {
+    fail("helper body")
+  }
+  let source = first.to_owned() + helper(columns) + parts[1:].join("\n}\n")
+  once(
+    source,
+    "#pragma unroll\n          for (int key=0; key<\{columns}; ++key) {\n            lf_matrix_mma_key(score[key],a,current_k,key*16,reduction,LF_HEAD_DIMENSION);\n          }",
+    "lf_key_operand_pipeline(score,a,current_k,reduction);",
+  )
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe, root, mode] &&
+    ["prepare", "run", "validate", "finish"].contains(mode) else {
+    fail("PINNED_BASE PROBE_ROOT NEW_ROOT prepare|run|validate|finish")
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root + "/baseline")
+    @fs.mkdir(root + "/candidate")
+    for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+      @fs.write_file(
+        root + "/baseline/" + name,
+        @fs.read_file(base + "/c30322/" + name),
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+    }
+    @fs.write_file(
+      root + "/prefill.spec",
+      @fs.read_file(base + "/prefill.spec"),
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+    let source = @fs.read_file(root + "/baseline/kernel.cu").text()
+    assert_true(source.contains("#define LF_KEY_VALUE_TILE 64\n"))
+    assert_true(source.contains("#define LF_HEAD_DIMENSION 128\n"))
+    let hash = capture(root, "baseline-identity", "sha256sum", [
+      root + "/baseline/kernel.cubin",
+    ])
+    assert_true(
+      hash.has_prefix(
+        "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb ",
+      ),
+    )
+    let probe_hash = capture(root, "probe-identity", "sha256sum", [
+      probe + "/check-probe",
+    ])
+    assert_true(
+      probe_hash.has_prefix(
+        "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536 ",
+      ),
+    )
+    @fs.write_file(
+      root + "/candidate/kernel.cu",
+      variant(source, 4),
+      create_mode=CreateNew,
+    )
+    let digest = capture(root, "candidate-source-identity", "sha256sum", [
+      root + "/candidate/kernel.cu",
+    ])
+    .split(" ")
+    .to_array()[0].to_owned()
+    let baseline_recipe = @fs.read_file(root + "/baseline/kernel.recipe").text()
+    let recipe = once(
+      baseline_recipe,
+      "source_sha256=3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+      "source_sha256=" + digest,
+    )
+    @fs.write_file(
+      root + "/candidate/kernel.recipe",
+      recipe + "\nexperimental_lowering=rolling-right-operands-v1\n",
+      create_mode=CreateNew,
+    )
+    let nvcc_hash = capture(root, "nvcc-identity", "sha256sum", [
+      "/usr/local/cuda-13.0/bin/nvcc",
+    ])
+    assert_true(
+      nvcc_hash.has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    ignore(
+      capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+        "--cubin",
+        "--std=c++14",
+        "-arch=sm_121",
+        "-O3",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=255",
+        "--Werror",
+        "all-warnings",
+        root + "/candidate/kernel.cu",
+        "-o",
+        root + "/candidate/kernel.cubin",
+      ]),
+    )
+    ignore(
+      capture(root, "compiled-identity", "sha256sum", [
+        root + "/candidate/kernel.cubin",
+      ]),
+    )
+    let workloads : Array[Json] = []
+    for
+      (label, tokens, rows, history) in [
+        ("tail", "1792", "1", "30720"),
+        ("mixed-size", "2048", "2", "28672"),
+        ("short-control", "2048", "16", "2048"),
+      ] {
+      workloads.push({
+        "label": label,
+        "args": [
+          root + "/prefill.spec",
+          root + "/baseline",
+          root + "/candidate",
+          tokens,
+          rows,
+          history,
+        ],
+      })
+    }
+    let contract : Json = {
+      "schema": "lunaflux-ako-trial-v1",
+      "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.03,
+      "program": probe + "/check-probe",
+      "workloads": workloads,
+      "artifacts": [
+        root + "/prefill.spec",
+        root + "/baseline/kernel.recipe",
+        root + "/baseline/kernel.cubin",
+        root + "/candidate/kernel.recipe",
+        root + "/candidate/kernel.cubin",
+      ],
+    }
+    @fs.write_file(
+      root + "/contract.json",
+      contract.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+  } else if mode == "run" {
+    ignore(
+      capture(root, "trial", "systemd-run", [
+        "--user",
+        "--scope",
+        "--quiet",
+        "-p",
+        "MemoryMax=8G",
+        "-p",
+        "MemorySwapMax=0",
+        "timeout",
+        "900",
+        probe + "/toolchain/bin/moon",
+        "run",
+        root + "/ako_trial.mbtx",
+        root + "/contract.json",
+        root + "/trial",
+      ]),
+    )
+  } else if mode == "validate" {
+    @fs.mkdir(root + "/validation")
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let identity = @shell.Cmd("nvidia-smi", [
+        "--query-gpu=uuid", "--format=csv,noheader",
+      ]).output()
+      identity.check()
+      assert_eq(
+        identity.stdout().trim(),
+        "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+      )
+      let idle = @shell.Cmd("nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ]).output()
+      idle.check()
+      assert_true(idle.stdout().trim().is_empty())
+      guard @fs.read_file("/proc/meminfo")
+        .text()
+        .split("\n")
+        .filter(s => s.has_prefix("MemAvailable:"))
+        .to_array()
+        is [available] else {
+        fail("available memory")
+      }
+      let cells = available.split(" ").filter(s => !s.is_empty()).to_array()
+      assert_true(@string.parse_int64(cells[1]) >= 33554432L)
+      let result = capture(root + "/validation", tool, "systemd-run", [
+        "--user",
+        "--scope",
+        "--quiet",
+        "-p",
+        "MemoryMax=8G",
+        "-p",
+        "MemorySwapMax=0",
+        "timeout",
+        "900",
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        "--tool",
+        tool,
+        "--error-exitcode",
+        "99",
+        probe + "/check-probe",
+        root + "/prefill.spec",
+        root + "/baseline",
+        root + "/candidate",
+        "129",
+        "2",
+        "128",
+        "--check-only",
+      ])
+      assert_true(result.contains("correctness=passed bitwise=true maxabs=0"))
+      assert_true(result.contains("0 errors") || result.contains("0 hazards"))
+    }
+    @fs.write_file(
+      root + "/validation/RESULT.txt",
+      "outcome=passed\nscope=129 query, two rows, history128; no whole-model or long-context sanitizer claim\n",
+      create_mode=CreateNew,
+    )
+  } else {
+    guard @json.parse(@fs.read_file(root + "/trial/summary.json").text())
+      is Array(cells) &&
+      cells.length() == 3 else {
+      fail("three completed workloads")
+    }
+    for i, cell in cells {
+      guard cell
+        is {
+          "label": String(label),
+          "metrics": { "decision": "inconclusive", .. },
+          ..
+        } else {
+        fail("inconclusive trial receipt")
+      }
+      let prefix = root + "/trial/w\{i}-" + label
+      assert_true(@fs.read_file(prefix + ".stderr").text().is_empty())
+      let rows = @fs.read_file(prefix + ".stdout")
+        .text()
+        .split("\n")
+        .filter(x => x.has_prefix("tokens="))
+        .to_array()
+      assert_eq(rows.length(), 5)
+      assert_true(rows.all(x => x.contains("bitwise=true maxabs=0")))
+    }
+    for kind in ["baseline", "candidate"] {
+      ignore(
+        capture(
+          root,
+          kind + "-resource",
+          "/usr/local/cuda-13.0/bin/cuobjdump",
+          ["--dump-resource-usage", root + "/" + kind + "/kernel.cubin"],
+        ),
+      )
+      ignore(
+        capture(root, kind + "-sass", "/usr/local/cuda-13.0/bin/cuobjdump", [
+          "--dump-sass",
+          root + "/" + kind + "/kernel.cubin",
+        ]),
+      )
+    }
+    assert_true(
+      capture(root, "terminal-idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nselection=unchanged\nverdict=inconclusive\nscope=one rolling QK operand experiment; no serving benchmark or promotion\n",
+      create_mode=CreateNew,
+    )
+  }
+}
+
+///|
+test "rolling columns retain producer ownership until consumption" {
+  for columns in 2..<=8 {
+    let actions = pipeline(columns)
+    let slots = [-1, -1]
+    let products : Array[Int] = []
+    for action in actions {
+      match action {
+        Read(column~, slot~) => {
+          assert_eq(slots[slot], -1)
+          slots[slot] = column
+        }
+        Product(column~, slot~) => {
+          assert_eq(slots[slot], column)
+          products.push(column)
+          slots[slot] = -1
+        }
+      }
+    }
+    assert_eq(products, Array::makei(columns, i => i))
+    assert_eq(slots, [-1, -1])
+  }
+}
