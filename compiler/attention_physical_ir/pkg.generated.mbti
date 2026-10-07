@@ -47,6 +47,18 @@ pub fn BlockwiseFoldStep::equal(Self, Self) -> Bool
 pub fn BlockwiseFoldStep::not_equal(Self, Self) -> Bool
 pub fn BlockwiseFoldStep::to_repr(Self) -> @debug.Repr
 
+pub struct BlockwiseTileStorage {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn BlockwiseTileStorage::accepts_reservation(Self, Int64) -> Bool
+pub fn BlockwiseTileStorage::equal(Self, Self) -> Bool
+pub fn BlockwiseTileStorage::minimum_bytes(Self) -> Int64
+pub fn BlockwiseTileStorage::new(dimensions~ : Int, keys~ : Int, query_consumers~ : Int, stages~ : Int, validity_slots~ : Int) -> Self?
+pub fn BlockwiseTileStorage::not_equal(Self, Self) -> Bool
+pub fn BlockwiseTileStorage::region_offsets_bytes(Self) -> (Int64, Int64, Int64)
+pub fn BlockwiseTileStorage::region_sizes_bytes(Self) -> (Int64, Int64, Int64)
+pub fn BlockwiseTileStorage::to_repr(Self) -> @debug.Repr
+
 pub(all) enum FoldOperation {
   ScoreProduct
   PrepareScores

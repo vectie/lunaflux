@@ -19,7 +19,7 @@ test "register validity does not weaken readiness or invalid-stage drain" {
   for
     point in [
       @luna_attention_tile_schedule.AcquireKeyOperands,
-      @luna_attention_tile_schedule.AcquireValueOperands,
+      AcquireValueOperands,
     ] {
     let shared = cuda_grouped_effects(effects, point, "", "")
     let retained = cuda_grouped_effects(

@@ -18,7 +18,6 @@ fn emit_cuda_blockwise_decode_source(
   let (max_rows, max_tokens, max_pages) = abi.limits()
   let group = heads / kv_heads
   let stages = if effects.is_pipelined() { 2 } else { 1 }
-  let required_shared = (keys * dimension * 4 * stages + group * keys * 4 + 16).to_int64()
   guard !abi.query_metadata &&
     lowering.phase() == Decode &&
     query_tile == 1 &&
@@ -28,8 +27,7 @@ fn emit_cuda_blockwise_decode_source(
     fold.dimensions() == (dimension, keys) &&
     heads % kv_heads == 0 &&
     threads == group * 32 &&
-    grid_y == kv_heads &&
-    shared_bytes >= required_shared else {
+    grid_y == kv_heads else {
     raise InvalidCudaAttentionTileSource(UnsupportedLowering)
   }
   let partitions = lowering.key_value_partitions()
@@ -65,6 +63,17 @@ fn emit_cuda_blockwise_decode_source(
       },
     )
     is Some(_)
+  guard @attention_physical_ir.BlockwiseTileStorage::new(
+      dimensions=dimension,
+      keys~,
+      query_consumers=group,
+      stages~,
+      validity_slots=if retained_validity { 0 } else { stages },
+    )
+    is Some(storage) &&
+    storage.accepts_reservation(shared_bytes) else {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
   let acquire = if effects.is_pipelined() {
     emit_decode_pipeline_iteration(effects, retained_validity~)
   } else {
