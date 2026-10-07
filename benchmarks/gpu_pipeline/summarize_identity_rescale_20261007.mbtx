@@ -1,0 +1,152 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields = []
+  let text = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      fields.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  fields.push(text.to_string())
+  fields
+}
+
+///|
+fn metrics(text : String) -> Map[String, String] raise {
+  let mut header : Array[String] = []
+  let selected : Map[String, String] = Map([])
+  let mut rows = 0
+  for line in text.split("\n") {
+    let fields = csv(line)
+    if fields.length() > 0 && fields[0] == "ID" {
+      header = fields
+    } else if !header.is_empty() &&
+      fields.length() == header.length() &&
+      fields[0] == "0" {
+      rows += 1
+      for i, key in header {
+        if [
+            "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+            "sm__warps_active.avg.pct_of_peak_sustained_active", "launch__registers_per_thread",
+            "launch__registers_per_thread_allocated", "launch__occupancy_limit_registers",
+            "launch__shared_mem_per_block_dynamic", "smsp__average_warp_latency_per_inst_issued.ratio",
+          ].contains(key) ||
+          key.has_prefix("smsp__average_warps_issue_stalled") {
+          selected[key] = fields[i]
+        }
+      }
+    }
+  }
+  assert_eq(rows, 1)
+  selected
+}
+
+///|
+fn opcode_counts(value : Json) -> Map[String, Int64] raise {
+  guard value is Array([{ "opcodes": Array(ops), .. }]) else {
+    fail("one selected source entry")
+  }
+  let result : Map[String, Int64] = Map([])
+  for op in ops {
+    guard op is { "opcode": String(name), "executed": String(count), .. } else {
+      fail("collected opcode counts")
+    }
+    assert_false(result.contains(name))
+    result[name] = @string.parse_int64(count)
+  }
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("IDENTITY_EXPERIMENT_ROOT") }
+  let measured = [
+    for label in ["baseline", "candidate"] => {
+      metrics(
+        @fs.read_file(root + "/counter-" + label + "/counter.stdout").text(),
+      )
+    }
+  ]
+  let source = [
+    for label in ["baseline", "candidate"] => {
+      @json.parse(
+        @fs.read_file(root + "/counter-" + label + "/sass-summary.json").text(),
+      )
+    }
+  ]
+  let counts = source.map(opcode_counts)
+  let compared : Array[Json] = []
+  for
+    opcode in [
+      "FMUL", "HMMA.16816.F32.BF16", "MOV", "FADD", "LDSM.16.M88.4", "LDSM.16.MT88.4",
+      "NOP", "BRA", "VOTE.ANY", "FSETP.NEU.OR", "BAR.SYNC.DEFER_BLOCKING", "WARPSYNC.ALL",
+    ] {
+    let a = counts[0].get(opcode).unwrap_or(0L)
+    let b = counts[1].get(opcode).unwrap_or(0L)
+    compared.push({
+      "opcode": opcode,
+      "baseline": Json(a),
+      "candidate": Json(b),
+      "delta": Json(b - a),
+    })
+  }
+  let result : Json = {
+    "selected_metrics": [
+      for i, label in ["baseline", "candidate"] => {
+        { "variant": Json(label), "metrics": Json(measured[i]) }
+      }
+    ],
+    "opcode_counts": compared,
+    "timing": @json.parse(@fs.read_file(root + "/trial/summary.json").text()),
+    "scope": "Exact selected kernel ablation; sampled warp latency and opcode counts are not additive elapsed-time attribution",
+  }
+  @fs.write_file(
+    root + "/identity-comparison.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+}
+
+///|
+test "counter parser requires exactly one collected launch" {
+  let text = "\"ID\",\"smsp__inst_executed.sum\"\n\"0\",\"8,192\"\n"
+  assert_eq(metrics(text)["smsp__inst_executed.sum"], "8,192")
+  try metrics(text + "\"0\",\"1\"\n") catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate selected launch")
+  }
+}
+
+///|
+test "opcode parser rejects absent measurements" {
+  let measured : Json = [
+    { "opcodes": [{ "opcode": "FMUL", "executed": "64" }] },
+  ]
+  assert_eq(opcode_counts(measured)["FMUL"], 64L)
+  try
+    opcode_counts([
+      { "opcodes": [{ "opcode": "FMUL", "executed": Json::null() }] },
+    ])
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("uncollected count treated as zero")
+  }
+}

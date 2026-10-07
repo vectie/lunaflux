@@ -1,0 +1,367 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [first, last] else {
+    fail("one frozen site")
+  }
+  first.to_owned() + fresh + last.to_owned()
+}
+
+///|
+// Offline, finite-accumulator identity experiment, not a new production law.
+// All lanes participate in the warp vote. Any nonidentity factor retains the
+// original scale loop for the whole warp; no publication or fold order moves.
+fn variant(text : String) -> String raise {
+  let original =
+    #|        #pragma unroll
+    #|        for (int column=0;column<LF_HEAD_DIMENSION/16;++column) {
+    #|          #pragma unroll
+    #|          for (int item=0;item<8;++item) out[column].x[item]*=alpha[item%4/2];
+    #|        }
+    #|
+  let guarded =
+    #|        // experimental finite-output identity-rescale-v1
+    #|        if (__any_sync(0xffffffffU, alpha[0]!=1.0f || alpha[1]!=1.0f)) {
+    #|          #pragma unroll
+    #|          for (int column=0;column<LF_HEAD_DIMENSION/16;++column) {
+    #|            #pragma unroll
+    #|            for (int item=0;item<8;++item) out[column].x[item]*=alpha[item%4/2];
+    #|          }
+    #|        }
+    #|
+  once(text, original, guarded)
+}
+
+///|
+fn rebind(text : String, base : String, root : String) -> String raise {
+  guard base != root && !root.contains(base) else { fail("distinct roots") }
+  let parts = text.split(base).to_array()
+  guard parts.length() > 1 else { fail("contract paths absent") }
+  let rebound = parts.join(root)
+  assert_true(!rebound.contains(base))
+  ignore(@json.parse(rebound))
+  rebound
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn admission(root : String, label : String) -> Unit {
+  assert_eq(
+    capture(root, label + "-device", "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  assert_true(
+    capture(root, label + "-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(s => s.has_prefix("MemAvailable:"))
+    .to_array()
+    is [memory] else {
+    fail("memory reserve")
+  }
+  let fields = memory.split(" ").filter(s => !s.is_empty()).to_array()
+  assert_true(@string.parse_int64(fields[1]) >= 33554432L)
+}
+
+///|
+async fn profile(root : String, probe : String) -> Unit {
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  for label in ["baseline", "candidate"] {
+    let path = root + "/counter-" + label
+    @fs.mkdir(path)
+    admission(path, "preflight")
+    let selected = root + "/" + label
+    let receipt = if label == "baseline" {
+      "baseline-identity"
+    } else {
+      "compiled-identity"
+    }
+    assert_eq(
+      capture(path, "identity", "sha256sum", [selected + "/kernel.cubin"]),
+      @fs.read_file(root + "/" + receipt + ".stdout").text(),
+    )
+    assert_true(
+      capture(path, "probe-identity", "sha256sum", [probe + "/check-probe"]).has_prefix(
+        "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536 ",
+      ),
+    )
+    ignore(
+      capture(path, "counter", "sudo", [
+        "-n",
+        "systemd-run",
+        "--scope",
+        "--quiet",
+        "-p",
+        "MemoryMax=8G",
+        "-p",
+        "MemorySwapMax=0",
+        "timeout",
+        "900",
+        ncu,
+        "--config-file",
+        "off",
+        "--section",
+        "SourceCounters",
+        "--section",
+        "WarpStateStats",
+        "--section",
+        "LaunchStats",
+        "--metrics",
+        "smsp__inst_executed.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+        "--kernel-name",
+        "lunaflux_attention_prefill_tile_compiler_exp2_v1",
+        "--launch-count",
+        "1",
+        "--export",
+        path + "/counter",
+        "--csv",
+        "--page",
+        "raw",
+        probe + "/check-probe",
+        root + "/prefill.spec",
+        selected,
+        selected,
+        "2048",
+        "2",
+        "28672",
+        "--check-only",
+      ]),
+    )
+    ignore(
+      capture(path, "counter-source", ncu, [
+        "--import",
+        path + "/counter.ncu-rep",
+        "--page",
+        "source",
+        "--print-source",
+        "sass",
+        "--csv",
+      ]),
+    )
+    @shell.Cmd(probe + "/toolchain/bin/moon", [
+      "run",
+      root + "/summarize_gap_sass.mbtx",
+      path + "/counter-source.stdout",
+      path + "/sass-summary.json",
+    ]).run()
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe, root, mode] &&
+    ["prepare", "run", "validate", "profile", "finish"].contains(mode) else {
+    fail(
+      "FROZEN_OPERAND_ROOT PROBE_ROOT NEW_ROOT prepare|run|validate|profile|finish",
+    )
+  }
+  if mode != "prepare" {
+    assert_true(!@fs.read_file(root + "/contract.json").text().contains(base))
+    if mode == "profile" {
+      profile(root, probe)
+    } else {
+      @shell.Cmd(probe + "/toolchain/bin/moon", [
+        "run",
+        root + "/prefill_operand_pipeline_20261007.mbtx",
+        base,
+        probe,
+        root,
+        mode,
+      ]).run()
+    }
+    return
+  }
+  admission(root, "preflight")
+  for name in ["baseline", "candidate"] {
+    @fs.mkdir(root + "/" + name)
+  }
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/baseline/" + name,
+      @fs.read_file(base + "/baseline/" + name),
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+  }
+  @fs.write_file(
+    root + "/prefill.spec",
+    @fs.read_file(base + "/prefill.spec"),
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  for
+    (label, path, digest) in [
+      (
+        "baseline",
+        root + "/baseline/kernel.cubin",
+        "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb",
+      ),
+      (
+        "source",
+        root + "/baseline/kernel.cu",
+        "3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+      ),
+      (
+        "probe",
+        probe + "/check-probe",
+        "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536",
+      ),
+      (
+        "nvcc", "/usr/local/cuda-13.0/bin/nvcc", "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+      ),
+    ] {
+    assert_true(
+      capture(root, label + "-identity", "sha256sum", [path]).has_prefix(
+        digest + " ",
+      ),
+    )
+  }
+  let source = @fs.read_file(root + "/baseline/kernel.cu").text()
+  assert_true(
+    source.contains("#define LF_KEY_VALUE_TILE 64\n") &&
+    source.contains("#define LF_HEAD_DIMENSION 128\n"),
+  )
+  @fs.write_file(
+    root + "/candidate/kernel.cu",
+    variant(source),
+    create_mode=CreateNew,
+  )
+  let digest = capture(root, "candidate-source-identity", "sha256sum", [
+    root + "/candidate/kernel.cu",
+  ])
+  .split(" ")
+  .to_array()[0].to_owned()
+  @fs.write_file(
+    root + "/candidate/kernel.recipe",
+    once(
+      @fs.read_file(root + "/baseline/kernel.recipe").text(),
+      "source_sha256=3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+      "source_sha256=" + digest,
+    ) +
+    "\nexperimental_lowering=finite-output-identity-rescale-v1\n",
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+      "--cubin",
+      "--std=c++14",
+      "-arch=sm_121",
+      "-O3",
+      "--fmad=false",
+      "--ftz=false",
+      "--prec-div=true",
+      "--prec-sqrt=true",
+      "--maxrregcount=255",
+      "--Werror",
+      "all-warnings",
+      root + "/candidate/kernel.cu",
+      "-o",
+      root + "/candidate/kernel.cubin",
+    ]),
+  )
+  ignore(
+    capture(root, "compiled-identity", "sha256sum", [
+      root + "/candidate/kernel.cubin",
+    ]),
+  )
+  @fs.write_file(
+    root + "/contract.json",
+    rebind(@fs.read_file(base + "/contract.json").text(), base, root),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "guard preserves the ordered scale loop and only votes at its boundary" {
+  let original =
+    #|        #pragma unroll
+    #|        for (int column=0;column<LF_HEAD_DIMENSION/16;++column) {
+    #|          #pragma unroll
+    #|          for (int item=0;item<8;++item) out[column].x[item]*=alpha[item%4/2];
+    #|        }
+    #|
+  let transformed = variant("prefix\n" + original + "suffix\n")
+  assert_true(transformed.has_prefix("prefix\n"))
+  assert_true(transformed.has_suffix("suffix\n"))
+  assert_eq(transformed.split("__any_sync").to_array().length(), 2)
+  assert_eq(
+    transformed
+    .split("out[column].x[item]*=alpha[item%4/2]")
+    .to_array()
+    .length(),
+    2,
+  )
+}
+
+///|
+test "identity boundary retains first tile, underflow and nonidentity updates" {
+  fn needed(factors : Array[Double]) -> Bool {
+    factors.any(x => x != 1.0)
+  }
+  assert_false(needed(Array::make(64, 1.0)))
+  for index in 0..<64 {
+    for scale in [0.0, 0.5, 0.999999999, 1.000000001] {
+      let factors = Array::make(64, 1.0)
+      factors[index] = scale
+      assert_true(needed(factors))
+    }
+  }
+}
+
+///|
+test "rebind rejects nested roots and replaces every reference" {
+  assert_eq(
+    rebind(
+      "[\"/old/spec\",\"/old/baseline\",\"/old/candidate\"]", "/old", "/new",
+    ),
+    "[\"/new/spec\",\"/new/baseline\",\"/new/candidate\"]",
+  )
+  try rebind("[\"/old/spec\"]", "/old", "/old/new") catch {
+    _ => ()
+  } noraise {
+    _ => fail("nested replacement root")
+  }
+}
