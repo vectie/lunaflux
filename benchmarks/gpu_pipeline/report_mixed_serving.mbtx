@@ -1,0 +1,142 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("numeric field")
+  }
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  guard !values.is_empty() else { fail("empty sample") }
+  let sorted = values.copy()
+  sorted.sort()
+  let n = sorted.length()
+  if n % 2 == 0 {
+    (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+  } else {
+    sorted[n / 2]
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else { fail("TIMING_ROOT NEW_REPORT") }
+  let engines : Array[Json] = []
+  let medians : Array[Double] = []
+  let sequences : Array[Array[Json]] = []
+  for (engine, starts) in [("control", [0, 3]), ("unified", [1, 2])] {
+    let walls : Array[Double] = []
+    let ttft : Array[Double] = []
+    let tpot : Array[Double] = []
+    let tokens : Array[Json] = []
+    let rounds : Array[Json] = []
+    let mut minimum = 9223372036854775807L
+    for start in starts {
+      let dir = root + "/s\{start}-" + engine + "/r0-luna-full"
+      for line in @fs.read_file(dir + "/memory.csv").text().split("\n") {
+        if line.split(",").to_array() is [_, value] &&
+          value != "mem_available_kib" {
+          minimum = Int64::min(minimum, @string.parse_int64(value))
+        }
+      }
+      let times : Array[Double] = []
+      for i in 1..<4 {
+        let cell = @json.parse(
+          @fs.read_file(dir + "/requests/i8192-o64-c8-varied-t\{i}.json").text(),
+        )
+        guard cell
+          is {
+            "warmup": False,
+            "wall_ms": wall,
+            "input_vector": Array(input),
+            "output": Number(64.0, ..),
+            "concurrency": Number(8.0, ..),
+            "requests": Array(requests),
+            ..
+          } else {
+          fail("cell")
+        }
+        assert_eq(input.length(), 8)
+        assert_true(input.all(x => x is Number(8192.0, ..)))
+        assert_eq(requests.length(), 8)
+        walls.push(number(wall))
+        times.push(number(wall))
+        for req in requests {
+          guard req
+            is {
+              "ttft_ms": first,
+              "mean_tpot_ms": step,
+              "token_ms": Array(timing),
+              "token_ids": Array(ids),
+              ..
+            } else {
+            fail("request")
+          }
+          assert_eq(ids.length(), 64)
+          assert_eq(timing.length(), 64)
+          tokens.push(Json(ids))
+          ttft.push(number(first))
+          tpot.push(number(step))
+        }
+      }
+      rounds.push({
+        "start": start,
+        "waves_ms": times,
+        "median_ms": median(times),
+      })
+    }
+    assert_true(minimum >= 33554432L)
+    let wall = median(walls)
+    medians.push(wall)
+    sequences.push(tokens)
+    let mut repeat_equal = 0
+    for i in 8..<tokens.length() {
+      if tokens[i] == tokens[i % 8] {
+        repeat_equal += 1
+      }
+    }
+    engines.push({
+      "engine": engine,
+      "median_wall_ms": wall,
+      "output_tok_s": 512000.0 / wall,
+      "median_ttft_ms": median(ttft),
+      "median_mean_tpot_ms": median(tpot),
+      "min_available_gib": minimum.to_double() / 1048576.0,
+      "starts": rounds,
+      "repeat_sequences_equal": repeat_equal,
+      "repeat_sequences_compared": tokens.length() - 8,
+    })
+  }
+  let mut same = 0
+  for i in 0..<sequences[0].length() {
+    if sequences[0][i] == sequences[1][i] {
+      same += 1
+    }
+  }
+  let result : Json = {
+    "scope": "ABBA serving; one excluded warmup and three measured waves per fresh start; not quality parity",
+    "engines": engines,
+    "wall_reduction_percent": 100.0 * (1.0 - medians[1] / medians[0]),
+    "throughput_increase_percent": 100.0 * (medians[0] / medians[1] - 1.0),
+    "cross_arm_equal_sequences": same,
+    "cross_arm_compared_sequences": sequences[0].length(),
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(result.stringify(indent=2))
+}
+
+///|
+test "ABBA median combines starts rather than their percentage changes" {
+  assert_eq(median([4900.0, 4800.0, 4700.0, 4950.0]), 4850.0)
+}

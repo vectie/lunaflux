@@ -108,7 +108,7 @@ struct Kernel {
     void* args[]={&counts,&positions,&cache};
     CK(cuLaunchKernel(rotary_prepare,rotary_grid,1,1,rotary_block,1,1,0,nullptr,args,nullptr));
   }
-  void launch(void** a){
+  void launch(void** a, CUstream stream=nullptr){
     if(merge){
       void* partial[]={a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[8],a[9],&workspace};
       // The prefill partial consumes tile metadata, but its merge consumes
@@ -116,9 +116,9 @@ struct Kernel {
       if(prefill_split && !merge_row_offsets)std::exit(1);
       void* merge_rows=prefill_split?merge_row_offsets:*static_cast<void**>(a[2]);
       void* combine[]={a[0],&merge_rows,&workspace,a[7]};
-      CK(cuLaunchKernel(function,gx,gy,gz,b,1,1,shared,nullptr,partial,nullptr));
-      CK(cuLaunchKernel(merge,gx,merge_y,1,merge_b,1,1,0,nullptr,combine,nullptr));
-    }else{CK(cuLaunchKernel(function,gx,gy,1,b,1,1,shared,nullptr,a,nullptr));}
+      CK(cuLaunchKernel(function,gx,gy,gz,b,1,1,shared,stream,partial,nullptr));
+      CK(cuLaunchKernel(merge,gx,merge_y,1,merge_b,1,1,0,stream,combine,nullptr));
+    }else{CK(cuLaunchKernel(function,gx,gy,1,b,1,1,shared,stream,a,nullptr));}
   }
   double time(void** a,const std::vector<std::unique_ptr<Buffer>>& weights={},
               Kernel* companion=nullptr,void** companion_args=nullptr){
@@ -141,6 +141,44 @@ struct Kernel {
     cudaEvent_t start,end;CK(cudaEventCreate(&start));CK(cudaEventCreate(&end));
     CK(cudaEventRecord(start));for(int i=0;i<30;i++)repeat(i);
     CK(cudaEventRecord(end));CK(cudaEventSynchronize(end));float ms;CK(cudaEventElapsedTime(&ms,start,end));
+    CK(cudaEventDestroy(start));CK(cudaEventDestroy(end));return ms*1000.0/30;
+  }
+};
+// Offline whole-chain capture. Both arms exclude host launch overhead; row
+// work and numerical-law changes, when requested, are supplied explicitly.
+struct AttentionChain {
+  cudaStream_t main_stream=nullptr,branch=nullptr;
+  cudaEvent_t fork=nullptr,join=nullptr;
+  cudaGraph_t graph=nullptr;
+  cudaGraphExec_t executable=nullptr;
+  AttentionChain(Kernel& prefill,void** prefill_args,Kernel* decode,void** decode_args,bool independent) {
+    CK(cudaStreamCreateWithFlags(&main_stream,cudaStreamNonBlocking));
+    CK(cudaStreamCreateWithFlags(&branch,cudaStreamNonBlocking));
+    CK(cudaEventCreateWithFlags(&fork,cudaEventDisableTiming));
+    CK(cudaEventCreateWithFlags(&join,cudaEventDisableTiming));
+    CK(cudaStreamBeginCapture(main_stream,cudaStreamCaptureModeThreadLocal));
+    if(independent) { CK(cudaEventRecord(fork,main_stream));CK(cudaStreamWaitEvent(branch,fork)); }
+    prefill.launch(prefill_args,reinterpret_cast<CUstream>(main_stream));
+    if(decode)decode->launch(decode_args,reinterpret_cast<CUstream>(independent?branch:main_stream));
+    if(independent) { CK(cudaEventRecord(join,branch));CK(cudaStreamWaitEvent(main_stream,join)); }
+    CK(cudaStreamEndCapture(main_stream,&graph));
+    CK(cudaGraphInstantiate(&executable,graph,0));
+  }
+  ~AttentionChain() {
+    CK(cudaStreamSynchronize(main_stream));
+    CK(cudaGraphExecDestroy(executable));CK(cudaGraphDestroy(graph));
+    CK(cudaEventDestroy(join));CK(cudaEventDestroy(fork));
+    CK(cudaStreamDestroy(branch));CK(cudaStreamDestroy(main_stream));
+  }
+  void launch() {CK(cudaGraphLaunch(executable,main_stream));}
+  double time() {
+    for(int i=0;i<3;i++)launch();
+    CK(cudaStreamSynchronize(main_stream));
+    cudaEvent_t start,end;CK(cudaEventCreate(&start));CK(cudaEventCreate(&end));
+    CK(cudaEventRecord(start,main_stream));
+    for(int i=0;i<30;i++)launch();
+    CK(cudaEventRecord(end,main_stream));CK(cudaEventSynchronize(end));
+    float ms;CK(cudaEventElapsedTime(&ms,start,end));
     CK(cudaEventDestroy(start));CK(cudaEventDestroy(end));return ms*1000.0/30;
   }
 };
@@ -169,12 +207,15 @@ static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
 }
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc<7 || argc>21)return 1;
+  if(argc<7 || argc>22)return 1;
+  bool fork_join=false,unified_rows=false;
   bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false,mixed_decode_comparison=false;
   int chunk_tokens=0,decode_history=-1,traced_bucket=0,declared_prefill_rows=0;
   std::string mixed_companion_root,row_work,mixed_replacement_root;
   for(int i=7;i<argc;i++){
-    if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
+    if(std::string(argv[i])=="--mixed-fork-join" && !fork_join)fork_join=true;
+    else if(std::string(argv[i])=="--mixed-unified-rows" && !unified_rows)unified_rows=true;
+    else if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
     else if(std::string(argv[i])=="--decode-envelope" && !decode_envelope)decode_envelope=true;
     else if(std::string(argv[i])=="--decode-partitioned" && !partitioned)partitioned=true;
@@ -202,6 +243,8 @@ int main(int argc,char**argv){
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
   const bool ingress=kind=="ingress",decode=kind=="decode",postprocess=kind=="postprocess";
   const bool mixed_chain=!mixed_companion_root.empty();
+  if((fork_join || unified_rows) && (!mixed_decode_comparison || mixed_replacement_root.empty()))return 1;
+  if(fork_join && unified_rows)return 1;
   if(!mixed_replacement_root.empty() && !mixed_decode_comparison)return 1;
   if(declared_prefill_rows && !mixed_chain)return 1;
   if(mixed_chain!=(decode_history>=0) || (mixed_chain && (kind!="prefill" || number(spec,"query_metadata_version")!=1)))return 1;
@@ -268,11 +311,11 @@ int main(int argc,char**argv){
   std::vector<int> counts{decode?0:prefill_rows,decode?rows:decode_rows,rows,tokens,int(pages.size())};
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
   auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens,mixed_chain?prefill_rows:rows);
-  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=%d prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=%d new_launches=%d comparison=%s\n",
+  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=%d prefill_history=%d decode_history=%d baseline_metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=%d new_launches=%d comparison=%s\n",
     prefill_rows,decode_rows,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz,
     2+int(baseline.merge!=nullptr)+int(mixed_companion->merge!=nullptr),
-    2+int(candidate.merge!=nullptr)+int((mixed_decode_candidate?mixed_decode_candidate.get():mixed_companion.get())->merge!=nullptr),
-    mixed_decode_comparison?"decode-companion":prefill_partitioned?"prefill-partition":"ordinary-chain");
+    unified_rows?1:2+int(candidate.merge!=nullptr)+int((mixed_decode_candidate?mixed_decode_candidate.get():mixed_companion.get())->merge!=nullptr),
+    unified_rows?"unified-matrix-rows":mixed_decode_comparison?"decode-companion":prefill_partitioned?"prefill-partition":"ordinary-chain");
   if(mixed_decode_candidate)std::printf("mixed_split_grid=%u,%u,%u\n",mixed_decode_candidate->gx,mixed_decode_candidate->gy,mixed_decode_candidate->gz);
   if(!row_work.empty())std::printf("exact_row_work=%s\n",row_work.c_str());
   auto x=values(size_t(tokens)*input_width,3);
@@ -287,6 +330,8 @@ int main(int argc,char**argv){
   }
   Buffer dc(20),dp(positions.size()*4),doff(offsets.size()*4),dl(lengths.size()*4),dpo(po.size()*4),dpi(pages.size()*4),dm(metadata.size()*4);
   dc.put(counts);dp.put(positions);doff.put(offsets);dl.put(lengths);dpo.put(po);dpi.put(pages);dm.put(metadata);
+  Buffer all_rows_metadata(unified_rows?metadata.size()*4:4);
+  if(unified_rows)all_rows_metadata.put(prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens));
   candidate.merge_row_offsets=doff.p;
   if(mixed_decode_candidate)mixed_decode_candidate->merge_row_offsets=doff.p;
   if(mixed_companion)mixed_companion->merge_row_offsets=doff.p;
@@ -306,6 +351,14 @@ int main(int argc,char**argv){
   void* mixed_args[]={&dc.p,&dp.p,&doff.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&out.p,&dk.p,&dv.p};
   if(phase_parity)decode_counts.put(std::vector<int>{0,rows,rows,tokens,int(pages.size())});
   void** candidate_args=phase_parity?phase_args:args;
+  void* unified_args[]={&dc.p,&dp.p,&all_rows_metadata.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&out.p,&dk.p,&dv.p};
+  if(unified_rows)candidate_args=unified_args;
+  std::unique_ptr<AttentionChain> serial_graph,parallel_graph;
+  if(fork_join || unified_rows) {
+    serial_graph=std::make_unique<AttentionChain>(baseline,args,mixed_companion.get(),mixed_args,false);
+    parallel_graph=std::make_unique<AttentionChain>(candidate,candidate_args,unified_rows?nullptr:mixed_decode_candidate.get(),mixed_args,fork_join);
+    std::printf("chain_capture baseline=ordered candidate=%s numerical_law_unchanged=%s candidate_launches=%d\n",unified_rows?"unified-matrix-rows":"fork-join",unified_rows?"false":"true",unified_rows?1:3);
+  }
   baseline.prepare(dc.p,dp.p,rotary.p,rotary.bytes);
   baseline.launch(args);
   if(mixed_companion)mixed_companion->launch(mixed_args);
@@ -330,9 +383,12 @@ int main(int argc,char**argv){
       chunk.launch(chunk_args);CK(cudaDeviceSynchronize());
     }
   } else {
-    candidate.launch(candidate_args);
-    if(mixed_decode_candidate)mixed_decode_candidate->launch(mixed_args);
-    else if(mixed_companion)mixed_companion->launch(mixed_args);
+    if(parallel_graph)parallel_graph->launch();
+    else {
+      candidate.launch(candidate_args);
+      if(mixed_decode_candidate)mixed_decode_candidate->launch(mixed_args);
+      else if(mixed_companion)mixed_companion->launch(mixed_args);
+    }
     CK(cudaDeviceSynchronize());
   }
   auto actual=out.read();
@@ -426,7 +482,11 @@ int main(int argc,char**argv){
   for(int trial=0;trial<5;trial++){
     double a,b;
     Kernel* candidate_companion=mixed_decode_candidate?mixed_decode_candidate.get():mixed_companion.get();
-    if(trial%2){b=candidate.time(args,layer_weights,candidate_companion,mixed_args);a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);}
+    if(serial_graph) {
+      if(trial%2){b=parallel_graph->time();a=serial_graph->time();}
+      else {a=serial_graph->time();b=parallel_graph->time();}
+    }
+    else if(trial%2){b=candidate.time(args,layer_weights,candidate_companion,mixed_args);a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);}
     else{a=baseline.time(args,layer_weights,mixed_companion.get(),mixed_args);b=candidate.time(args,layer_weights,candidate_companion,mixed_args);}
     std::printf("tokens=%d rows=%d history=%d trial=%d old_us=%.6f new_us=%.6f bitwise=%s maxabs=%g oracle_maxabs=%g\n",tokens,rows,past,trial,a,b,bitwise?"true":"false",error,oracle_error);
   }

@@ -1,0 +1,140 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn retained(path : String) -> Bool {
+  !path
+  .split("/")
+  .any(x => {
+    ["_build", ".mooncakes", "source", "toolchain", "deployment"].contains(
+      x.to_owned(),
+    )
+  }) &&
+  !path.has_suffix(".tar.gz") &&
+  !path.has_suffix(".tar.gz.sha256") &&
+  path != "FILES.sha256"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    [
+      "/home/wlc004s/lunaflux-mixed-fork-join-20261008.", "/home/wlc004s/lunaflux-mixed-unified-20261008.",
+      "/home/wlc004s/lunaflux-mixed-serving-20261008.",
+    ].any(prefix => root.has_prefix(prefix)) else {
+    fail("TERMINAL_MIXED_EXPERIMENT")
+  }
+  assert_true(
+    @fs.exists(root + "/trial/RESULT.txt") ||
+    @fs.exists(root + "/timing-v2/RESULT.txt"),
+  )
+  assert_false(@fs.exists(root + "/FILES.sha256"))
+  assert_false(@fs.exists(root + ".tar.gz"))
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  let units = if root.contains("mixed-serving-") {
+    [
+      "lunaflux-mixed-serving-build-20261008.service", "lunaflux-mixed-serving-timing-20261008.service",
+      "lunaflux-mixed-serving-timing-v2-20261008.service", "lunaflux-mixed-serving-timing-v3-20261008.service",
+      "lunaflux-mixed-serving-profile-20261008.service",
+    ]
+  } else if root.contains("mixed-fork-join-") {
+    [
+      "lunaflux-mixed-fork-join-20261008.service", "lunaflux-mixed-fork-join-v2-20261008.service",
+    ]
+  } else {
+    [
+      "lunaflux-mixed-unified-20261008.service", "lunaflux-mixed-source-recheck-20261008.service",
+    ]
+  }
+  for i, unit in units {
+    let log = @shell.Cmd("journalctl", ["--user", "--no-pager", "-u", unit]).output(
+      max_output_bytes=16777216,
+    )
+    log.check()
+    @fs.write_file(
+      root + "/user-unit-\{i}.log",
+      log.stdout(),
+      create_mode=CreateNew,
+    )
+  }
+  if root.contains("mixed-serving-") {
+    assert_false(@fs.exists(root + "/diagnostic-worker.exe"))
+    @shell.Cmd("cp", [
+      root + "/serving/deployment/bin/lunaflux-device-worker",
+      root + "/diagnostic-worker.exe",
+    ]).run()
+    @fs.write_file(
+      root + "/diagnostic.launch.json",
+      @fs.read_file(root + "/serving/deployment/lunaflux.launch.json"),
+      create_mode=CreateNew,
+    )
+  }
+  let found = @shell.Cmd(
+    "find",
+    [
+      ".", "-type", "d", "(", "-name", "_build", "-o", "-name", ".mooncakes", "-o",
+      "-name", "source", "-o", "-name", "deployment", "-o", "-name", "toolchain",
+      ")", "-prune", "-o", "-type", "f", "-print",
+    ],
+    cwd=root,
+  ).output(max_output_bytes=16777216)
+  found.check()
+  let paths = found
+    .stdout()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(x => {
+      guard x.strip_prefix("./") is Some(p) && !p.split("/").any(x => x == "..") else {
+        fail("path")
+      }
+      p.to_owned()
+    })
+    .filter(retained)
+  paths.sort()
+  let manifest = StringBuilder()
+  for path in paths {
+    let digest = @shell.Cmd("sha256sum", [path], cwd=root).output()
+    digest.check()
+    manifest.write_string(digest.stdout())
+  }
+  @fs.write_file(
+    root + "/FILES.sha256",
+    manifest.to_string(),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("sha256sum", ["--check", "FILES.sha256"], cwd=root)
+  .output(max_output_bytes=16777216)
+  .check()
+  @shell.Cmd(
+    "tar",
+    ["-czf", root + ".tar.gz", "FILES.sha256", ..paths],
+    cwd=root,
+  ).run()
+  let digest = @shell.Cmd("sha256sum", [root + ".tar.gz"]).output()
+  digest.check()
+  @fs.write_file(
+    root + ".tar.gz.sha256",
+    digest.stdout(),
+    create_mode=CreateNew,
+  )
+  println(digest.stdout())
+}
+
+///|
+test "keep failures and diagnostic source without copied deployment and caches" {
+  assert_true(retained("trial-v2.mbtx"))
+  assert_true(retained("attention_phase_executor.diagnostic.mbt"))
+  assert_true(retained("failed-build.stderr"))
+  assert_false(retained("source/_build/kernel.o"))
+  assert_false(retained("serving/deployment/model.safetensors"))
+}

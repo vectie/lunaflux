@@ -1,0 +1,110 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn aggregate(rows : Array[Json]) -> Json raise {
+  guard !rows.is_empty() else { fail("empty trial") }
+  let mut baseline = 0.0
+  let mut candidate = 0.0
+  let mut improved = 0
+  let mut regression = 0
+  let mut inconclusive = 0
+  let changes : Array[Json] = []
+  for row in rows {
+    guard row
+      is {
+        "label": String(label),
+        "metrics": {
+          "baseline_median_us": Number(b, ..),
+          "candidate_median_us": Number(c, ..),
+          "decision": String(decision),
+          ..
+        },
+        ..
+      } &&
+      b > 0.0 &&
+      c > 0.0 else {
+      fail("invalid metrics")
+    }
+    baseline += b
+    candidate += c
+    match decision {
+      "improved" => improved += 1
+      "regression" => regression += 1
+      "inconclusive" => inconclusive += 1
+      _ => fail("invalid decision")
+    }
+    changes.push({
+      "step": label,
+      "baseline_us": b,
+      "candidate_us": c,
+      "reduction_percent": 100.0 * (1.0 - c / b),
+      "decision": decision,
+    })
+  }
+  {
+    "scope": "sum of medians for exact mixed-vector replay; not serving throughput or a confidence interval",
+    "baseline_sum_us": baseline,
+    "candidate_sum_us": candidate,
+    "reduction_percent": 100.0 * (1.0 - candidate / baseline),
+    "improved": improved,
+    "inconclusive": inconclusive,
+    "regression": regression,
+    "workloads": changes,
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, input, output] else {
+    fail("SUMMARY_JSON NEW_REPORT")
+  }
+  guard @json.parse(@fs.read_file(input).text()) is Array(rows) else {
+    fail("rows")
+  }
+  assert_eq(rows.length(), 29)
+  for i, row in rows {
+    guard row is { "label": String(label), .. } else { fail("label") }
+    assert_eq(label, "step-\{i+4}")
+  }
+  let result = aggregate(rows)
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(result.stringify(indent=2))
+}
+
+///|
+test "total-time reduction is not an unweighted average of percentages" {
+  let result = aggregate([
+    {
+      "label": "a",
+      "metrics": {
+        "baseline_median_us": 100,
+        "candidate_median_us": 50,
+        "decision": "improved",
+      },
+    },
+    {
+      "label": "b",
+      "metrics": {
+        "baseline_median_us": 900,
+        "candidate_median_us": 950,
+        "decision": "regression",
+      },
+    },
+  ])
+  guard result
+    is {
+      "reduction_percent": Number(reduction, ..),
+      "regression": Number(losses, ..),
+      ..
+    } else {
+    fail("result")
+  }
+  assert_eq(reduction, 0.0)
+  assert_eq(losses, 1.0)
+}

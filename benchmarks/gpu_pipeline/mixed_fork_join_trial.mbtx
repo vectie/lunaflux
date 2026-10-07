@@ -1,0 +1,143 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, previous, moon, mode] else {
+    fail("ROOT PREVIOUS_REPLAY MOON fork-join|unified-rows")
+  }
+  assert_true(mode == "fork-join" || mode == "unified-rows")
+  assert_true(
+    capture(root, "nvcc-identity", "sha256sum", [
+      "/usr/local/cuda-13.0/bin/nvcc",
+    ]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  assert_eq(
+    capture(root, "device", "nvidia-smi", [
+      "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0",
+  )
+  ignore(
+    capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      root + "/selected_policy_probe.cu",
+      "-lcuda",
+      "-o",
+      root + "/probe",
+    ]),
+  )
+  let workloads : Array[Json] = []
+  let artifacts : Array[String] = [
+    root + "/selected_policy_probe.cu",
+    root + "/selected_policy_geometry.h",
+  ]
+  for i in 4..<33 {
+    guard @json.parse(
+        @fs.read_file(previous + "/step-\{i}.command.json").text(),
+      )
+      is Array(command) else {
+      fail("command")
+    }
+    let args = command[1:].map(value => {
+      guard value is String(s) else { fail("argument") }
+      s
+    })
+    // The frozen comparison was ordinary versus split decode. Use the same
+    // split artifact on both sides here: only the chain dependency changes.
+    let decode = args[7]
+    let args = args +
+      ["--mixed-partition-replacement", decode, "--mixed-" + mode]
+    if i == 4 {
+      for dir in [args[1], decode] {
+        for leaf in ["kernel.recipe", "kernel.cubin"] {
+          artifacts.push(dir + "/" + leaf)
+        }
+      }
+      artifacts.push(args[0])
+    }
+    workloads.push({ "label": "step-\{i}", "args": args })
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.02,
+    "require_bitwise": mode == "fork-join",
+    "program": root + "/probe",
+    "artifacts": artifacts,
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "trial", moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      root + "/contract.json",
+      root + "/trial",
+    ]),
+  )
+  // Representative late mixed vector, with fragmented pages and unequal
+  // history lengths. Racecheck also sees both captured branches.
+  guard workloads[19] is { "args": Array(raw), .. } else {
+    fail("sanitizer args")
+  }
+  let args = raw.map(value => {
+      guard value is String(s) else { fail("argument") }
+      s
+    }) +
+    ["--check-only"]
+  for tool in ["memcheck", "racecheck", "initcheck", "synccheck"] {
+    ignore(
+      capture(
+        root,
+        tool,
+        "/usr/local/cuda/bin/compute-sanitizer",
+        ["--tool", tool, "--error-exitcode", "99", root + "/probe", ..args],
+      ),
+    )
+  }
+  println("completed: " + root)
+}

@@ -1,0 +1,44 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, output] else { fail("TRACE_SQLITE NEW_REPORT") }
+  let query =
+    #|WITH per_graph AS (
+    #| SELECT k.correlationId,
+    #|  sum(instr(s.value,'attention_prefill')>0) prefill_nodes,
+    #|  sum(instr(s.value,'attention_decode')>0 OR instr(s.value,'attention_bf16_decode')>0) decode_nodes,
+    #|  count(*) nodes
+    #| FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY 1)
+    #|SELECT count(*) graphs,sum(prefill_nodes>0) prefill_graphs,
+    #| sum(decode_nodes>0) decode_graphs,
+    #| sum(prefill_nodes>0 AND decode_nodes>0) serial_mixed_attention_graphs,
+    #| sum(nodes) kernels FROM per_graph;
+  let result = @shell.Cmd("sqlite3", ["-readonly", "-json", db, query]).output()
+  result.check()
+  guard @json.parse(result.stdout()) is Array([row]) &&
+    row
+    is {
+      "graphs": Number(192.0, ..),
+      "prefill_graphs": Number(66.0, ..),
+      "decode_graphs": Number(126.0, ..),
+      "serial_mixed_attention_graphs": Number(0.0, ..),
+      ..
+    } else {
+    fail("unified dispatch did not propagate")
+  }
+  let report : Json = {
+    "scope": "two captured waves, including warmup; dispatch proof, not unprofiled throughput",
+    "observed": row,
+    "expected": "33 prefill/mixed and 63 single-query graphs per wave; no separate decode companion in any prefill graph",
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(result.stdout())
+}
