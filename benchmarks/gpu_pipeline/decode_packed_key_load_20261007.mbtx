@@ -1,0 +1,262 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn replace_all(
+  source : String,
+  old : String,
+  new : String,
+  count : Int,
+) -> String raise {
+  let parts = source.split(old).to_array()
+  assert_eq(parts.length(), count + 1)
+  parts.join(new)
+}
+
+///|
+// Offline QK load-width ablation. Preserve exact component ownership and the
+// ordered F32 fold; do not regroup dot terms or change the arithmetic law.
+fn transform(source : String, wide : Bool) -> String raise {
+  assert_eq(source.split("#define LF_HEAD_DIMENSION 128").length(), 3)
+  assert_eq(source.split("#define LF_SCORE_LANES 4").length(), 3)
+  let old = "          dot += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);"
+  let load = if wide {
+    (
+      #|          {
+      #|            const uint2 packed_key = *reinterpret_cast<const uint2 *>(key_tile + key * LF_HEAD_DIMENSION + (component & ~3));
+      #|            const unsigned int key_word = (component & 2) ? packed_key.y : packed_key.x;
+      #|            const unsigned int key_bits = (component & 1) ? (key_word & 0xffff0000U) : (key_word << 16);
+      #|            dot += query_fragment[item] * __uint_as_float(key_bits);
+      #|          }
+    )
+  } else {
+    (
+      #|          {
+      #|            const unsigned int key_word = *reinterpret_cast<const unsigned int *>(key_tile + key * LF_HEAD_DIMENSION + (component & ~1));
+      #|            const unsigned int key_bits = (component & 1) ? (key_word & 0xffff0000U) : (key_word << 16);
+      #|            dot += query_fragment[item] * __uint_as_float(key_bits);
+      #|          }
+    )
+  }
+  replace_all(source, old, load, 4)
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode, moon] else {
+    fail("FROZEN_BASE PROBE_ROOT NEW_ROOT build|run MOON")
+  }
+  if mode == "validate" {
+    let original = @fs.read_file(base).text()
+    for full in [false, true] {
+      println("full=\{full} source_bytes=\{transform(original, full).length()}")
+    }
+    return
+  }
+  let frozen = base + "/decode-selected"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  if mode == "build" {
+    assert_true(
+      capture(root, "source", "sha256sum", [frozen + "/kernel.cu"]).has_prefix(
+        "dc9f5a1a30e0d2f969f7a9e82cdcc7b8b9a8c80f2058c698b19ea9416e9d43b6 ",
+      ),
+    )
+    assert_true(
+      capture(root, "nvcc", "sha256sum", [nvcc]).has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    let original = @fs.read_file(frozen + "/kernel.cu").text()
+    let recipe = @fs.read_file(frozen + "/kernel.recipe").text()
+    for name in ["word32", "word64"] {
+      let directory = root + "/" + name
+      @fs.mkdir(directory)
+      @fs.write_file(
+        directory + "/kernel.cu",
+        transform(original, name == "word64"),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        directory + "/kernel.recipe",
+        recipe + "diagnostic_only=true\n",
+        create_mode=CreateNew,
+      )
+      ignore(
+        capture(root, name + "-compile", nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--Werror",
+          "all-warnings",
+          "--maxrregcount=255",
+          "-Xptxas=-v",
+          "-cubin",
+          directory + "/kernel.cu",
+          "-o",
+          directory + "/kernel.cubin",
+        ]),
+      )
+      ignore(
+        capture(root, name + "-identity", "sha256sum", [
+          directory + "/kernel.cu",
+          directory + "/kernel.cubin",
+        ]),
+      )
+    }
+    return
+  }
+  guard mode == "run" else { fail("mode") }
+  let probe = probe_root + "/check-probe"
+  assert_true(
+    capture(root, "probe", "sha256sum", [probe]).has_prefix(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+  assert_eq(spec.split("maximum_rows=32\n").length(), 2)
+  let workloads : Array[Json] = []
+  for name in ["word32", "word64"] {
+    for partitioned in [false, true] {
+      for
+        (rows, envelope, history) in [
+          (16, 16, 4095),
+          (2, 8, 32767),
+          (1, 1, 127),
+        ] {
+        let label = "\{name}-\{if partitioned { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+        let path = root + "/" + label + ".spec"
+        @fs.write_file(
+          path,
+          spec.replace(
+            old="maximum_rows=32\n",
+            new="maximum_rows=\{envelope}\n",
+          ),
+          create_mode=CreateNew,
+        )
+        let args = [
+          path,
+          frozen,
+          root + "/" + name,
+          rows.to_string(),
+          rows.to_string(),
+          history.to_string(),
+          "--decode-envelope",
+        ]
+        if partitioned {
+          args.push("--decode-partitioned")
+        }
+        workloads.push({ "label": label, "args": args })
+      }
+    }
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.01,
+    "require_bitwise": true,
+    "program": probe,
+    "artifacts": [
+      frozen + "/kernel.cubin",
+      root + "/word32/kernel.cubin",
+      root + "/word64/kernel.cubin",
+    ],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "paired", moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      root + "/contract.json",
+      root + "/paired",
+    ]),
+  )
+}
+
+///|
+test "packed words retain every BF16 payload and component parity" {
+  for bits in 0..<65536 {
+    let low = bits.reinterpret_as_uint()
+    let high = (65535 - bits).reinterpret_as_uint()
+    let word = low | (high << 16)
+    assert_eq(word << 16, low << 16)
+    assert_eq(word & 0xffff0000U, high << 16)
+  }
+  for owner in 0..<8 {
+    for lane in 0..<4 {
+      for item in 0..<32 {
+        let component = lane + (item + owner) % 32 * 4
+        assert_true(component >= 0 && component < 128)
+        assert_eq(component % 4, lane)
+        assert_true((component & -4) + 3 < 128)
+        assert_true((component & -2) + 1 < 128)
+      }
+    }
+  }
+}
+
+///|
+test "ordinary and partial complete/ragged QK loads must all be transformed" {
+  let line = "          dot += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);"
+  let terminal = "#define LF_HEAD_DIMENSION 128\n#define LF_SCORE_LANES 4\n" +
+    line +
+    "\n" +
+    line
+  for wide in [false, true] {
+    let transformed = transform(terminal + "\n" + terminal, wide)
+    assert_eq(
+      transformed
+      .split("dot += query_fragment[item] * __uint_as_float(key_bits);")
+      .length(),
+      5,
+    )
+    assert_false(transformed.contains("__bfloat162float"))
+  }
+  try transform(terminal, false) catch {
+    _ => ()
+  } noraise {
+    _ => fail("partial module must fail closed")
+  }
+}

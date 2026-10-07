@@ -50,11 +50,29 @@ async fn reserve() -> Unit {
 }
 
 ///|
-async fn main {
-  guard @env.args() is [_, base, probe_root, root, mode] &&
-    (mode == "boundary" || mode == "sanitizer") else {
-    fail("FROZEN_BASE PROBE_ROOT TRIAL_ROOT boundary|sanitizer")
+fn variants(options : ArrayView[String]) -> Array[String] raise {
+  let names = match options {
+    [] => ["probability", "row"]
+    [first, second] => [first, second]
+    _ => fail("exactly two diagnostic variants")
   }
+  assert_true(names[0] != names[1])
+  for name in names {
+    assert_true(!name.is_empty() && name.length() <= 32)
+    assert_true(name.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')))
+  }
+  names
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode, .. options] &&
+    (mode == "boundary" || mode == "sanitizer") else {
+    fail(
+      "FROZEN_BASE PROBE_ROOT TRIAL_ROOT boundary|sanitizer [VARIANT_A VARIANT_B]",
+    )
+  }
+  let names = variants(options)
   let out = root + "/" + mode
   @fs.mkdir(out)
   assert_true(
@@ -91,7 +109,7 @@ async fn main {
     ignore(capture(out, "sanitizer-identity", "sha256sum", [sanitizer]))
   }
   let mut count = 0
-  for name in ["probability", "row"] {
+  for name in names {
     for partitioned in [false, true] {
       for history in histories {
         for tool in tools {
@@ -143,7 +161,20 @@ async fn main {
   )
   @fs.write_file(
     out + "/RESULT.txt",
-    "outcome=passed\ncases=\{count}\nscope=register exchange ordered output and inactive/ragged/page-boundary controls; not model quality\n",
+    "outcome=passed\ncases=\{count}\nscope=ordered decode transport and inactive/ragged/page-boundary controls; not model quality\n",
     create_mode=CreateNew,
   )
+}
+
+///|
+test "variant names retain the old invocation and reject traversal or aliases" {
+  assert_eq(variants([]), ["probability", "row"])
+  assert_eq(variants(["word32", "word64"]), ["word32", "word64"])
+  for names in [["../word32", "word64"], ["row", "row"], ["row"]] {
+    try variants(names) catch {
+      _ => ()
+    } noraise {
+      _ => fail("unsafe diagnostic names")
+    }
+  }
 }

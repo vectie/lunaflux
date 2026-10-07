@@ -1,0 +1,176 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn copy(from : String, to : String) -> Unit {
+  @fs.write_file(to, @fs.read_file(from), create_mode=CreateNew)
+}
+
+///|
+async fn summarize(path : String) -> Unit {
+  guard @json.parse(@fs.read_file(path).text()) is Array(records) &&
+    records.length() == 12 else {
+    fail("twelve workloads")
+  }
+  for record in records {
+    guard record
+      is {
+        "label": String(label),
+        "metrics": {
+          "baseline_median_us": Number(control, ..),
+          "candidate_median_us": Number(candidate, ..),
+          "median_paired_gain": Number(gain, ..),
+          "minimum_paired_gain": Number(minimum, ..),
+          "decision": String(decision),
+          ..
+        },
+        ..
+      } else {
+      fail("metrics")
+    }
+    println(
+      "\{label}: \{control} -> \{candidate} us; paired=\{gain * 100}% minimum=\{minimum * 100}% \{decision}",
+    )
+    assert_true(["regression", "inconclusive"].contains(decision))
+  }
+}
+
+///|
+async fn main {
+  if @env.args() is [_, summary] {
+    summarize(summary)
+    return
+  }
+  guard @env.args() is [_, root, word32, word64, base, probe, moon, sealer] else {
+    fail(
+      "SUMMARY_JSON | TRIAL_ROOT WORD32_COUNTER_ROOT WORD64_COUNTER_ROOT FROZEN_BASE PROBE_ROOT MOON SEALER",
+    )
+  }
+  assert_true(@fs.exists(sealer))
+  for phase in ["boundary", "sanitizer"] {
+    assert_true(
+      @fs.read_file(root + "/" + phase + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=passed\n"),
+    )
+  }
+  assert_true(
+    @fs.read_file(root + "/paired/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  summarize(root + "/paired/summary.json")
+  guard @json.parse(@fs.read_file(root + "/paired/summary.json").text())
+    is Array(records) else {
+    fail("workloads")
+  }
+  for index, record in records {
+    guard record is { "label": String(label), .. } else { fail("label") }
+    let rows = @fs.read_file(root + "/paired/w\{index}-\{label}.stdout")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("tokens="))
+      .to_array()
+    assert_eq(rows.length(), 5)
+    for row in rows {
+      assert_eq(
+        row.split(" ").filter(x => x.has_prefix("bitwise=")).to_array(),
+        ["bitwise=true"],
+      )
+      assert_eq(
+        row.split(" ").filter(x => x.has_prefix("maxabs=")).to_array(),
+        ["maxabs=0"],
+      )
+    }
+  }
+  for (name, path) in [("counter-word32", word32), ("counter-word64", word64)] {
+    assert_true(
+      @fs.read_file(path + "/COUNTER_RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    @fs.mkdir(root + "/" + name)
+    for
+      file in [
+        "counter.ncu-rep", "counter-raw.stdout", "counter-source.stdout", "counter-run.stdout",
+        "counter-run.stderr", "counter-run.command.json", "counter-raw.command.json",
+        "counter-source.command.json", "memory.csv", "COUNTER_RESULT.txt",
+      ] {
+      copy(path + "/" + file, root + "/" + name + "/" + file)
+    }
+  }
+  @fs.mkdir(root + "/frozen-control")
+  for file in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    copy(base + "/decode-selected/" + file, root + "/frozen-control/" + file)
+  }
+  copy(probe + "/check-probe", root + "/frozen-control/check-probe")
+  @fs.mkdir(root + "/preparation-failure")
+  let failed = "/home/wlc004s/lunaflux-decode-packed-key-20261007.1WZelNHZ"
+  for file in ["decode_packed_key_load_20261007.mbtx", "ako_trial.mbtx"] {
+    if @fs.exists(failed + "/" + file) {
+      copy(failed + "/" + file, root + "/preparation-failure/" + file)
+    }
+  }
+  for
+    (unit, success) in [
+      ("lunaflux-packed-key-build-20261007-1WZelNHZ", false),
+      ("lunaflux-packed-key-build-20261007-K8QgNcUm", true),
+      ("lunaflux-packed-key-run-20261007-K8QgNcUm", true),
+      ("lunaflux-packed-key-boundary-20261007-K8QgNcUm", true),
+      ("lunaflux-packed-key-sanitizer-20261007-K8QgNcUm", true),
+      ("lunaflux-packed32-counter-20261007", true),
+      ("lunaflux-packed64-counter-20261007", true),
+    ] {
+    let journal = @shell.Cmd("journalctl", ["--user", "-u", unit, "--no-pager"]).output(
+      max_output_bytes=16777216,
+    )
+    journal.check()
+    @fs.write_file(
+      root + "/" + unit + ".journal.txt",
+      journal.stdout(),
+      create_mode=CreateNew,
+    )
+    let status = @shell.Cmd("systemctl", [
+      "--user", "show", unit, "-p", "ActiveState", "-p", "ExecMainStatus", "-p",
+      "MemoryMax", "-p", "MemorySwapMax", "-p", "RuntimeMaxUSec",
+    ]).output()
+    status.check()
+    assert_true(
+      status
+      .stdout()
+      .contains(
+        if success {
+          "ActiveState=inactive"
+        } else {
+          "ActiveState=failed"
+        },
+      ),
+    )
+    assert_true(
+      status
+      .stdout()
+      .contains(if success { "ExecMainStatus=0" } else { "ExecMainStatus=1" }),
+    )
+    @fs.write_file(
+      root + "/" + unit + ".status.txt",
+      status.stdout(),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=two strict packed QK shared-load variants; 60 paired rows; 44 boundary cases; 36 sanitizer runs; two C16 paired counter captures\ndecision=no winner; no production default or serving route promoted\nserving=unchanged; synthetic kernel equality is not model quality\n",
+    create_mode=CreateNew,
+  )
+  let seal_result = @shell.Cmd(moon, ["run", sealer, root]).output(
+    max_output_bytes=33554432,
+  )
+  seal_result.check()
+  println(seal_result.stdout())
+}
