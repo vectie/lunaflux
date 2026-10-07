@@ -156,6 +156,54 @@ fn decode_calibration_histories(rows : Int, extended : Bool) -> Array[Int] {
 }
 
 ///|
+// Reusing immutable prefill records does not cover a mixed chain: its decode
+// companion has independent history and must still be measured.
+fn calibration_phases(reused_prefill : Bool) -> Array[String] {
+  if reused_prefill {
+    ["mixed"]
+  } else {
+    ["prefill", "mixed"]
+  }
+}
+
+///|
+// A bucket records rows/query/context, not the distribution of query tokens.
+// Cover concentrated and distributed mixed work instead of assuming R-1
+// prefill requests. Infeasible distributions are outside this context bucket.
+fn mixed_prefill_domains(
+  rows : Int,
+  queries : Int,
+  context : Int,
+) -> Array[Int] {
+  let domains : Array[Int] = []
+  for prefill_rows in [1, rows - 1] {
+    if prefill_rows > 0 &&
+      prefill_rows < rows &&
+      queries >= rows &&
+      (queries - (rows - prefill_rows) + prefill_rows - 1) / prefill_rows <=
+      context &&
+      !domains.contains(prefill_rows) {
+      domains.push(prefill_rows)
+    }
+  }
+  domains
+}
+
+///|
+test "mixed envelope covers concentrated and distributed work without duplicates" {
+  assert_eq(mixed_prefill_domains(8, 2048, 8192), [1, 7])
+  assert_eq(mixed_prefill_domains(8, 2048, 512), [7])
+  assert_eq(mixed_prefill_domains(2, 128, 128), [1])
+  assert_eq(mixed_prefill_domains(1, 128, 128), [])
+}
+
+///|
+test "prefill reuse never removes mixed chain coverage" {
+  assert_eq(calibration_phases(true), ["mixed"])
+  assert_eq(calibration_phases(false), ["prefill", "mixed"])
+}
+
+///|
 test "decode calibration covers every context bucket through the bounded limit" {
   assert_eq(decode_calibration_histories(2, true), [
     127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767,
@@ -259,11 +307,11 @@ async fn main {
     @fs.read_file(serving + "/fused/prefill_wide.cubin"),
     create_mode=CreateNew,
   )
-  for rows in (if reused is None { [1, 2, 4, 8, 16] } else { [] }) {
+  for rows in [1, 2, 4, 8, 16] {
     // Context coverage may grow independently of the query/AOT envelope.
     // Keep aggregate KV within the existing 131072-token diagnostic arena.
     let maximum_context = calibration_context_limit(rows, extended)
-    for phase in ["prefill", "mixed"] {
+    for phase in calibration_phases(reused is Some(_)) {
       if phase == "mixed" && rows == 1 {
         continue
       }
@@ -280,46 +328,77 @@ async fn main {
         while context <= maximum_context {
           // One representative per context bucket. Sparse history vectors
           // leave intervening runtime slots unmeasured even at the same query.
-          let history = context - current
-          let output = checked(
-            root,
-            "\{phase}-q\{queries}-r\{rows}-h\{history}",
-            serving + "/check-probe",
-            [
-              calibration + "/prefill.spec",
-              serving + "/prefill-selected",
-              wide,
-              "\{queries}",
-              "\{rows}",
-              "\{history}",
-            ] +
-            (if phase == "mixed" {
-              mixed_chain_arguments(
-                serving + "/decode-selected",
-                context,
-                false,
-              )
+          let domains = if phase == "mixed" {
+            mixed_prefill_domains(rows, queries, context)
+          } else {
+            [rows]
+          }
+          let mut old_ns = 0L
+          let mut wide_ns = 0L
+          let mut split_ns = 0L
+          for prefill_rows in domains {
+            let current = (queries - (rows - prefill_rows) + prefill_rows - 1) /
+              prefill_rows
+            let history = context - current
+            let domain_args = if phase == "mixed" {
+              ["--prefill-rows", prefill_rows.to_string()]
             } else {
               []
-            }),
-          )
-          routes += "record\t\{phase}\t\{rows}\t\{queries}\t\{context}\t1\t\{median(output, "old_us")}\t5\nrecord\t\{phase}\t\{rows}\t\{queries}\t\{context}\t2\t\{median(output, "new_us")}\t5\n"
-          if phase == "mixed" && blockwise {
-            let split = checked(
+            }
+            let output = checked(
               root,
-              "mixed-split-q\{queries}-r\{rows}-h\{history}",
+              "\{phase}-q\{queries}-r\{rows}-p\{prefill_rows}-h\{history}",
               serving + "/check-probe",
               [
                 calibration + "/prefill.spec",
-                wide,
+                serving + "/prefill-selected",
                 wide,
                 "\{queries}",
                 "\{rows}",
                 "\{history}",
               ] +
-              mixed_chain_arguments(serving + "/decode-selected", context, true),
+              (if phase == "mixed" {
+                mixed_chain_arguments(
+                  serving + "/decode-selected",
+                  context,
+                  false,
+                )
+              } else {
+                []
+              }) +
+              domain_args,
             )
-            routes += "record\t\{phase}\t\{rows}\t\{queries}\t\{context}\t7\t\{median(split, "new_us")}\t5\n"
+            old_ns = Int64::max(old_ns, median(output, "old_us"))
+            wide_ns = Int64::max(wide_ns, median(output, "new_us"))
+            if phase == "mixed" && blockwise {
+              let split = checked(
+                root,
+                "mixed-split-q\{queries}-r\{rows}-p\{prefill_rows}-h\{history}",
+                serving + "/check-probe",
+                [
+                  calibration + "/prefill.spec",
+                  wide,
+                  wide,
+                  "\{queries}",
+                  "\{rows}",
+                  "\{history}",
+                ] +
+                mixed_chain_arguments(
+                  serving + "/decode-selected",
+                  context,
+                  true,
+                ) +
+                domain_args,
+              )
+              split_ns = Int64::max(split_ns, median(split, "new_us"))
+            }
+          }
+          // Conservative maximum of five-sample medians across the valid
+          // distributions. Do not label one partial chain as the full bucket.
+          assert_true(!domains.is_empty())
+          routes += "record\t\{phase}\t\{rows}\t\{queries}\t\{context}\t1\t\{old_ns}\t5\nrecord\t\{phase}\t\{rows}\t\{queries}\t\{context}\t2\t\{wide_ns}\t5\n"
+          if phase == "mixed" && blockwise {
+            routes += "record\t\{phase}\t\{rows}\t\{queries}\t\{context}\t7\t\{split_ns}\t5\n"
           }
           context *= 2
         }

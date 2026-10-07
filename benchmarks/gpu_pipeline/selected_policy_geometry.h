@@ -50,3 +50,13 @@ inline int selected_merge_block(int partial, int declared = 0) {
     throw std::invalid_argument("merge block");
   return declared ? declared : partial;
 }
+
+// Mixed work is not necessarily balanced: the scheduler may fill the token
+// budget from one prefill row while the other rows decode. Keep that physical
+// domain explicit in offline calibration rather than silently using R-1.
+inline int selected_mixed_prefill_rows(int rows, int declared = 0) {
+  const int count = declared ? declared : rows - 1;
+  if (rows < 2 || count < 1 || count >= rows)
+    throw std::invalid_argument("mixed prefill rows");
+  return count;
+}

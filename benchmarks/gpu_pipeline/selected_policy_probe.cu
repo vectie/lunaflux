@@ -169,9 +169,9 @@ static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
 }
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc<7 || argc>15)return 1;
+  if(argc<7 || argc>17)return 1;
   bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false,mixed_decode_comparison=false;
-  int chunk_tokens=0,decode_history=-1,traced_bucket=0;
+  int chunk_tokens=0,decode_history=-1,traced_bucket=0,declared_prefill_rows=0;
   std::string mixed_companion_root;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
@@ -192,6 +192,7 @@ int main(int argc,char**argv){
       mixed_companion_root=argv[++i];mixed=true;
     }
     else if(std::string(argv[i])=="--decode-history" && decode_history<0 && i+1<argc){decode_history=std::stoi(argv[++i]);if(decode_history<0)return 1;}
+    else if(std::string(argv[i])=="--prefill-rows" && !declared_prefill_rows && i+1<argc){declared_prefill_rows=std::stoi(argv[++i]);if(declared_prefill_rows<1)return 1;}
     else if(std::string(argv[i])=="--query-bucket-bound" && !traced_bucket && i+1<argc){traced_bucket=std::stoi(argv[++i]);if(traced_bucket<1)return 1;}
     else if(std::string(argv[i])=="--prefill-chunk-parity" && !chunk_tokens && i+1<argc){chunk_tokens=std::stoi(argv[++i]);if(chunk_tokens<1)return 1;}
     else return 1;
@@ -199,6 +200,7 @@ int main(int argc,char**argv){
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
   const bool ingress=kind=="ingress",decode=kind=="decode",postprocess=kind=="postprocess";
   const bool mixed_chain=!mixed_companion_root.empty();
+  if(declared_prefill_rows && !mixed_chain)return 1;
   if(mixed_chain!=(decode_history>=0) || (mixed_chain && (kind!="prefill" || number(spec,"query_metadata_version")!=1)))return 1;
   // Diagnostic-only metamorphic comparison of the same query/KV under two
   // phase laws. Never report this cross-phase replay as a paired timing win.
@@ -215,7 +217,9 @@ int main(int argc,char**argv){
   // Bound before host/device allocation, including uneven per-request tails.
   if(tokens<rows||rows<1||rows>max_rows||tokens>max_tokens||page<1||max_pages<1||past<0||
      ((decode||phase_parity)&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
-  const int64_t largest_row=mixed?(int64_t(tokens)-1+rows-2)/(rows-1):(int64_t(tokens)+rows-1)/rows;
+  const int prefill_rows=mixed?selected_mixed_prefill_rows(rows,declared_prefill_rows):rows;
+  const int decode_rows=mixed?rows-prefill_rows:0;
+  const int64_t largest_row=mixed?(int64_t(tokens)-decode_rows+prefill_rows-1)/prefill_rows:(int64_t(tokens)+rows-1)/rows;
   if(int64_t(past)+largest_row>int64_t(page)*max_pages)return 1;
   if(mixed_chain && int64_t(decode_history)+1>int64_t(page)*max_pages)return 1;
   if((decode_envelope || partitioned) && !decode && !phase_parity)return 1;
@@ -235,9 +239,9 @@ int main(int argc,char**argv){
     decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,baseline.b,candidate.b,baseline.merge_b,candidate.merge_b,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
   for(int r=0;r<rows;r++){
-    const int prefill_rows=mixed?rows-1:rows,prefill_tokens=mixed?tokens-1:tokens;
-    int n=mixed&&r==rows-1?1:prefill_tokens/prefill_rows+(r<prefill_tokens%prefill_rows);
-    const int row_past=mixed_chain&&r==rows-1?decode_history:past,length=row_past+n;
+    const int prefill_tokens=mixed?tokens-decode_rows:tokens;
+    int n=mixed&&r>=prefill_rows?1:prefill_tokens/prefill_rows+(r<prefill_tokens%prefill_rows);
+    const int row_past=mixed_chain&&r>=prefill_rows?decode_history:past,length=row_past+n;
     lengths.push_back(length);for(int t=0;t<n;t++)positions.push_back(row_past+t);
     offsets.push_back(offsets.back()+n);
     for(int p=0;p<(length+page-1)/page;p++)pages.push_back(int(pages.size()));
@@ -249,11 +253,11 @@ int main(int argc,char**argv){
   // odd-multiplier hash whose coprimality depends on workload shape.
   const int physical_pages=int(pages.size());
   for(int i=0;i<physical_pages;i++)pages[i]=(physical_pages-1-i+physical_pages/3)%physical_pages;
-  std::vector<int> counts{decode?0:(mixed?rows-1:rows),decode?rows:(mixed?1:0),rows,tokens,int(pages.size())};
+  std::vector<int> counts{decode?0:prefill_rows,decode?rows:decode_rows,rows,tokens,int(pages.size())};
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
-  auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens,mixed_chain?rows-1:rows);
-  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=1 prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=2 new_launches=3 comparison=%s\n",
-    rows-1,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz,mixed_decode_comparison?"decode-companion":prefill_partitioned?"prefill-partition":"ordinary-chain");
+  auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens,mixed_chain?prefill_rows:rows);
+  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=%d prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=2 new_launches=3 comparison=%s\n",
+    prefill_rows,decode_rows,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz,mixed_decode_comparison?"decode-companion":prefill_partitioned?"prefill-partition":"ordinary-chain");
   auto x=values(size_t(tokens)*input_width,3);
   auto key=values(size_t(pages.size())*stride,29),value=values(key.size(),31);
   if(!ingress&&!postprocess){

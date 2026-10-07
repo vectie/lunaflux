@@ -21,6 +21,15 @@ int main() {
   assert(selected_merge_block(64)==64);
   assert(selected_merge_block(128,64)==64);
   assert(selected_merge_block(64,128)==128);
+  assert(selected_mixed_prefill_rows(8)==7);
+  assert(selected_mixed_prefill_rows(8,1)==1);
+  assert(selected_mixed_prefill_rows(16,8)==8);
+  for (auto invalid : {std::pair<int,int>{1,0},{8,-1},{8,8},{8,9}}) {
+    bool rejected=false;
+    try { (void)selected_mixed_prefill_rows(invalid.first,invalid.second); }
+    catch (const std::invalid_argument&) { rejected=true; }
+    assert(rejected);
+  }
   for (auto invalid : {std::pair<int,int>{0,64},{128,-1},{128,1025},{1025,64}}) {
     bool rejected=false;
     try { (void)selected_merge_block(invalid.first,invalid.second); }
