@@ -1,0 +1,236 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn captured(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+fn trials(text : String, split : Bool) -> Unit raise {
+  assert_true(text.contains("old_block=64 new_block=128 "))
+  assert_true(
+    text.contains(
+      if split {
+        "old_merge_block=64 new_merge_block=64 "
+      } else {
+        "old_merge_block=0 new_merge_block=0 "
+      },
+    ),
+  )
+  let rows = text.split("\n").filter(x => x.has_prefix("tokens=")).to_array()
+  assert_eq(rows.length(), 5)
+  for i, row in rows {
+    assert_true(
+      row.contains("trial=\{i} ") && row.contains("bitwise=true maxabs=0 "),
+    )
+  }
+}
+
+///|
+fn diagnostic_result() -> String {
+  "outcome=diagnosed\nqualification=blocked\nreason=unresolved copy-to-shared racecheck hazard and no accepted paired timing cell\nproduction_changed=false\nscope=one bounded slot readiness/release diagnostic; not serving throughput or model parity\n"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, base, probe_root, moon, sealer] else {
+    fail("EXPERIMENT_ROOT FROZEN_BASE REPAIRED_PROBE_ROOT MOON SEALER")
+  }
+  for
+    (phase, failed) in [
+      ("build", false),
+      ("boundary", false),
+      ("paired", true),
+      ("paired-resume", false),
+      ("sanitizer", true),
+      ("counter", false),
+    ] {
+    let unit = "lunaflux-decode-slot-completion-" + phase + "-20261007-7PRkRYlT"
+    let state = captured(root, "terminal-" + phase, "systemctl", [
+      "--user",
+      "show",
+      unit + ".service",
+      "-p",
+      "ActiveState",
+      "-p",
+      "ExecMainStatus",
+    ])
+    assert_true(
+      state.contains(
+        if failed {
+          "ActiveState=failed\n"
+        } else {
+          "ActiveState=inactive\n"
+        },
+      ),
+    )
+    assert_true(
+      state.contains(
+        if failed {
+          "ExecMainStatus=1\n"
+        } else {
+          "ExecMainStatus=0\n"
+        },
+      ),
+    )
+    // Preserve external unit logs before sealing; never log a sealer into the
+    // directory whose hashes it is computing.
+    if phase != "build" {
+      for suffix in ["stdout", "stderr"] {
+        @fs.write_file(
+          root + "/unit-" + phase + "." + suffix,
+          @fs.read_file("/home/wlc004s/" + unit + "." + suffix),
+          create_mode=CreateNew,
+        )
+      }
+    }
+  }
+  assert_true(
+    @fs.read_file(root + "/boundary/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\ncases=22\n"),
+  )
+  assert_true(
+    @fs.read_file(root + "/paired/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  assert_true(
+    @fs.read_file(root + "/counter-c16/COUNTER_RESULT.txt")
+    .text()
+    .contains("launch_count=2\n"),
+  )
+  assert_false(@fs.exists(root + "/sanitizer/RESULT.txt"))
+  let collision = @fs.read_file(root + "/paired.stdout").text()
+  assert_true(
+    collision.contains("paired.command.json") &&
+    collision.contains("File exists"),
+  )
+  let clean = @fs.read_file(
+    root + "/sanitizer/roles-ordinary-h0-memcheck.stdout",
+  ).text()
+  assert_true(
+    clean.contains("0 errors") && clean.contains("bitwise=true maxabs=0 "),
+  )
+  let hazard = @fs.read_file(
+    root + "/sanitizer/roles-ordinary-h0-racecheck.stdout",
+  ).text()
+  assert_true(
+    hazard.contains("Write access") &&
+    hazard.contains("+0x1fc0") &&
+    hazard.contains("+0x3260") &&
+    hazard.contains("1 error"),
+  )
+  let mut index = 0
+  for split in [false, true] {
+    for
+      (rows, envelope, history) in [(16, 16, 4095), (2, 8, 32767), (1, 1, 127)] {
+      let label = "roles-\{if split { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+      trials(
+        @fs.read_file(root + "/paired/w\{index}-" + label + ".stdout").text(),
+        split,
+      )
+      index += 1
+    }
+  }
+  @fs.mkdir(root + "/frozen-control")
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/frozen-control/" + name,
+      @fs.read_file(base + "/decode-selected/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  assert_true(
+    captured(root, "final-probe-pin", "sha256sum", [probe_root + "/check-probe"]).has_prefix(
+      "49560803fad1705204bea72b1c71546cd69fcac1d931f92323ad6de74be382cd ",
+    ),
+  )
+  let cid = @fs.read_file(root + "/counter-c16/container.id")
+    .text()
+    .trim()
+    .to_owned()
+  assert_true(
+    cid.length() == 64 && cid.iter().all(c => c is ('0'..='9' | 'a'..='f')),
+  )
+  assert_eq(
+    captured(root, "final-profiler-container", "docker", [
+      "inspect", "--format", "{{.State.Running}}", cid,
+    ]).trim(),
+    "false",
+  )
+  assert_true(
+    captured(root, "final-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  @fs.write_file(
+    root + "/final-memory.txt",
+    @fs.read_file("/proc/meminfo"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    diagnostic_result(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(moon, ["run", sealer, root]).output(
+    max_output_bytes=33554432,
+  )
+  result.check()
+  println(result.stdout())
+}
+
+///|
+test "hazards must remain blocked even with passing numerical boundaries" {
+  assert_true(diagnostic_result().contains("qualification=blocked\n"))
+  assert_true(diagnostic_result().contains("production_changed=false\n"))
+  let sample = "old_block=64 new_block=128 old_merge_block=64 new_merge_block=64 \n" +
+    [
+      for i in 0..<5 => {
+        "tokens=16 trial=\{i} bitwise=true maxabs=0 oracle_maxabs=0"
+      }
+    ].join("\n")
+  trials(sample, true)
+  try
+    trials(
+      sample.replace(old="new_merge_block=64", new="new_merge_block=128"),
+      true,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("wrong merge geometry accepted")
+  }
+}

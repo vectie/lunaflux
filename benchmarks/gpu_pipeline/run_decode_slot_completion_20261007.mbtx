@@ -1,0 +1,122 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn captured(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+fn mode_valid(mode : String) -> Bool {
+  ["prepare", "boundary", "paired", "sanitizer"].contains(mode)
+}
+
+///|
+fn launch_receipt(mode : String) -> String {
+  "launch-" + mode
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, moon, mode] &&
+    mode_valid(mode) else {
+    fail(
+      "FROZEN_BASE REPAIRED_PROBE_ROOT NEW_ROOT MOON prepare|boundary|paired|sanitizer",
+    )
+  }
+  assert_true(
+    captured(root, mode + "-probe-pin", "sha256sum", [
+      probe_root + "/check-probe",
+    ]).has_prefix(
+      "49560803fad1705204bea72b1c71546cd69fcac1d931f92323ad6de74be382cd ",
+    ),
+  )
+  if mode == "prepare" {
+    for
+      name in [
+        "decode_copy_roles_20261007.mbtx", "decode_register_exchange_gates_20261007.mbtx",
+        "ako_trial.mbtx",
+      ] {
+      @fs.write_file(
+        root + "/" + name,
+        @fs.read_file(probe_root + "/followup/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      root + "/roles-ordinary-r2-e8-h32767.spec",
+      @fs.read_file(probe_root + "/followup/roles-ordinary-r2-e8-h32767.spec"),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/PREPARED.txt",
+      "outcome=prepared\nscope=same frozen control, repaired probe and existing paired/sanitizer gates; only slot protocol changed\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  let args = if mode == "paired" {
+    [
+      "run",
+      root + "/decode_copy_roles_20261007.mbtx",
+      base,
+      probe_root,
+      root,
+      "run",
+      moon,
+    ]
+  } else {
+    [
+      "run",
+      root + "/decode_register_exchange_gates_20261007.mbtx",
+      base,
+      probe_root,
+      root,
+      mode,
+      "roles",
+    ]
+  }
+  // Child gates own their phase receipts; the wrapper must not collide with
+  // their create-new command logs (notably paired.command.json).
+  ignore(captured(root, launch_receipt(mode), "timeout", ["600", moon, ..args]))
+}
+
+///|
+test "only bounded existing phase gates are accepted" {
+  for mode in ["prepare", "boundary", "paired", "sanitizer"] {
+    assert_true(mode_valid(mode))
+    assert_false(launch_receipt(mode) == mode)
+    assert_eq(launch_receipt(mode), "launch-" + mode)
+  }
+  for mode in ["", "../paired", "serving", "unbounded"] {
+    assert_false(mode_valid(mode))
+  }
+}

@@ -1,0 +1,314 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+// Pure slot/epoch protocol. Readiness owns transfer completion; release owns
+// reader retirement. PTX realization stays in the diagnostic CUDA renderer.
+struct SlotEpoch {
+  slots : Int
+  epoch : Int
+} derive(Debug, Eq)
+
+///|
+fn SlotEpoch::new(slots : Int, epoch : Int) -> SlotEpoch raise {
+  assert_true(slots > 0 && slots <= 16 && epoch >= 0)
+  { slots, epoch, }
+}
+
+///|
+fn SlotEpoch::slot(self : SlotEpoch) -> Int {
+  self.epoch % self.slots
+}
+
+///|
+fn SlotEpoch::generation(self : SlotEpoch) -> Int {
+  self.epoch / self.slots
+}
+
+///|
+fn SlotEpoch::prior_release(self : SlotEpoch) -> Int? {
+  if self.epoch < self.slots {
+    None
+  } else {
+    Some(self.generation() - 1)
+  }
+}
+
+///|
+fn exact(
+  source : String,
+  old : String,
+  fresh : String,
+  count : Int,
+) -> String raise {
+  assert_eq(source.split(old).length(), count + 1, msg=old)
+  source.split(old).join(fresh)
+}
+
+///|
+fn part(source : String, begin : String, end : String) -> String raise {
+  guard source.split(end).to_array() is [prefix, _] &&
+    prefix.split(begin).to_array() is [_, body] else {
+    fail("unique arithmetic region: " + begin)
+  }
+  assert_false(body.contains("__syncthreads"))
+  assert_false(body.contains("cp.async"))
+  body.to_owned()
+}
+
+///|
+fn entry(source : String) -> String raise {
+  let qk = part(
+    source, "    if (consumer) {\n    if (active_keys == LF_KEY_VALUE_TILE) {", "\n    }\n    __syncthreads();\n    if (producer) stage_key(",
+  )
+  let softmax = part(
+    source, "    float tile_maximum = -CUDART_INF_F, tile_denominator = 0.0f;\n    if (consumer) {",
+    "\n    }\n    if (producer) asm volatile(\"cp.async.wait_group 3;",
+  )
+  let pv = part(
+    source, "    float tile_numerator[LF_ACCUMULATOR_ITEMS] = {};\n    if (consumer) {\n    if (active_keys == LF_KEY_VALUE_TILE) {",
+    "\n    }\n    __syncthreads();\n    if (producer) stage_value(",
+  )
+  let merge = part(
+    source, "    if (producer) stage_value(key_base + 2 * LF_KEY_VALUE_TILE, slot);\n    if (consumer) {",
+    "\n    }\n  }\n  if (producer) asm volatile(",
+  )
+  let output_marker = "  if (consumer) {\n  "
+  let output = source.split("  __syncthreads();\n" + output_marker).to_array()
+  assert_eq(output.length(), 2)
+  let head_marker = "  if (thread == 0) stage_valid[0]"
+  let heads = source.split(head_marker).to_array()
+  assert_eq(heads.length(), 2)
+  let head = exact(
+    heads[0].to_owned(),
+    "  int *stage_valid = reinterpret_cast<int *>(stage_arena + 4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + 2 * LF_KEY_VALUE_TILE;",
+    "  int *stage_valid = reinterpret_cast<int *>(stage_arena + 4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + 2 * LF_KEY_VALUE_TILE;\n  unsigned long long *phase_barriers = reinterpret_cast<unsigned long long *>(stage_valid + 4);\n  const unsigned int barrier_base = (unsigned int)__cvta_generic_to_shared(phase_barriers);",
+    1,
+  )
+  // Both regular shared validity stores and asynchronous copies participate
+  // in readiness. 64 release arrivals + 64 asynchronous arrivals per phase.
+  let head = exact(
+    head, "    asm volatile(\"cp.async.commit_group;\" ::: \"memory\");", "    asm volatile(\"cp.async.commit_group;\" ::: \"memory\");\n    const unsigned int ready = barrier_base + (slot * 4 + OPERAND) * 8;\n    asm volatile(\"cp.async.mbarrier.arrive.noinc.shared::cta.b64 [%0];\" :: \"r\"(ready) : \"memory\");\n    asm volatile(\"mbarrier.arrive.release.cta.shared::cta.b64 _, [%0];\" :: \"r\"(ready) : \"memory\");\n    return operand_valid;",
+    2,
+  )
+  let key_and_value = head.split("  auto stage_value =").to_array()
+  assert_eq(key_and_value.length(), 2)
+  let head = exact(key_and_value[0].to_owned(), "OPERAND", "0", 1) +
+    "  auto stage_value =" +
+    exact(key_and_value[1].to_owned(), "OPERAND", "1", 1)
+  let invalid_output = if source.contains("float *workspace") {
+    "if (lane == 0) { workspace[state] = CUDART_NAN_F; workspace[4096ULL + state] = CUDART_NAN_F; }"
+  } else {
+    ""
+  }
+  let program =
+    #|  auto phase_wait = [&](unsigned int address, int parity) {
+    #|    asm volatile("{ .reg .pred done; "
+    #|                 "again: mbarrier.try_wait.parity.acquire.cta.shared::cta.b64 done, [%0], %1; "
+    #|                 "@!done bra again; }" :: "r"(address), "r"(parity) : "memory");
+    #|  };
+    #|  auto phase_release = [&](unsigned int address) {
+    #|    asm volatile("mbarrier.arrive.release.cta.shared::cta.b64 _, [%0];" :: "r"(address) : "memory");
+    #|  };
+    #|  if (thread == 0) {
+    #|    for (int slot = 0; slot < 2; ++slot) {
+    #|      stage_valid[slot] = stage_valid[2 + slot] = 1;
+    #|      for (int operand = 0; operand < 4; ++operand) {
+    #|        const unsigned int address = barrier_base + (slot * 4 + operand) * 8;
+    #|        const int arrivals = operand < 2 ? 128 : 64;
+    #|        asm volatile("mbarrier.init.shared::cta.b64 [%0], %1;" :: "r"(address), "r"(arrivals) : "memory");
+    #|      }
+    #|    }
+    #|  }
+    #|  __syncthreads();
+    #|  bool operands_valid = true;
+    #|  if (producer) {
+    #|    for (int key_base = key_begin, epoch = 0; key_base < key_limit; key_base += LF_KEY_VALUE_TILE, ++epoch) {
+    #|      const int slot = epoch & 1;
+    #|      if (epoch >= 2) phase_wait(barrier_base + (slot * 4 + 2) * 8, ((epoch >> 1) - 1) & 1);
+    #|      if (!stage_key(key_base, slot)) break;
+    #|      if (epoch >= 2) phase_wait(barrier_base + (slot * 4 + 3) * 8, ((epoch >> 1) - 1) & 1);
+    #|      if (!stage_value(key_base, slot)) break;
+    #|    }
+    #|    asm volatile("cp.async.wait_group 0;" ::: "memory");
+    #|  } else {
+    #|    for (int key_base = key_begin, epoch = 0; key_base < key_limit; key_base += LF_KEY_VALUE_TILE, ++epoch) {
+    #|      const int active_keys = min(LF_KEY_VALUE_TILE, key_limit - key_base);
+    #|      const int slot = epoch & 1;
+    #|      const int parity = (epoch >> 1) & 1;
+    #|      phase_wait(barrier_base + (slot * 4 + 0) * 8, parity);
+    #|      if (!stage_valid[slot]) { operands_valid = false; break; }
+    #|      key_tile = stage_arena + slot * 2 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+    #|      value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+  let program = program +
+    "    if (active_keys == LF_KEY_VALUE_TILE) {" +
+    qk +
+    "\n      __syncwarp();\n      phase_release(barrier_base + (slot * 4 + 2) * 8);\n      float tile_maximum = -CUDART_INF_F, tile_denominator = 0.0f;\n" +
+    softmax +
+    "\n      __syncwarp();\n      phase_wait(barrier_base + (slot * 4 + 1) * 8, parity);\n      if (!stage_valid[2 + slot]) { operands_valid = false; break; }\n      float tile_numerator[LF_ACCUMULATOR_ITEMS] = {};\n    if (active_keys == LF_KEY_VALUE_TILE) {" +
+    pv +
+    "\n      phase_release(barrier_base + (slot * 4 + 3) * 8);\n" +
+    merge +
+    "\n    }\n  }\n  __syncthreads();\n  if (thread == 0) {\n    for (int barrier = 0; barrier < 8; ++barrier) {\n      const unsigned int address = barrier_base + barrier * 8;\n      asm volatile(\"mbarrier.inval.shared::cta.b64 [%0];\" :: \"r\"(address) : \"memory\");\n    }\n  }\n  if (consumer && !operands_valid) { " +
+    invalid_output +
+    " return; }\n" +
+    output_marker
+  head + program + output[1].to_owned()
+}
+
+///|
+fn transform(source : String) -> String raise {
+  guard source.split("#define LF_BLOCK_THREADS 128\n").to_array()
+    is [prefix, a, b] else {
+    fail("two pinned role entries")
+  }
+  let result = prefix.to_owned() +
+    entry("#define LF_BLOCK_THREADS 128\n" + a.to_owned()) +
+    entry("#define LF_BLOCK_THREADS 128\n" + b.to_owned())
+  assert_false(result.contains("wait_group 3"))
+  assert_eq(result.split("  __syncthreads();").length(), 6) // 2 per compute + merge
+  result
+}
+
+///|
+async fn captured(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, input, root, mode] else {
+    fail("ROLE_SOURCE NEW_ROOT render|build")
+  }
+  if mode == "render" {
+    @fs.write_file(
+      root,
+      transform(@fs.read_file(input).text()),
+      create_mode=CreateNew,
+    )
+    return
+  }
+  assert_eq(mode, "build")
+  assert_true(
+    captured(root, "source-pin", "sha256sum", [input]).has_prefix(
+      "19b8b3e0f1da69903e4afa871696df10ef7c42edd5928436ab11f9d752b8fbec ",
+    ),
+  )
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  assert_true(
+    captured(root, "nvcc-pin", "sha256sum", [nvcc]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  @fs.mkdir(root + "/roles")
+  @fs.write_file(
+    root + "/roles/kernel.cu",
+    transform(@fs.read_file(input).text()),
+    create_mode=CreateNew,
+  )
+  let recipe = exact(
+    @fs.read_file(input.replace(old="kernel.cu", new="kernel.recipe")).text(),
+    "shared_memory_bytes=33040\n",
+    "shared_memory_bytes=33104\n",
+    2,
+  )
+  @fs.write_file(
+    root + "/roles/kernel.recipe",
+    recipe + "diagnostic_slot_completion=separate-ready-release\n",
+    create_mode=CreateNew,
+  )
+  ignore(
+    captured(root, "compile", nvcc, [
+      "-O3",
+      "-arch=sm_121",
+      "--std=c++14",
+      "--fmad=false",
+      "--ftz=false",
+      "--prec-div=true",
+      "--prec-sqrt=true",
+      "--Werror",
+      "all-warnings",
+      "--maxrregcount=255",
+      "-Xptxas=-v",
+      "-cubin",
+      root + "/roles/kernel.cu",
+      "-o",
+      root + "/roles/kernel.cubin",
+    ]),
+  )
+  ignore(
+    captured(root, "identities", "sha256sum", [
+      root + "/roles/kernel.cu",
+      root + "/roles/kernel.cubin",
+      root + "/roles/kernel.recipe",
+    ]),
+  )
+}
+
+///|
+test "slot reuse requires the preceding consumer release, including parity wrap" {
+  for slots in 1..<=16 {
+    for epoch in 0..<1024 {
+      let phase = SlotEpoch::new(slots, epoch)
+      assert_eq(phase.slot(), epoch % slots)
+      assert_eq(phase.generation(), epoch / slots)
+      match phase.prior_release() {
+        None => assert_true(epoch < slots)
+        Some(release) => {
+          assert_eq(release + 1, phase.generation())
+          assert_eq(SlotEpoch::new(slots, epoch - slots).slot(), phase.slot())
+        }
+      }
+    }
+  }
+  for (slots, epoch) in [(0, 0), (17, 0), (2, -1)] {
+    try SlotEpoch::new(slots, epoch) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid slot epoch")
+    }
+  }
+}
+
+///|
+test "arithmetic extraction rejects hidden effects and ambiguous source" {
+  assert_eq(part("a BEGIN sum(); END z", "BEGIN", "END"), " sum(); ")
+  for
+    source in [
+      "BEGIN __syncthreads(); END", "BEGIN cp.async; END", "BEGIN x END BEGIN y END",
+    ] {
+    try part(source, "BEGIN", "END") catch {
+      _ => ()
+    } noraise {
+      _ => fail("unsafe arithmetic extraction")
+    }
+  }
+}
