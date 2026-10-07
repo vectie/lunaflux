@@ -1,0 +1,104 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn serialized_workers(source : String) -> String raise {
+  let line = "            let options = [\"--tool\", tool, \"--error-exitcode\", \"99\"]"
+  assert_eq(source.split(line).length(), 2)
+  source
+  .split(line)
+  .join(
+    line +
+    "\n            if tool == \"racecheck\" { options.append([\"--racecheck-num-workers\", \"1\"]) }",
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe, root, moon, mode] else {
+    fail("BASE PROBE ROOT MOON prepare|run")
+  }
+  let qa = root + "/qualification"
+  if mode == "prepare" {
+    @fs.mkdir(qa)
+    @fs.mkdir(qa + "/roles")
+    for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+      @fs.write_file(
+        qa + "/roles/" + name,
+        @fs.read_file(root + "/roles/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      qa + "/roles-ordinary-r2-e8-h32767.spec",
+      @fs.read_file(root + "/roles-ordinary-r2-e8-h32767.spec"),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      qa + "/gates_serial.mbtx",
+      serialized_workers(
+        @fs.read_file(root + "/decode_register_exchange_gates_20261007.mbtx").text(),
+      ),
+      create_mode=CreateNew,
+    )
+    return
+  }
+  assert_eq(mode, "run")
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    let same = @shell.Cmd("cmp", [
+      qa + "/roles/" + name,
+      root + "/roles/" + name,
+    ]).output()
+    same.check()
+  }
+  let args = [
+    "600",
+    moon,
+    "run",
+    qa + "/gates_serial.mbtx",
+    base,
+    probe,
+    qa,
+    "sanitizer",
+    "roles",
+  ]
+  @fs.write_file(
+    root + "/sanitizer-serial.command.json",
+    Json(["timeout", ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd("timeout", args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/sanitizer-serial.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/sanitizer-serial.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+test "serialization changes worker count without disabling async or hazard checks" {
+  let result = serialized_workers(
+    "            let options = [\"--tool\", tool, \"--error-exitcode\", \"99\"]",
+  )
+  assert_true(result.contains("--racecheck-num-workers"))
+  assert_true(result.contains("--error-exitcode"))
+  assert_false(result.contains("--racecheck-memcpy-async"))
+  assert_false(result.contains("--racecheck-detect-level"))
+  try serialized_workers("partial source") catch {
+    _ => ()
+  } noraise {
+    _ => fail("unrecognized gate accepted")
+  }
+}

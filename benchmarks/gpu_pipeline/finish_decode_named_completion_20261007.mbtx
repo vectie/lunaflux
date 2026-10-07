@@ -1,0 +1,213 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn captured(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+fn require_terminal(
+  state : String,
+  status : Int,
+  result : String,
+) -> Unit raise {
+  assert_true(state.contains("ExecMainStatus=\{status}\n"))
+  assert_true(state.contains("Result=" + result + "\n"))
+  assert_true(
+    state.contains(
+      if status == 0 {
+        "ActiveState=inactive\n"
+      } else {
+        "ActiveState=failed\n"
+      },
+    ),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, base, moon, sealer] else {
+    fail("NAMED_ROOT FROZEN_BASE MOON SEALER")
+  }
+  for
+    (phase, status, result) in [
+      ("build", 0, "success"),
+      ("boundary", 0, "success"),
+      ("sanitizer", 143, "oom-kill"),
+      ("sanitizer-serial", 1, "exit-code"),
+      ("sanitizer-serial-v2", 143, "oom-kill"),
+      ("paired", 0, "success"),
+      ("counter", 0, "success"),
+    ] {
+    let unit = "lunaflux-decode-named-completion-" +
+      phase +
+      "-20261007-tgLnrBJR"
+    require_terminal(
+      captured(root, "terminal-" + phase, "systemctl", [
+        "--user",
+        "show",
+        unit + ".service",
+        "-p",
+        "ActiveState",
+        "-p",
+        "ExecMainStatus",
+        "-p",
+        "Result",
+      ]),
+      status,
+      result,
+    )
+    for suffix in ["stdout", "stderr"] {
+      @fs.write_file(
+        root + "/unit-" + phase + "." + suffix,
+        @fs.read_file("/home/wlc004s/" + unit + "." + suffix),
+        create_mode=CreateNew,
+      )
+    }
+  }
+  assert_true(
+    @fs.read_file(root + "/boundary/RESULT.txt")
+    .text()
+    .has_prefix("outcome=passed\ncases=22\n"),
+  )
+  assert_true(
+    @fs.read_file(root + "/paired/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  assert_true(
+    @fs.read_file(root + "/counter-c16/COUNTER_RESULT.txt")
+    .text()
+    .contains("launch_count=2\n"),
+  )
+  for qa in [root, root + "/qualification"] {
+    assert_false(@fs.exists(qa + "/sanitizer/RESULT.txt"))
+    for history in [0, 32] {
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        let text = @fs.read_file(
+          qa + "/sanitizer/roles-ordinary-h\{history}-\{tool}.stdout",
+        ).text()
+        assert_true(text.contains("bitwise=true maxabs=0 "))
+        assert_true(text.contains("0 errors") || text.contains("0 hazards"))
+      }
+    }
+    assert_true(
+      @fs.exists(qa + "/sanitizer/roles-ordinary-h4096-racecheck.command.json"),
+    )
+    assert_false(
+      @fs.exists(qa + "/sanitizer/roles-ordinary-h4096-racecheck.stdout"),
+    )
+  }
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    let same = @shell.Cmd("cmp", [
+      root + "/roles/" + name,
+      root + "/qualification/roles/" + name,
+    ]).output()
+    same.check()
+  }
+  let mut index = 0
+  for split in [false, true] {
+    for
+      (rows, envelope, history) in [(16, 16, 4095), (2, 8, 32767), (1, 1, 127)] {
+      let label = "roles-\{if split { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+      let text = @fs.read_file(root + "/paired/w\{index}-" + label + ".stdout").text()
+      assert_true(text.contains("old_block=64 new_block=128 "))
+      assert_true(
+        text.contains(
+          if split {
+            "old_merge_block=64 new_merge_block=64 "
+          } else {
+            "old_merge_block=0 new_merge_block=0 "
+          },
+        ),
+      )
+      let trials = text
+        .split("\n")
+        .filter(x => x.has_prefix("tokens="))
+        .to_array()
+      assert_eq(trials.length(), 5)
+      for i, line in trials {
+        assert_true(
+          line.contains("trial=\{i} ") &&
+          line.contains("bitwise=true maxabs=0 "),
+        )
+      }
+      index += 1
+    }
+  }
+  @fs.mkdir(root + "/frozen-control")
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/frozen-control/" + name,
+      @fs.read_file(base + "/decode-selected/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  assert_true(
+    captured(root, "final-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  @fs.write_file(
+    root + "/final-memory.txt",
+    @fs.read_file("/proc/meminfo"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=diagnosed\nqualification=blocked\nreason=history4096 racecheck exceeded bounded 8GiB gate with default and single-worker instrumentation\nproduction_changed=false\nscope=named-barrier diagnostic with complete paired timings but incomplete sanitizer qualification\n",
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(moon, ["run", sealer, root]).output(
+    max_output_bytes=33554432,
+  )
+  result.check()
+  println(result.stdout())
+}
+
+///|
+test "OOM is a preserved failed gate, never a sanitizer pass" {
+  require_terminal(
+    "ExecMainStatus=143\nResult=oom-kill\nActiveState=failed\n", 143, "oom-kill",
+  )
+  try
+    require_terminal(
+      "ExecMainStatus=0\nResult=success\nActiveState=inactive\n", 143, "oom-kill",
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("success substituted for OOM")
+  }
+}
