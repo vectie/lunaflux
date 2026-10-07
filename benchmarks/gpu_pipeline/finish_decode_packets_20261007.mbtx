@@ -1,0 +1,183 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn checked_pairs(root : String, directory : String, count : Int) -> Unit {
+  let path = root + "/" + directory
+  assert_true(
+    @fs.read_file(path + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
+  )
+  guard @json.parse(@fs.read_file(path + "/summary.json").text())
+    is Array(records) &&
+    records.length() == count else {
+    fail("incomplete paired experiment")
+  }
+  for index, record in records {
+    guard record is { "label": String(label), .. } else {
+      fail("missing label")
+    }
+    let rows = @fs.read_file(path + "/w\{index}-\{label}.stdout")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("tokens="))
+      .to_array()
+    assert_eq(rows.length(), 5)
+    for row in rows {
+      assert_eq(
+        row.split(" ").filter(x => x.has_prefix("bitwise=")).to_array(),
+        ["bitwise=true"],
+      )
+      assert_eq(
+        row.split(" ").filter(x => x.has_prefix("maxabs=")).to_array(),
+        ["maxabs=0"],
+      )
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [
+      _,
+      packet,
+      packet_counter,
+      extent,
+      extent_counter,
+      corrected,
+      extent_chain,
+      base,
+      probe,
+      moon,
+      sealer,
+    ] else {
+    fail(
+      "PACKET PACKET_COUNTER EXTENT EXTENT_COUNTER CORRECTED_PACKET EXTENT_CHAIN BASE PROBE MOON SEALER",
+    )
+  }
+  for root in [packet, corrected] {
+    checked_pairs(root, "paired", 6)
+    checked_pairs(root, "chain-paired", 6)
+  }
+  for root in [extent, extent_chain] {
+    checked_pairs(root, "paired", 4)
+  }
+  for width in [2, 4] {
+    let recipe = @fs.read_file(corrected + "/p\{width}/kernel.recipe").text()
+    assert_false(
+      recipe.contains("numeric_law=owned8-blockwise-f32-probability-v4"),
+    )
+    assert_eq(
+      recipe
+      .split("numeric_law=diagnostic-owned8-packet\{width}-f32-v5")
+      .length(),
+      3,
+    )
+    let source = @fs.read_file(corrected + "/p\{width}/kernel.cu").text()
+    assert_eq(
+      source
+      .split("// numeric_law=diagnostic-owned8-packet\{width}-f32-v5")
+      .length(),
+      3,
+    )
+  }
+  let tight = @fs.read_file(extent_chain + "/tight/kernel.recipe").text()
+  assert_false(tight.contains("shared_memory_bytes=33040\n"))
+  assert_eq(tight.split("shared_memory_bytes=33024\n").length(), 3)
+  let corrected_scope = "outcome=completed\nscope=offline paired selected-kernel experiments, not serving throughput\nproduction=unchanged; no candidate or numeric law promoted\ncorrectness=all captured paired rows bitwise equal; changed packet association remains a diagnostic numeric alternative\n"
+  @fs.write_file(
+    packet + "/RESULT.txt",
+    corrected_scope +
+    "limitation=original recipe updated ordinary numeric law only; partition label stale. Corrected metadata and full-chain replay are preserved separately.\ncorrected=" +
+    corrected +
+    "\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    corrected + "/RESULT.txt",
+    corrected_scope +
+    "propagation=ordinary and partition recipe fields and source comments both checked\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    extent + "/RESULT.txt",
+    corrected_scope +
+    "scope_detail=ordinary entry only. Original partition shared extent remained conservative; no original partition result claimed.\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    extent_chain + "/RESULT.txt",
+    corrected_scope +
+    "propagation=both ordinary and partition launch extents are 33024; original CUBIN and numeric law unchanged\n",
+    create_mode=CreateNew,
+  )
+  for root in [packet_counter, extent_counter] {
+    assert_true(
+      @fs.read_file(root + "/COUNTER_RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=matched ordinary grid16x8, block64, rows16, envelope16, history4095; counter replay is not serving throughput\n",
+      create_mode=CreateNew,
+    )
+  }
+  for
+    (root, units) in [
+      (
+        packet,
+        [
+          "lunaflux-score-packets-20261007-j7vv8uX8", "lunaflux-packet-chain-20261007-j7vv8uX8",
+          "lunaflux-packet-chain-v3-20261007-j7vv8uX8",
+        ],
+      ),
+      (packet_counter, ["lunaflux-packet-counters-20261007-rzARzf8h"]),
+      (extent, ["lunaflux-shared-extent-20261007-3fd7MxqT"]),
+      (extent_counter, ["lunaflux-extent-counters-20261007-8IFLhL1Y"]),
+      (
+        corrected,
+        [
+          "lunaflux-packet-propagation-build-20261007-AvW4s47L", "lunaflux-packet-propagation-build-v2-20261007-AvW4s47L",
+          "lunaflux-packet-propagation-run-20261007-AvW4s47L", "lunaflux-packet-propagation-chain-20261007-AvW4s47L",
+        ],
+      ),
+      (extent_chain, ["lunaflux-extent-chain-20261007-oVAKqwnS"]),
+    ] {
+    @fs.mkdir(root + "/frozen-control")
+    for file in ["kernel.cu", "kernel.cubin", "kernel.recipe"] {
+      @fs.write_file(
+        root + "/frozen-control/" + file,
+        @fs.read_file(base + "/decode-selected/" + file),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      root + "/frozen-control/check-probe",
+      @fs.read_file(probe + "/check-probe"),
+      create_mode=CreateNew,
+    )
+    for unit in units {
+      let journal = @shell.Cmd("journalctl", [
+        "--user", "-u", unit, "--no-pager",
+      ]).output(max_output_bytes=16777216)
+      journal.check()
+      @fs.write_file(
+        root + "/" + unit + ".journal.txt",
+        journal.stdout(),
+        create_mode=CreateNew,
+      )
+    }
+    let output = @shell.Cmd(moon, ["run", sealer, root]).output(
+      max_output_bytes=33554432,
+    )
+    output.check()
+    println(output.stdout())
+  }
+}

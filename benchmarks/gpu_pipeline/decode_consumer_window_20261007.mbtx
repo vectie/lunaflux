@@ -51,12 +51,13 @@ async fn available() -> Int64 {
 ///|
 async fn main {
   guard @env.args() is [_, base, probe_root, root, mode, ..] &&
-    ["counter", "prepare", "window"].contains(mode) else {
+    ["counter", "prepare", "window", "paired"].contains(mode) else {
     fail(
-      "IMMUTABLE_SERVING PROBE_ROOT NEW_ROOT counter|prepare|window [MODULE]",
+      "IMMUTABLE_SERVING PROBE_ROOT NEW_ROOT counter|prepare|window|paired [MODULE]",
     )
   }
-  let artifact = if mode == "window" {
+  let paired = mode == "window" || mode == "paired"
+  let artifact = if paired {
     guard @env.args() is [_, _, _, _, _, artifact] else {
       fail("window module")
     }
@@ -178,7 +179,7 @@ async fn main {
           "--kernel-name",
           "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4",
           "--launch-count",
-          if mode == "window" {
+          if paired {
             "2"
           } else {
             "1"

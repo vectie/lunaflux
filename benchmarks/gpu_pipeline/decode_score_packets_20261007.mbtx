@@ -1,0 +1,371 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+// Offline ablation, not a production law or admitted compiler candidate.
+// The packet owns consecutive BF16 components; owner-local cyclic traversal
+// remains bijective, but its dot association differs from the selected law.
+fn component(width : Int, owner : Int, lane : Int, item : Int) -> Int {
+  lane * width +
+  (item / width + owner) % (32 / width) * (4 * width) +
+  item % width
+}
+
+///|
+fn packet_recipe(recipe : String, width : Int) -> String raise {
+  assert_true(width == 2 || width == 4)
+  let old = "numeric_law=owned8-blockwise-f32-probability-v4"
+  assert_eq(recipe.split(old).length(), 3)
+  recipe
+  .split(old)
+  .to_array()
+  .join("numeric_law=diagnostic-owned8-packet\{width}-f32-v5") +
+  "diagnostic_only=true\n"
+}
+
+///|
+fn transform(source : String, width : Int) -> String raise {
+  assert_true(width == 2 || width == 4)
+  let definitions = source
+    .split("\n")
+    .filter(x => x.has_prefix("#define LF_SCORE_COMPONENT(item)"))
+    .to_array()
+  assert_eq(definitions.length(), 2)
+  assert_eq(definitions[0], definitions[1])
+  let expression = "#define LF_SCORE_COMPONENT(item) (score_lane * \{width} + (((item / \{width}) + score_owner) % (LF_SCORE_QUERY_ITEMS / \{width})) * (LF_SCORE_LANES * \{width}) + item % \{width})"
+  let mut output = source.split(definitions[0]).to_array().join(expression)
+  let old =
+    #|      for (int item = 0; item < LF_SCORE_QUERY_ITEMS; ++item) {
+    #|        const int component = LF_SCORE_COMPONENT(item);
+    #|        if (key < active_keys && component < LF_HEAD_DIMENSION)
+    #|          dot += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
+    #|      }
+  let unpack = if width == 2 {
+    (
+      #|          const unsigned int packed = *reinterpret_cast<const unsigned int *>(key_tile + key * LF_HEAD_DIMENSION + component);
+      #|          const float values[2] = { __uint_as_float(packed << 16), __uint_as_float(packed & 0xffff0000U) };
+    )
+  } else {
+    (
+      #|          const uint2 packed = *reinterpret_cast<const uint2 *>(key_tile + key * LF_HEAD_DIMENSION + component);
+      #|          const float values[4] = { __uint_as_float(packed.x << 16), __uint_as_float(packed.x & 0xffff0000U),
+      #|                                    __uint_as_float(packed.y << 16), __uint_as_float(packed.y & 0xffff0000U) };
+    )
+  }
+  for complete in [false, true] {
+    let before = if complete {
+      old.replace(old="key < active_keys && component", new="component")
+    } else {
+      old
+    }
+    let fresh =
+      $|      for (int item = 0; item < LF_SCORE_QUERY_ITEMS; item += \{width}) {
+      $|        const int component = LF_SCORE_COMPONENT(item);
+      $|        if (\{if complete { "" } else { "key < active_keys && " }}component + \{width - 1} < LF_HEAD_DIMENSION) {
+      $|\{unpack}
+      $|          #pragma unroll
+      $|          for (int within = 0; within < \{width}; ++within)
+      $|            dot += query_fragment[item + within] * values[within];
+      $|        }
+      $|      }
+    assert_eq(output.split(before).length(), 3)
+    output = output.split(before).to_array().join(fresh)
+  }
+  let old_law = "// numeric_law=owned8-blockwise-f32-probability-v4"
+  assert_eq(output.split(old_law).length(), 3)
+  output
+  .split(old_law)
+  .to_array()
+  .join("// numeric_law=diagnostic-owned8-packet\{width}-f32-v5")
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn available() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe, root, mode, moon] else {
+    fail("FROZEN_BASE PROBE NEW_ROOT build|run|chain MOON")
+  }
+  let frozen = base + "/decode-selected"
+  if mode == "build" {
+    assert_true(
+      capture(root, "source", "sha256sum", [frozen + "/kernel.cu"]).has_prefix(
+        "dc9f5a1a30e0d2f969f7a9e82cdcc7b8b9a8c80f2058c698b19ea9416e9d43b6 ",
+      ),
+    )
+    let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+    assert_true(
+      capture(root, "nvcc", "sha256sum", [nvcc]).has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    let original = @fs.read_file(frozen + "/kernel.cu").text()
+    let recipe = @fs.read_file(frozen + "/kernel.recipe").text()
+    for width in [2, 4] {
+      let directory = root + "/p\{width}"
+      @fs.mkdir(directory)
+      @fs.write_file(
+        directory + "/kernel.cu",
+        transform(original, width),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        directory + "/kernel.recipe",
+        packet_recipe(recipe, width),
+        create_mode=CreateNew,
+      )
+      ignore(
+        capture(root, "p\{width}-compile", nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--Werror",
+          "all-warnings",
+          "--maxrregcount=255",
+          "-Xptxas=-v",
+          "-cubin",
+          directory + "/kernel.cu",
+          "-o",
+          directory + "/kernel.cubin",
+        ]),
+      )
+      ignore(
+        capture(root, "p\{width}-identity", "sha256sum", [
+          directory + "/kernel.cu",
+          directory + "/kernel.cubin",
+        ]),
+      )
+    }
+    return
+  }
+  guard (mode == "run" || mode == "chain") && available() >= 33554432L else {
+    fail("mode/reserve")
+  }
+  assert_true(
+    capture(
+      root,
+      if mode == "chain" {
+        "chain-original-probe"
+      } else {
+        "probe"
+      },
+      "sha256sum",
+      [probe + "/check-probe"],
+    ).has_prefix(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  let prefix = if mode == "chain" { "chain-" } else { "" }
+  let program = if mode == "chain" {
+    let source = @fs.read_file(probe + "/selected_policy_probe.cu").text()
+    assert_true(
+      capture(root, "chain-probe-source", "sha256sum", [
+        probe + "/selected_policy_probe.cu",
+      ]).has_prefix(
+        "558deb68b7a2f3a9e0c90d18b452338c5b03049015492f7ffe04065ecd99ae8b ",
+      ),
+    )
+    let marker = "\"grouped-head-matrix-bf16-probability-v1\"}"
+    assert_eq(source.split(marker).length(), 2)
+    @fs.write_file(
+      root + "/chain-probe.cu",
+      source.replace(
+        old=marker,
+        new="\"grouped-head-matrix-bf16-probability-v1\",\"diagnostic-owned8-packet2-f32-v5\",\"diagnostic-owned8-packet4-f32-v5\"}",
+      ),
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, "chain-probe-build", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-arch=sm_121",
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "-I",
+        root,
+        root + "/chain-probe.cu",
+        "-lcuda",
+        "-o",
+        root + "/chain-probe",
+      ]),
+    )
+    root + "/chain-probe"
+  } else {
+    probe + "/check-probe"
+  }
+  let workloads : Array[Json] = []
+  for width in [2, 4] {
+    for
+      (rows, envelope, history) in [(16, 16, 4095), (2, 8, 32767), (1, 1, 127)] {
+      let label = prefix + "p\{width}-r\{rows}-e\{envelope}-h\{history}"
+      let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+      assert_eq(spec.split("maximum_rows=32\n").length(), 2)
+      @fs.write_file(
+        root + "/" + label + ".spec",
+        spec.replace(old="maximum_rows=32\n", new="maximum_rows=\{envelope}\n"),
+        create_mode=CreateNew,
+      )
+      let arguments = [
+        root + "/" + label + ".spec",
+        frozen,
+        root + "/p\{width}",
+        rows.to_string(),
+        rows.to_string(),
+        history.to_string(),
+        "--decode-envelope",
+      ]
+      if mode == "chain" {
+        arguments.push("--decode-partitioned")
+      }
+      workloads.push({ "label": label, "args": arguments })
+    }
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.01,
+    "require_bitwise": false,
+    "program": program,
+    "artifacts": [
+      frozen + "/kernel.cubin",
+      root + "/p2/kernel.cubin",
+      root + "/p4/kernel.cubin",
+    ],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/" + prefix + "contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let samples = StringBuilder()
+  let mut done = false
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = available()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("reserve breached") }
+        @async.sleep(500)
+      }
+    })
+    ignore(
+      capture(root, prefix + "paired", moon, [
+        "run",
+        root + "/ako_trial.mbtx",
+        root + "/" + prefix + "contract.json",
+        root + "/" + prefix + "paired",
+      ]),
+    )
+    done = true
+  })
+  @fs.write_file(
+    root + "/" + prefix + "memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "packets cover the complete dot and have no excessive shared words" {
+  for width in [2, 4] {
+    for owner in 0..<8 {
+      let seen = FixedArray::make(128, false)
+      for lane in 0..<4 {
+        for item in 0..<32 {
+          let c = component(width, owner, lane, item)
+          assert_false(seen[c])
+          seen[c] = true
+        }
+      }
+      assert_true(seen.all(x => x))
+    }
+    // Each 128-byte shared transaction is separately bank-disjoint.
+    let lanes_per_transaction = 128 / (width * 2)
+    for item in 0..<(32 / width) {
+      for first = 0; first < 32; first = first + lanes_per_transaction {
+        let banks = FixedArray::make(32, -1)
+        for lane in first..<(first + lanes_per_transaction) {
+          let address = (
+              lane / 4 * 128 +
+              component(width, lane / 4, lane % 4, item * width)
+            ) /
+            2
+          for word in 0..<(width / 2) {
+            let bank = (address + word) % 32
+            assert_eq(banks[bank], -1)
+            banks[bank] = address + word
+          }
+        }
+      }
+    }
+  }
+}
+
+///|
+test "packet identity reaches ordinary and partitioned recipe fields" {
+  let recipe = "numeric_law=owned8-blockwise-f32-probability-v4\npartition_numeric_law=owned8-blockwise-f32-probability-v4\n"
+  for width in [2, 4] {
+    let updated = packet_recipe(recipe, width)
+    assert_false(updated.contains("owned8-blockwise-f32-probability-v4"))
+    assert_eq(
+      updated
+      .split("numeric_law=diagnostic-owned8-packet\{width}-f32-v5")
+      .length(),
+      3,
+    )
+  }
+}

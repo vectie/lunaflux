@@ -1,0 +1,157 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn tight_recipe(recipe : String, source : String) -> String raise {
+  // This exact module realizes validity in registers. It must not consume
+  // any byte of the conservative four-int shared validity region.
+  assert_false(source.contains("int *tile_valid"))
+  assert_false(source.contains("int *stage_valid"))
+  assert_true(source.contains("int key_stage_valid_0 = 1"))
+  assert_true(source.contains("int value_stage_valid_0 = 1"))
+  assert_eq(recipe.split("shared_memory_bytes=33040\n").length(), 3)
+  recipe
+  .split("shared_memory_bytes=33040\n")
+  .to_array()
+  .join("shared_memory_bytes=33024\n") +
+  "diagnostic_extent=retained-validity-registers\n"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe, root, moon, .. options] &&
+    (options.is_empty() || options is ["--partitioned"]) else {
+    fail("BASE PROBE NEW_ROOT MOON [--partitioned]")
+  }
+  let frozen = base + "/decode-selected"
+  let directory = root + "/tight"
+  @fs.mkdir(directory)
+  let output = @shell.Cmd("sha256sum", [
+    frozen + "/kernel.cubin",
+    probe + "/check-probe",
+  ]).output()
+  output.check()
+  assert_true(
+    output
+    .stdout()
+    .contains(
+      "318d74ff5b8ebfb5e0a97ea6daea16501a98a5ef1b67116350cf8b737266c185 ",
+    ),
+  )
+  assert_true(
+    output
+    .stdout()
+    .contains(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  @fs.write_file(
+    root + "/identities.txt",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/kernel.recipe",
+    tight_recipe(
+      @fs.read_file(frozen + "/kernel.recipe").text(),
+      @fs.read_file(frozen + "/kernel.cu").text(),
+    ),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/kernel.cubin",
+    @fs.read_file(frozen + "/kernel.cubin"),
+    create_mode=CreateNew,
+  )
+  let workloads : Array[Json] = []
+  for
+    (rows, envelope, history) in [
+      (16, 16, 4095),
+      (16, 32, 4095),
+      (2, 8, 32767),
+      (1, 1, 127),
+    ] {
+    let label = "r\{rows}-e\{envelope}-h\{history}"
+    let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+    assert_eq(spec.split("maximum_rows=32\n").length(), 2)
+    @fs.write_file(
+      root + "/" + label + ".spec",
+      spec.replace(old="maximum_rows=32\n", new="maximum_rows=\{envelope}\n"),
+      create_mode=CreateNew,
+    )
+    let arguments = [
+      root + "/" + label + ".spec",
+      frozen,
+      directory,
+      rows.to_string(),
+      rows.to_string(),
+      history.to_string(),
+      "--decode-envelope",
+    ]
+    if !options.is_empty() {
+      arguments.push("--decode-partitioned")
+    }
+    workloads.push({ "label": label, "args": arguments })
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.01,
+    "require_bitwise": true,
+    "program": probe + "/check-probe",
+    "artifacts": [frozen + "/kernel.cubin", directory + "/kernel.cubin"],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(moon, [
+    "run",
+    root + "/ako_trial.mbtx",
+    root + "/contract.json",
+    root + "/paired",
+  ]).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/paired.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/paired.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+test "extent refinement is guarded by both operand validity lifetimes" {
+  let recipe = "shared_memory_bytes=33040\npartition_shared_memory_bytes=33040\n"
+  let source = "int key_stage_valid_0 = 1; int value_stage_valid_0 = 1;"
+  assert_true(
+    tight_recipe(recipe, source).contains("shared_memory_bytes=33024\n"),
+  )
+  assert_false(
+    tight_recipe(recipe, source).contains("shared_memory_bytes=33040\n"),
+  )
+  assert_eq(
+    tight_recipe(recipe, source).split("shared_memory_bytes=33024\n").length(),
+    3,
+  )
+  for text in [source + "int *tile_valid", source + "int *stage_valid", ""] {
+    try tight_recipe(recipe, text) catch {
+      _ => ()
+    } noraise {
+      _ => fail("shared validity was discarded")
+    }
+  }
+}
