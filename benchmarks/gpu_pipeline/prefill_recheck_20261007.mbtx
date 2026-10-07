@@ -1,0 +1,151 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+async fn admit(root : String, label : String) -> Unit {
+  let uuid = capture(root, label + "-gpu", "nvidia-smi", [
+    "--query-gpu=uuid", "--format=csv,noheader",
+  ])
+  assert_eq(uuid.trim(), "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6")
+  let idle = capture(root, label + "-idle", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  assert_true(idle.trim().is_empty())
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(s => s.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("MemAvailable")
+  }
+  let fields = line.split(" ").filter(s => !s.is_empty()).to_array()
+  assert_true(@string.parse_int64(fields[1]) >= 33554432L)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode] &&
+    ["prepare", "counter", "timing"].contains(mode) else {
+    fail("FROZEN_SERVING FROZEN_PROBE NEW_ROOT prepare|counter|timing")
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root + "/selected")
+    for
+      (from, to) in [
+        (
+          base + "/wide-prefill-selected/kernel.recipe",
+          root + "/selected/kernel.recipe",
+        ),
+        (base + "/fused/prefill_wide.cubin", root + "/selected/kernel.cubin"),
+        (base + "/calibration-spec/prefill.spec", root + "/prefill.spec"),
+      ] {
+      @fs.write_file(
+        to,
+        @fs.read_file(from),
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+    }
+    assert_true(
+      @fs.read_file(root + "/selected/kernel.recipe")
+      .text()
+      .contains("candidate_stable_id=30322\n"),
+    )
+    ignore(
+      capture(root, "identity", "sha256sum", [
+        root + "/selected/kernel.cubin",
+        root + "/selected/kernel.recipe",
+        probe_root + "/check-probe",
+        "/usr/local/cuda-13.0/bin/nvcc",
+      ]),
+    )
+  } else {
+    for
+      (label, tokens, rows, history) in [
+        ("tail", "1792", "1", "30720"),
+        ("mixed-size", "2048", "2", "28672"),
+      ] {
+      admit(root, mode + "-" + label)
+      let args = [
+        root + "/prefill.spec",
+        root + "/selected",
+        root + "/selected",
+        tokens,
+        rows,
+        history,
+      ]
+      let command = if mode == "counter" {
+        [
+          "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+          "--kernel-name",
+          "lunaflux_attention_prefill_tile_compiler_exp2_v1",
+          "--launch-count",
+          "1",
+          "--metrics",
+          "gpu__time_duration.sum,launch__grid_size,launch__registers_per_thread,smsp__inst_executed.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed,l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum,l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_barrier_per_warp_active.pct,dram__bytes_read.sum,dram__throughput.avg.pct_of_peak_sustained_elapsed,smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_wait_per_warp_active.pct",
+          "--export",
+          root + "/" + label,
+          "--csv",
+          "--page",
+          "raw",
+          probe_root + "/check-probe",
+          ..args,
+          "--check-only",
+        ]
+      } else {
+        [probe_root + "/check-probe", ..args]
+      }
+      ignore(
+        capture(
+          root,
+          mode + "-" + label,
+          "systemd-run",
+          [
+            "--scope", "--quiet", "-p", "MemoryMax=8G", "-p", "MemorySwapMax=0",
+            "timeout", "900", ..command,
+          ],
+        ),
+      )
+    }
+    admit(root, mode + "-terminal")
+    @fs.write_file(
+      root + "/" + mode + "-RESULT.txt",
+      "outcome=completed\nscope=exact-selected-prefill-synthetic-operands-not-serving\n",
+      create_mode=CreateNew,
+    )
+  }
+}

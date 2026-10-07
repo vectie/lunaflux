@@ -1,0 +1,66 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, kind] &&
+    ["confounded", "geometry", "wide"].contains(kind) else {
+    fail("ROOT confounded|geometry|wide")
+  }
+  let ids = if kind == "wide" { [31022] } else { [30320, 30324, 32004] }
+  for id in ids {
+    assert_true(
+      @fs.read_file(root + "/c\{id}-trial/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    guard @json.parse(@fs.read_file(root + "/c\{id}-trial/summary.json").text())
+      is Array(rows) &&
+      rows.length() == 3 else {
+      fail("three workloads")
+    }
+    for row in rows {
+      guard row is { "metrics": { "decision": "regression", .. }, .. } else {
+        fail("not a rejected trial")
+      }
+    }
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  if kind == "wide" {
+    @fs.mkdir(root + "/source-overlay")
+    let sources : Map[String, Json] = Map([])
+    for name in ["query_owned_frontier.mbt", "compiler_ownership.mbt"] {
+      let source = @fs.read_file(
+        root + "/source/kernels/luna_attention_strategy/" + name,
+      )
+      sources[name] = Json(source.text())
+      @fs.write_file(
+        root + "/source-overlay/" + name,
+        source,
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      root + "/source-overlay.json",
+      Json::object(sources).stringify(indent=2),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nselection=unchanged\nexperiment=" +
+    kind +
+    "\nverdict=rejected\nscope=isolated prefill; not serving or framework parity\n",
+    create_mode=CreateNew,
+  )
+}

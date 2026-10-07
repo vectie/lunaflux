@@ -1,0 +1,80 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn compact(csv : String) -> Json raise {
+  let lines = csv.split("\n").filter(x => x.has_prefix("\"")).to_array()
+  guard lines is [header, _, row] else {
+    fail("exactly one profiled invocation")
+  }
+  let cells = fn(line : StringView) {
+    line[1:line.length() - 1].split("\",\"").map(x => x.to_owned()).to_array()
+  }
+  let keys = cells(header)
+  let values = cells(row)
+  assert_eq(keys.length(), values.length())
+  let fields : Map[String, Json] = Map([])
+  for i, key in keys {
+    if [
+        "Kernel Name", "Grid Size", "gpu__time_duration.sum", "launch__registers_per_thread",
+        "smsp__inst_executed.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+        "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct",
+        "smsp__warp_issue_stalled_barrier_per_warp_active.pct", "smsp__warp_issue_stalled_wait_per_warp_active.pct",
+        "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+      ].contains(key) {
+      fields[key] = Json(values[i])
+    }
+  }
+  Json::object(fields)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, counter_root] else {
+    fail("COMPLETED_TRIAL_ROOT COUNTER_ROOT")
+  }
+  let counters : Array[Json] = []
+  for label in ["tail", "mixed-size"] {
+    counters.push({
+      "workload": label,
+      "selected_prefill": compact(
+        @fs.read_file(counter_root + "/counter-" + label + ".stdout").text(),
+      ),
+    })
+  }
+  let trials : Array[Json] = []
+  for id in [30320, 30324, 32004] {
+    trials.push({
+      "candidate": id,
+      "trial": @json.parse(
+        @fs.read_file(root + "/c\{id}-trial/summary.json").text(),
+      ),
+    })
+  }
+  let report : Json = {
+    "counters": counters,
+    "trials": trials,
+    "scope": "isolated selected prefill; not serving or framework parity",
+    "dram_metrics": "unavailable on this integrated GB10 capture",
+  }
+  @fs.write_file(
+    root + "/recheck-summary.json",
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(report.stringify(indent=2))
+}
+
+///|
+test "quoted grid and unavailable counters" {
+  let result = compact(
+    "\"Kernel Name\",\"Grid Size\",\"gpu__time_duration.sum\"\n\"\",\"\",\"nsecond\"\n\"kernel\",\"(63, 16, 1)\",\"1,024\"\n",
+  )
+  assert_true(result.stringify().contains("(63, 16, 1)"))
+  assert_true(!result.stringify().contains("dram__"))
+}

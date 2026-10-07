@@ -1,0 +1,258 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail(key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn same_lowering(regenerated : String, selected : String) -> Unit raise {
+  for
+    key in [
+      "candidate_stable_id", "source_sha256", "numeric_law", "subnormal", "query_tile_rows",
+      "key_value_tile_rows", "pipeline_stages", "max_registers", "fmad", "reassociate",
+      "optimization",
+    ] {
+    assert_eq(field(regenerated, key), field(selected, key))
+  }
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  out.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, exporter_base, source_root, probe_base, root, mode] &&
+    ["prepare", "run", "prepare-wide", "run-wide"].contains(mode) else {
+    fail(
+      "EXPORT_TEMPLATE_ROOT PINNED_SOURCE_ROOT PINNED_PROBE_ROOT NEW_ROOT prepare|run|prepare-wide|run-wide",
+    )
+  }
+  let selected = root + "/selected"
+  let alternatives = if mode.has_suffix("-wide") {
+    [31022]
+  } else {
+    [30320, 30324, 32004]
+  }
+  if mode.has_prefix("prepare") {
+    let config = @json.parse(
+      @fs.read_file(exporter_base + "/serving-export.command.json").text(),
+    )
+    guard config is Array(command) && command.length() == 27 else {
+      fail("export template")
+    }
+    let original = command.map(item => {
+      guard item is String(value) else { fail("argument") }
+      value
+    })
+    original[0] = source_root +
+      "/_build/native/release/build/cmd/lunaflux_qwen3_bf16_candidate_export/lunaflux_qwen3_bf16_candidate_export.exe"
+    ignore(capture(root, "exporter-identity", "sha256sum", [original[0]]))
+    assert_eq(original[24], "--prefill-candidate")
+    assert_eq(original[25], "322")
+    let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+    let identity = capture(root, "nvcc-identity", "sha256sum", [nvcc])
+    assert_true(
+      identity.has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    // First regenerate the selected baseline with the SAME exporter. An older
+    // exporter can preserve the stable identity but omit a newer lowering.
+    // Reject that confound before any GPU timing, rather than attributing the
+    // omitted pass to geometry or pipeline lifetime.
+    for id in [30322, ..alternatives] {
+      let label = "c\{id}"
+      let output = root + "/" + label + "-export"
+      let args = original.copy()
+      args[15] = "2048"
+      args[17] = output
+      args[25] = id.to_string()
+      args.push("--prefill-approximate-exp2")
+      ignore(capture(root, label + "-export", args[0], args[1:].to_owned()))
+      let candidate = root + "/" + label
+      @fs.mkdir(candidate)
+      for name in ["kernel.cu", "kernel.recipe"] {
+        @fs.write_file(
+          candidate + "/" + name,
+          @fs.read_file(output + "/reusable-qwen-prefill-attention/" + name),
+          create_mode=CreateNew,
+        )
+      }
+      let recipe = @fs.read_file(candidate + "/kernel.recipe").text()
+      assert_eq(field(recipe, "candidate_stable_id"), id.to_string())
+      assert_eq(field(recipe, "numeric_law"), "approx-base2-f32-v1")
+      if id == 30322 {
+        let baseline = @fs.read_file(selected + "/kernel.recipe").text()
+        same_lowering(recipe, baseline)
+      }
+      ignore(
+        capture(root, label + "-compile", nvcc, [
+          "--cubin",
+          "--std=c++14",
+          "-arch=sm_121",
+          "-O3",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--maxrregcount=" + field(recipe, "max_registers"),
+          "--Werror",
+          "all-warnings",
+          candidate + "/kernel.cu",
+          "-o",
+          candidate + "/kernel.cubin",
+        ]),
+      )
+      if id == 30322 {
+        let hashes = capture(
+            root,
+            "regenerated-selected-identity",
+            "sha256sum",
+            [candidate + "/kernel.cubin", selected + "/kernel.cubin"],
+          )
+          .split("\n")
+          .filter(s => !s.is_empty())
+          .to_array()
+        guard hashes is [regenerated, baseline] else {
+          fail("two cubin hashes")
+        }
+        assert_eq(
+          regenerated.split(" ").to_array()[0],
+          baseline.split(" ").to_array()[0],
+        )
+        continue
+      }
+      let workloads : Array[Json] = []
+      for
+        (name, tokens, rows, history) in [
+          ("tail", "1792", "1", "30720"),
+          ("mixed-size", "2048", "2", "28672"),
+          ("short-control", "2048", "16", "2048"),
+        ] {
+        workloads.push({
+          "label": name,
+          "args": [
+            root + "/prefill.spec",
+            selected,
+            candidate,
+            tokens,
+            rows,
+            history,
+          ],
+        })
+      }
+      let contract : Json = {
+        "schema": "lunaflux-ako-trial-v1",
+        "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+        "reserve_kib": 33554432,
+        "minimum_gain": 0.03,
+        "program": probe_base + "/check-probe",
+        "artifacts": [
+          root + "/prefill.spec",
+          selected + "/kernel.recipe",
+          selected + "/kernel.cubin",
+          candidate + "/kernel.recipe",
+          candidate + "/kernel.cubin",
+        ],
+        "workloads": workloads,
+      }
+      @fs.write_file(
+        root + "/" + label + ".json",
+        contract.stringify(indent=2),
+        create_mode=CreateNew,
+      )
+    }
+  } else {
+    same_lowering(
+      @fs.read_file(root + "/c30322/kernel.recipe").text(),
+      @fs.read_file(selected + "/kernel.recipe").text(),
+    )
+    let identities = capture(
+        root,
+        "selected-identity-before-timing",
+        "sha256sum",
+        [root + "/c30322/kernel.cubin", selected + "/kernel.cubin"],
+      )
+      .split("\n")
+      .filter(s => !s.is_empty())
+      .to_array()
+    guard identities is [fresh, baseline] else { fail("two cubin hashes") }
+    assert_eq(fresh.split(" ").to_array()[0], baseline.split(" ").to_array()[0])
+    for id in alternatives {
+      let label = "c\{id}"
+      ignore(
+        capture(root, label + "-trial", "systemd-run", [
+          "--user",
+          "--scope",
+          "--quiet",
+          "-p",
+          "MemoryMax=8G",
+          "-p",
+          "MemorySwapMax=0",
+          "timeout",
+          "900",
+          probe_base + "/toolchain/bin/moon",
+          "run",
+          root + "/ako_trial.mbtx",
+          root + "/" + label + ".json",
+          root + "/" + label + "-trial",
+        ]),
+      )
+    }
+  }
+}
+
+///|
+test "a stable candidate identity cannot hide an omitted lowering pass" {
+  let recipe = "candidate_stable_id=30322\nsource_sha256=page-batch\nnumeric_law=approx-base2-f32-v1\nsubnormal=flush-permitted\nquery_tile_rows=64\nkey_value_tile_rows=64\npipeline_stages=1\nmax_registers=255\nfmad=false\nreassociate=false\noptimization=3\n"
+  same_lowering(recipe, recipe)
+  try
+    same_lowering(
+      recipe.replace(
+        old="source_sha256=page-batch",
+        new="source_sha256=old-lowering",
+      ),
+      recipe,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("must reject same candidate with different lowering")
+  }
+}
