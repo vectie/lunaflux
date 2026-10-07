@@ -1,0 +1,122 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(j : Json) -> Double raise {
+  match j {
+    String(s) => @string.parse_double(s)
+    Number(n, ..) => n
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(xs : Array[Double]) -> Double raise {
+  guard !xs.is_empty() else { fail("empty") }
+  let ys = xs.copy()
+  ys.sort()
+  let n = ys.length()
+  if n % 2 == 0 {
+    (ys[n / 2 - 1] + ys[n / 2]) / 2.0
+  } else {
+    ys[n / 2]
+  }
+}
+
+///|
+test "median handles two fresh starts" {
+  assert_eq(median([3.0, 1.0, 2.0, 4.0]), 2.5)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("NEW_BENCH_ROOT NEW_REPORT")
+  }
+  let result : Array[Json] = []
+  for engine in ["luna-full", "vllm", "sglang"] {
+    let walls : Array[Double] = []
+    let ttfts : Array[Double] = []
+    let tpots : Array[Double] = []
+    let rows : Array[Json] = []
+    let memory : Array[Double] = []
+    for round in 0..<2 {
+      let dir = root + "/measure/r\{round}-" + engine
+      for line in @fs.read_file(dir + "/memory.csv").text().split("\n") {
+        if line.split(",").to_array() is [_, value] &&
+          value.to_owned() != "mem_available_kib" {
+          memory.push(@string.parse_double(value))
+        }
+      }
+      let per_start : Array[Double] = []
+      for trial in 1..<4 {
+        let path = dir + "/requests/i8192-o64-c8-varied-t\{trial}.json"
+        let j = @json.parse(@fs.read_file(path).text())
+        guard j
+          is {
+            "warmup": False,
+            "input_vector": Array(input),
+            "output": 64,
+            "concurrency": 8,
+            "wall_ms": wall,
+            "requests": Array(reqs),
+            ..
+          } else {
+          fail("cell")
+        }
+        assert_eq(input.length(), 8)
+        assert_true(input.all(x => number(x) == 8192.0))
+        assert_eq(reqs.length(), 8)
+        for req in reqs {
+          guard req
+            is {
+              "ttft_ms": first,
+              "mean_tpot_ms": tpot,
+              "token_ms": Array(tokens),
+              "token_ids": Array(ids),
+              ..
+            } else {
+            fail("request")
+          }
+          assert_eq(tokens.length(), 64)
+          assert_eq(ids.length(), 64)
+          ttfts.push(number(first))
+          tpots.push(number(tpot))
+        }
+        walls.push(number(wall))
+        per_start.push(number(wall))
+      }
+      rows.push({
+        "round": round,
+        "wall_ms": per_start,
+        "median_wall_ms": median(per_start),
+      })
+    }
+    let med = median(walls)
+    memory.sort()
+    let row : Json = {
+      "engine": engine,
+      "starts": rows,
+      "waves": walls.length(),
+      "median_wall_ms": med,
+      "output_tok_s": 512000.0 / med,
+      "median_request_ttft_ms": median(ttfts),
+      "median_request_mean_tpot_ms": median(tpots),
+      "min_available_gib": memory[0] / 1048576.0,
+      "scope": "six waves over two independent starts; 48 requests, each input8192/output64; not quality parity",
+    }
+    println(row.stringify())
+    result.push(row)
+  }
+  @fs.write_file(
+    output,
+    Json(result).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}

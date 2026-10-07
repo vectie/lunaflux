@@ -1,0 +1,236 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn num(j : Json) -> Int64 raise {
+  match j {
+    String(s) => @string.parse_int64(s)
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("integer")
+  }
+}
+
+///|
+fn field(j : Json, key : String) -> Json raise {
+  guard j is Object(m) && m.get(key) is Some(v) else { fail(key) }
+  v
+}
+
+///|
+fn union_ns(xs : Array[(Int64, Int64)]) -> Int64 {
+  let xs = xs.copy()
+  xs.sort_by((a, b) => a.0.compare(b.0))
+  let mut end = -1L
+  let mut total = 0L
+  for (a, b) in xs {
+    let start = Int64::max(a, end)
+    if b > start {
+      total += b - start
+    }
+    end = Int64::max(end, b)
+  }
+  total
+}
+
+///|
+test "nested overlapping and adjacent intervals are not double counted" {
+  assert_eq(union_ns([(10L, 20L), (12L, 15L), (19L, 30L), (30L, 33L)]), 23L)
+  assert_eq(union_ns([(0L, 4L), (9L, 10L)]), 5L)
+  assert_eq(union_ns([]), 0L)
+}
+
+///|
+async fn sql(db : String, q : String) -> Array[Json] {
+  let r = @shell.Cmd("sqlite3", ["-readonly", "-json", db, q]).output(
+    max_output_bytes=67108864,
+  )
+  if !r.stderr().trim().is_empty() {
+    println(r.stderr())
+  }
+  r.check()
+  guard @json.parse(
+      if r.stdout().trim().is_empty() {
+        "[]"
+      } else {
+        r.stdout()
+      },
+    )
+    is Array(xs) else {
+    fail("sql")
+  }
+  xs
+}
+
+///|
+fn phase(j : Json) -> String raise {
+  guard field(j, "query") is Array(qs) else { fail("query") }
+  let n = qs.filter(q => num(q) == 1L).length()
+  if n == qs.length() {
+    "single-query"
+  } else if n == 0 {
+    "prefill"
+  } else {
+    "mixed"
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("PRESERVED_CAPTURE_ROOT NEW_REPORT")
+  }
+  let reports : Array[Json] = []
+  for engine in ["luna-full", "vllm", "sglang"] {
+    let base = root + "/capture/" + engine
+    let db = base + "/trace.sqlite"
+    let request = @json.parse(
+      @fs.read_file(
+        base + "/r0-" + engine + "/requests/i8192-o64-c8-varied-t1.json",
+      ).text(),
+    )
+    let epoch = sql(
+      db, "SELECT cast(utcEpochNs as text) epoch FROM TARGET_INFO_SESSION_START_TIME;",
+    )
+    assert_eq(epoch.length(), 1)
+    let lo = num(field(request, "epoch_start_ns")) -
+      num(field(epoch[0], "epoch"))
+    let hi = num(field(request, "epoch_end_ns")) - num(field(epoch[0], "epoch"))
+    guard field(
+        @json.parse(@fs.read_file(base + "/work-shapes.json").text()),
+        "steps",
+      )
+      is Array(steps) else {
+      fail("steps")
+    }
+    let kernel_sql = "SELECT max(k.start,\{lo}) start,min(k.end,\{hi}) end,s.value name,k.streamId,k.correlationId,k.graphNodeId,r.start cpu_start,r.end cpu_end,a.value api,k.gridX,k.gridY,k.blockX FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName LEFT JOIN CUPTI_ACTIVITY_KIND_RUNTIME r ON r.correlationId=k.correlationId LEFT JOIN StringIds a ON a.id=r.nameId WHERE k.end>\{lo} AND k.start<\{hi} ORDER BY k.start;"
+    let kernels = sql(db, kernel_sql)
+    let ki = kernels.map(k => (num(field(k, "start")), num(field(k, "end"))))
+    let copies = sql(
+      db,
+      "SELECT max(start,\{lo}) start,min(end,\{hi}) end,'copy' kind,bytes,streamId,copyKind FROM CUPTI_ACTIVITY_KIND_MEMCPY WHERE end>\{lo} AND start<\{hi} ORDER BY start;",
+    )
+    if !sql(
+        db, "SELECT name FROM sqlite_master WHERE name='CUPTI_ACTIVITY_KIND_MEMSET';",
+      ).is_empty() {
+      for
+        row in sql(
+          db,
+          "SELECT max(start,\{lo}) start,min(end,\{hi}) end,'set' kind,bytes,streamId,-1 copyKind FROM CUPTI_ACTIVITY_KIND_MEMSET WHERE end>\{lo} AND start<\{hi} ORDER BY start;",
+        ) {
+        copies.push(row)
+      }
+    }
+    let ci = copies.map(k => (num(field(k, "start")), num(field(k, "end"))))
+    let all = [..ki, ..ci]
+    let ks = ki.fold(init=0L, (s, x) => s + x.1 - x.0)
+    let ku = union_ns(ki)
+    let cu = union_ns(ci)
+    let au = union_ns(all)
+    let buckets : Array[Array[Json]] = Array::makei(steps.length(), _ => [])
+    let unassigned : Array[Json] = []
+    for k in kernels {
+      let at = num(field(k, "cpu_start"))
+      let mut selected = -1
+      for i, s in steps {
+        if num(field(s, "cpu_start_ns")) > at {
+          break
+        }
+        selected = i
+      }
+      if selected < 0 {
+        unassigned.push(k)
+        continue
+      }
+      buckets[selected].push(k)
+    }
+    let envelopes : Array[(Int64, Int64)] = []
+    let assigned_intervals : Array[(Int64, Int64)] = []
+    let detail : Array[Json] = []
+    let mut cpu_before_previous_gpu_end = 0
+    let mut previous_end = lo
+    let mut gap_sum = 0L
+    let phase_activity : Map[String, Int64] = Map([])
+    for i, s in steps {
+      let bs = buckets[i]
+      guard !bs.is_empty() else { fail("empty work step") }
+      let xs = bs.map(k => (num(field(k, "start")), num(field(k, "end"))))
+      for x in xs {
+        assigned_intervals.push(x)
+      }
+      let begin = xs[0].0
+      let finish = xs.fold(init=begin, (a, b) => Int64::max(a, b.1))
+      envelopes.push((begin, finish))
+      let at = num(field(s, "cpu_start_ns"))
+      if i > 0 && at < previous_end {
+        cpu_before_previous_gpu_end += 1
+      }
+      let gap = if i == 0 { 0L } else { Int64::max(0L, begin - previous_end) }
+      gap_sum += gap
+      previous_end = finish
+      let p = phase(s)
+      let sum = xs.fold(init=0L, (a, b) => a + b.1 - b.0)
+      phase_activity[p] = phase_activity.get(p).unwrap_or(0L) + sum
+      detail.push({
+        "index": i,
+        "work": field(s, "work"),
+        "phase": p,
+        "cpu_start_ns": at,
+        "gpu_start_ns": begin,
+        "gpu_end_ns": finish,
+        "kernel_calls": bs.length(),
+        "kernel_sum_ns": sum,
+        "kernel_union_ns": union_ns(xs),
+        "before_gpu_gap_ns": gap,
+        "submit_lead_ns": begin - at,
+        "first_18_kernels": if [0, 4, 32, 40, 70].contains(i) {
+          Json(bs[:Int::min(18, bs.length())].to_owned())
+        } else {
+          ([] : Json)
+        },
+      })
+    }
+    let apis = sql(
+      db,
+      "SELECT s.value name,count(*) calls,sum(min(r.end,\{hi})-max(r.start,\{lo})) ns FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId WHERE r.end>\{lo} AND r.start<\{hi} GROUP BY s.value ORDER BY ns DESC;",
+    )
+    let eu = union_ns(envelopes)
+    let report : Json = {
+      "engine": engine,
+      "wall_ns": hi - lo,
+      "kernel_calls": kernels.length(),
+      "unassigned_pre_forward_kernels": unassigned,
+      "kernel_sum_ns": ks,
+      "kernel_union_ns": ku,
+      "kernel_overlap_ns": ks - ku,
+      "copy_set_union_ns": cu,
+      "copy_kernel_overlap_ns": ku + cu - au,
+      "all_gpu_union_ns": au,
+      "no_gpu_activity_ns": hi - lo - au,
+      "step_envelope_union_ns": eu,
+      "within_step_no_kernel_ns": eu - union_ns(assigned_intervals),
+      "between_step_gap_ns": gap_sum,
+      "cpu_mark_before_previous_gpu_end_steps": cpu_before_previous_gpu_end,
+      "phase_kernel_ns": phase_activity,
+      "apis": apis,
+      "steps": detail,
+      "copies": copies,
+    }
+    reports.push(report)
+    println(
+      "\{engine}: wall=\{(hi-lo).to_double()/1000000.0}ms busy=\{au.to_double()/1000000.0}ms noGPU=\{(hi-lo-au).to_double()/1000000.0}ms kernelOverlap=\{(ks-ku).to_double()/1000000.0}ms interStep=\{gap_sum.to_double()/1000000.0}ms overlapCPUsteps=\{cpu_before_previous_gpu_end}/\{steps.length()}",
+    )
+  }
+  let result : Json = {
+    "schema": "lunaflux.execution-timeline.v1",
+    "engines": reports,
+    "scope": "Preserved matched profiled wave, interval-union accounting, not unprofiled speed or a dependency-complete DAG. CPU marks mean forward metadata/launch, not all scheduler preparation; copies on other threads not attributed to phases.",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+}

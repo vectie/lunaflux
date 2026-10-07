@@ -1,0 +1,105 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("ambiguous frozen seam")
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-execution-graph-20261007.") else {
+    fail("NEW_GRAPH_COMPARISON_ROOT")
+  }
+  let frozen = "/home/wlc004s/lunaflux-batch-cliff-abba-20261007.xvFHOL9t"
+  let serving = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt/serving/long-final"
+  let tool = once(
+    @fs.read_file(frozen + "/launcher.mbtx").text(),
+    "let orders = [[\"luna-full\"]]",
+    "let orders = [[\"luna-full\",\"vllm\",\"sglang\"],[\"sglang\",\"vllm\",\"luna-full\"]]",
+  )
+  let tool = once(
+    tool,
+    "let unit = \"lunaflux-matched-\"",
+    "let unit = \"lunaflux-graph-" +
+    root.split(".").to_array().last().unwrap().to_owned() +
+    "-\"",
+  )
+  let tool = once(
+    tool, "\"--property=RuntimeMaxSec=7200\"", "\"--property=RuntimeMaxSec=600\"",
+  )
+  let client = @fs.read_file(frozen + "/launcher.mbtx.client.mbtx").text()
+  guard client
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+    is [a, b] &&
+    b.split("///|\nfn token_ids").to_array() is [_, c] else {
+    fail("client matrix")
+  }
+  let client = a.to_owned() +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n [(\"i8192-o64-c8-varied\",inputs(8192,8),64,\"varied\")]\n}\n\n///|\nfn token_ids" +
+    c.to_owned()
+  let script = root + "/launcher.mbtx"
+  @fs.write_file(script, tool, create_mode=CreateNew)
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  let out = root + "/measure"
+  @fs.mkdir(out)
+  // Existing reference containers are stopped and pinned; no image rebuild.
+  for engine in ["vllm", "sglang"] {
+    let saved = @shell.Cmd("docker", [
+      "inspect",
+      "lunaflux-bench-lunaflux-benchmark-20261006.B5GyxQoX-" + engine,
+    ]).output()
+    saved.check()
+    guard @json.parse(saved.stdout())
+      is Array(
+        [
+          {
+            "State": { "Running": False, .. },
+            "HostConfig": {
+              "Memory": Number(limit, ..),
+              "MemorySwap": Number(swap, ..),
+              ..
+            },
+            ..
+          },
+        ]
+      ) &&
+      limit == 68719476736.0 &&
+      swap == limit else {
+      fail("stopped pinned 64GiB no-swap reference required")
+    }
+    @fs.write_file(
+      root + "/" + engine + "-pinned.json",
+      saved.stdout(),
+      create_mode=CreateNew,
+    )
+  }
+  let r = @shell.Cmd(serving + "/toolchain/bin/moon", [
+    "run", script, serving, out, script,
+  ]).output(max_output_bytes=33554432)
+  @fs.write_file(root + "/campaign.stdout", r.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/campaign.stderr", r.stderr(), create_mode=CreateNew)
+  r.check()
+  println("matched-six-starts=completed")
+}
+
+///|
+test "frozen replacement rejects a duplicate" {
+  assert_eq(once("a", "a", "b"), "b")
+  try once("aa", "a", "b") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous")
+  }
+}
