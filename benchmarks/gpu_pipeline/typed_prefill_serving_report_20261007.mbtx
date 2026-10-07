@@ -258,8 +258,13 @@ async fn main {
     println(get(report, "selection").stringify())
     return
   }
-  guard @env.args() is [_, root, output] else {
-    fail("COMPLETED_ABBA_ROOT NEW_JSON [--brief]")
+  guard @env.args() is [_, root, output, .. options] &&
+    (options.is_empty() || options == ["--balanced-clean-subset"]) else {
+    fail("COMPLETED_ABBA_ROOT NEW_JSON [--brief | --balanced-clean-subset]")
+  }
+  let clean_subset = !options.is_empty()
+  if clean_subset {
+    assert_true(@fs.exists(root + "/../INTERFERENCE.txt"))
   }
   assert_true(
     @fs.read_file(root + "/RESULT.txt").text().has_prefix("outcome=completed\n"),
@@ -288,7 +293,8 @@ async fn main {
       let arm_medians : Array[Double] = []
       for start in starts {
         let arm_elapsed : Array[Double] = []
-        for round in 0..<2 {
+        let rounds = retained_rounds(start, clean_subset)
+        for round in rounds {
           let run = root + "/s\{start}/r\{round}-luna-full"
           assert_true(
             @fs.read_file(run + "/RESULT.txt")
@@ -371,15 +377,19 @@ async fn main {
             }
           }
         }
-        assert_eq(arm_elapsed.length(), 6)
+        assert_eq(arm_elapsed.length(), 3 * rounds.length())
         arm_medians.push(median(arm_elapsed))
       }
-      assert_eq(elapsed.length(), 12)
+      assert_eq(elapsed.length(), if clean_subset { 9 } else { 12 })
       arm_walls.push(arm_medians)
       walls.push(median(elapsed))
       sides.push({
         "side": side,
-        "fresh_starts": 4,
+        "fresh_starts": if clean_subset {
+          3
+        } else {
+          4
+        },
         "median_wall_ms": median(elapsed),
         "median_ttft_ms": median(ttft),
         "median_tpot_ms": median(tpot),
@@ -426,8 +436,25 @@ async fn main {
     },
     "cells": reports,
     "selection": configured,
+    "balanced_clean_subset": clean_subset,
+    "excluded_starts": if clean_subset {
+      [
+        "s2/r1-luna-full (external binary read)", "s3/r1-luna-full (matched baseline)",
+      ]
+    } else {
+      []
+    },
   }
   @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+}
+
+///|
+fn retained_rounds(arm : Int, clean_subset : Bool) -> Array[Int] {
+  if clean_subset && arm >= 2 {
+    [0]
+  } else {
+    [0, 1]
+  }
 }
 
 ///|
@@ -467,4 +494,28 @@ test "startup policy distinguishes calibration minima and has stable numeric tie
   let selected = winners(bundle, startup_policy=true)
   assert_eq(selected["prefill/1/128/128"].0, "1")
   assert_eq(selected["decode/2/2/32768"].0, "4")
+}
+
+///|
+test "common-route reports reject changed startup selections" {
+  let valid = @json.parse(
+    "{\"baseline_calibrated_buckets\":170,\"candidate_calibrated_buckets\":170,\"new_calibrated_buckets\":[],\"missing_calibrated_buckets\":[],\"startup_policy_changes\":[]}",
+  )
+  validate_isolation(valid)
+  guard valid is Object(fields) else { fail("fixture") }
+  fields["startup_policy_changes"] = Json(["changed"])
+  try validate_isolation(Json::object(fields)) catch {
+    _ => ()
+  } noraise {
+    _ => fail("confounded configuration accepted as isolated")
+  }
+}
+
+///|
+test "external interference exclusion retains a balanced ABBA sample" {
+  assert_eq(retained_rounds(0, true), [0, 1])
+  assert_eq(retained_rounds(1, true), [0, 1])
+  assert_eq(retained_rounds(2, true), [0])
+  assert_eq(retained_rounds(3, true), [0])
+  assert_eq(retained_rounds(2, false), [0, 1])
 }

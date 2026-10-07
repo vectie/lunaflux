@@ -52,8 +52,11 @@ registers. The candidate bundle's module 5 is its only exporter of that symbol.
 
 The new configuration was recalibrated with complete mixed ordinary/split
 chains. Old/new calibration coverage is 170/261 buckets: 170 shared, 91 new
-mixed buckets, no missing old buckets, and 21 changed winners among shared
-buckets. Timings use a new content scope; old measurements are not relabeled.
+mixed buckets, no missing old buckets, and 21 changed calibration minima among
+shared buckets. A later audit of the actual startup selector finds **15 changed
+policies**, because an alternative must improve baseline latency by at least
+ceil(1%). Neither count alone proves which dispatch executed. Timings use a new
+content scope; old measurements are not relabeled.
 Consequently the table compares **whole recalibrated configurations**, not an
 isolated causal effect of replacing one cubin. Full calibration and selected
 decode checks pass, including three sanitizer workloads.

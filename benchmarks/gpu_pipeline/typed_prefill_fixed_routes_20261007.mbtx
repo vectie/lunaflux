@@ -167,9 +167,18 @@ async fn sha(path : String) -> String {
 }
 
 ///|
+fn trace_root(root : String) -> String {
+  root +
+  "/selected-common-trace-" +
+  root.split("/").to_array().last().unwrap().to_owned()
+}
+
+///|
 async fn main {
   guard @env.args() is [_, frozen, measured, root, mode] &&
-    ["prepare", "materialize", "run", "report"].contains(mode) else {
+    [
+      "prepare", "materialize", "run", "report", "trace", "finalize", "record-interference",
+    ].contains(mode) else {
     fail("FROZEN_RUNTIME SEALED_MEASURED_CONFIGURATION NEW_ROOT MODE")
   }
   let moon = frozen + "/toolchain/bin/moon"
@@ -288,13 +297,109 @@ async fn main {
       root + "/new",
       "run",
     ])
-  } else {
+  } else if mode == "record-interference" {
+    @fs.write_file(
+      root + "/INTERFERENCE.txt",
+      "scope=external CPU and filesystem read, not GPU failure\n" +
+      "conservative_utc_interval=2026-10-07 04:00:00 to 04:00:52\n" +
+      "command=cat new/serving/long-final/deployment/model-root/qwen.numeric\n" +
+      "cause=binary numeric safetensors mistaken for textual numerical policy\n" +
+      "action=verified remote cat PID 360214 terminated; all originals preserved\n" +
+      "affected=s2/r1-luna-full\nmatched_exclusion=s3/r1-luna-full\n" +
+      "prior_start_completed_utc=2026-10-07 03:59:46\n" +
+      "timing_basis=balanced six starts, three per side, nine measured waves per cell per side\n",
+      create_mode=CreateNew,
+    )
+  } else if mode == "report" {
     capture(root, "report", moon, [
       "run",
-      root + "/new/typed_prefill_serving_report_20261007.mbtx",
+      root + "/policy-report-final.mbtx",
       root + "/new",
       root + "/new/comparison.json",
     ])
+    capture(root, "balanced-report", moon, [
+      "run",
+      root + "/policy-report-final.mbtx",
+      root + "/new",
+      root + "/new/balanced-comparison.json",
+      "--balanced-clean-subset",
+    ])
+  } else if mode == "trace" {
+    assert_true(
+      @fs.read_file(root + "/new/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    let device = @shell.Cmd("nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).output()
+    device.check()
+    assert_eq(
+      device.stdout().trim(),
+      "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    )
+    let controller = measured + "/trace-controller.frozen.mbtx"
+    assert_eq(
+      sha(controller),
+      "db99b4632c76df21ce5d9373722796e923c8131eb71ec9f0449e4e9e7489df05",
+    )
+    if !@fs.exists(root + "/trace-controller.frozen.mbtx") {
+      @fs.write_file(
+        root + "/trace-controller.frozen.mbtx",
+        @fs.read_file(controller),
+        create_mode=CreateNew,
+      )
+    }
+    assert_eq(sha(root + "/trace-controller.frozen.mbtx"), sha(controller))
+    @fs.mkdir(trace_root(root))
+    let template = "/home/wlc004s/lunaflux-benchmark-20261006.B5GyxQoX/campaign-launcher.mbtx"
+    capture(root, "selected-common-trace", moon, [
+      "run",
+      root + "/trace-controller.frozen.mbtx",
+      root + "/new/serving/long-final",
+      trace_root(root),
+      template,
+      template + ".client.mbtx",
+      moon,
+      frozen + "/diagnostic-source",
+      "--core-gaps",
+      "--luna-only",
+    ])
+  } else {
+    for status in [root + "/new/RESULT.txt", trace_root(root) + "/RESULT.txt"] {
+      assert_true(
+        @fs.read_file(status).text().has_prefix("outcome=completed\n"),
+      )
+    }
+    assert_true(@fs.exists(root + "/new/comparison.json"))
+    let identities : Array[String] = []
+    for side in ["old", "new"] {
+      let serving = root + "/" + side + "/serving/long-final"
+      identities.append([
+        serving + "/deployment/bin/lunaflux-device-worker",
+        serving + "/deployment/lunaflux.launch.json",
+        root + "/" + side + "/fused-routed/reusable-fused-runtime-bundle.v3",
+        root + "/" + side + "/fixed-routes.v1",
+      ])
+    }
+    let hashes = @shell.Cmd("sha256sum", identities).output()
+    hashes.check()
+    @fs.write_file(
+      root + "/RUNTIME_IDENTITIES.txt",
+      hashes.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=controlled common-route typed prefill ABBA and separate selected trace; not production or numerical admission\n",
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/seal.command.json",
+      Json([moon, "run", root + "/seal-fixed-routes.mbtx", root]).stringify(),
+      create_mode=CreateNew,
+    )
+    @shell.Cmd(moon, ["run", root + "/seal-fixed-routes.mbtx", root]).run()
   }
 }
 
@@ -339,4 +444,12 @@ test "one percent policy margin is honored, including ceiling and stable baselin
   assert_eq(a, header + base)
   assert_eq(a, b)
   assert_eq(fallbacks, 0)
+}
+
+///|
+test "trace owner names distinguish independent evidence directories" {
+  assert_false(
+    trace_root("/tmp/one").split("/").to_array().last() ==
+    trace_root("/tmp/two").split("/").to_array().last(),
+  )
 }
