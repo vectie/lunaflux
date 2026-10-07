@@ -1,0 +1,134 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(j : Json) -> Int64 raise {
+  match j {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+fn phase(work : String) -> String {
+  let rows = work.split(",").to_array()
+  let one = rows.filter(x => x.has_prefix("1:")).length()
+  if one == rows.length() {
+    "decode"
+  } else if one == 0 {
+    "prefill"
+  } else {
+    "mixed"
+  }
+}
+
+///|
+fn kernel_kind(name : String) -> String {
+  if name.contains("decode_split") ||
+    name.contains("attention_decode") ||
+    name.contains("BatchDecode") {
+    "decode-attention"
+  } else if name.contains("BatchPrefill") || name.contains("flash_fwd") {
+    // A reference invocation can cover both prefill and single-query rows.
+    // Its symbol is not evidence of its logical phase.
+    "combined-attention"
+  } else if name.contains("attention") {
+    "prefill-attention"
+  } else {
+    "other"
+  }
+}
+
+///|
+test "reference attention symbols do not imply prefill-only work" {
+  assert_eq(kernel_kind("flash_fwd_splitkv_kernel"), "combined-attention")
+  assert_eq(phase("2047:0,1:8192"), "mixed")
+  assert_eq(phase("1:8192,1:8193"), "decode")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, path, output] else {
+    fail("WORK_SHAPES NEW_SUMMARY")
+  }
+  guard @json.parse(@fs.read_file(path).text())
+    is { "steps": Array(steps), "kernels": Array(kernels), .. } else {
+    fail("work schema")
+  }
+  let counts : Map[String, Int] = Map([])
+  let activity : Map[String, Int64] = Map([])
+  let per_work : Map[String, Map[String, Int64]] = Map([])
+  let per_kernel : Map[String, Int64] = Map([])
+  let steps_by_work : Map[String, Int] = Map([])
+  for step in steps {
+    guard step is { "work": String(work), .. } else { fail("step") }
+    let key = phase(work) +
+      "-R" +
+      work.split(",").to_array().length().to_string()
+    counts[key] = counts.get(key).unwrap_or(0) + 1
+    steps_by_work[work] = steps_by_work.get(work).unwrap_or(0) + 1
+  }
+  for k in kernels {
+    guard k is { "work_and_kernel": String(key), "ns": ns, .. } &&
+      key.split(" | ").to_array() is [work, name, launch] else {
+      fail("kernel")
+    }
+    let work = work.to_owned()
+    let kind = kernel_kind(name.to_owned())
+    let kernel_key = phase(work) +
+      " | " +
+      name.to_owned() +
+      " | " +
+      launch.to_owned()
+    per_kernel[kernel_key] = per_kernel.get(kernel_key).unwrap_or(0L) +
+      integer(ns)
+    let key = phase(work) +
+      "-R" +
+      work.split(",").to_array().length().to_string() +
+      " " +
+      kind
+    activity[key] = activity.get(key).unwrap_or(0L) + integer(ns)
+    if !per_work.contains(work) {
+      per_work[work] = Map([])
+    }
+    let a = per_work[work]
+    let kind = kind +
+      (if kind == "decode-attention" { " " + launch.to_owned() } else { "" })
+    a[kind] = a.get(kind).unwrap_or(0L) + integer(ns)
+  }
+  let totals = activity.to_array()
+  totals.sort_by((a, b) => a.0.compare(b.0))
+  for (key, ns) in totals {
+    println("\{key}: \{ns.to_double()/1000000.0} ms")
+  }
+  println("steps=" + Json(counts).stringify())
+  let rows = per_work.to_array()
+  rows.sort_by((a, b) => a.0.compare(b.0))
+  let ordered = per_kernel.to_array()
+  ordered.sort_by((a, b) => b.1.compare(a.1))
+  for (key, ns) in ordered[:Int::min(ordered.length(), 25)] {
+    println("top \{ns.to_double()/1000000.0} ms \{key}")
+  }
+  let report : Json = {
+    "step_counts": counts,
+    "activity_ns": activity,
+    "top_kernel_groups": ordered.map(x => ({ "key": x.0, "ns": x.1 } : Json)),
+    "work": rows.map(x => {
+      (
+        {
+          "work": x.0,
+          "steps": steps_by_work.get(x.0).unwrap_or(0),
+          "activity_ns": x.1,
+        } : Json)
+    }),
+    "scope": "Logical-work metadata; kernel activity sums, not critical-path latency; differing attention implementations may combine phases.",
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+}

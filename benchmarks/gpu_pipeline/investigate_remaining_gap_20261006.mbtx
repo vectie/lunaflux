@@ -61,14 +61,16 @@ async fn main {
     options.all(option => {
       option == "--core-gaps" ||
       option == "--batch-cliff" ||
+      option == "--work-rows" ||
       option == "--luna-only"
     }) &&
     options.filter(option => option == "--core-gaps").length() <= 1 &&
     options.filter(option => option == "--batch-cliff").length() <= 1 &&
+    options.filter(option => option == "--work-rows").length() <= 1 &&
     !(options.contains("--core-gaps") && options.contains("--batch-cliff")) &&
     options.filter(option => option == "--luna-only").length() <= 1 else {
     fail(
-      "REPAIRED_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER FROZEN_CLIENT MOON DIAGNOSTIC_PARENT [--core-gaps|--batch-cliff] [--luna-only]",
+      "REPAIRED_SERVING NEW_EMPTY_ROOT FROZEN_LAUNCHER FROZEN_CLIENT MOON DIAGNOSTIC_PARENT [--core-gaps|--batch-cliff] [--work-rows] [--luna-only]",
     )
   }
   let launcher = @fs.read_file(template).text()
@@ -129,6 +131,13 @@ async fn main {
       "  let container = " + Json(container).stringify(),
     )
     let tool = if engine == "luna-full" {
+      let tool = if options.contains("--work-rows") {
+        once(
+          tool, "@fs.read_file(root + \"/runtime.stderr\").text().is_empty()", "@fs.read_file(root + \"/runtime.stderr\").text().split(\"\\n\").all(line => line.is_empty() || line.has_prefix(\"lf_exec \"))",
+        )
+      } else {
+        tool
+      }
       let build = diagnostic + "/_build/native/release/build/"
       let tool = once(
         tool,
@@ -189,6 +198,24 @@ async fn main {
         "type=bind,source=" + arm + ",target=" + arm,
         "--mount",
         "type=bind,source=/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b,target=/model,readonly",
+        ..if options.contains("--work-rows") {
+          [
+            "--mount",
+            "type=bind,source=" +
+            root +
+            "/" +
+            engine +
+            "-work.py,target=/usr/local/lib/python3.12/dist-packages/" +
+            (if engine == "vllm" {
+              "vllm/v1/worker/gpu_model_runner.py"
+            } else {
+              "sglang/srt/model_executor/model_runner.py"
+            }) +
+            ",readonly",
+          ]
+        } else {
+          []
+        },
         image,
         "/opt/host-nvidia/nsight-systems/2025.3.2/bin/nsys",
         "profile",

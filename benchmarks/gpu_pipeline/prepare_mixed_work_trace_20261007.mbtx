@@ -1,0 +1,171 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// Offline only. Clone the already measured runtime and instrument logical row
+// metadata; keep model, AOT kernels, policy and measured routes unchanged.
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  if @env.args() is [_, root, "--finalize"] {
+    finalize(root)
+    return
+  }
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-mixed-work-20261007.") else {
+    fail("NEW_NONOVERWRITING_MIXED_WORK_ROOT")
+  }
+  let frozen = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z"
+  let serving = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt/serving/long-final"
+  let moon = frozen + "/toolchain/bin/moon"
+  let source = root + "/diagnostic-source"
+  guard !@fs.exists(source) else { fail("diagnostic source already exists") }
+  ignore(
+    capture(root, "clone-source", "cp", [
+      "-a",
+      frozen + "/diagnostic-source",
+      source,
+    ]),
+  )
+  ignore(
+    capture(root, "install-markers", moon, [
+      "run",
+      root + "/install_execution_trace.mbtx",
+      source,
+    ]),
+  )
+  for
+    (label, target) in [
+      ("worker", "cmd/device_worker_child"),
+      ("launcher", "cmd/lunaflux"),
+    ] {
+    ignore(
+      capture(root, "build-" + label, moon, [
+        "-C", source, "build", target, "--target", "native", "--release", "-j", "2",
+        "--warn-list", "-79-20-29-25-92-14",
+      ]),
+    )
+  }
+  let copied = root + "/serving"
+  @fs.mkdir(copied)
+  ignore(
+    capture(root, "clone-deployment", "cp", [
+      "-a",
+      serving + "/deployment",
+      copied + "/deployment",
+    ]),
+  )
+  for name in ["capacity.json", "export.stdout"] {
+    @fs.write_file(
+      copied + "/" + name,
+      @fs.read_file(serving + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  @shell.Cmd("ln", ["-s", source, copied + "/source"]).run()
+  @shell.Cmd("ln", ["-s", frozen + "/toolchain", copied + "/toolchain"]).run()
+  let worker = source +
+    "/_build/native/release/build/cmd/device_worker_child/device_worker_child.exe"
+  let digest = capture(root, "worker-hash", "sha256sum", [worker])
+  .trim()
+  .split(" ")
+  .to_array()[0].to_owned()
+  let launch_path = copied + "/deployment/lunaflux.launch.json"
+  guard @json.parse(@fs.read_file(launch_path).text()) is Object(launch) else {
+    fail("launch envelope")
+  }
+  launch["worker_executable"] = { "path": worker, "sha256": digest }
+  @shell.Cmd("chmod", ["u+w", launch_path]).run()
+  @fs.write_file(launch_path, Json(launch).stringify())
+  for engine in ["vllm", "sglang"] {
+    @fs.write_file(
+      root + "/" + engine + "-original.py",
+      @fs.read_file(
+        "/home/wlc004s/lunaflux-full-step-measure-v2-20261004.tIVT3hCB/work/" +
+        engine +
+        "-original.py",
+      ),
+      create_mode=CreateNew,
+    )
+  }
+  ignore(
+    capture(root, "reference-markers", moon, [
+      "run",
+      root + "/install_reference_work_rows.mbtx",
+      root,
+    ]),
+  )
+  @fs.write_file(
+    root + "/PREPARED.txt",
+    "outcome=prepared\nscope=diagnostic-row-markers-only; unchanged production and AOT kernels\n",
+    create_mode=CreateNew,
+  )
+  finalize(root)
+  println(root)
+}
+
+///|
+async fn finalize(root : String) -> Unit {
+  guard root.has_prefix("/home/wlc004s/lunaflux-mixed-work-20261007.") &&
+    !@fs.exists(root + "/serving/PREPARED.json") else {
+    fail("new diagnostic preparation required")
+  }
+  let serving = root + "/serving"
+  let worker = serving + "/deployment/bin/lunaflux-device-worker"
+  @shell.Cmd("chmod", ["u+w", worker]).run()
+  @shell.Cmd("cp", [
+    root +
+    "/diagnostic-source/_build/native/release/build/cmd/device_worker_child/device_worker_child.exe",
+    worker,
+  ]).run()
+  let hash = capture(root, "deployment-worker-hash", "sha256sum", [worker])
+  .trim()
+  .split(" ")
+  .to_array()[0].to_owned()
+  let launch_path = serving + "/deployment/lunaflux.launch.json"
+  guard @json.parse(@fs.read_file(launch_path).text()) is Object(launch) else {
+    fail("launch")
+  }
+  launch["worker_executable"] = { "path": worker, "sha256": hash }
+  @fs.write_file(launch_path, Json(launch).stringify())
+  @fs.write_file(
+    serving + "/PREPARED.json",
+    Json({
+      "scope": "diagnostic only; row marker worker, unchanged AOT",
+      "worker_sha256": hash,
+    }).stringify(),
+    create_mode=CreateNew,
+  )
+}

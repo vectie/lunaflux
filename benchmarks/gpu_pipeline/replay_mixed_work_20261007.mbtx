@@ -1,0 +1,181 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+fn integer(x : Json) -> Int raise {
+  match x {
+    Number(n, repr~) => @string.parse_int(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+fn timing(text : String, key : String) -> Double raise {
+  let times = text
+    .split("\n")
+    .filter(x => x.has_prefix("tokens="))
+    .to_array()
+    .map(x => {
+      guard x.split(" ").filter(f => f.has_prefix(key + "=")).to_array() is [f] else {
+        fail("timing")
+      }
+      @string.parse_double(f[key.length() + 1:])
+    })
+  assert_eq(times.length(), 5)
+  times.sort()
+  times[2]
+}
+
+///|
+async fn main {
+  let (root, trace, replacement) = match @env.args() {
+    [_, root, trace] => (root, trace, None)
+    [_, root, trace, replacement] => (root, trace, Some(replacement))
+    _ => fail("NEW_PROBE_ROOT WORK_TRACE_JSON [PARTITION_REPLACEMENT]")
+  }
+  let base = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt"
+  assert_eq(
+    capture(root, "gpu", "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  assert_true(
+    capture(root, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  assert_true(
+    capture(root, "nvcc-hash", "sha256sum", ["/usr/local/cuda-13.0/bin/nvcc"]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  ignore(
+    capture(root, "probe-build", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      root + "/selected_policy_probe.cu",
+      "-lcuda",
+      "-o",
+      root + "/probe",
+    ]),
+  )
+  guard @json.parse(@fs.read_file(trace).text())
+    is { "steps": Array(steps), .. } else {
+    fail("steps")
+  }
+  let rows : Array[Json] = []
+  for i, step in steps {
+    guard step is { "query": Array(q), "past": Array(p), .. } else {
+      fail("row work")
+    }
+    let q = q.map(integer)
+    let p = p.map(integer)
+    let prefill = q.filter(x => x > 1).length()
+    if prefill == 0 || prefill == q.length() {
+      continue
+    }
+    guard q[:prefill].all(x => x > 1) && q[prefill:].all(x => x == 1) else {
+      fail("physical row order")
+    }
+    guard @fs.read_file("/proc/meminfo")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("MemAvailable:"))
+      .to_array()
+      is [available] &&
+      @string.parse_int64(
+        available.split(" ").filter(x => !x.is_empty()).to_array()[1],
+      ) >=
+      33554432L else {
+      fail("32 GiB reserve")
+    }
+    let tokens = q.fold(init=0, (a, b) => a + b)
+    let args = [
+      base + "/calibration-spec/prefill.spec",
+      base + "/wide-prefill-selected",
+      base + "/wide-prefill-selected",
+      tokens.to_string(),
+      q.length().to_string(),
+      "0",
+      "--mixed-decode-chain",
+      base + "/decode-selected",
+      "--decode-history",
+      "0",
+      "--prefill-rows",
+      prefill.to_string(),
+      "--row-work",
+      Array::makei(q.length(), i => "\{q[i]}:\{p[i]}").join(","),
+    ]
+    let args = args +
+      (match replacement {
+        None => []
+        Some(dir) => ["--mixed-partition-replacement", dir]
+      })
+    let out = capture(root, "step-\{i}", root + "/probe", args)
+    if replacement is Some(_) {
+      assert_false(out.contains("bitwise=false"))
+    }
+    let old = timing(out, "old_us")
+    let fresh = timing(out, "new_us")
+    rows.push({
+      "step": i,
+      "query": q,
+      "past": p,
+      "baseline_us": old,
+      "candidate_us": fresh,
+      "replacement": replacement,
+    })
+    println(
+      "step=\{i} rows=\{q.length()} queries=\{tokens} baseline_us=\{old} candidate_us=\{fresh}",
+    )
+  }
+  @fs.write_file(
+    root + "/measurements.json",
+    Json(rows).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=exact-logical-vector-complete-attention-chain; synthetic operands, not end-to-end\n",
+    create_mode=CreateNew,
+  )
+}

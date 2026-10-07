@@ -1,6 +1,9 @@
 #pragma once
 #include <algorithm>
 #include <stdexcept>
+#include <string>
+#include <vector>
+#include <sstream>
 
 // Offline mirror of device_step Query{Token,Tile,Metadata}CappedGridX.
 // Metadata capacity uses profile rows, not the observed equal-length row
@@ -59,4 +62,29 @@ inline int selected_mixed_prefill_rows(int rows, int declared = 0) {
   if (rows < 2 || count < 1 || count >= rows)
     throw std::invalid_argument("mixed prefill rows");
   return count;
+}
+
+// Diagnostic logical domain: query length and prior history for every row.
+// Validate before allocating or touching CUDA. Mixed rows are prefill first,
+// decode last, matching the runtime ABI rather than a balanced proxy.
+inline std::vector<std::pair<int,int>> selected_row_work(
+    const std::string& text, int rows, int tokens, int prefill_rows,
+    int page_tokens, int page_capacity) {
+  std::vector<std::pair<int,int>> result;
+  std::istringstream input(text); std::string row;
+  long long sum=0, pages=0;
+  if(rows<2 || tokens<rows || prefill_rows<1 || prefill_rows>=rows || page_tokens<1 || page_capacity<1)
+    throw std::invalid_argument("row work domain");
+  while(std::getline(input,row,',')) {
+    std::istringstream values(row); long long q,p; char colon,extra;
+    if(!(values>>q>>colon>>p) || colon!=':' || (values>>extra) || q<1 || p<0 ||
+       q>tokens || p>2147483647LL-q || int(result.size())>=rows ||
+       (int(result.size())>=prefill_rows && q!=1))
+      throw std::invalid_argument("row work entry");
+    sum+=q; pages+=(q+p+page_tokens-1)/page_tokens;
+    result.emplace_back(int(q),int(p));
+  }
+  if(text.empty() || text.back()==',' || int(result.size())!=rows || sum!=tokens || pages>page_capacity)
+    throw std::invalid_argument("row work extent");
+  return result;
 }

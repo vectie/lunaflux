@@ -169,10 +169,10 @@ static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
 }
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
-  if(argc<7 || argc>17)return 1;
+  if(argc<7 || argc>21)return 1;
   bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false,mixed_decode_comparison=false;
   int chunk_tokens=0,decode_history=-1,traced_bucket=0,declared_prefill_rows=0;
-  std::string mixed_companion_root;
+  std::string mixed_companion_root,row_work,mixed_replacement_root;
   for(int i=7;i<argc;i++){
     if(std::string(argv[i])=="--check-only" && !check_only)check_only=true;
     else if(std::string(argv[i])=="--mixed" && !mixed)mixed=true;
@@ -193,6 +193,8 @@ int main(int argc,char**argv){
     }
     else if(std::string(argv[i])=="--decode-history" && decode_history<0 && i+1<argc){decode_history=std::stoi(argv[++i]);if(decode_history<0)return 1;}
     else if(std::string(argv[i])=="--prefill-rows" && !declared_prefill_rows && i+1<argc){declared_prefill_rows=std::stoi(argv[++i]);if(declared_prefill_rows<1)return 1;}
+    else if(std::string(argv[i])=="--row-work" && row_work.empty() && i+1<argc){row_work=argv[++i];if(row_work.empty())return 1;}
+    else if(std::string(argv[i])=="--mixed-partition-replacement" && mixed_replacement_root.empty() && i+1<argc){mixed_replacement_root=argv[++i];if(mixed_replacement_root.empty())return 1;}
     else if(std::string(argv[i])=="--query-bucket-bound" && !traced_bucket && i+1<argc){traced_bucket=std::stoi(argv[++i]);if(traced_bucket<1)return 1;}
     else if(std::string(argv[i])=="--prefill-chunk-parity" && !chunk_tokens && i+1<argc){chunk_tokens=std::stoi(argv[++i]);if(chunk_tokens<1)return 1;}
     else return 1;
@@ -200,6 +202,7 @@ int main(int argc,char**argv){
   auto spec=fields(argv[1]);const auto kind=spec.at("kind");
   const bool ingress=kind=="ingress",decode=kind=="decode",postprocess=kind=="postprocess";
   const bool mixed_chain=!mixed_companion_root.empty();
+  if(!mixed_replacement_root.empty() && !mixed_decode_comparison)return 1;
   if(declared_prefill_rows && !mixed_chain)return 1;
   if(mixed_chain!=(decode_history>=0) || (mixed_chain && (kind!="prefill" || number(spec,"query_metadata_version")!=1)))return 1;
   // Diagnostic-only metamorphic comparison of the same query/KV under two
@@ -219,6 +222,12 @@ int main(int argc,char**argv){
      ((decode||phase_parity)&&tokens!=rows)||(mixed&&(decode||rows<2||tokens<=rows)))return 1;
   const int prefill_rows=mixed?selected_mixed_prefill_rows(rows,declared_prefill_rows):rows;
   const int decode_rows=mixed?rows-prefill_rows:0;
+  if(!row_work.empty() && !mixed_chain)return 1;
+  std::vector<std::pair<int,int>> exact_rows;
+  if(!row_work.empty()) {
+    try { exact_rows=selected_row_work(row_work,rows,tokens,prefill_rows,page,max_pages); }
+    catch(const std::invalid_argument& e) {std::fprintf(stderr,"%s\n",e.what());return 1;}
+  }
   const int64_t largest_row=mixed?(int64_t(tokens)-decode_rows+prefill_rows-1)/prefill_rows:(int64_t(tokens)+rows-1)/rows;
   if(int64_t(past)+largest_row>int64_t(page)*max_pages)return 1;
   if(mixed_chain && int64_t(decode_history)+1>int64_t(page)*max_pages)return 1;
@@ -233,15 +242,18 @@ int main(int argc,char**argv){
   CK(cudaSetDevice(0));CK(cudaFree(nullptr));
   Kernel baseline(argv[2],bucket_tokens,max_rows,ingress,decode,postprocess,partitioned&&!phase_parity&&!decode_chain_comparison),candidate(argv[3],bucket_tokens,max_rows,ingress,decode||phase_parity,postprocess,partitioned,prefill_partitioned);
   std::unique_ptr<Kernel> mixed_companion, mixed_decode_candidate;
-  if(mixed_chain)mixed_companion=std::make_unique<Kernel>(mixed_companion_root,bucket_tokens,max_rows,false,true);
-  if(mixed_decode_comparison)mixed_decode_candidate=std::make_unique<Kernel>(mixed_companion_root,bucket_tokens,max_rows,false,true,false,true);
+  if(mixed_chain)mixed_companion=std::make_unique<Kernel>(mixed_companion_root,mixed_replacement_root.empty()?bucket_tokens:selected_bucket_tokens(rows,max_rows),max_rows,false,true,false,!mixed_replacement_root.empty());
+  // Mixed split owners are specialized by total request-row bucket, not the
+  // query-token bucket. Ordinary companions retain their admitted envelope.
+  if(mixed_decode_comparison)mixed_decode_candidate=std::make_unique<Kernel>(mixed_replacement_root.empty()?mixed_companion_root:mixed_replacement_root,selected_bucket_tokens(rows,max_rows),max_rows,false,true,false,true);
   std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u old_block=%u new_block=%u old_merge_block=%u new_merge_block=%u numeric_law=%s\n",
     decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,baseline.b,candidate.b,baseline.merge_b,candidate.merge_b,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
   for(int r=0;r<rows;r++){
     const int prefill_tokens=mixed?tokens-decode_rows:tokens;
     int n=mixed&&r>=prefill_rows?1:prefill_tokens/prefill_rows+(r<prefill_tokens%prefill_rows);
-    const int row_past=mixed_chain&&r>=prefill_rows?decode_history:past,length=row_past+n;
+    if(!exact_rows.empty())n=exact_rows[r].first;
+    const int row_past=!exact_rows.empty()?exact_rows[r].second:mixed_chain&&r>=prefill_rows?decode_history:past,length=row_past+n;
     lengths.push_back(length);for(int t=0;t<n;t++)positions.push_back(row_past+t);
     offsets.push_back(offsets.back()+n);
     for(int p=0;p<(length+page-1)/page;p++)pages.push_back(int(pages.size()));
@@ -256,8 +268,13 @@ int main(int argc,char**argv){
   std::vector<int> counts{decode?0:prefill_rows,decode?rows:decode_rows,rows,tokens,int(pages.size())};
   // Same bounded CSR contract as luna_attention_metadata, prepared off timer.
   auto metadata=prefill_metadata(offsets,lengths,po,positions,max_rows,max_tokens,mixed_chain?prefill_rows:rows);
-  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=%d prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=2 new_launches=3 comparison=%s\n",
-    prefill_rows,decode_rows,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz,mixed_decode_comparison?"decode-companion":prefill_partitioned?"prefill-partition":"ordinary-chain");
+  if(mixed_chain)std::printf("mixed_chain prefill_rows=%d decode_rows=%d prefill_history=%d decode_history=%d metadata_excludes_decode=true decode_grid=%u,%u,%u old_launches=%d new_launches=%d comparison=%s\n",
+    prefill_rows,decode_rows,past,decode_history,mixed_companion->gx,mixed_companion->gy,mixed_companion->gz,
+    2+int(baseline.merge!=nullptr)+int(mixed_companion->merge!=nullptr),
+    2+int(candidate.merge!=nullptr)+int((mixed_decode_candidate?mixed_decode_candidate.get():mixed_companion.get())->merge!=nullptr),
+    mixed_decode_comparison?"decode-companion":prefill_partitioned?"prefill-partition":"ordinary-chain");
+  if(mixed_decode_candidate)std::printf("mixed_split_grid=%u,%u,%u\n",mixed_decode_candidate->gx,mixed_decode_candidate->gy,mixed_decode_candidate->gz);
+  if(!row_work.empty())std::printf("exact_row_work=%s\n",row_work.c_str());
   auto x=values(size_t(tokens)*input_width,3);
   auto key=values(size_t(pages.size())*stride,29),value=values(key.size(),31);
   if(!ingress&&!postprocess){
@@ -272,6 +289,7 @@ int main(int argc,char**argv){
   dc.put(counts);dp.put(positions);doff.put(offsets);dl.put(lengths);dpo.put(po);dpi.put(pages);dm.put(metadata);
   candidate.merge_row_offsets=doff.p;
   if(mixed_decode_candidate)mixed_decode_candidate->merge_row_offsets=doff.p;
+  if(mixed_companion)mixed_companion->merge_row_offsets=doff.p;
   Buffer dx(x.size()*2),dk(key.size()*2),dv(value.size()*2),out(size_t(tokens)*((ingress||postprocess)?(qh+2*kh)*d:qh*d)*2);
   dx.put(x);dk.put(key);dv.put(value);
   Buffer qw(size_t(qh)*d*(ingress?input_width:1)*2),kw(size_t(kh)*d*(ingress?input_width:1)*2),vw(kw.bytes),norm(d*2);

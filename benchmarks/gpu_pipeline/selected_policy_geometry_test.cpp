@@ -24,6 +24,17 @@ int main() {
   assert(selected_mixed_prefill_rows(8)==7);
   assert(selected_mixed_prefill_rows(8,1)==1);
   assert(selected_mixed_prefill_rows(16,8)==8);
+  auto work=selected_row_work("2041:4090,1:8194,1:8198",3,2043,1,16,8192);
+  assert(work.size()==3 && work[0].first==2041 && work[2].second==8198);
+  auto two_prefill=selected_row_work("79:8113,1963:0,1:8211,1:8207,1:8203,1:8199,1:8195,1:8216",8,2048,2,8,16384);
+  assert(two_prefill[0].first==79 && two_prefill[1].first==1963);
+  for(const char* invalid : {"2:0,1:4,", "2:0,1:-1", "2:0,2:4", "2:0", "2:0,1:4x", "2:0,1:2147483647", "2:0,1:9223372036854775807"}) {
+    bool rejected=false;
+    try { (void)selected_row_work(invalid,2,3,1,16,8192); }
+    catch(const std::invalid_argument&) { rejected=true; }
+    assert(rejected);
+  }
+  assert(selected_bucket_tokens(3,32)==4); // mixed capture: unlike decode's minimum eight
   for (auto invalid : {std::pair<int,int>{1,0},{8,-1},{8,8},{8,9}}) {
     bool rejected=false;
     try { (void)selected_mixed_prefill_rows(invalid.first,invalid.second); }
