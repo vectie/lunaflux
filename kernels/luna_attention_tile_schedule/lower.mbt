@@ -158,6 +158,10 @@ fn canonical_schedule(
   if candidate.joint_query_consumers() {
     builder <+ "query_operand_consumer=joint-right-columns-v1\n"
   }
+  if candidate.right_operand_read_slots() > 0 {
+    builder <+
+      "right_operand_reads=consumer-contiguous-v1,\{candidate.right_operand_read_slots()}\n"
+  }
   builder <+ "kv_partitions=\{key_value_partitions}\n"
   builder <+ "kv_partition_grain=\{key_value_partition_grain}\n"
   builder <+

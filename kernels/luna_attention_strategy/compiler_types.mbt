@@ -122,6 +122,9 @@ pub struct AttentionTileCandidate {
   /// not a backend register count or a model-specific tuning constant.
   priv retained_query_dimensions : Int
   priv joint_query_consumers : Bool
+  /// Zero preserves the original provider ownership. Positive values bind
+  /// consumer-contiguous read ownership and an ordered read-ahead frontier.
+  priv right_operand_read_slots : Int
 } derive(Debug, Eq)
 
 ///|

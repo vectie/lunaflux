@@ -34,10 +34,12 @@ test "required query ownership excludes exchanged schedules across query buckets
     // plus half/full retention with either consumer. Count from the typed plan,
     // not an unexplained frontier size that changes when schedules are added.
     let reloads = candidates.filter(c => {
-      c.retained_query_dimensions() == 0 && !c.joint_query_consumers()
+      c.retained_query_dimensions() == 0 &&
+      !c.joint_query_consumers() &&
+      c.right_operand_read_slots() == 0
     })
     assert_eq(reloads.length(), 18)
-    assert_eq(candidates.length(), reloads.length() * 6)
+    assert_eq(candidates.length(), reloads.length() * 8)
     let identities : Map[Int, Bool] = Map([])
     let both_laws = generate_attention_tile_candidates(
       { ..bucket, allow_approximate_exponential: true, },
@@ -65,7 +67,8 @@ test "required query ownership excludes exchanged schedules across query buckets
             c.memory() == reload.memory() &&
             c.execution_geometry() == reload.execution_geometry() &&
             c.retained_query_dimensions() == retained &&
-            c.joint_query_consumers() == joint
+            c.joint_query_consumers() == joint &&
+            c.right_operand_read_slots() == 0
           })
           .length(),
           1,

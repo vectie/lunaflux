@@ -204,6 +204,7 @@ pub fn AttentionTileCandidate::execution_geometry(Self) -> (Int, Int, Int)
 pub fn AttentionTileCandidate::joint_query_consumers(Self) -> Bool
 pub fn AttentionTileCandidate::memory(Self) -> AttentionTileMemory
 pub fn AttentionTileCandidate::retained_query_dimensions(Self) -> Int
+pub fn AttentionTileCandidate::right_operand_read_slots(Self) -> Int
 pub fn AttentionTileCandidate::shared_memory_bytes(Self) -> Int64
 pub fn AttentionTileCandidate::stable_id(Self) -> Int
 pub fn AttentionTileCandidate::tile(Self) -> AttentionTileShape

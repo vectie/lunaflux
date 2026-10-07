@@ -207,6 +207,7 @@ pub fn lower_attention_tile_schedule_to_cuda(
     physical_program,
     candidate.retained_query_dimensions(),
     candidate.joint_query_consumers(),
+    candidate.right_operand_read_slots(),
   )
   builder <+ "luna-cuda-attention-tile-lowering-v6\n"
   match physical_program {
@@ -244,6 +245,14 @@ pub fn lower_attention_tile_schedule_to_cuda(
     }
     if candidate.joint_query_consumers() {
       builder <+ "query_operand_consumer=joint-right-columns-v1\n"
+    }
+    if candidate.right_operand_read_slots() > 0 {
+      builder <+
+        "right_operand_reads=consumer-contiguous-v1,\{candidate.right_operand_read_slots()}\n"
+      if prefill_fragments is Some(binding) {
+        builder <+ "\{binding.key_read_ownership().unwrap().canonical()}\n"
+        builder <+ "\{binding.key_operand_reads().unwrap().canonical()}\n"
+      }
     }
   }
   builder <+ "factor_shared_key_query_map=\{factor_shared_key_query_map}\n"

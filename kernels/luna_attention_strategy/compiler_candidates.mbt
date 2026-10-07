@@ -166,6 +166,19 @@ fn attention_candidate_compatible(
     ) {
     return false
   }
+  if candidate.right_operand_read_slots < 0 ||
+    candidate.right_operand_read_slots > 2 ||
+    (
+      candidate.right_operand_read_slots > 0 &&
+      (
+        ownership != QueryOwnedFragments ||
+        candidate.joint_query_consumers ||
+        candidate.retained_query_dimensions > 0 ||
+        candidate.right_operand_read_slots > key_value_rows / 16
+      )
+    ) {
+    return false
+  }
   if problem.required_fragment_ownership is Some(required) &&
     required != ownership {
     return false
@@ -288,6 +301,7 @@ fn make_attention_candidate(
     vector_bytes,
     retained_query_dimensions: 0,
     joint_query_consumers: false,
+    right_operand_read_slots: 0,
     shared_memory_bytes: attention_candidate_shared_bytes(
       problem, compute, query_rows, key_value_rows, pipeline_stages, memory, subgroups_per_block,
     ),
@@ -338,7 +352,9 @@ pub fn generate_attention_tile_candidates(
       )
     }
   })
+  let read_variants = contiguous_right_read_candidates(candidates)
   candidates.append(retained_query_attention_candidates(candidates))
+  candidates.append(read_variants)
   if problem.phase == Decode {
     let (query_heads, key_value_heads, _, _) = problem.shape.dimensions()
     if key_value_heads > 0 && query_heads % key_value_heads == 0 {

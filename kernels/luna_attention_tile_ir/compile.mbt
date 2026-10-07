@@ -256,6 +256,10 @@ fn canonical_attention_tile_program(
   if candidate.joint_query_consumers() {
     builder <+ "query_operand_consumer=joint-right-columns-v1\n"
   }
+  if candidate.right_operand_read_slots() > 0 {
+    builder <+
+      "right_operand_reads=consumer-contiguous-v1,\{candidate.right_operand_read_slots()}\n"
+  }
   for binding in bindings {
     builder <+
       "bind=\{binding.id.as_int()}:\{attention_expression_code(binding.expression)}\n"

@@ -23,6 +23,7 @@ pub struct FragmentForwarding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn FragmentForwarding::canonical(Self) -> String
+pub fn FragmentForwarding::contiguous_read(Self, provider_group_width~ : Int) -> FragmentReadOwnership?
 pub fn FragmentForwarding::equal(Self, Self) -> Bool
 pub fn FragmentForwarding::geometry(Self) -> (Int, Int, Int)
 pub fn FragmentForwarding::not_equal(Self, Self) -> Bool
@@ -57,6 +58,16 @@ pub fn FragmentProgram::read_at(Self, Int, next~ : Bool) -> (Int, Int)?
 pub fn FragmentProgram::row_domain(Self, quantum~ : Int) -> FragmentRowDomain?
 pub fn FragmentProgram::to_repr(Self) -> @debug.Repr
 
+pub struct FragmentReadOwnership {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn FragmentReadOwnership::canonical(Self) -> String
+pub fn FragmentReadOwnership::equal(Self, Self) -> Bool
+pub fn FragmentReadOwnership::not_equal(Self, Self) -> Bool
+pub fn FragmentReadOwnership::provider(Self, Int) -> Int?
+pub fn FragmentReadOwnership::source_word(Self, Int) -> Int?
+pub fn FragmentReadOwnership::to_repr(Self) -> @debug.Repr
+
 pub struct FragmentRowDomain {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -77,6 +88,14 @@ pub fn OperandLayout::new(columns~ : Int, vector~ : Int, rotations~ : Int, row_g
 pub fn OperandLayout::not_equal(Self, Self) -> Bool
 pub fn OperandLayout::offset(Self, Int, Int) -> Int?
 pub fn OperandLayout::to_repr(Self) -> @debug.Repr
+
+pub(all) enum OperandReadAction {
+  ReadOperand(item~ : Int, slot~ : Int)
+  ConsumeOperand(item~ : Int, slot~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn OperandReadAction::equal(Self, Self) -> Bool
+pub fn OperandReadAction::not_equal(Self, Self) -> Bool
+pub fn OperandReadAction::to_repr(Self) -> @debug.Repr
 
 pub struct OperandRegion {
   // private fields
@@ -113,6 +132,17 @@ pub fn OperandStorage::not_equal(Self, Self) -> Bool
 pub fn OperandStorage::region(Self, Int) -> OperandRegion?
 pub fn OperandStorage::slot_elements(Self) -> Int
 pub fn OperandStorage::to_repr(Self) -> @debug.Repr
+
+pub struct OrderedOperandReads {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OrderedOperandReads::actions(Self) -> ReadOnlyArray[OperandReadAction]
+pub fn OrderedOperandReads::canonical(Self) -> String
+pub fn OrderedOperandReads::equal(Self, Self) -> Bool
+pub fn OrderedOperandReads::geometry(Self) -> (Int, Int)
+pub fn OrderedOperandReads::new(items~ : Int, slots~ : Int) -> Self?
+pub fn OrderedOperandReads::not_equal(Self, Self) -> Bool
+pub fn OrderedOperandReads::to_repr(Self) -> @debug.Repr
 
 pub struct SequentialScratch {
   // private fields

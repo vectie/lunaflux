@@ -10,6 +10,8 @@ pub struct CudaPrefillFragmentBinding {
   priv query_lifetime : @attention_physical_ir.QueryOperandLifetime
   priv probabilities : @attention_physical_ir.OrderedProbabilityPacking
   priv value_addresses : @physical_tile_ir.OperandRowFactoring
+  priv key_read_ownership : @physical_tile_ir.FragmentReadOwnership?
+  priv key_operand_reads : @physical_tile_ir.OrderedOperandReads?
 } derive(Eq, Debug)
 
 ///|
@@ -28,6 +30,7 @@ pub fn CudaPrefillFragmentBinding::new(
   operand_vector_elements~ : Int,
   retained_query_dimensions? : Int = 0,
   joint_query_consumers? : Bool = false,
+  right_operand_read_slots? : Int = 0,
 ) -> CudaPrefillFragmentBinding? {
   guard program.geometry() == (16, 16, 16) &&
     subgroup_lanes == 32 &&
@@ -39,6 +42,39 @@ pub fn CudaPrefillFragmentBinding::new(
     .forward_right(words=4, instruction_words=2, [0, 2, 1, 3])
     is Some(score) else {
     return None
+  }
+  guard right_operand_read_slots >= 0 &&
+    right_operand_read_slots <= 2 &&
+    (
+      right_operand_read_slots == 0 ||
+      (!joint_query_consumers && retained_query_dimensions == 0)
+    ) else {
+    return None
+  }
+  let key_read_ownership = if right_operand_read_slots > 0 {
+    score.contiguous_read(provider_group_width=subgroup_lanes / 4)
+  } else {
+    None
+  }
+  let key_operand_reads = if right_operand_read_slots > 0 {
+    @physical_tile_ir.OrderedOperandReads::new(
+      items=score.program().geometry().1,
+      slots=right_operand_read_slots,
+    )
+  } else {
+    None
+  }
+  guard right_operand_read_slots == 0 ||
+    (key_read_ownership is Some(_) && key_operand_reads is Some(_)) else {
+    return None
+  }
+  let score = if right_operand_read_slots > 0 {
+    program
+    .score()
+    .forward_right(words=4, instruction_words=2, [0, 1, 2, 3])
+    .unwrap()
+  } else {
+    score
   }
   guard program
     .value()
@@ -87,7 +123,23 @@ pub fn CudaPrefillFragmentBinding::new(
     query_lifetime,
     probabilities,
     value_addresses: layout.factor_rows(),
+    key_read_ownership,
+    key_operand_reads,
   })
+}
+
+///|
+pub fn CudaPrefillFragmentBinding::key_read_ownership(
+  self : CudaPrefillFragmentBinding,
+) -> @physical_tile_ir.FragmentReadOwnership? {
+  self.key_read_ownership
+}
+
+///|
+pub fn CudaPrefillFragmentBinding::key_operand_reads(
+  self : CudaPrefillFragmentBinding,
+) -> @physical_tile_ir.OrderedOperandReads? {
+  self.key_operand_reads
 }
 
 ///|
@@ -147,6 +199,7 @@ fn cuda_prefill_fragment_binding(
   ],
   retained_query_dimensions : Int,
   joint_query_consumers : Bool,
+  right_operand_read_slots : Int,
 ) -> CudaPrefillFragmentBinding? raise CudaAttentionTileLoweringError {
   guard physical is Ok(QueryFragmentProgram(fold, _)) else { return None }
   guard fold.fragment_products(
@@ -161,6 +214,7 @@ fn cuda_prefill_fragment_binding(
       operand_vector_elements=8,
       retained_query_dimensions~,
       joint_query_consumers~,
+      right_operand_read_slots~,
     )
     is Some(binding) else {
     raise InvalidCudaAttentionTileLowering(UnsupportedCompute)

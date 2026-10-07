@@ -74,6 +74,8 @@ pub fn attention_candidate_requires_approximate_exponential(
   approximate_query_owned_attention_specs().any(spec => {
     stable_id == spec.stable_id ||
     stable_id == 100000 + spec.stable_id ||
+    stable_id == 200000 + spec.stable_id ||
+    stable_id == 300000 + spec.stable_id ||
     [0, 1].any(index => {
       stable_id == 10000 + spec.stable_id * 2 + index ||
       stable_id == 20000 + spec.stable_id * 2 + index

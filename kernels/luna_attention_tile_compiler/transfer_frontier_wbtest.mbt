@@ -18,7 +18,23 @@ test "query-owned Cartesian schedules survive uncalibrated cost pruning" {
     required_fragment_ownership=Some(QueryOwnedFragments),
   )
   let frontier = compile_attention_tile_frontier({ ..base, problem, })
-  assert_eq(frontier.variants().length(), 80)
+  // Read ownership extends the frontier without removing historical plans.
+  assert_eq(
+    frontier
+    .variants()
+    .filter(v => v.plan().candidate().right_operand_read_slots() == 0)
+    .length(),
+    16 * 6,
+  )
+  for slots in [1, 2] {
+    assert_eq(
+      frontier
+      .variants()
+      .filter(v => v.plan().candidate().right_operand_read_slots() == slots)
+      .length(),
+      16,
+    )
+  }
   for
     id in [
       318, 319, 320, 321, 322, 323, 324, 1003, 1004, 1005, 1006, 1008, 2000, 2001,

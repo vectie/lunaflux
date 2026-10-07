@@ -61,6 +61,12 @@ fn cuda_retained_query_score_product(
       "        for (int reduction=\{lifetime.retained_dimensions()};reduction<LF_HEAD_DIMENSION;reduction+=\{quantum}) {\n"
     source <+
       "          const auto a=lf_matrix_load(qbuf,qr,reduction,LF_HEAD_DIMENSION);\n"
+    if binding.key_operand_reads() is Some(reads) && reads.geometry().1 > 1 {
+      source <+
+        "          lf_key_operand_pipeline(score,a,current_k,reduction);\n"
+      source <+ "        }\n"
+      return source.to_string()
+    }
     source <+ "          #pragma unroll\n"
     source <+ "          for (int key=0;key<\{columns};++key) {\n"
     source <+

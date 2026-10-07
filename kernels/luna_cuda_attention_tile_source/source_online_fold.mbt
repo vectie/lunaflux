@@ -23,7 +23,11 @@ fn cuda_online_fold_phase(
     match operation {
       ScoreProduct =>
         if fragments.query_lifetime().retained_fragments() > 0 ||
-          fragments.query_lifetime().joint_right_consumers() {
+          fragments.query_lifetime().joint_right_consumers() ||
+          (
+            fragments.key_operand_reads() is Some(reads) &&
+            reads.geometry().1 > 1
+          ) {
           cuda_retained_query_score_product(fragments)
         } else {
           (

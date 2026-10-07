@@ -26,6 +26,12 @@ fn cuda_forwarded_matrix_products(
       ) {
       continue
     }
+    if name == "key" &&
+      binding.key_operand_reads() is Some(reads) &&
+      reads.geometry().1 > 1 {
+      source.write_string(cuda_key_operand_read_pipeline(binding))
+      continue
+    }
     let b00 = plan.word(0, 0).unwrap()
     let b01 = plan.word(0, 1).unwrap()
     let b10 = plan.word(1, 0).unwrap()
@@ -36,7 +42,11 @@ fn cuda_forwarded_matrix_products(
       (
         "const __nv_bfloat16 *p, int row, int column, int columns",
         "  const int lane = threadIdx.x % 32;\n" +
-        "  const unsigned address = (unsigned)__cvta_generic_to_shared(p + lf_operand_index(row + lane % 16, column + lane / 16 * 8, columns));\n",
+        (if binding.key_read_ownership() is Some(_) {
+          "  const unsigned address = (unsigned)__cvta_generic_to_shared(p + lf_operand_index(row + (lane & 7) + lane / 16 * 8, column + (lane / 8 % 2) * 8, columns));\n"
+        } else {
+          "  const unsigned address = (unsigned)__cvta_generic_to_shared(p + lf_operand_index(row + lane % 16, column + lane / 16 * 8, columns));\n"
+        }),
       )
     }
     source.write_string(
