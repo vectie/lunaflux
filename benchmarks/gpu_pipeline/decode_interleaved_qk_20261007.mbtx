@@ -1,0 +1,310 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn qk_body(window : Int, ragged : Bool) -> String raise {
+  assert_true(window == 2 || window == 4)
+  let extent = if ragged { "active_keys" } else { "LF_KEY_VALUE_TILE" }
+  let valid = if ragged { "key < active_keys && " } else { "" }
+  let publish = if ragged { " && key < active_keys" } else { "" }
+  (
+    #|      #pragma unroll
+    #|      for (int key_group = 0; key_group < LF_QK_EXTENT; key_group += LF_SCORE_OWNERS * LF_QK_WINDOW) {
+    #|        float dots[LF_QK_WINDOW] = {};
+    #|        #pragma unroll
+    #|        for (int item = 0; item < LF_SCORE_QUERY_ITEMS; ++item) {
+    #|          const int component = LF_SCORE_COMPONENT(item);
+    #|          #pragma unroll
+    #|          for (int independent = 0; independent < LF_QK_WINDOW; ++independent) {
+    #|            const int key = key_group + score_owner + independent * LF_SCORE_OWNERS;
+    #|            if (LF_QK_VALIDcomponent < LF_HEAD_DIMENSION)
+    #|              dots[independent] += query_fragment[item] * __bfloat162float(key_tile[key * LF_HEAD_DIMENSION + component]);
+    #|          }
+    #|        }
+    #|        #pragma unroll
+    #|        for (int independent = 0; independent < LF_QK_WINDOW; ++independent) {
+    #|          const int key = key_group + score_owner + independent * LF_SCORE_OWNERS;
+    #|          float dot = dots[independent];
+    #|          for (int offset = LF_SCORE_LANES / 2; offset > 0; offset >>= 1)
+    #|            dot += __shfl_down_sync(0xffffffffU, dot, offset, LF_SCORE_LANES);
+    #|          if (score_lane == 0LF_QK_PUBLISH) scores[key] = dot * scale;
+    #|        }
+    #|      }
+  )
+  .split("LF_QK_WINDOW")
+  .join(window.to_string())
+  .replace(old="LF_QK_EXTENT", new=extent)
+  .replace(old="LF_QK_VALID", new=valid)
+  .replace(old="LF_QK_PUBLISH", new=publish)
+}
+
+///|
+fn transform(source : String, window : Int) -> String raise {
+  let open = "    if (active_keys == LF_KEY_VALUE_TILE) {\n"
+  let close = "    __syncthreads();\n    stage_key(key_base + 2 * LF_KEY_VALUE_TILE, slot);"
+  let segments = source.split(close).to_array()
+  assert_eq(segments.length(), 3)
+  let result : Array[String] = []
+  for index, segment in segments {
+    if index == 2 {
+      result.push(segment.to_owned())
+      continue
+    }
+    let parts = segment.split(open).to_array()
+    assert_true(parts.length() >= 2)
+    assert_eq(parts[parts.length() - 1].split("float dot = 0.0f;").length(), 3)
+    result.push(
+      parts[:parts.length() - 1].join(open) +
+      open +
+      qk_body(window, false) +
+      "\n    } else {\n" +
+      qk_body(window, true) +
+      "\n    }\n",
+    )
+  }
+  result.join(close)
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let output = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+  output.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode, moon] else {
+    fail("FROZEN_BASE PROBE_ROOT NEW_ROOT build|run|validate MOON")
+  }
+  if mode == "validate" {
+    let source = @fs.read_file(base).text()
+    for window in [2, 4] {
+      println("window=\{window} bytes=\{transform(source, window).length()}")
+    }
+    return
+  }
+  let frozen = base + "/decode-selected"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  if mode == "build" {
+    assert_true(
+      capture(root, "source", "sha256sum", [frozen + "/kernel.cu"]).has_prefix(
+        "dc9f5a1a30e0d2f969f7a9e82cdcc7b8b9a8c80f2058c698b19ea9416e9d43b6 ",
+      ),
+    )
+    assert_true(
+      capture(root, "nvcc", "sha256sum", [nvcc]).has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    let original = @fs.read_file(frozen + "/kernel.cu").text()
+    let recipe = @fs.read_file(frozen + "/kernel.recipe").text()
+    for window in [2, 4] {
+      let name = "dots\{window}"
+      let directory = root + "/" + name
+      @fs.mkdir(directory)
+      @fs.write_file(
+        directory + "/kernel.cu",
+        transform(original, window),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        directory + "/kernel.recipe",
+        recipe + "diagnostic_only=true\n",
+        create_mode=CreateNew,
+      )
+      ignore(
+        capture(root, name + "-compile", nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--Werror",
+          "all-warnings",
+          "--maxrregcount=255",
+          "-Xptxas=-v",
+          "-cubin",
+          directory + "/kernel.cu",
+          "-o",
+          directory + "/kernel.cubin",
+        ]),
+      )
+      ignore(
+        capture(root, name + "-identity", "sha256sum", [
+          directory + "/kernel.cu",
+          directory + "/kernel.cubin",
+        ]),
+      )
+    }
+    return
+  }
+  assert_eq(mode, "run")
+  let probe = probe_root + "/check-probe"
+  assert_true(
+    capture(root, "probe", "sha256sum", [probe]).has_prefix(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+  assert_eq(spec.split("maximum_rows=32\n").length(), 2)
+  let workloads : Array[Json] = []
+  for name in ["dots2", "dots4"] {
+    for partitioned in [false, true] {
+      for
+        (rows, envelope, history) in [
+          (16, 16, 4095),
+          (2, 8, 32767),
+          (1, 1, 127),
+        ] {
+        let label = "\{name}-\{if partitioned { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+        let path = root + "/" + label + ".spec"
+        @fs.write_file(
+          path,
+          spec.replace(
+            old="maximum_rows=32\n",
+            new="maximum_rows=\{envelope}\n",
+          ),
+          create_mode=CreateNew,
+        )
+        let args = [
+          path,
+          frozen,
+          root + "/" + name,
+          rows.to_string(),
+          rows.to_string(),
+          history.to_string(),
+          "--decode-envelope",
+        ]
+        if partitioned {
+          args.push("--decode-partitioned")
+        }
+        workloads.push({ "label": label, "args": args })
+      }
+    }
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.01,
+    "require_bitwise": true,
+    "program": probe,
+    "artifacts": [
+      frozen + "/kernel.cubin",
+      root + "/dots2/kernel.cubin",
+      root + "/dots4/kernel.cubin",
+    ],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "paired", moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      root + "/contract.json",
+      root + "/paired",
+    ]),
+  )
+}
+
+///|
+test "independent dots preserve owner and per dot component order for every tail" {
+  for window in [2, 4] {
+    for active in 1..<=32 {
+      for owner in 0..<8 {
+        let keys : Array[Int] = []
+        for group = 0; group < active; group = group + 8 * window {
+          for independent in 0..<window {
+            let key = group + owner + independent * 8
+            if key < active {
+              keys.push(key)
+            }
+          }
+        }
+        assert_eq(
+          keys,
+          Array::makei(active, i => i).filter(i => i % 8 == owner),
+        )
+        for lane in 0..<4 {
+          let original = Array::makei(32, i => lane + (i + owner) % 32 * 4)
+          let traces : Array[Array[Int]] = Array::makei(active, _ => [])
+          for group = 0; group < active; group = group + 8 * window {
+            for item in 0..<32 {
+              for independent in 0..<window {
+                let key = group + owner + independent * 8
+                if key < active {
+                  traces[key].push(lane + (item + owner) % 32 * 4)
+                }
+              }
+            }
+          }
+          for key in 0..<active {
+            assert_eq(traces[key], if key % 8 == owner { original } else { [] })
+          }
+        }
+      }
+    }
+  }
+}
+
+///|
+test "both complete and ragged terminal entries must be replaced" {
+  let open = "    if (active_keys == LF_KEY_VALUE_TILE) {\n"
+  let close = "    __syncthreads();\n    stage_key(key_base + 2 * LF_KEY_VALUE_TILE, slot);"
+  let prefix = open + "preserve_operand_staging();\n    }\n"
+  let terminal = prefix +
+    open +
+    "float dot = 0.0f;\nfloat dot = 0.0f;\n" +
+    close
+  for window in [2, 4] {
+    let result = transform(terminal + terminal, window)
+    assert_eq(result.split("float dots[\{window}]").length(), 5)
+    assert_eq(
+      result
+      .split("if (key < active_keys && component < LF_HEAD_DIMENSION)")
+      .length(),
+      3,
+    )
+    assert_false(result.contains("float dot = 0.0f;"))
+    assert_eq(result.split("preserve_operand_staging();").length(), 3)
+    assert_false(result.contains("LF_QK_"))
+  }
+  try transform(terminal, 2) catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing partial entry must fail")
+  }
+}

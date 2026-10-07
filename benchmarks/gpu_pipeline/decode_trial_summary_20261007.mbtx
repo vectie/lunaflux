@@ -1,0 +1,37 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, path] else { fail("SUMMARY_JSON") }
+  guard @json.parse(@fs.read_file(path).text()) is Array(records) &&
+    records.length() == 12 else {
+    fail("twelve workloads")
+  }
+  for record in records {
+    guard record
+      is {
+        "label": String(label),
+        "metrics": {
+          "baseline_median_us": Number(control, ..),
+          "candidate_median_us": Number(candidate, ..),
+          "median_paired_gain": Number(gain, ..),
+          "minimum_paired_gain": Number(minimum, ..),
+          "decision": String(decision),
+          ..
+        },
+        ..
+      } else {
+      fail("metrics")
+    }
+    assert_true(["improved", "regression", "inconclusive"].contains(decision))
+    println(
+      "\{label}: \{control} -> \{candidate} us; paired=\{gain * 100}% minimum=\{minimum * 100}% \{decision}",
+    )
+  }
+}

@@ -13,7 +13,7 @@ async fn copy(from : String, to : String) -> Unit {
 }
 
 ///|
-async fn summarize(path : String) -> Unit {
+async fn summarize(path : String, reject_improved? : Bool = true) -> Unit {
   guard @json.parse(@fs.read_file(path).text()) is Array(records) &&
     records.length() == 12 else {
     fail("twelve workloads")
@@ -37,7 +37,10 @@ async fn summarize(path : String) -> Unit {
     println(
       "\{label}: \{control} -> \{candidate} us; paired=\{gain * 100}% minimum=\{minimum * 100}% \{decision}",
     )
-    assert_true(["regression", "inconclusive"].contains(decision))
+    assert_true(["regression", "inconclusive", "improved"].contains(decision))
+    if reject_improved {
+      assert_true(decision != "improved")
+    }
   }
 }
 
@@ -47,12 +50,38 @@ async fn main {
     summarize(summary)
     return
   }
-  guard @env.args() is [_, root, word32, word64, base, probe, moon, sealer] else {
+  guard @env.args()
+    is [_, root, first, second, base, probe, moon, sealer, .. options] else {
     fail(
-      "SUMMARY_JSON | TRIAL_ROOT WORD32_COUNTER_ROOT WORD64_COUNTER_ROOT FROZEN_BASE PROBE_ROOT MOON SEALER",
+      "SUMMARY_JSON | TRIAL_ROOT FIRST_COUNTER SECOND_COUNTER FROZEN_BASE PROBE_ROOT MOON SEALER [interleaved]",
     )
   }
+  let interleaved = match options {
+    [] => false
+    ["interleaved"] => true
+    _ => fail("unknown experiment profile")
+  }
   assert_true(@fs.exists(sealer))
+  if interleaved {
+    for mode in ["check", "test"] {
+      let result = @shell.Cmd(moon, [
+        mode,
+        root + "/decode_interleaved_qk_tests_20261007.mbtx",
+        "--deny-warn",
+      ]).output(max_output_bytes=16777216)
+      @fs.write_file(
+        root + "/automation-" + mode + ".stdout",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/automation-" + mode + ".stderr",
+        result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+    }
+  }
   for phase in ["boundary", "sanitizer"] {
     assert_true(
       @fs.read_file(root + "/" + phase + "/RESULT.txt")
@@ -65,7 +94,7 @@ async fn main {
     .text()
     .has_prefix("outcome=completed\n"),
   )
-  summarize(root + "/paired/summary.json")
+  summarize(root + "/paired/summary.json", reject_improved=!interleaved)
   guard @json.parse(@fs.read_file(root + "/paired/summary.json").text())
     is Array(records) else {
     fail("workloads")
@@ -89,7 +118,12 @@ async fn main {
       )
     }
   }
-  for (name, path) in [("counter-word32", word32), ("counter-word64", word64)] {
+  let counters = if interleaved {
+    [("counter-c16", first), ("counter-c2-long", second)]
+  } else {
+    [("counter-word32", first), ("counter-word64", second)]
+  }
+  for (name, path) in counters {
     assert_true(
       @fs.read_file(path + "/COUNTER_RESULT.txt")
       .text()
@@ -110,15 +144,26 @@ async fn main {
     copy(base + "/decode-selected/" + file, root + "/frozen-control/" + file)
   }
   copy(probe + "/check-probe", root + "/frozen-control/check-probe")
-  @fs.mkdir(root + "/preparation-failure")
-  let failed = "/home/wlc004s/lunaflux-decode-packed-key-20261007.1WZelNHZ"
-  for file in ["decode_packed_key_load_20261007.mbtx", "ako_trial.mbtx"] {
-    if @fs.exists(failed + "/" + file) {
-      copy(failed + "/" + file, root + "/preparation-failure/" + file)
+  if !interleaved {
+    @fs.mkdir(root + "/preparation-failure")
+    let failed = "/home/wlc004s/lunaflux-decode-packed-key-20261007.1WZelNHZ"
+    for file in ["decode_packed_key_load_20261007.mbtx", "ako_trial.mbtx"] {
+      if @fs.exists(failed + "/" + file) {
+        copy(failed + "/" + file, root + "/preparation-failure/" + file)
+      }
     }
   }
-  for
-    (unit, success) in [
+  let units = if interleaved {
+    [
+      ("lunaflux-interleaved-qk-build-20261007-IZcf946q", true),
+      ("lunaflux-interleaved-qk-run-20261007-IZcf946q", true),
+      ("lunaflux-interleaved-qk-boundary-20261007-IZcf946q", true),
+      ("lunaflux-interleaved-qk-sanitizer-20261007-IZcf946q", true),
+      ("lunaflux-interleaved-c16-counter-20261007", true),
+      ("lunaflux-interleaved-long-counter-20261007", true),
+    ]
+  } else {
+    [
       ("lunaflux-packed-key-build-20261007-1WZelNHZ", false),
       ("lunaflux-packed-key-build-20261007-K8QgNcUm", true),
       ("lunaflux-packed-key-run-20261007-K8QgNcUm", true),
@@ -126,7 +171,9 @@ async fn main {
       ("lunaflux-packed-key-sanitizer-20261007-K8QgNcUm", true),
       ("lunaflux-packed32-counter-20261007", true),
       ("lunaflux-packed64-counter-20261007", true),
-    ] {
+    ]
+  }
+  for (unit, success) in units {
     let journal = @shell.Cmd("journalctl", ["--user", "-u", unit, "--no-pager"]).output(
       max_output_bytes=16777216,
     )
@@ -165,7 +212,11 @@ async fn main {
   }
   @fs.write_file(
     root + "/RESULT.txt",
-    "outcome=completed\nscope=two strict packed QK shared-load variants; 60 paired rows; 44 boundary cases; 36 sanitizer runs; two C16 paired counter captures\ndecision=no winner; no production default or serving route promoted\nserving=unchanged; synthetic kernel equality is not model quality\n",
+    if interleaved {
+      "outcome=completed\nscope=two strict independent QK dot schedules; 60 paired rows; 44 boundary cases; 36 sanitizer runs; C16 and long C2 paired counters\ndecision=two-dot ordinary long C2 improves only; no production default or serving route promoted\nserving=unchanged; synthetic kernel equality is not model quality\n"
+    } else {
+      "outcome=completed\nscope=two strict packed QK shared-load variants; 60 paired rows; 44 boundary cases; 36 sanitizer runs; two C16 paired counter captures\ndecision=no winner; no production default or serving route promoted\nserving=unchanged; synthetic kernel equality is not model quality\n"
+    },
     create_mode=CreateNew,
   )
   let seal_result = @shell.Cmd(moon, ["run", sealer, root]).output(
