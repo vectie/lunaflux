@@ -1,0 +1,148 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn luna_operation(name : String) -> String? {
+  if name.contains("fused_qwen_qkv") {
+    Some("qkv-chain")
+  } else if name.contains("gated_mlp") && name.contains("_down") {
+    Some("down")
+  } else if name.contains("gated_mlp") {
+    Some("gate-up-chain")
+  } else if name.contains("dense_projection") {
+    Some("output")
+  } else {
+    None
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("EVIDENCE_ROOT") }
+  let aggregate : Map[String, Map[String, Double]] = Map([])
+  let operations : Map[String, Map[String, Double]] = Map([])
+  for engine in ["luna-full", "vllm"] {
+    let totals : Map[String, Double] = Map([])
+    let ops : Map[String, Double] = Map([])
+    guard @json.parse(
+        @fs.read_file(root + "/capture/" + engine + "/work-summary-v2.json").text(),
+      )
+      is {
+        "activity_ns": Object(activity),
+        "top_kernel_groups": Array(groups),
+        ..
+      } else {
+      fail("summary")
+    }
+    for (key, ns) in activity {
+      let phase = key.split("-").to_array()[0].to_owned()
+      let group = phase +
+        (if key.has_suffix(" other") { " non-attention" } else { " attention" })
+      totals[group] = totals.get(group).unwrap_or(0.0) + number(ns) / 1.0e6
+    }
+    aggregate[engine] = totals
+    if engine == "luna-full" {
+      for row in groups {
+        guard row is { "key": String(key), "ns": ns, .. } &&
+          key.split(" | ").to_array() is [phase, name, _] else {
+          fail("group")
+        }
+        if phase == "decode" {
+          continue
+        }
+        if luna_operation(name.to_owned()) is Some(op) {
+          ops[op] = ops.get(op).unwrap_or(0.0) + number(ns) / 1.0e6
+        }
+      }
+      operations[engine] = ops
+    }
+  }
+  guard @json.parse(@fs.read_file(root + "/reference-projections.json").text())
+    is { "totals_ms": Array(totals), .. } else {
+    fail("source-bound totals")
+  }
+  let reference : Map[String, Double] = Map([])
+  for row in totals {
+    guard row is { "phase_operation": String(key), "ms": ms, .. } else {
+      fail("operation")
+    }
+    if !key.has_prefix("multi-query | ") {
+      continue
+    }
+    let op = key.strip_prefix("multi-query | ").unwrap().to_owned()
+    let op = if op.has_prefix("qkv") {
+      "qkv-chain"
+    } else if op.has_prefix("gate-up") {
+      "gate-up-chain"
+    } else {
+      op
+    }
+    reference[op] = reference.get(op).unwrap_or(0.0) + number(ms)
+  }
+  operations["vllm"] = reference
+  let records : Array[Json] = []
+  for phase in ["prefill", "mixed", "decode"] {
+    for kind in ["attention", "non-attention"] {
+      let key = phase + " " + kind
+      let a = aggregate["luna-full"][key]
+      let b = aggregate["vllm"][key]
+      records.push({
+        "logical_phase": phase,
+        "kind": kind,
+        "luna_ms": a,
+        "vllm_ms": b,
+        "delta_ms": a - b,
+      })
+    }
+  }
+  let report : Json = {
+    "phase_activity": records,
+    "multi_query_projections": operations,
+    "scope": "all 96 exact logical vectors match; sums of kernel durations, not exclusive wall time. Projection chains combine fused/unfused operations; only multi-query steps, all source-order validated.",
+  }
+  @fs.write_file(
+    root + "/attribution-summary.json",
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(report.stringify(indent=2))
+  for trial in ["register-scores", "register-scores-v2"] {
+    guard @json.parse(
+        @fs.read_file(root + "/" + trial + "/trial/summary.json").text(),
+      )
+      is Array(rows) else {
+      fail("trial")
+    }
+    for row in rows {
+      guard row
+        is {
+          "label": String(label),
+          "metrics": {
+            "baseline_median_us": a,
+            "candidate_median_us": b,
+            "decision": String(decision),
+            ..
+          },
+          ..
+        } else {
+        fail("trial result")
+      }
+      println("\{trial} \{label}: \{number(a)} -> \{number(b)} us \{decision}")
+    }
+  }
+}

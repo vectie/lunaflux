@@ -1,0 +1,155 @@
+///|
+// Offline rejected experiment. Export requires applying the companion patch
+// experiments/register_score_residency_20261007.patch in a disposable checkout.
+// It is deliberately not integrated into production candidate selection.
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  command : String,
+  args : Array[String],
+  env? : Map[String, String] = {},
+) -> String {
+  let result = @shell.Cmd(command, args, env~).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  match @env.args() {
+    [_, "export", root] => {
+      @fs.mkdir(root)
+      let out = capture(
+        root,
+        "export",
+        "moon",
+        [
+          "test", "kernels/luna_cuda_attention_tile_source/register_score_wbtest.mbt",
+          "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25",
+        ],
+        env={ "LUNA_EXPORT_REGISTER_SCORES": "1" },
+      )
+      guard out.split("LUNA_REGISTER_SOURCE_BEGIN\n").to_array() is [_, body] &&
+        body.split("\nLUNA_REGISTER_SOURCE_END").to_array() is [source, _] else {
+        fail("source framing")
+      }
+      @fs.write_file(root + "/kernel.cu", source, create_mode=CreateNew)
+    }
+    [_, "prepare", root, base, probe] => {
+      assert_true(
+        capture(root, "nvcc-hash", "sha256sum", [
+          "/usr/local/cuda-13.0/bin/nvcc",
+        ]).has_prefix(
+          "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+        ),
+      )
+      ignore(
+        capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+          "-O3",
+          "-arch=sm_121",
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--maxrregcount=255",
+          "-Xptxas=-v",
+          "-cubin",
+          root + "/kernel.cu",
+          "-o",
+          root + "/kernel.cubin",
+        ]),
+      )
+      for (label, shared) in [("same-reservation", 33040), ("compact", 32768)] {
+        let dir = root + "/" + label
+        @fs.mkdir(dir)
+        @fs.write_file(
+          dir + "/kernel.cubin",
+          @fs.read_file(root + "/kernel.cubin"),
+          create_mode=CreateNew,
+        )
+        // Deliberately not a production recipe: no invented lowering digest,
+        // candidate identity or admission. The probe consumes launch fields.
+        @fs.write_file(
+          dir + "/kernel.recipe",
+          "schema=lunaflux-register-score-experiment-v1\nmanifest_bindable=false\nfunction_symbol=register_decode_owned8_blockwise_f32_v4\ngrid=32,8,1\nblock=64,1,1\nshared_memory_bytes=\{shared}\nquery_tile_rows=1\nquery_metadata_version=0\nnumeric_law=owned8-blockwise-f32-probability-v4\npartition_function_symbol=register_partial\npartition_merge_function_symbol=register_merge\npartition_grid=32,8,8\npartition_merge_grid=32,16,1\npartition_block=64,1,1\npartition_shared_memory_bytes=\{shared}\npartition_workspace_bytes=2129920\npartition_numeric_law=owned8-blockwise-f32-probability-v4\n",
+          create_mode=CreateNew,
+        )
+      }
+      let workloads : Array[Json] = []
+      for label in ["same-reservation", "compact"] {
+        for
+          (rows, history) in [
+            (1, 127),
+            (8, 127),
+            (1, 8191),
+            (8, 8191),
+            (16, 8191),
+            (1, 32767),
+          ] {
+          for split in [false, true] {
+            let args : Array[String] = [
+              base + "/calibration-spec/decode.spec",
+              base + "/decode-selected",
+              root + "/" + label,
+              rows.to_string(),
+              rows.to_string(),
+              history.to_string(),
+              ..if split {
+                ["--decode-partitioned"]
+              } else {
+                []
+              },
+            ]
+            workloads.push({
+              "label": "\{label}-r\{rows}-h\{history}-p\{if split { 8 } else { 1 }}",
+              "args": args,
+            })
+          }
+        }
+      }
+      let contract : Json = {
+        "schema": "lunaflux-ako-trial-v1",
+        "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+        "reserve_kib": 33554432,
+        "minimum_gain": 0.02,
+        "require_bitwise": true,
+        "program": probe,
+        "artifacts": [
+          root + "/kernel.cu",
+          root + "/kernel.cubin",
+          root + "/same-reservation/kernel.recipe",
+          root + "/compact/kernel.recipe",
+          base + "/decode-selected/kernel.cubin",
+          base + "/decode-selected/kernel.recipe",
+        ],
+        "workloads": workloads,
+      }
+      @fs.write_file(
+        root + "/contract.json",
+        contract.stringify(indent=2),
+        create_mode=CreateNew,
+      )
+    }
+    _ => fail("export NEW_ROOT | prepare ROOT BASE PROBE")
+  }
+}

@@ -1,0 +1,458 @@
+diff --git a/compiler/attention_physical_ir/blockwise_fold.mbt b/compiler/attention_physical_ir/blockwise_fold.mbt
+index 3bdd0406..3bde5e60 100644
+--- a/compiler/attention_physical_ir/blockwise_fold.mbt
++++ b/compiler/attention_physical_ir/blockwise_fold.mbt
+@@ -7,6 +7,7 @@ pub struct BlockwiseFold {
+   priv keys : Int
+   priv score_owners : Int
+   priv contraction : Bool
++  priv register_scores : RegisterScoreExchange?
+ } derive(Debug, Eq)
+ 
+ ///|
+@@ -30,12 +31,33 @@ pub fn BlockwiseFold::new(
+       score_owners == 4 ||
+       score_owners == 8
+     ) {
+-    Some({ dimensions, keys, score_owners, contraction, })
++    Some({ dimensions, keys, score_owners, contraction, register_scores: None, })
+   } else {
+     None
+   }
+ }
+ 
++///|
++/// Pure optional physical rewrite. Unsupported tile/subgroup geometry keeps
++/// the existing shared exchange available rather than changing the fold.
++pub fn BlockwiseFold::with_register_scores(
++  self : BlockwiseFold,
++  subgroup_width~ : Int,
++) -> BlockwiseFold? {
++  RegisterScoreExchange::new(
++    keys=self.keys,
++    subgroup_width~,
++    score_owners=self.score_owners,
++  ).map(exchange => { ..self, register_scores: Some(exchange), })
++}
++
++///|
++pub fn BlockwiseFold::register_score_exchange(
++  self : BlockwiseFold,
++) -> RegisterScoreExchange? {
++  self.register_scores
++}
++
+ ///|
+ pub fn BlockwiseFold::dimensions(self : BlockwiseFold) -> (Int, Int) {
+   (self.dimensions, self.keys)
+diff --git a/compiler/attention_physical_ir/blockwise_storage.mbt b/compiler/attention_physical_ir/blockwise_storage.mbt
+index 63fad992..51b0c3ec 100644
+--- a/compiler/attention_physical_ir/blockwise_storage.mbt
++++ b/compiler/attention_physical_ir/blockwise_storage.mbt
+@@ -22,6 +22,7 @@ pub fn BlockwiseTileStorage::new(
+   query_consumers~ : Int,
+   stages~ : Int,
+   validity_slots~ : Int,
++  register_scores? : Bool = false,
+ ) -> BlockwiseTileStorage? {
+   // Keep every region in the signed launch-byte domain. Check divisions
+   // before products, including hostile Int::max_value geometry.
+@@ -43,7 +44,11 @@ pub fn BlockwiseTileStorage::new(
+     return None
+   }
+   let operand_bytes = dimensions.to_int64() * keys.to_int64() * ring_bytes
+-  let score_bytes = query_consumers.to_int64() * keys.to_int64() * 4L
++  let score_bytes = if register_scores {
++    0L
++  } else {
++    query_consumers.to_int64() * keys.to_int64() * 4L
++  }
+   let validity_bytes = validity_slots.to_int64() * 4L
+   guard operand_bytes <= ceiling - score_bytes - validity_bytes else {
+     return None
+diff --git a/kernels/luna_cuda_attention_tile_source/source_blockwise_decode.mbt b/kernels/luna_cuda_attention_tile_source/source_blockwise_decode.mbt
+index 65fc337a..de73f827 100644
+--- a/kernels/luna_cuda_attention_tile_source/source_blockwise_decode.mbt
++++ b/kernels/luna_cuda_attention_tile_source/source_blockwise_decode.mbt
+@@ -63,12 +63,17 @@ fn emit_cuda_blockwise_decode_source(
+       },
+     )
+     is Some(_)
++  let register_scores = fold.register_score_exchange() is Some(_)
++  guard !register_scores || keys == 32 else {
++    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
++  }
+   guard @attention_physical_ir.BlockwiseTileStorage::new(
+       dimensions=dimension,
+       keys~,
+       query_consumers=group,
+       stages~,
+       validity_slots=if retained_validity { 0 } else { stages },
++      register_scores~,
+     )
+     is Some(storage) &&
+     storage.accepts_reservation(shared_bytes) else {
+@@ -183,13 +188,22 @@ fn emit_cuda_blockwise_decode_source(
+   let validity_storage = if retained_validity {
+     ""
+   } else {
+-    "  int *tile_valid = reinterpret_cast<int *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + \{group * keys};\n" +
++    (if register_scores {
++      "  int *tile_valid = reinterpret_cast<int *>(shared_arena + \{storage.region_offsets_bytes().2});\n"
++    } else {
++      "  int *tile_valid = reinterpret_cast<int *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + \{group * keys};\n"
++    }) +
+     (if effects.is_pipelined() {
+       "  int *stage_valid = tile_valid;"
+     } else {
+       ""
+     })
+   }
++  let score_storage = if register_scores {
++    ""
++  } else {
++    "  float *scores = reinterpret_cast<float *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + warp * LF_KEY_VALUE_TILE;"
++  }
+   let source =
+     $|#include <cuda_bf16.h>
+     $|#include <math_constants.h>
+@@ -236,7 +250,7 @@ fn emit_cuda_blockwise_decode_source(
+     $|  __nv_bfloat16 *stage_arena = reinterpret_cast<__nv_bfloat16 *>(shared_arena);
+     $|  __nv_bfloat16 *key_tile = stage_arena;
+     $|  __nv_bfloat16 *value_tile = key_tile + LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION;
+-    $|  float *scores = reinterpret_cast<float *>(stage_arena + \{stages * 2} * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + warp * LF_KEY_VALUE_TILE;
++    $|\{score_storage}
+     $|\{validity_storage}
+     $|  const unsigned long long query_offset = (unsigned long long)token * \{input_width}ULL + query_head * LF_HEAD_DIMENSION;
+     $|  float query_fragment[LF_SCORE_QUERY_ITEMS], accumulator[LF_ACCUMULATOR_ITEMS] = {};
+diff --git a/kernels/luna_cuda_attention_tile_source/source_blockwise_fold.mbt b/kernels/luna_cuda_attention_tile_source/source_blockwise_fold.mbt
+index 66396d2f..091ac46d 100644
+--- a/kernels/luna_cuda_attention_tile_source/source_blockwise_fold.mbt
++++ b/kernels/luna_cuda_attention_tile_source/source_blockwise_fold.mbt
+@@ -9,6 +9,7 @@ fn cuda_blockwise_fold_body(
+   steps? : ReadOnlyArray[@attention_physical_ir.BlockwiseFoldStep] = fold.steps(),
+ ) -> String {
+   let dimensions = fold.dimensions().0
++  let register_scores = fold.register_score_exchange()
+   let ownership = @attention_physical_ir.ValueComponentOwnership::new(
+     dimensions~,
+     owners=32,
+@@ -35,6 +36,14 @@ fn cuda_blockwise_fold_body(
+       #|      }
+     )
+   }
++  let value_body = if register_scores is Some(_) {
++    value_body.replace(
++      old="scores[key]",
++      new="__shfl_sync(0xffffffffU, lane_probability, key)",
++    )
++  } else {
++    value_body
++  }
+   // Specialize the iteration domain, not the fold's association. Complete
+   // tiles have a compile-time extent; the ragged domain retains the exact
+   // ascending-key loop. Both alternatives share the same per-key expression.
+@@ -95,36 +104,104 @@ fn cuda_blockwise_fold_body(
+       $|    }
+     )
+   }
++  let scores = match register_scores {
++    None => scores
++    Some(exchange) => {
++      let builder = StringBuilder()
++      for fragment = 0; fragment < exchange.fragments(); fragment = fragment + 1 {
++        builder <+ "    float owned_score_\{fragment};\n"
++      }
++      // Preserve the full/ragged domain specialization of the shared fold.
++      // Exchange only after producing every fragment, so shuffles do not
++      // serialize the independent owner-local dot products.
++      for complete in [true, false] {
++        builder <+
++          "\{if complete { "    if (active_keys == LF_KEY_VALUE_TILE) {" } else { "    } else {" }}\n"
++        for fragment = 0
++            fragment < exchange.fragments()
++            fragment = fragment + 1 {
++          builder <+
++            "    { const int key_group = \{fragment * fold.score_owners()};\n"
++          let fragment_body = (if complete {
++            complete_score_body
++          } else {
++            score_body
++          }).replace(
++            old=if complete {
++              "if (score_lane == 0) scores[key] = dot * scale;"
++            } else {
++              "if (score_lane == 0 && key < active_keys) scores[key] = dot * scale;"
++            },
++            new="owned_score_\{fragment} = dot * scale;",
++          )
++          builder <+ "\{fragment_body}\n    }\n"
++        }
++      }
++      builder <+ "    }\n    float lane_score = -CUDART_INF_F;\n"
++      for fragment = 0; fragment < exchange.fragments(); fragment = fragment + 1 {
++        let group = fragment * fold.score_owners()
++        builder <+
++          "    { const float exchanged = __shfl_sync(0xffffffffU, owned_score_\{fragment}, (lane % LF_SCORE_OWNERS) * LF_SCORE_LANES);\n"
++        builder <+
++          "      if (lane >= \{group} && lane < \{group + fold.score_owners()} && lane < active_keys) lane_score = exchanged; }\n"
++      }
++      builder.to_string()
++    }
++  }
+   let ordered = steps
+     .map(step => {
+       match step {
+         ComputeTileScores => scores + "\n" + key_released
+-        PublishTileScores => "    __syncwarp();"
++        PublishTileScores =>
++          if register_scores is Some(_) {
++            ""
++          } else {
++            "    __syncwarp();"
++          }
+         ReduceTileMaximum =>
++          (if register_scores is Some(_) {
++            "    float tile_maximum = lane_score;\n"
++          } else {
++            (
++              #|    float tile_maximum = -CUDART_INF_F;
++              #|    for (int key = lane; key < active_keys; key += 32)
++              #|      tile_maximum = fmaxf(tile_maximum, scores[key]);
++            )
++          }) +
++          "\n" +
+           (
+-            #|    float tile_maximum = -CUDART_INF_F;
+-            #|    for (int key = lane; key < active_keys; key += 32)
+-            #|      tile_maximum = fmaxf(tile_maximum, scores[key]);
+             #|    for (int offset = 16; offset > 0; offset >>= 1)
+             #|      tile_maximum = fmaxf(tile_maximum, __shfl_down_sync(0xffffffffU, tile_maximum, offset));
+             #|    tile_maximum = __shfl_sync(0xffffffffU, tile_maximum, 0);
+           )
+         FormFloat32Probabilities =>
+-          (
+-            #|    float tile_denominator = 0.0f;
+-            #|    for (int key = lane; key < active_keys; key += 32) {
+-            #|      const float probability = expf(scores[key] - tile_maximum);
+-            #|      scores[key] = probability;
+-            #|      tile_denominator += probability;
+-            #|    }
+-          )
++          if register_scores is Some(_) {
++            (
++              #|    const float lane_probability = lane < active_keys ? expf(lane_score - tile_maximum) : 0.0f;
++              #|    float tile_denominator = lane_probability;
++            )
++          } else {
++            (
++              #|    float tile_denominator = 0.0f;
++              #|    for (int key = lane; key < active_keys; key += 32) {
++              #|      const float probability = expf(scores[key] - tile_maximum);
++              #|      scores[key] = probability;
++              #|      tile_denominator += probability;
++              #|    }
++            )
++          }
+         ReduceTileDenominator =>
+           (
+             #|    for (int offset = 16; offset > 0; offset >>= 1)
+             #|      tile_denominator += __shfl_down_sync(0xffffffffU, tile_denominator, offset);
+             #|    tile_denominator = __shfl_sync(0xffffffffU, tile_denominator, 0);
+           )
+-        PublishTileProbabilities => "    __syncwarp();"
++        PublishTileProbabilities =>
++          if register_scores is Some(_) {
++            ""
++          } else {
++            "    __syncwarp();"
++          }
+         AccumulateTileValues =>
+           value_ready + "\n" + accumulate + "\n" + value_released
+         MergeTileState =>
+diff --git a/compiler/attention_physical_ir/score_exchange.mbt b/compiler/attention_physical_ir/score_exchange.mbt
+new file mode 100644
+index 00000000..51e6ac5b
+--- /dev/null
++++ b/compiler/attention_physical_ir/score_exchange.mbt
+@@ -0,0 +1,45 @@
++///|
++/// A bijection from grouped dot-product owners to one score per subgroup
++/// lane. This changes storage/transport, not the reduction or numerical law.
++pub struct RegisterScoreExchange {
++  priv lanes : Int
++  priv owners : Int
++} derive(Debug, Eq)
++
++///|
++pub extend RegisterScoreExchange with Eq::{equal, not_equal}
++
++///|
++pub extend RegisterScoreExchange with @debug.Debug::{to_repr}
++
++///|
++pub fn RegisterScoreExchange::new(
++  keys~ : Int,
++  subgroup_width~ : Int,
++  score_owners~ : Int,
++) -> RegisterScoreExchange? {
++  guard keys == subgroup_width &&
++    subgroup_width > 0 &&
++    subgroup_width <= 128 &&
++    score_owners > 0 &&
++    subgroup_width % score_owners == 0 else {
++    return None
++  }
++  Some({ lanes: subgroup_width, owners: score_owners, })
++}
++
++///|
++pub fn RegisterScoreExchange::fragments(self : RegisterScoreExchange) -> Int {
++  self.lanes / self.owners
++}
++
++///|
++/// Producer lane and register slot for one score. Out-of-domain accesses
++/// cannot be converted into a device shuffle.
++pub fn RegisterScoreExchange::producer(
++  self : RegisterScoreExchange,
++  key : Int,
++) -> (Int, Int)? {
++  guard key >= 0 && key < self.lanes else { return None }
++  Some((key % self.owners * self.fragments(), key / self.owners))
++}
+diff --git a/compiler/attention_physical_ir/score_exchange_test.mbt b/compiler/attention_physical_ir/score_exchange_test.mbt
+new file mode 100644
+index 00000000..3cf49165
+--- /dev/null
++++ b/compiler/attention_physical_ir/score_exchange_test.mbt
+@@ -0,0 +1,47 @@
++///|
++test "register score transport is a total bijection inside its domain" {
++  for width in [16, 32, 64] {
++    for owners in [2, 4, 8] {
++      let plan = @attention_physical_ir.RegisterScoreExchange::new(
++        keys=width,
++        subgroup_width=width,
++        score_owners=owners,
++      ).unwrap()
++      let seen : Array[(Int, Int)] = []
++      for key = 0; key < width; key = key + 1 {
++        let pair = plan.producer(key).unwrap()
++        assert_false(seen.contains(pair))
++        assert_eq(pair.0 / plan.fragments() + pair.1 * owners, key)
++        seen.push(pair)
++      }
++      assert_eq(plan.producer(-1), None)
++      assert_eq(plan.producer(width), None)
++    }
++  }
++  assert_eq(
++    @attention_physical_ir.RegisterScoreExchange::new(
++      keys=64,
++      subgroup_width=32,
++      score_owners=8,
++    ),
++    None,
++  )
++  let old = @attention_physical_ir.BlockwiseFold::new(
++    dimensions=128,
++    keys=32,
++    score_owners=8,
++  ).unwrap()
++  let fresh = old.with_register_scores(subgroup_width=32).unwrap()
++  assert_eq(old.numeric_law(), fresh.numeric_law())
++  assert_eq(old.steps(), fresh.steps())
++  let storage = @attention_physical_ir.BlockwiseTileStorage::new(
++    dimensions=128,
++    keys=32,
++    query_consumers=2,
++    stages=2,
++    validity_slots=0,
++    register_scores=true,
++  ).unwrap()
++  assert_eq(storage.region_sizes_bytes(), (32768L, 0L, 0L))
++  assert_eq(storage.minimum_bytes(), 32768L)
++}
+diff --git a/kernels/luna_cuda_attention_tile_source/register_score_wbtest.mbt b/kernels/luna_cuda_attention_tile_source/register_score_wbtest.mbt
+new file mode 100644
+index 00000000..7ded13f6
+--- /dev/null
++++ b/kernels/luna_cuda_attention_tile_source/register_score_wbtest.mbt
+@@ -0,0 +1,76 @@
++///|
++test "register score rewrite preserves numerical law and removes shared exchange" {
++  let lowering = source_test_decode_lowering(candidate_id=468, alternative=true)
++  guard lowering.physical_program() is BlockwiseKeyProgram(fold, _) else {
++    fail("blockwise program required")
++  }
++  let fresh = fold.with_register_scores(subgroup_width=32).unwrap()
++  let body = cuda_blockwise_fold_body(fresh)
++  assert_false(body.contains("scores["))
++  assert_false(body.contains("__syncwarp"))
++  assert_true(body.contains("__shfl_sync(0xffffffffU, lane_probability, key)"))
++  assert_true(body.contains("lane < active_keys ? expf"))
++  assert_eq(fold.numeric_law(), fresh.numeric_law())
++}
++
++///|
++/// Offline experiment only: the conservative production launch contract is
++/// not changed. Compare both launch reservations before defining a new ABI.
++test "offline export register score residency experiment" {
++  if @env.get_env_var("LUNA_EXPORT_REGISTER_SCORES") != Some("1") {
++    return
++  }
++  let abi = CudaPagedAttentionTileAbi::new(
++    query_heads=16,
++    key_value_heads=8,
++    head_dimension=128,
++    tokens_per_page=8,
++    input_row_width=4096,
++    page_stride_values=8192L,
++    physical_page_capacity=16384L,
++    maximum_query_rows=32,
++    maximum_query_tokens=2048,
++    maximum_page_entries=16384,
++  )
++  let body = StringBuilder()
++  for partitions in [1, 8] {
++    let lowering = source_test_decode_lowering(
++      candidate_id=468,
++      alternative=true,
++      batch_rows=if partitions == 1 { 32 } else { 1 },
++      parallel_workgroup_target=64,
++      key_value_heads=8,
++      tokens_per_page=8,
++    )
++    assert_eq(lowering.key_value_partitions(), partitions)
++    guard lowering.physical_program() is BlockwiseKeyProgram(fold, effects) else {
++      fail("blockwise program required")
++    }
++    let fresh = fold.with_register_scores(subgroup_width=32).unwrap()
++    let source = emit_cuda_blockwise_decode_source(
++      lowering,
++      abi,
++      if partitions == 1 {
++        "register_decode"
++      } else {
++        "register_partial"
++      },
++      1048576,
++      fresh,
++      effects,
++    )
++    let text = @utf8.decode(source.bytes())
++    assert_false(text.contains("float *scores"))
++    assert_false(text.contains("int *tile_valid"))
++    body <+ "\{text}"
++    body <+ "\n"
++    if partitions == 8 {
++      let workspace = partitioned_workspace(lowering, abi, 16777216L)
++      body <+
++        "\{partitioned_merge_source(lowering, abi, workspace, "register_merge")}"
++    }
++  }
++  println("LUNA_REGISTER_SOURCE_BEGIN")
++  println(body.to_string())
++  println("LUNA_REGISTER_SOURCE_END")
++}

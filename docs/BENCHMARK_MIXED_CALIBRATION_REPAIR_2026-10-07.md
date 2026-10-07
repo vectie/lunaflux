@@ -1,5 +1,10 @@
 # Mixed attention calibration repair
 
+Follow-up: [exact mixed-work attribution](BENCHMARK_EXACT_MIXED_WORK_2026-10-07.md)
+matches all 96 LunaFlux/vLLM logical steps, corrects reference phase
+classification, and separates the remaining attention/projection gaps. Its
+score-storage experiment does not change the serving results below.
+
 The 8K input, 64 output, C8 serving cliff includes a reproducible selection
 bug. Reusing immutable prefill records skipped mixed-chain calibration, leaving
 unmeasured mixed buckets on an expensive partitioned-prefill heuristic. The
