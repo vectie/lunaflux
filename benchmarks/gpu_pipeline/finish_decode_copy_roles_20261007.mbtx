@@ -1,0 +1,209 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn captured(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+fn checked_trials(output : String, split : Bool) -> Unit raise {
+  assert_true(output.contains("old_block=64 new_block=128 "))
+  assert_true(
+    output.contains(
+      if split {
+        "old_merge_block=64 new_merge_block=64 "
+      } else {
+        "old_merge_block=0 new_merge_block=0 "
+      },
+    ),
+  )
+  let rows = output
+    .split("\n")
+    .filter(line => line.has_prefix("tokens="))
+    .to_array()
+  assert_eq(rows.length(), 5)
+  for index, row in rows {
+    assert_true(
+      row.contains("trial=\{index} ") && row.contains("bitwise=true maxabs=0 "),
+    )
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, parent, root, base, moon, sealer] else {
+    fail(
+      "PRESERVED_INITIAL_ROLE_ROOT REPAIRED_PROBE_ROOT FROZEN_BASE MOON SEALER",
+    )
+  }
+  for
+    (unit, failed) in [
+      ("lunaflux-decode-copy-roles-build-20261007-RVuolRZ4.service", false),
+      ("lunaflux-decode-copy-roles-prepare-20261007-RVuolRZ4.service", false),
+      ("lunaflux-decode-copy-roles-boundary-20261007-RVuolRZ4.service", true),
+      (
+        "lunaflux-decode-copy-roles-qualification-20261007-RVuolRZ4.service", true,
+      ),
+      ("lunaflux-decode-role-probe-repair-20261007-M7iXJcOQ.service", false),
+      (
+        "lunaflux-decode-role-boundary-repaired-20261007-M7iXJcOQ.service", false,
+      ),
+      ("lunaflux-decode-copy-roles-paired-20261007-M7iXJcOQ.service", false),
+      ("lunaflux-decode-copy-roles-sanitizer-20261007-M7iXJcOQ.service", false),
+      ("lunaflux-decode-copy-roles-counter-20261007-M7iXJcOQ.service", true),
+      (
+        "lunaflux-decode-copy-roles-counter-scoped-20261007-M7iXJcOQ.service", true,
+      ),
+      (
+        "lunaflux-decode-copy-roles-counter-scoped-v2-20261007-M7iXJcOQ.service",
+        false,
+      ),
+    ] {
+    let state = captured(root, unit + "-terminal", "systemctl", [
+      "--user", "show", unit, "-p", "ActiveState", "-p", "ExecMainStatus",
+    ])
+    assert_true(
+      if failed {
+        state.contains("ActiveState=failed\n") &&
+        state.contains("ExecMainStatus=1\n")
+      } else {
+        state.contains("ActiveState=inactive\n") &&
+        state.contains("ExecMainStatus=0\n")
+      },
+    )
+  }
+  let followup = root + "/followup"
+  for
+    (path, prefix) in [
+      (followup + "/paired/RESULT.txt", "outcome=completed\n"),
+      (followup + "/boundary/RESULT.txt", "outcome=passed\ncases=22\n"),
+      (followup + "/sanitizer/RESULT.txt", "outcome=passed\ncases=18\n"),
+      (root + "/role-counter-v2-c16/COUNTER_RESULT.txt", "outcome=completed\n"),
+    ] {
+    assert_true(@fs.read_file(path).text().has_prefix(prefix))
+  }
+  let mut index = 0
+  for split in [false, true] {
+    for
+      (rows, envelope, history) in [(16, 16, 4095), (2, 8, 32767), (1, 1, 127)] {
+      let label = "roles-\{if split { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+      checked_trials(
+        @fs.read_file(followup + "/paired/w\{index}-" + label + ".stdout").text(),
+        split,
+      )
+      index += 1
+    }
+  }
+  for name in ["kernel.cu", "kernel.cubin"] {
+    let compared = @shell.Cmd("cmp", [
+      parent + "/roles/" + name,
+      followup + "/roles/" + name,
+    ]).output()
+    compared.check()
+  }
+  assert_eq(
+    @fs.read_file(followup + "/roles/kernel.recipe").text(),
+    @fs.read_file(parent + "/roles/kernel.recipe").text() +
+    "partition_merge_block=64,1,1\n",
+  )
+  assert_true(
+    @fs.read_file(
+      parent + "/qualification/boundary/roles-chain-h0-plain.stderr",
+    )
+    .text()
+    .contains("differential failed"),
+  )
+  @fs.mkdir(root + "/frozen-control")
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/frozen-control/" + name,
+      @fs.read_file(base + "/decode-selected/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  assert_true(
+    captured(root, "final-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  @fs.write_file(
+    root + "/final-memory.txt",
+    @fs.read_file("/proc/meminfo"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    parent + "/RESULT.txt",
+    "outcome=diagnosed\nscope=initial spec preparation failure and split merge launch mismatch; originals preserved\nrepaired_probe=" +
+    root +
+    "\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=dedicated copy-role ablation and repaired split launch contract; no accepted timing cell or serving promotion\n",
+    create_mode=CreateNew,
+  )
+  for target in [parent, root] {
+    let result = @shell.Cmd(moon, ["run", sealer, target]).output(
+      max_output_bytes=33554432,
+    )
+    result.check()
+    println(result.stdout())
+  }
+}
+
+///|
+test "completed samples require independent partial and merge launch geometry" {
+  let samples = [
+    for index in 0..<5 => {
+      "tokens=16 trial=\{index} bitwise=true maxabs=0 oracle_maxabs=0"
+    }
+  ].join("\n")
+  checked_trials(
+    "old_block=64 new_block=128 old_merge_block=64 new_merge_block=64 \n" +
+    samples,
+    true,
+  )
+  try
+    checked_trials(
+      "old_block=64 new_block=128 old_merge_block=64 new_merge_block=128 \n" +
+      samples,
+      true,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("wrong merge geometry accepted")
+  }
+}

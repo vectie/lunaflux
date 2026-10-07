@@ -1,0 +1,439 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+// Offline ablation of physical work ownership, not a production source pass.
+// The ordered numerical fold and all CTA publication points are unchanged.
+struct CopyRoles {
+  consumers : Int
+  producers : Int
+  lanes : Int
+} derive(Debug, Eq)
+
+///|
+fn CopyRoles::new(consumers : Int, lanes : Int) -> CopyRoles raise {
+  assert_true(consumers > 0 && consumers <= 16 && lanes == 32)
+  { consumers, producers: consumers, lanes, }
+}
+
+///|
+fn CopyRoles::copy_owner(self : CopyRoles, thread : Int) -> Int? {
+  let first = self.consumers * self.lanes
+  if thread >= first && thread < first + self.producers * self.lanes {
+    Some(thread - first)
+  } else {
+    None
+  }
+}
+
+///|
+fn exact(
+  source : String,
+  old : String,
+  fresh : String,
+  count : Int,
+) -> String raise {
+  assert_eq(source.split(old).length(), count + 1, msg=old)
+  source.split(old).join(fresh)
+}
+
+///|
+// Region delimiters are checked against the pinned, frozen terminal source.
+// Wrap only arithmetic: no workgroup publication may become conditional.
+fn consumer_region(
+  source : String,
+  begin : String,
+  end : String,
+) -> String raise {
+  let parts = source.split(end).to_array()
+  assert_eq(parts.length(), 2, msg=end)
+  let starts = parts[0].split(begin).to_array()
+  assert_true(starts.length() >= 2, msg=begin)
+  let arithmetic = begin + starts[starts.length() - 1].to_owned()
+  assert_false(arithmetic.contains("__syncthreads"))
+  assert_false(arithmetic.contains("cp.async"))
+  starts[:starts.length() - 1].join(begin) +
+  "    if (consumer) {\n" +
+  arithmetic +
+  "\n    }\n" +
+  end +
+  parts[1].to_owned()
+}
+
+///|
+fn entry_roles(source : String, roles : CopyRoles) -> String raise {
+  // This experiment's pinned terminal program is GQA2/KV32/D128. The role
+  // mapping itself is pure and tested across all legal subgroup counts.
+  assert_eq(roles, CopyRoles::new(2, 32))
+  let first = roles.consumers * roles.lanes
+  let threads = (roles.consumers + roles.producers) * roles.lanes
+  let result = exact(
+    source,
+    "#define LF_BLOCK_THREADS 64\n",
+    "#define LF_BLOCK_THREADS \{threads}\n",
+    1,
+  )
+  let result = exact(
+    result,
+    "  const int warp = thread >> 5;",
+    "  const int warp = thread >> 5;\n  const bool consumer = thread < \{first};\n  const bool producer = !consumer;\n  const int copy_thread = thread - \{first};",
+    1,
+  )
+  let result = exact(
+    result, "key_value_head * 2 + warp", "key_value_head * 2 + (warp % 2)", 1,
+  )
+  let result = exact(
+    result, "|| warp >= 2) return;", "|| warp >= 4) return;", 1,
+  )
+  let result = exact(
+    result, "+ warp * LF_KEY_VALUE_TILE;", "+ (warp % 2) * LF_KEY_VALUE_TILE;", 1,
+  )
+  let result = exact(
+    result, "  __nv_bfloat16 *stage_arena = reinterpret_cast<__nv_bfloat16 *>(shared_arena);",
+    "  __nv_bfloat16 *stage_arena = reinterpret_cast<__nv_bfloat16 *>(shared_arena);\n  int *stage_valid = reinterpret_cast<int *>(stage_arena + 4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + 2 * LF_KEY_VALUE_TILE;",
+    1,
+  )
+  let result = exact(
+    result, "  int key_stage_valid_0 = 1, key_stage_valid_1 = 1;\n", "", 1,
+  )
+  let result = exact(
+    result, "  int value_stage_valid_0 = 1, value_stage_valid_1 = 1;\n", "", 1,
+  )
+  let result = exact(
+    result, "const int vector = thread +", "const int vector = copy_thread +", 16,
+  )
+  let result = exact(
+    result, "    if (slot == 0) key_stage_valid_0 = operand_valid; else key_stage_valid_1 = operand_valid;",
+    "    if (copy_thread == 0) stage_valid[slot] = operand_valid;", 1,
+  )
+  let result = exact(
+    result, "    if (slot == 0) value_stage_valid_0 = operand_valid; else value_stage_valid_1 = operand_valid;",
+    "    if (copy_thread == 0) stage_valid[2 + slot] = operand_valid;", 1,
+  )
+  let result = exact(
+    result, "  key_stage_valid_0 = key_stage_valid_1 = value_stage_valid_0 = value_stage_valid_1 = 1;",
+    "  if (thread == 0) stage_valid[0] = stage_valid[1] = stage_valid[2] = stage_valid[3] = 1;",
+    1,
+  )
+  let result = exact(
+    result, "!(slot == 0 ? key_stage_valid_0 : key_stage_valid_1)", "!stage_valid[slot]",
+    1,
+  )
+  let result = exact(
+    result, "!(slot == 0 ? value_stage_valid_0 : value_stage_valid_1)", "!stage_valid[2 + slot]",
+    1,
+  )
+  let result = consumer_region(
+    result, "  #pragma unroll\n  for (int item = 0; item < LF_SCORE_QUERY_ITEMS; ++item) {",
+    "\n  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);",
+  )
+  let result = consumer_region(
+    result, "    if (active_keys == LF_KEY_VALUE_TILE) {", "    __syncthreads();\n    stage_key(key_base + 2 * LF_KEY_VALUE_TILE, slot);",
+  )
+  let result = exact(result, "    float tile_denominator = 0.0f;", "", 1)
+  let result = consumer_region(
+    result, "    float tile_maximum = -CUDART_INF_F;", "    asm volatile(\"cp.async.wait_group 3;\" ::: \"memory\");\n    __syncthreads();\n    if (!stage_valid[2 + slot])",
+  )
+  // These two scalars must outlive the consumer-only softmax region.
+  let result = exact(
+    result, "    if (consumer) {\n    float tile_maximum = -CUDART_INF_F;", "    float tile_maximum = -CUDART_INF_F, tile_denominator = 0.0f;\n    if (consumer) {",
+    1,
+  )
+  let result = consumer_region(
+    result, "    if (active_keys == LF_KEY_VALUE_TILE) {", "    __syncthreads();\n    stage_value(key_base + 2 * LF_KEY_VALUE_TILE, slot);",
+  )
+  let result = consumer_region(
+    result, "    const float next_maximum = fmaxf(maximum, tile_maximum);", "  }\n  asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");",
+  )
+  let result = exact(
+    result, "  asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");\n  __syncthreads();",
+    "  asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");\n  __syncthreads();\n  if (consumer) {",
+    1,
+  )
+  let result = exact(
+    result, "  }\n}\n#undef LF_BLOCK_THREADS", "  }\n  }\n}\n#undef LF_BLOCK_THREADS",
+    1,
+  )
+  // Producers alone own committed groups. Every warp still joins the same
+  // CTA barrier after the producer wait, including uniform invalid exits.
+  let result = exact(
+    result, "asm volatile(\"cp.async.wait_group 3;\" ::: \"memory\");", "if (producer) asm volatile(\"cp.async.wait_group 3;\" ::: \"memory\");",
+    2,
+  )
+  let result = exact(
+    result, "asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");", "if (producer) asm volatile(\"cp.async.wait_group 0;\" ::: \"memory\");",
+    3,
+  )
+  let result = exact(
+    result, "  stage_key(key_begin, 0); stage_value(key_begin, 0);", "  if (producer) { stage_key(key_begin, 0); stage_value(key_begin, 0);",
+    1,
+  )
+  let result = exact(
+    result, "  stage_key(key_begin + LF_KEY_VALUE_TILE, 1); stage_value(key_begin + LF_KEY_VALUE_TILE, 1);",
+    "  stage_key(key_begin + LF_KEY_VALUE_TILE, 1); stage_value(key_begin + LF_KEY_VALUE_TILE, 1); }",
+    1,
+  )
+  let result = exact(
+    result, "    stage_key(key_base + 2 * LF_KEY_VALUE_TILE, slot);", "    if (producer) stage_key(key_base + 2 * LF_KEY_VALUE_TILE, slot);",
+    1,
+  )
+  let result = exact(
+    result, "    stage_value(key_base + 2 * LF_KEY_VALUE_TILE, slot);", "    if (producer) stage_value(key_base + 2 * LF_KEY_VALUE_TILE, slot);",
+    1,
+  )
+  if result.contains("if (lane == 0) { workspace[state] = CUDART_NAN_F;") {
+    exact(
+      result, "if (lane == 0) { workspace[state] = CUDART_NAN_F;", "if (consumer && lane == 0) { workspace[state] = CUDART_NAN_F;",
+      1,
+    )
+  } else {
+    result
+  }
+}
+
+///|
+fn transform(source : String) -> String raise {
+  let delimiter = "#define LF_BLOCK_THREADS 64\n"
+  guard source.split(delimiter).to_array() is [prefix, ordinary, partial] else {
+    fail("two frozen compute entries required")
+  }
+  let roles = CopyRoles::new(2, 32)
+  prefix.to_owned() +
+  entry_roles(delimiter + ordinary.to_owned(), roles) +
+  entry_roles(delimiter + partial.to_owned(), roles)
+}
+
+///|
+async fn captured(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode, moon] else {
+    fail("FROZEN_BASE PROBE_ROOT NEW_ROOT build|prepare|run|render MOON")
+  }
+  if mode == "render" {
+    @fs.write_file(
+      root,
+      transform(@fs.read_file(base).text()),
+      create_mode=CreateNew,
+    )
+    return
+  }
+  let frozen = base + "/decode-selected"
+  let candidate = root + "/roles"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  if mode == "build" {
+    assert_true(
+      captured(root, "source", "sha256sum", [frozen + "/kernel.cu"]).has_prefix(
+        "dc9f5a1a30e0d2f969f7a9e82cdcc7b8b9a8c80f2058c698b19ea9416e9d43b6 ",
+      ),
+    )
+    assert_true(
+      captured(root, "nvcc", "sha256sum", [nvcc]).has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    @fs.mkdir(candidate)
+    @fs.write_file(
+      candidate + "/kernel.cu",
+      transform(@fs.read_file(frozen + "/kernel.cu").text()),
+      create_mode=CreateNew,
+    )
+    let recipe = exact(
+      @fs.read_file(frozen + "/kernel.recipe").text(),
+      "block=64,1,1\n",
+      "block=128,1,1\n",
+      2,
+    )
+    @fs.write_file(
+      candidate + "/kernel.recipe",
+      recipe +
+      "diagnostic_only=true\ndiagnostic_copy_roles=dedicated-producers\n",
+      create_mode=CreateNew,
+    )
+    ignore(
+      captured(root, "compile", nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--Werror",
+        "all-warnings",
+        "--maxrregcount=255",
+        "-Xptxas=-v",
+        "-cubin",
+        candidate + "/kernel.cu",
+        "-o",
+        candidate + "/kernel.cubin",
+      ]),
+    )
+    ignore(
+      captured(root, "identity", "sha256sum", [
+        candidate + "/kernel.cu",
+        candidate + "/kernel.cubin",
+      ]),
+    )
+    return
+  }
+  assert_true(mode == "run" || mode == "prepare")
+  let probe = probe_root + "/check-probe"
+  if mode == "run" {
+    assert_true(
+      captured(root, "probe", "sha256sum", [probe]).has_prefix(
+        "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+      ),
+    )
+  }
+  let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+  assert_eq(spec.split("maximum_rows=32\n").length(), 2)
+  let workloads : Array[Json] = []
+  for partitioned in [false, true] {
+    for
+      (rows, envelope, history) in [(16, 16, 4095), (2, 8, 32767), (1, 1, 127)] {
+      let label = "roles-\{if partitioned { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+      let path = root + "/" + label + ".spec"
+      let prepared = spec.replace(
+        old="maximum_rows=32\n",
+        new="maximum_rows=\{envelope}\n",
+      )
+      if @fs.exists(path) {
+        assert_eq(@fs.read_file(path).text(), prepared)
+      } else {
+        @fs.write_file(path, prepared, create_mode=CreateNew)
+      }
+      let args = [
+        path,
+        frozen,
+        candidate,
+        rows.to_string(),
+        rows.to_string(),
+        history.to_string(),
+        "--decode-envelope",
+      ]
+      if partitioned {
+        args.push("--decode-partitioned")
+      }
+      workloads.push({ "label": label, "args": args })
+    }
+  }
+  if mode == "prepare" {
+    // Keep the pre-preparation boundary failure untouched. Run qualification
+    // in a fresh tree against byte-identical source/recipe/CUBIN snapshots.
+    let qualification = root + "/qualification"
+    @fs.mkdir(qualification)
+    @fs.mkdir(qualification + "/roles")
+    for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+      @fs.write_file(
+        qualification + "/roles/" + name,
+        @fs.read_file(candidate + "/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    let name = "roles-ordinary-r2-e8-h32767.spec"
+    @fs.write_file(
+      qualification + "/" + name,
+      @fs.read_file(root + "/" + name),
+      create_mode=CreateNew,
+    )
+    return
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.01,
+    "require_bitwise": true,
+    "program": probe,
+    "artifacts": [frozen + "/kernel.cubin", candidate + "/kernel.cubin"],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    captured(root, "paired", moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      root + "/contract.json",
+      root + "/paired",
+    ]),
+  )
+}
+
+///|
+test "producer ownership is a disjoint bijection of the old copy owners" {
+  for consumers in 1..<=16 {
+    let roles = CopyRoles::new(consumers, 32)
+    let seen : Array[Int] = []
+    for thread in 0..<(consumers * 64) {
+      match roles.copy_owner(thread) {
+        Some(owner) => {
+          assert_true(thread >= consumers * 32)
+          seen.push(owner)
+        }
+        None => assert_true(thread < consumers * 32)
+      }
+    }
+    assert_eq(seen, [ for owner in 0..<(consumers * 32) => owner ])
+    assert_eq(roles.copy_owner(-1), None)
+    assert_eq(roles.copy_owner(consumers * 64), None)
+  }
+}
+
+///|
+test "conditional arithmetic rejects hidden publication and source drift" {
+  assert_eq(
+    consumer_region("pre BEGIN sum(); END post", "BEGIN", "END"),
+    "pre     if (consumer) {\nBEGIN sum(); \n    }\nEND post",
+  )
+  for
+    input in [
+      "pre BEGIN __syncthreads(); END post", "BEGIN cp.async; END", "BEGIN sum();",
+    ] {
+    try consumer_region(input, "BEGIN", "END") catch {
+      _ => ()
+    } noraise {
+      _ => fail("unsafe region accepted")
+    }
+  }
+  try transform("partial source") catch {
+    _ => ()
+  } noraise {
+    _ => fail("partial module accepted")
+  }
+}

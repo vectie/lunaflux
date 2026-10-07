@@ -1,0 +1,158 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn pin_probe(script : String, hash : String) -> String raise {
+  let old = "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66"
+  assert_true(
+    hash.length() == 64 && hash.iter().all(c => c is ('0'..='9' | 'a'..='f')),
+  )
+  assert_eq(script.split(old).length(), 2)
+  script.split(old).join(hash)
+}
+
+///|
+async fn captured(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, parent, root] else {
+    fail("PRESERVED_ROLE_EXPERIMENT NEW_PROBE_REPAIR_ROOT")
+  }
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  assert_true(
+    captured(root, "nvcc", "sha256sum", [nvcc]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  ignore(
+    captured(root, "source-identities", "sha256sum", [
+      root + "/selected_policy_probe.cu",
+      root + "/selected_policy_geometry.h",
+      parent + "/roles/kernel.cu",
+      parent + "/roles/kernel.cubin",
+      parent + "/roles/kernel.recipe",
+    ]),
+  )
+  ignore(
+    captured(root, "compile", nvcc, [
+      "-O3",
+      "--std=c++17",
+      "-arch=sm_121",
+      root + "/selected_policy_probe.cu",
+      "-lcuda",
+      "-o",
+      root + "/check-probe",
+    ]),
+  )
+  let identity = captured(root, "probe-identity", "sha256sum", [
+    root + "/check-probe",
+  ])
+  let hash = identity.split(" ").to_array()[0].to_owned()
+  let followup = root + "/followup"
+  @fs.mkdir(followup)
+  @fs.mkdir(followup + "/roles")
+  for name in ["kernel.cu", "kernel.cubin"] {
+    @fs.write_file(
+      followup + "/roles/" + name,
+      @fs.read_file(parent + "/roles/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  // Merge is unchanged, and is deliberately still a 64-thread entry.
+  let recipe = @fs.read_file(parent + "/roles/kernel.recipe").text()
+  assert_true(recipe.contains("\npartition_block=128,1,1\n"))
+  assert_false(recipe.contains("merge_block="))
+  @fs.write_file(
+    followup + "/roles/kernel.recipe",
+    recipe + "partition_merge_block=64,1,1\n",
+    create_mode=CreateNew,
+  )
+  let spec = "roles-ordinary-r2-e8-h32767.spec"
+  @fs.write_file(
+    followup + "/" + spec,
+    @fs.read_file(parent + "/" + spec),
+    create_mode=CreateNew,
+  )
+  for
+    (input, output) in [
+      (
+        "decode_copy_roles_prepared_20261007.mbtx", "decode_copy_roles_20261007.mbtx",
+      ),
+      (
+        "decode_register_exchange_gates_20261007.mbtx", "decode_register_exchange_gates_20261007.mbtx",
+      ),
+      (
+        "decode_consumer_window_20261007.mbtx", "decode_consumer_window_20261007.mbtx",
+      ),
+    ] {
+    @fs.write_file(
+      followup + "/" + output,
+      pin_probe(@fs.read_file(parent + "/" + input).text(), hash),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    followup + "/ako_trial.mbtx",
+    @fs.read_file(parent + "/ako_trial.mbtx"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/PREPARED.txt",
+    "outcome=prepared\nprobe_sha256=" +
+    hash +
+    "\npartial_block=128\nmerge_block=64\nscope=probe launch repair and unchanged role kernel; no serving promotion\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "new probe pin replaces one old identity without loosening validation" {
+  let old = "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66"
+  assert_eq(
+    pin_probe("prefix" + old + "suffix", "a".repeat(64)),
+    "prefix" + "a".repeat(64) + "suffix",
+  )
+  for
+    (script, hash) in [
+      (old, "../bad"),
+      (old + old, "a".repeat(64)),
+      ("missing", "a".repeat(64)),
+    ] {
+    try pin_probe(script, hash) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid pin accepted")
+    }
+  }
+}
