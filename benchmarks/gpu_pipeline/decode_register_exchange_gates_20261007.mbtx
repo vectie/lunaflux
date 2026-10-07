@@ -1,0 +1,149 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn reserve() -> Unit {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("MemAvailable")
+  }
+  let fields = line.split(" ").filter(x => !x.is_empty()).to_array()
+  assert_true(@string.parse_int64(fields[1]) >= 33554432L)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode] &&
+    (mode == "boundary" || mode == "sanitizer") else {
+    fail("FROZEN_BASE PROBE_ROOT TRIAL_ROOT boundary|sanitizer")
+  }
+  let out = root + "/" + mode
+  @fs.mkdir(out)
+  assert_true(
+    capture(out, "idle-before", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  assert_eq(
+    capture(out, "device", "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  let probe = probe_root + "/check-probe"
+  assert_true(
+    capture(out, "probe", "sha256sum", [probe]).has_prefix(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  let tools = if mode == "boundary" {
+    ["plain"]
+  } else {
+    ["memcheck", "racecheck", "synccheck"]
+  }
+  let histories = if mode == "boundary" {
+    [0, 6, 7, 8, 30, 31, 32, 63, 64, 66, 4096]
+  } else {
+    [0, 32, 4096]
+  }
+  let sanitizer = "/usr/local/cuda-13.0/bin/compute-sanitizer"
+  if mode == "sanitizer" {
+    ignore(capture(out, "sanitizer-identity", "sha256sum", [sanitizer]))
+  }
+  let mut count = 0
+  for name in ["probability", "row"] {
+    for partitioned in [false, true] {
+      for history in histories {
+        for tool in tools {
+          reserve()
+          let label = "\{name}-\{if partitioned { "chain" } else { "ordinary" }}-h\{history}-\{tool}"
+          let args = [
+            root + "/" + name + "-ordinary-r2-e8-h32767.spec",
+            base + "/decode-selected",
+            root + "/" + name,
+            "2",
+            "2",
+            history.to_string(),
+            "--decode-envelope",
+            "--check-only",
+          ]
+          if partitioned {
+            args.push("--decode-partitioned")
+          }
+          let output = if tool == "plain" {
+            capture(out, label, probe, args)
+          } else {
+            let options = ["--tool", tool, "--error-exitcode", "99"]
+            if tool == "memcheck" {
+              options.append(["--leak-check", "full"])
+            }
+            capture(out, label, sanitizer, [..options, probe, ..args])
+          }
+          assert_true(
+            output.contains("correctness=passed bitwise=true maxabs=0 "),
+          )
+          if tool != "plain" {
+            assert_true(
+              output.contains("0 errors") || output.contains("0 hazards"),
+            )
+          }
+          reserve()
+          count += 1
+        }
+      }
+    }
+  }
+  assert_eq(count, if mode == "boundary" { 44 } else { 36 })
+  assert_true(
+    capture(out, "idle-after", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  @fs.write_file(
+    out + "/RESULT.txt",
+    "outcome=passed\ncases=\{count}\nscope=register exchange ordered output and inactive/ragged/page-boundary controls; not model quality\n",
+    create_mode=CreateNew,
+  )
+}

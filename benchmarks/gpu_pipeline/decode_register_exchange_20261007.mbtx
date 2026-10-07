@@ -1,0 +1,306 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn replace_all(
+  source : String,
+  old : String,
+  new : String,
+  count : Int,
+) -> String raise {
+  let parts = source.split(old).to_array()
+  assert_eq(parts.length(), count + 1)
+  parts.join(new)
+}
+
+///|
+// Offline exchange experiment, not a production compiler pass. KV32 has one
+// score/probability per subgroup lane. Dot association and probability/reduction
+// lane ownership remain exactly the frozen law's; only transport changes.
+fn transform(source : String, full : Bool) -> String raise {
+  assert_eq(source.split("#define LF_KEY_VALUE_TILE 32").length(), 3)
+  assert_eq(source.split("#define LF_SCORE_OWNERS 8").length(), 3)
+  let probability = replace_all(
+    source, "    float tile_denominator = 0.0f;", "    float row_probability = 0.0f;\n    float tile_denominator = 0.0f;",
+    2,
+  )
+  let probability = replace_all(
+    probability, "      scores[key] = probability;", "      row_probability = probability;",
+    2,
+  )
+  let probability = replace_all(
+    probability, "      const float probability = scores[key];", "      const float probability = __shfl_sync(0xffffffffU, row_probability, key);",
+    4,
+  )
+  if !full {
+    return probability
+  }
+  let probability = replace_all(
+    probability, "  float *scores = reinterpret_cast<float *>(stage_arena + 4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + warp * LF_KEY_VALUE_TILE;",
+    "  // Score row is register-owned; conservative launch reservation is unchanged.",
+    2,
+  )
+  let scores = replace_all(
+    probability, "    if (active_keys == LF_KEY_VALUE_TILE) {\n      #pragma unroll\n      for (int key_group",
+    "    float row_score = -CUDART_INF_F;\n    if (active_keys == LF_KEY_VALUE_TILE) {\n      #pragma unroll\n      for (int key_group",
+    2,
+  )
+  let exchange =
+    #|      const float exchanged_score = __shfl_sync(0xffffffffU, dot * scale, (lane % LF_SCORE_OWNERS) * LF_SCORE_LANES);
+    #|      if (lane / LF_SCORE_OWNERS == key_group / LF_SCORE_OWNERS && lane < active_keys)
+    #|        row_score = exchanged_score;
+  let scores = replace_all(
+    scores, "      if (score_lane == 0) scores[key] = dot * scale;", exchange, 2,
+  )
+  let scores = replace_all(
+    scores, "      if (score_lane == 0 && key < active_keys) scores[key] = dot * scale;",
+    exchange, 2,
+  )
+  let scores = replace_all(
+    scores, "tile_maximum = fmaxf(tile_maximum, scores[key]);", "tile_maximum = fmaxf(tile_maximum, row_score);",
+    2,
+  )
+  replace_all(
+    scores, "expf(scores[key] - tile_maximum)", "expf(row_score - tile_maximum)",
+    2,
+  )
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode, moon] else {
+    fail("FROZEN_BASE PROBE_ROOT NEW_ROOT build|run MOON")
+  }
+  if mode == "validate" {
+    let original = @fs.read_file(base).text()
+    for full in [false, true] {
+      println("full=\{full} source_bytes=\{transform(original, full).length()}")
+    }
+    return
+  }
+  let frozen = base + "/decode-selected"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  if mode == "build" {
+    assert_true(
+      capture(root, "source", "sha256sum", [frozen + "/kernel.cu"]).has_prefix(
+        "dc9f5a1a30e0d2f969f7a9e82cdcc7b8b9a8c80f2058c698b19ea9416e9d43b6 ",
+      ),
+    )
+    assert_true(
+      capture(root, "nvcc", "sha256sum", [nvcc]).has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    let original = @fs.read_file(frozen + "/kernel.cu").text()
+    let recipe = @fs.read_file(frozen + "/kernel.recipe").text()
+    for name in ["probability", "row"] {
+      let directory = root + "/" + name
+      @fs.mkdir(directory)
+      @fs.write_file(
+        directory + "/kernel.cu",
+        transform(original, name == "row"),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        directory + "/kernel.recipe",
+        recipe + "diagnostic_only=true\n",
+        create_mode=CreateNew,
+      )
+      ignore(
+        capture(root, name + "-compile", nvcc, [
+          "-O3",
+          "-arch=sm_121",
+          "--std=c++14",
+          "--fmad=false",
+          "--ftz=false",
+          "--prec-div=true",
+          "--prec-sqrt=true",
+          "--Werror",
+          "all-warnings",
+          "--maxrregcount=255",
+          "-Xptxas=-v",
+          "-cubin",
+          directory + "/kernel.cu",
+          "-o",
+          directory + "/kernel.cubin",
+        ]),
+      )
+      ignore(
+        capture(root, name + "-identity", "sha256sum", [
+          directory + "/kernel.cu",
+          directory + "/kernel.cubin",
+        ]),
+      )
+    }
+    return
+  }
+  guard mode == "run" else { fail("mode") }
+  let probe = probe_root + "/check-probe"
+  assert_true(
+    capture(root, "probe", "sha256sum", [probe]).has_prefix(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+  assert_eq(spec.split("maximum_rows=32\n").length(), 2)
+  let workloads : Array[Json] = []
+  for name in ["probability", "row"] {
+    for partitioned in [false, true] {
+      for
+        (rows, envelope, history) in [
+          (16, 16, 4095),
+          (2, 8, 32767),
+          (1, 1, 127),
+        ] {
+        let label = "\{name}-\{if partitioned { "chain" } else { "ordinary" }}-r\{rows}-e\{envelope}-h\{history}"
+        let path = root + "/" + label + ".spec"
+        @fs.write_file(
+          path,
+          spec.replace(
+            old="maximum_rows=32\n",
+            new="maximum_rows=\{envelope}\n",
+          ),
+          create_mode=CreateNew,
+        )
+        let args = [
+          path,
+          frozen,
+          root + "/" + name,
+          rows.to_string(),
+          rows.to_string(),
+          history.to_string(),
+          "--decode-envelope",
+        ]
+        if partitioned {
+          args.push("--decode-partitioned")
+        }
+        workloads.push({ "label": label, "args": args })
+      }
+    }
+  }
+  let contract : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.01,
+    "require_bitwise": true,
+    "program": probe,
+    "artifacts": [
+      frozen + "/kernel.cubin",
+      root + "/probability/kernel.cubin",
+      root + "/row/kernel.cubin",
+    ],
+    "workloads": workloads,
+  }
+  @fs.write_file(
+    root + "/contract.json",
+    contract.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "paired", moon, [
+      "run",
+      root + "/ako_trial.mbtx",
+      root + "/contract.json",
+      root + "/paired",
+    ]),
+  )
+}
+
+///|
+test "score row transport maps every active lane to its exact original dot owner" {
+  for active in 1..<=32 {
+    for destination in 0..<active {
+      let owner = destination % 8
+      let subgroup_lane = owner * 4
+      let group = destination / 8 * 8
+      assert_eq(subgroup_lane / 4 + group, destination)
+      assert_true(group < active)
+    }
+  }
+}
+
+///|
+test "strict whole-module transforms reject missing second terminal" {
+  try
+    transform("#define LF_KEY_VALUE_TILE 32\n#define LF_SCORE_OWNERS 8", true)
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("partial composed module must be rejected")
+  }
+}
+
+///|
+test "both terminals preserve pipeline barriers and arithmetic order" {
+  let terminal =
+    #|#define LF_KEY_VALUE_TILE 32
+    #|#define LF_SCORE_OWNERS 8
+    #|  float *scores = reinterpret_cast<float *>(stage_arena + 4 * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION) + warp * LF_KEY_VALUE_TILE;
+    #|    if (active_keys == LF_KEY_VALUE_TILE) {
+    #|      #pragma unroll
+    #|      for (int key_group
+    #|      if (score_lane == 0) scores[key] = dot * scale;
+    #|      if (score_lane == 0 && key < active_keys) scores[key] = dot * scale;
+    #|    __syncthreads();
+    #|    tile_maximum = fmaxf(tile_maximum, scores[key]);
+    #|    float tile_denominator = 0.0f;
+    #|    expf(scores[key] - tile_maximum)
+    #|      scores[key] = probability;
+    #|      tile_denominator += probability;
+    #|    __syncthreads();
+    #|      const float probability = scores[key];
+    #|      const float probability = scores[key];
+    #|    tile_numerator[item] += probability * values[item];
+  let composed = terminal + "\n" + terminal
+  for full in [false, true] {
+    let source = transform(composed, full)
+    assert_eq(source.split("__syncthreads();").length(), 5)
+    assert_eq(source.split("tile_denominator += probability;").length(), 3)
+    assert_eq(
+      source
+      .split("tile_numerator[item] += probability * values[item];")
+      .length(),
+      3,
+    )
+    assert_eq(source.split("row_probability, key);").length(), 5)
+    assert_false(source.contains("scores[key] = probability;"))
+    if full {
+      assert_eq(source.split("const float exchanged_score =").length(), 5)
+      assert_false(source.contains("scores[key]"))
+    }
+  }
+}

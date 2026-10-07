@@ -1,0 +1,168 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn copy(from : String, to : String) -> Unit {
+  @fs.write_file(to, @fs.read_file(from), create_mode=CreateNew)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, c16, long, base, probe, moon, sealer] else {
+    fail(
+      "TRIAL_ROOT C16_COUNTER_ROOT LONG_COUNTER_ROOT FROZEN_BASE PROBE_ROOT MOON SEALER",
+    )
+  }
+  // Reject an unavailable sealer before creating any terminal snapshots.
+  assert_true(@fs.exists(sealer))
+  for phase in ["boundary", "sanitizer"] {
+    assert_true(
+      @fs.read_file(root + "/" + phase + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=passed\n"),
+    )
+  }
+  assert_true(
+    @fs.read_file(root + "/paired/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  guard @json.parse(@fs.read_file(root + "/paired/summary.json").text())
+    is Array(records) &&
+    records.length() == 12 else {
+    fail("twelve workloads")
+  }
+  for index, record in records {
+    guard record is { "label": String(label), .. } else { fail("label") }
+    let rows = @fs.read_file(root + "/paired/w\{index}-\{label}.stdout")
+      .text()
+      .split("\n")
+      .filter(x => x.has_prefix("tokens="))
+      .to_array()
+    assert_eq(rows.length(), 5)
+    for row in rows {
+      assert_eq(
+        row.split(" ").filter(x => x.has_prefix("bitwise=")).to_array(),
+        ["bitwise=true"],
+      )
+      assert_eq(
+        row.split(" ").filter(x => x.has_prefix("maxabs=")).to_array(),
+        ["maxabs=0"],
+      )
+    }
+  }
+  for (name, path) in [("counter-c16", c16), ("counter-c2-long", long)] {
+    assert_true(
+      @fs.read_file(path + "/COUNTER_RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    @fs.mkdir(root + "/" + name)
+    for
+      file in [
+        "counter.ncu-rep", "counter-raw.stdout", "counter-source.stdout", "counter-run.stdout",
+        "counter-run.stderr", "counter-run.command.json", "counter-raw.command.json",
+        "counter-source.command.json", "memory.csv", "COUNTER_RESULT.txt", "decode_consumer_window_20261007.mbtx",
+      ] {
+      copy(path + "/" + file, root + "/" + name + "/" + file)
+    }
+  }
+  @fs.mkdir(root + "/frozen-control")
+  for file in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    copy(base + "/decode-selected/" + file, root + "/frozen-control/" + file)
+  }
+  copy(probe + "/check-probe", root + "/frozen-control/check-probe")
+  @fs.mkdir(root + "/preparation-failures")
+  for
+    (index, path) in [
+      (1, "/home/wlc004s/lunaflux-decode-register-exchange-20261007.uCdznK0U"),
+      (
+        2, "/home/wlc004s/lunaflux-decode-register-exchange-v2-20261007.fpm8HvRJ",
+      ),
+      (
+        3, "/home/wlc004s/lunaflux-decode-register-exchange-v3-20261007.XYNezm09",
+      ),
+    ] {
+    let out = root + "/preparation-failures/attempt-\{index}"
+    @fs.mkdir(out)
+    for
+      file in [
+        "decode_register_exchange_20261007.mbtx", "source.command.json", "source.stdout",
+        "source.stderr", "nvcc.command.json", "nvcc.stdout", "nvcc.stderr", "probability-compile.command.json",
+        "probability-compile.stdout", "probability-compile.stderr", "row-compile.command.json",
+        "row-compile.stdout", "row-compile.stderr", "probability/kernel.cu", "probability/kernel.recipe",
+        "probability/kernel.cubin", "row/kernel.cu", "row/kernel.recipe",
+      ] {
+      if @fs.exists(path + "/" + file) {
+        copy(
+          path + "/" + file,
+          out + "/" + file.split("/").to_array().join("--"),
+        )
+      }
+    }
+  }
+  for
+    (unit, success) in [
+      ("lunaflux-register-exchange-build-20261007-uCdznK0U", false),
+      ("lunaflux-register-exchange-build-20261007-fpm8HvRJ", false),
+      ("lunaflux-register-exchange-build-20261007-XYNezm09", false),
+      ("lunaflux-register-exchange-build-20261007-CeQgdl09", true),
+      ("lunaflux-register-exchange-run-20261007-CeQgdl09", true),
+      ("lunaflux-register-exchange-boundary-20261007-CeQgdl09", true),
+      ("lunaflux-register-exchange-sanitizer-20261007-CeQgdl09", true),
+      ("lunaflux-register-row-counters-20261007-K88smEsX", true),
+      ("lunaflux-register-row-long-counters-20261007-SFFa9HGz", true),
+    ] {
+    let journal = @shell.Cmd("journalctl", ["--user", "-u", unit, "--no-pager"]).output(
+      max_output_bytes=16777216,
+    )
+    journal.check()
+    @fs.write_file(
+      root + "/" + unit + ".journal.txt",
+      journal.stdout(),
+      create_mode=CreateNew,
+    )
+    let status = @shell.Cmd("systemctl", [
+      "--user", "show", unit, "-p", "ActiveState", "-p", "ExecMainStatus", "-p",
+      "MemoryMax", "-p", "MemorySwapMax", "-p", "RuntimeMaxUSec",
+    ]).output()
+    status.check()
+    assert_true(
+      status
+      .stdout()
+      .contains(
+        if success {
+          "ActiveState=inactive"
+        } else {
+          "ActiveState=failed"
+        },
+      ),
+    )
+    assert_true(
+      status
+      .stdout()
+      .contains(if success { "ExecMainStatus=0" } else { "ExecMainStatus=1" }),
+    )
+    @fs.write_file(
+      root + "/" + unit + ".status.txt",
+      status.stdout(),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=two strict subgroup exchange variants; 60 paired rows; 44 boundary cases; 36 sanitizer runs; C16 and long C2 paired counters\ndecision=full row exchange improves ordinary long C2 only; no production default or serving route promoted\nserving=unchanged; synthetic kernel equality is not model quality\n",
+    create_mode=CreateNew,
+  )
+  let seal_result = @shell.Cmd(moon, ["run", sealer, root]).output(
+    max_output_bytes=33554432,
+  )
+  seal_result.check()
+  println(seal_result.stdout())
+}
