@@ -1,0 +1,134 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields = []
+  let text = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      fields.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  fields.push(text.to_string())
+  fields
+}
+
+///|
+fn selected_metrics(text : String) -> Map[String, String] raise {
+  let mut header : Array[String] = []
+  let result : Map[String, String] = Map([])
+  let mut rows = 0
+  for line in text.split("\n") {
+    let fields = csv(line)
+    if fields.length() > 0 && fields[0] == "ID" {
+      header = fields
+    } else if !header.is_empty() &&
+      fields.length() == header.length() &&
+      fields[0] == "0" {
+      rows += 1
+      for i, key in header {
+        if key == "smsp__inst_executed.sum" ||
+          key.has_prefix("launch__registers") ||
+          key.has_prefix("smsp__average_warps_issue_stalled") ||
+          key ==
+          "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed" ||
+          key == "sm__warps_active.avg.pct_of_peak_sustained_active" {
+          result[key] = fields[i]
+        }
+      }
+    }
+  }
+  assert_eq(rows, 1)
+  result
+}
+
+///|
+fn suffix(text : String, marker : String) -> String raise {
+  guard text.split(marker).to_array() is [_, rest] else {
+    fail("unique SASS boundary")
+  }
+  rest.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("ADDRESS_EXPERIMENT_ROOT") }
+  let variants : Array[Json] = []
+  let opcodes : Array[Json] = []
+  for label in ["baseline", "candidate"] {
+    let path = root + "/counter-" + label
+    guard @json.parse(@fs.read_file(path + "/sass-summary.json").text())
+      is Array([Object(sass)]) else {
+      fail("one selected kernel")
+    }
+    let metrics = selected_metrics(
+      @fs.read_file(path + "/counter.stdout").text(),
+    )
+    let output : Map[String, Json] = Map([])
+    output["variant"] = Json(label)
+    output["metrics"] = Json(metrics)
+    for
+      key in [
+        "opcodes", "fixed_wait_not_issued_by_opcode", "local_theoretical_sectors",
+        "shared_excessive_wavefronts",
+      ] {
+      output[key] = sass.get(key).unwrap_or(Json::null())
+    }
+    opcodes.push(output["opcodes"])
+    variants.push(Json(output))
+  }
+  let result : Json = {
+    "variants": variants,
+    "dynamic_opcode_counts_identical": opcodes[0] == opcodes[1],
+    "sass_after_0x5d80_identical": suffix(
+      @fs.read_file(root + "/baseline-sass.stdout").text(),
+      "/*5d80*/",
+    ) ==
+    suffix(@fs.read_file(root + "/candidate-sass.stdout").text(), "/*5d80*/"),
+    "scope": "exact selected pair; counter samples are not additive elapsed-time attribution",
+  }
+  @fs.write_file(
+    root + "/address-comparison.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+}
+
+///|
+test "metric extraction requires an actual selected row" {
+  let result = selected_metrics(
+    "\"ID\",\"smsp__inst_executed.sum\"\n\"0\",\"1,024\"\n",
+  )
+  assert_eq(result["smsp__inst_executed.sum"], "1,024")
+  try selected_metrics("\"ID\",\"smsp__inst_executed.sum\"\n") catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing row accepted")
+  }
+}
+
+///|
+test "SASS suffix comparison preserves schedule encodings" {
+  assert_eq(
+    suffix("prefix /*5d80*/ instruction encoding", "/*5d80*/"),
+    " instruction encoding",
+  )
+  try suffix("missing", "/*5d80*/") catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing boundary accepted")
+  }
+}

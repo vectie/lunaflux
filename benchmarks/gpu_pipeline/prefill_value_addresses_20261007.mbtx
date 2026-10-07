@@ -1,0 +1,383 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [first, last] else {
+    fail("one frozen site")
+  }
+  first.to_owned() + fresh + last.to_owned()
+}
+
+///|
+// The pure address basis is invariant over the four key fragments. Keep each
+// original load/product region independent; only commute integer address work.
+fn variant(text : String) -> String raise {
+  let before = "        // ordered-pair-v1; value-address-row-xor-factored-v1\n"
+  let basis =
+    #|        // ordered-pair-v1; value-address-basis-v2
+    #|        const unsigned value_basis_origin=(unsigned)__cvta_generic_to_shared(current_v+(lane&15)*LF_HEAD_DIMENSION);
+    #|        const unsigned value_basis_xor=(lane/16*8)^(((lane&15)%8)*8);
+    #|        unsigned value_basis[LF_HEAD_DIMENSION/16];
+    #|        #pragma unroll
+    #|        for (int column=0;column<LF_HEAD_DIMENSION/16;++column)
+    #|          value_basis[column]=value_basis_origin+((column*16)^value_basis_xor)*2;
+    #|
+  let without_row = once(
+    once(text, before, basis),
+    "          const int value_row=key*16+(lane&15);\n          const unsigned value_origin=(unsigned)__cvta_generic_to_shared(current_v+value_row*LF_HEAD_DIMENSION);\n          const unsigned value_column_xor=(lane/16*8)^((value_row/1%8)*8);\n",
+    "",
+  )
+  once(
+    without_row, "            const unsigned value_address=value_origin+((column*16)^value_column_xor)*2;",
+    "            const unsigned value_address=value_basis[column]+key*16*LF_HEAD_DIMENSION*2;",
+  )
+}
+
+///|
+// String::replace replaces only one occurrence. Rebind every frozen path in
+// workload arguments and artifact inventory, then reject any stale binding.
+fn rebind_contract(text : String, base : String, root : String) -> String raise {
+  guard base != root && !root.contains(base) else { fail("distinct roots") }
+  let parts = text.split(base).to_array()
+  guard parts.length() > 1 else { fail("frozen contract paths absent") }
+  let rebound = parts.join(root)
+  assert_true(!rebound.contains(base))
+  ignore(@json.parse(rebound))
+  rebound
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(program, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn profile(root : String, probe : String) -> Unit {
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  for label in ["baseline", "candidate"] {
+    let path = root + "/counter-" + label
+    @fs.mkdir(path)
+    assert_eq(
+      capture(path, "device", "nvidia-smi", [
+        "--query-gpu=uuid", "--format=csv,noheader",
+      ]).trim(),
+      "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    )
+    assert_true(
+      capture(path, "idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    guard @fs.read_file("/proc/meminfo")
+      .text()
+      .split("\n")
+      .filter(s => s.has_prefix("MemAvailable:"))
+      .to_array()
+      is [memory] else {
+      fail("memory reserve")
+    }
+    let fields = memory.split(" ").filter(s => !s.is_empty()).to_array()
+    assert_true(@string.parse_int64(fields[1]) >= 33554432L)
+    let expected = if label == "baseline" {
+      "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb"
+    } else {
+      "57fd6dfb4d642b07f20706597e5490002352cec38b1140c8376ec3aa1a079980"
+    }
+    let selected = root + "/" + label
+    assert_true(
+      capture(path, "identity", "sha256sum", [selected + "/kernel.cubin"]).has_prefix(
+        expected + " ",
+      ),
+    )
+    assert_true(
+      capture(path, "probe-identity", "sha256sum", [probe + "/check-probe"]).has_prefix(
+        "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536 ",
+      ),
+    )
+    ignore(
+      capture(path, "counter", "sudo", [
+        "-n",
+        "systemd-run",
+        "--scope",
+        "--quiet",
+        "-p",
+        "MemoryMax=8G",
+        "-p",
+        "MemorySwapMax=0",
+        "timeout",
+        "900",
+        ncu,
+        "--config-file",
+        "off",
+        "--section",
+        "SourceCounters",
+        "--section",
+        "WarpStateStats",
+        "--section",
+        "LaunchStats",
+        "--metrics",
+        "smsp__inst_executed.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+        "--kernel-name",
+        "lunaflux_attention_prefill_tile_compiler_exp2_v1",
+        "--launch-count",
+        "1",
+        "--export",
+        path + "/counter",
+        "--csv",
+        "--page",
+        "raw",
+        probe + "/check-probe",
+        root + "/prefill.spec",
+        selected,
+        selected,
+        "2048",
+        "2",
+        "28672",
+        "--check-only",
+      ]),
+    )
+    ignore(
+      capture(path, "counter-source", ncu, [
+        "--import",
+        path + "/counter.ncu-rep",
+        "--page",
+        "source",
+        "--print-source",
+        "sass",
+        "--csv",
+      ]),
+    )
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe, root, mode] &&
+    ["prepare", "run", "validate", "finish", "invalidate", "profile"].contains(
+      mode,
+    ) else {
+    fail(
+      "FROZEN_OPERAND_ROOT PROBE_ROOT NEW_ROOT prepare|run|validate|finish|invalidate|profile",
+    )
+  }
+  if mode == "invalidate" {
+    assert_true(@fs.read_file(root + "/contract.json").text().contains(base))
+    assert_true(
+      capture(root, "invalid-terminal-idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      .trim()
+      .is_empty(),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=invalid\nselection=unchanged\nreason=stale workload and artifact paths; timings tested prior operand candidate, not address basis\nscope=preserved diagnostic; do not use for address-basis performance claims\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if mode != "prepare" {
+    assert_true(!@fs.read_file(root + "/contract.json").text().contains(base))
+    if mode == "profile" {
+      profile(root, probe)
+      return
+    }
+    @shell.Cmd(probe + "/toolchain/bin/moon", [
+      "run",
+      root + "/prefill_operand_pipeline_20261007.mbtx",
+      base,
+      probe,
+      root,
+      mode,
+    ]).run()
+    return
+  }
+  for name in ["baseline", "candidate"] {
+    @fs.mkdir(root + "/" + name)
+  }
+  for name in ["kernel.cu", "kernel.recipe", "kernel.cubin"] {
+    @fs.write_file(
+      root + "/baseline/" + name,
+      @fs.read_file(base + "/baseline/" + name),
+      create_mode=CreateNew,
+      permission=0o444,
+    )
+  }
+  @fs.write_file(
+    root + "/prefill.spec",
+    @fs.read_file(base + "/prefill.spec"),
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  for
+    (label, path, digest) in [
+      (
+        "baseline",
+        root + "/baseline/kernel.cubin",
+        "616ecc0f88c192e59c3134bfc9390a57d59984cb3b31543956b587858e132cdb",
+      ),
+      (
+        "source",
+        root + "/baseline/kernel.cu",
+        "3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+      ),
+      (
+        "probe",
+        probe + "/check-probe",
+        "78901fc5e3222e4394b3fb35746d60ad36a0181f22472c0397c5dee1e5079536",
+      ),
+      (
+        "nvcc", "/usr/local/cuda-13.0/bin/nvcc", "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1",
+      ),
+    ] {
+    assert_true(
+      capture(root, label + "-identity", "sha256sum", [path]).has_prefix(
+        digest + " ",
+      ),
+    )
+  }
+  let source = @fs.read_file(root + "/baseline/kernel.cu").text()
+  assert_true(source.contains("#define LF_KEY_VALUE_TILE 64\n"))
+  assert_true(source.contains("#define LF_HEAD_DIMENSION 128\n"))
+  @fs.write_file(
+    root + "/candidate/kernel.cu",
+    variant(source),
+    create_mode=CreateNew,
+  )
+  let digest = capture(root, "candidate-source-identity", "sha256sum", [
+    root + "/candidate/kernel.cu",
+  ])
+  .split(" ")
+  .to_array()[0].to_owned()
+  @fs.write_file(
+    root + "/candidate/kernel.recipe",
+    once(
+      @fs.read_file(root + "/baseline/kernel.recipe").text(),
+      "source_sha256=3738eb47bb25c18c6b9cb621d01725f45979fd5cb72b1b5ccbaa9be2f5aebd78",
+      "source_sha256=" + digest,
+    ) +
+    "\nexperimental_lowering=PV-invariant-address-basis-v1\n",
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+      "--cubin",
+      "--std=c++14",
+      "-arch=sm_121",
+      "-O3",
+      "--fmad=false",
+      "--ftz=false",
+      "--prec-div=true",
+      "--prec-sqrt=true",
+      "--maxrregcount=255",
+      "--Werror",
+      "all-warnings",
+      root + "/candidate/kernel.cu",
+      "-o",
+      root + "/candidate/kernel.cubin",
+    ]),
+  )
+  ignore(
+    capture(root, "compiled-identity", "sha256sum", [
+      root + "/candidate/kernel.cubin",
+    ]),
+  )
+  @fs.write_file(
+    root + "/contract.json",
+    rebind_contract(@fs.read_file(base + "/contract.json").text(), base, root),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "invariant basis preserves every key column lane address" {
+  for lane in 0..<32 {
+    for key in 0..<4 {
+      for column in 0..<8 {
+        let row = key * 16 + (lane & 15)
+        let original = row * 128 * 2 +
+          ((column * 16) ^ ((lane / 16 * 8) ^ (row % 8 * 8))) * 2
+        let basis = (lane & 15) * 128 * 2 +
+          ((column * 16) ^ ((lane / 16 * 8) ^ ((lane & 15) % 8 * 8))) * 2
+        assert_eq(original, basis + key * 16 * 128 * 2)
+      }
+    }
+  }
+}
+
+///|
+test "duplicate frozen sites are rejected" {
+  try once("site site", "site", "replacement") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous rewrite accepted")
+  }
+  assert_eq(once("prefix site suffix", "site", "new"), "prefix new suffix")
+}
+
+///|
+test "contract rebind covers every workload and artifact path" {
+  let base = "/frozen"
+  let root = "/new"
+  let workloads : Array[Json] = Array::makei(3, i => {
+    "label": "cell\{i}",
+    "args": [base + "/prefill.spec", base + "/baseline", base + "/candidate"],
+  })
+  let contract : Json = {
+    "workloads": workloads,
+    "artifacts": [
+      base + "/baseline/kernel.cubin",
+      base + "/candidate/kernel.cubin",
+    ],
+  }
+  let rebound = rebind_contract(contract.stringify(), base, root)
+  guard @json.parse(rebound)
+    is { "workloads": Array(cells), "artifacts": Array(artifacts), .. } else {
+    fail("contract shape")
+  }
+  assert_eq(cells.length(), 3)
+  for cell in cells {
+    guard cell is { "args": Array(args), .. } else { fail("arguments") }
+    assert_eq(args, [
+      Json(root + "/prefill.spec"),
+      Json(root + "/baseline"),
+      Json(root + "/candidate"),
+    ])
+  }
+  assert_eq(artifacts, [
+    Json(root + "/baseline/kernel.cubin"),
+    Json(root + "/candidate/kernel.cubin"),
+  ])
+}
