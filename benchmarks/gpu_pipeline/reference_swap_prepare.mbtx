@@ -1,0 +1,178 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else { fail("frozen seam " + old) }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  cmd : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([cmd, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(cmd, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-swap-20261007.") else {
+    fail("ROOT inspect|prepare")
+  }
+  let serving = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt/serving/long-final"
+  let frozen = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z"
+  let moon = frozen + "/toolchain/bin/moon"
+  let bundle = @fs.read_file(
+    serving +
+    "/deployment/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3",
+  ).text()
+  if mode == "inspect" {
+    for line in bundle.split("\n") {
+      if line.length() < 400 {
+        println(line)
+      }
+    }
+    return
+  }
+  assert_eq(mode, "prepare")
+  assert_false(@fs.exists(root + "/source"))
+  ignore(
+    capture(root, "source-copy", "cp", [
+      "-a",
+      frozen + "/source",
+      root + "/source",
+    ]),
+  )
+  let loader = root + "/source/internal/cuda/loader.c"
+  let replacement =
+    #|  void *original=dlsym(library,name);
+    #|  static void *diagnostic=NULL;
+    #|  if(!diagnostic) diagnostic=dlopen("@ROOT@/active-swap.so",RTLD_NOW|RTLD_LOCAL);
+    #|  if(!diagnostic) { fprintf(stderr,"lf_swap missing shim: %s\n",dlerror()); abort(); }
+    #|  void *(*select)(const char*,void*)=dlsym(diagnostic,"lf_reference_swap_symbol");
+    #|  if(!select) abort();
+    #|  return select(name,original);
+  @fs.write_file(
+    loader,
+    once(
+      @fs.read_file(loader).text(),
+      "  return dlsym(library, name);",
+      once(replacement, "@ROOT@", root),
+    ),
+  )
+  for
+    (label, mask, verify) in [
+      ("control", 0, 0),
+      ("output", 1, 0),
+      ("down", 2, 0),
+      ("both", 3, 0),
+      ("verify", 3, 1),
+    ] {
+    ignore(
+      capture(root, "build-shim-" + label, "/usr/local/cuda-13.0/bin/nvcc", [
+        "-std=c++17",
+        "-O3",
+        "-arch=sm_121",
+        "--shared",
+        "-Xcompiler=-fPIC",
+        "-DLF_SWAP_MASK=\{mask}",
+        "-DLF_SWAP_VERIFY=\{verify}",
+        "-DLF_SWAP_LOG_DIRECTORY=\"" + root + "/active-log-directory\"",
+        root + "/reference_projection_swap.cu",
+        "-lcuda",
+        "-lcublas",
+        "-Xlinker=-rpath",
+        "-Xlinker=/usr/local/cuda-13.0/lib64",
+        "-o",
+        root + "/" + label + ".so",
+      ]),
+    )
+  }
+  ignore(
+    capture(root, "build-worker", moon, [
+      "-C",
+      root + "/source",
+      "build",
+      "cmd/device_worker_child",
+      "--target",
+      "native",
+      "--release",
+      "-j",
+      "2",
+      "--warn-list",
+      "-79-20-29-25-92-14",
+    ]),
+  )
+  let copied = root + "/serving"
+  @fs.mkdir(copied)
+  ignore(
+    capture(root, "deployment-copy", "cp", [
+      "-a",
+      serving + "/deployment",
+      copied + "/deployment",
+    ]),
+  )
+  for name in ["capacity.json", "export.stdout"] {
+    @fs.write_file(
+      copied + "/" + name,
+      @fs.read_file(serving + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  for name in ["source", "toolchain"] {
+    @shell.Cmd("ln", ["-s", frozen + "/" + name, copied + "/" + name]).run()
+  }
+  let worker = copied + "/deployment/bin/lunaflux-device-worker"
+  @shell.Cmd("chmod", ["u+w", worker]).run()
+  @shell.Cmd("cp", [
+    root +
+    "/source/_build/native/release/build/cmd/device_worker_child/device_worker_child.exe",
+    worker,
+  ]).run()
+  let sha = capture(root, "worker-hash", "sha256sum", [worker])
+  .split(" ")
+  .to_array()[0].to_owned()
+  let launch = copied + "/deployment/lunaflux.launch.json"
+  guard @json.parse(@fs.read_file(launch).text()) is Object(fields) else {
+    fail("launch")
+  }
+  fields["worker_executable"] = { "path": worker, "sha256": sha }
+  @shell.Cmd("chmod", ["u+w", launch]).run()
+  @fs.write_file(launch, Json(fields).stringify())
+  @fs.write_file(
+    copied + "/PREPARED.json",
+    Json({
+      "scope": "diagnostic-only reference substitution, not approved production release",
+      "worker_sha256": sha,
+    }).stringify(),
+    create_mode=CreateNew,
+  )
+  println("prepared=" + copied)
+}

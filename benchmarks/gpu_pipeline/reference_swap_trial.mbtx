@@ -1,0 +1,235 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else { fail("frozen seam " + old) }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+fn check_counts(text : String, arm : String) -> Unit raise {
+  let lines = text
+    .split("\n")
+    .filter(l => l.has_prefix("lf_swap mask="))
+    .to_array()
+  guard lines is [line] else {
+    fail("missing/duplicate positive shim evidence")
+  }
+  let fields : Map[String, String] = Map([])
+  for field in line.split(" ") {
+    if field.split("=").to_array() is [key, value] {
+      fields[key.to_owned()] = value.to_owned()
+    }
+  }
+  assert_eq(fields.get("violations"), Some("0"))
+  assert_true(text.contains("lf_swap released=1"))
+  assert_false(text.contains("failure="))
+  for
+    (key, required) in [
+      ("captured_output", arm == "output" || arm == "both" || arm == "verify"),
+      ("captured_down", arm == "down" || arm == "both" || arm == "verify"),
+      ("checked", arm == "verify"),
+    ] {
+    guard fields.get(key) is Some(value) else { fail(key) }
+    assert_eq(value != "0", required)
+  }
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  cmd : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([cmd, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(cmd, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-swap-20261007.") &&
+    (mode == "verify" || mode == "timing" || mode == "profile") else {
+    fail("ROOT verify|timing|profile")
+  }
+  let frozen = "/home/wlc004s/lunaflux-batch-cliff-abba-20261007.xvFHOL9t"
+  let serving = root + "/serving"
+  let moon = serving + "/toolchain/bin/moon"
+  let output = root + "/" + mode
+  @fs.mkdir(output)
+  if mode != "verify" {
+    assert_true(@fs.exists(root + "/verify/RESULT.txt"))
+    assert_true(@fs.exists(root + "/verify/s0-verify/COUNTERS.txt"))
+    check_counts(
+      @fs.read_file(root + "/verify/s0-verify/COUNTERS.txt").text(),
+      "verify",
+    )
+  }
+  let launcher = @fs.read_file(frozen + "/launcher.mbtx").text()
+  let launcher = once(
+    launcher,
+    "let unit = \"lunaflux-matched-\"",
+    "let unit = \"lunaflux-swap-" +
+    root.split(".").to_array().last().unwrap().to_owned() +
+    "-\"",
+  )
+  let launcher = once(
+    launcher, "\"--property=RuntimeMaxSec=7200\"", "\"--property=RuntimeMaxSec=600\"",
+  )
+  let launcher = if mode == "profile" {
+    // Reuse the preserved offline profiler-environment parent, not a release
+    // launcher. The measured worker and AOT artifacts stay exactly as timed.
+    let build = "/home/wlc004s/lunaflux-mixed-work-20261007.NnA6SsKN/diagnostic-source/_build/native/release/build/"
+    let tool = once(
+      launcher,
+      "cmd + \"lunaflux/lunaflux.exe\",",
+      Json(build + "cmd/lunaflux/lunaflux.exe").stringify() + ",",
+    )
+    once(
+      tool,
+      "serving +\n        \"/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe\",\n        [",
+      "\"/usr/local/bin/nsys\",\n        [\"profile\",\"--trace=cuda\",\"--sample=none\",\"--cpuctxsw=none\",\"--cuda-graph-trace=node\",\"--trace-fork-before-exec=true\",\"--wait=all\",\"-o\",root+\"/trace\"," +
+      Json(
+        build +
+        "tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe",
+      ).stringify() +
+      ",",
+    )
+  } else {
+    launcher
+  }
+  let client = @fs.read_file(frozen + "/launcher.mbtx.client.mbtx").text()
+  guard client
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+    is [a, b] &&
+    b.split("///|\nfn token_ids").to_array() is [_, c] else {
+    fail("matrix")
+  }
+  let client = a.to_owned() +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n [(\"i8192-o64-c8-varied\",inputs(8192,8),64,\"varied\")]\n}\n\n///|\nfn token_ids" +
+    c.to_owned()
+  let client = if mode != "timing" {
+    once(
+      client, "let trials = if options is [\"--smoke\"] { 1 } else { 4 }", "let trials = 2",
+    )
+  } else {
+    client
+  }
+  let script = output + "/launcher.mbtx"
+  @fs.write_file(script, launcher, create_mode=CreateNew)
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  let arms = if mode == "verify" {
+    ["verify"]
+  } else if mode == "profile" {
+    ["control", "both"]
+  } else {
+    ["control", "output", "down", "both", "both", "down", "output", "control"]
+  }
+  for i, arm in arms {
+    let idle = @shell.Cmd("nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ]).output()
+    idle.check()
+    assert_true(idle.stdout().trim().is_empty())
+    @shell.Cmd("ln", [
+      "-sfn",
+      root + "/" + arm + ".so",
+      root + "/active-swap.so",
+    ]).run()
+    let out = output + "/s\{i}-" + arm
+    @fs.mkdir(out)
+    @shell.Cmd("ln", ["-sfn", out, root + "/active-log-directory"]).run()
+    ignore(capture(out, "shim-hash", "sha256sum", [root + "/" + arm + ".so"]))
+    ignore(capture(out, "launch", moon, ["run", script, serving, out, script]))
+    let paths = capture(out, "find-counters", "find", [
+      out, "-maxdepth", "1", "-name", "worker-*.log", "-type", "f",
+    ])
+    guard paths.trim().split("\n").to_array() is [path] && !path.is_empty() else {
+      fail("one worker log required")
+    }
+    let counters = @fs.read_file(path.to_owned()).text()
+    @fs.write_file(out + "/COUNTERS.txt", counters, create_mode=CreateNew)
+    check_counts(counters, arm)
+    if mode == "profile" {
+      let trace = out + "/r0-luna-full/trace"
+      ignore(
+        capture(out, "export", "/usr/local/bin/nsys", [
+          "export",
+          "--type=sqlite",
+          "--output=" + trace + ".sqlite",
+          trace + ".nsys-rep",
+        ]),
+      )
+      ignore(
+        capture(out, "kernels", "sqlite3", [
+          "-header",
+          "-csv",
+          trace + ".sqlite",
+          "SELECT s.value AS kernel,k.gridX,k.gridY,k.gridZ,k.blockX,k.staticSharedMemory,k.dynamicSharedMemory,k.registersPerThread,count(*) AS calls,round(sum(k.end-k.start)/1e6,3) AS total_ms FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY 1,2,3,4,5,6,7,8 ORDER BY total_ms DESC;",
+        ]),
+      )
+    }
+    println("completed=\{i}-\{arm}")
+  }
+  @fs.write_file(
+    output + "/RESULT.txt",
+    "outcome=completed\nscope=diagnostic vendor-GEMM causal replacement; no production admission\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "ambiguous frozen replacements fail closed" {
+  assert_eq(once("abc", "b", "x"), "axc")
+  for text in ["a", "bb"] {
+    try once(text, "b", "x") catch {
+      _ => ()
+    } noraise {
+      _ => fail("accepted ambiguous seam")
+    }
+  }
+}
+
+///|
+test "replacement requires positive counters and released resources" {
+  let good = "lf_swap mask=3 verify=1 captured_output=28 captured_down=28 checked=1048576 violations=0 max_abs=0.001 nonbitwise=4\nlf_swap released=1\n"
+  check_counts(good, "verify")
+  for
+    bad in [
+      "",
+      once(good, "checked=1048576", "checked=0"),
+      once(good, "violations=0", "violations=1"),
+      once(good, "released=1", "released=0"),
+    ] {
+    try check_counts(bad, "verify") catch {
+      _ => ()
+    } noraise {
+      _ => fail("accepted invalid counters")
+    }
+  }
+}

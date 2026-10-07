@@ -1,0 +1,107 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-swap-20261007.") else {
+    fail("EXPERIMENT_ROOT")
+  }
+  let out = root + "/sanitizer"
+  @fs.mkdir(out)
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  let identity = capture(out, "identity", "nvidia-smi", [
+    "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+  ])
+  assert_true(identity.contains("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6"))
+  assert_true(identity.contains("0000000F:01:00.0"))
+  let memory = @fs.read_file("/proc/meminfo").text()
+  let line = memory
+    .split("\n")
+    .find_first(x => x.has_prefix("MemAvailable:"))
+    .unwrap()
+  assert_true(
+    @string.parse_int64(
+      line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+    ) >=
+    33554432L,
+  )
+  @fs.write_file(out + "/memory-before.txt", memory, create_mode=CreateNew)
+  ignore(
+    capture(out, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-std=c++17",
+      "-O3",
+      "-arch=sm_121",
+      "-DLF_SWAP_MASK=3",
+      "-DLF_SWAP_VERIFY=0",
+      "-DLF_SWAP_LOG_DIRECTORY=\"" + out + "\"",
+      root + "/reference_swap_sanitizer.cu",
+      "-lcuda",
+      "-lcublas",
+      "-Xlinker=-rpath",
+      "-Xlinker=/usr/local/cuda-13.0/lib64",
+      "-o",
+      out + "/probe",
+    ]),
+  )
+  ignore(
+    capture(out, "memcheck", "/usr/local/cuda/bin/compute-sanitizer", [
+      "--tool",
+      "memcheck",
+      "--leak-check",
+      "full",
+      "--error-exitcode",
+      "99",
+      "--log-file",
+      out + "/memcheck.log",
+      out + "/probe",
+    ]),
+  )
+  let log = @fs.read_file(out + "/memcheck.log").text()
+  assert_true(log.contains("ERROR SUMMARY: 0 errors"))
+  assert_true(log.contains("LEAK SUMMARY: 0 bytes leaked"))
+  @fs.write_file(
+    out + "/RESULT.txt",
+    "outcome=passed\nscope=standalone diagnostic shim allocation/capture/replay/release\n",
+    create_mode=CreateNew,
+  )
+  println("sanitizer=passed")
+}

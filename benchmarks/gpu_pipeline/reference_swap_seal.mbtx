@@ -1,0 +1,135 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn archive_member(path : String) -> Bool {
+  !path
+  .split("/")
+  .any(x => {
+    ["source", "_build", ".mooncakes", "toolchain", "model", "model_runtime"].contains(
+      x.to_owned(),
+    )
+  }) &&
+  !path.has_suffix(".tar.gz") &&
+  !path.has_suffix(".tar.gz.sha256") &&
+  path != "FILES.sha256"
+}
+
+///|
+async fn files(root : String) -> Array[String] {
+  let found = @shell.Cmd("find", [".", "-type", "f"], cwd=root).output(
+    max_output_bytes=16777216,
+  )
+  found.check()
+  let paths = found
+    .stdout()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(x => {
+      guard x.strip_prefix("./") is Some(relative) &&
+        !relative.split("/").any(x => x == "..") else {
+        fail("archive path")
+      }
+      relative.to_owned()
+    })
+    .filter(archive_member)
+  paths.sort()
+  paths
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-swap-20261007.") else {
+    fail("TERMINAL_EXPERIMENT_ROOT")
+  }
+  for part in ["verify", "timing", "profile", "sanitizer"] {
+    assert_true(@fs.exists(root + "/" + part + "/RESULT.txt"))
+  }
+  assert_true(@fs.exists(root + "/timing/comparison.json"))
+  assert_false(@fs.exists(root + "/FILES.sha256"))
+  assert_false(@fs.exists(root + "/measurement.tar.gz"))
+  @fs.write_file(
+    root + "/diagnostic-loader.c",
+    @fs.read_file(root + "/source/internal/cuda/loader.c"),
+    create_mode=CreateNew,
+  )
+  let tools = [
+    "/usr/local/cuda-13.0/bin/nvcc", "/usr/local/cuda-13.0/targets/sbsa-linux/lib/libcublas.so.13.1.1.3",
+    "/usr/local/cuda-13.0/targets/sbsa-linux/lib/libcublasLt.so.13.1.1.3", "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z/source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+    "/home/wlc004s/lunaflux-mixed-work-20261007.NnA6SsKN/diagnostic-source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+  ]
+  let hashes = @shell.Cmd("sha256sum", tools).output()
+  hashes.check()
+  @fs.write_file(
+    root + "/EXTERNAL_IDENTITIES.sha256",
+    hashes.stdout(),
+    create_mode=CreateNew,
+  )
+  let failed = root + "/setup-attempts"
+  @fs.mkdir(failed)
+  for name in ["qjH6GAJH", "2yAhqfzC", "xDmgMwCV"] {
+    let prior = "/home/wlc004s/lunaflux-reference-swap-20261007." + name
+    let target = failed + "/" + name
+    @fs.mkdir(target)
+    let selected = files(prior).filter(x => !x.has_prefix("serving/"))
+    @shell.Cmd("cp", ["--parents", ..selected, target], cwd=prior).run()
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=diagnostic reference GEMM substitution only; not release admission\nsetup_failures=preserved and excluded\n",
+    create_mode=CreateNew,
+  )
+  let selected = files(root)
+  let manifest = StringBuilder()
+  for path in selected {
+    let hash = @shell.Cmd("sha256sum", [path], cwd=root).output()
+    hash.check()
+    manifest.write_string(hash.stdout())
+  }
+  @fs.write_file(
+    root + "/FILES.sha256",
+    manifest.to_string(),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(
+    "tar",
+    ["-czf", root + "/measurement.tar.gz", "FILES.sha256", ..selected],
+    cwd=root,
+  ).run()
+  let checked = @shell.Cmd("sha256sum", ["-c", "FILES.sha256"], cwd=root).output(
+    max_output_bytes=16777216,
+  )
+  checked.check()
+  let digest = @shell.Cmd("sha256sum", [root + "/measurement.tar.gz"]).output()
+  digest.check()
+  @fs.write_file(
+    root + "/measurement.tar.gz.sha256",
+    digest.stdout(),
+    create_mode=CreateNew,
+  )
+  println("members=\{selected.length()} " + digest.stdout())
+}
+
+///|
+test "keep diagnostic libraries logs and binaries but omit copied build tree" {
+  for
+    path in [
+      "both.so", "verify/worker-1.log", "serving/deployment/bin/lunaflux-device-worker",
+      "diagnostic-loader.c",
+    ] {
+    assert_true(archive_member(path))
+  }
+  for
+    path in [
+      "source/huge.o", "timing/_build/generated.c", "FILES.sha256", "measurement.tar.gz",
+    ] {
+    assert_false(archive_member(path))
+  }
+}

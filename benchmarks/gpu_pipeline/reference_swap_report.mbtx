@@ -1,0 +1,170 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn get(v : Json, key : String) -> Json raise {
+  guard v is Object(fields) && fields.get(key) is Some(value) else { fail(key) }
+  value
+}
+
+///|
+fn num(v : Json) -> Double raise {
+  match v {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(xs : Array[Double]) -> Double raise {
+  assert_true(!xs.is_empty())
+  let sorted = xs.copy()
+  sorted.sort()
+  (sorted[(sorted.length() - 1) / 2] + sorted[sorted.length() / 2]) / 2.0
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COMPLETED_TIMING_ROOT") }
+  assert_true(
+    @fs.read_file(root + "/RESULT.txt").text().contains("outcome=completed"),
+  )
+  let cell = "i8192-o64-c8-varied"
+  let bodies : Map[Int, String] = Map([])
+  let control : Map[Int, Json] = Map([])
+  let reports : Array[Json] = []
+  let mut base_wall = 0.0
+  for
+    (arm, starts) in [
+      ("control", [0, 7]),
+      ("output", [1, 6]),
+      ("down", [2, 5]),
+      ("both", [3, 4]),
+    ] {
+    let elapsed : Array[Double] = []
+    let first_tokens : Array[Double] = []
+    let tpot : Array[Double] = []
+    let vectors : Array[Json] = []
+    let start_medians : Array[Double] = []
+    let within : Array[Bool] = []
+    let cross : Array[Bool] = []
+    let first : Map[Int, Json] = Map([])
+    let mut free_min = 1.0e15
+    for start in starts {
+      let run = root + "/s\{start}-" + arm + "/r0-luna-full"
+      assert_true(@fs.read_file(run + "/runtime.stderr").text().is_empty())
+      let life = @fs.read_file(run + "/supervisor.stdout").text()
+      for
+        marker in [
+          "drain_acknowledged=1", "child_exit_code=0", "child_closed=1",
+        ] {
+        assert_true(life.contains(marker))
+      }
+      for
+        line in @fs.read_file(run + "/memory.csv")
+        .text()
+        .split("\n")
+        .filter(s => !s.is_empty()) {
+        let free = @string.parse_double(line.split(",").to_array()[1])
+        assert_true(free >= 33554432.0)
+        free_min = Double::min(free_min, free)
+      }
+      let per_start : Array[Double] = []
+      for trial in 0..<4 {
+        let prefix = run + "/requests/" + cell + "-t\{trial}"
+        let wave = @json.parse(@fs.read_file(prefix + ".json").text())
+        assert_eq(get(wave, "warmup"), Json(trial == 0))
+        guard get(wave, "requests") is Array(requests) && requests.length() == 8 else {
+          fail("requests")
+        }
+        for row, req in requests {
+          let body = @fs.read_file(prefix + "-r\{row}.body.json").text()
+          match bodies.get(row) {
+            Some(prior) => assert_eq(prior, body)
+            None => bodies[row] = body
+          }
+          let ids = get(req, "token_ids")
+          guard ids is Array(tokens) && tokens.length() == 64 else {
+            fail("64 output tokens")
+          }
+          if trial > 0 {
+            match first.get(row) {
+              Some(prior) => within.push(prior == ids)
+              None => first[row] = ids
+            }
+            if arm == "control" {
+              if !control.contains(row) {
+                control[row] = ids
+              }
+            } else {
+              cross.push(control[row] == ids)
+            }
+            first_tokens.push(num(get(req, "ttft_ms")))
+            tpot.push(num(get(req, "mean_tpot_ms")))
+          }
+          vectors.push({
+            "start": start,
+            "trial": trial,
+            "row": row,
+            "ids": ids,
+            "token_ms": get(req, "token_ms"),
+          })
+        }
+        if trial > 0 {
+          let wall = num(get(wave, "wall_ms"))
+          per_start.push(wall)
+          elapsed.push(wall)
+        }
+      }
+      start_medians.push(median(per_start))
+    }
+    assert_eq(elapsed.length(), 6)
+    let wall = median(elapsed)
+    if arm == "control" {
+      base_wall = wall
+    }
+    let reduction = 1.0 - wall / base_wall
+    let changed = within.filter(x => !x).length()
+    let cross_changed = cross.filter(x => !x).length()
+    println(
+      "\{arm}: wall_ms=\{wall} tok_s=\{512000.0/wall} ttft_ms=\{median(first_tokens)} tpot_ms=\{median(tpot)} reduction=\{reduction} within_changed=\{changed}/\{within.length()} cross_changed=\{cross_changed}/\{cross.length()} starts=\{Json(start_medians).stringify()}",
+    )
+    reports.push({
+      "arm": arm,
+      "wall_ms": elapsed,
+      "median_wall_ms": wall,
+      "tok_s": 512000.0 / wall,
+      "median_ttft_ms": median(first_tokens),
+      "median_tpot_ms": median(tpot),
+      "completion_reduction": reduction,
+      "start_medians": start_medians,
+      "minimum_mem_available_kib": free_min,
+      "within_equal": within,
+      "cross_equal": cross,
+      "vectors": vectors,
+    })
+  }
+  @fs.write_file(
+    root + "/comparison.json",
+    (
+      {
+        "schema": "lunaflux.reference-swap.v1",
+        "scope": "diagnostic causal GEMM substitution; not release numeric admission or quality parity",
+        "cell": cell,
+        "arms": reports,
+      } : Json).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "median is symmetric and ordered" {
+  assert_eq(median([4.0, 1.0, 3.0, 2.0]), 2.5)
+}
