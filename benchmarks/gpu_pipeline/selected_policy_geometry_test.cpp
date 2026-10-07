@@ -18,6 +18,15 @@ int main() {
   assert(selected_decode_capture_bound(17,32)==32);
   assert(selected_decode_capture_bound(9,12)==12);
   assert(selected_decode_capture_bound(9,12,12)==12);
+  assert(selected_merge_block(64)==64);
+  assert(selected_merge_block(128,64)==64);
+  assert(selected_merge_block(64,128)==128);
+  for (auto invalid : {std::pair<int,int>{0,64},{128,-1},{128,1025},{1025,64}}) {
+    bool rejected=false;
+    try { (void)selected_merge_block(invalid.first,invalid.second); }
+    catch (const std::invalid_argument&) { rejected=true; }
+    assert(rejected);
+  }
   for (int invalid : {1,2,4,64}) {
     bool rejected=false;
     try { (void)selected_decode_capture_bound(2,32,invalid); }

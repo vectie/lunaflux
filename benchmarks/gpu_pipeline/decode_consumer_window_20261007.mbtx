@@ -58,6 +58,35 @@ struct CapturePlan {
 }
 
 ///|
+fn counter_container(root : String) -> String raise {
+  let parts = root.split("/").filter(p => !p.is_empty()).to_array()
+  assert_true(root.has_prefix("/") && parts.length() >= 2)
+  let scope = parts[parts.length() - 2:].join("-")
+  assert_true(
+    scope.length() <= 128 &&
+    scope
+    .iter()
+    .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '.' | '-')),
+  )
+  "lunaflux-decode-consumer-" + scope
+}
+
+///|
+fn probe_pin(options : ArrayView[String]) -> String raise {
+  match options {
+    [] => "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66"
+    ["--probe-sha256", hash] => {
+      assert_true(
+        hash.length() == 64 &&
+        hash.iter().all(c => c is ('a'..='f' | '0'..='9')),
+      )
+      hash
+    }
+    _ => fail("explicit probe pin or no override")
+  }
+}
+
+///|
 fn capture_plan(mode : String) -> CapturePlan raise {
   guard ["counter", "prepare", "window", "paired", "split", "split-paired"].contains(
     mode,
@@ -157,13 +186,13 @@ async fn main {
     )
   }
   let plan = capture_plan(mode)
-  let artifact = if plan.paired {
-    guard @env.args() is [_, _, _, _, _, artifact] else {
+  let (artifact, expected_probe) = if plan.paired {
+    guard @env.args() is [_, _, _, _, _, artifact, .. options] else {
       fail("window module")
     }
-    artifact
+    (artifact, probe_pin(options))
   } else {
-    base + "/decode-selected"
+    (base + "/decode-selected", probe_pin([]))
   }
   let { rows, envelope, history, .. } = plan
   let probe = probe_root + "/check-probe"
@@ -181,7 +210,7 @@ async fn main {
   )
   assert_true(
     capture(root, mode + "-probe", "sha256sum", [probe]).has_prefix(
-      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+      expected_probe + " ",
     ),
   )
   assert_true(
@@ -207,11 +236,17 @@ async fn main {
     ignore(capture(root, "baseline-timing", probe, arguments))
     return
   }
-  let container = "lunaflux-decode-consumer-" +
-    root.split("/").to_array().last().unwrap().to_owned()
-  errdefer ignore(
-    @shell.Cmd("docker", ["stop", "--time", "15", container]).output(),
-  )
+  let container = counter_container(root)
+  let cidfile = root + "/container.id"
+  errdefer (if @fs.exists(cidfile) {
+    let owned = @fs.read_file(cidfile).text().trim().to_owned()
+    // A failed name allocation does not authorize stopping a preexisting
+    // container. Docker creates this receipt only for this invocation.
+    if owned.length() == 64 &&
+      owned.iter().all(c => c is ('0'..='9' | 'a'..='f')) {
+      ignore(@shell.Cmd("docker", ["stop", "--time", "15", owned]).output())
+    }
+  })
   let samples = StringBuilder()
   let mut done = false
   @async.with_task_group(group => {
@@ -232,6 +267,8 @@ async fn main {
           "run",
           "--name",
           container,
+          "--cidfile",
+          cidfile,
           "--gpus",
           "all",
           "--memory",
@@ -378,4 +415,25 @@ test "ordinary profiles preserve their original workloads" {
     _ => true
   }
   assert_true(rejected)
+}
+
+///|
+test "counter scopes do not collide and explicit probe pins stay strict" {
+  assert_true(
+    counter_container("/home/experiment-a/counter-c16") !=
+    counter_container("/home/experiment-b/counter-c16"),
+  )
+  assert_eq(probe_pin(["--probe-sha256", "a".repeat(64)]), "a".repeat(64))
+  for
+    options in [
+      ["--probe-sha256", "bad"],
+      ["--skip-probe-check"],
+      ["--probe-sha256", "g".repeat(64)],
+    ] {
+    try probe_pin(options) catch {
+      _ => ()
+    } noraise {
+      _ => fail("unchecked probe accepted")
+    }
+  }
 }

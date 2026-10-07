@@ -43,3 +43,10 @@ inline int selected_grid_x(int envelope, int bucket_tokens, int profile_rows,
       : 1 + (bucket_tokens - 1) / query_tile;
   return std::min(envelope, tiles);
 }
+// Partial and merge are distinct entries. Legacy recipes deliberately use
+// one common block; explicit merge geometry must not inherit a changed partial.
+inline int selected_merge_block(int partial, int declared = 0) {
+  if (partial <= 0 || partial > 1024 || declared < 0 || declared > 1024)
+    throw std::invalid_argument("merge block");
+  return declared ? declared : partial;
+}

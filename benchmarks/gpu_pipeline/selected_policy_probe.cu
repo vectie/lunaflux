@@ -44,7 +44,7 @@ struct Buffer {
 };
 struct Kernel {
   CUmodule module; CUfunction function,merge=nullptr,rotary_prepare=nullptr;
-  unsigned gx,gy,gz,b,shared,merge_y=0,rotary_grid=0,rotary_block=0;
+  unsigned gx,gy,gz,b,shared,merge_y=0,merge_b=0,rotary_grid=0,rotary_block=0;
   int regs,resident,local; std::string law; size_t rotary_bytes=0;
   void* workspace=nullptr; void* merge_row_offsets=nullptr; bool prefill_split=false;
   explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode, bool postprocess=false, bool partitioned=false, bool prefill_partitioned=false){
@@ -63,6 +63,7 @@ struct Kernel {
       r["merge_function_symbol"]=r.at("partition_merge_function_symbol");
       r["grid"]=r.at("partition_grid");r["merge_grid"]=r.at("partition_merge_grid");
       r["block"]=r.at("partition_block");r["shared_memory_bytes"]=r.at("partition_shared_memory_bytes");
+      if(r.count("partition_merge_block"))r["merge_block"]=r.at("partition_merge_block");
       r["workspace_bytes"]=r.at("partition_workspace_bytes");r["numeric_law"]=r.at("partition_numeric_law");
     }
     auto grid=tuple(r.at("grid")),block=tuple(r.at("block"));
@@ -91,6 +92,9 @@ struct Kernel {
       if(bytes==0 || bytes>(prefill_split?268435456ULL:16777216ULL))std::exit(1);
       CK(cudaMalloc(&workspace,bytes));CK(cudaMemset(workspace,0,bytes));
       merge_y=tuple(r.at("merge_grid")).at(1);
+      auto merge_block=r.count("merge_block")?tuple(r.at("merge_block")):std::vector<int>{int(b),1,1};
+      if(merge_block.size()!=3 || merge_block[1]!=1 || merge_block[2]!=1)std::exit(1);
+      merge_b=selected_merge_block(b,merge_block[0]);
     }
     if(shared)CK(cuFuncSetAttribute(function,CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,shared));
     CK(cuFuncGetAttribute(&regs,CU_FUNC_ATTRIBUTE_NUM_REGS,function));
@@ -113,7 +117,7 @@ struct Kernel {
       void* merge_rows=prefill_split?merge_row_offsets:*static_cast<void**>(a[2]);
       void* combine[]={a[0],&merge_rows,&workspace,a[7]};
       CK(cuLaunchKernel(function,gx,gy,gz,b,1,1,shared,nullptr,partial,nullptr));
-      CK(cuLaunchKernel(merge,gx,merge_y,1,b,1,1,0,nullptr,combine,nullptr));
+      CK(cuLaunchKernel(merge,gx,merge_y,1,merge_b,1,1,0,nullptr,combine,nullptr));
     }else{CK(cuLaunchKernel(function,gx,gy,1,b,1,1,shared,nullptr,a,nullptr));}
   }
   double time(void** a,const std::vector<std::unique_ptr<Buffer>>& weights={},
@@ -227,8 +231,8 @@ int main(int argc,char**argv){
   std::unique_ptr<Kernel> mixed_companion, mixed_decode_candidate;
   if(mixed_chain)mixed_companion=std::make_unique<Kernel>(mixed_companion_root,bucket_tokens,max_rows,false,true);
   if(mixed_decode_comparison)mixed_decode_candidate=std::make_unique<Kernel>(mixed_companion_root,bucket_tokens,max_rows,false,true,false,true);
-  std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u numeric_law=%s\n",
-    decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,candidate.law.c_str());
+  std::printf("geometry mode=%s tokens=%d rows=%d history=%d bucket_tokens=%d bucket_rows=%d old_grid=%u,%u,%u new_grid=%u,%u,%u old_block=%u new_block=%u old_merge_block=%u new_merge_block=%u numeric_law=%s\n",
+    decode_envelope?"traced-decode-envelope":"runtime-bucket",tokens,rows,past,bucket_tokens,std::min(max_rows,bucket_tokens),baseline.gx,baseline.gy,baseline.gz,candidate.gx,candidate.gy,candidate.gz,baseline.b,candidate.b,baseline.merge_b,candidate.merge_b,candidate.law.c_str());
   std::vector<int> offsets{0},lengths,pages,po{0},positions;
   for(int r=0;r<rows;r++){
     const int prefill_rows=mixed?rows-1:rows,prefill_tokens=mixed?tokens-1:tokens;
