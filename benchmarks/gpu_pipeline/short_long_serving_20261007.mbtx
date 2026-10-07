@@ -1,0 +1,271 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("ambiguous frozen seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+fn matrix_source() -> String {
+  (
+    #|fn matrix() -> Array[(String, Array[Int], Int, String)] {
+    #|  [
+    #|    ("i128-o64-c1-varied", [128], 64, "varied"),
+    #|    ("i128-o256-c1-varied", [128], 256, "varied"),
+    #|    ("i128-o64-c16-varied", inputs(128,16), 64, "varied"),
+    #|    ("i4096-o64-c1-varied", [4096], 64, "varied"),
+    #|    ("i4096-o64-c16-varied", inputs(4096,16), 64, "varied"),
+    #|    ("i8192-o64-c8-varied", inputs(8192,8), 64, "varied"),
+    #|    ("i16384-o64-c1-varied", [16384], 64, "varied"),
+    #|    ("i32512-o64-c1-varied", [32512], 64, "varied"),
+    #|    ("i32512-o64-c2-varied", inputs(32512,2), 64, "varied"),
+    #|    ("i32512-o256-c1-varied", [32512], 256, "varied"),
+    #|    ("i32512-o64-c1-diverse", [32512], 64, "diverse"),
+    #|  ]
+    #|}
+    #|
+  )
+}
+
+///|
+fn client_source(text : String) -> String raise {
+  guard text
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+    is [before, rest] else {
+    fail("matrix opening")
+  }
+  guard rest.split("///|\nfn token_ids").to_array() is [_, after] else {
+    fail("matrix closing")
+  }
+  before.to_owned() +
+  matrix_source() +
+  "\n///|\nfn token_ids" +
+  after.to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn pinned(
+  root : String,
+  name : String,
+  path : String,
+  digest : String,
+) -> Unit {
+  assert_true(capture(root, name, "sha256sum", [path]).has_prefix(digest + " "))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, frozen, templates, root, phase] else {
+    fail("FROZEN_RUNTIME FROZEN_TEMPLATES NEW_ROOT prepare|run")
+  }
+  let serving = frozen + "/serving/long-final"
+  let moon = frozen + "/toolchain/bin/moon"
+  let launcher = root + "/launcher.mbtx"
+  if phase == "run" {
+    assert_true(@fs.exists(root + "/PREPARED.txt"))
+    let bundle = serving +
+      "/deployment/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3"
+    pinned(
+      root, "selected-bundle-pin", bundle, "651b0d05ad38074bdd1a63ab608f5add41b5c81c16c9e8fade5a9c228a1c9858",
+    )
+    @fs.write_file(
+      root + "/selected-bundle.v3",
+      @fs.read_file(bundle),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/selected-execution.json",
+      @fs.read_file(
+        serving +
+        "/deployment/kernel-release/kernel-root/lunaflux.execution.json",
+      ),
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(root, "campaign", moon, ["run", launcher, serving, root, launcher]),
+    )
+    return
+  }
+  assert_eq(phase, "prepare")
+  pinned(
+    root,
+    "launch-pin",
+    serving + "/deployment/lunaflux.launch.json",
+    "e7e7a251f74743508b1aee4a8c2047b9692a4f656a3974f1617241699127bfce",
+  )
+  pinned(
+    root,
+    "worker-pin",
+    serving + "/deployment/bin/lunaflux-device-worker",
+    "7da40e6f9f8c07f4152baa1796871651057ff4c9579b9c97fe1ebfa2d3f1ac70",
+  )
+  pinned(
+    root,
+    "runtime-pin",
+    frozen + "/source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+    "619140a64d70d77d9f6494de4e1e8103b6e1565750fc2015cbf687c0e534f8e8",
+  )
+  pinned(
+    root, "model-pin", "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b/model.safetensors",
+    "f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b",
+  )
+  let prefix = "lunaflux-bench-" +
+    root.split("/").to_array().last().unwrap().to_owned() +
+    "-"
+  let text = once(
+    @fs.read_file(templates + "/launch-identity.mbtx").text(),
+    "  let orders = [[\"luna-full\"], [\"luna-full\"]]",
+    "  let orders = [[\"vllm\", \"luna-full\", \"sglang\"], [\"sglang\", \"luna-full\", \"vllm\"]]",
+  )
+  let text = once(
+    text,
+    "\"lunaflux-bench-lunaflux-benchmark-20261006.B5GyxQoX-\" + engine",
+    Json(prefix).stringify() + " + engine",
+  )
+  let text = once(
+    text, "\"--property=RuntimeMaxSec=7200\"", "\"--property=RuntimeMaxSec=1800\"",
+  )
+  @fs.write_file(launcher, text, create_mode=CreateNew)
+  @fs.write_file(
+    launcher + ".client.mbtx",
+    client_source(
+      @fs.read_file(templates + "/launch-identity.mbtx.client.mbtx").text(),
+    ),
+    create_mode=CreateNew,
+  )
+  for
+    (name, file) in [
+      ("launcher", launcher),
+      ("client", launcher + ".client.mbtx"),
+    ] {
+    ignore(capture(root, name + "-check", moon, ["check", file, "--deny-warn"]))
+    ignore(capture(root, name + "-test", moon, ["test", file, "--deny-warn"]))
+  }
+  for
+    (engine, digest) in [
+      (
+        "vllm", "sha256:73e1b0f3230a9377a3109d20be7f8607963a41a715eb3000bc647f5f73c198ff",
+      ),
+      (
+        "sglang", "sha256:3a9d399434923689565e1a72f5c3fc409323ce039b65bdbe5c2d6ed14abad3a9",
+      ),
+    ] {
+    let old = "lunaflux-bench-lunaflux-benchmark-20261006.B5GyxQoX-" + engine
+    guard @json.parse(
+        capture(root, engine + "-original", "docker", ["inspect", old]),
+      )
+      is Array(
+        [
+          {
+            "Image": String(image),
+            "State": { "Running": false, .. },
+            "Config": { "Cmd": Array(command), .. },
+            "HostConfig": {
+              "Memory": Number(memory, ..),
+              "MemorySwap": Number(swap, ..),
+              ..
+            },
+            ..
+          },
+        ]
+      ) else {
+      fail("pinned stopped reference")
+    }
+    assert_eq(image, digest)
+    assert_eq(memory, 68719476736.0)
+    assert_eq(swap, memory)
+    let command = command.map(x => {
+      guard x is String(s) else { fail("reference argv") }
+      s
+    })
+    ignore(
+      capture(
+        root,
+        engine + "-create",
+        "docker",
+        [
+          "create",
+          "--name",
+          prefix + engine,
+          "--gpus",
+          "all",
+          "--network",
+          "host",
+          "--ipc",
+          "host",
+          "--memory",
+          "64g",
+          "--memory-swap",
+          "64g",
+          "--mount",
+          "type=bind,source=/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b,target=/model,readonly",
+          image,
+          ..command,
+        ],
+      ),
+    )
+  }
+  @fs.write_file(
+    root + "/FINITE_BUDGET.txt",
+    "Two fresh starts per engine, reverse engine order, eleven cells, one warmup and three measured waves per cell. GPU serialized; worker 64GiB, bridge 2GiB, controller 8GiB; zero swap, 32GiB MemAvailable reserve. No tuning, production edits or automatic retries.\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/PREPARED.txt",
+    "outcome=prepared\nscope=current-selected-frozen-serving; no rejected prototypes or dirty-tree inference rebuild\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "matrix substitution retains token generation and response parsing" {
+  let text = "before\nfn matrix() -> Array[(String, Array[Int], Int, String)] { old }\n///|\nfn token_ids unchanged"
+  let result = client_source(text)
+  assert_true(result.has_prefix("before\n"))
+  assert_true(result.has_suffix("fn token_ids unchanged"))
+  assert_true(result.contains("i128-o64-c16-varied"))
+  assert_true(result.contains("i32512-o256-c1-varied"))
+  try client_source(text + text) catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous matrix accepted")
+  }
+}
