@@ -1,0 +1,78 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("LOCAL_ARCHIVE_DIRECTORY") }
+  for
+    (name, digest) in [
+      (
+        "trial", "fb598bf2223ea01cf46509e587d3a7080abe85bbb20f0974c687ef6b0e42e17e",
+      ),
+      (
+        "traced", "a4e09500fd8741bef7e3e0259bccdd4719219fc1fbe8087a4a0d42962568020f",
+      ),
+      (
+        "window", "4601b61a976d9af10266c0ebca0a0ca52593bfa50ac8ba46809d5c6763a03630",
+      ),
+      (
+        "wrong-grid", "49fedb3cc126da9d59f241729963ad729560a3bc497deb7605d039d4d467ce73",
+      ),
+    ] {
+    let archive = root + "/" + name + ".tar.gz"
+    let actual = @shell.Cmd("shasum", ["-a", "256", archive]).output()
+    actual.check()
+    assert_true(actual.stdout().has_prefix(digest + " "))
+    let listing = @shell.Cmd("tar", ["-tzf", archive]).output(
+      max_output_bytes=33554432,
+    )
+    listing.check()
+    let members = listing
+      .stdout()
+      .split("\n")
+      .filter(x => !x.is_empty())
+      .to_array()
+    assert_true(members.length() > 0)
+    for entry in members {
+      assert_true(entry.has_prefix("./"))
+      assert_false(entry.split("/").any(x => x == ".."))
+    }
+    let unpacked = root + "/" + name
+    @fs.mkdir(unpacked)
+    @shell.Cmd("tar", ["-xzf", archive, "-C", unpacked]).run()
+    let verified = @shell.Cmd(
+      "shasum",
+      ["-a", "256", "-c", "FILES.sha256"],
+      cwd=unpacked,
+    ).output(max_output_bytes=33554432)
+    @fs.write_file(
+      root + "/" + name + "-verify.stdout",
+      verified.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + "-verify.stderr",
+      verified.stderr(),
+      create_mode=CreateNew,
+    )
+    verified.check()
+    assert_true(
+      @fs.read_file(unpacked + "/RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    println(
+      name + " archive and manifest verified; \{members.length()} members",
+    )
+  }
+  @fs.write_file(
+    root + "/LOCAL_VERIFIED.txt",
+    "outcome=passed\nscope=four preserved diagnostic archives, including rejected experiment and mismatched capture\n",
+    create_mode=CreateNew,
+  )
+}

@@ -1,0 +1,245 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn available() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory field")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, base, probe_root, root, mode, ..] &&
+    ["counter", "prepare", "window"].contains(mode) else {
+    fail(
+      "IMMUTABLE_SERVING PROBE_ROOT NEW_ROOT counter|prepare|window [MODULE]",
+    )
+  }
+  let artifact = if mode == "window" {
+    guard @env.args() is [_, _, _, _, _, artifact] else {
+      fail("window module")
+    }
+    artifact
+  } else {
+    base + "/decode-selected"
+  }
+  let rows = if mode == "window" { "2" } else { "16" }
+  let envelope = if mode == "window" { "8" } else { "16" }
+  let history = if mode == "window" { "32767" } else { "4095" }
+  let probe = probe_root + "/check-probe"
+  let idle = capture(root, mode + "-idle", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  guard idle.trim().is_empty() && available() >= 33554432L else {
+    fail("GPU busy or memory reserve")
+  }
+  assert_eq(
+    capture(root, mode + "-device", "nvidia-smi", [
+      "--query-gpu=uuid", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  )
+  assert_true(
+    capture(root, mode + "-probe", "sha256sum", [probe]).has_prefix(
+      "821fa177be7e30219dbaf92a58c7337af45529075dca84c9fe162017c7ee1b66 ",
+    ),
+  )
+  assert_true(
+    capture(root, mode + "-nvcc", "sha256sum", ["/usr/local/cuda-13.0/bin/nvcc"]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  let spec = @fs.read_file(base + "/calibration-spec/decode.spec").text()
+  guard spec.split("maximum_rows=32\n").to_array() is [before, after] else {
+    fail("frozen workspace envelope")
+  }
+  @fs.write_file(
+    root + "/traced.spec",
+    before.to_owned() + "maximum_rows=\{envelope}\n" + after.to_owned(),
+    create_mode=CreateNew,
+  )
+  let arguments = [
+    root + "/traced.spec",
+    base + "/decode-selected",
+    artifact,
+    rows,
+    rows,
+    history,
+    "--decode-envelope",
+  ]
+  if mode == "prepare" {
+    ignore(capture(root, "baseline-timing", probe, arguments))
+    return
+  }
+  let container = "lunaflux-decode-consumer-" +
+    root.split("/").to_array().last().unwrap().to_owned()
+  errdefer ignore(
+    @shell.Cmd("docker", ["stop", "--time", "15", container]).output(),
+  )
+  let samples = StringBuilder()
+  let mut done = false
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = available()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(500)
+      }
+    })
+    ignore(
+      capture(
+        root,
+        "counter-run",
+        "docker",
+        [
+          "run",
+          "--name",
+          container,
+          "--gpus",
+          "all",
+          "--memory",
+          "8g",
+          "--memory-swap",
+          "8g",
+          "--cap-add",
+          "SYS_ADMIN",
+          "--security-opt",
+          "seccomp=unconfined",
+          "--mount",
+          "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+          "--mount",
+          "type=bind,source=" + base + ",target=" + base + ",readonly",
+          "--mount",
+          "type=bind,source=" +
+          probe_root +
+          ",target=" +
+          probe_root +
+          ",readonly",
+          "--mount",
+          "type=bind,source=" + root + ",target=" + root,
+          "--mount",
+          "type=bind,source=" + artifact + ",target=" + artifact + ",readonly",
+          "nvcr.io/nvidia/vllm:26.01-py3",
+          "timeout",
+          "900",
+          "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+          "--config-file",
+          "off",
+          "--clock-control",
+          "none",
+          "--cache-control",
+          "none",
+          "--filter-mode",
+          "global",
+          "--kernel-name-base",
+          "function",
+          "--kernel-name",
+          "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4",
+          "--launch-count",
+          if mode == "window" {
+            "2"
+          } else {
+            "1"
+          },
+          "--launch-skip",
+          "0",
+          "--section",
+          "LaunchStats",
+          "--section",
+          "Occupancy",
+          "--section",
+          "SpeedOfLight",
+          "--section",
+          "SchedulerStats",
+          "--section",
+          "WarpStateStats",
+          "--section",
+          "MemoryWorkloadAnalysis",
+          "--section",
+          "InstructionStats",
+          "--section",
+          "SourceCounters",
+          "--export",
+          root + "/counter",
+          probe,
+          ..arguments,
+        ],
+      ),
+    )
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  ignore(
+    capture(root, "counter-raw", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+      "--import",
+      root + "/counter.ncu-rep",
+      "--page",
+      "raw",
+      "--csv",
+      "--print-units",
+      "base",
+    ]),
+  )
+  ignore(
+    capture(root, "counter-source", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+      "--import",
+      root + "/counter.ncu-rep",
+      "--page",
+      "source",
+      "--csv",
+      "--print-source",
+      "sass",
+    ]),
+  )
+  @fs.write_file(
+    root + "/COUNTER_RESULT.txt",
+    "outcome=completed\nscope=synthetic immutable KV, rows=\{rows}, envelope=\{envelope}, history=\{history}, module=\{artifact}; not serving counters or throughput\n",
+    create_mode=CreateNew,
+  )
+}

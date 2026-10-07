@@ -1,0 +1,92 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, trial, traced, window, wrong, moon, sealer] else {
+    fail("TRIAL TRACED_COUNTER WINDOW_COUNTER WRONG_GRID MOON SEALER")
+  }
+  assert_true(
+    @fs.read_file(trial + "/BUILD_RESULT.txt")
+    .text()
+    .contains("baseline_bytes=identical-to-serving"),
+  )
+  assert_true(
+    @fs.read_file(trial + "/paired/RESULT.txt")
+    .text()
+    .has_prefix("outcome=completed\n"),
+  )
+  for side, width in [4, 8] {
+    for index, label in ["r16-e16-h4095", "r2-e8-h32767", "r1-e1-h127"] {
+      let rows = @fs.read_file(
+          trial + "/paired/w\{side * 3 + index}-w\{width}-" + label + ".stdout",
+        )
+        .text()
+        .split("\n")
+        .filter(x => x.has_prefix("tokens="))
+        .to_array()
+      assert_eq(rows.length(), 5)
+      for row in rows {
+        assert_eq(
+          row.split(" ").filter(x => x.has_prefix("bitwise=")).to_array(),
+          ["bitwise=true"],
+        )
+        assert_eq(
+          row.split(" ").filter(x => x.has_prefix("maxabs=")).to_array(),
+          ["maxabs=0"],
+        )
+      }
+    }
+  }
+  guard @json.parse(@fs.read_file(trial + "/paired/summary.json").text())
+    is Array(records) &&
+    records.length() == 6 else {
+    fail("complete experiment")
+  }
+  for record in records {
+    guard record is { "metrics": { "decision": "regression", .. }, .. } else {
+      fail("expected preserved loss")
+    }
+  }
+  @fs.write_file(
+    trial + "/RESULT.txt",
+    "outcome=completed\nexperiment=all six window controls regressed; no serving promotion\ncorrectness=all 30 paired rows bitwise equal and scalar oracle passed\nproduction=prototype removed; compiler defaults unchanged\nrecipe_scope=unchanged probe template; changed cubins are diagnostic-only, not admitted artifacts\n",
+    create_mode=CreateNew,
+  )
+  for root in [traced, window, wrong] {
+    assert_true(
+      @fs.read_file(root + "/COUNTER_RESULT.txt")
+      .text()
+      .has_prefix("outcome=completed\n"),
+    )
+    @fs.write_file(
+      root + "/RESULT.txt",
+      "outcome=completed\nscope=synthetic selected-kernel replay, not serving throughput\n",
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    wrong + "/SCOPE_CORRECTION.txt",
+    "The original caption claimed C16 bucket16, but raw report grid is 32x8x1. Preserve as an envelope-mismatched diagnostic, not the exact C16 counter authority. The subsequent traced counter uses grid16x8x1. Original counter outputs and caption are unchanged.\n",
+    create_mode=CreateNew,
+  )
+  for
+    (label, root) in [
+      ("trial", trial),
+      ("traced", traced),
+      ("window", window),
+      ("wrong-grid", wrong),
+    ] {
+    let output = @shell.Cmd(moon, ["run", sealer, root]).output(
+      max_output_bytes=33554432,
+    )
+    output.check()
+    println(label + " " + output.stdout())
+  }
+}
