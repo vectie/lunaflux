@@ -1,0 +1,173 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(s : String, old : String, fresh : String) -> String raise {
+  guard s.split(old).to_array() is [a, b] else {
+    fail("ambiguous seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  cmd : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([cmd, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(cmd, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+fn fields(line : StringView) -> Map[String, String] {
+  let out = Map([])
+  for field in line.split(" ") {
+    if field.split("=").to_array() is [k, v] {
+      out[k.to_owned()] = v.to_owned()
+    }
+  }
+  out
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-factorial-20261008.") else {
+    fail("ROOT projection-verify|timing|profile")
+  }
+  let moon = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z/toolchain/bin/moon"
+  if mode == "projection-verify" {
+    ignore(
+      capture(
+        root,
+        "build-projection-shadow",
+        "/usr/local/cuda-13.0/bin/nvcc",
+        [
+          "-O3",
+          "-std=c++17",
+          "-arch=sm_121",
+          "--shared",
+          "-Xcompiler=-fPIC",
+          "-DLF_SWAP_MASK=3",
+          "-DLF_SWAP_VERIFY=1",
+          "-DLF_SWAP_LOG_DIRECTORY=\"" + root + "/active-log-directory\"",
+          root + "/reference_projection_swap.cu",
+          "-lcuda",
+          "-lcublas",
+          "-Xlinker=-rpath",
+          "-Xlinker=/usr/local/cuda-13.0/lib64",
+          "-o",
+          root + "/projection-verify.so",
+        ],
+      ),
+    )
+    let trial = @fs.read_file(root + "/reference_swap_trial.mbtx")
+      .text()
+      .replace(
+        old="lunaflux-reference-swap-20261007.",
+        new="lunaflux-reference-factorial-20261008.",
+      )
+      .replace(old="lunaflux-swap-", new="lunaflux-factorial-projection-")
+    let trial = once(
+      trial, "let output = root + \"/\" + mode", "let output = root + \"/projection-\" + mode",
+    )
+    let trial = trial.replace(
+      old="root + \"/\" + arm + \".so\"",
+      new="root + \"/projection-\" + arm + \".so\"",
+    )
+    let script = root + "/trial-projection-shadow.mbtx"
+    @fs.write_file(script, trial, create_mode=CreateNew)
+    @shell.Cmd(moon, ["run", script, root, "verify"]).run()
+    return
+  }
+  assert_true(mode == "timing" || mode == "profile")
+  for part in ["oracle", "sanitize", "projection-verify"] {
+    assert_true(@fs.exists(root + "/" + part + "/RESULT.txt"))
+  }
+  // Do not relabel the failed cross-original gate. Every recorded outlier must
+  // instead pass the unchanged 0.01+0.02*abs(truth) bound against independent
+  // FP64 attention, with complete recording (no truncation at record_limit).
+  let audit = @fs.read_file(root + "/fp64-audit/RESULT.txt").text()
+  assert_true(
+    audit.has_prefix(
+      "outcome=all_recorded_reference_outliers_within_fp64_tolerance",
+    ),
+  )
+  let summaries = audit
+    .split("\n")
+    .filter(l => l.has_prefix("records="))
+    .to_array()
+  guard summaries is [summary] else { fail("FP64 summary") }
+  let numbers = fields(summary)
+  assert_eq(numbers.get("records"), numbers.get("reference_pass"))
+  let found = @shell.Cmd("find", [
+    root + "/verify/s0-verify",
+    "-maxdepth",
+    "1",
+    "-name",
+    "worker-*.log",
+    "-type",
+    "f",
+  ]).output()
+  found.check()
+  guard found.stdout().trim().split("\n").to_array() is [path] else {
+    fail("one shadow worker")
+  }
+  let log = @fs.read_file(path.to_owned()).text()
+  let lines = log
+    .split("\n")
+    .filter(l => l.has_prefix("lf_attention outliers_recorded="))
+    .to_array()
+  guard lines is [line] else { fail("complete outlier capture") }
+  let recorded = fields(line)
+  assert_eq(recorded.get("outliers_recorded"), numbers.get("records"))
+  assert_eq(recorded.get("total"), numbers.get("records"))
+  let trial = @fs.read_file(root + "/trial-verify.mbtx").text()
+  guard trial.split("  if mode != \"verify\" {").to_array() is [prefix, tail] &&
+    tail.split("  let launcher = @fs.read_file").to_array() is [_, body] else {
+    fail("old gate seam")
+  }
+  let trial = prefix.to_owned() +
+    "  let launcher = @fs.read_file" +
+    body.to_owned()
+  let script = root + "/trial-independent-" + mode + ".mbtx"
+  @fs.write_file(script, trial, create_mode=CreateNew)
+  @fs.write_file(
+    root + "/" + mode + "-ADMISSION.txt",
+    "scope=exploratory causal timing, not release/quality admission\noriginal_cross_backend_gate=failed_and_preserved\nreference_outliers=all_checked_against_independent_fp64_at_unchanged_tolerance\n" +
+    summary.to_owned() +
+    "\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(moon, ["run", script, root, mode]).run()
+}
+
+///|
+test "single substitution only" {
+  assert_eq(once("a_b", "_", "!"), "a!b")
+  assert_eq(fields("a=1 b=2").get("b"), Some("2"))
+}

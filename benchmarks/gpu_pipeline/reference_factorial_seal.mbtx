@@ -1,0 +1,145 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn included(path : String) -> Bool {
+  !path
+  .split("/")
+  .any(p => {
+    ["source", "_build", ".mooncakes", "toolchain", "model", "model_runtime"].contains(
+      p.to_owned(),
+    )
+  }) &&
+  !path.has_suffix(".tar.gz") &&
+  !path.has_suffix(".tar.gz.sha256") &&
+  path != "FILES.sha256"
+}
+
+///|
+async fn files(root : String) -> Array[String] {
+  let r = @shell.Cmd("find", [".", "-type", "f"], cwd=root).output(
+    max_output_bytes=33554432,
+  )
+  r.check()
+  let paths = r
+    .stdout()
+    .split("\n")
+    .filter(p => !p.is_empty())
+    .to_array()
+    .map(fn(p) raise {
+      guard p.strip_prefix("./") is Some(s) && !s.split("/").any(x => x == "..") else {
+        fail("path")
+      }
+      s.to_owned()
+    })
+    .filter(included)
+  paths.sort()
+  paths
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-factorial-20261008.") else {
+    fail("TERMINAL_ROOT")
+  }
+  for
+    part in [
+      "oracle", "sanitize", "projection-verify", "fp64-audit", "timing", "profile",
+    ] {
+    assert_true(@fs.exists(root + "/" + part + "/RESULT.txt"))
+  }
+  assert_true(@fs.exists(root + "/timing/comparison.json"))
+  assert_true(@fs.exists(root + "/profile/comparison.json"))
+  assert_false(@fs.exists(root + "/FILES.sha256"))
+  assert_false(@fs.exists(root + "/measurement.tar.gz"))
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  @fs.write_file(
+    root + "/diagnostic-loader.c",
+    @fs.read_file(root + "/source/internal/cuda/loader.c"),
+    create_mode=CreateNew,
+  )
+  let hashes = @shell.Cmd("sha256sum", [
+    "/usr/local/cuda-13.0/bin/nvcc", "/usr/local/cuda-13.0/targets/sbsa-linux/lib/libcublas.so.13.1.1.3",
+    "/usr/local/cuda-13.0/targets/sbsa-linux/lib/libcublasLt.so.13.1.1.3",
+  ]).output()
+  hashes.check()
+  @fs.write_file(
+    root + "/EXTERNAL_IDENTITIES.sha256",
+    hashes.stdout(),
+    create_mode=CreateNew,
+  )
+  // The first projection-only runner inherited the factorial arm's hash path.
+  // Keep that raw receipt unchanged and bind the actual loaded shadow library
+  // separately, rather than silently repairing historical evidence.
+  let shadow_hash = @shell.Cmd("sha256sum", [root + "/projection-verify.so"]).output()
+  shadow_hash.check()
+  @fs.write_file(
+    root + "/PROJECTION_SHADOW_IDENTITY_CORRECTION.txt",
+    "reason=projection-only runner inherited verify.so hash path; actual loaded path and build command were projection-verify.so\noriginal_receipt=preserved unchanged\n" +
+    shadow_hash.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.mkdir(root + "/setup-failures")
+  for id in ["ArzN4CRT", "7LS6ljc1", "iPfTGxLO", "SDXX19SL"] {
+    let prior = "/home/wlc004s/lunaflux-reference-factorial-20261008." + id
+    let target = root + "/setup-failures/" + id
+    @fs.mkdir(target)
+    let selected = files(prior).filter(p => {
+      !["serving/", "adapted/", "flash/", "cutlass/"].any(prefix => {
+        p.has_prefix(prefix)
+      })
+    })
+    @shell.Cmd("cp", ["--parents", ..selected, target], cwd=prior).run()
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=offline reference attention and vendor projection substitution; not a release or quality admission\noriginal_cross_backend_gate=failed; all reference outliers pass independent FP64 at unchanged tolerance\nfailures=preserved and excluded\n",
+    create_mode=CreateNew,
+  )
+  let paths = files(root)
+  let manifest = StringBuilder()
+  for path in paths {
+    let r = @shell.Cmd("sha256sum", [path], cwd=root).output()
+    r.check()
+    manifest.write_string(r.stdout())
+  }
+  @fs.write_file(
+    root + "/FILES.sha256",
+    manifest.to_string(),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(
+    "tar",
+    ["-czf", root + "/measurement.tar.gz", "FILES.sha256", ..paths],
+    cwd=root,
+  ).run()
+  let verified = @shell.Cmd("sha256sum", ["-c", "FILES.sha256"], cwd=root).output(
+    max_output_bytes=33554432,
+  )
+  verified.check()
+  let hash = @shell.Cmd("sha256sum", [root + "/measurement.tar.gz"]).output()
+  hash.check()
+  @fs.write_file(
+    root + "/measurement.tar.gz.sha256",
+    hash.stdout(),
+    create_mode=CreateNew,
+  )
+  println("files=\{paths.length()} " + hash.stdout())
+}
+
+///|
+test "exclude build trees, retain raw evidence" {
+  assert_true(included("verify/worker-1.log"))
+  assert_false(included("source/_build/a.o"))
+  assert_false(included("measurement.tar.gz"))
+}

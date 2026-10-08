@@ -1,0 +1,126 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  cmd : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([cmd, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(cmd, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout() + "\n" + r.stderr()
+}
+
+///|
+async fn admission(root : String, label : String) -> Unit {
+  let idle = capture(root, label + "-idle", "nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  assert_true(idle.trim().is_empty())
+  let identity = capture(root, label + "-gpu", "nvidia-smi", [
+    "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+  ])
+  assert_true(identity.contains("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6"))
+  assert_true(identity.contains("0000000F:01:00.0"))
+  let memory = @fs.read_file("/proc/meminfo").text()
+  @fs.write_file(
+    root + "/" + label + "-memory.txt",
+    memory,
+    create_mode=CreateNew,
+  )
+  let values = memory
+    .split("\n")
+    .filter(l => l.has_prefix("MemAvailable:"))
+    .to_array()
+  guard values is [line] else { fail("MemAvailable") }
+  let words = line.split(" ").filter(w => !w.is_empty()).to_array()
+  assert_true(@string.parse_int(words[1]) >= 33554432)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-factorial-20261008.") else {
+    fail("ROOT oracle|sanitize")
+  }
+  let out = root + "/" + mode
+  @fs.mkdir(out)
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  let hash = capture(out, "compiler", "sha256sum", [nvcc])
+  assert_true(
+    hash.has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  if mode == "oracle" {
+    ignore(
+      capture(out, "compile", nvcc, [
+        "-std=c++17",
+        "-O3",
+        "-arch=sm_121",
+        "--expt-relaxed-constexpr",
+        "--expt-extended-lambda",
+        "-DNDEBUG",
+        "-lineinfo",
+        "-I" + root + "/adapted",
+        "-I" + root + "/cutlass",
+        root + "/reference_factorial_oracle.cu",
+        "-o",
+        out + "/oracle",
+      ]),
+    )
+    admission(out, "run")
+    ignore(capture(out, "run", out + "/oracle", []))
+  } else {
+    assert_eq(mode, "sanitize")
+    assert_true(@fs.exists(root + "/oracle/RESULT.txt"))
+    for tool in ["memcheck", "racecheck", "initcheck", "synccheck"] {
+      admission(out, tool)
+      let text = capture(out, tool, "/usr/local/cuda/bin/compute-sanitizer", [
+        "--tool",
+        tool,
+        "--error-exitcode",
+        "99",
+        root + "/oracle/oracle",
+        "small",
+      ])
+      if tool == "racecheck" {
+        assert_true(
+          text.contains("ERROR SUMMARY: 0 errors") ||
+          text.contains("RACECHECK SUMMARY: 0 hazards"),
+        )
+      } else {
+        assert_true(text.contains("ERROR SUMMARY: 0 errors"))
+      }
+    }
+  }
+  @fs.write_file(
+    out + "/RESULT.txt",
+    "outcome=passed\nscope=diagnostic full-output attention oracle\n",
+    create_mode=CreateNew,
+  )
+}

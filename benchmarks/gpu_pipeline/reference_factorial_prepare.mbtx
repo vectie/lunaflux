@@ -1,0 +1,101 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn once(s : String, old : String, fresh : String) -> String raise {
+  guard s.split(old).to_array() is [a, b] else {
+    fail("ambiguous seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-factorial-20261008.") else {
+    fail("NEW_ROOT prepare|verify|timing|profile")
+  }
+  let moon = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z/toolchain/bin/moon"
+  if mode == "prepare" {
+    let reference_root = "/home/wlc004s/lunaflux-native-attention-20261004.QmE81wFj"
+    for
+      name in [
+        "adapted", "flash", "cutlass", "FLASH_LICENSE", "CUTLASS_LICENSE.txt",
+      ] {
+      assert_false(@fs.exists(root + "/" + name))
+      @shell.Cmd("cp", ["-a", reference_root + "/" + name, root + "/" + name]).run()
+    }
+    let upstream = root + "/flash/flash_fwd_kernel.h"
+    let sha = @shell.Cmd("sha256sum", [upstream]).output()
+    sha.check()
+    assert_true(
+      sha
+      .stdout()
+      .has_prefix(
+        "242cbc331bd09d6ccfd023aae2d31461484b2a4801dcf66733b4151f9018622a ",
+      ),
+    )
+    let original = @fs.read_file(upstream).text()
+    let marker = "template<typename Kernel_traits, int kBlockM, int Log_max_splits, bool Is_even_K, typename Params>"
+    guard original.split(marker).to_array() is [_, combine] else {
+      fail("combine boundary")
+    }
+    let header = root + "/adapted/flash_fwd_kernel.h"
+    guard @fs.read_file(header)
+      .text()
+      .split("template<typename Kernel_traits, bool Is_dropout,")
+      .to_array()
+      is [inference, _] else {
+      fail("unused dropout launcher")
+    }
+    let patched = inference.to_owned() + marker + combine.to_owned()
+    @shell.Cmd("chmod", ["u+w", header]).run()
+    @fs.write_file(header, patched)
+    let prep = @fs.read_file(root + "/reference_swap_prepare.mbtx")
+      .text()
+      .replace(
+        old="lunaflux-reference-swap-20261007.",
+        new="lunaflux-reference-factorial-20261008.",
+      )
+    let prep = once(
+      prep, "(\"output\", 1, 0),\n      (\"down\", 2, 0),\n      (\"both\", 3, 0),\n      (\"verify\", 3, 1),",
+      "",
+    )
+    let prep = once(
+      prep, "\"-arch=sm_121\",", "\"-arch=sm_121\",\n\"--expt-relaxed-constexpr\",\"--expt-extended-lambda\",\"-DNDEBUG\",\"-DLF_ATTENTION_FACTORIAL=1\",\"-DLF_FACTORIAL_ROOT=\\\"\"+root+\"\\\"\",\"-I\"+root+\"/adapted\",\"-I\"+root+\"/cutlass\",",
+    )
+    let prep = once(
+      prep, "  ignore(\n    capture(root, \"build-worker\"", "  for arm in [\"output\",\"down\",\"both\",\"verify\"] { @shell.Cmd(\"ln\",[root+\"/control.so\",root+\"/\"+arm+\".so\"]).run() }\n  ignore(\n    capture(root, \"build-worker\"",
+    )
+    @fs.write_file(root + "/prepare.mbtx", prep, create_mode=CreateNew)
+    @shell.Cmd(moon, ["run", root + "/prepare.mbtx", root, "prepare"]).run()
+    return
+  }
+  let trial = @fs.read_file(root + "/reference_swap_trial.mbtx")
+    .text()
+    .replace(
+      old="lunaflux-reference-swap-20261007.",
+      new="lunaflux-reference-factorial-20261008.",
+    )
+    .replace(old="lunaflux-swap-", new="lunaflux-factorial-v4-")
+  let trial = once(
+    trial, "let good = \"lf_swap mask=3", "let good = \"lf_attention chains=28 intercepted=112 checked=2048 violations=0 pending=0\\nlf_swap mask=3",
+  )
+  // Preserve the established runner and matrix exactly. Arm names in raw files:
+  // output=attention only, down=output+down only, both=all three substitutions.
+  let trial = once(
+    trial, "(\"captured_output\", arm == \"output\" || arm == \"both\" || arm == \"verify\"),",
+    "(\"captured_output\", arm == \"down\" || arm == \"both\" || arm == \"verify\"),",
+  )
+  let trial = once(
+    trial, "  assert_false(text.contains(\"failure=\"))", "  assert_false(text.contains(\"failure=\"))\n  if arm == \"output\" || arm == \"both\" || arm == \"verify\" {\n    assert_true(text.contains(\"lf_attention chains=\"))\n    assert_false(text.contains(\"lf_attention chains=0\"))\n    assert_true(text.contains(\"pending=0\"))\n    for line in text.split(\"\\n\") { if line.has_prefix(\"lf_attention chains=\") { assert_true(line.contains(\"violations=0\")); if arm == \"verify\" { assert_false(line.contains(\"checked=0 \")) } } }\n  }",
+  )
+  let script = root + "/trial-" + mode + ".mbtx"
+  @fs.write_file(script, trial, create_mode=CreateNew)
+  @shell.Cmd(moon, ["run", script, root, mode]).run()
+}

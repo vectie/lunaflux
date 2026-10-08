@@ -1,0 +1,93 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  cmd : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([cmd, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(cmd, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-factorial-20261008.") else {
+    fail("ROOT")
+  }
+  let out = root + "/fp64-audit"
+  @fs.mkdir(out)
+  ignore(
+    capture(out, "compile", "g++", [
+      "-O2",
+      "-std=c++17",
+      root + "/reference_factorial_outliers.cpp",
+      "-o",
+      out + "/oracle",
+    ]),
+  )
+  let found = capture(out, "find", "find", [
+    root + "/verify/s0-verify",
+    "-maxdepth",
+    "1",
+    "-name",
+    "outliers-*.bin",
+    "-type",
+    "f",
+  ])
+  guard found.trim().split("\n").to_array() is [path] && !path.is_empty() else {
+    fail("exactly one completed outlier recording required")
+  }
+  let result = capture(out, "comparison", out + "/oracle", [path.to_owned()])
+  let lines = result
+    .split("\n")
+    .filter(l => l.has_prefix("records="))
+    .to_array()
+  guard lines is [line] else { fail("summary") }
+  let fields : Map[String, String] = Map([])
+  for field in line.split(" ") {
+    if field.split("=").to_array() is [k, v] {
+      fields[k.to_owned()] = v.to_owned()
+    }
+  }
+  let reference_pass = fields.get("records") == fields.get("reference_pass")
+  @fs.write_file(
+    out + "/RESULT.txt",
+    "outcome=" +
+    (if reference_pass {
+      "all_recorded_reference_outliers_within_fp64_tolerance"
+    } else {
+      "reference_outliers_fail_fp64_tolerance"
+    }) +
+    "\nscope=independent outlier diagnosis; original cross-backend gate is still failed\n" +
+    line.to_owned() +
+    "\n",
+    create_mode=CreateNew,
+  )
+  println(line)
+}

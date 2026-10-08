@@ -1,0 +1,245 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(j : Json, key : String) -> Json raise {
+  guard j is Object(m) && m.get(key) is Some(v) else { fail(key) }
+  v
+}
+
+///|
+fn number(j : Json) -> Int64 raise {
+  match j {
+    String(s) => @string.parse_int64(s)
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("number")
+  }
+}
+
+///|
+fn text(j : Json) -> String raise {
+  guard j is String(s) else { fail("string") }
+  s
+}
+
+///|
+async fn sql(db : String, query : String) -> Array[Json] {
+  let r = @shell.Cmd("sqlite3", ["-readonly", "-json", db, query]).output(
+    max_output_bytes=67108864,
+  )
+  r.check()
+  guard @json.parse(
+      if r.stdout().trim().is_empty() {
+        "[]"
+      } else {
+        r.stdout()
+      },
+    )
+    is Array(xs) else {
+    fail("sql array")
+  }
+  xs
+}
+
+///|
+fn union_ns(xs : Array[(Int64, Int64)]) -> Int64 {
+  let xs = xs.copy()
+  xs.sort_by((a, b) => a.0.compare(b.0))
+  let mut end = -1L
+  let mut total = 0L
+  for (a, b) in xs {
+    let start = Int64::max(a, end)
+    if b > start {
+      total += b - start
+    }
+    end = Int64::max(end, b)
+  }
+  total
+}
+
+///|
+fn category(k : Json) -> String raise {
+  let name = text(field(k, "name"))
+  if name.contains("reference_pad_page_table") {
+    return "page_adapter"
+  }
+  if name.contains("reference_mixed_attention") {
+    return "reference_mixed"
+  }
+  if name.contains("reference_decode_partial") {
+    return "reference_decode_partial"
+  }
+  if name.contains("reference_decode_combine") {
+    return "reference_decode_combine"
+  }
+  if name.has_prefix("lunaflux_attention_") ||
+    name.has_prefix("lunaflux_paged_attention_bf16_") {
+    return "original_attention"
+  }
+  if name == "lunaflux_luna_dense_projection_bf16_release_v1" &&
+    number(field(k, "gridX")) == 512L &&
+    number(field(k, "blockX")) == 256L &&
+    number(field(k, "dynamicSharedMemory")) == 8192L {
+    return "original_output"
+  }
+  if name == "lunaflux_luna_gated_mlp_bf16_release_v1_down" &&
+    number(field(k, "gridX")) == 256L &&
+    number(field(k, "blockX")) == 128L &&
+    number(field(k, "dynamicSharedMemory")) == 0L {
+    return "original_down"
+  }
+  if name.contains("nvjet_") {
+    return "vendor_projection"
+  }
+  "unaffected"
+}
+
+///|
+fn signature(k : Json) -> String raise {
+  Json([
+    field(k, "name"),
+    field(k, "gridX"),
+    field(k, "gridY"),
+    field(k, "gridZ"),
+    field(k, "blockX"),
+    field(k, "blockY"),
+    field(k, "blockZ"),
+    field(k, "staticSharedMemory"),
+    field(k, "dynamicSharedMemory"),
+  ]).stringify()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("TERMINAL_FACTORIAL_ROOT") }
+  assert_true(@fs.exists(root + "/profile/RESULT.txt"))
+  let reports : Array[Json] = []
+  let original_signatures : Array[Array[String]] = []
+  for (arm, start) in [("control", 0), ("both", 1)] {
+    let base = root + "/profile/s\{start}-" + arm + "/r0-luna-full"
+    let db = base + "/trace.sqlite"
+    let launches = sql(
+      db, "SELECT r.correlationId,r.start,r.end FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId WHERE s.value='cuGraphLaunch' ORDER BY r.start;",
+    )
+    // This fixed campaign has exactly two waves of 96 graph steps. Preserve
+    // launch IDs and first/last kernels so this segmentation is auditable.
+    assert_eq(launches.length(), 192)
+    let groups : Map[Int64, Array[Json]] = Map([])
+    for
+      k in sql(
+        db, "SELECT k.*,s.value name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName WHERE k.graphNodeId>0 ORDER BY k.start;",
+      ) {
+      let id = number(field(k, "correlationId"))
+      if !groups.contains(id) {
+        groups[id] = []
+      }
+      groups[id].push(k)
+    }
+    assert_eq(groups.length(), 192)
+    let measured = launches[96:].to_owned()
+    let intervals : Array[(Int64, Int64)] = []
+    let envelopes : Array[(Int64, Int64)] = []
+    let totals : Map[String, Int64] = Map([])
+    let counts : Map[String, Int] = Map([])
+    let steps : Array[Json] = []
+    for i, l in measured {
+      let id = number(field(l, "correlationId"))
+      let ks = groups[id]
+      assert_true(!ks.is_empty())
+      let same = ks.filter(k => category(k) == "unaffected").map(signature)
+      if arm == "control" {
+        original_signatures.push(same)
+      } else {
+        assert_eq(same, original_signatures[i])
+      }
+      let xs = ks.map(k => (number(field(k, "start")), number(field(k, "end"))))
+      let begin = xs[0].0
+      let end = xs.fold(init=begin, (a, b) => Int64::max(a, b.1))
+      envelopes.push((begin, end))
+      let per : Map[String, Int64] = Map([])
+      for k in ks {
+        let a = number(field(k, "start"))
+        let b = number(field(k, "end"))
+        intervals.push((a, b))
+        let c = category(k)
+        totals[c] = totals.get(c).unwrap_or(0L) + b - a
+        counts[c] = counts.get(c).unwrap_or(0) + 1
+        per[c] = per.get(c).unwrap_or(0L) + b - a
+      }
+      steps.push({
+        "step": i,
+        "correlation": id,
+        "gpu_start_ns": begin,
+        "gpu_end_ns": end,
+        "kernel_calls": ks.length(),
+        "categories_ns": per,
+        "unaffected_signature": same,
+      })
+    }
+    let lo = envelopes[0].0
+    let hi = envelopes.last().unwrap().1
+    let copy_intervals : Array[(Int64, Int64)] = []
+    for table in ["CUPTI_ACTIVITY_KIND_MEMCPY", "CUPTI_ACTIVITY_KIND_MEMSET"] {
+      for
+        j in sql(
+          db,
+          "SELECT max(start,\{lo}) start,min(end,\{hi}) end FROM \{table} WHERE end>\{lo} AND start<\{hi};",
+        ) {
+        copy_intervals.push(
+          (number(field(j, "start")), number(field(j, "end"))),
+        )
+      }
+    }
+    let wave = @json.parse(
+      @fs.read_file(base + "/requests/i8192-o64-c8-varied-t1.json").text(),
+    )
+    let sum = intervals.fold(init=0L, (a, b) => a + b.1 - b.0)
+    let busy = union_ns([..intervals, ..copy_intervals])
+    let report : Json = {
+      "arm": arm,
+      "measured_wave_graph_steps": 96,
+      "warmup_graph_steps_excluded": 96,
+      "unaffected_launch_sequences_equal": true,
+      "profiled_request_wall_ms": field(wave, "wall_ms"),
+      "kernel_sum_ns": sum,
+      "kernel_union_ns": union_ns(intervals),
+      "gpu_activity_union_ns": busy,
+      "gpu_envelope_ns": hi - lo,
+      "gpu_envelope_inactive_ns": hi - lo - busy,
+      "between_step_gap_ns": hi - lo - union_ns(envelopes),
+      "categories_ns": totals,
+      "category_calls": counts,
+      "steps": steps,
+    }
+    reports.push(report)
+    println(
+      "\{arm}: wall_ms=\{number(field(wave,"wall_ms"))} kernel_ms=\{sum.to_double()/1000000.0} busy_ms=\{busy.to_double()/1000000.0} envelope_inactive_ms=\{(hi-lo-busy).to_double()/1000000.0}",
+    )
+    for c in totals.keys().to_array() {
+      println("\{c} calls=\{counts[c]} ms=\{totals[c].to_double()/1000000.0}")
+    }
+  }
+  @fs.write_file(
+    root + "/profile/comparison.json",
+    (
+      {
+        "schema": "lunaflux.reference-factorial-profile.v1",
+        "scope": "single profiled measured wave per arm; not throughput samples",
+        "segmentation": "last 96 of exactly 192 cuGraphLaunch calls; first 96 are warmup; identical unaffected launch sequence per step",
+        "arms": reports,
+      } : Json).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "union does not double count overlapped work" {
+  assert_eq(union_ns([(0L, 5L), (1L, 3L), (4L, 8L), (10L, 12L)]), 10L)
+}

@@ -22,9 +22,31 @@
 #ifndef LF_SWAP_LOG_DIRECTORY
 #error "A unique experiment log directory is required"
 #endif
+#ifdef LF_ATTENTION_FACTORIAL
+// One compiled shim for all arms avoids code-generation differences. Read the
+// selected symlink only once during diagnostic startup, never on a token step.
+static int factorial_mask=0,factorial_verify=0;
+#undef LF_SWAP_MASK
+#undef LF_SWAP_VERIFY
+#define LF_SWAP_MASK factorial_mask
+#define LF_SWAP_VERIFY factorial_verify
+#endif
 static FILE* diagnostic_log=nullptr;
 static void open_log() {
   if(diagnostic_log) return;
+#ifdef LF_ATTENTION_FACTORIAL
+  char selected[4096];
+  ssize_t bytes=readlink(LF_FACTORIAL_ROOT "/active-swap.so",selected,sizeof(selected)-1);
+  if(bytes<=0 || bytes>=ssize_t(sizeof(selected)-1)) std::abort();
+  selected[bytes]=0;
+  const char* arm=std::strrchr(selected,'/');if(!arm) std::abort();++arm;
+  if(!std::strcmp(arm,"control.so")) factorial_mask=0;
+  else if(!std::strcmp(arm,"output.so")) factorial_mask=4;
+  else if(!std::strcmp(arm,"down.so")) factorial_mask=3;
+  else if(!std::strcmp(arm,"both.so")) factorial_mask=7;
+  else if(!std::strcmp(arm,"verify.so")) {factorial_mask=7;factorial_verify=1;}
+  else std::abort();
+#endif
   char path[4096];
   int n=std::snprintf(path,sizeof(path),"%s/worker-%ld.log",LF_SWAP_LOG_DIRECTORY,long(getpid()));
   if(n<0 || size_t(n)>=sizeof(path)) std::abort();
@@ -115,9 +137,16 @@ __global__ void compare_live(const int* counts,const __nv_bfloat16* a,
   if(different) atomicAdd(result+3,different);
 }
 
+#ifdef LF_ATTENTION_FACTORIAL
+#include "reference_attention_swap.cuh"
+#endif
+
 extern "C" CUresult lf_swap_get(CUfunction* out,CUmodule module,const char* name) {
   CUresult result=original_get(out,module,name);
   if(result!=CUDA_SUCCESS) return result;
+#ifdef LF_ATTENTION_FACTORIAL
+  attention_register(*out,name);
+#endif
   int role=std::strcmp(name,"lunaflux_luna_dense_projection_bf16_release_v1")==0?1:
     std::strcmp(name,"lunaflux_luna_gated_mlp_bf16_release_v1_down")==0?2:0;
   if(role) {
@@ -131,6 +160,9 @@ extern "C" CUresult lf_swap_get(CUfunction* out,CUmodule module,const char* name
 
 extern "C" CUresult lf_swap_launch(CUfunction f,unsigned gx,unsigned gy,unsigned gz,
     unsigned bx,unsigned by,unsigned bz,unsigned shared,CUstream stream,void** args,void** extra) {
+#ifdef LF_ATTENTION_FACTORIAL
+  if(attention_intercept(f,stream,args,extra)) return CUDA_SUCCESS;
+#endif
   int role=0;
   for(auto& e:state.entries) if(e.function==f) {
     role=e.role;
@@ -166,6 +198,9 @@ extern "C" CUresult lf_swap_launch(CUfunction f,unsigned gx,unsigned gy,unsigned
 }
 
 extern "C" CUresult lf_swap_destroy(CUcontext context) {
+#ifdef LF_ATTENTION_FACTORIAL
+  attention_release(context);
+#endif
   if(state.context==context) {
     CHECK(cuCtxSetCurrent(context)); CHECK(cudaDeviceSynchronize());
     unsigned long long checks[4]={};

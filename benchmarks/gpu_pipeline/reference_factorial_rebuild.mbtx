@@ -1,0 +1,90 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, version] &&
+    (version == "v2" || version == "v3" || version == "v4") &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-factorial-20261008.") else {
+    fail("ROOT")
+  }
+  let original = @fs.read_file(root + "/reference_projection_swap.cu").text()
+  guard original.split("#include \"reference_attention_swap.cuh\"").to_array()
+    is [a, b] else {
+    fail("include seam")
+  }
+  let source = root + "/reference_projection_swap." + version + ".cu"
+  @fs.write_file(
+    source,
+    a.to_owned() +
+    "#include \"reference_attention_swap." +
+    version +
+    ".cuh\"" +
+    b.to_owned(),
+    create_mode=CreateNew,
+  )
+  let args = [
+    "-std=c++17",
+    "-O3",
+    "-arch=sm_121",
+    "--expt-relaxed-constexpr",
+    "--expt-extended-lambda",
+    "-DNDEBUG",
+    "-DLF_ATTENTION_FACTORIAL=1",
+    "-DLF_FACTORIAL_ROOT=\"" + root + "\"",
+    "-DLF_SWAP_LOG_DIRECTORY=\"" + root + "/active-log-directory\"",
+    "-I" + root + "/adapted",
+    "-I" + root + "/cutlass",
+    "--shared",
+    "-Xcompiler=-fPIC",
+    source,
+    "-lcuda",
+    "-lcublas",
+    "-Xlinker=-rpath",
+    "-Xlinker=/usr/local/cuda-13.0/lib64",
+    "-o",
+    root + "/factorial-" + version + ".so",
+  ]
+  @fs.write_file(
+    root + "/rebuild-" + version + ".command.json",
+    Json(args).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd("/usr/local/cuda-13.0/bin/nvcc", args).output(
+    max_output_bytes=33554432,
+  )
+  @fs.write_file(
+    root + "/rebuild-" + version + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/rebuild-" + version + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  for arm in ["control", "output", "down", "both", "verify"] {
+    assert_false(@fs.exists(root + "/" + arm + ".before-" + version + ".so"))
+    @shell.Cmd("mv", [
+      root + "/" + arm + ".so",
+      root + "/" + arm + ".before-" + version + ".so",
+    ]).run()
+    @shell.Cmd("ln", [
+      root + "/factorial-" + version + ".so",
+      root + "/" + arm + ".so",
+    ]).run()
+  }
+  println("rebuilt=decode-split-hooks preserved_initial=1")
+}
