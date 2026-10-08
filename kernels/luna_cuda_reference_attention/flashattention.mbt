@@ -5,13 +5,17 @@ fn flashattention_source(plan : ReferenceAttentionPlan) -> String {
   let (heads, kv_heads, dimension, page) = plan.abi.shape()
   let (width, stride, _) = plan.abi.layout()
   let (rows, tokens, _) = plan.abi.limits()
-  let prefill = plan.backend == FlashAttentionPrefill
+  let prefill = plan.backend != FlashAttentionDecode
+  let mixed = plan.backend == FlashAttentionMixed
   let query_tile = 64
   let group = heads / kv_heads
   let source =
     $|#include <optional>
     $|#include "flash.h"
     $|#include "flash_fwd_kernel.h"
+    $|#ifndef LUNAFLUX_FLASH_CSR_TAIL_SAFE_V1
+    $|#error "The pinned FlashAttention headers must use the bounded CSR tail resolver"
+    $|#endif
     $|using LfReferenceTraits = Flash_fwd_kernel_traits<128,64,128,4,false,false,cutlass::bfloat16_t>;
     $|static_assert(LfReferenceTraits::kSmemSize == 81920);
     $|extern "C" __global__ void \{plan.symbol}(
@@ -20,13 +24,15 @@ fn flashattention_source(plan : ReferenceAttentionPlan) -> String {
     $| const __nv_bfloat16 *input, __nv_bfloat16 *output,
     $| const __nv_bfloat16 *keys, const __nv_bfloat16 *values) {
     $| if (blockDim.x != 128 || blockDim.y != 1 || blockDim.z != 1 ||
+    $|     counts[0] < 0 || counts[0] > counts[2] ||
     $|     counts[2] <= 0 || counts[2] > \{rows} || counts[3] <= 0 || counts[3] > \{tokens}) return;
+    $| \{if mixed { "if (counts[0] == 0) return;" } else { "" }}
     $| int tile = blockIdx.x;
     $| for (;;) {
     $|   int row = 0, local = tile;
     $|   for (; row < counts[2]; ++row) {
     $|     const int n = offsets[row+1]-offsets[row];
-    $|     const bool eligible = \{if prefill { "row < counts[0]" } else { "row >= counts[0] && n == 1" }};
+    $|     const bool eligible = \{if mixed { "true" } else if prefill { "row < counts[0]" } else { "row >= counts[0] && n == 1" }};
     $|     const int tiles = eligible ? (n+\{query_tile - 1})/\{query_tile} : 0;
     $|     if (local < tiles) break;
     $|     local -= tiles;

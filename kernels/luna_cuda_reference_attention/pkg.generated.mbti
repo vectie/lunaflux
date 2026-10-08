@@ -18,6 +18,7 @@ pub(all) suberror ReferenceAttentionError {
 // Types and methods
 pub(all) enum ReferenceAttentionBackend {
   FlashAttentionPrefill
+  FlashAttentionMixed
   FlashAttentionDecode
   FlashInferDecode
 } derive(Eq, @debug.Debug)

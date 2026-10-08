@@ -31,6 +31,10 @@ async fn main {
     "242cbc331bd09d6ccfd023aae2d31461484b2a4801dcf66733b4151f9018622a" else {
     fail("FlashAttention source differs from measured pinned image")
   }
+  guard hash(root + "/flash/utils.h") ==
+    "f7309f85d0aa7fcf726ff1d24527effe0aec8e0145d8aa86d82e51554ce6485b" else {
+    fail("FlashAttention CSR resolver differs from the pinned source")
+  }
   @shell.Cmd("cp", ["-a", root + "/flash", root + "/adapted"]).run()
   let kernel = @fs.read_file(kernel_path).text()
   // Retain only the unchanged inference split-KV function and its includes.
@@ -78,6 +82,19 @@ async fn main {
   )
   let params = once(params, "    at::PhiloxCudaState philox_args;", "")
   @fs.write_file(root + "/adapted/flash.h", params)
+  // The upstream host ABI pads block tables; LunaFlux owns exact CSR slices.
+  // Rounding the last *inactive* owner upward can read one page past a slice.
+  // Round down to the last owner with a valid first element. Valid owners and
+  // load predicates are unchanged. This removes the per-layer GPU adapter.
+  let utils = once(
+    @fs.read_file(root + "/flash/utils.h").text(),
+    "ceil_div(final_row_offset, kGmemRowsPerThread) * kGmemRowsPerThread;",
+    "(final_row_offset / kGmemRowsPerThread) * kGmemRowsPerThread;",
+  )
+  @fs.write_file(
+    root + "/adapted/utils.h",
+    "#define LUNAFLUX_FLASH_CSR_TAIL_SAFE_V1 1\n" + utils,
+  )
   @fs.write_file(
     root + "/REFERENCE_SOURCE.json",
     Json({
@@ -85,7 +102,8 @@ async fn main {
       "upstream_kernel_sha256": hash(kernel_path),
       "adapted_kernel_sha256": hash(root + "/adapted/flash_fwd_kernel.h"),
       "adapted_parameters_sha256": hash(root + "/adapted/flash.h"),
-      "scope": "inference-only split-KV; no dropout/ATen; nullable LSE stores",
+      "adapted_utils_sha256": hash(root + "/adapted/utils.h"),
+      "scope": "inference-only split-KV; no dropout/ATen; nullable LSE; bounded inactive CSR tail owner",
     }).stringify(indent=2),
     create_mode=CreateNew,
   )

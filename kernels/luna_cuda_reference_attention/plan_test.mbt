@@ -1,12 +1,15 @@
 ///|
-fn fixture(metadata? : Bool = false) -> @abi.CudaPagedAttentionTileAbi raise {
+fn fixture(
+  metadata? : Bool = false,
+  page? : Int = 8,
+) -> @abi.CudaPagedAttentionTileAbi raise {
   @abi.CudaPagedAttentionTileAbi::new(
     query_heads=16,
     key_value_heads=8,
     head_dimension=128,
-    tokens_per_page=8,
+    tokens_per_page=page,
     input_row_width=4096,
-    page_stride_values=8192L,
+    page_stride_values=page.to_int64() * 1024L,
     physical_page_capacity=9216L,
     maximum_query_rows=32,
     maximum_query_tokens=2048,
@@ -16,9 +19,46 @@ fn fixture(metadata? : Bool = false) -> @abi.CudaPagedAttentionTileAbi raise {
 }
 
 ///|
+test "reference CSR specialization requires complete eight-row copy segments" {
+  for page in [1, 2, 4] {
+    try
+      @luna_cuda_reference_attention.ReferenceAttentionPlan::new(
+        backend=FlashAttentionPrefill,
+        abi=fixture(page~),
+      )
+    catch {
+      @luna_cuda_reference_attention.UnsupportedReferenceAttention => ()
+      _ => fail("wrong page failure")
+    } noraise {
+      _ => fail("incompatible page admitted")
+    }
+  }
+  for page in [8, 16, 32, 64, 128] {
+    let plan = @luna_cuda_reference_attention.ReferenceAttentionPlan::new(
+      backend=FlashAttentionPrefill,
+      abi=fixture(page~),
+    )
+    assert_true(
+      @utf8.decode(plan.source()).contains("LUNAFLUX_FLASH_CSR_TAIL_SAFE_V1"),
+    )
+    assert_eq(plan.launch(), (64, 16, 1, 128, 1, 1, 81920))
+  }
+}
+
+///|
+test "FlashAttention copy ownership does not constrain the independent FlashInfer layout" {
+  let plan = @luna_cuda_reference_attention.ReferenceAttentionPlan::new(
+    backend=FlashInferDecode,
+    abi=fixture(page=4),
+  )
+  assert_eq(plan.symbol(), "lunaflux_attention_decode_flashinfer_f32_exp2_v1")
+}
+
+///|
 test "reference lowerings retain distinct numerical and launch contracts" {
   let backends : Array[@luna_cuda_reference_attention.ReferenceAttentionBackend] = [
     FlashAttentionPrefill,
+    FlashAttentionMixed,
     FlashAttentionDecode,
     FlashInferDecode,
   ]
@@ -50,6 +90,23 @@ test "query metadata ABI cannot be silently reinterpreted" {
   } noraise {
     _ => fail("incompatible query metadata admitted")
   }
+}
+
+///|
+test "mixed reference owns all active rows only when prefill is present" {
+  let plan = @luna_cuda_reference_attention.ReferenceAttentionPlan::new(
+    backend=FlashAttentionMixed,
+    abi=fixture(),
+  )
+  let source = @utf8.decode(plan.source())
+  assert_true(source.contains("if (counts[0] == 0) return;"))
+  assert_true(source.contains("const bool eligible = true;"))
+  assert_true(source.contains("p.is_causal=true"))
+  assert_eq(
+    plan.symbol(),
+    "lunaflux_attention_mixed_flashattention_bf16_exp2_v1",
+  )
+  assert_eq(plan.launch(), (64, 16, 1, 128, 1, 1, 81920))
 }
 
 ///|

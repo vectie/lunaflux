@@ -138,6 +138,12 @@ async fn run_qwen3_candidate_export(
   let prefill_root = arguments.absolute_new_output +
     "/reusable-qwen-prefill-attention"
   let selected_prefill = qwen_fused.attention_prefill_frontier.selected()
+  publish_reference_prefill_candidate(
+    arguments.absolute_new_output,
+    set,
+    qwen_fused.first_operation + 3,
+    selected_prefill.source().abi(),
+  )
   write_new_candidate_pair(
     prefill_root,
     selected_prefill.source().bytes(),

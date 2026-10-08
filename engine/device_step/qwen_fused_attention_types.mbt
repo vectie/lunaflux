@@ -7,6 +7,7 @@
 /// Prefill and decode remain separate values even for legacy bundles that map
 /// both phases to the same mixed kernel.
 priv struct ApprovedQwenPrefillVariant {
+  mixed_row_coverage : @luna_attention_strategy.AttentionMixedRowCoverage
   query_metadata : Bool
   module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   module_bytes : Bytes
@@ -61,6 +62,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv readonly_launch : @launch_contract.AotLaunchDimensions
   priv readonly_query_tile_rows : Int
   priv readonly_query_metadata : Bool
+  priv mixed_row_coverage : @luna_attention_strategy.AttentionMixedRowCoverage
   priv decode_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv decode_module_bytes : Bytes
   priv decode_symbol : String
@@ -113,6 +115,7 @@ fn ApprovedQwenFusedAttentionSpan::same_runtime_modules(
   self.readonly_launch == other.readonly_launch &&
   self.readonly_query_tile_rows == other.readonly_query_tile_rows &&
   self.readonly_query_metadata == other.readonly_query_metadata &&
+  self.mixed_row_coverage == other.mixed_row_coverage &&
   self.decode_module_digest == other.decode_module_digest &&
   self.decode_symbol == other.decode_symbol &&
   self.decode_launch == other.decode_launch &&

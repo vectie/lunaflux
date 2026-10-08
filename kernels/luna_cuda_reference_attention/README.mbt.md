@@ -33,10 +33,30 @@ first reference experiment is BF16 to match the existing serving comparison.
 
 ## Current scope
 
-The wrappers specialize head dimension 128, GQA ratios 1/2/4/8, the legacy
-ten-pointer metadata ABI, and canonical contiguous page stride. Unsupported
-shapes are explicit errors, not silent compiler-kernel fallbacks. New source
-rendering is not yet a serving admission or a performance result.
+The wrappers specialize head dimension 128, GQA ratios 1/2/4/8, the raw-CSR
+ten-pointer metadata ABI, and canonical contiguous page
+stride. Unsupported shapes are explicit errors, not silent compiler-kernel
+fallbacks. The bundle exporter has an explicit
+`--prefill-reference-flashattention` AOT opt-in. This is not a global default
+or a performance promise.
+
+FlashAttention's bounded CSR copy requires page size divisible by eight; this
+constraint is not imposed on the independent FlashInfer decode layout.
+
+`FlashAttentionMixed` owns every active output row when at least one row is
+prefill; it writes nothing in a decode-only invocation. The admitted module
+supplies a backend-neutral `AttentionMixedRowCoverage` value to executor
+planning. A mixed graph therefore either uses one all-row writer, or a
+prefill-only writer plus a disjoint decode companion, never both. Pure decode
+continues to use its independently prepared implementation. The separately
+named prefill-only wrapper remains available for that narrower domain.
+
+The numerical permission explicitly names BF16 probabilities and base-two
+exponentials; it cannot be admitted as the old F32 exponential-only rewrite.
+Offline decode measurements must bind the new bundle scope. Reference mode
+admits only baseline/ordinary/split-decode route alternatives, not the old
+partitioned-prefill companions. No tuning, filesystem checks, allocations or
+backend discovery are added to the token step.
 
 The current BF16 wrappers have passed independent scalar correctness,
 determinism, read-only/inactive-output checks and GPU memcheck/leak,
@@ -46,5 +66,12 @@ integration or support for a different dtype. See
 
 `benchmarks/gpu_pipeline/prepare_reference_attention.mbtx` prepares a new
 inference-only copy of the pinned upstream headers. It removes unused host
-framework RNG dependencies and omits nullable LSE stores; it does not change
-the core attention arithmetic. Original dependency sources remain untouched.
+framework RNG dependencies and omits nullable LSE stores. Its bounded tail
+resolver also prevents speculative final-segment addressing from reading past
+an exact-size CSR page table; padded page tables are not assumed. These changes
+do not change the core attention arithmetic. Original dependency sources
+remain untouched. Header hashes and the adaptation marker are checked before
+compilation.
+
+See [the serving integration experiment](../../docs/REFERENCE_ATTENTION_INTEGRATION_2026-10-08.md)
+for the initial regression, the selected-trace diagnosis and the retest.

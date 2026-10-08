@@ -1,7 +1,8 @@
 ///|
-/// The elementary exponential alternative grants no dtype conversion or
-/// reassociation. This compatibility check is separate from its digest-bound
-/// startup permission and from independent whole-model accuracy qualification.
+/// Both named prefill alternatives require BF16 external operands and an F32
+/// accumulator. The reference law additionally names internal BF16 probability
+/// materialization; it is not the elementary exp2 law. This external-contract
+/// check grants neither a new operand dtype nor whole-model accuracy approval.
 fn prefill_exponential_execution_compatible(
   execution : @numeric_contract.OperationExecutionContract,
 ) -> Bool {
@@ -26,7 +27,7 @@ fn admit_prefill_exponential_model_contract(
   let approximate = runtime
     .modules()
     .any(module_ => {
-      module_.prefill_exponential_law() == ApproximateBaseTwoExponential
+      module_.prefill_exponential_law() != StrictNaturalExponential
     })
   if !approximate {
     return

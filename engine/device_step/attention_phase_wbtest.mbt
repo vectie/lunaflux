@@ -111,6 +111,25 @@ test "mixed phase sequence retains split order and executes downstream once" {
 }
 
 ///|
+test "all-row mixed attention has one writer and no duplicate decode effect" {
+  let steps : ReadOnlyArray[String] = ["qkv", "kv_write", "attention", "output"]
+  assert_eq(
+    specialize_attention_phase_list(steps, step => {
+      if step == "attention" {
+        Some(("all_active_attention", []))
+      } else {
+        None
+      }
+    }),
+    Some(
+      ReadOnlyArray::from_array([
+        "qkv", "kv_write", "all_active_attention", "output",
+      ]),
+    ),
+  )
+}
+
+///|
 fn attention_phase_ragged_fixture() -> @worker_protocol.SubmittedSchedulePlan raise {
   let allocator = step_allocator()
   let buffer = @worker_protocol.SchedulePlanBuffer::new(step_protocol_limits())

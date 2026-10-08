@@ -9,17 +9,35 @@ fn prepare_prefill_numerical_choice(
   @luna_fused_artifact_admission.PrefillExponentialLaw,
   @luna_fused_artifact_admission.PrefillExponentialLaw,
 ) raise Qwen3FusedRuntimeBundleExportError {
+  let reference_flags = raw_args.filter(value => {
+    value == "--prefill-reference-flashattention"
+  })
   let flags = raw_args.filter(value => value == "--prefill-approximate-exp2")
   let wide_flags = raw_args.filter(value => {
     value == "--prefill-wide-approximate-exp2"
   })
   guard flags.length() <= 1 else { raise InvalidArguments }
   guard wide_flags.length() <= 1 else { raise InvalidArguments }
+  guard reference_flags.length() <= 1 else { raise InvalidArguments }
+  if !reference_flags.is_empty() &&
+    (!flags.is_empty() || !wide_flags.is_empty()) {
+    raise InvalidArguments
+  }
   let stripped = raw_args.filter(value => {
+    value != "--prefill-reference-flashattention" &&
     value != "--prefill-approximate-exp2" &&
     value != "--prefill-wide-approximate-exp2"
   })
   let (args, choice) = prepare_ingress_choice(stripped[:])
+  if !reference_flags.is_empty() {
+    validate_reference_prefill_choice(args, choice)
+    return (
+      args,
+      choice,
+      ReferenceBf16ProbabilityBaseTwo,
+      ReferenceBf16ProbabilityBaseTwo,
+    )
+  }
   let law : @luna_fused_artifact_admission.PrefillExponentialLaw = if flags.is_empty() {
     StrictNaturalExponential
   } else {
@@ -52,5 +70,37 @@ fn prefill_function_symbol(
     StrictNaturalExponential => "lunaflux_attention_prefill_tile_compiler_v1"
     ApproximateBaseTwoExponential =>
       "lunaflux_attention_prefill_tile_compiler_exp2_v1"
+    ReferenceBf16ProbabilityBaseTwo =>
+      "lunaflux_attention_mixed_flashattention_bf16_exp2_v1"
+  }
+}
+
+///|
+/// The reference consumes raw CSR sequence offsets, not the compiler tile
+/// worklist. Its two identical slots deliberately create only one executor.
+fn validate_reference_prefill_choice(
+  args : RuntimeBundleArguments,
+  choice : @luna_fusion_strategy.FusionSchedule,
+) -> Unit raise Qwen3FusedRuntimeBundleExportError {
+  if choice == Unfused ||
+    args.query_metadata ||
+    args.prefill_query_tile_rows != 64 ||
+    args.wide_query_tile_rows != 64 ||
+    args.attention_prefill_wide_symbol !=
+    prefill_function_symbol(ReferenceBf16ProbabilityBaseTwo) ||
+    args.attention_prefill.module_path !=
+    args.attention_prefill_wide.module_path {
+    raise InvalidArguments
+  }
+  for launch in [args.attention_prefill, args.attention_prefill_wide] {
+    if launch.grid_z != 1 ||
+      launch.block_x != 128 ||
+      launch.shared_memory_bytes != 81920 {
+      raise InvalidArguments
+    }
+  }
+  if args.attention_prefill.grid_x != args.attention_prefill_wide.grid_x ||
+    args.attention_prefill.grid_y != args.attention_prefill_wide.grid_y {
+    raise InvalidArguments
   }
 }

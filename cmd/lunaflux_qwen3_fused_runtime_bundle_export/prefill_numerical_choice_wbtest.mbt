@@ -1,4 +1,60 @@
 ///|
+fn reference_prefill_test_args() -> Array[String] {
+  let args = runtime_bundle_test_arguments("5")
+  // Preserve the positional ABI while replacing both equivalent prefill slots.
+  args[18] = "64"
+  args[21] = "128"
+  args[22] = "81920"
+  args[25] = "64"
+  args[28] = "128"
+  args[29] = "81920"
+  args[30] = "lunaflux_attention_mixed_flashattention_bf16_exp2_v1"
+  args[31] = args[23]
+  args[67] = "64"
+  args.append([
+    "--ingress-evaluate", "full", "--prefill-reference-flashattention",
+  ])
+  args
+}
+
+///|
+test "reference prefill requires explicit numeric law and raw matching phase slots" {
+  let args = reference_prefill_test_args()
+  let (_, _, law, wide) = prepare_prefill_numerical_choice(args)
+  assert_eq(law, @luna_fused_artifact_admission.ReferenceBf16ProbabilityBaseTwo)
+  assert_eq(wide, law)
+  for
+    extra in [
+      "--prefill-approximate-exp2", "--prefill-reference-flashattention", "--query-metadata-v1",
+    ] {
+    let bad = reference_prefill_test_args()
+    bad.push(extra)
+    try prepare_prefill_numerical_choice(bad) catch {
+      InvalidArguments => ()
+      _ => fail("wrong reference option failure")
+    } noraise {
+      _ => fail("incompatible reference option accepted")
+    }
+  }
+  for
+    (index, value) in [
+      (21, "256"),
+      (29, "81919"),
+      (31, "/tmp/other.cubin"),
+      (67, "32"),
+    ] {
+    let bad = reference_prefill_test_args()
+    bad[index] = value
+    try prepare_prefill_numerical_choice(bad) catch {
+      InvalidArguments => ()
+      _ => fail("wrong reference geometry failure")
+    } noraise {
+      _ => fail("incompatible reference geometry accepted")
+    }
+  }
+}
+
+///|
 test "bundle exp2 opt-in is distinct from ingress and decode choices" {
   let strict = runtime_bundle_test_arguments("5")
   let (_, _, strict_law, strict_wide_law) = prepare_prefill_numerical_choice(

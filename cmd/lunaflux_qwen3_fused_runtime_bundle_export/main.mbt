@@ -529,8 +529,8 @@ async fn run(
       operation_count=1,
       function_symbol=prefill_function_symbol(prefill_exponential_law),
       prefill_exponential_law~,
-      allow_approximate_prefill_exponential=prefill_exponential_law ==
-        ApproximateBaseTwoExponential,
+      allow_approximate_prefill_exponential=prefill_exponential_law !=
+        StrictNaturalExponential,
       launch=launch_dimensions(args.attention_prefill),
       module_bytes=attention_prefill_bytes,
       query_tile_rows=args.prefill_query_tile_rows,
@@ -546,8 +546,8 @@ async fn run(
       operation_count=1,
       function_symbol=args.attention_prefill_wide_symbol,
       prefill_exponential_law=wide_prefill_exponential_law,
-      allow_approximate_prefill_exponential=wide_prefill_exponential_law ==
-        ApproximateBaseTwoExponential,
+      allow_approximate_prefill_exponential=wide_prefill_exponential_law !=
+        StrictNaturalExponential,
       launch=launch_dimensions(args.attention_prefill_wide),
       module_bytes=attention_prefill_wide_bytes,
       query_tile_rows=args.wide_query_tile_rows,
@@ -556,60 +556,64 @@ async fn run(
       _ => raise InvalidRuntime
     },
   )
-  modules.push(
-    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=QwenPagedAttentionPrefillPartitionedPartialProductionV4,
-      first_operation=args.attention_prefill_partial.first_operation,
-      operation_count=1,
-      function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
-      launch=launch_dimensions(args.attention_prefill_partial),
-      module_bytes=attention_prefill_partial_bytes,
-      query_tile_rows=args.partitioned_query_tile_rows,
-      query_metadata_version=if args.query_metadata { 1 } else { 0 },
-    ) catch {
-      _ => raise InvalidRuntime
-    },
-  )
-  modules.push(
-    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=QwenPagedAttentionPrefillPartitionedMergeProductionV4,
-      first_operation=args.attention_prefill_merge.first_operation,
-      operation_count=1,
-      function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
-      launch=launch_dimensions(args.attention_prefill_merge),
-      module_bytes=attention_prefill_merge_bytes,
-      query_tile_rows=args.partitioned_query_tile_rows,
-    ) catch {
-      _ => raise InvalidRuntime
-    },
-  )
-  modules.push(
-    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=QwenPagedAttentionPrefillPartitioned8PartialProductionV6,
-      first_operation=args.attention_prefill_partitioned8_partial.first_operation,
-      operation_count=1,
-      function_symbol="lunaflux_attention_prefill_partitioned_partial_v1_p8",
-      launch=launch_dimensions(args.attention_prefill_partitioned8_partial),
-      module_bytes=attention_prefill_partitioned8_partial_bytes,
-      query_tile_rows=args.deep_partitioned_query_tile_rows,
-      query_metadata_version=if args.query_metadata { 1 } else { 0 },
-    ) catch {
-      _ => raise InvalidRuntime
-    },
-  )
-  modules.push(
-    @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
-      abi=QwenPagedAttentionPrefillPartitioned8MergeProductionV6,
-      first_operation=args.attention_prefill_partitioned8_merge.first_operation,
-      operation_count=1,
-      function_symbol="lunaflux_attention_prefill_partitioned_merge_v1_p8",
-      launch=launch_dimensions(args.attention_prefill_partitioned8_merge),
-      module_bytes=attention_prefill_partitioned8_merge_bytes,
-      query_tile_rows=args.deep_partitioned_query_tile_rows,
-    ) catch {
-      _ => raise InvalidRuntime
-    },
-  )
+  // A different numerical algorithm cannot inherit old partitioned prefill
+  // companions. Fresh decode observations may bind the new exact bundle scope.
+  if prefill_exponential_law != ReferenceBf16ProbabilityBaseTwo {
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitionedPartialProductionV4,
+        first_operation=args.attention_prefill_partial.first_operation,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
+        launch=launch_dimensions(args.attention_prefill_partial),
+        module_bytes=attention_prefill_partial_bytes,
+        query_tile_rows=args.partitioned_query_tile_rows,
+        query_metadata_version=if args.query_metadata { 1 } else { 0 },
+      ) catch {
+        _ => raise InvalidRuntime
+      },
+    )
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitionedMergeProductionV4,
+        first_operation=args.attention_prefill_merge.first_operation,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
+        launch=launch_dimensions(args.attention_prefill_merge),
+        module_bytes=attention_prefill_merge_bytes,
+        query_tile_rows=args.partitioned_query_tile_rows,
+      ) catch {
+        _ => raise InvalidRuntime
+      },
+    )
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitioned8PartialProductionV6,
+        first_operation=args.attention_prefill_partitioned8_partial.first_operation,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_partial_v1_p8",
+        launch=launch_dimensions(args.attention_prefill_partitioned8_partial),
+        module_bytes=attention_prefill_partitioned8_partial_bytes,
+        query_tile_rows=args.deep_partitioned_query_tile_rows,
+        query_metadata_version=if args.query_metadata { 1 } else { 0 },
+      ) catch {
+        _ => raise InvalidRuntime
+      },
+    )
+    modules.push(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=QwenPagedAttentionPrefillPartitioned8MergeProductionV6,
+        first_operation=args.attention_prefill_partitioned8_merge.first_operation,
+        operation_count=1,
+        function_symbol="lunaflux_attention_prefill_partitioned_merge_v1_p8",
+        launch=launch_dimensions(args.attention_prefill_partitioned8_merge),
+        module_bytes=attention_prefill_partitioned8_merge_bytes,
+        query_tile_rows=args.deep_partitioned_query_tile_rows,
+      ) catch {
+        _ => raise InvalidRuntime
+      },
+    )
+  }
   modules.push(
     @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
       abi=if args.decode_execution is Some(_) {
@@ -672,7 +676,11 @@ async fn run(
       scope=route_scope,
       table,
       baseline=1,
-      [1, 2, 3, 4, 5, 6, 7],
+      if prefill_exponential_law == ReferenceBf16ProbabilityBaseTwo {
+        [1, 3, 4]
+      } else {
+        [1, 2, 3, 4, 5, 6, 7]
+      },
     ) catch {
       _ => raise InvalidRuntime
     }

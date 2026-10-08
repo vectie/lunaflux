@@ -15,6 +15,7 @@ import {
   "vectie/lunaflux/kernels/luna_cuda_attention_autotune",
   "vectie/lunaflux/kernels/luna_cuda_attention_tile_aot",
   "vectie/lunaflux/kernels/luna_cuda_attention_tile_source",
+  "vectie/lunaflux/kernels/luna_cuda_reference_attention",
   "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
   "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
   "vectie/lunaflux/kernels/luna_cuda_paged_attention_readonly_aot",

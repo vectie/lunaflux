@@ -146,6 +146,11 @@ pub struct AttentionMatrixShape {
 pub fn AttentionMatrixShape::dimensions(Self) -> (Int, Int, Int)
 pub fn AttentionMatrixShape::new(rows~ : Int, columns~ : Int, reduction~ : Int) -> Self raise AttentionStrategyError
 
+pub(all) enum AttentionMixedRowCoverage {
+  PrefillRowsOnly
+  AllActiveRows
+} derive(Eq, @debug.Debug)
+
 pub(all) enum AttentionNumericType {
   AttentionBFloat16
   AttentionFloat16

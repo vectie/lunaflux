@@ -2,6 +2,7 @@
 /// CUDA-only terminal choice. Model and scheduling plans do not name vendors.
 pub(all) enum ReferenceAttentionBackend {
   FlashAttentionPrefill
+  FlashAttentionMixed
   FlashAttentionDecode
   FlashInferDecode
 } derive(Debug, Eq)
@@ -47,6 +48,7 @@ pub fn ReferenceAttentionPlan::new(
   let (heads, kv_heads, dimension, page) = abi.shape()
   let (width, stride, _) = abi.layout()
   if dimension != 128 ||
+    (backend != FlashInferDecode && (page < 8 || page % 8 != 0)) ||
     !((heads / kv_heads) is (1 | 2 | 4 | 8)) ||
     kv_heads.to_int64() >
     9223372036854775807L / dimension.to_int64() / page.to_int64() ||
@@ -60,6 +62,8 @@ pub fn ReferenceAttentionPlan::new(
   let symbol = match backend {
     FlashAttentionPrefill =>
       "lunaflux_attention_prefill_flashattention_bf16_exp2_v1"
+    FlashAttentionMixed =>
+      "lunaflux_attention_mixed_flashattention_bf16_exp2_v1"
     FlashAttentionDecode =>
       "lunaflux_attention_decode_flashattention_bf16_exp2_v1"
     FlashInferDecode => "lunaflux_attention_decode_flashinfer_f32_exp2_v1"
@@ -89,7 +93,7 @@ pub fn ReferenceAttentionPlan::numeric_law(
   self : ReferenceAttentionPlan,
 ) -> String {
   match self.backend {
-    FlashAttentionPrefill | FlashAttentionDecode =>
+    FlashAttentionPrefill | FlashAttentionMixed | FlashAttentionDecode =>
       "reference-flashattention-bf16-probability-exp2-v1"
     FlashInferDecode => "reference-flashinfer-f32-probability-exp2-v1"
   }
@@ -104,7 +108,7 @@ pub fn ReferenceAttentionPlan::launch(
   let (heads, kv_heads, _, _) = self.abi.shape()
   let (rows, tokens, _) = self.abi.limits()
   match self.backend {
-    FlashAttentionPrefill =>
+    FlashAttentionPrefill | FlashAttentionMixed =>
       (
         rows +
         (tokens - rows) / 64 +
@@ -130,7 +134,7 @@ pub fn ReferenceAttentionPlan::launch(
 pub fn ReferenceAttentionPlan::source(self : ReferenceAttentionPlan) -> Bytes {
   @utf8.encode(
     match self.backend {
-      FlashAttentionPrefill | FlashAttentionDecode =>
+      FlashAttentionPrefill | FlashAttentionMixed | FlashAttentionDecode =>
         flashattention_source(self)
       FlashInferDecode => flashinfer_source(self)
     },

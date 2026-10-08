@@ -326,7 +326,7 @@ pub fn export_reusable_fused_runtime_bundle(
   let out = StringBuilder()
   let row_metadata = modules.any(m => m.row_variant is Some(_))
   let allow_approximate_prefill = modules.any(m => {
-    m.prefill_exponential_law == ApproximateBaseTwoExponential
+    m.prefill_exponential_law != StrictNaturalExponential
   })
   let prefill_metadata = row_metadata || allow_approximate_prefill
   let decode_metadata = prefill_metadata ||

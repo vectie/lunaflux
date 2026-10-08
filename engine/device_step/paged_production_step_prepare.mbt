@@ -177,13 +177,17 @@ fn prepare_paged_production_steps(
               activation,
               kv,
               functions.sidecar,
-              prefill_only=true,
+              prefill_only=span.mixed_row_coverage == PrefillRowsOnly,
               query_metadata=span.readonly_query_metadata,
             ).1
           register_attention_phase_replacement(
             resources,
             narrowed,
-            Some(decode),
+            if span.mixed_row_coverage == PrefillRowsOnly {
+              Some(decode)
+            } else {
+              None
+            },
           )
           match (functions.wide_prefill_function, span.wide_query_prefill()) {
             (Some(function_index), Some(variant)) => {
@@ -198,13 +202,17 @@ fn prepare_paged_production_steps(
                   activation,
                   kv,
                   functions.sidecar,
-                  prefill_only=true,
+                  prefill_only=variant.mixed_row_coverage == PrefillRowsOnly,
                   query_metadata=variant.query_metadata,
                 ).1
               register_attention_phase_replacement(
                 resources,
                 narrowed_wide,
-                Some(decode),
+                if variant.mixed_row_coverage == PrefillRowsOnly {
+                  Some(decode)
+                } else {
+                  None
+                },
               )
             }
             _ => ()

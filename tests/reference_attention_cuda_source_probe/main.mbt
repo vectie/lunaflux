@@ -1,10 +1,11 @@
 ///|
 fn main raise {
   guard @env.args() is [_, backend] else {
-    fail("flash-prefill|flash-decode|infer-decode")
+    fail("flash-prefill|flash-mixed|flash-decode|infer-decode")
   }
   let backend : @reference.ReferenceAttentionBackend = match backend {
     "flash-prefill" => FlashAttentionPrefill
+    "flash-mixed" => FlashAttentionMixed
     "flash-decode" => FlashAttentionDecode
     "infer-decode" => FlashInferDecode
     _ => fail("backend")

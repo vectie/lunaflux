@@ -382,11 +382,33 @@ pub fn admit_reusable_qwen_fused_attention_spans(
   let maximum_tokens = blueprint.profile().max_query_tokens()
   let compiler_prefill_grid = maximum_rows +
     (maximum_tokens - maximum_rows + 15) / 16
+  let reference_prefill = readonly_module.prefill_exponential_law() ==
+    ReferenceBf16ProbabilityBaseTwo
+  let expected_readonly_grid = if reference_prefill {
+    maximum_rows + (maximum_tokens - maximum_rows + 63) / 64
+  } else {
+    compiler_prefill_grid
+  }
   guard plan.operations()[seed_qk_norm].shape()
     is QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, ..) &&
     kv_heads > 0 &&
     query_heads % kv_heads == 0 else {
     raise MismatchedFusedGroupedOperation(Launch)
+  }
+  if reference_prefill &&
+    (
+      head_dimension != 128 ||
+      !((query_heads / kv_heads) is (1 | 2 | 4 | 8)) ||
+      blueprint.layout().tokens_per_page() < 8 ||
+      blueprint.layout().tokens_per_page() % 8 != 0 ||
+      readonly_query_tile_rows != 64 ||
+      readonly_module.query_metadata_version() != 0 ||
+      readonly_launch.block_x() != 128 ||
+      readonly_launch.shared_memory_bytes() != 81920 ||
+      partitioned_modules is Some(_) ||
+      deep_partitioned_modules is Some(_)
+    ) {
+    raise MismatchedFusedGroupedOperation(KernelAbi)
   }
   let blockwise_decode = decode_module
     .kernel_abi()
@@ -478,6 +500,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
           raise MismatchedFusedGroupedOperation(Launch)
         }
         Some({
+          mixed_row_coverage: module_.mixed_row_coverage(),
           query_metadata: module_.query_metadata_version() == 1,
           module_digest: module_.module_digest(),
           module_bytes: module_.module_bytes(),
@@ -528,7 +551,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       PagedAttentionReadOnlyCompilerDecodeProductionV7 ||
       decode_module.kernel_abi().is_compiler_blockwise_decode()
     ) &&
-    readonly_launch.grid_x() == compiler_prefill_grid &&
+    readonly_launch.grid_x() == expected_readonly_grid &&
     readonly_launch.shared_memory_bytes() > 0 &&
     readonly_launch.shared_memory_bytes() <= 100000
   } else {
@@ -667,6 +690,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       readonly_launch: readonly_module.launch_dimensions(),
       readonly_query_tile_rows,
       readonly_query_metadata: readonly_module.query_metadata_version() == 1,
+      mixed_row_coverage: readonly_module.mixed_row_coverage(),
       decode_module_digest: decode_module.module_digest(),
       decode_module_bytes: decode_module.module_bytes(),
       decode_symbol: decode_module.function_symbol(),
