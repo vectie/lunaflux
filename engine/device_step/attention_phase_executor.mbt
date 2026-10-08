@@ -7,9 +7,15 @@ fn prepare_mixed_attention_executor(
   launches : ArrayView[@device.OrderedKernelLaunch],
   resources : PagedGraphResources,
   owner_index : Int,
+  projection_query_bound? : Int = 0,
 ) -> Unit raise DeviceStepError {
   if prepare_mixed_attention_variant(
-      context, steps, launches, resources, owner_index,
+      context,
+      steps,
+      launches,
+      resources,
+      owner_index,
+      projection_query_bound~,
     )
     is Some(mixed) {
     resources.ordered_executors[owner_index].mixed_owner_index = mixed
@@ -29,6 +35,7 @@ fn prepare_mixed_attention_variant(
   partitioned_decode? : Bool = false,
   capture_budget_reserved? : Bool = false,
   decode_row_bound? : Int? = None,
+  projection_query_bound? : Int = 0,
 ) -> Int? raise DeviceStepError {
   if steps.length() != launches.length() {
     raise InvalidExecutor(GraphBucket)
@@ -40,7 +47,9 @@ fn prepare_mixed_attention_variant(
   let owner = resources.ordered_executors[owner_index]
   let captured = owner.resource.execution_mode() == OrderedKernelCaptured
   let reservation = if captured && !capture_budget_reserved {
-    resources.effect_capture_budget.reserve(mixed.length())
+    paged_variant_capture_budget(resources, projection_query_bound).reserve(
+      mixed.length(),
+    )
   } else {
     None
   }
@@ -135,6 +144,7 @@ fn prepare_mixed_attention_variant(
     operation_ids,
     effect_only_owner_index: -1,
     mixed_owner_index: -1,
+    projection_owner_index: -1,
     open: true,
   })
   if captured && executor.execution_mode() != OrderedKernelCaptured {
@@ -145,9 +155,19 @@ fn prepare_mixed_attention_variant(
     return None
   }
   if reservation is Some(remaining) {
-    resources.effect_capture_budget = remaining
+    update_paged_variant_capture_budget(
+      resources, projection_query_bound, remaining,
+    )
   }
-  // A MixedGraph necessarily contains a producing decode row, so an
-  // output-free suffix variant can never be selected for this owner.
+  // A MixedGraph necessarily contains a producing decode row. Its projection
+  // companion retains that output; an output-free suffix is never selected.
+  prepare_paged_vendor_projection_executor(
+    context,
+    ReadOnlyArray::from_array(mixed),
+    selected[:],
+    resources,
+    mixed_index,
+    projection_query_bound,
+  )
   Some(mixed_index)
 }

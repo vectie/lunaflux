@@ -459,6 +459,9 @@ async fn read_module(
 async fn run(
   raw_args : ArrayView[String],
 ) -> Unit raise Qwen3FusedRuntimeBundleExportError {
+  let (raw_args, vendor_projection_exact_rows) = parse_vendor_projection_option(
+    raw_args,
+  )
   let (raw_args, attention_bucket_routes) = match raw_args {
     [.. rest, "--attention-buckets", path, digest] => {
       if !safe_absolute_file(path) || !lower_sha256(digest) {
@@ -481,7 +484,7 @@ async fn run(
   ) = prepare_prefill_numerical_choice(raw_args)
   let residual_bytes = read_module(args.residual.module_path)
   if !selected_ingress_cut(args, ingress_choice).permits_readonly_attention() {
-    if attention_bucket_routes is Some(_) {
+    if attention_bucket_routes is Some(_) || vendor_projection_exact_rows != 0 {
       raise InvalidArguments
     }
     write_unfused_ingress_bundle(args, residual_bytes)
@@ -653,6 +656,7 @@ async fn run(
     target~,
     modules~,
     attention_bucket_routes?,
+    vendor_projection_exact_rows~,
   ) catch {
     _ => raise InvalidRuntime
   }

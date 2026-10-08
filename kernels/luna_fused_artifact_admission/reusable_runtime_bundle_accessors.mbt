@@ -357,3 +357,12 @@ pub fn ApprovedReusableFusedRuntimeModule::module_bytes(
 ) -> Bytes {
   self.module_bytes
 }
+
+///|
+/// Zero retains AOT projections; positive values admit only this exact live
+/// row domain to the private captured BF16/F32 vendor projection backend.
+pub fn ApprovedReusableFusedRuntimeBundle::vendor_projection_exact_rows(
+  self : ApprovedReusableFusedRuntimeBundle,
+) -> Int {
+  self.vendor_projection_exact_rows
+}

@@ -160,6 +160,7 @@ pub fn admit_plan(
     sampling_policy,
     fused_residual_spans,
     reusable_qwen_fused_attention_spans: ReadOnlyArray::from_array([]),
+    vendor_projection_exact_rows: 0,
     qwen_decode_split_bindings: ReadOnlyArray::from_array([]),
     fused_qkv_readonly_artifacts,
     fused_qkv_readonly_source,
@@ -273,6 +274,10 @@ pub fn admit_numeric_bf16_plan_v1(
     sampling_policy,
     fused_residual_spans,
     reusable_qwen_fused_attention_spans,
+    vendor_projection_exact_rows: match reusable_qwen_fused_runtime {
+      Some(runtime) => runtime.vendor_projection_exact_rows()
+      None => 0
+    },
     qwen_decode_split_bindings,
     fused_qkv_readonly_artifacts,
     fused_qkv_readonly_source,
@@ -425,6 +430,7 @@ pub fn prepare(
         luna_authorization=execution.luna_authorization(),
         graph_policy~,
         sampling_policy=plan.sampling_policy,
+        vendor_projection_exact_rows=plan.vendor_projection_exact_rows,
         fused_residual_spans=plan.fused_residual_spans,
         fused_qkv_readonly_span~,
         qwen_fused_attention_spans=plan.reusable_qwen_fused_attention_spans,

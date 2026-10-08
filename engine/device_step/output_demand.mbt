@@ -66,6 +66,7 @@ fn prepare_paged_effect_only_executor(
   operation_ids : ReadOnlyArray[@plan.OperationId],
   resources : PagedGraphResources,
   owner_index : Int,
+  projection_query_bound? : Int = 0,
 ) -> Unit raise DeviceStepError {
   let owner = resources.ordered_executors[owner_index]
   let count = effect_only_launch_count(
@@ -78,7 +79,9 @@ fn prepare_paged_effect_only_executor(
   }
   let captured = owner.resource.execution_mode() == OrderedKernelCaptured
   let reservation = if captured {
-    resources.effect_capture_budget.reserve(count)
+    paged_variant_capture_budget(resources, projection_query_bound).reserve(
+      count,
+    )
   } else {
     None
   }
@@ -117,6 +120,7 @@ fn prepare_paged_effect_only_executor(
     operation_ids: prefix_ids,
     effect_only_owner_index: -1,
     mixed_owner_index: -1,
+    projection_owner_index: -1,
     open: true,
   })
   if captured && executor.execution_mode() != OrderedKernelCaptured {
@@ -130,7 +134,9 @@ fn prepare_paged_effect_only_executor(
   }
   owner.effect_only_owner_index = prefix_index
   if reservation is Some(remaining) {
-    resources.effect_capture_budget = remaining
+    update_paged_variant_capture_budget(
+      resources, projection_query_bound, remaining,
+    )
   }
 }
 

@@ -2,6 +2,7 @@
 fn bootstrap_reusable_qwen_bundle(
   query_metadata? : Bool = false,
   attention_bucket_routes? : Bytes,
+  vendor_projection_exact_rows? : Int = 0,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
@@ -23,6 +24,7 @@ fn bootstrap_reusable_qwen_bundle(
     model_plan_sha256="2".repeat(64),
     target~,
     attention_bucket_routes?,
+    vendor_projection_exact_rows~,
     modules=[
       @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenQkNormPositionedRopePagedKvWriteProductionV2,
@@ -57,7 +59,7 @@ fn bootstrap_reusable_qwen_bundle(
 
 ///|
 test "fused runtime schema selects reusable bundles including numerical and row variants" {
-  for version in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] {
+  for version in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] {
     match
       classify_fused_runtime_source(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\nmodule-count=2\n",
@@ -89,6 +91,12 @@ test "fused runtime schema selects reusable bundles including numerical and row 
 ///|
 test "exported metadata bundle reaches the worker bootstrap bundle parser" {
   ignore(bootstrap_reusable_qwen_bundle(query_metadata=true))
+}
+
+///|
+test "exported vendor projection bundle reaches bootstrap with its exact domain" {
+  let bundle = bootstrap_reusable_qwen_bundle(vendor_projection_exact_rows=2048)
+  assert_eq(bundle.vendor_projection_exact_rows(), 2048)
 }
 
 ///|

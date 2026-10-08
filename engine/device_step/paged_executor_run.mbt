@@ -163,6 +163,11 @@ pub fn PagedGraphExecutor::stage(
     descriptor.host.output_rows,
   )
   self.lifecycle = GraphStaged
+  ordered_executor_index = select_paged_vendor_projection(
+    self.resources,
+    ordered_executor_index,
+    descriptor.staged_summary,
+  )
   { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index, }
 }
 
@@ -214,6 +219,11 @@ pub fn PagedGraphExecutor::stage_frame(
     descriptor.host.output_rows,
   )
   self.lifecycle = GraphStaged
+  ordered_executor_index = select_paged_vendor_projection(
+    self.resources,
+    ordered_executor_index,
+    descriptor.staged_summary,
+  )
   { executor: self, epoch: staged.1, graph_bucket, ordered_executor_index, }
 }
 

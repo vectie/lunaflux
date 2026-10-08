@@ -30,6 +30,7 @@ pub fn Context::create_ordered_kernel_executor(
   stream : Stream,
   launches : ArrayView[OrderedKernelLaunch],
   policy? : OrderedKernelExecutionPolicy = OrderedKernelEagerOnly,
+  projections? : ArrayView[OrderedBf16Projection] = [],
 ) -> OrderedKernelExecutor raise DeviceError {
   if launches.is_empty() {
     raise InvalidArgument(OrderedExecutorCreate)
@@ -64,6 +65,14 @@ pub fn Context::create_ordered_kernel_executor(
     OrderedKernelCaptureWithEagerFallback =>
       OrderedExecutorCaptureWithEagerFallback
   }
+  let projection_records = if projections.is_empty() {
+    None
+  } else {
+    if policy != OrderedKernelCaptureRequired {
+      raise InvalidArgument(OrderedExecutorCreate)
+    }
+    Some(ordered_projection_records(launches, projections))
+  }
   let raw = @cuda.prepare_ordered_kernel_executor(
     self.raw,
     stream.raw,
@@ -75,6 +84,7 @@ pub fn Context::create_ordered_kernel_executor(
     FixedArray::from_array(byte_counts),
     FixedArray::from_array(alignments),
     policy=raw_policy,
+    projections=projection_records,
   ) catch {
     error => raise error_from_cuda(error)
   }

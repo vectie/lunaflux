@@ -8,6 +8,8 @@
 #define CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES 8
 #define LF_DEFAULT_DYNAMIC_SHARED_MEMORY_BYTES 49152
 
+#include "ordered_projection.c"
+
 static int32_t lf_prepare_dynamic_shared_memory(
   lf_ordered_executor *executor,
   lf_ordered_kernel *kernel
@@ -130,6 +132,11 @@ static int32_t lf_close_ordered_executor(lf_ordered_executor *executor) {
     lf_close_failed(&executor->state);
     return result;
   }
+  result = lf_ordered_projection_close(executor);
+  if (result != LF_OK) {
+    lf_close_failed(&executor->state);
+    return result;
+  }
   lf_release_ordered_executor(executor);
   lf_close_succeeded(&executor->state);
   return LF_OK;
@@ -211,7 +218,7 @@ static int32_t lf_prepare_ordered_kernel(
 }
 
 MOONBIT_FFI_EXPORT
-lf_ordered_executor *lunaflux_cuda_ordered_executor_create(
+lf_ordered_executor *lunaflux_cuda_ordered_executor_create_with_projections(
   lf_context *context,
   lf_child *stream,
   lf_function **functions,
@@ -221,6 +228,7 @@ lf_ordered_executor *lunaflux_cuda_ordered_executor_create(
   int64_t *offsets,
   int64_t *byte_counts,
   int64_t *alignments,
+  int32_t *projections,
   int32_t policy,
   int32_t *status
 ) {
@@ -253,6 +261,10 @@ lf_ordered_executor *lunaflux_cuda_ordered_executor_create(
       Moonbit_array_length(byte_counts) != argument_count ||
       Moonbit_array_length(alignments) != argument_count ||
       argument_starts[0] != 0 || argument_starts[kernel_count] != argument_count) {
+    *status = LF_INVALID_ARGUMENT;
+    return executor;
+  }
+  if (projections != NULL && (policy != 1 || Moonbit_array_length(projections) != kernel_count*6)) {
     *status = LF_INVALID_ARGUMENT;
     return executor;
   }
@@ -292,6 +304,11 @@ lf_ordered_executor *lunaflux_cuda_ordered_executor_create(
       end - start
     );
     if (*status != LF_OK) goto failed;
+    if (projections != NULL) {
+      *status = lf_ordered_projection_validate(&executor->kernels[index],
+        &projections[index*6], &byte_counts[start]);
+      if (*status != LF_OK) goto failed;
+    }
   }
   *status = lf_context_current(context);
   CUevent event = NULL;
@@ -307,7 +324,8 @@ lf_ordered_executor *lunaflux_cuda_ordered_executor_create(
     return executor;
   }
   executor->event = event;
-  *status = lf_ordered_graph_prepare(executor, policy);
+  *status = lf_ordered_projection_prepare(executor);
+  if (*status == LF_OK) *status = lf_ordered_graph_prepare(executor, policy);
   if (*status != LF_OK) {
     int32_t create_status = *status;
     atomic_store(&executor->state, LF_RESOURCE_LIVE);
@@ -322,6 +340,18 @@ lf_ordered_executor *lunaflux_cuda_ordered_executor_create(
 failed:
   lf_release_ordered_executor(executor);
   return executor;
+}
+
+MOONBIT_FFI_EXPORT
+lf_ordered_executor *lunaflux_cuda_ordered_executor_create(
+  lf_context *context, lf_child *stream, lf_function **functions,
+  int32_t *dimensions, int32_t *argument_starts, lf_allocation **allocations,
+  int64_t *offsets, int64_t *byte_counts, int64_t *alignments,
+  int32_t policy, int32_t *status
+) {
+  return lunaflux_cuda_ordered_executor_create_with_projections(context, stream,
+    functions, dimensions, argument_starts, allocations, offsets, byte_counts,
+    alignments, NULL, policy, status);
 }
 
 MOONBIT_FFI_EXPORT
@@ -343,19 +373,7 @@ int32_t lunaflux_cuda_ordered_executor_enqueue(
   lf_ordered_kernel *kernel = &executor->kernels[index];
   result = lf_context_current(executor->context);
   if (result != LF_OK) goto complete;
-  result = lf_cuda_map_result(executor->context->api->cuLaunchKernel(
-    kernel->function->handle,
-    (uint32_t)kernel->dimensions[0],
-    (uint32_t)kernel->dimensions[1],
-    (uint32_t)kernel->dimensions[2],
-    (uint32_t)kernel->dimensions[3],
-    (uint32_t)kernel->dimensions[4],
-    (uint32_t)kernel->dimensions[5],
-    (uint32_t)kernel->dimensions[6],
-    (CUstream)executor->stream->handle,
-    kernel->kernel_parameters,
-    NULL
-  ));
+  result = lf_ordered_launch_record(executor, kernel);
   if (result == LF_OK) {
     atomic_fetch_add(&executor->next_kernel, 1);
     atomic_store(&executor->phase, LF_ORDERED_ENQUEUED);

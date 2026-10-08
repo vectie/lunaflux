@@ -53,6 +53,18 @@ async fn inventory(root : String, path : String) -> String {
 }
 
 ///|
+fn metadata_runtime_schema(text : String) -> Bool {
+  for version in 5..<15 {
+    if text.has_prefix(
+        "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\n",
+      ) {
+      return true
+    }
+  }
+  false
+}
+
+///|
 async fn main {
   let args = @env.args()[1:].to_owned()
   let repo = command("pwd", []).trim().to_owned()
@@ -67,33 +79,7 @@ async fn main {
   }
   assert_eq(sha(runtime.to_owned()), digest.to_owned())
   let runtime_bytes = @fs.read_file(runtime.to_owned())
-  guard runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v5\n") ||
-    runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v6\n") ||
-    runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v7\n") ||
-    runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v8\n") ||
-    runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v9\n") ||
-    runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v10\n") ||
-    runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v11\n") ||
-    runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v12\n") ||
-    runtime_bytes
-    .text()
-    .has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v13\n") else {
+  guard metadata_runtime_schema(runtime_bytes.text()) else {
     println(
       command(repo + "/scripts/materialize-qwen3-bf16-v12-launch.sh", args),
     )
@@ -261,5 +247,26 @@ async fn main {
     "\nlaunch_sha256=" +
     launch_sha +
     "\n",
+  )
+}
+
+///|
+test "metadata packaging recognizes vendor v14 without accepting future schemas" {
+  for version in 5..<15 {
+    assert_true(
+      metadata_runtime_schema(
+        "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\n",
+      ),
+    )
+  }
+  assert_false(
+    metadata_runtime_schema(
+      "schema=lunaflux-reusable-fused-runtime-bundle.v15\n",
+    ),
+  )
+  assert_false(
+    metadata_runtime_schema(
+      "schema=lunaflux-reusable-fused-runtime-bundle.v14-invalid\n",
+    ),
   )
 }

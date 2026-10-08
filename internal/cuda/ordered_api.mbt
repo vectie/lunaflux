@@ -10,6 +10,7 @@ pub fn prepare_ordered_kernel_executor(
   byte_counts : FixedArray[Int64],
   alignments : FixedArray[Int64],
   policy? : OrderedExecutorPolicy = OrderedExecutorEagerOnly,
+  projections? : FixedArray[Int]? = None,
 ) -> OrderedKernelExecutor raise CudaError {
   let policy_code = match policy {
     OrderedExecutorEagerOnly => 0
@@ -17,12 +18,25 @@ pub fn prepare_ordered_kernel_executor(
     OrderedExecutorCaptureWithEagerFallback => 2
   }
   let status = Ref(0)
-  let executor = raw_ordered_executor_create(
-    context, stream, functions, dimensions, argument_starts, allocations, offsets,
-    byte_counts, alignments, policy_code, status,
-  )
+  let executor = match projections {
+    None =>
+      raw_ordered_executor_create(
+        context, stream, functions, dimensions, argument_starts, allocations, offsets,
+        byte_counts, alignments, policy_code, status,
+      )
+    Some(records) =>
+      raw_ordered_executor_create_with_projections(
+        context, stream, functions, dimensions, argument_starts, allocations, offsets,
+        byte_counts, alignments, records, policy_code, status,
+      )
+  }
   if status.val != 0 {
     let create_status = status.val
+    // A vendor preparation failure may have submitted work before returning
+    // an error. Drain the retained stream before releasing its operand leases.
+    if create_status == -4 {
+      check_status(raw_ordered_executor_abort(executor), OrderedExecutorAbort)
+    }
     check_status(raw_ordered_executor_close(executor), OrderedExecutorClose)
     check_status(create_status, OrderedExecutorCreate)
   }

@@ -316,6 +316,7 @@ pub fn export_reusable_fused_runtime_bundle(
   target~ : @catalog.DeviceTarget,
   modules~ : ArrayView[ReusableFusedRuntimeModuleInput],
   attention_bucket_routes? : Bytes,
+  vendor_projection_exact_rows? : Int = 0,
 ) -> Bytes raise FusedArtifactAdmissionError {
   ignore(fused_deployment_digest(model_content_sha256))
   ignore(fused_deployment_digest(model_plan_sha256))
@@ -324,7 +325,13 @@ pub fn export_reusable_fused_runtime_bundle(
   }
   reusable_runtime_validate_unique_inputs(modules)
   let out = StringBuilder()
-  let row_metadata = modules.any(m => m.row_variant is Some(_))
+  if vendor_projection_exact_rows < 0 ||
+    vendor_projection_exact_rows == 1 ||
+    vendor_projection_exact_rows > 1048576 {
+    raise InvalidFusedArtifact(Manifest)
+  }
+  let row_metadata = vendor_projection_exact_rows > 0 ||
+    modules.any(m => m.row_variant is Some(_))
   let allow_approximate_prefill = modules.any(m => {
     m.prefill_exponential_law != StrictNaturalExponential
   })
@@ -349,7 +356,9 @@ pub fn export_reusable_fused_runtime_bundle(
     attention_bucket_routes is Some(_) ||
     modules.any(m => m.query_metadata_version != 0)
   out.write_string(
-    if row_metadata {
+    if vendor_projection_exact_rows > 0 {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v14\n"
+    } else if row_metadata {
       "schema=lunaflux-reusable-fused-runtime-bundle.v13\n"
     } else if prefill_metadata {
       "schema=lunaflux-reusable-fused-runtime-bundle.v12\n"
@@ -398,6 +407,13 @@ pub fn export_reusable_fused_runtime_bundle(
     )
   } else if ownership {
     out.write_string("attention_bucket_routes_hex=-\n")
+  }
+  if vendor_projection_exact_rows > 0 {
+    out.write_string(
+      "vendor_projection_exact_rows=" +
+      vendor_projection_exact_rows.to_string() +
+      "\n",
+    )
   }
   out.write_string("module_count=" + modules.length().to_string() + "\n")
   let canonical_abis = [
@@ -460,6 +476,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     has_bucket_routes,
     has_ownership,
   ) = match schema {
+    "lunaflux-reusable-fused-runtime-bundle.v14" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v13" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v12" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v11" => (true, true, true, true)
@@ -473,7 +490,10 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false, false, false)
     _ => raise InvalidFusedArtifact(Manifest)
   }
-  let has_row_metadata = schema == "lunaflux-reusable-fused-runtime-bundle.v13"
+  let has_vendor_projection = schema ==
+    "lunaflux-reusable-fused-runtime-bundle.v14"
+  let has_row_metadata = has_vendor_projection ||
+    schema == "lunaflux-reusable-fused-runtime-bundle.v13"
   let has_prefill_metadata = has_row_metadata ||
     schema == "lunaflux-reusable-fused-runtime-bundle.v12"
   let has_decode_metadata = has_prefill_metadata ||
@@ -523,6 +543,15 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     }
   } else {
     None
+  }
+  let vendor_projection_exact_rows = if has_vendor_projection {
+    let rows = reader.int("vendor_projection_exact_rows")
+    if rows < 2 || rows > 1048576 {
+      raise InvalidFusedArtifact(Manifest)
+    }
+    rows
+  } else {
+    0
   }
   let module_count = reader.int("module_count")
   if module_count <= 0 || module_count > REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES {
@@ -684,5 +713,6 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     target,
     modules: ReadOnlyArray::from_array(modules),
     attention_bucket_routes,
+    vendor_projection_exact_rows,
   }
 }

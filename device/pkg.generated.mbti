@@ -77,7 +77,7 @@ pub fn Context::copy_from_fixed_host(Self, Allocation, FixedArray[Byte], Int64, 
 pub fn Context::copy_to_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise DeviceError
 pub fn Context::create_cublas_lt(Self) -> CublasLt raise DeviceError
 pub fn Context::create_event(Self) -> Event raise DeviceError
-pub fn Context::create_ordered_kernel_executor(Self, Stream, ArrayView[OrderedKernelLaunch], policy? : OrderedKernelExecutionPolicy) -> OrderedKernelExecutor raise DeviceError
+pub fn Context::create_ordered_kernel_executor(Self, Stream, ArrayView[OrderedKernelLaunch], policy? : OrderedKernelExecutionPolicy, projections? : ArrayView[OrderedBf16Projection]) -> OrderedKernelExecutor raise DeviceError
 pub fn Context::create_stream(Self) -> Stream raise DeviceError
 pub fn Context::create_tensor_collective_owner(Self, runtime~ : TensorCollectiveRuntime, group_id~ : TensorCollectiveGroupId, contract~ : TensorCollectiveContract, generation~ : UInt64, previous_plan_sequence_value~ : UInt64) -> TensorCollectiveOwner raise DeviceError
 pub fn Context::device_identity(Self) -> ContextDeviceIdentity
@@ -252,6 +252,11 @@ pub struct Module {
 }
 pub fn Module::close(Self) -> Unit raise DeviceError
 pub fn Module::load_function(Self, Bytes) -> Function raise DeviceError
+
+pub struct OrderedBf16Projection {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn OrderedBf16Projection::new(launch_index~ : Int, rows~ : Int, columns~ : Int, inner~ : Int, input_argument~ : Int, weight_argument~ : Int, output_argument~ : Int) -> Self raise DeviceError
 
 pub(all) enum OrderedKernelExecutionMode {
   OrderedKernelEager

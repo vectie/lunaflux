@@ -69,6 +69,12 @@ fn prepare_numeric_bf16_graph_resources(
   let (functions, function_indices, split_decode_indices) = collect_paged_functions(
     blueprint,
   )
+  resources.vendor_projection_rules = paged_vendor_projection_rules(
+    blueprint,
+    function_indices,
+    split_decode_indices,
+    resources.vendor_projection_exact_rows,
+  )
   let descriptor_outcome = prepare(
     context,
     model_plan,
@@ -313,8 +319,10 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
     @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ] = ReadOnlyArray::from_array([]),
   decode_split_maximum_workspace_bytes? : Int64 = PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES,
+  vendor_projection_exact_rows? : Int = 0,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let resources = empty_paged_resources()
+  resources.vendor_projection_exact_rows = vendor_projection_exact_rows
   resources.numeric_weights = Some(Bf16NumericWeights(weights))
   let blueprint = admit_paged_graph_execution_blueprint(
     model_plan,

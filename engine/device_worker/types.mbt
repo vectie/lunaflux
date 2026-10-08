@@ -72,6 +72,7 @@ pub struct DeviceWorkerPlan {
   priv execution : @execution_manifest_file.PagedExecutionAdmission
   priv manifest : @device_step.DeviceWorkerBootstrapManifest
   priv sampling_policy : @device_step.PagedSamplingExecutionPolicy
+  priv vendor_projection_exact_rows : Int
   priv fused_residual_spans : ReadOnlyArray[
     @device_step.ApprovedFusedResidualRmsNormSpan,
   ]

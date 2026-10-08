@@ -35,6 +35,7 @@ priv struct PagedOwnedOrderedExecutor {
   operation_ids : ReadOnlyArray[@plan.OperationId]
   mut effect_only_owner_index : Int
   mut mixed_owner_index : Int
+  mut projection_owner_index : Int
   mut open : Bool
 }
 
@@ -127,6 +128,9 @@ priv struct PagedGraphResources {
   attention_phase_replacements : Array[PagedAttentionPhaseReplacement]
   attention_partitioned_decode_companions : Array[PreparedPagedDecodeSplit]
   ordered_executors : Array[PagedOwnedOrderedExecutor]
+  mut vendor_projection_exact_rows : Int
+  mut vendor_projection_rules : ReadOnlyArray[PagedVendorProjectionRule]
+  mut vendor_capture_budget : @luna_execution_graph_strategy.ExecutionGraphVariantBudget
   mut effect_operation_prefix : Int
   mut effect_preparation_prefix : Int
   mut effect_capture_budget : @luna_execution_graph_strategy.ExecutionGraphVariantBudget

@@ -189,4 +189,5 @@ pub struct ApprovedReusableFusedRuntimeBundle {
   priv target : @catalog.DeviceTarget
   priv modules : ReadOnlyArray[ApprovedReusableFusedRuntimeModule]
   priv attention_bucket_routes : Bytes?
+  priv vendor_projection_exact_rows : Int
 }

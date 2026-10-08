@@ -70,6 +70,60 @@ fn prepare_paged_ordered_executors(
     resources.graph_launch_contract is Some(_),
     true,
   )
+  if resources.vendor_projection_exact_rows > 0 {
+    let rows = resources.vendor_projection_exact_rows
+    if graph_policy == PagedOrderedEagerOnly ||
+      resources.graph_launch_contract is None ||
+      (
+        rows != profile.max_query_tokens() &&
+        !paged_prefill_capture_bounds(profile).contains(rows)
+      ) {
+      raise InvalidExecutor(GraphBucket)
+    }
+    let families = [steps]
+    if prefill_split_steps is Some(split) {
+      families.push(split)
+    }
+    if prefill_wide_steps is Some(wide) &&
+      (
+        rows == profile.max_query_tokens() ||
+        rows >= prefill_wide_minimum_query_tokens
+      ) {
+      families.push(wide)
+    }
+    let costs : Array[Int] = []
+    for family in families {
+      let operations = ReadOnlyArray::from_array(
+        family.map(step => step.operation_id),
+      )
+      let prefix = effect_only_launch_count(
+        operations,
+        resources.effect_operation_prefix,
+        preparation_prefix=resources.effect_preparation_prefix,
+      )
+      let mixed = mixed_attention_steps(
+        family,
+        resources,
+        partitioned_decode=false,
+      )
+      costs.append(
+        vendor_capture_family_costs(
+          family.length(),
+          prefix,
+          match mixed {
+            Some(value) => value.length()
+            None => 0
+          },
+        ),
+      )
+    }
+    let (optional, requested) = partition_vendor_capture_budget(
+      resources.effect_capture_budget,
+      costs[:],
+    )
+    resources.effect_capture_budget = optional
+    resources.vendor_capture_budget = requested
+  }
   let maximum_launches = paged_ordered_launches(
     steps,
     resources,
@@ -108,6 +162,7 @@ fn prepare_paged_ordered_executors(
             resources,
             OrderedKernelEagerOnly,
             source_steps=steps,
+            projection_query_bound=bound,
           )
           map_paged_prefill_capture_owner(
             table,
@@ -145,6 +200,7 @@ fn prepare_paged_ordered_executors(
         resources,
         OrderedKernelEagerOnly,
         source_steps=steps,
+        projection_query_bound=maximum_query_bound.unwrap_or(0),
       )
       fallback_owner_index
     }
@@ -169,6 +225,7 @@ fn prepare_paged_ordered_executors(
             resources,
             paged_ordered_device_policy(graph_policy),
             source_steps=steps,
+            projection_query_bound=bound,
           )
           map_paged_prefill_capture_owner(
             table,
@@ -206,6 +263,7 @@ fn prepare_paged_ordered_executors(
         resources,
         paged_ordered_device_policy(graph_policy),
         source_steps=steps,
+        projection_query_bound=maximum_query_bound.unwrap_or(0),
       )
       for slot in paged_maximum_graph_slots(table, profile) {
         if slot_owner_indices[slot] < 0 {
@@ -240,6 +298,7 @@ fn prepare_paged_ordered_executors(
             resources,
             paged_ordered_device_policy(graph_policy),
             source_steps=selected,
+            projection_query_bound=bound,
           )
           map_paged_prefill_capture_owner(
             table, 1, bound, owner, prefill_split_slot_owner_indices,
@@ -259,6 +318,7 @@ fn prepare_paged_ordered_executors(
         resources,
         paged_ordered_device_policy(graph_policy),
         source_steps=selected,
+        projection_query_bound=maximum_query_bound.unwrap_or(0),
       )
     }
     None => -1
@@ -301,6 +361,7 @@ fn prepare_paged_ordered_executors(
               resources,
               paged_ordered_device_policy(graph_policy),
               source_steps=selected,
+              projection_query_bound=bound,
             )
             map_paged_prefill_capture_owner(
               table,
@@ -325,6 +386,7 @@ fn prepare_paged_ordered_executors(
         resources,
         paged_ordered_device_policy(graph_policy),
         source_steps=selected,
+        projection_query_bound=maximum_query_bound.unwrap_or(0),
       )
     }
     None => -1

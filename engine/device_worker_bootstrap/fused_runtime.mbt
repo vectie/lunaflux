@@ -63,7 +63,8 @@ fn classify_fused_runtime_source(text : String) -> FusedRuntimeSourceSchema {
     text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v10\n") ||
     text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v11\n") ||
     text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v12\n") ||
-    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v13\n") {
+    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v13\n") ||
+    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v14\n") {
     ReusableBundle
   } else if text.has_prefix(
       "schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1\n",

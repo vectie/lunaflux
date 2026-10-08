@@ -408,6 +408,7 @@ fn prepare_one_paged_ordered_executor(
   resources : PagedGraphResources,
   policy : @device.OrderedKernelExecutionPolicy,
   source_steps? : ReadOnlyArray[PreparedPagedGraphStep],
+  projection_query_bound? : Int = 0,
 ) -> Int raise DeviceStepError {
   guard resources.stream is Some(stream) && stream.open else {
     raise InvalidExecutor(ResourceState)
@@ -428,15 +429,43 @@ fn prepare_one_paged_ordered_executor(
     operation_ids,
     effect_only_owner_index: -1,
     mixed_owner_index: -1,
+    projection_owner_index: -1,
     open: true,
   })
   if source_steps is Some(steps) {
     prepare_mixed_attention_executor(
-      context, steps, launches, resources, owner_index,
+      context,
+      steps,
+      launches,
+      resources,
+      owner_index,
+      projection_query_bound~,
     )
   }
   prepare_paged_effect_only_executor(
-    context, launches, operation_ids, resources, owner_index,
+    context,
+    launches,
+    operation_ids,
+    resources,
+    owner_index,
+    projection_query_bound~,
   )
+  if source_steps is Some(steps) {
+    prepare_paged_vendor_projection_executor(
+      context, steps, launches, resources, owner_index, projection_query_bound,
+    )
+    let prefix = resources.ordered_executors[owner_index].effect_only_owner_index
+    if prefix >= 0 {
+      let count = resources.ordered_executors[prefix].operation_ids.length()
+      prepare_paged_vendor_projection_executor(
+        context,
+        ReadOnlyArray::from_array(steps[:count].to_array()),
+        launches[:count],
+        resources,
+        prefix,
+        projection_query_bound,
+      )
+    }
+  }
   owner_index
 }

@@ -13,23 +13,10 @@ static int lf_ordered_graph_api_available(const lf_cuda_api *api) {
 }
 
 static int32_t lf_ordered_capture_launches(lf_ordered_executor *executor) {
-  lf_cuda_api *api = executor->context->api;
   for (int32_t index = 0; index < executor->kernel_count; index += 1) {
     lf_ordered_kernel *kernel = &executor->kernels[index];
-    CUresult launch = api->cuLaunchKernel(
-      kernel->function->handle,
-      (uint32_t)kernel->dimensions[0],
-      (uint32_t)kernel->dimensions[1],
-      (uint32_t)kernel->dimensions[2],
-      (uint32_t)kernel->dimensions[3],
-      (uint32_t)kernel->dimensions[4],
-      (uint32_t)kernel->dimensions[5],
-      (uint32_t)kernel->dimensions[6],
-      (CUstream)executor->stream->handle,
-      kernel->kernel_parameters,
-      NULL
-    );
-    if (launch != CUDA_SUCCESS) return lf_cuda_map_result(launch);
+    int32_t launch = lf_ordered_launch_record(executor, kernel);
+    if (launch != LF_OK) return launch;
   }
   return LF_OK;
 }

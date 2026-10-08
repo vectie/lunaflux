@@ -37,6 +37,7 @@ typedef struct lf_ordered_kernel {
   void **kernel_parameters;
   int32_t argument_count;
   int32_t dimensions[LF_DIMENSIONS_PER_KERNEL];
+  int32_t projection[6];
 } lf_ordered_kernel;
 
 struct lf_ordered_executor {
@@ -46,6 +47,7 @@ struct lf_ordered_executor {
   CUgraph graph;
   CUgraphExec graph_exec;
   lf_ordered_kernel *kernels;
+  struct lf_ordered_projection_state *projections;
   int32_t kernel_count;
   int32_t acquired_kernel_count;
   int32_t execution_mode;
@@ -64,5 +66,6 @@ int32_t lf_ordered_graph_launch(lf_ordered_executor *executor);
 int32_t lf_ordered_graph_destroy(lf_ordered_executor *executor);
 int32_t lf_ordered_operation_begin(lf_ordered_executor *executor);
 void lf_ordered_operation_end(lf_ordered_executor *executor);
+int32_t lf_ordered_launch_record(lf_ordered_executor *executor, lf_ordered_kernel *kernel);
 
 #endif
