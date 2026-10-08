@@ -205,6 +205,7 @@ static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
   }
   return metadata;
 }
+#ifndef LUNAFLUX_POLICY_PROBE_LIBRARY
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
   if(argc<7 || argc>22)return 1;
@@ -491,3 +492,4 @@ int main(int argc,char**argv){
     std::printf("tokens=%d rows=%d history=%d trial=%d old_us=%.6f new_us=%.6f bitwise=%s maxabs=%g oracle_maxabs=%g\n",tokens,rows,past,trial,a,b,bitwise?"true":"false",error,oracle_error);
   }
 }
+#endif

@@ -25,13 +25,18 @@ async fn main {
   guard @env.args() is [_, root] &&
     [
       "/home/wlc004s/lunaflux-mixed-fork-join-20261008.", "/home/wlc004s/lunaflux-mixed-unified-20261008.",
-      "/home/wlc004s/lunaflux-mixed-serving-20261008.",
+      "/home/wlc004s/lunaflux-mixed-serving-20261008.", "/home/wlc004s/lunaflux-mixed-numeric-20261008.",
     ].any(prefix => root.has_prefix(prefix)) else {
     fail("TERMINAL_MIXED_EXPERIMENT")
   }
   assert_true(
-    @fs.exists(root + "/trial/RESULT.txt") ||
-    @fs.exists(root + "/timing-v2/RESULT.txt"),
+    if root.contains("mixed-numeric-") {
+      @fs.exists(root + "/RESULT.txt") &&
+      @fs.exists(root + "/final-source/RESULT.txt")
+    } else {
+      @fs.exists(root + "/trial/RESULT.txt") ||
+      @fs.exists(root + "/timing-v2/RESULT.txt")
+    },
   )
   assert_false(@fs.exists(root + "/FILES.sha256"))
   assert_false(@fs.exists(root + ".tar.gz"))
@@ -40,7 +45,12 @@ async fn main {
   ]).output()
   idle.check()
   assert_true(idle.stdout().trim().is_empty())
-  let units = if root.contains("mixed-serving-") {
+  let units = if root.contains("mixed-numeric-") {
+    [
+      "lunaflux-mixed-numeric-audit-20261008.service", "lunaflux-mixed-numeric-audit-v2-20261008.service",
+      "lunaflux-mixed-numeric-final-20261008.service",
+    ]
+  } else if root.contains("mixed-serving-") {
     [
       "lunaflux-mixed-serving-build-20261008.service", "lunaflux-mixed-serving-timing-20261008.service",
       "lunaflux-mixed-serving-timing-v2-20261008.service", "lunaflux-mixed-serving-timing-v3-20261008.service",

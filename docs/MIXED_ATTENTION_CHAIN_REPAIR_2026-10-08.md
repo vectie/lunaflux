@@ -1,5 +1,12 @@
 # Mixed attention chain repair
 
+> **Correction after row-coverage investigation:** the unified serving
+> diagnostic omitted decode writes in its selected partitioned-prefill tail.
+> The reported 2.63% throughput increase is therefore **not a valid
+> correctness-preserving speedup**. The timing is retained as failed-experiment
+> evidence, not a result to promote. See
+> [the reproduced cause](MIXED_ATTENTION_ROW_COVERAGE_DIAGNOSIS_2026-10-08.md).
+
 The matched 8,192/64 C8 trace attributes 279 ms of the LunaFlux/vLLM GPU-time
 gap to mixed steps. This is not proof that serialization accounts for all of
 it: each component may compete for the same execution resources.
@@ -87,13 +94,16 @@ has one excluded warmup and three measured waves, giving six waves per arm.
 | Frozen control | 4,917 | 104.13 | 1,501 | 50.33 |
 | Unified diagnostic | 4,791 | 106.87 | 1,456 | 49.14 |
 
-**Completion time fell 2.56%; output throughput increased 2.63%.** Control
+**Observed completion time fell 2.56%; output throughput increased 2.63%,
+but this serving result is invalidated by missing decode-row writes.** Control
 wave range was 4,886–4,950 ms; unified was 4,780–4,808 ms. This is a real
-partial serving gain, not closure of the remaining performance gap.
+timing change from an incorrect implementation, not a valid serving gain or
+closure of the remaining performance gap.
 
 The immediately preceding matched vLLM/SGLang measurements were 4,494/4,545.5
-ms (113.93/112.64 tok/s). Relative to those preserved reference results, this
-diagnostic remains approximately **6.61%/5.40% longer in completion time**.
+ms (113.93/112.64 tok/s). The incorrect diagnostic's timing corresponds to
+6.61%/5.40% longer completion time, but these are **not valid competitive
+performance gaps** because the diagnostic does not produce complete outputs.
 References were not restarted in this experiment; this is not a new matched
 three-engine campaign or a result for every context length.
 
@@ -118,20 +128,23 @@ sequences repeated in **35/40 control comparisons versus 4/40 unified**.
 Only 4/48 cross-arm sequences were identical. Admission order and phase/shape
 selection can change between concurrent waves; this is **not proof of a data
 race**, and random-token performance prompts are not a quality corpus.
-Nevertheless the substantial change in output repeatability means the local
-attention tolerance checks are insufficient for production enablement.
+The follow-up now identifies a concrete diagnostic rewrite error: the
+partitioned merge retained its prefill-only write domain. Every one of the
+36 differing repeated sequences first diverges at the predicted bad-tail
+token. The local attention tolerance checks missed this because the 29-vector
+replay used the ordinary matrix artifact even for the final tail, while
+serving actually selected a partitioned pair.
 
 Decision: **do not enable this globally or call the problem fixed.** Preserve
-the faster implementation and measurements as a causal experiment. Production
+the incorrect implementation and measurements as a failed experiment. Production
 integration needs an explicit whole-row numerical contract, phase/shape
 consistency and teacher/logit validation. The early mixed regression also
 requires measured whole-chain selection, not an unconditional all-shape switch.
 
-The experiment distinguishes two hypotheses: simply overlapping the existing
-launches yields little, whereas changing the mixed work domain and decode
-implementation yields more. Since the latter changes arithmetic and work
-decomposition together, it does not isolate one instruction-level cause or
-prove that synchronization alone explained the gap.
+The overlap probe yields little benefit on its measured chains. The serving
+substitution cannot establish that changing the mixed work domain yields
+more: missing tail writes invalidate that comparison. Correct final-writer
+coverage must precede another serving performance conclusion.
 
 ## Safety, reproducibility and source boundaries
 
@@ -156,8 +169,8 @@ more than 99 GiB MemAvailable (32 GiB floor). All measured requests completed.
 
 The local changes are offline probes, MoonBit experiment/report helpers, and
 this report. The production graph/compiler/ABI is not changed. The diagnostic
-rewrite preserves model-independent row semantics; any retained implementation
-must expose the row-domain/numerical choice in the existing pure plan and
+rewrite is model-independent but fails to preserve complete row writes. Any
+retained implementation must expose the row-domain/numerical choice in the existing pure plan and
 measured route selection, not hide a model-name condition in CUDA lowering.
 
 ## Downloaded evidence and checks

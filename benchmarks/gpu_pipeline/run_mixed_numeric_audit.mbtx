@@ -1,0 +1,179 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(s => s.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("field: " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn hex(text : String) -> Bytes raise {
+  assert_true(text.length() % 2 == 0)
+  let bytes : Array[Byte] = Array::make(text.length() / 2, 0)
+  for i in 0..<bytes.length() {
+    bytes[i] = @string.parse_int(text[i * 2:i * 2 + 2], base=16).to_byte()
+  }
+  Bytes::from_array(bytes)
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(program, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-mixed-numeric-20261008.") else {
+    fail("NEW_ROOT")
+  }
+  assert_eq(
+    capture(root, "gpu", "nvidia-smi", [
+      "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+    ]).trim(),
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0",
+  )
+  assert_true(
+    capture(root, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  let mem = @fs.read_file("/proc/meminfo").text()
+  let available = mem
+    .split("\n")
+    .find_first(x => x.has_prefix("MemAvailable:"))
+    .unwrap()
+    .split(" ")
+    .filter(x => !x.is_empty())
+    .to_array()[1]
+  assert_true(@string.parse_int64(available) >= 33554432L)
+  @fs.write_file(root + "/memory-before.txt", mem, create_mode=CreateNew)
+  assert_true(
+    capture(root, "nvcc-hash", "sha256sum", ["/usr/local/cuda-13.0/bin/nvcc"]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  let frozen = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt"
+  let bundle_path = frozen +
+    "/serving/long-final/deployment/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3"
+  ignore(capture(root, "bundle-hash", "sha256sum", [bundle_path]))
+  let bundle = @fs.read_file(bundle_path).text()
+  assert_eq(
+    field(bundle, "module_3_function_symbol"),
+    "lunaflux_attention_prefill_partitioned_partial_v1_p8",
+  )
+  assert_eq(
+    field(bundle, "module_4_function_symbol"),
+    "lunaflux_attention_prefill_partitioned_merge_v1_p8",
+  )
+  assert_eq(
+    field(bundle, "module_3_module_sha256"),
+    field(bundle, "module_4_module_sha256"),
+  )
+  let tail = root + "/selected-tail"
+  @fs.mkdir(tail)
+  @fs.write_file(
+    tail + "/kernel.cubin",
+    hex(field(bundle, "module_3_module_hex")),
+    create_mode=CreateNew,
+  )
+  assert_true(
+    capture(root, "tail-hash", "sha256sum", [tail + "/kernel.cubin"]).has_prefix(
+      field(bundle, "module_3_module_sha256") + " ",
+    ),
+  )
+  let candidate = "/home/wlc004s/lunaflux-work-shape-20261003.641b4WHo/affine-serving-v2/candidate/reusable-qwen-prefill-partitioned-attention-p8"
+  for leaf in ["kernel.recipe", "kernel.cu"] {
+    @fs.write_file(
+      tail + "/" + leaf,
+      @fs.read_file(candidate + "/" + leaf),
+      create_mode=CreateNew,
+    )
+  }
+  let recipe = @fs.read_file(tail + "/kernel.recipe").text()
+  assert_true(
+    capture(root, "tail-source-hash", "sha256sum", [tail + "/kernel.cu"]).has_prefix(
+      field(recipe, "source_sha256") + " ",
+    ),
+  )
+  let args = [
+    frozen + "/calibration-spec/prefill.spec",
+    frozen + "/wide-prefill-selected",
+    tail,
+    frozen + "/decode-selected",
+  ]
+  ignore(
+    capture(root, "compile", "/usr/local/cuda-13.0/bin/nvcc", [
+      "-O3",
+      "-arch=sm_121",
+      "--fmad=false",
+      root + "/audit_mixed_row_coverage.cu",
+      "-lcuda",
+      "-o",
+      root + "/probe",
+    ]),
+  )
+  let result = capture(root, "audit", root + "/probe", args)
+  assert_true(
+    result.contains(
+      "diagnosis=partitioned-merge-omits-decode-rows unchanged_kv=true",
+    ),
+  )
+  for tool in ["memcheck", "initcheck", "racecheck", "synccheck"] {
+    ignore(
+      capture(
+        root,
+        tool,
+        "/usr/local/cuda/bin/compute-sanitizer",
+        ["--tool", tool, "--error-exitcode", "99", root + "/probe", ..args],
+      ),
+    )
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=diagnosis-reproduced\nproduction_changed=false\n",
+    create_mode=CreateNew,
+  )
+  println(result)
+}
+
+///|
+test "exact recipe fields and binary decode" {
+  assert_eq(field("a=1\nb=2\n", "b"), "2")
+  assert_eq(hex("7f454c46"), b"\x7fELF")
+}

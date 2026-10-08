@@ -1,0 +1,169 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn prefix(a : Array[Json], b : Array[Json]) -> Int {
+  for i in 0..<Int::min(a.length(), b.length()) {
+    if a[i] != b[i] {
+      return i
+    }
+  }
+  Int::min(a.length(), b.length())
+}
+
+///|
+fn num(value : Json) -> Double raise {
+  match value {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("numeric")
+  }
+}
+
+///|
+fn tail_token(requests : Array[Json], row : Int) -> Int raise {
+  let last = requests.fold(init=0.0, (maximum, r) => {
+    guard r is { "ttft_ms": f, .. } else { fail("first") }
+    Double::max(maximum, num(f))
+  })
+  guard requests[row] is { "ttft_ms": first, "token_ms": Array(times), .. } else {
+    fail("times")
+  }
+  if num(first) == last {
+    return times.length()
+  }
+  let mut closest = 0
+  for i in 1..<times.length() {
+    if (num(times[i]) - last).abs() < (num(times[closest]) - last).abs() {
+      closest = i
+    }
+  }
+  assert_true((num(times[closest]) - last).abs() < 20.0)
+  closest
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else { fail("TIMING NEW_REPORT") }
+  let result : Array[Json] = []
+  for (arm, starts) in [("control", [0, 3]), ("unified", [1, 2])] {
+    let waves : Array[Array[Json]] = []
+    for start in starts {
+      for trial in 1..<4 {
+        let path = root +
+          "/s\{start}-" +
+          arm +
+          "/r0-luna-full/requests/i8192-o64-c8-varied-t\{trial}.json"
+        guard @json.parse(@fs.read_file(path).text())
+          is { "requests": Array(requests), .. } else {
+          fail("requests")
+        }
+        waves.push(requests)
+      }
+    }
+    let comparisons : Array[Json] = []
+    for wave in 1..<waves.length() {
+      let first = waves[0]
+      let next = waves[wave]
+      for row in 0..<8 {
+        guard first[row] is { "token_ids": Array(a), "ttft_ms": af, .. } &&
+          next[row]
+          is {
+            "token_ids": Array(b),
+            "ttft_ms": bf,
+            "token_ms": Array(times),
+            ..
+          } else {
+          fail("tokens")
+        }
+        let rank = fn(requests : Array[Json], value : Double) -> Int raise {
+          requests
+          .filter(r => {
+            guard r is { "ttft_ms": f, .. } else { fail("first") }
+            num(f) < value
+          })
+          .length()
+        }
+        let common = prefix(a, b)
+        let last_first = next.fold(init=0.0, (maximum, r) => {
+          guard r is { "ttft_ms": f, .. } else { fail("first") }
+          Double::max(maximum, num(f))
+        })
+        comparisons.push({
+          "wave": wave,
+          "row": row,
+          "common_prefix_tokens": common,
+          "predicted_first_tail_effect": Int::min(
+            tail_token(first, row),
+            tail_token(next, row),
+          ),
+          "difference_minus_last_ttft_ms": if common < b.length() {
+            Json(num(times[common]) - last_first)
+          } else {
+            Json("equal")
+          },
+          "first_rank": rank(first, num(af)),
+          "next_rank": rank(next, num(bf)),
+          "same_first_token": a[0] == b[0],
+        })
+      }
+    }
+    result.push({ "arm": arm, "comparisons": comparisons })
+  }
+  @fs.write_file(
+    output,
+    Json(result).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  for arm in result {
+    guard arm is { "arm": String(name), "comparisons": Array(items), .. } else {
+      fail("result")
+    }
+    let prefixes = items.map(item => {
+      guard item is { "common_prefix_tokens": Number(n, ..), .. } else {
+        fail("prefix")
+      }
+      n
+    })
+    prefixes.sort()
+    println(
+      "\{name}: prefix_min=\{prefixes[0]} median=\{(prefixes[19]+prefixes[20])/2.0} max=\{prefixes[39]}",
+    )
+    let matching = items
+      .filter(x => x is { "same_first_token": True, .. })
+      .length()
+    println("\{name}: same_first_token=\{matching}/40")
+    let tail_matches = items
+      .filter(x => {
+        guard x
+          is { "common_prefix_tokens": a, "predicted_first_tail_effect": b, .. } else {
+          fail("tail")
+        }
+        a == b
+      })
+      .length()
+    println("\{name}: first_divergence_matches_earlier_tail=\{tail_matches}/40")
+    println(
+      Json(
+        items.map(x => {
+          guard x is { "difference_minus_last_ttft_ms": v, .. } else {
+            fail("delta")
+          }
+          v
+        }),
+      ).stringify(),
+    )
+  }
+}
+
+///|
+test "prefix excludes the first divergent token" {
+  assert_eq(prefix([1, 2, 3], [1, 2, 4]), 2)
+  assert_eq(prefix([1, 2], [1, 2]), 2)
+}
