@@ -97,18 +97,25 @@ fn projection_row_variant_sources(
       )
     }
     let variant_symbol = symbol + "_rows" + bound.to_string()
+    let physical = projection_refine_physical(
+      compilation,
+      sibling_ownership~,
+      sibling_transport~,
+      sibling_execution?,
+    )
+    if !fold_choices.is_empty() {
+      projection_validate_fold_resources(
+        physical,
+        dimensions.shared_memory_bytes(),
+      )
+    }
     let source = projection_emit_source(
       variant_symbol,
       parameters,
       bound,
       Int::min(profile.max_query_rows(), bound),
       dispatch,
-      projection_refine_physical(
-        compilation,
-        sibling_ownership~,
-        sibling_transport~,
-        sibling_execution?,
-      ),
+      physical,
       false,
       dimensions.shared_memory_bytes() > 0,
       max_registers~,

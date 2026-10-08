@@ -99,18 +99,18 @@ fn projection_finish_candidate(
       parameters, tile_compilation, profile, dimensions,
     )
   }
-  if !fold_choices.is_empty() {
-    projection_validate_fold_resources(
-      tile_compilation,
-      dimensions.shared_memory_bytes(),
-    )
-  }
   let physical_compilation = projection_refine_physical(
     tile_compilation,
     sibling_ownership~,
     sibling_transport~,
     sibling_execution?,
   )
+  if !fold_choices.is_empty() {
+    projection_validate_fold_resources(
+      physical_compilation,
+      dimensions.shared_memory_bytes(),
+    )
+  }
   if sibling_ownership != SplitSiblingPlanes &&
     physical_compilation.sibling_epilogue is None {
     raise Unsupported(Strategy)

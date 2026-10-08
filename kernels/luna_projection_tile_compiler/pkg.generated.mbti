@@ -252,6 +252,7 @@ pub fn ProjectionPhysicalPipeline::new(ProjectionFoldPipeline, @physical_tile_ir
 pub fn ProjectionPhysicalPipeline::not_equal(Self, Self) -> Bool
 pub fn ProjectionPhysicalPipeline::producer_addresses(Self, Int) -> ProjectionProducerAddressPlan?
 pub fn ProjectionPhysicalPipeline::sibling_epilogue(Self, ProjectionSiblingOwnership) -> ProjectionSiblingEpiloguePlan?
+pub fn ProjectionPhysicalPipeline::static_storage_bytes(Self, element_bytes~ : Int, result_bytes~ : Int) -> Int64
 pub fn ProjectionPhysicalPipeline::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionProducerAddressPlan {
