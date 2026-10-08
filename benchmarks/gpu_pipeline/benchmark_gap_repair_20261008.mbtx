@@ -1,0 +1,167 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("ambiguous seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn record(
+  out : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    out + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    out + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    out + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  println("completed=" + label)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-gap-repair-20261008.") &&
+    ["ablation", "ablation-v2", "frameworks"].contains(mode) else {
+    fail("ROOT ablation|frameworks")
+  }
+  assert_true(@fs.exists(root + "/materialize-v2/RESULT.txt"))
+  let out = root + "/" + mode
+  @fs.mkdir(out)
+  let frozen = "/home/wlc004s/lunaflux-batch-cliff-abba-20261007.xvFHOL9t"
+  let baseline = "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC/serving-retry/both/long-final"
+  let tool = once(
+    @fs.read_file(frozen + "/launcher.mbtx").text(),
+    "let unit = \"lunaflux-matched-\"",
+    "let unit = \"lunaflux-gap-repair-\"",
+  )
+  let tool = once(
+    tool, "\"--property=RuntimeMaxSec=7200\"", "\"--property=RuntimeMaxSec=900\"",
+  )
+  let tool = once(
+    tool, "unchanged qualified worker/cubins; not current dirty-tree deployment",
+    "exact HEAD plus owned gap-repair overlay, selected AOT bundle; not production deployment",
+  )
+  let tool = if mode == "frameworks" {
+    once(
+      tool, "let orders = [[\"luna-full\"]]", "let orders = [[\"luna-full\",\"vllm\",\"sglang\"],[\"sglang\",\"vllm\",\"luna-full\"]]",
+    )
+  } else {
+    tool
+  }
+  let client = @fs.read_file(frozen + "/launcher.mbtx.client.mbtx").text()
+  guard client
+    .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+    .to_array()
+    is [a, b] &&
+    b.split("///|\nfn token_ids").to_array() is [_, c] else {
+    fail("matrix")
+  }
+  let workloads = if mode == "frameworks" {
+    "[(\"i512-o64-c8-varied\",inputs(512,8),64,\"varied\"),(\"i8192-o64-c8-varied\",inputs(8192,8),64,\"varied\"),(\"i32512-o64-c1-varied\",inputs(32512,1),64,\"varied\")]"
+  } else {
+    "[(\"i8192-o64-c8-varied\",inputs(8192,8),64,\"varied\")]"
+  }
+  let client = a.to_owned() +
+    "fn matrix() -> Array[(String, Array[Int], Int, String)] { " +
+    workloads +
+    " }\n\n///|\nfn token_ids" +
+    c.to_owned()
+  let script = out + "/launcher.mbtx"
+  @fs.write_file(script, tool, create_mode=CreateNew)
+  @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+  if mode == "frameworks" {
+    for engine in ["vllm", "sglang"] {
+      let r = @shell.Cmd("docker", [
+        "inspect",
+        "lunaflux-bench-lunaflux-benchmark-20261006.B5GyxQoX-" + engine,
+      ]).output()
+      r.check()
+      guard @json.parse(r.stdout())
+        is Array(
+          [
+            {
+              "State": { "Running": False, .. },
+              "HostConfig": {
+                "Memory": Number(limit, ..),
+                "MemorySwap": Number(swap, ..),
+                ..
+              },
+              ..
+            },
+          ]
+        ) &&
+        limit == 68719476736.0 &&
+        swap == limit else {
+        fail("stopped 64GiB no-swap reference required")
+      }
+      @fs.write_file(
+        out + "/" + engine + "-pinned.json",
+        r.stdout(),
+        create_mode=CreateNew,
+      )
+    }
+  }
+  let arms = if mode.has_prefix("ablation") {
+    ["control", "runtime", "both", "both", "runtime", "control"]
+  } else {
+    ["norm"]
+  }
+  for index, arm in arms {
+    let serving = if arm == "control" {
+      baseline
+    } else if arm == "runtime" {
+      root + "/materialize/runtime/long-final"
+    } else if arm == "norm" {
+      root + "/materialize-norm-final/norm/long-final"
+    } else {
+      root + "/materialize-v2/" + arm + "/long-final"
+    }
+    let target = out + "/s\{index}-" + arm
+    @fs.mkdir(target)
+    record(out, "s\{index}-" + arm, serving + "/toolchain/bin/moon", [
+      "run", script, serving, target, script,
+    ])
+  }
+  @fs.write_file(
+    out + "/RESULT.txt",
+    "outcome=completed\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "frozen seams reject missing and duplicated replacement" {
+  assert_eq(once("ab", "a", "z"), "zb")
+  for text in ["b", "aa"] {
+    try once(text, "a", "z") catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous accepted")
+    }
+  }
+}

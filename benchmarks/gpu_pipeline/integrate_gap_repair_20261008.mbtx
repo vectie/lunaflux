@@ -1,0 +1,422 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("ambiguous seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String,
+  env? : Map[String, String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args, cwd?, env?).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  println("completed=" + label)
+  r.stdout()
+}
+
+///|
+async fn admit(out : String) -> Unit {
+  assert_true(
+    record(out, "gpu", "nvidia-smi", [
+      "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+    ]).contains("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0"),
+  )
+  assert_true(
+    record(out, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  let memory = @fs.read_file("/proc/meminfo").text()
+  @fs.write_file(out + "/memory.txt", memory, create_mode=CreateNew)
+  let available = memory
+    .split("\n")
+    .filter(s => s.has_prefix("MemAvailable:"))
+    .to_array()[0]
+    .split(" ")
+    .filter(s => !s.is_empty())
+    .to_array()[1]
+  assert_true(@string.parse_int64(available) >= 33554432L)
+  assert_true(
+    record(out, "nvcc", "sha256sum", ["/usr/local/cuda-13.0/bin/nvcc"]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-gap-repair-20261008.") else {
+    fail("ROOT MODE")
+  }
+  let out = root + "/" + mode
+  @fs.mkdir(out)
+  let frozen = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z"
+  let baseline = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt"
+  let vendor = "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC"
+  let moon = frozen + "/toolchain/bin/moon"
+  let tools = "/home/wlc004s/lunaflux-reference-integration-20261008.G89e6nwn/validation-toolchain/bin/moon"
+  let source = root +
+    (if ["prepare-final", "build-final", "materialize-norm-final"].contains(
+        mode,
+      ) {
+      "/source-final"
+    } else {
+      "/source-v2"
+    })
+  let cli = source + "/_build/native/release/build/cmd/"
+  let worker = if mode == "materialize-norm" {
+    vendor +
+    "/serving-retry/both/long-final/deployment/bin/lunaflux-device-worker"
+  } else {
+    cli + "device_worker_child/device_worker_child.exe"
+  }
+  let exporter = cli +
+    "lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe"
+  let flags = "-79-20-29-25-92-14"
+  if mode == "prepare-v2" || mode == "prepare-final" {
+    let overlay = root +
+      (if mode == "prepare-final" {
+        "/final-overlay.tar"
+      } else {
+        "/overlay.tar"
+      })
+    @fs.mkdir(source)
+    ignore(
+      record(out, "source-archive", "sha256sum", [root + "/source.tar", overlay]),
+    )
+    @shell.Cmd("tar", ["-xf", root + "/source.tar", "-C", source]).run()
+    @shell.Cmd("tar", ["--exclude=._*", "-xf", overlay, "-C", source]).run()
+    @shell.Cmd("cp", [
+      "-a",
+      frozen + "/source/.mooncakes",
+      source + "/.mooncakes",
+    ]).run()
+  } else if ["build-v2", "build-v3", "build-final"].contains(mode) {
+    let extra_bin = (if mode == "build-final" {
+        root + "/build-v3"
+      } else {
+        out
+      }) +
+      "/tools/usr/bin:"
+    if mode == "build-v3" {
+      ignore(
+        record(
+          out,
+          "download-rg",
+          "apt-get",
+          ["download", "ripgrep=14.1.0-1"],
+          cwd=out,
+        ),
+      )
+      ignore(
+        record(out, "rg-package", "sha256sum", [
+          out + "/ripgrep_14.1.0-1_arm64.deb",
+        ]),
+      )
+      ignore(
+        record(out, "extract-rg", "dpkg-deb", [
+          "-x",
+          out + "/ripgrep_14.1.0-1_arm64.deb",
+          out + "/tools",
+        ]),
+      )
+    }
+    for
+      (label, args) in [
+        ("info", ["info"]),
+        ("format", ["fmt", "--check"]),
+        (
+          "check",
+          ["check", "--target", "native", "--deny-warn", "--warn-list", flags],
+        ),
+        (
+          "tests",
+          ["test", "--target", "native", "--deny-warn", "--warn-list", flags],
+        ),
+        (
+          "worker",
+          [
+            "build", "--target", "native", "--release", "--deny-warn", "--warn-list",
+            flags, "cmd/device_worker_child",
+          ],
+        ),
+        (
+          "exporter",
+          [
+            "build", "--target", "native", "--release", "--deny-warn", "--warn-list",
+            flags, "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+          ],
+        ),
+      ] {
+      ignore(record(out, label, tools, args, cwd=source))
+    }
+    ignore(
+      record(
+        out,
+        "allocations",
+        "bash",
+        ["scripts/validate-device-worker-batch-allocations.sh"],
+        cwd=source,
+        env={
+          "PATH": extra_bin +
+          "/home/wlc004s/lunaflux-reference-integration-20261008.G89e6nwn/validation-toolchain/bin:/usr/local/bin:/usr/bin:/bin",
+        },
+      ),
+    )
+    ignore(record(out, "binaries", "sha256sum", [worker, exporter]))
+  } else if mode == "physical-norm" {
+    admit(out)
+    let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+    ignore(
+      record(out, "compile", nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        root + "/candidate/norm-production.cu",
+        "-o",
+        out + "/residual.cubin",
+      ]),
+    )
+    ignore(
+      record(out, "probe-build", nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        root + "/retained_norm_production_probe.cu",
+        "-lcuda",
+        "-o",
+        out + "/probe",
+      ]),
+    )
+    let old = "/home/wlc004s/lunaflux-domain-serving-v4-20261004.QmE9WZ7s/fused/residual.cubin"
+    ignore(
+      record(out, "artifacts", "sha256sum", [old, out + "/residual.cubin"]),
+    )
+    for rows in [1, 8, 32, 2048] {
+      assert_true(
+        record(out, "r\{rows}", out + "/probe", [
+          old,
+          out + "/residual.cubin",
+          "1024",
+          "\{rows}",
+          "timing",
+          "--production",
+        ]).contains("correctness=passed bitwise=true"),
+      )
+    }
+    for tool in ["memcheck", "racecheck", "initcheck", "synccheck"] {
+      let args = ["--tool", tool, "--error-exitcode", "99"]
+      if tool == "memcheck" {
+        args.append(["--leak-check", "full"])
+      }
+      args.append([
+        out + "/probe",
+        old,
+        out + "/residual.cubin",
+        "1024",
+        "32",
+        "check",
+        "--production",
+      ])
+      assert_true(
+        record(out, tool, "/usr/local/cuda-13.0/bin/compute-sanitizer", args).contains(
+          "correctness=passed",
+        ),
+      )
+    }
+  } else if [
+      "materialize", "materialize-v2", "materialize-norm", "materialize-norm-final",
+    ].contains(mode) {
+    assert_true(@fs.exists(root + "/build-v3/RESULT.txt"))
+    assert_true(@fs.exists(root + "/physical-norm/RESULT.txt"))
+    let materializer = once(
+      @fs.read_file(source + "/scripts/materialize-qwen3-bf16-v12-launch.mbtx").text(),
+      "repo + \"/scripts/assemble-luna-kernel-root.mbtx\"",
+      Json(source + "/scripts/assemble-luna-kernel-root.mbtx").stringify(),
+    )
+    @fs.write_file(
+      out + "/materializer.mbtx",
+      materializer,
+      create_mode=CreateNew,
+    )
+    let arms = if mode == "materialize-norm" || mode == "materialize-norm-final" {
+      ["norm"]
+    } else if mode == "materialize-v2" {
+      @shell.Cmd("ln", ["-s", root + "/materialize/runtime", out + "/runtime"]).run()
+      ["both"]
+    } else {
+      ["runtime", "both"]
+    }
+    for arm in arms {
+      let serving = out + "/" + arm
+      @fs.mkdir(serving)
+      @fs.mkdir(serving + "/fused-routed")
+      let bundle = serving + "/fused-routed/reusable-fused-runtime-bundle.v3"
+      guard @json.parse(
+          @fs.read_file(vendor + "/both-final-export.command.json").text(),
+        )
+        is Array(values) else {
+        fail("args")
+      }
+      let args = values[1:]
+        .to_owned()
+        .map(v => {
+          guard v is String(s) else { fail("arg") }
+          s
+        })
+      if arm == "both" || arm == "norm" {
+        args[8] = root + "/physical-norm/residual.cubin"
+      }
+      if arm == "norm" {
+        let routes = root +
+          "/materialize-v2/both/decode-calibration-v2/routes.v1"
+        let hash = record(out, "routes-hash", "sha256sum", [routes])
+        .split(" ")
+        .to_array()[0].to_owned()
+        let index = args.search("--attention-buckets").unwrap()
+        args[index + 1] = routes
+        args[index + 2] = hash
+      }
+      if mode == "materialize-v2" {
+        // The chain scope includes residual normalization. Re-measure unchanged
+        // decode alternatives under the new scope; never relabel old timings.
+        let route_index = args.search("--attention-buckets").unwrap()
+        ignore(args.remove(route_index))
+        ignore(args.remove(route_index))
+        ignore(args.remove(route_index))
+        args[70] = serving + "/base-bundle.v3"
+        ignore(record(out, arm + "-base-export", exporter, args))
+        let helper = "/home/wlc004s/lunaflux-reference-integration-20261008.G89e6nwn/reference_serving_integration_v4.mbtx"
+        guard @fs.read_file(helper)
+          .text()
+          .split("///|\nasync fn main {")
+          .to_array()
+          is [prefix, _] else {
+          fail("calibration helper seam")
+        }
+        let calibration = prefix.to_owned() +
+          "///|\nasync fn main {\n  guard @env.args() is [_, root, baseline, report, module_] else { fail(\"args\") }\n  println(calibrate_decode(root, baseline, field(@fs.read_file(report).text(), \"attention_route_scope\"), module_))\n}\n"
+        let path = serving + "/calibrate.mbtx"
+        @fs.write_file(path, calibration, create_mode=CreateNew)
+        admit(serving)
+        ignore(
+          record(out, arm + "-calibrate", moon, [
+            "run",
+            path,
+            serving,
+            baseline,
+            out + "/" + arm + "-base-export.stdout",
+            args[65],
+          ]),
+        )
+        let routes = serving + "/decode-calibration-v2/routes.v1"
+        let hash = record(out, arm + "-routes-hash", "sha256sum", [routes])
+        .split(" ")
+        .to_array()[0].to_owned()
+        // Vendor-row policy is parsed last by the exporter.
+        let vendor_rows = args.pop().unwrap()
+        assert_eq(args.pop().unwrap(), "--prefill-vendor-projection-rows")
+        args.append([
+          "--attention-buckets", routes, hash, "--prefill-vendor-projection-rows",
+          vendor_rows,
+        ])
+      }
+      args[70] = bundle
+      ignore(record(out, arm + "-export", exporter, args))
+      for name in ["source", "toolchain"] {
+        @shell.Cmd("ln", ["-s", frozen + "/" + name, serving + "/" + name]).run()
+      }
+      for
+        name in [
+          "bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1",
+        ] {
+        @fs.write_file(
+          serving + "/" + name,
+          @fs.read_file(baseline + "/serving/" + name),
+          create_mode=CreateNew,
+        )
+      }
+      let prepare = once(
+        @fs.read_file(baseline + "/serving/prepare.mbtx").text(),
+        "let worker=cli+\"device_worker_child/device_worker_child.exe\"",
+        "let worker=" + Json(worker).stringify(),
+      )
+      let prepare = once(
+        prepare,
+        "source+\"/scripts/materialize-qwen3-bf16-v12-launch.mbtx\"",
+        Json(out + "/materializer.mbtx").stringify(),
+      )
+      @fs.write_file(serving + "/prepare.mbtx", prepare, create_mode=CreateNew)
+      ignore(
+        record(out, arm + "-materialize", moon, [
+          "run",
+          serving + "/prepare.mbtx",
+          serving,
+          "materialize",
+        ]),
+      )
+      let long = serving + "/long-final"
+      @fs.mkdir(long)
+      for name in ["source", "toolchain"] {
+        @shell.Cmd("ln", ["-s", frozen + "/" + name, long + "/" + name]).run()
+      }
+      @fs.write_file(
+        long + "/export.stdout",
+        @fs.read_file(serving + "/export.stdout"),
+        create_mode=CreateNew,
+      )
+      ignore(
+        record(out, arm + "-long", moon, [
+          "run",
+          frozen + "/prepare-long.mbtx",
+          serving,
+          long,
+        ]),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+  @fs.write_file(out + "/RESULT.txt", "outcome=passed\n", create_mode=CreateNew)
+}

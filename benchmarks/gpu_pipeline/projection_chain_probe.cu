@@ -123,7 +123,7 @@ static float at(const std::vector<unsigned char>& bytes, size_t index) {
 
 int main(int argc, char** argv) {
   if (argc < 18 || argc > 23) {
-    std::fprintf(stderr, "KIND OLD NEW TOKENS ROWS OLD_PRIMARY(grid block shared) OLD_DOWN(grid block shared) NEW_PRIMARY(grid block shared) NEW_DOWN(grid block shared) [--check] [--bounded-symbols] [--down-only-change] [--streaming-weights|--streaming-all-weights]\n");
+    std::fprintf(stderr, "KIND OLD NEW TOKENS ROWS OLD_PRIMARY(grid block shared) OLD_DOWN(grid block shared) NEW_PRIMARY(grid block shared) NEW_DOWN(grid block shared) [--check] [--bounded-symbols] [--down-only-change|--gate-only-change] [--streaming-weights|--streaming-all-weights]\n");
     return 1;
   }
   const bool mlp = std::strcmp(argv[1], "mlp") == 0;
@@ -131,16 +131,18 @@ int main(int argc, char** argv) {
   // Offline chunk experiment only. The supplied AOT modules must carry this
   // capacity too; raising a probe limit cannot extend a serving bundle.
   const unsigned tokens = number(argv[4], 8192), rows = number(argv[5], 32);
-  bool check_only = false, bounded_symbols = false, down_only_change = false, streaming_weights = false, streaming_all = false;
+  bool check_only = false, bounded_symbols = false, down_only_change = false, gate_only_change = false, streaming_weights = false, streaming_all = false;
   for (int i = 18; i < argc; ++i) {
     if (std::strcmp(argv[i], "--check") == 0 && !check_only) check_only = true;
     else if (std::strcmp(argv[i], "--bounded-symbols") == 0 && !bounded_symbols) bounded_symbols = true;
     else if (std::strcmp(argv[i], "--down-only-change") == 0 && !down_only_change && mlp) down_only_change = true;
+    else if (std::strcmp(argv[i], "--gate-only-change") == 0 && !gate_only_change && mlp) gate_only_change = true;
     else if (std::strcmp(argv[i], "--streaming-weights") == 0 && !streaming_weights && mlp) streaming_weights = true;
     else if (std::strcmp(argv[i], "--streaming-all-weights") == 0 && !streaming_weights && mlp) { streaming_weights = true; streaming_all = true; }
     else return 1;
   }
   if (tokens < rows || (bounded_symbols && tokens > 16)) return 1;
+  if (gate_only_change && down_only_change) return 1;
   const unsigned hidden = 1024, intermediate = 3072, input_width = mlp ? hidden : 2048;
   CK(cudaSetDevice(0)); CK(cudaFree(nullptr));
   Buffer counts(20), input(size_t(tokens) * input_width * 2),
@@ -159,6 +161,11 @@ int main(int argc, char** argv) {
     now.primary = old.primary;
     now.first = old.first;
     std::printf("ablation=down-only-change producer=old-module\n");
+  }
+  if (gate_only_change) {
+    now.secondary = old.secondary;
+    now.second = old.second;
+    std::printf("ablation=gate-only-change down=old-module\n");
   }
   void* mlp_args[] = {&counts.pointer, &input.pointer, &gate.pointer, &up.pointer,
                      &down.pointer, &output.pointer, &workspace.pointer};

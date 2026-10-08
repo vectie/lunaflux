@@ -1,0 +1,112 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("ambiguous seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. options] &&
+    (options.is_empty() || options is ["--both-retry"]) &&
+    root.has_prefix("/home/wlc004s/lunaflux-gap-repair-20261008.") else {
+    fail("ROOT")
+  }
+  assert_true(@fs.exists(root + "/ablation-v2-summary.json"))
+  let output = root +
+    (if options.is_empty() { "/profile" } else { "/profile-both-retry" })
+  @fs.mkdir(output)
+  let previous = "/home/wlc004s/lunaflux-final-gap-20261008.RcjTl7Ez"
+  let frozen = "/home/wlc004s/lunaflux-batch-cliff-abba-20261007.xvFHOL9t"
+  let moon = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z/toolchain/bin/moon"
+  let template = once(
+    @fs.read_file(previous + "/trace-template.mbtx").text(),
+    "lunaflux-final-trace-RcjTl7Ez-",
+    if options.is_empty() {
+      "lunaflux-repair-trace-sCCySOLe-"
+    } else {
+      "lunaflux-repair-trace-both-sCCySOLe-"
+    },
+  )
+  @fs.write_file(output + "/template.mbtx", template, create_mode=CreateNew)
+  // Reuse the audited, epoch-aligned one-wave capture and its unchanged host
+  // tracing executable. The deployment selects the exact new worker/cubin.
+  @fs.write_file(
+    output + "/profiler.mbtx",
+    @fs.read_file(previous + "/profiler.mbtx"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    output + "/analyzer.mbtx",
+    @fs.read_file(root + "/analyze_final_gap_20261008.mbtx"),
+    create_mode=CreateNew,
+  )
+  for arm in (if options.is_empty() { ["control", "both"] } else { ["both"] }) {
+    let target = output + "/" + arm
+    @fs.mkdir(target)
+    @fs.mkdir(target + "/capture")
+    let serving = if arm == "control" {
+      "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC/serving-retry/both/long-final"
+    } else {
+      root + "/materialize-v2/both/long-final"
+    }
+    let r = @shell.Cmd(moon, [
+      "run",
+      output + "/profiler.mbtx",
+      serving,
+      target + "/capture",
+      output + "/template.mbtx",
+      frozen + "/launcher.mbtx.client.mbtx",
+      moon,
+      "/home/wlc004s/lunaflux-mixed-work-20261007.NnA6SsKN/diagnostic-source",
+      "--batch-cliff",
+      "--work-rows",
+      "--luna-only",
+    ]).output(max_output_bytes=33554432)
+    @fs.write_file(
+      target + "/capture.stdout",
+      r.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      target + "/capture.stderr",
+      r.stderr(),
+      create_mode=CreateNew,
+    )
+    r.check()
+    println("captured=" + arm)
+    let a = @shell.Cmd(moon, [
+      "run",
+      output + "/analyzer.mbtx",
+      target,
+      target + "/summary.json",
+      "luna-full",
+    ]).output(max_output_bytes=33554432)
+    @fs.write_file(
+      target + "/analyze.stdout",
+      a.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      target + "/analyze.stderr",
+      a.stderr(),
+      create_mode=CreateNew,
+    )
+    a.check()
+    println(a.stdout())
+  }
+  @fs.write_file(
+    output + "/RESULT.txt",
+    "outcome=completed\n",
+    create_mode=CreateNew,
+  )
+}

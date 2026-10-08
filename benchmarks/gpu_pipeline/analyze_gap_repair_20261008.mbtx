@@ -1,0 +1,197 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(j : Json, key : String) -> Json raise {
+  guard j is Object(m) else { fail("object") }
+  m[key]
+}
+
+///|
+fn number(j : Json) -> Double raise {
+  match j {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(xs : Array[Double]) -> Double raise {
+  assert_false(xs.is_empty())
+  let ys = xs.copy()
+  ys.sort()
+  let middle = ys.length() / 2
+  if ys.length() % 2 == 0 {
+    (ys[middle - 1] + ys[middle]) / 2.0
+  } else {
+    ys[middle]
+  }
+}
+
+///|
+async fn load(path : String) -> Json {
+  @json.parse(@fs.read_file(path).text())
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    ["ablation", "ablation-v2", "frameworks"].contains(mode) else {
+    fail("ROOT ablation|frameworks")
+  }
+  assert_true(@fs.exists(root + "/" + mode + "/RESULT.txt"))
+  let groups = if mode.has_prefix("ablation") {
+    [
+      (
+        "control",
+        "luna-full",
+        ["s0-control/r0-luna-full", "s5-control/r0-luna-full"],
+      ),
+      (
+        "runtime",
+        "luna-full",
+        ["s1-runtime/r0-luna-full", "s4-runtime/r0-luna-full"],
+      ),
+      ("both", "luna-full", ["s2-both/r0-luna-full", "s3-both/r0-luna-full"]),
+    ]
+  } else {
+    [
+      ("norm", "luna-full", ["s0-norm/r0-luna-full", "s0-norm/r1-luna-full"]),
+      ("vllm", "vllm", ["s0-norm/r0-vllm", "s0-norm/r1-vllm"]),
+      ("sglang", "sglang", ["s0-norm/r0-sglang", "s0-norm/r1-sglang"]),
+    ]
+  }
+  let cells = if mode.has_prefix("ablation") {
+    [(8192, 8)]
+  } else {
+    [(512, 8), (8192, 8), (32512, 1)]
+  }
+  let reports : Array[Json] = []
+  for (input_count, concurrency) in cells {
+    let cell = "i\{input_count}-o64-c\{concurrency}-varied"
+    let control = root + "/" + mode + "/" + groups[0].2[0] + "/requests/" + cell
+    for (arm, engine, starts) in groups {
+      let walls : Array[Double] = []
+      let ttfts : Array[Double] = []
+      let tpots : Array[Double] = []
+      let token_delays : Array[Array[Double]] = Array::makei(64, _ => [])
+      let start_reports : Array[Json] = []
+      let mut same_tokens = 0
+      let mut requests_checked = 0
+      for start in starts {
+        let path = root + "/" + mode + "/" + start + "/requests/" + cell
+        let start_walls : Array[Double] = []
+        let memory_samples = @fs.read_file(
+            root + "/" + mode + "/" + start + "/memory.csv",
+          )
+          .text()
+          .split("\n")
+          .filter(s => !s.is_empty())
+          .to_array()
+          .map(s => @string.parse_int64(s.split(",").to_array()[1]))
+        assert_false(memory_samples.is_empty())
+        let minimum_memory = memory_samples.fold(
+          init=memory_samples[0],
+          Int64::min,
+        )
+        assert_true(minimum_memory >= 33554432L)
+        for trial in [1, 2, 3] {
+          let wave = load(path + "-t\{trial}.json")
+          assert_eq(field(wave, "warmup"), Json(false))
+          assert_eq(field(wave, "output"), Json(64))
+          let wall = number(field(wave, "wall_ms"))
+          start_walls.push(wall)
+          walls.push(wall)
+          guard field(wave, "requests") is Array(requests) else {
+            fail("requests")
+          }
+          assert_eq(requests.length(), concurrency)
+          guard field(load(control + "-t1.json"), "requests")
+            is Array(reference) else {
+            fail("reference")
+          }
+          for row, request in requests {
+            guard field(request, "token_ids") is Array(tokens) &&
+              field(request, "token_ms") is Array(times) else {
+              fail("token vectors")
+            }
+            assert_eq(tokens.length(), 64)
+            assert_eq(times.length(), 64)
+            let body = load(path + "-t\{trial}-r\{row}.body.json")
+            let base_body = load(control + "-t1-r\{row}.body.json")
+            let key = match engine {
+              "luna-full" => "input_token_ids"
+              "vllm" => "prompt"
+              _ => "input_ids"
+            }
+            let input = field(body, key)
+            assert_eq(input, field(base_body, "input_token_ids"))
+            guard input is Array(ids) else { fail("input vector") }
+            assert_eq(ids.length(), input_count)
+            let sampling = match engine {
+              "luna-full" => field(body, "sampling")
+              "sglang" => field(body, "sampling_params")
+              _ => body
+            }
+            assert_eq(field(sampling, "temperature"), Json(0))
+            assert_eq(field(sampling, "top_p"), Json(1))
+            assert_eq(field(sampling, "ignore_eos"), Json(true))
+            if field(request, "token_ids") == field(reference[row], "token_ids") {
+              same_tokens += 1
+            }
+            requests_checked += 1
+            ttfts.push(number(field(request, "ttft_ms")))
+            tpots.push(number(field(request, "mean_tpot_ms")))
+            for i, time in times {
+              let delta = number(time) -
+                (if i == 0 { 0.0 } else { number(times[i - 1]) })
+              assert_true(delta >= 0.0)
+              token_delays[i].push(delta)
+            }
+          }
+        }
+        start_reports.push({
+          "start": start,
+          "minimum_available_memory_kib": minimum_memory,
+          "wall_ms": Json(start_walls),
+          "median_wall_ms": median(start_walls),
+        })
+      }
+      let wall = median(walls)
+      reports.push({
+        "cell": cell,
+        "arm": arm,
+        "engine": engine,
+        "median_wall_ms": wall,
+        "output_tokens_per_second": concurrency.to_double() * 64000.0 / wall,
+        "median_ttft_ms": median(ttfts),
+        "median_request_tpot_ms": median(tpots),
+        "median_token_delay_vector_ms": Json(token_delays.map(xs => median(xs))),
+        "requests_checked": requests_checked,
+        "token_vectors_equal_to_control_t1": same_tokens,
+        "quality_parity_claim": false,
+        "starts": Json(start_reports),
+      })
+    }
+  }
+  let result = Json(reports).stringify(indent=2)
+  @fs.write_file(
+    root + "/" + mode + "-summary.json",
+    result,
+    create_mode=CreateNew,
+  )
+  println(result)
+}
+
+///|
+test "median retains even sample midpoint" {
+  assert_eq(median([4.0, 1.0, 3.0, 2.0]), 2.5)
+  assert_eq(median([4.0, 1.0, 3.0]), 3.0)
+}

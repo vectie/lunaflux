@@ -1,0 +1,85 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  assert_eq(values.length(), 5)
+  let sorted = values.copy()
+  sorted.sort()
+  sorted[2]
+}
+
+///|
+fn samples(text : String) -> (Array[Double], Array[Double]) raise {
+  let before : Array[Double] = []
+  let after : Array[Double] = []
+  assert_true(text.has_prefix("correctness=passed bitwise=true "))
+  for line in text.split("\n") {
+    if line.has_prefix("trial=") {
+      guard line.split(" ").to_array() is [_, a, b] &&
+        a.strip_prefix("old_us=") is Some(a) &&
+        b.strip_prefix("new_us=") is Some(b) else {
+        fail("timing fields")
+      }
+      before.push(@string.parse_double(a))
+      after.push(@string.parse_double(b))
+    }
+  }
+  assert_eq(before.length(), 5)
+  assert_eq(after.length(), 5)
+  (before, after)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-gap-repair-20261008.") else {
+    fail("ROOT")
+  }
+  let reports : Array[Json] = []
+  for width in [127, 128, 1024, 1025, 2048] {
+    for rows in [1, 8, 32, 2048] {
+      let (before, after) = samples(
+        @fs.read_file(root + "/norm-v3/w\{width}-r\{rows}.stdout").text(),
+      )
+      let old_us = median(before)
+      let new_us = median(after)
+      reports.push({
+        "width": width,
+        "rows": rows,
+        "old_us": old_us,
+        "new_us": new_us,
+        "change_percent": (new_us / old_us - 1.0) * 100.0,
+        "old_samples_us": Json(before),
+        "new_samples_us": Json(after),
+        "bitwise_correct": true,
+        "scope": "diagnostic symbol, not production ABI timings",
+      })
+    }
+  }
+  let result = Json(reports).stringify(indent=2)
+  @fs.write_file(
+    root + "/norm-shapes-summary.json",
+    result,
+    create_mode=CreateNew,
+  )
+  println(result)
+}
+
+///|
+test "retain losing samples rather than choosing best sample" {
+  assert_eq(median([2.0, 4.0, 1.0, 10.0, 5.0]), 4.0)
+  let (a, b) = samples(
+    "correctness=passed bitwise=true width=1 rows=1\n" +
+    "trial=0 old_us=1 new_us=2\ntrial=1 old_us=1 new_us=2\n" +
+    "trial=2 old_us=1 new_us=2\ntrial=3 old_us=1 new_us=2\n" +
+    "trial=4 old_us=1 new_us=2\n",
+  )
+  assert_true(median(b) > median(a))
+}

@@ -1,0 +1,377 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  println("completed=" + label)
+  r.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-gap-repair-20261008.") else {
+    fail("ROOT norm|gate|decode|sanitize")
+  }
+  let out = root + "/" + mode
+  @fs.mkdir(out)
+  let uuid = "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  let moon = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z/toolchain/bin/moon"
+  assert_true(
+    capture(out, "gpu", "nvidia-smi", [
+      "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+    ]).contains(uuid + ", 0000000F:01:00.0"),
+  )
+  assert_true(
+    capture(out, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  assert_true(
+    capture(out, "nvcc", "sha256sum", [nvcc]).has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  let memory = @fs.read_file("/proc/meminfo").text()
+  @fs.write_file(out + "/memory.txt", memory, create_mode=CreateNew)
+  let amount = memory
+    .split("\n")
+    .filter(s => s.has_prefix("MemAvailable:"))
+    .to_array()[0]
+    .split(" ")
+    .filter(s => !s.is_empty())
+    .to_array()[1]
+  assert_true(@string.parse_int64(amount) >= 33554432L)
+  let exports = root +
+    (if mode == "norm-v3" { "/exports-v2" } else { "/exports" })
+  let baseline = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt"
+  if mode == "norm" || mode == "norm-v2" || mode == "norm-v3" {
+    ignore(
+      capture(out, "probe-build", nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        root + "/retained_norm_probe.cu",
+        "-lcuda",
+        "-o",
+        out + "/probe",
+      ]),
+    )
+    for width in [127, 128, 1024, 1025, 2048] {
+      for variant in ["old", "new"] {
+        let label = "norm-\{width}-" + variant
+        // Diagnostic export symbol collided with CUDA's math norm overload.
+        // Change only that wrapper name in a new source, preserving originals.
+        @fs.write_file(
+          out + "/" + label + ".cu",
+          @fs.read_file(exports + "/" + label + ".cu")
+          .text()
+          .replace(old="void norm(", new="void lf_norm("),
+          create_mode=CreateNew,
+        )
+        ignore(
+          capture(out, label + "-compile", nvcc, [
+            "-O3",
+            "-arch=sm_121",
+            "--fmad=false",
+            "--ftz=false",
+            "--prec-div=true",
+            "--prec-sqrt=true",
+            "-lineinfo",
+            "-Xptxas=-v",
+            "-cubin",
+            out + "/" + label + ".cu",
+            "-o",
+            out + "/" + label + ".cubin",
+          ]),
+        )
+      }
+      for rows in [1, 8, 32, 2048] {
+        let result = capture(out, "w\{width}-r\{rows}", out + "/probe", [
+          out + "/norm-\{width}-old.cubin",
+          out + "/norm-\{width}-new.cubin",
+          "\{width}",
+          "\{rows}",
+          "timing",
+        ])
+        assert_true(result.contains("correctness=passed bitwise=true"))
+      }
+    }
+  } else if mode == "decode-counter" {
+    let container = "lunaflux-gap-register-score-sCCySOLe"
+    errdefer ignore(
+      @shell.Cmd("docker", ["stop", "--time", "5", container]).output(),
+    )
+    let result = capture(out, "profile", "docker", [
+      "run",
+      "--rm",
+      "--name",
+      container,
+      "--gpus",
+      "all",
+      "--memory",
+      "8g",
+      "--memory-swap",
+      "8g",
+      "--cap-add",
+      "SYS_ADMIN",
+      "--security-opt",
+      "seccomp=unconfined",
+      "--mount",
+      "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+      "--mount",
+      "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+      "--mount",
+      "type=bind,source=" + out + ",target=" + out,
+      "sha256:73e1b0f3230a9377a3109d20be7f8607963a41a715eb3000bc647f5f73c198ff",
+      "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+      "--clock-control",
+      "none",
+      "--cache-control",
+      "none",
+      "--kernel-name-base",
+      "function",
+      "--kernel-name",
+      "owned_decode_owned8_blockwise_f32_v4",
+      "--launch-count",
+      "1",
+      "--config-file",
+      "off",
+      "--section",
+      "LaunchStats",
+      "--section",
+      "Occupancy",
+      "--section",
+      "SpeedOfLight",
+      "--section",
+      "SchedulerStats",
+      "--section",
+      "WarpStateStats",
+      "--section",
+      "MemoryWorkloadAnalysis",
+      "--section",
+      "InstructionStats",
+      "--section",
+      "SourceCounters",
+      "--export",
+      out + "/counter",
+      baseline + "/check-probe",
+      baseline + "/calibration-spec/decode.spec",
+      baseline + "/decode-selected",
+      root + "/decode",
+      "8",
+      "8",
+      "8192",
+      "--check-only",
+    ])
+    assert_true(result.contains("correctness=passed"))
+    ignore(
+      capture(out, "raw", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+        "--import",
+        out + "/counter.ncu-rep",
+        "--page",
+        "raw",
+        "--csv",
+        "--print-units",
+        "base",
+      ]),
+    )
+  } else if mode == "decode" {
+    let selected = exports + "/c468-p1"
+    // Match the selected serving register ceiling, not the frontier export's
+    // diagnostic default. Keep the generated algorithm and recipe otherwise.
+    @fs.write_file(
+      out + "/kernel.recipe",
+      @fs.read_file(selected + "/kernel.recipe")
+      .text()
+      .replace(old="max_registers=128", new="max_registers=255"),
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(out, "compile", nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "--maxrregcount=255",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        selected + "/kernel.cu",
+        "-o",
+        out + "/kernel.cubin",
+      ]),
+    )
+    let config : Json = {
+      "schema": "lunaflux-ako-trial-v1",
+      "gpu_uuid": uuid,
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.005,
+      "require_bitwise": true,
+      "program": baseline + "/check-probe",
+      "artifacts": [
+        baseline + "/decode-selected/kernel.cubin",
+        out + "/kernel.cubin",
+        out + "/kernel.recipe",
+      ],
+      "workloads": [
+        for
+          (rows, history) in [
+            (1, 127),
+            (8, 127),
+            (8, 8192),
+            (16, 4096),
+            (1, 32768),
+          ] => {
+          {
+            "label": "r\{rows}-h\{history}",
+            "args": [
+              baseline + "/calibration-spec/decode.spec",
+              baseline + "/decode-selected",
+              out,
+              "\{rows}",
+              "\{rows}",
+              "\{history}",
+            ],
+          }
+        }
+      ],
+    }
+    @fs.write_file(
+      out + "/contract.json",
+      config.stringify(),
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(out, "trial", moon, [
+        "run",
+        root + "/ako_trial.mbtx",
+        out + "/contract.json",
+        out + "/trial",
+      ]),
+    )
+  } else if mode == "gate" {
+    ignore(
+      capture(out, "probe-build", nvcc, [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        root + "/projection_chain_probe.cu",
+        "-lcuda",
+        "-o",
+        out + "/probe",
+      ]),
+    )
+    let old = "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC/serving-retry/both/long-final/deployment/kernel-release/kernel-root/sha256/bf10e22f8213f89a8a99f4530e1928051111f670101b84b0785201918ab949fe.cubin"
+    for name in ["r64c128w8", "r128c64w8", "r128c128w8", "r128c128w16"] {
+      let source = exports + "/" + name + ".cu"
+      let cubin = out + "/" + name + ".cubin"
+      ignore(
+        capture(out, name + "-compile", nvcc, [
+          "-O3", "-arch=sm_121", "--fmad=false", "--ftz=false", "--prec-div=true",
+          "--prec-sqrt=true", "--maxrregcount=255", "-lineinfo", "-Xptxas=-v", "-cubin",
+          source, "-o", cubin,
+        ]),
+      )
+      let text = @fs.read_file(source).text()
+      let dims : Array[String] = []
+      for
+        key in [
+          "PRIMARY_GRID", "PRIMARY_BLOCK", "PRIMARY_SHARED", "DOWN_GRID", "DOWN_BLOCK",
+          "DOWN_SHARED",
+        ] {
+        let prefix = "// PROBE_" + key + "="
+        guard text.split("\n").filter(s => s.has_prefix(prefix)).to_array()
+          is [line] else {
+          fail("geometry")
+        }
+        dims.push(line[prefix.length():].to_owned())
+      }
+      let config : Json = {
+        "schema": "lunaflux-ako-trial-v1",
+        "timing_kind": "mlp-chain-v1",
+        "gpu_uuid": uuid,
+        "reserve_kib": 33554432,
+        "minimum_gain": 0.005,
+        "program": out + "/probe",
+        "artifacts": [old, cubin],
+        "workloads": [
+          for rows in [128, 2048] => {
+            {
+              "label": "rows\{rows}",
+              "args": Json(
+                [
+                  "mlp",
+                  old,
+                  cubin,
+                  "\{rows}",
+                  "8",
+                  "1536",
+                  "512",
+                  "16384",
+                  "256",
+                  "128",
+                  "0",
+                  ..dims,
+                  "--gate-only-change",
+                  "--streaming-all-weights",
+                ],
+              ),
+            }
+          }
+        ],
+      }
+      let contract = out + "/" + name + ".json"
+      @fs.write_file(contract, config.stringify(), create_mode=CreateNew)
+      ignore(
+        capture(out, name + "-trial", moon, [
+          "run",
+          root + "/ako_trial.mbtx",
+          contract,
+          out + "/" + name,
+        ]),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+  @fs.write_file(
+    out + "/RESULT.txt",
+    "outcome=completed\n",
+    create_mode=CreateNew,
+  )
+}

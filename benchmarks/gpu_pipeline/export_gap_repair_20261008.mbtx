@@ -1,0 +1,102 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  args : Array[String],
+  env? : Map[String, String] = {},
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json(["moon", ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let output = @shell.Cmd("moon", args, env~).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+  output.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("NEW_EMPTY_OUTPUT") }
+  let flags = "-79-20-29-25-92-14"
+  let norm = run(
+    root,
+    "norm-export",
+    [
+      "test", "kernels/luna_cuda_fused_parallel_aot/retained_export_wbtest.mbt",
+      "--target", "native", "--deny-warn", "--warn-list", flags,
+    ],
+    env={ "LUNA_EXPORT_RETAINED_NORM": "1" },
+  )
+  for section in norm.split("LUNA_SOURCE_BEGIN ").to_array()[1:] {
+    let lines = section.split("\n").to_array()
+    let source = lines[1:].join("\n").split("LUNA_SOURCE_END").to_array()[0].to_owned()
+    @fs.write_file(
+      root + "/" + lines[0].to_owned() + ".cu",
+      source,
+      create_mode=CreateNew,
+    )
+  }
+  let decode = run(
+    root,
+    "decode-export",
+    [
+      "test", "kernels/luna_cuda_attention_tile_source/blockwise_decode_wbtest.mbt",
+      "--target", "native", "--deny-warn", "--warn-list", flags,
+    ],
+    env={ "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1" },
+  )
+  for section in decode.split("LUNA_PARTIAL_BEGIN ").to_array()[1:] {
+    let parts = section.split("\nLUNA_PARTIAL_SOURCE\n").to_array()
+    guard parts is [head, body] else { fail("decode frame") }
+    let lines = head.split("\n").to_array()
+    if lines[0] != "c466-p1" && lines[0] != "c468-p1" {
+      continue
+    }
+    @fs.mkdir(root + "/" + lines[0].to_owned())
+    @fs.write_file(
+      root + "/" + lines[0].to_owned() + "/kernel.recipe",
+      lines[1:].join("\n") + "\n",
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + lines[0].to_owned() + "/kernel.cu",
+      body.split("\nLUNA_PARTIAL_END").to_array()[0].to_owned(),
+      create_mode=CreateNew,
+    )
+  }
+  for
+    (label, rows, columns, consumers) in [
+      ("r64c128w8", "4", "8", "8"),
+      ("r128c64w8", "8", "4", "8"),
+      ("r128c128w8", "8", "8", "8"),
+      ("r128c128w16", "8", "8", "16"),
+    ] {
+    let source = run(root, label, [
+      "run", "--target", "native", "--warn-list", flags, "tests/projection_pipeline_cuda_source_probe",
+      "--", "gate-coowned", "sibling", "2", "2", "1", rows, columns, "0", consumers,
+      "255",
+    ])
+    assert_true(source.contains("// PROBE_PRIMARY_GRID"))
+    @fs.write_file(root + "/" + label + ".cu", source, create_mode=CreateNew)
+  }
+}

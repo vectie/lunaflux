@@ -1,0 +1,175 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn command(exe : String, args : Array[String], cwd? : String) -> String {
+  let r = @shell.Cmd(exe, args, cwd?).output(max_output_bytes=67108864)
+  r.check()
+  r.stdout()
+}
+
+///|
+fn included(path : String) -> Bool {
+  !path.has_prefix("/") &&
+  !path.contains("\n") &&
+  !path
+  .split("/")
+  .any(p => ["..", "_build", ".mooncakes", "sealed"].contains(p.to_owned())) &&
+  !path.has_prefix("source/") &&
+  !path.has_prefix("source-v2/") &&
+  !path.has_prefix("source-final/") &&
+  !path.has_suffix("/qwen.numeric") &&
+  !["FILES.sha256", "ARCHIVE_FILES.txt"].contains(path)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-gap-repair-20261008.") else {
+    fail("ROOT")
+  }
+  for
+    path in [
+      "ablation-v2-summary.json", "frameworks-summary.json", "build-final/RESULT.txt",
+      "physical-norm/RESULT.txt", "norm-shapes-summary.json",
+    ] {
+    assert_true(@fs.exists(root + "/" + path))
+  }
+  assert_false(@fs.exists(root + "/FILES.sha256"))
+  assert_false(@fs.exists(root + "/sealed"))
+  assert_true(
+    command("nvidia-smi", ["--query-compute-apps=pid", "--format=csv,noheader"])
+    .trim()
+    .is_empty(),
+  )
+  @fs.write_file(
+    root + "/terminal-memory.txt",
+    @fs.read_file("/proc/meminfo"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/terminal-gpu.txt",
+    command("nvidia-smi", ["--query-gpu=uuid,pci.bus_id", "--format=csv"]),
+    create_mode=CreateNew,
+  )
+  for
+    unit in [
+      "materialize-sCCySOLe", "materialize-v2-sCCySOLe", "ablation-sCCySOLe", "ablation-v2-sCCySOLe",
+      "frameworks-sCCySOLe", "profile-sCCySOLe", "profile-both-retry-sCCySOLe", "build-final-sCCySOLe",
+      "materialize-norm-final-sCCySOLe", "repair-frameworks-s0-norm-r0-luna-full-bridge",
+      "repair-frameworks-s0-norm-r1-luna-full-bridge",
+    ] {
+    @fs.write_file(
+      root + "/journal-" + unit + ".txt",
+      command("journalctl", [
+        "--user",
+        "-u",
+        "lunaflux-gap-" + unit + ".service",
+        "--no-pager",
+      ]),
+      create_mode=CreateNew,
+    )
+  }
+  let all = command("find", [".", "-type", "f"], cwd=root)
+    .split("\n")
+    .filter(s => !s.is_empty())
+    .to_array()
+    .map(fn(s) raise {
+      guard s.strip_prefix("./") is Some(p) else { fail("path") }
+      p.to_owned()
+    })
+  let weights = all.filter(s => s.has_suffix("/qwen.numeric"))
+  let digest = if weights.is_empty() {
+    ""
+  } else {
+    command("sha256sum", weights, cwd=root)
+  }
+  @fs.write_file(
+    root + "/EXCLUDED_MODEL_FILES.sha256",
+    digest,
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/ARCHIVE_SCOPE.txt",
+    "Includes successful and failed experiments, cubins/probes, traces, deployed worker copies, complete timing vectors, exact source and overlay archives, build and sanitizer logs. Excludes expanded source trees/caches, external symlink targets and repeated qwen.numeric model copies (hashes in EXCLUDED_MODEL_FILES.sha256). No failed schedule promoted; production unchanged.\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=bounded-iteration-complete\nall-performance-gaps-fixed=false\nsoftware-tests=see-build-final\nnormalization-correctness-and-sanitizers=passed\ncompletion-overlap=rejected-no-end-to-end-benefit\ndecode-register-exchange=rejected-regression\nwider-gate-schedules=rejected-regression-or-resource-failure\nproduction-deployment-changed=false\n",
+    create_mode=CreateNew,
+  )
+  let names = [
+    ..all.filter(included),
+    "terminal-memory.txt",
+    "terminal-gpu.txt",
+    "EXCLUDED_MODEL_FILES.sha256",
+    "ARCHIVE_SCOPE.txt",
+    "RESULT.txt",
+  ]
+  // Terminal files existed at enumeration; deduplicate deterministically.
+  let unique : Map[String, Bool] = Map([])
+  for name in names {
+    unique[name] = true
+  }
+  let names = unique.keys().to_array()
+  names.sort()
+  let hashes = StringBuilder()
+  for at = 0; at < names.length(); at = at + 128 {
+    hashes.write_string(
+      command(
+        "sha256sum",
+        names[at:Int::min(at + 128, names.length())].to_owned(),
+        cwd=root,
+      ),
+    )
+  }
+  @fs.write_file(
+    root + "/FILES.sha256",
+    hashes.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/ARCHIVE_FILES.txt",
+    names.join("\n") + "\nFILES.sha256\nARCHIVE_FILES.txt\n",
+    create_mode=CreateNew,
+  )
+  ignore(command("sha256sum", ["-c", "FILES.sha256"], cwd=root))
+  @fs.mkdir(root + "/sealed")
+  ignore(
+    command(
+      "tar",
+      [
+        "--verbatim-files-from",
+        "-czf",
+        root + "/sealed/evidence.tar.gz",
+        "-T",
+        "ARCHIVE_FILES.txt",
+      ],
+      cwd=root,
+    ),
+  )
+  let archive_hash = command("sha256sum", [root + "/sealed/evidence.tar.gz"])
+  @fs.write_file(
+    root + "/sealed/evidence.tar.gz.sha256",
+    archive_hash,
+    create_mode=CreateNew,
+  )
+  println("files=\{names.length()} " + archive_hash)
+}
+
+///|
+test "keep failed experiments and exact archives, not repeated models or caches" {
+  assert_true(included("decode-counter/counters.json"))
+  assert_true(included("source.tar"))
+  assert_true(included("build-v3/tests.stdout"))
+  assert_false(included("source-v2/a.mbt"))
+  assert_false(included("x/model-root/qwen.numeric"))
+  assert_false(included("a/../b"))
+  assert_false(included("sealed/evidence.tar.gz"))
+}
