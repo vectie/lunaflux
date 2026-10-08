@@ -48,7 +48,7 @@ struct Kernel {
   int regs,resident,local; std::string law; size_t rotary_bytes=0;
   void* workspace=nullptr; void* merge_row_offsets=nullptr; bool prefill_split=false;
   explicit Kernel(const std::string& root, int bucket_tokens, int profile_rows, bool ingress, bool decode, bool postprocess=false, bool partitioned=false, bool prefill_partitioned=false){
-    auto r=fields(root+"/kernel.recipe");
+    auto r=selected_decode_chain_recipe(fields(root+"/kernel.recipe"),decode,partitioned);
     if(prefill_partitioned) {
       if(ingress || decode || postprocess || partitioned ||
          r.at("schema")!="lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1")std::exit(1);

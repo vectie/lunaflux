@@ -25,6 +25,7 @@ fn reusable_runtime_append_module(
   decode_metadata : Bool,
   prefill_metadata : Bool,
   row_metadata : Bool,
+  partition_metadata : Bool,
 ) -> Unit raise FusedArtifactAdmissionError {
   let prefix = "module_" + ordinal.to_string() + "_"
   out.write_string(
@@ -78,6 +79,17 @@ fn reusable_runtime_append_module(
       out,
       prefix,
       module_.prefill_exponential_law,
+    )
+  }
+  if partition_metadata {
+    out.write_string(
+      prefix +
+      "decode_partition_count=" +
+      (match module_.decode_execution {
+        Some(descriptor) => descriptor.partition_count().to_string()
+        None => "0"
+      }) +
+      "\n",
     )
   }
   out.write_string(

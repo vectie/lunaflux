@@ -73,6 +73,10 @@ fn parse_qwen3_candidate_export_arguments(
     continue index + 1
   }
   let arguments = filtered
+  let bind_flags = arguments.filter(value => value == "--bind-decode-chain")
+  guard bind_flags.length() <= 1 else { raise InvalidArguments }
+  let bind_decode_chain = !bind_flags.is_empty()
+  let arguments = arguments.filter(value => value != "--bind-decode-chain")
   let approximate_flags = arguments.filter(value => {
     value == "--prefill-approximate-exp2"
   })
@@ -200,6 +204,9 @@ fn parse_qwen3_candidate_export_arguments(
   if decode_chain_tuning is Some(_) && decode_chain_search is None {
     raise InvalidArguments
   }
+  if bind_decode_chain && decode_chain_tuning is None {
+    raise InvalidArguments
+  }
   let (arguments, partitioned_resources) = extract_resource_option(
     arguments[:],
     "--partitioned-resources",
@@ -303,6 +310,7 @@ fn parse_qwen3_candidate_export_arguments(
     decode_tuning,
     decode_chain_search,
     decode_chain_tuning,
+    bind_decode_chain,
     partitioned_resources,
     ingress_policy_records,
     ingress_policy_search,

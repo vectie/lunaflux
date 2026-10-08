@@ -330,7 +330,11 @@ pub fn export_reusable_fused_runtime_bundle(
     vendor_projection_exact_rows > 1048576 {
     raise InvalidFusedArtifact(Manifest)
   }
-  let row_metadata = vendor_projection_exact_rows > 0 ||
+  let partition_metadata = modules.any(m => {
+    m.decode_execution is Some(descriptor) && descriptor.partition_count() != 8
+  })
+  let row_metadata = partition_metadata ||
+    vendor_projection_exact_rows > 0 ||
     modules.any(m => m.row_variant is Some(_))
   let allow_approximate_prefill = modules.any(m => {
     m.prefill_exponential_law != StrictNaturalExponential
@@ -356,7 +360,9 @@ pub fn export_reusable_fused_runtime_bundle(
     attention_bucket_routes is Some(_) ||
     modules.any(m => m.query_metadata_version != 0)
   out.write_string(
-    if vendor_projection_exact_rows > 0 {
+    if partition_metadata {
+      "schema=lunaflux-reusable-fused-runtime-bundle.v15\n"
+    } else if vendor_projection_exact_rows > 0 {
       "schema=lunaflux-reusable-fused-runtime-bundle.v14\n"
     } else if row_metadata {
       "schema=lunaflux-reusable-fused-runtime-bundle.v13\n"
@@ -408,7 +414,7 @@ pub fn export_reusable_fused_runtime_bundle(
   } else if ownership {
     out.write_string("attention_bucket_routes_hex=-\n")
   }
-  if vendor_projection_exact_rows > 0 {
+  if vendor_projection_exact_rows > 0 || partition_metadata {
     out.write_string(
       "vendor_projection_exact_rows=" +
       vendor_projection_exact_rows.to_string() +
@@ -440,7 +446,7 @@ pub fn export_reusable_fused_runtime_bundle(
       if module_.abi == abi {
         reusable_runtime_append_module(
           out, ordinal, module_, metadata, ownership, decode_metadata, prefill_metadata,
-          row_metadata,
+          row_metadata, partition_metadata,
         )
         ordinal += 1
       }
@@ -476,6 +482,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     has_bucket_routes,
     has_ownership,
   ) = match schema {
+    "lunaflux-reusable-fused-runtime-bundle.v15" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v14" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v13" => (true, true, true, true)
     "lunaflux-reusable-fused-runtime-bundle.v12" => (true, true, true, true)
@@ -490,8 +497,10 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     "lunaflux-reusable-fused-runtime-bundle.v3" => (false, false, false, false)
     _ => raise InvalidFusedArtifact(Manifest)
   }
-  let has_vendor_projection = schema ==
-    "lunaflux-reusable-fused-runtime-bundle.v14"
+  let has_partition_metadata = schema ==
+    "lunaflux-reusable-fused-runtime-bundle.v15"
+  let has_vendor_projection = has_partition_metadata ||
+    schema == "lunaflux-reusable-fused-runtime-bundle.v14"
   let has_row_metadata = has_vendor_projection ||
     schema == "lunaflux-reusable-fused-runtime-bundle.v13"
   let has_prefill_metadata = has_row_metadata ||
@@ -546,7 +555,7 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   }
   let vendor_projection_exact_rows = if has_vendor_projection {
     let rows = reader.int("vendor_projection_exact_rows")
-    if rows < 2 || rows > 1048576 {
+    if (rows < 2 && !(has_partition_metadata && rows == 0)) || rows > 1048576 {
       raise InvalidFusedArtifact(Manifest)
     }
     rows
@@ -619,6 +628,30 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     let prefill_exponential_law = reusable_runtime_read_prefill_exponential(
       reader, prefix, abi, symbol, has_prefill_metadata, allow_approximate_prefill,
     )
+    let decode_execution = if has_partition_metadata {
+      let count = reader.int(prefix + "decode_partition_count")
+      match decode_execution {
+        Some(descriptor) => {
+          let (rows, stages) = descriptor.storage_geometry()
+          Some(
+            DecodeExecutionDescriptor::from_numeric_law(
+              descriptor.numeric_law(),
+              key_value_tile_rows=rows,
+              pipeline_stages=stages,
+              partition_count=count,
+            ),
+          )
+        }
+        None => {
+          if count != 0 {
+            raise InvalidFusedArtifact(KernelAbi)
+          }
+          None
+        }
+      }
+    } else {
+      decode_execution
+    }
     reusable_runtime_validate_head_ownership(
       abi, heads_per_cta, query_tile_rows,
     )

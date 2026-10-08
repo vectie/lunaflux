@@ -15,6 +15,26 @@ fn positive_nanoseconds(
 fn prepare_ingress_choice(
   raw_args : ArrayView[String],
 ) -> (RuntimeBundleArguments, @luna_fusion_strategy.FusionSchedule) raise Qwen3FusedRuntimeBundleExportError {
+  if raw_args is [.. rest, "--decode-partitions", count] {
+    if rest.contains("--decode-partitions") {
+      raise InvalidArguments
+    }
+    let (args, choice) = prepare_ingress_choice(rest)
+    guard args.decode_execution is Some(descriptor) &&
+      descriptor.partition_count() == 8 else {
+      raise InvalidArguments
+    }
+    let (rows, stages) = descriptor.storage_geometry()
+    let descriptor = @luna_fused_artifact_admission.DecodeExecutionDescriptor::from_numeric_law(
+      descriptor.numeric_law(),
+      key_value_tile_rows=rows,
+      pipeline_stages=stages,
+      partition_count=positive_int(count),
+    ) catch {
+      _ => raise InvalidArguments
+    }
+    return ({ ..args, decode_execution: Some(descriptor), }, choice)
+  }
   if raw_args is [.. rest, "--ingress-row-variant", maximum, rows, shared, path] {
     let (args, choice) = prepare_ingress_choice(rest)
     guard args.ingress_row_variant is None &&

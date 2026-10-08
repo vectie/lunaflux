@@ -217,6 +217,47 @@ legal envelope, and automatic binding of measured winners to serving buckets
 remain separate work. Joint selection is available for physical experiments;
 priority 1 is not yet physically complete under the criterion above.
 
+## Measured decode binding upgrade
+
+The candidate exporter now accepts `--bind-decode-chain` alongside an explicit
+search and digest-pinned whole-chain timing file. The opt-in carries the selected
+immutable compilation into the composed decode module, rather than exporting a
+winner that serving cannot consume. Terminal symbol adaptation keeps its
+lowering, ABI and workspace; a different arithmetic law or storage geometry
+cannot silently replace the ordinary entry's contract.
+
+The module builder forwards the exact law, KV tile, pipeline stages and
+`--decode-partitions COUNT` to the runtime-bundle exporter. Bundle v15 includes
+the partition count in its canonical identity, and startup uses that value for
+partial/merge launch and workspace preparation. Older formats retain eight
+partitions. The prepared token path does not parse observations, search, compile
+or authenticate artifacts again. This is still pure selection followed by AOT
+lowering and an explicit startup effect boundary.
+
+The [Spark measurement](BENCHMARK_JOINT_DECODE_BINDING_2026-10-08.md) tests twelve
+complete chains, verifies actual selected symbols and composed-module output,
+and includes short and long controls. Crucially, the same compiled module's
+two-partition chain improves C1/32K decode by about 50%, but regresses C8/8K and
+C8/short. An apparent C8 gain against an older frozen kernel also occurs for the
+new unsplit entry; it is not a partitioning gain. The frozen source uses a
+different score-ownership realization despite the same candidate ID.
+
+Consequently this upgrade does **not** enable split decode globally. Priority 1
+now has measured executable alternatives and an opt-in artifact/startup binding,
+but its final serving policy remains incomplete: include the unsplit alternative
+in the same comparison, calibrate workload buckets against the exact composed
+module, then measure captured graphs and end-to-end serving. Preserve the existing
+single-row fallback until those module-bound routes are regenerated. A homogeneous
+standalone win does not establish mixed-serving or cross-framework acceleration.
+
+Validation: the isolated source snapshot passes interface generation, formatting,
+native checking and all 3,472 native tests with the existing migration-warning
+exclusions `-79-20-29-25-92-14`. The builder's automation test and host probe
+geometry tests pass. The selected composed chain passes deterministic CUBIN
+recompilation, independent sampled FP64 checks and memcheck/leak, racecheck,
+initcheck and synccheck. The short partition control is not bitwise equal to the
+unsplit reduction; that failed stricter check is preserved, not reported as a pass.
+
 ## Experiment discipline
 
 - Name one falsifiable hypothesis and estimate its maximum end-to-end impact

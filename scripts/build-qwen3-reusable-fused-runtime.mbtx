@@ -27,6 +27,53 @@ async fn checked(program : String, args : Array[String]) -> String {
 }
 
 ///|
+// Carry the compiler's complete decomposition into the startup descriptor.
+// A single module currently shares one arithmetic/storage contract across
+// ordinary and partitioned decode; observations cannot widen that contract.
+fn decode_contract_options(recipe : String) -> Array[String] raise {
+  if !recipe.contains("\npartition_function_symbol=") {
+    guard field(recipe, "function_symbol") ==
+      "lunaflux_attention_decode_tile_compiler_v1" else {
+      fail("decode module lacks its partition contract")
+    }
+    return []
+  }
+  let law = field(recipe, "numeric_law")
+  guard [
+    "blockwise-f32-probability-v1", "dual-score-blockwise-f32-probability-v2", "blockwise-fma-f32-probability-v3",
+    "owned2-blockwise-fma-f32-probability-v4", "owned4-blockwise-f32-probability-v4",
+    "owned4-blockwise-fma-f32-probability-v4", "owned8-blockwise-f32-probability-v4",
+    "owned8-blockwise-fma-f32-probability-v4", "grouped-head-matrix-bf16-probability-v1",
+  ].contains(law) else {
+    fail("decode numerical law")
+  }
+  assert_eq(field(recipe, "partition_numeric_law"), law)
+  assert_eq(
+    field(recipe, "partition_key_value_tile_rows"),
+    field(recipe, "key_value_tile_rows"),
+  )
+  assert_eq(
+    field(recipe, "partition_pipeline_stages"),
+    field(recipe, "pipeline_stages"),
+  )
+  let count = field(recipe, "partition_count")
+  let n = @string.parse_int(count)
+  guard n >= 2 && n <= 64 && n.to_string() == count else {
+    fail("decode partitions")
+  }
+  [
+    "--decode-execution",
+    law,
+    field(recipe, "key_value_tile_rows"),
+    field(recipe, "pipeline_stages"),
+    "--decode-symbol",
+    field(recipe, "function_symbol"),
+    "--decode-partitions",
+    count,
+  ]
+}
+
+///|
 /// Compile exact recipe-bound sources twice. Each numerical family supplies
 /// its own complete module; V8 already includes its V3 merge entries and must
 /// not be concatenated with the incompatible V7 partial-reduction source.
@@ -44,8 +91,7 @@ async fn compile_module(
   )
   let mut source = @fs.read_file(source_path).text()
   if directory == "reusable-qwen-decode-attention" &&
-    !recipe.contains("partition_numeric_law=blockwise-f32-probability-v1\n") &&
-    !recipe.contains("partition_numeric_law=blockwise-fma-f32-probability-v3\n") {
+    !recipe.contains("\npartition_function_symbol=") {
     let split = candidate + "/reusable-qwen-decode-split-attention"
     let split_recipe = @fs.read_file(split + "/kernel.recipe").text()
     assert_eq(field(split_recipe, "target"), field(recipe, "target"))
@@ -321,23 +367,7 @@ async fn main {
   let decode_recipe = @fs.read_file(
     candidate + "/reusable-qwen-decode-attention/kernel.recipe",
   ).text()
-  if field(decode_recipe, "function_symbol") ==
-    "lunaflux_attention_decode_tile_compiler_v1_blockwise_f32_v1" {
-    guard field(decode_recipe, "numeric_law") == "blockwise-f32-probability-v1" else {
-      fail("blockwise decode numerical contract mismatch")
-    }
-    args.push("--decode-blockwise-f32-v1")
-  } else if field(decode_recipe, "function_symbol") ==
-    "lunaflux_attention_decode_tile_compiler_v1_blockwise_fma_f32_v3" {
-    guard field(decode_recipe, "numeric_law") ==
-      "blockwise-fma-f32-probability-v3" else {
-      fail("contracting blockwise decode numerical contract mismatch")
-    }
-    args.push("--decode-blockwise-fma-f32-v3")
-  } else if field(decode_recipe, "function_symbol") !=
-    "lunaflux_attention_decode_tile_compiler_v1" {
-    fail("unsupported decode numerical entry point")
-  }
+  args.append(decode_contract_options(decode_recipe))
   if versions[0] == "1" {
     args.push("--query-metadata-v1")
   }
@@ -375,4 +405,30 @@ async fn main {
     permission=0o444,
   )
   println(report)
+}
+
+///|
+test "selected decode decomposition reaches the bundle exporter" {
+  let recipe = "function_symbol=lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4\nnumeric_law=owned8-blockwise-f32-probability-v4\nkey_value_tile_rows=64\npipeline_stages=2\npartition_function_symbol=partial\npartition_numeric_law=owned8-blockwise-f32-probability-v4\npartition_key_value_tile_rows=64\npartition_pipeline_stages=2\npartition_count=2\n"
+  assert_eq(decode_contract_options(recipe), [
+    "--decode-execution", "owned8-blockwise-f32-probability-v4", "64", "2", "--decode-symbol",
+    "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4", "--decode-partitions",
+    "2",
+  ])
+  for
+    (old, fresh) in [
+      ("partition_count=2", "partition_count=1"),
+      ("partition_count=2", "partition_count=65"),
+      ("partition_key_value_tile_rows=64", "partition_key_value_tile_rows=32"),
+      ("partition_pipeline_stages=2", "partition_pipeline_stages=1"),
+      (
+        "partition_numeric_law=owned8-blockwise-f32-probability-v4", "partition_numeric_law=grouped-head-matrix-bf16-probability-v1",
+      ),
+    ] {
+    try decode_contract_options(recipe.replace(old~, new=fresh)) catch {
+      _ => ()
+    } noraise {
+      _ => fail("incompatible partition module")
+    }
+  }
 }

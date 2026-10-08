@@ -1,6 +1,31 @@
 #include "selected_policy_geometry.h"
 #include <cassert>
 int main() {
+  const std::map<std::string,std::string> chain={
+    {"schema","lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1"},
+    {"family","paged-attention-decode-functional-partitioned-tile"},
+    {"measurement_boundary","standalone-partial-merge-v1"},
+    {"partial_function_symbol","partial_c466"},{"merge_function_symbol","merge_c466"},
+    {"partial_grid","8,8,4"},{"merge_grid","8,16,1"},{"block","64,1,1"},
+    {"partial_shared_memory_bytes","33040"},{"merge_shared_memory_bytes","0"},
+    {"workspace_bytes","1064960"},{"numeric_law","owned4-blockwise-fma-f32-probability-v4"}};
+  auto adapted=selected_decode_chain_recipe(chain,true,true);
+  assert(adapted.at("grid")=="8,8,4" && adapted.at("function_symbol")=="partial_c466");
+  assert(adapted.at("merge_grid")=="8,16,1" && adapted.at("merge_function_symbol")=="merge_c466");
+  assert(adapted.at("numeric_law")==chain.at("numeric_law") && !chain.count("grid"));
+  for(auto flags:{std::pair<bool,bool>{false,true},{true,false},{false,false}}){
+    bool rejected=false;
+    try{(void)selected_decode_chain_recipe(chain,flags.first,flags.second);}
+    catch(const std::invalid_argument&){rejected=true;}
+    assert(rejected);
+  }
+  auto invalid_chain=chain;invalid_chain["merge_shared_memory_bytes"]="32";
+  bool rejected_chain=false;
+  try{(void)selected_decode_chain_recipe(invalid_chain,true,true);}
+  catch(const std::invalid_argument&){rejected_chain=true;}
+  assert(rejected_chain);
+  auto ordinary=std::map<std::string,std::string>{{"function_symbol","ordinary"},{"grid","32,8,1"}};
+  assert(selected_decode_chain_recipe(ordinary,true,false)==ordinary);
   assert(selected_bucket_tokens(129,2048)==256);
   assert(selected_bucket_tokens(1500,1536)==1536);
   assert(selected_grid_x(128,128,32,16,false,false)==8);

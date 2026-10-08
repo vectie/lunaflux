@@ -66,7 +66,10 @@ fn admit_reusable_qwen_decode_split_bindings(
         module_.module_digest().as_hex(),
         partial_entry,
         merge_entry,
-        8,
+        match module_.decode_execution() {
+          Some(descriptor) => descriptor.partition_count()
+          None => 8
+        },
         268435456L,
         compiler_readonly=module_.kernel_abi() ==
           PagedAttentionReadOnlyCompilerDecodeProductionV7,

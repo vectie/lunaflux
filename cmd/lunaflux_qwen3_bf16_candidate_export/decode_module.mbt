@@ -9,6 +9,7 @@ fn qwen_decode_module_pair(
   compiled : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
   frontier : String,
   selected_alias? : Bool = false,
+  selected_partition? : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
 ) -> (Bytes, Bytes) raise Qwen3Bf16CandidateExportCliError {
   let recipe = qwen_compiler_attention_recipe(
     operation,
@@ -20,24 +21,41 @@ fn qwen_decode_module_pair(
   )
   let ordinary_law = qwen_decode_physical_numeric_law(compiled.lowering())
   guard ordinary_law is Some(numeric_law) else {
+    if selected_partition is Some(_) {
+      raise QwenDecodeSplitPreparation
+    }
     return (compiled.source().bytes(), recipe)
   }
   let shape = compiled.functional().plan().problem().shape()
   let (_, _, _, page) = shape.dimensions()
   let context = set.profile().max_page_table_entries() * page
-  let partition_candidate = compiled.functional().plan().candidate().stable_id()
-  let partitioned = @luna_cuda_paged_attention_aot.compile_blockwise_decode_split(
-    shape,
-    set.profile(),
-    set.target(),
-    layout.page_stride_bytes(),
-    layout.total_page_count().to_int64(),
-    context,
-    8,
-    268435456L,
-    candidate_id=partition_candidate,
-  ) catch {
-    _ => raise QwenDecodeSplitPreparation
+  let partitioned = match selected_partition {
+    Some(selected) => selected
+    None =>
+      @luna_cuda_paged_attention_aot.compile_blockwise_decode_split(
+        shape,
+        set.profile(),
+        set.target(),
+        layout.page_stride_bytes(),
+        layout.total_page_count().to_int64(),
+        context,
+        8,
+        268435456L,
+        candidate_id=compiled.functional().plan().candidate().stable_id(),
+      ) catch {
+        _ => raise QwenDecodeSplitPreparation
+      }
+  }
+  let partition_candidate = partitioned
+    .functional()
+    .plan()
+    .candidate()
+    .stable_id()
+  let partitions = partitioned.lowering().key_value_partitions()
+  let partition_source = if selected_partition is Some(_) {
+    qwen_decode_partition_serving_source(compiled, partitioned)
+  } else {
+    partitioned.source()
   }
   let ordinary_source = if selected_alias {
     qwen_decode_selected_source(compiled)
@@ -61,14 +79,14 @@ fn qwen_decode_module_pair(
     reset +
     "\n#include <cuda_bf16.h>\n#include <math_constants.h>\nnamespace lf_blockwise_partition_v3 {\n" +
     qwen_decode_partition_helpers(
-      @utf8.decode(partitioned.source().bytes()) catch {
+      @utf8.decode(partition_source.bytes()) catch {
         _ => raise Publication
       },
     ) +
     "\n}\n",
   )
   let digest = @crypto.bytes_to_hex_string(@crypto.sha256(source))
-  let (partial_symbol, merge_symbol) = partitioned.source().symbols()
+  let (partial_symbol, merge_symbol) = partition_source.symbols()
   let text = (@utf8.decode(recipe) catch { _ => raise Publication })
     .replace(
       old="function_symbol=" + compiled.source().symbol().to_string(),
@@ -78,9 +96,9 @@ fn qwen_decode_module_pair(
       old="source_sha256=" + compiled.source().digest().as_hex(),
       new="source_sha256=" + digest,
     ) +
-    "partition_count=8\npartition_candidate=\{partition_candidate}\npartition_numeric_law=\{partition_law}\n" +
+    "partition_count=\{partitions}\npartition_candidate=\{partition_candidate}\npartition_numeric_law=\{partition_law}\n" +
     "partition_function_symbol=\{partial_symbol}\npartition_merge_function_symbol=\{merge_symbol}\n" +
-    "partition_source_sha256=\{partitioned.source().digest().as_hex()}\npartition_lowering_sha256=\{partitioned.lowering().digest().as_hex()}\n" +
+    "partition_source_sha256=\{partition_source.digest().as_hex()}\npartition_lowering_sha256=\{partitioned.lowering().digest().as_hex()}\n" +
     "partition_key_value_tile_rows=\{partitioned.lowering().tile().1}\npartition_pipeline_stages=\{partitioned.lowering().pipeline().0}\n" +
     "partition_max_registers=\{partitioned.lowering().compiler_register_ceiling(set.compiler_policy().max_registers())}\n" +
     (if selected_alias {
@@ -88,8 +106,43 @@ fn qwen_decode_module_pair(
     } else {
       ""
     }) +
-    "partition_grid=\{set.profile().max_query_rows()},\{partitioned.lowering().launch().1},8\npartition_merge_grid=\{set.profile().max_query_rows()},\{shape.dimensions().0},1\npartition_block=\{partitioned.lowering().launch().2},1,1\npartition_shared_memory_bytes=\{partitioned.lowering().launch().3}\npartition_workspace_bytes=\{partitioned.source().workspace().total_bytes()}\n"
+    (match selected_partition {
+      Some(selected) =>
+        "selected_partition_compilation_sha256=\{selected.digest().as_hex()}\n"
+      None => ""
+    }) +
+    "partition_grid=\{set.profile().max_query_rows()},\{partitioned.lowering().launch().1},\{partitions}\npartition_merge_grid=\{set.profile().max_query_rows()},\{shape.dimensions().0},1\npartition_block=\{partitioned.lowering().launch().2},1,1\npartition_shared_memory_bytes=\{partitioned.lowering().launch().3}\npartition_workspace_bytes=\{partition_source.workspace().total_bytes()}\n"
   (source, @utf8.encode(text))
+}
+
+///|
+/// Terminal symbol adaptation preserves the measured lowering and ABI. The
+/// existing module contract shares an arithmetic/storage law with its unsplit
+/// entry; reject a different law rather than silently widening permissions.
+fn qwen_decode_partition_serving_source(
+  ordinary : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
+  partitioned : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
+) -> @luna_cuda_attention_tile_source.CudaPartitionedAttentionTileSource raise Qwen3Bf16CandidateExportCliError {
+  let lowering = partitioned.lowering()
+  if partitioned.source().abi() != ordinary.source().abi() ||
+    lowering.phase() != Decode ||
+    qwen_decode_physical_numeric_law(lowering) is None ||
+    qwen_decode_physical_numeric_law(lowering) !=
+    qwen_decode_physical_numeric_law(ordinary.lowering()) ||
+    lowering.tile().1 != ordinary.lowering().tile().1 ||
+    lowering.pipeline().0 != ordinary.lowering().pipeline().0 {
+    raise QwenDecodeSplitPreparation
+  }
+  @luna_cuda_attention_tile_source.emit_cuda_partitioned_attention_tile_source(
+    lowering,
+    partitioned.source().abi(),
+    "lunaflux_paged_attention_bf16_decode_split_partial_v3_ep_3903",
+    "lunaflux_paged_attention_bf16_decode_split_merge_v3_ep_3904",
+    268435456L,
+    1048576,
+  ) catch {
+    _ => raise QwenDecodeSplitPreparation
+  }
 }
 
 ///|

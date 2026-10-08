@@ -111,6 +111,7 @@ priv struct Qwen3CandidateExportArguments {
   decode_tuning : (String, String, String)?
   decode_chain_search : DecodeChainSearch?
   decode_chain_tuning : (String, String, String)?
+  bind_decode_chain : Bool
   partitioned_resources : (String, String, String)?
   ingress_policy_records : (String, String, String)?
   ingress_policy_search : Bool

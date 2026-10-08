@@ -4,6 +4,29 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <map>
+
+// The compiler exports standalone decode chains separately from the combined
+// serving module. Adapt names only: preserve both entries, the physical row
+// envelope and the numerical law. Never reinterpret prefill metadata as CSR.
+inline std::map<std::string,std::string> selected_decode_chain_recipe(
+    const std::map<std::string,std::string>& recipe, bool decode, bool partitioned) {
+  auto out=recipe;
+  auto family=out.find("family");
+  if(family==out.end() || family->second!="paged-attention-decode-functional-partitioned-tile")
+    return out;
+  if(!decode || !partitioned ||
+     out.at("schema")!="lunaflux-attention-tile-compiler-partitioned-cuda-aot-candidate.v1" ||
+     out.at("measurement_boundary")!="standalone-partial-merge-v1" ||
+     out.at("merge_shared_memory_bytes")!="0")
+    throw std::invalid_argument("decode chain contract");
+  for(const char* key:{"merge_function_symbol","merge_grid","block","workspace_bytes","numeric_law"})
+    if(out.at(key).empty())throw std::invalid_argument("incomplete decode chain");
+  out["function_symbol"]=out.at("partial_function_symbol");
+  out["grid"]=out.at("partial_grid");
+  out["shared_memory_bytes"]=out.at("partial_shared_memory_bytes");
+  return out;
+}
 
 // Offline mirror of device_step Query{Token,Tile,Metadata}CappedGridX.
 // Metadata capacity uses profile rows, not the observed equal-length row

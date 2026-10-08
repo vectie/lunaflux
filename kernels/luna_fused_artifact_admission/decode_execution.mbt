@@ -20,6 +20,7 @@ pub struct DecodeExecutionDescriptor {
   priv law : DecodeNumericLaw
   priv key_value_tile_rows : Int
   priv pipeline_stages : Int
+  priv partition_count : Int
 } derive(Debug, Eq)
 
 ///|
@@ -30,6 +31,7 @@ pub fn DecodeExecutionDescriptor::new(
   law~ : DecodeNumericLaw,
   key_value_tile_rows~ : Int,
   pipeline_stages~ : Int,
+  partition_count? : Int = 8,
 ) -> DecodeExecutionDescriptor raise FusedArtifactAdmissionError {
   let legal_law = match law {
     OwnedSeparate(owners) => owners is (4 | 8)
@@ -39,10 +41,12 @@ pub fn DecodeExecutionDescriptor::new(
   if !legal_law ||
     !(key_value_tile_rows is (32 | 64)) ||
     !(pipeline_stages is (1 | 2)) ||
-    (law != MatrixBf16 && pipeline_stages != 2) {
+    (law != MatrixBf16 && law != OrderedBlockwise && pipeline_stages != 2) ||
+    partition_count < 2 ||
+    partition_count > 64 {
     raise InvalidFusedArtifact(KernelAbi)
   }
-  { law, key_value_tile_rows, pipeline_stages, }
+  { law, key_value_tile_rows, pipeline_stages, partition_count, }
 }
 
 ///|
@@ -50,6 +54,7 @@ pub fn DecodeExecutionDescriptor::from_numeric_law(
   name : String,
   key_value_tile_rows~ : Int,
   pipeline_stages~ : Int,
+  partition_count? : Int = 8,
 ) -> DecodeExecutionDescriptor raise FusedArtifactAdmissionError {
   let law = match name {
     "blockwise-f32-probability-v1" => OrderedBlockwise
@@ -63,7 +68,21 @@ pub fn DecodeExecutionDescriptor::from_numeric_law(
     "grouped-head-matrix-bf16-probability-v1" => MatrixBf16
     _ => raise InvalidFusedArtifact(KernelAbi)
   }
-  DecodeExecutionDescriptor::new(law~, key_value_tile_rows~, pipeline_stages~)
+  DecodeExecutionDescriptor::new(
+    law~,
+    key_value_tile_rows~,
+    pipeline_stages~,
+    partition_count~,
+  )
+}
+
+///|
+/// Complete-chain decomposition is startup data, not a token-step heuristic.
+/// Eight is the historical bundle contract, never inferred for a newer bundle.
+pub fn DecodeExecutionDescriptor::partition_count(
+  self : DecodeExecutionDescriptor,
+) -> Int {
+  self.partition_count
 }
 
 ///|

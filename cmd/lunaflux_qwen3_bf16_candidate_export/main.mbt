@@ -76,7 +76,7 @@ async fn run_qwen3_candidate_export(
     query_metadata=arguments.query_metadata,
   )
   // Resolve the offline search before publication, so invalid observations do
-  // not leave a partly published export. No serving selection is changed.
+  // not leave a partly published export. Binding requires a separate opt-in.
   let decode_chain = match arguments.decode_chain_search {
     None => None
     Some(search) => {
@@ -104,6 +104,25 @@ async fn run_qwen3_candidate_export(
       Some((search, frontier, selected))
     }
   }
+  let selected_partition = if arguments.bind_decode_chain {
+    guard decode_chain is Some((_, _, Some(selected))) else {
+      raise InvalidArguments
+    }
+    Some(selected)
+  } else {
+    None
+  }
+  // Resolve compatibility before any artifact is published. Selection records
+  // alone do not opt in to replacing the serving module's partition pair.
+  let (decode_source, decode_recipe) = qwen_decode_module_pair(
+    qwen_fused.first_operation + 3,
+    set,
+    layout,
+    qwen_fused.attention_decode,
+    qwen_fused.attention_decode_frontier.digest().as_hex(),
+    selected_alias=true,
+    selected_partition?,
+  )
   let evidence = @luna_bf16_candidate_export.export_new(
     set,
     arguments.absolute_new_output,
@@ -233,14 +252,6 @@ async fn run_qwen3_candidate_export(
   }
   let decode_root = arguments.absolute_new_output +
     "/reusable-qwen-decode-attention"
-  let (decode_source, decode_recipe) = qwen_decode_module_pair(
-    qwen_fused.first_operation + 3,
-    set,
-    layout,
-    qwen_fused.attention_decode,
-    qwen_fused.attention_decode_frontier.digest().as_hex(),
-    selected_alias=true,
-  )
   write_new_candidate_pair(decode_root, decode_source, decode_recipe)
   if decode_chain is Some((search, frontier, selected)) {
     publish_decode_chain_search(
