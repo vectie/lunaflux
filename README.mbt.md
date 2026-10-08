@@ -505,6 +505,7 @@ The older caller-declared configuration explainer remains available only as
 
 - [Product contract](docs/PRODUCT_CONTRACT.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Execution-economics compiler policy](docs/EXECUTION_ECONOMICS_2026-10-08.md)
 - [Detailed implementation plan](docs/PLAN.md)
 - [Technical-debt policy](docs/DEBT_POLICY.md)
 - [Benchmark contract](docs/BENCHMARKING.md)

@@ -200,6 +200,7 @@ pub struct PartitionAlternative {
   priv cost : Cost
   priv workspace_bytes : Int64
   priv local_bytes : Int64
+  priv continuation_class : ContinuationClass
 }
 
 ///|
@@ -209,11 +210,15 @@ pub fn PartitionAlternative::new(
   cost : Cost,
   workspace_bytes~ : Int64,
   local_bytes~ : Int64,
+  continuation_class? : ContinuationClass = Materialized,
 ) -> PartitionAlternative raise FusionRegionError {
-  if id < 0 || workspace_bytes < 0L || local_bytes < 0L {
+  if id < 0 ||
+    workspace_bytes < 0L ||
+    local_bytes < 0L ||
+    !continuation_class.valid() {
     raise InvalidCost
   }
-  { id, partition, cost, workspace_bytes, local_bytes, }
+  { id, partition, cost, workspace_bytes, local_bytes, continuation_class, }
 }
 
 ///|
@@ -221,41 +226,9 @@ pub fn select_partition(
   alternatives : ArrayView[PartitionAlternative],
   maximum_workspace_bytes~ : Int64,
   maximum_local_bytes~ : Int64,
+  continuation_class? : ContinuationClass = Materialized,
 ) -> Int raise FusionRegionError {
-  if alternatives.is_empty() ||
-    maximum_workspace_bytes < 0L ||
-    maximum_local_bytes < 0L {
-    raise InvalidComparison
-  }
-  let best = for
-    index, candidate in alternatives
-    best = (None : PartitionAlternative?) {
-    if candidate.partition.graph != alternatives[0].partition.graph ||
-      candidate.cost.basis != alternatives[0].cost.basis {
-      raise InvalidComparison
-    }
-    for prior in 0..<index {
-      if candidate.id == alternatives[prior].id {
-        raise InvalidComparison
-      }
-    }
-    if candidate.workspace_bytes > maximum_workspace_bytes ||
-      candidate.local_bytes > maximum_local_bytes {
-      continue best
-    }
-    continue match best {
-        Some(previous) if previous.cost.nanoseconds < candidate.cost.nanoseconds ||
-          (
-            previous.cost.nanoseconds == candidate.cost.nanoseconds &&
-            previous.id < candidate.id
-          ) => best
-        _ => Some(candidate)
-      }
-  } nobreak {
-    best
-  }
-  match best {
-    Some(value) => value.id
-    None => raise NoFeasiblePartition
-  }
+  PartitionFrontier::new(alternatives)
+  .select(continuation_class~, maximum_workspace_bytes~, maximum_local_bytes~)
+  .implementation_id()
 }

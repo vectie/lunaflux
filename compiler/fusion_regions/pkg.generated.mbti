@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn select_partition(ArrayView[PartitionAlternative], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> Int raise FusionRegionError
+pub fn select_partition(ArrayView[PartitionAlternative], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64, continuation_class? : ContinuationClass) -> Int raise FusionRegionError
 
 pub fn select_regions(Graph, ArrayView[Candidate], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> Selection raise FusionRegionError
 
@@ -30,6 +30,14 @@ pub struct Candidate {
   // private fields
 }
 pub fn Candidate::new(id~ : Int, Region, Cost, workspace_bytes~ : Int64, local_bytes~ : Int64) -> Self raise FusionRegionError
+
+pub(all) enum ContinuationClass {
+  Materialized
+  Scoped(Int)
+} derive(Eq, @debug.Debug)
+pub fn ContinuationClass::equal(Self, Self) -> Bool
+pub fn ContinuationClass::not_equal(Self, Self) -> Bool
+pub fn ContinuationClass::to_repr(Self) -> @debug.Repr
 
 pub struct Cost {
   // private fields
@@ -82,7 +90,19 @@ pub fn Partition::regions(Self) -> ReadOnlyArray[Region]
 pub struct PartitionAlternative {
   // private fields
 }
-pub fn PartitionAlternative::new(id~ : Int, Partition, Cost, workspace_bytes~ : Int64, local_bytes~ : Int64) -> Self raise FusionRegionError
+pub fn PartitionAlternative::continuation_class(Self) -> ContinuationClass
+pub fn PartitionAlternative::cost(Self) -> Cost
+pub fn PartitionAlternative::implementation_id(Self) -> Int
+pub fn PartitionAlternative::new(id~ : Int, Partition, Cost, workspace_bytes~ : Int64, local_bytes~ : Int64, continuation_class? : ContinuationClass) -> Self raise FusionRegionError
+pub fn PartitionAlternative::partition(Self) -> Partition
+pub fn PartitionAlternative::resources(Self) -> (Int64, Int64)
+
+pub struct PartitionFrontier {
+  // private fields
+}
+pub fn PartitionFrontier::alternatives(Self) -> ReadOnlyArray[PartitionAlternative]
+pub fn PartitionFrontier::new(ArrayView[PartitionAlternative]) -> Self raise FusionRegionError
+pub fn PartitionFrontier::select(Self, continuation_class~ : ContinuationClass, maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> PartitionAlternative raise FusionRegionError
 
 pub struct Region {
   // private fields
