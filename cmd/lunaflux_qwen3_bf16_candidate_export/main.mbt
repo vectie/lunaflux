@@ -75,6 +75,35 @@ async fn run_qwen3_candidate_export(
     prefill_candidate?=arguments.prefill_candidate,
     query_metadata=arguments.query_metadata,
   )
+  // Resolve the offline search before publication, so invalid observations do
+  // not leave a partly published export. No serving selection is changed.
+  let decode_chain = match arguments.decode_chain_search {
+    None => None
+    Some(search) => {
+      let frontier = prepare_decode_chain_search(
+        search,
+        qwen_fused.attention_decode,
+        set.target(),
+      )
+      let selected = match
+        load_attention_offline_input(
+          arguments.decode_chain_tuning,
+          arguments.toolchain_sha256,
+        ) {
+        None => None
+        Some(input) =>
+          Some(
+            select_decode_chain_record(
+              frontier,
+              search,
+              input,
+              compiler_flags=decode_chain_compiler_flags(set.compiler_policy()),
+            ),
+          )
+      }
+      Some((search, frontier, selected))
+    }
+  }
   let evidence = @luna_bf16_candidate_export.export_new(
     set,
     arguments.absolute_new_output,
@@ -213,6 +242,18 @@ async fn run_qwen3_candidate_export(
     selected_alias=true,
   )
   write_new_candidate_pair(decode_root, decode_source, decode_recipe)
+  if decode_chain is Some((search, frontier, selected)) {
+    publish_decode_chain_search(
+      arguments.absolute_new_output,
+      search,
+      frontier,
+      selected,
+      set,
+      qwen_fused.first_operation + 3,
+    ) catch {
+      _ => raise Publication
+    }
+  }
   publish_decode_frontier(
     arguments.absolute_new_output,
     set,

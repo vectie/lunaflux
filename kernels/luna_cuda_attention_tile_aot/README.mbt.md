@@ -19,3 +19,19 @@ particular, a capped-register cubin and an uncapped cubin must not share a
 measured latency/profile identity merely because their source is identical.
 Query-owned and dense-current read contracts flow from the generic problem
 through semantic identity, schedule, lowering, and source emission.
+
+`enumerate_cuda_partitioned_attention_tiles` lowers the joint candidate/target
+search into complete source pairs with distinct partial and merge symbols.
+`select_measured_chain` compares those exact compiled pairs using the shared
+continuation-aware selector and actual scratch/shared-memory requirements.
+Only whole-chain observations participate, with at least three samples and
+matching frontier, compilation and caller-supplied measurement scope. Isolated
+partial timings and sums of isolated medians are not whole-chain timings.
+Missing measurements do not become zero cost or a guessed fallback.
+
+Scope must distinguish the physical device, compiler/toolchain and flags,
+workload, launch mode and cache protocol. The source frontier alone does not
+identify a cubin built with a different register ceiling. A selected source
+pair is an offline choice, not runtime admission or permission to use a
+different numerical law. Native resource/correctness checks and real dispatch
+validation remain necessary before changing a serving route.

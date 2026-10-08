@@ -190,6 +190,16 @@ fn parse_qwen3_candidate_export_arguments(
     arguments[:],
     "--decode-tuning",
   )
+  let (arguments, decode_chain_tuning) = extract_resource_option(
+    arguments[:],
+    "--decode-chain-tuning",
+  )
+  let (arguments, decode_chain_search) = extract_decode_chain_search(
+    arguments[:],
+  )
+  if decode_chain_tuning is Some(_) && decode_chain_search is None {
+    raise InvalidArguments
+  }
   let (arguments, partitioned_resources) = extract_resource_option(
     arguments[:],
     "--partitioned-resources",
@@ -291,6 +301,8 @@ fn parse_qwen3_candidate_export_arguments(
     projection_folds,
     decode_resources,
     decode_tuning,
+    decode_chain_search,
+    decode_chain_tuning,
     partitioned_resources,
     ingress_policy_records,
     ingress_policy_search,
@@ -314,7 +326,7 @@ fn parse_qwen3_candidate_export_arguments(
   for
     input in [
       attention_tuning, attention_resources, projection_folds, decode_resources,
-      decode_tuning, partitioned_resources, ingress_policy_records,
+      decode_tuning, decode_chain_tuning, partitioned_resources, ingress_policy_records,
     ]
     device = None {
     guard input is Some((_, _, current)) else { continue device }

@@ -88,6 +88,32 @@ pub fn compile_cuda_partitioned_attention_tile_aot_frontier(
   ) catch {
     _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
   }
+  lower_partitioned_attention_frontier(request, functional)
+}
+
+///|
+/// Joint offline search over complete schedules, not one independently chosen
+/// kernel per workgroup target. Each result contains both partial and merge.
+pub fn enumerate_cuda_partitioned_attention_tiles(
+  request : CudaPartitionedAttentionTileAotRequest,
+  candidate_ids : ArrayView[Int],
+  parallel_workgroup_targets : ArrayView[Int],
+) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError {
+  let functional = @luna_attention_tile_compiler.enumerate_partitioned_attention_tiles(
+    request.functional_request([]),
+    candidate_ids,
+    parallel_workgroup_targets,
+  ) catch {
+    _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
+  }
+  lower_partitioned_attention_frontier(request, functional)
+}
+
+///|
+fn lower_partitioned_attention_frontier(
+  request : CudaPartitionedAttentionTileAotRequest,
+  functional : @luna_attention_tile_compiler.AttentionPartitionedTileCompilationFrontier,
+) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError {
   let variants : Array[CudaPartitionedAttentionTileAotVariant] = []
   for index, variant in functional.variants() {
     let partitions = variant.compilation().schedule().key_value_partitions()

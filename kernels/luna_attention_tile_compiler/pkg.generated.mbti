@@ -22,6 +22,8 @@ pub fn compile_partitioned_attention_tile_frontier(AttentionTileCompilerRequest,
 
 pub fn elaborate_attention_tile(SelectedAttentionTileCompilation) -> SemanticAttentionTileCompilation raise AttentionTileCompilerError
 
+pub fn enumerate_partitioned_attention_tiles(AttentionTileCompilerRequest, ArrayView[Int], ArrayView[Int]) -> AttentionPartitionedTileCompilationFrontier raise AttentionTileCompilerError
+
 pub fn optimize_attention_tile(SemanticAttentionTileCompilation) -> OptimizedAttentionTileCompilation raise AttentionTileCompilerError
 
 pub fn schedule_attention_tile(OptimizedAttentionTileCompilation) -> ScheduledAttentionTileCompilation raise AttentionTileCompilerError

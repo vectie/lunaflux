@@ -154,6 +154,69 @@ Each step is complete only when its prepared artifact is actually selected and
 its complete chain passes correctness and physical measurement. A search
 frontier is not proof that its alternatives have been implemented or measured.
 
+## Joint decode selection upgrade
+
+The next increment connects a joint search to the existing offline candidate
+exporter. The portable compiler enumerates the explicit candidate/workgroup
+target cross product instead of retaining only one independently ranked kernel
+per target. The retained candidates carry grouped-query sharing, score/accumulator
+ownership, SIMT or matrix realization, KV tile and pipeline depth. The optimizer
+derives legal partition counts; the CUDA adapter emits both partial and merge
+entry points and their workspace. Existing numerical permissions remain binding.
+
+Whole-chain selection uses `compiler/fusion_regions`, not another cost model.
+It compares complete partial-plus-merge measurements for the same compilation,
+device, toolchain/flags and workload; scratch and local-storage budgets remain
+final selection constraints. A measured winner returns its original AOT value,
+including source bytes, symbols and launch geometry. Ordinary single-kernel
+autotune records cannot discard alternatives in this search.
+
+The Qwen candidate exporter accepts an optional search suffix:
+
+```text
+--decode-chain-search ROWS HISTORY CANDIDATE_IDS WORKGROUP_TARGETS
+--decode-chain-tuning ABSOLUTE_FILE FILE_SHA256 DEVICE_ID
+```
+
+The lists are comma-separated. For a 16-query-head/4-KV-head shape at C8,
+`8 4096 452,480,482 64,128,256` explores three existing SIMT/matrix schedules
+at workgroup targets yielding 2, 4 and 8 partitions. This is an example search
+domain, not a recommended performance policy. It opts into the compiler's
+existing alternative-softmax numerical domain for offline evaluation; it does
+not prove that those laws meet a model's production accuracy requirements.
+
+Each `decode-chain-vN` directory contains a real `kernel.cu` and `kernel.recipe`.
+The recipe records the exact compiler flags, source/compilation identity,
+workspace and distinct partial/merge grids. Grouped partial work launches over
+KV heads; merge work launches over query heads. A timing input additionally
+publishes the selected source pair to `decode-chain-selected`, without replacing
+`reusable-qwen-decode-attention`. Outputs use the existing non-overwriting writer.
+
+The timing file has tab-separated fields and a final newline:
+
+```text
+luna-decode-chain-timing-v1
+scope FRONTIER_SHA256 DEVICE_ID TOOLCHAIN_SHA256 COMPILER_FLAGS standalone-partial-merge-v1
+workload decode ROWS HISTORY
+chain COMPILATION_SHA256 WHOLE_CHAIN_NS SAMPLES
+```
+
+Use literal tabs, not the spaces shown above. `COMPILER_FLAGS` is the exact
+`chain_compiler_flags` recipe value. All observations in one comparison must
+use the same inputs, cache/warmup protocol and unprofiled timing boundary;
+the schema checks identity, not the honesty of a supplied measurement. Scope
+does not transfer these standalone timings to captured mixed-serving graphs.
+Unknown compilations, duplicate records, mismatched workloads/flags and fewer
+than three samples are rejected. Long-chain latency uses checked Int64 values.
+
+This increment completes offline enumeration, whole-chain selection and artifact
+export. It does **not** change a serving default, add new GPU instructions or
+claim a speedup. Single-launch versus partitioned execution, ragged/history
+vectors, broader explicit partition counts beyond the existing optimizer's
+legal envelope, and automatic binding of measured winners to serving buckets
+remain separate work. Joint selection is available for physical experiments;
+priority 1 is not yet physically complete under the criterion above.
+
 ## Experiment discipline
 
 - Name one falsifiable hypothesis and estimate its maximum end-to-end impact
@@ -174,7 +237,7 @@ Competitors are controls and sources of executable alternatives, not proof that
 their decomposition is optimal for every target. A 20% lead remains a measured
 workload-specific goal, not an architectural entitlement.
 
-## Validation of this increment
+## Validation of the continuation frontier
 
 - The pure fusion-region package passes 13/13 native tests with warnings denied
   and no warning exclusions. Coverage includes an exhaustive oracle over 60
@@ -193,3 +256,19 @@ workload-specific goal, not an architectural entitlement.
 - Formatting and generated interfaces are reviewed. No kernel/native ABI or
   token-step behavior changes; no fresh GPU benchmark, sanitizer result, or
   performance improvement is claimed here.
+
+## Validation of joint decode selection
+
+- The common fusion selector, portable attention compiler, CUDA AOT adapter
+  and candidate exporter pass 77/77 focused native tests. Coverage includes
+  the joint candidate/partition domain, permutation invariance, resource
+  pruning, whole-chain workspace tradeoffs, exact returned artifacts,
+  partial/merge launch domains and rejection of incomparable timing records.
+- A clean snapshot of `4f00312a` plus only this upgrade passes formatting,
+  native checking and the full 3,470/3,470 native suite, with the existing
+  migration-warning exclusions `-79-20-29-25-92-14`. Generated interfaces and
+  the isolated diff are reviewed; unrelated worktree changes are excluded.
+- No GPU campaign ran for this offline selection upgrade. Existing kernel
+  renderers, native ABI and serving defaults are unchanged. Physical
+  correctness, whole-chain timing and serving-bucket binding remain necessary
+  before a measured alternative can replace the serving selection.

@@ -109,6 +109,8 @@ priv struct Qwen3CandidateExportArguments {
   projection_folds : (String, String, String)?
   decode_resources : (String, String, String)?
   decode_tuning : (String, String, String)?
+  decode_chain_search : DecodeChainSearch?
+  decode_chain_tuning : (String, String, String)?
   partitioned_resources : (String, String, String)?
   ingress_policy_records : (String, String, String)?
   ingress_policy_search : Bool
@@ -120,4 +122,12 @@ priv struct Qwen3CandidateExportArguments {
   wide_prefill_candidate : Int?
   decode_candidate : Int?
   query_metadata : Bool
+}
+
+///|
+struct DecodeChainSearch {
+  rows : Int
+  history : Int
+  candidates : ReadOnlyArray[Int]
+  targets : ReadOnlyArray[Int]
 }

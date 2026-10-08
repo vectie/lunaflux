@@ -11,6 +11,7 @@ import {
 type Qwen3Bf16CandidateExportCliError derive(Eq, @debug.Debug)
 
 // Types and methods
+type DecodeChainSearch
 
 // Type aliases
 

@@ -46,3 +46,20 @@ problem; old requests retain their existing reduction contract. The optional
 dense-current/paged-history view has its own semantic identity and requires
 current K/V values identical to the committed positioned/normalized cache.
 Neither optimization permits skipping persistent KV writes.
+
+## Joint partitioned search
+
+`enumerate_partitioned_attention_tiles` retains the cross product of an
+explicit candidate domain and portable workgroup targets through semantic,
+optimization and scheduling passes. It does not first choose one kernel per
+target. Ordinary single-launch autotune records cannot prune this search,
+because they do not measure the partial-plus-merge chain. Exact duplicate
+compilations collapse; infeasible resource schedules and targets needing no
+partition-map are omitted. Unknown candidate IDs and duplicate search inputs
+are errors. Input ordering does not change the retained family or its digest.
+
+The search is bounded to 64 candidates and 16 workgroup targets. These are
+offline exploration limits, not tile-size heuristics. The existing ranked
+partition frontier and ordinary serving choice remain unchanged. Numerical
+permissions still come from the immutable compile problem; naming a candidate
+does not make an otherwise illegal schedule executable.

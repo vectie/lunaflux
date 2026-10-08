@@ -19,6 +19,8 @@ pub fn compile_cuda_partitioned_attention_tile_aot(CudaPartitionedAttentionTileA
 
 pub fn compile_cuda_partitioned_attention_tile_aot_frontier(CudaPartitionedAttentionTileAotRequest, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord], ArrayView[Int]) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError
 
+pub fn enumerate_cuda_partitioned_attention_tiles(CudaPartitionedAttentionTileAotRequest, ArrayView[Int], ArrayView[Int]) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError
+
 pub fn specialize_cuda_partitioned_attention_tile_aot(CudaPartitionedAttentionTileAotRequest, Int) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError
 
 // Errors
@@ -77,6 +79,7 @@ pub struct CudaPartitionedAttentionTileAotFrontier {
 pub fn CudaPartitionedAttentionTileAotFrontier::canonical_bytes(Self) -> Bytes
 pub fn CudaPartitionedAttentionTileAotFrontier::digest(Self) -> CudaAttentionTileAotDigest
 pub fn CudaPartitionedAttentionTileAotFrontier::functional(Self) -> @luna_attention_tile_compiler.AttentionPartitionedTileCompilationFrontier
+pub fn CudaPartitionedAttentionTileAotFrontier::select_measured_chain(Self, scope~ : String, ArrayView[PartitionedAttentionChainObservation], maximum_workspace_bytes~ : Int64, maximum_shared_memory_bytes~ : Int64) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError
 pub fn CudaPartitionedAttentionTileAotFrontier::variants(Self) -> ReadOnlyArray[CudaPartitionedAttentionTileAotVariant]
 
 pub struct CudaPartitionedAttentionTileAotRequest {
@@ -90,6 +93,11 @@ pub struct CudaPartitionedAttentionTileAotVariant {
 } derive(Eq, @debug.Debug)
 pub fn CudaPartitionedAttentionTileAotVariant::compilation(Self) -> CudaPartitionedAttentionTileAotCompilation
 pub fn CudaPartitionedAttentionTileAotVariant::parallel_workgroup_target(Self) -> Int
+
+pub struct PartitionedAttentionChainObservation {
+  // private fields
+}
+pub fn PartitionedAttentionChainObservation::new(frontier~ : CudaAttentionTileAotDigest, compilation~ : CudaAttentionTileAotDigest, scope~ : String, elapsed_ns~ : Int64, samples~ : Int) -> Self raise CudaAttentionTileAotError
 
 // Type aliases
 
