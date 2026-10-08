@@ -287,6 +287,21 @@ warning exclusions. GPU calibration, sanitizer controls, serving drain/reap,
 memory reserve, and separate selected-dispatch observations are recorded in the
 follow-up report. The production deployment is unchanged.
 
+### Workload-specific partition follow-up
+
+The [C1/32K follow-up](BENCHMARK_WORKLOAD_DECODE_SELECTION_2026-10-09.md)
+measures two/four/eight partitions on the actual single-row long-context domain,
+rather than reusing a count selected at C8/8K. Four partitions win that complete
+captured chain and reach serving through the existing typed descriptor. Fresh
+module-bound route calibration retains unsplit winners for other buckets.
+
+Crucially, the new full package only ties the previous best on all three serving
+cells; it recovers the recent two-partition regression, not an overall lead.
+The existing matrix alternative also loses the exact C1 probe. Preserve both
+the losing observations and the prior best package. A local selector's winner
+must still pass whole-service comparison against the best historical control,
+not merely against the immediately preceding or deliberately unsplit artifact.
+
 ## Experiment discipline
 
 - Name one falsifiable hypothesis and estimate its maximum end-to-end impact
