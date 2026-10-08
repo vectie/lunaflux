@@ -132,6 +132,49 @@ test "measured baseline overrides heuristic while unmeasured buckets retain it" 
 }
 
 ///|
+test "same module decode crossover reaches startup owners and overrides split heuristics" {
+  let (table, _, base) = graph_dispatch_fixture(7)
+  let routes = @luna_attention_tuning.parse_attention_bucket_routes(
+    @utf8.encode(
+      "luna-attention-buckets-v1\nscope\tcomposed-module\n" +
+      "record\tdecode\t8\t8\t128\t1\t10205\t5\nrecord\tdecode\t8\t8\t128\t4\t15662\t5\n" +
+      "record\tdecode\t8\t8\t8192\t1\t1154628\t5\nrecord\tdecode\t8\t8\t8192\t4\t1174133\t5\n" +
+      "record\tdecode\t1\t1\t8192\t1\t1000000\t5\nrecord\tdecode\t1\t1\t8192\t4\t500000\t5\n",
+    ),
+    scope="composed-module",
+    table,
+    baseline=1,
+    [1, 4],
+  )
+  let split = FixedArray::make(table.bucket_count(), 23)
+  let dispatch : PagedOrderedExecutorDispatch = {
+    ..base,
+    decode_split_owner_index: 23,
+    decode_split_minimum_context_tokens: 1,
+    decode_split_maximum_batch_rows: 32,
+    measured_owner_indices: map_measured_attention_owners(
+      Some(routes.bucket_candidates()),
+      base.slot_owner_indices,
+      7,
+      base.prefill_wide_slot_owner_indices,
+      11,
+      decode_split=Some(split),
+      decode_split_fallback=23,
+    ),
+  }
+  for context in [128, 8192] {
+    assert_eq(
+      dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 8, 8, context)),
+      7,
+    )
+  }
+  assert_eq(
+    dispatch.select(graph_dispatch_bucket(table, DecodeGraph, 1, 1, 8192)),
+    23,
+  )
+}
+
+///|
 test "mixed partitioned route requires its own prepared whole-graph owner" {
   let (table, _, base) = graph_dispatch_fixture(7)
   let bucket = graph_dispatch_bucket(table, MixedGraph, 2, 64, 8192)

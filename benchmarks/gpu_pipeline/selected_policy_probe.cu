@@ -209,7 +209,7 @@ static std::vector<int> prefill_metadata(const std::vector<int>& offsets,
 int main(int argc,char**argv){
   // SPEC BASELINE_DIRECTORY CANDIDATE_DIRECTORY TOKENS ROWS HISTORY
   if(argc<7 || argc>22)return 1;
-  bool fork_join=false,unified_rows=false;
+  bool fork_join=false,unified_rows=false,decode_capture=false;
   bool check_only=false,mixed=false,decode_envelope=false,partitioned=false,streaming=false,phase_parity=false,prefill_partitioned=false,decode_chain_comparison=false,mixed_decode_comparison=false;
   int chunk_tokens=0,decode_history=-1,traced_bucket=0,declared_prefill_rows=0;
   std::string mixed_companion_root,row_work,mixed_replacement_root;
@@ -221,6 +221,7 @@ int main(int argc,char**argv){
     else if(std::string(argv[i])=="--decode-envelope" && !decode_envelope)decode_envelope=true;
     else if(std::string(argv[i])=="--decode-partitioned" && !partitioned)partitioned=true;
     else if(std::string(argv[i])=="--decode-chain-comparison" && !partitioned){partitioned=true;decode_chain_comparison=true;}
+    else if(std::string(argv[i])=="--decode-capture" && !decode_capture)decode_capture=true;
     else if(std::string(argv[i])=="--streaming-ingress-weights" && !streaming)streaming=true;
     else if(std::string(argv[i])=="--prefill-decode-parity" && !phase_parity)phase_parity=true;
     else if(std::string(argv[i])=="--prefill-partitioned" && !prefill_partitioned)prefill_partitioned=true;
@@ -277,6 +278,7 @@ int main(int argc,char**argv){
   if(mixed_chain && int64_t(decode_history)+1>int64_t(page)*max_pages)return 1;
   if((decode_envelope || partitioned) && !decode && !phase_parity)return 1;
   if(decode_chain_comparison && (!decode || phase_parity))return 1;
+  if(decode_capture && (!decode || !decode_chain_comparison || phase_parity || mixed || decode_envelope))return 1;
   if(traced_bucket && (!decode || decode_envelope || mixed || phase_parity))return 1;
   // Explicit replay of a traced capacity-grid graph, including inactive rows.
   // Do not silently treat a compact synthetic bucket as the serving envelope.
@@ -355,7 +357,12 @@ int main(int argc,char**argv){
   void* unified_args[]={&dc.p,&dp.p,&all_rows_metadata.p,&dl.p,&dpo.p,&dpi.p,&dx.p,&out.p,&dk.p,&dv.p};
   if(unified_rows)candidate_args=unified_args;
   std::unique_ptr<AttentionChain> serial_graph,parallel_graph;
-  if(fork_join || unified_rows) {
+  if(decode_capture) {
+    if(baseline.merge || !candidate.merge)return 1;
+    serial_graph=std::make_unique<AttentionChain>(baseline,args,nullptr,nullptr,false);
+    parallel_graph=std::make_unique<AttentionChain>(candidate,candidate_args,nullptr,nullptr,false);
+    std::printf("chain_capture baseline=unsplit candidate=partial-merge baseline_launches=1 candidate_launches=2 bucket_tokens=%d\n",bucket_tokens);
+  } else if(fork_join || unified_rows) {
     serial_graph=std::make_unique<AttentionChain>(baseline,args,mixed_companion.get(),mixed_args,false);
     parallel_graph=std::make_unique<AttentionChain>(candidate,candidate_args,unified_rows?nullptr:mixed_decode_candidate.get(),mixed_args,fork_join);
     std::printf("chain_capture baseline=ordered candidate=%s numerical_law_unchanged=%s candidate_launches=%d\n",unified_rows?"unified-matrix-rows":"fork-join",unified_rows?"false":"true",unified_rows?1:3);

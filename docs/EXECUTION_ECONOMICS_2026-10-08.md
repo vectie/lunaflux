@@ -244,8 +244,8 @@ different score-ownership realization despite the same candidate ID.
 
 Consequently this upgrade does **not** enable split decode globally. Priority 1
 now has measured executable alternatives and an opt-in artifact/startup binding,
-but its final serving policy remains incomplete: include the unsplit alternative
-in the same comparison, calibrate workload buckets against the exact composed
+but at that checkpoint its final serving policy remained incomplete: include the
+unsplit alternative in the same comparison, calibrate workload buckets against the exact composed
 module, then measure captured graphs and end-to-end serving. Preserve the existing
 single-row fallback until those module-bound routes are regenerated. A homogeneous
 standalone win does not establish mixed-serving or cross-framework acceleration.
@@ -257,6 +257,35 @@ geometry tests pass. The selected composed chain passes deterministic CUBIN
 recompilation, independent sampled FP64 checks and memcheck/leak, racecheck,
 initcheck and synccheck. The short partition control is not bitwise equal to the
 unsplit reduction; that failed stricter check is preserved, not reported as a pass.
+
+## Captured workload-route propagation repair
+
+The [follow-up experiment](BENCHMARK_CAPTURED_DECODE_ROUTING_2026-10-08.md)
+compares unsplit and partial-plus-merge execution from the same composed module
+in captured graphs. Forty-two bounded row/history measurements feed the existing
+pure startup route selector. Unsplit winners override split heuristics; split
+winners select already-prepared partial/merge owners. No new IR, request-time
+search, or global mutable compiler state is needed.
+
+This also fixes concrete propagation defects: the materializer, kernel assembler
+and worker bootstrap still stopped at v14 despite the exporter producing v15.
+The route calibrator appended options in an order the exporter could not parse.
+Regressions now cover a real exported two-partition bundle through bootstrap and
+vendor-option-preserving route rebinding, not only candidate selection in isolation.
+
+In a same-module serving A/B, 32,512-input/64-output/C1 completion falls from
+5222.5 to 4077.5 ms, with unchanged output token vectors; C8 changes stay below
+1%. This establishes a workload-specific benefit over forcing that module
+unsplit, **not improvement over every previous best package**. A single fixed
+partition count, representative homogeneous calibration and bounded numerical
+checks are not an exhaustive mixed-workload or quality result. Per-workload
+partition-count alternatives and larger continuation regions remain opportunities;
+do not reinterpret the C1 improvement as a general 20% lead over competitors.
+
+The isolated source passes all 3,474 native tests with the existing migration
+warning exclusions. GPU calibration, sanitizer controls, serving drain/reap,
+memory reserve, and separate selected-dispatch observations are recorded in the
+follow-up report. The production deployment is unchanged.
 
 ## Experiment discipline
 

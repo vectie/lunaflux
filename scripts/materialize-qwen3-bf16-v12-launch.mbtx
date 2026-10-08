@@ -54,7 +54,7 @@ async fn inventory(root : String, path : String) -> String {
 
 ///|
 fn metadata_runtime_schema(text : String) -> Bool {
-  for version in 5..<15 {
+  for version in 5..<16 {
     if text.has_prefix(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\n",
       ) {
@@ -251,8 +251,8 @@ async fn main {
 }
 
 ///|
-test "metadata packaging recognizes vendor v14 without accepting future schemas" {
-  for version in 5..<15 {
+test "metadata packaging recognizes partition-count v15 without accepting future schemas" {
+  for version in 5..<16 {
     assert_true(
       metadata_runtime_schema(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\n",
@@ -261,12 +261,12 @@ test "metadata packaging recognizes vendor v14 without accepting future schemas"
   }
   assert_false(
     metadata_runtime_schema(
-      "schema=lunaflux-reusable-fused-runtime-bundle.v15\n",
+      "schema=lunaflux-reusable-fused-runtime-bundle.v16\n",
     ),
   )
   assert_false(
     metadata_runtime_schema(
-      "schema=lunaflux-reusable-fused-runtime-bundle.v14-invalid\n",
+      "schema=lunaflux-reusable-fused-runtime-bundle.v15-invalid\n",
     ),
   )
 }

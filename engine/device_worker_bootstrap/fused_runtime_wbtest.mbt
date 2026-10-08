@@ -59,7 +59,7 @@ fn bootstrap_reusable_qwen_bundle(
 
 ///|
 test "fused runtime schema selects reusable bundles including numerical and row variants" {
-  for version in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] {
+  for version in 3..<16 {
     match
       classify_fused_runtime_source(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\nmodule-count=2\n",
@@ -85,6 +85,73 @@ test "fused runtime schema selects reusable bundles including numerical and row 
   match classify_fused_runtime_source("schema=lunaflux-fused-runtime.v1\n") {
     LegacyCatalogV1 => ()
     _ => fail("legacy fused catalog fallback changed")
+  }
+}
+
+///|
+test "selected partition count survives exported v15 bootstrap dispatch" {
+  let descriptor = @luna_fused_artifact_admission.DecodeExecutionDescriptor::from_numeric_law(
+    "owned8-blockwise-f32-probability-v4",
+    key_value_tile_rows=32,
+    pipeline_stages=2,
+    partition_count=2,
+  )
+  let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
+    model_content_sha256="1".repeat(64),
+    model_plan_sha256="2".repeat(64),
+    target=@catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=1,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    modules=[
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
+        abi=PagedAttentionReadOnlyExtendedDecodeProductionV11,
+        first_operation=7,
+        operation_count=1,
+        function_symbol=descriptor.function_symbol(),
+        launch=@launch_contract.AotLaunchDimensions::new(
+          grid_x=32,
+          grid_y=8,
+          grid_z=1,
+          block_x=64,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=33040,
+        ),
+        module_bytes=b"decode-cubin",
+        decode_execution=descriptor,
+      ),
+    ],
+  )
+  let text = @utf8.decode(bytes)
+  assert_true(
+    text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v15\n"),
+  )
+  guard classify_fused_runtime_source(text) is ReusableBundle else {
+    fail("v15 misrouted")
+  }
+  let bundle = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
+    bytes,
+    @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+  )
+  assert_eq(
+    bundle
+    .qwen_paged_attention_decode_module()
+    .unwrap()
+    .decode_execution()
+    .unwrap()
+    .partition_count(),
+    2,
+  )
+  for invalid in ["v16", "v15-invalid"] {
+    guard classify_fused_runtime_source(
+        text.replace(old="bundle.v15", new="bundle." + invalid),
+      )
+      is LegacyCatalogV1 else {
+      fail("unknown reusable schema accepted")
+    }
   }
 }
 

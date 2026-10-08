@@ -40,12 +40,13 @@ fn reusable_runtime_schema(schema : StringView) -> Bool {
     "schema=lunaflux-reusable-fused-runtime-bundle.v9", "schema=lunaflux-reusable-fused-runtime-bundle.v10",
     "schema=lunaflux-reusable-fused-runtime-bundle.v11", "schema=lunaflux-reusable-fused-runtime-bundle.v12",
     "schema=lunaflux-reusable-fused-runtime-bundle.v13", "schema=lunaflux-reusable-fused-runtime-bundle.v14",
+    "schema=lunaflux-reusable-fused-runtime-bundle.v15",
   ].contains(schema.to_owned())
 }
 
 ///|
 test "kernel assembly accepts supported decode numerical and row-variant schemas" {
-  for version in [3, 10, 11, 12, 13, 14] {
+  for version in 3..<16 {
     assert_true(
       reusable_runtime_schema(
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}",
@@ -54,7 +55,7 @@ test "kernel assembly accepts supported decode numerical and row-variant schemas
   }
   for
     schema in [
-      "schema=lunaflux-reusable-fused-runtime-bundle.v2", "schema=lunaflux-reusable-fused-runtime-bundle.v15",
+      "schema=lunaflux-reusable-fused-runtime-bundle.v2", "schema=lunaflux-reusable-fused-runtime-bundle.v16",
       "schema=lunaflux-reusable-fused-runtime-bundle.v11-unverified",
     ] {
     assert_false(reusable_runtime_schema(schema))

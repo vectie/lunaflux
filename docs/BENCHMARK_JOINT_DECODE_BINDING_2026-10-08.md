@@ -130,6 +130,12 @@ CLI propagation and runtime launch/workspace agreement.
 
 ## Remaining serving work
 
+Update: the [captured routing follow-up](BENCHMARK_CAPTURED_DECODE_ROUTING_2026-10-08.md)
+now repairs v15 packaging/bootstrap propagation, calibrates the exact composed
+module against its own unsplit alternative, and verifies selected serving
+dispatch and end-to-end behavior. The paragraph below records this experiment's
+original boundary, not the latest status.
+
 Do not globally activate the partition winner from this C8 sweep. Add the
 unsplit choice to the comparable execution domain, calibrate per-workload routes
 against the exact composed module, and then repeat captured-graph and end-to-end

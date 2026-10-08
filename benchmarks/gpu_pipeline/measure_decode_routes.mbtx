@@ -167,6 +167,68 @@ fn calibration_phases(reused_prefill : Bool) -> Array[String] {
 }
 
 ///|
+// Both entries belong to the same compiled serving module. Capture the whole
+// alternative, including merge and the runtime's inactive-row envelope.
+fn decode_route_arguments(
+  spec : String,
+  module_ : String,
+  rows : Int,
+  history : Int,
+) -> Array[String] {
+  [
+    spec,
+    module_,
+    module_,
+    "\{rows}",
+    "\{rows}",
+    "\{history}",
+    "--decode-chain-comparison",
+    "--decode-capture",
+  ]
+}
+
+///|
+fn measured_route_arguments(
+  args : Array[String],
+  path : String,
+  hash : String,
+) -> Array[String] {
+  match args[:] {
+    [.. rest, "--prefill-vendor-projection-rows", rows] =>
+      [
+        ..rest, "--attention-buckets", path, hash, "--prefill-vendor-projection-rows",
+        rows,
+      ]
+    _ => [..args, "--attention-buckets", path, hash]
+  }
+}
+
+///|
+test "route binding preserves the vendor projection option parser boundary" {
+  assert_eq(
+    measured_route_arguments(
+      ["bundle", "--prefill-vendor-projection-rows", "2048"],
+      "routes",
+      "hash",
+    ),
+    [
+      "bundle", "--attention-buckets", "routes", "hash", "--prefill-vendor-projection-rows",
+      "2048",
+    ],
+  )
+  assert_eq(measured_route_arguments(["bundle"], "routes", "hash"), [
+    "bundle", "--attention-buckets", "routes", "hash",
+  ])
+}
+
+///|
+test "decode route measurements compare the same module in captured graphs" {
+  assert_eq(decode_route_arguments("spec", "module", 2, 32767), [
+    "spec", "module", "module", "2", "2", "32767", "--decode-chain-comparison", "--decode-capture",
+  ])
+}
+
+///|
 // A bucket records rows/query/context, not the distribution of query tokens.
 // Cover concentrated and distributed mixed work instead of assuming R-1
 // prefill requests. Infeasible distributions are outside this context bucket.
@@ -226,14 +288,15 @@ test "context coverage does not enlarge query capacity or exceed KV arena" {
 async fn main {
   guard @env.args() is [_, serving, calibration, .. options] else {
     fail(
-      "SERVING PREPARED_CALIBRATION [--context-limit 32768 [--reuse-prefill-routes EXACT_SCOPE_ROUTES]]",
+      "SERVING PREPARED_CALIBRATION [--context-limit 32768 [--reuse-prefill-routes EXACT_SCOPE_ROUTES | --decode-only]]",
     )
   }
-  let (extended, reused) = match options {
-    [] => (false, None)
-    ["--context-limit", "32768"] => (true, None)
+  let (extended, reused, decode_only) = match options {
+    [] => (false, None, false)
+    ["--context-limit", "32768"] => (true, None, false)
+    ["--context-limit", "32768", "--decode-only"] => (true, None, true)
     ["--context-limit", "32768", "--reuse-prefill-routes", path] =>
-      (true, Some(path))
+      (true, Some(path), false)
     _ => fail("bounded calibration options")
   }
   let gpu = @shell.Cmd("nvidia-smi", [
@@ -257,6 +320,9 @@ async fn main {
   }
   let recipe = @fs.read_file(serving + "/decode-selected/kernel.recipe").text()
   let blockwise = recipe.contains("partition_numeric_law=")
+  if decode_only && !blockwise {
+    fail("decode-only requires composed alternatives")
+  }
   let root = serving + "/decode-route-measurements"
   @fs.mkdir(root)
   let partial = root + "/partitioned"
@@ -295,31 +361,33 @@ async fn main {
     }
   }
   let wide = root + "/wide-prefill"
-  @fs.mkdir(wide)
-  @fs.write_file(
-    wide + "/kernel.recipe",
-    @fs.read_file(
-      if @fs.exists(serving + "/wide-prefill-selected/kernel.recipe") {
-        serving + "/wide-prefill-selected/kernel.recipe"
-      } else {
-        serving +
-        "/candidate/reusable-qwen-prefill-wide-query-attention/kernel.recipe"
-      },
-    ),
-    create_mode=CreateNew,
-  )
-  @fs.write_file(
-    wide + "/kernel.cubin",
-    @fs.read_file(
-      if @fs.exists(serving + "/wide-prefill-selected/kernel.cubin") {
-        serving + "/wide-prefill-selected/kernel.cubin"
-      } else {
-        serving + "/fused/prefill_wide.cubin"
-      },
-    ),
-    create_mode=CreateNew,
-  )
-  for rows in [1, 2, 4, 8, 16] {
+  if !decode_only {
+    @fs.mkdir(wide)
+    @fs.write_file(
+      wide + "/kernel.recipe",
+      @fs.read_file(
+        if @fs.exists(serving + "/wide-prefill-selected/kernel.recipe") {
+          serving + "/wide-prefill-selected/kernel.recipe"
+        } else {
+          serving +
+          "/candidate/reusable-qwen-prefill-wide-query-attention/kernel.recipe"
+        },
+      ),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      wide + "/kernel.cubin",
+      @fs.read_file(
+        if @fs.exists(serving + "/wide-prefill-selected/kernel.cubin") {
+          serving + "/wide-prefill-selected/kernel.cubin"
+        } else {
+          serving + "/fused/prefill_wide.cubin"
+        },
+      ),
+      create_mode=CreateNew,
+    )
+  }
+  for rows in (if decode_only { [] } else { [1, 2, 4, 8, 16] }) {
     // Context coverage may grow independently of the query/AOT envelope.
     // Keep aggregate KV within the existing 131072-token diagnostic arena.
     let maximum_context = calibration_context_limit(rows, extended)
@@ -422,14 +490,12 @@ async fn main {
       continue
     }
     for history in decode_calibration_histories(rows, extended) {
-      let args = [
+      let args = decode_route_arguments(
         calibration + "/decode.spec",
         serving + "/decode-selected",
-        partial,
-        "\{rows}",
-        "\{rows}",
-        "\{history}",
-      ]
+        rows,
+        history,
+      )
       // Isolated GPU probes are serialized, small and independently checked.
       if (rows == 1 || rows == 2 || rows == 16) &&
         history + 1 == calibration_context_limit(rows, extended) {
@@ -463,6 +529,11 @@ async fn main {
         serving + "/check-probe",
         args,
       )
+      guard output.contains(
+        "chain_capture baseline=unsplit candidate=partial-merge baseline_launches=1 candidate_launches=2",
+      ) else {
+        fail("decode capture did not execute")
+      }
       routes += "record\tdecode\t\{rows}\t\{rows}\t\{history + 1}\t1\t\{median(output, "old_us")}\t5\nrecord\tdecode\t\{rows}\t\{rows}\t\{history + 1}\t4\t\{median(output, "new_us")}\t5\n"
     }
   }
@@ -481,19 +552,18 @@ async fn main {
     .map(x => if x == old_path { new_path } else { x.to_owned() })
     .to_array()
   guard args.contains(new_path) else { fail("output seam") }
-  args.append(["--attention-buckets", route_path, hash])
   ignore(
     checked(
       root,
       "rebind",
       serving +
       "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
-      args,
+      measured_route_arguments(args, route_path, hash),
     ),
   )
   @fs.write_file(
     root + "/RESULT.txt",
-    "outcome=passed\nobjective=matched-attention-span-not-full-graph-timing\n",
+    "outcome=passed\nobjective=matched-attention-span-not-full-graph-timing\ndecode_timing=captured-unsplit-versus-partial-merge\n",
     create_mode=CreateNew,
   )
   println(routes)
