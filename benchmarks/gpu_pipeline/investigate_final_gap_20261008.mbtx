@@ -1,0 +1,71 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("ambiguous frozen seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, template] &&
+    root.has_prefix("/home/wlc004s/lunaflux-final-gap-20261008.") else {
+    fail("NEW_ROOT FROZEN_GRAPH_BENCHMARK_TEMPLATE")
+  }
+  let serving = "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC/serving-retry/both/long-final"
+  let hash = @shell.Cmd("sha256sum", [
+    serving + "/deployment/bin/lunaflux-device-worker",
+  ]).output()
+  hash.check()
+  guard hash
+    .stdout()
+    .has_prefix(
+      "1c5cfa3cb2538d70b5cea0fc59d93e2b8b3f0f94a9cc76a32e24e63e64854c87 ",
+    ) else {
+    fail("worker identity changed")
+  }
+  @fs.write_file(root + "/worker.sha256", hash.stdout(), create_mode=CreateNew)
+  let tool = once(
+    @fs.read_file(template).text(),
+    "/home/wlc004s/lunaflux-execution-graph-20261007.",
+    "/home/wlc004s/lunaflux-final-gap-20261008.",
+  )
+  let tool = once(
+    tool, "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt/serving/long-final",
+    serving,
+  )
+  let script = root + "/fresh_benchmark.mbtx"
+  @fs.write_file(script, tool, create_mode=CreateNew)
+  let run = @shell.Cmd(serving + "/toolchain/bin/moon", ["run", script, root]).output(
+    max_output_bytes=33554432,
+  )
+  @fs.write_file(
+    root + "/controller.stdout",
+    run.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/controller.stderr",
+    run.stderr(),
+    create_mode=CreateNew,
+  )
+  run.check()
+}
+
+///|
+test "replacement is exact and rejects duplicates" {
+  assert_eq(once("a", "a", "b"), "b")
+  try once("aa", "a", "b") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous")
+  }
+}

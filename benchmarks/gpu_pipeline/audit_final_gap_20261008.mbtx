@@ -1,0 +1,212 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(j : Json, key : String) -> Json raise {
+  guard j is Object(m) else { fail("object") }
+  m[key]
+}
+
+///|
+fn num(j : Json) -> Double raise {
+  match j {
+    String(s) => @string.parse_double(s)
+    Number(n, ..) => n
+    _ => fail("number")
+  }
+}
+
+///|
+async fn load(path : String) -> Json {
+  @json.parse(@fs.read_file(path).text())
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-final-gap-20261008.") else {
+    fail("ROOT")
+  }
+  let cell = "i8192-o64-c8-varied"
+  let mut compared = 0
+  for engine in ["luna-full", "vllm", "sglang"] {
+    for start in [0, 1] {
+      for trial in [1, 2, 3] {
+        let directory = root + "/measure/r\{start}-" + engine + "/requests/"
+        let wave = load(directory + cell + "-t\{trial}.json")
+        assert_eq(field(wave, "warmup"), Json(false))
+        guard field(wave, "requests") is Array(requests) else {
+          fail("requests")
+        }
+        assert_eq(requests.length(), 8)
+        for row, request in requests {
+          guard field(request, "token_ids") is Array(tokens) &&
+            field(request, "token_ms") is Array(times) else {
+            fail("vectors")
+          }
+          assert_eq(tokens.length(), 64)
+          assert_eq(times.length(), 64)
+          let body = load(directory + cell + "-t\{trial}-r\{row}.body.json")
+          let control = load(
+            root +
+            "/measure/r0-luna-full/requests/" +
+            cell +
+            "-t1-r\{row}.body.json",
+          )
+          let input = field(
+            body,
+            match engine {
+              "luna-full" => "input_token_ids"
+              "vllm" => "prompt"
+              _ => "input_ids"
+            },
+          )
+          assert_eq(input, field(control, "input_token_ids"))
+          guard input is Array(ids) else { fail("input IDs") }
+          assert_eq(ids.length(), 8192)
+          let sampling = match engine {
+            "luna-full" => field(body, "sampling")
+            "sglang" => field(body, "sampling_params")
+            _ => body
+          }
+          assert_eq(field(sampling, "temperature"), Json(0))
+          assert_eq(field(sampling, "top_p"), Json(1))
+          assert_eq(field(sampling, "ignore_eos"), Json(true))
+          compared += 1
+        }
+      }
+    }
+  }
+  assert_eq(compared, 144)
+  let serving = "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC"
+  let deployment = serving + "/serving-retry/both/long-final/deployment"
+  let bundle = @fs.read_file(
+    deployment + "/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3",
+  ).text()
+  assert_true(
+    bundle.contains(
+      "module_4_module_sha256=318d74ff5b8ebfb5e0a97ea6daea16501a98a5ef1b67116350cf8b737266c185\n",
+    ),
+  )
+  let metadata = bundle
+    .split("\n")
+    .filter(s => !s.contains("_module_hex="))
+    .to_array()
+    .join("\n")
+  @fs.mkdir(root + "/source-review")
+  @fs.write_file(
+    root + "/source-review/fused-metadata.txt",
+    metadata,
+    create_mode=CreateNew,
+  )
+  for
+    (relative, name) in [
+      ("kernel-release/kernel-root/lunaflux.execution.json", "execution.json"),
+      ("lunaflux.launch.json", "launch.json"),
+    ] {
+    @fs.write_file(
+      root + "/source-review/" + name,
+      @fs.read_file(deployment + "/" + relative),
+      create_mode=CreateNew,
+    )
+  }
+  for
+    (relative, name) in [
+      (
+        "kernels/luna_cuda_attention_tile_source/source_blockwise_fold.mbt", "decode-fold.mbt",
+      ),
+      (
+        "kernels/luna_cuda_attention_tile_source/source_decode_independent_pipeline.mbt",
+        "decode-copy.mbt",
+      ),
+      (
+        "kernels/luna_cuda_projection_aot/source_sibling_reuse.mbt", "gate-reuse.mbt",
+      ),
+      (
+        "kernels/luna_cuda_fused_parallel_aot/source_residual_program.mbt", "residual-reduction.mbt",
+      ),
+      ("engine/device_step/paged_executor_run.mbt", "executor-run.mbt"),
+    ] {
+    @fs.write_file(
+      root + "/source-review/" + name,
+      @fs.read_file(serving + "/source/" + relative),
+      create_mode=CreateNew,
+    )
+  }
+  for
+    name in [
+      "sglang-scheduler.py", "sglang-qwen3.py", "vllm-core.py", "vllm-qwen3.py",
+      "vllm-flash-attn.py",
+    ] {
+    @fs.write_file(
+      root + "/source-review/" + name,
+      @fs.read_file(
+        "/home/wlc004s/lunaflux-execution-graph-20261007.I8OfKRSw/reference-source/" +
+        name,
+      ),
+      create_mode=CreateNew,
+    )
+  }
+  guard load(root + "/trace-final-v2.json") is Array([luna, vllm, sglang]) else {
+    fail("trace order")
+  }
+  assert_eq(field(luna, "engine"), Json("luna-full"))
+  assert_eq(field(vllm, "engine"), Json("vllm"))
+  assert_eq(field(sglang, "engine"), Json("sglang"))
+  let categories = [
+    "attention", "gate-up-chain", "qkv-chain", "norm", "output", "down", "head",
+    "sampling", "other",
+  ]
+  let rows : Array[Json] = []
+  let mut kernel_delta = 0.0
+  for phase in ["multi-query", "single-query"] {
+    for cat in categories {
+      let key = phase + "/" + cat
+      let a = num(field(field(luna, "totals_ns"), key)) / 1.0e6
+      let b = num(field(field(vllm, "totals_ns"), key)) / 1.0e6
+      kernel_delta += a - b
+      rows.push({
+        "phase": phase,
+        "category": cat,
+        "luna_ms": a,
+        "vllm_ms": b,
+        "delta_ms": a - b,
+      })
+    }
+  }
+  let gpu_delta = (
+      num(field(luna, "gpu_union_ns")) - num(field(vllm, "gpu_union_ns"))
+    ) /
+    1.0e6
+  let inactive_delta = (
+      num(field(luna, "no_gpu_ns")) - num(field(vllm, "no_gpu_ns"))
+    ) /
+    1.0e6
+  let wall_delta = (num(field(luna, "wall_ns")) - num(field(vllm, "wall_ns"))) /
+    1.0e6
+  let report : Json = {
+    "identical_input_requests": compared,
+    "fixed_output_vectors_verified": compared,
+    "quality_parity_claim": false,
+    "decode_replay_module_matches_selected_bundle": true,
+    "luna_vllm_kernel_delta_ms": kernel_delta,
+    "copy_and_overlap_correction_ms": gpu_delta - kernel_delta,
+    "gpu_union_delta_ms": gpu_delta,
+    "inactive_delta_ms": inactive_delta,
+    "profiled_wall_delta_ms": wall_delta,
+    "accounting_error_ms": wall_delta - gpu_delta - inactive_delta,
+    "categories": rows,
+  }
+  @fs.write_file(
+    root + "/audited-attribution.json",
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(report.stringify())
+}

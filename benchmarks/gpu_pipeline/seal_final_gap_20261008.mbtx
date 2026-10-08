@@ -1,0 +1,164 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn command(exe : String, args : Array[String], cwd? : String) -> String {
+  let r = @shell.Cmd(exe, args, cwd?).output(max_output_bytes=67108864)
+  r.check()
+  r.stdout()
+}
+
+///|
+fn included(path : String) -> Bool {
+  !path.has_prefix("/") &&
+  !path.contains("\n") &&
+  !path
+  .split("/")
+  .any(p => ["..", "_build", ".mooncakes", "sealed"].contains(p.to_owned())) &&
+  !["FILES.sha256", "ARCHIVE_FILES.txt"].contains(path)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-final-gap-20261008.") else {
+    fail("ROOT")
+  }
+  assert_true(@fs.exists(root + "/audited-attribution.json"))
+  assert_true(@fs.exists(root + "/gate-replay/RESULT.txt"))
+  assert_true(@fs.exists(root + "/decode-replay/RESULT.txt"))
+  assert_false(@fs.exists(root + "/FILES.sha256"))
+  assert_false(@fs.exists(root + "/sealed"))
+  assert_true(
+    command("nvidia-smi", ["--query-compute-apps=pid", "--format=csv,noheader"])
+    .trim()
+    .is_empty(),
+  )
+  @fs.write_file(
+    root + "/terminal-gpu.txt",
+    command("nvidia-smi", ["--query-gpu=uuid,pci.bus_id", "--format=csv"]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/terminal-memory.txt",
+    @fs.read_file("/proc/meminfo"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/gate-replay.journal.txt",
+    command("journalctl", [
+      "--user", "-u", "lunaflux-final-gate-replay-RcjTl7Ez.service", "--no-pager",
+    ]),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/ARCHIVE_SCOPE.txt",
+    "Includes ordinary timing, full successful Nsight Systems captures and SQLite, all failed/full-serving counter attempts, successful exact-module synthetic replays, source review and automation. Excludes only expanded MoonBit caches/builds and external symlink targets. Frozen model, worker and external artifacts identified by hashes; not copied anew. Failed reference NCU campaign hit client timeout; two completed GEMM captures are partial evidence, not a successful serving run.\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=investigation-complete\nunprofiled_three_engine_timing=passed\nnsight_systems=three_captures\nfull_serving_luna_ncu=failed-startup\nfull_serving_vllm_ncu=client-timeout-partial-gemm-captures\nisolated_selected_luna_decode_and_gate=passed\nproduction_modified=false\nquality_parity_claim=false\n",
+    create_mode=CreateNew,
+  )
+  let names = command("find", [".", "-type", "f"], cwd=root)
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(fn(x) raise {
+      guard x.strip_prefix("./") is Some(p) else { fail("relative path") }
+      p.to_owned()
+    })
+    .filter(included)
+  names.sort()
+  let docker = [
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--memory",
+    "2g",
+    "--memory-swap",
+    "2g",
+    "--mount",
+    "type=bind,source=" + root + ",target=/evidence,readonly",
+    "--workdir",
+    "/evidence",
+  ]
+  let image = "sha256:73e1b0f3230a9377a3109d20be7f8607963a41a715eb3000bc647f5f73c198ff"
+  let manifest = StringBuilder()
+  let mut at = 0
+  while at < names.length() {
+    let end = Int::min(at + 128, names.length())
+    manifest.write_string(
+      command(
+        "docker",
+        [
+          ..docker,
+          "--entrypoint",
+          "sha256sum",
+          image,
+          ..names[at:end].to_owned(),
+        ],
+      ),
+    )
+    at = end
+  }
+  @fs.write_file(
+    root + "/FILES.sha256",
+    manifest.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/ARCHIVE_FILES.txt",
+    names.join("\n") + "\nFILES.sha256\nARCHIVE_FILES.txt\n",
+    create_mode=CreateNew,
+  )
+  ignore(
+    command(
+      "docker",
+      [..docker, "--entrypoint", "sha256sum", image, "-c", "FILES.sha256"],
+    ),
+  )
+  @fs.mkdir(root + "/sealed")
+  ignore(
+    command(
+      "docker",
+      [
+        ..docker,
+        "--mount",
+        "type=bind,source=" + root + "/sealed,target=/out",
+        "--entrypoint",
+        "tar",
+        image,
+        "--verbatim-files-from",
+        "-czf",
+        "/out/evidence.tar.gz",
+        "-T",
+        "ARCHIVE_FILES.txt",
+      ],
+    ),
+  )
+  let hash = command("sha256sum", [root + "/sealed/evidence.tar.gz"])
+  @fs.write_file(
+    root + "/sealed/evidence.tar.gz.sha256",
+    hash,
+    create_mode=CreateNew,
+  )
+  println("files=\{names.length()} " + hash)
+}
+
+///|
+test "retain failures and raw traces, omit caches and external paths" {
+  assert_true(included("counter-vllm/failed.stderr"))
+  assert_true(included("capture/trace.sqlite"))
+  assert_false(included("_build/probe.exe"))
+  assert_false(included("a/../secret"))
+  assert_false(included("/tmp/model"))
+  assert_false(included("sealed/evidence.tar.gz"))
+}

@@ -1,0 +1,65 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn command(exe : String, args : Array[String]) -> String {
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-final-gap-20261008.") else {
+    fail("ROOT")
+  }
+  let moon = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z/toolchain/bin/moon"
+  let partial = root + "/counter-vllm-RcjTl7Ez-v2/capture-vllm-RcjTl7Ez-v2"
+  @fs.write_file(
+    partial + "/counter-raw.stdout",
+    command("/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+      "--import",
+      partial + "/counter.ncu-rep",
+      "--page",
+      "raw",
+      "--csv",
+      "--print-units",
+      "base",
+    ]),
+    create_mode=CreateNew,
+  )
+  for
+    (name, path) in [
+      ("vllm-partial", partial),
+      ("luna-decode-replay", root + "/decode-replay"),
+    ] {
+    ignore(
+      command(moon, [
+        "run",
+        root + "/decode_counter_metrics.mbtx",
+        path + "/counter-raw.stdout",
+        root + "/" + name + "-counters.json",
+      ]),
+    )
+  }
+  for
+    unit in [
+      "lunaflux-final-gap-20261008-RcjTl7Ez", "lunaflux-final-profile-20261008-RcjTl7Ez",
+      "lunaflux-final-profile-resume-RcjTl7Ez", "lunaflux-final-counter-luna-v2-RcjTl7Ez",
+      "lunaflux-final-counter-vllm-RcjTl7Ez", "lunaflux-final-decode-replay-RcjTl7Ez",
+      "lunaflux-final-decode-replay-v2-RcjTl7Ez",
+    ] {
+    @fs.write_file(
+      root + "/" + unit + ".journal.txt",
+      command("journalctl", ["--user", "-u", unit + ".service", "--no-pager"]),
+      create_mode=CreateNew,
+    )
+  }
+  println("counter imports and controller journals preserved")
+}

@@ -1,0 +1,118 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("ambiguous seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. options] &&
+    (options.is_empty() || options is ["--resume-references"]) &&
+    root.has_prefix("/home/wlc004s/lunaflux-final-gap-20261008.") &&
+    @fs.exists(root + "/measure/RESULT.txt") else {
+    fail("completed fresh timing root required")
+  }
+  let frozen = "/home/wlc004s/lunaflux-batch-cliff-abba-20261007.xvFHOL9t"
+  let previous = "/home/wlc004s/lunaflux-mixed-work-20261007.NnA6SsKN"
+  let moon = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z/toolchain/bin/moon"
+  let serving = "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC/serving-retry/both/long-final"
+  if options is ["--resume-references"] {
+    let profiler = once(
+      @fs.read_file(root + "/profiler.mbtx").text(),
+      "      [\"luna-full\", \"vllm\", \"sglang\"]",
+      "      [\"vllm\", \"sglang\"]",
+    )
+    let script = root + "/profiler-reference-resume.mbtx"
+    @fs.write_file(script, profiler, create_mode=CreateNew)
+    let output = root + "/capture-references-RcjTl7Ez"
+    @fs.mkdir(output)
+    for engine in ["vllm", "sglang"] {
+      @fs.write_file(
+        output + "/" + engine + "-work.py",
+        @fs.read_file(previous + "/capture/" + engine + "-work.py"),
+        create_mode=CreateNew,
+      )
+    }
+    let r = @shell.Cmd(moon, [
+      "run",
+      script,
+      serving,
+      output,
+      root + "/trace-template.mbtx",
+      frozen + "/launcher.mbtx.client.mbtx",
+      moon,
+      previous + "/diagnostic-source",
+      "--batch-cliff",
+      "--work-rows",
+    ]).output(max_output_bytes=33554432)
+    @fs.write_file(
+      root + "/profile-resume.stdout",
+      r.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/profile-resume.stderr",
+      r.stderr(),
+      create_mode=CreateNew,
+    )
+    r.check()
+    return
+  }
+  let template = once(
+    @fs.read_file(frozen + "/launcher.mbtx").text(),
+    "let orders = [[\"luna-full\"]]",
+    "let orders = [[\"vllm\", \"luna-full\", \"sglang\"], [\"sglang\", \"luna-full\", \"vllm\"]]",
+  )
+  let template = once(
+    template, "let unit = \"lunaflux-matched-\"", "let unit = \"lunaflux-final-trace-RcjTl7Ez-\"",
+  )
+  let template = once(
+    template, "\"--property=RuntimeMaxSec=7200\"", "\"--property=RuntimeMaxSec=600\"",
+  )
+  @fs.write_file(root + "/trace-template.mbtx", template, create_mode=CreateNew)
+  let profiler = once(
+    @fs.read_file(root + "/investigate_remaining_gap_20261006.mbtx").text(),
+    "    batch_cliff_cells()",
+    "    \"[(\\\"i8192-o64-c8-varied\\\",inputs(8192,8),64,\\\"varied\\\")]\"",
+  )
+  @fs.write_file(root + "/profiler.mbtx", profiler, create_mode=CreateNew)
+  let output = root + "/capture"
+  @fs.mkdir(output)
+  for engine in ["vllm", "sglang"] {
+    @fs.write_file(
+      output + "/" + engine + "-work.py",
+      @fs.read_file(previous + "/capture/" + engine + "-work.py"),
+      create_mode=CreateNew,
+    )
+  }
+  let r = @shell.Cmd(moon, [
+    "run",
+    root + "/profiler.mbtx",
+    serving,
+    output,
+    root + "/trace-template.mbtx",
+    frozen + "/launcher.mbtx.client.mbtx",
+    moon,
+    previous + "/diagnostic-source",
+    "--batch-cliff",
+    "--work-rows",
+  ]).output(max_output_bytes=33554432)
+  @fs.write_file(root + "/profile.stdout", r.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/profile.stderr", r.stderr(), create_mode=CreateNew)
+  r.check()
+}
+
+///|
+test "exact replacement" {
+  assert_eq(once("abc", "b", "x"), "axc")
+}

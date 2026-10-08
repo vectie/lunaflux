@@ -1,0 +1,102 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn once(text : String, before : String, after : String) -> String raise {
+  guard text.split(before).to_array() is [a, b] else {
+    fail("ambiguous seam: " + before)
+  }
+  a.to_owned() + after + b.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, engine] &&
+    ["luna", "vllm"].contains(engine) &&
+    root.has_prefix("/home/wlc004s/lunaflux-final-gap-20261008.") &&
+    @fs.exists(root + "/capture-references-RcjTl7Ez/RESULT.txt") else {
+    fail("completed trace root luna|vllm")
+  }
+  let serving = "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC/serving-retry/both/long-final"
+  let moon = serving + "/toolchain/bin/moon"
+  let diagnostic = "/home/wlc004s/lunaflux-mixed-work-20261007.NnA6SsKN/diagnostic-source"
+  let output = root + "/counter-" + engine + "-RcjTl7Ez-v2"
+  @fs.mkdir(output)
+  let prepared = output + "/prepared"
+  @fs.mkdir(prepared)
+  let client = once(
+    @fs.read_file(root + "/capture/luna-full/launcher.mbtx.client.mbtx").text(),
+    "let trials = 2",
+    "let trials = 1",
+  )
+  @fs.write_file(prepared + "/client.mbtx", client, create_mode=CreateNew)
+  @shell.Cmd("ln", ["-s", serving + "/toolchain", prepared + "/toolchain"]).run()
+  @shell.Cmd("ln", ["-s", diagnostic, prepared + "/source"]).run()
+  let script = output + "/profile.mbtx"
+  let profile = if engine == "luna" {
+    let p = once(
+      @fs.read_file(root + "/profile_luna_gap.mbtx").text(),
+      "    \"4096\",\n    \"256\",",
+      "    \"8192\",\n    \"256\",",
+    )
+    let p = once(p, "        \"lunaflux\",", "        \"luna-full\",")
+    once(
+      p, "    \"--launch-count\",\n    \"1\",", "    \"--launch-count\",\n    \"1\",\n    \"--launch-skip\",\n    \"1\",",
+    )
+  } else {
+    let p = once(
+      @fs.read_file(root + "/profile_reference_gap.mbtx").text(),
+      "\"lunaflux-remeasure-\" + engine + \"-53deab59\"",
+      "\"lunaflux-bench-lunaflux-benchmark-20261006.B5GyxQoX-\" + engine",
+    )
+    let p = once(
+      p, "    \"80g\",\n    \"--memory-swap\",\n    \"80g\",", "    \"64g\",\n    \"--memory-swap\",\n    \"64g\",",
+    )
+    guard p
+      .split("  let base = @fs.read_file(completed + \"/benchmark.mbtx\")")
+      .to_array()
+      is [a, b] &&
+      b.split("  let moon = completed + \"/toolchain/bin/moon\"").to_array()
+      is [_, c] else {
+      fail("reference client")
+    }
+    let p = a.to_owned() +
+      "  @fs.write_file(root + \"/client.mbtx\", @fs.read_file(completed + \"/client.mbtx\"), create_mode=CreateNew)\n  let moon = completed + \"/toolchain/bin/moon\"" +
+      c.to_owned()
+    once(
+      p, "      \"--launch-count\",\n      \"1\",", "      \"--launch-count\",\n      \"1\",\n      \"--launch-skip\",\n      \"1\",",
+    )
+  }
+  @fs.write_file(script, profile, create_mode=CreateNew)
+  let capture = output + "/capture-" + engine + "-RcjTl7Ez-v2"
+  @fs.mkdir(capture)
+  let args = if engine == "luna" {
+    [
+      "run", script, serving, capture, "regex:^(lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4|lunaflux_luna_gated_mlp_bf16_release_v1)$",
+      "--diagnostic-launcher", prepared,
+    ]
+  } else {
+    [
+      "run", script, prepared, capture, "vllm", "counter", "regex:.*(flash_fwd_splitkv_kernel.*>>, \\(bool\\)0, \\(bool\\)0|cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8).*",
+    ]
+  }
+  let r = @shell.Cmd(moon, args).output(max_output_bytes=33554432)
+  @fs.write_file(output + "/run.stdout", r.stdout(), create_mode=CreateNew)
+  @fs.write_file(output + "/run.stderr", r.stderr(), create_mode=CreateNew)
+  r.check()
+}
+
+///|
+test "seam rejects ambiguity" {
+  assert_eq(once("x", "x", "y"), "y")
+  try once("xx", "x", "y") catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate")
+  }
+}

@@ -1,0 +1,245 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  let args = @env.args()
+  guard args.length() == 2 || args.length() == 3 else { fail("ROOT [gate]") }
+  let root = args[1]
+  let gate = args.length() == 3 && args[2] == "gate"
+  guard (args.length() == 2 || gate) &&
+    root.has_prefix("/home/wlc004s/lunaflux-final-gap-20261008.") else {
+    fail("ROOT")
+  }
+  let out = root + (if gate { "/gate-replay" } else { "/decode-replay" })
+  @fs.mkdir(out)
+  let baseline = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt"
+  let identity = capture(out, "identity", "nvidia-smi", [
+    "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+  ])
+  assert_true(identity.contains("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6"))
+  assert_true(identity.contains("0000000F:01:00.0"))
+  assert_true(
+    capture(out, "idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  let memory = @fs.read_file("/proc/meminfo").text()
+  @fs.write_file(out + "/memory-before.txt", memory, create_mode=CreateNew)
+  guard memory.split("\n").filter(s => s.has_prefix("MemAvailable:")).to_array()
+    is [line] &&
+    @string.parse_int64(
+      line.split(" ").filter(s => !s.is_empty()).to_array()[1],
+    ) >=
+    33554432L else {
+    fail("32GiB reserve")
+  }
+  let hash = capture(out, "module-hash", "sha256sum", [
+    baseline + "/decode-selected/kernel.cubin",
+  ])
+  assert_true(
+    hash.has_prefix(
+      "318d74ff5b8ebfb5e0a97ea6daea16501a98a5ef1b67116350cf8b737266c185 ",
+    ),
+  )
+  ignore(
+    capture(out, "inputs-hash", "sha256sum", [
+      baseline + "/check-probe",
+      baseline + "/calibration-spec/decode.spec",
+      baseline + "/decode-selected/kernel.recipe",
+    ]),
+  )
+  let serving = "/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC/serving-retry/both/long-final"
+  let deployment = serving + "/deployment/kernel-release/kernel-root"
+  let probe_args = if gate {
+    guard @json.parse(
+        @fs.read_file(deployment + "/lunaflux.execution.json").text(),
+      )
+      is { "modules": Array(modules), .. } else {
+      fail("modules")
+    }
+    let matches = modules.filter(m => {
+      guard m is { "entry_points": Array(entries), .. } else { return false }
+      entries.any(e => {
+        e is { "symbol": String("lunaflux_luna_gated_mlp_bf16_release_v1"), .. }
+      })
+    })
+    guard matches is [{ "path": String(path), "sha256": String(digest), .. }] else {
+      fail("one selected gate module")
+    }
+    let module_path = deployment + "/" + path
+    assert_true(
+      capture(out, "selected-gate-hash", "sha256sum", [module_path]).has_prefix(
+        digest + " ",
+      ),
+    )
+    assert_true(
+      capture(out, "compiler-hash", "sha256sum", [
+        "/usr/local/cuda-13.0/bin/nvcc",
+      ]).has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    ignore(
+      capture(out, "build", "/usr/local/cuda-13.0/bin/nvcc", [
+        "-O3",
+        "-arch=sm_121",
+        "--fmad=false",
+        "-lineinfo",
+        root + "/projection_followup.cu",
+        "-lcuda",
+        "-o",
+        out + "/probe",
+      ]),
+    )
+    [out + "/probe", module_path, module_path, "2048", "0"]
+  } else {
+    let bundle = @fs.read_file(deployment + "/reusable-fused-runtime-bundle.v3").text()
+    assert_true(
+      bundle.contains(
+        "module_4_module_sha256=318d74ff5b8ebfb5e0a97ea6daea16501a98a5ef1b67116350cf8b737266c185\n",
+      ),
+    )
+    [
+      baseline + "/check-probe",
+      baseline + "/calibration-spec/decode.spec",
+      baseline + "/decode-selected",
+      baseline + "/decode-selected",
+      "8",
+      "8",
+      "8192",
+      "--check-only",
+    ]
+  }
+  let container = "lunaflux-final-" +
+    (if gate { "gate" } else { "decode" }) +
+    "-replay-RcjTl7Ez"
+  let args = [
+    "run",
+    "--rm",
+    "--name",
+    container,
+    "--gpus",
+    "all",
+    "--memory",
+    "8g",
+    "--memory-swap",
+    "8g",
+    "--cap-add",
+    "SYS_ADMIN",
+    "--security-opt",
+    "seccomp=unconfined",
+    "--mount",
+    "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+    "--mount",
+    "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+    "--mount",
+    "type=bind,source=" + out + ",target=" + out,
+    "sha256:73e1b0f3230a9377a3109d20be7f8607963a41a715eb3000bc647f5f73c198ff",
+    "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+    "--target-processes",
+    "all",
+    "--clock-control",
+    "none",
+    "--cache-control",
+    "none",
+    "--kernel-name-base",
+    "function",
+    "--kernel-name",
+    if gate {
+      "lunaflux_luna_gated_mlp_bf16_release_v1"
+    } else {
+      "lunaflux_attention_decode_tile_compiler_v1_owned8_blockwise_f32_v4"
+    },
+    "--launch-skip",
+    "1",
+    "--launch-count",
+    "1",
+    "--config-file",
+    "off",
+    "--section",
+    "LaunchStats",
+    "--section",
+    "Occupancy",
+    "--section",
+    "SpeedOfLight",
+    "--section",
+    "SchedulerStats",
+    "--section",
+    "WarpStateStats",
+    "--section",
+    "MemoryWorkloadAnalysis",
+    "--section",
+    "InstructionStats",
+    "--section",
+    "SourceCounters",
+    "--export",
+    out + "/counter",
+    ..probe_args,
+  ]
+  errdefer ignore(
+    @shell.Cmd("docker", ["stop", "--time", "5", container]).output(),
+  )
+  let result = capture(out, "replay", "docker", args)
+  assert_true(
+    result.contains(
+      if gate {
+        "bitwise=true scalar_maxabs="
+      } else {
+        "correctness=passed"
+      },
+    ),
+  )
+  ignore(
+    capture(out, "counter-raw", "/opt/nvidia/nsight-compute/2025.3.1/ncu", [
+      "--import",
+      out + "/counter.ncu-rep",
+      "--page",
+      "raw",
+      "--csv",
+      "--print-units",
+      "base",
+    ]),
+  )
+  @fs.write_file(
+    out + "/RESULT.txt",
+    "outcome=completed\nscope=selected module and serving launch geometry; synthetic operands, not serving throughput\n",
+    create_mode=CreateNew,
+  )
+}

@@ -1,0 +1,106 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn command(exe : String, args : Array[String], cwd? : String) -> String {
+  let r = @shell.Cmd(exe, args, cwd?).output(max_output_bytes=67108864)
+  r.check()
+  r.stdout()
+}
+
+///|
+fn safe(path : String) -> Bool {
+  !path.is_empty() &&
+  !path.has_prefix("/") &&
+  !path.split("/").any(p => p == "..")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, expected] &&
+    expected.length() == 64 &&
+    expected.iter().all(c => (c >= 'a' && c <= 'f') || (c >= '0' && c <= '9')) else {
+    fail("EXPECTED_SHA256")
+  }
+  let root = command("mktemp", [
+      "-d", "/tmp/lunaflux-final-gap-verified-20261008.XXXXXXXX",
+    ])
+    .trim()
+    .to_owned()
+  println("local_evidence=" + root)
+  ignore(
+    command("scp", [
+      "-o",
+      "ControlPath=/tmp/lunaflux-spark179-investigate-20261008.sock",
+      "-P",
+      "10422",
+      "wlc004s@106.39.18.146:/home/wlc004s/lunaflux-final-gap-20261008.RcjTl7Ez/sealed/evidence.tar.gz",
+      root + "/evidence.tar.gz",
+    ]),
+  )
+  let digest = command("shasum", ["-a", "256", root + "/evidence.tar.gz"])
+  assert_true(digest.has_prefix(expected + " "))
+  @fs.write_file(
+    root + "/evidence.tar.gz.sha256",
+    digest,
+    create_mode=CreateNew,
+  )
+  for
+    name in command("tar", ["-tzf", root + "/evidence.tar.gz"])
+    .split("\n")
+    .filter(x => !x.is_empty()) {
+    assert_true(safe(name.to_owned()))
+  }
+  @fs.mkdir(root + "/evidence")
+  ignore(
+    command("tar", [
+      "-xkzf",
+      root + "/evidence.tar.gz",
+      "-C",
+      root + "/evidence",
+    ]),
+  )
+  let checks = command(
+    "shasum",
+    ["-a", "256", "-c", "FILES.sha256"],
+    cwd=root + "/evidence",
+  )
+  @fs.write_file(
+    root + "/local-manifest-check.txt",
+    checks,
+    create_mode=CreateNew,
+  )
+  guard @json.parse(
+      @fs.read_file(root + "/evidence/audited-attribution.json").text(),
+    )
+    is {
+      "identical_input_requests": 144,
+      "fixed_output_vectors_verified": 144,
+      "decode_replay_module_matches_selected_bundle": True,
+      ..
+    } else {
+    fail("audited inputs")
+  }
+  @fs.write_file(
+    root + "/VERIFIED.txt",
+    "archive_sha256=" +
+    expected +
+    "\ninternal_manifest=passed\nrequest_vector_audit=144\n",
+    create_mode=CreateNew,
+  )
+  println("archive and complete manifest verified")
+}
+
+///|
+test "archive members remain inside a new directory" {
+  assert_true(safe("capture/trace.sqlite"))
+  assert_false(safe("a/../../b"))
+  assert_false(safe("/etc/passwd"))
+  assert_false(safe(""))
+}
