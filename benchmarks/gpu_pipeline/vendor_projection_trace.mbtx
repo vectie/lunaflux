@@ -1,0 +1,200 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(v : Json, key : String) -> Json raise {
+  guard v is Object(m) else { fail("object") }
+  m[key]
+}
+
+///|
+fn integer(v : Json) -> Int64 raise {
+  match v {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    _ => fail("integer")
+  }
+}
+
+///|
+fn text(v : Json) -> String raise {
+  guard v is String(s) else { fail("text") }
+  s
+}
+
+///|
+async fn query(db : String, sql : String) -> Array[Json] {
+  let r = @shell.Cmd("sqlite3", ["-readonly", "-json", db, sql]).output(
+    max_output_bytes=67108864,
+  )
+  r.check()
+  guard @json.parse(r.stdout()) is Array(xs) else { fail("rows") }
+  xs
+}
+
+///|
+async fn main {
+  let (root, profile) = match @env.args() {
+    [_, root] => (root, "profile")
+    [_, root, "profile-long"] => (root, "profile-long")
+    [_, root, "profile-retry"] => (root, "profile-retry")
+    [_, root, "profile-gemm"] => (root, "profile-gemm")
+    _ => fail("ROOT [profile-long|profile-retry|profile-gemm]")
+  }
+  let reports : Array[Json] = []
+  let arms = if profile == "profile-gemm" {
+    [(0, "gemm")]
+  } else {
+    [(0, "control"), (1, "both")]
+  }
+  for (start, arm) in arms {
+    let base = root + "/" + profile + "/s\{start}-" + arm + "/r0-luna-full"
+    let db = base + "/trace.sqlite"
+    if !@fs.exists(db) {
+      let r = @shell.Cmd("/usr/local/bin/nsys", [
+        "export",
+        "--type=sqlite",
+        "--output=" + db,
+        base + "/trace.nsys-rep",
+      ]).output(max_output_bytes=1048576)
+      @fs.write_file(
+        base + "/export-sqlite.stdout",
+        r.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        base + "/export-sqlite.stderr",
+        r.stderr(),
+        create_mode=CreateNew,
+      )
+      r.check()
+    }
+    let launches = query(
+      db, "SELECT r.correlationId,r.start,r.end FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId WHERE s.value='cuGraphLaunch' ORDER BY r.start;",
+    )
+    assert_true(launches.length() > 0)
+    // Long-context diagnostic deliberately includes both waves. Without a
+    // per-wave GPU marker do not invent a warmup boundary from half the calls.
+    let excluded = if profile != "profile-long" && launches.length() == 192 {
+      96
+    } else {
+      0
+    }
+    let groups : Map[Int64, Array[Json]] = Map([])
+    for
+      k in query(
+        db, "SELECT k.start,k.end,k.correlationId,k.gridX,k.gridY,k.gridZ,k.blockX,k.registersPerThread,k.dynamicSharedMemory,s.value name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName WHERE k.graphNodeId>0 ORDER BY k.start;",
+      ) {
+      let id = integer(field(k, "correlationId"))
+      if !groups.contains(id) {
+        groups[id] = []
+      }
+      groups[id].push(k)
+    }
+    let totals : Map[String, Int64] = Map([])
+    let counts : Map[String, Int] = Map([])
+    let steps : Array[Json] = []
+    let signatures : Map[String, Int64] = Map([])
+    for i, l in launches[excluded:] {
+      let ks = groups[integer(field(l, "correlationId"))]
+      let has_prefill = ks.any(k => text(field(k, "name")).contains("prefill"))
+      let has_decode = ks.any(k => text(field(k, "name")).contains("decode"))
+      let all_rows = ks.any(k => {
+        text(field(k, "name")).contains("attention_mixed_flashattention")
+      })
+      // An all-row kernel name cannot distinguish pure prefill from a mixed
+      // batch. Do not infer a nonexistent decode-only phase from its name.
+      let phase = if all_rows {
+        "prefill_or_mixed"
+      } else if has_prefill {
+        if has_decode {
+          "mixed"
+        } else {
+          "prefill"
+        }
+      } else {
+        "decode"
+      }
+      let per : Map[String, Int64] = Map([])
+      for k in ks {
+        let name = text(field(k, "name"))
+        let category = if name.contains("nvjet") || name.contains("gemm") {
+          "vendor_projection"
+        } else if name.contains("dense_projection") {
+          "compiled_output"
+        } else if name.contains("gated_mlp") && name.has_suffix("_down") {
+          "compiled_down"
+        } else if name.contains("flashattention") {
+          "reference_prefill"
+        } else if name.has_prefix("lunaflux_attention_") ||
+          name.has_prefix("lunaflux_paged_attention_bf16_") {
+          "compiled_attention"
+        } else {
+          "other"
+        }
+        let key = phase + "/" + category
+        let ns = integer(field(k, "end")) - integer(field(k, "start"))
+        totals[key] = totals.get(key).unwrap_or(0L) + ns
+        counts[key] = counts.get(key).unwrap_or(0) + 1
+        per[category] = per.get(category).unwrap_or(0L) + ns
+        let signature = Json([
+          field(k, "name"),
+          field(k, "gridX"),
+          field(k, "gridY"),
+          field(k, "gridZ"),
+          field(k, "blockX"),
+          field(k, "registersPerThread"),
+          field(k, "dynamicSharedMemory"),
+        ]).stringify()
+        signatures[signature] = signatures.get(signature).unwrap_or(0L) + ns
+      }
+      steps.push({ "step": i, "phase": phase, "categories_ns": per })
+    }
+    let vendor_calls = counts
+      .to_array()
+      .fold(init=0, fn(total, item) {
+        total +
+        (if item.0.has_suffix("/vendor_projection") { item.1 } else { 0 })
+      })
+    assert_eq(counts.get("decode/vendor_projection").unwrap_or(0), 0)
+    if arm == "control" {
+      assert_eq(vendor_calls, 0)
+    } else {
+      assert_true(vendor_calls > 0)
+    }
+    let report : Json = {
+      "arm": arm,
+      "warmup_graph_steps_excluded": excluded,
+      "analysed_graph_steps": launches.length() - excluded,
+      "totals_ns": totals,
+      "calls": counts,
+      "steps": steps,
+      "signature_ns": signatures,
+      "vendor_calls": vendor_calls,
+      "decode_vendor_calls": 0,
+    }
+    reports.push(report)
+    let summary : Json = { "arm": arm, "totals_ns": totals, "calls": counts }
+    println(summary.stringify())
+  }
+  @fs.write_file(
+    root +
+    (if profile == "profile" {
+      "/trace-comparison.json"
+    } else if profile == "profile-retry" {
+      "/trace-comparison-retry.json"
+    } else if profile == "profile-gemm" {
+      "/trace-comparison-gemm.json"
+    } else {
+      "/trace-comparison-long.json"
+    }),
+    Json(reports).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}

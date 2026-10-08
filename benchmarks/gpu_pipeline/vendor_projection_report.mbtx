@@ -1,0 +1,151 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(value : Json, key : String) -> Json raise {
+  guard value is Object(fields) else { fail("object") }
+  fields[key]
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  match value {
+    String(s) => @string.parse_double(s)
+    Number(s, ..) => s
+    _ => fail("number")
+  }
+}
+
+///|
+fn median(xs : Array[Double]) -> Double {
+  xs.sort()
+  let n = xs.length()
+  if n % 2 == 0 {
+    (xs[n / 2 - 1] + xs[n / 2]) / 2.0
+  } else {
+    xs[n / 2]
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("ROOT") }
+  let timing = if @fs.exists(root + "/timing-retry") {
+    "timing-retry"
+  } else {
+    "timing"
+  }
+  let results : Array[Json] = []
+  for
+    cell in [
+      "i128-o256-c1-varied", "i4096-o64-c16-varied", "i8192-o64-c8-varied", "i32512-o64-c2-varied",
+    ] {
+    let arms : Map[String, Json] = Map([])
+    let control_root = root +
+      "/" +
+      timing +
+      "/s0-control/r0-luna-full/requests/"
+    let control = @json.parse(
+      @fs.read_file(control_root + cell + "-t1.json").text(),
+    )
+    guard field(control, "requests") is Array(control_requests) else {
+      fail("control requests")
+    }
+    for
+      (arm, starts) in [
+        ("control", [0, 7]),
+        ("attention", [1, 6]),
+        ("gemm", [2, 5]),
+        ("both", [3, 4]),
+      ] {
+      let walls : Array[Double] = []
+      let rates : Array[Double] = []
+      let ttfts : Array[Double] = []
+      let tpots : Array[Double] = []
+      let mut changed_outputs = 0
+      let mut compared_requests = 0
+      for start in starts {
+        for trial in [1, 2, 3] {
+          let path = root +
+            "/" +
+            timing +
+            "/s\{start}-" +
+            arm +
+            "/r0-luna-full/requests/" +
+            cell +
+            "-t\{trial}.json"
+          let v = @json.parse(@fs.read_file(path).text())
+          assert_eq(field(v, "warmup"), Json(false))
+          walls.push(number(field(v, "wall_ms")))
+          rates.push(number(field(v, "output_tokens_per_second")))
+          guard field(v, "requests") is Array(requests) else {
+            fail("requests")
+          }
+          let mut ttft = 0.0
+          let mut tpot = 0.0
+          assert_eq(requests.length(), control_requests.length())
+          assert_eq(field(v, "input_vector"), field(control, "input_vector"))
+          assert_eq(field(v, "output"), field(control, "output"))
+          for row, r in requests {
+            let body_root = root +
+              "/" +
+              timing +
+              "/s\{start}-" +
+              arm +
+              "/r0-luna-full/requests/"
+            assert_eq(
+              @fs.read_file(body_root + cell + "-t\{trial}-r\{row}.body.json").text(),
+              @fs.read_file(control_root + cell + "-t1-r\{row}.body.json").text(),
+            )
+            compared_requests += 1
+            if field(r, "token_ids") !=
+              field(control_requests[row], "token_ids") {
+              changed_outputs += 1
+            }
+            ttft += number(field(r, "ttft_ms"))
+            tpot += number(field(r, "mean_tpot_ms"))
+          }
+          ttfts.push(ttft / requests.length().to_double())
+          tpots.push(tpot / requests.length().to_double())
+        }
+      }
+      let wall = median(walls.copy())
+      arms[arm] = {
+        "wall_ms": wall,
+        "tok_s": median(rates),
+        "ttft_ms": median(ttfts),
+        "tpot_ms": median(tpots),
+        "wall_samples_ms": walls,
+        "identical_input_requests": compared_requests,
+        "output_sequences_differing_from_first_control": changed_outputs,
+      }
+    }
+    let delta = 100.0 *
+      (
+        number(field(arms["both"], "wall_ms")) /
+        number(field(arms["control"], "wall_ms")) -
+        1.0
+      )
+    let row : Json = {
+      "cell": cell,
+      "control": arms["control"],
+      "attention": arms["attention"],
+      "gemm": arms["gemm"],
+      "both": arms["both"],
+      "completion_change_percent": delta,
+    }
+    results.push(row)
+    println(row.stringify())
+  }
+  @fs.write_file(
+    root + "/comparison.json",
+    Json(results).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}

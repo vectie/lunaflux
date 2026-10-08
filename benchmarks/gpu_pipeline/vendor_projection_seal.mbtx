@@ -1,0 +1,172 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn included(path : String) -> Bool {
+  !path
+  .split("/")
+  .any(part => {
+    [
+      "source", "_build", ".mooncakes", "toolchain", "validation-toolchain", "model",
+      "model_runtime", "startup-diagnostic-source", "startup-diagnostic-v2-source",
+    ].contains(part.to_owned())
+  }) &&
+  !path.has_suffix(".sqlite") &&
+  !path.has_suffix(".sqlite-shm") &&
+  !path.has_suffix(".sqlite-wal") &&
+  !path.has_suffix(".numeric") &&
+  path != "FILES.sha256" &&
+  path != "measurement.tar.gz" &&
+  path != "measurement.tar.gz.sha256"
+}
+
+///|
+async fn command(
+  program : String,
+  args : Array[String],
+  cwd? : String,
+) -> String {
+  let result = @shell.Cmd(program, args, cwd?).output(max_output_bytes=67108864)
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-vendor-integration-20261008.") else {
+    fail("TERMINAL_ROOT")
+  }
+  assert_true(@fs.exists(root + "/comparison.json"))
+  assert_true(@fs.exists(root + "/trace-comparison.json"))
+  assert_true(@fs.exists(root + "/trace-comparison-retry.json"))
+  assert_true(@fs.exists(root + "/trace-comparison-gemm.json"))
+  assert_false(@fs.exists(root + "/FILES.sha256"))
+  assert_false(@fs.exists(root + "/measurement.tar.gz"))
+  assert_true(
+    command("nvidia-smi", ["--query-compute-apps=pid", "--format=csv,noheader"])
+    .trim()
+    .is_empty(),
+  )
+  for
+    label in [
+      "physical-oracle", "memcheck", "initcheck", "racecheck", "synccheck",
+    ] {
+    assert_true(
+      @fs.read_file(root + "/physical-v4/" + label + ".stdout")
+      .text()
+      .contains("vendor_projection_physical=passed"),
+    )
+  }
+  for
+    unit in [
+      "lunaflux-vendor-timing-retry-c0FiMcnC.service", "lunaflux-vendor-profile-retry-c0FiMcnC.service",
+      "lunaflux-vendor-profile-gemm-c0FiMcnC.service", "lunaflux-vendor-profile-gemm-retry-c0FiMcnC.service",
+    ] {
+    @fs.write_file(
+      root + "/" + unit + ".journal.txt",
+      command("journalctl", ["--user", "-u", unit, "--no-pager"]),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.mkdir(root + "/release-binaries")
+  @fs.write_file(
+    root + "/terminal-tool-identities.sha256",
+    command("sha256sum", [
+      "/usr/local/cuda-13.0/bin/nvcc", "/usr/local/cuda/targets/sbsa-linux/lib/libcublas.so.13",
+      "/usr/local/cuda/targets/sbsa-linux/lib/libcublasLt.so.13",
+    ]),
+    create_mode=CreateNew,
+  )
+  for
+    name in [
+      "device_worker_child", "lunaflux_qwen3_fused_runtime_bundle_export",
+    ] {
+    @fs.write_file(
+      root + "/release-binaries/" + name + ".exe",
+      @fs.read_file(
+        root +
+        "/source/_build/native/release/build/cmd/" +
+        name +
+        "/" +
+        name +
+        ".exe",
+      ),
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    root + "/ARCHIVE_SCOPE.txt",
+    "Includes source and overlay archives, rebuilt release binaries, all four serialized AOT bundles, captured deployment metadata, raw timings and Nsight reports, qualification and failed-controller receipts. Excludes expanded build/dependency trees, unchanged model weights and external toolchain, and derived SQLite. No production/full-model-quality admission is asserted.\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=ordered vendor projection four-arm serving experiment\nperformance=see comparison.json including regressions\ncorrectness=component FP64 oracle and four GPU sanitizer modes\nproduction_default=unchanged\n",
+    create_mode=CreateNew,
+  )
+  let names = command("find", [".", "-type", "f"], cwd=root)
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(fn(x) raise {
+      guard x.strip_prefix("./") is Some(path) &&
+        !path.split("/").any(p => p == "..") else {
+        fail("path")
+      }
+      path.to_owned()
+    })
+    .filter(included)
+  names.sort()
+  let manifest = StringBuilder()
+  let mut offset = 0
+  while offset < names.length() {
+    let end = Int::min(offset + 128, names.length())
+    manifest.write_string(
+      command("sha256sum", names[offset:end].to_owned(), cwd=root),
+    )
+    offset = end
+  }
+  @fs.write_file(
+    root + "/FILES.sha256",
+    manifest.to_string(),
+    create_mode=CreateNew,
+  )
+  ignore(command("sha256sum", ["-c", "FILES.sha256"], cwd=root))
+  ignore(
+    command(
+      "tar",
+      ["-czf", root + "/measurement.tar.gz", "FILES.sha256", ..names],
+      cwd=root,
+    ),
+  )
+  let digest = command("sha256sum", [root + "/measurement.tar.gz"])
+  @fs.write_file(
+    root + "/measurement.tar.gz.sha256",
+    digest,
+    create_mode=CreateNew,
+  )
+  println("files=\{names.length()} " + digest)
+}
+
+///|
+test "archive preserves measured artifacts, not model payload or expanded builds" {
+  assert_true(included("source.tar"))
+  assert_true(included("overlay.tar"))
+  assert_true(included("release-binaries/worker.exe"))
+  assert_true(included("both/fused-routed/reusable-fused-runtime-bundle.v3"))
+  assert_true(included("profile/trace.nsys-rep"))
+  assert_false(included("source/_build/worker.exe"))
+  assert_false(
+    included(
+      "startup-diagnostic-v2-source/engine/device_step/vendor_projection.mbt",
+    ),
+  )
+  assert_false(included("profile/trace.sqlite"))
+  assert_false(included("both/deployment/model-root/qwen.numeric"))
+}

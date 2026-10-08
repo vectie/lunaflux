@@ -1,0 +1,144 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn command(
+  program : String,
+  args : Array[String],
+  cwd? : String,
+) -> String {
+  let result = @shell.Cmd(program, args, cwd?).output(max_output_bytes=67108864)
+  result.check()
+  result.stdout()
+}
+
+///|
+fn safe_name(path : String) -> Bool {
+  !path.is_empty() &&
+  !path.has_prefix("/") &&
+  !path.split("/").any(part => part == "..")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, expected] &&
+    expected.length() == 64 &&
+    expected.iter().all(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) else {
+    fail("EXPECTED_ARCHIVE_SHA256")
+  }
+  let root = command("mktemp", [
+      "-d", "/tmp/lunaflux-vendor-verified-20261008.XXXXXXXX",
+    ])
+    .trim()
+    .to_owned()
+  println("local_evidence=" + root)
+  let remote = "wlc004s@106.39.18.146:/home/wlc004s/lunaflux-vendor-integration-20261008.c0FiMcnC/"
+  ignore(
+    command("scp", [
+      "-o",
+      "ControlPath=/tmp/lunaflux-spark179-investigate-20261008.sock",
+      "-P",
+      "10422",
+      remote + "measurement.tar.gz",
+      root + "/measurement.tar.gz",
+    ]),
+  )
+  let digest = command("shasum", ["-a", "256", root + "/measurement.tar.gz"])
+  assert_true(digest.has_prefix(expected + " "))
+  @fs.write_file(
+    root + "/measurement.tar.gz.sha256",
+    digest,
+    create_mode=CreateNew,
+  )
+  let names = command("tar", ["-tzf", root + "/measurement.tar.gz"])
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+  for name in names {
+    assert_true(safe_name(name.to_owned()))
+  }
+  @fs.mkdir(root + "/evidence")
+  ignore(
+    command("tar", [
+      "-xkzf",
+      root + "/measurement.tar.gz",
+      "-C",
+      root + "/evidence",
+    ]),
+  )
+  let checks = command(
+    "shasum",
+    ["-a", "256", "-c", "FILES.sha256"],
+    cwd=root + "/evidence",
+  )
+  @fs.write_file(
+    root + "/local-manifest-check.txt",
+    checks,
+    create_mode=CreateNew,
+  )
+  // Fixed output lengths are checked independently of the timing aggregator.
+  let mut requests = 0
+  for
+    (arm, starts) in [
+      ("control", [0, 7]),
+      ("attention", [1, 6]),
+      ("gemm", [2, 5]),
+      ("both", [3, 4]),
+    ] {
+    for
+      (cell, output, concurrency) in [
+        ("i128-o256-c1-varied", 256, 1),
+        ("i4096-o64-c16-varied", 64, 16),
+        ("i8192-o64-c8-varied", 64, 8),
+        ("i32512-o64-c2-varied", 64, 2),
+      ] {
+      for start in starts {
+        for trial in [1, 2, 3] {
+          let path = root +
+            "/evidence/timing-retry/s\{start}-" +
+            arm +
+            "/r0-luna-full/requests/" +
+            cell +
+            "-t\{trial}.json"
+          guard @json.parse(@fs.read_file(path).text())
+            is { "warmup": False, "requests": Array(rows), .. } else {
+            fail("measured wave")
+          }
+          assert_eq(rows.length(), concurrency)
+          for row in rows {
+            guard row
+              is { "token_ids": Array(ids), "token_ms": Array(times), .. } else {
+              fail("token vectors")
+            }
+            assert_eq(ids.length(), output)
+            assert_eq(times.length(), output)
+            requests += 1
+          }
+        }
+      }
+    }
+  }
+  assert_eq(requests, 648)
+  @fs.write_file(
+    root + "/VERIFIED.txt",
+    "archive_sha256=" +
+    expected +
+    "\ninternal_manifest=passed\nfixed_output_token_vectors=\{requests}\n",
+    create_mode=CreateNew,
+  )
+  println("archive_and_manifest=passed fixed_output_token_vectors=\{requests}")
+}
+
+///|
+test "relative archive members cannot escape the new directory" {
+  assert_true(safe_name("timing-retry/result.json"))
+  assert_false(safe_name("/etc/passwd"))
+  assert_false(safe_name("a/../b"))
+  assert_false(safe_name(""))
+}

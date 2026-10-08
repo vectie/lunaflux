@@ -1,0 +1,144 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn once(s : String, old : String, fresh : String) -> String raise {
+  guard s.split(old).to_array() is [a, b] else { fail("ambiguous seam") }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String,
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args, cwd?).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-vendor-integration-20261008.") else {
+    fail("ROOT MODE")
+  }
+  let frozen = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z"
+  let moon = "/home/wlc004s/lunaflux-reference-integration-20261008.G89e6nwn/validation-toolchain/bin/moon"
+  let source = root + "/startup-diagnostic-v2-source"
+  let serving = root + "/startup-diagnostic-v2-serving"
+  let worker = source +
+    "/_build/native/release/build/cmd/device_worker_child/device_worker_child.exe"
+  if mode == "prepare" {
+    assert_false(@fs.exists(source))
+    @shell.Cmd("cp", ["-a", root + "/source", source]).run()
+    let planner = source + "/engine/device_step/vendor_projection.mbt"
+    let original = @fs.read_file(planner).text()
+    let changed = once(
+      original, "  guard resources.stream is Some(stream) &&", "  startup_vendor_probe(launches.length(), if resources.effect_capture_budget.reserve(launches.length()) is Some(_) { 1 } else { 0 }, original)\n  guard resources.stream is Some(stream) &&",
+    )
+    @fs.write_file(
+      planner,
+      changed +
+      "\n///|\nextern \"C\" fn startup_vendor_probe(nodes : Int, reserved : Int, owner : Int) -> Unit = \"lunaflux_startup_vendor_probe\"\n",
+    )
+    let native = source + "/internal/cuda/ordered_projection.c"
+    let log = Json(root + "/startup-vendor-budget.log").stringify()
+    @fs.write_file(
+      native,
+      @fs.read_file(native).text() +
+      "\n#include <stdio.h>\nvoid lunaflux_startup_vendor_probe(int nodes, int reserved, int owner) { FILE *f=fopen(" +
+      log +
+      ",\"a\"); if(f) { fprintf(f,\"nodes=%d reserved=%d owner=%d\\n\",nodes,reserved,owner); fclose(f); } }\n",
+    )
+    run(
+      root,
+      "startup-diagnostic-v2-build",
+      moon,
+      [
+        "build", "--target", "native", "--release", "--deny-warn", "--warn-list",
+        "-79-20-29-25-92-14", "cmd/device_worker_child",
+      ],
+      cwd=source,
+    )
+    @fs.mkdir(serving)
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", frozen + "/" + name, serving + "/" + name]).run()
+    }
+    let origin = root + "/serving-final/gemm"
+    @shell.Cmd("cp", ["-a", origin + "/fused-routed", serving + "/fused-routed"]).run()
+    for
+      name in ["bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1"] {
+      @fs.write_file(
+        serving + "/" + name,
+        @fs.read_file(origin + "/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    let prepare = once(
+      @fs.read_file(origin + "/prepare.mbtx").text(),
+      root +
+      "/source/_build/native/release/build/cmd/device_worker_child/device_worker_child.exe",
+      worker,
+    )
+    @fs.write_file(serving + "/prepare.mbtx", prepare, create_mode=CreateNew)
+    run(root, "startup-diagnostic-materialize", moon, [
+      "run",
+      serving + "/prepare.mbtx",
+      serving,
+      "materialize",
+    ])
+    let long = serving + "/long-final"
+    @fs.mkdir(long)
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", frozen + "/" + name, long + "/" + name]).run()
+    }
+    @fs.write_file(
+      long + "/export.stdout",
+      @fs.read_file(serving + "/export.stdout"),
+      create_mode=CreateNew,
+    )
+    run(root, "startup-diagnostic-long", moon, [
+      "run",
+      frozen + "/prepare-long.mbtx",
+      serving,
+      long,
+    ])
+  } else if mode == "run" {
+    let out = root + "/startup-diagnostic-run"
+    @fs.mkdir(out)
+    run(root, "startup-diagnostic-server", moon, [
+      "run",
+      root + "/timing/launcher.mbtx",
+      serving + "/long-final",
+      out,
+      root + "/timing/launcher.mbtx",
+      "--serve",
+    ])
+  } else {
+    fail("mode")
+  }
+}
