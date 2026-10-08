@@ -1,0 +1,276 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn run(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String,
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args, cwd?).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  println("completed=" + label)
+  r.stdout()
+}
+
+///|
+async fn admit(root : String, label : String) -> Unit {
+  assert_true(
+    run(root, label + "-idle", "nvidia-smi", [
+      "--query-compute-apps=pid", "--format=csv,noheader",
+    ])
+    .trim()
+    .is_empty(),
+  )
+  let device = run(root, label + "-device", "nvidia-smi", [
+    "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+  ])
+  assert_true(device.contains("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6"))
+  assert_true(device.contains("0000000F:01:00.0"))
+  let memory = @fs.read_file("/proc/meminfo").text()
+  @fs.write_file(
+    root + "/" + label + "-memory.txt",
+    memory,
+    create_mode=CreateNew,
+  )
+  let rows = memory
+    .split("\n")
+    .filter(l => l.has_prefix("MemAvailable:"))
+    .to_array()
+  guard rows is [row] else { fail("memory") }
+  let fields = row.split(" ").filter(s => !s.is_empty()).to_array()
+  assert_true(@string.parse_int(fields[1]) >= 33554432)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-integration-20261008.") else {
+    fail("NEW_ROOT MODE")
+  }
+  let frozen = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z"
+  let moon = frozen + "/toolchain/bin/moon"
+  let src = root + "/source"
+  let scripts = src + "/benchmarks/gpu_pipeline/"
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  let flags = "-79-20-29-25-92-14"
+  if mode == "qualify" {
+    for phase in ["prepare", "build", "kernel", "oracle", "sanitize"] {
+      ignore(
+        run(root, "phase-" + phase, moon, [
+          "run",
+          root + "/reference_integration.mbtx",
+          root,
+          phase,
+        ]),
+      )
+    }
+  } else if mode == "boundary" {
+    let validation_tools = root + "/validation-toolchain"
+    assert_false(@fs.exists(validation_tools))
+    // The frozen archive lost executable bits on info/fmt. Preserve it and
+    // repair only a disposable byte-identical validation copy.
+    @shell.Cmd("cp", ["-aL", frozen + "/toolchain", validation_tools]).run()
+    @shell.Cmd("chmod", [
+      "u+x",
+      validation_tools + "/bin/mooninfo",
+      validation_tools + "/bin/moonfmt",
+    ]).run()
+    ignore(
+      run(root, "boundary-v2-tools", "sha256sum", [
+        frozen + "/toolchain/bin/mooninfo",
+        validation_tools + "/bin/mooninfo",
+        frozen + "/toolchain/bin/moonfmt",
+        validation_tools + "/bin/moonfmt",
+        validation_tools + "/bin/moonc",
+      ]),
+    )
+    for
+      (label, args) in [
+        ("info", ["info"]),
+        ("format", ["fmt", "--check"]),
+        (
+          "check",
+          ["check", "--target", "native", "--deny-warn", "--warn-list", flags],
+        ),
+        (
+          "test",
+          ["test", "--target", "native", "--deny-warn", "--warn-list", flags],
+        ),
+      ] {
+      ignore(
+        run(
+          root,
+          "boundary-v2-" + label,
+          validation_tools + "/bin/moon",
+          args,
+          cwd=src,
+        ),
+      )
+    }
+  } else if mode == "prepare" {
+    assert_false(@fs.exists(src))
+    @fs.mkdir(src)
+    @shell.Cmd("tar", ["-xf", root + "/source.tar", "-C", src]).run()
+    @shell.Cmd("tar", ["-xf", root + "/overlay.tar", "-C", src]).run()
+    @shell.Cmd("cp", ["-a", frozen + "/source/.mooncakes", src + "/.mooncakes"]).run()
+    let reference = "/home/wlc004s/lunaflux-native-attention-20261004.QmE81wFj"
+    for name in ["flash", "cutlass", "FLASH_LICENSE", "CUTLASS_LICENSE.txt"] {
+      @shell.Cmd("cp", ["-a", reference + "/" + name, root + "/" + name]).run()
+    }
+    ignore(
+      run(root, "headers", moon, [
+        "run",
+        scripts + "prepare_reference_attention.mbtx",
+        root,
+      ]),
+    )
+    ignore(
+      run(root, "source-hashes", "sha256sum", [
+        root + "/source.tar",
+        root + "/overlay.tar",
+      ]),
+    )
+  } else if mode == "build" {
+    for
+      package_path in [
+        "kernels/luna_cuda_reference_attention", "kernels/luna_fused_artifact_admission",
+        "cmd/lunaflux_qwen3_fused_runtime_bundle_export", "engine/device_step",
+      ] {
+      ignore(
+        run(
+          root,
+          "test-" + package_path.replace(old="/", new="-"),
+          moon,
+          [
+            "test", "--target", "native", "--deny-warn", "--warn-list", flags, "-p",
+            package_path,
+          ],
+          cwd=src,
+        ),
+      )
+    }
+    ignore(
+      run(
+        root,
+        "build-worker",
+        moon,
+        [
+          "build", "--target", "native", "--release", "--deny-warn", "--warn-list",
+          flags, "cmd/device_worker_child", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+          "cmd/lunaflux_qwen3_bf16_candidate_export",
+        ],
+        cwd=src,
+      ),
+    )
+  } else if mode == "kernel" {
+    let hash = run(root, "compiler-identity", "sha256sum", [nvcc])
+    assert_true(
+      hash.has_prefix(
+        "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+      ),
+    )
+    let source = run(
+      root,
+      "export-kernel",
+      moon,
+      [
+        "run", "--target", "native", "--release", "--deny-warn", "--warn-list", flags,
+        "tests/reference_attention_cuda_source_probe", "--", "flash-mixed",
+      ],
+      cwd=src,
+    )
+    @fs.write_file(root + "/kernel.cu", source, create_mode=CreateNew)
+    ignore(
+      run(root, "compile-kernel", nvcc, [
+        "-O3",
+        "-std=c++17",
+        "-arch=sm_121",
+        "--expt-relaxed-constexpr",
+        "--expt-extended-lambda",
+        "-DNDEBUG",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-I" + root + "/adapted",
+        "-I" + root + "/cutlass",
+        "-cubin",
+        root + "/kernel.cu",
+        "-o",
+        root + "/kernel.cubin",
+      ]),
+    )
+    ignore(
+      run(root, "compile-oracle", nvcc, [
+        "-O3",
+        "-std=c++17",
+        "-arch=sm_121",
+        "-lineinfo",
+        scripts + "reference_csr_oracle.cu",
+        "-lcuda",
+        "-o",
+        root + "/oracle",
+      ]),
+    )
+  } else if mode == "oracle" {
+    admit(root, "oracle")
+    let result = run(root, "oracle", root + "/oracle", [root + "/kernel.cubin"])
+    assert_true(result.contains("outcome=passed"))
+  } else if mode == "leak" {
+    admit(root, "leak")
+    ignore(
+      run(root, "leak", "/usr/local/cuda/bin/compute-sanitizer", [
+        "--tool",
+        "memcheck",
+        "--leak-check",
+        "full",
+        "--error-exitcode",
+        "90",
+        root + "/oracle",
+        root + "/kernel.cubin",
+      ]),
+    )
+  } else if mode == "sanitize" {
+    assert_true(
+      @fs.read_file(root + "/oracle.stdout").text().contains("outcome=passed"),
+    )
+    for tool in ["memcheck", "racecheck", "initcheck", "synccheck"] {
+      admit(root, tool)
+      ignore(
+        run(root, tool, "/usr/local/cuda/bin/compute-sanitizer", [
+          "--tool",
+          tool,
+          "--error-exitcode",
+          "90",
+          root + "/oracle",
+          root + "/kernel.cubin",
+        ]),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

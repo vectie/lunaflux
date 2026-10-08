@@ -1,0 +1,252 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn included(path : String) -> Bool {
+  !path
+  .split("/")
+  .any(part => {
+    part.has_prefix("compact-evidence") ||
+    [
+      "source", "_build", ".mooncakes", "toolchain", "validation-toolchain", "model",
+      "model_runtime",
+    ].contains(part.to_owned())
+  }) &&
+  !path.has_suffix(".sqlite") &&
+  !path.has_suffix(".sqlite-shm") &&
+  !path.has_suffix(".sqlite-wal") &&
+  !path.has_suffix(".numeric") &&
+  path != "FILES.sha256" &&
+  path != "measurement.tar.gz" &&
+  path != "measurement.tar.gz.sha256"
+}
+
+///|
+async fn command(
+  program : String,
+  args : Array[String],
+  cwd? : String,
+) -> String {
+  let r = @shell.Cmd(program, args, cwd?).output(max_output_bytes=67108864)
+  if r.exit_code() != 0 {
+    println(r.stderr())
+  }
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn main {
+  let (root, compact) = match @env.args() {
+    [_, root] => (root, false)
+    [_, root, "compact"] => (root, true)
+    _ => fail("TERMINAL_ROOT [compact]")
+  }
+  guard root.has_prefix(
+    "/home/wlc004s/lunaflux-reference-integration-20261008.",
+  ) else {
+    fail("TERMINAL_ROOT")
+  }
+  if compact {
+    assert_true(@fs.exists(root + "/measurement.tar.gz.sha256"))
+    let names = command("find", [".", "-type", "f"], cwd=root)
+      .split("\n")
+      .filter(x => !x.is_empty())
+      .to_array()
+      .map(fn(x) raise {
+        guard x.strip_prefix("./") is Some(path) else { fail("path") }
+        path.to_owned()
+      })
+      .filter(included)
+    let destination = root + "/compact-evidence-v2"
+    assert_false(@fs.exists(destination))
+    @fs.mkdir(destination)
+    @fs.write_file(
+      destination + "/PARENT_ARCHIVE.sha256",
+      @fs.read_file(root + "/measurement.tar.gz.sha256"),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      destination + "/COMPACTION_NOTE.txt",
+      "The first archive unintentionally retained three unchanged model .numeric payloads despite its scope note. This compact evidence copy excludes those model bytes, retains all experimental artifacts/raw logs, and has its own complete manifest. The original archive and manifest are preserved.\n",
+      create_mode=CreateNew,
+    )
+    names.sort()
+    let manifest = StringBuilder()
+    let mut offset = 0
+    while offset < names.length() {
+      let end = Int::min(offset + 128, names.length())
+      manifest.write_string(
+        command("sha256sum", names[offset:end].to_array(), cwd=root),
+      )
+      offset = end
+    }
+    let extra = ["PARENT_ARCHIVE.sha256", "COMPACTION_NOTE.txt"]
+    manifest.write_string(command("sha256sum", extra, cwd=destination))
+    @fs.write_file(
+      destination + "/FILES.sha256",
+      manifest.to_string(),
+      create_mode=CreateNew,
+    )
+    ignore(
+      command(
+        "tar",
+        [
+          "-czf",
+          destination + "/measurement.tar.gz",
+          "-C",
+          destination,
+          "FILES.sha256",
+          ..extra,
+          "-C",
+          root,
+          ..names,
+        ],
+      ),
+    )
+    let digest = command("sha256sum", [destination + "/measurement.tar.gz"])
+    @fs.write_file(
+      destination + "/measurement.tar.gz.sha256",
+      digest,
+      create_mode=CreateNew,
+    )
+    println("files=\{names.length()+2} " + digest)
+    return
+  }
+  assert_true(@fs.exists(root + "/comparison.json"))
+  assert_true(@fs.exists(root + "/trace-comparison.json"))
+  assert_false(@fs.exists(root + "/FILES.sha256"))
+  assert_false(@fs.exists(root + "/measurement.tar.gz"))
+  assert_true(
+    command("nvidia-smi", ["--query-compute-apps=pid", "--format=csv,noheader"])
+    .trim()
+    .is_empty(),
+  )
+  for tool in ["oracle", "memcheck", "racecheck", "initcheck", "synccheck"] {
+    assert_true(
+      @fs.read_file(root + "/" + tool + ".stdout")
+      .text()
+      .contains("outcome=passed"),
+    )
+  }
+  @fs.mkdir(root + "/release-binaries")
+  for
+    name in [
+      "device_worker_child", "lunaflux_qwen3_fused_runtime_bundle_export", "lunaflux_qwen3_bf16_candidate_export",
+    ] {
+    @fs.write_file(
+      root + "/release-binaries/" + name + ".exe",
+      @fs.read_file(
+        root +
+        "/source/_build/native/release/build/cmd/" +
+        name +
+        "/" +
+        name +
+        ".exe",
+      ),
+      create_mode=CreateNew,
+    )
+  }
+  // Preserve exact external AOT inputs too. Models and toolchain stay external,
+  // identified by the deployment manifests and compiler/device receipts.
+  guard @json.parse(@fs.read_file(root + "/export-bundle.command.json").text())
+    is Array(args) else {
+    fail("export command")
+  }
+  @fs.mkdir(root + "/external-aot")
+  let seen : Map[String, Bool] = Map([])
+  let paths = StringBuilder()
+  for value in args {
+    guard value is String(path) else { fail("argument") }
+    if path.has_prefix("/") && path.has_suffix(".cubin") && !seen.contains(path) {
+      let destination = "external-aot/module-\{seen.length()}.cubin"
+      @fs.write_file(
+        root + "/" + destination,
+        @fs.read_file(path),
+        create_mode=CreateNew,
+      )
+      seen[path] = true
+      paths.write_string(destination + "\t" + path + "\n")
+    }
+  }
+  @fs.write_file(
+    root + "/EXTERNAL_AOT_PATHS.tsv",
+    paths.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/ARCHIVE_SCOPE.txt",
+    "Includes source/overlay tar inputs, rebuilt release executables, AOT modules, adapted reference headers/licenses, raw measurement/profile receipts, generated deployment metadata and failed controller attempts. Excludes expanded source/build/dependency trees, model weights, external toolchain, and derived SQLite (raw Nsight reports retained). This is a bounded experiment, not a production/quality admission.\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=reference AOT serving integration; see comparison.json for positive or negative performance result\ncorrectness=component FP64 and four sanitizer modes passed\nproduction_default=unchanged\nvendor_projection_integration=not_completed\n",
+    create_mode=CreateNew,
+  )
+  seal(root)
+}
+
+///|
+async fn seal(root : String) -> Unit {
+  let names = command("find", [".", "-type", "f"], cwd=root)
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(fn(x) raise {
+      guard x.strip_prefix("./") is Some(path) &&
+        !path.split("/").any(x => x == "..") else {
+        fail("path")
+      }
+      path.to_owned()
+    })
+    .filter(included)
+  names.sort()
+  let manifest = StringBuilder()
+  let mut offset = 0
+  while offset < names.length() {
+    let end = Int::min(offset + 128, names.length())
+    manifest.write_string(
+      command("sha256sum", names[offset:end].to_array(), cwd=root),
+    )
+    offset = end
+  }
+  @fs.write_file(
+    root + "/FILES.sha256",
+    manifest.to_string(),
+    create_mode=CreateNew,
+  )
+  ignore(command("sha256sum", ["-c", "FILES.sha256"], cwd=root))
+  ignore(
+    command(
+      "tar",
+      ["-czf", root + "/measurement.tar.gz", "FILES.sha256", ..names],
+      cwd=root,
+    ),
+  )
+  let digest = command("sha256sum", [root + "/measurement.tar.gz"])
+  @fs.write_file(
+    root + "/measurement.tar.gz.sha256",
+    digest,
+    create_mode=CreateNew,
+  )
+  println("files=\{names.length()} " + digest)
+}
+
+///|
+test "archive retains the source archive and raw trace, not expanded build or derived database" {
+  assert_true(included("source.tar"))
+  assert_true(included("overlay.tar"))
+  assert_true(included("release-binaries/worker.exe"))
+  assert_true(included("profile/trace.nsys-rep"))
+  assert_false(included("source/_build/worker.exe"))
+  assert_false(included("profile/trace.sqlite"))
+  assert_false(included("deployment/model-root/qwen.numeric"))
+  assert_false(included("measurement.tar.gz"))
+}

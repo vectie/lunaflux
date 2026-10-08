@@ -1,0 +1,386 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn once(text : String, old : String, fresh : String) -> String raise {
+  guard text.split(old).to_array() is [a, b] else {
+    fail("ambiguous seam: " + old)
+  }
+  a.to_owned() + fresh + b.to_owned()
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println("completed=" + label)
+}
+
+///|
+fn field(text : String, key : String) -> String raise {
+  guard text.split("\n").filter(x => x.has_prefix(key + "=")).to_array()
+    is [line] else {
+    fail("field " + key)
+  }
+  line[key.length() + 1:].to_owned()
+}
+
+///|
+fn median_ns(text : String, key : String) -> Int64 raise {
+  let samples : Array[Double] = []
+  for line in text.split("\n").filter(x => x.has_prefix("tokens=")) {
+    guard line.split(" ").filter(x => x.has_prefix(key + "=")).to_array()
+      is [value] else {
+      fail("sample")
+    }
+    samples.push(@string.parse_double(value[key.length() + 1:]))
+  }
+  assert_eq(samples.length(), 5)
+  samples.sort()
+  (samples[2] * 1000.0).to_int64()
+}
+
+///|
+async fn calibrate_decode(
+  root : String,
+  baseline : String,
+  scope : String,
+  decode_module : String,
+) -> String {
+  let output = root + "/decode-calibration-v2"
+  @fs.mkdir(output)
+  capture(output, "device", "nvidia-smi", [
+    "--query-gpu=uuid,pci.bus_id", "--format=csv,noheader",
+  ])
+  let identity = @fs.read_file(output + "/device.stdout").text()
+  assert_true(identity.contains("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6"))
+  assert_true(identity.contains("0000000F:01:00.0"))
+  capture(output, "compiler", "sha256sum", ["/usr/local/cuda-13.0/bin/nvcc"])
+  assert_true(
+    @fs.read_file(output + "/compiler.stdout")
+    .text()
+    .has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1 ",
+    ),
+  )
+  capture(output, "identity", "sha256sum", [
+    baseline + "/check-probe",
+    baseline + "/calibration-spec/decode.spec",
+    baseline + "/decode-selected/kernel.recipe",
+    baseline + "/decode-selected/kernel.cubin",
+    decode_module,
+  ])
+  // The probe is frozen; its inputs must be the exact decode module retained
+  // by the new serving bundle, never an inherited latency table.
+  assert_eq(
+    @fs.read_file(baseline + "/decode-selected/kernel.cubin").binary(),
+    @fs.read_file(decode_module).binary(),
+  )
+  let mut routes = "luna-attention-buckets-v1\nscope\t" + scope + "\n"
+  for rows in [1, 2, 4, 8, 16] {
+    for context in [512, 2048, 4096, 8192, 16384, 32768] {
+      if rows * context > 131072 {
+        continue
+      }
+      let label = "r\{rows}-h\{context}"
+      capture(output, label + "-idle", "nvidia-smi", [
+        "--query-compute-apps=pid", "--format=csv,noheader",
+      ])
+      assert_true(
+        @fs.read_file(output + "/" + label + "-idle.stdout")
+        .text()
+        .trim()
+        .is_empty(),
+      )
+      let memory = @fs.read_file("/proc/meminfo").text()
+      @fs.write_file(
+        output + "/" + label + "-memory.txt",
+        memory,
+        create_mode=CreateNew,
+      )
+      guard memory
+        .split("\n")
+        .filter(x => x.has_prefix("MemAvailable:"))
+        .to_array()
+        is [line] else {
+        fail("memory")
+      }
+      assert_true(
+        @string.parse_int64(
+          line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+        ) >=
+        33554432L,
+      )
+      capture(output, label, baseline + "/check-probe", [
+        baseline + "/calibration-spec/decode.spec",
+        baseline + "/decode-selected",
+        baseline + "/decode-selected",
+        rows.to_string(),
+        rows.to_string(),
+        (context - 1).to_string(),
+        "--decode-chain-comparison",
+      ])
+      let report = @fs.read_file(output + "/" + label + ".stdout").text()
+      for (candidate, key) in [(1, "old_us"), (4, "new_us")] {
+        routes += "record\tdecode\t\{rows}\t\{rows}\t\{context}\t\{candidate}\t\{median_ns(report, key)}\t5\n"
+      }
+    }
+  }
+  let path = output + "/routes.v1"
+  @fs.write_file(path, routes, create_mode=CreateNew, permission=0o444)
+  path
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/home/wlc004s/lunaflux-reference-integration-20261008.") else {
+    fail("ROOT materialize|timing")
+  }
+  let frozen = "/home/wlc004s/lunaflux-mixed-capture-repair-20261006.sQMel69Z"
+  let baseline = "/home/wlc004s/lunaflux-batch-cliff-fix-20261007.sx0E1lbt"
+  let benchmark = "/home/wlc004s/lunaflux-batch-cliff-abba-20261007.xvFHOL9t"
+  let moon = frozen + "/toolchain/bin/moon"
+  let serving = root + "/serving"
+  if mode == "materialize" || mode == "resume-materialize" {
+    assert_true(
+      @fs.read_file(root + "/oracle.stdout").text().contains("outcome=passed"),
+    )
+    for tool in ["memcheck", "racecheck", "initcheck", "synccheck"] {
+      assert_true(@fs.exists(root + "/" + tool + ".stdout"))
+      assert_true(
+        @fs.read_file(root + "/" + tool + ".stdout")
+        .text()
+        .contains("outcome=passed"),
+      )
+    }
+    if mode == "materialize" {
+      @fs.mkdir(serving)
+      @fs.mkdir(serving + "/fused-routed")
+      @fs.mkdir(serving + "/fused-base")
+    } else {
+      assert_true(
+        @fs.exists(serving + "/fused-base/reusable-fused-runtime-bundle.v3"),
+      )
+      assert_false(
+        @fs.exists(serving + "/fused-routed/reusable-fused-runtime-bundle.v3"),
+      )
+    }
+    guard @json.parse(@fs.read_file(baseline + "/rebind.command.json").text())
+      is Array(values) else {
+      fail("frozen export")
+    }
+    let command = values.map(v => {
+      guard v is String(s) else { fail("argument") }
+      s
+    })
+    let args = command[1:command.length() - 3].filter(s => {
+      s != "--query-metadata-v1" && s != "--prefill-wide-approximate-exp2"
+    })
+    // Offsets below are the bundle CLI's published positional launch ABI.
+    for
+      (index, value) in [
+        (17, "64"),
+        (20, "128"),
+        (21, "81920"),
+        (22, root + "/kernel.cubin"),
+        (24, "64"),
+        (27, "128"),
+        (28, "81920"),
+        (29, "lunaflux_attention_mixed_flashattention_bf16_exp2_v1"),
+        (30, root + "/kernel.cubin"),
+      ] {
+      args[index] = value
+    }
+    args[70] = serving + "/fused-base/reusable-fused-runtime-bundle.v3"
+    args.push("--prefill-reference-flashattention")
+    if mode == "materialize" {
+      capture(
+        root,
+        "export-base-bundle",
+        root +
+        "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+        args,
+      )
+    }
+    let routes = calibrate_decode(
+      root,
+      baseline,
+      field(
+        @fs.read_file(root + "/export-base-bundle.stdout").text(),
+        "attention_route_scope",
+      ),
+      args[65],
+    )
+    capture(root, "routes-hash", "sha256sum", [routes])
+    let digest = @fs.read_file(root + "/routes-hash.stdout")
+    .text()
+    .split(" ")
+    .to_array()[0].to_owned()
+    args[70] = serving + "/fused-routed/reusable-fused-runtime-bundle.v3"
+    args.append(["--attention-buckets", routes, digest])
+    capture(
+      root,
+      "export-bundle",
+      root +
+      "/source/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe",
+      args,
+    )
+    // Keep model/release/host runtime fixed; only the rebuilt worker and the
+    // explicitly selected AOT prefill module differ from the control.
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", frozen + "/" + name, serving + "/" + name]).run()
+    }
+    for
+      name in ["bind.stdout", "convert.stdout", "export.stdout", "toolchain.v1"] {
+      @fs.write_file(
+        serving + "/" + name,
+        @fs.read_file(baseline + "/serving/" + name),
+        create_mode=CreateNew,
+      )
+    }
+    let prepare = once(
+      @fs.read_file(baseline + "/serving/prepare.mbtx").text(),
+      "let worker=cli+\"device_worker_child/device_worker_child.exe\"",
+      "let worker=" +
+      Json(
+        root +
+        "/source/_build/native/release/build/cmd/device_worker_child/device_worker_child.exe",
+      ).stringify(),
+    )
+    @fs.write_file(serving + "/prepare.mbtx", prepare, create_mode=CreateNew)
+    capture(root, "materialize", moon, [
+      "run",
+      serving + "/prepare.mbtx",
+      serving,
+      "materialize",
+    ])
+    let long = serving + "/long-final"
+    @fs.mkdir(long)
+    for name in ["source", "toolchain"] {
+      @shell.Cmd("ln", ["-s", frozen + "/" + name, long + "/" + name]).run()
+    }
+    @fs.write_file(
+      long + "/export.stdout",
+      @fs.read_file(serving + "/export.stdout"),
+      create_mode=CreateNew,
+    )
+    capture(root, "long", moon, [
+      "run",
+      frozen + "/prepare-long.mbtx",
+      serving,
+      long,
+    ])
+  } else if mode == "timing" ||
+    mode == "timing-retry" ||
+    mode == "profile" ||
+    mode == "profile-long" {
+    let profiling = mode == "profile" || mode == "profile-long"
+    let output = root + "/" + mode
+    @fs.mkdir(output)
+    let launcher = once(
+      @fs.read_file(benchmark + "/launcher.mbtx").text(),
+      "let unit = \"lunaflux-matched-\"",
+      "let unit = \"lunaflux-aot-reference-" +
+      root.split(".").to_array().last().unwrap().to_owned() +
+      "-\"",
+    )
+    let launcher = once(
+      launcher, "\"--property=RuntimeMaxSec=7200\"", "\"--property=RuntimeMaxSec=1200\"",
+    )
+    let launcher = if profiling {
+      let build = "/home/wlc004s/lunaflux-mixed-work-20261007.NnA6SsKN/diagnostic-source/_build/native/release/build/"
+      let traced = once(
+        launcher,
+        "cmd + \"lunaflux/lunaflux.exe\",",
+        Json(build + "cmd/lunaflux/lunaflux.exe").stringify() + ",",
+      )
+      once(
+        traced,
+        "serving +\n        \"/source/_build/native/release/build/tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe\",\n        [",
+        "\"/usr/local/bin/nsys\",\n        [\"profile\",\"--trace=cuda\",\"--sample=none\",\"--cpuctxsw=none\",\"--cuda-graph-trace=node\",\"--trace-fork-before-exec=true\",\"--wait=all\",\"-o\",root+\"/trace\"," +
+        Json(
+          build +
+          "tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe",
+        ).stringify() +
+        ",",
+      )
+    } else {
+      launcher
+    }
+    let script = output + "/launcher.mbtx"
+    @fs.write_file(script, launcher, create_mode=CreateNew)
+    let client = @fs.read_file(benchmark + "/launcher.mbtx.client.mbtx").text()
+    let client = if profiling {
+      guard client
+        .split("fn matrix() -> Array[(String, Array[Int], Int, String)] {")
+        .to_array()
+        is [a, b] &&
+        b.split("///|\nfn token_ids").to_array() is [_, c] else {
+        fail("matrix")
+      }
+      let cell = if mode == "profile-long" {
+        "(\"i32512-o64-c2-varied\",inputs(32512,2),64,\"varied\")"
+      } else {
+        "(\"i8192-o64-c8-varied\",inputs(8192,8),64,\"varied\")"
+      }
+      let single = a.to_owned() +
+        "fn matrix() -> Array[(String, Array[Int], Int, String)] {\n [" +
+        cell +
+        "]\n}\n\n///|\nfn token_ids" +
+        c.to_owned()
+      once(
+        single, "let trials = if options is [\"--smoke\"] { 1 } else { 4 }", "let trials = 2",
+      )
+    } else {
+      client
+    }
+    @fs.write_file(script + ".client.mbtx", client, create_mode=CreateNew)
+    let arms = if profiling {
+      ["control", "reference"]
+    } else {
+      ["control", "reference", "reference", "control"]
+    }
+    for index, arm in arms {
+      let result = output + "/s\{index}-" + arm
+      @fs.mkdir(result)
+      let runtime = if arm == "control" {
+        baseline + "/serving/long-final"
+      } else {
+        serving + "/long-final"
+      }
+      capture(output, "s\{index}-" + arm, moon, [
+        "run", script, runtime, result, script, "--luna-only",
+      ])
+    }
+  } else {
+    fail("unknown mode")
+  }
+}
