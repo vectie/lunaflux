@@ -8,11 +8,15 @@ test "residual physical migration preserves qualification and production source"
   )
   inspect(
     candidate.source_digest().as_hex(),
-    content="4951b6eb49319819a897a2aee6d80ae8ee34989dec04ae1928e1eb4dc9b52a37",
+    content=(
+      #|45fa95bd6ee72c8ad328e29fc9e5d587bb1daa72ded9c485a563f488278d1153
+    ),
   )
   inspect(
     production.source_digest().as_hex(),
-    content="fbd08da504d836623ec59b6f467c192c9a3dc653e672d2315849798b638aeefa",
+    content=(
+      #|2d517b671ea491e59f096f4e7ceed74bd96be4e039a77c6228ac01d665e34ee1
+    ),
   )
   assert_eq(candidate.physical_program.geometry(), (128, 128, 32))
   assert_eq(candidate.physical_program.partial_count(), 128)

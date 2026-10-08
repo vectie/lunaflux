@@ -1,8 +1,19 @@
 ///|
-/// Interprets the retained numeric/effect plan during AOT emission. The shared
-/// tree is intentionally not replaced with a subgroup sum: F32 order is part
-/// of this kernel's numerical contract. Device barriers live only here.
+/// Interprets the retained numeric/effect plan during AOT emission. Ownership
+/// may change, but the logical tree and F32 order cannot. Wide rows retain the
+/// shared realization outside the bounded retained-fragment budget.
 fn residual_program_source(
+  program : @elementwise_physical_ir.NormalizationProgram,
+) -> String raise FusedParallelAotError {
+  if program.retained_tree(maximum_values_per_lane=64) is Some(retained) &&
+    retained.geometry().1 == 32 {
+    return residual_retained_source(retained)
+  }
+  residual_shared_tree_source(program)
+}
+
+///|
+fn residual_shared_tree_source(
   program : @elementwise_physical_ir.NormalizationProgram,
 ) -> String raise FusedParallelAotError {
   let output = StringBuilder()

@@ -72,6 +72,7 @@ pub fn NormalizationProgram::not_equal(Self, Self) -> Bool
 pub fn NormalizationProgram::partial_count(Self) -> Int
 pub fn NormalizationProgram::preparation(Self) -> ReadOnlyArray[NormalizationPrepare]
 pub fn NormalizationProgram::reduction(Self) -> ReadOnlyArray[ReductionEffect]
+pub fn NormalizationProgram::retained_tree(Self, maximum_values_per_lane~ : Int) -> RetainedNormalizationTree?
 pub fn NormalizationProgram::to_repr(Self) -> @debug.Repr
 pub fn NormalizationProgram::values_per_owner(Self) -> Int
 
@@ -86,6 +87,16 @@ pub(all) enum ReductionEffect {
 pub fn ReductionEffect::equal(Self, Self) -> Bool
 pub fn ReductionEffect::not_equal(Self, Self) -> Bool
 pub fn ReductionEffect::to_repr(Self) -> @debug.Repr
+
+pub struct RetainedNormalizationTree {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RetainedNormalizationTree::equal(Self, Self) -> Bool
+pub fn RetainedNormalizationTree::exchange_strides(Self) -> ReadOnlyArray[Int]
+pub fn RetainedNormalizationTree::geometry(Self) -> (Int, Int, Int)
+pub fn RetainedNormalizationTree::local_edges(Self) -> ReadOnlyArray[(Int, Int)]
+pub fn RetainedNormalizationTree::not_equal(Self, Self) -> Bool
+pub fn RetainedNormalizationTree::to_repr(Self) -> @debug.Repr
 
 pub struct RotaryProgram {
   // private fields
