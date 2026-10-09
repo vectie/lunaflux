@@ -130,6 +130,17 @@ pub fn HyperConnectionPrecision::normalization_epsilon(Self) -> Double
 pub fn HyperConnectionPrecision::sinkhorn_iterations(Self) -> Int
 pub fn HyperConnectionPrecision::workspace_bytes(Self) -> Int64
 
+pub struct IndexedSparseAttentionPrecision {
+  // private fields
+}
+pub fn IndexedSparseAttentionPrecision::attention_geometry(Self) -> (Int, Int, Int, Int)
+pub fn IndexedSparseAttentionPrecision::capacity(Self) -> (Int, Int)
+pub fn IndexedSparseAttentionPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn IndexedSparseAttentionPrecision::index_geometry(Self) -> (Int, Int, Int, Int, Bool)
+pub fn IndexedSparseAttentionPrecision::new(index_head_count~ : Int, index_head_dimension~ : Int, query_head_count~ : Int, key_value_head_count~ : Int, query_key_dimension~ : Int, value_dimension~ : Int, pool_size~ : Int, top_k~ : Int, append_incomplete_tail~ : Bool, maximum_queries~ : Int, maximum_history~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn IndexedSparseAttentionPrecision::selected_width(Self) -> Int
+pub fn IndexedSparseAttentionPrecision::workspace_bytes(Self) -> Int64
+
 pub struct LinearPrecision {
   // private fields
 } derive(Eq, @debug.Debug)

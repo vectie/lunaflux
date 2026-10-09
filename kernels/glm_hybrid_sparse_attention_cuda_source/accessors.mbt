@@ -57,3 +57,8 @@ pub fn GlmHybridSparseAttentionCudaSource::function_symbol(
 pub fn GlmHybridSparseAttentionCudaSource::source_bytes(self : Self) -> Bytes {
   self.source
 }
+
+///|
+pub fn GlmHybridSparseAttentionCudaSource::maximum_queries(self : Self) -> Int {
+  self.maximum_queries
+}

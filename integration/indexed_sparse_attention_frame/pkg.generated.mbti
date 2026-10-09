@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/indexed_sparse_attention_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/indexed_sparse_attention_execution_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct IndexedSparseAttentionFrame {
+  // private fields
+}
+pub fn IndexedSparseAttentionFrame::close(Self) -> Unit raise @device.DeviceError
+pub fn IndexedSparseAttentionFrame::for_shared_indices(@indexed_sparse_attention_execution_cuda_source.IndexedSparseAttentionCudaSource) -> Self
+pub fn IndexedSparseAttentionFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn IndexedSparseAttentionFrame::new(@indexed_sparse_attention_execution_cuda_source.IndexedSparseAttentionCudaSource) -> Self
+pub fn IndexedSparseAttentionFrame::prepare(Self, @device.Context, @device.Module, maximum_workspace_bytes~ : Int64, query_counts~ : @device.Allocation, history_counts~ : @device.Allocation, query_positions~ : @device.Allocation, index_queries~ : @device.Allocation, index_head_weights~ : @device.Allocation, index_keys~ : @device.Allocation, pool_gate_scores~ : @device.Allocation, pool_ape~ : @device.Allocation, history_valid~ : @device.Allocation, queries~ : @device.Allocation, keys~ : @device.Allocation, values~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
+pub fn IndexedSparseAttentionFrame::prepare_shared_indices(Self, @device.Module, query_counts~ : @device.Allocation, history_counts~ : @device.Allocation, query_positions~ : @device.Allocation, history_valid~ : @device.Allocation, queries~ : @device.Allocation, keys~ : @device.Allocation, values~ : @device.Allocation, selected_indices~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
+pub fn IndexedSparseAttentionFrame::selected_indices(Self) -> @device.Allocation raise @device.DeviceError
+pub fn IndexedSparseAttentionFrame::source_bytes(Self) -> Bytes
+pub fn IndexedSparseAttentionFrame::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

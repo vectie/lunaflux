@@ -32,6 +32,7 @@ pub struct GlmHybridSparseAttentionCudaSource {
   priv value_dimension : Int
   priv selected_width : Int
   priv maximum_tokens : Int
+  priv maximum_queries : Int
   priv function_symbol : String
   priv source : Bytes
 }

@@ -18,6 +18,7 @@ pub fn projected_index_score_stable_topk_bf16_source(
   pool_size~ : Int,
   append_incomplete_tail~ : Bool,
   maximum_tokens~ : Int,
+  maximum_queries? : Int = maximum_tokens,
   function_symbol~ : String,
 ) -> GlmHybridDsaIndexCudaSource raise GlmHybridDsaIndexCudaSourceError {
   if head_count <= 0 || head_count > 1024 {
@@ -35,6 +36,9 @@ pub fn projected_index_score_stable_topk_bf16_source(
   if maximum_tokens < pool_size || maximum_tokens > 1048576 {
     raise InvalidMaximumTokens
   }
+  if maximum_queries <= 0 || maximum_queries > maximum_tokens {
+    raise InvalidMaximumTokens
+  }
   if !valid_dsa_index_symbol(function_symbol) {
     raise InvalidFunctionSymbol
   }
@@ -42,7 +46,7 @@ pub fn projected_index_score_stable_topk_bf16_source(
   let output_width = top_k +
     (if append_incomplete_tail { pool_size - 1 } else { 0 })
   if output_width <= 0 ||
-    maximum_tokens.to_int64() > 9223372036854775807L / output_width.to_int64() {
+    maximum_queries.to_int64() > 2147483647L / output_width.to_int64() {
     raise SizeOverflow
   }
   let tail_source = if append_incomplete_tail {
@@ -86,10 +90,10 @@ pub fn projected_index_score_stable_topk_bf16_source(
     output_width.to_string() +
     ";\n" +
     "  for (unsigned long long cell = 0; cell < " +
-    maximum_tokens.to_string() +
+    maximum_queries.to_string() +
     "ULL * (unsigned long long)output_width; ++cell) selected_indices[cell] = -1;\n" +
     "  if (counts[2] != 1 || query_count <= 0 || query_count > " +
-    maximum_tokens.to_string() +
+    maximum_queries.to_string() +
     ") return;\n" +
     "  const int candidates = *candidate_count;\n" +
     "  if (candidates < 0 || candidates > " +
@@ -177,6 +181,7 @@ pub fn projected_index_score_stable_topk_bf16_source(
     top_k,
     pool_size,
     maximum_tokens,
+    maximum_queries,
     candidate_capacity,
     output_width,
     function_symbol,
@@ -221,6 +226,7 @@ pub fn reuse_selected_indices_i32_source(
     top_k: output_width,
     pool_size: 1,
     maximum_tokens,
+    maximum_queries: maximum_tokens,
     candidate_capacity: 0,
     output_width,
     function_symbol,

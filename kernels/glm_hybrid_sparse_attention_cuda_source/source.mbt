@@ -27,6 +27,7 @@ pub fn selected_index_sparse_attention_bf16_source(
   value_dimension~ : Int,
   selected_width~ : Int,
   maximum_tokens~ : Int,
+  maximum_queries? : Int = maximum_tokens,
   function_symbol~ : String,
 ) -> GlmHybridSparseAttentionCudaSource raise GlmHybridSparseAttentionCudaSourceError {
   if query_head_count <= 0 || query_head_count > 1024 {
@@ -49,11 +50,14 @@ pub fn selected_index_sparse_attention_bf16_source(
   if maximum_tokens <= 0 || maximum_tokens > 1048576 {
     raise InvalidMaximumTokens
   }
+  if maximum_queries <= 0 || maximum_queries > maximum_tokens {
+    raise InvalidMaximumTokens
+  }
   if !valid_sparse_attention_symbol(function_symbol) {
     raise InvalidFunctionSymbol
   }
   guard checked_source_product(
-      maximum_tokens.to_int64(),
+      maximum_queries.to_int64(),
       query_head_count.to_int64(),
     )
     is Some(query_heads) else {
@@ -78,7 +82,7 @@ pub fn selected_index_sparse_attention_bf16_source(
     "  const int query_count = counts[3];\n" +
     "  const int keys_live = *key_count;\n" +
     "  if (counts[2] != 1 || query_count <= 0 || query_count > " +
-    maximum_tokens.to_string() +
+    maximum_queries.to_string() +
     " || keys_live <= 0 || keys_live > " +
     maximum_tokens.to_string() +
     ") return;\n" +
@@ -189,6 +193,7 @@ pub fn selected_index_sparse_attention_bf16_source(
     value_dimension,
     selected_width,
     maximum_tokens,
+    maximum_queries,
     function_symbol,
     source,
   }

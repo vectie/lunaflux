@@ -20,6 +20,8 @@ import {
   "moonbitlang/x/crypto",
   "vectie/lunaflux/integration/glm53_packed_expert_upload",
   "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/integration/indexed_sparse_attention_frame" @sparse,
+  "vectie/lunaflux/kernels/indexed_sparse_attention_execution_cuda_source" @sparse_source,
 }
 
 supported_targets = "native"

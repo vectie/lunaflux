@@ -58,6 +58,13 @@ executes 32 steps without measured step heap allocations or blocking waits.
 This is a native device test double, not a GPU checkpoint numerical test. Next
 execute the composed MoE layer on GPU with real weights, implement DSA blocks,
 and connect layer/worker execution.
+Projected sparse attention now has a generic immutable precision plan and one
+prepared pooling/index/attention launch frame. Query capacity is independent of
+history capacity; IndexShare consumers borrow the device selection and execute
+only attention, with no owned pool/index workspace. Its bounded GPU fixture
+passes exact prefill/decode output checks and memory/race/sync checks. This does
+not yet include GLM projections, request-owned KV append or complete DSA blocks;
+those are the next integration work, not new deployment-hardening prerequisites.
 Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual
 implementation tasks, not transport-hardening prerequisites.

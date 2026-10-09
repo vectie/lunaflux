@@ -56,3 +56,8 @@ pub fn GlmHybridDsaIndexCudaSource::function_symbol(self : Self) -> String {
 pub fn GlmHybridDsaIndexCudaSource::source_bytes(self : Self) -> Bytes {
   self.source
 }
+
+///|
+pub fn GlmHybridDsaIndexCudaSource::maximum_queries(self : Self) -> Int {
+  self.maximum_queries
+}

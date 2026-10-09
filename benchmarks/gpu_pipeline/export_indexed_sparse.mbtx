@@ -1,0 +1,26 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  guard @env.args() is [_, destination] else { fail("NEW_HEADER") }
+  let result = @shell.Cmd("env", [
+    "LUNA_EXPORT_INDEXED_SPARSE=1", "moon", "test", "--target", "native",
+    "kernels/indexed_sparse_attention_execution_cuda_source", "--diagnostic-limit", "2",
+  ]).output(max_output_bytes=1048576)
+  result.check()
+  let output = result.stdout()
+  let bodies : Array[String] = []
+  for prefix in ["sparse_prefill", "sparse_decode"] {
+    let pieces = output.split("LUNA_SOURCE_BEGIN " + prefix + "\n").to_array()
+    guard pieces.length() == 2 else { fail("missing export " + prefix) }
+    let body = pieces[1].split("LUNA_SOURCE_END").to_array()
+    guard body.length() >= 2 else { fail("invalid export " + prefix) }
+    bodies.push(body[0].to_owned())
+  }
+  @fs.write_file(destination, bodies.join("\n"), create_mode=CreateNew)
+  println("exported independent query/history sparse attention kernels")
+}

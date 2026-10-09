@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn projected_index_score_stable_topk_bf16_source(head_count~ : Int, head_dimension~ : Int, top_k~ : Int, pool_size~ : Int, append_incomplete_tail~ : Bool, maximum_tokens~ : Int, function_symbol~ : String) -> GlmHybridDsaIndexCudaSource raise GlmHybridDsaIndexCudaSourceError
+pub fn projected_index_score_stable_topk_bf16_source(head_count~ : Int, head_dimension~ : Int, top_k~ : Int, pool_size~ : Int, append_incomplete_tail~ : Bool, maximum_tokens~ : Int, maximum_queries? : Int, function_symbol~ : String) -> GlmHybridDsaIndexCudaSource raise GlmHybridDsaIndexCudaSourceError
 
 pub fn reuse_selected_indices_i32_source(output_width~ : Int, maximum_tokens~ : Int, function_symbol~ : String) -> GlmHybridDsaIndexCudaSource raise GlmHybridDsaIndexCudaSourceError
 
@@ -35,6 +35,7 @@ pub fn GlmHybridDsaIndexCudaSource::candidate_capacity(Self) -> Int
 pub fn GlmHybridDsaIndexCudaSource::function_symbol(Self) -> String
 pub fn GlmHybridDsaIndexCudaSource::head_count(Self) -> Int
 pub fn GlmHybridDsaIndexCudaSource::head_dimension(Self) -> Int
+pub fn GlmHybridDsaIndexCudaSource::maximum_queries(Self) -> Int
 pub fn GlmHybridDsaIndexCudaSource::maximum_tokens(Self) -> Int
 pub fn GlmHybridDsaIndexCudaSource::numerical_contract(Self) -> GlmHybridDsaIndexNumericalContract
 pub fn GlmHybridDsaIndexCudaSource::operation(Self) -> GlmHybridDsaIndexCudaOperation

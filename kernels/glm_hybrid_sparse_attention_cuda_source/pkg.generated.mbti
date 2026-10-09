@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn selected_index_sparse_attention_bf16_source(query_head_count~ : Int, key_value_head_count~ : Int, query_key_dimension~ : Int, value_dimension~ : Int, selected_width~ : Int, maximum_tokens~ : Int, function_symbol~ : String) -> GlmHybridSparseAttentionCudaSource raise GlmHybridSparseAttentionCudaSourceError
+pub fn selected_index_sparse_attention_bf16_source(query_head_count~ : Int, key_value_head_count~ : Int, query_key_dimension~ : Int, value_dimension~ : Int, selected_width~ : Int, maximum_tokens~ : Int, maximum_queries? : Int, function_symbol~ : String) -> GlmHybridSparseAttentionCudaSource raise GlmHybridSparseAttentionCudaSourceError
 
 // Errors
 pub(all) suberror GlmHybridSparseAttentionCudaSourceError {
@@ -30,6 +30,7 @@ pub struct GlmHybridSparseAttentionCudaSource {
 }
 pub fn GlmHybridSparseAttentionCudaSource::function_symbol(Self) -> String
 pub fn GlmHybridSparseAttentionCudaSource::key_value_head_count(Self) -> Int
+pub fn GlmHybridSparseAttentionCudaSource::maximum_queries(Self) -> Int
 pub fn GlmHybridSparseAttentionCudaSource::maximum_tokens(Self) -> Int
 pub fn GlmHybridSparseAttentionCudaSource::numerical_contract(Self) -> GlmHybridSparseAttentionNumericalContract
 pub fn GlmHybridSparseAttentionCudaSource::operation(Self) -> GlmHybridSparseAttentionCudaOperation

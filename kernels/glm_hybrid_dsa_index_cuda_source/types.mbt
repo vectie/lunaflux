@@ -33,6 +33,7 @@ pub struct GlmHybridDsaIndexCudaSource {
   priv top_k : Int
   priv pool_size : Int
   priv maximum_tokens : Int
+  priv maximum_queries : Int
   priv candidate_capacity : Int
   priv output_width : Int
   priv function_symbol : String

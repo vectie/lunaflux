@@ -10,6 +10,24 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Projected indexed sparse attention now composes pooling, deterministic index
+selection and attention from a model-independent precision plan. Decode query
+capacity no longer forces query/output/selection storage to match retained
+history capacity. A one-query / 32K-history plan uses 8,204 bytes for selected
+indices and 2,269,200 bytes total owned pool/index workspace. Histories and
+projected inputs are borrowed and excluded from this workspace.
+
+The prepared producer has three launches; an IndexShare consumer borrows its
+selection for one attention launch and owns zero workspace. The combined native
+regression runs 32 steps / 128 launches without measured hot heap allocations or
+blocking waits, then cancels and releases owners in dependency order.
+The 96-test affected native suite and small GB10 GPU fixture pass. The GPU test
+uses 15 valid keys within capacity 32, three prefill queries and one decode query:
+maxabs 0, bitwise prefill/decode agreement, zero inactive output, and zero memory,
+race and synchronization sanitizer errors. These are correctness-grade serial
+kernels, not a model throughput result. Complete DSA projections, KV append,
+decoder/worker integration and two-host execution remain unfinished.
+
 Recurrent GLM MoE decoder composition now joins both mHC envelopes, KDA,
 automatic grouped routing, packed NVFP4 routed experts, BF16 shared expert and
 BF16 residual publication in one 34-launch queue. The generic MoE launch frame
