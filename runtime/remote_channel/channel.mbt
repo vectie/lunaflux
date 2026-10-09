@@ -28,6 +28,7 @@ pub struct RemoteChannel {
   priv mut send_cursor : Int
   priv mut send_length : Int
   priv mut receive_deadline : UInt64
+  priv mut receive_waiting : Bool
   priv mut send_deadline : UInt64
   priv mut last_tick : UInt64
 }
@@ -62,6 +63,7 @@ pub fn RemoteChannel::new(
     send_cursor: 0,
     send_length: 0,
     receive_deadline: 0UL,
+    receive_waiting: false,
     send_deadline: 0UL,
     last_tick: 0UL,
   }
@@ -104,7 +106,7 @@ fn RemoteChannel::observe(
     self.fail(ClockRegressed)
   }
   self.last_tick = now
-  if (self.receiving && now >= self.receive_deadline) ||
+  if (self.receiving && !self.receive_waiting && now >= self.receive_deadline) ||
     (self.sending && now >= self.send_deadline) {
     self.fail(TimedOut)
   }
@@ -152,14 +154,18 @@ pub fn RemoteChannel::begin_send(
 }
 
 ///|
+/// With idle=true, time between requests is unbounded. Its absolute transfer
+/// deadline starts when the first prefix byte arrives, never extends afterward.
 pub fn RemoteChannel::begin_receive(
   self : RemoteChannel,
   local_now_millis : UInt64,
+  idle? : Bool = false,
 ) -> Unit raise RemoteChannelError {
   if !self.open || self.receiving {
     raise InvalidState
   }
   self.receive_deadline = self.deadline(local_now_millis)
+  self.receive_waiting = idle
   self.receive_cursor = 0
   self.receive_length = 4
   self.receiving = true
@@ -241,6 +247,12 @@ pub async fn RemoteChannel::poll_receive(
   guard outcome is Some(count) else { return None }
   if count <= 0 || count > self.receive_length - self.receive_cursor {
     self.fail(Disconnected)
+  }
+  if self.receive_waiting {
+    // Idle service lifetime is not a frame-transfer timeout. Once any prefix
+    // byte arrives, the original bounded non-extending operation deadline applies.
+    self.receive_deadline = self.deadline(local_now_millis)
+    self.receive_waiting = false
   }
   self.receive_cursor += count
   if self.receive_cursor != self.receive_length {

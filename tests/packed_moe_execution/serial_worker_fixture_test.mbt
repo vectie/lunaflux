@@ -36,6 +36,11 @@ fn serial_inference_limits() -> @inference.InferenceLimits raise {
 ///|
 fn serial_wire_plan(
   id : UInt64,
+  model_generation? : UInt64 = 9UL,
+  position? : Int = 0,
+  tokens? : ArrayView[Int] = [2, 3],
+  decode? : Bool = false,
+  produces? : Bool = true,
 ) -> (
   @protocol.SubmittedSchedulePlan,
   @wire.ValidatedPlanFrame,
@@ -52,25 +57,55 @@ fn serial_wire_plan(
       max_cached_references_per_page=2,
     ),
   )
-  plan.append_final_prefill(
-    request_id=@inference.RequestId::new(id),
-    request_generation=@inference.RequestGeneration::initial(),
-    sequence_token_start=0,
-    tokens=[2, 3],
-    pages=[allocator.allocate_one()],
-    capabilities=[@plan.KernelCapabilityId::paged_causal_attention()],
-    sampling=@inference.SamplingParameters::greedy(),
-    sampling_seed=@inference.SamplingSeed::new(3UL),
-    sample_index=1,
-    completion_slot=@protocol.CompletionSlot::new(0, limits),
-  )
+  let request_id = @inference.RequestId::new(id)
+  let request_generation = @inference.RequestGeneration::initial()
+  let pages = [allocator.allocate_one()]
+  let capabilities = [@plan.KernelCapabilityId::paged_causal_attention()]
+  let completion_slot = @protocol.CompletionSlot::new(0, limits)
+  if decode {
+    plan.append_decode(
+      request_id~,
+      request_generation~,
+      sequence_token_position=position,
+      input_token=tokens[0],
+      pages~,
+      capabilities~,
+      sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=@inference.SamplingSeed::new(3UL),
+      sample_index=position,
+      completion_slot~,
+    )
+  } else if produces {
+    plan.append_final_prefill(
+      request_id~,
+      request_generation~,
+      sequence_token_start=position,
+      tokens~,
+      pages~,
+      capabilities~,
+      sampling=@inference.SamplingParameters::greedy(),
+      sampling_seed=@inference.SamplingSeed::new(3UL),
+      sample_index=position + tokens.length() - 1,
+      completion_slot~,
+    )
+  } else {
+    plan.append_prefill(
+      request_id~,
+      request_generation~,
+      sequence_token_start=position,
+      tokens~,
+      pages~,
+      capabilities~,
+      completion_slot~,
+    )
+  }
   let submitted = plan.submit_wire(
     sequence_value=1UL,
-    model_plan_generation_value=9UL,
-    token_budget=2,
+    model_plan_generation_value=model_generation,
+    token_budget=if decode { 1 } else { tokens.length() },
     has_previous=false,
     previous_sequence_value=0UL,
-    loaded_generation_value=9UL,
+    loaded_generation_value=model_generation,
   )
   let frame = @wire.PlanFrameBuffer::new(limits, inference).encode_plan(
     submitted,

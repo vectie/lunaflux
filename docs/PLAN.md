@@ -11,11 +11,14 @@ Activation transfer now has a plain framed-TCP/pinned-DMA execution owner and a
 GLM stage-bound lease. Producer retirement precedes download; complete receiver
 upload precedes consumer eligibility. Both composed 45-layer CUDA source halves
 compile on GB10; loopback device-double transfer and GLM lease regressions pass.
-The corrected affected native aggregate passes 97/97; async fixtures serialize
-only their shared native test-double device lane, not production execution.
-Next propagate the same request metadata to rank-local ports, drive remote stage
-submission/completion and return terminal samples, then execute actual checkpoint
-weights under measured host budgets. This correctness transport is host staged,
+Rank-local request metadata, remote prepare/run/commit/release and terminal token
+delivery now connect through a model-neutral two-rank coordinator. It waits for
+both stage retirements and activation upload before committing global history.
+The expanded final affected native aggregate passes 106/106. Async fixtures
+serialize only their shared native test-double device
+lane, not production execution. Next finish the checkpoint-backed executable
+startup and execute actual checkpoint weights under measured host budgets.
+This correctness transport is host staged,
 not GPUDirect/RDMA, and its async polling is not claimed heap-free. CUDA source
 compilation is not a whole-model numerical or performance test.
 
@@ -27,8 +30,9 @@ Partial decoder slices no longer bind whole-model worker delivery; complete
 stages bind only the request ports they were prepared against. The official-
 shaped first-stage native fixture passes 32 steps / 864 launches without warm
 heap allocation or blocking synchronization. It is a device-double/zero-weight
-fixture, not actual checkpoint GPU execution. Next connect rank-local request
-ports and residual transfer/completion across the two hosts, then validate full
+fixture, not actual checkpoint GPU execution. Rank-local request ports and
+residual transfer/completion are connected in loopback tests; next start these
+owners against actual checkpoint stages on the two hosts and validate full
 checkpoint prompt-to-token generation. DeepSeek/MiniMax completion remains open.
 
 Contiguous GLM decoder slices now compose the official KDA/DSA and dense/MoE

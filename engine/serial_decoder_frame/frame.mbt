@@ -312,6 +312,27 @@ pub fn SerialDecoderFrame::complete(
 }
 
 ///|
+/// Retire a partial decoder stage only after the pipeline coordinator accepts
+/// the whole step. No model completion or token is published by this rank.
+/// A local or peer execution failure poisons retained history; it cannot be
+/// rolled back by retrying the same position. The local writer lease is aborted.
+pub fn SerialDecoderFrame::retire_stage(
+  self : Self,
+  execution_failed~ : Bool,
+) -> Unit raise {
+  guard self.state is Staged else { raise SerialDecoderError::Busy }
+  self.state = Failed
+  self.completion_slot.close()
+  if !execution_failed {
+    self.request_live = true
+    self.request_id = self.pending_id
+    self.request_generation = self.pending_generation
+    self.processed = self.pending_position + self.pending_rows
+    self.state = Idle
+  }
+}
+
+///|
 /// Call only after the request is retired by its scheduler. The next prefill
 /// explicitly resets both recurrent and sparse history before processing.
 pub fn SerialDecoderFrame::release_request(

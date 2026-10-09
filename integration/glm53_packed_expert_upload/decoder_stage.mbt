@@ -15,6 +15,7 @@ pub struct GlmDecoderStage {
   priv mut counts : @device.Allocation?
   priv mut activation_leased : Bool
   priv mut active_rows : Int
+  priv mut submission_epoch : UInt64
   priv mut status : RecurrentLayerState
 }
 
@@ -73,6 +74,7 @@ pub fn GlmDecoderStage::new(
     counts: None,
     activation_leased: false,
     active_rows: 0,
+    submission_epoch: 0UL,
     residuals: [],
     status: Fresh,
   }
@@ -228,12 +230,15 @@ pub fn GlmDecoderStage::submit(self : Self, live_rows~ : Int) -> Unit raise {
   guard self.status is Ready && !self.activation_leased else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
   }
-  guard live_rows > 0 && live_rows <= self.maximum_rows else {
+  guard live_rows > 0 &&
+    live_rows <= self.maximum_rows &&
+    self.submission_epoch < 0xffffffffffffffffUL else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
   }
   self.status = Failed
   self.decoder.submit(live_rows~)
   self.active_rows = live_rows
+  self.submission_epoch += 1UL
   self.status = Active
 }
 
@@ -249,6 +254,17 @@ pub fn GlmDecoderStage::poll(self : Self) -> Bool raise {
   } else {
     self.status = Active
     false
+  }
+}
+
+///|
+/// Rank error/sample retirement and activation DMA may both observe this one
+/// submission. Once its queue has retired, neither observer polls it again.
+fn GlmDecoderStage::poll_submission(self : Self) -> Bool raise {
+  if self.status is Ready && self.active_rows > 0 {
+    true
+  } else {
+    self.poll()
   }
 }
 

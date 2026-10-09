@@ -27,6 +27,25 @@ pub fn DecoderInputPort::equal(Self, Self) -> Bool
 pub fn DecoderInputPort::not_equal(Self, Self) -> Bool
 pub fn DecoderInputPort::to_repr(Self) -> @debug.Repr
 
+pub struct SerialDecoderRank {
+  // private fields
+}
+pub fn SerialDecoderRank::begin(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise
+pub fn SerialDecoderRank::bind_executor(Self, @device.Context, submit~ : (Int) -> Unit raise, poll~ : () -> Bool raise, close~ : () -> Unit raise, append_descriptors~ : ArrayView[@device.Allocation]) -> Unit raise
+pub fn SerialDecoderRank::close(Self) -> Unit raise
+pub fn SerialDecoderRank::commit(Self, pipeline_failed~ : Bool) -> Unit raise
+pub fn SerialDecoderRank::execution_failed(Self) -> Bool raise
+pub fn SerialDecoderRank::inputs_ready(Self) -> Bool raise
+pub fn SerialDecoderRank::live_rows(Self) -> Int raise
+pub fn SerialDecoderRank::new(@serial_decoder_frame.SerialDecoderFrame, outputs_token~ : Bool) -> Self
+pub fn SerialDecoderRank::outputs_token(Self) -> Bool
+pub fn SerialDecoderRank::ports(Self) -> SerialDecoderWorker
+pub fn SerialDecoderRank::produces_token(Self) -> Bool raise
+pub fn SerialDecoderRank::progress(Self) -> Bool raise
+pub fn SerialDecoderRank::release_request(Self) -> Unit raise
+pub fn SerialDecoderRank::sampled_token(Self) -> Int raise
+pub fn SerialDecoderRank::submit(Self) -> Unit raise
+
 pub struct SerialDecoderWorker {
   // private fields
 }

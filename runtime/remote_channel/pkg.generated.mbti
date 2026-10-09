@@ -21,7 +21,7 @@ pub(all) suberror RemoteChannelError {
 pub struct RemoteChannel {
   // private fields
 }
-pub fn RemoteChannel::begin_receive(Self, UInt64) -> Unit raise RemoteChannelError
+pub fn RemoteChannel::begin_receive(Self, UInt64, idle? : Bool) -> Unit raise RemoteChannelError
 pub fn RemoteChannel::begin_send(Self, FixedArray[Byte], Int, UInt64) -> Unit raise RemoteChannelError
 pub fn RemoteChannel::close(Self) -> Unit
 pub fn RemoteChannel::is_open(Self) -> Bool

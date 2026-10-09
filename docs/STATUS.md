@@ -10,6 +10,25 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (two-rank request execution): rank-local workers now upload
+the same canonical request metadata without publishing partial model responses.
+A plain-TCP stage-control channel carries prepare/run/retire/commit/release;
+the model-neutral two-rank coordinator waits for both ranks and activation DMA,
+commits request history, and publishes exactly one terminal completion. GLM
+stages bind those rank effects; queue retirement can be observed by both the
+rank and transfer owner without resubmission. Idle service time is unbounded,
+while active frames and activation waits retain bounded deadlines.
+
+Real-loopback/native-device-double tests cover chunked prefill, final prefill,
+decode, terminal token delivery, byte-exact residual transfer, failed samples,
+cancellation, and balanced resource release. Warm rank polling has zero
+measured heap allocations; network async polling is not claimed heap-free.
+The expanded final affected aggregate passed 106/106. No actual checkpoint
+GPU generation or throughput claim is
+added. Remaining GLM work is the checkpoint-backed executable startup/placement
+and real numerical generation. DeepSeek learned-head/complete decoder and
+MiniMax bounded-memory whole-model composition remain open. TLS work is paused.
+
 Update 2026-10-10 (activation execution edge): a model-neutral host-staged
 activation link now waits for producer queue retirement, downloads only live
 rows through a pinned DMA lane, sends unchanged tensor bytes over plain framed
@@ -24,8 +43,9 @@ The real-loopback/socket + native-device-double regression passes byte-exact
 transfer, shorter-batch tail preservation, wrong-step rejection and resource
 balance. The updated official-shaped GLM first-stage fixture also passes stage
 lease/reuse, live-row and cancellation checks. These are not two-host GPU or
-real-checkpoint numerical results. Metadata propagation, remote stage control,
-terminal token delivery and whole-model execution remain unfinished.
+real-checkpoint numerical results. Metadata propagation, remote stage control
+and terminal token delivery are now implemented as described above; actual
+checkpoint whole-model execution remains unfinished.
 
 Both composed GLM CUDA sources (layers 0–21 and 22–44, one live-row capacity,
 history 64) compile to sm121 cubins on .178 GB10 with CUDA 13.0.88. Each compiler

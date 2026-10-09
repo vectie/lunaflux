@@ -82,6 +82,7 @@ pub struct GlmDecoderStage {
   // private fields
 }
 pub fn GlmDecoderStage::append_descriptors(Self) -> ArrayView[@device.Allocation]
+pub fn GlmDecoderStage::bind_rank(Self, @serial_decoder_worker.SerialDecoderRank, @device.Context) -> Unit raise
 pub fn GlmDecoderStage::bind_worker(Self, @serial_decoder_worker.SerialDecoderWorker, @device.Context) -> Unit raise
 pub fn GlmDecoderStage::close(Self) -> Unit raise
 pub fn GlmDecoderStage::input_residual(Self) -> @device.Allocation raise

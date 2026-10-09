@@ -9,6 +9,7 @@ pub struct GlmActivationEdge {
   priv outgoing : Bool
   priv mut prepared : Bool
   priv mut leased : Bool
+  priv mut last_submission : UInt64
 }
 
 ///|
@@ -35,7 +36,7 @@ pub fn GlmActivationEdge::new(
       row_bytes~,
       maximum_host_bytes~,
       timeout_millis~,
-      producer_ready=() => stage.poll(),
+      producer_ready=() => stage.poll_submission(),
     )
   } else {
     @activation.ActivationLink::receiver(
@@ -46,7 +47,14 @@ pub fn GlmActivationEdge::new(
       timeout_millis~,
     )
   }
-  { stage, link, outgoing, prepared: false, leased: false, }
+  {
+    stage,
+    link,
+    outgoing,
+    prepared: false,
+    leased: false,
+    last_submission: 0UL,
+  }
 }
 
 ///|
@@ -80,13 +88,19 @@ pub fn GlmActivationEdge::begin(
     !self.leased &&
     !self.stage.activation_leased &&
     (if self.outgoing {
-      self.stage.status is Active && live_rows == self.stage.active_rows
+      (self.stage.status is Active || self.stage.status is Ready) &&
+      self.stage.submission_epoch > self.last_submission &&
+      self.stage.active_rows > 0 &&
+      live_rows == self.stage.active_rows
     } else {
       self.stage.status is Ready
     }) else {
     raise @activation.ActivationLinkError::InvalidState
   }
   self.link.begin(epoch~, live_rows~, local_now_millis~)
+  if self.outgoing {
+    self.last_submission = self.stage.submission_epoch
+  }
   self.stage.activation_leased = true
   self.leased = true
 }

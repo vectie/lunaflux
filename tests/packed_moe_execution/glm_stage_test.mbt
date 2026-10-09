@@ -12,15 +12,17 @@ async fn exercise_glm_stage(
   defer (stream.close() catch { _ => () })
   let aot = context.load_module(b"fake\x00")
   defer (aot.close() catch { _ => () })
-  let ports = @serial_worker.SerialDecoderWorker::new(
+  let rank = @serial_worker.SerialDecoderRank::new(
     @serial_frame.SerialDecoderFrame::new(
       maximum_rows=32,
       maximum_context=64,
       vocabulary_size=@glm53_spec.Glm53FlashSpec::official().vocabulary_size(),
       model_generation=1UL,
     ),
+    outputs_token=false,
   )
-  defer (ports.close() catch { _ => () })
+  defer (rank.close() catch { _ => () })
+  let ports = rank.ports()
   ports.prepare_ports(
     context,
     maximum_device_bytes=ports.required_device_bytes(),
@@ -156,15 +158,21 @@ async fn exercise_glm_stage(
   )
   defer (receiver.close() catch { _ => () })
   receiver.prepare(context, incoming)
-  stage.submit(live_rows=1)
-  try edge.begin(epoch=1UL, live_rows=2, local_now_millis=0UL) catch {
+  stage.bind_rank(rank, context)
+  let (_, plan, writer) = serial_wire_plan(7UL, model_generation=1UL)
+  rank.begin(plan, writer)
+  while !rank.inputs_ready() {
+    ()
+  }
+  rank.submit()
+  try edge.begin(epoch=1UL, live_rows=3, local_now_millis=0UL) catch {
     @activation.ActivationLinkError::InvalidState => ()
     e => raise e
   } noraise {
     _ => fail("transferred inactive producer rows")
   }
-  edge.begin(epoch=1UL, live_rows=1, local_now_millis=0UL)
-  receiver.begin(epoch=1UL, live_rows=1, local_now_millis=0UL)
+  edge.begin(epoch=1UL, live_rows=2, local_now_millis=0UL)
+  receiver.begin(epoch=1UL, live_rows=2, local_now_millis=0UL)
   try stage.close() catch {
     @device.DeviceError::Busy(OrderedExecutorClose) => ()
     e => raise e
@@ -173,7 +181,11 @@ async fn exercise_glm_stage(
   }
   let mut sent = false
   let mut received = false
+  let mut retired = false
   for _ in 0..<128 {
+    if !retired {
+      retired = rank.progress()
+    }
     if !sent {
       sent = edge.poll(local_now_millis=0UL)
       if !sent {
@@ -188,12 +200,20 @@ async fn exercise_glm_stage(
     if !received {
       received = receiver.poll(local_now_millis=0UL)
     }
-    if sent && received {
+    if sent && received && retired {
       break
     }
     @async.sleep(1)
   }
-  assert_true(sent && received)
+  assert_true(sent && received && retired)
+  assert_false(rank.execution_failed())
+  rank.commit(pipeline_failed=false)
+  try edge.begin(epoch=2UL, live_rows=2, local_now_millis=0UL) catch {
+    @activation.ActivationLinkError::InvalidState => ()
+    error => raise error
+  } noraise {
+    _ => fail("transferred the same completed submission as a different step")
+  }
   receiver.close()
   incoming.close()
   stage.submit(live_rows=1)
@@ -201,7 +221,7 @@ async fn exercise_glm_stage(
   edge.close()
   stage.close()
   stage.close()
-  ports.close()
+  rank.close()
   aot.close()
   stream.close()
   context.close()

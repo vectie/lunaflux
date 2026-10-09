@@ -41,6 +41,7 @@ pub fn SerialDecoderFrame::new(maximum_rows~ : Int, maximum_context~ : Int, voca
 pub fn SerialDecoderFrame::processed_tokens(Self) -> Int
 pub fn SerialDecoderFrame::produces_token(Self) -> Bool raise SerialDecoderError
 pub fn SerialDecoderFrame::release_request(Self) -> Unit raise SerialDecoderError
+pub fn SerialDecoderFrame::retire_stage(Self, execution_failed~ : Bool) -> Unit raise
 pub fn SerialDecoderFrame::stage(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise
 
 // Type aliases

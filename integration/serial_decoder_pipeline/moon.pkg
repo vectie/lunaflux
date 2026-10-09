@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/serial_decoder_frame" @frame,
+  "vectie/lunaflux/engine/worker_protocol" @protocol,
+  "vectie/lunaflux/engine/worker_wire" @wire,
+  "vectie/lunaflux/integration/serial_decoder_worker" @rank,
+  "vectie/lunaflux/integration/decoder_stage_control" @control,
+}
+
+supported_targets = "native"

@@ -20,3 +20,27 @@ pub fn GlmDecoderStage::bind_worker(
     append_descriptors=self.append_descriptors(),
   )
 }
+
+///|
+/// Bind local execution only. Only an egress/complete text boundary may return
+/// sampled output, and no rank publishes a whole-model wire completion.
+pub fn GlmDecoderStage::bind_rank(
+  self : Self,
+  rank : @serial_worker.SerialDecoderRank,
+  context : @device.Context,
+) -> Unit raise {
+  let outputs_token = self.range.text_boundary() is (Egress | Complete)
+  guard self.status is Ready &&
+    rank.outputs_token() == outputs_token &&
+    self.counts is Some(counts) &&
+    counts.same_storage(rank.ports().input(Counts)) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  rank.bind_executor(
+    context,
+    submit=rows => self.submit(live_rows=rows),
+    poll=() => self.poll_submission(),
+    close=() => self.close(),
+    append_descriptors=self.append_descriptors(),
+  )
+}

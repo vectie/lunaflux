@@ -162,3 +162,31 @@ async test "EOF during a body discards partial payload" {
   assert_false(channel.is_open())
   assert_eq(output, FixedArray::make(16, b'x'))
 }
+
+///|
+async test "idle service lifetime is unbounded but a started frame has an absolute deadline" {
+  let (client, peer) = sockets()
+  defer client.close()
+  let channel = RemoteChannel::new(
+    peer,
+    max_frame_bytes=16,
+    timeout_millis=10UL,
+  )
+  defer channel.close()
+  let output = FixedArray::make(16, b'x')
+  channel.begin_receive(0UL, idle=true)
+  assert_eq(channel.poll_receive(output, 100000UL), None)
+  assert_true(channel.is_open())
+  client.write(b"\x05")
+  @async.sleep(1)
+  assert_eq(channel.poll_receive(output, 100000UL), None)
+  assert_eq(channel.poll_receive(output, 100009UL), None)
+  try channel.poll_receive(output, 100010UL) catch {
+    TimedOut => ()
+    error => raise error
+  } noraise {
+    _ => fail("started frame extended its deadline")
+  }
+  assert_false(channel.is_open())
+  assert_eq(output, FixedArray::make(16, b'x'))
+}

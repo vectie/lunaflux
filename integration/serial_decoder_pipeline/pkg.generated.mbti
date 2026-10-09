@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/serial_decoder_pipeline"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/serial_decoder_frame",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/integration/decoder_stage_control",
+  "vectie/lunaflux/integration/serial_decoder_worker",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct TwoRankDecoderPipeline {
+  // private fields
+}
+pub fn TwoRankDecoderPipeline::begin(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter, epoch~ : UInt64, local_now_millis~ : UInt64) -> Unit raise
+pub fn TwoRankDecoderPipeline::close(Self) -> Unit raise
+pub fn TwoRankDecoderPipeline::completion(Self) -> @worker_wire.ValidatedCompletionFrame raise
+pub fn TwoRankDecoderPipeline::new(@serial_decoder_frame.SerialDecoderFrame, @serial_decoder_worker.SerialDecoderRank, @decoder_stage_control.DecoderStageClient, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, begin_activation~ : (UInt64, Int, UInt64) -> Unit raise, poll_activation~ : async (UInt64) -> Bool, close_activation~ : () -> Unit raise, timeout_millis? : UInt64) -> Self raise
+pub async fn TwoRankDecoderPipeline::progress(Self, local_now_millis~ : UInt64) -> Bool
+pub fn TwoRankDecoderPipeline::release_request(Self, local_now_millis~ : UInt64) -> Unit raise
+
+// Type aliases
+
+// Traits

@@ -36,8 +36,10 @@ priv enum WorkerState {
   PortsPrepared
   Ready
   Uploading
+  InputsReady
   Executing
   Downloading
+  Retired
   Failed
   Closed
 }
@@ -61,11 +63,17 @@ pub struct SerialDecoderWorker {
   priv payloads : Array[FixedArray[Byte]]
   priv mut sampled : @device.Allocation?
   priv mut effects : DecoderEffects?
+  priv whole_model : Bool
+  priv outputs_token : Bool
+  priv vocabulary : Int
+  priv mut stage_failed : Bool
+  priv mut stage_token : Int
   priv mut state : WorkerState
 }
 
 ///|
 pub fn SerialDecoderWorker::new(frame : @frame.SerialDecoderFrame) -> Self {
+  let (_, _, vocabulary) = frame.geometry()
   {
     frame,
     inputs: [],
@@ -73,6 +81,11 @@ pub fn SerialDecoderWorker::new(frame : @frame.SerialDecoderFrame) -> Self {
     payloads: [],
     sampled: None,
     effects: None,
+    whole_model: true,
+    outputs_token: true,
+    vocabulary,
+    stage_failed: false,
+    stage_token: 0,
     state: Fresh,
   }
 }
@@ -171,6 +184,21 @@ pub fn SerialDecoderWorker::bind_executor(
   close~ : () -> Unit raise,
   append_descriptors~ : ArrayView[@device.Allocation],
 ) -> Unit raise {
+  guard self.whole_model else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.bind_effects(context, submit~, poll~, close~, append_descriptors~)
+}
+
+///|
+fn SerialDecoderWorker::bind_effects(
+  self : Self,
+  context : @device.Context,
+  submit~ : (Int) -> Unit raise,
+  poll~ : () -> Bool raise,
+  close~ : () -> Unit raise,
+  append_descriptors~ : ArrayView[@device.Allocation],
+) -> Unit raise {
   guard self.state is PortsPrepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
@@ -187,6 +215,16 @@ pub fn SerialDecoderWorker::bind_executor(
 
 ///|
 pub fn SerialDecoderWorker::begin(
+  self : Self,
+  frame : @wire.ValidatedPlanFrame,
+  writer : @wire.CompletionFrameWriter,
+) -> Unit raise {
+  guard self.whole_model else { raise @frame.SerialDecoderError::Busy }
+  self.begin_inputs(frame, writer)
+}
+
+///|
+fn SerialDecoderWorker::begin_inputs(
   self : Self,
   frame : @wire.ValidatedPlanFrame,
   writer : @wire.CompletionFrameWriter,
@@ -232,7 +270,7 @@ fn SerialDecoderWorker::uploads_done(self : Self) -> Bool raise {
 ///|
 fn SerialDecoderWorker::download(self : Self) -> Unit raise {
   for port in 8..<self.pools.length() {
-    if port != 8 || self.frame.produces_token() {
+    if port != 8 || (self.outputs_token && self.frame.produces_token()) {
       let pool = self.pools[port]
       pool.enqueue(
         lane=0,
@@ -249,12 +287,13 @@ fn SerialDecoderWorker::download(self : Self) -> Unit raise {
 ///|
 fn SerialDecoderWorker::downloads_done(self : Self) -> Bool raise {
   for port in 8..<self.pools.length() {
-    if (port != 8 || self.frame.produces_token()) && !self.pools[port].poll(0) {
+    if (port != 8 || (self.outputs_token && self.frame.produces_token())) &&
+      !self.pools[port].poll(0) {
       return false
     }
   }
   for port in 8..<self.pools.length() {
-    if port != 8 || self.frame.produces_token() {
+    if port != 8 || (self.outputs_token && self.frame.produces_token()) {
       self.pools[port].read_host(
         self.payloads[port],
         host_offset=0L,
@@ -281,6 +320,7 @@ fn load_i32(bytes : FixedArray[Byte]) -> Int {
 /// exact model queue and output transfers retire. The caller keeps the plan
 /// frame unchanged until then and transports the result using existing wire IO.
 pub fn SerialDecoderWorker::progress(self : Self) -> Bool raise {
+  guard self.whole_model else { raise @frame.SerialDecoderError::Busy }
   guard self.effects is Some(effects) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
   }
@@ -327,7 +367,7 @@ pub fn SerialDecoderWorker::progress(self : Self) -> Bool raise {
 pub fn SerialDecoderWorker::completion(
   self : Self,
 ) -> @wire.ValidatedCompletionFrame raise {
-  guard self.state is Ready || self.state is Failed else {
+  guard self.whole_model && (self.state is Ready || self.state is Failed) else {
     raise @frame.SerialDecoderError::Busy
   }
   self.frame.completion()

@@ -1,0 +1,49 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/decoder_stage_control"
+
+import {
+  "moonbitlang/async/socket",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/integration/serial_decoder_worker",
+}
+
+// Values
+pub fn required_buffer_bytes(@worker_protocol.WorkerProtocolLimits) -> Int64 raise
+
+// Errors
+pub(all) suberror StageControlError {
+  InvalidConfiguration
+  InvalidState
+  InvalidMessage
+  Failed
+}
+
+// Types and methods
+pub struct DecoderStageClient {
+  // private fields
+}
+pub fn DecoderStageClient::close(Self) -> Unit raise
+pub fn DecoderStageClient::commit(Self, pipeline_failed~ : Bool, local_now_millis~ : UInt64) -> Unit raise
+pub fn DecoderStageClient::execution_failed(Self) -> Bool raise
+pub fn DecoderStageClient::is_terminal(Self) -> Bool
+pub fn DecoderStageClient::new(@socket.Tcp, @worker_protocol.WorkerProtocolLimits, outputs_token~ : Bool, maximum_buffer_bytes~ : Int64, timeout_millis~ : UInt64) -> Self raise
+pub fn DecoderStageClient::outputs_token(Self) -> Bool
+pub async fn DecoderStageClient::poll(Self, local_now_millis~ : UInt64) -> Bool
+pub fn DecoderStageClient::prepare(Self, @worker_wire.ValidatedPlanFrame, epoch~ : UInt64, local_now_millis~ : UInt64) -> Unit raise
+pub fn DecoderStageClient::release_request(Self, local_now_millis~ : UInt64) -> Unit raise
+pub fn DecoderStageClient::run(Self, local_now_millis~ : UInt64) -> Unit raise
+pub fn DecoderStageClient::sampled_token(Self) -> Int raise
+
+pub struct DecoderStageServer {
+  // private fields
+}
+pub fn DecoderStageServer::close(Self) -> Unit raise
+pub fn DecoderStageServer::is_terminal(Self) -> Bool
+pub fn DecoderStageServer::new(@serial_decoder_worker.SerialDecoderRank, @socket.Tcp, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_buffer_bytes~ : Int64, timeout_millis~ : UInt64, local_now_millis~ : UInt64, ready_to_submit~ : () -> Bool raise, arm_activation? : (UInt64, Int, UInt64) -> Unit raise) -> Self raise
+pub async fn DecoderStageServer::poll(Self, local_now_millis~ : UInt64) -> Unit
+
+// Type aliases
+
+// Traits

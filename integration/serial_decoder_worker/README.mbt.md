@@ -23,3 +23,12 @@ does not execute CUDA math or establish serving throughput.
 GLM decoder slices can bind here, but a complete checkpoint still needs text
 prefix/suffix composition and, when exceeding one host's memory, cross-host
 stage composition. A slice's completion is not automatically full-model output.
+
+## Rank-local execution
+
+`SerialDecoderRank` reuses the worker's prepared input/sample/error ports and DMA
+logic, but separates metadata retirement, explicit queue submission, local
+retirement and pipeline commit. Ingress/interior ranks do not read token output;
+terminal ranks validate sampled IDs. No rank emits a model completion. Only a
+coordinator commits the step and publishes the canonical response. A peer failure
+poisons retained history. Whole-model worker APIs reject rank-owned ports.
