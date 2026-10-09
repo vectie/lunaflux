@@ -39,6 +39,29 @@ original deadline. No completed placement or GPU result is claimed yet.
 The installed management-node source has 120 main shards plus input scales;
 the earlier arbitrary source halves are not checkpoint-verified placements.
 
+Update 2026-10-10 (actual header failure): the two-hour CPU scan exited with
+status 1 before placement. Its original pipe did not retain the error, but a
+bounded metadata-only replay of all 121 actual headers reproduces
+`TooManyTensors(120)` under the old 20,000-per-shard policy: the final 4.84 MB
+input-scale shard contains 37,152 scalar tensors. The checkpoint command now
+allows the same bounded 500,000 total population within any single shard;
+32 MiB headers and file/aggregate limits remain. Generic overlap validation
+uses an O(n log n) ordinal sort, preserving public header order and coordinates.
+All 150,226 actual header records validate with the revised reader; an offline
+binding comparison finds zero missing or shape/dtype-mismatched operands among
+110,110 required text-decoder tensor planes. These are metadata previews, not
+payload authentication, successful placement or GPU generation.
+
+Focused checkpoint/reader tests pass 16/16, including authenticated 37,152-scale
+loading, range-order preservation and overlap-oracle regressions. Native checks
+use the existing legacy warning exclusions (25/29/79/92); the repository-wide
+strict warning migration is not complete. Header weights alone require
+186,533,449,720 layer bytes plus 2,537,562,112 text bytes. The best contiguous
+weight-only split is at layer 24: 95,391,266,368 / 93,679,745,464 bytes. Therefore
+the previous 90 GiB budgets with 2 GiB reserve cannot work. Re-run authenticated
+placement with live-host-headroom-derived budgets before GPU allocation; all
+state/workspace/module/process overhead still needs the executable's accounting.
+
 Startup upload now supports scoped pinned/authenticated shard reuse across
 layer owners, while retaining stamp/replay checks and deterministic file close.
 Cross-shard duplicate detection uses an index rather than scanning every prior

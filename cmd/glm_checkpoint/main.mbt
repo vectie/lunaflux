@@ -38,14 +38,17 @@ async fn main {
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
   defer root.close()
-  let startup = inspect_startup(
-    root,
-    inventory_name,
-    @string.parse_int(rows),
-    @string.parse_int(history),
-    [@string.parse_int64(budget0), @string.parse_int64(budget1)],
-    @string.parse_int64(reserve),
-  )
+  let startup = {
+    errdefer println("checkpoint_startup_failed; see terminal error")
+    inspect_startup(
+      root,
+      inventory_name,
+      @string.parse_int(rows),
+      @string.parse_int(history),
+      [@string.parse_int64(budget0), @string.parse_int64(budget1)],
+      @string.parse_int64(reserve),
+    )
+  }
   for ordinal, range in startup.placement.stages() {
     let (first, end) = range.layer_range()
     println(

@@ -107,19 +107,7 @@ fn inspect_startup(
     maximum_bytes=1048576,
     maximum_shards=512,
   )
-  let limits = @streaming.StreamingSafetensorsLimits::new(
-    maximum_shards=512,
-    maximum_file_bytes=17179869184L,
-    maximum_header_bytes=33554432,
-    maximum_tensors_per_shard=20000,
-    maximum_total_tensors=500000,
-    maximum_rank=8,
-    maximum_name_bytes=512,
-    maximum_dtype_specs=9,
-    authentication_chunk_bytes=1048576,
-    maximum_copy_requests=20000,
-    maximum_copy_bytes=budgets[0].max(budgets[1]),
-  )
+  let limits = checkpoint_limits(budgets[0].max(budgets[1]))
   let dtypes = [
     @streaming.StreamingSafetensorsDTypeSpec::bfloat16(),
     @streaming.StreamingSafetensorsDTypeSpec::float32(),
@@ -140,12 +128,16 @@ fn inspect_startup(
     @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E4M3"),
     @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E4M3FN"),
   ]
+  println(
+    "checkpoint_startup: authenticating shards=\{inventory.shards().length()}",
+  )
   let inspection = @streaming.inspect_shards(
     root,
     inventory.shards(),
     dtype_specs=dtypes,
     limits~,
   )
+  println("checkpoint_startup: tensor binding and memory planning")
   let checkpoint = @materialize.PackedCheckpoint::new(inspection)
   let ceiling = budgets[0].max(budgets[1]) - reserve
   let decoder = @glm.GlmDecoderSlice::new(

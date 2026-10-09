@@ -12,6 +12,12 @@ package validates unique names across and within shards, positive bounded
 shapes (including rank-zero scalars), exact dtype-derived byte counts, payload-relative ranges, and
 non-overlap. It never interprets tensor values.
 
+Header range validation sorts an ordinal view and checks adjacent intervals in
+O(n log n), rather than comparing every tensor pair. Published tensor order and
+error coordinates remain in original header order. This supports auxiliary
+shards containing tens of thousands of scalar scales without quadratic startup
+work; caller-owned count, byte and total-population limits still apply.
+
 `copy_ranges` reopens and completely reauthenticates all inspected shards,
 then reads validated source ranges directly into caller-supplied final
 `FixedArray` spans. Its visitor receives only tensor metadata and copied-range

@@ -246,25 +246,40 @@ fn parse_header(
       specs,
       limits,
     )
-    for previous_ordinal, previous in tensors {
-      if previous.name == tensor.name {
-        raise DuplicateTensorName(
-          first_shard=shard,
-          first_tensor=previous_ordinal,
-          second_shard=shard,
-          second_tensor=tensors.length(),
-        )
-      }
-      if previous.data_start < tensor.data_end &&
-        tensor.data_start < previous.data_end {
-        raise OverlappingTensorRanges(
-          shard~,
-          first=previous_ordinal,
-          second=tensors.length(),
-        )
-      }
-    }
     tensors.push(tensor)
   }
+  // JSON key validation already rejects duplicate (including escaped-equivalent)
+  // names. Sort an ordinal view for interval validation, retaining the public
+  // tensor order and diagnostics in original header coordinates. A checkpoint
+  // may concentrate tens of thousands of scalar scales in one auxiliary shard;
+  // comparing every pair makes that otherwise small header quadratic.
+  validate_tensor_ranges(tensors, shard)
   tensors
+}
+
+///|
+fn validate_tensor_ranges(
+  tensors : Array[StreamingSafetensorsTensorMetadata],
+  shard : Int,
+) -> Unit raise StreamingSafetensorsError {
+  let ordered = tensors.mapi((ordinal, tensor) => (ordinal, tensor))
+  ordered.sort_by((a, b) => {
+    let by_start = a.1.data_start.compare(b.1.data_start)
+    if by_start == 0 {
+      a.0.compare(b.0)
+    } else {
+      by_start
+    }
+  })
+  for index in 1..<ordered.length() {
+    let (left_ordinal, left) = ordered[index - 1]
+    let (right_ordinal, right) = ordered[index]
+    if right.data_start < left.data_end {
+      raise OverlappingTensorRanges(
+        shard~,
+        first=left_ordinal.min(right_ordinal),
+        second=left_ordinal.max(right_ordinal),
+      )
+    }
+  }
 }

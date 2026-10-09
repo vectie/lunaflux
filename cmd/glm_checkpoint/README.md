@@ -60,3 +60,10 @@ than once per layer/weight owner. Initial inspection and the upload session
 remain separate passes; neither is repeated in token execution. Cross-shard
 duplicate-name detection is indexed rather than quadratic. These are source
 improvements, not a measured full-checkpoint startup timing claim.
+
+The per-shard tensor bound equals the bounded total population (500,000), not
+an assumed weight-shard distribution. ModelOpt may concentrate all 37,152
+input scales in one small auxiliary shard. File/header byte limits remain
+independent. Header overlap validation uses sorted ranges; startup reports the
+authentication and binding/placement phases. Capture both output streams in
+the service journal so a terminal startup error is retained.
