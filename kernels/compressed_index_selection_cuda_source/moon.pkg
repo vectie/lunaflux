@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/core/env",
+} for "test"
+
+supported_targets = "native"

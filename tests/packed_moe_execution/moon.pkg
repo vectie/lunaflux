@@ -44,10 +44,14 @@ import {
   "vectie/lunaflux/integration/rotary_hadamard_fp4_frame" @hadamard_frame,
   "vectie/lunaflux/kernels/learned_index_queries_cuda_source" @index_queries_source,
   "vectie/lunaflux/integration/learned_index_queries_frame" @index_queries_frame,
+  "vectie/lunaflux/kernels/compressed_index_selection_cuda_source" @selection_source,
+  "vectie/lunaflux/integration/compressed_index_selection_frame" @selection_frame,
 }
 
 import {
   "vectie/lunaflux/integration/decoder_stage_control" @stage_control,
+  "vectie/lunaflux/integration/deepseek_v4_query_kv" @deepseek,
+  "vectie/lunaflux/model/deepseek_v4_spec" @deepseek_spec,
   "vectie/lunaflux/integration/serial_decoder_pipeline" @serial_pipeline,
   "vectie/lunaflux/engine/serial_generation",
   "vectie/lunaflux/runtime/remote_channel" @channel,

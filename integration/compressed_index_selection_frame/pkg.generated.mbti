@@ -1,0 +1,32 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/compressed_index_selection_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/compressed_index_selection_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct CompressedIndexSelectionFrame {
+  // private fields
+}
+pub fn CompressedIndexSelectionFrame::close(Self) -> Unit raise
+pub fn CompressedIndexSelectionFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn CompressedIndexSelectionFrame::new(@compressed_index_selection_cuda_source.CompressedIndexSelectionCudaSource) -> Self
+pub fn CompressedIndexSelectionFrame::outputs(Self) -> CompressedIndexSelectionOutputs raise
+pub fn CompressedIndexSelectionFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, positions~ : @device.Allocation, cache_counts~ : @device.Allocation, cache_append~ : @device.Allocation, queries~ : @device.Allocation, head_weights~ : @device.Allocation, cache_values~ : @device.Allocation, offsets~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn CompressedIndexSelectionFrame::source_bytes(Self) -> Bytes
+pub fn CompressedIndexSelectionFrame::workspace_bytes(Self) -> Int64
+
+pub(all) struct CompressedIndexSelectionOutputs {
+  row_ids : @device.Allocation
+  row_counts : @device.Allocation
+}
+
+// Type aliases
+
+// Traits

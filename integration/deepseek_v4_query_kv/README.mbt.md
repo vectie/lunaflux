@@ -57,6 +57,15 @@ checkpoint names only. All six effects belong to the decoder's existing queue;
 head reduction, causal selection and complete compressed attention remain
 separate consumers, not implicitly replaced by the window path.
 
+`DeepSeekLearnedIndexer` now composes learned queries, the distinct indexer
+compressor/rotary/Hadamard/FP4 retained cache, weighted score reduction and
+causal top-k. Nineteen prepared effects share the existing decoder queue.
+Its outputs are compressed row IDs/counts with the caller's per-query offset;
+they are not raw token positions. Every component's scratch, retained state
+and compact checkpoint banks counts against the aggregate preparation budget.
+This is the full-head single-rank indexer, not tensor-parallel head reduction,
+compressed attention or a complete DeepSeek/DSpark model runner.
+
 `DeepSeekCompressorPool` binds attention/indexer-specific BF16 projection and
 normalization banks and F32 position biases to the shared learned pooling plan.
 Its five prepared effects join the caller's queue, expose compact output counts,

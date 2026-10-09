@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/compressed_index_selection_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn compressed_index_selection_source(@precision_ir.CompressedIndexSelectionPrecision, symbol_prefix~ : String) -> CompressedIndexSelectionCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct CompressedIndexSelectionCudaSource {
+  // private fields
+}
+pub fn CompressedIndexSelectionCudaSource::launch(Self, Int) -> (Int, Int, Int)
+pub fn CompressedIndexSelectionCudaSource::plan(Self) -> @precision_ir.CompressedIndexSelectionPrecision
+pub fn CompressedIndexSelectionCudaSource::source_bytes(Self) -> Bytes
+pub fn CompressedIndexSelectionCudaSource::symbol(Self, Int) -> String
+
+// Type aliases
+
+// Traits

@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/integration/compressed_index_selection_frame",
   "vectie/lunaflux/integration/learned_index_queries_frame",
   "vectie/lunaflux/integration/quantized_query_kv_frame",
   "vectie/lunaflux/model/deepseek_v4_spec",
@@ -32,6 +33,8 @@ pub fn compressor_cache_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int
 pub fn compressor_pool_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool, maximum_rows~ : Int, maximum_context? : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> @precision_ir.LearnedGatedPoolPrecision raise
 
 pub fn index_queries_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.LearnedIndexQueriesPrecision raise
+
+pub fn index_selection_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.CompressedIndexSelectionPrecision raise
 
 pub fn indexer_cache_transform_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RotaryHadamardFp4Precision raise
 
@@ -123,6 +126,18 @@ pub fn DeepSeekIndexQueries::outputs(Self) -> @learned_index_queries_frame.Learn
 pub fn DeepSeekIndexQueries::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, hidden~ : @device.Allocation, low_rank_queries~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekIndexQueries::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekIndexQueries::source_bytes(Self) -> Bytes
+
+pub struct DeepSeekLearnedIndexer {
+  // private fields
+}
+pub fn DeepSeekLearnedIndexer::append_descriptors(Self) -> ArrayView[@device.Allocation] raise
+pub fn DeepSeekLearnedIndexer::close(Self) -> Unit raise
+pub fn DeepSeekLearnedIndexer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekLearnedIndexer::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekLearnedIndexer::outputs(Self) -> @compressed_index_selection_frame.CompressedIndexSelectionOutputs raise
+pub fn DeepSeekLearnedIndexer::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, low_rank_queries~ : @device.Allocation, offsets~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekLearnedIndexer::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekLearnedIndexer::source_bytes(Self) -> Bytes
 
 pub struct DeepSeekQueryKv {
   // private fields

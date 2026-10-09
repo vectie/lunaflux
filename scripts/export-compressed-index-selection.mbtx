@@ -1,0 +1,78 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, directory] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(directory)
+  let result = @shell.Cmd("env", [
+    "LUNA_EXPORT_COMPRESSED_SELECTION=1", "moon", "test", "kernels/compressed_index_selection_cuda_source/export_test.mbt",
+    "--target", "native", "--release", "--warn-list", "-20-25-29-35-79-92",
+  ]).output(max_output_bytes=1048576)
+  @fs.write_file(
+    directory + "/export.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/export.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  guard result
+    .stdout()
+    .split("LUNA_COMPRESSED_SELECTION_SOURCE_BEGIN\n")
+    .to_array()
+    is [_, after] else {
+    fail("missing or duplicate source begin")
+  }
+  guard after.split("LUNA_COMPRESSED_SELECTION_SOURCE_END").to_array()
+    is [source, _] else {
+    fail("missing or duplicate source end")
+  }
+  @fs.write_file(
+    directory + "/compressed_selection_kernels.cuh",
+    source,
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/compressed_selection_probe.cu",
+    @fs.read_file("tests/packed_moe_execution/compressed_selection_probe.cu"),
+    create_mode=CreateNew,
+  )
+  let full = @shell.Cmd("env", [
+    "LUNA_EXPORT_LEARNED_INDEXER=1", "moon", "test", "integration/deepseek_v4_query_kv/indexer_export_test.mbt",
+    "--target", "native", "--release", "--warn-list", "-20-25-29-35-79-92",
+  ]).output(max_output_bytes=1048576)
+  @fs.write_file(
+    directory + "/indexer-export.stdout",
+    full.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/indexer-export.stderr",
+    full.stderr(),
+    create_mode=CreateNew,
+  )
+  full.check()
+  guard full.stdout().split("LUNA_LEARNED_INDEXER_SOURCE_BEGIN\n").to_array()
+    is [_, full_after] else {
+    fail("missing or duplicate learned indexer source begin")
+  }
+  guard full_after.split("LUNA_LEARNED_INDEXER_SOURCE_END").to_array()
+    is [full_source, _] else {
+    fail("missing or duplicate learned indexer source end")
+  }
+  @fs.write_file(
+    directory + "/learned_indexer.cu",
+    full_source,
+    create_mode=CreateNew,
+  )
+  println(directory)
+}

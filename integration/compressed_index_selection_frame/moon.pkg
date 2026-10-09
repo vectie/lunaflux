@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/compressed_index_selection_cuda_source" @source,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)

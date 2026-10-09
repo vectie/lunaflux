@@ -51,6 +51,17 @@ pub fn CausalConvolutionPrecision::geometry(Self) -> (Int, Int)
 pub fn CausalConvolutionPrecision::new(channel_count~ : Int, kernel_size~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn CausalConvolutionPrecision::state_bytes(Self) -> Int64
 
+pub struct CompressedIndexSelectionPrecision {
+  // private fields
+}
+pub fn CompressedIndexSelectionPrecision::cache_capacity(Self) -> Int
+pub fn CompressedIndexSelectionPrecision::effect(Self) -> NumericEffect
+pub fn CompressedIndexSelectionPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn CompressedIndexSelectionPrecision::geometry(Self) -> (Int, Int, Int, Int, Int, Int)
+pub fn CompressedIndexSelectionPrecision::new(head_count~ : Int, head_width~ : Int, compression_ratio~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, top_k~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn CompressedIndexSelectionPrecision::selected_width(Self) -> Int
+pub fn CompressedIndexSelectionPrecision::workspace_bytes(Self) -> Int64
+
 pub(all) enum ComputeRoute {
   Native
   DecodeToBf16

@@ -10,6 +10,37 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (checkpoint-backed learned indexer):
+`CompressedIndexSelectionPrecision` supplies immutable compressed-row capacity,
+causal visibility, top-k and aggregate scratch sizing. Its shared CUDA lowering
+preserves separate BF16 dot/product/head-sum publications, consumes already
+scaled learned head weights, and returns compressed row IDs rather than
+expanding them into raw token positions. Selection consumes private reusable
+score scratch to avoid scanning all previous winners for every candidate;
+replay rewrites every score/output cell, including inactive rows. Equal scores
+use a deterministic lower-row-ID tie break, not an assertion about PyTorch's
+unspecified top-k tie ordering.
+
+`DeepSeekLearnedIndexer` now composes six learned query effects, eleven learned
+compressed-operand/cache effects and two score/selection effects. All nineteen
+belong to the containing decoder queue. The adapter binds the actual Query-B,
+head-weight and compressor checkpoint tensors and checks their summed compact
+banks/state/workspaces before upload. The 67-test affected regression passes;
+the new complete-owner fake-driver test measures 32 submissions / 608 effects,
+zero warm heap allocations, no added blocking synchronization, exact one-byte
+aggregate budget rejection before allocation and balanced deterministic release.
+Native warning-denied checking passes with existing legacy warning exclusions;
+public interfaces are refreshed. The standalone selection probe compiles for
+GB10 `sm121` / CUDA 13.0.88 without warnings. Full checkpoint-geometry source
+also compiles into a combined AOT module: source SHA-256
+`544a2f7c461649d5367d5165efb44c641c14330fe02d6c6cc322827cfcc45789`,
+cubin `fa8ebf37cbce1e1995a459024b7cb7a63578215e67e5474b1de230efef4cb267`.
+Compilation uses a separate 2 GiB/no-swap CPU-only unit; it does not submit
+GPU work or reload the live GLM run. New GPU numerical/sanitizer
+execution remains pending while GLM owns both devices. This closes full-head
+single-rank learned indexing's source integration, not distributed head reduction, compressed
+attention, the complete DeepSeek/DSpark decoder or whole-model correctness.
+
 Update 2026-10-10 (learned index queries): `LearnedIndexQueriesPrecision`
 composes packed block-128 E4M3/UE8M0 query projection from the already-normalized
 low rank, BF16 head projection/scaling, and the existing rotary/Hadamard/E2M1
@@ -26,10 +57,10 @@ submissions measure zero warm heap allocations, no additional blocking
 synchronization and balanced release; short borrowed positions fail before
 private allocation. Scoped warning-denied native checking passes with existing
 legacy exclusions; interfaces are refreshed. New query-chain GPU correctness
-and sanitizers remain pending while GLM owns both devices. Learned weighted
-score reduction, causal top-k, compressed sparse attention and the complete
-DeepSeek/DSpark decoder remain unfinished. This is not full-model correctness
-or a performance result.
+and sanitizers remain pending while GLM owns both devices. The subsequent
+learned indexer update above supplies weighted scoring/causal top-k; compressed
+sparse attention and the complete DeepSeek/DSpark decoder remain unfinished.
+This is not full-model correctness or a performance result.
 
 Update 2026-10-10 (GLM template rerun): committed source `e7facf66` builds on
 ARM in `/tmp/lunaflux-glm-current-arm-20261010.nrWP1kZm`, 209 tasks, approximately
