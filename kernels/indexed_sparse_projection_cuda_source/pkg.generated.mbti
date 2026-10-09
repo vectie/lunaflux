@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn indexed_sparse_projection_source(@precision_ir.IndexedSparseProjectionPrecision, symbol_prefix~ : String) -> IndexedSparseProjectionCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct IndexedSparseProjectionCudaSource {
+  // private fields
+}
+pub fn IndexedSparseProjectionCudaSource::launch(Self, Int) -> (Int, Int)
+pub fn IndexedSparseProjectionCudaSource::plan(Self) -> @precision_ir.IndexedSparseProjectionPrecision
+pub fn IndexedSparseProjectionCudaSource::source_bytes(Self) -> Bytes
+pub fn IndexedSparseProjectionCudaSource::symbol(Self, Int) -> String
+
+// Type aliases
+
+// Traits

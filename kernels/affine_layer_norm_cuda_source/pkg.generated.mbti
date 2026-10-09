@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/affine_layer_norm_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn affine_layer_norm_bf16_source(width~ : Int, maximum_rows~ : Int, epsilon~ : Double, function_symbol~ : String) -> AffineLayerNormCudaSource raise AffineLayerNormSourceError
+
+// Errors
+pub(all) suberror AffineLayerNormSourceError {
+  InvalidGeometry
+  InvalidEpsilon
+  InvalidSymbol
+} derive(Eq, @debug.Debug)
+pub fn AffineLayerNormSourceError::equal(Self, Self) -> Bool
+pub fn AffineLayerNormSourceError::not_equal(Self, Self) -> Bool
+pub fn AffineLayerNormSourceError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct AffineLayerNormCudaSource {
+  // private fields
+}
+pub fn AffineLayerNormCudaSource::launch(Self) -> (Int, Int)
+pub fn AffineLayerNormCudaSource::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits
