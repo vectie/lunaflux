@@ -28,11 +28,14 @@ fn read_i32(bytes : FixedArray[Byte], offset : Int) -> Int {
 
 ///|
 fn read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
-  let mut result = 0UL
-  for index in 0..<8 {
-    result = result | (bytes[offset + index].to_uint64() << (index * 8))
+  // Carry the scalar in the loop state. A captured mutable accumulator is
+  // boxed in native debug builds, allocating once for every wire-field read.
+  for index = 0, result = 0UL; index < 8; {
+    continue index + 1,
+      result | (bytes[offset + index].to_uint64() << (index * 8))
+  } nobreak {
+    result
   }
-  result
 }
 
 ///|
@@ -46,11 +49,15 @@ fn frame_checksum_at(
   frame_offset : Int,
   length : Int,
 ) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<length {
-    if index < plan_checksum_offset || index >= plan_checksum_offset + 4 {
-      hash = (hash ^ bytes[frame_offset + index].to_uint()) * 16777619
+  for index = 0, hash = 2166136261U; index < length; {
+    let next = if index < plan_checksum_offset ||
+      index >= plan_checksum_offset + 4 {
+      (hash ^ bytes[frame_offset + index].to_uint()) * 16777619U
+    } else {
+      hash
     }
+    continue index + 1, next
+  } nobreak {
+    hash
   }
-  hash
 }

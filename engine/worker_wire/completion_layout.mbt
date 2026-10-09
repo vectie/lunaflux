@@ -48,12 +48,15 @@ fn completion_entry_offset(index : Int) -> Int {
 
 ///|
 fn completion_frame_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<length {
-    if index < completion_checksum_offset ||
+  for index = 0, hash = 2166136261U; index < length; {
+    let next = if index < completion_checksum_offset ||
       index >= completion_checksum_offset + 4 {
-      hash = (hash ^ bytes[index].to_uint()) * 16777619
+      (hash ^ bytes[index].to_uint()) * 16777619U
+    } else {
+      hash
     }
+    continue index + 1, next
+  } nobreak {
+    hash
   }
-  hash
 }

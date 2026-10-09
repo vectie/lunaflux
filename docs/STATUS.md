@@ -176,7 +176,14 @@ The precision/source/checkpoint adapter subset passes 38/38 locally; the two
 new composed executor regressions pass, including 32 warm steps with zero
 measured heap allocations, no blocking sync and exact resource release. Native
 checks retain the existing legacy warning exclusions, including reserved-name
-warning 35 in an unrelated older fixture. The broader aggregate is still running.
+warning 35 in an unrelated older fixture. The original broader executor run
+finished 88/91: three serial allocation tests failed in native debug mode.
+Debugger stacks and generated C identified boxed mutable scalar accumulators
+in wire UInt64 reads, frame sizing and checksums; release tests already passed
+8/8. Functional loop state and immutable checked offsets remove those debug
+allocations without changing wire bytes or relaxing checks. The affected wire
+and serial regressions now pass 93/93 in native debug, with the same zero warm
+allocation assertions. The clean Linux rotary/query-KV subset passes 38/38.
 
 The GB10 component probe passes base/YaRN and both scale policies at positions
 0/65,536/1,048,575, zero/nonzero inputs, live rows 0/1/3 and deterministic repeats.

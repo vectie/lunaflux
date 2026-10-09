@@ -42,25 +42,24 @@ fn checked_wire_product(left : Int, right : Int) -> Int raise WorkerWireError {
 pub fn plan_frame_byte_capacity(
   limits : @worker_protocol.WorkerProtocolLimits,
 ) -> Int raise WorkerWireError {
-  let mut result = plan_header_bytes
-  result = checked_wire_add(
-    result,
+  let tokens_end = checked_wire_add(
+    plan_header_bytes,
     checked_wire_product(limits.max_plan_tokens(), 4),
   )
-  result = checked_wire_add(
-    result,
+  let pages_end = checked_wire_add(
+    tokens_end,
     checked_wire_product(limits.max_plan_pages(), 8),
   )
-  result = checked_wire_add(
-    result,
+  let capabilities_end = checked_wire_add(
+    pages_end,
     checked_wire_product(limits.max_capabilities(), 4),
   )
-  result = checked_wire_add(
-    result,
+  let prefill_end = checked_wire_add(
+    capabilities_end,
     checked_wire_product(limits.max_prefill_rows(), prefill_row_bytes),
   )
   checked_wire_add(
-    result,
+    prefill_end,
     checked_wire_product(limits.max_decode_rows(), decode_row_bytes),
   )
 }
@@ -73,15 +72,26 @@ fn exact_plan_frame_bytes(
   prefill_count : Int,
   decode_count : Int,
 ) -> Int raise WorkerWireError {
-  let mut result = plan_header_bytes
-  result = checked_wire_add(result, checked_wire_product(token_count, 4))
-  result = checked_wire_add(result, checked_wire_product(page_count, 8))
-  result = checked_wire_add(result, checked_wire_product(capability_count, 4))
-  result = checked_wire_add(
-    result,
+  let tokens_end = checked_wire_add(
+    plan_header_bytes,
+    checked_wire_product(token_count, 4),
+  )
+  let pages_end = checked_wire_add(
+    tokens_end,
+    checked_wire_product(page_count, 8),
+  )
+  let capabilities_end = checked_wire_add(
+    pages_end,
+    checked_wire_product(capability_count, 4),
+  )
+  let prefill_end = checked_wire_add(
+    capabilities_end,
     checked_wire_product(prefill_count, prefill_row_bytes),
   )
-  checked_wire_add(result, checked_wire_product(decode_count, decode_row_bytes))
+  checked_wire_add(
+    prefill_end,
+    checked_wire_product(decode_count, decode_row_bytes),
+  )
 }
 
 ///|
