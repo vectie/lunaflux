@@ -33,3 +33,12 @@ the materializer does not reinterpret their physical ranks or expand weights.
 source_bytes is offline compilation input, not permission to compile or JIT in
 the request path. The owning Program still needs integration into whole-model
 decoder blocks; it is not a complete serving runtime by itself.
+
+prepare_routed_frame uses those same router/expert binding functions but returns
+an owned launch view without creating an executor. A complete decoder borrows
+that view into its single ordered queue, alongside its attention and residual
+envelopes. Close the borrowing queue before closing the Program. This local
+composition requires all logical experts in the bank: it does not drop remote
+contributions or silently replace a collective. Partitioned banks retain the
+existing prepare_routed/reduction path. The generic frame regression executes
+32 steps / 320 launches with zero measured step allocations or blocking waits.

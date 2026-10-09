@@ -1,6 +1,7 @@
 ///|
 fn routed_program_fixture(
   token_hash? : Bool = false,
+  complete_local? : Bool = false,
 ) -> (@moe.MoeProgram, Int64, Int64) raise {
   let router = @precision.MoeRoutingPrecision::new(
     weight=@precision.plan_operand(
@@ -30,7 +31,10 @@ fn routed_program_fixture(
     scaling=2.5,
     maximum_workspace_bytes=128L,
   )
-  program_fixture(routing=@router.routing_source(router, symbol="router"))
+  program_fixture(
+    routing=@router.routing_source(router, symbol="router"),
+    complete_local~,
+  )
 }
 
 ///|

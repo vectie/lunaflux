@@ -153,6 +153,51 @@ fn MoeProgram::prepare_experts(
   reduction? : MoeReduction,
   prefix~ : ArrayView[@device.OrderedKernelLaunch],
 ) -> Unit raise @device.DeviceError {
+  let (routed, shared, finalize, routed_output) = self.bind_experts(
+    context,
+    aot_module,
+    counts~,
+    input~,
+    selected_indices~,
+    selected_weights~,
+    routed_bank~,
+    shared_bank~,
+    output~,
+    prefix~,
+  )
+  self.executor = Some(
+    prepare_moe(
+      context,
+      stream,
+      routed,
+      shared,
+      finalize,
+      routed_output~,
+      maximum_rows=self.routed.plan().geometry().0,
+      reduction?,
+    ),
+  )
+}
+
+///|
+fn MoeProgram::bind_experts(
+  self : Self,
+  context : @device.Context,
+  aot_module : @device.Module,
+  counts~ : @device.Allocation,
+  input~ : @device.Allocation,
+  selected_indices~ : @device.Allocation,
+  selected_weights~ : @device.Allocation,
+  routed_bank~ : @device.Allocation,
+  shared_bank~ : @device.Allocation,
+  output~ : @device.Allocation,
+  prefix~ : ArrayView[@device.OrderedKernelLaunch],
+) -> (
+  Array[@device.OrderedKernelLaunch],
+  Array[@device.OrderedKernelLaunch],
+  @device.OrderedKernelLaunch,
+  @device.Allocation,
+) raise @device.DeviceError {
   let (rows, _, _, _, _) = self.routed.plan().geometry()
   let routed_functions = self.load_functions(aot_module, self.routed.symbols())
   let shared_functions = self.load_functions(aot_module, self.shared.symbols())
@@ -201,16 +246,5 @@ fn MoeProgram::prepare_experts(
     shared=shared.output,
     output~,
   )
-  self.executor = Some(
-    prepare_moe(
-      context,
-      stream,
-      routed_launches,
-      shared_launches,
-      finalize,
-      routed_output=routed.output,
-      maximum_rows=rows,
-      reduction?,
-    ),
-  )
+  (routed_launches, shared_launches, finalize, routed.output)
 }

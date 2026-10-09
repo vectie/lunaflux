@@ -10,6 +10,7 @@ pub struct MoeProgram {
   priv workspace_bytes : Int64
   priv functions : Array[@device.Function]
   priv allocations : Array[@device.Allocation]
+  priv launches : Array[@device.OrderedKernelLaunch]
   priv mut executor : MoeExecutor?
   priv mut closed : Bool
 }
@@ -93,6 +94,7 @@ pub fn MoeProgram::new(
     workspace_bytes,
     functions: [],
     allocations: [],
+    launches: [],
     executor: None,
     closed: false,
   }
@@ -159,6 +161,7 @@ pub fn MoeProgram::close(self : Self) -> Unit raise @device.DeviceError {
     executor.close()
     self.executor = None
   }
+  self.launches.clear()
   while !self.functions.is_empty() {
     self.functions[self.functions.length() - 1].close()
     ignore(self.functions.pop())

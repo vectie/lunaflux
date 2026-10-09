@@ -22,6 +22,50 @@ pub fn MoeProgram::prepare_routed(
   reduction? : MoeReduction,
 ) -> Unit raise @device.DeviceError {
   self.check_fresh(maximum_workspace_bytes)
+  let (indices, weights, prefix) = self.bind_router(
+    context,
+    aot_module,
+    counts~,
+    input~,
+    router_weight~,
+    correction_bias?,
+    token_ids?,
+    token_table?,
+    token_table_offset~,
+  )
+  self.prepare_experts(
+    context,
+    aot_module,
+    stream,
+    counts~,
+    input~,
+    selected_indices=indices,
+    selected_weights=weights,
+    routed_bank~,
+    shared_bank~,
+    output~,
+    reduction?,
+    prefix~,
+  )
+}
+
+///|
+fn MoeProgram::bind_router(
+  self : Self,
+  context : @device.Context,
+  aot_module : @device.Module,
+  counts~ : @device.Allocation,
+  input~ : @device.Allocation,
+  router_weight~ : @device.Allocation,
+  correction_bias? : @device.Allocation,
+  token_ids? : @device.Allocation,
+  token_table? : @device.Allocation,
+  token_table_offset~ : Int64,
+) -> (
+  @device.Allocation,
+  @device.Allocation,
+  Array[@device.OrderedKernelLaunch],
+) raise @device.DeviceError {
   guard self.routing is Some(router) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
@@ -113,18 +157,5 @@ pub fn MoeProgram::prepare_routed(
       ),
     )
   }
-  self.prepare_experts(
-    context,
-    aot_module,
-    stream,
-    counts~,
-    input~,
-    selected_indices=buffers[3].unwrap(),
-    selected_weights=buffers[4].unwrap(),
-    routed_bank~,
-    shared_bank~,
-    output~,
-    reduction?,
-    prefix~,
-  )
+  (buffers[3].unwrap(), buffers[4].unwrap(), prefix)
 }

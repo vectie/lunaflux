@@ -4,6 +4,7 @@ extern "C" fn live_resources() -> Int = "lunaflux_device_worker_fake_live_childr
 ///|
 fn program_fixture(
   routing? : @router.MoeRoutingCudaSource,
+  complete_local? : Bool = false,
 ) -> (@moe.MoeProgram, Int64, Int64) raise {
   let operand = @precision.plan_operand(
     role=Weight,
@@ -19,7 +20,7 @@ fn program_fixture(
     up=operand,
     down=operand,
     expert_count=4,
-    local_experts=[3, 1],
+    local_experts=if complete_local { [3, 1, 0, 2] } else { [3, 1] },
     selected_experts=2,
     maximum_rows=2,
     memory_ceiling=100000L,
