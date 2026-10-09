@@ -39,6 +39,15 @@ test "projected sparse lowering keeps query and history domains distinct" {
     if @env.get_env_var("LUNA_EXPORT_INDEXED_SPARSE") is Some("1") {
       println("LUNA_SOURCE_BEGIN " + prefix)
       println(text)
+      let history = @precision.IndexedSparseHistoryPrecision::new(
+        plan,
+        maximum_state_bytes=100000L,
+      )
+      let append = @indexed_sparse_attention_execution_cuda_source.indexed_sparse_history_source(
+        history,
+        symbol_prefix=prefix + "_history",
+      )
+      println(@utf8.decode(append.source_bytes()))
       println("LUNA_SOURCE_END")
     }
   }

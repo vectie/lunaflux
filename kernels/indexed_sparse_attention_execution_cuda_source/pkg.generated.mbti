@@ -8,6 +8,8 @@ import {
 // Values
 pub fn indexed_sparse_attention_source(@precision_ir.IndexedSparseAttentionPrecision, symbol_prefix~ : String) -> IndexedSparseAttentionCudaSource raise
 
+pub fn indexed_sparse_history_source(@precision_ir.IndexedSparseHistoryPrecision, symbol_prefix~ : String) -> IndexedSparseHistoryCudaSource raise
+
 // Errors
 
 // Types and methods
@@ -17,6 +19,14 @@ pub struct IndexedSparseAttentionCudaSource {
 pub fn IndexedSparseAttentionCudaSource::plan(Self) -> @precision_ir.IndexedSparseAttentionPrecision
 pub fn IndexedSparseAttentionCudaSource::source_bytes(Self) -> Bytes
 pub fn IndexedSparseAttentionCudaSource::symbol(Self, Int) -> String
+
+pub struct IndexedSparseHistoryCudaSource {
+  // private fields
+}
+pub fn IndexedSparseHistoryCudaSource::launch(Self, Int) -> (Int, Int)
+pub fn IndexedSparseHistoryCudaSource::plan(Self) -> @precision_ir.IndexedSparseHistoryPrecision
+pub fn IndexedSparseHistoryCudaSource::source_bytes(Self) -> Bytes
+pub fn IndexedSparseHistoryCudaSource::symbol(Self, Int) -> String
 
 // Type aliases
 

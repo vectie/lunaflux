@@ -3,10 +3,10 @@ import {
   "vectie/lunaflux/kernels/glm_hybrid_dsa_pooling_cuda_source" @pooling,
   "vectie/lunaflux/kernels/glm_hybrid_dsa_index_cuda_source" @index,
   "vectie/lunaflux/kernels/glm_hybrid_sparse_attention_cuda_source" @attention,
+  "moonbitlang/core/encoding/utf8",
 }
 
 import {
-  "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/env",
 } for "test"
 

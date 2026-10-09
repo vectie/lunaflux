@@ -141,6 +141,14 @@ pub fn IndexedSparseAttentionPrecision::new(index_head_count~ : Int, index_head_
 pub fn IndexedSparseAttentionPrecision::selected_width(Self) -> Int
 pub fn IndexedSparseAttentionPrecision::workspace_bytes(Self) -> Int64
 
+pub struct IndexedSparseHistoryPrecision {
+  // private fields
+}
+pub fn IndexedSparseHistoryPrecision::attention(Self) -> IndexedSparseAttentionPrecision
+pub fn IndexedSparseHistoryPrecision::buffer_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn IndexedSparseHistoryPrecision::new(IndexedSparseAttentionPrecision, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn IndexedSparseHistoryPrecision::state_bytes(Self) -> Int64
+
 pub struct LinearPrecision {
   // private fields
 } derive(Eq, @debug.Debug)
