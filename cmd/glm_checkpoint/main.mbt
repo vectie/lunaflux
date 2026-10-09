@@ -1,5 +1,49 @@
 ///|
 async fn main {
+  if @env.args()
+    is [_, "token-frames", model_root, rows, history, token_ids, output] {
+    let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
+    defer root.close()
+    let spec = inspect_config(root)
+    let rows = @string.parse_int(rows)
+    let history = @string.parse_int(history)
+    guard rows > 0 &&
+      rows <= history &&
+      history <= spec.context_length() &&
+      token_ids.length() <= 1048576 else {
+      fail("invalid token-frame envelope")
+    }
+    let tokens : Array[Int] = []
+    for id in token_ids.split(",") {
+      guard tokens.length() < history - 1 else {
+        fail("prompt exhausts reserved context")
+      }
+      tokens.push(@string.parse_int(id))
+    }
+    let (limits, inference) = prompt_limits(
+      rows,
+      history,
+      spec.vocabulary_size(),
+    )
+    let frames = @prompt.encode_prompt(
+      tokens,
+      limits,
+      inference,
+      maximum_rows=rows,
+      maximum_context=history,
+      model_generation=1UL,
+    )
+    @fs.mkdir(output)
+    for index, bytes in frames {
+      @fs.write_file(
+        output + "/plan-\{index}.bin",
+        bytes,
+        create_mode=CreateNew,
+      )
+    }
+    println("prompt_frames=\{frames.length()} input_tokens=\{tokens.length()}")
+    return
+  }
   if @env.args() is [_, "config", model_root] {
     let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
     defer root.close()

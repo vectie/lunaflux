@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/serial_prompt_frames"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol",
+}
+
+// Values
+pub fn encode_prompt(ArrayView[Int], @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_rows~ : Int, maximum_context~ : Int, model_generation~ : UInt64) -> Array[Bytes] raise
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

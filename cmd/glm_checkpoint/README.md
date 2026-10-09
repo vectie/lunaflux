@@ -9,6 +9,15 @@ weights into a host model arena or runs JIT in the request path.
 `config MODEL_ROOT` admits only the bounded real configuration without reading
 shards or touching CUDA. This is a cheap compatibility check before full startup.
 
+`token-frames MODEL_ROOT ROWS HISTORY COMMA_SEPARATED_TOKEN_IDS NEW_OUTDIR`
+constructs canonical contiguous prompt chunks from already-tokenized input,
+without scanning checkpoint shards or opening CUDA. Only the last chunk samples;
+sequence/model/request identities match `generate`. It is an offline diagnostic
+producer, not live scheduler admission, a chat template or a tokenizer. The
+model's actual tokenizer must supply these IDs. GLM's non-normalizing ByteLevel
+regex, three-digit groups, ordinary added tokens and `ignore_merges=true` are
+not yet supported by the existing Qwen tokenizer profile.
+
 Common arguments, all budgets in bytes:
 
 ```

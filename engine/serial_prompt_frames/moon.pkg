@@ -1,0 +1,9 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol" @protocol,
+  "vectie/lunaflux/engine/worker_wire" @wire,
+  "vectie/lunaflux/kv/page_allocator" @pages,
+  "vectie/lunaflux/model/plan",
+}
+
+supported_targets = "native"

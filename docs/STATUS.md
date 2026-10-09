@@ -15,15 +15,25 @@ scan/export now finishes with exit zero. Actual executable-owner accounting
 places layers `[0,25)` at 102,064,091,128 bytes and `[25,45)` at 91,516,526,804
 bytes, each within 103,079,215,104 bytes including a 2 GiB reserve. Both exported
 stages compile offline to `sm121` cubins on their assigned Sparks under 8 GiB /
-no-swap user units. Stage-1's real checkpoint load is now running on `.179`
-under a 96 GiB / no-swap ceiling; it has not executed or generated tokens yet.
+no-swap user units. Both real checkpoint ranks are now starting on `.178/.179`
+under separate 96 GiB / no-swap ceilings. The ingress requests at most two
+greedy tokens with history 64; startup is running, not positive GPU generation.
 Local placement/source evidence is
 `/tmp/lunaflux-glm-real-placement-20261010.C0igHeAy`.
 The actual tokenizer uses non-normalizing regex ByteLevel BPE with
 `\\p{N}{1,3}` numeric groups, not Qwen's NFC/single-digit profile. This input
 feature remains unsupported; it must not be silently tokenized as Qwen or raw
-BPE. Prompt frames, two-rank GPU execution and independent correctness remain
-open. Internal rank communication is plain TCP; TLS/signing/public deployment
+BPE. A new model-neutral offline prompt producer and `token-frames` CLI now
+write canonical chunks from supplied IDs without scanning weight shards. The
+wire/generation aggregate passes 152/152. This first controlled diagnostic uses
+single-byte text `a`, whose exact ID 64 and EOS 154820 were read from the actual
+tokenizer vocabulary/added tokens; `ignore_merges=true` makes the single-byte
+mapping direct. This is not arbitrary text/chat-template support. Two-rank GPU
+execution and independent correctness remain open. The exact live user units
+are `lunaflux-glm-real-ingress-20261010-60fd6750-v1.service` and
+`lunaflux-glm-real-egress-20261010-60fd6750-v1.service`; future checks must query
+those units instead of starting duplicate full-checkpoint loads.
+Internal rank communication is plain TCP; TLS/signing/public deployment
 work is not a prerequisite for this feature diagnostic.
 
 Update 2026-10-10 (checkpoint-connected learned pools): the model adapter now
