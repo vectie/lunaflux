@@ -10,6 +10,28 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (persistent compressed attention cache):
+`DeepSeekCompressedKvCache` now connects the learned pool and compact rotary/
+precision transform to request-owned retained rows. The generic immutable
+`RetainedRowsPrecision` plan and three-effect CUDA lowering publish length only
+after exact-bit copies. Requested context bounds constrain both token pooling
+and compressed storage; contexts shorter than a compression group have zero
+logical rows, backed by one inaccessible sentinel row. Aggregate state/workspace
+budgets are split across owners, not granted independently to every component.
+Ten effects share the containing executor; no queue or blocking token-step
+copy is introduced. Indexer Hadamard/FP4, sparse attention and full decoder
+integration are still unfinished.
+
+The five new focused native tests pass; the expanded affected-package suite
+passes 52/52. Thirty-two ten-effect fake submissions
+measure zero warm heap allocations and no new blocking synchronization, with
+balanced deterministic release. Short borrowed ports fail before private
+allocation. Actual GPU numerical and sanitizer tests for the new retained chain
+remain pending while both Sparks load the real GLM checkpoint. An offline
+`.mbtx` exporter and independent CUDA exact-word/publication oracle are ready
+for empty chunks, reset, gaps, overflow, upstream errors and zero capacity;
+the exported fixture is not a physical pass claim.
+
 Update 2026-10-10 (compressed attention operand transformation):
 `DeepSeekAttentionCompressor` now joins checkpoint-backed pooling to standalone
 compact-row RoPE and prefix-only block-64 E4M3/power-of-two simulation. The
@@ -25,7 +47,7 @@ all Flash/Pro layer ratios and prepared ownership. Thirty-two seven-effect
 submissions measure zero warm heap allocations, no added blocking synchronization
 and balanced deterministic release. Scoped native checking and formatting pass
 with the existing legacy warning exclusions; generated interfaces are refreshed.
-The larger affected-package regression remains running at this update. New
+The larger affected-package regression subsequently passed 110/110. New
 whole-chain GPU correctness/sanitizer evidence is pending; neither a full
 DeepSeek/DSpark generation nor performance improvement is claimed.
 

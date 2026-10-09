@@ -1,0 +1,27 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  guard @env.args() is [_, directory] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(directory)
+  let result = @shell.Cmd("env", [
+    "LUNA_EXPORT_RETAINED_ROWS=1", "moon", "test",
+    "kernels/retained_rows_cuda_source/export_test.mbt",
+    "--target", "native", "--release", "--warn-list", "-20-25-29-35-79-92",
+  ]).output(max_output_bytes=1048576)
+  @fs.write_file(directory + "/export.stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(directory + "/export.stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+  guard result.stdout().split("LUNA_RETAINED_ROWS_SOURCE_BEGIN\n").to_array()
+    is [_, after] else { fail("missing or duplicate source begin") }
+  guard after.split("LUNA_RETAINED_ROWS_SOURCE_END").to_array()
+    is [source, _] else { fail("missing or duplicate source end") }
+  @fs.write_file(directory + "/retained_rows_kernels.cuh", source, create_mode=CreateNew)
+  let probe = @fs.read_file("tests/packed_moe_execution/retained_rows_probe.cu")
+  @fs.write_file(directory + "/retained_rows_probe.cu", probe, create_mode=CreateNew)
+  println(directory)
+}

@@ -38,6 +38,8 @@ import {
   "vectie/lunaflux/integration/grouped_attention_output_frame" @output_frame,
   "vectie/lunaflux/kernels/learned_gated_pool_cuda_source" @pool_source,
   "vectie/lunaflux/integration/learned_gated_pool_frame" @pool_frame,
+  "vectie/lunaflux/kernels/retained_rows_cuda_source" @retained_source,
+  "vectie/lunaflux/integration/retained_rows_frame" @retained_frame,
 }
 
 import {

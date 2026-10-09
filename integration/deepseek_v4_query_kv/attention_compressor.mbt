@@ -44,6 +44,7 @@ pub fn DeepSeekAttentionCompressor::new(
   spec : @spec.DeepSeekV4ModelSpec,
   layer~ : Int,
   maximum_rows~ : Int,
+  maximum_context? : Int,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
@@ -58,6 +59,7 @@ pub fn DeepSeekAttentionCompressor::new(
       spec,
       layer~,
       maximum_rows~,
+      maximum_context?,
       maximum_state_bytes~,
       maximum_workspace_bytes=maximum_workspace_bytes - cache.workspace_bytes(),
     ),

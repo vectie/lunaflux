@@ -6,10 +6,15 @@ pub fn compressor_pool_plan(
   layer~ : Int,
   for_indexer? : Bool = false,
   maximum_rows~ : Int,
+  maximum_context? : Int,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.LearnedGatedPoolPrecision raise {
   guard layer >= 0 && layer < spec.layer_count() else {
+    raise @precision.PrecisionPlanError::IllegalPlacement
+  }
+  let positions = maximum_context.or(spec.max_position_embeddings())
+  guard positions >= maximum_rows && positions <= spec.max_position_embeddings() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   guard spec.compression_ratio(layer) is Some(ratio) &&
@@ -27,7 +32,7 @@ pub fn compressor_pool_plan(
     ratio~,
     preceding_window_overlap=ratio == 4,
     maximum_rows~,
-    maximum_positions=spec.max_position_embeddings(),
+    maximum_positions=positions,
     norm_epsilon=spec.rms_norm_epsilon(),
     maximum_state_bytes~,
     maximum_workspace_bytes~,
@@ -105,6 +110,7 @@ pub fn DeepSeekCompressorPool::new(
   layer~ : Int,
   for_indexer? : Bool = false,
   maximum_rows~ : Int,
+  maximum_context? : Int,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
@@ -113,6 +119,7 @@ pub fn DeepSeekCompressorPool::new(
     layer~,
     for_indexer~,
     maximum_rows~,
+    maximum_context?,
     maximum_state_bytes~,
     maximum_workspace_bytes~,
   )

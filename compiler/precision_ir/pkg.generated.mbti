@@ -393,6 +393,15 @@ pub fn RecurrentDeltaPrecision::new(head_count~ : Int, key_dimension~ : Int, val
 pub fn RecurrentDeltaPrecision::normalization_epsilon(Self) -> Double
 pub fn RecurrentDeltaPrecision::state_bytes(Self) -> Int64
 
+pub struct RetainedRowsPrecision {
+  // private fields
+}
+pub fn RetainedRowsPrecision::effect(Self) -> NumericEffect
+pub fn RetainedRowsPrecision::geometry(Self) -> (Int, Int, Int, Int)
+pub fn RetainedRowsPrecision::new(word_width~ : Int, position_stride~ : Int, maximum_input_rows~ : Int, maximum_stored_rows~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn RetainedRowsPrecision::state_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn RetainedRowsPrecision::workspace_bytes(Self) -> Int64
+
 pub struct RotaryCachePrecision {
   // private fields
 }
