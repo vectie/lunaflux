@@ -195,7 +195,7 @@ priv struct TensorParallelPartialResources {
 /// Exact warmed ownership set. Every mandatory owner is present without an
 /// optional capability slot; booleans exist only for retryable close state.
 priv struct TensorParallelLiveResources {
-  streaming : TensorParallelStreaming?
+  residency : RankKvResidency
   parallel : ParallelExecution
   collective : TensorParallelOwnedCollective
   executor : TensorParallelOwnedExecutor

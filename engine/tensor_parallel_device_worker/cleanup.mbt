@@ -278,7 +278,7 @@ fn close_partial_resources(
 fn close_live_resources(
   resources : TensorParallelLiveResources,
 ) -> Unit raise TensorParallelDeviceWorkerError {
-  close_streaming(resources.streaming)
+  resources.residency.close()
   run_cleanup_chain(
     () => close_collective_owner(resources.collective),
     () => {

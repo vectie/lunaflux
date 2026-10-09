@@ -5,6 +5,42 @@ priv struct TensorParallelStreaming {
 }
 
 ///|
+/// Startup fixes the residency mode once. A live rank cannot hold an absent
+/// resource awaiting later preparation; only Spillable owns a transfer cache.
+priv enum RankKvResidency {
+  DeviceResident
+  Spillable(TensorParallelStreaming)
+}
+
+///|
+fn RankKvResidency::is_idle(self : RankKvResidency) -> Bool {
+  match self {
+    DeviceResident => true
+    Spillable(streaming) => streaming.cache.is_idle()
+  }
+}
+
+///|
+fn RankKvResidency::close(
+  self : RankKvResidency,
+) -> Unit raise TensorParallelDeviceWorkerError {
+  match self {
+    DeviceResident => ()
+    Spillable(streaming) => close_streaming(Some(streaming))
+  }
+}
+
+///|
+fn RankKvResidency::streaming(
+  self : RankKvResidency,
+) -> TensorParallelStreaming raise TensorParallelDeviceWorkerError {
+  match self {
+    DeviceResident => raise Invalid(KvBinding)
+    Spillable(streaming) => streaming
+  }
+}
+
+///|
 fn prepare_streaming(
   plan : TensorParallelDeviceWorkerPlan,
   resources : TensorParallelPartialResources,
@@ -73,9 +109,7 @@ pub fn TensorParallelDeviceWorkerOwner::streaming_command(
   if self.lifecycle != WorkerReady {
     raise Invalid(ResourceState)
   }
-  guard self.resources.streaming is Some(streaming) else {
-    raise Invalid(KvBinding)
-  }
+  let streaming = self.resources.residency.streaming()
   streaming.session.command(command) catch {
     error => raise fail_rank_execution(self, Descriptor(error))
   }

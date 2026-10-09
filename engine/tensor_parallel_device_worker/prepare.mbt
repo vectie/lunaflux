@@ -94,7 +94,10 @@ fn take_live_resources(
   }
   guard partial.context is Some(context) else { raise Invalid(ResourceState) }
   let functions = partial.functions
-  let streaming = partial.streaming
+  let residency = match partial.streaming {
+    Some(streaming) => Spillable(streaming)
+    None => DeviceResident
+  }
   partial.streaming = None
   let overlap = partial.overlap
   partial.overlap = None
@@ -116,7 +119,7 @@ fn take_live_resources(
       None => OrderedExecution
     },
     collective,
-    streaming,
+    residency,
     executor,
     functions,
     modules,
