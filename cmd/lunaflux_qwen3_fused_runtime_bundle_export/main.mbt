@@ -459,6 +459,8 @@ async fn read_module(
 async fn run(
   raw_args : ArrayView[String],
 ) -> Unit raise Qwen3FusedRuntimeBundleExportError {
+  let (raw_args, connected_choice) = read_connected_choice(raw_args)
+  let connected_context = raw_args
   let (raw_args, vendor_projection_exact_rows) = parse_vendor_projection_option(
     raw_args,
   )
@@ -482,6 +484,20 @@ async fn run(
     prefill_exponential_law,
     wide_prefill_exponential_law,
   ) = prepare_prefill_numerical_choice(raw_args)
+  let (args, vendor_projection_exact_rows, connected_plan) = match
+    connected_choice {
+    None => (args, vendor_projection_exact_rows, None)
+    Some(measured) => {
+      let (args, rows, plan) = bind_connected_choice(
+        connected_context, args, ingress_choice, prefill_exponential_law, measured,
+      )
+      (args, rows, Some(plan))
+    }
+  }
+  let attention_bucket_routes = match (connected_choice, connected_plan) {
+    (Some(measured), Some(plan)) => connected_route_bytes(measured, plan)
+    _ => attention_bucket_routes
+  }
   let residual_bytes = read_module(args.residual.module_path)
   if !selected_ingress_cut(args, ingress_choice).permits_readonly_attention() {
     if attention_bucket_routes is Some(_) || vendor_projection_exact_rows != 0 {
@@ -709,6 +725,10 @@ async fn run(
     _ => raise WriteFailed
   }
   println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v5")
+  if connected_plan is Some(plan) {
+    println("connected_selection_basis=measured-complete-continuation")
+    println("connected_plan_id=\{plan}")
+  }
   println("ingress_selection_basis=" + args.ingress_selection.canonical_name())
   println("attention_route_scope=" + route_scope)
   println(

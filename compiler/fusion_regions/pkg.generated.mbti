@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn select_connected_plan(ArrayView[ConnectedPlan], ArrayView[Cost], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64?) -> ConnectedPlan raise FusionRegionError
+
 pub fn select_partition(ArrayView[PartitionAlternative], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64, continuation_class? : ContinuationClass) -> Int raise FusionRegionError
 
 pub fn select_regions(Graph, ArrayView[Candidate], maximum_workspace_bytes~ : Int64, maximum_local_bytes~ : Int64) -> Selection raise FusionRegionError
@@ -30,6 +32,12 @@ pub struct Candidate {
   // private fields
 }
 pub fn Candidate::new(id~ : Int, Region, Cost, workspace_bytes~ : Int64, local_bytes~ : Int64) -> Self raise FusionRegionError
+
+pub struct ConnectedPlan {
+  // private fields
+}
+pub fn ConnectedPlan::implementation_ids(Self) -> ReadOnlyArray[Int]
+pub fn ConnectedPlan::new(id~ : Int, Graph, ArrayView[RegionImplementation]) -> Self raise FusionRegionError
 
 pub(all) enum ContinuationClass {
   Materialized
@@ -111,6 +119,11 @@ pub fn Region::effect_order(Self) -> ReadOnlyArray[Int]
 pub fn Region::exports(Self) -> ReadOnlyArray[Int]
 pub fn Region::new(Graph, start~ : Int, count~ : Int, ArrayView[Int]) -> Self raise FusionRegionError
 pub fn Region::span(Self) -> (Int, Int)
+
+pub struct RegionImplementation {
+  // private fields
+}
+pub fn RegionImplementation::new(id~ : Int, Region, input~ : ContinuationClass, output~ : ContinuationClass, workspace_bytes~ : Int64, local_bytes~ : Int64?) -> Self raise FusionRegionError
 
 pub struct Selection {
   // private fields

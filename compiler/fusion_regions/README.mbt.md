@@ -42,6 +42,25 @@ path through `select_partition`; it does not yet supply alternative consumer
 layouts. See the [execution-economics policy](../../docs/EXECUTION_ECONOMICS_2026-10-08.md)
 for the architecture and remaining integrations.
 
+`ConnectedPlan` composes supplied executable regions before pruning. Adjacent
+implementations must agree on the complete live-boundary contract, and their
+regions must form a valid ordered cover. `select_connected_plan` accepts only
+whole-chain measured costs, reuses `PartitionFrontier`, and returns an immutable
+vector of implementation IDs. An exporter must bind that vector together, not
+independently reselect its components. Serial scratch is a maximum; overlapping
+execution and persistent storage still require their respective planners.
+Unknown local-memory usage is represented as `None`, never as zero. A finite
+local-memory constraint excludes such a plan. With no such constraint, that
+dimension is projected out for all alternatives; external artifact admission
+must still establish hardware legality.
+
+The Qwen bundle export command has an opt-in offline integration for four
+existing attention/projection execution plans. It binds both attention slots,
+projection policy and the chosen artifact's decode-route table. These plans
+share a materialized BF16 boundary: this is not yet a catalog of alternative
+nonmaterialized consumer layouts, nor evidence of an architectural speedup.
+See [connected selection](../../docs/COMPILER_CONNECTED_SELECTION_2026-10-09.md).
+
 ```mbt check
 ///|
 test "defer selection until the resource budget is known" {
