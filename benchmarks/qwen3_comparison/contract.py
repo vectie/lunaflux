@@ -11,11 +11,23 @@ from urllib.parse import urlsplit
 
 
 ENGINES = ("lunaflux", "vllm", "sglang")
+FOUR_ENGINE_COMPARISON = (*ENGINES, "llama.cpp")
 PROFILE_CLASSES = ("prefill", "decode")
 CONCURRENCIES = (1, 8, 32)
+TOKEN_SHAPES = (
+    ("decode", 59, 256),
+    ("prefill", 128, 128),
+    ("prefill", 512, 64),
+    ("prefill", 1528, 32),
+)
 PROFILE_NAMES = tuple(
     f"{profile_class}-c{concurrency}"
     for profile_class in PROFILE_CLASSES
+    for concurrency in CONCURRENCIES
+)
+VECTOR_PROFILE_NAMES = tuple(
+    f"{profile_class}-i{input_tokens}-o{output_tokens}-c{concurrency}"
+    for profile_class, input_tokens, output_tokens in TOKEN_SHAPES
     for concurrency in CONCURRENCIES
 )
 HEX = frozenset("0123456789abcdef")
@@ -178,7 +190,12 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         },
         "campaign",
     )
-    if value["schema"] != "lunaflux.qwen3-comparison-campaign.v1":
+    schema = value["schema"]
+    if schema == "lunaflux.qwen3-comparison-campaign.v1":
+        expected_engines = ENGINES
+    elif schema == "lunaflux.qwen3-comparison-campaign.v2":
+        expected_engines = FOUR_ENGINE_COMPARISON
+    else:
         raise ContractError("campaign schema mismatch")
     model = value["model"]
     if not isinstance(model, dict):
@@ -236,8 +253,10 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         "ignore_eos": True,
     }:
         raise ContractError("sampling must be exact deterministic greedy")
-    if value["trials_per_profile"] != 3:
-        raise ContractError("three counterbalanced trials are required")
+    if value["trials_per_profile"] != len(expected_engines):
+        raise ContractError(
+            f"{len(expected_engines)} counterbalanced trials are required"
+        )
     warmups = value["warmup_rounds_per_profile"]
     if not isinstance(warmups, int) or isinstance(warmups, bool) or warmups < 1:
         raise ContractError("at least one excluded warmup request is required")
@@ -251,18 +270,27 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         raise ContractError("Ollama non-inference rule is missing")
 
     profiles = value["profiles"]
-    if not isinstance(profiles, list) or len(profiles) != 6:
-        raise ContractError("the six prefill/decode concurrency profiles are required")
+    expected_profile_names = (
+        PROFILE_NAMES if schema.endswith(".v1") else VECTOR_PROFILE_NAMES
+    )
+    if not isinstance(profiles, list) or len(profiles) != len(expected_profile_names):
+        raise ContractError("campaign profile count does not match its schema")
     observed_profiles: list[str] = []
     for profile in profiles:
         if not isinstance(profile, dict):
             raise ContractError("profile must be an object")
-        _require_exact_keys(
-            profile,
-            {"name", "class", "concurrency", "output_tokens", "request_count"},
-            "profile",
+        profile_keys = {"name", "class", "concurrency", "output_tokens", "request_count"}
+        if schema.endswith(".v2"):
+            profile_keys.add("input_tokens")
+        _require_exact_keys(profile, profile_keys, "profile")
+        expected_name = (
+            f"{profile['class']}-c{profile['concurrency']}"
+            if schema.endswith(".v1")
+            else (
+                f"{profile['class']}-i{profile['input_tokens']}-"
+                f"o{profile['output_tokens']}-c{profile['concurrency']}"
+            )
         )
-        expected_name = f"{profile['class']}-c{profile['concurrency']}"
         if profile["class"] not in PROFILE_CLASSES or profile["concurrency"] not in CONCURRENCIES:
             raise ContractError("profile class or concurrency is outside the matrix")
         if profile["name"] != expected_name:
@@ -271,15 +299,23 @@ def validate_campaign(value: Any) -> dict[str, Any]:
             raise ContractError("profile exceeds declared hardware capacity")
         if not isinstance(profile["output_tokens"], int) or profile["output_tokens"] <= 0:
             raise ContractError("output-token limit must be positive")
+        if schema.endswith(".v2") and (
+            not isinstance(profile["input_tokens"], int)
+            or isinstance(profile["input_tokens"], bool)
+            or profile["input_tokens"] <= 0
+            or (profile["class"], profile["input_tokens"], profile["output_tokens"])
+            not in TOKEN_SHAPES
+        ):
+            raise ContractError("input/output token shape is outside the fixed vector")
         if not isinstance(profile["request_count"], int) or profile["request_count"] < profile["concurrency"]:
             raise ContractError("request count must fill the declared concurrency")
         observed_profiles.append(profile["name"])
-    if tuple(observed_profiles) != PROFILE_NAMES:
-        raise ContractError("profile order must be fixed prefill/decode then 1/8/32")
+    if tuple(observed_profiles) != expected_profile_names:
+        raise ContractError("profile order does not match the fixed token-shape vector")
 
     engines = value["engines"]
-    if not isinstance(engines, list) or len(engines) != 3:
-        raise ContractError("exactly LunaFlux, vLLM, and SGLang are required")
+    if not isinstance(engines, list) or len(engines) != len(expected_engines):
+        raise ContractError("campaign engine count does not match its schema")
     observed_engines: list[str] = []
     for engine in engines:
         if not isinstance(engine, dict):
@@ -315,6 +351,7 @@ def validate_campaign(value: Any) -> dict[str, Any]:
             "lunaflux": "lunaflux-token-ids-sse-v1",
             "vllm": "vllm-completions-sse-v1",
             "sglang": "sglang-generate-sse-v1",
+            "llama.cpp": "llama-cpp-completion-sse-v1",
         }.get(name)
         if expected_adapter is None or engine["adapter"] != expected_adapter:
             raise ContractError("engine or adapter is outside the Qwen comparison")
@@ -327,6 +364,7 @@ def validate_campaign(value: Any) -> dict[str, Any]:
             "lunaflux": "/benchmark/v1/token-ids",
             "vllm": "/v1/completions",
             "sglang": "/generate",
+            "llama.cpp": "/completion",
         }[name]
         if (
             endpoint.path != expected_path
@@ -493,6 +531,11 @@ def validate_campaign(value: Any) -> dict[str, Any]:
             for code in exit_codes
         ):
             raise ContractError("lifecycle expected exit codes are invalid")
+        expected_exit_codes = [-15, -9, 0] if name == "sglang" else [-15, 0]
+        if exit_codes != expected_exit_codes:
+            raise ContractError(
+                f"engine.{name} lifecycle exit codes do not match its fixed behavior"
+            )
         policy = engine["execution_policy"]
         if policy != {
             "prefix_reuse": False,
@@ -503,8 +546,8 @@ def validate_campaign(value: Any) -> dict[str, Any]:
         }:
             raise ContractError("engine execution/cache policy is not the fair fixed policy")
         observed_engines.append(name)
-    if tuple(observed_engines) != ENGINES:
-        raise ContractError("engine order must be LunaFlux, vLLM, SGLang")
+    if tuple(observed_engines) != expected_engines:
+        raise ContractError("engine order does not match the campaign schema")
 
     gpu = value["gpu"]
     if not isinstance(gpu, dict):
@@ -594,7 +637,12 @@ def load_workload(payload: bytes) -> list[dict[str, Any]]:
     return rows
 
 
-def latin_square_order(trial_ordinal: int) -> tuple[str, str, str]:
-    if trial_ordinal not in (0, 1, 2):
+def latin_square_order(
+    trial_ordinal: int, engines: tuple[str, ...] = ENGINES
+) -> tuple[str, ...]:
+    if not engines or trial_ordinal not in range(len(engines)):
         raise ContractError("trial ordinal is outside the Latin square")
-    return tuple(ENGINES[(trial_ordinal + offset) % 3] for offset in range(3))
+    return tuple(
+        engines[(trial_ordinal + offset) % len(engines)]
+        for offset in range(len(engines))
+    )

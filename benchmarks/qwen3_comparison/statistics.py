@@ -84,11 +84,15 @@ def summarize(
                 ),
                 "inter_token_latency_millis": distribution(
                     (
-                        interval
+                        median(row["inter_token_latency_millis"])
                         for row in successful
-                        for interval in row["inter_token_latency_millis"]
+                        if row["token_timing_exact"]
+                        and row["inter_token_latency_millis"]
                     ),
-                    f"{prefix}/itl",
+                    f"{prefix}/per-request-median-itl",
+                ),
+                "token_timing_exact_request_count": sum(
+                    1 for row in successful if row["token_timing_exact"]
                 ),
                 "e2e_millis": distribution(
                     (row["e2e_millis"] for row in successful), f"{prefix}/e2e"
@@ -115,6 +119,9 @@ def summarize(
 
 
 def correctness_join(request_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    expected_engines = {"lunaflux", "vllm", "sglang"}
+    if any(row["engine"] == "llama.cpp" for row in request_rows):
+        expected_engines.add("llama.cpp")
     joined: dict[tuple[str, int, int], dict[str, dict[str, Any]]] = defaultdict(dict)
     for row in request_rows:
         coordinate = (row["profile"], row["trial_ordinal"], row["request_ordinal"])
@@ -127,8 +134,12 @@ def correctness_join(request_rows: list[dict[str, Any]]) -> list[dict[str, Any]]
             for engine, row in by_engine.items()
             if row["ok"]
         }
-        complete = set(by_engine) == {"lunaflux", "vllm", "sglang"}
-        exact_match = complete and len(hashes) == 3 and len(set(hashes.values())) == 1
+        complete = set(by_engine) == expected_engines
+        exact_match = (
+            complete
+            and len(hashes) == len(expected_engines)
+            and len(set(hashes.values())) == 1
+        )
         report.append(
             {
                 "schema": "lunaflux.qwen3-correctness-join.v1",

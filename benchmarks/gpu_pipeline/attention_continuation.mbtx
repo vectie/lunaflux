@@ -1,0 +1,43 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env", "moonbitlang/core/json" }
+fn replace(s : String,a : String,b : String) -> String raise {
+ let parts=s.split(a).map(x=>x.to_owned()).to_array();assert_true(parts.length()>1,msg=a);parts.join(b)
+}
+async fn run(root : String,label : String,p : String,args : Array[String]) -> Unit {
+ @fs.write_file(root+"/"+label+".command.json",Json([p]+args).stringify(),create_mode=CreateNew)
+ let(code,out,err)=@process.collect_output(p,args,extra_env={"CUDA_VISIBLE_DEVICES":"GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6","TMPDIR":root})
+ @fs.write_file(root+"/"+label+".stdout",out,create_mode=CreateNew)
+ @fs.write_file(root+"/"+label+".stderr",err,create_mode=CreateNew)
+ @fs.write_file(root+"/"+label+".exit",code.to_string(),create_mode=CreateNew)
+ guard code==0 else {fail(out.text()+err.text())};println(label+" completed")
+}
+async fn main {
+ guard @env.args() is [_,root,mode] else {fail("NEW_ROOT timing|boundary|counters")}
+ assert_true(mode=="timing" || mode=="boundary" || mode=="counters")
+ @fs.mkdir(root)
+ let(code,idle,_)=@process.collect_output("nvidia-smi",["--query-compute-apps=pid","--format=csv,noheader"])
+ assert_eq(code,0);assert_true(idle.text().trim().is_empty())
+ run(root,"device-before","nvidia-smi",["--query-gpu=uuid,pci.bus_id,clocks.sm,clocks.mem,temperature.gpu,power.draw","--format=csv"])
+ let original=@fs.read_file("/tmp/lunaflux-long-attention-ingress-probe-20260912.cu").text()
+ let source=replace(original,"if(argc!=13&&argc!=14)return 1;","if(argc!=15)return 1;int past=atoi(argv[14]);if(past<0||past>8192)return 1;")
+ let source=replace(source,"int context=n+((rows==1)?0:r%3*8)","int context=n+past+((rows==1)?0:r%3*8)")
+ let source=replace(source,"argc==14?argv[13]:symbol","argv[13]")
+ let source=replace(source,"trial<3","trial<5")
+ @fs.write_file(root+"/probe.cu",source,create_mode=CreateNew)
+ run(root,"build","/usr/local/cuda-13.1/bin/nvcc",["-O3","-arch=sm_120","--fmad=false",root+"/probe.cu","-lcuda","-o",root+"/probe"])
+ let cubin="/run/lunaflux-toolchain-4896771-20260913/runtime-final-r2/fused/prefill.cubin"
+ run(root,"module-identity","sha256sum",[cubin,root+"/probe.cu",root+"/probe"])
+ let cases=if mode=="timing" {[(32,1,0),(32,1,512),(32,1,4096),(32,1,8192),(128,1,0),(128,1,512),(128,1,4096),(128,1,8192),(1528,1,0),(1528,1,512),(1528,1,4096),(2048,1,0),(2048,1,4096),(1528,8,0),(1528,8,512),(1528,8,4096),(33,1,513),(129,1,4097)]} else {[(32,1,4096),(128,1,4096),(1528,1,0),(1528,8,4096)]}
+ let cases=if mode=="boundary" {[(128,1,4096),(129,1,4096),(128,1,4097),(129,1,4097)]} else {cases}
+ for (tokens,rows,past) in cases {
+  let label="q\{tokens}-r\{rows}-past\{past}"
+  let args=["attention",cubin,cubin,"158","16","49152","158","16","49152",if mode!="counters" {"0"} else {"2"},tokens.to_string(),rows.to_string(),"lunaflux_attention_prefill_tile_compiler_v1",past.to_string()]
+  if mode!="counters" {run(root,label,root+"/probe",args)} else {
+   let ncu="/usr/local/cuda-13.1/bin/ncu"
+   run(root,label,ncu,["--config-file","off","--section","LaunchStats","--section","Occupancy","--section","SchedulerStats","--section","SpeedOfLight","--section","SourceCounters","--section","MemoryWorkloadAnalysis","--metrics","smsp__warps_eligible.avg.per_cycle_active,smsp__issue_active.avg.pct_of_peak_sustained_active,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed,smsp__inst_executed.sum","--cache-control","all","--clock-control","none","--launch-count","1","--export",root+"/"+label,root+"/probe"]+args)
+   run(root,label+"-raw",ncu,["--import",root+"/"+label+".ncu-rep","--page","raw","--csv","--print-units","base"])
+   run(root,label+"-source",ncu,["--import",root+"/"+label+".ncu-rep","--page","source","--print-source","sass","--csv"])
+  }
+ }
+ run(root,"device-after","nvidia-smi",["--query-gpu=uuid,pci.bus_id,clocks.sm,clocks.mem,temperature.gpu,power.draw","--format=csv"])
+ @fs.write_file(root+"/RESULT.txt","outcome=complete\nscope=standalone-prefill-module; not runtime-selection or baseline-equivalence proof\n",create_mode=CreateNew)
+}

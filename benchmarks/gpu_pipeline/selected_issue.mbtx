@@ -1,0 +1,69 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+fn strings(value : Json) -> Array[String] raise {
+  guard value is Array(values) else { fail("expected argument array") }
+  values.map(value => { guard value is String(text) else { fail("expected argument") }; text })
+}
+
+async fn run(root : String, label : String, program : String, args : Array[String]) -> String {
+  @fs.write_file(root+"/"+label+".command.json",Json([program]+args).stringify(),create_mode=CreateNew)
+  let(code,output,error)=@process.collect_output(program,args,extra_env={
+    "CUDA_VISIBLE_DEVICES":"GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6",
+    "TMPDIR":root,
+  })
+  @fs.write_file(root+"/"+label+".stdout",output,create_mode=CreateNew)
+  @fs.write_file(root+"/"+label+".stderr",error,create_mode=CreateNew)
+  @fs.write_file(root+"/"+label+".exit",code.to_string(),create_mode=CreateNew)
+  guard code==0 else { fail(output.text()+error.text()) }
+  println(label+" completed")
+  output.text()
+}
+
+async fn main {
+  guard @env.args() is [_,root] else { fail("usage: NEW_REMOTE_RESULT_ROOT") }
+  @fs.mkdir(root)
+  guard run(root,"idle-before","nvidia-smi",["--query-compute-apps=pid","--format=csv,noheader"]).trim().is_empty() else { fail("GPU busy") }
+  ignore(run(root,"device-before","nvidia-smi",["--query-gpu=uuid,pci.bus_id,clocks.sm,clocks.mem,temperature.gpu,power.draw","--format=csv"]))
+  let ncu="/usr/local/cuda-13.1/bin/ncu"
+  let metrics=[
+    "gpu__time_duration.sum",
+    "smsp__warps_eligible.avg.per_cycle_active",
+    "smsp__warps_active.avg.per_cycle_active",
+    "smsp__inst_issued.avg.per_cycle_active",
+    "smsp__issue_active.avg.pct_of_peak_sustained_active",
+    "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed",
+    "sm__cycles_elapsed.avg.per_second",
+    "dram__bytes_op_read.sum","dram__bytes_op_write.sum",
+    "dram__throughput.avg.pct_of_peak_sustained_elapsed",
+    "lts__t_sectors_op_read.sum","lts__t_sectors_op_write.sum",
+    "smsp__inst_executed.sum",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct",
+    "smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct",
+    "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+    "smsp__warp_issue_stalled_mio_throttle_per_warp_active.pct",
+  ].join(",")
+  for engine in ["lunaflux","vllm","sglang"] {
+    for kind in ["0","1","2","3"] {
+      let label=engine+"-k"+kind+"-m1528-cold"
+      let (program,args,filter,skip,name_base)=if engine=="lunaflux" {
+        let args=strings(@json.parse(@fs.read_file("/dev/shm/lunaflux-static-transfer-counters-20260912-r1/k"+kind+"-t1528-r8.args.json").text()))
+        ("/dev/shm/lunaflux-static-producer-experiment-20260912-r1/probe",args,"regex:^"+args[6]+"$","1","function")
+      } else {
+        let lib=if engine=="vllm" {"/home/jiaanguo/library/anaconda3/envs/lunaflux-bench-vllm-qwen3-py312-v024-20260830/lib/python3.12/site-packages/nvidia/cu13/lib/libcublas.so.13"} else {"/home/jiaanguo/library/anaconda3/envs/lunaflux-bench-sglang-qwen3-py312-v052-20260830-v2/lib/python3.12/site-packages/nvidia/cublas/lib/libcublas.so.12"}
+        ("/run/user/1000/lunaflux-gap-cublas-replay-20260910",[lib,kind,"1528","1"],"regex:.*(cutlass|gemvx).*","0","demangled")
+      }
+      ignore(run(root,label,ncu,["--config-file","off","--section","LaunchStats","--section","Occupancy","--section","SchedulerStats","--section","SpeedOfLight","--section","SourceCounters","--metrics",metrics,"--cache-control","all","--clock-control","none","--kernel-name-base",name_base,"--kernel-name",filter,"--launch-skip",skip,"--launch-count","1","--export",root+"/"+label,program]+args))
+      ignore(run(root,label+"-raw",ncu,["--import",root+"/"+label+".ncu-rep","--page","raw","--csv","--print-units","base"]))
+      ignore(run(root,label+"-source",ncu,["--import",root+"/"+label+".ncu-rep","--page","source","--print-source","sass","--csv"]))
+    }
+  }
+  ignore(run(root,"device-after","nvidia-smi",["--query-gpu=uuid,pci.bus_id,clocks.sm,clocks.mem,temperature.gpu,power.draw","--format=csv"]))
+  guard run(root,"idle-after","nvidia-smi",["--query-compute-apps=pid","--format=csv,noheader"]).trim().is_empty() else { fail("GPU process remains") }
+  @fs.write_file(root+"/RESULT.txt","outcome=complete\nscope=selected-projection-issue-counters; cold-replay-not-serving\n",create_mode=CreateNew)
+}

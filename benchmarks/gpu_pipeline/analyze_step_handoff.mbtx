@@ -1,0 +1,68 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn quoted(value : String) -> String {
+  "'" + value.split("'").to_array().join("''") + "'"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, capture, output] else {
+    fail("LUNA_CAPTURE NEW_OUTPUT")
+  }
+  let request = quoted(capture + "/requests/i4096-o256-c16-t1.json")
+  let query = "WITH bounds AS (SELECT cast(json_extract(readfile(" +
+    request +
+    "),'$.epoch_start_ns') as integer)-utcEpochNs lo,cast(json_extract(readfile(" +
+    request +
+    "),'$.epoch_end_ns') as integer)-utcEpochNs hi FROM TARGET_INFO_SESSION_START_TIME), " +
+    "runtime AS MATERIALIZED (SELECT r.*,s.value name FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId,bounds WHERE r.start>=lo AND r.start<hi), " +
+    "steps AS (SELECT r.correlationId,r.globalTid,r.start submit,r.end submit_end,min(k.start) gpu_start,max(k.end) gpu_end FROM runtime r JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=r.correlationId WHERE name='cuGraphLaunch' GROUP BY r.correlationId), " +
+    "pairs AS (SELECT *,lead(submit) OVER(ORDER BY submit) next_submit,lead(submit_end) OVER(ORDER BY submit) next_submit_end,lead(gpu_start) OVER(ORDER BY submit) next_gpu_start FROM steps), " +
+    "handoffs AS (SELECT *, (SELECT min(r.end) FROM runtime r WHERE r.globalTid=p.globalTid AND r.name='cuEventSynchronize' AND r.start>=p.submit AND r.end>=p.gpu_end AND r.start<p.next_submit) event_return, " +
+    "(SELECT min(r.start) FROM runtime r WHERE r.globalTid=p.globalTid AND r.name='cuMemcpyDtoH_v2' AND r.start>=p.gpu_end AND r.start<p.next_submit) read_start, " +
+    "(SELECT max(r.end) FROM runtime r WHERE r.globalTid=p.globalTid AND r.name='cuMemcpyDtoH_v2' AND r.start>=p.gpu_end AND r.start<p.next_submit) read_end, " +
+    "(SELECT min(r.start) FROM runtime r WHERE r.globalTid=p.globalTid AND r.name='cuMemcpyHtoD_v2' AND r.start>=p.gpu_end AND r.start<p.next_submit) upload_start, " +
+    "(SELECT max(r.end) FROM runtime r WHERE r.globalTid=p.globalTid AND r.name='cuMemcpyHtoD_v2' AND r.start>=p.gpu_end AND r.start<p.next_submit) upload_end, " +
+    "(SELECT sum(r.end-r.start) FROM runtime r WHERE r.globalTid=p.globalTid AND r.name='cuMemcpyHtoD_v2' AND r.start>=p.gpu_end AND r.start<p.next_submit) upload_api_ns, " +
+    "(SELECT count(*) FROM runtime r WHERE r.globalTid=p.globalTid AND r.name='cuMemcpyHtoD_v2' AND r.start>=p.gpu_end AND r.start<p.next_submit) upload_calls FROM pairs p WHERE next_submit IS NOT NULL) " +
+    "SELECT correlationId,gpu_end,next_gpu_start,next_gpu_start-gpu_end gap_ns,event_return-gpu_end event_wakeup_ns,read_start-event_return before_read_ns,read_end-read_start read_span_ns,upload_start-coalesce(read_end,event_return) feedback_host_ns,upload_end-upload_start upload_span_ns,upload_api_ns,upload_calls,next_submit-upload_end before_launch_ns,next_submit_end-next_submit launch_api_ns,next_gpu_start-next_submit_end launch_tail_ns FROM handoffs ORDER BY gpu_end;"
+  let response = @shell.Cmd("sqlite3", [
+    "-json",
+    capture + "/trace.sqlite",
+    query,
+  ]).output()
+  response.check()
+  let rows = @json.parse(response.stdout())
+  let result : Json = {
+    "schema": "lunaflux.step-handoff.v1",
+    "rows": rows,
+    "scope": "Same-thread CUDA API timestamps bound to graph GPU envelopes. feedback_host includes child/parent IPC, scheduler, output rendering, and unstamped CPU work; it is not automatically scheduler time. Launch API can overlap GPU start; preserve signed tail.",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  guard rows is Array(items) else { fail("handoff rows") }
+  for
+    key in [
+      "gap_ns", "event_wakeup_ns", "before_read_ns", "read_span_ns", "feedback_host_ns",
+      "upload_span_ns", "upload_api_ns", "before_launch_ns", "launch_api_ns", "launch_tail_ns",
+    ] {
+    let total = items.fold(init=0.0, (sum, item) => {
+      match item {
+        Object(fields) =>
+          match fields.get(key) {
+            Some(Number(value, ..)) => sum + value
+            _ => sum
+          }
+        _ => sum
+      }
+    })
+    println("\{key}: \{total / 1000000.0} ms")
+  }
+}

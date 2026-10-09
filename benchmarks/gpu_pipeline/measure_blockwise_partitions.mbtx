@@ -35,10 +35,15 @@ async fn checked(
 
 ///|
 async fn main {
-  guard @env.args() is [_, base, calibration, root, probe_source] else {
-    fail(
-      "CURRENT_SOURCE_ROOT COMPLETED_CALIBRATION NEW_EMPTY_ROOT PROBE_SOURCE",
-    )
+  let (base, calibration, root, probe_source, captured) = match @env.args() {
+    [_, base, calibration, root, probe_source] =>
+      (base, calibration, root, probe_source, None)
+    [_, base, calibration, root, probe_source, export_path] =>
+      (base, calibration, root, probe_source, Some(export_path))
+    _ =>
+      fail(
+        "CURRENT_SOURCE_ROOT COMPLETED_CALIBRATION NEW_EMPTY_ROOT PROBE_SOURCE [CAPTURED_CURRENT_EXPORT]",
+      )
   }
   let available = @fs.read_file("/proc/meminfo")
     .text()
@@ -53,21 +58,49 @@ async fn main {
     fail("32 GiB reserve")
   }
   let moon = base + "/toolchain/bin/moon"
-  let output = checked(
-    root,
-    "export",
-    moon,
-    [
-      "test", "kernels/luna_cuda_attention_tile_source", "--target", "native", "--deny-warn",
-      "--warn-list", "-79-20-29-25",
-    ],
-    cwd=base + "/source",
-    env={
-      "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1",
-      "PATH": base +
-      "/toolchain/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/bin:/bin",
-    },
-  )
+  let output = match captured {
+    Some(path) => {
+      let bytes = @fs.read_file(path)
+      @fs.write_file(root + "/export.stdout", bytes, create_mode=CreateNew)
+      @fs.write_file(root + "/export.stderr", "", create_mode=CreateNew)
+      bytes.text()
+    }
+    None =>
+      checked(
+        root,
+        "export",
+        moon,
+        [
+          "test", "kernels/luna_cuda_attention_tile_source", "--target", "native",
+          "--deny-warn", "--warn-list", "-79-20-29-25",
+        ],
+        cwd=base + "/source",
+        env={
+          "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1",
+          "PATH": base +
+          "/toolchain/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/bin:/bin",
+        },
+      )
+  }
+  let expected = [
+    "c441-p1", "c452-p1", "c453-p1", "c454-p1", "c455-p1", "c450-p2", "c450-p4",
+    "c450-p8", "c451-p2", "c451-p4", "c451-p8", "c452-p2", "c452-p4", "c452-p8",
+    "c453-p2", "c453-p4", "c453-p8", "c454-p2", "c454-p4", "c454-p8", "c455-p2",
+    "c455-p4", "c455-p8",
+  ]
+  let sections = output.split("LUNA_PARTIAL_BEGIN ").to_array()[1:]
+  assert_eq(sections.length(), expected.length())
+  guard sections[0].has_prefix("c441-p1\n") else {
+    fail("current ordinary decode baseline must be compiled first")
+  }
+  let seen : Array[String] = []
+  for block in sections {
+    let id = block.split("\n").to_array()[0].to_owned()
+    guard expected.contains(id) && !seen.contains(id) else {
+      fail("unexpected or duplicate decoder: " + id)
+    }
+    seen.push(id)
+  }
   ignore(
     checked(root, "probe-build", "/usr/local/cuda/bin/nvcc", [
       "-O3",
@@ -84,9 +117,12 @@ async fn main {
     @fs.read_file(calibration + "/decode.spec"),
     create_mode=CreateNew,
   )
-  let baseline = calibration + "/candidate/reusable-qwen-decode-attention-c441"
+  let baseline = match captured {
+    Some(_) => root + "/c441-p1"
+    None => calibration + "/candidate/reusable-qwen-decode-attention-c441"
+  }
   let results = StringBuilder()
-  for block in output.split("LUNA_PARTIAL_BEGIN ").to_array()[1:] {
+  for block in sections {
     let parts = block.split("\nLUNA_PARTIAL_SOURCE\n").to_array()
     guard parts is [header, remainder] else { fail("source framing") }
     let first = header.split("\n").to_array()

@@ -81,6 +81,8 @@ def generate(
         return _generate_vllm(engine, input_token_ids, output_tokens, timeout_seconds, encode)
     if adapter == "sglang-generate-sse-v1":
         return _generate_sglang(engine, input_token_ids, output_tokens, timeout_seconds, encode)
+    if adapter == "llama-cpp-completion-sse-v1":
+        return _generate_llama_cpp(engine, input_token_ids, output_tokens, timeout_seconds)
     if adapter == "lunaflux-token-ids-sse-v1":
         return _generate_lunaflux(engine, input_token_ids, output_tokens, timeout_seconds)
     raise AdapterError("unknown engine adapter")
@@ -269,6 +271,78 @@ def _generate_lunaflux(
         raise AdapterError("LunaFlux stream omitted its terminal event")
     return GenerationObservation(
         "".join(output_fragments), token_ids, timestamps, terminal, status, len(token_ids), chunks
+    )
+
+
+def _generate_llama_cpp(
+    engine: dict[str, Any],
+    input_ids: list[int],
+    output_limit: int,
+    timeout: float,
+) -> GenerationObservation:
+    body = {
+        "prompt": input_ids,
+        "n_predict": output_limit,
+        "temperature": 0,
+        "top_k": 1,
+        "top_p": 1,
+        "min_p": 0,
+        "seed": 0,
+        "ignore_eos": True,
+        "cache_prompt": False,
+        "return_tokens": True,
+        "stream": True,
+    }
+    output: list[str] = []
+    token_ids: list[int] = []
+    timestamps: list[int] = []
+    chunks = 0
+    terminal_seen = False
+    with _post_stream(engine["endpoint"], body, timeout) as response:
+        status = response.status
+        if status < 200 or status >= 300:
+            raise AdapterError(f"llama.cpp returned HTTP {status}")
+        for raw_line in response:
+            line = raw_line.decode("utf-8").strip()
+            if not line or line.startswith(":"):
+                continue
+            if not line.startswith("data:"):
+                raise AdapterError("llama.cpp stream contains a non-SSE data line")
+            payload = line[5:].strip()
+            if payload == "[DONE]":
+                break
+            try:
+                event = json.loads(payload)
+            except json.JSONDecodeError as error:
+                raise AdapterError("llama.cpp stream contains malformed JSON") from error
+            if not isinstance(event, dict) or "error" in event:
+                raise AdapterError("llama.cpp stream reported an invalid event")
+            fragment = event.get("content", "")
+            raw_tokens = event.get("tokens", [])
+            if not isinstance(fragment, str) or not isinstance(raw_tokens, list) or any(
+                not isinstance(token_id, int)
+                or isinstance(token_id, bool)
+                or token_id < 0
+                for token_id in raw_tokens
+            ):
+                raise AdapterError("llama.cpp stream omitted exact output token IDs")
+            if raw_tokens:
+                now = time.perf_counter_ns()
+                token_ids.extend(raw_tokens)
+                timestamps.extend([now] * len(raw_tokens))
+                chunks += 1
+            output.append(fragment)
+            stop = event.get("stop", False)
+            if not isinstance(stop, bool):
+                raise AdapterError("llama.cpp stream stop marker is invalid")
+            if stop:
+                terminal_seen = True
+                break
+        terminal = time.perf_counter_ns()
+    if not terminal_seen:
+        raise AdapterError("llama.cpp stream omitted its terminal event")
+    return GenerationObservation(
+        "".join(output), token_ids, timestamps, terminal, status, len(token_ids), chunks
     )
 
 

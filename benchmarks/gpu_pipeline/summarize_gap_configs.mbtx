@@ -1,0 +1,66 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(x : Json) -> Int64 raise {
+  match x {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("TRACE_ROOT") }
+  guard @json.parse(@fs.read_file(root + "/gap-kernels-v2.json").text())
+    is Array(rows) else {
+    fail("kernel rows")
+  }
+  let groups : Map[String, (Int, Int64, Int64, Int64)] = Map([])
+  for row in rows {
+    guard row
+      is {
+        "name": String(name),
+        "start": a,
+        "end": b,
+        "gridX": gx,
+        "gridY": gy,
+        "gridZ": gz,
+        "blockX": bx,
+        "blockY": by,
+        "blockZ": bz,
+        "registersPerThread": regs,
+        "staticSharedMemory": ss,
+        "dynamicSharedMemory": ds,
+        ..
+      } else {
+      fail("row")
+    }
+    let key = "\{name} grid=\{integer(gx)},\{integer(gy)},\{integer(gz)} block=\{integer(bx)},\{integer(by)},\{integer(bz)} registers=\{integer(regs)} shared=\{integer(ss)+integer(ds)}"
+    let ns = integer(b) - integer(a)
+    let (count, sum, lo, hi) = groups.get(key).unwrap_or((0, 0L, ns, ns))
+    groups[key] = (count + 1, sum + ns, Int64::min(lo, ns), Int64::max(hi, ns))
+  }
+  let ordered = groups.to_array()
+  ordered.sort_by((a, b) => b.1.1.compare(a.1.1))
+  let result : Array[Json] = ordered.map(pair => {
+    "config": pair.0,
+    "calls": pair.1.0,
+    "ns": pair.1.1,
+    "min_ns": pair.1.2,
+    "max_ns": pair.1.3,
+  })
+  @fs.write_file(
+    root + "/gap-configs.json",
+    Json(result).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(Json(result).stringify(indent=2))
+}

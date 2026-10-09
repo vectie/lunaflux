@@ -1,0 +1,360 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result.stdout()
+}
+
+///|
+async fn available() -> Int64 {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("MemAvailable")
+  }
+  @string.parse_int64(line.split(" ").filter(x => !x.is_empty()).to_array()[1])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, completed, root, engine, mode, .. extra] &&
+    (engine == "vllm" || engine == "sglang") &&
+    (mode == "trace" || mode == "counter") else {
+    fail("COMPLETED_BASELINE NEW_EMPTY_ROOT vllm|sglang trace|counter [REGEX]")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() && available() >= 33554432L else {
+    fail("GPU occupied or memory reserve")
+  }
+  let saved = @json.parse(
+    capture(root, "pinned-container", "docker", [
+      "inspect",
+      "lunaflux-remeasure-" + engine + "-53deab59",
+    ]),
+  )
+  guard saved
+    is Array(
+      [{ "Image": String(image), "Config": { "Cmd": Array(raw), .. }, .. }]
+    ) else {
+    fail("container configuration")
+  }
+  let command = raw.map(x => {
+    match x {
+      String(s) => s
+      _ => fail("command")
+    }
+  })
+  // Counter replay snapshots the allocation pool. Reduce only diagnostic KV
+  // reserve, not token/shape limits; never use this run as serving throughput.
+  if mode == "counter" {
+    for i in 0..<(command.length() - 1) {
+      if command[i] == "--gpu-memory-utilization" ||
+        command[i] == "--mem-fraction-static" {
+        command[i + 1] = "0.15"
+      }
+    }
+  }
+  let name = "lunaflux-gap-" +
+    engine +
+    "-" +
+    mode +
+    "-" +
+    root.split("/").to_array().last().unwrap().to_owned()
+  let port = if engine == "vllm" { "8101" } else { "8102" }
+  let url = "http://127.0.0.1:" + port
+  let nsys = "/opt/host-nvidia/nsight-systems/2025.3.2/bin/nsys"
+  let ncu = "/opt/host-nvidia/nsight-compute/2025.3.1/ncu"
+  let flags = [
+    "run",
+    "-d",
+    "--name",
+    name,
+    "--gpus",
+    "all",
+    "--network",
+    "host",
+    "--ipc",
+    "host",
+    "--memory",
+    "80g",
+    "--memory-swap",
+    "80g",
+    "--cap-add",
+    "SYS_ADMIN",
+    "--security-opt",
+    "seccomp=unconfined",
+    "--mount",
+    "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+    "--mount",
+    "type=bind,source=" + root + ",target=" + root,
+    "--mount",
+    "type=bind,source=/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b,target=/model,readonly",
+    image,
+  ]
+  if mode == "trace" {
+    flags.append([
+      nsys,
+      "profile",
+      "--trace=cuda,nvtx",
+      "--cuda-graph-trace=node",
+      "--capture-range=cudaProfilerApi",
+      "--capture-range-end=stop-shutdown",
+      "--kill=sigterm",
+      "--sample=none",
+      "--cpuctxsw=none",
+      "--export=sqlite",
+      "--output=" + root + "/trace",
+    ])
+  } else {
+    guard extra is [regex] else { fail("counter requires exact kernel regex") }
+    flags.append([
+      ncu,
+      "--target-processes",
+      "all",
+      "--profile-from-start",
+      "off",
+      "--filter-mode",
+      "per-launch-config",
+      "--config-file",
+      "off",
+      "--clock-control",
+      "none",
+      "--cache-control",
+      "none",
+      "--kernel-name-base",
+      "demangled",
+      "--kernel-name",
+      regex,
+      "--launch-count",
+      "1",
+      "--section",
+      "LaunchStats",
+      "--section",
+      "Occupancy",
+      "--section",
+      "SpeedOfLight",
+      "--section",
+      "SchedulerStats",
+      "--section",
+      "WarpStateStats",
+      "--section",
+      "MemoryWorkloadAnalysis",
+      "--section",
+      "InstructionStats",
+      "--section",
+      "SourceCounters",
+      "--export",
+      root + "/counter",
+    ])
+  }
+  flags.append(command)
+  if engine == "vllm" {
+    flags.append(["--profiler-config", "{\"profiler\":\"cuda\"}"])
+  }
+  errdefer ignore(@shell.Cmd("docker", ["stop", "--time", "15", name]).output())
+  ignore(capture(root, "launch", "docker", flags))
+  let base = @fs.read_file(completed + "/benchmark.mbtx")
+    .text()
+    .replace(old="[(128,32),(4096,64),(4096,256)]", new="[(4096,64)]")
+    .replace(old="[1,8,16]", new="[16]")
+    .replace(old="0..<4", new="0..<1")
+  @fs.write_file(root + "/client.mbtx", base, create_mode=CreateNew)
+  let moon = completed + "/toolchain/bin/moon"
+  let samples = StringBuilder()
+  let mut done = false
+  errdefer @fs.write_file(
+    root + "/memory-interrupted.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let free = available()
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(500)
+      }
+    })
+    let mut ready = false
+    for _ in 0..<240 {
+      let health = @shell.Cmd("curl", [
+        "--fail",
+        "--silent",
+        "--max-time",
+        "2",
+        url + "/health",
+      ]).output()
+      if health.exit_code() == 0 {
+        ready = true
+        break
+      }
+      let state = @shell.Cmd("docker", [
+        "inspect", "--format", "{{.State.Running}}", name,
+      ]).output()
+      state.check()
+      guard state.stdout().trim() == "true" else {
+        fail("profiler server exited before readiness")
+      }
+      @async.sleep(1000)
+    }
+    guard ready else { fail("readiness timed out") }
+    ignore(
+      capture(root, "warmup", moon, [
+        "run",
+        root + "/client.mbtx",
+        engine,
+        root + "/warmup-requests",
+      ]),
+    )
+    ignore(
+      capture(root, "start-profile", "curl", [
+        "--fail",
+        "--silent",
+        "--show-error",
+        "--max-time",
+        "30",
+        "-X",
+        "POST",
+        "-H",
+        "Content-Type: application/json",
+        "--data-binary",
+        if engine == "sglang" {
+          "{\"activities\":[\"CUDA_PROFILER\"]}"
+        } else {
+          "{}"
+        },
+        url + "/start_profile",
+      ]),
+    )
+    ignore(
+      capture(root, "measured", moon, [
+        "run",
+        root + "/client.mbtx",
+        engine,
+        root + "/requests",
+      ]),
+    )
+    // The profiler may terminate the target while this HTTP response is being
+    // sent. Retain the response and verify the report instead of inventing a
+    // clean server shutdown.
+    let stop = @shell.Cmd("curl", [
+      "--silent",
+      "--show-error",
+      "--max-time",
+      "30",
+      "-X",
+      "POST",
+      url + "/stop_profile",
+    ]).output()
+    @fs.write_file(
+      root + "/stop-profile.stdout",
+      stop.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/stop-profile.stderr",
+      stop.stderr(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/stop-profile.exit",
+      stop.exit_code().to_string(),
+      create_mode=CreateNew,
+    )
+    if mode == "counter" {
+      @async.sleep(3000)
+      ignore(
+        capture(root, "stop-container", "docker", ["stop", "--time", "20", name]),
+      )
+    }
+    let mut ended = false
+    for _ in 0..<120 {
+      let state = @shell.Cmd("docker", [
+        "inspect", "--format", "{{.State.Running}}", name,
+      ]).output()
+      state.check()
+      if state.stdout().trim() == "false" {
+        ended = true
+        break
+      }
+      @async.sleep(1000)
+    }
+    guard ended else { fail("profiler report did not finish") }
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  ignore(capture(root, "final-container", "docker", ["inspect", name]))
+  ignore(capture(root, "logs", "docker", ["logs", name]))
+  guard @fs.exists(
+    root + (if mode == "trace" { "/trace.sqlite" } else { "/counter.ncu-rep" }),
+  ) else {
+    fail("report absent")
+  }
+  if mode == "counter" {
+    for page in ["raw"] {
+      ignore(
+        capture(
+          root,
+          "counter-" + page,
+          "/opt/nvidia/nsight-compute/2025.3.1/ncu",
+          [
+            "--import",
+            root + "/counter.ncu-rep",
+            "--page",
+            page,
+            "--csv",
+            "--print-units",
+            "base",
+          ] +
+          (if page == "source" { ["--print-source", "sass"] } else { [] }),
+        ),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=profiled diagnostic, not ordinary serving throughput\n",
+    create_mode=CreateNew,
+  )
+}

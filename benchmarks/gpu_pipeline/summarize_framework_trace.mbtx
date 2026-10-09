@@ -1,0 +1,246 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(x : Json) -> Int64 raise {
+  match x {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+async fn query(db : String, sql : String) -> Json {
+  let r = @shell.Cmd("sqlite3", ["-json", db, sql]).output(
+    max_output_bytes=67108864,
+  )
+  r.check()
+  if r.stdout().trim().is_empty() {
+    @json.parse("[]")
+  } else {
+    @json.parse(r.stdout())
+  }
+}
+
+///|
+fn family(name : String, engine : String, gy : Int64) -> String {
+  if engine == "luna" {
+    if name.contains("fused_qwen_qkv") {
+      return "ingress"
+    }
+    if name.contains("language_model_head") || name.contains("greedy_bf16") {
+      return "head-sampling"
+    }
+    if name.contains("attention_prefill") {
+      return "prefill-attention"
+    }
+    if name.contains("attention_decode") || name.contains("decode_split") {
+      return "decode-attention"
+    }
+    if name.contains("gated_mlp") {
+      return if name.contains("down") { "down" } else { "gate-up-activation" }
+    }
+    if name.contains("dense_projection") {
+      return "output"
+    }
+    if name.contains("rms") || name.contains("embedding") {
+      return "norm-embedding"
+    }
+  } else {
+    if name.contains("MergeStates") ||
+      name.contains("flash_fwd_splitkv_combine_kernel") {
+      return "decode-attention"
+    }
+    if name.contains("BatchDecode") ||
+      (
+        name.contains("flash_fwd_splitkv_kernel") &&
+        name.contains(">>, (bool)0, (bool)0, (bool)0, (bool)0, (bool)1")
+      ) {
+      return "decode-attention"
+    }
+    if name.contains("BatchPrefill") ||
+      name.contains("flash_fwd_splitkv_kernel") {
+      return "prefill-attention"
+    }
+    if name.contains("silu") {
+      return "gate-up-activation"
+    }
+    if name.contains("tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3") {
+      return if engine == "vllm" {
+        if gy == 2 {
+          "qkv-projection"
+        } else if gy == 3 {
+          "gate-up-activation"
+        } else {
+          "other-gemm"
+        }
+      } else {
+        "output"
+      }
+    }
+    if engine == "sglang" &&
+      name.contains("tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3") {
+      return if gy == 6 {
+        "gate-up-activation"
+      } else if gy == 4 {
+        "qkv-projection"
+      } else {
+        "other-gemm"
+      }
+    }
+    if name.has_prefix("nvjet_") {
+      if engine == "vllm" {
+        return if name.contains("128x176") { "down" } else { "output" }
+      }
+      return if gy == 6 {
+        "gate-up-activation"
+      } else if gy == 4 {
+        "qkv-projection"
+      } else {
+        "down"
+      }
+    }
+    if name.contains("wmma_tensorop") {
+      if gy == 1187 {
+        return "head-sampling"
+      }
+      if gy == 32 {
+        return "qkv-projection"
+      }
+      if gy == 48 {
+        return "gate-up-activation"
+      }
+      if name.contains("128x2") {
+        return "output-down-decode"
+      }
+      return "qkv-gate-head-decode"
+    }
+    if name.contains("qknorm") ||
+      name.contains("QKApplyRotary") ||
+      name.contains("reshape_and_cache") ||
+      name.contains("triton_red_fused") ||
+      name.contains("triton_poi_fused_2") ||
+      name.contains("triton_poi_fused_4") ||
+      name.contains("index_elementwise") {
+      return "qknorm-rope-cache"
+    }
+    if name.contains("RMSNorm") || name.contains("mean_mul_pow_rsqrt") {
+      return "norm-embedding"
+    }
+    if name.contains("argmax") ||
+      name.contains("softmax") ||
+      name.contains("sampling") {
+      return "head-sampling"
+    }
+  }
+  "other"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, engine, .. options] &&
+    (engine == "luna" || engine == "vllm" || engine == "sglang") else {
+    fail("TRACE_ROOT ENGINE [LUNA_REQUEST_JSON]")
+  }
+  let db = root + "/trace.sqlite"
+  let mut filter = ""
+  if options is [path] {
+    guard query(db, "SELECT utcEpochNs FROM TARGET_INFO_SESSION_START_TIME;")
+      is Array([{ "utcEpochNs": epoch, .. }]) else {
+      fail("session epoch")
+    }
+    guard @json.parse(@fs.read_file(path).text())
+      is { "epoch_start_ns": begin, "epoch_end_ns": end, .. } else {
+      fail("client epochs")
+    }
+    let start = integer(begin) - integer(epoch)
+    let stop = integer(end) - integer(epoch)
+    filter = " WHERE k.start >= \{start} AND k.end <= \{stop}"
+  } else {
+    assert_true(options.is_empty())
+  }
+  let kernels = query(
+    db,
+    "SELECT k.start,k.end,s.value AS name,k.gridX,k.gridY,k.gridZ,k.blockX,k.blockY,k.blockZ,k.registersPerThread,k.staticSharedMemory,k.dynamicSharedMemory,k.graphNodeId FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName" +
+    filter +
+    " ORDER BY k.start;",
+  )
+  @fs.write_file(
+    root + "/gap-kernels-v3.json",
+    kernels.stringify(),
+    create_mode=CreateNew,
+  )
+  guard kernels is Array(rows) && !rows.is_empty() else {
+    fail("kernels absent")
+  }
+  let total : Map[String, Int64] = Map([])
+  let counts : Map[String, Int] = Map([])
+  let mut first = 9223372036854775807L
+  let mut last = 0L
+  let mut union = 0L
+  let mut end_union = 0L
+  let mut sum = 0L
+  let mut maxgap = 0L
+  let mut graphs = 0
+  for row in rows {
+    guard row
+      is {
+        "start": a,
+        "end": b,
+        "name": String(n),
+        "gridY": y,
+        "graphNodeId": node,
+        ..
+      } else {
+      fail("row")
+    }
+    let a = integer(a)
+    let b = integer(b)
+    let ns = b - a
+    let key = family(n, engine, integer(y))
+    total[key] = total.get(key).unwrap_or(0L) + ns
+    counts[key] = counts.get(key).unwrap_or(0) + 1
+    first = Int64::min(first, a)
+    last = Int64::max(last, b)
+    sum += ns
+    if end_union > 0 {
+      maxgap = Int64::max(maxgap, a - end_union)
+    }
+    union += Int64::max(0L, b - Int64::max(a, end_union))
+    end_union = Int64::max(end_union, b)
+    match node {
+      Null => ()
+      _ => if integer(node) > 0 { graphs += 1 }
+    }
+  }
+  let groups : Array[Json] = []
+  for key, ns in total {
+    groups.push({ "family": key, "calls": counts[key], "ns": ns })
+  }
+  let result : Json = {
+    "engine": engine,
+    "kernel_sum_ns": sum,
+    "kernel_union_ns": union,
+    "gpu_span_ns": last - first,
+    "internal_no_kernel_ns": last - first - union,
+    "maximum_internal_gap_ns": maxgap,
+    "kernel_calls": rows.length(),
+    "graph_kernel_calls": graphs,
+    "families": groups,
+    "scope": "Nsight node trace; replay/trace overhead is not serving throughput; family mapping is documented, mixed GEMMs remain separate",
+  }
+  @fs.write_file(
+    root + "/gap-summary-v3.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+}

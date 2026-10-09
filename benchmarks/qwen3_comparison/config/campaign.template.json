@@ -1,5 +1,5 @@
 {
-  "schema": "lunaflux.qwen3-comparison-campaign.v1",
+  "schema": "lunaflux.qwen3-comparison-campaign.v2",
   "model": {
     "family": "qwen3",
     "model_id": "Qwen3-0.6B",
@@ -25,12 +25,18 @@
     "ignore_eos": true
   },
   "profiles": [
-    {"name": "prefill-c1", "class": "prefill", "concurrency": 1, "output_tokens": 32, "request_count": 48},
-    {"name": "prefill-c8", "class": "prefill", "concurrency": 8, "output_tokens": 32, "request_count": 64},
-    {"name": "prefill-c32", "class": "prefill", "concurrency": 32, "output_tokens": 32, "request_count": 96},
-    {"name": "decode-c1", "class": "decode", "concurrency": 1, "output_tokens": 256, "request_count": 48},
-    {"name": "decode-c8", "class": "decode", "concurrency": 8, "output_tokens": 256, "request_count": 64},
-    {"name": "decode-c32", "class": "decode", "concurrency": 32, "output_tokens": 256, "request_count": 96}
+    {"name": "decode-i59-o256-c1", "class": "decode", "input_tokens": 59, "concurrency": 1, "output_tokens": 256, "request_count": 8},
+    {"name": "decode-i59-o256-c8", "class": "decode", "input_tokens": 59, "concurrency": 8, "output_tokens": 256, "request_count": 16},
+    {"name": "decode-i59-o256-c32", "class": "decode", "input_tokens": 59, "concurrency": 32, "output_tokens": 256, "request_count": 32},
+    {"name": "prefill-i128-o128-c1", "class": "prefill", "input_tokens": 128, "concurrency": 1, "output_tokens": 128, "request_count": 8},
+    {"name": "prefill-i128-o128-c8", "class": "prefill", "input_tokens": 128, "concurrency": 8, "output_tokens": 128, "request_count": 16},
+    {"name": "prefill-i128-o128-c32", "class": "prefill", "input_tokens": 128, "concurrency": 32, "output_tokens": 128, "request_count": 32},
+    {"name": "prefill-i512-o64-c1", "class": "prefill", "input_tokens": 512, "concurrency": 1, "output_tokens": 64, "request_count": 8},
+    {"name": "prefill-i512-o64-c8", "class": "prefill", "input_tokens": 512, "concurrency": 8, "output_tokens": 64, "request_count": 16},
+    {"name": "prefill-i512-o64-c32", "class": "prefill", "input_tokens": 512, "concurrency": 32, "output_tokens": 64, "request_count": 32},
+    {"name": "prefill-i1528-o32-c1", "class": "prefill", "input_tokens": 1528, "concurrency": 1, "output_tokens": 32, "request_count": 8},
+    {"name": "prefill-i1528-o32-c8", "class": "prefill", "input_tokens": 1528, "concurrency": 8, "output_tokens": 32, "request_count": 16},
+    {"name": "prefill-i1528-o32-c32", "class": "prefill", "input_tokens": 1528, "concurrency": 32, "output_tokens": 32, "request_count": 32}
   ],
   "engines": [
     {
@@ -134,6 +140,36 @@
         "startup_timeout_seconds": 600,
         "shutdown_timeout_seconds": 60,
         "drain_quiet_millis": 1000,
+        "expected_exit_codes": [-15, -9, 0]
+      }
+    },
+    {
+      "name": "llama.cpp",
+      "adapter": "llama-cpp-completion-sse-v1",
+      "endpoint": "http://127.0.0.1:8103/completion",
+      "health_endpoint": "http://127.0.0.1:8103/health",
+      "model_alias": "Qwen3-0.6B",
+      "source_model_inventory_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "model_content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "config_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "tokenizer_json_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "tokenizer_config_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "chat_template_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "revision_sha256": null,
+      "configuration_sha256": "abababababababababababababababababababababababababababababababab",
+      "executable_sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "environment_prefix": "/ABSOLUTE/PINNED_LLAMA_CPP_ROOT",
+      "package_version": "PINNED_LLAMA_CPP_VERSION",
+      "authenticated_capacity_receipt": null,
+      "lunaflux_lifecycle": null,
+      "execution_policy": {"prefix_reuse": false, "scheduler_policy": "fcfs", "kv_cache_dtype": "auto", "max_concurrent_sequences": 32, "ignore_eos": true},
+      "lifecycle": {
+        "launcher": "/ABSOLUTE/PINNED/start-qwen3-llama-cpp-benchmark-server.sh",
+        "launcher_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "runtime_executable_sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "startup_timeout_seconds": 600,
+        "shutdown_timeout_seconds": 60,
+        "drain_quiet_millis": 1000,
         "expected_exit_codes": [-15, 0]
       }
     }
@@ -147,7 +183,7 @@
     "clean_poll_interval_millis": 1000,
     "cooldown_seconds": 10
   },
-  "trials_per_profile": 3,
+  "trials_per_profile": 4,
   "warmup_rounds_per_profile": 2,
   "request_timeout_seconds": 600,
   "hardware_concurrency_ceiling": 32,

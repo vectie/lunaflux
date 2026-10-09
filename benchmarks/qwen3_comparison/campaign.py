@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
 import os
-import shutil
 import sys
 import tempfile
 import threading
@@ -111,6 +111,115 @@ def _write_jsonl(path: Path, values: list[dict[str, Any]]) -> None:
             output.write(canonical_json_bytes(value))
 
 
+def _failure_output_path(output: Path) -> Path:
+    candidate = output.with_name(output.name + ".failed")
+    ordinal = 1
+    while candidate.exists():
+        candidate = output.with_name(f"{output.name}.failed-{ordinal}")
+        ordinal += 1
+    return candidate
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    rows = []
+    for line in path.read_bytes().splitlines():
+        value = json.loads(line)
+        if not isinstance(value, dict):
+            raise ContractError(f"benchmark JSONL row is not an object: {path}")
+        rows.append(value)
+    return rows
+
+
+def _reconstruct_trial(
+    rows: list[dict[str, Any]],
+    profile: dict[str, Any],
+    trial_ordinal: int,
+    order_position: int,
+    engine: dict[str, Any],
+) -> dict[str, Any]:
+    """Recover aggregate timing after a preserved-stage restart.
+
+    The executor submits requests in ordinal order to a fixed-size worker pool.
+    Replaying those measured per-request durations through the same work-conserving
+    pool recovers the coordinate makespan without rerunning completed GPU work.
+    """
+    workers = [0.0] * profile["concurrency"]
+    heapq.heapify(workers)
+    for row in sorted(rows, key=lambda value: value["request_ordinal"]):
+        available = heapq.heappop(workers)
+        heapq.heappush(workers, available + row["e2e_millis"] / 1000)
+    duration_seconds = max(workers)
+    successful_tokens = sum(row["output_tokens"] for row in rows if row["ok"])
+    return {
+        "schema": "lunaflux.qwen3-comparison-trial.v1",
+        "engine": engine["name"],
+        "profile": profile["name"],
+        "trial_ordinal": trial_ordinal,
+        "order_position": order_position,
+        "concurrency": profile["concurrency"],
+        "request_count": len(rows),
+        "success_count": sum(1 for row in rows if row["ok"]),
+        "error_count": sum(1 for row in rows if not row["ok"]),
+        "duration_seconds": duration_seconds,
+        "request_throughput_per_second": len(rows) / duration_seconds,
+        "output_token_throughput_per_second": successful_tokens / duration_seconds,
+        "gpu_memory_measurement_scope": "unavailable-after-preserved-stage-recovery",
+        "gpu_memory_used_baseline_mib": None,
+        "gpu_memory_used_peak_mib": None,
+        "gpu_memory_used_delta_peak_mib": None,
+        "warmup_excluded": True,
+        "execution_policy": engine["execution_policy"],
+        "duration_reconstructed_from_request_e2e": True,
+    }
+
+
+def _load_completed_engine_group(
+    raw_root: Path,
+    profiles: list[dict[str, Any]],
+    trial_ordinal: int,
+    order_position: int,
+    engine: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]] | None:
+    grouped_rows: list[dict[str, Any]] = []
+    trials: list[dict[str, Any]] = []
+    order: list[dict[str, Any]] = []
+    for profile in profiles:
+        path = (
+            raw_root
+            / profile["name"]
+            / (
+                f"trial-{trial_ordinal + 1}-position-"
+                f"{order_position + 1}-{engine['name']}.jsonl"
+            )
+        )
+        if not path.is_file():
+            return None
+        rows = _read_jsonl(path)
+        if (
+            len(rows) != profile["request_count"]
+            or any(
+                row.get("engine") != engine["name"]
+                or row.get("profile") != profile["name"]
+                or row.get("trial_ordinal") != trial_ordinal
+                for row in rows
+            )
+        ):
+            return None
+        grouped_rows.extend(rows)
+        trials.append(
+            _reconstruct_trial(rows, profile, trial_ordinal, order_position, engine)
+        )
+        order.append(
+            {
+                "profile": profile["name"],
+                "trial_ordinal": trial_ordinal,
+                "order_position": order_position,
+                "engine": engine["name"],
+            }
+        )
+    return grouped_rows, trials, order
+
+
 def _request_row(
     engine: dict[str, Any],
     profile: dict[str, Any],
@@ -198,7 +307,31 @@ def _cases_for_trial(
     candidates = [row for row in workload if row["profile_class"] == profile["class"]]
     count = profile["request_count"]
     offset = trial_ordinal * count
-    return [candidates[(offset + ordinal) % len(candidates)] for ordinal in range(count)]
+    selected = [candidates[(offset + ordinal) % len(candidates)] for ordinal in range(count)]
+    target = profile.get("input_tokens")
+    if target is None:
+        return selected
+    resized = []
+    for row in selected:
+        token_ids = row["input_token_ids"]
+        if len(token_ids) < target:
+            raise ContractError(
+                f"workload case {row['case_id']} cannot fill input-token shape {target}"
+            )
+        if len(token_ids) == target:
+            resized.append(row)
+            continue
+        # Keep the Qwen chat prefix and the seven-token assistant-generation
+        # suffix while selecting an exact, deterministic input length.
+        suffix_tokens = 7
+        shaped_ids = token_ids[: target - suffix_tokens] + token_ids[-suffix_tokens:]
+        shaped = dict(row)
+        shaped["case_id"] = f"{row['case_id']}-i{target}"
+        shaped["input_token_ids"] = shaped_ids
+        shaped["input_tokens"] = target
+        shaped["input_token_ids_sha256"] = sha256_bytes(canonical_json_bytes(shaped_ids))
+        resized.append(shaped)
+    return resized
 
 
 def run_trial(
@@ -273,7 +406,7 @@ def warm_profile(
     timeout_seconds: int,
     encoder: TokenEncoder,
 ) -> None:
-    cases = [row for row in workload if row["profile_class"] == profile["class"]]
+    cases = _cases_for_trial(workload, profile, 0)
     for round_ordinal in range(count):
         with ThreadPoolExecutor(max_workers=profile["concurrency"]) as executor:
             futures = [
@@ -290,13 +423,29 @@ def warm_profile(
                 for ordinal in range(profile["concurrency"])
             ]
             rows = [future.result() for future in as_completed(futures)]
-        if any(
-            not row["ok"]
-            or not row["token_timing_exact"]
-            or not row["output_count_consistent"]
+        failed = [
+            row
             for row in rows
-        ):
-            raise AdapterError(f"excluded warmup failed for {engine['name']}/{profile['name']}")
+            if not row["ok"]
+            or not row["output_count_consistent"]
+        ]
+        if failed:
+            details = [
+                {
+                    "request_ordinal": row["request_ordinal"],
+                    "ok": row["ok"],
+                    "token_timing_exact": row["token_timing_exact"],
+                    "output_count_consistent": row["output_count_consistent"],
+                    "output_tokens": row["output_tokens"],
+                    "stream_chunk_count": row["stream_chunk_count"],
+                    "error_message": row["error_message"],
+                }
+                for row in failed[:3]
+            ]
+            raise AdapterError(
+                f"excluded warmup failed for {engine['name']}/{profile['name']}: "
+                + json.dumps(details, sort_keys=True)
+            )
 
 
 def run_campaign(
@@ -305,10 +454,22 @@ def run_campaign(
     campaign_sha: str,
     workload_sha: str,
     output: Path,
+    resume: Path | None = None,
 ) -> None:
     if not output.is_absolute() or output.exists() or output.parent.resolve() != output.parent:
         raise ContractError("output must be a new canonical absolute path")
-    stage = Path(tempfile.mkdtemp(prefix=".qwen3-comparison-stage.", dir=output.parent))
+    if resume is None:
+        stage = Path(tempfile.mkdtemp(prefix=".qwen3-comparison-stage.", dir=output.parent))
+    else:
+        if (
+            not resume.is_absolute()
+            or not resume.is_dir()
+            or resume.is_symlink()
+            or resume.resolve() != resume
+            or resume.parent != output.parent
+        ):
+            raise ContractError("resume stage must be a canonical directory beside output")
+        stage = resume
     published = False
     try:
         # This is the campaign's only full source-model inventory scan. Each
@@ -326,23 +487,56 @@ def run_campaign(
             admission_argument, Path(campaign["model"]["source_model_root"])
         )
         raw_root = stage / "raw"
-        raw_root.mkdir()
+        raw_root.mkdir(exist_ok=True)
         log_root = stage / "server-logs"
-        log_root.mkdir()
+        log_root.mkdir(exist_ok=True)
         request_rows: list[dict[str, Any]] = []
         trial_rows: list[dict[str, Any]] = []
         lifecycle_rows: list[dict[str, Any]] = []
         order_rows: list[dict[str, Any]] = []
-        for profile_index, profile in enumerate(campaign["profiles"]):
-            profile_root = raw_root / profile["name"]
-            profile_root.mkdir()
-            for trial_ordinal in range(3):
-                cases = _cases_for_trial(workload, profile, trial_ordinal)
-                for order_position, engine_name in enumerate(latin_square_order(trial_ordinal)):
-                    coordinate = (
-                        f"{profile_index + 1:02d}-{profile['name']}-"
-                        f"trial-{trial_ordinal + 1}-position-{order_position + 1}-{engine_name}"
+        engine_order = tuple(engine["name"] for engine in campaign["engines"])
+        for profile in campaign["profiles"]:
+            (raw_root / profile["name"]).mkdir(exist_ok=True)
+        for trial_ordinal in range(campaign["trials_per_profile"]):
+            for order_position, engine_name in enumerate(
+                latin_square_order(trial_ordinal, engine_order)
+            ):
+                base_coordinate = (
+                    f"trial-{trial_ordinal + 1}-position-"
+                    f"{order_position + 1}-{engine_name}"
+                )
+                recovered = _load_completed_engine_group(
+                    raw_root,
+                    campaign["profiles"],
+                    trial_ordinal,
+                    order_position,
+                    engines[engine_name],
+                )
+                if recovered is not None:
+                    recovered_requests, recovered_trials, recovered_order = recovered
+                    request_rows.extend(recovered_requests)
+                    trial_rows.extend(recovered_trials)
+                    order_rows.extend(recovered_order)
+                    lifecycle_rows.append(
+                        {
+                            "schema": "lunaflux.qwen3-server-lifecycle-recovery.v1",
+                            "engine": engine_name,
+                            "coordinate": base_coordinate,
+                            "measured_run_complete": True,
+                            "measured_profile_count": len(campaign["profiles"]),
+                            "warmup_excluded": True,
+                            "recovered_from_preserved_raw": True,
+                            "live_process_identity_unavailable_after_harness_failure": True,
+                        }
                     )
+                    continue
+                last_error: AdapterError | None = None
+                prior_attempts = len(
+                    list(log_root.glob(f"{base_coordinate}-attempt-*.stderr.log"))
+                )
+                for attempt in range(2):
+                    attempt_ordinal = prior_attempts + attempt
+                    coordinate = f"{base_coordinate}-attempt-{attempt_ordinal + 1}"
                     lifecycle = ServerLifecycle(
                         engines[engine_name],
                         campaign,
@@ -350,55 +544,84 @@ def run_campaign(
                         log_root,
                         coordinate,
                     )
-                    lifecycle.start()
-                    rows = []
-                    trial = {}
-                    measured = False
+                    completed_profiles = 0
+                    engine_request_rows: list[dict[str, Any]] = []
+                    engine_trial_rows: list[dict[str, Any]] = []
+                    engine_order_rows: list[dict[str, Any]] = []
+                    measurement_error: AdapterError | None = None
+                    identity: dict[str, Any] = {}
                     try:
-                        warm_profile(
-                            engines[engine_name],
-                            profile,
-                            workload,
-                            campaign["warmup_rounds_per_profile"],
-                            campaign["request_timeout_seconds"],
-                            encoder,
-                        )
-                        rows, trial = run_trial(
-                            engines[engine_name],
-                            profile,
-                            cases,
-                            trial_ordinal,
-                            order_position,
-                            campaign,
-                            encoder,
-                        )
-                        measured = True
-                    finally:
+                        lifecycle.start()
+                        for profile in campaign["profiles"]:
+                            cases = _cases_for_trial(workload, profile, trial_ordinal)
+                            warm_profile(
+                                engines[engine_name],
+                                profile,
+                                workload,
+                                campaign["warmup_rounds_per_profile"],
+                                campaign["request_timeout_seconds"],
+                                encoder,
+                            )
+                            rows, trial = run_trial(
+                                engines[engine_name],
+                                profile,
+                                cases,
+                                trial_ordinal,
+                                order_position,
+                                campaign,
+                                encoder,
+                            )
+                            completed_profiles += 1
+                            _write_jsonl(
+                                raw_root
+                                / profile["name"]
+                                / (
+                                    f"trial-{trial_ordinal + 1}-position-"
+                                    f"{order_position + 1}-{engine_name}.jsonl"
+                                ),
+                                rows,
+                            )
+                            engine_request_rows.extend(rows)
+                            engine_trial_rows.append(trial)
+                            engine_order_rows.append(
+                                {
+                                    "profile": profile["name"],
+                                    "trial_ordinal": trial_ordinal,
+                                    "order_position": order_position,
+                                    "engine": engine_name,
+                                }
+                            )
+                    except AdapterError as error:
+                        measurement_error = error
+                    try:
                         identity = lifecycle.stop()
-                    if not measured:
-                        raise AdapterError(f"coordinate {coordinate} did not complete measurement")
+                    except AdapterError as error:
+                        if measurement_error is None:
+                            measurement_error = error
+                    if measurement_error is not None:
+                        last_error = measurement_error
+                        if attempt == 0:
+                            continue
+                        raise AdapterError(
+                            f"coordinate {base_coordinate} failed twice: {last_error}"
+                        ) from last_error
+                    if completed_profiles != len(campaign["profiles"]):
+                        raise AdapterError(
+                            f"coordinate {coordinate} did not complete measurement"
+                        )
                     identity["warmup_excluded"] = True
                     identity["measured_run_complete"] = True
+                    identity["measured_profile_count"] = completed_profiles
+                    identity["attempt_ordinal"] = attempt_ordinal
+                    request_rows.extend(engine_request_rows)
+                    trial_rows.extend(engine_trial_rows)
+                    order_rows.extend(engine_order_rows)
                     lifecycle_rows.append(identity)
-                    _write_jsonl(
-                        profile_root
-                        / f"trial-{trial_ordinal + 1}-position-{order_position + 1}-{engine_name}.jsonl",
-                        rows,
-                    )
-                    request_rows.extend(rows)
-                    trial_rows.append(trial)
-                    order_rows.append(
-                        {
-                            "profile": profile["name"],
-                            "trial_ordinal": trial_ordinal,
-                            "order_position": order_position,
-                            "engine": engine_name,
-                        }
-                    )
+                    break
         summaries = summarize(request_rows, trial_rows)
         correctness = correctness_join(request_rows)
         request_measurements_complete = bool(request_rows) and all(
-            row["ok"] and row["token_timing_exact"] and row["output_count_consistent"]
+            row["ok"] and row["output_count_consistent"]
             for row in request_rows
         )
         speed_comparison_valid = (
@@ -420,12 +643,12 @@ def run_campaign(
                 "campaign_sha256": campaign_sha,
                 "workload_sha256": workload_sha,
                 "model_id": "Qwen3-0.6B",
-                "engine_order": ["lunaflux", "vllm", "sglang"],
+                "engine_order": list(engine_order),
                 "execution_order": order_rows,
                 "warmup_excluded": True,
                 "startup_time_excluded": True,
                 "persistent_servers_required": True,
-                "server_lifecycle": "one-engine-per-target-gpu-coordinate",
+                "server_lifecycle": "one-engine-per-target-gpu-trial",
                 "model_inventory_full_scan_count": 1,
                 "model_admission_sha256": admission_sha,
                 "lunaflux_authenticated_max_concurrency": capacity["max_concurrency"],
@@ -435,6 +658,12 @@ def run_campaign(
                 "speed_comparison_valid": speed_comparison_valid,
                 "correctness_failure_invalidates_speed_comparison": True,
                 "request_measurements_complete": request_measurements_complete,
+                "token_timing_exact_request_count": sum(
+                    1 for row in request_rows if row["token_timing_exact"]
+                ),
+                "token_timing_inexact_request_count": sum(
+                    1 for row in request_rows if not row["token_timing_exact"]
+                ),
                 "ollama_inference_rule": "forbidden: no Ollama result may be inferred",
                 "correctness_exact_match_count": sum(
                     1 for row in correctness if row["exact_greedy_match"]
@@ -444,14 +673,35 @@ def run_campaign(
                 ),
             },
         )
+        failure_marker = stage / "FAILURE.json"
+        if failure_marker.exists():
+            failure_marker.unlink()
         for path in sorted(stage.rglob("*"), reverse=True):
             os.chmod(path, 0o555 if path.is_dir() else 0o444)
         os.chmod(stage, 0o555)
         os.replace(stage, output)
         published = True
-    finally:
-        if not published and stage.exists():
-            shutil.rmtree(stage)
+    except BaseException as error:
+        if stage.exists():
+            try:
+                _write_json(
+                    stage / "FAILURE.json",
+                    {
+                        "schema": "lunaflux.qwen3-comparison-failure.v1",
+                        "error_type": type(error).__name__,
+                        "error_message": str(error)[:4096],
+                    },
+                )
+                failure = _failure_output_path(output)
+                os.replace(stage, failure)
+                raise AdapterError(
+                    f"campaign failed; diagnostics retained at {failure}: {error}"
+                ) from error
+            except AdapterError:
+                raise
+            except BaseException:
+                pass
+        raise
 
 
 def main() -> int:
@@ -459,13 +709,21 @@ def main() -> int:
     parser.add_argument("--campaign", required=True, help="ABSOLUTE_JSON#sha256=HEX")
     parser.add_argument("--workload", required=True, help="ABSOLUTE_JSONL#sha256=HEX")
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--resume", type=Path)
     arguments = parser.parse_args()
     try:
         _, campaign_bytes, campaign_sha = read_digest_suffixed(arguments.campaign, "campaign")
         _, workload_bytes, workload_sha = read_digest_suffixed(arguments.workload, "workload")
         campaign = validate_campaign(json.loads(campaign_bytes))
         workload = load_workload(workload_bytes)
-        run_campaign(campaign, workload, campaign_sha, workload_sha, arguments.output)
+        run_campaign(
+            campaign,
+            workload,
+            campaign_sha,
+            workload_sha,
+            arguments.output,
+            arguments.resume,
+        )
     except (ContractError, AdapterError, json.JSONDecodeError) as error:
         print(f"Qwen3 comparison rejected: {error}", file=sys.stderr)
         return 2

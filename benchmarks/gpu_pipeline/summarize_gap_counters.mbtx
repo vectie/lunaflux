@@ -1,0 +1,83 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let out = []
+  let text = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      out.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  out.push(text.to_string())
+  out
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COUNTER_ROOT") }
+  let path = if @fs.exists(root + "/counter-raw-v2.stdout") {
+    root + "/counter-raw-v2.stdout"
+  } else {
+    root + "/counter-raw.stdout"
+  }
+  let input = @fs.read_file(path).text()
+  let mut header : Array[String] = []
+  let records : Array[Json] = []
+  for line in input.split("\n") {
+    let row = csv(line)
+    if row.length() > 5 && row[0] == "ID" {
+      header = row
+      continue
+    }
+    if header.is_empty() || row.length() != header.length() || row[0].is_empty() {
+      continue
+    }
+    let record : Map[String, Json] = Map([])
+    for i in 0..<header.length() {
+      let key = header[i]
+      if ["ID", "Kernel Name", "Block Size", "Grid Size", "Device", "CC"].contains(
+          key,
+        ) ||
+        key.has_prefix("launch__") ||
+        key == "gpu__time_duration.sum" ||
+        key == "smsp__inst_executed.sum" ||
+        key.contains("warps_eligible") ||
+        key.contains("issue_active") ||
+        key.contains("cycles_active.avg.pct") ||
+        key.contains("warp_issue_stalled") ||
+        key.contains("mem_local_op") ||
+        key.contains("sectors_op_read.sum") ||
+        key.contains("mem_shared_op") ||
+        key.contains("dram__bytes") ||
+        key.contains("dram__throughput") ||
+        key == "sm__warps_active.avg.pct_of_peak_sustained_active" {
+        record[key] = Json(row[i])
+      }
+    }
+    records.push(@json.parse(Json(record).stringify()))
+  }
+  guard !records.is_empty() else { fail("counter rows absent") }
+  let result : Json = {
+    "records": records,
+    "scope": "Nsight kernel replay; reduced reference KV reserve; not end-to-end time",
+  }
+  @fs.write_file(
+    root + "/counter-summary.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("\{records.length()} counter records summarized")
+}

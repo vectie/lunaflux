@@ -125,6 +125,56 @@ class AdapterTests(unittest.TestCase):
             },
         )
 
+    def test_llama_cpp_uses_exact_tokens_and_disables_prompt_cache(self):
+        captured = []
+
+        def post(url, body, timeout):
+            captured.append((url, body, timeout))
+            return FixtureResponse(
+                [
+                    {"content": "a", "tokens": [97], "stop": False},
+                    {"content": "b", "tokens": [98], "stop": False},
+                    {"content": "", "tokens": [], "stop": True},
+                ]
+            )
+
+        with patch("benchmarks.qwen3_comparison.adapters._post_stream", post):
+            observation = generate(
+                self.engine("llama-cpp-completion-sse-v1"),
+                [21, 22],
+                2,
+                5,
+                lambda text: [],
+            )
+        self.assertEqual(observation.output_text, "ab")
+        self.assertEqual(observation.output_token_ids, [97, 98])
+        self.assertEqual(observation.stream_chunk_count, 2)
+        body = captured[0][1]
+        self.assertEqual(body["prompt"], [21, 22])
+        self.assertEqual(body["n_predict"], 2)
+        self.assertEqual(body["temperature"], 0)
+        self.assertEqual(body["top_k"], 1)
+        self.assertIs(body["cache_prompt"], False)
+        self.assertIs(body["return_tokens"], True)
+        self.assertIs(body["ignore_eos"], True)
+
+    def test_llama_cpp_requires_terminal_stop(self):
+        response = FixtureResponse(
+            [{"content": "a", "tokens": [97], "stop": False}]
+        )
+        with patch(
+            "benchmarks.qwen3_comparison.adapters._post_stream",
+            lambda url, body, timeout: response,
+        ):
+            with self.assertRaisesRegex(AdapterError, "terminal event"):
+                generate(
+                    self.engine("llama-cpp-completion-sse-v1"),
+                    [1],
+                    1,
+                    5,
+                    lambda text: [],
+                )
+
     def test_baselines_fail_closed_without_exact_output_token_ids(self):
         for adapter, event in (
             ("vllm-completions-sse-v1", {"choices": [{"text": "a"}]}),

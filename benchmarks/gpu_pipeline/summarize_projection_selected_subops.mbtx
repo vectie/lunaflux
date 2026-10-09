@@ -1,0 +1,124 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+// Only a semantic symbol may establish an operation. Library GEMM/GEMV grids
+// do not uniquely identify a model projection; preserve those unresolved.
+fn operation(name : String) -> String {
+  if name.contains("attention") || name.contains("flash_fwd") {
+    "attention"
+  } else if name.contains("gated_mlp") {
+    if name.contains("_down") {
+      "mlp-down"
+    } else {
+      "mlp-gate-up"
+    }
+  } else if name.contains("qkv_qknorm_rope_kvwrite") {
+    "projection-qknorm-rotary-cache"
+  } else if name.contains("dense_projection") {
+    "output-projection"
+  } else if name.contains("language_model_head") {
+    "vocabulary-head"
+  } else if name.contains("reshape_and_cache") {
+    "cache-write"
+  } else if name.contains("mul_silu_slice") {
+    "silu-gate-product"
+  } else if name.contains("gemvx::") || name.contains("ArgMaxOps") {
+    "unresolved-reference-operation"
+  } else if name.contains("cutlass::") ||
+    name.contains("nvjet_") ||
+    name.contains("gemm") {
+    "unresolved-reference-matrix"
+  } else {
+    "other-or-unresolved"
+  }
+}
+
+///|
+fn self_test() -> Unit raise {
+  assert_eq(operation("gated_mlp_down"), "mlp-down")
+  assert_eq(operation("gated_mlp_rows16"), "mlp-gate-up")
+  assert_eq(
+    operation("internal::gemvx::kernel grid=9496"),
+    "unresolved-reference-operation",
+  )
+  assert_eq(operation("nvjet_sm121 grid=64,2"), "unresolved-reference-matrix")
+  assert_eq(operation("flash_fwd_kernel<cutlass::bfloat16_t>"), "attention")
+  assert_eq(operation("ArgMaxOps"), "unresolved-reference-operation")
+  println(
+    "symbol attribution regressions passed; generic library grids remain unresolved",
+  )
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "--self-test"] {
+    self_test()
+    return
+  }
+  guard @env.args() is [_, root, output, .. work] && !work.is_empty() else {
+    fail("CAMPAIGN_ROOT NEW_OUTPUT EXACT_WORK_VECTOR... | --self-test")
+  }
+  let engines : Array[Json] = []
+  for engine in ["luna-full", "vllm", "sglang"] {
+    let source = root + "/" + engine + "/work-shapes.json"
+    guard @json.parse(@fs.read_file(source).text())
+      is { "steps": Array(steps), "kernels": Array(kernels), .. } else {
+      fail("logical work schema")
+    }
+    let selected : Array[Json] = []
+    for vector in work {
+      let step_count = steps
+        .filter(step => {
+          step is { "work": String(actual), .. } && actual == vector
+        })
+        .length()
+      let rows : Array[Json] = []
+      for kernel in kernels {
+        guard kernel
+          is { "work_and_kernel": String(key), "calls": calls, "ns": ns, .. } else {
+          fail("kernel schema")
+        }
+        let fields = key.split(" | ").to_array()
+        guard fields is [actual, name, config] else { fail("kernel key") }
+        if actual == vector {
+          guard step_count > 0 else { fail("kernel without matching CPU work") }
+          rows.push({
+            "operation": operation(name.to_owned()),
+            "symbol": name,
+            "configuration": config,
+            "calls": integer(calls),
+            "activity_ns": integer(ns),
+            "activity_ns_per_step": integer(ns) / step_count.to_int64(),
+          })
+        }
+      }
+      selected.push({ "work": vector, "steps": step_count, "kernels": rows })
+    }
+    engines.push({ "engine": engine, "source": source, "work": selected })
+  }
+  let result : Json = {
+    "schema": "lunaflux.selected-projection-suboperations.v1",
+    "engines": engines,
+    "scope": "exact query/history work vectors, all kernels retained; operation attribution from semantic symbols only; library matrix/GEMV/reduction operation remains unresolved; kernel activity is not completion time",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(
+    "wrote exact selected-suboperation attribution without grid-based guesses",
+  )
+}

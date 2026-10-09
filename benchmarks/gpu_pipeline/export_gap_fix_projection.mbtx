@@ -1,0 +1,43 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, name, .. choices] else {
+    fail("NEW_EMPTY_OUTPUT LABEL [SOURCE_PROBE_ARGUMENTS]")
+  }
+  guard name != "" &&
+    name
+    .iter()
+    .all(c => (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') else {
+    fail("simple source label required")
+  }
+  let args = [
+      "run", "--target", "native", "--warn-list", "-79-20-29-25", "tests/projection_pipeline_cuda_source_probe",
+      "--",
+    ] +
+    choices.to_owned()
+  let out = @shell.Cmd("moon", args).output(max_output_bytes=4194304)
+  @fs.write_file(
+    root + "/" + name + ".command.json",
+    Json(["moon"] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  guard out.stdout().contains("// RECIPE-BEGIN") else {
+    fail("source recipe missing")
+  }
+  @fs.write_file(root + "/" + name + ".cu", out.stdout(), create_mode=CreateNew)
+  println("source=" + root + "/" + name + ".cu")
+}

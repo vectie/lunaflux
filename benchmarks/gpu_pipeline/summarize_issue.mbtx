@@ -1,0 +1,27 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/json" }
+fn fields(line : StringView) -> Array[String] raise {
+ guard line.has_prefix("\"") && line.has_suffix("\"") else { fail("CSV row") }
+ line[1:line.length()-1].split("\",\"").map(x=>x.to_owned()).to_array()
+}
+async fn main {
+ guard @env.args() is [_,root,out] else { fail("ROOT NEW_JSON") }
+ let results : Array[Json] = []
+ for engine in ["lunaflux","vllm","sglang"] {
+  for k in 0..<4 {
+   let label="\{engine}-k\{k}-m1528-cold"
+   let lines=@fs.read_file(root+"/"+label+"-raw.stdout").text().split("\n").filter(x=>x.has_prefix("\"")).to_array()
+   let header=fields(lines[0]);let units=fields(lines[1]);let values=fields(lines[2])
+   assert_eq(header.length(),values.length());assert_eq(header.length(),units.length())
+   let metrics : Map[String,Json]=Map([])
+   for i,key in header {
+    if key=="Kernel Name" || key=="Block Size" || key=="Grid Size" || key=="gpu__time_duration.sum" || key.has_prefix("smsp__warps_") || key.has_prefix("smsp__issue_active") || key.has_prefix("smsp__inst_issued") || key=="smsp__inst_executed.sum" || key.has_prefix("smsp__warp_issue_stalled_") || key.has_prefix("launch__") || key.has_prefix("dram__") || key.has_prefix("lts__t_sectors_op_") || key.has_prefix("sm__pipe_tensor") || key.has_prefix("sm__cycles_elapsed") || key.has_prefix("l1tex__") || key.has_prefix("sass__inst_executed_register_spilling") {
+     metrics[key]={"value":values[i],"unit":units[i]}
+    }
+   }
+   let result : Json={"label":label,"metrics":metrics}
+   results.push(result)
+   println(result.stringify())
+  }
+ }
+ @fs.write_file(out,Json(results).stringify(indent=2),create_mode=CreateNew)
+}
