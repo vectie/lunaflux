@@ -1615,7 +1615,12 @@ NVFP4/MXFP4/BF16 weights with BF16 activations. It binds through the existing
 ordered executor. Small deterministic GB10 execution and memory/race/sync tests
 cover this implementation; full checkpoint execution, tensor-core expert GEMM,
 cross-rank reduction, and complete model serving are still unfinished. DeepSeek's
-dynamic-FP8 activation route is not implemented by this W4A16 path.
+dynamic-FP8 route now has separate five-stage expert execution: BF16 input
+quantization, gate/up, product quantization, down, and local combination.
+Pure precision IR explicitly selects amax floor, scale blocks, product rounding
+and routing-score placement. The family adapter supplies checkpoint names and
+geometry; bounded upload and ordered execution remain shared. Full decoder,
+shared-expert and cross-rank integration are still open.
 Joint diffusion now also has deterministic, request-shape-specialized mixed-
 precision video/audio latent-input projection, BF16 video/audio final-RMSNorm,
 row-aligned staged-BF16 final AdaLN-to-F32 boundaries, F32 video/audio

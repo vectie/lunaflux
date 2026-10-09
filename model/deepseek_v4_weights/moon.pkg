@@ -2,6 +2,7 @@ import {
   "vectie/lunaflux/model/deepseek_v4",
   "vectie/lunaflux/model/deepseek_v4_spec",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/precision_format",
 }
 
 supported_targets = "native"

@@ -8,6 +8,30 @@ Phases 5 through 9 remain open. References below to a complete graph, a Ready
 rank, startup admission, or a locally complete software slice are scoped
 claims and do not close those five phase gates.
 
+## Executable compact expert features — 2026-10-09
+
+The generic expert path now executes dynamic BF16-to-FP8/UE8M0 activation
+quantization before both gate/up and down. Precision IR explicitly describes
+amax floor, block geometry, SwiGLU rounding, routing-score placement, and compact
+workspace sizes. The DeepSeek adapter supplies FP4/FP8 checkpoint mappings and
+its F32-product/score-before-down semantics; GLM continues using its original
+BF16-activation route. Both share bounded expert-bank upload and the ordered
+AOT executor binder. No additional TLS or deployment-admission layer was added.
+
+Focused native tests pass 54/54. On the idle .178 GB10 Spark, the 128-wide
+FP4-weight/dynamic-FP8 expert probe passes six ordinary/zero-input live-row
+cases against an independent blockwise CPU oracle, with maximum observed
+absolute error 0. Input FP8 bytes and UE8M0 scales also match exactly.
+Memory, race and synchronization checks report no errors or leaks.
+The original NVFP4/MXFP4/BF16 expert probes still pass. Host memory stays at
+4.2 GiB used / 117 GiB available, with no remaining GPU process.
+
+This is module correctness, not a full-model or speed claim. Whole-model GLM,
+DeepSeek/DSpark and MiniMax execution integration is still unfinished.
+Warning-denied checks remain blocked by existing MoonBit deprecation warnings;
+ordinary native check, format and interface generation succeed. Those unrelated
+warning migrations remain paused.
+
 ## Latest sealed physical qualification — 2026-08-28
 
 The exact final30 source archive SHA-256 is

@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/model/deepseek_v4",
   "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/precision_format",
   "vectie/lunaflux/model/spec",
 }
 
@@ -20,6 +21,8 @@ pub fn materialization_readiness(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepS
 pub fn output_a_converted_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4OutputAConvertedLayout
 
 pub fn output_b_quantized_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4OutputBQuantizedLayout
+
+pub fn packed_expert_weights(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[DeepSeekV4PackedExpertWeight] raise
 
 pub fn query_a_quantized_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4QueryAQuantizedLayout
 
@@ -135,6 +138,13 @@ pub fn DeepSeekV4OutputBQuantizedLayout::output_width(Self) -> Int
 pub fn DeepSeekV4OutputBQuantizedLayout::scale_shape(Self) -> ReadOnlyArray[Int64]
 pub fn DeepSeekV4OutputBQuantizedLayout::tensor_parallel_shard_axis(Self) -> Int
 pub fn DeepSeekV4OutputBQuantizedLayout::weight_shape(Self) -> ReadOnlyArray[Int64]
+
+pub struct DeepSeekV4PackedExpertWeight {
+  // private fields
+}
+pub fn DeepSeekV4PackedExpertWeight::payload_name(Self) -> String
+pub fn DeepSeekV4PackedExpertWeight::representation(Self) -> @precision_format.Representation
+pub fn DeepSeekV4PackedExpertWeight::scales_name(Self) -> String
 
 pub(all) enum DeepSeekV4QuantizedPart {
   QuantizedWeight
