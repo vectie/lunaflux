@@ -2,6 +2,7 @@
 package "vectie/lunaflux/integration/glm53_packed_expert_upload"
 
 import {
+  "moonbitlang/async/socket",
   "vectie/lunaflux/compiler/decoder_pipeline_plan",
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
@@ -50,6 +51,15 @@ pub(all) suberror PackedExpertUploadError {
 }
 
 // Types and methods
+pub struct GlmActivationEdge {
+  // private fields
+}
+pub fn GlmActivationEdge::begin(Self, epoch~ : UInt64, live_rows~ : Int, local_now_millis~ : UInt64) -> Unit raise
+pub fn GlmActivationEdge::close(Self) -> Unit raise
+pub fn GlmActivationEdge::new(GlmDecoderStage, @socket.Tcp, outgoing~ : Bool, maximum_host_bytes~ : Int64, timeout_millis~ : UInt64) -> Self raise
+pub async fn GlmActivationEdge::poll(Self, local_now_millis~ : UInt64) -> Bool
+pub fn GlmActivationEdge::prepare(Self, @device.Context) -> Unit raise
+
 pub struct GlmDecoderSlice {
   // private fields
 }

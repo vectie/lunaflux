@@ -1,10 +1,10 @@
 ///|
-fn exercise_glm_stage(
+async fn exercise_glm_stage(
   checkpoint : @materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   limits : @streaming.StreamingSafetensorsLimits,
   weights : Int64,
-) -> Unit raise {
+) -> Unit {
   let baseline = live_resources()
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
@@ -130,7 +130,75 @@ fn exercise_glm_stage(
   assert_eq(end_allocations(), 0UL)
   assert_eq(enqueues() - queued, 864UL)
   assert_eq(blocking_syncs(), waits)
+  let listener = @socket.TcpServer::TcpServer(
+    @socket.Addr::parse("127.0.0.1:0"),
+  )
+  defer listener.close()
+  let client = @socket.Tcp::connect(listener.addr)
+  let (peer, _) = listener.accept()
+  let edge = @glm53_packed_expert_upload.GlmActivationEdge::new(
+    stage,
+    client,
+    outgoing=true,
+    maximum_host_bytes=5000000L,
+    timeout_millis=1000UL,
+  )
+  defer (edge.close() catch { _ => () })
+  edge.prepare(context)
+  let incoming = context.allocate(1048576L)
+  defer (incoming.close() catch { _ => () })
+  let receiver = @activation.ActivationLink::receiver(
+    peer,
+    maximum_rows=32,
+    row_bytes=32768,
+    maximum_host_bytes=5000000L,
+    timeout_millis=1000UL,
+  )
+  defer (receiver.close() catch { _ => () })
+  receiver.prepare(context, incoming)
   stage.submit(live_rows=1)
+  try edge.begin(epoch=1UL, live_rows=2, local_now_millis=0UL) catch {
+    @activation.ActivationLinkError::InvalidState => ()
+    e => raise e
+  } noraise {
+    _ => fail("transferred inactive producer rows")
+  }
+  edge.begin(epoch=1UL, live_rows=1, local_now_millis=0UL)
+  receiver.begin(epoch=1UL, live_rows=1, local_now_millis=0UL)
+  try stage.close() catch {
+    @device.DeviceError::Busy(OrderedExecutorClose) => ()
+    e => raise e
+  } noraise {
+    _ => fail("closed a transfer-leased stage")
+  }
+  let mut sent = false
+  let mut received = false
+  for _ in 0..<128 {
+    if !sent {
+      sent = edge.poll(local_now_millis=0UL)
+      if !sent {
+        try stage.submit(live_rows=1) catch {
+          @device.DeviceError::Busy(OrderedExecutorEnqueue) => ()
+          e => raise e
+        } noraise {
+          _ => fail("overwrote a pending activation transfer")
+        }
+      }
+    }
+    if !received {
+      received = receiver.poll(local_now_millis=0UL)
+    }
+    if sent && received {
+      break
+    }
+    @async.sleep(1)
+  }
+  assert_true(sent && received)
+  receiver.close()
+  incoming.close()
+  stage.submit(live_rows=1)
+  edge.begin(epoch=2UL, live_rows=1, local_now_millis=1UL)
+  edge.close()
   stage.close()
   stage.close()
   ports.close()

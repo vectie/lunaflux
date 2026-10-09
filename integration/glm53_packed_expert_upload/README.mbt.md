@@ -84,3 +84,12 @@ with zero measured hot allocations/blocking waits, rejects an undersized budget
 before allocation and releases active cancellation. Full worker delivery, non-greedy sampling,
 model-wide two-host execution and actual checkpoint numerical comparisons remain
 unfinished. Close the borrowing slice queue before closing the text frame.
+
+## Stage activation transfer
+
+`GlmActivationEdge` binds a prepared stage to the generic plain-TCP activation
+link. Outgoing transfer begins after producer submission and uses exactly its
+live rows; incoming transfer must complete before consumer submission. A retained
+stage lease prevents residual overwrite or closure during network/DMA progress.
+Close edges before stages. Request metadata and whole-model remote orchestration
+are still required; this does not make a partial stage a complete model worker.

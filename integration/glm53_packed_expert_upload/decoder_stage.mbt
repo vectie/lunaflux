@@ -13,6 +13,8 @@ pub struct GlmDecoderStage {
   priv vocabulary : Int
   priv residuals : Array[@device.Allocation]
   priv mut counts : @device.Allocation?
+  priv mut activation_leased : Bool
+  priv mut active_rows : Int
   priv mut status : RecurrentLayerState
 }
 
@@ -69,6 +71,8 @@ pub fn GlmDecoderStage::new(
     maximum_history,
     vocabulary: spec.vocabulary_size(),
     counts: None,
+    activation_leased: false,
+    active_rows: 0,
     residuals: [],
     status: Fresh,
   }
@@ -221,7 +225,7 @@ pub fn GlmDecoderStage::append_descriptors(
 
 ///|
 pub fn GlmDecoderStage::submit(self : Self, live_rows~ : Int) -> Unit raise {
-  guard self.status is Ready else {
+  guard self.status is Ready && !self.activation_leased else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
   }
   guard live_rows > 0 && live_rows <= self.maximum_rows else {
@@ -229,6 +233,7 @@ pub fn GlmDecoderStage::submit(self : Self, live_rows~ : Int) -> Unit raise {
   }
   self.status = Failed
   self.decoder.submit(live_rows~)
+  self.active_rows = live_rows
   self.status = Active
 }
 
@@ -252,6 +257,9 @@ pub fn GlmDecoderStage::poll(self : Self) -> Bool raise {
 pub fn GlmDecoderStage::close(self : Self) -> Unit raise {
   if self.status is Closed {
     return
+  }
+  guard !self.activation_leased else {
+    raise @device.DeviceError::Busy(OrderedExecutorClose)
   }
   self.status = Failed
   self.decoder.close()

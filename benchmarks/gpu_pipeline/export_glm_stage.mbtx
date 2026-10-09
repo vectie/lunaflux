@@ -1,0 +1,44 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, output, first, end, rows, history] else {
+    fail("NEW_CUDA_SOURCE FIRST_LAYER END_LAYER ROWS HISTORY")
+  }
+  for value in [first, end, rows, history] {
+    ignore(@string.parse_int(value))
+  }
+  let (code, out, err) = @process.collect_output("env", [
+    "LUNA_EXPORT_GLM_STAGE=1",
+    "LUNA_GLM_FIRST=" + first,
+    "LUNA_GLM_END=" + end,
+    "LUNA_GLM_ROWS=" + rows,
+    "LUNA_GLM_HISTORY=" + history,
+    "moon",
+    "test",
+    "--target",
+    "native",
+    "--release",
+    "--warn-list",
+    "-79",
+    "--diagnostic-limit",
+    "2",
+    "integration/glm53_packed_expert_upload",
+    "--filter",
+    "export prepared GLM stage source",
+  ])
+  assert_eq(code, 0, msg=err.text() + out.text())
+  guard out.text().split("LUNA_GLM_STAGE_BEGIN\n").to_array() is [_, tail] &&
+    tail.split("LUNA_GLM_STAGE_END").to_array() is [source, _] else {
+    fail("missing unique stage source export")
+  }
+  @fs.write_file(output, source.to_owned(), create_mode=CreateNew)
+  println("exported current prepared stage lowering")
+}

@@ -39,6 +39,8 @@ import {
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/compiler/decoder_pipeline_plan" @pipeline,
+  "vectie/lunaflux/integration/decoder_activation_link" @activation,
+  "moonbitlang/async/socket",
 } for "test"
 
 supported_targets = "native"

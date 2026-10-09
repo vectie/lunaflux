@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/runtime/remote_channel" @channel,
+  "moonbitlang/async/socket",
+}
+
+supported_targets = "native"

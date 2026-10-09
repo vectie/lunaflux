@@ -74,6 +74,8 @@ async test "checkpoint device owner uploads original dense rank and float contro
         payload_name="control",
       ),
     ]
+    device_fixture_lane.acquire()
+    defer device_fixture_lane.release()
     let baseline = live_resources()
     let context = @device.open_context(0)
     defer (context.close() catch { _ => () })

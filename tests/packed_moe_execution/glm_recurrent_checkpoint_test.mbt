@@ -150,6 +150,8 @@ async fn exercise_glm_checkpoint_owner(
         offset += count
       }
     }
+    device_fixture_lane.acquire()
+    defer device_fixture_lane.release()
     if with_decoder_stage {
       let vocabulary = @glm53_spec.Glm53FlashSpec::official().vocabulary_size()
       entries.push(

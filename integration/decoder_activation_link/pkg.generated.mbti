@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/decoder_activation_link"
+
+import {
+  "moonbitlang/async/socket",
+  "vectie/lunaflux/device",
+}
+
+// Values
+pub fn required_host_bytes(maximum_rows~ : Int, row_bytes~ : Int) -> Int64 raise ActivationLinkError
+
+// Errors
+pub(all) suberror ActivationLinkError {
+  InvalidGeometry
+  HostBudgetExceeded
+  InvalidState
+  MismatchedStep
+}
+
+// Types and methods
+pub struct ActivationLink {
+  // private fields
+}
+pub fn ActivationLink::begin(Self, epoch~ : UInt64, live_rows~ : Int, local_now_millis~ : UInt64) -> Unit raise
+pub fn ActivationLink::close(Self) -> Unit raise
+pub async fn ActivationLink::poll(Self, local_now_millis~ : UInt64) -> Bool
+pub fn ActivationLink::prepare(Self, @device.Context, @device.Allocation) -> Unit raise
+pub fn ActivationLink::receiver(@socket.Tcp, maximum_rows~ : Int, row_bytes~ : Int, maximum_host_bytes~ : Int64, timeout_millis~ : UInt64) -> Self raise
+pub fn ActivationLink::sender(@socket.Tcp, maximum_rows~ : Int, row_bytes~ : Int, maximum_host_bytes~ : Int64, timeout_millis~ : UInt64, producer_ready~ : () -> Bool raise) -> Self raise
+
+// Type aliases
+
+// Traits

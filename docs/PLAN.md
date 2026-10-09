@@ -7,6 +7,16 @@ and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
 warning migrations are paused. Retain existing ownership guarantees and focused
 tests, but do not make new hardening work a prerequisite for model execution.
 
+Activation transfer now has a plain framed-TCP/pinned-DMA execution owner and a
+GLM stage-bound lease. Producer retirement precedes download; complete receiver
+upload precedes consumer eligibility. Both composed 45-layer CUDA source halves
+compile on GB10; loopback device-double transfer and GLM lease regressions pass.
+Next propagate the same request metadata to rank-local ports, drive remote stage
+submission/completion and return terminal samples, then execute actual checkpoint
+weights under measured host budgets. This correctness transport is host staged,
+not GPUDirect/RDMA, and its async polling is not claimed heap-free. CUDA source
+compilation is not a whole-model numerical or performance test.
+
 Prepared GLM stages now assemble text boundaries + contiguous decoder + residual
 owners with aggregate pre-upload memory accounting. First/last stages load only
 their own global weights. A generic pure partitioner checks exact layer costs

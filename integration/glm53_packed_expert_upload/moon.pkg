@@ -25,6 +25,8 @@ import {
   "vectie/lunaflux/integration/text_io_frame" @text_frame,
   "vectie/lunaflux/integration/serial_decoder_worker" @serial_worker,
   "vectie/lunaflux/compiler/decoder_pipeline_plan" @pipeline,
+  "vectie/lunaflux/integration/decoder_activation_link" @activation,
+  "moonbitlang/async/socket",
 }
 
 supported_targets = "native"
@@ -34,4 +36,6 @@ import {
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
 } for "test"

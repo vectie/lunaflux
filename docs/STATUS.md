@@ -10,6 +10,42 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (activation execution edge): a model-neutral host-staged
+activation link now waits for producer queue retirement, downloads only live
+rows through a pinned DMA lane, sends unchanged tensor bytes over plain framed
+TCP, and publishes receiver completion only after upload retirement. Storage
+is fixed and budgeted at startup. Step epoch/row checks prevent a different
+step from entering device storage; they are execution semantics, not TLS or
+artifact admission. A GLM binding retains an activation lease that blocks stage
+resubmission/closure until transfer completion or explicit drained cancellation.
+The producer's submitted row count must equal its transferred row count.
+
+The real-loopback/socket + native-device-double regression passes byte-exact
+transfer, shorter-batch tail preservation, wrong-step rejection and resource
+balance. The updated official-shaped GLM first-stage fixture also passes stage
+lease/reuse, live-row and cancellation checks. These are not two-host GPU or
+real-checkpoint numerical results. Metadata propagation, remote stage control,
+terminal token delivery and whole-model execution remain unfinished.
+
+Both composed GLM CUDA sources (layers 0–21 and 22–44, one live-row capacity,
+history 64) compile to sm121 cubins on .178 GB10 with CUDA 13.0.88. Each compiler
+invocation uses a systemd user unit capped at 2 GiB/no swap/180 seconds; both
+exit zero. CUDA reports existing unused-variable warnings. The intervals are
+composition probes, not verified memory placements for actual checkpoint banks.
+Downloaded cubins match the remote SHA-256 values:
+`5a55ea7cadcffdfcff03b2ae5f01b20a19f8752d9627dde53d321a602f1c61d3`
+and `1b87370c872e8d68b4a9b626eec839b1f72d335b672c17a2da2ac7475a424e10`.
+Sources and downloads are preserved under
+`/tmp/lunaflux-glm-stage-aot-20261010.MaAHmXzr` locally and
+`/tmp/lunaflux-glm-stage-aot-20261010.SJAGDuv0` remotely. Source generation is
+an offline exporter; no request-path JIT or new GPU inference claim is added.
+The transfer package passes scoped warning-denied native checking with legacy
+warning 79 disabled. Whole-worktree warning-denied checking is not green:
+even with warning 79 disabled, existing qualification-test warnings remain.
+The first aggregate transfer run exposed process-global device-double counters
+being changed by concurrent async fixtures. Test-only device-lane serialization
+retains the exact counter assertions; runtime execution is unaffected.
+
 Update 2026-10-10 (stage assembly): a prepared GLM stage now owns boundary text
 weights, its connected decoder interval and distinct input/output residuals.
 Ingress loads only embedding, egress only norm/head, interior neither; the same
