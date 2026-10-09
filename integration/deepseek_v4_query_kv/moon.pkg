@@ -8,6 +8,8 @@ import {
   "vectie/lunaflux/kernels/quantized_query_kv_cuda_source" @source,
   "vectie/lunaflux/kernels/rotary_kv_cuda_source" @rotary_source,
   "vectie/lunaflux/integration/rotary_kv_frame" @rotary_frame,
+  "vectie/lunaflux/kernels/window_shared_kv_cuda_source" @window_source,
+  "vectie/lunaflux/integration/window_shared_kv_frame" @window_frame,
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/model/streaming_safetensors" @streaming,
   "vectie/lunaflux/device",

@@ -28,8 +28,11 @@ async test "official query and KV planes bind and stream without expansion" {
       ("wkv.weight", "F8_E4M3", shapes[4]),
       ("wkv.scale", "U8", shapes[5]),
       ("kv_norm.weight", "BF16", "\{spec.head_dimension()}"),
+      ("attn_sink", "F32", "\{spec.attention_head_count()}"),
     ]
-    let sizes = plan.weight_bytes()
+    let sizes = plan.weight_bytes()[:].to_owned()
+    let sink_bytes = spec.attention_head_count().to_int64() * 4L
+    sizes.push(sink_bytes)
     let parts : Array[String] = []
     let mut offset = 0L
     for i, (name, dtype, shape) in fields {
@@ -54,11 +57,11 @@ async test "official query and KV planes bind and stream without expansion" {
       maximum_shards=1,
       maximum_file_bytes=offset + 8192L,
       maximum_header_bytes=4096,
-      maximum_tensors_per_shard=8,
-      maximum_total_tensors=8,
+      maximum_tensors_per_shard=9,
+      maximum_total_tensors=9,
       maximum_rank=2,
       maximum_name_bytes=128,
-      maximum_dtype_specs=4,
+      maximum_dtype_specs=5,
       authentication_chunk_bytes=65536,
       maximum_copy_requests=8,
       maximum_copy_bytes=offset,
@@ -76,6 +79,7 @@ async test "official query and KV planes bind and stream without expansion" {
         ],
         dtype_specs=[
           @streaming.StreamingSafetensorsDTypeSpec::bfloat16(),
+          @streaming.StreamingSafetensorsDTypeSpec::float32(),
           @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E4M3"),
           @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E8M0"),
           @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("U8"),
@@ -99,7 +103,7 @@ async test "official query and KV planes bind and stream without expansion" {
     )
     assert_eq(
       owner.required_device_bytes(checkpoint),
-      offset + plan.workspace_bytes(),
+      offset - sink_bytes + plan.workspace_bytes(),
     )
     owner.close()
     let inputs = @deepseek_v4_query_kv.DeepSeekAttentionInputs::new(
@@ -116,10 +120,38 @@ async test "official query and KV planes bind and stream without expansion" {
     )
     assert_eq(
       inputs.required_device_bytes(checkpoint),
-      offset + plan.workspace_bytes() + rotary.workspace_bytes(),
+      offset - sink_bytes + plan.workspace_bytes() + rotary.workspace_bytes(),
     )
     inputs.close()
     inputs.close()
+    assert_eq(
+      @deepseek_v4_query_kv.bind_window_attention_sink(
+        checkpoint,
+        spec,
+        layer=0,
+      ).buffer_bytes(),
+      sink_bytes,
+    )
+    let attention = @deepseek_v4_query_kv.DeepSeekWindowAttention::new(
+      spec,
+      layer=0,
+      maximum_rows=1,
+      maximum_workspace_bytes=1048576L,
+    )
+    let window = @deepseek_v4_query_kv.window_attention_plan(
+      spec,
+      layer=0,
+      maximum_rows=1,
+      maximum_state_bytes=1048576L,
+    )
+    assert_eq(
+      attention.required_device_bytes(checkpoint),
+      offset +
+      plan.workspace_bytes() +
+      rotary.workspace_bytes() +
+      window.state_bytes(),
+    )
+    attention.close()
     let copied = [0L, 0L, 0L, 0L, 0L]
     checkpoint.transfer_weights(
       root,

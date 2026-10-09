@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/window_shared_kv_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn window_shared_kv_source(@precision_ir.WindowSharedKvPrecision, symbol_prefix~ : String) -> WindowSharedKvCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct WindowSharedKvCudaSource {
+  // private fields
+}
+pub fn WindowSharedKvCudaSource::launch(Self, Int) -> (Int, Int, Int)
+pub fn WindowSharedKvCudaSource::plan(Self) -> @precision_ir.WindowSharedKvPrecision
+pub fn WindowSharedKvCudaSource::source_bytes(Self) -> Bytes
+pub fn WindowSharedKvCudaSource::symbol(Self, Int) -> String
+
+// Type aliases
+
+// Traits

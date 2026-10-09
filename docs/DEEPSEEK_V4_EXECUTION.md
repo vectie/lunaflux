@@ -39,6 +39,15 @@ effects do not own or commit persistent KV state. GPU component correctness,
 determinism and three sanitizers pass on GB10; no whole-checkpoint generation
 or throughput result follows. Current detailed results are in `STATUS.md`.
 
+The subsequent `DeepSeekWindowAttention` owner now binds the actual learned
+sink and commits request-owned retained window state for compression-zero
+layers. Twelve prepared launches preserve one containing queue and exact
+startup accounting. Chunked prefill larger than the retained window, successive
+decode, reset and invalid-position isolation have component GPU/sanitizer
+coverage. Its output remains before inverse RoPE and learned output projections;
+compressed layers are rejected rather than replaced with window-only attention.
+The full compressed-state plan and complete decoder remain unfinished.
+
 | Boundary | Evidence required for executable support | Current state |
 |---|---|---|
 | Configuration | Bounded JSON parser rejects unknown fields and admits only exact architecture/model-type/profile geometry | Implemented in the family-owned exact config parser for all five profiles |

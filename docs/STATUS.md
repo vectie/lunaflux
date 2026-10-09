@@ -10,6 +10,32 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (retained shared-KV window execution): a model-neutral
+`WindowSharedKvPrecision` plan now accounts for the retained ring, sticky
+history/error state, append descriptor and BF16 attention output. Its prepared
+frame contributes reserve, causal attention with learned sink, exact-bit ring
+copy and history publication to the containing executor. Attention reads old
+history before overwriting slots, including when a new prefill chunk exceeds
+the window; reset, positional gaps and context overflow have explicit behavior.
+`DeepSeekWindowAttention` binds the actual F32 `attn_sink` and composes twelve
+launches with the checkpoint-backed query/KV and rotary prefix. Compression-zero
+layers only are executable through this boundary; compressed layers are
+explicitly rejected. Output is still before inverse RoPE and output projections,
+so this does not constitute a complete attention sublayer or model runner.
+
+The affected native aggregate passes 136/136, including the unchanged zero-warm-
+allocation wire/rank/generation regressions and a twelve-stage prepared queue
+with deterministic resource balance. GB10 `sm121` component correctness,
+memcheck with full leak checking, racecheck and synccheck pass under 2 GiB
+memory/no-swap user units. The latest numerical probe covers 256/13/1/127/256
+token chunks, inactive rows, reset, sticky invalid positions and context overflow;
+largest absolute error is 0.000122070312, and retained ring words match exactly.
+The four-kernel 256-row/two-head/512-width/128-window probe measures 1.180608 ms;
+this is not model throughput. Local evidence is
+`/tmp/lunaflux-shared-window-20261010.usL8tzuN`, remote evidence
+`/tmp/lunaflux-shared-window-20261010.gDOMLdyI`; downloaded binary SHA-256 is
+`27aa9db8e64824976e736cf19049218342e84465b4915cb347f3de97e2a809d0`.
+
 Update 2026-10-10 (checkpoint executable): `cmd/glm_checkpoint` now connects
 bounded real-config/shard inspection, actual-footprint two-rank placement,
 offline source export, prepared GLM stages, activation/control owners and

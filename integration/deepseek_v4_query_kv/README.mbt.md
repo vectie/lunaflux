@@ -27,8 +27,16 @@ KV's non-rotary prefix undergoes block-64 E4M3/power-of-two simulation and
 returns to BF16, preserving the positional suffix. The combined constructor
 and preparation account for all eight scratch buffers and compact weights.
 
-This is a single-rank, unsharded projection prefix, **not a complete attention
-layer or DeepSeek/DSpark model runner**. Sliding-window/compressed caches,
-index selection, attention, output projections and distributed head ownership
-are subsequent integration work. No performance
-claim follows from the small numerical fixture.
+`DeepSeekWindowAttention` additionally binds the checkpoint's F32 `attn_sink`
+and request-owned shared-KV ring. Twelve launches share the caller's executor:
+the eight input operations, then reserve, causal sink attention, bit-copy and
+history publication. Chunked prefill can exceed the window; old slots are not
+overwritten until all queries consume them. Its append descriptor joins the
+containing decoder's error boundary. The adapter explicitly rejects compressed
+layers, rather than substituting a window-only answer.
+
+These are single-rank components, **not a complete attention sublayer or
+DeepSeek/DSpark model runner**. Inverse output RoPE, grouped output projections,
+compressed cache/compressor/indexer and distributed head ownership remain
+subsequent integration work. No whole-model performance claim follows from
+the small numerical fixtures.

@@ -44,3 +44,11 @@ simulation block width, amax floor and scale law are immutable semantic inputs.
 Simulation publishes BF16 operands (StepWrite), not packed persistent cache
 storage or cache ownership (CacheCommit). Two exact output spans participate
 in the surrounding aggregate workspace ceiling before device allocation.
+
+WindowSharedKvPrecision owns a bounded shared-KV ring independently of maximum
+context length. Its CacheCommit effects attend against old history and current
+frame operands before retaining the latest window. Exact retained metadata,
+append descriptor and BF16 output sizes join the aggregate state budget.
+Single-request contiguous positions and explicit device reset define history;
+CUDA block geometry and the correctness lowering's shared-score limit remain
+outside the semantic plan.

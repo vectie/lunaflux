@@ -451,6 +451,15 @@ pub fn WeightSchema::new(ArrayView[OperandPlan], alignment_bytes~ : Int64, scrat
 pub fn WeightSchema::not_equal(Self, Self) -> Bool
 pub fn WeightSchema::to_repr(Self) -> @debug.Repr
 
+pub struct WindowSharedKvPrecision {
+  // private fields
+}
+pub fn WindowSharedKvPrecision::buffer_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn WindowSharedKvPrecision::effect(Self) -> NumericEffect
+pub fn WindowSharedKvPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn WindowSharedKvPrecision::new(query_heads~ : Int, head_width~ : Int, window_tokens~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn WindowSharedKvPrecision::state_bytes(Self) -> Int64
+
 // Type aliases
 
 // Traits
