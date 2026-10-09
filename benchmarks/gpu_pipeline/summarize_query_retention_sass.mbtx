@@ -1,0 +1,86 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn csv(line : String) -> Array[String] {
+  let result : Array[String] = []
+  let mut cell = StringBuilder()
+  for i = 0, quoted = false; i < line.length(); {
+    if line[i] == '"' {
+      if quoted && i + 1 < line.length() && line[i + 1] == '"' {
+        cell.write_string("\"")
+        continue i + 2, quoted
+      }
+      continue i + 1, !quoted
+    }
+    if line[i] == ',' && !quoted {
+      result.push(cell.to_string())
+      cell = StringBuilder()
+    } else {
+      cell.write_string(line[i:i + 1].to_owned())
+    }
+    continue i + 1, quoted
+  }
+  result.push(cell.to_string())
+  result
+}
+
+///|
+fn sums(text : String) -> Map[String, Int64] raise {
+  let counts : Map[String, Int64] = Map([])
+  for line in text.split("\n") {
+    let cells = csv(line.to_owned())
+    if cells.length() < 7 || !cells[0].has_prefix("0x") {
+      continue
+    }
+    let words = cells[1].trim().split(" ").filter(x => !x.is_empty()).to_array()
+    if words.is_empty() {
+      continue
+    }
+    let opcode = words[if words[0].has_prefix("@") { 1 } else { 0 }]
+    .split(".")
+    .to_array()[0].to_owned()
+    let count = @string.parse_int64(cells[5])
+    counts[opcode] = counts.get(opcode).unwrap_or(0L) + count
+    counts["TOTAL"] = counts.get("TOTAL").unwrap_or(0L) + count
+    if opcode == "MOV" && cells[1].contains(", R") {
+      counts["MOV_REGISTER_SOURCE"] = counts
+        .get("MOV_REGISTER_SOURCE")
+        .unwrap_or(0L) +
+        count
+    }
+  }
+  counts
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, baseline, candidate] else {
+    fail("BASELINE_SASS_CSV CANDIDATE_SASS_CSV")
+  }
+  let before = sums(@fs.read_file(baseline).text())
+  let after = sums(@fs.read_file(candidate).text())
+  let keys : Map[String, Bool] = Map([])
+  for key, _ in before {
+    keys[key] = true
+  }
+  for key, _ in after {
+    keys[key] = true
+  }
+  let rows = keys
+    .keys()
+    .to_array()
+    .map(key => {
+      (key, before.get(key).unwrap_or(0L), after.get(key).unwrap_or(0L))
+    })
+  rows.sort_by((a, b) => (b.2 - b.1).compare(a.2 - a.1))
+  println("opcode baseline_warp_instructions candidate_warp_instructions delta")
+  for (key, old, fresh) in rows {
+    println("\{key} \{old} \{fresh} \{fresh-old}")
+  }
+}

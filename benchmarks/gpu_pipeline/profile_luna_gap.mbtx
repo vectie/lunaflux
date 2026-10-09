@@ -1,0 +1,262 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args).output(max_output_bytes=67108864)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  r.stdout()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let r = @shell.Cmd("sha256sum", [path]).output()
+  r.check()
+  r.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn main {
+  let (args, diagnostic) = match @env.args() {
+    [.. args, "--diagnostic-launcher", launcher] => (args, Some(launcher))
+    args => (args, None)
+  }
+  guard args is [_, base, root, regex] else {
+    fail(
+      "COMPLETED_TRACE NEW_EMPTY_ROOT REGEX [--diagnostic-launcher COMPLETED_MARKER_CAPTURE]",
+    )
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  // Keep the measured worker unchanged. Only the disposable launcher retains
+  // profiler injection; CPU-marker workers require stderr and are not needed
+  // under hardware replay. The diagnostic capture supplies its exact client.
+  let launcher = diagnostic.unwrap_or(base)
+  let cli = launcher + "/source/_build/native/release/build/"
+  let name = "lunaflux-gap-luna-" +
+    root.split("/").to_array().last().unwrap().to_owned()
+  let hash = sha(base + "/deployment/lunaflux.launch.json")
+  let args = [
+    "run",
+    "-d",
+    "--name",
+    name,
+    "--gpus",
+    "all",
+    "--network",
+    "host",
+    "--ipc",
+    "host",
+    "--memory",
+    "64g",
+    "--memory-swap",
+    "64g",
+    "--cap-add",
+    "SYS_ADMIN",
+    "--security-opt",
+    "seccomp=unconfined",
+    "--mount",
+    "type=bind,source=/opt/nvidia,target=/opt/host-nvidia,readonly",
+    "--mount",
+    "type=bind,source=/home/wlc004s,target=/home/wlc004s,readonly",
+    "--mount",
+    "type=bind,source=" + root + ",target=" + root,
+    "nvcr.io/nvidia/vllm:26.01-py3",
+    "/opt/host-nvidia/nsight-compute/2025.3.1/ncu",
+    "--target-processes",
+    "all",
+    "--filter-mode",
+    "per-launch-config",
+    "--config-file",
+    "off",
+    "--clock-control",
+    "none",
+    "--cache-control",
+    "none",
+    "--kernel-name-base",
+    "function",
+    "--kernel-name",
+    regex,
+    "--launch-count",
+    "1",
+    "--section",
+    "LaunchStats",
+    "--section",
+    "Occupancy",
+    "--section",
+    "SpeedOfLight",
+    "--section",
+    "SchedulerStats",
+    "--section",
+    "WarpStateStats",
+    "--section",
+    "MemoryWorkloadAnalysis",
+    "--section",
+    "InstructionStats",
+    "--section",
+    "SourceCounters",
+    "--export",
+    root + "/counter",
+    cli +
+    "tests/qwen3_bf16_serving_supervisor/qwen3_bf16_serving_supervisor.exe",
+    cli + "cmd/lunaflux/lunaflux.exe",
+    base + "/deployment#sha256=" + hash,
+    root + "/runtime.stdout",
+    root + "/runtime.stderr",
+    root + "/drain",
+  ]
+  // Offline profiling only: launch the supervisor directly. A privilege-changing
+  // setpriv target prevents Nsight injection before main (reproduced with the
+  // supervisor's device-free usage path). This isolated controller already owns
+  // SYS_ADMIN; it is not a deployment or a production launch recipe.
+  args.insert(2, "--workdir")
+  args.insert(3, base + "/source")
+  let unit = name + "-bridge"
+  errdefer ignore(
+    @shell.Cmd("systemctl", ["--user", "stop", unit + ".service"]).output(),
+  )
+  errdefer ignore(@shell.Cmd("docker", ["stop", "--time", "15", name]).output())
+  ignore(capture(root, "launch", "docker", args))
+  let bridge = cli +
+    "cmd/lunaflux_qwen3_token_id_bridge/lunaflux_qwen3_token_id_bridge.exe"
+  let model = "/home/wlc004s/lunaflux-spark-test.5kAEkw/qwen3-0.6b"
+  let exported = @fs.read_file(base + "/export.stdout").text()
+  let rows = exported
+    .split("\n")
+    .filter(x => x.has_prefix("model_plan_sha256="))
+    .to_array()
+  guard rows is [plan] else { fail("model plan") }
+  @shell.Cmd("systemd-run", [
+    "--user",
+    "--unit=" + unit,
+    "--property=MemoryMax=2G",
+    "--property=MemorySwapMax=0",
+    "--property=RuntimeMaxSec=900",
+    bridge,
+    bridge + "#sha256=" + sha(bridge),
+    model + "/tokenizer.json#sha256=" + sha(model + "/tokenizer.json"),
+    base + "/deployment/lunaflux.launch.json#sha256=" + hash,
+    base + "/capacity.json#sha256=" + sha(base + "/capacity.json"),
+    "127.0.0.1:5062",
+    "127.0.0.1:5061",
+    sha(model + "/model.safetensors"),
+    plan[18:].to_owned(),
+    "4096",
+    "256",
+    "151935",
+    "40960",
+  ]).run()
+  let samples = StringBuilder()
+  let mut done = false
+  errdefer @fs.write_file(
+    root + "/memory-interrupted.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      while !done {
+        let lines = @fs.read_file("/proc/meminfo")
+          .text()
+          .split("\n")
+          .filter(x => x.has_prefix("MemAvailable:"))
+          .to_array()
+        guard lines is [line] else { fail("MemAvailable") }
+        let free = @string.parse_int64(
+          line.split(" ").filter(x => !x.is_empty()).to_array()[1],
+        )
+        samples.write_string("\{@async.now()},\{free}\n")
+        guard free >= 33554432L else { fail("32 GiB reserve breached") }
+        @async.sleep(500)
+      }
+    })
+    let mut ready = false
+    for _ in 0..<240 {
+      let r = @shell.Cmd("ss", ["-ltnH", "sport", "=", ":5061"]).output()
+      if r.exit_code() == 0 && !r.stdout().trim().is_empty() {
+        ready = true
+        break
+      }
+      @async.sleep(500)
+    }
+    guard ready else { fail("readiness") }
+    ignore(
+      capture(root, "client", base + "/toolchain/bin/moon", [
+        "run",
+        launcher + "/client.mbtx",
+        "lunaflux",
+        root + "/requests",
+      ]),
+    )
+    @fs.write_file(
+      root + "/drain",
+      "diagnostic complete\n",
+      create_mode=CreateNew,
+    )
+    ignore(capture(root, "container-wait", "docker", ["wait", name]))
+    done = true
+  })
+  @fs.write_file(
+    root + "/memory.csv",
+    samples.to_string(),
+    create_mode=CreateNew,
+  )
+  ignore(capture(root, "logs", "docker", ["logs", name]))
+  ignore(capture(root, "final-container", "docker", ["inspect", name]))
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  for page in ["raw"] {
+    ignore(
+      capture(
+        root,
+        "counter-" + page,
+        ncu,
+        [
+          "--import",
+          root + "/counter.ncu-rep",
+          "--page",
+          page,
+          "--csv",
+          "--print-units",
+          "base",
+        ] +
+        (if page == "source" { ["--print-source", "sass"] } else { [] }),
+      ),
+    )
+  }
+  @shell.Cmd("systemctl", ["--user", "stop", unit + ".service"]).run()
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed\nscope=profiled replay, not serving throughput\n",
+    create_mode=CreateNew,
+  )
+}

@@ -190,6 +190,24 @@ def _verify_package_version(engine: dict[str, Any]) -> None:
         if engine["package_version"] != engine["revision_sha256"]:
             raise ContractError("LunaFlux package revision identity mismatch")
         return
+    if engine["name"] == "llama.cpp":
+        executable = Path(engine["environment_prefix"]) / "build-cuda/bin/llama-server"
+        completed = subprocess.run(
+            [str(executable), "--version"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+            text=True,
+            timeout=30,
+        )
+        observed = next(
+            (line.removeprefix("version: ") for line in completed.stdout.splitlines() if line.startswith("version: ")),
+            None,
+        )
+        if completed.returncode != 0 or observed != engine["package_version"]:
+            raise ContractError("llama.cpp package version identity mismatch")
+        return
     distribution = {"vllm": "vllm", "sglang": "sglang"}[engine["name"]]
     interpreter = Path(engine["environment_prefix"]) / "bin/python"
     completed = subprocess.run(
@@ -245,6 +263,8 @@ def lifecycle_argv(
                 str(native["max_context_tokens"]),
             ]
         )
+    elif engine["name"] == "llama.cpp":
+        argv.append(engine["configuration_sha256"])
     return argv
 
 

@@ -1,0 +1,40 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+async fn run(root : String, label : String, program : String, args : Array[String]) -> String {
+  @fs.write_file(root + "/" + label + ".command.json", Json([program] + args).stringify(), create_mode=CreateNew)
+  let (code, output, error) = @process.collect_output(program, args)
+  @fs.write_file(root + "/" + label + ".stdout", output, create_mode=CreateNew)
+  @fs.write_file(root + "/" + label + ".stderr", error, create_mode=CreateNew)
+  @fs.write_file(root + "/" + label + ".exit", code.to_string(), create_mode=CreateNew)
+  guard code == 0 else { fail(error.text() + output.text()) }
+  println(label + " completed")
+  output.text()
+}
+
+async fn main {
+  guard @env.args() is [_, local_root, remote_root, source] else {
+    fail("usage: NEW_LOCAL_ROOT NEW_REMOTE_ROOT LOCAL_CAPACITY_CU")
+  }
+  guard remote_root.has_prefix("/tmp/lunaflux-pipeline-") && !remote_root.contains(" ") else { fail("expected dedicated remote directory") }
+  @fs.mkdir(local_root)
+  let ssh = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-p", "12321", "jiaanguo@106.39.18.146"]
+  let device = "GPU-50c44f23-00cd-8871-b4c7-0c5a62d3e7f6"
+  let inventory = run(local_root,"device-before","ssh",ssh+["nvidia-smi", "--query-gpu=uuid,pci.bus_id,name,clocks.sm,clocks.mem,temperature.gpu,power.draw", "--format=csv"])
+  guard inventory.contains(device) && inventory.contains("00000000:17:00.0") else { fail("wrong device") }
+  guard run(local_root,"idle-before","ssh",ssh+["nvidia-smi","--query-compute-apps=pid","--format=csv,noheader"]).trim().is_empty() else { fail("GPU experiment requires idle host") }
+  ignore(run(local_root,"mkdir","ssh",ssh+["mkdir",remote_root]))
+  ignore(run(local_root,"upload","scp",["-P","12321",source,"jiaanguo@106.39.18.146:"+remote_root+"/capacity.cu"]))
+  ignore(run(local_root,"compile","ssh",ssh+["/usr/local/cuda-13.1/bin/nvcc","-O3","-lineinfo","-arch=sm_120",remote_root+"/capacity.cu","-lcublas","-o",remote_root+"/capacity"]))
+  ignore(run(local_root,"identity","ssh",ssh+["sha256sum",remote_root+"/capacity.cu",remote_root+"/capacity","/usr/local/cuda-13.1/bin/nvcc"]))
+  let result = run(local_root,"capacity","ssh",ssh+["env","CUDA_VISIBLE_DEVICES="+device,remote_root+"/capacity"])
+  guard result.contains("\"outcome\":\"complete\"") else { fail("incomplete calibration") }
+  ignore(run(local_root,"device-after","ssh",ssh+["nvidia-smi", "--query-gpu=uuid,pci.bus_id,clocks.sm,clocks.mem,temperature.gpu,power.draw", "--format=csv"]))
+  guard run(local_root,"idle-after","ssh",ssh+["nvidia-smi","--query-compute-apps=pid","--format=csv,noheader"]).trim().is_empty() else { fail("post-calibration process remains") }
+  @fs.write_file(local_root+"/RESULT.txt","outcome=complete\nscope=hardware-calibration-not-serving\n",create_mode=CreateNew)
+}

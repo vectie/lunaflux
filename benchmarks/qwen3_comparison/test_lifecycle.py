@@ -16,7 +16,11 @@ from benchmarks.qwen3_comparison.lifecycle import (
     validate_lunaflux_capacity,
     validate_model_admission,
 )
-from benchmarks.qwen3_comparison.test_campaign import digest, fixture_campaign
+from benchmarks.qwen3_comparison.test_campaign import (
+    digest,
+    fixture_campaign,
+    four_engine_fixture_campaign,
+)
 
 
 class LifecycleTests(unittest.TestCase):
@@ -50,6 +54,16 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(argv[7], engine["lunaflux_lifecycle"]["runtime_executable"])
         self.assertEqual(argv[9], engine["lunaflux_lifecycle"]["bridge_executable"])
         self.assertEqual(argv[20:], ["151935", "40960"])
+
+    def test_llama_cpp_launcher_argv_binds_derived_gguf_digest(self):
+        campaign = four_engine_fixture_campaign()
+        engine = campaign["engines"][3]
+        argv = lifecycle_argv(
+            engine, campaign, "/stage/admission.json#sha256=" + digest("a")
+        )
+        self.assertEqual(argv[0], "/launchers/llama.cpp")
+        self.assertEqual(argv[-3:], ["127.0.0.1", "8103", digest("7")])
+        self.assertEqual(len(argv), 8)
 
     def test_server_environment_isolates_exact_measured_gpu(self):
         campaign = fixture_campaign()

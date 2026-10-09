@@ -1,0 +1,30 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/core/env", "moonbitlang/core/string" }
+async fn main {
+ guard @env.args() is [_,root] else { fail("EXTRACTED_ROOT") }
+ for (q,r,p) in [(32,1,0),(32,1,512),(32,1,4096),(32,1,8192),(128,1,0),(128,1,512),(128,1,4096),(128,1,8192),(1528,1,0),(1528,1,512),(1528,1,4096),(2048,1,0),(2048,1,4096),(1528,8,0),(1528,8,512),(1528,8,4096),(33,1,513),(129,1,4097)] {
+  let label="q\{q}-r\{r}-past\{p}"
+  let lines=@fs.read_file(root+"/attention-timing/"+label+".stdout").text()
+  let times : Array[Double]=[]
+  for line in lines.split("\n") {
+   if line.has_prefix("tokens=") {
+    assert_true(line.contains("bitwise=true maxabs=0"))
+    for field in line.split(" ") {
+     if field.has_prefix("new_us=") { times.push(@string.parse_double(field[7:].to_owned())) }
+    }
+   }
+  }
+  assert_eq(times.length(),5)
+  println("\{label}: mean_us=\{times.fold(init=0.0,(a,b)=>a+b)/5.0}")
+ }
+ for label in ["q32-r1-past4096","q128-r1-past4096","q1528-r1-past0","q1528-r8-past4096"] {
+  let lines=@fs.read_file(root+"/attention-counters/"+label+"-raw.stdout").text().split("\n").filter(x=>x.has_prefix("\"")).to_array()
+  let fields=lines.map(line=>line[1:line.length()-1].split("\",\"").map(x=>x.to_owned()).to_array())
+  assert_eq(fields[0].length(),fields[2].length())
+  println(label)
+  for i,key in fields[0] {
+   if key=="gpu__time_duration.sum" || key=="smsp__warps_eligible.avg.per_cycle_active" || key=="sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed" || key=="smsp__inst_executed.sum" || key.contains("bytes") || key.contains("bank_conflicts") || key.contains("spilling_requests") || key.contains("shared_nway") || key.contains("scoreboard") || key.contains("stall_barrier") {
+    println("\{key}=\{fields[2][i]} \{fields[1][i]}")
+   }
+  }
+ }
+}

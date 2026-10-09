@@ -1,0 +1,136 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, moon] else {
+    fail("COMPLETED_DIAGNOSTIC_ROOT MOON")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU occupied") }
+  for kind in ["ingress", "prefill", "decode"] {
+    if !@fs.exists(root + "/luna-existing-" + kind + "/sass-summary.json") &&
+      !@fs.exists(root + "/luna-existing-" + kind + "/sass-summary-v2.json") {
+      @shell.Cmd(moon, [
+        "run",
+        root + "/summarize_gap_sass.mbtx",
+        "--",
+        root + "/luna-existing-" + kind,
+      ]).run()
+    }
+  }
+  for name in ["luna-counters", "luna-counters-user", "luna-counters-diag"] {
+    let container = "lunaflux-gap-luna-" + name
+    for command in ["inspect", "logs"] {
+      if @fs.exists(root + "/" + name + "/preserved-" + command + ".stdout") {
+        continue
+      }
+      let r = @shell.Cmd("docker", [command, container]).output(
+        max_output_bytes=16777216,
+      )
+      @fs.write_file(
+        root + "/" + name + "/preserved-" + command + ".stdout",
+        r.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/" + name + "/preserved-" + command + ".stderr",
+        r.stderr(),
+        create_mode=CreateNew,
+      )
+      r.check()
+    }
+  }
+  let memories : Array[Json] = []
+  for
+    name in [
+      "vllm-trace", "sglang-trace", "vllm-gemm-counters", "vllm-attention-counters",
+      "sglang-selected-counters",
+    ] {
+    let path = root + "/" + name + "/memory.csv"
+    let mut minimum = 9223372036854775807L
+    for line in @fs.read_file(path).text().split("\n") {
+      if !line.is_empty() {
+        guard line.split(",").to_array() is [_, available] else {
+          fail("memory sample")
+        }
+        minimum = Int64::min(minimum, @string.parse_int64(available))
+      }
+    }
+    memories.push({
+      "campaign": name,
+      "minimum_available_kib": minimum,
+      "reserve_kib": Json(33554432L),
+    })
+  }
+  if !@fs.exists(root + "/memory-summary.json") {
+    @fs.write_file(
+      root + "/memory-summary.json",
+      Json(memories).stringify(indent=2),
+      create_mode=CreateNew,
+    )
+  }
+  if !@fs.exists(root + "/DIAGNOSTIC_SCOPE.txt") {
+    @fs.write_file(
+      root + "/DIAGNOSTIC_SCOPE.txt",
+      "Fresh serial service traces and reference kernel replays. Existing exact-selected Luna counters are explicitly reused. Three isolated Luna serving-replay attempts exited 6 before any CUDA kernel; no OOM observed, cause unresolved. The original broad vLLM counter attempt was stopped by the memory-reserve guard. Failed attempts are not performance results. Production source/runtime were not changed.\n",
+      create_mode=CreateNew,
+    )
+  }
+  let found = @shell.Cmd("find", [
+    root, "-type", "d", "(", "-name", "_build", "-o", "-name", ".mooncakes", "-o",
+    "-name", "source", "-o", "-name", "deployment", "-o", "-name", "toolchain", ")",
+    "-prune", "-o", "-type", "f", "-readable", "-print",
+  ]).output(max_output_bytes=16777216)
+  found.check()
+  let files = found
+    .stdout()
+    .split("\n")
+    .filter(x => !x.is_empty())
+    .to_array()
+    .map(x => x[root.length() + 1:].to_owned())
+  files.sort()
+  let checks = StringBuilder()
+  for file in files {
+    let r = @shell.Cmd("sha256sum", [root + "/" + file]).output()
+    r.check()
+    checks.write_string(
+      r.stdout().split(" ").to_array()[0].to_owned() + "  " + file + "\n",
+    )
+  }
+  @fs.write_file(
+    root + "/FILES.v3.sha256",
+    checks.to_string(),
+    create_mode=CreateNew,
+  )
+  files.push("FILES.v3.sha256")
+  @fs.write_file(
+    root + "/archive-files-v3.txt",
+    files.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  let archive = root + ".v3.tar.gz"
+  guard !@fs.exists(archive) else { fail("archive exists") }
+  @shell.Cmd("tar", [
+    "-czf",
+    archive,
+    "-C",
+    root,
+    "-T",
+    root + "/archive-files-v3.txt",
+  ]).run()
+  let hash = @shell.Cmd("sha256sum", [archive]).output()
+  hash.check()
+  @fs.write_file(root + "/ARCHIVE.v3.txt", hash.stdout(), create_mode=CreateNew)
+  println(hash.stdout())
+}

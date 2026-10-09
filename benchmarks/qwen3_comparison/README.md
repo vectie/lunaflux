@@ -1,6 +1,6 @@
 # Qwen3-0.6B comparative benchmark
 
-This external harness compares only LunaFlux, vLLM, and SGLang on the pinned
+This external harness compares LunaFlux, vLLM, SGLang, and llama.cpp on the pinned
 dense Qwen3-0.6B model. It is not imported by the serving runtime, does not
 install packages, does not download models, and does not contain a benchmark
 result.
@@ -13,23 +13,30 @@ text-rendering and direct-tokenization paths. The source-model inventory and
 the LunaFlux converted numeric artifact/route identities are independently
 bound in the campaign.
 
-Servers must not be prestarted. For every Latin-square coordinate the harness
-admits a clean target GPU, launches exactly one engine with a digest-pinned
+Servers must not be prestarted. For every engine in each Latin-square trial the
+harness admits a clean target GPU, launches exactly one engine with a digest-pinned
 absolute launcher, verifies its exact package, process group, executable
 identities, model, and
-health identity, performs excluded warmups, measures the coordinate, drains
+health identity, performs excluded warmups, measures every token-shape and
+concurrency coordinate, drains
 and terminates the owned process group, waits for cooldown, and admits a clean
 GPU again. Startup, readiness, warmup, drain, shutdown, and cooldown time are
-all outside the measured interval. Each prefill/decode profile runs at
-concurrency 1, 8, and 32 in three fixed Latin-square rounds:
+all outside the measured interval. Schema v2 measures the fixed `(input,
+output)` token vector `(59,256)`, `(128,128)`, `(512,64)`, and `(1528,32)`;
+each shape runs at concurrency 1, 8, and 32. This makes token counts a vector
+rather than a single favorable point. Schema v2 uses four fixed Latin-square
+rounds:
 
-1. LunaFlux, vLLM, SGLang;
-2. vLLM, SGLang, LunaFlux;
-3. SGLang, LunaFlux, vLLM.
+1. LunaFlux, vLLM, SGLang, llama.cpp;
+2. vLLM, SGLang, llama.cpp, LunaFlux;
+3. SGLang, llama.cpp, LunaFlux, vLLM;
+4. llama.cpp, LunaFlux, vLLM, SGLang.
+
+Schema v1 remains available for archived three-engine campaigns.
 
 The child environment binds `CUDA_DEVICE_ORDER=PCI_BUS_ID` and
 `CUDA_VISIBLE_DEVICES` to the same GPU UUID that
-the lifecycle and memory sampler inspect. Both baseline adapters consume the
+the lifecycle and memory sampler inspect. All baseline adapters consume the
 engines' exact streamed output-token IDs: vLLM uses
 `return_token_ids=true`, while SGLang runs with `--skip-tokenizer-init` and
 consumes `/generate`'s cumulative `output_ids` using its native
@@ -41,10 +48,14 @@ used as a substitute for correctness. The exact output IDs from every engine are
 the same pinned Qwen tokenizer after the measured response completes. Both
 launchers bind a one-token stream
 interval so per-token timing fails closed if an engine batches token events.
-Each configured warmup is a complete round at the profile's declared
+llama.cpp receives the same prompt token IDs through `/completion`, returns raw
+streamed `tokens`, and sets `cache_prompt=false`; it runs the unquantized BF16
+GGUF conversion with continuous batching, Flash Attention, BF16 KV cache, 32
+slots, and a 65,536-token shared context (2,048 tokens per slot). Each
+configured warmup is a complete round at the profile's declared
 concurrency, rather than a sequential request that leaves c8/c32 batching and
 CUDA-graph paths cold.
-All three adapters also bind `ignore_eos=true`; the prefill and decode profiles
+All four adapters also bind `ignore_eos=true`; the prefill and decode profiles
 therefore measure the same fixed 32- and 256-token continuations rather than
 engine-specific EOS stopping behavior.
 vLLM is launched with `--generation-config vllm`; SGLang receives the same
@@ -54,7 +65,7 @@ The hardware-capacity declaration must admit concurrency 32. LunaFlux must
 also supply a digest-bound authenticated capacity receipt for the exact model,
 configuration, runtime executable, and diagnostic token-ID bridge with
 `max_concurrency >= 32`; otherwise the campaign fails before measurement.
-Prefix reuse is disabled for LunaFlux, vLLM, and SGLang; all three descriptors
+Prefix reuse is disabled for every engine; all four descriptors
 bind FCFS scheduling, automatic KV-cache dtype, and a 32-sequence ceiling.
 Those policy fields are copied into every trial and lifecycle record so a
 default or flag drift cannot silently enter a speed comparison.
@@ -115,6 +126,17 @@ CLI arguments, model inventory, GPU identity, and workload. LunaFlux alone
 binds its real lowercase source revision SHA-256 in both `revision_sha256` and
 `package_version`.
 
+llama.cpp uses the same first six lifecycle fields plus the exact BF16 GGUF
+SHA-256. Its root must contain `build-cuda/bin/llama-server` and
+`models/Qwen3-0.6B-BF16.gguf`; both are digest-bound by the campaign:
+
+```sh
+scripts/start-qwen3-llama-cpp-benchmark-server.sh \
+  ABS_LLAMA_CPP_ROOT EXACT_LLAMA_CPP_VERSION ABS_PINNED_QWEN3_ROOT \
+  ABS_MODEL_ADMISSION#sha256=MODEL_ADMISSION_SHA256 127.0.0.1 8103 \
+  EXACT_BF16_GGUF_SHA256
+```
+
 LunaFlux uses the same first six lifecycle fields followed by the digest-bound
 native runtime, supervisor, token-ID bridge, deployment, tokenizer, launch,
 release binding, capacity receipt, native address, model identities, and
@@ -160,11 +182,19 @@ per-engine/profile summaries for TTFT, inter-token latency, E2E latency,
 request throughput, output-token throughput, error rate, and whole-device GPU
 memory. Summaries contain median, p95, and deterministic bootstrap 95% median
 confidence intervals. They do not select a winner. Any incomplete or unequal
-greedy-output hash, per-token streaming, output-count consistency, or complete
-request set sets `speed_comparison_valid=false`; the latency and throughput
-numbers then remain descriptive measurements only.
+greedy-output hash, inconsistent output count, or incomplete request set sets
+`speed_comparison_valid=false`; the latency and throughput numbers then remain
+descriptive measurements only.
 
-No result about Ollama may be inferred from either vLLM or SGLang. An Ollama
+Servers may occasionally coalesce multiple exact output token IDs into one SSE
+event even with a one-token stream interval. This does not invalidate TTFT,
+E2E, output count, token IDs, or aggregate throughput. Such requests are marked
+`token_timing_exact=false` and excluded only from the ITL distribution. ITL is
+summarized as one median per exact-timing request before deterministic bootstrap,
+so correlated token intervals from one request are not treated as independent
+samples.
+
+No result about Ollama may be inferred from any measured engine. An Ollama
 comparison requires its own measured, pinned campaign and is explicitly
 outside this harness.
 

@@ -1,0 +1,49 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, regex] else { fail("COUNTER_ROOT REGEX") }
+  let args = [
+    "--import",
+    root + "/counter.ncu-rep",
+    "--kernel-name-base",
+    "demangled",
+    "--kernel-name",
+    regex,
+    "--launch-count",
+    "1",
+    "--page",
+    "source",
+    "--csv",
+    "--print-units",
+    "base",
+    "--print-source",
+    "sass",
+  ]
+  @fs.write_file(
+    root + "/source-selected.command.json",
+    Json(args).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd("/opt/nvidia/nsight-compute/2025.3.1/ncu", args).output(
+    max_output_bytes=67108864,
+  )
+  @fs.write_file(
+    root + "/source-selected.stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/source-selected.stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+}

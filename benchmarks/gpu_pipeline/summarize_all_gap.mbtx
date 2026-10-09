@@ -1,0 +1,27 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, moon] else { fail("DIAGNOSTIC_ROOT MOON") }
+  for engine in ["luna", "vllm", "sglang"] {
+    let trace = root + "/" + engine + "-trace"
+    let args = [
+        "run",
+        root + "/summarize_framework_trace.mbtx",
+        "--",
+        trace,
+        engine,
+      ] +
+      (if engine == "luna" {
+        [trace + "/requests/i4096-o64-c16-t1.json"]
+      } else {
+        []
+      })
+    @shell.Cmd(moon, args).run()
+  }
+}

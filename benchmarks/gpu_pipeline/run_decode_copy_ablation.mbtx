@@ -1,0 +1,155 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn record(
+  root : String,
+  label : String,
+  exe : String,
+  args : Array[String],
+) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".command.json",
+    Json([exe] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  let out = @shell.Cmd(exe, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    out.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    out.stderr(),
+    create_mode=CreateNew,
+  )
+  out.check()
+  println("completed=" + label)
+}
+
+///|
+async fn reserve() -> Unit {
+  let available = @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(s => s.has_prefix("MemAvailable:"))
+    .to_array()
+  guard available is [line] else { fail("memory unavailable") }
+  let words = line.split(" ").filter(s => !s.is_empty()).to_array()
+  guard @string.parse_int64(words[1]) >= 33554432L else {
+    fail("32 GiB reserve")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, previous, captured, label] else {
+    fail("COMPLETED_DECODE_ROOT CURRENT_EXPORT NEW_LABEL")
+  }
+  guard !label.is_empty() &&
+    label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+    fail("simple new label")
+  }
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  guard idle.stdout().trim().is_empty() else { fail("GPU busy") }
+  reserve()
+  let root = previous + "/" + label
+  guard !@fs.exists(root) else { fail("non-overwriting ablation") }
+  @fs.mkdir(root)
+  let after = root + "/after"
+  @fs.mkdir(after)
+  let output = @fs.read_file(captured).text()
+  let sections = output.split("LUNA_PARTIAL_BEGIN ").to_array()[1:].filter(s => {
+    s.has_prefix("c454-p8\n")
+  })
+  guard sections is [section] else { fail("exactly one c454-p8 source") }
+  let parts = section.split("\nLUNA_PARTIAL_SOURCE\n").to_array()
+  guard parts is [header, tail] else { fail("partial framing") }
+  let recipe = header.split("\n").to_array()[1:].join("\n") + "\n"
+  let before = previous + "/c454-p8"
+  assert_eq(recipe, @fs.read_file(before + "/kernel.recipe").text())
+  let source = tail.split("\nLUNA_PARTIAL_END").to_array()[0].to_owned()
+  @fs.write_file(after + "/kernel.cu", source, create_mode=CreateNew)
+  @fs.write_file(after + "/kernel.recipe", recipe, create_mode=CreateNew)
+  let nvcc = "/usr/local/cuda-13.0/bin/nvcc"
+  record(root, "compile", nvcc, [
+    "-O3",
+    "-arch=sm_121",
+    "--std=c++14",
+    "--fmad=false",
+    "--ftz=false",
+    "--prec-div=true",
+    "--prec-sqrt=true",
+    "--Werror",
+    "all-warnings",
+    "--maxrregcount=128",
+    "-Xptxas=-v",
+    "-lineinfo",
+    "-cubin",
+    after + "/kernel.cu",
+    "-o",
+    after + "/kernel.cubin",
+  ])
+  record(root, "identity", "sha256sum", [
+    before + "/kernel.cu",
+    before + "/kernel.cubin",
+    after + "/kernel.cu",
+    after + "/kernel.cubin",
+    nvcc,
+    previous + "/probe",
+    previous + "/decode.spec",
+  ])
+  for history in [127, 4095] {
+    for rows in [1, 8, 16] {
+      reserve()
+      record(root, "r\{rows}-h\{history}", previous + "/probe", [
+        previous + "/decode.spec",
+        before,
+        after,
+        rows.to_string(),
+        rows.to_string(),
+        history.to_string(),
+      ])
+    }
+  }
+  for rows in [1, 16] {
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      reserve()
+      record(
+        root,
+        "\{tool}-r\{rows}",
+        "/usr/local/cuda-13.0/bin/compute-sanitizer",
+        [
+          "--tool",
+          tool,
+          "--error-exitcode",
+          "9",
+          previous + "/probe",
+          previous + "/decode.spec",
+          before,
+          after,
+          rows.to_string(),
+          rows.to_string(),
+          "4095",
+          "--check-only",
+        ],
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=passed\nscope=bounded-same-geometry-copy-lifetime-ablation-not-serving\n",
+    create_mode=CreateNew,
+  )
+}

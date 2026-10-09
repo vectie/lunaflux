@@ -1,0 +1,529 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x@0.4.48/crypto",
+}
+
+///|
+// Offline A/B only. prepare never invokes CUDA or uploads anything. run must
+// be invoked by the serialized GPU owner after transferring the prepared tree.
+// Recipes below describe checked source ABI, not release/promotion receipts.
+fn decimal_after(text : String, prefix : String) -> Int raise {
+  guard text.find(prefix) is Some(start) else { fail("missing " + prefix) }
+  let begin = start + prefix.length()
+  let end = for cursor = begin; cursor < text.length(); {
+    if text[cursor] is ('0'..='9') {
+      continue cursor + 1
+    } else {
+      break cursor
+    }
+  } nobreak {
+    cursor
+  }
+  guard end > begin else { fail("missing decimal after " + prefix) }
+  @string.parse_int(text[begin:end])
+}
+
+///|
+fn macro_value(text : String, key : String) -> Int raise {
+  let prefix = "#define " + key + " "
+  guard text.split("\n").filter(line => line.has_prefix(prefix)).to_array()
+    is [line] else {
+    fail("missing/duplicate " + key)
+  }
+  @string.parse_int(line[prefix.length():].trim())
+}
+
+///|
+fn digest(bytes : Bytes) -> String {
+  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
+}
+
+///|
+fn candidate_ids(joint : Bool) -> Array[Int] {
+  if joint {
+    [322, 20644, 20645]
+  } else {
+    [322, 10644, 10645]
+  }
+}
+
+///|
+fn recipe(source : String, id : Int) -> String raise {
+  let queries = macro_value(source, "LF_QUERY_TILE")
+  let keys = macro_value(source, "LF_KEY_VALUE_TILE")
+  let dimensions = macro_value(source, "LF_HEAD_DIMENSION")
+  let threads = macro_value(source, "LF_BLOCK_THREADS")
+  let shared = macro_value(source, "LF_SHARED_MEMORY_BYTES")
+  let heads = decimal_after(source, "head >= ")
+  let rows = decimal_after(source, "rows > ")
+  let tokens = decimal_after(source, "tokens > ")
+  let entries = decimal_after(source, "counts[4] > ")
+  let width = decimal_after(source, "(unsigned long long)(token_base+r)*")
+  let page = decimal_after(source, "page_indices[page_begin+position/")
+  let stride = decimal_after(source, "(unsigned long long)kv_page*")
+  let pages = decimal_after(source, "kv_page>=")
+  let value_offset = decimal_after(source, "kv_value_source=kv_key_source+")
+  guard queries == 64 &&
+    keys == 64 &&
+    dimensions == 128 &&
+    threads == 128 &&
+    shared == 49168 &&
+    heads == 16 &&
+    rows == 32 &&
+    tokens == 2048 &&
+    entries == 16384 &&
+    width == 4096 &&
+    page == 8 &&
+    stride == 8192 &&
+    pages == 16384 &&
+    value_offset == 1024 &&
+    macro_value(source, "LF_KEY_VALUE_PARTITIONS") == 1 &&
+    source.contains(
+      "extern \"C\" __global__ void lunaflux_attention_prefill_tile_v1(",
+    ) &&
+    source.contains("// query-owner-v1:") &&
+    source.contains("for (int tile = blockIdx.x; ; tile += gridDim.x)") &&
+    !source.contains("attention-tile-metadata-v1") &&
+    source.contains("const int begin = offsets[r], end = offsets[r+1]") else {
+    fail(
+      "exported retained-prefill ABI differs; do not synthesize another contract",
+    )
+  }
+  let retained = if id == 322 {
+    0
+  } else if id == 10644 || id == 20644 {
+    64
+  } else if id == 10645 || id == 20645 {
+    128
+  } else {
+    fail("candidate")
+  }
+  assert_eq(source.contains("// joint-right-columns-v1:"), id >= 20000)
+  if retained == 0 {
+    guard !source.contains("query_operand_0") else {
+      fail("baseline retention")
+    }
+  } else {
+    guard source.contains("query_operand_0=lf_matrix_load(qbuf,qr,0") &&
+      source.contains("query_operand_\{retained / 16 - 1}=lf_matrix_load") else {
+      fail("retention source missing")
+    }
+  }
+  "schema=diagnostic-prefill-lifetime-recipe.v1\n" +
+  "candidate_stable_id=\{id}\nretained_query_dimensions=\{retained}\n" +
+  "function_symbol=lunaflux_attention_prefill_tile_v1\n" +
+  "grid=\{tokens},\{heads},1\nblock=\{threads},1,1\n" +
+  "shared_memory_bytes=\{shared}\nquery_tile_rows=\{queries}\n" +
+  "key_value_tile_rows=\{keys}\nhead_columns=\{dimensions}\n" +
+  "query_metadata_version=0\nnumeric_law=query-owner-v1\n" +
+  "source_sha256=\{digest(@utf8.encode(source))}\n"
+}
+
+///|
+fn spec() -> String {
+  "kind=prefill\nquery_heads=16\nkey_value_heads=8\nhead_dimension=128\n" +
+  "input_width=4096\ntokens_per_page=8\npage_stride_values=8192\n" +
+  "maximum_rows=32\nmaximum_tokens=2048\nmaximum_pages=16384\nquery_metadata_version=0\n"
+}
+
+///|
+fn workloads() -> Array[(Int, Int, Int, Bool)] {
+  let cells : Array[(Int, Int, Int, Bool)] = []
+  for tokens in [129, 512, 2048] {
+    for history in [0, 4096] {
+      for rows in [1, 16] {
+        cells.push((tokens, rows, history, false))
+        if rows > 1 {
+          cells.push((tokens, rows, history, true))
+        }
+      }
+    }
+    for mixed in [false, true] {
+      cells.push((tokens, 32, 0, mixed))
+    }
+  }
+  cells
+}
+
+///|
+fn page_count(tokens : Int, rows : Int, history : Int, mixed : Bool) -> Int {
+  let prefill_rows = if mixed { rows - 1 } else { rows }
+  let prefill_tokens = if mixed { tokens - 1 } else { tokens }
+  for row in 0..<rows; total = 0 {
+    let count = if mixed && row == rows - 1 {
+      1
+    } else {
+      prefill_tokens / prefill_rows +
+      (if row < prefill_tokens % prefill_rows { 1 } else { 0 })
+    }
+    continue total + (history + count + 7) / 8
+  } nobreak {
+    total
+  }
+}
+
+///|
+fn probe_args(
+  root : String,
+  id : Int,
+  cell : (Int, Int, Int, Bool),
+  check : Bool,
+) -> Array[String] {
+  let (tokens, rows, history, mixed) = cell
+  [
+    root + "/prefill.spec",
+    root + "/322",
+    root + "/\{id}",
+    tokens.to_string(),
+    rows.to_string(),
+    history.to_string(),
+  ] +
+  (if check { ["--check-only"] } else { [] }) +
+  (if mixed { ["--mixed"] } else { [] })
+}
+
+///|
+fn cell_label(cell : (Int, Int, Int, Bool)) -> String {
+  let (tokens, rows, history, mixed) = cell
+  "q\{tokens}-r\{rows}-h\{history}-" + (if mixed { "mixed" } else { "pure" })
+}
+
+///|
+async fn prepare(
+  exports : String,
+  root : String,
+  probe_directory : String,
+  joint? : Bool = false,
+) -> Unit {
+  guard !@fs.exists(root) else { fail("new non-overwriting root required") }
+  @fs.mkdir(root)
+  for id in candidate_ids(joint) {
+    let source = @fs.read_file(exports + "/prefill-lifetime-\{id}.cu")
+    let contract = recipe(source.text(), id)
+    let directory = root + "/\{id}"
+    @fs.mkdir(directory)
+    @fs.write_file(directory + "/kernel.cu", source, create_mode=CreateNew)
+    @fs.write_file(
+      directory + "/kernel.recipe",
+      contract,
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(root + "/prefill.spec", spec(), create_mode=CreateNew)
+  for name in ["selected_policy_probe.cu", "selected_policy_geometry.h"] {
+    let bytes = @fs.read_file(probe_directory + "/" + name)
+    @fs.write_file(root + "/" + name, bytes, create_mode=CreateNew)
+    @fs.write_file(
+      root + "/" + name + ".sha256",
+      digest(@utf8.encode(bytes.text())),
+      create_mode=CreateNew,
+    )
+  }
+  let bounds = workloads().map(cell => {
+    let (tokens, rows, history, mixed) = cell
+    let pages = page_count(tokens, rows, history, mixed)
+    guard pages <= 16384 else { fail("actual ABI page capacity exceeded") }
+    let cache_bytes = pages.to_int64() * 8192L * 4L
+    // Two GPU caches plus input/output and bounded metadata; host snapshots
+    // are separate. Leave CUDA context/profiler memory to the 32 GiB reserve.
+    let gpu_bytes = cache_bytes +
+      tokens.to_int64() * (4096L + 2048L) * 2L +
+      1048576L
+    guard gpu_bytes < 536870912L else {
+      fail("512 MiB probe allocation budget")
+    }
+    "\{cell_label(cell)} pages=\{pages} estimated_gpu_bytes=\{gpu_bytes}"
+  })
+  @fs.write_file(
+    root + "/BOUNDS.txt",
+    bounds.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/PREPARED.txt",
+    "scope=diagnostic-same-law-AOT-alternatives\nno_gpu_work=true\n",
+    create_mode=CreateNew,
+  )
+  println("prepared=\{root} workloads=\{workloads().length()}")
+}
+
+///|
+async fn reserve() -> Unit {
+  guard @fs.read_file("/proc/meminfo")
+    .text()
+    .split("\n")
+    .filter(x => x.has_prefix("MemAvailable:"))
+    .to_array()
+    is [line] else {
+    fail("memory")
+  }
+  let cells = line.split(" ").filter(x => !x.is_empty()).to_array()
+  guard @string.parse_int64(cells[1]) >= 33554432L else {
+    fail("32 GiB memory reserve")
+  }
+  let gpu = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else {
+    fail("GPU busy; serialized owner required")
+  }
+}
+
+///|
+async fn run(
+  logs : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    logs + "/" + label + ".command.json",
+    Json([program] + args).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(program, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    logs + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    logs + "/" + label + ".exit",
+    result.exit_code().to_string(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println("completed=" + label)
+  result.stdout()
+}
+
+///|
+async fn campaign(
+  root : String,
+  nvcc : String,
+  target : String,
+  sanitizer : String,
+  ncu : String,
+  joint? : Bool = false,
+) -> Unit {
+  guard target == "sm_121" || target == "sm_120" else {
+    fail("explicit supported target required")
+  }
+  guard @fs.exists(root + "/PREPARED.txt") else { fail("prepare first") }
+  assert_eq(@fs.read_file(root + "/prefill.spec").text(), spec())
+  let logs = root + "/campaign"
+  guard !@fs.exists(logs) else { fail("campaign output exists; preserve it") }
+  @fs.mkdir(logs)
+  reserve()
+  ignore(
+    run(logs, "device-before", "nvidia-smi", [
+      "--query-gpu=uuid,pci.bus_id,name,memory.total,clocks.sm,clocks.mem,temperature.gpu,power.draw",
+      "--format=csv",
+    ]),
+  )
+  ignore(run(logs, "tools", "sha256sum", [nvcc, sanitizer, ncu]))
+  for id in candidate_ids(joint) {
+    let directory = root + "/\{id}"
+    let source = @fs.read_file(directory + "/kernel.cu").text()
+    assert_eq(
+      @fs.read_file(directory + "/kernel.recipe").text(),
+      recipe(source, id),
+    )
+    ignore(
+      run(logs, "build-\{id}", nvcc, [
+        "-O3",
+        "-arch=" + target,
+        "--std=c++14",
+        "--fmad=false",
+        "--ftz=false",
+        "--prec-div=true",
+        "--prec-sqrt=true",
+        "-lineinfo",
+        "-Xptxas=-v",
+        "-cubin",
+        directory + "/kernel.cu",
+        "-o",
+        directory + "/kernel.cubin",
+      ]),
+    )
+  }
+  for name in ["selected_policy_probe.cu", "selected_policy_geometry.h"] {
+    assert_eq(
+      digest(@utf8.encode(@fs.read_file(root + "/" + name).text())),
+      @fs.read_file(root + "/" + name + ".sha256").text(),
+    )
+  }
+  ignore(
+    run(logs, "build-probe", nvcc, [
+      "-O3",
+      "-arch=" + target,
+      "--fmad=false",
+      root + "/selected_policy_probe.cu",
+      "-lcuda",
+      "-o",
+      root + "/probe",
+    ]),
+  )
+  for cell in workloads() {
+    for id in candidate_ids(joint) {
+      reserve()
+      let output = run(
+        logs,
+        "time-\{id}-" + cell_label(cell),
+        root + "/probe",
+        probe_args(root, id, cell, false),
+      )
+      guard output.contains("geometry mode=runtime-bucket ") &&
+        output.contains("resources registers=") &&
+        output.contains("local_bytes=") &&
+        output
+        .split("\n")
+        .filter(x => x.has_prefix("tokens="))
+        .to_array()
+        .length() ==
+        5 &&
+        !output.contains("bitwise=false") else {
+        fail("same-law timing/correctness record")
+      }
+    }
+  }
+  for id in candidate_ids(joint) {
+    for cell in [(129, 16, 4096, true), (2048, 16, 4096, true)] {
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        reserve()
+        let output = run(
+          logs,
+          "\{tool}-\{id}-" + cell_label(cell),
+          sanitizer,
+          ["--tool", tool, "--error-exitcode", "9", root + "/probe"] +
+          probe_args(root, id, cell, true),
+        )
+        guard output.contains("correctness=passed bitwise=true") else {
+          fail("sanitizer correctness record")
+        }
+      }
+    }
+  }
+  let metrics = [
+    "gpu__time_duration.sum", "launch__registers_per_thread", "sm__warps_active.avg.pct_of_peak_sustained_active",
+    "smsp__inst_executed.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_ld.sum", "l1tex__t_sectors_pipe_lsu_mem_local_op_st.sum",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+  ].join(",")
+  for id in candidate_ids(joint) {
+    for cell in [(512, 16, 0, false), (2048, 16, 4096, true)] {
+      reserve()
+      let label = "counter-\{id}-" + cell_label(cell)
+      ignore(
+        run(
+          logs,
+          label,
+          "sudo",
+          [
+            "-n",
+            ncu,
+            "--config-file",
+            "off",
+            "--section",
+            "LaunchStats",
+            "--section",
+            "Occupancy",
+            "--metrics",
+            metrics,
+            "--kernel-name-base",
+            "function",
+            "--kernel-name",
+            "regex:^lunaflux_attention_prefill_tile_v1$",
+            "--launch-skip",
+            "1",
+            "--launch-count",
+            "1",
+            "--cache-control",
+            "all",
+            "--clock-control",
+            "none",
+            "--export",
+            logs + "/" + label,
+            root + "/probe",
+          ] +
+          probe_args(root, id, cell, true),
+        ),
+      )
+      ignore(
+        run(logs, label + "-raw", ncu, [
+          "--import",
+          logs + "/" + label + ".ncu-rep",
+          "--page",
+          "raw",
+          "--csv",
+          "--print-units",
+          "base",
+        ]),
+      )
+    }
+  }
+  reserve()
+  ignore(
+    run(logs, "device-after", "nvidia-smi", [
+      "--query-gpu=uuid,pci.bus_id,clocks.sm,clocks.mem,temperature.gpu,power.draw",
+      "--format=csv",
+    ]),
+  )
+  ignore(
+    run(
+      logs,
+      "artifacts",
+      "sha256sum",
+      candidate_ids(joint).map(id => root + "/\{id}/kernel.cubin") +
+      [root + "/probe"],
+    ),
+  )
+  @fs.write_file(
+    logs + "/RESULT.txt",
+    "outcome=passed\nscope=bounded-prefill-lifetime-AOT-replay-not-serving\nworkloads=24\ncandidates=" +
+    candidate_ids(joint).map(id => id.to_string()).join(",") +
+    "\nsame_law_bitwise=true\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+async fn main {
+  match @env.args() {
+    [_, "--self-test"] => {
+      assert_eq(workloads().length(), 24)
+      for (tokens, rows, history, mixed) in workloads() {
+        assert_true(page_count(tokens, rows, history, mixed) <= 16384)
+      }
+      assert_true(page_count(129, 32, 4096, false) > 16384)
+      assert_eq(decimal_after("abc=123ULL", "abc="), 123)
+      assert_eq(macro_value("#define N 64\n", "N"), 64)
+      assert_eq(candidate_ids(false), [322, 10644, 10645])
+      assert_eq(candidate_ids(true), [322, 20644, 20645])
+      println("self_test=passed; no filesystem writes or GPU jobs")
+    }
+    [_, "prepare", exports, root, probe] => prepare(exports, root, probe)
+    [_, "prepare-joint", exports, root, probe] =>
+      prepare(exports, root, probe, joint=true)
+    [_, "run", root, nvcc, target, sanitizer, ncu] =>
+      campaign(root, nvcc, target, sanitizer, ncu)
+    [_, "run-joint", root, nvcc, target, sanitizer, ncu] =>
+      campaign(root, nvcc, target, sanitizer, ncu, joint=true)
+    _ =>
+      fail(
+        "prepare|prepare-joint EXPORT_ROOT NEW_ROOT PROBE_DIRECTORY | run|run-joint PREPARED_ROOT NVCC sm_121|sm_120 SANITIZER NCU | --self-test",
+      )
+  }
+}

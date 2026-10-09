@@ -1,0 +1,96 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  match value {
+    Number(n, repr~) => @string.parse_int64(repr.unwrap_or(n.to_string()))
+    String(s) => @string.parse_int64(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+async fn query(db : String, sql : String) -> Json {
+  let r = @shell.Cmd("sqlite3", ["-json", db, sql]).output(
+    max_output_bytes=67108864,
+  )
+  r.check()
+  @json.parse(if r.stdout().trim().is_empty() { "[]" } else { r.stdout() })
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. options] else {
+    fail("TRACE_ROOT [LUNA_MEASURED_REQUEST_JSON]")
+  }
+  let db = root + "/trace.sqlite"
+  let mut where_clause = ""
+  if options is [path] {
+    guard query(db, "SELECT utcEpochNs FROM TARGET_INFO_SESSION_START_TIME;")
+      is Array([{ "utcEpochNs": epoch, .. }]) else {
+      fail("epoch")
+    }
+    guard @json.parse(@fs.read_file(path).text())
+      is { "epoch_start_ns": begin, "epoch_end_ns": end, .. } else {
+      fail("client epochs")
+    }
+    where_clause = " WHERE start>=\{integer(begin)-integer(epoch)} AND end<=\{integer(end)-integer(epoch)}"
+  } else {
+    assert_true(options.is_empty())
+  }
+  let selects : Array[String] = []
+  for
+    table in [
+      "CUPTI_ACTIVITY_KIND_KERNEL", "CUPTI_ACTIVITY_KIND_MEMCPY", "CUPTI_ACTIVITY_KIND_MEMSET",
+    ] {
+    if query(db, "SELECT name FROM sqlite_master WHERE name='\{table}';")
+      is Array([_]) {
+      selects.push(
+        "SELECT start,end,'\{table}' AS kind FROM \{table}" + where_clause,
+      )
+    }
+  }
+  guard query(db, selects.join(" UNION ALL ") + " ORDER BY start;")
+    is Array(rows) &&
+    !rows.is_empty() else {
+    fail("activities")
+  }
+  let mut first = 9223372036854775807L
+  let mut last = 0L
+  let mut union = 0L
+  let mut tail = 0L
+  let totals : Map[String, Int64] = Map([])
+  for row in rows {
+    guard row is { "start": a, "end": b, "kind": String(kind), .. } else {
+      fail("activity")
+    }
+    let a = integer(a)
+    let b = integer(b)
+    first = Int64::min(first, a)
+    last = Int64::max(last, b)
+    union += Int64::max(0L, b - Int64::max(a, tail))
+    tail = Int64::max(tail, b)
+    totals[kind] = totals.get(kind).unwrap_or(0L) + b - a
+  }
+  let result : Json = {
+    "span_ns": last - first,
+    "activity_union_ns": union,
+    "internal_no_activity_ns": last - first - union,
+    "sums_ns": totals,
+    "scope": "kernel+memcpy+memset interval union; gaps are not a cause without host correlation",
+  }
+  @fs.write_file(
+    root + "/gap-activity.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+}

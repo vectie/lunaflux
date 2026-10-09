@@ -1,0 +1,17 @@
+import { "moonbitlang/async@0.20.3", "moonbitlang/async@0.20.3/fs", "moonbitlang/async@0.20.3/process", "moonbitlang/core/env" }
+
+async fn main {
+  guard @env.args() is [_, root] else { fail("NEW_LOCAL_OUTPUT") }
+  @fs.mkdir(root)
+  for id in [313, 318, 319] {
+    let (code, source, errors) = @process.collect_output("/Users/kq/.moon/bin/moon", ["run", "--target", "native", "tests/attention_tile_cuda_source_probe", "--", id.to_string(), "pipeline"])
+    @fs.write_file(root+"/attention-\{id}.cu", source, create_mode=CreateNew)
+    @fs.write_file(root+"/attention-\{id}.stderr", errors, create_mode=CreateNew)
+    assert_eq(code, 0)
+  }
+  let old = @fs.read_file("/private/tmp/lunaflux-attention-details-20260913/attention-timing/probe.cu").text()
+  let source = old.replace(old="if(argc!=15)", new="if(argc!=16)").replace(old="ingress?128:256,atoi(argv[9])", new="atoi(argv[15]),atoi(argv[9])")
+  let source = source.replace(old="struct Buffer {", new="#include \"attention_referee.h\"\nstruct Buffer {").replace(old="for(int trial=0;trial<5;trial++)", new="check_attention_referee(input.read(),ek,ev,actual,pos,off,pages,indices);\n for(int trial=0;trial<5;trial++)")
+  @fs.write_file(root+"/probe.cu", source, create_mode=CreateNew)
+  @fs.write_file(root+"/attention_referee.h", @fs.read_file("benchmarks/gpu_pipeline/attention_referee.h"), create_mode=CreateNew)
+}

@@ -16,10 +16,14 @@ async fn main {
     "moon",
     [
       "test", "kernels/luna_cuda_attention_tile_source/repair_export_wbtest.mbt",
-      "kernels/luna_cuda_fused_parallel_aot/ingress_rows_wbtest.mbt", "kernels/luna_cuda_fused_parallel_aot/ingress_packing_export_wbtest.mbt",
-      "--target", "native", "--deny-warn", "--warn-list", "-79-20-29-25",
+      "kernels/luna_cuda_attention_tile_source/blockwise_decode_wbtest.mbt", "kernels/luna_cuda_fused_parallel_aot/ingress_rows_wbtest.mbt",
+      "kernels/luna_cuda_fused_parallel_aot/ingress_packing_export_wbtest.mbt", "--target",
+      "native", "--deny-warn", "--warn-list", "-79-20-29-25",
     ],
-    env={ "LUNA_TEST_EXPORT_COUNTER_REPAIR": "1" },
+    env={
+      "LUNA_TEST_EXPORT_COUNTER_REPAIR": "1",
+      "LUNA_EXPORT_BLOCKWISE_PARTITIONS": "1",
+    },
   ).output(max_output_bytes=16777216)
   @fs.write_file(
     args[1] + "/export.stdout",
@@ -32,21 +36,28 @@ async fn main {
     create_mode=CreateNew,
   )
   result.check()
+  let expected = [
+    "prefill-322", "prefill-2000", "prefill-2001", "prefill-2003", "prefill-2004",
+    "prefill-lifetime-322", "prefill-lifetime-10644", "prefill-lifetime-10645", "prefill-lifetime-20644",
+    "prefill-lifetime-20645", "decode-430", "decode-440", "decode-441", "decode-450",
+    "decode-451", "decode-452", "decode-453", "decode-454", "decode-455", "ingress-1",
+    "ingress-2", "ingress-4", "ingress-pack-d64-h1", "ingress-pack-d64-h2", "ingress-pack-d64-h4",
+    "ingress-pack-d128-h1", "ingress-pack-d128-h2",
+  ]
   let sections = result.stdout().split("LUNA_SOURCE_BEGIN ").to_array()
-  let mut count = 0
+  let seen : Array[String] = []
   for section in sections[1:] {
     let lines = section.split("\n").to_array()
     let name = lines[0].to_owned()
-    guard name.has_prefix("prefill-") ||
-      name.has_prefix("decode-") ||
-      name.has_prefix("ingress-") else {
-      fail("unexpected probe")
+    guard expected.contains(name) && !seen.contains(name) else {
+      fail("unexpected or duplicate probe: " + name)
     }
     let body = lines[1:].join("\n").split("LUNA_SOURCE_END").to_array()
     assert_eq(body.length(), 2)
     @fs.write_file(args[1] + "/" + name + ".cu", body[0], create_mode=CreateNew)
-    count += 1
+    seen.push(name)
   }
-  assert_eq(count, 18)
-  println("exported=\{count}")
+  assert_eq(seen.length(), expected.length())
+  assert_eq(seen.length(), 27)
+  println("exported=\{seen.length()}")
 }

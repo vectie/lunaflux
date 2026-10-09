@@ -1,0 +1,54 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, source, root] else {
+    fail("EXISTING_COUNTERS DIAGNOSTIC_ROOT")
+  }
+  for kind in ["ingress", "prefill", "decode"] {
+    let destination = root + "/luna-existing-" + kind
+    @fs.mkdir(destination)
+    @shell.Cmd("cp", [
+      "-n",
+      source + "/" + kind + ".ncu-rep",
+      destination + "/counter.ncu-rep",
+    ]).run()
+    for
+      (page, name) in [
+        ("raw", "counter-raw.stdout"),
+        ("source", "counter-source.stdout"),
+      ] {
+      let args = [
+          "--import",
+          destination + "/counter.ncu-rep",
+          "--page",
+          page,
+          "--csv",
+          "--print-units",
+          "base",
+        ] +
+        (if page == "source" { ["--print-source", "sass"] } else { [] })
+      let r = @shell.Cmd("/opt/nvidia/nsight-compute/2025.3.1/ncu", args).output(
+        max_output_bytes=67108864,
+      )
+      @fs.write_file(
+        destination + "/" + name,
+        r.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        destination + "/" + name + ".stderr",
+        r.stderr(),
+        create_mode=CreateNew,
+      )
+      r.check()
+    }
+    println(kind + " prior selected report exported without GPU execution")
+  }
+}

@@ -1,0 +1,72 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn csv(line : StringView) -> Array[String] {
+  let fields = []
+  let text = StringBuilder()
+  let mut quoted = false
+  for c in line.to_owned() {
+    if c == '"' {
+      quoted = !quoted
+    } else if c == ',' && !quoted {
+      fields.push(text.to_string())
+      text.reset()
+    } else {
+      text.write_char(c)
+    }
+  }
+  fields.push(text.to_string())
+  fields
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, source, root] else {
+    fail("EXISTING_COUNTERS NEW_OUTPUT_ROOT")
+  }
+  let records : Array[Json] = []
+  for kind in ["ingress", "prefill", "decode"] {
+    let mut header : Array[String] = []
+    for
+      line in @fs.read_file(source + "/" + kind + ".stdout").text().split("\n") {
+      let row = csv(line)
+      if row.length() > 5 && row[0] == "ID" {
+        header = row
+        continue
+      }
+      if header.is_empty() ||
+        header.length() != row.length() ||
+        row[0].is_empty() {
+        continue
+      }
+      let fields : Map[String, Json] = Map([])
+      fields["family"] = Json(kind)
+      for i in 0..<header.length() {
+        let key = header[i]
+        if [
+            "ID", "Kernel Name", "Grid Size", "Block Size", "gpu__time_duration.sum",
+            "smsp__inst_executed.sum", "launch__registers_per_thread", "launch__occupancy_limit_registers",
+            "launch__occupancy_limit_shared_mem",
+          ].contains(key) ||
+          key.contains("pipe_tensor") ||
+          key.contains("mem_local_op") ||
+          key.contains("warp_issue_stalled") {
+          fields[key] = Json(row[i])
+        }
+      }
+      records.push(Json(fields))
+    }
+  }
+  @fs.write_file(
+    root + "/existing-selected-counters-v2.json",
+    Json(records).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("\{records.length()} selected counter records summarized")
+}
