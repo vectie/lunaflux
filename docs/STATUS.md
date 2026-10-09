@@ -10,6 +10,43 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (learned indexer cache operands): the same
+`DeepSeekCompressedKvCache` owner now supports the indexer's distinct checkpoint
+pool, width and numerical transform. `RotaryHadamardFp4Precision` describes
+suffix rotary, normalized Sylvester Hadamard and blockwise E2M1 simulation,
+including BF16 publication and both exact scratch tensors. CUDA lowering reads
+each complete prior Hadamard stage before swapping shared ownership and uses
+power-of-two `amax / 6` scales with even-code midpoint ties. Three prepared
+effects feed the existing exact-word retained cache. Attention and indexer
+paths share cache ownership/budget code without substituting one precision
+contract for the other. The ordinary compact rotary renderer is also shared.
+
+The new focused suite passes 5/5; the expanded affected regression passes 60/60.
+Thirty-two eleven-effect prepared pool/transform/cache submissions measure zero
+warm heap allocations, no additional blocking synchronization and balanced
+release. The independent GPU numerical probe was repaired and retested: its
+initial long-position case differed at an FP4 midpoint. The CPU reference had
+rewritten `(1 / frequency_denominator) * position` as one division, changing F32
+rounding before BF16/FP4 publication. The corrected oracle preserves the stated
+operation order; lowering also uses the immutable normalized-Hadamard scalar,
+not an approximate `rsqrt` substitution. Final `sm121` correctness passes with
+largest error zero for the small 128-width/two-head fixture, including positions
+0/3/1023, live 0/1/2/3, replay and exact FP4 midpoint ties. Initial failed runs
+are preserved. Sanitizer completion is recorded below; this is component
+correctness, not full-model correctness or speed.
+This closes the indexer compressed-operand source path,
+not learned index queries, head weighting/top-k, sparse attention, the complete
+DeepSeek decoder or DSpark generation. Output remains simulated BF16, not
+packed FP4 cache storage; no whole-model numerical or performance claim follows.
+
+The final Hadamard/FP4 fixture also passes memcheck/full leak, racecheck and
+synccheck with zero errors/hazards/leaks, under separate 2 GiB/no-swap user units.
+CUDA is 13.0.88 on GB10 `sm121`; the selected binary is from the v3 directory
+`/tmp/lunaflux-hadamard-fp4-v3-20261010.QELNUHrg`. Earlier v1/v2 correctness
+failures retain their original source, probes and journals. Downloaded exact
+sources, binaries and run records are under
+`/tmp/lunaflux-precision-transform-evidence-20261010-v1`.
+
 Update 2026-10-10 (persistent compressed attention cache):
 `DeepSeekCompressedKvCache` now connects the learned pool and compact rotary/
 precision transform to request-owned retained rows. The generic immutable
@@ -19,18 +56,24 @@ and compressed storage; contexts shorter than a compression group have zero
 logical rows, backed by one inaccessible sentinel row. Aggregate state/workspace
 budgets are split across owners, not granted independently to every component.
 Ten effects share the containing executor; no queue or blocking token-step
-copy is introduced. Indexer Hadamard/FP4, sparse attention and full decoder
-integration are still unfinished.
+copy is introduced. The subsequent indexer transform is described above;
+learned index queries, sparse attention and full decoder integration remain open.
 
 The five new focused native tests pass; the expanded affected-package suite
 passes 52/52. Thirty-two ten-effect fake submissions
 measure zero warm heap allocations and no new blocking synchronization, with
 balanced deterministic release. Short borrowed ports fail before private
-allocation. Actual GPU numerical and sanitizer tests for the new retained chain
-remain pending while both Sparks load the real GLM checkpoint. An offline
+allocation. GPU numerical and sanitizer tests for the entire checkpoint-backed
+learned retained chain remain pending. An offline
 `.mbtx` exporter and independent CUDA exact-word/publication oracle are ready
 for empty chunks, reset, gaps, overflow, upstream errors and zero capacity;
 the exported fixture is not a physical pass claim.
+
+After GLM released both GPUs, the retained-row fixture passed actual `sm121`
+exact-word/publication checking (capacity three: 19 steps; zero capacity: four)
+and memcheck/full leak, racecheck and synccheck, all with zero errors/hazards/
+leaks under 2 GiB/no-swap user units. This verifies the generic append primitive,
+not the entire checkpoint-backed learned compressor chain.
 
 Update 2026-10-10 (compressed attention operand transformation):
 `DeepSeekAttentionCompressor` now joins checkpoint-backed pooling to standalone
@@ -76,6 +119,21 @@ are `lunaflux-glm-real-ingress-20261010-60fd6750-v1.service` and
 those units instead of starting duplicate full-checkpoint loads.
 Internal rank communication is plain TCP; TLS/signing/public deployment
 work is not a prerequisite for this feature diagnostic.
+
+The first real two-Spark diagnostic subsequently generated IDs
+`154822,154822`, then retired the request with `finish=Length`; ingress exited
+zero at 06:59:13 CST. These IDs are `[gMASK]`, not a validated textual answer.
+The single `a` input does not carry the normal GLM chat/template prefix, and
+independent full-model numeric/output comparison is still required. Egress
+reported `RemoteChannelError::Disconnected` when ingress closed after its
+acknowledged release, exiting one. Do not describe the entire campaign as a
+clean pass or the output as correct. Both ranks released their GPU allocations;
+unit peaks were 90.1/95.9 GiB with zero swap peak. Downloaded run records are
+`/tmp/lunaflux-glm-first-generation-20261010-v1`.
+Commit `51f691a2` fixes this shutdown distinction: only acknowledged release plus
+an orderly next-frame-boundary EOF ends cleanly; EOF before release or in a
+partial frame remains a failure. Native control/transport regression passes
+11/11, including reuse after release. The fix is not yet rerun with real weights.
 
 Update 2026-10-10 (checkpoint-connected learned pools): the model adapter now
 binds attention and indexer compressor `wkv.weight`, `wgate.weight`, `ape` and

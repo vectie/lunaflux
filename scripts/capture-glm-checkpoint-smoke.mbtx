@@ -1,0 +1,35 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  guard @env.args() is [_, output] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(output)
+  let nodes = [
+    ("ingress", "wlc003s@192.168.2.178", "/tmp/lunaflux-checkpoint-live-20261010.sock", "lunaflux-glm-real-ingress-20261010-60fd6750-v1.service"),
+    ("egress", "wlc004s@192.168.2.179", "/tmp/lunaflux-checkpoint-live179-20261010.sock", "lunaflux-glm-real-egress-20261010-60fd6750-v1.service"),
+  ]
+  for (name, node, socket, unit) in nodes {
+    for (label, command) in [
+      ("unit", "systemctl --user show " + unit + " -p ActiveState -p SubState -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak -p ExecMainStartTimestamp -p ExecMainExitTimestamp"),
+      ("journal", "journalctl --user -u " + unit + " --no-pager"),
+    ] {
+      let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command]).output(max_output_bytes=1048576)
+      @fs.write_file(output + "/" + name + "-" + label + ".txt", result.stdout(), create_mode=CreateNew)
+      @fs.write_file(output + "/" + name + "-" + label + ".stderr", result.stderr(), create_mode=CreateNew)
+      result.check()
+    }
+  }
+  let copied = @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    "wlc003s@192.168.2.178:/tmp/lunaflux-glm-real-generation-20261010.tCGfXtiV/result-v1/tokens.txt", output + "/tokens.txt",
+  ]).output(max_output_bytes=1048576)
+  copied.check()
+  let completion = @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    "wlc003s@192.168.2.178:/tmp/lunaflux-glm-real-generation-20261010.tCGfXtiV/result-v1/completion-0.bin", output + "/completion-0.bin",
+  ]).output(max_output_bytes=1048576)
+  completion.check()
+  println(output)
+}

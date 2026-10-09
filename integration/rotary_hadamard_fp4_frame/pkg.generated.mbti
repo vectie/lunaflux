@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/rotary_hadamard_fp4_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/rotary_hadamard_fp4_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct RotaryHadamardFp4Frame {
+  // private fields
+}
+pub fn RotaryHadamardFp4Frame::close(Self) -> Unit raise
+pub fn RotaryHadamardFp4Frame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn RotaryHadamardFp4Frame::new(@rotary_hadamard_fp4_cuda_source.RotaryHadamardFp4CudaSource) -> Self
+pub fn RotaryHadamardFp4Frame::output(Self) -> @device.Allocation raise
+pub fn RotaryHadamardFp4Frame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, positions~ : @device.Allocation, input~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn RotaryHadamardFp4Frame::source_bytes(Self) -> Bytes
+pub fn RotaryHadamardFp4Frame::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

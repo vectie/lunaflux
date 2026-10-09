@@ -49,6 +49,11 @@ pub fn RotaryCachePrecision::geometry(self : Self) -> (Int, Int, Int, Int, Int) 
 }
 
 ///|
+pub fn RotaryCachePrecision::rotary(self : Self) -> RotaryTensorPrecision {
+  self.rotary
+}
+
+///|
 pub fn RotaryCachePrecision::frequency(self : Self) -> RotaryFrequency {
   self.rotary.frequency()
 }

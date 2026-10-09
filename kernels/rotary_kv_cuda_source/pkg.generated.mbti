@@ -12,6 +12,8 @@ pub fn rotary_frequency_source(@precision_ir.RotaryFrequency, Int) -> String rai
 
 pub fn rotary_kv_source(@precision_ir.RotaryKvPrecision, symbol_prefix~ : String) -> RotaryKvCudaSource raise
 
+pub fn rotary_tensor_source(@precision_ir.RotaryTensorPrecision, symbol~ : String) -> String raise
+
 // Errors
 
 // Types and methods

@@ -2,6 +2,7 @@
 pub fn compressed_cache_plan(
   spec : @spec.DeepSeekV4ModelSpec,
   layer~ : Int,
+  for_indexer? : Bool = false,
   maximum_rows~ : Int,
   maximum_context~ : Int,
   maximum_state_bytes~ : Int64,
@@ -14,11 +15,17 @@ pub fn compressed_cache_plan(
     maximum_context <= spec.max_position_embeddings() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
-  guard spec.compression_ratio(layer) is Some(ratio) && ratio > 0 else {
+  guard spec.compression_ratio(layer) is Some(ratio) &&
+    ratio > 0 &&
+    (!for_indexer || ratio == 4) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
   @precision.RetainedRowsPrecision::new(
-    word_width=spec.head_dimension(),
+    word_width=if for_indexer {
+      spec.index_head_dimension()
+    } else {
+      spec.head_dimension()
+    },
     position_stride=ratio,
     maximum_input_rows=(maximum_rows + ratio - 1) / ratio,
     maximum_stored_rows=maximum_context / ratio,
@@ -29,10 +36,12 @@ pub fn compressed_cache_plan(
 
 ///|
 /// Checkpoint-connected attention pooling/precision plus a retained compressed
-/// cache. Ten effects share the containing queue. Sparse indexing and the
+/// cache. Attention uses ten effects, indexer operands eleven, sharing the
+/// containing queue. Learned index queries/top-k and the
 /// ordinary sliding window remain separate consumers/owners.
 pub struct DeepSeekCompressedKvCache {
-  priv compressor : DeepSeekAttentionCompressor
+  priv pool : DeepSeekCompressorPool
+  priv transform : CompressorTransform
   priv cache : @retained_frame.RetainedRowsFrame
   priv launches : Array[@device.OrderedKernelLaunch]
   priv descriptors : Array[@device.Allocation]
@@ -43,6 +52,7 @@ pub struct DeepSeekCompressedKvCache {
 pub fn DeepSeekCompressedKvCache::new(
   spec : @spec.DeepSeekV4ModelSpec,
   layer~ : Int,
+  for_indexer? : Bool = false,
   maximum_rows~ : Int,
   maximum_context~ : Int,
   maximum_state_bytes~ : Int64,
@@ -51,6 +61,7 @@ pub fn DeepSeekCompressedKvCache::new(
   let plan = compressed_cache_plan(
     spec,
     layer~,
+    for_indexer~,
     maximum_rows~,
     maximum_context~,
     maximum_state_bytes~,
@@ -59,19 +70,54 @@ pub fn DeepSeekCompressedKvCache::new(
   let state_bytes = plan
     .state_bytes()
     .fold(init=0L, (total, bytes) => total + bytes)
+  let transform = if for_indexer {
+    CompressorTransform::Indexer(
+      @indexer_frame.RotaryHadamardFp4Frame::new(
+        @indexer_source.rotary_hadamard_fp4_source(
+          indexer_cache_transform_plan(
+            spec,
+            layer~,
+            maximum_rows~,
+            maximum_workspace_bytes=maximum_workspace_bytes -
+              plan.workspace_bytes(),
+          ),
+          symbol_prefix="deepseek_l\{layer}_indexer_kv",
+        ),
+      ),
+    )
+  } else {
+    CompressorTransform::Attention(
+      @rotary_frame.RotaryCacheFrame::new(
+        @rotary_source.rotary_cache_source(
+          compressor_cache_plan(
+            spec,
+            layer~,
+            maximum_input_rows=maximum_rows,
+            maximum_workspace_bytes=maximum_workspace_bytes -
+              plan.workspace_bytes(),
+          ),
+          symbol_prefix="deepseek_l\{layer}_compressed_kv",
+        ),
+      ),
+    )
+  }
   {
-    compressor: DeepSeekAttentionCompressor::new(
+    pool: DeepSeekCompressorPool::new(
       spec,
       layer~,
+      for_indexer~,
       maximum_rows~,
       maximum_context~,
       maximum_state_bytes=maximum_state_bytes - state_bytes,
-      maximum_workspace_bytes=maximum_workspace_bytes - plan.workspace_bytes(),
+      maximum_workspace_bytes=maximum_workspace_bytes -
+        plan.workspace_bytes() -
+        transform.workspace_bytes(),
     ),
+    transform,
     cache: @retained_frame.RetainedRowsFrame::new(
       @retained_source.retained_rows_source(
         plan,
-        symbol_prefix="deepseek_l\{layer}_compressed_history",
+        symbol_prefix="deepseek_l\{layer}_\{if for_indexer { "indexer" } else { "attention" }}_compressed_history",
       ),
     ),
     launches: [],
@@ -82,7 +128,11 @@ pub fn DeepSeekCompressedKvCache::new(
 
 ///|
 pub fn DeepSeekCompressedKvCache::source_bytes(self : Self) -> Bytes {
-  self.compressor.source_bytes() + b"\n" + self.cache.source_bytes()
+  self.pool.source_bytes() +
+  b"\n" +
+  self.transform.source_bytes() +
+  b"\n" +
+  self.cache.source_bytes()
 }
 
 ///|
@@ -90,7 +140,8 @@ pub fn DeepSeekCompressedKvCache::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
 ) -> Int64 raise {
-  self.compressor.required_device_bytes(checkpoint) +
+  self.pool.required_device_bytes(checkpoint) +
+  self.transform.workspace_bytes() +
   self.cache.required_device_bytes()
 }
 
@@ -114,7 +165,7 @@ pub fn DeepSeekCompressedKvCache::prepare(
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
   self.state = Failed
-  self.compressor.prepare(
+  self.pool.prepare(
     context,
     aot,
     checkpoint,
@@ -124,23 +175,26 @@ pub fn DeepSeekCompressedKvCache::prepare(
     reset_flag~,
     hidden~,
     maximum_device_bytes=maximum_device_bytes -
-      self.cache.required_device_bytes(),
+      self.cache.required_device_bytes() -
+      self.transform.workspace_bytes(),
     chunk_bytes~,
     limits~,
   )
+  self.transform.prepare(context, aot, self.pool)
   self.cache.prepare(
     context,
     aot,
     reset_flag~,
-    counts=self.compressor.output_counts(),
-    positions=self.compressor.output_positions(),
-    upstream_append=self.compressor.append_descriptor(),
-    input=self.compressor.output(),
+    counts=self.pool.output_counts(),
+    positions=self.pool.output_positions(),
+    upstream_append=self.pool.append_descriptor(),
+    input=self.transform.output(),
     maximum_device_bytes=self.cache.required_device_bytes(),
   )
-  self.launches.append(self.compressor.launches())
+  self.launches.append(self.pool.launches())
+  self.launches.append(self.transform.launches())
   self.launches.append(self.cache.launches())
-  self.descriptors.push(self.compressor.append_descriptor())
+  self.descriptors.push(self.pool.append_descriptor())
   self.descriptors.push(self.cache.append_descriptor())
   self.state = Prepared
 }
@@ -188,6 +242,7 @@ pub fn DeepSeekCompressedKvCache::close(self : Self) -> Unit raise {
   self.launches.clear()
   self.descriptors.clear()
   self.cache.close()
-  self.compressor.close()
+  self.transform.close()
+  self.pool.close()
   self.state = Closed
 }

@@ -40,6 +40,8 @@ import {
   "vectie/lunaflux/integration/learned_gated_pool_frame" @pool_frame,
   "vectie/lunaflux/kernels/retained_rows_cuda_source" @retained_source,
   "vectie/lunaflux/integration/retained_rows_frame" @retained_frame,
+  "vectie/lunaflux/kernels/rotary_hadamard_fp4_cuda_source" @hadamard_source,
+  "vectie/lunaflux/integration/rotary_hadamard_fp4_frame" @hadamard_frame,
 }
 
 import {

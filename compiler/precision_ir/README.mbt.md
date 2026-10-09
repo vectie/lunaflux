@@ -32,6 +32,12 @@ Tensor Core router or a demonstrated performance improvement.
 
 See [implementation, tests and remaining serving work](../../docs/PRECISION_IR_2026-10-04.md).
 
+RotaryHadamardFp4Precision specifies adjacent-pair suffix rotary followed by
+normalized full-vector Sylvester Hadamard and blockwise E2M1 simulation, with
+BF16 publication between operations. Two exact scratch tensors share one
+aggregate budget. This StepWrite plan does not own retained cache history;
+RetainedRowsPrecision separately specifies exact-word CacheCommit publication.
+
 CausalConvolutionPrecision describes request-owned BF16 raw-input history,
 ordered F32 causal convolution, SiLU and BF16 output rounding. Its exact frame
 and persistent-state sizes are independent of batch sequence ordinals.
