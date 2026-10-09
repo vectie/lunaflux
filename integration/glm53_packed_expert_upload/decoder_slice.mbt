@@ -181,6 +181,8 @@ pub fn GlmDecoderSlice::prepare(
   sparse_reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
+  prefix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
+  suffix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -197,7 +199,7 @@ pub fn GlmDecoderSlice::prepare(
   for _ in 0..<self.buffer_count {
     self.buffers.push(context.allocate(self.residual_bytes))
   }
-  let launches : Array[@device.OrderedKernelLaunch] = []
+  let launches = prefix_launches.to_owned()
   for index, layer in self.layers {
     let input = if index == 0 { hidden } else { self.buffers[(index - 1) % 2] }
     let next = if index == self.layers.length() - 1 {
@@ -226,6 +228,7 @@ pub fn GlmDecoderSlice::prepare(
       self.descriptors.push(sparse.append_descriptor())
     }
   }
+  launches.append(suffix_launches)
   self.queue = Some(context.create_ordered_kernel_executor(stream, launches))
   self.launch_count = launches.length()
   self.status = Ready

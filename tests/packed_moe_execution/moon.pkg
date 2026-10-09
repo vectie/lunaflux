@@ -26,6 +26,8 @@ import {
   "vectie/lunaflux/integration/indexed_sparse_projection_frame" @projection_frame,
   "vectie/lunaflux/integration/hyper_connection_frame" @hyper_frame,
   "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source" @hyper_source,
+  "vectie/lunaflux/kernels/text_io_execution_cuda_source" @text_source,
+  "vectie/lunaflux/integration/text_io_frame" @text_frame,
 }
 
 supported_targets = "native"

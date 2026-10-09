@@ -345,6 +345,18 @@ pub fn ScratchLifetime::equal(Self, Self) -> Bool
 pub fn ScratchLifetime::not_equal(Self, Self) -> Bool
 pub fn ScratchLifetime::to_repr(Self) -> @debug.Repr
 
+pub struct TextIoPrecision {
+  // private fields
+}
+pub fn TextIoPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn TextIoPrecision::logits_bytes(Self) -> Int64
+pub fn TextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn TextIoPrecision::normalization_epsilon(Self) -> Double
+pub fn TextIoPrecision::normalized_bytes(Self) -> Int64
+pub fn TextIoPrecision::residual_bytes(Self) -> Int64
+pub fn TextIoPrecision::table_bytes(Self) -> Int64
+pub fn TextIoPrecision::workspace_bytes(Self) -> Int64
+
 pub struct WeightBinding {
   // private fields
 } derive(Eq, @debug.Debug)

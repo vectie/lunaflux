@@ -1,0 +1,28 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/text_io_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/text_io_execution_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct TextIoFrame {
+  // private fields
+}
+pub fn TextIoFrame::close(Self) -> Unit raise
+pub fn TextIoFrame::logits(Self) -> @device.Allocation raise
+pub fn TextIoFrame::new(@text_io_execution_cuda_source.TextIoCudaSource) -> Self
+pub fn TextIoFrame::prefix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn TextIoFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, token_ids~ : @device.Allocation, output_count~ : @device.Allocation, selected_rows~ : @device.Allocation, input_residual~ : @device.Allocation, output_residual~ : @device.Allocation, embedding~ : @device.Allocation, norm_weight~ : @device.Allocation, head_weight~ : @device.Allocation, sampled_tokens~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn TextIoFrame::source_bytes(Self) -> Bytes
+pub fn TextIoFrame::suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn TextIoFrame::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

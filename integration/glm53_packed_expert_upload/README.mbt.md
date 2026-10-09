@@ -36,5 +36,29 @@ active cancellation terminally discards all state in the slice.
 Native regressions execute official-shaped zero-filled checkpoint fixtures and
 device test doubles. Three early dense layers compose 78 launches per step;
 the sparse block composes 37. These tests cover ownership and warm-path behavior,
-not official-weight GPU numerics or throughput. Embedding, final normalization,
-vocabulary head/sampling, worker integration and two-host execution remain.
+not official-weight GPU numerics or throughput.
+
+`GlmTextIo` now streams the installed BF16 embedding, final norm and untied head
+weights into a generic text frame. Its prefix replicates embedding rows into
+residual streams. Its suffix averages streams, normalizes selected output rows,
+projects to logits and performs deterministic greedy selection. Mean and
+normalized activations round to BF16 before affine multiplication; this is not
+DeepSeek's learned head collapse. The semantics follow Transformers'
+`Glm5NextTextHyperHead` and `Glm5NextTextRMSNorm`:
+https://github.com/huggingface/transformers/blob/main/src/transformers/models/glm5_next/modeling_glm5_next.py
+
+Pass `prefix()` and `suffix()` to `GlmDecoderSlice::prepare` to place ingress,
+decoder and egress in one queue. A complete GLM inference requires all decoder
+layers, not an early-layer slice. Output count/row IDs are caller-owned device
+ports; caller validates token IDs and counts before submission. Long prefill can
+select only its final row, using 627,712 bytes for normalized state and logits
+rather than a vocabulary buffer for every token. Global weight bytes, residual
+allocations and slice buffers must also be included in the model device budget.
+Invalid selected rows or non-finite logits yield a sampled-token sentinel `-1`;
+the worker must reject it and check sparse append error ports before delivery.
+
+The text kernels are ordered reference schedules, not throughput-tuned kernels.
+Their native composition tests use device doubles; real GPU numerical and
+sanitizer validation remain pending. Full worker delivery, non-greedy sampling,
+model-wide two-host execution and actual checkpoint numerical comparisons remain
+unfinished. Close the borrowing slice queue before closing the text frame.

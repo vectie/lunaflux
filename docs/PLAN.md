@@ -17,6 +17,14 @@ head/sampling and worker request execution; cross-device handoff and real-weight
 GPU equivalence remain separate unfinished features. Do not put TLS/signing work
 ahead of those integrations.
 
+GLM text ingress/egress now binds global embedding/norm/head weights to a generic
+immutable text precision plan and prepared AOT frame. Its prefix/suffix can join
+the decoder slice queue with no additional per-step completion. Selected head
+rows bound prefill logits memory independently of input length. This is the
+unweighted-mean/BF16 reference path, not DeepSeek's learned head or a throughput
+claim. Next physically validate text numerics, wire worker output/error delivery,
+and compose model-wide stage placement; no new TLS/admission work is needed.
+
 The compact MoE Program now owns startup buffers and binds routed/shared experts
 to one reusable execution queue. GLM shared BF16 and DeepSeek shared FP8 adapters
 use the same precision/execution layers. Next connect the programs into complete

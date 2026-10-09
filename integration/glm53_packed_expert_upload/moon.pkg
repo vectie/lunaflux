@@ -21,6 +21,8 @@ import {
   "vectie/lunaflux/integration/glm53_sparse_projection" @sparse_model,
   "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source" @sparse_source,
   "vectie/lunaflux/integration/indexed_sparse_projection_frame" @sparse_frame,
+  "vectie/lunaflux/kernels/text_io_execution_cuda_source" @text_source,
+  "vectie/lunaflux/integration/text_io_frame" @text_frame,
 }
 
 supported_targets = "native"

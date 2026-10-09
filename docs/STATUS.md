@@ -10,6 +10,21 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (text I/O): a generic immutable precision plan and prepared
+execution frame now connect token embeddings and selected-row mean/RMSNorm/head/
+greedy around the decoder queue. The GLM adapter binds the installed global
+BF16 tensor names and preserves intermediate BF16 rounds. No DeepSeek learned
+head parameters are invented. Selecting one output row after 4096-token prefill
+uses 627,712 bytes of private normalized/logit workspace; embedding/head weights
+and residual frames are separate costs. Native device-double tests exercise the
+combined queue and cancellation/release. GPU text numerical/sanitizer validation,
+full worker inference and two-host execution remain pending; this is not a
+new serving benchmark or a claim that the three complete models now run.
+The affected release-mode native suite passes 72/72; all six new text regressions
+also pass independently. Native check and format/API checks pass. Warning-denied
+check remains blocked by unrelated dependency warning migration; it is not
+reported as green. No GPU workloads or deployment-hardening changes were made.
+
 Update 2026-10-10: checkpoint-backed decoder slices now connect consecutive GLM
 layers through at most two reusable four-stream BF16 residual buffers. Recurrent
 and sparse layers have a queue-free prepared-frame mode; the slice resolves the

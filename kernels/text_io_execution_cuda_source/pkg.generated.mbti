@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/text_io_execution_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn text_io_source(@precision_ir.TextIoPrecision, symbol_prefix~ : String) -> TextIoCudaSource raise @precision_ir.PrecisionPlanError
+
+// Errors
+
+// Types and methods
+pub struct TextIoCudaSource {
+  // private fields
+}
+pub fn TextIoCudaSource::plan(Self) -> @precision_ir.TextIoPrecision
+pub fn TextIoCudaSource::source_bytes(Self) -> Bytes
+pub fn TextIoCudaSource::symbol(Self, Int) -> String raise @precision_ir.PrecisionPlanError
+
+// Type aliases
+
+// Traits

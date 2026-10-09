@@ -19,7 +19,11 @@ pub fn bind_router(@precision_materialize.PackedCheckpoint, layer_index~ : Int) 
 
 pub fn bind_shared_expert(@precision_materialize.PackedCheckpoint, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
+pub fn bind_text_io_weights(@precision_materialize.PackedCheckpoint, @glm53_spec.Glm53FlashSpec) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn expert_compute_plan(layer_index~ : Int, expert_indices~ : ArrayView[Int], maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
+
+pub fn flash_text_io_plan(@glm53_spec.Glm53FlashSpec, maximum_rows~ : Int, maximum_output_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.TextIoPrecision raise
 
 pub fn recurrent_block_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> @precision_ir.RecurrentBlockPrecision raise
 
@@ -54,7 +58,7 @@ pub fn GlmDecoderSlice::launch_count(Self) -> Int
 pub fn GlmDecoderSlice::layer_range(Self) -> (Int, Int)
 pub fn GlmDecoderSlice::new(@glm53_spec.Glm53FlashSpec, first_layer~ : Int, end_layer~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
 pub fn GlmDecoderSlice::poll(Self) -> Bool raise @device.DeviceError
-pub fn GlmDecoderSlice::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, sparse_reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
+pub fn GlmDecoderSlice::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, sparse_reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation, prefix_launches? : ArrayView[@device.OrderedKernelLaunch], suffix_launches? : ArrayView[@device.OrderedKernelLaunch]) -> Unit raise
 pub fn GlmDecoderSlice::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn GlmDecoderSlice::source_bytes(Self) -> Bytes
 pub fn GlmDecoderSlice::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
@@ -92,6 +96,18 @@ pub fn GlmSparseLayer::source_bytes(Self) -> Bytes
 pub fn GlmSparseLayer::state_bytes(Self) -> Int64
 pub fn GlmSparseLayer::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
 pub fn GlmSparseLayer::workspace_bytes(Self) -> Int64
+
+pub struct GlmTextIo {
+  // private fields
+}
+pub fn GlmTextIo::close(Self) -> Unit raise
+pub fn GlmTextIo::logits(Self) -> @device.Allocation raise
+pub fn GlmTextIo::new(@glm53_spec.Glm53FlashSpec, maximum_rows~ : Int, maximum_output_rows~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn GlmTextIo::prefix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn GlmTextIo::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, token_ids~ : @device.Allocation, output_count~ : @device.Allocation, selected_rows~ : @device.Allocation, input_residual~ : @device.Allocation, output_residual~ : @device.Allocation, sampled_tokens~ : @device.Allocation) -> Unit raise
+pub fn GlmTextIo::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn GlmTextIo::source_bytes(Self) -> Bytes
+pub fn GlmTextIo::suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 
 // Type aliases
 
