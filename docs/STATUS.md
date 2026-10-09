@@ -105,7 +105,9 @@ Generated source SHA-256 is
 probe source is
 `c00452aff1ad8ed634311b2f735fa26970c45f0891416d44541120f6cb9a33a2`.
 This completes a component boundary, not the DeepSeek decoder/DSpark model run.
-Clean Linux validation of this addition and whole-checkpoint numerics remain.
+The 43-test learned-head/precision/source subset also passes on Linux after
+three native test packages explicitly link the allocator's system libraries.
+Whole-checkpoint numerics remain untested.
 
 The expanded affected native aggregate passed 221/221 locally. Exact commit
 `ef95b5c0` also builds the checkpoint runner on Linux and parses the installed
