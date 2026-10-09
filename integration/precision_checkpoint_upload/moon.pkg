@@ -1,0 +1,8 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize" @materialize,
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"

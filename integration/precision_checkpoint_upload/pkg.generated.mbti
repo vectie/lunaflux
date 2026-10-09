@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/precision_checkpoint_upload"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct CheckpointDeviceWeights {
+  // private fields
+}
+pub fn CheckpointDeviceWeights::allocation(Self, Int) -> @device.Allocation raise @device.DeviceError
+pub fn CheckpointDeviceWeights::close(Self) -> Unit raise @device.DeviceError
+pub fn CheckpointDeviceWeights::device_bytes(Self) -> Int64
+pub fn CheckpointDeviceWeights::new() -> Self
+pub fn CheckpointDeviceWeights::upload(Self, @device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, ArrayView[@precision_materialize.PackedCheckpointWeight], maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+
+// Type aliases
+
+// Traits
