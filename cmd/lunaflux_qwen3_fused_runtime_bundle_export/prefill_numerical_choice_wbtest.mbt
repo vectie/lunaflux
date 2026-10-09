@@ -55,6 +55,25 @@ test "reference prefill requires explicit numeric law and raw matching phase slo
 }
 
 ///|
+test "reference KV64 geometry is admitted only with identical writer slots" {
+  let args = reference_prefill_test_args()
+  args[22] = "49152"
+  args[29] = "49152"
+  let (_, _, law, wide) = prepare_prefill_numerical_choice(args)
+  assert_eq(law, @luna_fused_artifact_admission.ReferenceBf16ProbabilityBaseTwo)
+  assert_eq(wide, law)
+  for shared in ["81920", "32768", "49151"] {
+    args[29] = shared
+    try prepare_prefill_numerical_choice(args) catch {
+      InvalidArguments => ()
+      _ => fail("wrong reference schedule failure")
+    } noraise {
+      _ => fail("inconsistent or unqualified reference schedule accepted")
+    }
+  }
+}
+
+///|
 test "bundle exp2 opt-in is distinct from ingress and decode choices" {
   let strict = runtime_bundle_test_arguments("5")
   let (_, _, strict_law, strict_wide_law) = prepare_prefill_numerical_choice(

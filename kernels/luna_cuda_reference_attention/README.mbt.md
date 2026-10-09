@@ -40,6 +40,20 @@ fallbacks. The bundle exporter has an explicit
 `--prefill-reference-flashattention` AOT opt-in. This is not a global default
 or a performance promise.
 
+`ReferencePrefillSchedule` retains two Q64 terminal alternatives: KV128
+(80 KiB shared) and KV64 (48 KiB shared). The same immutable schedule owns
+source specialization, rounded key extent and launch resources; a C++ static
+assert checks the pinned dependency's storage trait. The candidate exporter
+emits both without selecting one. Defaults remain KV128. Select only after
+paired whole-service measurement for the target device/workload; a smaller
+shared footprint is not itself a performance result. KV64 is rejected for the
+independently defined decode backends. Both prefill slots must bind identical
+launch resources and the same module, preserving the single-writer contract.
+
+These alternatives retain the same BF16-probability numerical permission, but
+different reduction tiles need not produce identical bits. They require
+independent accuracy and sanitizer checks, not a bitwise-equivalence claim.
+
 FlashAttention's bounded CSR copy requires page size divisible by eight; this
 constraint is not imposed on the independent FlashInfer decode layout.
 

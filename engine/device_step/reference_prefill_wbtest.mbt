@@ -2,6 +2,8 @@
 fn reference_domain_admission_test(
   symbol : String,
   coverage : @luna_attention_strategy.AttentionMixedRowCoverage,
+  shared_memory_bytes? : Int = 81920,
+  accepted? : Bool = true,
 ) -> Unit raise {
   let plan = qwen_fused_test_plan()
   let base = qwen_fused_test_blueprint(plan)
@@ -64,7 +66,7 @@ fn reference_domain_admission_test(
           block_x=128,
           block_y=1,
           block_z=1,
-          shared_memory_bytes=81920,
+          shared_memory_bytes~,
         ),
         module_bytes=b"reference-cubin-fixture",
         query_tile_rows=64,
@@ -83,6 +85,24 @@ fn reference_domain_admission_test(
     bytes,
     @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
   )
+  if !accepted {
+    try
+      ignore(
+        admit_reusable_qwen_fused_attention_spans(
+          plan,
+          @worker_protocol.ModelPlanGeneration::first(),
+          blueprint,
+          runtime,
+        ),
+      )
+    catch {
+      MismatchedFusedGroupedOperation(KernelAbi) => ()
+      _ => fail("wrong reference resource rejection")
+    } noraise {
+      _ => fail("unsupported reference resource layout admitted")
+    }
+    return
+  }
   let spans = admit_reusable_qwen_fused_attention_spans(
     plan,
     @worker_protocol.ModelPlanGeneration::first(),
@@ -129,4 +149,26 @@ test "reference AOT mixed ownership is explicit and pure decode remains independ
     "lunaflux_attention_mixed_flashattention_bf16_exp2_v1",
     AllActiveRows,
   )
+}
+
+///|
+test "reference prefill schedule reaches worker admission with exact shared geometry" {
+  for
+    (symbol, coverage) in [
+      (
+        "lunaflux_attention_prefill_flashattention_bf16_exp2_v1",
+        @luna_attention_strategy.PrefillRowsOnly,
+      ),
+      ("lunaflux_attention_mixed_flashattention_bf16_exp2_v1", AllActiveRows),
+    ] {
+    reference_domain_admission_test(symbol, coverage, shared_memory_bytes=49152)
+    for shared_memory_bytes in [49151, 49153, 32768, 65536] {
+      reference_domain_admission_test(
+        symbol,
+        coverage,
+        shared_memory_bytes~,
+        accepted=false,
+      )
+    }
+  }
 }

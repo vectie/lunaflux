@@ -17,6 +17,7 @@ pub struct ReferenceAttentionPlan {
   priv kv_dtype : @numeric.ComputeDType
   priv output_dtype : @numeric.ComputeDType
   priv accumulator : @numeric.AccumulatorDType
+  priv prefill_schedule : ReferencePrefillSchedule
 } derive(Debug, Eq)
 
 ///|
@@ -35,6 +36,7 @@ pub fn ReferenceAttentionPlan::new(
   kv_dtype? : @numeric.ComputeDType = @numeric.ComputeDType::bfloat16(),
   output_dtype? : @numeric.ComputeDType = @numeric.ComputeDType::bfloat16(),
   accumulator? : @numeric.AccumulatorDType = @numeric.AccumulatorDType::f32(),
+  prefill_schedule? : ReferencePrefillSchedule = Query64Kv128,
 ) -> ReferenceAttentionPlan raise ReferenceAttentionError {
   // Resolve the terminal specialization at startup, never by casting a
   // quantized cache to BF16. Weight dtype is deliberately not an attention
@@ -48,6 +50,11 @@ pub fn ReferenceAttentionPlan::new(
   let (heads, kv_heads, dimension, page) = abi.shape()
   let (width, stride, _) = abi.layout()
   if dimension != 128 ||
+    (
+      backend != FlashAttentionPrefill &&
+      backend != FlashAttentionMixed &&
+      prefill_schedule != Query64Kv128
+    ) ||
     (backend != FlashInferDecode && (page < 8 || page % 8 != 0)) ||
     !((heads / kv_heads) is (1 | 2 | 4 | 8)) ||
     kv_heads.to_int64() >
@@ -68,7 +75,16 @@ pub fn ReferenceAttentionPlan::new(
       "lunaflux_attention_decode_flashattention_bf16_exp2_v1"
     FlashInferDecode => "lunaflux_attention_decode_flashinfer_f32_exp2_v1"
   }
-  { backend, abi, symbol, query_dtype, kv_dtype, output_dtype, accumulator, }
+  {
+    backend,
+    abi,
+    symbol,
+    query_dtype,
+    kv_dtype,
+    output_dtype,
+    accumulator,
+    prefill_schedule,
+  }
 }
 
 ///|
@@ -118,7 +134,7 @@ pub fn ReferenceAttentionPlan::launch(
         128,
         1,
         1,
-        81920,
+        self.prefill_schedule.shared_memory_bytes(),
       )
     FlashAttentionDecode => (rows, kv_heads, 1, 128, 1, 1, 81920)
     FlashInferDecode => {

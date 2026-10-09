@@ -20,7 +20,7 @@ template<class T> struct Buffer {
   std::vector<T> read(){std::vector<T> h(n);CK(cudaMemcpy(h.data(),p,n*sizeof(T),cudaMemcpyDeviceToHost));return h;}
 };
 static float datum(size_t i,int salt) {return float(int((i*17+salt)%31)-15)/32.f;}
-static void run(CUfunction f,std::vector<int> queries,std::vector<int> lengths,int prefills,bool zero) {
+static void run(CUfunction f,unsigned shared,std::vector<int> queries,std::vector<int> lengths,int prefills,bool zero) {
   int b=queries.size(),tokens=0,pages=0;
   std::vector<int> offsets{0},po{0},positions,ids;
   for(int r=0;r<b;r++) {
@@ -36,7 +36,7 @@ static void run(CUfunction f,std::vector<int> queries,std::vector<int> lengths,i
   std::vector<__nv_bfloat16> poison(size_t(tokens+7)*2048,__float2bfloat16(1024));
   Buffer<__nv_bfloat16> out(poison);
   void* args[]={&c.p,&pos.p,&off.p,&len.p,&pageoff.p,&pageids.p,&dx.p,&out.p,&dk.p,&dv.p};
-  CK(cuLaunchKernel(f,64,16,1,128,1,1,81920,nullptr,args,nullptr));CK(cudaDeviceSynchronize());
+  CK(cuLaunchKernel(f,64,16,1,128,1,1,shared,nullptr,args,nullptr));CK(cudaDeviceSynchronize());
   auto actual=out.read();size_t checked=0;double maxerr=0;
   const int written_rows=prefills>0?b:0;
   for(int r=0;r<written_rows;r++)for(int t=offsets[r];t<offsets[r+1];t++)for(int h=0;h<16;h++) {
@@ -58,20 +58,23 @@ static void run(CUfunction f,std::vector<int> queries,std::vector<int> lengths,i
     if(std::memcmp(&actual[i],&poison[i],2))std::exit(4);
   auto afterx=dx.read(),afterk=dk.read(),afterv=dv.read();
   if(std::memcmp(afterx.data(),x.data(),x.size()*2)||std::memcmp(afterk.data(),k.data(),k.size()*2)||std::memcmp(afterv.data(),v.data(),v.size()*2))std::exit(5);
-  CK(cuLaunchKernel(f,64,16,1,128,1,1,81920,nullptr,args,nullptr));CK(cudaDeviceSynchronize());auto repeated=out.read();
+  CK(cuLaunchKernel(f,64,16,1,128,1,1,shared,nullptr,args,nullptr));CK(cudaDeviceSynchronize());auto repeated=out.read();
   if(std::memcmp(actual.data(),repeated.data(),actual.size()*2))std::exit(6);
   std::printf("prefills=%d rows=%d tokens=%d csr_entries=%d checked=%zu max_abs=%g inactive_unchanged=1 readonly=1 repeatable=1\n",prefills,b,tokens,pages,checked,maxerr);
 }
 int main(int argc,char** argv) {
-  if(argc!=2)return 1;CK(cudaSetDevice(0));CK(cudaFree(nullptr));
+  if(argc!=2 && argc!=3)return 1;
+  const unsigned shared=argc==3?std::atoi(argv[2]):81920;
+  if(shared!=81920 && shared!=49152)return 1;
+  CK(cudaSetDevice(0));CK(cudaFree(nullptr));
   CUmodule module;CUfunction function;CK(cuModuleLoad(&module,argv[1]));
   CK(cuModuleGetFunction(&function,module,"lunaflux_attention_mixed_flashattention_bf16_exp2_v1"));
-  CK(cuFuncSetAttribute(function,CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,81920));
-  for(int history:{1,7,8,9,15,16,17,63,64,65,127,128,129})run(function,{1},{history},1,false);
-  run(function,{63,7,1},{129,15,9},2,false);
-  run(function,{1,1,1},{1,9,129},0,false);
-  run(function,{64,65},{127,129},2,false);
+  CK(cuFuncSetAttribute(function,CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,shared));
+  for(int history:{1,7,8,9,15,16,17,63,64,65,127,128,129})run(function,shared,{1},{history},1,false);
+  run(function,shared,{63,7,1},{129,15,9},2,false);
+  run(function,shared,{1,1,1},{1,9,129},0,false);
+  run(function,shared,{64,65},{127,129},2,false);
   // Long-history oracle remains bounded; page 1024 and the CSR end are exact.
-  run(function,{8,1},{8193,8255},1,true);
+  run(function,shared,{8,1},{8193,8255},1,true);
   CK(cuModuleUnload(module));CK(cudaDeviceReset());std::puts("outcome=passed");
 }

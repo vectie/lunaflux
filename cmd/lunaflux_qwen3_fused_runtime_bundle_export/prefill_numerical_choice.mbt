@@ -92,15 +92,22 @@ fn validate_reference_prefill_choice(
     args.attention_prefill_wide.module_path {
     raise InvalidArguments
   }
+  let legal_schedules : Array[
+    @luna_cuda_reference_attention.ReferencePrefillSchedule,
+  ] = [Query64Kv128, Query64Kv64]
   for launch in [args.attention_prefill, args.attention_prefill_wide] {
     if launch.grid_z != 1 ||
       launch.block_x != 128 ||
-      launch.shared_memory_bytes != 81920 {
+      !legal_schedules.any(schedule => {
+        schedule.shared_memory_bytes() == launch.shared_memory_bytes
+      }) {
       raise InvalidArguments
     }
   }
   if args.attention_prefill.grid_x != args.attention_prefill_wide.grid_x ||
-    args.attention_prefill.grid_y != args.attention_prefill_wide.grid_y {
+    args.attention_prefill.grid_y != args.attention_prefill_wide.grid_y ||
+    args.attention_prefill.shared_memory_bytes !=
+    args.attention_prefill_wide.shared_memory_bytes {
     raise InvalidArguments
   }
 }

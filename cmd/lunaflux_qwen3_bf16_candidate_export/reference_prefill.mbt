@@ -5,6 +5,7 @@
 /// explicit bundle choice and independent accuracy qualification.
 fn reference_prefill_plan(
   source : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi,
+  schedule? : @luna_cuda_reference_attention.ReferencePrefillSchedule = Query64Kv128,
 ) -> @luna_cuda_reference_attention.ReferenceAttentionPlan? {
   let (query_heads, key_value_heads, head_dimension, tokens_per_page) = source.shape()
   let (input_row_width, page_stride_values, physical_page_capacity) = source.layout()
@@ -27,6 +28,7 @@ fn reference_prefill_plan(
     @luna_cuda_reference_attention.ReferenceAttentionPlan::new(
       backend=FlashAttentionMixed,
       abi~,
+      prefill_schedule=schedule,
     ),
   ) catch {
     _ => None
@@ -40,14 +42,32 @@ async fn publish_reference_prefill_candidate(
   operation : Int,
   abi : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi,
 ) -> Unit raise Qwen3Bf16CandidateExportCliError {
-  guard reference_prefill_plan(abi) is Some(reference) else {
+  for
+    schedule in [
+      @luna_cuda_reference_attention.ReferencePrefillSchedule::Query64Kv128,
+      Query64Kv64,
+    ] {
+    publish_reference_prefill_schedule(output, set, operation, abi, schedule)
+  }
+}
+
+///|
+async fn publish_reference_prefill_schedule(
+  output : String,
+  set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
+  operation : Int,
+  abi : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi,
+  schedule : @luna_cuda_reference_attention.ReferencePrefillSchedule,
+) -> Unit raise Qwen3Bf16CandidateExportCliError {
+  guard reference_prefill_plan(abi, schedule~) is Some(reference) else {
     println("reference_prefill=unsupported-shape")
     return
   }
   let (gx, gy, _, bx, _, _, shared) = reference.launch()
   let compiler = set.compiler_policy()
   let identity = compiler.identity()
-  let root = output + "/reusable-reference-prefill-attention"
+  let suffix = if schedule == Query64Kv128 { "" } else { "-kv64" }
+  let root = output + "/reusable-reference-prefill-attention" + suffix
   let recipe = @utf8.encode(
     "schema=lunaflux-reference-attention-cuda-aot-candidate.v1\n" +
     "family=paged-attention-prefill-reference\n" +
@@ -57,6 +77,7 @@ async fn publish_reference_prefill_candidate(
     "compiler_version=\{identity.major()}.\{identity.minor()}.\{identity.patch()}\n" +
     "source_sha256=\{reference.source_sha256()}\n" +
     "numeric_law=\{reference.numeric_law()}\nquery_tile_rows=64\n" +
+    "key_tile_rows=\{schedule.key_tile_rows()}\n" +
     "query_metadata_version=0\npage_table=exact-csr-bounded-tail-v1\n" +
     "dependency=flashattention-pinned-inference-csr-v1\n" +
     "dependency_kernel_sha256=242cbc331bd09d6ccfd023aae2d31461484b2a4801dcf66733b4151f9018622a\n" +
@@ -65,5 +86,10 @@ async fn publish_reference_prefill_candidate(
     "\n",
   )
   write_new_candidate_pair(root, reference.source(), recipe)
-  println("reference_prefill_source=\{root}/kernel.cu")
+  let output_key = if schedule == Query64Kv128 {
+    "reference_prefill_source"
+  } else {
+    "reference_prefill_kv64_source"
+  }
+  println("\{output_key}=\{root}/kernel.cu")
 }

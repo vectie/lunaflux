@@ -181,3 +181,51 @@ test "reference decode reuses grouped KV without rewriting model semantics" {
   assert_true(source.contains("p.q_row_stride=128"))
   assert_true(source.contains("p.is_causal=false"))
 }
+
+///|
+test "prefill schedule owns both lowering and launch resources without changing the continuation" {
+  for
+    backend in [
+      @luna_cuda_reference_attention.ReferenceAttentionBackend::FlashAttentionPrefill,
+      FlashAttentionMixed,
+    ] {
+    let baseline = @luna_cuda_reference_attention.ReferenceAttentionPlan::new(
+      backend~,
+      abi=fixture(),
+    )
+    let narrow = @luna_cuda_reference_attention.ReferenceAttentionPlan::new(
+      backend~,
+      abi=fixture(),
+      prefill_schedule=Query64Kv64,
+    )
+    assert_eq(narrow.launch(), (64, 16, 1, 128, 1, 1, 49152))
+    assert_eq(narrow.numeric_law(), baseline.numeric_law())
+    assert_eq(narrow.symbol(), baseline.symbol())
+    assert_eq(narrow.operand_formats(), baseline.operand_formats())
+    assert_true(narrow.source_sha256() != baseline.source_sha256())
+    let source = @utf8.decode(narrow.source())
+    assert_true(
+      source.contains("<128,64,64,4,false,false,cutlass::bfloat16_t>"),
+    )
+    assert_true(source.contains("kSmemSize == 49152"))
+    assert_true(source.contains("(lengths[row]+63)/64*64"))
+  }
+  for
+    backend in [
+      @luna_cuda_reference_attention.ReferenceAttentionBackend::FlashAttentionDecode,
+      FlashInferDecode,
+    ] {
+    try
+      @luna_cuda_reference_attention.ReferenceAttentionPlan::new(
+        backend~,
+        abi=fixture(),
+        prefill_schedule=Query64Kv64,
+      )
+    catch {
+      @luna_cuda_reference_attention.UnsupportedReferenceAttention => ()
+      _ => fail("wrong schedule failure")
+    } noraise {
+      _ => fail("prefill schedule silently applied to decode")
+    }
+  }
+}

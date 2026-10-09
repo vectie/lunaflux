@@ -1,7 +1,12 @@
 ///|
 fn main raise {
-  guard @env.args() is [_, backend] else {
-    fail("flash-prefill|flash-mixed|flash-decode|infer-decode")
+  guard @env.args() is [_, backend, .. options] else {
+    fail("flash-prefill|flash-mixed|flash-decode|infer-decode [--kv64]")
+  }
+  let prefill_schedule : @reference.ReferencePrefillSchedule = match options {
+    [] => Query64Kv128
+    ["--kv64"] => Query64Kv64
+    _ => fail("schedule")
   }
   let backend : @reference.ReferenceAttentionBackend = match backend {
     "flash-prefill" => FlashAttentionPrefill
@@ -22,7 +27,11 @@ fn main raise {
     maximum_query_tokens=2048,
     maximum_page_entries=9216,
   )
-  let plan = @reference.ReferenceAttentionPlan::new(backend~, abi~)
+  let plan = @reference.ReferenceAttentionPlan::new(
+    backend~,
+    abi~,
+    prefill_schedule~,
+  )
   println(@utf8.decode(plan.source()))
   println("// symbol=" + plan.symbol())
   println("// numeric_law=" + plan.numeric_law())

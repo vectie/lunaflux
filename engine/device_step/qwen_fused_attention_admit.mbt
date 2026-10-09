@@ -404,7 +404,12 @@ pub fn admit_reusable_qwen_fused_attention_spans(
       readonly_query_tile_rows != 64 ||
       readonly_module.query_metadata_version() != 0 ||
       readonly_launch.block_x() != 128 ||
-      readonly_launch.shared_memory_bytes() != 81920 ||
+      (
+        readonly_launch.shared_memory_bytes() !=
+        @luna_cuda_reference_attention.Query64Kv128.shared_memory_bytes() &&
+        readonly_launch.shared_memory_bytes() !=
+        @luna_cuda_reference_attention.Query64Kv64.shared_memory_bytes()
+      ) ||
       partitioned_modules is Some(_) ||
       deep_partitioned_modules is Some(_)
     ) {

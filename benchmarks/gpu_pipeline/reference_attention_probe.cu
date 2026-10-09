@@ -81,17 +81,21 @@ struct Kernel {
 int main(int argc,char **argv) {
   // BACKEND CUBIN ROWS QUERY_TOKENS_PER_ROW HISTORY FRAGMENTED REPEATS
   // Optional: --compiler SELECTED_CUBIN EXACT_SELECTED_SYMBOL (owned8 recipe).
-  if(argc!=8 && argc!=11) return 1;
-  const bool paired=argc==11;
-  if(paired && std::string(argv[8])!="--compiler") return 1;
+  // Paired terminal schedules: --reference OLD_CUBIN OLD_SHARED NEW_SHARED.
+  if(argc!=8 && argc!=11 && argc!=12) return 1;
+  const bool paired_compiler=argc==11,paired_reference=argc==12;
+  const bool paired=paired_compiler||paired_reference;
+  if(paired_compiler && std::string(argv[8])!="--compiler") return 1;
+  if(paired_reference && std::string(argv[8])!="--reference") return 1;
   std::string backend=argv[1];
-  const bool prefill=backend=="flash-prefill";
+  const bool mixed=backend=="flash-mixed";
+  const bool prefill=backend=="flash-prefill" || mixed;
   const bool infer=backend=="infer-decode";
   if(!prefill && !infer && backend!="flash-decode") return 1;
   int rows=std::atoi(argv[3]),q=std::atoi(argv[4]),history=std::atoi(argv[5]);
   int fragmented=std::atoi(argv[6]),repeats=std::atoi(argv[7]);
   if(rows<1 || rows>32 || q<1 || q>2048 || rows*q>2048 ||
-     history<q || history>8192 || (!prefill && q!=1) ||
+     history<q || history>65536 || (!prefill && q!=1) ||
      (fragmented!=0 && fragmented!=1) || repeats<1 || repeats>100 ||
      rows*((history+7)/8)>9216) return 1;
   const int tokens=rows*q;
@@ -119,11 +123,15 @@ int main(int argc,char **argv) {
     positions.ints(positions_host); offsets.ints(offsets_host);
     lengths.ints(lengths_host); page_offsets.ints(page_offsets_host); page_indices.ints(pages);
     const std::string symbol="lunaflux_attention_"+
-      std::string(prefill?"prefill":"decode")+
+      std::string(mixed?"mixed":prefill?"prefill":"decode")+
       (infer?"_flashinfer_f32_exp2_v1":"_flashattention_bf16_exp2_v1");
     const unsigned gx=prefill ? 32+(2048-32+63)/64 : 32;
+    const unsigned shared=paired_reference?std::atoi(argv[11]):infer?9216:81920;
+    const unsigned old_shared=paired_reference?std::atoi(argv[10]):33040;
+    if(paired_reference && (infer || shared<16384 || shared>98304 ||
+                           old_shared<16384 || old_shared>98304)) return 1;
     Kernel kernel(argv[2],symbol.c_str(),gx,prefill?16:8,
-                  infer?16:128,infer?2:1,infer?4:1,infer?9216:81920);
+                  infer?16:128,infer?2:1,infer?4:1,shared);
     void *args[]={&counts.p,&positions.p,&offsets.p,&lengths.p,&page_offsets.p,
                   &page_indices.p,&input.p,&output.p,&keys.p,&values.p};
     const auto original_input=input.read(),original_keys=keys.read(),original_values=values.read();
@@ -144,8 +152,10 @@ int main(int argc,char **argv) {
     kernel.launch(args); CK(cudaDeviceSynchronize());
     if(result!=output.read()) { std::fprintf(stderr,"non-deterministic output\n"); return 4; }
     if(paired) {
-      if(prefill) return 1;
-      Kernel compiler(argv[9],argv[10],32,8,64,1,1,33040);
+      if(paired_compiler && prefill) return 1;
+      Kernel compiler(argv[9],paired_reference?symbol.c_str():argv[10],
+                      paired_reference?gx:32,paired_reference&&prefill?16:8,
+                      paired_reference?128:64,1,1,old_shared);
       compiler.launch(args); CK(cudaDeviceSynchronize());
       auto compiled_result=output.read();
       check_attention_referee(original_input,original_keys,original_values,compiled_result,

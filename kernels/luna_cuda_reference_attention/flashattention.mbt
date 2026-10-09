@@ -8,6 +8,8 @@ fn flashattention_source(plan : ReferenceAttentionPlan) -> String {
   let prefill = plan.backend != FlashAttentionDecode
   let mixed = plan.backend == FlashAttentionMixed
   let query_tile = 64
+  let key_tile = plan.prefill_schedule.key_tile_rows()
+  let shared = plan.prefill_schedule.shared_memory_bytes()
   let group = heads / kv_heads
   let source =
     $|#include <optional>
@@ -16,8 +18,8 @@ fn flashattention_source(plan : ReferenceAttentionPlan) -> String {
     $|#ifndef LUNAFLUX_FLASH_CSR_TAIL_SAFE_V1
     $|#error "The pinned FlashAttention headers must use the bounded CSR tail resolver"
     $|#endif
-    $|using LfReferenceTraits = Flash_fwd_kernel_traits<128,64,128,4,false,false,cutlass::bfloat16_t>;
-    $|static_assert(LfReferenceTraits::kSmemSize == 81920);
+    $|using LfReferenceTraits = Flash_fwd_kernel_traits<128,64,\{key_tile},4,false,false,cutlass::bfloat16_t>;
+    $|static_assert(LfReferenceTraits::kSmemSize == \{shared});
     $|extern "C" __global__ void \{plan.symbol}(
     $| const int *counts, const int *positions, const int *offsets,
     $| const int *lengths, const int *page_offsets, const int *page_indices,
@@ -54,7 +56,7 @@ fn flashattention_source(plan : ReferenceAttentionPlan) -> String {
     $|   p.h=\{if prefill { heads } else { 1 }}; p.h_k=\{if prefill { kv_heads } else { 1 }}; p.h_h_k_ratio=\{if prefill { group } else { 1 }};
     $|   p.b=1; p.seqlen_q=\{if prefill { "n" } else { group.to_string() }}; p.seqlen_k=lengths[row]; p.d=\{dimension};
     $|   p.d_rounded=\{dimension}; p.seqlen_q_rounded=(n+63)/64*64;
-    $|   p.seqlen_k_rounded=(lengths[row]+127)/128*128; p.total_q=n;
+    $|   p.seqlen_k_rounded=(lengths[row]+\{key_tile - 1})/\{key_tile}*\{key_tile}; p.total_q=n;
     $|   p.block_table=const_cast<int *>(page_indices + page_offsets[row]); p.page_block_size=\{page};
     $|   p.scale_softmax=0.08838834764831845f; p.scale_softmax_log2=p.scale_softmax*1.4426950408889634f;
     $|   p.p_dropout=1.0f; p.rp_dropout=1.0f; p.scale_softmax_rp_dropout=p.scale_softmax;
