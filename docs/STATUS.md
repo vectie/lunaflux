@@ -10,6 +10,23 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+The GLM recurrent attention sublayer now includes its complete mHC envelope:
+four residual streams → function/collapse → positive Sinkhorn/input RMSNorm →
+KDA branch → residual-stream publication. Its nineteen checkpoint parameters
+bind exact installed header shapes, with 276,275,820 weight bytes and 146,043,392
+workspace bytes at rows 32 / sequences 16 / slots 32. The native test double runs
+32 steps / 640 launches in one reusable queue with zero measured token-step
+allocations or blocking waits; aggregate focused tests pass 49/49.
+
+On .178 GB10, a small full 20-stage fixture passes both numerical post contracts
+against an independent oracle. Residual output, collapse and input norm match
+the oracle exactly; maximum F32 control/state errors are 7.62e-8 / 2.27e-8.
+Prefill versus eight decode frames gives bitwise-identical output/state; idle
+frames are untouched. Memcheck, racecheck and synccheck report zero issues.
+This closes attention-envelope composition, not full-model inference: real
+checkpoint GPU execution, dense/MoE sublayer composition, DSA, workers and
+two-host execution remain open. No throughput improvement is claimed.
+
 Checkpoint-backed KDA execution now has a GLM layer owner. Its fifteen named
 parameters bind to the actual installed layer-0 header's BF16 matrices,
 BF16 `[8192,1,4]` convolution tensors and F32 control vectors without transpose

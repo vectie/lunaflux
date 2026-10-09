@@ -43,8 +43,12 @@ Its small GPU full-chain oracle and chunked execution checks pass, as do 47
 focused native tests. The checkpoint-backed KDA layer owner now binds all fifteen
 BF16/F32 parameters, preserves rank-three convolution layout and streams into
 owned device allocations through one reusable host chunk. An official-sized
-native fixture exercises that owner and its complete queue. Next run this owner
-with real weights on GPU and connect KDA/MoE to surrounding mHC/dense layers and
+native fixture exercises that owner and its complete queue. Its attention mHC
+envelope is now executable too: function/collapse, Sinkhorn and input RMSNorm
+precede KDA; residual publication follows it in the same 20-launch queue with
+one completion boundary. The GLM adapter streams all nineteen physical weights,
+and a bounded small GPU full-chain oracle passes. Next run this owner with real
+weights on GPU and connect its attention output to dense/MoE sublayers and
 layer/worker execution.
 Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual

@@ -1,7 +1,8 @@
 # Request-owned recurrent delta execution
 
-The executable slice is the normalized delta recurrence, not a complete GLM
-attention block or a whole-model benchmark. Pure precision IR describes BF16
+The first executable slice was the normalized delta recurrence; subsequent
+sections record its complete branch, checkpoint owner and attention mHC envelope.
+This remains component execution, not a whole-model benchmark. Pure precision IR describes BF16
 frame operands, F32 log decay/state, geometry, numerical ordering and state
 budget. The GLM adapter selects that plan only for KDA layers. CUDA lowering
 owns thread geometry; the Program owns cache lifetime and submission effects.
@@ -176,3 +177,59 @@ results; executing real checkpoint weights on GPU and whole-model composition
 remain open. Existing small-chain GPU numerical results above are unchanged.
 
 No TLS, signing, registry or deployment-hardening work was added.
+
+## Complete mHC attention envelope
+
+The GLM adapter's `with_hyper_connection` constructor now prepares the complete
+recurrent attention sublayer:
+
+`four residual streams → function/collapse → Sinkhorn → weighted input RMSNorm
+→ sixteen-stage KDA branch → mHC residual publication`.
+
+The pure `HyperConnectionPrecision` plan accounts six frames and names the
+numerical law; CUDA lowering scopes helpers/symbols and supplies executable
+stages. `HyperConnectionFrame` owns frames/functions, while the recurrent Program
+borrows three prefix launches and one suffix launch into its existing queue.
+There is one completion boundary, not a host wait between envelope and branch.
+The model adapter supplies stream count, epsilon and exact checkpoint names;
+neither the precision plan nor execution owner contains model-family branches.
+
+The installed .175 layer-0 header was read directly again: `hc_attn_fn` is
+BF16 `[24,16384]`, `hc_attn_base` F32 `[24]`, `hc_attn_scale` F32 `[3]`, and
+`input_layernorm.weight` BF16 `[4096]`. These add 794,732 weight bytes to the
+fifteen recurrent weights, for 276,275,820 total. At rows 32 / sequences 16 /
+slots 32, the envelope adds 791,040 workspace bytes, for 146,043,392 workspace
+and 422,319,212 weights-plus-workspace bytes. Borrowed I/O/module/stream are
+excluded. The official-sized sparse native fixture now runs 32 steps / 640
+enqueues with zero measured token-step allocations or blocking waits and closes
+all resources after active cancellation. Focused tests pass 49/49; format,
+interfaces and ordinary native check pass. Existing unrelated deprecations
+still prevent claiming a warning-denied release boundary.
+
+The new small GPU fixture compiles both scoped numerical envelopes into one
+module and executes the full 20-stage chain for ragged continuation, slot
+reorder/reset and idle frames. Nonuniform controls distinguish the two matrix
+orientations: GLM's BF16-rounded law consumes `[source,destination]`; the
+single-round F32 law consumes `[destination,source]`. They are distinct numeric
+contracts, not interchangeable schedules. An independent double oracle reports
+maximum control error 7.61565617e-8, collapse/input-norm/residual-output error
+zero, and F32 recurrent state error 2.26728507e-8. Raw histories match exactly.
+One eight-token prefill and eight decode frames produce bitwise-identical output
+and F32 state; idle frames leave publication/state unchanged. Memcheck reports
+zero errors/leaks, racecheck zero hazards/warnings and synccheck zero errors.
+
+The target remains idle .178 GB10/CUDA 13.0.88, `sm_121`, `--fmad=false`.
+Processes were capped at 2 GiB/no swap/120 seconds. Final available host memory
+was 123,127,804 KiB, with no compute process. Captures are downloaded to
+`/tmp/lunaflux-hyper-capture.YyzrmF` from
+`/tmp/lunaflux-hyper-feature.2cTEJZ`; all five source/binary hashes match remote.
+The generated envelope header hash is
+`77cd8564ccc55576b0e9dd400eb668ba478d980b55e7c9c7cc4e65a062f29ab7`.
+
+This closes the recurrent attention envelope's executable composition gap.
+It does not execute the full installed checkpoint on GPU or complete the MLP
+part of a decoder block. DSA, dense early MLP, routed/shared MoE composition,
+full-model workers and two-host execution remain genuine feature tasks. Existing
+control/Sinkhorn and projection schedules are correctness-first; no model
+throughput or reference-framework improvement is claimed. TLS/admission work
+remains paused.

@@ -8,13 +8,15 @@ priv enum RecurrentLayerState {
 }
 
 ///|
-/// Executable checkpoint-backed KDA branch. Owns all device weights, request
-/// state and intermediate frames, borrowing the module, stream and frame I/O.
+/// Executable checkpoint-backed KDA branch, optionally with the complete
+/// residual-stream attention envelope. Owns weights, request state and
+/// intermediates, borrowing the module, stream and frame I/O.
 pub struct GlmRecurrentLayer {
   priv spec : @glm53_spec.Glm53FlashSpec
   priv layer_index : Int
   priv program : @recurrent.RecurrentDeltaProgram
   priv weights : @upload.CheckpointDeviceWeights
+  priv hyper : @hyper.HyperConnectionFrame?
   priv mut status : RecurrentLayerState
 }
 
@@ -44,23 +46,31 @@ pub fn GlmRecurrentLayer::new(
     layer_index,
     program: @recurrent.RecurrentDeltaProgram::with_block(source),
     weights: @upload.CheckpointDeviceWeights::new(),
+    hyper: None,
     status: Fresh,
   }
 }
 
 ///|
 pub fn GlmRecurrentLayer::source_bytes(self : Self) -> Bytes {
-  self.program.source_bytes()
+  match self.hyper {
+    None => self.program.source_bytes()
+    Some(hyper) => hyper.source_bytes() + b"\n" + self.program.source_bytes()
+  }
 }
 
 ///|
 pub fn GlmRecurrentLayer::workspace_bytes(self : Self) -> Int64 {
-  self.program.workspace_bytes()
+  let extra = match self.hyper {
+    None => 0L
+    Some(hyper) => hyper.workspace_bytes()
+  }
+  self.program.workspace_bytes() + extra
 }
 
 ///|
 pub fn GlmRecurrentLayer::device_bytes(self : Self) -> Int64 {
-  self.program.workspace_bytes() + self.weights.device_bytes()
+  self.workspace_bytes() + self.weights.device_bytes()
 }
 
 ///|
@@ -83,8 +93,7 @@ pub fn GlmRecurrentLayer::prepare(
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
 ) -> Unit raise {
-  guard self.status is Fresh &&
-    maximum_device_bytes >= self.program.workspace_bytes() else {
+  guard self.status is Fresh && maximum_device_bytes >= self.workspace_bytes() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
@@ -96,15 +105,53 @@ pub fn GlmRecurrentLayer::prepare(
     self.spec,
     layer_index=self.layer_index,
   )
+  if self.hyper is Some(_) {
+    for
+      weight in bind_attention_hyper_weights(
+        checkpoint,
+        self.spec,
+        self.layer_index,
+      ) {
+      bound.push(weight)
+    }
+  }
   self.weights.upload(
     context,
     checkpoint,
     root,
     bound,
-    maximum_device_bytes=maximum_device_bytes - self.program.workspace_bytes(),
+    maximum_device_bytes=maximum_device_bytes - self.workspace_bytes(),
     chunk_bytes~,
     limits~,
   )
+  let (input, branch_output, prefix, suffix) : (
+    @device.Allocation,
+    @device.Allocation,
+    ArrayView[@device.OrderedKernelLaunch],
+    ArrayView[@device.OrderedKernelLaunch],
+  ) = match self.hyper {
+    None => (hidden, output, [], [])
+    Some(hyper) => {
+      hyper.prepare(
+        context,
+        aot,
+        counts~,
+        input=hidden,
+        output~,
+        function_weight=self.weights.allocation(15),
+        base=self.weights.allocation(16),
+        scale=self.weights.allocation(17),
+        norm_weight=self.weights.allocation(18),
+        maximum_workspace_bytes=hyper.workspace_bytes(),
+      )
+      (
+        hyper.branch_input(),
+        hyper.branch_output(),
+        hyper.prefix(),
+        hyper.suffix(),
+      )
+    }
+  }
   self.program.prepare_block(
     context,
     aot,
@@ -116,8 +163,10 @@ pub fn GlmRecurrentLayer::prepare(
     sequence_offsets~,
     sequence_slots~,
     reset_flags~,
-    hidden~,
-    output~,
+    hidden=input,
+    output=branch_output,
+    prefix~,
+    suffix~,
   )
   self.status = Ready
 }
@@ -163,6 +212,9 @@ pub fn GlmRecurrentLayer::close(self : Self) -> Unit raise @device.DeviceError {
   }
   self.status = Failed
   self.program.abort()
+  if self.hyper is Some(hyper) {
+    hyper.close()
+  }
   self.weights.close()
   self.status = Closed
 }

@@ -1,5 +1,5 @@
 ///|
-async test "GLM full-sized recurrent checkpoint binds all fifteen physical weight planes" {
+async test "GLM full attention sublayer binds nineteen weights and one twenty-launch queue" {
   @async.with_task_group() <| group => {
     let directory = @fs.realpath(@fs.tmpdir(prefix="lunaflux-glm-recurrent"))
     group.add_defer() <| () => {
@@ -21,16 +21,21 @@ async test "GLM full-sized recurrent checkpoint binds all fifteen physical weigh
       ("q_conv1d.weight", "BF16", "8192,1,4", 65536L),
       ("k_conv1d.weight", "BF16", "8192,1,4", 65536L),
       ("v_conv1d.weight", "BF16", "8192,1,4", 65536L),
+      ("hc_attn_fn", "BF16", "24,16384", 786432L),
+      ("hc_attn_base", "F32", "24", 96L),
+      ("hc_attn_scale", "F32", "3", 12L),
+      ("input_layernorm.weight", "BF16", "4096", 8192L),
     ]
     let entries : Array[String] = []
     let mut offset = 0L
-    for (name, dtype, shape, count) in shapes {
+    for index, (name, dtype, shape, count) in shapes {
+      let parent = if index < 15 { "self_attn." } else { "" }
       entries.push(
-        "\"model.language_model.layers.0.self_attn.\{name}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{offset},\{offset + count}]}",
+        "\"model.language_model.layers.0.\{parent}\{name}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{offset},\{offset + count}]}",
       )
       offset += count
     }
-    assert_eq(offset, 275481088L)
+    assert_eq(offset, 276275820L)
     let header = @utf8.encode("{" + entries.join(",") + "}")
     let prefix : Array[Byte] = []
     for i in 0..<8 {
@@ -61,14 +66,14 @@ async test "GLM full-sized recurrent checkpoint binds all fifteen physical weigh
       maximum_shards=1,
       maximum_file_bytes=300000000L,
       maximum_header_bytes=8192,
-      maximum_tensors_per_shard=15,
-      maximum_total_tensors=15,
+      maximum_tensors_per_shard=19,
+      maximum_total_tensors=19,
       maximum_rank=3,
       maximum_name_bytes=256,
       maximum_dtype_specs=2,
       authentication_chunk_bytes=65536,
-      maximum_copy_requests=15,
-      maximum_copy_bytes=275481088L,
+      maximum_copy_requests=19,
+      maximum_copy_bytes=276275820L,
     )
     let root = @approved_fs.ApprovedRoot::open_absolute(directory)
     defer root.close()
@@ -95,12 +100,12 @@ async test "GLM full-sized recurrent checkpoint binds all fifteen physical weigh
       @glm53_spec.Glm53FlashSpec::official(),
       layer_index=0,
     )
-    assert_eq(weights.length(), shapes.length())
+    assert_eq(weights.length(), 15)
     for i, weight in weights {
       let (_, _, _, bytes) = shapes[i]
       assert_eq(weight.buffer_bytes(), bytes)
     }
-    let layer = @glm53_packed_expert_upload.GlmRecurrentLayer::new(
+    let layer = @glm53_packed_expert_upload.GlmRecurrentLayer::with_hyper_connection(
       @glm53_spec.Glm53FlashSpec::official(),
       layer_index=0,
       maximum_rows=32,
@@ -108,7 +113,7 @@ async test "GLM full-sized recurrent checkpoint binds all fifteen physical weigh
       cache_slots=32,
       maximum_state_bytes=134217728L,
     )
-    assert_eq(layer.workspace_bytes(), 145252352L)
+    assert_eq(layer.workspace_bytes(), 146043392L)
     assert_true(
       @utf8.decode(layer.source_bytes()).contains("glm_recurrent_0_15("),
     )
@@ -119,7 +124,7 @@ async test "GLM full-sized recurrent checkpoint binds all fifteen physical weigh
     defer (stream.close() catch { _ => () })
     let aot = context.load_module(b"fake\x00")
     defer (aot.close() catch { _ => () })
-    let operand = context.allocate(262144L)
+    let operand = context.allocate(1048576L)
     defer (operand.close() catch { _ => () })
     defer (layer.close() catch { _ => () })
     layer.prepare(
@@ -128,7 +133,7 @@ async test "GLM full-sized recurrent checkpoint binds all fifteen physical weigh
       stream,
       checkpoint,
       root,
-      maximum_device_bytes=420733440L,
+      maximum_device_bytes=422319212L,
       chunk_bytes=65533,
       limits~,
       counts=operand,
@@ -138,7 +143,7 @@ async test "GLM full-sized recurrent checkpoint binds all fifteen physical weigh
       hidden=operand,
       output=operand,
     )
-    assert_eq(layer.device_bytes(), 420733440L)
+    assert_eq(layer.device_bytes(), 422319212L)
     let before = enqueues()
     let waits = blocking_syncs()
     begin_allocations()
@@ -149,7 +154,7 @@ async test "GLM full-sized recurrent checkpoint binds all fifteen physical weigh
       }
     }
     assert_eq(end_allocations(), 0UL)
-    assert_eq(enqueues() - before, 512UL)
+    assert_eq(enqueues() - before, 640UL)
     assert_eq(blocking_syncs(), waits)
     // Active cancellation closes the executor before its borrowed weights.
     layer.submit(live_rows=1)
