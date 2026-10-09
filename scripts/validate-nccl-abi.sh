@@ -111,7 +111,7 @@ rg -q -U \
   '#borrow\(communicator\)\nextern "c" fn raw_communicator_abort' \
   internal/nccl/ffi.mbt || fail 'communicator abort must borrow its owner'
 rg -q -U \
-  '#borrow\(communicator, context, send, receive, stream\)\nextern "c" fn raw_communicator_submit_bf16' \
+  '#borrow\(communicator, context, send, receive, stream\)\nextern "c" fn raw_communicator_submit_typed' \
   internal/nccl/ffi.mbt || fail 'collective submit must borrow every native owner'
 rg -q -U \
   '#borrow\(communicator\)\nextern "c" fn raw_communicator_poll_collective_state' \

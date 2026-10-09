@@ -198,7 +198,31 @@ int32_t lunaflux_nccl_test_collectives(int32_t cycles) {
         ) != LF_NCCL_OK || completed != 1 ||
         lf_device_interop_managed_probe_query_calls(&device) != 2 ||
         communicator->next_collective_sequence != 3U) return 13;
-    if (lf_nccl_communicator_close(communicator) != LF_NCCL_OK) return 14;
+    if (lf_nccl_communicator_submit_typed(
+          communicator, 4, (uint64_t)cycle + 1U, 1U, 3U, 20, 1,
+          lf_device_interop_managed_probe_context(&device),
+          lf_device_interop_managed_probe_send(&device), 0, 48,
+          lf_device_interop_managed_probe_receive(&device), 0, 48,
+          lf_device_interop_managed_probe_queue(&device)
+        ) != LF_NCCL_OK || state.all_reduce_calls != 2 ||
+        state.count != 48U || state.datatype != 7 || state.reduction != 0) return 14;
+    completed = 0;
+    if (lf_nccl_communicator_poll_collective(communicator, &completed) != LF_NCCL_OK ||
+        completed != 1 || communicator->next_collective_sequence != 4U) return 15;
+    if (lf_nccl_communicator_submit_typed(
+          communicator, 4, (uint64_t)cycle + 1U, 1U, 4U, 30, 2,
+          lf_device_interop_managed_probe_context(&device),
+          lf_device_interop_managed_probe_send(&device), 32, 24,
+          lf_device_interop_managed_probe_receive(&device), 64, 48,
+          lf_device_interop_managed_probe_queue(&device)
+        ) != LF_NCCL_OK || state.all_gather_calls != 2 ||
+        state.count != 24U || state.datatype != 7 ||
+        state.send != (void *)(uintptr_t)0x10020 ||
+        state.receive != (void *)(uintptr_t)0x20040) return 16;
+    completed = 0;
+    if (lf_nccl_communicator_poll_collective(communicator, &completed) != LF_NCCL_OK ||
+        completed != 1 || communicator->next_collective_sequence != 5U) return 17;
+    if (lf_nccl_communicator_close(communicator) != LF_NCCL_OK) return 18;
     moonbit_decref(communicator);
     lf_device_interop_managed_probe_close(&device);
   }

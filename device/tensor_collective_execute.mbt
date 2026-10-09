@@ -47,16 +47,19 @@ fn authenticate_tensor_collective_claim(
   claimed_kind : TensorCollectiveKind,
 ) -> Int raise DeviceError {
   let count = contract.sequences.length()
-  let mut index = next_site_index
-  if claimed_plan_sequence != current_plan_sequence {
+  // Immutable branch selection avoids a boxed mutable local in native lowering.
+  let index = if claimed_plan_sequence != current_plan_sequence {
     if next_site_index != count ||
       current_plan_sequence == 18446744073709551615UL ||
       claimed_plan_sequence != current_plan_sequence + 1UL {
       raise InvalidArgument(TensorCollectiveExecute)
     }
-    index = 0
-  } else if index >= count {
-    raise InvalidArgument(TensorCollectiveExecute)
+    0
+  } else {
+    if next_site_index >= count {
+      raise InvalidArgument(TensorCollectiveExecute)
+    }
+    next_site_index
   }
   if claimed_generation != generation ||
     claimed_global_sequence != next_global_sequence ||
@@ -75,8 +78,8 @@ fn nccl_collective_kind(
   kind : TensorCollectiveKind,
 ) -> @nccl.NcclCollectiveOperation {
   match kind {
-    Bf16SumAllReduce => AllReduce
-    Bf16AllGather => AllGather
+    Bf16SumAllReduce | F32SumAllReduce => AllReduce
+    Bf16AllGather | F32AllGather => AllGather
   }
 }
 
@@ -124,8 +127,8 @@ pub fn TensorCollectiveOwner::submit(
     }
   }
   let send_width = match kind {
-    Bf16SumAllReduce => self.contract.full_widths[index]
-    Bf16AllGather => self.contract.local_widths[index]
+    Bf16SumAllReduce | F32SumAllReduce => self.contract.full_widths[index]
+    Bf16AllGather | F32AllGather => self.contract.local_widths[index]
   }
   let send_elements = checked_tensor_collective_elements(
     live_query_tokens.to_int64(),
@@ -145,7 +148,11 @@ pub fn TensorCollectiveOwner::submit(
       0L
     }
   }
-  self.communicator.submit_bf16(
+  self.communicator.submit_typed(
+    element_type=match kind {
+      Bf16SumAllReduce | Bf16AllGather => Bf16
+      F32SumAllReduce | F32AllGather => F32
+    },
     generation=self.generation,
     plan_sequence~,
     collective_sequence=global_sequence,

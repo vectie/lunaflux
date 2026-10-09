@@ -175,9 +175,56 @@ pub fn NcclCommunicator::submit_bf16(
   receive_elements~ : Int64,
   stream~ : @device_collective_interop.QueueToken,
 ) -> Unit raise NcclError {
+  self.submit_typed(
+    element_type=Bf16,
+    generation~,
+    plan_sequence~,
+    collective_sequence~,
+    operation_id~,
+    collective_kind~,
+    context~,
+    send~,
+    send_offset~,
+    send_elements~,
+    receive~,
+    receive_offset~,
+    receive_elements~,
+    stream~,
+  )
+}
+
+///|
+pub(all) enum CollectiveElementType {
+  Bf16
+  F32
+} derive(Eq)
+
+///|
+/// Uses the caller's accumulation dtype without inserting a rounding copy.
+pub fn NcclCommunicator::submit_typed(
+  self : NcclCommunicator,
+  element_type~ : CollectiveElementType,
+  generation~ : UInt64,
+  plan_sequence~ : UInt64,
+  collective_sequence~ : UInt64,
+  operation_id~ : Int,
+  collective_kind~ : NcclCollectiveOperation,
+  context~ : @device_collective_interop.ContextToken,
+  send~ : @device_collective_interop.RegionToken,
+  send_offset~ : Int64,
+  send_elements~ : Int64,
+  receive~ : @device_collective_interop.RegionToken,
+  receive_offset~ : Int64,
+  receive_elements~ : Int64,
+  stream~ : @device_collective_interop.QueueToken,
+) -> Unit raise NcclError {
   check_status(
-    raw_communicator_submit_bf16(
+    raw_communicator_submit_typed(
       self,
+      match element_type {
+        Bf16 => 2
+        F32 => 4
+      },
       generation,
       plan_sequence,
       collective_sequence,

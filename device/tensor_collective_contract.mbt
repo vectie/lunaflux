@@ -39,6 +39,8 @@ fn tensor_collective_kind_code(kind : TensorCollectiveKind) -> Int {
   match kind {
     Bf16SumAllReduce => 1
     Bf16AllGather => 2
+    F32SumAllReduce => 3
+    F32AllGather => 4
   }
 }
 
@@ -53,11 +55,11 @@ fn require_tensor_collective_widths(
     raise InvalidArgument(TensorCollectiveContractCreate)
   }
   match kind {
-    Bf16SumAllReduce =>
+    Bf16SumAllReduce | F32SumAllReduce =>
       if full_width != local_width {
         raise InvalidArgument(TensorCollectiveContractCreate)
       }
-    Bf16AllGather =>
+    Bf16AllGather | F32AllGather =>
       if full_width % world_size != 0 || full_width / world_size != local_width {
         raise InvalidArgument(TensorCollectiveContractCreate)
       }

@@ -27,6 +27,11 @@ pub(all) suberror NcclError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum CollectiveElementType {
+  Bf16
+  F32
+} derive(Eq)
+
 pub(all) enum NcclAvailability {
   Available
   UnsupportedPlatform
@@ -52,6 +57,7 @@ pub fn NcclCommunicator::poll_ready(Self) -> Bool raise NcclError
 pub fn NcclCommunicator::poll_submitted(Self) -> Bool raise NcclError
 pub fn NcclCommunicator::rank(Self) -> Int
 pub fn NcclCommunicator::submit_bf16(Self, generation~ : UInt64, plan_sequence~ : UInt64, collective_sequence~ : UInt64, operation_id~ : Int, collective_kind~ : NcclCollectiveOperation, context~ : @device_collective_interop.ContextToken, send~ : @device_collective_interop.RegionToken, send_offset~ : Int64, send_elements~ : Int64, receive~ : @device_collective_interop.RegionToken, receive_offset~ : Int64, receive_elements~ : Int64, stream~ : @device_collective_interop.QueueToken) -> Unit raise NcclError
+pub fn NcclCommunicator::submit_typed(Self, element_type~ : CollectiveElementType, generation~ : UInt64, plan_sequence~ : UInt64, collective_sequence~ : UInt64, operation_id~ : Int, collective_kind~ : NcclCollectiveOperation, context~ : @device_collective_interop.ContextToken, send~ : @device_collective_interop.RegionToken, send_offset~ : Int64, send_elements~ : Int64, receive~ : @device_collective_interop.RegionToken, receive_offset~ : Int64, receive_elements~ : Int64, stream~ : @device_collective_interop.QueueToken) -> Unit raise NcclError
 pub fn NcclCommunicator::world_size(Self) -> Int
 
 pub struct NcclCommunicatorId {

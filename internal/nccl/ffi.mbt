@@ -59,8 +59,9 @@ extern "c" fn raw_communicator_poll_ready(
 
 ///|
 #borrow(communicator, context, send, receive, stream)
-extern "c" fn raw_communicator_submit_bf16(
+extern "c" fn raw_communicator_submit_typed(
   communicator : NcclCommunicator,
+  element_bytes : Int,
   generation : UInt64,
   plan_sequence : UInt64,
   collective_sequence : UInt64,
@@ -74,7 +75,7 @@ extern "c" fn raw_communicator_submit_bf16(
   receive_offset : Int64,
   receive_elements : Int64,
   stream : @device_collective_interop.QueueToken,
-) -> Int = "lunaflux_nccl_communicator_submit_bf16"
+) -> Int = "lunaflux_nccl_communicator_submit_typed"
 
 ///|
 #borrow(communicator)

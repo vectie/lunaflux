@@ -74,7 +74,7 @@ static lf_nccl_result probe_all_reduce(
   lf_nccl_stream queue
 ) {
   assert(send != NULL && receive != NULL && count > 0);
-  assert(datatype == 9 && reduction == 0);
+  assert((datatype == 9 || datatype == 7) && reduction == 0);
   assert(communicator == (void *)(uintptr_t)0x4000);
   assert(queue == (void *)(uintptr_t)0x3000);
   probe_collective_calls += 1;
@@ -232,6 +232,22 @@ static void test_alias_geometry(lf_nccl_api *api) {
     lf_device_interop_probe_queue(&device)
   ) == LF_NCCL_OK);
   complete_one(communicator, &device);
+  assert(lf_nccl_communicator_submit_typed(
+    communicator, 4, 2U, 3U, 3U, 2, 1,
+    lf_device_interop_probe_context(&device),
+    lf_device_interop_probe_in_place(&device), 0, 16,
+    lf_device_interop_probe_in_place(&device), 0, 16,
+    lf_device_interop_probe_queue(&device)
+  ) == LF_NCCL_OK);
+  complete_one(communicator, &device);
+  assert(lf_nccl_communicator_submit_typed(
+    communicator, 4, 2U, 4U, 4U, 3, 2,
+    lf_device_interop_probe_context(&device),
+    lf_device_interop_probe_in_place(&device), 64, 16,
+    lf_device_interop_probe_in_place(&device), 0, 32,
+    lf_device_interop_probe_queue(&device)
+  ) == LF_NCCL_OK);
+  complete_one(communicator, &device);
   destroy_communicator(communicator);
 }
 
@@ -288,7 +304,7 @@ int main(void) {
   moonbit_decref(lf_device_interop_probe_capture_context(&hostile));
   moonbit_decref(lf_device_interop_probe_capture_region(&hostile));
   moonbit_decref(lf_device_interop_probe_capture_queue(&hostile));
-  assert(probe_collective_calls == 2);
+  assert(probe_collective_calls == 4);
   assert(probe_increfs == probe_decrefs);
   return 0;
 }

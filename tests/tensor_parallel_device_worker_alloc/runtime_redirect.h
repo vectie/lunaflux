@@ -47,8 +47,8 @@
   lunaflux_tp_alloc_fake_communicator_abort
 #define lunaflux_nccl_communicator_poll_ready \
   lunaflux_tp_alloc_fake_communicator_poll_ready
-#define lunaflux_nccl_communicator_submit_bf16 \
-  lunaflux_tp_alloc_fake_communicator_submit_bf16
+#define lunaflux_nccl_communicator_submit_typed \
+  lunaflux_tp_alloc_fake_communicator_submit_typed
 #define lunaflux_nccl_communicator_poll_collective_state \
   lunaflux_tp_alloc_fake_communicator_poll_collective_state
 #define lunaflux_nccl_communicator_invalidate \

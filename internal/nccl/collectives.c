@@ -7,9 +7,9 @@
 #define NCCL_IN_PROGRESS 7
 #define NCCL_SUM 0
 #define NCCL_BFLOAT16 9
+#define NCCL_FLOAT32 7
 #define LF_NCCL_ALL_REDUCE 1
 #define LF_NCCL_ALL_GATHER 2
-#define LF_BF16_ALIGNMENT 2
 
 static int32_t lf_nccl_map_interop_status(int32_t status) {
   if (status == LF_DEVICE_INTEROP_OK) return LF_NCCL_OK;
@@ -22,17 +22,19 @@ static int32_t lf_nccl_map_interop_status(int32_t status) {
   return LF_NCCL_RUNTIME_FAILURE;
 }
 
-static int32_t lf_nccl_element_bytes(int64_t elements, size_t *bytes) {
-  if (elements <= 0 || (uint64_t)elements > SIZE_MAX / 2U) {
+static int32_t lf_nccl_element_bytes(int64_t elements, int32_t element_bytes, size_t *bytes) {
+  if (elements <= 0 || (uint64_t)elements > SIZE_MAX / (size_t)element_bytes ||
+      elements > INT64_MAX / element_bytes) {
     return LF_NCCL_INVALID_ARGUMENT;
   }
-  *bytes = (size_t)elements * 2U;
+  *bytes = (size_t)elements * (size_t)element_bytes;
   return LF_NCCL_OK;
 }
 
 static int32_t lf_nccl_validate_shape(
   lf_nccl_communicator *communicator,
   int32_t collective_kind,
+  int32_t element_bytes,
   int64_t send_elements,
   int64_t receive_elements,
   size_t *send_bytes,
@@ -40,9 +42,9 @@ static int32_t lf_nccl_validate_shape(
   int32_t *alias_rule,
   int64_t *send_relative_offset
 ) {
-  int32_t status = lf_nccl_element_bytes(send_elements, send_bytes);
+  int32_t status = lf_nccl_element_bytes(send_elements, element_bytes, send_bytes);
   if (status == LF_NCCL_OK) {
-    status = lf_nccl_element_bytes(receive_elements, receive_bytes);
+    status = lf_nccl_element_bytes(receive_elements, element_bytes, receive_bytes);
   }
   if (status != LF_NCCL_OK) return status;
   if (collective_kind == LF_NCCL_ALL_REDUCE) {
@@ -68,8 +70,9 @@ void lf_nccl_release_in_flight(lf_nccl_communicator *communicator) {
   }
 }
 
-int32_t lf_nccl_communicator_submit_bf16(
+int32_t lf_nccl_communicator_submit_typed(
   lf_nccl_communicator *communicator,
+  int32_t element_bytes,
   uint64_t generation,
   uint64_t plan_sequence,
   uint64_t collective_sequence,
@@ -84,6 +87,8 @@ int32_t lf_nccl_communicator_submit_bf16(
   int64_t receive_elements,
   lf_device_queue_token *stream
 ) {
+  if (element_bytes != 2 && element_bytes != 4) return LF_NCCL_INVALID_ARGUMENT;
+  int32_t datatype = element_bytes == 2 ? NCCL_BFLOAT16 : NCCL_FLOAT32;
   int32_t status = lf_nccl_collective_begin(
     communicator,
     generation,
@@ -100,6 +105,7 @@ int32_t lf_nccl_communicator_submit_bf16(
   status = lf_nccl_validate_shape(
     communicator,
     collective_kind,
+    element_bytes,
     send_elements,
     receive_elements,
     &send_bytes,
@@ -125,7 +131,7 @@ int32_t lf_nccl_communicator_submit_bf16(
         receive_offset,
         (int64_t)receive_bytes,
         stream,
-        LF_BF16_ALIGNMENT,
+        element_bytes,
         alias_rule,
         send_relative_offset
       )
@@ -155,7 +161,7 @@ int32_t lf_nccl_communicator_submit_bf16(
         (const void *)send_address,
         (void *)receive_address,
         (size_t)send_elements,
-        NCCL_BFLOAT16,
+        datatype,
         NCCL_SUM,
         communicator->handle,
         queue_token
@@ -164,7 +170,7 @@ int32_t lf_nccl_communicator_submit_bf16(
         (const void *)send_address,
         (void *)receive_address,
         (size_t)send_elements,
-        NCCL_BFLOAT16,
+        datatype,
         communicator->handle,
         queue_token
       );
@@ -176,8 +182,7 @@ int32_t lf_nccl_communicator_submit_bf16(
   return LF_NCCL_OK;
 }
 
-MOONBIT_FFI_EXPORT
-int32_t lunaflux_nccl_communicator_submit_bf16(
+int32_t lf_nccl_communicator_submit_bf16(
   lf_nccl_communicator *communicator,
   uint64_t generation,
   uint64_t plan_sequence,
@@ -193,8 +198,9 @@ int32_t lunaflux_nccl_communicator_submit_bf16(
   int64_t receive_elements,
   lf_device_queue_token *stream
 ) {
-  return lf_nccl_communicator_submit_bf16(
+  return lf_nccl_communicator_submit_typed(
     communicator,
+    2,
     generation,
     plan_sequence,
     collective_sequence,
@@ -208,6 +214,31 @@ int32_t lunaflux_nccl_communicator_submit_bf16(
     receive_offset,
     receive_elements,
     stream
+  );
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_nccl_communicator_submit_typed(
+  lf_nccl_communicator *communicator,
+  int32_t element_bytes,
+  uint64_t generation,
+  uint64_t plan_sequence,
+  uint64_t collective_sequence,
+  int32_t operation_id,
+  int32_t collective_kind,
+  lf_device_context_token *context,
+  lf_device_region_token *send,
+  int64_t send_offset,
+  int64_t send_elements,
+  lf_device_region_token *receive,
+  int64_t receive_offset,
+  int64_t receive_elements,
+  lf_device_queue_token *stream
+) {
+  return lf_nccl_communicator_submit_typed(
+    communicator, element_bytes, generation, plan_sequence, collective_sequence,
+    operation_id, collective_kind, context, send, send_offset, send_elements,
+    receive, receive_offset, receive_elements, stream
   );
 }
 

@@ -189,6 +189,23 @@ void lf_nccl_collective_commit(
 );
 void lf_nccl_collective_fail(lf_nccl_communicator *communicator);
 void lf_nccl_release_in_flight(lf_nccl_communicator *communicator);
+int32_t lf_nccl_communicator_submit_typed(
+  lf_nccl_communicator *communicator,
+  int32_t element_bytes,
+  uint64_t generation,
+  uint64_t plan_sequence,
+  uint64_t collective_sequence,
+  int32_t operation_id,
+  int32_t collective_kind,
+  lf_device_context_token *context,
+  lf_device_region_token *send,
+  int64_t send_offset,
+  int64_t send_elements,
+  lf_device_region_token *receive,
+  int64_t receive_offset,
+  int64_t receive_elements,
+  lf_device_queue_token *stream
+);
 int32_t lf_nccl_communicator_submit_bf16(
   lf_nccl_communicator *communicator,
   uint64_t generation,

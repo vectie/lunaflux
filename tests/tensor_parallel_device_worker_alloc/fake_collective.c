@@ -113,8 +113,9 @@ int32_t lunaflux_tp_alloc_fake_communicator_poll_ready(
   return 0;
 }
 
-int32_t lunaflux_tp_alloc_fake_communicator_submit_bf16(
+int32_t lunaflux_tp_alloc_fake_communicator_submit_typed(
   tp_fake_communicator *communicator,
+  int32_t element_bytes,
   uint64_t generation,
   uint64_t plan_sequence,
   uint64_t collective_sequence,
@@ -129,7 +130,8 @@ int32_t lunaflux_tp_alloc_fake_communicator_submit_bf16(
   int64_t receive_elements,
   void *stream
 ) {
-  if (communicator == NULL || communicator->live == 0 ||
+  if ((element_bytes != 2 && element_bytes != 4) ||
+      communicator == NULL || communicator->live == 0 ||
       communicator->phase != TP_COMM_LIVE ||
       generation != communicator->generation || plan_sequence == 0U ||
       plan_sequence < communicator->previous_plan_sequence ||

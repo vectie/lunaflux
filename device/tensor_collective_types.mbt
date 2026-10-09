@@ -3,6 +3,8 @@
 pub(all) enum TensorCollectiveKind {
   Bf16SumAllReduce
   Bf16AllGather
+  F32SumAllReduce
+  F32AllGather
 } derive(Debug, Eq)
 
 ///|

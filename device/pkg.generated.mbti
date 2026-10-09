@@ -331,6 +331,8 @@ pub fn TensorCollectiveGroupId::to_bytes(Self) -> Bytes
 pub(all) enum TensorCollectiveKind {
   Bf16SumAllReduce
   Bf16AllGather
+  F32SumAllReduce
+  F32AllGather
 } derive(Eq, @debug.Debug)
 
 pub struct TensorCollectiveOwner {

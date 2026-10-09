@@ -75,7 +75,7 @@ token_body="$(sed -n \
   '/^lf_device_context_token \*lunaflux_device_interop_context_token(/,/^}/p; /^lf_device_region_token \*lunaflux_device_interop_region_token(/,/^}/p; /^lf_device_queue_token \*lunaflux_device_interop_queue_token(/,/^}/p' \
   internal/cuda/collective_interop.c)"
 native_submit_body="$(sed -n \
-  '/^int32_t lf_nccl_communicator_submit_bf16(/,/^}/p' \
+  '/^int32_t lf_nccl_communicator_submit_typed(/,/^}/p' \
   internal/nccl/collectives.c)"
 if [ -z "$token_body" ] || [ -z "$native_submit_body" ]; then
   printf '%s\n' 'opaque collective native call edge disappeared' >&2

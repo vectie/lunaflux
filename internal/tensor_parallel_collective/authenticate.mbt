@@ -79,9 +79,9 @@ pub fn authenticate_rank_plan(
     encoder.append_int(sequence)
     encoder.append_int(operation_id)
     encoder.append_int(
-      match kind {
-        Bf16SumAllReduce => 1
-        Bf16AllGather => 2
+      match site.kind() {
+        SumAllReduce => 1
+        LastAxisAllGather => 2
       },
     )
     encoder.append_int(full_width)
