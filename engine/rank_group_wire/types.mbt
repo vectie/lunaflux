@@ -27,6 +27,8 @@ pub(all) enum RankGroupWirePlanFailure {
 
 ///|
 pub(all) enum RankGroupWireKind {
+  StreamingRequest
+  StreamingReply
   Configure
   Ready
   Submit
@@ -127,6 +129,8 @@ pub struct ValidatedRankGroupWireFrame(RankGroupWireFrameBuffer, UInt64)
 
 ///|
 pub struct RankGroupWireTranscript {
+  priv mut streaming_rank : Int
+  priv mut streaming_sequence : UInt64
   priv bindings : FixedArray[RankGroupWireBinding]
   priv rank_states : FixedArray[Int]
   priv configured_ranks : FixedArray[Bool]

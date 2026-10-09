@@ -51,6 +51,7 @@ pub struct WorkerProcessLimits {
 ///|
 /// Single-owner A/B process supervisor.
 pub struct WorkerProcessSupervisor {
+  priv streaming_io : StreamingIo
   priv child : @process.ChildProcess
   priv mut child_selected : Bool
   priv startup : @worker_wire.WorkerStartupContract

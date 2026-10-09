@@ -28,6 +28,8 @@ pub struct PrefixIndexLimits {
 
 ///|
 pub struct PrefixLookupBuffer {
+  priv cells : FixedArray[Int]
+  priv hosts : FixedArray[@streaming_ir.HostPage]
   priv pages : @page_allocator.PageIdStorage
   priv mut page_count : Int
   priv mut matched_tokens : Int
@@ -37,6 +39,7 @@ pub struct PrefixLookupBuffer {
 
 ///|
 pub struct PrefixEvictionBuffer {
+  priv hosts : FixedArray[@streaming_ir.HostPage]
   priv pages : @page_allocator.PageIdStorage
   priv mut page_count : Int
   priv mut entry_index : Int
@@ -61,6 +64,7 @@ pub struct PrefixPublishBuffer {
 
 ///|
 /// Exact cache key retained by one tokenized request.
+#valtype
 pub struct PrefixRequestKey {
   priv model_identity : @spec.ModelIdentity
   priv tokenizer : @tokenizer.TokenizerDigest
@@ -126,6 +130,7 @@ pub struct PrefixIndexSnapshot {
 
 ///|
 pub struct PrefixIndex {
+  priv page_hosts : FixedArray[@streaming_ir.HostPage]
   priv limits : PrefixIndexLimits
   priv root_used : FixedArray[Bool]
   priv root_models : FixedArray[@spec.ModelIdentity?]

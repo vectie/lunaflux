@@ -10,6 +10,8 @@ fn empty_paged_resources() -> PagedGraphResources {
     deep_prefill_partition_workspace: None,
     decode_split_workspace: None,
     persistent_kv: None,
+    host_cache: None,
+    streaming: None,
     fused_dispatch_canary: None,
     greedy_sampling_results: None,
     device_sampling_parameters: None,

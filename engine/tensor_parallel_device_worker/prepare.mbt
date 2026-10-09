@@ -1,6 +1,7 @@
 ///|
 fn empty_worker_resources() -> TensorParallelPartialResources {
   {
+    streaming: None,
     collective: None,
     executor: None,
     functions: [],
@@ -92,6 +93,8 @@ fn take_live_resources(
   }
   guard partial.context is Some(context) else { raise Invalid(ResourceState) }
   let functions = partial.functions
+  let streaming = partial.streaming
+  partial.streaming = None
   let modules = partial.modules
   partial.collective = None
   partial.executor = None
@@ -106,6 +109,7 @@ fn take_live_resources(
   partial.context = None
   {
     collective,
+    streaming,
     executor,
     functions,
     modules,
@@ -299,6 +303,9 @@ pub fn prepare(
       resources.kv = Some(KvFailed(failed))
       return preparation_failed(resources, Kv(failed.cause()))
     }
+  }
+  prepare_streaming(plan, resources) catch {
+    error => return preparation_failed(resources, error)
   }
   let stream = context.create_stream() catch {
     error => return preparation_failed(resources, Device(Stream, error))

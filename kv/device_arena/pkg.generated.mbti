@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/device",
   "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/host_cache",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 }
@@ -39,6 +40,7 @@ pub fn DeviceKvArena::is_usable(Self) -> Bool
 pub fn DeviceKvArena::layout(Self) -> @device_layout.DeviceKvLayout
 pub fn DeviceKvArena::plan(Self) -> DeviceKvArenaPlan
 pub fn DeviceKvArena::poison(Self) -> Unit
+pub fn DeviceKvArena::prepare_host_cache(Self, @device.Context, @host_cache.Plan) -> @host_cache.Cache raise DeviceKvArenaError
 pub fn DeviceKvArena::validate_region(Self, @device.Context, Int, @device_layout.DeviceKvComponent, Int) -> @device_layout.DeviceKvRegion raise DeviceKvArenaError
 
 pub struct DeviceKvArenaPlan {

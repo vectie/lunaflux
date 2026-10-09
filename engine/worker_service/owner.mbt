@@ -28,7 +28,9 @@ fn WorkerService::raw_outstanding_count(self : WorkerService) -> Int {
     FlightEmpty => 0
     _ => 1
   }
-  physical + (if self.pending_plan_sequence == 0UL { 0 } else { 1 })
+  physical +
+  (if self.pending_plan_sequence == 0UL { 0 } else { 1 }) +
+  (if self.scheduler.streaming_busy() { 1 } else { 0 })
 }
 
 ///|
@@ -113,6 +115,14 @@ pub fn new_fixture(
     process.startup_contract(),
   )
   let transport = rooted_single_transport(process)
+  if process.startup_contract().streaming() is Some(capability) {
+    scheduler.configure_streaming(
+      capability,
+      process.startup_contract().streaming_epoch(),
+    ) catch {
+      error => raise scheduler_error(error)
+    }
+  }
   transport.claim(scheduler.last_retired_plan_sequence())
   {
     scheduler,

@@ -1,0 +1,14 @@
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/host_cache",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/monotonic_clock",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

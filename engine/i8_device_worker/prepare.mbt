@@ -143,13 +143,19 @@ fn prepare_exact_i8_executor(
     }
   }
   match outcome {
-    PagedReady(executor) =>
+    PagedReady(executor) => {
       commit_owner_transition(
         resources,
         ExecutorConstructionOwner,
         ReadyExecutorOwner,
         () => resources.executor = Some(Complete(executor)),
       )
+      if plan.startup.streaming() is Some(capability) {
+        executor.prepare_streaming(capability, plan.startup.streaming_epoch()) catch {
+          error => raise Executor(error)
+        }
+      }
+    }
     PagedCleanupRequired(failed) => {
       commit_owner_transition(
         resources,

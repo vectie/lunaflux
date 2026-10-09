@@ -237,7 +237,7 @@ fn load_fp8_reusable_v3_bound(
   ) catch {
     _ => raise AdmissionRejected(BootstrapSource)
   }
-  let startup = @worker_wire.WorkerStartupContract::new(
+  let base_startup = @worker_wire.WorkerStartupContract::new(
     identity=plan.identity(),
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       execution.release_authority().digest().as_hex(),
@@ -252,6 +252,11 @@ fn load_fp8_reusable_v3_bound(
   ) catch {
     _ => raise AdmissionRejected(StartupContract)
   }
+  let startup = bind_streaming_startup(
+    base_startup,
+    claims.streaming,
+    kv_layout,
+  )
   {
     descriptor_digest: expected_digest,
     target,

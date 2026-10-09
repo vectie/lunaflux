@@ -227,7 +227,12 @@ pub fn TensorParallelGroupTransport::retire_after_scheduler_commit(
 pub fn TensorParallelGroupTransport::has_exchange_capacity(
   self : TensorParallelGroupTransport,
 ) -> Bool {
-  self.lifecycle() == Ready && self.active_sequence_value == 0UL
+  self.lifecycle() == Ready &&
+  self.active_sequence_value == 0UL &&
+  (match self.state {
+    Published(process) => !process.streaming_busy()
+    _ => false
+  })
 }
 
 ///|

@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/kv/block_table",
   "vectie/lunaflux/kv/page_allocator",
@@ -155,9 +156,11 @@ pub struct Scheduler {
 }
 pub fn Scheduler::abort_cancel_reservation(Self) -> Unit
 pub fn Scheduler::abort_exclusive_admission(Self, PreparedExclusiveAdmission) -> Unit
+pub fn Scheduler::accept_streaming_reply(Self, @streaming_ir.Reply) -> Unit raise SchedulerError
 pub fn Scheduler::admit(Self, TokenizedRequest, UInt64) -> RequestHandle raise SchedulerError
 pub fn Scheduler::advance_terminated_handle(Self, RequestHandle, @inference.RequestGeneration) -> Unit raise SchedulerError
 pub fn Scheduler::allocated_block_table_count(Self) -> Int
+pub fn Scheduler::bind_streaming_replacement(Self, UInt64) -> Unit raise SchedulerError
 pub fn Scheduler::build_next(Self) -> BuildNextOutcome raise SchedulerError
 pub fn Scheduler::cancel(Self, RequestHandle) -> Unit raise SchedulerError
 pub fn Scheduler::cancel_exact(Self, RequestHandle) -> @inference.RequestGeneration raise SchedulerError
@@ -167,6 +170,7 @@ pub fn Scheduler::commit_exclusive_admission(Self, PreparedExclusiveAdmission, U
 pub fn Scheduler::complete(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> CompletionCommit raise SchedulerError
 pub fn Scheduler::complete_submitted(Self, @worker_protocol.SubmittedSchedulePlan) -> CompletionCommit raise SchedulerError
 pub fn Scheduler::completion_writer(Self, @worker_protocol.SubmittedSchedulePlan) -> @worker_protocol.CompletionWriter raise SchedulerError
+pub fn Scheduler::configure_streaming(Self, @streaming_ir.Capability, UInt64) -> Unit raise SchedulerError
 pub fn Scheduler::drain_instance_loss(Self) -> InstanceLossDrain raise SchedulerError
 pub fn Scheduler::drain_instance_loss_exact(Self, RequestHandle) -> ExactInstanceLossDrain raise SchedulerError
 pub fn Scheduler::expire_deadlines(Self, UInt64) -> Int raise SchedulerError
@@ -191,12 +195,16 @@ pub fn Scheduler::model_plan_generation(Self) -> @worker_protocol.ModelPlanGener
 pub fn Scheduler::new(@runtime_resolved.ResolvedRuntimeCapacity, @spec.ModelIdentity, @worker_protocol.ModelPlanGeneration, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe, @worker_protocol.RowCapabilityRecipe) -> Self raise SchedulerError
 pub fn Scheduler::next_publication_kind(Self) -> SchedulerPublicationKind raise SchedulerError
 pub fn Scheduler::next_publication_route(Self) -> SchedulerPublicationRoute raise SchedulerError
+pub fn Scheduler::next_streaming_command(Self, UInt64) -> @streaming_ir.CommandOption raise SchedulerError
+pub fn Scheduler::observe_streaming_time(Self, UInt64) -> Unit raise SchedulerError
 pub fn Scheduler::plan_buffer_binding(Self) -> SchedulerPlanBufferBinding
 pub fn Scheduler::prepare_admission(Self, TokenizedRequest) -> PreparedAdmission
 pub fn Scheduler::prepare_exclusive_admission(Self, TokenizedRequest) -> PreparedExclusiveAdmission raise SchedulerError
 pub fn Scheduler::replace_submitted_completion_with_failure(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.WorkerFailure) -> Unit raise SchedulerError
 pub fn Scheduler::reserve_cancel_exact(Self, RequestHandle) -> CancelReservationStart raise SchedulerError
 pub fn Scheduler::status(Self, @inference.RequestId) -> RequestStatus?
+pub fn Scheduler::streaming_busy(Self) -> Bool
+pub fn Scheduler::streaming_enabled(Self) -> Bool
 pub fn Scheduler::submitted_plan(Self, BuildNextOutcome) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
 pub fn Scheduler::submitted_plan_for_sequence(Self, UInt64) -> @worker_protocol.SubmittedSchedulePlan raise SchedulerError
 pub fn Scheduler::take_generated_token(Self) -> GeneratedTokenNotice raise SchedulerError

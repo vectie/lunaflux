@@ -100,13 +100,18 @@ fn load_bound(
   let source = admit_source(
     model_root_label, kernel_root_label, claims, ceilings, luna_approval,
   )
-  let startup = admit_startup_contract(
+  let base_startup = admit_startup_contract(
     bootstrap,
     source,
     claims.execution.model_generation,
     worker,
     inference,
   )
+  let startup = match claims.streaming {
+    Some(streaming) =>
+      base_startup.with_streaming(admit_streaming(streaming, layout))
+    None => base_startup
+  }
   let sampling_policy = @device_worker.admit_bootstrap_sampling_policy(
     source, plan, execution,
   ) catch {

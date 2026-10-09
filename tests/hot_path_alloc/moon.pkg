@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/engine/streaming_ir",
+  "vectie/lunaflux/tokenizer",
   "vectie/lunaflux/config/cache",
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/config/scheduler" @scheduler_config,
@@ -8,6 +10,8 @@ import {
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/scheduler/core" @scheduler,
+  "vectie/lunaflux/kv/residency",
+  "vectie/lunaflux/scheduler/streaming_policy",
 }
 
 supported_targets = "native"

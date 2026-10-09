@@ -13,6 +13,8 @@ pub struct WorkerBootstrapDigest(String) derive(Debug, Eq)
 /// Exact model, bootstrap/source identities, generation, sequence domain, and
 /// bounded runtime envelope.
 pub struct WorkerStartupContract {
+  priv streaming : @streaming_ir.Capability?
+  priv streaming_epoch : UInt64
   priv identity : @spec.ModelIdentity
   priv bootstrap_digest : WorkerBootstrapDigest
   priv bootstrap_source_digest : WorkerBootstrapSourceDigest
@@ -48,8 +50,11 @@ pub fn WorkerStartupContract::new(
   inference_limits~ : @inference.InferenceLimits,
   has_predecessor~ : Bool,
   predecessor_value~ : UInt64,
+  streaming? : @streaming_ir.Capability,
+  streaming_epoch? : UInt64 = 1UL,
 ) -> WorkerStartupContract raise WorkerWireError {
-  if device_ordinal < 0 ||
+  if (streaming is Some(_) && streaming_epoch == 0UL) ||
+    device_ordinal < 0 ||
     device_ordinal > 1023 ||
     model_generation_value == 0UL ||
     (
@@ -60,6 +65,12 @@ pub fn WorkerStartupContract::new(
     raise InvalidFrame(StartupIdentity)
   }
   {
+    streaming,
+    streaming_epoch: if streaming is Some(_) {
+      streaming_epoch
+    } else {
+      0UL
+    },
     identity,
     bootstrap_digest,
     bootstrap_source_digest,
@@ -158,8 +169,41 @@ pub fn WorkerStartupContract::predecessor_value(
 }
 
 ///|
-pub fn StartupFrameBuffer::new() -> StartupFrameBuffer {
-  { storage: FixedArray::make(startup_length, b'\x00'), epoch: 0UL, length: 0, }
+pub fn StartupFrameBuffer::new(streaming? : Bool = false) -> StartupFrameBuffer {
+  {
+    storage: FixedArray::make(
+      if streaming {
+        1024
+      } else {
+        startup_length
+      },
+      b'\x00',
+    ),
+    epoch: 0UL,
+    length: 0,
+  }
+}
+
+///|
+pub fn WorkerStartupContract::streaming(
+  self : WorkerStartupContract,
+) -> @streaming_ir.Capability? {
+  self.streaming
+}
+
+///|
+pub fn WorkerStartupContract::streaming_epoch(
+  self : WorkerStartupContract,
+) -> UInt64 {
+  self.streaming_epoch
+}
+
+///|
+pub fn WorkerStartupContract::with_streaming(
+  self : WorkerStartupContract,
+  capability : @streaming_ir.Capability,
+) -> WorkerStartupContract {
+  { ..self, streaming: Some(capability), streaming_epoch: 1UL, }
 }
 
 ///|

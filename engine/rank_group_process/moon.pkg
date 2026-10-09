@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/deploy/worker_executable_file",
   "vectie/lunaflux/engine/rank_group_protocol",
   "vectie/lunaflux/engine/rank_group_wire",

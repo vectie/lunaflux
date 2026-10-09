@@ -1,0 +1,109 @@
+///|
+test "prefill uses admitted shapes within workspace and reserved KV capacity" {
+  let shapes = [
+    @streaming_policy.PrefillShape::new(tokens=1, workspace_bytes=4L),
+    @streaming_policy.PrefillShape::new(tokens=8, workspace_bytes=32L),
+    @streaming_policy.PrefillShape::new(tokens=16, workspace_bytes=64L),
+  ]
+  assert_eq(
+    @streaming_policy.select_prefill(
+      shapes,
+      remaining_tokens=20,
+      token_budget=20,
+      workspace_budget=63L,
+      available_pages=3,
+      decode_reserve=1,
+      tokens_per_page=8,
+      tail_free_tokens=0,
+    ),
+    1,
+  )
+  assert_eq(
+    @streaming_policy.select_prefill(
+      shapes,
+      remaining_tokens=20,
+      token_budget=20,
+      workspace_budget=64L,
+      available_pages=3,
+      decode_reserve=1,
+      tokens_per_page=8,
+      tail_free_tokens=0,
+    ),
+    2,
+  )
+  assert_eq(
+    @streaming_policy.select_prefill(
+      shapes,
+      remaining_tokens=20,
+      token_budget=20,
+      workspace_budget=64L,
+      available_pages=1,
+      decode_reserve=1,
+      tokens_per_page=8,
+      tail_free_tokens=0,
+    ),
+    -1,
+  )
+  assert_eq(
+    @streaming_policy.select_prefill(
+      shapes,
+      remaining_tokens=20,
+      token_budget=20,
+      workspace_budget=64L,
+      available_pages=1,
+      decode_reserve=1,
+      tokens_per_page=8,
+      tail_free_tokens=7,
+    ),
+    0,
+  )
+}
+
+///|
+test "restore considers the queue deadline and complete destination reservation" {
+  let cost = @streaming_policy.RestoreCost::new(
+    restore_ns=10L,
+    recompute_ns=30L,
+    minimum_saving_ns=5L,
+  )
+  assert_true(
+    cost.should_restore(
+      queued_ns=5L,
+      deadline_slack_ns=15L,
+      destination_reserved=true,
+      transfer_credit=true,
+    ),
+  )
+  assert_true(
+    !cost.should_restore(
+      queued_ns=5L,
+      deadline_slack_ns=14L,
+      destination_reserved=true,
+      transfer_credit=true,
+    ),
+  )
+  assert_true(
+    !cost.should_restore(
+      queued_ns=16L,
+      deadline_slack_ns=100L,
+      destination_reserved=true,
+      transfer_credit=true,
+    ),
+  )
+  assert_true(
+    !cost.should_restore(
+      queued_ns=0L,
+      deadline_slack_ns=100L,
+      destination_reserved=false,
+      transfer_credit=true,
+    ),
+  )
+  assert_true(
+    !cost.should_restore(
+      queued_ns=9223372036854775807L,
+      deadline_slack_ns=9223372036854775807L,
+      destination_reserved=true,
+      transfer_credit=true,
+    ),
+  )
+}

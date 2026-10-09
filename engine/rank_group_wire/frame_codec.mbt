@@ -10,6 +10,8 @@ const RANK_GROUP_WIRE_CHECKSUM_OFFSET : Int = 12
 ///|
 fn wire_kind_code(kind : RankGroupWireKind) -> Int {
   match kind {
+    StreamingRequest => 15
+    StreamingReply => 16
     Configure => 1
     Ready => 2
     Submit => 3
@@ -32,6 +34,8 @@ fn wire_kind_from_code(
   code : Int,
 ) -> RankGroupWireKind raise RankGroupWireError {
   match code {
+    15 => StreamingRequest
+    16 => StreamingReply
     1 => Configure
     2 => Ready
     3 => Submit
@@ -75,14 +79,22 @@ fn wire_slot_from_code(
 fn kind_uses_slot(kind : RankGroupWireKind) -> Bool {
   match kind {
     Submit | PollComplete | Pending | Complete | PlanFailed(_) => true
-    Configure | Ready | Abort | Aborted | Drain | Drained | Close | Closed =>
-      false
+    StreamingRequest
+    | StreamingReply
+    | Configure
+    | Ready
+    | Abort
+    | Aborted
+    | Drain
+    | Drained
+    | Close
+    | Closed => false
   }
 }
 
 ///|
 fn kind_uses_sequence(kind : RankGroupWireKind) -> Bool {
-  kind_uses_slot(kind)
+  kind_uses_slot(kind) || kind == StreamingRequest || kind == StreamingReply
 }
 
 ///|
@@ -107,16 +119,28 @@ fn direction_from_code(
 ///|
 fn expected_direction(kind : RankGroupWireKind) -> RankGroupWireDirection {
   match kind {
-    Configure | Submit | PollComplete | Abort | Drain | Close => ParentToChild
-    Ready | Pending | Complete | PlanFailed(_) | Aborted | Drained | Closed =>
-      ChildToParent
+    StreamingRequest
+    | Configure
+    | Submit
+    | PollComplete
+    | Abort
+    | Drain
+    | Close => ParentToChild
+    StreamingReply
+    | Ready
+    | Pending
+    | Complete
+    | PlanFailed(_)
+    | Aborted
+    | Drained
+    | Closed => ChildToParent
   }
 }
 
 ///|
 fn kind_uses_payload(kind : RankGroupWireKind) -> Bool {
   match kind {
-    Configure | Submit => true
+    StreamingRequest | StreamingReply | Configure | Submit => true
     _ => false
   }
 }
@@ -142,6 +166,10 @@ fn validate_message_shape(
     }
   } else if kind != Abort && kind != Aborted && sequence_value != 0UL {
     raise Invalid(Sequence)
+  }
+  if (kind == StreamingRequest || kind == StreamingReply) &&
+    payload_length != 64 {
+    raise Invalid(Payload)
   }
   if kind_uses_payload(kind) {
     if payload_length <= 0 {

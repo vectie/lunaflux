@@ -87,6 +87,7 @@ pub fn TensorParallelRuntimeDescriptorAdmission::planning_inputs(
     raise AdmissionRejected(TensorParallelSource)
   }
   @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs::new(
+    streaming?=self.streaming,
     source=self.source,
     model_plan=self.plan,
     model_generation=self.model_generation,

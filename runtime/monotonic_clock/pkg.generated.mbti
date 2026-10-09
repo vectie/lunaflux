@@ -3,6 +3,7 @@ package "vectie/lunaflux/runtime/monotonic_clock"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/ref",
 }
 
 // Values
@@ -19,6 +20,7 @@ pub struct MonotonicClock {
 }
 pub fn MonotonicClock::now_millis(Self) -> UInt64 raise MonotonicClockError
 pub fn MonotonicClock::prepare_read(Self) -> PreparedMonotonicRead
+pub fn MonotonicClock::read_into(Self, @ref.Ref[UInt64]) -> Bool
 pub fn MonotonicClock::system() -> Self
 
 pub(all) enum MonotonicReadStatus {

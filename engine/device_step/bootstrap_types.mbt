@@ -184,6 +184,8 @@ pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(
   inference_limits : @inference.InferenceLimits,
   has_predecessor~ : Bool,
   predecessor_value~ : UInt64,
+  streaming? : @streaming_ir.Capability,
+  streaming_epoch? : UInt64 = 1UL,
 ) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError {
   let device = self.limits
   if worker_limits.max_plan_rows() > device.max_rows() ||
@@ -200,6 +202,8 @@ pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(
     raise InvalidBootstrap(RuntimeEnvelope)
   }
   @worker_wire.WorkerStartupContract::new(
+    streaming?,
+    streaming_epoch~,
     identity=self.identity,
     bootstrap_digest=self.digest,
     bootstrap_source_digest~,
@@ -310,6 +314,8 @@ pub fn I8DeviceWorkerBootstrapManifestV3::worker_startup_contract(
   inference_limits : @inference.InferenceLimits,
   has_predecessor~ : Bool,
   predecessor_value~ : UInt64,
+  streaming? : @streaming_ir.Capability,
+  streaming_epoch? : UInt64 = 1UL,
 ) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError {
   let device = self.limits
   if worker_limits.max_plan_rows() > device.max_rows() ||
@@ -335,6 +341,8 @@ pub fn I8DeviceWorkerBootstrapManifestV3::worker_startup_contract(
     inference_limits~,
     has_predecessor~,
     predecessor_value~,
+    streaming?,
+    streaming_epoch~,
   ) catch {
     error => raise BootstrapWire(error)
   }

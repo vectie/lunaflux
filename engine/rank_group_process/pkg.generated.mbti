@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/deploy/worker_executable_file",
   "vectie/lunaflux/engine/rank_group_protocol",
   "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/engine/tensor_parallel_rank_configure",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
@@ -50,6 +51,7 @@ pub(all) enum RankGroupProcessFailure {
   Protocol(@rank_group_protocol.RankGroupError)
   WorkerWire(@worker_wire.WorkerWireError)
   GraphTelemetry(rank~ : Int)
+  Streaming(rank~ : Int)
   RankConfigure(@tensor_parallel_rank_configure.TensorParallelRankConfigureError)
   Clock
   DeadlineExpired
@@ -116,7 +118,9 @@ pub fn RankGroupProcessSupervisor::accepted_completion_for_sequence(Self, UInt64
 pub fn RankGroupProcessSupervisor::begin(Self, @worker_protocol.SubmittedSchedulePlan) -> Unit raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::begin_cleanup(Self) -> Unit raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::begin_close(Self) -> Unit raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::begin_streaming_exchange(Self, @streaming_ir.Command) -> Unit raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::cleanup_failure(Self) -> RankGroupProcessCleanupFailure?
+pub fn RankGroupProcessSupervisor::fail_streaming(Self) -> Unit
 pub fn RankGroupProcessSupervisor::failure(Self) -> RankGroupProcessFailure?
 pub fn RankGroupProcessSupervisor::group_generation_value(Self) -> UInt64
 pub fn RankGroupProcessSupervisor::inspect_group_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise RankGroupProcessError
@@ -125,8 +129,12 @@ pub fn RankGroupProcessSupervisor::probe_idle_rank(Self) -> Unit raise RankGroup
 pub fn RankGroupProcessSupervisor::progress(Self, @worker_protocol.SubmittedSchedulePlan) -> RankGroupProcessProgress raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::progress_cleanup(Self) -> RankGroupProcessCleanupProgress raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::progress_close(Self) -> RankGroupProcessProgress raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::progress_streaming_exchange(Self) -> @streaming_ir.ReplyOption raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::received_completion(Self) -> ReceivedRankGroupCompletion raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::retire_after_scheduler_commit(Self, AcceptedRankGroupCompletion) -> Unit raise RankGroupProcessError
+pub fn RankGroupProcessSupervisor::streaming_busy(Self) -> Bool
+pub fn RankGroupProcessSupervisor::streaming_exchange_pending(Self) -> Bool
+pub fn RankGroupProcessSupervisor::streaming_now_millis(Self) -> UInt64 raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::take_group_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise RankGroupProcessError
 pub fn RankGroupProcessSupervisor::world_size(Self) -> Int
 

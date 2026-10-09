@@ -252,6 +252,7 @@ fn close_partial_context(
 fn close_partial_resources(
   resources : TensorParallelPartialResources,
 ) -> Unit raise TensorParallelDeviceWorkerError {
+  close_streaming(resources.streaming)
   run_cleanup_chain(
     () => close_partial_collective(resources),
     () => close_partial_executor(resources),
@@ -271,6 +272,7 @@ fn close_partial_resources(
 fn close_live_resources(
   resources : TensorParallelLiveResources,
 ) -> Unit raise TensorParallelDeviceWorkerError {
+  close_streaming(resources.streaming)
   run_cleanup_chain(
     () => close_collective_owner(resources.collective),
     () => close_executor_owner(resources.executor),

@@ -230,6 +230,7 @@ fn run_cycle(
 ///|
 fn main {
   verify_positive_control()
+  verify_streaming_wire()
   let limits = try! @rank_group_wire.RankGroupWireLimits::new(
     max_payload_bytes=16,
   )

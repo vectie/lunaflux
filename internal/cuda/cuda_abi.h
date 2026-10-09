@@ -92,6 +92,10 @@ typedef struct lf_cuda_api {
   CUresult (*cuMemFree)(CUdeviceptr);
   CUresult (*cuMemcpyHtoD)(CUdeviceptr, const void *, size_t);
   CUresult (*cuMemcpyDtoH)(void *, CUdeviceptr, size_t);
+  CUresult (*cuMemHostAlloc)(void **, size_t, uint32_t);
+  CUresult (*cuMemFreeHost)(void *);
+  CUresult (*cuMemcpyHtoDAsync)(CUdeviceptr, const void *, size_t, CUstream);
+  CUresult (*cuMemcpyDtoHAsync)(void *, CUdeviceptr, size_t, CUstream);
   CUresult (*cuModuleLoadData)(CUmodule *, const void *);
   CUresult (*cuModuleUnload)(CUmodule);
   CUresult (*cuModuleGetFunction)(CUfunction *, CUmodule, const char *);

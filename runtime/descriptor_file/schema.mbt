@@ -19,15 +19,22 @@ fn parse_descriptor(
   }
   let value = @json.parse(text) catch { _ => raise MalformedJson }
   guard value is Object(root) else { raise MalformedJson }
-  validate_fields(root, Root, [
-    "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
-    "ceilings",
-  ])
+  validate_required_and_optional_fields(
+    root,
+    Root,
+    [
+      "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
+      "ceilings",
+    ],
+    ["streaming"],
+  )
   let schema_version = require_string(root, "schema_version", Root)
   let graph_memory_required = match schema_version {
     "lunaflux.runtime.v1" | "lunaflux.runtime.v5" => false
-    "lunaflux.runtime.v2" | "lunaflux.runtime.v3" | "lunaflux.runtime.v4" =>
-      true
+    "lunaflux.runtime.v2"
+    | "lunaflux.runtime.v3"
+    | "lunaflux.runtime.v4"
+    | "lunaflux.runtime.v6" => true
     _ => raise invalid_field(Root, UnsupportedValue)
   }
   let kernels = parse_kernels(root)
@@ -35,10 +42,19 @@ fn parse_descriptor(
     kernels.sampling_runtime == EmbeddedCudaGreedyV1
   let extension_schema = schema_version == "lunaflux.runtime.v4" ||
     schema_version == "lunaflux.runtime.v5"
-  if extension_schema != has_extensions {
+  if schema_version != "lunaflux.runtime.v6" &&
+    extension_schema != has_extensions {
     raise invalid_field(Kernels, UnsupportedValue)
   }
+  if schema_version != "lunaflux.runtime.v6" && root.contains("streaming") {
+    raise invalid_field(Root, UnsupportedValue)
+  }
   {
+    streaming: if schema_version == "lunaflux.runtime.v6" {
+      Some(parse_streaming(root))
+    } else {
+      None
+    },
     model: parse_model(root),
     kernels,
     execution: parse_execution(root),

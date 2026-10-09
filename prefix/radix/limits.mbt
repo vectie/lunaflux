@@ -150,7 +150,7 @@ pub fn PrefixIndex::required_int_cells(
     ),
     prefix_checked_add(
       prefix_checked_multiply(tokens, 5UL),
-      prefix_checked_multiply(pages, 10UL),
+      prefix_checked_multiply(pages, 12UL),
     ),
   )
 }

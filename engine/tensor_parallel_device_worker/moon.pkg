@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/engine/streaming_ir",
+  "vectie/lunaflux/kv/host_cache",
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/device",

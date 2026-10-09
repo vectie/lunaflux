@@ -6,6 +6,8 @@ pub fn PrefixLookupBuffer::new(
     raise InvalidLimit(PageCapacity)
   }
   {
+    cells: FixedArray::make(page_capacity, -1),
+    hosts: FixedArray::make(page_capacity, { slot: -1, generation: 0, }),
     pages: @page_allocator.PageIdStorage::new(page_capacity) catch {
       _ => raise InvalidLimit(PageCapacity)
     },
@@ -63,6 +65,9 @@ pub fn PrefixLookupBuffer::page_at(
   if index < 0 || index >= self.page_count {
     raise ResultIndexOutOfBounds
   }
+  if self.hosts[index].slot >= 0 {
+    raise PageNotResident
+  }
   self.pages.read(index) catch {
     _ => raise ResultIndexOutOfBounds
   }
@@ -87,6 +92,7 @@ pub fn PrefixEvictionBuffer::new(
     raise InvalidLimit(PageCapacity)
   }
   {
+    hosts: FixedArray::make(page_capacity, { slot: -1, generation: 0, }),
     pages: @page_allocator.PageIdStorage::new(page_capacity) catch {
       _ => raise InvalidLimit(PageCapacity)
     },

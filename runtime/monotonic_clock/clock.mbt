@@ -35,6 +35,16 @@ pub fn MonotonicClock::system() -> MonotonicClock {
 }
 
 ///|
+/// Reuses startup-owned output storage for cooperative runtime progress.
+pub fn MonotonicClock::read_into(
+  self : MonotonicClock,
+  output : Ref[UInt64],
+) -> Bool {
+  ignore(self.marker)
+  @native.now_millis_status(output) == 0
+}
+
+///|
 pub fn MonotonicClock::prepare_read(
   self : MonotonicClock,
 ) -> PreparedMonotonicRead {

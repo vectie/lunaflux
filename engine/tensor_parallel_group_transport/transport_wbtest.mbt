@@ -364,6 +364,7 @@ async test "replacement foundations reject changed shard and manifest digest" {
         ignore(
           fresh_execution_inputs(
             inputs,
+            @rank_group_protocol.RankGroupGeneration::from_wire(1UL),
             0UL,
             fixture.kernel_root,
             runtime,

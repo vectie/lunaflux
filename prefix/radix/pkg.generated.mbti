@@ -4,6 +4,7 @@ package "vectie/lunaflux/prefix/radix"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/kv/page_allocator",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/tokenizer",
@@ -19,6 +20,7 @@ pub(all) suberror PrefixIndexError {
   StaleKey
   CachePermissionDenied
   InvalidPageCount
+  PageNotResident
   ResultBufferTooSmall
   ResultIndexOutOfBounds
   Exhausted
@@ -60,6 +62,7 @@ pub struct PrefixEvictionBuffer {
 pub fn PrefixEvictionBuffer::capacity(Self) -> Int
 pub fn PrefixEvictionBuffer::clear(Self) -> Unit
 pub fn PrefixEvictionBuffer::entry(Self) -> PrefixEntryId?
+pub fn PrefixEvictionBuffer::host_at(Self, Int) -> @streaming_ir.HostPage raise PrefixIndexError
 pub fn PrefixEvictionBuffer::new(Int) -> Self raise PrefixIndexError
 pub fn PrefixEvictionBuffer::page_at(Self, Int) -> @page_allocator.PageId raise PrefixIndexError
 pub fn PrefixEvictionBuffer::page_count(Self) -> Int
@@ -91,14 +94,19 @@ pub fn PrefixIndex::lookup(Self, PrefixRequestKey, PrefixTokenBuffer, maximum_re
 pub fn PrefixIndex::new(PrefixIndexLimits) -> Self raise PrefixIndexError
 pub fn PrefixIndex::node_count(Self) -> Int
 pub fn PrefixIndex::page_count(Self) -> Int
+pub fn PrefixIndex::page_host(Self, Int) -> @streaming_ir.HostPage raise PrefixIndexError
+pub fn PrefixIndex::page_occupied(Self, Int) -> Bool
+pub fn PrefixIndex::page_value(Self, Int) -> @page_allocator.PageId raise PrefixIndexError
 pub fn PrefixIndex::publish(Self, PrefixPublishPlan, PrefixTokenBuffer, PrefixPublishBuffer, priority~ : Int) -> PrefixEntryId raise PrefixIndexError
 pub fn PrefixIndex::release_active(Self, PrefixEntryId) -> Unit raise PrefixIndexError
 pub fn PrefixIndex::required_bool_cells(PrefixIndexLimits) -> UInt64 raise PrefixIndexError
 pub fn PrefixIndex::required_byte_cells(PrefixIndexLimits) -> UInt64 raise PrefixIndexError
 pub fn PrefixIndex::required_int_cells(PrefixIndexLimits) -> UInt64 raise PrefixIndexError
 pub fn PrefixIndex::required_reference_cells(PrefixIndexLimits) -> UInt64 raise PrefixIndexError
+pub fn PrefixIndex::restore_page(Self, Int, @streaming_ir.HostPage, @page_allocator.PageId) -> Bool
 pub fn PrefixIndex::retain_active(Self, PrefixEntryId) -> Unit raise PrefixIndexError
 pub fn PrefixIndex::retired_entry_count(Self) -> Int
+pub fn PrefixIndex::spill_page(Self, Int, @page_allocator.PageId, @streaming_ir.HostPage) -> Bool
 pub fn PrefixIndex::token_cell_count(Self) -> Int
 pub fn PrefixIndex::touch(Self, PrefixEntryId) -> Unit raise PrefixIndexError
 pub fn PrefixIndex::try_plan_eviction(Self, PrefixEvictionBuffer) -> PrefixEvictionStart raise PrefixIndexError
@@ -176,10 +184,13 @@ pub struct PrefixLookupBuffer {
   // private fields
 }
 pub fn PrefixLookupBuffer::capacity(Self) -> Int
+pub fn PrefixLookupBuffer::cell_at(Self, Int) -> Int raise PrefixIndexError
 pub fn PrefixLookupBuffer::clear(Self) -> Unit
 pub fn PrefixLookupBuffer::entry(Self) -> PrefixEntryId?
 pub fn PrefixLookupBuffer::entry_id(Self) -> PrefixEntryId raise PrefixIndexError
+pub fn PrefixLookupBuffer::fully_resident(Self) -> Bool
 pub fn PrefixLookupBuffer::has_entry(Self) -> Bool
+pub fn PrefixLookupBuffer::host_at(Self, Int) -> @streaming_ir.HostPage raise PrefixIndexError
 pub fn PrefixLookupBuffer::matched_tokens(Self) -> Int
 pub fn PrefixLookupBuffer::new(Int) -> Self raise PrefixIndexError
 pub fn PrefixLookupBuffer::page_at(Self, Int) -> @page_allocator.PageId raise PrefixIndexError

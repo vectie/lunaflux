@@ -4,6 +4,7 @@ package "vectie/lunaflux/engine/worker_wire"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/kernels/fp8_release_authority",
   "vectie/lunaflux/kernels/luna_artifact_admission",
@@ -186,7 +187,7 @@ pub struct StartupFrameBuffer {
 pub fn StartupFrameBuffer::capacity(Self) -> Int
 pub fn StartupFrameBuffer::encode(Self, StartupFrameKind, WorkerStartupContract) -> ValidatedStartupFrame raise WorkerWireError
 pub fn StartupFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedStartupFrame raise WorkerWireError
-pub fn StartupFrameBuffer::new() -> Self
+pub fn StartupFrameBuffer::new(streaming? : Bool) -> Self
 
 pub(all) enum StartupFrameKind {
   Configure
@@ -480,8 +481,11 @@ pub fn WorkerStartupContract::has_predecessor(Self) -> Bool
 pub fn WorkerStartupContract::identity(Self) -> @spec.ModelIdentity
 pub fn WorkerStartupContract::inference_limits(Self) -> @inference.InferenceLimits
 pub fn WorkerStartupContract::model_generation_value(Self) -> UInt64
-pub fn WorkerStartupContract::new(identity~ : @spec.ModelIdentity, bootstrap_digest~ : WorkerBootstrapDigest, bootstrap_source_digest~ : WorkerBootstrapSourceDigest, device_ordinal~ : Int, model_generation_value~ : UInt64, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64) -> Self raise WorkerWireError
+pub fn WorkerStartupContract::new(identity~ : @spec.ModelIdentity, bootstrap_digest~ : WorkerBootstrapDigest, bootstrap_source_digest~ : WorkerBootstrapSourceDigest, device_ordinal~ : Int, model_generation_value~ : UInt64, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64, streaming? : @streaming_ir.Capability, streaming_epoch? : UInt64) -> Self raise WorkerWireError
 pub fn WorkerStartupContract::predecessor_value(Self) -> UInt64
+pub fn WorkerStartupContract::streaming(Self) -> @streaming_ir.Capability?
+pub fn WorkerStartupContract::streaming_epoch(Self) -> UInt64
+pub fn WorkerStartupContract::with_streaming(Self, @streaming_ir.Capability) -> Self
 pub fn WorkerStartupContract::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
 
 pub(all) enum WorkerWireFrameRule {

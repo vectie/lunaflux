@@ -59,6 +59,7 @@ pub(all) enum TensorParallelGroupCleanupProgress {
 
 ///|
 pub struct TensorParallelGroupPlanningInputs {
+  priv streaming : @streaming_ir.Capability?
   priv source : @worker_wire.EncodedBootstrapSource
   priv model_plan : @plan.ModelPlan
   priv model_generation : @worker_protocol.ModelPlanGeneration

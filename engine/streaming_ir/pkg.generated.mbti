@@ -1,0 +1,161 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/streaming_ir"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn decode(FixedArray[Byte], Int) -> Reply raise StreamingError
+
+pub fn encode(Reply, FixedArray[Byte]) -> Unit raise StreamingError
+
+pub fn frame_bytes() -> Int
+
+pub fn group_status(Opcode, Int, Bool) -> Status
+
+pub fn is_frame(FixedArray[Byte], Int) -> Bool
+
+pub fn rank_status_valid(Opcode, Status, Bool) -> Bool
+
+// Errors
+pub(all) suberror StreamingError {
+  InvalidCapability
+  InvalidFrame
+  InvalidTransition
+}
+
+// Types and methods
+pub(all) enum Action {
+  Reject
+  BeginSpill
+  BeginRestore
+  PollTransfer
+  CancelTransfer
+  EvictHost
+}
+
+pub struct Capability {
+  slots : Int
+  host_bytes : Int64
+  page_bytes : Int64
+  page_count : Int
+  reserve_pages : Int
+  restore_ns : Int64
+  recompute_ns : Int64
+  transfer_timeout_millis : Int
+  workspace_budget : Int64
+  shapes : ReadOnlyArray[Shape]
+} derive(Eq, @debug.Debug)
+pub fn Capability::equal(Self, Self) -> Bool
+pub fn Capability::for_rank(Self, Int64, Int) -> Self raise StreamingError
+pub fn Capability::host_bytes(Self) -> Int64
+pub fn Capability::new(slots~ : Int, host_bytes~ : Int64, page_bytes~ : Int64, page_count~ : Int, reserve_pages~ : Int, restore_ns~ : Int64, recompute_ns~ : Int64, separate_host_memory~ : Bool, transfer_timeout_millis? : Int, workspace_budget? : Int64, shapes? : ArrayView[Shape]) -> Self raise StreamingError
+pub fn Capability::not_equal(Self, Self) -> Bool
+pub fn Capability::page_bytes(Self) -> Int64
+pub fn Capability::page_count(Self) -> Int
+pub fn Capability::recompute_ns(Self) -> Int64
+pub fn Capability::reserve_pages(Self) -> Int
+pub fn Capability::restore_ns(Self) -> Int64
+pub fn Capability::shape_at(Self, Int) -> Shape
+pub fn Capability::shape_count(Self) -> Int
+pub fn Capability::slots(Self) -> Int
+pub fn Capability::to_repr(Self) -> @debug.Repr
+pub fn Capability::transfer_timeout_millis(Self) -> Int
+pub fn Capability::workspace_budget(Self) -> Int64
+
+pub(all) struct Command {
+  worker : UInt64
+  sequence : UInt64
+  opcode : Opcode
+  page : Int
+  page_generation : Int
+  host : HostPage
+}
+pub fn Command::same_command(Self, Self) -> Bool
+pub fn Command::same_transaction(Self, Self) -> Bool
+pub fn Command::valid(Self, Capability, UInt64) -> Bool
+
+pub(all) enum CommandOption {
+  None
+  Some(Command)
+}
+pub fn CommandOption::unwrap(Self) -> Command
+
+pub struct Control {
+  worker : UInt64
+  sequence : UInt64
+  active : Bool
+  original : Command
+}
+pub fn Control::completed(Self) -> Self
+pub fn Control::decide(Self, Command, Capability) -> Decision
+pub fn Control::new(UInt64) -> Self
+
+pub(all) struct Decision {
+  next : Control
+  action : Action
+}
+
+pub struct GroupTransfer {
+  command : Command
+  ranks : Int
+  finished : UInt
+  remaining : Int
+  host : HostPage
+  cancelled : Bool
+}
+pub fn GroupTransfer::accept(Self, Int, Reply) -> Self raise StreamingError
+pub fn GroupTransfer::cancel(Self) -> Self raise StreamingError
+pub fn GroupTransfer::new(Command, Int) -> Self raise StreamingError
+pub fn GroupTransfer::rank_done(Self, Int) -> Bool
+pub fn GroupTransfer::reply(Self, Command) -> Reply
+
+pub(all) struct HostPage {
+  slot : Int
+  generation : Int
+}
+pub fn HostPage::same(Self, Self) -> Bool
+
+pub(all) enum Opcode {
+  Spill
+  Restore
+  Poll
+  Cancel
+  Evict
+}
+
+pub(all) struct Reply {
+  command : Command
+  status : Status
+  host : HostPage
+}
+
+pub(all) enum ReplyOption {
+  None
+  Some(Reply)
+}
+
+pub struct Shape {
+  tokens : Int
+  workspace_bytes : Int64
+} derive(Eq, @debug.Debug)
+pub fn Shape::equal(Self, Self) -> Bool
+pub fn Shape::new(tokens~ : Int, workspace_bytes~ : Int64) -> Self raise StreamingError
+pub fn Shape::not_equal(Self, Self) -> Bool
+pub fn Shape::to_repr(Self) -> @debug.Repr
+pub fn Shape::tokens(Self) -> Int
+pub fn Shape::workspace_bytes(Self) -> Int64
+
+pub(all) enum Status {
+  Pending
+  HostReady
+  DeviceReady
+  Cancelled
+  Evicted
+  Rejected
+}
+
+// Type aliases
+
+// Traits

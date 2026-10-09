@@ -17,6 +17,8 @@ fn exact_i8_startup_contract(
       startup.inference_limits(),
       has_predecessor=startup.has_predecessor(),
       predecessor_value=startup.predecessor_value(),
+      streaming?=startup.streaming(),
+      streaming_epoch=startup.streaming_epoch(),
     ) catch {
       error => raise Bootstrap(error)
     }

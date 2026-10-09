@@ -29,6 +29,7 @@ fn PrefixIndex::plan_label_pages(
   for offset in 0..<self.node_label_lengths[node] {
     let page_cell = self.token_page_cells[cell]
     if page_cell >= 0 {
+      output.hosts[output.page_count] = self.page_hosts[page_cell]
       try! output.pages.write(
         output.page_count,
         try! self.page_values.read(page_cell),
@@ -59,6 +60,7 @@ fn PrefixIndex::free_planned_label(
         abort("prefix eviction plan invariant")
       }
       try! self.page_values.clear(page_cell)
+      self.page_hosts[page_cell] = { slot: -1, generation: 0, }
       self.release_page_cell(page_cell)
       self.page_count -= 1
       cursor += 1

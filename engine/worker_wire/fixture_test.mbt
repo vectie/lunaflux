@@ -71,7 +71,10 @@ fn wire_seed(value : UInt64) -> @inference.SamplingSeed {
 }
 
 ///|
-fn submitted_wire_fixture() -> @worker_protocol.SubmittedSchedulePlan raise {
+fn submitted_wire_fixture(
+  prefill_slot? : Int = 0,
+  decode_slot? : Int = 1,
+) -> @worker_protocol.SubmittedSchedulePlan raise {
   let limits = wire_protocol_limits()
   let owner = @worker_protocol.SchedulePlanBuffer::new(limits)
   let pages = wire_allocator()
@@ -85,7 +88,7 @@ fn submitted_wire_fixture() -> @worker_protocol.SubmittedSchedulePlan raise {
     sampling=wire_sampling(),
     sampling_seed=wire_seed(0x1234UL),
     sample_index=5,
-    completion_slot=wire_slot(0),
+    completion_slot=wire_slot(prefill_slot),
   )
   owner.append_decode(
     request_id=wire_request(8UL),
@@ -97,7 +100,7 @@ fn submitted_wire_fixture() -> @worker_protocol.SubmittedSchedulePlan raise {
     sampling=@inference.SamplingParameters::greedy(),
     sampling_seed=wire_seed(0x5678UL),
     sample_index=6,
-    completion_slot=wire_slot(1),
+    completion_slot=wire_slot(decode_slot),
   )
   owner.submit_wire(
     sequence_value=1UL,

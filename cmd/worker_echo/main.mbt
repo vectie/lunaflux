@@ -7,7 +7,7 @@ fn run_worker() -> Unit raise {
       shutdown_timeout_millis=5000,
     ),
   )
-  let startup_owner = @worker_wire.StartupFrameBuffer::new()
+  let startup_owner = @worker_wire.StartupFrameBuffer::new(streaming=true)
   let startup_input = FixedArray::make(startup_owner.capacity(), b'\x00')
   let startup_length = channel.read_frame(startup_input)
   let configured = startup_owner.load(startup_input, startup_length)
@@ -55,6 +55,11 @@ fn run_worker() -> Unit raise {
     b'\x00',
   )
   let mut graph_misses = 0UL
+  let mut streaming_control = @streaming_ir.Control::new(
+    startup.streaming_epoch(),
+  )
+  let mut streaming_restore = false
+  let mut next_host_generation = 0
   let mut running = true
   while running {
     let length = channel.read_frame_or_eof(input) catch {
@@ -64,6 +69,48 @@ fn run_worker() -> Unit raise {
       running = false
     }
     if running {
+      if @streaming_ir.is_frame(input, length) {
+        let request = @streaming_ir.decode(input, length)
+        guard startup.streaming() is Some(capability) else {
+          raise Failure("unconfigured streaming fixture")
+        }
+        let command = request.command
+        let decision = streaming_control.decide(command, capability)
+        streaming_control = decision.next
+        let status : @streaming_ir.Status = match decision.action {
+          BeginSpill => {
+            streaming_restore = false
+            Pending
+          }
+          BeginRestore => {
+            streaming_restore = true
+            Pending
+          }
+          PollTransfer => {
+            streaming_control = streaming_control.completed()
+            if streaming_restore {
+              DeviceReady
+            } else {
+              next_host_generation += 1
+              HostReady
+            }
+          }
+          CancelTransfer => {
+            streaming_control = streaming_control.completed()
+            Cancelled
+          }
+          EvictHost => Evicted
+          Reject => Rejected
+        }
+        let host = if status is HostReady {
+          @streaming_ir.HostPage::{ slot: 0, generation: next_host_generation, }
+        } else {
+          command.host
+        }
+        @streaming_ir.encode({ command, status, host, }, output)
+        channel.write_frame(output, offset=0, byte_count=64)
+        continue
+      }
       let frame = plan_owner.load(input, length)
       let writer = completion_owner.writer_for(frame)
       for index in 0..<frame.prefill_count() {
@@ -84,16 +131,20 @@ fn run_worker() -> Unit raise {
       if graph_misses != 0xffffffffffffffffUL {
         graph_misses += 1UL
       }
-      let graph = @worker_wire.WorkerGraphTelemetry::without_shape(
-        sequence=completion.sequence_value(),
-        path=WorkerGraphOrderedEager,
-        graph_hits=0UL,
-        graph_misses~,
-      )
-      let graph_length = @worker_wire.encode_worker_graph_telemetry(
-        graph, graph_output,
-      )
-      channel.write_frame(graph_output, offset=0, byte_count=graph_length)
+      if @worker_wire.worker_graph_telemetry_sample_required(
+          completion.sequence_value(),
+        ) {
+        let graph = @worker_wire.WorkerGraphTelemetry::without_shape(
+          sequence=completion.sequence_value(),
+          path=WorkerGraphOrderedEager,
+          graph_hits=0UL,
+          graph_misses~,
+        )
+        let graph_length = @worker_wire.encode_worker_graph_telemetry(
+          graph, graph_output,
+        )
+        channel.write_frame(graph_output, offset=0, byte_count=graph_length)
+      }
     }
   }
 }

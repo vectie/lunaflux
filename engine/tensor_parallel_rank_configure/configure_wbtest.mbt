@@ -120,8 +120,11 @@ fn configure_test_startup(
   rank : Int,
   source : @worker_wire.EncodedBootstrapSource,
   predecessor? : UInt64 = 6UL,
+  streaming? : @streaming_ir.Capability,
 ) -> @worker_wire.WorkerStartupContract {
   try! @worker_wire.WorkerStartupContract::new(
+    streaming?,
+    streaming_epoch=9UL,
     identity=configure_test_identity(),
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
       if rank == 0 {

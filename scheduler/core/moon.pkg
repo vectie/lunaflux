@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/engine/streaming_ir",
+  "vectie/lunaflux/scheduler/streaming_policy",
   "vectie/lunaflux/scheduler/work_plan",
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/contracts/inference",

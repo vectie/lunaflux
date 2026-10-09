@@ -19,7 +19,7 @@ let startup_checksum_offset : Int = 336
 /// four bytes at the retained v3 offset.
 fn startup_checksum(bytes : FixedArray[Byte]) -> UInt {
   let mut hash : UInt = 2166136261
-  for index in 0..<startup_length {
+  for index in 0..<read_i32(bytes, 16) {
     if index < startup_checksum_offset || index >= startup_checksum_offset + 4 {
       hash = (hash ^ bytes[index].to_uint()) * 16777619
     }
@@ -150,14 +150,26 @@ fn write_startup_contract(
   kind : StartupFrameKind,
   contract : WorkerStartupContract,
 ) -> Unit raise WorkerWireError {
-  for index in 0..<startup_length {
+  let length = if contract.streaming is Some(_) { 1024 } else { startup_length }
+  if bytes.length() < length {
+    raise DestinationTooSmall
+  }
+  for index in 0..<length {
     bytes[index] = b'\x00'
   }
   write_u32(bytes, 0, startup_magic)
-  write_u32(bytes, 4, startup_version)
+  write_u32(
+    bytes,
+    4,
+    if contract.streaming is Some(_) {
+      5
+    } else {
+      startup_version
+    },
+  )
   write_i32(bytes, 8, @inference.ProtocolVersion::v1().wire_code())
   write_i32(bytes, 12, if kind == Configure { 0 } else { 1 })
-  write_i32(bytes, 16, startup_length)
+  write_i32(bytes, 16, length)
   write_i32(bytes, 20, if contract.has_predecessor { 1 } else { 0 })
   write_u64(bytes, 24, contract.model_generation_value)
   write_u64(bytes, 32, contract.predecessor_value)
@@ -172,6 +184,28 @@ fn write_startup_contract(
     startup_source_digest_offset,
     contract.bootstrap_source_digest.as_hex(),
   )
+  if contract.streaming is Some(capability) {
+    write_i32(bytes, 408, capability.slots())
+    write_i32(bytes, 412, capability.page_count())
+    write_i32(bytes, 416, capability.reserve_pages())
+    write_i32(bytes, 420, capability.transfer_timeout_millis())
+    write_u64(bytes, 424, capability.host_bytes().reinterpret_as_uint64())
+    write_u64(bytes, 432, capability.page_bytes().reinterpret_as_uint64())
+    write_u64(bytes, 440, capability.restore_ns().reinterpret_as_uint64())
+    write_u64(bytes, 448, capability.recompute_ns().reinterpret_as_uint64())
+    write_u64(bytes, 456, contract.streaming_epoch)
+    write_i32(bytes, 464, capability.shape_count())
+    write_u64(bytes, 472, capability.workspace_budget().reinterpret_as_uint64())
+    for i in 0..<capability.shape_count() {
+      let shape = capability.shape_at(i)
+      write_i32(bytes, 480 + i * 16, shape.tokens())
+      write_u64(
+        bytes,
+        488 + i * 16,
+        shape.workspace_bytes().reinterpret_as_uint64(),
+      )
+    }
+  }
   write_u32(bytes, startup_checksum_offset, startup_checksum(bytes))
 }
 
@@ -180,13 +214,13 @@ fn validate_startup_source(
   bytes : FixedArray[Byte],
   length : Int,
 ) -> Unit raise WorkerWireError {
-  if length != startup_length || bytes.length() < startup_length {
+  if (length != startup_length && length != 1024) || bytes.length() < length {
     raise InvalidFrame(Length)
   }
   if read_u32(bytes, 0) != startup_magic {
     raise InvalidFrame(Magic)
   }
-  if read_u32(bytes, 4) != startup_version ||
+  if read_u32(bytes, 4) != (if length == 1024 { 5 } else { startup_version }) ||
     read_i32(bytes, 8) != @inference.ProtocolVersion::v1().wire_code() {
     raise InvalidFrame(Version)
   }
@@ -194,8 +228,27 @@ fn validate_startup_source(
     (read_i32(bytes, 20) != 0 && read_i32(bytes, 20) != 1) {
     raise InvalidFrame(Kind)
   }
-  if read_i32(bytes, 16) != startup_length || read_u32(bytes, 260) != 0 {
+  if read_i32(bytes, 16) != length || read_u32(bytes, 260) != 0 {
     raise InvalidFrame(Reserved)
+  }
+  if length == 1024 {
+    let shapes = read_i32(bytes, 464)
+    if shapes < 0 || shapes > 32 {
+      raise InvalidFrame(Counts)
+    }
+    if read_u32(bytes, 468) != 0 {
+      raise InvalidFrame(Reserved)
+    }
+    for i in 0..<shapes {
+      if read_u32(bytes, 484 + i * 16) != 0 {
+        raise InvalidFrame(Reserved)
+      }
+    }
+    for i in (480 + shapes * 16)..<1024 {
+      if bytes[i] != b'\x00' {
+        raise InvalidFrame(Reserved)
+      }
+    }
   }
   if startup_checksum(bytes) != read_u32(bytes, startup_checksum_offset) {
     raise InvalidFrame(Checksum)
@@ -213,7 +266,7 @@ pub fn StartupFrameBuffer::encode(
   }
   write_startup_contract(self.storage, kind, contract)
   self.epoch += 1UL
-  self.length = startup_length
+  self.length = read_i32(self.storage, 16)
   ValidatedStartupFrame(self, self.epoch)
 }
 
@@ -227,11 +280,14 @@ pub fn StartupFrameBuffer::load(
     raise FrameEpochOverflow
   }
   validate_startup_source(source, length)
-  for index in 0..<startup_length {
+  if self.storage.length() < length {
+    raise DestinationTooSmall
+  }
+  for index in 0..<length {
     self.storage[index] = source[index]
   }
   self.epoch += 1UL
-  self.length = startup_length
+  self.length = length
   ValidatedStartupFrame(self, self.epoch)
 }
 
@@ -273,6 +329,43 @@ pub fn ValidatedStartupFrame::contract(
     _ => raise InvalidFrame(StartupIdentity)
   }
   WorkerStartupContract::new(
+    streaming_epoch=if self.owner().length == 1024 {
+      read_u64(bytes, 456)
+    } else {
+      0UL
+    },
+    streaming?=if self.owner().length == 1024 {
+      let shapes : Array[@streaming_ir.Shape] = []
+      for i in 0..<read_i32(bytes, 464) {
+        shapes.push(
+          @streaming_ir.Shape::new(
+            tokens=read_i32(bytes, 480 + i * 16),
+            workspace_bytes=read_u64(bytes, 488 + i * 16).reinterpret_as_int64(),
+          ) catch {
+            _ => raise InvalidFrame(StartupIdentity)
+          },
+        )
+      }
+      Some(
+        @streaming_ir.Capability::new(
+          shapes=shapes[:],
+          workspace_budget=read_u64(bytes, 472).reinterpret_as_int64(),
+          transfer_timeout_millis=read_i32(bytes, 420),
+          slots=read_i32(bytes, 408),
+          page_count=read_i32(bytes, 412),
+          reserve_pages=read_i32(bytes, 416),
+          host_bytes=read_u64(bytes, 424).reinterpret_as_int64(),
+          page_bytes=read_u64(bytes, 432).reinterpret_as_int64(),
+          restore_ns=read_u64(bytes, 440).reinterpret_as_int64(),
+          recompute_ns=read_u64(bytes, 448).reinterpret_as_int64(),
+          separate_host_memory=true,
+        ) catch {
+          _ => raise InvalidFrame(StartupIdentity)
+        },
+      )
+    } else {
+      None
+    },
     identity~,
     bootstrap_digest=WorkerBootstrapDigest::from_sha256(read_digest(bytes, 272)),
     bootstrap_source_digest=WorkerBootstrapSourceDigest::from_sha256(

@@ -155,7 +155,12 @@ fn preflight_plan_for_encode(
     )
     ignore(row.sampling_seed_value() catch { error => raise Protocol(error) })
     ignore(row.sample_index() catch { error => raise Protocol(error) })
-    ignore(row.completion_slot() catch { error => raise Protocol(error) })
+    let completion = row.completion_slot() catch {
+      error => raise Protocol(error)
+    }
+    if completion.value() >= owner.worker_limits.max_completion_slots() {
+      raise InvalidFrame(CompletionSlot)
+    }
   }
   for index in 0..<decode_count {
     let row = plan.decode_row(index) catch { error => raise Protocol(error) }
@@ -177,7 +182,12 @@ fn preflight_plan_for_encode(
     )
     ignore(row.sampling_seed_value() catch { error => raise Protocol(error) })
     ignore(row.sample_index() catch { error => raise Protocol(error) })
-    ignore(row.completion_slot() catch { error => raise Protocol(error) })
+    let completion = row.completion_slot() catch {
+      error => raise Protocol(error)
+    }
+    if completion.value() >= owner.worker_limits.max_completion_slots() {
+      raise InvalidFrame(CompletionSlot)
+    }
   }
 }
 

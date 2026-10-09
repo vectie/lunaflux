@@ -114,6 +114,9 @@ pub fn TensorParallelDeviceWorkerOwner::stage_frame(
   if self.lifecycle != WorkerReady {
     raise Invalid(ResourceState)
   }
+  if self.resources.streaming is Some(streaming) && !streaming.cache.is_idle() {
+    raise Invalid(ResourceState)
+  }
   let frame_owner = frame.owner_identity() catch {
     error => {
       let translated = Wire(error)

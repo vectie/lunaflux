@@ -316,6 +316,7 @@ pub fn Scheduler::new(
     page_allocator,
     block_tables,
     prefix_index,
+    streaming: None,
     prefix_tokens,
     prefix_pages,
     prefix_lookup,

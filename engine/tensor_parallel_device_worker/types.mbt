@@ -173,6 +173,7 @@ priv enum TensorParallelCompletionAuthority {
 
 ///|
 priv struct TensorParallelPartialResources {
+  mut streaming : TensorParallelStreaming?
   mut collective : TensorParallelOwnedCollective?
   mut executor : TensorParallelOwnedExecutor?
   mut functions : Array[TensorParallelOwnedFunction]
@@ -190,6 +191,7 @@ priv struct TensorParallelPartialResources {
 /// Exact warmed ownership set. Every mandatory owner is present without an
 /// optional capability slot; booleans exist only for retryable close state.
 priv struct TensorParallelLiveResources {
+  streaming : TensorParallelStreaming?
   collective : TensorParallelOwnedCollective
   executor : TensorParallelOwnedExecutor
   functions : Array[TensorParallelOwnedFunction]

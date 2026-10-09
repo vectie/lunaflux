@@ -1,0 +1,24 @@
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/config/cache",
+  "vectie/lunaflux/config/scheduler" @scheduler_config,
+  "vectie/lunaflux/config/runtime_resolved",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/streaming_ir",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_process",
+  "vectie/lunaflux/engine/worker_service",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/monotonic_clock",
+  "vectie/lunaflux/scheduler/core" @scheduler,
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tests/worker_executable_fixture",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

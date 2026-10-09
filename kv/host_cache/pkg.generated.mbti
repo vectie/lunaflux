@@ -1,0 +1,60 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kv/host_cache"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/kv/residency",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Cache {
+  // private fields
+}
+pub fn Cache::begin_restore(Self, @residency.Entry, Int) -> Start raise @device.DeviceError
+pub fn Cache::begin_spill(Self, Int) -> Start raise @device.DeviceError
+pub fn Cache::cancel(Self, Operation) -> Bool
+pub fn Cache::close(Self) -> Unit raise @device.DeviceError
+pub fn Cache::evict(Self, @residency.Entry) -> Bool
+pub fn Cache::is_idle(Self) -> Bool
+pub fn Cache::is_prepared(Self) -> Bool
+pub fn Cache::plan(Self) -> Plan
+pub fn Cache::poll(Self, Operation) -> Progress raise @device.DeviceError
+pub fn Cache::prepare(@device.Context, @device.Allocation, Plan) -> Self raise @device.DeviceError
+
+pub struct Operation {
+  // private fields
+}
+pub fn Operation::entry(Self) -> @residency.Entry
+
+pub struct Plan {
+  // private fields
+}
+pub fn Plan::host_bytes(Self) -> Int64
+pub fn Plan::layout(Self) -> @device_layout.DeviceKvLayout
+pub fn Plan::new(@device_layout.DeviceKvLayout, slots~ : Int, transfer_lanes~ : Int, host_budget~ : Int64, separate_host_memory~ : Bool) -> Self raise @residency.ResidencyError
+pub fn Plan::slot_bytes(Self) -> Int64
+pub fn Plan::slots(Self) -> Int
+pub fn Plan::transfer_lanes(Self) -> Int
+
+pub(all) enum Progress {
+  Pending
+  HostReady
+  DeviceReady
+  Cancelled
+  Stale
+}
+
+pub(all) enum Start {
+  Started(Operation)
+  Backpressured
+  Rejected
+}
+
+// Type aliases
+
+// Traits

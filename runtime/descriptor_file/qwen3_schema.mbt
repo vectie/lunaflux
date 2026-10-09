@@ -18,13 +18,19 @@ fn parse_qwen3_descriptor(
   }
   let value = @json.parse(text) catch { _ => raise MalformedJson }
   guard value is Object(root) else { raise MalformedJson }
-  validate_fields(root, Root, [
-    "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
-    "ceilings",
-  ])
+  validate_required_and_optional_fields(
+    root,
+    Root,
+    [
+      "schema_version", "model", "kernels", "execution", "worker_limits", "inference_limits",
+      "ceilings",
+    ],
+    ["streaming"],
+  )
   let schema_version = require_string(root, "schema_version", Root)
   if schema_version != "lunaflux.runtime.qwen3_bf16.v1" &&
-    schema_version != "lunaflux.runtime.qwen3_bf16.v2" {
+    schema_version != "lunaflux.runtime.qwen3_bf16.v2" &&
+    schema_version != "lunaflux.runtime.qwen3_bf16.v3" {
     raise invalid_field(Root, UnsupportedValue)
   }
   let object = require_object(root, "model", Root, index=1)
@@ -38,12 +44,20 @@ fn parse_qwen3_descriptor(
   if !tied_embeddings {
     raise invalid_field(Model, UnsupportedValue)
   }
-  if (schema_version == "lunaflux.runtime.qwen3_bf16.v2") !=
-    (kernels.fused_runtime is Some(_)) ||
+  if (
+      schema_version != "lunaflux.runtime.qwen3_bf16.v3" &&
+      (schema_version == "lunaflux.runtime.qwen3_bf16.v2") !=
+      (kernels.fused_runtime is Some(_))
+    ) ||
     kernels.bootstrap_digest == "" {
     raise invalid_field(Kernels, UnsupportedValue)
   }
+  let streaming = parse_versioned_streaming(
+    root,
+    schema_version == "lunaflux.runtime.qwen3_bf16.v3",
+  )
   {
+    streaming,
     model: {
       family: require_string(object, "family", Model),
       config_locator: require_string(object, "config_locator", Model, index=1),
@@ -74,6 +88,6 @@ fn parse_qwen3_descriptor(
     execution: parse_execution(root),
     worker: parse_worker(root),
     inference: parse_inference(root),
-    ceilings: parse_ceilings(root, graph_memory_required=false),
+    ceilings: parse_ceilings(root, graph_memory_required=streaming is Some(_)),
   }
 }

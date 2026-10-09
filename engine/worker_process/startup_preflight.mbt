@@ -70,7 +70,11 @@ fn validate_preflight_envelope(
   }
   let required = plan_capacity
     .max(completion_capacity)
-    .max(@worker_wire.StartupFrameBuffer::new().capacity())
+    .max(
+      @worker_wire.StartupFrameBuffer::new(
+        streaming=startup.streaming() is Some(_),
+      ).capacity(),
+    )
     .max(source.capacity())
   if required > limits.max_frame_bytes {
     raise Invalid(Capacity)
@@ -128,7 +132,9 @@ fn preflight_prepare_with_authority(
   ) catch {
     error => raise Wire(error)
   }
-  let startup_frame = @worker_wire.StartupFrameBuffer::new()
+  let startup_frame = @worker_wire.StartupFrameBuffer::new(
+    streaming=startup.streaming() is Some(_),
+  )
   let required = plan_a
     .capacity()
     .max(completion_a.capacity())
@@ -144,7 +150,9 @@ fn preflight_prepare_with_authority(
   ) catch {
     error => raise transport_error(error)
   }
-  let startup_sender = @worker_wire.StartupFrameBuffer::new()
+  let startup_sender = @worker_wire.StartupFrameBuffer::new(
+    streaming=startup.streaming() is Some(_),
+  )
   let child_preparation = executable.prepare_child(process_limits) catch {
     _ => raise Transport(SpawnFailed)
   }
@@ -208,6 +216,7 @@ fn preflight_prepare_with_authority(
     b'\x00',
   )
   let supervisor : WorkerProcessSupervisor = {
+    streaming_io: new_streaming_io(),
     child,
     child_selected: false,
     startup,

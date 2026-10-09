@@ -46,6 +46,19 @@ static void lf_load_optional_cublas(lf_cuda_api *api) {
   api->cublas_available = 0;
 }
 
+static void lf_load_optional_streaming(lf_cuda_api *api) {
+  api->cuMemHostAlloc = (CUresult (*)(void **, size_t, uint32_t))
+    lf_symbol(api->driver_library, "cuMemHostAlloc");
+  api->cuMemFreeHost = (CUresult (*)(void *))
+    lf_symbol(api->driver_library, "cuMemFreeHost");
+  api->cuMemcpyHtoDAsync =
+    (CUresult (*)(CUdeviceptr, const void *, size_t, CUstream))
+      lf_symbol(api->driver_library, "cuMemcpyHtoDAsync_v2");
+  api->cuMemcpyDtoHAsync =
+    (CUresult (*)(void *, CUdeviceptr, size_t, CUstream))
+      lf_symbol(api->driver_library, "cuMemcpyDtoHAsync_v2");
+}
+
 static void lf_load_optional_graph(lf_cuda_api *api) {
   api->cuStreamBeginCapture =
     (CUresult (*)(CUstream, int32_t))
@@ -146,6 +159,7 @@ static void lf_initialize_loader(void) {
   LF_LOAD_REQUIRED(cuFuncSetAttribute, "cuFuncSetAttribute");
   LF_LOAD_REQUIRED(cuLaunchKernel, "cuLaunchKernel");
   lf_load_optional_graph(api);
+  lf_load_optional_streaming(api);
   if (api->cuInit(0) != CUDA_SUCCESS) {
     api->availability = LF_DRIVER_INITIALIZATION_FAILED;
     return;

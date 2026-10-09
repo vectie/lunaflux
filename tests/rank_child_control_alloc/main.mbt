@@ -371,6 +371,7 @@ fn main {
   finish_plan(
     owner, limits, binding, parent_wire, child_wire, completion, 130UL,
   )
+  verify_streaming_control(owner, limits, binding, parent_wire, child_wire)
   finish_terminal_exchange(
     owner,
     limits,

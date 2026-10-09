@@ -50,7 +50,7 @@ fn inject_exchange_completion(
   let length = encoded_completion(plan, owner.process.rx)
   owner.process.accept_exchange_completion_bytes(
     owner.exchange_side,
-    plan,
+    owner.exchange_plan.current(),
     length,
   )
   let sequence = plan.sequence_wire()
@@ -211,7 +211,7 @@ test "exchange snapshot rejects a stale slot from the preceding plan" {
 test "foreign wider plans typed-fail only after reserving the obligation" {
   let too_many_rows = test_root_bound_supervisor()
   try too_many_rows.begin_exchange(foreign_supervisor_plan([0, 1, 2])) catch {
-    RootBoundFailure(Process(Invalid(Submission))) => ()
+    RootBoundFailure(Process(Wire(InvalidFrame(Counts)))) => ()
     _ => fail("unexpected foreign row-capacity failure")
   } noraise {
     _ => fail("foreign plan exceeded the snapshot row capacity")
@@ -222,7 +222,7 @@ test "foreign wider plans typed-fail only after reserving the obligation" {
 
   let out_of_range_slot = test_root_bound_supervisor()
   try out_of_range_slot.begin_exchange(foreign_supervisor_plan([2])) catch {
-    RootBoundFailure(Process(Invalid(Submission))) => ()
+    RootBoundFailure(Process(Wire(InvalidFrame(CompletionSlot)))) => ()
     _ => fail("unexpected foreign slot-capacity failure")
   } noraise {
     _ => fail("foreign completion slot exceeded the snapshot capacity")

@@ -131,6 +131,7 @@ fn fresh_rank_foundations(
 ///|
 fn fresh_execution_inputs(
   inputs : TensorParallelGroupPlanningInputs,
+  generation : @rank_group_protocol.RankGroupGeneration,
   previous_plan_sequence_value : UInt64,
   kernel_root : @approved_fs.ApprovedRoot,
   runtime : @tensor_parallel_admission.TensorParallelRuntimeAdmission,
@@ -203,7 +204,25 @@ fn fresh_execution_inputs(
       execution_plan~,
       kv_binding=binding,
     )
+    let streaming = match inputs.streaming {
+      Some(capability) => {
+        let layout = kv_plan.rank_layout(rank) catch {
+          _ => rejected(KvPlan, rank~)
+        }
+        let bytes = layout.page_logical_bytes() *
+          layout.geometry().layer_count().to_int64() *
+          2L
+        Some(
+          capability.for_rank(bytes, inputs.topology.world_size()) catch {
+            _ => rejected(KvPlan, rank~)
+          },
+        )
+      }
+      None => None
+    }
     let startup = @worker_wire.WorkerStartupContract::new(
+      streaming?,
+      streaming_epoch=generation.value(),
       identity=inputs.model_plan.identity(),
       bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
         execution_plan.digest().as_sha256(),
@@ -310,7 +329,8 @@ fn build_attempt_from_roots(
     inputs, model_root, runtime,
   )
   let (startups, execution_plans, kv_plan) = fresh_execution_inputs(
-    inputs, previous_plan_sequence_value, kernel_root, runtime, inspections, device_plans,
+    inputs, generation, previous_plan_sequence_value, kernel_root, runtime, inspections,
+    device_plans,
   )
   compose_rank_startups(
     inputs, generation, version, rendezvous, startups, inspections, device_plans,
