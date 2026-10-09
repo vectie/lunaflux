@@ -1,0 +1,12 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/grouped_routing_cuda_source" @grouped,
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/precision_format" @format,
+  "moonbitlang/core/env",
+} for "test"

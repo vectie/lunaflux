@@ -22,4 +22,12 @@ Rank-local contributions are summed in F32 before any cross-device reduction.
 The compute implementation uses pairwise F32 dot reductions and explicit BF16
 stage rounding; it does not promise bitwise equivalence to a serial dot product.
 
+MoeRoutingPrecision describes BF16 hidden rows, BF16/F32 router weights, F32
+projection/score arithmetic, choice-only correction, group selection, stable
+lower-ID ties, and unbiased selected-weight normalization/scaling. Sigmoid and
+stable sqrt-softplus are explicit numeric policies. Five compact routing buffers
+have an exact aggregate workspace size; no CUDA geometry or model name enters
+this IR. The first lowering is an executable correctness implementation, not a
+Tensor Core router or a demonstrated performance improvement.
+
 See [implementation, tests and remaining serving work](../../docs/PRECISION_IR_2026-10-04.md).

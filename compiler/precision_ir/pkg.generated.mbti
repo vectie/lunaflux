@@ -122,6 +122,27 @@ pub fn MoeCombineRounding::equal(Self, Self) -> Bool
 pub fn MoeCombineRounding::not_equal(Self, Self) -> Bool
 pub fn MoeCombineRounding::to_repr(Self) -> @debug.Repr
 
+pub struct MoeRoutingPrecision {
+  // private fields
+}
+pub fn MoeRoutingPrecision::buffer_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn MoeRoutingPrecision::geometry(Self) -> (Int, Int, Int, Int)
+pub fn MoeRoutingPrecision::grouping(Self) -> (Int, Int, Int)
+pub fn MoeRoutingPrecision::new(weight~ : OperandPlan, maximum_rows~ : Int, group_count~ : Int, group_score_topk~ : Int, selected_group_count~ : Int, selected_experts~ : Int, score~ : MoeRoutingScore, normalize~ : Bool, scaling~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn MoeRoutingPrecision::normalize(Self) -> Bool
+pub fn MoeRoutingPrecision::scaling(Self) -> Double
+pub fn MoeRoutingPrecision::score(Self) -> MoeRoutingScore
+pub fn MoeRoutingPrecision::weight(Self) -> OperandPlan
+pub fn MoeRoutingPrecision::workspace_bytes(Self) -> Int64
+
+pub(all) enum MoeRoutingScore {
+  Sigmoid
+  SqrtSoftplus
+} derive(Eq, @debug.Debug)
+pub fn MoeRoutingScore::equal(Self, Self) -> Bool
+pub fn MoeRoutingScore::not_equal(Self, Self) -> Bool
+pub fn MoeRoutingScore::to_repr(Self) -> @debug.Repr
+
 pub(all) enum NumericEffect {
   Pure
   StartupWrite

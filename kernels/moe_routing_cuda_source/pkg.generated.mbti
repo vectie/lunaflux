@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/moe_routing_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn routing_source(@precision_ir.MoeRoutingPrecision, symbol~ : String) -> MoeRoutingCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct MoeRoutingCudaSource {
+  // private fields
+}
+pub fn MoeRoutingCudaSource::launches(Self) -> ReadOnlyArray[(Int, Int)]
+pub fn MoeRoutingCudaSource::plan(Self) -> @precision_ir.MoeRoutingPrecision
+pub fn MoeRoutingCudaSource::source_bytes(Self) -> Bytes
+pub fn MoeRoutingCudaSource::symbols(Self) -> ReadOnlyArray[String]
+
+// Type aliases
+
+// Traits
