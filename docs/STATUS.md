@@ -45,6 +45,11 @@ even with warning 79 disabled, existing qualification-test warnings remain.
 The first aggregate transfer run exposed process-global device-double counters
 being changed by concurrent async fixtures. Test-only device-lane serialization
 retains the exact counter assertions; runtime execution is unaffected.
+The corrected affected release-mode native aggregate passes 97/97 across the
+partition/precision plans, serial frame, GLM adapter, packed-MoE execution and
+plain remote channel. Regenerated post-transfer AOT sources retain the exact
+hashes of the compiled snapshots above. No whole-checkpoint GPU inference or
+new three-model throughput result is claimed.
 
 Update 2026-10-10 (stage assembly): a prepared GLM stage now owns boundary text
 weights, its connected decoder interval and distinct input/output residuals.

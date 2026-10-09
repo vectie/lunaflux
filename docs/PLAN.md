@@ -11,6 +11,8 @@ Activation transfer now has a plain framed-TCP/pinned-DMA execution owner and a
 GLM stage-bound lease. Producer retirement precedes download; complete receiver
 upload precedes consumer eligibility. Both composed 45-layer CUDA source halves
 compile on GB10; loopback device-double transfer and GLM lease regressions pass.
+The corrected affected native aggregate passes 97/97; async fixtures serialize
+only their shared native test-double device lane, not production execution.
 Next propagate the same request metadata to rank-local ports, drive remote stage
 submission/completion and return terminal samples, then execute actual checkpoint
 weights under measured host budgets. This correctness transport is host staged,
