@@ -54,13 +54,22 @@ payload authentication, successful placement or GPU generation.
 
 Focused checkpoint/reader tests pass 16/16, including authenticated 37,152-scale
 loading, range-order preservation and overlap-oracle regressions. Native checks
-use the existing legacy warning exclusions (25/29/79/92); the repository-wide
+use the existing legacy warning exclusions (25/29/79/92, plus deprecated API
+warning 20 on the clean Linux archive); the repository-wide
 strict warning migration is not complete. Header weights alone require
 186,533,449,720 layer bytes plus 2,537,562,112 text bytes. The best contiguous
 weight-only split is at layer 24: 95,391,266,368 / 93,679,745,464 bytes. Therefore
 the previous 90 GiB budgets with 2 GiB reserve cannot work. Re-run authenticated
 placement with live-host-headroom-derived budgets before GPU allocation; all
 state/workspace/module/process overhead still needs the executable's accounting.
+The exact `7643d611` source archive builds on the Linux management host with
+the stated legacy warning exclusions. The reader's standalone Linux tests
+also require explicit `-pthread -ldl` for the toolchain allocator/async runtime;
+macOS had hidden that dependency. This is test/executable linking, not a changed
+native ABI. A new CPU-only authenticated export uses 96 GiB per-host total
+budgets, 2 GiB reserve, a 4 GiB address-space cap and a three-hour deadline;
+stdout/stderr are retained in the user-service journal. Its placement result is
+pending, and no checkpoint GPU allocation is authorized by the header preview.
 
 Startup upload now supports scoped pinned/authenticated shard reuse across
 layer owners, while retaining stamp/replay checks and deterministic file close.
