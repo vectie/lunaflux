@@ -7,6 +7,18 @@ and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
 warning migrations are paused. Retain existing ownership guarantees and focused
 tests, but do not make new hardening work a prerequisite for model execution.
 
+Prepared GLM stages now assemble text boundaries + contiguous decoder + residual
+owners with aggregate pre-upload memory accounting. First/last stages load only
+their own global weights. A generic pure partitioner checks exact layer costs
+against heterogeneous host budgets and preserves complete ordered coverage.
+Partial decoder slices no longer bind whole-model worker delivery; complete
+stages bind only the request ports they were prepared against. The official-
+shaped first-stage native fixture passes 32 steps / 864 launches without warm
+heap allocation or blocking synchronization. It is a device-double/zero-weight
+fixture, not actual checkpoint GPU execution. Next connect rank-local request
+ports and residual transfer/completion across the two hosts, then validate full
+checkpoint prompt-to-token generation. DeepSeek/MiniMax completion remains open.
+
 Contiguous GLM decoder slices now compose the official KDA/DSA and dense/MoE
 schedule into one startup-bound queue. Layer frames expose borrowed launches
 instead of forcing layer-owned completions; at most two residual buffers are

@@ -10,6 +10,27 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (stage assembly): a prepared GLM stage now owns boundary text
+weights, its connected decoder interval and distinct input/output residuals.
+Ingress loads only embedding, egress only norm/head, interior neither; the same
+generic numerical lowering is reused. A pure contiguous partitioner consumes
+exact checkpoint layer footprints and per-host budgets, including boundary
+weights and explicit stage overhead, without GPU allocation or a hardware/model
+branch in the compiler. All layers must be placed exactly once. Prepared stage
+geometry must match worker ports; partial stages cannot publish model tokens.
+The official-shaped first-stage native regression streams embedding plus one
+dense block into one 27-launch queue and executes 32 steps / 864 launches with
+zero measured warm heap allocations or blocking waits. Budget-minus-one and
+foreign geometry are rejected before stage allocation; active cancellation
+releases owned resources. That fixture deliberately omits final norm/head, so
+it verifies boundary-only binding, not real-weight numerical execution. Whole-
+model cross-host request/activation transfer and checkpoint generation still
+remain; this feature does not close GLM/DeepSeek/MiniMax end-to-end inference.
+The affected native regression run passes 90/90, and the final first-stage
+fixture rerun passes after the row-bound/retry check. Format/API generation and
+ordinary native checking pass. Warning-denied checking still fails on thirty
+existing dependency migration warnings; it is not counted as a green release.
+
 Update 2026-10-10 (request bridge): a model-neutral single-contiguous-request
 worker now stages validated request frames into prepared token/count/reset/row
 ports, polls asynchronous input/model/output completion, and publishes the

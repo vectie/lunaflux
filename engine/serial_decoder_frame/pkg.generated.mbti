@@ -33,6 +33,7 @@ pub fn SerialDecoderFrame::close(Self) -> Unit raise
 pub fn SerialDecoderFrame::complete(Self, sampled_token~ : Int, execution_failed~ : Bool) -> @worker_wire.ValidatedCompletionFrame raise
 pub fn SerialDecoderFrame::completion(Self) -> @worker_wire.ValidatedCompletionFrame raise
 pub fn SerialDecoderFrame::copy_input(Self, Int, FixedArray[Byte]) -> Int raise SerialDecoderError
+pub fn SerialDecoderFrame::geometry(Self) -> (Int, Int, Int)
 pub fn SerialDecoderFrame::input_capacity(Self, Int) -> Int raise SerialDecoderError
 pub fn SerialDecoderFrame::is_faulted(Self) -> Bool
 pub fn SerialDecoderFrame::live_rows(Self) -> Int raise SerialDecoderError

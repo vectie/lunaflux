@@ -78,6 +78,11 @@ pub fn SerialDecoderWorker::new(frame : @frame.SerialDecoderFrame) -> Self {
 }
 
 ///|
+pub fn SerialDecoderWorker::geometry(self : Self) -> (Int, Int, Int) {
+  self.frame.geometry()
+}
+
+///|
 /// Counts, metadata, live token capacity and one selected token. Decoder
 /// residuals, weights, state and AOT module are budgeted by their own owners.
 pub fn SerialDecoderWorker::required_device_bytes(self : Self) -> Int64 raise {

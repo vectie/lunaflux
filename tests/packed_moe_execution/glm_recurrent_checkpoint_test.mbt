@@ -4,6 +4,7 @@ async fn exercise_glm_checkpoint_owner(
   with_moe_block? : Bool = false,
   with_sparse_block? : Bool = false,
   with_decoder_slice? : Bool = false,
+  with_decoder_stage? : Bool = false,
 ) -> Unit {
   @async.with_task_group() <| group => {
     let directory = @fs.realpath(@fs.tmpdir(prefix="lunaflux-glm-recurrent"))
@@ -126,7 +127,14 @@ async fn exercise_glm_checkpoint_owner(
     } else {
       1
     }
-    let weight_bytes = weight_bytes * layer_count.to_int64()
+    let global_bytes = if with_decoder_stage {
+      @glm53_spec.Glm53FlashSpec::official().vocabulary_size().to_int64() *
+      4096L *
+      2L
+    } else {
+      0L
+    }
+    let weight_bytes = weight_bytes * layer_count.to_int64() + global_bytes
     let entries : Array[String] = []
     let mut offset = 0L
     for layer in layer_index..<(layer_index + layer_count) {
@@ -141,6 +149,13 @@ async fn exercise_glm_checkpoint_owner(
         )
         offset += count
       }
+    }
+    if with_decoder_stage {
+      let vocabulary = @glm53_spec.Glm53FlashSpec::official().vocabulary_size()
+      entries.push(
+        "\"model.language_model.embed_tokens.weight\":{\"dtype\":\"BF16\",\"shape\":[\{vocabulary},4096],\"data_offsets\":[\{offset},\{offset + global_bytes}]}",
+      )
+      offset += global_bytes
     }
     assert_eq(offset, weight_bytes)
     let header = @utf8.encode("{" + entries.join(",") + "}")
@@ -173,8 +188,10 @@ async fn exercise_glm_checkpoint_owner(
       maximum_shards=1,
       maximum_file_bytes=5000000000L,
       maximum_header_bytes=1048576,
-      maximum_tensors_per_shard=shapes.length() * layer_count,
-      maximum_total_tensors=shapes.length() * layer_count,
+      maximum_tensors_per_shard=shapes.length() * layer_count +
+        (if with_decoder_stage { 1 } else { 0 }),
+      maximum_total_tensors=shapes.length() * layer_count +
+        (if with_decoder_stage { 1 } else { 0 }),
       maximum_rank=3,
       maximum_name_bytes=256,
       maximum_dtype_specs=4,
@@ -215,6 +232,10 @@ async fn exercise_glm_checkpoint_owner(
         let (_, _, _, bytes) = shapes[i]
         assert_eq(weight.buffer_bytes(), bytes)
       }
+    }
+    if with_decoder_stage {
+      exercise_glm_stage(checkpoint, root, limits, weight_bytes)
+      return
     }
     let layer : CheckpointTestLayer = if with_decoder_slice {
       Slice(

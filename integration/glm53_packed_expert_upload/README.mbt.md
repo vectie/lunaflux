@@ -19,6 +19,24 @@ it does not branch on model family, bind tensors or allocate intermediate frames
 Caller input/output are distinct borrowed residual allocations, not in-place
 mHC destinations. They must remain alive until the slice queue is closed.
 
+`GlmDecoderStage` now assembles the slice, text boundary and distinct residual
+owners. Its complete stage budget is checked before the first allocation/upload.
+Startup also matches worker row/vocabulary/history geometry. Only a complete
+model range prepared against that worker's actual ports can bind token delivery;
+an early/interior/last stage alone cannot publish a whole-model completion.
+Partial stages expose residual ports for a composed pipeline owner.
+
+The compiler's immutable `DecoderStageRange` determines ingress, interior,
+egress or complete ownership. Ingress uploads only embedding and owns no output
+workspace; egress uploads only final norm/head plus selected-row workspace;
+interior stages load neither. All roles reuse the same numerical lowering.
+`GlmDecoderSlice::partition` passes exact checkpoint layer footprints to the
+generic suffix-feasibility planner, with boundary costs from
+`GlmTextIo::boundary_device_bytes`. Four conservative residual frames and the
+caller's explicit additional stage reserve are counted before host placement.
+This is a memory-feasible contiguous partition, not a performance optimizer.
+Runtime cross-host handoff and whole-model checkpoint generation are still open.
+
 Before acquiring device buffers, preparation sums checkpoint weights, aligned
 expert banks, request state, per-layer workspaces and residual scratch. The
 caller supplies a total device ceiling. This enables bounded stage placement;
@@ -58,7 +76,11 @@ Invalid selected rows or non-finite logits yield a sampled-token sentinel `-1`;
 the worker must reject it and check sparse append error ports before delivery.
 
 The text kernels are ordered reference schedules, not throughput-tuned kernels.
-Their native composition tests use device doubles; real GPU numerical and
-sanitizer validation remain pending. Full worker delivery, non-greedy sampling,
+Their small GB10 numerical/deterministic/sanitizer fixture passes; this is not
+full-dimension or real-checkpoint validation. Native composition tests use
+device doubles. The official-shaped first-stage fixture streams embedding and
+one dense decoder (without norm/head tensors), runs 32 steps / 864 launches
+with zero measured hot allocations/blocking waits, rejects an undersized budget
+before allocation and releases active cancellation. Full worker delivery, non-greedy sampling,
 model-wide two-host execution and actual checkpoint numerical comparisons remain
 unfinished. Close the borrowing slice queue before closing the text frame.

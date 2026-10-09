@@ -34,6 +34,7 @@ pub fn SerialDecoderWorker::begin(Self, @worker_wire.ValidatedPlanFrame, @worker
 pub fn SerialDecoderWorker::bind_executor(Self, @device.Context, submit~ : (Int) -> Unit raise, poll~ : () -> Bool raise, close~ : () -> Unit raise, append_descriptors~ : ArrayView[@device.Allocation]) -> Unit raise
 pub fn SerialDecoderWorker::close(Self) -> Unit raise
 pub fn SerialDecoderWorker::completion(Self) -> @worker_wire.ValidatedCompletionFrame raise
+pub fn SerialDecoderWorker::geometry(Self) -> (Int, Int, Int)
 pub fn SerialDecoderWorker::input(Self, DecoderInputPort) -> @device.Allocation raise
 pub fn SerialDecoderWorker::new(@serial_decoder_frame.SerialDecoderFrame) -> Self
 pub fn SerialDecoderWorker::prepare_ports(Self, @device.Context, maximum_device_bytes~ : Int64) -> Unit raise

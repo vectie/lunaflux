@@ -98,6 +98,12 @@ pub fn SerialDecoderFrame::new(
 }
 
 ///|
+/// Startup compatibility facts; inspecting them does not stage a request.
+pub fn SerialDecoderFrame::geometry(self : Self) -> (Int, Int, Int) {
+  (self.maximum_rows, self.maximum_context, self.vocabulary)
+}
+
+///|
 fn SerialDecoderFrame::require_idle(
   self : Self,
 ) -> Unit raise SerialDecoderError {

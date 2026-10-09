@@ -5,6 +5,7 @@
 pub struct GlmDecoderSlice {
   priv first_layer : Int
   priv end_layer : Int
+  priv model_layer_count : Int
   priv maximum_rows : Int
   priv residual_bytes : Int64
   priv buffer_count : Int
@@ -100,6 +101,7 @@ pub fn GlmDecoderSlice::new(
   {
     first_layer,
     end_layer,
+    model_layer_count: spec.layer_count(),
     maximum_rows,
     residual_bytes: maximum_rows.to_int64() *
     spec.hidden_size().to_int64() *
