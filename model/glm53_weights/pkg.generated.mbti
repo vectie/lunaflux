@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/model/glm53_spec",
   "vectie/lunaflux/model/indexed_parameter_bank_layout",
+  "vectie/lunaflux/model/precision_format",
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/spec",
 }
@@ -24,6 +25,8 @@ pub fn flash_schema(@glm53_spec.Glm53FlashMetadata, Glm53WeightEncoding) -> Glm5
 
 pub fn full_schema(@glm53_spec.Glm53FullMetadata, Glm53WeightEncoding) -> Glm53WeightSchema
 
+pub fn nvfp4_expert_weights(layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[Glm53NvFp4ExpertWeight] raise Glm53NvFp4ExpertError
+
 // Errors
 pub(all) suberror Glm53ExpertBankLayoutError {
   UnsupportedExpertBankEncoding
@@ -32,6 +35,17 @@ pub(all) suberror Glm53ExpertBankLayoutError {
   ExpertBankSizeOverflow
   IndexedLayout(@indexed_parameter_bank_layout.IndexedParameterBankLayoutError)
 } derive(Eq, @debug.Debug)
+
+pub(all) suberror Glm53NvFp4ExpertError {
+  InvalidMoeLayer(Int)
+  InvalidExpert(Int)
+  DuplicateExpert(Int)
+  EmptyExpertPartition
+  Precision(@precision_format.PrecisionError)
+} derive(Eq, @debug.Debug)
+pub fn Glm53NvFp4ExpertError::equal(Self, Self) -> Bool
+pub fn Glm53NvFp4ExpertError::not_equal(Self, Self) -> Bool
+pub fn Glm53NvFp4ExpertError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror Glm53WeightsError {
   InvalidLayerIndex
@@ -72,6 +86,16 @@ pub fn Glm53MoeExpertBankLayout::shared_up(Self) -> @indexed_parameter_bank_layo
 
 pub struct Glm53MoeExpertBankLayoutDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Glm53MoeExpertBankLayoutDigest::as_hex(Self) -> String
+
+pub struct Glm53NvFp4ExpertWeight {
+  // private fields
+}
+pub fn Glm53NvFp4ExpertWeight::expert_index(Self) -> Int
+pub fn Glm53NvFp4ExpertWeight::global_scale_name(Self) -> String
+pub fn Glm53NvFp4ExpertWeight::layer_index(Self) -> Int
+pub fn Glm53NvFp4ExpertWeight::payload_name(Self) -> String
+pub fn Glm53NvFp4ExpertWeight::representation(Self) -> @precision_format.Representation
+pub fn Glm53NvFp4ExpertWeight::scales_name(Self) -> String
 
 pub struct Glm53ObservedTensor {
   // private fields

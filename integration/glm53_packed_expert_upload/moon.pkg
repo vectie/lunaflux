@@ -1,9 +1,9 @@
 import {
-  "moonbitlang/core/debug",
-  "vectie/lunaflux/model/precision_format" @format,
-  "vectie/lunaflux/compiler/precision_ir" @precision,
-  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/model/glm53_weights",
+  "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/device",
 }
 
 supported_targets = "native"
@@ -13,4 +13,5 @@ import {
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/precision_format",
 } for "test"

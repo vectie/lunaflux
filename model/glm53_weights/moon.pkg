@@ -7,6 +7,8 @@ import {
   "vectie/lunaflux/model/glm53_spec",
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/precision_format",
+  "moonbitlang/core/debug",
 }
 
 supported_targets = "native"

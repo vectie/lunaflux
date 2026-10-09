@@ -15,3 +15,14 @@ readers, and writes the planned aligned offsets. The caller keeps the arena
 unpublished until all reads/conversions/uploads succeed and releases it on error.
 
 See [precision layer and integration status](../../docs/PRECISION_IR_2026-10-04.md).
+
+The compact alternative uses PackedCheckpoint: bind named payload, block-scale
+and optional scalar-scale tensors to a shared Representation, then
+transfer_weights streams their original bytes into caller-owned buffers.
+One scratch buffer is reused across all weights; weights are not expanded to
+BF16. The binding exposes scale offsets for device operand decoding. Four-bit
+weights retain low-column/low-nibble packing and scale planes remain row-major.
+
+This is a startup data path, not a serving kernel or an activation-quantization
+policy. GLM's NVFP4 expert adapter uses it for per-device expert partitions;
+existing BF16 startup expansion remains available for other weight plans.

@@ -17,3 +17,15 @@ Those physical paths remain explicitly fail-closed until the shared dtype and
 materialization contracts represent them. The full manifest currently covers
 the exact 59,585 non-scale logical tensors of a BF16-converted artifact; it
 does not claim the 59,044 FP8 scale tensors are executable.
+
+The nvfp4_expert_weights adapter maps Flash routed expert partitions (layers
+3..44 and MTP layer 45) to the installed ModelOpt NVFP4 checkpoint's gate/up/down
+planes: packed U8 payload, E4M3 block scale for 16 input columns, and an F32 scalar
+global scale. It uses the shared precision representation and leaves the
+logical graph unchanged. Shared experts, dense layers and attention weights
+are not reclassified as NVFP4.
+
+The packed upload integration streams these planes directly into caller-owned
+device buffers, without a full host bank or resident BF16 duplicate. Native
+tests cover an official-sized expert through this data path; full GLM serving
+and multi-node expert execution are not yet demonstrated by this loader work.

@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/glm53_packed_expert_upload"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn bind_experts(@precision_materialize.PackedCheckpoint, layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
+pub fn upload_experts(@device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, ArrayView[@precision_materialize.PackedCheckpointWeight], ArrayView[@device.Allocation], chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+
+// Errors
+pub(all) suberror PackedExpertUploadError {
+  InvalidChunkSize
+  InvalidDestinationCount
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits
