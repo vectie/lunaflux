@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/kernels/causal_convolution_execution_cuda_source",
+  "vectie/lunaflux/kernels/recurrent_block_execution_cuda_source",
   "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source",
 }
 
@@ -13,6 +14,24 @@ import {
 // Errors
 
 // Types and methods
+pub(all) struct RecurrentBlockWeights {
+  query : @device.Allocation
+  key : @device.Allocation
+  value : @device.Allocation
+  forget_low : @device.Allocation
+  forget_expansion : @device.Allocation
+  beta : @device.Allocation
+  dt_bias : @device.Allocation
+  a_log : @device.Allocation
+  gate_low : @device.Allocation
+  gate_expansion : @device.Allocation
+  norm : @device.Allocation
+  output : @device.Allocation
+  query_conv : @device.Allocation
+  key_conv : @device.Allocation
+  value_conv : @device.Allocation
+}
+
 pub struct RecurrentDeltaProgram {
   // private fields
 }
@@ -20,10 +39,12 @@ pub fn RecurrentDeltaProgram::abort(Self) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::close(Self) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::new(@recurrent_delta_execution_cuda_source.RecurrentDeltaCudaSource) -> Self
 pub fn RecurrentDeltaProgram::poll(Self) -> Bool raise @device.DeviceError
-pub fn RecurrentDeltaProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_state_bytes~ : Int64, maximum_workspace_bytes? : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, query~ : @device.Allocation, key~ : @device.Allocation, value~ : @device.Allocation, log_decay~ : @device.Allocation, beta~ : @device.Allocation, output~ : @device.Allocation, convolution_weights? : FixedArray[@device.Allocation]) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_state_bytes~ : Int64, maximum_workspace_bytes? : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, query~ : @device.Allocation, key~ : @device.Allocation, value~ : @device.Allocation, log_decay~ : @device.Allocation, beta~ : @device.Allocation, output~ : @device.Allocation, convolution_weights? : FixedArray[@device.Allocation], block_weights? : RecurrentBlockWeights, hidden? : @device.Allocation) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::prepare_block(Self, @device.Context, @device.Module, @device.Stream, RecurrentBlockWeights, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::source_bytes(Self) -> Bytes
 pub fn RecurrentDeltaProgram::state_bytes(Self) -> Int64
 pub fn RecurrentDeltaProgram::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::with_block(@recurrent_block_execution_cuda_source.RecurrentBlockCudaSource) -> Self raise @precision_ir.PrecisionPlanError
 pub fn RecurrentDeltaProgram::with_convolution(@recurrent_delta_execution_cuda_source.RecurrentDeltaCudaSource, @causal_convolution_execution_cuda_source.CausalConvolutionCudaSource) -> Self raise @precision_ir.PrecisionPlanError
 pub fn RecurrentDeltaProgram::workspace_bytes(Self) -> Int64
 

@@ -47,3 +47,36 @@ pub fn recurrent_convolution_plan(
     maximum_state_bytes~,
   )
 }
+
+///|
+/// Compose the complete KDA branch without exposing CUDA schedules to the model.
+pub fn recurrent_block_plan(
+  spec : @glm53_spec.Glm53FlashSpec,
+  layer_index~ : Int,
+  maximum_rows~ : Int,
+  maximum_sequences~ : Int,
+  cache_slots~ : Int,
+  maximum_state_bytes~ : Int64,
+) -> @precision_ir.RecurrentBlockPrecision raise {
+  @precision_ir.RecurrentBlockPrecision::new(
+    recurrent_compute_plan(
+      spec,
+      layer_index~,
+      maximum_rows~,
+      maximum_sequences~,
+      cache_slots~,
+      maximum_state_bytes~,
+    ),
+    recurrent_convolution_plan(
+      spec,
+      layer_index~,
+      maximum_rows~,
+      maximum_sequences~,
+      cache_slots~,
+      maximum_state_bytes~,
+    ),
+    hidden_width=spec.hidden_size(),
+    control_rank=spec.linear_head_dimension(),
+    output_normalization_epsilon=spec.rms_norm_epsilon(),
+  )
+}

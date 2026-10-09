@@ -14,6 +14,7 @@ priv enum State {
 pub struct RecurrentDeltaProgram {
   priv source : @source.RecurrentDeltaCudaSource
   priv convolution : @convolution.CausalConvolutionCudaSource?
+  priv block : @block.RecurrentBlockCudaSource?
   priv maximum_rows : Int
   priv cache_bytes : Int64
   priv owned_bytes : Int64
@@ -33,6 +34,7 @@ pub fn RecurrentDeltaProgram::new(
   {
     source,
     convolution: None,
+    block: None,
     maximum_rows,
     cache_bytes: source.plan().state_bytes(),
     owned_bytes: source.plan().state_bytes(),
@@ -57,6 +59,9 @@ pub fn RecurrentDeltaProgram::workspace_bytes(self : Self) -> Int64 {
 
 ///|
 pub fn RecurrentDeltaProgram::source_bytes(self : Self) -> Bytes {
+  if self.block is Some(block) {
+    return block.source_bytes()
+  }
   match self.convolution {
     None => self.source.source_bytes()
     Some(convolution) =>
@@ -86,6 +91,8 @@ pub fn RecurrentDeltaProgram::prepare(
   beta~ : @device.Allocation,
   output~ : @device.Allocation,
   convolution_weights? : FixedArray[@device.Allocation],
+  block_weights? : RecurrentBlockWeights,
+  hidden? : @device.Allocation,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh &&
     self.cache is None &&
@@ -106,11 +113,31 @@ pub fn RecurrentDeltaProgram::prepare(
     (Some(_), Some(weights)) if weights.length() == 3 => ()
     _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
+  match (self.block, block_weights, hidden) {
+    (None, None, None) => ()
+    (Some(_), Some(_), Some(_)) => ()
+    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
   let state = context.allocate(plan.state_bytes())
   self.cache = Some(state)
   initialize_cache(context, state, plan.state_bytes())
   let launches : Array[@device.OrderedKernelLaunch] = []
-  let inputs = [query, key, value]
+  let frame = match (self.block, block_weights, hidden) {
+    (Some(block), Some(weights), Some(hidden)) => {
+      let frame = allocate_block_frame(self, context, block)
+      append_block_prefix(
+        self, aot, block, launches, counts, hidden, weights, frame,
+      )
+      Some(frame)
+    }
+    _ => None
+  }
+  let inputs = match frame {
+    Some(frame) => [frame[0], frame[1], frame[2]]
+    None => [query, key, value]
+  }
+  // Keep convolution-owned buffer offsets independent of the block prefix.
+  let convolution_start = self.intermediates.length()
   let delta_inputs = match (self.convolution, convolution_weights) {
     (Some(convolution), Some(weights)) => {
       for i in 0..<3 {
@@ -136,7 +163,11 @@ pub fn RecurrentDeltaProgram::prepare(
           ),
         )
       }
-      [self.intermediates[1], self.intermediates[3], self.intermediates[5]]
+      [
+        self.intermediates[convolution_start + 1],
+        self.intermediates[convolution_start + 3],
+        self.intermediates[convolution_start + 5],
+      ]
     }
     _ => inputs
   }
@@ -162,13 +193,41 @@ pub fn RecurrentDeltaProgram::prepare(
       region(delta_inputs[0], qbytes, 2L),
       region(delta_inputs[1], qbytes, 2L),
       region(delta_inputs[2], vbytes, 2L),
-      region(log_decay, qbytes * 2L, 4L),
-      region(beta, rows.to_int64() * heads.to_int64() * 2L, 2L),
+      region(
+        match frame {
+          Some(frame) => frame[7]
+          None => log_decay
+        },
+        qbytes * 2L,
+        4L,
+      ),
+      region(
+        match frame {
+          Some(frame) => frame[6]
+          None => beta
+        },
+        rows.to_int64() * heads.to_int64() * 2L,
+        2L,
+      ),
       region(state, plan.state_bytes(), 4L),
-      region(output, vbytes, 2L),
+      region(
+        match frame {
+          Some(frame) => frame[10]
+          None => output
+        },
+        vbytes,
+        2L,
+      ),
     ]),
   )
   launches.push(launch)
+  match (self.block, block_weights, frame) {
+    (Some(block), Some(weights), Some(frame)) =>
+      append_block_suffix(
+        self, aot, block, launches, counts, weights, frame, output,
+      )
+    _ => ()
+  }
   self.queue = Some(context.create_ordered_kernel_executor(stream, launches))
   self.status = Ready
 }

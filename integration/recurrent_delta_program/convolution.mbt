@@ -27,6 +27,7 @@ pub fn RecurrentDeltaProgram::with_convolution(
   {
     source,
     convolution: Some(convolution),
+    block: None,
     maximum_rows,
     cache_bytes: cache,
     owned_bytes: cache + 3L * frame,

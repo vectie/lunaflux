@@ -102,3 +102,48 @@ Local capture: `/tmp/lunaflux-convolution-capture.sqZumO`.
 Downloaded header/probe/binary SHA-256 hashes match remote artifacts. The new
 non-overwriting archive `/tmp/lunaflux-convolution-capture.sqZumO.tar` has SHA-256
 `a16cc795eaa93c94df69acf97c027e498d9ec5ec21722398478570edbc534779`.
+
+## Complete recurrent branch
+
+The executable Program now includes the remaining numerical stages in one
+startup-prepared queue:
+
+`hidden → Q/K/V + forget/beta + output gate → controls → Q/K/V convolution
+→ normalized delta/cache commit → sigmoid-gated RMSNorm → output projection`.
+
+Sixteen launches share one completion event, not sixteen CPU waits. Generic
+precision IR owns geometry, intermediate BF16 rounds, F32 decay/cache and memory
+accounting. CUDA lowering reuses per-output parallel ordered dense projections
+and the existing elementwise decay renderer. The GLM adapter supplies hidden
+4096, heads 64, dimension/control-rank 128, convolution four, lower decay -5 and
+the model's output RMSNorm epsilon 1e-5. Recurrent Q/K normalization keeps its
+separate 1e-6 epsilon. No model-specific branching entered the executor.
+
+At rows 32 / sequences 16 / cache slots 32, all owned cache and intermediate
+frames total 145,252,352 bytes, excluding borrowed weights/input/output. A tiny
+6-hidden / 2-head / 4-dimension / rank-3 GPU fixture executes the same 16-stage
+composition. Its independent double oracle reports maximum absolute error
+3.60905531e-9 over ragged continuation, slot reordering and reset. Raw histories
+match exactly; one eight-token prefill and eight one-token decode frames produce
+bitwise-identical output and F32 state. Memcheck reports zero errors and leaks,
+racecheck zero hazards and synccheck zero errors. Each remote process was capped
+at 2 GiB with no swap and a 120-second timeout. Available host memory remained
+123,207,988 KiB. Combined native checks pass 47/47; 32 full-branch steps produce
+512 enqueues with zero measured heap allocations and blocking synchronization.
+Targeted format and native interface generation pass; unrelated existing
+deprecation warnings still prevent claiming a warning-denied release boundary.
+
+The first physical probe compile found a host `round` name collision. It was
+renamed to `bf_round`; the failed source/logs remain in their original directory.
+No numerical kernel change was needed for this probe-only issue.
+
+Successful remote artifacts: `/tmp/lunaflux-block-feature.Wq3BDA` on .178.
+Local capture: `/tmp/lunaflux-block-capture.REIPp9`; downloaded header/probe/binary
+hashes match remote. Archive `/tmp/lunaflux-block-capture.REIPp9.tar` has SHA-256
+`15d9ddb65051cc512bf34a2d793d5966e7504f004f03c9d7826c957cf704536d`.
+
+This closes the executable recurrent-branch composition gap, not full GLM
+inference. Real checkpoint ownership, surrounding mHC/MLP and DSA execution,
+worker wiring, DeepSeek and MiniMax full-model execution and two-host reduction
+remain unfinished. Ordered projections are correctness-first parallel schedules,
+not tensor-core GEMM; no serving throughput or reference-engine speedup is claimed.

@@ -9,6 +9,7 @@ import {
   "vectie/lunaflux/integration/recurrent_delta_program" @recurrent,
   "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source" @delta,
   "vectie/lunaflux/kernels/causal_convolution_execution_cuda_source" @convolution,
+  "vectie/lunaflux/kernels/recurrent_block_execution_cuda_source" @block,
   "moonbitlang/core/encoding/utf8",
 }
 

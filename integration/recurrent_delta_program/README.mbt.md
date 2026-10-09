@@ -26,6 +26,21 @@ order at preparation. `state_bytes` covers all four persistent caches;
 `workspace_bytes` additionally includes three convolved frame buffers. Both
 startup budgets are explicit. `source_bytes` includes both startup AOT symbols.
 
-This is still not a complete GLM attention block. Projection, decay/beta controls,
-output gating and model/worker composition remain separate responsibilities and
-must be wired before whole-model claims.
+`with_block` adds the complete hidden-to-hidden recurrent attention branch:
+Q/K/V projections, low-rank forget projection, beta projection and sigmoid,
+bounded F32 decay, low-rank output gate, Q/K/V convolution, recurrent update,
+sigmoid-gated per-head RMSNorm and final dense projection. All 16 launches share
+one queue and completion event. `prepare_block` borrows named checkpoint weights,
+hidden/output and sequence metadata; the Program owns all intermediate frames.
+No warmed-path buffers or plans are constructed between stages.
+
+`RecurrentBlockPrecision` owns numerical stage boundaries and shape accounting;
+the model adapter selects geometry and epsilon, and CUDA lowering owns execution.
+Projection sums retain ordered F32 arithmetic and explicit BF16 stage rounds.
+Unlike the old single-thread composite oracle, output elements run in parallel.
+These correctness-first projections are not tensor-core performance kernels.
+
+The complete branch passes a small GPU oracle and chunked-prefill/decode test,
+with native ownership and zero-allocation queue tests. Actual checkpoint binding,
+surrounding mHC/residual/MLP composition, DSA layers and model/worker integration
+remain unfinished. This does not claim complete GLM inference or serving speed.

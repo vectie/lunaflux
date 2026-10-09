@@ -36,10 +36,13 @@ and bounded component timing checks pass; the serial reference is not a serving
 benchmark. Request-owned Q/K/V short convolution now joins that same queue;
 the three histories and intermediate buffers have explicit aggregate budgets.
 Chunked prefill and single-token decode produce the same output/state bitwise
-on three tested GPU geometries, including GLM's actual channel count. Next
-compose checkpoint projections, decay/beta controls, gated normalization and
-output projection into the complete KDA
-block, then connect it and MoE to actual layer/worker execution. DSA and DeepSeek
+on three tested GPU geometries, including GLM's actual channel count. The complete
+hidden-to-hidden KDA branch is now prepared as one 16-launch queue, including
+parallel projections, decay/beta controls, output gating and normalization.
+Its small GPU full-chain oracle and chunked execution checks pass, as do 47
+focused native tests. Next bind actual checkpoint weights and connect this
+branch and MoE to surrounding mHC/dense layers and layer/worker execution.
+Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual
 implementation tasks, not transport-hardening prerequisites.
 

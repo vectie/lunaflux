@@ -10,6 +10,22 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+The complete recurrent attention branch now joins hidden-to-Q/K/V projections,
+two-stage forget, beta sigmoid, F32 decay, two-stage output gate, request-owned
+convolution/delta, gated RMSNorm and output projection in one prepared queue.
+Its 16 launches have one completion boundary. Pure precision IR accounts all
+frames; the GLM adapter supplies exact geometry and model RMSNorm epsilon.
+Thirty-two native steps execute 512 launches with zero measured heap allocations
+or blocking waits. The combined focused native suite passes 47/47.
+
+On .178 GB10, the small complete branch passes an independent double oracle
+(maximum absolute error 3.61e-9), exact raw-history checks and bitwise full-prefill
+versus token-by-token decode output/state. Memory/leak, race and synchronization
+checks pass. This is component execution, not a full-checkpoint model test:
+checkpoint binding, surrounding mHC/MLP/DSA layers and workers remain unfinished.
+The ordered-F32 projections parallelize outputs but are not tensor-core GEMM;
+no throughput improvement is claimed. No TLS/admission work was added.
+
 Request-owned Q/K/V short convolution now executes before recurrent update in
 the same prepared queue. Generic precision IR owns raw BF16 history semantics;
 the GLM adapter selects 8192 channels / kernel four. Request-slot continuation,
@@ -22,8 +38,9 @@ On idle .178 GB10, channel counts 8, 129 and 8192 pass an independent double
 oracle and exact raw-history checks. One eight-token prefill and eight decode
 frames produce bitwise-identical outputs, convolution histories and delta state.
 All three composed GPU cases pass memory/leak, race and synchronization checks.
-No throughput speedup is claimed; projection/control/output layers and full
-model workers remain unfinished. No TLS/admission work was added.
+No throughput speedup is claimed. This earlier convolution-only check did not
+cover projections or output; the complete branch above now does. Full model
+workers remain unfinished. No TLS/admission work was added.
 
 GLM KDA now has a request-owned recurrent delta Program in addition to its old
 serial diagnostic source. The model adapter builds a generic BF16/F32 precision
@@ -48,7 +65,7 @@ and sanitizer checks of the new kernel retain the independent CPU oracle.
 [Recurrent execution results](RECURRENT_EXECUTION_2026-10-09.md) record exact
 scope and timings. The downloaded artifacts match remote SHA-256 identities;
 archive hash is `4a4e7f0ed7b335bf7b51f8ae781b7cc110296bbcb3502b546c72aa86b27e48ab`.
-Complete KDA projection/control/output composition, DSA/DeepSeek
+Actual checkpoint KDA binding, DSA/DeepSeek
 attention, three-model workers and actual two-host execution remain unfinished.
 No additional TLS/admission work was performed.
 
