@@ -56,6 +56,31 @@ NCCL execution or complete checkpoint serving. The bounded physical artifacts
 are at `/tmp/lunaflux-shared-moe.66gstK` on .178; generated header SHA-256 is
 `b6fd9bd2119b1a4a36bc8e5c299f9557123c0e5f6988f28f10465abc643af3c4`.
 
+GLM shared experts now bind the installed Flash NVFP4 checkpoint's actual dense
+BF16 gate/up/down matrices, without scale sidecars. A read-only header inspection
+of layers 3, 44 and 45 confirms gate/up 2048-by-4096 and down 4096-by-2048.
+The adapter supplies a replicated one-expert, unit-score precision plan and
+streams the 50,331,648-byte bank through the common packed materializer. A native
+official-sized BF16 fixture passes binding and bounded 4,093-byte chunk transfer.
+
+MoeProgram now owns the complete startup preparation for routed/shared execution:
+exact workspace budgeting, AOT function loading, compact intermediate allocation,
+expert-map upload, shared unit routing, optional FP8 quantization buffers and
+binding to the existing MoE queue. Caller-owned banks and input/output remain
+borrowed; no resident decoded weight duplicate is created. BF16 and dynamic FP8
+Program tests each run 16 cycles with zero measured token-step allocations,
+112/176 kernel submissions respectively, and balanced explicit release. Budget
+refusal, partial binding cleanup and active cancellation also pass. The affected
+native tests pass 20/20; targeted native compilation has no errors. These Program
+tests use a fake native device to verify wiring and lifetime, not GPU arithmetic.
+The earlier physical kernel results above remain separate; this addition has not
+yet been exercised as a complete three-model or two-host serving runtime.
+
+Feature development is prioritized over additional TLS/admission expansion or
+blanket warning migration. The remaining functional work is connecting these
+programs to complete GLM/DeepSeek decoder blocks and the shared whole-model
+execution/serving path, followed by complete model execution measurements.
+
 ## Latest sealed physical qualification — 2026-08-28
 
 The exact final30 source archive SHA-256 is

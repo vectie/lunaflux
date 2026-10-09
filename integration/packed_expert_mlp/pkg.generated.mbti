@@ -33,6 +33,18 @@ pub fn MoeExecutor::close(Self) -> Unit raise @device.DeviceError
 pub fn MoeExecutor::poll(Self) -> Bool raise @device.DeviceError
 pub fn MoeExecutor::submit(Self, live_rows~ : Int, plan_sequence~ : UInt64, global_sequence~ : UInt64) -> Unit raise @device.DeviceError
 
+pub struct MoeProgram {
+  // private fields
+}
+pub fn MoeProgram::abort(Self) -> Unit raise @device.DeviceError
+pub fn MoeProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn MoeProgram::new(@selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @luna_cuda_precision.MoeCombineSource) -> Self raise @device.DeviceError
+pub fn MoeProgram::poll(Self) -> Bool raise @device.DeviceError
+pub fn MoeProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, selected_indices~ : @device.Allocation, selected_weights~ : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation, reduction? : MoeReduction) -> Unit raise @device.DeviceError
+pub fn MoeProgram::source_bytes(Self) -> Bytes raise
+pub fn MoeProgram::submit(Self, live_rows~ : Int, plan_sequence~ : UInt64, global_sequence~ : UInt64) -> Unit raise @device.DeviceError
+pub fn MoeProgram::workspace_bytes(Self) -> Int64
+
 pub struct MoeReduction {
   // private fields
 }

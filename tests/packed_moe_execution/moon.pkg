@@ -1,6 +1,10 @@
 import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/integration/packed_expert_mlp" @moe,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/model/precision_format" @format,
+  "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @source,
+  "vectie/lunaflux/kernels/luna_cuda_precision" @combine,
 }
 
 supported_targets = "native"

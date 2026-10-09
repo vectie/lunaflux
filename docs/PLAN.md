@@ -2,6 +2,18 @@
 
 ## Working policy
 
+Current priority (2026-10-09): executable GLM-5.3 Flash, DeepSeek-V4 Flash DSpark
+and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
+warning migrations are paused. Retain existing ownership guarantees and focused
+tests, but do not make new hardening work a prerequisite for model execution.
+
+The compact MoE Program now owns startup buffers and binds routed/shared experts
+to one reusable execution queue. GLM shared BF16 and DeepSeek shared FP8 adapters
+use the same precision/execution layers. Next connect the programs into complete
+decoder blocks and whole-model step execution, respecting the per-host memory
+budget before loading model banks. Module tests do not close whole-model serving
+or two-host execution tasks; those require actual execution rather than labels.
+
 Active compiler work: [counter-driven repair, 2026-09-29](COMPILER_COUNTER_REPAIR_2026-09-29.md).
 The three-kernel diagnosis is recorded there with implemented changes,
 remaining algorithm work and the bounded physical regression procedure.
