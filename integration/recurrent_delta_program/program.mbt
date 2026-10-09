@@ -13,10 +13,15 @@ priv enum State {
 /// resetting a slot begins a new request, not a new batch.
 pub struct RecurrentDeltaProgram {
   priv source : @source.RecurrentDeltaCudaSource
+  priv convolution : @convolution.CausalConvolutionCudaSource?
   priv maximum_rows : Int
+  priv cache_bytes : Int64
+  priv owned_bytes : Int64
+  priv launch_count : Int
   priv mut status : State
   priv mut cache : @device.Allocation?
-  priv mut function : @device.Function?
+  priv functions : Array[@device.Function]
+  priv intermediates : Array[@device.Allocation]
   priv mut queue : @device.OrderedKernelExecutor?
 }
 
@@ -27,36 +32,36 @@ pub fn RecurrentDeltaProgram::new(
   let (maximum_rows, _, _) = source.plan().capacity()
   {
     source,
+    convolution: None,
     maximum_rows,
+    cache_bytes: source.plan().state_bytes(),
+    owned_bytes: source.plan().state_bytes(),
+    launch_count: 1,
     status: Fresh,
     cache: None,
-    function: None,
+    functions: [],
+    intermediates: [],
     queue: None,
   }
 }
 
 ///|
 pub fn RecurrentDeltaProgram::state_bytes(self : Self) -> Int64 {
-  self.source.plan().state_bytes()
+  self.cache_bytes
+}
+
+///|
+pub fn RecurrentDeltaProgram::workspace_bytes(self : Self) -> Int64 {
+  self.owned_bytes
 }
 
 ///|
 pub fn RecurrentDeltaProgram::source_bytes(self : Self) -> Bytes {
-  self.source.source_bytes()
-}
-
-///|
-fn region(
-  allocation : @device.Allocation,
-  bytes : Int64,
-  alignment : Int64,
-) -> @device.KernelArgument raise @device.DeviceError {
-  @device.KernelArgument::device_region(
-    allocation,
-    offset=0L,
-    byte_count=bytes,
-    alignment~,
-  )
+  match self.convolution {
+    None => self.source.source_bytes()
+    Some(convolution) =>
+      convolution.source_bytes() + b"\n" + self.source.source_bytes()
+  }
 }
 
 ///|
@@ -69,6 +74,7 @@ pub fn RecurrentDeltaProgram::prepare(
   aot : @device.Module,
   stream : @device.Stream,
   maximum_state_bytes~ : Int64,
+  maximum_workspace_bytes? : Int64 = maximum_state_bytes,
   counts~ : @device.Allocation,
   sequence_offsets~ : @device.Allocation,
   sequence_slots~ : @device.Allocation,
@@ -79,11 +85,14 @@ pub fn RecurrentDeltaProgram::prepare(
   log_decay~ : @device.Allocation,
   beta~ : @device.Allocation,
   output~ : @device.Allocation,
+  convolution_weights? : FixedArray[@device.Allocation],
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh &&
     self.cache is None &&
-    self.function is None &&
-    self.state_bytes() <= maximum_state_bytes else {
+    self.functions.is_empty() &&
+    self.intermediates.is_empty() &&
+    self.state_bytes() <= maximum_state_bytes &&
+    self.workspace_bytes() <= maximum_workspace_bytes else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   let plan = self.source.plan()
@@ -91,17 +100,48 @@ pub fn RecurrentDeltaProgram::prepare(
   let (rows, sequences, _) = plan.capacity()
   let qbytes = rows.to_int64() * heads.to_int64() * keys.to_int64() * 2L
   let vbytes = rows.to_int64() * heads.to_int64() * values.to_int64() * 2L
-  let state = context.allocate(self.state_bytes())
+  // Check startup binding shape before acquiring any owned buffer.
+  match (self.convolution, convolution_weights) {
+    (None, None) => ()
+    (Some(_), Some(weights)) if weights.length() == 3 => ()
+    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  let state = context.allocate(plan.state_bytes())
   self.cache = Some(state)
-  let zero = FixedArray::make(65536, b'\x00')
-  for offset = 0L; offset < self.state_bytes(); {
-    let remaining = self.state_bytes() - offset
-    let bytes = if remaining < 65536L { remaining } else { 65536L }
-    context.copy_from_fixed_host(state, zero, 0L, offset, bytes)
-    continue offset + bytes
+  initialize_cache(context, state, plan.state_bytes())
+  let launches : Array[@device.OrderedKernelLaunch] = []
+  let inputs = [query, key, value]
+  let delta_inputs = match (self.convolution, convolution_weights) {
+    (Some(convolution), Some(weights)) => {
+      for i in 0..<3 {
+        let history = context.allocate(convolution.plan().state_bytes())
+        self.intermediates.push(history)
+        initialize_cache(context, history, convolution.plan().state_bytes())
+        let convolved = context.allocate(convolution.plan().frame_bytes())
+        self.intermediates.push(convolved)
+        let function = aot.load_function(@utf8.encode(convolution.symbol()))
+        self.functions.push(function)
+        launches.push(
+          convolution_launch(
+            convolution,
+            function,
+            counts,
+            sequence_offsets,
+            sequence_slots,
+            reset_flags,
+            inputs[i],
+            weights[i],
+            history,
+            convolved,
+          ),
+        )
+      }
+      [self.intermediates[1], self.intermediates[3], self.intermediates[5]]
+    }
+    _ => inputs
   }
   let function = aot.load_function(@utf8.encode(self.source.symbol()))
-  self.function = Some(function)
+  self.functions.push(function)
   let (grid_x, grid_y, block_x) = self.source.launch()
   let launch = @device.OrderedKernelLaunch::new(
     function,
@@ -119,16 +159,17 @@ pub fn RecurrentDeltaProgram::prepare(
       region(sequence_offsets, (sequences.to_int64() + 1L) * 4L, 4L),
       region(sequence_slots, sequences.to_int64() * 4L, 4L),
       region(reset_flags, sequences.to_int64() * 4L, 4L),
-      region(query, qbytes, 2L),
-      region(key, qbytes, 2L),
-      region(value, vbytes, 2L),
+      region(delta_inputs[0], qbytes, 2L),
+      region(delta_inputs[1], qbytes, 2L),
+      region(delta_inputs[2], vbytes, 2L),
       region(log_decay, qbytes * 2L, 4L),
       region(beta, rows.to_int64() * heads.to_int64() * 2L, 2L),
-      region(state, self.state_bytes(), 4L),
+      region(state, plan.state_bytes(), 4L),
       region(output, vbytes, 2L),
     ]),
   )
-  self.queue = Some(context.create_ordered_kernel_executor(stream, [launch]))
+  launches.push(launch)
+  self.queue = Some(context.create_ordered_kernel_executor(stream, launches))
   self.status = Ready
 }
 
@@ -146,7 +187,9 @@ pub fn RecurrentDeltaProgram::submit(
   errdefer {
     self.status = Failed
   }
-  queue.enqueue(0)
+  for index in 0..<self.launch_count {
+    queue.enqueue(index)
+  }
   queue.record_completion()
   self.status = Active
 }
@@ -184,9 +227,13 @@ pub fn RecurrentDeltaProgram::close(
     queue.close()
     self.queue = None
   }
-  if self.function is Some(function) {
+  while self.functions.last() is Some(function) {
     function.close()
-    self.function = None
+    ignore(self.functions.pop())
+  }
+  while self.intermediates.last() is Some(allocation) {
+    allocation.close()
+    ignore(self.intermediates.pop())
   }
   if self.cache is Some(cache) {
     cache.close()

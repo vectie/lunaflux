@@ -2,7 +2,9 @@
 package "vectie/lunaflux/integration/recurrent_delta_program"
 
 import {
+  "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/causal_convolution_execution_cuda_source",
   "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source",
 }
 
@@ -18,10 +20,12 @@ pub fn RecurrentDeltaProgram::abort(Self) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::close(Self) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::new(@recurrent_delta_execution_cuda_source.RecurrentDeltaCudaSource) -> Self
 pub fn RecurrentDeltaProgram::poll(Self) -> Bool raise @device.DeviceError
-pub fn RecurrentDeltaProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_state_bytes~ : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, query~ : @device.Allocation, key~ : @device.Allocation, value~ : @device.Allocation, log_decay~ : @device.Allocation, beta~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_state_bytes~ : Int64, maximum_workspace_bytes? : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, query~ : @device.Allocation, key~ : @device.Allocation, value~ : @device.Allocation, log_decay~ : @device.Allocation, beta~ : @device.Allocation, output~ : @device.Allocation, convolution_weights? : FixedArray[@device.Allocation]) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::source_bytes(Self) -> Bytes
 pub fn RecurrentDeltaProgram::state_bytes(Self) -> Int64
 pub fn RecurrentDeltaProgram::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::with_convolution(@recurrent_delta_execution_cuda_source.RecurrentDeltaCudaSource, @causal_convolution_execution_cuda_source.CausalConvolutionCudaSource) -> Self raise @precision_ir.PrecisionPlanError
+pub fn RecurrentDeltaProgram::workspace_bytes(Self) -> Int64
 
 // Type aliases
 

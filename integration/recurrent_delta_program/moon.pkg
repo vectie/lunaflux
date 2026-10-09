@@ -1,6 +1,8 @@
 import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source" @source,
+  "vectie/lunaflux/kernels/causal_convolution_execution_cuda_source" @convolution,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
   "moonbitlang/core/encoding/utf8",
 }
 

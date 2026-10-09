@@ -11,6 +11,16 @@ test "GLM KDA layers map to general recurrent precision while DSA remains separa
   )
   assert_eq(plan.geometry(), (64, 128, 128))
   assert_eq(plan.log_decay_lower_bound(), -5.0)
+  let convolution = @glm53_packed_expert_upload.recurrent_convolution_plan(
+    spec,
+    layer_index=0,
+    maximum_rows=32,
+    maximum_sequences=16,
+    cache_slots=32,
+    maximum_state_bytes=1572864L,
+  )
+  assert_eq(convolution.geometry(), (8192, 4))
+  assert_eq(convolution.state_bytes(), 1572864L)
   try
     @glm53_packed_expert_upload.recurrent_compute_plan(
       spec,

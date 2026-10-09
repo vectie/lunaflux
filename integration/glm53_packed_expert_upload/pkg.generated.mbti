@@ -21,6 +21,8 @@ pub fn expert_compute_plan(layer_index~ : Int, expert_indices~ : ArrayView[Int],
 
 pub fn recurrent_compute_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> @precision_ir.RecurrentDeltaPrecision raise
 
+pub fn recurrent_convolution_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> @precision_ir.CausalConvolutionPrecision raise
+
 pub fn routing_compute_plan(maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.MoeRoutingPrecision raise
 
 pub fn shared_expert_compute_plan(layer_index~ : Int, maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
