@@ -1532,6 +1532,15 @@ request, component weight startup and offline source export. Older phase notes
 below describe their earlier implementation boundary, not current module absence.
 Full-checkpoint GPU correctness, memory and performance qualification is pending.
 
+The GLM serial diagnostic entry now supports self-feeding greedy generation
+from canonical prompt frames. Completion-derived decode preserves the caller's
+whole-request page reservation and selected recipe; length/EOS/cancellation,
+failed completion and context bounds are native regression boundaries. The
+next physical boundary remains actual-checkpoint memory placement, exact AOT
+stage compilation, bounded two-host first-token/multi-token correctness, and
+sanitizer/resource cleanup. Native continuation or config parsing alone does
+not close any family's whole-model execution gate.
+
 ### Outcome
 
 DeepSeek V4, GLM 5.3 full and Flash, and MiniMax H3 become executable through

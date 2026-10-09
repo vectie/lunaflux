@@ -126,14 +126,28 @@ async fn run_ingress(
   startup : Startup,
   root : @approved_fs.ApprovedRoot,
   arguments : ArrayView[String],
+  generate~ : Bool,
 ) -> Unit {
   let count = @string.parse_int(arguments[5])
   guard count > 0 && count <= startup.history else {
     fail("invalid bounded frame count")
   }
+  let maximum_new_tokens = if generate {
+    @string.parse_int(arguments[6])
+  } else {
+    1
+  }
+  let stop = if generate { @string.parse_int(arguments[7]) } else { -1 }
+  guard maximum_new_tokens > 0 &&
+    maximum_new_tokens <= startup.history &&
+    stop >= -1 &&
+    stop < startup.spec.vocabulary_size() else {
+    fail("invalid generation length or stop token")
+  }
+  let output_directory = arguments[if generate { 8 } else { 6 }]
   let frame_root = @approved_fs.ApprovedRoot::open_absolute(arguments[4])
   defer frame_root.close()
-  @fs.mkdir(arguments[6])
+  @fs.mkdir(output_directory)
   let context = @device.open_context(0)
   defer context.close()
   let stream = context.create_stream()
@@ -191,6 +205,7 @@ async fn run_ingress(
   let scratch = FixedArray::make(plans.capacity(), b'\x00')
   let output = FixedArray::make(completions.capacity(), b'\x00')
   let clock = @clock.MonotonicClock::system()
+  let generation : Ref[@generation.SerialGreedyGeneration?] = Ref(None)
   for index in 0..<count {
     let input = read_bounded(
       frame_root,
@@ -202,6 +217,24 @@ async fn run_ingress(
       scratch[i] = byte
     }
     let plan = plans.load(scratch, input.length())
+    if generate {
+      guard plan.prefill_count() == 1 &&
+        plan.decode_count() == 0 &&
+        plan.prefill_row(0).produces_token() == (index == count - 1) else {
+        fail(
+          "generation requires prompt-only chunks followed by one final prefill",
+        )
+      }
+      if index == count - 1 {
+        let row = plan.prefill_row(0)
+        let prompt = row.sequence_token_start() + row.token_length()
+        guard maximum_new_tokens <= startup.history - prompt else {
+          fail(
+            "prompt and generated decode positions exceed the reserved context",
+          )
+        }
+      }
+    }
     pipeline.begin(
       plan,
       completions.writer_for(plan),
@@ -214,13 +247,26 @@ async fn run_ingress(
     let completion = pipeline.completion()
     completion.copy_to(output, destination_offset=0)
     @fs.write_file(
-      arguments[6] + "/completion-\{index}.bin",
+      output_directory + "/completion-\{index}.bin",
       Bytes::from_array(output[:completion.length()].to_owned()),
       create_mode=CreateNew,
     )
     let entry = completion.entry(0)
     guard entry.kind() != @protocol.CompletionEntryKind::FailedCompletion else {
       fail("model execution returned a failed completion")
+    }
+    if generate && index == count - 1 {
+      generation.val = Some(
+        @generation.SerialGreedyGeneration::new(
+          plan,
+          completion,
+          limits,
+          inference,
+          maximum_new_tokens~,
+          maximum_context=startup.history,
+          stop_tokens=if stop == -1 { [] } else { [stop] },
+        ),
+      )
     }
     if entry.kind() == @protocol.CompletionEntryKind::PrefillCompletion {
       println("frame=\{index} processed=\{entry.processed_tokens()}")
@@ -230,8 +276,40 @@ async fn run_ingress(
       )
     }
   }
+  if generate {
+    guard generation.val is Some(owner) else { fail("no completed prompt") }
+    while owner.finish_reason() is Running {
+      let plan = owner.next_decode()
+      pipeline.begin(
+        plan,
+        completions.writer_for(plan),
+        epoch=(count + owner.token_count()).to_uint64(),
+        local_now_millis=clock.now_millis(),
+      )
+      while !pipeline.progress(local_now_millis=clock.now_millis()) {
+        @async.pause()
+      }
+      owner.accept(pipeline.completion())
+    }
+  }
   pipeline.release_request(local_now_millis=clock.now_millis())
   while !pipeline.progress(local_now_millis=clock.now_millis()) {
     @async.pause()
+  }
+  if generation.val is Some(owner) {
+    // Diagnostic rendering/filesystem output happens only after generation and
+    // both ranks' request retirement, not on its decode submission path.
+    let rendered = StringBuilder()
+    for index in 0..<owner.token_count() {
+      rendered <+ "\{owner.token_at(index)}\n"
+    }
+    @fs.write_file(
+      output_directory + "/tokens.txt",
+      rendered.to_string(),
+      create_mode=CreateNew,
+    )
+    println(
+      "generated=\{owner.token_count()} finish=\{Repr(owner.finish_reason())}",
+    )
   }
 }

@@ -33,6 +33,7 @@ import {
 import {
   "vectie/lunaflux/integration/decoder_stage_control" @stage_control,
   "vectie/lunaflux/integration/serial_decoder_pipeline" @serial_pipeline,
+  "vectie/lunaflux/engine/serial_generation",
   "vectie/lunaflux/runtime/remote_channel" @channel,
   "vectie/lunaflux/integration/serial_decoder_worker" @serial_worker,
   "vectie/lunaflux/engine/serial_decoder_frame" @serial_frame,

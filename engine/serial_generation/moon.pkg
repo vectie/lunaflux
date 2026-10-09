@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/worker_wire" @wire,
+  "vectie/lunaflux/engine/worker_protocol" @protocol,
+  "vectie/lunaflux/contracts/inference",
+}
+
+import {
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+} for "test"
+
+supported_targets = "native"

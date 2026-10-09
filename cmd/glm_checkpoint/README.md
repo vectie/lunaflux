@@ -31,6 +31,15 @@ inside the inventory remain relative to the read-only model root.
   request. Write each canonical completion without overwrite, then release
   request state. Frames use model generation 1 and greedy sampling. The current
   command accepts pretokenized frames, not a text HTTP serving endpoint.
+- `generate AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT
+  PREFILL_COUNT MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE NEW_OUTDIR`: consume
+  prompt-only `plan-i.bin` chunks ending in one final-prefill frame, then feed
+  each actual terminal-rank token into successive canonical decode steps.
+  `-1` disables token stopping; otherwise use the tokenizer's real stop ID.
+  Length/context/EOS bound continuation. After both ranks release the request,
+  write generated IDs to `tokens.txt` without overwrite. The decode loop does
+  no evidence rendering/filesystem writes. Prompt frame input is still the
+  diagnostic entry point; this is not text HTTP serving or tokenizer support.
 
 Use the same checkpoint inventory, geometry, budgets and reserve on both ranks.
 Set budgets from current free unified memory, leaving OS/other-process headroom;
@@ -42,7 +51,8 @@ correctness, not long-context/concurrency campaigns.
 
 This is a diagnostic execution entry point, not a production-ready admission or
 a positive real-model correctness/performance claim. Exact checkpoint loading,
-GPU numerics and two-host generation must still be tested. It uses the existing
+GPU numerics and two-host generation must still be tested. Self-feeding greedy
+continuation is implemented, not a positive actual-checkpoint result. It uses the existing
 correctness-first reference lowering, not the throughput Qwen path. Startup
 uploads use an explicit scoped authenticated-handle session: each
 referenced shard is reauthenticated once for the whole stage upload, rather

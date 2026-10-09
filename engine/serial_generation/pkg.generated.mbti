@@ -1,0 +1,49 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/serial_generation"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+// Values
+
+// Errors
+pub(all) suberror SerialGenerationError {
+  InvalidLimit
+  Busy
+  Finished
+  InvalidSeed
+} derive(Eq, @debug.Debug)
+pub fn SerialGenerationError::equal(Self, Self) -> Bool
+pub fn SerialGenerationError::not_equal(Self, Self) -> Bool
+pub fn SerialGenerationError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum GenerationFinish {
+  Running
+  Length
+  StopToken
+  Cancelled
+  Failed
+} derive(Eq, @debug.Debug)
+pub fn GenerationFinish::equal(Self, Self) -> Bool
+pub fn GenerationFinish::not_equal(Self, Self) -> Bool
+pub fn GenerationFinish::to_repr(Self) -> @debug.Repr
+
+pub struct SerialGreedyGeneration {
+  // private fields
+}
+pub fn SerialGreedyGeneration::accept(Self, @worker_wire.ValidatedCompletionFrame) -> Unit raise
+pub fn SerialGreedyGeneration::cancel(Self) -> Unit
+pub fn SerialGreedyGeneration::finish_reason(Self) -> GenerationFinish
+pub fn SerialGreedyGeneration::new(@worker_wire.ValidatedPlanFrame, @worker_wire.ValidatedCompletionFrame, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_new_tokens~ : Int, maximum_context~ : Int, stop_tokens~ : ArrayView[Int]) -> Self raise
+pub fn SerialGreedyGeneration::next_decode(Self) -> @worker_wire.ValidatedPlanFrame raise
+pub fn SerialGreedyGeneration::token_at(Self, Int) -> Int raise SerialGenerationError
+pub fn SerialGreedyGeneration::token_count(Self) -> Int
+
+// Type aliases
+
+// Traits

@@ -14,8 +14,9 @@ Update 2026-10-10 (checkpoint executable): `cmd/glm_checkpoint` now connects
 bounded real-config/shard inspection, actual-footprint two-rank placement,
 offline source export, prepared GLM stages, activation/control owners and
 canonical request-frame execution. Each host uploads only its placed layers
-and text boundary. It currently consumes pretokenized canonical frames rather
-than providing text HTTP serving or a self-feeding generation scheduler.
+and text boundary. It consumes pretokenized canonical prompt frames rather
+than providing text HTTP serving; self-feeding greedy continuation is added
+as described below.
 Native compilation passes; whole-checkpoint/two-host GPU execution is untested.
 The installed real config initially failed on root ModelOpt quantization
 metadata. The parser now validates that NVFP4 descriptor and explicit RMS
@@ -63,6 +64,27 @@ GPU generation or throughput claim is
 added. The checkpoint-backed executable startup/placement now exists as above;
 actual numerical generation remains. DeepSeek learned-head/complete decoder and
 MiniMax bounded-memory whole-model composition remain open. TLS work is paused.
+
+Update 2026-10-10 (self-feeding generation): model-neutral serial greedy
+continuation now feeds actual completed tokens into successive canonical
+decode frames, with fixed token storage and alternating frame owners. It
+preserves the reserved page table/capability order, request/model generations,
+sampling seed and completion slot; no synthetic recipe or KV ownership is
+introduced. Full context/sample/sequence budgets are checked before continuation.
+EOS/length stop before another submission; cancellation suppresses output while
+the caller still drains/releases both ranks. Failed/foreign completions poison
+the state and cannot be retried as success. `cmd/glm_checkpoint generate`
+connects prompt chunks and this continuation to the existing loaded pipeline;
+generated token-ID output is written only after request retirement. Text
+tokenization/HTTP serving and actual-checkpoint GPU numerics remain untested.
+
+Seven black-box continuation regressions pass, alongside the existing wire
+suite (91/91 total). The loopback two-rank regression now produces 7→9→11 and
+checks each actual token becomes the next input, remote-commit publication,
+both histories and deterministic release. A warm allocation probe initially
+found one temporary sampling object per decode. Shared canonical greedy-wire
+emission removes it: fourteen decode continuations now allocate zero measured
+heap objects. No network-poll allocation or physical speed claim is added.
 
 Update 2026-10-10 (activation execution edge): a model-neutral host-staged
 activation link now waits for producer queue retirement, downloads only live

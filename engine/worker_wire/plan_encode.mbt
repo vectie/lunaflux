@@ -1,9 +1,26 @@
 ///|
+fn write_greedy_sampling_parameters(
+  bytes : FixedArray[Byte],
+  offset : Int,
+) -> Unit {
+  write_u32(bytes, offset, 0)
+  write_u64(bytes, offset + 4, 1.0.reinterpret_as_uint64())
+  write_u32(bytes, offset + 12, 0)
+  write_i32(bytes, offset + 16, 0)
+  write_u32(bytes, offset + 20, 0)
+  write_u64(bytes, offset + 24, 0UL)
+}
+
+///|
 fn write_sampling_parameters(
   bytes : FixedArray[Byte],
   offset : Int,
   sampling : @inference.SamplingParameters,
 ) -> Unit {
+  if sampling.mode() is Greedy {
+    write_greedy_sampling_parameters(bytes, offset)
+    return
+  }
   write_u32(
     bytes,
     offset,

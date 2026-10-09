@@ -37,6 +37,17 @@ graphs, device allocations, and kernel launches.
 Multi-GPU adds one worker per device. It does not add a process per API or
 scheduler subsystem.
 
+The advanced-family serial diagnostic path uses the same canonical plan and
+completion boundary. `engine/serial_generation` owns fixed-capacity greedy
+continuation after an actual final-prefill token: it preserves the reserved
+page/capability recipe, feeds each result into the next decode, and stops at
+length, EOS or cancellation. It owns no CUDA, model-family or network state.
+`integration/serial_decoder_pipeline` owns two-rank execution and commits one
+completion only after activation transfer and both ranks retire. The caller
+drains/releases request state before reuse; GLM adapters only bind checkpoint
+layers and device effects. This diagnostic path does not replace the shared
+continuous-batching scheduler or claim real-checkpoint numerical validation.
+
 The post-v1 [two-Spark workstream](TWO_SPARK.md) retains this ownership model
 across two explicitly assigned nodes. Its pure topology/capacity compiler,
 root-free startup envelope and local lease are separate from existing local

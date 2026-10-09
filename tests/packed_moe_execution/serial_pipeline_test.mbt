@@ -146,14 +146,35 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
   )
   defer (pipeline.close() catch { _ => () })
   let enqueued = enqueues()
-  for step in 1..<=3 {
-    let (submitted, plan, writer) = serial_wire_plan(
-      7UL,
-      position=if step == 1 { 0 } else if step == 2 { 2 } else { 4 },
-      tokens=if step == 3 { [7] } else { [2, 3] },
-      produces=step > 1,
-      decode=step == 3,
-    )
+  let generation : Ref[@serial_generation.SerialGreedyGeneration?] = Ref(None)
+  let completion_owner = @wire.CompletionFrameBuffer::new(
+    limits,
+    serial_inference_limits(),
+  )
+  for step in 1..<=4 {
+    let (plan, writer) = if step <= 2 {
+      let (_, plan, writer) = serial_wire_plan(
+        7UL,
+        position=if step == 1 { 0 } else { 2 },
+        tokens=[2, 3],
+        produces=step == 2,
+      )
+      (plan, writer)
+    } else {
+      guard generation.val is Some(owner) else { fail("missing generation") }
+      let plan = owner.next_decode()
+      assert_eq(plan.token_at(0), if step == 3 { 7 } else { 9 })
+      // Distinct numerical outputs prove the next input comes from the
+      // preceding actual terminal completion, not a constant replay token.
+      context.copy_from_fixed_host(
+        samples,
+        [if step == 3 { 9 } else { 11 }, 0, 0, 0],
+        0L,
+        0L,
+        4L,
+      )
+      (plan, completion_owner.writer_for(plan))
+    }
     pipeline.begin(plan, writer, epoch=step.to_uint64(), local_now_millis=0UL)
     let mut completed = false
     for _ in 0..<512 {
@@ -175,21 +196,50 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
     }
     assert_true(completed)
     let completion = pipeline.completion()
-    completion.validate_for(submitted)
     if step > 1 {
-      assert_eq(completion.entry(0).token_id(), 7)
+      assert_eq(
+        completion.entry(0).token_id(),
+        if step == 2 {
+          7
+        } else if step == 3 {
+          9
+        } else {
+          11
+        },
+      )
     } else {
       assert_eq(
         completion.entry(0).kind(),
         @protocol.CompletionEntryKind::PrefillCompletion,
       )
     }
-    let processed = if step == 3 { 5 } else { step * 2 }
+    if step == 2 {
+      generation.val = Some(
+        @serial_generation.SerialGreedyGeneration::new(
+          plan,
+          completion,
+          limits,
+          serial_inference_limits(),
+          maximum_new_tokens=3,
+          maximum_context=16,
+          stop_tokens=[],
+        ),
+      )
+    } else if step > 2 {
+      guard generation.val is Some(owner) else { fail("missing generation") }
+      owner.accept(completion)
+    }
+    let processed = if step > 2 { step + 2 } else { step * 2 }
     assert_eq(local_host.processed_tokens(), processed)
     assert_eq(remote_host.processed_tokens(), processed)
     let actual = FixedArray::make(16, b'\x00')
     context.copy_to_fixed_host(destination, actual, 0L, 0L, 16L)
     assert_eq(actual, original)
+  }
+  guard generation.val is Some(owner) else { fail("missing generation") }
+  assert_eq(owner.finish_reason(), @serial_generation.GenerationFinish::Length)
+  for index, expected in [7, 9, 11] {
+    assert_eq(owner.token_at(index), expected)
   }
   pipeline.release_request(local_now_millis=0UL)
   let mut released = false
@@ -204,11 +254,11 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
   assert_true(released)
   assert_eq(local_host.processed_tokens(), 0)
   assert_eq(remote_host.processed_tokens(), 0)
-  assert_eq(enqueues() - enqueued, 6UL)
+  assert_eq(enqueues() - enqueued, 8UL)
   // A terminal-stage numerical failure invalidates every rank's retained state.
   context.copy_from_fixed_host(samples, [255, 255, 255, 255], 0L, 0L, 4L)
   let (submitted, plan, writer) = serial_wire_plan(4UL)
-  pipeline.begin(plan, writer, epoch=4UL, local_now_millis=0UL)
+  pipeline.begin(plan, writer, epoch=5UL, local_now_millis=0UL)
   let mut failed = false
   for _ in 0..<512 {
     if incoming_active.val && !incoming_done.val {

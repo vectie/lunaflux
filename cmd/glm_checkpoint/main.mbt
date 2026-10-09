@@ -28,12 +28,12 @@ async fn main {
   }
   // Reject mode/arguments before opening or hashing checkpoint payloads.
   let mode_valid = match (mode, tail.length()) {
-    ("export", 1) | ("egress", 4) | ("ingress", 7) => true
+    ("export", 1) | ("egress", 4) | ("ingress", 7) | ("generate", 9) => true
     _ => false
   }
   guard mode_valid else {
     fail(
-      "export OUTDIR | egress AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN | ingress AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT FRAME_COUNT OUTDIR",
+      "export OUTDIR | egress AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN | ingress AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT FRAME_COUNT OUTDIR | generate AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT PREFILL_COUNT MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE OUTDIR",
     )
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
@@ -71,7 +71,8 @@ async fn main {
       )
     }
     "egress" => run_egress(startup, root, tail)
-    "ingress" => run_ingress(startup, root, tail)
+    "ingress" => run_ingress(startup, root, tail, generate=false)
+    "generate" => run_ingress(startup, root, tail, generate=true)
     _ => fail("invalid mode")
   }
 }

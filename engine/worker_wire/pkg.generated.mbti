@@ -143,6 +143,7 @@ pub struct PlanFrameBuffer {
 }
 pub fn PlanFrameBuffer::capacity(Self) -> Int
 pub fn PlanFrameBuffer::current(Self) -> ValidatedPlanFrame raise WorkerWireError
+pub fn PlanFrameBuffer::encode_greedy_decode_after(Self, ValidatedPlanFrame, ValidatedCompletionFrame) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::encode_plan(Self, @worker_protocol.SubmittedSchedulePlan) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::new(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits) -> Self raise WorkerWireError
@@ -232,6 +233,7 @@ pub fn ValidatedCompletionFrame::copy_to(Self, FixedArray[Byte], destination_off
 pub fn ValidatedCompletionFrame::entry(Self, Int) -> CompletionFrameEntry raise WorkerWireError
 pub fn ValidatedCompletionFrame::entry_count(Self) -> Int raise WorkerWireError
 pub fn ValidatedCompletionFrame::entry_for_slot(Self, Int) -> CompletionFrameEntry raise WorkerWireError
+pub fn ValidatedCompletionFrame::greedy_token_for(Self, ValidatedPlanFrame) -> Int raise WorkerWireError
 pub fn ValidatedCompletionFrame::length(Self) -> Int raise WorkerWireError
 pub fn ValidatedCompletionFrame::model_generation_value(Self) -> UInt64 raise WorkerWireError
 pub fn ValidatedCompletionFrame::sequence_value(Self) -> UInt64 raise WorkerWireError
