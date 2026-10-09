@@ -125,7 +125,9 @@ int main(int argc,char **argv) {
     const std::string symbol="lunaflux_attention_"+
       std::string(mixed?"mixed":prefill?"prefill":"decode")+
       (infer?"_flashinfer_f32_exp2_v1":"_flashattention_bf16_exp2_v1");
-    const unsigned gx=prefill ? 32+(2048-32+63)/64 : 32;
+    // Match the runtime's compacted Q64 work domain, not its maximum envelope.
+    // This probe supplies equal query lengths per row; serving sums ragged tiles.
+    const unsigned gx=prefill ? rows*((q+63)/64) : 32;
     const unsigned shared=paired_reference?std::atoi(argv[11]):infer?9216:81920;
     const unsigned old_shared=paired_reference?std::atoi(argv[10]):33040;
     if(paired_reference && (infer || shared<16384 || shared>98304 ||
