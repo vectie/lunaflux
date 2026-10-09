@@ -43,6 +43,14 @@ fn validate_flash_text(
   validate_known(text, Profile, known_flash_text_field)
   check_string(text, "model_type", spec.text_model_type(), ModelType)
   check_string(text, "dtype", "bfloat16", NumericFormat)
+  // Older unquantized configs omit this default. Converted checkpoints retain
+  // it explicitly; it must still agree with the model's numerical semantics.
+  if text.contains("rms_norm_eps") {
+    check_number(text, "rms_norm_eps", spec.rms_norm_epsilon(), NumericFormat)
+  }
+  if text.contains("quantization_config") {
+    raise invalid(NumericFormat)
+  }
   check_int(text, "vocab_size", spec.vocabulary_size(), DecoderShape)
   check_int(text, "hidden_size", spec.hidden_size(), DecoderShape)
   check_int(
@@ -227,6 +235,11 @@ fn validate_flash_config(
   check_string(root, "transformers_version", "5.16.0", InertMetadata)
   validate_flash_text(require_object(root, "text_config", DecoderShape), spec)
   validate_flash_vision(require_object(root, "vision_config", Vision), spec)
+  if root.contains("quantization_config") {
+    validate_flash_nvfp4(
+      require_object(root, "quantization_config", NumericFormat),
+    )
+  }
   check_int(root, "image_token_id", spec.image_token_id(), ControlTokens)
   check_int(root, "video_token_id", spec.video_token_id(), ControlTokens)
   check_int(

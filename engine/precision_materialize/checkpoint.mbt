@@ -27,6 +27,7 @@ priv struct CheckpointLocation {
 pub struct PackedCheckpoint {
   priv inspection : @streaming.StreamingSafetensorsInspection
   priv locations : Map[String, CheckpointLocation]
+  priv transfer_session : @streaming.StreamingSafetensorsTransferSession?
 }
 
 ///|
@@ -41,7 +42,30 @@ pub fn PackedCheckpoint::new(
       locations.set(entry.name(), { shard, tensor, metadata: entry, })
     }
   }
-  { inspection, locations, }
+  { inspection, locations, transfer_session: None, }
+}
+
+///|
+/// Scope authenticated open shard reuse to one synchronous startup upload.
+/// The callback borrows the indexed checkpoint; no file effect reaches token
+/// execution. Closing this scope retires every cached handle on success/error.
+pub fn[T] PackedCheckpoint::with_transfer_session(
+  self : Self,
+  root : @approved_fs.ApprovedRoot,
+  limits : @streaming.StreamingSafetensorsLimits,
+  body : (Self) -> T raise,
+) -> T raise {
+  let session = @streaming.StreamingSafetensorsTransferSession::new(
+    root,
+    self.inspection,
+    limits,
+  )
+  defer session.close()
+  body({
+    inspection: self.inspection,
+    locations: self.locations,
+    transfer_session: Some(session),
+  })
 }
 
 ///|
@@ -271,15 +295,29 @@ pub fn PackedCheckpoint::transfer_weights_to(
       )
     }
   }
-  @streaming.transfer_ranges(
-    root,
-    self.inspection,
-    requests~,
-    destination_bytes~,
-    scratch~,
-    limits~,
-    consume~,
-  ) catch {
+  try {
+    match self.transfer_session {
+      Some(session) =>
+        session.transfer_ranges(
+          root,
+          requests~,
+          destination_bytes~,
+          scratch~,
+          limits~,
+          consume~,
+        )
+      None =>
+        @streaming.transfer_ranges(
+          root,
+          self.inspection,
+          requests~,
+          destination_bytes~,
+          scratch~,
+          limits~,
+          consume~,
+        )
+    }
+  } catch {
     error => raise Streaming(error)
   }
 }

@@ -110,6 +110,37 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
       payload_name="bias",
     )
     assert_eq(vector.buffer_bytes(), 4L)
+    let escaped : Ref[@precision_materialize.PackedCheckpoint?] = Ref(None)
+    checkpoint.with_transfer_session(root, limits, scoped => {
+      escaped.val = Some(scoped)
+      for _ in 0..<2 {
+        scoped.transfer_weights(
+          root,
+          [vector],
+          scratch=FixedArray::make(3, b'?'),
+          limits~,
+          consume=(_, _, _, _) => true,
+        )
+      }
+    })
+    try
+      escaped.val
+      .unwrap()
+      .transfer_weights(
+        root,
+        [vector],
+        scratch=FixedArray::make(3, b'?'),
+        limits~,
+        consume=(_, _, _, _) => true,
+      )
+    catch {
+      @precision_materialize.PackedCheckpointError::Streaming(
+        @streaming.StreamingSafetensorsError::InvalidLimit
+      ) => ()
+      e => raise e
+    } noraise {
+      _ => fail("checkpoint retained live file effects after startup scope")
+    }
     let vector_bytes = FixedArray::make(4, b'?')
     checkpoint.transfer_weights(
       root,

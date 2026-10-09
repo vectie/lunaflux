@@ -16,8 +16,15 @@ delivery now connect through a model-neutral two-rank coordinator. It waits for
 both stage retirements and activation upload before committing global history.
 The expanded final affected native aggregate passes 106/106. Async fixtures
 serialize only their shared native test-double device
-lane, not production execution. Next finish the checkpoint-backed executable
-startup and execute actual checkpoint weights under measured host budgets.
+lane, not production execution. The checkpoint-backed native diagnostic now
+connects actual-footprint placement/export and both prepared ranks; next run it
+against actual checkpoint weights under measured host budgets. It consumes
+canonical pretokenized frames, not yet an autoregressive generation frontend.
+The installed real ModelOpt NVFP4 config now passes the config-only diagnostic;
+its storage descriptor and explicit RMS epsilon are validated. Reader/upload
+and config regressions pass 23/23. Inventory can live outside the read-only
+checkpoint mount. Next verify actual tensor shapes and placed bytes before any
+GPU weight allocation; config acceptance alone is not a numerical result.
 This correctness transport is host staged,
 not GPUDirect/RDMA, and its async polling is not claimed heap-free. CUDA source
 compilation is not a whole-model numerical or performance test.

@@ -201,24 +201,22 @@ pub fn inspect_shards(
   }
   validate_dtype_specs(dtype_specs, limits)
   let shards : Array[InspectedShard] = []
+  let names : Map[String, (Int, Int)] = Map([])
   let mut total = 0
   for shard_ordinal, input in inputs {
     let shard = with_file(root, input.locator, shard_ordinal, file => {
       inspect_open_file(shard_ordinal, file, input, dtype_specs, limits)
     })
     for tensor_ordinal, tensor in shard.metadata.tensors {
-      for previous_shard_ordinal, previous_shard in shards {
-        for previous_tensor_ordinal, previous in previous_shard.metadata.tensors {
-          if previous.name == tensor.name {
-            raise DuplicateTensorName(
-              first_shard=previous_shard_ordinal,
-              first_tensor=previous_tensor_ordinal,
-              second_shard=shard_ordinal,
-              second_tensor=tensor_ordinal,
-            )
-          }
-        }
+      if names.get(tensor.name) is Some((first_shard, first_tensor)) {
+        raise DuplicateTensorName(
+          first_shard~,
+          first_tensor~,
+          second_shard=shard_ordinal,
+          second_tensor=tensor_ordinal,
+        )
       }
+      names[tensor.name] = (shard_ordinal, tensor_ordinal)
     }
     if total > limits.maximum_total_tensors - shard.metadata.tensors.length() {
       raise TooManyTensors(shard_ordinal)

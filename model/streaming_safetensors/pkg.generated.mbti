@@ -156,6 +156,14 @@ pub struct StreamingSafetensorsTransfer {
 }
 pub fn StreamingSafetensorsTransfer::new(shard_ordinal~ : Int, tensor_ordinal~ : Int, tensor_byte_offset~ : Int64, destination_ordinal~ : Int, destination_offset~ : Int64, byte_count~ : Int64) -> Self raise StreamingSafetensorsError
 
+pub struct StreamingSafetensorsTransferSession {
+  // private fields
+}
+pub fn StreamingSafetensorsTransferSession::authenticated_shards(Self) -> Int
+pub fn StreamingSafetensorsTransferSession::close(Self) -> Unit raise StreamingSafetensorsError
+pub fn StreamingSafetensorsTransferSession::new(@approved_fs.ApprovedRoot, StreamingSafetensorsInspection, StreamingSafetensorsLimits) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsTransferSession::transfer_ranges(Self, @approved_fs.ApprovedRoot, requests~ : ArrayView[StreamingSafetensorsTransfer], destination_bytes~ : ArrayView[Int64], scratch~ : FixedArray[Byte], limits~ : StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise StreamingSafetensorsError
+
 pub struct StreamingSafetensorsVisitedRange {
   // private fields
 } derive(Eq, @debug.Debug)

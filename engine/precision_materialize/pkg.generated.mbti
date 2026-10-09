@@ -45,6 +45,7 @@ pub fn PackedCheckpoint::bind_weight(Self, representation~ : @precision_format.R
 pub fn PackedCheckpoint::new(@streaming_safetensors.StreamingSafetensorsInspection) -> Self
 pub fn PackedCheckpoint::transfer_weights(Self, @approved_fs.ApprovedRoot, ArrayView[PackedCheckpointWeight], scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise PackedCheckpointError
 pub fn PackedCheckpoint::transfer_weights_to(Self, @approved_fs.ApprovedRoot, ArrayView[PackedCheckpointWeight], destinations~ : ArrayView[(Int, Int64)], destination_bytes~ : ArrayView[Int64], scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise PackedCheckpointError
+pub fn[T] PackedCheckpoint::with_transfer_session(Self, @approved_fs.ApprovedRoot, @streaming_safetensors.StreamingSafetensorsLimits, (Self) -> T raise) -> T raise
 
 pub struct PackedCheckpointWeight {
   // private fields

@@ -1,0 +1,28 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/checkpoint_inventory"
+
+import {
+  "vectie/lunaflux/model/streaming_safetensors",
+}
+
+// Values
+
+// Errors
+pub(all) suberror CheckpointInventoryError {
+  InvalidLimits
+  InvalidEntry(Int)
+  TooManyShards
+  EmptyInventory
+  DuplicateLocator(Int)
+}
+
+// Types and methods
+pub struct CheckpointInventory {
+  // private fields
+}
+pub fn CheckpointInventory::parse(StringView, maximum_bytes~ : Int, maximum_shards~ : Int) -> Self raise
+pub fn CheckpointInventory::shards(Self) -> ArrayView[@streaming_safetensors.StreamingSafetensorsShardInput]
+
+// Type aliases
+
+// Traits

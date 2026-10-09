@@ -78,7 +78,8 @@ fn known_flash_root_field(name : StringView) -> Bool {
   | "video_end_token_id"
   | "tie_word_embeddings"
   | "model_type"
-  | "transformers_version")
+  | "transformers_version"
+  | "quantization_config")
 }
 
 ///|

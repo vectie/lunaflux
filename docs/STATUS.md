@@ -10,6 +10,30 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (checkpoint executable): `cmd/glm_checkpoint` now connects
+bounded real-config/shard inspection, actual-footprint two-rank placement,
+offline source export, prepared GLM stages, activation/control owners and
+canonical request-frame execution. Each host uploads only its placed layers
+and text boundary. It currently consumes pretokenized canonical frames rather
+than providing text HTTP serving or a self-feeding generation scheduler.
+Native compilation passes; whole-checkpoint/two-host GPU execution is untested.
+The installed real config initially failed on root ModelOpt quantization
+metadata. The parser now validates that NVFP4 descriptor and explicit RMS
+epsilon; the exact downloaded config (SHA-256
+`5db46f44956e4a8a0cc8ed54b6d77bf99dd7c1ec90c58975d1952560768513d5`)
+passes the native config-only runner: 45 layers, hidden 4096, vocabulary 154880.
+Config regressions pass 5/5; startup reader/materializer regressions pass 18/18.
+These checks do not validate weight placement or model generation.
+The installed management-node source has 120 main shards plus input scales;
+the earlier arbitrary source halves are not checkpoint-verified placements.
+
+Startup upload now supports scoped pinned/authenticated shard reuse across
+layer owners, while retaining stamp/replay checks and deterministic file close.
+Cross-shard duplicate detection uses an index rather than scanning every prior
+tensor. Inspection and upload authentication remain separate startup passes.
+No cryptography/filesystem work enters the token step. Full model numerical,
+memory and performance validation remains open; no GPU weights were loaded.
+
 Update 2026-10-10 (two-rank request execution): rank-local workers now upload
 the same canonical request metadata without publishing partial model responses.
 A plain-TCP stage-control channel carries prepare/run/retire/commit/release;
@@ -25,8 +49,8 @@ cancellation, and balanced resource release. Warm rank polling has zero
 measured heap allocations; network async polling is not claimed heap-free.
 The expanded final affected aggregate passed 106/106. No actual checkpoint
 GPU generation or throughput claim is
-added. Remaining GLM work is the checkpoint-backed executable startup/placement
-and real numerical generation. DeepSeek learned-head/complete decoder and
+added. The checkpoint-backed executable startup/placement now exists as above;
+actual numerical generation remains. DeepSeek learned-head/complete decoder and
 MiniMax bounded-memory whole-model composition remain open. TLS work is paused.
 
 Update 2026-10-10 (activation execution edge): a model-neutral host-staged

@@ -1,0 +1,237 @@
+///|
+fn prepare_rank(
+  startup : Startup,
+  ordinal : Int,
+  context : @device.Context,
+  aot : @device.Module,
+  stream : @device.Stream,
+  root : @approved_fs.ApprovedRoot,
+  rank : @worker.SerialDecoderRank,
+  stage : @glm.GlmDecoderStage,
+) -> Unit raise {
+  let ports = rank.ports()
+  guard ports.required_device_bytes() <= startup.reserve else {
+    fail("request ports exceed the startup reserve")
+  }
+  ports.prepare_ports(
+    context,
+    maximum_device_bytes=ports.required_device_bytes(),
+  )
+  startup.checkpoint.with_transfer_session(root, startup.limits, checkpoint => {
+    stage.prepare(
+      context,
+      aot,
+      stream,
+      checkpoint,
+      root,
+      ports,
+      maximum_device_bytes=startup.budgets[ordinal] - startup.reserve,
+      chunk_bytes=1048576,
+      limits=startup.limits,
+    )
+  })
+  stage.bind_rank(rank, context)
+}
+
+///|
+fn load_module(
+  context : @device.Context,
+  root_name : String,
+  locator : String,
+  reserve : Int64,
+) -> @device.Module raise {
+  let root = @approved_fs.ApprovedRoot::open_absolute(root_name)
+  defer root.close()
+  // Module bytes and all protocol/DMA storage must fit the non-weight reserve.
+  let bytes = read_bounded(root, locator, reserve / 4L)
+  context.load_module(bytes)
+}
+
+///|
+async fn run_egress(
+  startup : Startup,
+  root : @approved_fs.ApprovedRoot,
+  arguments : ArrayView[String],
+) -> Unit {
+  let context = @device.open_context(0)
+  defer context.close()
+  let stream = context.create_stream()
+  defer stream.close()
+  let aot = load_module(context, arguments[0], arguments[1], startup.reserve)
+  defer aot.close()
+  let stage = stage_plan(startup, 1)
+  defer stage.close()
+  let rank = @worker.SerialDecoderRank::new(
+    new_frame(startup),
+    outputs_token=true,
+  )
+  defer rank.close()
+  prepare_rank(startup, 1, context, aot, stream, root, rank, stage)
+  let control_listener = @socket.TcpServer::TcpServer(
+    @socket.Addr::parse(arguments[2]),
+  )
+  defer control_listener.close()
+  let activation_listener = @socket.TcpServer::TcpServer(
+    @socket.Addr::parse(arguments[3]),
+  )
+  defer activation_listener.close()
+  println("egress loaded; waiting for control and activation peers")
+  let (connection, _) = control_listener.accept()
+  defer connection.close()
+  let (activation_connection, _) = activation_listener.accept()
+  defer activation_connection.close()
+  let edge = @glm.GlmActivationEdge::new(
+    stage,
+    activation_connection,
+    outgoing=false,
+    maximum_host_bytes=startup.reserve / 4L,
+    timeout_millis=300000UL,
+  )
+  defer edge.close()
+  edge.prepare(context)
+  let clock = @clock.MonotonicClock::system()
+  let active = Ref(false)
+  let ready = Ref(false)
+  let server = @control.DecoderStageServer::new(
+    rank,
+    connection,
+    worker_limits(startup),
+    inference_limits(startup),
+    maximum_buffer_bytes=startup.reserve / 4L,
+    timeout_millis=300000UL,
+    local_now_millis=clock.now_millis(),
+    ready_to_submit=() => ready.val,
+    arm_activation=(epoch, rows, now) => {
+      edge.begin(epoch~, live_rows=rows, local_now_millis=now)
+      ready.val = false
+      active.val = true
+    },
+  )
+  defer server.close()
+  // Cancellation/EOF drains through explicit owners; there is no poll counter
+  // that turns a healthy idle service into a lifecycle failure.
+  while !server.is_terminal() {
+    let now = clock.now_millis()
+    if active.val && edge.poll(local_now_millis=now) {
+      active.val = false
+      ready.val = true
+    }
+    server.poll(local_now_millis=now)
+    @async.pause()
+  }
+}
+
+///|
+async fn run_ingress(
+  startup : Startup,
+  root : @approved_fs.ApprovedRoot,
+  arguments : ArrayView[String],
+) -> Unit {
+  let count = @string.parse_int(arguments[5])
+  guard count > 0 && count <= startup.history else {
+    fail("invalid bounded frame count")
+  }
+  let frame_root = @approved_fs.ApprovedRoot::open_absolute(arguments[4])
+  defer frame_root.close()
+  @fs.mkdir(arguments[6])
+  let context = @device.open_context(0)
+  defer context.close()
+  let stream = context.create_stream()
+  defer stream.close()
+  let aot = load_module(context, arguments[0], arguments[1], startup.reserve)
+  defer aot.close()
+  let stage = stage_plan(startup, 0)
+  defer stage.close()
+  let rank = @worker.SerialDecoderRank::new(
+    new_frame(startup),
+    outputs_token=false,
+  )
+  defer rank.close()
+  prepare_rank(startup, 0, context, aot, stream, root, rank, stage)
+  let connection = @socket.Tcp::connect(@socket.Addr::parse(arguments[2]))
+  defer connection.close()
+  let client = @control.DecoderStageClient::new(
+    connection,
+    worker_limits(startup),
+    outputs_token=true,
+    maximum_buffer_bytes=startup.reserve / 4L,
+    timeout_millis=300000UL,
+  )
+  defer client.close()
+  let activation_connection = @socket.Tcp::connect(
+    @socket.Addr::parse(arguments[3]),
+  )
+  defer activation_connection.close()
+  let edge = @glm.GlmActivationEdge::new(
+    stage,
+    activation_connection,
+    outgoing=true,
+    maximum_host_bytes=startup.reserve / 4L,
+    timeout_millis=300000UL,
+  )
+  defer edge.close()
+  edge.prepare(context)
+  let limits = worker_limits(startup)
+  let inference = inference_limits(startup)
+  let pipeline = @pipeline.TwoRankDecoderPipeline::new(
+    new_frame(startup),
+    rank,
+    client,
+    limits,
+    inference,
+    begin_activation=(epoch, rows, now) => {
+      edge.begin(epoch~, live_rows=rows, local_now_millis=now)
+    },
+    poll_activation=now => edge.poll(local_now_millis=now),
+    close_activation=() => edge.close(),
+  )
+  defer pipeline.close()
+  let plans = @wire.PlanFrameBuffer::new(limits, inference)
+  let completions = @wire.CompletionFrameBuffer::new(limits, inference)
+  let scratch = FixedArray::make(plans.capacity(), b'\x00')
+  let output = FixedArray::make(completions.capacity(), b'\x00')
+  let clock = @clock.MonotonicClock::system()
+  for index in 0..<count {
+    let input = read_bounded(
+      frame_root,
+      "plan-\{index}.bin",
+      plans.capacity().to_int64(),
+    )
+    scratch.fill(b'\x00')
+    for i, byte in input {
+      scratch[i] = byte
+    }
+    let plan = plans.load(scratch, input.length())
+    pipeline.begin(
+      plan,
+      completions.writer_for(plan),
+      epoch=index.to_uint64() + 1UL,
+      local_now_millis=clock.now_millis(),
+    )
+    while !pipeline.progress(local_now_millis=clock.now_millis()) {
+      @async.pause()
+    }
+    let completion = pipeline.completion()
+    completion.copy_to(output, destination_offset=0)
+    @fs.write_file(
+      arguments[6] + "/completion-\{index}.bin",
+      Bytes::from_array(output[:completion.length()].to_owned()),
+      create_mode=CreateNew,
+    )
+    let entry = completion.entry(0)
+    guard entry.kind() != @protocol.CompletionEntryKind::FailedCompletion else {
+      fail("model execution returned a failed completion")
+    }
+    if entry.kind() == @protocol.CompletionEntryKind::PrefillCompletion {
+      println("frame=\{index} processed=\{entry.processed_tokens()}")
+    } else {
+      println(
+        "frame=\{index} token=\{entry.token_id()} processed=\{entry.processed_tokens()}",
+      )
+    }
+  }
+  pipeline.release_request(local_now_millis=clock.now_millis())
+  while !pipeline.progress(local_now_millis=clock.now_millis()) {
+    @async.pause()
+  }
+}

@@ -119,35 +119,47 @@ pub fn transfer_ranges(
       guard stamp_file(shard_ordinal, file) == stamp else {
         raise FileChanged(shard_ordinal)
       }
-      for request_index, request in requests {
-        if request.shard_ordinal != shard_ordinal {
-          continue
-        }
-        let tensor = shard.metadata.tensors[request.tensor_ordinal]
-        let start = shard.metadata.payload_offset +
-          tensor.data_start +
-          request.tensor_byte_offset
-        let mut copied = 0L
-        while copied < request.byte_count {
-          let count = Int64::min(
-            scratch.length().to_int64(),
-            request.byte_count - copied,
-          ).to_int()
-          read_exactly(shard_ordinal, file, scratch, 0, count, start + copied)
-          if !consume(
-              request.destination_ordinal,
-              request.destination_offset + copied,
-              scratch,
-              count,
-            ) {
-            raise VisitorRejected(request_index)
-          }
-          copied += count.to_int64()
-        }
-      }
+      transfer_open_file(shard_ordinal, shard, file, requests, scratch, consume)
       guard stamp_file(shard_ordinal, file) == stamp else {
         raise FileChanged(shard_ordinal)
       }
     })
+  }
+}
+
+///|
+fn transfer_open_file(
+  shard_ordinal : Int,
+  shard : InspectedShard,
+  file : @approved_fs.ApprovedFile,
+  requests : ArrayView[StreamingSafetensorsTransfer],
+  scratch : FixedArray[Byte],
+  consume : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+) -> Unit raise StreamingSafetensorsError {
+  for request_index, request in requests {
+    if request.shard_ordinal != shard_ordinal {
+      continue
+    }
+    let tensor = shard.metadata.tensors[request.tensor_ordinal]
+    let start = shard.metadata.payload_offset +
+      tensor.data_start +
+      request.tensor_byte_offset
+    for copied = 0L; copied < request.byte_count; {
+      let count = scratch
+        .length()
+        .to_int64()
+        .min(request.byte_count - copied)
+        .to_int()
+      read_exactly(shard_ordinal, file, scratch, 0, count, start + copied)
+      guard consume(
+        request.destination_ordinal,
+        request.destination_offset + copied,
+        scratch,
+        count,
+      ) else {
+        raise VisitorRejected(request_index)
+      }
+      continue copied + count.to_int64()
+    }
   }
 }

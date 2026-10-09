@@ -57,6 +57,62 @@ fn flash_config() -> String {
 }
 
 ///|
+fn flash_nvfp4_config() -> String {
+  let quant =
+    #|{"config_groups":{"group_0":{"targets":["Linear"],"weights":{"num_bits":4,"type":"float","group_size":16,"dynamic":false,"symmetric":true},"input_activations":null,"output_activations":null}},"quant_algo":"NVFP4","kv_cache_scheme":null,"producer":{"name":"modelopt","version":"0.45.0"},"quant_method":"modelopt","ignore":["lm_head","model.language_model.embed_tokens","*.self_attn.q_proj","model.visual.*"]}
+  flash_config()
+  .replace(
+    old="\"transformers_version\":\"5.16.0\"",
+    new="\"transformers_version\":\"5.16.0\",\"quantization_config\":\{quant}",
+  )
+  .replace(
+    old="\"hc_eps\":0.000001",
+    new="\"hc_eps\":0.000001,\"rms_norm_eps\":0.00001",
+  )
+}
+
+///|
+test "Flash accepts installed ModelOpt NVFP4 storage without changing model semantics" {
+  let admission = @glm53_config.parse_glm53_config(
+    flash_nvfp4_config(),
+    config_digest(),
+    max_bytes=16384,
+    max_depth=16,
+  )
+  guard admission is Flash(metadata) else {
+    fail("Flash profile misclassified")
+  }
+  assert_eq(metadata.spec().layer_count(), 45)
+  assert_eq(metadata.spec().hidden_size(), 4096)
+  assert_eq(metadata.spec().rms_norm_epsilon(), 0.00001)
+  for
+    (old, replacement) in [
+      ("\"num_bits\":4", "\"num_bits\":8"),
+      ("\"group_size\":16", "\"group_size\":32"),
+      ("\"dynamic\":false", "\"dynamic\":true"),
+      ("\"quant_algo\":\"NVFP4\"", "\"quant_algo\":\"MXFP4\""),
+      ("\"kv_cache_scheme\":null", "\"kv_cache_scheme\":{}"),
+      ("\"input_activations\":null", "\"input_activations\":{}"),
+      ("\"rms_norm_eps\":0.00001", "\"rms_norm_eps\":0.001"),
+      ("\"targets\":[\"Linear\"]", "\"targets\":[\"Conv\"]"),
+    ] {
+    try
+      @glm53_config.parse_glm53_config(
+        flash_nvfp4_config().replace(old~, new=replacement),
+        config_digest(),
+        max_bytes=16384,
+        max_depth=16,
+      )
+    catch {
+      InvalidValue(NumericFormat) => ()
+      _ => fail("unexpected incompatible numeric metadata failure")
+    } noraise {
+      _ => fail("incompatible numeric metadata admitted")
+    }
+  }
+}
+
+///|
 test "bounded GLM config admission recognizes exact full and Flash profiles" {
   let full = @glm53_config.parse_glm53_config(
     full_config(),
