@@ -127,6 +127,17 @@ pub fn EncodedBootstrapSource::recipe(Self) -> WorkerBootstrapRecipe
 pub fn EncodedBootstrapSource::roots(Self) -> WorkerBootstrapRoots
 pub fn EncodedBootstrapSource::tensor_parallel_policy(Self) -> TensorParallelBootstrapPolicy?
 
+pub struct FrameCompletionSlot {
+  // private fields
+}
+pub fn FrameCompletionSlot::bind(Self, ValidatedPlanFrame, CompletionFrameWriter) -> Unit raise WorkerWireError
+pub fn FrameCompletionSlot::close(Self) -> Unit raise WorkerWireError
+pub fn FrameCompletionSlot::completion(Self) -> ValidatedCompletionFrame raise WorkerWireError
+pub fn FrameCompletionSlot::new() -> Self
+pub fn FrameCompletionSlot::plan(Self) -> ValidatedPlanFrame raise WorkerWireError
+pub fn FrameCompletionSlot::submit(Self) -> ValidatedCompletionFrame raise WorkerWireError
+pub fn FrameCompletionSlot::writer(Self) -> CompletionFrameWriter raise WorkerWireError
+
 pub struct PlanFrameBuffer {
   // private fields
 }

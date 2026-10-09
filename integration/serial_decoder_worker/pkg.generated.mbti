@@ -1,0 +1,47 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/serial_decoder_worker"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/serial_decoder_frame",
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum DecoderInputPort {
+  Counts
+  TokenIds
+  SequenceOffsets
+  SequenceSlots
+  RecurrentResets
+  SparseReset
+  OutputCount
+  SelectedRows
+} derive(Eq, @debug.Debug)
+pub fn DecoderInputPort::equal(Self, Self) -> Bool
+pub fn DecoderInputPort::not_equal(Self, Self) -> Bool
+pub fn DecoderInputPort::to_repr(Self) -> @debug.Repr
+
+pub struct SerialDecoderWorker {
+  // private fields
+}
+pub fn SerialDecoderWorker::begin(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise
+pub fn SerialDecoderWorker::bind_executor(Self, @device.Context, submit~ : (Int) -> Unit raise, poll~ : () -> Bool raise, close~ : () -> Unit raise, append_descriptors~ : ArrayView[@device.Allocation]) -> Unit raise
+pub fn SerialDecoderWorker::close(Self) -> Unit raise
+pub fn SerialDecoderWorker::completion(Self) -> @worker_wire.ValidatedCompletionFrame raise
+pub fn SerialDecoderWorker::input(Self, DecoderInputPort) -> @device.Allocation raise
+pub fn SerialDecoderWorker::new(@serial_decoder_frame.SerialDecoderFrame) -> Self
+pub fn SerialDecoderWorker::prepare_ports(Self, @device.Context, maximum_device_bytes~ : Int64) -> Unit raise
+pub fn SerialDecoderWorker::progress(Self) -> Bool raise
+pub fn SerialDecoderWorker::release_request(Self) -> Unit raise
+pub fn SerialDecoderWorker::required_device_bytes(Self) -> Int64 raise
+pub fn SerialDecoderWorker::sampled_tokens(Self) -> @device.Allocation raise
+
+// Type aliases
+
+// Traits

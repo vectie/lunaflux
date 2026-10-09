@@ -30,6 +30,16 @@ import {
   "vectie/lunaflux/integration/text_io_frame" @text_frame,
 }
 
+import {
+  "vectie/lunaflux/integration/serial_decoder_worker" @serial_worker,
+  "vectie/lunaflux/engine/serial_decoder_frame" @serial_frame,
+  "vectie/lunaflux/engine/worker_wire" @wire,
+  "vectie/lunaflux/engine/worker_protocol" @protocol,
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+} for "test"
+
 supported_targets = "native"
 
 options(
@@ -43,7 +53,7 @@ options(
   "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
   link: {
     "native": {
-      "cc-flags": "-O2 -include tests/tensor_parallel_device_worker_alloc/runtime_redirect.h",
+      "cc-flags": "-O2 -include tests/tensor_parallel_device_worker_alloc/runtime_redirect.h -include tests/packed_moe_execution/transfer_redirect.h",
     },
   },
 )

@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/serial_decoder_frame" @frame,
+  "vectie/lunaflux/engine/worker_wire" @wire,
+}
+
+supported_targets = "native"

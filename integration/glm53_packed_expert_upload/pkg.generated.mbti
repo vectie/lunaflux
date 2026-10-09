@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/integration/serial_decoder_worker",
   "vectie/lunaflux/model/glm53_spec",
   "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/runtime/approved_fs",
@@ -52,6 +53,7 @@ pub struct GlmDecoderSlice {
   // private fields
 }
 pub fn GlmDecoderSlice::append_descriptors(Self) -> ArrayView[@device.Allocation]
+pub fn GlmDecoderSlice::bind_worker(Self, @serial_decoder_worker.SerialDecoderWorker, @device.Context) -> Unit raise
 pub fn GlmDecoderSlice::close(Self) -> Unit raise @device.DeviceError
 pub fn GlmDecoderSlice::device_bytes(Self) -> Int64
 pub fn GlmDecoderSlice::launch_count(Self) -> Int
