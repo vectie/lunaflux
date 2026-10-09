@@ -28,7 +28,13 @@ These checks do not validate weight placement or model generation.
 Linux checkpoint-executable linking exposed omitted pthread/dynamic-loader
 libraries, hidden by macOS. Explicit `-pthread -ldl` fixes the native Linux
 build; no native ABI or kernel arithmetic changed. The CPU-only real-shard
-placement job runs under 4 GiB/no swap before any GPU allocation.
+placement job runs before any GPU allocation. The data node uses cgroup v1:
+requested user-unit MemoryMax/MemorySwapMax are not per-service kernel limits.
+A verified 4 GiB address-space limit bounds this CPU process instead; no
+per-unit no-swap enforcement is claimed. At 11.2 GB scanned the process used
+about 7 MB RSS. The first one-hour scan was stopped and replaced by a two-hour
+bounded scan because measured authentication throughput would exceed its
+original deadline. No completed placement or GPU result is claimed yet.
 The installed management-node source has 120 main shards plus input scales;
 the earlier arbitrary source halves are not checkpoint-verified placements.
 
