@@ -10,6 +10,21 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Request-owned Q/K/V short convolution now executes before recurrent update in
+the same prepared queue. Generic precision IR owns raw BF16 history semantics;
+the GLM adapter selects 8192 channels / kernel four. Request-slot continuation,
+reordering and reset use the same metadata for all four kernels. The Program
+owns three histories and convolved frame buffers under explicit aggregate
+startup budgets. Thirty-two composed steps have zero measured heap allocations
+and blocking waits. The current focused native suite passes 42/42.
+
+On idle .178 GB10, channel counts 8, 129 and 8192 pass an independent double
+oracle and exact raw-history checks. One eight-token prefill and eight decode
+frames produce bitwise-identical outputs, convolution histories and delta state.
+All three composed GPU cases pass memory/leak, race and synchronization checks.
+No throughput speedup is claimed; projection/control/output layers and full
+model workers remain unfinished. No TLS/admission work was added.
+
 GLM KDA now has a request-owned recurrent delta Program in addition to its old
 serial diagnostic source. The model adapter builds a generic BF16/F32 precision
 plan; CUDA lowering assigns sequence/head CTAs and value-column ownership.
@@ -33,7 +48,7 @@ and sanitizer checks of the new kernel retain the independent CPU oracle.
 [Recurrent execution results](RECURRENT_EXECUTION_2026-10-09.md) record exact
 scope and timings. The downloaded artifacts match remote SHA-256 identities;
 archive hash is `4a4e7f0ed7b335bf7b51f8ae781b7cc110296bbcb3502b546c72aa86b27e48ab`.
-Complete KDA projection/control/convolution/output composition, DSA/DeepSeek
+Complete KDA projection/control/output composition, DSA/DeepSeek
 attention, three-model workers and actual two-host execution remain unfinished.
 No additional TLS/admission work was performed.
 

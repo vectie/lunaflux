@@ -33,8 +33,12 @@ The request-owned recurrent delta Program now executes KDA state transitions
 through a generic precision plan and AOT CUDA lowering, with independent request
 slots and no per-step heap allocations. Numerical, memory/race/synchronization
 and bounded component timing checks pass; the serial reference is not a serving
-benchmark. Next compose projected Q/K/V, decay/beta controls, request-owned short
-convolution, gated normalization and output projection into the complete KDA
+benchmark. Request-owned Q/K/V short convolution now joins that same queue;
+the three histories and intermediate buffers have explicit aggregate budgets.
+Chunked prefill and single-token decode produce the same output/state bitwise
+on three tested GPU geometries, including GLM's actual channel count. Next
+compose checkpoint projections, decay/beta controls, gated normalization and
+output projection into the complete KDA
 block, then connect it and MoE to actual layer/worker execution. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual
 implementation tasks, not transport-hardening prerequisites.
