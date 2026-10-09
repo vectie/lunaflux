@@ -26,7 +26,7 @@ pub fn RemoteChannel::begin_send(Self, FixedArray[Byte], Int, UInt64) -> Unit ra
 pub fn RemoteChannel::close(Self) -> Unit
 pub fn RemoteChannel::is_open(Self) -> Bool
 pub fn RemoteChannel::new(@socket.Tcp, max_frame_bytes~ : Int, timeout_millis~ : UInt64) -> Self raise RemoteChannelError
-pub async fn RemoteChannel::poll_receive(Self, FixedArray[Byte], UInt64) -> Int?
+pub async fn RemoteChannel::poll_receive(Self, FixedArray[Byte], UInt64, allow_idle_eof? : Bool) -> Int?
 pub async fn RemoteChannel::poll_send(Self, UInt64) -> Bool
 
 // Type aliases

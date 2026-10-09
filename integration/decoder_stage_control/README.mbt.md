@@ -18,3 +18,8 @@ this is not TLS, authenticated transport, RDMA or fleet orchestration.
 Idle between requests has no frame deadline. Once a first byte arrives, the
 frame deadline is absolute; metadata/activation/execution also have bounded
 phase deadlines. A failed/poisoned rank is not silently reused.
+
+After an acknowledged request release, an orderly EOF at the next frame boundary
+terminates the server cleanly. Commit alone does not release request ownership:
+EOF before release or within any next prefix/body remains a failure. A released
+connection can also accept another prepare, preserving reusable-rank behavior.

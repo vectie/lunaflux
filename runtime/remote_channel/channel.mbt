@@ -216,10 +216,13 @@ pub async fn RemoteChannel::poll_send(
 ///|
 /// Performs at most one zero-wait read into private fixed storage. Publishes a
 /// frame to `destination` only after every byte arrives; no partial data escapes.
+/// With allow_idle_eof=true, an orderly EOF before any next-prefix byte closes
+/// the channel and returns None. Partial-prefix/body EOF remains an error.
 pub async fn RemoteChannel::poll_receive(
   self : RemoteChannel,
   destination : FixedArray[Byte],
   local_now_millis : UInt64,
+  allow_idle_eof? : Bool = false,
 ) -> Int? {
   self.observe(local_now_millis)
   if !self.receiving || self.reading {
@@ -245,6 +248,13 @@ pub async fn RemoteChannel::poll_receive(
     }
   }
   guard outcome is Some(count) else { return None }
+  if allow_idle_eof &&
+    count == 0 &&
+    self.receive_cursor == 0 &&
+    self.receive_length == 4 {
+    self.close()
+    return None
+  }
   if count <= 0 || count > self.receive_length - self.receive_cursor {
     self.fail(Disconnected)
   }

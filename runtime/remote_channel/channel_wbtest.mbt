@@ -164,6 +164,43 @@ async test "EOF during a body discards partial payload" {
 }
 
 ///|
+async test "optional boundary EOF never accepts a partial next frame" {
+  for fragment in [b"", b"\x05", b"\x05\x00\x00\x00hi"] {
+    let (client, peer) = sockets()
+    let channel = RemoteChannel::new(
+      peer,
+      max_frame_bytes=16,
+      timeout_millis=1000UL,
+    )
+    defer channel.close()
+    let output = FixedArray::make(16, b'x')
+    channel.begin_receive(0UL, idle=true)
+    if !fragment.is_empty() {
+      client.write(fragment)
+    }
+    client.close()
+    @async.sleep(1)
+    let mut failed = false
+    for _ in 0..<8 {
+      ignore(channel.poll_receive(output, 0UL, allow_idle_eof=true)) catch {
+        RemoteChannelError::Disconnected => {
+          failed = true
+          break
+        }
+        error => raise error
+      }
+      if !channel.is_open() {
+        break
+      }
+      @async.sleep(1)
+    }
+    assert_false(channel.is_open())
+    assert_eq(failed, !fragment.is_empty())
+    assert_eq(output, FixedArray::make(16, b'x'))
+  }
+}
+
+///|
 async test "idle service lifetime is unbounded but a started frame has an absolute deadline" {
   let (client, peer) = sockets()
   defer client.close()

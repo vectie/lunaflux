@@ -1,6 +1,7 @@
 ///|
 priv enum ServerPhase {
   Idle
+  Released
   Prepared
   Retired
   Poisoned
@@ -116,7 +117,7 @@ fn DecoderStageServer::command(
     raise StageControlError::InvalidMessage
   }
   if kind == prepare_kind {
-    guard self.phase is Idle &&
+    guard self.phase is (Idle | Released) &&
       flags == 0 &&
       epoch > self.epoch &&
       length > control_header_bytes else {
@@ -149,6 +150,7 @@ fn DecoderStageServer::command(
     self.reply(committed_kind, if failed { 1 } else { 0 }, 0, now)
   } else if kind == release_kind && flags == 0 && self.phase is Idle {
     self.rank.release_request()
+    self.phase = Released
     self.reply(released_kind, 0, 0, now)
   } else {
     raise StageControlError::InvalidMessage
@@ -184,9 +186,14 @@ pub async fn DecoderStageServer::poll(
   }
   match self.state {
     Receiving =>
-      if self.channel.poll_receive(self.message, local_now_millis)
-        is Some(length) {
-        self.command(length, local_now_millis)
+      match
+        self.channel.poll_receive(
+          self.message,
+          local_now_millis,
+          allow_idle_eof=self.phase is Released,
+        ) {
+        Some(length) => self.command(length, local_now_millis)
+        None => if !self.channel.is_open() { self.state = Terminal }
       }
     Uploading =>
       if self.rank.inputs_ready() {
@@ -221,7 +228,10 @@ pub async fn DecoderStageServer::poll(
         if self.phase is Poisoned {
           self.state = Terminal
         } else {
-          self.channel.begin_receive(local_now_millis, idle=self.phase is Idle)
+          self.channel.begin_receive(
+            local_now_millis,
+            idle=self.phase is (Idle | Released),
+          )
           self.state = Receiving
         }
       }
