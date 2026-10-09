@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/core/env",
+  "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source" @delta,
+} for "test"
+
+supported_targets = "native"

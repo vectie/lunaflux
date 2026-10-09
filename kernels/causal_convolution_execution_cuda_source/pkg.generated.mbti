@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/causal_convolution_execution_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn causal_convolution_source(@precision_ir.CausalConvolutionPrecision, symbol~ : String) -> CausalConvolutionCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct CausalConvolutionCudaSource {
+  // private fields
+}
+pub fn CausalConvolutionCudaSource::launch(Self) -> (Int, Int, Int)
+pub fn CausalConvolutionCudaSource::plan(Self) -> @precision_ir.CausalConvolutionPrecision
+pub fn CausalConvolutionCudaSource::source_bytes(Self) -> Bytes
+pub fn CausalConvolutionCudaSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

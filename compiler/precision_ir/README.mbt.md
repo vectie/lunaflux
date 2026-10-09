@@ -31,3 +31,9 @@ this IR. The first lowering is an executable correctness implementation, not a
 Tensor Core router or a demonstrated performance improvement.
 
 See [implementation, tests and remaining serving work](../../docs/PRECISION_IR_2026-10-04.md).
+
+CausalConvolutionPrecision describes request-owned BF16 raw-input history,
+ordered F32 causal convolution, SiLU and BF16 output rounding. Its exact frame
+and persistent-state sizes are independent of batch sequence ordinals.
+RecurrentDeltaPrecision describes normalized delta attention with F32 state.
+Both expose CacheCommit effects; neither contains CUDA geometry or model names.
