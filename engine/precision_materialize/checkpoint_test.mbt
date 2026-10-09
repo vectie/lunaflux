@@ -8,10 +8,10 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
     }
     let header = @utf8.encode(
       (
-        #|{"w":{"dtype":"U8","shape":[2,8],"data_offsets":[0,16]},"s":{"dtype":"F8_E4M3","shape":[2,1],"data_offsets":[16,18]},"g":{"dtype":"F32","shape":[],"data_offsets":[18,22]},"bf":{"dtype":"BF16","shape":[1,2],"data_offsets":[22,26]},"mx":{"dtype":"I8","shape":[2,16],"data_offsets":[26,58]},"ms":{"dtype":"F8_E8M0","shape":[2,1],"data_offsets":[58,60]}}
+        #|{"w":{"dtype":"U8","shape":[2,8],"data_offsets":[0,16]},"s":{"dtype":"F8_E4M3","shape":[2,1],"data_offsets":[16,18]},"g":{"dtype":"F32","shape":[],"data_offsets":[18,22]},"bf":{"dtype":"BF16","shape":[1,2],"data_offsets":[22,26]},"mx":{"dtype":"I8","shape":[2,16],"data_offsets":[26,58]},"ms":{"dtype":"F8_E8M0","shape":[2,1],"data_offsets":[58,60]},"bias":{"dtype":"F32","shape":[1],"data_offsets":[60,64]}}
       ),
     )
-    let payload = FixedArray::make(60, b'\x21')
+    let payload = FixedArray::make(64, b'\x21')
     payload[16] = b'\x38'
     payload[17] = b'\x38'
     for i, byte in b"\x00\x00\x00\x40\x80\x3f\x00\x40" {
@@ -67,6 +67,42 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
       limits~,
     )
     let checkpoint = @precision_materialize.PackedCheckpoint::new(inspection)
+    let vector = checkpoint.bind_vector(
+      representation=@format.Representation::new(format=F32, rows=1, columns=1),
+      payload_name="bias",
+    )
+    assert_eq(vector.buffer_bytes(), 4L)
+    let vector_bytes = FixedArray::make(4, b'?')
+    checkpoint.transfer_weights(
+      root,
+      [vector],
+      scratch=FixedArray::make(3, b'?'),
+      limits~,
+      consume=(_, offset, chunk, count) => {
+        for i in 0..<count {
+          vector_bytes[offset.to_int() + i] = chunk[i]
+        }
+        true
+      },
+    )
+    assert_eq(Bytes::from_array(vector_bytes), b"\x21\x21\x21\x21")
+    try
+      checkpoint.bind_weight(
+        representation=@format.Representation::new(
+          format=F32,
+          rows=1,
+          columns=1,
+        ),
+        payload_name="bias",
+      )
+    catch {
+      @precision_materialize.PackedCheckpointError::TensorStorageMismatch(
+        "bias"
+      ) => ()
+      _ => fail("wrong rank error")
+    } noraise {
+      _ => fail("rank-one vector disguised as matrix")
+    }
     let nv = checkpoint.bind_weight(
       representation=@format.Representation::new(
         format=NvFp4,

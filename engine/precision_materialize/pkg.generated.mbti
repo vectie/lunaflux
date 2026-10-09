@@ -39,6 +39,7 @@ pub fn PackedCheckpointError::to_repr(Self) -> @debug.Repr
 pub struct PackedCheckpoint {
   // private fields
 }
+pub fn PackedCheckpoint::bind_vector(Self, representation~ : @precision_format.Representation, payload_name~ : String) -> PackedCheckpointWeight raise PackedCheckpointError
 pub fn PackedCheckpoint::bind_weight(Self, representation~ : @precision_format.Representation, payload_name~ : String, scales_name? : String, global_scale_name? : String) -> PackedCheckpointWeight raise PackedCheckpointError
 pub fn PackedCheckpoint::new(@streaming_safetensors.StreamingSafetensorsInspection) -> Self
 pub fn PackedCheckpoint::transfer_weights(Self, @approved_fs.ApprovedRoot, ArrayView[PackedCheckpointWeight], scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise PackedCheckpointError

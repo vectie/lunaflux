@@ -33,3 +33,8 @@ global-scale padding seen by CUDA matches the bytes populated by the uploader.
 Packed E2M1 checkpoint bytes accept U8 or I8 storage tags; UE8M0 scale bytes
 accept U8 or F8_E8M0. These are explicit raw-byte aliases, not signed-value
 conversion, and exact physical shapes/byte counts still apply.
+
+bind_vector streams true rank-one BF16/F16/F32 parameters (router correction,
+normalization or other control vectors) through the same compact transfer path.
+The execution representation has one logical row without inventing a rank-two
+checkpoint tensor. bind_weight continues to require a physical matrix.
