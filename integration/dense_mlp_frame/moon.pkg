@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/dense_mlp_execution_cuda_source" @source,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"

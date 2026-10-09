@@ -14,6 +14,8 @@ pub fn separate_gate_up_swiglu_dense_bf16_source(hidden_size~ : Int, intermediat
 
 pub fn staged_packed_swiglu_bf16_source(rows~ : Int, hidden_size~ : Int, intermediate_size~ : Int, function_prefix~ : String) -> Bytes raise GatedMlpCudaSourceError
 
+pub fn staged_separate_swiglu_bf16_source(hidden_size~ : Int, intermediate_size~ : Int, maximum_rows~ : Int, function_prefix~ : String) -> Bytes raise GatedMlpCudaSourceError
+
 // Errors
 pub(all) suberror GatedMlpCudaSourceError {
   InvalidRowCount

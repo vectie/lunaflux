@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/dense_mlp_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/dense_mlp_execution_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct DenseMlpFrame {
+  // private fields
+}
+pub fn DenseMlpFrame::close(Self) -> Unit raise @device.DeviceError
+pub fn DenseMlpFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn DenseMlpFrame::new(@dense_mlp_execution_cuda_source.DenseMlpCudaSource) -> Self
+pub fn DenseMlpFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, input~ : @device.Allocation, gate~ : @device.Allocation, up~ : @device.Allocation, down~ : @device.Allocation, output~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn DenseMlpFrame::source_bytes(Self) -> Bytes
+pub fn DenseMlpFrame::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

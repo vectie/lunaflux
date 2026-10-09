@@ -70,6 +70,14 @@ pub fn Conversion::equal(Self, Self) -> Bool
 pub fn Conversion::not_equal(Self, Self) -> Bool
 pub fn Conversion::to_repr(Self) -> @debug.Repr
 
+pub struct DenseSwiGluPrecision {
+  // private fields
+}
+pub fn DenseSwiGluPrecision::geometry(Self) -> (Int, Int, Int)
+pub fn DenseSwiGluPrecision::new(hidden_width~ : Int, intermediate_width~ : Int, maximum_rows~ : Int) -> Self raise PrecisionPlanError
+pub fn DenseSwiGluPrecision::weight_bytes(Self) -> Int64
+pub fn DenseSwiGluPrecision::workspace_bytes(Self) -> Int64
+
 pub(all) enum ExpertActivationRounding {
   Bf16Stages
   F32Product
