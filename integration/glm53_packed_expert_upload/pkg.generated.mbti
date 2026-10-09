@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/model/glm53_spec",
   "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/runtime/approved_fs",
 }
@@ -17,6 +18,8 @@ pub fn bind_router(@precision_materialize.PackedCheckpoint, layer_index~ : Int) 
 pub fn bind_shared_expert(@precision_materialize.PackedCheckpoint, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn expert_compute_plan(layer_index~ : Int, expert_indices~ : ArrayView[Int], maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
+
+pub fn recurrent_compute_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> @precision_ir.RecurrentDeltaPrecision raise
 
 pub fn routing_compute_plan(maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.MoeRoutingPrecision raise
 

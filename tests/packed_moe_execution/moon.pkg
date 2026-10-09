@@ -6,6 +6,8 @@ import {
   "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @source,
   "vectie/lunaflux/kernels/luna_cuda_precision" @combine,
   "vectie/lunaflux/kernels/moe_routing_cuda_source" @router,
+  "vectie/lunaflux/integration/recurrent_delta_program" @recurrent,
+  "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source" @delta,
 }
 
 supported_targets = "native"

@@ -1,0 +1,28 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/recurrent_delta_program"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct RecurrentDeltaProgram {
+  // private fields
+}
+pub fn RecurrentDeltaProgram::abort(Self) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::new(@recurrent_delta_execution_cuda_source.RecurrentDeltaCudaSource) -> Self
+pub fn RecurrentDeltaProgram::poll(Self) -> Bool raise @device.DeviceError
+pub fn RecurrentDeltaProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_state_bytes~ : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, query~ : @device.Allocation, key~ : @device.Allocation, value~ : @device.Allocation, log_decay~ : @device.Allocation, beta~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::source_bytes(Self) -> Bytes
+pub fn RecurrentDeltaProgram::state_bytes(Self) -> Int64
+pub fn RecurrentDeltaProgram::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
+
+// Type aliases
+
+// Traits
