@@ -1,0 +1,113 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn capture(
+  capture_root : String,
+  socket : String,
+  host : String,
+  label : String,
+  args : Array[String],
+) -> String {
+  let command = ["-S", socket, host, ..args]
+  @fs.write_file(
+    capture_root + "/" + label + ".command.json",
+    Json(["ssh", ..command]).stringify(),
+    create_mode=CreateNew,
+  )
+  let (code, out, err) = @process.collect_output("ssh", command)
+  @fs.write_file(
+    capture_root + "/" + label + ".stdout",
+    out.text(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    capture_root + "/" + label + ".stderr",
+    err.text(),
+    create_mode=CreateNew,
+  )
+  assert_eq(code, 0, msg=err.text() + out.text())
+  out.text()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, capture_root, remote, socket, host, uuid] else {
+    fail("NEW_LOCAL_ROOT NEW_REMOTE_ROOT CONTROL_SOCKET HOST GPU_UUID")
+  }
+  let identity = capture(capture_root, socket, host, "identity", [
+    "nvidia-smi", "--query-gpu=uuid", "--format=csv,noheader",
+  ])
+  assert_eq(identity.trim().to_owned(), uuid)
+  let applications = capture(capture_root, socket, host, "applications", [
+    "nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader",
+  ])
+  guard applications.trim().is_empty() else { fail("GPU already occupied") }
+  let memory = capture(capture_root, socket, host, "memory", [
+    "cat", "/proc/meminfo",
+  ])
+  guard memory.split("\n").filter(s => s.has_prefix("MemAvailable:")).to_array()
+    is [line] &&
+    line.split(" ").filter(s => !s.is_empty()).to_array() is [_, amount, "kB"] else {
+    fail("missing available memory")
+  }
+  guard @string.parse_int64(amount) > 8388608L else {
+    fail("8 GiB reserve required")
+  }
+  let bounded = [
+    "systemd-run", "--user", "--collect", "--wait", "--pipe", "-p", "MemoryMax=2G",
+    "-p", "MemorySwapMax=0", "-p", "RuntimeMaxSec=120",
+  ]
+  ignore(
+    capture(
+      capture_root,
+      socket,
+      host,
+      "compile",
+      [
+        ..bounded,
+        "/usr/local/cuda/bin/nvcc",
+        "-arch=sm_121",
+        "--fmad=false",
+        "-Xcompiler=-ffp-contract=off",
+        remote + "/text_io_correctness_probe.cu",
+        "-o",
+        remote + "/text_io_correctness_probe",
+      ],
+    ),
+  )
+  let output = capture(
+    capture_root,
+    socket,
+    host,
+    "correctness",
+    [..bounded, remote + "/text_io_correctness_probe"],
+  )
+  guard output.contains("text_io_correctness=passed") else {
+    fail("missing completed numerical fixture")
+  }
+  for tool in ["memcheck", "racecheck", "synccheck"] {
+    let args = [
+      ..bounded, "/usr/local/cuda/bin/compute-sanitizer", "--tool", tool, "--error-exitcode",
+      "3",
+    ]
+    if tool == "memcheck" {
+      args.append(["--leak-check", "full"])
+    }
+    args.push(remote + "/text_io_correctness_probe")
+    let output = capture(capture_root, socket, host, tool, args)
+    guard output.contains("text_io_correctness=passed") else {
+      fail("sanitizer did not execute completed fixture")
+    }
+  }
+  println(
+    "text IO GPU numerical, deterministic, leak and sanitizer fixture passed",
+  )
+}

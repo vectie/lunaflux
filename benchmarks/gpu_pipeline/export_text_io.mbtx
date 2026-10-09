@@ -1,0 +1,24 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, output] else { fail("NEW_TEXT_HEADER") }
+  let (code, out, err) = @process.collect_output("env", [
+    "LUNA_EXPORT_TEXT_IO=1", "moon", "test", "--target", "native", "--release", "--warn-list",
+    "-79", "--diagnostic-limit", "2", "kernels/text_io_execution_cuda_source", "--filter",
+    "export selected row text IO GPU fixture",
+  ])
+  assert_eq(code, 0, msg=err.text() + out.text())
+  guard out.text().split("LUNA_TEXT_SOURCE_BEGIN\n").to_array() is [_, tail] &&
+    tail.split("LUNA_TEXT_SOURCE_END").to_array() is [source, _] else {
+    fail("missing unique source export")
+  }
+  @fs.write_file(output, source.to_owned(), create_mode=CreateNew)
+  println("exported current TextIoPrecision lowering")
+}

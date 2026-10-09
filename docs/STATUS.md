@@ -10,6 +10,31 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (request bridge): a model-neutral single-contiguous-request
+worker now stages validated request frames into prepared token/count/reset/row
+ports, polls asynchronous input/model/output completion, and publishes the
+existing completion protocol. GLM decoder slices can bind their effects and
+sparse append-error ports. Chunked prefill/decode continuation, vocabulary/context
+bounds, execution failure, cancellation and startup memory ceilings are covered.
+The original bridge allocated three boxed wire values per step; reusable
+epoch-retaining storage and Boolean polling remove all 96 allocations across
+the 32-step native regression. Normal progress performs no blocking device sync.
+The corrected transfer double also rejects host reads/reuse before completion.
+This is not yet a complete checkpoint runner or a multi-host model worker.
+
+Small GB10 GPU text ingress/egress now passes a CPU oracle at rows 5 / hidden 8 /
+streams 4 / vocabulary 17 / selected outputs 2: embedding is bitwise equal,
+normalization/logit maximum absolute error is zero on this fixture, greedy IDs
+match, and repeated outputs are bitwise identical. Memcheck reports zero errors
+and zero leaked bytes; racecheck zero hazards; synccheck zero errors. Each run
+is bounded by 2 GiB host memory, no swap and 120 seconds. This validates the
+generated text kernels, not full GLM dimensions, real weights, decoder arithmetic
+or serving speed. Full worker inference and two-host execution remain open.
+Local downloaded evidence archive: `/tmp/lunaflux-text-io-gpu-20261010.HOs9zeNG.tar.gz`,
+SHA-256 `39518a22889cff4f148406d8fed805bbfda8d927b554f18935d16abf649ef9a1`.
+Native warning-denied check is still blocked by existing dependency warning
+migration; warning 79 suppression in affected tests is not a green release gate.
+
 Update 2026-10-10 (text I/O): a generic immutable precision plan and prepared
 execution frame now connect token embeddings and selected-row mean/RMSNorm/head/
 greedy around the decoder queue. The GLM adapter binds the installed global

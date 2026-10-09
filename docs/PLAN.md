@@ -22,8 +22,14 @@ immutable text precision plan and prepared AOT frame. Its prefix/suffix can join
 the decoder slice queue with no additional per-step completion. Selected head
 rows bound prefill logits memory independently of input length. This is the
 unweighted-mean/BF16 reference path, not DeepSeek's learned head or a throughput
-claim. Next physically validate text numerics, wire worker output/error delivery,
-and compose model-wide stage placement; no new TLS/admission work is needed.
+claim. A small GB10 text numerical/deterministic/sanitizer fixture now passes;
+real-weight and full-dimension text validation remain. The single-request worker
+bridge now delivers output/error completions through the existing wire protocol
+with zero measured warm heap allocations. Next assemble text + all model layers
+in the actual worker startup path and compose model-wide cross-host stage
+placement. The slice binding alone does not run an entire checkpoint. DeepSeek's
+learned head and MiniMax's bounded offload/execution composition remain separate
+feature work; no new TLS/admission work is needed.
 
 The compact MoE Program now owns startup buffers and binds routed/shared experts
 to one reusable execution queue. GLM shared BF16 and DeepSeek shared FP8 adapters

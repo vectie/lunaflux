@@ -44,3 +44,28 @@ test "text lowering preserves mean and normalized BF16 boundaries" {
   )
   assert_false(@utf8.decode(other.source_bytes()).contains("text_a"))
 }
+
+///|
+test "export selected row text IO GPU fixture" {
+  if @env.get_env_var("LUNA_EXPORT_TEXT_IO") == Some("1") {
+    let plan = @precision.TextIoPrecision::new(
+      vocabulary_size=17,
+      hidden_width=8,
+      stream_count=4,
+      maximum_rows=5,
+      maximum_output_rows=2,
+      normalization_epsilon=1.0e-5,
+      maximum_workspace_bytes=168L,
+    )
+    println("LUNA_TEXT_SOURCE_BEGIN")
+    println(
+      @utf8.decode(
+        @text_io_execution_cuda_source.text_io_source(
+          plan,
+          symbol_prefix="text_fixture",
+        ).source_bytes(),
+      ),
+    )
+    println("LUNA_TEXT_SOURCE_END")
+  }
+}
