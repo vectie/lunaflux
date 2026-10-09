@@ -27,3 +27,21 @@ pub fn WeightManifest::new(
     tensors: ReadOnlyArray::from_array(tensors),
   }
 }
+
+///|
+/// Capture the same immutable reference-encoder binding table directly from
+/// startup metadata; no host arena has to be materialized first.
+pub fn WeightManifest::from_manifest(
+  manifest : @host.MiniMaxH3HostComponentManifest,
+) -> Self raise {
+  let tensors = []
+  for i in 0..<manifest.tensor_count() {
+    tensors.push(manifest.tensor(i))
+  }
+  {
+    component: manifest.component(),
+    identity: manifest.identity(),
+    digest: manifest.digest().as_hex(),
+    tensors: ReadOnlyArray::from_array(tensors),
+  }
+}

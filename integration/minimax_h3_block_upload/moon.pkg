@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/model/minimax_h3_vision_conditioner" @vision_plan,
   "vectie/lunaflux/model/minimax_h3_text_encoder" @text_plan,
   "vectie/lunaflux/model/joint_audio_amp_parameter_layout",

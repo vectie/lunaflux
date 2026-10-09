@@ -9,11 +9,14 @@ import {
   "vectie/lunaflux/model/minimax_h3_weights",
   "vectie/lunaflux/model/segmented_host_borrow",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
 pub fn build_manifest(@minimax_h3_weights.MiniMaxH3CompleteComponentBinding, expected_identity~ : @spec.ModelIdentity, shards~ : ArrayView[MiniMaxH3ShardDeclarationInput], index~ : ArrayView[MiniMaxH3TensorIndexInput], limits~ : MiniMaxH3HostMaterializationLimits) -> MiniMaxH3HostComponentManifest raise MiniMaxH3HostMaterializationError
+
+pub fn inspect_streaming_component(@approved_fs.ApprovedRoot, ArrayView[MiniMaxH3ShardSource], MiniMaxH3HostComponentManifest, expected_identity~ : @spec.ModelIdentity, expected_manifest_digest~ : MiniMaxH3HostManifestDigest, limits~ : MiniMaxH3HostMaterializationLimits) -> MiniMaxH3StreamingComponent raise MiniMaxH3HostMaterializationError
 
 pub fn materialize_safetensors_shards(@approved_fs.ApprovedRoot, ArrayView[MiniMaxH3ShardSource], MiniMaxH3HostComponentManifest, expected_identity~ : @spec.ModelIdentity, expected_manifest_digest~ : MiniMaxH3HostManifestDigest, limits~ : MiniMaxH3HostMaterializationLimits) -> MiniMaxH3HostComponentArena raise MiniMaxH3HostMaterializationError
 
@@ -96,6 +99,7 @@ pub fn MiniMaxH3HostComponentManifest::component(Self) -> @minimax_h3_weights.Mi
 pub fn MiniMaxH3HostComponentManifest::digest(Self) -> MiniMaxH3HostManifestDigest
 pub fn MiniMaxH3HostComponentManifest::identity(Self) -> @spec.ModelIdentity
 pub fn MiniMaxH3HostComponentManifest::shard_count(Self) -> Int
+pub fn MiniMaxH3HostComponentManifest::tensor(Self, Int) -> MiniMaxH3HostTensor raise MiniMaxH3HostMaterializationError
 pub fn MiniMaxH3HostComponentManifest::tensor_count(Self) -> Int
 pub fn MiniMaxH3HostComponentManifest::total_tensor_bytes(Self) -> Int64
 
@@ -128,6 +132,14 @@ pub struct MiniMaxH3ShardSource {
   // private fields
 }
 pub fn MiniMaxH3ShardSource::new(locator~ : @approved_fs.ApprovedRelativeLocator) -> Self
+
+pub struct MiniMaxH3StreamingComponent {
+  // private fields
+}
+pub fn MiniMaxH3StreamingComponent::component(Self) -> @minimax_h3_weights.MiniMaxH3WeightComponent
+pub fn MiniMaxH3StreamingComponent::manifest(Self) -> MiniMaxH3HostComponentManifest
+pub fn MiniMaxH3StreamingComponent::transfer(Self, @approved_fs.ApprovedRoot, ArrayView[@streaming_safetensors.StreamingSafetensorsTransfer], destination_bytes~ : ArrayView[Int64], scratch~ : FixedArray[Byte], consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise MiniMaxH3HostMaterializationError
+pub fn MiniMaxH3StreamingComponent::transfers(Self, ArrayView[@minimax_h3_weights.BlockWeightCopy], destination_ordinal~ : Int) -> Array[@streaming_safetensors.StreamingSafetensorsTransfer] raise MiniMaxH3HostMaterializationError
 
 pub struct MiniMaxH3TensorIndexInput {
   // private fields

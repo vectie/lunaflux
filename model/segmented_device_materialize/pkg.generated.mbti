@@ -13,6 +13,8 @@ pub fn materialize(@device.Context, SegmentedDeviceLayout, source_arenas~ : Arra
 
 pub fn materialize_from_borrowed_source(@device.Context, SegmentedDeviceLayout, expected_identity~ : @spec.ModelIdentity, expected_source_digest~ : SegmentedHostSourceDigest, expected_layout_digest~ : SegmentedDeviceLayoutDigest, provide~ : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError) -> SegmentedDevicePreparation raise SegmentedDeviceMaterializationError
 
+pub fn materialize_from_streamed_source(@device.Context, SegmentedDeviceLayout, upload~ : (@device.Allocation) -> Unit raise SegmentedDeviceMaterializationError) -> SegmentedDevicePreparation raise SegmentedDeviceMaterializationError
+
 pub fn plan_layout(source_identity~ : @spec.ModelIdentity, source_digest~ : SegmentedHostSourceDigest, source_arena_lengths~ : ArrayView[Int], regions~ : ArrayView[SegmentedDeviceTensorRegionInput], limits~ : SegmentedDeviceMaterializationLimits) -> SegmentedDeviceLayout raise SegmentedDeviceMaterializationError
 
 pub fn validate_borrowed_source(SegmentedDeviceLayout, provide~ : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError) -> Unit raise SegmentedDeviceMaterializationError

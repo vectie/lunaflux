@@ -1,9 +1,12 @@
 # H3 component-by-component weight startup
 
 `WeightStartup` bridges admitted safetensors manifests to actual packed device
-owners. `prepare_component` calls the existing authenticated host materializer,
-uploads only that component, then zeroizes and drops its host arena on success
-or upload failure. Host storage is GC-managed; this is not an OS RSS guarantee.
+owners. `prepare_component` inspects checkpoint metadata and streams packed
+tensor slices through bounded scratch directly into device allocations. Text,
+vision, denoiser, decoder and reference-encoder paths no longer build full host
+weight arenas. This avoids retaining a second component-sized weight copy on
+unified-memory Spark hardware. Scratch, transfer bytes and incremental hashing
+still consume bounded startup memory; modules/workspaces/KV need separate budgets.
 
 Use the pure `conditioner_packings`, `denoiser_packings`,
 `video_decoder_packings`, and `audio_decoder_packings` factories. The resulting
@@ -12,7 +15,7 @@ allocation indices preserve factory order. Conditioner entries are the real
 using the existing model-owned layouts and upload routines.
 
 Device accounting is cumulative across components. Preflight is subtraction
-based and happens before host materialization. A partial failure retains all
+based and happens before device allocation. A partial failure retains all
 acquired owners, blocks further preparation, and permits retryable reverse-order
 close. `reserved_bytes` conservatively reserves the entire typed encoder group
 even if only part uploaded. All components must have the same model identity.
@@ -26,8 +29,9 @@ This package loads raw weights, not AOT modules or program working memory.
 Audio normalized-weight caches remain owned and budgeted by `AudioDecoder`.
 Callers must budget modules, program workspace and those caches separately.
 For reference audio/video encoders, append `reference_encoder_packing` to that
-VAE component's decoder list. This reuses the existing segmented component
-uploader, retaining `WeightManifest` metadata without host arenas. The
+VAE component's decoder list. It derives the existing segmented layout from
+manifest metadata and streams the checkpoint into it, retaining `WeightManifest`
+metadata without host arenas. The
 `with_reference` callback returns both the segmented owner and immutable
 manifest for media encoder `prepare_resolved` after host release. The existing
 reference ABI addresses the complete VAE tensor table, so this allocation is

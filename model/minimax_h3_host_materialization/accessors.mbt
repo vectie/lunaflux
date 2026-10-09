@@ -25,6 +25,25 @@ pub fn MiniMaxH3HostComponentManifest::tensor_count(self : Self) -> Int {
 }
 
 ///|
+/// Pure tensor metadata for device packing, without allocating host payloads.
+pub fn MiniMaxH3HostComponentManifest::tensor(
+  self : Self,
+  index : Int,
+) -> MiniMaxH3HostTensor raise MiniMaxH3HostMaterializationError {
+  guard self.tensors.get(index) is Some(entry) else {
+    raise TensorIndexOutsideArena(index)
+  }
+  {
+    name: entry.tensor.name(),
+    role: entry.role,
+    shape: entry.tensor.shape(),
+    arena_index: entry.arena_index,
+    arena_offset: entry.arena_offset,
+    byte_length: entry.tensor.byte_length(),
+  }
+}
+
+///|
 pub fn MiniMaxH3HostComponentManifest::shard_count(self : Self) -> Int {
   self.shards.length()
 }

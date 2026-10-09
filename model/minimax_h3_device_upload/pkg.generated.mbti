@@ -7,12 +7,17 @@ import {
   "vectie/lunaflux/model/minimax_h3_host_materialization",
   "vectie/lunaflux/model/segmented_device_materialize",
   "vectie/lunaflux/model/segmented_host_borrow",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
 pub fn materialize_device_weights(@device.Context, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @segmented_device_materialize.SegmentedDeviceLayout) -> @segmented_device_materialize.SegmentedDevicePreparation raise MiniMaxH3DeviceUploadError
 
+pub fn materialize_streamed_weights(@device.Context, @approved_fs.ApprovedRoot, @minimax_h3_host_materialization.MiniMaxH3StreamingComponent, @segmented_device_materialize.SegmentedDeviceLayout, chunk_bytes~ : Int) -> @segmented_device_materialize.SegmentedDevicePreparation raise MiniMaxH3DeviceUploadError
+
 pub fn plan_device_upload(@minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @segmented_device_materialize.SegmentedDeviceMaterializationLimits) -> @segmented_device_materialize.SegmentedDeviceLayout raise MiniMaxH3DeviceUploadError
+
+pub fn plan_manifest_upload(@minimax_h3_host_materialization.MiniMaxH3HostComponentManifest, @segmented_device_materialize.SegmentedDeviceMaterializationLimits) -> @segmented_device_materialize.SegmentedDeviceLayout raise MiniMaxH3DeviceUploadError
 
 pub fn validate_host_source(@minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @segmented_device_materialize.SegmentedDeviceLayout) -> Unit raise MiniMaxH3DeviceUploadError
 

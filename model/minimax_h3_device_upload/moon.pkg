@@ -1,6 +1,8 @@
 import {
+  "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/device",
   "vectie/lunaflux/model/minimax_h3_host_materialization",
+  "vectie/lunaflux/model/minimax_h3_weights",
   "vectie/lunaflux/model/segmented_device_materialize",
   "vectie/lunaflux/model/segmented_host_borrow",
 }

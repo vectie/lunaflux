@@ -92,7 +92,9 @@ fn decode_shape(
   guard value is Array(dimensions) else {
     raise InvalidTensorField(shard~, tensor~, Shape)
   }
-  if dimensions.is_empty() || dimensions.length() > limits.maximum_rank {
+  // A rank-zero shape denotes one scalar element (for example ModelOpt's
+  // NVFP4 global weight scale). It is not a zero-element tensor.
+  if dimensions.length() > limits.maximum_rank {
     raise InvalidRank(shard~, tensor~)
   }
   let shape : Array[Int64] = []

@@ -13,6 +13,8 @@ pub fn copy_segmented_ranges(@approved_fs.ApprovedRoot, StreamingSafetensorsInsp
 
 pub fn inspect_shards(@approved_fs.ApprovedRoot, ArrayView[StreamingSafetensorsShardInput], dtype_specs~ : ArrayView[StreamingSafetensorsDTypeSpec], limits~ : StreamingSafetensorsLimits) -> StreamingSafetensorsInspection raise StreamingSafetensorsError
 
+pub fn transfer_ranges(@approved_fs.ApprovedRoot, StreamingSafetensorsInspection, requests~ : ArrayView[StreamingSafetensorsTransfer], destination_bytes~ : ArrayView[Int64], scratch~ : FixedArray[Byte], limits~ : StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise StreamingSafetensorsError
+
 // Errors
 pub(all) suberror StreamingSafetensorsError {
   InvalidLimit
@@ -148,6 +150,11 @@ pub fn StreamingSafetensorsTensorMetadata::data_start(Self) -> Int64
 pub fn StreamingSafetensorsTensorMetadata::dtype(Self) -> StreamingSafetensorsDTypeSpec
 pub fn StreamingSafetensorsTensorMetadata::name(Self) -> String
 pub fn StreamingSafetensorsTensorMetadata::shape(Self) -> ReadOnlyArray[Int64]
+
+pub struct StreamingSafetensorsTransfer {
+  // private fields
+}
+pub fn StreamingSafetensorsTransfer::new(shard_ordinal~ : Int, tensor_ordinal~ : Int, tensor_byte_offset~ : Int64, destination_ordinal~ : Int, destination_offset~ : Int64, byte_count~ : Int64) -> Self raise StreamingSafetensorsError
 
 pub struct StreamingSafetensorsVisitedRange {
   // private fields

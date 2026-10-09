@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/engine/joint_diffusion_execution",
   "vectie/lunaflux/integration/minimax_h3_block_upload",
   "vectie/lunaflux/integration/minimax_h3_block_program",

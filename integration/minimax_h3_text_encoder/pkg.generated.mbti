@@ -8,6 +8,7 @@ import {
   "vectie/lunaflux/model/minimax_h3_host_materialization",
   "vectie/lunaflux/model/minimax_h3_weights",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
@@ -39,6 +40,7 @@ pub struct EncoderWeights {
 pub fn EncoderWeights::close(Self) -> Unit raise @device.DeviceError
 pub fn EncoderWeights::new() -> Self
 pub fn EncoderWeights::prepare(Self, @device.Context, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, expected_identity~ : @spec.ModelIdentity, max_bytes~ : Int64, chunk_bytes~ : Int) -> Unit raise
+pub fn EncoderWeights::prepare_streamed(Self, @device.Context, @approved_fs.ApprovedRoot, @minimax_h3_host_materialization.MiniMaxH3StreamingComponent, max_bytes~ : Int64, chunk_bytes~ : Int) -> Unit raise
 
 pub struct TextEncoderSource {
   plan : @vectie/lunaflux/model/minimax_h3_text_encoder.TextEncoderPlan

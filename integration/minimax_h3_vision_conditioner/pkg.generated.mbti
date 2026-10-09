@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/engine/joint_diffusion_execution",
   "vectie/lunaflux/model/minimax_h3_host_materialization",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
@@ -42,6 +43,7 @@ pub struct VisionWeights {
 pub fn VisionWeights::close(Self) -> Unit raise @device.DeviceError
 pub fn VisionWeights::new() -> Self
 pub fn VisionWeights::prepare(Self, @device.Context, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, expected_identity~ : @spec.ModelIdentity, max_bytes~ : Int64, chunk_bytes~ : Int) -> Unit raise
+pub fn VisionWeights::prepare_streamed(Self, @device.Context, @approved_fs.ApprovedRoot, @minimax_h3_host_materialization.MiniMaxH3StreamingComponent, max_bytes~ : Int64, chunk_bytes~ : Int) -> Unit raise
 
 // Type aliases
 

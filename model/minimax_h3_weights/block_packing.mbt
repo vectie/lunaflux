@@ -25,6 +25,25 @@ pub(all) suberror BlockPackingError {
 }
 
 ///|
+/// Immutable slice descriptor shared by checkpoint streaming and host packing.
+pub fn BlockWeightCopy::new(
+  tensor_name~ : String,
+  source_offset~ : Int64,
+  destination_offset~ : Int64,
+  byte_count~ : Int64,
+) -> Self raise BlockPackingError {
+  guard !tensor_name.is_empty() &&
+    source_offset >= 0L &&
+    destination_offset >= 0L &&
+    byte_count > 0L &&
+    byte_count <= 9223372036854775807L - source_offset &&
+    byte_count <= 9223372036854775807L - destination_offset else {
+    raise BudgetExceeded
+  }
+  { tensor_name, source_offset, destination_offset, byte_count, }
+}
+
+///|
 /// Pure copy plan for an admitted H3 denoiser block. Source metadata and model
 /// identity must already match the plan. Copies preserve BF16 bytes, including
 /// swapping checkpoint [gate,up] halves into the staged runtime [up,gate] ABI.

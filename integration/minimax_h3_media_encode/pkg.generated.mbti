@@ -65,6 +65,7 @@ pub fn VideoSource::new(frames~ : Int, height~ : Int, width~ : Int, image~ : Boo
 pub struct WeightManifest {
   // private fields
 }
+pub fn WeightManifest::from_manifest(@minimax_h3_host_materialization.MiniMaxH3HostComponentManifest) -> Self raise
 pub fn WeightManifest::new(@minimax_h3_host_materialization.MiniMaxH3HostComponentArena) -> Self raise
 
 // Type aliases

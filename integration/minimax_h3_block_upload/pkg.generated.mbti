@@ -9,6 +9,8 @@ import {
   "vectie/lunaflux/model/minimax_h3_vision_conditioner",
   "vectie/lunaflux/model/minimax_h3_weights",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
@@ -25,6 +27,8 @@ pub fn upload_input(@device.Context, @device.Allocation, @minimax_h3_host_materi
 pub fn upload_output(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.OutputWeightPacking, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
 
 pub fn upload_refiner(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.RefinerWeightPacking, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_streamed(@device.Context, @approved_fs.ApprovedRoot, @minimax_h3_host_materialization.MiniMaxH3StreamingComponent, ArrayView[@device.Allocation], ArrayView[@streaming_safetensors.StreamingSafetensorsTransfer], destination_bytes~ : ArrayView[Int64], chunk_bytes~ : Int) -> Unit raise
 
 pub fn upload_text_encoder_embedding(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, expected_identity~ : @spec.ModelIdentity, chunk_bytes~ : Int) -> Unit raise
 

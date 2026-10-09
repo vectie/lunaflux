@@ -1,4 +1,7 @@
 import {
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/model/minimax_h3_weights",
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/device",
   "vectie/lunaflux/model/minimax_h3_vision_conditioner" @vision,

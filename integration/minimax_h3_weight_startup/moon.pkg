@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
   "vectie/lunaflux/integration/minimax_h3_media_encode" @media,
   "vectie/lunaflux/model/minimax_h3_device_upload" @component_upload,
   "vectie/lunaflux/model/segmented_device_materialize" @segmented,
