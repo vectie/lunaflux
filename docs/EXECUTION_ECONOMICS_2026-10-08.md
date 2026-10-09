@@ -1,5 +1,17 @@
 # Optimize the legal execution, not just the current kernel
 
+## Measured status, 2026-10-09
+
+The [equal-information old/new experiment](BENCHMARK_COMPILER_SELECTION_ABLATION_2026-10-09.md)
+found identical decisions on eight GPU-measured prefill shapes and all 64
+budget/order queries. Both selectors chose the lower independent-validation
+median. A four-line diagnostic backport into the old generator emits the exact
+new KV64 source, including the previously measured service winner. Thus that
+speedup does not establish a benefit of the frontier redesign. Current callers
+use `Materialized`; consumer-specific continuation classes remain unexercised
+by production callers. The design below is a direction and partially connected
+capability, not proof of automatic performance improvement.
+
 This is the design policy for the next compiler workstream. It extends the
 [multilayer compiler](COMPILER_ARCHITECTURE_COMPLETION_2026-09-29.md), rather
 than replacing it with another compiler or a request-time tuning system.

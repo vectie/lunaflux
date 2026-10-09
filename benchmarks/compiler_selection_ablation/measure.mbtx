@@ -1,0 +1,91 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, moon, stage] else {
+    fail("ROOT MOON calibration|validation")
+  }
+  assert_true(stage == "calibration" || stage == "validation")
+  let base = "/home/wlc004s/lunaflux-prefill-choice-20261009.vIZCtp8x"
+  let old = "/home/wlc004s/lunaflux-reference-integration-20261008.G89e6nwn/kernel.cubin"
+  let fresh = base + "/selected.cubin"
+  let probe = base + "/probe-exact"
+  let adapter = root + "/reference_pair.mbtx"
+  let workloads = [
+    (8, 64, 512),
+    (8, 256, 8192),
+    (1, 2048, 30720),
+    (1, 7, 19),
+    (4, 128, 2048),
+    (16, 128, 2048),
+    (2, 512, 16384),
+    (1, 1024, 65536),
+  ]
+  let reverse = stage == "validation"
+  let cases : Array[Json] = [
+    for i in 0..<workloads.length() => {
+      let (rows, queries, history) = workloads[if reverse {
+          workloads.length() - i - 1
+        } else {
+          i
+        }]
+      {
+        "label": "r\{rows}-q\{queries}-h\{history}",
+        "args": [
+          "run",
+          adapter,
+          probe,
+          old,
+          fresh,
+          rows.to_string(),
+          queries.to_string(),
+          history.to_string(),
+          if reverse {
+            "reverse"
+          } else {
+            "forward"
+          },
+        ],
+      }
+    }
+  ]
+  let config : Json = {
+    "schema": "lunaflux-ako-trial-v1",
+    "gpu_uuid": "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+    "reserve_kib": 33554432,
+    "minimum_gain": 0.03,
+    "program": moon,
+    "artifacts": [probe, old, fresh, adapter],
+    "workloads": cases,
+  }
+  @fs.write_file(
+    root + "/" + stage + ".json",
+    config.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(moon, [
+    "run",
+    root + "/ako_trial.mbtx",
+    root + "/" + stage + ".json",
+    root + "/" + stage,
+  ]).output(max_output_bytes=16777216)
+  @fs.write_file(
+    root + "/" + stage + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + stage + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println("completed=" + stage)
+}

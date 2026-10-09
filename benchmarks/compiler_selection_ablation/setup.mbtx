@@ -1,0 +1,99 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn capture(
+  out : String,
+  name : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    out + "/" + name + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(program, args).output(max_output_bytes=16777216)
+  @fs.write_file(
+    out + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    out + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println("completed=" + name)
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, repo, out, moon] else { fail("REPO NEW_OUT MOON") }
+  @fs.mkdir(out)
+  ignore(capture(out, "moon-version", moon, ["version", "--all"]))
+  for (label, revision) in [("old", "24ef8d5f"), ("new", "b8d23b2f")] {
+    let root = out + "/" + label
+    @fs.mkdir(root)
+    @fs.mkdir(root + "/compiler")
+    @fs.mkdir(root + "/compiler/fusion_regions")
+    @fs.mkdir(root + "/cmd")
+    @fs.mkdir(root + "/cmd/select")
+    @fs.write_file(
+      root + "/moon.mod",
+      "name = \"vectie/lunaflux\"\n\nversion = \"0.0.0\"\n\npreferred_target = \"native\"\n",
+      create_mode=CreateNew,
+    )
+    let paths = capture(out, label + "-files", "git", [
+      "-C", repo, "ls-tree", "-r", "--name-only", revision, "compiler/fusion_regions",
+    ])
+    for view in paths.split("\n").filter(p => !p.is_empty()) {
+      let path = view.to_owned()
+      let source = @shell.Cmd("git", ["-C", repo, "show", revision + ":" + path]).output(
+        max_output_bytes=1048576,
+      )
+      source.check()
+      @fs.write_file(root + "/" + path, source.stdout(), create_mode=CreateNew)
+    }
+    @fs.write_file(
+      root + "/cmd/select/main.mbt",
+      @fs.read_file(
+        repo + "/benchmarks/compiler_selection_ablation/selector.mbt",
+      ),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/cmd/select/moon.pkg",
+      "import {\n  \"vectie/lunaflux/compiler/fusion_regions\",\n  \"moonbitlang/core/env\",\n  \"moonbitlang/core/string\",\n}\n\npkgtype(kind: \"executable\")\n\nsupported_targets = \"native\"\n",
+      create_mode=CreateNew,
+    )
+    ignore(
+      capture(out, label + "-revision", "git", [
+        "-C", repo, "rev-parse", revision,
+      ]),
+    )
+    ignore(
+      capture(out, label + "-check", moon, [
+        "-C", root, "check", "--target", "native", "--deny-warn",
+      ]),
+    )
+    ignore(
+      capture(out, label + "-test", moon, [
+        "-C", root, "test", "--target", "native", "--deny-warn",
+      ]),
+    )
+    ignore(
+      capture(out, label + "-build", moon, [
+        "-C", root, "build", "--target", "native", "--release", "cmd/select",
+      ]),
+    )
+  }
+}

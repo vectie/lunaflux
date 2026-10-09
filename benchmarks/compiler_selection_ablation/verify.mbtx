@@ -1,0 +1,102 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, repo, root, out] else { fail("REPO ROOT NEW_OUT") }
+  guard @json.parse(@fs.read_file(root + "/frozen.json").text())
+    is { "choices": Array(choices), .. } else {
+    fail("choices")
+  }
+  assert_eq(choices.length(), 8)
+  let mut queries = 0
+  for choice in choices {
+    guard choice
+      is {
+        "old_id": Number(old, ..),
+        "new_id": Number(fresh, ..),
+        "queries": Array(items),
+        ..
+      } else {
+      fail("choice")
+    }
+    assert_eq(old, fresh)
+    assert_eq(items.length(), 8)
+    for item in items {
+      guard item is { "old_id": Number(a, ..), "new_id": Number(b, ..), .. } else {
+        fail("query")
+      }
+      assert_eq(a, b)
+      queries += 1
+    }
+  }
+  guard @json.parse(@fs.read_file(root + "/results.json").text())
+    is Array(results) else {
+    fail("results")
+  }
+  assert_eq(results.length(), 8)
+  for result in results {
+    guard result
+      is {
+        "old_regret_percent": Number(old, ..),
+        "new_regret_percent": Number(fresh, ..),
+        ..
+      } else {
+      fail("regret")
+    }
+    assert_eq(old, 0.0)
+    assert_eq(fresh, 0.0)
+  }
+  let mut minimum_available = 9223372036854775807L
+  for stage in ["calibration", "validation"] {
+    guard @json.parse(@fs.read_file(root + "/" + stage + ".json").text())
+      is Array(items) else {
+      fail("measurements")
+    }
+    assert_eq(items.length(), 8)
+    for item in items {
+      guard item
+        is {
+          "mem_available_kib_before": String(before),
+          "mem_available_kib_after": String(after),
+          ..
+        } else {
+        fail("memory")
+      }
+      minimum_available = minimum_available
+        .min(@string.parse_int64(before))
+        .min(@string.parse_int64(after))
+    }
+  }
+  assert_true(minimum_available >= 33554432L)
+  for (label, revision) in [("old", "24ef8d5f"), ("new", "b8d23b2f")] {
+    let paths = @fs.read_file(root + "/selectors/" + label + "-files.stdout").text()
+    for view in paths.split("\n").filter(p => !p.is_empty()) {
+      let path = view.to_owned()
+      let source = @shell.Cmd("git", ["-C", repo, "show", revision + ":" + path]).output(
+        max_output_bytes=1048576,
+      )
+      source.check()
+      assert_eq(
+        @fs.read_file(root + "/selectors/" + label + "/" + path).text(),
+        source.stdout(),
+      )
+    }
+  }
+  let summary : Json = {
+    "workload_choice_agreement": choices.length(),
+    "budget_order_choice_agreement": queries,
+    "both_match_validation_minimum_median": results.length(),
+    "minimum_sampled_mem_available_kib": minimum_available,
+    "versioned_selector_packages_unchanged": true,
+  }
+  @fs.write_file(out, summary.stringify(indent=2), create_mode=CreateNew)
+  println(summary.stringify(indent=2))
+}

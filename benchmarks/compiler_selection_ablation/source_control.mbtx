@@ -1,0 +1,86 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn capture(
+  out : String,
+  label : String,
+  program : String,
+  args : Array[String],
+) -> String {
+  @fs.write_file(
+    out + "/" + label + ".command.json",
+    Json([program, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let result = @shell.Cmd(program, args).output(max_output_bytes=33554432)
+  @fs.write_file(
+    out + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    out + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println("completed=" + label)
+  result.stdout()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, moon, stage] else {
+    fail("ROOT MOON defaults|backport")
+  }
+  let out = root + "/source-control"
+  if stage == "defaults" {
+    @fs.mkdir(out)
+  } else {
+    assert_eq(stage, "backport")
+  }
+  let sources = if stage == "defaults" { ["old", "new"] } else { ["old"] }
+  for version in sources {
+    let source = root + "/" + version + "-source"
+    ignore(
+      capture(out, version + "-" + stage + "-build", moon, [
+        "-C", source, "build", "--target", "native", "--release", "--deny-warn",
+        "--warn-list", "-79-20-29-25-92-14", "tests/reference_attention_cuda_source_probe",
+      ]),
+    )
+    let exe = source +
+      "/_build/native/release/build/tests/reference_attention_cuda_source_probe/reference_attention_cuda_source_probe.exe"
+    ignore(capture(out, version + "-" + stage, exe, ["flash-mixed"]))
+    if version == "new" {
+      ignore(capture(out, "new-explicit-kv64", exe, ["flash-mixed", "--kv64"]))
+    }
+  }
+  if stage == "defaults" {
+    assert_eq(
+      @fs.read_file(out + "/old-defaults.stdout").text(),
+      @fs.read_file(out + "/new-defaults.stdout").text(),
+    )
+    assert_true(
+      @fs.read_file(out + "/new-defaults.stdout")
+      .text()
+      .contains("kSmemSize == 81920"),
+    )
+  } else {
+    assert_eq(
+      @fs.read_file(out + "/old-backport.stdout").text(),
+      @fs.read_file(out + "/new-explicit-kv64.stdout").text(),
+    )
+  }
+  @fs.write_file(
+    out + "/" + stage + "-RESULT.txt",
+    "outcome=passed\nscope=generated-source-and-launch-equality-not-automatic-selection\n",
+    create_mode=CreateNew,
+  )
+}

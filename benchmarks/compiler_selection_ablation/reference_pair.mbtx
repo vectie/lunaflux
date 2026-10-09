@@ -1,0 +1,141 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn field(line : StringView, name : String) -> String raise {
+  guard line.split(" ").filter(s => s.has_prefix(name + "=")).to_array()
+    is [value] else {
+    fail(name)
+  }
+  value[name.length() + 1:].to_owned()
+}
+
+///|
+fn translated(output : String, reversed : Bool) -> String raise {
+  assert_true(
+    output.contains(
+      "outcome=passed scope=BF16-native-reference-qualification-not-serving",
+    ),
+  )
+  let oracles = output
+    .split("\n")
+    .filter(s => s.has_prefix("independent_scalar_referee_maxabs="))
+    .to_array()
+  assert_eq(oracles.length(), 2)
+  let error = oracles.map(s => {
+    @string.parse_double(field(s, "independent_scalar_referee_maxabs"))
+  })
+  assert_true(error.all(e => e >= 0.0 && e <= 0.003))
+  let trials = output
+    .split("\n")
+    .filter(s => s.has_prefix("backend="))
+    .to_array()
+  assert_eq(trials.length(), 5)
+  trials
+  .map(line => {
+    let old = field(line, if reversed { "reference_us" } else { "compiler_us" })
+    let fresh = field(
+      line,
+      if reversed {
+        "compiler_us"
+      } else {
+        "reference_us"
+      },
+    )
+    "tokens=" +
+    field(line, "queries") +
+    " rows=" +
+    field(line, "rows") +
+    " history=" +
+    field(line, "history") +
+    " trial=" +
+    field(line, "trial") +
+    " old_us=" +
+    old +
+    " new_us=" +
+    fresh +
+    " maxabs=" +
+    field(line, "maxabs") +
+    " oracle_maxabs=\{error[0].max(error[1])} bitwise=false"
+  })
+  .join("\n")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, probe, old, fresh, rows, queries, history, order] else {
+    fail("PROBE KV128 KV64 ROWS QUERIES HISTORY forward|reverse")
+  }
+  assert_true(order == "forward" || order == "reverse")
+  let reversed = order == "reverse"
+  // Bound the actual CUDA process, not only the Wasm orchestration parent.
+  let result = @shell.Cmd("systemd-run", [
+    "--user",
+    "--wait",
+    "--pipe",
+    "--collect",
+    "-p",
+    "MemoryMax=8G",
+    "-p",
+    "MemorySwapMax=0",
+    "-p",
+    "RuntimeMaxSec=120",
+    probe,
+    "flash-mixed",
+    if reversed {
+      old
+    } else {
+      fresh
+    },
+    rows,
+    queries,
+    history,
+    "1",
+    "15",
+    "--reference",
+    if reversed {
+      fresh
+    } else {
+      old
+    },
+    if reversed {
+      "49152"
+    } else {
+      "81920"
+    },
+    if reversed {
+      "81920"
+    } else {
+      "49152"
+    },
+  ]).output(max_output_bytes=1048576)
+  println(result.stdout())
+  result.check()
+  println(result.stderr())
+  println(translated(result.stdout(), reversed))
+}
+
+///|
+test "reversed timing labels retain candidate identity" {
+  let text = "independent_scalar_referee_maxabs=0.001\nindependent_scalar_referee_maxabs=0.002\n" +
+    [
+      for i in 0..<5 => {
+        "backend=flash-mixed rows=8 queries=64 history=512 trial=\{i} compiler_us=90 reference_us=100 maxabs=0.001"
+      }
+    ].join("\n") +
+    "\noutcome=passed scope=BF16-native-reference-qualification-not-serving\n"
+  assert_true(translated(text, true).contains("old_us=100 new_us=90"))
+  assert_true(translated(text, false).contains("old_us=90 new_us=100"))
+  try
+    translated(text.replace(old="maxabs=0.002", new="maxabs=nan"), false)
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("invalid oracle accepted")
+  }
+}

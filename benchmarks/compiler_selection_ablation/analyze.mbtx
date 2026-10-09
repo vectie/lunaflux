@@ -1,0 +1,184 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn records(value : Json) -> Array[Json] raise {
+  guard value is Array(items) else { fail("records") }
+  items
+}
+
+///|
+fn cell(value : Json) -> (String, Double, Double) raise {
+  guard value
+    is {
+      "label": String(label),
+      "metrics": {
+        "baseline_median_us": Number(old, ..),
+        "candidate_median_us": Number(fresh, ..),
+        ..
+      },
+      ..
+    } &&
+    old > 0.0 &&
+    fresh > 0.0 else {
+    fail("cell")
+  }
+  (label, old, fresh)
+}
+
+///|
+async fn choose(
+  binary : String,
+  old : Double,
+  fresh : Double,
+  budget : Int,
+  reversed : Bool,
+) -> (Int, Array[String]) {
+  let a = ["128", (old * 1000.0).to_int64().to_string(), "81920", "0"]
+  let b = ["64", (fresh * 1000.0).to_int64().to_string(), "49152", "0"]
+  let args = [
+    budget.to_string(),
+    "0",
+    ..if reversed {
+      b
+    } else {
+      a
+    },
+    ..if reversed {
+      a
+    } else {
+      b
+    },
+  ]
+  let result = @shell.Cmd(binary, args).output(max_output_bytes=1048576)
+  result.check()
+  (@string.parse_int(result.stdout().trim()), args)
+}
+
+///|
+async fn freeze(selectors : String, data : String, out : String) -> Unit {
+  let old_binary = selectors +
+    "/old/_build/native/release/build/cmd/select/select.exe"
+  let new_binary = selectors +
+    "/new/_build/native/release/build/cmd/select/select.exe"
+  let input = @fs.read_file(data)
+  let hashes = @shell.Cmd("shasum", ["-a", "256", old_binary, new_binary, data]).output()
+  hashes.check()
+  let observations = records(@json.parse(input.text()))
+  assert_eq(observations.length(), 8)
+  let choices : Array[Json] = []
+  for item in observations {
+    let (label, old, fresh) = cell(item)
+    let queries : Array[Json] = []
+    for budget in [49152, 65536, 81920, 101376] {
+      for reversed in [false, true] {
+        let (old_id, args) = choose(old_binary, old, fresh, budget, reversed)
+        let (new_id, _) = choose(new_binary, old, fresh, budget, reversed)
+        queries.push({
+          "local_budget": budget,
+          "reversed": reversed,
+          "old_id": old_id,
+          "new_id": new_id,
+          "args": args,
+        })
+      }
+    }
+    let (old_id, _) = choose(old_binary, old, fresh, 101376, false)
+    let (new_id, _) = choose(new_binary, old, fresh, 101376, false)
+    choices.push({
+      "label": label,
+      "calibration_kv128_us": old,
+      "calibration_kv64_us": fresh,
+      "old_id": old_id,
+      "new_id": new_id,
+      "queries": queries,
+    })
+  }
+  let result : Json = {
+    "scope": "same-candidates-same-calibration-real-versioned-selector",
+    "identities": hashes.stdout(),
+    "choices": choices,
+  }
+  @fs.write_file(out, result.stringify(indent=2), create_mode=CreateNew)
+  println("frozen=" + out)
+}
+
+///|
+fn time_for(id : Double, old : Double, fresh : Double) -> Double raise {
+  if id == 128.0 {
+    old
+  } else if id == 64.0 {
+    fresh
+  } else {
+    fail("candidate")
+  }
+}
+
+///|
+async fn evaluate(frozen : String, data : String, out : String) -> Unit {
+  guard @json.parse(@fs.read_file(frozen).text())
+    is { "choices": Array(choices), .. } else {
+    fail("frozen choices")
+  }
+  let validation = records(@json.parse(@fs.read_file(data).text()))
+  assert_eq(validation.length(), 8)
+  let results : Array[Json] = []
+  for choice in choices {
+    guard choice
+      is {
+        "label": String(label),
+        "old_id": Number(old_id, ..),
+        "new_id": Number(new_id, ..),
+        ..
+      } else {
+      fail("choice")
+    }
+    let matching = validation.filter(value => cell(value).0 == label)
+    guard matching is [value] else { fail("unique validation cell") }
+    let (_, old, fresh) = cell(value)
+    let old_selected = time_for(old_id, old, fresh)
+    let new_selected = time_for(new_id, old, fresh)
+    let best = old.min(fresh)
+    results.push({
+      "label": label,
+      "old_id": old_id,
+      "new_id": new_id,
+      "kv128_us": old,
+      "kv64_us": fresh,
+      "old_selected_us": old_selected,
+      "new_selected_us": new_selected,
+      "new_over_old_time_percent": (new_selected / old_selected - 1.0) * 100.0,
+      "old_regret_percent": (old_selected / best - 1.0) * 100.0,
+      "new_regret_percent": (new_selected / best - 1.0) * 100.0,
+      "selection_vs_fixed_kv128_reduction_percent": (1.0 - new_selected / old) *
+      100.0,
+    })
+  }
+  @fs.write_file(out, Json(results).stringify(indent=2), create_mode=CreateNew)
+  println(Json(results).stringify(indent=2))
+}
+
+///|
+async fn main {
+  match @env.args() {
+    [_, "freeze", selectors, data, out] => freeze(selectors, data, out)
+    [_, "evaluate", frozen, data, out] => evaluate(frozen, data, out)
+    _ =>
+      fail(
+        "freeze SELECTORS CALIBRATION NEW_OUT | evaluate FROZEN VALIDATION NEW_OUT",
+      )
+  }
+}
+
+///|
+test "selected identity cannot be replaced by validation winner" {
+  assert_eq(time_for(128.0, 100.0, 50.0), 100.0)
+  assert_eq(time_for(64.0, 100.0, 110.0), 110.0)
+}

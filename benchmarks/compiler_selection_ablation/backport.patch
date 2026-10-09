@@ -1,0 +1,15 @@
+--- a/kernels/luna_cuda_reference_attention/flashattention.mbt
++++ b/kernels/luna_cuda_reference_attention/flashattention.mbt
+@@ -19,2 +19,2 @@
+-    $|using LfReferenceTraits = Flash_fwd_kernel_traits<128,64,128,4,false,false,cutlass::bfloat16_t>;
+-    $|static_assert(LfReferenceTraits::kSmemSize == 81920);
++    $|using LfReferenceTraits = Flash_fwd_kernel_traits<128,64,64,4,false,false,cutlass::bfloat16_t>;
++    $|static_assert(LfReferenceTraits::kSmemSize == 49152);
+@@ -57,1 +57,1 @@
+-    $|   p.seqlen_k_rounded=(lengths[row]+127)/128*128; p.total_q=n;
++    $|   p.seqlen_k_rounded=(lengths[row]+63)/64*64; p.total_q=n;
+--- a/kernels/luna_cuda_reference_attention/plan.mbt
++++ b/kernels/luna_cuda_reference_attention/plan.mbt
+@@ -121,1 +121,1 @@
+-        81920,
++        49152,
