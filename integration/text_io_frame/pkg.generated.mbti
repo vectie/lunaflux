@@ -2,6 +2,7 @@
 package "vectie/lunaflux/integration/text_io_frame"
 
 import {
+  "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/kernels/text_io_execution_cuda_source",
 }
@@ -16,9 +17,12 @@ pub struct TextIoFrame {
 }
 pub fn TextIoFrame::close(Self) -> Unit raise
 pub fn TextIoFrame::logits(Self) -> @device.Allocation raise
-pub fn TextIoFrame::new(@text_io_execution_cuda_source.TextIoCudaSource) -> Self
+pub fn TextIoFrame::new(@text_io_execution_cuda_source.TextIoCudaSource, boundary? : @precision_ir.TextBoundary) -> Self
 pub fn TextIoFrame::prefix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn TextIoFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, token_ids~ : @device.Allocation, output_count~ : @device.Allocation, selected_rows~ : @device.Allocation, input_residual~ : @device.Allocation, output_residual~ : @device.Allocation, embedding~ : @device.Allocation, norm_weight~ : @device.Allocation, head_weight~ : @device.Allocation, sampled_tokens~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn TextIoFrame::prepare_egress(Self, @device.Context, @device.Module, counts~ : @device.Allocation, output_count~ : @device.Allocation, selected_rows~ : @device.Allocation, output_residual~ : @device.Allocation, norm_weight~ : @device.Allocation, head_weight~ : @device.Allocation, sampled_tokens~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn TextIoFrame::prepare_ingress(Self, @device.Module, counts~ : @device.Allocation, token_ids~ : @device.Allocation, embedding~ : @device.Allocation, input_residual~ : @device.Allocation) -> Unit raise
+pub fn TextIoFrame::prepare_interior(Self) -> Unit raise
 pub fn TextIoFrame::source_bytes(Self) -> Bytes
 pub fn TextIoFrame::suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn TextIoFrame::workspace_bytes(Self) -> Int64

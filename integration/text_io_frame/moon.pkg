@@ -1,6 +1,7 @@
 import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/kernels/text_io_execution_cuda_source" @source,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
   "moonbitlang/core/encoding/utf8",
 }
 

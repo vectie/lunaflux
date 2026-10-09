@@ -25,6 +25,7 @@ pub fn TextIoPrecision::new(
   maximum_output_rows~ : Int,
   normalization_epsilon~ : Double,
   maximum_workspace_bytes~ : Int64,
+  boundary? : TextBoundary = Complete,
 ) -> Self raise PrecisionPlanError {
   guard vocabulary_size > 0 &&
     hidden_width > 0 &&
@@ -57,8 +58,14 @@ pub fn TextIoPrecision::new(
     expert_checked_mul(vocabulary_size.to_int64(), hidden_width.to_int64()),
     2L,
   )
-  guard normalized_bytes <= maximum_workspace_bytes &&
-    logits_bytes <= maximum_workspace_bytes - normalized_bytes else {
+  guard maximum_workspace_bytes >= 0L &&
+    (
+      !boundary.has_egress() ||
+      (
+        normalized_bytes <= maximum_workspace_bytes &&
+        logits_bytes <= maximum_workspace_bytes - normalized_bytes
+      )
+    ) else {
     raise MemoryBudgetExceeded
   }
   {

@@ -11,6 +11,7 @@ priv enum State {
 /// its queue and closes it before releasing this frame, weights or residuals.
 pub struct TextIoFrame {
   priv source : @source.TextIoCudaSource
+  priv boundary : @precision.TextBoundary
   priv buffers : Array[@device.Allocation]
   priv functions : Array[@device.Function]
   priv before : Array[@device.OrderedKernelLaunch]
@@ -19,8 +20,19 @@ pub struct TextIoFrame {
 }
 
 ///|
-pub fn TextIoFrame::new(source : @source.TextIoCudaSource) -> Self {
-  { source, buffers: [], functions: [], before: [], after: [], state: Fresh, }
+pub fn TextIoFrame::new(
+  source : @source.TextIoCudaSource,
+  boundary? : @precision.TextBoundary = Complete,
+) -> Self {
+  {
+    source,
+    boundary,
+    buffers: [],
+    functions: [],
+    before: [],
+    after: [],
+    state: Fresh,
+  }
 }
 
 ///|
@@ -30,7 +42,7 @@ pub fn TextIoFrame::source_bytes(self : Self) -> Bytes {
 
 ///|
 pub fn TextIoFrame::workspace_bytes(self : Self) -> Int64 {
-  self.source.plan().workspace_bytes()
+  self.source.plan().boundary_workspace_bytes(self.boundary)
 }
 
 ///|
@@ -95,12 +107,14 @@ pub fn TextIoFrame::prepare(
   sampled_tokens~ : @device.Allocation,
   maximum_workspace_bytes~ : Int64,
 ) -> Unit raise {
-  guard self.state is Fresh && self.workspace_bytes() <= maximum_workspace_bytes else {
+  guard self.state is Fresh &&
+    self.boundary is Complete &&
+    self.workspace_bytes() <= maximum_workspace_bytes else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.state = Failed
   let plan = self.source.plan()
-  let (vocabulary, hidden, _, rows, outputs) = plan.geometry()
+  let (_, hidden, _, rows, outputs) = plan.geometry()
   // Validate borrowed spans before allocating the private workspace.
   let counts = region(counts, 20L, 4L)
   let token_ids = region(token_ids, rows.to_int64() * 4L, 4L)
@@ -112,33 +126,9 @@ pub fn TextIoFrame::prepare(
   let norm = region(norm_weight, hidden.to_int64() * 2L, 2L)
   let head = region(head_weight, plan.table_bytes(), 2L)
   let tokens = region(sampled_tokens, outputs.to_int64() * 4L, 4L)
-  self.buffers.push(context.allocate(plan.normalized_bytes()))
-  self.buffers.push(context.allocate(plan.logits_bytes()))
-  let normalized = region(self.buffers[0], plan.normalized_bytes(), 2L)
-  let logits = region(self.buffers[1], plan.logits_bytes(), 4L)
-  self.before.push(
-    self.launch(aot, 0, (plan.residual_bytes() / 2L + 255L) / 256L, 256, [
-      counts, token_ids, embedding, input,
-    ]),
-  )
-  self.after.push(
-    self.launch(aot, 1, outputs.to_int64(), 256, [
-      counts, output_count, selected, output, norm, normalized,
-    ]),
-  )
-  self.after.push(
-    self.launch(
-      aot,
-      2,
-      (outputs.to_int64() * vocabulary.to_int64() + 255L) / 256L,
-      256,
-      [output_count, normalized, head, logits],
-    ),
-  )
-  self.after.push(
-    self.launch(aot, 3, outputs.to_int64(), 1, [
-      counts, output_count, selected, logits, tokens,
-    ]),
+  self.bind_ingress(aot, counts, token_ids, embedding, input)
+  self.bind_egress(
+    context, aot, counts, output_count, selected, output, norm, head, tokens,
   )
   self.state = Prepared
 }
@@ -165,7 +155,7 @@ pub fn TextIoFrame::suffix(
 
 ///|
 pub fn TextIoFrame::logits(self : Self) -> @device.Allocation raise {
-  guard self.state is Prepared else {
+  guard self.state is Prepared && self.boundary.has_egress() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.buffers[1]

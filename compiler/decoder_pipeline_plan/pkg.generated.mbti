@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/decoder_pipeline_plan"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct DecoderPipelinePlan {
+  // private fields
+}
+pub fn DecoderPipelinePlan::partition(ArrayView[Int64], ArrayView[Int64], stage_overhead_bytes~ : Int64, ingress_bytes~ : Int64, egress_bytes~ : Int64) -> Self raise @precision_ir.PrecisionPlanError
+pub fn DecoderPipelinePlan::stage_bytes(Self) -> ArrayView[Int64]
+pub fn DecoderPipelinePlan::stages(Self) -> ArrayView[DecoderStageRange]
+
+pub struct DecoderStageRange {
+  // private fields
+}
+pub fn DecoderStageRange::layer_count(Self) -> Int
+pub fn DecoderStageRange::layer_range(Self) -> (Int, Int)
+pub fn DecoderStageRange::new(layer_count~ : Int, first_layer~ : Int, end_layer~ : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn DecoderStageRange::text_boundary(Self) -> @precision_ir.TextBoundary
+
+// Type aliases
+
+// Traits
