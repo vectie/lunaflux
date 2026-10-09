@@ -1,5 +1,8 @@
 ///|
-async fn exercise_glm_checkpoint_owner(with_dense_block~ : Bool) -> Unit {
+async fn exercise_glm_checkpoint_owner(
+  with_dense_block~ : Bool,
+  with_moe_block? : Bool = false,
+) -> Unit {
   @async.with_task_group() <| group => {
     let directory = @fs.realpath(@fs.tmpdir(prefix="lunaflux-glm-recurrent"))
     group.add_defer() <| () => {
@@ -37,15 +40,60 @@ async fn exercise_glm_checkpoint_owner(with_dense_block~ : Bool) -> Unit {
         ("post_attention_layernorm.weight", "BF16", "4096", 8192L),
       ])
     }
-    let weight_bytes = if with_dense_block { 579060440L } else { 276275820L }
-    let workspace_bytes = if with_dense_block { 148669440L } else { 146043392L }
-    let total_bytes = weight_bytes + workspace_bytes
+    if with_moe_block {
+      shapes.append([
+        ("mlp.gate.weight", "BF16", "288,4096", 2359296L),
+        ("mlp.gate.e_score_correction_bias", "F32", "288", 1152L),
+        ("hc_ffn_fn", "BF16", "24,16384", 786432L),
+        ("hc_ffn_base", "F32", "24", 96L),
+        ("hc_ffn_scale", "F32", "3", 12L),
+        ("post_attention_layernorm.weight", "BF16", "4096", 8192L),
+      ])
+      for
+        (projection, shape) in [
+          ("gate_proj", "2048,4096"),
+          ("up_proj", "2048,4096"),
+          ("down_proj", "4096,2048"),
+        ] {
+        shapes.push(
+          (
+            "mlp.shared_experts." + projection + ".weight",
+            "BF16",
+            shape,
+            16777216L,
+          ),
+        )
+      }
+      for expert in 0..<288 {
+        for
+          (projection, payload_shape, scale_shape) in [
+            ("gate_proj", "2048,2048", "2048,256"),
+            ("up_proj", "2048,2048", "2048,256"),
+            ("down_proj", "4096,1024", "4096,128"),
+          ] {
+          let name = "mlp.experts.\{expert}.\{projection}.weight"
+          shapes.append([
+            (name, "U8", payload_shape, 4194304L),
+            (name + "_scale", "F8_E4M3", scale_shape, 524288L),
+            (name + "_scale_2", "F32", "", 4L),
+          ])
+        }
+      }
+    }
+    let layer_index = if with_moe_block { 4 } else { 0 }
+    let weight_bytes = if with_moe_block {
+      4406629592L
+    } else if with_dense_block {
+      579060440L
+    } else {
+      276275820L
+    }
     let entries : Array[String] = []
     let mut offset = 0L
     for index, (name, dtype, shape, count) in shapes {
       let parent = if index < 15 { "self_attn." } else { "" }
       entries.push(
-        "\"model.language_model.layers.0.\{parent}\{name}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{offset},\{offset + count}]}",
+        "\"model.language_model.layers.\{layer_index}.\{parent}\{name}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{offset},\{offset + count}]}",
       )
       offset += count
     }
@@ -78,13 +126,13 @@ async fn exercise_glm_checkpoint_owner(with_dense_block~ : Bool) -> Unit {
     }
     let limits = @streaming.StreamingSafetensorsLimits::new(
       maximum_shards=1,
-      maximum_file_bytes=600000000L,
-      maximum_header_bytes=8192,
+      maximum_file_bytes=5000000000L,
+      maximum_header_bytes=1048576,
       maximum_tensors_per_shard=shapes.length(),
       maximum_total_tensors=shapes.length(),
       maximum_rank=3,
       maximum_name_bytes=256,
-      maximum_dtype_specs=2,
+      maximum_dtype_specs=4,
       authentication_chunk_bytes=65536,
       maximum_copy_requests=shapes.length(),
       maximum_copy_bytes=weight_bytes,
@@ -105,6 +153,8 @@ async fn exercise_glm_checkpoint_owner(with_dense_block~ : Bool) -> Unit {
         dtype_specs=[
           @streaming.StreamingSafetensorsDTypeSpec::bfloat16(),
           @streaming.StreamingSafetensorsDTypeSpec::float32(),
+          @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("U8"),
+          @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E4M3"),
         ],
         limits~,
       ),
@@ -112,14 +162,25 @@ async fn exercise_glm_checkpoint_owner(with_dense_block~ : Bool) -> Unit {
     let weights = @glm53_packed_expert_upload.bind_recurrent_weights(
       checkpoint,
       @glm53_spec.Glm53FlashSpec::official(),
-      layer_index=0,
+      layer_index~,
     )
     assert_eq(weights.length(), 15)
     for i, weight in weights {
       let (_, _, _, bytes) = shapes[i]
       assert_eq(weight.buffer_bytes(), bytes)
     }
-    let layer = if with_dense_block {
+    let layer = if with_moe_block {
+      @glm53_packed_expert_upload.GlmRecurrentLayer::with_moe_block(
+        @glm53_spec.Glm53FlashSpec::official(),
+        layer_index~,
+        maximum_rows=32,
+        maximum_sequences=16,
+        cache_slots=32,
+        maximum_state_bytes=134217728L,
+        maximum_expert_bytes=5000000000L,
+        accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
+      )
+    } else if with_dense_block {
       @glm53_packed_expert_upload.GlmRecurrentLayer::with_dense_block(
         @glm53_spec.Glm53FlashSpec::official(),
         layer_index=0,
@@ -138,9 +199,26 @@ async fn exercise_glm_checkpoint_owner(with_dense_block~ : Bool) -> Unit {
         maximum_state_bytes=134217728L,
       )
     }
-    assert_eq(layer.workspace_bytes(), workspace_bytes)
+    let workspace_bytes = layer.workspace_bytes()
+    if with_moe_block {
+      assert_eq(workspace_bytes, 152584580L)
+    } else {
+      assert_eq(
+        workspace_bytes,
+        if with_dense_block {
+          148669440L
+        } else {
+          146043392L
+        },
+      )
+    }
+    // Packed banks include their own sixteen-byte plane alignment.
+    let owned_weights = if with_moe_block { 4406639960L } else { weight_bytes }
+    let total_bytes = owned_weights + workspace_bytes
     assert_true(
-      @utf8.decode(layer.source_bytes()).contains("glm_recurrent_0_15("),
+      @utf8.decode(layer.source_bytes()).contains(
+        "glm_recurrent_\{layer_index}_15(",
+      ),
     )
     let baseline = live_resources()
     let context = @device.open_context(0)
@@ -159,7 +237,7 @@ async fn exercise_glm_checkpoint_owner(with_dense_block~ : Bool) -> Unit {
       checkpoint,
       root,
       maximum_device_bytes=total_bytes,
-      chunk_bytes=65533,
+      chunk_bytes=if with_moe_block { 1048573 } else { 65533 },
       limits~,
       counts=operand,
       sequence_offsets=operand,
@@ -179,7 +257,16 @@ async fn exercise_glm_checkpoint_owner(with_dense_block~ : Bool) -> Unit {
       }
     }
     assert_eq(end_allocations(), 0UL)
-    assert_eq(enqueues() - before, if with_dense_block { 832UL } else { 640UL })
+    assert_eq(
+      enqueues() - before,
+      if with_moe_block {
+        1088UL
+      } else if with_dense_block {
+        832UL
+      } else {
+        640UL
+      },
+    )
     assert_eq(blocking_syncs(), waits)
     // Active cancellation closes the executor before its borrowed weights.
     layer.submit(live_rows=1)
@@ -201,4 +288,9 @@ async test "GLM full attention sublayer binds nineteen weights and one twenty-la
 ///|
 async test "GLM full dense decoder binds twenty-six weights and one twenty-six-launch queue" {
   exercise_glm_checkpoint_owner(with_dense_block=true)
+}
+
+///|
+async test "GLM full recurrent MoE decoder streams all 288 packed experts into one queue" {
+  exercise_glm_checkpoint_owner(with_dense_block=false, with_moe_block=true)
 }

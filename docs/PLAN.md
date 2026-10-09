@@ -51,7 +51,12 @@ and a bounded small GPU full-chain oracle passes. The early dense decoder block
 now adds its second mHC envelope and separate-weight staged SwiGLU to that same
 queue: 26 launches, one completion, 26 checkpoint weights. Its small GPU oracle
 passes, with bitwise prefill/decode agreement and clean memory/race/sync checks.
-Next run this owner with real weights on GPU, compose recurrent MoE/DSA blocks,
+The recurrent MoE block now composes the same envelopes with automatic routing,
+all 288 packed NVFP4 experts and the BF16 shared expert in one 34-launch queue.
+The official-sized native checkpoint fixture streams all physical planes and
+executes 32 steps without measured step heap allocations or blocking waits.
+This is a native device test double, not a GPU checkpoint numerical test. Next
+execute the composed MoE layer on GPU with real weights, implement DSA blocks,
 and connect layer/worker execution.
 Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual

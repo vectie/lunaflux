@@ -56,6 +56,7 @@ pub fn GlmRecurrentLayer::source_bytes(Self) -> Bytes
 pub fn GlmRecurrentLayer::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
 pub fn GlmRecurrentLayer::with_dense_block(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise
 pub fn GlmRecurrentLayer::with_hyper_connection(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise
+pub fn GlmRecurrentLayer::with_moe_block(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
 pub fn GlmRecurrentLayer::workspace_bytes(Self) -> Int64
 
 // Type aliases

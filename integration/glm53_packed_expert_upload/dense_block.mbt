@@ -48,10 +48,12 @@ pub fn GlmRecurrentLayer::with_dense_block(
           symbol_prefix="glm_hyper_ffn_" + layer_index.to_string(),
         ),
       ),
-      mlp: @dense.DenseMlpFrame::new(
-        @dense_source.dense_mlp_source(
-          mlp,
-          symbol_prefix="glm_dense_ffn_" + layer_index.to_string(),
+      branch: Dense(
+        @dense.DenseMlpFrame::new(
+          @dense_source.dense_mlp_source(
+            mlp,
+            symbol_prefix="glm_dense_ffn_" + layer_index.to_string(),
+          ),
         ),
       ),
       input_bytes: maximum_rows.to_int64() *
@@ -80,11 +82,6 @@ fn bind_dense_ffn_weights(
       ("mlp.gate_proj.weight", intermediate, hidden),
       ("mlp.up_proj.weight", intermediate, hidden),
       ("mlp.down_proj.weight", hidden, intermediate),
-      (
-        "hc_ffn_fn",
-        spec.hyper_connection_streams() * (spec.hyper_connection_streams() + 2),
-        spec.hyper_connection_streams() * hidden,
-      ),
     ] {
     weights.push(
       checkpoint.bind_weight(
@@ -97,6 +94,29 @@ fn bind_dense_ffn_weights(
       ),
     )
   }
+  weights.append(bind_ffn_hyper_weights(checkpoint, spec, layer))
+  weights
+}
+
+///|
+fn bind_ffn_hyper_weights(
+  checkpoint : @precision_materialize.PackedCheckpoint,
+  spec : @glm53_spec.Glm53FlashSpec,
+  layer : Int,
+) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
+  let prefix = "model.language_model.layers.\{layer}."
+  let hidden = spec.hidden_size()
+  let streams = spec.hyper_connection_streams()
+  let weights = [
+    checkpoint.bind_weight(
+      representation=@precision_format.Representation::new(
+        format=Bf16,
+        rows=streams * (streams + 2),
+        columns=streams * hidden,
+      ),
+      payload_name=prefix + "hc_ffn_fn",
+    ),
+  ]
   for
     (name, format, width) in [
       (

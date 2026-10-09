@@ -15,6 +15,9 @@ import {
   "vectie/lunaflux/integration/hyper_connection_frame" @hyper,
   "vectie/lunaflux/kernels/dense_mlp_execution_cuda_source" @dense_source,
   "vectie/lunaflux/integration/dense_mlp_frame" @dense,
+  "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @expert_source,
+  "vectie/lunaflux/kernels/moe_routing_cuda_source" @router_source,
+  "vectie/lunaflux/kernels/luna_cuda_precision" @combine_source,
 }
 
 supported_targets = "native"

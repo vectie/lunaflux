@@ -10,6 +10,28 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Recurrent GLM MoE decoder composition now joins both mHC envelopes, KDA,
+automatic grouped routing, packed NVFP4 routed experts, BF16 shared expert and
+BF16 residual publication in one 34-launch queue. The generic MoE launch frame
+reuses existing binding functions instead of adding another queue/completion
+boundary. Its standalone collective-aware execution remains available for
+partitioned banks; the new complete local composition requires all experts.
+
+The official-sized sparse checkpoint regression streams all 288 experts' three
+packed projections, scale planes and global scales, plus router/shared/envelope
+weights. Aligned owned weights total 4,406,639,960 bytes; rows 32 / sequences 16 /
+slots 32 workspace is 152,584,580 bytes, excluding borrowed I/O/module/stream.
+Thirty-two native device-test-double steps execute 1,088 launches without
+measured token-step heap allocations or blocking waits, and active cancellation
+releases the complete layer. Installed layer-4 headers were checked directly.
+The affected release-mode native suite passes 62/62 tests, including existing
+dense, routing, precision and checkpoint-upload regressions.
+The warning-denied check remains blocked by 30 existing implicit-implementation
+promotion warnings in dependencies; ordinary native checking has no errors.
+This is executable composition and checkpoint binding, not actual checkpoint
+GPU numerical execution or whole-model performance. DSA, workers and two-host
+full-model execution remain unfinished; no TLS/signing/admission work was added.
+
 The GLM early dense decoder block now executes both mHC envelopes, KDA and
 dense SwiGLU in one 26-launch queue. Separate gate/up weights produce a shared
 BF16 product once, and down consumes it; no intermediate CPU handoff is added.

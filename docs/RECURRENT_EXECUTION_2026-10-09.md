@@ -287,3 +287,51 @@ layers or checkpoint-weight GPU inference. The dense projection schedule is
 ordered per-output SIMT, not tensor-core GEMM; no throughput improvement is
 claimed. Recurrent MoE/DSA composition, full-model execution and two-host workers
 remain the next real features. TLS/signing/admission expansion remains paused.
+
+## Recurrent MoE decoder composition
+
+The GLM `with_moe_block` constructor now composes both residual envelopes, KDA,
+automatic BF16-router/F32-correction grouped top-k, eight selected routed
+experts, the replicated BF16 shared expert, and final residual publication.
+The FFN owner selects an immutable dense or MoE branch; common residual-frame
+preparation/publication is shared rather than duplicated. Packed expert banks
+are streamed directly at startup and never expanded into BF16 banks.
+
+`MoeProgram::prepare_routed_frame` uses the exact same router/expert binding
+functions as its existing executor, without creating another queue. The full
+recurrent decoder queue therefore contains 20 attention stages, 3 FFN-envelope
+prefix stages, 10 routing/expert/combine stages and 1 residual publication:
+34 launches with one completion boundary. Frame functions and intermediates
+outlive the borrowing queue and are released after it. Local frame composition
+requires all experts; it never silently skips the collective needed by a
+partitioned bank. Existing collective-aware MoE execution is preserved.
+
+The installed layer-4 headers were read from shards 87 and 90. Router weight is
+BF16 `[288,4096]` and correction F32 `[288]`; shared gate/up are BF16
+`[2048,4096]`, down `[4096,2048]`. NVFP4 routed weights are U8 gate/up
+`[2048,2048]`, down `[4096,1024]`; F8_E4M3 scales are `[2048,256]` /
+`[4096,128]`, with scalar F32 global scales. FFN controls/norm match the existing
+four-stream contract. The numeric plan explicitly rounds routed F32 accumulation
+to BF16 before adding the BF16 shared branch (`Bf16RoutedThenSum`). Expert input
+remains BF16 with packed weight decoding; this does not claim equivalence to a
+reference engine's separately configured activation-quantized implementation.
+
+The full official-size sparse native fixture represents all 288 experts, three
+shared projections and 25 attention/router/FFN control parameters. File payload
+is 4,406,629,592 bytes; aligned owned weight allocations are 4,406,639,960 bytes.
+At rows 32 / sequences 16 / slots 32, workspace is 152,584,580 bytes; total owned
+device storage is 4,559,224,540 bytes, excluding borrowed I/O/module/stream. One
+fixed upload chunk is reused; no full host weight bank is constructed. Thirty-two
+native test-double steps execute 1,088 launches with zero measured step heap
+allocations or blocking waits. Active cancellation and repeated close release
+all owned banks, functions, intermediates and recurrent state. The previous
+19-weight attention and 26-weight dense decoder regressions remain intact.
+
+The generic complete-frame test executes 32 steps / 320 launches without step
+allocation/blocking waits, including noncontiguous complete expert ordering.
+A missing expert partition is rejected before allocating frame state. This turn
+changes execution composition, not numerical CUDA kernels or ABI implementations.
+The 34-stage checkpoint composition still requires actual GPU numerical tests;
+it is not a serving benchmark, a complete model worker or a two-host result.
+DSA, whole-model layers/worker dispatch and full three-model execution remain
+real unfinished features. No TLS/signing/admission expansion was performed.

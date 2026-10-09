@@ -17,7 +17,7 @@ pub struct GlmRecurrentLayer {
   priv program : @recurrent.RecurrentDeltaProgram
   priv weights : @upload.CheckpointDeviceWeights
   priv hyper : @hyper.HyperConnectionFrame?
-  priv ffn : GlmDenseFfn?
+  priv ffn : GlmFfn?
   priv mut status : RecurrentLayerState
 }
 
@@ -80,7 +80,11 @@ pub fn GlmRecurrentLayer::workspace_bytes(self : Self) -> Int64 {
 
 ///|
 pub fn GlmRecurrentLayer::device_bytes(self : Self) -> Int64 {
-  self.workspace_bytes() + self.weights.device_bytes()
+  let banks = match self.ffn {
+    None => 0L
+    Some(ffn) => ffn.owned_bank_bytes()
+  }
+  self.workspace_bytes() + self.weights.device_bytes() + banks
 }
 
 ///|
@@ -103,7 +107,13 @@ pub fn GlmRecurrentLayer::prepare(
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
 ) -> Unit raise {
-  guard self.status is Fresh && maximum_device_bytes >= self.workspace_bytes() else {
+  let banks = match self.ffn {
+    None => 0L
+    Some(ffn) => ffn.bank_bytes()
+  }
+  guard self.status is Fresh &&
+    maximum_device_bytes >= self.workspace_bytes() &&
+    banks <= maximum_device_bytes - self.workspace_bytes() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
@@ -125,9 +135,19 @@ pub fn GlmRecurrentLayer::prepare(
       bound.push(weight)
     }
   }
-  if self.ffn is Some(_) {
+  if self.ffn is Some(ffn) {
     for
-      weight in bind_dense_ffn_weights(checkpoint, self.spec, self.layer_index) {
+      weight in (match ffn.branch {
+        Dense(_) =>
+          bind_dense_ffn_weights(checkpoint, self.spec, self.layer_index)
+        Moe(_) => {
+          let weights = bind_router(checkpoint, layer_index=self.layer_index)
+          weights.append(
+            bind_ffn_hyper_weights(checkpoint, self.spec, self.layer_index),
+          )
+          weights
+        }
+      }) {
       bound.push(weight)
     }
   }
@@ -136,14 +156,25 @@ pub fn GlmRecurrentLayer::prepare(
     checkpoint,
     root,
     bound,
-    maximum_device_bytes=maximum_device_bytes - self.workspace_bytes(),
+    maximum_device_bytes=maximum_device_bytes - self.workspace_bytes() - banks,
     chunk_bytes~,
     limits~,
   )
   let attention_output = match self.ffn {
     None => output
     Some(ffn) => {
-      ffn.prepare(context, aot, self.weights, counts~, output~)
+      ffn.prepare(
+        context,
+        aot,
+        self.weights,
+        checkpoint,
+        root,
+        layer_index=self.layer_index,
+        chunk_bytes~,
+        limits~,
+        counts~,
+        output~,
+      )
       ffn.input()
     }
   }
