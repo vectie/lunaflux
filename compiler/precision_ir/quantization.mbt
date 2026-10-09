@@ -16,6 +16,7 @@ pub extend QuantizationPass with @debug.Debug::{to_repr}
 pub struct QuantizationPlan {
   priv operand : OperandPlan
   priv passes : ReadOnlyArray[QuantizationPass]
+  priv amax_floor : Double
 } derive(Debug, Eq)
 
 ///|
@@ -42,7 +43,28 @@ pub fn OperandPlan::quantization(
     passes.push(ScaleAmax)
   }
   passes.push(EncodePayload)
-  { operand: self, passes: ReadOnlyArray::from_array(passes), }
+  { operand: self, passes: ReadOnlyArray::from_array(passes), amax_floor: 0.0, }
+}
+
+///|
+/// A model numeric contract may floor amax before choosing the block scale.
+/// This is immutable policy, not a backend's hidden epsilon.
+pub fn QuantizationPlan::with_amax_floor(
+  self : Self,
+  floor : Double,
+) -> Self raise PrecisionPlanError {
+  if floor.is_nan() ||
+    floor.is_inf() ||
+    floor < 0.0 ||
+    floor > 3.4028234663852886e38 {
+    raise MissingAccuracyContract
+  }
+  { ..self, amax_floor: floor, }
+}
+
+///|
+pub fn QuantizationPlan::amax_floor(self : Self) -> Double {
+  self.amax_floor
 }
 
 ///|
@@ -73,5 +95,10 @@ pub fn QuantizationPlan::canonical(self : QuantizationPlan) -> String {
       }
     })
     .join(",")
-  "precision-quantization-v1|\{self.operand.canonical()}|\{passes}"
+  let identity = "precision-quantization-v1|\{self.operand.canonical()}|\{passes}"
+  if self.amax_floor == 0.0 {
+    identity
+  } else {
+    identity + "|amax-floor:\{self.amax_floor}"
+  }
 }

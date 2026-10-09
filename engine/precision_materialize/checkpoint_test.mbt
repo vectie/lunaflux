@@ -8,7 +8,7 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
     }
     let header = @utf8.encode(
       (
-        #|{"w":{"dtype":"U8","shape":[2,8],"data_offsets":[0,16]},"s":{"dtype":"F8_E4M3","shape":[2,1],"data_offsets":[16,18]},"g":{"dtype":"F32","shape":[],"data_offsets":[18,22]},"bf":{"dtype":"BF16","shape":[1,2],"data_offsets":[22,26]},"mx":{"dtype":"U8","shape":[2,16],"data_offsets":[26,58]},"ms":{"dtype":"U8","shape":[2,1],"data_offsets":[58,60]}}
+        #|{"w":{"dtype":"U8","shape":[2,8],"data_offsets":[0,16]},"s":{"dtype":"F8_E4M3","shape":[2,1],"data_offsets":[16,18]},"g":{"dtype":"F32","shape":[],"data_offsets":[18,22]},"bf":{"dtype":"BF16","shape":[1,2],"data_offsets":[22,26]},"mx":{"dtype":"I8","shape":[2,16],"data_offsets":[26,58]},"ms":{"dtype":"F8_E8M0","shape":[2,1],"data_offsets":[58,60]}}
       ),
     )
     let payload = FixedArray::make(60, b'\x21')
@@ -41,7 +41,7 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
       maximum_total_tensors=10,
       maximum_rank=3,
       maximum_name_bytes=128,
-      maximum_dtype_specs=4,
+      maximum_dtype_specs=6,
       authentication_chunk_bytes=32,
       maximum_copy_requests=10,
       maximum_copy_bytes=1024L,
@@ -61,6 +61,8 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
         @streaming.StreamingSafetensorsDTypeSpec::float32(),
         @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("U8"),
         @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E4M3"),
+        @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("I8"),
+        @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E8M0"),
       ],
       limits~,
     )

@@ -19,5 +19,5 @@ async fn main {
   let body = parts[1].split("LUNA_SOURCE_END").to_array()
   assert_eq(body.length(), 2)
   @fs.write_file(args[1], "#include <stddef.h>\n" + body[0].to_owned(), create_mode=CreateNew)
-  println("exported compact expert AOT sources: NVFP4, MXFP4, BF16")
+  println("exported compact expert AOT sources: NVFP4, MXFP4, BF16, dynamic FP8")
 }

@@ -68,6 +68,53 @@ pub fn packed_expert_mlp_source(
     .unwrap()
   let loads : Array[String] = []
   let addresses : Array[String] = []
+  let quantizers : Array[String] = []
+  let quantizer_symbols : Array[String] = []
+  let quantizer_launches : Array[(Int, Int)] = []
+  let mut input_type = "const __nv_bfloat16 *"
+  let mut activation_type = "const __nv_bfloat16 *"
+  let mut input_load = "__bfloat162float(input[row*\{hidden}ULL+column])"
+  let mut activation_load = "__bfloat162float(activation[job*\{intermediate}ULL+column])"
+  if plan.activation_quantization() is Some((input, product)) {
+    for i, stage in [input, product] {
+      let name = "\{symbol}_quantize_\{i}"
+      let quantizer = @luna_cuda_precision.quantize_bf16_rows_source(
+        stage,
+        row_multiplier=if i == 0 { 1 } else { selected },
+        symbol=name,
+      )
+      quantizers.push(quantizer.source())
+      quantizer_symbols.push(name)
+      let launch = quantizer.launch()
+      quantizer_launches.push(launch.dimensions())
+      let operand = stage.operand()
+      let consumer = @precision_ir.plan_operand(
+        role=Activation,
+        representation=operand.representation(),
+        placement=DecodeInOperandTile,
+        supported_placements=[DecodeInOperandTile],
+        accuracy=operand.accuracy(),
+        memory_ceiling=plan.total_bytes(),
+        tile_elements=32,
+      )
+      loads.push(
+        @luna_cuda_precision.tile_load_source(
+          consumer.refine_region(region),
+          symbol="\{symbol}_a\{i}",
+        ),
+      )
+      let offset = @precision_ir.packed_buffer_layout(operand.representation())
+        .scales_offset()
+        .unwrap()
+      if i == 0 {
+        input_type = "const unsigned char *"
+        input_load = "__bfloat162float(\{symbol}_a0(input,input+\{offset}ULL,(const float *)input,row,column))"
+      } else {
+        activation_type = "const unsigned char *"
+        activation_load = "__bfloat162float(\{symbol}_a1(activation,activation+\{offset}ULL,(const float *)activation,job,column))"
+      }
+    }
+  }
   for i, weight in plan.weights() {
     let refined = weight.refine_region(region)
     loads.push(
@@ -92,6 +139,28 @@ pub fn packed_expert_mlp_source(
   let gate_up = symbol + "_gate_up"
   let down = symbol + "_down"
   let combine = symbol + "_combine"
+  let route_before = plan.routing_placement() == BeforeDownInputRound
+  let routing_parameter = if route_before {
+    ", const float *selected_weights"
+  } else {
+    ""
+  }
+  let product = match plan.activation_rounding() {
+    Bf16Stages =>
+      "const __nv_bfloat16 activated=__float2bfloat16_rn(__fdiv_rn(g,__fadd_rn(1.0f,expf(-g)))); float product=__fmul_rn(__bfloat162float(activated),__bfloat162float(up));"
+    F32Product =>
+      "float product=__fmul_rn(__fdiv_rn(g,__fadd_rn(1.0f,expf(-g))),__bfloat162float(up));"
+  }
+  let apply_route = if route_before {
+    "product=__fmul_rn(product,selected_weights[job]);"
+  } else {
+    ""
+  }
+  let down_output = if route_before {
+    "__float2bfloat16_rn(sum)"
+  } else {
+    "__float2bfloat16_rn(__fmul_rn(__bfloat162float(__float2bfloat16_rn(sum)),selected_weights[job]))"
+  }
   let text = loads.join("\n") +
     (
       $|
@@ -99,7 +168,7 @@ pub fn packed_expert_mlp_source(
       $|  for (int delta=16;delta>0;delta>>=1) v=__fadd_rn(v,__shfl_down_sync(0xffffffffU,v,delta));
       $|  return v;
       $|}
-      $|extern "C" __global__ void \{gate_up}(const int *counts, const __nv_bfloat16 *input, const int *selected_indices, const int *expert_map, const unsigned char *bank, __nv_bfloat16 *activation) {
+      $|extern "C" __global__ void \{gate_up}(const int *counts, \{input_type}input, const int *selected_indices, const int *expert_map, const unsigned char *bank, __nv_bfloat16 *activation\{routing_parameter}) {
       $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{maximum_rows}) return;
       $|  const unsigned long long cell=((unsigned long long)blockIdx.x*blockDim.x+threadIdx.x)/32ULL;
       $|  const int lane=threadIdx.x&31; if(cell>=(unsigned long long)live_rows*\{selected}ULL*\{intermediate}ULL) return;
@@ -110,7 +179,7 @@ pub fn packed_expert_mlp_source(
       $|  \{addresses[1]}
       $|  float gate_sum=0.0f,up_sum=0.0f;
       $|  for(int column=lane;column<\{hidden};column+=32) {
-      $|    const float x=__bfloat162float(input[row*\{hidden}ULL+column]);
+      $|    const float x=\{input_load};
       $|    gate_sum=__fadd_rn(gate_sum,__fmul_rn(x,__bfloat162float(\{symbol}_w0(w0,s0,g0,out,column))));
       $|    up_sum=__fadd_rn(up_sum,__fmul_rn(x,__bfloat162float(\{symbol}_w1(w1,s1,g1,out,column))));
       $|  }
@@ -118,11 +187,12 @@ pub fn packed_expert_mlp_source(
       $|  if(lane==0) {
       $|    __nv_bfloat16 gate=__float2bfloat16_rn(gate_sum),up=__float2bfloat16_rn(up_sum); \{clamp}
       $|    const float g=__bfloat162float(gate);
-      $|    const __nv_bfloat16 activated=__float2bfloat16_rn(__fdiv_rn(g,__fadd_rn(1.0f,expf(-g))));
-      $|    activation[cell]=__float2bfloat16_rn(__fmul_rn(__bfloat162float(activated),__bfloat162float(up)));
+      $|    \{product}
+      $|    \{apply_route}
+      $|    activation[cell]=__float2bfloat16_rn(product);
       $|  }
       $|}
-      $|extern "C" __global__ void \{down}(const int *counts, const __nv_bfloat16 *activation, const int *selected_indices, const float *selected_weights, const int *expert_map, const unsigned char *bank, __nv_bfloat16 *weighted) {
+      $|extern "C" __global__ void \{down}(const int *counts, \{activation_type}activation, const int *selected_indices, const float *selected_weights, const int *expert_map, const unsigned char *bank, __nv_bfloat16 *weighted) {
       $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{maximum_rows}) return;
       $|  const unsigned long long cell=((unsigned long long)blockIdx.x*blockDim.x+threadIdx.x)/32ULL;
       $|  const int lane=threadIdx.x&31; if(cell>=(unsigned long long)live_rows*\{selected}ULL*\{hidden}ULL) return;
@@ -130,8 +200,8 @@ pub fn packed_expert_mlp_source(
       $|  const int expert=selected_indices[job]; const int local=(expert>=0&&expert<\{expert_count})?expert_map[expert]:-1;
       $|  if(local<0||local>=\{plan.local_experts().length()}) { if(lane==0) weighted[cell]=__float2bfloat16_rn(0.0f); return; }
       $|  \{addresses[2]}
-      $|  float sum=0.0f; for(int column=lane;column<\{intermediate};column+=32) sum=__fadd_rn(sum,__fmul_rn(__bfloat162float(activation[job*\{intermediate}ULL+column]),__bfloat162float(\{symbol}_w2(w2,s2,g2,out,column))));
-      $|  sum=\{symbol}_reduce(sum); if(lane==0) weighted[cell]=__float2bfloat16_rn(__fmul_rn(__bfloat162float(__float2bfloat16_rn(sum)),selected_weights[job]));
+      $|  float sum=0.0f; for(int column=lane;column<\{intermediate};column+=32) sum=__fadd_rn(sum,__fmul_rn(\{activation_load},__bfloat162float(\{symbol}_w2(w2,s2,g2,out,column))));
+      $|  sum=\{symbol}_reduce(sum); if(lane==0) weighted[cell]=\{down_output};
       $|}
       $|extern "C" __global__ void \{combine}(const int *counts, const int *selected_indices, const __nv_bfloat16 *weighted, float *output) {
       $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{maximum_rows}) return;
@@ -147,14 +217,30 @@ pub fn packed_expert_mlp_source(
       $|  output[cell]=sum;
       $|}
     )
-  {
-    plan,
-    source: @utf8.encode(text),
-    symbols: ReadOnlyArray::from_array([gate_up, down, combine]),
-    launches: ReadOnlyArray::from_array([
+  let symbols = if quantizers.is_empty() {
+    [gate_up, down, combine]
+  } else {
+    [quantizer_symbols[0], gate_up, quantizer_symbols[1], down, combine]
+  }
+  let launches = if quantizers.is_empty() {
+    [
       (grids[0].to_int(), 128),
       (grids[1].to_int(), 128),
       (grids[2].to_int(), 256),
-    ]),
+    ]
+  } else {
+    [
+      quantizer_launches[0],
+      (grids[0].to_int(), 128),
+      quantizer_launches[1],
+      (grids[1].to_int(), 128),
+      (grids[2].to_int(), 256),
+    ]
+  }
+  {
+    plan,
+    source: @utf8.encode(text + "\n" + quantizers.join("\n")),
+    symbols: ReadOnlyArray::from_array(symbols),
+    launches: ReadOnlyArray::from_array(launches),
   }
 }

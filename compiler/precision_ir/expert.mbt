@@ -1,4 +1,28 @@
 ///|
+pub(all) enum ExpertActivationRounding {
+  Bf16Stages
+  F32Product
+} derive(Debug, Eq)
+
+///|
+pub extend ExpertActivationRounding with Eq::{equal, not_equal}
+
+///|
+pub extend ExpertActivationRounding with @debug.Debug::{to_repr}
+
+///|
+pub(all) enum ExpertRoutingPlacement {
+  AfterDownOutputRound
+  BeforeDownInputRound
+} derive(Debug, Eq)
+
+///|
+pub extend ExpertRoutingPlacement with Eq::{equal, not_equal}
+
+///|
+pub extend ExpertRoutingPlacement with @debug.Debug::{to_repr}
+
+///|
 /// Immutable selected-expert compute plan. All weight operands are decoded at
 /// consumption; BF16 activation/product rounding is explicit. Rank-local
 /// contributions are combined in F32 so the same plan can feed an all-reduce.
@@ -12,6 +36,10 @@ pub struct ExpertMlpPrecision {
   priv hidden : Int
   priv intermediate : Int
   priv clamp : Double?
+  priv activation_rounding : ExpertActivationRounding
+  priv routing_placement : ExpertRoutingPlacement
+  priv activation_quantization : (QuantizationPlan, QuantizationPlan)?
+  priv quantized_bytes : (Int64, Int64)
   priv offsets : ReadOnlyArray[Int64]
   priv stride : Int64
   priv bank_bytes : Int64
@@ -38,6 +66,9 @@ pub fn ExpertMlpPrecision::new(
   selected_experts~ : Int,
   maximum_rows~ : Int,
   clamp? : Double,
+  activation_rounding? : ExpertActivationRounding = Bf16Stages,
+  routing_placement? : ExpertRoutingPlacement = AfterDownOutputRound,
+  activation_quantization? : (QuantizationPlan, QuantizationPlan),
   memory_ceiling~ : Int64,
 ) -> Self raise PrecisionPlanError {
   if memory_ceiling < 0L ||
@@ -104,6 +135,29 @@ pub fn ExpertMlpPrecision::new(
     2L,
   )
   let row_cells = expert_checked_mul(maximum_rows.to_int64(), hidden.to_int64())
+  let quantized_bytes = match activation_quantization {
+    None => (0L, 0L)
+    Some((input, product)) => {
+      if jobs > 2147483647L {
+        raise ArithmeticOverflow
+      }
+      let stages = [input, product]
+      let shapes = [(maximum_rows, hidden), (jobs.to_int(), intermediate)]
+      for i, stage in stages {
+        let operand = stage.operand()
+        if operand.role() != Activation ||
+          operand.placement() != QuantizeBeforeConsumer ||
+          operand.effect() != StepWrite ||
+          operand.representation().shape() != shapes[i] {
+          raise IllegalPlacement
+        }
+      }
+      (
+        packed_buffer_layout(input.operand().representation()).buffer_bytes(),
+        packed_buffer_layout(product.operand().representation()).buffer_bytes(),
+      )
+    }
+  }
   let sizes = [
     bank_bytes,
     intermediate_bytes,
@@ -113,6 +167,13 @@ pub fn ExpertMlpPrecision::new(
     expert_checked_mul(jobs, 8L),
     expert_checked_mul(expert_count.to_int64(), 4L),
     20L,
+    quantized_bytes.0,
+    quantized_bytes.1,
+    if activation_quantization is Some(_) {
+      4L
+    } else {
+      0L
+    },
   ]
   let mut total_bytes = 0L
   for size in sizes {
@@ -131,6 +192,10 @@ pub fn ExpertMlpPrecision::new(
     hidden,
     intermediate,
     clamp,
+    activation_rounding,
+    routing_placement,
+    activation_quantization,
+    quantized_bytes,
     offsets: ReadOnlyArray::from_array(offsets),
     stride,
     bank_bytes,
@@ -194,4 +259,32 @@ pub fn ExpertMlpPrecision::workspace_bytes(self : Self) -> (Int64, Int64) {
 ///|
 pub fn ExpertMlpPrecision::total_bytes(self : Self) -> Int64 {
   self.total_bytes
+}
+
+///|
+pub fn ExpertMlpPrecision::activation_rounding(
+  self : Self,
+) -> ExpertActivationRounding {
+  self.activation_rounding
+}
+
+///|
+pub fn ExpertMlpPrecision::routing_placement(
+  self : Self,
+) -> ExpertRoutingPlacement {
+  self.routing_placement
+}
+
+///|
+pub fn ExpertMlpPrecision::activation_quantization(
+  self : Self,
+) -> (QuantizationPlan, QuantizationPlan)? {
+  self.activation_quantization
+}
+
+///|
+pub fn ExpertMlpPrecision::quantized_workspace_bytes(
+  self : Self,
+) -> (Int64, Int64) {
+  self.quantized_bytes
 }

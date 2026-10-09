@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/device",
   "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/integration/packed_expert_mlp",
 }
 
 supported_targets = "native"

@@ -60,20 +60,40 @@ pub fn Conversion::equal(Self, Self) -> Bool
 pub fn Conversion::not_equal(Self, Self) -> Bool
 pub fn Conversion::to_repr(Self) -> @debug.Repr
 
+pub(all) enum ExpertActivationRounding {
+  Bf16Stages
+  F32Product
+} derive(Eq, @debug.Debug)
+pub fn ExpertActivationRounding::equal(Self, Self) -> Bool
+pub fn ExpertActivationRounding::not_equal(Self, Self) -> Bool
+pub fn ExpertActivationRounding::to_repr(Self) -> @debug.Repr
+
 pub struct ExpertMlpPrecision {
   // private fields
 }
+pub fn ExpertMlpPrecision::activation_quantization(Self) -> (QuantizationPlan, QuantizationPlan)?
+pub fn ExpertMlpPrecision::activation_rounding(Self) -> ExpertActivationRounding
 pub fn ExpertMlpPrecision::bank_bytes(Self) -> Int64
 pub fn ExpertMlpPrecision::clamp(Self) -> Double?
 pub fn ExpertMlpPrecision::expert_map(Self) -> ReadOnlyArray[Int]
 pub fn ExpertMlpPrecision::expert_stride(Self) -> Int64
 pub fn ExpertMlpPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn ExpertMlpPrecision::local_experts(Self) -> ReadOnlyArray[Int]
-pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
+pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, activation_rounding? : ExpertActivationRounding, routing_placement? : ExpertRoutingPlacement, activation_quantization? : (QuantizationPlan, QuantizationPlan), memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
+pub fn ExpertMlpPrecision::quantized_workspace_bytes(Self) -> (Int64, Int64)
+pub fn ExpertMlpPrecision::routing_placement(Self) -> ExpertRoutingPlacement
 pub fn ExpertMlpPrecision::total_bytes(Self) -> Int64
 pub fn ExpertMlpPrecision::weight_offsets(Self) -> ReadOnlyArray[Int64]
 pub fn ExpertMlpPrecision::weights(Self) -> ReadOnlyArray[OperandPlan]
 pub fn ExpertMlpPrecision::workspace_bytes(Self) -> (Int64, Int64)
+
+pub(all) enum ExpertRoutingPlacement {
+  AfterDownOutputRound
+  BeforeDownInputRound
+} derive(Eq, @debug.Debug)
+pub fn ExpertRoutingPlacement::equal(Self, Self) -> Bool
+pub fn ExpertRoutingPlacement::not_equal(Self, Self) -> Bool
+pub fn ExpertRoutingPlacement::to_repr(Self) -> @debug.Repr
 
 pub struct LinearPrecision {
   // private fields
@@ -164,6 +184,7 @@ pub fn QuantizationPass::to_repr(Self) -> @debug.Repr
 pub struct QuantizationPlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn QuantizationPlan::amax_floor(Self) -> Double
 pub fn QuantizationPlan::canonical(Self) -> String
 pub fn QuantizationPlan::effect(Self) -> NumericEffect
 pub fn QuantizationPlan::equal(Self, Self) -> Bool
@@ -171,6 +192,7 @@ pub fn QuantizationPlan::not_equal(Self, Self) -> Bool
 pub fn QuantizationPlan::operand(Self) -> OperandPlan
 pub fn QuantizationPlan::passes(Self) -> ReadOnlyArray[QuantizationPass]
 pub fn QuantizationPlan::to_repr(Self) -> @debug.Repr
+pub fn QuantizationPlan::with_amax_floor(Self, Double) -> Self raise PrecisionPlanError
 
 pub(all) enum ScratchLifetime {
   Sequential

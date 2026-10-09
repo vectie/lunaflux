@@ -13,7 +13,7 @@ fn region(
 }
 
 ///|
-/// Prepare the real three-stage expert program once at startup. Functions are
+/// Prepare the expert program once at startup. Functions are
 /// loaded from the generated AOT module in source.symbols order. All buffers
 /// and functions are borrowed, and must outlive the ordered executor.
 ///
@@ -33,8 +33,11 @@ pub fn bind(
   activation~ : @device.Allocation,
   weighted~ : @device.Allocation,
   output~ : @device.Allocation,
+  quantized_input? : @device.Allocation,
+  quantized_activation? : @device.Allocation,
+  quantization_error? : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
-  guard functions.length() == 3 else {
+  guard functions.length() == source.symbols().length() else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
   let p = source.plan()
@@ -51,11 +54,36 @@ pub fn bind(
   let a = region(activation, activation_bytes, 2L)
   let b = region(weighted, weighted_bytes, 2L)
   let y = region(output, cells * 4L, 4L)
-  let arguments = [
-    [c, x, ix, em, w, a],
-    [c, a, ix, sw, em, w, b],
-    [c, ix, b, y],
-  ]
+  let before = p.routing_placement() == BeforeDownInputRound
+  let gate = [c, x, ix, em, w, a]
+  if before {
+    gate.push(sw)
+  }
+  let arguments = [gate, [c, a, ix, sw, em, w, b], [c, ix, b, y]]
+  let arguments = if p.activation_quantization() is Some(_) {
+    guard quantized_input is Some(qx) &&
+      quantized_activation is Some(qa) &&
+      quantization_error is Some(error) else {
+      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    }
+    let bytes = p.quantized_workspace_bytes()
+    let qx = region(qx, bytes.0, 1L)
+    let qa = region(qa, bytes.1, 1L)
+    let error = region(error, 4L, 4L)
+    let gate = [c, qx, ix, em, w, a]
+    if before {
+      gate.push(sw)
+    }
+    [
+      [c, x, qx, error],
+      gate,
+      [c, a, qa, error],
+      [c, qa, ix, sw, em, w, b],
+      arguments[2],
+    ]
+  } else {
+    arguments
+  }
   let launches = []
   for i, launch in source.launches() {
     launches.push(

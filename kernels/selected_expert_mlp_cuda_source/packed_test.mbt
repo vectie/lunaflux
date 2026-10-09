@@ -50,6 +50,21 @@ test "export compact expert execution fixtures" {
         "static constexpr size_t \{name}_offsets[3]={\{offsets[0]}ULL,\{offsets[1]}ULL,\{offsets[2]}ULL};",
       )
     }
+    let plan = dynamic_plan()
+    let source = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+      plan,
+      symbol="ds",
+    )
+    println(@utf8.decode(source.source_bytes()))
+    let offsets = plan.weight_offsets()
+    let sizes = plan.quantized_workspace_bytes()
+    println("static constexpr size_t ds_stride=\{plan.expert_stride()}ULL;")
+    println(
+      "static constexpr size_t ds_offsets[3]={\{offsets[0]}ULL,\{offsets[1]}ULL,\{offsets[2]}ULL};",
+    )
+    println(
+      "static constexpr size_t ds_quantized_bytes[2]={\{sizes.0}ULL,\{sizes.1}ULL};",
+    )
     println("LUNA_SOURCE_END")
   }
 }

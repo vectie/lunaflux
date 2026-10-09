@@ -64,12 +64,13 @@ fn PackedCheckpoint::checkpoint_plane(
   tag : String,
   shape : ArrayView[Int64],
   bytes : Int64,
+  byte_alias? : String,
 ) -> CheckpointLocation raise PackedCheckpointError {
   guard self.locations.get(name) is Some(location) else {
     raise MissingTensor(name)
   }
   let tensor = location.metadata
-  if tensor.dtype().tag() != tag ||
+  if (tensor.dtype().tag() != tag && byte_alias != Some(tensor.dtype().tag())) ||
     tensor.shape() != ReadOnlyArray::from_array(shape) ||
     tensor.byte_count() != bytes {
     raise TensorStorageMismatch(name)
@@ -110,6 +111,7 @@ pub fn PackedCheckpoint::bind_weight(
     payload_tag,
     [rows.to_int64(), payload_columns],
     rep.payload_bytes(),
+    byte_alias?=if rep.element() == E2M1 { Some("I8") } else { None },
   )
   let (scale_rows, scale_columns) = rep.scale_shape()
   let scales = match scales_name {
@@ -127,6 +129,11 @@ pub fn PackedCheckpoint::bind_weight(
           tag,
           [scale_rows.to_int64(), scale_columns.to_int64()],
           rep.scale_bytes(),
+          byte_alias?=if rep.scale_element() == Ue8M0 {
+            Some("F8_E8M0")
+          } else {
+            None
+          },
         ),
       )
     }

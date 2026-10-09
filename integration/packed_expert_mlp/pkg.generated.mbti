@@ -2,12 +2,18 @@
 package "vectie/lunaflux/integration/packed_expert_mlp"
 
 import {
+  "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize",
   "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
-pub fn bind(@selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, ArrayView[@device.Function], counts~ : @device.Allocation, input~ : @device.Allocation, selected_indices~ : @device.Allocation, selected_weights~ : @device.Allocation, expert_map~ : @device.Allocation, bank~ : @device.Allocation, activation~ : @device.Allocation, weighted~ : @device.Allocation, output~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn bind(@selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, ArrayView[@device.Function], counts~ : @device.Allocation, input~ : @device.Allocation, selected_indices~ : @device.Allocation, selected_weights~ : @device.Allocation, expert_map~ : @device.Allocation, bank~ : @device.Allocation, activation~ : @device.Allocation, weighted~ : @device.Allocation, output~ : @device.Allocation, quantized_input? : @device.Allocation, quantized_activation? : @device.Allocation, quantization_error? : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+
+pub fn upload_bank(@device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @precision_ir.ExpertMlpPrecision, @device.Allocation, weights~ : ArrayView[@precision_materialize.PackedCheckpointWeight], chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 
 // Errors
 

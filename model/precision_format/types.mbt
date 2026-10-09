@@ -153,11 +153,16 @@ pub fn Representation::new(
       format == Fp16 ||
       format == F32 ||
       format == NvFp4 ||
-      format == MxFp4 ||
-      format == MxFp8E4M3 ||
-      format == MxFp8E5M2
+      format == MxFp4
     ) &&
     grouping != default_grouping {
+    raise InvalidGrouping
+  }
+  // UE8M0 specifies the scale encoding, not a universal block geometry.
+  // Activation and matrix weight grids are supplied by the model's numeric
+  // contract; the default remains 1x32.
+  if (format == MxFp8E4M3 || format == MxFp8E5M2) &&
+    !(grouping is Block(rows=_, columns=_)) {
     raise InvalidGrouping
   }
   if scale_element != Absent && grouping == Absent {

@@ -1,6 +1,10 @@
 import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @source,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/engine/precision_materialize" @materialize,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
 }
 
 supported_targets = "native"

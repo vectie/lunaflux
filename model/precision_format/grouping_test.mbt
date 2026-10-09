@@ -36,3 +36,23 @@ test "fixed formats reject conflicting scale grouping and large sizes do not wra
     _ => fail("overflow accepted")
   }
 }
+
+///|
+test "UE8M0 FP8 block geometry belongs to the numeric contract" {
+  let activation = @precision_format.Representation::new(
+    format=MxFp8E4M3,
+    rows=3,
+    columns=257,
+    grouping=Block(rows=1, columns=128),
+  )
+  assert_eq(activation.scale_shape(), (3, 3))
+  assert_eq(activation.scale_index(2, 256), 8L)
+  let weight = @precision_format.Representation::new(
+    format=MxFp8E4M3,
+    rows=129,
+    columns=257,
+    grouping=Block(rows=128, columns=128),
+  )
+  assert_eq(weight.scale_shape(), (2, 3))
+  assert_eq(weight.scale_index(128, 256), 5L)
+}
