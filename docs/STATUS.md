@@ -10,6 +10,24 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Complete sparse decoder composition is now implemented: the generic immutable
+decoder plan adds output projection and a residual-stream envelope to retained
+sparse attention. `IndexedSparseDecoderFrame` binds twenty-three launches;
+`GlmSparseLayer` appends the existing routed/shared FFN and its second envelope
+in one thirty-seven-launch executor. Recurrent and sparse layers share FFN
+construction, routing and streamed expert-bank upload rather than maintaining
+two implementations. The Flash adapter binds learned output projection and
+pool APE at their actual BF16 shapes. This is feature wiring, not a claim of
+full-model serving, efficient kernels or checkpoint numerical equivalence.
+The affected release-mode native suite passes 62/62. A small generic block
+fixture and an official-shape sparse checkpoint fixture each execute 32 steps /
+1,184 launches without measured hot heap allocations or blocking waits, then
+cancel and release resources. The latter uses a native device test double and
+zero-filled sparse checkpoint files, not real GPU checkpoint arithmetic.
+Ordinary native check, format check and API generation pass; warning-denied
+checking is still blocked by existing unrelated dependency warnings. No GPU
+workloads or deployment-hardening changes were performed for this composition.
+
 Hidden-to-projected sparse execution now has a model-neutral immutable precision
 plan, AOT source composition and startup-bound frame. Eight projections, two
 low-rank RMSNorm stages, affine index-key LayerNorm and packed-KV splitting feed
@@ -26,8 +44,9 @@ twelve exact checkpoint weights, including rank-one index LayerNorm scale/bias;
 one query's projection frame is 181,056 bytes, weights 115,610,112 bytes.
 These are component features/reference schedules, not a real-checkpoint or
 whole-model throughput result. Index LayerNorm epsilon is explicit rather than
-guessed from the unrelated low-rank RMSNorm or DeepSeek source. Full DSA block,
-checkpoint numerics, efficient schedules and model worker execution remain.
+guessed from the unrelated low-rank RMSNorm or DeepSeek source. DSA block
+composition is now present; checkpoint numerics, efficient schedules and model
+worker execution remain.
 
 Request-owned projected sparse history now retains index keys, pool gates and
 attention K/V between prefill chunks and decode. Its immutable storage plan

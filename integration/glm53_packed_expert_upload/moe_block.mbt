@@ -24,6 +24,34 @@ pub fn GlmRecurrentLayer::with_moe_block(
     cache_slots~,
     maximum_state_bytes~,
   )
+  {
+    spec,
+    layer_index,
+    program: branch.program,
+    weights: branch.weights,
+    hyper: branch.hyper,
+    ffn: Some(
+      make_moe_ffn(
+        spec, layer_index, maximum_rows, maximum_expert_bytes, accuracy,
+      ),
+    ),
+    status: Fresh,
+  }
+}
+
+///|
+/// Shared model-level FFN construction for recurrent and sparse blocks. The
+/// attention family does not alter routing, expert arithmetic or ownership.
+fn make_moe_ffn(
+  spec : @glm53_spec.Glm53FlashSpec,
+  layer_index : Int,
+  maximum_rows : Int,
+  maximum_expert_bytes : Int64,
+  accuracy : @precision_ir.Accuracy,
+) -> GlmFfn raise {
+  guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
+    raise @precision_ir.PrecisionPlanError::IllegalPlacement
+  }
   let routed = expert_compute_plan(
     layer_index~,
     expert_indices=Array::makei(spec.routed_expert_count(), i => i),
@@ -80,32 +108,24 @@ pub fn GlmRecurrentLayer::with_moe_block(
     mix_law=RoundedBf16ControlsAndProducts,
   )
   {
-    spec,
-    layer_index,
-    program: branch.program,
-    weights: branch.weights,
-    hyper: branch.hyper,
-    ffn: Some({
-      envelope: @hyper.HyperConnectionFrame::new(
-        @hyper_source.hyper_connection_source(
-          envelope,
-          symbol_prefix="glm_hyper_ffn_" + layer_index.to_string(),
-        ),
+    envelope: @hyper.HyperConnectionFrame::new(
+      @hyper_source.hyper_connection_source(
+        envelope,
+        symbol_prefix="glm_hyper_ffn_" + layer_index.to_string(),
       ),
-      branch: Moe({
-        routed,
-        shared,
-        program,
-        source: program.source_bytes(),
-        banks: [],
-      }),
-      input_bytes: maximum_rows.to_int64() *
-      spec.hyper_connection_streams().to_int64() *
-      spec.hidden_size().to_int64() *
-      2L,
-      input: None,
-      launches: [],
+    ),
+    branch: Moe({
+      routed,
+      shared,
+      program,
+      source: program.source_bytes(),
+      banks: [],
     }),
-    status: Fresh,
+    input_bytes: maximum_rows.to_int64() *
+    spec.hyper_connection_streams().to_int64() *
+    spec.hidden_size().to_int64() *
+    2L,
+    input: None,
+    launches: [],
   }
 }

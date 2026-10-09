@@ -18,5 +18,12 @@ has low-rank RMSNorm epsilon 1e-5 but does not declare a separate index LayerNor
 epsilon; this adapter does not silently borrow DeepSeek-v3.2's epsilon.
 The current generic implementation uses BF16 index projection intermediates.
 It does not claim equivalence to a quantized FP8 index cache or complete GLM
-checkpoint numerics. Whole DSA block, checkpoint GPU execution and model worker
-composition remain separate feature work.
+checkpoint numerics.
+
+`bind_flash_sparse_output_weights` binds output projection `[4096,16384]` and
+learned pool APE `[4,128]`, preserving BF16 and tensor rank. Together these add
+134,218,752 bytes, independently of history and intermediates. The complete
+checkpoint-backed DSA block owner is `GlmSparseLayer` in
+`integration/glm53_packed_expert_upload`; it reuses the same mHC/FFN and
+streamed expert-bank implementation as recurrent blocks. Checkpoint GPU
+numerical execution and whole-model worker composition remain unfinished.

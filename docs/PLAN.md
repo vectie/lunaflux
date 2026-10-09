@@ -56,7 +56,7 @@ all 288 packed NVFP4 experts and the BF16 shared expert in one 34-launch queue.
 The official-sized native checkpoint fixture streams all physical planes and
 executes 32 steps without measured step heap allocations or blocking waits.
 This is a native device test double, not a GPU checkpoint numerical test. Next
-execute the composed MoE layer on GPU with real weights, implement DSA blocks,
+execute the composed MoE layer on GPU with real weights, finish DSA numerics,
 and connect layer/worker execution.
 Projected sparse attention now has a generic immutable precision plan and one
 prepared pooling/index/attention launch frame. Query capacity is independent of
@@ -77,9 +77,14 @@ precision layer owns dimensions/rounds/budgets; the GLM Flash adapter binds the
 twelve exact checkpoint parameters and selects its zero-rotary geometry. Small
 GPU tests cover all thirteen intermediate buffers and the complete projected
 history/attention chain. This does not yet execute a real GLM checkpoint or its
-whole DSA block: output projection, mHC/FFN composition, model-specific index
-numerics and worker scheduling remain. Do not insert transport tasks ahead of
-those actual feature integrations.
+whole-model worker. Output projection and mHC/FFN composition now exist:
+`IndexedSparseDecoderPrecision` computes the complete attention envelope and
+intermediate budget; its prepared frame contributes twenty-three launches.
+`GlmSparseLayer` adds the shared routed/shared FFN implementation and second
+envelope in one thirty-seven-launch queue. It binds learned output and pool APE
+weights instead of supplying synthetic values. Model-specific index numerics,
+real-checkpoint GPU validation and whole-model/worker scheduling remain. Do not
+insert transport tasks ahead of those actual feature integrations.
 Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual
 implementation tasks, not transport-hardening prerequisites.

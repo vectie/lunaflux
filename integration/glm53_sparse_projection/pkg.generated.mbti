@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn bind_flash_sparse_output_weights(@precision_materialize.PackedCheckpoint, @glm53_spec.Glm53FlashSpec, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn bind_flash_sparse_projection_weights(@precision_materialize.PackedCheckpoint, @glm53_spec.Glm53FlashSpec, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn flash_sparse_projection_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_queries~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_attention_workspace_bytes~ : Int64, maximum_projection_workspace_bytes~ : Int64) -> @precision_ir.IndexedSparseProjectionPrecision raise

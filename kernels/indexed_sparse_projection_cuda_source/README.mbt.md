@@ -17,5 +17,11 @@ and binds all operands once. Its retained-attention composition executes reserve
 the twelve projection stages, append/publication and pool/index/attention as
 one eighteen-launch caller queue. It introduces no new completion boundary.
 The queue closes before attention/history and then projection owners. Hidden,
-counts and checkpoint allocations remain caller-owned. This is a component,
-not yet the whole GLM DSA block or model worker.
+counts and checkpoint allocations remain caller-owned.
+
+`IndexedSparseDecoderCudaSource` lowers the composed pure decoder plan by
+reusing these projections, retained-history and attention sources, mHC source
+and the existing BF16 output projection. It adds no new numerical arithmetic
+or device strategy to the model adapter. The complete model block may append
+an FFN envelope/program without adding a second queue. This is executable
+component composition, not a tuned whole-model worker.

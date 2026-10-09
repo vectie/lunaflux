@@ -55,3 +55,37 @@ pub fn bind_flash_sparse_projection_weights(
     }
   })
 }
+
+///|
+/// Output projection and learned pool APE are retained in their stored shape.
+/// Returned order is output weight then pool APE, following the twelve input
+/// projection operands in the complete block's binding list.
+pub fn bind_flash_sparse_output_weights(
+  checkpoint : @checkpoint.PackedCheckpoint,
+  spec : @spec.Glm53FlashSpec,
+  layer_index~ : Int,
+) -> Array[@checkpoint.PackedCheckpointWeight] raise {
+  guard spec.attention_kind(layer_index) is DeepSeekSparseAttention &&
+    spec.qk_rope_head_dimension() == 0 else {
+    raise @precision.PrecisionPlanError::IllegalPlacement
+  }
+  let prefix = "model.language_model.layers.\{layer_index}.self_attn."
+  [
+    checkpoint.bind_weight(
+      representation=@format.Representation::new(
+        format=Bf16,
+        rows=spec.hidden_size(),
+        columns=spec.attention_head_count() * spec.value_head_dimension(),
+      ),
+      payload_name=prefix + "o_proj.weight",
+    ),
+    checkpoint.bind_weight(
+      representation=@format.Representation::new(
+        format=Bf16,
+        rows=spec.index_kpool(),
+        columns=spec.index_head_dimension(),
+      ),
+      payload_name=prefix + "indexer.index_kpool_compress_ape",
+    ),
+  ]
+}

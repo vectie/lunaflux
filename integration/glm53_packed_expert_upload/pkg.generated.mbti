@@ -59,6 +59,20 @@ pub fn GlmRecurrentLayer::with_hyper_connection(@glm53_spec.Glm53FlashSpec, laye
 pub fn GlmRecurrentLayer::with_moe_block(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
 pub fn GlmRecurrentLayer::workspace_bytes(Self) -> Int64
 
+pub struct GlmSparseLayer {
+  // private fields
+}
+pub fn GlmSparseLayer::append_descriptor(Self) -> @device.Allocation raise @device.DeviceError
+pub fn GlmSparseLayer::close(Self) -> Unit raise @device.DeviceError
+pub fn GlmSparseLayer::device_bytes(Self) -> Int64
+pub fn GlmSparseLayer::new(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_queries~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
+pub fn GlmSparseLayer::poll(Self) -> Bool raise @device.DeviceError
+pub fn GlmSparseLayer::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
+pub fn GlmSparseLayer::source_bytes(Self) -> Bytes
+pub fn GlmSparseLayer::state_bytes(Self) -> Int64
+pub fn GlmSparseLayer::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
+pub fn GlmSparseLayer::workspace_bytes(Self) -> Int64
+
 // Type aliases
 
 // Traits

@@ -17,5 +17,17 @@ prepare failures remain explicitly closeable.
 This rope-free numerical chain does not implicitly implement other models'
 rotary, FP8 index caches or index transforms. The GLM Flash adapter lives in
 `integration/glm53_sparse_projection`; model names do not enter the precision
-plan or CUDA renderer. A full decoder must still add output projection, mHC/FFN
-and model worker semantics.
+plan or CUDA renderer.
+
+`IndexedSparseDecoderFrame` composes the residual-stream envelope, the eighteen
+sparse stages and BF16 output projection. Its twenty-three launches are borrowed
+into the same caller queue as a following FFN. The immutable decoder precision
+plan accounts for the expanded attention output and envelope workspace as well
+as projection/attention scratch; persistent history is budgeted separately.
+Projection weights, output weight, pool APE and four envelope operands remain
+caller-owned. Close the caller queue before the frame. The device append-error
+descriptor is exposed for worker output-delivery error propagation.
+
+The GLM adapter adds its second mHC envelope and routed/shared FFN to make a
+thirty-seven-launch block. Whole-model worker dispatch and real-checkpoint GPU
+numerical execution are not established by this component composition.

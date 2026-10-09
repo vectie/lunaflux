@@ -2,6 +2,7 @@
 async fn exercise_glm_checkpoint_owner(
   with_dense_block~ : Bool,
   with_moe_block? : Bool = false,
+  with_sparse_block? : Bool = false,
 ) -> Unit {
   @async.with_task_group() <| group => {
     let directory = @fs.realpath(@fs.tmpdir(prefix="lunaflux-glm-recurrent"))
@@ -29,6 +30,29 @@ async fn exercise_glm_checkpoint_owner(
       ("hc_attn_scale", "F32", "3", 12L),
       ("input_layernorm.weight", "BF16", "4096", 8192L),
     ]
+    if with_sparse_block {
+      shapes.clear()
+      shapes.append([
+        ("q_a_proj.weight", "BF16", "1536,4096", 12582912L),
+        ("q_a_layernorm.weight", "BF16", "1536", 3072L),
+        ("q_b_proj.weight", "BF16", "16384,1536", 50331648L),
+        ("kv_a_proj_with_mqa.weight", "BF16", "512,4096", 4194304L),
+        ("kv_a_layernorm.weight", "BF16", "512", 1024L),
+        ("kv_b_proj.weight", "BF16", "32768,512", 33554432L),
+        ("indexer.wq_b.weight", "BF16", "4096,1536", 12582912L),
+        ("indexer.wk.weight", "BF16", "128,4096", 1048576L),
+        ("indexer.k_norm.weight", "BF16", "128", 256L),
+        ("indexer.k_norm.bias", "BF16", "128", 256L),
+        ("indexer.weights_proj.weight", "BF16", "32,4096", 262144L),
+        ("indexer.index_kpool_compress_gate", "BF16", "128,4096", 1048576L),
+        ("o_proj.weight", "BF16", "4096,16384", 134217728L),
+        ("indexer.index_kpool_compress_ape", "BF16", "4,128", 1024L),
+        ("hc_attn_fn", "BF16", "24,16384", 786432L),
+        ("hc_attn_base", "F32", "24", 96L),
+        ("hc_attn_scale", "F32", "3", 12L),
+        ("input_layernorm.weight", "BF16", "4096", 8192L),
+      ])
+    }
     if with_dense_block {
       shapes.append([
         ("mlp.gate_proj.weight", "BF16", "12288,4096", 100663296L),
@@ -80,8 +104,16 @@ async fn exercise_glm_checkpoint_owner(
         }
       }
     }
-    let layer_index = if with_moe_block { 4 } else { 0 }
-    let weight_bytes = if with_moe_block {
+    let layer_index = if with_sparse_block {
+      3
+    } else if with_moe_block {
+      4
+    } else {
+      0
+    }
+    let weight_bytes = if with_sparse_block {
+      shapes.fold(init=0L, (sum, entry) => sum + entry.3)
+    } else if with_moe_block {
       4406629592L
     } else if with_dense_block {
       579060440L
@@ -91,7 +123,11 @@ async fn exercise_glm_checkpoint_owner(
     let entries : Array[String] = []
     let mut offset = 0L
     for index, (name, dtype, shape, count) in shapes {
-      let parent = if index < 15 { "self_attn." } else { "" }
+      let parent = if index < (if with_sparse_block { 14 } else { 15 }) {
+        "self_attn."
+      } else {
+        ""
+      }
       entries.push(
         "\"model.language_model.layers.\{layer_index}.\{parent}\{name}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{offset},\{offset + count}]}",
       )
@@ -159,48 +195,72 @@ async fn exercise_glm_checkpoint_owner(
         limits~,
       ),
     )
-    let weights = @glm53_packed_expert_upload.bind_recurrent_weights(
-      checkpoint,
-      @glm53_spec.Glm53FlashSpec::official(),
-      layer_index~,
-    )
-    assert_eq(weights.length(), 15)
-    for i, weight in weights {
-      let (_, _, _, bytes) = shapes[i]
-      assert_eq(weight.buffer_bytes(), bytes)
-    }
-    let layer = if with_moe_block {
-      @glm53_packed_expert_upload.GlmRecurrentLayer::with_moe_block(
+    if !with_sparse_block {
+      let weights = @glm53_packed_expert_upload.bind_recurrent_weights(
+        checkpoint,
         @glm53_spec.Glm53FlashSpec::official(),
         layer_index~,
-        maximum_rows=32,
-        maximum_sequences=16,
-        cache_slots=32,
-        maximum_state_bytes=134217728L,
-        maximum_expert_bytes=5000000000L,
-        accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
+      )
+      assert_eq(weights.length(), 15)
+      for i, weight in weights {
+        let (_, _, _, bytes) = shapes[i]
+        assert_eq(weight.buffer_bytes(), bytes)
+      }
+    }
+    let layer : CheckpointTestLayer = if with_sparse_block {
+      Sparse(
+        @glm53_packed_expert_upload.GlmSparseLayer::new(
+          @glm53_spec.Glm53FlashSpec::official(),
+          layer_index~,
+          maximum_queries=32,
+          maximum_history=64,
+          index_layer_norm_epsilon=1.0e-5,
+          maximum_state_bytes=10000000L,
+          maximum_workspace_bytes=20000000L,
+          maximum_expert_bytes=5000000000L,
+          accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
+        ),
+      )
+    } else if with_moe_block {
+      Recurrent(
+        @glm53_packed_expert_upload.GlmRecurrentLayer::with_moe_block(
+          @glm53_spec.Glm53FlashSpec::official(),
+          layer_index~,
+          maximum_rows=32,
+          maximum_sequences=16,
+          cache_slots=32,
+          maximum_state_bytes=134217728L,
+          maximum_expert_bytes=5000000000L,
+          accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
+        ),
       )
     } else if with_dense_block {
-      @glm53_packed_expert_upload.GlmRecurrentLayer::with_dense_block(
-        @glm53_spec.Glm53FlashSpec::official(),
-        layer_index=0,
-        maximum_rows=32,
-        maximum_sequences=16,
-        cache_slots=32,
-        maximum_state_bytes=134217728L,
+      Recurrent(
+        @glm53_packed_expert_upload.GlmRecurrentLayer::with_dense_block(
+          @glm53_spec.Glm53FlashSpec::official(),
+          layer_index=0,
+          maximum_rows=32,
+          maximum_sequences=16,
+          cache_slots=32,
+          maximum_state_bytes=134217728L,
+        ),
       )
     } else {
-      @glm53_packed_expert_upload.GlmRecurrentLayer::with_hyper_connection(
-        @glm53_spec.Glm53FlashSpec::official(),
-        layer_index=0,
-        maximum_rows=32,
-        maximum_sequences=16,
-        cache_slots=32,
-        maximum_state_bytes=134217728L,
+      Recurrent(
+        @glm53_packed_expert_upload.GlmRecurrentLayer::with_hyper_connection(
+          @glm53_spec.Glm53FlashSpec::official(),
+          layer_index=0,
+          maximum_rows=32,
+          maximum_sequences=16,
+          cache_slots=32,
+          maximum_state_bytes=134217728L,
+        ),
       )
     }
     let workspace_bytes = layer.workspace_bytes()
-    if with_moe_block {
+    if with_sparse_block {
+      assert_true(workspace_bytes > 0L)
+    } else if with_moe_block {
       assert_eq(workspace_bytes, 152584580L)
     } else {
       assert_eq(
@@ -213,11 +273,21 @@ async fn exercise_glm_checkpoint_owner(
       )
     }
     // Packed banks include their own sixteen-byte plane alignment.
-    let owned_weights = if with_moe_block { 4406639960L } else { weight_bytes }
+    let owned_weights = if with_sparse_block {
+      weight_bytes + 10368L
+    } else if with_moe_block {
+      4406639960L
+    } else {
+      weight_bytes
+    }
     let total_bytes = owned_weights + workspace_bytes
     assert_true(
       @utf8.decode(layer.source_bytes()).contains(
-        "glm_recurrent_\{layer_index}_15(",
+        if with_sparse_block {
+          "glm_sparse_\{layer_index}_output("
+        } else {
+          "glm_recurrent_\{layer_index}_15("
+        },
       ),
     )
     let baseline = live_resources()
@@ -236,15 +306,14 @@ async fn exercise_glm_checkpoint_owner(
       stream,
       checkpoint,
       root,
-      maximum_device_bytes=total_bytes,
-      chunk_bytes=if with_moe_block { 1048573 } else { 65533 },
-      limits~,
-      counts=operand,
-      sequence_offsets=operand,
-      sequence_slots=operand,
-      reset_flags=operand,
-      hidden=operand,
-      output=operand,
+      operand,
+      total_bytes,
+      if with_moe_block {
+        1048573
+      } else {
+        65533
+      },
+      limits,
     )
     assert_eq(layer.device_bytes(), total_bytes)
     let before = enqueues()
@@ -259,7 +328,9 @@ async fn exercise_glm_checkpoint_owner(
     assert_eq(end_allocations(), 0UL)
     assert_eq(
       enqueues() - before,
-      if with_moe_block {
+      if with_sparse_block {
+        1184UL
+      } else if with_moe_block {
         1088UL
       } else if with_dense_block {
         832UL
@@ -293,4 +364,13 @@ async test "GLM full dense decoder binds twenty-six weights and one twenty-six-l
 ///|
 async test "GLM full recurrent MoE decoder streams all 288 packed experts into one queue" {
   exercise_glm_checkpoint_owner(with_dense_block=false, with_moe_block=true)
+}
+
+///|
+async test "GLM sparse decoder streams exact projection output APE and FFN operands into one queue" {
+  exercise_glm_checkpoint_owner(
+    with_dense_block=false,
+    with_moe_block=true,
+    with_sparse_block=true,
+  )
 }

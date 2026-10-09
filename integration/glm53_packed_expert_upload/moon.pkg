@@ -18,6 +18,9 @@ import {
   "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @expert_source,
   "vectie/lunaflux/kernels/moe_routing_cuda_source" @router_source,
   "vectie/lunaflux/kernels/luna_cuda_precision" @combine_source,
+  "vectie/lunaflux/integration/glm53_sparse_projection" @sparse_model,
+  "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source" @sparse_source,
+  "vectie/lunaflux/integration/indexed_sparse_projection_frame" @sparse_frame,
 }
 
 supported_targets = "native"

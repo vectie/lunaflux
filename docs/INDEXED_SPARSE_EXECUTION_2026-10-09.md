@@ -159,6 +159,42 @@ Final artifacts: `/tmp/lunaflux-indexed-sparse.QkOAShYz` on .178, downloaded to
 `/tmp/lunaflux-sparse-projection-chain-check-20261009`. Earlier projection-only
 checks are in `/tmp/lunaflux-sparse-projection-check-20261009`. Generated header
 SHA-256 is `1dbb1eae205d7b460d76fc60e33c10226334fd00c093cffd0191d3c9ae8b0b32`.
-Next actual feature work: output projection and complete DSA decoder composition,
-model-specific index transforms/numerics and real checkpoint GPU execution,
-then model/worker execution. No TLS/signing/admission expansion was added.
+## Complete sparse decoder composition
+
+`IndexedSparseDecoderPrecision` is the pure composition of the low-rank/index
+projection plan, request history and residual-stream envelope. It checks shared
+hidden/query geometry and includes the expanded attention-output intermediate
+in the aggregate workspace; persistent history remains a separate explicit
+budget. CUDA lowering reuses existing mHC and ordered BF16 projection arithmetic.
+`IndexedSparseDecoderFrame` prepares mHC prefix -> reserve/project/append/index/
+attention -> output projection -> mHC publication: twenty-three launches.
+It does not create its own queue or completion, and exposes the device overflow
+descriptor for worker output-delivery error propagation.
+
+`GlmSparseLayer` binds twelve input projection operands, learned BF16 output
+weight `[4096,16384]`, learned BF16 pool APE `[4,128]`, four attention-envelope
+operands, router/correction and four FFN-envelope operands. Routed and shared
+banks stream through the existing upload path. Both attention families share
+the same FFN constructor and execution, with an explicit binding offset rather
+than assuming the recurrent branch's nineteen preceding weights. The complete
+sparse block has thirty-seven launches, one completion, startup-owned buffers
+and deterministic cancellation/release. The FFN still requires all experts to
+be locally resident; this does not replace the collective-aware partitioned path.
+
+Validation for this composition: release-mode native tests 62/62, ordinary
+native check, API generation and format check pass. Both the small generic
+thirty-seven-stage fixture and the official-shape checkpoint-backed layer run
+32 steps / 1,184 launches, with zero measured hot heap allocations/blocking
+waits, followed by active cancellation and repeated close. The checkpoint test
+streams zero-filled sparse fixture tensors, preserving all 288 expert payload,
+scale and global-scale planes; it is a native device test double, not real GPU
+arithmetic. The pre-existing dense/recurrent checkpoint regressions still pass
+after shared FFN extraction. This slice ran no GPU workloads. Warning-denied
+checking remains blocked by unrelated dependency warnings (including an unused
+import in `model/llama_tensor_parallel` when method-promotion warnings are
+excluded); it is not presented as warning-clean.
+
+Next actual feature work is model-specific index transforms/numerics, real
+checkpoint GPU execution and model/worker execution. The current serial
+projection/index/attention schedules remain numerical reference schedules.
+No TLS/signing/admission expansion was added.

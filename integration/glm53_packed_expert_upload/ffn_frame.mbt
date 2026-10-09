@@ -80,12 +80,13 @@ fn GlmFfn::prepare(
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   output~ : @device.Allocation,
+  weight_offset? : Int = 19,
 ) -> Unit raise {
   let input = context.allocate(self.input_bytes)
   self.input = Some(input)
   let base = match self.branch {
-    Dense(_) => 22
-    Moe(_) => 21
+    Dense(_) => weight_offset + 3
+    Moe(_) => weight_offset + 2
   }
   self.envelope.prepare(
     context,
@@ -106,9 +107,9 @@ fn GlmFfn::prepare(
         aot,
         counts~,
         input=self.envelope.branch_input(),
-        gate=weights.allocation(19),
-        up=weights.allocation(20),
-        down=weights.allocation(21),
+        gate=weights.allocation(weight_offset),
+        up=weights.allocation(weight_offset + 1),
+        down=weights.allocation(weight_offset + 2),
         output=self.envelope.branch_output(),
         maximum_workspace_bytes=mlp.workspace_bytes(),
       )
@@ -118,7 +119,6 @@ fn GlmFfn::prepare(
       moe.prepare(
         context,
         aot,
-        weights,
         checkpoint,
         root,
         layer_index~,
@@ -127,6 +127,8 @@ fn GlmFfn::prepare(
         counts~,
         input=self.envelope.branch_input(),
         output=self.envelope.branch_output(),
+        router_weight=weights.allocation(weight_offset),
+        correction_bias=weights.allocation(weight_offset + 1),
       )
       moe.program.launches()
     }
