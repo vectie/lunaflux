@@ -10,6 +10,33 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (learned gated compressor core): immutable
+`LearnedGatedPoolPrecision` now separates per-feature pooling semantics from
+CUDA lowering and prepared persistent-state ownership. BF16 input and learned
+projection parameters compute in F32, learned F32 position biases enter the
+featurewise softmax, pooled values publish BF16 before learned RMSNorm, and
+compact output metadata carries group-start positions for later rotation.
+Preceding-window overlap is a semantic parameter, not a model-name/CUDA branch.
+Five effects join the containing queue; startup initializes retained KV/scores
+using bounded 64 KiB chunks, and the frame exposes a sticky append error.
+The focused plan/source/prepared-frame tests pass 5/5, the precision IR suite
+passes 36/36, and 160 prepared submissions measure zero warm heap allocations
+with deterministic resource balance. Native checks use the existing legacy
+warning exclusions; this is not a clean aggregate warning-migration claim.
+
+GB10 `sm121` component correctness and memory/leak, race and synchronization
+checks pass under 2 GiB/no-swap user units. Ratio-4 overlap covers 21 tokens in
+mixed 0/1/2/3/4/5-row chunks (five pooled outputs); ratio-128 covers 135 tokens
+(one pooled output). Learned F32 retained state and final normalized BF16
+outputs match the small independent oracle exactly; a gap leaves state unchanged
+and poisons history. Local evidence is
+`/tmp/lunaflux-gated-pool-20261010.CgLmwc6y`, remote evidence
+`/tmp/lunaflux-gated-pool-20261010.bziLvoNa`; downloaded probe SHA-256 is
+`7ec241a2c2bb0956a304837acc5b67acca78a0c2c62c07274f2c9603d1972fec`.
+Checkpoint binding, compressed output rotation/quantization, cache publication,
+learned indexer and complete decoder integration remain; no whole-model or
+throughput result follows from this component test.
+
 Update 2026-10-10 (learned attention output integration): model-neutral
 `RotaryTensorPrecision` and `GroupedAttentionOutputPrecision` now describe
 inverse suffix rotation and the two learned output projections, including

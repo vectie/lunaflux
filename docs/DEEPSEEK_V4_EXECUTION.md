@@ -75,7 +75,15 @@ compressor/indexer, compressed attention, mHC decoder, or whole-model runner.
 | Correctness | Deterministic prefill/decode logits and token sequences match an independent official implementation over hostile shapes and long-context transitions | Not implemented |
 | Physical qualification | Sanitizer, leak, deterministic rebuild, CUDA correctness, graph-capture, and benchmark gates pass on each promoted device/profile | Not implemented |
 
-The next executable integration boundary is learned compressor projection/
+The learned compressor now has a model-neutral per-feature gated-pooling plan,
+five CUDA effects and a prepared persistent-state frame. It preserves F32
+BF16-parameter projections, learned position biases, preceding-window overlap,
+BF16 pooled publication and learned F32 RMSNorm. Small GB10 fixtures for ratio
+4 overlap and ratio 128 pass chunk/decode state, output and sanitizer checks.
+This is not checkpoint-connected: learned compressor binding, output RoPE/cache
+quantization, compressed-cache publication and learned indexer remain open.
+
+The next executable integration boundary is learned compressor checkpoint/
 gating, indexer selection and request-owned cache-state mutation, followed by
 attention, mHC and complete decoder composition. Inverse rotary and learned
 output projections are now connected for compression-zero layers as above.

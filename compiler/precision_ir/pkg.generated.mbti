@@ -182,6 +182,18 @@ pub fn IndexedSparseProjectionPrecision::normalization(Self) -> (Double, Double)
 pub fn IndexedSparseProjectionPrecision::weight_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn IndexedSparseProjectionPrecision::workspace_bytes(Self) -> Int64
 
+pub struct LearnedGatedPoolPrecision {
+  // private fields
+}
+pub fn LearnedGatedPoolPrecision::compressed_rows(Self) -> Int
+pub fn LearnedGatedPoolPrecision::effect(Self) -> NumericEffect
+pub fn LearnedGatedPoolPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn LearnedGatedPoolPrecision::geometry(Self) -> (Int, Int, Int, Bool, Int, Int)
+pub fn LearnedGatedPoolPrecision::new(input_width~ : Int, feature_width~ : Int, ratio~ : Int, preceding_window_overlap~ : Bool, maximum_rows~ : Int, maximum_positions~ : Int, norm_epsilon~ : Double, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn LearnedGatedPoolPrecision::norm_epsilon(Self) -> Double
+pub fn LearnedGatedPoolPrecision::parameter_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn LearnedGatedPoolPrecision::state_bytes(Self) -> ReadOnlyArray[Int64]
+
 pub struct LearnedTextIoPrecision {
   // private fields
 }
