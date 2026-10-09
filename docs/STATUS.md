@@ -29,6 +29,28 @@ module correctness, not a full-model or throughput claim. Full decoder/worker
 integration and actual two-host execution remain unfinished. TLS/admission and
 unrelated deprecation-warning migration remain paused.
 
+DeepSeek's automatic routing now also enters that queue. Installed checkpoint
+headers confirm BF16 [256,4096] router matrices: layers 0–2 have I64
+[129280,6] token-to-expert tables and no bias; layer 3 onward has F32 [256]
+choice bias and no token table. The adapter translates these into generic
+TokenHash/GroupedTopK selection IR, not model switches in the executor.
+TokenHash preserves table order and gathers normalized sqrt-softplus scores;
+it does not replace learned routing weights with uniform weights. The prepared
+Program borrows the existing startup-narrowed I32 table arena at a layer offset.
+
+The current focused native suite passes 29/29, including official-sized router
+checkpoint streaming and 16 hash-routing queue steps / 176 submissions with
+zero measured token-step heap allocations. Thirty generated GPU routing cases
+pass (18 grouped, 12 hash), covering table order, nonuniform learned weights,
+invalid IDs and untouched inactive rows. Memory/leak, race and synchronization
+checks report no errors. Artifacts are under
+`/tmp/lunaflux-routing-hash.ti3e5w` on .178; archive SHA-256 is
+`65b2e58544a6c02f3e67a92a37dd2e63f0f48658287981febe51bbdf6017786b`.
+These are component tests, not a
+claim of complete DeepSeek generation or three-model throughput. Native check
+has no errors; warning-denied check still encounters unrelated existing
+deprecation warnings, which are not expanded into a migration project here.
+
 The generic expert path now executes dynamic BF16-to-FP8/UE8M0 activation
 quantization before both gate/up and down. Precision IR explicitly describes
 amax floor, block geometry, SwiGLU rounding, routing-score placement, and compact

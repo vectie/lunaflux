@@ -17,9 +17,17 @@ or two-host execution tasks; those require actual execution rather than labels.
 Automatic router projection/score/grouped selection is now an optional prefix
 of that same queue. GLM checkpoint router weights and correction vectors bind
 without rank/dtype reinterpretation. Remaining wiring includes GLM hybrid
-attention state and dense early layers, DeepSeek token-hash early routing and
-compressed attention, whole-model layer ownership, and the existing worker's
+attention state and dense early layers, DeepSeek compressed attention,
+whole-model layer ownership, and the existing worker's
 non-Llama/Qwen execution dispatch. Do not add transport-hardening prerequisites.
+
+DeepSeek token-hash selection is now another prefix of the same MoE Program:
+project BF16 router weights, compute sqrt-softplus, preserve token-table IDs,
+gather/normalize learned scores, then execute experts. The existing startup I64
+to I32 table conversion and device sidecar arena remain the source of tables;
+the Program accepts per-layer offsets and does not scan or copy tables per step.
+Whole-model execution still needs to connect this prepared program to layer
+state and actual model loading; passing module tests does not finish that task.
 
 Active compiler work: [counter-driven repair, 2026-09-29](COMPILER_COUNTER_REPAIR_2026-09-29.md).
 The three-kernel diagnosis is recorded there with implemented changes,
