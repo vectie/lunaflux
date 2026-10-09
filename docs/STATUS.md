@@ -10,6 +10,17 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Checkpoint-backed KDA execution now has a GLM layer owner. Its fifteen named
+parameters bind to the actual installed layer-0 header's BF16 matrices,
+BF16 `[8192,1,4]` convolution tensors and F32 control vectors without transpose
+or host expansion. The generic uploader owns exact allocations and streams all
+planes through one scratch chunk. The full-sized native fixture uploads
+275,481,088 weight bytes, prepares the 16-stage queue, executes 32 steps with
+zero measured step allocations/blocking waits and closes all resources after
+active cancellation. Total weights plus rows-32/slots-32 workspace are
+420,733,440 bytes, excluding borrowed I/O/module/stream. This uses the native
+device test double, not a real-weight GPU correctness result or model benchmark.
+
 The complete recurrent attention branch now joins hidden-to-Q/K/V projections,
 two-stage forget, beta sigmoid, F32 decay, two-stage output gate, request-owned
 convolution/delta, gated RMSNorm and output projection in one prepared queue.
@@ -65,7 +76,7 @@ and sanitizer checks of the new kernel retain the independent CPU oracle.
 [Recurrent execution results](RECURRENT_EXECUTION_2026-10-09.md) record exact
 scope and timings. The downloaded artifacts match remote SHA-256 identities;
 archive hash is `4a4e7f0ed7b335bf7b51f8ae781b7cc110296bbcb3502b546c72aa86b27e48ab`.
-Actual checkpoint KDA binding, DSA/DeepSeek
+Real-weight GPU KDA execution, DSA/DeepSeek
 attention, three-model workers and actual two-host execution remain unfinished.
 No additional TLS/admission work was performed.
 

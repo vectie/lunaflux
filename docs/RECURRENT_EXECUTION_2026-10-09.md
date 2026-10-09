@@ -147,3 +147,32 @@ inference. Real checkpoint ownership, surrounding mHC/MLP and DSA execution,
 worker wiring, DeepSeek and MiniMax full-model execution and two-host reduction
 remain unfinished. Ordered projections are correctness-first parallel schedules,
 not tensor-core GEMM; no serving throughput or reference-engine speedup is claimed.
+
+## Checkpoint-backed layer ownership
+
+`GlmRecurrentLayer` now composes exact model weight binding, the generic
+`CheckpointDeviceWeights` uploader and the prepared recurrent Program. The
+model adapter owns names/shapes, precision materialization preserves dtype and
+physical rank, the uploader owns allocations, and the Program owns request
+state/submission. Rank-three dense binding adds no transpose, conversion or
+full-size host staging. Startup uses one reusable chunk for all fifteen weights.
+
+The actual layer-0 index and header on .175 were read directly from
+`/data/models/LibertAIDAI/GLM-5.3-Flash-NVFP4`. All fifteen parameter names,
+dtypes and shapes match the adapter, including BF16 convolutions `[8192,1,4]`,
+F32 `dt_bias[8192]` and `A_log[64]`. No checkpoint file was changed. Neither
+enterprise Spark has `/data/models` mounted; that source location must not be
+assumed local to the GPU worker.
+
+A sparse official-sized native fixture avoids a full host weight arena. It
+binds/uploads 275,481,088 weight bytes and prepares 145,252,352 workspace bytes
+at rows 32 / sequences 16 / slots 32. Its 32 steps enqueue 512 kernels with zero
+measured heap allocations/blocking waits. Active cancellation drains the
+executor before releasing borrowed weights and leaves no live test resources.
+Separate small BF16/F32 readback verifies exact transferred bytes across
+three-byte chunk boundaries. Rank permutations with equal byte counts are
+rejected instead of being silently reshaped. These are native test-double
+results; executing real checkpoint weights on GPU and whole-model composition
+remain open. Existing small-chain GPU numerical results above are unchanged.
+
+No TLS, signing, registry or deployment-hardening work was added.

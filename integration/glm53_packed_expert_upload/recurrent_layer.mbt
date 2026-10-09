@@ -1,0 +1,168 @@
+///|
+priv enum RecurrentLayerState {
+  Fresh
+  Ready
+  Active
+  Failed
+  Closed
+}
+
+///|
+/// Executable checkpoint-backed KDA branch. Owns all device weights, request
+/// state and intermediate frames, borrowing the module, stream and frame I/O.
+pub struct GlmRecurrentLayer {
+  priv spec : @glm53_spec.Glm53FlashSpec
+  priv layer_index : Int
+  priv program : @recurrent.RecurrentDeltaProgram
+  priv weights : @upload.CheckpointDeviceWeights
+  priv mut status : RecurrentLayerState
+}
+
+///|
+pub fn GlmRecurrentLayer::new(
+  spec : @glm53_spec.Glm53FlashSpec,
+  layer_index~ : Int,
+  maximum_rows~ : Int,
+  maximum_sequences~ : Int,
+  cache_slots~ : Int,
+  maximum_state_bytes~ : Int64,
+) -> Self raise {
+  let plan = recurrent_block_plan(
+    spec,
+    layer_index~,
+    maximum_rows~,
+    maximum_sequences~,
+    cache_slots~,
+    maximum_state_bytes~,
+  )
+  let source = @block.recurrent_block_source(
+    plan,
+    symbol_prefix="glm_recurrent_" + layer_index.to_string(),
+  )
+  {
+    spec,
+    layer_index,
+    program: @recurrent.RecurrentDeltaProgram::with_block(source),
+    weights: @upload.CheckpointDeviceWeights::new(),
+    status: Fresh,
+  }
+}
+
+///|
+pub fn GlmRecurrentLayer::source_bytes(self : Self) -> Bytes {
+  self.program.source_bytes()
+}
+
+///|
+pub fn GlmRecurrentLayer::workspace_bytes(self : Self) -> Int64 {
+  self.program.workspace_bytes()
+}
+
+///|
+pub fn GlmRecurrentLayer::device_bytes(self : Self) -> Int64 {
+  self.program.workspace_bytes() + self.weights.device_bytes()
+}
+
+///|
+/// Bind once and transfer directly into owned device weights. The total budget
+/// includes request state/intermediates, not just checkpoint weight bytes.
+pub fn GlmRecurrentLayer::prepare(
+  self : Self,
+  context : @device.Context,
+  aot : @device.Module,
+  stream : @device.Stream,
+  checkpoint : @precision_materialize.PackedCheckpoint,
+  root : @approved_fs.ApprovedRoot,
+  maximum_device_bytes~ : Int64,
+  chunk_bytes~ : Int,
+  limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
+  counts~ : @device.Allocation,
+  sequence_offsets~ : @device.Allocation,
+  sequence_slots~ : @device.Allocation,
+  reset_flags~ : @device.Allocation,
+  hidden~ : @device.Allocation,
+  output~ : @device.Allocation,
+) -> Unit raise {
+  guard self.status is Fresh &&
+    maximum_device_bytes >= self.program.workspace_bytes() else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.status = Failed
+  errdefer {
+    self.status = Failed
+  }
+  let bound = bind_recurrent_weights(
+    checkpoint,
+    self.spec,
+    layer_index=self.layer_index,
+  )
+  self.weights.upload(
+    context,
+    checkpoint,
+    root,
+    bound,
+    maximum_device_bytes=maximum_device_bytes - self.program.workspace_bytes(),
+    chunk_bytes~,
+    limits~,
+  )
+  self.program.prepare_block(
+    context,
+    aot,
+    stream,
+    recurrent_device_weights(self.weights),
+    maximum_state_bytes=self.program.state_bytes(),
+    maximum_workspace_bytes=self.program.workspace_bytes(),
+    counts~,
+    sequence_offsets~,
+    sequence_slots~,
+    reset_flags~,
+    hidden~,
+    output~,
+  )
+  self.status = Ready
+}
+
+///|
+pub fn GlmRecurrentLayer::submit(
+  self : Self,
+  live_rows~ : Int,
+) -> Unit raise @device.DeviceError {
+  guard self.status is Ready else {
+    raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
+  }
+  errdefer {
+    self.status = Failed
+  }
+  self.program.submit(live_rows~)
+  self.status = Active
+}
+
+///|
+pub fn GlmRecurrentLayer::poll(self : Self) -> Bool raise @device.DeviceError {
+  guard self.status is Active else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+  }
+  errdefer {
+    self.status = Failed
+  }
+  if self.program.poll() {
+    self.status = Ready
+    true
+  } else {
+    false
+  }
+}
+
+///|
+/// Close/abort the queue before releasing its borrowed weights. Failed startup
+/// retains explicit cleanup authority, including partially transferred weights.
+pub fn GlmRecurrentLayer::close(self : Self) -> Unit raise @device.DeviceError {
+  match self.status {
+    Closed => return
+    Fresh | Ready | Active | Failed => ()
+  }
+  self.status = Failed
+  self.program.abort()
+  self.weights.close()
+  self.status = Closed
+}

@@ -40,8 +40,12 @@ on three tested GPU geometries, including GLM's actual channel count. The comple
 hidden-to-hidden KDA branch is now prepared as one 16-launch queue, including
 parallel projections, decay/beta controls, output gating and normalization.
 Its small GPU full-chain oracle and chunked execution checks pass, as do 47
-focused native tests. Next bind actual checkpoint weights and connect this
-branch and MoE to surrounding mHC/dense layers and layer/worker execution.
+focused native tests. The checkpoint-backed KDA layer owner now binds all fifteen
+BF16/F32 parameters, preserves rank-three convolution layout and streams into
+owned device allocations through one reusable host chunk. An official-sized
+native fixture exercises that owner and its complete queue. Next run this owner
+with real weights on GPU and connect KDA/MoE to surrounding mHC/dense layers and
+layer/worker execution.
 Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual
 implementation tasks, not transport-hardening prerequisites.

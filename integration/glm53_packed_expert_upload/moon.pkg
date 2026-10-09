@@ -8,6 +8,9 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/integration/packed_expert_mlp",
+  "vectie/lunaflux/integration/precision_checkpoint_upload" @upload,
+  "vectie/lunaflux/integration/recurrent_delta_program" @recurrent,
+  "vectie/lunaflux/kernels/recurrent_block_execution_cuda_source" @block,
 }
 
 supported_targets = "native"
