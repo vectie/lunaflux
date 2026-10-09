@@ -6,6 +6,7 @@ pub struct MoeProgram {
   priv routed : @source.PackedExpertMlpCudaSource
   priv shared : @source.PackedExpertMlpCudaSource
   priv combine : @combine.MoeCombineSource
+  priv routing : @router.MoeRoutingCudaSource?
   priv workspace_bytes : Int64
   priv functions : Array[@device.Function]
   priv allocations : Array[@device.Allocation]
@@ -38,8 +39,9 @@ pub fn MoeProgram::new(
   routed : @source.PackedExpertMlpCudaSource,
   shared : @source.PackedExpertMlpCudaSource,
   combine : @combine.MoeCombineSource,
+  routing? : @router.MoeRoutingCudaSource,
 ) -> Self raise @device.DeviceError {
-  let (rows, hidden, _, _, _) = routed.plan().geometry()
+  let (rows, hidden, _, experts, selected) = routed.plan().geometry()
   let (sr, sh, _, se, ss) = shared.plan().geometry()
   guard rows == sr &&
     hidden == sh &&
@@ -50,7 +52,14 @@ pub fn MoeProgram::new(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   let symbols : Set[String] = Set([])
-  for names in [routed.symbols(), shared.symbols()] {
+  let entries = [routed.symbols(), shared.symbols()]
+  if routing is Some(router) {
+    guard router.plan().geometry() == (rows, hidden, experts, selected) else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+    entries.push(router.symbols())
+  }
+  for names in entries {
     for name in names {
       guard !symbols.contains(name) else {
         raise @device.DeviceError::InvalidArgument(FunctionLoad)
@@ -65,6 +74,9 @@ pub fn MoeProgram::new(
   sizes.append(expert_workspace_sizes(shared.plan()))
   // The shared map is included above; these are its unit indices and scores.
   sizes.push(rows.to_int64() * 8L)
+  if routing is Some(router) {
+    sizes.push(router.plan().workspace_bytes())
+  }
   let workspace_bytes = for size in sizes; total = 0L {
     guard size <= 9223372036854775807L - total else {
       raise @device.DeviceError::InvalidArgument(AllocationCreate)
@@ -77,6 +89,7 @@ pub fn MoeProgram::new(
     routed,
     shared,
     combine,
+    routing,
     workspace_bytes,
     functions: [],
     allocations: [],
@@ -88,7 +101,12 @@ pub fn MoeProgram::new(
 ///|
 /// Offline AOT compilation input. Never compile this in submit/poll.
 pub fn MoeProgram::source_bytes(self : Self) -> Bytes raise {
+  let routing = match self.routing {
+    None => ""
+    Some(router) => @utf8.decode(router.source_bytes()) + "\n"
+  }
   @utf8.encode(
+    routing +
     @utf8.decode(self.routed.source_bytes()) +
     "\n" +
     @utf8.decode(self.shared.source_bytes()) +

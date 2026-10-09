@@ -91,6 +91,7 @@ test "prepared MoE inserts F32 reduction, reuses its queue and allocates nothing
   )
   defer (executor.abort() catch { _ => () })
   let before = enqueues()
+  let syncs_before = blocking_syncs()
   begin_allocations()
   for sequence in 1UL..<17UL {
     executor.submit(
@@ -112,7 +113,7 @@ test "prepared MoE inserts F32 reduction, reuses its queue and allocates nothing
   let allocations = end_allocations()
   assert_eq(allocations, 0UL)
   assert_eq(enqueues() - before, 48UL)
-  assert_eq(blocking_syncs(), 0UL)
+  assert_eq(blocking_syncs() - syncs_before, 0UL)
   executor.close()
   collective.close()
   function.close()

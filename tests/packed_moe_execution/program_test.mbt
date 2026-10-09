@@ -2,7 +2,9 @@
 extern "C" fn live_resources() -> Int = "lunaflux_device_worker_fake_live_children"
 
 ///|
-fn program_fixture() -> (@moe.MoeProgram, Int64, Int64) raise {
+fn program_fixture(
+  routing? : @router.MoeRoutingCudaSource,
+) -> (@moe.MoeProgram, Int64, Int64) raise {
   let operand = @precision.plan_operand(
     role=Weight,
     representation=@format.Representation::new(format=Bf16, rows=32, columns=32),
@@ -45,6 +47,7 @@ fn program_fixture() -> (@moe.MoeProgram, Int64, Int64) raise {
         ),
         symbol="finalize",
       ),
+      routing?,
     ),
     routed.bank_bytes(),
     shared.bank_bytes(),

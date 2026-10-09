@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/model/precision_format" @format,
   "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @source,
   "vectie/lunaflux/kernels/luna_cuda_precision" @combine,
+  "vectie/lunaflux/kernels/moe_routing_cuda_source" @router,
 }
 
 supported_targets = "native"

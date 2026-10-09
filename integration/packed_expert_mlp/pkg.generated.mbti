@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
   "vectie/lunaflux/kernels/luna_cuda_precision",
+  "vectie/lunaflux/kernels/moe_routing_cuda_source",
   "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source",
   "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/runtime/approved_fs",
@@ -38,9 +39,10 @@ pub struct MoeProgram {
 }
 pub fn MoeProgram::abort(Self) -> Unit raise @device.DeviceError
 pub fn MoeProgram::close(Self) -> Unit raise @device.DeviceError
-pub fn MoeProgram::new(@selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @luna_cuda_precision.MoeCombineSource) -> Self raise @device.DeviceError
+pub fn MoeProgram::new(@selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @luna_cuda_precision.MoeCombineSource, routing? : @moe_routing_cuda_source.MoeRoutingCudaSource) -> Self raise @device.DeviceError
 pub fn MoeProgram::poll(Self) -> Bool raise @device.DeviceError
 pub fn MoeProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, selected_indices~ : @device.Allocation, selected_weights~ : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation, reduction? : MoeReduction) -> Unit raise @device.DeviceError
+pub fn MoeProgram::prepare_routed(Self, @device.Context, @device.Module, @device.Stream, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, router_weight~ : @device.Allocation, correction_bias~ : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation, reduction? : MoeReduction) -> Unit raise @device.DeviceError
 pub fn MoeProgram::source_bytes(Self) -> Bytes raise
 pub fn MoeProgram::submit(Self, live_rows~ : Int, plan_sequence~ : UInt64, global_sequence~ : UInt64) -> Unit raise @device.DeviceError
 pub fn MoeProgram::workspace_bytes(Self) -> Int64

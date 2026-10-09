@@ -103,6 +103,31 @@ pub fn MoeProgram::prepare(
   output~ : @device.Allocation,
   reduction? : MoeReduction,
 ) -> Unit raise @device.DeviceError {
+  guard self.routing is None else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.check_fresh(maximum_workspace_bytes)
+  self.prepare_experts(
+    context,
+    aot_module,
+    stream,
+    counts~,
+    input~,
+    selected_indices~,
+    selected_weights~,
+    routed_bank~,
+    shared_bank~,
+    output~,
+    reduction?,
+    prefix=[],
+  )
+}
+
+///|
+fn MoeProgram::check_fresh(
+  self : Self,
+  maximum_workspace_bytes : Int64,
+) -> Unit raise @device.DeviceError {
   guard !self.closed &&
     self.executor is None &&
     self.functions.is_empty() &&
@@ -110,6 +135,24 @@ pub fn MoeProgram::prepare(
     self.workspace_bytes <= maximum_workspace_bytes else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
+}
+
+///|
+fn MoeProgram::prepare_experts(
+  self : Self,
+  context : @device.Context,
+  aot_module : @device.Module,
+  stream : @device.Stream,
+  counts~ : @device.Allocation,
+  input~ : @device.Allocation,
+  selected_indices~ : @device.Allocation,
+  selected_weights~ : @device.Allocation,
+  routed_bank~ : @device.Allocation,
+  shared_bank~ : @device.Allocation,
+  output~ : @device.Allocation,
+  reduction? : MoeReduction,
+  prefix~ : ArrayView[@device.OrderedKernelLaunch],
+) -> Unit raise @device.DeviceError {
   let (rows, _, _, _, _) = self.routed.plan().geometry()
   let routed_functions = self.load_functions(aot_module, self.routed.symbols())
   let shared_functions = self.load_functions(aot_module, self.shared.symbols())
@@ -127,15 +170,18 @@ pub fn MoeProgram::prepare(
     weights=shared_weights,
     expert_map=shared.map,
   )
-  let routed_launches = bind_program_expert(
-    self.routed,
-    routed_functions,
-    routed,
-    counts,
-    input,
-    selected_indices,
-    selected_weights,
-    routed_bank,
+  let routed_launches = prefix.to_owned()
+  routed_launches.append(
+    bind_program_expert(
+      self.routed,
+      routed_functions,
+      routed,
+      counts,
+      input,
+      selected_indices,
+      selected_weights,
+      routed_bank,
+    ),
   )
   let shared_launches = bind_program_expert(
     self.shared,
