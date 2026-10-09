@@ -29,3 +29,11 @@ The packed upload integration streams these planes directly into caller-owned
 device buffers, without a full host bank or resident BF16 duplicate. Native
 tests cover an official-sized expert through this data path; full GLM serving
 and multi-node expert execution are not yet demonstrated by this loader work.
+
+shared_expert_weights maps the installed Flash checkpoint's replicated shared
+gate/up/down matrices to dense BF16 with no scale sidecars. Gate/up are
+2048-by-4096; down is 4096-by-2048. These shapes and dtypes were checked against
+the installed safetensors headers for layers 3, 44 and 45. The shared upload
+adapter streams them into the generic compact expert bank and uses the same
+precision IR and ordered program as routed experts, with expert ID 0 and unit
+routing score. This does not change the routed NVFP4 representation.
