@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/hyper_connection_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct HyperConnectionFrame {
+  // private fields
+}
+pub fn HyperConnectionFrame::branch_input(Self) -> @device.Allocation raise @device.DeviceError
+pub fn HyperConnectionFrame::branch_output(Self) -> @device.Allocation raise @device.DeviceError
+pub fn HyperConnectionFrame::close(Self) -> Unit raise @device.DeviceError
+pub fn HyperConnectionFrame::new(@hyper_connection_execution_cuda_source.HyperConnectionCudaSource) -> Self
+pub fn HyperConnectionFrame::prefix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn HyperConnectionFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, function_weight~ : @device.Allocation, base~ : @device.Allocation, scale~ : @device.Allocation, norm_weight~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn HyperConnectionFrame::source_bytes(Self) -> Bytes
+pub fn HyperConnectionFrame::suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn HyperConnectionFrame::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

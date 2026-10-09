@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn hyper_connection_source(@precision_ir.HyperConnectionPrecision, symbol_prefix~ : String) -> HyperConnectionCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct HyperConnectionCudaSource {
+  // private fields
+}
+pub fn HyperConnectionCudaSource::plan(Self) -> @precision_ir.HyperConnectionPrecision
+pub fn HyperConnectionCudaSource::source_bytes(Self) -> Bytes
+pub fn HyperConnectionCudaSource::symbol(Self, Int) -> String raise @precision_ir.PrecisionPlanError
+
+// Type aliases
+
+// Traits

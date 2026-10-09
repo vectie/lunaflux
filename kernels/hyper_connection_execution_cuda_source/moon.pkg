@@ -1,0 +1,15 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source" @control,
+  "vectie/lunaflux/kernels/hyper_connection_mix_cuda_source" @mix,
+  "vectie/lunaflux/kernels/prefix_rms_norm_cuda_source" @norm,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"

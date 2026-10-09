@@ -105,6 +105,23 @@ pub fn ExpertRoutingPlacement::equal(Self, Self) -> Bool
 pub fn ExpertRoutingPlacement::not_equal(Self, Self) -> Bool
 pub fn ExpertRoutingPlacement::to_repr(Self) -> @debug.Repr
 
+pub(all) enum HyperConnectionMixLaw {
+  RoundedBf16ControlsAndProducts
+  OrderedF32SingleBf16Round
+}
+
+pub struct HyperConnectionPrecision {
+  // private fields
+}
+pub fn HyperConnectionPrecision::control_epsilon(Self) -> Double
+pub fn HyperConnectionPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn HyperConnectionPrecision::geometry(Self) -> (Int, Int, Int)
+pub fn HyperConnectionPrecision::mix_law(Self) -> HyperConnectionMixLaw
+pub fn HyperConnectionPrecision::new(stream_count~ : Int, hidden_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, mix_law~ : HyperConnectionMixLaw) -> Self raise PrecisionPlanError
+pub fn HyperConnectionPrecision::normalization_epsilon(Self) -> Double
+pub fn HyperConnectionPrecision::sinkhorn_iterations(Self) -> Int
+pub fn HyperConnectionPrecision::workspace_bytes(Self) -> Int64
+
 pub struct LinearPrecision {
   // private fields
 } derive(Eq, @debug.Debug)

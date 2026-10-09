@@ -40,7 +40,15 @@ Projection sums retain ordered F32 arithmetic and explicit BF16 stage rounds.
 Unlike the old single-thread composite oracle, output elements run in parallel.
 These correctness-first projections are not tensor-core performance kernels.
 
-The complete branch passes a small GPU oracle and chunked-prefill/decode test,
-with native ownership and zero-allocation queue tests. Actual checkpoint binding,
-surrounding mHC/residual/MLP composition, DSA layers and model/worker integration
-remain unfinished. This does not claim complete GLM inference or serving speed.
+`prepare`/`prepare_block` accept optional startup-only prefix/suffix launch
+views. A composed owner can put collapse/norm before the branch and residual
+publication after it in this same queue. Borrowed functions/regions must outlive
+the queue. Token submission only enqueues its prepared launch count; it never
+merges arrays or inserts an intermediate completion boundary.
+
+The complete branch and its mHC envelope pass a small GPU oracle and
+chunked-prefill/decode test, with native ownership and zero-allocation queue
+tests. The GLM checkpoint adapter binds their nineteen physical weights.
+Real-weight GPU execution, MLP composition, DSA layers and model/worker
+integration remain unfinished. This does not claim complete GLM inference or
+serving speed.

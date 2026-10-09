@@ -18,7 +18,7 @@ pub struct RecurrentDeltaProgram {
   priv maximum_rows : Int
   priv cache_bytes : Int64
   priv owned_bytes : Int64
-  priv launch_count : Int
+  priv mut launch_count : Int
   priv mut status : State
   priv mut cache : @device.Allocation?
   priv functions : Array[@device.Function]
@@ -93,6 +93,8 @@ pub fn RecurrentDeltaProgram::prepare(
   convolution_weights? : FixedArray[@device.Allocation],
   block_weights? : RecurrentBlockWeights,
   hidden? : @device.Allocation,
+  prefix? : ArrayView[@device.OrderedKernelLaunch] = [],
+  suffix? : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh &&
     self.cache is None &&
@@ -121,7 +123,9 @@ pub fn RecurrentDeltaProgram::prepare(
   let state = context.allocate(plan.state_bytes())
   self.cache = Some(state)
   initialize_cache(context, state, plan.state_bytes())
-  let launches : Array[@device.OrderedKernelLaunch] = []
+  // Startup composition only. Borrowed envelope functions/regions must outlive
+  // this one queue; token submission never constructs or merges launch arrays.
+  let launches = prefix.to_array()
   let frame = match (self.block, block_weights, hidden) {
     (Some(block), Some(weights), Some(hidden)) => {
       let frame = allocate_block_frame(self, context, block)
@@ -228,7 +232,11 @@ pub fn RecurrentDeltaProgram::prepare(
       )
     _ => ()
   }
+  for launch in suffix {
+    launches.push(launch)
+  }
   self.queue = Some(context.create_ordered_kernel_executor(stream, launches))
+  self.launch_count = launches.length()
   self.status = Ready
 }
 

@@ -64,6 +64,8 @@ pub fn RecurrentDeltaProgram::prepare_block(
   reset_flags~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
+  prefix? : ArrayView[@device.OrderedKernelLaunch] = [],
+  suffix? : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise @device.DeviceError {
   guard self.block is Some(_) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -91,6 +93,8 @@ pub fn RecurrentDeltaProgram::prepare_block(
       weights.key_conv,
       weights.value_conv,
     ]),
+    prefix~,
+    suffix~,
   )
 }
 
