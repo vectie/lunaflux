@@ -94,8 +94,61 @@ int main() {
     }
     ++cases;
   }
+  int *tokens=allocate<int>(2), *table=allocate<int>(6);
+  int hash_cases=0;
+  for (int pattern=0;pattern<4;++pattern) for (int live=0;live<=2;++live) {
+    std::vector<__nv_bfloat16> x(64), w(128);
+    for (int i=0;i<64;++i) x[i]=__float2bfloat16((i%5-2)*0.25f);
+    for (int i=0;i<128;++i) w[i]=__float2bfloat16((i/32-1)*0.125f);
+    // Table order differs from score order; selection is not top-k.
+    std::vector<int> ids={3,0,2,1,1,3}, t={0,1};
+    if (pattern==1) t={2,0};
+    if (pattern==2) t={-1,3};
+    if (pattern==3) ids[0]=4;
+    upload(counts,std::vector<int>{0,0,1,live,0});
+    upload(input,x); upload(bf_weight,w); upload(tokens,t); upload(table,ids);
+    upload(logits,std::vector<float>(8,-17.0f));
+    upload(scores,std::vector<float>(8,-17.0f));
+    upload(indices,std::vector<int>(4,-7));
+    upload(weights,std::vector<float>(4,-17.0f));
+    route_hash_project<<<1,256>>>(counts,input,bf_weight,logits);
+    route_hash_score<<<1,256>>>(counts,logits,scores);
+    route_hash_lookup<<<2,256>>>(counts,tokens,table,indices);
+    route_hash_gather<<<2,1>>>(counts,scores,indices,weights);
+    check(cudaGetLastError()); check(cudaDeviceSynchronize());
+    auto selected=download(indices,4); auto actual=download(weights,4);
+    auto actual_scores=download(scores,8);
+    for (int row=0;row<2;++row) {
+      float reference[4];
+      for (int e=0;e<4;++e) {
+        float dot=0;
+        for (int k=0;k<32;++k) {
+          volatile float product=__bfloat162float(x[row*32+k])*__bfloat162float(w[e*32+k]);
+          dot+=product;
+        }
+        reference[e]=std::sqrt(dot>0 ? dot+std::log1p(std::exp(-dot)) : std::log1p(std::exp(dot)));
+        equal(actual_scores[row*4+e],row<live ? reference[e] : -17.0f,"hash score");
+      }
+      int expected[2]={-1,-1};
+      if (t[row]>=0 && t[row]<3) for (int slot=0;slot<2;++slot) {
+        int id=ids[t[row]*2+slot]; expected[slot]=id>=0 && id<4 ? id : -1;
+      }
+      bool valid=expected[0]>=0 && expected[1]>=0;
+      float sum=valid ? reference[expected[0]]+reference[expected[1]]+1e-20f : 1.0f;
+      for (int slot=0;slot<2;++slot) {
+        if (selected[row*2+slot]!=(row<live ? expected[slot] : -7)) {
+          std::fprintf(stderr,"hash table order/ID mismatch\n"); return 2;
+        }
+        float target=valid ? reference[expected[slot]]/sum*2.5f : 0.0f;
+        equal(actual[row*2+slot],row<live ? target : -17.0f,"hash gathered weight");
+      }
+    }
+    ++hash_cases;
+  }
+  check(cudaFree(table)); check(cudaFree(tokens));
   check(cudaFree(weights)); check(cudaFree(indices)); check(cudaFree(choice));
   check(cudaFree(scores)); check(cudaFree(logits)); check(cudaFree(bias));
   check(cudaFree(weight)); check(cudaFree(bf_weight)); check(cudaFree(input)); check(cudaFree(counts));
   std::printf("routing cases=%d passed; live rows 0/1/2, BF16/F32, sigmoid/softplus, bias and inactive rows\n",cases);
+  std::printf("hash routing cases=%d passed; learned weights, table order, invalid IDs and inactive rows\n",hash_cases);
 }

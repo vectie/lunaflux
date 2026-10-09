@@ -2,6 +2,8 @@ import {
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/kernels/grouped_routing_cuda_source" @grouped,
+  "vectie/lunaflux/kernels/decoder_token_hash_cuda_source" @hash,
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot" @literal,
 }
 
 supported_targets = "native"

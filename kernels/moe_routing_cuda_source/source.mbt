@@ -14,17 +14,38 @@ pub fn routing_source(
 ) -> MoeRoutingCudaSource raise {
   let (rows, hidden, experts, selected) = plan.geometry()
   let (groups, group_topk, selected_groups) = plan.grouping()
-  let choose = @grouped.grouped_choice_and_selected_weight_f32_source(
-    routed_expert_count=experts,
-    group_count=groups,
-    group_score_topk=group_topk,
-    selected_group_count=selected_groups,
-    experts_per_token=selected,
-    normalize=plan.normalize(),
-    scaling=plan.scaling(),
-    maximum_rows=rows,
-    function_symbol=symbol + "_choose",
-  )
+  let (selection_source, selection_symbols, selection_launches) = match
+    plan.selection() {
+    GroupedTopK => {
+      let choose = @grouped.grouped_choice_and_selected_weight_f32_source(
+        routed_expert_count=experts,
+        group_count=groups,
+        group_score_topk=group_topk,
+        selected_group_count=selected_groups,
+        experts_per_token=selected,
+        normalize=plan.normalize(),
+        scaling=plan.scaling(),
+        maximum_rows=rows,
+        function_symbol=symbol + "_choose",
+      )
+      (@utf8.decode(choose.source_bytes()), [symbol + "_choose"], [(rows, 1)])
+    }
+    TokenHash(vocabulary_size~) => {
+      let lookup = @hash.token_hash_lookup_i32_source(
+        vocabulary_size~,
+        experts_per_token=selected,
+        routed_expert_count=experts,
+        maximum_rows=rows,
+        function_symbol=symbol + "_lookup",
+      )
+      (
+        @utf8.decode(lookup.source_bytes()) +
+        hash_weight_source(plan, symbol + "_gather"),
+        [symbol + "_lookup", symbol + "_gather"],
+        [(rows, 256), (rows, 1)],
+      )
+    }
+  }
   let cells = rows.to_int64() * experts.to_int64()
   let grid = (cells + 255L) / 256L
   guard grid <= 2147483647L else {
@@ -45,6 +66,16 @@ pub fn routing_source(
     SqrtSoftplus =>
       "sqrtf(x>0.0f ? __fadd_rn(x,log1pf(expf(-x))) : log1pf(expf(x)))"
   }
+  let score_arguments = if plan.selection() is GroupedTopK {
+    "const float *bias, float *scores, float *choice"
+  } else {
+    "float *scores"
+  }
+  let correction = if plan.selection() is GroupedTopK {
+    "choice[cell]=__fadd_rn(score,bias[cell%" + experts.to_string() + "ULL]);"
+  } else {
+    ""
+  }
   let prefix =
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
@@ -57,26 +88,22 @@ pub fn routing_source(
     $|  float sum=0.0f; for(int k=0;k<\{hidden};++k) sum=__fadd_rn(sum,__fmul_rn(__bfloat162float(input[row*\{hidden}ULL+k]),\{weight_load}));
     $|  logits[cell]=sum;
     $|}
-    $|extern "C" __global__ void \{symbol}_score(const int *counts, const float *logits, const float *bias, float *scores, float *choice) {
+    $|extern "C" __global__ void \{symbol}_score(const int *counts, const float *logits, \{score_arguments}) {
     $|  const int live=counts[3]; if(live<=0||live>\{rows}) return;
     $|  const unsigned long long cell=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;
     $|  if(cell>=(unsigned long long)live*\{experts}ULL) return;
     $|  const float x=logits[cell]; const float score=\{score};
-    $|  scores[cell]=score; choice[cell]=__fadd_rn(score,bias[cell%\{experts}ULL]);
+    $|  scores[cell]=score; \{correction}
     $|}
   {
     plan,
-    source: @utf8.encode(prefix + "\n" + @utf8.decode(choose.source_bytes())),
-    symbols: ReadOnlyArray::from_array([
-      symbol + "_project",
-      symbol + "_score",
-      symbol + "_choose",
-    ]),
-    launches: ReadOnlyArray::from_array([
-      (grid.to_int(), 256),
-      (grid.to_int(), 256),
-      (rows, 1),
-    ]),
+    source: @utf8.encode(prefix + "\n" + selection_source),
+    symbols: ReadOnlyArray::from_array(
+      [symbol + "_project", symbol + "_score"] + selection_symbols,
+    ),
+    launches: ReadOnlyArray::from_array(
+      [(grid.to_int(), 256), (grid.to_int(), 256)] + selection_launches,
+    ),
   }
 }
 

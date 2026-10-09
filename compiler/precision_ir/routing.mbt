@@ -12,6 +12,19 @@ pub extend MoeRoutingScore with Eq::{equal, not_equal}
 pub extend MoeRoutingScore with @debug.Debug::{to_repr}
 
 ///|
+/// Selection is independent of score arithmetic and device scheduling.
+pub(all) enum MoeRoutingSelection {
+  GroupedTopK
+  TokenHash(vocabulary_size~ : Int)
+} derive(Eq, @debug.Debug)
+
+///|
+pub extend MoeRoutingSelection with Eq::{equal, not_equal}
+
+///|
+pub extend MoeRoutingSelection with @debug.Debug::{to_repr}
+
+///|
 /// BF16 hidden rows, BF16/F32 router weights, F32 logits and selection scores.
 /// Stable lower-ID tie selection is explicit; correction changes choice only.
 pub struct MoeRoutingPrecision {
@@ -22,6 +35,7 @@ pub struct MoeRoutingPrecision {
   priv selected_groups : Int
   priv selected_experts : Int
   priv score : MoeRoutingScore
+  priv selection : MoeRoutingSelection
   priv normalize : Bool
   priv scaling : Double
   priv buffers : ReadOnlyArray[Int64]
@@ -37,6 +51,7 @@ pub fn MoeRoutingPrecision::new(
   selected_group_count~ : Int,
   selected_experts~ : Int,
   score~ : MoeRoutingScore,
+  selection? : MoeRoutingSelection = GroupedTopK,
   normalize~ : Bool,
   scaling~ : Double,
   maximum_workspace_bytes~ : Int64,
@@ -54,8 +69,24 @@ pub fn MoeRoutingPrecision::new(
     selected_group_count > 0 &&
     selected_group_count <= group_count &&
     selected_experts > 0 &&
-    selected_experts <= selected_group_count * (experts / group_count) else {
+    selected_experts <= experts &&
+    (
+      selection is TokenHash(_) ||
+      selected_experts <= selected_group_count * (experts / group_count)
+    ) else {
     raise IllegalPlacement
+  }
+  if selection is TokenHash(vocabulary_size~) {
+    guard vocabulary_size > 0 else { raise IllegalPlacement }
+    ignore(
+      expert_checked_mul(
+        expert_checked_mul(
+          vocabulary_size.to_int64(),
+          selected_experts.to_int64(),
+        ),
+        4L,
+      ),
+    )
   }
   guard !scaling.is_nan() && !scaling.is_inf() && scaling > 0.0 else {
     raise MissingAccuracyContract
@@ -68,7 +99,17 @@ pub fn MoeRoutingPrecision::new(
     expert_checked_mul(maximum_rows.to_int64(), selected_experts.to_int64()),
     4L,
   )
-  let buffers = [logits, logits, logits, selected, selected]
+  let buffers = [
+    logits,
+    logits,
+    if selection is GroupedTopK {
+      logits
+    } else {
+      0L
+    },
+    selected,
+    selected,
+  ]
   let workspace = for bytes in buffers; total = 0L {
     guard bytes <= maximum_workspace_bytes - total else {
       raise MemoryBudgetExceeded
@@ -85,6 +126,7 @@ pub fn MoeRoutingPrecision::new(
     selected_groups: selected_group_count,
     selected_experts,
     score,
+    selection,
     normalize,
     scaling,
     buffers: ReadOnlyArray::from_array(buffers),
@@ -111,6 +153,11 @@ pub fn MoeRoutingPrecision::grouping(self : Self) -> (Int, Int, Int) {
 ///|
 pub fn MoeRoutingPrecision::score(self : Self) -> MoeRoutingScore {
   self.score
+}
+
+///|
+pub fn MoeRoutingPrecision::selection(self : Self) -> MoeRoutingSelection {
+  self.selection
 }
 
 ///|

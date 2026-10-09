@@ -52,3 +52,53 @@ test "routing precision owns exact compact memory and portable score policy" {
     }
   }
 }
+
+///|
+test "hash selection preserves table order without a choice-score workspace" {
+  let weight = @precision_ir.plan_operand(
+    role=Weight,
+    representation=@format.Representation::new(format=Bf16, rows=4, columns=32),
+    placement=NativeOperand,
+    supported_placements=[NativeOperand],
+    accuracy=@precision_ir.Accuracy::new(absolute=0.01, relative=0.01),
+    memory_ceiling=256L,
+  )
+  let plan = @precision_ir.MoeRoutingPrecision::new(
+    weight~,
+    maximum_rows=2,
+    group_count=2,
+    group_score_topk=1,
+    selected_group_count=1,
+    selected_experts=4,
+    score=SqrtSoftplus,
+    selection=TokenHash(vocabulary_size=3),
+    normalize=true,
+    scaling=1.5,
+    maximum_workspace_bytes=128L,
+  )
+  assert_eq(
+    plan.selection(),
+    @precision_ir.MoeRoutingSelection::TokenHash(vocabulary_size=3),
+  )
+  assert_eq(plan.buffer_bytes()[:], [32L, 32L, 0L, 32L, 32L][:])
+  try
+    @precision_ir.MoeRoutingPrecision::new(
+      weight~,
+      maximum_rows=2,
+      group_count=1,
+      group_score_topk=1,
+      selected_group_count=1,
+      selected_experts=2,
+      score=SqrtSoftplus,
+      selection=TokenHash(vocabulary_size=0),
+      normalize=true,
+      scaling=1.5,
+      maximum_workspace_bytes=96L,
+    )
+  catch {
+    IllegalPlacement => ()
+    _ => fail("wrong token table geometry error")
+  } noraise {
+    _ => fail("empty hash vocabulary accepted")
+  }
+}
