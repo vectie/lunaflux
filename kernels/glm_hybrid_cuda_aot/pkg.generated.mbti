@@ -1,0 +1,777 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/glm_hybrid_cuda_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/bf16_binary_cuda_source",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/causal_short_convolution_cuda_source",
+  "vectie/lunaflux/kernels/decay_control_cuda_source",
+  "vectie/lunaflux/kernels/decoder_foundation_cuda_source",
+  "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source",
+  "vectie/lunaflux/kernels/decoder_interleaved_rope_cuda_source",
+  "vectie/lunaflux/kernels/decoder_kv_assembly_cuda_source",
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source",
+  "vectie/lunaflux/kernels/gated_mlp_cuda_source",
+  "vectie/lunaflux/kernels/gated_rms_norm_cuda_source",
+  "vectie/lunaflux/kernels/glm_hybrid_artifact_admission",
+  "vectie/lunaflux/kernels/glm_hybrid_dsa_index_cuda_source",
+  "vectie/lunaflux/kernels/glm_hybrid_dsa_pooling_cuda_source",
+  "vectie/lunaflux/kernels/glm_hybrid_sparse_attention_cuda_source",
+  "vectie/lunaflux/kernels/grouped_routing_cuda_source",
+  "vectie/lunaflux/kernels/hyper_connection_mix_cuda_source",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kernels/prefix_rms_norm_cuda_source",
+  "vectie/lunaflux/kernels/recurrent_attention_projection_cuda_source",
+  "vectie/lunaflux/kernels/recurrent_delta_cuda_source",
+  "vectie/lunaflux/kernels/router_projection_cuda_source",
+  "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source",
+  "vectie/lunaflux/kernels/sigmoid_correction_cuda_source",
+  "vectie/lunaflux/kernels/two_stage_projection_cuda_source",
+  "vectie/lunaflux/model/glm_hybrid_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn lower_attention_output_projection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDenseProjectionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dense_swiglu_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDenseSwiGluCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_index_reuse_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDsaIndexCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_index_selection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDsaIndexCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_interleaved_rotary_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridRotaryCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_key_pooling_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDsaPoolingCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_key_value_a_projection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDenseProjectionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_key_value_b_projection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDenseProjectionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_key_value_split_norm_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridKvSplitNormCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_kv_attention_assembly_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridKvAssemblyCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_query_a_projection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDenseProjectionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_query_b_projection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDenseProjectionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_dsa_sparse_attention_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridSparseAttentionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_foundation_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridFoundationCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_hyper_connection_function_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridHyperControlCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_hyper_connection_mix_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridMoeFeedForwardCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_hyper_connection_sinkhorn_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridHyperControlCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_kda_decay_control_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridKdaDecayControlCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_kda_gated_rms_norm_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridKdaGatedNormCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_kda_output_gate_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridKdaOutputGateCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_kda_output_projection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDenseProjectionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_kda_projection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridKdaProjectionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_kda_recurrent_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, maximum_sequences~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridKdaRecurrentCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_kda_short_convolution_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, maximum_sequences~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridKdaShortConvolutionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_language_model_head_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridDenseProjectionCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_moe_decoder_residual_add_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridMoeFeedForwardCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_moe_grouped_routing_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridMoeGroupedRoutingCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_moe_routed_expert_feed_forward_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridMoeFeedForwardCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_moe_routed_shared_combine_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridMoeFeedForwardCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_moe_router_projection_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridMoeRouterCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_moe_shared_expert_feed_forward_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridMoeFeedForwardCudaCandidate raise GlmHybridCudaAotError
+
+pub fn lower_moe_sigmoid_correction_cuda_aot_candidate(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : GlmHybridCudaAotLimits) -> GlmHybridMoeScoreCudaCandidate raise GlmHybridCudaAotError
+
+// Errors
+pub(all) suberror GlmHybridCudaAotError {
+  Invalid(GlmHybridCudaAotInvalidKind)
+  UnsupportedRequirement(Int)
+  SizeOverflow
+  Source(@decoder_foundation_cuda_source.DecoderFoundationCudaSourceError)
+  ProjectionSource(@decoder_projection_cuda_source.DecoderProjectionCudaSourceError)
+  DsaPoolingSource(@glm_hybrid_dsa_pooling_cuda_source.GlmHybridDsaPoolingCudaSourceError)
+  DsaIndexSource(@glm_hybrid_dsa_index_cuda_source.GlmHybridDsaIndexCudaSourceError)
+  SparseAttentionSource(@glm_hybrid_sparse_attention_cuda_source.GlmHybridSparseAttentionCudaSourceError)
+  PrefixNormSource(@prefix_rms_norm_cuda_source.PrefixRmsNormCudaSourceError)
+  InterleavedRopeSource(@decoder_interleaved_rope_cuda_source.DecoderInterleavedRopeCudaSourceError)
+  GatedMlpSource(@gated_mlp_cuda_source.GatedMlpCudaSourceError)
+  GatedRmsNormSource(@gated_rms_norm_cuda_source.GatedRmsNormCudaSourceError)
+  DecayControlSource(@decay_control_cuda_source.DecayControlCudaSourceError)
+  RouterProjectionSource(@router_projection_cuda_source.RouterProjectionCudaSourceError)
+  SigmoidCorrectionSource(@sigmoid_correction_cuda_source.SigmoidCorrectionCudaSourceError)
+  GroupedRoutingSource(@grouped_routing_cuda_source.GroupedRoutingCudaSourceError)
+  SelectedExpertMlpSource(@selected_expert_mlp_cuda_source.SelectedExpertMlpCudaSourceError)
+  Bf16BinarySource(@bf16_binary_cuda_source.Bf16BinaryCudaSourceError)
+  HyperConnectionMixSource(@hyper_connection_mix_cuda_source.HyperConnectionMixCudaSourceError)
+  HyperConnectionControlSource(@decoder_hyper_connection_cuda_source.DecoderHyperConnectionCudaSourceError)
+  KvAssemblySource(@decoder_kv_assembly_cuda_source.DecoderKvAssemblyCudaSourceError)
+  CausalShortConvolutionSource(@causal_short_convolution_cuda_source.CausalShortConvolutionCudaSourceError)
+  RecurrentDeltaSource(@recurrent_delta_cuda_source.RecurrentDeltaCudaSourceError)
+  RecurrentAttentionProjectionSource(@recurrent_attention_projection_cuda_source.RecurrentAttentionProjectionCudaSourceError)
+  TwoStageProjectionSource(@two_stage_projection_cuda_source.TwoStageProjectionCudaSourceError)
+  Operand(@glm_hybrid_artifact_admission.GlmHybridArtifactAdmissionError)
+  Launch(@launch_contract.LaunchContractError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum GlmHybridCudaAotInvalidKind {
+  Limit
+  Requirement
+  Shape
+  Target
+  Compiler
+  Encoding
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridCudaAotLimits {
+  // private fields
+}
+pub fn GlmHybridCudaAotLimits::new(maximum_tokens~ : Int, maximum_source_bytes~ : Int, maximum_recipe_bytes~ : Int) -> Self raise GlmHybridCudaAotError
+
+pub struct GlmHybridCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn GlmHybridCudaRecipeDigest::as_hex(Self) -> String
+
+pub struct GlmHybridCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn GlmHybridCudaSourceDigest::as_hex(Self) -> String
+
+pub(all) enum GlmHybridDenseProjectionAotFamily {
+  AttentionOutputProjectionBf16
+  LanguageModelHeadBf16
+  DsaQueryAProjectionBf16
+  DsaKeyValueAProjectionBf16
+  DsaQueryBProjectionBf16
+  DsaKeyValueBProjectionBf16
+  KdaOutputProjectionBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridDenseProjectionCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridDenseProjectionCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridDenseProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridDenseProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridDenseProjectionCudaCandidate::family(Self) -> GlmHybridDenseProjectionAotFamily
+pub fn GlmHybridDenseProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridDenseProjectionCudaCandidate::input_width(Self) -> Int
+pub fn GlmHybridDenseProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridDenseProjectionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridDenseProjectionCudaCandidate::numerical_contract(Self) -> @decoder_projection_cuda_source.DecoderProjectionNumericalContract
+pub fn GlmHybridDenseProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridDenseProjectionCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridDenseProjectionCudaCandidate::output_width(Self) -> Int
+pub fn GlmHybridDenseProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridDenseProjectionCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridDenseProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridDenseProjectionCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridDenseProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridDenseProjectionCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridDenseProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridDenseProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridDenseSwiGluAotFamily {
+  SeparateGateUpDownWeightsBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridDenseSwiGluCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridDenseSwiGluCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridDenseSwiGluCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridDenseSwiGluCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridDenseSwiGluCudaCandidate::family(Self) -> GlmHybridDenseSwiGluAotFamily
+pub fn GlmHybridDenseSwiGluCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridDenseSwiGluCudaCandidate::hidden_size(Self) -> Int
+pub fn GlmHybridDenseSwiGluCudaCandidate::intermediate_size(Self) -> Int
+pub fn GlmHybridDenseSwiGluCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridDenseSwiGluCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridDenseSwiGluCudaCandidate::numerical_contract(Self) -> @gated_mlp_cuda_source.GatedMlpNumericalContract
+pub fn GlmHybridDenseSwiGluCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridDenseSwiGluCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridDenseSwiGluCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridDenseSwiGluCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridDenseSwiGluCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridDenseSwiGluCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridDenseSwiGluCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridDenseSwiGluCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridDenseSwiGluCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridDenseSwiGluCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridDsaIndexAotFamily {
+  RawTokenScoreStableTopKBf16
+  PooledScoreStableTopKWithTailBf16
+  SelectedIndexReuseI32
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridDsaIndexCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridDsaIndexCudaCandidate::candidate_capacity(Self) -> Int
+pub fn GlmHybridDsaIndexCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridDsaIndexCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridDsaIndexCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridDsaIndexCudaCandidate::family(Self) -> GlmHybridDsaIndexAotFamily
+pub fn GlmHybridDsaIndexCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridDsaIndexCudaCandidate::head_count(Self) -> Int
+pub fn GlmHybridDsaIndexCudaCandidate::head_dimension(Self) -> Int
+pub fn GlmHybridDsaIndexCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridDsaIndexCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridDsaIndexCudaCandidate::numerical_contract(Self) -> @glm_hybrid_dsa_index_cuda_source.GlmHybridDsaIndexNumericalContract
+pub fn GlmHybridDsaIndexCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridDsaIndexCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridDsaIndexCudaCandidate::output_width(Self) -> Int
+pub fn GlmHybridDsaIndexCudaCandidate::pool_size(Self) -> Int
+pub fn GlmHybridDsaIndexCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridDsaIndexCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridDsaIndexCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridDsaIndexCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridDsaIndexCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridDsaIndexCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridDsaIndexCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridDsaIndexCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn GlmHybridDsaIndexCudaCandidate::top_k(Self) -> Int
+
+pub(all) enum GlmHybridDsaPoolingAotFamily {
+  DsaKeyPoolCompressionBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridDsaPoolingCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridDsaPoolingCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridDsaPoolingCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridDsaPoolingCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridDsaPoolingCudaCandidate::family(Self) -> GlmHybridDsaPoolingAotFamily
+pub fn GlmHybridDsaPoolingCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridDsaPoolingCudaCandidate::head_dimension(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridDsaPoolingCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaCandidate::numerical_contract(Self) -> @glm_hybrid_dsa_pooling_cuda_source.GlmHybridDsaPoolingNumericalContract
+pub fn GlmHybridDsaPoolingCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridDsaPoolingCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridDsaPoolingCudaCandidate::pool_capacity(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaCandidate::pool_size(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridDsaPoolingCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridDsaPoolingCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridDsaPoolingCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridDsaPoolingCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridDsaPoolingCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridDsaPoolingCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridFoundationAotFamily {
+  TokenEmbeddingBf16
+  DecoderRmsNormBf16
+  FinalRmsNormBf16
+  DsaQueryARmsNormBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridFoundationCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridFoundationCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridFoundationCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridFoundationCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridFoundationCudaCandidate::family(Self) -> GlmHybridFoundationAotFamily
+pub fn GlmHybridFoundationCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridFoundationCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridFoundationCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridFoundationCudaCandidate::numerical_contract(Self) -> @decoder_foundation_cuda_source.DecoderFoundationNumericalContract
+pub fn GlmHybridFoundationCudaCandidate::operands(Self) -> ReadOnlyArray[GlmHybridFoundationOperand]
+pub fn GlmHybridFoundationCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridFoundationCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridFoundationCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridFoundationCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridFoundationCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridFoundationCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridFoundationCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridFoundationCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridFoundationCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct GlmHybridFoundationOperand {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridFoundationOperand::alignment(Self) -> Int64
+pub fn GlmHybridFoundationOperand::byte_count(Self) -> Int64
+pub fn GlmHybridFoundationOperand::role(Self) -> GlmHybridFoundationOperandRole
+
+pub(all) enum GlmHybridFoundationOperandRole {
+  StepCountsInput
+  TokenIdsInput
+  HiddenInput
+  ModelWeights
+  HiddenOutput
+  DsaQueryCompressedInput
+  DsaQueryNormalizedOutput
+} derive(Eq, @debug.Debug)
+
+pub(all) enum GlmHybridHyperControlAotFamily {
+  FlashFunctionAndCollapse4x4096
+  FlashPositiveSinkhorn4x20
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridHyperControlCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridHyperControlCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridHyperControlCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridHyperControlCudaCandidate::control_epsilon(Self) -> Double
+pub fn GlmHybridHyperControlCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridHyperControlCudaCandidate::family(Self) -> GlmHybridHyperControlAotFamily
+pub fn GlmHybridHyperControlCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridHyperControlCudaCandidate::hidden_width(Self) -> Int
+pub fn GlmHybridHyperControlCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridHyperControlCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridHyperControlCudaCandidate::normalization_epsilon(Self) -> Double
+pub fn GlmHybridHyperControlCudaCandidate::numerical_contract(Self) -> @decoder_hyper_connection_cuda_source.DecoderHyperConnectionNumericalContract
+pub fn GlmHybridHyperControlCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridHyperControlCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridHyperControlCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridHyperControlCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridHyperControlCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridHyperControlCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridHyperControlCudaCandidate::sinkhorn_iterations(Self) -> Int
+pub fn GlmHybridHyperControlCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridHyperControlCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridHyperControlCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridHyperControlCudaCandidate::stream_count(Self) -> Int
+pub fn GlmHybridHyperControlCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridKdaDecayControlAotFamily {
+  PointwiseSafeLowerBoundSigmoidF32
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKdaDecayControlCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridKdaDecayControlCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridKdaDecayControlCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridKdaDecayControlCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridKdaDecayControlCudaCandidate::family(Self) -> GlmHybridKdaDecayControlAotFamily
+pub fn GlmHybridKdaDecayControlCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridKdaDecayControlCudaCandidate::head_count(Self) -> Int
+pub fn GlmHybridKdaDecayControlCudaCandidate::head_dimension(Self) -> Int
+pub fn GlmHybridKdaDecayControlCudaCandidate::lower_bound(Self) -> Double
+pub fn GlmHybridKdaDecayControlCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridKdaDecayControlCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridKdaDecayControlCudaCandidate::numerical_contract(Self) -> @decay_control_cuda_source.DecayControlNumericalContract
+pub fn GlmHybridKdaDecayControlCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridKdaDecayControlCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridKdaDecayControlCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridKdaDecayControlCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridKdaDecayControlCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridKdaDecayControlCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKdaDecayControlCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridKdaDecayControlCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridKdaDecayControlCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKdaDecayControlCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridKdaGatedNormAotFamily {
+  SerialPerHeadSigmoidGatedRmsNormBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKdaGatedNormCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridKdaGatedNormCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridKdaGatedNormCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridKdaGatedNormCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridKdaGatedNormCudaCandidate::epsilon(Self) -> Double
+pub fn GlmHybridKdaGatedNormCudaCandidate::family(Self) -> GlmHybridKdaGatedNormAotFamily
+pub fn GlmHybridKdaGatedNormCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridKdaGatedNormCudaCandidate::head_count(Self) -> Int
+pub fn GlmHybridKdaGatedNormCudaCandidate::head_dimension(Self) -> Int
+pub fn GlmHybridKdaGatedNormCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridKdaGatedNormCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridKdaGatedNormCudaCandidate::numerical_contract(Self) -> @gated_rms_norm_cuda_source.GatedRmsNormNumericalContract
+pub fn GlmHybridKdaGatedNormCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridKdaGatedNormCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridKdaGatedNormCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridKdaGatedNormCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridKdaGatedNormCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridKdaGatedNormCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKdaGatedNormCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridKdaGatedNormCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridKdaGatedNormCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKdaGatedNormCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridKdaOutputGateAotFamily {
+  SerialBiasFreeTwoStageBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKdaOutputGateCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridKdaOutputGateCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridKdaOutputGateCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridKdaOutputGateCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridKdaOutputGateCudaCandidate::family(Self) -> GlmHybridKdaOutputGateAotFamily
+pub fn GlmHybridKdaOutputGateCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridKdaOutputGateCudaCandidate::head_count(Self) -> Int
+pub fn GlmHybridKdaOutputGateCudaCandidate::head_dimension(Self) -> Int
+pub fn GlmHybridKdaOutputGateCudaCandidate::hidden_width(Self) -> Int
+pub fn GlmHybridKdaOutputGateCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridKdaOutputGateCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridKdaOutputGateCudaCandidate::numerical_contract(Self) -> @two_stage_projection_cuda_source.TwoStageProjectionNumericalContract
+pub fn GlmHybridKdaOutputGateCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridKdaOutputGateCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridKdaOutputGateCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridKdaOutputGateCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridKdaOutputGateCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridKdaOutputGateCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKdaOutputGateCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridKdaOutputGateCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridKdaOutputGateCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKdaOutputGateCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridKdaProjectionAotFamily {
+  SerialQkvForgetAndInputGateBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKdaProjectionCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridKdaProjectionCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridKdaProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridKdaProjectionCudaCandidate::control_rank(Self) -> Int
+pub fn GlmHybridKdaProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridKdaProjectionCudaCandidate::family(Self) -> GlmHybridKdaProjectionAotFamily
+pub fn GlmHybridKdaProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridKdaProjectionCudaCandidate::head_count(Self) -> Int
+pub fn GlmHybridKdaProjectionCudaCandidate::head_dimension(Self) -> Int
+pub fn GlmHybridKdaProjectionCudaCandidate::hidden_width(Self) -> Int
+pub fn GlmHybridKdaProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridKdaProjectionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridKdaProjectionCudaCandidate::numerical_contract(Self) -> @recurrent_attention_projection_cuda_source.RecurrentAttentionProjectionNumericalContract
+pub fn GlmHybridKdaProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridKdaProjectionCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridKdaProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridKdaProjectionCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridKdaProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridKdaProjectionCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKdaProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridKdaProjectionCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridKdaProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKdaProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridKdaRecurrentAotFamily {
+  SerialNormalizedRecurrentDeltaBf16F32
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKdaRecurrentCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridKdaRecurrentCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridKdaRecurrentCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridKdaRecurrentCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridKdaRecurrentCudaCandidate::family(Self) -> GlmHybridKdaRecurrentAotFamily
+pub fn GlmHybridKdaRecurrentCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridKdaRecurrentCudaCandidate::head_count(Self) -> Int
+pub fn GlmHybridKdaRecurrentCudaCandidate::head_dimension(Self) -> Int
+pub fn GlmHybridKdaRecurrentCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridKdaRecurrentCudaCandidate::maximum_sequences(Self) -> Int
+pub fn GlmHybridKdaRecurrentCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridKdaRecurrentCudaCandidate::normalization_epsilon(Self) -> Double
+pub fn GlmHybridKdaRecurrentCudaCandidate::numerical_contract(Self) -> @recurrent_delta_cuda_source.RecurrentDeltaNumericalContract
+pub fn GlmHybridKdaRecurrentCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridKdaRecurrentCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridKdaRecurrentCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridKdaRecurrentCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridKdaRecurrentCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridKdaRecurrentCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKdaRecurrentCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridKdaRecurrentCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridKdaRecurrentCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKdaRecurrentCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridKdaShortConvolutionAotFamily {
+  ReusableDepthwiseCausalSiluBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKdaShortConvolutionCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::channel_count(Self) -> Int
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::family(Self) -> GlmHybridKdaShortConvolutionAotFamily
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::kernel_size(Self) -> Int
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::maximum_sequences(Self) -> Int
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::numerical_contract(Self) -> @causal_short_convolution_cuda_source.CausalShortConvolutionNumericalContract
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKdaShortConvolutionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridKvAssemblyAotFamily {
+  FullSharedRopeSuffixBroadcast
+  FlashNoRopeSplit
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKvAssemblyCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridKvAssemblyCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridKvAssemblyCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridKvAssemblyCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridKvAssemblyCudaCandidate::family(Self) -> GlmHybridKvAssemblyAotFamily
+pub fn GlmHybridKvAssemblyCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridKvAssemblyCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridKvAssemblyCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridKvAssemblyCudaCandidate::numerical_contract(Self) -> @decoder_kv_assembly_cuda_source.DecoderKvAssemblyNumericalContract
+pub fn GlmHybridKvAssemblyCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridKvAssemblyCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridKvAssemblyCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridKvAssemblyCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridKvAssemblyCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridKvAssemblyCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKvAssemblyCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridKvAssemblyCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridKvAssemblyCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKvAssemblyCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridKvSplitNormAotFamily {
+  DsaKeyValuePrefixRmsNormBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKvSplitNormCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridKvSplitNormCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridKvSplitNormCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridKvSplitNormCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridKvSplitNormCudaCandidate::family(Self) -> GlmHybridKvSplitNormAotFamily
+pub fn GlmHybridKvSplitNormCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridKvSplitNormCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridKvSplitNormCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridKvSplitNormCudaCandidate::numerical_contract(Self) -> @prefix_rms_norm_cuda_source.PrefixRmsNormNumericalContract
+pub fn GlmHybridKvSplitNormCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridKvSplitNormCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridKvSplitNormCudaCandidate::prefix_width(Self) -> Int
+pub fn GlmHybridKvSplitNormCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridKvSplitNormCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridKvSplitNormCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridKvSplitNormCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKvSplitNormCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridKvSplitNormCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridKvSplitNormCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKvSplitNormCudaCandidate::suffix_width(Self) -> Int
+pub fn GlmHybridKvSplitNormCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridMoeFeedForwardAotFamily {
+  FullRoutedExperts256
+  FlashRoutedExperts288
+  FullSharedExpert
+  FlashSharedExpert
+  FullRoutedSharedAdd
+  FlashRoutedSharedAdd
+  FullDecoderResidualAdd
+  FlashHyperConnectionMix4
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridMoeFeedForwardCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridMoeFeedForwardCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridMoeFeedForwardCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridMoeFeedForwardCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridMoeFeedForwardCudaCandidate::family(Self) -> GlmHybridMoeFeedForwardAotFamily
+pub fn GlmHybridMoeFeedForwardCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridMoeFeedForwardCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridMoeFeedForwardCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridMoeFeedForwardCudaCandidate::numerical_contract(Self) -> GlmHybridMoeFeedForwardNumericalContract
+pub fn GlmHybridMoeFeedForwardCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridMoeFeedForwardCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridMoeFeedForwardCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridMoeFeedForwardCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridMoeFeedForwardCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridMoeFeedForwardCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridMoeFeedForwardCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridMoeFeedForwardCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridMoeFeedForwardCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridMoeFeedForwardCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridMoeFeedForwardNumericalContract {
+  SelectedExpertBf16WeightedAccumulate
+  SharedExpertBf16SwiGlu
+  RoutedSharedF32AddBf16Round
+  DecoderResidualF32AddBf16Round
+  HyperControlBf16OrderedResidualMix
+} derive(Eq, @debug.Debug)
+
+pub(all) enum GlmHybridMoeGroupedRoutingAotFamily {
+  FullGroupedRouting256
+  FlashGroupedRouting288
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridMoeGroupedRoutingCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::family(Self) -> GlmHybridMoeGroupedRoutingAotFamily
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::numerical_contract(Self) -> @grouped_routing_cuda_source.GroupedRoutingNumericalContract
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::routed_expert_count(Self) -> Int
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridMoeGroupedRoutingCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridMoeRouterAotFamily {
+  FullFloat32Router256
+  FlashFloat32Router288
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridMoeRouterCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridMoeRouterCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridMoeRouterCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridMoeRouterCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridMoeRouterCudaCandidate::expert_count(Self) -> Int
+pub fn GlmHybridMoeRouterCudaCandidate::family(Self) -> GlmHybridMoeRouterAotFamily
+pub fn GlmHybridMoeRouterCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridMoeRouterCudaCandidate::hidden_width(Self) -> Int
+pub fn GlmHybridMoeRouterCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridMoeRouterCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridMoeRouterCudaCandidate::numerical_contract(Self) -> @router_projection_cuda_source.RouterProjectionNumericalContract
+pub fn GlmHybridMoeRouterCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridMoeRouterCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridMoeRouterCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridMoeRouterCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridMoeRouterCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridMoeRouterCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridMoeRouterCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridMoeRouterCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridMoeRouterCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridMoeRouterCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridMoeScoreAotFamily {
+  FullSigmoidCorrection256
+  FlashSigmoidCorrection288
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridMoeScoreCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridMoeScoreCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridMoeScoreCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridMoeScoreCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridMoeScoreCudaCandidate::expert_count(Self) -> Int
+pub fn GlmHybridMoeScoreCudaCandidate::family(Self) -> GlmHybridMoeScoreAotFamily
+pub fn GlmHybridMoeScoreCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridMoeScoreCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridMoeScoreCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridMoeScoreCudaCandidate::numerical_contract(Self) -> @sigmoid_correction_cuda_source.SigmoidCorrectionNumericalContract
+pub fn GlmHybridMoeScoreCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridMoeScoreCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridMoeScoreCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridMoeScoreCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridMoeScoreCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridMoeScoreCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridMoeScoreCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridMoeScoreCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridMoeScoreCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridMoeScoreCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridRotaryAotFamily {
+  DsaInterleavedQuerySharedKeyRopeBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridRotaryCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridRotaryCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridRotaryCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridRotaryCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridRotaryCudaCandidate::family(Self) -> GlmHybridRotaryAotFamily
+pub fn GlmHybridRotaryCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridRotaryCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridRotaryCudaCandidate::maximum_positions(Self) -> Int
+pub fn GlmHybridRotaryCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridRotaryCudaCandidate::numerical_contract(Self) -> @decoder_interleaved_rope_cuda_source.DecoderInterleavedRopeNumericalContract
+pub fn GlmHybridRotaryCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridRotaryCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridRotaryCudaCandidate::query_head_count(Self) -> Int
+pub fn GlmHybridRotaryCudaCandidate::query_head_dimension(Self) -> Int
+pub fn GlmHybridRotaryCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridRotaryCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridRotaryCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridRotaryCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridRotaryCudaCandidate::rope_dimension(Self) -> Int
+pub fn GlmHybridRotaryCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridRotaryCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridRotaryCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridRotaryCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum GlmHybridSparseAttentionAotFamily {
+  SelectedIndexSparseAttentionBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridSparseAttentionCudaCandidate {
+  // private fields
+}
+pub fn GlmHybridSparseAttentionCudaCandidate::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridSparseAttentionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn GlmHybridSparseAttentionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridSparseAttentionCudaCandidate::family(Self) -> GlmHybridSparseAttentionAotFamily
+pub fn GlmHybridSparseAttentionCudaCandidate::function_symbol(Self) -> String
+pub fn GlmHybridSparseAttentionCudaCandidate::key_value_head_count(Self) -> Int
+pub fn GlmHybridSparseAttentionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn GlmHybridSparseAttentionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn GlmHybridSparseAttentionCudaCandidate::numerical_contract(Self) -> @glm_hybrid_sparse_attention_cuda_source.GlmHybridSparseAttentionNumericalContract
+pub fn GlmHybridSparseAttentionCudaCandidate::operands(Self) -> ReadOnlyArray[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand]
+pub fn GlmHybridSparseAttentionCudaCandidate::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridSparseAttentionCudaCandidate::query_head_count(Self) -> Int
+pub fn GlmHybridSparseAttentionCudaCandidate::query_key_dimension(Self) -> Int
+pub fn GlmHybridSparseAttentionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn GlmHybridSparseAttentionCudaCandidate::recipe_digest(Self) -> GlmHybridCudaRecipeDigest
+pub fn GlmHybridSparseAttentionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn GlmHybridSparseAttentionCudaCandidate::requirements_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridSparseAttentionCudaCandidate::selected_width(Self) -> Int
+pub fn GlmHybridSparseAttentionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn GlmHybridSparseAttentionCudaCandidate::source_digest(Self) -> GlmHybridCudaSourceDigest
+pub fn GlmHybridSparseAttentionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridSparseAttentionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn GlmHybridSparseAttentionCudaCandidate::top_k(Self) -> Int
+pub fn GlmHybridSparseAttentionCudaCandidate::value_dimension(Self) -> Int
+
+// Type aliases
+
+// Traits

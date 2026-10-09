@@ -341,6 +341,7 @@ pub fn TensorParallelDeviceWorkerOwner::finish_leader_frame(
   executed : ExecutedTensorParallelDeviceExecution,
   frame : @worker_wire.ValidatedPlanFrame,
 ) -> @worker_wire.ValidatedCompletionFrame raise TensorParallelDeviceWorkerError {
+  self.poll_remote_lease()
   let exact = authenticate_executed_execution(executed, self, frame)
   guard completion_role(self.plan.execution.rank()) == LeaderRole &&
     self.completion is LeaderAuthority(scratch) else {
@@ -357,6 +358,7 @@ pub fn TensorParallelDeviceWorkerOwner::finish_follower(
   executed : ExecutedTensorParallelDeviceExecution,
   frame : @worker_wire.ValidatedPlanFrame,
 ) -> TensorParallelFollowerExecutionAck raise TensorParallelDeviceWorkerError {
+  self.poll_remote_lease()
   let exact = authenticate_executed_execution(executed, self, frame)
   guard completion_role(self.plan.execution.rank()) == FollowerRole &&
     self.completion is FollowerAuthority else {

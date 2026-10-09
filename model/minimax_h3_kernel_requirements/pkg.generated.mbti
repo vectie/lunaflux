@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_kernel_requirements"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/minimax_h3_spec",
+}
+
+// Values
+pub fn project(@minimax_h3_spec.MiniMaxH3ModelMetadata) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements raise MiniMaxH3KernelRequirementsError
+
+// Errors
+pub(all) suberror MiniMaxH3KernelRequirementsError {
+  PlanFailure(@joint_diffusion_plan.JointDiffusionPlanError)
+  RequirementsFailure(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

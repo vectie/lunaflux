@@ -1,0 +1,156 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm_hybrid_kernel_requirements"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/glm_hybrid_execution_plan",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn derive_requirements(@glm_hybrid_execution_plan.GlmHybridExecutionPlan, limits~ : GlmHybridKernelRequirementLimits) -> GlmHybridKernelRequirements raise GlmHybridKernelRequirementsError
+
+// Errors
+pub(all) suberror GlmHybridKernelRequirementsError {
+  InvalidLimit
+  UnsupportedSchema
+  PlanExceedsLimits
+  DuplicateSemanticOperation(Int)
+  RequirementsEncodingTooLarge
+  UnsupportedGenericKernelOperation(Int, GlmHybridSemanticOperation)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum GlmHybridAotCapability {
+  Advanced(@advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability)
+  DecoderRmsNormAot
+  GlmRotaryPositionAot
+  DsaIndexComputeAot
+  DsaIndexPoolingAot
+  DsaIndexReuseAot
+  DsaSparseAttentionAot
+  AttentionOutputProjectionAot
+  KdaProjectionAot
+  KdaShortConvolutionAot
+  KdaRecurrentUpdateAot
+  KdaOutputProjectionAot
+  HyperConnectionFunctionAot
+  DenseSwiGluAot
+  MoeRouterProjectionAot
+  MoeSigmoidAndCorrectionBiasAot
+  MoeGroupedRoutingAot
+  MoeDecoderResidualAddAot
+  DsaKeyValueAttentionAssemblyAot
+  VisionPatchProjectionAot
+  VisionRmsNormAot
+  VisionQkvProjectionAot
+  VisionAttentionAot
+  VisionOutputProjectionAot
+  VisionSwiGluAot
+  VisionSpatialMergeAot
+  VisionDecoderProjectionAot
+  VisionPostProjectionNormAot
+  DsaQueryAProjectionAot
+  DsaKeyValueAProjectionAot
+  DsaQueryARmsNormAot
+  DsaQueryBProjectionAot
+  KdaDecayControlAot
+  KdaOutputGateProjectionAot
+  KdaGatedRmsNormAot
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridKernelGeometry {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridKernelGeometry::context_length(Self) -> Int
+pub fn GlmHybridKernelGeometry::decoder_layer_count(Self) -> Int
+pub fn GlmHybridKernelGeometry::dense_intermediate_size(Self) -> Int
+pub fn GlmHybridKernelGeometry::hidden_size(Self) -> Int
+pub fn GlmHybridKernelGeometry::vocabulary_size(Self) -> Int
+
+pub struct GlmHybridKernelRequirement {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridKernelRequirement::capability(Self) -> GlmHybridAotCapability
+pub fn GlmHybridKernelRequirement::current_generic_capability(Self, ordinal~ : Int) -> @plan.KernelCapabilityId raise GlmHybridKernelRequirementsError
+pub fn GlmHybridKernelRequirement::operation(Self) -> GlmHybridSemanticOperation
+
+pub struct GlmHybridKernelRequirementLimits {
+  // private fields
+}
+pub fn GlmHybridKernelRequirementLimits::new(maximum_layers~ : Int, maximum_vision_layers~ : Int, maximum_requirements~ : Int) -> Self raise GlmHybridKernelRequirementsError
+
+pub struct GlmHybridKernelRequirements {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridKernelRequirements::capabilities(Self) -> ReadOnlyArray[GlmHybridAotCapability]
+pub fn GlmHybridKernelRequirements::digest(Self) -> GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKernelRequirements::geometry(Self) -> GlmHybridKernelGeometry
+pub fn GlmHybridKernelRequirements::require_current_generic_capabilities(Self) -> ReadOnlyArray[@plan.KernelCapabilityId] raise GlmHybridKernelRequirementsError
+pub fn GlmHybridKernelRequirements::requirements(Self) -> ReadOnlyArray[GlmHybridKernelRequirement]
+pub fn GlmHybridKernelRequirements::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridKernelRequirements::source_schema_version(Self) -> Int
+
+pub struct GlmHybridKernelRequirementsDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridKernelRequirementsDigest::as_hex(Self) -> String
+
+pub(all) enum GlmHybridSemanticOperation {
+  TokenEmbedding
+  DecoderRmsNorm(Int, Double)
+  QueryLowRankProjection(Int)
+  KeyValueLowRankProjection(Int, Int, Int, Int)
+  QueryKeyRmsNorm(Double)
+  GlmRotaryPosition(Double?, Bool)
+  DsaIndexCompute(Int, Int, Int, Bool)
+  DsaIndexPooling(Int, Bool, Bool)
+  DsaIndexReuse
+  DsaSparseAttention(Int, Int, Int, Int)
+  AttentionOutputProjection(Int, Int)
+  KdaProjection(Int, Int)
+  KdaShortConvolution(Int, Int)
+  KdaRecurrentUpdate(Int, Int, Double)
+  KdaOutputProjection(Int, Int)
+  HyperConnectionFunction(Int, Int, Double, Double)
+  HyperConnectionSinkhorn(Int, Int, Double)
+  HyperConnectionMix(Int)
+  DenseSwiGlu(Int, Int)
+  MoeRouterProjection(Int, Int, Bool)
+  MoeSigmoidAndCorrectionBias(Int)
+  ExpertScoreTransform(@advanced_decoder_execution_plan.ExpertScoreFunction)
+  MoeGroupedNoAuxiliaryLossTopK(Int, Int, Int, Int, Int, Bool, Double)
+  RoutedExpertFeedForward(Int, Int, @advanced_decoder_execution_plan.ExpertActivation)
+  SharedExpertFeedForward(Int, Int, @advanced_decoder_execution_plan.ExpertActivation)
+  RoutedSharedExpertCombine(Int, Bool, Double)
+  MoeDecoderResidualAdd(Int)
+  DsaKeyValueAttentionAssembly(Int, Int, Int, Int)
+  MultiTokenPredictionInputProjection
+  AuxiliaryDecoderStage(Int)
+  AuxiliaryOutputHead
+  VisionPatchProjection(Int, Int, Int, Int)
+  VisionRmsNorm(Int)
+  VisionQkvProjection(Int, Int)
+  VisionAttention(Int, Int)
+  VisionOutputProjection(Int)
+  VisionSwiGlu(Int, Int)
+  VisionSpatialMerge(Int, Int, Int)
+  VisionDecoderProjection(Int, Int)
+  VisionPostProjectionNorm(Int)
+  FinalRmsNorm(Int, Double)
+  LanguageModelHead(Int, Int)
+  DsaQueryAProjection(Int, Int)
+  DsaKeyValueAProjection(Int, Int, Int)
+  DsaQueryARmsNorm(Int, Double)
+  DsaQueryBProjection(Int, Int, Int)
+  KdaDecayControl(Int, Int, Double)
+  KdaOutputGateProjection(Int, Int, Int)
+  KdaGatedRmsNorm(Int, Int, Double)
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

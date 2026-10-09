@@ -1,0 +1,71 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/joint_diffusion_execution"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+}
+
+// Values
+
+// Errors
+pub(all) suberror ExecutionError {
+  InvalidFrameCount
+  Closing
+  ReentrantClose
+}
+
+pub(all) suberror PipelineError {
+  MissingConditioning
+  InvalidDenoisingCount
+  Terminal
+  Reentrant
+}
+
+// Types and methods
+pub struct Execution[F] {
+  // private fields
+}
+pub fn[F : PreparedFrame] Execution::advance(Self[F]) -> @joint_diffusion_loop.Progress raise
+pub fn[F] Execution::cancel(Self[F]) -> Unit
+pub fn[F : PreparedFrame] Execution::close(Self[F]) -> Unit raise
+pub fn[F] Execution::completed_steps(Self[F]) -> Int
+pub fn[F] Execution::is_closed(Self[F]) -> Bool
+pub fn[F] Execution::new(@joint_diffusion_loop.PreparedPlan, ArrayView[F]) -> Self[F] raise ExecutionError
+pub fn[F] Execution::progress(Self[F]) -> @joint_diffusion_loop.Progress
+
+pub struct Pipeline[F] {
+  // private fields
+}
+pub fn[F : PreparedFrame] Pipeline::advance(Self[F]) -> PipelineStage raise
+pub fn[F] Pipeline::cancel(Self[F]) -> Unit
+pub fn[F : PreparedFrame] Pipeline::close(Self[F]) -> Unit raise
+pub fn[F] Pipeline::completed_frames(Self[F]) -> Int
+pub fn[F] Pipeline::new(@joint_diffusion_loop.PreparedPlan, ArrayView[F], ArrayView[F], F, F) -> Self[F] raise PipelineError
+pub fn[F] Pipeline::stage(Self[F]) -> PipelineStage
+
+pub(all) enum PipelineStage {
+  Conditioning
+  Denoising
+  VideoDecode
+  AudioDecode
+  Completed
+  Cancelled
+  Failed
+  Closed
+} derive(Eq, @debug.Debug)
+
+pub struct PreparedStage {
+  // private fields
+}
+pub fn[F : PreparedFrame] PreparedStage::own(F) -> Self
+pub impl PreparedFrame for PreparedStage
+
+// Type aliases
+
+// Traits
+pub(open) trait PreparedFrame {
+  fn execute(Self) -> Unit raise
+  fn drain(Self) -> Unit raise
+  fn release(Self) -> Unit raise
+}

@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm53"
+
+import {
+  "vectie/lunaflux/model/family_contract",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/glm_hybrid_execution_plan",
+  "vectie/lunaflux/model/workload_execution_plan",
+}
+
+// Values
+pub fn admit_flash_backend(@glm53_spec.Glm53FlashMetadata, @family_contract.ModelBackendCapabilities) -> @family_contract.ModelFamilyAdmission
+
+pub fn admit_full_backend(@glm53_spec.Glm53FullMetadata, @family_contract.ModelBackendCapabilities) -> @family_contract.ModelFamilyAdmission
+
+pub fn build_flash_execution_plan(@glm53_spec.Glm53FlashMetadata) -> @glm_hybrid_execution_plan.GlmHybridExecutionPlan
+
+pub fn build_flash_workload_execution_plan(@glm53_spec.Glm53FlashMetadata) -> @workload_execution_plan.WorkloadExecutionPlan
+
+pub fn build_full_execution_plan(@glm53_spec.Glm53FullMetadata) -> @glm_hybrid_execution_plan.GlmHybridExecutionPlan
+
+pub fn build_full_workload_execution_plan(@glm53_spec.Glm53FullMetadata) -> @workload_execution_plan.WorkloadExecutionPlan
+
+pub fn flash_requirements() -> @family_contract.ModelFamilyRequirements
+
+pub fn full_requirements() -> @family_contract.ModelFamilyRequirements
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

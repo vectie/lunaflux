@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/device/network_fabric"
+
+import {
+  "vectie/lunaflux/device/network_topology",
+}
+
+// Values
+pub fn validate_process(@network_topology.NetworkRank) -> Unit raise NetworkFabricError
+
+// Errors
+pub(all) suberror NetworkFabricError {
+  NodeMismatch
+  TransportMismatch
+  InterfaceMismatch
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits

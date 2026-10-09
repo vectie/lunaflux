@@ -1,0 +1,53 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/gated_mlp_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn packed_swiglu_dense_bf16_rows_source(rows~ : Int, hidden_size~ : Int, intermediate_size~ : Int, function_symbol~ : String) -> GatedMlpCudaSource raise GatedMlpCudaSourceError
+
+pub fn separate_gate_up_clamped_swiglu_dense_bf16_source(hidden_size~ : Int, intermediate_size~ : Int, maximum_rows~ : Int, clamp_limit~ : Double, function_symbol~ : String) -> SeparateWeightGatedMlpCudaSource raise GatedMlpCudaSourceError
+
+pub fn separate_gate_up_swiglu_dense_bf16_source(hidden_size~ : Int, intermediate_size~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> SeparateWeightGatedMlpCudaSource raise GatedMlpCudaSourceError
+
+pub fn staged_packed_swiglu_bf16_source(rows~ : Int, hidden_size~ : Int, intermediate_size~ : Int, function_prefix~ : String) -> Bytes raise GatedMlpCudaSourceError
+
+// Errors
+pub(all) suberror GatedMlpCudaSourceError {
+  InvalidRowCount
+  InvalidWidth
+  DimensionOverflow
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct GatedMlpCudaSource {
+  // private fields
+}
+pub fn GatedMlpCudaSource::function_symbol(Self) -> String
+pub fn GatedMlpCudaSource::hidden_size(Self) -> Int
+pub fn GatedMlpCudaSource::intermediate_size(Self) -> Int
+pub fn GatedMlpCudaSource::numerical_contract(Self) -> GatedMlpNumericalContract
+pub fn GatedMlpCudaSource::row_count(Self) -> Int
+pub fn GatedMlpCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum GatedMlpNumericalContract {
+  OrderedF32AccumulationBf16SwiGluDownBf16V1
+  OrderedF32AccumulationClampedBf16SwiGluDownBf16V1
+} derive(Eq, @debug.Debug)
+
+pub struct SeparateWeightGatedMlpCudaSource {
+  // private fields
+}
+pub fn SeparateWeightGatedMlpCudaSource::function_symbol(Self) -> String
+pub fn SeparateWeightGatedMlpCudaSource::hidden_size(Self) -> Int
+pub fn SeparateWeightGatedMlpCudaSource::intermediate_size(Self) -> Int
+pub fn SeparateWeightGatedMlpCudaSource::maximum_rows(Self) -> Int
+pub fn SeparateWeightGatedMlpCudaSource::numerical_contract(Self) -> GatedMlpNumericalContract
+pub fn SeparateWeightGatedMlpCudaSource::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

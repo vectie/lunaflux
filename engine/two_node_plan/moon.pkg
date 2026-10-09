@@ -1,0 +1,24 @@
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/canonical_sha256",
+  "vectie/lunaflux/device/network_topology",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+}
+
+import {
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/tensor_parallel_kv_plan",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/model/llama",
+  "vectie/lunaflux/model/llama_weights",
+  "vectie/lunaflux/model/llama_tensor_parallel",
+  "vectie/lunaflux/model/safetensors",
+} for "test"
+
+supported_targets = "native"

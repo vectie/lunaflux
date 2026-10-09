@@ -110,13 +110,14 @@ fn validate_final_output(
 /// launch, device, artifact, and root-derived sharded-file evidence. The
 /// decoded bootstrap envelope is accepted only after authenticating that exact
 /// rebuilt plan and every local startup binding.
-pub fn admit_plan(
+fn admit_bound_plan(
   model : @plan.ModelPlan,
   model_generation : @worker_protocol.ModelPlanGeneration,
   group_generation : @rank_group_protocol.RankGroupGeneration,
-  topology : @device_topology.AdmittedLocalTopology,
+  world_size : Int,
+  expected_rank : Int,
   startup : @worker_wire.WorkerStartupContract,
-  envelope : @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope,
+  remote : @remote_startup.RemoteRankStartup?,
   inspection : @device_materialize.DeviceShardedWeightFileInspection,
   device_plan : @tensor_parallel_device_plan.TensorParallelDevicePlan,
   launch_set : @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet,
@@ -124,7 +125,10 @@ pub fn admit_plan(
   selected_profile : @launch_contract.PagedKernelProfile,
   execution_limits : @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits,
   kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan,
-  expected_group_digest : @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrapDigest,
+  authenticate : (
+    @tensor_parallel_execution_plan.TensorParallelExecutionPlan,
+    @tensor_parallel_kv_plan.TensorParallelKvRankBinding,
+  ) -> @device.TensorCollectiveContract raise TensorParallelDeviceWorkerError,
   expected_rendezvous_id : @device.TensorCollectiveGroupId,
   collective_runtime_version_code~ : Int,
 ) -> TensorParallelDeviceWorkerPlan raise TensorParallelDeviceWorkerError {
@@ -145,8 +149,8 @@ pub fn admit_plan(
     error => raise ExecutionPlan(error)
   }
   let rank = execution.rank()
-  if rank != envelope.rank() ||
-    execution.world_size() != topology.world_size() ||
+  if rank != expected_rank ||
+    execution.world_size() != world_size ||
     execution.device_ordinal() != startup.device_ordinal() {
     raise Invalid(Rank)
   }
@@ -163,22 +167,7 @@ pub fn admit_plan(
     launch_set.device_kv_layout() != local_layout {
     raise Invalid(KvBinding)
   }
-  let collective_contract = envelope.authenticate_local(
-    model,
-    model_generation,
-    group_generation,
-    topology,
-    startup,
-    inspection,
-    device_plan,
-    execution,
-    kv_binding,
-    expected_group_digest~,
-    expected_rendezvous_id~,
-    expected_collective_runtime_version_code=collective_runtime_version_code,
-  ) catch {
-    error => raise Bootstrap(error)
-  }
+  let collective_contract = authenticate(execution, kv_binding)
   if collective_contract.site_count() != execution.collective_count() ||
     collective_contract.rank() != rank ||
     collective_contract.world_size() != execution.world_size() {
@@ -188,6 +177,8 @@ pub fn admit_plan(
   validate_final_output(model, execution)
   {
     startup,
+    remote,
+    remote_envelope: None,
     model,
     model_generation,
     group_generation,

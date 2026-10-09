@@ -1,0 +1,26 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "moonbitlang/async/fs",
+  "vectie/lunaflux/model/minimax_h3" @h3,
+  "vectie/lunaflux/model/minimax_h3_spec" @spec,
+  "vectie/lunaflux/model/minimax_h3_config" @config,
+  "vectie/lunaflux/model/minimax_h3_sequence" @sequence,
+  "vectie/lunaflux/model/minimax_h3_text_encoder" @text,
+  "vectie/lunaflux/model/minimax_h3_vision_conditioner" @vision,
+  "vectie/lunaflux/model/minimax_h3_vae_reference" @vae,
+  "vectie/lunaflux/engine/joint_diffusion_loop" @loop,
+  "vectie/lunaflux/integration/minimax_h3_block_source" @block,
+  "vectie/lunaflux/integration/minimax_h3_text_encoder" @text_source,
+  "vectie/lunaflux/integration/minimax_h3_vision_conditioner" @vision_source,
+  "vectie/lunaflux/integration/minimax_h3_video_decode" @video,
+  "vectie/lunaflux/integration/minimax_h3_media_encode" @media,
+  "vectie/lunaflux/kernels/rectified_flow_update_cuda_source" @flow,
+  "vectie/lunaflux/kernels/dense_permutation_cuda_source" @permutation,
+}
+
+import {
+  "vectie/lunaflux/model/spec" @identity,
+} for "test"
+
+supported_targets = "native"

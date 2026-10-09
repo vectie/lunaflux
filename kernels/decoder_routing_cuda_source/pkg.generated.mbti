@@ -1,0 +1,46 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_routing_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn selected_expert_weight_finalize_f32_source(routed_expert_count~ : Int, experts_per_token~ : Int, maximum_rows~ : Int, normalize~ : Bool, scaling~ : Double, function_symbol~ : String) -> DecoderRoutingCudaSource raise DecoderRoutingCudaSourceError
+
+pub fn stable_biased_top_k_i32_source(routed_expert_count~ : Int, experts_per_token~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderRoutingCudaSource raise DecoderRoutingCudaSourceError
+
+// Errors
+pub(all) suberror DecoderRoutingCudaSourceError {
+  InvalidRoutedExpertCount
+  InvalidExpertsPerToken
+  InvalidMaximumRows
+  InvalidScaling
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecoderRoutingCudaOperation {
+  StableBiasedTopKI32
+  SelectedExpertWeightFinalizeF32
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderRoutingCudaSource {
+  // private fields
+}
+pub fn DecoderRoutingCudaSource::experts_per_token(Self) -> Int
+pub fn DecoderRoutingCudaSource::function_symbol(Self) -> String
+pub fn DecoderRoutingCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderRoutingCudaSource::numerical_contract(Self) -> DecoderRoutingNumericalContract
+pub fn DecoderRoutingCudaSource::operation(Self) -> DecoderRoutingCudaOperation
+pub fn DecoderRoutingCudaSource::routed_expert_count(Self) -> Int
+pub fn DecoderRoutingCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum DecoderRoutingNumericalContract {
+  StableLowerExpertIdTopKV1
+  OrderedF32NormalizeScaleV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

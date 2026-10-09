@@ -1,0 +1,86 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/joint_diffusion_transformer_reference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn run_tiny_joint_transformer_step(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, JointTinyConditioningInput, JointTinyTransformerWeights, seed~ : Int64, step_index~ : Int, limits~ : JointTinyTransformerLimits) -> JointTinyDenoiseStepResult raise JointTinyTransformerReferenceError
+
+// Errors
+pub(all) suberror JointTinyTransformerReferenceError {
+  InvalidLimit
+  InvalidPlan
+  InvalidRequest
+  InvalidConditioningContract
+  InvalidConditioningShape(JointTinyConditioningSource)
+  InvalidDenseShape
+  InvalidMlpShape
+  InvalidWeightShape
+  InvalidStepIndex(Int)
+  ElementBudgetExceeded
+  NonFiniteInput
+  NonFiniteComputation
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct JointTinyConditioningInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointTinyConditioningInput::new(text~ : JointTinyConditioningMatrix, keyframe~ : JointTinyConditioningMatrix, reference~ : JointTinyConditioningMatrix) -> Self raise JointTinyTransformerReferenceError
+
+pub struct JointTinyConditioningMatrix {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointTinyConditioningMatrix::new(source~ : JointTinyConditioningSource, rows~ : Int, width~ : Int, values~ : ArrayView[Double]) -> Self raise JointTinyTransformerReferenceError
+
+pub(all) enum JointTinyConditioningSource {
+  TextConditioning
+  KeyframeConditioning
+  ReferenceConditioning
+} derive(Eq, @debug.Debug)
+
+pub struct JointTinyDenoiseStepResult {
+  // private fields
+}
+pub fn JointTinyDenoiseStepResult::attended(Self) -> ReadOnlyArray[Double]
+pub fn JointTinyDenoiseStepResult::audio_next_sigma(Self) -> Double
+pub fn JointTinyDenoiseStepResult::audio_prediction(Self) -> ReadOnlyArray[Double]
+pub fn JointTinyDenoiseStepResult::audio_sigma(Self) -> Double
+pub fn JointTinyDenoiseStepResult::initial_audio(Self) -> ReadOnlyArray[Double]
+pub fn JointTinyDenoiseStepResult::initial_video(Self) -> ReadOnlyArray[Double]
+pub fn JointTinyDenoiseStepResult::packed_projected(Self) -> ReadOnlyArray[Double]
+pub fn JointTinyDenoiseStepResult::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointTinyDenoiseStepResult::step_index(Self) -> Int
+pub fn JointTinyDenoiseStepResult::updated_audio(Self) -> ReadOnlyArray[Double]
+pub fn JointTinyDenoiseStepResult::updated_video(Self) -> ReadOnlyArray[Double]
+pub fn JointTinyDenoiseStepResult::video_next_sigma(Self) -> Double
+pub fn JointTinyDenoiseStepResult::video_prediction(Self) -> ReadOnlyArray[Double]
+pub fn JointTinyDenoiseStepResult::video_sigma(Self) -> Double
+
+pub struct JointTinyDense {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointTinyDense::new(input_width~ : Int, output_width~ : Int, weights~ : ArrayView[Double], bias~ : ArrayView[Double]) -> Self raise JointTinyTransformerReferenceError
+
+pub struct JointTinyMlp {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointTinyMlp::new(up~ : JointTinyDense, down~ : JointTinyDense) -> Self raise JointTinyTransformerReferenceError
+
+pub struct JointTinyTransformerLimits {
+  // private fields
+}
+pub fn JointTinyTransformerLimits::new(maximum_rows~ : Int, maximum_hidden_width~ : Int, maximum_feed_forward_width~ : Int, maximum_elements~ : Int) -> Self raise JointTinyTransformerReferenceError
+
+pub struct JointTinyTransformerWeights {
+  // private fields
+}
+pub fn JointTinyTransformerWeights::new(@joint_diffusion_plan.JointDiffusionPlan, keyframe_input_width~ : Int, reference_input_width~ : Int, text_projection~ : JointTinyDense, keyframe_projection~ : JointTinyDense, reference_projection~ : JointTinyDense, video_input_projection~ : JointTinyDense, audio_input_projection~ : JointTinyDense, query_projection~ : JointTinyDense, key_projection~ : JointTinyDense, value_projection~ : JointTinyDense, attention_output_projection~ : JointTinyDense, video_mlp~ : JointTinyMlp, audio_mlp~ : JointTinyMlp, video_output_projection~ : JointTinyDense, audio_output_projection~ : JointTinyDense) -> Self raise JointTinyTransformerReferenceError
+
+// Type aliases
+
+// Traits

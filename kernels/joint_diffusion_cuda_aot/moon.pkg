@@ -1,0 +1,27 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/rectified_flow_update_cuda_source",
+  "vectie/lunaflux/kernels/affine_modulation_cuda_source",
+  "vectie/lunaflux/kernels/alias_free_activation_cuda_source",
+  "vectie/lunaflux/kernels/channel_major_projection_cuda_source",
+  "vectie/lunaflux/kernels/gated_mlp_cuda_source",
+  "vectie/lunaflux/kernels/joint_attention_cuda_source",
+  "vectie/lunaflux/kernels/joint_audio_amp_cuda_source",
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source",
+  "vectie/lunaflux/kernels/decoder_foundation_cuda_source",
+  "vectie/lunaflux/kernels/joint_diffusion_artifact_admission",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/kernels/timestep_embedding_cuda_source",
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/joint_diffusion_io_plan",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/model/joint_audio_amp_workspace_layout",
+  "vectie/lunaflux/model/joint_diffusion_vae_reference",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

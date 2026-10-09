@@ -3,6 +3,7 @@ package "vectie/lunaflux/engine/tensor_parallel_device_plan"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/device/network_topology",
   "vectie/lunaflux/engine/device_topology",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/model/device_materialize",
@@ -77,6 +78,7 @@ pub struct TensorParallelRankDevice {
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelRankDevice::device_ordinal(Self) -> Int
 pub fn TensorParallelRankDevice::from_local_topology(@device_topology.AdmittedLocalTopology, rank~ : Int) -> Self raise TensorParallelDevicePlanError
+pub fn TensorParallelRankDevice::from_network_topology(@network_topology.TwoNodeTopology, rank~ : Int) -> Self raise TensorParallelDevicePlanError
 pub fn TensorParallelRankDevice::rank(Self) -> Int
 pub fn TensorParallelRankDevice::single(device_ordinal~ : Int, target~ : @catalog.DeviceTarget) -> Self raise TensorParallelDevicePlanError
 pub fn TensorParallelRankDevice::target(Self) -> @catalog.DeviceTarget

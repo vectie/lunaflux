@@ -1,0 +1,9 @@
+import {
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/json_guard",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

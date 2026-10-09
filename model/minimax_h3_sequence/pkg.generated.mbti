@@ -1,0 +1,139 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_sequence"
+
+import {
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+  "vectie/lunaflux/kernels/packed_rows_plan",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+}
+
+// Values
+pub fn reference_audio_layout(@joint_diffusion_plan.JointDiffusionPlan, frames~ : Int, expected_rows~ : Int, max_elements~ : Int64) -> @dense_permutation_plan.Permutation raise SequenceError
+
+pub fn reference_video_layout(@joint_diffusion_plan.JointDiffusionPlan, frames~ : Int, height~ : Int, width~ : Int, expected_rows~ : Int, max_elements~ : Int64) -> @dense_permutation_plan.Permutation raise SequenceError
+
+// Errors
+pub(all) suberror RotaryError {
+  InvalidFrequency
+  ElementLimitExceeded
+}
+
+pub(all) suberror ScheduleError {
+  InvalidStepCount
+  InvalidVisionOverride
+  IndexBudgetExceeded
+}
+
+pub(all) suberror SequenceError {
+  InvalidShape
+  InvalidConditioning
+  RowLimitExceeded
+}
+
+pub(all) suberror TimestepError {
+  InvalidTime
+}
+
+// Types and methods
+pub struct AttentionDocument {
+  start : Int
+  count : Int
+}
+
+pub(all) enum ConditionBlock {
+  Image(Int)
+  Audio(Int)
+  Video(audio_rows~ : Int, video_rows~ : Int)
+}
+
+pub(all) enum KeyframeAnchor {
+  First
+  Last
+}
+
+pub struct Position3 {
+  time : Double
+  height : Double
+  width : Double
+}
+
+pub struct PositionedSequence {
+  // private fields
+}
+pub fn PositionedSequence::keyframes(VideoGrid, hidden_width~ : Int, text_rows~ : Int, audio_frames~ : Int, anchors~ : ArrayView[KeyframeAnchor], max_rows~ : Int) -> Self raise SequenceError
+pub fn PositionedSequence::positions(Self) -> ReadOnlyArray[Position3]
+pub fn PositionedSequence::references(VideoGrid, hidden_width~ : Int, text_rows~ : Int, audio_frames~ : Int, references~ : ArrayView[ReferenceGrid], max_rows~ : Int) -> Self raise SequenceError
+pub fn PositionedSequence::rotary_tables(Self, ArrayView[Float], max_elements~ : Int64) -> RotaryTables raise RotaryError
+pub fn PositionedSequence::sequence(Self) -> Sequence
+
+pub(all) enum ReferenceGrid {
+  ImageGrid(VideoGrid)
+  AudioGrid(Int)
+  VideoAudioGrid(VideoGrid, Int)
+}
+
+pub struct RotaryTables {
+  // private fields
+}
+pub fn RotaryTables::cosine(Self) -> ReadOnlyArray[Float]
+pub fn RotaryTables::sine(Self) -> ReadOnlyArray[Float]
+pub fn RotaryTables::width(Self) -> Int
+
+pub struct ScheduledTime {
+  values : ReadOnlyArray[Float]
+  pattern : Int
+}
+
+pub struct Segment {
+  kind : SegmentKind
+  start : Int
+  count : Int
+} derive(Eq)
+
+pub(all) enum SegmentKind {
+  Text
+  ConditionVideo
+  ConditionAudio
+  TargetAudio
+  TargetVideo
+} derive(Eq)
+
+pub struct Sequence {
+  // private fields
+}
+pub fn Sequence::assembly(Self) -> @packed_rows_plan.Plan
+pub fn Sequence::attention_boundaries(Self) -> ReadOnlyArray[Int]
+pub fn Sequence::attention_documents(Self) -> ReadOnlyArray[AttentionDocument]
+pub fn Sequence::from_request(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, text_rows~ : Int, conditioning~ : ArrayView[ConditionBlock], max_rows~ : Int) -> Self raise SequenceError
+pub fn Sequence::new(hidden_width~ : Int, text_rows~ : Int, video_rows~ : Int, audio_rows~ : Int, conditioning~ : ArrayView[ConditionBlock], max_rows~ : Int) -> Self raise SequenceError
+pub fn Sequence::refiner_document(Self) -> AttentionDocument
+pub fn Sequence::schedule(Self, video~ : ArrayView[Double], audio~ : ArrayView[Double], visual_noise~ : Double, audio_noise~ : Double, vision_text_rows~ : ArrayView[Int], max_steps~ : Int, max_index_bytes~ : Int64) -> TimestepSchedule raise
+pub fn Sequence::segments(Self) -> ReadOnlyArray[Segment]
+pub fn Sequence::timesteps(Self, video~ : Double, audio~ : Double, visual_noise~ : Double, audio_noise~ : Double) -> Timesteps raise TimestepError
+pub fn Sequence::used_rows(Self) -> Int
+
+pub struct TimestepPattern {
+  indices : ReadOnlyArray[Int]
+  combined_adaln : ReadOnlyArray[Int]
+}
+
+pub struct TimestepSchedule {
+  // private fields
+}
+pub fn TimestepSchedule::patterns(Self) -> ReadOnlyArray[TimestepPattern]
+pub fn TimestepSchedule::steps(Self) -> ReadOnlyArray[ScheduledTime]
+
+pub struct Timesteps {
+  // private fields
+}
+pub fn Timesteps::indices(Self) -> ReadOnlyArray[Int]
+pub fn Timesteps::values(Self) -> ReadOnlyArray[Float]
+
+pub struct VideoGrid {
+  // private fields
+}
+pub fn VideoGrid::new(frames~ : Int, height~ : Int, width~ : Int, max_rows~ : Int) -> Self raise SequenceError
+
+// Type aliases
+
+// Traits

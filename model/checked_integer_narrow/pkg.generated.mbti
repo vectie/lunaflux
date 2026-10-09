@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/checked_integer_narrow"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/segmented_host_borrow",
+}
+
+// Values
+pub fn narrow_unique_i64_le_rows(ArrayView[Byte], row_count~ : Int, column_count~ : Int, minimum_value~ : Int, exclusive_maximum_value~ : Int, maximum_output_bytes~ : Int) -> CheckedI32Table raise CheckedIntegerNarrowError
+
+// Errors
+pub(all) suberror CheckedIntegerNarrowError {
+  InvalidGeometry
+  InputByteCountMismatch(expected~ : Int, actual~ : Int)
+  OutputByteBudgetExceeded
+  ValueOutOfRange(row~ : Int, column~ : Int, value~ : Int64)
+  DuplicateRowValue(row~ : Int, first_column~ : Int, second_column~ : Int, value~ : Int64)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct CheckedI32Table {
+  // private fields
+}
+pub fn CheckedI32Table::byte_count(Self) -> Int
+pub fn CheckedI32Table::column_count(Self) -> Int
+pub fn CheckedI32Table::digest(Self) -> CheckedI32TableDigest
+pub fn CheckedI32Table::exclusive_maximum_value(Self) -> Int
+pub fn CheckedI32Table::is_released(Self) -> Bool
+pub fn CheckedI32Table::minimum_value(Self) -> Int
+pub fn CheckedI32Table::provide_arena(Self, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError
+pub fn CheckedI32Table::release(Self) -> Bool
+pub fn CheckedI32Table::row_count(Self) -> Int
+
+pub struct CheckedI32TableDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn CheckedI32TableDigest::as_hex(Self) -> String
+
+// Type aliases
+
+// Traits

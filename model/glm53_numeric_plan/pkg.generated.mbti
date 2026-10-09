@@ -1,0 +1,123 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm53_numeric_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/glm53_weights",
+  "vectie/lunaflux/model/glm_hybrid_execution_plan",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn bind_numeric_plan(@glm53_weights.Glm53TensorManifest, @glm_hybrid_execution_plan.GlmHybridExecutionPlan) -> Glm53NumericPlan raise Glm53NumericPlanError
+
+pub fn build_flash_numeric_plan(@glm53_spec.Glm53FlashMetadata, @glm53_weights.Glm53WeightEncoding) -> Glm53NumericPlan raise Glm53NumericPlanError
+
+pub fn build_full_numeric_plan(@glm53_spec.Glm53FullMetadata, @glm53_weights.Glm53WeightEncoding) -> Glm53NumericPlan raise Glm53NumericPlanError
+
+// Errors
+pub(all) suberror Glm53NumericPlanError {
+  UnsupportedFp8BlockScaleLayout(block_rows~ : Int, block_columns~ : Int)
+  MixedDTypeMaterializationUnsupported
+  ProfilePlanMismatch
+  ManifestIdentityMismatch
+  ManifestOrdinalMismatch(ordinal~ : Int)
+  UnexpectedFloat32Tensor(ordinal~ : Int)
+  NumericSchemaConstructionFailed
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum Glm53LogicalTensorRole {
+  BFloat16Parameter
+  Float32RoutingCorrection
+  Float32KdaStateParameter
+  Float32HyperConnectionParameter
+  Fp8Parameter
+  Fp8BlockScaleMetadata
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53NumericOperationBinding {
+  // private fields
+}
+pub fn Glm53NumericOperationBinding::execution(Self) -> @numeric_contract.OperationExecutionContract
+pub fn Glm53NumericOperationBinding::kind(Self) -> Glm53NumericOperationKind
+pub fn Glm53NumericOperationBinding::ordinal(Self) -> Int
+pub fn Glm53NumericOperationBinding::scope(Self) -> Glm53NumericOperationScope
+
+pub(all) enum Glm53NumericOperationKind {
+  TokenEmbedding
+  LayerNorm
+  HyperConnectionBf16Function
+  HyperConnectionF32Control
+  DsaLowRankProjection
+  DsaIndexerProjection
+  DsaIndexPooling
+  DsaIndexSelection
+  DsaIndexReuse
+  DsaSparseAttention
+  AttentionOutputProjection
+  KdaProjection
+  KdaShortConvolution
+  KdaF32DecayControl
+  KdaRecurrentUpdate
+  DenseSwiGlu
+  MoeRouterProjection
+  MoeF32SigmoidAndCorrection
+  MoeF32GroupedRouting
+  RoutedExpertSwiGlu
+  SharedExpertSwiGlu
+  RoutedSharedExpertBf16Combine
+  MtpFusionProjection
+  SharedHeadNorm
+  FinalNorm
+  LanguageModelHead
+  VisionPatchProjection
+  VisionQkvProjection
+  VisionAttention
+  VisionOutputProjection
+  VisionSwiGlu
+  VisionSpatialMerge
+  VisionProjector
+  KdaOutputGateProjection
+  KdaGatedRmsNorm
+  KdaOutputProjection
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Glm53NumericOperationScope {
+  Global
+  DecoderLayer(layer_index~ : Int)
+  AuxiliaryLayer(stage_index~ : Int)
+  VisionFrontend
+  VisionLayer(layer_index~ : Int)
+  VisionProjector
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53NumericPlan {
+  // private fields
+}
+pub fn Glm53NumericPlan::bfloat16_tensor_count(Self) -> Int
+pub fn Glm53NumericPlan::binding_digest(Self) -> @spec.PlanDigest
+pub fn Glm53NumericPlan::encoding(Self) -> @glm53_weights.Glm53WeightEncoding
+pub fn Glm53NumericPlan::execution_identity(Self) -> @spec.ModelIdentity
+pub fn Glm53NumericPlan::float32_tensor_count(Self) -> Int
+pub fn Glm53NumericPlan::manifest_layout_digest(Self) -> @spec.PlanDigest
+pub fn Glm53NumericPlan::numeric_schema(Self) -> @numeric_contract.ModelNumericSchema
+pub fn Glm53NumericPlan::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn Glm53NumericPlan::operation(Self, Int) -> Glm53NumericOperationBinding?
+pub fn Glm53NumericPlan::operation_count(Self) -> Int
+pub fn Glm53NumericPlan::profile(Self) -> @glm53_spec.Glm53ProfileId
+pub fn Glm53NumericPlan::require_physical_materialization(Self) -> Unit raise Glm53NumericPlanError
+pub fn Glm53NumericPlan::tensor(Self, Int) -> Glm53NumericTensorBinding?
+pub fn Glm53NumericPlan::tensor_count(Self) -> Int
+
+pub struct Glm53NumericTensorBinding {
+  // private fields
+}
+pub fn Glm53NumericTensorBinding::ordinal(Self) -> Int
+pub fn Glm53NumericTensorBinding::role(Self) -> Glm53LogicalTensorRole
+
+// Type aliases
+
+// Traits

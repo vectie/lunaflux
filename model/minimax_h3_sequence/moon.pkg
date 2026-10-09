@@ -1,0 +1,14 @@
+import {
+  "moonbitlang/core/math",
+  "vectie/lunaflux/kernels/packed_rows_plan",
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/spec",
+} for "test"

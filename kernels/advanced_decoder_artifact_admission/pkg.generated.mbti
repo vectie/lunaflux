@@ -1,0 +1,206 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/advanced_decoder_artifact_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, target~ : @catalog.DeviceTarget, module_inputs~ : ArrayView[AdvancedDecoderModuleInput], entry_point_inputs~ : ArrayView[@artifact.KernelEntryPointInput], launch_inputs~ : ArrayView[AdvancedDecoderLaunchEvidenceInput], limits~ : AdvancedDecoderArtifactAdmissionLimits) -> AdvancedDecoderArtifactAdmission raise AdvancedDecoderArtifactAdmissionError
+
+// Errors
+pub(all) suberror AdvancedDecoderArtifactAdmissionError {
+  InvalidLimit
+  InvalidDeclaredQualificationDigest
+  RequirementCountExceeded
+  RequirementDigestMismatch(Int)
+  SourceIdentityMismatch(Int)
+  TargetMismatch(Int)
+  MissingLaunch(Int)
+  DuplicateLaunch(Int)
+  WrongOperation(Int)
+  WrongCapability(Int)
+  UnsupportedOperation(Int)
+  EntryPointModuleMismatch(Int)
+  InvalidLaunchOperands(Int)
+  MissingEntryPoint(@catalog.AotKernelEntryPoint)
+  DuplicateEntryPoint(@catalog.AotKernelEntryPoint)
+  UnreferencedEntryPoint(@catalog.AotKernelEntryPoint)
+  ArtifactSymbolFailure(@artifact.KernelArtifactError)
+  MissingModule(@catalog.AotArtifactDigest)
+  DuplicateModule(@catalog.AotArtifactDigest)
+  UnreferencedModule(@catalog.AotArtifactDigest)
+  EmptyModule(@catalog.AotArtifactDigest)
+  ModuleTooLarge(@catalog.AotArtifactDigest)
+  TotalModuleBytesExceeded
+  ModuleDigestMismatch(@catalog.AotArtifactDigest)
+  AdmissionEncodingTooLarge
+  NoExecutionAuthority
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AdvancedDecoderAdmittedEntryPoint {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderAdmittedEntryPoint::function_symbol(Self) -> String
+pub fn AdvancedDecoderAdmittedEntryPoint::identity(Self) -> @catalog.AotKernelEntryPoint
+pub fn AdvancedDecoderAdmittedEntryPoint::module_index(Self) -> Int
+
+pub struct AdvancedDecoderAdmittedLaunch {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderAdmittedLaunch::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderAdmittedLaunch::declared_qualification(Self) -> AdvancedDecoderDeclaredQualificationDigest?
+pub fn AdvancedDecoderAdmittedLaunch::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderAdmittedLaunch::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn AdvancedDecoderAdmittedLaunch::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn AdvancedDecoderAdmittedLaunch::operands(Self) -> ReadOnlyArray[AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderAdmittedLaunch::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderAdmittedLaunch::requirement_ordinal(Self) -> Int
+
+pub struct AdvancedDecoderAdmittedModule {
+  // private fields
+}
+pub fn AdvancedDecoderAdmittedModule::digest(Self) -> @catalog.AotArtifactDigest
+pub fn AdvancedDecoderAdmittedModule::module_bytes(Self) -> Bytes
+
+pub struct AdvancedDecoderArtifactAdmission {
+  // private fields
+}
+pub fn AdvancedDecoderArtifactAdmission::digest(Self) -> AdvancedDecoderArtifactAdmissionDigest
+pub fn AdvancedDecoderArtifactAdmission::entry_points(Self) -> ReadOnlyArray[AdvancedDecoderAdmittedEntryPoint]
+pub fn AdvancedDecoderArtifactAdmission::launches(Self) -> ReadOnlyArray[AdvancedDecoderAdmittedLaunch]
+pub fn AdvancedDecoderArtifactAdmission::modules(Self) -> ReadOnlyArray[AdvancedDecoderAdmittedModule]
+pub fn AdvancedDecoderArtifactAdmission::require_execution_authority(Self) -> Unit raise AdvancedDecoderArtifactAdmissionError
+pub fn AdvancedDecoderArtifactAdmission::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderArtifactAdmission::schema_version(Self) -> Int
+pub fn AdvancedDecoderArtifactAdmission::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderArtifactAdmission::status(Self) -> AdvancedDecoderArtifactAdmissionStatus
+pub fn AdvancedDecoderArtifactAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn AdvancedDecoderArtifactAdmission::total_module_bytes(Self) -> Int64
+
+pub struct AdvancedDecoderArtifactAdmissionDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn AdvancedDecoderArtifactAdmissionDigest::as_hex(Self) -> String
+
+pub struct AdvancedDecoderArtifactAdmissionLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderArtifactAdmissionLimits::new(maximum_requirements~ : Int, maximum_modules~ : Int, maximum_entry_points~ : Int, maximum_module_bytes~ : Int64, maximum_total_module_bytes~ : Int64, maximum_symbol_bytes~ : Int, maximum_operands_per_launch~ : Int, maximum_canonical_bytes~ : Int) -> Self raise AdvancedDecoderArtifactAdmissionError
+
+pub(all) enum AdvancedDecoderArtifactAdmissionStatus {
+  InertUnqualified
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderDeclaredQualificationDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn AdvancedDecoderDeclaredQualificationDigest::as_hex(Self) -> String
+pub fn AdvancedDecoderDeclaredQualificationDigest::from_sha256(String) -> Self raise AdvancedDecoderArtifactAdmissionError
+
+pub struct AdvancedDecoderLaunchEvidenceInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderLaunchEvidenceInput::new(requirements_digest~ : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest, source_identity~ : @spec.ModelIdentity, requirement_ordinal~ : Int, operation~ : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation, capability~ : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability, target~ : @catalog.DeviceTarget, entry_point~ : @catalog.AotKernelEntryPoint, module_digest~ : @catalog.AotArtifactDigest, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[AdvancedDecoderLaunchOperand], declared_qualification? : AdvancedDecoderDeclaredQualificationDigest) -> Self raise AdvancedDecoderArtifactAdmissionError
+
+pub struct AdvancedDecoderLaunchOperand {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderLaunchOperand::alignment(Self) -> Int64
+pub fn AdvancedDecoderLaunchOperand::byte_count(Self) -> Int64
+pub fn AdvancedDecoderLaunchOperand::new(role~ : AdvancedDecoderLaunchOperandRole, byte_count~ : Int64, alignment~ : Int64) -> Self raise AdvancedDecoderArtifactAdmissionError
+pub fn AdvancedDecoderLaunchOperand::role(Self) -> AdvancedDecoderLaunchOperandRole
+
+pub(all) enum AdvancedDecoderLaunchOperandRole {
+  StepCountsInput
+  TokenIdsInput
+  PositionInput
+  HiddenInput
+  HiddenOutput
+  ModelWeights
+  HyperConnectionStateInput
+  HyperConnectionStateOutput
+  HyperConnectionFunctionWeightsInput
+  HyperConnectionBaseInput
+  HyperConnectionScaleInput
+  HyperConnectionPreOutput
+  HyperConnectionPostOutput
+  HyperConnectionCombinationOutput
+  HyperConnectionPreInput
+  HyperConnectionReducedOutput
+  HyperConnectionBranchInput
+  HyperConnectionPostInput
+  HyperConnectionCombinationInput
+  HyperConnectionCombinedOutput
+  RoutingScoresInput
+  RoutingScoresOutput
+  RoutingIndicesInput
+  RoutingIndicesOutput
+  CompressedQueryPositionsInput
+  CompressedCacheOffsetsInput
+  CompressedIndexCountsOutput
+  CompressedIndicesOutput
+  SparseAttentionQueryInput
+  SparseAttentionQueryBatchIdsInput
+  SparseAttentionKeyValueInput
+  SparseAttentionCacheLengthsInput
+  SparseAttentionSinkInput
+  SparseAttentionSelectedIndicesInput
+  SparseAttentionOutput
+  WindowQueryPositionsInput
+  WindowSequenceLengthsInput
+  WindowQueryModesInput
+  CompressedIndexCountsInput
+  CompressedIndicesInput
+  JoinedIndexCountsOutput
+  JoinedIndicesOutput
+  PreparedKeyValueModesInput
+  PreparedKeyValueSequenceLengthsInput
+  UncompressedKeyValueInput
+  CompressedKeyValueInput
+  PreparedKeyValueLengthsOutput
+  PreparedKeyValueOutput
+  AttentionOutputRotaryInOut
+  AttentionOutputProjectionInput
+  AttentionOutputAWeightsInput
+  AttentionOutputRankOutput
+  AttentionOutputRankInput
+  AttentionOutputBWeightCodesInput
+  AttentionOutputBWeightScalesInput
+  QueryAWeightCodesInput
+  QueryAWeightScalesInput
+  QueryLowRankAOutput
+  KeyValueWeightCodesInput
+  KeyValueWeightScalesInput
+  KeyValueProjectionOutput
+  QueryInput
+  QueryNormWeights
+  QueryOutput
+  KeyValueInput
+  KeyValueNormWeights
+  KeyValueOutput
+  TokenHashTableInput
+  RoutingSelectionBiasInput
+  RoutingWeightsOutput
+  ExpertInput
+  ExpertOutput
+  AuxiliaryInput
+  AuxiliaryOutput
+  LogitsOutput
+  Workspace
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderModuleInput {
+  // private fields
+}
+pub fn AdvancedDecoderModuleInput::new(digest~ : @catalog.AotArtifactDigest, module_bytes~ : Bytes) -> Self
+
+// Type aliases
+
+// Traits

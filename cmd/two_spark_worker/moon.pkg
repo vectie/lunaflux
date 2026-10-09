@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/compiler/parallel_ir",
+  "moonbitlang/async",
+  "moonbitlang/async/stdio",
+  "moonbitlang/core/env",
+  "vectie/lunaflux/ops/two_spark_worker" @entry,
+  "vectie/lunaflux/internal/process",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

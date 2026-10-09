@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/ops/two_spark_worker"
+
+import {
+  "vectie/lunaflux/compiler/parallel_ir",
+}
+
+// Values
+pub async fn run(String, String, parallel_policy? : @parallel_ir.Policy) -> Unit
+
+// Errors
+pub(all) suberror TwoSparkWorkerError {
+  Configuration
+  Digest
+  Admission
+  Cleanup
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits

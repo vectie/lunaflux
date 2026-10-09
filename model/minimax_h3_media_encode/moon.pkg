@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/compiler/media_encode_plan" @plan,
+  "vectie/lunaflux/model/minimax_h3_weights" @weights,
+}
+
+supported_targets = "native"

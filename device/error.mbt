@@ -11,6 +11,7 @@ fn operation_from_cuda(operation : @cuda.CudaOperation) -> DeviceOperation {
     EventCreate => EventCreate
     EventClose => EventClose
     EventRecord => EventRecord
+    StreamWaitEvent => StreamWaitEvent
     EventSynchronize => EventSynchronize
     EventElapsed => EventElapsed
     AllocationCreate => AllocationCreate

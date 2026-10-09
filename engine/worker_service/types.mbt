@@ -219,6 +219,7 @@ pub(all) enum OnlineWorkerRestartProgress {
 
 ///|
 priv enum WorkerPhysicalBinding {
+  RemoteBinding
   RootedSingleBinding(WorkerServiceBinding)
   TensorParallelBinding
 }

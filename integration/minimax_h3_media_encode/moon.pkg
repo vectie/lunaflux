@@ -1,0 +1,15 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/compiler/media_encode_plan" @plan,
+  "vectie/lunaflux/model/minimax_h3_media_encode" @audio,
+  "vectie/lunaflux/kernels/media_encode_cuda_source" @lower,
+  "vectie/lunaflux/model/minimax_h3_config" @config,
+  "vectie/lunaflux/model/minimax_h3_weights" @model_weights,
+  "vectie/lunaflux/model/minimax_h3_host_materialization" @host,
+  "vectie/lunaflux/model/segmented_device_materialize" @materialize,
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/engine/joint_diffusion_execution" @execution,
+}
+
+supported_targets = "native"

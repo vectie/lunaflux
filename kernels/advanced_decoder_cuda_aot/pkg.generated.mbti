@@ -1,0 +1,672 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/advanced_decoder_cuda_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+  "vectie/lunaflux/kernels/block_fp8_ue8m0_projection_cuda_source",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/decoder_compressed_index_cuda_source",
+  "vectie/lunaflux/kernels/decoder_compressed_kv_prepare_cuda_source",
+  "vectie/lunaflux/kernels/decoder_foundation_cuda_source",
+  "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source",
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source",
+  "vectie/lunaflux/kernels/decoder_routing_cuda_source",
+  "vectie/lunaflux/kernels/decoder_scaled_rope_cuda_source",
+  "vectie/lunaflux/kernels/decoder_selected_sparse_attention_cuda_source",
+  "vectie/lunaflux/kernels/decoder_token_hash_cuda_source",
+  "vectie/lunaflux/kernels/decoder_window_compressed_join_cuda_source",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn lower_attention_output_a_projection_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderOutputAProjectionCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_attention_output_b_projection_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderOutputBProjectionCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_attention_output_inverse_rotary_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderInverseRotaryCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_deterministic_compressed_index_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderCompressedIndexCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_deterministic_window_compressed_join_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderWindowCompressedJoinCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_expert_score_transform_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderRoutingCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_foundation_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderFoundationCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_hyper_connection_block_control_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderHyperConnectionCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_hyper_connection_head_reduce_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderHyperConnectionHeadReduceCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_hyper_connection_post_combine_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderHyperConnectionPostCombineCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_hyper_connection_pre_reduce_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderHyperConnectionPreReduceCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_key_value_projection_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderKeyValueProjectionCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_language_model_head_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderProjectionCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_no_auxiliary_loss_top_k_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderRoutingCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_batches~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderCompressedKvPrepareCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_query_a_projection_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderQueryAProjectionCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_scaled_rotary_position_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderRotaryCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_selected_expert_weight_finalize_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderRoutingCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_selected_sparse_attention_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, maximum_batches~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderSparseAttentionCudaCandidate raise AdvancedDecoderCudaAotError
+
+pub fn lower_token_hash_routing_cuda_aot_candidate(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, requirement_ordinal~ : Int, maximum_tokens~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : AdvancedDecoderCudaAotLimits) -> AdvancedDecoderRoutingCudaCandidate raise AdvancedDecoderCudaAotError
+
+// Errors
+pub(all) suberror AdvancedDecoderCudaAotError {
+  Invalid(AdvancedDecoderCudaAotInvalidKind)
+  UnsupportedRequirement(Int)
+  SizeOverflow
+  Operand(@advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmissionError)
+  Source(@decoder_foundation_cuda_source.DecoderFoundationCudaSourceError)
+  ProjectionSource(@decoder_projection_cuda_source.DecoderProjectionCudaSourceError)
+  TokenHashSource(@decoder_token_hash_cuda_source.DecoderTokenHashCudaSourceError)
+  CompressedIndexSource(@decoder_compressed_index_cuda_source.DecoderCompressedIndexCudaSourceError)
+  SparseAttentionSource(@decoder_selected_sparse_attention_cuda_source.DecoderSelectedSparseAttentionCudaSourceError)
+  WindowCompressedJoinSource(@decoder_window_compressed_join_cuda_source.DecoderWindowCompressedJoinCudaSourceError)
+  CompressedKvPrepareSource(@decoder_compressed_kv_prepare_cuda_source.DecoderCompressedKvPrepareCudaSourceError)
+  RoutingSource(@decoder_routing_cuda_source.DecoderRoutingCudaSourceError)
+  RotarySource(@decoder_scaled_rope_cuda_source.DecoderScaledRopeCudaSourceError)
+  HyperConnectionSource(@decoder_hyper_connection_cuda_source.DecoderHyperConnectionCudaSourceError)
+  BlockFp8Ue8M0Source(@block_fp8_ue8m0_projection_cuda_source.BlockFp8Ue8M0ProjectionCudaSourceError)
+  Launch(@launch_contract.LaunchContractError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum AdvancedDecoderCompressedIndexAotFamily {
+  CausalCompleteSlotsI32
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderCompressedIndexCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::compression_ratio(Self) -> Int
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::family(Self) -> AdvancedDecoderCompressedIndexAotFamily
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::maximum_position_count(Self) -> Int
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::maximum_slots_per_row(Self) -> Int
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::numerical_contract(Self) -> AdvancedDecoderCompressedIndexNumericalContract
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderCompressedIndexCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderCompressedIndexNumericalContract {
+  BitExactCausalCompleteSlotsI32V1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderCompressedKvPrepareAotFamily {
+  NonOverlappingSharedKeyValuePrepareBf16V1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderCompressedKvPrepareCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::compression_ratio(Self) -> Int
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::family(Self) -> AdvancedDecoderCompressedKvPrepareAotFamily
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::head_dimension(Self) -> Int
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::maximum_batches(Self) -> Int
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::maximum_compressed_slots(Self) -> Int
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::maximum_key_slots(Self) -> Int
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::maximum_position_count(Self) -> Int
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::numerical_contract(Self) -> AdvancedDecoderCompressedKvPrepareNumericalContract
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::window_size(Self) -> Int
+
+pub(all) enum AdvancedDecoderCompressedKvPrepareNumericalContract {
+  BitExactBf16SegmentCopyV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderCudaAotInvalidKind {
+  Limit
+  Requirement
+  Shape
+  Target
+  Compiler
+  Encoding
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderCudaAotLimits {
+  // private fields
+}
+pub fn AdvancedDecoderCudaAotLimits::new(maximum_tokens~ : Int, maximum_source_bytes~ : Int, maximum_recipe_bytes~ : Int) -> Self raise AdvancedDecoderCudaAotError
+
+pub struct AdvancedDecoderCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn AdvancedDecoderCudaRecipeDigest::as_hex(Self) -> String
+
+pub struct AdvancedDecoderCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn AdvancedDecoderCudaSourceDigest::as_hex(Self) -> String
+
+pub(all) enum AdvancedDecoderFoundationAotFamily {
+  TokenEmbeddingBf16
+  QueryKeyRmsNormBf16
+  FinalRmsNormBf16
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderFoundationCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderFoundationCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderFoundationCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderFoundationCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderFoundationCudaCandidate::family(Self) -> AdvancedDecoderFoundationAotFamily
+pub fn AdvancedDecoderFoundationCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderFoundationCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderFoundationCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderFoundationCudaCandidate::numerical_contract(Self) -> AdvancedDecoderFoundationNumericalContract
+pub fn AdvancedDecoderFoundationCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderFoundationCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderFoundationCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderFoundationCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderFoundationCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderFoundationCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderFoundationCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderFoundationCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderFoundationCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderFoundationCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderFoundationNumericalContract {
+  BitExactBf16Copy
+  OrderedFloat32ReductionBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderHyperConnectionAotFamily {
+  BlockControlBf16F32V1
+  PreReduceBf16V1
+  PostCombineBf16V1
+  HeadReduceBf16F32V1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderHyperConnectionCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::control_epsilon(Self) -> Double
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::family(Self) -> AdvancedDecoderHyperConnectionAotFamily
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::hidden_width(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::normalization_epsilon(Self) -> Double
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::numerical_contract(Self) -> AdvancedDecoderHyperConnectionNumericalContract
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::sinkhorn_iterations(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::stream_width(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct AdvancedDecoderHyperConnectionHeadReduceCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::control_epsilon(Self) -> Double
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::family(Self) -> AdvancedDecoderHyperConnectionAotFamily
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::hidden_width(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::normalization_epsilon(Self) -> Double
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::numerical_contract(Self) -> AdvancedDecoderHyperConnectionNumericalContract
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::stream_width(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderHyperConnectionNumericalContract {
+  OrderedF32ControlProjectionSinkhornV1
+  OrderedF32PreReductionBf16RoundV1
+  OrderedF32PostCombinationBf16RoundV1
+  OrderedF32HeadControlReductionBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderHyperConnectionPostCombineCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::family(Self) -> AdvancedDecoderHyperConnectionAotFamily
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::hidden_width(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::numerical_contract(Self) -> AdvancedDecoderHyperConnectionNumericalContract
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::stream_width(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct AdvancedDecoderHyperConnectionPreReduceCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::family(Self) -> AdvancedDecoderHyperConnectionAotFamily
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::hidden_width(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::numerical_contract(Self) -> AdvancedDecoderHyperConnectionNumericalContract
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::stream_width(Self) -> Int
+pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderInverseRotaryAotFamily {
+  AttentionOutputInverseScaledYarnBf16V1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderInverseRotaryCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::family(Self) -> AdvancedDecoderInverseRotaryAotFamily
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::head_count(Self) -> Int
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::head_dimension(Self) -> Int
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::maximum_positions(Self) -> Int
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::numerical_contract(Self) -> AdvancedDecoderInverseRotaryNumericalContract
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::rope_dimension(Self) -> Int
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderInverseRotaryCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderInverseRotaryNumericalContract {
+  PrefixBitExactAdjacentPairInverseF32YarnBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderKeyValueProjectionCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::block_width(Self) -> Int
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::family(Self) -> AdvancedDecoderKeyValueProjectionFamily
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::input_width(Self) -> Int
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::numerical_contract(Self) -> AdvancedDecoderKeyValueProjectionNumericalContract
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::output_width(Self) -> Int
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::rope_width(Self) -> Int
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::tensor_parallel_replicated(Self) -> Bool
+
+pub(all) enum AdvancedDecoderKeyValueProjectionFamily {
+  ReplicatedKeyValueBlockFp8E4M3Ue8M0ProjectionV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderKeyValueProjectionNumericalContract {
+  KeyValuePerRowBlock128Ue8M0OrderedF32Bf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderOutputAProjectionCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::family(Self) -> AdvancedDecoderOutputAProjectionFamily
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::group_count(Self) -> Int
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::input_width_per_group(Self) -> Int
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::numerical_contract(Self) -> AdvancedDecoderOutputAProjectionNumericalContract
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::output_rank(Self) -> Int
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderOutputAProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderOutputAProjectionFamily {
+  GroupedOutputAProjectionBf16V1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderOutputAProjectionNumericalContract {
+  ConvertedGroupedWeightOrderedF32Bf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderOutputBProjectionCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::block_width(Self) -> Int
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::family(Self) -> AdvancedDecoderOutputBProjectionFamily
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::input_width(Self) -> Int
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::numerical_contract(Self) -> AdvancedDecoderOutputBProjectionNumericalContract
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::output_width(Self) -> Int
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::owns_collective(Self) -> Bool
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn AdvancedDecoderOutputBProjectionCudaCandidate::tensor_parallel_world_size(Self) -> Int
+
+pub(all) enum AdvancedDecoderOutputBProjectionFamily {
+  BlockFp8E4M3Ue8M0ProjectionV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderOutputBProjectionNumericalContract {
+  PerRowBlock128Ue8M0OrderedF32Bf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderProjectionAotFamily {
+  LanguageModelHeadBf16
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderProjectionCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderProjectionCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderProjectionCudaCandidate::family(Self) -> AdvancedDecoderProjectionAotFamily
+pub fn AdvancedDecoderProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderProjectionCudaCandidate::input_width(Self) -> Int
+pub fn AdvancedDecoderProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderProjectionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderProjectionCudaCandidate::numerical_contract(Self) -> AdvancedDecoderProjectionNumericalContract
+pub fn AdvancedDecoderProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderProjectionCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderProjectionCudaCandidate::output_width(Self) -> Int
+pub fn AdvancedDecoderProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderProjectionCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderProjectionCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderProjectionCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderProjectionNumericalContract {
+  OrderedF32AccumulationBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderQueryAProjectionCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::block_width(Self) -> Int
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::family(Self) -> AdvancedDecoderQueryAProjectionFamily
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::input_width(Self) -> Int
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::numerical_contract(Self) -> AdvancedDecoderQueryAProjectionNumericalContract
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::output_width(Self) -> Int
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn AdvancedDecoderQueryAProjectionCudaCandidate::tensor_parallel_replicated(Self) -> Bool
+
+pub(all) enum AdvancedDecoderQueryAProjectionFamily {
+  ReplicatedBlockFp8E4M3Ue8M0ProjectionV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderQueryAProjectionNumericalContract {
+  PerRowBlock128Ue8M0OrderedF32Bf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderRotaryAotFamily {
+  CompressedScaledYarnRopeBf16
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderRotaryCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderRotaryCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderRotaryCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderRotaryCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderRotaryCudaCandidate::family(Self) -> AdvancedDecoderRotaryAotFamily
+pub fn AdvancedDecoderRotaryCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderRotaryCudaCandidate::key_value_head_count(Self) -> Int
+pub fn AdvancedDecoderRotaryCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderRotaryCudaCandidate::maximum_positions(Self) -> Int
+pub fn AdvancedDecoderRotaryCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderRotaryCudaCandidate::numerical_contract(Self) -> AdvancedDecoderRotaryNumericalContract
+pub fn AdvancedDecoderRotaryCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderRotaryCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderRotaryCudaCandidate::query_head_count(Self) -> Int
+pub fn AdvancedDecoderRotaryCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderRotaryCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderRotaryCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderRotaryCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderRotaryCudaCandidate::rope_dimension(Self) -> Int
+pub fn AdvancedDecoderRotaryCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderRotaryCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderRotaryCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderRotaryCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderRotaryNumericalContract {
+  AdjacentPairF32YarnBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderRoutingAotFamily {
+  ExpertScoreTransformF32
+  TokenHashRoutingI32
+  NoAuxiliaryLossTopKI32
+  SelectedExpertWeightFinalizeF32
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderRoutingCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderRoutingCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderRoutingCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderRoutingCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderRoutingCudaCandidate::family(Self) -> AdvancedDecoderRoutingAotFamily
+pub fn AdvancedDecoderRoutingCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderRoutingCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderRoutingCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderRoutingCudaCandidate::numerical_contract(Self) -> AdvancedDecoderRoutingNumericalContract
+pub fn AdvancedDecoderRoutingCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderRoutingCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderRoutingCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderRoutingCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderRoutingCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderRoutingCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderRoutingCudaCandidate::routed_expert_count(Self) -> Int
+pub fn AdvancedDecoderRoutingCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderRoutingCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderRoutingCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderRoutingCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub(all) enum AdvancedDecoderRoutingNumericalContract {
+  FiniteInputStableSqrtSoftplusF32V1
+  BitExactInt32TableLookupV1
+  StableLowerExpertIdTopKV1
+  OrderedF32NormalizeScaleV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderSparseAttentionAotFamily {
+  SharedKeyValueSelectedAttentionBf16
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderSparseAttentionCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::compression_ratio(Self) -> Int
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::family(Self) -> AdvancedDecoderSparseAttentionAotFamily
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::head_dimension(Self) -> Int
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::maximum_batches(Self) -> Int
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::maximum_key_slots(Self) -> Int
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::numerical_contract(Self) -> AdvancedDecoderSparseAttentionNumericalContract
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::query_head_count(Self) -> Int
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::selected_width(Self) -> Int
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn AdvancedDecoderSparseAttentionCudaCandidate::window_size(Self) -> Int
+
+pub(all) enum AdvancedDecoderSparseAttentionNumericalContract {
+  SerialOrderedF32SinkDenominatorBf16OutputV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AdvancedDecoderWindowCompressedJoinAotFamily {
+  DeterministicWindowCompressedJoinI32V1
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderWindowCompressedJoinCudaCandidate {
+  // private fields
+}
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::capability(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::compression_ratio(Self) -> Int
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::family(Self) -> AdvancedDecoderWindowCompressedJoinAotFamily
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::function_symbol(Self) -> String
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::maximum_compressed_width(Self) -> Int
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::maximum_joined_width(Self) -> Int
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::maximum_position_count(Self) -> Int
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::maximum_tokens(Self) -> Int
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::numerical_contract(Self) -> AdvancedDecoderWindowCompressedJoinNumericalContract
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::operands(Self) -> ReadOnlyArray[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand]
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::recipe_digest(Self) -> AdvancedDecoderCudaRecipeDigest
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::source_bytes(Self) -> Bytes
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::source_digest(Self) -> AdvancedDecoderCudaSourceDigest
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::window_size(Self) -> Int
+
+pub(all) enum AdvancedDecoderWindowCompressedJoinNumericalContract {
+  BitExactOfficialWindowThenCompressedI32V1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

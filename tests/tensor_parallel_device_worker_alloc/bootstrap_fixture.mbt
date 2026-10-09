@@ -52,6 +52,7 @@ fn wait_for_worker_ready(
 fn prepare_workers(
   root : @approved_fs.ApprovedRoot,
   fixture : ExecutionFixture,
+  parallel_policy? : @parallel_ir.Policy = Ordered,
 ) -> WorkerFixture raise {
   let model_generation = @worker_protocol.ModelPlanGeneration::from_wire(
     TP_MODEL_GENERATION,
@@ -111,6 +112,7 @@ fn prepare_workers(
       root,
       fixture.topology.runtime,
       admitted,
+      parallel_policy~,
     )
     match outcome {
       TensorParallelWorkerPrepared(worker) => {

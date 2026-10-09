@@ -1,0 +1,39 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/workload_execution_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror WorkloadExecutionPlanError {
+  InvalidSchemaVersion
+  InvalidDecoderContract
+  InvalidDiffusionContract
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum WorkloadExecutionKind {
+  DecoderOnlyText
+  MultimodalConditionalGeneration
+  JointAudioVideoDiffusion
+} derive(Eq, @debug.Debug)
+
+pub struct WorkloadExecutionPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn WorkloadExecutionPlan::decoder_layer_count(Self) -> Int?
+pub fn WorkloadExecutionPlan::decoder_only(identity~ : @spec.ModelIdentity, schema_version~ : Int, decoder_layer_count~ : Int, maximum_token_context~ : Int) -> Self raise WorkloadExecutionPlanError
+pub fn WorkloadExecutionPlan::identity(Self) -> @spec.ModelIdentity
+pub fn WorkloadExecutionPlan::joint_audio_video_diffusion(identity~ : @spec.ModelIdentity, schema_version~ : Int) -> Self raise WorkloadExecutionPlanError
+pub fn WorkloadExecutionPlan::kind(Self) -> WorkloadExecutionKind
+pub fn WorkloadExecutionPlan::maximum_token_context(Self) -> Int?
+pub fn WorkloadExecutionPlan::multimodal_conditional(identity~ : @spec.ModelIdentity, schema_version~ : Int, decoder_layer_count~ : Int, maximum_token_context~ : Int) -> Self raise WorkloadExecutionPlanError
+pub fn WorkloadExecutionPlan::schema_version(Self) -> Int
+
+// Type aliases
+
+// Traits

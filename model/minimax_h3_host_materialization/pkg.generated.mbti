@@ -1,0 +1,146 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_host_materialization"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/model/minimax_h3_text_encoder",
+  "vectie/lunaflux/model/minimax_h3_vision_conditioner",
+  "vectie/lunaflux/model/minimax_h3_weights",
+  "vectie/lunaflux/model/segmented_host_borrow",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn build_manifest(@minimax_h3_weights.MiniMaxH3CompleteComponentBinding, expected_identity~ : @spec.ModelIdentity, shards~ : ArrayView[MiniMaxH3ShardDeclarationInput], index~ : ArrayView[MiniMaxH3TensorIndexInput], limits~ : MiniMaxH3HostMaterializationLimits) -> MiniMaxH3HostComponentManifest raise MiniMaxH3HostMaterializationError
+
+pub fn materialize_safetensors_shards(@approved_fs.ApprovedRoot, ArrayView[MiniMaxH3ShardSource], MiniMaxH3HostComponentManifest, expected_identity~ : @spec.ModelIdentity, expected_manifest_digest~ : MiniMaxH3HostManifestDigest, limits~ : MiniMaxH3HostMaterializationLimits) -> MiniMaxH3HostComponentArena raise MiniMaxH3HostMaterializationError
+
+pub fn require_materializable_component(@minimax_h3_weights.MiniMaxH3WeightComponent) -> Unit
+
+// Errors
+pub(all) suberror BlockWeightResolutionError {
+  Unavailable
+  IdentityMismatch
+  InvalidComponent
+  MissingTensor(String)
+  InvalidSlice(String)
+}
+
+pub(all) suberror MiniMaxH3HostMaterializationError {
+  InvalidLimit
+  IdentityMismatch
+  ManifestDigestMismatch
+  InvalidShardCount
+  DuplicateShard(Int)
+  UnreferencedShard(Int)
+  InvalidIndexCount(expected~ : Int, actual~ : Int)
+  MissingIndex(Int)
+  DuplicateIndex(Int)
+  UnknownIndex(Int)
+  ShardIndexOutsideManifest(Int)
+  InvalidShardRange(Int)
+  InvalidOfficialShape(Int)
+  InvalidDType(Int)
+  TensorTooLarge(Int)
+  HostBudgetExceeded
+  ArenaCountExceeded
+  ShardCountMismatch
+  ShardPayloadMismatch(Int)
+  StreamingFailure
+  StreamingShardMismatch(Int)
+  StreamingTensorCountMismatch(Int)
+  StreamingTensorMismatch(Int)
+  ArenaReleased
+  TensorIndexOutsideArena(Int)
+  TensorByteOutsideArena(Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct MiniMaxH3HostComponentArena {
+  // private fields
+}
+pub fn MiniMaxH3HostComponentArena::arena_count(Self) -> Int
+pub fn MiniMaxH3HostComponentArena::component(Self) -> @minimax_h3_weights.MiniMaxH3WeightComponent
+pub fn MiniMaxH3HostComponentArena::device_arena_size(Self, Int) -> Int raise @segmented_host_borrow.SegmentedHostBorrowError
+pub fn MiniMaxH3HostComponentArena::identity(Self) -> @spec.ModelIdentity
+pub fn MiniMaxH3HostComponentArena::is_released(Self) -> Bool
+pub fn MiniMaxH3HostComponentArena::manifest_digest(Self) -> MiniMaxH3HostManifestDigest
+pub fn MiniMaxH3HostComponentArena::provide_device_arena(Self, Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError
+pub fn MiniMaxH3HostComponentArena::release(Self) -> Bool
+pub fn MiniMaxH3HostComponentArena::resolve_audio_amp_weights(Self, @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_audio_decoder_weights(Self, @minimax_h3_weights.AudioDecoderWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_block_weights(Self, @minimax_h3_weights.BlockWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_context_weights(Self, @minimax_h3_weights.ContextWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_input_weights(Self, @minimax_h3_weights.InputWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_output_weights(Self, @minimax_h3_weights.OutputWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_refiner_weights(Self, @minimax_h3_weights.RefinerWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_text_encoder_embedding(Self, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_text_encoder_layer(Self, @minimax_h3_text_encoder.LayerWeights, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_timestep_weights(Self, @minimax_h3_weights.TimestepWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_video_block_weights(Self, @minimax_h3_weights.VideoBlockWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_video_frontend_weights(Self, @minimax_h3_weights.VideoFrontendWeightPacking, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::resolve_vision_conditioner_weights(Self, @minimax_h3_vision_conditioner.WeightGroup, expected_identity~ : @spec.ModelIdentity) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError
+pub fn MiniMaxH3HostComponentArena::tensor(Self, Int) -> MiniMaxH3HostTensor raise MiniMaxH3HostMaterializationError
+pub fn MiniMaxH3HostComponentArena::tensor_byte(Self, Int, Int64) -> Byte raise MiniMaxH3HostMaterializationError
+pub fn MiniMaxH3HostComponentArena::tensor_count(Self) -> Int
+pub fn MiniMaxH3HostComponentArena::total_tensor_bytes(Self) -> Int64
+
+pub struct MiniMaxH3HostComponentManifest {
+  // private fields
+}
+pub fn MiniMaxH3HostComponentManifest::arena_count(Self) -> Int
+pub fn MiniMaxH3HostComponentManifest::arena_size(Self, Int) -> Int64?
+pub fn MiniMaxH3HostComponentManifest::component(Self) -> @minimax_h3_weights.MiniMaxH3WeightComponent
+pub fn MiniMaxH3HostComponentManifest::digest(Self) -> MiniMaxH3HostManifestDigest
+pub fn MiniMaxH3HostComponentManifest::identity(Self) -> @spec.ModelIdentity
+pub fn MiniMaxH3HostComponentManifest::shard_count(Self) -> Int
+pub fn MiniMaxH3HostComponentManifest::tensor_count(Self) -> Int
+pub fn MiniMaxH3HostComponentManifest::total_tensor_bytes(Self) -> Int64
+
+pub struct MiniMaxH3HostManifestDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3HostManifestDigest::as_hex(Self) -> String
+
+pub struct MiniMaxH3HostMaterializationLimits {
+  // private fields
+}
+pub fn MiniMaxH3HostMaterializationLimits::new(maximum_shards~ : Int, maximum_tensors~ : Int, maximum_header_bytes~ : Int, maximum_payload_bytes_per_shard~ : Int64, maximum_total_host_bytes~ : Int64, maximum_arena_bytes~ : Int64, maximum_arenas~ : Int, maximum_name_bytes~ : Int) -> Self raise MiniMaxH3HostMaterializationError
+
+pub struct MiniMaxH3HostTensor {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3HostTensor::arena_index(Self) -> Int
+pub fn MiniMaxH3HostTensor::arena_offset(Self) -> Int64
+pub fn MiniMaxH3HostTensor::byte_length(Self) -> Int64
+pub fn MiniMaxH3HostTensor::name(Self) -> String
+pub fn MiniMaxH3HostTensor::role(Self) -> @minimax_h3_weights.MiniMaxH3TensorRole
+pub fn MiniMaxH3HostTensor::shape(Self) -> ReadOnlyArray[Int64]
+
+pub struct MiniMaxH3ShardDeclarationInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3ShardDeclarationInput::new(file_digest~ : @spec.ContentDigest, payload_bytes~ : Int64) -> Self raise MiniMaxH3HostMaterializationError
+
+pub struct MiniMaxH3ShardSource {
+  // private fields
+}
+pub fn MiniMaxH3ShardSource::new(locator~ : @approved_fs.ApprovedRelativeLocator) -> Self
+
+pub struct MiniMaxH3TensorIndexInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3TensorIndexInput::new(tensor_name~ : String, shard_index~ : Int) -> Self
+
+pub struct ResolvedBlockWeightCopy {
+  arena_index : Int
+  source_offset : Int64
+  destination_offset : Int64
+  byte_count : Int64
+}
+
+// Type aliases
+
+// Traits

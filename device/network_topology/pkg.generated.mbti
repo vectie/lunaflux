@@ -1,0 +1,64 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/device/network_topology"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+}
+
+// Values
+
+// Errors
+pub(all) suberror NetworkTopologyError {
+  Invalid(NetworkTopologyRule)
+} derive(Eq, @debug.Debug)
+pub fn NetworkTopologyError::equal(Self, Self) -> Bool
+pub fn NetworkTopologyError::not_equal(Self, Self) -> Bool
+pub fn NetworkTopologyError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct NetworkRank {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn NetworkRank::device_ordinal(Self) -> Int
+pub fn NetworkRank::equal(Self, Self) -> Bool
+pub fn NetworkRank::new(node~ : NodeIdentity, device_ordinal~ : Int, target~ : @catalog.DeviceTarget, physical_memory_bytes~ : Int64, rdma_interface~ : StringView) -> Self raise NetworkTopologyError
+pub fn NetworkRank::node(Self) -> NodeIdentity
+pub fn NetworkRank::not_equal(Self, Self) -> Bool
+pub fn NetworkRank::physical_memory_bytes(Self) -> Int64
+pub fn NetworkRank::rdma_interface(Self) -> String
+pub fn NetworkRank::target(Self) -> @catalog.DeviceTarget
+pub fn NetworkRank::to_repr(Self) -> @debug.Repr
+
+pub(all) enum NetworkTopologyRule {
+  NodeIdentity
+  DeviceOrdinal
+  Memory
+  Interface
+  DuplicateNode
+  TargetMismatch
+} derive(Eq, @debug.Debug)
+pub fn NetworkTopologyRule::equal(Self, Self) -> Bool
+pub fn NetworkTopologyRule::not_equal(Self, Self) -> Bool
+pub fn NetworkTopologyRule::to_repr(Self) -> @debug.Repr
+
+pub struct NodeIdentity(String) derive(Eq, @debug.Debug)
+pub fn NodeIdentity::equal(Self, Self) -> Bool
+pub fn NodeIdentity::label(Self) -> String
+pub fn NodeIdentity::new(StringView) -> Self raise NetworkTopologyError
+pub fn NodeIdentity::not_equal(Self, Self) -> Bool
+pub fn NodeIdentity::to_repr(Self) -> @debug.Repr
+
+pub struct TwoNodeTopology {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TwoNodeTopology::equal(Self, Self) -> Bool
+pub fn TwoNodeTopology::new(NetworkRank, NetworkRank) -> Self raise NetworkTopologyError
+pub fn TwoNodeTopology::not_equal(Self, Self) -> Bool
+pub fn TwoNodeTopology::rank(Self, Int) -> NetworkRank?
+pub fn TwoNodeTopology::target(Self) -> @catalog.DeviceTarget
+pub fn TwoNodeTopology::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

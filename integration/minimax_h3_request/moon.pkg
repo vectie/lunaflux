@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/engine/joint_diffusion_device",
+  "vectie/lunaflux/integration/minimax_h3_block_program" @blocks,
+  "vectie/lunaflux/integration/minimax_h3_video_decode" @video,
+}
+
+supported_targets = "native"

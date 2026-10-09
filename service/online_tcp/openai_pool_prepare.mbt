@@ -251,6 +251,7 @@ pub async fn bind_luna_online_openai_connection_pool(
     ingress_slot: -1,
     io_cursor: 0,
     accept_turn: true,
+    service_waiting: false,
     next_request_sequence: 0UL,
     drain_requested: false,
     stream_disconnect_started: false,

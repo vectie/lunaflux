@@ -1,0 +1,50 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/recurrent_delta_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn causal_normalized_recurrent_delta_bf16_f32_source(head_count~ : Int, key_dimension~ : Int, value_dimension~ : Int, normalization_epsilon~ : Double, log_decay_lower_bound~ : Double, maximum_rows~ : Int, maximum_sequences~ : Int, function_symbol~ : String) -> RecurrentDeltaCudaSource raise RecurrentDeltaCudaSourceError
+
+// Errors
+pub(all) suberror RecurrentDeltaCudaSourceError {
+  InvalidHeadCount
+  InvalidKeyDimension
+  InvalidValueDimension
+  InvalidNormalizationEpsilon
+  InvalidLogDecayLowerBound
+  InvalidRowCount
+  InvalidSequenceCount
+  DimensionOverflow
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct RecurrentDeltaCudaSource {
+  // private fields
+}
+pub fn RecurrentDeltaCudaSource::function_symbol(Self) -> String
+pub fn RecurrentDeltaCudaSource::head_count(Self) -> Int
+pub fn RecurrentDeltaCudaSource::key_dimension(Self) -> Int
+pub fn RecurrentDeltaCudaSource::log_decay_lower_bound(Self) -> Double
+pub fn RecurrentDeltaCudaSource::maximum_rows(Self) -> Int
+pub fn RecurrentDeltaCudaSource::maximum_sequences(Self) -> Int
+pub fn RecurrentDeltaCudaSource::normalization_epsilon(Self) -> Double
+pub fn RecurrentDeltaCudaSource::numerical_contract(Self) -> RecurrentDeltaNumericalContract
+pub fn RecurrentDeltaCudaSource::operation(Self) -> RecurrentDeltaOperation
+pub fn RecurrentDeltaCudaSource::source_bytes(Self) -> Bytes
+pub fn RecurrentDeltaCudaSource::value_dimension(Self) -> Int
+
+pub(all) enum RecurrentDeltaNumericalContract {
+  OrderedFloat32NormalizedDeltaBf16OutputV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RecurrentDeltaOperation {
+  CausalNormalizedRecurrentDeltaBf16F32
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

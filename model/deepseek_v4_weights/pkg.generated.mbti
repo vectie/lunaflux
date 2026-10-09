@@ -1,0 +1,268 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4_weights"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn bind(@deepseek_v4.DeepSeekV4SemanticPlan, ArrayView[DeepSeekV4SafetensorsTensor]) -> DeepSeekV4WeightBinding raise DeepSeekV4TensorSchemaError
+
+pub fn expected_tensor_count(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> Int
+
+pub fn key_value_quantized_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4KeyValueQuantizedLayout
+
+pub fn materialization_readiness(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4MaterializationReadiness
+
+pub fn output_a_converted_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4OutputAConvertedLayout
+
+pub fn output_b_quantized_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4OutputBQuantizedLayout
+
+pub fn query_a_quantized_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4QueryAQuantizedLayout
+
+pub fn requirements(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4WeightRequirements
+
+pub fn validate_tensor_semantic(@deepseek_v4_spec.DeepSeekV4ModelSpec, DeepSeekV4SafetensorsTensor) -> DeepSeekV4TensorBinding raise DeepSeekV4TensorSchemaError
+
+// Errors
+pub(all) suberror DeepSeekV4TensorSchemaError {
+  InvalidName
+  InvalidDTypeTag
+  InvalidShape
+  InvalidShard
+  InvalidByteRange
+  ByteLengthMismatch
+  UnknownTensor(Int)
+  InvalidTensor(Int)
+  DuplicateTensor(Int, Int)
+  IncorrectTensorCount(expected~ : Int, actual~ : Int)
+  IdentityMismatch
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror DeepSeekV4WeightsError {
+  DuplicateEncoding(DeepSeekV4WeightEncoding)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeepSeekV4AttentionTensor {
+  AttentionSink
+  QueryNorm
+  KeyValueNorm
+  QueryA(DeepSeekV4QuantizedPart)
+  QueryB(DeepSeekV4QuantizedPart)
+  KeyValue(DeepSeekV4QuantizedPart)
+  OutputA(DeepSeekV4QuantizedPart)
+  OutputB(DeepSeekV4QuantizedPart)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4CompressorTensor {
+  CompressorApe
+  CompressorNorm
+  CompressorGate
+  CompressorKeyValue
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4ExpertMatrix {
+  ExpertW1
+  ExpertW2
+  ExpertW3
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4Fp4Codebook {
+  E2M1Canonical
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4HyperConnectionPart {
+  HyperBase
+  HyperFunction
+  HyperScale
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4IndexerTensor {
+  IndexCompressorApe
+  IndexCompressorNorm
+  IndexCompressorGate
+  IndexCompressorKeyValue
+  IndexWeightsProjection
+  IndexQuery(DeepSeekV4QuantizedPart)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4KeyValueQuantizationContract {
+  Fp8E4M3Ue8M0Block128ReplicatedRowMajorV1
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4KeyValueQuantizedLayout {
+  // private fields
+}
+pub fn DeepSeekV4KeyValueQuantizedLayout::block_width(Self) -> Int
+pub fn DeepSeekV4KeyValueQuantizedLayout::contract(Self) -> DeepSeekV4KeyValueQuantizationContract
+pub fn DeepSeekV4KeyValueQuantizedLayout::input_width(Self) -> Int
+pub fn DeepSeekV4KeyValueQuantizedLayout::output_width(Self) -> Int
+pub fn DeepSeekV4KeyValueQuantizedLayout::scale_shape(Self) -> ReadOnlyArray[Int64]
+pub fn DeepSeekV4KeyValueQuantizedLayout::tensor_parallel_replicated(Self) -> Bool
+pub fn DeepSeekV4KeyValueQuantizedLayout::weight_shape(Self) -> ReadOnlyArray[Int64]
+
+pub(all) enum DeepSeekV4MaterializationReadiness {
+  UnsupportedByteLayouts(ReadOnlyArray[DeepSeekV4WeightEncoding])
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4OutputAConversionContract {
+  Fp8E4M3Ue8M0Block128ToBfloat16V1
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4OutputAConvertedLayout {
+  // private fields
+}
+pub fn DeepSeekV4OutputAConvertedLayout::contract(Self) -> DeepSeekV4OutputAConversionContract
+pub fn DeepSeekV4OutputAConvertedLayout::converted_grouped_shape(Self) -> ReadOnlyArray[Int64]
+pub fn DeepSeekV4OutputAConvertedLayout::source_scale_shape(Self) -> ReadOnlyArray[Int64]
+pub fn DeepSeekV4OutputAConvertedLayout::source_weight_shape(Self) -> ReadOnlyArray[Int64]
+
+pub(all) enum DeepSeekV4OutputBQuantizationContract {
+  Fp8E4M3Ue8M0Block128RowMajorV1
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4OutputBQuantizedLayout {
+  // private fields
+}
+pub fn DeepSeekV4OutputBQuantizedLayout::block_width(Self) -> Int
+pub fn DeepSeekV4OutputBQuantizedLayout::contract(Self) -> DeepSeekV4OutputBQuantizationContract
+pub fn DeepSeekV4OutputBQuantizedLayout::input_width(Self) -> Int
+pub fn DeepSeekV4OutputBQuantizedLayout::output_width(Self) -> Int
+pub fn DeepSeekV4OutputBQuantizedLayout::scale_shape(Self) -> ReadOnlyArray[Int64]
+pub fn DeepSeekV4OutputBQuantizedLayout::tensor_parallel_shard_axis(Self) -> Int
+pub fn DeepSeekV4OutputBQuantizedLayout::weight_shape(Self) -> ReadOnlyArray[Int64]
+
+pub(all) enum DeepSeekV4QuantizedPart {
+  QuantizedWeight
+  QuantizationScale
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4QueryAQuantizationContract {
+  Fp8E4M3Ue8M0Block128ReplicatedRowMajorV1
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4QueryAQuantizedLayout {
+  // private fields
+}
+pub fn DeepSeekV4QueryAQuantizedLayout::block_width(Self) -> Int
+pub fn DeepSeekV4QueryAQuantizedLayout::contract(Self) -> DeepSeekV4QueryAQuantizationContract
+pub fn DeepSeekV4QueryAQuantizedLayout::input_width(Self) -> Int
+pub fn DeepSeekV4QueryAQuantizedLayout::output_width(Self) -> Int
+pub fn DeepSeekV4QueryAQuantizedLayout::scale_shape(Self) -> ReadOnlyArray[Int64]
+pub fn DeepSeekV4QueryAQuantizedLayout::tensor_parallel_replicated(Self) -> Bool
+pub fn DeepSeekV4QueryAQuantizedLayout::weight_shape(Self) -> ReadOnlyArray[Int64]
+
+pub(all) enum DeepSeekV4SafetensorsDType {
+  BF16
+  F32
+  I64
+  I8
+  F8E4M3
+  F8E8M0
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4SafetensorsTensor {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4SafetensorsTensor::data_end(Self) -> Int64
+pub fn DeepSeekV4SafetensorsTensor::data_start(Self) -> Int64
+pub fn DeepSeekV4SafetensorsTensor::dtype(Self) -> DeepSeekV4SafetensorsDType
+pub fn DeepSeekV4SafetensorsTensor::name(Self) -> String
+pub fn DeepSeekV4SafetensorsTensor::new(name~ : String, dtype~ : StringView, shape~ : ArrayView[Int64], shard~ : Int, data_start~ : Int64, data_end~ : Int64) -> Self raise DeepSeekV4TensorSchemaError
+pub fn DeepSeekV4SafetensorsTensor::shape(Self) -> ReadOnlyArray[Int64]
+pub fn DeepSeekV4SafetensorsTensor::shard(Self) -> Int
+
+pub struct DeepSeekV4TensorBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TensorBinding::encoding(Self) -> DeepSeekV4WeightEncoding
+pub fn DeepSeekV4TensorBinding::semantic(Self) -> DeepSeekV4TensorSemantic
+pub fn DeepSeekV4TensorBinding::tensor(Self) -> DeepSeekV4SafetensorsTensor
+
+pub(all) enum DeepSeekV4TensorRole {
+  TokenEmbedding
+  OutputHead
+  FinalNorm
+  HeadHyperConnection(DeepSeekV4HyperConnectionPart)
+  Attention(DeepSeekV4AttentionTensor)
+  AttentionCompressor(DeepSeekV4CompressorTensor)
+  AttentionIndexer(DeepSeekV4IndexerTensor)
+  AttentionNorm
+  RouterWeight
+  RouterBias
+  TokenExpertHash
+  SharedExpert(DeepSeekV4ExpertMatrix, DeepSeekV4QuantizedPart)
+  RoutedExpert(Int, DeepSeekV4ExpertMatrix, DeepSeekV4QuantizedPart)
+  FfnNorm
+  AttentionHyperConnection(DeepSeekV4HyperConnectionPart)
+  FfnHyperConnection(DeepSeekV4HyperConnectionPart)
+  MtpTokenEmbedding
+  MtpOutputHead
+  MtpEmbeddingNorm
+  MtpHiddenNorm
+  MtpEmbeddingProjection(DeepSeekV4QuantizedPart)
+  MtpHiddenProjection(DeepSeekV4QuantizedPart)
+  MtpFinalNorm
+  DsparkMainNorm
+  DsparkMainProjection(DeepSeekV4QuantizedPart)
+  DsparkConfidenceProjection
+  DsparkMarkovW1
+  DsparkMarkovW2
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4TensorScope {
+  Global
+  DecoderLayer(Int)
+  PredictionStage(Int)
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4TensorSemantic {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TensorSemantic::role(Self) -> DeepSeekV4TensorRole
+pub fn DeepSeekV4TensorSemantic::scope(Self) -> DeepSeekV4TensorScope
+
+pub(all) enum DeepSeekV4WeightAdmission {
+  StorageContractSatisfied(DeepSeekV4WeightRequirements)
+  MissingWeightEncodings(DeepSeekV4WeightRequirements, ReadOnlyArray[DeepSeekV4WeightEncoding])
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4WeightBackendCapabilities {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4WeightBackendCapabilities::new(ArrayView[DeepSeekV4WeightEncoding]) -> Self raise DeepSeekV4WeightsError
+pub fn DeepSeekV4WeightBackendCapabilities::supports(Self, DeepSeekV4WeightEncoding) -> Bool
+
+pub struct DeepSeekV4WeightBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4WeightBinding::fp4_codebook(Self) -> DeepSeekV4Fp4Codebook?
+pub fn DeepSeekV4WeightBinding::identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4WeightBinding::materialization_readiness(Self) -> DeepSeekV4MaterializationReadiness
+pub fn DeepSeekV4WeightBinding::profile(Self) -> @deepseek_v4_spec.DeepSeekV4Profile
+pub fn DeepSeekV4WeightBinding::tensor(Self, Int) -> DeepSeekV4TensorBinding?
+pub fn DeepSeekV4WeightBinding::tensor_count(Self) -> Int
+
+pub(all) enum DeepSeekV4WeightEncoding {
+  BFloat16
+  Float32
+  Int64
+  Fp8E4M3Block128
+  Ue8M0Scale
+  PackedFp4E2M1Block32
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4WeightRequirements {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4WeightRequirements::admit(Self, DeepSeekV4WeightBackendCapabilities) -> DeepSeekV4WeightAdmission
+pub fn DeepSeekV4WeightRequirements::encodings(Self) -> ReadOnlyArray[DeepSeekV4WeightEncoding]
+pub fn DeepSeekV4WeightRequirements::profile(Self) -> @deepseek_v4_spec.DeepSeekV4Profile
+
+// Type aliases
+
+// Traits

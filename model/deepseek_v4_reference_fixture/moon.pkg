@@ -1,0 +1,9 @@
+import {
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "vectie/lunaflux/model/advanced_decoder_reference",
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

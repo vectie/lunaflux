@@ -444,8 +444,10 @@ fi
 
 online_alias_importers="$(rg -l \
   '"vectie/lunaflux/internal/online_tcp_buffer_alias"' \
-  --glob 'moon.pkg' 2>/dev/null || true)"
-if [ "$online_alias_importers" != 'service/online_tcp/moon.pkg' ]; then
+  --glob 'moon.pkg' --glob '!**/_build/**' 2>/dev/null | sort || true)"
+if [ "$online_alias_importers" != 'runtime/remote_channel/moon.pkg
+runtime/remote_tls/moon.pkg
+service/online_tcp/moon.pkg' ]; then
   printf '%s\n%s\n' \
     'online TCP alias ABI has an unauthorized service importer:' \
     "$online_alias_importers" >&2
@@ -454,8 +456,9 @@ fi
 
 online_alias_calls="$(rg -n \
   '@buffer_alias\.retain_bytes_as_fixed_array\(' --glob '*.mbt' \
+  --glob '!**/_build/**' \
   2>/dev/null || true)"
-if [ "$(printf '%s\n' "$online_alias_calls" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 1 ] ||
+if [ "$(printf '%s\n' "$online_alias_calls" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 3 ] ||
   ! printf '%s\n' "$online_alias_calls" |
     rg -q '^service/online_tcp/scratch\.mbt:' ||
   ! rg -q --pcre2 -U \
@@ -463,6 +466,14 @@ if [ "$(printf '%s\n' "$online_alias_calls" | sed '/^$/d' | wc -l | tr -d ' ')" 
     service/online_tcp/scratch.mbt; then
   printf '%s\n' \
     'online TCP alias call escaped its exact dynamic-Bytes constructor' >&2
+  failed=1
+fi
+
+if printf '%s\n' "$online_alias_calls" | rg -v \
+  '^(service/online_tcp/scratch|runtime/remote_channel/channel|runtime/remote_tls/channel)\.mbt:' ||
+  ! rg -F -q "let output = Bytes::make(max_frame_bytes + 4, b'\\x00')" runtime/remote_channel/channel.mbt ||
+  ! rg -F -q "let output = Bytes::make(max_frame_bytes + 4, b'\\x00')" runtime/remote_tls/channel.mbt; then
+  printf '%s\n' 'remote channel alias escaped its private dynamic output buffer' >&2
   failed=1
 fi
 

@@ -177,12 +177,20 @@ pub fn ActivationScalePolicy::gated_mlp_external_and_post_silu_bound_expf_f32_v2
 }
 
 ///|
+/// One power-of-two UE8M0 scale is derived independently for each live row
+/// and consecutive 128-value activation block. The block maximum has a 1e-4
+/// floor and `maximum / 448` is rounded toward positive infinity to UE8M0.
+pub fn ActivationScalePolicy::dynamic_per_row_block128_ue8m0_v1() -> ActivationScalePolicy {
+  { value: 4, }
+}
+
+///|
 /// Returns the exact number of ordered dynamic-scale stages owned by a known
 /// policy. Exact/no-scale policies return zero.
 pub fn ActivationScalePolicy::stage_count(self : ActivationScalePolicy) -> Int {
   match self.value {
     0 => 0
-    1 => 1
+    1 | 4 => 1
     2 | 3 => 2
     _ => 0
   }
@@ -195,7 +203,8 @@ pub fn ActivationScalePolicy::stage_at(
   index : Int,
 ) -> ActivationScaleStage? {
   match (self.value, index) {
-    (1 | 2 | 3, 0) => Some(ActivationScaleStage::external_operation_input_v1())
+    (1 | 2 | 3 | 4, 0) =>
+      Some(ActivationScaleStage::external_operation_input_v1())
     (2 | 3, 1) => Some(ActivationScaleStage::post_silu_gate_up_product_v1())
     _ => None
   }

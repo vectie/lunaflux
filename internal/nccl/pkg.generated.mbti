@@ -49,6 +49,7 @@ pub fn NcclCommunicator::invalidate(Self, generation~ : UInt64) -> Unit raise Nc
 pub fn NcclCommunicator::next_collective_sequence(Self) -> UInt64
 pub fn NcclCommunicator::poll_collective(Self) -> Bool raise NcclError
 pub fn NcclCommunicator::poll_ready(Self) -> Bool raise NcclError
+pub fn NcclCommunicator::poll_submitted(Self) -> Bool raise NcclError
 pub fn NcclCommunicator::rank(Self) -> Int
 pub fn NcclCommunicator::submit_bf16(Self, generation~ : UInt64, plan_sequence~ : UInt64, collective_sequence~ : UInt64, operation_id~ : Int, collective_kind~ : NcclCollectiveOperation, context~ : @device_collective_interop.ContextToken, send~ : @device_collective_interop.RegionToken, send_offset~ : Int64, send_elements~ : Int64, receive~ : @device_collective_interop.RegionToken, receive_offset~ : Int64, receive_elements~ : Int64, stream~ : @device_collective_interop.QueueToken) -> Unit raise NcclError
 pub fn NcclCommunicator::world_size(Self) -> Int

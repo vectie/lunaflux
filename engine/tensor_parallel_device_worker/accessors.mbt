@@ -30,6 +30,7 @@ pub fn TensorParallelDeviceWorkerOwner::cleanup_failure(
 pub fn TensorParallelDeviceWorkerOwner::readiness_contract(
   self : TensorParallelDeviceWorkerOwner,
 ) -> @worker_wire.WorkerStartupContract raise TensorParallelDeviceWorkerError {
+  self.poll_remote_lease()
   if self.lifecycle != WorkerReady || !resources_complete(self.resources) {
     raise Invalid(ResourceState)
   }
@@ -110,4 +111,15 @@ pub fn TensorParallelDeviceExecutionProgress::executed(
     raise Invalid(PlanFrame)
   }
   ExecutedTensorParallelDeviceExecution(self.0, self.1, self.2, self.3)
+}
+
+///|
+/// Reports the startup queue policy; kernel graph telemetry remains separate.
+pub fn TensorParallelDeviceWorkerOwner::parallel_policy(
+  self : TensorParallelDeviceWorkerOwner,
+) -> @parallel_ir.Policy {
+  match self.resources.parallel {
+    OrderedExecution => Ordered
+    OverlapExecution(_) => ComputeCommunicationOverlap
+  }
 }

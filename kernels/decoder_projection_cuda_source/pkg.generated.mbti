@@ -1,0 +1,76 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_projection_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn dense_projection_bf16_source(input_width~ : Int, output_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderProjectionCudaSource raise DecoderProjectionCudaSourceError
+
+pub fn dense_projection_f32_bias_bf16_source(rows~ : Int64, input_width~ : Int, output_width~ : Int, function_symbol~ : String) -> FixedRowsDecoderProjectionCudaSource raise DecoderProjectionCudaSourceError
+
+pub fn dense_projection_f32_bias_f32_source(rows~ : Int64, input_width~ : Int, output_width~ : Int, function_symbol~ : String) -> FixedRowsDecoderProjectionCudaSource raise DecoderProjectionCudaSourceError
+
+pub fn grouped_projection_bf16_source(group_count~ : Int, input_width~ : Int, output_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> GroupedDecoderProjectionCudaSource raise DecoderProjectionCudaSourceError
+
+// Errors
+pub(all) suberror DecoderProjectionCudaSourceError {
+  InvalidInputWidth
+  InvalidOutputWidth
+  InvalidMaximumRows
+  InvalidRowCount
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecoderProjectionCudaOperation {
+  DenseProjectionBf16
+  DenseProjectionF32BiasBf16
+  DenseProjectionF32BiasF32
+  GroupedDenseProjectionBf16V1
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderProjectionCudaSource {
+  // private fields
+}
+pub fn DecoderProjectionCudaSource::function_symbol(Self) -> String
+pub fn DecoderProjectionCudaSource::input_width(Self) -> Int
+pub fn DecoderProjectionCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderProjectionCudaSource::numerical_contract(Self) -> DecoderProjectionNumericalContract
+pub fn DecoderProjectionCudaSource::operation(Self) -> DecoderProjectionCudaOperation
+pub fn DecoderProjectionCudaSource::output_width(Self) -> Int
+pub fn DecoderProjectionCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum DecoderProjectionNumericalContract {
+  OrderedFloat32AccumulationBf16RoundV1
+  OrderedFloat32BiasAccumulationBf16RoundV1
+  OrderedFloat32AccumulationF32OutputV1
+} derive(Eq, @debug.Debug)
+
+pub struct FixedRowsDecoderProjectionCudaSource {
+  // private fields
+}
+pub fn FixedRowsDecoderProjectionCudaSource::function_symbol(Self) -> String
+pub fn FixedRowsDecoderProjectionCudaSource::input_width(Self) -> Int
+pub fn FixedRowsDecoderProjectionCudaSource::numerical_contract(Self) -> DecoderProjectionNumericalContract
+pub fn FixedRowsDecoderProjectionCudaSource::operation(Self) -> DecoderProjectionCudaOperation
+pub fn FixedRowsDecoderProjectionCudaSource::output_width(Self) -> Int
+pub fn FixedRowsDecoderProjectionCudaSource::row_count(Self) -> Int64
+pub fn FixedRowsDecoderProjectionCudaSource::source_bytes(Self) -> Bytes
+
+pub struct GroupedDecoderProjectionCudaSource {
+  // private fields
+}
+pub fn GroupedDecoderProjectionCudaSource::function_symbol(Self) -> String
+pub fn GroupedDecoderProjectionCudaSource::group_count(Self) -> Int
+pub fn GroupedDecoderProjectionCudaSource::input_width(Self) -> Int
+pub fn GroupedDecoderProjectionCudaSource::maximum_rows(Self) -> Int
+pub fn GroupedDecoderProjectionCudaSource::numerical_contract(Self) -> DecoderProjectionNumericalContract
+pub fn GroupedDecoderProjectionCudaSource::operation(Self) -> DecoderProjectionCudaOperation
+pub fn GroupedDecoderProjectionCudaSource::output_width(Self) -> Int
+pub fn GroupedDecoderProjectionCudaSource::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

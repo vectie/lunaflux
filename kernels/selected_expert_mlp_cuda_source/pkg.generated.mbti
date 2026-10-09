@@ -1,0 +1,45 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn selected_expert_swiglu_bf16_source(hidden_size~ : Int, intermediate_size~ : Int, routed_expert_count~ : Int, experts_per_token~ : Int, activation~ : SelectedExpertActivation, maximum_rows~ : Int, function_symbol~ : String) -> SelectedExpertMlpCudaSource raise SelectedExpertMlpCudaSourceError
+
+// Errors
+pub(all) suberror SelectedExpertMlpCudaSourceError {
+  InvalidGeometry
+  InvalidActivation
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum SelectedExpertActivation {
+  StandardSwiGlu
+  BoundedClampedSwiGlu(Double)
+} derive(Eq, @debug.Debug)
+
+pub struct SelectedExpertMlpCudaSource {
+  // private fields
+}
+pub fn SelectedExpertMlpCudaSource::activation(Self) -> SelectedExpertActivation
+pub fn SelectedExpertMlpCudaSource::experts_per_token(Self) -> Int
+pub fn SelectedExpertMlpCudaSource::function_symbol(Self) -> String
+pub fn SelectedExpertMlpCudaSource::hidden_size(Self) -> Int
+pub fn SelectedExpertMlpCudaSource::intermediate_size(Self) -> Int
+pub fn SelectedExpertMlpCudaSource::maximum_rows(Self) -> Int
+pub fn SelectedExpertMlpCudaSource::numerical_contract(Self) -> SelectedExpertMlpNumericalContract
+pub fn SelectedExpertMlpCudaSource::routed_expert_count(Self) -> Int
+pub fn SelectedExpertMlpCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum SelectedExpertMlpNumericalContract {
+  ExpertAscendingBf16SwiGluWeightedAccumulateV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

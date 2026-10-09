@@ -5,6 +5,7 @@
 /// terminal-cleanup contract as the rooted single-worker owner.
 #valtype
 priv enum WorkerPhysicalTransport {
+  RemoteGroup(RemoteWorkerServiceControl)
   Uninstalled
   RootedSingle(@worker_process.RootBoundWorkerProcessSupervisor)
   TensorParallelGroup(
@@ -35,6 +36,10 @@ fn WorkerPhysicalTransport::claim(
   predecessor : UInt64,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) =>
+      if group.previous != predecessor {
+        raise Invalid(Sequence)
+      }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -53,6 +58,7 @@ fn WorkerPhysicalTransport::is_recovering(
   self : WorkerPhysicalTransport,
 ) -> Bool {
   match self {
+    RemoteGroup(group) => group.recovering
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => process.lifecycle() == RootBoundRecovering
@@ -69,6 +75,7 @@ fn WorkerPhysicalTransport::recovery_cleanup_complete(
   self : WorkerPhysicalTransport,
 ) -> Bool {
   match self {
+    RemoteGroup(group) => group.current.recovery_cleanup_complete()
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     // RootBound recovery is published only after its single child is closed.
@@ -87,6 +94,7 @@ fn WorkerPhysicalTransport::recovery_failure(
   fallback : @worker_protocol.WorkerFailure,
 ) -> @worker_protocol.WorkerFailure raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.failure()
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(_) => fallback
@@ -108,6 +116,7 @@ fn WorkerPhysicalTransport::allows_begin_recovery(
   self : WorkerPhysicalTransport,
 ) -> Bool {
   match self {
+    RemoteGroup(group) => group.current.lifecycle() == Faulted
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -126,6 +135,8 @@ fn WorkerPhysicalTransport::has_exchange_capacity(
   self : WorkerPhysicalTransport,
 ) -> Bool {
   match self {
+    RemoteGroup(group) =>
+      !group.recovering && group.current.lifecycle() == Ready
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => process.has_exchange_capacity()
@@ -138,6 +149,10 @@ fn WorkerPhysicalTransport::probe_idle_health(
   self : WorkerPhysicalTransport,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) =>
+      group.current.probe_idle_health() catch {
+        error => raise remote_error(error)
+      }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(_) => ()
@@ -154,6 +169,14 @@ fn WorkerPhysicalTransport::begin_exchange(
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> UInt64 raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      group.current.begin(plan) catch {
+        error => raise remote_error(error)
+      }
+      plan.sequence_wire() catch {
+        error => raise Scheduler(WorkerProtocol(error))
+      }
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -178,6 +201,7 @@ fn WorkerPhysicalTransport::has_submission(
   sequence : UInt64,
 ) -> Bool raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.current.has_submission(sequence)
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -197,6 +221,16 @@ fn WorkerPhysicalTransport::progress_exchange(
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> WorkerPhysicalExchangeProgress raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      let done = group.current.progress(plan) catch {
+        error => raise remote_error(error)
+      }
+      if done {
+        PhysicalExchangeCompleted
+      } else {
+        PhysicalExchangePending
+      }
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -226,6 +260,7 @@ fn WorkerPhysicalTransport::has_received(
   sequence : UInt64,
 ) -> Bool raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.current.has_received(sequence)
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -245,6 +280,10 @@ fn WorkerPhysicalTransport::received_frame(
   sequence : UInt64,
 ) -> @worker_wire.ValidatedCompletionFrame raise WorkerServiceError {
   match self {
+    RemoteGroup(group) =>
+      group.current.completion_frame(sequence) catch {
+        error => raise remote_error(error)
+      }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -278,6 +317,10 @@ fn WorkerPhysicalTransport::supports_graph_telemetry(
   sequence : UInt64,
 ) -> Bool {
   match self {
+    RemoteGroup(group) => {
+      ignore(group)
+      true
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(_) =>
@@ -292,6 +335,10 @@ fn WorkerPhysicalTransport::received_graph_telemetry(
   sequence : UInt64,
 ) -> @worker_wire.WorkerGraphTelemetry raise WorkerServiceError {
   match self {
+    RemoteGroup(group) =>
+      group.current.graph_telemetry(sequence) catch {
+        error => raise remote_error(error)
+      }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -324,6 +371,14 @@ fn WorkerPhysicalTransport::accept_completion(
   completion : @worker_protocol.SubmittedCompletion,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      if !group.current.has_received(sequence) {
+        raise Invalid(Sequence)
+      }
+      group.current.accept_completion(plan, completion) catch {
+        error => raise remote_error(error)
+      }
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -356,6 +411,12 @@ fn WorkerPhysicalTransport::retire_accepted(
   sequence : UInt64,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      group.current.retire_after_scheduler_commit(sequence) catch {
+        error => raise remote_error(error)
+      }
+      group.previous = sequence
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -383,6 +444,12 @@ fn WorkerPhysicalTransport::retire_received_failure(
   sequence : UInt64,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      group.current.retire_after_scheduler_commit(sequence) catch {
+        error => raise remote_error(error)
+      }
+      group.previous = sequence
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -415,6 +482,7 @@ fn WorkerPhysicalTransport::abandon_submission(
   sequence : UInt64,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.retire_failed(sequence)
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -441,6 +509,7 @@ fn WorkerPhysicalTransport::retire_scheduler_only_failure(
   sequence : UInt64,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.retire_failed(sequence)
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(_) => ()

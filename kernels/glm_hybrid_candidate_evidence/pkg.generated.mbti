@@ -1,0 +1,56 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/glm_hybrid_candidate_evidence"
+
+import {
+  "vectie/lunaflux/kernels/aot_candidate_coverage",
+  "vectie/lunaflux/kernels/glm_hybrid_cuda_aot",
+}
+
+// Values
+pub fn from_dense_projection(@glm_hybrid_cuda_aot.GlmHybridDenseProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_dense_swiglu(@glm_hybrid_cuda_aot.GlmHybridDenseSwiGluCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_dsa_index(@glm_hybrid_cuda_aot.GlmHybridDsaIndexCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_dsa_pooling(@glm_hybrid_cuda_aot.GlmHybridDsaPoolingCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_foundation(@glm_hybrid_cuda_aot.GlmHybridFoundationCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_hyper_control(@glm_hybrid_cuda_aot.GlmHybridHyperControlCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_kda_decay_control(@glm_hybrid_cuda_aot.GlmHybridKdaDecayControlCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_kda_gated_norm(@glm_hybrid_cuda_aot.GlmHybridKdaGatedNormCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_kda_output_gate(@glm_hybrid_cuda_aot.GlmHybridKdaOutputGateCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_kda_projection(@glm_hybrid_cuda_aot.GlmHybridKdaProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_kda_recurrent(@glm_hybrid_cuda_aot.GlmHybridKdaRecurrentCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_kda_short_convolution(@glm_hybrid_cuda_aot.GlmHybridKdaShortConvolutionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_kv_assembly(@glm_hybrid_cuda_aot.GlmHybridKvAssemblyCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_kv_split_norm(@glm_hybrid_cuda_aot.GlmHybridKvSplitNormCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_moe_feed_forward(@glm_hybrid_cuda_aot.GlmHybridMoeFeedForwardCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_moe_grouped_routing(@glm_hybrid_cuda_aot.GlmHybridMoeGroupedRoutingCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_moe_router(@glm_hybrid_cuda_aot.GlmHybridMoeRouterCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_moe_sigmoid_correction(@glm_hybrid_cuda_aot.GlmHybridMoeScoreCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_rotary(@glm_hybrid_cuda_aot.GlmHybridRotaryCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_sparse_attention(@glm_hybrid_cuda_aot.GlmHybridSparseAttentionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,179 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/joint_diffusion_loop"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror FlowTableError {
+  StepOutOfBounds
+}
+
+pub(all) suberror LoopError {
+  InvalidSchedule
+  NotRunning
+  ReentrantProgress
+} derive(Eq, @debug.Debug)
+pub fn LoopError::equal(Self, Self) -> Bool
+pub fn LoopError::not_equal(Self, Self) -> Bool
+pub fn LoopError::to_repr(Self) -> @debug.Repr
+
+pub(all) suberror NoiseError {
+  InvalidChunkLimit
+  InvalidRange
+}
+
+pub(all) suberror PreparationError {
+  InvalidRequest
+  InvalidScheduler
+  ElementLimitExceeded
+} derive(Eq, @debug.Debug)
+pub fn PreparationError::equal(Self, Self) -> Bool
+pub fn PreparationError::not_equal(Self, Self) -> Bool
+pub fn PreparationError::to_repr(Self) -> @debug.Repr
+
+pub(all) suberror ProjectionPlanError {
+  ModelMismatch
+  ByteLimitExceeded
+}
+
+pub(all) suberror StoragePlanError {
+  ByteLimitExceeded
+}
+
+// Types and methods
+pub struct BoundaryTransfer {
+  input : LatentBuffer
+  output : LatentBuffer
+  permutation : @dense_permutation_plan.Permutation
+}
+
+pub(all) struct FlowCoefficients {
+  sigma_t : Float
+  ratio : Float
+  complement : Float
+}
+pub fn FlowCoefficients::update(Self, Float, Float) -> Float
+
+pub struct FlowTable {
+  // private fields
+}
+pub fn FlowTable::byte_count(Self) -> Int64
+pub fn FlowTable::bytes(Self) -> Bytes
+pub fn FlowTable::coefficient_offset(Self, Int, @joint_diffusion_plan.JointDiffusionLatentKind) -> Int64 raise FlowTableError
+
+pub(all) struct JointStep {
+  video_timestep : Double
+  audio_timestep : Double
+  video_sigma : Double
+  audio_sigma : Double
+  video_next_sigma : Double
+  audio_next_sigma : Double
+} derive(Eq, @debug.Debug)
+pub fn JointStep::audio_coefficients(Self) -> FlowCoefficients
+pub fn JointStep::equal(Self, Self) -> Bool
+pub fn JointStep::not_equal(Self, Self) -> Bool
+pub fn JointStep::to_repr(Self) -> @debug.Repr
+pub fn JointStep::update_audio(Self, Float, Float) -> Float
+pub fn JointStep::update_video(Self, Float, Float) -> Float
+pub fn JointStep::video_coefficients(Self) -> FlowCoefficients
+
+pub(all) enum LatentBoundary {
+  PackVideoInput
+  UnpackVideoOutput
+  UnpackAudioOutput
+}
+
+pub(all) enum LatentBuffer {
+  VideoState
+  AudioState
+  VideoVelocity
+  AudioVelocity
+  VideoBoundary
+  AudioBoundary
+  FlowTableBuffer
+}
+
+pub struct LatentProjectionPlan {
+  // private fields
+}
+pub fn LatentProjectionPlan::byte_count(Self) -> Int64
+pub fn LatentProjectionPlan::shape(Self, @joint_diffusion_plan.JointDiffusionLatentKind) -> LatentProjectionShape
+
+pub struct LatentProjectionShape {
+  rows : Int64
+  input_width : Int
+  output_width : Int
+  weight_bytes : Int64
+  bias_bytes : Int64
+  output : StorageRegion
+}
+
+pub struct LatentStoragePlan {
+  // private fields
+}
+pub fn LatentStoragePlan::boundary(Self, LatentBoundary) -> BoundaryTransfer
+pub fn LatentStoragePlan::byte_count(Self) -> Int64
+pub fn LatentStoragePlan::flow_table(Self) -> FlowTable
+pub fn LatentStoragePlan::matches_prepared(Self, PreparedPlan) -> Bool
+pub fn LatentStoragePlan::new(PreparedPlan, max_bytes~ : Int64) -> Self raise StoragePlanError
+pub fn LatentStoragePlan::noise(Self, seed~ : Int64, max_chunk_elements~ : Int) -> NoisePlan raise NoiseError
+pub fn LatentStoragePlan::projections(Self, @joint_diffusion_plan.JointDiffusionPlan, max_bytes~ : Int64) -> LatentProjectionPlan raise ProjectionPlanError
+pub fn LatentStoragePlan::region(Self, LatentBuffer) -> StorageRegion
+
+pub struct Loop {
+  // private fields
+}
+pub fn[B : JointBackend] Loop::advance(Self, B) -> Progress raise
+pub fn Loop::cancel(Self) -> Unit
+pub fn Loop::completed_steps(Self) -> Int
+pub fn Loop::new(ArrayView[JointStep]) -> Self raise LoopError
+pub fn Loop::progress(Self) -> Progress
+
+pub struct NoisePlan {
+  // private fields
+}
+pub fn NoisePlan::chunk(Self, @joint_diffusion_plan.JointDiffusionLatentKind, start~ : Int64, count~ : Int) -> Bytes raise NoiseError
+pub fn NoisePlan::element_count(Self, @joint_diffusion_plan.JointDiffusionLatentKind) -> Int64
+
+pub struct PreparedPlan {
+  // private fields
+}
+pub fn PreparedPlan::audio_elements(Self) -> Int64
+pub fn PreparedPlan::audio_unpack(Self) -> @dense_permutation_plan.Permutation
+pub fn PreparedPlan::flow_table(Self) -> FlowTable
+pub fn PreparedPlan::model_digest(Self) -> @spec.PlanDigest
+pub fn PreparedPlan::new(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, max_latent_elements~ : Int64) -> Self raise PreparationError
+pub fn PreparedPlan::request(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn PreparedPlan::start(Self) -> Loop
+pub fn PreparedPlan::steps(Self) -> ReadOnlyArray[JointStep]
+pub fn PreparedPlan::video_elements(Self) -> Int64
+pub fn PreparedPlan::video_pack(Self) -> @dense_permutation_plan.Permutation
+
+pub(all) enum Progress {
+  Running
+  Completed
+  Cancelled
+  Failed
+} derive(Eq, @debug.Debug)
+pub fn Progress::equal(Self, Self) -> Bool
+pub fn Progress::not_equal(Self, Self) -> Bool
+pub fn Progress::to_repr(Self) -> @debug.Repr
+
+pub struct StorageRegion {
+  offset : Int64
+  byte_count : Int64
+}
+
+// Type aliases
+
+// Traits
+pub(open) trait JointBackend {
+  fn execute_step(Self, Int, JointStep) -> Unit raise
+}

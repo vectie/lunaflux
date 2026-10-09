@@ -1,0 +1,16 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/rectified_flow_update_cuda_source"
+
+// Values
+pub fn render(elements~ : Int64, block_size~ : Int) -> Bytes raise SourceError
+
+// Errors
+pub(all) suberror SourceError {
+  InvalidGeometry
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits

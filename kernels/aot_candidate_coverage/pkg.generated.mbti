@@ -1,0 +1,72 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/aot_candidate_coverage"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn audit(source_identity~ : @spec.ModelIdentity, requirements_digest_sha256~ : String, requirement_count~ : Int, candidates~ : ArrayView[AotCandidateEvidenceInput], limits~ : AotCandidateCoverageLimits) -> AotCandidateCoverage raise AotCandidateCoverageError
+
+// Errors
+pub(all) suberror AotCandidateCoverageError {
+  InvalidLimit
+  InvalidRequirementCount(Int)
+  InvalidDigest(AotCandidateDigestField)
+  CandidateCountExceedsLimit(Int)
+  CandidateIdentityMismatch(Int)
+  CandidateRequirementsDigestMismatch(Int)
+  InvalidRequirementOrdinal(candidate~ : Int, ordinal~ : Int)
+  DuplicateRequirementOrdinal(first_candidate~ : Int, second_candidate~ : Int, ordinal~ : Int)
+  DuplicateRecipeDigest(first_candidate~ : Int, second_candidate~ : Int)
+  CoverageEncodingTooLarge
+  IncompleteCoverage(Int)
+  NonBindableCoverage(Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AotCandidateCoverage {
+  // private fields
+}
+pub fn AotCandidateCoverage::candidate_count(Self) -> Int
+pub fn AotCandidateCoverage::digest(Self) -> AotCandidateCoverageDigest
+pub fn AotCandidateCoverage::missing_ordinals(Self) -> ReadOnlyArray[Int]
+pub fn AotCandidateCoverage::non_bindable_ordinals(Self) -> ReadOnlyArray[Int]
+pub fn AotCandidateCoverage::require_all_claimed_bindable(Self) -> Unit raise AotCandidateCoverageError
+pub fn AotCandidateCoverage::require_complete(Self) -> Unit raise AotCandidateCoverageError
+pub fn AotCandidateCoverage::requirement_count(Self) -> Int
+pub fn AotCandidateCoverage::requirements_digest_sha256(Self) -> String
+pub fn AotCandidateCoverage::source_identity(Self) -> @spec.ModelIdentity
+pub fn AotCandidateCoverage::status(Self) -> AotCandidateCoverageStatus
+
+pub struct AotCandidateCoverageDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn AotCandidateCoverageDigest::as_hex(Self) -> String
+
+pub struct AotCandidateCoverageLimits {
+  // private fields
+}
+pub fn AotCandidateCoverageLimits::new(maximum_requirements~ : Int, maximum_candidates~ : Int, maximum_encoding_bytes~ : Int) -> Self raise AotCandidateCoverageError
+
+pub(all) enum AotCandidateCoverageStatus {
+  Incomplete
+  CompleteInert
+  CompleteWithBindableClaims
+} derive(Eq, @debug.Debug)
+
+pub(all) enum AotCandidateDigestField {
+  RequirementsDigest
+  SourceDigest
+  RecipeDigest
+} derive(Eq, @debug.Debug)
+
+pub struct AotCandidateEvidenceInput {
+  // private fields
+}
+pub fn AotCandidateEvidenceInput::new(source_identity~ : @spec.ModelIdentity, requirements_digest_sha256~ : String, requirement_ordinal~ : Int, source_digest_sha256~ : String, recipe_digest_sha256~ : String, manifest_bindable~ : Bool) -> Self raise AotCandidateCoverageError
+
+// Type aliases
+
+// Traits

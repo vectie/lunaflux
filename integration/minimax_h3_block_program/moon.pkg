@@ -1,0 +1,20 @@
+import {
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_device",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/model/minimax_h3_sequence",
+  "vectie/lunaflux/integration/minimax_h3_block_source",
+  "vectie/lunaflux/model/minimax_h3_weights",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/spec",
+} for "wbtest"

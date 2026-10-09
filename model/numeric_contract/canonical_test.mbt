@@ -191,7 +191,7 @@ test "operation loader rejects unknown activation-scale policy tags" {
   let policy_offset = canonical.length() - 8
   let changed = Bytes::makei(canonical.length(), index => {
     if index == policy_offset {
-      (4).to_byte()
+      (5).to_byte()
     } else {
       canonical[index]
     }

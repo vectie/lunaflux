@@ -190,7 +190,7 @@ fn verify_warmed_evidence(
 }
 
 ///|
-async fn run_allocation_evidence() -> Unit {
+async fn run_allocation_evidence(parallel_policy : @parallel_ir.Policy) -> Unit {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-tp-device-worker-alloc")
     let directory = @fs.realpath(temporary)
@@ -205,7 +205,7 @@ async fn run_allocation_evidence() -> Unit {
     )
     let root = @approved_fs.ApprovedRoot::open_absolute(directory)
     let execution = prepare_execution_fixture(root, weights)
-    let workers = prepare_workers(root, execution)
+    let workers = prepare_workers(root, execution, parallel_policy~)
     let measured_cycle_count = 65
     let cycles = prepare_cycles(measured_cycle_count + 1, execution.model)
     verify_probe_controls()
@@ -237,8 +237,17 @@ async fn run_allocation_evidence() -> Unit {
       observed, measured_cycle_count, workers, warm_copies, warm_launches, warm_reads,
       copies_before, launches_before, reads_before, creates_before, closes_before,
     )
+    if parallel_policy == ComputeCommunicationOverlap {
+      verify_overlap_evidence()
+    }
+    if parallel_policy == ComputeCommunicationOverlap {
+      close_overlap_workers(workers)
+      let abort_workers = prepare_workers(root, execution, parallel_policy~)
+      abort_overlap_workers(abort_workers, cycles.cycles[0])
+    } else {
+      close_workers(workers)
+    }
     release_cycles(cycles)
-    close_workers(workers)
     root.close()
     if fake_live_children() != 0 ||
       live_executors() != 0 ||
@@ -250,5 +259,6 @@ async fn run_allocation_evidence() -> Unit {
 
 ///|
 async fn main {
-  run_allocation_evidence()
+  run_allocation_evidence(Ordered)
+  run_allocation_evidence(ComputeCommunicationOverlap)
 }

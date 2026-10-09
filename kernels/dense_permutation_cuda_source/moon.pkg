@@ -1,0 +1,6 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+}
+
+supported_targets = "native"

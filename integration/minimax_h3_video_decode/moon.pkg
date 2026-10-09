@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minimax_h3_block_program",
+  "vectie/lunaflux/integration/minimax_h3_block_source",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/model/minimax_h3_weights",
+  "vectie/lunaflux/kernels/channel_major_projection_cuda_source",
+  "vectie/lunaflux/kernels/video_latent_embedding_cuda_source",
+}
+
+supported_targets = "native"

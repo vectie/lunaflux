@@ -1,0 +1,168 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4_numeric_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/deepseek_v4_weights",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn build(@deepseek_v4.DeepSeekV4SemanticPlan) -> DeepSeekV4NumericPlan raise DeepSeekV4NumericPlanError
+
+// Errors
+pub(all) suberror DeepSeekV4NumericPlanError {
+  ProfilePlanMismatch
+  WeightManifestIdentityMismatch
+  ManifestCardinalityMismatch(expected~ : Int, actual~ : Int)
+  LogicalSchemaLimitExceeded
+  PhysicalMaterializationUnsupported(ReadOnlyArray[@deepseek_v4_weights.DeepSeekV4WeightEncoding])
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeepSeekV4Fp4CodebookBinding {
+  CanonicalE2M1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4HyperConnectionBlockSite {
+  AttentionSite
+  FeedForwardSite
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4LogicalStorage {
+  PlainBFloat16
+  PlainFloat32
+  PlainInt64
+  Fp8E4M3Block128Parameter
+  Ue8M0Block128ScaleMetadata
+  PackedFp4E2M1Block32Parameter
+  Ue8M0Block32ScaleMetadata
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4NumericOperationBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4NumericOperationBinding::execution(Self) -> DeepSeekV4OperationExecution
+pub fn DeepSeekV4NumericOperationBinding::kind(Self) -> DeepSeekV4NumericOperationKind
+pub fn DeepSeekV4NumericOperationBinding::ordinal(Self) -> Int
+pub fn DeepSeekV4NumericOperationBinding::scope(Self) -> DeepSeekV4NumericOperationScope
+
+pub(all) enum DeepSeekV4NumericOperationKind {
+  TokenEmbedding
+  BlockRmsNorm
+  HyperConnectionBlockControl(DeepSeekV4HyperConnectionBlockSite)
+  HyperConnectionPreReduce(DeepSeekV4HyperConnectionBlockSite)
+  HyperConnectionPostCombine(DeepSeekV4HyperConnectionBlockSite)
+  HyperConnectionHeadReduce
+  LowRankAttentionProjection
+  QueryKeyRmsNorm
+  ScaledRotaryPosition
+  SlidingWindowAttention
+  LearnedIndexSelection
+  IndexedCompressedAttention
+  DeterministicCompressedSelection
+  DeterministicWindowCompressedIndexJoinV1
+  NonOverlappingCompressedKeyValuePrepareV1
+  SelectedSparseAttentionV1
+  AttentionOutputInverseRotaryV1
+  AttentionOutputAProjectionV1
+  AttentionOutputBProjectionV1
+  MoeRouterProjection
+  ExpertScoreTransform
+  TokenHashRouting
+  StableTopKRouting
+  RoutedExpertClampedSwiGlu
+  SharedExpertClampedSwiGlu
+  RoutedSharedExpertCombine
+  MultiTokenPredictionInputProjection
+  DsparkTargetLayerRead
+  DsparkMainProjection
+  DsparkNoiseEmbedding
+  AuxiliaryOutputHead
+  DsparkMarkovAdjustment
+  DsparkConfidence
+  FinalRmsNorm
+  LanguageModelHead
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4NumericOperationScope {
+  Global
+  DecoderLayer(Int)
+  PredictionStage(Int)
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4NumericPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4NumericPlan::binding_digest(Self) -> @spec.PlanDigest
+pub fn DeepSeekV4NumericPlan::expected_tensor_count(Self) -> Int
+pub fn DeepSeekV4NumericPlan::fp4_codebook(Self) -> DeepSeekV4Fp4CodebookBinding?
+pub fn DeepSeekV4NumericPlan::identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4NumericPlan::logical_manifest_digest(Self) -> @spec.PlanDigest
+pub fn DeepSeekV4NumericPlan::numeric_schema_digest(Self) -> @spec.PlanDigest
+pub fn DeepSeekV4NumericPlan::operations(Self) -> ReadOnlyArray[DeepSeekV4NumericOperationBinding]
+pub fn DeepSeekV4NumericPlan::physical_readiness(Self) -> DeepSeekV4PhysicalReadiness
+pub fn DeepSeekV4NumericPlan::profile(Self) -> @deepseek_v4_spec.DeepSeekV4Profile
+pub fn DeepSeekV4NumericPlan::require_physical_materialization(Self) -> Unit raise DeepSeekV4NumericPlanError
+pub fn DeepSeekV4NumericPlan::source_plan_digest(Self) -> @spec.PlanDigest
+pub fn DeepSeekV4NumericPlan::tensor_runs(Self) -> ReadOnlyArray[DeepSeekV4NumericTensorRun]
+pub fn DeepSeekV4NumericPlan::validate_weight_manifest(Self, @deepseek_v4_weights.DeepSeekV4WeightBinding) -> Unit raise DeepSeekV4NumericPlanError
+pub fn DeepSeekV4NumericPlan::verify_manifest_tensor_count(Self, Int) -> Unit raise DeepSeekV4NumericPlanError
+
+pub(all) enum DeepSeekV4NumericTensorRole {
+  GlobalBFloat16Parameter
+  GlobalHyperConnectionFloat32
+  AttentionBFloat16Parameter
+  AttentionFloat32Control
+  AttentionFp8Parameter
+  AttentionScaleMetadata
+  RouterBFloat16Weight
+  RouterFloat32Bias
+  TokenExpertHashInt64
+  SharedExpertFp8Parameter
+  SharedExpertScaleMetadata
+  RoutedExpertFp8Parameter
+  RoutedExpertFp4Parameter
+  RoutedExpertBlock128ScaleMetadata
+  RoutedExpertBlock32ScaleMetadata
+  FfnNormBFloat16
+  HyperConnectionFloat32
+  CompressorBFloat16Parameter
+  CompressorFloat32Control
+  IndexerBFloat16Parameter
+  IndexerFloat32Control
+  IndexerFp8Parameter
+  IndexerScaleMetadata
+  MtpBFloat16Parameter
+  MtpHyperConnectionFloat32
+  MtpFp8Parameter
+  MtpScaleMetadata
+  DsparkBFloat16Parameter
+  DsparkHyperConnectionFloat32
+  DsparkFp8Parameter
+  DsparkScaleMetadata
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4NumericTensorRun {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4NumericTensorRun::role(Self) -> DeepSeekV4NumericTensorRole
+pub fn DeepSeekV4NumericTensorRun::storage(Self) -> DeepSeekV4LogicalStorage
+pub fn DeepSeekV4NumericTensorRun::tensor_count(Self) -> Int
+
+pub(all) enum DeepSeekV4OperationExecution {
+  NumericContract(@numeric_contract.OperationExecutionContract)
+  RequiresCheckedInt64ToInt32TokenHash
+  UnsupportedPackedFp4E2M1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DeepSeekV4PhysicalReadiness {
+  UnsupportedPhysicalMaterialization(ReadOnlyArray[@deepseek_v4_weights.DeepSeekV4WeightEncoding])
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -32,7 +32,7 @@ pub struct RankChildSendProgress {
 
 ///|
 pub struct RankChildControl {
-  priv channel : @process.InheritedChannel
+  priv channel : RankChildChannel
   priv wire_limits : @rank_group_wire.RankGroupWireLimits
   priv rx_destination : FixedArray[Byte]
   priv rx_staging : FixedArray[Byte]

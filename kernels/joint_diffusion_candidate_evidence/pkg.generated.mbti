@@ -1,0 +1,60 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/joint_diffusion_candidate_evidence"
+
+import {
+  "vectie/lunaflux/kernels/aot_candidate_coverage",
+  "vectie/lunaflux/kernels/joint_diffusion_cuda_aot",
+}
+
+// Values
+pub fn from_audio_vae_decoder_amp_activation(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeAmpActivationCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_audio_vae_decoder_amp_stage(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeAmpStageCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_audio_vae_decoder_conv_pre(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeConvPreCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_audio_vae_decoder_first_amp_activation(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeFirstAmpCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_audio_vae_decoder_first_amp_stage(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeFirstAmpStageCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_audio_vae_decoder_first_upsample(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeFirstUpsampleCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_audio_vae_decoder_input_projection(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_audio_vae_decoder_upsample_transition(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeUpsampleTransitionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_audio_vae_latent_destandardization(@joint_diffusion_cuda_aot.JointDiffusionAudioVaeLatentDestandardizationCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_distinct_timestep_adaln(@joint_diffusion_cuda_aot.JointDiffusionDistinctTimestepAdaLnCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_final_adaln(@joint_diffusion_cuda_aot.JointDiffusionFinalAdaLnF32CudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_final_adaln_parameter_row(@joint_diffusion_cuda_aot.JointDiffusionFinalAdaLnParameterRowCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_final_rms_norm(@joint_diffusion_cuda_aot.JointDiffusionFinalRmsNormCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_latent_projection(@joint_diffusion_cuda_aot.JointDiffusionLatentProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_output_projection(@joint_diffusion_cuda_aot.JointDiffusionOutputProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_packed_modality_adaln(@joint_diffusion_cuda_aot.JointDiffusionPackedModalityAdaLnCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_shifted_flow(@joint_diffusion_cuda_aot.JointDiffusionShiftedFlowCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_timestep_frequency(@joint_diffusion_cuda_aot.JointDiffusionTimestepFrequencyCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_timestep_mlp(@joint_diffusion_cuda_aot.JointDiffusionTimestepMlpCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_transformer_attention(@joint_diffusion_cuda_aot.JointDiffusionTransformerAttentionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_transformer_mlp(@joint_diffusion_cuda_aot.JointDiffusionTransformerMlpCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_video_vae_latent_destandardization(@joint_diffusion_cuda_aot.JointDiffusionVideoVaeLatentDestandardizationCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

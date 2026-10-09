@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_compressed_index_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn causal_complete_slots_i32_source(compression_ratio~ : Int, maximum_position_count~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderCompressedIndexCudaSource raise DecoderCompressedIndexCudaSourceError
+
+// Errors
+pub(all) suberror DecoderCompressedIndexCudaSourceError {
+  InvalidCompressionRatio
+  InvalidMaximumPositionCount
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecoderCompressedIndexCudaOperation {
+  CausalCompleteSlotsI32
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderCompressedIndexCudaSource {
+  // private fields
+}
+pub fn DecoderCompressedIndexCudaSource::compression_ratio(Self) -> Int
+pub fn DecoderCompressedIndexCudaSource::function_symbol(Self) -> String
+pub fn DecoderCompressedIndexCudaSource::maximum_position_count(Self) -> Int
+pub fn DecoderCompressedIndexCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderCompressedIndexCudaSource::maximum_slots_per_row(Self) -> Int
+pub fn DecoderCompressedIndexCudaSource::numerical_contract(Self) -> DecoderCompressedIndexNumericalContract
+pub fn DecoderCompressedIndexCudaSource::operation(Self) -> DecoderCompressedIndexCudaOperation
+pub fn DecoderCompressedIndexCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum DecoderCompressedIndexNumericalContract {
+  BitExactCausalCompleteSlotsI32V1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

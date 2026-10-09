@@ -160,6 +160,17 @@ capture instead of shape buckets. Current feature work therefore prioritizes
 shape-aware projection, phase-specific tiled attention, real graph fusion, and
 execution-graph buckets; release-evidence work is not on this hot-path loop.
 
+Advanced-family work after that sealed baseline is software-only. DeepSeek V4
+five-profile, GLM 5.3 Full/Flash, and MiniMax H3 FL2VA/Ref2VA have exact config,
+plan, weight, numeric, host/device-upload, reference, and partial inert AOT
+evidence behind workload-specific packages. Semantic capability availability
+is explicitly not called executable readiness. H3 now additionally has prepared
+encoder/denoiser/decoder request composition and offline source export, described
+in the [current code inventory](MINIMAX_H3_CODE_INTEGRATION_2026-09-26.md).
+This has not been physically qualified as a complete model or deployed as a
+production serving path. The family-level stages and gaps are tracked in
+[MODEL_FAMILY_SUPPORT.md](MODEL_FAMILY_SUPPORT.md).
+
 Subsequent local debt hardening removes every compiler-reported unnecessary
 MoonBit annotation and makes warning 73 a permanent aggregate boundary. It also
 centralizes exact `DeviceTarget`/numeric-capability matching for FP8 and I8,

@@ -1,0 +1,37 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/hyper_connection_mix_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn hyper_connection_mix_bf16_source(hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> HyperConnectionMixCudaSource raise HyperConnectionMixCudaSourceError
+
+// Errors
+pub(all) suberror HyperConnectionMixCudaSourceError {
+  InvalidHiddenWidth
+  InvalidStreamCount
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct HyperConnectionMixCudaSource {
+  // private fields
+}
+pub fn HyperConnectionMixCudaSource::function_symbol(Self) -> String
+pub fn HyperConnectionMixCudaSource::hidden_width(Self) -> Int
+pub fn HyperConnectionMixCudaSource::maximum_rows(Self) -> Int
+pub fn HyperConnectionMixCudaSource::numerical_contract(Self) -> HyperConnectionMixNumericalContract
+pub fn HyperConnectionMixCudaSource::source_bytes(Self) -> Bytes
+pub fn HyperConnectionMixCudaSource::stream_count(Self) -> Int
+
+pub(all) enum HyperConnectionMixNumericalContract {
+  F32ControlsRoundedBf16OrderedMixV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

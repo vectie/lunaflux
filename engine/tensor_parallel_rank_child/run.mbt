@@ -99,7 +99,7 @@ fn serve_rank_child_control(ready : TensorParallelRankChildReady) -> Bool {
 /// Every individual read, collective, execution, and write progress call is
 /// bounded. `false` is payload-free failure evidence for the executable's
 /// silent nonzero-exit boundary.
-pub fn run() -> Bool {
+pub fn run(parallel_policy? : @parallel_ir.Policy = Ordered) -> Bool {
   let wire_limits = @rank_group_wire.RankGroupWireLimits::new(
     max_payload_bytes=RANK_CHILD_MAX_FRAME_BYTES -
       @rank_group_wire.rank_group_wire_header_bytes(),
@@ -116,7 +116,7 @@ pub fn run() -> Bool {
   let configured = receive_rank_child_configure(receiver) catch {
     _ => return false
   }
-  let preparation = prepare_configured_rank_child(configured) catch {
+  let preparation = prepare_configured_rank_child(configured, parallel_policy~) catch {
     _ => {
       fail_rank_child_admission(configured)
       return false

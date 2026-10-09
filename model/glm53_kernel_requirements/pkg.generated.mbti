@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm53_kernel_requirements"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/glm_hybrid_kernel_requirements",
+}
+
+// Values
+pub fn build_flash_kernel_requirements(@glm53_spec.Glm53FlashMetadata) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements raise Glm53KernelRequirementsError
+
+pub fn build_full_kernel_requirements(@glm53_spec.Glm53FullMetadata) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements raise Glm53KernelRequirementsError
+
+// Errors
+pub(all) suberror Glm53KernelRequirementsError {
+  RequirementsFailure(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

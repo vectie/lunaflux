@@ -21,7 +21,8 @@ if rg -n 'vectie/lunaflux/(scheduler|service|internal|engine/rank_group|engine/w
   exit 1
 fi
 
-if rg -n '@device\.|Allocation|Context|Stream|Communicator|Nccl|NCCL|cuda|cuBLAS|JIT|compiler|filesystem|ApprovedRoot' \
+# The public parallel IR contains inert compiler values, not a JIT or handles.
+if rg -n --pcre2 '@device\.|Allocation|Context|Stream|Communicator|Nccl|NCCL|cuda|cuBLAS|JIT|compiler(?!/parallel_ir")|filesystem|ApprovedRoot' \
     "$interface"; then
   printf '%s\n' 'tensor-parallel execution-plan API leaked resource authority' >&2
   exit 1

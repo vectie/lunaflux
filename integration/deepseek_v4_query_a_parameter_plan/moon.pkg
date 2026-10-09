@@ -1,0 +1,19 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+  "vectie/lunaflux/kernels/advanced_decoder_cuda_aot",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/deepseek_v4_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/deepseek_v4_weights",
+  "vectie/lunaflux/model/spec",
+}
+
+import {
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_specialization",
+} for "test"
+
+supported_targets = "native"

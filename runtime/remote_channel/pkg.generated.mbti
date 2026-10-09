@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/remote_channel"
+
+import {
+  "moonbitlang/async/socket",
+}
+
+// Values
+
+// Errors
+pub(all) suberror RemoteChannelError {
+  InvalidConfiguration
+  InvalidState
+  InvalidFrame
+  TimedOut
+  ClockRegressed
+  Disconnected
+}
+
+// Types and methods
+pub struct RemoteChannel {
+  // private fields
+}
+pub fn RemoteChannel::begin_receive(Self, UInt64) -> Unit raise RemoteChannelError
+pub fn RemoteChannel::begin_send(Self, FixedArray[Byte], Int, UInt64) -> Unit raise RemoteChannelError
+pub fn RemoteChannel::close(Self) -> Unit
+pub fn RemoteChannel::is_open(Self) -> Bool
+pub fn RemoteChannel::new(@socket.Tcp, max_frame_bytes~ : Int, timeout_millis~ : UInt64) -> Self raise RemoteChannelError
+pub async fn RemoteChannel::poll_receive(Self, FixedArray[Byte], UInt64) -> Int?
+pub async fn RemoteChannel::poll_send(Self, UInt64) -> Bool
+
+// Type aliases
+
+// Traits

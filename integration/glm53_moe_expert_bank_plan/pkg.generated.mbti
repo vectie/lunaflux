@@ -1,0 +1,46 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/glm53_moe_expert_bank_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/glm_hybrid_cuda_aot",
+  "vectie/lunaflux/model/glm53_weights",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn join_moe_expert_bank_candidates(@glm53_weights.Glm53TensorManifest, @glm53_weights.Glm53MoeExpertBankLayout, @glm_hybrid_cuda_aot.GlmHybridMoeFeedForwardCudaCandidate, @glm_hybrid_cuda_aot.GlmHybridMoeFeedForwardCudaCandidate, expected_layer_index~ : Int) -> Glm53MoeExpertBankCandidatePlan raise Glm53MoeExpertBankPlanError
+
+// Errors
+pub(all) suberror Glm53MoeExpertBankPlanError {
+  IdentityMismatch
+  ManifestDigestMismatch
+  RequirementsDigestMismatch
+  LayerMismatch
+  ProfileMismatch
+  OperationMismatch
+  OperandMismatch
+  RecipeMismatch
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Glm53MoeExpertBankCandidatePlan {
+  // private fields
+}
+pub fn Glm53MoeExpertBankCandidatePlan::digest(Self) -> Glm53MoeExpertBankCandidatePlanDigest
+pub fn Glm53MoeExpertBankCandidatePlan::execution_identity(Self) -> @spec.ModelIdentity
+pub fn Glm53MoeExpertBankCandidatePlan::expert_bank_layout_digest(Self) -> @glm53_weights.Glm53MoeExpertBankLayoutDigest
+pub fn Glm53MoeExpertBankCandidatePlan::launch_authority(Self) -> Bool
+pub fn Glm53MoeExpertBankCandidatePlan::layer_index(Self) -> Int
+pub fn Glm53MoeExpertBankCandidatePlan::manifest_layout_digest(Self) -> @spec.PlanDigest
+pub fn Glm53MoeExpertBankCandidatePlan::materialization_authority(Self) -> Bool
+pub fn Glm53MoeExpertBankCandidatePlan::routed_recipe_digest(Self) -> @glm_hybrid_cuda_aot.GlmHybridCudaRecipeDigest
+pub fn Glm53MoeExpertBankCandidatePlan::shared_recipe_digest(Self) -> @glm_hybrid_cuda_aot.GlmHybridCudaRecipeDigest
+pub fn Glm53MoeExpertBankCandidatePlan::upload_authority(Self) -> Bool
+
+pub struct Glm53MoeExpertBankCandidatePlanDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Glm53MoeExpertBankCandidatePlanDigest::as_hex(Self) -> String
+
+// Type aliases
+
+// Traits

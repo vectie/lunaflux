@@ -6,9 +6,11 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_topology",
   "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/remote_startup",
   "vectie/lunaflux/engine/tensor_parallel_device_plan",
   "vectie/lunaflux/engine/tensor_parallel_execution_plan",
   "vectie/lunaflux/engine/tensor_parallel_kv_plan",
+  "vectie/lunaflux/engine/two_node_plan",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/model/device_materialize",
@@ -19,6 +21,8 @@ import {
 
 // Values
 pub fn admit(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @rank_group_protocol.RankGroupGeneration, @device_topology.AdmittedLocalTopology, @worker_wire.EncodedBootstrapSource, ArrayView[@worker_wire.WorkerStartupContract], ArrayView[@device_materialize.DeviceShardedWeightFileInspection], ArrayView[@tensor_parallel_device_plan.TensorParallelDevicePlan], ArrayView[@tensor_parallel_execution_plan.TensorParallelExecutionPlan], @tensor_parallel_kv_plan.TensorParallelKvPlan, @device.TensorCollectiveGroupId, collective_runtime_version_code~ : Int) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError
+
+pub fn admit_network(@plan.ModelPlan, @two_node_plan.TwoNodePlan, @remote_startup.RemoteGroupStartup, ArrayView[@device_materialize.DeviceShardedWeightFileInspection], ArrayView[@tensor_parallel_device_plan.TensorParallelDevicePlan], ArrayView[@tensor_parallel_execution_plan.TensorParallelExecutionPlan], @tensor_parallel_kv_plan.TensorParallelKvPlan, collective_runtime_version_code~ : Int) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError
 
 pub fn admit_runtime_policy(@worker_wire.EncodedBootstrapSource, @device_topology.AdmittedLocalTopology) -> @tensor_parallel_admission.TensorParallelRuntimeAdmission raise TensorParallelWorkerBootstrapError
 
@@ -69,6 +73,7 @@ pub struct TensorParallelRankBootstrapEnvelope {
   // private fields
 }
 pub fn TensorParallelRankBootstrapEnvelope::authenticate_local(Self, @plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @rank_group_protocol.RankGroupGeneration, @device_topology.AdmittedLocalTopology, @worker_wire.WorkerStartupContract, @device_materialize.DeviceShardedWeightFileInspection, @tensor_parallel_device_plan.TensorParallelDevicePlan, @tensor_parallel_execution_plan.TensorParallelExecutionPlan, @tensor_parallel_kv_plan.TensorParallelKvRankBinding, expected_group_digest~ : TensorParallelGroupBootstrapDigest, expected_rendezvous_id~ : @device.TensorCollectiveGroupId, expected_collective_runtime_version_code~ : Int) -> @device.TensorCollectiveContract raise TensorParallelWorkerBootstrapError
+pub fn TensorParallelRankBootstrapEnvelope::authenticate_network(Self, @plan.ModelPlan, @two_node_plan.TwoNodePlan, @remote_startup.RemoteRankStartup, @device_materialize.DeviceShardedWeightFileInspection, @tensor_parallel_device_plan.TensorParallelDevicePlan, @tensor_parallel_execution_plan.TensorParallelExecutionPlan, @tensor_parallel_kv_plan.TensorParallelKvPlan, expected_group_digest~ : TensorParallelGroupBootstrapDigest, expected_collective_runtime_version_code~ : Int) -> @device.TensorCollectiveContract raise TensorParallelWorkerBootstrapError
 pub fn TensorParallelRankBootstrapEnvelope::collective_digest(Self) -> @device.TensorCollectiveContractDigest
 pub fn TensorParallelRankBootstrapEnvelope::collective_runtime_version_code(Self) -> Int
 pub fn TensorParallelRankBootstrapEnvelope::device_ordinal(Self) -> Int

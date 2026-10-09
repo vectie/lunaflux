@@ -1,0 +1,158 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4_host_materialization"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/checked_integer_narrow",
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/deepseek_v4_quantized_payload",
+  "vectie/lunaflux/model/deepseek_v4_weights",
+  "vectie/lunaflux/model/segmented_host_borrow",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn build_manifest(@approved_fs.ApprovedRoot, @deepseek_v4.DeepSeekV4SemanticPlan, ArrayView[@streaming_safetensors.StreamingSafetensorsShardInput], index~ : ArrayView[DeepSeekV4TensorIndexInput], expected_digests~ : DeepSeekV4HostExpectedDigests, streaming_limits~ : @streaming_safetensors.StreamingSafetensorsLimits, limits~ : DeepSeekV4HostMaterializationLimits) -> DeepSeekV4HostManifest raise DeepSeekV4HostMaterializationError
+
+pub fn materialize(@approved_fs.ApprovedRoot, DeepSeekV4HostManifest, expected_digests~ : DeepSeekV4HostExpectedDigests, expected_manifest_digest~ : DeepSeekV4HostManifestDigest) -> DeepSeekV4HostWeights raise DeepSeekV4HostMaterializationError
+
+// Errors
+pub(all) suberror DeepSeekV4HostMaterializationError {
+  InvalidLimit
+  IdentityMismatch
+  LogicalManifestDigestMismatch
+  NumericSchemaDigestMismatch
+  NumericBindingDigestMismatch
+  ManifestDigestMismatch
+  InvalidIndexCount(expected~ : Int, actual~ : Int)
+  InvalidIndexEntry(Int)
+  DuplicateIndexEntry(Int, Int)
+  IndexShardMismatch(Int)
+  StreamingFailure
+  WeightBindingFailure
+  NumericPlanFailure
+  TensorTooLarge(Int)
+  HostByteBudgetExceeded
+  ArenaCountExceeded
+  ArenaReleased
+  TensorIndexOutOfBounds(Int)
+  TensorByteOutOfBounds(Int)
+  TensorNotQuantized(Int)
+  QuantizedPairUnavailable(Int)
+  QuantizedPayloadFailure(Int)
+  ExecutableWeightsUnavailable(ReadOnlyArray[DeepSeekV4HostExecutionLimitation])
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror DeepSeekV4TokenHashMaterializationError {
+  TokenHashInvalidLimit
+  TokenHashSourceReleased
+  TokenHashIdentityMismatch
+  TokenHashTableCountMismatch(expected~ : Int, actual~ : Int)
+  TokenHashInvalidBinding(Int)
+  TokenHashMissingLayer(Int)
+  TokenHashDuplicateLayer(Int)
+  TokenHashOutputBudgetExceeded
+  TokenHashTableIndexOutOfBounds(Int)
+  TokenHashNarrowingFailure(layer~ : Int, @checked_integer_narrow.CheckedIntegerNarrowError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeepSeekV4HostExecutionLimitation {
+  Fp4ScalarInterpretationUnproven
+  NoDeviceOrKernelMaterialization
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4HostExpectedDigests {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4HostExpectedDigests::identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4HostExpectedDigests::logical_manifest_digest(Self) -> @spec.PlanDigest
+pub fn DeepSeekV4HostExpectedDigests::new(identity~ : @spec.ModelIdentity, logical_manifest_digest~ : @spec.PlanDigest, numeric_schema_digest~ : @spec.PlanDigest, numeric_binding_digest~ : @spec.PlanDigest) -> Self
+pub fn DeepSeekV4HostExpectedDigests::numeric_binding_digest(Self) -> @spec.PlanDigest
+pub fn DeepSeekV4HostExpectedDigests::numeric_schema_digest(Self) -> @spec.PlanDigest
+
+pub struct DeepSeekV4HostManifest {
+  // private fields
+}
+pub fn DeepSeekV4HostManifest::arena_count(Self) -> Int
+pub fn DeepSeekV4HostManifest::arena_size(Self, Int) -> Int?
+pub fn DeepSeekV4HostManifest::digest(Self) -> DeepSeekV4HostManifestDigest
+pub fn DeepSeekV4HostManifest::expected_digests(Self) -> DeepSeekV4HostExpectedDigests
+pub fn DeepSeekV4HostManifest::identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4HostManifest::tensor_count(Self) -> Int
+pub fn DeepSeekV4HostManifest::total_arena_bytes(Self) -> Int64
+pub fn DeepSeekV4HostManifest::total_tensor_bytes(Self) -> Int64
+
+pub struct DeepSeekV4HostManifestDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn DeepSeekV4HostManifestDigest::as_hex(Self) -> String
+
+pub struct DeepSeekV4HostMaterializationLimits {
+  // private fields
+}
+pub fn DeepSeekV4HostMaterializationLimits::new(maximum_total_host_bytes~ : Int64, maximum_arena_bytes~ : Int, maximum_arenas~ : Int, maximum_index_entries~ : Int) -> Self raise DeepSeekV4HostMaterializationError
+
+pub(all) enum DeepSeekV4HostMaterializationReadiness {
+  AuthenticatedRawHostPayloadsOnly(ReadOnlyArray[DeepSeekV4HostExecutionLimitation])
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4HostTensor {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4HostTensor::arena_offset(Self) -> Int
+pub fn DeepSeekV4HostTensor::arena_ordinal(Self) -> Int
+pub fn DeepSeekV4HostTensor::binding(Self) -> @deepseek_v4_weights.DeepSeekV4TensorBinding
+pub fn DeepSeekV4HostTensor::byte_count(Self) -> Int
+pub fn DeepSeekV4HostTensor::quantized_parameter_index(Self) -> Int?
+
+pub struct DeepSeekV4HostWeights {
+  // private fields
+}
+pub fn DeepSeekV4HostWeights::arena_count(Self) -> Int
+pub fn DeepSeekV4HostWeights::device_arena_size(Self, Int) -> Int raise @segmented_host_borrow.SegmentedHostBorrowError
+pub fn DeepSeekV4HostWeights::expected_digests(Self) -> DeepSeekV4HostExpectedDigests
+pub fn DeepSeekV4HostWeights::identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4HostWeights::is_released(Self) -> Bool
+pub fn DeepSeekV4HostWeights::manifest_digest(Self) -> DeepSeekV4HostManifestDigest
+pub fn DeepSeekV4HostWeights::materialization_readiness(Self) -> DeepSeekV4HostMaterializationReadiness
+pub fn DeepSeekV4HostWeights::materialize_token_hash_tables(Self, plan~ : @deepseek_v4.DeepSeekV4SemanticPlan, limits~ : DeepSeekV4TokenHashMaterializationLimits) -> DeepSeekV4TokenHashTables raise DeepSeekV4TokenHashMaterializationError
+pub fn DeepSeekV4HostWeights::provide_device_arena(Self, Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError
+pub fn DeepSeekV4HostWeights::quantized_payload_contract(Self, Int, limits~ : @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadLimits) -> @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadContract raise DeepSeekV4HostMaterializationError
+pub fn DeepSeekV4HostWeights::release(Self) -> Bool
+pub fn DeepSeekV4HostWeights::require_executable_weights(Self) -> Unit raise DeepSeekV4HostMaterializationError
+pub fn DeepSeekV4HostWeights::tensor(Self, Int) -> DeepSeekV4HostTensor raise DeepSeekV4HostMaterializationError
+pub fn DeepSeekV4HostWeights::tensor_byte(Self, Int, Int) -> Byte raise DeepSeekV4HostMaterializationError
+pub fn DeepSeekV4HostWeights::tensor_count(Self) -> Int
+pub fn DeepSeekV4HostWeights::total_arena_bytes(Self) -> Int64
+pub fn DeepSeekV4HostWeights::total_tensor_bytes(Self) -> Int64
+
+pub struct DeepSeekV4TensorIndexInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TensorIndexInput::new(tensor_name~ : String, shard_ordinal~ : Int) -> Self
+
+pub struct DeepSeekV4TokenHashMaterializationLimits {
+  // private fields
+}
+pub fn DeepSeekV4TokenHashMaterializationLimits::new(maximum_tables~ : Int, maximum_total_i32_bytes~ : Int64) -> Self raise DeepSeekV4TokenHashMaterializationError
+
+pub struct DeepSeekV4TokenHashTables {
+  // private fields
+}
+pub fn DeepSeekV4TokenHashTables::identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4TokenHashTables::is_released(Self) -> Bool
+pub fn DeepSeekV4TokenHashTables::layer_index(Self, Int) -> Int raise DeepSeekV4TokenHashMaterializationError
+pub fn DeepSeekV4TokenHashTables::provide_table_arena(Self, Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError
+pub fn DeepSeekV4TokenHashTables::release(Self) -> Bool
+pub fn DeepSeekV4TokenHashTables::source_manifest_digest(Self) -> DeepSeekV4HostManifestDigest
+pub fn DeepSeekV4TokenHashTables::source_tensor_index(Self, Int) -> Int raise DeepSeekV4TokenHashMaterializationError
+pub fn DeepSeekV4TokenHashTables::table_byte_count(Self, Int) -> Int raise DeepSeekV4TokenHashMaterializationError
+pub fn DeepSeekV4TokenHashTables::table_count(Self) -> Int
+pub fn DeepSeekV4TokenHashTables::table_digest(Self, Int) -> @checked_integer_narrow.CheckedI32TableDigest raise DeepSeekV4TokenHashMaterializationError
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/model/minimax_h3_text_encoder" @text_encoder,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"

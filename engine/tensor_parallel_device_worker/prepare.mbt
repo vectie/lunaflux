@@ -1,6 +1,7 @@
 ///|
 fn empty_worker_resources() -> TensorParallelPartialResources {
   {
+    overlap: None,
     collective: None,
     executor: None,
     functions: [],
@@ -92,6 +93,8 @@ fn take_live_resources(
   }
   guard partial.context is Some(context) else { raise Invalid(ResourceState) }
   let functions = partial.functions
+  let overlap = partial.overlap
+  partial.overlap = None
   let modules = partial.modules
   partial.collective = None
   partial.executor = None
@@ -105,6 +108,10 @@ fn take_live_resources(
   partial.weights = None
   partial.context = None
   {
+    parallel: match overlap {
+      Some(overlap) => OverlapExecution(overlap)
+      None => OrderedExecution
+    },
     collective,
     executor,
     functions,
@@ -225,7 +232,24 @@ pub fn prepare(
   model_root : @approved_fs.ApprovedRoot,
   collective_runtime : @device.TensorCollectiveRuntime,
   plan : TensorParallelDeviceWorkerPlan,
+  parallel_policy? : @parallel_ir.Policy = Ordered,
 ) -> TensorParallelDeviceWorkerPreparation raise TensorParallelDeviceWorkerError {
+  // Compile before opening any device resources. Ordered admission retains its
+  // original path and pays no graph construction or event allocation cost.
+  let parallel_commands = if parallel_policy == ComputeCommunicationOverlap {
+    Some(
+      bind_parallel_commands(plan.execution) catch {
+        _ => raise Invalid(ExecutionPlan)
+      },
+    )
+  } else {
+    None
+  }
+  if plan.remote is Some(remote) {
+    @network_fabric.validate_process(remote.node()) catch {
+      _ => raise Invalid(NetworkConfiguration)
+    }
+  }
   if collective_runtime.collective_runtime_version_code() !=
     plan.collective_runtime_version_code {
     raise Invalid(CollectiveOrder)
@@ -316,7 +340,15 @@ pub fn prepare(
     open: true,
     abort_required: false,
   })
+  if parallel_commands is Some(commands) {
+    prepare_overlap(context, commands, resources) catch {
+      error => return preparation_failed(resources, error)
+    }
+  }
   let completion = prepare_completion_authority(plan) catch {
+    error => return preparation_failed(resources, error)
+  }
+  let watchdog = prepare_remote_watchdog(plan.remote) catch {
     error => return preparation_failed(resources, error)
   }
   let collective = context.create_tensor_collective_owner(
@@ -337,6 +369,7 @@ pub fn prepare(
     error => return preparation_failed(resources, error)
   }
   TensorParallelWorkerPrepared({
+    watchdog,
     plan,
     resources: live_resources,
     steps: prepared.steps,

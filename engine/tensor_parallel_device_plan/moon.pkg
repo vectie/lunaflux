@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/device/network_topology",
   "vectie/lunaflux/engine/device_topology",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/model/device_materialize",

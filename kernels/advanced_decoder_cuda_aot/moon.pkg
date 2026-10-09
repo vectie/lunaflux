@@ -1,0 +1,27 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+  "vectie/lunaflux/kernels/block_fp8_ue8m0_projection_cuda_source",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/decoder_foundation_cuda_source",
+  "vectie/lunaflux/kernels/decoder_compressed_index_cuda_source",
+  "vectie/lunaflux/kernels/decoder_compressed_kv_prepare_cuda_source",
+  "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source",
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source",
+  "vectie/lunaflux/kernels/decoder_routing_cuda_source",
+  "vectie/lunaflux/kernels/decoder_scaled_rope_cuda_source",
+  "vectie/lunaflux/kernels/decoder_selected_sparse_attention_cuda_source",
+  "vectie/lunaflux/kernels/decoder_token_hash_cuda_source",
+  "vectie/lunaflux/kernels/decoder_window_compressed_join_cuda_source",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+} for "test"

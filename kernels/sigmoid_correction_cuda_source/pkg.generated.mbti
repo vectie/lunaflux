@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/sigmoid_correction_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn sigmoid_and_correction_f32_source(expert_count~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> SigmoidCorrectionCudaSource raise SigmoidCorrectionCudaSourceError
+
+// Errors
+pub(all) suberror SigmoidCorrectionCudaSourceError {
+  InvalidExpertCount
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum SigmoidCorrectionCudaOperation {
+  SigmoidAndCorrectionF32
+} derive(Eq, @debug.Debug)
+
+pub struct SigmoidCorrectionCudaSource {
+  // private fields
+}
+pub fn SigmoidCorrectionCudaSource::expert_count(Self) -> Int
+pub fn SigmoidCorrectionCudaSource::function_symbol(Self) -> String
+pub fn SigmoidCorrectionCudaSource::maximum_rows(Self) -> Int
+pub fn SigmoidCorrectionCudaSource::numerical_contract(Self) -> SigmoidCorrectionNumericalContract
+pub fn SigmoidCorrectionCudaSource::operation(Self) -> SigmoidCorrectionCudaOperation
+pub fn SigmoidCorrectionCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum SigmoidCorrectionNumericalContract {
+  Float32SigmoidThenCorrectionAddV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

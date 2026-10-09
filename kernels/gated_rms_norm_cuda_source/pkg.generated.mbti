@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/gated_rms_norm_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn sigmoid_gated_rms_norm_bf16_source(head_count~ : Int, head_dimension~ : Int, maximum_rows~ : Int, epsilon~ : Double, function_symbol~ : String) -> GatedRmsNormCudaSource raise GatedRmsNormCudaSourceError
+
+// Errors
+pub(all) suberror GatedRmsNormCudaSourceError {
+  InvalidHeadCount
+  InvalidHeadDimension
+  InvalidMaximumRows
+  InvalidEpsilon
+  InvalidFunctionSymbol
+  OutputSizeOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum GatedRmsNormCudaOperation {
+  PerVectorSigmoidGatedRmsNormBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GatedRmsNormCudaSource {
+  // private fields
+}
+pub fn GatedRmsNormCudaSource::epsilon(Self) -> Double
+pub fn GatedRmsNormCudaSource::function_symbol(Self) -> String
+pub fn GatedRmsNormCudaSource::head_count(Self) -> Int
+pub fn GatedRmsNormCudaSource::head_dimension(Self) -> Int
+pub fn GatedRmsNormCudaSource::maximum_rows(Self) -> Int
+pub fn GatedRmsNormCudaSource::numerical_contract(Self) -> GatedRmsNormNumericalContract
+pub fn GatedRmsNormCudaSource::operation(Self) -> GatedRmsNormCudaOperation
+pub fn GatedRmsNormCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum GatedRmsNormNumericalContract {
+  OrderedFloat32RmsNormThenSigmoidGateBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

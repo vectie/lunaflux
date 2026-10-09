@@ -1,0 +1,16 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/math",
+  "moonbitlang/core/string",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+}
+
+import {
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_spec",
+} for "test"
+
+supported_targets = "native"

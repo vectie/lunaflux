@@ -1,0 +1,66 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/deepseek_v4_query_a_parameter_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+  "vectie/lunaflux/kernels/advanced_decoder_cuda_aot",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/deepseek_v4_weights",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn plan_query_a_parameter(@deepseek_v4_spec.DeepSeekV4ModelMetadata, @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, @advanced_decoder_cuda_aot.AdvancedDecoderQueryAProjectionCudaCandidate, DeepSeekV4QueryAParameterEvidenceInput) -> DeepSeekV4QueryAParameterPlan raise DeepSeekV4QueryAParameterPlanError
+
+pub fn query_a_layout_digest_sha256(@deepseek_v4_weights.DeepSeekV4QueryAQuantizedLayout) -> String
+
+// Errors
+pub(all) suberror DeepSeekV4QueryAParameterPlanError {
+  InvalidEvidence
+  ModelIdentityMismatch
+  RequirementsMismatch
+  UnsupportedOperation
+  CandidateMismatch
+  QuantizationContractMismatch
+  ShapeMismatch
+  LayoutDigestMismatch
+  OperandMismatch
+  NoInterpretationAuthority
+  NoMaterializationAuthority
+  NoUploadAuthority
+  NoLaunchAuthority
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DeepSeekV4QueryAParameterEvidenceInput {
+  // private fields
+}
+pub fn DeepSeekV4QueryAParameterEvidenceInput::new(contract~ : @deepseek_v4_weights.DeepSeekV4QueryAQuantizationContract, weight_shape~ : ArrayView[Int64], scale_shape~ : ArrayView[Int64], layout_digest_sha256~ : String, weight_operand_ordinal~ : Int, weight_operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole, weight_operand_bytes~ : Int64, scale_operand_ordinal~ : Int, scale_operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole, scale_operand_bytes~ : Int64) -> Self raise DeepSeekV4QueryAParameterPlanError
+
+pub struct DeepSeekV4QueryAParameterPlan {
+  // private fields
+}
+pub fn DeepSeekV4QueryAParameterPlan::block_width(Self) -> Int
+pub fn DeepSeekV4QueryAParameterPlan::candidate_recipe_digest(Self) -> String
+pub fn DeepSeekV4QueryAParameterPlan::candidate_source_digest(Self) -> String
+pub fn DeepSeekV4QueryAParameterPlan::digest_sha256(Self) -> String
+pub fn DeepSeekV4QueryAParameterPlan::input_width(Self) -> Int
+pub fn DeepSeekV4QueryAParameterPlan::layout_digest_sha256(Self) -> String
+pub fn DeepSeekV4QueryAParameterPlan::output_width(Self) -> Int
+pub fn DeepSeekV4QueryAParameterPlan::require_interpretation_authority(Self) -> Unit raise DeepSeekV4QueryAParameterPlanError
+pub fn DeepSeekV4QueryAParameterPlan::require_launch_authority(Self) -> Unit raise DeepSeekV4QueryAParameterPlanError
+pub fn DeepSeekV4QueryAParameterPlan::require_materialization_authority(Self) -> Unit raise DeepSeekV4QueryAParameterPlanError
+pub fn DeepSeekV4QueryAParameterPlan::require_upload_authority(Self) -> Unit raise DeepSeekV4QueryAParameterPlanError
+pub fn DeepSeekV4QueryAParameterPlan::requirement_ordinal(Self) -> Int
+pub fn DeepSeekV4QueryAParameterPlan::source_identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4QueryAParameterPlan::status(Self) -> DeepSeekV4QueryAParameterPlanStatus
+
+pub(all) enum DeepSeekV4QueryAParameterPlanStatus {
+  InertUnqualified
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

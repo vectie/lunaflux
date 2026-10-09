@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/remote_mailbox"
+
+// Values
+
+// Errors
+pub(all) suberror RemoteMailboxError {
+  Closed
+  Busy
+  Range
+  State
+}
+
+// Types and methods
+pub struct RemoteMailbox {
+  // private fields
+}
+pub fn RemoteMailbox::begin_read(Self) -> Unit raise RemoteMailboxError
+pub fn RemoteMailbox::begin_write(Self, FixedArray[Byte], Int, Int) -> Unit raise RemoteMailboxError
+pub fn RemoteMailbox::can_deliver(Self) -> Bool
+pub fn RemoteMailbox::capacity(Self) -> Int
+pub fn RemoteMailbox::deliver(Self, FixedArray[Byte], Int) -> Unit raise RemoteMailboxError
+pub fn RemoteMailbox::fail(Self) -> Unit
+pub fn RemoteMailbox::is_failed(Self) -> Bool
+pub fn RemoteMailbox::new(Int) -> Self raise RemoteMailboxError
+pub fn RemoteMailbox::outgoing(Self, FixedArray[Byte]) -> Int? raise RemoteMailboxError
+pub fn RemoteMailbox::poll_read(Self, FixedArray[Byte]) -> Int? raise RemoteMailboxError
+pub fn RemoteMailbox::poll_write(Self) -> Bool raise RemoteMailboxError
+pub fn RemoteMailbox::sent(Self) -> Unit raise RemoteMailboxError
+
+// Type aliases
+
+// Traits

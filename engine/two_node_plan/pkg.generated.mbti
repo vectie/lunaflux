@@ -1,0 +1,90 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/two_node_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device/network_topology",
+  "vectie/lunaflux/kv/device_layout",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/tensor_parallel_plan",
+}
+
+// Values
+pub fn compile(@plan.ModelPlan, @network_topology.TwoNodeTopology, ArrayView[@tensor_parallel_plan.TensorParallelRankPlan], ArrayView[RankMemoryBudget], tokens_per_page~ : Int, maximum_pages~ : Int) -> TwoNodePlan raise TwoNodePlanError
+
+// Errors
+pub(all) suberror TwoNodePlanError {
+  Rejected(rule~ : TwoNodePlanRule, rank~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn TwoNodePlanError::equal(Self, Self) -> Bool
+pub fn TwoNodePlanError::not_equal(Self, Self) -> Bool
+pub fn TwoNodePlanError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct RankCapacity {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RankCapacity::available_bytes(Self) -> Int64
+pub fn RankCapacity::equal(Self, Self) -> Bool
+pub fn RankCapacity::kv_page_bytes(Self) -> Int64
+pub fn RankCapacity::maximum_kv_pages(Self) -> Int64
+pub fn RankCapacity::not_equal(Self, Self) -> Bool
+pub fn RankCapacity::reserved_bytes(Self) -> Int64
+pub fn RankCapacity::to_repr(Self) -> @debug.Repr
+pub fn RankCapacity::weight_bytes(Self) -> Int64
+
+pub struct RankMemoryBudget {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RankMemoryBudget::activation_workspace_bytes(Self) -> Int64
+pub fn RankMemoryBudget::collective_bytes(Self) -> Int64
+pub fn RankMemoryBudget::equal(Self, Self) -> Bool
+pub fn RankMemoryBudget::kv_bytes(Self) -> Int64
+pub fn RankMemoryBudget::new(system_reserved_bytes~ : Int64, runtime_ceiling_bytes~ : Int64, activation_workspace_bytes~ : Int64, collective_bytes~ : Int64, kv_bytes~ : Int64) -> Self raise TwoNodePlanError
+pub fn RankMemoryBudget::not_equal(Self, Self) -> Bool
+pub fn RankMemoryBudget::runtime_ceiling_bytes(Self) -> Int64
+pub fn RankMemoryBudget::system_reserved_bytes(Self) -> Int64
+pub fn RankMemoryBudget::to_repr(Self) -> @debug.Repr
+
+pub struct TwoNodePlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TwoNodePlan::digest(Self) -> TwoNodePlanDigest
+pub fn TwoNodePlan::equal(Self, Self) -> Bool
+pub fn TwoNodePlan::kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn TwoNodePlan::model_identity(Self) -> @spec.ModelIdentity
+pub fn TwoNodePlan::not_equal(Self, Self) -> Bool
+pub fn TwoNodePlan::page_count(Self) -> Int
+pub fn TwoNodePlan::rank_budget(Self, Int) -> RankMemoryBudget?
+pub fn TwoNodePlan::rank_capacity(Self, Int) -> RankCapacity?
+pub fn TwoNodePlan::rank_plan(Self, Int) -> @tensor_parallel_plan.TensorParallelRankPlan?
+pub fn TwoNodePlan::to_repr(Self) -> @debug.Repr
+pub fn TwoNodePlan::tokens_per_page(Self) -> Int
+pub fn TwoNodePlan::topology(Self) -> @network_topology.TwoNodeTopology
+
+pub struct TwoNodePlanDigest(String) derive(Eq, @debug.Debug)
+pub fn TwoNodePlanDigest::as_sha256(Self) -> String
+pub fn TwoNodePlanDigest::equal(Self, Self) -> Bool
+pub fn TwoNodePlanDigest::not_equal(Self, Self) -> Bool
+pub fn TwoNodePlanDigest::to_repr(Self) -> @debug.Repr
+
+pub(all) enum TwoNodePlanRule {
+  RankOrder
+  ModelIdentity
+  TensorPartition
+  OperationMismatch
+  CollectiveMismatch
+  NumericFormat
+  MemoryBudget
+  RankCapacity
+  KvGeometry
+  Overflow
+} derive(Eq, @debug.Debug)
+pub fn TwoNodePlanRule::equal(Self, Self) -> Bool
+pub fn TwoNodePlanRule::not_equal(Self, Self) -> Bool
+pub fn TwoNodePlanRule::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/grouped_routing_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn grouped_choice_and_selected_weight_f32_source(routed_expert_count~ : Int, group_count~ : Int, group_score_topk~ : Int, selected_group_count~ : Int, experts_per_token~ : Int, normalize~ : Bool, scaling~ : Double, maximum_rows~ : Int, function_symbol~ : String) -> GroupedRoutingCudaSource raise GroupedRoutingCudaSourceError
+
+// Errors
+pub(all) suberror GroupedRoutingCudaSourceError {
+  InvalidExpertGeometry
+  InvalidGroupGeometry
+  InvalidMaximumRows
+  InvalidScaling
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum GroupedRoutingCudaOperation {
+  GroupedChoiceAndSelectedWeightF32
+} derive(Eq, @debug.Debug)
+
+pub struct GroupedRoutingCudaSource {
+  // private fields
+}
+pub fn GroupedRoutingCudaSource::experts_per_token(Self) -> Int
+pub fn GroupedRoutingCudaSource::function_symbol(Self) -> String
+pub fn GroupedRoutingCudaSource::group_count(Self) -> Int
+pub fn GroupedRoutingCudaSource::group_score_topk(Self) -> Int
+pub fn GroupedRoutingCudaSource::maximum_rows(Self) -> Int
+pub fn GroupedRoutingCudaSource::normalize(Self) -> Bool
+pub fn GroupedRoutingCudaSource::numerical_contract(Self) -> GroupedRoutingNumericalContract
+pub fn GroupedRoutingCudaSource::operation(Self) -> GroupedRoutingCudaOperation
+pub fn GroupedRoutingCudaSource::routed_expert_count(Self) -> Int
+pub fn GroupedRoutingCudaSource::scaling(Self) -> Double
+pub fn GroupedRoutingCudaSource::selected_group_count(Self) -> Int
+pub fn GroupedRoutingCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum GroupedRoutingNumericalContract {
+  SerialF32TopGroupChoiceGatherNormalizeScaleV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

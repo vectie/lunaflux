@@ -1,0 +1,26 @@
+import {
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+  "vectie/lunaflux/kernels/dense_permutation_cuda_source",
+  "vectie/lunaflux/kernels/alias_free_activation_cuda_source",
+  "vectie/lunaflux/kernels/channel_major_projection_cuda_source",
+  "vectie/lunaflux/kernels/joint_audio_amp_cuda_source",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/minimax_h3_sequence",
+  "vectie/lunaflux/kernels/joint_attention_cuda_source",
+  "vectie/lunaflux/kernels/gated_mlp_cuda_source",
+  "vectie/lunaflux/kernels/affine_modulation_cuda_source",
+  "vectie/lunaflux/kernels/decoder_foundation_cuda_source",
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source",
+  "vectie/lunaflux/kernels/timestep_embedding_cuda_source",
+  "vectie/lunaflux/kernels/packed_rows_cuda_source",
+}
+
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

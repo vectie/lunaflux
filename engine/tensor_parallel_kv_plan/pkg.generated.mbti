@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/engine/device_topology",
   "vectie/lunaflux/engine/tensor_parallel_device_plan",
+  "vectie/lunaflux/engine/two_node_plan",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kv/device_layout",
@@ -18,6 +19,8 @@ import {
 pub fn admit(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @tensor_parallel_admission.TensorParallelRuntimeAdmission, ArrayView[@tensor_parallel_device_plan.TensorParallelDevicePlan], tokens_per_page~ : Int, total_page_count~ : Int) -> TensorParallelKvPlan raise TensorParallelKvPlanError
 
 pub fn admit_from_topology(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @device_topology.AdmittedLocalTopology, @tensor_parallel_admission.TensorParallelRuntimeAdmission, tokens_per_page~ : Int, total_page_count~ : Int) -> TensorParallelKvPlan raise TensorParallelKvPlanError
+
+pub fn admit_from_two_node_plan(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @two_node_plan.TwoNodePlan) -> TensorParallelKvPlan raise TensorParallelKvPlanError
 
 // Errors
 pub(all) suberror TensorParallelKvPlanError {

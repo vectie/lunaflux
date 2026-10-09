@@ -1,0 +1,69 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/advanced_decoder_operand_region_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+}
+
+// Values
+pub fn plan_advanced_decoder_operand_regions(ArrayView[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand], ArrayView[AdvancedDecoderOperandRegionInput], AdvancedDecoderOperandRegionPlanLimits) -> AdvancedDecoderOperandRegionPlan raise AdvancedDecoderOperandRegionPlanError
+
+// Errors
+pub(all) suberror AdvancedDecoderOperandRegionPlanError {
+  InvalidLimits
+  InvalidAllocationIdentity
+  InvalidRegionInput
+  OperandCountMismatch
+  OperandOrdinalMismatch(Int)
+  OperandRoleMismatch(Int)
+  OperandAlignmentMismatch(Int)
+  AllocationCapacityMismatch(Int)
+  RegionUndersized(Int)
+  RegionOverlap(Int, Int)
+  CanonicalEncodingTooLarge
+  LaunchAuthorityUnavailable
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AdvancedDecoderOperandRegion {
+  // private fields
+}
+pub fn AdvancedDecoderOperandRegion::alignment(Self) -> Int64
+pub fn AdvancedDecoderOperandRegion::allocation_capacity_bytes(Self) -> Int64
+pub fn AdvancedDecoderOperandRegion::allocation_identity_sha256(Self) -> String
+pub fn AdvancedDecoderOperandRegion::byte_count(Self) -> Int64
+pub fn AdvancedDecoderOperandRegion::device_offset(Self) -> Int64
+pub fn AdvancedDecoderOperandRegion::end_offset(Self) -> Int64
+pub fn AdvancedDecoderOperandRegion::operand_ordinal(Self) -> Int
+pub fn AdvancedDecoderOperandRegion::role(Self) -> @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole
+
+pub struct AdvancedDecoderOperandRegionInput {
+  // private fields
+}
+pub fn AdvancedDecoderOperandRegionInput::new(operand_ordinal~ : Int, role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole, allocation_identity_sha256~ : String, device_offset~ : Int64, allocation_capacity_bytes~ : Int64) -> Self raise AdvancedDecoderOperandRegionPlanError
+
+pub struct AdvancedDecoderOperandRegionPlan {
+  // private fields
+}
+pub fn AdvancedDecoderOperandRegionPlan::digest(Self) -> AdvancedDecoderOperandRegionPlanDigest
+pub fn AdvancedDecoderOperandRegionPlan::region(Self, Int) -> AdvancedDecoderOperandRegion?
+pub fn AdvancedDecoderOperandRegionPlan::regions(Self) -> ReadOnlyArray[AdvancedDecoderOperandRegion]
+pub fn AdvancedDecoderOperandRegionPlan::require_launch_authority(Self) -> Unit raise AdvancedDecoderOperandRegionPlanError
+pub fn AdvancedDecoderOperandRegionPlan::status(Self) -> AdvancedDecoderOperandRegionPlanStatus
+
+pub struct AdvancedDecoderOperandRegionPlanDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn AdvancedDecoderOperandRegionPlanDigest::as_hex(Self) -> String
+
+pub struct AdvancedDecoderOperandRegionPlanLimits {
+  // private fields
+}
+pub fn AdvancedDecoderOperandRegionPlanLimits::new(maximum_operands~ : Int, maximum_allocation_bytes~ : Int64, maximum_canonical_bytes~ : Int) -> Self raise AdvancedDecoderOperandRegionPlanError
+
+pub(all) enum AdvancedDecoderOperandRegionPlanStatus {
+  InertUnqualified
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -98,6 +98,7 @@ fn LunaOnlineOpenAIConnectionPool::progress_service_once(
         return LunaOnlineOpenAIConnectionPoolDrainingProgress
       }
     }
+  self.service_waiting = progress == LunaOnlineFramedCoordinatorWaiting
   match progress {
     LunaOnlineFramedCoordinatorObservationReady => self.capture_observation()
     LunaOnlineFramedCoordinatorRejectionReady => self.capture_rejection()
@@ -108,9 +109,36 @@ fn LunaOnlineOpenAIConnectionPool::progress_service_once(
       LunaOnlineOpenAIConnectionPoolDrainingProgress
     }
     LunaOnlineFramedCoordinatorIdle
+    | LunaOnlineFramedCoordinatorWaiting
     | LunaOnlineFramedCoordinatorAwaitingInput =>
       LunaOnlineOpenAIConnectionPoolBackpressured
     _ => LunaOnlineOpenAIConnectionPoolAdvanced
+  }
+}
+
+///|
+/// Pure effect policy: runnable service work must not be delayed by an idle
+/// listener timer. While an external worker is in flight, admission stays fair
+/// through a readiness probe; only genuinely idle service work permits waiting.
+#valtype
+priv enum LunaOpenAIListenerPoll {
+  SkipListener
+  ProbeListener
+  WaitListener(Int)
+}
+
+///|
+fn luna_openai_listener_poll(
+  progress : LunaOnlineOpenAIConnectionPoolProgress,
+  service_waiting : Bool,
+  idle_timeout_millis : Int,
+) -> LunaOpenAIListenerPoll {
+  if progress != LunaOnlineOpenAIConnectionPoolBackpressured {
+    SkipListener
+  } else if service_waiting {
+    ProbeListener
+  } else {
+    WaitListener(idle_timeout_millis)
   }
 }
 
@@ -241,10 +269,9 @@ async fn LunaOnlineOpenAIConnectionPool::progress_drain(
 }
 
 ///|
-/// Advances at most one bounded socket transition before one shared service
-/// transition. This ordering frees a completed output cell before another
-/// semantic event may be emitted. Socket waits are short polls; no socket I/O
-/// owns a semantic event credit or scheduler ticket.
+/// Releases local output ownership before re-entering the shared service.
+/// Runnable service transitions do not pay an idle listener timeout. Admission
+/// while a worker is waiting remains nonblocking; idle service may wait.
 pub async fn LunaOnlineOpenAIConnectionPool::progress_on_reactor(
   self : LunaOnlineOpenAIConnectionPool,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
@@ -268,10 +295,20 @@ pub async fn LunaOnlineOpenAIConnectionPool::progress_on_reactor(
   if self.drain_requested {
     return LunaOnlineOpenAIConnectionPoolDrainingProgress
   }
+  let poll_timeout_millis = match
+    luna_openai_listener_poll(
+      service_progress,
+      self.service_waiting,
+      self.pool_limits.io_poll_timeout_millis,
+    ) {
+    SkipListener => return service_progress
+    ProbeListener => 0
+    WaitListener(timeout) => timeout
+  }
   let can_accept = self.active_connections < self.slots.length()
   if can_accept && self.accept_turn {
     self.accept_turn = false
-    let accepted = self.accept_one()
+    let accepted = self.accept_one(poll_timeout_millis)
     if accepted != LunaOnlineOpenAIConnectionPoolBackpressured {
       return accepted
     }

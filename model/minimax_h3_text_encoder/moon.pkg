@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/math",
+  "vectie/lunaflux/internal/json_guard",
+}
+
+supported_targets = "native"

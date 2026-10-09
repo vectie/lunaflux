@@ -7,6 +7,7 @@
 
 int32_t lunaflux_cuda_test_ordered_executor(int32_t cycles);
 int32_t lunaflux_cuda_test_ordered_graph(int32_t cycles);
+int32_t lunaflux_cuda_test_event_wait(void);
 
 static void *lf_probe_object(
   uint32_t payload_size,
@@ -90,6 +91,7 @@ lf_cuda_api *lf_cuda_api_get(void) {
 }
 
 int main(void) {
+  if (lunaflux_cuda_test_event_wait() != LF_OK) return 1;
   int32_t result = lunaflux_cuda_test_ordered_executor(128);
   if (result != LF_OK) {
     fprintf(stderr, "ordered executor probe failed: %d\n", result);

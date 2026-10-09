@@ -254,7 +254,13 @@ fn close_partial_resources(
 ) -> Unit raise TensorParallelDeviceWorkerError {
   run_cleanup_chain(
     () => close_partial_collective(resources),
-    () => close_partial_executor(resources),
+    () => {
+      if resources.overlap is Some(overlap) {
+        close_overlap(overlap, resources.stream)
+        resources.overlap = None
+      }
+      close_partial_executor(resources)
+    },
     () => close_functions(resources.functions),
     () => close_modules(resources.modules, resources.functions),
     () => close_partial_stream(resources),
@@ -273,7 +279,12 @@ fn close_live_resources(
 ) -> Unit raise TensorParallelDeviceWorkerError {
   run_cleanup_chain(
     () => close_collective_owner(resources.collective),
-    () => close_executor_owner(resources.executor),
+    () => {
+      if resources.parallel is OverlapExecution(overlap) {
+        close_overlap(overlap, Some(resources.stream))
+      }
+      close_executor_owner(resources.executor)
+    },
     () => close_functions(resources.functions),
     () => close_modules(resources.modules, resources.functions),
     () => close_stream_owner(resources.stream),

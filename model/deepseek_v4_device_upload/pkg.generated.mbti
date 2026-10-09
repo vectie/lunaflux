@@ -1,0 +1,45 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4_device_upload"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/deepseek_v4_host_materialization",
+  "vectie/lunaflux/model/segmented_device_materialize",
+  "vectie/lunaflux/model/segmented_host_borrow",
+}
+
+// Values
+pub fn materialize_device_weights(@device.Context, @deepseek_v4_host_materialization.DeepSeekV4HostWeights, @segmented_device_materialize.SegmentedDeviceLayout) -> @segmented_device_materialize.SegmentedDevicePreparation raise DeepSeekV4DeviceUploadError
+
+pub fn materialize_token_hash_sidecars(@device.Context, @deepseek_v4_host_materialization.DeepSeekV4TokenHashTables, @segmented_device_materialize.SegmentedDeviceLayout) -> @segmented_device_materialize.SegmentedDevicePreparation raise DeepSeekV4DeviceUploadError
+
+pub fn plan_device_upload(@deepseek_v4_host_materialization.DeepSeekV4HostWeights, @segmented_device_materialize.SegmentedDeviceMaterializationLimits) -> @segmented_device_materialize.SegmentedDeviceLayout raise DeepSeekV4DeviceUploadError
+
+pub fn plan_token_hash_sidecar_upload(@deepseek_v4_host_materialization.DeepSeekV4TokenHashTables, @segmented_device_materialize.SegmentedDeviceMaterializationLimits) -> @segmented_device_materialize.SegmentedDeviceLayout raise DeepSeekV4DeviceUploadError
+
+pub fn validate_host_source(@deepseek_v4_host_materialization.DeepSeekV4HostWeights, @segmented_device_materialize.SegmentedDeviceLayout) -> Unit raise DeepSeekV4DeviceUploadError
+
+pub fn validate_token_hash_sidecar_source(@deepseek_v4_host_materialization.DeepSeekV4TokenHashTables, @segmented_device_materialize.SegmentedDeviceLayout) -> Unit raise DeepSeekV4DeviceUploadError
+
+// Errors
+pub(all) suberror DeepSeekV4DeviceUploadError {
+  Host(@deepseek_v4_host_materialization.DeepSeekV4HostMaterializationError)
+  TokenHash(@deepseek_v4_host_materialization.DeepSeekV4TokenHashMaterializationError)
+  Borrow(@segmented_host_borrow.SegmentedHostBorrowError)
+  Device(@segmented_device_materialize.SegmentedDeviceMaterializationError)
+  TokenHashSourceReleased
+  TokenHashLayerCountMismatch(Int)
+  TokenHashLayerOrderMismatch(ordinal~ : Int, layer~ : Int)
+  TokenHashTableByteCountMismatch(ordinal~ : Int, actual~ : Int)
+  TokenHashMetadataDigestInvalid(Int)
+  TokenHashIdentityMismatch
+  TokenHashSourceDigestMismatch
+  TokenHashLayoutMismatch
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

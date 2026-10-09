@@ -51,6 +51,19 @@ test "valid bounded metadata exposes immutable ranges and total size" {
 }
 
 ///|
+test "F32 metadata uses four-byte element accounting" {
+  let metadata = @safetensors.validate_metadata(
+    [raw("projection.weight", [2L, 3L], 0L, 24L, dtype="F32")],
+    encoded_header_bytes=128,
+    payload_bytes=24L,
+    limits=limits(),
+  )
+  guard metadata.tensor(0) is Some(tensor) else { fail("expected tensor") }
+  assert_eq(tensor.dtype(), Float32)
+  assert_eq(tensor.byte_length(), 24L)
+}
+
+///|
 test "malformed dtype and byte ranges are rejected" {
   try
     @safetensors.validate_metadata(

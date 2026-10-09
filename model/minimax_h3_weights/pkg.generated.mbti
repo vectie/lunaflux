@@ -1,0 +1,265 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_weights"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn audio_decoder_weight_packing(AudioDecoderWeightGroup, max_bytes~ : Int64) -> AudioDecoderWeightPacking raise BlockPackingError
+
+pub fn bind(@minimax_h3_spec.MiniMaxH3ModelMetadata, @joint_diffusion_plan.JointDiffusionPlan, MiniMaxH3WeightComponent, @safetensors.SafetensorsMetadata) -> MiniMaxH3PartialShardBinding raise MiniMaxH3WeightsError
+
+pub fn block_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, block~ : Int, max_bytes~ : Int64) -> BlockWeightPacking raise BlockPackingError
+
+pub fn context_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, max_bytes~ : Int64) -> ContextWeightPacking raise BlockPackingError
+
+pub fn input_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, max_bytes~ : Int64) -> InputWeightPacking raise BlockPackingError
+
+pub fn join_complete_component(MiniMaxH3WeightComponent, ArrayView[MiniMaxH3PartialShardBinding]) -> MiniMaxH3CompleteComponentBinding raise MiniMaxH3WeightsError
+
+pub fn output_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, max_bytes~ : Int64) -> OutputWeightPacking raise BlockPackingError
+
+pub fn refiner_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, layer~ : Int, max_bytes~ : Int64) -> RefinerWeightPacking raise BlockPackingError
+
+pub fn timestep_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, max_bytes~ : Int64) -> TimestepWeightPacking raise BlockPackingError
+
+pub fn video_attention_weight_packing(layer~ : Int, max_bytes~ : Int64) -> VideoAttentionWeightPacking raise BlockPackingError
+
+pub fn video_block_weight_packing(layer~ : Int, max_bytes~ : Int64) -> VideoBlockWeightPacking raise BlockPackingError
+
+pub fn video_frontend_weight_packing(max_bytes~ : Int64) -> VideoFrontendWeightPacking raise BlockPackingError
+
+pub fn video_head_weight_packing(max_bytes~ : Int64) -> VideoFrontendWeightPacking raise BlockPackingError
+
+// Errors
+pub(all) suberror BlockPackingError {
+  InvalidBlock
+  BudgetExceeded
+}
+
+pub(all) suberror MiniMaxH3WeightsError {
+  EmptyComponentShard(MiniMaxH3WeightComponent)
+  ComponentVariantMismatch(MiniMaxH3WeightComponent)
+  PlanContentMismatch
+  PlanSemanticMismatch
+  UnknownSemanticTensor(index~ : Int)
+  InvalidSemanticRank(index~ : Int)
+  InvalidSemanticDType(index~ : Int)
+  UnsupportedRawLayout(index~ : Int)
+  BindingComponentMismatch(index~ : Int)
+  BindingIdentityMismatch(index~ : Int)
+  DuplicateSemanticTensor(index~ : Int)
+  IncompleteComponent(expected~ : Int, actual~ : Int)
+  MaterializationUnavailable(MiniMaxH3WeightComponent)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum AudioDecoderWeightGroup {
+  Frontend
+  Upsample(Int)
+  WaveformTail
+} derive(Eq)
+
+pub struct AudioDecoderWeightPacking {
+  group : AudioDecoderWeightGroup
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct BlockWeightCopy {
+  tensor_name : String
+  source_offset : Int64
+  destination_offset : Int64
+  byte_count : Int64
+}
+
+pub struct BlockWeightPacking {
+  layer : Int
+  attention_offset : Int64
+  mlp_offset : Int64
+  norm_offset : Int64
+  adaln_offset : Int64
+  adaln_bias_offset : Int64
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct ContextWeightPacking {
+  weight_offset : Int64
+  bias_offset : Int64
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct InputWeightPacking {
+  video_offset : Int64
+  video_bias_offset : Int64
+  audio_offset : Int64
+  audio_bias_offset : Int64
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct MiniMaxH3AudioVaeSchema {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3AudioVaeSchema::config_sha256(Self) -> String
+pub fn MiniMaxH3AudioVaeSchema::file_bytes(Self) -> Int64
+pub fn MiniMaxH3AudioVaeSchema::file_sha256(Self) -> String
+pub fn MiniMaxH3AudioVaeSchema::filename(Self) -> String
+pub fn MiniMaxH3AudioVaeSchema::header_bytes(Self) -> Int
+pub fn MiniMaxH3AudioVaeSchema::header_sha256(Self) -> String
+pub fn MiniMaxH3AudioVaeSchema::matches_tensor(Self, String, @safetensors.TensorDType, ReadOnlyArray[Int64]) -> Bool
+pub fn MiniMaxH3AudioVaeSchema::official_v1() -> Self
+pub fn MiniMaxH3AudioVaeSchema::source_revision(Self) -> String
+pub fn MiniMaxH3AudioVaeSchema::tensor_bytes(Self) -> Int64
+pub fn MiniMaxH3AudioVaeSchema::tensor_count(Self) -> Int
+pub fn MiniMaxH3AudioVaeSchema::tensor_dtype(Self, Int) -> @safetensors.TensorDType?
+pub fn MiniMaxH3AudioVaeSchema::tensor_name(Self, Int) -> String?
+pub fn MiniMaxH3AudioVaeSchema::tensor_shape(Self, Int) -> ReadOnlyArray[Int64]?
+pub fn MiniMaxH3AudioVaeSchema::version(Self) -> Int
+
+pub struct MiniMaxH3CompleteComponentBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3CompleteComponentBinding::component(Self) -> MiniMaxH3WeightComponent
+pub fn MiniMaxH3CompleteComponentBinding::identity(Self) -> @spec.ModelIdentity
+pub fn MiniMaxH3CompleteComponentBinding::require_materialization(Self) -> Unit raise MiniMaxH3WeightsError
+pub fn MiniMaxH3CompleteComponentBinding::schema_version(Self) -> Int
+pub fn MiniMaxH3CompleteComponentBinding::tensor(Self, Int) -> MiniMaxH3SemanticTensorBinding?
+pub fn MiniMaxH3CompleteComponentBinding::tensor_count(Self) -> Int
+
+pub(all) enum MiniMaxH3ConditioningUse {
+  PromptConditioning
+  Fl2vaKeyframeConditioning
+  Ref2vaImageConditioning
+  Ref2vaVideoConditioning
+  Ref2vaAudioConditioning
+} derive(Eq, @debug.Debug)
+
+pub struct MiniMaxH3PartialShardBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3PartialShardBinding::component(Self) -> MiniMaxH3WeightComponent
+pub fn MiniMaxH3PartialShardBinding::identity(Self) -> @spec.ModelIdentity
+pub fn MiniMaxH3PartialShardBinding::require_materialization(Self) -> Unit raise MiniMaxH3WeightsError
+pub fn MiniMaxH3PartialShardBinding::schema_version(Self) -> Int
+pub fn MiniMaxH3PartialShardBinding::tensor(Self, Int) -> MiniMaxH3SemanticTensorBinding?
+pub fn MiniMaxH3PartialShardBinding::tensor_count(Self) -> Int
+
+pub struct MiniMaxH3SemanticTensorBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3SemanticTensorBinding::role(Self) -> MiniMaxH3TensorRole
+pub fn MiniMaxH3SemanticTensorBinding::source_index(Self) -> Int
+pub fn MiniMaxH3SemanticTensorBinding::tensor(Self) -> @safetensors.TensorMetadata
+
+pub(all) enum MiniMaxH3TensorRole {
+  DenoiserProjection
+  DenoiserTimeEmbedding
+  DenoiserAttention
+  DenoiserFeedForward
+  DenoiserNormalization
+  TextEmbedding
+  TextAttention
+  TextFeedForward
+  TextNormalization
+  VisionPatchEmbedding
+  VisionAttention
+  VisionFeedForward
+  VisionNormalization
+  VideoEncoder
+  VideoDecoder
+  VideoLatentProjection
+  AudioEncoder
+  AudioDecoder
+  AudioLatentProjection
+} derive(Eq, @debug.Debug)
+
+pub struct MiniMaxH3VideoVaeSchema {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3VideoVaeSchema::config_sha256(Self) -> String
+pub fn MiniMaxH3VideoVaeSchema::index_sha256(Self) -> String
+pub fn MiniMaxH3VideoVaeSchema::matches_tensor(Self, String, @safetensors.TensorDType, ReadOnlyArray[Int64]) -> Bool
+pub fn MiniMaxH3VideoVaeSchema::official_v1() -> Self
+pub fn MiniMaxH3VideoVaeSchema::shard_count(Self) -> Int
+pub fn MiniMaxH3VideoVaeSchema::shard_file_bytes(Self, Int) -> Int64?
+pub fn MiniMaxH3VideoVaeSchema::shard_file_sha256(Self, Int) -> String?
+pub fn MiniMaxH3VideoVaeSchema::shard_filename(Self, Int) -> String?
+pub fn MiniMaxH3VideoVaeSchema::shard_payload_bytes(Self, Int) -> Int64?
+pub fn MiniMaxH3VideoVaeSchema::shard_tensor_count(Self, Int) -> Int?
+pub fn MiniMaxH3VideoVaeSchema::source_revision(Self) -> String
+pub fn MiniMaxH3VideoVaeSchema::tensor_bytes(Self) -> Int64
+pub fn MiniMaxH3VideoVaeSchema::tensor_count(Self) -> Int
+pub fn MiniMaxH3VideoVaeSchema::tensor_dtype(Self, Int) -> @safetensors.TensorDType?
+pub fn MiniMaxH3VideoVaeSchema::tensor_name(Self, Int) -> String?
+pub fn MiniMaxH3VideoVaeSchema::tensor_shape(Self, Int) -> ReadOnlyArray[Int64]?
+pub fn MiniMaxH3VideoVaeSchema::version(Self) -> Int
+
+pub(all) enum MiniMaxH3WeightComponent {
+  Fl2vaDenoiser
+  Ref2vaDenoiser
+  TextConditioner
+  VideoVae
+  AudioVae
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3WeightComponent::conditioning_uses(Self) -> ReadOnlyArray[MiniMaxH3ConditioningUse]
+pub fn MiniMaxH3WeightComponent::required_tensor_count(Self) -> Int
+
+pub struct OutputWeightPacking {
+  norm_offset : Int64
+  adaln_offset : Int64
+  adaln_bias_offset : Int64
+  video_offset : Int64
+  video_bias_offset : Int64
+  audio_offset : Int64
+  audio_bias_offset : Int64
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct RefinerWeightPacking {
+  layer : Int
+  attention_offset : Int64
+  mlp_offset : Int64
+  norm_offset : Int64
+  final_norm_offset : Int64?
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct TimestepWeightPacking {
+  first_weight_offset : Int64
+  first_bias_offset : Int64
+  second_weight_offset : Int64
+  second_bias_offset : Int64
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct VideoAttentionWeightPacking {
+  layer : Int
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct VideoBlockWeightPacking {
+  layer : Int
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+pub struct VideoFrontendWeightPacking {
+  byte_count : Int64
+  copies : ReadOnlyArray[BlockWeightCopy]
+}
+
+// Type aliases
+
+// Traits

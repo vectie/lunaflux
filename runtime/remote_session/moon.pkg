@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/async",
+  "vectie/lunaflux/runtime/remote_tls",
+  "vectie/lunaflux/runtime/remote_mailbox",
+  "vectie/lunaflux/runtime/remote_lease",
+  "vectie/lunaflux/runtime/monotonic_clock",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/async/socket",
+} for "wbtest"

@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_interleaved_rope_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn interleaved_pair_rope_with_query_prefix_copy_bf16_source(query_head_count~ : Int, key_head_count~ : Int, query_head_dimension~ : Int, rope_dimension~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, theta~ : Double, function_symbol~ : String) -> DecoderInterleavedRopeCudaSource raise DecoderInterleavedRopeCudaSourceError
+
+// Errors
+pub(all) suberror DecoderInterleavedRopeCudaSourceError {
+  InvalidHeadCount
+  InvalidHeadDimension
+  InvalidRopeDimension
+  InvalidMaximumRows
+  InvalidMaximumPositions
+  InvalidTheta
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecoderInterleavedRopeCudaOperation {
+  InterleavedPairRopeWithQueryPrefixCopyBf16
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderInterleavedRopeCudaSource {
+  // private fields
+}
+pub fn DecoderInterleavedRopeCudaSource::function_symbol(Self) -> String
+pub fn DecoderInterleavedRopeCudaSource::key_head_count(Self) -> Int
+pub fn DecoderInterleavedRopeCudaSource::maximum_positions(Self) -> Int
+pub fn DecoderInterleavedRopeCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderInterleavedRopeCudaSource::numerical_contract(Self) -> DecoderInterleavedRopeNumericalContract
+pub fn DecoderInterleavedRopeCudaSource::operation(Self) -> DecoderInterleavedRopeCudaOperation
+pub fn DecoderInterleavedRopeCudaSource::query_head_count(Self) -> Int
+pub fn DecoderInterleavedRopeCudaSource::query_head_dimension(Self) -> Int
+pub fn DecoderInterleavedRopeCudaSource::rope_dimension(Self) -> Int
+pub fn DecoderInterleavedRopeCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderInterleavedRopeCudaSource::theta(Self) -> Double
+
+pub(all) enum DecoderInterleavedRopeNumericalContract {
+  Float32DefaultFrequencyTrigRoundedBf16PairArithmeticV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

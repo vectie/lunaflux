@@ -1,0 +1,19 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/aot_candidate_coverage",
+  "vectie/lunaflux/kernels/glm_hybrid_candidate_evidence",
+  "vectie/lunaflux/kernels/glm_hybrid_artifact_admission",
+  "vectie/lunaflux/kernels/glm_hybrid_cuda_aot",
+  "vectie/lunaflux/model/indexed_parameter_bank_layout",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/glm53_kernel_requirements",
+  "vectie/lunaflux/model/glm53_numeric_plan",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/glm53_weights",
+  "vectie/lunaflux/model/glm_hybrid_kernel_requirements",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

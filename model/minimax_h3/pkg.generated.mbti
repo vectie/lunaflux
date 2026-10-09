@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3"
+
+import {
+  "vectie/lunaflux/model/family_contract",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/workload_execution_plan",
+}
+
+// Values
+pub fn admit_backend(@family_contract.ModelBackendCapabilities) -> @family_contract.ModelFamilyAdmission
+
+pub fn build(@minimax_h3_spec.MiniMaxH3ModelMetadata) -> @joint_diffusion_plan.JointDiffusionPlan raise @joint_diffusion_plan.JointDiffusionPlanError
+
+pub fn build_workload_execution_plan(@minimax_h3_spec.MiniMaxH3ModelMetadata) -> @workload_execution_plan.WorkloadExecutionPlan raise @joint_diffusion_plan.JointDiffusionPlanError
+
+pub fn requirements() -> @family_contract.ModelFamilyRequirements
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

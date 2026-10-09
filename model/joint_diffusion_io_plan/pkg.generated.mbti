@@ -1,0 +1,172 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/joint_diffusion_io_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn normalize(@joint_diffusion_plan.JointDiffusionPlan, workflow~ : @joint_diffusion_plan.JointDiffusionWorkflow, text~ : ValidatedTextConditioning, height~ : Int, width~ : Int, requested_frames~ : Int, inference_steps~ : Int, seed~ : Int64, guidance_scale~ : Double, keyframes? : ArrayView[JointKeyframeConditioning], references? : ArrayView[JointReferenceConditioning]) -> JointDiffusionIoPlan raise JointDiffusionIoPlanError
+
+// Errors
+pub(all) suberror JointDiffusionIoPlanError {
+  WorkflowNotAdmitted
+  InvalidTextConditioning
+  InvalidMediaDescriptor
+  InvalidKeyframeConditioning
+  InvalidReferenceConditioning
+  InvalidOutputShape
+  InvalidGuidancePolicy
+  InvalidResultMetadata
+  InvalidCancellationProgress
+  InvalidPackedTimestepSelection
+  InvalidPackedModalitySelection
+  InvalidDistinctTimestepValues
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum JointCancellationPolicy {
+  StageBoundaryCancellation
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointCancellationReason {
+  CallerRequested
+  DeadlineExceeded
+  RuntimeShutdown
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionIoPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionIoPlan::audio_latent_channels(Self) -> Int
+pub fn JointDiffusionIoPlan::audio_output_channels(Self) -> Int
+pub fn JointDiffusionIoPlan::audio_sample_rate(Self) -> Int
+pub fn JointDiffusionIoPlan::cancellation(Self) -> JointCancellationPolicy
+pub fn JointDiffusionIoPlan::guidance(Self) -> JointGuidancePolicy
+pub fn JointDiffusionIoPlan::identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionIoPlan::keyframes(Self) -> ReadOnlyArray[JointKeyframeConditioning]
+pub fn JointDiffusionIoPlan::references(Self) -> ReadOnlyArray[JointReferenceConditioning]
+pub fn JointDiffusionIoPlan::request_digest(Self) -> @spec.PlanDigest
+pub fn JointDiffusionIoPlan::schema_version(Self) -> Int
+pub fn JointDiffusionIoPlan::seed(Self) -> Int64
+pub fn JointDiffusionIoPlan::shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionIoPlan::stage_count(Self) -> Int
+pub fn JointDiffusionIoPlan::text(Self) -> ValidatedTextConditioning
+pub fn JointDiffusionIoPlan::video_latent_channels(Self) -> Int
+pub fn JointDiffusionIoPlan::video_patch_height(Self) -> Int
+pub fn JointDiffusionIoPlan::video_patch_temporal(Self) -> Int
+pub fn JointDiffusionIoPlan::video_patch_width(Self) -> Int
+pub fn JointDiffusionIoPlan::workflow(Self) -> @joint_diffusion_plan.JointDiffusionWorkflow
+
+pub struct JointDiffusionResultMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionResultMetadata::audio_sample_count(Self) -> Int64?
+pub fn JointDiffusionResultMetadata::cancelled(JointDiffusionIoPlan, reason~ : JointCancellationReason, completed_stage_count~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn JointDiffusionResultMetadata::completed_stage_count(Self) -> Int
+pub fn JointDiffusionResultMetadata::identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionResultMetadata::request_digest(Self) -> @spec.PlanDigest
+pub fn JointDiffusionResultMetadata::status(Self) -> JointDiffusionResultStatus
+pub fn JointDiffusionResultMetadata::succeeded(JointDiffusionIoPlan, video_frame_count~ : Int, audio_sample_count~ : Int64) -> Self raise JointDiffusionIoPlanError
+pub fn JointDiffusionResultMetadata::video_frame_count(Self) -> Int?
+
+pub(all) enum JointDiffusionResultStatus {
+  Succeeded
+  Cancelled(JointCancellationReason)
+} derive(Eq, @debug.Debug)
+
+pub struct JointDistinctTimestepValues {
+  // private fields
+}
+pub fn JointDistinctTimestepValues::digest(Self) -> @spec.PlanDigest
+pub fn JointDistinctTimestepValues::identity(Self) -> @spec.ModelIdentity
+pub fn JointDistinctTimestepValues::new(JointDiffusionIoPlan, JointPackedTimestepSelection, values~ : ArrayView[Float]) -> Self raise JointDiffusionIoPlanError
+pub fn JointDistinctTimestepValues::packed_timestep_digest(Self) -> @spec.PlanDigest
+pub fn JointDistinctTimestepValues::request_digest(Self) -> @spec.PlanDigest
+pub fn JointDistinctTimestepValues::values(Self) -> ReadOnlyArray[Float]
+
+pub(all) enum JointGuidancePolicy {
+  DistilledUnitGuidance
+} derive(Eq, @debug.Debug)
+
+pub struct JointKeyframeConditioning {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointKeyframeConditioning::image(Self) -> ValidatedImageInput
+pub fn JointKeyframeConditioning::new(position~ : JointKeyframePosition, image~ : ValidatedImageInput) -> Self
+pub fn JointKeyframeConditioning::position(Self) -> JointKeyframePosition
+
+pub(all) enum JointKeyframePosition {
+  FirstFrame
+  LastFrame
+} derive(Eq, @debug.Debug)
+
+pub struct JointPackedModalitySelection {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointPackedModalitySelection::audio_indices(Self) -> ReadOnlyArray[Int]
+pub fn JointPackedModalitySelection::digest(Self) -> @spec.PlanDigest
+pub fn JointPackedModalitySelection::identity(Self) -> @spec.ModelIdentity
+pub fn JointPackedModalitySelection::new(JointDiffusionIoPlan, JointPackedTimestepSelection, video_indices~ : ArrayView[Int], audio_indices~ : ArrayView[Int]) -> Self raise JointDiffusionIoPlanError
+pub fn JointPackedModalitySelection::packed_row_count(Self) -> Int
+pub fn JointPackedModalitySelection::packed_timestep_digest(Self) -> @spec.PlanDigest
+pub fn JointPackedModalitySelection::request_digest(Self) -> @spec.PlanDigest
+pub fn JointPackedModalitySelection::video_indices(Self) -> ReadOnlyArray[Int]
+
+pub struct JointPackedTimestepSelection {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointPackedTimestepSelection::digest(Self) -> @spec.PlanDigest
+pub fn JointPackedTimestepSelection::distinct_timestep_count(Self) -> Int
+pub fn JointPackedTimestepSelection::evaluation_index(Self) -> Int
+pub fn JointPackedTimestepSelection::identity(Self) -> @spec.ModelIdentity
+pub fn JointPackedTimestepSelection::indices(Self) -> ReadOnlyArray[Int]
+pub fn JointPackedTimestepSelection::new(JointDiffusionIoPlan, evaluation_index~ : Int, distinct_timestep_count~ : Int, indices~ : ArrayView[Int]) -> Self raise JointDiffusionIoPlanError
+pub fn JointPackedTimestepSelection::packed_row_count(Self) -> Int
+pub fn JointPackedTimestepSelection::request_digest(Self) -> @spec.PlanDigest
+
+pub(all) enum JointReferenceConditioning {
+  ImageReference(ValidatedImageInput)
+  VideoReference(ValidatedVideoInput)
+  AudioReference(ValidatedAudioInput)
+} derive(Eq, @debug.Debug)
+
+pub struct ValidatedAudioInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ValidatedAudioInput::channel_count(Self) -> Int
+pub fn ValidatedAudioInput::content_digest(Self) -> @spec.ContentDigest
+pub fn ValidatedAudioInput::new(content_digest~ : @spec.ContentDigest, sample_count~ : Int64, sample_rate~ : Int, channel_count~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn ValidatedAudioInput::sample_count(Self) -> Int64
+pub fn ValidatedAudioInput::sample_rate(Self) -> Int
+
+pub struct ValidatedImageInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ValidatedImageInput::content_digest(Self) -> @spec.ContentDigest
+pub fn ValidatedImageInput::height(Self) -> Int
+pub fn ValidatedImageInput::new(content_digest~ : @spec.ContentDigest, height~ : Int, width~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn ValidatedImageInput::width(Self) -> Int
+
+pub struct ValidatedTextConditioning {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ValidatedTextConditioning::content_digest(Self) -> @spec.ContentDigest
+pub fn ValidatedTextConditioning::new(content_digest~ : @spec.ContentDigest, token_count~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn ValidatedTextConditioning::token_count(Self) -> Int
+
+pub struct ValidatedVideoInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ValidatedVideoInput::content_digest(Self) -> @spec.ContentDigest
+pub fn ValidatedVideoInput::frame_count(Self) -> Int
+pub fn ValidatedVideoInput::frames_per_second(Self) -> Int
+pub fn ValidatedVideoInput::height(Self) -> Int
+pub fn ValidatedVideoInput::new(content_digest~ : @spec.ContentDigest, height~ : Int, width~ : Int, frame_count~ : Int, frames_per_second~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn ValidatedVideoInput::width(Self) -> Int
+
+// Type aliases
+
+// Traits

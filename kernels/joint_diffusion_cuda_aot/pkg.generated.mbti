@@ -1,0 +1,817 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/joint_diffusion_cuda_aot"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/affine_modulation_cuda_source",
+  "vectie/lunaflux/kernels/alias_free_activation_cuda_source",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/channel_major_projection_cuda_source",
+  "vectie/lunaflux/kernels/decoder_foundation_cuda_source",
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source",
+  "vectie/lunaflux/kernels/gated_mlp_cuda_source",
+  "vectie/lunaflux/kernels/joint_attention_cuda_source",
+  "vectie/lunaflux/kernels/joint_audio_amp_cuda_source",
+  "vectie/lunaflux/kernels/joint_diffusion_artifact_admission",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/model/joint_audio_amp_workspace_layout",
+  "vectie/lunaflux/model/joint_diffusion_io_plan",
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/joint_diffusion_vae_reference",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn compose_timestep_conditioning_candidates(JointDiffusionTimestepFrequencyCudaCandidate, JointDiffusionTimestepMlpCudaCandidate, JointDiffusionDistinctTimestepAdaLnCudaCandidate) -> JointDiffusionTimestepConditioningComposition raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_decoder_amp_activation_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderAmpActivation, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeAmpActivationCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_decoder_amp_stage_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request~ : @joint_diffusion_plan.JointDiffusionRequestShape, parameter_layout~ : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, workspace_layout~ : @joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceLayout, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeAmpStageCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_decoder_conv_pre_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderConvPre, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeConvPreCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_decoder_first_amp_activation_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstAmpActivation, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeFirstAmpCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_decoder_first_amp_stage_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request~ : @joint_diffusion_plan.JointDiffusionRequestShape, parameter_layout~ : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, workspace_layout~ : @joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceLayout, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeFirstAmpStageCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_decoder_first_upsample_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstUpsample, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeFirstUpsampleCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_decoder_input_projection_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderInputProjection, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_decoder_upsample_transition_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderUpsampleTransition, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeUpsampleTransitionCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_audio_vae_latent_destandardization_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, parameters~ : @joint_diffusion_vae_reference.JointVaeAudioLatentDestandardization, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionAudioVaeLatentDestandardizationCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_distinct_timestep_adaln_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, values~ : @joint_diffusion_io_plan.JointDistinctTimestepValues, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionDistinctTimestepAdaLnCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_final_adaln_f32_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request_shape~ : @joint_diffusion_plan.JointDiffusionRequestShape, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionFinalAdaLnF32CudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_final_adaln_parameter_row_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionFinalAdaLnParameterRowCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_final_rms_norm_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request_shape~ : @joint_diffusion_plan.JointDiffusionRequestShape, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionFinalRmsNormCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_latent_projection_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request_shape~ : @joint_diffusion_plan.JointDiffusionRequestShape, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionLatentProjectionCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_output_projection_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request_shape~ : @joint_diffusion_plan.JointDiffusionRequestShape, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionOutputProjectionCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_packed_modality_adaln_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, timestep~ : @joint_diffusion_io_plan.JointPackedTimestepSelection, modality~ : @joint_diffusion_io_plan.JointPackedModalitySelection, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionPackedModalityAdaLnCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_shifted_flow_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request_shape~ : @joint_diffusion_plan.JointDiffusionRequestShape, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionShiftedFlowCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_timestep_frequency_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, values~ : @joint_diffusion_io_plan.JointDistinctTimestepValues, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionTimestepFrequencyCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_timestep_mlp_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, values~ : @joint_diffusion_io_plan.JointDistinctTimestepValues, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionTimestepMlpCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_transformer_attention_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request~ : @joint_diffusion_io_plan.JointDiffusionIoPlan, packed_timestep~ : @joint_diffusion_io_plan.JointPackedTimestepSelection, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits, document_boundaries? : ArrayView[Int]) -> JointDiffusionTransformerAttentionCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_transformer_mlp_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, request~ : @joint_diffusion_io_plan.JointDiffusionIoPlan, packed_timestep~ : @joint_diffusion_io_plan.JointPackedTimestepSelection, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionTransformerMlpCudaCandidate raise JointDiffusionCudaAotError
+
+pub fn lower_video_vae_latent_destandardization_cuda_aot_candidate(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, parameters~ : @joint_diffusion_vae_reference.JointVaeLatentDestandardization, requirement_ordinal~ : Int, target~ : @catalog.DeviceTarget, compiler~ : @luna_specialization.LunaCompilerPolicy, limits~ : JointDiffusionCudaAotLimits) -> JointDiffusionVideoVaeLatentDestandardizationCudaCandidate raise JointDiffusionCudaAotError
+
+// Errors
+pub(all) suberror JointDiffusionCudaAotError {
+  Invalid(JointDiffusionCudaAotInvalidKind)
+  UnsupportedRequirement(Int)
+  SizeOverflow
+  Request(@joint_diffusion_plan.JointDiffusionPlanError)
+  Operand(@joint_diffusion_artifact_admission.JointDiffusionArtifactAdmissionError)
+  Launch(@launch_contract.LaunchContractError)
+  Source(@decoder_projection_cuda_source.DecoderProjectionCudaSourceError)
+  FoundationSource(@decoder_foundation_cuda_source.DecoderFoundationCudaSourceError)
+  AffineSource(@affine_modulation_cuda_source.AffineModulationCudaSourceError)
+  ChannelMajorSource(@channel_major_projection_cuda_source.ChannelMajorProjectionCudaSourceError)
+  GatedMlpSource(@gated_mlp_cuda_source.GatedMlpCudaSourceError)
+  AttentionSource(@joint_attention_cuda_source.JointAttentionCudaSourceError)
+  AliasFreeSource(@alias_free_activation_cuda_source.AliasFreeActivationCudaSourceError)
+  JointAudioAmpSource(@joint_audio_amp_cuda_source.JointAudioAmpCudaSourceError)
+  AmpParameterLayout(@joint_audio_amp_parameter_layout.JointAudioAmpParameterLayoutError)
+  AmpWorkspaceLayout(@joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceLayoutError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct JointDiffusionAttentionCudaStage {
+  // private fields
+}
+pub fn JointDiffusionAttentionCudaStage::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionAttentionCudaStage::kind(Self) -> JointDiffusionAttentionStageKind
+pub fn JointDiffusionAttentionCudaStage::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAttentionCudaStage::scope(Self) -> JointDiffusionAttentionRowScope
+
+pub(all) enum JointDiffusionAttentionRowScope {
+  PackedRows
+  RefinerRows
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAttentionStageKind {
+  QkvProjection
+  QkNormRotary
+  QkNorm
+  FullAttention
+  OutputProjection
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionAudioVaeAmpActivationCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::channel_count(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::intermediate_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::parameter_digest(Self) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderAmpActivationDigest
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::stage_index(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::stages(Self) -> ReadOnlyArray[JointDiffusionAudioVaeFirstAmpCudaStage]
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::time_count(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::upsample_time(Self) -> Int
+
+pub struct JointDiffusionAudioVaeAmpStageCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::channel_count(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::parameter_layout_digest(Self) -> @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayoutDigest
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::stage_index(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::stages(Self) -> ReadOnlyArray[JointDiffusionAudioVaeFirstAmpExecutionStage]
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::time_count(Self) -> Int
+pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::workspace_layout_digest(Self) -> @joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceLayoutDigest
+
+pub struct JointDiffusionAudioVaeConvPreCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::bias_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::decoder_batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::input_channels(Self) -> Int
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::input_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::kernel_size(Self) -> Int
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::output_channels(Self) -> Int
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::output_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::padding(Self) -> Int
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::parameter_digest(Self) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderConvPreDigest
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::stages(Self) -> ReadOnlyArray[JointDiffusionAudioVaeConvPreCudaStage]
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::stride(Self) -> Int
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::time_count(Self) -> Int
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::weight_g_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::weight_v_element_count(Self) -> Int64
+
+pub struct JointDiffusionAudioVaeConvPreCudaStage {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeConvPreCudaStage::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionAudioVaeConvPreCudaStage::function_symbol(Self) -> String
+pub fn JointDiffusionAudioVaeConvPreCudaStage::kind(Self) -> JointDiffusionAudioVaeConvPreStageKind
+pub fn JointDiffusionAudioVaeConvPreCudaStage::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+
+pub(all) enum JointDiffusionAudioVaeConvPreStageKind {
+  NormalizeWeight
+  Convolve
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::bias_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::decoder_batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::input_channels(Self) -> Int
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::input_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::output_channels(Self) -> Int
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::output_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::parameter_digest(Self) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderInputProjectionDigest
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::time_count(Self) -> Int
+pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::weight_element_count(Self) -> Int64
+
+pub struct JointDiffusionAudioVaeFirstAmpCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::channel_count(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::intermediate_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::parameter_digest(Self) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstAmpActivationDigest
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::stages(Self) -> ReadOnlyArray[JointDiffusionAudioVaeFirstAmpCudaStage]
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::time_count(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::upsample_time(Self) -> Int
+
+pub struct JointDiffusionAudioVaeFirstAmpCudaStage {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeFirstAmpCudaStage::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionAudioVaeFirstAmpCudaStage::function_symbol(Self) -> String
+pub fn JointDiffusionAudioVaeFirstAmpCudaStage::kind(Self) -> JointDiffusionAudioVaeFirstAmpStageKind
+pub fn JointDiffusionAudioVaeFirstAmpCudaStage::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+
+pub struct JointDiffusionAudioVaeFirstAmpExecutionStage {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeFirstAmpExecutionStage::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionAudioVaeFirstAmpExecutionStage::function_symbol(Self) -> String
+pub fn JointDiffusionAudioVaeFirstAmpExecutionStage::identity(Self) -> @joint_audio_amp_workspace_layout.JointAudioAmpExecutionStage
+pub fn JointDiffusionAudioVaeFirstAmpExecutionStage::parameter_region_indices(Self) -> ReadOnlyArray[Int]
+pub fn JointDiffusionAudioVaeFirstAmpExecutionStage::workspace_roles(Self) -> ReadOnlyArray[@joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceRole]
+
+pub struct JointDiffusionAudioVaeFirstAmpStageCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::channel_count(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::parameter_layout_digest(Self) -> @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayoutDigest
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::stages(Self) -> ReadOnlyArray[JointDiffusionAudioVaeFirstAmpExecutionStage]
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::time_count(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::workspace_layout_digest(Self) -> @joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceLayoutDigest
+
+pub(all) enum JointDiffusionAudioVaeFirstAmpStageKind {
+  Upsample
+  SnakeBeta
+  Downsample
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionAudioVaeFirstUpsampleCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::bias_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::decoder_batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::input_channels(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::input_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::input_time(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::kernel_size(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::output_channels(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::output_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::output_time(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::padding(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::parameter_digest(Self) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstUpsampleDigest
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::stages(Self) -> ReadOnlyArray[JointDiffusionAudioVaeFirstUpsampleCudaStage]
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::stride(Self) -> Int
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::weight_g_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::weight_v_element_count(Self) -> Int64
+
+pub struct JointDiffusionAudioVaeFirstUpsampleCudaStage {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaStage::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaStage::function_symbol(Self) -> String
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaStage::kind(Self) -> JointDiffusionAudioVaeFirstUpsampleStageKind
+pub fn JointDiffusionAudioVaeFirstUpsampleCudaStage::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+
+pub(all) enum JointDiffusionAudioVaeFirstUpsampleStageKind {
+  NormalizeWeight
+  ConvolveTranspose
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionAudioVaeLatentDestandardizationCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::channel_count(Self) -> Int
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::decoder_batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::elements_per_channel(Self) -> Int64
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::parameter_digest(Self) -> @joint_diffusion_vae_reference.JointVaeLatentDestandardizationDigest
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct JointDiffusionAudioVaeUpsampleTransitionCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::bias_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::decoder_batch_count(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::input_channels(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::input_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::input_time(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::kernel_size(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::output_channels(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::output_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::output_time(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::padding(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::parameter_digest(Self) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderUpsampleTransitionDigest
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::stage_index(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::stages(Self) -> ReadOnlyArray[JointDiffusionAudioVaeFirstUpsampleCudaStage]
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::stride(Self) -> Int
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::weight_g_element_count(Self) -> Int64
+pub fn JointDiffusionAudioVaeUpsampleTransitionCudaCandidate::weight_v_element_count(Self) -> Int64
+
+pub(all) enum JointDiffusionCudaAotInvalidKind {
+  Limit
+  Requirement
+  RequestShape
+  Target
+  Compiler
+  Encoding
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionCudaAotLimits {
+  // private fields
+}
+pub fn JointDiffusionCudaAotLimits::new(maximum_elements~ : Int64, maximum_source_bytes~ : Int, maximum_recipe_bytes~ : Int) -> Self raise JointDiffusionCudaAotError
+
+pub(all) enum JointDiffusionCudaNumericalContract {
+  OrderedFloat32RfVelocityEtaZeroV1
+  OrderedFloat32DenseF32BoundaryBf16RoundV1
+  OrderedFloat32DenseF32OutputV1
+  OrderedFloat32RmsNormBf16RoundV1
+  StagedBf16AdaLnF32BoundaryV1
+  SiluF32CastBf16OrderedDenseBf16OutputV1
+  BitExactBf16PackedModalityGatherV1
+  Float32CosSinExpfPeriod10000V1
+  OrderedFloat32DenseSiluDenseV1
+  OrderedF32AccumulationBf16SwiGluDownBf16V1
+  OrderedF32AccumulationBf16StagedAttentionV1
+  OrderedF32ChannelMajorDestandardizationV1
+  OrderedF32ChannelMajorPointwiseProjectionV1
+  OrderedF32PerOutputWeightNormConv1dV1
+  OrderedF32PerInputWeightNormConvTranspose1dV1
+  OrderedF32AliasFreeSnakeBetaV1
+  OrderedF32AmpParallelResidualAverageV1
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn JointDiffusionCudaRecipeDigest::as_hex(Self) -> String
+
+pub struct JointDiffusionCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn JointDiffusionCudaSourceDigest::as_hex(Self) -> String
+
+pub struct JointDiffusionDistinctTimestepAdaLnCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::hidden_size(Self) -> Int
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::input_width(Self) -> Int
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::row_count(Self) -> Int
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::values_digest(Self) -> @spec.PlanDigest
+pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::weight_element_count(Self) -> Int64
+
+pub struct JointDiffusionFinalAdaLnF32CudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::hidden_size(Self) -> Int
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::latent(Self) -> @joint_diffusion_plan.JointDiffusionLatentKind
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::row_count(Self) -> Int64
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionFinalAdaLnF32CudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct JointDiffusionFinalAdaLnParameterRowCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::hidden_size(Self) -> Int
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::input_width(Self) -> Int
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::weight_element_count(Self) -> Int64
+
+pub struct JointDiffusionFinalRmsNormCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionFinalRmsNormCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionFinalRmsNormCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionFinalRmsNormCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionFinalRmsNormCudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionFinalRmsNormCudaCandidate::epsilon(Self) -> Double
+pub fn JointDiffusionFinalRmsNormCudaCandidate::epsilon_denominator(Self) -> Int
+pub fn JointDiffusionFinalRmsNormCudaCandidate::epsilon_numerator(Self) -> Int
+pub fn JointDiffusionFinalRmsNormCudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionFinalRmsNormCudaCandidate::hidden_size(Self) -> Int
+pub fn JointDiffusionFinalRmsNormCudaCandidate::latent(Self) -> @joint_diffusion_plan.JointDiffusionLatentKind
+pub fn JointDiffusionFinalRmsNormCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionFinalRmsNormCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionFinalRmsNormCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionFinalRmsNormCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionFinalRmsNormCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionFinalRmsNormCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionFinalRmsNormCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionFinalRmsNormCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionFinalRmsNormCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionFinalRmsNormCudaCandidate::row_count(Self) -> Int64
+pub fn JointDiffusionFinalRmsNormCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionFinalRmsNormCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionFinalRmsNormCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionFinalRmsNormCudaCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionFinalRmsNormCudaCandidate::weight_element_count(Self) -> Int64
+
+pub struct JointDiffusionLatentProjectionCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionLatentProjectionCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionLatentProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionLatentProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionLatentProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionLatentProjectionCudaCandidate::input_element_count(Self) -> Int64
+pub fn JointDiffusionLatentProjectionCudaCandidate::input_width(Self) -> Int
+pub fn JointDiffusionLatentProjectionCudaCandidate::latent(Self) -> @joint_diffusion_plan.JointDiffusionLatentKind
+pub fn JointDiffusionLatentProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionLatentProjectionCudaCandidate::model_weight_element_count(Self) -> Int64
+pub fn JointDiffusionLatentProjectionCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionLatentProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionLatentProjectionCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionLatentProjectionCudaCandidate::output_element_count(Self) -> Int64
+pub fn JointDiffusionLatentProjectionCudaCandidate::output_width(Self) -> Int
+pub fn JointDiffusionLatentProjectionCudaCandidate::projection_bias_element_count(Self) -> Int64
+pub fn JointDiffusionLatentProjectionCudaCandidate::projection_weight_element_count(Self) -> Int64
+pub fn JointDiffusionLatentProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionLatentProjectionCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionLatentProjectionCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionLatentProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionLatentProjectionCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionLatentProjectionCudaCandidate::row_count(Self) -> Int64
+pub fn JointDiffusionLatentProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionLatentProjectionCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionLatentProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionLatentProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct JointDiffusionOutputProjectionCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionOutputProjectionCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionOutputProjectionCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionOutputProjectionCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionOutputProjectionCudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionOutputProjectionCudaCandidate::input_element_count(Self) -> Int64
+pub fn JointDiffusionOutputProjectionCudaCandidate::input_width(Self) -> Int
+pub fn JointDiffusionOutputProjectionCudaCandidate::latent(Self) -> @joint_diffusion_plan.JointDiffusionLatentKind
+pub fn JointDiffusionOutputProjectionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionOutputProjectionCudaCandidate::model_weight_element_count(Self) -> Int64
+pub fn JointDiffusionOutputProjectionCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionOutputProjectionCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionOutputProjectionCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionOutputProjectionCudaCandidate::output_element_count(Self) -> Int64
+pub fn JointDiffusionOutputProjectionCudaCandidate::output_width(Self) -> Int
+pub fn JointDiffusionOutputProjectionCudaCandidate::projection_bias_element_count(Self) -> Int64
+pub fn JointDiffusionOutputProjectionCudaCandidate::projection_weight_element_count(Self) -> Int64
+pub fn JointDiffusionOutputProjectionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionOutputProjectionCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionOutputProjectionCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionOutputProjectionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionOutputProjectionCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionOutputProjectionCudaCandidate::row_count(Self) -> Int64
+pub fn JointDiffusionOutputProjectionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionOutputProjectionCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionOutputProjectionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionOutputProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct JointDiffusionPackedModalityAdaLnCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::audio_row_count(Self) -> Int
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::hidden_size(Self) -> Int
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::modality_digest(Self) -> @spec.PlanDigest
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::packed_row_count(Self) -> Int
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::timestep_digest(Self) -> @spec.PlanDigest
+pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::video_row_count(Self) -> Int
+
+pub struct JointDiffusionShiftedFlowCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionShiftedFlowCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionShiftedFlowCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionShiftedFlowCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionShiftedFlowCudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionShiftedFlowCudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionShiftedFlowCudaCandidate::latent(Self) -> @joint_diffusion_plan.JointDiffusionLatentKind
+pub fn JointDiffusionShiftedFlowCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionShiftedFlowCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionShiftedFlowCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionShiftedFlowCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionShiftedFlowCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionShiftedFlowCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionShiftedFlowCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionShiftedFlowCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionShiftedFlowCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionShiftedFlowCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionShiftedFlowCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionShiftedFlowCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionShiftedFlowCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+pub struct JointDiffusionTimestepConditioningComposition {
+  // private fields
+}
+pub fn JointDiffusionTimestepConditioningComposition::adaln_hidden_size(Self) -> Int
+pub fn JointDiffusionTimestepConditioningComposition::conditioning_width(Self) -> Int
+pub fn JointDiffusionTimestepConditioningComposition::frequency_width(Self) -> Int
+pub fn JointDiffusionTimestepConditioningComposition::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionTimestepConditioningComposition::mlp_hidden_width(Self) -> Int
+pub fn JointDiffusionTimestepConditioningComposition::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionTimestepConditioningComposition::row_count(Self) -> Int
+pub fn JointDiffusionTimestepConditioningComposition::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionTimestepConditioningComposition::values_digest(Self) -> @spec.PlanDigest
+
+pub struct JointDiffusionTimestepFrequencyCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::frequency_width(Self) -> Int
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::row_count(Self) -> Int
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionTimestepFrequencyCudaCandidate::values_digest(Self) -> @spec.PlanDigest
+
+pub struct JointDiffusionTimestepMlpCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionTimestepMlpCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionTimestepMlpCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionTimestepMlpCudaCandidate::hidden_width(Self) -> Int
+pub fn JointDiffusionTimestepMlpCudaCandidate::input_width(Self) -> Int
+pub fn JointDiffusionTimestepMlpCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionTimestepMlpCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionTimestepMlpCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionTimestepMlpCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionTimestepMlpCudaCandidate::output_width(Self) -> Int
+pub fn JointDiffusionTimestepMlpCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionTimestepMlpCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionTimestepMlpCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionTimestepMlpCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionTimestepMlpCudaCandidate::row_count(Self) -> Int
+pub fn JointDiffusionTimestepMlpCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionTimestepMlpCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionTimestepMlpCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionTimestepMlpCudaCandidate::values_digest(Self) -> @spec.PlanDigest
+
+pub struct JointDiffusionTransformerAttentionCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionTransformerAttentionCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionTransformerAttentionCudaCandidate::head_count(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::head_dimension(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::hidden_size(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::inner_size(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::layer_count(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionTransformerAttentionCudaCandidate::norm_weight_element_count(Self) -> Int64
+pub fn JointDiffusionTransformerAttentionCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionTransformerAttentionCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionTransformerAttentionCudaCandidate::packed_row_count(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::projection_weight_element_count(Self) -> Int64
+pub fn JointDiffusionTransformerAttentionCudaCandidate::qk_epsilon_denominator(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::qk_epsilon_numerator(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionTransformerAttentionCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionTransformerAttentionCudaCandidate::refiner_layer_count(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::refiner_row_count(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::request_digest(Self) -> @spec.PlanDigest
+pub fn JointDiffusionTransformerAttentionCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionTransformerAttentionCudaCandidate::rotary_dimension(Self) -> Int
+pub fn JointDiffusionTransformerAttentionCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionTransformerAttentionCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionTransformerAttentionCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionTransformerAttentionCudaCandidate::stages(Self) -> ReadOnlyArray[JointDiffusionAttentionCudaStage]
+
+pub struct JointDiffusionTransformerMlpCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionTransformerMlpCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionTransformerMlpCudaCandidate::down_weight_element_count(Self) -> Int64
+pub fn JointDiffusionTransformerMlpCudaCandidate::hidden_size(Self) -> Int
+pub fn JointDiffusionTransformerMlpCudaCandidate::intermediate_size(Self) -> Int
+pub fn JointDiffusionTransformerMlpCudaCandidate::layer_count(Self) -> Int
+pub fn JointDiffusionTransformerMlpCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionTransformerMlpCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionTransformerMlpCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionTransformerMlpCudaCandidate::packed_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionTransformerMlpCudaCandidate::packed_operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionTransformerMlpCudaCandidate::packed_row_count(Self) -> Int
+pub fn JointDiffusionTransformerMlpCudaCandidate::packed_weight_element_count(Self) -> Int64
+pub fn JointDiffusionTransformerMlpCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionTransformerMlpCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionTransformerMlpCudaCandidate::refiner_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionTransformerMlpCudaCandidate::refiner_layer_count(Self) -> Int
+pub fn JointDiffusionTransformerMlpCudaCandidate::refiner_operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionTransformerMlpCudaCandidate::refiner_row_count(Self) -> Int
+pub fn JointDiffusionTransformerMlpCudaCandidate::request_digest(Self) -> @spec.PlanDigest
+pub fn JointDiffusionTransformerMlpCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionTransformerMlpCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionTransformerMlpCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionTransformerMlpCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionTransformerMlpCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+
+pub struct JointDiffusionVideoVaeLatentDestandardizationCudaCandidate {
+  // private fields
+}
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::batch_count(Self) -> Int
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::channel_count(Self) -> Int
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::element_count(Self) -> Int64
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::elements_per_channel(Self) -> Int64
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::function_symbol(Self) -> String
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::manifest_bindable(Self) -> Bool
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::numerical_contract(Self) -> JointDiffusionCudaNumericalContract
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::operands(Self) -> ReadOnlyArray[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand]
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::parameter_digest(Self) -> @joint_diffusion_vae_reference.JointVaeLatentDestandardizationDigest
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::recipe_bytes(Self) -> Bytes
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::recipe_digest(Self) -> JointDiffusionCudaRecipeDigest
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::source_bytes(Self) -> Bytes
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::source_digest(Self) -> JointDiffusionCudaSourceDigest
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::target(Self) -> @catalog.DeviceTarget
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,70 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/cuda_offline_compile_evidence"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_specialization",
+}
+
+// Values
+pub fn admit_deterministic_cuda_output(source_digest_sha256~ : String, recipe_digest_sha256~ : String, compiler~ : @luna_specialization.LunaCompilerPolicy, driver_identity_sha256~ : String, target~ : @catalog.DeviceTarget, function_symbol~ : String, first_module~ : Bytes, second_module~ : Bytes, receipt_bytes~ : Bytes, expected_receipt_digest_sha256~ : String, limits~ : CudaOfflineCompileEvidenceLimits) -> CudaOfflineCompileEvidence raise CudaOfflineCompileEvidenceError
+
+// Errors
+pub(all) suberror CudaOfflineCompileEvidenceError {
+  InvalidLimit
+  InvalidDigest(CudaOfflineCompileDigestKind)
+  InvalidFunctionSymbol
+  EmptyModule
+  ModuleTooLarge
+  NondeterministicModule
+  EmptyReceipt
+  ReceiptTooLarge
+  ReceiptDigestMismatch
+  ReceiptContentMismatch
+  InvalidModuleDigest
+  ProducerAuthorityUnavailable
+  CompilerExecutionProofUnavailable
+  ExecutionAuthorityUnavailable
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum CudaOfflineCompileDigestKind {
+  Source
+  Recipe
+  Driver
+  Receipt
+} derive(Eq, @debug.Debug)
+
+pub struct CudaOfflineCompileEvidence {
+  // private fields
+}
+pub fn CudaOfflineCompileEvidence::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn CudaOfflineCompileEvidence::digest(Self) -> CudaOfflineCompileEvidenceDigest
+pub fn CudaOfflineCompileEvidence::driver_identity_sha256(Self) -> String
+pub fn CudaOfflineCompileEvidence::function_symbol(Self) -> String
+pub fn CudaOfflineCompileEvidence::module_byte_count(Self) -> Int
+pub fn CudaOfflineCompileEvidence::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn CudaOfflineCompileEvidence::recipe_digest_sha256(Self) -> String
+pub fn CudaOfflineCompileEvidence::require_compiler_execution_proof(Self) -> Unit raise CudaOfflineCompileEvidenceError
+pub fn CudaOfflineCompileEvidence::require_execution_authority(Self) -> Unit raise CudaOfflineCompileEvidenceError
+pub fn CudaOfflineCompileEvidence::require_producer_authority(Self) -> Unit raise CudaOfflineCompileEvidenceError
+pub fn CudaOfflineCompileEvidence::source_digest_sha256(Self) -> String
+pub fn CudaOfflineCompileEvidence::status(Self) -> CudaOfflineCompileEvidenceStatus
+pub fn CudaOfflineCompileEvidence::target(Self) -> @catalog.DeviceTarget
+
+pub struct CudaOfflineCompileEvidenceDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn CudaOfflineCompileEvidenceDigest::as_hex(Self) -> String
+
+pub struct CudaOfflineCompileEvidenceLimits {
+  // private fields
+}
+pub fn CudaOfflineCompileEvidenceLimits::new(maximum_module_bytes~ : Int64, maximum_receipt_bytes~ : Int, maximum_symbol_bytes~ : Int) -> Self raise CudaOfflineCompileEvidenceError
+
+pub(all) enum CudaOfflineCompileEvidenceStatus {
+  InertSelfConsistent
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

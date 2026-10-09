@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/alias_free_activation_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn f32_alias_free_snake_beta_source(batch_count~ : Int, channel_count~ : Int, time_count~ : Int, ratio~ : Int, kernel_size~ : Int, upsample_symbol~ : String, activation_symbol~ : String, downsample_symbol~ : String) -> AliasFreeActivationCudaSource raise AliasFreeActivationCudaSourceError
+
+// Errors
+pub(all) suberror AliasFreeActivationCudaSourceError {
+  InvalidGeometry
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct AliasFreeActivationCudaSource {
+  // private fields
+}
+pub fn AliasFreeActivationCudaSource::activation_symbol(Self) -> String
+pub fn AliasFreeActivationCudaSource::batch_count(Self) -> Int
+pub fn AliasFreeActivationCudaSource::channel_count(Self) -> Int
+pub fn AliasFreeActivationCudaSource::downsample_symbol(Self) -> String
+pub fn AliasFreeActivationCudaSource::input_element_count(Self) -> Int64
+pub fn AliasFreeActivationCudaSource::intermediate_element_count(Self) -> Int64
+pub fn AliasFreeActivationCudaSource::kernel_size(Self) -> Int
+pub fn AliasFreeActivationCudaSource::numerical_contract(Self) -> AliasFreeActivationNumericalContract
+pub fn AliasFreeActivationCudaSource::output_element_count(Self) -> Int64
+pub fn AliasFreeActivationCudaSource::ratio(Self) -> Int
+pub fn AliasFreeActivationCudaSource::source_bytes(Self) -> Bytes
+pub fn AliasFreeActivationCudaSource::time_count(Self) -> Int
+pub fn AliasFreeActivationCudaSource::upsample_symbol(Self) -> String
+pub fn AliasFreeActivationCudaSource::upsample_time(Self) -> Int
+
+pub(all) enum AliasFreeActivationNumericalContract {
+  OrderedF32UpsampleSnakeBetaDownsampleV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

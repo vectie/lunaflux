@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_source_export"
+
+import {
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/model/minimax_h3_config",
+  "vectie/lunaflux/model/minimax_h3_sequence",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/minimax_h3_text_encoder",
+  "vectie/lunaflux/model/minimax_h3_vision_conditioner",
+}
+
+// Values
+pub fn build(@minimax_h3_spec.MiniMaxH3ModelMetadata, @joint_diffusion_loop.PreparedPlan, @minimax_h3_sequence.Sequence, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @minimax_h3_text_encoder.TextEncoderPlan, text_config~ : @minimax_h3_text_encoder.EncoderConfig, visual_noise~ : Double, audio_noise~ : Double, vision_text_rows~ : ArrayView[Int], max_metadata_bytes~ : Int64, max_workspace_bytes~ : Int64, tile_size~ : Int, minimum_overlap~ : Int, max_tiles~ : Int, vision? : @minimax_h3_vision_conditioner.VisionPlan) -> SourceExport raise
+
+// Errors
+pub(all) suberror ExportError {
+  InvalidPlan
+  DuplicateModule
+  InvalidModule
+}
+
+// Types and methods
+pub struct SourceExport {
+  model_digest : String
+  units : ReadOnlyArray[SourceUnit]
+  timestep_counts : ReadOnlyArray[Int]
+}
+pub fn SourceExport::manifest(Self) -> Bytes
+pub fn SourceExport::with_reference_audio(Self, ordinal~ : Int, samples~ : Int, max_scratch_bytes~ : Int64) -> Self raise
+pub fn SourceExport::with_reference_video(Self, ordinal~ : Int, frames~ : Int, height~ : Int, width~ : Int, image~ : Bool, max_tiles~ : Int, max_scratch_bytes~ : Int64) -> Self raise
+pub async fn SourceExport::write(Self, String) -> Unit
+
+pub struct SourceUnit {
+  name : String
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  geometry : ReadOnlyArray[(String, Int64)]
+  sha256 : String
+}
+
+// Type aliases
+
+// Traits

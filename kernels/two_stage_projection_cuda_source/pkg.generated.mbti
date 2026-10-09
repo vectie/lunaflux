@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/two_stage_projection_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn bias_free_bf16_low_rank_projection_source(input_width~ : Int, intermediate_width~ : Int, output_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> TwoStageProjectionCudaSource raise TwoStageProjectionCudaSourceError
+
+// Errors
+pub(all) suberror TwoStageProjectionCudaSourceError {
+  InvalidInputWidth
+  InvalidIntermediateWidth
+  InvalidOutputWidth
+  InvalidRowCount
+  DimensionOverflow
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct TwoStageProjectionCudaSource {
+  // private fields
+}
+pub fn TwoStageProjectionCudaSource::function_symbol(Self) -> String
+pub fn TwoStageProjectionCudaSource::input_width(Self) -> Int
+pub fn TwoStageProjectionCudaSource::intermediate_width(Self) -> Int
+pub fn TwoStageProjectionCudaSource::maximum_rows(Self) -> Int
+pub fn TwoStageProjectionCudaSource::numerical_contract(Self) -> TwoStageProjectionNumericalContract
+pub fn TwoStageProjectionCudaSource::operation(Self) -> TwoStageProjectionOperation
+pub fn TwoStageProjectionCudaSource::output_width(Self) -> Int
+pub fn TwoStageProjectionCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum TwoStageProjectionNumericalContract {
+  OrderedFloat32AccumulationBf16IntermediateAndOutputV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TwoStageProjectionOperation {
+  BiasFreeBf16LowRankProjection
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

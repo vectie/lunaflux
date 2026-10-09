@@ -1,0 +1,32 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/segmented_host_borrow"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror SegmentedHostBorrowError {
+  InvalidConsumer
+  BorrowClosed(Int)
+  ArenaAlreadyProvided(Int)
+  ArenaLengthMismatch(Int)
+  ArenaNotProvided(Int)
+  SourceUnavailable(Int)
+  ConsumerRejected(Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct SegmentedHostArenaConsumer {
+  // private fields
+}
+pub fn SegmentedHostArenaConsumer::accept(Self, FixedArray[Byte]) -> Unit raise SegmentedHostBorrowError
+pub fn SegmentedHostArenaConsumer::new(arena_ordinal~ : Int, expected_length~ : Int, consume~ : (FixedArray[Byte]) -> Bool) -> Self raise SegmentedHostBorrowError
+pub fn SegmentedHostArenaConsumer::revoke(Self) -> Unit
+pub fn SegmentedHostArenaConsumer::was_accepted(Self) -> Bool
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,235 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/joint_diffusion_artifact_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, target~ : @catalog.DeviceTarget, module_inputs~ : ArrayView[JointDiffusionModuleInput], entry_point_inputs~ : ArrayView[@artifact.KernelEntryPointInput], launch_inputs~ : ArrayView[JointDiffusionLaunchEvidenceInput], limits~ : JointDiffusionArtifactAdmissionLimits) -> JointDiffusionArtifactAdmission raise JointDiffusionArtifactAdmissionError
+
+// Errors
+pub(all) suberror JointDiffusionArtifactAdmissionError {
+  InvalidLimit
+  RequirementCountExceeded
+  RequirementDigestMismatch(Int)
+  TargetMismatch(Int)
+  MissingLaunch(Int)
+  DuplicateLaunch(Int)
+  WrongOperation(Int)
+  WrongCapability(Int)
+  InvalidLaunchOperands(Int)
+  MissingEntryPoint(@catalog.AotKernelEntryPoint)
+  DuplicateEntryPoint(@catalog.AotKernelEntryPoint)
+  UnreferencedEntryPoint(@catalog.AotKernelEntryPoint)
+  ArtifactSymbolFailure(@artifact.KernelArtifactError)
+  MissingModule(@catalog.AotArtifactDigest)
+  DuplicateModule(@catalog.AotArtifactDigest)
+  UnreferencedModule(@catalog.AotArtifactDigest)
+  EmptyModule(@catalog.AotArtifactDigest)
+  ModuleTooLarge(@catalog.AotArtifactDigest)
+  TotalModuleBytesExceeded
+  ModuleDigestMismatch(@catalog.AotArtifactDigest)
+  AdmissionEncodingTooLarge
+  NoExecutionAuthority
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct JointDiffusionAdmittedEntryPoint {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionAdmittedEntryPoint::function_symbol(Self) -> String
+pub fn JointDiffusionAdmittedEntryPoint::identity(Self) -> @catalog.AotKernelEntryPoint
+pub fn JointDiffusionAdmittedEntryPoint::module_index(Self) -> Int
+
+pub struct JointDiffusionAdmittedLaunch {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionAdmittedLaunch::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
+pub fn JointDiffusionAdmittedLaunch::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn JointDiffusionAdmittedLaunch::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn JointDiffusionAdmittedLaunch::operands(Self) -> ReadOnlyArray[JointDiffusionLaunchOperand]
+pub fn JointDiffusionAdmittedLaunch::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointDiffusionAdmittedLaunch::requirement_ordinal(Self) -> Int
+
+pub struct JointDiffusionAdmittedModule {
+  // private fields
+}
+pub fn JointDiffusionAdmittedModule::digest(Self) -> @catalog.AotArtifactDigest
+pub fn JointDiffusionAdmittedModule::module_bytes(Self) -> Bytes
+
+pub struct JointDiffusionArtifactAdmission {
+  // private fields
+}
+pub fn JointDiffusionArtifactAdmission::digest(Self) -> JointDiffusionArtifactAdmissionDigest
+pub fn JointDiffusionArtifactAdmission::entry_points(Self) -> ReadOnlyArray[JointDiffusionAdmittedEntryPoint]
+pub fn JointDiffusionArtifactAdmission::launches(Self) -> ReadOnlyArray[JointDiffusionAdmittedLaunch]
+pub fn JointDiffusionArtifactAdmission::modules(Self) -> ReadOnlyArray[JointDiffusionAdmittedModule]
+pub fn JointDiffusionArtifactAdmission::require_execution_authority(Self) -> Unit raise JointDiffusionArtifactAdmissionError
+pub fn JointDiffusionArtifactAdmission::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionArtifactAdmission::schema_version(Self) -> Int
+pub fn JointDiffusionArtifactAdmission::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionArtifactAdmission::status(Self) -> JointDiffusionArtifactAdmissionStatus
+pub fn JointDiffusionArtifactAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn JointDiffusionArtifactAdmission::total_module_bytes(Self) -> Int64
+
+pub struct JointDiffusionArtifactAdmissionDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionArtifactAdmissionDigest::as_hex(Self) -> String
+
+pub struct JointDiffusionArtifactAdmissionLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionArtifactAdmissionLimits::new(maximum_requirements~ : Int, maximum_modules~ : Int, maximum_entry_points~ : Int, maximum_module_bytes~ : Int64, maximum_total_module_bytes~ : Int64, maximum_symbol_bytes~ : Int, maximum_operands_per_launch~ : Int) -> Self raise JointDiffusionArtifactAdmissionError
+
+pub(all) enum JointDiffusionArtifactAdmissionStatus {
+  InertUnqualified
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionLaunchEvidenceInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionLaunchEvidenceInput::new(requirements_digest~ : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest, requirement_ordinal~ : Int, operation~ : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation, capability~ : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability, target~ : @catalog.DeviceTarget, entry_point~ : @catalog.AotKernelEntryPoint, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[JointDiffusionLaunchOperand]) -> Self raise JointDiffusionArtifactAdmissionError
+
+pub struct JointDiffusionLaunchOperand {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionLaunchOperand::alignment(Self) -> Int64
+pub fn JointDiffusionLaunchOperand::byte_count(Self) -> Int64
+pub fn JointDiffusionLaunchOperand::new(role~ : JointDiffusionLaunchOperandRole, byte_count~ : Int64, alignment~ : Int64) -> Self raise JointDiffusionArtifactAdmissionError
+pub fn JointDiffusionLaunchOperand::role(Self) -> JointDiffusionLaunchOperandRole
+
+pub(all) enum JointDiffusionLaunchOperandRole {
+  TokenIdsInput
+  TextConditioningOutput
+  KeyframeMediaInput
+  OrderedReferenceMediaInput
+  OrderedConditioningOutput
+  VideoLatentInput
+  AudioLatentInput
+  VideoPredictionInput
+  AudioPredictionInput
+  FlowCoefficientsInput
+  JointHiddenInput
+  JointHiddenOutput
+  ModelWeights
+  VideoLatentOutput
+  AudioLatentOutput
+  VideoMediaOutput
+  AudioMediaOutput
+  Workspace
+  ProjectionWeight
+  ProjectionBias
+  VideoHiddenInput
+  AudioHiddenInput
+  VideoPredictionOutput
+  AudioPredictionOutput
+  VideoFinalNormInput
+  AudioFinalNormInput
+  FinalNormWeight
+  VideoFinalNormOutput
+  AudioFinalNormOutput
+  FinalAdaLnShiftInput
+  FinalAdaLnScaleInput
+  VideoF32HeadInput
+  AudioF32HeadInput
+  FinalAdaLnConditioningInput
+  FinalAdaLnWeight
+  FinalAdaLnBias
+  FinalAdaLnShiftOutput
+  FinalAdaLnScaleOutput
+  PackedAdaLnShiftInput
+  PackedAdaLnScaleInput
+  VideoPackedRowIndices
+  AudioPackedRowIndices
+  VideoAdaLnShiftOutput
+  VideoAdaLnScaleOutput
+  AudioAdaLnShiftOutput
+  AudioAdaLnScaleOutput
+  DistinctTimestepValuesInput
+  TimestepFrequencyRowsOutput
+  TimestepMlpWeight1
+  TimestepMlpBias1
+  TimestepMlpWeight2
+  TimestepMlpBias2
+  TimestepEmbeddingRowsOutput
+  TransformerMlpPackedGateUpWeight
+  TransformerMlpDownWeight
+  AttentionQueryWeight
+  AttentionKeyWeight
+  AttentionValueWeight
+  AttentionOutputWeight
+  AttentionQueryNormWeight
+  AttentionKeyNormWeight
+  AttentionRotaryCosInput
+  AttentionRotarySinInput
+  AttentionQueryBuffer
+  AttentionKeyBuffer
+  AttentionValueBuffer
+  AttentionNormalizedQueryBuffer
+  AttentionNormalizedKeyBuffer
+  AttentionOutputBuffer
+  VideoNormalizedLatentInput
+  VideoLatentStandardDeviationInput
+  VideoLatentMeanInput
+  VideoDestandardizedLatentOutput
+  AudioNormalizedLatentInput
+  AudioLatentStandardDeviationInput
+  AudioLatentMeanInput
+  AudioDestandardizedLatentOutput
+  AudioDecoderInputProjectionWeight
+  AudioDecoderInputProjectionBias
+  AudioDecoderInputProjectionOutput
+  AudioDecoderConvPreWeightG
+  AudioDecoderConvPreWeightV
+  AudioDecoderConvPreBias
+  AudioDecoderConvPreNormalizedWeightWorkspace
+  AudioDecoderConvPreOutput
+  AudioDecoderFirstUpsampleWeightG
+  AudioDecoderFirstUpsampleWeightV
+  AudioDecoderFirstUpsampleBias
+  AudioDecoderFirstUpsampleNormalizedWeightWorkspace
+  AudioDecoderFirstUpsampleOutput
+  AudioDecoderFirstAmpAlpha
+  AudioDecoderFirstAmpBeta
+  AudioDecoderFirstAmpUpsampleFilter
+  AudioDecoderFirstAmpDownsampleFilter
+  AudioDecoderFirstAmpUpsampleWorkspace
+  AudioDecoderFirstAmpActivatedWorkspace
+  AudioDecoderFirstAmpActivationOutput
+  AudioDecoderFirstAmpStageOutput
+  AudioDecoderUpsampleTransitionWeightG
+  AudioDecoderUpsampleTransitionWeightV
+  AudioDecoderUpsampleTransitionBias
+  AudioDecoderUpsampleTransitionNormalizedWeightWorkspace
+  AudioDecoderUpsampleTransitionOutput
+  AudioDecoderAmpAlpha
+  AudioDecoderAmpBeta
+  AudioDecoderAmpUpsampleFilter
+  AudioDecoderAmpDownsampleFilter
+  AudioDecoderAmpUpsampleWorkspace
+  AudioDecoderAmpActivatedWorkspace
+  AudioDecoderAmpActivationOutput
+  AudioDecoderAmpStageOutput
+  AudioDecoderUpsampleTransition2WeightG
+  AudioDecoderUpsampleTransition2WeightV
+  AudioDecoderUpsampleTransition2Bias
+  AudioDecoderUpsampleTransition2NormalizedWeightWorkspace
+  AudioDecoderUpsampleTransition2Output
+  AudioDecoderAmpActivation2Output
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionModuleInput {
+  // private fields
+}
+pub fn JointDiffusionModuleInput::new(digest~ : @catalog.AotArtifactDigest, module_bytes~ : Bytes) -> Self
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,16 @@
+import {
+  "vectie/lunaflux/kernels/advanced_decoder_cuda_aot",
+  "vectie/lunaflux/kernels/aot_candidate_coverage",
+  "vectie/lunaflux/kernels/advanced_decoder_candidate_evidence",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/deepseek_v4_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/deepseek_v4_weights",
+  "vectie/lunaflux/model/advanced_decoder_reference",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

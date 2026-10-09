@@ -40,6 +40,7 @@ fn LunaOnlineOpenAIConnectionSlot::activate(
 ///|
 async fn LunaOnlineOpenAIConnectionPool::accept_one(
   self : LunaOnlineOpenAIConnectionPool,
+  poll_timeout_millis : Int,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   if self.listeners.length() != 1 ||
     self.active_connections >= self.slots.length() {
@@ -49,10 +50,9 @@ async fn LunaOnlineOpenAIConnectionPool::accept_one(
   if slot_index < 0 {
     return LunaOnlineOpenAIConnectionPoolBackpressured
   }
-  let accepted = @async.with_timeout_opt(
-    self.pool_limits.io_poll_timeout_millis,
-    () => self.listeners[0].accept(),
-  ) catch {
+  let accepted = @async.with_timeout_opt(poll_timeout_millis, () => {
+    self.listeners[0].accept()
+  }) catch {
     error if @async.is_being_cancelled() => raise error
     _ => {
       self.begin_drain()

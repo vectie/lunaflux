@@ -1,0 +1,9 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/segmented_host_borrow",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

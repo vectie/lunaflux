@@ -1,0 +1,122 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/segmented_device_materialize"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/segmented_host_borrow",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn materialize(@device.Context, SegmentedDeviceLayout, source_arenas~ : ArrayView[FixedArray[Byte]], expected_identity~ : @spec.ModelIdentity, expected_source_digest~ : SegmentedHostSourceDigest, expected_layout_digest~ : SegmentedDeviceLayoutDigest) -> SegmentedDevicePreparation raise SegmentedDeviceMaterializationError
+
+pub fn materialize_from_borrowed_source(@device.Context, SegmentedDeviceLayout, expected_identity~ : @spec.ModelIdentity, expected_source_digest~ : SegmentedHostSourceDigest, expected_layout_digest~ : SegmentedDeviceLayoutDigest, provide~ : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError) -> SegmentedDevicePreparation raise SegmentedDeviceMaterializationError
+
+pub fn plan_layout(source_identity~ : @spec.ModelIdentity, source_digest~ : SegmentedHostSourceDigest, source_arena_lengths~ : ArrayView[Int], regions~ : ArrayView[SegmentedDeviceTensorRegionInput], limits~ : SegmentedDeviceMaterializationLimits) -> SegmentedDeviceLayout raise SegmentedDeviceMaterializationError
+
+pub fn validate_borrowed_source(SegmentedDeviceLayout, provide~ : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError) -> Unit raise SegmentedDeviceMaterializationError
+
+// Errors
+pub(all) suberror SegmentedDeviceMaterializationError {
+  InvalidDigest
+  InvalidLimit
+  EmptySourceArenas
+  TooManySourceArenas
+  EmptyRegions
+  TooManyRegions
+  InvalidSourceArena(Int)
+  SourceByteBudgetExceeded
+  InvalidTensorOrdinal(Int)
+  InvalidSourceRegion(Int)
+  OverlappingSourceRegions(Int, Int)
+  DeviceLayoutOverflow(Int)
+  DeviceArenaTooLarge
+  IdentityMismatch
+  SourceDigestMismatch
+  LayoutDigestMismatch
+  SourceArenaShapeMismatch(Int)
+  HostArenaBorrowClosed(Int)
+  HostArenaAlreadyProvided(Int)
+  HostArenaLengthMismatch(Int)
+  HostArenaNotProvided(Int)
+  HostArenaConsumerRejected(Int)
+  HostSourceUnavailable(Int)
+  DeviceFailed(@device.DeviceError)
+  CleanupFailed(stage~ : SegmentedDeviceFailureStage, @device.DeviceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct FailedSegmentedDevicePreparation {
+  // private fields
+}
+pub fn FailedSegmentedDevicePreparation::cause(Self) -> SegmentedDeviceMaterializationError
+pub fn FailedSegmentedDevicePreparation::cleanup_failure(Self) -> @device.DeviceError
+pub fn FailedSegmentedDevicePreparation::is_closed(Self) -> Bool
+pub fn FailedSegmentedDevicePreparation::retry_close(Self) -> Unit raise SegmentedDeviceMaterializationError
+pub fn FailedSegmentedDevicePreparation::stage(Self) -> SegmentedDeviceFailureStage
+
+pub(all) enum SegmentedDeviceFailureStage {
+  AllocationRegionValidation
+  Transfer
+} derive(Eq, @debug.Debug)
+
+pub struct SegmentedDeviceLayout {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SegmentedDeviceLayout::alignment_bytes(Self) -> Int64
+pub fn SegmentedDeviceLayout::device_arena_bytes(Self) -> Int64
+pub fn SegmentedDeviceLayout::digest(Self) -> SegmentedDeviceLayoutDigest
+pub fn SegmentedDeviceLayout::materialized_bytes(Self) -> Int64
+pub fn SegmentedDeviceLayout::region(Self, Int) -> SegmentedDeviceTensorRegion?
+pub fn SegmentedDeviceLayout::region_count(Self) -> Int
+pub fn SegmentedDeviceLayout::source_arena_count(Self) -> Int
+pub fn SegmentedDeviceLayout::source_arena_length(Self, Int) -> Int?
+pub fn SegmentedDeviceLayout::source_digest(Self) -> SegmentedHostSourceDigest
+pub fn SegmentedDeviceLayout::source_identity(Self) -> @spec.ModelIdentity
+
+pub struct SegmentedDeviceLayoutDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn SegmentedDeviceLayoutDigest::as_hex(Self) -> String
+
+pub struct SegmentedDeviceMaterializationLimits {
+  // private fields
+}
+pub fn SegmentedDeviceMaterializationLimits::new(alignment_bytes~ : Int64, maximum_source_arenas~ : Int, maximum_regions~ : Int, maximum_host_arena_bytes~ : Int, maximum_total_source_bytes~ : Int64, maximum_device_arena_bytes~ : Int64) -> Self raise SegmentedDeviceMaterializationError
+
+pub(all) enum SegmentedDevicePreparation {
+  SegmentedDeviceWeightsReady(SegmentedDeviceWeights)
+  SegmentedDeviceCleanupRequired(FailedSegmentedDevicePreparation)
+}
+
+pub struct SegmentedDeviceTensorRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SegmentedDeviceTensorRegion::byte_count(Self) -> Int64
+pub fn SegmentedDeviceTensorRegion::device_offset(Self) -> Int64
+pub fn SegmentedDeviceTensorRegion::source_arena_ordinal(Self) -> Int
+pub fn SegmentedDeviceTensorRegion::source_offset(Self) -> Int
+pub fn SegmentedDeviceTensorRegion::tensor_ordinal(Self) -> Int
+
+pub struct SegmentedDeviceTensorRegionInput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SegmentedDeviceTensorRegionInput::new(tensor_ordinal~ : Int, source_arena_ordinal~ : Int, source_offset~ : Int, byte_count~ : Int) -> Self raise SegmentedDeviceMaterializationError
+
+pub struct SegmentedDeviceWeights {
+  // private fields
+}
+pub fn SegmentedDeviceWeights::allocation(Self) -> @device.Allocation
+pub fn SegmentedDeviceWeights::close(Self) -> Unit raise SegmentedDeviceMaterializationError
+pub fn SegmentedDeviceWeights::layout(Self) -> SegmentedDeviceLayout
+
+pub struct SegmentedHostSourceDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn SegmentedHostSourceDigest::as_hex(Self) -> String
+pub fn SegmentedHostSourceDigest::from_sha256(String) -> Self raise SegmentedDeviceMaterializationError
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,60 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/joint_audio_amp_parameter_layout"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror JointAudioAmpParameterLayoutError {
+  InvalidRegionCount
+  InvalidRegion(Int)
+  InvalidRegionOrder(Int)
+  InvalidRegionOffset(Int)
+  DuplicateRegion(Int)
+  SizeOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct JointAudioAmpParameterLayout {
+  // private fields
+}
+pub fn JointAudioAmpParameterLayout::digest(Self) -> JointAudioAmpParameterLayoutDigest
+pub fn JointAudioAmpParameterLayout::new(ArrayView[JointAudioAmpParameterRegionInput]) -> Self raise JointAudioAmpParameterLayoutError
+pub fn JointAudioAmpParameterLayout::regions(Self) -> ReadOnlyArray[JointAudioAmpParameterRegion]
+pub fn JointAudioAmpParameterLayout::total_arena_bytes(Self) -> Int64
+
+pub struct JointAudioAmpParameterLayoutDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointAudioAmpParameterLayoutDigest::as_hex(Self) -> String
+
+pub struct JointAudioAmpParameterRegion {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointAudioAmpParameterRegion::byte_count(Self) -> Int64
+pub fn JointAudioAmpParameterRegion::byte_offset(Self) -> Int64
+pub fn JointAudioAmpParameterRegion::element_count(Self) -> Int64
+pub fn JointAudioAmpParameterRegion::role(Self) -> JointAudioAmpParameterRole
+pub fn JointAudioAmpParameterRegion::tensor_name(Self) -> String
+
+pub struct JointAudioAmpParameterRegionInput {
+  // private fields
+}
+pub fn JointAudioAmpParameterRegionInput::new(role~ : JointAudioAmpParameterRole, tensor_name~ : String, element_count~ : Int64, byte_offset~ : Int64) -> Self raise JointAudioAmpParameterLayoutError
+
+pub(all) enum JointAudioAmpParameterRole {
+  ActivationAlpha(Int, Int)
+  ActivationBeta(Int, Int)
+  ActivationDownsampleFilter(Int, Int)
+  ActivationUpsampleFilter(Int, Int)
+  ConvolutionBias(Int, Int, Int)
+  ConvolutionWeightG(Int, Int, Int)
+  ConvolutionWeightV(Int, Int, Int)
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

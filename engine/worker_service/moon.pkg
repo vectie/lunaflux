@@ -1,4 +1,9 @@
 import {
+  "vectie/lunaflux/engine/remote_group",
+  "vectie/lunaflux/engine/remote_startup",
+  "vectie/lunaflux/engine/remote_release",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap" @remote_bootstrap,
+  "vectie/lunaflux/engine/rank_group_wire" @remote_wire,
   "vectie/lunaflux/deploy/worker_executable_file",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_process",

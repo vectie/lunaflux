@@ -1,0 +1,6 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/compiler/media_encode_plan" @plan,
+}
+
+supported_targets = "native"

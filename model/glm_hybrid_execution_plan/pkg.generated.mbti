@@ -1,0 +1,141 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm_hybrid_execution_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror GlmHybridExecutionPlanError {
+  InvalidSchemaVersion
+  InvalidProfileIdentity
+  InvalidModelGeometry
+  InvalidSparseAttentionGeometry
+  InvalidKdaGeometry
+  InvalidLayerOrder
+  LayerCountMismatch
+  InvalidSparseIndexSchedule
+  MissingKdaContract
+  UnusedKdaContract
+  MissingDenseLayer
+  MissingRoutedMoeLayer
+  InvalidVisionConditioning
+  InvalidAuxiliaryPrediction
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct GlmDynamicSparseAttentionPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmDynamicSparseAttentionPlan::index_head_count(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::index_head_dimension(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::index_pooling(Self) -> GlmSparseIndexPoolingPlan?
+pub fn GlmDynamicSparseAttentionPlan::index_share_for_mtp_iteration(Self) -> Bool
+pub fn GlmDynamicSparseAttentionPlan::index_topk(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::indexer_rope_interleave(Self) -> Bool
+pub fn GlmDynamicSparseAttentionPlan::kv_head_count(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::kv_lora_rank(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::new(query_head_count~ : Int, kv_head_count~ : Int, query_lora_rank~ : Int, kv_lora_rank~ : Int, qk_nope_head_dimension~ : Int, qk_rope_head_dimension~ : Int, value_head_dimension~ : Int, rms_norm_epsilon~ : Double, rope_theta~ : Double?, rope_interleave~ : Bool, index_head_count~ : Int, index_head_dimension~ : Int, index_topk~ : Int, indexer_rope_interleave~ : Bool, index_share_for_mtp_iteration~ : Bool, index_pooling~ : GlmSparseIndexPoolingPlan?) -> Self raise GlmHybridExecutionPlanError
+pub fn GlmDynamicSparseAttentionPlan::qk_nope_head_dimension(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::qk_rope_head_dimension(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::query_head_count(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::query_lora_rank(Self) -> Int
+pub fn GlmDynamicSparseAttentionPlan::rms_norm_epsilon(Self) -> Double
+pub fn GlmDynamicSparseAttentionPlan::rope_interleave(Self) -> Bool
+pub fn GlmDynamicSparseAttentionPlan::rope_theta(Self) -> Double?
+pub fn GlmDynamicSparseAttentionPlan::value_head_dimension(Self) -> Int
+
+pub struct GlmHybridExecutionPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridExecutionPlan::architecture(Self) -> String
+pub fn GlmHybridExecutionPlan::auxiliary_prediction(Self) -> @advanced_decoder_execution_plan.AuxiliaryPredictionPlan
+pub fn GlmHybridExecutionPlan::context_length(Self) -> Int
+pub fn GlmHybridExecutionPlan::decoder_layer_count(Self) -> Int
+pub fn GlmHybridExecutionPlan::dense_intermediate_size(Self) -> Int
+pub fn GlmHybridExecutionPlan::hidden_size(Self) -> Int
+pub fn GlmHybridExecutionPlan::hyper_connection(Self) -> @advanced_decoder_execution_plan.HyperConnectionPlan?
+pub fn GlmHybridExecutionPlan::identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridExecutionPlan::kda(Self) -> GlmKdaExecutionPlan?
+pub fn GlmHybridExecutionPlan::layers(Self) -> ReadOnlyArray[GlmHybridLayerPlan]
+pub fn GlmHybridExecutionPlan::model_type(Self) -> String
+pub fn GlmHybridExecutionPlan::moe(Self) -> @advanced_decoder_execution_plan.MoeExecutionPlan
+pub fn GlmHybridExecutionPlan::moe_correction_bias(Self) -> Bool
+pub fn GlmHybridExecutionPlan::moe_router_float32(Self) -> Bool
+pub fn GlmHybridExecutionPlan::new(content_digest~ : @spec.ContentDigest, schema_version~ : Int, profile_identity~ : String, architecture~ : String, model_type~ : String, vocabulary_size~ : Int, hidden_size~ : Int, dense_intermediate_size~ : Int, decoder_layer_count~ : Int, context_length~ : Int, sparse_attention~ : GlmDynamicSparseAttentionPlan, kda~ : GlmKdaExecutionPlan?, hyper_connection~ : @advanced_decoder_execution_plan.HyperConnectionPlan?, moe~ : @advanced_decoder_execution_plan.MoeExecutionPlan, moe_router_float32~ : Bool, moe_correction_bias~ : Bool, layers~ : ArrayView[GlmHybridLayerPlan], auxiliary_prediction~ : @advanced_decoder_execution_plan.AuxiliaryPredictionPlan, vision_conditioning~ : GlmVisionConditioningPlan?) -> Self raise GlmHybridExecutionPlanError
+pub fn GlmHybridExecutionPlan::profile_identity(Self) -> String
+pub fn GlmHybridExecutionPlan::schema_version(Self) -> Int
+pub fn GlmHybridExecutionPlan::sparse_attention(Self) -> GlmDynamicSparseAttentionPlan
+pub fn GlmHybridExecutionPlan::vision_conditioning(Self) -> GlmVisionConditioningPlan?
+pub fn GlmHybridExecutionPlan::vocabulary_size(Self) -> Int
+
+pub struct GlmHybridLayerPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridLayerPlan::attention(Self) -> GlmLayerAttentionPlan
+pub fn GlmHybridLayerPlan::feed_forward(Self) -> GlmLayerFeedForwardPlan
+pub fn GlmHybridLayerPlan::layer_index(Self) -> Int
+pub fn GlmHybridLayerPlan::new(layer_index~ : Int, attention~ : GlmLayerAttentionPlan, feed_forward~ : GlmLayerFeedForwardPlan) -> Self raise GlmHybridExecutionPlanError
+
+pub struct GlmKdaExecutionPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmKdaExecutionPlan::convolution_history_tokens(Self) -> Int
+pub fn GlmKdaExecutionPlan::gate_lower_bound(Self) -> Double
+pub fn GlmKdaExecutionPlan::head_count(Self) -> Int
+pub fn GlmKdaExecutionPlan::head_dimension(Self) -> Int
+pub fn GlmKdaExecutionPlan::new(head_count~ : Int, head_dimension~ : Int, short_convolution_kernel_size~ : Int, gate_lower_bound~ : Double) -> Self raise GlmHybridExecutionPlanError
+pub fn GlmKdaExecutionPlan::projected_width(Self) -> Int
+pub fn GlmKdaExecutionPlan::recurrent_matrix_elements_per_sequence(Self) -> Int64
+pub fn GlmKdaExecutionPlan::short_convolution_kernel_size(Self) -> Int
+
+pub(all) enum GlmLayerAttentionPlan {
+  DynamicSparse(GlmSparseIndexAction)
+  KimiDelta
+} derive(Eq, @debug.Debug)
+
+pub(all) enum GlmLayerFeedForwardPlan {
+  DenseSwiGlu
+  RoutedMoe
+} derive(Eq, @debug.Debug)
+
+pub(all) enum GlmSparseIndexAction {
+  ComputeTopK
+  ReusePreviousTopK
+} derive(Eq, @debug.Debug)
+
+pub struct GlmSparseIndexPoolingPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmSparseIndexPoolingPlan::always_select_tail(Self) -> Bool
+pub fn GlmSparseIndexPoolingPlan::compress(Self) -> Bool
+pub fn GlmSparseIndexPoolingPlan::kernel_size(Self) -> Int
+pub fn GlmSparseIndexPoolingPlan::new(kernel_size~ : Int, compress~ : Bool, always_select_tail~ : Bool) -> Self raise GlmHybridExecutionPlanError
+
+pub struct GlmVisionConditioningPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmVisionConditioningPlan::attention_head_count(Self) -> Int
+pub fn GlmVisionConditioningPlan::decoder_projection_size(Self) -> Int
+pub fn GlmVisionConditioningPlan::hidden_size(Self) -> Int
+pub fn GlmVisionConditioningPlan::image_end_token_id(Self) -> Int
+pub fn GlmVisionConditioningPlan::image_start_token_id(Self) -> Int
+pub fn GlmVisionConditioningPlan::image_token_id(Self) -> Int
+pub fn GlmVisionConditioningPlan::intermediate_size(Self) -> Int
+pub fn GlmVisionConditioningPlan::layer_count(Self) -> Int
+pub fn GlmVisionConditioningPlan::new(layer_count~ : Int, hidden_size~ : Int, intermediate_size~ : Int, attention_head_count~ : Int, spatial_patch_size~ : Int, temporal_patch_size~ : Int, spatial_merge_size~ : Int, decoder_projection_size~ : Int, projection_intermediate_size~ : Int, vocabulary_size~ : Int, image_token_id~ : Int, video_token_id~ : Int, image_start_token_id~ : Int, image_end_token_id~ : Int, video_start_token_id~ : Int, video_end_token_id~ : Int) -> Self raise GlmHybridExecutionPlanError
+pub fn GlmVisionConditioningPlan::projection_intermediate_size(Self) -> Int
+pub fn GlmVisionConditioningPlan::spatial_merge_size(Self) -> Int
+pub fn GlmVisionConditioningPlan::spatial_patch_size(Self) -> Int
+pub fn GlmVisionConditioningPlan::temporal_patch_size(Self) -> Int
+pub fn GlmVisionConditioningPlan::video_end_token_id(Self) -> Int
+pub fn GlmVisionConditioningPlan::video_start_token_id(Self) -> Int
+pub fn GlmVisionConditioningPlan::video_token_id(Self) -> Int
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/internal/canonical_sha256",
+  "vectie/lunaflux/model/deepseek_v4_numeric_plan",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

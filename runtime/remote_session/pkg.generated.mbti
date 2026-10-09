@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/remote_session"
+
+import {
+  "vectie/lunaflux/runtime/remote_mailbox",
+  "vectie/lunaflux/runtime/remote_tls",
+}
+
+// Values
+pub async fn[T] with_session(@remote_tls.AuthenticatedRemoteChannel, @remote_mailbox.RemoteMailbox, RemoteSessionRole, generation~ : UInt64, lease_millis~ : UInt64, heartbeat~ : (UInt64) -> Unit raise, async () -> T) -> T
+
+// Errors
+pub(all) suberror RemoteSessionError {
+  Configuration
+  Protocol
+  LeaseExpired
+}
+
+// Types and methods
+pub(all) enum RemoteSessionRole {
+  Coordinator
+  Worker
+}
+
+// Type aliases
+
+// Traits

@@ -44,6 +44,7 @@ for validator in \
   scripts/validate-i8-inert-capability-admission-boundaries.sh \
   scripts/validate-mistral-family-boundary.sh \
   scripts/validate-mistral-weight-boundary.sh \
+  scripts/validate-advanced-model-family-boundary.sh \
   scripts/validate-numeric-schema-scaling.sh \
   scripts/validate-catalog-numeric-v4-boundary.sh \
   scripts/validate-dense-llama-i8-builder.sh \

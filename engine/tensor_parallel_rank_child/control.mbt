@@ -332,6 +332,11 @@ fn TensorParallelRankChildReady::accept_inbound(
 pub fn TensorParallelRankChildReady::progress_control(
   self : TensorParallelRankChildReady,
 ) -> TensorParallelRankChildControlProgress raise TensorParallelRankChildError {
+  if !self.close_response {
+    self.worker.poll_remote_lease() catch {
+      error => raise Worker(error)
+    }
+  }
   if self.send_active {
     let sent = self.control_owner.progress_send() catch {
       error => raise Control(error)

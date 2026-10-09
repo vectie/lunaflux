@@ -1,0 +1,96 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_text_encoder"
+
+// Values
+pub fn embedding_region() -> WeightRegion
+
+pub fn encode_i32(ArrayView[Int]) -> Bytes
+
+pub fn layer_weights(Int) -> LayerWeights raise TextEncoderError
+
+pub fn parse_config(Bytes, max_bytes~ : Int) -> EncoderConfig raise EncoderConfigError
+
+pub fn text_positions(Int) -> ReadOnlyArray[(Int, Int, Int)] raise EncoderConfigError
+
+// Errors
+pub(all) suberror EncoderConfigError {
+  InvalidDocument
+  InvalidArchitecture
+  UnsupportedRotary
+  InvalidRequest
+  ByteBudgetExceeded
+} derive(Eq)
+
+pub(all) suberror TextEncoderError {
+  InvalidRows
+  InvalidEpsilon
+  InvalidLayer
+  InvalidToken
+  VisualTokensRequireEncoder
+} derive(Eq)
+
+// Types and methods
+pub struct EncoderConfig {
+  epsilon : Double
+  theta : Double
+  max_positions : Int
+  image_token : Int
+  video_token : Int
+  vision_start_token : Int
+  vision_end_token : Int
+  mrope_height : Int
+  mrope_width : Int
+}
+pub fn EncoderConfig::placement_from_grids(Self, ArrayView[Int], ArrayView[VisualGrid]) -> VisualPlacement raise EncoderConfigError
+pub fn EncoderConfig::plan(Self, ArrayView[Int]) -> TextEncoderPlan raise
+pub fn EncoderConfig::rotary_tables(Self, ArrayView[(Int, Int, Int)], max_bytes~ : Int64) -> EncoderTables raise EncoderConfigError
+pub fn EncoderConfig::visual_placement(Self, ArrayView[Int], ArrayView[Int], ArrayView[(Int, Int, Int)]) -> VisualPlacement raise EncoderConfigError
+
+pub struct EncoderTables {
+  cosine : Bytes
+  sine : Bytes
+}
+
+pub struct LayerWeights {
+  layer : Int
+  regions : ReadOnlyArray[WeightRegion]
+  byte_count : Int64
+}
+
+pub struct TextEncoderPlan {
+  rows : Int
+  epsilon : Double
+}
+pub fn TextEncoderPlan::new(rows~ : Int, epsilon~ : Double) -> Self raise TextEncoderError
+pub fn TextEncoderPlan::output_bytes(Self) -> Int64
+pub fn TextEncoderPlan::selected_hidden_state(Self) -> Int
+pub fn TextEncoderPlan::validate_text_tokens(Self, ArrayView[Int], image_token~ : Int, video_token~ : Int) -> Unit raise TextEncoderError
+pub fn TextEncoderPlan::workspace_regions(Self) -> ReadOnlyArray[(Int64, Int64)]
+
+pub struct VisualGrid {
+  kind : VisualKind
+  time : Int
+  height : Int
+  width : Int
+}
+pub fn VisualGrid::new(kind~ : VisualKind, time~ : Int, height~ : Int, width~ : Int) -> Self raise EncoderConfigError
+
+pub(all) enum VisualKind {
+  Image
+  Video
+} derive(Eq)
+
+pub struct VisualPlacement {
+  token_positions : ReadOnlyArray[Int]
+  rotary_positions : ReadOnlyArray[(Int, Int, Int)]
+}
+
+pub struct WeightRegion {
+  name : String
+  offset : Int64
+  bytes : Int64
+}
+
+// Type aliases
+
+// Traits

@@ -3,14 +3,17 @@ package "vectie/lunaflux/engine/tensor_parallel_device_worker"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/parallel_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/device_topology",
   "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/remote_startup",
   "vectie/lunaflux/engine/tensor_parallel_device_plan",
   "vectie/lunaflux/engine/tensor_parallel_execution_plan",
   "vectie/lunaflux/engine/tensor_parallel_kv_plan",
   "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
+  "vectie/lunaflux/engine/two_node_plan",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/artifact",
@@ -24,9 +27,11 @@ import {
 }
 
 // Values
+pub fn admit_network_plan(@plan.ModelPlan, @two_node_plan.TwoNodePlan, @remote_startup.RemoteRankStartup, @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope, @device_materialize.DeviceShardedWeightFileInspection, @tensor_parallel_device_plan.TensorParallelDevicePlan, @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet, @artifact.KernelArtifactBundle, @launch_contract.PagedKernelProfile, @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits, @tensor_parallel_kv_plan.TensorParallelKvPlan, @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrapDigest, collective_runtime_version_code~ : Int) -> TensorParallelDeviceWorkerPlan raise TensorParallelDeviceWorkerError
+
 pub fn admit_plan(@plan.ModelPlan, @worker_protocol.ModelPlanGeneration, @rank_group_protocol.RankGroupGeneration, @device_topology.AdmittedLocalTopology, @worker_wire.WorkerStartupContract, @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope, @device_materialize.DeviceShardedWeightFileInspection, @tensor_parallel_device_plan.TensorParallelDevicePlan, @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet, @artifact.KernelArtifactBundle, @launch_contract.PagedKernelProfile, @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits, @tensor_parallel_kv_plan.TensorParallelKvPlan, @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrapDigest, @device.TensorCollectiveGroupId, collective_runtime_version_code~ : Int) -> TensorParallelDeviceWorkerPlan raise TensorParallelDeviceWorkerError
 
-pub fn prepare(@approved_fs.ApprovedRoot, @device.TensorCollectiveRuntime, TensorParallelDeviceWorkerPlan) -> TensorParallelDeviceWorkerPreparation raise TensorParallelDeviceWorkerError
+pub fn prepare(@approved_fs.ApprovedRoot, @device.TensorCollectiveRuntime, TensorParallelDeviceWorkerPlan, parallel_policy? : @parallel_ir.Policy) -> TensorParallelDeviceWorkerPreparation raise TensorParallelDeviceWorkerError
 
 // Errors
 pub(all) suberror TensorParallelDeviceWorkerError {
@@ -90,10 +95,15 @@ pub fn TensorParallelDeviceWorkerOwner::finish_follower(Self, ExecutedTensorPara
 pub fn TensorParallelDeviceWorkerOwner::finish_leader_frame(Self, ExecutedTensorParallelDeviceExecution, @worker_wire.ValidatedPlanFrame) -> @worker_wire.ValidatedCompletionFrame raise TensorParallelDeviceWorkerError
 pub fn TensorParallelDeviceWorkerOwner::graph_runtime_telemetry(Self, UInt64) -> @worker_wire.WorkerGraphTelemetry raise TensorParallelDeviceWorkerError
 pub fn TensorParallelDeviceWorkerOwner::lifecycle(Self) -> TensorParallelDeviceWorkerLifecycle
+pub fn TensorParallelDeviceWorkerOwner::parallel_policy(Self) -> @parallel_ir.Policy
+pub fn TensorParallelDeviceWorkerOwner::poll_remote_lease(Self) -> Unit raise TensorParallelDeviceWorkerError
 pub fn TensorParallelDeviceWorkerOwner::poll_startup(Self) -> Bool raise TensorParallelDeviceWorkerError
 pub fn TensorParallelDeviceWorkerOwner::primary_failure(Self) -> TensorParallelDeviceWorkerError?
 pub fn TensorParallelDeviceWorkerOwner::progress_execution(Self, StagedTensorParallelDeviceExecution, @worker_wire.ValidatedPlanFrame) -> TensorParallelDeviceExecutionProgress raise TensorParallelDeviceWorkerError
 pub fn TensorParallelDeviceWorkerOwner::readiness_contract(Self) -> @worker_wire.WorkerStartupContract raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::remote_contract(Self) -> (@remote_startup.RemoteRankStartup, @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope) raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::remote_transport_lost(Self) -> Unit raise TensorParallelDeviceWorkerError
+pub fn TensorParallelDeviceWorkerOwner::renew_remote_lease(Self, generation~ : UInt64, sequence~ : UInt64) -> Unit raise TensorParallelDeviceWorkerError
 pub fn TensorParallelDeviceWorkerOwner::stage_frame(Self, @worker_wire.ValidatedPlanFrame) -> StagedTensorParallelDeviceExecution raise TensorParallelDeviceWorkerError
 
 pub struct TensorParallelDeviceWorkerPlan {
@@ -111,6 +121,7 @@ pub(all) enum TensorParallelDeviceWorkerResource {
   Module
   KernelExecutor
   Stream
+  ParallelEvent
   PersistentKv
   ActivationWorkspace
   RankConstants
@@ -142,6 +153,8 @@ pub(all) enum TensorParallelDeviceWorkerRule {
   CompletionRole
   ResourceState
   SequenceOverflow
+  RemoteLease
+  NetworkConfiguration
 } derive(Eq, @debug.Debug)
 
 pub struct TensorParallelFollowerExecutionAck {

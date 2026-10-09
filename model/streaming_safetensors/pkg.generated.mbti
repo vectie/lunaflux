@@ -1,0 +1,163 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/streaming_safetensors"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn copy_ranges(@approved_fs.ApprovedRoot, StreamingSafetensorsInspection, destination~ : FixedArray[Byte], requests~ : ArrayView[StreamingSafetensorsCopyRequest], limits~ : StreamingSafetensorsLimits, visit~ : (StreamingSafetensorsTensorMetadata, StreamingSafetensorsVisitedRange) -> Unit raise StreamingSafetensorsError) -> Unit raise StreamingSafetensorsError
+
+pub fn copy_segmented_ranges(@approved_fs.ApprovedRoot, StreamingSafetensorsInspection, destination_arenas~ : ArrayView[FixedArray[Byte]], requests~ : ArrayView[StreamingSafetensorsSegmentedCopyRequest], limits~ : StreamingSafetensorsLimits, visit~ : (StreamingSafetensorsTensorMetadata, StreamingSafetensorsSegmentedVisitedRange) -> Unit raise StreamingSafetensorsError) -> Unit raise StreamingSafetensorsError
+
+pub fn inspect_shards(@approved_fs.ApprovedRoot, ArrayView[StreamingSafetensorsShardInput], dtype_specs~ : ArrayView[StreamingSafetensorsDTypeSpec], limits~ : StreamingSafetensorsLimits) -> StreamingSafetensorsInspection raise StreamingSafetensorsError
+
+// Errors
+pub(all) suberror StreamingSafetensorsError {
+  InvalidLimit
+  InvalidDTypeSpec
+  DuplicateDTypeTag(Int, Int)
+  InvalidDigest
+  FileUnavailable(Int)
+  UnsupportedFileType(Int)
+  FileTruncated(Int)
+  FileTooLarge(Int)
+  FileChanged(Int)
+  FileCloseFailed(Int)
+  DigestMismatch(Int)
+  MissingHeaderLength(Int)
+  HeaderLengthOverflow(Int)
+  HeaderTooLarge(Int)
+  TruncatedHeader(Int)
+  InvalidHeaderEnvelope(Int)
+  InvalidHeaderEncoding(Int)
+  InvalidHeaderJson(Int)
+  DuplicateHeaderKey(shard~ : Int, depth~ : Int, index~ : Int)
+  InvalidRoot(Int)
+  InvalidDocumentMetadata(Int)
+  TooManyTensors(Int)
+  InvalidTensor(shard~ : Int, tensor~ : Int)
+  MissingTensorField(shard~ : Int, tensor~ : Int, StreamingSafetensorsJsonField)
+  UnexpectedTensorField(shard~ : Int, tensor~ : Int)
+  InvalidTensorField(shard~ : Int, tensor~ : Int, StreamingSafetensorsJsonField)
+  InvalidInteger(shard~ : Int, tensor~ : Int, StreamingSafetensorsJsonField)
+  InvalidTensorName(shard~ : Int, tensor~ : Int)
+  UnknownDType(shard~ : Int, tensor~ : Int)
+  InvalidRank(shard~ : Int, tensor~ : Int)
+  InvalidDimension(shard~ : Int, tensor~ : Int)
+  TensorSizeOverflow(shard~ : Int, tensor~ : Int)
+  InvalidByteRange(shard~ : Int, tensor~ : Int)
+  RangeOutsidePayload(shard~ : Int, tensor~ : Int)
+  RangeSizeMismatch(shard~ : Int, tensor~ : Int)
+  DuplicateTensorName(first_shard~ : Int, first_tensor~ : Int, second_shard~ : Int, second_tensor~ : Int)
+  OverlappingTensorRanges(shard~ : Int, first~ : Int, second~ : Int)
+  InvalidCopyRequest(Int)
+  CopyRangeOutsideTensor(Int)
+  CopyRangeOutsideDestination(Int)
+  InvalidDestinationArena(Int)
+  OverlappingDestinationRanges(Int, Int)
+  CopyBudgetExceeded
+  InspectionReplayMismatch(Int)
+  VisitorRejected(Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct StreamingSafetensorsCopyRequest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsCopyRequest::new(shard_ordinal~ : Int, tensor_ordinal~ : Int, tensor_byte_offset~ : Int64, destination_offset~ : Int, byte_count~ : Int) -> Self raise StreamingSafetensorsError
+
+pub(all) enum StreamingSafetensorsDTypeKind {
+  BFloat16
+  Float32
+  OpaqueFixedWidth
+} derive(Eq, @debug.Debug)
+
+pub struct StreamingSafetensorsDTypeSpec {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsDTypeSpec::bfloat16() -> Self
+pub fn StreamingSafetensorsDTypeSpec::bytes_per_element(Self) -> Int64
+pub fn StreamingSafetensorsDTypeSpec::float32() -> Self
+pub fn StreamingSafetensorsDTypeSpec::kind(Self) -> StreamingSafetensorsDTypeKind
+pub fn StreamingSafetensorsDTypeSpec::opaque_fixed_width(StringView, bytes_per_element~ : Int64) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsDTypeSpec::opaque_one_byte(StringView) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsDTypeSpec::tag(Self) -> String
+
+pub struct StreamingSafetensorsFileDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn StreamingSafetensorsFileDigest::as_hex(Self) -> String
+pub fn StreamingSafetensorsFileDigest::from_sha256(String) -> Self raise StreamingSafetensorsError
+
+pub struct StreamingSafetensorsInspection {
+  // private fields
+}
+pub fn StreamingSafetensorsInspection::shard(Self, Int) -> StreamingSafetensorsShardMetadata?
+pub fn StreamingSafetensorsInspection::shard_count(Self) -> Int
+pub fn StreamingSafetensorsInspection::total_tensor_count(Self) -> Int
+
+pub(all) enum StreamingSafetensorsJsonField {
+  DType
+  Shape
+  DataOffsets
+} derive(Eq, @debug.Debug)
+
+pub struct StreamingSafetensorsLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsLimits::new(maximum_shards~ : Int, maximum_file_bytes~ : Int64, maximum_header_bytes~ : Int, maximum_tensors_per_shard~ : Int, maximum_total_tensors~ : Int, maximum_rank~ : Int, maximum_name_bytes~ : Int, maximum_dtype_specs~ : Int, authentication_chunk_bytes~ : Int, maximum_copy_requests~ : Int, maximum_copy_bytes~ : Int64) -> Self raise StreamingSafetensorsError
+
+pub struct StreamingSafetensorsSegmentedCopyRequest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsSegmentedCopyRequest::new(shard_ordinal~ : Int, tensor_ordinal~ : Int, tensor_byte_offset~ : Int64, destination_arena_ordinal~ : Int, destination_offset~ : Int, byte_count~ : Int) -> Self raise StreamingSafetensorsError
+
+pub struct StreamingSafetensorsSegmentedVisitedRange {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsSegmentedVisitedRange::byte_count(Self) -> Int
+pub fn StreamingSafetensorsSegmentedVisitedRange::destination_arena_ordinal(Self) -> Int
+pub fn StreamingSafetensorsSegmentedVisitedRange::destination_offset(Self) -> Int
+pub fn StreamingSafetensorsSegmentedVisitedRange::shard_ordinal(Self) -> Int
+pub fn StreamingSafetensorsSegmentedVisitedRange::tensor_byte_offset(Self) -> Int64
+pub fn StreamingSafetensorsSegmentedVisitedRange::tensor_ordinal(Self) -> Int
+
+pub struct StreamingSafetensorsShardInput {
+  // private fields
+}
+pub fn StreamingSafetensorsShardInput::new(locator~ : @approved_fs.ApprovedRelativeLocator, expected_digest~ : StreamingSafetensorsFileDigest) -> Self
+
+pub struct StreamingSafetensorsShardMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsShardMetadata::file_byte_count(Self) -> Int64
+pub fn StreamingSafetensorsShardMetadata::file_digest(Self) -> StreamingSafetensorsFileDigest
+pub fn StreamingSafetensorsShardMetadata::payload_byte_count(Self) -> Int64
+pub fn StreamingSafetensorsShardMetadata::payload_offset(Self) -> Int64
+pub fn StreamingSafetensorsShardMetadata::tensor(Self, Int) -> StreamingSafetensorsTensorMetadata?
+pub fn StreamingSafetensorsShardMetadata::tensor_count(Self) -> Int
+
+pub struct StreamingSafetensorsTensorMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsTensorMetadata::byte_count(Self) -> Int64
+pub fn StreamingSafetensorsTensorMetadata::data_end(Self) -> Int64
+pub fn StreamingSafetensorsTensorMetadata::data_start(Self) -> Int64
+pub fn StreamingSafetensorsTensorMetadata::dtype(Self) -> StreamingSafetensorsDTypeSpec
+pub fn StreamingSafetensorsTensorMetadata::name(Self) -> String
+pub fn StreamingSafetensorsTensorMetadata::shape(Self) -> ReadOnlyArray[Int64]
+
+pub struct StreamingSafetensorsVisitedRange {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsVisitedRange::byte_count(Self) -> Int
+pub fn StreamingSafetensorsVisitedRange::destination_offset(Self) -> Int
+pub fn StreamingSafetensorsVisitedRange::shard_ordinal(Self) -> Int
+pub fn StreamingSafetensorsVisitedRange::tensor_byte_offset(Self) -> Int64
+pub fn StreamingSafetensorsVisitedRange::tensor_ordinal(Self) -> Int
+
+// Type aliases
+
+// Traits

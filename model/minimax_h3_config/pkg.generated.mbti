@@ -1,0 +1,113 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_config"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn parse_audio_vae(StringView, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3AudioVaeConfig raise MiniMaxH3ConfigError
+
+pub fn parse_pipeline_index(StringView, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3PipelineIndex raise MiniMaxH3ConfigError
+
+pub fn parse_scheduler(StringView, document_kind~ : MiniMaxH3ConfigDocument, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3SchedulerConfig raise MiniMaxH3ConfigError
+
+pub fn parse_transformer(StringView, variant~ : @minimax_h3_spec.MiniMaxH3Variant, content_digest~ : @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @minimax_h3_spec.MiniMaxH3ModelMetadata raise MiniMaxH3ConfigError
+
+pub fn parse_video_vae(StringView, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3VideoVaeConfig raise MiniMaxH3ConfigError
+
+// Errors
+pub(all) suberror MiniMaxH3ConfigError {
+  InvalidLimit
+  ByteLimitExceeded
+  InvalidUtf8
+  NestingLimitExceeded
+  DuplicateField
+  MalformedJson
+  NonObjectRoot
+  UnknownField(index~ : Int)
+  MissingField
+  InvalidField
+  UnsupportedExecutableMetadata
+  WrongDocument(MiniMaxH3ConfigDocument)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct MiniMaxH3AudioVaeConfig {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3AudioVaeConfig::architecture_schema_version(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::attention_head_count(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::decoder_dimension(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::decoder_kernel_sizes(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3AudioVaeConfig::decoder_rates(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3AudioVaeConfig::encoder_dimension(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::encoder_rates(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3AudioVaeConfig::latent_channels(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::latent_dimension(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::latent_means(Self) -> ReadOnlyArray[Float]
+pub fn MiniMaxH3AudioVaeConfig::latent_rate(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::latent_standard_deviations(Self) -> ReadOnlyArray[Float]
+pub fn MiniMaxH3AudioVaeConfig::output_channels(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::resblock_dilation_sizes(Self) -> ReadOnlyArray[ReadOnlyArray[Int]]
+pub fn MiniMaxH3AudioVaeConfig::resblock_kernel_sizes(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3AudioVaeConfig::sampling_rate(Self) -> Int
+
+pub(all) enum MiniMaxH3ConfigDocument {
+  PipelineIndex
+  Transformer
+  VideoVae
+  AudioVae
+  VideoScheduler
+  AudioScheduler
+} derive(Eq, @debug.Debug)
+
+pub struct MiniMaxH3PipelineIndex {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3PipelineIndex::audio_shift(Self) -> Double
+pub fn MiniMaxH3PipelineIndex::schema_version(Self) -> Int
+pub fn MiniMaxH3PipelineIndex::variant(Self) -> @minimax_h3_spec.MiniMaxH3Variant
+pub fn MiniMaxH3PipelineIndex::video_shift(Self) -> Double
+
+pub struct MiniMaxH3SchedulerConfig {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3SchedulerConfig::document(Self) -> MiniMaxH3ConfigDocument
+pub fn MiniMaxH3SchedulerConfig::shift(Self) -> Double
+
+pub struct MiniMaxH3VideoVaeConfig {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3VideoVaeConfig::architecture_schema_version(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::block_out_channels(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3VideoVaeConfig::clip_length(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::decoder_attention_head_count(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::decoder_attention_head_dimension(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::decoder_ffn_dimension(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::decoder_ffn_multiplier(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::decoder_hidden_size(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::decoder_layer_count(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::decoder_norm_epsilon(Self) -> Double
+pub fn MiniMaxH3VideoVaeConfig::decoder_register_token_count(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::decoder_rope_dimension_ratio(Self) -> Double
+pub fn MiniMaxH3VideoVaeConfig::decoder_rope_theta(Self) -> Double
+pub fn MiniMaxH3VideoVaeConfig::input_channels(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::latent_channels(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::latent_means(Self) -> ReadOnlyArray[Float]
+pub fn MiniMaxH3VideoVaeConfig::latent_standard_deviations(Self) -> ReadOnlyArray[Float]
+pub fn MiniMaxH3VideoVaeConfig::layers_per_block(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::norm_epsilon(Self) -> Double
+pub fn MiniMaxH3VideoVaeConfig::norm_group_count(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::output_channels(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::spatial_compression(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::spatial_downsample_factors(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3VideoVaeConfig::temporal_compression(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::temporal_downsample_factors(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3VideoVaeConfig::token_drop(Self) -> Int
+
+// Type aliases
+
+// Traits

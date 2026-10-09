@@ -143,6 +143,16 @@ pub fn Event::close(self : Event) -> Unit raise CudaError {
 }
 
 ///|
+pub fn Context::create_dependency_event(
+  self : Context,
+) -> Event raise CudaError {
+  let status = Ref::new(0)
+  let event = raw_dependency_event_create(self, status)
+  check_status(status.val, EventCreate)
+  event
+}
+
+///|
 pub fn Event::record(self : Event, stream : Stream) -> Unit raise CudaError {
   check_status(raw_event_record(self, stream), EventRecord)
 }
@@ -150,6 +160,12 @@ pub fn Event::record(self : Event, stream : Stream) -> Unit raise CudaError {
 ///|
 pub fn Event::synchronize(self : Event) -> Unit raise CudaError {
   check_status(raw_event_synchronize(self), EventSynchronize)
+}
+
+///|
+/// Enqueues a device-side dependency on the event's latest record.
+pub fn Stream::wait_event(self : Stream, event : Event) -> Unit raise CudaError {
+  check_status(raw_stream_wait_event(self, event), StreamWaitEvent)
 }
 
 ///|

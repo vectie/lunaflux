@@ -1,0 +1,147 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/parallel_ir"
+
+// Values
+pub fn compile(rank~ : Int, world_size~ : Int, ArrayView[Arena], ArrayView[Buffer], ArrayView[Step]) -> Program raise ParallelError
+
+// Errors
+pub(all) suberror ParallelError {
+  Capacity
+  Buffer(Int)
+  Step(Int)
+  Dependency(Int)
+  Uninitialized(step~ : Int, buffer~ : Int)
+  CollectiveOrder(Int)
+  Group
+}
+
+// Types and methods
+pub struct Access {
+  // private fields
+}
+pub fn Access::buffer(Self) -> Int
+pub fn Access::mode(Self) -> AccessMode
+pub fn Access::new(buffer~ : Int, mode~ : AccessMode) -> Self raise ParallelError
+
+pub(all) enum AccessMode {
+  Read
+  Write
+  ReadWrite
+} derive(Eq)
+pub fn AccessMode::equal(Self, Self) -> Bool
+pub fn AccessMode::not_equal(Self, Self) -> Bool
+
+pub(all) enum Action {
+  Compute(Int)
+  Communicate(Collective)
+}
+
+pub struct Arena {
+  // private fields
+}
+pub fn Arena::byte_capacity(Self) -> Int64
+pub fn Arena::initially_initialized(Self) -> Bool
+pub fn Arena::new(bytes~ : Int64, initialized~ : Bool) -> Self raise ParallelError
+
+pub struct Buffer {
+  // private fields
+}
+pub fn Buffer::arena(Self) -> Int
+pub fn Buffer::byte_count(Self) -> Int64
+pub fn Buffer::new(arena~ : Int, offset_bytes~ : Int64, byte_count~ : Int64) -> Self raise ParallelError
+pub fn Buffer::offset_bytes(Self) -> Int64
+
+pub struct BufferLifetime {
+  // private fields
+}
+pub fn BufferLifetime::first_use(Self) -> Int?
+pub fn BufferLifetime::last_use(Self) -> Int?
+pub fn BufferLifetime::users(Self) -> ReadOnlyArray[Int]
+
+pub struct Collective {
+  // private fields
+}
+pub fn Collective::element(Self) -> ElementType
+pub fn Collective::kind(Self) -> CollectiveKind
+pub fn Collective::new(sequence~ : Int, kind~ : CollectiveKind, element~ : ElementType, send_bytes~ : Int64, receive_bytes~ : Int64) -> Self raise ParallelError
+pub fn Collective::receive_bytes(Self) -> Int64
+pub fn Collective::send_bytes(Self) -> Int64
+pub fn Collective::sequence(Self) -> Int
+
+pub(all) enum CollectiveKind {
+  SumAllReduce
+  LastAxisAllGather
+} derive(Eq)
+pub fn CollectiveKind::equal(Self, Self) -> Bool
+pub fn CollectiveKind::not_equal(Self, Self) -> Bool
+
+pub(all) enum Command {
+  Execute(step~ : Int)
+  Record(event~ : Int)
+  Wait(event~ : Int)
+} derive(Eq)
+pub fn Command::equal(Self, Self) -> Bool
+pub fn Command::not_equal(Self, Self) -> Bool
+
+pub(all) enum ElementType {
+  BFloat16
+  Float16
+  Float32
+} derive(Eq)
+pub fn ElementType::equal(Self, Self) -> Bool
+pub fn ElementType::not_equal(Self, Self) -> Bool
+
+pub struct Group {
+  // private fields
+}
+pub fn Group::new(ArrayView[Program]) -> Self raise ParallelError
+pub fn Group::ranks(Self) -> ReadOnlyArray[Program]
+
+pub(all) enum Lane {
+  ComputeLane
+  CommunicationLane
+} derive(Eq)
+pub fn Lane::equal(Self, Self) -> Bool
+pub fn Lane::not_equal(Self, Self) -> Bool
+
+pub(all) enum Policy {
+  Ordered
+  ComputeCommunicationOverlap
+} derive(Eq)
+pub fn Policy::equal(Self, Self) -> Bool
+pub fn Policy::not_equal(Self, Self) -> Bool
+
+pub struct Program {
+  // private fields
+}
+pub fn Program::arenas(Self) -> ReadOnlyArray[Arena]
+pub fn Program::buffers(Self) -> ReadOnlyArray[Buffer]
+pub fn Program::can_reuse_before(Self, Int, Int) -> Bool
+pub fn Program::collective_steps(Self) -> ReadOnlyArray[Int]
+pub fn Program::happens_before(Self, Int, Int) -> Bool
+pub fn Program::lifetime(Self, Int) -> BufferLifetime?
+pub fn Program::lower(Self, Policy) -> Schedule
+pub fn Program::rank(Self) -> Int
+pub fn Program::steps(Self) -> ReadOnlyArray[Step]
+pub fn Program::world_size(Self) -> Int
+
+pub struct Schedule {
+  // private fields
+}
+pub fn Schedule::commands(Self, Lane) -> ReadOnlyArray[Command]
+pub fn Schedule::completion_steps(Self) -> ReadOnlyArray[Int]
+pub fn Schedule::event_producers(Self) -> ReadOnlyArray[Int]
+pub fn Schedule::policy(Self) -> Policy
+pub fn Schedule::program(Self) -> Program
+
+pub struct Step {
+  // private fields
+}
+pub fn Step::accesses(Self) -> ReadOnlyArray[Access]
+pub fn Step::action(Self) -> Action
+pub fn Step::dependencies(Self) -> ReadOnlyArray[Int]
+pub fn Step::new(Action, ArrayView[Access], dependencies? : ArrayView[Int]) -> Self
+
+// Type aliases
+
+// Traits

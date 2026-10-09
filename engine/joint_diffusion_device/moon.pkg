@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/kernels/packed_rows_plan",
+}
+
+supported_targets = "native"

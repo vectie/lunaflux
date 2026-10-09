@@ -84,6 +84,7 @@ pub fn TensorByteRange::start(Self) -> Int64
 
 pub(all) enum TensorDType {
   BFloat16
+  Float32
 } derive(Eq, @debug.Debug)
 
 pub struct TensorMetadata {

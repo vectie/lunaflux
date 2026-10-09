@@ -1,0 +1,78 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_weight_startup"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minimax_h3_media_encode",
+  "vectie/lunaflux/integration/minimax_h3_text_encoder",
+  "vectie/lunaflux/integration/minimax_h3_vision_conditioner",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/minimax_h3_host_materialization",
+  "vectie/lunaflux/model/minimax_h3_weights",
+  "vectie/lunaflux/model/segmented_device_materialize",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn audio_decoder_packings(max_bytes~ : Int64) -> Array[Packing] raise
+
+pub fn component_bytes(@minimax_h3_weights.MiniMaxH3WeightComponent, ArrayView[Packing], Int64) -> Int64 raise StartupError
+
+pub fn conditioner_packings() -> Array[Packing]
+
+pub fn denoiser_packings(@joint_diffusion_plan.JointDiffusionPlan, max_bytes~ : Int64) -> Array[Packing] raise
+
+pub fn reference_encoder_packing(@minimax_h3_host_materialization.MiniMaxH3HostComponentManifest, max_bytes~ : Int64) -> Packing raise
+
+pub fn video_decoder_packings(max_bytes~ : Int64) -> Array[Packing] raise
+
+// Errors
+pub(all) suberror StartupError {
+  InvalidState
+  InvalidPacking
+  BudgetExceeded
+}
+
+// Types and methods
+pub(all) enum Packing {
+  TextEncoder
+  VisionConditioner
+  ReferenceEncoder(@segmented_device_materialize.SegmentedDeviceMaterializationLimits, Int64)
+  Block(@minimax_h3_weights.BlockWeightPacking)
+  Input(@minimax_h3_weights.InputWeightPacking)
+  Timestep(@minimax_h3_weights.TimestepWeightPacking)
+  Output(@minimax_h3_weights.OutputWeightPacking)
+  Context(@minimax_h3_weights.ContextWeightPacking)
+  Refiner(@minimax_h3_weights.RefinerWeightPacking)
+  VideoFrontend(@minimax_h3_weights.VideoFrontendWeightPacking)
+  VideoBlock(@minimax_h3_weights.VideoBlockWeightPacking)
+  AudioDecoder(@minimax_h3_weights.AudioDecoderWeightPacking)
+  AudioAmp(@joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout)
+}
+pub fn Packing::bytes(Self) -> Int64 raise StartupError
+
+pub struct WeightLease {
+  // private fields
+}
+pub fn WeightLease::release(Self) -> Unit
+pub fn[T] WeightLease::with_allocation(Self, Int, (@device.Allocation) -> T raise) -> T raise
+pub fn[T] WeightLease::with_encoder(Self, Int, (@minimax_h3_text_encoder.EncoderWeights) -> T raise) -> T raise
+pub fn[T] WeightLease::with_reference(Self, Int, (@segmented_device_materialize.SegmentedDeviceWeights, @minimax_h3_media_encode.WeightManifest) -> T raise) -> T raise
+pub fn[T] WeightLease::with_vision(Self, Int, (@minimax_h3_vision_conditioner.VisionWeights) -> T raise) -> T raise
+
+pub struct WeightStartup {
+  // private fields
+}
+pub fn WeightStartup::acquire(Self) -> WeightLease raise StartupError
+pub fn WeightStartup::close(Self) -> Unit raise
+pub fn WeightStartup::component(Self, Int) -> @minimax_h3_weights.MiniMaxH3WeightComponent raise StartupError
+pub fn WeightStartup::count(Self) -> Int
+pub fn WeightStartup::new(max_device_bytes~ : Int64) -> Self raise StartupError
+pub fn WeightStartup::prepare_component(Self, @device.Context, @approved_fs.ApprovedRoot, ArrayView[@minimax_h3_host_materialization.MiniMaxH3ShardSource], @minimax_h3_host_materialization.MiniMaxH3HostComponentManifest, ArrayView[Packing], expected_identity~ : @spec.ModelIdentity, expected_manifest_digest~ : @minimax_h3_host_materialization.MiniMaxH3HostManifestDigest, limits~ : @minimax_h3_host_materialization.MiniMaxH3HostMaterializationLimits, chunk_bytes~ : Int) -> Unit raise
+pub fn WeightStartup::reserved_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

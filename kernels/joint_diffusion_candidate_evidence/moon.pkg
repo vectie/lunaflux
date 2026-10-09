@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/kernels/aot_candidate_coverage",
+  "vectie/lunaflux/kernels/joint_diffusion_cuda_aot",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

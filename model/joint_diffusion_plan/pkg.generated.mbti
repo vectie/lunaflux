@@ -1,0 +1,209 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/joint_diffusion_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror JointDiffusionPlanError {
+  InvalidSchemaVersion
+  InvalidStageSequence
+  InvalidWorkflowSet
+  InvalidScheduler
+  InvalidShapeContract
+  InvalidConditioningLimits
+  InvalidCanvas
+  InvalidFrameCount
+  InvalidInferenceStepCount
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum JointDiffusionAudioRowLayout {
+  ChannelMajorTime
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionComponent {
+  TextConditioner
+  Denoiser
+  VideoVae
+  AudioVae
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionConditioningLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionConditioningLimits::allow_audio_only_references(Self) -> Bool
+pub fn JointDiffusionConditioningLimits::max_audio_references(Self) -> Int
+pub fn JointDiffusionConditioningLimits::max_image_references(Self) -> Int
+pub fn JointDiffusionConditioningLimits::max_keyframes(Self) -> Int
+pub fn JointDiffusionConditioningLimits::max_total_references(Self) -> Int
+pub fn JointDiffusionConditioningLimits::max_video_references(Self) -> Int
+pub fn JointDiffusionConditioningLimits::new(max_keyframes~ : Int, max_image_references~ : Int, max_video_references~ : Int, max_audio_references~ : Int, max_total_references~ : Int, allow_audio_only_references~ : Bool) -> Self raise JointDiffusionPlanError
+
+pub struct JointDiffusionDenoiserShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionDenoiserShape::attention_head_count(Self) -> Int
+pub fn JointDiffusionDenoiserShape::attention_head_dimension(Self) -> Int
+pub fn JointDiffusionDenoiserShape::attention_rotary_dimension(Self) -> Int
+pub fn JointDiffusionDenoiserShape::attention_width(Self) -> Int
+pub fn JointDiffusionDenoiserShape::feed_forward_dimension(Self) -> Int
+pub fn JointDiffusionDenoiserShape::final_adaln_conditioning_dimension(Self) -> Int
+pub fn JointDiffusionDenoiserShape::final_norm_epsilon(Self) -> Double
+pub fn JointDiffusionDenoiserShape::final_norm_epsilon_denominator(Self) -> Int
+pub fn JointDiffusionDenoiserShape::final_norm_epsilon_numerator(Self) -> Int
+pub fn JointDiffusionDenoiserShape::hidden_size(Self) -> Int
+pub fn JointDiffusionDenoiserShape::layer_count(Self) -> Int
+pub fn JointDiffusionDenoiserShape::new(hidden_size~ : Int, layer_count~ : Int, refiner_layer_count~ : Int, attention_head_count~ : Int, attention_head_dimension~ : Int, attention_rotary_dimension? : Int, query_key_norm_epsilon_numerator? : Int, query_key_norm_epsilon_denominator? : Int, feed_forward_dimension~ : Int, text_conditioning_dimension~ : Int, timestep_frequency_dimension~ : Int, timestep_embedding_hidden_dimension? : Int, final_adaln_conditioning_dimension? : Int, final_norm_epsilon_numerator? : Int, final_norm_epsilon_denominator? : Int) -> Self raise JointDiffusionPlanError
+pub fn JointDiffusionDenoiserShape::query_key_norm_epsilon_denominator(Self) -> Int
+pub fn JointDiffusionDenoiserShape::query_key_norm_epsilon_numerator(Self) -> Int
+pub fn JointDiffusionDenoiserShape::refiner_layer_count(Self) -> Int
+pub fn JointDiffusionDenoiserShape::text_conditioning_dimension(Self) -> Int
+pub fn JointDiffusionDenoiserShape::timestep_embedding_hidden_dimension(Self) -> Int
+pub fn JointDiffusionDenoiserShape::timestep_frequency_dimension(Self) -> Int
+
+pub(all) enum JointDiffusionLatentKind {
+  VideoLatent
+  AudioLatent
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionOutputProjectionStorage {
+  Float32InputWeightBiasFloat32Output
+  BFloat16InputWeightBiasBFloat16Output
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionPlan::audio_scheduler(Self) -> JointDiffusionScheduler
+pub fn JointDiffusionPlan::components(Self) -> ReadOnlyArray[JointDiffusionComponent]
+pub fn JointDiffusionPlan::conditioning(Self) -> JointDiffusionConditioningLimits
+pub fn JointDiffusionPlan::conditioning_draws_precede_output_draws(Self) -> Bool
+pub fn JointDiffusionPlan::content_digest(Self) -> @spec.ContentDigest
+pub fn JointDiffusionPlan::denoiser(Self) -> JointDiffusionDenoiserShape
+pub fn JointDiffusionPlan::guidance_distilled(Self) -> Bool
+pub fn JointDiffusionPlan::new(schema_version~ : Int, content_digest~ : @spec.ContentDigest, workflows~ : ArrayView[JointDiffusionWorkflow], stages~ : ArrayView[JointDiffusionStage], video_scheduler~ : JointDiffusionScheduler, audio_scheduler~ : JointDiffusionScheduler, shapes~ : JointDiffusionShapeContract, conditioning~ : JointDiffusionConditioningLimits, denoiser~ : JointDiffusionDenoiserShape, projection~ : JointDiffusionProjectionContract) -> Self raise JointDiffusionPlanError
+pub fn JointDiffusionPlan::packed_joint_sequence(Self) -> Bool
+pub fn JointDiffusionPlan::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointDiffusionPlan::projection(Self) -> JointDiffusionProjectionContract
+pub fn JointDiffusionPlan::schema_version(Self) -> Int
+pub fn JointDiffusionPlan::shapes(Self) -> JointDiffusionShapeContract
+pub fn JointDiffusionPlan::stages(Self) -> ReadOnlyArray[JointDiffusionStage]
+pub fn JointDiffusionPlan::video_scheduler(Self) -> JointDiffusionScheduler
+pub fn JointDiffusionPlan::workflows(Self) -> ReadOnlyArray[JointDiffusionWorkflow]
+
+pub struct JointDiffusionProjectionContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionProjectionContract::audio_layout(Self) -> JointDiffusionAudioRowLayout
+pub fn JointDiffusionProjectionContract::mixed_precision_bfloat16_heads() -> Self
+pub fn JointDiffusionProjectionContract::mixed_precision_float32_heads() -> Self
+pub fn JointDiffusionProjectionContract::output_storage(Self) -> JointDiffusionOutputProjectionStorage
+pub fn JointDiffusionProjectionContract::storage(Self) -> JointDiffusionProjectionStorage
+pub fn JointDiffusionProjectionContract::video_layout(Self) -> JointDiffusionVideoPatchLayout
+
+pub(all) enum JointDiffusionProjectionStorage {
+  Float32InputWeightBiasBFloat16Output
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionRequestShape {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionRequestShape::audio_latent_frames(Self) -> Int
+pub fn JointDiffusionRequestShape::audio_samples(Self) -> Int64
+pub fn JointDiffusionRequestShape::audio_token_rows(Self) -> Int
+pub fn JointDiffusionRequestShape::frames(Self) -> Int
+pub fn JointDiffusionRequestShape::height(Self) -> Int
+pub fn JointDiffusionRequestShape::inference_steps(Self) -> Int
+pub fn JointDiffusionRequestShape::model_evaluations(Self) -> Int
+pub fn JointDiffusionRequestShape::video_latent_frames(Self) -> Int
+pub fn JointDiffusionRequestShape::video_latent_height(Self) -> Int
+pub fn JointDiffusionRequestShape::video_latent_width(Self) -> Int
+pub fn JointDiffusionRequestShape::width(Self) -> Int
+
+pub struct JointDiffusionScheduler {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionScheduler::kind(Self) -> JointDiffusionSchedulerKind
+pub fn JointDiffusionScheduler::latent(Self) -> JointDiffusionLatentKind
+pub fn JointDiffusionScheduler::new(latent~ : JointDiffusionLatentKind, kind~ : JointDiffusionSchedulerKind, shift_numerator~ : Int, shift_denominator~ : Int, training_timestep_count? : Int) -> Self raise JointDiffusionPlanError
+pub fn JointDiffusionScheduler::shift(Self) -> Double
+pub fn JointDiffusionScheduler::shift_denominator(Self) -> Int
+pub fn JointDiffusionScheduler::shift_numerator(Self) -> Int
+pub fn JointDiffusionScheduler::training_timestep_count(Self) -> Int
+
+pub(all) enum JointDiffusionSchedulerKind {
+  RectifiedFlowEuler
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionShapeContract {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionShapeContract::audio_latent_channels(Self) -> Int
+pub fn JointDiffusionShapeContract::audio_latent_streams(Self) -> Int
+pub fn JointDiffusionShapeContract::audio_latents_per_second(Self) -> Int
+pub fn JointDiffusionShapeContract::audio_output_channels(Self) -> Int
+pub fn JointDiffusionShapeContract::audio_sample_rate(Self) -> Int
+pub fn JointDiffusionShapeContract::audio_vae_decoder_dimension(Self) -> Int
+pub fn JointDiffusionShapeContract::audio_vae_latent_dimension(Self) -> Int
+pub fn JointDiffusionShapeContract::canvas_multiple(Self) -> Int
+pub fn JointDiffusionShapeContract::frames_per_chunk(Self) -> Int
+pub fn JointDiffusionShapeContract::frames_per_second(Self) -> Int
+pub fn JointDiffusionShapeContract::latents_per_chunk(Self) -> Int
+pub fn JointDiffusionShapeContract::max_aspect_denominator(Self) -> Int
+pub fn JointDiffusionShapeContract::max_aspect_numerator(Self) -> Int
+pub fn JointDiffusionShapeContract::max_canvas_pixels(Self) -> Int64
+pub fn JointDiffusionShapeContract::max_duration_seconds(Self) -> Int
+pub fn JointDiffusionShapeContract::max_inference_steps(Self) -> Int
+pub fn JointDiffusionShapeContract::min_aspect_denominator(Self) -> Int
+pub fn JointDiffusionShapeContract::min_aspect_numerator(Self) -> Int
+pub fn JointDiffusionShapeContract::min_duration_seconds(Self) -> Int
+pub fn JointDiffusionShapeContract::min_inference_steps(Self) -> Int
+pub fn JointDiffusionShapeContract::new(frames_per_second~ : Int, min_duration_seconds~ : Int, max_duration_seconds~ : Int, frames_per_chunk~ : Int, latents_per_chunk~ : Int, canvas_multiple~ : Int, max_canvas_pixels~ : Int64, min_aspect_numerator~ : Int, min_aspect_denominator~ : Int, max_aspect_numerator~ : Int, max_aspect_denominator~ : Int, video_latent_channels~ : Int, video_spatial_compression~ : Int, audio_latent_channels~ : Int, audio_latents_per_second~ : Int, audio_sample_rate~ : Int, audio_output_channels~ : Int, audio_vae_latent_dimension~ : Int, audio_vae_decoder_dimension~ : Int, min_inference_steps~ : Int, max_inference_steps~ : Int, video_patch_temporal? : Int, video_patch_height? : Int, video_patch_width? : Int, audio_latent_streams? : Int) -> Self raise JointDiffusionPlanError
+pub fn JointDiffusionShapeContract::resolve_request(Self, height~ : Int, width~ : Int, requested_frames~ : Int, inference_steps~ : Int) -> JointDiffusionRequestShape raise JointDiffusionPlanError
+pub fn JointDiffusionShapeContract::video_latent_channels(Self) -> Int
+pub fn JointDiffusionShapeContract::video_patch_height(Self) -> Int
+pub fn JointDiffusionShapeContract::video_patch_temporal(Self) -> Int
+pub fn JointDiffusionShapeContract::video_patch_width(Self) -> Int
+pub fn JointDiffusionShapeContract::video_spatial_compression(Self) -> Int
+
+pub struct JointDiffusionStage {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionStage::kind(Self) -> JointDiffusionStageKind
+pub fn JointDiffusionStage::new(kind~ : JointDiffusionStageKind, presence~ : JointDiffusionStagePresence) -> Self
+pub fn JointDiffusionStage::presence(Self) -> JointDiffusionStagePresence
+
+pub(all) enum JointDiffusionStageKind {
+  ResolveRequest
+  EncodeTextConditioning
+  EncodeKeyframeConditioning
+  EncodeReferenceConditioning
+  InitializeJointLatents
+  JointAudioVideoDenoise
+  DecodeVideo
+  DecodeAudio
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionStagePresence {
+  Required
+  Optional
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionVideoPatchLayout {
+  BatchFrameHeightWidthChannelTemporalHeightWidth
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionWorkflow {
+  TextToAudioVideo
+  FirstLastFrameToAudioVideo
+  ReferenceToAudioVideo
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

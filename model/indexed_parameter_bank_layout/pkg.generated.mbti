@@ -1,0 +1,49 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/indexed_parameter_bank_layout"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn build_indexed_parameter_bank_layout(ArrayView[IndexedParameterSliceInput], alignment~ : Int64, maximum_byte_count~ : Int64) -> IndexedParameterBankLayout raise IndexedParameterBankLayoutError
+
+// Errors
+pub(all) suberror IndexedParameterBankLayoutError {
+  InvalidAlignment
+  InvalidExtent
+  DuplicateSourceOrdinal(Int)
+  DuplicateSourceName(String)
+  UnexpectedLogicalIndex(expected~ : Int, actual~ : Int)
+  OffsetOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct IndexedParameterBankLayout {
+  // private fields
+}
+pub fn IndexedParameterBankLayout::alignment(Self) -> Int64
+pub fn IndexedParameterBankLayout::byte_count(Self) -> Int64
+pub fn IndexedParameterBankLayout::digest(Self) -> IndexedParameterBankLayoutDigest
+pub fn IndexedParameterBankLayout::slices(Self) -> ReadOnlyArray[IndexedParameterSlice]
+
+pub struct IndexedParameterBankLayoutDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn IndexedParameterBankLayoutDigest::as_hex(Self) -> String
+
+pub struct IndexedParameterSlice {
+  // private fields
+}
+pub fn IndexedParameterSlice::byte_count(Self) -> Int64
+pub fn IndexedParameterSlice::logical_index(Self) -> Int
+pub fn IndexedParameterSlice::source_name(Self) -> String
+pub fn IndexedParameterSlice::source_ordinal(Self) -> Int
+pub fn IndexedParameterSlice::target_byte_offset(Self) -> Int64
+
+pub struct IndexedParameterSliceInput {
+  // private fields
+}
+pub fn IndexedParameterSliceInput::new(logical_index~ : Int, source_ordinal~ : Int, source_name~ : String, byte_count~ : Int64) -> Self raise IndexedParameterBankLayoutError
+
+// Type aliases
+
+// Traits
