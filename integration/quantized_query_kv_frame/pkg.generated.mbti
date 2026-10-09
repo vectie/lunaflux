@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/quantized_query_kv_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/quantized_query_kv_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct QuantizedQueryKvFrame {
+  // private fields
+}
+pub fn QuantizedQueryKvFrame::close(Self) -> Unit raise
+pub fn QuantizedQueryKvFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn QuantizedQueryKvFrame::new(@quantized_query_kv_cuda_source.QuantizedQueryKvCudaSource) -> Self
+pub fn QuantizedQueryKvFrame::outputs(Self) -> QueryKvProjectionOutputs raise
+pub fn QuantizedQueryKvFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, hidden~ : @device.Allocation, weights~ : ArrayView[@device.Allocation], maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn QuantizedQueryKvFrame::source_bytes(Self) -> Bytes
+pub fn QuantizedQueryKvFrame::workspace_bytes(Self) -> Int64
+
+pub(all) struct QueryKvProjectionOutputs {
+  low_rank_queries : @device.Allocation
+  queries : @device.Allocation
+  shared_kv : @device.Allocation
+}
+
+// Type aliases
+
+// Traits

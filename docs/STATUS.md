@@ -109,6 +109,27 @@ The 43-test learned-head/precision/source subset also passes on Linux after
 three native test packages explicitly link the allocator's system libraries.
 Whole-checkpoint numerics remain untested.
 
+Update 2026-10-10 (DeepSeek quantized query/KV prefix): a model-neutral immutable
+precision plan, CUDA source and prepared frame now connect Query-A → learned
+RMSNorm → Query-B → additional unweighted BF16 head norm, plus shared-KV
+projection → learned RMSNorm. The adapter binds the actual five compact banks
+without expanding FP8 weights; all scratch/weight bytes are accounted before
+upload. The affected native suite passes 40/40, including official-shaped
+checkpoint streaming and missing-layer regressions.
+The warm six-stage queue allocates no measured heap objects and releases its
+resources deterministically. The first physical compile found a missing
+`cuda.h` include behind the CUDA_VERSION guard; that generator bug is fixed.
+The corrected GB10 fixture checks all six intermediate boundaries over live
+row counts 0/1/3, zero/nonzero input and repeated execution, with zero observed
+absolute error. Memory/race/synchronization sanitizers report no errors/hazards
+and zero leaked bytes. Source/probe/binary hashes match their downloaded copies.
+Local artifacts: `/tmp/lunaflux-query-kv-20261010.HIcAa8zE`; generated source
+SHA-256 `0de8979212d79fbc38debf43768d65ce79da6145f10bc0f2d54943cc7c9579c6`.
+This is an unsharded component, not rotary/cache/attention execution or a
+whole-checkpoint DeepSeek/DSpark result. Actual GLM checkpoint transfers to both
+Sparks and its CPU placement scan continue independently; no GPU weights have
+been loaded by those jobs.
+
 The expanded affected native aggregate passed 221/221 locally. Exact commit
 `ef95b5c0` also builds the checkpoint runner on Linux and parses the installed
 GLM config successfully. Linux continuation/wire test linking exposed the

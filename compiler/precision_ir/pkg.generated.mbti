@@ -329,6 +329,26 @@ pub fn QuantizationPlan::passes(Self) -> ReadOnlyArray[QuantizationPass]
 pub fn QuantizationPlan::to_repr(Self) -> @debug.Repr
 pub fn QuantizationPlan::with_amax_floor(Self, Double) -> Self raise PrecisionPlanError
 
+pub struct QuantizedQueryKvPrecision {
+  // private fields
+}
+pub fn QuantizedQueryKvPrecision::activation_quantization(Self) -> QuantizationPlan
+pub fn QuantizedQueryKvPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn QuantizedQueryKvPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn QuantizedQueryKvPrecision::head_normalization(Self) -> QueryHeadNormalization
+pub fn QuantizedQueryKvPrecision::new(hidden_width~ : Int, query_rank~ : Int, head_count~ : Int, head_width~ : Int, maximum_rows~ : Int, normalization_epsilon~ : Double, activation_amax_floor~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn QuantizedQueryKvPrecision::normalization_epsilon(Self) -> Double
+pub fn QuantizedQueryKvPrecision::weight_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn QuantizedQueryKvPrecision::weight_representations(Self) -> ReadOnlyArray[@precision_format.Representation]
+pub fn QuantizedQueryKvPrecision::workspace_bytes(Self) -> Int64
+
+pub(all) enum QueryHeadNormalization {
+  Bf16SquareMeanEpsilonInverseProduct
+} derive(Eq, @debug.Debug)
+pub fn QueryHeadNormalization::equal(Self, Self) -> Bool
+pub fn QueryHeadNormalization::not_equal(Self, Self) -> Bool
+pub fn QueryHeadNormalization::to_repr(Self) -> @debug.Repr
+
 pub struct RecurrentBlockPrecision {
   // private fields
 }

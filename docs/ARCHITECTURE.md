@@ -948,6 +948,18 @@ outside default telemetry.
 
 ## Package dependency law
 
+### Quantized query/KV execution prefix
+
+`compiler/precision_ir.QuantizedQueryKvPrecision` retains immutable matrix,
+activation-quantization, rounding and aggregate workspace decisions. The CUDA
+source package alone emits FP8 conversion, reduction and device instructions.
+`integration/quantized_query_kv_frame` prepares explicit buffers/functions and
+borrows six launches into a caller-owned decoder queue. The DeepSeek adapter
+alone resolves official tensor names and model dimensions. Learned F32 RMSNorm
+and unweighted BF16-expression head normalization are distinct semantic stages;
+neither may silently replace the other. This prefix does not own rotary, KV
+cache mutation, compression, attention, tensor-parallel placement or serving.
+
 ### Intra-kernel physical planning
 
 The projection compiler now lowers selected schedules into immutable fragment,

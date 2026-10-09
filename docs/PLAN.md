@@ -76,6 +76,15 @@ GLM's mean reduction must remain unchanged. Test resource balance, invalid
 preparation and warm allocation behavior, then numerical/sanitizer execution;
 component success is not complete DeepSeek/DSpark generation.
 
+DeepSeek's quantized query/KV prefix now binds actual FP8/UE8M0 matrices and BF16
+norm vectors to a generic immutable precision plan and six borrowed launches.
+Keep learned F32 RMSNorm distinct from the additional BF16-expression query
+head norm. The small GPU numerical/sanitizer fixture passes; next compose rotary,
+KV quantization simulation, cache/index/attention and output projections with
+the prepared decoder, then place actual DSpark banks across bounded hosts.
+The current prefix is unsharded; do not mistake it for distributed head execution
+or complete model generation.
+
 The compact MoE Program now owns startup buffers and binds routed/shared experts
 to one reusable execution queue. GLM shared BF16 and DeepSeek shared FP8 adapters
 use the same precision/execution layers. Next connect the programs into complete

@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/quantized_query_kv_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn quantized_query_kv_source(@precision_ir.QuantizedQueryKvPrecision, symbol_prefix~ : String) -> QuantizedQueryKvCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct QuantizedQueryKvCudaSource {
+  // private fields
+}
+pub fn QuantizedQueryKvCudaSource::launch(Self, Int) -> (Int, Int, Int)
+pub fn QuantizedQueryKvCudaSource::plan(Self) -> @precision_ir.QuantizedQueryKvPrecision
+pub fn QuantizedQueryKvCudaSource::source_bytes(Self) -> Bytes
+pub fn QuantizedQueryKvCudaSource::symbol(Self, Int) -> String
+
+// Type aliases
+
+// Traits
