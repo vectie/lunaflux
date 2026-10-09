@@ -1,5 +1,7 @@
 ///|
-fn routed_program_fixture() -> (@moe.MoeProgram, Int64, Int64) raise {
+fn routed_program_fixture(
+  token_hash? : Bool = false,
+) -> (@moe.MoeProgram, Int64, Int64) raise {
   let router = @precision.MoeRoutingPrecision::new(
     weight=@precision.plan_operand(
       role=Weight,
@@ -19,6 +21,11 @@ fn routed_program_fixture() -> (@moe.MoeProgram, Int64, Int64) raise {
     selected_group_count=1,
     selected_experts=2,
     score=Sigmoid,
+    selection=if token_hash {
+      TokenHash(vocabulary_size=3)
+    } else {
+      GroupedTopK
+    },
     normalize=true,
     scaling=2.5,
     maximum_workspace_bytes=128L,

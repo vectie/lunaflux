@@ -1,7 +1,8 @@
 ///|
 /// Prepare projection -> score/correction -> selection -> expert execution on
 /// the same queue. Selected routing buffers are owned, never copied to the host.
-/// Correction bias is an F32 expert vector; supply a zero vector if absent.
+/// Grouped selection borrows an F32 bias vector (zero if absent in the model).
+/// Token-hash selection borrows token IDs and an already-narrowed I32 table.
 pub fn MoeProgram::prepare_routed(
   self : Self,
   context : @device.Context,
@@ -11,7 +12,10 @@ pub fn MoeProgram::prepare_routed(
   counts~ : @device.Allocation,
   input~ : @device.Allocation,
   router_weight~ : @device.Allocation,
-  correction_bias~ : @device.Allocation,
+  correction_bias? : @device.Allocation,
+  token_ids? : @device.Allocation,
+  token_table? : @device.Allocation,
+  token_table_offset? : Int64 = 0L,
   routed_bank~ : @device.Allocation,
   shared_bank~ : @device.Allocation,
   output~ : @device.Allocation,
@@ -23,15 +27,20 @@ pub fn MoeProgram::prepare_routed(
   }
   let functions = self.load_functions(aot_module, router.symbols())
   let plan = router.plan()
-  let (rows, hidden, experts, _) = plan.geometry()
+  let (rows, hidden, experts, selected) = plan.geometry()
   let sizes = plan.buffer_bytes()
-  let buffers = sizes.map(bytes => self.allocate(context, bytes))
+  let buffers = sizes.map(bytes => {
+    if bytes > 0L {
+      Some(self.allocate(context, bytes))
+    } else {
+      None
+    }
+  })
   let counts_arg = region(counts, 20L, 4L)
-  let logits = region(buffers[0], sizes[0], 4L)
-  let scores = region(buffers[1], sizes[1], 4L)
-  let choice = region(buffers[2], sizes[2], 4L)
-  let indices = region(buffers[3], sizes[3], 4L)
-  let weights = region(buffers[4], sizes[4], 4L)
+  let logits = region(buffers[0].unwrap(), sizes[0], 4L)
+  let scores = region(buffers[1].unwrap(), sizes[1], 4L)
+  let indices = region(buffers[3].unwrap(), sizes[3], 4L)
+  let weights = region(buffers[4].unwrap(), sizes[4], 4L)
   let arguments = [
     [
       counts_arg,
@@ -47,15 +56,45 @@ pub fn MoeProgram::prepare_routed(
       ),
       logits,
     ],
-    [
-      counts_arg,
-      logits,
-      region(correction_bias, experts.to_int64() * 4L, 4L),
-      scores,
-      choice,
-    ],
-    [counts_arg, scores, choice, indices, weights],
   ]
+  match plan.selection() {
+    GroupedTopK => {
+      guard correction_bias is Some(bias) else {
+        raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      }
+      let choice = region(buffers[2].unwrap(), sizes[2], 4L)
+      arguments.append([
+        [
+          counts_arg,
+          logits,
+          region(bias, experts.to_int64() * 4L, 4L),
+          scores,
+          choice,
+        ],
+        [counts_arg, scores, choice, indices, weights],
+      ])
+    }
+    TokenHash(vocabulary_size~) => {
+      guard token_ids is Some(tokens) && token_table is Some(table) else {
+        raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      }
+      arguments.append([
+        [counts_arg, logits, scores],
+        [
+          counts_arg,
+          region(tokens, rows.to_int64() * 4L, 4L),
+          @device.KernelArgument::device_region(
+            table,
+            offset=token_table_offset,
+            byte_count=vocabulary_size.to_int64() * selected.to_int64() * 4L,
+            alignment=4L,
+          ),
+          indices,
+        ],
+        [counts_arg, scores, indices, weights],
+      ])
+    }
+  }
   let prefix = []
   for i, launch in router.launches() {
     prefix.push(
@@ -80,8 +119,8 @@ pub fn MoeProgram::prepare_routed(
     stream,
     counts~,
     input~,
-    selected_indices=buffers[3],
-    selected_weights=buffers[4],
+    selected_indices=buffers[3].unwrap(),
+    selected_weights=buffers[4].unwrap(),
     routed_bank~,
     shared_bank~,
     output~,
