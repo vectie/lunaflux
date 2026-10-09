@@ -1,6 +1,7 @@
 ///|
 priv enum RecurrentLayerState {
   Fresh
+  Prepared
   Ready
   Active
   Failed
@@ -107,6 +108,42 @@ pub fn GlmRecurrentLayer::prepare(
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
 ) -> Unit raise {
+  self.prepare_layer(
+    context,
+    aot,
+    Some(stream),
+    checkpoint,
+    root,
+    maximum_device_bytes~,
+    chunk_bytes~,
+    limits~,
+    counts~,
+    sequence_offsets~,
+    sequence_slots~,
+    reset_flags~,
+    hidden~,
+    output~,
+  )
+}
+
+///|
+fn GlmRecurrentLayer::prepare_layer(
+  self : Self,
+  context : @device.Context,
+  aot : @device.Module,
+  stream : @device.Stream?,
+  checkpoint : @precision_materialize.PackedCheckpoint,
+  root : @approved_fs.ApprovedRoot,
+  maximum_device_bytes~ : Int64,
+  chunk_bytes~ : Int,
+  limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
+  counts~ : @device.Allocation,
+  sequence_offsets~ : @device.Allocation,
+  sequence_slots~ : @device.Allocation,
+  reset_flags~ : @device.Allocation,
+  hidden~ : @device.Allocation,
+  output~ : @device.Allocation,
+) -> Unit raise {
   let banks = match self.ffn {
     None => 0L
     Some(ffn) => ffn.bank_bytes()
@@ -120,37 +157,7 @@ pub fn GlmRecurrentLayer::prepare(
   errdefer {
     self.status = Failed
   }
-  let bound = bind_recurrent_weights(
-    checkpoint,
-    self.spec,
-    layer_index=self.layer_index,
-  )
-  if self.hyper is Some(_) {
-    for
-      weight in bind_attention_hyper_weights(
-        checkpoint,
-        self.spec,
-        self.layer_index,
-      ) {
-      bound.push(weight)
-    }
-  }
-  if self.ffn is Some(ffn) {
-    for
-      weight in (match ffn.branch {
-        Dense(_) =>
-          bind_dense_ffn_weights(checkpoint, self.spec, self.layer_index)
-        Moe(_) => {
-          let weights = bind_router(checkpoint, layer_index=self.layer_index)
-          weights.append(
-            bind_ffn_hyper_weights(checkpoint, self.spec, self.layer_index),
-          )
-          weights
-        }
-      }) {
-      bound.push(weight)
-    }
-  }
+  let bound = self.bound_weights(checkpoint)
   self.weights.upload(
     context,
     checkpoint,
@@ -212,23 +219,46 @@ pub fn GlmRecurrentLayer::prepare(
       suffix.push(launch)
     }
   }
-  self.program.prepare_block(
-    context,
-    aot,
-    stream,
-    recurrent_device_weights(self.weights),
-    maximum_state_bytes=self.program.state_bytes(),
-    maximum_workspace_bytes=self.program.workspace_bytes(),
-    counts~,
-    sequence_offsets~,
-    sequence_slots~,
-    reset_flags~,
-    hidden=input,
-    output=branch_output,
-    prefix~,
-    suffix~,
-  )
-  self.status = Ready
+  let weights = recurrent_device_weights(self.weights)
+  match stream {
+    Some(stream) => {
+      self.program.prepare_block(
+        context,
+        aot,
+        stream,
+        weights,
+        maximum_state_bytes=self.program.state_bytes(),
+        maximum_workspace_bytes=self.program.workspace_bytes(),
+        counts~,
+        sequence_offsets~,
+        sequence_slots~,
+        reset_flags~,
+        hidden=input,
+        output=branch_output,
+        prefix~,
+        suffix~,
+      )
+      self.status = Ready
+    }
+    None => {
+      self.program.prepare_block_frame(
+        context,
+        aot,
+        weights,
+        maximum_state_bytes=self.program.state_bytes(),
+        maximum_workspace_bytes=self.program.workspace_bytes(),
+        counts~,
+        sequence_offsets~,
+        sequence_slots~,
+        reset_flags~,
+        hidden=input,
+        output=branch_output,
+        prefix~,
+        suffix~,
+      )
+      self.status = Prepared
+    }
+  }
 }
 
 ///|
@@ -268,7 +298,7 @@ pub fn GlmRecurrentLayer::poll(self : Self) -> Bool raise @device.DeviceError {
 pub fn GlmRecurrentLayer::close(self : Self) -> Unit raise @device.DeviceError {
   match self.status {
     Closed => return
-    Fresh | Ready | Active | Failed => ()
+    Fresh | Prepared | Ready | Active | Failed => ()
   }
   self.status = Failed
   self.program.abort()

@@ -3,6 +3,7 @@ async fn exercise_glm_checkpoint_owner(
   with_dense_block~ : Bool,
   with_moe_block? : Bool = false,
   with_sparse_block? : Bool = false,
+  with_decoder_slice? : Bool = false,
 ) -> Unit {
   @async.with_task_group() <| group => {
     let directory = @fs.realpath(@fs.tmpdir(prefix="lunaflux-glm-recurrent"))
@@ -120,18 +121,26 @@ async fn exercise_glm_checkpoint_owner(
     } else {
       276275820L
     }
+    let layer_count = if with_decoder_slice && !with_sparse_block {
+      3
+    } else {
+      1
+    }
+    let weight_bytes = weight_bytes * layer_count.to_int64()
     let entries : Array[String] = []
     let mut offset = 0L
-    for index, (name, dtype, shape, count) in shapes {
-      let parent = if index < (if with_sparse_block { 14 } else { 15 }) {
-        "self_attn."
-      } else {
-        ""
+    for layer in layer_index..<(layer_index + layer_count) {
+      for index, (name, dtype, shape, count) in shapes {
+        let parent = if index < (if with_sparse_block { 14 } else { 15 }) {
+          "self_attn."
+        } else {
+          ""
+        }
+        entries.push(
+          "\"model.language_model.layers.\{layer}.\{parent}\{name}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{offset},\{offset + count}]}",
+        )
+        offset += count
       }
-      entries.push(
-        "\"model.language_model.layers.\{layer_index}.\{parent}\{name}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{offset},\{offset + count}]}",
-      )
-      offset += count
     }
     assert_eq(offset, weight_bytes)
     let header = @utf8.encode("{" + entries.join(",") + "}")
@@ -164,8 +173,8 @@ async fn exercise_glm_checkpoint_owner(
       maximum_shards=1,
       maximum_file_bytes=5000000000L,
       maximum_header_bytes=1048576,
-      maximum_tensors_per_shard=shapes.length(),
-      maximum_total_tensors=shapes.length(),
+      maximum_tensors_per_shard=shapes.length() * layer_count,
+      maximum_total_tensors=shapes.length() * layer_count,
       maximum_rank=3,
       maximum_name_bytes=256,
       maximum_dtype_specs=4,
@@ -207,7 +216,24 @@ async fn exercise_glm_checkpoint_owner(
         assert_eq(weight.buffer_bytes(), bytes)
       }
     }
-    let layer : CheckpointTestLayer = if with_sparse_block {
+    let layer : CheckpointTestLayer = if with_decoder_slice {
+      Slice(
+        @glm53_packed_expert_upload.GlmDecoderSlice::new(
+          @glm53_spec.Glm53FlashSpec::official(),
+          first_layer=layer_index,
+          end_layer=layer_index + layer_count,
+          maximum_rows=32,
+          maximum_sequences=if with_sparse_block { 1 } else { 16 },
+          cache_slots=if with_sparse_block { 1 } else { 32 },
+          maximum_history=64,
+          index_layer_norm_epsilon=1.0e-5,
+          maximum_layer_state_bytes=160000000L,
+          maximum_layer_workspace_bytes=200000000L,
+          maximum_layer_expert_bytes=5000000000L,
+          accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
+        ),
+      )
+    } else if with_sparse_block {
       Sparse(
         @glm53_packed_expert_upload.GlmSparseLayer::new(
           @glm53_spec.Glm53FlashSpec::official(),
@@ -258,7 +284,9 @@ async fn exercise_glm_checkpoint_owner(
       )
     }
     let workspace_bytes = layer.workspace_bytes()
-    if with_sparse_block {
+    if with_decoder_slice && !with_sparse_block {
+      assert_eq(workspace_bytes, 3L * 148669440L + 2L * 1048576L)
+    } else if with_sparse_block {
       assert_true(workspace_bytes > 0L)
     } else if with_moe_block {
       assert_eq(workspace_bytes, 152584580L)
@@ -299,6 +327,8 @@ async fn exercise_glm_checkpoint_owner(
     defer (aot.close() catch { _ => () })
     let operand = context.allocate(1048576L)
     defer (operand.close() catch { _ => () })
+    let output = context.allocate(1048576L)
+    defer (output.close() catch { _ => () })
     defer (layer.close() catch { _ => () })
     layer.prepare(
       context,
@@ -307,6 +337,7 @@ async fn exercise_glm_checkpoint_owner(
       checkpoint,
       root,
       operand,
+      output,
       total_bytes,
       if with_moe_block {
         1048573
@@ -328,7 +359,9 @@ async fn exercise_glm_checkpoint_owner(
     assert_eq(end_allocations(), 0UL)
     assert_eq(
       enqueues() - before,
-      if with_sparse_block {
+      if with_decoder_slice && !with_sparse_block {
+        2496UL
+      } else if with_sparse_block {
         1184UL
       } else if with_moe_block {
         1088UL
@@ -343,6 +376,7 @@ async fn exercise_glm_checkpoint_owner(
     layer.submit(live_rows=1)
     layer.close()
     layer.close()
+    output.close()
     operand.close()
     aot.close()
     stream.close()
@@ -372,5 +406,20 @@ async test "GLM sparse decoder streams exact projection output APE and FFN opera
     with_dense_block=false,
     with_moe_block=true,
     with_sparse_block=true,
+  )
+}
+
+///|
+async test "GLM three-layer decoder slice owns one queue and alternating residual frames" {
+  exercise_glm_checkpoint_owner(with_dense_block=true, with_decoder_slice=true)
+}
+
+///|
+async test "GLM sparse decoder frame composes its checkpoint FFN in a slice queue" {
+  exercise_glm_checkpoint_owner(
+    with_dense_block=false,
+    with_moe_block=true,
+    with_sparse_block=true,
+    with_decoder_slice=true,
   )
 }

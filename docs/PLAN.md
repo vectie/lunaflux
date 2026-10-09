@@ -2,10 +2,20 @@
 
 ## Working policy
 
-Current priority (2026-10-09): executable GLM-5.3 Flash, DeepSeek-V4 Flash DSpark
+Current priority (2026-10-10): executable GLM-5.3 Flash, DeepSeek-V4 Flash DSpark
 and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
 warning migrations are paused. Retain existing ownership guarantees and focused
 tests, but do not make new hardening work a prerequisite for model execution.
+
+Contiguous GLM decoder slices now compose the official KDA/DSA and dense/MoE
+schedule into one startup-bound queue. Layer frames expose borrowed launches
+instead of forcing layer-owned completions; at most two residual buffers are
+reused across layers. Aggregate checkpoint/bank/state/workspace accounting occurs
+before upload. The current DSA history is single-request, so slices containing
+DSA explicitly retain that restriction. Next wire embedding, final normalization,
+head/sampling and worker request execution; cross-device handoff and real-weight
+GPU equivalence remain separate unfinished features. Do not put TLS/signing work
+ahead of those integrations.
 
 The compact MoE Program now owns startup buffers and binds routed/shared experts
 to one reusable execution queue. GLM shared BF16 and DeepSeek shared FP8 adapters

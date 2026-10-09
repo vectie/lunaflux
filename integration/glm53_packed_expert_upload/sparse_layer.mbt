@@ -11,6 +11,7 @@ pub struct GlmSparseLayer {
   priv weights : @upload.CheckpointDeviceWeights
   priv mut queue : @device.OrderedKernelExecutor?
   priv mut launch_count : Int
+  priv launches : Array[@device.OrderedKernelLaunch]
   priv mut status : RecurrentLayerState
 }
 
@@ -71,6 +72,7 @@ pub fn GlmSparseLayer::new(
     weights: @upload.CheckpointDeviceWeights::new(),
     queue: None,
     launch_count: 0,
+    launches: [],
     status: Fresh,
   }
 }
@@ -114,6 +116,38 @@ pub fn GlmSparseLayer::prepare(
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
 ) -> Unit raise {
+  self.prepare_layer(
+    context,
+    aot,
+    Some(stream),
+    checkpoint,
+    root,
+    maximum_device_bytes~,
+    chunk_bytes~,
+    limits~,
+    counts~,
+    reset_flag~,
+    hidden~,
+    output~,
+  )
+}
+
+///|
+fn GlmSparseLayer::prepare_layer(
+  self : Self,
+  context : @device.Context,
+  aot : @device.Module,
+  stream : @device.Stream?,
+  checkpoint : @precision_materialize.PackedCheckpoint,
+  root : @approved_fs.ApprovedRoot,
+  maximum_device_bytes~ : Int64,
+  chunk_bytes~ : Int,
+  limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
+  counts~ : @device.Allocation,
+  reset_flag~ : @device.Allocation,
+  hidden~ : @device.Allocation,
+  output~ : @device.Allocation,
+) -> Unit raise {
   let frames = self.workspace_bytes() + self.state_bytes()
   let banks = self.ffn.bank_bytes()
   guard self.status is Fresh &&
@@ -122,24 +156,7 @@ pub fn GlmSparseLayer::prepare(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
-  let bound = @sparse_model.bind_flash_sparse_projection_weights(
-    checkpoint,
-    self.spec,
-    layer_index=self.layer_index,
-  )
-  bound.append(
-    @sparse_model.bind_flash_sparse_output_weights(
-      checkpoint,
-      self.spec,
-      layer_index=self.layer_index,
-    ),
-  )
-  bound.append(
-    bind_attention_hyper_weights(checkpoint, self.spec, self.layer_index),
-  )
-  let ffn_offset = bound.length()
-  bound.append(bind_router(checkpoint, layer_index=self.layer_index))
-  bound.append(bind_ffn_hyper_weights(checkpoint, self.spec, self.layer_index))
+  let (bound, ffn_offset) = self.bound_weights(checkpoint)
   self.weights.upload(
     context,
     checkpoint,
@@ -178,9 +195,17 @@ pub fn GlmSparseLayer::prepare(
   )
   let launches = self.decoder.launches().to_owned()
   launches.append(self.ffn.launches)
-  self.queue = Some(context.create_ordered_kernel_executor(stream, launches))
+  self.launches.append(launches)
   self.launch_count = launches.length()
-  self.status = Ready
+  match stream {
+    Some(stream) => {
+      self.queue = Some(
+        context.create_ordered_kernel_executor(stream, launches),
+      )
+      self.status = Ready
+    }
+    None => self.status = Prepared
+  }
 }
 
 ///|

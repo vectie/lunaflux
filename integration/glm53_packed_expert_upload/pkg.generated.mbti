@@ -44,14 +44,32 @@ pub(all) suberror PackedExpertUploadError {
 }
 
 // Types and methods
+pub struct GlmDecoderSlice {
+  // private fields
+}
+pub fn GlmDecoderSlice::append_descriptors(Self) -> ArrayView[@device.Allocation]
+pub fn GlmDecoderSlice::close(Self) -> Unit raise @device.DeviceError
+pub fn GlmDecoderSlice::device_bytes(Self) -> Int64
+pub fn GlmDecoderSlice::launch_count(Self) -> Int
+pub fn GlmDecoderSlice::layer_range(Self) -> (Int, Int)
+pub fn GlmDecoderSlice::new(@glm53_spec.Glm53FlashSpec, first_layer~ : Int, end_layer~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
+pub fn GlmDecoderSlice::poll(Self) -> Bool raise @device.DeviceError
+pub fn GlmDecoderSlice::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, sparse_reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
+pub fn GlmDecoderSlice::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn GlmDecoderSlice::source_bytes(Self) -> Bytes
+pub fn GlmDecoderSlice::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
+pub fn GlmDecoderSlice::workspace_bytes(Self) -> Int64
+
 pub struct GlmRecurrentLayer {
   // private fields
 }
 pub fn GlmRecurrentLayer::close(Self) -> Unit raise @device.DeviceError
 pub fn GlmRecurrentLayer::device_bytes(Self) -> Int64
+pub fn GlmRecurrentLayer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn GlmRecurrentLayer::new(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise
 pub fn GlmRecurrentLayer::poll(Self) -> Bool raise @device.DeviceError
 pub fn GlmRecurrentLayer::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
+pub fn GlmRecurrentLayer::prepare_frame(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
 pub fn GlmRecurrentLayer::source_bytes(Self) -> Bytes
 pub fn GlmRecurrentLayer::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
 pub fn GlmRecurrentLayer::with_dense_block(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise
@@ -65,9 +83,11 @@ pub struct GlmSparseLayer {
 pub fn GlmSparseLayer::append_descriptor(Self) -> @device.Allocation raise @device.DeviceError
 pub fn GlmSparseLayer::close(Self) -> Unit raise @device.DeviceError
 pub fn GlmSparseLayer::device_bytes(Self) -> Int64
+pub fn GlmSparseLayer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn GlmSparseLayer::new(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_queries~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
 pub fn GlmSparseLayer::poll(Self) -> Bool raise @device.DeviceError
 pub fn GlmSparseLayer::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
+pub fn GlmSparseLayer::prepare_frame(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
 pub fn GlmSparseLayer::source_bytes(Self) -> Bytes
 pub fn GlmSparseLayer::state_bytes(Self) -> Int64
 pub fn GlmSparseLayer::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError

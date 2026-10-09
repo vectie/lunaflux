@@ -10,6 +10,29 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10: checkpoint-backed decoder slices now connect consecutive GLM
+layers through at most two reusable four-stream BF16 residual buffers. Recurrent
+and sparse layers have a queue-free prepared-frame mode; the slice resolves the
+official KDA/DSA and dense/MoE schedule at startup and owns one model-level queue
+and completion per step. Aggregate weight/bank/state/workspace budgets are checked
+before device allocation/upload. DSA-containing slices remain single-request;
+recurrent-only slices preserve independent request slots. All 45 layer plans
+can be constructed without loading device weights. This is decoder execution,
+not embedding/head/sampling, full worker inference or two-host transport.
+
+The three-early-layer native fixture executes 32 steps / 2,496 launches with
+zero measured hot heap allocations or blocking waits, checks total-byte
+accounting, then cancels and releases its layer owners. The generic two-layer
+frame test executes 32 steps / 1,024 launches with the same warm-path properties.
+Fixtures use zero-filled checkpoint storage and a native device test double,
+not actual-checkpoint GPU arithmetic. No TLS/signing/deployment hardening was
+added; necessary memory accounting stays in startup rather than token execution.
+The final affected release-mode native suite passes 68/68, including the sparse
+layer's queue-free frame prepared inside a 37-launch slice. Native check, format
+check and API generation pass. Warning-denied checking remains blocked by the
+existing `internal/nccl/api.mbt:200` implicit-method migration warning; it was not
+expanded into unrelated cleanup. No new GPU or deployment claims are made.
+
 Complete sparse decoder composition is now implemented: the generic immutable
 decoder plan adds output projection and a residual-stream envelope to retained
 sparse attention. `IndexedSparseDecoderFrame` binds twenty-three launches;
