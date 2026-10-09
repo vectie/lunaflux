@@ -10,6 +10,33 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+GLM KDA now has a request-owned recurrent delta Program in addition to its old
+serial diagnostic source. The model adapter builds a generic BF16/F32 precision
+plan; CUDA lowering assigns sequence/head CTAs and value-column ownership.
+Explicit cache slot IDs survive batch reordering and reset on request reuse.
+The AOT Program owns persistent state and a reusable nonblocking execution queue.
+Thirty-two native steps have zero measured heap allocations and blocking waits;
+the focused native suite passes 36/36. Format and native interface generation
+pass. Warning-denied checks still encounter unrelated existing deprecations.
+
+Three GB10 shapes pass an independent double-precision recurrence and ordinary
+bitwise output/state comparison with the serial reference. New-kernel memcheck,
+racecheck and synccheck report zero errors/hazards/leaks. The actual GLM
+64-head / 128-key / 128-value, eight-row recurrence has median 47.63 us in five
+alternating pairs. This is **not** a whole-model or reference-engine comparison:
+the baseline is a deliberately one-thread correctness source. The new official
+shape still uses 255 registers and spills; it is not claimed optimal. The old
+reference's invalid CUDA float literal was fixed after real compilation exposed
+it. Its instrumented full-size memcheck timed out; that failed capture is kept,
+and sanitizer checks of the new kernel retain the independent CPU oracle.
+
+[Recurrent execution results](RECURRENT_EXECUTION_2026-10-09.md) record exact
+scope and timings. The downloaded artifacts match remote SHA-256 identities;
+archive hash is `4a4e7f0ed7b335bf7b51f8ae781b7cc110296bbcb3502b546c72aa86b27e48ab`.
+Complete KDA projection/control/convolution/output composition, DSA/DeepSeek
+attention, three-model workers and actual two-host execution remain unfinished.
+No additional TLS/admission work was performed.
+
 Automatic routing now joins the same MoE Program queue: BF16-input router
 projection, score/correction, grouped top-k, routed experts, optional reduction,
 shared expert and finalization. The caller no longer needs to compute expert IDs

@@ -29,6 +29,16 @@ the Program accepts per-layer offsets and does not scan or copy tables per step.
 Whole-model execution still needs to connect this prepared program to layer
 state and actual model loading; passing module tests does not finish that task.
 
+The request-owned recurrent delta Program now executes KDA state transitions
+through a generic precision plan and AOT CUDA lowering, with independent request
+slots and no per-step heap allocations. Numerical, memory/race/synchronization
+and bounded component timing checks pass; the serial reference is not a serving
+benchmark. Next compose projected Q/K/V, decay/beta controls, request-owned short
+convolution, gated normalization and output projection into the complete KDA
+block, then connect it and MoE to actual layer/worker execution. DSA and DeepSeek
+compressed attention, MiniMax execution and two-host collectives remain actual
+implementation tasks, not transport-hardening prerequisites.
+
 Active compiler work: [counter-driven repair, 2026-09-29](COMPILER_COUNTER_REPAIR_2026-09-29.md).
 The three-kernel diagnosis is recorded there with implemented changes,
 remaining algorithm work and the bounded physical regression procedure.
