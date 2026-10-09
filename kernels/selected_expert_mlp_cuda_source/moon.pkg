@@ -1,6 +1,14 @@
 import {
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/compiler/physical_tile_ir",
+  "vectie/lunaflux/kernels/luna_cuda_precision",
 }
 
 supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/precision_format" @format,
+  "moonbitlang/core/env",
+} for "test"

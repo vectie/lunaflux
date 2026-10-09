@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn packed_buffer_layout(@precision_format.Representation) -> PackedBufferLayout raise PrecisionPlanError
+
 pub fn plan_operand(role~ : OperandRole, representation~ : @precision_format.Representation, placement~ : Placement, supported_placements~ : ArrayView[Placement], accuracy~ : Accuracy, memory_ceiling~ : Int64, tile_elements? : Int) -> OperandPlan raise PrecisionPlanError
 
 // Errors
@@ -58,6 +60,21 @@ pub fn Conversion::equal(Self, Self) -> Bool
 pub fn Conversion::not_equal(Self, Self) -> Bool
 pub fn Conversion::to_repr(Self) -> @debug.Repr
 
+pub struct ExpertMlpPrecision {
+  // private fields
+}
+pub fn ExpertMlpPrecision::bank_bytes(Self) -> Int64
+pub fn ExpertMlpPrecision::clamp(Self) -> Double?
+pub fn ExpertMlpPrecision::expert_map(Self) -> ReadOnlyArray[Int]
+pub fn ExpertMlpPrecision::expert_stride(Self) -> Int64
+pub fn ExpertMlpPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn ExpertMlpPrecision::local_experts(Self) -> ReadOnlyArray[Int]
+pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
+pub fn ExpertMlpPrecision::total_bytes(Self) -> Int64
+pub fn ExpertMlpPrecision::weight_offsets(Self) -> ReadOnlyArray[Int64]
+pub fn ExpertMlpPrecision::weights(Self) -> ReadOnlyArray[OperandPlan]
+pub fn ExpertMlpPrecision::workspace_bytes(Self) -> (Int64, Int64)
+
 pub struct LinearPrecision {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -105,6 +122,13 @@ pub(all) enum OperandRole {
 pub fn OperandRole::equal(Self, Self) -> Bool
 pub fn OperandRole::not_equal(Self, Self) -> Bool
 pub fn OperandRole::to_repr(Self) -> @debug.Repr
+
+pub struct PackedBufferLayout {
+  // private fields
+}
+pub fn PackedBufferLayout::buffer_bytes(Self) -> Int64
+pub fn PackedBufferLayout::global_scale_offset(Self) -> Int64?
+pub fn PackedBufferLayout::scales_offset(Self) -> Int64?
 
 pub struct PhysicalOperand {
   // private fields

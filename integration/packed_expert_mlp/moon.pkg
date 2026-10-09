@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @source,
+}
+
+supported_targets = "native"

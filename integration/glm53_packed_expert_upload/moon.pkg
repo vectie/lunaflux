@@ -4,6 +4,7 @@ import {
   "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/device",
+  "vectie/lunaflux/compiler/precision_ir",
 }
 
 supported_targets = "native"

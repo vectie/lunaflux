@@ -2,6 +2,7 @@
 package "vectie/lunaflux/integration/glm53_packed_expert_upload"
 
 import {
+  "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
   "vectie/lunaflux/model/streaming_safetensors",
@@ -10,6 +11,10 @@ import {
 
 // Values
 pub fn bind_experts(@precision_materialize.PackedCheckpoint, layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
+pub fn expert_compute_plan(layer_index~ : Int, expert_indices~ : ArrayView[Int], maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
+
+pub fn upload_expert_bank(@device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @precision_ir.ExpertMlpPrecision, @device.Allocation, layer_index~ : Int, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 
 pub fn upload_experts(@device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, ArrayView[@precision_materialize.PackedCheckpointWeight], ArrayView[@device.Allocation], chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 

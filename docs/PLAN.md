@@ -1606,6 +1606,16 @@ output projection, decay control, cache/state ownership, and throughput CUDA
 remain separate unmet operations.
 All candidates remain deliberately non-bindable until compilation and physical
 qualification.
+
+The compact routed-expert path added on 2026-10-09 is a separate executable
+integration, not a promotion of those inert candidate bundles. A pure precision
+plan shares bank offsets between bounded checkpoint upload and AOT lowering.
+Three stages compute gate/up, down, and rank-local F32 combination directly from
+NVFP4/MXFP4/BF16 weights with BF16 activations. It binds through the existing
+ordered executor. Small deterministic GB10 execution and memory/race/sync tests
+cover this implementation; full checkpoint execution, tensor-core expert GEMM,
+cross-rank reduction, and complete model serving are still unfinished. DeepSeek's
+dynamic-FP8 activation route is not implemented by this W4A16 path.
 Joint diffusion now also has deterministic, request-shape-specialized mixed-
 precision video/audio latent-input projection, BF16 video/audio final-RMSNorm,
 row-aligned staged-BF16 final AdaLN-to-F32 boundaries, F32 video/audio

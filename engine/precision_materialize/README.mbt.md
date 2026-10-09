@@ -26,3 +26,7 @@ weights retain low-column/low-nibble packing and scale planes remain row-major.
 This is a startup data path, not a serving kernel or an activation-quantization
 policy. GLM's NVFP4 expert adapter uses it for per-device expert partitions;
 existing BF16 startup expansion remains available for other weight plans.
+
+transfer_weights_to also streams multiple projections into one bank at explicit
+destination offsets. It shares PackedBufferLayout with the compiler, so the
+global-scale padding seen by CUDA matches the bytes populated by the uploader.

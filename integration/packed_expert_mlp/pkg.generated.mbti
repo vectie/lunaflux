@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/packed_expert_mlp"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source",
+}
+
+// Values
+pub fn bind(@selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, ArrayView[@device.Function], counts~ : @device.Allocation, input~ : @device.Allocation, selected_indices~ : @device.Allocation, selected_weights~ : @device.Allocation, expert_map~ : @device.Allocation, bank~ : @device.Allocation, activation~ : @device.Allocation, weighted~ : @device.Allocation, output~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

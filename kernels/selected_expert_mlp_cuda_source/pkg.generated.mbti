@@ -3,9 +3,12 @@ package "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
+pub fn packed_expert_mlp_source(@precision_ir.ExpertMlpPrecision, symbol~ : String) -> PackedExpertMlpCudaSource raise
+
 pub fn selected_expert_swiglu_bf16_source(hidden_size~ : Int, intermediate_size~ : Int, routed_expert_count~ : Int, experts_per_token~ : Int, activation~ : SelectedExpertActivation, maximum_rows~ : Int, function_symbol~ : String) -> SelectedExpertMlpCudaSource raise SelectedExpertMlpCudaSourceError
 
 // Errors
@@ -18,6 +21,14 @@ pub(all) suberror SelectedExpertMlpCudaSourceError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub struct PackedExpertMlpCudaSource {
+  // private fields
+}
+pub fn PackedExpertMlpCudaSource::launches(Self) -> ReadOnlyArray[(Int, Int)]
+pub fn PackedExpertMlpCudaSource::plan(Self) -> @precision_ir.ExpertMlpPrecision
+pub fn PackedExpertMlpCudaSource::source_bytes(Self) -> Bytes
+pub fn PackedExpertMlpCudaSource::symbols(Self) -> ReadOnlyArray[String]
+
 pub(all) enum SelectedExpertActivation {
   StandardSwiGlu
   BoundedClampedSwiGlu(Double)

@@ -27,6 +27,7 @@ pub(all) suberror PackedCheckpointError {
   MissingTensor(String)
   TensorStorageMismatch(String)
   InvalidPlaneNames
+  InvalidDestinationMapping
   BufferSizeOverflow
   Streaming(@streaming_safetensors.StreamingSafetensorsError)
 } derive(Eq, @debug.Debug)
@@ -41,6 +42,7 @@ pub struct PackedCheckpoint {
 pub fn PackedCheckpoint::bind_weight(Self, representation~ : @precision_format.Representation, payload_name~ : String, scales_name? : String, global_scale_name? : String) -> PackedCheckpointWeight raise PackedCheckpointError
 pub fn PackedCheckpoint::new(@streaming_safetensors.StreamingSafetensorsInspection) -> Self
 pub fn PackedCheckpoint::transfer_weights(Self, @approved_fs.ApprovedRoot, ArrayView[PackedCheckpointWeight], scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise PackedCheckpointError
+pub fn PackedCheckpoint::transfer_weights_to(Self, @approved_fs.ApprovedRoot, ArrayView[PackedCheckpointWeight], destinations~ : ArrayView[(Int, Int64)], destination_bytes~ : ArrayView[Int64], scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise PackedCheckpointError
 
 pub struct PackedCheckpointWeight {
   // private fields

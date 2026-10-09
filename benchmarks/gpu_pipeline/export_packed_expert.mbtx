@@ -1,0 +1,23 @@
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  let args = @env.args()
+  guard args.length() == 2 else { fail("usage: export_packed_expert.mbtx NEW_HEADER") }
+  let (code, out, err) = @process.collect_output("env", [
+    "LUNA_EXPORT_PACKED_EXPERT=1", "moon", "test", "--target", "native",
+    "kernels/selected_expert_mlp_cuda_source/packed_test.mbt",
+    "--diagnostic-limit", "2",
+  ])
+  assert_eq(code, 0, msg=err.text() + out.text())
+  let parts = out.text().split("LUNA_SOURCE_BEGIN packed-expert\n").to_array()
+  assert_eq(parts.length(), 2, msg=out.text())
+  let body = parts[1].split("LUNA_SOURCE_END").to_array()
+  assert_eq(body.length(), 2)
+  @fs.write_file(args[1], "#include <stddef.h>\n" + body[0].to_owned(), create_mode=CreateNew)
+  println("exported compact expert AOT sources: NVFP4, MXFP4, BF16")
+}

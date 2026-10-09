@@ -136,6 +136,33 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
     assert_eq(decoded.decode(0, 0), 1.0F)
     assert_eq(decoded.decode(0, 1), 2.0F)
     assert_eq(decoded.decode(1, 15), 2.0F)
+    // Several physical planes share one expert bank without touching padding.
+    let bank = FixedArray::make(80, b'!')
+    checkpoint.transfer_weights_to(
+      root,
+      [nv, bf, mx],
+      destinations=[(0, 0L), (0, 32L), (0, 40L)],
+      destination_bytes=[80L],
+      scratch=FixedArray::make(3, b'?'),
+      limits~,
+      consume=(_, offset, chunk, count) => {
+        for i in 0..<count {
+          bank[offset.to_int() + i] = chunk[i]
+        }
+        true
+      },
+    )
+    assert_eq(Bytes::from_array(bank[:24]), Bytes::from_array(destinations[0]))
+    assert_eq(Bytes::from_array(bank[24:32]), b"!!!!!!!!")
+    assert_eq(
+      Bytes::from_array(bank[32:36]),
+      Bytes::from_array(destinations[1]),
+    )
+    assert_eq(Bytes::from_array(bank[36:40]), b"!!!!")
+    assert_eq(
+      Bytes::from_array(bank[40:74]),
+      Bytes::from_array(destinations[2]),
+    )
     try
       checkpoint.bind_weight(
         representation=nv.representation(),

@@ -3,6 +3,7 @@ pub(all) suberror PackedCheckpointError {
   MissingTensor(String)
   TensorStorageMismatch(String)
   InvalidPlaneNames
+  InvalidDestinationMapping
   BufferSizeOverflow
   Streaming(@streaming.StreamingSafetensorsError)
 } derive(Debug, Eq)
@@ -130,18 +131,11 @@ pub fn PackedCheckpoint::bind_weight(
       )
     }
   }
-  if rep.payload_bytes() > 9223372036854775807L - rep.scale_bytes() - 7L {
-    raise BufferSizeOverflow
+  let layout = @precision.packed_buffer_layout(rep) catch {
+    _ => raise BufferSizeOverflow
   }
-  let scales_offset = rep.payload_bytes()
-  // F32 scale planes need natural alignment, including odd-width INT4 rows.
-  let scales_offset = if rep.scale_element() == F32 {
-    (scales_offset + 3L) / 4L * 4L
-  } else {
-    scales_offset
-  }
-  let end = scales_offset + rep.scale_bytes()
-  let global_scale_offset = (end + 3L) / 4L * 4L
+  let scales_offset = layout.scales_offset().unwrap_or(0L)
+  let global_scale_offset = layout.global_scale_offset().unwrap_or(0L)
   let global_scale = match global_scale_name {
     None => None
     Some(name) => Some(self.checkpoint_plane(name, "F32", [], 4L))
@@ -153,11 +147,7 @@ pub fn PackedCheckpoint::bind_weight(
     global_scale,
     scales_offset,
     global_scale_offset,
-    buffer_bytes: if rep.has_global_scale() {
-      global_scale_offset + 4L
-    } else {
-      end
-    },
+    buffer_bytes: layout.buffer_bytes(),
   }
 }
 
@@ -214,9 +204,42 @@ pub fn PackedCheckpoint::transfer_weights(
   limits~ : @streaming.StreamingSafetensorsLimits,
   consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool,
 ) -> Unit raise PackedCheckpointError {
+  self.transfer_weights_to(
+    root,
+    weights,
+    destinations=Array::makei(weights.length(), i => (i, 0L)),
+    destination_bytes=weights.map(weight => weight.buffer_bytes()),
+    scratch~,
+    limits~,
+    consume~,
+  )
+}
+
+///|
+/// The same bounded transfer into a planned bank or segmented arena. Each
+/// weight gets an explicit destination ordinal and base offset; plane offsets
+/// remain the shared precision layout. No temporary whole-bank host buffer.
+pub fn PackedCheckpoint::transfer_weights_to(
+  self : Self,
+  root : @approved_fs.ApprovedRoot,
+  weights : ArrayView[PackedCheckpointWeight],
+  destinations~ : ArrayView[(Int, Int64)],
+  destination_bytes~ : ArrayView[Int64],
+  scratch~ : FixedArray[Byte],
+  limits~ : @streaming.StreamingSafetensorsLimits,
+  consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+) -> Unit raise PackedCheckpointError {
+  if destinations.length() != weights.length() {
+    raise InvalidDestinationMapping
+  }
   let requests = []
-  let destination_bytes = []
-  for destination, weight in weights {
+  for index, weight in weights {
+    let (destination, base) = destinations[index]
+    if destination < 0 ||
+      base < 0L ||
+      base > 9223372036854775807L - weight.buffer_bytes {
+      raise InvalidDestinationMapping
+    }
     // Prevent mixing incompatible ordinal mappings from different indexes.
     // File authentication remains the shared reader's startup responsibility.
     for location in [Some(weight.payload), weight.scales, weight.global_scale] {
@@ -229,14 +252,15 @@ pub fn PackedCheckpoint::transfer_weights(
         }
       }
     }
-    destination_bytes.push(weight.buffer_bytes)
-    requests.push(transfer_plane(weight.payload, destination, 0L))
+    requests.push(transfer_plane(weight.payload, destination, base))
     if weight.scales is Some(location) {
-      requests.push(transfer_plane(location, destination, weight.scales_offset))
+      requests.push(
+        transfer_plane(location, destination, base + weight.scales_offset),
+      )
     }
     if weight.global_scale is Some(location) {
       requests.push(
-        transfer_plane(location, destination, weight.global_scale_offset),
+        transfer_plane(location, destination, base + weight.global_scale_offset),
       )
     }
   }
