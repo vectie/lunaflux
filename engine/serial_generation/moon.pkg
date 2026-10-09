@@ -11,3 +11,9 @@ import {
 } for "test"
 
 supported_targets = "native"
+
+// Native test executables also link the runtime allocator on pre-glibc-2.34 Linux.
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)

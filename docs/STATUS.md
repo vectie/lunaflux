@@ -86,6 +86,15 @@ found one temporary sampling object per decode. Shared canonical greedy-wire
 emission removes it: fourteen decode continuations now allocate zero measured
 heap objects. No network-poll allocation or physical speed claim is added.
 
+The expanded affected native aggregate passed 221/221 locally. Exact commit
+`ef95b5c0` also builds the checkpoint runner on Linux and parses the installed
+GLM config successfully. Linux continuation/wire test linking exposed the
+runtime allocator's pthread dependency on this pre-glibc-2.34 host; explicit
+native system-library flags in the two test-owning packages fix it. The corrected
+focused suite passes 91/91 on both macOS and Linux. These are not checkpoint
+GPU numerical results. The full-shard CPU scan remains active (79.2 GB read at
+29 minutes, approximately 19 MB RSS); completed placement is still pending.
+
 Update 2026-10-10 (activation execution edge): a model-neutral host-staged
 activation link now waits for producer queue retirement, downloads only live
 rows through a pinned DMA lane, sends unchanged tensor bytes over plain framed
