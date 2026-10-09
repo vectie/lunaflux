@@ -21,7 +21,7 @@ test "recurrent delta source binds mixed BF16 F32 layouts and serial correctness
   assert_true(source.contains("const float *initial_state"))
   assert_true(source.contains("float *final_state"))
   assert_true(source.contains("expf(log_decay[qbase + k])"))
-  assert_true(source.contains("g < -5f || g > 0.0f"))
+  assert_true(source.contains("g < -5.0f || g > 0.0f"))
   assert_true(source.contains("__float2bfloat16_rn(projected)"))
 }
 

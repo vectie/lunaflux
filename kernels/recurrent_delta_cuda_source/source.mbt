@@ -16,6 +16,16 @@ fn recurrent_positive_product(left : Int64, right : Int64) -> Int64? {
 }
 
 ///|
+fn recurrent_float_literal(value : Double) -> String {
+  let text = value.to_string()
+  if text.contains(".") || text.contains("e") || text.contains("E") {
+    text + "f"
+  } else {
+    text + ".0f"
+  }
+}
+
+///|
 /// Renders one deliberately serial correctness kernel. Q/K/V and output use
 /// token-major `[row, head, component]` BF16 layouts. Log decay is F32
 /// `[row, head, key-component]`, beta is BF16 `[row, head]`, and explicit
@@ -115,8 +125,8 @@ pub fn causal_normalized_recurrent_delta_bf16_f32_source(
     "    for (int32_t k = 0; k < " +
     key_dimension.to_string() +
     "; k += 1) { const float q = __bfloat162float(query[qbase + k]); const float x = __bfloat162float(key[qbase + k]); const float g = log_decay[qbase + k]; if (!isfinite(q) || !isfinite(x) || !isfinite(g) || g < " +
-    log_decay_lower_bound.to_string() +
-    "f || g > 0.0f) return; }\n" +
+    recurrent_float_literal(log_decay_lower_bound) +
+    " || g > 0.0f) return; }\n" +
     "    for (int32_t v = 0; v < " +
     value_dimension.to_string() +
     "; v += 1) if (!isfinite(__bfloat162float(value[vbase + v]))) return;\n" +
@@ -128,8 +138,8 @@ pub fn causal_normalized_recurrent_delta_bf16_f32_source(
     "  const float q_scale = __fdiv_rn(1.0f, sqrtf(" +
     key_dimension.to_string() +
     ".0f)); const float eps = " +
-    normalization_epsilon.to_string() +
-    "f;\n" +
+    recurrent_float_literal(normalization_epsilon) +
+    ";\n" +
     "  for (int32_t s = 0; s < sequence_count; s += 1) for (int32_t row = sequence_offsets[s]; row < sequence_offsets[s + 1]; row += 1) for (int32_t h = 0; h < " +
     head_count.to_string() +
     "; h += 1) {\n" +
