@@ -1,6 +1,9 @@
 # Connected execution selection
 
-Status: implementation and physical experiment in progress.
+Status: implementation complete for the closed four-plan catalog; serving
+experiment complete with a diagnosed route-policy limitation. No additional
+performance advantage proved. See
+[results](BENCHMARK_CONNECTED_SELECTION_2026-10-09.md).
 
 The prior equal-information ablation did not prove that the continuation
 frontier is faster than the old selector. Both chose the same kernel. Keep that
@@ -51,6 +54,12 @@ The unused C16 policies are not made equivalent. The control bundle must match
 the current best bundle byte-for-byte before timing. Selection must export the
 same bytes as its corresponding manually prepared alternative, including its
 digest-checked route table. Held-out runs use the automatically exported bundle.
+
+Final audit correction: nominal C1/C8 routes match, but intermediate
+`decode/4/4/16384` differs under the actual 1%-margin selection rule. Therefore
+the fixed-policy intention above was not fully achieved. Retain the complete
+configuration comparison, but do not call it isolated attention/projection
+causality. No extra measurement rounds were used to rescue a performance claim.
 
 Spark .179 only, one GPU workload at a time, >=32 GiB available-memory reserve,
 64 GiB serving cgroup ceiling, no swap, 900-second service deadline. No deployment.

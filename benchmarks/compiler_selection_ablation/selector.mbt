@@ -1,8 +1,12 @@
 ///|
 fn main raise {
   let args = @env.args()
+  let (args, samples) = match args[:] {
+    [.. rest, "--samples", count] => (rest, @string.parse_int(count))
+    _ => (args[:], 5)
+  }
   guard args.length() >= 7 && (args.length() - 3) % 4 == 0 else {
-    fail("MAX_LOCAL MAX_WORKSPACE [ID NS LOCAL WORKSPACE]...")
+    fail("MAX_LOCAL MAX_WORKSPACE [ID NS LOCAL WORKSPACE]... [--samples COUNT]")
   }
   let graph = @fusion_regions.Graph::new([
     @fusion_regions.Node::new([], observable=true, effect=Pure),
@@ -18,7 +22,7 @@ fn main raise {
         partition,
         @fusion_regions.Cost::measured(
           nanoseconds=@string.parse_int64(args[offset + 1]),
-          samples=5,
+          samples~,
         ),
         local_bytes=@string.parse_int64(args[offset + 2]),
         workspace_bytes=@string.parse_int64(args[offset + 3]),

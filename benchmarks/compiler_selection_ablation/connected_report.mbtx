@@ -1,0 +1,281 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn median(xs : Array[Double]) -> Double raise {
+  assert_false(xs.is_empty())
+  let values = xs.copy()
+  values.sort()
+  (values[(values.length() - 1) / 2] + values[values.length() / 2]) / 2.0
+}
+
+///|
+async fn samples(
+  root : String,
+  starts : Array[String],
+  cell : String,
+) -> (Array[Double], Array[Double], Array[Json], Array[Double]) {
+  let wall = []
+  let ttft = []
+  let vectors = []
+  let per_start = []
+  for start in starts {
+    let path = root + "/" + start
+    assert_true(
+      @fs.read_file(path + "/RESULT.txt").text().contains("outcome=completed"),
+    )
+    assert_true(
+      @fs.read_file(path + "/r0-luna-full/runtime.stderr").text().is_empty(),
+    )
+    let elapsed = []
+    for trial in 1..<4 {
+      guard @json.parse(
+          @fs.read_file(
+            path + "/r0-luna-full/requests/" + cell + "-t\{trial}.json",
+          ).text(),
+        )
+        is {
+          "wall_ms": String(elapsed_text),
+          "warmup": false,
+          "requests": Array(requests),
+          ..
+        } else {
+        fail("trial")
+      }
+      let ms = @string.parse_int64(elapsed_text).to_double()
+      wall.push(ms)
+      elapsed.push(ms)
+      let batch : Array[Json] = []
+      // Async clients may aggregate in completion order. Compare explicit row
+      // identities from the individually named request files, never array order.
+      for row in 0..<requests.length() {
+        let request = @json.parse(
+          @fs.read_file(
+            path + "/r0-luna-full/requests/" + cell + "-t\{trial}-r\{row}.json",
+          ).text(),
+        )
+        assert_true(requests.contains(request))
+        guard request
+          is {
+            "token_ids": Array(ids),
+            "token_ms": Array(token_ms),
+            "ttft_ms": String(first),
+            ..
+          } else {
+          fail("request")
+        }
+        assert_eq(ids.length(), 64)
+        assert_eq(token_ms.length(), 64)
+        ttft.push(@string.parse_int64(first).to_double())
+        batch.push(Json(ids))
+      }
+      vectors.push(Json(batch))
+    }
+    per_start.push(median(elapsed))
+  }
+  (wall, ttft, vectors, per_start)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, old_selector, output] else {
+    fail("LOCAL_EVIDENCE OLD_SELECTOR NEW_REPORT")
+  }
+  let calibration_starts = [
+    ["s0-p0", "s7-p0"],
+    ["s1-p1", "s6-p1"],
+    ["s3-p2", "s4-p2"],
+    ["s2-p3", "s5-p3"],
+  ]
+  guard @json.parse(@fs.read_file(root + "/validation/order.json").text())
+    is Array(order_json) else {
+    fail("order")
+  }
+  let order = order_json.map(x => {
+    guard x is String(s) else { fail("arm") }
+    s
+  })
+  guard @json.parse(@fs.read_file(root + "/validation/choices.json").text())
+    is Object(choices) else {
+    fail("choices")
+  }
+  guard @json.parse(
+      @fs.read_file(root + "/route-audit-final/routes.json").text(),
+    )
+    is Array(route_audit) else {
+    fail("route audit")
+  }
+  let mismatches = route_audit.filter(row => {
+    guard row
+      is {
+        "fixed_kv128": Number(left, ..),
+        "control_kv64": Number(right, ..),
+        "covered_by_C1_C8": true,
+        ..
+      } else {
+      return false
+    }
+    left != right
+  })
+  let rows : Array[Json] = []
+  let cells = [
+    "i512-o64-c8-varied", "i8192-o64-c8-varied", "i32512-o64-c1-varied",
+  ]
+  let mut minimum_available = 9223372036854775807L
+  for cell in cells {
+    let calibration : Array[Json] = []
+    let medians = []
+    let vectors_by_plan : Array[Array[Json]] = []
+    for plan in 0..<4 {
+      let (wall, first, vectors, starts) = samples(
+        root + "/calibration",
+        calibration_starts[plan],
+        cell,
+      )
+      medians.push(median(wall))
+      vectors_by_plan.push(vectors)
+      calibration.push({
+        "plan": plan,
+        "wall_ms": wall,
+        "median_ms": median(wall),
+        "median_ttft_ms": median(first),
+        "fresh_start_medians_ms": starts,
+        "repeat_tokens_equal": vectors.all(x => x == vectors[0]),
+      })
+    }
+    guard choices[cell] is Number(selected, ..) else { fail("selection") }
+    let id = selected.to_int()
+    // Local-memory feasibility is established by existing artifact admission,
+    // not this comparison: opaque consumer residency is projected out in BOTH.
+    let old_args = ["0", "33554432"]
+    for plan in 0..<4 {
+      old_args.append([
+        plan.to_string(),
+        (medians[plan] * 1000000.0).to_int64().to_string(),
+        "0",
+        if plan % 2 == 1 {
+          "33554432"
+        } else {
+          "0"
+        },
+      ])
+    }
+    old_args.append(["--samples", "6"])
+    let old = @shell.Cmd(old_selector, old_args).output()
+    old.check()
+    let old_id = @string.parse_int(old.stdout().trim())
+    assert_eq(old_id, id)
+    let selected_starts = []
+    let control_starts = []
+    for index, name in order {
+      if name == "plan3" {
+        control_starts.push("s\{index}")
+      } else {
+        let selected_cell = name["selected-".length():].to_owned()
+        if choices[selected_cell] == choices[cell] {
+          selected_starts.push("s\{index}")
+        }
+      }
+    }
+    assert_eq(selected_starts.length(), 2)
+    assert_eq(control_starts.length(), 2)
+    let (control, control_first, control_vectors, control_fresh) = samples(
+      root + "/validation",
+      control_starts,
+      cell,
+    )
+    let (chosen, chosen_first, chosen_vectors, chosen_fresh) = samples(
+      root + "/validation",
+      selected_starts,
+      cell,
+    )
+    let validation_arms : Array[Json] = []
+    let seen : Array[String] = []
+    for name in order {
+      if seen.contains(name) {
+        continue
+      }
+      seen.push(name)
+      let starts = order
+        .mapi((i, arm) => (i, arm))
+        .filter(x => x.1 == name)
+        .map(x => "s\{x.0}")
+      let (wall, first, _, fresh) = samples(root + "/validation", starts, cell)
+      validation_arms.push({
+        "arm": name,
+        "wall_ms": wall,
+        "median_ms": median(wall),
+        "median_ttft_ms": median(first),
+        "fresh_start_medians_ms": fresh,
+      })
+    }
+    rows.push({
+      "cell": cell,
+      "calibration": calibration,
+      "selected_plan": id,
+      "old_selector_same_complete_measurements": old_id,
+      "calibration_all_plan_token_vectors_equal": vectors_by_plan.all(xs => {
+        xs.all(x => x == vectors_by_plan[3][0])
+      }),
+      "factorial_interaction_ms": medians[2] -
+      medians[0] -
+      (medians[3] - medians[1]),
+      "validation_control_plan": 3,
+      "validation_control_ms": control,
+      "validation_selected_ms": chosen,
+      "control_median_ms": median(control),
+      "selected_median_ms": median(chosen),
+      "completion_reduction_percent": 100.0 *
+      (1.0 - median(chosen) / median(control)),
+      "selected_tokens_per_second": (if cell.has_prefix("i32512") {
+        64.0
+      } else {
+        512.0
+      }) *
+      1000.0 /
+      median(chosen),
+      "control_ttft_ms": median(control_first),
+      "selected_ttft_ms": median(chosen_first),
+      "control_fresh_start_medians_ms": control_fresh,
+      "selected_fresh_start_medians_ms": chosen_fresh,
+      "validation_tokens_equal": chosen_vectors.all(x => x == control_vectors[0]) &&
+      control_vectors.all(x => x == control_vectors[0]),
+      "selection_changed_control": id != 3,
+      "all_validation_arms_without_reselection": validation_arms,
+    })
+  }
+  for phase in ["calibration", "validation"] {
+    let starts = if phase == "calibration" {
+      calibration_starts.flatten()
+    } else {
+      order.mapi((i, _) => "s\{i}")
+    }
+    for start in starts {
+      let memory = @fs.read_file(
+        root + "/" + phase + "/" + start + "/r0-luna-full/memory.csv",
+      ).text()
+      for line in memory.split("\n").filter(x => !x.is_empty()) {
+        let free = @string.parse_int64(line.split(",").to_array()[1])
+        assert_true(free >= 33554432L)
+        minimum_available = minimum_available.min(free)
+      }
+    }
+  }
+  let report : Json = {
+    "schema": "lunaflux-connected-selection-report.v1",
+    "minimum_available_kib": minimum_available,
+    "intermediate_decode_policy_mismatches": mismatches,
+    "isolated_prefill_projection_factorial_valid": mismatches.is_empty(),
+    "scope": "fixed four executable serving plans; existing numerical permissions; old selector receives identical complete-plan timings; two independent fresh starts per validation arm, not six independent experiments",
+    "rows": rows,
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(report.stringify(indent=2))
+}

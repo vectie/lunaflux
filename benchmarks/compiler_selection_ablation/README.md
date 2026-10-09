@@ -66,3 +66,46 @@ over an old selector supplied the same complete choices.
 
 Temporary extracted packages and experiment output are retained outside the
 working tree; no second compiler implementation enters production.
+
+## Connected serving selection follow-up
+
+`connected.mbtx` exercises the real bundle exporter after adding immutable
+`RegionImplementation` / `ConnectedPlan` composition to `compiler/fusion_regions`.
+It crosses the existing KV128/KV64 attention artifacts with generated/vendor
+projection policy: four executable serving plans, not four new kernels.
+The protocol is in
+[`COMPILER_CONNECTED_SELECTION_2026-10-09.md`](../../docs/COMPILER_CONNECTED_SELECTION_2026-10-09.md).
+
+Phases are `prepare`, `calibration`, `select`, `validation`; build/boundary and
+preserved diagnostic phases are also recorded. Every phase requires a fresh
+output directory. The script pins this experiment's existing Spark artifacts;
+it is not a portable production dependency. Calibration covers 512/64 C8,
+8192/64 C8 and 32512/64 C1, two fresh starts per plan, one warmup and three
+measured requests per cell/start. Freeze choices before held-out runs.
+
+`select` invokes `--prefill-chain-comparison PATH SHA256` and verifies actual
+exported bundle bytes against the corresponding manual plan. The comparison
+binds cubins, matched decode-route files, numerical permission and fixed
+export arguments. The baseline must equal today's best bundle byte-for-byte.
+The comparison is explicitly workload-scoped; this is not unseen-shape or
+cross-device generalization. No measurements or search enter token execution.
+
+`connected_report.mbtx LOCAL_EVIDENCE OLD_SELECTOR NEW_REPORT` evaluates all
+four calibration alternatives, independent validation, output-token equality,
+TTFT, throughput and memory reserve. It runs the actual unmodified old selector
+with the same complete-plan costs. An identical choice is an identical ranking
+result, not evidence that new compiler layers made GPU execution faster.
+
+`connected_seal.mbtx REMOTE_ROOT` preserves raw successful and failed setup
+records, scripts, source archives, bundles and request vectors in a new hashed
+archive, excluding large immutable model copies and build/dependency caches.
+
+The completed follow-up is recorded in
+[`BENCHMARK_CONNECTED_SELECTION_2026-10-09.md`](../../docs/BENCHMARK_CONNECTED_SELECTION_2026-10-09.md).
+It found no extra speedup and retained a protocol limitation: nominal C1/C8
+decode routes match, but the actual 1%-margin rule selects differently at an
+intermediate C4 bucket. `route-audit` deliberately fails that strict assertion;
+`route-audit-final` records the differences, and sealing labels the limitation.
+Do not reinterpret this as an isolated prefill factorial test. The report
+compares per-request token files by row identity and records the existing C8
+generation variability rather than claiming batch-invariant correctness.

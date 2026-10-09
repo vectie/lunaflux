@@ -12,6 +12,15 @@ use `Materialized`; consumer-specific continuation classes remain unexercised
 by production callers. The design below is a direction and partially connected
 capability, not proof of automatic performance improvement.
 
+The [connected follow-up](BENCHMARK_CONNECTED_SELECTION_2026-10-09.md) adds an
+opt-in real exporter integration: compose executable regions and bind the
+measured attention/projection/route configuration together. Its four plans
+still share a materialized BF16 boundary. Old/new selectors agree 3/3 with
+equal complete-plan observations; held-out serving does not demonstrate an
+additional speedup. A final intermediate decode-policy mismatch also prevents
+an isolated attention/projection attribution. Alternative nonmaterialized
+consumer layouts and their performance advantage remain unproved.
+
 This is the design policy for the next compiler workstream. It extends the
 [multilayer compiler](COMPILER_ARCHITECTURE_COMPLETION_2026-09-29.md), rather
 than replacing it with another compiler or a request-time tuning system.

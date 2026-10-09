@@ -1,0 +1,577 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+let frozen = "/home/wlc004s/lunaflux-prefill-choice-20261009.vIZCtp8x"
+
+///|
+let reference = "/home/wlc004s/lunaflux-reference-integration-20261008.G89e6nwn"
+
+///|
+let moon : String = reference + "/validation-toolchain/bin/moon"
+
+///|
+let modules : ReadOnlyArray[String] = [
+  reference + "/kernel.cubin",
+  frozen + "/selected.cubin",
+]
+
+///|
+let route_files : ReadOnlyArray[String] = [
+  "/home/wlc004s/lunaflux-overall-best-20261009.b9EitVKQ/serving/decode-route-measurements/routes.v1",
+  frozen + "/serving/decode-route-measurements/routes.v1",
+]
+
+///|
+fn route_winners(text : String) -> Map[String, Int] raise {
+  let best : Map[String, (Int64, Int)] = Map([])
+  let baseline : Map[String, Int64] = Map([])
+  let records : Array[(String, Int, Int64)] = []
+  for line in text.split("\n").filter(s => s.has_prefix("record\t")) {
+    let fields = line.split("\t").to_array()
+    assert_eq(fields[1], "decode")
+    let key = fields[1:5].join("/")
+    let id = @string.parse_int(fields[5])
+    let ns = @string.parse_int64(fields[6])
+    records.push((key, id, ns))
+    if id == 1 {
+      baseline[key] = ns
+      best[key] = (ns, id)
+    }
+  }
+  for (key, id, ns) in records {
+    let base = baseline[key]
+    if id != 1 && ns > base - (base + 99L) / 100L {
+      continue
+    }
+    if best.get(key) is Some((old, old_id)) &&
+      (old < ns || (old == ns && old_id < id)) {
+      continue
+    }
+    best[key] = (ns, id)
+  }
+  best.map((_, value) => value.1)
+}
+
+///|
+async fn record(
+  out : String,
+  name : String,
+  exe : String,
+  args : Array[String],
+  cwd? : String,
+) -> String {
+  @fs.write_file(
+    out + "/" + name + ".command.json",
+    Json([exe, ..args]).stringify(),
+    create_mode=CreateNew,
+  )
+  let r = @shell.Cmd(exe, args, cwd?).output(max_output_bytes=67108864)
+  @fs.write_file(
+    out + "/" + name + ".stdout",
+    r.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    out + "/" + name + ".stderr",
+    r.stderr(),
+    create_mode=CreateNew,
+  )
+  r.check()
+  println("completed=" + name)
+  r.stdout()
+}
+
+///|
+async fn sha(path : String) -> String {
+  let r = @shell.Cmd("sha256sum", [path]).output()
+  r.check()
+  r.stdout().split(" ").to_array()[0].to_owned()
+}
+
+///|
+async fn base_args(destination : String) -> Array[String] {
+  let args = @fs.read_file(frozen + "/serving/fused/export.arguments")
+    .text()
+    .split("\n")
+    .filter(s => !s.is_empty())
+    .map(s => s.to_owned())
+    .to_array()
+  guard args is [.. rest, "--prefill-vendor-projection-rows", "2048"] else {
+    fail("frozen args")
+  }
+  let args = rest.to_owned()
+  args[21] = "81920"
+  args[28] = "81920"
+  args[22] = modules[0]
+  args[30] = modules[0]
+  args[70] = destination
+  args
+}
+
+///|
+async fn prepare_launch(root : String, name : String, bundle : String) -> Unit {
+  let target = root + "/" + name
+  @fs.mkdir(target)
+  @fs.mkdir(target + "/deployment")
+  let base = frozen + "/candidate-ready"
+  for link in ["source", "toolchain"] {
+    @shell.Cmd("ln", ["-s", base + "/" + link, target + "/" + link]).run()
+  }
+  for file in ["export.stdout", "capacity.json"] {
+    @fs.write_file(
+      target + "/" + file,
+      @fs.read_file(base + "/" + file),
+      create_mode=CreateNew,
+    )
+  }
+  guard @json.parse(
+      @fs.read_file(base + "/deployment/lunaflux.launch.json").text(),
+    )
+    is Object(launch) else {
+    fail("launch")
+  }
+  guard launch["model_root"] is String(model) &&
+    launch["kernel_root"] is String(kernel) else {
+    fail("roots")
+  }
+  let new_model = target + "/deployment/model-root"
+  let new_kernel = target + "/deployment/kernel-root"
+  // Read-only hard links preserve large immutable weights. Replace only new
+  // experiment metadata by moving its link aside, never modifying an inode.
+  @shell.Cmd("cp", ["-al", model, new_model]).run()
+  @shell.Cmd("cp", ["-al", kernel, new_kernel]).run()
+  let descriptor_path = new_model + "/runtime/descriptor.json"
+  guard @json.parse(@fs.read_file(descriptor_path).text()) is Object(descriptor) else {
+    fail("descriptor")
+  }
+  guard descriptor["kernels"] is Object(kernels) else { fail("kernels") }
+  kernels["fused_runtime"] = {
+    "locator": "reusable-fused-runtime-bundle.v3",
+    "sha256": sha(bundle),
+  }
+  descriptor["kernels"] = Json::object(kernels)
+  @shell.Cmd("mv", [descriptor_path, descriptor_path + ".baseline"]).run()
+  @fs.write_file(
+    descriptor_path,
+    Json::object(descriptor).stringify() + "\n",
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  let fused = new_kernel + "/reusable-fused-runtime-bundle.v3"
+  @shell.Cmd("mv", [fused, fused + ".baseline"]).run()
+  @fs.write_file(
+    fused,
+    @fs.read_file(bundle),
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  launch["model_root"] = Json(new_model)
+  launch["kernel_root"] = Json(new_kernel)
+  launch["runtime_descriptor"] = {
+    "locator": "runtime/descriptor.json",
+    "sha256": sha(descriptor_path),
+  }
+  guard launch["policy_root"] is String(policy_root) else {
+    fail("policy root")
+  }
+  let new_policy = target + "/deployment/policy-root"
+  @fs.mkdir(new_policy)
+  @fs.mkdir(new_policy + "/instance")
+  guard @json.parse(@fs.read_file(policy_root + "/instance/policy.json").text())
+    is Object(policy) else {
+    fail("policy")
+  }
+  policy["runtime_descriptor_sha256"] = Json(sha(descriptor_path))
+  let policy_path = new_policy + "/instance/policy.json"
+  @fs.write_file(
+    policy_path,
+    Json::object(policy).stringify() + "\n",
+    create_mode=CreateNew,
+    permission=0o444,
+  )
+  launch["policy_root"] = Json(new_policy)
+  launch["instance_policy"] = {
+    "locator": "instance/policy.json",
+    "sha256": sha(policy_path),
+  }
+  let path = target + "/deployment/lunaflux.launch.json"
+  @fs.write_file(
+    path,
+    Json::object(launch).stringify() + "\n",
+    create_mode=CreateNew,
+  )
+  @fs.mkdir(target + "/deployment/bin")
+  guard launch["worker_executable"] is { "path": String(worker), .. } else {
+    fail("worker")
+  }
+  @shell.Cmd("ln", [
+    "-s",
+    worker,
+    target + "/deployment/bin/lunaflux-device-worker",
+  ]).run()
+  ignore(
+    record(
+      target,
+      "preflight",
+      "/home/wlc004s/lunaflux-decode-routing-20261008.bIfeYtZt/source/_build/native/release/build/cmd/lunaflux/lunaflux.exe",
+      ["validate-release", target + "/deployment#sha256=" + sha(path)],
+    ),
+  )
+  let prepared : Json = {
+    "scope": "offline connected selection trial, not deployment",
+    "bundle_sha256": sha(bundle),
+    "launch_sha256": sha(path),
+  }
+  @fs.write_file(
+    target + "/PREPARED.json",
+    prepared.stringify(),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+fn median(values : Array[Double]) -> Double raise {
+  assert_false(values.is_empty())
+  let sorted = values.copy()
+  sorted.sort()
+  (sorted[(sorted.length() - 1) / 2] + sorted[sorted.length() / 2]) / 2.0
+}
+
+///|
+async fn cell_times(
+  root : String,
+  starts : Array[String],
+  cell : String,
+) -> Array[Double] {
+  let values = []
+  for start in starts {
+    let path = root + "/" + start
+    assert_true(
+      @fs.read_file(path + "/RESULT.txt").text().contains("outcome=completed"),
+    )
+    for trial in 1..<4 {
+      guard @json.parse(
+          @fs.read_file(
+            path + "/r0-luna-full/requests/" + cell + "-t\{trial}.json",
+          ).text(),
+        )
+        is { "wall_ms": String(time), "warmup": false, .. } else {
+        fail("timing")
+      }
+      values.push(@string.parse_int64(time).to_double())
+    }
+  }
+  values
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, phase] &&
+    root.has_prefix("/home/wlc004s/lunaflux-connected-20261009.") else {
+    fail("NEW_ROOT PHASE")
+  }
+  let out = root + "/" + phase
+  @fs.mkdir(out)
+  let source = root + "/source"
+  let exporter = source +
+    "/_build/native/release/build/cmd/lunaflux_qwen3_fused_runtime_bundle_export/lunaflux_qwen3_fused_runtime_bundle_export.exe"
+  let flags = "-79-20-29-25-92-14"
+  let route_paths = [root + "/decode-fixed-kv128.v1", route_files[1]]
+  if phase == "build" || phase == "build-v2" || phase.has_prefix("boundary") {
+    if !phase.has_prefix("boundary") {
+      @fs.mkdir(source)
+      @shell.Cmd("tar", ["-xf", root + "/source.tar", "-C", source]).run()
+      @shell.Cmd("tar", ["-xf", root + "/overlay-v2.tar", "-C", source]).run()
+      @shell.Cmd("cp", [
+        "-a",
+        frozen + "/source/.mooncakes",
+        source + "/.mooncakes",
+      ]).run()
+    }
+    for
+      (label, args) in [
+        ("info", ["info"]),
+        ("format", ["fmt", "--check"]),
+        (
+          "check",
+          ["check", "--target", "native", "--deny-warn", "--warn-list", flags],
+        ),
+        (
+          "test",
+          [
+            "test", "--target", "native", "--deny-warn", "--warn-list", flags, "-j",
+            "2",
+          ],
+        ),
+        (
+          "build",
+          [
+            "build", "--target", "native", "--release", "--deny-warn", "--warn-list",
+            flags, "-j", "2", "cmd/lunaflux_qwen3_fused_runtime_bundle_export",
+          ],
+        ),
+      ] {
+      ignore(record(out, label, moon, args, cwd=source))
+    }
+  } else if phase == "preserve-unrouted" {
+    for
+      name in [
+        "prepare", "plan0", "plan1", "plan2", "plan3", "launcher.mbtx", "launcher.mbtx.client.mbtx",
+      ] {
+      @shell.Cmd("mv", [root + "/" + name, out + "/" + name]).run()
+    }
+  } else if phase == "prepare" {
+    let wanted = route_winners(@fs.read_file(route_files[1]).text())
+    let original = @fs.read_file(route_files[0]).text()
+    // Freeze today's decode winners across attention arms. Keep original
+    // measured costs/samples and scopes. Always keep matched baseline records;
+    // exclude alternate routes where today's policy deliberately uses baseline.
+    // C16 is outside this experiment; only exercised C1/C8 routes must match.
+    let fixed = original
+      .split("\n")
+      .filter(line => {
+        if !line.has_prefix("record\t") {
+          return true
+        }
+        let fields = line.split("\t").to_array()
+        fields[5] == "1" ||
+        fields[5] == wanted[fields[1:5].join("/")].to_string()
+      })
+      .to_array()
+      .join("\n")
+    for key, id in wanted {
+      if !key.has_prefix("decode/16/16/") {
+        assert_eq(route_winners(fixed)[key], id)
+      }
+    }
+    @fs.write_file(route_paths[0], fixed, create_mode=CreateNew)
+    assert_eq(
+      sha(modules[0]),
+      "2e80eebc995256e5d956cde24139df08baeff6a69c8b6e3a5fff99854ed95c3e",
+    )
+    assert_eq(
+      sha(modules[1]),
+      "3c5e993fd06299ab7d1c66a1ad65f5590267628ab2879b889a385adb9d40c8fa",
+    )
+    for id in 0..<4 {
+      let bundle = out + "/plan\{id}.bundle"
+      let args = base_args(bundle)
+      let shared = if id / 2 == 0 { "81920" } else { "49152" }
+      args[21] = shared
+      args[28] = shared
+      args[22] = modules[id / 2]
+      args[30] = modules[id / 2]
+      args.append([
+        "--attention-buckets",
+        route_paths[id / 2],
+        sha(route_paths[id / 2]),
+      ])
+      if id % 2 == 1 {
+        args.append(["--prefill-vendor-projection-rows", "2048"])
+      }
+      ignore(record(out, "export-\{id}", exporter, args))
+      if id == 3 {
+        assert_eq(
+          sha(bundle),
+          "4255abca16b1edcbd3ae32c44c65eec550618e097a3ecdc2f6cc897d3861c77b",
+        )
+      }
+      prepare_launch(root, "plan\{id}", bundle)
+    }
+    let script = @fs.read_file(frozen + "/benchmark/launcher.mbtx")
+      .text()
+      .replace(old="lunaflux-prefill-choice-v2-", new="lunaflux-connected-")
+    @fs.write_file(root + "/launcher.mbtx", script, create_mode=CreateNew)
+    @fs.write_file(
+      root + "/launcher.mbtx.client.mbtx",
+      @fs.read_file(frozen + "/benchmark/launcher.mbtx.client.mbtx"),
+      create_mode=CreateNew,
+    )
+  } else if phase == "route-audit" || phase == "route-audit-final" {
+    let fixed = route_winners(@fs.read_file(route_paths[0]).text())
+    let control = route_winners(@fs.read_file(route_paths[1]).text())
+    let rows : Array[Json] = []
+    for key, id in control {
+      let exercised = !key.has_prefix("decode/16/16/")
+      if exercised && phase == "route-audit" {
+        assert_eq(fixed[key], id)
+      }
+      rows.push({
+        "bucket": key,
+        "fixed_kv128": fixed[key],
+        "control_kv64": id,
+        "covered_by_C1_C8": exercised,
+      })
+    }
+    @fs.write_file(
+      out + "/routes.json",
+      Json(rows).stringify(indent=2),
+      create_mode=CreateNew,
+    )
+  } else if phase == "calibration" {
+    for index, plan in [0, 1, 3, 2, 2, 3, 1, 0] {
+      let target = out + "/s\{index}-p\{plan}"
+      @fs.mkdir(target)
+      ignore(
+        record(out, "start\{index}", moon, [
+          "run",
+          root + "/launcher.mbtx",
+          root + "/plan\{plan}",
+          target,
+          root + "/launcher.mbtx",
+        ]),
+      )
+    }
+  } else if phase == "select" {
+    let cells = [
+      "i512-o64-c8-varied", "i8192-o64-c8-varied", "i32512-o64-c1-varied",
+    ]
+    let starts = [
+      ["s0-p0", "s7-p0"],
+      ["s1-p1", "s6-p1"],
+      ["s3-p2", "s4-p2"],
+      ["s2-p3", "s5-p3"],
+    ]
+    for cell in cells {
+      let times = [
+        for plan in 0..<4 => {
+          median(cell_times(root + "/calibration", starts[plan], cell))
+        }
+      ]
+      let args = base_args(out + "/" + cell + ".bundle")
+      let canonical = args.copy()
+      canonical[70] = "<output>"
+      let context = out + "/" + cell + ".context"
+      @fs.write_file(
+        context,
+        Json(canonical).stringify(),
+        create_mode=CreateNew,
+      )
+      let record_json : Json = {
+        "schema": "lunaflux-prefill-connected-comparison.v1",
+        "context_sha256": sha(context),
+        "numeric_law": "reference-bf16-probability-exp2-v1",
+        "measurement_scope": "GB10 .179; fixed worker and artifacts; complete serving " +
+        cell +
+        "; two fresh starts, three measured samples each",
+        "vendor_rows": "2048",
+        "modules": [
+          for index, path in modules => {
+            {
+              "path": path,
+              "sha256": sha(path),
+              "routes_path": route_paths[index],
+              "routes_sha256": sha(route_paths[index]),
+            }
+          }
+        ],
+        "observations": [
+          for id in 0..<4 => {
+            {
+              "plan": id.to_string(),
+              "nanoseconds": (times[id] * 1000000.0).to_int64().to_string(),
+              "samples": "6",
+            }
+          }
+        ],
+        "calibration_milliseconds": times,
+      }
+      let file = out + "/" + cell + ".json"
+      @fs.write_file(
+        file,
+        record_json.stringify(indent=2),
+        create_mode=CreateNew,
+      )
+      let report = record(
+        out,
+        "export-" + cell,
+        exporter,
+        [..args, "--prefill-chain-comparison", file, sha(file)],
+      )
+      guard report
+        .split("\n")
+        .filter(s => s.has_prefix("connected_plan_id="))
+        .to_array()
+        is [line] else {
+        fail("selected id")
+      }
+      let id = @string.parse_int(line["connected_plan_id=".length():])
+      // Compare actual sealed bundle bytes, not merely selector logging.
+      assert_eq(
+        sha(out + "/" + cell + ".bundle"),
+        sha(root + "/prepare/plan\{id}.bundle"),
+      )
+      prepare_launch(root, "selected-" + cell, out + "/" + cell + ".bundle")
+      println(
+        "\{cell} selected=\{id} calibration_ms=" + Json(times).stringify(),
+      )
+    }
+  } else if phase == "validation" {
+    let cells = [
+      "i512-o64-c8-varied", "i8192-o64-c8-varied", "i32512-o64-c1-varied",
+    ]
+    let chosen : Array[(Int, String)] = []
+    let mapping : Map[String, Json] = Map([])
+    for cell in cells {
+      let report = @fs.read_file(root + "/select/export-" + cell + ".stdout").text()
+      guard report
+        .split("\n")
+        .filter(s => s.has_prefix("connected_plan_id="))
+        .to_array()
+        is [line] else {
+        fail("selected id")
+      }
+      let id = @string.parse_int(line["connected_plan_id=".length():])
+      if !chosen.any(x => x.0 == id) {
+        chosen.push((id, "selected-" + cell))
+      }
+      mapping[cell] = Json(id)
+    }
+    let order = ["plan3"]
+    order.append(chosen.map(x => x.1))
+    order.append(chosen.rev().map(x => x.1))
+    order.push("plan3")
+    @fs.write_file(
+      out + "/order.json",
+      Json(order).stringify(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      out + "/choices.json",
+      Json::object(mapping).stringify(),
+      create_mode=CreateNew,
+    )
+    for index, name in order {
+      let target = out + "/s\{index}"
+      @fs.mkdir(target)
+      ignore(
+        record(out, "start\{index}", moon, [
+          "run",
+          root + "/launcher.mbtx",
+          root + "/" + name,
+          target,
+          root + "/launcher.mbtx",
+        ]),
+      )
+    }
+  } else {
+    fail("phase")
+  }
+  @fs.write_file(
+    out + "/RESULT.txt",
+    if phase == "route-audit-final" {
+      "outcome=diagnosed\nsee=routes.json\n"
+    } else {
+      "outcome=passed\n"
+    },
+    create_mode=CreateNew,
+  )
+}

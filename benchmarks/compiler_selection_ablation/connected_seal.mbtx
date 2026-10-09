@@ -1,0 +1,107 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/home/wlc004s/lunaflux-connected-20261009.") else {
+    fail("completed experiment root")
+  }
+  for file in ["FILES.sha256", "evidence-v1.tar.gz", "RESULT.txt"] {
+    assert_false(@fs.exists(root + "/" + file))
+  }
+  for phase in ["prepare", "calibration", "select", "validation"] {
+    assert_eq(
+      @fs.read_file(root + "/" + phase + "/RESULT.txt").text(),
+      "outcome=passed\n",
+    )
+  }
+  assert_eq(
+    @fs.read_file(root + "/route-audit-final/RESULT.txt").text(),
+    "outcome=diagnosed\nsee=routes.json\n",
+  )
+  let idle = @shell.Cmd("nvidia-smi", [
+    "--query-compute-apps=pid", "--format=csv,noheader",
+  ]).output()
+  idle.check()
+  assert_true(idle.stdout().trim().is_empty())
+  let device = @shell.Cmd("nvidia-smi", [
+    "--query-gpu=uuid,pci.bus_id,name", "--format=csv,noheader",
+  ]).output()
+  device.check()
+  assert_true(
+    device
+    .stdout()
+    .contains("GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0"),
+  )
+  @fs.write_file(
+    root + "/terminal-device.txt",
+    device.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/terminal-gpu-idle.txt",
+    idle.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/terminal-memory.txt",
+    @fs.read_file("/proc/meminfo"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/RESULT.txt",
+    "outcome=completed-with-protocol-limitation\ndecode_policy_equality=failed-for-intermediate-buckets\nproduction_deployment=unchanged\n",
+    create_mode=CreateNew,
+  )
+  let files : Array[String] = []
+  @fs.walk(
+    root,
+    max_concurrency=1,
+    exclude=p => {
+      let name = p.split("/").to_array().last().unwrap().to_owned()
+      [
+        "source", "source-rejected-appledouble", "_build", ".mooncakes", "model-root",
+        "kernel-root",
+      ].contains(name)
+    },
+    (dir, entries) => {
+      for entry in entries {
+        let path = dir + "/" + entry
+        if @fs.kind(path, follow_symlink=false) == Regular {
+          files.push(path[root.length() + 1:].to_owned())
+        }
+      }
+    },
+  )
+  files.sort()
+  let hashes = @shell.Cmd("sha256sum", files, cwd=root).output(
+    max_output_bytes=16777216,
+  )
+  hashes.check()
+  @fs.write_file(root + "/FILES.sha256", hashes.stdout(), create_mode=CreateNew)
+  files.push("FILES.sha256")
+  @fs.write_file(
+    root + "/ARCHIVE-FILES.txt",
+    files.join("\n") + "\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd(
+    "tar",
+    ["-czf", root + "/evidence-v1.tar.gz", "-T", root + "/ARCHIVE-FILES.txt"],
+    cwd=root,
+  ).run()
+  let digest = @shell.Cmd("sha256sum", ["evidence-v1.tar.gz"], cwd=root).output()
+  digest.check()
+  @fs.write_file(
+    root + "/evidence-v1.tar.gz.sha256",
+    digest.stdout(),
+    create_mode=CreateNew,
+  )
+  println(digest.stdout())
+}
