@@ -13,9 +13,15 @@ import {
 // Values
 pub fn bind_experts(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
+pub fn bind_shared_expert(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn expert_compute_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, expert_indices~ : ArrayView[Int], maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
 
+pub fn shared_expert_compute_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
+
 pub fn upload_expert_bank(@device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @deepseek_v4_spec.DeepSeekV4ModelSpec, @precision_ir.ExpertMlpPrecision, @device.Allocation, layer_index~ : Int, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+
+pub fn upload_shared_expert_bank(@device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @deepseek_v4_spec.DeepSeekV4ModelSpec, @precision_ir.ExpertMlpPrecision, @device.Allocation, layer_index~ : Int, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 
 // Errors
 

@@ -1619,8 +1619,19 @@ dynamic-FP8 route now has separate five-stage expert execution: BF16 input
 quantization, gate/up, product quantization, down, and local combination.
 Pure precision IR explicitly selects amax floor, scale blocks, product rounding
 and routing-score placement. The family adapter supplies checkpoint names and
-geometry; bounded upload and ordered execution remain shared. Full decoder,
-shared-expert and cross-rank integration are still open.
+geometry; bounded upload and ordered execution remain shared. Shared-expert
+binding and the prepared cross-rank MoE execution queue are now implemented.
+Communication preserves F32 routed accumulation; replicated shared
+experts are added once after reduction, followed by the explicit BF16 output
+round. Shared experts reuse the same packed MLP plan/upload/lowering rather than
+a family-specific runtime. The generic combination plan records whether routed
+results round before shared addition. A prepared ordered queue inserts the
+collective between routed and final combination, without filesystem checks,
+crypto, request-path JIT, or new TLS requirements. Native queue tests verify
+allocation-free repeated execution and ordering. Bounded GB10 shared-expert
+and finalizer tests pass correctness, memory, race and synchronization checks.
+Actual two-host reduction, full checkpoint serving and tensor-core expert
+performance remain separate unfinished work.
 Joint diffusion now also has deterministic, request-shape-specialized mixed-
 precision video/audio latent-input projection, BF16 video/audio final-RMSNorm,
 row-aligned staged-BF16 final AdaLN-to-F32 boundaries, F32 video/audio

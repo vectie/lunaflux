@@ -106,6 +106,22 @@ pub fn LinearPrecision::operands(Self) -> (OperandPlan, OperandPlan, OperandPlan
 pub fn LinearPrecision::route(Self) -> ComputeRoute
 pub fn LinearPrecision::to_repr(Self) -> @debug.Repr
 
+pub struct MoeCombinePrecision {
+  // private fields
+}
+pub fn MoeCombinePrecision::buffer_bytes(Self) -> (Int64, Int64)
+pub fn MoeCombinePrecision::geometry(Self) -> (Int, Int)
+pub fn MoeCombinePrecision::new(maximum_rows~ : Int, hidden~ : Int, rounding~ : MoeCombineRounding, memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
+pub fn MoeCombinePrecision::rounding(Self) -> MoeCombineRounding
+
+pub(all) enum MoeCombineRounding {
+  SumThenBf16
+  Bf16RoutedThenSum
+} derive(Eq, @debug.Debug)
+pub fn MoeCombineRounding::equal(Self, Self) -> Bool
+pub fn MoeCombineRounding::not_equal(Self, Self) -> Bool
+pub fn MoeCombineRounding::to_repr(Self) -> @debug.Repr
+
 pub(all) enum NumericEffect {
   Pure
   StartupWrite

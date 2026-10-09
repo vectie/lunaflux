@@ -24,6 +24,8 @@ pub fn output_b_quantized_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepS
 
 pub fn packed_expert_weights(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[DeepSeekV4PackedExpertWeight] raise
 
+pub fn packed_shared_expert_weights(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int) -> Array[DeepSeekV4PackedExpertWeight] raise
+
 pub fn query_a_quantized_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4QueryAQuantizedLayout
 
 pub fn requirements(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4WeightRequirements

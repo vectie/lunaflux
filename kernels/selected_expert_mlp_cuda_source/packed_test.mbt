@@ -65,6 +65,41 @@ test "export compact expert execution fixtures" {
     println(
       "static constexpr size_t ds_quantized_bytes[2]={\{sizes.0}ULL,\{sizes.1}ULL};",
     )
+    let shared = dynamic_plan(shared=true)
+    println(
+      @utf8.decode(
+        @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+          shared,
+          symbol="sh",
+        ).source_bytes(),
+      ),
+    )
+    let offsets = shared.weight_offsets()
+    let sizes = shared.quantized_workspace_bytes()
+    println("static constexpr size_t sh_stride=\{shared.expert_stride()}ULL;")
+    println(
+      "static constexpr size_t sh_offsets[3]={\{offsets[0]}ULL,\{offsets[1]}ULL,\{offsets[2]}ULL};",
+    )
+    println(
+      "static constexpr size_t sh_quantized_bytes[2]={\{sizes.0}ULL,\{sizes.1}ULL};",
+    )
+    for
+      (rounding, symbol) in [
+        (@precision_ir.MoeCombineRounding::SumThenBf16, "moe_final"),
+        (Bf16RoutedThenSum, "moe_rounded"),
+      ] {
+      println(
+        @luna_cuda_precision.moe_combine_source(
+          @precision_ir.MoeCombinePrecision::new(
+            maximum_rows=2,
+            hidden=128,
+            rounding~,
+            memory_ceiling=2560L,
+          ),
+          symbol~,
+        ).source(),
+      )
+    }
     println("LUNA_SOURCE_END")
   }
 }

@@ -68,3 +68,31 @@ pub fn packed_expert_weights(
   }
   weights
 }
+
+///|
+/// Shared experts use FP8 matrices even when routed experts use FP4. They are
+/// replicated across ranks, not members of the routed expert partition.
+pub fn packed_shared_expert_weights(
+  spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
+  layer_index~ : Int,
+) -> Array[DeepSeekV4PackedExpertWeight] raise {
+  guard layer_index >= 0 && layer_index < spec.layer_count() else {
+    fail("invalid shared expert layer")
+  }
+  [
+    ("w1", spec.moe_intermediate_size(), spec.hidden_size()),
+    ("w3", spec.moe_intermediate_size(), spec.hidden_size()),
+    ("w2", spec.hidden_size(), spec.moe_intermediate_size()),
+  ].map(shape => {
+    let (name, rows, columns) = shape
+    {
+      stem: "layers.\{layer_index}.ffn.shared_experts.\{name}",
+      representation: @precision_format.Representation::new(
+        format=MxFp8E4M3,
+        rows~,
+        columns~,
+        grouping=Block(rows=128, columns=128),
+      ),
+    }
+  })
+}

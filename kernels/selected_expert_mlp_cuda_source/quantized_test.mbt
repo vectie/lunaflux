@@ -1,13 +1,20 @@
 ///|
-fn dynamic_plan() -> @precision_ir.ExpertMlpPrecision raise {
+fn dynamic_plan(
+  shared? : Bool = false,
+) -> @precision_ir.ExpertMlpPrecision raise {
   fn weight() -> @precision_ir.OperandPlan raise {
     @precision_ir.plan_operand(
       role=Weight,
-      representation=@format.Representation::new(
-        format=MxFp4,
-        rows=128,
-        columns=128,
-      ),
+      representation=if shared {
+        @format.Representation::new(
+          format=MxFp8E4M3,
+          rows=128,
+          columns=128,
+          grouping=Block(rows=128, columns=128),
+        )
+      } else {
+        @format.Representation::new(format=MxFp4, rows=128, columns=128)
+      },
       placement=DecodeInOperandTile,
       supported_placements=[DecodeInOperandTile],
       accuracy=@precision_ir.Accuracy::new(absolute=0.1, relative=0.1),
@@ -36,14 +43,17 @@ fn dynamic_plan() -> @precision_ir.ExpertMlpPrecision raise {
     gate=weight(),
     up=weight(),
     down=weight(),
-    expert_count=4,
-    local_experts=[3, 1],
-    selected_experts=2,
+    expert_count=if shared { 1 } else { 4 },
+    local_experts=if shared { [0] } else { [3, 1] },
+    selected_experts=if shared { 1 } else { 2 },
     maximum_rows=2,
     clamp=10.0,
     activation_rounding=F32Product,
     routing_placement=BeforeDownInputRound,
-    activation_quantization=(quantization(2), quantization(4)),
+    activation_quantization=(
+      quantization(2),
+      quantization(if shared { 2 } else { 4 }),
+    ),
     memory_ceiling=1000000L,
   )
 }

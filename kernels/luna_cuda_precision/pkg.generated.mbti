@@ -10,6 +10,8 @@ import {
 // Values
 pub fn decode_source(@precision_ir.OperandPlan, symbol~ : String) -> ConversionSource raise LoweringError
 
+pub fn moe_combine_source(@precision_ir.MoeCombinePrecision, symbol~ : String) -> MoeCombineSource raise LoweringError
+
 pub fn quantize_bf16_rows_source(@precision_ir.QuantizationPlan, row_multiplier~ : Int, symbol~ : String) -> RowQuantizationSource raise LoweringError
 
 pub fn quantize_source(@precision_ir.OperandPlan, symbol~ : String) -> QuantizationSource raise LoweringError
@@ -43,6 +45,14 @@ pub fn ConversionSource::launch(Self) -> ConversionLaunch
 pub fn ConversionSource::representation(Self) -> @precision_format.Representation
 pub fn ConversionSource::source(Self) -> String
 pub fn ConversionSource::symbol(Self) -> String
+
+pub struct MoeCombineSource {
+  // private fields
+}
+pub fn MoeCombineSource::launch(Self) -> ConversionLaunch
+pub fn MoeCombineSource::plan(Self) -> @precision_ir.MoeCombinePrecision
+pub fn MoeCombineSource::source(Self) -> String
+pub fn MoeCombineSource::symbol(Self) -> String
 
 pub struct QuantizationSource {
   // private fields

@@ -32,6 +32,30 @@ Warning-denied checks remain blocked by existing MoonBit deprecation warnings;
 ordinary native check, format and interface generation succeed. Those unrelated
 warning migrations remain paused.
 
+The next executable slice adds typed F32 all-reduce/all-gather through the
+existing private NCCL ABI, retaining the BF16 facade. DeepSeek shared experts
+bind their actual FP8 E4M3 weights and UE8M0 128-by-128 scale grids, separately
+from routed FP4 experts. The same precision plan, bank uploader and packed MLP
+renderer implement both; no model-specific runtime was introduced.
+
+A reusable MoE queue now executes routed experts, optional in-place F32
+reduction, replicated shared expert, then BF16 finalization. Reduction is issued
+into the same stream before shared work; completion uses nonblocking polls.
+The pure combination IR records whether the routed result rounds before the
+shared add. Two native queue regressions pass, including 16 cycles each with
+zero measured heap allocations, pending-reduction ordering, and single-rank
+cancellation. An existing boxed mutable index in collective submission was
+replaced by immutable branch selection. The supporting native tests pass 48/48
+and device tests pass 20/20; the NCCL exact-TU ASan/UBSan gate passes.
+
+The generated shared FP8 MLP/finalizer passes 12 additional GB10 cases covering
+zero/nonzero input, live rows 0/1/2, both output rounding placements and untouched
+inactive rows. Together with six routed cases, all 18 cases pass; memcheck,
+racecheck and synccheck report zero errors. This does not verify actual two-host
+NCCL execution or complete checkpoint serving. The bounded physical artifacts
+are at `/tmp/lunaflux-shared-moe.66gstK` on .178; generated header SHA-256 is
+`b6fd9bd2119b1a4a36bc8e5c299f9557123c0e5f6988f28f10465abc643af3c4`.
+
 ## Latest sealed physical qualification — 2026-08-28
 
 The exact final30 source archive SHA-256 is
