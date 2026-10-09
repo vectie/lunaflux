@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_prompt"
+
+import {
+  "vectie/lunaflux/model/minimax_h3_text_encoder",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn build(@tokenizer.TokenizerSpec, @minimax_h3_text_encoder.EncoderConfig, prompt~ : String, Presentation, max_tokens~ : Int) -> Prompt raise
+
+// Errors
+pub(all) suberror PromptError {
+  InvalidMedia
+  InvalidPrompt
+  InvalidTokenizer
+  TokenBudgetExceeded
+} derive(Eq)
+
+// Types and methods
+pub(all) enum Presentation {
+  Text
+  Keyframes(ReadOnlyArray[(Int, @minimax_h3_text_encoder.VisualGrid)])
+  References(ReadOnlyArray[Reference])
+}
+
+pub struct Prompt {
+  token_ids : ReadOnlyArray[Int]
+  token_tags : ReadOnlyArray[Int]
+  grids : ReadOnlyArray[@minimax_h3_text_encoder.VisualGrid]
+  placement : @minimax_h3_text_encoder.VisualPlacement?
+}
+
+pub(all) enum Reference {
+  Image(@minimax_h3_text_encoder.VisualGrid)
+  Audio
+  Video(@minimax_h3_text_encoder.VisualGrid, ReadOnlyArray[Double])
+}
+
+// Type aliases
+
+// Traits

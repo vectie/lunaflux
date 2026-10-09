@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_spec",
+}
+
+import {
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

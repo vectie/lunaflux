@@ -105,6 +105,7 @@ pub(all) enum CudaOperation {
   EventCreate
   EventClose
   EventRecord
+  StreamWaitEvent
   EventSynchronize
   EventElapsed
   AllocationCreate

@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/joint_diffusion_conditioning_reference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_diffusion_io_plan",
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn assess_ordered_conditioning_aot(@joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements, @joint_diffusion_io_plan.JointDiffusionIoPlan, requirement_ordinal~ : Int, limits~ : JointConditioningReferenceLimits) -> JointConditioningAotAssessment raise JointConditioningReferenceError
+
+pub fn require_ordered_conditioning_aot_candidate(JointConditioningAotAssessment) -> Unit raise JointConditioningReferenceError
+
+// Errors
+pub(all) suberror JointConditioningReferenceError {
+  InvalidLimit
+  InvalidRequirements
+  InvalidRequest
+  UnsupportedRequirement(Int)
+  GeometryOverflow
+  GeometryBudgetExceeded
+  ConditioningSemanticUnavailable(@joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation, JointConditioningAotGap)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct JointConditioningAotAssessment {
+  // private fields
+}
+pub fn JointConditioningAotAssessment::aot_candidate_available(Self) -> Bool
+pub fn JointConditioningAotAssessment::gap(Self, Int) -> JointConditioningAotGap?
+pub fn JointConditioningAotAssessment::gap_count(Self) -> Int
+pub fn JointConditioningAotAssessment::gap_digest(Self) -> JointConditioningAotGapDigest
+pub fn JointConditioningAotAssessment::geometry(Self) -> JointConditioningGeometry
+
+pub(all) enum JointConditioningAotGap {
+  DecodedMediaPayloadBuffers
+  VideoVaeEncodeExecution
+  VideoVaePosteriorSampling
+  VideoVaeLatentNormalization
+  AudioVaeEncodeExecution
+  AudioVaeLatentNormalization
+  ConditioningNoiseValues
+  ConditioningScaleNoiseArithmetic
+  PackedConditioningRowSpans
+  PerReferenceEncodedLatentGeometry
+  ReferenceVideoSoundtrackAssociation
+} derive(Eq, @debug.Debug)
+
+pub struct JointConditioningAotGapDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn JointConditioningAotGapDigest::as_hex(Self) -> String
+
+pub struct JointConditioningGeometry {
+  // private fields
+}
+pub fn JointConditioningGeometry::audio_reference_count(Self) -> Int
+pub fn JointConditioningGeometry::image_reference_count(Self) -> Int
+pub fn JointConditioningGeometry::keyframe_count(Self) -> Int
+pub fn JointConditioningGeometry::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
+pub fn JointConditioningGeometry::request_digest(Self) -> @spec.PlanDigest
+pub fn JointConditioningGeometry::requirement_ordinal(Self) -> Int
+pub fn JointConditioningGeometry::requirements_digest(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
+pub fn JointConditioningGeometry::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointConditioningGeometry::total_visual_conditioning_elements(Self) -> Int64?
+pub fn JointConditioningGeometry::total_visual_conditioning_rows(Self) -> Int64?
+pub fn JointConditioningGeometry::video_reference_count(Self) -> Int
+pub fn JointConditioningGeometry::visual_latent_channels(Self) -> Int
+pub fn JointConditioningGeometry::visual_row_width(Self) -> Int?
+pub fn JointConditioningGeometry::visual_rows_per_condition(Self) -> Int64?
+pub fn JointConditioningGeometry::workflow(Self) -> @joint_diffusion_plan.JointDiffusionWorkflow
+
+pub struct JointConditioningReferenceLimits {
+  // private fields
+}
+pub fn JointConditioningReferenceLimits::new(maximum_conditioning_rows~ : Int64, maximum_conditioning_elements~ : Int64) -> Self raise JointConditioningReferenceError
+
+// Type aliases
+
+// Traits

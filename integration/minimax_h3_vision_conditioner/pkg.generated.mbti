@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_vision_conditioner"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/model/minimax_h3_host_materialization",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn build_source(@vectie/lunaflux/model/minimax_h3_vision_conditioner.VisionPlan, prefix~ : String) -> VisionSource raise
+
+// Errors
+
+// Types and methods
+pub struct VisionRequest {
+  // private fields
+}
+pub fn VisionRequest::cancel(Self) -> Unit raise @device.DeviceError
+pub fn VisionRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn VisionRequest::execute(Self) -> Unit raise @device.DeviceError
+pub fn VisionRequest::new(VisionSource) -> Self
+pub fn VisionRequest::poll(Self) -> Bool raise @device.DeviceError
+pub fn VisionRequest::prepare(Self, @device.Context, @device.Stream, @device.Module, VisionWeights, ArrayView[@vectie/lunaflux/model/minimax_h3_vision_conditioner.ProcessedPixels], max_device_bytes~ : Int64) -> Unit raise
+pub fn VisionRequest::submit(Self) -> Unit raise @device.DeviceError
+pub fn VisionRequest::wait(Self) -> Unit raise @device.DeviceError
+pub fn[T] VisionRequest::with_destination(Self, (@device.Allocation, @vectie/lunaflux/model/minimax_h3_vision_conditioner.VisionPlan) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub fn[T] VisionRequest::with_output(Self, (@device.Allocation, @vectie/lunaflux/model/minimax_h3_vision_conditioner.VisionPlan) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for VisionRequest
+
+pub struct VisionSource {
+  plan : @vectie/lunaflux/model/minimax_h3_vision_conditioner.VisionPlan
+  symbols : ReadOnlyArray[String]
+  source : Bytes
+}
+pub fn VisionSource::bind(Self, ArrayView[@device.Function], @device.Allocation, ArrayView[@device.Allocation], ArrayView[@device.Allocation], patches~ : @device.Allocation, workspace~ : @device.Allocation, output~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise
+
+pub struct VisionWeights {
+  // private fields
+}
+pub fn VisionWeights::close(Self) -> Unit raise @device.DeviceError
+pub fn VisionWeights::new() -> Self
+pub fn VisionWeights::prepare(Self, @device.Context, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, expected_identity~ : @spec.ModelIdentity, max_bytes~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+// Type aliases
+
+// Traits

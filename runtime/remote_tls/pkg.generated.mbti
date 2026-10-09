@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/remote_tls"
+
+import {
+  "moonbitlang/async/socket",
+}
+
+// Values
+pub async fn accept(@socket.Tcp, RemoteCredential, Bytes, certificate_pem_file~ : String, private_key_pem_file~ : String, max_frame_bytes~ : Int, timeout_millis~ : Int) -> AuthenticatedRemoteChannel
+
+pub async fn connect(@socket.Tcp, RemoteCredential, Bytes, server_name~ : String, ca_pem_file~ : String, max_frame_bytes~ : Int, timeout_millis~ : Int) -> AuthenticatedRemoteChannel
+
+// Errors
+pub(all) suberror RemoteTlsError {
+  Configuration
+  Authentication
+  Closed
+  Busy
+  Frame
+}
+
+// Types and methods
+pub struct AuthenticatedRemoteChannel {
+  // private fields
+}
+pub fn AuthenticatedRemoteChannel::capacity(Self) -> Int
+pub fn AuthenticatedRemoteChannel::close(Self) -> Unit
+pub fn AuthenticatedRemoteChannel::is_open(Self) -> Bool
+pub async fn AuthenticatedRemoteChannel::receive(Self, FixedArray[Byte]) -> Int
+pub async fn AuthenticatedRemoteChannel::send(Self, FixedArray[Byte], Int) -> Unit
+pub fn AuthenticatedRemoteChannel::verify_binding(Self, Bytes) -> Unit raise RemoteTlsError
+
+pub struct RemoteCredential {
+  // private fields
+}
+pub fn RemoteCredential::from_bytes(Bytes) -> Self raise RemoteTlsError
+
+// Type aliases
+
+// Traits

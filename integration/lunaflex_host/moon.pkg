@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflex",
+}
+
+import {
+  "vectie/lunaflex/diagnostics/smoke",
+} for "test"
+
+supported_targets = "native"

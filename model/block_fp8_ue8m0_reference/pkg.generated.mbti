@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/block_fp8_ue8m0_reference"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn activation_scale_ue8m0_code(ArrayView[Float]) -> Int raise BlockFp8Ue8M0ReferenceError
+
+pub fn block128_dot_bf16_boundary(ArrayView[Float], ArrayView[Int], ArrayView[Int]) -> Float raise BlockFp8Ue8M0ReferenceError
+
+pub fn decode_e4m3_finite(Int) -> Float raise BlockFp8Ue8M0ReferenceError
+
+pub fn decode_ue8m0(Int) -> Float raise BlockFp8Ue8M0ReferenceError
+
+pub fn round_e4m3_finite_code(Float) -> Int raise BlockFp8Ue8M0ReferenceError
+
+// Errors
+pub(all) suberror BlockFp8Ue8M0ReferenceError {
+  InvalidE4M3Code(Int)
+  InvalidE8M0Code(Int)
+  InvalidShape
+  NonFiniteInput(Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

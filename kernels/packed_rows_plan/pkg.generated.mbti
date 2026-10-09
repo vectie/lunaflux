@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/packed_rows_plan"
+
+// Values
+
+// Errors
+pub(all) suberror PlanError {
+  InvalidShape
+  InvalidRows
+  ElementLimitExceeded
+}
+
+// Types and methods
+pub struct Plan {
+  // private fields
+}
+pub fn Plan::element_count(Self) -> Int64
+pub fn Plan::input_rows(Self, Source) -> Int
+pub fn Plan::mapping(Self) -> Bytes
+pub fn Plan::new(width~ : Int, total_rows~ : Int, conditioning~ : ArrayView[Int], video~ : ArrayView[Int], audio~ : ArrayView[Int], max_elements~ : Int64) -> Self raise PlanError
+pub fn Plan::rows(Self) -> ReadOnlyArray[Row]
+pub fn Plan::width(Self) -> Int
+
+pub struct Row {
+  source : Source
+  index : Int
+}
+
+pub(all) enum Source {
+  Padding
+  Conditioning
+  Video
+  Audio
+}
+
+// Type aliases
+
+// Traits

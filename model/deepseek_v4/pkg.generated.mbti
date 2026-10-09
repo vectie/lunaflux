@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/family_contract",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/workload_execution_plan",
+}
+
+// Values
+pub fn build(@deepseek_v4_spec.DeepSeekV4ModelMetadata) -> DeepSeekV4SemanticPlan
+
+pub fn requirements() -> @family_contract.ModelFamilyRequirements
+
+// Errors
+
+// Types and methods
+pub(all) enum DeepSeekV4AttentionMode {
+  SlidingWindowCausal
+  CompressedSparse
+  HeavilyCompressed
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4SemanticPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4SemanticPlan::admit_backend(Self, @family_contract.ModelBackendCapabilities) -> @family_contract.ModelFamilyAdmission
+pub fn DeepSeekV4SemanticPlan::attention_mode(Self, Int) -> DeepSeekV4AttentionMode?
+pub fn DeepSeekV4SemanticPlan::content_digest(Self) -> @spec.ContentDigest
+pub fn DeepSeekV4SemanticPlan::execution_plan(Self) -> @advanced_decoder_execution_plan.AdvancedDecoderExecutionPlan
+pub fn DeepSeekV4SemanticPlan::metadata(Self) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata
+pub fn DeepSeekV4SemanticPlan::requirements(Self) -> @family_contract.ModelFamilyRequirements
+pub fn DeepSeekV4SemanticPlan::workload_execution_plan(Self) -> @workload_execution_plan.WorkloadExecutionPlan
+
+// Type aliases
+
+// Traits

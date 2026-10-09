@@ -1,0 +1,23 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/aot_candidate_coverage",
+  "vectie/lunaflux/kernels/joint_diffusion_candidate_evidence",
+  "vectie/lunaflux/kernels/joint_diffusion_artifact_admission",
+  "vectie/lunaflux/kernels/joint_diffusion_cuda_aot",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/joint_diffusion_io_plan",
+  "vectie/lunaflux/model/joint_audio_amp_workspace_layout",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/joint_diffusion_conditioning_reference",
+  "vectie/lunaflux/model/joint_diffusion_vae_reference",
+  "vectie/lunaflux/model/minimax_h3_kernel_requirements",
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_config",
+  "vectie/lunaflux/model/minimax_h3_vae_reference",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

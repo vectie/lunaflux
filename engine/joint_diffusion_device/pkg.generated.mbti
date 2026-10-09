@@ -1,0 +1,254 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/joint_diffusion_device"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+  "vectie/lunaflux/kernels/packed_rows_plan",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+}
+
+// Values
+pub fn block_rms_norm_launch(@device.Function, rows~ : Int, width~ : Int, input~ : @device.Allocation, input_offset~ : Int64, weights~ : @device.Allocation, weight_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+
+pub fn conditioning_activation_launch(@device.Function, elements~ : Int64, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+
+pub fn staged_attention_scratch_bytes(rows~ : Int, head_count~ : Int, head_dimension~ : Int) -> Int64 raise @device.DeviceError
+
+pub fn transformer_block_launches(ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], @device.OrderedKernelLaunch, ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], @device.OrderedKernelLaunch) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+
+// Errors
+
+// Types and methods
+pub struct AliasFreeActivationLayout {
+  value_bytes : Int64
+  intermediate_bytes : Int64
+  activated_offset : Int64
+  scratch_bytes : Int64
+  parameter_bytes : Int64
+}
+pub fn AliasFreeActivationLayout::launches(Self, @device.Function, @device.Function, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, scratch~ : @device.Allocation, scratch_offset~ : Int64, weights~ : @device.Allocation, alpha_offset~ : Int64, beta_offset~ : Int64, upsample_filter_offset~ : Int64, downsample_filter_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AliasFreeActivationLayout::new(batch~ : Int, channels~ : Int, time~ : Int, max_scratch_bytes~ : Int64) -> Self raise @device.DeviceError
+
+pub struct AttentionFunctions {
+  // private fields
+}
+pub fn AttentionFunctions::launches(Self, rows~ : Int, rotary? : RotaryBindings, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, scratch~ : @device.Allocation, scratch_offset~ : Int64, weights~ : @device.Allocation, weight_offset~ : Int64, hidden_width~ : Int, head_count~ : Int, head_dimension~ : Int) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AttentionFunctions::new(@device.Function, @device.Function, @device.Function, @device.Function) -> Self
+
+pub struct AudioAmpLayout {
+  activation : AliasFreeActivationLayout
+  convolutions : ReadOnlyArray[AudioConvolutionLayout]
+  value_offsets : ReadOnlyArray[Int64]
+  normalized_offset : Int64
+  scratch_bytes : Int64
+}
+pub fn AudioAmpLayout::launches(Self, ArrayView[@device.Function], @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, scratch~ : @device.Allocation, weights~ : @device.Allocation, normalized_cache? : (@device.Allocation, ReadOnlyArray[Int64])) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioAmpLayout::new(batch~ : Int, channels~ : Int, time~ : Int, max_bytes~ : Int64) -> Self raise @device.DeviceError
+
+pub struct AudioConvolutionLayout {
+  channels : Int
+  output_channels : Int
+  value_bytes : Int64
+  output_bytes : Int64
+  weight_bytes : Int64
+  channel_bytes : Int64
+}
+pub fn AudioConvolutionLayout::convolve_launch(Self, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, normalized~ : @device.Allocation, normalized_offset~ : Int64, bias~ : @device.Allocation, bias_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn AudioConvolutionLayout::new(batch~ : Int, channels~ : Int, output_channels? : Int, time~ : Int, kernel~ : Int, max_weight_bytes~ : Int64) -> Self raise @device.DeviceError
+pub fn AudioConvolutionLayout::normalize_launch(Self, @device.Function, weights~ : @device.Allocation, g_offset~ : Int64, v_offset~ : Int64, normalized~ : @device.Allocation, normalized_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+
+pub struct AudioFrontendLayout {
+  convolution : AudioConvolutionLayout
+  input_bytes : Int64
+  projection_weight_bytes : Int64
+  projection_bias_bytes : Int64
+  g_offset : Int64
+  v_offset : Int64
+  bias_offset : Int64
+  weight_bytes : Int64
+  normalized_offset : Int64
+  scratch_bytes : Int64
+}
+pub fn AudioFrontendLayout::launches(Self, ArrayView[@device.Function], input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, scratch~ : @device.Allocation, weights~ : @device.Allocation, normalized_cache? : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioFrontendLayout::new(batch~ : Int, input_channels~ : Int, hidden_channels~ : Int, output_channels~ : Int, time~ : Int, kernel~ : Int, max_bytes~ : Int64) -> Self raise @device.DeviceError
+
+pub struct AudioTailLayout {
+  activation : AliasFreeActivationLayout
+  convolution : AudioConvolutionLayout
+  activated_offset : Int64
+  normalized_offset : Int64
+  scratch_bytes : Int64
+  weight_bytes : Int64
+}
+pub fn AudioTailLayout::launches(Self, ArrayView[@device.Function], input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, scratch~ : @device.Allocation, weights~ : @device.Allocation, normalized_cache? : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioTailLayout::new(batch~ : Int, channels~ : Int, time~ : Int, max_bytes~ : Int64) -> Self raise @device.DeviceError
+
+pub struct AudioUpsampleLayout {
+  input_channels : Int
+  output_time : Int
+  input_bytes : Int64
+  output_bytes : Int64
+  weight_bytes : Int64
+  g_bytes : Int64
+  bias_bytes : Int64
+}
+pub fn AudioUpsampleLayout::launches(Self, @device.Function, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, normalized~ : @device.Allocation, normalized_offset~ : Int64, weights~ : @device.Allocation, g_offset~ : Int64, v_offset~ : Int64, bias_offset~ : Int64, cached? : Bool) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioUpsampleLayout::new(batch~ : Int, input_channels~ : Int, output_channels~ : Int, input_time~ : Int, kernel~ : Int, stride~ : Int, padding~ : Int, max_weight_bytes~ : Int64) -> Self raise @device.DeviceError
+pub fn AudioUpsampleLayout::normalize_launch(Self, @device.Function, @device.Allocation, @device.Allocation) -> @device.OrderedKernelLaunch raise @device.DeviceError
+
+pub struct BlockFunctions {
+  // private fields
+}
+pub fn BlockFunctions::new(AttentionFunctions, norm~ : @device.Function, affine~ : @device.Function, residual~ : @device.Function, gate_up~ : @device.Function, down~ : @device.Function) -> Self
+
+pub struct BlockWorkspace {
+  // private fields
+}
+pub fn BlockWorkspace::allocate(@device.Context, BlockWorkspaceLayout) -> Self raise @device.DeviceError
+pub fn BlockWorkspace::bind_block(Self, BlockFunctions, RotaryBindings, ModulationBindings, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation, attention_weight_offset~ : Int64, mlp_weight_offset~ : Int64, norm_weight_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn BlockWorkspace::bind_conditioned_block(Self, BlockFunctions, @device.Function, RotaryBindings, ModulationBindings, conditioning~ : @device.Allocation, conditioning_offset~ : Int64, conditioning_width~ : Int, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation, attention_weight_offset~ : Int64, mlp_weight_offset~ : Int64, norm_weight_offset~ : Int64, parameter_weight_offset~ : Int64, parameter_bias_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64, modality_count~ : Int) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn BlockWorkspace::bind_refiner(Self, AttentionFunctions, norm~ : @device.Function, residual~ : @device.Function, gate_up~ : @device.Function, down~ : @device.Function, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation, attention_weight_offset~ : Int64, mlp_weight_offset~ : Int64, norm_weight_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn BlockWorkspace::close(Self) -> Unit raise @device.DeviceError
+pub fn BlockWorkspace::layout(Self) -> BlockWorkspaceLayout
+
+pub struct BlockWorkspaceLayout {
+  hidden_bytes : Int64
+  normalized_offset : Int64
+  branch_offset : Int64
+  scratch_offset : Int64
+  scratch_bytes : Int64
+  byte_count : Int64
+  // private fields
+}
+pub fn BlockWorkspaceLayout::new(rows~ : Int, hidden_width~ : Int, head_count~ : Int, head_dimension~ : Int, intermediate_width~ : Int, max_bytes~ : Int64) -> Self raise @device.DeviceError
+
+pub struct FlowBindings {
+  // private fields
+}
+pub fn FlowBindings::coefficients(Self, Int, @joint_diffusion_plan.JointDiffusionLatentKind) -> @device.KernelArgument raise
+pub fn FlowBindings::timestep(Self, Int, @joint_diffusion_plan.JointDiffusionLatentKind) -> @device.KernelArgument raise
+pub fn FlowBindings::upload(@device.Context, @joint_diffusion_loop.FlowTable, @device.Allocation, offset~ : Int64) -> Self raise @device.DeviceError
+
+pub struct KernelFrame {
+  // private fields
+}
+pub fn KernelFrame::denoise(@device.Context, @device.Stream, LatentStorage, ArrayView[@device.OrderedKernelLaunch], step~ : Int, video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int, policy? : @device.OrderedKernelExecutionPolicy) -> Self raise
+pub fn KernelFrame::denoise_staged(@device.Context, @device.Stream, LatentStorage, ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], step~ : Int, video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int, policy? : @device.OrderedKernelExecutionPolicy) -> Self raise
+pub fn KernelFrame::new(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], policy? : @device.OrderedKernelExecutionPolicy) -> Self raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for KernelFrame
+
+pub struct LatentProjections {
+  // private fields
+}
+pub fn LatentProjections::allocate(@device.Context, LatentStorage, @joint_diffusion_plan.JointDiffusionPlan, max_bytes~ : Int64) -> Self raise
+pub fn LatentProjections::close(Self) -> Unit raise @device.DeviceError
+pub fn LatentProjections::launch(Self, @device.Function, latent~ : @joint_diffusion_plan.JointDiffusionLatentKind, weights~ : @device.Allocation, weight_offset~ : Int64, bias~ : @device.Allocation, bias_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn LatentProjections::matches_storage(Self, LatentStorage) -> Bool
+pub fn LatentProjections::output_argument(Self, @joint_diffusion_plan.JointDiffusionLatentKind) -> @device.KernelArgument raise @device.DeviceError
+
+pub struct LatentStorage {
+  // private fields
+}
+pub fn LatentStorage::allocate(@device.Context, @joint_diffusion_loop.LatentStoragePlan) -> Self raise @device.DeviceError
+pub fn LatentStorage::argument(Self, @joint_diffusion_loop.LatentBuffer) -> @device.KernelArgument raise @device.DeviceError
+pub fn LatentStorage::boundary_launch(Self, @device.Function, boundary~ : @joint_diffusion_loop.LatentBoundary, block_size~ : Int) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn LatentStorage::close(Self) -> Unit raise @device.DeviceError
+pub fn LatentStorage::copy_from_host(Self, @joint_diffusion_loop.LatentBuffer, Bytes) -> Unit raise @device.DeviceError
+pub fn LatentStorage::copy_to_host(Self, @joint_diffusion_loop.LatentBuffer) -> Bytes raise @device.DeviceError
+pub fn LatentStorage::flow_launch(Self, @device.Function, step~ : Int, latent~ : @joint_diffusion_plan.JointDiffusionLatentKind, block_size~ : Int) -> @device.OrderedKernelLaunch raise
+pub fn LatentStorage::initialize_noise(Self, seed~ : Int64, chunk_elements~ : Int) -> Unit raise
+pub fn LatentStorage::matches_prepared(Self, @joint_diffusion_loop.PreparedPlan) -> Bool
+pub fn LatentStorage::output_projection_launch(Self, @device.Function, @joint_diffusion_plan.JointDiffusionPlan, latent~ : @joint_diffusion_plan.JointDiffusionLatentKind, hidden~ : @device.Allocation, hidden_offset~ : Int64, weights~ : @device.Allocation, weight_offset~ : Int64, bias~ : @device.Allocation, bias_offset~ : Int64) -> @device.OrderedKernelLaunch raise
+pub fn LatentStorage::upload_flow_table(Self, @device.Context) -> FlowBindings raise @device.DeviceError
+pub fn LatentStorage::validate_prediction_rows(Self, @joint_diffusion_plan.JointDiffusionPlan, video_rows~ : Int, audio_rows~ : Int) -> Unit raise
+pub fn[T] LatentStorage::with_region(Self, @joint_diffusion_loop.LatentBuffer, (@device.Allocation, Int64, Int64) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+
+pub struct ModulationBindings {
+  // private fields
+}
+pub fn ModulationBindings::launch(Self, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, parameter~ : @device.Allocation, parameter_offset~ : Int64, third~ : @device.Allocation, third_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, residual~ : Bool) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn ModulationBindings::matches_geometry(Self, rows~ : Int, width~ : Int, parameter_rows~ : Int) -> Bool
+pub fn ModulationBindings::parameter_row_count(Self) -> Int
+pub fn ModulationBindings::selected_output_launch(Self, @device.Function, start_row~ : Int, selected_rows~ : Int, normalized~ : @device.Allocation, normalized_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn ModulationBindings::upload(@device.Context, @device.Allocation, ArrayView[Int], offset~ : Int64, width~ : Int, parameter_rows~ : Int) -> Self raise @device.DeviceError
+
+pub struct PackedHidden {
+  // private fields
+}
+pub fn PackedHidden::allocate(@device.Context, @packed_rows_plan.Plan) -> Self raise @device.DeviceError
+pub fn PackedHidden::close(Self) -> Unit raise @device.DeviceError
+pub fn PackedHidden::launch(Self, @device.Function, LatentProjections, conditioning~ : @device.Allocation?, conditioning_offset~ : Int64, block_size~ : Int) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn PackedHidden::output_argument(Self) -> @device.KernelArgument raise @device.DeviceError
+pub fn PackedHidden::upload_mapping(Self) -> Unit raise @device.DeviceError
+pub fn[T] PackedHidden::with_state(Self, Bytes, width~ : Int, (@device.Allocation, Int64) -> T raise) -> T raise
+
+pub struct ParameterProjectionLayout {
+  input_bytes : Int64
+  weight_bytes : Int64
+  bias_bytes : Int64
+  output_bytes : Int64
+}
+pub fn ParameterProjectionLayout::launch(Self, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, weights~ : @device.Allocation, weight_offset~ : Int64, bias_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn ParameterProjectionLayout::new(rows~ : Int, input_width~ : Int, width~ : Int, groups~ : Int, fields~ : Int) -> Self raise @device.DeviceError
+
+pub struct PermutationBuffer {
+  // private fields
+}
+pub fn PermutationBuffer::allocate(@device.Context, @dense_permutation_plan.Permutation, max_bytes~ : Int64) -> Self raise @device.DeviceError
+pub fn PermutationBuffer::close(Self) -> Unit raise @device.DeviceError
+pub fn PermutationBuffer::execute(Self) -> Unit raise @device.DeviceError
+pub fn PermutationBuffer::prepare(Self, @device.Context, @device.Stream, @device.Function, @device.Allocation, input_offset~ : Int64) -> Unit raise @device.DeviceError
+pub fn[T] PermutationBuffer::with_output(Self, (@device.Allocation, Int64) -> T raise) -> T raise
+
+pub struct PipelineProgram {
+  // private fields
+}
+pub fn PipelineProgram::advance(Self) -> @joint_diffusion_execution.PipelineStage raise
+pub fn PipelineProgram::cancel(Self) -> Unit
+pub fn PipelineProgram::close(Self) -> Unit raise
+pub fn PipelineProgram::new() -> Self
+pub fn PipelineProgram::outputs_ready(Self) -> Bool
+pub fn PipelineProgram::prepare(Self, @device.Context, @device.Stream, @joint_diffusion_loop.PreparedPlan, LatentStorage, ArrayView[ReadOnlyArray[@device.OrderedKernelLaunch]], ArrayView[ReadOnlyArray[@device.OrderedKernelLaunch]], ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int) -> Unit raise
+pub fn PipelineProgram::prepare_stages(Self, @device.Context, @device.Stream, @joint_diffusion_loop.PreparedPlan, LatentStorage, ArrayView[@joint_diffusion_execution.PreparedStage], ArrayView[ReadOnlyArray[@device.OrderedKernelLaunch]], @joint_diffusion_execution.PreparedStage, @joint_diffusion_execution.PreparedStage, video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int) -> Unit raise
+
+pub struct RotaryBindings {
+  // private fields
+}
+pub fn RotaryBindings::attention_launches(Self, AttentionFunctions, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, scratch~ : @device.Allocation, scratch_offset~ : Int64, weights~ : @device.Allocation, weight_offset~ : Int64, hidden_width~ : Int, head_count~ : Int, head_dimension~ : Int) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn RotaryBindings::cosine(Self) -> @device.KernelArgument raise @device.DeviceError
+pub fn RotaryBindings::qk_norm_launch(Self, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, weights~ : @device.Allocation, weight_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, head_count~ : Int, head_dimension~ : Int) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn RotaryBindings::sine(Self) -> @device.KernelArgument raise @device.DeviceError
+pub fn RotaryBindings::upload(@device.Context, @device.Allocation, ArrayView[Float], ArrayView[Float], rows~ : Int, rotary_width~ : Int, offset~ : Int64, chunk_elements~ : Int) -> Self raise @device.DeviceError
+
+pub struct StagedMlpLayout {
+  input_bytes : Int64
+  product_bytes : Int64
+  packed_weight_bytes : Int64
+  down_weight_bytes : Int64
+}
+pub fn StagedMlpLayout::launches(Self, @device.Function, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, scratch~ : @device.Allocation, scratch_offset~ : Int64, weights~ : @device.Allocation, weight_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn StagedMlpLayout::new(rows~ : Int, hidden_width~ : Int, intermediate_width~ : Int) -> Self raise @device.DeviceError
+
+pub struct TimestepMlpLayout {
+  scratch_bytes : Int64
+  output_bytes : Int64
+  // private fields
+}
+pub fn TimestepMlpLayout::frequency_launch(Self, @device.Function, timesteps~ : @device.Allocation, timestep_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn TimestepMlpLayout::launches(Self, @device.Function, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, scratch~ : @device.Allocation, scratch_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, weights~ : @device.Allocation, first_weight_offset~ : Int64, first_bias_offset~ : Int64, second_weight_offset~ : Int64, second_bias_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn TimestepMlpLayout::new(rows~ : Int, input_width~ : Int, hidden_width~ : Int, output_width~ : Int) -> Self raise @device.DeviceError
+
+pub struct VaeInputLayout {
+  value_bytes : Int64
+  parameter_bytes : Int64
+}
+pub fn VaeInputLayout::launches(Self, @device.Function, @device.Function, input~ : @device.Allocation, input_offset~ : Int64, scratch~ : @device.Allocation, scratch_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, standard_deviations~ : @device.Allocation, standard_deviations_offset~ : Int64, means~ : @device.Allocation, means_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn VaeInputLayout::new(@dense_permutation_plan.Permutation, batch~ : Int, channels~ : Int, elements_per_channel~ : Int64, max_bytes~ : Int64) -> Self raise @device.DeviceError
+
+// Type aliases
+
+// Traits

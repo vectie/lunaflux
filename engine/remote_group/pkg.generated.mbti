@@ -1,0 +1,70 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/remote_group"
+
+import {
+  "vectie/lunaflux/engine/rank_group_protocol",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/remote_release",
+  "vectie/lunaflux/engine/remote_startup",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/runtime/remote_mailbox",
+}
+
+// Values
+
+// Errors
+pub(all) suberror RemoteGroupError {
+  Configuration
+  State
+  Binding
+  Deadline
+  RankLost(Int)
+  Protocol
+}
+
+// Types and methods
+pub struct RemoteGroup {
+  // private fields
+}
+pub fn RemoteGroup::accept_completion(Self, @worker_protocol.SubmittedSchedulePlan, @worker_protocol.SubmittedCompletion) -> Unit raise
+pub fn RemoteGroup::begin(Self, @worker_protocol.SubmittedSchedulePlan) -> Unit raise
+pub fn RemoteGroup::begin_close(Self) -> Unit raise
+pub fn RemoteGroup::completion_frame(Self, UInt64) -> @worker_wire.ValidatedCompletionFrame raise
+pub fn RemoteGroup::confirm_release(Self, Int, @remote_release.RemoteReleaseReceipt) -> Unit raise
+pub fn RemoteGroup::generation(Self) -> UInt64
+pub fn RemoteGroup::graph_telemetry(Self, UInt64) -> @worker_wire.WorkerGraphTelemetry raise
+pub fn RemoteGroup::has_received(Self, UInt64) -> Bool
+pub fn RemoteGroup::has_submission(Self, UInt64) -> Bool
+pub fn RemoteGroup::lifecycle(Self) -> RemoteGroupLifecycle
+pub fn RemoteGroup::mailbox(Self, Int) -> @remote_mailbox.RemoteMailbox raise RemoteGroupError
+pub fn RemoteGroup::new(@remote_startup.RemoteGroupStartup, @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrap, ArrayView[@worker_protocol.PlanBufferIdentity], @rank_group_wire.RankGroupWireLimits, timeout_millis~ : UInt64) -> Self raise
+pub fn RemoteGroup::poll_startup(Self) -> Bool raise
+pub fn RemoteGroup::previous_plan_sequence_value(Self) -> UInt64
+pub fn RemoteGroup::probe_idle_health(Self) -> Unit raise
+pub fn RemoteGroup::progress(Self, @worker_protocol.SubmittedSchedulePlan) -> Bool raise
+pub fn RemoteGroup::progress_close(Self) -> Bool raise
+pub fn RemoteGroup::recovery_cleanup_complete(Self) -> Bool
+pub fn RemoteGroup::retire_after_scheduler_commit(Self, UInt64) -> Unit raise
+pub fn RemoteGroup::startup(Self) -> @remote_startup.RemoteGroupStartup
+pub fn RemoteGroup::take_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise
+pub fn RemoteGroup::taken_failure(Self) -> @rank_group_protocol.RankGroupFailureReport raise RemoteGroupError
+pub fn RemoteGroup::transport_lost(Self) -> Unit
+
+pub(all) enum RemoteGroupLifecycle {
+  Starting
+  Ready
+  Executing
+  CompletionReady
+  Accepted
+  Faulted
+  Closing
+  Closed
+} derive(Eq)
+pub fn RemoteGroupLifecycle::equal(Self, Self) -> Bool
+pub fn RemoteGroupLifecycle::not_equal(Self, Self) -> Bool
+
+// Type aliases
+
+// Traits

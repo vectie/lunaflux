@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/runtime/remote_lease"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror RemoteLeaseError {
+  InvalidConfiguration
+} derive(Eq, @debug.Debug)
+pub fn RemoteLeaseError::equal(Self, Self) -> Bool
+pub fn RemoteLeaseError::not_equal(Self, Self) -> Bool
+pub fn RemoteLeaseError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct RemoteLease {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RemoteLease::deadline_millis(Self) -> UInt64
+pub fn RemoteLease::equal(Self, Self) -> Bool
+pub fn RemoteLease::generation_value(Self) -> UInt64
+pub fn RemoteLease::not_equal(Self, Self) -> Bool
+pub fn RemoteLease::poll(Self, UInt64) -> Self
+pub fn RemoteLease::renew(Self, generation~ : UInt64, sequence~ : UInt64, local_now_millis~ : UInt64) -> Self
+pub fn RemoteLease::renewal_sequence_value(Self) -> UInt64
+pub fn RemoteLease::start(generation~ : UInt64, duration_millis~ : UInt64, local_now_millis~ : UInt64) -> Self raise RemoteLeaseError
+pub fn RemoteLease::status(Self) -> RemoteLeaseStatus
+pub fn RemoteLease::to_repr(Self) -> @debug.Repr
+pub fn RemoteLease::transport_lost(Self) -> Self
+
+pub(all) enum RemoteLeaseStatus {
+  Active
+  Expired
+  ClockRegressed
+  ClockOverflow
+  InvalidRenewal
+  TransportLost
+} derive(Eq, @debug.Debug)
+pub fn RemoteLeaseStatus::equal(Self, Self) -> Bool
+pub fn RemoteLeaseStatus::not_equal(Self, Self) -> Bool
+pub fn RemoteLeaseStatus::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

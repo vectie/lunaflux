@@ -1,6 +1,8 @@
 /_build/
-/scripts/_build/
 /.mooncakes/
+**/_build/
+**/.mooncakes/
+**/__pycache__/
 /.repos/
 .DS_Store
 *.log
@@ -16,6 +18,7 @@
 /models/
 /kernels/cache/
 /benchmarks/results/
+/benchmarks/qwen3_comparison/results/
 /profiles/
 /trace.json
 /profile.json

@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/glm_hybrid_dsa_pooling_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn dsa_key_pool_compression_bf16_source(head_dimension~ : Int, pool_size~ : Int, maximum_tokens~ : Int, function_symbol~ : String) -> GlmHybridDsaPoolingCudaSource raise GlmHybridDsaPoolingCudaSourceError
+
+// Errors
+pub(all) suberror GlmHybridDsaPoolingCudaSourceError {
+  InvalidHeadDimension
+  InvalidPoolSize
+  InvalidMaximumTokens
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum GlmHybridDsaPoolingCudaOperation {
+  DsaKeyPoolCompressionBf16
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridDsaPoolingCudaSource {
+  // private fields
+}
+pub fn GlmHybridDsaPoolingCudaSource::function_symbol(Self) -> String
+pub fn GlmHybridDsaPoolingCudaSource::head_dimension(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaSource::maximum_tokens(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaSource::numerical_contract(Self) -> GlmHybridDsaPoolingNumericalContract
+pub fn GlmHybridDsaPoolingCudaSource::operation(Self) -> GlmHybridDsaPoolingCudaOperation
+pub fn GlmHybridDsaPoolingCudaSource::pool_capacity(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaSource::pool_size(Self) -> Int
+pub fn GlmHybridDsaPoolingCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum GlmHybridDsaPoolingNumericalContract {
+  StableFloat32SoftmaxBf16ProbabilityOrderedFloat32AccumulationV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

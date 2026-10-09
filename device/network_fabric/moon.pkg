@@ -1,0 +1,6 @@
+import {
+  "moonbitlang/core/env",
+  "vectie/lunaflux/device/network_topology",
+}
+
+supported_targets = "native"

@@ -51,6 +51,7 @@ pub fn Allocation::byte_count(Self) -> Int64
 pub fn Allocation::close(Self) -> Unit raise DeviceError
 pub fn Allocation::copy_from_host(Self, Bytes, Int64, Int64, Int64) -> Unit raise DeviceError
 pub fn Allocation::copy_to_host(Self, Int64, Int64) -> Bytes raise DeviceError
+pub fn Allocation::same_storage(Self, Self) -> Bool
 
 pub struct AllocationLease {
   // private fields
@@ -76,6 +77,7 @@ pub fn Context::close(Self) -> Unit raise DeviceError
 pub fn Context::copy_from_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise DeviceError
 pub fn Context::copy_to_fixed_host(Self, Allocation, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise DeviceError
 pub fn Context::create_cublas_lt(Self) -> CublasLt raise DeviceError
+pub fn Context::create_dependency_event(Self) -> Event raise DeviceError
 pub fn Context::create_event(Self) -> Event raise DeviceError
 pub fn Context::create_ordered_kernel_executor(Self, Stream, ArrayView[OrderedKernelLaunch], policy? : OrderedKernelExecutionPolicy, projections? : ArrayView[OrderedBf16Projection]) -> OrderedKernelExecutor raise DeviceError
 pub fn Context::create_stream(Self) -> Stream raise DeviceError
@@ -181,6 +183,7 @@ pub(all) enum DeviceOperation {
   EventCreate
   EventClose
   EventRecord
+  StreamWaitEvent
   EventSynchronize
   EventElapsed
   AllocationCreate
@@ -302,6 +305,7 @@ pub struct Stream {
 }
 pub fn Stream::close(Self) -> Unit raise DeviceError
 pub fn Stream::synchronize(Self) -> Unit raise DeviceError
+pub fn Stream::wait_event(Self, Event) -> Unit raise DeviceError
 
 pub struct TensorCollectiveContract {
   // private fields
@@ -337,6 +341,7 @@ pub fn TensorCollectiveOwner::close(Self) -> Unit raise DeviceError
 pub fn TensorCollectiveOwner::invalidate(Self) -> Unit raise DeviceError
 pub fn TensorCollectiveOwner::poll(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::poll_ready(Self) -> Bool raise DeviceError
+pub fn TensorCollectiveOwner::poll_submitted(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::submit(Self, generation~ : UInt64, plan_sequence~ : UInt64, global_sequence~ : UInt64, site_sequence~ : Int, operation_id~ : Int, kind~ : TensorCollectiveKind, live_query_tokens~ : Int, send~ : Allocation, send_offset~ : Int64, receive~ : Allocation, receive_offset~ : Int64, stream~ : Stream) -> Unit raise DeviceError
 
 type TensorCollectiveOwnerState derive(Eq, @debug.Debug)

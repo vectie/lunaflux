@@ -1,0 +1,6 @@
+import {
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/segmented_host_borrow",
+}
+
+supported_targets = "native"

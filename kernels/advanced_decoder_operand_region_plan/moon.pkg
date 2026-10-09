@@ -1,0 +1,7 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/canonical_sha256",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+}
+
+supported_targets = "native"

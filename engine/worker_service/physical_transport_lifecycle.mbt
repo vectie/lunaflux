@@ -3,6 +3,7 @@ fn WorkerPhysicalTransport::begin_recovery(
   self : WorkerPhysicalTransport,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.begin_recovery()
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -26,6 +27,15 @@ fn WorkerPhysicalTransport::validate_recovery_binding(
   physical_binding : WorkerPhysicalBinding,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) =>
+      if !(physical_binding is RemoteBinding) ||
+        scheduler.last_submitted_plan_sequence() !=
+        scheduler.last_retired_plan_sequence() ||
+        scheduler.last_retired_plan_sequence() != group.previous ||
+        identity.model_identity != group.identity.model_identity ||
+        identity.model_generation_value != group.identity.model_generation_value {
+        raise Invalid(Identity)
+      }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -76,6 +86,7 @@ fn WorkerPhysicalTransport::restart(
   self : WorkerPhysicalTransport,
 ) -> WorkerPhysicalRestart raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.restart()
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -109,6 +120,10 @@ fn WorkerPhysicalTransport::retry_replacement_cleanup(
   self : WorkerPhysicalTransport,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) =>
+      if !group.finish_replacement_cleanup() {
+        raise PhysicalTransport(PhysicalBackpressured)
+      }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -134,6 +149,15 @@ fn WorkerPhysicalTransport::shutdown_clean(
   self : WorkerPhysicalTransport,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      group.begin_close()
+      if !group.closed {
+        ignore(group.maintenance())
+        if !group.closed {
+          raise PhysicalTransport(PhysicalBackpressured)
+        }
+      }
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -164,6 +188,15 @@ fn WorkerPhysicalTransport::close(
   self : WorkerPhysicalTransport,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      group.begin_close()
+      if !group.closed {
+        ignore(group.maintenance())
+        if !group.closed {
+          raise PhysicalTransport(PhysicalBackpressured)
+        }
+      }
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -195,6 +228,10 @@ fn WorkerPhysicalTransport::begin_recovery_maintenance(
   fallback_failure : @worker_protocol.WorkerFailure,
 ) -> @worker_protocol.WorkerFailure raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      group.begin_recovery()
+      group.failure()
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -218,6 +255,7 @@ fn WorkerPhysicalTransport::begin_close_maintenance(
   self : WorkerPhysicalTransport,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.begin_close()
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -236,6 +274,10 @@ fn WorkerPhysicalTransport::begin_replacement_cleanup_maintenance(
   self : WorkerPhysicalTransport,
 ) -> Unit raise WorkerServiceError {
   match self {
+    RemoteGroup(group) =>
+      if !group.replacement_cleanup {
+        raise Invalid(Recovery)
+      }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>
@@ -263,6 +305,7 @@ fn WorkerPhysicalTransport::progress_maintenance(
   self : WorkerPhysicalTransport,
 ) -> WorkerPhysicalMaintenanceProgress raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => group.maintenance()
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) => {
@@ -340,6 +383,10 @@ fn WorkerPhysicalTransport::maintenance_remaining_millis(
   self : WorkerPhysicalTransport,
 ) -> Int raise WorkerServiceError {
   match self {
+    RemoteGroup(group) => {
+      ignore(group)
+      0
+    }
     Uninstalled =>
       abort("worker service physical transport installation invariant")
     RootedSingle(process) =>

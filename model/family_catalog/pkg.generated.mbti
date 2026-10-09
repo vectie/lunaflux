@@ -1,0 +1,21 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/family_catalog"
+
+import {
+  "vectie/lunaflux/model/family_contract",
+}
+
+// Values
+pub fn admit_profiles(@family_contract.ModelBackendCapabilities) -> ReadOnlyArray[@family_contract.ModelFamilyAdmission]
+
+pub fn baseline_dense_decoder_backend() -> @family_contract.ModelBackendCapabilities
+
+pub fn profiles() -> ReadOnlyArray[@family_contract.ModelFamilyRequirements]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

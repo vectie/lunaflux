@@ -1,0 +1,36 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4_reference_fixture"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/advanced_decoder_reference",
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn run_flash_0731(@deepseek_v4.DeepSeekV4SemanticPlan, limits~ : @advanced_decoder_reference.ReferenceLimits) -> DeepSeekV4ReferenceFixtureResult raise DeepSeekV4ReferenceFixtureError
+
+// Errors
+pub(all) suberror DeepSeekV4ReferenceFixtureError {
+  UnsupportedFixtureProfile
+  InvalidFixturePlan
+  ReferenceFailure(@advanced_decoder_reference.AdvancedDecoderReferenceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DeepSeekV4ReferenceFixtureResult {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4ReferenceFixtureResult::auxiliary_stages(Self) -> ReadOnlyArray[@advanced_decoder_reference.AuxiliaryReferenceStage]
+pub fn DeepSeekV4ReferenceFixtureResult::compressed_indices(Self) -> ReadOnlyArray[Int]
+pub fn DeepSeekV4ReferenceFixtureResult::expert_output(Self) -> ReadOnlyArray[Float]
+pub fn DeepSeekV4ReferenceFixtureResult::hash_routing(Self) -> @advanced_decoder_reference.ExpertRouting
+pub fn DeepSeekV4ReferenceFixtureResult::learned_indices(Self) -> @advanced_decoder_reference.ReferenceTopK
+pub fn DeepSeekV4ReferenceFixtureResult::mixed_streams(Self) -> ReadOnlyArray[Float]
+pub fn DeepSeekV4ReferenceFixtureResult::plan_digest(Self) -> @spec.PlanDigest
+pub fn DeepSeekV4ReferenceFixtureResult::top_k_routing(Self) -> @advanced_decoder_reference.ExpertRouting
+
+// Type aliases
+
+// Traits

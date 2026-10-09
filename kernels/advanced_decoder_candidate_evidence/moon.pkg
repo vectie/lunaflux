@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/kernels/advanced_decoder_cuda_aot",
+  "vectie/lunaflux/kernels/aot_candidate_coverage",
+}
+
+supported_targets = "native"

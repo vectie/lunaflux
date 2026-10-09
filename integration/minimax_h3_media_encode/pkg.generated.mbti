@@ -1,0 +1,72 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_media_encode"
+
+import {
+  "vectie/lunaflux/compiler/media_encode_plan",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/kernels/media_encode_cuda_source",
+  "vectie/lunaflux/model/minimax_h3_config",
+  "vectie/lunaflux/model/minimax_h3_host_materialization",
+  "vectie/lunaflux/model/segmented_device_materialize",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn rgb_chunk(BytesView, start_element~ : Int, count~ : Int, frames~ : Int, height~ : Int, width~ : Int) -> Bytes raise @media_encode_plan.PlanError
+
+pub fn upload_rgb(@device.Context, @device.Allocation, VideoSource, BytesView, destination_offset~ : Int64, chunk_elements~ : Int) -> Unit raise
+
+// Errors
+
+// Types and methods
+pub struct AudioRequest {
+  // private fields
+}
+pub fn AudioRequest::cancel(Self) -> Unit raise @device.DeviceError
+pub fn AudioRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioRequest::execute(Self) -> Unit raise @device.DeviceError
+pub fn AudioRequest::new() -> Self
+pub fn AudioRequest::poll(Self) -> Bool raise @device.DeviceError
+pub fn AudioRequest::prepare(Self, @device.Context, @device.Stream, @device.Module, AudioSource, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @segmented_device_materialize.SegmentedDeviceWeights, expected_identity~ : @spec.ModelIdentity, input~ : @device.Allocation, input_offset~ : Int64) -> Unit raise
+pub fn AudioRequest::prepare_resolved(Self, @device.Context, @device.Stream, @device.Module, AudioSource, @minimax_h3_config.MiniMaxH3AudioVaeConfig, WeightManifest, @segmented_device_materialize.SegmentedDeviceWeights, expected_identity~ : @spec.ModelIdentity, input~ : @device.Allocation, input_offset~ : Int64) -> Unit raise
+pub fn AudioRequest::submit(Self) -> Unit raise @device.DeviceError
+pub fn[T] AudioRequest::with_destination(Self, (@device.Allocation, Int64, Int) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub fn[T] AudioRequest::with_rows(Self, (@device.Allocation, Int64, Int) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for AudioRequest
+
+pub struct AudioSource {
+  plan : @vectie/lunaflux/model/minimax_h3_media_encode.AudioEncoder
+  kernels : @media_encode_cuda_source.Source
+}
+pub fn AudioSource::new(samples~ : Int, max_scratch_bytes~ : Int64) -> Self raise @media_encode_plan.PlanError
+
+pub struct VideoRequest {
+  // private fields
+}
+pub fn VideoRequest::cancel(Self) -> Unit raise @device.DeviceError
+pub fn VideoRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn VideoRequest::execute(Self) -> Unit raise @device.DeviceError
+pub fn VideoRequest::new() -> Self
+pub fn VideoRequest::poll(Self) -> Bool raise @device.DeviceError
+pub fn VideoRequest::prepare(Self, @device.Context, @device.Stream, @device.Module, VideoSource, @minimax_h3_config.MiniMaxH3VideoVaeConfig, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @segmented_device_materialize.SegmentedDeviceWeights, expected_identity~ : @spec.ModelIdentity, input~ : @device.Allocation, input_offset~ : Int64, noise~ : @device.Allocation, noise_offset~ : Int64) -> Unit raise
+pub fn VideoRequest::prepare_resolved(Self, @device.Context, @device.Stream, @device.Module, VideoSource, @minimax_h3_config.MiniMaxH3VideoVaeConfig, WeightManifest, @segmented_device_materialize.SegmentedDeviceWeights, expected_identity~ : @spec.ModelIdentity, input~ : @device.Allocation, input_offset~ : Int64, noise~ : @device.Allocation, noise_offset~ : Int64) -> Unit raise
+pub fn VideoRequest::submit(Self) -> Unit raise @device.DeviceError
+pub fn[T] VideoRequest::with_destination(Self, (@device.Allocation, Int64, Int) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub fn[T] VideoRequest::with_rows(Self, (@device.Allocation, Int64, Int) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for VideoRequest
+
+pub struct VideoSource {
+  plan : @vectie/lunaflux/model/minimax_h3_media_encode.VideoEncoder
+  kernels : @media_encode_cuda_source.Source
+}
+pub fn VideoSource::new(frames~ : Int, height~ : Int, width~ : Int, image~ : Bool, max_tiles~ : Int, max_scratch_bytes~ : Int64) -> Self raise @media_encode_plan.PlanError
+
+pub struct WeightManifest {
+  // private fields
+}
+pub fn WeightManifest::new(@minimax_h3_host_materialization.MiniMaxH3HostComponentArena) -> Self raise
+
+// Type aliases
+
+// Traits

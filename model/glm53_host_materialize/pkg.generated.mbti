@@ -1,0 +1,112 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm53_host_materialize"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/glm53_numeric_plan",
+  "vectie/lunaflux/model/glm53_weights",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/segmented_host_borrow",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn materialize_safetensors_shards(@approved_fs.ApprovedRoot, ArrayView[Glm53HostShardSource], @glm53_weights.Glm53TensorManifest, @glm53_numeric_plan.Glm53NumericPlan, expected~ : Glm53HostExpectedDigests, limits~ : Glm53HostMaterializationLimits) -> Glm53HostWeights raise Glm53HostMaterializeError
+
+// Errors
+pub(all) suberror Glm53HostMaterializeError {
+  InvalidLimit(Glm53HostLimit)
+  UnsupportedPhysicalEncoding
+  DigestMismatch(Glm53HostDigestKind)
+  ProfileMismatch
+  SourceCountMismatch
+  StreamingAdmission(@streaming_safetensors.StreamingSafetensorsError)
+  PayloadCoverageMismatch(shard~ : Int)
+  TensorCountMismatch(expected~ : Int, actual~ : Int)
+  TensorNameMismatch(ordinal~ : Int)
+  TensorDTypeMismatch(ordinal~ : Int)
+  TensorShapeMismatch(ordinal~ : Int)
+  TensorByteCountMismatch(ordinal~ : Int)
+  NumericTensorMismatch(ordinal~ : Int)
+  ArenaSizeOverflow
+  Closed
+  TensorOrdinalOutOfRange
+  TensorByteOutOfRange
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum Glm53HostDigestKind {
+  ExecutionIdentity
+  ManifestLayout
+  NumericSchema
+  NumericBinding
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53HostExpectedDigests {
+  // private fields
+}
+pub fn Glm53HostExpectedDigests::new(execution_identity~ : @spec.ModelIdentity, manifest_layout~ : @spec.PlanDigest, numeric_schema~ : @numeric_contract.ModelNumericSchemaDigest, numeric_binding~ : @spec.PlanDigest) -> Self
+
+pub(all) enum Glm53HostLimit {
+  HeaderBytes
+  TensorCount
+  TensorRank
+  TensorNameBytes
+  SourceCount
+  FileBytes
+  ArenaBytes
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53HostMaterializationLimits {
+  // private fields
+}
+pub fn Glm53HostMaterializationLimits::new(max_header_bytes~ : Int, max_tensor_count~ : Int, max_rank~ : Int, max_name_bytes~ : Int, max_source_count~ : Int, max_file_bytes~ : Int64, max_arena_bytes~ : Int, max_total_arena_bytes~ : Int64) -> Self raise Glm53HostMaterializeError
+
+pub struct Glm53HostShardSource {
+  // private fields
+}
+pub fn Glm53HostShardSource::new(locator~ : @approved_fs.ApprovedRelativeLocator, artifact_digest~ : @streaming_safetensors.StreamingSafetensorsFileDigest) -> Self
+
+pub struct Glm53HostSourceDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn Glm53HostSourceDigest::as_hex(Self) -> String
+
+pub struct Glm53HostTensorRegion {
+  // private fields
+}
+pub fn Glm53HostTensorRegion::byte_length(Self) -> Int64
+pub fn Glm53HostTensorRegion::ordinal(Self) -> Int
+pub fn Glm53HostTensorRegion::span(Self, Int) -> Glm53HostTensorSpan?
+pub fn Glm53HostTensorRegion::span_count(Self) -> Int
+
+pub struct Glm53HostTensorSpan {
+  // private fields
+}
+pub fn Glm53HostTensorSpan::arena_index(Self) -> Int
+pub fn Glm53HostTensorSpan::byte_length(Self) -> Int
+pub fn Glm53HostTensorSpan::offset_bytes(Self) -> Int
+
+pub struct Glm53HostWeights {
+  // private fields
+}
+pub fn Glm53HostWeights::arena_count(Self) -> Int
+pub fn Glm53HostWeights::close(Self) -> Unit
+pub fn Glm53HostWeights::device_arena_size(Self, Int) -> Int raise @segmented_host_borrow.SegmentedHostBorrowError
+pub fn Glm53HostWeights::execution_identity(Self) -> @spec.ModelIdentity
+pub fn Glm53HostWeights::is_closed(Self) -> Bool
+pub fn Glm53HostWeights::manifest_layout_digest(Self) -> @spec.PlanDigest
+pub fn Glm53HostWeights::numeric_binding_digest(Self) -> @spec.PlanDigest
+pub fn Glm53HostWeights::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn Glm53HostWeights::provide_device_arena(Self, Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError
+pub fn Glm53HostWeights::source_digest(Self) -> Glm53HostSourceDigest
+pub fn Glm53HostWeights::tensor_byte(Self, Int, Int64) -> Byte raise Glm53HostMaterializeError
+pub fn Glm53HostWeights::tensor_count(Self) -> Int
+pub fn Glm53HostWeights::tensor_region(Self, Int) -> Glm53HostTensorRegion raise Glm53HostMaterializeError
+pub fn Glm53HostWeights::total_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

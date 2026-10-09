@@ -5,7 +5,12 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/remote_group",
+  "vectie/lunaflux/engine/remote_release",
+  "vectie/lunaflux/engine/remote_startup",
   "vectie/lunaflux/engine/tensor_parallel_group_transport",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
@@ -21,6 +26,8 @@ import {
 pub fn new_fixture(@core.Scheduler, WorkerServiceBinding, @worker_process.RootBoundWorkerProcessSupervisor) -> WorkerService raise WorkerServiceError
 
 pub fn prepare_owned_approved(@core.SchedulerBlueprint, WorkerServiceBinding, @worker_executable_file.WorkerExecutableAdmission, @worker_wire.WorkerStartupContract, @worker_wire.EncodedBootstrapSource, @worker_process.WorkerProcessLimits, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, WorkerRestartBackoffPolicy) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
+
+pub fn prepare_owned_remote(@core.SchedulerBlueprint, @remote_startup.RemoteGroupStartup, @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrap, @rank_group_wire.RankGroupWireLimits, timeout_millis~ : UInt64, WorkerRestartBackoffPolicy) -> RemoteWorkerServicePreparation raise
 
 pub fn prepare_owned_tensor_parallel_approved(@core.SchedulerBlueprint, @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, WorkerRestartBackoffPolicy) -> OwnedWorkerServicePreparation raise OwnedWorkerServicePreparationError
 
@@ -220,6 +227,20 @@ pub(all) enum OwnedWorkerServicePreparationState {
   OwnedServiceReady
   OwnedServiceCleanupRequired
 } derive(Eq, @debug.Debug)
+
+pub struct RemoteWorkerServiceControl {
+  // private fields
+}
+pub fn RemoteWorkerServiceControl::confirm_release(Self, Int, @remote_release.RemoteReleaseReceipt) -> Unit raise
+pub fn RemoteWorkerServiceControl::confirm_replacement_release(Self, Int, @remote_release.RemoteReleaseReceipt) -> Unit raise
+pub fn RemoteWorkerServiceControl::group(Self) -> @remote_group.RemoteGroup
+pub fn RemoteWorkerServiceControl::prepare_replacement(Self, @remote_startup.RemoteGroupStartup, @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrap) -> @remote_group.RemoteGroup raise
+
+pub struct RemoteWorkerServicePreparation {
+  // private fields
+}
+pub fn RemoteWorkerServicePreparation::control(Self) -> RemoteWorkerServiceControl
+pub fn RemoteWorkerServicePreparation::poll_ready(Self) -> OwnedWorkerServicePreparation? raise
 
 pub(all) enum WorkerPhysicalTransportFailure {
   PhysicalBackpressured

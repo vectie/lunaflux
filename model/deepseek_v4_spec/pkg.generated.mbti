@@ -1,0 +1,91 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4_spec"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror DeepSeekV4SpecError {
+  UnsupportedProfile
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DeepSeekV4ExpertStorage {
+  Fp4E2M1
+  Fp8E4M3
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4ModelMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4ModelMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn DeepSeekV4ModelMetadata::from_verified_content(DeepSeekV4ModelSpec, @spec.ContentDigest) -> Self
+pub fn DeepSeekV4ModelMetadata::spec(Self) -> DeepSeekV4ModelSpec
+
+pub struct DeepSeekV4ModelSpec {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4ModelSpec::architecture(Self) -> String
+pub fn DeepSeekV4ModelSpec::attention_head_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::attention_profile_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::compressed_rope_theta(Self) -> Double
+pub fn DeepSeekV4ModelSpec::compression_ratio(Self, Int) -> Int?
+pub fn DeepSeekV4ModelSpec::dspark_block_size(Self) -> Int
+pub fn DeepSeekV4ModelSpec::dspark_markov_rank(Self) -> Int
+pub fn DeepSeekV4ModelSpec::dspark_noise_token_id(Self) -> Int
+pub fn DeepSeekV4ModelSpec::dspark_target_layer_ids(Self) -> ReadOnlyArray[Int]
+pub fn DeepSeekV4ModelSpec::execution_profile_identity(Self) -> String
+pub fn DeepSeekV4ModelSpec::expert_storage(Self) -> DeepSeekV4ExpertStorage
+pub fn DeepSeekV4ModelSpec::experts_per_token(Self) -> Int
+pub fn DeepSeekV4ModelSpec::from_official_model_id(StringView) -> Self raise DeepSeekV4SpecError
+pub fn DeepSeekV4ModelSpec::has_dspark(Self) -> Bool
+pub fn DeepSeekV4ModelSpec::hash_layer_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::head_dimension(Self) -> Int
+pub fn DeepSeekV4ModelSpec::hidden_size(Self) -> Int
+pub fn DeepSeekV4ModelSpec::hyper_connection_epsilon(Self) -> Double
+pub fn DeepSeekV4ModelSpec::hyper_connection_sinkhorn_iterations(Self) -> Int
+pub fn DeepSeekV4ModelSpec::hyper_connection_width(Self) -> Int
+pub fn DeepSeekV4ModelSpec::index_head_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::index_head_dimension(Self) -> Int
+pub fn DeepSeekV4ModelSpec::index_top_k(Self) -> Int
+pub fn DeepSeekV4ModelSpec::kv_head_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::layer_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::max_position_embeddings(Self) -> Int
+pub fn DeepSeekV4ModelSpec::model_type(Self) -> String
+pub fn DeepSeekV4ModelSpec::moe_intermediate_size(Self) -> Int
+pub fn DeepSeekV4ModelSpec::next_token_prediction_layer_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::normalizes_selected_expert_probabilities(Self) -> Bool
+pub fn DeepSeekV4ModelSpec::o_lora_rank(Self) -> Int
+pub fn DeepSeekV4ModelSpec::original_position_embeddings(Self) -> Int
+pub fn DeepSeekV4ModelSpec::output_group_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::prediction_stage_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::profile(Self) -> DeepSeekV4Profile
+pub fn DeepSeekV4ModelSpec::q_lora_rank(Self) -> Int
+pub fn DeepSeekV4ModelSpec::rms_norm_epsilon(Self) -> Double
+pub fn DeepSeekV4ModelSpec::rope_beta_fast(Self) -> Double
+pub fn DeepSeekV4ModelSpec::rope_beta_slow(Self) -> Double
+pub fn DeepSeekV4ModelSpec::rope_head_dimension(Self) -> Int
+pub fn DeepSeekV4ModelSpec::rope_scaling_factor(Self) -> Double
+pub fn DeepSeekV4ModelSpec::rope_theta(Self) -> Double
+pub fn DeepSeekV4ModelSpec::routed_expert_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::routed_scaling_factor(Self) -> Double
+pub fn DeepSeekV4ModelSpec::shared_expert_count(Self) -> Int
+pub fn DeepSeekV4ModelSpec::sliding_window(Self) -> Int
+pub fn DeepSeekV4ModelSpec::swiglu_limit(Self) -> Double
+pub fn DeepSeekV4ModelSpec::vocabulary_size(Self) -> Int
+
+pub(all) enum DeepSeekV4Profile {
+  Flash
+  FlashBase
+  Pro
+  ProBase
+  Flash0731
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

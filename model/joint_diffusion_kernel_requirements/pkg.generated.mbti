@@ -1,0 +1,172 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/joint_diffusion_kernel_requirements"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn derive_requirements(@joint_diffusion_plan.JointDiffusionPlan, limits~ : JointDiffusionKernelRequirementLimits) -> JointDiffusionKernelRequirements raise JointDiffusionKernelRequirementsError
+
+// Errors
+pub(all) suberror JointDiffusionKernelRequirementsError {
+  InvalidLimit
+  UnsupportedSchema
+  InvalidSourceIdentity
+  PlanExceedsLimits
+  DuplicateSemanticOperation(Int)
+  RequirementsEncodingTooLarge
+  UnsupportedGenericDecoderKernelOperation(Int, JointDiffusionSemanticOperation)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum JointDiffusionAotCapability {
+  TokenTextConditioningAot
+  OrderedKeyframeConditioningAot
+  OrderedReferenceConditioningAot
+  VideoLatentProjectionAot
+  AudioLatentProjectionAot
+  JointTransformerAttentionAot
+  JointTransformerMlpAot
+  VideoFinalRmsNormAot
+  AudioFinalRmsNormAot
+  VideoFinalAdaLnF32BoundaryAot
+  AudioFinalAdaLnF32BoundaryAot
+  FinalAdaLnParameterRowAot
+  PackedModalityAdaLnRowsAot
+  TimestepFrequencyRowsAot
+  TimestepEmbeddingMlpRowsAot
+  DistinctTimestepAdaLnParameterRowsAot
+  VideoOutputProjectionAot
+  AudioOutputProjectionAot
+  ShiftedFlowStepAot
+  VideoVaeLatentDestandardizationAot
+  VideoVaeDecoderBodyAot
+  AudioVaeLatentDestandardizationAot
+  AudioVaeDecoderInputProjectionAot
+  AudioVaeDecoderConvPreAot
+  AudioVaeDecoderFirstUpsampleAot
+  AudioVaeDecoderFirstAmpActivationAot
+  AudioVaeDecoderFirstAmpStageAot
+  AudioVaeDecoderUpsampleTransitionAot
+  AudioVaeDecoderAmpActivationAot
+  AudioVaeDecoderAmpStageAot
+  AudioVaeDecoderBodyAot
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeAliasFreeActivationStorage {
+  Float32InputAlphaBetaUpsampleFilterDownsampleFilterWorkspacesOutput
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeAmpSchedule {
+  Kernels3_7_11Dilations1_3_5
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeAmpStageStorage {
+  Float32OriginalPrecomputedActivationPackedParametersWorkspaceOutput
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeConvPreStorage {
+  Float32InputWeightGWeightVBiasWorkspaceOutput
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeConvTransposeStorage {
+  Float32InputWeightGWeightVBiasWorkspaceOutput
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeFirstAmpStageStorage {
+  Float32OriginalPrecomputedActivationPackedParametersWorkspaceOutput
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeInputProjectionStorage {
+  Float32InputWeightBiasOutput
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeLatentLayout {
+  BatchChannelTime
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionAudioVaeWeightNormAxes {
+  PerOutputChannelInputAndKernel
+  PerInputChannelOutputAndKernel
+} derive(Eq, @debug.Debug)
+
+pub struct JointDiffusionKernelRequirement {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionKernelRequirement::capability(Self) -> JointDiffusionAotCapability
+pub fn JointDiffusionKernelRequirement::operation(Self) -> JointDiffusionSemanticOperation
+pub fn JointDiffusionKernelRequirement::require_current_generic_decoder_capability(Self, ordinal~ : Int) -> @plan.KernelCapabilityId raise JointDiffusionKernelRequirementsError
+
+pub struct JointDiffusionKernelRequirementLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionKernelRequirementLimits::new(maximum_transformer_layers~ : Int, maximum_requirements~ : Int) -> Self raise JointDiffusionKernelRequirementsError
+
+pub struct JointDiffusionKernelRequirements {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionKernelRequirements::capabilities(Self) -> ReadOnlyArray[JointDiffusionAotCapability]
+pub fn JointDiffusionKernelRequirements::conditioning_limits(Self) -> @joint_diffusion_plan.JointDiffusionConditioningLimits
+pub fn JointDiffusionKernelRequirements::denoiser_shape(Self) -> @joint_diffusion_plan.JointDiffusionDenoiserShape
+pub fn JointDiffusionKernelRequirements::digest(Self) -> JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionKernelRequirements::projection_contract(Self) -> @joint_diffusion_plan.JointDiffusionProjectionContract
+pub fn JointDiffusionKernelRequirements::require_current_generic_decoder_capabilities(Self) -> ReadOnlyArray[@plan.KernelCapabilityId] raise JointDiffusionKernelRequirementsError
+pub fn JointDiffusionKernelRequirements::requirements(Self) -> ReadOnlyArray[JointDiffusionKernelRequirement]
+pub fn JointDiffusionKernelRequirements::shape_contract(Self) -> @joint_diffusion_plan.JointDiffusionShapeContract
+pub fn JointDiffusionKernelRequirements::source_identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionKernelRequirements::source_schema_version(Self) -> Int
+
+pub struct JointDiffusionKernelRequirementsDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointDiffusionKernelRequirementsDigest::as_hex(Self) -> String
+
+pub(all) enum JointDiffusionSemanticOperation {
+  TokenTextConditioning(Int)
+  OrderedKeyframeConditioning(Int, Int)
+  OrderedReferenceConditioning(Int, Int, Int, Int, Bool)
+  VideoLatentProjection(Int, Int, Int, Int, Int)
+  AudioLatentProjection(Int, Int)
+  JointTransformerAttention(Int, Int, Int, Int, Int)
+  JointTransformerMlp(Int, Int, Int, Int)
+  VideoFinalRmsNorm(Int, Int, Int)
+  AudioFinalRmsNorm(Int, Int, Int)
+  VideoFinalAdaLnF32Boundary(Int)
+  AudioFinalAdaLnF32Boundary(Int)
+  FinalAdaLnParameterRow(Int, Int)
+  PackedModalityAdaLnRows(Int)
+  TimestepFrequencyRows(Int)
+  TimestepEmbeddingMlpRows(Int, Int, Int)
+  DistinctTimestepAdaLnParameterRows(Int, Int)
+  VideoOutputProjection(Int, Int, Int, Int, Int)
+  AudioOutputProjection(Int, Int)
+  ShiftedFlowStep(@joint_diffusion_plan.JointDiffusionLatentKind, Int, Int, Int)
+  VideoVaeLatentDestandardization(Int, JointDiffusionVaeLatentDestandardizationStorage, JointDiffusionVideoVaeLatentLayout)
+  VideoVaeDecoderBody(Int, Int, Int, Int)
+  AudioVaeLatentDestandardization(Int, Int, JointDiffusionVaeLatentDestandardizationStorage, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderInputProjection(Int, Int, Int, Int, JointDiffusionAudioVaeInputProjectionStorage, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderConvPre(Int, Int, Int, Int, Int, Int, JointDiffusionAudioVaeConvPreStorage, JointDiffusionAudioVaeWeightNormAxes, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderFirstUpsample(Int, Int, Int, Int, Int, Int, JointDiffusionAudioVaeConvTransposeStorage, JointDiffusionAudioVaeWeightNormAxes, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderFirstAmpActivation(Int, Int, Int, Int, JointDiffusionAudioVaeAliasFreeActivationStorage, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderFirstAmpStage(Int, Int, Int, Int, JointDiffusionAudioVaeFirstAmpStageStorage, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderUpsampleTransition(Int, Int, Int, Int, Int, Int, Int, JointDiffusionAudioVaeConvTransposeStorage, JointDiffusionAudioVaeWeightNormAxes, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderAmpActivation(Int, Int, Int, Int, Int, JointDiffusionAudioVaeAliasFreeActivationStorage, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderAmpStage(Int, Int, Int, Int, Int, JointDiffusionAudioVaeAmpSchedule, JointDiffusionAudioVaeAmpStageStorage, JointDiffusionAudioVaeLatentLayout)
+  AudioVaeDecoderBody(Int, Int, Int, Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionVaeLatentDestandardizationStorage {
+  Float32InputScaleMeanOutput
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointDiffusionVideoVaeLatentLayout {
+  BatchChannelFrameHeightWidth
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

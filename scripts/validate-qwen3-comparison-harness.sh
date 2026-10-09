@@ -14,6 +14,7 @@ fail() {
 
 sh -n scripts/start-qwen3-vllm-benchmark-server.sh
 sh -n scripts/start-qwen3-sglang-benchmark-server.sh
+sh -n scripts/start-qwen3-llama-cpp-benchmark-server.sh
 sh -n scripts/start-qwen3-lunaflux-token-id-bridge.sh
 sh -n scripts/start-qwen3-lunaflux-benchmark-server.sh
 python3 -B -m unittest \
@@ -28,7 +29,8 @@ for anchor in \
   'validate_model_inventory' \
   'model_inventory_full_scan_count' \
   'model-admission.json' \
-  'one-engine-per-target-gpu-coordinate' \
+  'one-engine-per-target-gpu-trial' \
+  'TOKEN_SHAPES' \
   'require_clean_gpu' \
   'CUDA_VISIBLE_DEVICES' \
   'start_new_session=True' \
@@ -47,6 +49,8 @@ for anchor in \
   'output_token_ids_sha256' \
   'return_token_ids' \
   'output_ids' \
+  'llama-cpp-completion-sse-v1' \
+  'cache_prompt' \
   'stream_interval' \
   'ignore_eos' \
   'lunaflux_lifecycle' \
@@ -152,6 +156,13 @@ rg -Fq -- '--scheduling-policy fcfs' scripts/start-qwen3-vllm-benchmark-server.s
   fail 'vLLM launcher does not bind FCFS scheduling'
 rg -Fq -- '--schedule-policy fcfs' scripts/start-qwen3-sglang-benchmark-server.sh ||
   fail 'SGLang launcher does not bind FCFS scheduling'
+for anchor in '--cont-batching' '--flash-attn on' '--cache-type-k bf16' \
+  '--cache-type-v bf16' '--parallel 32' '--cache-reuse 0'; do
+  rg -Fq -- "$anchor" scripts/start-qwen3-llama-cpp-benchmark-server.sh ||
+    fail "llama.cpp launcher is missing fixed policy: $anchor"
+done
+rg -Fq 'Qwen3-0.6B-BF16.gguf' scripts/start-qwen3-llama-cpp-benchmark-server.sh ||
+  fail 'llama.cpp launcher does not bind the Qwen BF16 artifact'
 [ -f "$package/verify_model_inventory.py" ] || fail 'exact source-model inventory verifier is absent'
 [ -f "$package/verify_model_admission.py" ] || fail 'campaign-local model admission verifier is absent'
 if python3 -B "$package/verify_model_inventory.py" >/dev/null 2>&1; then
@@ -169,9 +180,11 @@ if rg -Fq 'whole-device-with-all-persistent-servers-resident' "$package"; then
   fail 'benchmark still contaminates measurements with three resident servers'
 fi
 
-if rg -n -i '\bllama\b' "$package" scripts/start-qwen3-vllm-benchmark-server.sh \
-  scripts/start-qwen3-sglang-benchmark-server.sh; then
-  fail 'Qwen-only benchmark contains another model family'
+if rg -n -i 'model_type[^\n]*llama|Llama-[0-9]' "$package" \
+  scripts/start-qwen3-vllm-benchmark-server.sh \
+  scripts/start-qwen3-sglang-benchmark-server.sh \
+  scripts/start-qwen3-llama-cpp-benchmark-server.sh; then
+  fail 'Qwen-only benchmark contains Llama-family model configuration'
 fi
 if rg -n 'qwen3_comparison' engine model ops runtime release cmd --glob '*.mbt' --glob 'moon.pkg'; then
   fail 'external benchmark leaked into the production request path'

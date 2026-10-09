@@ -1,0 +1,46 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/recurrent_attention_projection_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn qkv_forget_input_gate_bf16_source(hidden_width~ : Int, head_count~ : Int, head_dimension~ : Int, control_rank~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> RecurrentAttentionProjectionCudaSource raise RecurrentAttentionProjectionCudaSourceError
+
+// Errors
+pub(all) suberror RecurrentAttentionProjectionCudaSourceError {
+  InvalidHiddenWidth
+  InvalidHeadCount
+  InvalidHeadDimension
+  InvalidControlRank
+  InvalidRowCount
+  DimensionOverflow
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct RecurrentAttentionProjectionCudaSource {
+  // private fields
+}
+pub fn RecurrentAttentionProjectionCudaSource::control_rank(Self) -> Int
+pub fn RecurrentAttentionProjectionCudaSource::function_symbol(Self) -> String
+pub fn RecurrentAttentionProjectionCudaSource::head_count(Self) -> Int
+pub fn RecurrentAttentionProjectionCudaSource::head_dimension(Self) -> Int
+pub fn RecurrentAttentionProjectionCudaSource::hidden_width(Self) -> Int
+pub fn RecurrentAttentionProjectionCudaSource::maximum_rows(Self) -> Int
+pub fn RecurrentAttentionProjectionCudaSource::numerical_contract(Self) -> RecurrentAttentionProjectionNumericalContract
+pub fn RecurrentAttentionProjectionCudaSource::operation(Self) -> RecurrentAttentionProjectionOperation
+pub fn RecurrentAttentionProjectionCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum RecurrentAttentionProjectionNumericalContract {
+  OrderedFloat32DenseBf16IntermediateSigmoidV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum RecurrentAttentionProjectionOperation {
+  QkvForgetAndInputGateBf16
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

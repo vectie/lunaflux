@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/media_encode_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/media_encode_plan",
+}
+
+// Values
+pub fn render(@media_encode_plan.Graph) -> Source raise @media_encode_plan.PlanError
+
+// Errors
+
+// Types and methods
+pub struct Source {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  grids : ReadOnlyArray[(Int, Int)]
+}
+
+// Type aliases
+
+// Traits

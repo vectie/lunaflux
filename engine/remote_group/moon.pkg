@@ -1,0 +1,13 @@
+import {
+  "vectie/lunaflux/runtime/remote_mailbox",
+  "vectie/lunaflux/runtime/monotonic_clock",
+  "vectie/lunaflux/engine/remote_startup",
+  "vectie/lunaflux/engine/remote_release",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap" @bootstrap,
+  "vectie/lunaflux/engine/rank_group_protocol" @protocol,
+  "vectie/lunaflux/engine/rank_group_wire" @wire,
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+supported_targets = "native"

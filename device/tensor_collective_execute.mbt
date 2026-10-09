@@ -204,6 +204,24 @@ pub fn TensorCollectiveOwner::poll(
 }
 
 ///|
+/// Polls host-side NCCL submission readiness, not device completion. Once true,
+/// the caller may record a CUDA event on the submitted stream. This does not
+/// advance the collective sequence or release its retained resources.
+pub fn TensorCollectiveOwner::poll_submitted(
+  self : TensorCollectiveOwner,
+) -> Bool raise DeviceError {
+  if self.state != CollectiveOwnerInFlight {
+    raise InvalidArgument(TensorCollectiveExecute)
+  }
+  self.communicator.poll_submitted() catch {
+    error => {
+      self.state = CollectiveOwnerFailed
+      raise error_from_nccl_for(error, TensorCollectiveExecute)
+    }
+  }
+}
+
+///|
 /// Latches this exact generation failed. Abort is then the sole cleanup path.
 pub fn TensorCollectiveOwner::invalidate(
   self : TensorCollectiveOwner,

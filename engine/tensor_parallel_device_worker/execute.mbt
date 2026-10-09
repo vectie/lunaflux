@@ -86,6 +86,7 @@ fn authenticate_executed_execution(
 pub fn TensorParallelDeviceWorkerOwner::poll_startup(
   self : TensorParallelDeviceWorkerOwner,
 ) -> Bool raise TensorParallelDeviceWorkerError {
+  self.poll_remote_lease()
   match self.lifecycle {
     WorkerStarting => ()
     WorkerReady => return true
@@ -111,6 +112,7 @@ pub fn TensorParallelDeviceWorkerOwner::stage_frame(
   self : TensorParallelDeviceWorkerOwner,
   frame : @worker_wire.ValidatedPlanFrame,
 ) -> StagedTensorParallelDeviceExecution raise TensorParallelDeviceWorkerError {
+  self.poll_remote_lease()
   if self.lifecycle != WorkerReady {
     raise Invalid(ResourceState)
   }
@@ -169,6 +171,9 @@ pub fn TensorParallelDeviceWorkerOwner::stage_frame(
   self.active_tokens = tokens
   self.operation_index = 0
   self.collective_index = 0
+  if self.resources.parallel is OverlapExecution(overlap) {
+    overlap.reset()
+  }
   self.resources.collective.abort_required = true
   self.resources.executor.abort_required = false
   self.lifecycle = WorkerStaged
@@ -194,6 +199,7 @@ fn collective_kind(
 fn submit_current_collective(
   owner : TensorParallelDeviceWorkerOwner,
   collective : @tensor_parallel_execution_plan.TensorParallelCollectiveBinding,
+  stream? : @device.Stream = owner.resources.stream.resource,
 ) -> Unit raise TensorParallelDeviceWorkerError {
   if owner.next_global_collective_sequence == 18446744073709551615UL {
     let error = Invalid(SequenceOverflow)
@@ -212,7 +218,7 @@ fn submit_current_collective(
     send_offset=collective.local_send_offset_bytes(),
     receive=activation,
     receive_offset=collective.region().offset_bytes(),
-    stream=owner.resources.stream.resource,
+    stream~,
   ) catch {
     error => {
       let translated = Device(Collective, error)
@@ -266,7 +272,20 @@ pub fn TensorParallelDeviceWorkerOwner::progress_execution(
   staged : StagedTensorParallelDeviceExecution,
   frame : @worker_wire.ValidatedPlanFrame,
 ) -> TensorParallelDeviceExecutionProgress raise TensorParallelDeviceWorkerError {
+  self.poll_remote_lease()
   ignore(authenticate_staged_execution(staged, self, frame))
+  if self.resources.parallel is OverlapExecution(overlap) {
+    let complete = progress_overlap(self, overlap) catch {
+      error => raise fail_rank_execution(self, error)
+    }
+    return TensorParallelDeviceExecutionProgress(
+      self,
+      self.active_epoch,
+      staged.2,
+      staged.3,
+      complete,
+    )
+  }
   if self.lifecycle == WorkerDevicePending {
     return TensorParallelDeviceExecutionProgress(
       self,

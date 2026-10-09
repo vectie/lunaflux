@@ -1,0 +1,334 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm_hybrid_reference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "vectie/lunaflux/model/advanced_decoder_reference",
+  "vectie/lunaflux/model/glm_hybrid_execution_plan",
+}
+
+// Values
+pub fn build_reference_schedule(@glm_hybrid_execution_plan.GlmHybridExecutionPlan) -> GlmHybridReferenceSchedule raise GlmHybridReferenceError
+
+pub fn dsa_kv_attention_assembly(ArrayView[Double], ArrayView[Double], row_count~ : Int, head_count~ : Int, key_nope_width~ : Int, shared_key_suffix_width~ : Int, value_width~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmDsaKvAssemblyResult raise GlmHybridReferenceError
+
+pub fn execute_tiny_hybrid_block(ArrayView[Double], ArrayView[Int], GlmTinyHybridBlockPlan, GlmTinyHybridBlockWeights, limits~ : GlmTinyOracleLimits) -> GlmTinyHybridBlockResult raise GlmHybridReferenceError
+
+pub fn execute_tiny_vision_block(ArrayView[Double], GlmTinyVisionBlockPlan, GlmTinyVisionBlockWeights, limits~ : GlmTinyOracleLimits) -> GlmVisionReferenceResult raise GlmHybridReferenceError
+
+pub fn exercise_shared_advanced_primitives(@glm_hybrid_execution_plan.GlmHybridExecutionPlan, limits~ : @advanced_decoder_reference.ReferenceLimits) -> GlmSharedAdvancedFixture raise @advanced_decoder_reference.AdvancedDecoderReferenceError
+
+pub fn hyper_connection_function_and_collapse(ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], row_count~ : Int, stream_count~ : Int, hidden_width~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, limits~ : GlmHybridReferenceLimits) -> GlmHyperConnectionFunctionResult raise GlmHybridReferenceError
+
+pub fn hyper_connection_positive_sinkhorn(ArrayView[Double], row_count~ : Int, stream_count~ : Int, iterations~ : Int, epsilon~ : Double, limits~ : GlmHybridReferenceLimits) -> GlmHyperConnectionSinkhornResult raise GlmHybridReferenceError
+
+pub fn hyper_connection_residual_mix(ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], row_count~ : Int, stream_count~ : Int, hidden_width~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmResidualCompositionResult raise GlmHybridReferenceError
+
+pub fn kda_causal_short_convolution(ArrayView[Double], ArrayView[Double], ArrayView[Double], sequence_length~ : Int, channel_count~ : Int, kernel_size~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmKdaConvolutionResult raise GlmHybridReferenceError
+
+pub fn kda_output_gate_projection(ArrayView[Double], ArrayView[Double], ArrayView[Double], row_count~ : Int, hidden_width~ : Int, head_count~ : Int, head_dimension~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmKdaOutputGateResult raise GlmHybridReferenceError
+
+pub fn kda_output_projection(ArrayView[Double], ArrayView[Double], row_count~ : Int, input_width~ : Int, output_width~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmKdaOutputProjectionResult raise GlmHybridReferenceError
+
+pub fn kda_projection_control(ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], row_count~ : Int, hidden_width~ : Int, head_count~ : Int, head_dimension~ : Int, control_rank~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmKdaProjectionResult raise GlmHybridReferenceError
+
+pub fn kda_recurrent_delta_update(ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], sequence_length~ : Int, head_count~ : Int, head_dimension~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmKdaRecurrentResult raise GlmHybridReferenceError
+
+pub fn kda_safe_decay_control(ArrayView[Double], ArrayView[Double], ArrayView[Double], row_count~ : Int, head_count~ : Int, head_dimension~ : Int, lower_bound~ : Double, limits~ : GlmHybridReferenceLimits) -> GlmKdaDecayControlResult raise GlmHybridReferenceError
+
+pub fn kda_sigmoid_gated_rms_norm(ArrayView[Double], ArrayView[Double], ArrayView[Double], row_count~ : Int, head_count~ : Int, head_dimension~ : Int, epsilon~ : Double, limits~ : GlmHybridReferenceLimits) -> GlmKdaGatedNormResult raise GlmHybridReferenceError
+
+pub fn moe_decoder_residual_add(ArrayView[Double], ArrayView[Double], row_count~ : Int, hidden_width~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmResidualCompositionResult raise GlmHybridReferenceError
+
+pub fn moe_grouped_route(ArrayView[Float], ArrayView[Float], row_count~ : Int, routed_expert_count~ : Int, group_count~ : Int, group_score_topk~ : Int, selected_group_count~ : Int, experts_per_token~ : Int, normalize~ : Bool, scaling~ : Float, limits~ : GlmHybridReferenceLimits) -> GlmMoeGroupedRoutingResult raise GlmHybridReferenceError
+
+pub fn moe_routed_expert_feed_forward(ArrayView[Double], ArrayView[Int], ArrayView[Float], ArrayView[Double], ArrayView[Double], ArrayView[Double], row_count~ : Int, hidden_width~ : Int, intermediate_width~ : Int, expert_count~ : Int, experts_per_token~ : Int, activation~ : @advanced_decoder_execution_plan.ExpertActivation, limits~ : GlmHybridReferenceLimits) -> GlmMoeFeedForwardResult raise GlmHybridReferenceError
+
+pub fn moe_routed_shared_combine(ArrayView[Double], ArrayView[Double], row_count~ : Int, hidden_width~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmMoeFeedForwardResult raise GlmHybridReferenceError
+
+pub fn moe_router_projection(ArrayView[Double], ArrayView[Double], row_count~ : Int, hidden_width~ : Int, expert_count~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmMoeRouterProjectionResult raise GlmHybridReferenceError
+
+pub fn moe_shared_expert_feed_forward(ArrayView[Double], ArrayView[Double], ArrayView[Double], ArrayView[Double], row_count~ : Int, hidden_width~ : Int, intermediate_width~ : Int, activation~ : @advanced_decoder_execution_plan.ExpertActivation, limits~ : GlmHybridReferenceLimits) -> GlmMoeFeedForwardResult raise GlmHybridReferenceError
+
+pub fn moe_sigmoid_and_correction(ArrayView[Float], ArrayView[Float], row_count~ : Int, expert_count~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmMoeSigmoidCorrectionResult raise GlmHybridReferenceError
+
+pub fn pool_dsa_index_keys(ArrayView[Double], ArrayView[Double], ArrayView[Bool], sequence_length~ : Int, head_dimension~ : Int, pool_size~ : Int, absolute_pool_encoding~ : ArrayView[Double], limits~ : GlmHybridReferenceLimits) -> GlmDsaPooledKeys raise GlmHybridReferenceError
+
+pub fn record_dsa_topk(source_layer~ : Int, key_count~ : Int, indices~ : ArrayView[Int], limits~ : GlmHybridReferenceLimits) -> GlmDsaTopKState raise GlmHybridReferenceError
+
+pub fn reuse_dsa_topk(GlmDsaTopKState, consumer_layer~ : Int, key_count~ : Int) -> GlmDsaTopKState raise GlmHybridReferenceError
+
+pub fn score_dsa_pools(ArrayView[Double], ArrayView[Double], GlmDsaPooledKeys, ArrayView[Bool], query_count~ : Int, head_count~ : Int, limits~ : GlmHybridReferenceLimits) -> ReadOnlyArray[Double] raise GlmHybridReferenceError
+
+pub fn select_dsa_pools(ArrayView[Double], ArrayView[Double], GlmDsaPooledKeys, ArrayView[Int], head_count~ : Int, top_k_pools~ : Int, source_layer~ : Int, key_count~ : Int, limits~ : GlmHybridReferenceLimits, advanced_limits~ : @advanced_decoder_reference.ReferenceLimits) -> GlmDsaTopKState raise GlmHybridReferenceError
+
+pub fn vision_patch_projection(ArrayView[Double], ArrayView[Double], ArrayView[Double], patch_count~ : Int, patch_volume~ : Int, output_width~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmVisionReferenceResult raise GlmHybridReferenceError
+
+pub fn vision_project_rows(GlmVisionReferenceResult, ArrayView[Double], ArrayView[Double], output_width~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmVisionReferenceResult raise GlmHybridReferenceError
+
+pub fn vision_spatial_merge(ArrayView[Double], ArrayView[Double], ArrayView[Double], patch_count~ : Int, input_width~ : Int, output_width~ : Int, merge_size~ : Int, limits~ : GlmHybridReferenceLimits) -> GlmVisionReferenceResult raise GlmHybridReferenceError
+
+// Errors
+pub(all) suberror GlmHybridReferenceError {
+  InvalidLimits
+  BoundsExceeded
+  InvalidShape
+  NonFiniteInput
+  InvalidProbability
+  InvalidLayerOrder
+  MissingDsaState
+  StaleDsaState
+  DuplicateIndex
+  IndexOutOfBounds
+  InvalidVisionGeometry
+  SharedPrimitiveFailure
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct GlmDsaKvAssemblyResult {
+  // private fields
+}
+pub fn GlmDsaKvAssemblyResult::head_count(Self) -> Int
+pub fn GlmDsaKvAssemblyResult::key_width(Self) -> Int
+pub fn GlmDsaKvAssemblyResult::keys(Self) -> ReadOnlyArray[Double]
+pub fn GlmDsaKvAssemblyResult::row_count(Self) -> Int
+pub fn GlmDsaKvAssemblyResult::value_width(Self) -> Int
+pub fn GlmDsaKvAssemblyResult::values(Self) -> ReadOnlyArray[Double]
+
+pub struct GlmDsaPooledKeys {
+  // private fields
+}
+pub fn GlmDsaPooledKeys::head_dimension(Self) -> Int
+pub fn GlmDsaPooledKeys::keys(Self) -> ReadOnlyArray[Double]
+pub fn GlmDsaPooledKeys::pool_count(Self) -> Int
+pub fn GlmDsaPooledKeys::pool_size(Self) -> Int
+pub fn GlmDsaPooledKeys::raw_indices(Self) -> ReadOnlyArray[Int]
+pub fn GlmDsaPooledKeys::valid(Self) -> ReadOnlyArray[Bool]
+
+pub struct GlmDsaTopKState {
+  // private fields
+}
+pub fn GlmDsaTopKState::indices(Self) -> ReadOnlyArray[Int]
+pub fn GlmDsaTopKState::key_count(Self) -> Int
+pub fn GlmDsaTopKState::last_consumer_layer(Self) -> Int
+pub fn GlmDsaTopKState::source_layer(Self) -> Int
+
+pub struct GlmHybridReferenceLimits {
+  // private fields
+}
+pub fn GlmHybridReferenceLimits::new(maximum_sequence_length~ : Int, maximum_head_count~ : Int, maximum_head_dimension~ : Int, maximum_channel_count~ : Int, maximum_vision_patch_count~ : Int) -> Self raise GlmHybridReferenceError
+
+pub struct GlmHybridReferenceSchedule {
+  // private fields
+}
+pub fn GlmHybridReferenceSchedule::dense_count(Self) -> Int
+pub fn GlmHybridReferenceSchedule::dsa_compute_count(Self) -> Int
+pub fn GlmHybridReferenceSchedule::dsa_reuse_count(Self) -> Int
+pub fn GlmHybridReferenceSchedule::hyper_connection_site_count(Self) -> Int
+pub fn GlmHybridReferenceSchedule::kda_count(Self) -> Int
+pub fn GlmHybridReferenceSchedule::moe_count(Self) -> Int
+pub fn GlmHybridReferenceSchedule::steps(Self) -> ReadOnlyArray[GlmReferenceLayerStep]
+pub fn GlmHybridReferenceSchedule::vision_layer_count(Self) -> Int
+
+pub struct GlmHyperConnectionFunctionResult {
+  // private fields
+}
+pub fn GlmHyperConnectionFunctionResult::collapsed(Self) -> ReadOnlyArray[Double]
+pub fn GlmHyperConnectionFunctionResult::hidden_width(Self) -> Int
+pub fn GlmHyperConnectionFunctionResult::initial_combination(Self) -> ReadOnlyArray[Double]
+pub fn GlmHyperConnectionFunctionResult::post(Self) -> ReadOnlyArray[Double]
+pub fn GlmHyperConnectionFunctionResult::row_count(Self) -> Int
+pub fn GlmHyperConnectionFunctionResult::stream_count(Self) -> Int
+
+pub struct GlmHyperConnectionSinkhornResult {
+  // private fields
+}
+pub fn GlmHyperConnectionSinkhornResult::combination(Self) -> ReadOnlyArray[Double]
+pub fn GlmHyperConnectionSinkhornResult::row_count(Self) -> Int
+pub fn GlmHyperConnectionSinkhornResult::stream_count(Self) -> Int
+
+pub struct GlmKdaConvolutionResult {
+  // private fields
+}
+pub fn GlmKdaConvolutionResult::channel_count(Self) -> Int
+pub fn GlmKdaConvolutionResult::final_state(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaConvolutionResult::output(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaConvolutionResult::sequence_length(Self) -> Int
+
+pub struct GlmKdaDecayControlResult {
+  // private fields
+}
+pub fn GlmKdaDecayControlResult::head_count(Self) -> Int
+pub fn GlmKdaDecayControlResult::head_dimension(Self) -> Int
+pub fn GlmKdaDecayControlResult::log_decay(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaDecayControlResult::row_count(Self) -> Int
+
+pub struct GlmKdaGatedNormResult {
+  // private fields
+}
+pub fn GlmKdaGatedNormResult::head_count(Self) -> Int
+pub fn GlmKdaGatedNormResult::head_dimension(Self) -> Int
+pub fn GlmKdaGatedNormResult::row_count(Self) -> Int
+pub fn GlmKdaGatedNormResult::values(Self) -> ReadOnlyArray[Double]
+
+pub struct GlmKdaOutputGateResult {
+  // private fields
+}
+pub fn GlmKdaOutputGateResult::gate(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaOutputGateResult::low_rank(Self) -> ReadOnlyArray[Double]
+
+pub struct GlmKdaOutputProjectionResult {
+  // private fields
+}
+pub fn GlmKdaOutputProjectionResult::input_width(Self) -> Int
+pub fn GlmKdaOutputProjectionResult::output_width(Self) -> Int
+pub fn GlmKdaOutputProjectionResult::row_count(Self) -> Int
+pub fn GlmKdaOutputProjectionResult::values(Self) -> ReadOnlyArray[Double]
+
+pub struct GlmKdaProjectionResult {
+  // private fields
+}
+pub fn GlmKdaProjectionResult::beta(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaProjectionResult::control_rank(Self) -> Int
+pub fn GlmKdaProjectionResult::forget_low_rank(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaProjectionResult::head_count(Self) -> Int
+pub fn GlmKdaProjectionResult::key(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaProjectionResult::projected_width(Self) -> Int
+pub fn GlmKdaProjectionResult::query(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaProjectionResult::raw_forget(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaProjectionResult::row_count(Self) -> Int
+pub fn GlmKdaProjectionResult::value(Self) -> ReadOnlyArray[Double]
+
+pub struct GlmKdaRecurrentResult {
+  // private fields
+}
+pub fn GlmKdaRecurrentResult::final_state(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaRecurrentResult::head_count(Self) -> Int
+pub fn GlmKdaRecurrentResult::head_dimension(Self) -> Int
+pub fn GlmKdaRecurrentResult::output(Self) -> ReadOnlyArray[Double]
+pub fn GlmKdaRecurrentResult::sequence_length(Self) -> Int
+
+pub struct GlmMoeFeedForwardResult {
+  // private fields
+}
+pub fn GlmMoeFeedForwardResult::hidden_width(Self) -> Int
+pub fn GlmMoeFeedForwardResult::row_count(Self) -> Int
+pub fn GlmMoeFeedForwardResult::values(Self) -> ReadOnlyArray[Double]
+
+pub struct GlmMoeGroupedRoutingResult {
+  // private fields
+}
+pub fn GlmMoeGroupedRoutingResult::experts_per_token(Self) -> Int
+pub fn GlmMoeGroupedRoutingResult::row_count(Self) -> Int
+pub fn GlmMoeGroupedRoutingResult::selected_indices(Self) -> ReadOnlyArray[Int]
+pub fn GlmMoeGroupedRoutingResult::selected_weights(Self) -> ReadOnlyArray[Float]
+
+pub struct GlmMoeRouterProjectionResult {
+  // private fields
+}
+pub fn GlmMoeRouterProjectionResult::expert_count(Self) -> Int
+pub fn GlmMoeRouterProjectionResult::hidden_width(Self) -> Int
+pub fn GlmMoeRouterProjectionResult::logits(Self) -> ReadOnlyArray[Double]
+pub fn GlmMoeRouterProjectionResult::row_count(Self) -> Int
+
+pub struct GlmMoeSigmoidCorrectionResult {
+  // private fields
+}
+pub fn GlmMoeSigmoidCorrectionResult::expert_count(Self) -> Int
+pub fn GlmMoeSigmoidCorrectionResult::row_count(Self) -> Int
+pub fn GlmMoeSigmoidCorrectionResult::scores(Self) -> ReadOnlyArray[Float]
+pub fn GlmMoeSigmoidCorrectionResult::scores_for_choice(Self) -> ReadOnlyArray[Float]
+
+pub(all) enum GlmReferenceAttentionStep {
+  DsaCompute
+  DsaReuse(source_layer~ : Int)
+  Kda
+} derive(Eq, @debug.Debug)
+
+pub(all) enum GlmReferenceFeedForwardStep {
+  Dense
+  Moe
+} derive(Eq, @debug.Debug)
+
+pub struct GlmReferenceLayerStep {
+  // private fields
+}
+pub fn GlmReferenceLayerStep::attention(Self) -> GlmReferenceAttentionStep
+pub fn GlmReferenceLayerStep::feed_forward(Self) -> GlmReferenceFeedForwardStep
+pub fn GlmReferenceLayerStep::has_hyper_connection(Self) -> Bool
+pub fn GlmReferenceLayerStep::layer_index(Self) -> Int
+
+pub struct GlmResidualCompositionResult {
+  // private fields
+}
+pub fn GlmResidualCompositionResult::hidden_width(Self) -> Int
+pub fn GlmResidualCompositionResult::row_count(Self) -> Int
+pub fn GlmResidualCompositionResult::stream_count(Self) -> Int
+pub fn GlmResidualCompositionResult::values(Self) -> ReadOnlyArray[Double]
+
+pub struct GlmSharedAdvancedFixture {
+  // private fields
+}
+pub fn GlmSharedAdvancedFixture::mixed_hyper_streams(Self) -> ReadOnlyArray[Float]
+pub fn GlmSharedAdvancedFixture::moe_output(Self) -> Float
+
+pub(all) enum GlmTinyCompositionPlan {
+  Residual
+  MultiStreamHyperConnection(stream_count~ : Int, branch_stream~ : Int, output_stream~ : Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum GlmTinyFeedForwardPlan {
+  Dense
+  Moe(expert_count~ : Int, experts_per_token~ : Int, score_function~ : @advanced_decoder_execution_plan.ExpertScoreFunction, normalize_selected~ : Bool, route_scale~ : Float)
+} derive(Eq, @debug.Debug)
+
+pub struct GlmTinyFeedForwardWeights {
+  // private fields
+}
+pub fn GlmTinyFeedForwardWeights::dense(gate~ : ArrayView[Double], up~ : ArrayView[Double], down~ : ArrayView[Double]) -> Self
+pub fn GlmTinyFeedForwardWeights::moe(router~ : ArrayView[Float], correction~ : ArrayView[Float], gate~ : ArrayView[Double], up~ : ArrayView[Double], down~ : ArrayView[Double]) -> Self
+
+pub struct GlmTinyHybridBlockPlan {
+  // private fields
+}
+pub fn GlmTinyHybridBlockPlan::new(token_count~ : Int, head_count~ : Int, head_dimension~ : Int, low_rank~ : Int, sparse_top_k~ : Int, intermediate_size~ : Int, rms_epsilon~ : Double, feed_forward~ : GlmTinyFeedForwardPlan, composition~ : GlmTinyCompositionPlan, limits~ : GlmTinyOracleLimits) -> Self raise GlmHybridReferenceError
+
+pub struct GlmTinyHybridBlockResult {
+  // private fields
+}
+pub fn GlmTinyHybridBlockResult::attention_branch(Self) -> ReadOnlyArray[Double]
+pub fn GlmTinyHybridBlockResult::feed_forward_branch(Self) -> ReadOnlyArray[Double]
+pub fn GlmTinyHybridBlockResult::output(Self) -> ReadOnlyArray[Double]
+pub fn GlmTinyHybridBlockResult::selected_experts(Self) -> ReadOnlyArray[Int]
+
+pub struct GlmTinyHybridBlockWeights {
+  // private fields
+}
+pub fn GlmTinyHybridBlockWeights::new(attention_norm~ : ArrayView[Double], query_a~ : ArrayView[Double], query_b~ : ArrayView[Double], key_a~ : ArrayView[Double], key_b~ : ArrayView[Double], value_a~ : ArrayView[Double], value_b~ : ArrayView[Double], attention_output~ : ArrayView[Double], ffn_norm~ : ArrayView[Double], feed_forward~ : GlmTinyFeedForwardWeights, hyper_mixing~ : ArrayView[Double]) -> Self
+
+pub struct GlmTinyOracleLimits {
+  // private fields
+}
+pub fn GlmTinyOracleLimits::new(maximum_tokens~ : Int, maximum_width~ : Int, maximum_low_rank~ : Int, maximum_intermediate~ : Int, maximum_experts~ : Int, maximum_selected~ : Int, maximum_values~ : Int) -> Self raise GlmHybridReferenceError
+
+pub struct GlmTinyVisionBlockPlan {
+  // private fields
+}
+pub fn GlmTinyVisionBlockPlan::new(patch_count~ : Int, head_count~ : Int, head_dimension~ : Int, intermediate_size~ : Int, merge_size~ : Int, project_width~ : Int, rms_epsilon~ : Double, limits~ : GlmTinyOracleLimits) -> Self raise GlmHybridReferenceError
+
+pub struct GlmTinyVisionBlockWeights {
+  // private fields
+}
+pub fn GlmTinyVisionBlockWeights::new(attention_norm~ : ArrayView[Double], query~ : ArrayView[Double], key~ : ArrayView[Double], value~ : ArrayView[Double], attention_output~ : ArrayView[Double], ffn_norm~ : ArrayView[Double], gate~ : ArrayView[Double], up~ : ArrayView[Double], down~ : ArrayView[Double], merge~ : ArrayView[Double], merge_bias~ : ArrayView[Double], project~ : ArrayView[Double], project_bias~ : ArrayView[Double]) -> Self
+
+pub struct GlmVisionReferenceResult {
+  // private fields
+}
+pub fn GlmVisionReferenceResult::row_count(Self) -> Int
+pub fn GlmVisionReferenceResult::values(Self) -> ReadOnlyArray[Double]
+pub fn GlmVisionReferenceResult::width(Self) -> Int
+
+// Type aliases
+
+// Traits

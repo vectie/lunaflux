@@ -12,9 +12,10 @@ pub struct RawTensorMetadata {
 } derive(Debug, Eq)
 
 ///|
-/// Dtypes safe to expose to the v1 BF16 materializer.
+/// Fixed-width dtypes safe to expose to typed model materializers.
 pub(all) enum TensorDType {
   BFloat16
+  Float32
 } derive(Debug, Eq)
 
 ///|
@@ -70,6 +71,7 @@ fn valid_tensor_name(name : StringView, max_length : Int) -> Bool {
 ///|
 fn checked_tensor_bytes(
   shape : ReadOnlyArray[Int64],
+  bytes_per_element : Int64,
   tensor_index : Int,
   max_rank : Int,
 ) -> Int64 raise SafetensorsError {
@@ -87,10 +89,10 @@ fn checked_tensor_bytes(
     }
     elements = elements * dimension
   }
-  if elements > max_int64 / 2L {
+  if elements > max_int64 / bytes_per_element {
     raise TensorSizeOverflow(tensor_index)
   }
-  elements * 2L
+  elements * bytes_per_element
 }
 
 ///|
@@ -103,11 +105,14 @@ fn validate_tensor(
   if !valid_tensor_name(raw.name, limits.max_name_length()) {
     raise InvalidTensorName(tensor_index)
   }
-  if raw.dtype != "BF16" {
-    raise InvalidDType(tensor_index)
+  let (dtype, bytes_per_element) = match raw.dtype {
+    "BF16" => (BFloat16, 2L)
+    "F32" => (Float32, 4L)
+    _ => raise InvalidDType(tensor_index)
   }
   let byte_length = checked_tensor_bytes(
     raw.shape,
+    bytes_per_element,
     tensor_index,
     limits.max_rank(),
   )
@@ -122,7 +127,7 @@ fn validate_tensor(
   }
   {
     name: raw.name,
-    dtype: BFloat16,
+    dtype,
     shape: raw.shape,
     byte_range: { start: raw.data_start, end: raw.data_end, },
   }

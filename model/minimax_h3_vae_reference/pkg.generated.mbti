@@ -1,0 +1,54 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_vae_reference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/joint_diffusion_vae_reference",
+  "vectie/lunaflux/model/minimax_h3_config",
+  "vectie/lunaflux/model/minimax_h3_spec",
+}
+
+// Values
+pub fn bind_audio_decoder_amp_parameter_layout(stage_index~ : Int) -> @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_conv_pre(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderConvPre raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_first_amp_activation(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstAmpActivation raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_first_upsample(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstUpsample raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_input_projection(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderInputProjection raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_second_amp_activation(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderAmpActivation raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_second_upsample(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderUpsampleTransition raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_third_amp_activation(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderAmpActivation raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_third_upsample(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioDecoderUpsampleTransition raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_decoder_upsample_stages(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> ReadOnlyArray[@joint_diffusion_vae_reference.JointVaeAudioDecoderUpsampleTransition] raise MiniMaxH3VaeReferenceError
+
+pub fn bind_audio_latent_destandardization(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeAudioLatentDestandardization raise MiniMaxH3VaeReferenceError
+
+pub fn bind_first_amp_parameter_layout() -> @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout raise MiniMaxH3VaeReferenceError
+
+pub fn bind_second_amp_parameter_layout() -> @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout raise MiniMaxH3VaeReferenceError
+
+pub fn bind_video_latent_destandardization(@minimax_h3_spec.MiniMaxH3ModelMetadata, @minimax_h3_config.MiniMaxH3VideoVaeConfig, @joint_diffusion_plan.JointDiffusionRequestShape) -> @joint_diffusion_vae_reference.JointVaeLatentDestandardization raise MiniMaxH3VaeReferenceError
+
+// Errors
+pub(all) suberror MiniMaxH3VaeReferenceError {
+  Plan(@joint_diffusion_plan.JointDiffusionPlanError)
+  InvalidVideoVaeConfig
+  InvalidAudioVaeConfig
+  Reference(@joint_diffusion_vae_reference.JointVaeDecodeReferenceError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

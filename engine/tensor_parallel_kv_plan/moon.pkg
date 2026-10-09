@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/engine/two_node_plan",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/engine/tensor_parallel_device_plan",

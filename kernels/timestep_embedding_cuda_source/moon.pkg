@@ -1,0 +1,6 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source",
+}
+
+supported_targets = "native"

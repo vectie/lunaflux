@@ -1,0 +1,16 @@
+# Segmented device materialization
+
+This family-neutral startup package plans one deterministic aligned device
+arena from bounded segmented host arenas and ordered tensor regions. The plan
+binds the model identity, a caller-pinned source-manifest digest, source arena
+lengths, every source range, and every final device offset.
+
+Materialization allocates exactly once, validates every device region, and
+synchronously borrows each `FixedArray` range through the public device API.
+Host ownership is never transferred. Successful device allocations require an
+explicit close. When a validation or copy failure is followed by allocation
+close failure, the incomplete allocation remains behind retryable cleanup
+authority and is never published as ready weights.
+
+This package grants no kernel, scheduler, KV-cache, API, dtype interpretation,
+or model-family authority.

@@ -211,6 +211,33 @@ int32_t lunaflux_nccl_communicator_submit_bf16(
   );
 }
 
+/* Async success means NCCL has issued its CUDA work, not that the GPU has
+ * finished. Only then may the caller append events to the same stream. */
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_nccl_communicator_poll_submitted(lf_nccl_communicator *communicator) {
+  if (communicator == NULL) return LF_NCCL_INVALID_ARGUMENT;
+  if (atomic_load(&communicator->state) != LF_NCCL_RESOURCE_LIVE) return LF_NCCL_CLOSED;
+  int unlocked = 0;
+  if (!atomic_compare_exchange_strong(&communicator->operation_lock, &unlocked, 1)) return LF_NCCL_BUSY;
+  if (communicator->phase != LF_NCCL_PHASE_IN_FLIGHT) {
+    int32_t status = communicator->phase == LF_NCCL_PHASE_FAILED ? LF_NCCL_FAILED : LF_NCCL_INVALID_ARGUMENT;
+    atomic_store(&communicator->operation_lock, 0);
+    return status;
+  }
+  lf_nccl_result async_status = NCCL_IN_PROGRESS;
+  lf_nccl_result result = communicator->api->comm_get_async_error(communicator->handle, &async_status);
+  if (result == NCCL_IN_PROGRESS || (result == NCCL_SUCCESS && async_status == NCCL_IN_PROGRESS)) {
+    atomic_store(&communicator->operation_lock, 0);
+    return 0;
+  }
+  if (result != NCCL_SUCCESS || async_status != NCCL_SUCCESS) {
+    lf_nccl_collective_fail(communicator);
+    return LF_NCCL_RUNTIME_FAILURE;
+  }
+  atomic_store(&communicator->operation_lock, 0);
+  return 1;
+}
+
 int32_t lf_nccl_communicator_poll_collective(
   lf_nccl_communicator *communicator,
   int32_t *completed

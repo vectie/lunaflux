@@ -151,8 +151,7 @@ fn select_ingress_regions(
     maximum_workspace_bytes~,
     maximum_local_bytes~,
   ) catch {
-    @fusion_regions.NoFeasiblePartition =>
-      raise InvalidFusionPlan(NoFeasibleCut)
+    NoFeasiblePartition => raise InvalidFusionPlan(NoFeasibleCut)
     _ => raise InvalidFusionPlan(InvalidSelection)
   }
   ingress_cut(

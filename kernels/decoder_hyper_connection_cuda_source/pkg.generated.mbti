@@ -1,0 +1,126 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn block_control_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionCudaSource raise DecoderHyperConnectionCudaSourceError
+
+pub fn head_reduce_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionHeadReduceCudaSource raise DecoderHyperConnectionCudaSourceError
+
+pub fn post_combine_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderHyperConnectionPostCombineCudaSource raise DecoderHyperConnectionCudaSourceError
+
+pub fn pre_reduce_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderHyperConnectionPreReduceCudaSource raise DecoderHyperConnectionCudaSourceError
+
+pub fn staged_function_and_collapse_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError
+
+pub fn staged_positive_sinkhorn_f32_source(stream_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionSinkhornCudaSource raise DecoderHyperConnectionCudaSourceError
+
+// Errors
+pub(all) suberror DecoderHyperConnectionCudaSourceError {
+  InvalidStreamWidth
+  InvalidHiddenWidth
+  InvalidMaximumRows
+  InvalidIterationCount
+  InvalidEpsilon
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecoderHyperConnectionCudaOperation {
+  BlockControlV1
+  StagedFunctionAndCollapseV1
+  StagedSinkhornV1
+  PreReduceV1
+  PostCombineV1
+  HeadReduceV1
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderHyperConnectionCudaSource {
+  // private fields
+}
+pub fn DecoderHyperConnectionCudaSource::control_epsilon(Self) -> Double
+pub fn DecoderHyperConnectionCudaSource::function_symbol(Self) -> String
+pub fn DecoderHyperConnectionCudaSource::hidden_width(Self) -> Int
+pub fn DecoderHyperConnectionCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderHyperConnectionCudaSource::normalization_epsilon(Self) -> Double
+pub fn DecoderHyperConnectionCudaSource::numerical_contract(Self) -> DecoderHyperConnectionNumericalContract
+pub fn DecoderHyperConnectionCudaSource::operation(Self) -> DecoderHyperConnectionCudaOperation
+pub fn DecoderHyperConnectionCudaSource::sinkhorn_iterations(Self) -> Int
+pub fn DecoderHyperConnectionCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderHyperConnectionCudaSource::stream_width(Self) -> Int
+
+pub struct DecoderHyperConnectionFunctionCudaSource {
+  // private fields
+}
+pub fn DecoderHyperConnectionFunctionCudaSource::control_epsilon(Self) -> Double
+pub fn DecoderHyperConnectionFunctionCudaSource::function_symbol(Self) -> String
+pub fn DecoderHyperConnectionFunctionCudaSource::hidden_width(Self) -> Int
+pub fn DecoderHyperConnectionFunctionCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderHyperConnectionFunctionCudaSource::normalization_epsilon(Self) -> Double
+pub fn DecoderHyperConnectionFunctionCudaSource::numerical_contract(Self) -> DecoderHyperConnectionNumericalContract
+pub fn DecoderHyperConnectionFunctionCudaSource::operation(Self) -> DecoderHyperConnectionCudaOperation
+pub fn DecoderHyperConnectionFunctionCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderHyperConnectionFunctionCudaSource::stream_width(Self) -> Int
+
+pub struct DecoderHyperConnectionHeadReduceCudaSource {
+  // private fields
+}
+pub fn DecoderHyperConnectionHeadReduceCudaSource::control_epsilon(Self) -> Double
+pub fn DecoderHyperConnectionHeadReduceCudaSource::function_symbol(Self) -> String
+pub fn DecoderHyperConnectionHeadReduceCudaSource::hidden_width(Self) -> Int
+pub fn DecoderHyperConnectionHeadReduceCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderHyperConnectionHeadReduceCudaSource::normalization_epsilon(Self) -> Double
+pub fn DecoderHyperConnectionHeadReduceCudaSource::numerical_contract(Self) -> DecoderHyperConnectionNumericalContract
+pub fn DecoderHyperConnectionHeadReduceCudaSource::operation(Self) -> DecoderHyperConnectionCudaOperation
+pub fn DecoderHyperConnectionHeadReduceCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderHyperConnectionHeadReduceCudaSource::stream_width(Self) -> Int
+
+pub(all) enum DecoderHyperConnectionNumericalContract {
+  OrderedF32BlockControlV1
+  OrderedF32FunctionBf16CollapseV1
+  OrderedF32PositiveSinkhornV1
+  OrderedF32PreReduceBf16RoundV1
+  OrderedF32PostCombineBf16RoundV1
+  OrderedF32HeadControlReductionBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderHyperConnectionPostCombineCudaSource {
+  // private fields
+}
+pub fn DecoderHyperConnectionPostCombineCudaSource::function_symbol(Self) -> String
+pub fn DecoderHyperConnectionPostCombineCudaSource::hidden_width(Self) -> Int
+pub fn DecoderHyperConnectionPostCombineCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderHyperConnectionPostCombineCudaSource::numerical_contract(Self) -> DecoderHyperConnectionNumericalContract
+pub fn DecoderHyperConnectionPostCombineCudaSource::operation(Self) -> DecoderHyperConnectionCudaOperation
+pub fn DecoderHyperConnectionPostCombineCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderHyperConnectionPostCombineCudaSource::stream_width(Self) -> Int
+
+pub struct DecoderHyperConnectionPreReduceCudaSource {
+  // private fields
+}
+pub fn DecoderHyperConnectionPreReduceCudaSource::function_symbol(Self) -> String
+pub fn DecoderHyperConnectionPreReduceCudaSource::hidden_width(Self) -> Int
+pub fn DecoderHyperConnectionPreReduceCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderHyperConnectionPreReduceCudaSource::numerical_contract(Self) -> DecoderHyperConnectionNumericalContract
+pub fn DecoderHyperConnectionPreReduceCudaSource::operation(Self) -> DecoderHyperConnectionCudaOperation
+pub fn DecoderHyperConnectionPreReduceCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderHyperConnectionPreReduceCudaSource::stream_width(Self) -> Int
+
+pub struct DecoderHyperConnectionSinkhornCudaSource {
+  // private fields
+}
+pub fn DecoderHyperConnectionSinkhornCudaSource::control_epsilon(Self) -> Double
+pub fn DecoderHyperConnectionSinkhornCudaSource::function_symbol(Self) -> String
+pub fn DecoderHyperConnectionSinkhornCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderHyperConnectionSinkhornCudaSource::numerical_contract(Self) -> DecoderHyperConnectionNumericalContract
+pub fn DecoderHyperConnectionSinkhornCudaSource::operation(Self) -> DecoderHyperConnectionCudaOperation
+pub fn DecoderHyperConnectionSinkhornCudaSource::sinkhorn_iterations(Self) -> Int
+pub fn DecoderHyperConnectionSinkhornCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderHyperConnectionSinkhornCudaSource::stream_width(Self) -> Int
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/async",
+  "vectie/lunaflux/runtime/remote_tls",
+  "vectie/lunaflux/runtime/remote_mailbox",
+  "vectie/lunaflux/runtime/remote_session",
+  "vectie/lunaflux/engine/rank_child_control",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/remote_startup",
+  "vectie/lunaflux/engine/tensor_parallel_rank_child",
+  "vectie/lunaflux/engine/tensor_parallel_device_worker",
+}
+
+supported_targets = "native"

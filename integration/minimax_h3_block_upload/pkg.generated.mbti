@@ -1,0 +1,51 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_block_upload"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/model/minimax_h3_host_materialization",
+  "vectie/lunaflux/model/minimax_h3_text_encoder",
+  "vectie/lunaflux/model/minimax_h3_vision_conditioner",
+  "vectie/lunaflux/model/minimax_h3_weights",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn upload_audio_amp(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_audio_decoder(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.AudioDecoderWeightPacking, expected_identity~ : @spec.ModelIdentity, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_block(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.BlockWeightPacking, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_context(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.ContextWeightPacking, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_input(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.InputWeightPacking, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_output(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.OutputWeightPacking, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_refiner(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.RefinerWeightPacking, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_text_encoder_embedding(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, expected_identity~ : @spec.ModelIdentity, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_text_encoder_layer(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_text_encoder.LayerWeights, expected_identity~ : @spec.ModelIdentity, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_timestep(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.TimestepWeightPacking, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_video_block(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.VideoBlockWeightPacking, expected_identity~ : @spec.ModelIdentity, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_video_frontend(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_weights.VideoFrontendWeightPacking, expected_identity~ : @spec.ModelIdentity, chunk_bytes~ : Int) -> Unit raise
+
+pub fn upload_vision_conditioner(@device.Context, @device.Allocation, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @minimax_h3_vision_conditioner.WeightGroup, expected_identity~ : @spec.ModelIdentity, destination_offset~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+// Errors
+pub(all) suberror BlockUploadError {
+  InvalidChunkSize
+  TransferFailed
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits

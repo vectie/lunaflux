@@ -12,6 +12,7 @@ pub(all) enum DeviceOperation {
   EventCreate
   EventClose
   EventRecord
+  StreamWaitEvent
   EventSynchronize
   EventElapsed
   AllocationCreate

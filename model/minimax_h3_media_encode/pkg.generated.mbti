@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_media_encode"
+
+import {
+  "vectie/lunaflux/compiler/media_encode_plan",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct AudioEncoder {
+  graph : @media_encode_plan.Graph
+  samples : Int
+  latent_time : Int
+  means_value : Int
+  deviations_value : Int
+}
+pub fn AudioEncoder::new(samples~ : Int, max_scratch_bytes~ : Int64) -> Self raise @media_encode_plan.PlanError
+
+pub struct TileAxis {
+  starts : ReadOnlyArray[Int]
+  extent : Int
+  overlaps : ReadOnlyArray[Int]
+}
+pub fn TileAxis::new(Int) -> Self raise @media_encode_plan.PlanError
+
+pub struct VideoEncoder {
+  graph : @media_encode_plan.Graph
+  frames : Int
+  height : Int
+  width : Int
+  latent_time : Int
+  noise_value : Int
+  means_value : Int
+  deviations_value : Int
+  tile_count : Int
+}
+pub fn VideoEncoder::new(frames~ : Int, height~ : Int, width~ : Int, image~ : Bool, max_tiles~ : Int, max_scratch_bytes~ : Int64) -> Self raise @media_encode_plan.PlanError
+
+// Type aliases
+
+// Traits

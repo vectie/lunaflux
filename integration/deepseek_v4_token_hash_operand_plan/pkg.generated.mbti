@@ -1,0 +1,246 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/deepseek_v4_token_hash_operand_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+  "vectie/lunaflux/kernels/advanced_decoder_cuda_aot",
+  "vectie/lunaflux/kernels/advanced_decoder_operand_region_plan",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/cuda_offline_compile_evidence",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4_device_upload",
+  "vectie/lunaflux/model/deepseek_v4_host_materialization",
+  "vectie/lunaflux/model/segmented_device_materialize",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn bind_complete_token_hash_launch(DeepSeekV4TokenHashOperandPlan, @segmented_device_materialize.SegmentedDeviceLayout, @advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate, DeepSeekV4TokenHashArtifactBinding, DeepSeekV4TokenHashCompileEvidenceBinding, @advanced_decoder_operand_region_plan.AdvancedDecoderOperandRegionInput, @advanced_decoder_operand_region_plan.AdvancedDecoderOperandRegionInput, @advanced_decoder_operand_region_plan.AdvancedDecoderOperandRegionInput, @advanced_decoder_operand_region_plan.AdvancedDecoderOperandRegionPlanLimits) -> DeepSeekV4TokenHashLaunchBinding raise DeepSeekV4TokenHashLaunchBindingError
+
+pub fn bind_token_hash_artifact(DeepSeekV4TokenHashOperandPlan, @advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate, @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmission) -> DeepSeekV4TokenHashArtifactBinding raise DeepSeekV4TokenHashArtifactBindingError
+
+pub fn bind_token_hash_compile_evidence(DeepSeekV4TokenHashArtifactBinding, @advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate, @cuda_offline_compile_evidence.CudaOfflineCompileEvidence) -> DeepSeekV4TokenHashCompileEvidenceBinding raise DeepSeekV4TokenHashCompileEvidenceBindingError
+
+pub fn plan_token_hash_table_operand(@deepseek_v4_host_materialization.DeepSeekV4TokenHashTables, @segmented_device_materialize.SegmentedDeviceLayout, @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, @advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate, layer_index~ : Int) -> DeepSeekV4TokenHashOperandPlan raise DeepSeekV4TokenHashOperandPlanError
+
+// Errors
+pub(all) suberror DeepSeekV4TokenHashArtifactBindingError {
+  CandidateIdentityMismatch
+  CandidateRequirementsDigestMismatch
+  CandidateOrdinalMismatch
+  CandidateOperationMismatch
+  CandidateCapabilityMismatch
+  CandidateContractMismatch
+  CandidateSourceDigestMismatch
+  CandidateRecipeDigestMismatch
+  CandidateUnexpectedlyBindable
+  CandidateOperandMismatch(Int)
+  ArtifactIdentityMismatch
+  ArtifactRequirementsDigestMismatch
+  ArtifactTargetMismatch
+  ArtifactUnexpectedStatus
+  ArtifactLaunchMissing(Int)
+  ArtifactLaunchMismatch
+  ArtifactOperandMismatch(Int)
+  ArtifactEntryPointMissing
+  ArtifactSymbolMismatch
+  ArtifactModuleMissing
+  ArtifactModuleMismatch
+  CompilationProvenanceUnavailable
+  LoaderAuthorityUnavailable
+  LaunchAuthorityUnavailable
+  PhysicalQualificationUnavailable
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror DeepSeekV4TokenHashCompileEvidenceBindingError {
+  CandidateIdentityMismatch
+  CandidateRequirementsDigestMismatch
+  CandidateOrdinalMismatch
+  CandidateOperationMismatch
+  CandidateCapabilityMismatch
+  CandidateContractMismatch
+  CandidateSourceDigestMismatch
+  CandidateRecipeDigestMismatch
+  CandidateUnexpectedlyBindable
+  EvidenceUnexpectedStatus
+  EvidenceSourceDigestMismatch
+  EvidenceRecipeDigestMismatch
+  EvidenceCompilerMismatch
+  EvidenceTargetMismatch
+  EvidenceSymbolMismatch
+  EvidenceModuleDigestMismatch
+  EvidenceModuleByteCountMismatch
+  CompilationProvenanceUnavailable
+  LoaderAuthorityUnavailable
+  LaunchAuthorityUnavailable
+  PhysicalQualificationUnavailable
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror DeepSeekV4TokenHashLaunchBindingError {
+  ArtifactBinding(DeepSeekV4TokenHashArtifactBindingError)
+  OperandRegions(@advanced_decoder_operand_region_plan.AdvancedDecoderOperandRegionPlanError)
+  OperandPlanMismatch
+  SidecarLayoutMismatch
+  ArtifactEvidenceMismatch
+  CompileEvidenceMismatch
+  CandidateGeometryMismatch(Int)
+  LoaderAuthorityUnavailable
+  LaunchAuthorityUnavailable
+  PhysicalQualificationUnavailable
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror DeepSeekV4TokenHashOperandPlanError {
+  Sidecar(@deepseek_v4_device_upload.DeepSeekV4DeviceUploadError)
+  TokenHash(@deepseek_v4_host_materialization.DeepSeekV4TokenHashMaterializationError)
+  SourceReleased
+  InvalidSourceMetadata
+  InvalidLayer(Int)
+  SourceIdentityMismatch
+  RequirementsIdentityMismatch
+  RequirementsDigestMismatch
+  CandidateRequirementOrdinalMismatch(Int)
+  CandidateOperationMismatch
+  CandidateCapabilityMismatch
+  CandidateContractMismatch
+  CandidateUnexpectedlyBindable
+  OperandOrdinalMismatch
+  OperandRoleMismatch
+  OperandByteCountMismatch
+  OperandAlignmentMismatch
+  LayoutRegionMismatch(Int)
+  NoLaunchAuthority
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DeepSeekV4TokenHashArtifactBinding {
+  // private fields
+}
+pub fn DeepSeekV4TokenHashArtifactBinding::artifact_admission_digest(Self) -> @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmissionDigest
+pub fn DeepSeekV4TokenHashArtifactBinding::digest(Self) -> DeepSeekV4TokenHashArtifactBindingDigest
+pub fn DeepSeekV4TokenHashArtifactBinding::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn DeepSeekV4TokenHashArtifactBinding::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn DeepSeekV4TokenHashArtifactBinding::function_symbol(Self) -> String
+pub fn DeepSeekV4TokenHashArtifactBinding::layer_index(Self) -> Int
+pub fn DeepSeekV4TokenHashArtifactBinding::module_byte_count(Self) -> Int
+pub fn DeepSeekV4TokenHashArtifactBinding::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn DeepSeekV4TokenHashArtifactBinding::operand_count(Self) -> Int
+pub fn DeepSeekV4TokenHashArtifactBinding::operand_plan_digest(Self) -> DeepSeekV4TokenHashOperandPlanDigest
+pub fn DeepSeekV4TokenHashArtifactBinding::require_compilation_provenance(Self) -> Unit raise DeepSeekV4TokenHashArtifactBindingError
+pub fn DeepSeekV4TokenHashArtifactBinding::require_launch_authority(Self) -> Unit raise DeepSeekV4TokenHashArtifactBindingError
+pub fn DeepSeekV4TokenHashArtifactBinding::require_loader_authority(Self) -> Unit raise DeepSeekV4TokenHashArtifactBindingError
+pub fn DeepSeekV4TokenHashArtifactBinding::require_physical_qualification(Self) -> Unit raise DeepSeekV4TokenHashArtifactBindingError
+pub fn DeepSeekV4TokenHashArtifactBinding::requirement_ordinal(Self) -> Int
+pub fn DeepSeekV4TokenHashArtifactBinding::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn DeepSeekV4TokenHashArtifactBinding::source_identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4TokenHashArtifactBinding::status(Self) -> DeepSeekV4TokenHashArtifactBindingStatus
+pub fn DeepSeekV4TokenHashArtifactBinding::target(Self) -> @catalog.DeviceTarget
+pub fn DeepSeekV4TokenHashArtifactBinding::token_hash_device_offset(Self) -> Int64
+pub fn DeepSeekV4TokenHashArtifactBinding::token_hash_operand_ordinal(Self) -> Int
+
+pub struct DeepSeekV4TokenHashArtifactBindingDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn DeepSeekV4TokenHashArtifactBindingDigest::as_hex(Self) -> String
+
+pub(all) enum DeepSeekV4TokenHashArtifactBindingStatus {
+  InertUnqualified
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4TokenHashCompileEvidenceBinding {
+  // private fields
+}
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::artifact_binding_digest(Self) -> DeepSeekV4TokenHashArtifactBindingDigest
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::compile_evidence_digest(Self) -> @cuda_offline_compile_evidence.CudaOfflineCompileEvidenceDigest
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::digest(Self) -> DeepSeekV4TokenHashCompileEvidenceBindingDigest
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::driver_identity_sha256(Self) -> String
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::function_symbol(Self) -> String
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::layer_index(Self) -> Int
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::module_byte_count(Self) -> Int
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::recipe_digest_sha256(Self) -> String
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::require_compilation_provenance(Self) -> Unit raise DeepSeekV4TokenHashCompileEvidenceBindingError
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::require_launch_authority(Self) -> Unit raise DeepSeekV4TokenHashCompileEvidenceBindingError
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::require_loader_authority(Self) -> Unit raise DeepSeekV4TokenHashCompileEvidenceBindingError
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::require_physical_qualification(Self) -> Unit raise DeepSeekV4TokenHashCompileEvidenceBindingError
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::requirement_ordinal(Self) -> Int
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::source_digest_sha256(Self) -> String
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::source_identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::status(Self) -> DeepSeekV4TokenHashCompileEvidenceBindingStatus
+pub fn DeepSeekV4TokenHashCompileEvidenceBinding::target(Self) -> @catalog.DeviceTarget
+
+pub struct DeepSeekV4TokenHashCompileEvidenceBindingDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingDigest::as_hex(Self) -> String
+
+pub(all) enum DeepSeekV4TokenHashCompileEvidenceBindingStatus {
+  InertSelfConsistentUnqualified
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4TokenHashLaunchBinding {
+  // private fields
+}
+pub fn DeepSeekV4TokenHashLaunchBinding::artifact_binding_digest(Self) -> DeepSeekV4TokenHashArtifactBindingDigest
+pub fn DeepSeekV4TokenHashLaunchBinding::compile_binding_digest(Self) -> DeepSeekV4TokenHashCompileEvidenceBindingDigest
+pub fn DeepSeekV4TokenHashLaunchBinding::compile_evidence_digest(Self) -> @cuda_offline_compile_evidence.CudaOfflineCompileEvidenceDigest
+pub fn DeepSeekV4TokenHashLaunchBinding::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
+pub fn DeepSeekV4TokenHashLaunchBinding::digest(Self) -> DeepSeekV4TokenHashLaunchBindingDigest
+pub fn DeepSeekV4TokenHashLaunchBinding::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn DeepSeekV4TokenHashLaunchBinding::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn DeepSeekV4TokenHashLaunchBinding::experts_per_token(Self) -> Int
+pub fn DeepSeekV4TokenHashLaunchBinding::function_symbol(Self) -> String
+pub fn DeepSeekV4TokenHashLaunchBinding::layer_index(Self) -> Int
+pub fn DeepSeekV4TokenHashLaunchBinding::maximum_tokens(Self) -> Int
+pub fn DeepSeekV4TokenHashLaunchBinding::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn DeepSeekV4TokenHashLaunchBinding::operand_plan_digest(Self) -> DeepSeekV4TokenHashOperandPlanDigest
+pub fn DeepSeekV4TokenHashLaunchBinding::operand_regions(Self) -> @advanced_decoder_operand_region_plan.AdvancedDecoderOperandRegionPlan
+pub fn DeepSeekV4TokenHashLaunchBinding::recipe_digest_sha256(Self) -> String
+pub fn DeepSeekV4TokenHashLaunchBinding::require_launch_authority(Self) -> Unit raise DeepSeekV4TokenHashLaunchBindingError
+pub fn DeepSeekV4TokenHashLaunchBinding::require_loader_authority(Self) -> Unit raise DeepSeekV4TokenHashLaunchBindingError
+pub fn DeepSeekV4TokenHashLaunchBinding::require_physical_qualification(Self) -> Unit raise DeepSeekV4TokenHashLaunchBindingError
+pub fn DeepSeekV4TokenHashLaunchBinding::requirement_ordinal(Self) -> Int
+pub fn DeepSeekV4TokenHashLaunchBinding::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn DeepSeekV4TokenHashLaunchBinding::routed_expert_count(Self) -> Int
+pub fn DeepSeekV4TokenHashLaunchBinding::sidecar_layout_digest(Self) -> @segmented_device_materialize.SegmentedDeviceLayoutDigest
+pub fn DeepSeekV4TokenHashLaunchBinding::source_digest_sha256(Self) -> String
+pub fn DeepSeekV4TokenHashLaunchBinding::source_identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4TokenHashLaunchBinding::status(Self) -> DeepSeekV4TokenHashLaunchBindingStatus
+pub fn DeepSeekV4TokenHashLaunchBinding::target(Self) -> @catalog.DeviceTarget
+
+pub struct DeepSeekV4TokenHashLaunchBindingDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn DeepSeekV4TokenHashLaunchBindingDigest::as_hex(Self) -> String
+
+pub(all) enum DeepSeekV4TokenHashLaunchBindingStatus {
+  InertCompleteUnqualified
+} derive(Eq, @debug.Debug)
+
+pub struct DeepSeekV4TokenHashOperandPlan {
+  // private fields
+}
+pub fn DeepSeekV4TokenHashOperandPlan::alignment(Self) -> Int64
+pub fn DeepSeekV4TokenHashOperandPlan::byte_count(Self) -> Int64
+pub fn DeepSeekV4TokenHashOperandPlan::device_offset(Self) -> Int64
+pub fn DeepSeekV4TokenHashOperandPlan::digest(Self) -> DeepSeekV4TokenHashOperandPlanDigest
+pub fn DeepSeekV4TokenHashOperandPlan::layer_index(Self) -> Int
+pub fn DeepSeekV4TokenHashOperandPlan::operand_ordinal(Self) -> Int
+pub fn DeepSeekV4TokenHashOperandPlan::operand_role(Self) -> @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole
+pub fn DeepSeekV4TokenHashOperandPlan::region_ordinal(Self) -> Int
+pub fn DeepSeekV4TokenHashOperandPlan::region_tensor_ordinal(Self) -> Int
+pub fn DeepSeekV4TokenHashOperandPlan::require_launch_authority(Self) -> Unit raise DeepSeekV4TokenHashOperandPlanError
+pub fn DeepSeekV4TokenHashOperandPlan::requirement_ordinal(Self) -> Int
+pub fn DeepSeekV4TokenHashOperandPlan::requirements_digest(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
+pub fn DeepSeekV4TokenHashOperandPlan::routed_expert_count(Self) -> Int
+pub fn DeepSeekV4TokenHashOperandPlan::sidecar_layout_digest(Self) -> @segmented_device_materialize.SegmentedDeviceLayoutDigest
+pub fn DeepSeekV4TokenHashOperandPlan::source_identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4TokenHashOperandPlan::status(Self) -> DeepSeekV4TokenHashOperandPlanStatus
+
+pub struct DeepSeekV4TokenHashOperandPlanDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn DeepSeekV4TokenHashOperandPlanDigest::as_hex(Self) -> String
+
+pub(all) enum DeepSeekV4TokenHashOperandPlanStatus {
+  InertUnqualified
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

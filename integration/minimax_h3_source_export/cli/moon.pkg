@@ -1,0 +1,18 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/integration/minimax_h3_source_export" @export,
+  "vectie/lunaflux/model/minimax_h3_config" @config,
+  "vectie/lunaflux/model/minimax_h3_text_encoder" @text,
+  "vectie/lunaflux/model/minimax_h3" @h3,
+  "vectie/lunaflux/model/minimax_h3_sequence" @sequence,
+  "vectie/lunaflux/model/spec" @identity,
+  "vectie/lunaflux/engine/joint_diffusion_loop" @loop,
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

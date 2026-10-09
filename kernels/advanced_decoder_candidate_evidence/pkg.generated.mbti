@@ -1,0 +1,50 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/advanced_decoder_candidate_evidence"
+
+import {
+  "vectie/lunaflux/kernels/advanced_decoder_cuda_aot",
+  "vectie/lunaflux/kernels/aot_candidate_coverage",
+}
+
+// Values
+pub fn from_compressed_index(@advanced_decoder_cuda_aot.AdvancedDecoderCompressedIndexCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_compressed_kv_prepare(@advanced_decoder_cuda_aot.AdvancedDecoderCompressedKvPrepareCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_foundation(@advanced_decoder_cuda_aot.AdvancedDecoderFoundationCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_hyper_connection(@advanced_decoder_cuda_aot.AdvancedDecoderHyperConnectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_hyper_connection_head_reduce(@advanced_decoder_cuda_aot.AdvancedDecoderHyperConnectionHeadReduceCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_hyper_connection_post_combine(@advanced_decoder_cuda_aot.AdvancedDecoderHyperConnectionPostCombineCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_hyper_connection_pre_reduce(@advanced_decoder_cuda_aot.AdvancedDecoderHyperConnectionPreReduceCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_inverse_rotary(@advanced_decoder_cuda_aot.AdvancedDecoderInverseRotaryCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_key_value_projection(@advanced_decoder_cuda_aot.AdvancedDecoderKeyValueProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_output_a_projection(@advanced_decoder_cuda_aot.AdvancedDecoderOutputAProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_output_b_projection(@advanced_decoder_cuda_aot.AdvancedDecoderOutputBProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_projection(@advanced_decoder_cuda_aot.AdvancedDecoderProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_query_a_projection(@advanced_decoder_cuda_aot.AdvancedDecoderQueryAProjectionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_rotary(@advanced_decoder_cuda_aot.AdvancedDecoderRotaryCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_routing(@advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_sparse_attention(@advanced_decoder_cuda_aot.AdvancedDecoderSparseAttentionCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+pub fn from_window_compressed_join(@advanced_decoder_cuda_aot.AdvancedDecoderWindowCompressedJoinCudaCandidate) -> @aot_candidate_coverage.AotCandidateEvidenceInput raise @aot_candidate_coverage.AotCandidateCoverageError
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

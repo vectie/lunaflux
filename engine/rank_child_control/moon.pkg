@@ -2,6 +2,7 @@ import {
   "vectie/lunaflux/engine/rank_group_wire",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/internal/process",
+  "vectie/lunaflux/runtime/remote_mailbox",
 }
 
 supported_targets = "native"

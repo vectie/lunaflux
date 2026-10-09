@@ -1,0 +1,27 @@
+import {
+  "vectie/lunaflux/compiler/parallel_ir",
+  "moonbitlang/async",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/internal/json_guard",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/remote_tls",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/device/network_topology",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/engine/two_node_plan",
+  "vectie/lunaflux/engine/remote_startup",
+  "vectie/lunaflux/engine/remote_rank_worker",
+  "vectie/lunaflux/engine/remote_release",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/tensor_parallel_rank_child" @child,
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap" @bootstrap,
+  "vectie/lunaflux/engine/tensor_parallel_device_worker" @worker,
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+supported_targets = "native"

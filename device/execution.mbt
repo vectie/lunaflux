@@ -63,6 +63,17 @@ pub fn Event::close(self : Event) -> Unit raise DeviceError {
 }
 
 ///|
+/// Creates a reusable dependency event with timing disabled.
+pub fn Context::create_dependency_event(
+  self : Context,
+) -> Event raise DeviceError {
+  let raw = self.raw.create_dependency_event() catch {
+    error => raise error_from_cuda(error)
+  }
+  { raw, }
+}
+
+///|
 pub fn Event::record(self : Event, stream : Stream) -> Unit raise DeviceError {
   self.raw.record(stream.raw) catch {
     error => raise error_from_cuda(error)
@@ -72,6 +83,18 @@ pub fn Event::record(self : Event, stream : Stream) -> Unit raise DeviceError {
 ///|
 pub fn Event::synchronize(self : Event) -> Unit raise DeviceError {
   self.raw.synchronize() catch {
+    error => raise error_from_cuda(error)
+  }
+}
+
+///|
+/// Enqueues a GPU dependency without blocking the host. The caller must issue
+/// the producer's event record first and retain both lanes until completion.
+pub fn Stream::wait_event(
+  self : Stream,
+  event : Event,
+) -> Unit raise DeviceError {
+  self.raw.wait_event(event.raw) catch {
     error => raise error_from_cuda(error)
   }
 }

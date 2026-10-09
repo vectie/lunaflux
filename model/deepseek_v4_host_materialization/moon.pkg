@@ -1,0 +1,21 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/deepseek_v4_numeric_plan",
+  "vectie/lunaflux/model/deepseek_v4_quantized_payload",
+  "vectie/lunaflux/model/deepseek_v4_weights",
+  "vectie/lunaflux/model/checked_integer_narrow",
+  "vectie/lunaflux/model/segmented_host_borrow",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+} for "wbtest"

@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4",
+}
+
+import {
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

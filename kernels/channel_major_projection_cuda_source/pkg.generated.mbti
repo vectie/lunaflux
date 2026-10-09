@@ -1,0 +1,117 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/channel_major_projection_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn f32_pointwise_conv1d_source(batch_count~ : Int, input_channels~ : Int, output_channels~ : Int, time_count~ : Int, function_symbol~ : String) -> ChannelMajorProjectionCudaSource raise ChannelMajorProjectionCudaSourceError
+
+pub fn f32_weight_normalized_conv1d_source(batch_count~ : Int, input_channels~ : Int, output_channels~ : Int, input_time~ : Int, kernel_size~ : Int, padding~ : Int, stride~ : Int, normalize_symbol~ : String, convolution_symbol~ : String, use_bias? : Bool) -> WeightNormalizedConv1dCudaSource raise ChannelMajorProjectionCudaSourceError
+
+pub fn f32_weight_normalized_conv_transpose1d_source(batch_count~ : Int, input_channels~ : Int, output_channels~ : Int, input_time~ : Int, kernel_size~ : Int, padding~ : Int, stride~ : Int, normalize_symbol~ : String, convolution_symbol~ : String) -> WeightNormalizedConvTranspose1dCudaSource raise ChannelMajorProjectionCudaSourceError
+
+pub fn f32_weight_normalized_dilated_conv1d_reference(batch_count~ : Int, channel_count~ : Int, time_count~ : Int, kernel_size~ : Int, dilation~ : Int, padding~ : Int, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise ChannelMajorProjectionCudaSourceError
+
+pub fn f32_weight_normalized_dilated_conv1d_source(batch_count~ : Int, channel_count~ : Int, time_count~ : Int, kernel_size~ : Int, dilation~ : Int, padding~ : Int, normalize_symbol~ : String, convolution_symbol~ : String) -> WeightNormalizedDilatedConv1dCudaSource raise ChannelMajorProjectionCudaSourceError
+
+// Errors
+pub(all) suberror ChannelMajorProjectionCudaSourceError {
+  InvalidBatchCount
+  InvalidChannelCount
+  InvalidTimeCount
+  DimensionOverflow
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ChannelMajorProjectionCudaSource {
+  // private fields
+}
+pub fn ChannelMajorProjectionCudaSource::batch_count(Self) -> Int
+pub fn ChannelMajorProjectionCudaSource::function_symbol(Self) -> String
+pub fn ChannelMajorProjectionCudaSource::input_channels(Self) -> Int
+pub fn ChannelMajorProjectionCudaSource::input_element_count(Self) -> Int64
+pub fn ChannelMajorProjectionCudaSource::numerical_contract(Self) -> ChannelMajorProjectionNumericalContract
+pub fn ChannelMajorProjectionCudaSource::operation(Self) -> ChannelMajorProjectionOperation
+pub fn ChannelMajorProjectionCudaSource::output_channels(Self) -> Int
+pub fn ChannelMajorProjectionCudaSource::output_element_count(Self) -> Int64
+pub fn ChannelMajorProjectionCudaSource::source_bytes(Self) -> Bytes
+pub fn ChannelMajorProjectionCudaSource::time_count(Self) -> Int
+
+pub(all) enum ChannelMajorProjectionNumericalContract {
+  OrderedF32BiasAccumulationF32OutputV1
+  OrderedF32PerOutputWeightNormConv1dV1
+  OrderedF32PerOutputWeightNormBiasFreeConv1dV1
+  OrderedF32PerOutputWeightNormDilatedConv1dV1
+  OrderedF32PerInputWeightNormConvTranspose1dV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ChannelMajorProjectionOperation {
+  F32PointwiseConv1d
+  F32WeightNormalizedConv1d
+  F32WeightNormalizedDilatedConv1d
+  F32WeightNormalizedConvTranspose1d
+} derive(Eq, @debug.Debug)
+
+pub struct WeightNormalizedConv1dCudaSource {
+  // private fields
+}
+pub fn WeightNormalizedConv1dCudaSource::batch_count(Self) -> Int
+pub fn WeightNormalizedConv1dCudaSource::convolution_symbol(Self) -> String
+pub fn WeightNormalizedConv1dCudaSource::input_channels(Self) -> Int
+pub fn WeightNormalizedConv1dCudaSource::input_element_count(Self) -> Int64
+pub fn WeightNormalizedConv1dCudaSource::input_time(Self) -> Int
+pub fn WeightNormalizedConv1dCudaSource::kernel_size(Self) -> Int
+pub fn WeightNormalizedConv1dCudaSource::normalize_symbol(Self) -> String
+pub fn WeightNormalizedConv1dCudaSource::numerical_contract(Self) -> ChannelMajorProjectionNumericalContract
+pub fn WeightNormalizedConv1dCudaSource::operation(Self) -> ChannelMajorProjectionOperation
+pub fn WeightNormalizedConv1dCudaSource::output_channels(Self) -> Int
+pub fn WeightNormalizedConv1dCudaSource::output_element_count(Self) -> Int64
+pub fn WeightNormalizedConv1dCudaSource::output_time(Self) -> Int
+pub fn WeightNormalizedConv1dCudaSource::padding(Self) -> Int
+pub fn WeightNormalizedConv1dCudaSource::source_bytes(Self) -> Bytes
+pub fn WeightNormalizedConv1dCudaSource::stride(Self) -> Int
+pub fn WeightNormalizedConv1dCudaSource::weight_element_count(Self) -> Int64
+
+pub struct WeightNormalizedConvTranspose1dCudaSource {
+  // private fields
+}
+pub fn WeightNormalizedConvTranspose1dCudaSource::batch_count(Self) -> Int
+pub fn WeightNormalizedConvTranspose1dCudaSource::convolution_symbol(Self) -> String
+pub fn WeightNormalizedConvTranspose1dCudaSource::input_channels(Self) -> Int
+pub fn WeightNormalizedConvTranspose1dCudaSource::input_element_count(Self) -> Int64
+pub fn WeightNormalizedConvTranspose1dCudaSource::input_time(Self) -> Int
+pub fn WeightNormalizedConvTranspose1dCudaSource::kernel_size(Self) -> Int
+pub fn WeightNormalizedConvTranspose1dCudaSource::normalize_symbol(Self) -> String
+pub fn WeightNormalizedConvTranspose1dCudaSource::numerical_contract(Self) -> ChannelMajorProjectionNumericalContract
+pub fn WeightNormalizedConvTranspose1dCudaSource::operation(Self) -> ChannelMajorProjectionOperation
+pub fn WeightNormalizedConvTranspose1dCudaSource::output_channels(Self) -> Int
+pub fn WeightNormalizedConvTranspose1dCudaSource::output_element_count(Self) -> Int64
+pub fn WeightNormalizedConvTranspose1dCudaSource::output_time(Self) -> Int
+pub fn WeightNormalizedConvTranspose1dCudaSource::padding(Self) -> Int
+pub fn WeightNormalizedConvTranspose1dCudaSource::source_bytes(Self) -> Bytes
+pub fn WeightNormalizedConvTranspose1dCudaSource::stride(Self) -> Int
+pub fn WeightNormalizedConvTranspose1dCudaSource::weight_element_count(Self) -> Int64
+
+pub struct WeightNormalizedDilatedConv1dCudaSource {
+  // private fields
+}
+pub fn WeightNormalizedDilatedConv1dCudaSource::batch_count(Self) -> Int
+pub fn WeightNormalizedDilatedConv1dCudaSource::channel_count(Self) -> Int
+pub fn WeightNormalizedDilatedConv1dCudaSource::convolution_symbol(Self) -> String
+pub fn WeightNormalizedDilatedConv1dCudaSource::dilation(Self) -> Int
+pub fn WeightNormalizedDilatedConv1dCudaSource::element_count(Self) -> Int64
+pub fn WeightNormalizedDilatedConv1dCudaSource::kernel_size(Self) -> Int
+pub fn WeightNormalizedDilatedConv1dCudaSource::normalize_symbol(Self) -> String
+pub fn WeightNormalizedDilatedConv1dCudaSource::numerical_contract(Self) -> ChannelMajorProjectionNumericalContract
+pub fn WeightNormalizedDilatedConv1dCudaSource::operation(Self) -> ChannelMajorProjectionOperation
+pub fn WeightNormalizedDilatedConv1dCudaSource::padding(Self) -> Int
+pub fn WeightNormalizedDilatedConv1dCudaSource::source_bytes(Self) -> Bytes
+pub fn WeightNormalizedDilatedConv1dCudaSource::time_count(Self) -> Int
+pub fn WeightNormalizedDilatedConv1dCudaSource::weight_elements(Self) -> Int64
+
+// Type aliases
+
+// Traits

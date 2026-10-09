@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/core/json",
+  "vectie/lunaflux/internal/json_guard",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"

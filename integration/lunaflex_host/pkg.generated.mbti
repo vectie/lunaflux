@@ -1,0 +1,28 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux_host"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn is_linked_core_compatible() -> Bool
+
+pub fn linked_core_version() -> String
+
+pub fn linked_lunaflux_contract_probe() -> UInt64 raise
+
+pub fn require_linked_core() -> Unit raise LunaflexCoreIntegrationError
+
+pub fn required_core_abi_version() -> Int
+
+// Errors
+pub(all) suberror LunaflexCoreIntegrationError {
+  IncompatibleCore(required_abi~ : Int, linked_version~ : String)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

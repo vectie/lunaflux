@@ -1,0 +1,158 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_block_source"
+
+import {
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/kernels/dense_permutation_plan",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/minimax_h3_sequence",
+}
+
+// Values
+pub fn build(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String) -> BlockSource raise
+
+pub fn build_audio_amp(batch~ : Int, channels~ : Int, time~ : Int, function_prefix~ : String) -> AudioAmpSource raise
+
+pub fn build_audio_frontend(batch~ : Int, time~ : Int, function_prefix~ : String) -> AudioFrontendSource raise
+
+pub fn build_audio_input(time~ : Int, max_elements~ : Int64) -> AudioInputSource raise
+
+pub fn build_audio_tail(batch~ : Int, channels~ : Int, time~ : Int, function_prefix~ : String) -> AudioTailSource raise
+
+pub fn build_audio_upsample(batch~ : Int, input_channels~ : Int, output_channels~ : Int, input_time~ : Int, kernel~ : Int, stride~ : Int, padding~ : Int, function_prefix~ : String) -> AudioUpsampleSource raise
+
+pub fn build_conditioning(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, function_prefix~ : String) -> ConditioningSource raise
+
+pub fn build_input(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, function_prefix~ : String) -> InputSource raise
+
+pub fn build_output(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, function_prefix~ : String) -> OutputSource raise
+
+pub fn build_refiner(@joint_diffusion_plan.JointDiffusionPlan, text_rows~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String) -> RefinerSource raise
+
+pub fn build_timestep(@joint_diffusion_plan.JointDiffusionPlan, distinct_timesteps~ : Int, function_prefix~ : String) -> TimestepSource raise
+
+pub fn build_video_input(@joint_diffusion_loop.PreparedPlan) -> VideoInputSource raise
+
+// Errors
+pub(all) suberror BlockSourceError {
+  InvalidShape
+}
+
+// Types and methods
+pub struct AudioAmpSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  batch : Int
+  channels : Int
+  time : Int
+}
+
+pub struct AudioFrontendSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  batch : Int
+  time : Int
+}
+
+pub struct AudioInputSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  time : Int
+  value_bytes : Int64
+}
+
+pub struct AudioTailSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  batch : Int
+  channels : Int
+  time : Int
+}
+
+pub struct AudioUpsampleSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  batch : Int
+  input_channels : Int
+  output_channels : Int
+  input_time : Int
+  kernel : Int
+  stride : Int
+  padding : Int
+}
+
+pub struct BlockSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  rows : Int
+  distinct_timesteps : Int
+  shape : @joint_diffusion_plan.JointDiffusionDenoiserShape
+  model : @joint_diffusion_plan.JointDiffusionPlan
+  packed_mapping : Bytes
+}
+
+pub struct ConditioningCopy {
+  rows : Int
+  destination_offset : Int64
+  byte_count : Int64
+  latent : @joint_diffusion_plan.JointDiffusionLatentKind?
+  input_width : Int
+}
+
+pub struct ConditioningSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  copies : ReadOnlyArray[ConditioningCopy]
+  model : @joint_diffusion_plan.JointDiffusionPlan
+  sequence : @minimax_h3_sequence.Sequence
+  byte_count : Int64
+}
+
+pub struct InputSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  model : @joint_diffusion_plan.JointDiffusionPlan
+  sequence : @minimax_h3_sequence.Sequence
+}
+
+pub struct OutputSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  video_start : Int
+  video_rows : Int
+  audio_start : Int
+  audio_rows : Int
+  model : @joint_diffusion_plan.JointDiffusionPlan
+  packed_rows : Int
+  distinct_timesteps : Int
+  packed_mapping : Bytes
+}
+
+pub struct RefinerSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  model : @joint_diffusion_plan.JointDiffusionPlan
+  rows : Int
+}
+
+pub struct TimestepSource {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  rows : Int
+  input_width : Int
+  hidden_width : Int
+  output_width : Int
+}
+
+pub struct VideoInputSource {
+  plan : @joint_diffusion_loop.PreparedPlan
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  permutation : @dense_permutation_plan.Permutation
+  elements_per_channel : Int64
+  value_bytes : Int64
+}
+
+// Type aliases
+
+// Traits

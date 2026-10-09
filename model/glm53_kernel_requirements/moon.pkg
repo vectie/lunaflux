@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/model/glm53",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/glm_hybrid_kernel_requirements",
+}
+
+import {
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

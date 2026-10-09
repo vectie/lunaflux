@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/remote_coordinator"
+
+import {
+  "vectie/lunaflux/engine/remote_group",
+  "vectie/lunaflux/runtime/remote_tls",
+}
+
+// Values
+pub async fn[T] with_group(@remote_group.RemoteGroup, @remote_tls.AuthenticatedRemoteChannel, @remote_tls.AuthenticatedRemoteChannel, async () -> T) -> T
+
+// Errors
+pub(all) suberror RemoteCoordinatorError {
+  Binding
+  Unclosed
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits

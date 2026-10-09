@@ -1,0 +1,8 @@
+import {
+  "vectie/lunaflux/engine/tensor_parallel_rank_child" @child,
+  "vectie/lunaflux/internal/process",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

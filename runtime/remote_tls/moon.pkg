@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/socket",
+  "moonbitlang/async/tls",
+  "vectie/lunaflux/internal/online_tcp_buffer_alias" @buffer_alias,
+}
+
+supported_targets = "native"

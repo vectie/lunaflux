@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/block_fp8_ue8m0_projection_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn block_fp8_ue8m0_projection_cuda_source(input_width~ : Int, output_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> BlockFp8Ue8M0ProjectionCudaSource raise BlockFp8Ue8M0ProjectionCudaSourceError
+
+// Errors
+pub(all) suberror BlockFp8Ue8M0ProjectionCudaSourceError {
+  InvalidGeometry
+  InvalidSymbol
+  SizeOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct BlockFp8Ue8M0ProjectionCudaSource {
+  // private fields
+}
+pub fn BlockFp8Ue8M0ProjectionCudaSource::block_width(Self) -> Int
+pub fn BlockFp8Ue8M0ProjectionCudaSource::function_symbol(Self) -> String
+pub fn BlockFp8Ue8M0ProjectionCudaSource::input_width(Self) -> Int
+pub fn BlockFp8Ue8M0ProjectionCudaSource::maximum_rows(Self) -> Int
+pub fn BlockFp8Ue8M0ProjectionCudaSource::output_width(Self) -> Int
+pub fn BlockFp8Ue8M0ProjectionCudaSource::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

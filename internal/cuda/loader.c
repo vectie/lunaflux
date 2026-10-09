@@ -146,6 +146,7 @@ static void lf_initialize_loader(void) {
   LF_LOAD_REQUIRED(cuEventCreate, "cuEventCreate");
   LF_LOAD_REQUIRED(cuEventDestroy, "cuEventDestroy_v2");
   LF_LOAD_REQUIRED(cuEventRecord, "cuEventRecord");
+  LF_LOAD_REQUIRED(cuStreamWaitEvent, "cuStreamWaitEvent");
   LF_LOAD_REQUIRED(cuEventQuery, "cuEventQuery");
   LF_LOAD_REQUIRED(cuEventSynchronize, "cuEventSynchronize");
   LF_LOAD_REQUIRED(cuEventElapsedTime, "cuEventElapsedTime");

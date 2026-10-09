@@ -1,0 +1,183 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_video_decode"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/integration/minimax_h3_block_source",
+  "vectie/lunaflux/kernels/video_latent_embedding_cuda_source",
+  "vectie/lunaflux/model/minimax_h3_weights",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct AttentionStem {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  rows : Int
+  hidden_bytes : Int64
+  qkv_bytes : Int64
+  table_bytes : Int64
+  qkv_offset : Int64
+  table_offset : Int64
+  scratch_bytes : Int64
+  weights : @minimax_h3_weights.VideoAttentionWeightPacking
+}
+pub fn AttentionStem::launches(Self, ArrayView[@device.Function], @device.Allocation, @device.Allocation, @device.Allocation, @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AttentionStem::new(temporal~ : Int, height~ : Int, width~ : Int, layer~ : Int, prefix~ : String, max_scratch_bytes~ : Int64) -> Self raise
+
+pub struct Block {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  stem : AttentionStem
+  scratch_bytes : Int64
+  qk_offset : Int64
+  attention_offset : Int64
+  projection_offset : Int64
+  residual_offset : Int64
+  mlp_offset : Int64
+  mlp_bytes : Int64
+}
+pub fn Block::launches(Self, ArrayView[@device.Function], @minimax_h3_weights.VideoBlockWeightPacking, @device.Allocation, @device.Allocation, @device.Allocation, @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn Block::new(temporal~ : Int, height~ : Int, width~ : Int, prefix~ : String, max_scratch_bytes~ : Int64) -> Self raise
+
+pub struct Frontend {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  input_bytes : Int64
+  output_bytes : Int64
+  rows_per_batch : Int
+  weights : @minimax_h3_weights.VideoFrontendWeightPacking
+}
+pub fn Frontend::new(batch~ : Int, temporal~ : Int, height~ : Int, width~ : Int, prefix~ : String, max_workspace_bytes~ : Int64) -> Self raise
+
+pub struct FrontendProgram {
+  // private fields
+}
+pub fn FrontendProgram::bind(Self, @device.Allocation, input_offset~ : Int64, @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn FrontendProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn FrontendProgram::new(Frontend) -> Self
+pub fn FrontendProgram::prepare(Self, @device.Context, @device.Module) -> Unit raise @device.DeviceError
+pub fn[T] FrontendProgram::with_output(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+
+pub struct Head {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  rows : Int
+  hidden_bytes : Int64
+  output_bytes : Int64
+  weights : @minimax_h3_weights.VideoFrontendWeightPacking
+}
+pub fn Head::launches(Self, ArrayView[@device.Function], @device.Allocation, @device.Allocation, @device.Allocation, @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn Head::new(temporal~ : Int, height~ : Int, width~ : Int, prefix~ : String) -> Self raise
+
+pub struct TemporalTiles {
+  latent_frames : Int
+  pad_tokens : Int
+  chunks : Int
+  available_frames : Int
+  output_frames : Int
+  trim_front : Int
+}
+pub fn TemporalTiles::new(Int, output_frames~ : Int) -> Self raise @video_latent_embedding_cuda_source.EmbeddingError
+
+pub struct TileAxis {
+  starts : ReadOnlyArray[Int]
+  length : Int
+  overlaps : ReadOnlyArray[Int]
+}
+pub fn TileAxis::new(Int, tile_size~ : Int, minimum_overlap~ : Int, max_tiles? : Int) -> Self raise @video_latent_embedding_cuda_source.EmbeddingError
+
+pub struct TileDecoder {
+  source : Bytes
+  frontend : Frontend
+  block : Block
+  head : Head
+  block_weights : ReadOnlyArray[@minimax_h3_weights.VideoBlockWeightPacking]
+  workspace_bytes : Int64
+  scratch_bytes : Int64
+}
+pub fn TileDecoder::new(temporal~ : Int, height~ : Int, width~ : Int, prefix~ : String, max_workspace_bytes~ : Int64) -> Self raise
+
+pub struct TileDecoderProgram {
+  // private fields
+}
+pub fn TileDecoderProgram::bind(Self, @device.Allocation, input_offset~ : Int64, @device.Allocation, ArrayView[@device.Allocation], @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn TileDecoderProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn TileDecoderProgram::new(TileDecoder) -> Self
+pub fn TileDecoderProgram::plan(Self) -> TileDecoder
+pub fn TileDecoderProgram::prepare(Self, @device.Context, @device.Module) -> Unit raise @device.DeviceError
+pub fn[T] TileDecoderProgram::with_pixels(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+
+pub struct TiledDecoder {
+  source : Bytes
+  symbols : ReadOnlyArray[String]
+  tile : TileDecoder
+  temporal : TemporalTiles
+  y : TileAxis
+  x : TileAxis
+  tile_count : Int
+  input_bytes : Int64
+  gather_bytes : Int64
+  tile_store_bytes : Int64
+  clip_bytes : Int64
+  output_bytes : Int64
+  output_height : Int
+  output_width : Int
+  workspace_bytes : Int64
+}
+pub fn TiledDecoder::new(latent_frames~ : Int, latent_height~ : Int, latent_width~ : Int, output_frames~ : Int, tile_size~ : Int, minimum_overlap~ : Int, prefix~ : String, max_jobs~ : Int, max_workspace_bytes~ : Int64) -> Self raise
+
+pub struct TiledDecoderProgram {
+  // private fields
+}
+pub fn TiledDecoderProgram::bind(Self, @device.Allocation, input_offset? : Int64, @device.Allocation, ArrayView[@device.Allocation], @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn TiledDecoderProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn TiledDecoderProgram::new(TiledDecoder) -> Self
+pub fn TiledDecoderProgram::plan(Self) -> TiledDecoder
+pub fn TiledDecoderProgram::prepare(Self, @device.Context, @device.Module) -> Unit raise @device.DeviceError
+pub fn[T] TiledDecoderProgram::with_pixels(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+
+pub struct VideoDecodeBundle {
+  source : Bytes
+  input : @minimax_h3_block_source.VideoInputSource
+  decoder : TiledDecoder
+  output : VideoOutput
+  workspace_bytes : Int64
+}
+pub fn VideoDecodeBundle::new(@minimax_h3_block_source.VideoInputSource, TiledDecoder, max_workspace_bytes~ : Int64) -> Self raise
+
+pub struct VideoDecodeRequest {
+  // private fields
+}
+pub fn VideoDecodeRequest::cancel(Self) -> Unit raise @device.DeviceError
+pub fn VideoDecodeRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn VideoDecodeRequest::execute(Self) -> Unit raise @device.DeviceError
+pub fn VideoDecodeRequest::geometry(Self) -> VideoOutput raise @device.DeviceError
+pub fn VideoDecodeRequest::matches_input(Self, @joint_diffusion_loop.PreparedPlan, @device.Allocation, Int64, Int64) -> Bool
+pub fn VideoDecodeRequest::new() -> Self
+pub fn VideoDecodeRequest::poll(Self) -> Bool raise @device.DeviceError
+pub fn VideoDecodeRequest::prepare(Self, @device.Context, @device.Stream, VideoDecodeBundle, @device.Module, input~ : @device.Allocation, input_offset~ : Int64, frontend_weights~ : @device.Allocation, ArrayView[@device.Allocation], head_weights~ : @device.Allocation, means~ : @device.Allocation, standard_deviations~ : @device.Allocation) -> Unit raise @device.DeviceError
+pub fn VideoDecodeRequest::submit(Self) -> Unit raise @device.DeviceError
+pub fn VideoDecodeRequest::wait(Self) -> Unit raise @device.DeviceError
+pub fn[T] VideoDecodeRequest::with_output(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for VideoDecodeRequest
+
+pub struct VideoOutput {
+  source : Bytes
+  symbol : String
+  frames : Int
+  height : Int
+  width : Int
+  input_bytes : Int64
+  output_bytes : Int64
+}
+pub fn VideoOutput::new(frames~ : Int, input_height~ : Int, input_width~ : Int, height~ : Int, width~ : Int, symbol~ : String) -> Self raise
+
+// Type aliases
+
+// Traits

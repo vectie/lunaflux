@@ -1201,6 +1201,20 @@ gates.
 
 ## Phase 7 — Tensor parallelism
 
+The separately authorized [`parallel` IR workstream](PARALLEL_IR.md) implements
+immutable memory effects, dependency/lifetime analysis, cross-rank collective
+agreement and pure event/queue lowering from admitted TP execution plans.
+The default ordered execution path is preserved. An opt-in backend now binds
+compute/NCCL queues to separate streams and preallocated events, and requires
+physical numerical, resource-balance and performance evidence.
+
+The separately authorized [`twospark` workstream](TWO_SPARK.md) develops an
+explicit two-node network capability. It preserves this phase's local-only
+admission. Remote rank execution, session supervision, service composition and
+an operator-launched rank entry point have host implementations and tests;
+two-node physical qualification and production TLS-provider admission remain
+separate release gates.
+
 ### Outcome
 
 One model can execute across multiple local GPUs without changing request,
@@ -1359,6 +1373,359 @@ performance, and release promotion remain open.
 - existing BF16 and prior model-family benchmarks do not materially regress;
 - scheduler and KV public APIs remain architecture-neutral.
 
+## Phase 8b — Advanced model workloads
+
+H3 execution follows [MINIMAX_H3_EXECUTION.md](MINIMAX_H3_EXECUTION.md): share
+the compiler/device foundation but keep the joint-diffusion iteration owner
+separate from autoregressive scheduling. Complete a bounded numerical path
+before expanding serving or optimizing individual candidate counts.
+
+The [2026-09-26 code inventory](MINIMAX_H3_CODE_INTEGRATION_2026-09-26.md)
+records the text/vision/reference encoders, full output decoders, prepared joint
+request, component weight startup and offline source export. Older phase notes
+below describe their earlier implementation boundary, not current module absence.
+Full-checkpoint GPU correctness, memory and performance qualification is pending.
+
+### Outcome
+
+DeepSeek V4, GLM 5.3 full and Flash, and MiniMax H3 become executable through
+the typed workload boundaries accepted by ADR-0017. This phase does not weaken
+the original dense-model gates or reinterpret diffusion work as token decode.
+
+### Sequence
+
+1. construct exact, content-bound family profiles from official configuration;
+2. emit reusable advanced-decoder, multimodal-conditioning, and joint-diffusion
+   plans with canonical identities and complete tensor vocabularies;
+3. materialize every declared BF16, FP8, FP4, scale, index, recurrent-state,
+   vision, audio, and video tensor directly into its final bounded layout;
+4. implement correctness-only reference operations and deterministic family
+   corpora before granting any production execution authority;
+5. add content-addressed AOT kernels, launch contracts, catalog admission, and
+   device executors for every operation used by each exact profile;
+6. add workload-specific bounded request/output codecs and compose them with
+   the common lifecycle owner without importing family types into scheduler,
+   KV, device, or public lifecycle packages;
+7. pass deterministic correctness, sanitizer, leak, cancellation, cleanup,
+   memory, throughput, latency, and task-quality campaigns on named hardware.
+
+Each family is promoted independently. A green semantic plan, weight schema,
+or reference interpreter is progress evidence but is not executable readiness.
+The current startup path includes family-neutral streaming safetensors,
+bounded final host arenas, a canonical segmented device layout, opaque
+synchronous arena borrowing, and thin DeepSeek/GLM/MiniMax raw-upload
+projections. These raw allocations carry no kernel or execution authority.
+MiniMax now authenticates and streams the complete official VideoVae
+vocabulary as 703 F32 tensors with 10,415,475,936 payload bytes across three
+digest-bound shards and the complete AudioVae vocabulary as 1,087 F32 tensors
+with 605,306,340 payload bytes in one authenticated file. Metadata-only
+fixtures prove both bounded segmented arena plans without allocating their
+payloads. Denoiser, Qwen3-VL, VideoVae, and AudioVae component materialization
+are therefore positive; whole-model execution remains fail-closed, and no VAE
+encode/decode execution authority is implied.
+The first offline CUDA foundation candidates use family-neutral source
+renderers for exact BF16 embedding, dynamic/paired/fixed-row RMSNorm, no-bias
+dense projection, and fixed-row F32+bias projection with BF16 or F32 output.
+Thin advanced-decoder,
+GLM, and joint-diffusion adapters bind family requirement identity, full
+geometry, compiler policy, launch shape, operands, and content-digested
+recipes. Advanced Decoder and GLM both retain their exact normalization epsilon
+in final-RMS requirements; GLM also retains it in the per-layer decoder-RMS
+requirement.
+DeepSeek V4's five profiles and both GLM 5.3 profiles now lower their terminal
+language-model heads through that shared renderer with exact hidden/vocabulary
+geometry and a four-operand step-count/hidden/weight/logits ABI.
+DeepSeek additionally models query low-rank A and B projections as separate
+ordered requirements around its independent low-rank query/key RMSNorm, rather
+than treating the path as one fused projection. Exact E4M3/UE8M0 scalar
+semantics support the replicated Query-A candidate; Query-B remains open. It
+also lowers its
+routed-expert-width-aware F32 piecewise sqrt-softplus score transform. Its
+manifold-constrained hyper-connection contract is now split into four
+versioned operations rather than a generic mix: block-control construction,
+pre reduction, post residual combine, and head reduction. The bounded scalar
+reference follows the official normalized control projection, sigmoid gates,
+stable row softmax, 20 alternating Sinkhorn normalizations, and separate
+attention/FFN sites with F32 controls and BF16 activation boundaries. The
+four phases now have separate family-neutral serial correctness sources.
+Block control has an exact eight-operand ABI: counts, BF16 state, separate F32
+function/base/scale inputs, and F32 pre/post/combination outputs. Pre-reduce
+has an exact four-operand ABI: counts, BF16 stream state, F32 pre-mix rows, and
+BF16 reduced rows, with ordered F32 accumulation and one output round.
+Post-combine has an exact six-operand ABI: counts, BF16 branch/state inputs,
+F32 post/combination controls in destination-major/source-minor order, and a
+BF16 combined-state output. It computes the branch term followed by ordered
+ascending-source accumulation and one output round. Head-reduce has a separate
+six-operand ABI for counts, BF16 stream state, F32 function/base/scale inputs,
+and one BF16 reduced head output. Complete artifact admission authenticates all
+four candidates, accepts the exact replicated Query-A and pre-normalization
+KeyValue block-FP8 projections, and then remains fail-closed at Query-B; no mHC
+phase inherits a neighboring ABI.
+Its
+first hash-routed layers also have a fail-closed I32 lookup candidate. A
+family-neutral startup owner now narrows the official I64 tables directly from
+the final authenticated host arena into bounded, per-row-unique I32 sidecars;
+the DeepSeek adapter binds exact layer/source identities and zeroizing release.
+The same adapter projects the three exact Flash-0731 sidecars into a canonical
+segmented device layout and validates the borrowed source before upload. A
+focused integration owner joins each uploaded sidecar region to token-hash
+operand 2 and authenticates that standalone inert plan against an admitted
+module/entrypoint/launch ABI.
+It additionally joins a canonical offline compile receipt and two byte-identical
+module snapshots to the exact source, recipe, compiler policy, driver identity,
+target, symbol, and admitted module digest. This evidence is self-consistent but
+does not authenticate its producer or prove compiler execution, so it still
+refuses compiler provenance, loader, launch, and physical authority;
+a family-neutral operand-region planner now adds the exact step-count, token-ID,
+table, and routing-output allocation-relative regions, validates capacity,
+alignment, and non-overlap, and canonically joins all four to the upstream
+evidence. It does not complete a full-model artifact because admission stops at
+Query-B. Live allocation ownership and executor
+composition remain open.
+Non-hash layers now lower deterministic lower-expert-ID biased top-k, while a
+separate selected-weight candidate gathers the original unbiased scores,
+normalizes, and scales both score-selected and hash-selected rows. Official
+PyTorch tied-top-k parity remains unqualified because its tie indices are not
+stable. A separate RoPE-only candidate covers the compressed/scaled YaRN path
+for all five DeepSeek profiles with exact 64-wide adjacent-pair BF16 geometry,
+unit-magnitude official interpolation, and independent query/KV operands.
+Plain-theta sliding layers remain a distinct gap because the current
+requirement has no authenticated layer-mode selector. A separate deterministic
+ratio-128 compressed-index candidate consumes bounded I32 query positions and
+cache offsets and produces per-row counts plus dense `-1`-padded I32 slots;
+the obsolete fused compressed-attention placeholder is now decomposed into
+window/compressed index join, non-overlapping shared-KV preparation, selected
+sparse attention, and output inverse-RoPE. The selected-attention phase has an
+exact eight-operand correctness candidate with shared BF16 K/V, I32 indices,
+an F32 per-head denominator-only sink, stable ordered-F32 softmax, and one
+BF16 output round. The join phase now has its own exact eight-operand I32
+candidate preserving causal prefill padding, decode circular-ring ordering,
+compressed `-1` padding, and literal window-then-compressed concatenation.
+A seven-operand borrowed-buffer preparation candidate now materializes ordinary
+and completed compressed BF16 K/V in the exact prefill layout, or the physical
+128-slot circular window followed by the completed compressed prefix in decode.
+The following inverse-RoPE phase now has an exact in-place three-operand
+candidate: the first 448 BF16 components of every 512-wide head remain
+bit-exact, while the final 64 adjacent-pair components receive conjugated F32
+scaled-YaRN rotation and one BF16-RNE write. The following output projection is
+now split at the official storage boundary. Group-local Output-A consumes the
+converter's authenticated BF16 `[groups,1024,4096]` layout and has a separate
+ordered-F32/BF16-RNE candidate plus an inert layout-to-operand join. Output-B
+has a separate single-rank candidate with dynamic per-row/block-128 UE8M0
+activation scaling, E4M3 weights, UE8M0 block scales, ordered F32 accumulation,
+and one BF16-RNE output. Its inert join authenticates official source storage
+and the candidate operand without granting materialization, upload,
+tensor-parallel collective, or launch authority. Learned compression, actual
+Output-A/Output-B materialization, cache-state mutation, KV ownership,
+collective execution, and launch remain separate typed gaps.
+The preceding replicated Query-A projection now uses the same exact dynamic
+per-row/block-128 E4M3/UE8M0 arithmetic through the family-neutral renderer.
+Profile-owned storage/layout binding fixes `4096→1024` for Flash profiles and
+`7168→1536` for Pro profiles without granting interpretation fallback,
+materialization, upload, compilation, or launch authority. A separate exact
+replicated KeyValue candidate applies the same block-128 arithmetic to
+`hidden→512`, preserves the official pre-KV-normalization boundary, and binds
+an inert storage/layout join. Query-B remains the next typed projection gap.
+GLM
+lowers the exact bias-free DSA output projection for both profiles and the
+standalone first-valid, complete-pool key compression stage for Flash. Separate
+correctness-only sources now cover ordered projected F32 scoring, stable top-k,
+raw-pool expansion, Flash visible-tail append/pad semantics, and Full-profile
+bit-exact adjacent-layer index reuse. A separate selected-index sparse-attention
+oracle binds the exact Full width 2048 and Flash width 2051, derives the unique
+KV-head geometry, rejects invalid/duplicate/future indices by zeroing the whole
+query row, and performs ordered F32 QK, stable softmax with BF16 probabilities,
+and ordered F32 PV. The score/select and attention sources are deliberately
+serial and consume already projected tensors. Exact query-A and key/value-A
+BF16 dense projection candidates now cover the first input-projection stage for
+both GLM profiles while keeping the compressed and RoPE suffix geometry
+explicit. An exact query-A RMSNorm candidate covers rank 2048 for Full and 1536
+for Flash with epsilon 1e-5. Exact query-B projection candidates map those
+normalized ranks through `[16384, rank]` BF16 weights into zero-copy
+`[token,64,256]` head views, keeping no-PE components before RoPE components.
+Exact KV-B projection consumes normalized 512-wide compressed rows and emits
+zero-copy `[token,64,key-no-PE then value]` views: `[28672,512]` Full weights
+for 192+256 components and `[32768,512]` Flash weights for 256+256 components.
+An exact KV-A split/RMSNorm candidate now normalizes the 512-wide BF16 prefix
+with epsilon 1e-5. Full emits the 64-wide RoPE suffix through a separate
+bit-exact operand, while Flash authenticates a zero-suffix four-operand ABI.
+Full additionally lowers one interleaved-RoPE candidate with theta 8,000,000:
+each 256-wide query head preserves its 192-wide no-PE prefix bit-exactly and
+rotates the 64-wide suffix, while one shared 64-wide key suffix is rotated in
+the same six-operand ABI using adjacent-pair input and split-half output. A
+family-neutral bit-exact assembly candidate now splits packed KV-B into
+contiguous values and no-PE keys, broadcasting Full's rotated shared 64-wide
+suffix across 64 heads. Flash uses a distinct no-suffix ABI rather than a fake
+zero-byte operand. Live cache handoff, paged-KV throughput implementation, and
+physical qualification remain open; the assembly cannot be substituted for
+neighboring projections.
+Both GLM profiles also lower exact dense SwiGLU through a separate-weight
+family-neutral renderer. Full binds 6144 hidden and 12288 intermediate width;
+Flash binds 4096 and 12288. Six operands keep counts, hidden rows, gate, up,
+down, and output distinct. Ordered F32 projection sums and explicit BF16
+gate/up, SiLU, product, and final-output rounds cannot be confused with the
+packed MiniMax weight layout.
+Both GLM profiles additionally lower the official bias-free MoE router linear
+projection through a family-neutral F32-input/BF16-weight renderer. Full fixes
+6144 hidden features and 256 expert rows; Flash fixes 4096 and 288. Ordered F32
+accumulation produces raw F32 logits. A distinct five-operand F32 stage emits
+both uncorrected sigmoid scores and correction-biased choice scores, rejects
+aliased outputs, and replaces the redundant downstream sigmoid transform.
+A following five-operand grouped-routing stage uses corrected scores for
+top-two group scoring, group selection, and expert top-eight choice, then
+gathers uncorrected scores, normalizes by the ordered sum plus `1e-20`, and
+scales by 2.5. Lower expert IDs break exact ties deterministically, while
+PyTorch unsorted-`topk` tie parity remains unqualified. Downstream routed
+expert, shared expert, and routed-plus-shared composition now have three
+separate correctness candidates. Full uses unclamped SwiGLU at hidden 6144;
+Flash uses hidden 4096 and clamps gate/up at 10. A generic indexed bank layout
+and thin GLM join bind every per-expert checkpoint tensor name, ordinal, shape,
+offset, and digest to the candidates without claiming packing or upload
+authority. Full then lowers the exact conventional BF16 outer residual add;
+Flash lowers the exact four-stream mHC composition
+`post * branch + combineᵀ * residual` with staged BF16 controls, ordered F32
+matrix accumulation, and one BF16 output round. Two separate correctness
+candidates now produce the upstream controls: learned function/base/scale
+projection plus collapse, then positive-matrix Sinkhorn with one initial column
+normalization and 19 row/column passes. Distinct intermediate buffers and
+serial launch geometry are explicit; live-state and execution authority remain
+unmet.
+GLM Flash additionally lowers an exact BF16 Q/K/V, low-rank forget-control,
+and beta input-projection candidate while retaining the per-component F32 decay
+control as its own unmet operation. It lowers one family-neutral KDA causal
+short-convolution candidate reused independently for Q, K, and V. Its ABI binds CSR sequence
+offsets, BF16 `[8192,1,4]` depthwise weights, and explicit oldest-first
+three-token initial/final history. Ordered F32 convolution and SiLU end in one
+BF16 output round. A separate family-neutral serial recurrent-delta candidate
+binds BF16 Q/K/V and beta, per-key-component F32 log decay, explicit F32
+`[sequence,64,128,128]` initial/final state, CSR boundaries, normalized delta
+update, and one BF16 output round. A bias-free two-stage BF16 projection
+produces the KDA output gate, and a separate exact sigmoid-gated per-head
+RMSNorm performs ordered F32 normalization and one final BF16 round. The final
+output projection, decay control, cache/state ownership, and throughput CUDA
+remain separate unmet operations.
+All candidates remain deliberately non-bindable until compilation and physical
+qualification.
+Joint diffusion now also has deterministic, request-shape-specialized mixed-
+precision video/audio latent-input projection, BF16 video/audio final-RMSNorm,
+row-aligned staged-BF16 final AdaLN-to-F32 boundaries, F32 video/audio
+output-head, and BF16 shifted-flow Euler candidates.
+Projection recipes fix F32 packed inputs, separate row-major F32 output/input
+weights and bias, ordered F32 accumulation, one BF16 output rounding, and exact
+video-patch/audio-row order.
+Final-normalization recipes authenticate exact selected-row geometry, BF16
+weights and activations, rational epsilon, and ordered F32 reduction with one
+BF16 output round. A distinct final-AdaLN parameter-row candidate consumes one
+F32 conditioning row, applies F32 SiLU with one BF16 round, then ordered F32
+dense projection from BF16 weight/bias to one BF16 shift/scale row. Boundary
+recipes consume already row-aligned BF16 normalized, shift, and scale buffers,
+round each affine stage to BF16, then widen exactly to F32 head input. Upstream
+Request admission now owns canonical finite F32 distinct timestep values,
+packed row-to-timestep maps, and video/audio modality selections. A
+family-neutral candidate renders the exact 256-wide flipped cosine/sine
+frequency rows, an ordered-F32 dense-SiLU-dense candidate maps each distinct
+row through `256→5376→2688`, and a multirow candidate maps every authenticated
+conditioning row through shared BF16 `[10752,2688]` weight and `[10752]` bias
+into BF16 `[R,5376]` shift/scale tables. A typed inert composition checks the
+three stages' identities, digests, rows, ordinal order, and adjacent widths,
+while a
+bit-exact eight-operand BF16 gather candidate materializes the selected shift
+and scale rows without device-side diagnostics. Runtime construction and
+binding of those request-owned buffers into the downstream gather remain open.
+The exact 50 denoiser and 2 token-refiner transformer MLPs now share a
+family-neutral bias-free packed gate/up SwiGLU plus dense-down source. Its
+request-bound candidates authenticate BF16 `[28672,5376]` up/gate weights,
+BF16 `[5376,14336]` down weights, separate packed/refiner row scopes, and the
+official first-half-up/second-half-gate order without fusing residual,
+normalization, attention, or AdaLN.
+The same 50+2 scopes now lower a staged joint-attention candidate. Packed
+attention performs BF16 Q/K/V projection, Q/K RMSNorm with epsilon 1e-5,
+96-wide rotary from authenticated F32 cosine/sine rows, full noncausal unmasked
+attention with ordered F32 accumulation and BF16 stage rounds, then the BF16
+output projection. Refiner attention uses the same staged contract without
+rotary. Residual, pre-attention AdaLN/RMSNorm, and gates remain separate.
+VideoVAE and AudioVAE decode now begin with separate exact F32 latent
+destandardization candidates. They retain the official 24- and 32-channel
+means and standard deviations, use ordered multiply then add without FMA, and
+bind request-derived `[1,24,37,48,84]` and decoder `[2,32,207]` geometry. The
+stereo dimension is explicitly decoder batch two. AudioVAE additionally lowers
+its exact F32 `dec_in_proj` pointwise Conv1d from `[2,32,207]` to
+`[2,2048,207]`, then an exact two-stage F32 weight-normalized kernel-7
+`decoder.conv_pre` to `[2,1024,207]`. The first stage writes the explicit
+58,720,256-byte normalized-weight workspace; the second performs padded
+channel-major convolution. The immediately following `decoder.ups.0.0` is an
+exact two-stage, per-input-channel normalized kernel-9, stride-5
+ConvTranspose1d candidate producing `[2,512,1035]` through an explicit
+18,874,368-byte workspace. The first following AMP activation is an exact
+three-launch F32 candidate: replicate-padded depthwise upsampling to 2,070 time
+cells, SnakeBeta, and replicate-padded stride-2 downsampling to 1,035, using
+distinct checkpoint filters and two 8,478,720-byte workspaces. Here AMP means
+anti-aliased multi-periodicity, not autocast. The complete first three-way AMP
+residual stage now follows as one 97-launch inert candidate. It authenticates
+126 ordered F32 parameter regions, keeps the original upsampler output
+distinct from the precomputed block-0 activation, applies all weight-normalized
+dilated convolution pairs and residual additions in `30+33+33` stages, then
+performs one ordered three-way sum/divide-by-three launch through a
+58,167,296-byte disjoint workspace plan. The following `decoder.ups.1.0`
+transition has its own per-input-channel weight-normalized kernel-9, stride-5
+ConvTranspose1d candidate from `[2,512,1035]` to `[2,256,5175]` with an
+explicit normalized-weight workspace. The complete second three-way AMP stage
+then binds `resblocks.3–5`, 126 ordered parameter regions, kernels 3/7/11,
+dilations 1/3/5, a 119,465,984-byte disjoint workspace, and 97 exact launches
+over `[2,256,5175]`, preserving the precomputed first activation and ordered
+final average. The next `decoder.ups.2.0` kernel-4/stride-2 transition to
+`[2,128,10350]` and its following `resblocks.6.activations.0` alias-free
+activation are exact, with per-input-channel normalization, distinct length-12
+filters, and explicit intermediate workspaces. The VideoVAE decoder body,
+complete `resblocks.6–8`, `decoder.ups.3.0`, later AudioVAE stages, and final
+output remain typed gaps.
+Conditioning execution remains a deliberately negative boundary. A family-neutral
+reference assessment binds the exact plan, requirement, request digest,
+operation ordinal, workflow, request-derived geometry, and ordered missing
+prerequisites. The authenticated VideoVae and AudioVae architectures, weights,
+and inverse-normalization prefixes are no longer missing prerequisites. FL2VA derives two 1008-row keyframe latents of
+width 96 but records missing payload, VAE encode execution,
+posterior/normalization, noise/scale arithmetic,
+and row-span authority. Ref2VA records per-reference encoded geometry and
+video-soundtrack association among eleven blockers. The assessment has no
+source, recipe, compiler, target, entry-point, artifact, or execution API and
+its require operation always fails typed.
+Output-head recipes separately authenticate F32 normalized hidden rows,
+row-major F32 weights, F32 bias and F32 predictions; their storage contract is
+distinct from the input projection's final BF16 round. Flow recipes bind
+rational scheduler parameters. All bind the exact plan
+and requirements identity, resolved latent geometry, compiler
+policy, target, launch, and artifact-compatible operands; they likewise remain
+uncompiled, unqualified, and non-executable.
+A family-neutral startup-only coverage audit and separate workload-specific
+candidate-evidence adapters report exact missing and non-bindable requirement
+ordinals without granting artifact or execution authority. Flash-0731 proves
+22 inert candidates across 40 requirements with 18 gaps, GLM Full proves 24
+inert candidates across 28 requirements with 4 gaps, GLM Flash proves 32
+inert candidates across 47 requirements with 15 gaps, and each MiniMax profile
+proves 29 inert candidates across 33 requirements with 4 gaps. Completion
+remains a fail-closed promotion prerequisite.
+DeepSeek V4 and GLM 5.3 full retain decoder scheduling semantics while their
+MoE and sparse-attention operations are execution capabilities. GLM 5.3 Flash
+adds a bounded vision-conditioning frontend. MiniMax H3 owns a separate
+audio/video diffusion owner and never enters the token-step scheduler.
+
+### Gate
+
+- every official registered profile loads from an exact bounded configuration
+  and rejects neighboring architectures or partial metadata;
+- every plan tensor is authenticated, uniquely bound, and materialized without
+  an intermediate full-model copy;
+- every semantic operation has matching reference, numeric, AOT artifact,
+  launch, catalog, and device-executor evidence;
+- family outputs match independently accepted fixtures within declared numeric
+  and task-quality budgets;
+- cancellation and every startup/runtime failure release all host, device,
+  stream, event, graph, and file resources exactly once;
+- unsupported profiles, formats, targets, and partial capability sets fail at
+  startup without dense-family fallback;
+- scheduler, KV, lifecycle, and device public APIs remain family-neutral.
+
 ## Phase 9 — LunaNexa runtime integration and release
 
 ### Outcome
@@ -1460,7 +1827,6 @@ These require separate architecture decisions after the first release:
 - speculative decoding;
 - LoRA multiplexing;
 - MoE expert parallelism;
-- multimodal encoder/decoder graphs;
 - prefill/decode disaggregation;
 - cross-node tensor or pipeline parallelism;
 - ROCm or other device backends;

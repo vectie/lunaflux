@@ -15,6 +15,28 @@ pub fn open_rank_child_control(
     _ => raise Invalid(Limit)
   }
   let channel = @process.open_inherited(process_limits)
+  new_control(Local(channel), wire_limits)
+}
+
+///|
+/// Creates the same rank transcript over a bounded externally driven mailbox.
+/// The remote TLS pump owns authentication, deadlines and disconnect fencing.
+pub fn open_remote_rank_child_control(
+  mailbox : @remote_mailbox.RemoteMailbox,
+  wire_limits : @rank_group_wire.RankGroupWireLimits,
+) -> RankChildControl raise RankChildControlError {
+  if mailbox.capacity() != wire_limits.max_frame_bytes() || mailbox.is_failed() {
+    raise Invalid(Limit)
+  }
+  new_control(Remote(mailbox, Ref(None)), wire_limits)
+}
+
+///|
+fn new_control(
+  channel : RankChildChannel,
+  wire_limits : @rank_group_wire.RankGroupWireLimits,
+) -> RankChildControl {
+  let frame_bytes = wire_limits.max_frame_bytes()
   {
     channel,
     wire_limits,

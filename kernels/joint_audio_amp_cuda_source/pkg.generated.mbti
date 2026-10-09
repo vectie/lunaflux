@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/joint_audio_amp_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn f32_residual_add_reference(ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise JointAudioAmpCudaSourceError
+
+pub fn f32_residual_and_three_way_average_source(element_count~ : Int64, residual_symbol~ : String, average_symbol~ : String) -> JointAudioAmpCudaSource raise JointAudioAmpCudaSourceError
+
+pub fn f32_three_way_average_reference(ArrayView[Float], ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise JointAudioAmpCudaSourceError
+
+// Errors
+pub(all) suberror JointAudioAmpCudaSourceError {
+  InvalidElementCount
+  InvalidFunctionSymbol
+  InvalidReferenceShape
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum JointAudioAmpCudaNumericalContract {
+  OrderedF32ResidualAndThreeWayAverageV1
+} derive(Eq, @debug.Debug)
+
+pub struct JointAudioAmpCudaSource {
+  // private fields
+}
+pub fn JointAudioAmpCudaSource::average_symbol(Self) -> String
+pub fn JointAudioAmpCudaSource::element_count(Self) -> Int64
+pub fn JointAudioAmpCudaSource::numerical_contract(Self) -> JointAudioAmpCudaNumericalContract
+pub fn JointAudioAmpCudaSource::residual_symbol(Self) -> String
+pub fn JointAudioAmpCudaSource::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

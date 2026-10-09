@@ -1,0 +1,54 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_foundation_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn copy_bf16_source(elements~ : Int64, function_symbol~ : String) -> Bytes raise DecoderFoundationCudaSourceError
+
+pub fn paired_rms_norm_bf16_source(first_width~ : Int, second_width~ : Int, maximum_rows~ : Int, epsilon~ : Double, function_symbol~ : String) -> DecoderFoundationCudaSource raise DecoderFoundationCudaSourceError
+
+pub fn residual_add_bf16_source(elements~ : Int64, function_symbol~ : String) -> Bytes raise DecoderFoundationCudaSourceError
+
+pub fn rms_norm_bf16_fixed_rows_source(rows~ : Int64, hidden_size~ : Int, epsilon~ : Double, function_symbol~ : String) -> DecoderFoundationCudaSource raise DecoderFoundationCudaSourceError
+
+pub fn rms_norm_bf16_source(hidden_size~ : Int, epsilon~ : Double, function_symbol~ : String) -> DecoderFoundationCudaSource raise DecoderFoundationCudaSourceError
+
+pub fn tanh_f32_source(elements~ : Int64, function_symbol~ : String) -> Bytes raise DecoderFoundationCudaSourceError
+
+pub fn token_embedding_bf16_source(vocabulary_size~ : Int, hidden_size~ : Int, function_symbol~ : String) -> DecoderFoundationCudaSource raise DecoderFoundationCudaSourceError
+
+// Errors
+pub(all) suberror DecoderFoundationCudaSourceError {
+  InvalidVocabularySize
+  InvalidRowCount
+  InvalidHiddenSize
+  InvalidEpsilon
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecoderFoundationCudaOperation {
+  TokenEmbeddingBf16
+  RmsNormBf16
+  PairedRmsNormBf16
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderFoundationCudaSource {
+  // private fields
+}
+pub fn DecoderFoundationCudaSource::function_symbol(Self) -> String
+pub fn DecoderFoundationCudaSource::numerical_contract(Self) -> DecoderFoundationNumericalContract
+pub fn DecoderFoundationCudaSource::operation(Self) -> DecoderFoundationCudaOperation
+pub fn DecoderFoundationCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum DecoderFoundationNumericalContract {
+  BitExactBf16Copy
+  OrderedFloat32ReductionBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

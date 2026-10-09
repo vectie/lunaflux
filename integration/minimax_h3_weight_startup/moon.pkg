@@ -1,0 +1,20 @@
+import {
+  "vectie/lunaflux/integration/minimax_h3_media_encode" @media,
+  "vectie/lunaflux/model/minimax_h3_device_upload" @component_upload,
+  "vectie/lunaflux/model/segmented_device_materialize" @segmented,
+  "vectie/lunaflux/model/joint_diffusion_plan" @joint,
+  "vectie/lunaflux/model/minimax_h3_vae_reference" @vae,
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/minimax_h3_weights" @weights,
+  "vectie/lunaflux/model/minimax_h3_host_materialization" @host,
+  "vectie/lunaflux/model/minimax_h3_text_encoder" @text_plan,
+  "vectie/lunaflux/model/minimax_h3_vision_conditioner" @vision_plan,
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout" @amp,
+  "vectie/lunaflux/integration/minimax_h3_text_encoder" @text,
+  "vectie/lunaflux/integration/minimax_h3_vision_conditioner" @vision,
+  "vectie/lunaflux/integration/minimax_h3_block_upload" @upload,
+}
+
+supported_targets = "native"

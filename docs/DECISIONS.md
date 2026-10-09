@@ -438,3 +438,322 @@ authority. LunaFlux does not read secrets from argv, environment, policy files,
 or implicit filesystem locations and does not claim TLS or public reachability.
 The deployment environment owns descriptor creation and exclusive transfer,
 external TLS/authentication, routing, generation fencing, audit, and restart.
+
+## ADR-0017 — Model-family expansion uses typed workload plans
+
+**Status:** accepted; implementation in progress
+
+DeepSeek V4, GLM 5.3, GLM 5.3 Flash, and MiniMax H3 cannot be made correct by
+adding aliases to the dense Llama plan. They require three distinct workload
+topologies: decoder-only text generation, multimodal conditional generation,
+and audio/video diffusion. LunaFlux therefore expands model support through
+immutable typed workload plans rather than family switches in the scheduler,
+KV owner, device worker, or kernel catalog.
+
+The decoder workload may grow reusable operations for routed and shared
+experts, multi-token prediction, manifold-constrained hyper-connections,
+compressed or dynamic sparse attention, and linear recurrent attention. Those
+operations carry exact shapes, persistent-state contracts, numeric schemas,
+workspace bounds, and positive kernel capabilities. A family builder composes
+them into a plan and then disappears from the request path. Existing dense
+plans remain valid and do not acquire optional family fields.
+
+Multimodal conditional generation owns a typed preprocessing plan that maps
+bounded image or video inputs into embeddings before entering an admitted text
+decoder plan. Audio/video diffusion owns a separate pipeline plan for text and
+reference conditioning, latent preparation, denoising timesteps, transformer
+execution, and video/audio VAE decoding. It does not pass through the token
+scheduler or pretend that diffusion steps are decode tokens. Each workload has
+its own bounded request and output protocol, while sharing architecture-neutral
+device allocation, tensor materialization, AOT artifact admission, execution
+telemetry, cancellation, and explicit resource release.
+
+Numeric storage and packed-row order are plan inputs when they affect kernel
+ABI. MiniMax H3 therefore records separate F32-input/BF16-output latent
+projection and F32-input/F32-output head contracts, frame-major
+channel/patch-vector ordering, and channel-major audio rows in the
+family-neutral diffusion plan and requirement digest. Decoder families share a
+no-bias BF16 projection renderer, while fixed-row diffusion projections share
+F32+bias renderers and their adapters retain exact profile geometry and
+artifact evidence.
+
+Normalization and sparse-index preprocessing remain explicit operations rather
+than incidental model-family branches. Advanced decoders may use a paired BF16
+RMSNorm source with independent query and key widths; diffusion uses a
+request-specialized fixed-row BF16 RMSNorm source. A separate family-neutral
+affine source consumes already row-aligned BF16 shift and scale, performs staged
+BF16 AdaLN arithmetic, and widens to F32. A second generic affine source owns
+the preceding one-row F32-SiLU/BF16-dense production of shift and scale;
+request admission separately owns digest-bound packed timestep and modality
+row selections plus finite F32 distinct timestep values. One generic source
+renders exact flipped cosine/sine frequency rows and another performs the
+bit-exact modality gather. A third generic source renders the exact ordered-F32
+`256→5376→2688` dense-SiLU-dense timestep MLP. A fourth renders one BF16
+shift/scale table row for every authenticated distinct F32 conditioning row;
+an inert typed composition checks model, requirements, timestep values, row
+count, ordinal order, and adjacent widths across all three stages. Live buffer
+construction and handoff into packed modality gathering remain separate unmet
+capabilities. A separate generic gated-MLP source owns bias-free packed gate/up
+SwiGLU and dense-down arithmetic. The MiniMax adapter only authenticates its 50
+denoiser and 2 refiner scopes, exact weight layouts, and request geometry; it
+cannot absorb residual, normalization, attention, or AdaLN authority. GLM hybrid
+DSA pooling owns a generic standalone source contract for stable complete-pool
+compression. Projected scoring, stable top-k, Flash visible-tail selection, and
+Full-profile reuse likewise have separate correctness-only source contracts. A
+generic prefix-RMSNorm source normalizes only an authenticated prefix and may
+copy a disjoint suffix bit-exactly; the GLM adapter fixes the 512-wide prefix,
+Full 64-wide suffix, Flash zero-suffix ABI, epsilon, and downstream KV-B join. A
+serial selected-index sparse-attention source owns only projected Q/K/V,
+selected-index validation, causal stable softmax, and PV; it cannot absorb DSA
+projection, paged-KV, or index-production authority. DeepSeek token-hash lookup
+is a generic fail-closed I32 operation. A separate family-neutral startup owner
+performs checked I64-to-I32 narrowing with row uniqueness and explicit release,
+while the thin DeepSeek adapter selects the exact authenticated checkpoint
+tables and projects their three checked sidecars into a generic segmented
+device upload. A separate family-neutral operand-region planner binds exact
+roles, byte counts, alignments, allocation identities, offsets, capacities, and
+non-overlap without retaining pointers or allocation ownership; the thin
+DeepSeek join uses it to complete all four token-hash operand descriptors for a
+standalone inert plan while remaining non-runnable. This evidence cannot
+complete a model artifact when an earlier required operation is unsupported.
+Stable biased top-k selection and selected-weight finalization are also
+separate generic operations so hash and non-hash routing share finalization
+without sharing selection semantics.
+A generic scaled-RoPE source likewise owns only adjacent-pair BF16 rotation;
+the DeepSeek adapter fixes the official compressed YaRN parameters and
+RoPE-only query/KV geometry. Plain-theta sliding-layer selection remains a
+separate requirement instead of being inferred inside that source.
+DeepSeek query low-rank projection is likewise split into ordered A and B
+requirements around query RMSNorm. The checkpoint's E4M3 payload and UE8M0
+scale grids are authenticated, but no existing BF16 or scalar-F32-scale
+renderer may impersonate UE8M0 exponent decoding, special values, or
+dequantization; both projections therefore remain exact typed gaps.
+DeepSeek mHC is represented by four versioned, ordered operations: block-control
+construction, pre reduction, post residual combine, and head reduction. This
+keeps control projection, sigmoid gates, Sinkhorn normalization, stream mixing,
+and attention/FFN placement explicit in plan and numeric identity. The former
+generic Sinkhorn/mix requirement is not used to infer a CUDA ABI. Block control
+now has its own exact family-neutral BF16/F32 renderer and eight-operand ABI,
+including distinct F32 pre/post/combination outputs. Pre-reduce has a separate
+four-operand renderer and ABI for counts, BF16 stream state, F32 pre-mix rows,
+and BF16 reduced rows, with ordered F32 accumulation and one final round.
+Post-combine has a separate
+six-operand renderer for counts, BF16 branch/state inputs, F32
+destination-major/source-minor controls, and BF16 combined state. Admission
+authenticates those three phases. Head-reduce has an independent six-operand
+BF16/F32 renderer, including function/base/scale inputs and one BF16 head
+output. Admission authenticates all four phases, then accepts the replicated
+Query-A and separate replicated pre-normalization KeyValue block-FP8
+candidates before rejecting Query-B. Separate inert joins authenticate the
+official layouts without granting interpretation, materialization, upload, or
+launch authority; later phases cannot inherit or reinterpret any earlier ABI.
+A separate family-neutral I32 renderer owns ratio-based deterministic
+compressed-index counts and dense sentinel-padded slots. The DeepSeek adapter
+binds official ratio 128 and maximum position geometry without absorbing
+compressed attention, KV allocation, or execution authority. The downstream
+path is represented by four truthful phases rather than a fused placeholder:
+window/compressed index join, non-overlapping shared-KV preparation, selected
+sparse attention, and output inverse-RoPE. A family-neutral selected-attention
+source owns only the shared BF16 K/V lookup and stable ordered-F32 softmax; its
+F32 per-head sink contributes to the denominator but never the value numerator.
+A separate family-neutral I32 join source preserves the official causal
+prefill padding, decode circular-ring ordering, compressed sentinel padding,
+and literal window-then-compressed append without sorting or deduplication. A
+separate seven-operand borrowed-buffer renderer owns non-overlapping ratio-128
+preparation: full ordinary BF16 K/V followed by completed compressed rows in
+prefill, and the physical circular-window slots followed by the completed
+compressed prefix in decode. A separate three-operand source applies the exact
+in-place inverse scaled-YaRN transform to the final 64 components of each
+512-wide attention head while retaining the 448-wide prefix bit-exact.
+Learned compression and cache-state mutation remain typed gaps. Output
+projection is split at the official low-rank boundary: a family-neutral grouped
+BF16 renderer owns converted `wo_a` with exact `[row,group,4096] ->
+[row,group,1024]` geometry. A separate family-neutral `wo_b` renderer owns the
+single-rank E4M3/UE8M0 storage boundary: dynamic per-row/block-128 UE8M0
+activation scales, E4M3 weight codes, UE8M0 weight scales, ordered F32 block
+accumulation, and one BF16-RNE output. The same family-neutral renderer owns the
+replicated Query-A projection with profile-specific `4096→1024` or
+`7168→1536` geometry. DeepSeek-only startup joins authenticate Query-A,
+Output-A conversion, and Output-B source storage/layout against their candidate
+operands without acquiring conversion, materialization, upload, tensor-parallel
+collective, live KV, or launch authority.
+A separate generic interleaved-RoPE source owns bit-exact no-PE query-prefix
+copy plus query/key adjacent-pair rotation. The GLM adapter fixes Full-profile
+theta, head/suffix geometry, input/output pair layouts, and its six operands;
+Flash's no-RoPE requirement stays unlowered rather than becoming a fake no-op.
+A generic staged joint-attention source owns only Q/K/V projection, Q/K
+normalization, optional authenticated rotary, full noncausal unmasked softmax,
+and output projection. The MiniMax adapter fixes packed/refiner row scopes,
+epsilon, rotary width, exact weight layouts, and BF16/F32 stage ordering;
+residual, pre-attention modulation, and gates remain separate operations.
+A second generic gated-MLP renderer owns separate gate, up, and down BF16
+weights. GLM uses this form with exact hidden/intermediate geometry and staged
+BF16 round points; MiniMax retains the packed `[up;gate]` renderer. Neither
+adapter may reinterpret one storage layout as the other.
+A separate family-neutral causal short-convolution renderer owns one KDA
+stream at a time. The GLM Flash adapter reuses it independently for Q, K, and
+V, fixing 8192 channels, kernel width four, CSR sequence boundaries, and an
+explicit oldest-first three-token BF16 history handoff. Projection, recurrent
+update, residual/norm, and live cache ownership are not folded into this
+candidate. A separate projection renderer owns BF16 Q/K/V, low-rank forget
+features, raw forget rows, and beta without synthesizing the F32 decay control.
+A second family-neutral renderer owns the serial normalized
+recurrent-delta transition with BF16 Q/K/V and beta, per-component F32 log
+decay, explicit F32 initial/final state, and one BF16 output round. The GLM
+adapter fixes 64 heads by 128 components and CSR sequence boundaries. A
+bias-free two-stage renderer owns the output-gate projection, and a separate
+per-head renderer owns strict F32 RMS normalization followed by the official
+sigmoid gate and one BF16 output round. A family-neutral decay renderer owns
+only BF16 forget logits plus F32 bias/rate tensors through the safe-lower-bound
+sigmoid transform, with F32 output. The existing bias-free dense renderer owns
+the final `[8192,4096]` projection. A separate family-neutral router renderer
+owns only bias-free F32-input/BF16-weight projection to raw F32 expert logits;
+the Full and Flash adapters fix `[256,6144]` and `[288,4096]` checkpoint rows.
+A distinct family-neutral renderer applies F32 sigmoid and correction bias into
+separate uncorrected-score and corrected-choice-score outputs; duplicate
+downstream sigmoid is forbidden. A further family-neutral serial source uses
+the corrected scores for top-two group scoring and group/expert choice, then
+uses only the uncorrected scores for `sum+1e-20` normalization and scaling.
+Lower expert IDs deterministically break ties, without claiming parity with
+PyTorch's unsorted `topk`. Three further family-neutral candidates own selected
+routed-expert SwiGLU, shared-expert SwiGLU, and the ordered BF16 routed/shared
+sum. An exact indexed-parameter-bank layout converts the official per-expert
+checkpoint vocabulary into six canonical contiguous banks, and a GLM-only
+startup join authenticates those banks against the candidate operands without
+materializing or uploading them. Full then applies a separate non-aliasing BF16
+outer residual add. Flash applies its exact four-stream mHC composition,
+`post * branch + combineᵀ * residual`, with controls rounded to BF16, ordered
+F32 matrix accumulation, and one BF16 output round. Flash hyper-control now has
+two separate family-neutral correctness candidates: learned function/base/scale
+projection with collapse, and positive-matrix Sinkhorn with one initial column
+normalization followed by 19 row/column passes. Their intermediate/output
+buffers are explicitly non-aliasing. Live cache ownership, physical artifacts,
+launch authority, and throughput CUDA remain separate.
+A separate family-neutral BF16 K/V assembly source consumes the existing KV-B
+producer. Full broadcasts the rotated shared 64-wide suffix across 64 heads and
+appends it after each 192-wide no-PE key while splitting 256-wide values; Flash
+uses a distinct no-suffix ABI to split its 256+256 packed rows. Both produce the
+contiguous K/V operands already required by sparse attention, but grant no live
+cache handoff, allocation, or execution authority.
+A complete MiniMax VideoVae schema binds the official config, index, three
+shards, exact 703 F32 names/shapes/dtypes, and 10,415,475,936 payload bytes.
+The existing streaming host materializer may admit that component without a
+full payload copy; a metadata-only fixture exercises its bounded arena plan.
+The AudioVae schema likewise binds its official config and single authenticated
+safetensors header to exactly 1,087 F32 tensors and 605,306,340 payload bytes;
+bounded host materialization grants no VAE encode/decode authority. Separate
+family-neutral F32 channel-major affine renderers now own only the official
+inverse latent normalization prefixes: VideoVAE `[1,24,37,48,84]` and AudioVAE
+`[2,32,207]`, with explicit decoder batch two for stereo and ordered
+multiply-then-add arithmetic. A separate family-neutral channel-major renderer
+owns the exact F32 AudioVAE `dec_in_proj` pointwise Conv1d from 32 to 2,048
+channels, including its bias. Another generic renderer implements the released
+weight-normalized kernel-7 `decoder.conv_pre` as ordered F32 normalization into
+an explicit `[1024,2048,7]` workspace followed by padded channel-major Conv1d
+to `[2,1024,207]`. The thin MiniMax adapter authenticates `weight_g`,
+`weight_v`, bias, per-output-channel norm axes, and stage order. A further
+generic renderer owns the immediately following `decoder.ups.0.0` kernel-9,
+stride-5 ConvTranspose1d, using PyTorch weight normalization's per-input-channel
+axes to produce `[2,512,1035]` through an explicit normalized workspace. A
+separate alias-free activation renderer owns the immediately following
+`decoder.resblocks.0.activations.0`: replicate-padded depthwise transposed
+convolution to 2,070 time cells, F32 SnakeBeta, then replicate-padded stride-2
+depthwise convolution back to 1,035. Its upsample and downsample filters remain
+distinct operands. The next exact AudioVAE boundary is one complete three-way
+AMP stage: 126 ordered F32 parameter regions and 13 workspace regions feed 97
+typed launches covering all three residual blocks, including weight-normalized
+dilated same-length convolutions, ordered residual additions, and the final
+divide by three. The original upsampler output and precomputed first activation
+remain distinct inputs. The following `decoder.ups.1.0` is now an exact
+per-input-channel weight-normalized kernel-9, stride-5 ConvTranspose1d
+transition from `[2,512,1035]` to `[2,256,5175]` with an explicit normalized
+workspace. The following `resblocks.3–5` stage is also exact: a generalized
+family-neutral AMP contract binds the precomputed first activation, 126 ordered
+parameter regions, kernels 3/7/11 with dilations 1/3/5, 97 launches, and a
+119,465,984-byte disjoint workspace before ordered division by three.
+The following `decoder.ups.2.0` kernel-4/stride-2 transition to
+`[2,128,10350]` and its first `resblocks.6.activations.0` alias-free activation
+are now exact, with per-input-channel weight normalization, distinct length-12
+up/down filters, and explicit intermediate workspaces. VideoVAE decode,
+complete `resblocks.6–8`, `decoder.ups.3.0`, later AudioVAE stages, and the final
+output path stay typed gaps, so conditioning records
+missing execution rather than missing VAE architecture.
+A family-neutral conditioning reference assessment records why MiniMax media
+conditioning is not yet an AOT candidate. Its digest binds request and
+requirement identities, derived geometry, workflow, and ordered missing VAE,
+noise, row-span, and reference-association prerequisites. It deliberately owns
+no source, compiler, artifact, device, or execution API, and its require
+operation always fails typed.
+Every adapter binds exact operands and geometry while all source candidates stay
+non-bindable until offline compilation and physical qualification.
+
+Candidate completeness is audited by a family-neutral startup-only structural
+owner. It canonically binds one exact requirement digest to unique candidate
+ordinals and reports exact missing and non-bindable ordinals. Even a complete
+set of caller-declared bindable claims is not artifact admission or execution
+authority; those remain separate opaque capabilities.
+Typed candidate-to-evidence adapters are split by workload vocabulary so an
+advanced-decoder consumer does not acquire GLM-hybrid or joint-diffusion
+dependencies. Integration packages may join family-owned authenticated storage
+to generic candidate and artifact evidence, but must expose missing compiler,
+loader, launch, and physical authority as explicit failures.
+Family-neutral offline compile evidence may additionally prove that a canonical
+receipt and two module snapshots are byte-identical and agree on source, recipe,
+compiler policy, driver identity, target, symbol, and module digest. That
+self-consistency is not builder authentication or proof that the named compiler
+executed, so producer, compiler-execution, and execution authority stay typed
+failures.
+
+An engine instance selects exactly one authenticated workload plan at startup.
+The selected workload determines which request codec and execution owner are
+constructed; it cannot change per request. Core lifecycle code consumes an
+opaque prepared-workload capability and never imports a model-family package.
+Model-family packages import only public plan vocabularies and weight-schema
+owners. A family may own a thin startup upload adapter that imports its host
+arena owner, the family-neutral segmented upload owner, and the public device
+context. The segmented upload owner and scheduler, KV, API, device, and kernel
+implementation packages never import DeepSeek, MiniMax, or GLM packages.
+
+Every new operation remains inert until an exact numeric contract, weight
+materializer, reference implementation, AOT artifact and launch contract,
+device executor, deterministic correctness corpus, resource-balance campaign,
+and benchmark gate all agree. Semantic recognition, a typed plan, or a family
+weight table alone does not grant executable readiness. Unsupported profiles,
+missing workload protocols, missing kernels, and partial capability sets fail
+at startup without dense-model fallback.
+
+This decision expands the post-v1 architecture; it does not retroactively
+change the supported-v1 capability or authorize arbitrary graph execution,
+runtime Python, remote model code, runtime JIT, hidden family branches, or a
+global mutable runtime context.
+
+## ADR-0018 — Two-node execution preserves the functional planning boundary
+
+**Status:** accepted for the `twospark` workstream; live transport and physical
+qualification pending.
+
+An explicitly assigned pair of DGX Spark nodes connected through ConnectX-7
+is one inference instance with one scheduler and one worker per accelerator.
+The full contract and implementation gates are in [TWO_SPARK.md](TWO_SPARK.md).
+This is a new post-v1 network capability, not an exception to ADR-0010's
+same-host peer-access admission.
+
+Model-family builders continue to produce immutable tensor-parallel plans.
+A separate pure compiler joins those plans with node-qualified device
+identities and per-node memory budgets, reusing canonical aligned KV layout
+planning. It binds its complete result to one startup-only digest. Node-local
+ordinal zero on two different nodes never becomes a fictitious local GPU set.
+No model, topology, or network branch enters scheduler policy or LunaTile IR.
+
+Root-free startup envelopes compose existing worker contracts under one
+both-rank generation identity. Filesystem authority remains node-local.
+Transport authentication, live admission, and explicit native ownership are
+separate from these inert values. A pure local-clock lease determines when a
+remote resource owner must fence itself; timeout cannot resurrect a generation
+and an unreachable peer is not proof of cleanup. Runtime integration reuses
+the existing group failure/retirement contract, rank child execution machine,
+worker service, and online API owners. Separate authenticated release receipts
+gate recovery; failed replacement resources retain their own cleanup obligation.
+Artifact verification and deployment digests stay at startup. The scheduler
+uses fixed remote mailboxes; TLS and heartbeat tasks stay outside it. Physical
+qualification and the pinned TLS server provider remain release gates.

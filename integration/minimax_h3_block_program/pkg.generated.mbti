@@ -1,0 +1,210 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_block_program"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_device",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/integration/minimax_h3_block_source",
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
+  "vectie/lunaflux/model/minimax_h3_sequence",
+  "vectie/lunaflux/model/minimax_h3_weights",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct AudioAmpProgram {
+  // private fields
+}
+pub fn AudioAmpProgram::bind(Self, @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioAmpProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioAmpProgram::new(@minimax_h3_block_source.AudioAmpSource) -> Self
+pub fn AudioAmpProgram::prepare(Self, @device.Context, @device.Module, max_scratch_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn AudioAmpProgram::prepare_weights(Self, @device.Context, @device.Stream, @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, @device.Allocation, max_cache_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+type AudioChainLayout
+
+pub struct AudioDecodeChain {
+  // private fields
+}
+pub fn AudioDecodeChain::allocate(@device.Context, ArrayView[AudioDecodeStage], max_intermediate_bytes~ : Int64) -> Self raise @device.DeviceError
+pub fn AudioDecodeChain::bind(Self, ArrayView[(@joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, @device.Allocation, @device.Allocation)], input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioDecodeChain::close(Self) -> Unit raise @device.DeviceError
+
+pub struct AudioDecodeRequest {
+  // private fields
+}
+pub fn AudioDecodeRequest::cancel(Self) -> Unit raise @device.DeviceError
+pub fn AudioDecodeRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioDecodeRequest::execute(Self) -> Unit raise @device.DeviceError
+pub fn AudioDecodeRequest::matches_input(Self, @joint_diffusion_loop.PreparedPlan, @device.Allocation, Int64, Int64) -> Bool
+pub fn AudioDecodeRequest::new() -> Self
+pub fn AudioDecodeRequest::poll(Self) -> Bool raise @device.DeviceError
+pub fn AudioDecodeRequest::prepare(Self, @device.Context, @device.Stream, AudioDecoder, ArrayView[(@joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, @device.Allocation, @device.Allocation)], input~ : @device.Allocation, input_offset~ : Int64, frontend_weights~ : @device.Allocation, tail_weights~ : @device.Allocation, max_output_bytes~ : Int64, input_program? : AudioInputProgram, prepared_plan? : @joint_diffusion_loop.PreparedPlan) -> Unit raise @device.DeviceError
+pub fn AudioDecodeRequest::submit(Self) -> Unit raise @device.DeviceError
+pub fn AudioDecodeRequest::waveform_samples(Self) -> Int raise @device.DeviceError
+pub fn[T] AudioDecodeRequest::with_output(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for AudioDecodeRequest
+
+pub struct AudioDecodeStage {
+  // private fields
+}
+pub fn AudioDecodeStage::bind(Self, @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, up_weights~ : @device.Allocation, amp_weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioDecodeStage::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioDecodeStage::new(@minimax_h3_block_source.AudioUpsampleSource, @minimax_h3_block_source.AudioAmpSource) -> Self
+pub fn AudioDecodeStage::prepare(Self, @device.Context, @device.Module, @device.Module, max_workspace_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn AudioDecodeStage::prepare_weights(Self, @device.Context, @device.Stream, @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, @device.Allocation, @device.Allocation, max_cache_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+pub struct AudioDecoder {
+  // private fields
+}
+pub fn AudioDecoder::allocate(@device.Context, AudioFrontendProgram, AudioDecodeChain, AudioTailProgram, max_bridge_bytes~ : Int64) -> Self raise @device.DeviceError
+pub fn AudioDecoder::bind(Self, ArrayView[(@joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, @device.Allocation, @device.Allocation)], input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, frontend_weights~ : @device.Allocation, tail_weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioDecoder::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioDecoder::prepare_weights(Self, @device.Context, @device.Stream, ArrayView[(@joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, @device.Allocation, @device.Allocation)], frontend_weights~ : @device.Allocation, tail_weights~ : @device.Allocation, max_cache_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+type AudioDecoderLease
+
+pub struct AudioFrontendProgram {
+  // private fields
+}
+pub fn AudioFrontendProgram::bind(Self, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioFrontendProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioFrontendProgram::new(@minimax_h3_block_source.AudioFrontendSource) -> Self
+pub fn AudioFrontendProgram::prepare(Self, @device.Context, @device.Module, max_scratch_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn AudioFrontendProgram::prepare_weights(Self, @device.Context, @device.Stream, @device.Allocation, max_cache_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+pub struct AudioInputProgram {
+  // private fields
+}
+pub fn AudioInputProgram::allocate(@device.Context, @device.Function, @device.Function, time~ : Int, standard_deviations~ : @device.Allocation, means~ : @device.Allocation, max_bytes~ : Int64) -> Self raise
+pub fn AudioInputProgram::close(Self) -> Unit raise @device.DeviceError
+
+type AudioRequestState
+
+type AudioStageLayout
+
+pub struct AudioTailProgram {
+  // private fields
+}
+pub fn AudioTailProgram::bind(Self, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn AudioTailProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioTailProgram::new(@minimax_h3_block_source.AudioTailSource) -> Self
+pub fn AudioTailProgram::prepare(Self, @device.Context, @device.Module, max_scratch_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn AudioTailProgram::prepare_weights(Self, @device.Context, @device.Stream, @device.Allocation, max_cache_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+pub struct ConditioningProgram {
+  // private fields
+}
+pub fn ConditioningProgram::bind_input(Self, InputProgram, @minimax_h3_weights.InputWeightPacking, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn ConditioningProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn ConditioningProgram::execute(Self) -> Unit raise @device.DeviceError
+pub fn ConditioningProgram::new(@minimax_h3_block_source.ConditioningSource) -> Self
+pub fn ConditioningProgram::prepare(Self, @device.Context, @device.Stream, @device.Module, TextConditioningProgram, ArrayView[(@device.Allocation, Int64)], max_output_bytes~ : Int64, latent_weights? : @device.Allocation) -> Unit raise @device.DeviceError
+pub fn[T] ConditioningProgram::with_destination(Self, (@device.Allocation, Int64) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for ConditioningProgram
+
+pub struct InputProgram {
+  // private fields
+}
+pub fn InputProgram::bind(Self, @minimax_h3_weights.InputWeightPacking, weights~ : @device.Allocation, conditioning~ : @device.Allocation?, conditioning_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn InputProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn InputProgram::matches_storage(Self, @joint_diffusion_device.LatentStorage) -> Bool
+pub fn InputProgram::new(@minimax_h3_block_source.InputSource) -> Self
+pub fn InputProgram::packed_state(Self) -> @joint_diffusion_device.PackedHidden raise @device.DeviceError
+pub fn InputProgram::prepare(Self, @device.Context, @device.Module, @joint_diffusion_device.LatentStorage, max_projection_bytes~ : Int64) -> Unit raise
+
+type OutputLayout
+
+pub struct OutputProgram {
+  // private fields
+}
+pub fn OutputProgram::bind(Self, @joint_diffusion_device.LatentStorage, @joint_diffusion_device.ModulationBindings, @minimax_h3_weights.OutputWeightPacking, conditioning~ : @device.Allocation, conditioning_offset~ : Int64, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise
+pub fn OutputProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn OutputProgram::new(@minimax_h3_block_source.OutputSource) -> Self
+pub fn OutputProgram::prepare(Self, @device.Context, @device.Module, max_workspace_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+pub struct PredictionMetadata {
+  // private fields
+}
+pub fn PredictionMetadata::bind_conditioned(Self, ArrayView[PredictionVariant], InputProgram, @joint_diffusion_device.LatentStorage, @joint_diffusion_device.RotaryBindings, PredictionWeights, ConditioningProgram, timestep_embeddings~ : @device.Allocation, timestep_embeddings_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> ReadOnlyArray[ReadOnlyArray[@device.OrderedKernelLaunch]] raise
+pub fn PredictionMetadata::bind_predictions(Self, ArrayView[PredictionVariant], InputProgram, @joint_diffusion_device.LatentStorage, @joint_diffusion_device.RotaryBindings, PredictionWeights, context_rows~ : @device.Allocation, context_offset~ : Int64, timestep_embeddings~ : @device.Allocation, timestep_embeddings_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> ReadOnlyArray[ReadOnlyArray[@device.OrderedKernelLaunch]] raise
+pub fn PredictionMetadata::close(Self) -> Unit raise @device.DeviceError
+pub fn PredictionMetadata::distinct_timestep_counts(Self) -> ReadOnlyArray[Int]
+pub fn PredictionMetadata::matches_plan(Self, @joint_diffusion_loop.PreparedPlan) -> Bool
+pub fn PredictionMetadata::new(@joint_diffusion_loop.PreparedPlan, @minimax_h3_sequence.Sequence, visual_noise~ : Double, audio_noise~ : Double, vision_text_rows~ : ArrayView[Int], max_metadata_bytes~ : Int64) -> Self raise
+pub fn PredictionMetadata::prepare(Self, @device.Context) -> Unit raise
+
+type PredictionMetadataLayout
+
+pub struct PredictionVariant {
+  // private fields
+}
+pub fn PredictionVariant::new(Program, TimestepProgram, OutputProgram) -> Self
+
+pub struct PredictionWeights {
+  timestep : (@minimax_h3_weights.TimestepWeightPacking, @device.Allocation)
+  input : (@minimax_h3_weights.InputWeightPacking, @device.Allocation)
+  layers : ReadOnlyArray[(@minimax_h3_weights.BlockWeightPacking, @device.Allocation)]
+  output : (@minimax_h3_weights.OutputWeightPacking, @device.Allocation)
+}
+pub fn PredictionWeights::new((@minimax_h3_weights.TimestepWeightPacking, @device.Allocation), (@minimax_h3_weights.InputWeightPacking, @device.Allocation), ArrayView[(@minimax_h3_weights.BlockWeightPacking, @device.Allocation)], (@minimax_h3_weights.OutputWeightPacking, @device.Allocation)) -> Self
+
+pub struct Program {
+  // private fields
+}
+pub fn Program::bind(Self, @joint_diffusion_device.RotaryBindings, @joint_diffusion_device.ModulationBindings, @minimax_h3_weights.BlockWeightPacking, conditioning~ : @device.Allocation, conditioning_offset~ : Int64, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn Program::bind_prediction(Self, TimestepProgram, InputProgram, OutputProgram, @joint_diffusion_device.LatentStorage, @joint_diffusion_device.RotaryBindings, @joint_diffusion_device.ModulationBindings, @joint_diffusion_device.ModulationBindings, PredictionWeights, timestep_values~ : @device.Allocation, timestep_values_offset~ : Int64, context_rows~ : @device.Allocation, context_offset~ : Int64, timestep_embeddings~ : @device.Allocation, timestep_embeddings_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> ReadOnlyArray[@device.OrderedKernelLaunch] raise
+pub fn Program::bind_stack(Self, OutputProgram, @joint_diffusion_device.LatentStorage, @joint_diffusion_device.RotaryBindings, @joint_diffusion_device.ModulationBindings, @joint_diffusion_device.ModulationBindings, ArrayView[(@minimax_h3_weights.BlockWeightPacking, @device.Allocation)], @minimax_h3_weights.OutputWeightPacking, output_weights~ : @device.Allocation, conditioning~ : @device.Allocation, conditioning_offset~ : Int64, state~ : @joint_diffusion_device.PackedHidden, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise
+pub fn Program::close(Self) -> Unit raise @device.DeviceError
+pub fn Program::conditioning_launch(Self, input~ : @device.Allocation, input_offset~ : Int64, output~ : @device.Allocation, output_offset~ : Int64) -> @device.OrderedKernelLaunch raise @device.DeviceError
+pub fn Program::new(@minimax_h3_block_source.BlockSource) -> Self
+pub fn Program::prepare(Self, @device.Context, @device.Module, max_workspace_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+pub struct RefinerProgram {
+  // private fields
+}
+pub fn RefinerProgram::bind(Self, ArrayView[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)], state~ : @device.Allocation, state_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn RefinerProgram::bind_context(Self, ArrayView[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)], encoded~ : @device.Allocation, encoded_offset~ : Int64, weights~ : @device.Allocation, state~ : @device.Allocation, state_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn RefinerProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn RefinerProgram::new(@minimax_h3_block_source.RefinerSource) -> Self
+pub fn RefinerProgram::prepare(Self, @device.Context, @device.Module, max_workspace_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+pub struct TextConditioningProgram {
+  // private fields
+}
+pub fn TextConditioningProgram::bind_input(Self, InputProgram, @minimax_h3_weights.InputWeightPacking, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn TextConditioningProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn TextConditioningProgram::execute(Self) -> Unit raise @device.DeviceError
+pub fn TextConditioningProgram::new(@minimax_h3_block_source.RefinerSource) -> Self
+pub fn TextConditioningProgram::prepare(Self, @device.Context, @device.Stream, @device.Module, ArrayView[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)], encoded~ : @device.Allocation, encoded_offset~ : Int64, weights~ : @device.Allocation, max_workspace_bytes~ : Int64, max_output_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn TextConditioningProgram::rows(Self) -> Int
+pub fn[T] TextConditioningProgram::with_destination(Self, (@device.Allocation, Int64) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for TextConditioningProgram
+
+pub struct TimestepProgram {
+  // private fields
+}
+pub fn TimestepProgram::bind(Self, @minimax_h3_weights.TimestepWeightPacking, timesteps~ : @device.Allocation, timestep_offset~ : Int64, weights~ : @device.Allocation, conditioning~ : @device.Allocation, conditioning_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn TimestepProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn TimestepProgram::new(@minimax_h3_block_source.TimestepSource) -> Self
+pub fn TimestepProgram::prepare(Self, @device.Context, @device.Module, max_workspace_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+type TimestepWorkspace
+
+pub struct VideoInputProgram {
+  // private fields
+}
+pub fn VideoInputProgram::allocate(@device.Context, @minimax_h3_block_source.VideoInputSource, @device.Function, @device.Function, standard_deviations~ : @device.Allocation, means~ : @device.Allocation, max_bytes~ : Int64) -> Self raise @device.DeviceError
+pub fn VideoInputProgram::bind(Self, @device.Allocation, Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn VideoInputProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn VideoInputProgram::matches_plan(Self, @joint_diffusion_loop.PreparedPlan) -> Bool
+pub fn[T] VideoInputProgram::with_destination(Self, (@device.Allocation, Int64) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+
+// Type aliases
+
+// Traits

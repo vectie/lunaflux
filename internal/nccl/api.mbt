@@ -213,6 +213,22 @@ pub fn NcclCommunicator::poll_collective(
 }
 
 ///|
+/// True permits stream event insertion; it does not commit a sequence or
+/// release the in-flight lease. Poll completion separately before reuse.
+pub fn NcclCommunicator::poll_submitted(
+  self : NcclCommunicator,
+) -> Bool raise NcclError {
+  match raw_communicator_poll_submitted(self) {
+    0 => false
+    1 => true
+    status => {
+      check_status(status, CollectiveExecution)
+      false
+    }
+  }
+}
+
+///|
 /// Latches rank loss, timeout, or runtime failure for this exact generation.
 pub fn NcclCommunicator::invalidate(
   self : NcclCommunicator,

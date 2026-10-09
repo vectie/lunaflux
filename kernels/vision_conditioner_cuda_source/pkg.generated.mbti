@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/vision_conditioner_cuda_source"
+
+// Values
+pub fn linear_source(rows~ : Int, input_width~ : Int, output_width~ : Int, activation~ : Int, symbol~ : String) -> Bytes raise SourceError
+
+pub fn norm_source(rows~ : Int, width~ : Int, symbol~ : String) -> Bytes raise SourceError
+
+pub fn position_source(rows~ : Int, geometry~ : String, prefix~ : String) -> Bytes raise SourceError
+
+pub fn residual_source(rows~ : Int, width~ : Int, symbol~ : String) -> Bytes raise SourceError
+
+// Errors
+pub(all) suberror SourceError {
+  InvalidShape
+  InvalidSymbol
+} derive(Eq)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

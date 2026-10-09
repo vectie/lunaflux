@@ -1,0 +1,78 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/family_contract"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror FamilyContractError {
+  EmptyArchitecture
+  EmptyModelType
+  InvalidSchemaVersion
+  DuplicateCapability(ModelSemanticCapability)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct ModelBackendCapabilities {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ModelBackendCapabilities::new(ArrayView[ModelSemanticCapability]) -> Self raise FamilyContractError
+pub fn ModelBackendCapabilities::supports(Self, ModelSemanticCapability) -> Bool
+
+pub(all) enum ModelFamilyAdmission {
+  SemanticCapabilitiesAvailable(ModelFamilyRequirements)
+  MissingCapabilities(ModelFamilyRequirements, ReadOnlyArray[ModelSemanticCapability])
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModelFamilyId {
+  Llama
+  Mistral
+  Qwen3
+  DeepSeekV4
+  MiniMaxH3
+  Glm53
+} derive(Eq, @debug.Debug)
+
+pub struct ModelFamilyRequirements {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ModelFamilyRequirements::admit(Self, ModelBackendCapabilities) -> ModelFamilyAdmission
+pub fn ModelFamilyRequirements::architecture(Self) -> String
+pub fn ModelFamilyRequirements::capabilities(Self) -> ReadOnlyArray[ModelSemanticCapability]
+pub fn ModelFamilyRequirements::family(Self) -> ModelFamilyId
+pub fn ModelFamilyRequirements::model_type(Self) -> String
+pub fn ModelFamilyRequirements::new(family~ : ModelFamilyId, architecture~ : String, model_type~ : String, schema_version~ : Int, workload~ : ModelWorkload, capabilities~ : ArrayView[ModelSemanticCapability]) -> Self raise FamilyContractError
+pub fn ModelFamilyRequirements::schema_version(Self) -> Int
+pub fn ModelFamilyRequirements::workload(Self) -> ModelWorkload
+
+pub(all) enum ModelSemanticCapability {
+  DenseCausalAttention
+  QueryKeyRmsNorm
+  MixtureOfExperts
+  MultiTokenPrediction
+  HyperConnections
+  CompressedSparseAttention
+  HeavilyCompressedAttention
+  DynamicSparseAttention
+  LinearRecurrentAttention
+  VisionEncoder
+  MultimodalProjection
+  DiffusionDenoising
+  VideoVae
+  AudioVae
+  ReferenceConditioning
+  TextConditioningEncoder
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ModelWorkload {
+  DecoderOnlyText
+  MultimodalConditionalGeneration
+  AudioVideoDiffusion
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

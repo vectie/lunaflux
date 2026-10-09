@@ -21,6 +21,8 @@ pub(all) enum TensorParallelDeviceWorkerRule {
   CompletionRole
   ResourceState
   SequenceOverflow
+  RemoteLease
+  NetworkConfiguration
 } derive(Debug, Eq)
 
 ///|
@@ -30,6 +32,7 @@ pub(all) enum TensorParallelDeviceWorkerResource {
   Module
   KernelExecutor
   Stream
+  ParallelEvent
   PersistentKv
   ActivationWorkspace
   RankConstants
@@ -174,6 +177,7 @@ priv enum TensorParallelCompletionAuthority {
 ///|
 priv struct TensorParallelPartialResources {
   mut streaming : TensorParallelStreaming?
+  mut overlap : TensorParallelOverlap?
   mut collective : TensorParallelOwnedCollective?
   mut executor : TensorParallelOwnedExecutor?
   mut functions : Array[TensorParallelOwnedFunction]
@@ -192,6 +196,7 @@ priv struct TensorParallelPartialResources {
 /// optional capability slot; booleans exist only for retryable close state.
 priv struct TensorParallelLiveResources {
   streaming : TensorParallelStreaming?
+  parallel : ParallelExecution
   collective : TensorParallelOwnedCollective
   executor : TensorParallelOwnedExecutor
   functions : Array[TensorParallelOwnedFunction]
@@ -207,6 +212,8 @@ priv struct TensorParallelLiveResources {
 
 ///|
 pub struct TensorParallelDeviceWorkerPlan {
+  priv remote_envelope : @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope?
+  priv remote : @remote_startup.RemoteRankStartup?
   priv startup : @worker_wire.WorkerStartupContract
   priv model : @plan.ModelPlan
   priv model_generation : @worker_protocol.ModelPlanGeneration
@@ -224,6 +231,7 @@ pub struct TensorParallelDeviceWorkerPlan {
 
 ///|
 pub struct TensorParallelDeviceWorkerOwner {
+  priv watchdog : RemoteWorkerWatchdog?
   priv plan : TensorParallelDeviceWorkerPlan
   priv resources : TensorParallelLiveResources
   priv steps : ReadOnlyArray[TensorParallelPreparedStep]

@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_kv_assembly_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn decoder_kv_assembly_bf16_source(head_count~ : Int, key_nope_width~ : Int, shared_key_suffix_width~ : Int, value_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderKvAssemblyCudaSource raise DecoderKvAssemblyCudaSourceError
+
+// Errors
+pub(all) suberror DecoderKvAssemblyCudaSourceError {
+  InvalidHeadCount
+  InvalidKeyWidth
+  InvalidValueWidth
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DecoderKvAssemblyCudaSource {
+  // private fields
+}
+pub fn DecoderKvAssemblyCudaSource::function_symbol(Self) -> String
+pub fn DecoderKvAssemblyCudaSource::head_count(Self) -> Int
+pub fn DecoderKvAssemblyCudaSource::key_nope_width(Self) -> Int
+pub fn DecoderKvAssemblyCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderKvAssemblyCudaSource::numerical_contract(Self) -> DecoderKvAssemblyNumericalContract
+pub fn DecoderKvAssemblyCudaSource::shared_key_suffix_width(Self) -> Int
+pub fn DecoderKvAssemblyCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderKvAssemblyCudaSource::value_width(Self) -> Int
+
+pub(all) enum DecoderKvAssemblyNumericalContract {
+  Bf16BitExactSplitAndSharedSuffixBroadcastV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

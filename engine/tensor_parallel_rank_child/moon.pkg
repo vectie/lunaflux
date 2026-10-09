@@ -1,5 +1,7 @@
 import {
   "vectie/lunaflux/engine/streaming_ir",
+  "vectie/lunaflux/compiler/parallel_ir",
+  "vectie/lunaflux/device/network_topology",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_step",
@@ -8,6 +10,8 @@ import {
   "vectie/lunaflux/engine/rank_child_control",
   "vectie/lunaflux/engine/rank_group_protocol",
   "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/remote_startup",
+  "vectie/lunaflux/engine/two_node_plan",
   "vectie/lunaflux/engine/tensor_parallel_device_plan",
   "vectie/lunaflux/engine/tensor_parallel_device_worker",
   "vectie/lunaflux/engine/tensor_parallel_execution_plan",

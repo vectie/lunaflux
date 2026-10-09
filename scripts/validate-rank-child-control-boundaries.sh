@@ -10,13 +10,14 @@ expected_imports=$(printf '%s\n' \
   'engine/rank_group_wire' \
   'engine/worker_wire' \
   'internal/process' \
+  'runtime/remote_mailbox' \
   'model/spec' | sort)
 if [ "$actual_imports" != "$expected_imports" ]; then
   echo "rank-child control dependency boundary changed" >&2
   exit 1
 fi
 
-if rg -n 'vectie/lunaflux/(scheduler|device|internal/(cuda|nccl)|service|runtime|kernels)' \
+if rg -n --pcre2 'vectie/lunaflux/(scheduler|device|internal/(cuda|nccl)|service|runtime/(?!remote_mailbox"$|remote_mailbox",)|kernels)' \
   "$package/moon.pkg" "$package"/*.mbt; then
   echo "rank-child control crossed scheduler, backend, service, or artifact ownership" >&2
   exit 1

@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4_kernel_requirements"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4",
+}
+
+// Values
+pub fn project(@deepseek_v4.DeepSeekV4SemanticPlan) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements raise DeepSeekV4KernelRequirementsError
+
+// Errors
+pub(all) suberror DeepSeekV4KernelRequirementsError {
+  IdentityMismatch
+  RequirementsFailure(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsError)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

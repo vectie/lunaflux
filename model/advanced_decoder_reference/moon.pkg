@@ -1,0 +1,7 @@
+import {
+  "moonbitlang/core/float",
+  "moonbitlang/core/math",
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+}
+
+supported_targets = "native"

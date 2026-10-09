@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+}
+
+import {
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

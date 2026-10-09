@@ -5,7 +5,10 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/deploy/worker_executable_file",
+  "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/remote_startup",
   "vectie/lunaflux/engine/tensor_parallel_group_transport",
+  "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_service",
   "vectie/lunaflux/engine/worker_wire",
@@ -30,6 +33,8 @@ pub fn prepare_owned_luna_online_instance_approved(@tokenizer.TokenizerDigest, @
 pub fn prepare_owned_tensor_parallel_luna_online_framed_service(@tokenizer.TokenizerSpec, @tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @framed_wire.FramedWireLimits, Int, @request_admission.LunaRequestPreparationStepBudget, @request_admission.LunaRequestPreparationWorkLimit, @request_admission.LunaRequestPreparationStorageBudget, @framed_wire.LunaFramedEventStepBudget, @core.SchedulerBlueprint, @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @worker_service.WorkerRestartBackoffPolicy) -> LunaOnlineFramedServicePreparation raise LunaOnlineInstancePreparationError
 
 pub fn prepare_owned_tensor_parallel_luna_online_instance_approved(@tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @core.SchedulerBlueprint, @tensor_parallel_group_transport.TensorParallelGroupPlanningInputs, @worker_executable_file.WorkerExecutableAdmission, @approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @worker_service.WorkerRestartBackoffPolicy) -> LunaOnlineInstancePreparation raise LunaOnlineInstancePreparationError
+
+pub fn prepare_remote_luna_online_instance(@tokenizer.TokenizerDigest, @spec.ModelIdentity, @inference.InferenceLimits, @core.SchedulerBlueprint, @remote_startup.RemoteGroupStartup, @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrap, @rank_group_wire.RankGroupWireLimits, timeout_millis~ : UInt64, @worker_service.WorkerRestartBackoffPolicy) -> RemoteLunaOnlinePreparation raise
 
 // Errors
 pub(all) suberror LunaOnlineFramedCoordinatorError {
@@ -368,6 +373,19 @@ pub(all) enum LunaOnlineInstanceShutdownProgress {
 pub struct LunaOnlineRequestTicket {
   // private fields
 } derive(Eq)
+
+pub struct RemoteLunaFramedPreparation {
+  // private fields
+}
+pub fn RemoteLunaFramedPreparation::control(Self) -> @worker_service.RemoteWorkerServiceControl
+pub fn RemoteLunaFramedPreparation::poll_ready(Self) -> LunaOnlineFramedServicePreparation? raise
+
+pub struct RemoteLunaOnlinePreparation {
+  // private fields
+}
+pub fn RemoteLunaOnlinePreparation::control(Self) -> @worker_service.RemoteWorkerServiceControl
+pub fn RemoteLunaOnlinePreparation::framed(Self, @tokenizer.TokenizerSpec, @framed_wire.FramedWireLimits, Int, @request_admission.LunaRequestPreparationStepBudget, @request_admission.LunaRequestPreparationWorkLimit, @request_admission.LunaRequestPreparationStorageBudget, @framed_wire.LunaFramedEventStepBudget) -> RemoteLunaFramedPreparation raise
+pub fn RemoteLunaOnlinePreparation::poll_ready(Self) -> LunaOnlineInstancePreparation? raise
 
 // Type aliases
 

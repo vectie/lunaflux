@@ -19,6 +19,7 @@ pub struct MonotonicClock {
   // private fields
 }
 pub fn MonotonicClock::now_millis(Self) -> UInt64 raise MonotonicClockError
+pub fn MonotonicClock::prepare_poller(Self) -> ReusableMonotonicRead
 pub fn MonotonicClock::prepare_read(Self) -> PreparedMonotonicRead
 pub fn MonotonicClock::read_into(Self, @ref.Ref[UInt64]) -> Bool
 pub fn MonotonicClock::system() -> Self
@@ -33,6 +34,12 @@ pub struct PreparedMonotonicRead {
 }
 pub fn PreparedMonotonicRead::read_status(Self) -> MonotonicReadStatus
 pub fn PreparedMonotonicRead::value(Self) -> UInt64 raise MonotonicClockError
+
+pub struct ReusableMonotonicRead {
+  // private fields
+}
+pub fn ReusableMonotonicRead::poll(Self) -> Bool
+pub fn ReusableMonotonicRead::value(Self) -> UInt64 raise MonotonicClockError
 
 // Type aliases
 

@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/causal_short_convolution_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn depthwise_causal_silu_bf16_source(channel_count~ : Int, kernel_size~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, function_symbol~ : String) -> CausalShortConvolutionCudaSource raise CausalShortConvolutionCudaSourceError
+
+// Errors
+pub(all) suberror CausalShortConvolutionCudaSourceError {
+  InvalidChannelCount
+  InvalidKernelSize
+  InvalidRowCount
+  InvalidSequenceCount
+  DimensionOverflow
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct CausalShortConvolutionCudaSource {
+  // private fields
+}
+pub fn CausalShortConvolutionCudaSource::channel_count(Self) -> Int
+pub fn CausalShortConvolutionCudaSource::function_symbol(Self) -> String
+pub fn CausalShortConvolutionCudaSource::kernel_size(Self) -> Int
+pub fn CausalShortConvolutionCudaSource::maximum_rows(Self) -> Int
+pub fn CausalShortConvolutionCudaSource::maximum_sequences(Self) -> Int
+pub fn CausalShortConvolutionCudaSource::numerical_contract(Self) -> CausalShortConvolutionNumericalContract
+pub fn CausalShortConvolutionCudaSource::operation(Self) -> CausalShortConvolutionOperation
+pub fn CausalShortConvolutionCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum CausalShortConvolutionNumericalContract {
+  OrderedFloat32AccumulationSiluBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum CausalShortConvolutionOperation {
+  DepthwiseCausalSiluBf16
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

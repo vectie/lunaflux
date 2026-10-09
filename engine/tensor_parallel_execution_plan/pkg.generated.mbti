@@ -3,6 +3,7 @@ package "vectie/lunaflux/engine/tensor_parallel_execution_plan"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/parallel_ir",
   "vectie/lunaflux/engine/tensor_parallel_device_plan",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
@@ -14,6 +15,8 @@ import {
 
 // Values
 pub fn admit(@plan.ModelPlan, @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet, @tensor_parallel_device_plan.TensorParallelDevicePlan, @artifact.KernelArtifactBundle, @launch_contract.PagedKernelProfile, TensorParallelExecutionPlanLimits) -> TensorParallelExecutionPlan raise TensorParallelExecutionPlanError
+
+pub fn parallel_group(ArrayView[TensorParallelExecutionPlan]) -> @parallel_ir.Group raise @parallel_ir.ParallelError
 
 // Errors
 pub(all) suberror TensorParallelExecutionPlanError {
@@ -71,6 +74,7 @@ pub fn TensorParallelExecutionPlan::kv_arena_bytes(Self) -> Int64
 pub fn TensorParallelExecutionPlan::operation(Self, @plan.OperationId) -> TensorParallelOperationBinding?
 pub fn TensorParallelExecutionPlan::operation_count(Self) -> Int
 pub fn TensorParallelExecutionPlan::operation_exact(Self, @plan.OperationId) -> TensorParallelOperationBinding raise TensorParallelExecutionPlanError
+pub fn TensorParallelExecutionPlan::parallel_program(Self) -> @parallel_ir.Program raise @parallel_ir.ParallelError
 pub fn TensorParallelExecutionPlan::profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn TensorParallelExecutionPlan::rank(Self) -> Int
 pub fn TensorParallelExecutionPlan::rank_constants(Self) -> TensorParallelScalarRegion

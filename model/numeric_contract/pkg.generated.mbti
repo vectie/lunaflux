@@ -33,6 +33,7 @@ pub struct ActivationScalePolicy {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn ActivationScalePolicy::absent_exact_v1() -> Self
+pub fn ActivationScalePolicy::dynamic_per_row_block128_ue8m0_v1() -> Self
 pub fn ActivationScalePolicy::dynamic_per_tensor_f32_v1() -> Self
 pub fn ActivationScalePolicy::gated_mlp_external_and_post_silu_bound_expf_f32_v2() -> Self
 pub fn ActivationScalePolicy::gated_mlp_external_and_post_silu_f32_v1() -> Self

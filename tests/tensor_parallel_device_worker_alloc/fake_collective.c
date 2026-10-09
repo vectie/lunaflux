@@ -15,6 +15,8 @@ typedef struct {
   int32_t phase;
   int32_t ready_polls;
   int32_t collective_polls;
+  int32_t submission_polls;
+  void *stream;
   int32_t live;
 } tp_fake_communicator;
 
@@ -30,6 +32,7 @@ static uint64_t collective_submits;
 static uint64_t collective_pending_polls;
 static uint64_t collective_complete_polls;
 static int32_t live_communicators;
+static tp_fake_communicator *inflight;
 
 static void finalize_communicator(void *raw) {
   if (((tp_fake_communicator *)raw)->live != 0) abort();
@@ -138,6 +141,9 @@ int32_t lunaflux_tp_alloc_fake_communicator_submit_bf16(
   communicator->pending_plan_sequence = plan_sequence;
   communicator->pending_collective_sequence = collective_sequence;
   communicator->collective_polls = 0;
+  communicator->submission_polls = 0;
+  communicator->stream = stream;
+  inflight = communicator;
   communicator->phase = TP_COMM_IN_FLIGHT;
   collective_submits += 1U;
   return 0;
@@ -156,6 +162,7 @@ int32_t lunaflux_tp_alloc_fake_communicator_poll_collective(
     return 0;
   }
   collective_complete_polls += 1U;
+  inflight = NULL;
   communicator->previous_plan_sequence = communicator->pending_plan_sequence;
   communicator->next_collective_sequence =
     communicator->pending_collective_sequence + 1U;
@@ -192,6 +199,7 @@ int32_t lunaflux_tp_alloc_fake_communicator_abort(
 ) {
   if (communicator == NULL) return -2;
   if (communicator->live == 0) return 0;
+  if (inflight == communicator) inflight = NULL;
   communicator->phase = TP_COMM_CLOSED;
   communicator->live = 0;
   live_communicators -= 1;
@@ -248,3 +256,15 @@ uint64_t lunaflux_tp_alloc_collective_complete_polls(void) {
 int32_t lunaflux_tp_alloc_live_communicators(void) {
   return live_communicators;
 }
+
+int32_t lunaflux_tp_alloc_poll_submitted(tp_fake_communicator *communicator) {
+  if (communicator == NULL || communicator->phase != TP_COMM_IN_FLIGHT) return -3;
+  communicator->submission_polls += 1;
+  return communicator->submission_polls > 1;
+}
+
+int lunaflux_tp_alloc_submission_pending_on(void *stream) {
+  return inflight != NULL && inflight->stream == stream && inflight->submission_polls < 2;
+}
+
+int lunaflux_tp_alloc_gpu_pending(void) { return inflight != NULL; }

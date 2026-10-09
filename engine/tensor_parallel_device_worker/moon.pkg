@@ -1,6 +1,12 @@
 import {
   "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/kv/host_cache",
+  "vectie/lunaflux/compiler/parallel_ir",
+  "vectie/lunaflux/device/network_fabric",
+  "vectie/lunaflux/runtime/remote_lease",
+  "vectie/lunaflux/runtime/monotonic_clock",
+  "vectie/lunaflux/engine/two_node_plan",
+  "vectie/lunaflux/engine/remote_startup",
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/device",

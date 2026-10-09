@@ -23,6 +23,7 @@ moon_root=$(CDPATH= cd -- "$(dirname -- "$moon_bin")/.." && pwd)
   internal/cuda/ordered_executor_sanitizer_main.c \
   internal/cuda/ordered_executor.c \
   internal/cuda/ordered_executor_probe.c \
+  internal/cuda/event_wait_probe.c \
   internal/cuda/ordered_graph.c \
   internal/cuda/ordered_graph_probe.c \
   internal/cuda/resources.c \

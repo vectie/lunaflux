@@ -1,0 +1,64 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_vision_conditioner"
+
+// Values
+pub fn block_weights(Int) -> WeightGroup raise VisionError
+
+pub fn frontend_weights() -> WeightGroup
+
+pub fn interpolate_bf16(ArrayView[Float], Float, Float) -> Float raise VisionError
+
+pub fn merger_weights(Int) -> WeightGroup raise VisionError
+
+pub fn preprocess_rgb(ArrayView[Bytes], height~ : Int, width~ : Int, min_pixels? : Int, max_pixels? : Int, max_bytes~ : Int64) -> ProcessedPixels raise VisionError
+
+pub fn resized_shape(Int, Int, min_pixels? : Int, max_pixels? : Int) -> (Int, Int) raise VisionError
+
+// Errors
+pub(all) suberror VisionError {
+  InvalidGeometry
+  BudgetExceeded
+} derive(Eq)
+
+// Types and methods
+pub(all) struct Grid {
+  time : Int
+  height : Int
+  width : Int
+} derive(Eq)
+
+pub struct ProcessedPixels {
+  grid : Grid
+  patches : Bytes
+}
+
+pub struct VisionPlan {
+  grids : ReadOnlyArray[Grid]
+  rows : Int
+  merged_rows : Int
+  workspace_bytes : Int64
+  output_bytes : Int64
+}
+pub fn VisionPlan::merged_position(Self, Int) -> (Int, Int, Int, Int) raise VisionError
+pub fn VisionPlan::new(ArrayView[Grid], max_workspace_bytes~ : Int64, max_output_bytes~ : Int64) -> Self raise VisionError
+pub fn VisionPlan::output_offset(Self, Int) -> Int64 raise VisionError
+pub fn VisionPlan::position(Self, Int) -> (Int, Int, Int, Int) raise VisionError
+pub fn VisionPlan::position_stencil(Self, Int) -> ReadOnlyArray[(Int, Float)] raise VisionError
+pub fn VisionPlan::workspace_regions(Self) -> ReadOnlyArray[(Int64, Int64)]
+
+pub struct WeightGroup {
+  key : String
+  regions : ReadOnlyArray[WeightRegion]
+  bytes : Int64
+}
+
+pub struct WeightRegion {
+  name : String
+  offset : Int64
+  bytes : Int64
+  shape : ReadOnlyArray[Int64]
+}
+
+// Type aliases
+
+// Traits

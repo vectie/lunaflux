@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/bf16_binary_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn bf16_add_source(width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> Bf16BinaryCudaSource raise Bf16BinaryCudaSourceError
+
+// Errors
+pub(all) suberror Bf16BinaryCudaSourceError {
+  InvalidWidth
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Bf16BinaryCudaSource {
+  // private fields
+}
+pub fn Bf16BinaryCudaSource::function_symbol(Self) -> String
+pub fn Bf16BinaryCudaSource::maximum_rows(Self) -> Int
+pub fn Bf16BinaryCudaSource::source_bytes(Self) -> Bytes
+pub fn Bf16BinaryCudaSource::width(Self) -> Int
+
+// Type aliases
+
+// Traits

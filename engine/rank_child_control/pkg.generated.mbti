@@ -5,10 +5,13 @@ import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/engine/rank_group_wire",
   "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/runtime/remote_mailbox",
 }
 
 // Values
 pub fn open_rank_child_control(@rank_group_wire.RankGroupWireLimits, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> RankChildControl raise RankChildControlError
+
+pub fn open_remote_rank_child_control(@remote_mailbox.RemoteMailbox, @rank_group_wire.RankGroupWireLimits) -> RankChildControl raise RankChildControlError
 
 // Errors
 pub(all) suberror RankChildControlError {

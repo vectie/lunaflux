@@ -5,6 +5,8 @@ import {
 options(
   targets: {
     "clock.mbt": [ "native" ],
+    "reusable.mbt": [ "native" ],
+    "reusable_test.mbt": [ "native" ],
     "clock_test.mbt": [ "native" ],
     "clock_wbtest.mbt": [ "native" ],
   },

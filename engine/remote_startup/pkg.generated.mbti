@@ -1,0 +1,68 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/remote_startup"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/device/network_topology",
+  "vectie/lunaflux/engine/two_node_plan",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/remote_lease",
+}
+
+// Values
+pub fn remote_startup_frame_bytes() -> Int
+
+// Errors
+pub(all) suberror RemoteStartupError {
+  Rejected(RemoteStartupRule)
+} derive(Eq, @debug.Debug)
+pub fn RemoteStartupError::equal(Self, Self) -> Bool
+pub fn RemoteStartupError::not_equal(Self, Self) -> Bool
+pub fn RemoteStartupError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct RemoteGroupStartup {
+  // private fields
+}
+pub fn RemoteGroupStartup::digest_sha256(Self) -> String
+pub fn RemoteGroupStartup::new(@two_node_plan.TwoNodePlan, ArrayView[@worker_wire.WorkerStartupContract], ArrayView[@spec.ContentDigest], deployment_digest~ : @spec.ContentDigest, group_generation~ : UInt64, rendezvous~ : @device.TensorCollectiveGroupId, lease_millis~ : UInt64) -> Self raise RemoteStartupError
+pub fn RemoteGroupStartup::rank(Self, Int) -> RemoteRankStartup?
+
+pub struct RemoteRankStartup {
+  // private fields
+}
+pub fn RemoteRankStartup::copy_to(Self, FixedArray[Byte]) -> Int raise RemoteStartupError
+pub fn RemoteRankStartup::group_digest_sha256(Self) -> String
+pub fn RemoteRankStartup::group_generation_value(Self) -> UInt64
+pub fn RemoteRankStartup::lease_millis(Self) -> UInt64
+pub fn RemoteRankStartup::node(Self) -> @network_topology.NetworkRank
+pub fn RemoteRankStartup::plan_digest(Self) -> @two_node_plan.TwoNodePlanDigest
+pub fn RemoteRankStartup::rank(Self) -> Int
+pub fn RemoteRankStartup::rendezvous(Self) -> @device.TensorCollectiveGroupId
+pub fn RemoteRankStartup::start_lease(Self, UInt64) -> @remote_lease.RemoteLease raise RemoteStartupError
+pub fn RemoteRankStartup::verify_configure(Self, FixedArray[Byte], Int) -> Unit raise RemoteStartupError
+pub fn RemoteRankStartup::worker(Self) -> @worker_wire.WorkerStartupContract
+
+pub(all) enum RemoteStartupRule {
+  Count
+  Model
+  Ordinal
+  Generation
+  Predecessor
+  Limits
+  Rendezvous
+  Lease
+  WorkerSchema
+  Destination
+  FrameLength
+  FrameMismatch
+} derive(Eq, @debug.Debug)
+pub fn RemoteStartupRule::equal(Self, Self) -> Bool
+pub fn RemoteStartupRule::not_equal(Self, Self) -> Bool
+pub fn RemoteStartupRule::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

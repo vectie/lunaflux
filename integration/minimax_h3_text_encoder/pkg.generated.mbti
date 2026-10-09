@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_text_encoder"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/integration/minimax_h3_block_program",
+  "vectie/lunaflux/model/minimax_h3_host_materialization",
+  "vectie/lunaflux/model/minimax_h3_weights",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn build_source(@vectie/lunaflux/model/minimax_h3_text_encoder.TextEncoderPlan, prefix~ : String) -> TextEncoderSource raise
+
+// Errors
+
+// Types and methods
+pub struct EncoderRequest {
+  // private fields
+}
+pub fn EncoderRequest::cancel(Self) -> Unit raise @device.DeviceError
+pub fn EncoderRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn EncoderRequest::execute(Self) -> Unit raise @device.DeviceError
+pub fn EncoderRequest::new(TextEncoderSource, @vectie/lunaflux/model/minimax_h3_text_encoder.EncoderConfig) -> Self raise @device.DeviceError
+pub fn EncoderRequest::poll(Self) -> Bool raise @device.DeviceError
+pub fn EncoderRequest::prebind_refiner(Self, @minimax_h3_block_program.TextConditioningProgram, @device.Context, @device.Stream, @device.Module, ArrayView[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)], weights~ : @device.Allocation, max_workspace_bytes~ : Int64, max_output_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn EncoderRequest::prepare(Self, @device.Context, @device.Stream, @device.Module, EncoderWeights, ArrayView[Int], max_device_bytes~ : Int64, max_table_bytes~ : Int64, visual? : (@device.Allocation, @vectie/lunaflux/model/minimax_h3_text_encoder.VisualPlacement)) -> Unit raise
+pub fn EncoderRequest::prepare_refiner(Self, @minimax_h3_block_program.TextConditioningProgram, @device.Context, @device.Stream, @device.Module, ArrayView[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)], weights~ : @device.Allocation, max_workspace_bytes~ : Int64, max_output_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn EncoderRequest::submit(Self) -> Unit raise @device.DeviceError
+pub fn EncoderRequest::wait(Self) -> Unit raise @device.DeviceError
+pub fn[T] EncoderRequest::with_destination(Self, (@device.Allocation, Int64) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub fn[T] EncoderRequest::with_output(Self, (@device.Allocation, Int64) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub impl @joint_diffusion_execution.PreparedFrame for EncoderRequest
+
+pub struct EncoderWeights {
+  // private fields
+}
+pub fn EncoderWeights::close(Self) -> Unit raise @device.DeviceError
+pub fn EncoderWeights::new() -> Self
+pub fn EncoderWeights::prepare(Self, @device.Context, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, expected_identity~ : @spec.ModelIdentity, max_bytes~ : Int64, chunk_bytes~ : Int) -> Unit raise
+
+pub struct TextEncoderSource {
+  plan : @vectie/lunaflux/model/minimax_h3_text_encoder.TextEncoderPlan
+  symbols : ReadOnlyArray[String]
+  source : Bytes
+}
+pub fn TextEncoderSource::bind(Self, ArrayView[@device.Function], ArrayView[(@vectie/lunaflux/model/minimax_h3_text_encoder.LayerWeights, @device.Allocation)], counts~ : @device.Allocation, token_ids~ : @device.Allocation, embedding~ : @device.Allocation, workspace~ : @device.Allocation, cosine~ : @device.Allocation, sine~ : @device.Allocation, visual? : (Int, @device.Allocation, @device.Allocation)) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+
+// Type aliases
+
+// Traits

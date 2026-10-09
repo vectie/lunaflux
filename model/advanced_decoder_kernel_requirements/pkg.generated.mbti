@@ -1,0 +1,145 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/advanced_decoder_kernel_requirements"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn derive_requirements(@advanced_decoder_execution_plan.AdvancedDecoderExecutionPlan, limits~ : AdvancedDecoderKernelRequirementLimits) -> AdvancedDecoderKernelRequirements raise AdvancedDecoderKernelRequirementsError
+
+// Errors
+pub(all) suberror AdvancedDecoderKernelRequirementsError {
+  InvalidLimit
+  UnsupportedSchema
+  InvalidSourceIdentity
+  PlanExceedsLimits
+  DuplicateSemanticOperation(Int)
+  RequirementsEncodingTooLarge
+  UnsupportedGenericKernelOperation(Int, AdvancedDecoderSemanticOperation)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum AdvancedDecoderAotCapability {
+  EmbeddingLookupAot
+  LowRankAttentionProjectionAot
+  QueryKeyRmsNormAot
+  ScaledRotaryPositionAot
+  HyperConnectionSinkhornAot
+  HyperConnectionMixAot
+  HyperConnectionBlockControlV1Aot
+  HyperConnectionPreReduceV1Aot
+  HyperConnectionPostCombineV1Aot
+  HyperConnectionHeadReduceV1Aot
+  QueryLowRankAProjectionAot
+  QueryLowRankBProjectionAot
+  DeterministicWindowCompressedIndexJoinV1Aot
+  NonOverlappingCompressedKeyValuePrepareV1Aot
+  SelectedSparseAttentionV1Aot
+  AttentionOutputInverseRotaryV1Aot
+  AttentionOutputAProjectionV1Aot
+  AttentionOutputBProjectionV1Aot
+  SlidingWindowCausalAttentionAot
+  LearnedCompressedIndexAot
+  IndexedCompressedAttentionAot
+  DeterministicCompressedIndexAot
+  ExpertScoreTransformAot
+  TokenHashRoutingAot
+  StableTopKRoutingAot
+  SelectedExpertWeightFinalizeAot
+  RoutedExpertFeedForwardAot
+  SharedExpertFeedForwardAot
+  RoutedSharedExpertCombineAot
+  AuxiliaryProjectionAot
+  AuxiliaryDecoderStageAot
+  DsparkAot
+  RmsNormAot
+  DenseProjectionAot
+} derive(Eq, @debug.Debug)
+
+pub struct AdvancedDecoderKernelGeometry {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderKernelGeometry::attention_head_count(Self) -> Int
+pub fn AdvancedDecoderKernelGeometry::attention_head_dimension(Self) -> Int
+pub fn AdvancedDecoderKernelGeometry::decoder_layer_count(Self) -> Int
+pub fn AdvancedDecoderKernelGeometry::hidden_size(Self) -> Int
+pub fn AdvancedDecoderKernelGeometry::kv_head_count(Self) -> Int
+pub fn AdvancedDecoderKernelGeometry::maximum_position_count(Self) -> Int
+pub fn AdvancedDecoderKernelGeometry::rope_head_dimension(Self) -> Int
+pub fn AdvancedDecoderKernelGeometry::vocabulary_size(Self) -> Int
+
+pub struct AdvancedDecoderKernelRequirement {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderKernelRequirement::capability(Self) -> AdvancedDecoderAotCapability
+pub fn AdvancedDecoderKernelRequirement::current_generic_capability(Self, ordinal~ : Int) -> @plan.KernelCapabilityId raise AdvancedDecoderKernelRequirementsError
+pub fn AdvancedDecoderKernelRequirement::operation(Self) -> AdvancedDecoderSemanticOperation
+
+pub struct AdvancedDecoderKernelRequirementLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderKernelRequirementLimits::new(maximum_layers~ : Int, maximum_auxiliary_stages~ : Int, maximum_requirements~ : Int) -> Self raise AdvancedDecoderKernelRequirementsError
+
+pub struct AdvancedDecoderKernelRequirements {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderKernelRequirements::capabilities(Self) -> ReadOnlyArray[AdvancedDecoderAotCapability]
+pub fn AdvancedDecoderKernelRequirements::digest(Self) -> AdvancedDecoderKernelRequirementsDigest
+pub fn AdvancedDecoderKernelRequirements::geometry(Self) -> AdvancedDecoderKernelGeometry
+pub fn AdvancedDecoderKernelRequirements::require_current_generic_capabilities(Self) -> ReadOnlyArray[@plan.KernelCapabilityId] raise AdvancedDecoderKernelRequirementsError
+pub fn AdvancedDecoderKernelRequirements::requirements(Self) -> ReadOnlyArray[AdvancedDecoderKernelRequirement]
+pub fn AdvancedDecoderKernelRequirements::source_identity(Self) -> @spec.ModelIdentity
+pub fn AdvancedDecoderKernelRequirements::source_schema_version(Self) -> Int
+
+pub struct AdvancedDecoderKernelRequirementsDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderKernelRequirementsDigest::as_hex(Self) -> String
+
+pub(all) enum AdvancedDecoderSemanticOperation {
+  TokenEmbedding
+  QueryLowRankAProjection(Int)
+  QueryLowRankBProjection(Int, Int, Int)
+  KeyValueProjection(Int, Int, Int)
+  QueryKeyRmsNorm(Double, Int, Int)
+  RotaryPositionEncoding(Double, Double, Int, Double, Double, Double)
+  HyperConnectionBlockControlV1(Int, Int, Double, Double)
+  HyperConnectionPreReduceV1(Int)
+  HyperConnectionPostCombineV1(Int)
+  HyperConnectionHeadReduceV1(Int, Double, Double)
+  SlidingWindowCausalAttention(Int)
+  LearnedCompressedIndex(Int, Int, Int, Int)
+  IndexedCompressedAttention(Int)
+  DeterministicCompressedIndex(Int)
+  DeterministicWindowCompressedIndexJoinV1(Int, Int)
+  NonOverlappingCompressedKeyValuePrepareV1(Int, Int)
+  SelectedSparseAttentionV1(Int, Int)
+  AttentionOutputInverseRotaryV1(Double, Int, Double, Double, Double)
+  AttentionOutputAProjectionV1(Int, Int, Int, Int)
+  AttentionOutputBProjectionV1(Int, Int, Int)
+  ExpertScoreTransform(@advanced_decoder_execution_plan.ExpertScoreFunction, Int)
+  TokenHashRouting(Int, Int, Int, Int)
+  NoAuxiliaryLossTopK(Int, Int)
+  SelectedExpertWeightFinalize(Int, Int, Bool, Double)
+  RoutedExpertFeedForward(Int, Int, @advanced_decoder_execution_plan.ExpertActivation)
+  SharedExpertFeedForward(Int, Int, @advanced_decoder_execution_plan.ExpertActivation)
+  RoutedSharedExpertCombine(Int, Bool, Double)
+  MultiTokenPredictionInputProjection
+  DsparkTargetLayerRead(Int)
+  DsparkMainProjection
+  DsparkNoiseEmbedding(Int, Int)
+  AuxiliaryDecoderStage(Int)
+  AuxiliaryOutputHead
+  DsparkMarkovAdjustment(Int)
+  DsparkConfidence
+  FinalRmsNorm(Double)
+  LanguageModelHead
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,47 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_compressed_kv_prepare_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn non_overlapping_shared_kv_prepare_bf16_source(window_size~ : Int, compression_ratio~ : Int, head_dimension~ : Int, maximum_position_count~ : Int, maximum_batches~ : Int, function_symbol~ : String) -> DecoderCompressedKvPrepareCudaSource raise DecoderCompressedKvPrepareCudaSourceError
+
+// Errors
+pub(all) suberror DecoderCompressedKvPrepareCudaSourceError {
+  InvalidCompressionRatio
+  InvalidHeadDimension
+  InvalidMaximumPositionCount
+  InvalidMaximumBatches
+  InvalidFunctionSymbol
+  SizeOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DecoderCompressedKvPrepareCudaSource {
+  // private fields
+}
+pub fn DecoderCompressedKvPrepareCudaSource::compression_ratio(Self) -> Int
+pub fn DecoderCompressedKvPrepareCudaSource::function_symbol(Self) -> String
+pub fn DecoderCompressedKvPrepareCudaSource::head_dimension(Self) -> Int
+pub fn DecoderCompressedKvPrepareCudaSource::maximum_batches(Self) -> Int
+pub fn DecoderCompressedKvPrepareCudaSource::maximum_compressed_slots(Self) -> Int
+pub fn DecoderCompressedKvPrepareCudaSource::maximum_key_slots(Self) -> Int
+pub fn DecoderCompressedKvPrepareCudaSource::maximum_position_count(Self) -> Int
+pub fn DecoderCompressedKvPrepareCudaSource::numerical_contract(Self) -> DecoderCompressedKvPrepareNumericalContract
+pub fn DecoderCompressedKvPrepareCudaSource::operation(Self) -> DecoderCompressedKvPrepareOperation
+pub fn DecoderCompressedKvPrepareCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderCompressedKvPrepareCudaSource::window_size(Self) -> Int
+
+pub(all) enum DecoderCompressedKvPrepareNumericalContract {
+  BitExactBf16SegmentCopyV1
+} derive(Eq, @debug.Debug)
+
+pub(all) enum DecoderCompressedKvPrepareOperation {
+  NonOverlappingSharedKeyValuePrepareBf16V1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

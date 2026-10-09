@@ -1,0 +1,39 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/timestep_embedding_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn cosine_sine_timestep_rows_source(rows~ : Int, frequency_width~ : Int, function_symbol~ : String) -> TimestepEmbeddingCudaSource raise TimestepEmbeddingCudaSourceError
+
+pub fn dense_silu_dense_f32_rows_source(rows~ : Int, input_width~ : Int, hidden_width~ : Int, output_width~ : Int, function_symbol~ : String) -> TimestepEmbeddingCudaSource raise TimestepEmbeddingCudaSourceError
+
+pub fn staged_dense_silu_dense_f32_rows_source(rows~ : Int, input_width~ : Int, hidden_width~ : Int, output_width~ : Int, function_prefix~ : String) -> Bytes raise
+
+// Errors
+pub(all) suberror TimestepEmbeddingCudaSourceError {
+  InvalidRowCount
+  InvalidFrequencyWidth
+  InvalidFunctionSymbol
+}
+
+// Types and methods
+pub struct TimestepEmbeddingCudaSource {
+  // private fields
+}
+pub fn TimestepEmbeddingCudaSource::frequency_width(Self) -> Int
+pub fn TimestepEmbeddingCudaSource::function_symbol(Self) -> String
+pub fn TimestepEmbeddingCudaSource::numerical_contract(Self) -> TimestepEmbeddingNumericalContract
+pub fn TimestepEmbeddingCudaSource::row_count(Self) -> Int
+pub fn TimestepEmbeddingCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum TimestepEmbeddingNumericalContract {
+  Float32CosSinExpfPeriod10000V1
+  OrderedFloat32DenseSiluDenseV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

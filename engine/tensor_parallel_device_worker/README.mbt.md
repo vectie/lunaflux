@@ -28,12 +28,22 @@ rederived and authenticated when needed.
 Rank zero alone owns completion-frame storage, BF16 logits readback, and the
 fixed sampling scratch required to publish the canonical worker completion.
 Followers can return only an opaque generation/sequence/rank acknowledgement.
-Kernel records and collectives enqueue on the exact same retained stream. No
+By default, kernel records and collectives enqueue on the same retained stream. No
 operation performs per-kernel synchronization: after the final collective the
 executor records one event, and only its nonblocking poll can publish executed
 state. Fault cleanup synchronizes through the executor before releasing its
 leases. Collective and rank-execution failures remain separately classified
 for the rank-group wire protocol.
+
+`prepare(..., parallel_policy=ComputeCommunicationOverlap)` instead projects
+the admitted physical plan through the pure parallel IR at startup. It owns a
+second stream, events with timing disabled and two immutable queues. The warmed
+dispatcher advances scalar cursors, records and waits on GPU dependencies, and
+permits compute while the single outstanding collective progresses. NCCL
+submission readiness precedes communication event recording; device completion
+remains the sequence commit. Both streams retire before reuse and drain before
+event destruction. `parallel_policy()` reports this choice separately from the
+eager/captured kernel graph report.
 
 This is a software ownership and dispatch foundation. It does not claim that a
 physical NCCL rendezvous, CUDA kernel bundle, multi-GPU numerical comparison,

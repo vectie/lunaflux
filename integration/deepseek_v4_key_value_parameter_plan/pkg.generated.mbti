@@ -1,0 +1,67 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/deepseek_v4_key_value_parameter_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+  "vectie/lunaflux/kernels/advanced_decoder_cuda_aot",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/deepseek_v4_weights",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn key_value_layout_digest_sha256(@deepseek_v4_weights.DeepSeekV4KeyValueQuantizedLayout) -> String
+
+pub fn plan_key_value_parameter(@deepseek_v4_spec.DeepSeekV4ModelMetadata, @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, @advanced_decoder_cuda_aot.AdvancedDecoderKeyValueProjectionCudaCandidate, DeepSeekV4KeyValueParameterEvidenceInput) -> DeepSeekV4KeyValueParameterPlan raise DeepSeekV4KeyValueParameterPlanError
+
+// Errors
+pub(all) suberror DeepSeekV4KeyValueParameterPlanError {
+  InvalidEvidence
+  ModelIdentityMismatch
+  RequirementsMismatch
+  UnsupportedOperation
+  CandidateMismatch
+  QuantizationContractMismatch
+  ShapeMismatch
+  LayoutDigestMismatch
+  OperandMismatch
+  NoInterpretationAuthority
+  NoMaterializationAuthority
+  NoUploadAuthority
+  NoLaunchAuthority
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DeepSeekV4KeyValueParameterEvidenceInput {
+  // private fields
+}
+pub fn DeepSeekV4KeyValueParameterEvidenceInput::new(contract~ : @deepseek_v4_weights.DeepSeekV4KeyValueQuantizationContract, weight_shape~ : ArrayView[Int64], scale_shape~ : ArrayView[Int64], layout_digest_sha256~ : String, weight_operand_ordinal~ : Int, weight_operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole, weight_operand_bytes~ : Int64, scale_operand_ordinal~ : Int, scale_operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole, scale_operand_bytes~ : Int64) -> Self raise DeepSeekV4KeyValueParameterPlanError
+
+pub struct DeepSeekV4KeyValueParameterPlan {
+  // private fields
+}
+pub fn DeepSeekV4KeyValueParameterPlan::block_width(Self) -> Int
+pub fn DeepSeekV4KeyValueParameterPlan::candidate_recipe_digest(Self) -> String
+pub fn DeepSeekV4KeyValueParameterPlan::candidate_source_digest(Self) -> String
+pub fn DeepSeekV4KeyValueParameterPlan::digest_sha256(Self) -> String
+pub fn DeepSeekV4KeyValueParameterPlan::input_width(Self) -> Int
+pub fn DeepSeekV4KeyValueParameterPlan::layout_digest_sha256(Self) -> String
+pub fn DeepSeekV4KeyValueParameterPlan::output_width(Self) -> Int
+pub fn DeepSeekV4KeyValueParameterPlan::require_interpretation_authority(Self) -> Unit raise DeepSeekV4KeyValueParameterPlanError
+pub fn DeepSeekV4KeyValueParameterPlan::require_launch_authority(Self) -> Unit raise DeepSeekV4KeyValueParameterPlanError
+pub fn DeepSeekV4KeyValueParameterPlan::require_materialization_authority(Self) -> Unit raise DeepSeekV4KeyValueParameterPlanError
+pub fn DeepSeekV4KeyValueParameterPlan::require_upload_authority(Self) -> Unit raise DeepSeekV4KeyValueParameterPlanError
+pub fn DeepSeekV4KeyValueParameterPlan::requirement_ordinal(Self) -> Int
+pub fn DeepSeekV4KeyValueParameterPlan::rope_width(Self) -> Int
+pub fn DeepSeekV4KeyValueParameterPlan::source_identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4KeyValueParameterPlan::status(Self) -> DeepSeekV4KeyValueParameterPlanStatus
+
+pub(all) enum DeepSeekV4KeyValueParameterPlanStatus {
+  InertUnqualified
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

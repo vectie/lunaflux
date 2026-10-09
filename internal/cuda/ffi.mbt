@@ -96,12 +96,23 @@ extern "c" fn raw_stream_synchronize(stream : Stream) -> Int = "lunaflux_cuda_st
 extern "c" fn raw_event_create(context : Context, status : Ref[Int]) -> Event = "lunaflux_cuda_event_create"
 
 ///|
+#borrow(context, status)
+extern "c" fn raw_dependency_event_create(
+  context : Context,
+  status : Ref[Int],
+) -> Event = "lunaflux_cuda_dependency_event_create"
+
+///|
 #borrow(event)
 extern "c" fn raw_event_close(event : Event) -> Int = "lunaflux_cuda_event_close"
 
 ///|
 #borrow(event, stream)
 extern "c" fn raw_event_record(event : Event, stream : Stream) -> Int = "lunaflux_cuda_event_record"
+
+///|
+#borrow(stream, event)
+extern "c" fn raw_stream_wait_event(stream : Stream, event : Event) -> Int = "lunaflux_cuda_stream_wait_event"
 
 ///|
 #borrow(event)

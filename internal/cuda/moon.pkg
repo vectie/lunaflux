@@ -12,6 +12,7 @@ options(
     "cublas.c",
     "collective_interop.c",
     "execution_probe.c",
+    "event_wait_probe.c",
     "gemm.c",
     "launch.c",
     "launch_probe.c",

@@ -1,0 +1,39 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/kernels/causal_short_convolution_cuda_source",
+  "vectie/lunaflux/kernels/bf16_binary_cuda_source",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/decoder_foundation_cuda_source",
+  "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source",
+  "vectie/lunaflux/kernels/decoder_interleaved_rope_cuda_source",
+  "vectie/lunaflux/kernels/decoder_kv_assembly_cuda_source",
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source",
+  "vectie/lunaflux/kernels/decay_control_cuda_source",
+  "vectie/lunaflux/kernels/glm_hybrid_artifact_admission",
+  "vectie/lunaflux/kernels/gated_mlp_cuda_source",
+  "vectie/lunaflux/kernels/gated_rms_norm_cuda_source",
+  "vectie/lunaflux/kernels/grouped_routing_cuda_source",
+  "vectie/lunaflux/kernels/hyper_connection_mix_cuda_source",
+  "vectie/lunaflux/kernels/glm_hybrid_dsa_pooling_cuda_source",
+  "vectie/lunaflux/kernels/glm_hybrid_dsa_index_cuda_source",
+  "vectie/lunaflux/kernels/glm_hybrid_sparse_attention_cuda_source",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/kernels/prefix_rms_norm_cuda_source",
+  "vectie/lunaflux/kernels/recurrent_delta_cuda_source",
+  "vectie/lunaflux/kernels/recurrent_attention_projection_cuda_source",
+  "vectie/lunaflux/kernels/router_projection_cuda_source",
+  "vectie/lunaflux/kernels/sigmoid_correction_cuda_source",
+  "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source",
+  "vectie/lunaflux/kernels/two_stage_projection_cuda_source",
+  "vectie/lunaflux/kernels/luna_specialization",
+  "vectie/lunaflux/model/glm_hybrid_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "vectie/lunaflux/model/glm_hybrid_execution_plan",
+} for "test"

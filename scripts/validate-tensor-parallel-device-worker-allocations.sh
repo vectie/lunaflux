@@ -4,9 +4,10 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
 
-moon run --target native --release tests/tensor_parallel_device_worker_alloc
+validation_target=${LUNAFLUX_VALIDATION_TARGET_DIR:-_build}
+moon run --target native --release --target-dir "$validation_target" tests/tensor_parallel_device_worker_alloc
 
-generated_c="_build/native/release/build/tests/tensor_parallel_device_worker_alloc/tensor_parallel_device_worker_alloc.c"
+generated_c="$validation_target/native/release/build/tests/tensor_parallel_device_worker_alloc/tensor_parallel_device_worker_alloc.c"
 if [ ! -f "$generated_c" ]; then
   printf '%s\n' 'tensor-parallel device-worker release C output is missing' >&2
   exit 1
@@ -27,6 +28,10 @@ for symbol in \
   'TensorParallelDeviceWorkerOwner25graph__runtime__telemetry(' \
   'NcclCommunicator16poll__collective(' \
   'TensorCollectiveOwner4poll(' \
+  'progress__overlap(' \
+  'advance__parallel__lane(' \
+  'poll__submitted(' \
+  'lunaflux_tp_alloc_verify_overlap' \
   'sample__leader__rows(' \
   'lunaflux_tp_alloc_evidence_reset' \
   'lunaflux_tp_alloc_collective_evidence_reset' \

@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/dense_permutation_plan"
+
+// Values
+
+// Errors
+pub(all) suberror PermutationError {
+  InvalidShape
+  InvalidOrder
+  ElementLimitExceeded
+  IndexOutOfBounds
+}
+
+// Types and methods
+pub struct IndexTerm {
+  extent : Int64
+  output_stride : Int64
+  input_stride : Int64
+}
+
+pub struct Permutation {
+  // private fields
+}
+pub fn Permutation::element_count(Self) -> Int64
+pub fn Permutation::inverse(Self) -> Self
+pub fn Permutation::is_identity(Self) -> Bool
+pub fn Permutation::new(ArrayView[Int], ArrayView[Int], max_elements~ : Int64) -> Self raise PermutationError
+pub fn Permutation::source_index(Self, Int64) -> Int64 raise PermutationError
+pub fn Permutation::terms(Self) -> ReadOnlyArray[IndexTerm]
+
+// Type aliases
+
+// Traits

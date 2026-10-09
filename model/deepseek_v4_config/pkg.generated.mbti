@@ -1,0 +1,36 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/deepseek_v4_config"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn parse_bytes(BytesView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError
+
+pub fn parse_string(StringView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError
+
+// Errors
+pub(all) suberror DeepSeekV4ConfigError {
+  InvalidByteLimit
+  InvalidDepthLimit
+  ByteLimitExceeded(Int)
+  InvalidUtf8
+  MalformedJson
+  NonObjectRoot
+  NestingLimitExceeded(Int)
+  DuplicateField(Int, Int)
+  UnknownField(Int)
+  ExecutableMetadata(Int)
+  MissingField(Int)
+  InvalidField(Int)
+  UnsupportedProfile
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

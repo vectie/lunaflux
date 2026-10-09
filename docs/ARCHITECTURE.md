@@ -37,6 +37,17 @@ graphs, device allocations, and kernel launches.
 Multi-GPU adds one worker per device. It does not add a process per API or
 scheduler subsystem.
 
+The post-v1 [two-Spark workstream](TWO_SPARK.md) retains this ownership model
+across two explicitly assigned nodes. Its pure topology/capacity compiler,
+root-free startup envelope and local lease are separate from existing local
+admission. Network execution evidence joins the existing rank worker, whose
+remote mode enforces a local lease. Authenticated remote sessions carry the
+existing rank protocol through fixed mailboxes into the same worker service
+and online API owners. Recovery requires release of both old ranks before a
+fresh group is activated. The operator-launched rank entry point and host
+protocol tests exist; physical two-node execution is not yet qualified. See
+the workstream document for deployment and TLS-provider limitations.
+
 ~~~mermaid
 flowchart TB
     API["Native API and OpenAI adapter"]
@@ -377,6 +388,16 @@ ModelPlan:
 The scheduler sees only ModelPlan capabilities. Model-family branching ends at
 plan construction.
 
+The [`parallel` IR proposal](PARALLEL_IR.md) extends physical execution planning
+with a pure, immutable memory-effect graph. Existing TP execution plans can
+project into `compiler/parallel_ir`: byte-range aliases determine dependencies,
+collective sequences determine rank agreement, and startup lowering emits
+ordered or compute/communication queues with explicit completion events.
+The default executor remains ordered. An opt-in CUDA/NCCL adapter binds these
+queues to separate streams and preallocated events; physical qualification is
+still required. No parallel graph analysis enters the
+request scheduler or token-step path.
+
 Weights are streamed or mapped into their final device destination. A
 multi-device loader must never materialize the complete model independently on
 every worker.
@@ -705,6 +726,175 @@ with final target labels while reading exact staged bytes. The no-overwrite
 materializer keeps the output beneath an authenticated cleanup claim until the
 root-free join evidence and exact bundle both verify; failure deletes only that
 claim. Live startup continues to require real target-namespace identity.
+
+## Advanced workload isolation
+
+### Shared foundation, distinct execution engines
+
+LunaFlux remains one framework and repository. Autoregressive and diffusion
+execution are separate engines over shared model storage, LunaTile compilation,
+device allocation, AOT kernels, execution graphs, and lifecycle primitives.
+They may be packaged into separate binaries; neither imports the other's
+scheduler. Diffusion iterations are not synthetic token-decode steps.
+
+The autoregressive engine owns token admission, prefill/decode, KV and prefix
+reuse. The diffusion engine owns conditioning, joint latent state, denoising
+iterations and VAE decode. Model builders describe these stages as immutable
+plans. Pure transformations select layouts, lifetime reuse and schedules;
+prepared backends own explicit buffer writes, submission, completion and close.
+CUDA-specific choices remain in device lowering, not family builders.
+
+For H3, video and audio use distinct shifted-flow timestep grids but one joint
+denoiser evaluation per iteration. Both predictions must observe the old joint
+state before either latent is updated. Allocate latent/prediction/workspace
+storage before iteration, retain invariant conditioning, and reuse storage;
+functional planning must not imply full-latent copies each iteration. A failed
+partial iteration is terminal, never replayed against partly updated state.
+Cancellation stops new submissions but cannot release in-flight resources.
+
+The first milestone is one complete bounded H3 request, not a universal media
+runtime. Detailed implementation and measurements are tracked in
+[MINIMAX_H3_EXECUTION.md](MINIMAX_H3_EXECUTION.md). Shared foundation does not
+imply that current H3 candidates already provide executable inference.
+
+DeepSeek V4, GLM 5.3, and MiniMax H3 extend startup planning without adding
+family branches to scheduler, KV, device core, or the private CUDA ABI:
+
+~~~text
+exact family config/weights
+  → family-owned immutable plan projection
+  → advanced-decoder | GLM-hybrid | joint-diffusion requirement vocabulary
+  → family-neutral CUDA source, AOT candidate, and artifact admission
+  → focused integration joins for authenticated family storage
+  → runtime construction only after independent execution authority
+~~~
+
+Semantic capability admission, source candidates, structural candidate
+coverage, uploaded buffers, and inert artifact joins are distinct evidence
+levels. None may be named or treated as executable readiness. Workload-specific
+candidate-evidence adapters remain separate so advanced-decoder, GLM-hybrid,
+and joint-diffusion packages do not acquire transitive dependencies on one
+another. Numerical CUDA text is further isolated in family-neutral, focused
+owners: scaled forward/inverse RoPE, interleaved RoPE with bit-exact prefix copy, prefix
+RMSNorm with optional suffix copy, staged joint attention, mHC block control,
+mHC pre-reduce, mHC post-combine, mHC head-reduce, deterministic compressed
+indexing, deterministic window/compressed-index joining, causal short
+convolution, KDA input/output-gate/output projection, bias-free MoE router
+projection, safe decay control, sigmoid-gated RMSNorm, normalized recurrent
+delta, VAE latent destandardization, channel-major pointwise projection,
+weight-normalized Conv1d and ConvTranspose1d, block-FP8/UE8M0 projection,
+bit-exact packed-KV assembly, alias-free SnakeBeta activation,
+four-stream hyper-connection mixing,
+non-overlapping compressed-KV preparation, MoE sigmoid/correction, grouped MoE
+routing, selected-expert SwiGLU, BF16 binary composition, indexed parameter
+banks, 97-stage audio AMP workspace planning, and packed or separate-weight
+SwiGLU MLP are independent
+renderers; thin workload lowerers authenticate only their
+requirement identity, exact geometry, launch ABI, target/compiler policy, and
+inert evidence. DeepSeek mHC is decomposed into versioned block-control,
+pre-reduce, post-combine, and head-reduce semantics. Block control has an exact
+eight-operand BF16/F32 source, pre-reduce has a separate four-operand BF16/F32
+source, post-combine has a six-operand BF16/F32 source, and head-reduce has its
+own six-operand BF16/F32 source. Replicated Query-A and the separate replicated
+pre-normalization KeyValue projection now reuse the same family-neutral
+block-FP8 renderer as Output-B with profile-owned storage/layout binding.
+Independent inert joins authenticate each storage boundary without granting
+interpretation, materialization, upload, or launch authority; artifact
+admission accepts KeyValue and then fails closed at Query-B. Ratio-128
+deterministic compressed indexing likewise has
+a dedicated bounded I32 producer. Downstream compressed attention is split
+into index join, shared-KV preparation, selected sparse attention, and inverse
+RoPE. The join has a separate eight-operand I32 source that preserves official
+prefill padding, decode ring order, and literal window-then-compressed
+concatenation without sorting or deduplication. Selected sparse attention has
+an independent eight-operand correctness source with shared BF16 K/V, I32
+indices, stable ordered-F32 softmax, and an F32 denominator-only sink. A
+separate seven-operand borrowed-buffer preparation source lays out the full
+ordinary BF16 K/V prefix plus completed ratio-128 rows during prefill and the
+physical 128-slot circular window plus completed compressed prefix during
+decode. It does not learn compression or own cache state. A separate in-place
+three-operand inverse scaled-YaRN source retains the first 448 BF16 head
+components bit-exact and conjugate-rotates the final 64 through F32 with one
+BF16-RNE write. The following official projection is split into a grouped BF16
+Output-A candidate and a single-rank block-FP8 Output-B candidate. Output-B
+uses dynamic per-row/block-128 UE8M0 activation scales, E4M3 weights, UE8M0
+weight scales, ordered F32 block accumulation, and one BF16-RNE output. Separate
+inert compositions bind the official Query-A, KeyValue, Output-A conversion,
+and Output-B source storage/layouts to their candidate operands without granting
+interpretation, conversion, materialization, upload, tensor-parallel collective,
+or launch authority. None
+of these candidates grants live KV authority. GLM Flash's
+KDA short convolution is a
+family-neutral per-stream renderer with explicit CSR sequence offsets and
+history handoff. A separate serial recurrent-delta renderer owns normalized
+Q/K, per-component decay, delta/state update, and explicit F32 initial/final
+state without absorbing projection, cache ownership, or throughput authority.
+Separate family-neutral renderers own its BF16 Q/K/V/forget/beta projection,
+F32 safe-lower-bound decay control, two-stage output-gate projection,
+sigmoid-gated per-head RMSNorm, and final bias-free BF16 output projection.
+Both GLM profiles also use a family-neutral bias-free router projection with
+F32 activation input, row-major BF16 expert weights, ordered F32 accumulation,
+and raw F32 logits. A distinct five-operand renderer produces both the
+uncorrected sigmoid scores and correction-biased choice scores, failing closed
+if the output buffers alias. A separate serial correctness renderer scores each
+group from its top two corrected scores, selects groups and eight experts from
+corrected scores, then gathers, normalizes, and scales only the uncorrected
+scores. Separate routed-expert, shared-expert, and routed/shared-add candidates
+now consume that result. A generic indexed layout authenticates the exact
+per-expert checkpoint names, ordinals, shapes, and bank offsets; a thin GLM
+join binds all six bank digests and operand sizes without owning packing,
+upload, or execution. Full then uses an exact non-aliasing BF16 outer residual
+add. Flash instead uses the official four-stream mHC composition
+`post * branch + combineᵀ * residual`, with control inputs rounded to BF16,
+ordered F32 matrix accumulation, and one BF16 output round. Upstream Flash
+hyper-control is represented by two separate family-neutral serial correctness
+sources: learned function/base/scale projection plus collapse, followed by an
+explicit positive-matrix Sinkhorn stage with one initial column normalization
+and 19 alternating row/column passes. Their ABIs keep post, initial matrix,
+collapsed state, and final combination storage distinct. They grant no live
+state, cache, artifact, or launch authority; lower-ID tie ordering is explicit
+and not claimed equivalent to PyTorch's unsorted `topk`.
+The DSA path then uses a family-neutral bit-exact K/V assembly source. Full
+splits packed KV-B `[T,64,448]`, broadcasts the rotated shared 64-wide suffix,
+and produces contiguous K/V `[T,64,256]`; Flash uses a distinct four-operand
+zero-suffix ABI to split packed `[T,64,512]`. This owns no cache handoff,
+allocation, or execution authority.
+MiniMax's joint plan binds attention rotary width and Q/K RMS epsilon instead
+of hiding them in a family adapter. Its complete 703-tensor F32 VideoVae and
+1,087-tensor F32 AudioVae vocabularies now admit bounded host materialization,
+while its
+separate conditioning reference binds request-derived geometry and ordered
+missing execution prerequisites without acquiring artifact or execution
+authority. Exact F32 video/audio latent destandardization prefixes retain the
+official per-channel parameters. AudioVAE then uses a separate channel-major
+F32 pointwise input projection followed by an exact two-stage, per-output-
+channel weight-normalized kernel-7 Conv1d. Its normalized-weight workspace and
+normalize-before-convolve order are explicit. The immediately following first
+BigVGAN upsampler is a separate per-input-channel weight-normalized kernel-9,
+stride-5 ConvTranspose1d from `[2,1024,207]` to `[2,512,1035]`, with its own
+explicit normalized workspace. Its first AMP activation is represented
+truthfully as anti-aliased 2x upsampling, F32 SnakeBeta, and stride-2
+downsampling through two explicit 8,478,720-byte workspaces. The following
+first three-way AMP residual stage has an exact 97-launch plan: 126 checkpoint
+regions occupy one canonical packed-parameter layout, a disjoint 58,167,296-
+byte workspace retains the original upsampler output and precomputed block-0
+activation as separate inputs, all dilated weight-normalized convolution pairs
+and residual updates execute in `30+33+33` order, and one final launch performs
+the ordered three-way average. The following `decoder.ups.1.0` transition is a
+separate per-input-channel weight-normalized kernel-9, stride-5
+ConvTranspose1d candidate from `[2,512,1035]` to `[2,256,5175]`, with an
+explicit normalized-weight workspace. Its following three-way AMP stage is
+also exact: `resblocks.3–5` bind 126 parameter regions, kernels 3/7/11,
+dilations 1/3/5, a 119,465,984-byte disjoint workspace, and 97 launches over
+`[2,256,5175]`, including the precomputed first activation and ordered final
+average. The following `decoder.ups.2.0` is now an exact per-input-channel
+weight-normalized kernel-4, stride-2 ConvTranspose1d transition from
+`[2,256,5175]` to `[2,128,10350]`. Its first alias-free activation,
+`resblocks.6.activations.0`, owns distinct length-12 up/down filters and two
+`[2,128,20700]` workspaces. Complete `resblocks.6–8`, later upscalers, VAE
+encode, and the remaining decoder bodies remain fail-closed. The current exact implementation status and
+open promotion gates are
+recorded in [MODEL_FAMILY_SUPPORT.md](MODEL_FAMILY_SUPPORT.md).
 
 ## Failure model
 

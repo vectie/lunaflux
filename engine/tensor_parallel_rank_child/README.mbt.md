@@ -20,3 +20,8 @@ leader completion bytes or follower scalar acknowledgements, reports typed
 collective/rank failures, and performs Abort/Drain/Close cleanup before the
 terminal response. No digest is treated as authority and no fixture or echo
 worker can cross the readiness barrier.
+
+The default queue policy is ordered. `run` and
+`prepare_configured_rank_child` accept `parallel_policy=ComputeCommunicationOverlap`.
+The `cmd/tensor_parallel_overlap_rank_child` executable selects that policy
+once at startup while retaining the same inherited protocol and admission.

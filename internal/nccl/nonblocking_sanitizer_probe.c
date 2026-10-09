@@ -182,10 +182,14 @@ static void test_pending_and_complete(lf_nccl_api *api) {
   lf_nccl_communicator *communicator = create_ready(api, &device, 1U);
   submit(communicator, &device, 1U);
   probe_async_status = LF_NCCL_IN_PROGRESS;
+  assert(lunaflux_nccl_communicator_poll_submitted(communicator) == 0);
   assert(lunaflux_nccl_communicator_poll_collective_state(communicator) == 0);
   assert(lf_device_interop_probe_active_count(&device) == 4);
   probe_async_status = 0;
   lf_device_interop_probe_query_result(&device, 600);
+  assert(lunaflux_nccl_communicator_poll_submitted(communicator) == 1);
+  assert(lf_device_interop_probe_active_count(&device) == 4);
+  assert(communicator->phase == LF_NCCL_PHASE_IN_FLIGHT);
   assert(lunaflux_nccl_communicator_poll_collective_state(communicator) == 0);
   assert(lf_device_interop_probe_active_count(&device) == 4);
   lf_device_interop_probe_query_result(&device, 0);
@@ -200,9 +204,10 @@ static void test_failure_retains_until_abort(lf_nccl_api *api) {
   lf_nccl_communicator *communicator = create_ready(api, &device, 2U);
   submit(communicator, &device, 2U);
   probe_async_status = 1;
+  assert(lunaflux_nccl_communicator_poll_submitted(communicator) == LF_NCCL_RUNTIME_FAILURE);
   assert(
     lunaflux_nccl_communicator_poll_collective_state(communicator) ==
-      LF_NCCL_RUNTIME_FAILURE
+      LF_NCCL_FAILED
   );
   assert(lf_device_interop_probe_active_count(&device) == 4);
   assert(lf_device_interop_probe_context_close(&device) == LF_BUSY);

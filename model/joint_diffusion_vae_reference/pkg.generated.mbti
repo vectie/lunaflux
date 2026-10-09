@@ -1,0 +1,354 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/joint_diffusion_vae_reference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/joint_diffusion_kernel_requirements",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn assess_joint_vae_decode(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, limits~ : JointVaeDecodeReferenceLimits) -> JointVaeDecodeAssessment raise JointVaeDecodeReferenceError
+
+pub fn bind_audio_decoder_amp_activation(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, stage_index~ : Int, decoder_batch_count~ : Int, channel_count~ : Int, time_count~ : Int, alpha_name~ : String, beta_name~ : String, upsample_filter_name~ : String, downsample_filter_name~ : String) -> JointVaeAudioDecoderAmpActivation raise JointVaeDecodeReferenceError
+
+pub fn bind_audio_decoder_conv_pre(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, decoder_batch_count~ : Int, weight_g_name~ : String, weight_v_name~ : String, bias_name~ : String) -> JointVaeAudioDecoderConvPre raise JointVaeDecodeReferenceError
+
+pub fn bind_audio_decoder_first_amp_activation(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, decoder_batch_count~ : Int, alpha_name~ : String, beta_name~ : String, upsample_filter_name~ : String, downsample_filter_name~ : String) -> JointVaeAudioDecoderFirstAmpActivation raise JointVaeDecodeReferenceError
+
+pub fn bind_audio_decoder_first_upsample(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, decoder_batch_count~ : Int, weight_g_name~ : String, weight_v_name~ : String, bias_name~ : String) -> JointVaeAudioDecoderFirstUpsample raise JointVaeDecodeReferenceError
+
+pub fn bind_audio_decoder_input_projection(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, decoder_batch_count~ : Int, weight_name~ : String, bias_name~ : String) -> JointVaeAudioDecoderInputProjection raise JointVaeDecodeReferenceError
+
+pub fn bind_audio_decoder_upsample_transition(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, stage_index~ : Int, decoder_batch_count~ : Int, input_channels~ : Int, output_channels~ : Int, input_time~ : Int, output_time~ : Int, kernel_size~ : Int, stride~ : Int, padding~ : Int, weight_g_name~ : String, weight_v_name~ : String, bias_name~ : String) -> JointVaeAudioDecoderUpsampleTransition raise JointVaeDecodeReferenceError
+
+pub fn bind_audio_latent_destandardization(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, batch_count~ : Int, means~ : ArrayView[Float], standard_deviations~ : ArrayView[Float]) -> JointVaeAudioLatentDestandardization raise JointVaeDecodeReferenceError
+
+pub fn bind_audio_latents(JointVaeDecodeAssessment, ArrayView[Double]) -> JointVaeLatentBuffer raise JointVaeDecodeReferenceError
+
+pub fn bind_video_latent_destandardization(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, means~ : ArrayView[Float], standard_deviations~ : ArrayView[Float]) -> JointVaeLatentDestandardization raise JointVaeDecodeReferenceError
+
+pub fn bind_video_latents(JointVaeDecodeAssessment, ArrayView[Double]) -> JointVaeLatentBuffer raise JointVaeDecodeReferenceError
+
+pub fn decode_one_audio_stage(JointVaeDecodeAssessment, JointVaeLatentBuffer) -> ReadOnlyArray[Double] raise JointVaeDecodeReferenceError
+
+pub fn decode_one_video_stage(JointVaeDecodeAssessment, JointVaeLatentBuffer) -> ReadOnlyArray[Double] raise JointVaeDecodeReferenceError
+
+pub fn destandardize_audio_latents(JointVaeAudioLatentDestandardization, ArrayView[Float]) -> ReadOnlyArray[Float] raise JointVaeDecodeReferenceError
+
+pub fn destandardize_video_latents(JointVaeLatentDestandardization, ArrayView[Float]) -> ReadOnlyArray[Float] raise JointVaeDecodeReferenceError
+
+pub fn execute_audio_decoder_amp_activation(JointVaeAudioDecoderAmpActivation, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise JointVaeDecodeReferenceError
+
+pub fn execute_audio_decoder_conv_pre(JointVaeAudioDecoderConvPre, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise JointVaeDecodeReferenceError
+
+pub fn execute_audio_decoder_first_amp_activation(JointVaeAudioDecoderFirstAmpActivation, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise JointVaeDecodeReferenceError
+
+pub fn execute_audio_decoder_first_upsample(JointVaeAudioDecoderFirstUpsample, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise JointVaeDecodeReferenceError
+
+pub fn execute_audio_decoder_upsample_transition(JointVaeAudioDecoderUpsampleTransition, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise JointVaeDecodeReferenceError
+
+pub fn project_audio_decoder_input(JointVaeAudioDecoderInputProjection, ArrayView[Float], ArrayView[Float], ArrayView[Float]) -> ReadOnlyArray[Float] raise JointVaeDecodeReferenceError
+
+// Errors
+pub(all) suberror JointVaeDecodeReferenceError {
+  InvalidLimit
+  InvalidPlan
+  InvalidRequest
+  GeometryOverflow
+  GeometryBudgetExceeded(@joint_diffusion_plan.JointDiffusionComponent)
+  InvalidLatentElementCount(@joint_diffusion_plan.JointDiffusionComponent)
+  NonFiniteLatent(@joint_diffusion_plan.JointDiffusionComponent, Int)
+  LatentIdentityMismatch(@joint_diffusion_plan.JointDiffusionComponent)
+  InvalidDestandardizationCoefficients
+  InvalidDestandardizationInput
+  InvalidProjectionTensorIdentity
+  InvalidProjectionInput
+  DecodeSemanticUnavailable(@joint_diffusion_plan.JointDiffusionComponent, JointVaeDecodeGap)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct JointVaeAudioDecoderAmpActivation {
+  // private fields
+}
+pub fn JointVaeAudioDecoderAmpActivation::alpha_name(Self) -> String
+pub fn JointVaeAudioDecoderAmpActivation::beta_name(Self) -> String
+pub fn JointVaeAudioDecoderAmpActivation::channel_count(Self) -> Int
+pub fn JointVaeAudioDecoderAmpActivation::decoder_batch_count(Self) -> Int
+pub fn JointVaeAudioDecoderAmpActivation::digest(Self) -> JointVaeAudioDecoderAmpActivationDigest
+pub fn JointVaeAudioDecoderAmpActivation::downsample_filter_name(Self) -> String
+pub fn JointVaeAudioDecoderAmpActivation::element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderAmpActivation::intermediate_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderAmpActivation::kernel_size(Self) -> Int
+pub fn JointVaeAudioDecoderAmpActivation::layout(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
+pub fn JointVaeAudioDecoderAmpActivation::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeAudioDecoderAmpActivation::ratio(Self) -> Int
+pub fn JointVaeAudioDecoderAmpActivation::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointVaeAudioDecoderAmpActivation::stage_index(Self) -> Int
+pub fn JointVaeAudioDecoderAmpActivation::storage(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeAliasFreeActivationStorage
+pub fn JointVaeAudioDecoderAmpActivation::time_count(Self) -> Int
+pub fn JointVaeAudioDecoderAmpActivation::upsample_filter_name(Self) -> String
+pub fn JointVaeAudioDecoderAmpActivation::upsample_time(Self) -> Int
+
+pub struct JointVaeAudioDecoderAmpActivationDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeAudioDecoderAmpActivationDigest::as_hex(Self) -> String
+
+pub struct JointVaeAudioDecoderConvPre {
+  // private fields
+}
+pub fn JointVaeAudioDecoderConvPre::axes(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeWeightNormAxes
+pub fn JointVaeAudioDecoderConvPre::bias_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderConvPre::bias_name(Self) -> String
+pub fn JointVaeAudioDecoderConvPre::decoder_batch_count(Self) -> Int
+pub fn JointVaeAudioDecoderConvPre::digest(Self) -> JointVaeAudioDecoderConvPreDigest
+pub fn JointVaeAudioDecoderConvPre::input_channels(Self) -> Int
+pub fn JointVaeAudioDecoderConvPre::input_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderConvPre::kernel_size(Self) -> Int
+pub fn JointVaeAudioDecoderConvPre::layout(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
+pub fn JointVaeAudioDecoderConvPre::output_channels(Self) -> Int
+pub fn JointVaeAudioDecoderConvPre::output_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderConvPre::padding(Self) -> Int
+pub fn JointVaeAudioDecoderConvPre::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeAudioDecoderConvPre::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointVaeAudioDecoderConvPre::storage(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeConvPreStorage
+pub fn JointVaeAudioDecoderConvPre::stride(Self) -> Int
+pub fn JointVaeAudioDecoderConvPre::weight_g_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderConvPre::weight_g_name(Self) -> String
+pub fn JointVaeAudioDecoderConvPre::weight_v_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderConvPre::weight_v_name(Self) -> String
+
+pub struct JointVaeAudioDecoderConvPreDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeAudioDecoderConvPreDigest::as_hex(Self) -> String
+
+pub struct JointVaeAudioDecoderFirstAmpActivation {
+  // private fields
+}
+pub fn JointVaeAudioDecoderFirstAmpActivation::alpha_name(Self) -> String
+pub fn JointVaeAudioDecoderFirstAmpActivation::beta_name(Self) -> String
+pub fn JointVaeAudioDecoderFirstAmpActivation::channel_count(Self) -> Int
+pub fn JointVaeAudioDecoderFirstAmpActivation::decoder_batch_count(Self) -> Int
+pub fn JointVaeAudioDecoderFirstAmpActivation::digest(Self) -> JointVaeAudioDecoderFirstAmpActivationDigest
+pub fn JointVaeAudioDecoderFirstAmpActivation::downsample_filter_name(Self) -> String
+pub fn JointVaeAudioDecoderFirstAmpActivation::element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderFirstAmpActivation::intermediate_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderFirstAmpActivation::kernel_size(Self) -> Int
+pub fn JointVaeAudioDecoderFirstAmpActivation::layout(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
+pub fn JointVaeAudioDecoderFirstAmpActivation::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeAudioDecoderFirstAmpActivation::ratio(Self) -> Int
+pub fn JointVaeAudioDecoderFirstAmpActivation::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointVaeAudioDecoderFirstAmpActivation::storage(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeAliasFreeActivationStorage
+pub fn JointVaeAudioDecoderFirstAmpActivation::time_count(Self) -> Int
+pub fn JointVaeAudioDecoderFirstAmpActivation::upsample_filter_name(Self) -> String
+pub fn JointVaeAudioDecoderFirstAmpActivation::upsample_time(Self) -> Int
+
+pub struct JointVaeAudioDecoderFirstAmpActivationDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeAudioDecoderFirstAmpActivationDigest::as_hex(Self) -> String
+
+pub struct JointVaeAudioDecoderFirstUpsample {
+  // private fields
+}
+pub fn JointVaeAudioDecoderFirstUpsample::axes(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeWeightNormAxes
+pub fn JointVaeAudioDecoderFirstUpsample::bias_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderFirstUpsample::bias_name(Self) -> String
+pub fn JointVaeAudioDecoderFirstUpsample::decoder_batch_count(Self) -> Int
+pub fn JointVaeAudioDecoderFirstUpsample::digest(Self) -> JointVaeAudioDecoderFirstUpsampleDigest
+pub fn JointVaeAudioDecoderFirstUpsample::input_channels(Self) -> Int
+pub fn JointVaeAudioDecoderFirstUpsample::input_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderFirstUpsample::input_time(Self) -> Int
+pub fn JointVaeAudioDecoderFirstUpsample::kernel_size(Self) -> Int
+pub fn JointVaeAudioDecoderFirstUpsample::layout(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
+pub fn JointVaeAudioDecoderFirstUpsample::output_channels(Self) -> Int
+pub fn JointVaeAudioDecoderFirstUpsample::output_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderFirstUpsample::output_time(Self) -> Int
+pub fn JointVaeAudioDecoderFirstUpsample::padding(Self) -> Int
+pub fn JointVaeAudioDecoderFirstUpsample::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeAudioDecoderFirstUpsample::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointVaeAudioDecoderFirstUpsample::storage(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeConvTransposeStorage
+pub fn JointVaeAudioDecoderFirstUpsample::stride(Self) -> Int
+pub fn JointVaeAudioDecoderFirstUpsample::weight_g_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderFirstUpsample::weight_g_name(Self) -> String
+pub fn JointVaeAudioDecoderFirstUpsample::weight_v_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderFirstUpsample::weight_v_name(Self) -> String
+
+pub struct JointVaeAudioDecoderFirstUpsampleDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeAudioDecoderFirstUpsampleDigest::as_hex(Self) -> String
+
+pub struct JointVaeAudioDecoderInputProjection {
+  // private fields
+}
+pub fn JointVaeAudioDecoderInputProjection::bias_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderInputProjection::bias_name(Self) -> String
+pub fn JointVaeAudioDecoderInputProjection::decoder_batch_count(Self) -> Int
+pub fn JointVaeAudioDecoderInputProjection::digest(Self) -> JointVaeAudioDecoderInputProjectionDigest
+pub fn JointVaeAudioDecoderInputProjection::input_channels(Self) -> Int
+pub fn JointVaeAudioDecoderInputProjection::input_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderInputProjection::kernel_size(Self) -> Int
+pub fn JointVaeAudioDecoderInputProjection::layout(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
+pub fn JointVaeAudioDecoderInputProjection::output_channels(Self) -> Int
+pub fn JointVaeAudioDecoderInputProjection::output_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderInputProjection::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeAudioDecoderInputProjection::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointVaeAudioDecoderInputProjection::storage(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeInputProjectionStorage
+pub fn JointVaeAudioDecoderInputProjection::weight_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderInputProjection::weight_name(Self) -> String
+
+pub struct JointVaeAudioDecoderInputProjectionDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeAudioDecoderInputProjectionDigest::as_hex(Self) -> String
+
+pub struct JointVaeAudioDecoderUpsampleTransition {
+  // private fields
+}
+pub fn JointVaeAudioDecoderUpsampleTransition::axes(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeWeightNormAxes
+pub fn JointVaeAudioDecoderUpsampleTransition::bias_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderUpsampleTransition::bias_name(Self) -> String
+pub fn JointVaeAudioDecoderUpsampleTransition::decoder_batch_count(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::digest(Self) -> JointVaeAudioDecoderUpsampleTransitionDigest
+pub fn JointVaeAudioDecoderUpsampleTransition::input_channels(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::input_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderUpsampleTransition::input_time(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::kernel_size(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::layout(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
+pub fn JointVaeAudioDecoderUpsampleTransition::output_channels(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::output_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderUpsampleTransition::output_time(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::padding(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeAudioDecoderUpsampleTransition::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointVaeAudioDecoderUpsampleTransition::stage_index(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::storage(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeConvTransposeStorage
+pub fn JointVaeAudioDecoderUpsampleTransition::stride(Self) -> Int
+pub fn JointVaeAudioDecoderUpsampleTransition::weight_g_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderUpsampleTransition::weight_g_name(Self) -> String
+pub fn JointVaeAudioDecoderUpsampleTransition::weight_v_element_count(Self) -> Int64
+pub fn JointVaeAudioDecoderUpsampleTransition::weight_v_name(Self) -> String
+
+pub struct JointVaeAudioDecoderUpsampleTransitionDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeAudioDecoderUpsampleTransitionDigest::as_hex(Self) -> String
+
+pub struct JointVaeAudioLatentDestandardization {
+  // private fields
+}
+pub fn JointVaeAudioLatentDestandardization::batch_count(Self) -> Int
+pub fn JointVaeAudioLatentDestandardization::channel_count(Self) -> Int
+pub fn JointVaeAudioLatentDestandardization::digest(Self) -> JointVaeLatentDestandardizationDigest
+pub fn JointVaeAudioLatentDestandardization::element_count(Self) -> Int64
+pub fn JointVaeAudioLatentDestandardization::elements_per_channel(Self) -> Int64
+pub fn JointVaeAudioLatentDestandardization::layout(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
+pub fn JointVaeAudioLatentDestandardization::mean(Self, Int) -> Float?
+pub fn JointVaeAudioLatentDestandardization::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeAudioLatentDestandardization::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointVaeAudioLatentDestandardization::standard_deviation(Self, Int) -> Float?
+pub fn JointVaeAudioLatentDestandardization::storage(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionVaeLatentDestandardizationStorage
+
+pub struct JointVaeDecodeAssessment {
+  // private fields
+}
+pub fn JointVaeDecodeAssessment::audio_gap(Self, Int) -> JointVaeDecodeGap?
+pub fn JointVaeDecodeAssessment::audio_gap_count(Self) -> Int
+pub fn JointVaeDecodeAssessment::gap_digest(Self) -> JointVaeDecodeGapDigest
+pub fn JointVaeDecodeAssessment::geometry(Self) -> JointVaeDecodeGeometry
+pub fn JointVaeDecodeAssessment::video_gap(Self, Int) -> JointVaeDecodeGap?
+pub fn JointVaeDecodeAssessment::video_gap_count(Self) -> Int
+
+pub(all) enum JointVaeDecodeGap {
+  VideoOutputChannels
+  VideoDecoderDTypeCast
+  VideoPostQuantConvolution
+  VideoSpatialTiling
+  VideoTemporalChunking
+  VideoTransformerDecode
+  VideoOverlapBlending
+  VideoPixelPostprocessing
+  VideoNormalization
+  VideoActivation
+  VideoConvolutionKernel
+  VideoPadding
+  VideoChannelSchedule
+  VideoTemporalUpsample
+  VideoSpatialUpsample
+  VideoResidualPath
+  VideoFinalProjection
+  AudioNormalization
+  AudioActivation
+  AudioConvolutionKernel
+  AudioPadding
+  AudioChannelSchedule
+  AudioTemporalUpsample
+  AudioResidualPath
+  AudioFinalProjection
+} derive(Eq, @debug.Debug)
+
+pub struct JointVaeDecodeGapDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeDecodeGapDigest::as_hex(Self) -> String
+
+pub struct JointVaeDecodeGeometry {
+  // private fields
+}
+pub fn JointVaeDecodeGeometry::audio_latent_channels(Self) -> Int
+pub fn JointVaeDecodeGeometry::audio_latent_elements(Self) -> Int64
+pub fn JointVaeDecodeGeometry::audio_latent_frames(Self) -> Int
+pub fn JointVaeDecodeGeometry::audio_output_channels(Self) -> Int
+pub fn JointVaeDecodeGeometry::audio_output_elements(Self) -> Int64
+pub fn JointVaeDecodeGeometry::audio_output_samples(Self) -> Int64
+pub fn JointVaeDecodeGeometry::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeDecodeGeometry::video_latent_channels(Self) -> Int
+pub fn JointVaeDecodeGeometry::video_latent_elements(Self) -> Int64
+pub fn JointVaeDecodeGeometry::video_latent_frames(Self) -> Int
+pub fn JointVaeDecodeGeometry::video_latent_height(Self) -> Int
+pub fn JointVaeDecodeGeometry::video_latent_width(Self) -> Int
+pub fn JointVaeDecodeGeometry::video_output_frames(Self) -> Int
+pub fn JointVaeDecodeGeometry::video_output_height(Self) -> Int
+pub fn JointVaeDecodeGeometry::video_output_sites(Self) -> Int64
+pub fn JointVaeDecodeGeometry::video_output_width(Self) -> Int
+pub fn JointVaeDecodeGeometry::video_spatial_compression(Self) -> Int
+
+pub struct JointVaeDecodeReferenceLimits {
+  // private fields
+}
+pub fn JointVaeDecodeReferenceLimits::new(maximum_video_latent_elements~ : Int64, maximum_video_output_sites~ : Int64, maximum_audio_latent_elements~ : Int64, maximum_audio_output_elements~ : Int64) -> Self raise JointVaeDecodeReferenceError
+
+pub struct JointVaeLatentBuffer {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeLatentBuffer::component(Self) -> @joint_diffusion_plan.JointDiffusionComponent
+pub fn JointVaeLatentBuffer::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeLatentBuffer::values(Self) -> ReadOnlyArray[Double]
+
+pub struct JointVaeLatentDestandardization {
+  // private fields
+}
+pub fn JointVaeLatentDestandardization::batch_count(Self) -> Int
+pub fn JointVaeLatentDestandardization::channel_count(Self) -> Int
+pub fn JointVaeLatentDestandardization::digest(Self) -> JointVaeLatentDestandardizationDigest
+pub fn JointVaeLatentDestandardization::element_count(Self) -> Int64
+pub fn JointVaeLatentDestandardization::elements_per_channel(Self) -> Int64
+pub fn JointVaeLatentDestandardization::layout(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionVideoVaeLatentLayout
+pub fn JointVaeLatentDestandardization::mean(Self, Int) -> Float?
+pub fn JointVaeLatentDestandardization::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeLatentDestandardization::request_shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
+pub fn JointVaeLatentDestandardization::standard_deviation(Self, Int) -> Float?
+pub fn JointVaeLatentDestandardization::storage(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionVaeLatentDestandardizationStorage
+
+pub struct JointVaeLatentDestandardizationDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointVaeLatentDestandardizationDigest::as_hex(Self) -> String
+
+// Type aliases
+
+// Traits

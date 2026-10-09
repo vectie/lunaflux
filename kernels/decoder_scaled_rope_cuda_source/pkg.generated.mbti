@@ -1,0 +1,59 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_scaled_rope_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn inverse_scaled_yarn_attention_output_bf16_source(head_count~ : Int, head_dimension~ : Int, rope_dimension~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, original_positions~ : Int, compressed_theta~ : Double, scaling_factor~ : Double, beta_fast~ : Double, beta_slow~ : Double, function_symbol~ : String) -> DecoderInverseRopeCudaSource raise DecoderScaledRopeCudaSourceError
+
+pub fn scaled_yarn_rope_bf16_source(query_head_count~ : Int, key_value_head_count~ : Int, rope_dimension~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, original_positions~ : Int, compressed_theta~ : Double, scaling_factor~ : Double, beta_fast~ : Double, beta_slow~ : Double, function_symbol~ : String) -> DecoderScaledRopeCudaSource raise DecoderScaledRopeCudaSourceError
+
+// Errors
+pub(all) suberror DecoderScaledRopeCudaSourceError {
+  InvalidHeadCount
+  InvalidHeadDimension
+  InvalidRopeDimension
+  InvalidMaximumRows
+  InvalidMaximumPositions
+  InvalidOriginalPositions
+  InvalidTheta
+  InvalidScaling
+  InvalidBeta
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DecoderInverseRopeCudaSource {
+  // private fields
+}
+pub fn DecoderInverseRopeCudaSource::function_symbol(Self) -> String
+pub fn DecoderInverseRopeCudaSource::head_count(Self) -> Int
+pub fn DecoderInverseRopeCudaSource::head_dimension(Self) -> Int
+pub fn DecoderInverseRopeCudaSource::maximum_positions(Self) -> Int
+pub fn DecoderInverseRopeCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderInverseRopeCudaSource::numerical_contract(Self) -> DecoderScaledRopeNumericalContract
+pub fn DecoderInverseRopeCudaSource::rope_dimension(Self) -> Int
+pub fn DecoderInverseRopeCudaSource::source_bytes(Self) -> Bytes
+
+pub struct DecoderScaledRopeCudaSource {
+  // private fields
+}
+pub fn DecoderScaledRopeCudaSource::function_symbol(Self) -> String
+pub fn DecoderScaledRopeCudaSource::key_value_head_count(Self) -> Int
+pub fn DecoderScaledRopeCudaSource::maximum_positions(Self) -> Int
+pub fn DecoderScaledRopeCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderScaledRopeCudaSource::numerical_contract(Self) -> DecoderScaledRopeNumericalContract
+pub fn DecoderScaledRopeCudaSource::query_head_count(Self) -> Int
+pub fn DecoderScaledRopeCudaSource::rope_dimension(Self) -> Int
+pub fn DecoderScaledRopeCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum DecoderScaledRopeNumericalContract {
+  AdjacentPairF32YarnBf16RoundV1
+  AdjacentPairInverseF32YarnBf16RoundV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

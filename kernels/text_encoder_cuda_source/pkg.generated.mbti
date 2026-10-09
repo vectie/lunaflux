@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/text_encoder_cuda_source"
+
+// Values
+pub fn attention_source(rows~ : Int, query_heads~ : Int, kv_heads~ : Int, dimension~ : Int, epsilon~ : Double, prefix~ : String) -> Bytes raise TextEncoderSourceError
+
+pub fn norm_source(rows~ : Int, width~ : Int, epsilon~ : Double, symbol~ : String) -> Bytes raise TextEncoderSourceError
+
+pub fn visual_scatter_source(rows~ : Int, width~ : Int, prefix~ : String) -> Bytes raise TextEncoderSourceError
+
+// Errors
+pub(all) suberror TextEncoderSourceError {
+  InvalidShape
+  InvalidSymbol
+  InvalidEpsilon
+} derive(Eq)
+
+// Types and methods
+
+// Type aliases
+
+// Traits

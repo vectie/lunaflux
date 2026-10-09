@@ -85,6 +85,7 @@ typedef struct lf_cuda_api {
   CUresult (*cuEventCreate)(CUevent *, uint32_t);
   CUresult (*cuEventDestroy)(CUevent);
   CUresult (*cuEventRecord)(CUevent, CUstream);
+  CUresult (*cuStreamWaitEvent)(CUstream, CUevent, uint32_t);
   CUresult (*cuEventQuery)(CUevent);
   CUresult (*cuEventSynchronize)(CUevent);
   CUresult (*cuEventElapsedTime)(float *, CUevent, CUevent);

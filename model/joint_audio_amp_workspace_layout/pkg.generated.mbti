@@ -1,0 +1,92 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/joint_audio_amp_workspace_layout"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn amp_workspace_layout(element_count~ : Int64, intermediate_element_count~ : Int64, normalized_weight_element_count~ : Int64) -> JointAudioAmpWorkspaceLayout raise JointAudioAmpWorkspaceLayoutError
+
+pub fn first_stage_amp_workspace_layout(element_count~ : Int64, intermediate_element_count~ : Int64, normalized_weight_element_count~ : Int64) -> JointAudioAmpWorkspaceLayout raise JointAudioAmpWorkspaceLayoutError
+
+pub fn validate_amp_execution_stages(ArrayView[JointAudioAmpExecutionStage]) -> Unit raise JointAudioAmpWorkspaceLayoutError
+
+pub fn validate_first_stage_amp_execution_stages(ArrayView[JointAudioAmpExecutionStage]) -> Unit raise JointAudioAmpWorkspaceLayoutError
+
+// Errors
+pub(all) suberror JointAudioAmpWorkspaceLayoutError {
+  InvalidGeometry
+  InvalidStageCount
+  InvalidStageOrder(Int)
+  InvalidRegionCount
+  InvalidRegion(Int)
+  OverlappingLiveRegions(Int, Int)
+  SizeOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum JointAudioAmpActivationPhase {
+  Upsample
+  SnakeBeta
+  Downsample
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointAudioAmpConvolutionPhase {
+  Normalize
+  Convolve
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointAudioAmpExecutionStage {
+  Activation(Int, Int, JointAudioAmpActivationPhase)
+  Convolution(Int, Int, Int, JointAudioAmpConvolutionPhase)
+  Residual(Int, Int)
+  ParallelAverage
+} derive(Eq, @debug.Debug)
+
+pub(all) enum JointAudioAmpStorageClass {
+  ExternalInput
+  Workspace
+  ExternalOutput
+} derive(Eq, @debug.Debug)
+
+pub struct JointAudioAmpWorkspaceLayout {
+  // private fields
+}
+pub fn JointAudioAmpWorkspaceLayout::digest(Self) -> JointAudioAmpWorkspaceLayoutDigest
+pub fn JointAudioAmpWorkspaceLayout::regions(Self) -> ReadOnlyArray[JointAudioAmpWorkspaceRegion]
+pub fn JointAudioAmpWorkspaceLayout::stages(Self) -> ReadOnlyArray[JointAudioAmpExecutionStage]
+pub fn JointAudioAmpWorkspaceLayout::workspace_bytes(Self) -> Int64
+
+pub struct JointAudioAmpWorkspaceLayoutDigest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn JointAudioAmpWorkspaceLayoutDigest::as_hex(Self) -> String
+
+pub struct JointAudioAmpWorkspaceRegion {
+  // private fields
+}
+pub fn JointAudioAmpWorkspaceRegion::byte_count(Self) -> Int64
+pub fn JointAudioAmpWorkspaceRegion::byte_offset(Self) -> Int64
+pub fn JointAudioAmpWorkspaceRegion::live_end(Self) -> Int
+pub fn JointAudioAmpWorkspaceRegion::live_start(Self) -> Int
+pub fn JointAudioAmpWorkspaceRegion::role(Self) -> JointAudioAmpWorkspaceRole
+pub fn JointAudioAmpWorkspaceRegion::storage_class(Self) -> JointAudioAmpStorageClass
+
+pub(all) enum JointAudioAmpWorkspaceRole {
+  OriginalUpsamplerOutput
+  PrecomputedBlock0Activation0
+  ActivationUpsampleWorkspace
+  ActivationValueWorkspace
+  ActivationOutputWorkspace
+  NormalizedWeightWorkspace
+  ConvolutionOutputWorkspace
+  ResidualPingWorkspace
+  ResidualPongWorkspace
+  ParallelBlockOutput(Int)
+  FinalOutput
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

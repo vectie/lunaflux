@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_token_hash_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn token_hash_lookup_i32_source(vocabulary_size~ : Int, experts_per_token~ : Int, routed_expert_count~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderTokenHashCudaSource raise DecoderTokenHashCudaSourceError
+
+// Errors
+pub(all) suberror DecoderTokenHashCudaSourceError {
+  InvalidVocabularySize
+  InvalidExpertsPerToken
+  InvalidRoutedExpertCount
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecoderTokenHashCudaOperation {
+  TokenHashLookupI32
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderTokenHashCudaSource {
+  // private fields
+}
+pub fn DecoderTokenHashCudaSource::experts_per_token(Self) -> Int
+pub fn DecoderTokenHashCudaSource::function_symbol(Self) -> String
+pub fn DecoderTokenHashCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderTokenHashCudaSource::numerical_contract(Self) -> DecoderTokenHashNumericalContract
+pub fn DecoderTokenHashCudaSource::operation(Self) -> DecoderTokenHashCudaOperation
+pub fn DecoderTokenHashCudaSource::routed_expert_count(Self) -> Int
+pub fn DecoderTokenHashCudaSource::source_bytes(Self) -> Bytes
+pub fn DecoderTokenHashCudaSource::vocabulary_size(Self) -> Int
+
+pub(all) enum DecoderTokenHashNumericalContract {
+  BitExactInt32LookupV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

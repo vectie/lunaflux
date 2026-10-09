@@ -84,6 +84,12 @@ extern "c" fn raw_communicator_poll_collective_state(
 
 ///|
 #borrow(communicator)
+extern "c" fn raw_communicator_poll_submitted(
+  communicator : NcclCommunicator,
+) -> Int = "lunaflux_nccl_communicator_poll_submitted"
+
+///|
+#borrow(communicator)
 extern "c" fn raw_communicator_invalidate(
   communicator : NcclCommunicator,
   generation : UInt64,

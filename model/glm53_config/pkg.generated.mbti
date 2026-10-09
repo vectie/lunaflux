@@ -1,0 +1,56 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm53_config"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn parse_glm53_config(StringView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> Glm53ConfigAdmission raise Glm53ConfigError
+
+pub fn parse_glm53_config_bytes(Bytes, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> Glm53ConfigAdmission raise Glm53ConfigError
+
+// Errors
+pub(all) suberror Glm53ConfigError {
+  InvalidByteLimit
+  InvalidDepthLimit
+  ByteLimitExceeded(limit~ : Int)
+  InvalidUtf8
+  MalformedJson
+  NonObjectRoot
+  NestingLimitExceeded(limit~ : Int)
+  DuplicateField(depth~ : Int, index~ : Int)
+  UnknownField(component~ : Glm53ConfigField, index~ : Int)
+  ExecutableMetadata
+  MissingField(Glm53ConfigField)
+  InvalidValue(Glm53ConfigField)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum Glm53ConfigAdmission {
+  Full(@glm53_spec.Glm53FullMetadata)
+  Flash(@glm53_spec.Glm53FlashMetadata)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Glm53ConfigField {
+  Profile
+  Architecture
+  ModelType
+  DecoderShape
+  SparseAttention
+  LayerSchedule
+  ExpertRouting
+  MultiTokenPrediction
+  HyperConnection
+  LinearAttention
+  Vision
+  ControlTokens
+  NumericFormat
+  InertMetadata
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

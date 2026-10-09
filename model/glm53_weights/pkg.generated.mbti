@@ -1,0 +1,179 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm53_weights"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/indexed_parameter_bank_layout",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn bind_observed_tensor_manifest(Glm53TensorManifest, ArrayView[Glm53ObservedTensor]) -> Glm53WeightBinding raise Glm53WeightsError
+
+pub fn bind_safetensors_manifest(Glm53TensorManifest, @safetensors.SafetensorsMetadata) -> Glm53WeightBinding raise Glm53WeightsError
+
+pub fn build_flash_tensor_manifest(@glm53_spec.Glm53FlashMetadata, Glm53WeightEncoding) -> Glm53TensorManifest raise Glm53WeightsError
+
+pub fn build_full_tensor_manifest(@glm53_spec.Glm53FullMetadata, Glm53WeightEncoding) -> Glm53TensorManifest raise Glm53WeightsError
+
+pub fn build_moe_expert_bank_layout(Glm53TensorManifest, layer_index~ : Int) -> Glm53MoeExpertBankLayout raise Glm53ExpertBankLayoutError
+
+pub fn flash_schema(@glm53_spec.Glm53FlashMetadata, Glm53WeightEncoding) -> Glm53WeightSchema
+
+pub fn full_schema(@glm53_spec.Glm53FullMetadata, Glm53WeightEncoding) -> Glm53WeightSchema
+
+// Errors
+pub(all) suberror Glm53ExpertBankLayoutError {
+  UnsupportedExpertBankEncoding
+  MissingExpertTensor(String)
+  ExpertTensorMismatch(String)
+  ExpertBankSizeOverflow
+  IndexedLayout(@indexed_parameter_bank_layout.IndexedParameterBankLayoutError)
+} derive(Eq, @debug.Debug)
+
+pub(all) suberror Glm53WeightsError {
+  InvalidLayerIndex
+  TensorRoleNotPresent(Glm53TextTensorRole)
+  UnsupportedPhysicalEncoding(Glm53WeightEncoding)
+  UnsupportedSafetensorsDType(ordinal~ : Int)
+  TensorCountMismatch(expected~ : Int, actual~ : Int)
+  DuplicateTensor(ordinal~ : Int)
+  TensorNameMismatch(ordinal~ : Int)
+  TensorDTypeMismatch(ordinal~ : Int)
+  TensorShapeMismatch(ordinal~ : Int)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum Glm53GlobalTensorRole {
+  TokenEmbedding
+  FinalNorm
+  LanguageModelHead
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53MoeExpertBankLayout {
+  // private fields
+}
+pub fn Glm53MoeExpertBankLayout::digest(Self) -> Glm53MoeExpertBankLayoutDigest
+pub fn Glm53MoeExpertBankLayout::execution_identity(Self) -> @spec.ModelIdentity
+pub fn Glm53MoeExpertBankLayout::hidden_width(Self) -> Int
+pub fn Glm53MoeExpertBankLayout::intermediate_width(Self) -> Int
+pub fn Glm53MoeExpertBankLayout::layer_index(Self) -> Int
+pub fn Glm53MoeExpertBankLayout::manifest_layout_digest(Self) -> @spec.PlanDigest
+pub fn Glm53MoeExpertBankLayout::materialization_authority(Self) -> Bool
+pub fn Glm53MoeExpertBankLayout::routed_down(Self) -> @indexed_parameter_bank_layout.IndexedParameterBankLayout
+pub fn Glm53MoeExpertBankLayout::routed_expert_count(Self) -> Int
+pub fn Glm53MoeExpertBankLayout::routed_gate(Self) -> @indexed_parameter_bank_layout.IndexedParameterBankLayout
+pub fn Glm53MoeExpertBankLayout::routed_up(Self) -> @indexed_parameter_bank_layout.IndexedParameterBankLayout
+pub fn Glm53MoeExpertBankLayout::shared_down(Self) -> @indexed_parameter_bank_layout.IndexedParameterBankLayout
+pub fn Glm53MoeExpertBankLayout::shared_gate(Self) -> @indexed_parameter_bank_layout.IndexedParameterBankLayout
+pub fn Glm53MoeExpertBankLayout::shared_up(Self) -> @indexed_parameter_bank_layout.IndexedParameterBankLayout
+
+pub struct Glm53MoeExpertBankLayoutDigest(String) derive(Eq, Hash, @debug.Debug)
+pub fn Glm53MoeExpertBankLayoutDigest::as_hex(Self) -> String
+
+pub struct Glm53ObservedTensor {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53ObservedTensor::new(name~ : String, dtype~ : Glm53TensorDType, shape~ : ArrayView[Int64]) -> Self
+
+pub(all) enum Glm53TensorDType {
+  BFloat16
+  Float32
+  Fp8E4M3
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53TensorDescriptor {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53TensorDescriptor::dtype(Self) -> Glm53TensorDType
+pub fn Glm53TensorDescriptor::name(Self) -> String
+pub fn Glm53TensorDescriptor::ordinal(Self) -> Int
+pub fn Glm53TensorDescriptor::shape(Self) -> ReadOnlyArray[Int64]
+
+pub struct Glm53TensorManifest {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53TensorManifest::control_token_ids(Self) -> ReadOnlyArray[Int]
+pub fn Glm53TensorManifest::encoding(Self) -> Glm53WeightEncoding
+pub fn Glm53TensorManifest::execution_identity(Self) -> @spec.ModelIdentity
+pub fn Glm53TensorManifest::layout_digest(Self) -> @spec.PlanDigest
+pub fn Glm53TensorManifest::profile(Self) -> @glm53_spec.Glm53ProfileId
+pub fn Glm53TensorManifest::tensor(Self, Int) -> Glm53TensorDescriptor?
+pub fn Glm53TensorManifest::tensor_count(Self) -> Int
+
+pub(all) enum Glm53TextTensorRole {
+  InputNorm
+  PostAttentionNorm
+  DenseGate
+  DenseUp
+  DenseDown
+  MoeRouter
+  MoeCorrectionBias
+  RoutedGateUp
+  RoutedDown
+  SharedGate
+  SharedUp
+  SharedDown
+  QueryA
+  QueryANorm
+  QueryB
+  KeyValueA
+  KeyValueANorm
+  KeyValueB
+  AttentionOutput
+  IndexQuery
+  IndexKey
+  IndexKeyNorm
+  IndexKeyNormBias
+  IndexWeights
+  IndexPoolPosition
+  IndexPoolGate
+  LinearQuery
+  LinearKey
+  LinearValue
+  LinearConvolution
+  LinearBeta
+  LinearGateA
+  LinearGateB
+  LinearOutputNorm
+  LinearOutput
+  LinearForgetA
+  LinearForgetB
+  LinearForgetBias
+  LinearForgetLogA
+  HyperAttentionFunction
+  HyperAttentionBase
+  HyperAttentionScale
+  HyperFfnFunction
+  HyperFfnBase
+  HyperFfnScale
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53WeightBinding {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53WeightBinding::execution_identity(Self) -> @spec.ModelIdentity
+pub fn Glm53WeightBinding::layout_digest(Self) -> @spec.PlanDigest
+pub fn Glm53WeightBinding::tensor_count(Self) -> Int
+
+pub(all) enum Glm53WeightEncoding {
+  BFloat16WithFloat32Routing
+  Fp8E4M3Block128Dynamic
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53WeightSchema {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53WeightSchema::content_digest(Self) -> @spec.ContentDigest
+pub fn Glm53WeightSchema::encoding(Self) -> Glm53WeightEncoding
+pub fn Glm53WeightSchema::fp8_block_columns(Self) -> Int?
+pub fn Glm53WeightSchema::fp8_block_rows(Self) -> Int?
+pub fn Glm53WeightSchema::global_shape(Self, Glm53GlobalTensorRole) -> ReadOnlyArray[Int64]
+pub fn Glm53WeightSchema::profile(Self) -> @glm53_spec.Glm53ProfileId
+pub fn Glm53WeightSchema::text_layer_shape(Self, Int, Glm53TextTensorRole) -> ReadOnlyArray[Int64] raise Glm53WeightsError
+
+// Type aliases
+
+// Traits

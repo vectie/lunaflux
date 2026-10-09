@@ -155,6 +155,45 @@ test "execution precision is bound independently per operation" {
 }
 
 ///|
+test "BF16 activation may promote to F32 and round once back to BF16" {
+  let promoted = @numeric_contract.OperationExecutionContract::new(
+    activation_input=@numeric_contract.ComputeDType::bfloat16(),
+    activation_compute=@numeric_contract.ComputeDType::f32(),
+    activation_scale=@numeric_contract.ActivationScalePolicy::absent_exact_v1(),
+    tensor_input=@numeric_contract.ComputeDType::absent(),
+    accumulator=@numeric_contract.AccumulatorDType::f32(),
+    output=@numeric_contract.ComputeDType::bfloat16(),
+    conversion=@numeric_contract.NumericConversion::exact_v1(),
+    order=@numeric_contract.OperationOrderPolicy::strict_declared_order_v1(),
+  )
+  assert_eq(
+    promoted.activation_compute(),
+    @numeric_contract.ComputeDType::f32(),
+  )
+  assert_eq(promoted.output(), @numeric_contract.ComputeDType::bfloat16())
+}
+
+///|
+test "BF16 activation and F32 tensors may produce exact F32 output" {
+  let mixed = @numeric_contract.OperationExecutionContract::new(
+    activation_input=@numeric_contract.ComputeDType::bfloat16(),
+    activation_compute=@numeric_contract.ComputeDType::f32(),
+    activation_scale=@numeric_contract.ActivationScalePolicy::absent_exact_v1(),
+    tensor_input=@numeric_contract.ComputeDType::f32(),
+    accumulator=@numeric_contract.AccumulatorDType::f32(),
+    output=@numeric_contract.ComputeDType::f32(),
+    conversion=@numeric_contract.NumericConversion::exact_v1(),
+    order=@numeric_contract.OperationOrderPolicy::strict_declared_order_v1(),
+  )
+  assert_eq(
+    mixed.activation_input(),
+    @numeric_contract.ComputeDType::bfloat16(),
+  )
+  assert_eq(mixed.tensor_input(), @numeric_contract.ComputeDType::f32())
+  assert_eq(mixed.output(), @numeric_contract.ComputeDType::f32())
+}
+
+///|
 test "compound gated policy owns two exact ordered stages" {
   let simple = @numeric_contract.ActivationScalePolicy::dynamic_per_tensor_f32_v1()
   let gated = @numeric_contract.ActivationScalePolicy::gated_mlp_external_and_post_silu_f32_v1()

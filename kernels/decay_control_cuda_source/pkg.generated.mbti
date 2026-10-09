@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decay_control_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn safe_lower_bound_sigmoid_decay_f32_source(head_count~ : Int, head_dimension~ : Int, lower_bound~ : Double, maximum_rows~ : Int, function_symbol~ : String) -> DecayControlCudaSource raise DecayControlCudaSourceError
+
+// Errors
+pub(all) suberror DecayControlCudaSourceError {
+  InvalidHeadCount
+  InvalidHeadDimension
+  InvalidLowerBound
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecayControlCudaOperation {
+  SafeLowerBoundSigmoidDecayF32
+} derive(Eq, @debug.Debug)
+
+pub struct DecayControlCudaSource {
+  // private fields
+}
+pub fn DecayControlCudaSource::function_symbol(Self) -> String
+pub fn DecayControlCudaSource::head_count(Self) -> Int
+pub fn DecayControlCudaSource::head_dimension(Self) -> Int
+pub fn DecayControlCudaSource::lower_bound(Self) -> Double
+pub fn DecayControlCudaSource::maximum_rows(Self) -> Int
+pub fn DecayControlCudaSource::numerical_contract(Self) -> DecayControlNumericalContract
+pub fn DecayControlCudaSource::operation(Self) -> DecayControlCudaOperation
+pub fn DecayControlCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum DecayControlNumericalContract {
+  Bf16LogitF32BiasExpRateOrderedSigmoidF32OutputV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

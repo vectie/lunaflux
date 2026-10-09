@@ -1,0 +1,62 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/affine_modulation_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn bf16_shift_scale_f32_fixed_rows_source(rows~ : Int64, width~ : Int, function_symbol~ : String) -> AffineModulationCudaSource raise AffineModulationCudaSourceError
+
+pub fn f32_channel_major_destandardization_source(batch_count~ : Int, channels~ : Int, elements_per_channel~ : Int64, function_symbol~ : String) -> AffineModulationCudaSource raise AffineModulationCudaSourceError
+
+pub fn f32_silu_to_bf16_source(elements~ : Int64, function_symbol~ : String) -> Bytes raise AffineModulationCudaSourceError
+
+pub fn final_adaln_parameter_row_source(input_width~ : Int, hidden_size~ : Int, function_symbol~ : String) -> AffineModulationCudaSource raise AffineModulationCudaSourceError
+
+pub fn final_adaln_parameter_rows_source(rows~ : Int, input_width~ : Int, hidden_size~ : Int, function_symbol~ : String) -> AffineModulationCudaSource raise AffineModulationCudaSourceError
+
+pub fn grouped_parameter_projection_source(rows~ : Int, input_width~ : Int, width~ : Int, groups~ : Int, fields~ : Int, function_symbol~ : String) -> Bytes raise AffineModulationCudaSourceError
+
+pub fn indexed_bf16_modulation_source(rows~ : Int, width~ : Int, parameter_rows~ : Int, function_prefix~ : String) -> Bytes raise AffineModulationCudaSourceError
+
+pub fn indexed_bf16_shift_scale_f32_source(rows~ : Int, width~ : Int, parameter_rows~ : Int, function_symbol~ : String) -> Bytes raise AffineModulationCudaSourceError
+
+pub fn packed_modality_adaln_gather_source(packed_rows~ : Int, video_rows~ : Int, audio_rows~ : Int, hidden_size~ : Int, function_symbol~ : String) -> AffineModulationCudaSource raise AffineModulationCudaSourceError
+
+// Errors
+pub(all) suberror AffineModulationCudaSourceError {
+  InvalidRowCount
+  InvalidWidth
+  DimensionOverflow
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum AffineModulationCudaOperation {
+  Bf16ShiftScaleToF32
+  FinalAdaLnParameterRow
+  PackedModalityAdaLnGather
+  F32ChannelMajorDestandardization
+} derive(Eq, @debug.Debug)
+
+pub struct AffineModulationCudaSource {
+  // private fields
+}
+pub fn AffineModulationCudaSource::function_symbol(Self) -> String
+pub fn AffineModulationCudaSource::numerical_contract(Self) -> AffineModulationNumericalContract
+pub fn AffineModulationCudaSource::operation(Self) -> AffineModulationCudaOperation
+pub fn AffineModulationCudaSource::row_count(Self) -> Int64
+pub fn AffineModulationCudaSource::source_bytes(Self) -> Bytes
+pub fn AffineModulationCudaSource::width(Self) -> Int
+
+pub(all) enum AffineModulationNumericalContract {
+  StagedBf16ShiftScaleF32OutputV1
+  SiluF32CastBf16OrderedDenseBf16OutputV1
+  BitExactBf16PackedModalityGatherV1
+  OrderedF32ChannelMajorMultiplyAddV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/decoder_selected_sparse_attention_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn shared_key_value_selected_attention_bf16_source(query_head_count~ : Int, head_dimension~ : Int, selected_width~ : Int, maximum_key_slots~ : Int, maximum_rows~ : Int, maximum_batches~ : Int, function_symbol~ : String) -> DecoderSelectedSparseAttentionCudaSource raise DecoderSelectedSparseAttentionCudaSourceError
+
+// Errors
+pub(all) suberror DecoderSelectedSparseAttentionCudaSourceError {
+  InvalidQueryHeadCount
+  InvalidHeadDimension
+  InvalidSelectedWidth
+  InvalidMaximumKeySlots
+  InvalidMaximumRows
+  InvalidMaximumBatches
+  InvalidFunctionSymbol
+  SizeOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum DecoderSelectedSparseAttentionCudaOperation {
+  SharedKeyValueSelectedAttentionBf16
+} derive(Eq, @debug.Debug)
+
+pub struct DecoderSelectedSparseAttentionCudaSource {
+  // private fields
+}
+pub fn DecoderSelectedSparseAttentionCudaSource::function_symbol(Self) -> String
+pub fn DecoderSelectedSparseAttentionCudaSource::head_dimension(Self) -> Int
+pub fn DecoderSelectedSparseAttentionCudaSource::maximum_batches(Self) -> Int
+pub fn DecoderSelectedSparseAttentionCudaSource::maximum_key_slots(Self) -> Int
+pub fn DecoderSelectedSparseAttentionCudaSource::maximum_rows(Self) -> Int
+pub fn DecoderSelectedSparseAttentionCudaSource::numerical_contract(Self) -> DecoderSelectedSparseAttentionNumericalContract
+pub fn DecoderSelectedSparseAttentionCudaSource::operation(Self) -> DecoderSelectedSparseAttentionCudaOperation
+pub fn DecoderSelectedSparseAttentionCudaSource::query_head_count(Self) -> Int
+pub fn DecoderSelectedSparseAttentionCudaSource::selected_width(Self) -> Int
+pub fn DecoderSelectedSparseAttentionCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum DecoderSelectedSparseAttentionNumericalContract {
+  SerialOrderedF32SinkDenominatorBf16OutputV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

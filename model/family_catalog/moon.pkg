@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/model/deepseek_v4",
+  "vectie/lunaflux/model/family_contract",
+  "vectie/lunaflux/model/glm53",
+  "vectie/lunaflux/model/minimax_h3",
+}
+
+import {
+  "vectie/lunaflux/model/family_contract",
+} for "test"
+
+supported_targets = "native"

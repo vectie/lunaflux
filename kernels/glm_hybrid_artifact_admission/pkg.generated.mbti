@@ -1,0 +1,216 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/glm_hybrid_artifact_admission"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/launch_contract",
+  "vectie/lunaflux/model/glm_hybrid_kernel_requirements",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn admit(@glm_hybrid_kernel_requirements.GlmHybridKernelRequirements, @catalog.DeviceTarget, ArrayView[GlmHybridArtifactClaimInput], GlmHybridArtifactAdmissionLimits) -> GlmHybridArtifactAdmission raise GlmHybridArtifactAdmissionError
+
+// Errors
+pub(all) suberror GlmHybridArtifactAdmissionError {
+  InvalidLimit
+  InvalidDeclaredQualificationDigest
+  ClaimCountMismatch(expected~ : Int, actual~ : Int)
+  MissingClaim(ordinal~ : Int)
+  DuplicateClaim(ordinal~ : Int)
+  DuplicateEntryPoint(ordinal~ : Int)
+  SourceDigestMismatch(ordinal~ : Int)
+  SourceIdentityMismatch(ordinal~ : Int)
+  TargetMismatch(ordinal~ : Int)
+  CapabilityMismatch(ordinal~ : Int)
+  GeometryMismatch(ordinal~ : Int)
+  ArtifactDigestMismatch(ordinal~ : Int)
+  EntryPointModuleMismatch(ordinal~ : Int)
+  InvalidLaunch(ordinal~ : Int)
+  InvalidFunctionSymbol(ordinal~ : Int)
+  InvalidLaunchOperands(ordinal~ : Int)
+  AdmissionEncodingTooLarge
+  NoExecutionAuthority
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct GlmHybridAdmittedArtifact {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridAdmittedArtifact::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
+pub fn GlmHybridAdmittedArtifact::declared_qualification(Self) -> GlmHybridDeclaredQualificationDigest?
+pub fn GlmHybridAdmittedArtifact::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn GlmHybridAdmittedArtifact::function_symbol(Self) -> String
+pub fn GlmHybridAdmittedArtifact::launch(Self) -> @launch_contract.AotLaunchDimensions
+pub fn GlmHybridAdmittedArtifact::module_byte_length(Self) -> Int
+pub fn GlmHybridAdmittedArtifact::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn GlmHybridAdmittedArtifact::operands(Self) -> ReadOnlyArray[GlmHybridLaunchOperand]
+pub fn GlmHybridAdmittedArtifact::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
+pub fn GlmHybridAdmittedArtifact::ordinal(Self) -> Int
+
+pub struct GlmHybridArtifactAdmission {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridArtifactAdmission::artifacts(Self) -> ReadOnlyArray[GlmHybridAdmittedArtifact]
+pub fn GlmHybridArtifactAdmission::digest(Self) -> GlmHybridArtifactAdmissionDigest
+pub fn GlmHybridArtifactAdmission::require_execution_authority(Self) -> Unit raise GlmHybridArtifactAdmissionError
+pub fn GlmHybridArtifactAdmission::source_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
+pub fn GlmHybridArtifactAdmission::source_identity(Self) -> @spec.ModelIdentity
+pub fn GlmHybridArtifactAdmission::status(Self) -> GlmHybridArtifactAdmissionStatus
+pub fn GlmHybridArtifactAdmission::target(Self) -> @catalog.DeviceTarget
+
+pub struct GlmHybridArtifactAdmissionDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn GlmHybridArtifactAdmissionDigest::as_hex(Self) -> String
+
+pub struct GlmHybridArtifactAdmissionLimits {
+  // private fields
+}
+pub fn GlmHybridArtifactAdmissionLimits::new(maximum_claims~ : Int, maximum_module_bytes~ : Int, maximum_total_module_bytes~ : Int64, maximum_canonical_bytes~ : Int) -> Self raise GlmHybridArtifactAdmissionError
+
+pub(all) enum GlmHybridArtifactAdmissionStatus {
+  NonRunnableUnqualified
+  NonRunnableWithDeclaredQualificationDigests
+} derive(Eq, @debug.Debug)
+
+pub struct GlmHybridArtifactClaimInput {
+  // private fields
+}
+pub fn GlmHybridArtifactClaimInput::new(ordinal~ : Int, source_digest~ : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest, source_identity~ : @spec.ModelIdentity, target~ : @catalog.DeviceTarget, operation~ : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation, capability~ : @glm_hybrid_kernel_requirements.GlmHybridAotCapability, module_digest~ : @catalog.AotArtifactDigest, module_bytes~ : Bytes, entry_point~ : @catalog.AotKernelEntryPoint, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[GlmHybridLaunchOperand], declared_qualification? : GlmHybridDeclaredQualificationDigest) -> Self
+
+pub struct GlmHybridDeclaredQualificationDigest {
+  // private fields
+} derive(Eq, Hash, @debug.Debug)
+pub fn GlmHybridDeclaredQualificationDigest::as_hex(Self) -> String
+pub fn GlmHybridDeclaredQualificationDigest::from_sha256(String) -> Self raise GlmHybridArtifactAdmissionError
+
+pub struct GlmHybridLaunchOperand {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn GlmHybridLaunchOperand::alignment(Self) -> Int64
+pub fn GlmHybridLaunchOperand::byte_count(Self) -> Int64
+pub fn GlmHybridLaunchOperand::new(role~ : GlmHybridLaunchOperandRole, byte_count~ : Int64, alignment~ : Int64) -> Self raise GlmHybridArtifactAdmissionError
+pub fn GlmHybridLaunchOperand::role(Self) -> GlmHybridLaunchOperandRole
+
+pub(all) enum GlmHybridLaunchOperandRole {
+  StepCountsInput
+  TokenIdsInput
+  HiddenInput
+  ModelWeights
+  HiddenOutput
+  LogitsOutput
+  DsaIndexKeysInput
+  DsaIndexGateScoresInput
+  DsaIndexValidityInput
+  DsaPooledKeysOutput
+  DsaPooledRawIndicesOutput
+  DsaPooledValidityOutput
+  DsaPooledCountOutput
+  QueryPositionsInput
+  DsaIndexQueriesInput
+  DsaIndexHeadWeightsInput
+  DsaCandidateKeysInput
+  DsaCandidateRawIndicesInput
+  DsaCandidateValidityInput
+  DsaCandidateCountInput
+  DsaKeyValidityInput
+  DsaSelectedIndicesInput
+  DsaSelectedIndicesOutput
+  DsaKeyCountInput
+  DsaAttentionQueriesInput
+  DsaAttentionKeysInput
+  DsaAttentionValuesInput
+  DsaAttentionOutput
+  DsaQueryCompressedOutput
+  DsaKeyValueCompressedRopeOutput
+  DsaQueryCompressedInput
+  DsaQueryNormalizedOutput
+  DsaQueryHeadsOutput
+  DsaQueryNormalizedInput
+  DsaKeyValueNormalizedInput
+  DsaKeyValueHeadsOutput
+  DsaKeyValueCompressedRopeInput
+  DsaKeyValueNormalizedOutput
+  DsaKeyRopeSuffixOutput
+  DsaAttentionKeyRopeInput
+  DenseGateWeights
+  DenseUpWeights
+  DenseDownWeights
+  KdaSequenceOffsetsInput
+  KdaProjectedInput
+  KdaShortConvolutionWeights
+  KdaConvolutionInitialStateInput
+  KdaConvolvedOutput
+  KdaConvolutionFinalStateOutput
+  KdaRecurrentQueryInput
+  KdaRecurrentKeyInput
+  KdaRecurrentValueInput
+  KdaLogDecayInput
+  KdaInputGateInput
+  KdaRecurrentInitialStateInput
+  KdaRecurrentOutput
+  KdaRecurrentFinalStateOutput
+  KdaQueryProjectionWeights
+  KdaKeyProjectionWeights
+  KdaValueProjectionWeights
+  KdaForgetLowRankWeights
+  KdaForgetExpansionWeights
+  KdaInputGateWeights
+  KdaProjectedQueryOutput
+  KdaProjectedKeyOutput
+  KdaProjectedValueOutput
+  KdaForgetLowRankOutput
+  KdaRawForgetOutput
+  KdaBetaOutput
+  KdaOutputGateLowRankWeights
+  KdaOutputGateExpansionWeights
+  KdaOutputGateLowRankOutput
+  KdaOutputGateOutput
+  KdaGatedNormRecurrentInput
+  KdaGatedNormGateInput
+  KdaGatedNormWeights
+  KdaGatedNormOutput
+  KdaOutputProjectionInput
+  KdaOutputProjectionWeights
+  KdaOutputProjectionOutput
+  KdaDecayRawForgetInput
+  KdaDecayBiasInput
+  KdaDecayLogRateInput
+  KdaDecayOutput
+  MoeRouterFloat32Input
+  MoeRouterBf16Weights
+  MoeRouterFloat32LogitsOutput
+  MoeCorrectionBiasInput
+  MoeUncorrectedScoresOutput
+  MoeChoiceScoresOutput
+  MoeSelectedIndicesOutput
+  MoeSelectedWeightsOutput
+  MoeFeedForwardInput
+  MoeExpertGateWeights
+  MoeExpertUpWeights
+  MoeExpertDownWeights
+  MoeRoutedOutput
+  MoeSharedGateWeights
+  MoeSharedUpWeights
+  MoeSharedDownWeights
+  MoeSharedOutput
+  MoeCombinedOutput
+  DecoderResidualInput
+  DecoderResidualOutput
+  HyperPostControlInput
+  HyperCombineControlInput
+  HyperResidualStreamsInput
+  HyperSublayerOutputInput
+  HyperMixedStreamsOutput
+  HyperFunctionWeightsInput
+  HyperBaseInput
+  HyperScaleInput
+  HyperInitialCombinationOutput
+  HyperCollapsedOutput
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

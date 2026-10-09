@@ -1,0 +1,20 @@
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/glm53_numeric_plan",
+  "vectie/lunaflux/model/glm53_weights",
+  "vectie/lunaflux/model/numeric_contract",
+  "vectie/lunaflux/model/segmented_host_borrow",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "vectie/lunaflux/model/glm53_spec",
+} for "wbtest"

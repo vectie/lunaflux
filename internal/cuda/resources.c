@@ -246,8 +246,7 @@ static void lf_finalize_event(void *object) {
   if (lf_close_event((lf_child *)object) != LF_OK) lf_finalize_failure();
 }
 
-MOONBIT_FFI_EXPORT
-lf_child *lunaflux_cuda_event_create(lf_context *context, int32_t *status) {
+static lf_child *lf_create_event(lf_context *context, uint32_t flags, int32_t *status) {
   lf_child *event = (lf_child *)moonbit_make_external_object(
     lf_finalize_event,
     sizeof(lf_child)
@@ -266,7 +265,7 @@ lf_child *lunaflux_cuda_event_create(lf_context *context, int32_t *status) {
     return event;
   }
   CUevent handle = NULL;
-  *status = lf_cuda_map_result(context->api->cuEventCreate(&handle, 0));
+  *status = lf_cuda_map_result(context->api->cuEventCreate(&handle, flags));
   if (*status != LF_OK) {
     lf_operation_end(&context->active_operations);
     return event;
@@ -278,6 +277,16 @@ lf_child *lunaflux_cuda_event_create(lf_context *context, int32_t *status) {
   atomic_store(&event->state, LF_RESOURCE_LIVE);
   lf_operation_end(&context->active_operations);
   return event;
+}
+
+MOONBIT_FFI_EXPORT
+lf_child *lunaflux_cuda_event_create(lf_context *context, int32_t *status) {
+  return lf_create_event(context, 0, status);
+}
+
+MOONBIT_FFI_EXPORT
+lf_child *lunaflux_cuda_dependency_event_create(lf_context *context, int32_t *status) {
+  return lf_create_event(context, 2U /* CU_EVENT_DISABLE_TIMING */, status);
 }
 
 MOONBIT_FFI_EXPORT
@@ -306,6 +315,24 @@ int32_t lunaflux_cuda_event_record(lf_child *event, lf_child *stream) {
   if (stream_acquired != 0) {
     lf_operation_end(&stream->active_operations);
   }
+  lf_operation_end(&event->active_operations);
+  return result;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_cuda_stream_wait_event(lf_child *stream, lf_child *event) {
+  if (event == NULL || stream == NULL) return LF_CLOSED;
+  int32_t result = lf_operation_begin(&event->state, &event->active_operations);
+  if (result != LF_OK) return result;
+  int32_t acquired = lf_operation_begin(&stream->state, &stream->active_operations);
+  result = acquired;
+  if (result == LF_OK && event->context != stream->context) result = LF_INVALID_ARGUMENT;
+  if (result == LF_OK && event->context->api->cuStreamWaitEvent == NULL) result = LF_UNSUPPORTED;
+  if (result == LF_OK) result = lf_context_current(event->context);
+  if (result == LF_OK) result = lf_cuda_map_result(event->context->api->cuStreamWaitEvent(
+    (CUstream)stream->handle, (CUevent)event->handle, 0
+  ));
+  if (acquired == LF_OK) lf_operation_end(&stream->active_operations);
   lf_operation_end(&event->active_operations);
   return result;
 }

@@ -138,6 +138,8 @@ pub fn OperationExecutionContract::new(
     (
       activation_scale == ActivationScalePolicy::dynamic_per_tensor_f32_v1() ||
       activation_scale ==
+      ActivationScalePolicy::dynamic_per_row_block128_ue8m0_v1() ||
+      activation_scale ==
       ActivationScalePolicy::gated_mlp_external_and_post_silu_f32_v1() ||
       activation_scale ==
       ActivationScalePolicy::gated_mlp_external_and_post_silu_bound_expf_f32_v2()
@@ -146,6 +148,23 @@ pub fn OperationExecutionContract::new(
     tensor_input == ComputeDType::f8_e4m3_finite() &&
     accumulator == AccumulatorDType::f32() &&
     output == ComputeDType::bfloat16()
+  let promoted_f32_activation = activation_input == ComputeDType::bfloat16() &&
+    activation_compute == ComputeDType::f32() &&
+    activation_scale == ActivationScalePolicy::absent_exact_v1() &&
+    (
+      tensor_input == ComputeDType::absent() ||
+      tensor_input == ComputeDType::bfloat16()
+    ) &&
+    accumulator == AccumulatorDType::f32() &&
+    output == ComputeDType::bfloat16() &&
+    conversion == NumericConversion::exact_v1()
+  let mixed_bf16_f32_to_f32 = activation_input == ComputeDType::bfloat16() &&
+    activation_compute == ComputeDType::f32() &&
+    activation_scale == ActivationScalePolicy::absent_exact_v1() &&
+    tensor_input == ComputeDType::f32() &&
+    accumulator == AccumulatorDType::f32() &&
+    output == ComputeDType::f32() &&
+    conversion == NumericConversion::exact_v1()
   let activation_presence_matches = (activation_input == ComputeDType::absent()) ==
     (activation_compute == ComputeDType::absent())
   if !known_compute_dtype(activation_input) ||
@@ -156,7 +175,10 @@ pub fn OperationExecutionContract::new(
     !inputs_present ||
     !valid_accumulator ||
     !activation_presence_matches ||
-    !(exact_activation || finite_fp8_activation) ||
+    !(exact_activation ||
+    finite_fp8_activation ||
+    promoted_f32_activation ||
+    mixed_bf16_f32_to_f32) ||
     order != OperationOrderPolicy::strict_declared_order_v1() {
     raise InvalidNumericContract(ExecutionCombination)
   }

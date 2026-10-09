@@ -1,0 +1,70 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/deepseek_v4_output_b_parameter_plan"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/kernels/advanced_decoder_artifact_admission",
+  "vectie/lunaflux/kernels/advanced_decoder_cuda_aot",
+  "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/deepseek_v4_weights",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn output_b_layout_digest_sha256(@deepseek_v4_weights.DeepSeekV4OutputBQuantizedLayout) -> String
+
+pub fn plan_output_b_parameter(@deepseek_v4_spec.DeepSeekV4ModelMetadata, @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements, @advanced_decoder_cuda_aot.AdvancedDecoderOutputBProjectionCudaCandidate, DeepSeekV4OutputBParameterEvidenceInput) -> DeepSeekV4OutputBParameterPlan raise DeepSeekV4OutputBParameterPlanError
+
+// Errors
+pub(all) suberror DeepSeekV4OutputBParameterPlanError {
+  InvalidEvidence
+  ModelIdentityMismatch
+  RequirementsMismatch
+  UnsupportedOperation
+  CandidateMismatch
+  QuantizationContractMismatch
+  ShapeMismatch
+  LayoutDigestMismatch
+  OperandMismatch
+  NoInterpretationAuthority
+  NoMaterializationAuthority
+  NoUploadAuthority
+  NoCollectiveAuthority
+  NoLaunchAuthority
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct DeepSeekV4OutputBParameterEvidenceInput {
+  // private fields
+}
+pub fn DeepSeekV4OutputBParameterEvidenceInput::new(contract~ : @deepseek_v4_weights.DeepSeekV4OutputBQuantizationContract, weight_shape~ : ArrayView[Int64], scale_shape~ : ArrayView[Int64], layout_digest_sha256~ : String, weight_operand_ordinal~ : Int, weight_operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole, weight_operand_bytes~ : Int64, scale_operand_ordinal~ : Int, scale_operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole, scale_operand_bytes~ : Int64) -> Self raise DeepSeekV4OutputBParameterPlanError
+
+pub struct DeepSeekV4OutputBParameterPlan {
+  // private fields
+}
+pub fn DeepSeekV4OutputBParameterPlan::block_width(Self) -> Int
+pub fn DeepSeekV4OutputBParameterPlan::candidate_recipe_digest(Self) -> String
+pub fn DeepSeekV4OutputBParameterPlan::candidate_source_digest(Self) -> String
+pub fn DeepSeekV4OutputBParameterPlan::digest_sha256(Self) -> String
+pub fn DeepSeekV4OutputBParameterPlan::input_width(Self) -> Int
+pub fn DeepSeekV4OutputBParameterPlan::layout_digest_sha256(Self) -> String
+pub fn DeepSeekV4OutputBParameterPlan::output_width(Self) -> Int
+pub fn DeepSeekV4OutputBParameterPlan::require_collective_authority(Self) -> Unit raise DeepSeekV4OutputBParameterPlanError
+pub fn DeepSeekV4OutputBParameterPlan::require_interpretation_authority(Self) -> Unit raise DeepSeekV4OutputBParameterPlanError
+pub fn DeepSeekV4OutputBParameterPlan::require_launch_authority(Self) -> Unit raise DeepSeekV4OutputBParameterPlanError
+pub fn DeepSeekV4OutputBParameterPlan::require_materialization_authority(Self) -> Unit raise DeepSeekV4OutputBParameterPlanError
+pub fn DeepSeekV4OutputBParameterPlan::require_upload_authority(Self) -> Unit raise DeepSeekV4OutputBParameterPlanError
+pub fn DeepSeekV4OutputBParameterPlan::requirement_ordinal(Self) -> Int
+pub fn DeepSeekV4OutputBParameterPlan::scale_shape(Self) -> ReadOnlyArray[Int64]
+pub fn DeepSeekV4OutputBParameterPlan::source_identity(Self) -> @spec.ModelIdentity
+pub fn DeepSeekV4OutputBParameterPlan::status(Self) -> DeepSeekV4OutputBParameterPlanStatus
+pub fn DeepSeekV4OutputBParameterPlan::weight_shape(Self) -> ReadOnlyArray[Int64]
+
+pub(all) enum DeepSeekV4OutputBParameterPlanStatus {
+  InertUnqualified
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

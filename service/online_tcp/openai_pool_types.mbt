@@ -133,6 +133,7 @@ pub struct LunaOnlineOpenAIConnectionPool {
   priv mut ingress_slot : Int
   priv mut io_cursor : Int
   priv mut accept_turn : Bool
+  priv mut service_waiting : Bool
   priv mut next_request_sequence : UInt64
   priv mut drain_requested : Bool
   priv mut stream_disconnect_started : Bool

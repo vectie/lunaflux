@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/router_projection_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn f32_input_bf16_weight_projection_source(input_width~ : Int, output_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> RouterProjectionCudaSource raise RouterProjectionCudaSourceError
+
+// Errors
+pub(all) suberror RouterProjectionCudaSourceError {
+  InvalidInputWidth
+  InvalidOutputWidth
+  InvalidMaximumRows
+  InvalidFunctionSymbol
+  DimensionOverflow
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum RouterProjectionCudaOperation {
+  Float32InputBf16WeightFloat32OutputProjection
+} derive(Eq, @debug.Debug)
+
+pub struct RouterProjectionCudaSource {
+  // private fields
+}
+pub fn RouterProjectionCudaSource::function_symbol(Self) -> String
+pub fn RouterProjectionCudaSource::input_width(Self) -> Int
+pub fn RouterProjectionCudaSource::maximum_rows(Self) -> Int
+pub fn RouterProjectionCudaSource::numerical_contract(Self) -> RouterProjectionNumericalContract
+pub fn RouterProjectionCudaSource::operation(Self) -> RouterProjectionCudaOperation
+pub fn RouterProjectionCudaSource::output_width(Self) -> Int
+pub fn RouterProjectionCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum RouterProjectionNumericalContract {
+  OrderedFloat32AccumulationNoBiasV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

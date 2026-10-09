@@ -3,16 +3,20 @@ package "vectie/lunaflux/engine/tensor_parallel_rank_child"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/parallel_ir",
   "vectie/lunaflux/device",
+  "vectie/lunaflux/device/network_topology",
   "vectie/lunaflux/engine/device_topology",
   "vectie/lunaflux/engine/execution_manifest_file",
   "vectie/lunaflux/engine/rank_child_control",
   "vectie/lunaflux/engine/rank_group_wire",
+  "vectie/lunaflux/engine/remote_startup",
   "vectie/lunaflux/engine/tensor_parallel_device_plan",
   "vectie/lunaflux/engine/tensor_parallel_device_worker",
   "vectie/lunaflux/engine/tensor_parallel_kv_plan",
   "vectie/lunaflux/engine/tensor_parallel_rank_configure",
   "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap",
+  "vectie/lunaflux/engine/two_node_plan",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/model/config_file",
   "vectie/lunaflux/model/device_materialize",
@@ -21,11 +25,17 @@ import {
 }
 
 // Values
+pub fn compile_remote_plan(@approved_fs.ApprovedRoot, @worker_wire.EncodedBootstrapSource, @worker_wire.WorkerStartupContract, @network_topology.TwoNodeTopology, ArrayView[@two_node_plan.RankMemoryBudget]) -> @two_node_plan.TwoNodePlan raise
+
+pub fn load_remote_rank_plan(@approved_fs.ApprovedRoot, @approved_fs.ApprovedRoot, @worker_wire.EncodedBootstrapSource, @two_node_plan.TwoNodePlan, @remote_startup.RemoteRankStartup, @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope, @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrapDigest) -> @tensor_parallel_device_worker.TensorParallelDeviceWorkerPlan raise
+
 pub fn open_configure_receiver(@rank_group_wire.RankGroupWireLimits, io_timeout_millis~ : Int, shutdown_timeout_millis~ : Int) -> TensorParallelRankChildConfigureReceiver raise TensorParallelRankChildError
 
-pub fn prepare_configured_rank_child(TensorParallelRankChildConfigured) -> TensorParallelRankChildPreparation raise TensorParallelRankChildError
+pub fn prepare_configured_rank_child(TensorParallelRankChildConfigured, parallel_policy? : @parallel_ir.Policy) -> TensorParallelRankChildPreparation raise TensorParallelRankChildError
 
-pub fn run() -> Bool
+pub fn run(parallel_policy? : @parallel_ir.Policy) -> Bool
+
+pub fn start_remote_rank_child(@rank_child_control.RankChildControl, @tensor_parallel_device_worker.TensorParallelDeviceWorkerOwner) -> RemoteRankChildStarting raise
 
 // Errors
 pub(all) suberror TensorParallelRankChildError {
@@ -54,6 +64,11 @@ pub fn FailedTensorParallelRankChildPreparation::cause(Self) -> TensorParallelRa
 pub fn FailedTensorParallelRankChildPreparation::cleanup_failure(Self) -> TensorParallelRankChildError?
 pub fn FailedTensorParallelRankChildPreparation::is_closed(Self) -> Bool
 pub fn FailedTensorParallelRankChildPreparation::retry_close(Self) -> Unit raise TensorParallelRankChildError
+
+pub struct RemoteRankChildStarting {
+  // private fields
+}
+pub fn RemoteRankChildStarting::progress(Self) -> TensorParallelRankChildReady? raise
 
 pub(all) enum TensorParallelRankChildConfigureProgress {
   ConfigurePending

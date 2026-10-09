@@ -1,0 +1,70 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/media_encode_plan"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn conv3d_shape(Int, Int, Int, Int, Int, Int, Int, Int) -> (Int, Int, Int) raise PlanError
+
+// Errors
+pub(all) suberror PlanError {
+  InvalidGeometry
+  InvalidGraph
+  BudgetExceeded
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct Graph {
+  values : ReadOnlyArray[Value]
+  nodes : ReadOnlyArray[Node]
+  output : Int
+  offsets : ReadOnlyArray[Int64]
+  scratch_bytes : Int64
+}
+pub fn Graph::new(ArrayView[Value], ArrayView[Node], output~ : Int, max_scratch_bytes~ : Int64) -> Self raise PlanError
+
+pub(all) struct Node {
+  operation : Operation
+  inputs : ReadOnlyArray[Int]
+  output : Int
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Operation {
+  Pad(batch~ : Int, input_time~ : Int, output_time~ : Int)
+  WeightNorm(outputs~ : Int, per_output~ : Int)
+  Conv(batch~ : Int, input_channels~ : Int, output_channels~ : Int, input_time~ : Int, output_time~ : Int, kernel~ : Int, dilation~ : Int, stride~ : Int, padding~ : Int)
+  Snake(batch~ : Int, channels~ : Int, time~ : Int)
+  Add(elements~ : Int64)
+  LayerNorm(batch~ : Int, channels~ : Int, time~ : Int)
+  Dense(batch~ : Int, input_channels~ : Int, output_channels~ : Int, time~ : Int)
+  Qkv(batch~ : Int, channels~ : Int, time~ : Int)
+  CausalAttention(batch~ : Int, heads~ : Int, head_dim~ : Int, time~ : Int)
+  MeanHeadsPool(batch~ : Int, heads~ : Int, head_dim~ : Int, output_channels~ : Int, time~ : Int)
+  GeluMultiply(elements~ : Int64)
+  NormalizeRows(batch~ : Int, channels~ : Int, time~ : Int)
+  Zeros(elements~ : Int64)
+  VideoSlice(frames~ : Int, height~ : Int, width~ : Int, start_frame~ : Int, start_y~ : Int, start_x~ : Int, tile_frames~ : Int, tile_height~ : Int, tile_width~ : Int)
+  Conv3d(input_channels~ : Int, output_channels~ : Int, frames~ : Int, height~ : Int, width~ : Int, kernel~ : Int, temporal_stride~ : Int, spatial_stride~ : Int, spatial_before~ : Int, spatial_after~ : Int)
+  GroupNormSilu(channels~ : Int, frames~ : Int, height~ : Int, width~ : Int, groups~ : Int)
+  InsertTile(channels~ : Int, frames~ : Int, height~ : Int, width~ : Int, tile_height~ : Int, tile_width~ : Int, y~ : Int, x~ : Int, copy_height~ : Int, copy_width~ : Int, overlap_y~ : Int, overlap_x~ : Int)
+  InsertTime(channels~ : Int, frames~ : Int, height~ : Int, width~ : Int, tile_frames~ : Int, start~ : Int, count~ : Int)
+  GaussianPatch(channels~ : Int, frames~ : Int, height~ : Int, width~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn Operation::signature(Self) -> (ReadOnlyArray[Int64], Int64) raise PlanError
+
+pub(all) enum Origin {
+  Input
+  Weight(String)
+  Temporary
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Value {
+  elements : Int64
+  origin : Origin
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

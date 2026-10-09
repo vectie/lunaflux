@@ -1,0 +1,123 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/advanced_decoder_reference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+}
+
+// Values
+pub fn attention_output_inverse_rotary_v1(ArrayView[Float], position~ : Int, head_count~ : Int, head_dimension~ : Int, rope_dimension~ : Int, maximum_positions~ : Int, original_positions~ : Int, compressed_theta~ : Double, scaling_factor~ : Double, beta_fast~ : Double, beta_slow~ : Double, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn auxiliary_stage_order(@advanced_decoder_execution_plan.AuxiliaryPredictionPlan, limits~ : ReferenceLimits) -> ReadOnlyArray[AuxiliaryReferenceStage] raise AdvancedDecoderReferenceError
+
+pub fn combine_expert_outputs(ExpertRouting, ArrayView[Float], ArrayView[Float], width~ : Int, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn deterministic_compressed_indices(compression_ratio~ : Int, query_position~ : Int, cache_offset~ : Int, limits~ : ReferenceLimits) -> ReadOnlyArray[Int] raise AdvancedDecoderReferenceError
+
+pub fn deterministic_window_compressed_index_join_v1(window_size~ : Int, compression_ratio~ : Int, query_position~ : Int, sequence_length~ : Int, decode_mode~ : Bool, compressed_count~ : Int, ArrayView[Int], limits~ : ReferenceLimits) -> ReadOnlyArray[Int] raise AdvancedDecoderReferenceError
+
+pub fn grouped_output_a_projection_v1(ArrayView[Float], ArrayView[Float], row_count~ : Int, group_count~ : Int, input_width~ : Int, output_width~ : Int, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn hyper_connection_block_controls_v1(ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float], row_count~ : Int, stream_count~ : Int, feature_width~ : Int, normalization_epsilon~ : Float, control_epsilon~ : Float, sinkhorn_iterations~ : Int, limits~ : ReferenceLimits) -> HyperConnectionBlockControls raise AdvancedDecoderReferenceError
+
+pub fn hyper_connection_head_reduce_v1(ArrayView[Float], ArrayView[Float], ArrayView[Float], Float, row_count~ : Int, stream_count~ : Int, feature_width~ : Int, normalization_epsilon~ : Float, control_epsilon~ : Float, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn hyper_connection_post_combine_v1(ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float], row_count~ : Int, stream_count~ : Int, feature_width~ : Int, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn hyper_connection_pre_reduce_v1(ArrayView[Float], ArrayView[Float], row_count~ : Int, stream_count~ : Int, feature_width~ : Int, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn learned_index_top_k(ArrayView[Float], ArrayView[Float], ArrayView[Float], head_count~ : Int, head_dimension~ : Int, top_k~ : Int, limits~ : ReferenceLimits) -> ReferenceTopK raise AdvancedDecoderReferenceError
+
+pub fn mix_hyper_connections(ArrayView[Float], ArrayView[Float], stream_count~ : Int, feature_width~ : Int, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn non_overlapping_compressed_kv_prepare_v1(ArrayView[Float], ArrayView[Float], window_size~ : Int, compression_ratio~ : Int, head_dimension~ : Int, sequence_length~ : Int, maximum_position_count~ : Int, decode_mode~ : Bool, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn route_token_hash(ArrayView[Float], ArrayView[Int], vocabulary_size~ : Int, experts_per_token~ : Int, token_id~ : Int, score_function~ : @advanced_decoder_execution_plan.ExpertScoreFunction, normalize~ : Bool, scaling~ : Float, limits~ : ReferenceLimits) -> ExpertRouting raise AdvancedDecoderReferenceError
+
+pub fn route_top_k(ArrayView[Float], ArrayView[Float], top_k~ : Int, score_function~ : @advanced_decoder_execution_plan.ExpertScoreFunction, normalize~ : Bool, scaling~ : Float, limits~ : ReferenceLimits) -> ExpertRouting raise AdvancedDecoderReferenceError
+
+pub fn run_tiny_advanced_decoder_block(TinyAdvancedDecoderBlockInput, limits~ : ReferenceLimits) -> TinyAdvancedDecoderBlockOutput raise AdvancedDecoderReferenceError
+
+pub fn selected_sparse_attention(ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Int], head_count~ : Int, head_dimension~ : Int, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn sinkhorn_normalize(ArrayView[Float], width~ : Int, iterations~ : Int, epsilon~ : Float, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+pub fn transform_expert_scores(ArrayView[Float], @advanced_decoder_execution_plan.ExpertScoreFunction, limits~ : ReferenceLimits) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError
+
+// Errors
+pub(all) suberror AdvancedDecoderReferenceError {
+  InvalidLimit
+  InvalidDimension
+  InvalidTopK
+  InvalidIterationCount
+  NonFiniteInput(Int)
+  NonFiniteParameter
+  ZeroNormalization
+  TokenOutOfRange
+  InvalidHashTable
+  ExpertIndexOutOfRange(Int)
+  DuplicateExpertIndex(Int)
+  InvalidCompression
+  KeyIndexOutOfRange(Int)
+  InvalidIndexLayout
+  InvalidAuxiliaryOrder
+  InvalidBlock
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum AuxiliaryReferenceStage {
+  MtpInputProjection
+  DsparkMainProjection
+  DsparkNoiseEmbedding
+  AuxiliaryDecoderStage(Int)
+  AuxiliaryOutputHead
+  DsparkMarkovAdjustment
+  DsparkConfidence
+} derive(Eq, @debug.Debug)
+
+pub struct ExpertRouting {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ExpertRouting::expert_indices(Self) -> ReadOnlyArray[Int]
+pub fn ExpertRouting::selected_count(Self) -> Int
+pub fn ExpertRouting::weights(Self) -> ReadOnlyArray[Float]
+
+pub struct HyperConnectionBlockControls {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn HyperConnectionBlockControls::combination(Self) -> ReadOnlyArray[Float]
+pub fn HyperConnectionBlockControls::post(Self) -> ReadOnlyArray[Float]
+pub fn HyperConnectionBlockControls::pre(Self) -> ReadOnlyArray[Float]
+
+pub struct ReferenceLimits {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ReferenceLimits::max_iterations(Self) -> Int
+pub fn ReferenceLimits::max_values(Self) -> Int
+pub fn ReferenceLimits::max_width(Self) -> Int
+pub fn ReferenceLimits::new(max_values~ : Int, max_width~ : Int, max_iterations~ : Int) -> Self raise AdvancedDecoderReferenceError
+
+pub struct ReferenceTopK {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ReferenceTopK::indices(Self) -> ReadOnlyArray[Int]
+pub fn ReferenceTopK::scores(Self) -> ReadOnlyArray[Float]
+
+pub struct TinyAdvancedDecoderBlockInput {
+  // private fields
+}
+pub fn TinyAdvancedDecoderBlockInput::new(stream_activations~ : ArrayView[Float], query_weight~ : ArrayView[Float], keys~ : ArrayView[Float], values~ : ArrayView[Float], output_weight~ : ArrayView[Float], mixing_logits~ : ArrayView[Float], router_weight~ : ArrayView[Float], selection_bias~ : ArrayView[Float], expert_up_weight~ : ArrayView[Float], expert_gate_weight~ : ArrayView[Float], expert_down_weight~ : ArrayView[Float], stream_count~ : Int, width~ : Int, key_count~ : Int, index_top_k~ : Int, expert_count~ : Int, experts_per_token~ : Int, expert_hidden_width~ : Int, sinkhorn_iterations~ : Int, epsilon~ : Float, limits~ : ReferenceLimits) -> Self raise AdvancedDecoderReferenceError
+
+pub struct TinyAdvancedDecoderBlockOutput {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TinyAdvancedDecoderBlockOutput::attention_weights(Self) -> ReadOnlyArray[Float]
+pub fn TinyAdvancedDecoderBlockOutput::hidden(Self) -> ReadOnlyArray[Float]
+pub fn TinyAdvancedDecoderBlockOutput::mixed_streams(Self) -> ReadOnlyArray[Float]
+pub fn TinyAdvancedDecoderBlockOutput::routing(Self) -> ExpertRouting
+pub fn TinyAdvancedDecoderBlockOutput::selected_key_indices(Self) -> ReadOnlyArray[Int]
+
+// Type aliases
+
+// Traits

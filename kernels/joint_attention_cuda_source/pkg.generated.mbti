@@ -1,0 +1,41 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/joint_attention_cuda_source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn staged_joint_attention_bf16_source(rows~ : Int, hidden_size~ : Int, head_count~ : Int, head_dimension~ : Int, rotary_dimension~ : Int, epsilon_numerator~ : Int, epsilon_denominator~ : Int, apply_rotary~ : Bool, function_prefix~ : String, document_boundaries? : ArrayView[Int]) -> JointAttentionCudaSource raise JointAttentionCudaSourceError
+
+// Errors
+pub(all) suberror JointAttentionCudaSourceError {
+  InvalidRowCount
+  InvalidDocumentBoundaries
+  InvalidWidth
+  InvalidEpsilon
+  DimensionOverflow
+  InvalidFunctionSymbol
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct JointAttentionCudaSource {
+  // private fields
+}
+pub fn JointAttentionCudaSource::applies_rotary(Self) -> Bool
+pub fn JointAttentionCudaSource::function_prefix(Self) -> String
+pub fn JointAttentionCudaSource::head_count(Self) -> Int
+pub fn JointAttentionCudaSource::head_dimension(Self) -> Int
+pub fn JointAttentionCudaSource::hidden_size(Self) -> Int
+pub fn JointAttentionCudaSource::numerical_contract(Self) -> JointAttentionNumericalContract
+pub fn JointAttentionCudaSource::rotary_dimension(Self) -> Int
+pub fn JointAttentionCudaSource::row_count(Self) -> Int
+pub fn JointAttentionCudaSource::source_bytes(Self) -> Bytes
+
+pub(all) enum JointAttentionNumericalContract {
+  OrderedF32AccumulationBf16StagedAttentionV1
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

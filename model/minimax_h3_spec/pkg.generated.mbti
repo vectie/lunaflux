@@ -1,0 +1,101 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minimax_h3_spec"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror MiniMaxH3SpecError {
+  UnsupportedSchemaVersion
+  InvalidOfficialValue(MiniMaxH3ConfigField)
+  UnsupportedWeightDType
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum MiniMaxH3CheckpointFormat {
+  OriginalV1
+  DiffusersV1
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3CheckpointFormat::architecture(Self) -> String
+
+pub(all) enum MiniMaxH3ConfigField {
+  HiddenSize
+  LayerCount
+  RefinerLayerCount
+  AttentionHeadCount
+  AttentionHeadDimension
+  FfnDimension
+  VisualLatentChannels
+  AudioLatentChannels
+  PatchTemporal
+  PatchHeight
+  PatchWidth
+  TextDimension
+  FrequencyDimension
+  TimeEmbeddingHiddenDimension
+  TimeEmbeddingDimension
+  AdaLnOutputFeatures
+  FinalAdaLnOutputFeatures
+  RopeFrequencyDimension
+  RopeTheta
+  NormEpsilon
+  QueryKeyNormEpsilon
+  FinalNormEpsilon
+} derive(Eq, @debug.Debug)
+
+pub struct MiniMaxH3ModelMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3ModelMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn MiniMaxH3ModelMetadata::from_verified_content(MiniMaxH3TransformerSpec, @spec.ContentDigest) -> Self
+pub fn MiniMaxH3ModelMetadata::spec(Self) -> MiniMaxH3TransformerSpec
+
+pub(all) enum MiniMaxH3PrecisionProfile {
+  OfficialF32BoundaryBFloat16Core
+} derive(Eq, @debug.Debug)
+
+pub struct MiniMaxH3TransformerSpec {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3TransformerSpec::adaln_output_features(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::attention_head_count(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::attention_head_dimension(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::attention_width(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::audio_latent_channels(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::boundary_weight_dtype(Self) -> @spec.ModelDType
+pub fn MiniMaxH3TransformerSpec::checkpoint_format(Self) -> MiniMaxH3CheckpointFormat
+pub fn MiniMaxH3TransformerSpec::ffn_dimension(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::final_adaln_output_features(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::final_norm_epsilon(Self) -> Double
+pub fn MiniMaxH3TransformerSpec::frequency_dimension(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::hidden_size(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::layer_count(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::new_exact(variant~ : MiniMaxH3Variant, checkpoint_format~ : MiniMaxH3CheckpointFormat, schema_version~ : Int, hidden_size~ : Int, layer_count~ : Int, refiner_layer_count~ : Int, attention_head_count~ : Int, attention_head_dimension~ : Int, ffn_dimension~ : Int, visual_latent_channels~ : Int, audio_latent_channels~ : Int, patch_temporal~ : Int, patch_height~ : Int, patch_width~ : Int, text_dimension~ : Int, frequency_dimension~ : Int, time_embedding_hidden_dimension~ : Int, time_embedding_dimension~ : Int, adaln_output_features~ : Int, final_adaln_output_features~ : Int, rope_frequency_dimension~ : Int, rope_theta~ : Double, norm_epsilon~ : Double, query_key_norm_epsilon~ : Double, final_norm_epsilon~ : Double, weight_dtype~ : @spec.ModelDType) -> Self raise MiniMaxH3SpecError
+pub fn MiniMaxH3TransformerSpec::norm_epsilon(Self) -> Double
+pub fn MiniMaxH3TransformerSpec::official(variant~ : MiniMaxH3Variant, checkpoint_format~ : MiniMaxH3CheckpointFormat) -> Self
+pub fn MiniMaxH3TransformerSpec::patch_shape(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3TransformerSpec::precision_profile(Self) -> MiniMaxH3PrecisionProfile
+pub fn MiniMaxH3TransformerSpec::query_key_norm_epsilon(Self) -> Double
+pub fn MiniMaxH3TransformerSpec::refiner_layer_count(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::rope_frequency_dimension(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::rope_theta(Self) -> Double
+pub fn MiniMaxH3TransformerSpec::schema_version(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::text_dimension(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::time_embedding_dimension(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::time_embedding_hidden_dimension(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::variant(Self) -> MiniMaxH3Variant
+pub fn MiniMaxH3TransformerSpec::visual_latent_channels(Self) -> Int
+pub fn MiniMaxH3TransformerSpec::weight_dtype(Self) -> @spec.ModelDType
+
+pub(all) enum MiniMaxH3Variant {
+  Fl2va
+  Ref2va
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/remote_release"
+
+import {
+  "vectie/lunaflux/engine/remote_startup",
+  "vectie/lunaflux/engine/tensor_parallel_device_worker",
+  "vectie/lunaflux/runtime/remote_tls",
+}
+
+// Values
+pub async fn acknowledge(@remote_tls.AuthenticatedRemoteChannel, @tensor_parallel_device_worker.TensorParallelDeviceWorkerOwner) -> Unit
+
+pub async fn receive(@remote_tls.AuthenticatedRemoteChannel, @remote_startup.RemoteRankStartup) -> RemoteReleaseReceipt
+
+// Errors
+pub(all) suberror RemoteReleaseError {
+  NotReleased
+  Binding
+  Frame
+}
+
+// Types and methods
+pub struct RemoteReleaseReceipt {
+  // private fields
+}
+pub fn RemoteReleaseReceipt::verify(Self, @remote_startup.RemoteRankStartup) -> Unit raise
+
+// Type aliases
+
+// Traits

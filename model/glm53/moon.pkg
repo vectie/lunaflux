@@ -1,0 +1,13 @@
+import {
+  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "vectie/lunaflux/model/family_contract",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/glm_hybrid_execution_plan",
+  "vectie/lunaflux/model/workload_execution_plan",
+}
+
+import {
+  "vectie/lunaflux/model/spec",
+} for "test"
+
+supported_targets = "native"

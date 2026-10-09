@@ -15,3 +15,11 @@ native children after deterministic close.
 
 The fake native boundary is an evidence environment only. It does not make a
 physical-GPU execution claim.
+
+The executable repeats the full campaign with the overlap policy. The delayed
+NCCL submission fixture rejects communication events before submission readiness;
+the event fixture rejects unrecorded and same-stream waits. It verifies that
+waits are issued while collective GPU completion is still pending. Both policy
+runs retain the same zero-allocation, no-blocking and resource-balance gates.
+Outside the measured window, overlap workers also exercise a failed event
+close followed by retry, and abort while a collective is in flight.

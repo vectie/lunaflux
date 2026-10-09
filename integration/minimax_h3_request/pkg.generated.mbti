@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_request"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_device",
+  "vectie/lunaflux/engine/joint_diffusion_execution",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
+  "vectie/lunaflux/integration/minimax_h3_block_program",
+  "vectie/lunaflux/integration/minimax_h3_video_decode",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Request {
+  // private fields
+}
+pub fn Request::advance(Self) -> @joint_diffusion_execution.PipelineStage raise
+pub fn Request::cancel(Self) -> Unit
+pub fn Request::close(Self) -> Unit raise
+pub fn Request::new() -> Self
+pub fn Request::outputs_ready(Self) -> Bool
+pub fn Request::prepare(Self, @device.Context, @device.Stream, @joint_diffusion_loop.PreparedPlan, @joint_diffusion_device.LatentStorage, ArrayView[@joint_diffusion_execution.PreparedStage], ArrayView[ReadOnlyArray[@device.OrderedKernelLaunch]], @minimax_h3_video_decode.VideoDecodeRequest, @minimax_h3_block_program.AudioDecodeRequest, video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int) -> Unit raise
+pub fn Request::prepare_model(Self, @device.Context, @device.Stream, @joint_diffusion_loop.PreparedPlan, @joint_diffusion_device.LatentStorage, ArrayView[@joint_diffusion_execution.PreparedStage], @minimax_h3_block_program.ConditioningProgram, @minimax_h3_block_program.PredictionMetadata, ArrayView[@minimax_h3_block_program.PredictionVariant], @minimax_h3_block_program.InputProgram, @joint_diffusion_device.RotaryBindings, @minimax_h3_block_program.PredictionWeights, @minimax_h3_video_decode.VideoDecodeRequest, @minimax_h3_block_program.AudioDecodeRequest, timestep_embeddings~ : @device.Allocation, timestep_embeddings_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64, video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int) -> Unit raise
+pub fn Request::waveform_samples(Self) -> Int64 raise @device.DeviceError
+pub fn[T] Request::with_audio(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+pub fn[T] Request::with_video(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError
+
+// Type aliases
+
+// Traits

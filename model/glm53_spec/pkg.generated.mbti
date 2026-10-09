@@ -1,0 +1,160 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/glm53_spec"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+
+// Errors
+pub(all) suberror Glm53SpecError {
+  InvalidLayerIndex
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub(all) enum Glm53AttentionKind {
+  DeepSeekSparseAttention
+  KimiDeltaAttention
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Glm53FeedForwardKind {
+  DenseSwiGlu
+  RoutedMixtureOfExperts
+} derive(Eq, @debug.Debug)
+
+pub struct Glm53FlashMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53FlashMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn Glm53FlashMetadata::from_verified_content(Glm53FlashSpec, @spec.ContentDigest) -> Self
+pub fn Glm53FlashMetadata::spec(Self) -> Glm53FlashSpec
+
+pub struct Glm53FlashSpec {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53FlashSpec::architecture(Self) -> String
+pub fn Glm53FlashSpec::attention_head_count(Self) -> Int
+pub fn Glm53FlashSpec::attention_kind(Self, Int) -> Glm53AttentionKind raise Glm53SpecError
+pub fn Glm53FlashSpec::context_length(Self) -> Int
+pub fn Glm53FlashSpec::dense_intermediate_size(Self) -> Int
+pub fn Glm53FlashSpec::expert_group_count(Self) -> Int
+pub fn Glm53FlashSpec::expert_group_score_topk(Self) -> Int
+pub fn Glm53FlashSpec::experts_per_token(Self) -> Int
+pub fn Glm53FlashSpec::feed_forward_kind(Self, Int) -> Glm53FeedForwardKind raise Glm53SpecError
+pub fn Glm53FlashSpec::hidden_size(Self) -> Int
+pub fn Glm53FlashSpec::hyper_connection_epsilon(Self) -> Double
+pub fn Glm53FlashSpec::hyper_connection_sinkhorn_iterations(Self) -> Int
+pub fn Glm53FlashSpec::hyper_connection_streams(Self) -> Int
+pub fn Glm53FlashSpec::image_end_token_id(Self) -> Int
+pub fn Glm53FlashSpec::image_start_token_id(Self) -> Int
+pub fn Glm53FlashSpec::image_token_id(Self) -> Int
+pub fn Glm53FlashSpec::index_head_count(Self) -> Int
+pub fn Glm53FlashSpec::index_head_dimension(Self) -> Int
+pub fn Glm53FlashSpec::index_kpool(Self) -> Int
+pub fn Glm53FlashSpec::index_pool_always_select_tail(Self) -> Bool
+pub fn Glm53FlashSpec::index_pool_compress(Self) -> Bool
+pub fn Glm53FlashSpec::index_share_for_mtp_iteration(Self) -> Bool
+pub fn Glm53FlashSpec::index_topk(Self) -> Int
+pub fn Glm53FlashSpec::indexer_rope_interleave(Self) -> Bool
+pub fn Glm53FlashSpec::kv_head_count(Self) -> Int
+pub fn Glm53FlashSpec::kv_lora_rank(Self) -> Int
+pub fn Glm53FlashSpec::layer_count(Self) -> Int
+pub fn Glm53FlashSpec::linear_conv_kernel_size(Self) -> Int
+pub fn Glm53FlashSpec::linear_gate_lower_bound(Self) -> Double
+pub fn Glm53FlashSpec::linear_head_count(Self) -> Int
+pub fn Glm53FlashSpec::linear_head_dimension(Self) -> Int
+pub fn Glm53FlashSpec::model_type(Self) -> String
+pub fn Glm53FlashSpec::moe_intermediate_size(Self) -> Int
+pub fn Glm53FlashSpec::mtp_layer_count(Self) -> Int
+pub fn Glm53FlashSpec::normalizes_selected_expert_probabilities(Self) -> Bool
+pub fn Glm53FlashSpec::official() -> Self
+pub fn Glm53FlashSpec::profile(Self) -> Glm53ProfileId
+pub fn Glm53FlashSpec::q_lora_rank(Self) -> Int
+pub fn Glm53FlashSpec::qk_nope_head_dimension(Self) -> Int
+pub fn Glm53FlashSpec::qk_rope_head_dimension(Self) -> Int
+pub fn Glm53FlashSpec::rms_norm_epsilon(Self) -> Double
+pub fn Glm53FlashSpec::routed_expert_count(Self) -> Int
+pub fn Glm53FlashSpec::routed_scaling_factor(Self) -> Double
+pub fn Glm53FlashSpec::selected_expert_group_count(Self) -> Int
+pub fn Glm53FlashSpec::shared_expert_count(Self) -> Int
+pub fn Glm53FlashSpec::swiglu_limit(Self) -> Double
+pub fn Glm53FlashSpec::text_model_type(Self) -> String
+pub fn Glm53FlashSpec::uses_float32_moe_router(Self) -> Bool
+pub fn Glm53FlashSpec::uses_moe_correction_bias(Self) -> Bool
+pub fn Glm53FlashSpec::value_head_dimension(Self) -> Int
+pub fn Glm53FlashSpec::video_end_token_id(Self) -> Int
+pub fn Glm53FlashSpec::video_start_token_id(Self) -> Int
+pub fn Glm53FlashSpec::video_token_id(Self) -> Int
+pub fn Glm53FlashSpec::vision_head_count(Self) -> Int
+pub fn Glm53FlashSpec::vision_hidden_size(Self) -> Int
+pub fn Glm53FlashSpec::vision_intermediate_size(Self) -> Int
+pub fn Glm53FlashSpec::vision_layer_count(Self) -> Int
+pub fn Glm53FlashSpec::vision_model_type(Self) -> String
+pub fn Glm53FlashSpec::vision_patch_size(Self) -> Int
+pub fn Glm53FlashSpec::vision_projection_intermediate_size(Self) -> Int
+pub fn Glm53FlashSpec::vision_projection_size(Self) -> Int
+pub fn Glm53FlashSpec::vision_spatial_merge_size(Self) -> Int
+pub fn Glm53FlashSpec::vision_temporal_patch_size(Self) -> Int
+pub fn Glm53FlashSpec::vocabulary_size(Self) -> Int
+
+pub struct Glm53FullMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53FullMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn Glm53FullMetadata::from_verified_content(Glm53FullSpec, @spec.ContentDigest) -> Self
+pub fn Glm53FullMetadata::spec(Self) -> Glm53FullSpec
+
+pub struct Glm53FullSpec {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn Glm53FullSpec::architecture(Self) -> String
+pub fn Glm53FullSpec::attention_head_count(Self) -> Int
+pub fn Glm53FullSpec::attention_kind(Self, Int) -> Glm53AttentionKind raise Glm53SpecError
+pub fn Glm53FullSpec::computes_index_topk(Self, Int) -> Bool raise Glm53SpecError
+pub fn Glm53FullSpec::context_length(Self) -> Int
+pub fn Glm53FullSpec::dense_intermediate_size(Self) -> Int
+pub fn Glm53FullSpec::expert_group_count(Self) -> Int
+pub fn Glm53FullSpec::expert_group_score_topk(Self) -> Int
+pub fn Glm53FullSpec::experts_per_token(Self) -> Int
+pub fn Glm53FullSpec::feed_forward_kind(Self, Int) -> Glm53FeedForwardKind raise Glm53SpecError
+pub fn Glm53FullSpec::hidden_size(Self) -> Int
+pub fn Glm53FullSpec::index_head_count(Self) -> Int
+pub fn Glm53FullSpec::index_head_dimension(Self) -> Int
+pub fn Glm53FullSpec::index_share_for_mtp_iteration(Self) -> Bool
+pub fn Glm53FullSpec::index_topk(Self) -> Int
+pub fn Glm53FullSpec::indexer_rope_interleave(Self) -> Bool
+pub fn Glm53FullSpec::kv_head_count(Self) -> Int
+pub fn Glm53FullSpec::kv_lora_rank(Self) -> Int
+pub fn Glm53FullSpec::layer_count(Self) -> Int
+pub fn Glm53FullSpec::model_type(Self) -> String
+pub fn Glm53FullSpec::moe_intermediate_size(Self) -> Int
+pub fn Glm53FullSpec::mtp_layer_count(Self) -> Int
+pub fn Glm53FullSpec::normalizes_selected_expert_probabilities(Self) -> Bool
+pub fn Glm53FullSpec::official() -> Self
+pub fn Glm53FullSpec::profile(Self) -> Glm53ProfileId
+pub fn Glm53FullSpec::q_lora_rank(Self) -> Int
+pub fn Glm53FullSpec::qk_head_dimension(Self) -> Int
+pub fn Glm53FullSpec::qk_nope_head_dimension(Self) -> Int
+pub fn Glm53FullSpec::qk_rope_head_dimension(Self) -> Int
+pub fn Glm53FullSpec::rms_norm_epsilon(Self) -> Double
+pub fn Glm53FullSpec::rope_interleave(Self) -> Bool
+pub fn Glm53FullSpec::rope_theta(Self) -> Double
+pub fn Glm53FullSpec::routed_expert_count(Self) -> Int
+pub fn Glm53FullSpec::routed_scaling_factor(Self) -> Double
+pub fn Glm53FullSpec::selected_expert_group_count(Self) -> Int
+pub fn Glm53FullSpec::shared_expert_count(Self) -> Int
+pub fn Glm53FullSpec::uses_float32_moe_router(Self) -> Bool
+pub fn Glm53FullSpec::uses_moe_correction_bias(Self) -> Bool
+pub fn Glm53FullSpec::value_head_dimension(Self) -> Int
+pub fn Glm53FullSpec::vocabulary_size(Self) -> Int
+
+pub(all) enum Glm53ProfileId {
+  FullText
+  FlashMultimodal
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
