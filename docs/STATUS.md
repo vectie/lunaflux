@@ -10,6 +10,25 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Automatic routing now joins the same MoE Program queue: BF16-input router
+projection, score/correction, grouped top-k, routed experts, optional reduction,
+shared expert and finalization. The caller no longer needs to compute expert IDs
+or selected weights externally. Numeric IR owns BF16/F32 weight representation,
+sigmoid/sqrt-softplus, stable ties and exact compact routing workspace; CUDA is
+only its final lowering. GLM binds the installed BF16 [288,4096] router and F32
+[288] correction vector. Actual-size native checkpoint streaming is tested.
+
+Focused native tests pass 33/33, including 16 automatic-router queue steps / 160
+launches with zero measured token-step heap allocations and active cancellation.
+On idle .178 GB10, 18 generated-router GPU cases pass an independent host oracle
+for BF16/sigmoid and F32/sqrt-softplus, live rows 0/1/2, choice-only bias,
+normalization, stable ties and untouched inactive rows. Memcheck reports no
+errors or leaks; racecheck and synccheck report no errors. The probe sources and
+logs are at `/tmp/lunaflux-routing-feature-A4VeVi` on .178. This is executable
+module correctness, not a full-model or throughput claim. Full decoder/worker
+integration and actual two-host execution remain unfinished. TLS/admission and
+unrelated deprecation-warning migration remain paused.
+
 The generic expert path now executes dynamic BF16-to-FP8/UE8M0 activation
 quantization before both gate/up and down. Precision IR explicitly describes
 amax floor, block geometry, SwiGLU rounding, routing-score placement, and compact

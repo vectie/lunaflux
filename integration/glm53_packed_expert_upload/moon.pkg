@@ -1,5 +1,7 @@
 import {
   "vectie/lunaflux/model/glm53_weights",
+  "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/precision_format",
   "vectie/lunaflux/engine/precision_materialize",
   "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/runtime/approved_fs",
@@ -15,5 +17,4 @@ import {
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
-  "vectie/lunaflux/model/precision_format",
 } for "test"

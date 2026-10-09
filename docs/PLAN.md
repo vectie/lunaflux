@@ -14,6 +14,13 @@ decoder blocks and whole-model step execution, respecting the per-host memory
 budget before loading model banks. Module tests do not close whole-model serving
 or two-host execution tasks; those require actual execution rather than labels.
 
+Automatic router projection/score/grouped selection is now an optional prefix
+of that same queue. GLM checkpoint router weights and correction vectors bind
+without rank/dtype reinterpretation. Remaining wiring includes GLM hybrid
+attention state and dense early layers, DeepSeek token-hash early routing and
+compressed attention, whole-model layer ownership, and the existing worker's
+non-Llama/Qwen execution dispatch. Do not add transport-hardening prerequisites.
+
 Active compiler work: [counter-driven repair, 2026-09-29](COMPILER_COUNTER_REPAIR_2026-09-29.md).
 The three-kernel diagnosis is recorded there with implemented changes,
 remaining algorithm work and the bounded physical regression procedure.
