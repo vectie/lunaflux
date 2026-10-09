@@ -35,8 +35,15 @@ overwritten until all queries consume them. Its append descriptor joins the
 containing decoder's error boundary. The adapter explicitly rejects compressed
 layers, rather than substituting a window-only answer.
 
-These are single-rank components, **not a complete attention sublayer or
-DeepSeek/DSpark model runner**. Inverse output RoPE, grouped output projections,
-compressed cache/compressor/indexer and distributed head ownership remain
-subsequent integration work. No whole-model performance claim follows from
-the small numerical fixtures.
+`DeepSeekWindowSublayer` extends this to fifteen launches with inverse suffix
+RoPE, grouped Output-A and Output-B. It binds compact checkpoint payload/scales
+for both learned projections. Output-A uses BF16-rounded parameters with F32
+accumulation; Output-B uses dynamic block-128 FP8 activation scaling. These
+semantics live in immutable precision plans rather than a family branch in
+the CUDA renderer. Its hidden-width output and append descriptor join the
+containing decoder; aggregate weights/scratch are checked before upload.
+
+These remain single-rank components, **not a DeepSeek/DSpark model runner**.
+Compressed cache/compressor/indexer, mHC/decoder composition and distributed
+head ownership remain subsequent integration work. No whole-model accuracy
+or performance claim follows from the small numerical fixtures.

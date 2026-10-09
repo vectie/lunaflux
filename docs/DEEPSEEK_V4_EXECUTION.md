@@ -48,6 +48,17 @@ coverage. Its output remains before inverse RoPE and learned output projections;
 compressed layers are rejected rather than replaced with window-only attention.
 The full compressed-state plan and complete decoder remain unfinished.
 
+The subsequent `DeepSeekWindowSublayer` joins inverse suffix RoPE, grouped
+Output-A and Output-B to those twelve effects, producing hidden-width output
+in one fifteen-stage prepared queue. Generic immutable precision plans own
+geometry, numerical semantics and scratch budgets; CUDA source owns lowering,
+and the model adapter alone supplies checkpoint names. Output-A's decoded FP8
+parameter is rounded to BF16 before multiplication; Output-B instead uses
+dynamic block-128 FP8 activation scaling. The GB10 small-fixture correctness,
+deterministic replay and memory/race/synchronization checks pass. This closes
+the single-rank compression-zero attention/output slice, not the learned
+compressor/indexer, compressed attention, mHC decoder, or whole-model runner.
+
 | Boundary | Evidence required for executable support | Current state |
 |---|---|---|
 | Configuration | Bounded JSON parser rejects unknown fields and admits only exact architecture/model-type/profile geometry | Implemented in the family-owned exact config parser for all five profiles |
@@ -66,7 +77,8 @@ The full compressed-state plan and complete decoder remain unfinished.
 
 The next executable integration boundary is learned compressor projection/
 gating, indexer selection and request-owned cache-state mutation, followed by
-attention, inverse rotary, output projections and complete decoder composition.
+attention, mHC and complete decoder composition. Inverse rotary and learned
+output projections are now connected for compression-zero layers as above.
 The unsharded query-prefix component above does not implement Query-B/Output-B
 tensor-parallel collectives. Compression and cache mutation feed
 shared-KV preparation and live mHC/KV

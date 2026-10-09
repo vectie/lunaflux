@@ -113,6 +113,17 @@ pub fn ExpertRoutingPlacement::equal(Self, Self) -> Bool
 pub fn ExpertRoutingPlacement::not_equal(Self, Self) -> Bool
 pub fn ExpertRoutingPlacement::to_repr(Self) -> @debug.Repr
 
+pub struct GroupedAttentionOutputPrecision {
+  // private fields
+}
+pub fn GroupedAttentionOutputPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn GroupedAttentionOutputPrecision::geometry(Self) -> (Int, Int, Int, Int)
+pub fn GroupedAttentionOutputPrecision::hidden_width(Self) -> Int
+pub fn GroupedAttentionOutputPrecision::new(head_count~ : Int, head_width~ : Int, rotary_width~ : Int, group_count~ : Int, output_rank~ : Int, hidden_width~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, frequency~ : RotaryFrequency, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn GroupedAttentionOutputPrecision::rotary(Self) -> RotaryTensorPrecision
+pub fn GroupedAttentionOutputPrecision::weight_representations(Self) -> ReadOnlyArray[@precision_format.Representation]
+pub fn GroupedAttentionOutputPrecision::workspace_bytes(Self) -> Int64
+
 pub(all) enum HyperConnectionMixLaw {
   RoundedBf16ControlsAndProducts
   OrderedF32SingleBf16Round
@@ -388,6 +399,16 @@ pub fn RotaryKvPrecision::geometry(Self) -> (Int, Int, Int, Int, Int, Int)
 pub fn RotaryKvPrecision::new(query_heads~ : Int, key_value_heads~ : Int, head_width~ : Int, rotary_width~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, frequency~ : RotaryFrequency, simulation_block_width~ : Int, simulation_amax_floor~ : Double, simulation_scale~ : SimulatedCacheScale, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn RotaryKvPrecision::simulation(Self) -> (Int, Double, SimulatedCacheScale)
 pub fn RotaryKvPrecision::workspace_bytes(Self) -> Int64
+
+pub struct RotaryTensorPrecision {
+  // private fields
+}
+pub fn RotaryTensorPrecision::effect(Self) -> NumericEffect
+pub fn RotaryTensorPrecision::frequency(Self) -> RotaryFrequency
+pub fn RotaryTensorPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn RotaryTensorPrecision::inverse(Self) -> Bool
+pub fn RotaryTensorPrecision::new(head_count~ : Int, head_width~ : Int, rotary_width~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, frequency~ : RotaryFrequency, inverse~ : Bool, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn RotaryTensorPrecision::workspace_bytes(Self) -> Int64
 
 pub(all) enum ScratchLifetime {
   Sequential

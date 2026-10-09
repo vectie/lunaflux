@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/grouped_attention_output_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/grouped_attention_output_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct GroupedAttentionOutputFrame {
+  // private fields
+}
+pub fn GroupedAttentionOutputFrame::close(Self) -> Unit raise
+pub fn GroupedAttentionOutputFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn GroupedAttentionOutputFrame::new(@grouped_attention_output_cuda_source.GroupedAttentionOutputCudaSource) -> Self
+pub fn GroupedAttentionOutputFrame::output(Self) -> @device.Allocation raise
+pub fn GroupedAttentionOutputFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, positions~ : @device.Allocation, attention~ : @device.Allocation, weights~ : ArrayView[@device.Allocation], maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn GroupedAttentionOutputFrame::source_bytes(Self) -> Bytes
+pub fn GroupedAttentionOutputFrame::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

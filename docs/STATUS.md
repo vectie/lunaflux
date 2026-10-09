@@ -10,6 +10,33 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (learned attention output integration): model-neutral
+`RotaryTensorPrecision` and `GroupedAttentionOutputPrecision` now describe
+inverse suffix rotation and the two learned output projections, including
+three bounded scratch frames. Output-A retains compact E4M3/UE8M0 checkpoint
+storage but rounds each decoded parameter to BF16 before its F32 dot product;
+Output-B retains the existing dynamic block-128 FP8 activation semantics.
+These distinct numerical contracts are not collapsed into one projection mode.
+`DeepSeekWindowSublayer` composes the twelve retained-window input/attention
+effects and three output effects in the caller's single prepared queue. It
+binds the actual `wo_a`/`wo_b` checkpoint planes and returns hidden-width output.
+The containing decoder still owns mHC, residuals, MoE and distributed work;
+compressed layers remain rejected, so this is not complete model execution.
+
+The affected native aggregate passes 100/100 with the existing legacy-warning
+exclusions; the separate wire/generation aggregate passes 110/110. Its
+fifteen-stage prepared queue performs zero measured warm heap
+allocations, and deterministic close balances resources. GB10 `sm121` component
+correctness and memcheck/leak, racecheck and synccheck pass with 2 GiB/no-swap
+user-unit limits. Small independent CPU fixtures cover base and YaRN inverse
+rotation, live rows 0/1/2/3, positions through 1,048,575 and deterministic replay.
+Final hidden outputs match the fixture oracle exactly; intermediate largest
+absolute errors are 0.001953125 (inverse rotation) and 0.0009765625 (Output-A).
+This is not real-checkpoint accuracy or throughput. Local evidence is
+`/tmp/lunaflux-attention-output-20261010.vXsq00BH`, remote evidence
+`/tmp/lunaflux-attention-output-20261010.ji2Z52GT`; downloaded binary SHA-256 is
+`8d3bbe218bf4b6dfb30316cdeb2c38dc73104305bbe89fa65b705506d111e819`.
+
 Update 2026-10-10 (retained shared-KV window execution): a model-neutral
 `WindowSharedKvPrecision` plan now accounts for the retained ring, sticky
 history/error state, append descriptor and BF16 attention output. Its prepared
@@ -44,6 +71,21 @@ and text boundary. It consumes pretokenized canonical prompt frames rather
 than providing text HTTP serving; self-feeding greedy continuation is added
 as described below.
 Native compilation passes; whole-checkpoint/two-host GPU execution is untested.
+The exact committed `60fd6750` archive now also builds natively on Spark `.178`
+with the September 20 ARM toolchain, existing warning exclusions and two build
+jobs, under an 8 GiB/no-swap user service. The toolchain is isolated under
+`/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b`, not installed over the host's
+older incomplete installation. Downloaded archives and build failures are
+preserved. A clean dependency archive excludes macOS AppleDouble source
+sidecars; those sidecars caused the earlier invalid-UTF8 build failure.
+The resulting ARM executable SHA-256 is
+`c8ffb596925dea7ac8a314fb44faee7f44f87aa92ddb234c1d56a07a4d5102d0`.
+It passes the actual staged GLM config on `.178` and `.179` under 1 GiB/no-swap
+user services, without checkpoint payload scans or GPU allocation. Its `.179`
+copy is under `/tmp/lunaflux-glm-arm-run-20261010.vx7kMsKI` with matching hash.
+This is executable
+portability/config validation, not weight placement or generation. Local build
+artifacts are `/tmp/lunaflux-glm-arm-build-20261010.nXXzcHQo`.
 The installed real config initially failed on root ModelOpt quantization
 metadata. The parser now validates that NVFP4 descriptor and explicit RMS
 epsilon; the exact downloaded config (SHA-256

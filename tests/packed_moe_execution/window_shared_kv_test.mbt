@@ -105,7 +105,7 @@ test "short borrowed window positions acquire no private allocation" {
 }
 
 ///|
-test "quantized query rotary and retained window use twelve launches in one executor" {
+test "query rotary retained window and output use fifteen launches in one executor" {
   let baseline = live_resources()
   let context = @device.open_context(0)
   let stream = context.create_stream()
@@ -160,11 +160,23 @@ test "quantized query rotary and retained window use twelve launches in one exec
   launches.append(rotary.launches())
   launches.append(window.launches())
   assert_eq(launches.length(), 12)
+  let output = output_fixture()
+  output.prepare(
+    context,
+    aot,
+    counts=operand,
+    positions=operand,
+    attention=window.output(),
+    weights=[operand, operand],
+    maximum_workspace_bytes=10000L,
+  )
+  launches.append(output.launches())
+  assert_eq(launches.length(), 15)
   let queue = context.create_ordered_kernel_executor(stream, launches)
   let before = enqueues()
   begin_allocations()
   for _ in 0..<32 {
-    for stage in 0..<12 {
+    for stage in 0..<15 {
       queue.enqueue(stage)
     }
     queue.record_completion()
@@ -174,8 +186,9 @@ test "quantized query rotary and retained window use twelve launches in one exec
     queue.reset()
   }
   assert_eq(end_allocations(), 0UL)
-  assert_eq(enqueues() - before, 384UL)
+  assert_eq(enqueues() - before, 480UL)
   queue.close()
+  output.close()
   window.close()
   rotary.close()
   prefix.close()

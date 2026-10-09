@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn rotary_frequency_source(@precision_ir.RotaryFrequency, Int) -> String raise
+
 pub fn rotary_kv_source(@precision_ir.RotaryKvPrecision, symbol_prefix~ : String) -> RotaryKvCudaSource raise
 
 // Errors

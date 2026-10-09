@@ -1,0 +1,16 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/rotary_kv_cuda_source" @rotary,
+  "vectie/lunaflux/kernels/block_fp8_ue8m0_projection_cuda_source" @projection,
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/core/env",
+} for "test"
+
+supported_targets = "native"
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)

@@ -89,23 +89,7 @@ pub fn RotaryKvPrecision::new(
     simulation_amax_floor <= 1.0 else {
     raise IllegalPlacement
   }
-  match frequency {
-    Base(theta~) => {
-      guard rotary_positive(theta) else { raise IllegalPlacement }
-    }
-    Yarn(theta~, original_positions~, factor~, beta_fast~, beta_slow~) => {
-      guard theta > 1.0 &&
-        rotary_positive(theta) &&
-        original_positions > 0 &&
-        original_positions <= maximum_positions &&
-        rotary_positive(factor) &&
-        rotary_positive(beta_fast) &&
-        rotary_positive(beta_slow) &&
-        beta_fast >= beta_slow else {
-        raise IllegalPlacement
-      }
-    }
-  }
+  validate_rotary_frequency(frequency, maximum_positions)
   let bytes = (heads : Int) => {
     maximum_rows.to_int64() * heads.to_int64() * head_width.to_int64() * 2L
   }

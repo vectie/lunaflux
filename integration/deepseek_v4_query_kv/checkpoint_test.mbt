@@ -14,6 +14,13 @@ async test "official query and KV planes bind and stream without expansion" {
       maximum_workspace_bytes=1048576L,
     )
     let matrices = plan.weight_representations()
+    let output_plan = @deepseek_v4_query_kv.attention_output_plan(
+      spec,
+      layer=0,
+      maximum_rows=1,
+      maximum_workspace_bytes=1048576L,
+    )
+    let output_matrices = output_plan.weight_representations()
     let shapes : Array[String] = []
     for matrix in matrices {
       let (rows, columns) = matrix.shape()
@@ -31,8 +38,20 @@ async test "official query and KV planes bind and stream without expansion" {
       ("attn_sink", "F32", "\{spec.attention_head_count()}"),
     ]
     let sizes = plan.weight_bytes()[:].to_owned()
+    let prefix_weight_bytes = sizes.fold(init=0L, (total, bytes) => {
+      total + bytes
+    })
     let sink_bytes = spec.attention_head_count().to_int64() * 4L
     sizes.push(sink_bytes)
+    for index, matrix in output_matrices {
+      let (rows, columns) = matrix.shape()
+      let name = if index == 0 { "wo_a" } else { "wo_b" }
+      fields.append([
+        (name + ".weight", "F8_E4M3", "\{rows},\{columns}"),
+        (name + ".scale", "F8_E8M0", "\{rows / 128},\{columns / 128}"),
+      ])
+      sizes.append([matrix.payload_bytes(), matrix.scale_bytes()])
+    }
     let parts : Array[String] = []
     let mut offset = 0L
     for i, (name, dtype, shape) in fields {
@@ -57,8 +76,8 @@ async test "official query and KV planes bind and stream without expansion" {
       maximum_shards=1,
       maximum_file_bytes=offset + 8192L,
       maximum_header_bytes=4096,
-      maximum_tensors_per_shard=9,
-      maximum_total_tensors=9,
+      maximum_tensors_per_shard=13,
+      maximum_total_tensors=13,
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=5,
@@ -103,7 +122,7 @@ async test "official query and KV planes bind and stream without expansion" {
     )
     assert_eq(
       owner.required_device_bytes(checkpoint),
-      offset - sink_bytes + plan.workspace_bytes(),
+      prefix_weight_bytes + plan.workspace_bytes(),
     )
     owner.close()
     let inputs = @deepseek_v4_query_kv.DeepSeekAttentionInputs::new(
@@ -120,7 +139,7 @@ async test "official query and KV planes bind and stream without expansion" {
     )
     assert_eq(
       inputs.required_device_bytes(checkpoint),
-      offset - sink_bytes + plan.workspace_bytes() + rotary.workspace_bytes(),
+      prefix_weight_bytes + plan.workspace_bytes() + rotary.workspace_bytes(),
     )
     inputs.close()
     inputs.close()
@@ -146,12 +165,48 @@ async test "official query and KV planes bind and stream without expansion" {
     )
     assert_eq(
       attention.required_device_bytes(checkpoint),
-      offset +
+      prefix_weight_bytes +
+      sink_bytes +
       plan.workspace_bytes() +
       rotary.workspace_bytes() +
       window.state_bytes(),
     )
     attention.close()
+    let output_weights = @deepseek_v4_query_kv.bind_attention_output_weights(
+      checkpoint,
+      spec,
+      layer=0,
+    )
+    let output_weight_bytes = output_weights.fold(init=0L, (total, weight) => {
+      total + weight.buffer_bytes()
+    })
+    assert_eq(output_weight_bytes, sizes[9] + sizes[10] + sizes[11] + sizes[12])
+    let output = @deepseek_v4_query_kv.DeepSeekAttentionOutput::new(
+      spec,
+      layer=0,
+      maximum_rows=1,
+      maximum_workspace_bytes=1048576L,
+    )
+    assert_eq(
+      output.required_device_bytes(checkpoint),
+      output_weight_bytes + output_plan.workspace_bytes(),
+    )
+    output.close()
+    let sublayer = @deepseek_v4_query_kv.DeepSeekWindowSublayer::new(
+      spec,
+      layer=0,
+      maximum_rows=1,
+      maximum_workspace_bytes=1048576L,
+    )
+    assert_eq(
+      sublayer.required_device_bytes(checkpoint),
+      offset +
+      plan.workspace_bytes() +
+      rotary.workspace_bytes() +
+      window.state_bytes() +
+      output_plan.workspace_bytes(),
+    )
+    sublayer.close()
     let copied = [0L, 0L, 0L, 0L, 0L]
     checkpoint.transfer_weights(
       root,
