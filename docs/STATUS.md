@@ -23,7 +23,12 @@ epsilon; the exact downloaded config (SHA-256
 `5db46f44956e4a8a0cc8ed54b6d77bf99dd7c1ec90c58975d1952560768513d5`)
 passes the native config-only runner: 45 layers, hidden 4096, vocabulary 154880.
 Config regressions pass 5/5; startup reader/materializer regressions pass 18/18.
+The expanded rank/control/checkpoint regression aggregate passes 129/129.
 These checks do not validate weight placement or model generation.
+Linux checkpoint-executable linking exposed omitted pthread/dynamic-loader
+libraries, hidden by macOS. Explicit `-pthread -ldl` fixes the native Linux
+build; no native ABI or kernel arithmetic changed. The CPU-only real-shard
+placement job runs under 4 GiB/no swap before any GPU allocation.
 The installed management-node source has 120 main shards plus input scales;
 the earlier arbitrary source halves are not checkpoint-verified placements.
 
