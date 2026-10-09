@@ -18,8 +18,17 @@ first, then this owner, then its external operands/context. Partial preparation
 can be closed deterministically. No file reads, authentication, source generation
 or scratch allocation occur in the token-step path.
 
+`DeepSeekAttentionInputs` extends this prefix with a model-neutral
+`RotaryKvPrecision` plan and prepared rotary/KV frame. It borrows all eight
+launches into the same executor. The adapter selects base theta without YaRN
+for compression-zero layers, compressed theta with YaRN otherwise. Both Q
+and KV use full-head storage; only the rotary suffix changes under rotation.
+KV's non-rotary prefix undergoes block-64 E4M3/power-of-two simulation and
+returns to BF16, preserving the positional suffix. The combined constructor
+and preparation account for all eight scratch buffers and compact weights.
+
 This is a single-rank, unsharded projection prefix, **not a complete attention
-layer or DeepSeek/DSpark model runner**. Rotary, KV quantization simulation,
-sliding-window/compressed caches, index selection, attention, output projections
-and distributed head ownership are subsequent integration work. No performance
+layer or DeepSeek/DSpark model runner**. Sliding-window/compressed caches,
+index selection, attention, output projections and distributed head ownership
+are subsequent integration work. No performance
 claim follows from the small numerical fixture.

@@ -1,0 +1,32 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/rotary_kv_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/rotary_kv_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct RotaryKvFrame {
+  // private fields
+}
+pub fn RotaryKvFrame::close(Self) -> Unit raise
+pub fn RotaryKvFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn RotaryKvFrame::new(@rotary_kv_cuda_source.RotaryKvCudaSource) -> Self
+pub fn RotaryKvFrame::outputs(Self) -> RotaryKvOutputs raise
+pub fn RotaryKvFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, positions~ : @device.Allocation, queries~ : @device.Allocation, shared_kv~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn RotaryKvFrame::source_bytes(Self) -> Bytes
+pub fn RotaryKvFrame::workspace_bytes(Self) -> Int64
+
+pub(all) struct RotaryKvOutputs {
+  queries : @device.Allocation
+  shared_kv : @device.Allocation
+}
+
+// Type aliases
+
+// Traits

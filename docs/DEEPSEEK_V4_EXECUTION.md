@@ -27,6 +27,18 @@ Primary configuration evidence:
 
 ## Completion evidence
 
+Current executable integration (2026-10-10): the older inert catalog below is
+not the only execution path. `integration/deepseek_v4_query_kv` now binds and
+streams five actual compact checkpoint banks through Query-A, learned query
+norm, Query-B, BF16 head norm, shared KV and learned KV norm. Its
+`DeepSeekAttentionInputs` owner appends full-head rotary and KV simulation to
+the same ordered executor. A backend-neutral precision plan distinguishes
+compression-zero base RoPE from compressed-layer YaRN and excludes the rotary
+suffix from block-64 E4M3/power-of-two simulation. Outputs remain BF16; these
+effects do not own or commit persistent KV state. GPU component correctness,
+determinism and three sanitizers pass on GB10; no whole-checkpoint generation
+or throughput result follows. Current detailed results are in `STATUS.md`.
+
 | Boundary | Evidence required for executable support | Current state |
 |---|---|---|
 | Configuration | Bounded JSON parser rejects unknown fields and admits only exact architecture/model-type/profile geometry | Implemented in the family-owned exact config parser for all five profiles |
@@ -43,10 +55,11 @@ Primary configuration evidence:
 | Correctness | Deterministic prefill/decode logits and token sequences match an independent official implementation over hostile shapes and long-context transitions | Not implemented |
 | Physical qualification | Sanitizer, leak, deterministic rebuild, CUDA correctness, graph-capture, and benchmark gates pass on each promoted device/profile | Not implemented |
 
-The next coherent implementation boundary is the exact quantized Query-B
-candidate plus Query-A/KeyValue/Output-A/Output-B materialization and the
-Query-B/Output-B tensor-parallel collectives, followed by the learned compressor
-projection/gating and cache-state mutation that feed
+The next executable integration boundary is learned compressor projection/
+gating, indexer selection and request-owned cache-state mutation, followed by
+attention, inverse rotary, output projections and complete decoder composition.
+The unsharded query-prefix component above does not implement Query-B/Output-B
+tensor-parallel collectives. Compression and cache mutation feed
 shared-KV preparation and live mHC/KV
 buffer orchestration around the selected-attention candidate. Authenticated offline-builder
 and compiler-execution provenance, live loader/launch ownership for inert

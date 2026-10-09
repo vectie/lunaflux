@@ -16,9 +16,28 @@ pub fn bind_query_kv_weights(@precision_materialize.PackedCheckpoint, @deepseek_
 
 pub fn query_kv_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.QuantizedQueryKvPrecision raise
 
+pub fn rotary_kv_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RotaryKvPrecision raise
+
 // Errors
 
 // Types and methods
+pub(all) struct DeepSeekAttentionInputBuffers {
+  low_rank_queries : @device.Allocation
+  queries : @device.Allocation
+  shared_kv : @device.Allocation
+}
+
+pub struct DeepSeekAttentionInputs {
+  // private fields
+}
+pub fn DeepSeekAttentionInputs::close(Self) -> Unit raise
+pub fn DeepSeekAttentionInputs::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekAttentionInputs::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekAttentionInputs::outputs(Self) -> DeepSeekAttentionInputBuffers raise
+pub fn DeepSeekAttentionInputs::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, hidden~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekAttentionInputs::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekAttentionInputs::source_bytes(Self) -> Bytes
+
 pub struct DeepSeekQueryKv {
   // private fields
 }

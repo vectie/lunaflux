@@ -102,6 +102,24 @@ async test "official query and KV planes bind and stream without expansion" {
       offset + plan.workspace_bytes(),
     )
     owner.close()
+    let inputs = @deepseek_v4_query_kv.DeepSeekAttentionInputs::new(
+      spec,
+      layer=0,
+      maximum_rows=1,
+      maximum_workspace_bytes=1048576L,
+    )
+    let rotary = @deepseek_v4_query_kv.rotary_kv_plan(
+      spec,
+      layer=0,
+      maximum_rows=1,
+      maximum_workspace_bytes=1048576L,
+    )
+    assert_eq(
+      inputs.required_device_bytes(checkpoint),
+      offset + plan.workspace_bytes() + rotary.workspace_bytes(),
+    )
+    inputs.close()
+    inputs.close()
     let copied = [0L, 0L, 0L, 0L, 0L]
     checkpoint.transfer_weights(
       root,

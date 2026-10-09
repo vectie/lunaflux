@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/rotary_kv_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn rotary_kv_source(@precision_ir.RotaryKvPrecision, symbol_prefix~ : String) -> RotaryKvCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct RotaryKvCudaSource {
+  // private fields
+}
+pub fn RotaryKvCudaSource::launch(Self, Int) -> (Int, Int, Int)
+pub fn RotaryKvCudaSource::plan(Self) -> @precision_ir.RotaryKvPrecision
+pub fn RotaryKvCudaSource::source_bytes(Self) -> Bytes
+pub fn RotaryKvCudaSource::symbol(Self, Int) -> String
+
+// Type aliases
+
+// Traits

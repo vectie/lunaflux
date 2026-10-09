@@ -162,6 +162,40 @@ whole-checkpoint DeepSeek/DSpark result. Actual GLM checkpoint transfers to both
 Sparks and its CPU placement scan continue independently; no GPU weights have
 been loaded by those jobs.
 
+Update 2026-10-10 (DeepSeek attention input execution): `DeepSeekAttentionInputs`
+now composes the checkpoint-backed six-stage prefix with full-head adjacent-pair
+rotary and blockwise KV simulation. A pure `RotaryKvPrecision` plan records
+Base/YaRN frequency policy, BF16 publication, E4M3 encode/decode, block width,
+amax floor and scale law. The model adapter disables YaRN for compression-zero
+layers and uses compressed-theta YaRN otherwise, matching the installed DSpark
+reference. Only the 448 non-RoPE components of a 512-wide KV head are simulated
+in block-64 groups; the 64-component positional suffix remains BF16.
+The combined owner budgets all eight scratch frames and packed weights and
+returns eight borrowed launches, without an additional completion boundary.
+The precision/source/checkpoint adapter subset passes 38/38 locally; the two
+new composed executor regressions pass, including 32 warm steps with zero
+measured heap allocations, no blocking sync and exact resource release. Native
+checks retain the existing legacy warning exclusions, including reserved-name
+warning 35 in an unrelated older fixture. The broader aggregate is still running.
+
+The GB10 component probe passes base/YaRN and both scale policies at positions
+0/65,536/1,048,575, zero/nonzero inputs, live rows 0/1/3 and deterministic repeats.
+Query prefixes and simulated KV prefixes are word-exact against the CPU oracle;
+maximum rotary absolute error is 0.0078125 (not a bitwise arithmetic claim).
+Memory/race/synchronization sanitizers report zero errors/hazards. Physical
+units use a 2 GiB cgroup-v2 memory ceiling and zero swap; this tiny test does not
+load model weights. Local artifacts: `/tmp/lunaflux-rotary-kv-20261010.53vJG5vl`;
+remote artifacts: `/tmp/lunaflux-rotary-kv-20261010.7JsIaHnK`. Source SHA-256
+`83801ac789162edec6f206bf9508eff75edea4af4ffae21e2b826e8e8d1da84c`, probe
+`521271bb8ae33317e04807fabbca7058a62d086958697d68d651ac36e56a90e1`, binary
+`ec3ff9b09c48ede53080547763f668bc27f9868d0a1e644e1bdd3f5281b4c595` match downloads.
+The initial race-check admission paused on residual 3% GPU utilization after
+memcheck; no workload started then. After idle/no-compute-process verification,
+only the remaining sanitizers resumed. Full sliding/compressed-cache mutation,
+learned compressor/indexer, attention/output/mHC composition and whole-model
+DeepSeek/DSpark numerics remain open. This is a component execution result,
+not complete generation, packed FP8 cache serving or performance evidence.
+
 The expanded affected native aggregate passed 221/221 locally. Exact commit
 `ef95b5c0` also builds the checkpoint runner on Linux and parses the installed
 GLM config successfully. Linux continuation/wire test linking exposed the

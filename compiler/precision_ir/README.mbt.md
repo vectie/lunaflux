@@ -37,3 +37,10 @@ ordered F32 causal convolution, SiLU and BF16 output rounding. Its exact frame
 and persistent-state sizes are independent of batch sequence ordinals.
 RecurrentDeltaPrecision describes normalized delta attention with F32 state.
 Both expose CacheCommit effects; neither contains CUDA geometry or model names.
+
+RotaryKvPrecision separates full-head adjacent-pair F32 rotary with BF16
+publication from non-rotary E4M3 KV simulation. Base/YaRN frequency policy,
+simulation block width, amax floor and scale law are immutable semantic inputs.
+Simulation publishes BF16 operands (StepWrite), not packed persistent cache
+storage or cache ownership (CacheCommit). Two exact output spans participate
+in the surrounding aggregate workspace ceiling before device allocation.
