@@ -1,3 +1,4 @@
+///|
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
@@ -5,41 +6,67 @@ import {
   "moonbitlang/core/env",
 }
 
+///|
 async fn main {
-  guard @env.args() is [_, socket, remote, destination] else {
-    fail("CONTROL_SOCKET REMOTE_DIRECTORY NEW_LOCAL_DIRECTORY")
+  let (socket, remote, destination, executable, success) = match @env.args() {
+    [_, socket, remote, destination] =>
+      (
+        socket, remote, destination, "indexed_sparse_probe", "maxabs=0 prefill_decode_bitwise=true",
+      )
+    [_, socket, remote, destination, "history"] =>
+      (
+        socket, remote, destination, "indexed_sparse_history_probe", "maxabs=0 retained_prefill_decode_bitwise=true",
+      )
+    _ => fail("CONTROL_SOCKET REMOTE_DIRECTORY NEW_LOCAL_DIRECTORY [history]")
   }
   guard remote.has_prefix("/tmp/lunaflux-indexed-sparse.") &&
-    remote.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '/')) else {
+    remote.all(c => {
+      c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '/')
+    }) else {
     fail("unexpected remote fixture directory")
   }
   guard !@fs.exists(destination) else { fail("no overwrite") }
   @fs.mkdir(destination)
   for mode in ["correct", "memcheck", "racecheck", "synccheck"] {
     let remote_args = [
-      "systemd-run", "--user", "--collect", "--wait", "--pipe",
-      "-p", "MemoryMax=2G", "-p", "MemorySwapMax=0", "-p", "RuntimeMaxSec=120",
+      "systemd-run", "--user", "--collect", "--wait", "--pipe", "-p", "MemoryMax=2G",
+      "-p", "MemorySwapMax=0", "-p", "RuntimeMaxSec=120",
     ]
     if mode != "correct" {
       remote_args.append([
-        "/usr/local/cuda/bin/compute-sanitizer", "--tool", mode, "--error-exitcode", "97",
+        "/usr/local/cuda/bin/compute-sanitizer", "--tool", mode, "--error-exitcode",
+        "97",
       ])
-      if mode == "memcheck" { remote_args.append(["--leak-check", "full"]) }
+      if mode == "memcheck" {
+        remote_args.append(["--leak-check", "full"])
+      }
     }
-    remote_args.push(remote + "/indexed_sparse_probe")
-    let result = @shell.Cmd("ssh", [
-      "-S", socket, "wlc003s@192.168.2.178", ..remote_args,
-    ]).output(max_output_bytes=1048576)
-    @fs.write_file(destination + "/" + mode + ".stdout", result.stdout(), create_mode=CreateNew)
-    @fs.write_file(destination + "/" + mode + ".stderr", result.stderr(), create_mode=CreateNew)
+    remote_args.push(remote + "/" + executable)
+    let result = @shell.Cmd(
+      "ssh",
+      ["-S", socket, "wlc003s@192.168.2.178", ..remote_args],
+    ).output(max_output_bytes=1048576)
+    @fs.write_file(
+      destination + "/" + mode + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      destination + "/" + mode + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
     result.check()
-    guard result.stdout().contains("maxabs=0 prefill_decode_bitwise=true") else {
+    guard result.stdout().contains(success) else {
       fail("numerical fixture failed " + mode)
     }
     println(mode + " passed")
   }
   @shell.Cmd("scp", [
-    "-o", "ControlPath=" + socket, "-r",
-    "wlc003s@192.168.2.178:" + remote, destination + "/artifacts",
+    "-o",
+    "ControlPath=" + socket,
+    "-r",
+    "wlc003s@192.168.2.178:" + remote,
+    destination + "/artifacts",
   ]).run()
 }

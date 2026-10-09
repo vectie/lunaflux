@@ -10,6 +10,21 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Request-owned projected sparse history now retains index keys, pool gates and
+attention K/V between prefill chunks and decode. Its immutable storage plan
+separates history capacity from frame rows; device lowering orders reserve/reset,
+parallel BF16 copy and publication before pooling/index/attention in one queue.
+The small eight-query / 32-history fixture owns 1,216 bytes of history/metadata
+plus 580 bytes pool/index scratch. Distinct request owners have separate storage;
+idle preserves history, request reset clears old validity, and overflow reports
+a device error rather than truncating. The native queue test runs 32 steps /
+192 launches with no measured hot heap allocation or blocking wait and releases
+after active cancellation. The affected suite passes 99/99; small GB10 tests
+match the independent oracle exactly, with bitwise chunked-prefill/decode
+agreement, request isolation, reset/reuse and clean memory/leak/race/sync checks.
+This implements cache append, not hidden-state projections, batched slot
+scheduling, whole-model serving or a performance claim.
+
 Projected indexed sparse attention now composes pooling, deterministic index
 selection and attention from a model-independent precision plan. Decode query
 capacity no longer forces query/output/selection storage to match retained
@@ -25,7 +40,7 @@ The 96-test affected native suite and small GB10 GPU fixture pass. The GPU test
 uses 15 valid keys within capacity 32, three prefill queries and one decode query:
 maxabs 0, bitwise prefill/decode agreement, zero inactive output, and zero memory,
 race and synchronization sanitizer errors. These are correctness-grade serial
-kernels, not a model throughput result. Complete DSA projections, KV append,
+kernels, not a model throughput result. Complete DSA projections,
 decoder/worker integration and two-host execution remain unfinished.
 
 Recurrent GLM MoE decoder composition now joins both mHC envelopes, KDA,

@@ -63,8 +63,12 @@ prepared pooling/index/attention launch frame. Query capacity is independent of
 history capacity; IndexShare consumers borrow the device selection and execute
 only attention, with no owned pool/index workspace. Its bounded GPU fixture
 passes exact prefill/decode output checks and memory/race/sync checks. This does
-not yet include GLM projections, request-owned KV append or complete DSA blocks;
-those are the next integration work, not new deployment-hardening prerequisites.
+not yet include GLM projections or complete DSA blocks. Request-owned projected
+history now prepends reserve/reset, parallel BF16 append and publication to the
+same queue. Chunked prefill/decode, independent owners, reuse, idle preservation
+and full-capacity/error behavior pass a bounded GPU fixture. Next connect GLM
+projections, model-layer IndexShare scheduling and complete DSA blocks; these are
+feature integration work, not new deployment-hardening prerequisites.
 Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual
 implementation tasks, not transport-hardening prerequisites.
