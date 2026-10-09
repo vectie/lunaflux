@@ -9,7 +9,7 @@ priv enum RecurrentLayerState {
 
 ///|
 /// Executable checkpoint-backed KDA branch, optionally with the complete
-/// residual-stream attention envelope. Owns weights, request state and
+/// residual-stream attention envelope and early-layer dense FFN. Owns weights, request state and
 /// intermediates, borrowing the module, stream and frame I/O.
 pub struct GlmRecurrentLayer {
   priv spec : @glm53_spec.Glm53FlashSpec
@@ -17,6 +17,7 @@ pub struct GlmRecurrentLayer {
   priv program : @recurrent.RecurrentDeltaProgram
   priv weights : @upload.CheckpointDeviceWeights
   priv hyper : @hyper.HyperConnectionFrame?
+  priv ffn : GlmDenseFfn?
   priv mut status : RecurrentLayerState
 }
 
@@ -47,15 +48,20 @@ pub fn GlmRecurrentLayer::new(
     program: @recurrent.RecurrentDeltaProgram::with_block(source),
     weights: @upload.CheckpointDeviceWeights::new(),
     hyper: None,
+    ffn: None,
     status: Fresh,
   }
 }
 
 ///|
 pub fn GlmRecurrentLayer::source_bytes(self : Self) -> Bytes {
-  match self.hyper {
+  let attention = match self.hyper {
     None => self.program.source_bytes()
     Some(hyper) => hyper.source_bytes() + b"\n" + self.program.source_bytes()
+  }
+  match self.ffn {
+    None => attention
+    Some(ffn) => attention + b"\n" + ffn.source_bytes()
   }
 }
 
@@ -65,7 +71,11 @@ pub fn GlmRecurrentLayer::workspace_bytes(self : Self) -> Int64 {
     None => 0L
     Some(hyper) => hyper.workspace_bytes()
   }
-  self.program.workspace_bytes() + extra
+  let ffn_bytes = match self.ffn {
+    None => 0L
+    Some(ffn) => ffn.workspace_bytes()
+  }
+  self.program.workspace_bytes() + extra + ffn_bytes
 }
 
 ///|
@@ -115,6 +125,12 @@ pub fn GlmRecurrentLayer::prepare(
       bound.push(weight)
     }
   }
+  if self.ffn is Some(_) {
+    for
+      weight in bind_dense_ffn_weights(checkpoint, self.spec, self.layer_index) {
+      bound.push(weight)
+    }
+  }
   self.weights.upload(
     context,
     checkpoint,
@@ -124,20 +140,27 @@ pub fn GlmRecurrentLayer::prepare(
     chunk_bytes~,
     limits~,
   )
-  let (input, branch_output, prefix, suffix) : (
+  let attention_output = match self.ffn {
+    None => output
+    Some(ffn) => {
+      ffn.prepare(context, aot, self.weights, counts~, output~)
+      ffn.input()
+    }
+  }
+  let (input, branch_output, prefix, attention_suffix) : (
     @device.Allocation,
     @device.Allocation,
     ArrayView[@device.OrderedKernelLaunch],
     ArrayView[@device.OrderedKernelLaunch],
   ) = match self.hyper {
-    None => (hidden, output, [], [])
+    None => (hidden, attention_output, [], [])
     Some(hyper) => {
       hyper.prepare(
         context,
         aot,
         counts~,
         input=hidden,
-        output~,
+        output=attention_output,
         function_weight=self.weights.allocation(15),
         base=self.weights.allocation(16),
         scale=self.weights.allocation(17),
@@ -150,6 +173,12 @@ pub fn GlmRecurrentLayer::prepare(
         hyper.prefix(),
         hyper.suffix(),
       )
+    }
+  }
+  let suffix = attention_suffix.to_owned()
+  if self.ffn is Some(ffn) {
+    for launch in ffn.launches {
+      suffix.push(launch)
     }
   }
   self.program.prepare_block(
@@ -212,6 +241,9 @@ pub fn GlmRecurrentLayer::close(self : Self) -> Unit raise @device.DeviceError {
   }
   self.status = Failed
   self.program.abort()
+  if self.ffn is Some(ffn) {
+    ffn.close()
+  }
   if self.hyper is Some(hyper) {
     hyper.close()
   }

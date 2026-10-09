@@ -47,9 +47,12 @@ native fixture exercises that owner and its complete queue. Its attention mHC
 envelope is now executable too: function/collapse, Sinkhorn and input RMSNorm
 precede KDA; residual publication follows it in the same 20-launch queue with
 one completion boundary. The GLM adapter streams all nineteen physical weights,
-and a bounded small GPU full-chain oracle passes. Next run this owner with real
-weights on GPU and connect its attention output to dense/MoE sublayers and
-layer/worker execution.
+and a bounded small GPU full-chain oracle passes. The early dense decoder block
+now adds its second mHC envelope and separate-weight staged SwiGLU to that same
+queue: 26 launches, one completion, 26 checkpoint weights. Its small GPU oracle
+passes, with bitwise prefill/decode agreement and clean memory/race/sync checks.
+Next run this owner with real weights on GPU, compose recurrent MoE/DSA blocks,
+and connect layer/worker execution.
 Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual
 implementation tasks, not transport-hardening prerequisites.

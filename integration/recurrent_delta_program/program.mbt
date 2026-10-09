@@ -125,7 +125,7 @@ pub fn RecurrentDeltaProgram::prepare(
   initialize_cache(context, state, plan.state_bytes())
   // Startup composition only. Borrowed envelope functions/regions must outlive
   // this one queue; token submission never constructs or merges launch arrays.
-  let launches = prefix.to_array()
+  let launches = prefix.to_owned()
   let frame = match (self.block, block_weights, hidden) {
     (Some(block), Some(weights), Some(hidden)) => {
       let frame = allocate_block_frame(self, context, block)

@@ -54,6 +54,7 @@ pub fn GlmRecurrentLayer::poll(Self) -> Bool raise @device.DeviceError
 pub fn GlmRecurrentLayer::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
 pub fn GlmRecurrentLayer::source_bytes(Self) -> Bytes
 pub fn GlmRecurrentLayer::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
+pub fn GlmRecurrentLayer::with_dense_block(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise
 pub fn GlmRecurrentLayer::with_hyper_connection(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise
 pub fn GlmRecurrentLayer::workspace_bytes(Self) -> Int64
 

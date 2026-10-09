@@ -39,6 +39,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
         ),
       ),
     ),
+    ffn: None,
     status: Fresh,
   }
 }

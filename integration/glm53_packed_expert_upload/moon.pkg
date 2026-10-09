@@ -13,6 +13,8 @@ import {
   "vectie/lunaflux/kernels/recurrent_block_execution_cuda_source" @block,
   "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source" @hyper_source,
   "vectie/lunaflux/integration/hyper_connection_frame" @hyper,
+  "vectie/lunaflux/kernels/dense_mlp_execution_cuda_source" @dense_source,
+  "vectie/lunaflux/integration/dense_mlp_frame" @dense,
 }
 
 supported_targets = "native"

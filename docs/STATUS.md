@@ -10,6 +10,29 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+The GLM early dense decoder block now executes both mHC envelopes, KDA and
+dense SwiGLU in one 26-launch queue. Separate gate/up weights produce a shared
+BF16 product once, and down consumes it; no intermediate CPU handoff is added.
+Generic precision IR owns geometry and numerical rounds, the prepared frame
+owns its product/functions, and only the GLM adapter binds model names. All
+seven additional tensors match installed checkpoint header shapes/dtypes.
+At rows 32 / sequences 16 / slots 32, weights are 579,060,440 bytes and workspace
+148,669,440 bytes, excluding borrowed I/O/module/stream. The native test double
+runs 32 steps / 832 launches without measured token-step allocation or blocking
+waits. Focused native tests pass 58/58. This completes early dense-block
+composition, not a whole-model worker.
+
+On idle .178 GB10, a tiny complete 26-stage numerical fixture matches the
+independent oracle exactly for final residual output and shared MLP product;
+maximum recurrent state error is 2.27e-8. Raw history is exact, prefill/decode
+outputs and state are bitwise equal, and idle publication is untouched. Memory,
+leak, race and synchronization checks report zero issues under a 2 GiB/no-swap
+process cap. These are generated-kernel component tests, not actual checkpoint
+weight execution or a serving benchmark. The current ordered projections remain
+correctness-first. Recurrent MoE/DSA blocks, real-weight GPU execution, complete
+three-model workers and two-host execution remain unfinished. No new TLS,
+signing or admission work was added.
+
 The GLM recurrent attention sublayer now includes its complete mHC envelope:
 four residual streams → function/collapse → positive Sinkhorn/input RMSNorm →
 KDA branch → residual-stream publication. Its nineteen checkpoint parameters

@@ -1,7 +1,8 @@
 # Request-owned recurrent delta execution
 
 The first executable slice was the normalized delta recurrence; subsequent
-sections record its complete branch, checkpoint owner and attention mHC envelope.
+sections record its complete branch, checkpoint owner, attention mHC envelope
+and early dense decoder block.
 This remains component execution, not a whole-model benchmark. Pure precision IR describes BF16
 frame operands, F32 log decay/state, geometry, numerical ordering and state
 budget. The GLM adapter selects that plan only for KDA layers. CUDA lowering
@@ -233,3 +234,56 @@ full-model workers and two-host execution remain genuine feature tasks. Existing
 control/Sinkhorn and projection schedules are correctness-first; no model
 throughput or reference-framework improvement is claimed. TLS/admission work
 remains paused.
+
+## Complete early dense decoder block
+
+`GlmRecurrentLayer::with_dense_block` connects the existing attention envelope
+to an owned intermediate residual frame, then to the FFN envelope and staged
+dense SwiGLU. The queue contains 3 attention-prefix launches, 16 KDA launches,
+1 attention publication, 3 FFN-prefix launches, 2 MLP launches and 1 final
+publication: 26 launches with one completion boundary. It rejects routed-MoE
+layers rather than silently substituting dense execution.
+
+The generic pure `DenseSwiGluPrecision` plan describes separate row-major BF16
+weights, ordered F32 projection folds and BF16 rounds after gate/up, SiLU,
+product and down. Product materialization is shared across output columns.
+`DenseMlpFrame` owns that intermediate and functions; the GLM adapter alone
+selects layer geometry and checkpoint names. The executor creates no queue,
+heap allocation or diagnostic readback between attention and MLP.
+
+The installed first-shard header confirms BF16 gate/up `[12288,4096]`, down
+`[4096,12288]`, FFN function `[24,16384]`, post-attention norm `[4096]`, F32
+FFN base `[24]` and scale `[3]`. Together with the nineteen attention weights,
+the owner binds 26 parameters totaling 579,060,440 bytes. At rows 32 / sequences
+16 / slots 32, workspace is 148,669,440 bytes, and total owned weights/workspace
+is 727,729,880 bytes. Borrowed I/O/module/stream are excluded. The official-sized
+sparse native fixture runs 32 steps / 832 launches with zero measured step heap
+allocations and blocking waits; the previous nineteen-weight test is retained.
+The expanded focused native suite passes 58/58. Targeted formatting and interface
+generation pass; existing unrelated deprecations still prevent claiming a
+warning-denied release boundary.
+
+The small complete GPU probe uses six hidden channels, nine intermediate
+channels, four residual streams and eight rows, with independent nonuniform
+gate/up/down weights. It executes the exported generic dense kernels and the
+previous exported KDA/envelope kernels. Both envelopes use separate buffers;
+the probe reuses their function symbols, while the model adapter emits distinct
+attention/FFN prefixes. Final residual and product oracle errors are zero,
+maximum F32 recurrent-state error is 2.26728507e-8, and raw histories match
+exactly. Eight-token prefill and eight decode frames match output/state bitwise.
+Idle frames leave output/state unchanged. Memcheck reports zero errors/leaks,
+racecheck zero hazards/warnings and synccheck zero errors.
+
+The target is idle .178 GB10/CUDA 13.0.88, `sm_121`, `--fmad=false`. Every process
+is capped at 2 GiB, no swap and 120 seconds; final available host memory is
+123,228,936 KiB, with no compute process. Local capture is
+`/tmp/lunaflux-dense-capture.xhKxso`; remote sources/binary are in
+`/tmp/lunaflux-dense-feature.j318Gj`. The downloaded artifacts match remote
+SHA-256 identities; the generated dense header hash is
+`f79f766667e55742a2305aa32a1d510298882efc6ae6a8c67c8cc30ea82cf628`.
+
+This completes the executable early dense-block composition, not all GLM
+layers or checkpoint-weight GPU inference. The dense projection schedule is
+ordered per-output SIMT, not tensor-core GEMM; no throughput improvement is
+claimed. Recurrent MoE/DSA composition, full-model execution and two-host workers
+remain the next real features. TLS/signing/admission expansion remains paused.
