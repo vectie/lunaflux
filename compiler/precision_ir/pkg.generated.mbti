@@ -141,6 +141,17 @@ pub fn IndexedSparseAttentionPrecision::new(index_head_count~ : Int, index_head_
 pub fn IndexedSparseAttentionPrecision::selected_width(Self) -> Int
 pub fn IndexedSparseAttentionPrecision::workspace_bytes(Self) -> Int64
 
+pub struct IndexedSparseDecoderPrecision {
+  // private fields
+}
+pub fn IndexedSparseDecoderPrecision::attention_output_bytes(Self) -> Int64
+pub fn IndexedSparseDecoderPrecision::envelope(Self) -> HyperConnectionPrecision
+pub fn IndexedSparseDecoderPrecision::history(Self) -> IndexedSparseHistoryPrecision
+pub fn IndexedSparseDecoderPrecision::new(IndexedSparseProjectionPrecision, HyperConnectionPrecision, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn IndexedSparseDecoderPrecision::output_weight_bytes(Self) -> Int64
+pub fn IndexedSparseDecoderPrecision::projection(Self) -> IndexedSparseProjectionPrecision
+pub fn IndexedSparseDecoderPrecision::workspace_bytes(Self) -> Int64
+
 pub struct IndexedSparseHistoryPrecision {
   // private fields
 }

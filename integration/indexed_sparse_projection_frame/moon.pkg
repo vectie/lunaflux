@@ -2,6 +2,7 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source" @source,
   "vectie/lunaflux/integration/indexed_sparse_attention_frame" @sparse,
+  "vectie/lunaflux/integration/hyper_connection_frame" @hyper,
   "moonbitlang/core/encoding/utf8",
 }
 

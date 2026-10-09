@@ -4,6 +4,8 @@ import {
   "vectie/lunaflux/kernels/prefix_rms_norm_cuda_source" @rms,
   "vectie/lunaflux/kernels/affine_layer_norm_cuda_source" @norm,
   "vectie/lunaflux/kernels/decoder_kv_assembly_cuda_source" @kv,
+  "vectie/lunaflux/kernels/indexed_sparse_attention_execution_cuda_source" @sparse,
+  "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source" @hyper,
 }
 
 supported_targets = "native"
@@ -11,5 +13,4 @@ supported_targets = "native"
 import {
   "moonbitlang/core/env",
   "moonbitlang/core/encoding/utf8",
-  "vectie/lunaflux/kernels/indexed_sparse_attention_execution_cuda_source" @sparse,
 } for "test"

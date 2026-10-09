@@ -24,6 +24,8 @@ import {
   "vectie/lunaflux/kernels/indexed_sparse_attention_execution_cuda_source" @sparse_source,
   "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source" @projection_source,
   "vectie/lunaflux/integration/indexed_sparse_projection_frame" @projection_frame,
+  "vectie/lunaflux/integration/hyper_connection_frame" @hyper_frame,
+  "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source" @hyper_source,
 }
 
 supported_targets = "native"

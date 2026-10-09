@@ -3,14 +3,29 @@ package "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source"
 
 import {
   "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source",
+  "vectie/lunaflux/kernels/indexed_sparse_attention_execution_cuda_source",
 }
 
 // Values
+pub fn indexed_sparse_decoder_source(@precision_ir.IndexedSparseDecoderPrecision, symbol_prefix~ : String) -> IndexedSparseDecoderCudaSource raise
+
 pub fn indexed_sparse_projection_source(@precision_ir.IndexedSparseProjectionPrecision, symbol_prefix~ : String) -> IndexedSparseProjectionCudaSource raise
 
 // Errors
 
 // Types and methods
+pub struct IndexedSparseDecoderCudaSource {
+  // private fields
+}
+pub fn IndexedSparseDecoderCudaSource::attention(Self) -> @indexed_sparse_attention_execution_cuda_source.IndexedSparseAttentionCudaSource
+pub fn IndexedSparseDecoderCudaSource::envelope(Self) -> @hyper_connection_execution_cuda_source.HyperConnectionCudaSource
+pub fn IndexedSparseDecoderCudaSource::history(Self) -> @indexed_sparse_attention_execution_cuda_source.IndexedSparseHistoryCudaSource
+pub fn IndexedSparseDecoderCudaSource::output_symbol(Self) -> String
+pub fn IndexedSparseDecoderCudaSource::plan(Self) -> @precision_ir.IndexedSparseDecoderPrecision
+pub fn IndexedSparseDecoderCudaSource::projection(Self) -> IndexedSparseProjectionCudaSource
+pub fn IndexedSparseDecoderCudaSource::source_bytes(Self) -> Bytes
+
 pub struct IndexedSparseProjectionCudaSource {
   // private fields
 }
