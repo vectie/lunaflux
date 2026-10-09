@@ -16,9 +16,13 @@ pub fn attention_output_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int
 
 pub fn bind_attention_output_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
+pub fn bind_compressor_pool_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn bind_query_kv_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn bind_window_attention_sink(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int) -> @precision_materialize.PackedCheckpointWeight raise
+
+pub fn compressor_pool_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool, maximum_rows~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> @precision_ir.LearnedGatedPoolPrecision raise
 
 pub fn query_kv_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.QuantizedQueryKvPrecision raise
 
@@ -56,6 +60,20 @@ pub fn DeepSeekAttentionOutput::output(Self) -> @device.Allocation raise
 pub fn DeepSeekAttentionOutput::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, attention~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekAttentionOutput::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekAttentionOutput::source_bytes(Self) -> Bytes
+
+pub struct DeepSeekCompressorPool {
+  // private fields
+}
+pub fn DeepSeekCompressorPool::append_descriptor(Self) -> @device.Allocation raise
+pub fn DeepSeekCompressorPool::close(Self) -> Unit raise
+pub fn DeepSeekCompressorPool::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekCompressorPool::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool, maximum_rows~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekCompressorPool::output(Self) -> @device.Allocation raise
+pub fn DeepSeekCompressorPool::output_counts(Self) -> @device.Allocation raise
+pub fn DeepSeekCompressorPool::output_positions(Self) -> @device.Allocation raise
+pub fn DeepSeekCompressorPool::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekCompressorPool::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekCompressorPool::source_bytes(Self) -> Bytes
 
 pub struct DeepSeekQueryKv {
   // private fields

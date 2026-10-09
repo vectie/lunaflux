@@ -10,6 +10,34 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (GLM real placement and AOT): the 121-shard real checkpoint
+scan/export now finishes with exit zero. Actual executable-owner accounting
+places layers `[0,25)` at 102,064,091,128 bytes and `[25,45)` at 91,516,526,804
+bytes, each within 103,079,215,104 bytes including a 2 GiB reserve. Both exported
+stages compile offline to `sm121` cubins on their assigned Sparks under 8 GiB /
+no-swap user units. Stage-1's real checkpoint load is now running on `.179`
+under a 96 GiB / no-swap ceiling; it has not executed or generated tokens yet.
+Local placement/source evidence is
+`/tmp/lunaflux-glm-real-placement-20261010.C0igHeAy`.
+The actual tokenizer uses non-normalizing regex ByteLevel BPE with
+`\\p{N}{1,3}` numeric groups, not Qwen's NFC/single-digit profile. This input
+feature remains unsupported; it must not be silently tokenized as Qwen or raw
+BPE. Prompt frames, two-rank GPU execution and independent correctness remain
+open. Internal rank communication is plain TCP; TLS/signing/public deployment
+work is not a prerequisite for this feature diagnostic.
+
+Update 2026-10-10 (checkpoint-connected learned pools): the model adapter now
+binds attention and indexer compressor `wkv.weight`, `wgate.weight`, `ape` and
+`norm.weight` to their actual separate shapes and BF16/F32 storage. Its prepared
+owner streams these four banks without expanding BF16 parameters into a host
+F32 arena, accounts for weights plus retained state plus frames, and contributes
+five launches to the containing queue. Layer ratios and indexer widths are
+supplied by the model adapter; the shared immutable pooling IR is unchanged.
+This output is deliberately before compressed rotary/quantization/cache
+publication, not completed compressed attention or indexer selection.
+The adapter's native suite passes 7/7, including all Flash/Pro layer-ratio
+combinations and bounded actual-shape checkpoint-plane streaming fixtures.
+
 Update 2026-10-10 (learned gated compressor core): immutable
 `LearnedGatedPoolPrecision` now separates per-feature pooling semantics from
 CUDA lowering and prepared persistent-state ownership. BF16 input and learned

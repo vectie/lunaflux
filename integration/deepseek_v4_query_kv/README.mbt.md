@@ -47,3 +47,13 @@ These remain single-rank components, **not a DeepSeek/DSpark model runner**.
 Compressed cache/compressor/indexer, mHC/decoder composition and distributed
 head ownership remain subsequent integration work. No whole-model accuracy
 or performance claim follows from the small numerical fixtures.
+# Learned compressor pooling
+
+`DeepSeekCompressorPool` binds attention/indexer-specific BF16 projection and
+normalization banks and F32 position biases to the shared learned pooling plan.
+Its five prepared effects join the caller's queue, expose compact output counts,
+positions and the sticky append error, and retain no filesystem authority after
+startup. Close the borrowing queue, this owner, then caller input ports.
+Compression-zero layers and indexer requests outside ratio four are rejected.
+These normalized outputs are before rotary, cache conversion/publication and
+index selection; this owner alone is not complete compressed attention.

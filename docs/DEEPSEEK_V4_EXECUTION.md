@@ -80,11 +80,16 @@ five CUDA effects and a prepared persistent-state frame. It preserves F32
 BF16-parameter projections, learned position biases, preceding-window overlap,
 BF16 pooled publication and learned F32 RMSNorm. Small GB10 fixtures for ratio
 4 overlap and ratio 128 pass chunk/decode state, output and sanitizer checks.
-This is not checkpoint-connected: learned compressor binding, output RoPE/cache
-quantization, compressed-cache publication and learned indexer remain open.
+`DeepSeekCompressorPool` now connects each layer's attention or indexer pool to
+the actual BF16 `wkv`/`wgate`, F32 `ape` and BF16 learned norm parameters. It
+streams into final device banks with a single containing queue and checked
+weights/state/frame accounting; no host F32 weight expansion is introduced.
+Output RoPE/cache quantization, compressed-cache publication and learned index
+query/scoring/selection remain open. Checkpoint-plane fixture binding is not a
+whole-checkpoint numerical result.
 
-The next executable integration boundary is learned compressor checkpoint/
-gating, indexer selection and request-owned cache-state mutation, followed by
+The next executable integration boundary is compressed output transformation,
+indexer selection and request-owned cache-state mutation, followed by
 attention, mHC and complete decoder composition. Inverse rotary and learned
 output projections are now connected for compression-zero layers as above.
 The unsharded query-prefix component above does not implement Query-B/Output-B
