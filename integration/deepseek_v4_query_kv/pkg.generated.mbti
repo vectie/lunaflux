@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/integration/learned_index_queries_frame",
   "vectie/lunaflux/integration/quantized_query_kv_frame",
   "vectie/lunaflux/model/deepseek_v4_spec",
   "vectie/lunaflux/model/streaming_safetensors",
@@ -18,6 +19,8 @@ pub fn bind_attention_output_weights(@precision_materialize.PackedCheckpoint, @d
 
 pub fn bind_compressor_pool_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
+pub fn bind_index_queries_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn bind_query_kv_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn bind_window_attention_sink(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int) -> @precision_materialize.PackedCheckpointWeight raise
@@ -27,6 +30,8 @@ pub fn compressed_cache_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int
 pub fn compressor_cache_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_input_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RotaryCachePrecision raise
 
 pub fn compressor_pool_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool, maximum_rows~ : Int, maximum_context? : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> @precision_ir.LearnedGatedPoolPrecision raise
+
+pub fn index_queries_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.LearnedIndexQueriesPrecision raise
 
 pub fn indexer_cache_transform_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RotaryHadamardFp4Precision raise
 
@@ -107,6 +112,17 @@ pub fn DeepSeekCompressorPool::output_positions(Self) -> @device.Allocation rais
 pub fn DeepSeekCompressorPool::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekCompressorPool::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekCompressorPool::source_bytes(Self) -> Bytes
+
+pub struct DeepSeekIndexQueries {
+  // private fields
+}
+pub fn DeepSeekIndexQueries::close(Self) -> Unit raise
+pub fn DeepSeekIndexQueries::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekIndexQueries::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekIndexQueries::outputs(Self) -> @learned_index_queries_frame.LearnedIndexQueryOutputs raise
+pub fn DeepSeekIndexQueries::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, hidden~ : @device.Allocation, low_rank_queries~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekIndexQueries::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekIndexQueries::source_bytes(Self) -> Bytes
 
 pub struct DeepSeekQueryKv {
   // private fields

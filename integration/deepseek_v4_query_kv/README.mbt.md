@@ -49,6 +49,14 @@ head ownership remain subsequent integration work. No whole-model accuracy
 or performance claim follows from the small numerical fixtures.
 # Learned compressor pooling
 
+The next learned-index execution edge uses a separate model-neutral query plan:
+packed E4M3/UE8M0 projection of the already-normalized query low rank, BF16
+head-weight projection from hidden states, BF16 head scaling, then the existing
+suffix rotary/normalized Hadamard/block-32 E2M1 simulation. The adapter owns
+checkpoint names only. All six effects belong to the decoder's existing queue;
+head reduction, causal selection and complete compressed attention remain
+separate consumers, not implicitly replaced by the window path.
+
 `DeepSeekCompressorPool` binds attention/indexer-specific BF16 projection and
 normalization banks and F32 position biases to the shared learned pooling plan.
 Its five prepared effects join the caller's queue, expose compact output counts,

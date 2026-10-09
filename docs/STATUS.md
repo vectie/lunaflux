@@ -10,6 +10,42 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (learned index queries): `LearnedIndexQueriesPrecision`
+composes packed block-128 E4M3/UE8M0 query projection from the already-normalized
+low rank, BF16 head projection/scaling, and the existing rotary/Hadamard/E2M1
+transform. The global full-head normalization belongs to the immutable numeric
+plan; hardware geometry remains in shared CUDA renderers. The DeepSeek adapter
+binds actual `attn.indexer.wq_b.weight/scale` and `weights_proj.weight` rather
+than substituting ordinary attention heads or fixture weights. Two compact
+checkpoint banks and all five intermediate buffers count against the aggregate
+budget. Six prepared effects share the caller's decoder queue.
+
+The initial five focused tests pass; the expanded affected regression passes
+59/59, including compact checkpoint binding/streaming. Thirty-two six-effect
+submissions measure zero warm heap allocations, no additional blocking
+synchronization and balanced release; short borrowed positions fail before
+private allocation. Scoped warning-denied native checking passes with existing
+legacy exclusions; interfaces are refreshed. New query-chain GPU correctness
+and sanitizers remain pending while GLM owns both devices. Learned weighted
+score reduction, causal top-k, compressed sparse attention and the complete
+DeepSeek/DSpark decoder remain unfinished. This is not full-model correctness
+or a performance result.
+
+Update 2026-10-10 (GLM template rerun): committed source `e7facf66` builds on
+ARM in `/tmp/lunaflux-glm-current-arm-20261010.nrWP1kZm`, 209 tasks, approximately
+503 MiB peak and zero swap. Both ranks use binary SHA-256
+`2920bf418e925b3de8506980f054da2035c0a63fd59a03f61c9063b5fdefd2d6`.
+The checkpoint's actual chat template and vocabulary produce the controlled
+13-token prompt for user content `a`, reasoning effort low and the assistant
+thinking prefix; this offline ASCII fixture is not arbitrary-text tokenizer
+support. The first launch passed the wrong relative inventory path and failed
+before payload loading on both ranks; those v1 journals are retained.
+Corrected user units `lunaflux-glm-template-ingress-20261010-e7facf66-v2.service`
+and `lunaflux-glm-template-egress-20261010-e7facf66-v2.service` are active,
+authenticating the exact 121-shard checkpoint under 96 GiB/no-swap ceilings.
+No additional GPU workload runs concurrently. Template output, independent
+numerical comparison and a clean two-rank EOF/release result are not yet known.
+
 Update 2026-10-10 (learned indexer cache operands): the same
 `DeepSeekCompressedKvCache` owner now supports the indexer's distinct checkpoint
 pool, width and numerical transform. `RotaryHadamardFp4Precision` describes

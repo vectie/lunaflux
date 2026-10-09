@@ -194,6 +194,19 @@ pub fn LearnedGatedPoolPrecision::norm_epsilon(Self) -> Double
 pub fn LearnedGatedPoolPrecision::parameter_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn LearnedGatedPoolPrecision::state_bytes(Self) -> ReadOnlyArray[Int64]
 
+pub struct LearnedIndexQueriesPrecision {
+  // private fields
+}
+pub fn LearnedIndexQueriesPrecision::effect(Self) -> NumericEffect
+pub fn LearnedIndexQueriesPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn LearnedIndexQueriesPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn LearnedIndexQueriesPrecision::head_scale(Self) -> Double
+pub fn LearnedIndexQueriesPrecision::new(hidden_width~ : Int, query_rank~ : Int, head_count~ : Int, RotaryHadamardFp4Precision, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn LearnedIndexQueriesPrecision::query_weight(Self) -> @precision_format.Representation
+pub fn LearnedIndexQueriesPrecision::transform(Self) -> RotaryHadamardFp4Precision
+pub fn LearnedIndexQueriesPrecision::weight_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn LearnedIndexQueriesPrecision::workspace_bytes(Self) -> Int64
+
 pub struct LearnedTextIoPrecision {
   // private fields
 }

@@ -1,0 +1,14 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot" @literal,
+  "vectie/lunaflux/kernels/block_fp8_ue8m0_projection_cuda_source" @fp8,
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source" @bf16,
+  "vectie/lunaflux/kernels/rotary_hadamard_fp4_cuda_source" @transform,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)

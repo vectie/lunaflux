@@ -18,6 +18,8 @@ import {
   "vectie/lunaflux/integration/retained_rows_frame" @retained_frame,
   "vectie/lunaflux/kernels/rotary_hadamard_fp4_cuda_source" @indexer_source,
   "vectie/lunaflux/integration/rotary_hadamard_fp4_frame" @indexer_frame,
+  "vectie/lunaflux/kernels/learned_index_queries_cuda_source" @index_queries_source,
+  "vectie/lunaflux/integration/learned_index_queries_frame" @index_queries_frame,
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/model/streaming_safetensors" @streaming,
   "vectie/lunaflux/device",

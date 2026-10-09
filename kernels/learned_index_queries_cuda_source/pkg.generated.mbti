@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/learned_index_queries_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/kernels/rotary_hadamard_fp4_cuda_source",
+}
+
+// Values
+pub fn learned_index_queries_source(@precision_ir.LearnedIndexQueriesPrecision, symbol_prefix~ : String) -> LearnedIndexQueriesCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct LearnedIndexQueriesCudaSource {
+  // private fields
+}
+pub fn LearnedIndexQueriesCudaSource::launch(Self, Int) -> (Int, Int, Int)
+pub fn LearnedIndexQueriesCudaSource::plan(Self) -> @precision_ir.LearnedIndexQueriesPrecision
+pub fn LearnedIndexQueriesCudaSource::source_bytes(Self) -> Bytes
+pub fn LearnedIndexQueriesCudaSource::symbol(Self, Int) -> String
+pub fn LearnedIndexQueriesCudaSource::transform(Self) -> @rotary_hadamard_fp4_cuda_source.RotaryHadamardFp4CudaSource
+
+// Type aliases
+
+// Traits

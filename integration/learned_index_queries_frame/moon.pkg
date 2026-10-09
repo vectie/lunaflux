@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/learned_index_queries_cuda_source" @source,
+  "vectie/lunaflux/integration/rotary_hadamard_fp4_frame" @transform,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)
