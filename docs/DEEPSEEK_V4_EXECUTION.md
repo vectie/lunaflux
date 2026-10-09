@@ -88,8 +88,17 @@ Output RoPE/cache quantization, compressed-cache publication and learned index
 query/scoring/selection remain open. Checkpoint-plane fixture binding is not a
 whole-checkpoint numerical result.
 
-The next executable integration boundary is compressed output transformation,
-indexer selection and request-owned cache-state mutation, followed by
+The subsequent `DeepSeekAttentionCompressor` now composes this pool with the
+standalone `RotaryCachePrecision` / prepared frame: group-start YaRN rotation
+followed by prefix-only block-64 E4M3/power-of-two simulation, retaining BF16
+storage. Both operations reuse the existing frequency/simulation lowering and
+join the same seven-effect queue without redundant query work. Native software
+validation is recorded in `STATUS.md`; new whole-chain GPU numerics remain
+pending. Compressed-cache publication and the indexer's distinct Hadamard/FP4
+transform are still not implemented by this owner.
+
+The next executable integration boundary is indexer transformation/selection
+and request-owned compressed cache-state mutation, followed by
 attention, mHC and complete decoder composition. Inverse rotary and learned
 output projections are now connected for compression-zero layers as above.
 The unsharded query-prefix component above does not implement Query-B/Output-B

@@ -15,3 +15,10 @@ The offline exporter and tiny independent CUDA probe cover base/YaRN rotary,
 both scale policies, all seven non-rotary blocks of a 512-wide head, zero input,
 live rows 0/1/3, inactive output preservation and deterministic repetition.
 Physical results must be recorded separately; source tests are not GPU proof.
+
+`RotaryCachePrecision` / `rotary_cache_source` handle standalone compact pooled
+rows using their explicit group-start positions. They reuse the same frequency
+and prefix-simulation lowering as query/KV execution, avoiding both duplicated
+numerical policy and redundant query work. Their new prepared connection has
+software tests; whole-chain GPU correctness is still pending while the Sparks
+are occupied by the real GLM checkpoint diagnostic.

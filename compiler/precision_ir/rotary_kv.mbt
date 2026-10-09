@@ -54,6 +54,24 @@ fn rotary_positive(value : Double) -> Bool {
 }
 
 ///|
+fn validate_cache_simulation(
+  width : Int,
+  rotary : Int,
+  block : Int,
+  floor : Double,
+) -> Unit raise PrecisionPlanError {
+  guard block > 0 &&
+    block <= 1024 &&
+    (block & (block - 1)) == 0 &&
+    (width - rotary) % block == 0 &&
+    rotary_positive(floor) &&
+    floor >= 1.0e-30 &&
+    floor <= 1.0 else {
+    raise IllegalPlacement
+  }
+}
+
+///|
 pub fn RotaryKvPrecision::new(
   query_heads~ : Int,
   key_value_heads~ : Int,
@@ -79,16 +97,12 @@ pub fn RotaryKvPrecision::new(
     rotary_width % 2 == 0 &&
     maximum_rows > 0 &&
     maximum_rows <= 65536 &&
-    maximum_positions > 0 &&
-    simulation_block_width > 0 &&
-    simulation_block_width <= 1024 &&
-    (simulation_block_width & (simulation_block_width - 1)) == 0 &&
-    (head_width - rotary_width) % simulation_block_width == 0 &&
-    rotary_positive(simulation_amax_floor) &&
-    simulation_amax_floor >= 1.0e-30 &&
-    simulation_amax_floor <= 1.0 else {
+    maximum_positions > 0 else {
     raise IllegalPlacement
   }
+  validate_cache_simulation(
+    head_width, rotary_width, simulation_block_width, simulation_amax_floor,
+  )
   validate_rotary_frequency(frequency, maximum_positions)
   let bytes = (heads : Int) => {
     maximum_rows.to_int64() * heads.to_int64() * head_width.to_int64() * 2L

@@ -10,6 +10,25 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (compressed attention operand transformation):
+`DeepSeekAttentionCompressor` now joins checkpoint-backed pooling to standalone
+compact-row RoPE and prefix-only block-64 E4M3/power-of-two simulation. The
+immutable `RotaryCachePrecision` plan counts one output tensor, not a dummy
+query plus KV pair. The prepared frame consumes the pool's compact counts and
+group-start positions; seven effects share the containing queue and transformed
+values retain BF16 storage. Query/KV and compact-row sources share the same
+frequency and simulation lowering. Indexer Hadamard/FP4, persistent compressed
+cache publication and full decoder integration remain separate unfinished work.
+
+The five new targeted native tests pass across semantic plans, generated source,
+all Flash/Pro layer ratios and prepared ownership. Thirty-two seven-effect
+submissions measure zero warm heap allocations, no added blocking synchronization
+and balanced deterministic release. Scoped native checking and formatting pass
+with the existing legacy warning exclusions; generated interfaces are refreshed.
+The larger affected-package regression remains running at this update. New
+whole-chain GPU correctness/sanitizer evidence is pending; neither a full
+DeepSeek/DSpark generation nor performance improvement is claimed.
+
 Update 2026-10-10 (GLM real placement and AOT): the 121-shard real checkpoint
 scan/export now finishes with exit zero. Actual executable-owner accounting
 places layers `[0,25)` at 102,064,091,128 bytes and `[25,45)` at 91,516,526,804

@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn rotary_cache_source(@precision_ir.RotaryCachePrecision, symbol_prefix~ : String) -> RotaryCacheCudaSource raise
+
 pub fn rotary_frequency_source(@precision_ir.RotaryFrequency, Int) -> String raise
 
 pub fn rotary_kv_source(@precision_ir.RotaryKvPrecision, symbol_prefix~ : String) -> RotaryKvCudaSource raise
@@ -13,6 +15,14 @@ pub fn rotary_kv_source(@precision_ir.RotaryKvPrecision, symbol_prefix~ : String
 // Errors
 
 // Types and methods
+pub struct RotaryCacheCudaSource {
+  // private fields
+}
+pub fn RotaryCacheCudaSource::launch(Self, Int) -> (Int, Int, Int)
+pub fn RotaryCacheCudaSource::plan(Self) -> @precision_ir.RotaryCachePrecision
+pub fn RotaryCacheCudaSource::source_bytes(Self) -> Bytes
+pub fn RotaryCacheCudaSource::symbol(Self, Int) -> String
+
 pub struct RotaryKvCudaSource {
   // private fields
 }

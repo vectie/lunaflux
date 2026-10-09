@@ -11,6 +11,17 @@ import {
 // Errors
 
 // Types and methods
+pub struct RotaryCacheFrame {
+  // private fields
+}
+pub fn RotaryCacheFrame::close(Self) -> Unit raise
+pub fn RotaryCacheFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn RotaryCacheFrame::new(@rotary_kv_cuda_source.RotaryCacheCudaSource) -> Self
+pub fn RotaryCacheFrame::output(Self) -> @device.Allocation raise
+pub fn RotaryCacheFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, positions~ : @device.Allocation, input~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn RotaryCacheFrame::source_bytes(Self) -> Bytes
+pub fn RotaryCacheFrame::workspace_bytes(Self) -> Int64
+
 pub struct RotaryKvFrame {
   // private fields
 }

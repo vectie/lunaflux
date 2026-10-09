@@ -1,29 +1,20 @@
 ///|
-/// Physical layout is `[row,head,full_width]` for both Q and shared KV.
-/// The two functions are borrowed by the surrounding ordered executor.
-pub struct RotaryKvCudaSource {
-  priv plan : @precision.RotaryKvPrecision
+/// Standalone compact rows, without redundant query rotation/allocation.
+pub struct RotaryCacheCudaSource {
+  priv plan : @precision.RotaryCachePrecision
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
 }
 
 ///|
-fn valid_symbol(symbol : StringView) -> Bool {
-  !symbol.is_empty() &&
-  symbol.length() <= 112 &&
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
-}
-
-///|
-pub fn rotary_kv_source(
-  plan : @precision.RotaryKvPrecision,
+pub fn rotary_cache_source(
+  plan : @precision.RotaryCachePrecision,
   symbol_prefix~ : String,
-) -> RotaryKvCudaSource raise {
+) -> RotaryCacheCudaSource raise {
   guard valid_symbol(symbol_prefix) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
-  let (qh, kh, width, rotary, rows, positions) = plan.geometry()
+  let (heads, width, rotary, rows, positions) = plan.geometry()
   let prefix = width - rotary
   let symbols = [symbol_prefix + "_rotary", symbol_prefix + "_simulate"]
   let frequency = rotary_frequency_source(plan.frequency(), rotary)
@@ -31,7 +22,7 @@ pub fn rotary_kv_source(
   let simulation = cache_simulation_source(
     symbols[1],
     rows,
-    kh,
+    heads,
     width,
     prefix,
     block,
@@ -45,13 +36,11 @@ pub fn rotary_kv_source(
       $|#include <cuda_fp8.h>
       $|#include <math.h>
       $|#include <stdint.h>
-      $|extern "C" __global__ void \{symbols[0]}(const int32_t *counts, const int32_t *positions, const uint16_t *query, const uint16_t *kv, uint16_t *query_out, uint16_t *kv_out) {
+      $|extern "C" __global__ void \{symbols[0]}(const int32_t *counts, const int32_t *positions, const uint16_t *input_words, uint16_t *output_words) {
       $|  const int row = (int)blockIdx.x, head = (int)blockIdx.y, live = counts[3];
-      $|  if (live <= 0 || live > \{rows} || row >= live || head >= \{qh + kh}) return;
+      $|  if (live <= 0 || live > \{rows} || row >= live || head >= \{heads}) return;
       $|  const int position = positions[row]; if (position < 0 || position >= \{positions}) return;
-      $|  const bool is_query = head < \{qh}; const int heads = is_query ? \{qh} : \{kh}; const int local_head = is_query ? head : head - \{qh};
-      $|  const unsigned long long base = ((unsigned long long)row * heads + local_head) * \{width}ULL;
-      $|  const uint16_t *input_words = is_query ? query : kv; uint16_t *output_words = is_query ? query_out : kv_out;
+      $|  const unsigned long long base = ((unsigned long long)row * \{heads}ULL + head) * \{width}ULL;
       $|  for (int col = threadIdx.x; col < \{prefix}; col += blockDim.x) output_words[base + col] = input_words[base + col];
       $|  for (int pair = threadIdx.x; pair < \{rotary / 2}; pair += blockDim.x) {
       $|    \{frequency}
@@ -64,34 +53,38 @@ pub fn rotary_kv_source(
       $|  }
       $|}
       $|\{simulation}
-      $|
     ),
   )
   { plan, source, symbols: ReadOnlyArray::from_array(symbols), }
 }
 
 ///|
-pub fn RotaryKvCudaSource::plan(self : Self) -> @precision.RotaryKvPrecision {
+pub fn RotaryCacheCudaSource::plan(
+  self : Self,
+) -> @precision.RotaryCachePrecision {
   self.plan
 }
 
 ///|
-pub fn RotaryKvCudaSource::source_bytes(self : Self) -> Bytes {
+pub fn RotaryCacheCudaSource::source_bytes(self : Self) -> Bytes {
   self.source
 }
 
 ///|
-pub fn RotaryKvCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn RotaryCacheCudaSource::symbol(self : Self, stage : Int) -> String {
   self.symbols[stage]
 }
 
 ///|
-pub fn RotaryKvCudaSource::launch(self : Self, stage : Int) -> (Int, Int, Int) {
-  let (qh, kh, width, rotary, rows, _) = self.plan.geometry()
+pub fn RotaryCacheCudaSource::launch(
+  self : Self,
+  stage : Int,
+) -> (Int, Int, Int) {
+  let (heads, width, rotary, rows, _) = self.plan.geometry()
   let (block, _, _) = self.plan.simulation()
   if stage == 0 {
-    (rows, qh + kh, 256)
+    (rows, heads, 256)
   } else {
-    (rows, Int::max(1, kh * ((width - rotary) / block)), block)
+    (rows, Int::max(1, heads * ((width - rotary) / block)), block)
   }
 }

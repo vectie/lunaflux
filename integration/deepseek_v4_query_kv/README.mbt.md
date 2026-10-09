@@ -57,3 +57,12 @@ startup. Close the borrowing queue, this owner, then caller input ports.
 Compression-zero layers and indexer requests outside ratio four are rejected.
 These normalized outputs are before rotary, cache conversion/publication and
 index selection; this owner alone is not complete compressed attention.
+
+`DeepSeekAttentionCompressor` composes that learned pool with standalone
+group-start rotary and non-rotary-prefix E4M3/power-of-two simulation. Seven
+effects share the containing queue, and the transformed BF16 values/counts/
+positions remain borrowed by the downstream persistent cache owner. The plan
+uses compact row capacity, preserves the rotated suffix and accounts for one
+additional output allocation. It does not substitute this operation for the
+indexer's distinct Hadamard/FP4 transformation. Persistent compressed-cache
+publication, selection and whole-model generation remain open.
