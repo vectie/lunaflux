@@ -43,6 +43,7 @@ pub fn RecurrentDeltaProgram::with_block(
     cache: None,
     functions: [],
     intermediates: [],
+    launches: [],
     queue: None,
   }
 }

@@ -151,3 +151,83 @@ test "complete branch has an exact startup workspace budget" {
   assert_eq(live_resources(), baseline)
   program.close()
 }
+
+///|
+test "two recurrent decoder frames execute on one model queue" {
+  let baseline = live_resources()
+  let context = @device.open_context(0)
+  defer (context.close() catch { _ => () })
+  let stream = context.create_stream()
+  defer (stream.close() catch { _ => () })
+  let aot = context.load_module(b"fake\x00")
+  defer (aot.close() catch { _ => () })
+  let weights = context.allocate(256L)
+  defer (weights.close() catch { _ => () })
+  let buffers = Array::makei(3, _ => context.allocate(256L))
+  defer (for buffer in buffers.rev() {
+    buffer.close() catch {
+      _ => ()
+    }
+  })
+  let frames = [block_fixture(), block_fixture()]
+  defer (for frame in frames.rev() {
+    frame.abort() catch {
+      _ => ()
+    }
+  })
+  let launches : Array[@device.OrderedKernelLaunch] = []
+  for index, frame in frames {
+    frame.prepare_block_frame(
+      context,
+      aot,
+      fixture_block_weights(weights),
+      maximum_state_bytes=1088L,
+      maximum_workspace_bytes=1936L,
+      counts=weights,
+      sequence_offsets=weights,
+      sequence_slots=weights,
+      reset_flags=weights,
+      hidden=buffers[index],
+      output=buffers[index + 1],
+    )
+    launches.append(frame.launches())
+  }
+  assert_eq(launches.length(), 32)
+  let queue = context.create_ordered_kernel_executor(stream, launches)
+  defer (queue.abort() catch { _ => () })
+  defer (queue.close() catch { _ => () })
+  let before = enqueues()
+  let waits = blocking_syncs()
+  begin_allocations()
+  for _ in 0..<32 {
+    for stage in 0..<launches.length() {
+      queue.enqueue(stage)
+    }
+    queue.record_completion()
+    while !queue.poll_completion() {
+      ()
+    }
+    queue.reset()
+  }
+  assert_eq(end_allocations(), 0UL)
+  assert_eq(enqueues() - before, 1024UL)
+  assert_eq(blocking_syncs(), waits)
+  // Cancel the model queue before releasing its two request-state owners.
+  for stage in 0..<launches.length() {
+    queue.enqueue(stage)
+  }
+  queue.record_completion()
+  queue.abort()
+  queue.close()
+  for frame in frames.rev() {
+    frame.close()
+  }
+  for buffer in buffers.rev() {
+    buffer.close()
+  }
+  weights.close()
+  aot.close()
+  stream.close()
+  context.close()
+  assert_eq(live_resources(), baseline)
+}

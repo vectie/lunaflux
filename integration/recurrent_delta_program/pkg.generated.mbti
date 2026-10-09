@@ -37,10 +37,12 @@ pub struct RecurrentDeltaProgram {
 }
 pub fn RecurrentDeltaProgram::abort(Self) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn RecurrentDeltaProgram::new(@recurrent_delta_execution_cuda_source.RecurrentDeltaCudaSource) -> Self
 pub fn RecurrentDeltaProgram::poll(Self) -> Bool raise @device.DeviceError
 pub fn RecurrentDeltaProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_state_bytes~ : Int64, maximum_workspace_bytes? : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, query~ : @device.Allocation, key~ : @device.Allocation, value~ : @device.Allocation, log_decay~ : @device.Allocation, beta~ : @device.Allocation, output~ : @device.Allocation, convolution_weights? : FixedArray[@device.Allocation], block_weights? : RecurrentBlockWeights, hidden? : @device.Allocation, prefix? : ArrayView[@device.OrderedKernelLaunch], suffix? : ArrayView[@device.OrderedKernelLaunch]) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::prepare_block(Self, @device.Context, @device.Module, @device.Stream, RecurrentBlockWeights, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation, prefix? : ArrayView[@device.OrderedKernelLaunch], suffix? : ArrayView[@device.OrderedKernelLaunch]) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::prepare_block_frame(Self, @device.Context, @device.Module, RecurrentBlockWeights, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation, prefix? : ArrayView[@device.OrderedKernelLaunch], suffix? : ArrayView[@device.OrderedKernelLaunch]) -> Unit raise @device.DeviceError
 pub fn RecurrentDeltaProgram::source_bytes(Self) -> Bytes
 pub fn RecurrentDeltaProgram::state_bytes(Self) -> Int64
 pub fn RecurrentDeltaProgram::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError

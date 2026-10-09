@@ -46,9 +46,18 @@ publication after it in this same queue. Borrowed functions/regions must outlive
 the queue. Token submission only enqueues its prepared launch count; it never
 merges arrays or inserts an intermediate completion boundary.
 
+`prepare_block_frame` binds the identical branch without creating a layer queue.
+Its `launches` view lets a model executor compose consecutive layers, reusing
+device residual buffers and recording one completion for the whole step. The
+caller must drain/close that executor before releasing any frame. Frame-only
+owners do not accept standalone `submit`; cancelling the caller's queue must
+discard the affected request-state owners before reuse. A two-layer native
+regression executes 32 steps / 1,024 launches with no measured hot allocations
+or blocking waits, then cancels and releases both frames.
+
 The complete branch and its mHC envelope pass a small GPU oracle and
 chunked-prefill/decode test, with native ownership and zero-allocation queue
 tests. The GLM checkpoint adapter binds their nineteen physical weights.
-Real-weight GPU execution, MLP composition, DSA layers and model/worker
-integration remain unfinished. This does not claim complete GLM inference or
-serving speed.
+GLM adapters now compose dense and routed FFNs and sparse decoder blocks too.
+Real-weight GPU arithmetic, complete model I/O and worker integration remain
+unfinished. This does not claim complete GLM inference or serving speed.

@@ -36,6 +36,7 @@ pub fn RecurrentDeltaProgram::with_convolution(
     cache: None,
     functions: [],
     intermediates: [],
+    launches: [],
     queue: None,
   }
 }

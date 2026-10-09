@@ -1,6 +1,7 @@
 ///|
 priv enum State {
   Fresh
+  Prepared
   Ready
   Active
   Failed
@@ -23,6 +24,7 @@ pub struct RecurrentDeltaProgram {
   priv mut cache : @device.Allocation?
   priv functions : Array[@device.Function]
   priv intermediates : Array[@device.Allocation]
+  priv launches : Array[@device.OrderedKernelLaunch]
   priv mut queue : @device.OrderedKernelExecutor?
 }
 
@@ -43,6 +45,7 @@ pub fn RecurrentDeltaProgram::new(
     cache: None,
     functions: [],
     intermediates: [],
+    launches: [],
     queue: None,
   }
 }
@@ -95,6 +98,54 @@ pub fn RecurrentDeltaProgram::prepare(
   hidden? : @device.Allocation,
   prefix? : ArrayView[@device.OrderedKernelLaunch] = [],
   suffix? : ArrayView[@device.OrderedKernelLaunch] = [],
+) -> Unit raise @device.DeviceError {
+  self.prepare_program(
+    context,
+    aot,
+    Some(stream),
+    maximum_state_bytes~,
+    maximum_workspace_bytes~,
+    counts~,
+    sequence_offsets~,
+    sequence_slots~,
+    reset_flags~,
+    query~,
+    key~,
+    value~,
+    log_decay~,
+    beta~,
+    output~,
+    convolution_weights~,
+    block_weights~,
+    hidden~,
+    prefix~,
+    suffix~,
+  )
+}
+
+///|
+fn RecurrentDeltaProgram::prepare_program(
+  self : Self,
+  context : @device.Context,
+  aot : @device.Module,
+  stream : @device.Stream?,
+  maximum_state_bytes~ : Int64,
+  maximum_workspace_bytes~ : Int64,
+  counts~ : @device.Allocation,
+  sequence_offsets~ : @device.Allocation,
+  sequence_slots~ : @device.Allocation,
+  reset_flags~ : @device.Allocation,
+  query~ : @device.Allocation,
+  key~ : @device.Allocation,
+  value~ : @device.Allocation,
+  log_decay~ : @device.Allocation,
+  beta~ : @device.Allocation,
+  output~ : @device.Allocation,
+  convolution_weights~ : FixedArray[@device.Allocation]?,
+  block_weights~ : RecurrentBlockWeights?,
+  hidden~ : @device.Allocation?,
+  prefix~ : ArrayView[@device.OrderedKernelLaunch],
+  suffix~ : ArrayView[@device.OrderedKernelLaunch],
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh &&
     self.cache is None &&
@@ -235,9 +286,17 @@ pub fn RecurrentDeltaProgram::prepare(
   for launch in suffix {
     launches.push(launch)
   }
-  self.queue = Some(context.create_ordered_kernel_executor(stream, launches))
+  self.launches.append(launches)
   self.launch_count = launches.length()
-  self.status = Ready
+  match stream {
+    Some(stream) => {
+      self.queue = Some(
+        context.create_ordered_kernel_executor(stream, launches),
+      )
+      self.status = Ready
+    }
+    None => self.status = Prepared
+  }
 }
 
 ///|
@@ -287,7 +346,7 @@ pub fn RecurrentDeltaProgram::close(
   if self.status is Closed {
     return
   }
-  guard self.status is (Fresh | Ready) else {
+  guard self.status is (Fresh | Prepared | Ready) else {
     raise @device.DeviceError::Busy(OrderedExecutorClose)
   }
   if self.queue is Some(queue) {
