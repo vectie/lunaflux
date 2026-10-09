@@ -250,6 +250,16 @@ pub fn QuantizationPlan::passes(Self) -> ReadOnlyArray[QuantizationPass]
 pub fn QuantizationPlan::to_repr(Self) -> @debug.Repr
 pub fn QuantizationPlan::with_amax_floor(Self, Double) -> Self raise PrecisionPlanError
 
+pub struct RecurrentBlockPrecision {
+  // private fields
+}
+pub fn RecurrentBlockPrecision::convolution(Self) -> CausalConvolutionPrecision
+pub fn RecurrentBlockPrecision::delta(Self) -> RecurrentDeltaPrecision
+pub fn RecurrentBlockPrecision::frame_bytes(Self) -> Int64
+pub fn RecurrentBlockPrecision::new(RecurrentDeltaPrecision, CausalConvolutionPrecision, hidden_width~ : Int, control_rank~ : Int, output_normalization_epsilon~ : Double) -> Self raise PrecisionPlanError
+pub fn RecurrentBlockPrecision::normalization_epsilon(Self) -> Double
+pub fn RecurrentBlockPrecision::projection_geometry(Self) -> (Int, Int)
+
 pub struct RecurrentDeltaPrecision {
   // private fields
 }

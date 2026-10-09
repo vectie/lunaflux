@@ -1,0 +1,15 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/decoder_projection_cuda_source" @projection,
+  "vectie/lunaflux/kernels/decay_control_cuda_source" @decay,
+  "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source" @delta,
+  "vectie/lunaflux/kernels/causal_convolution_execution_cuda_source" @convolution,
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot" @literal,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/env",
+} for "test"
