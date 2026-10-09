@@ -240,6 +240,17 @@ pub fn QuantizationPlan::passes(Self) -> ReadOnlyArray[QuantizationPass]
 pub fn QuantizationPlan::to_repr(Self) -> @debug.Repr
 pub fn QuantizationPlan::with_amax_floor(Self, Double) -> Self raise PrecisionPlanError
 
+pub struct RecurrentDeltaPrecision {
+  // private fields
+}
+pub fn RecurrentDeltaPrecision::capacity(Self) -> (Int, Int, Int)
+pub fn RecurrentDeltaPrecision::effect(Self) -> NumericEffect
+pub fn RecurrentDeltaPrecision::geometry(Self) -> (Int, Int, Int)
+pub fn RecurrentDeltaPrecision::log_decay_lower_bound(Self) -> Double
+pub fn RecurrentDeltaPrecision::new(head_count~ : Int, key_dimension~ : Int, value_dimension~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, normalization_epsilon~ : Double, log_decay_lower_bound~ : Double, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn RecurrentDeltaPrecision::normalization_epsilon(Self) -> Double
+pub fn RecurrentDeltaPrecision::state_bytes(Self) -> Int64
+
 pub(all) enum ScratchLifetime {
   Sequential
   Concurrent

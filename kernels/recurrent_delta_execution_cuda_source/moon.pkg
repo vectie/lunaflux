@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot" @literal,
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/core/env",
+  "vectie/lunaflux/kernels/recurrent_delta_cuda_source" @legacy,
+} for "test"
+
+supported_targets = "native"

@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn recurrent_delta_source(@precision_ir.RecurrentDeltaPrecision, symbol~ : String) -> RecurrentDeltaCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct RecurrentDeltaCudaSource {
+  // private fields
+}
+pub fn RecurrentDeltaCudaSource::launch(Self) -> (Int, Int, Int)
+pub fn RecurrentDeltaCudaSource::plan(Self) -> @precision_ir.RecurrentDeltaPrecision
+pub fn RecurrentDeltaCudaSource::source_bytes(Self) -> Bytes
+pub fn RecurrentDeltaCudaSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits
