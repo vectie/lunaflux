@@ -50,6 +50,13 @@ pub fn IndexedSparseAttentionFrame::workspace_bytes(self : Self) -> Int64 {
 }
 
 ///|
+pub fn IndexedSparseAttentionFrame::attention_plan(
+  self : Self,
+) -> @precision.IndexedSparseAttentionPrecision {
+  self.source.plan()
+}
+
+///|
 fn region(
   allocation : @device.Allocation,
   bytes : Int64,

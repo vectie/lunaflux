@@ -2,6 +2,7 @@
 package "vectie/lunaflux/integration/indexed_sparse_attention_frame"
 
 import {
+  "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/kernels/indexed_sparse_attention_execution_cuda_source",
 }
@@ -14,6 +15,7 @@ import {
 pub struct IndexedSparseAttentionFrame {
   // private fields
 }
+pub fn IndexedSparseAttentionFrame::attention_plan(Self) -> @precision_ir.IndexedSparseAttentionPrecision
 pub fn IndexedSparseAttentionFrame::close(Self) -> Unit raise @device.DeviceError
 pub fn IndexedSparseAttentionFrame::for_shared_indices(@indexed_sparse_attention_execution_cuda_source.IndexedSparseAttentionCudaSource) -> Self
 pub fn IndexedSparseAttentionFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
@@ -29,6 +31,7 @@ pub struct IndexedSparseHistory {
   // private fields
 }
 pub fn IndexedSparseHistory::append_descriptor(Self) -> @device.Allocation raise @device.DeviceError
+pub fn IndexedSparseHistory::attention_plan(Self) -> @precision_ir.IndexedSparseAttentionPrecision
 pub fn IndexedSparseHistory::close(Self) -> Unit raise @device.DeviceError
 pub fn IndexedSparseHistory::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn IndexedSparseHistory::new(@indexed_sparse_attention_execution_cuda_source.IndexedSparseHistoryCudaSource) -> Self

@@ -10,6 +10,25 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Hidden-to-projected sparse execution now has a model-neutral immutable precision
+plan, AOT source composition and startup-bound frame. Eight projections, two
+low-rank RMSNorm stages, affine index-key LayerNorm and packed-KV splitting feed
+request-owned history and pooling/index/attention in a single eighteen-launch
+queue. The native regression performs 32 steps / 576 launches with zero measured
+hot heap allocations/blocking waits, then cancels and closes resources. Fifty
+focused native tests pass across precision, source, frame and GLM adapter paths.
+The small GB10 GPU fixture matches all thirteen intermediate buffers exactly,
+checks single-row versus multi-row projection bitwise agreement, and executes
+hidden -> projections -> append -> sparse attention across prefill/decode with
+the selected attention output matching the ordered CPU oracle. Memory/leak,
+race and synchronization checks report zero issues. The Flash adapter binds
+twelve exact checkpoint weights, including rank-one index LayerNorm scale/bias;
+one query's projection frame is 181,056 bytes, weights 115,610,112 bytes.
+These are component features/reference schedules, not a real-checkpoint or
+whole-model throughput result. Index LayerNorm epsilon is explicit rather than
+guessed from the unrelated low-rank RMSNorm or DeepSeek source. Full DSA block,
+checkpoint numerics, efficient schedules and model worker execution remain.
+
 Request-owned projected sparse history now retains index keys, pool gates and
 attention K/V between prefill chunks and decode. Its immutable storage plan
 separates history capacity from frame rows; device lowering orders reserve/reset,
@@ -22,7 +41,7 @@ a device error rather than truncating. The native queue test runs 32 steps /
 after active cancellation. The affected suite passes 99/99; small GB10 tests
 match the independent oracle exactly, with bitwise chunked-prefill/decode
 agreement, request isolation, reset/reuse and clean memory/leak/race/sync checks.
-This implements cache append, not hidden-state projections, batched slot
+This earlier step implements cache append, not batched slot
 scheduling, whole-model serving or a performance claim.
 
 Projected indexed sparse attention now composes pooling, deterministic index
@@ -40,7 +59,7 @@ The 96-test affected native suite and small GB10 GPU fixture pass. The GPU test
 uses 15 valid keys within capacity 32, three prefill queries and one decode query:
 maxabs 0, bitwise prefill/decode agreement, zero inactive output, and zero memory,
 race and synchronization sanitizer errors. These are correctness-grade serial
-kernels, not a model throughput result. Complete DSA projections,
+kernels, not a model throughput result. Complete DSA blocks,
 decoder/worker integration and two-host execution remain unfinished.
 
 Recurrent GLM MoE decoder composition now joins both mHC envelopes, KDA,

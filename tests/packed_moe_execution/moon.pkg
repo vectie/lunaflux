@@ -22,6 +22,8 @@ import {
   "vectie/lunaflux/model/glm53_spec",
   "vectie/lunaflux/integration/indexed_sparse_attention_frame" @sparse,
   "vectie/lunaflux/kernels/indexed_sparse_attention_execution_cuda_source" @sparse_source,
+  "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source" @projection_source,
+  "vectie/lunaflux/integration/indexed_sparse_projection_frame" @projection_frame,
 }
 
 supported_targets = "native"

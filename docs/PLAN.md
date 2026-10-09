@@ -67,8 +67,19 @@ not yet include GLM projections or complete DSA blocks. Request-owned projected
 history now prepends reserve/reset, parallel BF16 append and publication to the
 same queue. Chunked prefill/decode, independent owners, reuse, idle preservation
 and full-capacity/error behavior pass a bounded GPU fixture. Next connect GLM
-projections, model-layer IndexShare scheduling and complete DSA blocks; these are
+complete DSA blocks and model/worker scheduling; these are
 feature integration work, not new deployment-hardening prerequisites.
+The rope-free low-rank Q/K/V and index projection chain is now executable from
+hidden rows: eight projections, two RMSNorm operations, affine index LayerNorm
+and packed-KV splitting. One startup-bound frame joins it with retained history
+and attention in eighteen launches, with one caller completion. The generic
+precision layer owns dimensions/rounds/budgets; the GLM Flash adapter binds the
+twelve exact checkpoint parameters and selects its zero-rotary geometry. Small
+GPU tests cover all thirteen intermediate buffers and the complete projected
+history/attention chain. This does not yet execute a real GLM checkpoint or its
+whole DSA block: output projection, mHC/FFN composition, model-specific index
+numerics and worker scheduling remain. Do not insert transport tasks ahead of
+those actual feature integrations.
 Correctness-first ordered projections still need a throughput schedule. DSA and DeepSeek
 compressed attention, MiniMax execution and two-host collectives remain actual
 implementation tasks, not transport-hardening prerequisites.

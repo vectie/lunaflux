@@ -31,6 +31,13 @@ pub fn IndexedSparseHistory::state_bytes(self : Self) -> Int64 {
 }
 
 ///|
+pub fn IndexedSparseHistory::attention_plan(
+  self : Self,
+) -> @precision.IndexedSparseAttentionPrecision {
+  self.source.plan().attention()
+}
+
+///|
 pub fn IndexedSparseHistory::source_bytes(self : Self) -> Bytes {
   self.source.source_bytes()
 }

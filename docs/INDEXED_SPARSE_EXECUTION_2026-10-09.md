@@ -62,7 +62,7 @@ Ordinary native check and the 96-test suite pass; warning-denied checking of thi
 feature is still blocked by the existing `internal/nccl` implicit `Eq` method
 promotion warning. This feature does not modify that unrelated migration.
 
-Remaining feature work: GLM DSA hidden-to-Q/K/V/index projections and rotary,
+Remaining feature work after this first attention slice: GLM DSA projections,
 model IndexShare layer scheduling, complete decoder
 and worker execution. This commit does not make those unfinished paths serve.
 The current serial schedules are numerical reference implementations and need
@@ -114,3 +114,51 @@ direct chunked-prefill versus decode comparison). The generated header SHA-256 i
 `98f3882597235e4b0930673e5d278343a7fd24da8e9ba7400b7f127529596b70`.
 The final downloaded probe matches repository source SHA-256
 `f2557ce3cf9829775dbcd10304719caa5bed66afcb026e87bcd8aae56e0fb4f0`.
+
+## Hidden-to-projected sparse execution
+
+`IndexedSparseProjectionPrecision` is a pure rope-free low-rank/index projection
+plan. Thirteen BF16 buffers retain explicit per-stage rounding. CUDA lowering
+composes Q-A -> RMSNorm -> Q-B, KV-A -> RMSNorm -> KV-B -> K/V split,
+normalized Q-low -> index-Q, hidden -> index-K -> affine LayerNorm (with bias),
+hidden -> index-head weights and hidden -> pool gates. Index-score scaling
+remains in index scoring, not duplicated in the weight projection.
+`IndexedSparseProjectionFrame` binds all operands once and publishes named
+borrowed device ports. Its retained composition orders reserve -> twelve
+projection stages -> append/publication -> pool/index/attention, eighteen
+launches in one caller queue. It owns no second queue or completion boundary.
+
+The GLM Flash adapter supplies the exact zero-rotary geometry and twelve BF16
+checkpoint names/shapes; normalization tensors stay rank one. One-query frame
+storage is 181,056 bytes, projected weight storage 115,610,112 bytes, excluding
+cache, pool/attention scratch, pool APE, output projection, mHC and FFN. Explicit
+index LayerNorm epsilon avoids silently copying DeepSeek-v3.2's value. The
+installed config defines RMSNorm epsilon 1e-5 and no separate index LayerNorm
+epsilon. No official-checkpoint numerical equivalence is asserted here.
+
+Fifty focused native tests pass (23 precision, one affine norm, one source,
+24 execution/checkpoint regressions and one GLM adapter). The new frame's
+32-step test executes 576 launches with zero measured hot allocations/blocking
+waits and active cancellation/repeated release. Native checking and format/info
+pass; warning-denied checking remains blocked by the existing dependency method
+promotion warnings, starting at `internal/nccl/api.mbt:200`.
+
+The small GPU fixture checks every projected intermediate against an independent
+ordered CPU implementation: maxabs zero and single-/multi-row results bitwise
+equal. It then runs the complete eighteen-stage hidden-to-retained-attention
+chain in one stream, checks cached projections and causal selected output across
+prefill/decode, and preserves history/zeros output on idle. The attention oracle
+consumes selected device indices; independent ranking correctness remains
+covered by the earlier pool/index fixture, not claimed as new in this probe.
+Memory/leak/race/sync tools report zero errors, with zero leaked allocations.
+Every process was capped at 2 GiB, no swap and 120 seconds on the idle .178 GB10.
+No checkpoint or full-model bank was loaded. Current schedules are numerical
+references, not high-throughput serving implementations.
+
+Final artifacts: `/tmp/lunaflux-indexed-sparse.QkOAShYz` on .178, downloaded to
+`/tmp/lunaflux-sparse-projection-chain-check-20261009`. Earlier projection-only
+checks are in `/tmp/lunaflux-sparse-projection-check-20261009`. Generated header
+SHA-256 is `1dbb1eae205d7b460d76fc60e33c10226334fd00c093cffd0191d3c9ae8b0b32`.
+Next actual feature work: output projection and complete DSA decoder composition,
+model-specific index transforms/numerics and real checkpoint GPU execution,
+then model/worker execution. No TLS/signing/admission expansion was added.

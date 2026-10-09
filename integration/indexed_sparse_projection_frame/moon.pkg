@@ -1,0 +1,8 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source" @source,
+  "vectie/lunaflux/integration/indexed_sparse_attention_frame" @sparse,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"

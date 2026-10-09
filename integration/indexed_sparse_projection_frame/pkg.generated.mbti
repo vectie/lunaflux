@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/indexed_sparse_projection_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/indexed_sparse_attention_frame",
+  "vectie/lunaflux/kernels/indexed_sparse_projection_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct IndexedSparseProjectionFrame {
+  // private fields
+}
+pub fn IndexedSparseProjectionFrame::close(Self) -> Unit raise @device.DeviceError
+pub fn IndexedSparseProjectionFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn IndexedSparseProjectionFrame::new(@indexed_sparse_projection_cuda_source.IndexedSparseProjectionCudaSource) -> Self
+pub fn IndexedSparseProjectionFrame::prepare(Self, @device.Context, @device.Module, maximum_workspace_bytes~ : Int64, query_counts~ : @device.Allocation, hidden~ : @device.Allocation, weights~ : ArrayView[@device.Allocation]) -> Unit raise
+pub fn IndexedSparseProjectionFrame::prepare_retained_attention(Self, @device.Context, @device.Module, @indexed_sparse_attention_frame.IndexedSparseHistory, @indexed_sparse_attention_frame.IndexedSparseAttentionFrame, maximum_state_bytes~ : Int64, maximum_attention_workspace_bytes~ : Int64, reset_flag~ : @device.Allocation, pool_ape~ : @device.Allocation, output~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise
+pub fn IndexedSparseProjectionFrame::projected_outputs(Self) -> SparseProjectionOutputs raise @device.DeviceError
+pub fn IndexedSparseProjectionFrame::workspace_bytes(Self) -> Int64
+
+pub(all) struct SparseProjectionOutputs {
+  queries : @device.Allocation
+  keys : @device.Allocation
+  values : @device.Allocation
+  index_queries : @device.Allocation
+  index_keys : @device.Allocation
+  index_head_weights : @device.Allocation
+  pool_gate_scores : @device.Allocation
+}
+
+// Type aliases
+
+// Traits

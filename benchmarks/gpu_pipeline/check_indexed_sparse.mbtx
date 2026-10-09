@@ -17,7 +17,11 @@ async fn main {
       (
         socket, remote, destination, "indexed_sparse_history_probe", "maxabs=0 retained_prefill_decode_bitwise=true",
       )
-    _ => fail("CONTROL_SOCKET REMOTE_DIRECTORY NEW_LOCAL_DIRECTORY [history]")
+    [_, socket, remote, destination, "projection"] =>
+      (
+        socket, remote, destination, "indexed_sparse_projection_probe", "maxabs=0 projection_prefill_decode_bitwise=true",
+      )
+    _ => fail("CONTROL_SOCKET REMOTE_DIRECTORY NEW_LOCAL_DIRECTORY [history|projection]")
   }
   guard remote.has_prefix("/tmp/lunaflux-indexed-sparse.") &&
     remote.all(c => {
