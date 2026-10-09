@@ -86,6 +86,27 @@ found one temporary sampling object per decode. Shared canonical greedy-wire
 emission removes it: fourteen decode continuations now allocate zero measured
 heap objects. No network-poll allocation or physical speed claim is added.
 
+Update 2026-10-10 (DeepSeek learned output): `LearnedTextIoPrecision` now records
+normalized F32 learned sigmoid controls, ordered residual-stream reduction and
+one BF16 round before the ordinary final normalization/head/greedy boundary.
+The prepared frame contributes four launches to the caller's queue, with no
+extra completion or warm allocation. The DeepSeek adapter binds actual
+`hc_head_fn`, `hc_head_base`, `hc_head_scale`, `norm.weight` and `head.weight`
+shapes/dtypes; GLM's unweighted mean remains unchanged. Invalid control/input
+values overwrite live reduction rows with NaN rather than leave stale output.
+The expanded affected native suite passes 109/109, including official-shaped
+control-weight streaming and repeated prepared-frame resource balance.
+A GB10 fixture passes exact greedy tokens, deterministic repeats, untouched
+inactive rows and all tested numerical boundaries with zero observed error.
+Memory/race/synchronization sanitizers report zero errors and no leaks. The
+live cap check confirms 2 GiB memory / zero swap; measured peak is 66.2 MiB.
+Generated source SHA-256 is
+`07254f9c9d00de8791603886d46b91bf3a5ea2d7416e47b5f45f19e5ceafe938`;
+probe source is
+`c00452aff1ad8ed634311b2f735fa26970c45f0891416d44541120f6cb9a33a2`.
+This completes a component boundary, not the DeepSeek decoder/DSpark model run.
+Clean Linux validation of this addition and whole-checkpoint numerics remain.
+
 The expanded affected native aggregate passed 221/221 locally. Exact commit
 `ef95b5c0` also builds the checkpoint runner on Linux and parses the installed
 GLM config successfully. Linux continuation/wire test linking exposed the

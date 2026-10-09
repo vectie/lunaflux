@@ -76,17 +76,20 @@ pub fn head_reduce_v1_bf16_f32_source(
     "; ++column) { const float weight = function_weights[weight_base + (unsigned long long)column]; if (!isfinite(weight)) { valid = 0; break; } dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(streams[input_base + (unsigned long long)column]), weight)); } const float bias = base[stream]; if (!isfinite(bias)) { valid = 0; break; } const float mix = __fmul_rn(dot, inverse); const float logit = __fadd_rn(__fmul_rn(mix, scalar), bias); controls[stream] = __fadd_rn(lf_hc_head_sigmoid(logit), " +
     control_literal +
     "); if (!isfinite(controls[stream])) valid = 0; } } }\n" +
-    "  __syncthreads(); if (!valid) return;\n" +
+    "  __syncthreads();\n" +
     "  const unsigned long long output_base = (unsigned long long)row * " +
     hidden +
     "ULL;\n" +
+    "  if (!valid) { for (int32_t column = (int32_t)threadIdx.x; column < " +
+    hidden +
+    "; column += (int32_t)blockDim.x) output[output_base + (unsigned long long)column] = __float2bfloat16_rn(NAN); return; }\n" +
     "  for (int32_t column = (int32_t)threadIdx.x; column < " +
     hidden +
     "; column += (int32_t)blockDim.x) { float sum = 0.0f; for (int32_t stream = 0; stream < " +
     width +
     "; ++stream) { const float value = __bfloat162float(streams[input_base + (unsigned long long)stream * " +
     hidden +
-    "ULL + (unsigned long long)column]); sum = __fadd_rn(sum, __fmul_rn(controls[stream], value)); } if (isfinite(sum)) output[output_base + (unsigned long long)column] = __float2bfloat16_rn(sum); }\n" +
+    "ULL + (unsigned long long)column]); sum = __fadd_rn(sum, __fmul_rn(controls[stream], value)); } output[output_base + (unsigned long long)column] = __float2bfloat16_rn(isfinite(sum) ? sum : NAN); }\n" +
     "}\n",
   )
   {

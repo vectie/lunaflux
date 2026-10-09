@@ -28,7 +28,9 @@ test "head reduction fixes normalized controls layout and one BF16 round" {
   assert_true(
     source.contains("__fadd_rn(sum, __fmul_rn(controls[stream], value))"),
   )
-  assert_eq(source.split("__float2bfloat16_rn").length(), 2)
+  assert_eq(source.split("__float2bfloat16_rn").length(), 3)
+  assert_true(source.contains("= __float2bfloat16_rn(NAN); return;"))
+  assert_true(source.contains("__float2bfloat16_rn(isfinite(sum) ? sum : NAN)"))
 }
 
 ///|

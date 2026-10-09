@@ -742,6 +742,15 @@ claim. Live startup continues to require real target-namespace identity.
 
 ### Shared foundation, distinct execution engines
 
+Text output also preserves family-neutral numerical planning. A learned
+residual-stream head is an immutable precision operation, separate from the
+ordinary final RMSNorm/vocabulary projection/sample operation. CUDA lowering
+composes these contracts; a prepared text frame owns only bounded scratch and
+function resources and lends its launches to the decoder queue. DeepSeek's
+adapter binds the learned function/base/scale checkpoint planes, while GLM
+retains its unweighted mean. Invalid learned controls cannot reuse old output.
+Neither the precision IR nor warmed queue dispatch branches on model names.
+
 LunaFlux remains one framework and repository. Autoregressive and diffusion
 execution are separate engines over shared model storage, LunaTile compilation,
 device allocation, AOT kernels, execution graphs, and lifecycle primitives.

@@ -66,6 +66,16 @@ placement. The slice binding alone does not run an entire checkpoint. DeepSeek's
 learned head and MiniMax's bounded offload/execution composition remain separate
 feature work; no new TLS/admission work is needed.
 
+DeepSeek's learned text boundary must compose normalized F32 sigmoid controls
+and a single BF16 residual-stream reduction before the ordinary final RMSNorm,
+vocabulary projection and greedy sample. A model-neutral immutable precision
+plan owns its exact scratch/weight sizes; one prepared suffix joins the decoder
+queue without an extra completion. The DeepSeek adapter alone supplies
+`hc_head_fn`, `hc_head_base`, `hc_head_scale` and official epsilon semantics.
+GLM's mean reduction must remain unchanged. Test resource balance, invalid
+preparation and warm allocation behavior, then numerical/sanitizer execution;
+component success is not complete DeepSeek/DSpark generation.
+
 The compact MoE Program now owns startup buffers and binds routed/shared experts
 to one reusable execution queue. GLM shared BF16 and DeepSeek shared FP8 adapters
 use the same precision/execution layers. Next connect the programs into complete

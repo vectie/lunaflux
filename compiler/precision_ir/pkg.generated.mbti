@@ -171,6 +171,19 @@ pub fn IndexedSparseProjectionPrecision::normalization(Self) -> (Double, Double)
 pub fn IndexedSparseProjectionPrecision::weight_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn IndexedSparseProjectionPrecision::workspace_bytes(Self) -> Int64
 
+pub struct LearnedTextIoPrecision {
+  // private fields
+}
+pub fn LearnedTextIoPrecision::collapse_bytes(Self) -> Int64
+pub fn LearnedTextIoPrecision::control_epsilon(Self) -> Double
+pub fn LearnedTextIoPrecision::control_normalization_epsilon(Self) -> Double
+pub fn LearnedTextIoPrecision::control_weight_bytes(Self) -> (Int64, Int64, Int64)
+pub fn LearnedTextIoPrecision::input_bytes(Self) -> Int64
+pub fn LearnedTextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, control_epsilon~ : Double, control_normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn LearnedTextIoPrecision::stream_count(Self) -> Int
+pub fn LearnedTextIoPrecision::text(Self) -> TextIoPrecision
+pub fn LearnedTextIoPrecision::workspace_bytes(Self) -> Int64
+
 pub struct LinearPrecision {
   // private fields
 } derive(Eq, @debug.Debug)
