@@ -302,6 +302,21 @@ the losing observations and the prior best package. A local selector's winner
 must still pass whole-service comparison against the best historical control,
 not merely against the immediately preceding or deliberately unsplit artifact.
 
+### Prefill storage-geometry follow-up
+
+The [reference-prefill follow-up](BENCHMARK_REFERENCE_PREFILL_SCHEDULE_2026-10-09.md)
+changes the terminal schedule, not the semantic program: Q64/KV64 uses 49,152
+shared bytes instead of Q64/KV128's 81,920. The immutable choice controls both
+source and launch resources and now reaches worker startup admission. This
+last boundary was initially missed, causing a preserved startup rejection even
+though the exporter tests and isolated kernel passed.
+
+Against the actual previous best, counterbalanced serving completion improves
+5.22% at 32K/C1 and 2.47% at 8K/C8. The short-C8 change is below 1% and is not
+a clear win. The 32K saving is in prefill/TTFT; decode remains essentially
+unchanged. Broader geometry, hardware and generation-quality coverage remain
+necessary; the best-so-far GB10 package is not a universal portable default.
+
 ## Experiment discipline
 
 - Name one falsifiable hypothesis and estimate its maximum end-to-end impact
