@@ -21,6 +21,8 @@ epoch-retaining storage and Boolean polling remove all 96 allocations across
 the 32-step native regression. Normal progress performs no blocking device sync.
 The corrected transfer double also rejects host reads/reuse before completion.
 This is not yet a complete checkpoint runner or a multi-host model worker.
+Final affected release-mode native suite: 140/140 passed across worker-wire,
+serial frames, GLM adapters, packed-MoE execution and text source generation.
 
 Small GB10 GPU text ingress/egress now passes a CPU oracle at rows 5 / hidden 8 /
 streams 4 / vocabulary 17 / selected outputs 2: embedding is bitwise equal,
