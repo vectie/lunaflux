@@ -251,3 +251,15 @@ pub fn TwoRankDecoderPipeline::close(self : Self) -> Unit raise {
   self.frame.close()
   self.state = Closed
 }
+
+///|
+/// Retire this coordinator's publication frontier after another coordinator
+/// has already retired the shared rank/client request (for example verification).
+/// This performs no device or network release; the caller awaits that external
+/// retirement before calling. The next request may then begin at position zero.
+pub fn TwoRankDecoderPipeline::retire_publication(self : Self) -> Unit raise {
+  guard !self.busy && self.state is Ready else {
+    raise @frame.SerialDecoderError::Busy
+  }
+  self.frame.release_request()
+}

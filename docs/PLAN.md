@@ -46,6 +46,12 @@ The combined affected native matrix passes 120/120; native check, formatting,
 runner self-test and both no-hashing/token-step developer checks pass with the
 existing migration warning configuration. No new warning exclusions or CUDA
 arithmetic changes are introduced.
+The subsequent handoff regression also covers a third distinct prefill: after
+verification retires shared ranks, `retire_publication()` resets the ordinary
+coordinator's host frontier locally. No duplicate network/device release is
+submitted. The focused verification/CLI matrix passes 11/11. The initial ARM
+session build (`v3`, `f3254a29`) is retained but not physically executed: this
+publication-frontier correction must be included in the next physical binary.
 
 The implementation objective remains executable, correct and useful GLM-5.3
 Flash, DeepSeek-V4 Flash DSpark and MiniMax-H3, not a collection of successful

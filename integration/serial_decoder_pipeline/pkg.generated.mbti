@@ -24,6 +24,7 @@ pub fn TwoRankDecoderPipeline::completion(Self) -> @worker_wire.ValidatedComplet
 pub fn TwoRankDecoderPipeline::new(@serial_decoder_frame.SerialDecoderFrame, @serial_decoder_worker.SerialDecoderRank, @decoder_stage_control.DecoderStageClient, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, begin_activation~ : (UInt64, Int, UInt64) -> Unit raise, poll_activation~ : async (UInt64) -> Bool, close_activation~ : () -> Unit raise, timeout_millis? : UInt64) -> Self raise
 pub async fn TwoRankDecoderPipeline::progress(Self, local_now_millis~ : UInt64) -> Bool
 pub fn TwoRankDecoderPipeline::release_request(Self, local_now_millis~ : UInt64) -> Unit raise
+pub fn TwoRankDecoderPipeline::retire_publication(Self) -> Unit raise
 
 // Type aliases
 

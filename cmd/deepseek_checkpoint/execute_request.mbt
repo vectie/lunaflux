@@ -175,6 +175,7 @@ async fn execute_ingress_request(
       clock,
       first_epoch=next_epoch,
     )
+    pipeline.retire_publication()
     verification_released = true
   } else if generate && !speculative_enabled {
     guard generation.val is Some(owner) else { fail("no completed prompt") }

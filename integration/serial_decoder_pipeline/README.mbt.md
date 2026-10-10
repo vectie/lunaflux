@@ -12,6 +12,13 @@ Local or peer failure poisons the entire step. Close control, drain activation,
 then close rank queues/ports. This implementation has two pipeline stages, not
 tensor parallelism or an arbitrary topology scheduler.
 
+When a verification coordinator shares the same rank/client owners, its
+completed request release retires those owners but not this coordinator's
+publication frame. Call `retire_publication()` after awaiting verification
+release, before the next ordinary prefill. This local host-state transition
+performs no duplicate device or network release. The resident-session regression
+returns to a third distinct zero-position prefill to cover this handoff.
+
 The native regression uses real loopback control/activation sockets and a
 device test double. It proves ordering, transferred bytes, token publication,
 reuse and failure ownership; it does not prove real-checkpoint GPU arithmetic,

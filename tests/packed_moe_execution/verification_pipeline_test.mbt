@@ -399,6 +399,32 @@ async fn run_verification_pipeline_case(
       assert_eq(remote_host.processed_tokens(), 0)
       assert_false(closed_state.val)
       assert_eq(live_resources(), resident)
+      // Verification released the ranks, not the ordinary coordinator's host
+      // frontier. Retire that publication locally without another peer release.
+      pipeline.retire_publication()
+      let (_, third, writer) = serial_wire_plan(
+        100UL,
+        tokens=[12, 13],
+        produces=false,
+      )
+      pipeline.begin(
+        third,
+        writer,
+        epoch=coordinator.last_epoch() + 1UL,
+        local_now_millis=0UL,
+      )
+      let mut third_prefilled = false
+      for _ in 0..<512 {
+        server.poll(local_now_millis=0UL)
+        if pipeline.progress(local_now_millis=0UL) {
+          third_prefilled = true
+          break
+        }
+        @async.sleep(1)
+      }
+      assert_true(third_prefilled)
+      assert_eq(local_host.processed_tokens(), 2)
+      assert_eq(remote_host.processed_tokens(), 2)
       coordinator.close()
     }
   }
