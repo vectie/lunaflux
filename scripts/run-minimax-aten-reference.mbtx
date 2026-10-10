@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 // Offline, sequential reference diagnostic. Never part of model startup.
@@ -88,23 +89,44 @@ fn needs_gpu(mode : String) -> Bool {
 }
 
 ///|
-fn reference_arguments(mode : String) -> String raise {
+fn reference_arguments(
+  mode : String,
+  ids? : String = "32,2518,8251",
+) -> String raise {
   let prefix = " " + mode + " /work/libreference.so /model "
   match mode {
     "self-test" => " self-test /work/libreference.so /work/self-test"
     "projection-oracle" => prefix + "/native /work/projection-oracle"
     "replay-down-reduction" => prefix + "/native /oracle"
     "replay-operators" | "replay-full-reduction" =>
-      prefix + "32,2518,8251 /work/" + mode + " /native"
+      prefix + ids + " /work/" + mode + " /native"
     "encode" | "encode-full-reduction" =>
-      prefix + "32,2518,8251 /work/" + mode + " 50"
-    "encode-operators" => prefix + "32,2518,8251 /work/encode-operators 1"
+      prefix + ids + " /work/" + mode + " 50"
+    "encode-operators" => prefix + ids + " /work/encode-operators 1"
     _ => fail("not a reference execution mode")
   }
 }
 
 ///|
+fn text_ids(source : String) -> String raise {
+  let ids : Array[Int] = []
+  for value in source.trim().split(",") {
+    ids.push(@string.parse_int(value))
+  }
+  guard ids.length() > 0 &&
+    ids.length() <= 1024 &&
+    ids.all(id => id >= 0 && id < 151936) else {
+    fail("reference text IDs exceed diagnostic row/vocabulary capacity")
+  }
+  ids.map(id => id.to_string()).join(",")
+}
+
+///|
 test "matched replay stays distinct from a fifty-layer reference" {
+  assert_eq(text_ids("32,2518,8251\n"), "32,2518,8251")
+  assert_true(
+    reference_arguments("encode", ids="1,2").contains(" 1,2 /work/encode 50"),
+  )
   for mode in ["replay-operators", "replay-full-reduction"] {
     assert_true(needs_native_inputs(mode))
     assert_true(reference_arguments(mode).has_suffix(" /native"))
@@ -132,17 +154,28 @@ test "matched replay stays distinct from a fifty-layer reference" {
 }
 
 ///|
+test "reference text rejects empty, invalid vocabulary and oversized rows" {
+  for source in ["", "-1", "151936", "1,", "1,".repeat(1024) + "1"] {
+    try text_ids(source) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid reference input accepted")
+    }
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     (
       extra is [] ||
-      (needs_native_inputs(mode) && extra is [_]) ||
+      ((needs_native_inputs(mode) || mode.has_prefix("encode")) && extra is [_]) ||
       (mode == "replay-down-reduction" && extra is [_, _])
     ) &&
     root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
     safe(root) else {
     fail(
-      "stage|self-test|asan|encode|encode-operators|encode-full-reduction|replay-operators|replay-full-reduction|projection-oracle|replay-down-reduction|collect|collect-full-reduction|collect-operators|collect-replay|collect-full-replay|collect-oracle EVIDENCE_ROOT [NATIVE_OPERATOR_DIRECTORY [PRECISION_ORACLE_DIRECTORY]]",
+      "stage|self-test|asan|encode|encode-operators|encode-full-reduction|replay-operators|replay-full-reduction|projection-oracle|replay-down-reduction|collect|collect-full-reduction|collect-operators|collect-replay|collect-full-replay|collect-oracle EVIDENCE_ROOT [ENCODE_TOKEN_IDS_TXT | NATIVE_OPERATOR_DIRECTORY [PRECISION_ORACLE_DIRECTORY]]",
     )
   }
   let first = "wlc003s@192.168.2.178"
@@ -311,6 +344,7 @@ async fn main {
     }
     let device = if needs_gpu(mode) { " --gpus all" } else { "" }
     let replay = match extra {
+      [_] if mode.has_prefix("encode") => ""
       [input, ..] if safe(input) &&
         input.has_prefix("/tmp/lunaflux-minimax-text-encoder-operators-") =>
         input
@@ -329,7 +363,12 @@ async fn main {
         fail("down replay needs precision oracle")
       _ => ""
     }
-    let arguments = reference_arguments(mode)
+    let ids = match extra {
+      [path] if mode.has_prefix("encode") =>
+        text_ids(@fs.read_file(path).text())
+      _ => "32,2518,8251"
+    }
+    let arguments = reference_arguments(mode, ids~)
     let execution = remote(
       second,
       socket179,

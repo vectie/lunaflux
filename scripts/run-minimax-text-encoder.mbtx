@@ -52,8 +52,12 @@ async fn copy(socket : String, source : String, destination : String) -> Unit {
 fn collection_files(
   operators : Bool,
   layers : Bool,
+  rows : Int,
 ) -> Array[(String, Int)] raise {
   guard !(operators && layers) else { fail("conflicting capture modes") }
+  guard rows > 0 && rows <= 1024 else {
+    fail("diagnostic capture supports 1..1024 text rows")
+  }
   if operators {
     [
       for
@@ -74,31 +78,86 @@ fn collection_files(
           ("activation", 25600),
           ("down", 5120),
           ("residual-mlp", 5120),
-        ] => ("operators/" + name + ".bf16", 3 * width * 2)
+        ] => ("operators/" + name + ".bf16", rows * width * 2)
     ]
   } else if layers {
     [
-      for layer in 0..<=50 => ("layers/hidden-\{layer}.bf16", 30720)
+      for layer in 0..<=50 => ("layers/hidden-\{layer}.bf16", rows * 5120 * 2)
     ]
   } else {
-    [("hidden.bf16", 30720)]
+    [("hidden.bf16", rows * 5120 * 2)]
   }
 }
 
 ///|
 test "operator collection cannot fall through to complete encoder output" {
-  let prefix = collection_files(true, false)
+  let prefix = collection_files(true, false, 3)
   assert_eq(prefix.length(), 16)
   assert_true(prefix.all(entry => entry.0.has_prefix("operators/")))
   assert_eq(prefix.fold(init=0, (bytes, entry) => bytes + entry.1), 589824)
-  let layers = collection_files(false, true)
+  let layers = collection_files(false, true, 3)
   assert_eq(layers.length(), 51)
   assert_eq(layers[50], ("layers/hidden-50.bf16", 30720))
-  assert_eq(collection_files(false, false), [("hidden.bf16", 30720)])
-  try collection_files(true, true) catch {
+  assert_eq(collection_files(false, false, 3), [("hidden.bf16", 30720)])
+  try collection_files(true, true, 3) catch {
     _ => ()
   } noraise {
     _ => fail("conflicting capture modes were accepted")
+  }
+}
+
+///|
+fn input_rows(ids : Bytes) -> Int raise {
+  guard ids.length() > 0 && ids.length() % 4 == 0 else {
+    fail("input must contain whole little-endian I32 token IDs")
+  }
+  let rows = ids.length() / 4
+  ignore(collection_files(false, false, rows))
+  rows
+}
+
+///|
+fn require_aot_rows(geometry : String, rows : Int) -> Unit raise {
+  let declared = geometry
+    .split("\n")
+    .filter(line => line.has_prefix("shape=text\trows\t"))
+    .collect()
+  guard declared is [row] && row == "shape=text\trows\t\{rows}" else {
+    fail("text AOT geometry does not match input rows")
+  }
+}
+
+///|
+test "capture extents follow input rows, including longer original text" {
+  for rows in [1, 3, 140, 1024] {
+    assert_eq(input_rows(Bytes::make(rows * 4, 0)), rows)
+    assert_eq(collection_files(false, false, rows)[0].1, rows * 10240)
+    assert_eq(
+      collection_files(false, true, rows).fold(init=0, (n, e) => n + e.1),
+      rows * 10240 * 51,
+    )
+    assert_eq(
+      collection_files(true, false, rows).fold(init=0, (n, e) => n + e.1),
+      rows * 196608,
+    )
+  }
+  for count in [0, 3, 4100] {
+    try input_rows(Bytes::make(count, 0)) catch {
+      _ => ()
+    } noraise {
+      _ => fail("empty, partial or over-budget input accepted")
+    }
+  }
+  require_aot_rows("shape=text\trows\t140\nshape=refiner\trows\t140\n", 140)
+  for
+    geometry in [
+      "", "shape=text\trows\t3\n", "shape=text\trows\t140\nshape=text\trows\t3\n",
+    ] {
+    try require_aot_rows(geometry, 140) catch {
+      _ => ()
+    } noraise {
+      _ => fail("missing, different or conflicting AOT geometry accepted")
+    }
   }
 }
 
@@ -149,15 +208,18 @@ async fn main {
   }
   let capture_layers = target is [_, _, "layers"]
   let capture_operators = target is [_, _, "operators"]
-  // The existing request AOT has exactly three text rows. Caller-supplied IDs
-  // come from text-ids; the legacy default remains an explicitly synthetic probe.
+  // Caller-supplied IDs come from text-ids. The default remains an explicitly
+  // synthetic probe; each wider input requires its own exact-row AOT geometry.
   let ids = match target {
     [_, input, ..] => @fs.read_file(input).binary()
     _ => b"\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00"
   }
-  guard ids.length() == 12 else {
-    fail("this request AOT requires exactly three little-endian I32 token IDs")
-  }
+  let rows = input_rows(ids)
+  let outputs = collection_files(capture_operators, capture_layers, rows)
+  let capture_bytes = outputs.fold(init=0, (n, entry) => n + entry.1)
+  // This is a shape contract, not artifact authentication or a payload scan.
+  let geometry = @fs.read_file(aot + "/SOURCES.v1").text()
+  require_aot_rows(geometry, rows)
   @fs.mkdir(root)
   let binary = executable
   @fs.write_file(root + "/ids.i32", ids, create_mode=CreateNew)
@@ -210,7 +272,7 @@ async fn main {
         "encode-text "
       }) +
       staged +
-      "/FL2VA TEXT.inventory 3 ids-" +
+      "/FL2VA TEXT.inventory \{rows} ids-" +
       suffix +
       ".i32 " +
       aot +
@@ -224,10 +286,8 @@ async fn main {
         "/hidden.bf16"
       }) +
       " 75161927680 64424509440" +
-      (if capture_operators {
-        " 589824"
-      } else if capture_layers {
-        " 1566720"
+      (if capture_operators || capture_layers {
+        " \{capture_bytes}"
       } else {
         ""
       }),
@@ -236,14 +296,14 @@ async fn main {
   let run = @fs.read_file(root + "/encode.stdout").text()
   if capture_operators {
     guard run.contains(
-      "text_operator_prefix_complete layers=1 tensors=16 rows=3",
+      "text_operator_prefix_complete layers=1 tensors=16 rows=\{rows}",
     ) else {
       fail("missing first-layer operator completion")
     }
     @fs.mkdir(root + "/operators")
   } else {
     guard run.contains(
-      "text_encoder_complete hidden_state=50 rows=3 width=5120 bytes=30720 nonfinite=0",
+      "text_encoder_complete hidden_state=50 rows=\{rows} width=5120 bytes=\{rows * 10240} nonfinite=0",
     ) else {
       fail("missing complete finite hidden state")
     }
@@ -251,7 +311,7 @@ async fn main {
   if capture_layers {
     @fs.mkdir(root + "/layers")
   }
-  for (name, bytes) in collection_files(capture_operators, capture_layers) {
+  for (name, bytes) in outputs {
     let path = root + "/" + name
     @fs.write_file(path, b"", create_mode=CreateNew)
     copy(socket, node + ":" + path, path)

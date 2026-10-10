@@ -30,21 +30,7 @@ async fn record(root : String, name : String, output : @shell.Output) -> Unit {
 }
 
 ///|
-async fn main {
-  guard @env.args() is [_, config, root, suffix] &&
-    config.has_prefix("/tmp/lunaflux-minimax-request-config-") &&
-    root.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
-    [config, root, suffix].all(s => {
-      !s.is_empty() &&
-      !s.contains("..") &&
-      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
-    }) &&
-    !suffix.contains("/") else {
-    fail("existing full config/export, new output root, unique suffix")
-  }
-  @fs.mkdir(root)
-  record(root, "mkdir", remote("mkdir " + root))
-  let manifest = @fs.read_file(config + "/aot/SOURCES.v1").text()
+fn source_modules(manifest : String, text_only : Bool) -> Array[String] raise {
   let modules : Array[String] = []
   for line in manifest.split("\n") {
     if line.has_prefix("module=") {
@@ -57,12 +43,50 @@ async fn main {
         !modules.contains(name) else {
         fail("invalid source module")
       }
-      modules.push(name)
+      if !text_only || name == "text" {
+        modules.push(name)
+      }
     }
   }
   guard !modules.is_empty() && modules.length() <= 128 else {
     fail("unbounded source inventory")
   }
+  modules
+}
+
+///|
+test "text-only compilation does not claim complete media AOT coverage" {
+  let manifest = "shape=text\trows\t140\nmodule=text\tsource\ttext.cu\nmodule=audio_decode\tsource\taudio_decode.cu\n"
+  assert_eq(source_modules(manifest, true), ["text"])
+  assert_eq(source_modules(manifest, false), ["text", "audio_decode"])
+  try
+    source_modules("module=audio_decode\tsource\taudio_decode.cu\n", true)
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("absent text module treated as a completed compile")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, config, root, suffix, .. selection] &&
+    (selection is [] || selection is ["text"]) &&
+    config.has_prefix("/tmp/lunaflux-minimax-request-config-") &&
+    root.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
+    [config, root, suffix].all(s => {
+      !s.is_empty() &&
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") else {
+    fail("existing full config/export, new output root, unique suffix [text]")
+  }
+  let manifest = @fs.read_file(config + "/aot/SOURCES.v1").text()
+  let modules = source_modules(manifest, selection is ["text"])
+  @fs.mkdir(root)
+  record(root, "mkdir", remote("mkdir " + root))
+  @fs.write_file(root + "/SOURCES.v1", manifest, create_mode=CreateNew)
   for name in modules {
     let source = config + "/aot/" + name + ".cu"
     @shell.Cmd("scp", [
@@ -113,5 +137,7 @@ async fn main {
     "modules=\{modules.length()}\nGPU_execution=false\n",
     create_mode=CreateNew,
   )
-  println("whole-request AOT compilation complete; inference is a separate run")
+  println(
+    "selected AOT compilation complete modules=\{modules.join(",")}; inference is a separate run",
+  )
 }
