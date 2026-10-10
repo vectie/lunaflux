@@ -1,6 +1,5 @@
 import {
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/full_graph_manifest",
@@ -17,6 +16,7 @@ import {
 supported_targets = "native"
 
 import {
+  "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/artifact_file",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan_test_fixture",

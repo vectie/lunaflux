@@ -125,6 +125,14 @@ module choices are parsed for execution compatibility, not reauthenticated by
 opening and hashing every alternative. Fresh CUBIN packaging does not require
 a second checksum inventory traversal.
 
+BF16 release binding also consumes declared toolchain, receipt and module
+labels without payload rehashing. The kernel producer and shared bundle join
+must not hash each CUBIN again or compare entire first/second-build copies.
+They retain label association, source/recipe compatibility, module-size budgets
+and exact launch/operand/workspace checks. Optional tuning and fold snapshots
+are parsed for execution scope, not authenticated by their CLI labels. Legacy
+deterministic-receipt names do not constitute a new proof of payload equality.
+
 ## Compatibility discipline
 
 - One implementation of the engine is authoritative.

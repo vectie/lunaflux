@@ -21,13 +21,10 @@ fn checked_compiled_module(
   if receipt.recipe_digest_sha256 != recipe_digest_sha256 {
     raise Invalid(RecipeIdentity)
   }
-  let first_digest = kernel_bundle_sha256(first_module)
-  let second_digest = kernel_bundle_sha256(second_module)
-  if receipt.first_artifact_digest_sha256 != first_digest ||
-    receipt.second_artifact_digest_sha256 != second_digest {
-    raise Invalid(CompileReceipt)
-  }
-  if first_digest != second_digest || first_module != second_module {
+  // Supplied artifact labels associate immutable compiler inputs. Loading or
+  // packaging must not rescan either CUBIN or compare complete module payloads.
+  let first_digest = receipt.artifact_label()
+  if first_digest != receipt.second_artifact_digest_sha256 {
     raise Invalid(Determinism)
   }
   if expected_digest.sha256() != first_digest {
@@ -118,8 +115,8 @@ fn pointwise_kind_matches(
 }
 
 ///|
-/// Admits a pointwise candidate only after its strict final-contract binder and
-/// an independent two-build receipt both agree with the actual CUBIN bytes.
+/// Joins a pointwise candidate's final execution contract and supplied module
+/// labels. This does not authenticate CUBIN bytes or prove two-build equality.
 pub fn admit_pointwise_compiled_operation(
   lowering : @luna_cuda_pointwise_aot.PointwiseManifestCudaLowering,
   contract : @launch_contract.PagedKvAotLaunchContract,

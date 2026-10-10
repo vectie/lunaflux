@@ -1,4 +1,10 @@
 ///|
+// Fixture identity only. Production assembly never hashes compiler payloads.
+fn kernel_bundle_sha256(bytes : Bytes) -> String {
+  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
+}
+
+///|
 fn bundle_fixture_limits(
   max_operations? : Int = 8,
   max_total_module_bytes? : Int64 = 4096L,
@@ -247,7 +253,7 @@ test "bundle rejects missing and duplicate operation coverage" {
 }
 
 ///|
-test "compile admission rejects receipt and CUBIN substitution" {
+test "compile association rejects conflicting source and module labels" {
   let contract = bundle_fixture_contracts().contracts()[0]
   let expected = bundle_fixture_module(0)
   for case in 0..<3 {
@@ -276,10 +282,47 @@ test "compile admission rejects receipt and CUBIN substitution" {
         bundle_fixture_limits(),
       )
     catch {
-      Invalid(SourceIdentity | CompileReceipt | Determinism) => ()
+      Invalid(SourceIdentity | ModuleIdentity | Determinism) => ()
       _ => fail("unexpected substitution error")
     } noraise {
       _ => fail("expected substitution rejection")
+    }
+  }
+}
+
+///|
+test "compile association consumes declared labels without payload scans" {
+  let expected = bundle_fixture_module(0)
+  let receipt = bundle_fixture_receipt(expected)
+  let digest = @catalog.AotArtifactDigest::from_sha256(receipt.artifact_label())
+  let selected = b"one selected compiler payload"
+  let associated = checked_compiled_module(
+    digest,
+    "1".repeat(64),
+    "2".repeat(64),
+    selected,
+    b"unused compatibility compiler payload",
+    receipt,
+    bundle_fixture_limits(),
+  )
+  assert_eq(associated.module_bytes(), selected)
+  assert_eq(associated.digest(), digest)
+  for bytes in [b"", b"x".repeat(1025)] {
+    try
+      checked_compiled_module(
+        digest,
+        "1".repeat(64),
+        "2".repeat(64),
+        bytes,
+        selected,
+        receipt,
+        bundle_fixture_limits(),
+      )
+    catch {
+      Invalid(ModuleBytes) | LimitExceeded(rule=ModuleBytes, ..) => ()
+      _ => fail("unexpected module capacity error")
+    } noraise {
+      _ => fail("module capacity constraint lost")
     }
   }
 }

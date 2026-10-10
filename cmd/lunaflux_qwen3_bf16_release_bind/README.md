@@ -4,6 +4,12 @@ This command regenerates the pure candidate set, joins deterministic AOT
 compile receipts and produces a startup-bound release. It does not open a
 device or compile kernels and never runs in the token-step path.
 
+Toolchain records, receipts, CUBINs and optional tuning/fold snapshots are
+parsed without a checksum pass. Digest-shaped fields are supplied association
+labels, not verified payload checksums. The shared producer consumes those
+labels without hashing modules again or comparing two complete module copies.
+Bounds, execution scope, target, launch, operand and workspace checks remain.
+
 The optional `--device-target MAJOR MINOR` matches the candidate exporter's
 target option. The default remains `12 0` for existing callers. One explicit
 target supplies the regenerated recipes, projection tuning architecture,

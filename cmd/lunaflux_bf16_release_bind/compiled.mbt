@@ -1,9 +1,4 @@
 ///|
-fn bind_sha256(bytes : BytesView) -> String {
-  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-}
-
-///|
 fn record_value(document : String, key : String) -> String? {
   let prefix = key + "="
   let mut found : String? = None
@@ -106,9 +101,6 @@ async fn approved_driver_identity(
       raise CompiledSetAdmission("toolchain manifest is unavailable")
     }
   }
-  if bind_sha256(bytes) != arguments.toolchain_sha256 {
-    raise CompiledSetAdmission("toolchain manifest digest mismatch")
-  }
   let text = @utf8.decode(bytes) catch {
     error => {
       ignore(error)
@@ -185,9 +177,6 @@ async fn admit_compiled_set(
           "receipts/" + key + ".receipt.v1",
           65536L,
         )
-        if bind_sha256(receipt_bytes) != receipt_sha {
-          raise CompiledSetAdmission("compile receipt digest mismatch")
-        }
         let receipt = @utf8.decode(receipt_bytes) catch {
           error => {
             ignore(error)
@@ -223,9 +212,6 @@ async fn admit_compiled_set(
           "sha256/" + module_sha + ".cubin",
           4194304L,
         )
-        if bind_sha256(module_bytes) != module_sha {
-          raise CompiledSetAdmission("compiled module digest mismatch")
-        }
         admitted.push(
           @luna_bf16_kernel_producer.LunaBf16OfflineCompilation::new(
             candidate~,

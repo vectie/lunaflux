@@ -2,8 +2,10 @@
 
 This native offline command re-admits the pinned tiny BF16 model, reconstructs
 the exact `sm_120` candidate set for the final 8-token/32-page runtime shape,
-authenticates every deterministic compiled-set receipt and CUBIN beneath a
+parses compiled-set records and joins supplied artifact labels beneath a
 no-follow approved root, and publishes a no-overwrite kernel-root source plan.
+It does not hash toolchain records, receipts, tuning inputs or CUBIN payloads,
+and does not authenticate payload contents or prove independent-build equality.
 It then re-admits its own emitted schema-v2 manifest and derives the production
 device-worker bootstrap digest through the same typed execution blueprint used
 at runtime. It never invokes a compiler or opens a CUDA device.

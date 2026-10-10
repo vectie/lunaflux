@@ -41,6 +41,14 @@ pub fn LunaDeterministicCompileReceipt::from_offline_builder(
 }
 
 ///|
+/// Supplied module label for artifact association; not a verified checksum.
+pub fn LunaDeterministicCompileReceipt::artifact_label(
+  self : LunaDeterministicCompileReceipt,
+) -> String {
+  self.first_artifact_digest_sha256
+}
+
+///|
 /// Bounds for one exact bundle. Manifest limits are delegated to the existing
 /// authenticated schema-v2 producer.
 pub struct LunaKernelBundleLimits {

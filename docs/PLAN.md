@@ -62,6 +62,19 @@ reintroduction while retaining bounded range/identity checks and the existing
 single batched readback/no-extra-copy assertions. It is developer automation,
 never a model-startup prerequisite.
 
+BF16/Qwen release binders now also omit repeated toolchain-record, compile
+receipt, CUBIN and tuning/fold snapshot checksum passes. The shared BF16
+producer/bundle consume supplied module labels instead of hashing every module
+again or comparing full first/second payloads. Duplicate-label joins check
+length/association without a byte scan. Module capacity, source/recipe/target,
+launch, operands, workspace and tuning scope remain checked. This removes
+offline packaging/preparation overhead, not a measured GPU throughput gap;
+labels no longer certify payload identity or two-build equality.
+Affected native checks and tests pass (42/42) using the existing migration
+warning exclusions `-20-25-29-35-79-92`; both local no-rehash/token-step gates
+pass. No GPU kernel, native ABI, remote deployment or benchmark changed in
+this cleanup.
+
 DSpark verification now connects all-position learned egress, prepared draft
 readback, a model-neutral speculative continuation and the two-rank coordinator
 to `generate-dspark`. The plaintext protocol exchanges an explicit committed

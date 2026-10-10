@@ -93,8 +93,8 @@ fn bind_compilation(
 
 ///|
 /// Produces the complete BF16 release input from typed lowering candidates and
-/// exact offline compiler outputs only. Actual CUBIN bytes establish catalog
-/// families before full-graph contracts and strict family binding. No file,
+/// offline compiler outputs and supplied artifact labels. Labels establish
+/// catalog associations without rehashing CUBIN bytes. No file,
 /// process, compiler, CUDA, PTX, or JIT authority exists in this package.
 pub fn produce_luna_bf16_kernel_release(
   model_plan : @plan.ModelPlan,
@@ -153,7 +153,7 @@ pub fn produce_luna_bf16_kernel_release(
       raise Invalid(CompilerOutput)
     }
     let artifact_digest = @catalog.AotArtifactDigest::from_sha256(
-      sha256_bytes(compilation.first_module),
+      compilation.receipt.artifact_label(),
     ) catch {
       _ => raise Invalid(CompilerOutput)
     }

@@ -5,7 +5,6 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/env",
   "moonbitlang/core/debug",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/execution_manifest_file",

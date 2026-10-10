@@ -8,7 +8,6 @@ pub(all) suberror ProjectionTuningFileError {
 pub struct ProjectionTuningInput {
   priv root : String
   priv locator : @approved_fs.ApprovedRelativeLocator
-  priv sha256 : String
   priv device_identity : String
 }
 
@@ -38,7 +37,6 @@ pub fn parse_projection_tuning_suffix(
   Some({
     root,
     locator: @approved_fs.ApprovedRelativeLocator::new(locator),
-    sha256,
     device_identity,
   }) catch {
     _ => raise InvalidTuningInput
@@ -46,7 +44,9 @@ pub fn parse_projection_tuning_suffix(
 }
 
 ///|
-/// Offline-only read: no root or file capability escapes to generated execution.
+/// Offline-only read: parse execution scope without a payload checksum pass.
+/// The compatibility suffix accepts a supplied label, not authentication.
+/// No root or file capability escapes to generated execution.
 pub fn load_projection_tuning_records(
   input : ProjectionTuningInput?,
   backend~ : @strategy.ProjectionBackendId,
@@ -79,9 +79,6 @@ pub fn load_projection_tuning_records(
     let bytes = match read {
       Ok(bytes) => bytes
       Err(error) => raise error
-    }
-    if @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != input.sha256 {
-      raise TuningReadFailure
     }
     @tuning.parse_projection_tuning_snapshot(bytes).records_for(scope)
   } catch {

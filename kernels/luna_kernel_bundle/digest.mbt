@@ -10,8 +10,3 @@ fn kernel_bundle_is_sha256(value : StringView) -> Bool {
   }
   true
 }
-
-///|
-fn kernel_bundle_sha256(bytes : Bytes) -> String {
-  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-}

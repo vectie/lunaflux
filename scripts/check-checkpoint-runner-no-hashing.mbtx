@@ -96,6 +96,25 @@ async fn main {
   let materializer = @fs.read_file(
     "scripts/materialize-qwen3-bf16-v12-launch.mbtx",
   ).text()
+  for directory in [
+    "cmd/lunaflux_qwen3_bf16_release_bind", "cmd/lunaflux_bf16_release_bind",
+    "release/projection_tuning_file", "kernels/luna_kernel_bundle",
+  ] {
+    for name in @fs.readdir(directory) {
+      if name.has_suffix(".mbt") && !name.has_suffix("test.mbt") {
+        let source = @fs.read_file(directory + "/" + name).text()
+        guard !source.contains("@crypto") &&
+          !source.contains("bind_sha256(") &&
+          !source.contains("kernel_bundle_sha256(") else {
+          fail("release assembly payload rehash reintroduced: " + directory + "/" + name)
+        }
+      }
+    }
+  }
+  let producer = @fs.read_file("kernels/luna_bf16_kernel_producer/produce.mbt").text()
+  guard !producer.contains("sha256_bytes(compilation.") else {
+    fail("BF16 producer CUBIN rehash reintroduced")
+  }
   for
     removed in [".sh", "assert_eq(sha(", "inventory(output", "validate-release"] {
     guard !materializer.contains(removed) else {

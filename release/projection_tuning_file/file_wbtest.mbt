@@ -16,17 +16,26 @@ test "offline file loader closes roots and consumes only the exact snapshot scop
   )
   assert_eq(records.length(), 1)
   assert_eq(records[0].median_latency_ns(), 12000L)
+  // Different supplied labels must not cause a payload rehash or rejection.
+  let relabeled = parse_projection_tuning_suffix([
+    "--projection-tuning",
+    root,
+    "synthetic.v1",
+    "0".repeat(64),
+    "device-a",
+  ])
+  let relabeled_records = load_projection_tuning_records(
+    relabeled,
+    backend~,
+    architecture~,
+    toolchain_sha256="a".repeat(64),
+  )
+  assert_eq(relabeled_records.length(), 1)
+  assert_eq(relabeled_records[0].median_latency_ns(), 12000L)
   for
     bad in [
       parse_projection_tuning_suffix([
         "--projection-tuning", root, "synthetic.v1", digest, "device-b",
-      ]),
-      parse_projection_tuning_suffix([
-        "--projection-tuning",
-        root,
-        "synthetic.v1",
-        "0".repeat(64),
-        "device-a",
       ]),
       parse_projection_tuning_suffix([
         "--projection-tuning", root, "absent.v1", digest, "device-a",

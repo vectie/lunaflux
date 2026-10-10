@@ -56,7 +56,7 @@ fn collect_exact_modules(
       Some(index) => {
         let existing = modules[index]
         if existing.relative_path != candidate.relative_path ||
-          existing.module_bytes != candidate.module_bytes {
+          existing.module_bytes.length() != candidate.module_bytes.length() {
           raise Invalid(DuplicateModule)
         }
       }

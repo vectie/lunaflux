@@ -88,7 +88,7 @@ test "operation-specific source cannot substitute for reusable family" {
 }
 
 ///|
-test "missing and substituted compiler evidence fail before bundle publication" {
+test "missing compiler operations fail but payloads are not rehashed" {
   let compilations = producer_fixture_compilations()
   try
     produce_luna_bf16_kernel_release(
@@ -111,6 +111,31 @@ test "missing and substituted compiler evidence fail before bundle publication" 
     second_module=b"substituted",
     receipt=original.receipt,
   )
+  let released = produce_luna_bf16_kernel_release(
+    producer_fixture_plan(),
+    producer_fixture_layout(),
+    producer_fixture_target(),
+    compilations,
+    producer_fixture_limits(),
+  )
+  let module_item = released
+    .bundle()
+    .modules()
+    .iter()
+    .filter(module_item => {
+      module_item.digest().sha256() == original.receipt.artifact_label()
+    })
+    .head()
+  guard module_item is Some(module_item) else {
+    fail("supplied module association was lost")
+  }
+  assert_eq(module_item.module_bytes(), b"substituted")
+  compilations[0] = LunaBf16OfflineCompilation::new(
+    candidate=original.candidate,
+    first_module=b"",
+    second_module=b"",
+    receipt=original.receipt,
+  )
   try
     produce_luna_bf16_kernel_release(
       producer_fixture_plan(),
@@ -120,9 +145,9 @@ test "missing and substituted compiler evidence fail before bundle publication" 
       producer_fixture_limits(),
     )
   catch {
-    Invalid(FinalBinding | Bundle) => ()
-    _ => fail("unexpected compiler-substitution rejection")
+    Invalid(CompilerOutput) => ()
+    _ => fail("unexpected empty compiler output error")
   } noraise {
-    _ => fail("expected compiler-substitution rejection")
+    _ => fail("empty compiler output was accepted")
   }
 }

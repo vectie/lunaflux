@@ -64,7 +64,7 @@ pub fn admit_residual_compiled_operation(
     raise Invalid(ModuleIdentity)
   }
   let module_bytes = compiled.module_bytes()
-  let module_digest = kernel_bundle_sha256(module_bytes)
+  let module_digest = compiled.module_digest().sha256()
   let receipt = LunaDeterministicCompileReceipt::from_offline_builder(
     source_digest_sha256=lowering.source_digest().as_hex(),
     recipe_digest_sha256=lowering.recipe_digest().as_hex(),
