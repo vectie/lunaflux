@@ -16,7 +16,7 @@ their pending claims only for the explicitly completed diagnostic routes:
 | Model | Current physical result | What this does not establish |
 | --- | --- | --- |
 | GLM-5.3 Flash | Original 13-token chat diagnostic and eight greedy output tokens; two ranks exited successfully, released GPUs and used no unit swap | Independent real-weight logit parity, arbitrary-text GPU integration, optimized serving |
-| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition and EOS termination | Independent upstream model parity, maximum-context correctness, multi-request serving or external-framework performance |
+| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition and EOS termination; process-level cancellation and peer-failure cleanup pass in both directions | Independent upstream model parity, maximum-context correctness, retained-weight request cancellation, multi-request serving or external-framework performance |
 | MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
 
 GLM/DeepSeek generation now resolves the full prompt and requested output length
@@ -28,6 +28,19 @@ pass: 13+51/64, 5+251/256 and 144+112/256; +1 output fails in each. This is a
 capacity/source fix, not a maximum-context GPU result or token/s improvement.
 No hashes or new authentication scans were introduced. Raw captures and the
 still-open three-model requirements are recorded in [PLAN.md](PLAN.md).
+
+Actual DSpark ingress/egress SIGINT cases now both complete explicit teardown
+after real GPU prefill. Each peer observes disconnect; all four contexts close
+without live children, swap peaks are zero, post-test GPU owner queries are
+empty, and neither case publishes `tokens.txt`. This is process cancellation,
+not a normal generation success or retained-weight multi-request service.
+The first capture's incorrect userspace-exit requirement remains preserved;
+MoonBit re-raises SIGINT after cooperative cleanup. The corrected classifier
+requires both a close marker and the expected role-specific exit, not signal
+status alone. The affected native matrix passes 25/25 and packed-execution
+regressions 114/114. There is no new kernel, payload hashing or per-token scan.
+Exact scope, memory observations and captures are in the
+[DSpark report](DEEPSEEK_LITERAL_TEXT_FRONTEND_2026-10-10.md).
 
 The three original checkpoint tokenizers now independently match vLLM 0.26.0's
 HF renderer on twelve cases each: 36 exact token-ID and 36 exact decoded-text
@@ -70,8 +83,8 @@ sliding window with the unchanged 256-context AOT. Both modes emit ten identical
 IDs, stop at EOS and release both GPUs with zero measured swap. Speculative and
 ordinary generation including prefill take 87.772 and 92.038 seconds: only 4.6%
 shorter in this single longer-prompt sample, not the short case's 49.3% gain.
-Independent upstream numerical parity, capacity, cancellation and multi-request
-serving are still open.
+Independent upstream numerical parity, maximum-capacity GPU execution,
+retained-weight request cancellation and multi-request serving are still open.
 
 MiniMax's raw decoded arrays have been downloaded and independently inspected
 for exact sizes, finite/nontrivial values. This is not perceptual validation.

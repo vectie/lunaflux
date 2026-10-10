@@ -259,6 +259,14 @@ async fn main {
     }
     run.wait()
   })
+  // Inspect publication only after both contexts are gone. An interrupted file
+  // write must not be hidden by the absence of its later success log.
+  let unpublished = remote(
+    false,
+    "test ! -e /tmp/lunaflux-dspark-real-" + suffix + "/output-run/tokens.txt",
+  )
+  retain(capture, "no-published-tokens", unpublished)
+  unpublished.check()
   @fs.write_file(
     capture + "/result.txt",
     "scope=real-dspark-two-rank-cancellation\nsignal_target=" +

@@ -29,6 +29,10 @@ Completed diagnostic work:
   finishes `StopToken` in both modes and releases both ranks with zero swap.
   A 144-token/24-frame prompt crosses the original 128-token sliding window;
   both modes again emit ten identical IDs ending at EOS and release both ranks.
+  Real process-level cancellation now passes in both directions after GPU
+  prefill: one SIGINT to ingress or egress, peer disconnect, all four explicit
+  contexts closed, no swap, no GPU owner or normal tokens-file publication.
+  This does not establish retained-weight request cancellation or serving reuse.
 - MiniMax's actual caption completes original text encoding, five joint
   denoising evaluations and audio/video decoding at the stated small geometry.
   Downloaded arrays have exact sizes and finite, nontrivial values.
@@ -86,6 +90,22 @@ builds/checks pass with the existing migration warning exclusions
 `-20-25-29-35-79-92`. Formatting, generated APIs, the DSpark runner self-test and
 the no-hashing/token-step developer gates also pass. No native ABI or CUDA
 arithmetic changed; this is not a new full-suite or physical execution claim.
+
+2026-10-11 attached DSpark cancellation: `9dbb0b6b` executes the original
+five-token prompt across both Sparks and marks generation directly on stdout.
+Two separate cases interrupt ingress and egress, respectively, with one SIGINT
+after prefill. Both contexts explicitly close in each case; the unsignalled
+peer exits on disconnect. Both unit swap peaks are zero, GPU owners are empty,
+and no normal tokens file is present. The first capture misclassified MoonBit's
+post-cleanup SIGINT re-raise and remains preserved, not overwritten. The fixed
+capture requires cleanup telemetry plus the role-specific signal/exit outcome.
+Evidence is under `/tmp/lunaflux-dspark-run-cancel-ingress-20261011-v2` and
+`/tmp/lunaflux-dspark-run-cancel-egress-20261011-v1`; details and the diagnosed
+first capture are in the DSpark literal-text report. The five-package native
+matrix passes 25/25 and packed-execution regressions 114/114. No hashes, CUDA
+arithmetic or per-token diagnostic checks were added. This closes two attached
+DSpark process/peer-failure cases only. GLM/MiniMax cancellation, reusable request
+cancellation, multi-request serving and independent references remain open.
 
 The fixed-length literal DSpark sample is 31.364 seconds speculative versus
 39.206 seconds ordinary, while the older BOS sample was slower speculative.

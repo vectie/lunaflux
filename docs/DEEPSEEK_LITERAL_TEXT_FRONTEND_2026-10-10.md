@@ -256,3 +256,71 @@ Evidence: `/private/tmp/lunaflux-reference-tokenizer-corpus-20261011-v1`;
 startup/failure capture: `/private/tmp/lunaflux-reference-tokenizer-20261011-v2`.
 Requests, native IDs/decoded text, raw reference responses, terminal state and
 memory readings are retained separately without overwriting earlier attempts.
+
+## Real generation cancellation — 2026-10-11
+
+The `9dbb0b6b` checkpoint executable adds terminal-only explicit context-release
+telemetry and an unbuffered, one-time generation-start marker. It does not change
+CUDA arithmetic, the six-row/context-256 AOT or token-step validation. The test
+uses the actual original five-token chat prompt, maximum output 251 and EOS
+disabled, so the complete requested capacity is exactly 256 and the request
+cannot finish normally before interruption. The generation marker follows a
+real GPU prefill whose first sampled token is 19923.
+
+`scripts/capture-dspark-cancellation.mbtx` reuses the normal two-rank launcher
+with fresh output directories and 96-GiB/no-swap user units. After generation
+starts, it waits one second and sends exactly one SIGINT to the selected rank.
+No SIGKILL escalation, payload checksum or additional GPU workload is used.
+
+Both directions pass. In each, the signalled rank records successful explicit
+context close; its peer sees `RemoteChannelError.Disconnected` and also closes
+its context. CUDA context close refuses outstanding child resources, so these
+markers are stronger than merely observing vanished processes. All four
+post-test GPU compute-owner queries are empty. Neither case publishes a normal
+generation receipt; additional read-only checks find no `output-run/tokens.txt`.
+
+| SIGINT target | .178 cgroup peak bytes | .179 cgroup peak bytes | Both swap peaks | Both explicit contexts closed |
+| --- | ---: | ---: | ---: | --- |
+| Ingress | 48,170,549,248 | 25,569,525,760 | 0 | Yes |
+| Egress | 48,673,447,936 | 43,985,432,576 | 0 | Yes |
+
+These are cgroup observations, not total physical device-memory accounting or
+performance measurements. The ordinary-success launcher returns nonzero as
+expected and retains both terminal journals; its failed result is not rewritten
+as a successful generation. The cancellation capture reports the narrower
+cleanup outcome separately.
+
+The first ingress attempt remains a diagnosed capture failure under
+`/tmp/lunaflux-dspark-run-cancel-ingress-20261011-v1`. Both contexts actually
+closed, but the harness incorrectly required a userspace exit code from the
+signalled process. MoonBit async unwinds owners, flushes stdio and then re-raises
+the original signal; its C runtime explicitly calls `raise(sig)` after
+`fflush(0)`. Therefore successful cooperative SIGINT cancellation appears as
+`ExecMainCode=2`, `ExecMainStatus=2`, while the disconnected peer exits with
+code/status 1. The corrected harness requires the role-specific close marker
+and correct expected exit for each side, and still rejects SIGKILL, OOM, swap,
+missing/running units and successful generation publication. It does not accept
+a SIGINT result alone as cleanup evidence or rewrite the first failed capture.
+
+The passed ingress rerun is retained under
+`/tmp/lunaflux-dspark-run-cancel-ingress-20261011-v2/cancellation`; the egress
+case is under `/tmp/lunaflux-dspark-run-cancel-egress-20261011-v1/cancellation`.
+Separate user units and remote roots use the same suffixes; no evidence is
+overwritten. The runtime binary is built from `9dbb0b6b`; the corrected capture
+classifier is committed as `673e14fd`. Subsequent capture code also checks
+tokens-file absence directly after both contexts retire. For the two executed
+captures, this check was independently run after collection and returned 0.
+
+Affected native checks and formatting pass with existing migration warning
+exclusions `-20-25-29-35-79-92`. The five-package native matrix passes 25/25;
+the complete packed-execution fake-device regression package passes 114/114.
+Capture self-tests reject SIGKILL, missing close markers, successful output,
+swap, OOM and missing/running units. The 28-script no-hashing and token-step
+scan/copy/readback checks pass. `moon info` completes with no errors and the
+existing toolchain-migration warnings. No native ABI or kernel changed, so
+these are not new arithmetic sanitizer or performance results.
+
+This is process-level cancellation of this attached single-request DSpark
+diagnostic, not reusable request cancellation with retained weights. It does
+not close bounded multi-request serving, other model cancellation paths,
+independent model numerics, or performance comparison.
