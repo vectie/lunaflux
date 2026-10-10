@@ -17,15 +17,22 @@ frontiers without closing the rank session. Verification cancellation also
 drains an issued restore without starting another accepted-prefix replay.
 The explicit CLI replay suffix selects a request and submitted-transaction
 count once before CUDA; it adds no default poll ceiling or payload hashing.
-Fresh commit-built two-host cancellation followed by the next request remains
-to be verified. This is not concurrent serving or three-model completion.
+Fresh commit-built GLM two-host cancellation followed by the next request now
+passes. DSpark ordinary and verification cancellation remain to be verified.
+This is not concurrent serving or three-model completion.
 Source `514835f8` is pushed and builds both GLM and DSpark native ARM release
 executables successfully (217/238 tasks; build memory peaks 529/655 MiB and
 zero build swap). The affected native matrix passes 137/137 and the full current
 working-tree suite passes 4,973/4,973 with unchanged migration warning settings.
 The two cancellation runner scripts pass 7/7 tests. Their fresh literal queues
-are prepared before CUDA. Physical request outcomes remain pending; these
-software/build results do not prove retained-weight cancellation on GPUs.
+are prepared before CUDA. GLM cancels its twenty-token request after one
+submitted frame, retains the same rank pair and completes the subsequent
+thirteen-token request with eight tokens exactly matching the isolated run.
+Retirement epochs advance to 2 and 22. Both contexts close explicitly, both
+units exit 0 with zero swap peaks and terminal GPU owner queries are empty.
+The next request takes 429,402 ms including prefill, not initial model loading;
+this scalar correctness route is not an optimized serving benchmark. Captures
+remain at `/tmp/lunaflux-glm-sequence-cancel-20261011-v1`.
 
 The two-node remote startup envelope no longer SHA-hashes both rank frames or
 emits a frame checksum. It reuses the supplied deployment association label;
@@ -70,7 +77,7 @@ their pending claims only for the explicitly completed diagnostic routes:
 
 | Model | Current physical result | What this does not establish |
 | --- | --- | --- |
-| GLM-5.3 Flash | Two original-tokenizer literal requests (13 and 20 tokens), eight greedy outputs each, reuse one resident rank pair; first matches its isolated run; both ranks exit successfully, release GPUs and use no unit swap | Independent real-weight logit parity, arbitrary-input completeness, concurrent/optimized serving |
+| GLM-5.3 Flash | Two original-tokenizer literal requests (13 and 20 tokens), eight greedy outputs each, reuse one resident rank pair; retained-weight cancellation also completes a subsequent distinct request with unchanged outputs; both ranks exit successfully, release GPUs and use no unit swap | Independent real-weight logit parity, arbitrary-input completeness, concurrent/optimized serving |
 | DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition, EOS termination and the exact 144-input/112-output 256-token envelope; process-level cancellation passes in both directions; two distinct requests reuse one resident pair of ranks in both modes with identical outputs | Independent upstream model parity, larger/model-maximum contexts, retained-weight request cancellation, concurrent/production serving or external-framework performance |
 | MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
 

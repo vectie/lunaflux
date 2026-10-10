@@ -297,6 +297,17 @@ queue retains its original five-token and 144-token inputs for subsequent
 ordinary/verification cancellation tests. No GPU outcome is recorded as passed
 until both ranks retire and the follow-on output is checked.
 
+GLM's exact-source `514835f8` cancellation queue subsequently passes at
+`/tmp/lunaflux-glm-sequence-cancel-20261011-v1`: the twenty-token request cancels
+after one submitted frame without a final token file, then the same resident
+rank pair completes the thirteen-token request. All eight output IDs exactly
+match the previously isolated request. Epochs retire at 2 and 22; explicit
+ingress/egress context close, exit 0, zero unit swap peaks and empty terminal
+GPU owner queries all pass. The subsequent request lifetime is 429,402 ms,
+including prefill but excluding initial weight loading. DSpark ordinary and
+verification cancellation tests remain pending. This closes this GLM replay
+case, not concurrent serving, independent numerical parity or performance.
+
 1. Extend original-tokenizer coverage beyond the independently matched corpus
    and establish complete-model real-weight references for the three models.
    MiniMax now has one independent 50-layer text-caption differential, but
