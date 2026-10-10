@@ -96,6 +96,14 @@ no new PyTorch dependency, payload hashing or startup prerequisite. See the
 [MiniMax report](MINIMAX_REAL_CAPTION_EXECUTION_2026-10-10.md) for exact scope,
 error distribution, memory observations and raw evidence roots.
 
+Native MiniMax embedding and all 50 complete-layer outputs are now physically
+captured from the unchanged AOT recipe. Its final observed output exactly
+matches normal execution, while the independent embedding is also bitwise
+identical. The first reference difference occurs at layer 1 (RMSE 0.000962043)
+and reaches 0.042012108 at layer 50. The capture exits successfully with zero
+unit swap and an empty terminal GPU-owner query. This establishes first-layer
+localization, not operator attribution, numerical acceptance or full-H3 parity.
+
 The DeepSeek fixed-length run deliberately disables EOS stopping. Its last six
 tokens follow EOS and are not part of a normal assistant answer. A separate
 64-token-maximum/EOS-1 paired request now passes: both paths emit exactly ten

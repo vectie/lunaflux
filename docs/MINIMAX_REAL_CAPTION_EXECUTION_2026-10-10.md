@@ -137,8 +137,43 @@ observed preparation/execution path, and a caller-supplied aggregate host captur
 budget checked before CUDA. The three-row capture requires exactly 1,566,720
 bytes for all 51 BF16 snapshots. Normal execution still submits its one complete
 queue and waits once; no per-layer observer or readback is added to production.
-Physical capture and first-divergence attribution remain pending; this source
-change by itself does not resolve or explain the measured final error.
+The exact-source `fc061c8a268925507e6ad118506bffaabcde6f6c` ARM build then
+passes (184 tasks, 624.3 MiB peak, zero swap). Physical capture on .179 succeeds
+after the GLM resident queue has closed both GPUs. All 51 snapshots are
+downloaded; the observed final tensor is bitwise identical to the prior normal,
+unobserved `b07c0313` execution (15,360/15,360 values, RMSE zero). Therefore the
+observation boundary itself does not account for the reference difference.
+
+| Hidden state | Exact BF16 values / 15,360 | RMSE | Global relative L2 | Maximum absolute error |
+| --- | ---: | ---: | ---: | ---: |
+| Embedding, 0 | 15,360 | 0 | 0 | 0 |
+| Layer 1 | 8,877 | 0.000962043 | 0.210869% | 0.015625 |
+| Layer 2 | 7,030 | 0.001842604 | 0.210602% | 0.03125 |
+| Layer 6 | 5,332 | 0.005268544 | 0.248746% | 0.125 |
+| Layer 7 | 5,513 | 0.007821999 | 0.006725% | 0.25 |
+| Layer 50 | 4,073 | 0.042012108 | 0.033991% | 1 |
+
+The first bitwise difference is **layer 1**, not embedding or a late-layer-only
+failure. Absolute error generally grows thereafter; the abrupt drop in global
+relative L2 at layer 7 reflects larger reference magnitudes, not a reduction in
+absolute error. Token-row metrics remain necessary. These observations locate
+the first differing layer, not its first operator or an incorrect implementation:
+native ordered F32 accumulation and library reductions/GEMM/SDPA have different
+arithmetic schedules. QKV, normalization, rotary, attention and MLP must next
+be compared at internal operator boundaries with matched inputs. No arbitrary
+tolerance, automatic model-parity pass or claimed attention fix is inferred.
+
+The diagnostic user unit exits 0 with `Result=success`; runtime is 48.500 s,
+including loading and observations, not serving/kernel latency. Journal reports
+12.2 GiB cgroup peak and zero swap peak; the separate device budget remains
+64,424,509,440 bytes and packed weights 51,506,191,840 bytes. Terminal GPU-owner
+query is empty. It used `MemoryMax=80G`, `MemorySwapMax=0` and exactly 1,566,720
+bytes of bounded host snapshot storage; no other GPU model ran concurrently.
+
+Native capture: `/tmp/lunaflux-minimax-text-encoder-layers-20261011-v1-179`.
+Full numerical series: `/tmp/lunaflux-minimax-text-layer-comparison-20261011-v1`,
+including `layers.tsv`, every per-row/per-layer report and `first-difference.txt`.
+The previous normal-route comparison is retained in the native capture root.
 
 The final reference container exits 0 with `OOMKilled=false`, configured
 memory and memory-plus-swap limits both 8,589,934,592 bytes. Live reads of its

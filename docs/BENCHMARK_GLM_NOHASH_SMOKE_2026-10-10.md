@@ -34,6 +34,14 @@ The shared output decoder subsequently adds a CPU-only `decode-tokens` entry
 for GLM, preserving original special tokens/raw bytes without weights or CUDA.
 Its affected frontend/CLI matrix passes 10/10; this is not model-logit parity.
 
+The committed `5b0c06f6` decoder also builds natively on ARM (217 tasks) and
+decodes both actual output lists against the original GLM tokenizer without
+weights/CUDA or payload hashing. Outputs are 26 and 34 bytes, respectively:
+`The user just sent "a" — ` and `Let's see how this works. Numbers`.
+These are eight-token, EOS-disabled diagnostic fragments, not complete answers.
+Both raw decoded files are downloaded into the same capture root without
+overwriting prior results.
+
 ## Result and scope
 
 The ARM release built from `41650b1b8173dcc2d5aeca93d69f4f1702f16f2e`

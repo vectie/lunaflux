@@ -182,8 +182,15 @@ MiniMax first-divergence work now adds the explicit native `encode-text-layers`
 diagnostic. It partitions the same launch recipe at pure embedding/layer
 boundaries, checks aggregate capture memory before CUDA and writes 51 BF16
 snapshots without hashing. Its normal production queue remains unsplit and
-unobserved. This prepares native/independent per-layer localization; the physical
-capture and numerical attribution still remain to be executed, not presumed.
+unobserved. Physical capture subsequently passes on exact-source `fc061c8a`:
+all 51 snapshots are downloaded, final observed/unobserved outputs are bitwise
+identical and the independent embedding matches exactly. The first differing
+complete layer is 1 (RMSE 0.000962043); final RMSE remains 0.042012108. Unit exit
+is 0, swap peak zero and terminal GPU owner empty. Captures/report are at
+`/tmp/lunaflux-minimax-text-encoder-layers-20261011-v1-179` and
+`/tmp/lunaflux-minimax-text-layer-comparison-20261011-v1`. This locates the first
+layer, not the first operator: matched internal operator attribution and broader
+model/quality references remain open. Normal production is still unobserved.
 
 2026-10-11 resident-request integration: the ordinary DSpark target route now
 accepts a finite queue through `generate-sequence-reference-dspark`. The shared
