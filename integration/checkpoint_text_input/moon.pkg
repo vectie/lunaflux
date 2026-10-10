@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/string",
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/tokenizer",
   "vectie/lunaflux/tokenizer/json_file" @tokenizer_file,

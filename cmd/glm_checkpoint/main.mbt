@@ -1,5 +1,9 @@
 ///|
 async fn main {
+  if @env.args() is [_, "decode-tokens", model_root, label, ids, output] {
+    decode_text_tokens(model_root, label, ids, output)
+    return
+  }
   if @env.args()
     is [
       _,

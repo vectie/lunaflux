@@ -9,6 +9,8 @@ import {
 // Values
 pub fn encode_text_input(@tokenizer.TokenizerSpec, Bytes, maximum_tokens~ : Int) -> CheckpointTextInput raise @tokenizer.TokenizerError
 
+pub fn load_checkpoint_output_text(@approved_fs.ApprovedRoot, String, String, String, String, vocabulary_size~ : Int, maximum_tokens~ : Int) -> CheckpointTextInput raise
+
 pub fn load_checkpoint_text(@approved_fs.ApprovedRoot, String, String, String, String, vocabulary_size~ : Int, maximum_tokens~ : Int) -> CheckpointTextInput raise
 
 pub fn load_checkpoint_tokenizer(@approved_fs.ApprovedRoot, String, String, String, vocabulary_size~ : Int, maximum_tokens~ : Int) -> @tokenizer.TokenizerSpec raise

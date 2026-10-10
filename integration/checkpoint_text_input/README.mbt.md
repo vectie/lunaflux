@@ -54,6 +54,11 @@ plus decoded bytes. `load_checkpoint_tokenizer` exposes the same bounded loader
 for decoding generated output without inventing a second envelope. The returned
 pure tokenizer owns no file or root handle; decoding is valid after root release.
 
+`load_checkpoint_output_text` shares bounded comma-separated generated-ID parsing
+and original-tokenizer decoding between GLM and DeepSeek diagnostics. It returns
+the existing root-free IDs/bytes value, preserves special tokens, and rejects
+unknown IDs or capacity overflow. It does not read checkpoint weights or CUDA.
+
 For an installed checkpoint (paths/IDs supplied by the caller):
 
 ```mbt nocheck

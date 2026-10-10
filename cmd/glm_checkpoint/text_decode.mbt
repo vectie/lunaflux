@@ -1,11 +1,12 @@
 ///|
 async fn decode_text_tokens(
-  root : @approved_fs.ApprovedRoot,
   model_root : String,
   label : String,
   source : String,
   output : String,
 ) -> Unit {
+  let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
+  defer root.close()
   let config = inspect_config(root)
   let text = @text_input.load_checkpoint_output_text(
     root,
@@ -14,7 +15,7 @@ async fn decode_text_tokens(
     label,
     source,
     vocabulary_size=config.vocabulary_size(),
-    maximum_tokens=config.max_position_embeddings(),
+    maximum_tokens=config.context_length(),
   )
   let bytes = text.decoded_bytes()
   @fs.write_file(output, bytes, create_mode=CreateNew)

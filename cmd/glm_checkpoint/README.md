@@ -48,7 +48,14 @@ Text encoding and little-endian ID serialization are owned by the shared
 `integration/checkpoint_text_input` frontend; GLM retains ownership of prompt
 chunking and its execution-frame protocol.
 
-Common arguments, all budgets in bytes:
+Generated output text:
+
+`decode-tokens MODEL_ROOT TOKENIZER_LABEL COMMA_SEPARATED_TOKEN_IDS NEW_OUTPUT`
+decodes actual generated IDs through the original tokenizer using the shared
+checkpoint text adapter. Special tokens and raw bytes are preserved. The output
+must be new; decoding loads neither weights nor CUDA and performs no hashing.
+
+Execution arguments, all budgets in bytes:
 
 ```
 MODE MODEL_ROOT SHARD_SHA256 ROWS HISTORY BUDGET0 BUDGET1 RESERVE MODE_ARGS

@@ -45,7 +45,44 @@ async test "shared loaded tokenizer decodes outputs after root release without c
       vocabulary_size=258,
       maximum_tokens=3,
     )
+    let output = @checkpoint_text_input.load_checkpoint_output_text(
+      root,
+      directory,
+      "tokenizer.json",
+      "b".repeat(64),
+      "104,257,105",
+      vocabulary_size=258,
+      maximum_tokens=3,
+    )
+    let empty = @checkpoint_text_input.load_checkpoint_output_text(
+      root,
+      directory,
+      "tokenizer.json",
+      "b".repeat(64),
+      "",
+      vocabulary_size=258,
+      maximum_tokens=3,
+    )
+    try
+      @checkpoint_text_input.load_checkpoint_output_text(
+        root,
+        directory,
+        "tokenizer.json",
+        "b".repeat(64),
+        "258",
+        vocabulary_size=258,
+        maximum_tokens=3,
+      )
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("unknown output token accepted by shared file adapter")
+    }
     root.close()
+    assert_eq(output.token_ids().to_owned(), [104, 257, 105])
+    assert_eq(output.decoded_bytes(), b"h<s>i")
+    assert_eq(empty.token_ids().length(), 0)
+    assert_eq(empty.decoded_bytes(), b"")
     assert_eq(
       spec.decode_bytes([104, 257, 105], special_policy=Preserve),
       b"h<s>i",
