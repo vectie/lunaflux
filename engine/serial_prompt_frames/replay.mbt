@@ -1,4 +1,13 @@
 ///|
+// Keep the loop summary named and immutable. The installed ARM native compiler
+// mislowers destructuring a multi-value loop result into pointer field access;
+// a regular record preserves the pure scalar-state transformation on both hosts.
+priv struct PromptGeometry {
+  input_tokens : Int
+  encoded_bytes : Int64
+}
+
+///|
 /// Immutable startup-only prompt replay. Capacity and the contiguous request
 /// layout are resolved before device preparation. Execution consumes these same
 /// byte snapshots, never reopens the prompt files or authenticates their payloads.
@@ -37,7 +46,7 @@ pub fn PreparedSerialPrompt::new(
   // Invariants: end <= context - generation; used <= encoded-byte budget.
   // Validated rows are nonempty; each iteration advances the prompt end.
   // Compare before addition so neither the context nor byte sum can overflow.
-  let (input_tokens, encoded_bytes) = for
+  let geometry = for
     index, bytes in frames
     end = 0, used = 0L, request_id = 0UL, request_generation = 0UL {
     guard bytes.length() <= owner.capacity() &&
@@ -68,13 +77,13 @@ pub fn PreparedSerialPrompt::new(
     }
     continue end + length, used + bytes.length().to_int64(), id, generation
   } nobreak {
-    (end, used)
+    PromptGeometry::{ input_tokens: end, encoded_bytes: used, }
   }
   {
     frames: ReadOnlyArray::from_array(frames.to_owned()),
-    input_tokens,
+    input_tokens: geometry.input_tokens,
     maximum_new_tokens,
-    encoded_bytes,
+    encoded_bytes: geometry.encoded_bytes,
   }
 }
 

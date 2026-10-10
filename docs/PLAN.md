@@ -86,6 +86,13 @@ interfaces add only retained-byte accounting, an optional file prefix and the
 shared queue adapter. `moon info` completes with 3,645 existing migration
 warnings and no errors, without new warning exclusions. No CUDA arithmetic or
 native ABI changed; physical queued-checkpoint execution remains next.
+The first exact-source ARM release build is preserved under
+`/tmp/lunaflux-checkpoint-build-dspark-sequence-20261011-v1`: its installed
+compiler generated pointer field access incorrectly for the destructured
+multi-value functional-loop summary, and GCC rejected it. No GPU request ran.
+The prompt planner now returns a named immutable geometry record instead of
+that tuple, preserving the same pure transformation and byte accounting. This
+is a compiler portability correction, not a disabled check or numerical change.
 
 2026-10-11 generation-capacity correction: GLM and DeepSeek previously checked
 prompt plus generation capacity only at the last prefill chunk, after weight
