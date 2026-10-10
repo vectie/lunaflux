@@ -324,6 +324,20 @@ do not measure every CUDA allocation on unified memory. Full-model numerical
 references, concurrent serving and MiniMax quality remain the next feature
 work, not additional hashing, TLS or deployment-hardening prerequisites.
 
+MiniMax's existing generic cancellation owner is now connected to `run-joint`.
+The explicit request-zero/stage-count suffix is parsed before checkpoint or CUDA
+work. It counts completed synchronous prepared frames, not polling iterations;
+default execution has no implicit ceiling. Cancellation closes the request's
+consuming stages before writing a marker and copies/publishes neither decoded
+modality. Genuine execution/cleanup failures propagate. Command tests pass
+19/19, including deterministic stage effects, last-frame completion and more
+than 1,048,576 advances. The affected command/pipeline/request/parser packages
+pass 35/35 native tests, and the runner passes 2/2 tests. Focused warning-denied
+native check, no-payload-hash and token-step gates pass; `moon info` completes
+with the existing warning-79 migration backlog and no errors. A fresh bounded
+actual-checkpoint cancellation run is next; local tests are not a physical
+result or a numerical/quality fix.
+
 1. Extend original-tokenizer coverage beyond the independently matched corpus
    and establish complete-model real-weight references for the three models.
    MiniMax now has one independent 50-layer text-caption differential, but

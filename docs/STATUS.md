@@ -10,6 +10,19 @@ claims and do not close those five phase gates.
 
 ## Current checkpoint execution — 2026-10-11
 
+MiniMax's `run-joint` now connects its existing generic pipeline cancellation
+to the same explicit request-zero/count CLI suffix. Parsing occurs before
+checkpoint/CUDA access. Counts are completed synchronous prepared frames,
+including conditioning and decoder frames; default execution has no ceiling.
+Cancellation closes request stages before writing a cancellation marker and
+copies/publishes neither audio nor video. Real execution/cleanup failures still
+propagate. The command's native tests pass 19/19, including cleanup ordering,
+last-frame completion and execution beyond 1,048,576 frames. These are local
+control-flow tests, not physical MiniMax cancellation or numerical/quality
+acceptance; the checkpoint follow-up remains to run. Affected native packages
+pass 35/35 tests and the runner passes 2/2; focused warning-denied native check,
+token-step and no-payload-hash gates also pass.
+
 Retained-weight request cancellation is now implemented in the model-neutral
 ordinary and verification coordinators and connected to GLM/DeepSeek generation.
 It drains issued work, suppresses unpublished output and releases both request

@@ -33,7 +33,10 @@ fn component(
 
 ///|
 async fn main {
-  guard @env.args() is [_, mode, root_input, .. tail] &&
+  let (arguments, cancel_after_frames) = joint_cancellation_arguments(
+    @env.args(),
+  )
+  guard arguments is [_, mode, root_input, .. tail] &&
     (
       (
         (
@@ -112,7 +115,7 @@ async fn main {
     return
   }
   if mode == "run-joint" {
-    run_joint(root_name, root, metadata, plan, tail)
+    run_joint(root_name, root, metadata, plan, tail, cancel_after_frames~)
     return
   }
   if mode == "video-config" || mode == "export-video" {

@@ -9,6 +9,7 @@ async fn run_joint(
   metadata : @h3.MiniMaxH3ModelMetadata,
   model : @joint.JointDiffusionPlan,
   args : ArrayView[String],
+  cancel_after_frames~ : Int,
 ) -> Unit {
   let layout = joint_layout(root, metadata, model, args)
   let limit = @string.parse_int64(args[15])
@@ -302,14 +303,28 @@ async fn run_joint(
       audio_block_size=256,
     )
   })
-  for ;; {
-    let stage = request.advance()
-    println("joint_stage=\{Repr(stage)}")
-    match stage {
-      Completed => break
-      Cancelled | Failed | Closed => fail("joint request did not complete")
-      _ => ()
-    }
+  let (terminal, completed) = advance_joint_frames(
+    () => {
+      let stage = request.advance()
+      println("joint_stage=\{Repr(stage)}")
+      stage
+    },
+    () => request.cancel(),
+    () => request.close(),
+    cancel_after_frames,
+  )
+  if terminal == Cancelled {
+    @fs.mkdir(args[17])
+    @fs.write_file(
+      args[17] + "/cancelled.txt",
+      "request_cancelled=true\ncompleted_frames=\{completed}\noutputs_published=false\n",
+      create_mode=CreateNew,
+      sync=Full,
+    )
+    println(
+      "joint_cancelled completed_frames=\{completed} outputs_published=false",
+    )
+    return
   }
   guard request.outputs_ready() else { fail("joint outputs not ready") }
   let pixels = request.with_video(a => {

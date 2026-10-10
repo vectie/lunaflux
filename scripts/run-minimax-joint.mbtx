@@ -53,8 +53,56 @@ test "joint request derives conditioning rows from actual encoder output" {
 }
 
 ///|
+fn cancellation_arguments(
+  args : ArrayView[String],
+) -> (ArrayView[String], Int) raise {
+  if args is [.. rest, "--cancel-request", "0", "--after-steps", steps] {
+    guard !rest.contains("--cancel-request") && !rest.contains("--after-steps") else {
+      fail("duplicate cancellation control")
+    }
+    let count = @string.parse_int(steps)
+    guard count > 0 else { fail("invalid cancellation frame count") }
+    (rest, count)
+  } else {
+    guard !args.contains("--cancel-request") && !args.contains("--after-steps") else {
+      fail(
+        "joint cancellation requires request zero and a positive frame count",
+      )
+    }
+    (args, 0)
+  }
+}
+
+///|
+test "joint runner preserves default execution and explicit frame cancellation" {
+  let base = ["script", "root", "suffix", "build", "aot", "encoded"]
+  assert_eq(cancellation_arguments(base).1, 0)
+  let selected = base.copy()
+  selected.append(["--cancel-request", "0", "--after-steps", "2"])
+  let (plain, count) = cancellation_arguments(selected)
+  assert_eq(plain.to_owned(), base)
+  assert_eq(count, 2)
+  for
+    suffix in [
+      ["--cancel-request", "1", "--after-steps", "2"],
+      ["--cancel-request", "0", "--after-steps", "0"],
+      ["--cancel-request", "0", "--after-steps", "x"],
+      ["--after-steps", "2"],
+    ] {
+    let bad = base.copy()
+    bad.append(suffix)
+    try cancellation_arguments(bad) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid joint cancellation accepted")
+    }
+  }
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, root, suffix, build, aot, encoded] &&
+  let (args, cancel_after_frames) = cancellation_arguments(@env.args())
+  guard args is [_, root, suffix, build, aot, encoded] &&
     root.has_prefix("/tmp/lunaflux-minimax-joint-") &&
     build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
     aot.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
@@ -67,7 +115,7 @@ async fn main {
     }) &&
     !suffix.contains("/") else {
     fail(
-      "NEW_LOCAL_AND_REMOTE_ROOT UNIQUE_SUFFIX COMMIT_BUILD_ROOT EXISTING_REQUEST_AOT ACTUAL_ENCODER_BF16",
+      "NEW_LOCAL_AND_REMOTE_ROOT UNIQUE_SUFFIX COMMIT_BUILD_ROOT EXISTING_REQUEST_AOT ACTUAL_ENCODER_BF16 [--cancel-request 0 --after-steps COMPLETED_FRAMES]",
     )
   }
   let rows = encoded_rows(@fs.read_file(encoded).binary().length())
@@ -185,7 +233,12 @@ async fn main {
     aot +
     " DENOISER.inventory AUDIO.sha256 VIDEO.sha256 256 64 4096 8589934592 103079215104 17 " +
     root +
-    "/output"
+    "/output" +
+    (if cancel_after_frames == 0 {
+      ""
+    } else {
+      " --cancel-request 0 --after-steps \{cancel_after_frames}"
+    })
   record(root, "start", remote(command))
   @fs.write_file(
     root + "/RUN.txt",
@@ -199,6 +252,8 @@ async fn main {
     encoded +
     "\nencoded_rows=" +
     rows.to_string() +
+    "\ncancel_after_frames=" +
+    cancel_after_frames.to_string() +
     "\nmaximum_device_bytes=103079215104\npayload_hashing=false\nstatus=dispatched-not-complete\n",
     create_mode=CreateNew,
   )

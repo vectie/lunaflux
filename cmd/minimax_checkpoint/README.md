@@ -49,6 +49,18 @@ flow updates and both media decoders. Optional image/reference conditioning
 still uses the typed source-export API. This command reads metadata only and
 opens no CUDA context; compilation does not establish checkpoint execution.
 
+`run-joint` executes the prepared text-only conditioning, paired denoising and
+both decoders. Its optional suffix `--cancel-request 0 --after-steps N` cancels
+after N complete synchronous prepared frames (including conditioning/decoder
+frames), not N polling iterations or only denoising steps. It is parsed before
+checkpoint/device access. The command currently accepts one request, so other
+request indices are invalid. Default execution has no automatic frame ceiling.
+If completion occurs before or exactly at N, it remains normal completion.
+Cancellation closes the request stages and writes only `OUTPUT_DIRECTORY/cancelled.txt`;
+neither `video.f32` nor `audio.f32` is copied/published. Real execution or cleanup
+failure still fails. This command-level control is not concurrent serving or
+independent model numerical/quality acceptance.
+
 `encode-text VARIANT_ROOT INVENTORY TEXT_ROWS INPUT_IDS_I32 AOT_DIRECTORY
 OUTPUT_BF16 COMPONENT_LIMIT DEVICE_LIMIT` runs the original Qwen3-VL checkpoint
 through H3's selected unnormalized `hidden_states[50]`. Input contains exactly
