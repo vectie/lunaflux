@@ -60,13 +60,14 @@ async test "prompt sequence shares exact storage budget and survives closed file
       total += bytes.length().to_int64()
     }
   }
+  @fs.write_file(path + "/frame-counts.txt", "1,2\n", create_mode=CreateNew)
   let root = @approved_fs.ApprovedRoot::open_absolute(path)
   defer root.close()
   for (budget, maximum) in [(total - 1L, 1), (total, 2)] {
     try
-      @serial_prompt_file.load_generation_sequence(
+      @serial_prompt_file.load_generation_sequence_file(
         root,
-        [1, 2],
+        2,
         limits,
         inference,
         maximum_new_tokens=maximum,
@@ -80,9 +81,9 @@ async test "prompt sequence shares exact storage budget and survives closed file
       _ => fail("late request capacity or aggregate storage overflow accepted")
     }
   }
-  let prepared = @serial_prompt_file.load_generation_sequence(
+  let prepared = @serial_prompt_file.load_generation_sequence_file(
     root,
-    [1, 2],
+    2,
     limits,
     inference,
     maximum_new_tokens=1,

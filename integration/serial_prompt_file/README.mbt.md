@@ -17,3 +17,7 @@ device startup. Request i is stored under `request-i/plan-N.bin`; all requests
 share one aggregate retained-byte budget. It returns immutable, model-neutral
 prompt plans with no retained file authority. Capacity and byte-budget failure
 in a later request prevents any request from executing.
+
+`load_generation_sequence_file` reads the bounded `frame-counts.txt` metadata
+once, then calls the same sequence constructor. Both checkpoint CLIs use this
+adapter; queue parsing does not belong to a model family or device backend.

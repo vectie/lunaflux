@@ -1,4 +1,6 @@
 import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/string",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol" @protocol,
   "vectie/lunaflux/engine/worker_wire" @wire,
