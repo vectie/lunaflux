@@ -16,7 +16,7 @@ their pending claims only for the explicitly completed diagnostic routes:
 | Model | Current physical result | What this does not establish |
 | --- | --- | --- |
 | GLM-5.3 Flash | Original 13-token chat diagnostic and eight greedy output tokens; two ranks exited successfully, released GPUs and used no unit swap | Independent real-weight logit parity, arbitrary-text GPU integration, optimized serving |
-| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition and EOS termination; process-level cancellation passes in both directions; two distinct requests now reuse one resident pair of ranks in both ordinary and speculative modes with identical outputs | Independent upstream model parity, maximum-context correctness, retained-weight request cancellation, concurrent/production serving or external-framework performance |
+| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition, EOS termination and the exact 144-input/112-output 256-token envelope; process-level cancellation passes in both directions; two distinct requests reuse one resident pair of ranks in both modes with identical outputs | Independent upstream model parity, larger/model-maximum contexts, retained-weight request cancellation, concurrent/production serving or external-framework performance |
 | MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
 
 GLM/DeepSeek generation now resolves the full prompt and requested output length
@@ -25,7 +25,11 @@ shared file adapter. Input bytes are read once; input-file authority is closed
 and the same snapshots feed prefill. The DSpark runner also preflights before
 either remote rank loads weights. Three original-input CPU exact/overflow pairs
 pass: 13+51/64, 5+251/256 and 144+112/256; +1 output fails in each. This is a
-capacity/source fix, not a maximum-context GPU result or token/s improvement.
+capacity/source fix, not a model-maximum-context result or token/s improvement.
+The paired physical 144+112/256 execution subsequently passes with 112 identical
+output IDs, explicit two-rank release, successful exits and zero unit swap peaks.
+Its final output token is not an additional KV input; committed history ends at
+255. This closes this exact request envelope only, not arbitrary long contexts.
 No hashes or new authentication scans were introduced. Raw captures and the
 still-open three-model requirements are recorded in [PLAN.md](PLAN.md).
 

@@ -411,3 +411,39 @@ only added public API is local `retire_publication()`; no CUDA arithmetic or
 native ABI changes were required. Independent full-model references, GPU
 maximum-capacity execution, retained-weight cancellation, concurrent serving
 and matched repeatable external-framework performance remain open.
+
+## Exact 256-token request envelope — 2026-10-11
+
+The same `09cb4e77` binary physically completes the 144-token literal prompt
+with exactly 112 generated tokens in both speculative and ordinary modes.
+Downloaded output files are identical across all 112 IDs. EOS stopping is
+deliberately disabled, so output after EOS is a capacity diagnostic, not a
+normal assistant answer or independent model reference.
+
+Speculative execution uses 29 verification blocks, 173 submitted continuation
+rows, 111 committed input rows and 17 rejected-prefix replays. Its final
+transport epoch is 71; ordinary execution retires at 136. Both finish `Length`.
+Prompt plus emitted output equals 256, but the last emitted token does not
+require a further KV input: committed history ends at 255. The corresponding
+software regression checks final-block clipping and rejects +1 output before
+device preparation. This does not validate the checkpoint's model-maximum
+context or arbitrary long-context numerics.
+
+Request lifetimes including prefill, excluding initial model loading, are
+207,224 ms speculative and 350,885 ms ordinary. These are single diagnostic
+samples, not repeatable throughput or a vLLM/SGLang comparison. The previously
+validated six-row/context-256 AOT is unchanged.
+
+Both modes exit 0 with explicit ingress/egress context-close markers; all
+terminal GPU owner queries are empty. Speculative cgroup peaks are
+54,929,371,136/.178 and 31,328,419,840/.179 bytes; ordinary peaks are
+56,123,568,128/.178 and 27,066,699,776/.179 bytes. All four unit swap peaks are
+zero, within the existing 96-GiB/no-swap unit limits. Cgroup accounting does not
+cover every CUDA allocation on these unified-memory devices.
+
+Local captures: `/tmp/lunaflux-dspark-run-capacity-20261011-v1`.
+Remote roots: `/tmp/lunaflux-dspark-real-capacity-20261011-v1`.
+Units use `lunaflux-dspark-capacity-20261011-v1-{ingress,egress}.service` and
+`lunaflux-dspark-capacity-20261011-v1-reference-{ingress,egress}.service`.
+No payload hashing or authentication scans are added. Independent references,
+retained-weight cancellation, concurrency and matched performance remain open.

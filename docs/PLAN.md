@@ -7,7 +7,9 @@ SHA-hashes metadata repeatedly during plan, validation and upload. It consumes
 the existing host-manifest label directly, with no crypto dependency. The
 regression distinguishes supplied labels from metadata checksums, while
 preserving region ordering, capacity, truncation and model-association tests.
-This is startup cleanup, not a measured GPU/token-throughput improvement.
+The affected upload/materialization/checkpoint matrix passes 27/27; the
+30-script no-hashing and token-step checks pass with existing migration warning
+settings. This is startup cleanup, not a measured GPU/token-throughput improvement.
 
 Removed the residual CUBIN checksum scans in both split-decode startup binders.
 They consume deployment labels, while retaining exact operation, ordered symbol,
@@ -38,16 +40,25 @@ requests. Its transport epochs continue monotonically after each two-sided
 request retirement. Context-close markers are terminal-only, and the remaining
 GLM concentrated-scale test fixture no longer hashes synthetic payloads. The
 combined affected native matrix passes 134/134 and the final CLI/file-adapter
-matrix passes 9/9 with the existing migration warning configuration. GLM queue
-physical execution remains open; no CUDA arithmetic changed.
+matrix passes 9/9 with the existing migration warning configuration. The
+exact-source `121d0423` ARM release build succeeds; its two original-tokenizer
+literal inputs (13 and 20 tokens) pass CPU preparation and preflight. The bounded
+resident GLM queue is now running under 96-GiB/no-swap user units, after DSpark
+terminated and both GPU owner queries became empty. GLM queue physical execution
+remains open until terminal outputs and release are checked; no CUDA arithmetic
+changed. The runner's bounded-frame/terminal-classification tests pass 2/2.
 
 The `09cb4e77` DSpark binary also physically completes the 144-input/112-output
 exact 256-token request envelope in speculative mode: 29 verification blocks,
 111 committed continuation inputs, 173 submitted rows and 17 rejected-prefix
 replays. It emits exactly 112 tokens, finishes `Length`, releases both contexts,
-exits 0, has zero unit swap peaks and leaves no GPU owner. Captures are under
-`/tmp/lunaflux-dspark-run-capacity-20261011-v1`; matched ordinary generation is
-running next. EOS is deliberately disabled, so this is a capacity diagnostic,
+exits 0, has zero unit swap peaks and leaves no GPU owner. Matched ordinary
+generation subsequently passes too: all 112 downloaded IDs are identical, both
+contexts explicitly close, units exit 0 and their swap peaks remain zero.
+Generation lifetimes including prefill are 207,224 ms speculative and 350,885 ms
+ordinary; these are single samples, not an external-framework throughput result.
+Captures are under `/tmp/lunaflux-dspark-run-capacity-20261011-v1`.
+EOS is deliberately disabled, so this is a capacity diagnostic,
 not a normal answer or independent numerical reference. The final emitted token
 is not another committed KV input: committed input history ends at 255, while
 prompt plus output is 256. The general capacity regression covers this frontier,
