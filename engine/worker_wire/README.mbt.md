@@ -132,6 +132,12 @@ still validates every count, range, identity, token, page generation,
 capability, sampling field, request uniqueness, completion slot, and canonical
 table cursor without a redundant whole-frame checksum pass.
 
+Graph telemetry sidecars also write zero to their legacy checksum word and
+ignore that word on reception. Scalar shape/count consistency and fixed frame
+length/version checks remain; telemetry encoding/decoding performs no FNV
+frame scan. This sidecar change likewise requires coordinated sender/receiver
+upgrades.
+
 This package is transport metadata only. Process lifecycle and I/O are owned by
 the private process and worker-supervisor packages. Worker-death recovery and
 device execution from received plans remain separate slices and are not

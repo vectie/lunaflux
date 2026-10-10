@@ -44,7 +44,7 @@ test "graph telemetry sidecar round trips exact scalar report" {
 }
 
 ///|
-test "graph telemetry sidecar rejects corruption and invalid shape" {
+test "graph telemetry sidecar rejects inconsistent counts without checksum scans" {
   let output = FixedArray::make(
     @worker_wire.worker_graph_telemetry_frame_capacity(),
     b'\x00',
@@ -55,7 +55,7 @@ test "graph telemetry sidecar rejects corruption and invalid shape" {
   )
   output[40] = output[40] ^ b'\x01'
   try @worker_wire.decode_worker_graph_telemetry(output, length) catch {
-    InvalidFrame(Checksum) => ()
+    InvalidFrame(Counts) => ()
     _ => fail("unexpected graph telemetry corruption error")
   } noraise {
     _ => fail("corrupt graph telemetry sidecar was admitted")
@@ -74,6 +74,26 @@ test "graph telemetry sidecar rejects corruption and invalid shape" {
   } noraise {
     _ => fail("inconsistent graph telemetry shape was admitted")
   }
+}
+
+///|
+test "graph telemetry ignores the legacy checksum field" {
+  let output = FixedArray::make(
+    @worker_wire.worker_graph_telemetry_frame_capacity(),
+    b'\x00',
+  )
+  let length = @worker_wire.encode_worker_graph_telemetry(
+    graph_wire_report(WorkerGraphCaptured, 7UL, 2UL),
+    output,
+  )
+  for index in 72..<76 {
+    assert_eq(output[index], b'\x00')
+    output[index] = b'\xff'
+  }
+  let decoded = @worker_wire.decode_worker_graph_telemetry(output, length)
+  assert_eq(decoded.sequence_value(), 9UL)
+  assert_eq(decoded.graph_hits(), 7UL)
+  assert_eq(decoded.graph_misses(), 2UL)
 }
 
 ///|

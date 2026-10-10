@@ -181,18 +181,6 @@ fn validate_message_shape(
 }
 
 ///|
-fn wire_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<length {
-    if index < RANK_GROUP_WIRE_CHECKSUM_OFFSET ||
-      index >= RANK_GROUP_WIRE_CHECKSUM_OFFSET + 4 {
-      hash = (hash ^ bytes[index].to_uint()) * 16777619
-    }
-  }
-  hash
-}
-
-///|
 fn write_binding(
   destination : FixedArray[Byte],
   binding : RankGroupWireBinding,
@@ -242,10 +230,6 @@ fn validate_frame_source(
   if wire_read_u32(source, 640) != 0U {
     raise Invalid(Reserved)
   }
-  if wire_read_u32(source, RANK_GROUP_WIRE_CHECKSUM_OFFSET) !=
-    wire_checksum(source, length) {
-    raise Invalid(Checksum)
-  }
   let kind = wire_kind_from_code(wire_read_i32(source, 16))
   let slot = wire_slot_from_code(wire_read_i32(source, 20))
   let direction = direction_from_code(wire_read_i32(source, 60))
@@ -273,10 +257,14 @@ fn validate_frame_source(
   if wire_read_u64(source, 40) == 0UL {
     raise Invalid(GroupGeneration)
   }
-  let mut offset = 64
-  while offset <= 576 {
-    validate_digest_bytes(source, offset)
-    offset += 64
+  // Only Configure parses an identity. Later frames compare the already
+  // copied binding; rescanning its hexadecimal format adds no information.
+  if kind == Configure {
+    let mut offset = 64
+    while offset <= 576 {
+      validate_digest_bytes(source, offset)
+      offset += 64
+    }
   }
 }
 

@@ -15,7 +15,7 @@ must version forward when those owning packages publish exact digests.
 
 Every frame contains the full binding. Configure, Submit, and completion
 payloads are bounded opaque bytes: this package checks framing, length,
-checksum, and transcript identity, but deliberately does not decode bootstrap,
+and transcript identity, but deliberately does not decode bootstrap,
 scheduler, or worker-wire types. Configure must carry a nonempty local-
 admission payload; the eventual child execution owner must still decode and
 authenticate it before `Ready` at its owning bootstrap boundary.
@@ -52,7 +52,7 @@ payload-free terminal `TransportLost` rule; it does not duplicate rank-loss,
 drain-exclusion, replacement, or cleanup ownership.
 
 Buffers are allocated only during construction. Encoding, loading, transcript
-acceptance, checksum validation, and payload copying reuse caller- or
+acceptance and payload copying reuse caller- or
 startup-owned fixed storage. Stateless operations encode directly into caller
 storage and copy authenticated header scalars. First-Configure decoding copies
 the binding into startup-owned storage and may allocate there; steady-state
@@ -60,6 +60,14 @@ validation against that locked binding allocates nothing. No stateless decoded
 value retains its source storage. Validated FrameBuffer views authenticate
 their exact buffer epoch and become stale after the next encode/load; those
 methods delegate the same codec core.
+
+Runtime encoding writes zero to the legacy checksum field; decoding ignores
+that field and never hashes or scans the opaque payload for integrity. Digest
+format parsing occurs only on Configure; later frames compare the locked
+binding without another hexadecimal-format pass. Framing bounds, rank,
+generation, direction, slot, sequence and lifecycle rules remain execution
+correctness checks. Parent and rank children must be upgraded together: older
+checksum-enforcing readers cannot consume the new frames.
 
 `RankGroupWireRankTranscript` is the corresponding authority-free child-rank
 validator. Its first Configure copies and locks one exact binding; local

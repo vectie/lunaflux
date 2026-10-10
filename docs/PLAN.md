@@ -2308,6 +2308,20 @@ and affected package/script formatting checks pass. The physical DSpark
 measurement above precedes only the three staging-chunk release-fill deletions;
 no additional GPU speedup is claimed for those deletions.
 
+## Runtime checksum cleanup follow-up (2026-10-10)
+
+Rank-group control and opaque payload frames no longer compute or verify a
+whole-frame FNV checksum. Graph telemetry sidecars follow the same rule.
+Encoders write zero into the legacy checksum field; readers ignore it. Rank
+digest-format parsing is limited to Configure, while steady-state frames retain
+exact locked-binding, generation, slot and sequence checks. Parent/worker/rank
+children must upgrade together; old checksum-enforcing readers are incompatible
+with new encoders. Regression tests cover ignored legacy words, unchanged
+payload handling, binding substitution and malformed telemetry counts.
+This removes redundant CPU scans, not GPU arithmetic; no throughput improvement
+is claimed without a matched benchmark. Offline compiler/cache identities and
+startup-only envelopes are distinct from token-step payload integrity scans.
+
 ## Deferred capabilities
 
 These require separate architecture decisions after the first release:

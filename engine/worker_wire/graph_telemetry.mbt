@@ -257,18 +257,6 @@ fn worker_graph_path_from_wire(
 }
 
 ///|
-fn worker_graph_telemetry_checksum(bytes : FixedArray[Byte]) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<WORKER_GRAPH_TELEMETRY_BYTES {
-    if index < WORKER_GRAPH_TELEMETRY_CHECKSUM_OFFSET ||
-      index >= WORKER_GRAPH_TELEMETRY_CHECKSUM_OFFSET + 4 {
-      hash = (hash ^ bytes[index].to_uint()) * 16777619
-    }
-  }
-  hash
-}
-
-///|
 /// Encodes into caller-owned fixed storage. No completion/plan wire version is
 /// changed; this is a separately versioned sidecar frame.
 pub fn encode_worker_graph_telemetry(
@@ -304,11 +292,6 @@ pub fn encode_worker_graph_telemetry(
   write_u64(output, 64, telemetry.graph_misses)
   write_u32(output, WORKER_GRAPH_TELEMETRY_CHECKSUM_OFFSET, 0)
   write_u32(output, 76, 0)
-  write_u32(
-    output,
-    WORKER_GRAPH_TELEMETRY_CHECKSUM_OFFSET,
-    worker_graph_telemetry_checksum(output),
-  )
   WORKER_GRAPH_TELEMETRY_BYTES
 }
 
@@ -333,10 +316,8 @@ pub fn decode_worker_graph_telemetry(
   if read_i32(source, 12) != WORKER_GRAPH_TELEMETRY_BYTES {
     raise InvalidFrame(Length)
   }
-  if read_u32(source, 76) != 0 ||
-    read_u32(source, WORKER_GRAPH_TELEMETRY_CHECKSUM_OFFSET) !=
-    worker_graph_telemetry_checksum(source) {
-    raise InvalidFrame(Checksum)
+  if read_u32(source, 76) != 0 {
+    raise InvalidFrame(Reserved)
   }
   let sequence = read_u64(source, 16)
   let path = worker_graph_path_from_wire(read_u32(source, 24))

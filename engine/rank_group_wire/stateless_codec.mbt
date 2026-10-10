@@ -176,11 +176,7 @@ fn encode_rank_group_wire_into(
   wire_write_i32(destination, 56, payload_length)
   wire_write_i32(destination, 60, direction_code(direction))
   wire_write_u32(destination, 640, 0U)
-  wire_write_u32(
-    destination,
-    RANK_GROUP_WIRE_CHECKSUM_OFFSET,
-    wire_checksum(destination, length),
-  )
+  wire_write_u32(destination, RANK_GROUP_WIRE_CHECKSUM_OFFSET, 0U)
   length
 }
 
@@ -276,10 +272,6 @@ pub fn seal_rank_group_wire_embedded_payload(
   wire_write_i32(destination, 56, payload_length)
   wire_write_i32(destination, 60, direction_code(direction))
   wire_write_u32(destination, 640, 0U)
-  wire_write_u32(
-    destination,
-    RANK_GROUP_WIRE_CHECKSUM_OFFSET,
-    wire_checksum(destination, length),
-  )
+  wire_write_u32(destination, RANK_GROUP_WIRE_CHECKSUM_OFFSET, 0U)
   length
 }

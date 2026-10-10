@@ -40,12 +40,42 @@ fn canonical_private_frame() -> (FixedArray[Byte], Int, RankGroupWireLimits) {
 }
 
 ///|
-fn refresh_private_checksum(bytes : FixedArray[Byte], length : Int) -> Unit {
-  wire_write_u32(
-    bytes,
-    RANK_GROUP_WIRE_CHECKSUM_OFFSET,
-    wire_checksum(bytes, length),
+test "rank frames ignore legacy checksum and do not scan opaque payloads" {
+  let (wire, length, limits) = canonical_private_frame()
+  assert_eq(wire_read_u32(wire, RANK_GROUP_WIRE_CHECKSUM_OFFSET), 0U)
+  wire_write_u32(wire, RANK_GROUP_WIRE_CHECKSUM_OFFSET, 0xffffffffU)
+  wire[RANK_GROUP_WIRE_HEADER_BYTES] = b'\xfe'
+  let decoded = validate_rank_group_wire_binding(
+    wire,
+    length,
+    limits,
+    fixture_private_binding(),
   )
+  assert_eq(decoded.kind(), Configure)
+  assert_eq(decoded.payload_length(), 1)
+}
+
+///|
+test "rank steady frame rejects binding mutation without digest format rescans" {
+  let limits = RankGroupWireLimits::new(max_payload_bytes=8)
+  let wire = FixedArray::make(limits.max_frame_bytes(), b'\x00')
+  let binding = fixture_private_binding()
+  let length = encode_rank_group_wire_control_into(
+    wire,
+    limits,
+    binding,
+    PollComplete,
+    ParentToChild,
+    Some(A),
+    1UL,
+  )
+  wire[448] = b'X'
+  try validate_rank_group_wire_binding(wire, length, limits, binding) catch {
+    Invalid(Binding) => ()
+    _ => fail("expected locked binding rejection")
+  } noraise {
+    _ => fail("changed binding was admitted")
+  }
 }
 
 ///|
@@ -53,7 +83,6 @@ test "rank group wire hostile header corruption is rejected exactly" {
   let (wire, length, limits) = canonical_private_frame()
   let receiver = RankGroupWireFrameBuffer::new(limits)
   wire[0] = b'X'
-  refresh_private_checksum(wire, length)
   try receiver.load(wire, length) catch {
     Invalid(Magic) => ()
     _ => fail("expected magic rejection")
@@ -63,7 +92,6 @@ test "rank group wire hostile header corruption is rejected exactly" {
 
   let (reserved, reserved_length, reserved_limits) = canonical_private_frame()
   wire_write_u32(reserved, 640, 1U)
-  refresh_private_checksum(reserved, reserved_length)
   try
     RankGroupWireFrameBuffer::new(reserved_limits).load(
       reserved, reserved_length,
@@ -77,7 +105,6 @@ test "rank group wire hostile header corruption is rejected exactly" {
 
   let (direction, direction_length, direction_limits) = canonical_private_frame()
   wire_write_i32(direction, 60, 1)
-  refresh_private_checksum(direction, direction_length)
   try
     RankGroupWireFrameBuffer::new(direction_limits).load(
       direction, direction_length,
@@ -122,13 +149,13 @@ test "rank group wire codec fault poisons group transcript" {
       length,
     )
   catch {
-    ProtocolFault(Checksum) => ()
+    ProtocolFault(Binding) => ()
     _ => fail("expected codec fault")
   } noraise {
     _ => fail("expected codec fault")
   }
   assert_eq(transcript.lifecycle(), Faulted)
-  assert_eq(transcript.failure_rule(), Some(Checksum))
+  assert_eq(transcript.failure_rule(), Some(Binding))
 }
 
 ///|
@@ -136,7 +163,6 @@ test "rank group wire locked binding rejects execution-plan substitution" {
   let (wire, length, limits) = canonical_private_frame()
   let binding = fixture_private_binding()
   wire[448] = if wire[448] == b'9' { b'8' } else { b'9' }
-  refresh_private_checksum(wire, length)
   try validate_rank_group_wire_binding(wire, length, limits, binding) catch {
     Invalid(Binding) => ()
     _ => fail("unexpected execution-plan substitution rejection")

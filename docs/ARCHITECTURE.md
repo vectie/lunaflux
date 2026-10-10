@@ -478,6 +478,11 @@ encoding, greedy continuation, publication or reception. Legacy checksum words
 are written as zero and ignored on reception. Structural validation and
 generation/sequence/KV ownership remain mandatory; parent and worker binaries
 are upgraded together rather than mixing checksum-enforcing old receivers.
+The same no-checksum-scan rule applies to rank-group control/payload frames
+and graph telemetry sidecars. Rank identity format parsing occurs on Configure;
+steady frames compare the locked binding without repeating hexadecimal-format
+validation. Bounds, sequencing and ownership checks remain, and checksum-field
+compatibility requires coordinated parent/child upgrades.
 
 No one item is execution evidence by itself. Before launch, a prepared executor
 must prove identity, device target, catalog version, exact operation order, and
