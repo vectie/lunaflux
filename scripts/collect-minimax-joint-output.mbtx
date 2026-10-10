@@ -1,0 +1,109 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn statistics(bytes : Bytes, expected : Int) -> String raise {
+  guard expected > 0 && bytes.length() == expected && expected % 4 == 0 else {
+    fail("output size does not match terminal request result")
+  }
+  for offset = 0, nonfinite = 0, nonzero = 0, maximum = 0.0, square_sum = 0.0; offset <
+     bytes.length(); {
+    let bits = bytes[offset].to_uint() |
+      (bytes[offset + 1].to_uint() << 8) |
+      (bytes[offset + 2].to_uint() << 16) |
+      (bytes[offset + 3].to_uint() << 24)
+    let value = Float::reinterpret_from_uint(bits)
+    if value.is_nan() || value.is_inf() {
+      continue offset + 4, nonfinite + 1, nonzero, maximum, square_sum
+    }
+    let magnitude = value.to_double().abs()
+    continue offset + 4,
+      nonfinite,
+      nonzero + (if magnitude == 0.0 { 0 } else { 1 }),
+      maximum.max(magnitude),
+      square_sum + magnitude * magnitude
+  } nobreak {
+    "bytes=\{bytes.length()} values=\{bytes.length() / 4} nonfinite=\{nonfinite} nonzero=\{nonzero} max_abs=\{maximum} mean_square=\{square_sum / (bytes.length() / 4).to_double()}\n"
+  }
+}
+
+///|
+fn check_statistics() -> Unit raise {
+  assert_eq(
+    statistics(b"\x00\x00\x80\x3f\x00\x00\x00\x00", 8),
+    "bytes=8 values=2 nonfinite=0 nonzero=1 max_abs=1 mean_square=0.5\n",
+  )
+  assert_true(statistics(b"\x00\x00\x80\x7f", 4).contains("nonfinite=1"))
+  try statistics(b"\x00", 4) catch {
+    _ => ()
+  } noraise {
+    _ => fail("truncated output accepted")
+  }
+}
+
+///|
+test "output statistics distinguish finite, zero and nonfinite results" {
+  check_statistics()
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "self-test"] {
+    check_statistics()
+    println("media output statistics regressions passed")
+    return
+  }
+  guard @env.args() is [_, source, destination, video_size, audio_size] &&
+    [source, destination].all(s => {
+      s.has_prefix("/tmp/lunaflux-") &&
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_'))
+    }) else {
+    fail("REMOTE_JOINT_ROOT NEW_LOCAL_DIRECTORY VIDEO_BYTES AUDIO_BYTES")
+  }
+  @fs.mkdir(destination)
+  for
+    (name, expected) in [
+      ("video.f32", @string.parse_int(video_size)),
+      ("audio.f32", @string.parse_int(audio_size)),
+    ] {
+    let output = @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+      "wlc003s@192.168.2.178:" + source + "/output/" + name,
+      destination + "/" + name,
+    ]).output()
+    @fs.write_file(
+      destination + "/" + name + ".download.stdout",
+      output.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      destination + "/" + name + ".download.stderr",
+      output.stderr(),
+      create_mode=CreateNew,
+    )
+    output.check()
+    let result = statistics(
+      @fs.read_file(destination + "/" + name).binary(),
+      expected,
+    )
+    @fs.write_file(
+      destination + "/" + name + ".statistics.txt",
+      result,
+      create_mode=CreateNew,
+    )
+    println(name + " " + result)
+    guard result.contains("nonfinite=0 ") else {
+      fail("nonfinite media output")
+    }
+  }
+}

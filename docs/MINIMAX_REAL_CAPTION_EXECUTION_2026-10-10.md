@@ -63,7 +63,30 @@ allocation is not kept alongside the denoiser weights.
 
 The exact user unit is
 `lunaflux-minimax-joint-caption-20261010-v1.service`; local/remote evidence root
-is `/tmp/lunaflux-minimax-joint-caption-20261010-v1`. This section records
-dispatch only until terminal output, both decoded files, release and memory
-results have been inspected. Independent reference equivalence and realistic
-media quality remain unverified.
+is `/tmp/lunaflux-minimax-joint-caption-20261010-v1`. The request terminated
+successfully at 23:54:40 CST after starting at 23:24:58 CST: 1,782 seconds
+including preparation/loading and execution, not steady-state GPU-only latency.
+The retained unit reports `Result=success`, `ExecMainStatus=0`, `MainPID=0` and
+`SubState=exited`. Its peak host/cgroup memory is 51,214,577,664 bytes. Observed
+running samples reported zero cgroup swap; a terminal swap peak is unavailable
+and is not inferred from those samples.
+
+Terminal stdout reports five completed denoising evaluations, 50 denoiser
+layers, both decoded outputs, 165,600 audio samples and zero nonfinite values.
+Stderr is empty. The terminal collector observed an empty GPU compute-owner
+query before dispatching the subsequent DeepSeek test; no encoder or joint
+owner was kept alive alongside that model.
+
+Both raw F32 files were downloaded without overwrite to
+`/tmp/lunaflux-minimax-joint-caption-download-20261010-v1`, and independently
+inspected offline with `scripts/collect-minimax-joint-output.mbtx`:
+
+| Output | Bytes / F32 values | Nonfinite | Nonzero | Maximum absolute | Mean square |
+| --- | --- | --- | --- | --- | --- |
+| Video | 1,523,712 / 380,928 | 0 | 378,502 | 1 | 0.1264938080 |
+| Audio | 1,324,800 / 331,200 | 0 | 331,200 | 0.2681674361 | 0.0012207769 |
+
+This establishes actual-caption end-to-end component execution and complete,
+finite, nontrivial decoded arrays at the stated small geometry. It does not
+establish independent reference equivalence, caption fidelity, perceptual
+quality, realistic-resolution performance or a production serving result.
