@@ -1,0 +1,478 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// CPU-only preparation followed by explicitly bounded two-rank execution.
+// Reuse the unchanged row-one/history-64 AOT, never hash copied payloads and
+// never overlap another GPU workload. New paths preserve earlier observations.
+
+///|
+fn node(last : Bool) -> String {
+  if last {
+    "wlc004s@192.168.2.179"
+  } else {
+    "wlc003s@192.168.2.178"
+  }
+}
+
+///|
+fn socket(last : Bool) -> String {
+  if last {
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  } else {
+    "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  }
+}
+
+///|
+fn model(last : Bool) -> String {
+  (if last {
+    "/tmp/lunaflux-glm-real-20261010.ekEYBzqU"
+  } else {
+    "/tmp/lunaflux-glm-real-20261010.6yIBQN35"
+  }) +
+  "/GLM-5.3-Flash-NVFP4"
+}
+
+///|
+fn aot(last : Bool) -> String {
+  if last {
+    "/tmp/lunaflux-glm-real-aot-20261010.uvS6YcCC"
+  } else {
+    "/tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP"
+  }
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    socket(last),
+    node(last),
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn retain(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn copy(last : Bool, source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket(last),
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn collect(root : String, last : Bool, unit : String) -> Unit {
+  retain(
+    root,
+    unit + "-status",
+    remote(
+      last,
+      "systemctl --user show " +
+      unit +
+      " -p LoadState -p ActiveState -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+    ),
+  )
+  retain(
+    root,
+    unit + "-journal",
+    remote(last, "journalctl --user -u " + unit + " --no-pager"),
+  )
+}
+
+///|
+async fn wait_unit(last : Bool, unit : String) -> Unit {
+  for ;; {
+    let result = remote(
+      last,
+      "systemctl --user show " +
+      unit +
+      " -p LoadState -p ActiveState -p SubState -p Result -p ExecMainStatus",
+    )
+    result.check()
+    let status = result.stdout()
+    guard status.contains("LoadState=loaded\n") &&
+      !status.contains("ActiveState=failed\n") &&
+      status.contains("ExecMainStatus=0\n") else {
+      fail("GLM unit missing or failed: " + unit + "\n" + status)
+    }
+    if status.contains("SubState=exited\n") &&
+      status.contains("Result=success\n") {
+      return
+    }
+    @async.sleep(10000)
+  }
+}
+
+///|
+fn frame_count(stdout : String) -> Int raise {
+  guard stdout.trim().split(" ").to_array() is [first, ..] &&
+    first.has_prefix("prompt_frames=") else {
+    fail("missing frame count")
+  }
+  let count = @string.parse_int(first[14:])
+  guard count > 0 && count <= 56 else {
+    fail("prompt exceeds generation envelope")
+  }
+  count
+}
+
+///|
+fn require_terminal(
+  status : String,
+  journal : String,
+  role : String,
+) -> Unit raise {
+  guard status.contains("LoadState=loaded\n") &&
+    status.contains("SubState=exited\n") &&
+    status.contains("Result=success\n") &&
+    status.contains("ExecMainStatus=0\n") &&
+    status.contains("MemorySwapPeak=0\n") &&
+    journal.contains("rank_cleanup: role=" + role + " context_closed=true") else {
+    fail("GLM normal exit, release or no-swap boundary not verified")
+  }
+}
+
+///|
+test "GLM literal queue requires a full bounded prefill envelope" {
+  assert_eq(frame_count("prompt_frames=13 input_tokens=13\n"), 13)
+  assert_eq(frame_count("prompt_frames=56 input_tokens=56\n"), 56)
+  for
+    input in [
+      "", "input_tokens=13", "prompt_frames=0", "prompt_frames=57", "prompt_frames=x",
+    ] {
+    try frame_count(input) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid prepared geometry accepted")
+    }
+  }
+}
+
+///|
+test "GLM success requires normal exit, explicit child-free close and no unit swap" {
+  let status = "LoadState=loaded\nSubState=exited\nResult=success\nExecMainStatus=0\nMemorySwapPeak=0\n"
+  let journal = "rank_cleanup: role=ingress context_closed=true\n"
+  require_terminal(status, journal, "ingress")
+  for
+    invalid in [
+      status.replace_all(old="SubState=exited", new="SubState=running"),
+      status.replace_all(old="Result=success", new="Result=oom-kill"),
+      status.replace_all(old="ExecMainStatus=0", new="ExecMainStatus=1"),
+      status.replace_all(old="MemorySwapPeak=0", new="MemorySwapPeak=4096"),
+    ] {
+    try require_terminal(invalid, journal, "ingress") catch {
+      _ => ()
+    } noraise {
+      _ => fail("unverified terminal state accepted")
+    }
+  }
+  for invalid in ["", "rank_cleanup: role=egress context_closed=true\n"] {
+    try require_terminal(status, invalid, "ingress") catch {
+      _ => ()
+    } noraise {
+      _ => fail("missing rank close accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, mode, build, commit, input0, input1] &&
+    root.has_prefix("/tmp/lunaflux-glm-sequence-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-glm-") &&
+    [root, suffix, build].all(path => {
+      !path.is_empty() &&
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") &&
+    commit.length() == 40 &&
+    commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) &&
+    mode is ("prepare" | "run") else {
+    fail(
+      "NEW_LOCAL_ROOT SUFFIX prepare|run COMMITTED_BUILD COMMIT LITERAL_INPUT0 LITERAL_INPUT1",
+    )
+  }
+  let destination = "/tmp/lunaflux-glm-sequence-" + suffix
+  let binary = destination + "/glm_checkpoint.exe"
+  let queue = destination + "/prompt-sequence"
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let journal = remote(
+      false,
+      "journalctl --user -u " + build[5:].to_owned() + ".service --no-pager",
+    )
+    retain(root, "build-journal", journal)
+    guard journal.stdout().contains("Finished. moon:") &&
+      journal.stdout().contains("now up to date") else {
+      fail("build not complete")
+    }
+    copy(
+      false,
+      node(false) +
+      ":" +
+      build +
+      "/source/_build/native/release/build/cmd/glm_checkpoint/glm_checkpoint.exe",
+      root + "/glm_checkpoint.exe",
+    )
+    for last in [false, true] {
+      retain(
+        root,
+        if last {
+          "179-mkdir"
+        } else {
+          "178-mkdir"
+        },
+        remote(last, "mkdir " + destination),
+      )
+      copy(last, root + "/glm_checkpoint.exe", node(last) + ":" + binary)
+    }
+    retain(root, "queue-mkdir", remote(false, "mkdir " + queue))
+    let counts : Array[Int] = []
+    for index, input in [input0, input1] {
+      let literal = destination + "/input-\{index}.txt"
+      copy(false, input, node(false) + ":" + literal)
+      let output = remote(
+        false,
+        binary +
+        " text-frames " +
+        model(false) +
+        " 1 64 " +
+        "a".repeat(64) +
+        " " +
+        literal +
+        " " +
+        queue +
+        "/request-\{index}",
+      )
+      retain(root, "request-\{index}-frames", output)
+      guard output.stderr().is_empty() else {
+        fail("literal preparation stderr")
+      }
+      let count = frame_count(output.stdout())
+      counts.push(count)
+      for file in ["tokens.txt", "decoded.txt"] {
+        copy(
+          false,
+          node(false) + ":" + queue + "/request-\{index}/" + file,
+          root + "/input-\{index}-" + file,
+        )
+      }
+      assert_eq(
+        @fs.read_file(root + "/input-\{index}-decoded.txt").binary(),
+        @fs.read_file(input).binary(),
+      )
+    }
+    @fs.write_file(
+      root + "/frame-counts.txt",
+      "\{counts[0]},\{counts[1]}\n",
+      create_mode=CreateNew,
+    )
+    copy(
+      false,
+      root + "/frame-counts.txt",
+      node(false) + ":" + queue + "/frame-counts.txt",
+    )
+    retain(
+      root,
+      "queue-preflight",
+      remote(
+        false,
+        binary +
+        " preflight-generation-sequence " +
+        model(false) +
+        " 1 64 8 -1 " +
+        queue +
+        " 2 1048576",
+      ),
+    )
+    @fs.write_file(
+      root + "/prepared.txt",
+      "commit=" +
+      commit +
+      "\nbuild=" +
+      build +
+      "\nrows=1\nhistory=64\nmaximum_new_tokens=8\nstop_token=-1\n",
+      create_mode=CreateNew,
+    )
+    println(
+      "two literal GLM requests prepared before CUDA; AOT unchanged, no payload hashing",
+    )
+    return
+  }
+  guard @fs.read_file(root + "/prepared.txt")
+    .text()
+    .contains("commit=" + commit + "\n") else {
+    fail("wrong prepared source")
+  }
+  for last in [false, true] {
+    let owners = remote(
+      last, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    retain(root, if last { "179-gpu-before" } else { "178-gpu-before" }, owners)
+    guard owners.stdout().trim().is_empty() else {
+      fail("GPU busy; do not overlap workloads")
+    }
+  }
+  let name = "lunaflux-glm-sequence-" + suffix
+  let egress = name + "-egress.service"
+  let ingress = name + "-ingress.service"
+  let peers = " 192.168.2.179:28588 192.168.2.179:28589"
+  let common = " 1 64 103079215104 103079215104 2147483648 "
+  retain(
+    root,
+    "egress-start",
+    remote(
+      true,
+      "systemd-run --user --unit=" +
+      egress +
+      " --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 " +
+      binary +
+      " egress " +
+      model(true) +
+      " " +
+      aot(true) +
+      "/SHARDS.sha256" +
+      common +
+      aot(true) +
+      " stage-1.cubin" +
+      peers,
+    ),
+  )
+  for ;; {
+    let result = remote(
+      true,
+      "systemctl --user show " +
+      egress +
+      " -p MainPID -p SubState -p ActiveState",
+    )
+    result.check()
+    guard result.stdout().contains("SubState=running\n") else {
+      collect(root, true, egress)
+      fail("egress stopped before listening")
+    }
+    let pid = remote(
+      true,
+      "systemctl --user show " + egress + " -p MainPID --value",
+    )
+    pid.check()
+    let owner = pid.stdout().trim().to_owned()
+    let listeners = remote(true, "ss -ltnp")
+    listeners.check()
+    if ["28588", "28589"].all(port => {
+        listeners
+        .stdout()
+        .split("\n")
+        .any(line => {
+          line.contains("192.168.2.179:" + port) &&
+          line.contains("pid=" + owner + ",")
+        })
+      }) {
+      break
+    }
+    @async.sleep(10000)
+  }
+  retain(
+    root,
+    "ingress-start",
+    remote(
+      false,
+      "systemd-run --user --unit=" +
+      ingress +
+      " --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 " +
+      binary +
+      " generate-sequence " +
+      model(false) +
+      " " +
+      aot(false) +
+      "/SHARDS.sha256" +
+      common +
+      aot(false) +
+      " stage-0.cubin" +
+      peers +
+      " " +
+      queue +
+      " 2 8 -1 " +
+      destination +
+      "/output",
+    ),
+  )
+  {
+    errdefer {
+      collect(root, false, ingress)
+      collect(root, true, egress)
+    }
+    wait_unit(false, ingress)
+    wait_unit(true, egress)
+  }
+  collect(root, false, ingress)
+  collect(root, true, egress)
+  for
+    (last, unit, role) in [
+      (false, ingress, "ingress"),
+      (true, egress, "egress"),
+    ] {
+    let status = @fs.read_file(root + "/" + unit + "-status.stdout").text()
+    let journal = @fs.read_file(root + "/" + unit + "-journal.stdout").text()
+    require_terminal(status, journal, role)
+    let owners = remote(
+      last, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    retain(root, role + "-gpu-after", owners)
+    guard owners.stdout().trim().is_empty() else { fail("GPU owner remains") }
+  }
+  let journal = @fs.read_file(root + "/" + ingress + "-journal.stdout").text()
+  for index in 0..<2 {
+    guard journal.contains("request_retired: index=\{index} ") else {
+      fail("request did not retire")
+    }
+    copy(
+      false,
+      node(false) + ":" + destination + "/output/request-\{index}/tokens.txt",
+      root + "/tokens-\{index}.txt",
+    )
+    let tokens = @fs.read_file(root + "/tokens-\{index}.txt")
+      .text()
+      .trim()
+      .split("\n")
+      .to_array()
+    assert_eq(tokens.length(), 8)
+    for token in tokens {
+      guard @string.parse_int(token) >= 0 else { fail("invalid output ID") }
+    }
+  }
+  println(
+    "GLM two-request resident queue completed; independent numerical and concurrent serving parity remain unverified",
+  )
+}
