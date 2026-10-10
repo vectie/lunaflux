@@ -65,7 +65,6 @@ fn parse_qwen3_weight_convert_arguments(
   {
     model_root,
     config_locator,
-    config_sha256,
     model_content_sha256,
     source_locator,
     source_sha256,

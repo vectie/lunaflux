@@ -32,10 +32,20 @@ async fn main {
     removed in [
       "source_sha256", "checked(\"cmp\"", "second/kernel.cubin", "ingress-partial-second.cubin",
       "inspect-luna-cuda-aot-driver.sh",
+      "sha256sum", "shasum", "FILES.sha256",
     ] {
     guard !builder.contains(removed) else {
       fail("redundant Qwen build hardening reintroduced: " + removed)
     }
+  }
+  let converter = @fs.read_file("cmd/lunaflux_qwen3_weight_convert/run.mbt").text()
+  for removed in ["hash_approved_file", "SHA256::new", "crypto.sha256(document)"] {
+    guard !converter.contains(removed) else {
+      fail("weight conversion checksum scan reintroduced: " + removed)
+    }
+  }
+  guard converter.split("inspect_source_safetensors_file(").to_array().length() == 2 else {
+    fail("weight conversion must inspect its source exactly once")
   }
   let materializer = @fs.read_file(
     "scripts/materialize-qwen3-bf16-v12-launch.mbtx",

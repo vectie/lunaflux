@@ -41,6 +41,7 @@ import {
 supported_targets = "native"
 
 import {
+  "moonbitlang/async",
   "vectie/lunaflux/model/qwen3_spec",
 } for "wbtest"
 

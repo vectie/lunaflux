@@ -121,16 +121,12 @@ async fn read_connected_choice(
     raise InvalidArguments
   }
   let bytes = read_module(path)
-  if bytes.length() > 65536 ||
-    @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != digest {
+  if bytes.length() > 65536 {
     raise InvalidModule
   }
   let measured = parse_prefill_chain_measurements(bytes)
-  for (path, digest) in measured.modules {
-    if @crypto.bytes_to_hex_string(@crypto.sha256(read_module(path))) != digest {
-      raise InvalidModule
-    }
-  }
+  // Read selected modules once when building the bundle. Do not open and hash
+  // every competing module merely to authenticate supplied measurement labels.
   (rest, Some(measured))
 }
 
@@ -141,12 +137,9 @@ async fn connected_route_bytes(
   measured : PrefillChainMeasurements,
   plan : Int,
 ) -> Bytes? raise Qwen3FusedRuntimeBundleExportError {
-  guard measured.route_files[plan / 2] is Some((path, digest)) else {
-    return None
-  }
+  guard measured.route_files[plan / 2] is Some((path, _)) else { return None }
   let bytes = read_module(path)
-  if bytes.length() > 1048576 ||
-    @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != digest {
+  if bytes.length() > 1048576 {
     raise InvalidModule
   }
   Some(bytes)

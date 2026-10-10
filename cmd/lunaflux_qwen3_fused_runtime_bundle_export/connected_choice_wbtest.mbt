@@ -1,4 +1,43 @@
 ///|
+async test "connected observations do not scan unselected modules or rehash routes" {
+  @async.with_task_group() <| group => {
+    let directory = @fs.tmpdir(prefix="lunaflux-connected-label")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
+    }
+    let raw = reference_prefill_test_args()
+    let path = directory + "/comparison"
+    let routes = directory + "/routes"
+    @fs.write_file(path, chain_fixture(raw, 3), create_mode=CreateNew)
+    // Fixture modules deliberately do not exist: binding an observation must
+    // not read every competing module before selection and compilation.
+    let (rest, measured) = read_connected_choice(
+      [..raw, "--prefill-chain-comparison", path, "f".repeat(64)],
+    )
+    assert_eq(rest.to_array(), raw)
+    assert_true(measured is Some(_))
+    let route_bytes = b"supplied route plan"
+    @fs.write_file(routes, route_bytes, create_mode=CreateNew)
+    let original = @utf8.decode(chain_fixture(raw, 3))
+    let label = "\"routes_path\":\"" +
+      routes +
+      "\",\"routes_sha256\":\"" +
+      "f".repeat(64) +
+      "\","
+    let with_routes = parse_prefill_chain_measurements(
+      @utf8.encode(
+        original.replace(
+          old="\"path\":\"/tmp/kv128.cubin\"",
+          new=label + "\"path\":\"/tmp/kv128.cubin\"",
+        ),
+      ),
+    )
+    assert_eq(connected_route_bytes(with_routes, 0), Some(route_bytes))
+    assert_eq(connected_route_bytes(with_routes, 2), None)
+  }
+}
+
+///|
 fn chain_fixture(raw : ArrayView[String], winner : Int) -> Bytes {
   let value : Json = {
     "schema": "lunaflux-prefill-connected-comparison.v1",

@@ -14,7 +14,6 @@ priv suberror Qwen3WeightConvertError {
 priv struct Qwen3WeightConvertArguments {
   model_root : String
   config_locator : String
-  config_sha256 : String
   model_content_sha256 : String
   source_locator : String
   source_sha256 : String

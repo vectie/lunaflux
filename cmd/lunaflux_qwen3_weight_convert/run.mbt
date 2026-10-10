@@ -8,54 +8,6 @@ fn join_root_locator(root : String, locator : String) -> String {
 }
 
 ///|
-fn hash_approved_file(
-  root : @approved_fs.ApprovedRoot,
-  locator : @approved_fs.ApprovedRelativeLocator,
-) -> String raise Qwen3WeightConvertError {
-  let file = root.open_file(locator) catch { _ => raise OutputAdmission }
-  let outcome : Result[String, Qwen3WeightConvertError] = Ok(
-    {
-      let stamp = file.stamp() catch { _ => raise OutputAdmission }
-      let scratch = FixedArray::make(1024 * 1024, b'\x00')
-      let digest = @crypto.SHA256::new()
-      let mut position = 0L
-      while position < stamp.byte_count() {
-        let remaining = stamp.byte_count() - position
-        let count = if remaining < scratch.length().to_int64() {
-          remaining.to_int()
-        } else {
-          scratch.length()
-        }
-        file.read_exactly_at(
-          scratch,
-          destination_offset=0,
-          byte_count=count,
-          position~,
-        ) catch {
-          _ => raise OutputAdmission
-        }
-        digest.update_from_iter(scratch[:count].iter())
-        position += count.to_int64()
-      }
-      let final_stamp = file.stamp() catch { _ => raise OutputAdmission }
-      if final_stamp != stamp {
-        raise OutputAdmission
-      }
-      @crypto.bytes_to_hex_string(digest.finalize())
-    },
-  ) catch {
-    error => Err(error)
-  }
-  file.close() catch {
-    _ => raise Cleanup
-  }
-  match outcome {
-    Ok(value) => value
-    Err(error) => raise error
-  }
-}
-
-///|
 fn load_qwen3_metadata(
   root : @approved_fs.ApprovedRoot,
   arguments : Qwen3WeightConvertArguments,
@@ -75,10 +27,6 @@ fn load_qwen3_metadata(
   }
   file.close() catch {
     _ => raise Cleanup
-  }
-  if @crypto.bytes_to_hex_string(@crypto.sha256(document)) !=
-    arguments.config_sha256 {
-    raise ConfigAdmission
   }
   @config_reader.parse_qwen3_bytes(
     document,
@@ -162,25 +110,15 @@ fn convert_qwen3_weight_file(
     join_root_locator(arguments.model_root, arguments.output_locator),
     conversion,
   )
-  // Reauthenticate the source after publication so a changed input never
-  // yields a successful conversion result.
-  ignore(
-    @qwen3_weights.inspect_source_safetensors_file(
-      root,
-      metadata,
-      source_locator,
-      expected_artifact_sha256=arguments.source_sha256,
-      limits=source_limits(),
-    ) catch {
-      _ => raise SourceAdmission
-    },
-  )
   let output_locator = @approved_fs.ApprovedRelativeLocator::new(
     arguments.output_locator,
   ) catch {
     _ => raise OutputAdmission
   }
-  let artifact_sha256 = hash_approved_file(root, output_locator)
+  // Compatibility field: this is an existing source-manifest identity label,
+  // not a checksum of the newly copied weight payload. Publication already
+  // bounds every copied region; do not read all weights again to authenticate.
+  let artifact_sha256 = source.source_manifest_sha256()
   let route_sha256 = qwen3_route_manifest_sha256(
     plan,
     source.bindings(),
@@ -240,6 +178,8 @@ fn run_qwen3_weight_convert(
   println("source_artifact_sha256=" + report.source_artifact_sha256)
   println("source_manifest_sha256=" + report.source_manifest_sha256)
   println("output_artifact_sha256=" + report.output_artifact_sha256)
+  println("output_artifact_identity_kind=source-manifest-label")
+  println("payload_checksum_verified=0")
   println("route_manifest_sha256=" + report.route_manifest_sha256)
   println("max_batch_rows=" + arguments.max_batch_rows.to_string())
   println("tensor_count=310")

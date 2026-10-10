@@ -91,6 +91,14 @@ scan copied model/kernel payloads to create a full checksum inventory. Small
 newly generated plan/descriptor identities are computed once offline; existing
 artifact labels are consumed, not reauthenticated.
 
+Weight conversion must not reopen an entire converted payload to hash it or
+repeat source inspection after copying. Compatibility `*_sha256` fields may
+carry supplied or plan-derived identity labels; report their kind and never
+describe such labels as verified payload checksums. Tuning inputs and competing
+module choices are parsed for execution compatibility, not reauthenticated by
+opening and hashing every alternative. Fresh CUBIN packaging does not require
+a second checksum inventory traversal.
+
 ## Compatibility discipline
 
 - One implementation of the engine is authoritative.

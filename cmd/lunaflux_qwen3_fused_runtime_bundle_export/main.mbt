@@ -466,12 +466,11 @@ async fn run(
   )
   let (raw_args, attention_bucket_routes) = match raw_args {
     [.. rest, "--attention-buckets", path, digest] => {
-      if !safe_absolute_file(path) || !lower_sha256(digest) {
+      if !safe_absolute_file(path) || (digest != "-" && !lower_sha256(digest)) {
         raise InvalidArguments
       }
       let bytes = read_module(path)
-      if bytes.length() > 1048576 ||
-        @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != digest {
+      if bytes.length() > 1048576 {
         raise InvalidModule
       }
       (rest, Some(bytes))
@@ -523,10 +522,11 @@ async fn run(
   let attention_prefill_partitioned8_merge_bytes = read_module(
     args.attention_prefill_partitioned8_merge.module_path,
   )
-  if @crypto.sha256(attention_prefill_partial_bytes) !=
-    @crypto.sha256(attention_prefill_merge_bytes) ||
-    @crypto.sha256(attention_prefill_partitioned8_partial_bytes) !=
-    @crypto.sha256(attention_prefill_partitioned8_merge_bytes) {
+  // Partial and merge entries must belong to the same module. Compare their
+  // already-read bytes directly; no cryptographic reauthentication is needed.
+  if attention_prefill_partial_bytes != attention_prefill_merge_bytes ||
+    attention_prefill_partitioned8_partial_bytes !=
+    attention_prefill_partitioned8_merge_bytes {
     raise InvalidModule
   }
   let attention_bytes = read_module(args.attention_read.module_path)
@@ -676,9 +676,9 @@ async fn run(
   ) catch {
     _ => raise InvalidRuntime
   }
+  let runtime_identity = @crypto.bytes_to_hex_string(@crypto.sha256(runtime))
   let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
-    runtime,
-    @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),
+    runtime, runtime_identity,
   ) catch {
     _ => raise InvalidRuntime
   }
@@ -735,39 +735,18 @@ async fn run(
     "ingress_schedule=" +
     (if ingress_choice == FullyFused { "full" } else { "producer-separated" }),
   )
-  println(
-    "runtime_sha256=" + @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),
-  )
-  println(
-    "residual_module_sha256=" +
-    @crypto.bytes_to_hex_string(@crypto.sha256(residual_bytes)),
-  )
-  println(
-    "ingress_module_sha256=" +
-    @crypto.bytes_to_hex_string(@crypto.sha256(ingress_bytes)),
-  )
-  println(
-    "prefill_wide_module_sha256=" +
-    @crypto.bytes_to_hex_string(@crypto.sha256(attention_prefill_wide_bytes)),
-  )
-  println(
-    "attention_module_sha256=" +
-    @crypto.bytes_to_hex_string(@crypto.sha256(attention_bytes)),
-  )
-  println(
-    "attention_prefill_module_sha256=" +
-    @crypto.bytes_to_hex_string(@crypto.sha256(attention_prefill_bytes)),
-  )
-  println(
-    "attention_prefill_partitioned_module_sha256=" +
-    @crypto.bytes_to_hex_string(@crypto.sha256(attention_prefill_partial_bytes)),
-  )
-  println(
-    "attention_prefill_partitioned8_module_sha256=" +
-    @crypto.bytes_to_hex_string(
-      @crypto.sha256(attention_prefill_partitioned8_partial_bytes),
-    ),
-  )
+  println("runtime_sha256=" + runtime_identity)
+  println("payload_checksum_verified=0")
+  // Report the identities already in the typed bundle, not another SHA pass
+  // over all module payloads for logging.
+  for module_ in admitted.modules() {
+    println(
+      "module_symbol=" +
+      module_.function_symbol() +
+      " module_identity=" +
+      module_.module_digest().as_hex(),
+    )
+  }
 }
 
 ///|
