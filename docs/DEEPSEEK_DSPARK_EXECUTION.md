@@ -146,6 +146,21 @@ the predictor whose allocations it leases. Contiguous Prime updates can append
 later prompt chunks or replay an accepted prefix at the committed frontier;
 Predict remains a one-main-row update and never publishes draft KV.
 
+The separate `PredictCommitted` phase now reads a prefix that has already been
+published by Prime (prompt chunk or accepted-prefix replay). Its reserve checks
+that the retained frontier equals `base + main_rows`, but neither resets nor
+advances it. The phase omits main projection/norm/rotary, copy and publication;
+only draft transforms, noncausal attention and its output suffix execute. This
+is expressed in precision IR and propagated through the prepared ring, all
+three model-owned blocks, complete predictor and phase executor. Retained KV is
+read-only; draft output/scratch writes still have an explicit StepWrite effect.
+
+For all-position base verification, seeded metadata takes the last **live
+output** token (`counts[4] - 1`), not the final padded/main row. Capacity is an
+explicit immutable plan value, defaulting to one for existing scalar consumers.
+Preparation validates the full borrowed seed span. Invalid live counts cannot
+index outside that span. No host seed gather or per-step allocation is added.
+
 The pure `engine/greedy_verification` decision now matches each target output
 against the following proposed input. Its value-type result describes accepted
 input rows, newly emitted tokens, a next seed and exact stop/length truncation.
@@ -177,6 +192,25 @@ the accepted prefix, and rejection of a position gap without state mutation.
 Memcheck reported zero errors and zero leaked bytes; racecheck reported zero
 hazards; synccheck reported zero errors. This is component evidence, not a
 whole-model acceptance or speculative-speed result.
+
+The subsequent working-tree .179 campaign
+`/tmp/lunaflux-committed-draft-readonly-20261010-v1` passed 480 cases with maximum
+absolute error zero. It additionally checks append-and-predict equivalence,
+unchanged physical ring/frontier for both retained reset flags, multi-row
+committed chunks, and invalid committed views without poisoning retained state.
+Memcheck reported zero errors/leaked bytes, racecheck zero hazards and synccheck
+zero errors. The component unit has a 2-GiB/no-swap limit. Whole-model speculative
+verification remains pending: the current diagnostic runner does not select
+this third phase or multi-output mode automatically.
+
+The companion `.179` vector-seed/Markov campaign at
+`/tmp/lunaflux-markov-vector-seed-20261010-v1` passed 442 cases, maximum absolute
+error zero. It covers live-output seed selection, capacity/invalid-count
+boundaries, dependent greedy/temperature sampling and exact stochastic replay;
+all 64 tested alternate sequences changed. Memcheck found no errors/leaks,
+racecheck no hazards, synccheck no errors. Full prediction-head and predictor
+sources also compile on GB10. This remains a component numerical result, not
+independent full-checkpoint reference parity.
 
 ## Completion requirements
 

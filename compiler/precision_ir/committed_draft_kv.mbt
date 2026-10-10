@@ -4,6 +4,7 @@
 pub(all) enum CommittedDraftPhase {
   Prime
   Predict
+  PredictCommitted
 } derive(Eq, Debug)
 
 ///|
@@ -11,6 +12,15 @@ pub extend CommittedDraftPhase with Eq::{equal, not_equal}
 
 ///|
 pub extend CommittedDraftPhase with @debug.Debug::{to_repr}
+
+///|
+/// Reading an already-published prefix must not republish or advance it.
+pub fn CommittedDraftPhase::effect(self : Self) -> NumericEffect {
+  match self {
+    PredictCommitted => StepWrite
+    Prime | Predict => CacheCommit
+  }
+}
 
 ///|
 /// Immutable arithmetic/read-set plan. Main and draft ports are independent;

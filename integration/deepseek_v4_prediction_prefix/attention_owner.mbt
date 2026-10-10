@@ -24,6 +24,7 @@ pub struct DeepSeekPredictionAttention {
   priv workspace : Int64
   priv prime : Array[@device.OrderedKernelLaunch]
   priv predict : Array[@device.OrderedKernelLaunch]
+  priv committed : Array[@device.OrderedKernelLaunch]
   priv mut state : AttentionState
 }
 
@@ -147,6 +148,7 @@ pub fn DeepSeekPredictionAttention::new(
     workspace,
     prime: [],
     predict: [],
+    committed: [],
     state: Fresh,
   }
 }
@@ -335,6 +337,10 @@ pub fn DeepSeekPredictionAttention::prepare(
   self.predict.append(self.draft_rotary.launches())
   self.predict.append(self.ring.prediction_launches())
   self.predict.append(self.output.launches())
+  self.committed.append(self.query.launches())
+  self.committed.append(self.draft_rotary.launches())
+  self.committed.append(self.ring.prediction_from_committed_launches())
+  self.committed.append(self.output.launches())
   self.state = Prepared
 }
 
@@ -369,6 +375,16 @@ pub fn DeepSeekPredictionAttention::output(
 }
 
 ///|
+pub fn DeepSeekPredictionAttention::prediction_from_committed_launches(
+  self : Self,
+) -> ArrayView[@device.OrderedKernelLaunch] raise {
+  guard self.state is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.committed[:]
+}
+
+///|
 pub fn DeepSeekPredictionAttention::close(self : Self) -> Unit raise {
   if self.state is Closed {
     return
@@ -376,6 +392,7 @@ pub fn DeepSeekPredictionAttention::close(self : Self) -> Unit raise {
   self.state = Failed
   self.prime.clear()
   self.predict.clear()
+  self.committed.clear()
   self.output.close()
   self.ring.close()
   self.draft_rotary.close()

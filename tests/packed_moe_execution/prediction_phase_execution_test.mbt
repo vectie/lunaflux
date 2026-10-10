@@ -25,6 +25,7 @@ test "two prediction phase queues retire and cancel without warmed allocation" {
     stream,
     frame.launches()[:1],
     frame.launches(),
+    committed=frame.launches()[:1],
   )
   defer (queue.close() catch { _ => () })
   let count = enqueues()
@@ -35,13 +36,17 @@ test "two prediction phase queues retire and cancel without warmed allocation" {
     while !queue.poll() {
       ()
     }
+    queue.submit(PredictCommitted)
+    while !queue.poll() {
+      ()
+    }
     queue.submit(Predict)
     while !queue.poll() {
       ()
     }
   }
   assert_eq(end_allocations(), 0UL)
-  assert_eq(enqueues() - count, 96UL)
+  assert_eq(enqueues() - count, 128UL)
   assert_eq(blocking_syncs(), waits)
   queue.submit(Predict)
   try queue.submit(Prime) catch {

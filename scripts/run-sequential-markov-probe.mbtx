@@ -99,11 +99,11 @@ async fn main {
     }) &&
     !suffix.contains("/") &&
     (
-      (mode == "build" && tail.is_empty()) ||
+      ((mode == "build" || mode == "run") && tail.is_empty()) ||
       (mode == "wait-run" && tail.length() == 1)
     ) else {
     fail(
-      "NEW_LOCAL_DIRECTORY SAFE_SUFFIX build|wait-run [PRIOR_RING_RUNNER_PID]",
+      "LOCAL_DIRECTORY SAFE_SUFFIX build|run|wait-run [PRIOR_RING_RUNNER_PID]",
     )
   }
   let remote_root = "/tmp/lunaflux-markov-" + suffix
@@ -186,23 +186,25 @@ async fn main {
       "head and greedy/stochastic chain compiled; no GPU workload executed",
     )
   } else {
-    guard tail[0].iter().all(c => c is ('0'..='9')) && tail[0] != "0" else {
-      fail("invalid wait PID")
-    }
-    for ;; {
-      let process = @shell.Cmd("ps", ["-p", tail[0], "-o", "args="]).output()
-      if process.stdout().trim().is_empty() {
-        break
+    if mode == "wait-run" {
+      guard tail[0].iter().all(c => c is ('0'..='9')) && tail[0] != "0" else {
+        fail("invalid wait PID")
       }
-      process.check()
-      guard (
-          process.stdout().contains("run-committed-draft-probe.mbtx") ||
-          process.stdout().contains("run-sequential-markov-probe.mbtx")
-        ) &&
-        process.stdout().contains("wait-run") else {
-        fail("wrong prior runner")
+      for ;; {
+        let process = @shell.Cmd("ps", ["-p", tail[0], "-o", "args="]).output()
+        if process.stdout().trim().is_empty() {
+          break
+        }
+        process.check()
+        guard (
+            process.stdout().contains("run-committed-draft-probe.mbtx") ||
+            process.stdout().contains("run-sequential-markov-probe.mbtx")
+          ) &&
+          process.stdout().contains("wait-run") else {
+          fail("wrong prior runner")
+        }
+        @async.sleep(10000)
       }
-      @async.sleep(10000)
     }
     for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
       admission(root, gate)

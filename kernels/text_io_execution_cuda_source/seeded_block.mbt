@@ -10,11 +10,17 @@ pub fn seeded_token_block_source(
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (v, rows, main_rows, noise) = plan.geometry()
+  let seed = if plan.maximum_seed_tokens() == 1 {
+    "const int n=main_counts[3],token=seed[0];"
+  } else {
+    "const int n=main_counts[3],outputs=main_counts[4]; " +
+    "const int token=outputs>0 && outputs<=n && outputs<=\{plan.maximum_seed_tokens()} ? seed[outputs-1] : -1;"
+  }
   let source =
     $|#include <stdint.h>
     $|extern "C" __global__ void \{symbol_prefix}_seed(const int32_t* main_counts,const int32_t* start,const int32_t* seed,int32_t* counts,int32_t* ids,int32_t* positions,int32_t* chain) {
     $|  if(threadIdx.x!=0) return;
-    $|  const int n=main_counts[3],token=seed[0];
+    $|  \{seed}
     $|  const bool valid=n>0 && n<=\{main_rows} && start[0]>=0 && start[0]<=2147483647-n-\{rows} && token>=0 && token<\{v};
     $|  counts[0]=counts[1]=counts[4]=0;counts[2]=1;counts[3]=valid?\{rows}:0;
     $|  chain[0]=valid?token:-1;

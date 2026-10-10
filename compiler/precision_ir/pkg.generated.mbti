@@ -64,7 +64,9 @@ pub fn CommittedDraftKvPrecision::visible_main_slots(Self, Int) -> Int raise Pre
 pub(all) enum CommittedDraftPhase {
   Prime
   Predict
+  PredictCommitted
 } derive(Eq, @debug.Debug)
+pub fn CommittedDraftPhase::effect(Self) -> NumericEffect
 pub fn CommittedDraftPhase::equal(Self, Self) -> Bool
 pub fn CommittedDraftPhase::not_equal(Self, Self) -> Bool
 pub fn CommittedDraftPhase::to_repr(Self) -> @debug.Repr
@@ -541,7 +543,8 @@ pub struct SeededTokenBlockPrecision {
   // private fields
 }
 pub fn SeededTokenBlockPrecision::geometry(Self) -> (Int, Int, Int, Int)
-pub fn SeededTokenBlockPrecision::new(vocabulary_size~ : Int, block_rows~ : Int, maximum_main_rows~ : Int, noise_token_id~ : Int) -> Self raise PrecisionPlanError
+pub fn SeededTokenBlockPrecision::maximum_seed_tokens(Self) -> Int
+pub fn SeededTokenBlockPrecision::new(vocabulary_size~ : Int, block_rows~ : Int, maximum_main_rows~ : Int, noise_token_id~ : Int, maximum_seed_tokens? : Int) -> Self raise PrecisionPlanError
 pub fn SeededTokenBlockPrecision::workspace_bytes(Self) -> Int64
 
 pub struct SequentialMarkovPrecision {

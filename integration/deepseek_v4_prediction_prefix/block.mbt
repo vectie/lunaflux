@@ -16,6 +16,7 @@ pub struct DeepSeekPredictionBlock {
   priv main_rows : Int
   priv prime : Array[@device.OrderedKernelLaunch]
   priv predict : Array[@device.OrderedKernelLaunch]
+  priv committed : Array[@device.OrderedKernelLaunch]
   priv mut result : @device.Allocation?
   priv mut state : AttentionState
 }
@@ -80,6 +81,7 @@ pub fn DeepSeekPredictionBlock::new(
     main_rows: maximum_main_rows,
     prime: [],
     predict: [],
+    committed: [],
     result: None,
     state: Fresh,
   }
@@ -288,8 +290,22 @@ pub fn DeepSeekPredictionBlock::prepare(
   self.predict.append(self.attention.prediction_launches())
   self.predict.append(self.hyper.suffix())
   self.predict.append(self.ffn.launches())
+  self.committed.append(self.hyper.prefix())
+  self.committed.append(self.attention.prediction_from_committed_launches())
+  self.committed.append(self.hyper.suffix())
+  self.committed.append(self.ffn.launches())
   self.result = Some(output)
   self.state = Prepared
+}
+
+///|
+pub fn DeepSeekPredictionBlock::prediction_from_committed_launches(
+  self : Self,
+) -> ArrayView[@device.OrderedKernelLaunch] raise {
+  guard self.state is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.committed[:]
 }
 
 ///|
@@ -328,6 +344,7 @@ pub fn DeepSeekPredictionBlock::close(self : Self) -> Unit raise {
   self.state = Failed
   self.prime.clear()
   self.predict.clear()
+  self.committed.clear()
   self.result = None
   self.ffn.close()
   self.attention.close()

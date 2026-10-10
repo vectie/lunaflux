@@ -64,6 +64,22 @@ int main() {
     }
     ++cases;
   }
+  auto vector_seed=alloc<int>(8);
+  for(int n : {0,1,3,8,9}) for(int live : {-1,0,1,3,8,9}) for(int last : {-1,4,17}) {
+    std::fill(main_counts,main_counts+5,0);main_counts[3]=n;main_counts[4]=live;start[0]=0;
+    std::fill(vector_seed,vector_seed+8,2);
+    if(live>0 && live<=8) vector_seed[live-1]=last;
+    std::fill(tokens,tokens+R+1,-99);
+    vector_seed_fixture_seed<<<1,1>>>(main_counts,start,vector_seed,draft_counts,ids,positions,tokens);
+    check(cudaGetLastError());check(cudaDeviceSynchronize());
+    const int chosen=live>0 && live<=n && live<=8 ? last : -1;
+    const bool valid=n>0 && n<=8 && chosen>=0 && chosen<V;
+    if(draft_counts[3]!=(valid?R:0) || tokens[0]!=(valid?chosen:-1)) return 11;
+    for(int i=0;i<R;++i)
+      if(ids[i]!=(i==0?chosen:16) || positions[i]!=(valid?n+i:0) || tokens[i+1]!=-99) return 12;
+    ++cases;
+  }
+  check(cudaFree(vector_seed));
   auto compare=[&](int n,int seed,bool random) {
     int previous=seed;
     for(int i=0;i<R;++i) {

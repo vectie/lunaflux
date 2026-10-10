@@ -20,6 +20,11 @@ fn draft_fixture() -> @draft_frame.CommittedDraftKvFrame raise {
       phase=Predict,
       symbol_prefix="predict",
     ),
+    committed=@draft_source.committed_draft_kv_source(
+      p,
+      phase=PredictCommitted,
+      symbol_prefix="committed",
+    ),
   )
 }
 
@@ -60,6 +65,7 @@ test "committed draft phases share a ring and parent completion without warmed a
   )
   assert_eq(frame.prime_launches().length(), 3)
   assert_eq(frame.prediction_launches().length(), 4)
+  assert_eq(frame.prediction_from_committed_launches().length(), 2)
   assert_eq(frame.output().byte_count(), 96L)
   let state = frame.persistent_state()
   assert_eq(state.length(), 2)
@@ -81,6 +87,12 @@ test "committed draft phases share a ring and parent completion without warmed a
   defer (predict.close() catch { _ => () })
   defer (predict.abort() catch { _ => () })
   let count = enqueues()
+  let committed = context.create_ordered_kernel_executor(
+    stream,
+    frame.prediction_from_committed_launches(),
+  )
+  defer (committed.close() catch { _ => () })
+  defer (committed.abort() catch { _ => () })
   let waits = blocking_syncs()
   begin_allocations()
   for _ in 0..<16 {
@@ -100,13 +112,22 @@ test "committed draft phases share a ring and parent completion without warmed a
       ()
     }
     predict.reset()
+    for i in 0..<2 {
+      committed.enqueue(i)
+    }
+    committed.record_completion()
+    while !committed.poll_completion() {
+      ()
+    }
+    committed.reset()
   }
   assert_eq(end_allocations(), 0UL)
-  assert_eq(enqueues() - count, 112UL)
+  assert_eq(enqueues() - count, 144UL)
   assert_eq(blocking_syncs(), waits)
   predict.enqueue(0)
   predict.abort()
   predict.close()
+  committed.close()
   prime.close()
   frame.close()
   frame.close()

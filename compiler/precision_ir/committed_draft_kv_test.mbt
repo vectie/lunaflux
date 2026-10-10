@@ -1,5 +1,11 @@
 ///|
 test "committed draft read set retains all future draft rows and physical ring order" {
+  assert_eq(@precision_ir.CommittedDraftPhase::Prime.effect(), CacheCommit)
+  assert_eq(@precision_ir.CommittedDraftPhase::Predict.effect(), CacheCommit)
+  assert_eq(
+    @precision_ir.CommittedDraftPhase::PredictCommitted.effect(),
+    StepWrite,
+  )
   let p = @precision_ir.CommittedDraftKvPrecision::new(
     query_heads=64,
     head_width=512,

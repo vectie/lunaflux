@@ -14,6 +14,7 @@ import {
 pub(all) enum PredictionPhase {
   Prime
   Predict
+  PredictCommitted
 } derive(Eq, @debug.Debug)
 
 pub struct PredictionPhaseExecution {
@@ -22,7 +23,7 @@ pub struct PredictionPhaseExecution {
 pub fn PredictionPhaseExecution::abort(Self) -> Unit raise
 pub fn PredictionPhaseExecution::close(Self) -> Unit raise
 pub fn PredictionPhaseExecution::poll(Self) -> Bool raise
-pub fn PredictionPhaseExecution::prepare(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch]) -> Self raise
+pub fn PredictionPhaseExecution::prepare(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], committed? : ArrayView[@device.OrderedKernelLaunch]) -> Self raise
 pub fn PredictionPhaseExecution::submit(Self, PredictionPhase) -> Unit raise
 
 // Type aliases

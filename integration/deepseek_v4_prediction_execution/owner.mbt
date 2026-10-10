@@ -14,6 +14,7 @@ priv enum State {
 pub struct DeepSeekPredictionExecution {
   priv spec : @spec.DeepSeekV4ModelSpec
   priv main_rows : Int
+  priv output_rows : Int
   priv predictor : @prediction.DeepSeekPredictor
   priv embedding : @upload.CheckpointDeviceWeights
   priv results : Array[@device.Allocation]
@@ -33,10 +34,12 @@ pub fn DeepSeekPredictionExecution::new(
   maximum_expert_bytes~ : Int64,
   temperature~ : Double,
   accuracy~ : @precision.Accuracy,
+  maximum_output_rows? : Int = 1,
 ) -> Self raise {
   {
     spec,
     main_rows: maximum_main_rows,
+    output_rows: maximum_output_rows,
     predictor: @prediction.DeepSeekPredictor::new(
       spec,
       maximum_main_rows~,
@@ -45,6 +48,7 @@ pub fn DeepSeekPredictionExecution::new(
       maximum_expert_bytes~,
       temperature~,
       accuracy~,
+      maximum_output_rows~,
     ),
     embedding: @upload.CheckpointDeviceWeights::new(),
     results: [],
@@ -99,7 +103,9 @@ pub fn DeepSeekPredictionExecution::prepare(
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (rows, _, vocabulary_size) = ports.geometry()
-  guard rows == self.main_rows && vocabulary_size == self.spec.vocabulary_size() else {
+  guard rows == self.main_rows &&
+    vocabulary_size == self.spec.vocabulary_size() &&
+    ports.output_capacity() == self.output_rows else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   guard self.required_device_bytes(checkpoint) <= maximum_device_bytes else {
@@ -163,6 +169,7 @@ pub fn DeepSeekPredictionExecution::prepare(
       stream,
       self.predictor.prime_launches(),
       self.predictor.prediction_launches(),
+      committed=self.predictor.prediction_from_committed_launches(),
     ),
   )
   self.state = Prepared
@@ -170,7 +177,8 @@ pub fn DeepSeekPredictionExecution::prepare(
 
 ///|
 /// Run after the corresponding committed base submission retires. Prime is for
-/// prompt chunks; Predict consumes a committed main update plus the base seed.
+/// prompt/accepted chunks; Predict appends one main row, while PredictCommitted
+/// consumes an already-primed prefix without publishing the same positions twice.
 pub fn DeepSeekPredictionExecution::submit(
   self : Self,
   phase : @execution.PredictionPhase,
@@ -192,7 +200,7 @@ pub fn DeepSeekPredictionExecution::submit(
       raise e
     }
   }
-  self.ready_result = phase is Predict
+  self.ready_result = !(phase is Prime)
 }
 
 ///|

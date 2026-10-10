@@ -19,12 +19,26 @@ test "prime and prediction preserve distinct publication and noncausal read sets
     phase=Predict,
     symbol_prefix="predict",
   )
+  let committed = @committed_draft_kv_cuda_source.committed_draft_kv_source(
+    plan,
+    phase=PredictCommitted,
+    symbol_prefix="committed",
+  )
   assert_eq(prime.stage_count(), 3)
   assert_eq(predict.stage_count(), 4)
   assert_eq(predict.symbol(1), "predict_copy")
   assert_eq(predict.symbol(2), "predict_publish")
   assert_eq(predict.symbol(3), "predict_attention")
   assert_eq(predict.launch(3), (3, 2, 128))
+  assert_eq(committed.stage_count(), 2)
+  assert_eq(committed.symbol(1), "committed_attention")
+  assert_eq(committed.launch(1), (3, 2, 128))
+  let retained_source = @utf8.decode(committed.source_bytes())
+  assert_false(retained_source.contains("void committed_copy"))
+  assert_false(retained_source.contains("void committed_publish"))
+  assert_false(retained_source.contains("history[0] ="))
+  assert_true(retained_source.contains("history[0] != base + main"))
+  assert_true(retained_source.contains("descriptor[0] = base + main - 1"))
   let priming = @utf8.decode(prime.source_bytes())
   assert_false(priming.contains("? base != 0 :"))
   assert_true(priming.contains("base != history[0]"))
@@ -36,6 +50,7 @@ test "prime and prediction preserve distinct publication and noncausal read sets
     println("LUNA_MAIN_BEGIN")
     println(@utf8.decode(prime.source_bytes()))
     println(text)
+    println(retained_source)
     println("LUNA_MAIN_END")
   }
 }

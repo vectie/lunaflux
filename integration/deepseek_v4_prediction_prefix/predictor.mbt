@@ -5,6 +5,7 @@
 pub struct DeepSeekPredictor {
   priv spec : @spec.DeepSeekV4ModelSpec
   priv main_rows : Int
+  priv output_rows : Int
   priv main : DeepSeekPredictionMain
   priv seed : @text_frame.SeededTokenBlockFrame
   priv embedding : @text_frame.TextIoFrame
@@ -13,6 +14,7 @@ pub struct DeepSeekPredictor {
   priv buffers : Array[@device.Allocation]
   priv prime : Array[@device.OrderedKernelLaunch]
   priv predict : Array[@device.OrderedKernelLaunch]
+  priv committed : Array[@device.OrderedKernelLaunch]
   priv mut state : AttentionState
 }
 
@@ -25,6 +27,7 @@ pub fn DeepSeekPredictor::new(
   maximum_expert_bytes~ : Int64,
   temperature~ : Double,
   accuracy~ : @precision.Accuracy,
+  maximum_output_rows? : Int = 1,
 ) -> Self raise {
   let rows = spec.dspark_block_size()
   require_prediction_stage(spec, spec.prediction_stage_count() - 1)
@@ -41,6 +44,7 @@ pub fn DeepSeekPredictor::new(
   {
     spec,
     main_rows: maximum_main_rows,
+    output_rows: maximum_output_rows,
     main: DeepSeekPredictionMain::new(
       spec,
       maximum_rows=maximum_main_rows,
@@ -52,6 +56,7 @@ pub fn DeepSeekPredictor::new(
         block_rows=rows,
         maximum_main_rows~,
         noise_token_id=spec.dspark_noise_token_id(),
+        maximum_seed_tokens=maximum_output_rows,
       ),
       symbol_prefix="deepseek_prediction_seed",
     ),
@@ -81,6 +86,7 @@ pub fn DeepSeekPredictor::new(
     buffers: [],
     prime: [],
     predict: [],
+    committed: [],
     state: Fresh,
   }
 }
@@ -191,7 +197,7 @@ pub fn DeepSeekPredictor::prepare(
       (tokens, (rows.to_int64() + 1L) * 4L, 4L),
       (confidence, rows.to_int64() * 4L, 4L),
       (rng, 16L, 8L),
-      (seed_token, 4L, 4L),
+      (seed_token, self.output_rows.to_int64() * 4L, 4L),
       (reset_flag, 4L, 4L),
       (start_position, 4L, 4L),
     ] {
@@ -287,12 +293,27 @@ pub fn DeepSeekPredictor::prepare(
   self.predict.append(self.main.launches())
   self.predict.append(self.seed.launches())
   self.predict.append(self.embedding.prefix())
+  self.committed.append(self.seed.launches())
+  self.committed.append(self.embedding.prefix())
   for block in self.blocks {
     self.prime.append(block.prime_launches())
     self.predict.append(block.prediction_launches())
+    self.committed.append(block.prediction_from_committed_launches())
   }
   self.predict.append(self.head.launches())
+  self.committed.append(self.head.launches())
   self.state = Prepared
+}
+
+///|
+/// Draft from a published main prefix, omitting main projection and KV writes.
+pub fn DeepSeekPredictor::prediction_from_committed_launches(
+  self : Self,
+) -> ArrayView[@device.OrderedKernelLaunch] raise {
+  guard self.state is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.committed[:]
 }
 
 ///|
@@ -331,6 +352,7 @@ pub fn DeepSeekPredictor::close(self : Self) -> Unit raise {
   self.state = Failed
   self.prime.clear()
   self.predict.clear()
+  self.committed.clear()
   self.head.close()
   for i in 0..<self.blocks.length() {
     self.blocks[self.blocks.length() - 1 - i].close()

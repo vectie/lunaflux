@@ -48,6 +48,11 @@ pub fn prediction_attention_frame(
       phase=Predict,
       symbol_prefix=symbol_prefix + "_predict",
     ),
+    committed=@draft_source.committed_draft_kv_source(
+      p,
+      phase=PredictCommitted,
+      symbol_prefix=symbol_prefix + "_committed",
+    ),
   )
 }
 

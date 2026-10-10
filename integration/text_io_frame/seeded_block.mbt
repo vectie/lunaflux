@@ -56,7 +56,7 @@ pub fn SeededTokenBlockFrame::prepare(
     (b, bytes) in [
       (main_counts, 20L),
       (start_position, 4L),
-      (seed_token, 4L),
+      (seed_token, self.plan.maximum_seed_tokens().to_int64() * 4L),
       (output_chain, (rows.to_int64() + 1L) * 4L),
     ] {
     context.validate_allocation_region(
@@ -92,7 +92,7 @@ pub fn SeededTokenBlockFrame::prepare(
       @device.KernelArguments::new([
         region(main_counts, 20L, 4L),
         region(start_position, 4L, 4L),
-        region(seed_token, 4L, 4L),
+        region(seed_token, self.plan.maximum_seed_tokens().to_int64() * 4L, 4L),
         region(self.buffers[0], 20L, 4L),
         region(self.buffers[1], rows.to_int64() * 4L, 4L),
         region(self.buffers[2], rows.to_int64() * 4L, 4L),

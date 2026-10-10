@@ -98,6 +98,19 @@ int main() {
         else if(std::memcmp(first.data(),output,first.size()*sizeof(__nv_bfloat16))) return 9;
         ++cases;
       }
+      // Prediction from a published prefix must match the append-and-predict
+      // result without republishing KV, resetting or advancing its frontier.
+      std::memcpy(saved_ring.data(),ring,saved_ring.size()*sizeof(__nv_bfloat16));
+      for(int retained_reset : {0,1}) {
+        reset[0]=retained_reset; sentinel();
+        committed_reserve<<<1,1>>>(mc,dc,reset,start,history,descriptor);
+        committed_attention<<<dim3(rows,heads),128>>>(descriptor,query,draft,ring,sink,output);
+        check(cudaGetLastError()); check(cudaDeviceSynchronize());
+        if(history[0]!=position+1 || history[1] || descriptor[3] ||
+           std::memcmp(saved_ring.data(),ring,saved_ring.size()*sizeof(__nv_bfloat16)) ||
+           std::memcmp(first.data(),output,first.size()*sizeof(__nv_bfloat16))) return 30;
+        ++cases;
+      }
     }
     // Malformed metadata cannot mutate the ring or output; error is sticky.
     for(int invalid=0;invalid<8;++invalid) {
@@ -119,6 +132,23 @@ int main() {
       ++cases;
     }
   }
+  // Invalid committed views neither poison the retained prefix nor emit output.
+  history[0]=12; history[1]=0; start[0]=9; mc[2]=1; mc[3]=3; dc[2]=1; dc[3]=3; reset[0]=0;
+  for(int invalid=0;invalid<5;++invalid) {
+    start[0]=9; mc[3]=3; dc[3]=3; reset[0]=0;
+    if(invalid==0) start[0]=8;
+    if(invalid==1) mc[3]=0;
+    if(invalid==2) dc[3]=0;
+    if(invalid==3) reset[0]=2;
+    if(invalid==4) mc[3]=9;
+    sentinel();
+    committed_reserve<<<1,1>>>(mc,dc,reset,start,history,descriptor);
+    committed_attention<<<dim3(rows,heads),128>>>(descriptor,query,draft,ring,sink,output);
+    check(cudaGetLastError()); check(cudaDeviceSynchronize());
+    if(history[0]!=12 || history[1] || !descriptor[3]) return 31;
+    for(int i=0;i<rows*heads*width;++i) if(__bfloat162float(output[i])!=19.f) return 32;
+    ++cases;
+  }
   // Later prompt chunks and verified-prefix replay append at the frontier.
   history[0]=0; history[1]=0; mc[2]=1; dc[2]=1;
   std::fill(expected_ring.begin(),expected_ring.end(),23.f);
@@ -134,6 +164,47 @@ int main() {
     if(history[0]!=frontier || history[1] || descriptor[3]) return 14;
     for(int i=0;i<window*width;++i) if(__bfloat162float(ring[i])!=expected_ring[i]) return 15;
     for(int i=0;i<rows*heads*width;++i) if(__bfloat162float(output[i])!=19.f) return 16;
+    ++cases;
+    // Multi-row prompt/accepted-prefix commits use the last committed position
+    // without replaying any main projection or rewriting retained ring slots.
+    dc[3]=rows;
+    for(int row=0;row<rows;++row) for(int c=0;c<width;++c)
+      draft[row*width+c]=__float2bfloat16_rn(value(100+frontier+row,c));
+    for(int i=0;i<rows*heads*width;++i)
+      query[i]=__float2bfloat16_rn(float((i*5+frontier)%11-5)*.0625f);
+    const int retained=std::min(window,frontier), length=retained+rows;
+    for(int row=0;row<rows;++row) for(int h=0;h<heads;++h) {
+      std::vector<float> scores(length); float maximum=sink[h];
+      for(int slot=0;slot<length;++slot) {
+        float dot=0;
+        for(int c=0;c<width;++c) {
+          const float kv=slot<retained ? expected_ring[slot*width+c] : __bfloat162float(draft[(slot-retained)*width+c]);
+          dot=dot+__bfloat162float(query[(row*heads+h)*width+c])*kv;
+        }
+        scores[slot]=dot*(1.f/std::sqrt(float(width))); maximum=std::max(maximum,scores[slot]);
+      }
+      float denominator=std::exp(sink[h]-maximum);
+      for(float &score:scores) { score=std::exp(score-maximum); denominator=denominator+score; }
+      for(int c=0;c<width;++c) {
+        float sum=0;
+        for(int slot=0;slot<length;++slot) {
+          const float kv=slot<retained ? expected_ring[slot*width+c] : __bfloat162float(draft[(slot-retained)*width+c]);
+          sum=sum+scores[slot]*kv;
+        }
+        expected[(row*heads+h)*width+c]=b(sum/denominator);
+      }
+    }
+    std::memcpy(saved_ring.data(),ring,saved_ring.size()*sizeof(__nv_bfloat16));
+    sentinel();
+    committed_reserve<<<1,1>>>(mc,dc,reset,start,history,descriptor);
+    committed_attention<<<dim3(rows,heads),128>>>(descriptor,query,draft,ring,sink,output);
+    check(cudaGetLastError()); check(cudaDeviceSynchronize());
+    if(history[0]!=frontier || history[1] || descriptor[3] || descriptor[0]!=frontier-1 ||
+       std::memcmp(saved_ring.data(),ring,saved_ring.size()*sizeof(__nv_bfloat16))) return 33;
+    for(int i=0;i<rows*heads*width;++i) {
+      const float error=std::fabs(__bfloat162float(output[i])-expected[i]); worst=std::max(worst,error);
+      if(!std::isfinite(__bfloat162float(output[i])) || error>.00390625f+.005f*std::fabs(expected[i])) return 34;
+    }
     ++cases;
   }
   // Undo restores overwritten physical slots, not just the logical length.

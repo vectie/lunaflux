@@ -19,6 +19,22 @@ vector retirement/prefix decisions and real TCP protocol tests. Native check
 uses the existing toolchain-migration warning exclusions; no new CUDA workload
 or full-checkpoint acceptance benchmark was run for this component change.
 
+The next component now supplies `PredictCommitted`: prediction reads an already
+primed prompt/accepted prefix without projecting/publishing the same main KV
+twice. It propagates from shared precision IR to AOT source and all three
+attached predictor blocks/queues. Multi-output seed metadata selects the last
+live sampled token and validates the complete seed span at preparation. On
+.179 the new ring campaign passed 480 GPU cases (maximum absolute error zero),
+memcheck with zero errors/leaks, racecheck with zero hazards, and synccheck with
+zero errors, under a 2-GiB/no-swap limit. Do not confuse this component result
+with the still-unconnected two-rank acceptance coordinator or a model speedup.
+The companion vector-seed/Markov campaign passed 442 cases with zero maximum
+absolute error and clean memcheck/racecheck/synccheck; complete head/predictor
+AOT compilation also passed. Six native allocation-probe executables run
+successfully after removing their unconditional mimalloc link requirement.
+Optional mimalloc calls still use the real allocator; they never substitute
+libc allocation while preserving a mismatched runtime free.
+
 Real two-host DeepSeek base BOS smoke now finishes successfully with tokens
 `5,223`, `Length`, and both ranks exited with status zero. Independent numerical
 correctness remains unverified. The committed-main/draft ring (254 cases) and

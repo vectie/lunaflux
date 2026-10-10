@@ -12,10 +12,12 @@ priv enum State {
 pub struct CommittedDraftKvFrame {
   priv prime : @source.CommittedDraftKvCudaSource
   priv predict : @source.CommittedDraftKvCudaSource
+  priv committed : @source.CommittedDraftKvCudaSource?
   priv buffers : Array[@device.Allocation]
   priv functions : Array[@device.Function]
   priv prime_launches : Array[@device.OrderedKernelLaunch]
   priv predict_launches : Array[@device.OrderedKernelLaunch]
+  priv committed_launches : Array[@device.OrderedKernelLaunch]
   priv mut state : State
 }
 
@@ -23,26 +25,41 @@ pub struct CommittedDraftKvFrame {
 pub fn CommittedDraftKvFrame::new(
   prime : @source.CommittedDraftKvCudaSource,
   predict : @source.CommittedDraftKvCudaSource,
+  committed? : @source.CommittedDraftKvCudaSource,
 ) -> Self raise {
   guard prime.phase() is Prime &&
     predict.phase() is Predict &&
     prime.plan().geometry() == predict.plan().geometry() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
+  if committed is Some(source) {
+    guard source.phase() is PredictCommitted &&
+      source.plan().geometry() == prime.plan().geometry() else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+  }
   {
     prime,
     predict,
+    committed,
     buffers: [],
     functions: [],
     prime_launches: [],
     predict_launches: [],
+    committed_launches: [],
     state: Fresh,
   }
 }
 
 ///|
 pub fn CommittedDraftKvFrame::source_bytes(self : Self) -> Bytes {
-  self.prime.source_bytes() + b"\n" + self.predict.source_bytes()
+  self.prime.source_bytes() +
+  b"\n" +
+  self.predict.source_bytes() +
+  (match self.committed {
+    Some(source) => b"\n" + source.source_bytes()
+    None => b""
+  })
 }
 
 ///|
@@ -159,7 +176,40 @@ pub fn CommittedDraftKvFrame::prepare(
       )
     }
   }
+  if self.committed is Some(source) {
+    for stage in 0..<source.stage_count() {
+      let f = aot.load_function(@utf8.encode(source.symbol(stage)))
+      self.functions.push(f)
+      let (x, y, threads) = source.launch(stage)
+      self.committed_launches.push(
+        @device.OrderedKernelLaunch::new(
+          f,
+          @device.KernelLaunchDimensions::new(
+            grid_x=x,
+            grid_y=y,
+            grid_z=1,
+            block_x=threads,
+            block_y=1,
+            block_z=1,
+            shared_memory_bytes=0,
+          ),
+          @device.KernelArguments::new(args[if stage == 0 { 0 } else { 3 }]),
+        ),
+      )
+    }
+  }
   self.state = Prepared
+}
+
+///|
+/// Read committed KV without copying main operands or advancing the frontier.
+pub fn CommittedDraftKvFrame::prediction_from_committed_launches(
+  self : Self,
+) -> ArrayView[@device.OrderedKernelLaunch] raise {
+  guard self.state is Prepared && self.committed is Some(_) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.committed_launches[:]
 }
 
 ///|
@@ -208,6 +258,7 @@ pub fn CommittedDraftKvFrame::close(self : Self) -> Unit raise {
   self.state = Failed
   self.prime_launches.clear()
   self.predict_launches.clear()
+  self.committed_launches.clear()
   while self.functions.last() is Some(f) {
     f.close()
     ignore(self.functions.pop())

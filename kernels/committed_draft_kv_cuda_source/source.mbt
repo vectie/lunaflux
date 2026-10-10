@@ -29,11 +29,18 @@ pub fn committed_draft_kv_source(
     symbol_prefix + "_publish",
     symbol_prefix + "_attention",
   ]
-  let source = @utf8.encode(
+  let reserve = if phase is PredictCommitted {
     (
-      $|#include <cuda_bf16.h>
-      $|#include <stdint.h>
-      $|#include <math.h>
+      $|extern "C" __global__ void \{symbols[0]}(const int32_t *main_counts, const int32_t *draft_counts, const int32_t *reset, const int32_t *start, const int32_t *history, int32_t *descriptor) {
+      $|  if (threadIdx.x || blockIdx.x) return;
+      $|  const int base = start[0], main = main_counts[3], draft = draft_counts[3];
+      $|  descriptor[0] = 0; descriptor[1] = 0; descriptor[2] = 0; descriptor[3] = 1;
+      $|  if (reset[0] < 0 || reset[0] > 1 || history[1] || base < 0 || base >= \{positions} || main < 1 || main > \{main_rows} || main > \{positions} - base || main_counts[2] != 1 || history[0] != base + main || draft < 1 || draft > \{draft_rows} || draft_counts[2] != 1 || draft > \{positions} - base - main) return;
+      $|  descriptor[0] = base + main - 1; descriptor[2] = draft; descriptor[3] = 0;
+      $|}
+    )
+  } else {
+    (
       $|extern "C" __global__ void \{symbols[0]}(const int32_t *main_counts, const int32_t *draft_counts, const int32_t *reset, const int32_t *start, int32_t *history, int32_t *descriptor) {
       $|  if (threadIdx.x || blockIdx.x) return;
       $|  if (reset[0] == 1) { history[0] = 0; history[1] = 0; }
@@ -43,6 +50,12 @@ pub fn committed_draft_kv_source(
       $|  if (!\{priming} && (base == 0 || main != 1 || draft < 1 || draft > \{draft_rows} || draft_counts[2] != 1 || draft > \{positions} - base - main)) { history[1] = 1; return; }
       $|  descriptor[1] = main; descriptor[2] = draft; descriptor[3] = 0;
       $|}
+    )
+  }
+  let publication = if phase is PredictCommitted {
+    ""
+  } else {
+    (
       $|extern "C" __global__ void \{symbols[1]}(const int32_t *descriptor, const uint16_t *main_kv, uint16_t *ring) {
       $|  const int slot = blockIdx.x; if (descriptor[3] || slot >= \{window}) return;
       $|  const int base = descriptor[0], end = base + descriptor[1];
@@ -54,6 +67,15 @@ pub fn committed_draft_kv_source(
       $|  if (threadIdx.x || blockIdx.x || descriptor[3]) return;
       $|  history[0] = descriptor[0] + descriptor[1];
       $|}
+    )
+  }
+  let source = @utf8.encode(
+    (
+      $|#include <cuda_bf16.h>
+      $|#include <stdint.h>
+      $|#include <math.h>
+      $|\{reserve}
+      $|\{publication}
       $|extern "C" __global__ void \{symbols[3]}(const int32_t *descriptor, const __nv_bfloat16 *queries, const __nv_bfloat16 *draft_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output) {
       $|  const int row = blockIdx.x, head = blockIdx.y, lane = threadIdx.x;
       $|  if (descriptor[3] || row >= descriptor[2] || head >= \{heads}) return;
@@ -107,15 +129,19 @@ pub fn CommittedDraftKvCudaSource::source_bytes(self : Self) -> Bytes {
 
 ///|
 pub fn CommittedDraftKvCudaSource::symbol(self : Self, stage : Int) -> String {
-  self.symbols[stage]
+  self.symbols[if self.phase is PredictCommitted && stage == 1 {
+    3
+  } else {
+    stage
+  }]
 }
 
 ///|
 pub fn CommittedDraftKvCudaSource::stage_count(self : Self) -> Int {
-  if self.phase is Prime {
-    3
-  } else {
-    4
+  match self.phase {
+    Prime => 3
+    Predict => 4
+    PredictCommitted => 2
   }
 }
 
@@ -125,7 +151,7 @@ pub fn CommittedDraftKvCudaSource::launch(
   stage : Int,
 ) -> (Int, Int, Int) {
   let (heads, _, window, _, rows, _) = self.plan.geometry()
-  match stage {
+  match (if self.phase is PredictCommitted && stage == 1 { 3 } else { stage }) {
     1 => (window, 1, 128)
     3 => (rows, heads, 128)
     _ => (1, 1, 1)

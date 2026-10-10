@@ -41,6 +41,7 @@ pub fn DeepSeekPredictionAttention::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, s
 pub fn DeepSeekPredictionAttention::output(Self) -> @device.Allocation raise
 pub fn DeepSeekPredictionAttention::persistent_state(Self) -> Array[@device.Allocation] raise
 pub fn DeepSeekPredictionAttention::persistent_state_bytes(Self) -> Int64
+pub fn DeepSeekPredictionAttention::prediction_from_committed_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekPredictionAttention::prediction_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekPredictionAttention::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, main_counts~ : @device.Allocation, draft_counts~ : @device.Allocation, main_positions~ : @device.Allocation, draft_positions~ : @device.Allocation, main_hidden~ : @device.Allocation, draft_hidden~ : @device.Allocation, reset_flag~ : @device.Allocation, start_position~ : @device.Allocation, output? : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekPredictionAttention::prime_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
@@ -57,6 +58,7 @@ pub fn DeepSeekPredictionBlock::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, stage
 pub fn DeepSeekPredictionBlock::output(Self) -> @device.Allocation raise
 pub fn DeepSeekPredictionBlock::persistent_state(Self) -> Array[@device.Allocation] raise
 pub fn DeepSeekPredictionBlock::persistent_state_bytes(Self) -> Int64
+pub fn DeepSeekPredictionBlock::prediction_from_committed_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekPredictionBlock::prediction_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekPredictionBlock::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, main_counts~ : @device.Allocation, draft_counts~ : @device.Allocation, main_positions~ : @device.Allocation, draft_positions~ : @device.Allocation, main_hidden~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, reset_flag~ : @device.Allocation, start_position~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekPredictionBlock::prime_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
@@ -90,9 +92,10 @@ pub struct DeepSeekPredictor {
 }
 pub fn DeepSeekPredictor::close(Self) -> Unit raise
 pub fn DeepSeekPredictor::logits(Self) -> @device.Allocation raise
-pub fn DeepSeekPredictor::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, temperature~ : Double, accuracy~ : @precision_ir.Accuracy) -> Self raise
+pub fn DeepSeekPredictor::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, temperature~ : Double, accuracy~ : @precision_ir.Accuracy, maximum_output_rows? : Int) -> Self raise
 pub fn DeepSeekPredictor::persistent_state(Self) -> Array[@device.Allocation] raise
 pub fn DeepSeekPredictor::persistent_state_bytes(Self) -> Int64
+pub fn DeepSeekPredictor::prediction_from_committed_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekPredictor::prediction_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekPredictor::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, main_counts~ : @device.Allocation, main_positions~ : @device.Allocation, captured_hidden~ : @device.Allocation, target_layers~ : ArrayView[Int], embedding_weight~ : @device.Allocation, vocabulary_weight~ : @device.Allocation, seed_token~ : @device.Allocation, reset_flag~ : @device.Allocation, start_position~ : @device.Allocation, tokens~ : @device.Allocation, confidence~ : @device.Allocation, rng~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekPredictor::prime_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
