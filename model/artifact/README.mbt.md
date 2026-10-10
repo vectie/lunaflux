@@ -1,9 +1,9 @@
 # Phase 1 reference artifact admission
 
 `model/artifact` admits the exact bytes used by LunaFlux's offline Phase 1
-correctness path. The caller supplies independently approved SHA-256 identities
-for `config.json` and `tokenizer.json`, plus a declared content label for one
-`safetensors` file. Weight payloads are not hashed. Their strict
+correctness path. The caller supplies declared identity labels for
+`config.json`, `tokenizer.json` and one `safetensors` file. None of these
+payloads are hashed or authenticated by the loader. Their strict
 relative locators are admitted once into an opaque `ArtifactSource`; loading
 receives one separately caller-owned `ApprovedRoot`. The package never scans a
 directory, opens an absolute path, executes metadata, or infers files.
@@ -13,7 +13,7 @@ relative descendant is opened with component-wise no-follow traversal and a
 final regular-file check. A same-handle stamp preserves per-file-before-total
 limit precedence before the native immutable-snapshot transaction performs its
 own stamp/read/trailing-probe/stamp checks. The file is deterministically closed
-before bytes can be hashed, parsed, or published. A close failure wins over a
+before bytes can be parsed or published. A close failure wins over a
 successful body; an earlier snapshot failure stays primary while close is still
 attempted. The caller's root remains open and caller-owned.
 
@@ -21,8 +21,8 @@ The package has no production dependency on ambient or asynchronous filesystem
 APIs. Namespace replacement cannot redirect an opened root or file. Concurrent
 truncation, growth, or same-handle size/mtime/ctime change fails without
 publishing a snapshot. Relative labels are locators, never trust identities;
-configuration/tokenizer digests remain separately checked. The supplied weight
-label is not cryptographic authentication of the snapshot.
+all supplied digest fields are labels, not cryptographic authentication of
+the snapshot. Configuration, tokenizer and tensor semantics are still parsed.
 
 The bundle retains the declared model `ContentDigest`; it cannot publish a
 plan digest before an execution graph exists. A downstream Llama builder passes

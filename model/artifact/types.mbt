@@ -62,7 +62,7 @@ pub(all) suberror ArtifactError {
 } derive(Debug, Eq)
 
 ///|
-/// Opaque canonical lowercase SHA-256 identity for an admitted file.
+/// Opaque lowercase SHA-256-shaped label; loading does not authenticate bytes.
 pub struct ArtifactDigest {
   hex : String
 } derive(Debug, Eq)
@@ -79,7 +79,7 @@ pub struct ArtifactSource {
 }
 
 ///|
-/// Independently approved file identities supplied before admission.
+/// Caller-supplied file labels retained without checksum verification.
 pub struct ExpectedDigests {
   model_config : ArtifactDigest
   tokenizer : ArtifactDigest
@@ -100,7 +100,7 @@ pub struct ArtifactLimits {
 } derive(Debug, Eq)
 
 ///|
-/// Validated identities of the exact bytes retained by an admitted bundle.
+/// Caller-supplied labels retained alongside the structurally parsed bundle.
 pub struct ArtifactIdentity {
   model_config : ArtifactDigest
   tokenizer : @tokenizer.TokenizerDigest

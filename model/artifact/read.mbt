@@ -1,9 +1,4 @@
 ///|
-fn digest(bytes : BytesView) -> ArtifactDigest {
-  { hex: @crypto.bytes_to_hex_string(@crypto.sha256(bytes)), }
-}
-
-///|
 fn filesystem_error(
   error : @approved_fs.ApprovedFsError,
   file_kind : ArtifactFile,
@@ -105,26 +100,12 @@ fn read_bounded(
 }
 
 ///|
-fn verify(
-  bytes : BytesView,
-  expected : ArtifactDigest,
-  file : ArtifactFile,
-) -> ArtifactDigest raise ArtifactError {
-  let actual = digest(bytes)
-  if actual != expected {
-    raise DigestMismatch(file)
-  }
-  actual
-}
-
-///|
 /// Reads and admits a Phase 1 host/reference snapshot of exactly the three
 /// explicitly named dense-Llama v1 files.
 ///
 /// Each regular file is sized against both its own and the aggregate limit
-/// before allocating owned bytes. Configuration/tokenizer metadata is checked
-/// against supplied identities; weight payloads are not hashed. Their content
-/// identity is retained as a caller-supplied label, not verified bytes.
+/// before allocating owned bytes. Supplied identities are retained as labels;
+/// configuration, tokenizer and weight payloads are not hashed.
 /// Model and tokenizer readers then reject executable metadata and unsupported
 /// semantics; safetensors metadata must describe the complete payload.
 ///
@@ -144,7 +125,7 @@ pub fn load_reference_bundle(
     limits.max_model_config_bytes,
     limits.max_total_bytes,
   )
-  let config_digest = verify(config_bytes, expected.model_config, ModelConfig)
+  let config_digest = expected.model_config
   let approved_model_content = @spec.ContentDigest::from_sha256(
     expected.weights.hex,
   ) catch {
@@ -168,7 +149,7 @@ pub fn load_reference_bundle(
     limits.max_tokenizer_bytes,
     remaining_after_config,
   )
-  let tokenizer_digest = verify(tokenizer_bytes, expected.tokenizer, Tokenizer)
+  let tokenizer_digest = expected.tokenizer
   let tokenizer_identity = @tokenizer.TokenizerDigest::parse(
     tokenizer_digest.hex,
   ) catch {

@@ -91,6 +91,11 @@ scan copied model/kernel payloads to create a full checksum inventory. Small
 newly generated plan/descriptor identities are computed once offline; existing
 artifact labels are consumed, not reauthenticated.
 
+The shared tokenizer-file loader and reference bundle follow this policy too:
+parse the bytes needed for execution without a separate config/tokenizer hash
+pass. Digest-shaped compatibility fields retain caller-supplied labels; they
+do not certify the loaded bytes. Bounds and semantic parsing remain required.
+
 Weight conversion must not reopen an entire converted payload to hash it or
 repeat source inspection after copying. Compatibility `*_sha256` fields may
 carry supplied or plan-derived identity labels; report their kind and never

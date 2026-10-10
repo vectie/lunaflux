@@ -8,6 +8,12 @@ import {
 
 ///|
 async fn main {
+  for path in ["tokenizer/json_file/load.mbt", "model/artifact/read.mbt"] {
+    let source = @fs.read_file(path).text()
+    guard !source.contains("@crypto") else {
+      fail("payload authentication scan reintroduced: " + path)
+    }
+  }
   let runners = [
     "build-glm-current-spark", "build-model-checkpoint-spark", "capture-checkpoint-index-gpu",
     "compile-dspark-composed-heads", "resume-dspark-preparation", "run-deepseek-dspark-two-spark",
@@ -31,20 +37,21 @@ async fn main {
   for
     removed in [
       "source_sha256", "checked(\"cmp\"", "second/kernel.cubin", "ingress-partial-second.cubin",
-      "inspect-luna-cuda-aot-driver.sh",
-      "sha256sum", "shasum", "FILES.sha256",
+      "inspect-luna-cuda-aot-driver.sh", "sha256sum", "shasum", "FILES.sha256",
     ] {
     guard !builder.contains(removed) else {
       fail("redundant Qwen build hardening reintroduced: " + removed)
     }
   }
   let converter = @fs.read_file("cmd/lunaflux_qwen3_weight_convert/run.mbt").text()
-  for removed in ["hash_approved_file", "SHA256::new", "crypto.sha256(document)"] {
+  for
+    removed in ["hash_approved_file", "SHA256::new", "crypto.sha256(document)"] {
     guard !converter.contains(removed) else {
       fail("weight conversion checksum scan reintroduced: " + removed)
     }
   }
-  guard converter.split("inspect_source_safetensors_file(").to_array().length() == 2 else {
+  guard converter.split("inspect_source_safetensors_file(").to_array().length() ==
+    2 else {
     fail("weight conversion must inspect its source exactly once")
   }
   let materializer = @fs.read_file(

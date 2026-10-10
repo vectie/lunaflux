@@ -39,6 +39,7 @@ fn finish_tokenizer_file(
 ///|
 /// The file is terminally closed before parsing and neither root nor file
 /// authority survives in the returned evidence.
+/// The supplied digest is an identity label, not a verified payload checksum.
 pub fn load(
   root : @approved_fs.ApprovedRoot,
   root_label : StringView,
@@ -82,10 +83,6 @@ fn load_bound_tokenizer(
       error => raise map_fs_error(error, Close, maximum)
     }
   })
-  let actual = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-  if actual != expected_digest.as_string() {
-    raise DigestMismatch
-  }
   let spec = @json_reader.parse_bytes(
     bytes,
     digest=expected_digest,

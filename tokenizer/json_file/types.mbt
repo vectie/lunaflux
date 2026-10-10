@@ -6,7 +6,7 @@ pub struct TokenizerFileLimits {
 }
 
 ///|
-/// Root-free evidence for one exact tokenizer artifact and parser envelope.
+/// Root-free source binding, supplied identity label and parser envelope.
 pub struct TokenizerFileAdmission {
   priv root_label : String
   priv locator : String
@@ -76,7 +76,7 @@ pub fn TokenizerFileLimits::max_json_depth(self : TokenizerFileLimits) -> Int {
 }
 
 ///|
-/// Return the exact independently verified tokenizer digest.
+/// Return the caller-supplied tokenizer label; no payload hash is computed.
 pub fn TokenizerFileAdmission::digest(
   self : TokenizerFileAdmission,
 ) -> @tokenizer.TokenizerDigest {

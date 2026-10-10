@@ -179,7 +179,7 @@ async fn write_bundle(
 }
 
 ///|
-async test "valid explicit bundle returns exact bytes without hashing weight payloads" {
+async test "valid explicit bundle returns exact bytes without hashing any payload" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-artifact")
     group.add_defer() <| () => {
@@ -216,20 +216,101 @@ async test "valid explicit bundle returns exact bytes without hashing weight pay
       root,
       source,
       @artifact.ExpectedDigests::new(
-        model_config=artifact_digest(config),
-        tokenizer=artifact_digest(tokenizer),
+        model_config=@artifact.ArtifactDigest::parse("a".repeat(64)),
+        tokenizer=@artifact.ArtifactDigest::parse("b".repeat(64)),
         weights=@artifact.ArtifactDigest::parse("f".repeat(64)),
       ),
       test_limits(),
     )
     assert_eq(labeled.weights_bytes(), weights)
+    assert_eq(labeled.identity().model_config().as_hex(), "a".repeat(64))
+    assert_eq(labeled.identity().tokenizer().as_string(), "b".repeat(64))
     assert_eq(labeled.identity().model_content().as_hex(), "f".repeat(64))
     root.close()
   }
 }
 
 ///|
-async test "missing oversized digest and path-type failures are payload safe" {
+async test "tokenizer file loader retains labels without hashing and rejects malformed bytes" {
+  @async.with_task_group() <| group => {
+    let directory = @fs.tmpdir(prefix="lunaflux-tokenizer-label")
+    group.add_defer() <| () => {
+      @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
+    }
+    let root_label = @fs.realpath(directory)
+    let root = @approved_fs.ApprovedRoot::open_absolute(root_label)
+    defer root.close()
+    let path = "\{directory}/tokenizer.json"
+    @fs.write_file(path, selected_tokenizer(), create_mode=CreateNew)
+    let limits = test_limits()
+    let file_limits = @json_file.TokenizerFileLimits::new(
+      max_file_bytes=65536,
+      max_json_depth=16,
+    )
+    for label in ["a", "b"] {
+      let digest = @tokenizer.TokenizerDigest::parse(label.repeat(64))
+      let admission = @json_file.load(
+        root,
+        root_label,
+        "tokenizer.json",
+        digest,
+        file_limits,
+        limits.tokenizer_limits,
+      )
+      assert_eq(admission.digest(), digest)
+      assert_eq(admission.spec().digest(), digest)
+      assert_eq(admission.spec().vocab_size(), 256)
+      assert_true(
+        admission.matches_source(
+          root_label,
+          "tokenizer.json",
+          digest,
+          file_limits,
+          limits.tokenizer_limits,
+        ),
+      )
+    }
+    let digest = @tokenizer.TokenizerDigest::parse("c".repeat(64))
+    try
+      @json_file.load(
+        root,
+        root_label,
+        "tokenizer.json",
+        digest,
+        @json_file.TokenizerFileLimits::new(
+          max_file_bytes=16,
+          max_json_depth=16,
+        ),
+        limits.tokenizer_limits,
+      )
+    catch {
+      FileTooLarge(maximum=16L) => ()
+      _ => fail("expected tokenizer allocation bound")
+    } noraise {
+      _ => fail("oversized tokenizer accepted")
+    }
+    @fs.write_file(path, b"{", create_mode=CreateOrTruncate)
+    try
+      @json_file.load(
+        root,
+        root_label,
+        "tokenizer.json",
+        digest,
+        file_limits,
+        limits.tokenizer_limits,
+      )
+    catch {
+      InvalidTokenizer => ()
+      _ =>
+        fail("malformed tokenizer must fail parsing, not checksum validation")
+    } noraise {
+      _ => fail("malformed tokenizer accepted")
+    }
+  }
+}
+
+///|
+async test "missing oversized malformed and path-type failures are payload safe" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-artifact-failures")
     group.add_defer() <| () => {
@@ -288,8 +369,8 @@ async test "missing oversized digest and path-type failures are payload safe" {
     try
       @artifact.load_reference_bundle(root, source, expected, test_limits())
     catch {
-      DigestMismatch(ModelConfig) => ()
-      _ => fail("expected digest mismatch")
+      InvalidModelConfig(_) => ()
+      _ => fail("expected malformed config rejection without hashing")
     } noraise {
       _ => fail("expected failure")
     }

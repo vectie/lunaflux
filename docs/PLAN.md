@@ -2311,6 +2311,14 @@ no additional GPU speedup is claimed for those deletions.
 
 ## Runtime checksum cleanup follow-up (2026-10-10)
 
+The shared `tokenizer/json_file` loader and legacy `model/artifact` reference
+bundle now also omit config/tokenizer payload hashing. They retain supplied
+identity labels, not verified checksums. Tests load identical tokenizer bytes
+under distinct labels and still reject oversized and malformed input. The local
+no-hashing regression covers these loaders. Native loader/instance tests pass
+23/23 and the native check passes with the existing toolchain-migration warning
+exclusions. No GPU throughput gain is claimed for removal of startup scans.
+
 The historical DeepSeek base-run and live-resume helpers now also omit CUDA-tool
 and executable checksum scans. The block/source download helper copies outputs
 without hashing them locally or remotely. The local no-hashing regression covers

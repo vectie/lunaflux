@@ -1,5 +1,4 @@
 import {
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/model/config_reader",
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/safetensors_reader",
@@ -14,6 +13,8 @@ import {
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/tokenizer/json_file",
 } for "test"
 
 supported_targets = "native"
