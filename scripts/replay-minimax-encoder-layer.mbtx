@@ -1,0 +1,185 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
+}
+
+///|
+async fn save(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+fn output_files(rows : Int, layer : Int) -> Array[(String, Int)] raise {
+  guard rows > 0 && rows <= 1024 && layer > 0 && layer <= 50 else {
+    fail("bounded rows and hidden-state frontier required")
+  }
+  [
+    for
+      (name, width) in [
+        ("input-hidden", 5120),
+        ("norm-input", 5120),
+        ("q", 8192),
+        ("k", 1024),
+        ("v", 1024),
+        ("q-norm", 8192),
+        ("k-norm", 1024),
+        ("q-rotary", 8192),
+        ("k-rotary", 1024),
+        ("attention", 8192),
+        ("output", 5120),
+        ("residual-attn", 5120),
+        ("norm-mlp", 5120),
+        ("activation", 25600),
+        ("down", 5120),
+        ("residual-mlp", 5120),
+        ("hidden-\{layer}", 5120),
+      ] => (name + ".bf16", rows * width * 2)
+  ]
+}
+
+///|
+test "one-layer replay output is not a fifty-layer result" {
+  let files = output_files(140, 7)
+  assert_eq(files.length(), 17)
+  assert_eq(files[0], ("input-hidden.bf16", 1433600))
+  assert_eq(files[16], ("hidden-7.bf16", 1433600))
+  assert_false(files.any(entry => entry.0 == "hidden-50.bf16"))
+}
+
+///|
+fn run_label(labels : ArrayView[String], layer : Int) -> String raise {
+  match labels {
+    [] => "layer-\{layer}"
+    [label] if !label.is_empty() &&
+      label.length() <= 40 &&
+      label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) => label
+    _ => fail("run label must be a short nonempty lowercase name")
+  }
+}
+
+///|
+test "independent input replays retain separate output names" {
+  assert_eq(run_label([], 7), "layer-7")
+  assert_eq(run_label(["layer-7-prefix-input"], 7), "layer-7-prefix-input")
+  for labels in [[""], ["../layer-7"], ["x".repeat(41)], ["a", "b"]] {
+    try run_label(labels, 7) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid replay output name accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, input, rows, layer, .. labels] &&
+    (labels is [] || labels is [_]) &&
+    root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
+    (
+      input.has_prefix("/tmp/lunaflux-minimax-text-encoder-") ||
+      input.has_prefix("/tmp/lunaflux-minimax-aten-reference-")
+    ) &&
+    [root, input].all(path => {
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.'))
+    }) else {
+    fail(
+      "BUILT_REFERENCE_ROOT INPUT_LAYER_DIRECTORY ROWS NEXT_HIDDEN_INDEX [NEW_RUN_LABEL]",
+    )
+  }
+  let rows = @string.parse_int(rows)
+  let layer = @string.parse_int(layer)
+  let files = output_files(rows, layer)
+  let label = run_label(labels, layer)
+  let output = root + "/replay-" + label
+  @fs.mkdir(output)
+  let mkdir = remote("mkdir " + output)
+  save(output, "mkdir", mkdir)
+  mkdir.check()
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  save(output, "before-owners", owners)
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let name = root.split("/").last().unwrap().to_owned() + "-" + label
+  let image = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+  let execution = remote(
+    "systemd-run --user --wait --pipe --unit=" +
+    name +
+    " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
+    name +
+    " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g --pids-limit 256 --cpuset-cpus 0-3 -e OMP_NUM_THREADS=2 -v " +
+    root +
+    ":/work -v " +
+    input +
+    ":/native:ro -v /tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder:/model:ro --entrypoint /work/driver.exe " +
+    image +
+    " replay-layer /work/libreference.so /model \{rows} \{layer} /native/hidden-\{layer - 1}.bf16 /work/replay-" +
+    label,
+  )
+  save(output, "execute", execution)
+  let terminal = remote("docker inspect --format '{{json .State}}' " + name)
+  save(output, "terminal", terminal)
+  terminal.check()
+  let released = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  save(output, "released", released)
+  released.check()
+  execution.check()
+  guard released.stdout().trim().is_empty() else { fail("GPU owner remains") }
+  guard execution
+    .stdout()
+    .contains(
+      "reference_layer_replay_complete input_hidden_state=\{layer - 1} output_hidden_state=\{layer} rows=\{rows} retained_bytes=0",
+    ) else {
+    fail("missing one-layer completion")
+  }
+  for (name, expected) in files {
+    let path = output + "/" + name
+    @fs.write_file(path, b"", create_mode=CreateNew)
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + path,
+      path,
+    ])
+    .output()
+    .check()
+    guard @fs.read_file(path).binary().length() == expected else {
+      fail("incomplete replay tensor: " + name)
+    }
+  }
+  println(
+    "identical-input one-layer replay collected; not full-model parity or throughput",
+  )
+}

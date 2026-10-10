@@ -47,6 +47,15 @@ outputs, report measured errors and distinguish reduction-order differences
 from missing semantic operations. No model-specific hardcoded tolerance is
 used to turn a mismatch into a pass.
 
+`replay-layer LIB MODEL ROWS NEXT_HIDDEN_INDEX INPUT_BF16 OUTPUT` executes one
+complete layer on a named previous hidden-state frontier (1..1,024 rows,
+next state 1..50). It captures the unchanged input, fifteen operator boundaries
+and that layer's output. A reference replay on reference input must reproduce
+the corresponding propagated reference layer before interpreting native-input
+results. This separates local arithmetic differences from input sensitivity;
+it is not a fifty-layer encoder result. The bounded `.mbtx` layer runner accepts
+a new run label to keep native-input and reference-input outputs separate.
+
 `encode-operators ... 1` saves sixteen first-layer operator outputs.
 `replay-operators LIB MODEL IDS OUTPUT NATIVE_OPERATOR_DIRECTORY` substitutes
 the corresponding native input at each independent operation; its result is an

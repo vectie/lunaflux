@@ -97,6 +97,15 @@ is 0.0420121 and maximum absolute error 1. The global relative L2 (0.0340%) is
 dominated by large channels: actual token-row relative L2 errors are 0.00774%,
 0.78214% and 1.19722%. All per-layer reference outputs are retained. There is
 no arbitrary tolerance turning these numbers into full-model parity.
+
+The 140-token native/reference extension also completes all fifty text layers.
+Global final relative L2 is 0.9633%, but row 5 reaches 22.1058%; global norms
+alone do not establish quality. Same-input layer-7 replay gives only 0.0873%
+local error for that row, while the independent reference amplifies the prior
+input difference to 11.1368%, mainly in the MLP activation/down chain. Replaying
+reference layer 7 on reference hidden-6 reproduces its output bitwise. This
+localizes input sensitivity, not an acceptance tolerance or complete bug fix.
+See [the longer-text replay](MINIMAX_LONG_TEXT_NUMERICAL_REPLAY_2026-10-11.md).
 The final reference container has 8-GiB/no-swap limits, exits 0 without OOM and
 releases GPU/tensor owners. Its measured cgroup peak touches that memory limit;
 it is not a spare-memory or longer-context claim. Three standalone native tests,

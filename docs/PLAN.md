@@ -71,6 +71,18 @@ modify production arithmetic just to imitate a lower-precision reference.
 This is numerical attribution, not an acceptance tolerance, full-model parity
 or throughput gain. All numerical probes remain outside serving and startup.
 
+The 140-token extension now completes all fifty native/reference text layers.
+Embedding is bitwise exact, but final global relative L2 0.9633% conceals row-5
+error 22.1058%. Same-input layer-7 replay limits that row's local native/reference
+error to 0.0873%; the reference itself amplifies the preceding 0.4380% input
+difference to 11.1368%, primarily through its MLP activation/down chain.
+Reference-input layer replay reproduces the propagated reference layer bitwise.
+Disabling BF16 reduced-precision projections leaves this longer case's final
+reference bitwise unchanged. These results do not close numerical acceptance.
+Variable-row collection and same-input replay are diagnostic-only and add no
+runtime hash or production dependency. Details and next numerical tests are in
+[the longer-text report](MINIMAX_LONG_TEXT_NUMERICAL_REPLAY_2026-10-11.md).
+
 The common serial prompt file adapter now owns bounded `frame-counts.txt`
 parsing; DeepSeek no longer keeps a model-specific queue parser. GLM now exposes
 `preflight-generation-sequence` and `generate-sequence`, with immutable queue
