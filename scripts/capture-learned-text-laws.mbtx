@@ -1,0 +1,53 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, directory] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(directory)
+  let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let node = "wlc003s@192.168.2.178"
+  let remote = "/tmp/lunaflux-learned-text-laws-aot-20261010.DDrJKHbq"
+  for suffix in ["build", "correctness", "memcheck", "racecheck", "synccheck"] {
+    let unit = "lunaflux-learned-text-laws-" + suffix + "-20261010-v1.service"
+    let status = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-S", socket, node,
+      "systemctl --user show " + unit + " -p ActiveState -p Result -p ExecMainStatus",
+    ]).output(max_output_bytes=1048576)
+    status.check()
+    guard status.stdout().contains("ActiveState=inactive") &&
+      status.stdout().contains("Result=success") &&
+      status.stdout().contains("ExecMainStatus=0") else {
+      fail("unit is not a successful terminal run")
+    }
+    @fs.write_file(directory + "/" + suffix + "-unit.txt", status.stdout(), create_mode=CreateNew)
+    @fs.write_file(directory + "/" + suffix + "-unit.stderr", status.stderr(), create_mode=CreateNew)
+    let journal = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-S", socket, node,
+      "journalctl --user -u " + unit + " --no-pager",
+    ]).output(max_output_bytes=1048576)
+    journal.check()
+    @fs.write_file(directory + "/" + suffix + "-journal.txt", journal.stdout(), create_mode=CreateNew)
+    @fs.write_file(directory + "/" + suffix + "-journal.stderr", journal.stderr(), create_mode=CreateNew)
+  }
+  for filename in ["learned_text_io_probe", "learned_text_io_probe.cu", "learned_text_io_kernels.cuh"] {
+    let source = remote + "/" + filename
+    let destination = directory + "/" + filename
+    let remote_hash = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, "sha256sum " + source]).output(max_output_bytes=1048576)
+    remote_hash.check()
+    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, node + ":" + source, destination]).output(max_output_bytes=1048576).check()
+    let digest = @shell.Cmd("shasum", ["-a", "256", destination]).output(max_output_bytes=1048576)
+    digest.check()
+    guard digest.stdout().split(" ").nth(0) == remote_hash.stdout().split(" ").nth(0) else {
+      fail("download hash mismatch")
+    }
+    @fs.write_file(destination + ".sha256", digest.stdout(), create_mode=CreateNew)
+    @fs.write_file(destination + ".remote.sha256", remote_hash.stdout(), create_mode=CreateNew)
+  }
+  println(directory)
+}

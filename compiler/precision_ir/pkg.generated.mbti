@@ -524,12 +524,30 @@ pub struct TextIoPrecision {
 pub fn TextIoPrecision::boundary_workspace_bytes(Self, TextBoundary) -> Int64
 pub fn TextIoPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn TextIoPrecision::logits_bytes(Self) -> Int64
-pub fn TextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64, boundary? : TextBoundary) -> Self raise PrecisionPlanError
+pub fn TextIoPrecision::logits_law(Self) -> TextLogitsLaw
+pub fn TextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64, boundary? : TextBoundary, normalization_law? : TextNormalizationLaw, logits_law? : TextLogitsLaw) -> Self raise PrecisionPlanError
 pub fn TextIoPrecision::normalization_epsilon(Self) -> Double
+pub fn TextIoPrecision::normalization_law(Self) -> TextNormalizationLaw
 pub fn TextIoPrecision::normalized_bytes(Self) -> Int64
 pub fn TextIoPrecision::residual_bytes(Self) -> Int64
 pub fn TextIoPrecision::table_bytes(Self) -> Int64
 pub fn TextIoPrecision::workspace_bytes(Self) -> Int64
+
+pub(all) enum TextLogitsLaw {
+  Bf16Round
+  F32Accumulate
+} derive(Eq, @debug.Debug)
+pub fn TextLogitsLaw::equal(Self, Self) -> Bool
+pub fn TextLogitsLaw::not_equal(Self, Self) -> Bool
+pub fn TextLogitsLaw::to_repr(Self) -> @debug.Repr
+
+pub(all) enum TextNormalizationLaw {
+  Bf16NormalizeThenWeight
+  F32NormalizeThenWeight
+} derive(Eq, @debug.Debug)
+pub fn TextNormalizationLaw::equal(Self, Self) -> Bool
+pub fn TextNormalizationLaw::not_equal(Self, Self) -> Bool
+pub fn TextNormalizationLaw::to_repr(Self) -> @debug.Repr
 
 pub struct WeightBinding {
   // private fields

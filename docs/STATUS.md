@@ -10,6 +10,19 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DeepSeek text arithmetic): the output boundary now selects
+explicit precision-IR laws for F32 normalization/affine multiplication followed
+by one BF16 activation cast, and F32 accumulated vocabulary logits. GLM's default
+rounding laws are unchanged. The independent GB10 probe passes live row counts
+1/3/5, deterministic repeats, exact greedy output, inactive-row preservation,
+invalid controls and balanced release with maximum absolute logit error zero.
+Its fixture distinguishes the old paths at 16 normalization and 78 logit
+rounding sites. CUDA correctness plus memcheck/racecheck/synccheck all exit zero;
+sanitizers report zero errors/hazards. Runs use 2-GiB/no-swap user-unit limits.
+Sources, executable and journals were downloaded with matching SHA-256 to
+`/tmp/lunaflux-learned-text-laws-results-20261010-v2`. These are component
+numerical results, not full-checkpoint DeepSeek/DSpark generation or throughput.
+
 Update 2026-10-10 (DeepSeek complete base block): `DeepSeekAttentionEnvelope`
 and `DeepSeekFfnEnvelope` join corrected F32 mHC controls, complete attention,
 and routed/shared experts in `DeepSeekDecoderBlock`. Window, learned-ratio-4,

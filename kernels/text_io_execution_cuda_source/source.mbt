@@ -27,6 +27,15 @@ pub fn text_io_source(
   let epsilon = @literal.canonical_cuda_float_literal(
     plan.normalization_epsilon(),
   )
+  let normalized = match plan.normalization_law() {
+    Bf16NormalizeThenWeight =>
+      "__bfloat162float(__float2bfloat16_rn(__fmul_rn(mean,inverse)))"
+    F32NormalizeThenWeight => "__fmul_rn(mean,inverse)"
+  }
+  let logits = match plan.logits_law() {
+    Bf16Round => "__bfloat162float(__float2bfloat16_rn(sum))"
+    F32Accumulate => "sum"
+  }
   let source = "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
     symbol_prefix +
@@ -101,7 +110,9 @@ pub fn text_io_source(
     "    const float mean=__bfloat162float(__float2bfloat16_rn(__fdiv_rn(sum," +
     s +
     ".0f)));\n" +
-    "    const float normalized=__bfloat162float(__float2bfloat16_rn(__fmul_rn(mean,inverse)));\n" +
+    "    const float normalized=" +
+    normalized +
+    ";\n" +
     "    out[(unsigned long long)row*" +
     h +
     "ULL+c]=__float2bfloat16_rn(__fmul_rn(normalized,__bfloat162float(weight[c])));\n  }\n}\n" +
@@ -127,7 +138,9 @@ pub fn text_io_source(
     "ULL+c]),__bfloat162float(weight[word*" +
     h +
     "ULL+c])));\n" +
-    "  logits[i]=__bfloat162float(__float2bfloat16_rn(sum));\n}\n" +
+    "  logits[i]=" +
+    logits +
+    ";\n}\n" +
     "extern \"C\" __global__ void " +
     symbol_prefix +
     "_greedy(" +

@@ -24,6 +24,13 @@ test "learned lowering retains controls and consumes one collapsed stream" {
   assert_false(source.contains("stream<4"))
   assert_true(source.contains("= __float2bfloat16_rn(NAN); return;"))
   assert_true(source.contains("tokens[row]=-1"))
+  assert_true(
+    source.contains("const float normalized=__fmul_rn(mean,inverse);"),
+  )
+  assert_true(source.contains("logits[i]=sum;"))
+  assert_false(
+    source.contains("logits[i]=__bfloat162float(__float2bfloat16_rn(sum));"),
+  )
   if @env.get_env_var("LUNA_EXPORT_LEARNED_TEXT_IO") == Some("1") {
     println("LUNA_LEARNED_TEXT_SOURCE_BEGIN")
     println(source)

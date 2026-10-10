@@ -14,6 +14,8 @@ test "selected text output rows do not scale logits with prefill length" {
   assert_eq(plan.logits_bytes(), 619520L)
   assert_eq(plan.workspace_bytes(), 627712L)
   assert_eq(plan.table_bytes(), 1268776960L)
+  assert_true(plan.normalization_law() is Bf16NormalizeThenWeight)
+  assert_true(plan.logits_law() is Bf16Round)
   let failed = try {
     ignore(
       @precision_ir.TextIoPrecision::new(

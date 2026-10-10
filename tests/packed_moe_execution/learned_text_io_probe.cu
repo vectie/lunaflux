@@ -24,6 +24,7 @@ static float sigmoid(float x) {
   float e = std::exp(x); return e / (1.f + e);
 }
 int main() {
+  int normalization_witnesses=0, logits_witnesses=0;
   constexpr int H=8, S=4, V=17, R=5, O=2, F=S*H;
   auto counts=allocate<int32_t>(5), outputs=allocate<int32_t>(1);
   auto selected=allocate<int32_t>(O), tokens=allocate<int32_t>(O);
@@ -69,12 +70,18 @@ int main() {
       float squares=0;
       for (int c=0;c<H;++c) { float x=reference[selected[row]*H+c]; squares=squares+x*x; }
       float inverse=1.f/std::sqrt(squares/float(H)+1.e-5f);
-      for (int c=0;c<H;++c) expected_hidden[row*H+c]=bf(bf(reference[selected[row]*H+c]*inverse)*__bfloat162float(norm[c]));
+      for (int c=0;c<H;++c) {
+        const float normalized=reference[selected[row]*H+c]*inverse;
+        const float weight=__bfloat162float(norm[c]);
+        expected_hidden[row*H+c]=bf(normalized*weight);
+        if (expected_hidden[row*H+c]!=bf(bf(normalized)*weight)) ++normalization_witnesses;
+      }
       float best=-INFINITY; expected_tokens[row]=-1;
       for (int w=0;w<V;++w) {
         float sum=0;
         for (int c=0;c<H;++c) sum=sum+expected_hidden[row*H+c]*__bfloat162float(head[w*H+c]);
-        expected_logits[row*V+w]=bf(sum);
+        expected_logits[row*V+w]=sum;
+        if (sum!=bf(sum)) ++logits_witnesses;
         if (expected_tokens[row]<0 || expected_logits[row*V+w]>best) { best=expected_logits[row*V+w]; expected_tokens[row]=w; }
       }
     }
@@ -88,7 +95,11 @@ int main() {
       float error=0;
       for (int i=0;i<live*H;++i) error=std::max(error,std::fabs(__bfloat162float(collapse[i])-reference[i]));
       for (int i=0;i<outputs[0]*H;++i) error=std::max(error,std::fabs(__bfloat162float(hidden[i])-expected_hidden[i]));
-      for (int i=0;i<outputs[0]*V;++i) error=std::max(error,std::fabs(logits[i]-expected_logits[i]));
+      for (int i=0;i<outputs[0]*V;++i) {
+        const float difference=std::fabs(logits[i]-expected_logits[i]);
+        if (difference>1.e-5f) return 14;
+        error=std::max(error,difference);
+      }
       if (error>0.03125f) return 3;
       for (int i=0;i<outputs[0];++i) if (tokens[i]!=expected_tokens[i]) return 4;
       for (int i=live*H;i<R*H;++i) if (__bfloat162float(collapse[i])!=19.f) return 5;
@@ -126,6 +137,8 @@ int main() {
   check(cudaFree(head)); check(cudaFree(norm)); check(cudaFree(scale));
   check(cudaFree(base)); check(cudaFree(function)); check(cudaFree(residual));
   check(cudaFree(tokens)); check(cudaFree(selected)); check(cudaFree(outputs)); check(cudaFree(counts));
+  if (!normalization_witnesses || !logits_witnesses) return 13;
+  std::printf("normalization_round_witnesses=%d logits_round_witnesses=%d\n",normalization_witnesses,logits_witnesses);
   std::puts("learned_text_io=passed numeric=true deterministic=true invalid_controls=fail_closed all_allocations=released");
   return 0;
 }

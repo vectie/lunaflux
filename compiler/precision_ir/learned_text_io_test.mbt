@@ -18,6 +18,8 @@ test "learned text plan has exact sizes and a one-stream text consumer" {
   assert_eq(plan.workspace_bytes(), 248L)
   assert_eq(plan.control_epsilon(), 1.0e-6)
   assert_eq(plan.control_normalization_epsilon(), 1.0e-5)
+  assert_true(plan.text().normalization_law() is F32NormalizeThenWeight)
+  assert_true(plan.text().logits_law() is F32Accumulate)
 }
 
 ///|

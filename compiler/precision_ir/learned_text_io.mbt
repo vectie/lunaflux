@@ -1,6 +1,8 @@
 ///|
 /// Learned residual-stream collapse followed by the ordinary text egress.
-/// Control projection is F32 after normalization of the flattened BF16 streams;
+/// Control projection accumulates flattened BF16 streams in F32, then scales
+/// the dot by inverse RMS. Final RMSNorm rounds only after weight multiplication;
+/// the vocabulary projection publishes F32 logits without an extra BF16 cast.
 /// sigmoid controls weight each stream and collapse rounds once to BF16.
 /// No model names or device schedule enter this immutable numerical plan.
 pub struct LearnedTextIoPrecision {
@@ -52,6 +54,8 @@ pub fn LearnedTextIoPrecision::new(
     normalization_epsilon~,
     maximum_workspace_bytes~,
     boundary=Egress,
+    normalization_law=F32NormalizeThenWeight,
+    logits_law=F32Accumulate,
   )
   let collapse_bytes = text.residual_bytes()
   let input_bytes = expert_checked_mul(collapse_bytes, stream_count.to_int64())

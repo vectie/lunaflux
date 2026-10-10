@@ -1,8 +1,32 @@
 ///|
+pub(all) enum TextNormalizationLaw {
+  Bf16NormalizeThenWeight
+  F32NormalizeThenWeight
+} derive(Debug, Eq)
+
+///|
+pub extend TextNormalizationLaw with @debug.Debug::{to_repr}
+
+///|
+pub extend TextNormalizationLaw with Eq::{equal, not_equal}
+
+///|
+pub(all) enum TextLogitsLaw {
+  Bf16Round
+  F32Accumulate
+} derive(Debug, Eq)
+
+///|
+pub extend TextLogitsLaw with @debug.Debug::{to_repr}
+
+///|
+pub extend TextLogitsLaw with Eq::{equal, not_equal}
+
+///|
 /// Immutable text ingress/egress geometry. Selected output rows are distinct
 /// from input rows: long prefill need not materialize a vocabulary per token.
-/// Streams are replicated at ingress and averaged at egress. Mean and
-/// normalized activations round to BF16 before BF16 affine multiplication.
+/// Streams are replicated at ingress and averaged at egress. Normalization
+/// and logit rounding are explicit immutable laws selected by the model plan.
 pub struct TextIoPrecision {
   priv vocabulary : Int
   priv hidden : Int
@@ -14,6 +38,8 @@ pub struct TextIoPrecision {
   priv normalized_bytes : Int64
   priv logits_bytes : Int64
   priv table_bytes : Int64
+  priv normalization_law : TextNormalizationLaw
+  priv logits_law : TextLogitsLaw
 }
 
 ///|
@@ -26,6 +52,8 @@ pub fn TextIoPrecision::new(
   normalization_epsilon~ : Double,
   maximum_workspace_bytes~ : Int64,
   boundary? : TextBoundary = Complete,
+  normalization_law? : TextNormalizationLaw = Bf16NormalizeThenWeight,
+  logits_law? : TextLogitsLaw = Bf16Round,
 ) -> Self raise PrecisionPlanError {
   guard vocabulary_size > 0 &&
     hidden_width > 0 &&
@@ -79,6 +107,8 @@ pub fn TextIoPrecision::new(
     normalized_bytes,
     logits_bytes,
     table_bytes,
+    normalization_law,
+    logits_law,
   }
 }
 
@@ -116,4 +146,14 @@ pub fn TextIoPrecision::table_bytes(self : Self) -> Int64 {
 ///|
 pub fn TextIoPrecision::workspace_bytes(self : Self) -> Int64 {
   self.normalized_bytes + self.logits_bytes
+}
+
+///|
+pub fn TextIoPrecision::normalization_law(self : Self) -> TextNormalizationLaw {
+  self.normalization_law
+}
+
+///|
+pub fn TextIoPrecision::logits_law(self : Self) -> TextLogitsLaw {
+  self.logits_law
 }
