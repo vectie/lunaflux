@@ -149,6 +149,20 @@ ownership is published. The label associates startup records; it does not
 authenticate transport bytes. Construction-time control-plan identity remains
 separate from receiving and reauthenticating an existing payload.
 
+Reusable fused sidecar exporters serialize validated inputs once, without
+hashing and decoding the new whole sidecar as a self-check. The residual
+exporter validates its launch geometry directly. Row variants retain supplied
+module labels on receive; attention-route scope generation includes only those
+labels and execution geometry, never CUBIN hex/payload. Changing a module's
+bytes without changing its declared label is not authenticated by that scope.
+Row-variant measurement scopes use v2 and must be regenerated when rebuilding
+an old bundle; scopes without row variants retain their existing v1 encoding.
+LunaTile lowering likewise consumes its immutable planning input without
+rehashing the outer canonical plan or copying and hashing the embedded program.
+Header, length, memory geometry and semantic operand checks remain required.
+First construction of offline AOT/cache identities is distinct from payload
+reauthentication; no runtime integrity claim follows from a supplied label.
+
 ## Compatibility discipline
 
 - One implementation of the engine is authoritative.

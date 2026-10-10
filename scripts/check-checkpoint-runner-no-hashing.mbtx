@@ -8,6 +8,22 @@ import {
 
 ///|
 async fn main {
+  let scope = @fs.read_file("kernels/luna_fused_artifact_admission/attention_routes.mbt").text()
+  guard !scope.contains("reusable_runtime_append_row_variant(") &&
+    !scope.contains("module_bytes") else {
+    fail("attention route scope must not serialize or hash CUBIN payloads")
+  }
+  for name in ["reusable_runtime_bundle", "reusable_residual_runtime"] {
+    let source = @fs.read_file("kernels/luna_fused_artifact_admission/" + name + ".mbt").text()
+    guard !source.contains("@crypto.sha256(canonical)") else {
+      fail("fused packaging must not hash and replay its own serialized output")
+    }
+  }
+  let lowering = @fs.read_file("kernels/luna_tile_ir/lower.mbt").text()
+  guard !lowering.contains("@crypto.sha256(bytes)") &&
+    !lowering.contains("@crypto.sha256(encoded_program)") else {
+    fail("typed LunaTile planning input must not be reauthenticated by lowering")
+  }
   for path in [
     "cmd/deepseek_checkpoint/startup.mbt", "cmd/glm_checkpoint/startup.mbt", "cmd/glm_checkpoint/text_prompt.mbt",
   ] {

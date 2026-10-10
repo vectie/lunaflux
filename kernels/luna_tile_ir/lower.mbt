@@ -302,9 +302,6 @@ fn decode_luna_tile_cuda_aot_plan(
   input : LunaTileCudaAotInput,
 ) -> LunaTileDecodedAotPlan raise LunaTileError {
   let bytes = input.canonical
-  if @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != input.digest.as_hex() {
-    raise InvalidProgram(CanonicalEncoding)
-  }
   let header = @utf8.encode("LUNATILE-CUDA-AOT-PLAN-V2")
   let scalar_count = 12
   if bytes.length() < header.length() + scalar_count * 8 {
@@ -344,15 +341,8 @@ fn decode_luna_tile_cuda_aot_plan(
   if program_length <= 0 || program_length != bytes.length() - program_offset {
     raise InvalidProgram(CanonicalEncoding)
   }
-  let encoded_program = Bytes::makei(program_length, index => {
-    bytes[program_offset + index]
-  })
-  let found_program_digest = @crypto.bytes_to_hex_string(
-    @crypto.sha256(encoded_program),
-  )
-  if found_program_digest != input.program_digest.as_hex() {
-    raise InvalidProgram(CanonicalEncoding)
-  }
+  // The immutable planning input owns the program label. Lowering consumes its
+  // geometry, not a second authenticated copy of the embedded semantic bytes.
   let semantic = match semantic_code {
     0 => {
       if left != 0 || right != 0 || output != 0 || width != 0L {

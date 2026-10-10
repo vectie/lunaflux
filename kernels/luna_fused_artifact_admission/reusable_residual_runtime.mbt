@@ -84,6 +84,12 @@ pub fn export_reusable_fused_residual_runtime(
     norm_operation != residual_operation + 1 ||
     function_symbol.is_empty() ||
     function_symbol.contains("\n") ||
+    launch.block_x() != 128 ||
+    launch.block_y() != 1 ||
+    launch.block_z() != 1 ||
+    launch.grid_y() != 1 ||
+    launch.grid_z() != 1 ||
+    launch.shared_memory_bytes() != 512 ||
     module_bytes.is_empty() {
     raise InvalidFusedArtifact(Module)
   }
@@ -123,12 +129,5 @@ pub fn export_reusable_fused_residual_runtime(
   out.write_string(
     "module_hex=" + @crypto.bytes_to_hex_string(module_bytes) + "\n",
   )
-  let canonical = @utf8.encode(out.to_string())
-  ignore(
-    admit_digest_pinned_reusable_fused_residual_runtime(
-      canonical,
-      @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
-    ),
-  )
-  canonical
+  @utf8.encode(out.to_string())
 }

@@ -230,7 +230,7 @@ pub fn ReusableFusedRuntimeRowVariant::function_symbol(Self) -> String
 pub fn ReusableFusedRuntimeRowVariant::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn ReusableFusedRuntimeRowVariant::maximum_token_rows(Self) -> Int
 pub fn ReusableFusedRuntimeRowVariant::module_bytes(Self) -> Bytes
-pub fn ReusableFusedRuntimeRowVariant::new(maximum_token_rows~ : Int, query_tile_rows~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes) -> Self raise FusedArtifactAdmissionError
+pub fn ReusableFusedRuntimeRowVariant::new(maximum_token_rows~ : Int, query_tile_rows~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, module_label_sha256? : String) -> Self raise FusedArtifactAdmissionError
 pub fn ReusableFusedRuntimeRowVariant::query_tile_rows(Self) -> Int
 
 // Type aliases

@@ -83,6 +83,7 @@ test "row alternatives roundtrip without changing legacy serialization" {
     fail("row variant was lost")
   }
   assert_eq(retained.module_bytes, b"smalm")
+  assert_eq(retained.module_label, variant.module_label)
   for
     altered in [
       text.replace(
@@ -118,6 +119,90 @@ test "row alternatives roundtrip without changing legacy serialization" {
   } noraise {
     _ => fail("residual ABI acquired ingress operands")
   }
+}
+
+///|
+fn row_scope_reader(
+  abi : ReusableFusedRuntimeKernelAbi,
+  symbol : String,
+) -> ReusableFusedRuntimeModuleInput raise {
+  ReusableFusedRuntimeModuleInput::new(
+    abi~,
+    first_operation=5,
+    operation_count=1,
+    function_symbol=symbol,
+    module_bytes=b"scope-reader",
+    launch=@launch_contract.AotLaunchDimensions::new(
+      grid_x=32,
+      grid_y=1,
+      grid_z=1,
+      block_x=32,
+      block_y=1,
+      block_z=1,
+      shared_memory_bytes=0,
+    ),
+  )
+}
+
+///|
+test "attention route scope consumes variant label without payload replay" {
+  let variant = row_variant_fixture(64, 16)
+  let ingress = { ..row_variant_base("ingress"), row_variant: Some(variant), }
+  let modules = [
+    ingress,
+    row_scope_reader(QwenPagedAttentionReadOnlyProductionV2, "base"),
+    row_scope_reader(QwenPagedAttentionPrefillWideQueryProductionV5, "wide"),
+  ]
+  let bytes = export_reusable_fused_runtime_bundle(
+    model_content_sha256="1".repeat(64),
+    model_plan_sha256="2".repeat(64),
+    target=@catalog.DeviceTarget::new(
+      compute_major=12,
+      compute_minor=1,
+      supports_bf16=true,
+      supports_cublas_lt=false,
+    ),
+    modules~,
+  )
+  let label = "f".repeat(64)
+  let original = admit_digest_pinned_reusable_fused_runtime_bundle(bytes, label)
+  let changed = admit_digest_pinned_reusable_fused_runtime_bundle(
+    @utf8.encode(
+      @utf8.decode(bytes).replace(
+        old="row_variant_module_hex=736d616c6c",
+        new="row_variant_module_hex=736d616c6d",
+      ),
+    ),
+    label,
+  )
+  assert_eq(original.attention_route_scope(), changed.attention_route_scope())
+  let different_label = admit_digest_pinned_reusable_fused_runtime_bundle(
+    @utf8.encode(
+      @utf8.decode(bytes).replace(
+        old="row_variant_module_sha256=" + variant.module_label.as_hex(),
+        new="row_variant_module_sha256=" + "e".repeat(64),
+      ),
+    ),
+    label,
+  )
+  assert_true(
+    original.attention_route_scope() != different_label.attention_route_scope(),
+  )
+  let different_geometry = admit_digest_pinned_reusable_fused_runtime_bundle(
+    @utf8.encode(
+      @utf8.decode(bytes)
+      .replace(
+        old="row_variant_query_tile_rows=16",
+        new="row_variant_query_tile_rows=32",
+      )
+      .replace(old="row_variant_grid_x=4", new="row_variant_grid_x=2"),
+    ),
+    label,
+  )
+  assert_true(
+    original.attention_route_scope() !=
+    different_geometry.attention_route_scope(),
+  )
 }
 
 ///|

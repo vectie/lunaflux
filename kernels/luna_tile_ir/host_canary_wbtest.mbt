@@ -136,6 +136,14 @@ test "AOT plan decoder rejects altered canonical bytes" {
       max_shared_memory_bytes=0L,
     ),
   )
+  let labelled : LunaTileCudaAotInput = {
+    ..planned,
+    digest: LunaTileCudaAotDigest("a".repeat(64)),
+    program_digest: LunaTileProgramDigest("b".repeat(64)),
+  }
+  // Labels associate an immutable typed plan; lowering is not an integrity
+  // verifier. The same execution geometry must not depend on their bytes.
+  ignore(decode_luna_tile_cuda_aot_plan(labelled))
   let altered_bytes = planned.canonical.to_array()
   altered_bytes[0] = b'X'
   let altered : LunaTileCudaAotInput = {

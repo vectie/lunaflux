@@ -20,8 +20,13 @@ pub fn ApprovedReusableFusedRuntimeBundle::attention_route_scope(
   ignore(base)
   ignore(wide)
   let out = StringBuilder()
+  let scope_version = if self.modules.iter().any(m => m.row_variant is Some(_)) {
+    "attention-chain-scope-v2\n"
+  } else {
+    "attention-chain-scope-v1\n"
+  }
   out.write_string(
-    "attention-chain-scope-v1\n" +
+    scope_version +
     self.model_content.as_hex() +
     "\n" +
     self.model_plan.as_hex() +
@@ -61,7 +66,28 @@ pub fn ApprovedReusableFusedRuntimeBundle::attention_route_scope(
       )
     }
     if module_.row_variant is Some(variant) {
-      reusable_runtime_append_row_variant(out, "row_variant_", Some(variant))
+      // Scope selection by declared code identity and execution geometry, not
+      // by serializing and rehashing the already loaded CUBIN a second time.
+      out.write_string(
+        "row_variant_label=" + variant.module_label.as_hex() + "\n",
+      )
+      out.write_string("row_variant_symbol=" + variant.symbol + "\n")
+      let launch = variant.launch
+      for
+        value in [
+          variant.maximum_token_rows,
+          variant.query_tile_rows,
+          launch.grid_x(),
+          launch.grid_y(),
+          launch.grid_z(),
+          launch.block_x(),
+          launch.block_y(),
+          launch.block_z(),
+          launch.shared_memory_bytes(),
+        ] {
+        out.write_string(value.to_string() + ":")
+      }
+      out.write_string("\n")
     }
   }
   @crypto.bytes_to_hex_string(@crypto.sha256(@utf8.encode(out.to_string())))

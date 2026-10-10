@@ -1,5 +1,16 @@
 # LunaFlux detailed implementation plan
 
+2026-10-10 further cleanup: reusable fused exporters no longer hash and parse
+their freshly serialized whole sidecars. Residual launch validation is direct.
+Row-variant startup consumes the declared module label; attention-route scope
+uses labels and geometry without serializing/hashing its CUBIN. LunaTile AOT
+lowering no longer rehashes its immutable outer plan or copies/hashes the
+embedded semantic program. Structural, memory and operand checks remain.
+Affected-package native tests pass 56/56 with the existing migration warning
+exclusions; worker/executor regressions pass another 251/251, and both local
+no-payload-rehash/token-step gates pass. This removes repeated
+CPU/startup/offline work and makes no new GPU throughput or deployment claim.
+
 2026-10-10 follow-up: Qwen source inspection now reads only bounded safetensors
 headers. Its declared tied-embedding contract selects reference-zero storage;
 the redundant physical head is ignored after shape/dtype/range checks, without

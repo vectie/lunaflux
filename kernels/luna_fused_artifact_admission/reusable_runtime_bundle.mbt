@@ -309,7 +309,8 @@ pub fn ReusableFusedRuntimeModuleInput::new(
 
 ///|
 /// Canonically packages a fixed-size set of heterogeneous production modules.
-/// The resulting bytes remain inert until admitted against their exact SHA-256.
+/// Inputs already own validated execution metadata. Serialize once; the receiver
+/// parses once. Do not hash and decode the newly serialized payload here.
 pub fn export_reusable_fused_runtime_bundle(
   model_content_sha256~ : String,
   model_plan_sha256~ : String,
@@ -452,14 +453,7 @@ pub fn export_reusable_fused_runtime_bundle(
       }
     }
   }
-  let canonical = @utf8.encode(out.to_string())
-  ignore(
-    admit_digest_pinned_reusable_fused_runtime_bundle(
-      canonical,
-      @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
-    ),
-  )
-  canonical
+  @utf8.encode(out.to_string())
 }
 
 ///|

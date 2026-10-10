@@ -7,6 +7,7 @@ pub struct ReusableFusedRuntimeRowVariant {
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
   priv module_bytes : Bytes
+  priv module_label : @luna_cuda_fused_parallel_aot.FusedParallelDigest
 } derive(Eq)
 
 ///|
@@ -16,6 +17,7 @@ pub fn ReusableFusedRuntimeRowVariant::new(
   function_symbol~ : String,
   launch~ : @launch_contract.AotLaunchDimensions,
   module_bytes~ : Bytes,
+  module_label_sha256? : String,
 ) -> ReusableFusedRuntimeRowVariant raise FusedArtifactAdmissionError {
   if maximum_token_rows < 2 ||
     maximum_token_rows > 1048576 ||
@@ -32,12 +34,19 @@ pub fn ReusableFusedRuntimeRowVariant::new(
     launch,
     module_bytes,
   )
+  // Construction may assign an AOT cache identity once. Receiving an existing
+  // variant consumes its declared label and never rehashes the module.
+  let module_label = match module_label_sha256 {
+    Some(label) => fused_deployment_digest(label)
+    None => fused_artifact_digest(module_bytes)
+  }
   {
     maximum_token_rows,
     query_tile_rows,
     symbol: function_symbol,
     launch,
     module_bytes,
+    module_label,
   }
 }
 
@@ -109,7 +118,7 @@ fn reusable_runtime_append_row_variant(
   out : StringBuilder,
   prefix : String,
   variant : ReusableFusedRuntimeRowVariant?,
-) -> Unit raise FusedArtifactAdmissionError {
+) -> Unit {
   out.write_string(
     prefix +
     "row_variant_count=" +
@@ -133,12 +142,7 @@ fn reusable_runtime_append_row_variant(
     out.write_string(prefix + key + "=" + value.to_string() + "\n")
   }
   out.write_string(prefix + "function_symbol=" + v.symbol + "\n")
-  out.write_string(
-    prefix +
-    "module_sha256=" +
-    fused_artifact_digest(v.module_bytes).as_hex() +
-    "\n",
-  )
+  out.write_string(prefix + "module_sha256=" + v.module_label.as_hex() + "\n")
   out.write_string(
     prefix + "module_hex=" + @crypto.bytes_to_hex_string(v.module_bytes) + "\n",
   )
@@ -169,7 +173,7 @@ fn reusable_runtime_read_row_variant(
     _ => raise InvalidFusedArtifact(Launch)
   }
   let symbol = reader.value(prefix + "function_symbol")
-  ignore(fused_deployment_digest(reader.value(prefix + "module_sha256")))
+  let module_label_sha256 = reader.value(prefix + "module_sha256")
   let bytes = fused_deployment_decode_hex(reader.value(prefix + "module_hex"))
   if bytes.is_empty() {
     raise MismatchedFusedArtifact(Module)
@@ -181,6 +185,7 @@ fn reusable_runtime_read_row_variant(
       function_symbol=symbol,
       launch~,
       module_bytes=bytes,
+      module_label_sha256~,
     ),
   )
 }
