@@ -44,14 +44,6 @@ async fn main {
   }
   @fs.mkdir(root)
   record(root, "mkdir", remote("mkdir " + root))
-  record(root, "tool", remote("sha256sum /usr/local/cuda-13.0/bin/nvcc"))
-  guard @fs.read_file(root + "/tool.stdout")
-    .text()
-    .has_prefix(
-      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1  ",
-    ) else {
-    fail("different AOT compiler")
-  }
   let source = config + "/aot/video_decode.cu"
   @shell.Cmd("scp", [
     "-o",
@@ -63,20 +55,6 @@ async fn main {
   ])
   .output()
   .check()
-  record(
-    root,
-    "source-remote",
-    remote("sha256sum " + root + "/video_decode.cu"),
-  )
-  record(
-    root,
-    "source-local",
-    @shell.Cmd("shasum", ["-a", "256", source]).output(),
-  )
-  guard @fs.read_file(root + "/source-remote.stdout").text().split(" ").next() ==
-    @fs.read_file(root + "/source-local.stdout").text().split(" ").next() else {
-    fail("source upload differs")
-  }
   // CPU-only compilation can overlap checkpoint loading; it performs no CUDA
   // admission or execution and stays within its own 2-GiB/no-swap cgroup.
   record(
@@ -102,20 +80,6 @@ async fn main {
   ])
   .output()
   .check()
-  record(
-    root,
-    "binary-remote",
-    remote("sha256sum " + root + "/video_decode.cubin"),
-  )
-  record(
-    root,
-    "binary-local",
-    @shell.Cmd("shasum", ["-a", "256", root + "/video_decode.cubin"]).output(),
-  )
-  guard @fs.read_file(root + "/binary-remote.stdout").text().split(" ").next() ==
-    @fs.read_file(root + "/binary-local.stdout").text().split(" ").next() else {
-    fail("cubin download differs")
-  }
   println(
     "shared whole-request VideoVAE AOT compiled; no decoder execution claimed",
   )

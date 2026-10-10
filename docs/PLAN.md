@@ -2239,6 +2239,17 @@ checks both GPUs are idle and retains per-rank memory/no-swap limits, bounded
 generation and terminal resource checks. The shared checkpoint build helper
 also no longer hashes uploaded source archives.
 
+The MiniMax request/audio/video AOT compilation and audio/video component
+runners likewise no longer checksum CUDA tools, uploaded sources, CUBINs,
+executables, or downloaded media outputs. The standalone checkpoint-index
+build helper no longer scans its uploaded archive. Audio upload and audio/video
+decode runners now take an explicit build directory without a binary-digest
+argument. Compiler/source cache identities remain offline metadata, not
+authentication scans. Successful copy/compile status, tensor geometry,
+memory/no-swap budgets, GPU exclusivity and deterministic release remain
+required for correct execution. This removes preparation work; it is not a
+measured inference-throughput improvement.
+
 The rebuilt `8ad3b691` DSpark run completed on .178/.179 at
 `/tmp/lunaflux-dspark-run-20261010-v4` (remote run roots
 `/tmp/lunaflux-dspark-real-20261010-v4`). The two user units ran from 14:54:45

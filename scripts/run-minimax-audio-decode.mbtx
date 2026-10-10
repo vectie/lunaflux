@@ -23,7 +23,7 @@ async fn record(root : String, name : String, result : @shell.Output) -> Unit {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, suffix, build, hash, config, aot] &&
+  guard @env.args() is [_, root, suffix, build, config, aot] &&
     root.has_prefix("/tmp/lunaflux-minimax-decode-") &&
     build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
     config.has_prefix("/tmp/lunaflux-minimax-audio-config-") &&
@@ -33,11 +33,9 @@ async fn main {
       !s.is_empty() &&
       s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
     }) &&
-    !suffix.contains("/") &&
-    hash.length() == 64 &&
-    hash.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
+    !suffix.contains("/") else {
     fail(
-      "NEW_LOCAL_DIRECTORY SUFFIX NEW_BUILD_ROOT BINARY_SHA LOCAL_CONFIG_DIRECTORY REMOTE_AOT_DIRECTORY",
+      "NEW_LOCAL_DIRECTORY SUFFIX NEW_BUILD_ROOT LOCAL_CONFIG_DIRECTORY REMOTE_AOT_DIRECTORY",
     )
   }
   @fs.mkdir(root)
@@ -57,15 +55,6 @@ async fn main {
   ])
   .output()
   .check()
-  let binary = @shell.Cmd("shasum", [
-    "-a",
-    "256",
-    root + "/minimax_checkpoint.exe",
-  ]).output()
-  record(root, "binary", binary)
-  guard binary.stdout().has_prefix(hash + "  ") else {
-    fail("wrong built decoder")
-  }
   let remote = "/tmp/lunaflux-minimax-decode-" + suffix
   for
     command in [
@@ -172,11 +161,6 @@ async fn main {
   ])
   .output()
   .check()
-  record(
-    root,
-    "waveform-hash",
-    @shell.Cmd("shasum", ["-a", "256", root + "/waveform.f32"]).output(),
-  )
   record(
     root,
     "journal",

@@ -1,3 +1,4 @@
+///|
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
@@ -5,42 +6,69 @@ import {
   "moonbitlang/core/env",
 }
 
+///|
 async fn main {
   guard @env.args() is [_, local_directory, remote_directory, commit, unit] else {
     fail("NEW_LOCAL_DIRECTORY NEW_REMOTE_DIRECTORY COMMIT USER_BUILD_UNIT")
   }
   guard local_directory.has_prefix("/tmp/lunaflux-index-gpu-") &&
     remote_directory.has_prefix("/tmp/lunaflux-index-gpu-") &&
-    !local_directory.contains(" ") && !remote_directory.contains(" ") &&
-    commit.length() == 40 && commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) &&
+    !local_directory.contains(" ") &&
+    !remote_directory.contains(" ") &&
+    commit.length() == 40 &&
+    commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) &&
     unit.has_prefix("lunaflux-index-build-") &&
-    unit.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '.')) else { fail("invalid build arguments") }
+    unit.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '.')) else {
+    fail("invalid build arguments")
+  }
   let node = "wlc003s@192.168.2.178"
   let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
   @fs.mkdir(local_directory)
   let archive = local_directory + "/source-" + commit + ".tar.gz"
   @fs.write_file(archive, b"", create_mode=CreateNew)
   let source = remote_directory + "/source"
-  let exported = @shell.Cmd("git", ["archive", "--format=tar.gz", "--output=" + archive, commit]).output()
+  let exported = @shell.Cmd("git", [
+    "archive",
+    "--format=tar.gz",
+    "--output=" + archive,
+    commit,
+  ]).output()
   exported.check()
   for command in ["mkdir " + remote_directory, "mkdir " + source] {
-    let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command]).output()
+    let result = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+    ]).output()
     result.check()
   }
-  let sent = @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, archive, node + ":" + remote_directory + "/source.tar.gz"]).output()
+  let sent = @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    archive,
+    node + ":" + remote_directory + "/source.tar.gz",
+  ]).output()
   sent.check()
   let previous = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b"
-  for command in [
-    "tar -xf " + remote_directory + "/source.tar.gz -C " + source,
-    "tar -xf " + previous + "/dependencies-clean.tar.gz -C " + source,
-    "sha256sum " + remote_directory + "/source.tar.gz",
-    "systemd-run --user --unit=" + unit +
-    " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" + source +
-    " /usr/bin/env MOON_HOME=" + previous + "/toolchain PATH=" + previous +
-    "/toolchain/bin:/usr/bin:/bin MOON_CC=gcc " + previous +
-    "/toolchain/bin/moon build cmd/checkpoint_index_probe --release --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2",
-  ] {
-    let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command]).output(max_output_bytes=1048576)
+  for
+    command in [
+      "tar -xf " + remote_directory + "/source.tar.gz -C " + source,
+      "tar -xf " + previous + "/dependencies-clean.tar.gz -C " + source,
+      "systemd-run --user --unit=" +
+      unit +
+      " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" +
+      source +
+      " /usr/bin/env MOON_HOME=" +
+      previous +
+      "/toolchain PATH=" +
+      previous +
+      "/toolchain/bin:/usr/bin:/bin MOON_CC=gcc " +
+      previous +
+      "/toolchain/bin/moon build cmd/checkpoint_index_probe --release --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2",
+    ] {
+    let result = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+    ]).output(max_output_bytes=1048576)
     println(result.stdout())
     println(result.stderr())
     result.check()

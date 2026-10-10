@@ -50,17 +50,6 @@ async fn main {
       "mkdir " + remote,
     ]).output(),
   )
-  let tools = @shell.Cmd("ssh", [
-    "-o", "BatchMode=yes", "-S", socket, node, "sha256sum /usr/local/cuda-13.0/bin/nvcc",
-  ]).output()
-  record(root, "tool", tools)
-  guard tools
-    .stdout()
-    .has_prefix(
-      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1  ",
-    ) else {
-    fail("different CUDA tool")
-  }
   let names = ["audio_input", "audio_front", "audio_tail"]
   for i in 0..<7 {
     names.push("audio_up_\{i}")
@@ -102,23 +91,6 @@ async fn main {
         ".cubin",
       ]).output(max_output_bytes=1048576),
     )
-    let hashes = @shell.Cmd("ssh", [
-      "-o",
-      "BatchMode=yes",
-      "-S",
-      socket,
-      node,
-      "sha256sum " +
-      remote +
-      "/" +
-      name +
-      ".cu " +
-      remote +
-      "/" +
-      name +
-      ".cubin",
-    ]).output()
-    record(root, name + "-hashes", hashes)
     @shell.Cmd("scp", [
       "-o",
       "BatchMode=yes",
@@ -129,11 +101,6 @@ async fn main {
     ])
     .output()
     .check()
-    record(
-      root,
-      name + "-download",
-      @shell.Cmd("shasum", ["-a", "256", root + "/" + name + ".cubin"]).output(),
-    )
     println("compiled " + name)
   }
   println("17 shared AudioVAE AOT modules compiled; no decoder execution claim")
