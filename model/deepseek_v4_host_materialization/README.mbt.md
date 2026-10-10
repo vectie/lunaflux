@@ -1,10 +1,15 @@
 # DeepSeek V4 host materialization
 
-This startup-only package joins authenticated streaming safetensors metadata to
+This startup-only package joins bounded streaming safetensors metadata to
 the exact DeepSeek V4 semantic weight binding and numeric-plan digests. Complete
 raw tensor payloads are copied directly into bounded segmented final arenas and
 owned by an explicitly invalidating release type. Release drops owner references
 without a security-only payload scrub.
+
+Loading consumes the construction-time immutable binding, numeric plan and
+manifest label. It does not repeat the numeric-manifest scan or reserialize and
+hash the tensor/layout manifest. Model/plan association, range and copy checks
+remain; supplied source labels are not runtime payload-authentication claims.
 
 The admitted header tags are exactly `BF16`, `F32`, `I64`, `I8`, `F8_E4M3`,
 and `F8_E8M0`. Quantized tensors can be projected to the separate bounded

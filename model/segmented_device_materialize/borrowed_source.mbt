@@ -68,9 +68,8 @@ pub fn validate_borrowed_source(
   layout : SegmentedDeviceLayout,
   provide~ : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
 ) -> Unit raise SegmentedDeviceMaterializationError {
-  if recompute_layout_digest(layout) != layout.digest {
-    raise LayoutDigestMismatch
-  }
+  // The opaque immutable layout was validated during planning. Exercise its
+  // live arena borrows, not a second canonical layout hash.
   for region in layout.regions {
     provide_borrowed_region(layout, region, provide, _ => ())
   }
@@ -94,8 +93,7 @@ fn[T] prepare_with_borrowed_resource(
   if layout.source_digest != expected_source_digest {
     raise SourceDigestMismatch
   }
-  if layout.digest != expected_layout_digest ||
-    recompute_layout_digest(layout) != layout.digest {
+  if layout.digest != expected_layout_digest {
     raise LayoutDigestMismatch
   }
   let resource = allocate(layout.device_arena_bytes)

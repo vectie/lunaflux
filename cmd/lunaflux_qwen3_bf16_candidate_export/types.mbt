@@ -88,7 +88,6 @@ priv struct Qwen3CandidateExportArguments {
   compute_minor : Int
   model_root : String
   config_locator : String
-  config_sha256 : String
   model_content_sha256 : String
   numeric_weights_locator : String
   numeric_weight_artifact_sha256 : String

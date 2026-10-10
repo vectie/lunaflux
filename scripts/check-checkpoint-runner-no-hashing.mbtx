@@ -16,6 +16,15 @@ async fn main {
       fail("unused configuration hashing reintroduced: " + path)
     }
   }
+  let minimax = @fs.read_file("cmd/minimax_checkpoint/main.mbt").text()
+  guard !minimax.contains("@crypto") else {
+    fail("MiniMax checkpoint configuration hashing reintroduced")
+  }
+  let minimax_label = @fs.read_file("cmd/minimax_checkpoint/source_label.mbt").text()
+  guard !minimax_label.contains("@crypto") &&
+    !minimax_label.contains("read_immutable_snapshot") else {
+    fail("MiniMax declared label must not scan config or inventory payloads")
+  }
   for path in ["tokenizer/json_file/load.mbt", "model/artifact/read.mbt"] {
     let source = @fs.read_file(path).text()
     guard !source.contains("@crypto") else {
@@ -28,6 +37,21 @@ async fn main {
   guard !h3_materializer.contains("canonical_manifest_digest(") &&
     !h3_materializer.contains("@crypto") else {
     fail("MiniMax materialization manifest rehash reintroduced")
+  }
+  for path in [
+    "model/deepseek_v4_host_materialization/materialize.mbt",
+    "model/segmented_device_materialize/prepare_core.mbt",
+    "model/segmented_device_materialize/borrowed_source.mbt",
+    "model/segmented_device_materialize/streamed_source.mbt",
+    "cmd/lunaflux_qwen3_bf16_candidate_export/model_prepare.mbt",
+    "cmd/lunaflux_qwen3_bf16_release_bind/model.mbt",
+  ] {
+    let source = @fs.read_file(path).text()
+    guard !source.contains("@crypto") &&
+      !source.contains("canonical_manifest_digest(") &&
+      !source.contains("recompute_layout_digest(") else {
+      fail("repeated loading/preparation hashing reintroduced: " + path)
+    }
   }
   let runners = [
     "build-glm-current-spark", "build-model-checkpoint-spark", "capture-checkpoint-index-gpu",

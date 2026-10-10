@@ -31,21 +31,10 @@ fn validate_manifest_replay(
     expected_digests.numeric_binding_digest {
     raise NumericBindingDigestMismatch
   }
-  manifest.numeric_plan.validate_weight_manifest(manifest.binding) catch {
-    _ => raise NumericPlanFailure
-  }
-  let recomputed = canonical_manifest_digest(
-    manifest.identity,
-    manifest.expected_digests,
-    manifest.binding,
-    manifest.inspection,
-    manifest.tensors,
-    manifest.arena_sizes,
-    manifest.total_tensor_bytes,
-    manifest.total_arena_bytes,
-  )
-  if recomputed != manifest.digest ||
-    manifest.digest != expected_manifest_digest {
+  // build_manifest already joined the immutable binding and numeric plan.
+  // Loading consumes that plan and label; it must not repeat the complete
+  // numeric scan or canonical manifest serialization/hash.
+  if manifest.digest != expected_manifest_digest {
     raise ManifestDigestMismatch
   }
 }
@@ -120,8 +109,9 @@ fn copy_layout_into_final_arenas(
 }
 
 ///|
-/// Reauthenticate every shard once and copy every complete raw tensor directly
-/// into its final bounded arena. No dtype interpretation occurs here.
+/// Copy selected raw tensors into final bounded arenas using the retained
+/// immutable plan. Header/range checks remain; no payload or manifest rehash
+/// occurs here, and no dtype interpretation is performed.
 pub fn materialize(
   root : @approved_fs.ApprovedRoot,
   manifest : DeepSeekV4HostManifest,

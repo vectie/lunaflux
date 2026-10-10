@@ -33,7 +33,7 @@ fn component(
 
 ///|
 async fn main {
-  guard @env.args() is [_, mode, root_name, .. tail] &&
+  guard @env.args() is [_, mode, root_input, .. tail] &&
     (
       (
         (
@@ -61,6 +61,7 @@ async fn main {
       "config|weight-plan|audio-config|video-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | export-video VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT OUTPUT_DIRECTORY | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | decode-video VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
     )
   }
+  let (root_name, supplied_label) = checkpoint_location(root_input)
   let root = @approved_fs.ApprovedRoot::open_absolute(root_name)
   defer root.close()
   let pipeline = @config.parse_pipeline_index(
@@ -72,9 +73,7 @@ async fn main {
   let metadata = @config.parse_transformer(
     @utf8.decode(document),
     variant=pipeline.variant(),
-    content_digest=@spec.ContentDigest::from_sha256(
-      @crypto.bytes_to_hex_string(@crypto.sha256(document)),
-    ),
+    content_digest=checkpoint_label(root, supplied_label, mode, tail),
     max_bytes=1048576,
     max_depth=16,
   )

@@ -12,8 +12,7 @@ fn validate_layout_replay(
   if layout.source_digest != expected_source_digest {
     raise SourceDigestMismatch
   }
-  if layout.digest != expected_layout_digest ||
-    recompute_layout_digest(layout) != layout.digest {
+  if layout.digest != expected_layout_digest {
     raise LayoutDigestMismatch
   }
   if source_arenas.length() != layout.source_arena_lengths.length() {

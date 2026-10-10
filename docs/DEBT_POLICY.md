@@ -97,6 +97,16 @@ rehashing them on load. The label comparison is a plan association, not a
 payload authentication claim. Allocation budgets, ranges, shapes and dtypes
 remain execution-correctness constraints.
 
+DeepSeek host materialization and all segmented device upload modes likewise
+consume their immutable construction-time plans without replaying numeric
+manifest validation or canonical layout hashing. Qwen candidate export/release
+binding parses config semantics without comparing a config payload checksum.
+MiniMax checkpoint startup also consumes a supplied identity label instead of
+hashing config bytes. `ROOT#label=HEX`, `LUNA_MODEL_CONTENT_LABEL`, or the first
+label in the selected component inventory supplies it. Only a 72-byte inventory
+prefix is read for that association; there is no config-hashing fallback and no
+claim that this label verifies tensor or configuration contents.
+
 The shared tokenizer-file loader and reference bundle follow this policy too:
 parse the bytes needed for execution without a separate config/tokenizer hash
 pass. Digest-shaped compatibility fields retain caller-supplied labels; they

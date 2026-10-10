@@ -5,6 +5,11 @@ arena from bounded segmented host arenas and ordered tensor regions. The plan
 binds the model identity, a caller-pinned source-manifest digest, source arena
 lengths, every source range, and every final device offset.
 
+The immutable layout is checked when constructed. Direct, borrowed and streamed
+upload consume its existing label without repeating canonical serialization or
+SHA-256. Labels associate plans; they do not authenticate payload bytes. Live
+arena lengths, device ranges, transfer outcomes and cleanup still get checked.
+
 Materialization allocates exactly once, validates every device region, and
 synchronously borrows each `FixedArray` range through the public device API.
 Host ownership is never transferred. Successful device allocations require an

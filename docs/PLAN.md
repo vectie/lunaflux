@@ -7,6 +7,22 @@ and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
 warning migrations are paused. Retain existing ownership guarantees and focused
 tests, but do not make new hardening work a prerequisite for model execution.
 
+Checkpoint hardening cleanup now also removes DeepSeek's repeated numeric
+manifest scan and manifest hash, all direct/borrowed/streamed segmented layout
+rehashes, and Qwen exporter/release config checksum comparisons. MiniMax startup
+consumes a declared identity rather than hashing transformer/config.json.
+Component execution uses the selected inventory's first 72 bytes; planning and
+export reuse a staged DENOISER/TEXT/AUDIO/VIDEO inventory label. Without an
+inventory, supply `VARIANT_ROOT#label=64_LOWERCASE_HEX` or
+`LUNA_MODEL_CONTENT_LABEL`. These are association labels, not authentication;
+there is no config-hashing fallback. Bounds, shapes/dtypes, cancellation,
+completion and resource release remain required. This is startup/preparation
+cleanup, not a new measured token/s result.
+The affected native matrix passes 65/65 with the existing toolchain-migration
+warning exclusions, including exact copying, failure cleanup, retained-label
+upload and inventory-prefix tests. The local no-hashing regression also passes;
+it remains a developer check, not an engine-startup prerequisite.
+
 DSpark verification plumbing now supports all-position learned egress, prepared
 sample vectors, tentative state save/restore in the existing plaintext rank
 protocol, and a pure greedy-prefix acceptance decision. The native paths require

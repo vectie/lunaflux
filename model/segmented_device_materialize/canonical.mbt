@@ -40,18 +40,3 @@ fn canonical_layout_digest(
   }
   { hex: @crypto.bytes_to_hex_string(hash.finalize()), }
 }
-
-///|
-fn recompute_layout_digest(
-  layout : SegmentedDeviceLayout,
-) -> SegmentedDeviceLayoutDigest {
-  canonical_layout_digest(
-    layout.source_identity,
-    layout.source_digest,
-    layout.alignment_bytes,
-    layout.device_arena_bytes,
-    layout.materialized_bytes,
-    layout.source_arena_lengths,
-    layout.regions,
-  )
-}

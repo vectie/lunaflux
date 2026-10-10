@@ -283,7 +283,6 @@ fn parse_qwen3_candidate_export_arguments(
     compute_minor,
     model_root,
     config_locator,
-    config_sha256,
     model_content_sha256,
     numeric_weights_locator,
     numeric_weight_artifact_sha256,

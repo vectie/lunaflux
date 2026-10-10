@@ -6,9 +6,8 @@ fn[T] prepare_with_streamed_resource(
   upload : (T) -> Unit raise SegmentedDeviceMaterializationError,
   close : (T) -> Unit raise @device.DeviceError,
 ) -> SegmentedResourcePreparation[T] raise SegmentedDeviceMaterializationError {
-  if recompute_layout_digest(layout) != layout.digest {
-    raise LayoutDigestMismatch
-  }
+  // Consume the validated immutable layout without serializing/hashing it
+  // again. Allocation-region validation below protects the actual copy.
   let resource = allocate(layout.device_arena_bytes)
   for region in layout.regions {
     validate(
