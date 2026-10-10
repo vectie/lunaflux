@@ -278,6 +278,17 @@ Completed diagnostic work:
 
 Required next boundaries, still open:
 
+Request-local cancellation now has an implementation on both generic serial
+coordinators, with GLM/DeepSeek adapters and socket/fake-device regressions for
+preparation, execution, commit, restore and subsequent distinct requests.
+Physical verification must use a freshly committed ARM binary, cancel one
+request, then complete another without reloading rank weights. Preserve real
+failure behavior, unpublished-token suppression, monotonic epochs, deterministic
+terminal context close and bounded/no-swap execution. CLI `--after-steps` counts
+ordinary submitted frames or speculative verification blocks, not internal
+restore/replay substeps or polling iterations. This replay control does not
+replace general serving cancellation or concurrent request scheduling.
+
 1. Extend original-tokenizer coverage beyond the independently matched corpus
    and establish complete-model real-weight references for the three models.
    MiniMax now has one independent 50-layer text-caption differential, but

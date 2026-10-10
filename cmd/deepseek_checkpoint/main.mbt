@@ -128,6 +128,12 @@ async fn main {
     )
   }
   // Reject mode/arguments before opening or hashing checkpoint payloads.
+  let (tail, cancellation) = @prompt_file.split_request_cancellation_options(
+    tail,
+  )
+  guard cancellation is None || mode.has_prefix("generate") else {
+    fail("request cancellation is only a generation control")
+  }
   let mode_valid = match (mode, tail.length()) {
     ("export", 1)
     | ("export-dspark", 1)
@@ -199,9 +205,16 @@ async fn main {
     "egress" | "egress-dspark" => run_egress(startup, root, tail)
     "ingress" => run_ingress(startup, root, tail, generate=false)
     "generate" | "generate-dspark" =>
-      run_ingress(startup, root, tail, generate=true)
+      run_ingress(startup, root, tail, generate=true, cancellation~)
     "generate-reference-dspark" =>
-      run_ingress(startup, root, tail, generate=true, speculate=false)
+      run_ingress(
+        startup,
+        root,
+        tail,
+        generate=true,
+        speculate=false,
+        cancellation~,
+      )
     "generate-sequence-reference-dspark" =>
       run_ingress(
         startup,
@@ -210,9 +223,17 @@ async fn main {
         generate=true,
         speculate=false,
         sequence=true,
+        cancellation~,
       )
     "generate-sequence-dspark" =>
-      run_ingress(startup, root, tail, generate=true, sequence=true)
+      run_ingress(
+        startup,
+        root,
+        tail,
+        generate=true,
+        sequence=true,
+        cancellation~,
+      )
     _ => fail("invalid mode")
   }
 }

@@ -32,6 +32,8 @@ pub struct TwoRankDecoderPipeline {
   priv mut step_failed : Bool
   priv mut token : Int
   priv mut busy : Bool
+  priv mut cancel_requested : Bool
+  priv mut cancel_retired : Bool
   priv mut state : PipelineState
 }
 
@@ -75,6 +77,8 @@ pub fn TwoRankDecoderPipeline::new(
     step_failed: false,
     token: 0,
     busy: false,
+    cancel_requested: false,
+    cancel_retired: false,
     state: Ready,
   }
 }
@@ -91,6 +95,7 @@ pub fn TwoRankDecoderPipeline::begin(
 ) -> Unit raise {
   guard !self.busy &&
     self.state is Ready &&
+    (!self.cancel_requested || self.cancel_retired) &&
     epoch > self.epoch &&
     local_now_millis >= self.last_tick &&
     local_now_millis <= 0xffffffffffffffffUL - self.timeout_millis else {
@@ -106,6 +111,8 @@ pub fn TwoRankDecoderPipeline::begin(
   self.local_ready = false
   self.remote_ready = false
   self.activation_done = false
+  self.cancel_requested = false
+  self.cancel_retired = false
   self.state = Preparing
 }
 
@@ -116,6 +123,12 @@ pub async fn TwoRankDecoderPipeline::progress(
   self : Self,
   local_now_millis~ : UInt64,
 ) -> Bool {
+  if !self.busy &&
+    self.state is Ready &&
+    self.cancel_requested &&
+    !self.cancel_retired {
+    self.release_request(local_now_millis~)
+  }
   guard !self.busy &&
     self.state is (Preparing | Executing | Committing | Releasing) else {
     raise @frame.SerialDecoderError::Busy
@@ -184,6 +197,17 @@ pub async fn TwoRankDecoderPipeline::progress(
         return false
       }
       self.ingress.commit(pipeline_failed=self.step_failed)
+      if self.cancel_requested {
+        // The device step and peer commit have retired. Retire the host lease
+        // without publishing its sampled token; cancellation is not rollback.
+        self.frame.retire_stage(execution_failed=self.step_failed)
+        guard !self.step_failed else {
+          raise @control.StageControlError::Failed
+        }
+        self.state = Ready
+        self.start_request_release(local_now_millis)
+        return false
+      }
       ignore(
         self.frame.complete(
           sampled_token=self.token,
@@ -196,6 +220,7 @@ pub async fn TwoRankDecoderPipeline::progress(
     Releasing =>
       if self.remote.poll(local_now_millis~) {
         self.frame.release_request()
+        self.cancel_retired = self.cancel_requested
         self.state = Ready
         true
       } else {
@@ -209,7 +234,7 @@ pub async fn TwoRankDecoderPipeline::progress(
 pub fn TwoRankDecoderPipeline::completion(
   self : Self,
 ) -> @wire.ValidatedCompletionFrame raise {
-  guard self.state is (Ready | Failed) else {
+  guard !self.cancel_requested && self.state is (Ready | Failed) else {
     raise @frame.SerialDecoderError::Busy
   }
   self.frame.completion()
@@ -228,12 +253,40 @@ pub fn TwoRankDecoderPipeline::release_request(
     local_now_millis <= 0xffffffffffffffffUL - self.timeout_millis else {
     raise @frame.SerialDecoderError::Busy
   }
+  self.start_request_release(local_now_millis)
+}
+
+///|
+fn TwoRankDecoderPipeline::start_request_release(
+  self : Self,
+  now : UInt64,
+) -> Unit raise {
   self.state = Failed
   self.ingress.release_request()
-  self.remote.release_request(local_now_millis~)
-  self.last_tick = local_now_millis
-  self.deadline = local_now_millis + self.timeout_millis
+  self.remote.release_request(local_now_millis=now)
+  self.last_tick = now
+  self.deadline = now + self.timeout_millis
   self.state = Releasing
+}
+
+///|
+/// Request-local cooperative cancellation. It is safe while progress awaits
+/// I/O: this only sets a scalar flag, never interrupts a leased DMA/queue. Keep
+/// polling until request_cancelled() is true; no replacement request may begin
+/// before both rank releases retire. A real execution/transport error remains
+/// terminal. Cancellation cannot retract output published before this call.
+pub fn TwoRankDecoderPipeline::cancel_request(self : Self) -> Unit raise {
+  guard self.epoch > 0UL &&
+    self.state is (Ready | Preparing | Executing | Committing | Releasing) else {
+    raise @frame.SerialDecoderError::Busy
+  }
+  self.cancel_requested = true
+}
+
+///|
+/// True only after successful cancellation has retired both request owners.
+pub fn TwoRankDecoderPipeline::request_cancelled(self : Self) -> Bool {
+  self.state is Ready && self.cancel_retired
 }
 
 ///|

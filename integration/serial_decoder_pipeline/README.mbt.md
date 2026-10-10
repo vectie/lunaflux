@@ -12,6 +12,21 @@ Local or peer failure poisons the entire step. Close control, drain activation,
 then close rank queues/ports. This implementation has two pipeline stages, not
 tensor parallelism or an arbitrary topology scheduler.
 
+`cancel_request()` cancels the active request without closing resident weights,
+queues or transport. `progress()` drains already-issued work and the peer commit,
+discards unpublished output and releases both request frontiers. Reuse is allowed
+only after `request_cancelled()` is true. Cancellation cannot retract tokens
+already published, and it cannot turn a real execution failure into success.
+The verification coordinator uses the same rule, additionally draining any
+already-issued restore without submitting another accepted-prefix replay.
+
+GLM and DeepSeek generation adapters accept the explicit replay suffix
+`--cancel-request INDEX --after-steps COUNT`. It is parsed once before CUDA;
+COUNT counts submitted ordinary frames or verification blocks, not polling
+iterations, generated tokens or internal restore/replay substeps. This optional
+control is not a default serving limit. A cancelled request writes `cancelled.txt`
+instead of its final `tokens.txt`; previously published completions remain.
+
 When a verification coordinator shares the same rank/client owners, its
 completed request release retires those owners but not this coordinator's
 publication frame. Call `retire_publication()` after awaiting verification

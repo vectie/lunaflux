@@ -132,6 +132,10 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
     },
   )
   defer (server.close() catch { _ => () })
+  let cancel_in_activation = Ref(false)
+  let resident_pipeline : Ref[@serial_pipeline.TwoRankDecoderPipeline?] = Ref(
+    None,
+  )
   let pipeline = @serial_pipeline.TwoRankDecoderPipeline::new(
     serial_host(),
     ingress,
@@ -141,10 +145,26 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
     begin_activation=(epoch, rows, now) => {
       sender.begin(epoch~, live_rows=rows, local_now_millis=now)
     },
-    poll_activation=now => sender.poll(local_now_millis=now),
+    poll_activation=now => {
+      if cancel_in_activation.val {
+        guard resident_pipeline.val is Some(owner) else {
+          fail("missing pipeline")
+        }
+        owner.cancel_request()
+        cancel_in_activation.val = false
+      }
+      sender.poll(local_now_millis=now)
+    },
     close_activation=() => sender.close(),
   )
+  resident_pipeline.val = Some(pipeline)
   defer (pipeline.close() catch { _ => () })
+  try pipeline.cancel_request() catch {
+    @serial_frame.SerialDecoderError::Busy => ()
+    error => raise error
+  } noraise {
+    _ => fail("cancelled a session without any request")
+  }
   let enqueued = enqueues()
   let generation : Ref[@serial_generation.SerialGreedyGeneration?] = Ref(None)
   let completion_owner = @wire.CompletionFrameBuffer::new(
@@ -309,10 +329,101 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
   assert_eq(remote_host.processed_tokens(), 0)
   assert_eq(live_resources(), resident_resources)
   assert_eq(enqueues() - enqueued, 12UL)
+  // Four cancellation boundaries reuse the same queues and real socket pair:
+  // preparing, inside asynchronous activation polling, awaiting peer commit,
+  // and after a completion was already published. Every cancelled request is
+  // followed by a distinct normal zero-position prefill on the same resources.
+  for step in 7..<=14 {
+    let cancelling = step % 2 == 1
+    let sample = 6
+    context.copy_from_fixed_host(samples, [6, 0, 0, 0], 0L, 0L, 4L)
+    let (_, plan, writer) = serial_wire_plan(step.to_uint64() + 100UL)
+    pipeline.begin(plan, writer, epoch=step.to_uint64(), local_now_millis=0UL)
+    assert_false(pipeline.request_cancelled())
+    let mut issued = false
+    if step == 7 {
+      begin_allocations()
+      pipeline.cancel_request()
+      pipeline.cancel_request()
+      assert_eq(end_allocations(), 0UL)
+      issued = true
+    } else if step == 9 {
+      cancel_in_activation.val = true
+    }
+    let mut done = false
+    for _ in 0..<512 {
+      if incoming_active.val && !incoming_done.val {
+        incoming_done.val = receiver.poll(local_now_millis=0UL)
+      }
+      server.poll(local_now_millis=0UL)
+      if step == 11 && !issued && remote_host.processed_tokens() > 0 {
+        pipeline.cancel_request()
+        issued = true
+      }
+      if pipeline.progress(local_now_millis=0UL) {
+        done = true
+        break
+      }
+      assert_false(pipeline.request_cancelled())
+      // Neither an unfinished cancellation nor an unfinished step permits
+      // request replacement, even when ingress has already retired locally.
+      try pipeline.begin(plan, writer, epoch=99UL, local_now_millis=0UL) catch {
+        @serial_frame.SerialDecoderError::Busy => ()
+        error => raise error
+      } noraise {
+        _ => fail("request reused before remote retirement")
+      }
+      @async.sleep(1)
+    }
+    assert_true(done)
+    if step == 13 {
+      assert_eq(pipeline.completion().entry(0).token_id(), sample)
+      pipeline.cancel_request()
+      pipeline.cancel_request()
+      assert_false(pipeline.request_cancelled())
+      done = false
+      for _ in 0..<512 {
+        server.poll(local_now_millis=0UL)
+        if pipeline.progress(local_now_millis=0UL) {
+          done = true
+          break
+        }
+        @async.sleep(1)
+      }
+      assert_true(done)
+    }
+    if cancelling {
+      assert_true(pipeline.request_cancelled())
+      pipeline.cancel_request() // Idempotent after completed retirement.
+      try pipeline.completion() catch {
+        @serial_frame.SerialDecoderError::Busy => ()
+        error => raise error
+      } noraise {
+        _ => fail("cancelled request published a token")
+      }
+    } else {
+      assert_eq(pipeline.completion().entry(0).token_id(), sample)
+      pipeline.release_request(local_now_millis=0UL)
+      done = false
+      for _ in 0..<512 {
+        server.poll(local_now_millis=0UL)
+        if pipeline.progress(local_now_millis=0UL) {
+          done = true
+          break
+        }
+        @async.sleep(1)
+      }
+      assert_true(done)
+    }
+    assert_eq(local_host.processed_tokens(), 0)
+    assert_eq(remote_host.processed_tokens(), 0)
+    assert_eq(live_resources(), resident_resources)
+  }
+  assert_eq(enqueues() - enqueued, 28UL)
   // A terminal-stage numerical failure invalidates every rank's retained state.
   context.copy_from_fixed_host(samples, [255, 255, 255, 255], 0L, 0L, 4L)
   let (submitted, plan, writer) = serial_wire_plan(4UL)
-  pipeline.begin(plan, writer, epoch=7UL, local_now_millis=0UL)
+  pipeline.begin(plan, writer, epoch=15UL, local_now_millis=0UL)
   let mut failed = false
   for _ in 0..<512 {
     if incoming_active.val && !incoming_done.val {

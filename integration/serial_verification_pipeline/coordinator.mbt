@@ -10,6 +10,7 @@ pub fn TwoRankGreedyVerification::begin(
 ) -> Unit raise {
   guard !self.busy &&
     self.phase is (Ready | Committed) &&
+    (!self.cancel_requested || self.cancel_retired) &&
     epoch > self.epoch &&
     epoch < 0xffffffffffffffffUL &&
     remaining_new_tokens > 0 &&
@@ -50,6 +51,8 @@ pub fn TwoRankGreedyVerification::begin(
   self.replaying = false
   self.failed = false
   self.decision = None
+  self.cancel_requested = false
+  self.cancel_retired = false
   self.phase = Preparing
 }
 
@@ -59,7 +62,9 @@ pub fn TwoRankGreedyVerification::begin(
 pub fn TwoRankGreedyVerification::result(
   self : Self,
 ) -> @greedy.VerifiedGreedyPrefix raise {
-  guard self.phase is Committed && self.decision is Some(decision) else {
+  guard !self.cancel_requested &&
+    self.phase is Committed &&
+    self.decision is Some(decision) else {
     raise @control.StageControlError::InvalidState
   }
   decision
@@ -94,18 +99,54 @@ pub fn TwoRankGreedyVerification::release_request(
   local_now_millis~ : UInt64,
 ) -> Unit raise {
   guard !self.busy &&
-    self.phase is Committed &&
+    (
+      self.phase is Committed ||
+      (self.phase is Ready && self.cancel_requested && !self.cancel_retired)
+    ) &&
     local_now_millis >= self.tick &&
     local_now_millis <= 0xffffffffffffffffUL - self.timeout else {
     raise @control.StageControlError::InvalidState
   }
+  self.start_request_release(local_now_millis)
+}
+
+///|
+fn TwoRankGreedyVerification::start_request_release(
+  self : Self,
+  now : UInt64,
+) -> Unit raise {
   self.phase = Failed
   self.ingress.release_request()
-  self.remote.release_request(local_now_millis~)
-  self.tick = local_now_millis
-  self.deadline = local_now_millis + self.timeout
+  self.remote.release_request(local_now_millis=now)
+  self.tick = now
+  self.deadline = now + self.timeout
   self.decision = None
   self.phase = Releasing
+}
+
+///|
+/// Cancel the request, not the resident verifier or weights. This scalar flag
+/// is safe while progress awaits I/O. Drain the current transaction and any
+/// already-issued restore before releasing both rank frontiers. No tentative
+/// target token may escape; genuine execution failures still poison the ranks.
+pub fn TwoRankGreedyVerification::cancel_request(self : Self) -> Unit raise {
+  guard self.epoch > 0UL &&
+    self.phase
+    is (Ready
+    | Preparing
+    | Executing
+    | Restoring
+    | Committing
+    | Committed
+    | Releasing) else {
+    raise @control.StageControlError::InvalidState
+  }
+  self.cancel_requested = true
+}
+
+///|
+pub fn TwoRankGreedyVerification::request_cancelled(self : Self) -> Bool {
+  self.phase is Ready && self.cancel_retired
 }
 
 ///|

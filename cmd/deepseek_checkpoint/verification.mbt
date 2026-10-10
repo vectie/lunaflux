@@ -50,6 +50,8 @@ async fn generate_speculative(
   verifier : @verification.TwoRankGreedyVerification,
   clock : @clock.MonotonicClock,
   first_epoch~ : UInt64,
+  previous_submitted_steps? : Int = 0,
+  cancel_after_steps? : Int = 0,
 ) -> UInt64 {
   let proposal = FixedArray::make(startup.rows, 0)
   let target = FixedArray::make(startup.rows, 0)
@@ -78,8 +80,19 @@ async fn generate_speculative(
       remaining_new_tokens=owner.remaining_new_tokens(),
       local_now_millis=clock.now_millis(),
     )
+    if cancel_after_steps > 0 &&
+      previous_submitted_steps + blocks + 1 >= cancel_after_steps {
+      verifier.cancel_request()
+    }
     while !verifier.progress(local_now_millis=clock.now_millis()) {
       @async.pause()
+    }
+    if verifier.request_cancelled() {
+      owner.cancel()
+      println(
+        "verification_cancelled: blocks=\{blocks + 1} request_released=true weights_retained=true",
+      )
+      return verifier.last_epoch() + 1UL
     }
     let receipt = verifier.result()
     if receipt.rollback_required() {

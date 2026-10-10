@@ -3,6 +3,12 @@ pub async fn TwoRankGreedyVerification::progress(
   self : Self,
   local_now_millis~ : UInt64,
 ) -> Bool {
+  if !self.busy &&
+    self.cancel_requested &&
+    !self.cancel_retired &&
+    self.phase is (Ready | Committed) {
+    self.release_request(local_now_millis~)
+  }
   guard !self.busy &&
     self.phase is (Preparing | Executing | Restoring | Committing | Releasing) else {
     raise @control.StageControlError::InvalidState
@@ -24,6 +30,7 @@ pub async fn TwoRankGreedyVerification::progress(
         return false
       }
       self.phase = Ready
+      self.cancel_retired = self.cancel_requested
       true
     }
     Preparing => {
@@ -68,7 +75,7 @@ pub async fn TwoRankGreedyVerification::progress(
       if self.local_ready && self.activation_done && self.remote_ready {
         self.failed = self.ingress.execution_failed() ||
           self.remote.execution_failed()
-        if !self.failed && !self.replaying {
+        if !self.failed && !self.replaying && !self.cancel_requested {
           guard self.remote.output_rows() == self.live else {
             raise @control.StageControlError::InvalidMessage
           }
@@ -109,6 +116,12 @@ pub async fn TwoRankGreedyVerification::progress(
         self.ingress.rollback_retired()
         self.save_begun = false
         self.save_done = false
+        if self.cancel_requested {
+          // Restoration already retired on both ranks. Do not issue an
+          // accepted-prefix replay for a request whose result is discarded.
+          self.start_request_release(local_now_millis)
+          return false
+        }
         guard self.decision is Some(decision) else {
           raise @control.StageControlError::InvalidState
         }
@@ -140,6 +153,11 @@ pub async fn TwoRankGreedyVerification::progress(
         self.save_done = false
       }
       self.phase = if self.failed { Failed } else { Committed }
+      if self.cancel_requested {
+        guard !self.failed else { raise @control.StageControlError::Failed }
+        self.start_request_release(local_now_millis)
+        return false
+      }
       true
     }
     _ => raise @control.StageControlError::InvalidState

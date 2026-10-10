@@ -234,6 +234,7 @@ async fn run_ingress(
   generate~ : Bool,
   speculate? : Bool = true,
   sequence? : Bool = false,
+  cancellation? : @generation.SerialRequestCancellation? = None,
 ) -> Unit {
   let speculative_enabled = startup.dspark && speculate
   let count = @string.parse_int(arguments[5])
@@ -290,6 +291,9 @@ async fn run_ingress(
     Some(prompts)
   } else {
     None
+  }
+  if cancellation is Some(plan) {
+    plan.validate_request_count(if sequence { count } else { 1 })
   }
   if prepared is Some(_) {
     frame_root.close()
@@ -418,6 +422,10 @@ async fn run_ingress(
           stop~,
           output_directory=destination,
           first_epoch=next_epoch,
+          cancel_after_steps=match cancellation {
+            Some(plan) => plan.after_steps_for(index)
+            None => 0
+          },
         )
         println("request_retired: index=\{index} next_epoch=\{next}")
         continue next

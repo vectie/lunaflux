@@ -10,6 +10,16 @@ claims and do not close those five phase gates.
 
 ## Current checkpoint execution — 2026-10-11
 
+Retained-weight request cancellation is now implemented in the model-neutral
+ordinary and verification coordinators and connected to GLM/DeepSeek generation.
+It drains issued work, suppresses unpublished output and releases both request
+frontiers without closing the rank session. Verification cancellation also
+drains an issued restore without starting another accepted-prefix replay.
+The explicit CLI replay suffix selects a request and submitted-transaction
+count once before CUDA; it adds no default poll ceiling or payload hashing.
+Fresh commit-built two-host cancellation followed by the next request remains
+to be verified. This is not concurrent serving or three-model completion.
+
 The two-node remote startup envelope no longer SHA-hashes both rank frames or
 emits a frame checksum. It reuses the supplied deployment association label;
 receive ignores the outer and embedded legacy checksum fields. Replacement no

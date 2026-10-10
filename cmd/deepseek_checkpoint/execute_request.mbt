@@ -39,6 +39,7 @@ async fn execute_ingress_request(
   stop~ : Int,
   output_directory~ : String,
   first_epoch~ : UInt64,
+  cancel_after_steps? : Int = 0,
 ) -> UInt64 {
   let limits = worker_limits(startup)
   let inference = inference_limits(startup)
@@ -50,6 +51,7 @@ async fn execute_ingress_request(
   let speculative : Ref[@generation.SpeculativeGreedyGeneration?] = Ref(None)
   let generation_start = clock.now_millis()
   let mut next_epoch = first_epoch
+  let mut submitted_steps = 0
   for index in 0..<count {
     let input = match prepared {
       Some(prompt) => prompt.frame_bytes(index)
@@ -71,10 +73,25 @@ async fn execute_ingress_request(
       epoch=next_epoch,
       local_now_millis=clock.now_millis(),
     )
+    submitted_steps += 1
+    if cancel_after_steps > 0 && submitted_steps >= cancel_after_steps {
+      pipeline.cancel_request()
+    }
     while !pipeline.progress(local_now_millis=clock.now_millis()) {
       @async.pause()
     }
     next_epoch += 1UL
+    if pipeline.request_cancelled() {
+      @fs.write_file(
+        output_directory + "/cancelled.txt",
+        "request_cancelled=true\n",
+        create_mode=CreateNew,
+      )
+      println(
+        "request_cancelled: submitted_steps=\{submitted_steps} request_released=true weights_retained=true",
+      )
+      return next_epoch
+    }
     let completion = pipeline.completion()
     completion.copy_to(output, destination_offset=0)
     @fs.write_file(
@@ -136,6 +153,8 @@ async fn execute_ingress_request(
       session,
       clock,
       first_epoch=next_epoch,
+      previous_submitted_steps=submitted_steps,
+      cancel_after_steps~,
     )
     pipeline.retire_publication()
     verification_released = true
@@ -149,18 +168,37 @@ async fn execute_ingress_request(
         epoch=next_epoch,
         local_now_millis=clock.now_millis(),
       )
+      submitted_steps += 1
+      if cancel_after_steps > 0 && submitted_steps >= cancel_after_steps {
+        pipeline.cancel_request()
+      }
       while !pipeline.progress(local_now_millis=clock.now_millis()) {
         @async.pause()
       }
       next_epoch += 1UL
+      if pipeline.request_cancelled() {
+        owner.cancel()
+        break
+      }
       owner.accept(pipeline.completion())
     }
   }
-  if !verification_released {
+  let cancelled = pipeline.request_cancelled() ||
+    (speculative.val is Some(owner) && owner.finish_reason() is Cancelled)
+  if !verification_released && !cancelled {
     pipeline.release_request(local_now_millis=clock.now_millis())
     while !pipeline.progress(local_now_millis=clock.now_millis()) {
       @async.pause()
     }
+  }
+  if cancelled {
+    @fs.write_file(
+      output_directory + "/cancelled.txt",
+      "request_cancelled=true\n",
+      create_mode=CreateNew,
+    )
+    println("request_cancelled: request_released=true weights_retained=true")
+    return next_epoch
   }
   if generation.val is Some(owner) {
     write_generated(

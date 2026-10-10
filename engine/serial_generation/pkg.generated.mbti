@@ -45,6 +45,15 @@ pub fn SerialGreedyGeneration::next_decode(Self) -> @worker_wire.ValidatedPlanFr
 pub fn SerialGreedyGeneration::token_at(Self, Int) -> Int raise SerialGenerationError
 pub fn SerialGreedyGeneration::token_count(Self) -> Int
 
+pub struct SerialRequestCancellation {
+  // private fields
+} derive(Eq)
+pub fn SerialRequestCancellation::after_steps_for(Self, Int) -> Int
+pub fn SerialRequestCancellation::equal(Self, Self) -> Bool
+pub fn SerialRequestCancellation::new(request_index~ : Int, after_submitted_steps~ : Int) -> Self raise SerialGenerationError
+pub fn SerialRequestCancellation::not_equal(Self, Self) -> Bool
+pub fn SerialRequestCancellation::validate_request_count(Self, Int) -> Unit raise SerialGenerationError
+
 pub struct SpeculativeGreedyGeneration {
   // private fields
 }

@@ -51,6 +51,8 @@ pub struct TwoRankGreedyVerification {
   priv mut replaying : Bool
   priv mut failed : Bool
   priv mut decision : @greedy.VerifiedGreedyPrefix?
+  priv mut cancel_requested : Bool
+  priv mut cancel_retired : Bool
 }
 
 ///|
@@ -116,5 +118,7 @@ pub fn TwoRankGreedyVerification::new(
     replaying: false,
     failed: false,
     decision: None,
+    cancel_requested: false,
+    cancel_retired: false,
   }
 }

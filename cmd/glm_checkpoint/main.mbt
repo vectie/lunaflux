@@ -123,6 +123,12 @@ async fn main {
     )
   }
   // Reject mode/arguments before opening or hashing checkpoint payloads.
+  let (tail, cancellation) = @prompt_file.split_request_cancellation_options(
+    tail,
+  )
+  guard cancellation is None || mode.has_prefix("generate") else {
+    fail("request cancellation is only a generation control")
+  }
   let mode_valid = match (mode, tail.length()) {
     ("export", 1)
     | ("egress", 4)
@@ -175,9 +181,16 @@ async fn main {
     }
     "egress" => run_egress(startup, root, tail)
     "ingress" => run_ingress(startup, root, tail, generate=false)
-    "generate" => run_ingress(startup, root, tail, generate=true)
+    "generate" => run_ingress(startup, root, tail, generate=true, cancellation~)
     "generate-sequence" =>
-      run_ingress(startup, root, tail, generate=true, sequence=true)
+      run_ingress(
+        startup,
+        root,
+        tail,
+        generate=true,
+        sequence=true,
+        cancellation~,
+      )
     _ => fail("invalid mode")
   }
 }

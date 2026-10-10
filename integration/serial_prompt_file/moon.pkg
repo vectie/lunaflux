@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/engine/worker_protocol" @protocol,
   "vectie/lunaflux/engine/worker_wire" @wire,
   "vectie/lunaflux/engine/serial_prompt_frames" @prompt,
+  "vectie/lunaflux/engine/serial_generation" @generation,
   "vectie/lunaflux/runtime/approved_fs",
 }
 

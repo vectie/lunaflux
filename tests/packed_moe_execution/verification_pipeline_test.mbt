@@ -47,6 +47,7 @@ async fn run_verification_pipeline_case(
   failure? : Bool = false,
   fail_replay? : Bool = false,
   reuse? : Bool = false,
+  cancel_at? : Int = -1,
 ) -> Unit {
   device_fixture_lane.acquire()
   defer device_fixture_lane.release()
@@ -196,6 +197,10 @@ async fn run_verification_pipeline_case(
   )
   defer (server.close() catch { _ => () })
   let closed_state = Ref(false)
+  let cancel_in_activation = Ref(cancel_at == 1)
+  let resident_verifier : Ref[@verify_pipeline.TwoRankGreedyVerification?] = Ref(
+    None,
+  )
   let coordinator = @verify_pipeline.TwoRankGreedyVerification::new(
     ingress,
     client,
@@ -209,11 +214,27 @@ async fn run_verification_pipeline_case(
       closed_state.val = true
     },
     begin_activation=(_, _, _) => (),
-    poll_activation=_ => true,
+    poll_activation=_ => {
+      if cancel_in_activation.val {
+        guard resident_verifier.val is Some(owner) else {
+          fail("missing verifier")
+        }
+        owner.cancel_request()
+        cancel_in_activation.val = false
+      }
+      true
+    },
     close_activation=() => (),
     stop_tokens=if stop < 0 { [] } else { [stop] },
   )
+  resident_verifier.val = Some(coordinator)
   defer (coordinator.close() catch { _ => () })
+  try coordinator.cancel_request() catch {
+    @stage_control.StageControlError::InvalidState => ()
+    error => raise error
+  } noraise {
+    _ => fail("cancelled a verifier without a request")
+  }
   let (_, plan, _) = serial_wire_plan(7UL, position=2, tokens=[4, 5, 6])
   coordinator.begin(
     plan,
@@ -221,8 +242,17 @@ async fn run_verification_pipeline_case(
     remaining_new_tokens=remaining,
     local_now_millis=0UL,
   )
+  let mut cancellation_issued = false
+  if cancel_at == 0 {
+    begin_allocations()
+    coordinator.cancel_request()
+    coordinator.cancel_request()
+    assert_eq(end_allocations(), 0UL)
+    cancellation_issued = true
+  }
   let mut retired = false
   let mut replay_failed = false
+  let mut cancellation_failed = false
   for _ in 0..<512 {
     if fail_replay {
       server.poll(local_now_millis=0UL) catch {
@@ -234,7 +264,24 @@ async fn run_verification_pipeline_case(
     } else {
       server.poll(local_now_millis=0UL)
     }
-    if coordinator.progress(local_now_millis=0UL) {
+    if !cancellation_issued &&
+      (
+        (cancel_at == 2 && local_restores.val > 0) ||
+        (cancel_at == 3 && remote_host.processed_tokens() > 2)
+      ) {
+      coordinator.cancel_request()
+      cancellation_issued = true
+    }
+    let done = coordinator.progress(local_now_millis=0UL) catch {
+      error => {
+        if failure && cancel_at >= 0 {
+          cancellation_failed = true
+          break
+        }
+        raise error
+      }
+    }
+    if done {
       retired = true
       break
     }
@@ -256,13 +303,31 @@ async fn run_verification_pipeline_case(
       _ => fail("failed replay published tentative tokens")
     }
   } else if failure {
-    assert_true(retired)
+    assert_true(if cancel_at >= 0 { cancellation_failed } else { retired })
+    assert_false(coordinator.request_cancelled())
     assert_true(coordinator.is_failed())
     assert_true(local_host.is_faulted())
     assert_true(remote_host.is_faulted())
     assert_eq(committed_effects.val, 0)
     assert_eq(local_restores.val, 0)
     assert_eq(remote_restores.val, 0)
+  } else if cancel_at >= 0 && cancel_at < 4 {
+    assert_true(retired)
+    assert_true(coordinator.request_cancelled())
+    assert_false(coordinator.is_failed())
+    assert_eq(local_host.processed_tokens(), 0)
+    assert_eq(remote_host.processed_tokens(), 0)
+    assert_eq(local_runs.val, 2) // No rejected-prefix replay after cancellation.
+    assert_eq(remote_runs.val, 2)
+    assert_eq(local_restores.val, if cancel_at == 2 { 1 } else { 0 })
+    assert_eq(remote_restores.val, if cancel_at == 2 { 1 } else { 0 })
+    coordinator.cancel_request()
+    try coordinator.result() catch {
+      @stage_control.StageControlError::InvalidState => ()
+      error => raise error
+    } noraise {
+      _ => fail("cancelled verification exposed target tokens")
+    }
   } else {
     assert_true(retired)
     assert_false(coordinator.is_failed())
@@ -303,23 +368,31 @@ async fn run_verification_pipeline_case(
     }
   }
   if !failure && !fail_replay {
-    coordinator.release_request(local_now_millis=0UL)
+    if cancel_at == 4 {
+      coordinator.cancel_request()
+      coordinator.cancel_request()
+    } else if !coordinator.request_cancelled() {
+      coordinator.release_request(local_now_millis=0UL)
+    }
     try coordinator.result() catch {
       @stage_control.StageControlError::InvalidState => ()
       error => raise error
     } noraise {
       _ => fail("released request retained readable target tokens")
     }
-    let mut released = false
-    for _ in 0..<512 {
-      server.poll(local_now_millis=0UL)
-      if coordinator.progress(local_now_millis=0UL) {
-        released = true
-        break
+    let mut released = coordinator.request_cancelled()
+    if !released {
+      for _ in 0..<512 {
+        server.poll(local_now_millis=0UL)
+        if coordinator.progress(local_now_millis=0UL) {
+          released = true
+          break
+        }
+        @async.sleep(1)
       }
-      @async.sleep(1)
     }
     assert_true(released)
+    assert_eq(coordinator.request_cancelled(), cancel_at >= 0)
     assert_eq(local_host.processed_tokens(), 0)
     assert_eq(remote_host.processed_tokens(), 0)
     assert_false(closed_state.val)
@@ -470,4 +543,29 @@ async test "failed target execution poisons both ranks instead of ordinary rejec
 ///|
 async test "failed accepted-prefix replay never exposes target tokens" {
   run_verification_pipeline_case([5, 9, 0], 2, fail_replay=true)
+}
+
+///|
+async test "resident verification cancels preparation execution restore and commit without unloading" {
+  for boundary in 0..<5 {
+    run_verification_pipeline_case(
+      if boundary == 3 {
+        [5, 6, 9]
+      } else {
+        [5, 9, 0]
+      },
+      if boundary == 3 {
+        3
+      } else {
+        2
+      },
+      reuse=true,
+      cancel_at=boundary,
+    )
+  }
+}
+
+///|
+async test "request cancellation cannot recover a failed target rank" {
+  run_verification_pipeline_case([5, 16, 9], 0, failure=true, cancel_at=0)
 }
