@@ -165,7 +165,9 @@ test "accepted bytes are snapshotted from later caller mutation" {
 ///|
 test "final frame error poisons and trailing or pipelined bytes reject" {
   let (source, length) = request_reader_fixture()
-  source[16] = source[16] ^ b'\x01'
+  // A malformed reserved field is still an error; the legacy checksum word
+  // is intentionally ignored.
+  source[252] = b'X'
   let reader = IncrementalRequestReader::new(fixture_limits())
   reader.append(source, source_offset=0, length=16)
   try reader.append(source, source_offset=16, length=length - 16) catch {

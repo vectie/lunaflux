@@ -49,7 +49,6 @@ pub fn LunaFramedEventWorkspace::new(
     length: 0,
     payload_length: 0,
     cursor: 0,
-    checksum: 2166136261,
     failure_rule: 0,
     last_work_units: 0,
     total_work_units: 0UL,
@@ -65,7 +64,6 @@ fn LunaFramedEventWorkspace::reset_operation(
   self.length = 0
   self.payload_length = 0
   self.cursor = 0
-  self.checksum = 2166136261
   self.failure_rule = 0
   self.last_work_units = 0
   self.total_work_units = 0UL

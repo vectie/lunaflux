@@ -36,17 +36,6 @@ fn read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
 }
 
 ///|
-fn frame_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<length {
-    if index < 16 || index >= 20 {
-      hash = (hash ^ bytes[index].to_uint()) * 16777619
-    }
-  }
-  hash
-}
-
-///|
 fn clear_header(bytes : FixedArray[Byte], length : Int) -> Unit {
   for index in 0..<length {
     bytes[index] = b'\x00'

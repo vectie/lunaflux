@@ -158,7 +158,7 @@ test "Luna framed request matches frozen text golden at every split and budget" 
     @crypto.bytes_to_hex_string(
       @crypto.sha256(Bytes::makei(length, index => source[index])),
     ),
-    "09e534bb3c7d1b9200362b23239dc5c11352ae50811313c800bbe6c717efa72f",
+    "6a38e3ae106fe482ce7b0bdd1e6afb4af85892321dfe0e933fa4ad937d68dcee",
   )
   let mut expected_total = 0UL
   for budget in [1, 17, 65536] {

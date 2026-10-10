@@ -15,7 +15,7 @@ in the terminal frame without inventing a text-only token. Event v1 is
 rejected.
 
 Both formats use fixed little-endian headers, a versioned magic/kind tuple,
-an exact total length, an FNV-1a checksum that excludes its own field, zeroed
+an exact total length, an unused legacy checksum word, zeroed
 reserved bytes, and one canonical payload order. Optional values have explicit
 presence flags; unused scalar fields must be zero. Digests remain lowercase
 SHA-256 identities and all strings are reconstructed through their owning
@@ -77,11 +77,11 @@ slot. The checked `required_byte_cells` and `required_reference_cells` report
 those same startup requirements. `begin` issues one epoch-authenticated Work.
 Each `progress` call performs at most its configured budget of bounded steps:
 one fixed scalar/header group, one header-clear byte, one payload/digest byte,
-one checksum byte, or one phase transition. `last_work_units` and
+or one phase transition. `last_work_units` and
 `total_work_units` report exact charged steps. A semantic failure pins an
 authenticated Failed Work until `abort`.
 
-The final checksum transition reauthenticates the semantic event before
+The final publication transition checks semantic event liveness before
 publishing Ready, then detaches it. `take_view` transfers the immutable frame to
 one opaque `LunaFramedEventView`. `copy_chunk_to` copies exactly one positive
 caller-selected range no larger than the configured step budget; it has no
@@ -117,9 +117,17 @@ generation-bound Write receives the declared UTF-8 input, stop token IDs, and
 length-prefixed stop-string bytes through scalar methods. Incomplete or
 out-of-envelope stop payload cannot become Work.
 
-Work emits one header byte, cache-scope byte, checksum input byte, checksum
-byte, or phase transition per charged unit. Its View permits only nonzero
+Work emits one header byte, cache-scope byte, or phase transition per charged
+unit. Its View permits only nonzero
 copies bounded by the configured step budget. The result is byte-identical to
 `RequestFrameBuffer::encode` for the same semantic request and carries no
 absolute receipt timestamp. Original receipt ownership therefore remains with
 request admission rather than being rebased here.
+
+Request and event encoders write zero at legacy checksum offset 16. Readers
+ignore that word, including frames supplied by older encoders. No full-frame
+integrity scan or checksum phase remains in the cooperative request/text/event
+work machines. Structural bounds, UTF-8, sampling and lifetime checks remain.
+New senders and checksum-enforcing old receivers are incompatible: upgrade
+service clients and servers together. The wire layout and numeric version are
+unchanged; this is not an authenticated transport.

@@ -87,7 +87,6 @@ fn new_luna_framed_request_workspace(
     byte_index: 0,
     cursor: 0,
     actual_stop_bytes: 0,
-    checksum: 2166136261,
     utf8_remaining: 0,
     utf8_codepoint: 0,
     utf8_minimum: 0,
@@ -134,7 +133,6 @@ fn LunaFramedRequestWorkspace::reset_operation(
   self.byte_index = 0
   self.cursor = 0
   self.actual_stop_bytes = 0
-  self.checksum = 2166136261
   self.utf8_remaining = 0
   self.utf8_codepoint = 0
   self.utf8_minimum = 0
@@ -232,9 +230,8 @@ pub fn LunaFramedRequestWork::offer(
     workspace.phase_index = 0
   } else if workspace.phase == LUNA_FRAMED_REQUEST_RECEIVING_BODY &&
     workspace.length == workspace.declared_length {
-    workspace.phase = LUNA_FRAMED_REQUEST_CHECKSUM
+    workspace.phase = LUNA_FRAMED_REQUEST_HEADER
     workspace.phase_index = 0
-    workspace.checksum = 2166136261
   }
   amount
 }
@@ -306,7 +303,6 @@ fn LunaFramedRequestWorkspace::progress_one(
 ) -> Unit {
   match self.phase {
     LUNA_FRAMED_REQUEST_VALIDATING_PREFIX => self.progress_prefix_one()
-    LUNA_FRAMED_REQUEST_CHECKSUM => self.progress_checksum_one()
     LUNA_FRAMED_REQUEST_HEADER => self.progress_header_one()
     LUNA_FRAMED_REQUEST_DIGEST => self.progress_digest_one()
     LUNA_FRAMED_REQUEST_LAYOUT => self.progress_layout_one()

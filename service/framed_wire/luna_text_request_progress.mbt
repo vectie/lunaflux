@@ -154,12 +154,6 @@ fn LunaFramedTextRequestWorkspace::header_byte(
 
 ///|
 fn LunaFramedTextRequestWorkspace::progress_one(self : Self) -> Unit {
-  let length = REQUEST_HEADER_BYTES +
-    self.input_length +
-    self.stop_token_count * 4 +
-    self.stop_string_count * 4 +
-    self.stop_string_bytes +
-    self.cache_scope_length
   match self.phase {
     LUNA_TEXT_HEADER => {
       self.storage[self.header_cursor] = self.header_byte(self.header_cursor)
@@ -172,28 +166,6 @@ fn LunaFramedTextRequestWorkspace::progress_one(self : Self) -> Unit {
       self.storage[self.payload_cursor + self.scope_cursor] = self.cache_scope[self.scope_cursor]
       self.scope_cursor += 1
       if self.scope_cursor == self.cache_scope_length {
-        self.phase = LUNA_TEXT_CHECKSUM
-      }
-    }
-    LUNA_TEXT_CHECKSUM => {
-      if self.checksum_cursor < 16 || self.checksum_cursor >= 20 {
-        self.checksum = (
-            self.checksum ^ self.storage[self.checksum_cursor].to_uint()
-          ) *
-          16777619
-      }
-      self.checksum_cursor += 1
-      if self.checksum_cursor == length {
-        self.phase = LUNA_TEXT_CHECKSUM_WRITE
-      }
-    }
-    LUNA_TEXT_CHECKSUM_WRITE => {
-      self.storage[16 + self.checksum_write_cursor] = luna_text_u32_byte(
-        self.checksum,
-        self.checksum_write_cursor,
-      )
-      self.checksum_write_cursor += 1
-      if self.checksum_write_cursor == 4 {
         self.phase = LUNA_TEXT_FINAL
       }
     }

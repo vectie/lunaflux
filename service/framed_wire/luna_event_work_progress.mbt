@@ -177,7 +177,7 @@ fn LunaFramedEventWorkspace::progress_setup(
   }
   self.cursor = 0
   self.phase = if self.payload_length == 0 {
-    LUNA_FRAMED_EVENT_CHECKSUM
+    LUNA_FRAMED_EVENT_FINALIZING
   } else {
     LUNA_FRAMED_EVENT_COPYING
   }
@@ -243,20 +243,6 @@ fn LunaFramedEventWorkspace::progress_copy(
   self.cursor += 1
   if self.cursor == self.payload_length {
     self.cursor = 0
-    self.phase = LUNA_FRAMED_EVENT_CHECKSUM
-  }
-}
-
-///|
-fn LunaFramedEventWorkspace::progress_checksum(
-  self : LunaFramedEventWorkspace,
-) -> Unit {
-  if self.cursor < 16 || self.cursor >= 20 {
-    self.checksum = (self.checksum ^ self.storage[self.cursor].to_uint()) *
-      16777619
-  }
-  self.cursor += 1
-  if self.cursor == self.length {
     self.phase = LUNA_FRAMED_EVENT_FINALIZING
   }
 }
@@ -277,11 +263,10 @@ fn LunaFramedEventWorkspace::progress_one(
     }
     LUNA_FRAMED_EVENT_SETUP => self.progress_setup(event)
     LUNA_FRAMED_EVENT_COPYING => self.progress_copy(event)
-    LUNA_FRAMED_EVENT_CHECKSUM => self.progress_checksum()
     LUNA_FRAMED_EVENT_FINALIZING => {
       // The authentication above is the final semantic liveness proof. The
       // canonical frame is immutable and independent after this transition.
-      write_u32(self.storage, 16, self.checksum)
+      write_u32(self.storage, 16, 0)
       self.semantic_views.clear()
       self.phase = LUNA_FRAMED_EVENT_READY
     }

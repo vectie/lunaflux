@@ -169,7 +169,8 @@ fn encode_request_payload(
   write_i32(bytes, 240, cache_permission_code(request.cache().permission()))
   write_i32(bytes, 244, cursor - REQUEST_HEADER_BYTES)
   write_i32(bytes, 248, REQUEST_HEADER_BYTES)
-  write_u32(bytes, 16, frame_checksum(bytes, cursor))
+  // Retain the wire offset, without a redundant integrity scan.
+  write_u32(bytes, 16, 0)
   (cursor, flags)
 }
 

@@ -11,9 +11,6 @@ const LUNA_FRAMED_REQUEST_VALIDATING_PREFIX : Int = 2
 const LUNA_FRAMED_REQUEST_RECEIVING_BODY : Int = 3
 
 ///|
-const LUNA_FRAMED_REQUEST_CHECKSUM : Int = 4
-
-///|
 const LUNA_FRAMED_REQUEST_HEADER : Int = 5
 
 ///|
@@ -130,7 +127,6 @@ pub struct LunaFramedRequestWorkspace {
   priv mut byte_index : Int
   priv mut cursor : Int
   priv mut actual_stop_bytes : Int
-  priv mut checksum : UInt
   priv mut utf8_remaining : Int
   priv mut utf8_codepoint : Int
   priv mut utf8_minimum : Int

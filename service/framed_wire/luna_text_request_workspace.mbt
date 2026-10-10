@@ -70,9 +70,6 @@ pub fn LunaFramedTextRequestWorkspace::new(
     payload_cursor: REQUEST_HEADER_BYTES,
     header_cursor: 0,
     scope_cursor: 0,
-    checksum_cursor: 0,
-    checksum: 2166136261,
-    checksum_write_cursor: 0,
     protocol_version: 0,
     request_id: 0UL,
     max_new_tokens: 0,
@@ -102,9 +99,6 @@ fn LunaFramedTextRequestWorkspace::reset(self : Self) -> Unit {
   self.payload_cursor = REQUEST_HEADER_BYTES
   self.header_cursor = 0
   self.scope_cursor = 0
-  self.checksum_cursor = 0
-  self.checksum = 2166136261
-  self.checksum_write_cursor = 0
   self.last_work_units = 0
   self.total_work_units = 0UL
 }

@@ -93,6 +93,8 @@ test "Luna framed text writer is byte-identical to RequestFrameBuffer v1" {
   let mut baseline_total = 0UL
   for budget in [1, 17, 65536] {
     let (actual, total) = luna_text_encode(budget)
+    // Encoding work is independent of input length: header, scope, finalization.
+    assert_eq(total, 265UL)
     assert_eq(actual.length(), expected.length())
     for index in 0..<actual.length() {
       assert_eq(actual[index], expected[index])

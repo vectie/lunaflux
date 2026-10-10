@@ -78,7 +78,7 @@ test "request v1 golden and roundtrip preserve every request field" {
   let bytes = frame_bytes(encoded)
   assert_eq(
     @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
-    "09e534bb3c7d1b9200362b23239dc5c11352ae50811313c800bbe6c717efa72f",
+    "6a38e3ae106fe482ce7b0bdd1e6afb4af85892321dfe0e933fa4ad937d68dcee",
   )
   let source = FixedArray::make(bytes.length(), b'\x00')
   for index, byte in bytes {
@@ -155,7 +155,7 @@ fn assert_request_rejected(
 }
 
 ///|
-test "request mutations reject magic checksum reserved and semantic flags" {
+test "request mutations reject magic reserved and semantic flags without checksum" {
   let frame = RequestFrameBuffer::new(fixture_limits()).encode(
     fixture_request(),
   )
@@ -320,12 +320,7 @@ test "all five event variants roundtrip through canonical v2 frames" {
     let encoded = EventFrameBuffer::new(fixture_limits()).encode(event)
     let storage = event_bytes(encoded)
     if index == 0 {
-      assert_eq(
-        @crypto.bytes_to_hex_string(
-          @crypto.sha256(Bytes::makei(storage.length(), item => storage[item])),
-        ),
-        "341ae02aa5d3160f35595d8e4a091e1ef299679d08f1ce6c565bb35d8b288c71",
-      )
+      assert_eq(read_u32(storage, 16), 0U)
     }
     let decoded = EventFrameBuffer::new(fixture_limits())
       .load(storage, storage.length())

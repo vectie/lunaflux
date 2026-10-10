@@ -105,7 +105,7 @@ fn encode_event_payload(
     }
     Failed(value) => write_i32(bytes, 24, if value.retryable() { 1 } else { 0 })
   }
-  write_u32(bytes, 16, frame_checksum(bytes, length))
+  write_u32(bytes, 16, 0)
   length
 }
 
@@ -167,9 +167,6 @@ fn parse_event(
   if read_i32(bytes, 12) != length ||
     read_i32(bytes, 56) != length - EVENT_HEADER_BYTES {
     raise event_invalid(Length)
-  }
-  if read_u32(bytes, 16) != frame_checksum(bytes, length) {
-    raise event_invalid(Checksum)
   }
   let flags = read_u32(bytes, 20)
   if (flags & 0xfffffffe) != 0 || read_i32(bytes, 196) != EVENT_HEADER_BYTES {

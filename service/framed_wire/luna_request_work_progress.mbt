@@ -45,26 +45,6 @@ fn LunaFramedRequestWorkspace::progress_prefix_one(
 }
 
 ///|
-fn LunaFramedRequestWorkspace::progress_checksum_one(
-  self : LunaFramedRequestWorkspace,
-) -> Unit {
-  if self.phase_index < self.declared_length {
-    if self.phase_index < 16 || self.phase_index >= 20 {
-      self.checksum = (self.checksum ^ self.storage[self.phase_index].to_uint()) *
-        16777619
-    }
-    self.phase_index += 1
-    return
-  }
-  if read_u32(self.storage, 16) != self.checksum {
-    self.fail_rule(Checksum)
-    return
-  }
-  self.phase = LUNA_FRAMED_REQUEST_HEADER
-  self.phase_index = 0
-}
-
-///|
 fn LunaFramedRequestWorkspace::progress_header_one(
   self : LunaFramedRequestWorkspace,
 ) -> Unit {

@@ -90,7 +90,9 @@ test "Luna framed event work is canonical and deterministic across budgets" {
   for budget in [1, 17, LUNA_FRAMED_EVENT_MAX_STEP_WORK_UNITS] {
     let (actual, total) = luna_drive_event_work(semantic, budget)
     assert_fixed_bytes_equal(actual, expected)
-    assert_eq(total, 428UL)
+    // Header clear, setup, five payload bytes, finalization. The old 213-byte
+    // integrity pass is absent for every cooperative work budget.
+    assert_eq(total, 215UL)
     if expected_total == 0UL {
       expected_total = total
     } else {
@@ -113,7 +115,7 @@ test "Luna framed event View enforces chunks and stale auth before ranges" {
   while work.state() == LunaFramedEventPending {
     ignore(work.progress())
   }
-  assert_eq(work.total_work_units(), 418UL)
+  assert_eq(work.total_work_units(), 210UL)
   let view = work.take_view()
   let destination = FixedArray::make(view.length(), b'\x00')
   for item in [(0, 0), (-1, 1), (0, 18), (view.length(), 1)] {

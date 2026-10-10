@@ -93,14 +93,10 @@ fn luna_equal_stop_source() -> (FixedArray[Byte], Int) raise {
 }
 
 ///|
-test "Luna framed request rejects frozen header checksum and layout rules" {
+test "Luna framed request rejects malformed header and layout rules" {
   let (source, length) = luna_request_source()
   source[0] = b'X'
   luna_assert_frozen_rule(source, length, Magic)
-
-  let (source, length) = luna_request_source()
-  source[16] = source[16] ^ b'\x01'
-  luna_assert_frozen_rule(source, length, Checksum)
 
   let (source, length) = luna_request_source()
   source[252] = b'X'

@@ -11,9 +11,6 @@ const LUNA_FRAMED_EVENT_SETUP : Int = 2
 const LUNA_FRAMED_EVENT_COPYING : Int = 3
 
 ///|
-const LUNA_FRAMED_EVENT_CHECKSUM : Int = 4
-
-///|
 const LUNA_FRAMED_EVENT_FINALIZING : Int = 5
 
 ///|
@@ -78,7 +75,6 @@ pub struct LunaFramedEventWorkspace {
   priv mut length : Int
   priv mut payload_length : Int
   priv mut cursor : Int
-  priv mut checksum : UInt
   priv mut failure_rule : Int
   priv mut last_work_units : Int
   priv mut total_work_units : UInt64

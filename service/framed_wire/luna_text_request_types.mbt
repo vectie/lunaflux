@@ -11,12 +11,6 @@ const LUNA_TEXT_HEADER : Int = 2
 const LUNA_TEXT_SCOPE : Int = 3
 
 ///|
-const LUNA_TEXT_CHECKSUM : Int = 4
-
-///|
-const LUNA_TEXT_CHECKSUM_WRITE : Int = 5
-
-///|
 const LUNA_TEXT_FINAL : Int = 6
 
 ///|
@@ -89,9 +83,6 @@ pub struct LunaFramedTextRequestWorkspace {
   priv mut payload_cursor : Int
   priv mut header_cursor : Int
   priv mut scope_cursor : Int
-  priv mut checksum_cursor : Int
-  priv mut checksum : UInt
-  priv mut checksum_write_cursor : Int
   priv mut protocol_version : Int
   priv mut request_id : UInt64
   priv mut max_new_tokens : Int
