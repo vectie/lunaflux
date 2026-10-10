@@ -2179,6 +2179,9 @@ selected source ranges; unrelated shards are not opened for copying. Optional
 payload verification belongs outside the engine, before model startup.
 Host-weight release invalidates access and drops references without walking or
 scrubbing every payload byte; deterministic GPU/KV cleanup is unchanged.
+Compact checkpoint upload likewise discards temporary source and narrowed-I32
+chunks without release-time zero fills. Transfers still copy only their valid
+byte counts; failed uploads remain inaccessible and own device cleanup.
 
 Keep bounds, dtype/scale semantics, exact-copy tests, file-change handling, and
 deterministic resource release. These prevent incorrect execution and memory
@@ -2221,6 +2224,35 @@ Build/test correctness remains a development boundary; model execution still
 checks both GPUs are idle and retains per-rank memory/no-swap limits, bounded
 generation and terminal resource checks. The shared checkpoint build helper
 also no longer hashes uploaded source archives.
+
+The rebuilt `8ad3b691` DSpark run completed on .178/.179 at
+`/tmp/lunaflux-dspark-run-20261010-v4` (remote run roots
+`/tmp/lunaflux-dspark-real-20261010-v4`). The two user units ran from 14:54:45
+to approximately 14:57:40 CST, about 175 s including serial rank startup,
+three-token base generation and two attached prediction phases. Base tokens
+were again `5,223,939`. Both ranks exited zero, reported zero swap peaks and
+left no GPU compute process. Their cgroup peaks were 56,508,145,664 bytes
+(.178) and 41,910,943,744 bytes (.179); these do not represent total GB10
+unified-memory consumption. Device planning remained below 96 GiB per rank
+with a 4 GiB reserve. Header inspection explicitly reported
+`payload_hashing=false` on both ranks. No source/binary/tool/CUBIN checksum
+scan was invoked by this runner. This is a startup-plus-bounded-execution
+measurement with existing checkpoint caches, not a paired cold-start benchmark
+or steady-state speedup. Prediction remains diagnostic, not verified
+speculative acceptance/commit, and independent model numerical parity is open.
+For historical context, the prior `b76d63ee` v3 run lasted approximately
+54 min 34 s from its first rank start to final generation. The new base tokens
+and final draft-token/confidence byte strings match that run exactly. This is
+not a controlled attribution of the elapsed-time difference: checkpoint cache
+state and startup I/O differ, and wall time includes peer waiting.
+
+Validation after the final staging-scrub removal: native check and all
+4,844 native tests pass with the existing migration-warning exclusions;
+the affected packed-execution suite separately passes 94/94 and streaming
+passes 15/15. `moon info` reports zero errors (existing migration warnings)
+and affected package/script formatting checks pass. The physical DSpark
+measurement above precedes only the three staging-chunk release-fill deletions;
+no additional GPU speedup is claimed for those deletions.
 
 ## Deferred capabilities
 

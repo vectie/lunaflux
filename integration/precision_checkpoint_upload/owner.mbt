@@ -51,7 +51,6 @@ pub fn CheckpointDeviceWeights::upload(
     self.bytes += weight.buffer_bytes()
   }
   let scratch = FixedArray::make(chunk_bytes, b'\x00')
-  defer scratch.fill(b'\x00')
   checkpoint.transfer_weights(root, weights, scratch~, limits~, consume=(
     destination,
     offset,

@@ -19,7 +19,7 @@ pub fn i64_table_host_bytes(
 }
 
 ///|
-/// Startup-only owner of checked I32 device tables derived from authenticated
+/// Startup-only owner of checked I32 device tables derived from inspected
 /// I64 planes. Failed uploads remain owned and cannot expose allocation views.
 pub struct CheckpointDeviceIndexTables {
   priv allocations : Array[@device.Allocation]
@@ -79,8 +79,6 @@ pub fn CheckpointDeviceIndexTables::upload(
     ((chunk_bytes.to_int64() + 7L) / 8L * 4L).to_int(),
     b'\x00',
   )
-  defer scratch.fill(b'\x00')
-  defer output.fill(b'\x00')
   self.status = Failed
   for table in tables {
     let allocation = context.allocate(table.i32_bytes())

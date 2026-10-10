@@ -22,3 +22,8 @@ Native fixtures cover split chunks, exact bytes, pre-allocation budgets,
 cross-chunk duplicates/range errors and balanced cleanup. The real-driver
 `cmd/checkpoint_index_probe` exercises the same production loader with tiny
 checkpoint files; it is not whole-model execution or a throughput benchmark.
+
+Weight and narrowed-table staging chunks are discarded without release-time
+scrubbing. Their valid byte counts bound every read and device copy; discarded
+chunks cannot be borrowed again. Explicit device release and failed-upload
+ownership are unchanged. Inventory labels do not verify payload integrity.
