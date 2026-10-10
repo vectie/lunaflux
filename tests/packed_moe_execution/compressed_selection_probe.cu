@@ -33,7 +33,7 @@ template<class T> void read(std::vector<T>& data, T *p) {
   CK(cudaMemcpy(data.data(), p, data.size() * sizeof(T), cudaMemcpyDeviceToHost));
 }
 
-void test(int capacity) {
+void test(int capacity, bool cache_relative) {
   constexpr int rows=3, heads=2, width=128, ratio=4;
   const int physical=std::max(1, capacity), slots=std::max(1, std::min(8, capacity));
   const int maximum_positions=capacity ? 1040 : 3;
@@ -72,18 +72,22 @@ void test(int capacity) {
       }
     }
     if (scores!=expected_scores) { std::fprintf(stderr,"score publication mismatch capacity=%d case=%d\n",capacity,cases); std::exit(3); }
-    if (capacity) selection260_select<<<rows,256>>>(c,p,cc,a,o,(__nv_bfloat16*)s,sc,si);
+    // Cache-relative plans do not consume an offset allocation at all.
+    if (cache_relative && capacity) selection260_cache_select<<<rows,256>>>(c,p,cc,a,nullptr,(__nv_bfloat16*)s,sc,si);
+    else if (cache_relative) selection0_cache_select<<<rows,256>>>(c,p,cc,a,nullptr,(__nv_bfloat16*)s,sc,si);
+    else if (capacity) selection260_select<<<rows,256>>>(c,p,cc,a,o,(__nv_bfloat16*)s,sc,si);
     else selection0_select<<<rows,256>>>(c,p,cc,a,o,(__nv_bfloat16*)s,sc,si);
     CK(cudaGetLastError()); CK(cudaDeviceSynchronize()); read(selected_counts,sc); read(selected,si);
     std::vector<int32_t> expected_counts(rows), expected(rows*slots,-1);
-    const bool valid_offset=offset>=0 && (!retained || int64_t(offset)+retained-1<=INT_MAX);
+    const int coordinate_base=cache_relative ? 0 : offset;
+    const bool valid_offset=coordinate_base>=0 && (!retained || int64_t(coordinate_base)+retained-1<=INT_MAX);
     for (int row=0; valid && valid_offset && row<live; ++row) {
       if (positions[row]<0 || positions[row]>=maximum_positions) continue;
       const int visible=std::min(retained,(positions[row]+1)/ratio);
       std::vector<int> candidates(visible); std::iota(candidates.begin(),candidates.end(),0);
       std::stable_sort(candidates.begin(),candidates.end(),[&](int x,int y) { return fp32(expected_scores[row*physical+x])>fp32(expected_scores[row*physical+y]); });
       expected_counts[row]=std::min(visible, capacity ? slots : 0);
-      for (int rank=0; rank<expected_counts[row]; ++rank) expected[row*slots+rank]=offset+candidates[rank];
+      for (int rank=0; rank<expected_counts[row]; ++rank) expected[row*slots+rank]=coordinate_base+candidates[rank];
     }
     if (selected!=expected || selected_counts!=expected_counts) { std::fprintf(stderr,"causal topk mismatch capacity=%d case=%d\n",capacity,cases); std::exit(4); }
     ++cases;
@@ -104,6 +108,6 @@ void test(int capacity) {
   run(3,capacity,capacity?1:0,0,3,true,-1);
   run(3,capacity,capacity?1:0,0,3,true,maximum_positions);
   for (void *ptr : {(void*)q,(void*)w,(void*)k,(void*)s,(void*)c,(void*)p,(void*)cc,(void*)a,(void*)o,(void*)sc,(void*)si}) CK(cudaFree(ptr));
-  std::printf("selection capacity=%d cases=%d bf16_publications=passed causal_topk=passed replay=passed\n",capacity,cases);
+  std::printf("selection capacity=%d cache_relative=%d cases=%d bf16_publications=passed causal_topk=passed replay=passed\n",capacity,cache_relative,cases);
 }
-int main() { test(260); test(0); return 0; }
+int main() { test(260,false); test(0,false); test(260,true); test(0,true); return 0; }

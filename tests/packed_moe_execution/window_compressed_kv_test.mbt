@@ -1,6 +1,7 @@
 ///|
 fn joint_attention_fixture(
   read_set : @precision.CompressedRowReadSet,
+  coordinates? : @precision.CompressedRowCoordinates = OffsetRelative,
 ) -> @joint_frame.WindowCompressedKvFrame raise {
   @joint_frame.WindowCompressedKvFrame::new(
     @joint_source.window_compressed_kv_source(
@@ -15,6 +16,7 @@ fn joint_attention_fixture(
         ),
         compression_ratio=4,
         read_set~,
+        coordinates~,
       ),
       symbol_prefix="joint_fixture",
     ),
@@ -28,8 +30,16 @@ test "joint attention prepares four allocation-free effects for both read sets" 
   let stream = context.create_stream()
   let aot = context.load_module(b"fake\x00")
   let operand = context.allocate(65536L)
-  for read_set in [@precision.CompressedRowReadSet::Learned(top_k=2), AllCausal] {
-    let frame = joint_attention_fixture(read_set)
+  for
+    (read_set, coordinates) in [
+      (
+        @precision.CompressedRowReadSet::Learned(top_k=2),
+        @precision.CompressedRowCoordinates::OffsetRelative,
+      ),
+      (Learned(top_k=2), CacheRelative),
+      (AllCausal, CacheRelative),
+    ] {
+    let frame = joint_attention_fixture(read_set, coordinates~)
     frame.prepare(
       context,
       aot,
@@ -42,14 +52,19 @@ test "joint attention prepares four allocation-free effects for both read sets" 
       compressed_values=operand,
       compressed_counts=operand,
       compressed_append=operand,
-      read_ports=match read_set {
-        Learned(top_k=_) =>
+      read_ports=match (read_set, coordinates) {
+        (Learned(top_k=_), OffsetRelative) =>
           @joint_frame.CompressedReadPorts::Learned(
             counts=operand,
             rows=operand,
             offsets=operand,
           )
-        AllCausal => @joint_frame.CompressedReadPorts::AllCausal
+        (Learned(top_k=_), CacheRelative) =>
+          @joint_frame.CompressedReadPorts::CacheRelative(
+            counts=operand,
+            rows=operand,
+          )
+        (AllCausal, _) => @joint_frame.CompressedReadPorts::AllCausal
       },
       maximum_state_bytes=2580L,
     )

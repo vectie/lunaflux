@@ -140,7 +140,6 @@ pub fn DeepSeekDecoderSlice::prepare(
   reset_flag~ : @device.Allocation,
   input~ : @device.Allocation,
   output~ : @device.Allocation,
-  index_offsets? : @device.Allocation,
   token_ids? : @device.Allocation,
   token_tables? : ArrayView[@device.Allocation] = [],
   maximum_device_bytes~ : Int64,
@@ -154,12 +153,8 @@ pub fn DeepSeekDecoderSlice::prepare(
   }
   let hash_count = (self.end_layer.min(self.spec.hash_layer_count()) -
   self.first_layer).max(0)
-  let needs_index = self.layers.any(layer => {
-    self.spec.compression_ratio(layer.index) == Some(4)
-  })
   guard token_tables.length() == hash_count &&
     (hash_count == 0 || token_ids is Some(_)) &&
-    (!needs_index || index_offsets is Some(_)) &&
     chunk_bytes > 0 else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
@@ -209,11 +204,6 @@ pub fn DeepSeekDecoderSlice::prepare(
         reset_flag~,
         input=predecessor,
         output=successor,
-        index_offsets?=if self.spec.compression_ratio(layer.index) == Some(4) {
-          index_offsets
-        } else {
-          None
-        },
         routed_bank=layer.banks[0],
         shared_bank=layer.banks[1],
         router_weight=layer.router.allocation(0),

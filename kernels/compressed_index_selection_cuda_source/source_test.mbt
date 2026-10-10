@@ -26,5 +26,28 @@ test "weighted compressed index preserves numeric publications without double sc
   assert_false(text.contains("for (int prior"))
   assert_true(text.contains("candidate >= (position + 1) / 4"))
   assert_true(text.contains("offset + best_indices[0]"))
+  assert_true(text.contains("offset = offsets[row]"))
   assert_true(text.contains("selected_counts[row] = 0"))
+}
+
+///|
+test "cache-relative selection lowers no offset tensor load" {
+  let plan = @precision.CompressedIndexSelectionPrecision::new(
+    head_count=2,
+    head_width=128,
+    compression_ratio=4,
+    maximum_rows=3,
+    maximum_positions=16,
+    top_k=2,
+    coordinates=CacheRelative,
+    maximum_workspace_bytes=60L,
+  )
+  let source = @compressed_index_selection_cuda_source.compressed_index_selection_source(
+    plan,
+    symbol_prefix="cache_selection",
+  )
+  let text = @utf8.decode(source.source_bytes())
+  assert_false(text.contains("offsets[row]"))
+  assert_true(text.contains("offset = 0"))
+  assert_eq(plan.coordinates(), CacheRelative)
 }

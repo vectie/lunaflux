@@ -55,12 +55,21 @@ pub struct CompressedIndexSelectionPrecision {
   // private fields
 }
 pub fn CompressedIndexSelectionPrecision::cache_capacity(Self) -> Int
+pub fn CompressedIndexSelectionPrecision::coordinates(Self) -> CompressedRowCoordinates
 pub fn CompressedIndexSelectionPrecision::effect(Self) -> NumericEffect
 pub fn CompressedIndexSelectionPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn CompressedIndexSelectionPrecision::geometry(Self) -> (Int, Int, Int, Int, Int, Int)
-pub fn CompressedIndexSelectionPrecision::new(head_count~ : Int, head_width~ : Int, compression_ratio~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, top_k~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn CompressedIndexSelectionPrecision::new(head_count~ : Int, head_width~ : Int, compression_ratio~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, top_k~ : Int, coordinates? : CompressedRowCoordinates, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn CompressedIndexSelectionPrecision::selected_width(Self) -> Int
 pub fn CompressedIndexSelectionPrecision::workspace_bytes(Self) -> Int64
+
+pub(all) enum CompressedRowCoordinates {
+  CacheRelative
+  OffsetRelative
+} derive(Eq, @debug.Debug)
+pub fn CompressedRowCoordinates::equal(Self, Self) -> Bool
+pub fn CompressedRowCoordinates::not_equal(Self, Self) -> Bool
+pub fn CompressedRowCoordinates::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompressedRowReadSet {
   Learned(top_k~ : Int)
@@ -575,8 +584,9 @@ pub struct WindowCompressedKvPrecision {
 }
 pub fn WindowCompressedKvPrecision::cache_capacity(Self) -> Int
 pub fn WindowCompressedKvPrecision::compression_ratio(Self) -> Int
+pub fn WindowCompressedKvPrecision::coordinates(Self) -> CompressedRowCoordinates
 pub fn WindowCompressedKvPrecision::effect(Self) -> NumericEffect
-pub fn WindowCompressedKvPrecision::new(WindowSharedKvPrecision, compression_ratio~ : Int, read_set~ : CompressedRowReadSet) -> Self raise PrecisionPlanError
+pub fn WindowCompressedKvPrecision::new(WindowSharedKvPrecision, compression_ratio~ : Int, read_set~ : CompressedRowReadSet, coordinates? : CompressedRowCoordinates) -> Self raise PrecisionPlanError
 pub fn WindowCompressedKvPrecision::read_set(Self) -> CompressedRowReadSet
 pub fn WindowCompressedKvPrecision::score_scale(Self) -> Double
 pub fn WindowCompressedKvPrecision::selected_width(Self) -> Int

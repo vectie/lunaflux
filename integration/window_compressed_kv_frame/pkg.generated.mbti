@@ -13,6 +13,7 @@ import {
 // Types and methods
 pub(all) enum CompressedReadPorts {
   Learned(counts~ : @device.Allocation, rows~ : @device.Allocation, offsets~ : @device.Allocation)
+  CacheRelative(counts~ : @device.Allocation, rows~ : @device.Allocation)
   AllCausal
 }
 

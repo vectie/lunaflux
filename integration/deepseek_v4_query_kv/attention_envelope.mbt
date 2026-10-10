@@ -12,7 +12,6 @@ pub struct DeepSeekAttentionEnvelope {
   priv branch : AttentionBranch
   priv launches : Array[@device.OrderedKernelLaunch]
   priv descriptors : Array[@device.Allocation]
-  priv needs_index : Bool
   priv mut state : State
 }
 
@@ -58,14 +57,7 @@ pub fn DeepSeekAttentionEnvelope::new(
       )
     _ => raise @precision.PrecisionPlanError::IllegalPlacement
   }
-  {
-    hyper,
-    branch,
-    launches: [],
-    descriptors: [],
-    needs_index: spec.compression_ratio(layer) == Some(4),
-    state: Fresh,
-  }
+  { hyper, branch, launches: [], descriptors: [], state: Fresh, }
 }
 
 ///|
@@ -111,14 +103,10 @@ pub fn DeepSeekAttentionEnvelope::prepare(
   reset_flag~ : @device.Allocation,
   input~ : @device.Allocation,
   output~ : @device.Allocation,
-  index_offsets? : @device.Allocation,
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
-  guard self.needs_index == (index_offsets is Some(_)) else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
-  }
   let hyper_bytes = self.hyper.required_device_bytes(checkpoint)
   let branch_bytes = self.branch.required_device_bytes(checkpoint)
   guard self.state is Fresh &&
@@ -172,7 +160,6 @@ pub fn DeepSeekAttentionEnvelope::prepare(
         reset_flag~,
         hidden~,
         output=branch_output,
-        index_offsets?,
         maximum_device_bytes=branch_bytes,
         chunk_bytes~,
         limits~,

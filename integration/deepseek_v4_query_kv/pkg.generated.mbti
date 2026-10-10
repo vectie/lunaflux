@@ -72,7 +72,7 @@ pub fn DeepSeekAttentionEnvelope::append_descriptors(Self) -> ArrayView[@device.
 pub fn DeepSeekAttentionEnvelope::close(Self) -> Unit raise
 pub fn DeepSeekAttentionEnvelope::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekAttentionEnvelope::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise
-pub fn DeepSeekAttentionEnvelope::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, index_offsets? : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekAttentionEnvelope::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekAttentionEnvelope::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekAttentionEnvelope::source_bytes(Self) -> Bytes
 
@@ -112,7 +112,7 @@ pub fn DeepSeekCompressedAttention::close(Self) -> Unit raise
 pub fn DeepSeekCompressedAttention::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekCompressedAttention::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise
 pub fn DeepSeekCompressedAttention::output(Self) -> @device.Allocation raise
-pub fn DeepSeekCompressedAttention::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, index_offsets? : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekCompressedAttention::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekCompressedAttention::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekCompressedAttention::source_bytes(Self) -> Bytes
 
@@ -137,7 +137,7 @@ pub fn DeepSeekCompressedSublayer::close(Self) -> Unit raise
 pub fn DeepSeekCompressedSublayer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekCompressedSublayer::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise
 pub fn DeepSeekCompressedSublayer::output(Self) -> @device.Allocation raise
-pub fn DeepSeekCompressedSublayer::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output? : @device.Allocation, index_offsets? : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekCompressedSublayer::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output? : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekCompressedSublayer::required_device_bytes(Self, @precision_materialize.PackedCheckpoint, output_borrowed? : Bool) -> Int64 raise
 pub fn DeepSeekCompressedSublayer::source_bytes(Self) -> Bytes
 
@@ -174,7 +174,7 @@ pub fn DeepSeekLearnedIndexer::close(Self) -> Unit raise
 pub fn DeepSeekLearnedIndexer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekLearnedIndexer::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise
 pub fn DeepSeekLearnedIndexer::outputs(Self) -> @compressed_index_selection_frame.CompressedIndexSelectionOutputs raise
-pub fn DeepSeekLearnedIndexer::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, low_rank_queries~ : @device.Allocation, offsets~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekLearnedIndexer::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, low_rank_queries~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekLearnedIndexer::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekLearnedIndexer::source_bytes(Self) -> Bytes
 

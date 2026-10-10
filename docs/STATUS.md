@@ -16,13 +16,16 @@ most two reusable inter-layer residuals. `DeepSeekDecoderStage` adds embedding
 only on ingress and the corrected learned head only on egress, with a single
 ordered queue and two distinct boundary residuals. Its pre-upload footprint
 covers owned weights, state, workspace and residuals; caller-owned request
-ports/index offsets remain explicitly separate. Token tables are now stage-owned
+ports remain explicitly separate. Token tables are now stage-owned
 and included in that footprint: exact I64 checkpoint planes stream through bounded
 chunks into checked I32 device allocations, without a whole-model host arena.
 Payload scratch and per-table uniqueness rows are preflighted separately from
 reader metadata/process memory. Split-cell chunks, exact device bytes, budget
 rejection before allocation, malformed rows and cleanup pass native device-double
-tests. A real-driver probe is implemented but its GPU run remains pending.
+tests. The commit-pinned real-driver probe at `90f85532` now passes ten GPU
+cases, exact I32 readback, rejected partial uploads and deterministic release.
+Memcheck reports zero errors and zero leaked allocations. Downloaded artifacts
+match remote SHA-256 under `/tmp/lunaflux-index-gpu-results-20261010-v1`.
 Missing complete
 checkpoint tensors are rejected during footprint preflight in component fixtures.
 Only a prepared complete range may bind whole-model worker delivery.
@@ -32,11 +35,26 @@ aggregate also passes 145/145. Combined ingress/egress stage
 source compiles under CUDA 13.0.88/sm121 in a 2-GiB/no-swap user unit. Sources,
 module and journals were downloaded with matching SHA-256 to
 `/tmp/lunaflux-deepseek-stages-results-20261010-v1`.
-This does not establish real checkpoint stage execution. Dynamic learned-index
-offsets, stage-bound activation
+This does not establish real checkpoint stage execution. Stage-bound activation
 leases/two-host runner and DSpark prediction execution remain integration work.
 GLM's independent numerical comparison and MiniMax whole-model integration
 also remain open; no model-wide speed or accuracy claim is made.
+
+Update 2026-10-10 (compressed-row coordinates): shared immutable precision IR
+now distinguishes cache-relative IDs from offset-relative IDs. DeepSeek's
+joint attention reads separate window/current/compressed buffers, so its learned
+selection and reader use cache-relative IDs. The former add-offset/subtract-offset
+pair was redundant; no dynamic host offset tensor is required for that route.
+The default offset-relative contract remains for existing joined-view callers.
+The AOT renderer removes offset loads and the model adapter no longer accepts
+an offset allocation. Both modes pass sixty GPU selection cases and 128 joint
+attention steps, including null offset pointers for cache-relative kernels,
+causal selection, ring wrap, replay and error behavior. Memcheck, racecheck and
+synccheck all report zero errors/hazards; memcheck reports zero leaks. Complete
+learned-indexer and compressed-sublayer sources compile on GB10. Both hosts use
+2-GiB/no-swap user-unit limits; downloaded sources/binaries/cubins have matching
+remote hashes under `/tmp/lunaflux-cache-coordinate-results-20261010-v1`.
+These component fixtures do not establish complete-checkpoint generation.
 
 Update 2026-10-10 (absolute request positions): the model-neutral serial frame
 has an optional startup-selected position port. Chunked prefill publishes

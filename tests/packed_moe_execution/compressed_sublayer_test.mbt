@@ -226,7 +226,6 @@ async test "actual-shape compressed sublayers prepare 44 or 25 shared effects wi
         )
       }
       let learned = spec.compression_ratio(layer) == Some(4)
-      let index_offsets = if learned { Some(operand) } else { None }
       let owner = new_owner()
       let required = owner.required_device_bytes(checkpoint)
       let refused = new_owner()
@@ -241,7 +240,6 @@ async test "actual-shape compressed sublayers prepare 44 or 25 shared effects wi
           positions=operand,
           reset_flag=operand,
           hidden=operand,
-          index_offsets?,
           maximum_device_bytes=required - 1L,
           chunk_bytes=65536,
           limits~,
@@ -263,7 +261,6 @@ async test "actual-shape compressed sublayers prepare 44 or 25 shared effects wi
         positions=operand,
         reset_flag=operand,
         hidden=operand,
-        index_offsets?,
         maximum_device_bytes=required,
         chunk_bytes=65536,
         limits~,

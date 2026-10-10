@@ -28,6 +28,7 @@ test "learned indexer composes checkpoint-backed full heads and causal compresse
         ),
       )
       assert_eq(plan.cache_capacity(), 4)
+      assert_eq(plan.coordinates(), CacheRelative)
       assert_eq(plan.selected_width(), 4)
       let owner = @deepseek_v4_query_kv.DeepSeekLearnedIndexer::new(
         spec,
@@ -42,6 +43,7 @@ test "learned indexer composes checkpoint-backed full heads and causal compresse
       assert_true(text.contains("_indexer_compressed_history_publish"))
       assert_true(text.contains("_index_selection_scores"))
       assert_true(text.contains("_index_selection_select"))
+      assert_false(text.contains("offsets[row]"))
       owner.close()
       owner.close()
     }

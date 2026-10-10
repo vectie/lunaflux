@@ -1,0 +1,47 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+}
+
+async fn main {
+  guard @env.args() is [_, output] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(output)
+  let node = "wlc003s@192.168.2.178"
+  let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let remote = "/tmp/lunaflux-index-gpu-20261010-v1"
+  for (name, path) in [
+    ("checkpoint_index_probe.exe", remote + "/source/_build/native/release/build/cmd/checkpoint_index_probe/checkpoint_index_probe.exe"),
+    ("checkpoint_index_probe.c", remote + "/source/_build/native/release/build/cmd/checkpoint_index_probe/checkpoint_index_probe.c"),
+  ] {
+    let hashed = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, "sha256sum " + path]).output()
+    hashed.check()
+    let copied = @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, node + ":" + path, output + "/" + name]).output()
+    copied.check()
+    let downloaded = @shell.Cmd("shasum", ["-a", "256", output + "/" + name]).output()
+    downloaded.check()
+    guard (hashed.stdout().split(" ").next(), downloaded.stdout().split(" ").next())
+      is (Some(remote_hash), Some(local_hash)) && remote_hash.length() == 64 && remote_hash == local_hash else {
+      fail("download hash mismatch: " + name)
+    }
+    @fs.write_file(output + "/" + name + ".sha256", @utf8.encode(downloaded.stdout()), create_mode=CreateNew)
+  }
+  for (name, unit) in [
+    ("build", "lunaflux-index-build-20261010-v1.service"),
+    ("correctness", "lunaflux-index-correctness-20261010-v1.service"),
+    ("memcheck", "lunaflux-index-memcheck-20261010-v1.service"),
+  ] {
+    for (label, command) in [
+      ("unit", "systemctl --user show " + unit + " -p ActiveState -p SubState -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak"),
+      ("journal", "journalctl --user -u " + unit + " --no-pager"),
+    ] {
+      let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command]).output(max_output_bytes=1048576)
+      result.check()
+      @fs.write_file(output + "/" + name + "-" + label + ".txt", @utf8.encode(result.stdout()), create_mode=CreateNew)
+      @fs.write_file(output + "/" + name + "-" + label + ".stderr", @utf8.encode(result.stderr()), create_mode=CreateNew)
+    }
+  }
+  println(output)
+}

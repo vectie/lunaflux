@@ -53,7 +53,9 @@ ten learned attention-compressor/cache effects, optional nineteen-effect learned
 indexer and four-effect joint window/compressed reader. Ratio-four layers use
 learned compressed row IDs; ratio-128 layers consume all causal compressed rows.
 One sink-softmax covers both sets without expanding compressed rows into raw
-positions. The caller supplies borrowed index offsets only for learned layers.
+positions. Selection and the joint reader use cache-relative compressed row IDs
+because their buffers are separate; no caller index-offset allocation is needed.
+The coordinate contract belongs to shared precision IR, not a CUDA family branch.
 Aggregate state/scratch ceilings are derived from the existing immutable plans;
 compact weights and all prepared owners are summed again before upload.
 
@@ -70,7 +72,7 @@ actual checkpoint-backed F32 mHC prefix and transposed residual publication:
 19 effects for window-only layers, 48 for learned-compressed layers and 29 for
 all-causal compressed layers. Output-B writes directly into the mHC branch
 buffer; the output frame borrows it rather than allocating another result or
-adding a copy. The caller retains input/output residual ownership, index offsets
+adding a copy. The caller retains input/output residual ownership
 and the containing queue. All append descriptors join that queue's completion.
 Aggregate private allocation excludes borrowed ports/results and is checked
 before upload. The FFN envelope and complete decoder/stage runner remain separate
@@ -88,7 +90,7 @@ separate consumers, not implicitly replaced by the window path.
 `DeepSeekLearnedIndexer` now composes learned queries, the distinct indexer
 compressor/rotary/Hadamard/FP4 retained cache, weighted score reduction and
 causal top-k. Nineteen prepared effects share the existing decoder queue.
-Its outputs are compressed row IDs/counts with the caller's per-query offset;
+Its outputs are cache-relative compressed row IDs/counts;
 they are not raw token positions. Every component's scratch, retained state
 and compact checkpoint banks counts against the aggregate preparation budget.
 This is the full-head single-rank indexer, not tensor-parallel head reduction,

@@ -21,6 +21,7 @@ pub fn index_selection_plan(
     maximum_rows~,
     maximum_positions=maximum_context,
     top_k=spec.index_top_k(),
+    coordinates=CacheRelative,
     maximum_workspace_bytes~,
   )
 }
@@ -121,7 +122,6 @@ pub fn DeepSeekLearnedIndexer::prepare(
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   low_rank_queries~ : @device.Allocation,
-  offsets~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming.StreamingSafetensorsLimits,
@@ -171,7 +171,6 @@ pub fn DeepSeekLearnedIndexer::prepare(
     queries=queries.queries,
     head_weights=queries.head_weights,
     cache_values=self.cache.values(),
-    offsets~,
     maximum_workspace_bytes=self.selection.workspace_bytes(),
   )
   self.launches.append(self.queries.launches())

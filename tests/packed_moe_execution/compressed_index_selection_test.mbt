@@ -1,5 +1,7 @@
 ///|
-fn compressed_selection_fixture() -> @selection_frame.CompressedIndexSelectionFrame raise {
+fn compressed_selection_fixture(
+  coordinates : @precision.CompressedRowCoordinates,
+) -> @selection_frame.CompressedIndexSelectionFrame raise {
   @selection_frame.CompressedIndexSelectionFrame::new(
     @selection_source.compressed_index_selection_source(
       @precision.CompressedIndexSelectionPrecision::new(
@@ -9,6 +11,7 @@ fn compressed_selection_fixture() -> @selection_frame.CompressedIndexSelectionFr
         maximum_rows=3,
         maximum_positions=16,
         top_k=2,
+        coordinates~,
         maximum_workspace_bytes=60L,
       ),
       symbol_prefix="prepared_selection",
@@ -17,7 +20,9 @@ fn compressed_selection_fixture() -> @selection_frame.CompressedIndexSelectionFr
 }
 
 ///|
-test "compressed index selection exposes two warm effects and validates all borrowed ports" {
+fn exercise_compressed_selection(
+  coordinates : @precision.CompressedRowCoordinates,
+) -> Unit raise {
   let baseline = live_resources()
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
@@ -29,7 +34,7 @@ test "compressed index selection exposes two warm effects and validates all borr
   defer (operand.close() catch { _ => () })
   let short = context.allocate(8L)
   defer (short.close() catch { _ => () })
-  let invalid = compressed_selection_fixture()
+  let invalid = compressed_selection_fixture(coordinates)
   let before_prepare = live_resources()
   try
     invalid.prepare(
@@ -52,7 +57,7 @@ test "compressed index selection exposes two warm effects and validates all borr
   }
   assert_eq(live_resources(), before_prepare)
   invalid.close()
-  let frame = compressed_selection_fixture()
+  let frame = compressed_selection_fixture(coordinates)
   defer (frame.close() catch { _ => () })
   frame.prepare(
     context,
@@ -64,7 +69,7 @@ test "compressed index selection exposes two warm effects and validates all borr
     queries=operand,
     head_weights=operand,
     cache_values=operand,
-    offsets=operand,
+    offsets?=if coordinates is OffsetRelative { Some(operand) } else { None },
     maximum_workspace_bytes=60L,
   )
   assert_eq(frame.outputs().row_ids.byte_count(), 24L)
@@ -100,4 +105,10 @@ test "compressed index selection exposes two warm effects and validates all borr
   stream.close()
   context.close()
   assert_eq(live_resources(), baseline)
+}
+
+///|
+test "compressed index selection checks both coordinates with unchanged allocation-free effects" {
+  exercise_compressed_selection(OffsetRelative)
+  exercise_compressed_selection(CacheRelative)
 }

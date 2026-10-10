@@ -5,10 +5,21 @@ test "export joint attention numerical probe kernels" {
   }
   println("LUNA_JOINT_ATTENTION_SOURCE_BEGIN")
   for
-    (prefix, rows, window, positions, ratio, read_set) in [
-      ("joint4", 8, 4, 32, 4, @precision.CompressedRowReadSet::Learned(top_k=3)),
-      ("joint128", 8, 4, 256, 128, AllCausal),
-      ("joint0", 3, 3, 3, 4, Learned(top_k=3)),
+    (prefix, rows, window, positions, ratio, read_set, coordinates) in [
+      (
+        "joint4",
+        8,
+        4,
+        32,
+        4,
+        @precision.CompressedRowReadSet::Learned(top_k=3),
+        @precision.CompressedRowCoordinates::OffsetRelative,
+      ),
+      ("joint128", 8, 4, 256, 128, AllCausal, OffsetRelative),
+      ("joint0", 3, 3, 3, 4, Learned(top_k=3), OffsetRelative),
+      ("joint4_cache", 8, 4, 32, 4, Learned(top_k=3), CacheRelative),
+      ("joint128_cache", 8, 4, 256, 128, AllCausal, CacheRelative),
+      ("joint0_cache", 3, 3, 3, 4, Learned(top_k=3), CacheRelative),
     ] {
     let plan = @precision.WindowCompressedKvPrecision::new(
       @precision.WindowSharedKvPrecision::new(
@@ -21,6 +32,7 @@ test "export joint attention numerical probe kernels" {
       ),
       compression_ratio=ratio,
       read_set~,
+      coordinates~,
     )
     println(
       @utf8.decode(

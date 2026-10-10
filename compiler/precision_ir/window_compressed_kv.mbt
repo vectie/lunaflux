@@ -9,6 +9,7 @@ pub struct WindowCompressedKvPrecision {
   priv window : WindowSharedKvPrecision
   priv ratio : Int
   priv read_set : CompressedRowReadSet
+  priv coordinates : CompressedRowCoordinates
   priv capacity : Int
   priv selected : Int
 }
@@ -18,6 +19,7 @@ pub fn WindowCompressedKvPrecision::new(
   window : WindowSharedKvPrecision,
   compression_ratio~ : Int,
   read_set~ : CompressedRowReadSet,
+  coordinates? : CompressedRowCoordinates = OffsetRelative,
 ) -> Self raise PrecisionPlanError {
   guard compression_ratio > 1 && compression_ratio <= 1048576 else {
     raise IllegalPlacement
@@ -31,7 +33,21 @@ pub fn WindowCompressedKvPrecision::new(
     }
     AllCausal => capacity
   }
-  { window, ratio: compression_ratio, read_set, capacity, selected, }
+  {
+    window,
+    ratio: compression_ratio,
+    read_set,
+    coordinates,
+    capacity,
+    selected,
+  }
+}
+
+///|
+pub fn WindowCompressedKvPrecision::coordinates(
+  self : Self,
+) -> CompressedRowCoordinates {
+  self.coordinates
 }
 
 ///|

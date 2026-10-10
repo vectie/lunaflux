@@ -147,7 +147,6 @@ pub fn DeepSeekCompressedAttention::prepare(
   positions~ : @device.Allocation,
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
-  index_offsets? : @device.Allocation,
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming.StreamingSafetensorsLimits,
@@ -155,12 +154,6 @@ pub fn DeepSeekCompressedAttention::prepare(
   guard self.state is Fresh &&
     self.required_device_bytes(checkpoint) <= maximum_device_bytes else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
-  }
-  // Enforce the selected read-set before weight upload. Offsets remain borrowed
-  // so a containing physical view can choose its own addressing convention.
-  guard (self.indexer is Some(_) && index_offsets is Some(_)) ||
-    (self.indexer is None && index_offsets is None) else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
   }
   self.state = Failed
   self.inputs.prepare(
@@ -189,8 +182,8 @@ pub fn DeepSeekCompressedAttention::prepare(
     limits~,
   )
   let inputs = self.inputs.outputs()
-  let read_ports = match (self.indexer, index_offsets) {
-    (Some(indexer), Some(offsets)) => {
+  let read_ports = match self.indexer {
+    Some(indexer) => {
       indexer.prepare(
         context,
         aot,
@@ -201,16 +194,14 @@ pub fn DeepSeekCompressedAttention::prepare(
         reset_flag~,
         hidden~,
         low_rank_queries=inputs.low_rank_queries,
-        offsets~,
         maximum_device_bytes=indexer.required_device_bytes(checkpoint),
         chunk_bytes~,
         limits~,
       )
       let selection = indexer.outputs()
-      @compressed_window_frame.CompressedReadPorts::Learned(
+      @compressed_window_frame.CompressedReadPorts::CacheRelative(
         counts=selection.row_counts,
         rows=selection.row_ids,
-        offsets~,
       )
     }
     _ => @compressed_window_frame.CompressedReadPorts::AllCausal

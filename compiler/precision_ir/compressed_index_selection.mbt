@@ -9,6 +9,7 @@ pub struct CompressedIndexSelectionPrecision {
   priv rows : Int
   priv positions : Int
   priv top_k : Int
+  priv coordinates : CompressedRowCoordinates
   priv frames : ReadOnlyArray[Int64]
   priv workspace : Int64
 }
@@ -21,6 +22,7 @@ pub fn CompressedIndexSelectionPrecision::new(
   maximum_rows~ : Int,
   maximum_positions~ : Int,
   top_k~ : Int,
+  coordinates? : CompressedRowCoordinates = OffsetRelative,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
   guard head_count > 0 &&
@@ -56,9 +58,17 @@ pub fn CompressedIndexSelectionPrecision::new(
     rows: maximum_rows,
     positions: maximum_positions,
     top_k,
+    coordinates,
     frames: ReadOnlyArray::from_array(sizes),
     workspace,
   }
+}
+
+///|
+pub fn CompressedIndexSelectionPrecision::coordinates(
+  self : Self,
+) -> CompressedRowCoordinates {
+  self.coordinates
 }
 
 ///|

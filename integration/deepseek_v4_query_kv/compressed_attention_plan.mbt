@@ -24,6 +24,7 @@ pub fn compressed_attention_plan(
       maximum_state_bytes~,
     ),
     compression_ratio=ratio,
+    coordinates=CacheRelative,
     read_set=if ratio == 4 {
       Learned(top_k=spec.index_top_k())
     } else {

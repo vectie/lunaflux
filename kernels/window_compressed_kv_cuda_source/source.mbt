@@ -31,19 +31,24 @@ pub fn window_compressed_kv_source(
   } else {
     "(position + 1) / " + plan.compression_ratio().to_string()
   }
+  let offset = match plan.coordinates() {
+    CacheRelative => "0"
+    OffsetRelative => "offsets[row]"
+  }
   let selected_row = if learned {
     "selected[(unsigned long long)row * " +
     Int::max(slots, 1).to_string() +
-    "ULL + slot] - offsets[row]"
+    "ULL + slot] - " +
+    offset
   } else {
     "slot"
   }
   let validate_selection = if learned {
     (
       $|    const int visible = (base + row + 1) / \{plan.compression_ratio()};
-      $|    const int limit = selected_counts[row]; if (limit < 0 || limit > \{slots} || limit > visible || offsets[row] < 0) { history[1] = 1; return; }
+      $|    const int limit = selected_counts[row]; if (limit < 0 || limit > \{slots} || limit > visible || \{offset} < 0) { history[1] = 1; return; }
       $|    for (int slot = 0; slot < limit; ++slot) {
-      $|      const long long index = (long long)selected[(unsigned long long)row * \{Int::max(slots, 1)}ULL + slot] - offsets[row];
+      $|      const long long index = (long long)selected[(unsigned long long)row * \{Int::max(slots, 1)}ULL + slot] - \{offset};
       $|      if (index < 0 || index >= visible) { history[1] = 1; return; }
       $|    }
     )

@@ -5,6 +5,7 @@ pub(all) enum CompressedReadPorts {
     rows~ : @device.Allocation,
     offsets~ : @device.Allocation
   )
+  CacheRelative(counts~ : @device.Allocation, rows~ : @device.Allocation)
   AllCausal
 }
 
@@ -97,9 +98,11 @@ pub fn WindowCompressedKvFrame::prepare(
   )
   let cache_count = region(compressed_counts, 20L, 4L)
   let cache_append = region(compressed_append, 12L, 4L)
-  let (selected_count, selected, offset) = match (plan.read_set(), read_ports) {
+  let (selected_count, selected, offset) = match
+    (plan.read_set(), plan.coordinates(), read_ports) {
     (
       @precision.CompressedRowReadSet::Learned(top_k=_),
+      OffsetRelative,
       Learned(counts~, rows=ids, offsets~),
     ) =>
       (
@@ -111,7 +114,21 @@ pub fn WindowCompressedKvFrame::prepare(
         ),
         region(offsets, rows.to_int64() * 4L, 4L),
       )
-    (@precision.CompressedRowReadSet::AllCausal, AllCausal) =>
+    (
+      @precision.CompressedRowReadSet::Learned(top_k=_),
+      CacheRelative,
+      CacheRelative(counts~, rows=ids),
+    ) =>
+      (
+        region(counts, rows.to_int64() * 4L, 4L),
+        region(
+          ids,
+          rows.to_int64() * Int::max(plan.selected_width(), 1).to_int64() * 4L,
+          4L,
+        ),
+        reset, // Cache-relative source never dereferences this ABI slot.
+      )
+    (@precision.CompressedRowReadSet::AllCausal, _, AllCausal) =>
       // Those ABI slots are never dereferenced by the all-causal lowering.
       // Borrow one existing valid span instead of allocating dummy tensors.
       (reset, reset, reset)

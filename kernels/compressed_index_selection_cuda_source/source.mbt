@@ -21,6 +21,10 @@ pub fn compressed_index_selection_source(
   let physical = Int::max(capacity, 1)
   let slots = Int::max(plan.selected_width(), 1)
   let symbols = [symbol_prefix + "_scores", symbol_prefix + "_select"]
+  let offset = match plan.coordinates() {
+    CacheRelative => "0"
+    OffsetRelative => "offsets[row]"
+  }
   let source = @utf8.encode(
     (
       $|#include <cuda_bf16.h>
@@ -55,7 +59,7 @@ pub fn compressed_index_selection_source(
       $|  __syncthreads();
       $|  const int live = counts[3], retained = cache_counts[3];
       $|  if (live <= 0 || live > \{rows} || counts[2] != 1 || row >= live || cache_append[2] || retained < 0 || retained > \{capacity} || (retained && cache_counts[2] != 1)) return;
-      $|  const int position = positions[row], offset = offsets[row];
+      $|  const int position = positions[row], offset = \{offset};
       $|  if (position < 0 || position >= \{positions} || offset < 0 || (retained > 0 && offset > INT_MAX - (retained - 1))) return;
       $|  const int visible = min(retained, (position + 1) / \{ratio}), limit = min(visible, \{plan.selected_width()});
       $|  __shared__ float best_scores[256]; __shared__ int best_indices[256];

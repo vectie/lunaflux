@@ -17,6 +17,7 @@ test "all compressed layers map to the exact learned or all-causal read set" {
         maximum_state_bytes=1048576L,
       )
       assert_eq(plan.window().geometry().2, 16)
+      assert_eq(plan.coordinates(), CacheRelative)
       match spec.compression_ratio(layer) {
         Some(4) => {
           assert_true(
@@ -44,6 +45,7 @@ test "all compressed layers map to the exact learned or all-causal read set" {
       )
       let text = @utf8.decode(owner.source_bytes())
       assert_true(text.contains("joint_attention_attention"))
+      assert_false(text.contains("offsets[row]"))
       if spec.compression_ratio(layer) == Some(4) {
         assert_true(text.contains("index_selection"))
       }

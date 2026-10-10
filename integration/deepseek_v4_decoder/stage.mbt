@@ -1,7 +1,7 @@
 ///|
 /// A contiguous base-model stage with text effects only at the model edges.
 /// Compact checkpoint weights/state and two residual boundaries are owned;
-/// token tables are also stage-owned; request ports, index offsets, AOT module
+/// token tables are also stage-owned; request ports, AOT module
 /// and stream are borrowed.
 pub struct DeepSeekDecoderStage {
   priv spec : @spec.DeepSeekV4ModelSpec
@@ -15,7 +15,6 @@ pub struct DeepSeekDecoderStage {
   priv residual_bytes : Int64
   priv token_table_count : Int
   priv token_tables : @upload.CheckpointDeviceIndexTables
-  priv needs_index : Bool
   priv residuals : Array[@device.Allocation]
   priv mut counts : @device.Allocation?
   priv mut state : SliceState
@@ -66,13 +65,6 @@ pub fn DeepSeekDecoderStage::new(
   } else {
     None
   }
-  let needs_index = for layer in first_layer..<end_layer {
-    if spec.compression_ratio(layer) == Some(4) {
-      break true
-    }
-  } nobreak {
-    false
-  }
   {
     spec,
     range,
@@ -90,7 +82,6 @@ pub fn DeepSeekDecoderStage::new(
       0,
     ),
     token_tables: @upload.CheckpointDeviceIndexTables::new(),
-    needs_index,
     residuals: [],
     counts: None,
     state: Fresh,
@@ -124,7 +115,7 @@ pub fn DeepSeekDecoderStage::source_bytes(self : Self) -> Bytes raise {
 
 ///|
 /// All owned weights/state/workspace/residuals/token tables. Borrowed ports,
-/// index offsets and transport buffers must be budgeted separately by the caller.
+/// and transport buffers must be budgeted separately by the caller.
 pub fn DeepSeekDecoderStage::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
@@ -173,7 +164,6 @@ pub fn DeepSeekDecoderStage::prepare(
   checkpoint : @materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   ports : @serial.SerialDecoderWorker,
-  index_offsets? : @device.Allocation,
   maximum_device_bytes~ : Int64,
   maximum_host_bytes~ : Int64,
   chunk_bytes~ : Int,
@@ -186,7 +176,6 @@ pub fn DeepSeekDecoderStage::prepare(
   guard rows == self.maximum_rows &&
     history <= self.maximum_context &&
     vocabulary == self.vocabulary &&
-    (!self.needs_index || index_offsets is Some(_)) &&
     chunk_bytes > 0 else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
@@ -283,7 +272,6 @@ pub fn DeepSeekDecoderStage::prepare(
     token_ids~,
     input=self.residuals[0],
     output=self.residuals[1],
-    index_offsets?,
     token_tables~,
     prefix_launches~,
     suffix_launches~,

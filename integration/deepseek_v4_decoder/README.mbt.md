@@ -23,7 +23,7 @@ base blocks. Numerical components alone do not prove whole-model accuracy or spe
 `DeepSeekDecoderSlice` uploads complete routed/shared compact banks and router
 weights only for its base-layer interval. It owns at most two reusable
 inter-layer residual frames and one ordered queue. Request positions, token
-IDs, startup-narrowed token-hash tables and learned-index offsets are borrowed;
+IDs and startup-narrowed token-hash tables are borrowed;
 the caller budgets those once. No checkpoint file access occurs in submit/poll.
 
 `DeepSeekDecoderStage` composes embedding only at ingress, learned output only
@@ -38,6 +38,11 @@ table payload budgets fail before any stage allocation.
 It requires the worker's explicit absolute-position port. Text prefix/suffix
 join the decoder queue; only a prepared complete range can bind whole-model
 worker delivery. A partial stage is not an independently runnable model.
+
+Compressed selection uses an explicit cache-relative precision-IR contract:
+the reader accesses a separate compressed buffer, not a joined tensor with a
+window prefix. No caller offset tensor, host offset update or per-step validation
+is needed. Generic offset-relative plans remain available for joined views.
 
 Stage sources and negative/preparation tests are not full-checkpoint numerical
 execution. Stage-bound activation leases,

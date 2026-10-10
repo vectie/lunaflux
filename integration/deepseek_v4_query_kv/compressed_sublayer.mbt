@@ -70,7 +70,6 @@ pub fn DeepSeekCompressedSublayer::prepare(
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output? : @device.Allocation,
-  index_offsets? : @device.Allocation,
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming.StreamingSafetensorsLimits,
@@ -90,7 +89,6 @@ pub fn DeepSeekCompressedSublayer::prepare(
     positions~,
     reset_flag~,
     hidden~,
-    index_offsets?,
     maximum_device_bytes=maximum_device_bytes -
       self.output.required_device_bytes(
         checkpoint,

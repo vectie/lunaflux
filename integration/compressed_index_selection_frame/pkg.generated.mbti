@@ -18,7 +18,7 @@ pub fn CompressedIndexSelectionFrame::close(Self) -> Unit raise
 pub fn CompressedIndexSelectionFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn CompressedIndexSelectionFrame::new(@compressed_index_selection_cuda_source.CompressedIndexSelectionCudaSource) -> Self
 pub fn CompressedIndexSelectionFrame::outputs(Self) -> CompressedIndexSelectionOutputs raise
-pub fn CompressedIndexSelectionFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, positions~ : @device.Allocation, cache_counts~ : @device.Allocation, cache_append~ : @device.Allocation, queries~ : @device.Allocation, head_weights~ : @device.Allocation, cache_values~ : @device.Allocation, offsets~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn CompressedIndexSelectionFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, positions~ : @device.Allocation, cache_counts~ : @device.Allocation, cache_append~ : @device.Allocation, queries~ : @device.Allocation, head_weights~ : @device.Allocation, cache_values~ : @device.Allocation, offsets? : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
 pub fn CompressedIndexSelectionFrame::source_bytes(Self) -> Bytes
 pub fn CompressedIndexSelectionFrame::workspace_bytes(Self) -> Int64
 

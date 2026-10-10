@@ -64,7 +64,7 @@ pub fn CompressedIndexSelectionFrame::prepare(
   queries~ : @device.Allocation,
   head_weights~ : @device.Allocation,
   cache_values~ : @device.Allocation,
-  offsets~ : @device.Allocation,
+  offsets? : @device.Allocation,
   maximum_workspace_bytes~ : Int64,
 ) -> Unit raise {
   guard self.state is Fresh && self.workspace_bytes() <= maximum_workspace_bytes else {
@@ -88,7 +88,11 @@ pub fn CompressedIndexSelectionFrame::prepare(
     Int::max(plan.cache_capacity(), 1).to_int64() * width.to_int64() * 2L,
     2L,
   )
-  let o = region(offsets, rows.to_int64() * 4L, 4L)
+  let o = match (plan.coordinates(), offsets) {
+    (OffsetRelative, Some(offsets)) => region(offsets, rows.to_int64() * 4L, 4L)
+    (CacheRelative, None) => c // This ABI slot is never dereferenced.
+    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
   for bytes in plan.frame_bytes() {
     self.buffers.push(context.allocate(bytes))
   }

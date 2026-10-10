@@ -8,11 +8,20 @@ test "joint attention renders one causal union and shares ring publication" {
     maximum_positions=16,
     maximum_state_bytes=2580L,
   )
-  for read_set in [@precision.CompressedRowReadSet::Learned(top_k=2), AllCausal] {
+  for
+    (read_set, coordinates) in [
+      (
+        @precision.CompressedRowReadSet::Learned(top_k=2),
+        @precision.CompressedRowCoordinates::OffsetRelative,
+      ),
+      (Learned(top_k=2), CacheRelative),
+      (AllCausal, CacheRelative),
+    ] {
     let plan = @precision.WindowCompressedKvPrecision::new(
       window,
       compression_ratio=4,
       read_set~,
+      coordinates~,
     )
     let source = @window_compressed_kv_cuda_source.window_compressed_kv_source(
       plan,
@@ -28,6 +37,7 @@ test "joint attention renders one causal union and shares ring publication" {
     assert_true(text.contains("expf(__fsub_rn(sink[head], maximum))"))
     assert_true(text.contains("row >= append[1]"))
     assert_true(text.contains("const __nv_bfloat16 *key"))
+    assert_eq(text.contains("offsets[row]"), coordinates is OffsetRelative)
     assert_true(
       text.contains(
         @utf8.decode(

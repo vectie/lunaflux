@@ -98,7 +98,6 @@ async test "DeepSeek complete attention envelopes retain all compression profile
       defer (aot.close() catch { _ => () })
       let operand = context.allocate(3L * 4L * 4096L * 2L)
       defer (operand.close() catch { _ => () })
-      let index_offsets = if ratio == 4 { Some(operand) } else { None }
       let stage = @deepseek_decoder.DeepSeekDecoderSlice::new(
         spec,
         first_layer=layer,
@@ -125,7 +124,6 @@ async test "DeepSeek complete attention envelopes retain all compression profile
           reset_flag=operand,
           input=operand,
           output=operand,
-          index_offsets?,
           token_ids=operand,
           token_tables=if layer < spec.hash_layer_count() {
             [operand]
@@ -190,7 +188,6 @@ async test "DeepSeek complete attention envelopes retain all compression profile
           input=operand,
           output=operand,
           maximum_device_bytes=required - 1L,
-          index_offsets?,
           chunk_bytes=65536,
           limits~,
         )
@@ -212,7 +209,6 @@ async test "DeepSeek complete attention envelopes retain all compression profile
         input=operand,
         output=operand,
         maximum_device_bytes=required,
-        index_offsets?,
         chunk_bytes=65536,
         limits~,
       )
@@ -313,7 +309,6 @@ async test "DeepSeek complete attention envelopes retain all compression profile
           reset_flag=operand,
           input=operand,
           output=operand,
-          index_offsets?,
           routed_bank~,
           shared_bank~,
           router_weight~,
@@ -341,7 +336,6 @@ async test "DeepSeek complete attention envelopes retain all compression profile
         reset_flag=operand,
         input=operand,
         output=operand,
-        index_offsets?,
         routed_bank~,
         shared_bank~,
         router_weight~,

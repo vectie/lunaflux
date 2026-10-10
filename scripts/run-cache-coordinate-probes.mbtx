@@ -1,0 +1,91 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+}
+
+async fn remote(node : String, socket : String, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command]).output(max_output_bytes=2097152)
+}
+
+async fn record(output : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(output + "/" + name + ".stdout", @utf8.encode(result.stdout()), create_mode=CreateNew)
+  @fs.write_file(output + "/" + name + ".stderr", @utf8.encode(result.stderr()), create_mode=CreateNew)
+  result.check()
+}
+
+async fn identity(node : String, socket : String, uuid : String, output : String, gate : String) -> Unit {
+  let gpu = remote(node, socket, "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader")
+  record(output, gate + "-gpu", gpu)
+  guard gpu.stdout().trim() == uuid + ", 0000000F:01:00.0" else { fail("unexpected GPU identity") }
+  let occupied = remote(node, socket, "nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader")
+  record(output, gate + "-occupancy", occupied)
+  guard occupied.stdout().trim().is_empty() else { fail("GPU already has a compute process") }
+  let tools = remote(node, socket, "sha256sum /usr/local/cuda-13.0/bin/nvcc /usr/local/cuda-13.0/compute-sanitizer/compute-sanitizer")
+  record(output, gate + "-tools", tools)
+  guard tools.stdout().contains("fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1  /usr/local/cuda-13.0/bin/nvcc") &&
+    tools.stdout().contains("7a7fcdefb67042731daf021478176f4919e1843d0b10cb697af28a7d8a3d108b  /usr/local/cuda-13.0/compute-sanitizer/compute-sanitizer") else { fail("unexpected CUDA tools") }
+}
+
+async fn campaign(output : String, source : String, node : String, socket : String, uuid : String, kind : String, suffix : String) -> Unit {
+  let remote_dir = "/tmp/lunaflux-cache-coordinate-" + kind + "-" + suffix
+  let result_dir = output + "/" + kind
+  @fs.mkdir(result_dir)
+  record(result_dir, "mkdir", remote(node, socket, "mkdir " + remote_dir))
+  let files = if kind == "selection" {
+    ["compressed_selection_probe.cu", "compressed_selection_kernels.cuh", "learned_indexer.cu"]
+  } else {
+    ["joint_attention_probe.cu", "joint_attention_kernels.cuh", "compressed_sublayer_4.cu", "compressed_sublayer_128.cu"]
+  }
+  for file in files {
+    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, source + "/" + file, node + ":" + remote_dir + "/" + file]).output().check()
+  }
+  let probe = if kind == "selection" { "compressed_selection_probe" } else { "joint_attention_probe" }
+  let base = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" + remote_dir + " --unit=lunaflux-cache-" + kind + "-"
+  identity(node, socket, uuid, result_dir, "build")
+  record(result_dir, "build", remote(node, socket, base + "build-" + suffix + " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -arch=sm_121 -O2 --fmad=false " + probe + ".cu -o " + probe))
+  for file in files {
+    if file == "learned_indexer.cu" || file == "compressed_sublayer_4.cu" || file == "compressed_sublayer_128.cu" {
+      record(result_dir, file + "-build", remote(node, socket, base + file.replace(old=".cu", new="") + "-" + suffix + " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -arch=sm_121 -O2 --fmad=false --cubin " + file + " -o " + file + "bin"))
+    }
+  }
+  for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
+    identity(node, socket, uuid, result_dir, gate)
+    let executable = remote_dir + "/" + probe
+    let command = if gate == "correctness" {
+      executable
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " + gate + (if gate == "memcheck" { " --leak-check full" } else { "" }) + " " + executable
+    }
+    record(result_dir, gate, remote(node, socket, base + gate + "-" + suffix + " " + command))
+    record(result_dir, gate + "-unit", remote(node, socket, "systemctl --user show lunaflux-cache-" + kind + "-" + gate + "-" + suffix + ".service -p ActiveState -p ExecMainStatus -p MemoryMax -p MemorySwapMax -p MemoryPeak"))
+  }
+  let artifacts = files.copy()
+  artifacts.push(probe)
+  for file in files {
+    if file == "learned_indexer.cu" || file == "compressed_sublayer_4.cu" || file == "compressed_sublayer_128.cu" { artifacts.push(file + "bin") }
+  }
+  for file in artifacts {
+    let hashed = remote(node, socket, "sha256sum " + remote_dir + "/" + file)
+    hashed.check()
+    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, node + ":" + remote_dir + "/" + file, result_dir + "/" + file]).output().check()
+    let downloaded = @shell.Cmd("shasum", ["-a", "256", result_dir + "/" + file]).output()
+    downloaded.check()
+    guard (hashed.stdout().split(" ").next(), downloaded.stdout().split(" ").next()) is (Some(expected), Some(actual)) && expected.length() == 64 && expected == actual else { fail("download mismatch: " + file) }
+    @fs.write_file(result_dir + "/" + file + ".sha256", @utf8.encode(downloaded.stdout()), create_mode=CreateNew)
+  }
+  println(kind + " GPU correctness/sanitizers passed and artifacts downloaded")
+}
+
+async fn main {
+  guard @env.args() is [_, selection_source, joint_source, output, suffix] && suffix.length() > 0 && suffix.iter().all(ch => ch is ('a'..='z' | '0'..='9' | '-')) else {
+    fail("SELECTION_SOURCE JOINT_SOURCE NEW_OUTPUT SAFE_UNIQUE_SUFFIX")
+  }
+  @fs.mkdir(output)
+  @async.with_task_group(group => {
+    group.spawn_bg(() => campaign(output, selection_source, "wlc003s@192.168.2.178", "/tmp/lunaflux-checkpoint-live-20261010.sock", "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f", "selection", suffix))
+    group.spawn_bg(() => campaign(output, joint_source, "wlc004s@192.168.2.179", "/tmp/lunaflux-checkpoint-live179-20261010.sock", "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6", "joint", suffix))
+  })
+}

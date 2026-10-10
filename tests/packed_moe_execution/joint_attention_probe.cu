@@ -22,7 +22,7 @@ static unsigned short word(float x) {
   std::memcpy(&result,&value,2); return result;
 }
 
-template<int Mode, int R, int W, int Max, int Ratio, int K> static void run() {
+template<int Mode, int R, int W, int Max, int Ratio, int K, bool CacheRelative=false> static void run() {
   constexpr int H=2,D=128,C=Max/Ratio,PhysicalC=C?C:1,Slots=K?K:1;
   auto counts=allocate<int>(5),reset=allocate<int>(1),positions=allocate<int>(R);
   auto cache_count=allocate<int>(5),cache_append=allocate<int>(3);
@@ -34,7 +34,22 @@ template<int Mode, int R, int W, int Max, int Ratio, int K> static void run() {
   sink[0]=0.35f; sink[1]=-1.2f;
   for (int i=0;i<PhysicalC*D;++i) compressed[i]=__float2bfloat16_rn(float((i*7)%31-15)*0.03125f);
   auto execute=[&]() {
-    if constexpr(Mode==4) {
+    if constexpr(CacheRelative && Mode==4) {
+      joint4_cache_reserve<<<1,1>>>(counts,reset,positions,cache_count,cache_append,selected_count,ids,nullptr,history,append);
+      joint4_cache_attention<<<dim3(R,H),128>>>(append,selected_count,ids,nullptr,queries,current,(const __nv_bfloat16*)ring,compressed,sink,output);
+      joint4_cache_copy<<<W,128>>>(append,(const unsigned short*)current,ring);
+      joint4_cache_publish<<<1,1>>>(append,history);
+    } else if constexpr(CacheRelative && Mode==128) {
+      joint128_cache_reserve<<<1,1>>>(counts,reset,positions,cache_count,cache_append,selected_count,ids,nullptr,history,append);
+      joint128_cache_attention<<<dim3(R,H),128>>>(append,selected_count,ids,nullptr,queries,current,(const __nv_bfloat16*)ring,compressed,sink,output);
+      joint128_cache_copy<<<W,128>>>(append,(const unsigned short*)current,ring);
+      joint128_cache_publish<<<1,1>>>(append,history);
+    } else if constexpr(CacheRelative) {
+      joint0_cache_reserve<<<1,1>>>(counts,reset,positions,cache_count,cache_append,selected_count,ids,nullptr,history,append);
+      joint0_cache_attention<<<dim3(R,H),128>>>(append,selected_count,ids,nullptr,queries,current,(const __nv_bfloat16*)ring,compressed,sink,output);
+      joint0_cache_copy<<<W,128>>>(append,(const unsigned short*)current,ring);
+      joint0_cache_publish<<<1,1>>>(append,history);
+    } else if constexpr(Mode==4) {
       joint4_reserve<<<1,1>>>(counts,reset,positions,cache_count,cache_append,selected_count,ids,offsets,history,append);
       joint4_attention<<<dim3(R,H),128>>>(append,selected_count,ids,offsets,queries,current,(const __nv_bfloat16*)ring,compressed,sink,output);
       joint4_copy<<<W,128>>>(append,(const unsigned short*)current,ring);
@@ -67,7 +82,7 @@ template<int Mode, int R, int W, int Max, int Ratio, int K> static void run() {
         offsets[row]=9;
         const int visible=(base+row+1)/Ratio;
         selected_count[row]=std::min(K,visible);
-        for(int slot=0;slot<Slots;++slot) ids[row*Slots+slot]=slot<selected_count[row]?9+visible-1-slot:-1;
+        for(int slot=0;slot<Slots;++slot) ids[row*Slots+slot]=slot<selected_count[row]?(CacheRelative?0:9)+visible-1-slot:-1;
       }
       for(int row=0;row<live;++row) {
         positions[row]=base+row;
@@ -85,7 +100,7 @@ template<int Mode, int R, int W, int Max, int Ratio, int K> static void run() {
         const int visible=(position+1)/Ratio,nc=Mode==128?visible:selected_count[row];
         auto value=[&](int ordinal,int col) {
           if(ordinal<n) return raw[(first+ordinal)*D+col];
-          const int slot=ordinal-n,index=Mode==128?slot:ids[row*Slots+slot]-offsets[row];
+          const int slot=ordinal-n,index=Mode==128?slot:ids[row*Slots+slot]-(CacheRelative?0:offsets[row]);
           return __bfloat162float(compressed[index*D+col]);
         };
         std::vector<float> scores(n+nc); float maximum=sink[head];
@@ -119,9 +134,10 @@ template<int Mode, int R, int W, int Max, int Ratio, int K> static void run() {
   check(cudaFree(current)); check(cudaFree(queries)); check(cudaFree(append)); check(cudaFree(history));
   check(cudaFree(offsets)); check(cudaFree(ids)); check(cudaFree(selected_count));
   check(cudaFree(cache_append)); check(cudaFree(cache_count)); check(cudaFree(positions)); check(cudaFree(reset)); check(cudaFree(counts));
-  std::printf("joint mode=%d steps=%d causal-union=passed ring=exact inactive=zero release=balanced\n",Mode,steps);
+  std::printf("joint mode=%d cache_relative=%d steps=%d causal-union=passed ring=exact inactive=zero release=balanced\n",Mode,CacheRelative,steps);
 }
 int main() {
   run<4,8,4,32,4,3>(); run<128,8,4,256,128,0>(); run<0,3,3,3,4,0>();
+  run<4,8,4,32,4,3,true>(); run<128,8,4,256,128,0,true>(); run<0,3,3,3,4,0,true>();
   std::puts("joint attention component correctness passed"); return 0;
 }
