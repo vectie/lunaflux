@@ -224,6 +224,11 @@ tail and embedded worker checksum word are unused. Rank, generation, rendezvous
 and resource contracts remain explicit. Replacement requires completed retirement
 and a newer generation, not a freshly hashed or changed deployment label.
 
+Remote-group construction must compare retained immutable worker contracts,
+not serialize and SHA-hash them again to check an already-constructed bootstrap.
+The bounded typed comparison preserves execution limits, generations and
+streaming semantics without a cryptographic startup replay.
+
 Deployment launch parsing and two-Spark worker configuration must not hash
 their documents or referenced startup payloads. Worker activation retains the
 already-open executable descriptor directly: no full executable read, SHA-256

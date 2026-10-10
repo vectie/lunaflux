@@ -31,10 +31,12 @@ pub fn admit_network(
     raise rejected(IncompleteRankSet, -1)
   }
   let claims : Array[RankBootstrapClaim] = []
+  let workers : Array[@worker_wire.WorkerStartupContract] = []
   for rank in 0..<2 {
     guard remote.rank(rank) is Some(startup) else {
       raise rejected(IncompleteRankSet, rank)
     }
+    workers.push(startup.worker())
     claims.push(
       network_rank_claim(
         model,
@@ -50,7 +52,7 @@ pub fn admit_network(
   guard remote.rank(0) is Some(first) else {
     raise rejected(IncompleteRankSet, 0)
   }
-  admit_claims(
+  let admitted = admit_claims(
     model.identity(),
     first.worker().model_generation_value(),
     first.group_generation_value(),
@@ -62,6 +64,7 @@ pub fn admit_network(
     template_digest_sha256=remote.digest_sha256(),
     network_lease_millis=first.lease_millis(),
   )
+  { ..admitted, worker_contracts: ReadOnlyArray::from_array(workers), }
 }
 
 ///|

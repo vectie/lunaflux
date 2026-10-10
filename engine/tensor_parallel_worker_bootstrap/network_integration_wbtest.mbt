@@ -136,6 +136,34 @@ async test "two independent ordinal-zero nodes join sharded files AOT plans and 
       collective_runtime_version_code=21403,
     )
     for rank in 0..<2 {
+      let worker = remote.rank(rank).unwrap().worker()
+      assert_true(admitted.matches_worker_contract(rank, worker))
+      assert_false(admitted.matches_worker_contract(-1, worker))
+      assert_false(admitted.matches_worker_contract(2, worker))
+      // Reusing labels cannot conceal changed execution capacities. Compare
+      // typed contracts instead of computing another contract checksum.
+      let changed = @worker_wire.WorkerStartupContract::new(
+        identity=worker.identity(),
+        bootstrap_digest=worker.bootstrap_digest(),
+        bootstrap_source_digest=worker.bootstrap_source_digest(),
+        device_ordinal=worker.device_ordinal(),
+        model_generation_value=worker.model_generation_value(),
+        worker_limits=@worker_protocol.WorkerProtocolLimits::new(
+          max_prefill_rows=worker.worker_limits().max_prefill_rows(),
+          max_decode_rows=worker.worker_limits().max_decode_rows(),
+          max_plan_rows=worker.worker_limits().max_plan_rows(),
+          max_plan_tokens=worker.worker_limits().max_plan_tokens(),
+          max_plan_pages=worker.worker_limits().max_plan_pages(),
+          max_capabilities=worker.worker_limits().max_capabilities() + 1,
+          max_completion_slots=worker.worker_limits().max_completion_slots(),
+          max_sequence_tokens=worker.worker_limits().max_sequence_tokens(),
+          max_token_id=worker.worker_limits().max_token_id(),
+        ),
+        inference_limits=worker.inference_limits(),
+        has_predecessor=worker.has_predecessor(),
+        predecessor_value=worker.predecessor_value(),
+      )
+      assert_false(admitted.matches_worker_contract(rank, changed))
       assert_eq(
         admitted.rank_envelope(rank).unwrap().network_lease_millis(),
         1000UL,

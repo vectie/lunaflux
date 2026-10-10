@@ -92,6 +92,21 @@ pub fn TensorParallelGroupBootstrap::rank_envelope(
 }
 
 ///|
+/// Compare the retained immutable startup contract directly. This performs no
+/// serialization, payload scan, hashing or allocation. Invalid ranks do not
+/// match. Wire envelope labels are separate from these execution semantics.
+pub fn TensorParallelGroupBootstrap::matches_worker_contract(
+  self : Self,
+  rank : Int,
+  contract : @worker_wire.WorkerStartupContract,
+) -> Bool {
+  match self.worker_contracts.get(rank) {
+    Some(expected) => expected == contract
+    None => false
+  }
+}
+
+///|
 /// Explicit network watchdog duration; zero for a same-host envelope.
 pub fn TensorParallelRankBootstrapEnvelope::network_lease_millis(
   self : Self,

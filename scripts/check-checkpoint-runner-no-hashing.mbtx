@@ -21,6 +21,10 @@ async fn main {
     "model/glm53_device_upload", "model/minimax_h3_device_upload", "model/glm53_host_materialize",
     "model/deepseek_v4_host_materialization", "model/minimax_h3_host_materialization", "engine/remote_startup",
   ]
+  let remote_join = @fs.read_file("engine/remote_group/startup.mbt").text()
+  guard !remote_join.contains("worker_contract_digest(") else {
+    fail("remote startup must compare retained worker contracts without rehashing")
+  }
   for directory in checkpoint_packages {
     for name in @fs.readdir(directory) {
       if name.has_suffix(".mbt") && !name.has_suffix("test.mbt") {

@@ -52,6 +52,12 @@ frames. Lease compatibility is compared explicitly in the coordinator and
 rank-local join, including decoded envelopes. Retained model/plan identities
 are not a substitute for that execution-semantic comparison.
 
+The parent retains each immutable worker contract during construction. Live
+remote-group startup compares these typed contracts directly, without repeating
+canonical encoding and SHA-256 to recover the existing worker identity. Rank,
+generation, limits, predecessor and streaming semantics remain compared. This
+does not alter the wire format or turn supplied labels into integrity claims.
+
 All collections and existing plan-identity derivation are startup-only. The
 resulting group, envelopes, digests, and rank-local contracts are immutable;
 no token-step or collective launch path allocates through this package.

@@ -276,6 +276,7 @@ fn admit_claims(
     digest: group_digest,
     template_digest_sha256: template_digest_sha256.to_owned(),
     envelopes: ReadOnlyArray::from_array(envelopes),
+    worker_contracts: ReadOnlyArray::from_array([]),
   }
 }
 
@@ -368,7 +369,7 @@ pub fn admit_with_template(
       ),
     )
   }
-  admit_claims(
+  let admitted = admit_claims(
     identity,
     model_generation_value,
     group_generation_value,
@@ -379,6 +380,10 @@ pub fn admit_with_template(
     claims,
     template_digest_sha256~,
   )
+  {
+    ..admitted,
+    worker_contracts: ReadOnlyArray::from_array(startups.to_array()),
+  }
 }
 
 ///|

@@ -53,6 +53,7 @@ pub fn TensorParallelGroupBootstrap::collective_runtime_version_code(Self) -> In
 pub fn TensorParallelGroupBootstrap::digest(Self) -> TensorParallelGroupBootstrapDigest
 pub fn TensorParallelGroupBootstrap::group_generation_value(Self) -> UInt64
 pub fn TensorParallelGroupBootstrap::identity(Self) -> @spec.ModelIdentity
+pub fn TensorParallelGroupBootstrap::matches_worker_contract(Self, Int, @worker_wire.WorkerStartupContract) -> Bool
 pub fn TensorParallelGroupBootstrap::model_generation_value(Self) -> UInt64
 pub fn TensorParallelGroupBootstrap::rank_envelope(Self, Int) -> TensorParallelRankBootstrapEnvelope?
 pub fn TensorParallelGroupBootstrap::template_digest_sha256(Self) -> String

@@ -21,8 +21,7 @@ pub fn RemoteGroup::new(
       envelope.world_size() != 2 ||
       envelope.group_generation_value() != startup.group_generation_value() ||
       envelope.network_lease_millis() != startup.lease_millis() ||
-      envelope.worker_digest() !=
-      @bootstrap.worker_contract_digest(startup.worker()) {
+      !admitted.matches_worker_contract(rank, startup.worker()) {
       raise Binding
     }
     binding(envelope)

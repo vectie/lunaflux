@@ -63,6 +63,7 @@ pub struct TensorParallelGroupBootstrap {
   priv digest : TensorParallelGroupBootstrapDigest
   priv template_digest_sha256 : String
   priv envelopes : ReadOnlyArray[TensorParallelRankBootstrapEnvelope]
+  priv worker_contracts : ReadOnlyArray[@worker_wire.WorkerStartupContract]
 }
 
 ///|
