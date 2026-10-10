@@ -1,5 +1,54 @@
 # LunaFlux detailed implementation plan
 
+## Current three-model completion ledger — 2026-10-11
+
+The implementation objective remains executable, correct and useful GLM-5.3
+Flash, DeepSeek-V4 Flash DSpark and MiniMax-H3, not a collection of successful
+component smokes. The dated notes below preserve earlier results and failures;
+this ledger identifies which remaining claims they cannot close.
+
+Completed diagnostic work:
+
+- Original checkpoint tokenizers accept literal GLM/DeepSeek text and MiniMax
+  captions through the common native frontend. Generated DeepSeek IDs now decode
+  through that same original tokenizer without CUDA or weight loading.
+- GLM's original thirteen-token diagnostic plus eight generated tokens executes
+  across both Sparks with successful release and zero measured swap.
+- DSpark's actual literal chat prompt executes through draft/verify/commit and
+  ordinary target generation with sixteen identical IDs. This fixed-length
+  diagnostic disables EOS; post-EOS output is explicitly not a normal answer.
+  A separate EOS-1/maximum-64 request now emits exactly ten identical tokens,
+  finishes `StopToken` in both modes and releases both ranks with zero swap.
+- MiniMax's actual caption completes original text encoding, five joint
+  denoising evaluations and audio/video decoding at the stated small geometry.
+  Downloaded arrays have exact sizes and finite, nontrivial values.
+
+Required next boundaries, still open:
+
+1. Establish independent original-tokenizer and real-weight numerical/reference
+   comparisons for the three models. Internal speculative/ordinary equality,
+   finite media arrays and component oracles cannot substitute for them.
+2. Exercise context/window wrap, capacity limits, cancellation and failure cleanup
+   on the attached model paths, then connect bounded multi-request serving.
+3. Validate actual MiniMax caption fidelity and realistic output geometry within
+   explicit aggregate memory limits, including optional conditioning capabilities
+   required by the selected model profile.
+4. Measure matched, repeatable complete-model performance and its actual device/
+   transport timeline before claiming vLLM/SGLang parity or a general DSpark win.
+
+The fixed-length literal DSpark sample is 31.364 seconds speculative versus
+39.206 seconds ordinary, while the older BOS sample was slower speculative.
+The EOS-limited sample is 12.502 versus 24.658 seconds, with ten outputs including
+EOS. These are single diagnostic samples, not generalized throughput claims.
+MiniMax's 1,782-second joint lifetime includes preparation/loading. The current
+frontend/CLI regression matrix passes 95/95; the no-hashing and token-step
+developer gates also pass, without new warning exclusions. Keep payload hashing,
+duplicate authentication and unrelated hardening out of this feature work.
+
+Current reports: [DSpark](DEEPSEEK_LITERAL_TEXT_FRONTEND_2026-10-10.md),
+[MiniMax](MINIMAX_REAL_CAPTION_EXECUTION_2026-10-10.md),
+[GLM](BENCHMARK_GLM_NOHASH_SMOKE_2026-10-10.md).
+
 2026-10-10 FP8 loading follow-up: v2/v3 release assembly no longer reopens
 the already-retained manifest, hashes shared CUBINs per operation, or compares
 whole CUBIN copies. Unique module snapshots are read once; length, aggregate

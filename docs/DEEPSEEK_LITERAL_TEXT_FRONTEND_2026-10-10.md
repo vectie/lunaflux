@@ -134,7 +134,7 @@ model loading. It did not produce an independent tokenizer or model reference.
 Full independent numerical parity, longer/wrapped contexts, cancellation,
 multi-request serving and matched external-framework benchmarks remain open.
 
-## Stop-aware follow-up preparation
+## Completed stop-aware follow-up — 2026-10-11
 
 `prepare-deepseek-text-replay.mbtx` optionally accepts a maximum generated-token
 count and stop token. The runner retains `16/-1` for old fixed-length diagnostics,
@@ -146,6 +146,38 @@ old diagnostics and shorter stop-terminated output.
 
 The unchanged actual chat prompt, binary and device modules are prepared anew
 at `/tmp/lunaflux-dspark-run-text-eos-20261011-v1` with a 64-token maximum and
-the original checkpoint's `eos_token_id=1`. This preparation opens no GPU and
-does not overwrite the completed fixed-length run. Its speculative/ordinary
-physical completion is not yet claimed.
+the original checkpoint's `eos_token_id=1`. Preparation opens no GPU and does
+not overwrite the completed fixed-length run. Both physical modes now complete
+with the exact ten-token prefix ending at EOS:
+
+```text
+19923,3,1730,588,342,1694,440,4316,33,1
+```
+
+The original tokenizer decodes both outputs identically:
+`Hello! How can I help you today?<｜end▁of▁sentence｜>`.
+Neither path publishes a token after EOS; both report `generated=10
+finish=StopToken`, not a 64-token `Length` completion.
+
+| Mode | Diagnostic generation time | Ten output tokens / second | Peak .178 / .179 bytes |
+| --- | ---: | ---: | --- |
+| DSpark target verification | 12.502 s | 0.800 | 58,502,074,368 / 35,242,106,880 |
+| Ordinary greedy target | 24.658 s | 0.406 | 58,457,829,376 / 36,137,172,992 |
+
+Speculative execution uses two verified blocks, nine committed input rows,
+twelve submitted rows and one accepted-prefix replay. Its completion time is
+49.3% lower in this single EOS-limited sample. The different fixed-length/BOS
+results above remain valid; this is not a repeated performance estimate or an
+independent framework comparison. The ten-token numerator includes EOS.
+
+All four user units report successful zero-status termination and zero measured
+swap peaks. Both modes release both GPU owners, observed by empty post-mode
+compute-process queries; ordinary loading starts only after speculative release.
+Both journals report `payload_hashing=false`. The decoder is CPU-only and does
+not change the `fca56554` GPU binary or reused AOT modules. Its exact decoded
+outputs and empty stderr are retained at
+`/private/tmp/lunaflux-deepseek-decoded-eos-20261011-v1`.
+
+This closes the actual prompt's EOS-termination and internal differential check,
+not independent model parity, wrapped-context correctness, cancellation,
+multi-request serving, or production performance.

@@ -8,6 +8,41 @@ Phases 5 through 9 remain open. References below to a complete graph, a Ready
 rank, startup admission, or a locally complete software slice are scoped
 claims and do not close those five phase gates.
 
+## Current checkpoint execution — 2026-10-11
+
+The chronological updates below are historical snapshots. This table supersedes
+their pending claims only for the explicitly completed diagnostic routes:
+
+| Model | Current physical result | What this does not establish |
+| --- | --- | --- |
+| GLM-5.3 Flash | Original 13-token chat diagnostic and eight greedy output tokens; two ranks exited successfully, released GPUs and used no unit swap | Independent token/logit parity, arbitrary-text GPU integration, optimized serving |
+| DeepSeek-V4 Flash DSpark | Original tokenizer prepares a literal non-thinking chat prompt; speculative and ordinary target execution produce the same sixteen tokens on two Sparks | Independent upstream model parity, long/wrapped contexts, multi-request serving or external-framework performance |
+| MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; no nonfinite output | Reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
+
+The DeepSeek fixed-length run deliberately disables EOS stopping. Its last six
+tokens follow EOS and are not part of a normal assistant answer. A separate
+64-token-maximum/EOS-1 paired request now passes: both paths emit exactly ten
+identical tokens, finish with `StopToken`, release both ranks, and use zero swap.
+Its generation timer is 12.502 seconds speculative versus 24.658 seconds ordinary.
+The fixed-length
+sample takes 31.364 seconds speculative versus 39.206 seconds ordinary; the
+older BOS-only sample regressed. Neither sample is a vLLM/SGLang comparison.
+
+MiniMax's raw decoded arrays have been downloaded and independently inspected
+for exact sizes, finite/nontrivial values. This is not perceptual validation.
+The joint request's 1,782 seconds includes loading/preparation, not GPU-only
+latency. Its running swap samples were zero, but terminal swap peak is unavailable.
+
+The shared checkpoint tokenizer can now decode generated IDs without loading
+weights or opening CUDA. Frontend/tokenizer/prompt-frame and the three CLI
+regressions pass 95/95 with the existing toolchain-migration warning exclusions.
+The no-hashing and token-step scan/copy/readback developer gates pass. These
+checks are not engine-startup prerequisites and do not complete release phases.
+
+Details: [GLM smoke](BENCHMARK_GLM_NOHASH_SMOKE_2026-10-10.md),
+[DSpark literal input/output](DEEPSEEK_LITERAL_TEXT_FRONTEND_2026-10-10.md),
+[MiniMax actual-caption execution](MINIMAX_REAL_CAPTION_EXECUTION_2026-10-10.md).
+
 ## Executable compact expert features — 2026-10-09
 
 Update 2026-10-10 (combined DSpark module failure and fix): exact `c2311712`

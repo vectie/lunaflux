@@ -81,6 +81,14 @@ retains the opened descriptor without a binary snapshot or sealed-memfd copy;
 deployment owns file immutability. Bounds, model/ABI compatibility, cancellation
 and deterministic resource release remain execution requirements.
 
+Current three-model work (2026-10-11) has physical GLM diagnostic generation,
+matched DeepSeek DSpark/ordinary generation from real literal text, and a
+MiniMax actual-caption-to-decoded-audio/video diagnostic. These are not complete
+production serving, independent numerical/quality validation or matched external
+framework benchmarks. The historical release evidence above must not be applied
+to these new model paths. See the [current completion ledger](docs/PLAN.md) and
+[scoped implementation status](docs/STATUS.md).
+
 ## Initial release scope
 
 The first useful release targets a single CUDA GPU and one dense,
