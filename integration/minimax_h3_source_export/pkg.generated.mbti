@@ -15,6 +15,8 @@ pub fn build(@minimax_h3_spec.MiniMaxH3ModelMetadata, @joint_diffusion_loop.Prep
 
 pub fn build_audio(@minimax_h3_spec.MiniMaxH3ModelMetadata, @joint_diffusion_loop.PreparedPlan, @minimax_h3_config.MiniMaxH3AudioVaeConfig) -> SourceExport raise
 
+pub fn build_video(@minimax_h3_spec.MiniMaxH3ModelMetadata, @joint_diffusion_loop.PreparedPlan, tile_size~ : Int, minimum_overlap~ : Int, max_tiles~ : Int, max_workspace_bytes~ : Int64) -> SourceExport raise
+
 // Errors
 pub(all) suberror ExportError {
   InvalidPlan

@@ -51,7 +51,7 @@ pub fn Block::new(
     symbols.push(prefix + suffix)
   }
   {
-    source: stem.source + tail,
+    source: @cuda_translation_unit.compose([stem.source, tail]),
     symbols: ReadOnlyArray::from_array(symbols),
     stem,
     scratch_bytes,

@@ -23,3 +23,8 @@ scratch/cache/input/output storage. `decode-audio VARIANT_ROOT INVENTORY HEIGHT
 WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT` runs
 the complete checkpoint-backed AudioVAE from an explicit destandardized
 channel-major latent input. It does not run text conditioning or the denoiser.
+
+`export-video VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES
+WORKSPACE_LIMIT EMPTY_OUTPUT_DIRECTORY` exports the same VideoVAE module as the
+full request and reports its exact workspace/input/output byte counts. Tiling
+and memory policy are explicit inputs, not model- or machine-hidden defaults.

@@ -50,7 +50,10 @@ pub fn Frontend::new(
     function_symbol=symbols[0],
   )
   {
-    source: post_quant.source_bytes() + embedding.source,
+    source: @cuda_translation_unit.compose([
+      post_quant.source_bytes(),
+      embedding.source,
+    ]),
     symbols: ReadOnlyArray::from_array(symbols),
     input_bytes,
     output_bytes,

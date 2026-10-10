@@ -102,7 +102,11 @@ pub fn VideoDecodeBundle::new(
     raise @video_latent_embedding_cuda_source.EmbeddingError::InvalidGeometry
   }
   {
-    source: input.source + decoder.source + output.source,
+    source: @cuda_translation_unit.compose([
+      input.source,
+      decoder.source,
+      output.source,
+    ]),
     input,
     decoder,
     output,

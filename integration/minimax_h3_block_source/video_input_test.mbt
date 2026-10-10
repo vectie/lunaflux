@@ -32,6 +32,12 @@ test "video output bridge is the inverse packing followed by checkpoint affine" 
     )
   }
   let text = @utf8.decode(source.source)
+  assert_false(text.contains("}#include"))
+  for line in text.split("\n") {
+    if line.contains("#include") {
+      assert_true(line.trim_start().has_prefix("#include"))
+    }
+  }
   for symbol in source.symbols {
     assert_true(text.contains("void " + symbol + "("))
   }

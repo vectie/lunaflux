@@ -33,8 +33,10 @@ pub fn build_video_input(
   )
   {
     plan,
-    source: @dense_permutation_cuda_source.render(permutation, block_size=256) +
-    affine.source_bytes(),
+    source: @cuda_translation_unit.compose([
+      @dense_permutation_cuda_source.render(permutation, block_size=256),
+      affine.source_bytes(),
+    ]),
     symbols: [
       "lunaflux_dense_permutation_u32_v1", "lunaflux_video_destandardize_v1",
     ],

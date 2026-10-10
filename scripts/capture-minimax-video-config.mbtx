@@ -20,6 +20,7 @@ async fn main {
       root + "/transformer",
       root + "/video_vae",
       root + "/video_vae/source",
+      root + "/aot",
     ] {
     @fs.mkdir(path)
   }
@@ -52,4 +53,32 @@ async fn main {
   )
   output.check()
   println(output.stdout())
+  let exported = @shell.Cmd(
+    "_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe",
+    [
+      "export-video",
+      @fs.realpath(root),
+      "32",
+      "32",
+      "120",
+      "5",
+      "256",
+      "64",
+      "4096",
+      "8589934592",
+      @fs.realpath(root) + "/aot",
+    ],
+  ).output()
+  @fs.write_file(
+    root + "/export.stdout",
+    exported.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/export.stderr",
+    exported.stderr(),
+    create_mode=CreateNew,
+  )
+  exported.check()
+  println(exported.stdout())
 }

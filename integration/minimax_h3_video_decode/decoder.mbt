@@ -50,7 +50,11 @@ pub fn TileDecoder::new(
     @minimax_h3_weights.video_block_weight_packing(layer~, max_bytes=300000000L)
   })
   {
-    source: frontend.source + block.source + head.source,
+    source: @cuda_translation_unit.compose([
+      frontend.source,
+      block.source,
+      head.source,
+    ]),
     frontend,
     block,
     head,

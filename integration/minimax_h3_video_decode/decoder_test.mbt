@@ -20,6 +20,12 @@ test "full tile decoder covers thirty six blocks and biased F32 final head" {
   assert_eq(plan.head.weights.byte_count, 25194496L)
   assert_eq(plan.head.output_bytes, 7L * 2L * 3L * 3072L * 4L)
   let source = @utf8.decode(plan.source)
+  assert_false(source.contains("}#include"))
+  for line in source.split("\n") {
+    if line.contains("#include") {
+      assert_true(line.trim_start().has_prefix("#include"))
+    }
+  }
   assert_true(source.contains("tile_decoder_block_attention"))
   assert_true(source.contains("float maximum=-INFINITY"))
   assert_true(source.contains("float mean=0.0f"))
@@ -119,6 +125,12 @@ test "complete tiled decoder budgets all live storage and exposes shape" {
     plan.output_bytes,
   )
   let source = @utf8.decode(plan.source)
+  assert_false(source.contains("}#include"))
+  for line in source.split("\n") {
+    if line.contains("#include") {
+      assert_true(line.trim_start().has_prefix("#include"))
+    }
+  }
   assert_true(source.contains("request_gather_0_1_1"))
   assert_true(source.contains("request_publish_0"))
   assert_true(source.contains("if(iy>0)"))

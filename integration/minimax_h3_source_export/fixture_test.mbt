@@ -81,6 +81,21 @@ test "complete offline export emits every schedule variant and deterministic sou
   let first = make_export()
   let second = make_export()
   let audio_only = @minimax_h3_source_export.build_audio(metadata, plan, audio)
+  let video_only = @minimax_h3_source_export.build_video(
+    metadata,
+    plan,
+    tile_size=32,
+    minimum_overlap=0,
+    max_tiles=16,
+    max_workspace_bytes=1000000000L,
+  )
+  assert_eq(video_only.units.length(), 1)
+  guard first.units[:].filter(u => u.name == "video_decode") is [video_full] else {
+    fail("video decoder missing from full export")
+  }
+  assert_eq(video_full.source, video_only.units[0].source)
+  assert_eq(video_full.symbols, video_only.units[0].symbols)
+  assert_eq(video_full.geometry, video_only.units[0].geometry)
   assert_eq(audio_only.units.length(), 17)
   for entry in audio_only.units {
     guard first.units[:].filter(u => u.name == entry.name) is [full] else {

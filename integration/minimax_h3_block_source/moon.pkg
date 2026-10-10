@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/kernels/cuda_translation_unit",
   "vectie/lunaflux/model/joint_diffusion_vae_reference",
   "vectie/lunaflux/engine/joint_diffusion_loop",
   "vectie/lunaflux/kernels/dense_permutation_plan",

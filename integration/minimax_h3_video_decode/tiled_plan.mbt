@@ -140,7 +140,7 @@ pub fn TiledDecoder::new(
       ),
     )
   }
-  let source = sources.fold(init=b"", (a, b) => a + b)
+  let source = @cuda_translation_unit.compose(sources)
   {
     source,
     symbols: ReadOnlyArray::from_array(symbols),

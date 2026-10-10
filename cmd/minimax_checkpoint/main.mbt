@@ -45,6 +45,7 @@ async fn main {
         tail.is_empty()
       ) ||
       ((mode == "export-audio" || mode == "audio-memory") && tail.length() == 5) ||
+      (mode == "export-video" && tail.length() == 9) ||
       (mode == "decode-audio" && tail.length() == 9) ||
       (
         (mode == "inspect-component" || mode == "prepare-component") &&
@@ -52,7 +53,7 @@ async fn main {
       )
     ) else {
     fail(
-      "config|weight-plan|audio-config|video-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
+      "config|weight-plan|audio-config|video-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | export-video VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT OUTPUT_DIRECTORY | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
     )
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(root_name)
@@ -79,7 +80,7 @@ async fn main {
   if mode == "config" {
     return
   }
-  if mode == "video-config" {
+  if mode == "video-config" || mode == "export-video" {
     let video = @config.parse_video_vae_checkpoint(
       @utf8.decode(read(root, "video_vae/config.json", 1048576L)),
       @utf8.decode(read(root, "video_vae/source/config.json", 1048576L)),
@@ -89,6 +90,33 @@ async fn main {
     println(
       "VideoVAE latent_channels=\{video.latent_channels()} layers=\{video.decoder_layer_count()} hidden=\{video.decoder_hidden_size()} compression=\{video.spatial_compression()}x\{video.temporal_compression()}",
     )
+    if mode == "export-video" {
+      let shape = plan
+        .shapes()
+        .resolve_request(
+          height=@string.parse_int(tail[0]),
+          width=@string.parse_int(tail[1]),
+          requested_frames=@string.parse_int(tail[2]),
+          inference_steps=@string.parse_int(tail[3]),
+        )
+      let prepared = @loop.PreparedPlan::new(
+        plan,
+        shape,
+        max_latent_elements=2147483647L,
+      )
+      let sources = @export.build_video(
+        metadata,
+        prepared,
+        tile_size=@string.parse_int(tail[4]),
+        minimum_overlap=@string.parse_int(tail[5]),
+        max_tiles=@string.parse_int(tail[6]),
+        max_workspace_bytes=@string.parse_int64(tail[7]),
+      )
+      sources.write(tail[8])
+      for (name, bytes) in sources.units[0].geometry {
+        println("\{name}=\{bytes}")
+      }
+    }
     return
   }
   if mode == "decode-audio" {

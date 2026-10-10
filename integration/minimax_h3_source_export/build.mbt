@@ -193,6 +193,31 @@ pub fn build(
     )
   }
   append_audio(units, metadata, audio_config, plan)
+  units.push(
+    video_unit(
+      plan,
+      tile_size~,
+      minimum_overlap~,
+      max_tiles~,
+      max_workspace_bytes~,
+    ),
+  )
+  {
+    model_digest: model.plan_digest().as_hex(),
+    units: ReadOnlyArray::from_array(units),
+    timestep_counts: ReadOnlyArray::from_array(counts),
+  }
+}
+
+///|
+fn video_unit(
+  plan : @loop.PreparedPlan,
+  tile_size~ : Int,
+  minimum_overlap~ : Int,
+  max_tiles~ : Int,
+  max_workspace_bytes~ : Int64,
+) -> SourceUnit raise {
+  let request = plan.request()
   let decoder = @video.TiledDecoder::new(
     latent_frames=request.video_latent_frames(),
     latent_height=request.video_latent_height(),
@@ -216,17 +241,41 @@ pub fn build(
   symbols.append(decoder.tile.head.symbols[:])
   symbols.append(decoder.symbols[:])
   symbols.push(bundle.output.symbol)
-  units.push(
-    unit("video_decode", bundle.source, ReadOnlyArray::from_array(symbols), [
-      ("frames", request.frames().to_int64()),
-      ("height", request.height().to_int64()),
-      ("width", request.width().to_int64()),
-      ("workspace_bytes", bundle.workspace_bytes),
-    ]),
-  )
+  unit("video_decode", bundle.source, ReadOnlyArray::from_array(symbols), [
+    ("frames", request.frames().to_int64()),
+    ("height", request.height().to_int64()),
+    ("width", request.width().to_int64()),
+    ("workspace_bytes", bundle.workspace_bytes),
+    ("input_bytes", bundle.input.value_bytes),
+    ("output_bytes", bundle.output.output_bytes),
+  ])
+}
+
+///|
+/// Standalone decoder bring-up uses the exact full-request source constructor.
+/// This exports no denoising or conditioning execution and makes no media claim.
+pub fn build_video(
+  metadata : @spec.MiniMaxH3ModelMetadata,
+  plan : @loop.PreparedPlan,
+  tile_size~ : Int,
+  minimum_overlap~ : Int,
+  max_tiles~ : Int,
+  max_workspace_bytes~ : Int64,
+) -> SourceExport raise {
+  guard @h3.build(metadata).plan_digest() == plan.model_digest() else {
+    raise InvalidPlan
+  }
   {
-    model_digest: model.plan_digest().as_hex(),
-    units: ReadOnlyArray::from_array(units),
-    timestep_counts: ReadOnlyArray::from_array(counts),
+    model_digest: plan.model_digest().as_hex(),
+    units: [
+      video_unit(
+        plan,
+        tile_size~,
+        minimum_overlap~,
+        max_tiles~,
+        max_workspace_bytes~,
+      ),
+    ],
+    timestep_counts: [],
   }
 }

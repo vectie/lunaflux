@@ -72,7 +72,13 @@ latent decode now physically executes on GB10: 165,600 stereo samples per channe
 release. This is an explicit zero-latent component fixture, not denoiser output or
 an independent numerical equivalence result. The original VideoVAE wrapper/source
 configuration now resolves to the same native decoder contract without executing
-its Python metadata. Next complete conditioning/denoising/video composition and
+its Python metadata. Standalone video export uses the exact full-request decoder
+module. Its first GB10 compile exposed missing newlines between generated CUDA
+fragments; the shared offline translation-unit composer now preserves fragment
+boundaries, with nested-composition/directive regressions. The corrected bounded
+32x32, 124-frame module compiles on GB10 and its downloaded cubin hash matches.
+Actual checkpoint-backed VideoVAE execution remains unverified. Next complete
+conditioning/denoising/video composition and
 the two-host full media request. These component results do not close H3.
 
 DeepSeek mHC now has explicit F32-projection-then-normalization and transposed
