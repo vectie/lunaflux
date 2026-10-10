@@ -1,0 +1,8 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/stream_mean_capture_cuda_source" @source,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"

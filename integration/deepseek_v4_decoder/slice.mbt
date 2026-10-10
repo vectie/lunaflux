@@ -18,6 +18,8 @@ pub struct DeepSeekDecoderSlice {
   priv maximum_rows : Int
   priv residual_bytes : Int64
   priv layers : Array[StageLayer]
+  priv capture_layers : ReadOnlyArray[Int]
+  priv capture : @capture.StreamMeanCaptureFrame?
   priv buffers : Array[@device.Allocation]
   priv descriptors : Array[@device.Allocation]
   priv mut queue : @device.OrderedKernelExecutor?
@@ -36,6 +38,7 @@ pub fn DeepSeekDecoderSlice::new(
   maximum_layer_workspace_bytes~ : Int64,
   maximum_layer_expert_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
+  capture_prediction_inputs? : Bool = false,
 ) -> Self raise {
   guard first_layer >= 0 &&
     end_layer > first_layer &&
@@ -44,6 +47,35 @@ pub fn DeepSeekDecoderSlice::new(
     maximum_context >= maximum_rows &&
     maximum_context <= spec.max_position_embeddings() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
+  }
+  guard !capture_prediction_inputs || spec.has_dspark() else {
+    raise @precision.PrecisionPlanError::IllegalPlacement
+  }
+  let capture_layers = if capture_prediction_inputs {
+    spec
+    .dspark_target_layer_ids()
+    .filter(layer => layer >= first_layer && layer < end_layer)
+  } else {
+    []
+  }
+  let capture = if capture_layers.is_empty() {
+    None
+  } else {
+    let plan = @precision.StreamMeanCapturePrecision::new(
+      stream_count=spec.hyper_connection_width(),
+      hidden_width=spec.hidden_size(),
+      maximum_rows~,
+      segment_count=capture_layers.length(),
+      maximum_output_bytes=maximum_layer_workspace_bytes,
+    )
+    Some(
+      @capture.StreamMeanCaptureFrame::new(
+        @capture_source.stream_mean_capture_source(
+          plan,
+          symbol="deepseek_prediction_capture_" + first_layer.to_string(),
+        ),
+      ),
+    )
   }
   let layers = Array::makei(end_layer - first_layer, i => {
     let index = first_layer + i
@@ -88,6 +120,8 @@ pub fn DeepSeekDecoderSlice::new(
     spec.hyper_connection_width().to_int64() *
     2L,
     layers,
+    capture_layers: ReadOnlyArray::from_array(capture_layers),
+    capture,
     buffers: [],
     descriptors: [],
     queue: None,
@@ -103,9 +137,13 @@ pub fn DeepSeekDecoderSlice::layer_range(self : Self) -> (Int, Int) {
 
 ///|
 pub fn DeepSeekDecoderSlice::source_bytes(self : Self) -> Bytes raise {
-  self.layers.fold(init=b"", (source, layer) => {
+  let source = self.layers.fold(init=b"", (source, layer) => {
     source + b"\n" + layer.block.source_bytes()
   })
+  match self.capture {
+    Some(frame) => source + b"\n" + frame.source_bytes()
+    None => source
+  }
 }
 
 ///|
@@ -122,7 +160,8 @@ pub fn DeepSeekDecoderSlice::required_device_bytes(
   checkpoint : @materialize.PackedCheckpoint,
 ) -> Int64 raise {
   self.layers.fold(
-    init=self.residual_bytes * (self.layers.length() - 1).min(2).to_int64(),
+    init=self.residual_bytes * (self.layers.length() - 1).min(2).to_int64() +
+      self.prediction_capture_bytes(),
     (bytes, layer) => bytes + layer.required_device_bytes(self.spec, checkpoint),
   )
 }
@@ -173,6 +212,14 @@ pub fn DeepSeekDecoderSlice::prepare(
   for _ in 0..<(self.layers.length() - 1).min(2) {
     self.buffers.push(context.allocate(self.residual_bytes))
   }
+  if self.capture is Some(frame) {
+    frame.prepare(
+      context,
+      aot,
+      counts~,
+      maximum_device_bytes=self.prediction_capture_bytes(),
+    )
+  }
   let launches = prefix_launches.to_owned()
   // The file session exists only during startup; no filesystem effect enters
   // submit/poll. Only this rank's contiguous layer range is uploaded.
@@ -221,6 +268,13 @@ pub fn DeepSeekDecoderSlice::prepare(
       )
       launches.append(layer.block.launches())
       self.descriptors.append(layer.block.append_descriptors())
+      if self.capture is Some(frame) {
+        for segment, target in self.capture_layers {
+          if target == layer.index {
+            launches.push(frame.capture(successor, segment~))
+          }
+        }
+      }
     }
   })
   launches.append(suffix_launches)
@@ -291,6 +345,9 @@ pub fn DeepSeekDecoderSlice::close(self : Self) -> Unit raise {
   }
   for layer in self.layers.rev() {
     layer.close()
+  }
+  if self.capture is Some(frame) {
+    frame.close()
   }
   while self.buffers.last() is Some(buffer) {
     buffer.close()

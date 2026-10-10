@@ -34,6 +34,7 @@ pub fn DeepSeekDecoderStage::new(
   maximum_layer_expert_bytes~ : Int64,
   maximum_text_workspace_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
+  capture_prediction_inputs? : Bool = false,
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -50,6 +51,7 @@ pub fn DeepSeekDecoderStage::new(
     maximum_layer_workspace_bytes~,
     maximum_layer_expert_bytes~,
     accuracy~,
+    capture_prediction_inputs~,
   )
   let ingress = if boundary.has_ingress() {
     Some(@text.DeepSeekTextIngress::new(spec, maximum_rows~))

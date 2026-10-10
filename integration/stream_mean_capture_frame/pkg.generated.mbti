@@ -1,0 +1,28 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/stream_mean_capture_frame"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/stream_mean_capture_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct StreamMeanCaptureFrame {
+  // private fields
+}
+pub fn StreamMeanCaptureFrame::capture(Self, @device.Allocation, segment~ : Int) -> @device.OrderedKernelLaunch raise
+pub fn StreamMeanCaptureFrame::close(Self) -> Unit raise
+pub fn StreamMeanCaptureFrame::new(@stream_mean_capture_cuda_source.StreamMeanCaptureCudaSource) -> Self
+pub fn StreamMeanCaptureFrame::output(Self) -> @device.Allocation raise
+pub fn StreamMeanCaptureFrame::plan(Self) -> @precision_ir.StreamMeanCapturePrecision
+pub fn StreamMeanCaptureFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, maximum_device_bytes~ : Int64) -> Unit raise
+pub fn StreamMeanCaptureFrame::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

@@ -10,6 +10,38 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DSpark target capture): the shared precision IR now describes
+BF16 residual-stream mean with F32 accumulation and one BF16 output round into
+ordered hidden segments. A prepared generic frame joins captures to the parent
+queue without a new completion or hot-path allocation. DeepSeek slices/stages
+can explicitly enable official DSpark target-layer capture, append it before
+residual reuse, and expose local ordered segment metadata for distributed
+assembly. Default base execution remains unchanged. Native lifecycle tests
+cover exact budgets, alias/bounds rejection, 32 warmed submissions with zero
+allocations, partial abort and balanced release. The generated source passes
+192 independent GB10 numerical/replay/inactive-row cases, memcheck, racecheck
+and synccheck with zero errors/hazards and zero memcheck leaks. The bounded
+2-GiB/no-swap run and downloaded executable/hash are retained under
+`/tmp/lunaflux-stream-capture-results-20261010-v1`.
+This connects capture, not complete DSpark prediction/Markov/confidence or
+reference-correct whole-model generation.
+
+Checkpoint run progress: exact `19c8f35a` builds as ARM64 and accepts the actual
+43-layer DeepSeek config on both Sparks. Both executables have SHA-256
+`04e6c3a07c8ad5ad5d42bac667a6522d777c756b046d9aebe216052917fd9dd4`.
+The broader affected native stage/runner/packed-execution tests pass 92/92.
+Actual checkpoint copies are still active under user units; full loading and
+generation have not passed yet. The dedicated `.mbtx` runner waits for those
+specific copies rather than starting concurrent downloads or GPU runs.
+
+MiniMax footprint correction: the management repository's approximately
+465 GiB total includes duplicate root layouts and both FL2VA/Ref2VA variants.
+A single variant is approximately 135 GiB: 63 GiB text encoder, 62 GiB
+transformer, 9.8 GiB video VAE and 578 MiB audio VAE. Two-host component/lifetime
+placement is therefore plausible without assuming a general weight-offload
+requirement. Exact model/workspace placement and whole-model media generation
+remain unfinished; aggregate disk sizes alone do not prove device feasibility.
+
 Update 2026-10-10 (DeepSeek checkpoint stages): contiguous base-layer slices
 now stream complete compact routed/shared banks and router weights and use at
 most two reusable inter-layer residuals. `DeepSeekDecoderStage` adds embedding

@@ -515,6 +515,14 @@ pub fn SimulatedCacheScale::equal(Self, Self) -> Bool
 pub fn SimulatedCacheScale::not_equal(Self, Self) -> Bool
 pub fn SimulatedCacheScale::to_repr(Self) -> @debug.Repr
 
+pub struct StreamMeanCapturePrecision {
+  // private fields
+}
+pub fn StreamMeanCapturePrecision::geometry(Self) -> (Int, Int, Int, Int)
+pub fn StreamMeanCapturePrecision::input_bytes(Self) -> Int64
+pub fn StreamMeanCapturePrecision::new(stream_count~ : Int, hidden_width~ : Int, maximum_rows~ : Int, segment_count~ : Int, maximum_output_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn StreamMeanCapturePrecision::output_bytes(Self) -> Int64
+
 pub(all) enum TextBoundary {
   Ingress
   Egress

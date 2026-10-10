@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/stream_mean_capture_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn stream_mean_capture_source(@precision_ir.StreamMeanCapturePrecision, symbol~ : String) -> StreamMeanCaptureCudaSource raise @precision_ir.PrecisionPlanError
+
+// Errors
+
+// Types and methods
+pub struct StreamMeanCaptureCudaSource {
+  // private fields
+}
+pub fn StreamMeanCaptureCudaSource::grid_x(Self) -> Int
+pub fn StreamMeanCaptureCudaSource::plan(Self) -> @precision_ir.StreamMeanCapturePrecision
+pub fn StreamMeanCaptureCudaSource::source_bytes(Self) -> Bytes
+pub fn StreamMeanCaptureCudaSource::symbol(Self, Int) -> String raise @precision_ir.PrecisionPlanError
+
+// Type aliases
+
+// Traits

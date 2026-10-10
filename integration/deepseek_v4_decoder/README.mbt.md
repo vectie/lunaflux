@@ -57,3 +57,19 @@ prediction layers. Native source/build and lifecycle tests are not full-checkpoi
 numerical execution. Actual two-host checkpoint generation, DSpark prediction
 execution and independent reference comparison remain required before claiming
 the complete DeepSeek/DSpark model is runnable.
+
+## DSpark target capture
+
+With explicit `capture_prediction_inputs=true`, each slice captures only the
+official DSpark target layers in its own interval. Target means run directly
+after the producing layer in the existing ordered queue, before residual reuse;
+they are not the learned final text head. The shared precision IR owns stream
+mean/concatenation semantics and CUDA lowering owns physical launch geometry.
+The output and its functions are slice-owned and included in exact device bytes.
+
+`prediction_capture_layers` exposes the local segment order. If a placement
+splits target layers across ranks, the later prediction-input consumer must
+assemble all ordered segments; a partial local capture is not a complete DSpark
+input. The default base-only runner does not enable capture or incur its cost.
+Target capture is executable infrastructure, not the still-missing prediction
+blocks, sequential Markov adjustment, confidence output or draft verification.

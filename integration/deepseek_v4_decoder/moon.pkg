@@ -12,6 +12,8 @@ import {
   "vectie/lunaflux/integration/deepseek_v4_text_io" @text,
   "vectie/lunaflux/integration/serial_decoder_worker" @serial,
   "vectie/lunaflux/integration/decoder_activation_link" @activation,
+  "vectie/lunaflux/integration/stream_mean_capture_frame" @capture,
+  "vectie/lunaflux/kernels/stream_mean_capture_cuda_source" @capture_source,
   "moonbitlang/async/socket",
 }
 

@@ -7,6 +7,19 @@ and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
 warning migrations are paused. Retain existing ownership guarantees and focused
 tests, but do not make new hardening work a prerequisite for model execution.
 
+DSpark target capture now reaches executable shared precision lowering and the
+base decoder's ordered queue when explicitly enabled. Preserve local target
+segment metadata across placement; a partial rank capture must be assembled
+before the DSpark main projection. Next connect the distinct main projection,
+committed-main-KV plus noncausal draft-block attention, three prediction mHC/MoE
+blocks, sequential Markov logits and confidence head, then verification/commit.
+Do not substitute the learned base-model text head or ordinary causal blocks.
+
+For MiniMax, plan one actual variant, not the 465-GiB aggregate repository with
+duplicates. Its roughly 63-GiB conditioning encoder and 62-GiB transformer may
+occupy separate hosts with VAEs and explicit phase workspace. Inspect exact
+component lifetimes/budgets before deciding offload is required.
+
 DeepSeek mHC now has explicit F32-projection-then-normalization and transposed
 residual-before-branch laws, rather than reusing GLM's BF16 control contract.
 Both checkpoint envelope owners pass bounded fake-device execution, and the
