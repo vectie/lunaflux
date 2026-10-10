@@ -8,6 +8,8 @@ import {
 // Values
 pub fn learned_text_io_source(@precision_ir.LearnedTextIoPrecision, symbol_prefix~ : String) -> Bytes raise
 
+pub fn seeded_token_block_source(@precision_ir.SeededTokenBlockPrecision, symbol_prefix~ : String) -> Bytes raise
+
 pub fn text_io_source(@precision_ir.TextIoPrecision, symbol_prefix~ : String) -> TextIoCudaSource raise @precision_ir.PrecisionPlanError
 
 // Errors

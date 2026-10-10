@@ -54,14 +54,16 @@ async fn main {
     @fs.mkdir(root)
     export_source(root,"LUNA_EXPORT_MARKOV","kernels/sequential_markov_cuda_source/source_test.mbt","LUNA_MARKOV","markov.cuh")
     export_source(root,"LUNA_EXPORT_PREDICTION_HEAD","integration/deepseek_v4_prediction_prefix/head_test.mbt","LUNA_HEAD","head.cu")
+    export_source(root,"LUNA_EXPORT_PREDICTOR","integration/deepseek_v4_prediction_prefix/predictor_test.mbt","LUNA_PREDICTOR","predictor.cu")
     @fs.write_file(root+"/probe.cu",@fs.read_file("tests/packed_moe_execution/sequential_markov_probe.cu").binary(),create_mode=CreateNew)
     record(root,"mkdir",remote("mkdir "+remote_root))
-    for file in ["markov.cuh","head.cu","probe.cu"] {
+    for file in ["markov.cuh","head.cu","predictor.cu","probe.cu"] {
       @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
         root+"/"+file,"wlc004s@192.168.2.179:"+remote_root+"/"+file]).output().check()
     }
     record(root,"compile",remote(unit+"build-"+suffix+" /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_121 probe.cu -o probe"))
     record(root,"head-compile",remote(unit+"head-build-"+suffix+" /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 head.cu -o head.cubin"))
+    record(root,"predictor-compile",remote(unit+"predictor-build-"+suffix+" /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 predictor.cu -o predictor.cubin"))
     let hash=remote("sha256sum "+remote_root+"/probe")
     hash.check()
     @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
@@ -77,7 +79,7 @@ async fn main {
       let process=@shell.Cmd("ps",["-p",tail[0],"-o","args="]).output()
       if process.stdout().trim().is_empty() {break}
       process.check()
-      guard process.stdout().contains("run-committed-draft-probe.mbtx") && process.stdout().contains("wait-run") else {fail("wrong prior runner")}
+      guard (process.stdout().contains("run-committed-draft-probe.mbtx") || process.stdout().contains("run-sequential-markov-probe.mbtx")) && process.stdout().contains("wait-run") else {fail("wrong prior runner")}
       @async.sleep(10000)
     }
     let hash=remote("sha256sum "+remote_root+"/probe")

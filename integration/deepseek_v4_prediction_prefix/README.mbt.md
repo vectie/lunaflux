@@ -40,8 +40,18 @@ hidden, and appends the dependent sampling chain instead of its independent
 greedy suffix. Sampling/precision laws are shared; model checkpoint addressing
 stays here and CUDA scheduling stays in the backend.
 
-These owners are not the complete DSpark predictor. Three-block orchestration,
-draft embedding, distributed capture assembly and base verification/commit remain
-required integration. Head and block physical numerical validation are pending.
+`DeepSeekPredictor` now composes the complete local prediction dataflow: ordered
+base captures → main projection; seed plus four noise embeddings → three actual
+prediction blocks → learned head and dependent Markov/confidence output. A
+separate priming table publishes main KV without running the draft path. Private
+weights and workspace are budgeted together before upload; global embedding and
+vocabulary tables, captures and explicit result/RNG ports remain borrowed.
+The generic seeded-block precision operation supplies absolute positions and
+count planes on device, without token-step host construction.
+
+The composed source passes native tests and compiles on GB10. Full checkpoint
+preparation/replay, attachment to the base serving queue, distributed capture
+assembly and base verification/commit remain required integration. Head and
+block physical numerical validation are pending.
 Whole-model correctness and performance are not established by component
 ownership tests or CUDA compilation.

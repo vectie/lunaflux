@@ -50,6 +50,20 @@ int main() {
     check(cudaGetLastError());check(cudaDeviceSynchronize());
   };
   int cases=0,changed=0;float worst=0;
+  auto main_counts=alloc<int>(5),start=alloc<int>(1),seed=alloc<int>(1);
+  auto draft_counts=alloc<int>(5),ids=alloc<int>(R),positions=alloc<int>(R);
+  for(int n : {0,1,8,9}) for(int base : {-1,0,31,2147483647}) for(int token : {-1,0,16,17}) {
+    std::fill(main_counts,main_counts+5,0);main_counts[3]=n;start[0]=base;seed[0]=token;
+    std::fill(tokens,tokens+R+1,-99);
+    seed_fixture_seed<<<1,1>>>(main_counts,start,seed,draft_counts,ids,positions,tokens);
+    check(cudaGetLastError());check(cudaDeviceSynchronize());
+    bool valid=n>0 && n<=8 && base>=0 && base<=2147483647-n-R && token>=0 && token<V;
+    if(draft_counts[2]!=1 || draft_counts[3]!=(valid?R:0) || tokens[0]!=(valid?token:-1)) return 9;
+    for(int i=0;i<R;++i) {
+      if(ids[i]!=(i==0?token:16) || positions[i]!=(valid?base+n+i:0) || tokens[i+1]!=-99) return 10;
+    }
+    ++cases;
+  }
   auto compare=[&](int n,int seed,bool random) {
     int previous=seed;
     for(int i=0;i<R;++i) {
@@ -104,6 +118,8 @@ int main() {
   check(cudaFree(count));check(cudaFree(row));check(cudaFree(tokens));check(cudaFree(rng));
   check(cudaFree(hidden));check(cudaFree(table));check(cudaFree(weight));check(cudaFree(cw));
   check(cudaFree(embeds));check(cudaFree(logits));check(cudaFree(confidence));
+  check(cudaFree(main_counts));check(cudaFree(start));check(cudaFree(seed));
+  check(cudaFree(draft_counts));check(cudaFree(ids));check(cudaFree(positions));
   std::printf("sequential-markov passed cases=%d max_abs_error=%.9g changed_sequences=%d\n",cases,worst,changed);
   return 0;
 }

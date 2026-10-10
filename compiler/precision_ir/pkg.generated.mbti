@@ -537,6 +537,13 @@ pub fn ScratchLifetime::equal(Self, Self) -> Bool
 pub fn ScratchLifetime::not_equal(Self, Self) -> Bool
 pub fn ScratchLifetime::to_repr(Self) -> @debug.Repr
 
+pub struct SeededTokenBlockPrecision {
+  // private fields
+}
+pub fn SeededTokenBlockPrecision::geometry(Self) -> (Int, Int, Int, Int)
+pub fn SeededTokenBlockPrecision::new(vocabulary_size~ : Int, block_rows~ : Int, maximum_main_rows~ : Int, noise_token_id~ : Int) -> Self raise PrecisionPlanError
+pub fn SeededTokenBlockPrecision::workspace_bytes(Self) -> Int64
+
 pub struct SequentialMarkovPrecision {
   // private fields
 }

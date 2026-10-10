@@ -10,6 +10,19 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DSpark local predictor composition): `DeepSeekPredictor` joins
+the ordered capture projection, seed/four-noise embedding, all three checkpoint
+prediction blocks and the dependent learned output head. Its separate priming
+table skips draft computation. The seeded-block operation belongs to shared
+precision IR with CUDA-specific implementation only in lowering. Aggregate
+private weight/workspace budgeting precedes upload; captures, global tables and
+result/RNG ports remain explicitly borrowed. The affected suite passes 59/59;
+the complete predictor CUDA source compiles on GB10 under a 2-GiB/no-swap CPU
+build unit. Artifacts are at `/tmp/lunaflux-markov-results-20261010-v2`.
+The expanded 352-case seed/Markov oracle and sanitizers are queued, not passed.
+Whole-checkpoint preparation/replay, base serving attachment, verification/commit
+and independent whole-model correctness remain unfinished.
+
 Update 2026-10-10 (DSpark dependent output head): generic immutable
 `SequentialMarkovPrecision`, CUDA lowering and prepared frame now preserve
 previous-sampled-token embedding dependencies, F32 bias addition, stable greedy

@@ -25,6 +25,19 @@ pub fn LearnedTextIoFrame::source_bytes(Self) -> Bytes
 pub fn LearnedTextIoFrame::suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn LearnedTextIoFrame::workspace_bytes(Self) -> Int64
 
+pub struct SeededTokenBlockFrame {
+  // private fields
+}
+pub fn SeededTokenBlockFrame::close(Self) -> Unit raise
+pub fn SeededTokenBlockFrame::counts(Self) -> @device.Allocation raise
+pub fn SeededTokenBlockFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn SeededTokenBlockFrame::new(@precision_ir.SeededTokenBlockPrecision, symbol_prefix~ : String) -> Self raise
+pub fn SeededTokenBlockFrame::positions(Self) -> @device.Allocation raise
+pub fn SeededTokenBlockFrame::prepare(Self, @device.Context, @device.Module, main_counts~ : @device.Allocation, start_position~ : @device.Allocation, seed_token~ : @device.Allocation, output_chain~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn SeededTokenBlockFrame::source_bytes(Self) -> Bytes
+pub fn SeededTokenBlockFrame::token_ids(Self) -> @device.Allocation raise
+pub fn SeededTokenBlockFrame::workspace_bytes(Self) -> Int64
+
 pub struct TextIoFrame {
   // private fields
 }

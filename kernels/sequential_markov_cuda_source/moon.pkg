@@ -8,4 +8,5 @@ supported_targets = "native"
 
 import {
   "moonbitlang/core/env",
+  "vectie/lunaflux/kernels/text_io_execution_cuda_source" @text_source,
 } for "test"

@@ -25,8 +25,11 @@ block sources compile on GB10; native regressions pass. Actual checkpoint block
 preparation is not yet verified. The learned five-row text head, sequential
 Markov sampling and raw confidence now have prepared checkpoint-backed
 composition, native tests and GB10 compilation; numerical GPU gates remain
-queued. Next compose the three-block prediction queue with draft embedding and
-this head, distributed capture assembly and verification/commit.
+queued. `DeepSeekPredictor` now composes all three blocks with shared seeded/noise
+embedding and the dependent head. Its distinct prime/predict tables and aggregate
+private budget pass source/native checks and GB10 AOT compilation. Next verify
+complete checkpoint preparation/replay and attach this composition to the base
+worker, then finish distributed capture assembly and verification/commit.
 Do not substitute the learned base-model text head or ordinary causal blocks.
 Exact phase/read-set/head dependencies and completion requirements are recorded
 in [DEEPSEEK_DSPARK_EXECUTION.md](DEEPSEEK_DSPARK_EXECUTION.md).

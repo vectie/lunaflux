@@ -26,4 +26,21 @@ test "dependent chain source consumes distinct previous tokens and pre-normalize
       println("LUNA_MARKOV_END")
     }
   }
+  if @env.get_env_var("LUNA_EXPORT_MARKOV") == Some("1") {
+    println("LUNA_MARKOV_BEGIN")
+    println(
+      @utf8.decode(
+        @text_source.seeded_token_block_source(
+          @precision.SeededTokenBlockPrecision::new(
+            vocabulary_size=17,
+            block_rows=5,
+            maximum_main_rows=8,
+            noise_token_id=16,
+          ),
+          symbol_prefix="seed_fixture",
+        ),
+      ),
+    )
+    println("LUNA_MARKOV_END")
+  }
 }
