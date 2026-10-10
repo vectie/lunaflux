@@ -1,4 +1,12 @@
 ///|
+/// Immutable startup locator; the expected digest remains part of the shard.
+pub fn StreamingSafetensorsShardInput::locator(
+  self : Self,
+) -> @approved_fs.ApprovedRelativeLocator {
+  self.locator
+}
+
+///|
 pub fn StreamingSafetensorsDTypeSpec::kind(
   self : Self,
 ) -> StreamingSafetensorsDTypeKind {

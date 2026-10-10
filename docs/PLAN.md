@@ -7,6 +7,16 @@ and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
 warning migrations are paused. Retain existing ownership guarantees and focused
 tests, but do not make new hardening work a prerequisite for model execution.
 
+Real two-host DeepSeek base BOS smoke now finishes successfully with tokens
+`5,223`, `Length`, and both ranks exited with status zero. Independent numerical
+correctness remains unverified. The committed-main/draft ring (254 cases) and
+seeded/dependent Markov chain (352 cases) now pass GB10 correctness and
+memcheck/racecheck/synccheck. Next run the actual attached `*-dspark` checkpoint
+route using the isolated `.mbtx` runner, then connect verification/accept/reject
+and KV commit/rollback. Do not equate component gates or diagnostic drafts with
+complete speculative generation. MiniMax's actual checkpoint bootstrap and
+two-host full request remain required.
+
 DSpark target capture now reaches executable shared precision lowering and the
 base decoder's ordered queue when explicitly enabled. Preserve local target
 segment metadata across placement; a partial rank capture must be assembled
@@ -41,6 +51,13 @@ For MiniMax, plan one actual variant, not the 465-GiB aggregate repository with
 duplicates. Its roughly 63-GiB conditioning encoder and 62-GiB transformer may
 occupy separate hosts with VAEs and explicit phase workspace. Inspect exact
 component lifetimes/budgets before deciding offload is required.
+`integration/minimax_h3_checkpoint` now bridges complete inspected component
+shards to the existing streaming `WeightStartup`, preserving source ordinals,
+closed tensor semantics and exact device packings. The native
+`cmd/minimax_checkpoint` exposes config, CPU component inspection and bounded
+component upload/release. Next validate actual components and compose their
+request lifetimes, two-host conditioning/latent handoff and final media outputs;
+component upload alone is not complete H3 inference.
 
 DeepSeek mHC now has explicit F32-projection-then-normalization and transposed
 residual-before-branch laws, rather than reusing GLM's BF16 control contract.

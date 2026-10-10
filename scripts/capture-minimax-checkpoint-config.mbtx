@@ -1,0 +1,54 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-minimax-config-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_LOCAL_CONFIG_RESULT_DIRECTORY")
+  }
+  @fs.mkdir(root)
+  @fs.mkdir(root + "/transformer")
+  let original = "/data/models/MiniMax/MiniMax-H3/FL2VA/"
+  for file in ["model_index.json", "transformer/config.json"] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=10",
+      "lunanexa-management:" + original + file,
+      root + "/" + file,
+    ])
+    .output()
+    .check()
+  }
+  let executable = "_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  let canonical = @fs.realpath(root)
+  for mode in ["config", "weight-plan"] {
+    let output = @shell.Cmd(executable, [mode, canonical]).output(
+      max_output_bytes=1048576,
+    )
+    @fs.write_file(
+      root + "/" + mode + ".stdout",
+      output.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + mode + ".stderr",
+      output.stderr(),
+      create_mode=CreateNew,
+    )
+    output.check()
+    println(output.stdout())
+  }
+  println(
+    "installed FL2VA config and packed weight accounting checked; no GPU execution",
+  )
+}

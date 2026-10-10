@@ -299,9 +299,12 @@ fn decode_transformer(
       "num_attention_heads", "attention_head_dim", "ffn_hidden_size", "latents_dim",
       "audio_latents_dim", "patch_size", "text_dim", "timestep_input_dim", "time_embed_hidden_size",
       "time_embed_dim", "adaln_out_features", "final_adaln_out_features", "rope_inv_freq_len",
-      "eps",
+      "eps", "norm_eps", "qk_norm_eps", "final_norm_eps",
     ])
     exact_int_array(object, "patch_size", [1, 2, 2])
+    let (norm_epsilon, query_key_norm_epsilon, final_norm_epsilon) = original_transformer_epsilons(
+      object,
+    )
     @minimax_h3_spec.MiniMaxH3TransformerSpec::new_exact(
       variant~,
       checkpoint_format=OriginalV1,
@@ -327,9 +330,9 @@ fn decode_transformer(
       final_adaln_output_features=int_field(object, "final_adaln_out_features"),
       rope_frequency_dimension=int_field(object, "rope_inv_freq_len"),
       rope_theta=10000.0,
-      norm_epsilon=number_field(object, "eps"),
-      query_key_norm_epsilon=number_field(object, "eps"),
-      final_norm_epsilon=number_field(object, "eps"),
+      norm_epsilon~,
+      query_key_norm_epsilon~,
+      final_norm_epsilon~,
       weight_dtype=BFloat16,
     ) catch {
       _ => raise InvalidField

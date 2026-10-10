@@ -1,0 +1,551 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+priv struct Host {
+  node : String
+  socket : String
+  root : String
+  checkpoint : String
+  uuid : String
+}
+
+///|
+async fn remote(host : Host, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    host.socket,
+    host.node,
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn download(host : Host, source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + host.socket,
+    host.node + ":" + source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn upload(host : Host, source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + host.socket,
+    source,
+    host.node + ":" + destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn wait_unit(host : Host, unit : String) -> Unit {
+  for ;; {
+    let output = remote(
+      host,
+      "systemctl --user show " +
+      unit +
+      " -p LoadState -p ActiveState -p SubState -p Result -p ExecMainStatus",
+    )
+    output.check()
+    let status = output.stdout()
+    guard status.contains("LoadState=loaded\n") &&
+      !status.contains("ActiveState=failed\n") &&
+      status.contains("ExecMainStatus=0\n") else {
+      println(
+        remote(host, "journalctl --user -u " + unit + " -n 30 --no-pager").stdout(),
+      )
+      fail("unit missing or failed: " + unit + "\n" + status)
+    }
+    if (
+        status.contains("SubState=exited\n") ||
+        status.contains("SubState=dead\n")
+      ) &&
+      status.contains("Result=success\n") {
+      return
+    }
+    @async.sleep(10000)
+  }
+}
+
+///|
+async fn start(
+  host : Host,
+  root : String,
+  unit : String,
+  memory : String,
+  seconds : Int,
+  command : String,
+) -> Unit {
+  record(
+    root,
+    unit + "-start",
+    remote(
+      host,
+      "systemd-run --user --unit=" +
+      unit +
+      " --property=RemainAfterExit=yes --property=MemoryMax=" +
+      memory +
+      " --property=MemorySwapMax=0 --property=RuntimeMaxSec=" +
+      seconds.to_string() +
+      " " +
+      command,
+    ),
+  )
+}
+
+///|
+async fn collect(host : Host, root : String, unit : String) -> Unit {
+  record(
+    root,
+    unit + "-terminal",
+    remote(
+      host,
+      "systemctl --user show " +
+      unit +
+      " -p ActiveState -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+    ),
+  )
+  record(
+    root,
+    unit + "-journal",
+    remote(host, "journalctl --user -u " + unit + " --no-pager"),
+  )
+}
+
+///|
+async fn admit(host : Host, root : String, label : String) -> Unit {
+  let identity = remote(
+    host, "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  )
+  record(root, label + "-identity", identity)
+  guard identity.stdout().trim() == host.uuid + ", 0000000F:01:00.0" else {
+    fail("wrong GPU")
+  }
+  let occupied = remote(
+    host, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  record(root, label + "-occupied", occupied)
+  guard occupied.stdout().trim().is_empty() else {
+    fail("GPU occupied; do not start another model")
+  }
+  let tools = remote(
+    host, "sha256sum /usr/local/cuda-13.0/bin/nvcc /usr/local/cuda-13.0/compute-sanitizer/compute-sanitizer",
+  )
+  record(root, label + "-tools", tools)
+  guard tools
+    .stdout()
+    .contains(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1  ",
+    ) &&
+    tools
+    .stdout()
+    .contains(
+      "7a7fcdefb67042731daf021478176f4919e1843d0b10cb697af28a7d8a3d108b  ",
+    ) else {
+    fail("wrong CUDA tools")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, mode, .. tail] &&
+    root.has_prefix("/tmp/lunaflux-dspark-run-") &&
+    [root, suffix].all(s => {
+      !s.is_empty() &&
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))
+    }) &&
+    !suffix.contains("/") &&
+    (
+      (mode == "prepare" && tail.is_empty()) ||
+      (mode == "wait-run" && tail.length() == 1)
+    ) else {
+    fail(
+      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|wait-run [PRIOR_MARKOV_RUNNER_PID]",
+    )
+  }
+  let remote_root = "/tmp/lunaflux-dspark-real-" + suffix
+  let first = Host::{
+    node: "wlc003s@192.168.2.178",
+    socket: "/tmp/lunaflux-checkpoint-live-20261010.sock",
+    root: remote_root,
+    checkpoint: "/tmp/lunaflux-deepseek-real-20261010.dLryo68E",
+    uuid: "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f",
+  }
+  let last = Host::{
+    node: "wlc004s@192.168.2.179",
+    socket: "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    root: remote_root,
+    checkpoint: "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT",
+    uuid: "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
+  }
+  let build = "/tmp/lunaflux-checkpoint-build-dspark-20261010-v2"
+  let binary = build +
+    "/source/_build/native/release/build/cmd/deepseek_checkpoint/deepseek_checkpoint.exe"
+  let expected_binary = "f3a462ccdd6b82be4f348a16cdf1126b32817414791cef59766fad8ca2bf8aef"
+  let expected_source = "02a277e739b664d712cdfc7646ea9fa817ed73c559c34984d61a41b5d49cd568"
+  let budgets = " 3 256 103079215104 103079215104 4294967296 "
+  let model = "/DeepSeek-V4-Flash-DSpark "
+  let args0 = first.checkpoint +
+    model +
+    first.checkpoint +
+    "/SHARDS.sha256" +
+    budgets
+  let args1 = last.checkpoint +
+    model +
+    last.checkpoint +
+    "/SHARDS.sha256" +
+    budgets
+  let name = "lunaflux-dspark-" + suffix + "-"
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    // Existing base execution is observed, never restarted. Preparation is CPU-only.
+    wait_unit(first, "lunaflux-deepseek-real-ingress-20261010-v1.service")
+    wait_unit(last, "lunaflux-deepseek-real-egress-20261010-v1.service")
+    // The non-retained transient build unit can be collected after success.
+    // Its successful journal and exact output hash, not LoadState, prove the build.
+    let build_journal = remote(
+      first, "journalctl --user -u lunaflux-checkpoint-build-dspark-20261010-v2.service --no-pager",
+    )
+    record(root, "build-journal", build_journal)
+    guard build_journal
+      .stdout()
+      .contains("Finished. moon: ran 227 tasks, now up to date") else {
+      fail("exact source build has not completed")
+    }
+    let hashes = remote(
+      first,
+      "sha256sum " + build + "/source.tar.gz " + binary,
+    )
+    record(root, "source-and-binary", hashes)
+    guard hashes
+      .stdout()
+      .contains(expected_source + "  " + build + "/source.tar.gz\n") &&
+      hashes.stdout().contains(expected_binary + "  " + binary + "\n") else {
+      fail("exact commit build changed")
+    }
+    download(first, binary, root + "/deepseek_checkpoint.exe")
+    let local_hash = @shell.Cmd("shasum", [
+      "-a",
+      "256",
+      root + "/deepseek_checkpoint.exe",
+    ]).output()
+    record(root, "binary-download", local_hash)
+    guard local_hash.stdout().has_prefix(expected_binary + "  ") else {
+      fail("binary download mismatch")
+    }
+    for host in [first, last] {
+      record(
+        root,
+        (if host.node == first.node { "178" } else { "179" }) + "-mkdir",
+        remote(host, "mkdir " + host.root),
+      )
+      upload(
+        host,
+        root + "/deepseek_checkpoint.exe",
+        host.root + "/deepseek_checkpoint.exe",
+      )
+      let hash = remote(
+        host,
+        "sha256sum " + host.root + "/deepseek_checkpoint.exe",
+      )
+      hash.check()
+      guard hash.stdout().has_prefix(expected_binary + "  ") else {
+        fail("uploaded executable changed")
+      }
+    }
+    let export_unit = name + "export"
+    start(
+      first,
+      root,
+      export_unit,
+      "4G",
+      7200,
+      first.root +
+      "/deepseek_checkpoint.exe export-dspark " +
+      args0 +
+      first.root +
+      "/aot",
+    )
+    {
+      errdefer collect(first, root, export_unit)
+      wait_unit(first, export_unit)
+    }
+    collect(first, root, export_unit)
+    for file in ["stage-0.cu", "stage-1.cu", "placement.txt"] {
+      download(first, first.root + "/aot/" + file, root + "/" + file)
+    }
+    println(@fs.read_file(root + "/placement.txt").text())
+    record(root, "179-aot-mkdir", remote(last, "mkdir " + last.root + "/aot"))
+    upload(last, root + "/stage-1.cu", last.root + "/aot/stage-1.cu")
+    for (host, ordinal) in [(first, 0), (last, 1)] {
+      let stage = "stage-" + ordinal.to_string()
+      let unit = name + "aot" + ordinal.to_string()
+      start(
+        host,
+        root,
+        unit,
+        "2G",
+        1800,
+        "/usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
+        host.root +
+        "/aot/" +
+        stage +
+        ".cu -o " +
+        host.root +
+        "/aot/" +
+        stage +
+        ".cubin",
+      )
+    }
+    for (host, ordinal) in [(first, 0), (last, 1)] {
+      let unit = name + "aot" + ordinal.to_string()
+      {
+        errdefer collect(host, root, unit)
+        wait_unit(host, unit)
+      }
+      collect(host, root, unit)
+      let file = "stage-" + ordinal.to_string() + ".cubin"
+      download(host, host.root + "/aot/" + file, root + "/" + file)
+      let remote_hash = remote(host, "sha256sum " + host.root + "/aot/" + file)
+      record(root, file + "-remote-hash", remote_hash)
+      let downloaded_hash = @shell.Cmd("shasum", [
+        "-a",
+        "256",
+        root + "/" + file,
+      ]).output()
+      record(root, file + "-local-hash", downloaded_hash)
+      guard downloaded_hash.stdout().split(" ").next() ==
+        remote_hash.stdout().split(" ").next() else {
+        fail("cubin download mismatch")
+      }
+    }
+    record(
+      root,
+      "token-frames",
+      remote(
+        first,
+        first.root +
+        "/deepseek_checkpoint.exe token-frames " +
+        first.checkpoint +
+        "/DeepSeek-V4-Flash-DSpark 3 256 0 " +
+        first.root +
+        "/prompt-bos",
+      ),
+    )
+    @fs.write_file(
+      root + "/prepared.txt",
+      "commit=c231171222f224408aa2f102589b2d051ee47309\n" +
+      "binary=" +
+      expected_binary +
+      "\n",
+      create_mode=CreateNew,
+    )
+    println(
+      "DSpark exact checkpoint AOT prepared; no new GPU model execution yet",
+    )
+    return
+  }
+  guard @fs.read_file(root + "/prepared.txt")
+    .text()
+    .contains("binary=" + expected_binary + "\n") &&
+    tail[0] != "0" &&
+    !tail[0].is_empty() &&
+    tail[0].iter().all(c => c is ('0'..='9')) else {
+    fail("preparation missing or invalid predecessor PID")
+  }
+  @fs.write_file(
+    root + "/run-started.txt",
+    "waiting for Markov runner " + tail[0] + "\n",
+    create_mode=CreateNew,
+  )
+  for ;; {
+    let process = @shell.Cmd("ps", ["-p", tail[0], "-o", "args="]).output()
+    if process.stdout().trim().is_empty() {
+      break
+    }
+    process.check()
+    guard process.stdout().contains("run-sequential-markov-probe.mbtx") &&
+      process.stdout().contains("wait-run") else {
+      fail("predecessor PID now belongs to another process")
+    }
+    @async.sleep(10000)
+  }
+  // A departed process is not a passing result. Inspect the actual gate output.
+  for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
+    let prefix = "/tmp/lunaflux-markov-results-20261010-v2/" + gate
+    let output = @fs.read_file(prefix + ".stdout").text() +
+      @fs.read_file(prefix + ".stderr").text()
+    guard output.contains("sequential-markov passed cases=352") &&
+      !output.contains("ERROR SUMMARY: 1") &&
+      (
+        gate == "correctness" ||
+        output.contains("ERROR SUMMARY: 0 errors") ||
+        output.contains("RACECHECK SUMMARY: 0 hazards")
+      ) else {
+      fail("numerical/sanitizer gate did not pass: " + gate)
+    }
+  }
+  for host in [first, last] {
+    let hash = remote(
+      host,
+      "sha256sum " + host.root + "/deepseek_checkpoint.exe",
+    )
+    hash.check()
+    guard hash.stdout().has_prefix(expected_binary + "  ") else {
+      fail("run executable changed")
+    }
+  }
+  let egress = name + "egress"
+  let ingress = name + "ingress"
+  let peers = "192.168.2.179:28578 192.168.2.179:28579 "
+  admit(last, root, "egress")
+  start(
+    last,
+    root,
+    egress,
+    "96G",
+    14400,
+    last.root +
+    "/deepseek_checkpoint.exe egress-dspark " +
+    args1 +
+    last.root +
+    "/aot stage-1.cubin " +
+    peers,
+  )
+  for ;; {
+    let output = remote(
+      last,
+      "systemctl --user show " +
+      egress +
+      " -p MainPID -p ActiveState -p SubState",
+    )
+    output.check()
+    let status = output.stdout()
+    guard status.contains("ActiveState=active\n") &&
+      status.contains("SubState=running\n") else {
+      collect(last, root, egress)
+      fail("egress terminated before listening")
+    }
+    let pid = remote(
+      last,
+      "systemctl --user show " + egress + " -p MainPID --value",
+    )
+    pid.check()
+    let owner = pid.stdout().trim().to_owned()
+    guard owner != "0" &&
+      !owner.is_empty() &&
+      owner.iter().all(c => c is ('0'..='9')) else {
+      fail("missing egress PID")
+    }
+    let listeners = remote(last, "ss -ltnp")
+    listeners.check()
+    if ["28578", "28579"].all(port => {
+        listeners
+        .stdout()
+        .split("\n")
+        .any(line => {
+          line.contains("192.168.2.179:" + port) &&
+          line.contains("pid=" + owner + ",")
+        })
+      }) {
+      break
+    }
+    @async.sleep(10000)
+  }
+  admit(first, root, "ingress")
+  start(
+    first,
+    root,
+    ingress,
+    "96G",
+    14400,
+    first.root +
+    "/deepseek_checkpoint.exe generate-dspark " +
+    args0 +
+    first.root +
+    "/aot stage-0.cubin " +
+    peers +
+    first.root +
+    "/prompt-bos 1 3 -1 " +
+    first.root +
+    "/output-bos",
+  )
+  {
+    errdefer {
+      collect(first, root, ingress)
+      collect(last, root, egress)
+    }
+    wait_unit(first, ingress)
+    wait_unit(last, egress)
+  }
+  collect(first, root, ingress)
+  collect(last, root, egress)
+  let journal = @fs.read_file(root + "/" + egress + "-journal.stdout").text()
+  guard journal
+    .split("\n")
+    .any(line => {
+      line.contains("dspark_prediction_blocks=") &&
+      !line.contains("dspark_prediction_blocks=0 ") &&
+      line.contains("tokens_i32_le=") &&
+      line.contains("confidence_f32_le=")
+    }) else {
+    fail("no completed real predictor phase")
+  }
+  download(first, first.root + "/output-bos/tokens.txt", root + "/tokens.txt")
+  guard @fs.read_file(root + "/tokens.txt")
+    .text()
+    .split("\n")
+    .filter(line => !line.is_empty())
+    .length() ==
+    3 else {
+    fail("bounded generation did not produce all three base tokens")
+  }
+  for (host, label) in [(first, "178"), (last, "179")] {
+    let occupied = remote(
+      host, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, label + "-gpu-terminal", occupied)
+    guard occupied.stdout().trim().is_empty() else {
+      fail("GPU ownership remains after terminal generation")
+    }
+  }
+  println(
+    "real base generation plus attached DSpark phases completed; no speculative acceptance or reference-equivalence claim",
+  )
+}

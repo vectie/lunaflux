@@ -1,0 +1,19 @@
+import {
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/model/safetensors" @tensor,
+  "vectie/lunaflux/model/checkpoint_inventory" @inventory,
+  "vectie/lunaflux/model/minimax_h3_spec" @h3,
+  "vectie/lunaflux/model/minimax_h3_weights" @weights,
+  "vectie/lunaflux/model/minimax_h3_host_materialization" @host,
+  "vectie/lunaflux/model/joint_diffusion_plan" @joint,
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/integration/minimax_h3_weight_startup" @startup,
+  "vectie/lunaflux/device",
+}
+
+import {
+  "vectie/lunaflux/model/minimax_h3",
+} for "test"
+
+supported_targets = "native"

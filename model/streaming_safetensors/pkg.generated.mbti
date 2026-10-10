@@ -129,6 +129,7 @@ pub fn StreamingSafetensorsSegmentedVisitedRange::tensor_ordinal(Self) -> Int
 pub struct StreamingSafetensorsShardInput {
   // private fields
 }
+pub fn StreamingSafetensorsShardInput::locator(Self) -> @approved_fs.ApprovedRelativeLocator
 pub fn StreamingSafetensorsShardInput::new(locator~ : @approved_fs.ApprovedRelativeLocator, expected_digest~ : StreamingSafetensorsFileDigest) -> Self
 
 pub struct StreamingSafetensorsShardMetadata {

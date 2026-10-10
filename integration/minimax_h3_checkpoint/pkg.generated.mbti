@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_checkpoint"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minimax_h3_weight_startup",
+  "vectie/lunaflux/model/checkpoint_inventory",
+  "vectie/lunaflux/model/joint_diffusion_plan",
+  "vectie/lunaflux/model/minimax_h3_host_materialization",
+  "vectie/lunaflux/model/minimax_h3_spec",
+  "vectie/lunaflux/model/minimax_h3_weights",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn component_packings(@minimax_h3_weights.MiniMaxH3WeightComponent, @joint_diffusion_plan.JointDiffusionPlan, maximum_device_bytes~ : Int64) -> Array[@minimax_h3_weight_startup.Packing] raise
+
+// Errors
+
+// Types and methods
+pub struct ComponentCheckpoint {
+  // private fields
+}
+pub fn ComponentCheckpoint::inspect(@approved_fs.ApprovedRoot, @minimax_h3_spec.MiniMaxH3ModelMetadata, @joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_weights.MiniMaxH3WeightComponent, @checkpoint_inventory.CheckpointInventory, maximum_component_bytes~ : Int64, maximum_device_bytes~ : Int64) -> Self raise
+pub fn ComponentCheckpoint::manifest(Self) -> @minimax_h3_host_materialization.MiniMaxH3HostComponentManifest
+pub fn ComponentCheckpoint::prepare(Self, @minimax_h3_weight_startup.WeightStartup, @device.Context, @approved_fs.ApprovedRoot, chunk_bytes~ : Int) -> Unit raise
+pub fn ComponentCheckpoint::required_device_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

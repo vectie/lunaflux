@@ -104,6 +104,9 @@ async test "two shards authenticate and copy Int64 ranges into final spans" {
       streaming_test_input("s0", shard0),
       streaming_test_input("s1", shard1),
     ]
+    let same_shard = root.open_file(inputs[0].locator())
+    assert_eq(same_shard.stamp().byte_count(), shard0.length().to_int64())
+    same_shard.close()
     let limits = streaming_test_limits()
     let inspection = inspect_shards(
       root,

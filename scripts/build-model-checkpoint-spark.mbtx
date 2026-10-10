@@ -1,3 +1,4 @@
+///|
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
@@ -5,18 +6,28 @@ import {
   "moonbitlang/core/env",
 }
 
+///|
 async fn main {
-  guard @env.args() is [_, local_directory, remote_directory, commit, target_package, unit] else {
-    fail("NEW_LOCAL_DIRECTORY NEW_REMOTE_DIRECTORY COMMIT CHECKPOINT_PACKAGE USER_BUILD_UNIT")
+  guard @env.args()
+    is [_, local_directory, remote_directory, commit, target_package, unit] else {
+    fail(
+      "NEW_LOCAL_DIRECTORY NEW_REMOTE_DIRECTORY COMMIT CHECKPOINT_PACKAGE USER_BUILD_UNIT",
+    )
   }
   guard local_directory.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
     remote_directory.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
-    [local_directory, remote_directory].all(path =>
-      path.iter().all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '.' | '_')) &&
-      !path.contains("..")) &&
+    [local_directory, remote_directory].all(path => {
+      path
+      .iter()
+      .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '.' | '_')) &&
+      !path.contains("..")
+    }) &&
     commit.length() == 40 &&
     commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) &&
-    (target_package is ("cmd/deepseek_checkpoint" | "cmd/glm_checkpoint")) &&
+    target_package
+    is ("cmd/deepseek_checkpoint"
+    | "cmd/glm_checkpoint"
+    | "cmd/minimax_checkpoint") &&
     unit.has_prefix("lunaflux-checkpoint-build-") &&
     unit.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '.')) else {
     fail("invalid isolated build arguments")
@@ -26,26 +37,56 @@ async fn main {
   @fs.mkdir(local_directory)
   let archive = local_directory + "/source-" + commit + ".tar.gz"
   @fs.write_file(archive, b"", create_mode=CreateNew)
-  @shell.Cmd("git", ["archive", "--format=tar.gz", "--output=" + archive, commit]).output().check()
+  @shell.Cmd("git", [
+    "archive",
+    "--format=tar.gz",
+    "--output=" + archive,
+    commit,
+  ])
+  .output()
+  .check()
   let source = remote_directory + "/source"
   for command in ["mkdir " + remote_directory, "mkdir " + source] {
-    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command]).output().check()
+    @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+    ])
+    .output()
+    .check()
   }
-  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
-    archive, node + ":" + remote_directory + "/source.tar.gz"]).output().check()
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    archive,
+    node + ":" + remote_directory + "/source.tar.gz",
+  ])
+  .output()
+  .check()
   // Reuse the already-installed ARM toolchain and module dependency snapshot.
   let previous = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b"
-  for command in [
-    "tar -xf " + remote_directory + "/source.tar.gz -C " + source,
-    "tar -xf " + previous + "/dependencies-clean.tar.gz -C " + source,
-    "sha256sum " + remote_directory + "/source.tar.gz",
-    "systemd-run --user --unit=" + unit +
-      " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" + source +
-      " /usr/bin/env MOON_HOME=" + previous + "/toolchain PATH=" + previous +
-      "/toolchain/bin:/usr/bin:/bin MOON_CC=gcc " + previous +
-      "/toolchain/bin/moon build " + target_package + " --release --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2",
-  ] {
-    let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command]).output(max_output_bytes=1048576)
+  for
+    command in [
+      "tar -xf " + remote_directory + "/source.tar.gz -C " + source,
+      "tar -xf " + previous + "/dependencies-clean.tar.gz -C " + source,
+      "sha256sum " + remote_directory + "/source.tar.gz",
+      "systemd-run --user --unit=" +
+      unit +
+      " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" +
+      source +
+      " /usr/bin/env MOON_HOME=" +
+      previous +
+      "/toolchain PATH=" +
+      previous +
+      "/toolchain/bin:/usr/bin:/bin MOON_CC=gcc " +
+      previous +
+      "/toolchain/bin/moon build " +
+      target_package +
+      " --release --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2",
+    ] {
+    let result = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+    ]).output(max_output_bytes=1048576)
     println(result.stdout())
     println(result.stderr())
     result.check()

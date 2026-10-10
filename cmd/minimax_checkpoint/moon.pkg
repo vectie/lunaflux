@@ -1,0 +1,24 @@
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/minimax_h3_config" @config,
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_spec" @h3,
+  "vectie/lunaflux/model/minimax_h3_weights" @weights,
+  "vectie/lunaflux/model/checkpoint_inventory" @inventory,
+  "vectie/lunaflux/integration/minimax_h3_checkpoint" @checkpoint,
+  "vectie/lunaflux/integration/minimax_h3_weight_startup" @startup,
+  "vectie/lunaflux/device",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)

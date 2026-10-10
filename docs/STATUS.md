@@ -10,6 +10,56 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (installed MiniMax config dialect): the actual FL2VA
+`MiniMaxH3DiTModel` config declares `norm_eps`, `qk_norm_eps` and
+`final_norm_eps`, unlike the original shared `eps` fixture. The model adapter now
+accepts either complete dialect, preserving the same semantic spec; partial,
+ambiguous or changed epsilon contracts are rejected by regression tests.
+The config and weight-plan commands run successfully against the installed
+metadata copied read-only from management. Packed device weights are
+51,506,191,840 bytes (text/vision), 66,280,430,080 (denoiser), 9,694,124,384
+(video decoder), and 259,763,748 (audio decoder). This is weight accounting,
+not whole-request admission: workspace, outputs and transfer buffers remain
+to be included. The affected config/bootstrap/streaming/startup/CLI aggregate
+passes 29/29. Local metadata/results are under
+`/tmp/lunaflux-minimax-config-20261010-v3`; no media output is claimed.
+
+Update 2026-10-10 (MiniMax real-checkpoint bootstrap source):
+`ComponentCheckpoint` connects digest-declared safetensors inspection, complete
+model schema binding and manifest construction to the existing bounded streaming
+weight owner. It selects every denoiser block plus boundaries/refiners, complete
+text/vision conditioner and both decoder packings before payload upload.
+`cmd/minimax_checkpoint` adds actual config parsing, CPU-only component inspection
+and explicit component upload/release; its two focused native regressions pass.
+No real H3 component-upload, complete media generation or speed result is claimed.
+Full-request workspace/lifetime accounting and cross-host conditioning/latent
+handoff remain required.
+
+Update 2026-10-10 (real DeepSeek base checkpoint smoke): the unchanged
+commit-pinned base executable now loads the 48-shard checkpoint across both
+Sparks and generates `5,223` from BOS, finishing with `Length`. Both user units
+report `Result=success`, `ExecMainStatus=0`, `SubState=exited`. The bounded
+resume runner downloaded tokens and both terminal journals to
+`/tmp/lunaflux-deepseek-run-resumed-20261010-v1`. The earlier readiness-wait
+orchestrator subsequently rejected the already-existing ingress unit; it did
+not restart or invalidate the successful resumed run. This is real base
+execution, not independent token/logit equivalence, chat-template validation,
+DSpark prediction or performance evidence.
+
+The DSpark committed-main/draft ring's 254-case GPU oracle and its memory,
+race and synchronization gates now pass. The expanded seeded/Markov oracle
+passes 352 cases with maximum absolute error zero and 64 changed dependent
+sequences; memcheck reports zero errors/leaks, racecheck zero hazards and
+synccheck zero errors. Results are under
+`/tmp/lunaflux-committed-draft-results-20261010-v3` and
+`/tmp/lunaflux-markov-results-20261010-v2`. These fixtures do not validate the
+whole real-weight predictor. The affected native aggregate passes 165/165.
+Exact `c2311712` builds on ARM64/GB10 with 567.3 MiB peak CPU-build memory,
+zero build swap; the isolated `run-deepseek-dspark-two-spark.mbtx` next exports
+actual placement and tests the attached predictor, retaining the 96-GiB
+per-rank/no-swap model ceilings. Speculative verification/commit and MiniMax
+whole-model execution remain unfinished.
+
 Update 2026-10-10 (DSpark base-serving attachment): the new local
 `DeepSeekPredictionExecution` prepares the complete predictor against a retired
 egress capture, shares its vocabulary matrix and explicitly budgets a local
