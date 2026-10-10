@@ -55,3 +55,30 @@ The separate reference driver now exposes CPU-only `rotary-tables` to check
 the F32 frequency/angle and BF16 cosine/sine tables across wider positions.
 This isolates table generation from propagated hidden-state differences and
 does not add a reference dependency to serving.
+
+The production pure table planner is exercised separately by
+`benchmarks/minimax_rotary_probe`. At all positions 0–139, both its cosine
+and sine tables match the independently generated CPU ATen tables bitwise:
+17,920/17,920 BF16 values in each, with zero absolute and relative error.
+This rules out the table-generation hypothesis for the measured 140-token
+text case; it does not claim GPU trigonometric equivalence or resolve the
+propagated encoder differences. Results are in
+`/tmp/lunaflux-minimax-native-rotary-20261011-v1` and
+`/tmp/lunaflux-minimax-aten-reference-rotary-20261011-v1`.
+
+Inspection of the actual installed upstream encoder also confirms that it
+uses three separate Q/K/V GEMMs and separate gate/up GEMMs despite packed
+parameter storage. The independent encoder already follows that operation
+order. Switching its oracle to packed GEMMs would change the reference,
+not fix the native implementation.
+
+## GLM reference arithmetic caveat
+
+The installed reference warns that gate/up global FP4 scales differ. Its
+`ModelOptNvFp4FusedMoE.process_weights_after_loading` then selects
+`w13_weight_scale_2[:, 0]` for both projections. LunaFlux retains the original
+separate gate/up/down scale planes. Consequently an unmodified reference
+completion is useful as a differential but cannot certify exact original-
+checkpoint arithmetic. Its sparse MLA backend also selects FP8 KV storage.
+These differences must be reported, not silently treated as native bugs or
+fixed by altering the original checkpoint.
