@@ -130,7 +130,78 @@ test "different layer inputs cannot silently reuse a probe output" {
 }
 
 ///|
+async fn cpu_gate_probe(
+  root : String,
+  first : String,
+  second : String,
+  layer : Int,
+  row : Int,
+  channel : Int,
+  label : String,
+) -> Unit {
+  for path in [root, first, second] {
+    guard path.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.')) else {
+      fail("bounded reference diagnostic directory required")
+    }
+  }
+  guard layer >= 1 &&
+    layer <= 50 &&
+    row >= 0 &&
+    row < 1024 &&
+    channel >= 0 &&
+    channel < 25600 else {
+    fail("gate replay requires model layer, row and channel")
+  }
+  let label = probe_label(label)
+  let output = root + "/gate-input-" + label
+  @fs.mkdir(output)
+  let name = root.split("/").last().unwrap().to_owned() + "-gate-input-" + label
+  let image = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+  let result = remote(
+    "systemd-run --user --wait --pipe --unit=" +
+    name +
+    " --property=MemoryMax=1G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 docker run --name " +
+    name +
+    " --network none --user 1000:1000 --memory 1g --memory-swap 1g --pids-limit 128 --cpuset-cpus 0-1 -v " +
+    root +
+    ":/work:ro -v " +
+    first +
+    ":/first:ro -v " +
+    second +
+    ":/second:ro -v /tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder:/model:ro --entrypoint /work/driver.exe " +
+    image +
+    " replay-gate-input /work/libreference.so /model \{layer} \{row} \{channel} /first /second",
+  )
+  save(output, "execute", result)
+  let terminal = remote("docker inspect --format '{{json .State}}' " + name)
+  save(output, "terminal", terminal)
+  terminal.check()
+  result.check()
+  guard result.stdout().contains("retained_bytes=0") &&
+    result
+    .stdout()
+    .contains("scope=one_original_gate_row_cpu_only_not_full_model_acceptance") else {
+    fail("gate-input CPU replay incomplete")
+  }
+  println(result.stdout())
+}
+
+///|
 async fn main {
+  if @env.args() is [_, "gate", root, first, second, layer, row, channel, label] {
+    cpu_gate_probe(
+      root,
+      first,
+      second,
+      @string.parse_int(layer),
+      @string.parse_int(row),
+      @string.parse_int(channel),
+      label,
+    )
+    return
+  }
   let (root, input, second, rows, parameter, label, activation) = match
     @env.args() {
     [_, "activation", root, input, second, rows, width, label] =>

@@ -6,6 +6,8 @@ package "vectie/checkpoint_aten_reference/driver"
 // Errors
 
 // Types and methods
+type DotSensitivity
+
 type Model
 
 // Type aliases

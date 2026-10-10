@@ -145,6 +145,53 @@ OOM-killed and leaves no GPU owner. It uses the same 2-GiB retained-tensor and
 container lifetime is not a throughput benchmark. Production arithmetic, native
 ABI and model dependencies remain unchanged.
 
+## Original-weight gate dot-product attribution
+
+A CPU replay reads only the original layer-7 gate weight row for channel 24,380
+and row 5 of the two captured MLP-normalized inputs. Independent F64 sums round
+to the same 1.6796875/1.8828125 BF16 values as the earlier GPU projection probes.
+
+| Quantity | Native-prefix input | Reference-prefix input |
+| --- | --- | --- |
+| F64 gate dot product | 1.6772515127 | 1.8849840417 |
+| Sum of absolute products | 152.4096744 | 152.4689463 |
+| Absolute-product sum / absolute dot | 90.8687 | 80.8861 |
+
+The measured signed dot-product change is 0.207732529; the sum of absolute
+changed contributions is 0.942438704. Substantial positive/negative cancellation
+makes this particular gate sensitive to the changed BF16 input. Its row-level
+input relative L2 is 0.764746%, consistent with the captured normalization
+frontier. The largest single changed contribution is 0.035400391 from input
+channel 1,496: input 24 versus 24.25, original weight 0.1416015625. This is one
+term, not the entire 0.207733 change or proof of a single-channel root cause.
+
+A fifty-layer hidden-channel trace shows row 5/channel 1,496 identical through
+layer 4. It first differs at layer 5 (16 versus 16.125), remains different at
+layer 6 (19.25 versus 19.375), and reaches the stated 24/24.25 values after
+layer-7 attention residual and MLP normalization. The trace localizes a frontier,
+not which native operator caused the divergence; matched-input layer replay is
+needed to separate local differences from propagation.
+
+Two subsequent complete layer-5 replays perform that separation. Reference
+layer 5 on reference hidden-4 reproduces all 716,800 propagated hidden-5 values
+bitwise. At row 5/channel 1,496, native layer 5 and reference layer 5 on the
+**same native hidden-4** both produce 16; reference layer 5 on reference
+hidden-4 produces 16.125. Thus this particular offset is reproduced by changing
+the earlier whole-row input, not by a local discrepancy in the matched layer-5
+output coordinate. The full row's local relative L2 is 0.099589%, versus
+0.387955% between the two reference input replays; these norms are not additive.
+This does not eliminate other local layer-5 differences or identify which
+earlier operator originally perturbed the input.
+
+Both layer replays exit 0 without OOM, report retained bytes zero and leave
+no GPU owner. They use 8-GiB/no-swap containers and the existing 2-GiB retained
+tensor limit; actual peaks were not captured. Their lifetimes are not a matched
+throughput benchmark.
+
+The CPU container exits 0 without OOM, retains no tensors, and uses a 1-GiB
+no-swap limit with no GPU admission. It does not load the whole checkpoint or
+hash weights. No production arithmetic changes follow from this diagnostic.
+
 ## Execution and reproduction
 
 The native run uses the existing `e704acf5` ARM binary, an exact 140-row text
@@ -175,6 +222,12 @@ Activation recombination outputs:
 `/tmp/lunaflux-minimax-aten-reference-layer7-activation-20261011-v1/activation-operands`.
 Ten activation comparisons and `row5-channel.txt`:
 `/tmp/lunaflux-minimax-layer7-activation-comparison-20261011-v1`.
+Original gate-row CPU replay:
+`/tmp/lunaflux-minimax-aten-reference-gate-input-20261011-v1/gate-input-row5`.
+Layer-5 matched-input and reference-input replays plus scalar/whole-row comparisons:
+`/tmp/lunaflux-minimax-aten-reference-gate-input-20261011-v1`.
+Hidden-channel trajectory:
+`/tmp/lunaflux-minimax-layer7-activation-comparison-20261011-v1/hidden-row5-channel1496.txt`.
 
 The driver lives in the separate `benchmarks/checkpoint_aten_reference` module.
 `scripts/replay-minimax-encoder-layer.mbtx` collects one-layer outputs;

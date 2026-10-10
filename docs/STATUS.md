@@ -120,6 +120,14 @@ of its squared activation error: gate 1.6796875 versus 1.8828125, identical up
 same operands there. This locates propagated-input amplification, not a native
 SiLU bug or quality acceptance. The bounded probe exits 0 without OOM, retains
 zero tensors and leaves no GPU owner; production arithmetic is untouched.
+Original-weight CPU dot replay explains the gate's sensitivity through strong
+positive/negative cancellation (absolute products about 152, net dot about
+1.68–1.88). Its largest changed input term is channel 1,496. Subsequent complete
+layer-5 GPU replays produce the same value 16 as native on identical hidden-4;
+reference-prefix input gives 16.125 and reproduces the propagated layer bitwise.
+Both replays exit successfully and release their owners. Earlier propagated
+whole-row differences and diverse-caption quality remain unresolved; these
+diagnostics do not change production arithmetic or establish model acceptance.
 The final reference container has 8-GiB/no-swap limits, exits 0 without OOM and
 releases GPU/tensor owners. Its measured cgroup peak touches that memory limit;
 it is not a spare-memory or longer-context claim. Three standalone native tests,

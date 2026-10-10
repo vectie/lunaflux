@@ -62,7 +62,96 @@ test "row attribution finds the actual channel and preserves zero-error cases" {
 }
 
 ///|
+fn selected_value(
+  bytes : Bytes,
+  row : Int,
+  width : Int,
+  channel : Int,
+) -> Double raise {
+  guard width > 0 &&
+    bytes.length() > 0 &&
+    bytes.length() % 2 == 0 &&
+    bytes.length() / 2 % width == 0 &&
+    row >= 0 &&
+    row < bytes.length() / 2 / width &&
+    channel >= 0 &&
+    channel < width else {
+    fail("BF16 coordinate outside tensor geometry")
+  }
+  let result = value(bytes, row * width + channel)
+  guard !result.is_inf() && !result.is_nan() else {
+    fail("nonfinite selected channel")
+  }
+  result
+}
+
+///|
+test "channel trace checks row geometry independently of the selected value" {
+  let bytes = b"\x80\x3f\x00\x40\x80\x3f\x80\x40"
+  assert_eq(selected_value(bytes, 1, 2, 1), 4.0)
+  for
+    (row, width, channel) in [
+      (-1, 2, 0),
+      (2, 2, 0),
+      (0, 0, 0),
+      (0, 3, 0),
+      (0, 2, 2),
+    ] {
+    try selected_value(bytes, row, width, channel) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid selected coordinate accepted")
+    }
+  }
+}
+
+///|
 async fn main {
+  if @env.args()
+    is [_, "coordinate", first, second, row, width, channel, output] {
+    let row = @string.parse_int(row)
+    let width = @string.parse_int(width)
+    let channel = @string.parse_int(channel)
+    let a = @fs.read_file(first).binary()
+    let b = @fs.read_file(second).binary()
+    guard a.length() == b.length() else {
+      fail("mismatched coordinate tensor geometry")
+    }
+    let x = selected_value(a, row, width, channel)
+    let y = selected_value(b, row, width, channel)
+    let report = "row=\{row} channel=\{channel} first=\{x} second=\{y} signed_delta=\{y-x}\nscope=one_observed_coordinate_not_full_model_acceptance\n"
+    @fs.write_file(output, report, create_mode=CreateNew)
+    println(report)
+    return
+  }
+  if @env.args()
+    is [_, "trace-hidden", first, second, row, width, channel, depth, output] {
+    let row = @string.parse_int(row)
+    let width = @string.parse_int(width)
+    let channel = @string.parse_int(channel)
+    let depth = @string.parse_int(depth)
+    guard depth >= 1 && depth <= 50 else {
+      fail("bounded encoder layer trace required")
+    }
+    let report = StringBuilder()
+    for layer in 0..<=depth {
+      let a = @fs.read_file(first + "/hidden-\{layer}.bf16").binary()
+      let b = @fs.read_file(second + "/hidden-\{layer}.bf16").binary()
+      guard a.length() == b.length() else {
+        fail("mismatched layer tensor geometry")
+      }
+      let x = selected_value(a, row, width, channel)
+      let y = selected_value(b, row, width, channel)
+      report <+
+        "layer=\{layer} row=\{row} channel=\{channel} first=\{x} second=\{y} signed_delta=\{y-x}\n"
+    }
+    report.write_string(
+      "scope=one_hidden_channel_trajectory_not_causal_attribution_or_quality_acceptance\n",
+    )
+    @fs.write_file(output, report.to_string(), create_mode=CreateNew)
+    println(report.to_string())
+    return
+  }
   guard @env.args()
     is [
       _,

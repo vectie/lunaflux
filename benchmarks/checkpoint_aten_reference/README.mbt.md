@@ -93,6 +93,16 @@ hybrids. `scripts/inspect-bf16-activation-error.mbtx` reports the largest-error
 channel and its squared-error share for an explicitly selected observed row.
 These are offline attribution tools, not serving dependencies or acceptance gates.
 
+`replay-gate-input LIB MODEL LAYER ROW CHANNEL FIRST_OPERATORS SECOND_OPERATORS`
+is CPU-only. It reads one original gate weight row and the corresponding two
+captured normalized-input rows. Pure F64 dot-product attribution reports signed
+and absolute operand contributions, cancellation ratios and the largest changed
+term. It preserves BF16 input/weight boundaries rather than introducing a new
+production precision policy. The existing projection runner's `gate` mode runs
+this under a 1-GiB/no-swap limit without `--gpus`; a hidden-channel trajectory is
+available through `inspect-bf16-activation-error.mbtx trace-hidden`. A trajectory
+alone is not causal attribution: identical-input layer replay is still needed.
+
 `encode-full-reduction ... 50` applies that test-only projection arithmetic to
 all seven linears in each of the fifty encoder layers. Norm/rotary/SDPA/residual
 semantics and original checkpoint inputs stay unchanged. All 51 layer outputs

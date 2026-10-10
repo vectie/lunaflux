@@ -73,6 +73,19 @@ fn self_test(session : @native.Session, output : String) -> Unit raise {
 ///|
 fn main raise {
   match @env.args() {
+    [_, "replay-gate-input", library, model, layer, row, channel, first, second] => {
+      let session = @native.Session::new(library, device=0, budget=2097152L)
+      defer session.close()
+      replay_gate_input(
+        session,
+        model,
+        @string.parse_int(layer),
+        @string.parse_int(row),
+        @string.parse_int(channel),
+        first,
+        second,
+      )
+    }
     [_, "activation-factorization", library, rows, width, first, second, output] => {
       let rows = @string.parse_int(rows)
       let width = @string.parse_int(width)
@@ -165,7 +178,7 @@ fn main raise {
     }
     _ =>
       fail(
-        "self-test LIB OUTPUT_DIRECTORY | encode|encode-operators|encode-full-reduction LIB ORIGINAL_ENCODER_ROOT COMMA_IDS OUTPUT_DIRECTORY LAYERS | replay-layer LIB MODEL ROWS NEXT_HIDDEN_INDEX INPUT_BF16 OUTPUT | layer-projection-oracle LIB MODEL ROWS NEXT_HIDDEN_INDEX INPUT_OPERATORS OUTPUT | activation-factorization LIB ROWS WIDTH FIRST_PROJECTIONS SECOND_PROJECTIONS OUTPUT | replay-operators|replay-full-reduction LIB MODEL IDS OUTPUT NATIVE_INPUTS | projection-oracle LIB MODEL NATIVE_INPUTS OUTPUT | replay-down-reduction LIB MODEL NATIVE_INPUTS PRECISION_ORACLE",
+        "self-test LIB OUTPUT_DIRECTORY | encode|encode-operators|encode-full-reduction LIB ORIGINAL_ENCODER_ROOT COMMA_IDS OUTPUT_DIRECTORY LAYERS | replay-layer LIB MODEL ROWS NEXT_HIDDEN_INDEX INPUT_BF16 OUTPUT | layer-projection-oracle LIB MODEL ROWS NEXT_HIDDEN_INDEX INPUT_OPERATORS OUTPUT | activation-factorization LIB ROWS WIDTH FIRST_PROJECTIONS SECOND_PROJECTIONS OUTPUT | replay-gate-input LIB MODEL LAYER ROW CHANNEL FIRST_OPERATORS SECOND_OPERATORS | replay-operators|replay-full-reduction LIB MODEL IDS OUTPUT NATIVE_INPUTS | projection-oracle LIB MODEL NATIVE_INPUTS OUTPUT | replay-down-reduction LIB MODEL NATIVE_INPUTS PRECISION_ORACLE",
       )
   }
 }

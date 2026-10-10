@@ -99,6 +99,17 @@ change or an unsupported claim that native SiLU is broken.
 This remains independent offline diagnosis, not numerical acceptance or a
 production backend; no hashing/startup prerequisite is added.
 
+The original channel-24,380 gate weight row is now independently replayed on
+CPU. Absolute products sum to about 152 but cancel to 1.6773/1.8850; the
+changed-input dot contribution is 0.207733. The largest changed term comes from
+input channel 1,496. Its trajectory first differs at layer 5, but matched-input
+layer-5 replay reproduces the native value 16; reference-prefix input gives
+16.125. Both complete replays release all owners, and the reference-prefix
+replay reproduces the propagated output bitwise. This rules out treating that
+coordinate's first visible offset as an isolated layer-5 bug. Earlier whole-row
+propagation, diverse captions and media quality remain open; no runtime hash,
+GPU precision policy or acceptance tolerance is added.
+
 The common serial prompt file adapter now owns bounded `frame-counts.txt`
 parsing; DeepSeek no longer keeps a model-specific queue parser. GLM now exposes
 `preflight-generation-sequence` and `generate-sequence`, with immutable queue
