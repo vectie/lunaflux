@@ -1,0 +1,32 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/deepseek_v4_decoder"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct DeepSeekDecoderBlock {
+  // private fields
+}
+pub fn DeepSeekDecoderBlock::append_descriptors(Self) -> ArrayView[@device.Allocation] raise
+pub fn DeepSeekDecoderBlock::bank_bytes(Self) -> (Int64, Int64)
+pub fn DeepSeekDecoderBlock::close(Self) -> Unit raise
+pub fn DeepSeekDecoderBlock::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekDecoderBlock::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
+pub fn DeepSeekDecoderBlock::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, index_offsets? : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, router_weight~ : @device.Allocation, correction_bias? : @device.Allocation, token_ids? : @device.Allocation, token_table? : @device.Allocation, token_table_offset? : Int64, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekDecoderBlock::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekDecoderBlock::source_bytes(Self) -> Bytes raise
+
+// Type aliases
+
+// Traits

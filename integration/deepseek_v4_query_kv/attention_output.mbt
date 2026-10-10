@@ -4,7 +4,6 @@
 pub struct DeepSeekAttentionOutput {
   priv spec : @spec.DeepSeekV4ModelSpec
   priv layer : Int
-  priv plan : @precision.GroupedAttentionOutputPrecision
   priv frame : @output_frame.GroupedAttentionOutputFrame
   priv weights : @upload.CheckpointDeviceWeights
   priv mut state : State
@@ -75,7 +74,6 @@ pub fn DeepSeekAttentionOutput::new(
   {
     spec,
     layer,
-    plan,
     frame: @output_frame.GroupedAttentionOutputFrame::new(
       @output_source.grouped_attention_output_source(
         plan,
@@ -96,9 +94,10 @@ pub fn DeepSeekAttentionOutput::source_bytes(self : Self) -> Bytes {
 pub fn DeepSeekAttentionOutput::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
+  output_borrowed? : Bool = false,
 ) -> Int64 raise {
   bind_attention_output_weights(checkpoint, self.spec, layer=self.layer).fold(
-    init=self.plan.workspace_bytes(),
+    init=self.frame.workspace_bytes(output_borrowed~),
     (total, weight) => total + weight.buffer_bytes(),
   )
 }
@@ -113,12 +112,14 @@ pub fn DeepSeekAttentionOutput::prepare(
   counts~ : @device.Allocation,
   positions~ : @device.Allocation,
   attention~ : @device.Allocation,
+  output? : @device.Allocation,
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&
-    self.required_device_bytes(checkpoint) <= maximum_device_bytes else {
+    self.required_device_bytes(checkpoint, output_borrowed=output is Some(_)) <=
+    maximum_device_bytes else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
   self.state = Failed
@@ -127,7 +128,8 @@ pub fn DeepSeekAttentionOutput::prepare(
     checkpoint,
     root,
     bind_attention_output_weights(checkpoint, self.spec, layer=self.layer),
-    maximum_device_bytes=maximum_device_bytes - self.plan.workspace_bytes(),
+    maximum_device_bytes=maximum_device_bytes -
+      self.frame.workspace_bytes(output_borrowed=output is Some(_)),
     chunk_bytes~,
     limits~,
   )
@@ -137,8 +139,11 @@ pub fn DeepSeekAttentionOutput::prepare(
     counts~,
     positions~,
     attention~,
+    output?,
     weights=[self.weights.allocation(0), self.weights.allocation(1)],
-    maximum_workspace_bytes=self.plan.workspace_bytes(),
+    maximum_workspace_bytes=self.frame.workspace_bytes(
+      output_borrowed=output is Some(_),
+    ),
   )
   self.state = Prepared
 }

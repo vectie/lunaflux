@@ -30,6 +30,16 @@ pub fn upload_shared_expert_bank(@device.Context, @precision_materialize.PackedC
 // Errors
 
 // Types and methods
+pub struct DeepSeekFfnEnvelope {
+  // private fields
+}
+pub fn DeepSeekFfnEnvelope::bank_bytes(Self) -> (Int64, Int64)
+pub fn DeepSeekFfnEnvelope::close(Self) -> Unit raise
+pub fn DeepSeekFfnEnvelope::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekFfnEnvelope::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
+pub fn DeepSeekFfnEnvelope::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, router_weight~ : @device.Allocation, correction_bias? : @device.Allocation, token_ids? : @device.Allocation, token_table? : @device.Allocation, token_table_offset? : Int64, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekFfnEnvelope::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekFfnEnvelope::source_bytes(Self) -> Bytes raise
 
 // Type aliases
 

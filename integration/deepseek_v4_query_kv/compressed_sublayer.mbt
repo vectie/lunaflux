@@ -52,9 +52,10 @@ pub fn DeepSeekCompressedSublayer::source_bytes(self : Self) -> Bytes {
 pub fn DeepSeekCompressedSublayer::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
+  output_borrowed? : Bool = false,
 ) -> Int64 raise {
   self.attention.required_device_bytes(checkpoint) +
-  self.output.required_device_bytes(checkpoint)
+  self.output.required_device_bytes(checkpoint, output_borrowed~)
 }
 
 ///|
@@ -68,13 +69,15 @@ pub fn DeepSeekCompressedSublayer::prepare(
   positions~ : @device.Allocation,
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
+  output? : @device.Allocation,
   index_offsets? : @device.Allocation,
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&
-    self.required_device_bytes(checkpoint) <= maximum_device_bytes else {
+    self.required_device_bytes(checkpoint, output_borrowed=output is Some(_)) <=
+    maximum_device_bytes else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
   self.state = Failed
@@ -89,7 +92,10 @@ pub fn DeepSeekCompressedSublayer::prepare(
     hidden~,
     index_offsets?,
     maximum_device_bytes=maximum_device_bytes -
-      self.output.required_device_bytes(checkpoint),
+      self.output.required_device_bytes(
+        checkpoint,
+        output_borrowed=output is Some(_),
+      ),
     chunk_bytes~,
     limits~,
   )
@@ -101,7 +107,11 @@ pub fn DeepSeekCompressedSublayer::prepare(
     counts~,
     positions~,
     attention=self.attention.output(),
-    maximum_device_bytes=self.output.required_device_bytes(checkpoint),
+    output?,
+    maximum_device_bytes=self.output.required_device_bytes(
+      checkpoint,
+      output_borrowed=output is Some(_),
+    ),
     chunk_bytes~,
     limits~,
   )

@@ -1,0 +1,17 @@
+import {
+  "vectie/lunaflux/model/deepseek_v4_spec" @spec,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/engine/precision_materialize" @materialize,
+  "vectie/lunaflux/integration/deepseek_v4_query_kv" @attention,
+  "vectie/lunaflux/integration/deepseek_v4_packed_expert" @expert,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/device",
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+} for "test"

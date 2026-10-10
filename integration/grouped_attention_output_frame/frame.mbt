@@ -14,6 +14,7 @@ pub struct GroupedAttentionOutputFrame {
   priv buffers : Array[@device.Allocation]
   priv functions : Array[@device.Function]
   priv launches : Array[@device.OrderedKernelLaunch]
+  priv mut result : @device.Allocation?
   priv mut state : State
 }
 
@@ -21,7 +22,14 @@ pub struct GroupedAttentionOutputFrame {
 pub fn GroupedAttentionOutputFrame::new(
   source : @source.GroupedAttentionOutputCudaSource,
 ) -> Self {
-  { source, buffers: [], functions: [], launches: [], state: Fresh, }
+  {
+    source,
+    buffers: [],
+    functions: [],
+    launches: [],
+    result: None,
+    state: Fresh,
+  }
 }
 
 ///|
@@ -30,8 +38,13 @@ pub fn GroupedAttentionOutputFrame::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn GroupedAttentionOutputFrame::workspace_bytes(self : Self) -> Int64 {
-  self.source.plan().workspace_bytes()
+pub fn GroupedAttentionOutputFrame::workspace_bytes(
+  self : Self,
+  output_borrowed? : Bool = false,
+) -> Int64 {
+  let plan = self.source.plan()
+  plan.workspace_bytes() -
+  (if output_borrowed { plan.frame_bytes()[2] } else { 0L })
 }
 
 ///|
@@ -58,11 +71,13 @@ pub fn GroupedAttentionOutputFrame::prepare(
   positions~ : @device.Allocation,
   attention~ : @device.Allocation,
   weights~ : ArrayView[@device.Allocation],
+  output? : @device.Allocation,
   maximum_workspace_bytes~ : Int64,
 ) -> Unit raise {
   guard self.state is Fresh &&
     weights.length() == 2 &&
-    self.workspace_bytes() <= maximum_workspace_bytes else {
+    self.workspace_bytes(output_borrowed=output is Some(_)) <=
+    maximum_workspace_bytes else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.state = Failed
@@ -71,6 +86,10 @@ pub fn GroupedAttentionOutputFrame::prepare(
   let count = region(counts, 0L, 20L, 4L)
   let position = region(positions, 0L, rows.to_int64() * 4L, 4L)
   let input = region(attention, 0L, plan.frame_bytes()[0], 2L)
+  // Validate the caller-owned result before allocating any private scratch.
+  let borrowed_result = output.map(allocation => {
+    region(allocation, 0L, plan.frame_bytes()[2], 2L)
+  })
   let matrices = plan.weight_representations()
   let w = [
     region(weights[0], 0L, matrices[0].payload_bytes(), 1L),
@@ -88,16 +107,33 @@ pub fn GroupedAttentionOutputFrame::prepare(
       1L,
     ),
   ]
-  for bytes in plan.frame_bytes() {
-    self.buffers.push(context.allocate(bytes))
+  for index, bytes in plan.frame_bytes() {
+    if index != 2 || output is None {
+      self.buffers.push(context.allocate(bytes))
+    }
   }
+  self.result = Some(
+    match output {
+      Some(allocation) => allocation
+      None => self.buffers[2]
+    },
+  )
   let b = self.buffers.mapi((index, allocation) => {
     region(allocation, 0L, plan.frame_bytes()[index], 2L)
   })
   let arguments = [
     [count, position, input, b[0]],
     [count, b[0], w[0], w[1], b[1]],
-    [count, b[1], w[2], w[3], b[2]],
+    [
+      count,
+      b[1],
+      w[2],
+      w[3],
+      match borrowed_result {
+        Some(value) => value
+        None => b[2]
+      },
+    ],
   ]
   for stage in 0..<3 {
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
@@ -139,7 +175,10 @@ pub fn GroupedAttentionOutputFrame::output(
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
-  self.buffers[2]
+  guard self.result is Some(result) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  result
 }
 
 ///|
@@ -149,6 +188,7 @@ pub fn GroupedAttentionOutputFrame::close(self : Self) -> Unit raise {
   }
   self.state = Failed
   self.launches.clear()
+  self.result = None
   while self.functions.last() is Some(function) {
     function.close()
     ignore(self.functions.pop())

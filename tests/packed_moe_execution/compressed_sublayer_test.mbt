@@ -73,6 +73,9 @@ fn compressed_sublayer_entries(
       ),
     ])
   }
+  if spec.compression_ratio(layer) == Some(0) {
+    return entries
+  }
   let learned = spec.compression_ratio(layer) == Some(4)
   for indexer in (if learned { [false, true] } else { [false] }) {
     let pool = @deepseek.compressor_pool_plan(

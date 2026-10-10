@@ -1,0 +1,54 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, directory] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(directory)
+  let result = @shell.Cmd(
+    "moon",
+    [
+      "test", "integration/deepseek_v4_decoder/export_test.mbt", "--target", "native",
+      "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+    ],
+    env={ "LUNA_EXPORT_DEEPSEEK_BLOCKS": "1" },
+  ).output(max_output_bytes=4194304)
+  @fs.write_file(
+    directory + "/export.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/export.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  let sources : Array[String] = []
+  for ratio in [0, 4, 128] {
+    let marker = "LUNA_BLOCK_\{ratio}"
+    guard result.stdout().split(marker + "_BEGIN\n").to_array() is [_, tail] else {
+      fail("missing begin")
+    }
+    guard tail.split(marker + "_END").to_array() is [source, _] else {
+      fail("missing end")
+    }
+    sources.push(source.to_owned())
+    @fs.write_file(
+      directory + "/decoder_block_\{ratio}.cu",
+      source,
+      create_mode=CreateNew,
+    )
+  }
+  @fs.write_file(
+    directory + "/decoder_blocks.cu",
+    sources.join("\n"),
+    create_mode=CreateNew,
+  )
+  println(directory)
+}

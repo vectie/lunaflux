@@ -54,6 +54,7 @@ import {
   "vectie/lunaflux/integration/decoder_stage_control" @stage_control,
   "vectie/lunaflux/integration/deepseek_v4_query_kv" @deepseek,
   "vectie/lunaflux/integration/deepseek_v4_hyper_connection" @deepseek_hyper,
+  "vectie/lunaflux/integration/deepseek_v4_decoder" @deepseek_decoder,
   "vectie/lunaflux/model/deepseek_v4_spec" @deepseek_spec,
   "vectie/lunaflux/integration/serial_decoder_pipeline" @serial_pipeline,
   "vectie/lunaflux/engine/serial_generation",

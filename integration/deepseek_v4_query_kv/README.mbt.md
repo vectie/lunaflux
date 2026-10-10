@@ -44,7 +44,7 @@ the CUDA renderer. Its hidden-width output and append descriptor join the
 containing decoder; aggregate weights/scratch are checked before upload.
 
 These remain single-rank components, **not a DeepSeek/DSpark model runner**.
-mHC/decoder composition and distributed head ownership remain subsequent
+Complete decoder/MoE composition and distributed head ownership remain subsequent
 integration work. No whole-model accuracy
 or performance claim follows from the small numerical fixtures.
 
@@ -64,6 +64,17 @@ The joint-reader GPU fixtures and learned-selection fixtures pass numerical,
 memcheck, racecheck and synccheck gates. Both full-shape compressed-sublayer
 sources compile for GB10; complete checkpoint-backed sublayer GPU numerics,
 mHC/MoE block composition and whole-model generation remain required.
+
+`DeepSeekAttentionEnvelope` now surrounds each of these sublayers with the
+actual checkpoint-backed F32 mHC prefix and transposed residual publication:
+19 effects for window-only layers, 48 for learned-compressed layers and 29 for
+all-causal compressed layers. Output-B writes directly into the mHC branch
+buffer; the output frame borrows it rather than allocating another result or
+adding a copy. The caller retains input/output residual ownership, index offsets
+and the containing queue. All append descriptors join that queue's completion.
+Aggregate private allocation excludes borrowed ports/results and is checked
+before upload. The FFN envelope and complete decoder/stage runner remain separate
+integration requirements; this attention owner does not claim complete generation.
 # Learned compressor pooling
 
 The next learned-index execution edge uses a separate model-neutral query plan:

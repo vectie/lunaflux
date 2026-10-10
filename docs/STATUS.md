@@ -10,6 +10,22 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DeepSeek complete base block): `DeepSeekAttentionEnvelope`
+and `DeepSeekFfnEnvelope` join corrected F32 mHC controls, complete attention,
+and routed/shared experts in `DeepSeekDecoderBlock`. Window, learned-ratio-4,
+and all-causal-ratio-128 profiles execute 38, 67, and 47 borrowed effects in the
+tested base-layer schedules. The output projection writes into borrowed branch
+storage, removing an extra output buffer without adding a copy. Expert/router
+banks remain stage-owned and are explicitly excluded from private frame budgets.
+All three native device-double profiles pass 32 replays with zero warm heap
+allocation, no additional blocking synchronization and balanced release; the
+expanded affected release suite passes 93/93. Combined attention and complete
+base-block modules compile on GB10 under CUDA 13.0.88/sm121 with 2-GiB/no-swap
+limits. Both modules, sources and user-unit journals were downloaded with
+matching SHA-256 to `/tmp/lunaflux-deepseek-block-builds-20261010-v1`.
+This proves component composition and AOT buildability, not complete-checkpoint
+GPU equivalence, whole-model generation or DSpark prediction execution.
+
 Update 2026-10-10 (DeepSeek F32 mHC): checkpoint-backed attention and FFN
 envelopes now consume the actual F32 control-function tensors, project the
 unscaled residual in F32, then apply inverse RMS. A separate immutable numerical

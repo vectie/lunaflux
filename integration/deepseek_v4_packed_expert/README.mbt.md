@@ -26,6 +26,17 @@ allocation-relative offset, so different layers can share a sidecar arena.
 Neither table lookup nor selected score gathering copies routing to the host.
 The model adapter does not introduce a second executor or a new transport.
 
-All decoder layers, compressed-attention caches, mHC and DSpark iteration still
-need to be connected into whole-model serving. These MoE features do not yet
-establish complete model generation or throughput.
+`DeepSeekFfnEnvelope` now surrounds the local routed/shared program with the
+checkpoint-backed F32 mHC prefix and transposed residual publication. It borrows
+complete compact expert banks and actual router/bias/token-table operands from
+the stage loader. Routing, expert execution, combine and mHC all contribute
+launches to the parent's one queue, without an extra result copy or completion.
+`bank_bytes()` describes external expert capacities; `required_device_bytes()`
+excludes those external banks and accounts for its own frames/control weights.
+This local branch owns every expert; partitioned experts must use the existing
+collective-aware route rather than silently treating a partial bank as complete.
+
+`integration/deepseek_v4_decoder` composes this FFN and complete attention into
+a base decoder block. Whole-model stage loading, learned text boundaries and
+DSpark prediction/verification iteration still need connection to serving.
+These MoE/block features do not establish complete generation or throughput.
