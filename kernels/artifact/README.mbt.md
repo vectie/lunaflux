@@ -1,8 +1,8 @@
 # Content-addressed AOT artifact admission
 
 `kernels/artifact` admits the exact CUDA modules and exported functions required
-by an already admitted launch-contract set. Module bytes are SHA-256 verified,
-defensively owned exactly once per digest, and shared by every required family
+by an already admitted launch-contract set. Module bytes are
+defensively owned exactly once per declared artifact label, and shared by every required family
 and profile-specific entry point in that module.
 
 Entry points use stable integer identities during planning and dispatch. CUDA
@@ -20,9 +20,15 @@ stable identities may intentionally name the same CUDA symbol. The returned
 bundle is immutable artifact evidence, not an executor or full-graph support
 claim.
 
+Runtime admission and later tensor-parallel structural joins do not hash module
+payloads. The supplied digest selects a declared module identity, not verified
+byte integrity. Acquisition tooling may verify bytes outside engine startup.
+Sizes, required-module linkage, symbol grammar and immutable ownership remain
+checked before module import; CUDA still resolves the actual exported symbols.
+
 `admit_paged_v4` accepts only an already admitted catalog-v4 full-graph launch
 contract set. It retains required entry points in exact first-occurrence
-profile/operation order and delegates to the same ownership, content-digest,
+profile/operation order and delegates to the same ownership, artifact-label,
 symbol, missing, duplicate, and unreferenced checks. It does not read an
 artifact file, import a module, construct a blueprint, launch a kernel, or
 claim physical device readiness. Until the shared legacy admission index is
@@ -34,7 +40,7 @@ integration begins; that executor integration is the latest removal phase.
 
 `admit_tensor_parallel` accepts only an already admitted catalog-v3 rank-local
 launch-contract set. It derives the unique entry-point list from every
-profile/operation contract and delegates to the same module ownership, digest,
+profile/operation contract and delegates to the same module ownership, declared-label,
 symbol, missing, duplicate, and unreferenced admission path. It introduces no
 second artifact bundle, binary-semantics claim, filesystem path, device handle,
 or execution authority.

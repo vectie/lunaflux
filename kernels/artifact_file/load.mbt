@@ -30,7 +30,6 @@ fn validate_admitted_source(
 fn read_manifest_snapshot(
   root : @approved_fs.ApprovedRoot,
   identifier : StringView,
-  expected : KernelManifestDigest,
   limits : KernelArtifactFileLimits,
 ) -> Bytes raise KernelArtifactFileError {
   let file = open_artifact_file(root, identifier, ManifestFile)
@@ -50,9 +49,6 @@ fn read_manifest_snapshot(
     }
   }
   close_artifact_file(file, ManifestFile)
-  if sha256_hex(bytes) != expected.as_hex() {
-    raise DigestMismatch(ManifestFile)
-  }
   bytes
 }
 
@@ -121,9 +117,6 @@ fn read_module_inputs(
     if bytes.length().to_int64() != item.byte_count {
       raise FileChangedDuringRead(file_ref)
     }
-    if sha256_hex(bytes) != item.digest.sha256() {
-      raise DigestMismatch(file_ref)
-    }
     inputs.push(
       @artifact.KernelModuleInput::from_bytes(
         digest=item.digest,
@@ -159,7 +152,7 @@ fn load_admitted_inputs(
 fn load_manifest_inputs(
   approved_root : @approved_fs.ApprovedRoot,
   manifest_identifier : StringView,
-  expected_manifest_digest : KernelManifestDigest,
+  _expected_manifest_digest : KernelManifestDigest,
   evidence : ManifestContractEvidence,
   limits : KernelArtifactFileLimits,
 ) -> LoadedArtifactInputs raise KernelArtifactFileError {
@@ -169,15 +162,17 @@ fn load_manifest_inputs(
     limits.max_path_bytes(),
   )
   let manifest_bytes = read_manifest_snapshot(
-    approved_root, manifest_identifier, expected_manifest_digest, limits,
+    approved_root, manifest_identifier, limits,
   )
   let manifest = read_manifest_with_evidence(manifest_bytes, evidence, limits)
   load_admitted_inputs(approved_root, manifest, limits)
 }
 
 ///|
-/// Loads and admits an exact digest-pinned AOT manifest through one caller-
+/// Loads and admits a bounded AOT manifest through one caller-
 /// owned pinned root. The root remains owned and open for the caller.
+/// The supplied digest is retained for API compatibility, not verified by
+/// scanning the manifest or module payloads at runtime.
 pub fn load(
   approved_root : @approved_fs.ApprovedRoot,
   manifest_identifier : StringView,
@@ -223,7 +218,7 @@ pub fn load_admitted(
 }
 
 ///|
-/// Loads the exact digest-pinned filesystem format and admits its complete
+/// Loads the bounded filesystem format and admits its complete
 /// paged launch-contract set without discovery, fallback, or compilation.
 pub fn load_paged_kv(
   approved_root : @approved_fs.ApprovedRoot,
@@ -310,9 +305,4 @@ pub fn load_tensor_parallel_admitted(
   ) catch {
     error => raise ArtifactRejected(error)
   }
-}
-
-///|
-fn sha256_hex(bytes : BytesView) -> String {
-  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
 }

@@ -3,7 +3,7 @@
 `kernels/artifact_file` admits production AOT CUDA artifacts through one
 caller-owned `runtime/approved_fs.ApprovedRoot`. The pinned root remains open
 and owned by the caller on success and failure. A lexical manifest identifier
-and independently obtained SHA-256 select an exact JSON manifest that pins the
+and deployment-supplied artifact label select a bounded JSON manifest that declares the
 model content and plan identities, exact device target, catalog version,
 module digests and relative identifiers, and stable family/entry-point
 identities with bounded CUDA symbols.
@@ -18,9 +18,12 @@ to `runtime/approved_fs`; this package does not concatenate or rediscover
 paths. Module files are opened together and their per-file and aggregate sizes
 are proven before any module-sized host allocation. Each module is then read by
 one lifecycle-leased immutable-snapshot operation, checked against the
-preflight size, and SHA-256 verified. Admission delegates required-module,
+preflight size, without a SHA-256 payload scan. Admission delegates required-module,
 required-entry-point, symbol, and content semantics to `kernels/artifact`,
-which independently rechecks content identity before publishing a bundle.
+which retains declared labels and immutable module bytes without rehashing.
+The manifest digest argument remains a compatibility input, not runtime
+integrity verification. Metadata parsing, model/target/catalog joins and
+file-change handling remain required for correct execution.
 
 Execution-manifest reconstruction may supply an already admitted inert
 `KernelArtifactManifest` directly to `load_admitted` or

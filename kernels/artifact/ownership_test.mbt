@@ -22,17 +22,15 @@ test "aliased module ownership remains deferred past semantic rejection" {
     _ => fail("expected failure")
   }
   bytes[0] = b'X'
-  try
-    @artifact.admit(
-      contracts(digest),
-      [module_input],
-      exports(digest),
-      limits(),
-    )
-  catch {
-    DigestMismatch(found) => assert_eq(found, digest)
-    _ => fail("expected aliased bytes to remain authoritative")
-  } noraise {
-    _ => fail("expected failure")
-  }
+  let bundle = @artifact.admit(
+    contracts(digest),
+    [module_input],
+    exports(digest),
+    limits(),
+  )
+  let retained = bundle.modules()[0].module_bytes()
+  assert_eq(retained[0], b'X')
+  assert_eq(bundle.modules()[0].digest(), digest)
+  bytes[0] = b'Y'
+  assert_eq(retained[0], b'X')
 }

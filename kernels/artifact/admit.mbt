@@ -106,11 +106,6 @@ fn validate_symbol(
 }
 
 ///|
-fn exact_digest(bytes : Bytes) -> String {
-  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-}
-
-///|
 fn module_input_index(
   inputs : ArrayView[KernelModuleInput],
   digest : @catalog.AotArtifactDigest,
@@ -285,9 +280,6 @@ fn admit_required(
       raise MissingModule(digest)
     }
     let owned_module = own_module_input(module_inputs[input_index])
-    if exact_digest(owned_module) != digest.sha256() {
-      raise DigestMismatch(digest)
-    }
     modules.push({ digest, module_bytes: owned_module, })
   }
   let exports : Array[KernelEntryPoint] = []
@@ -341,12 +333,13 @@ fn ensure_stateless_catalog_version(
 /// Admits exactly the precompiled modules and CUDA symbols required by an
 /// admitted launch-contract set.
 ///
-/// A module is hashed and retained once even when it exposes multiple kernel
+/// A module is retained once even when it exposes multiple kernel
 /// families or profile-specific entry points. Missing, duplicate,
 /// unreferenced, and invalid declarations fail before device import. Distinct
 /// stable identities may intentionally alias the same CUDA symbol.
 /// No path lookup, executable metadata evaluation, compilation, cache, or JIT
-/// is available here.
+/// is available here. Module digests are supplied artifact labels; this
+/// boundary does not scan payload bytes for cryptographic verification.
 pub fn admit(
   contracts : @launch_contract.LaunchContractSet,
   module_inputs : ArrayView[KernelModuleInput],
@@ -404,7 +397,7 @@ pub fn admit_paged_kv(
 /// profile/operation contract in one admitted tensor-parallel rank set.
 ///
 /// Repeated contracts retain each stable entry-point identity once. Module
-/// ownership, hashing, missing/duplicate/unreferenced checks, and intentional
+/// ownership, missing/duplicate/unreferenced checks, and intentional
 /// shared-symbol aliases use the same `admit_required` path as existing AOT
 /// admission. This function acquires no backend or execution authority.
 pub fn admit_tensor_parallel(

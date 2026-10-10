@@ -82,7 +82,7 @@ async test "direct stateless source loads without a JSON filesystem manifest" {
 }
 
 ///|
-async test "manifest and module snapshot digest mutations fail closed" {
+async test "artifact loading uses declared labels but still parses metadata" {
   @async.with_task_group() <| group => {
     let root = @fs.tmpdir(prefix="lunaflux-aot-file-digest")
     group.add_defer() <| () => {
@@ -93,20 +93,14 @@ async test "manifest and module snapshot digest mutations fail closed" {
     write_file(root, "kernel.cubin", fixture_module_bytes())
     let authority = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(root))
     let wrong_expected = expected_manifest(fixture_module_bytes())
-    try
-      @artifact_file.load(
-        authority,
-        "manifest.json",
-        wrong_expected,
-        fixture_contracts(),
-        fixture_file_limits(),
-      )
-    catch {
-      DigestMismatch(ManifestFile) => ()
-      _ => fail("expected manifest digest mismatch")
-    } noraise {
-      _ => fail("expected failure")
-    }
+    let labelled = @artifact_file.load(
+      authority,
+      "manifest.json",
+      wrong_expected,
+      fixture_contracts(),
+      fixture_file_limits(),
+    )
+    assert_eq(labelled.module_count(), 1)
 
     let mutated_manifest_array = manifest.to_array()
     mutated_manifest_array[0] = b'['
@@ -121,7 +115,7 @@ async test "manifest and module snapshot digest mutations fail closed" {
         fixture_file_limits(),
       )
     catch {
-      DigestMismatch(ManifestFile) => ()
+      MalformedJson => ()
       _ => fail("expected changed manifest rejection")
     } noraise {
       _ => fail("expected failure")
@@ -131,20 +125,14 @@ async test "manifest and module snapshot digest mutations fail closed" {
     let mutated_module_array = fixture_module_bytes().to_array()
     mutated_module_array[0] = b'X'
     replace_file(root, "kernel.cubin", Bytes::from_array(mutated_module_array))
-    try
-      @artifact_file.load(
-        authority,
-        "manifest.json",
-        expected_manifest(manifest),
-        fixture_contracts(),
-        fixture_file_limits(),
-      )
-    catch {
-      DigestMismatch(ModuleFile(0)) => ()
-      _ => fail("expected changed module rejection")
-    } noraise {
-      _ => fail("expected failure")
-    }
+    let changed = @artifact_file.load(
+      authority,
+      "manifest.json",
+      expected_manifest(manifest),
+      fixture_contracts(),
+      fixture_file_limits(),
+    )
+    assert_eq(changed.modules()[0].module_bytes()[0], b'X')
 
     replace_file(root, "kernel.cubin", fixture_module_bytes())
     let recovered = @artifact_file.load(

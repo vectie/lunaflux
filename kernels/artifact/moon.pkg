@@ -1,5 +1,4 @@
 import {
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
@@ -7,6 +6,7 @@ import {
 }
 
 import {
+  "moonbitlang/x/crypto",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",

@@ -3,7 +3,7 @@
 /// tensor-parallel launch set without opening modules or backend resources.
 ///
 /// This is the owning-package guard used by later aggregate planners: it
-/// checks canonical required-entry/module order, exact content digests,
+/// checks canonical required-entry/module order, declared artifact labels,
 /// symbol grammar, module indices, uniqueness, and the total-byte scalar.
 pub fn KernelArtifactBundle::authenticates_tensor_parallel(
   self : KernelArtifactBundle,
@@ -36,9 +36,7 @@ pub fn KernelArtifactBundle::authenticates_tensor_parallel(
   for index, artifact_module in self.modules {
     if artifact_module.digest != required_digests[index] ||
       artifact_module.module_bytes.length() == 0 ||
-      artifact_module.module_bytes.length().to_int64() > limits.max_module_bytes ||
-      exact_digest(artifact_module.module_bytes) !=
-      artifact_module.digest.sha256() {
+      artifact_module.module_bytes.length().to_int64() > limits.max_module_bytes {
       return false
     }
     let byte_count = artifact_module.module_bytes.length().to_int64()

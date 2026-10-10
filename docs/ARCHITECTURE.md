@@ -451,8 +451,14 @@ artifacts as separately checked evidence:
 4. A launch-contract set fixes every AOT-backed operation's profile-specific
    entry point, dimensions, ordered semantic operands, byte counts, alignments,
    and workspace claim.
-5. Artifact admission verifies each content-addressed module once and maps
+5. Artifact admission retains each declared AOT module once and maps
    every required stable entry point to a bounded function symbol.
+
+The shared artifact/file loader and later tensor-parallel structural join do
+not hash manifest or CUBIN bytes. Digests are deployment-supplied labels, not
+runtime integrity claims. Bounded reads, module sizes, symbol resolution,
+immutable ownership and launch compatibility still apply. Optional acquisition
+verification remains external to startup and dispatch.
 
 No one item is execution evidence by itself. Before launch, a prepared executor
 must prove identity, device target, catalog version, exact operation order, and

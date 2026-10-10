@@ -321,7 +321,7 @@ test "one immutable module backs multiple families and exact profiles" {
 }
 
 ///|
-test "module relation and digest validation fail closed" {
+test "module relations remain checked without payload digest validation" {
   let bytes = b"multi-function-cubin".to_fixedarray()
   let digest = digest_for(bytes)
   let module_input = @artifact.KernelModuleInput::new(
@@ -351,14 +351,14 @@ test "module relation and digest validation fail closed" {
     digest~,
     module_bytes=b"mutated".to_fixedarray(),
   )
-  try
-    @artifact.admit(contracts(digest), [wrong], exports(digest), limits())
-  catch {
-    DigestMismatch(found) => assert_eq(found, digest)
-    _ => fail("unexpected artifact error")
-  } noraise {
-    _ => fail("expected digest mismatch")
-  }
+  let labelled = @artifact.admit(
+    contracts(digest),
+    [wrong],
+    exports(digest),
+    limits(),
+  )
+  assert_eq(labelled.modules()[0].digest(), digest)
+  assert_eq(labelled.modules()[0].module_bytes(), b"mutated")
   let extra_bytes = b"unreferenced-cubin".to_fixedarray()
   let extra_digest = digest_for(extra_bytes)
   let extra = @artifact.KernelModuleInput::new(

@@ -2184,6 +2184,14 @@ measurements, and comparison/reviewer acceptance have not been supplied.
 
 ## Checkpoint loading performance — 2026-10-10
 
+The shared AOT artifact path also removes manifest and CUBIN checksum scans:
+file loading, common v1/v3/v4/TP admission and later TP structural joins no
+longer hash module bytes. Deployment-supplied digests are labels, not proof of
+integrity. Regression coverage preserves defensive ownership, bounded module
+sizes, required exports, malformed metadata rejection and exact launch joins.
+This removes repeated startup scans, not GPU kernel instructions; no token/s
+speedup is claimed without a separate measurement.
+
 Runtime checkpoint inspection reads bounded headers, not full weight payloads.
 Supplied inventory labels are not runtime-verified checksums. Full-file SHA-256,
 copy-time hashing, and per-tensor checksums have been removed from streaming,

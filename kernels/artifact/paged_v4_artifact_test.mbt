@@ -128,7 +128,7 @@ test "catalog v4 artifact admission rejects duplicate authority" {
 }
 
 ///|
-test "catalog v4 artifact admission hashes bytes and validates symbols" {
+test "catalog v4 artifact admission retains labels and validates symbols" {
   let source = b"paged-v4-full-graph-cubin".to_fixedarray()
   let digest = digest_for(source)
   let contracts = paged_artifact_v4_contracts(digest)
@@ -137,12 +137,9 @@ test "catalog v4 artifact admission hashes bytes and validates symbols" {
     digest~,
     module_bytes=b"wrong-paged-v4-cubin".to_fixedarray(),
   )
-  try @artifact.admit_paged_v4(contracts, [wrong], exports, limits()) catch {
-    DigestMismatch(found) => assert_eq(found, digest)
-    _ => fail("unexpected catalog-v4 digest error")
-  } noraise {
-    _ => fail("catalog-v4 artifact admission accepted the wrong digest")
-  }
+  let bundle = @artifact.admit_paged_v4(contracts, [wrong], exports, limits())
+  assert_eq(bundle.modules()[0].digest(), digest)
+  assert_eq(bundle.modules()[0].module_bytes(), b"wrong-paged-v4-cubin")
   let invalid = @artifact.KernelEntryPointInput::new(
     entry_point=entry(digest, 11, 1),
     function_symbol="bad-symbol",

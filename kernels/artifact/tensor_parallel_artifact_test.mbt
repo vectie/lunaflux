@@ -112,7 +112,7 @@ test "tensor-parallel artifact rejects missing and extra inputs" {
 }
 
 ///|
-test "tensor-parallel artifact retains duplicate and digest rejection" {
+test "tensor-parallel artifact rejects duplicates without payload hashing" {
   let source = b"tensor-parallel-shared-cubin".to_fixedarray()
   let digest = digest_for(source)
   let contracts = tp_contracts(digest)
@@ -153,17 +153,18 @@ test "tensor-parallel artifact retains duplicate and digest rejection" {
     digest~,
     module_bytes=b"mutated-tensor-parallel-cubin".to_fixedarray(),
   )
-  try
-    @artifact.admit_tensor_parallel(
-      contracts,
-      [wrong],
-      exports,
-      limits(max_entry_points=16),
-    )
-  catch {
-    DigestMismatch(found) => assert_eq(found, digest)
-    _ => fail("unexpected TP digest mismatch error")
-  } noraise {
-    _ => fail("expected TP digest mismatch")
-  }
+  let bundle = @artifact.admit_tensor_parallel(
+    contracts,
+    [wrong],
+    exports,
+    limits(max_entry_points=16),
+  )
+  assert_eq(bundle.modules()[0].digest(), digest)
+  assert_eq(
+    bundle.modules()[0].module_bytes(),
+    b"mutated-tensor-parallel-cubin",
+  )
+  assert_true(
+    bundle.authenticates_tensor_parallel(contracts, limits(max_entry_points=16)),
+  )
 }

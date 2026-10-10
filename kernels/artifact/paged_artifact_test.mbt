@@ -174,24 +174,19 @@ test "paged artifact admission rejects duplicate identities" {
 }
 
 ///|
-test "paged artifact digest validation remains exact" {
+test "paged artifact labels do not trigger payload hashing" {
   let source = b"paged-multi-layer-cubin".to_fixedarray()
   let digest = digest_for(source)
   let wrong = @artifact.KernelModuleInput::new(
     digest~,
     module_bytes=b"mutated-paged-module".to_fixedarray(),
   )
-  try
-    @artifact.admit_paged_kv(
-      paged_artifact_contracts(digest),
-      [wrong],
-      paged_exports(digest),
-      limits(),
-    )
-  catch {
-    @artifact.DigestMismatch(found) => assert_eq(found, digest)
-    _ => fail("unexpected paged digest error")
-  } noraise {
-    _ => fail("expected paged digest mismatch")
-  }
+  let bundle = @artifact.admit_paged_kv(
+    paged_artifact_contracts(digest),
+    [wrong],
+    paged_exports(digest),
+    limits(),
+  )
+  assert_eq(bundle.modules()[0].digest(), digest)
+  assert_eq(bundle.modules()[0].module_bytes(), b"mutated-paged-module")
 }
