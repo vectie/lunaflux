@@ -30,10 +30,6 @@ fn validate_completion_frame_source(
   if read_u32(bytes, 36) != 0 || read_u32(bytes, 44) != 0 {
     raise InvalidFrame(Reserved)
   }
-  if completion_frame_checksum(bytes, supplied_length) !=
-    read_u32(bytes, completion_checksum_offset) {
-    raise InvalidFrame(Checksum)
-  }
   if read_u64(bytes, 16) == 0UL || read_u64(bytes, 24) == 0UL {
     raise InvalidFrame(RequestIdentity)
   }

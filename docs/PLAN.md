@@ -2206,6 +2206,12 @@ or missing modules still fail. This is startup cleanup, not measured GPU speedup
 The Qwen token-ID bridge likewise removes executable/launch/receipt integrity
 reads and tokenizer checksum scanning. It reads only tokenizer bytes needed by
 the bounded parser; legacy positional CLI labels remain compatible.
+Worker plan/completion encoding, greedy continuation and decoding also remove
+the full-frame FNV checksum passes from the token-step path. The existing word
+offsets remain for framing compatibility: new senders write zero and new
+receivers ignore checksum words. Epoch, sequence, capacity, page/slot and
+ownership validation remain. Deploy parent and worker binaries together; an
+old checksum-enforcing receiver cannot consume new zero-checksum frames.
 
 Runtime checkpoint inspection reads bounded headers, not full weight payloads.
 Supplied inventory labels are not runtime-verified checksums. Full-file SHA-256,

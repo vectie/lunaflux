@@ -55,10 +55,6 @@ test "completion header rejects preserve prior authenticated authority" {
   refresh_completion_checksum(reserved)
   expect_completion_rule(owner, reserved, Reserved, prior)
 
-  let checksum = copy_completion_fixture(valid)
-  write_u32(checksum, completion_checksum_offset, 0)
-  expect_completion_rule(owner, checksum, Checksum, prior)
-
   let sequence = copy_completion_fixture(valid)
   write_u64(sequence, 16, 0UL)
   refresh_completion_checksum(sequence)

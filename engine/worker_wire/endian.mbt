@@ -37,27 +37,3 @@ fn read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
     result
   }
 }
-
-///|
-fn frame_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
-  frame_checksum_at(bytes, 0, length)
-}
-
-///|
-fn frame_checksum_at(
-  bytes : FixedArray[Byte],
-  frame_offset : Int,
-  length : Int,
-) -> UInt {
-  for index = 0, hash = 2166136261U; index < length; {
-    let next = if index < plan_checksum_offset ||
-      index >= plan_checksum_offset + 4 {
-      (hash ^ bytes[frame_offset + index].to_uint()) * 16777619U
-    } else {
-      hash
-    }
-    continue index + 1, next
-  } nobreak {
-    hash
-  }
-}

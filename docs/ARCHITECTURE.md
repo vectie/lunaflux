@@ -473,6 +473,11 @@ still create cache/plan identities; loading consumes their supplied labels.
 The Qwen token-ID bridge does not read its own executable, launch or capacity
 receipt for integrity checks. Only tokenizer parsing requires a file read;
 the supplied tokenizer digest remains a label, not a verified checksum.
+Token-step worker plan/completion traffic has no full-frame checksum scan at
+encoding, greedy continuation, publication or reception. Legacy checksum words
+are written as zero and ignored on reception. Structural validation and
+generation/sequence/KV ownership remain mandatory; parent and worker binaries
+are upgraded together rather than mixing checksum-enforcing old receivers.
 
 No one item is execution evidence by itself. Before launch, a prepared executor
 must prove identity, device target, catalog version, exact operation order, and

@@ -82,6 +82,13 @@ test "semantic table and row corruption is rejected after valid checksum" {
   )
   let owner = PlanFrameBuffer::new(limits, inference)
   let valid = valid_two_decode_frame()
+  for checksum in [0U, 1U, 0xffffffffU] {
+    write_u32(valid, plan_checksum_offset, checksum)
+    let frame = owner.load(valid, valid.length())
+    assert_eq(frame.sequence_value(), 1UL)
+    assert_eq(frame.decode_count(), 2)
+    assert_eq(frame.token_count(), 2)
+  }
   let prior = owner.load(valid, valid.length())
   let invalid_token = valid_two_decode_frame()
   write_i32(invalid_token, 64, 33)

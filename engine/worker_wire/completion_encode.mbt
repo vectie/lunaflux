@@ -151,11 +151,7 @@ pub fn CompletionFrameBuffer::encode_completion(
       },
     )
   }
-  write_u32(
-    self.storage,
-    completion_checksum_offset,
-    completion_frame_checksum(self.storage, length),
-  )
+  write_u32(self.storage, completion_checksum_offset, 0)
   self.epoch += 1UL
   self.length = length
   self.rebuild_slot_index(count)

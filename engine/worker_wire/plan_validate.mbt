@@ -97,10 +97,6 @@ fn validate_plan_frame_source(
   if read_u32(bytes, 56) != 0 {
     raise InvalidFrame(Reserved)
   }
-  if frame_checksum(bytes, supplied_length) !=
-    read_u32(bytes, plan_checksum_offset) {
-    raise InvalidFrame(Checksum)
-  }
   let sequence = read_u64(bytes, 16)
   let generation = read_u64(bytes, 24)
   let token_budget = read_i32(bytes, 32)

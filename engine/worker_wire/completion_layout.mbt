@@ -45,18 +45,3 @@ fn exact_completion_frame_bytes(count : Int) -> Int raise WorkerWireError {
 fn completion_entry_offset(index : Int) -> Int {
   completion_header_bytes + index * completion_entry_bytes
 }
-
-///|
-fn completion_frame_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
-  for index = 0, hash = 2166136261U; index < length; {
-    let next = if index < completion_checksum_offset ||
-      index >= completion_checksum_offset + 4 {
-      (hash ^ bytes[index].to_uint()) * 16777619U
-    } else {
-      hash
-    }
-    continue index + 1, next
-  } nobreak {
-    hash
-  }
-}

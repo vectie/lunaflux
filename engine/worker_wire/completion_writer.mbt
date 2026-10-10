@@ -257,11 +257,7 @@ pub fn CompletionFrameWriter::submit(
     raise InvalidFrame(Counts)
   }
   let length = exact_completion_frame_bytes(self.4)
-  write_u32(
-    owner.storage,
-    completion_checksum_offset,
-    completion_frame_checksum(owner.storage, length),
-  )
+  write_u32(owner.storage, completion_checksum_offset, 0)
   owner.length = length
   owner.writer_open = false
   ValidatedCompletionFrame(owner, owner.epoch)

@@ -447,11 +447,7 @@ pub fn PlanFrameBuffer::encode_plan(
       },
     )
   }
-  write_u32(
-    self.storage,
-    self.frame_offset + plan_checksum_offset,
-    frame_checksum_at(self.storage, self.frame_offset, length),
-  )
+  write_u32(self.storage, self.frame_offset + plan_checksum_offset, 0)
   self.epoch += 1UL
   self.length = length
   ValidatedPlanFrame(self, self.epoch)

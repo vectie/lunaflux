@@ -7,8 +7,8 @@ storage, and the worker validates an untrusted copy before reading scalar
 tables and row descriptors.
 
 The first format is plan frame v1. Its 64-byte header carries an exact length,
-plan sequence, model-plan generation, token budget, table counts, and an FNV-1a
-checksum. Tokens, full generational page identities, ordered capability IDs,
+plan sequence, model-plan generation, token budget, table counts, and an unused
+legacy checksum word. Tokens, full generational page identities, ordered capability IDs,
 prefill rows, and decode rows follow in canonical contiguous order. Integer and
 floating-point fields use little-endian fixed-width representations. Sampling
 seed and output index are preserved exactly.
@@ -101,7 +101,7 @@ The isolated side does not need a scheduler completion owner. An exclusive
 `CompletionFrameWriter` is bound to one exact validated plan-frame owner and
 epoch. It copies canonical request, generation, slot, and prompt-length fields
 from those authenticated rows, accepts only bounded outcome scalars, enforces
-prefill-before-decode row order, and either submits a complete checksummed
+prefill-before-decode row order, and either submits a complete bounded
 frame or aborts to a new stale epoch. Partial, foreign-owner, duplicate-writer,
 and terminal-epoch paths fail without publishing a frame.
 
@@ -121,13 +121,16 @@ storage and do not grow collections. Frame views and row views authenticate an
 owner epoch on every access. A rejected load leaves the prior frame and epoch
 unchanged. Error values may allocate on rejected paths.
 
-The checksum detects accidental corruption only. It is not a MAC and provides
-no peer authentication. The private process transport authenticates the local
-child endpoint by construction and enforces its own framing and resource
-limits. The receiver
+Plan/completion encoding and decoding do not scan frames for checksums. New
+senders write zero in the legacy checksum word; receivers ignore that word,
+including nonzero words from legacy senders. Parent and worker must be upgraded
+together: an old checksum-enforcing receiver rejects new zero-checksum frames.
+Startup and optional diagnostic envelopes remain separate from token-step
+traffic. The private process transport binds the local child endpoint and
+enforces its own framing and resource limits. The receiver
 still validates every count, range, identity, token, page generation,
 capability, sampling field, request uniqueness, completion slot, and canonical
-table cursor after checksum verification.
+table cursor without a redundant whole-frame checksum pass.
 
 This package is transport metadata only. Process lifecycle and I/O are owned by
 the private process and worker-supervisor packages. Worker-death recovery and

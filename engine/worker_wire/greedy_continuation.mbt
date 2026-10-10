@@ -150,11 +150,7 @@ pub fn PlanFrameBuffer::encode_greedy_decode_after(
   write_u64(bytes, offset + 72, seed)
   write_i32(bytes, offset + 80, sample + 1)
   write_i32(bytes, offset + 84, slot)
-  write_u32(
-    bytes,
-    base + plan_checksum_offset,
-    frame_checksum_at(bytes, base, length),
-  )
+  write_u32(bytes, base + plan_checksum_offset, 0)
   self.epoch += 1UL
   self.length = length
   ValidatedPlanFrame(self, self.epoch)
