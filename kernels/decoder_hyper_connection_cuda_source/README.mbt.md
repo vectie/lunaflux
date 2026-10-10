@@ -20,6 +20,16 @@ The post-combination renderer consumes a BF16 branch, BF16 residual stream
 state, and F32 post/combination controls. Combination matrices are
 destination-major then source-minor. Each output accumulates the post-scaled
 branch followed by residual sources in ascending order and rounds once to BF16.
+An explicit `TransposedF32ResidualThenBranch` contract instead consumes
+source-major/destination-minor matrices, reduces residual sources independently,
+then adds the branch product and rounds once. The two contracts are not
+numerically interchangeable.
+
+The staged control/collapse renderer defaults to BF16 function weights and
+normalized input projection. `F32ProjectionThenNormalize` retains actual F32
+weights, accumulates their projection, and applies the inverse RMS once to the
+completed dot product. It does not reinterpret F32 payloads as BF16 or move
+rounding through a reduction. Both alternatives are precision-IR contracts.
 
 The head-reduction renderer consumes BF16 `[rows,width,hidden]` stream state,
 F32 `[width,width*hidden]` function weights, F32 `[width]` base controls, and a

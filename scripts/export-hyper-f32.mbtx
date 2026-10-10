@@ -1,0 +1,40 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, output] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(output)
+  let result = @shell.Cmd(
+    "moon",
+    [
+      "test", "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+      "kernels/hyper_connection_execution_cuda_source", "--filter", "F32 envelope consumes precision-owned control arithmetic",
+    ],
+    env={
+      "LUNAFLUX_HYPER_F32_SOURCE_OUTPUT": output + "/hyper_f32_kernels.cuh",
+    },
+  ).output(max_output_bytes=1048576)
+  @fs.write_file(
+    output + "/export.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    output + "/export.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  @fs.write_file(
+    output + "/hyper_f32_probe.cu",
+    @fs.read_file("tests/packed_moe_execution/hyper_f32_probe.cu"),
+    create_mode=CreateNew,
+  )
+  println(output)
+}

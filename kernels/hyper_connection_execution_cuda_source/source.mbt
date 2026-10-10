@@ -20,6 +20,7 @@ pub fn hyper_connection_source(
     control_epsilon=plan.control_epsilon(),
     normalization_epsilon=plan.normalization_epsilon(),
     function_symbol=symbol_prefix + "_function",
+    control_law=plan.control_law(),
   )
   // Multiple branch envelopes may share a module without duplicate helpers.
   let function_source = @utf8.encode(
@@ -50,12 +51,13 @@ pub fn hyper_connection_source(
         maximum_rows=rows,
         function_symbol=symbol_prefix + "_post",
       ).source_bytes()
-    OrderedF32SingleBf16Round =>
+    OrderedF32SingleBf16Round | TransposedF32ResidualThenBranch =>
       @control.post_combine_v1_bf16_source(
         stream_width=streams,
         hidden_width=hidden,
         maximum_rows=rows,
         function_symbol=symbol_prefix + "_post",
+        mix_law=plan.mix_law(),
       ).source_bytes()
   }
   {

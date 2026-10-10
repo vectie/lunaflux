@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
@@ -10,11 +11,11 @@ pub fn block_control_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int
 
 pub fn head_reduce_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionHeadReduceCudaSource raise DecoderHyperConnectionCudaSourceError
 
-pub fn post_combine_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderHyperConnectionPostCombineCudaSource raise DecoderHyperConnectionCudaSourceError
+pub fn post_combine_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String, mix_law? : @precision_ir.HyperConnectionMixLaw) -> DecoderHyperConnectionPostCombineCudaSource raise DecoderHyperConnectionCudaSourceError
 
 pub fn pre_reduce_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderHyperConnectionPreReduceCudaSource raise DecoderHyperConnectionCudaSourceError
 
-pub fn staged_function_and_collapse_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError
+pub fn staged_function_and_collapse_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String, control_law? : @precision_ir.HyperConnectionControlLaw) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError
 
 pub fn staged_positive_sinkhorn_f32_source(stream_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionSinkhornCudaSource raise DecoderHyperConnectionCudaSourceError
 
@@ -26,6 +27,7 @@ pub(all) suberror DecoderHyperConnectionCudaSourceError {
   InvalidIterationCount
   InvalidEpsilon
   InvalidFunctionSymbol
+  InvalidNumericalContract
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -81,9 +83,11 @@ pub fn DecoderHyperConnectionHeadReduceCudaSource::stream_width(Self) -> Int
 pub(all) enum DecoderHyperConnectionNumericalContract {
   OrderedF32BlockControlV1
   OrderedF32FunctionBf16CollapseV1
+  OrderedF32ProjectionThenNormalizeBf16CollapseV1
   OrderedF32PositiveSinkhornV1
   OrderedF32PreReduceBf16RoundV1
   OrderedF32PostCombineBf16RoundV1
+  OrderedF32TransposedPostCombineBf16RoundV1
   OrderedF32HeadControlReductionBf16RoundV1
 } derive(Eq, @debug.Debug)
 

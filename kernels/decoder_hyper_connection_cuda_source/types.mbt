@@ -12,9 +12,11 @@ pub(all) enum DecoderHyperConnectionCudaOperation {
 pub(all) enum DecoderHyperConnectionNumericalContract {
   OrderedF32BlockControlV1
   OrderedF32FunctionBf16CollapseV1
+  OrderedF32ProjectionThenNormalizeBf16CollapseV1
   OrderedF32PositiveSinkhornV1
   OrderedF32PreReduceBf16RoundV1
   OrderedF32PostCombineBf16RoundV1
+  OrderedF32TransposedPostCombineBf16RoundV1
   OrderedF32HeadControlReductionBf16RoundV1
 } derive(Debug, Eq)
 
@@ -26,6 +28,7 @@ pub(all) suberror DecoderHyperConnectionCudaSourceError {
   InvalidIterationCount
   InvalidEpsilon
   InvalidFunctionSymbol
+  InvalidNumericalContract
 } derive(Debug, Eq)
 
 ///|

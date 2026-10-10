@@ -1,0 +1,63 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, output] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(output)
+  let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let node = "wlc003s@192.168.2.178"
+  for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
+    let unit = "lunaflux-hyper-f32-" + gate + "-20261010-v1.service"
+    for
+      (label, command) in [
+        (
+          "unit",
+          "systemctl --user show " +
+          unit +
+          " -p Id -p ActiveState -p ExecMainStatus",
+        ),
+        ("journal", "journalctl --user -u " + unit + " --no-pager"),
+      ] {
+      let result = @shell.Cmd("ssh", [
+        "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+      ]).output(max_output_bytes=1048576)
+      result.check()
+      @fs.write_file(
+        output + "/" + gate + "-" + label + ".txt",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        output + "/" + gate + "-" + label + ".stderr",
+        result.stderr(),
+        create_mode=CreateNew,
+      )
+    }
+  }
+  for name in ["hyper_f32_probe", "hyper_f32_probe.cu", "hyper_f32_kernels.cuh"] {
+    let path = output + "/" + name
+    let remote = "/tmp/lunaflux-hyper-f32-aot-20261010.Zi4EdsF5/" + name
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + remote,
+      path,
+    ])
+    .output(max_output_bytes=1048576)
+    .check()
+    let hash = @shell.Cmd("shasum", ["-a", "256", path]).output(
+      max_output_bytes=1048576,
+    )
+    hash.check()
+    @fs.write_file(path + ".sha256", hash.stdout(), create_mode=CreateNew)
+  }
+  println(output)
+}

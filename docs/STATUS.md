@@ -10,6 +10,27 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DeepSeek F32 mHC): checkpoint-backed attention and FFN
+envelopes now consume the actual F32 control-function tensors, project the
+unscaled residual in F32, then apply inverse RMS. A separate immutable numerical
+law reduces combination[source,destination] residual products before adding the
+branch product and publishing BF16. The previous BF16/pre-normalized and
+destination-major contracts remain available for their existing callers; they
+are not silently substituted for DeepSeek arithmetic. The new model adapter
+streams the actual function/base/scale/norm tensors and contributes three prefix
+effects and one suffix to the parent decoder queue.
+
+The affected native release regression passes 66/66. Fake checkpoint tests
+cover both envelopes, half-sized F32 banks, aggregate budget rejection before
+allocation, zero warm heap allocation and deterministic release. A GB10 probe
+passes ten live-row/reset/replay cases against an independent F32 CPU oracle;
+428 non-symmetric-matrix witnesses distinguish the corrected orientation from
+the old one. Memcheck, racecheck and synccheck exit zero with no errors, leaks or
+hazards under a 2 GiB/no-swap ceiling. The executable SHA-256 is
+`10091eb3e510a85d04d37a5cf0280b8709f1811eca7f11f2279817685c59f0d0`.
+These are component numerical results, not complete DeepSeek/DSpark generation.
+Complete decoder composition and the two-rank whole-model runner remain open.
+
 Update 2026-10-10 (joint window/compressed attention): immutable
 `WindowCompressedKvPrecision` distinguishes learned row selection from all-causal
 compressed rows. Its common prepared frame keeps a single sink-softmax over

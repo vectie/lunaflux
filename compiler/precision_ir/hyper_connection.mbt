@@ -5,9 +5,21 @@
 /// (the residual fold is transposed); OrderedF32SingleBf16Round consumes
 /// combination[destination,source]. They are distinct numerical contracts,
 /// not interchangeable performance schedules.
+/// TransposedF32ResidualThenBranch consumes combination[source,destination],
+/// accumulates the residual independently in F32, then adds the F32 branch
+/// product and rounds once to BF16.
 pub(all) enum HyperConnectionMixLaw {
   RoundedBf16ControlsAndProducts
   OrderedF32SingleBf16Round
+  TransposedF32ResidualThenBranch
+}
+
+///|
+/// Storage and rounding order for learned control projection. These are
+/// numerical contracts, not model-family or hardware alternatives.
+pub(all) enum HyperConnectionControlLaw {
+  NormalizedBf16Projection
+  F32ProjectionThenNormalize
 }
 
 ///|
@@ -21,6 +33,8 @@ pub struct HyperConnectionPrecision {
   priv control_epsilon : Double
   priv normalization_epsilon : Double
   priv law : HyperConnectionMixLaw
+  priv control_law : HyperConnectionControlLaw
+  priv function_bytes : Int64
   priv frames : ReadOnlyArray[Int64]
   priv bytes : Int64
 }
@@ -34,6 +48,7 @@ pub fn HyperConnectionPrecision::new(
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
   mix_law~ : HyperConnectionMixLaw,
+  control_law? : HyperConnectionControlLaw = NormalizedBf16Projection,
 ) -> Self raise PrecisionPlanError {
   guard stream_count > 1 &&
     hidden_width > 0 &&
@@ -57,10 +72,14 @@ pub fn HyperConnectionPrecision::new(
   let branch = expert_checked_mul(expert_checked_mul(rows, hidden), 2L)
   ignore(expert_checked_mul(branch, streams))
   // Prove control-projection weight addressing, not just frame allocation.
-  ignore(
+  let function_bytes = expert_checked_mul(
+    expert_checked_mul(expert_checked_mul(streams + 2L, streams), streams),
     expert_checked_mul(
-      expert_checked_mul(expert_checked_mul(streams + 2L, streams), streams),
-      expert_checked_mul(hidden, 2L),
+      hidden,
+      match control_law {
+        NormalizedBf16Projection => 2L
+        F32ProjectionThenNormalize => 4L
+      },
     ),
   )
   let frames = [vector, matrix, matrix, branch, branch, branch]
@@ -80,6 +99,8 @@ pub fn HyperConnectionPrecision::new(
     control_epsilon,
     normalization_epsilon,
     law: mix_law,
+    control_law,
+    function_bytes,
     frames: ReadOnlyArray::from_array(frames),
     bytes,
   }
@@ -108,6 +129,18 @@ pub fn HyperConnectionPrecision::normalization_epsilon(self : Self) -> Double {
 ///|
 pub fn HyperConnectionPrecision::mix_law(self : Self) -> HyperConnectionMixLaw {
   self.law
+}
+
+///|
+pub fn HyperConnectionPrecision::control_law(
+  self : Self,
+) -> HyperConnectionControlLaw {
+  self.control_law
+}
+
+///|
+pub fn HyperConnectionPrecision::function_weight_bytes(self : Self) -> Int64 {
+  self.function_bytes
 }
 
 ///|

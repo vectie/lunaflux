@@ -16,6 +16,12 @@ controls and branch/residual products at their declared boundaries, and publishe
 BF16. The ordered-F32/single-round contract consumes
 `combination[destination,source]`; it is a different numerical contract, not an
 interchangeable speed option. The GLM adapter selects the former.
+The F32 control law uses twice the function-weight bytes of the default BF16
+law and applies RMS normalization after projection. Short function banks are
+rejected before any private scratch allocation. A third residual contract reads
+`combination[source,destination]`, sums residual products in F32 independently,
+adds the branch product, then rounds once. The DeepSeek adapter selects this
+contract together with F32 controls; GLM's existing contracts remain unchanged.
 
 No model names, request JIT, token-step allocation, filesystem checks or
 diagnostic state readbacks occur in this generic owner. The existing control

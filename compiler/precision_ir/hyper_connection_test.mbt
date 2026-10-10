@@ -14,6 +14,25 @@ test "hyper connection precision accounts six frames without device schedules" {
   assert_eq(plan.workspace_bytes(), 791040L)
   assert_eq(plan.sinkhorn_iterations(), 20)
   assert_true(plan.mix_law() is RoundedBf16ControlsAndProducts)
+  assert_true(plan.control_law() is NormalizedBf16Projection)
+  assert_eq(plan.function_weight_bytes(), 786432L)
+}
+
+///|
+test "F32 projection controls retain storage width and post-projection normalization" {
+  let plan = @precision_ir.HyperConnectionPrecision::new(
+    stream_count=4,
+    hidden_width=4096,
+    maximum_rows=32,
+    sinkhorn_iterations=20,
+    control_epsilon=0.000001,
+    normalization_epsilon=0.00001,
+    mix_law=OrderedF32SingleBf16Round,
+    control_law=F32ProjectionThenNormalize,
+  )
+  assert_true(plan.control_law() is F32ProjectionThenNormalize)
+  assert_eq(plan.function_weight_bytes(), 1572864L)
+  assert_eq(plan.workspace_bytes(), 791040L)
 }
 
 ///|

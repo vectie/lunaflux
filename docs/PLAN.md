@@ -7,6 +7,15 @@ and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
 warning migrations are paused. Retain existing ownership guarantees and focused
 tests, but do not make new hardening work a prerequisite for model execution.
 
+DeepSeek mHC now has explicit F32-projection-then-normalization and transposed
+residual-before-branch laws, rather than reusing GLM's BF16 control contract.
+Both checkpoint envelope owners pass bounded fake-device execution, and the
+independent GB10 oracle plus memcheck/racecheck/synccheck pass. Next join their
+prefix/suffix around window/compressed attention and routed/shared MoE without
+extra activation copies or independent layer completions; then compose complete
+decoder stages, learned text boundaries and two-host placement. These numerical
+component gates do not establish complete DeepSeek/DSpark generation.
+
 Activation transfer now has a plain framed-TCP/pinned-DMA execution owner and a
 GLM stage-bound lease. Producer retirement precedes download; complete receiver
 upload precedes consumer eligibility. Both composed 45-layer CUDA source halves

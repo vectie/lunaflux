@@ -261,6 +261,7 @@ pub fn post_combine_v1_bf16_source(
   hidden_width~ : Int,
   maximum_rows~ : Int,
   function_symbol~ : String,
+  mix_law? : @precision.HyperConnectionMixLaw = OrderedF32SingleBf16Round,
 ) -> DecoderHyperConnectionPostCombineCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth
@@ -277,6 +278,30 @@ pub fn post_combine_v1_bf16_source(
   let width = stream_width.to_string()
   let hidden = hidden_width.to_string()
   let flattened = (stream_width * hidden_width).to_string()
+  let (initial, control_index, accumulate, finish, numerical_contract) = match
+    mix_law {
+    OrderedF32SingleBf16Round =>
+      (
+        "float value = __fmul_rn(post_value, branch_value); bool valid = isfinite(value);",
+        "(unsigned long long)destination * " +
+        width +
+        "ULL + (unsigned long long)source",
+        "value = __fadd_rn(value, __fmul_rn(control, residual_value));",
+        "",
+        OrderedF32PostCombineBf16RoundV1,
+      )
+    TransposedF32ResidualThenBranch =>
+      (
+        "float mixed_residual = 0.0f; bool valid = true;",
+        "(unsigned long long)source * " +
+        width +
+        "ULL + (unsigned long long)destination",
+        "mixed_residual = __fadd_rn(mixed_residual, __fmul_rn(control, residual_value));",
+        "const float value = __fadd_rn(__fmul_rn(post_value, branch_value), mixed_residual); ",
+        OrderedF32TransposedPostCombineBf16RoundV1,
+      )
+    RoundedBf16ControlsAndProducts => raise InvalidNumericalContract
+  }
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
@@ -308,18 +333,24 @@ pub fn post_combine_v1_bf16_source(
     hidden +
     "; const int32_t column = linear - destination * " +
     hidden +
-    "; const float branch_value = __bfloat162float(branch[branch_base + (unsigned long long)column]); const float post_value = post[vector_base + (unsigned long long)destination]; if (!isfinite(branch_value) || !isfinite(post_value)) continue; float value = __fmul_rn(post_value, branch_value); bool valid = isfinite(value); for (int32_t source = 0; source < " +
+    "; const float branch_value = __bfloat162float(branch[branch_base + (unsigned long long)column]); const float post_value = post[vector_base + (unsigned long long)destination]; if (!isfinite(branch_value) || !isfinite(post_value)) continue; " +
+    initial +
+    " for (int32_t source = 0; source < " +
     width +
-    "; ++source) { const float control = combination[matrix_base + (unsigned long long)destination * " +
-    width +
-    "ULL + (unsigned long long)source]; const float residual_value = __bfloat162float(residual[state_base + (unsigned long long)source * " +
+    "; ++source) { const float control = combination[matrix_base + " +
+    control_index +
+    "]; const float residual_value = __bfloat162float(residual[state_base + (unsigned long long)source * " +
     hidden +
-    "ULL + (unsigned long long)column]); if (!isfinite(control) || !isfinite(residual_value)) { valid = false; break; } value = __fadd_rn(value, __fmul_rn(control, residual_value)); } if (valid && isfinite(value)) output[state_base + (unsigned long long)linear] = __float2bfloat16_rn(value); }\n" +
+    "ULL + (unsigned long long)column]); if (!isfinite(control) || !isfinite(residual_value)) { valid = false; break; } " +
+    accumulate +
+    " } " +
+    finish +
+    "if (valid && isfinite(value)) output[state_base + (unsigned long long)linear] = __float2bfloat16_rn(value); }\n" +
     "}\n",
   )
   {
     operation: PostCombineV1,
-    numerical_contract: OrderedF32PostCombineBf16RoundV1,
+    numerical_contract,
     stream_width,
     hidden_width,
     maximum_rows,

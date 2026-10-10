@@ -1,7 +1,8 @@
 ///|
-/// Emits the first exact staged mHC boundary. `streams` and `function_weights`
-/// are row-major BF16. `base`, `scale`, `post`, and `initial_combination` are
-/// F32. `collapsed` is rounded once to BF16 after the ordered stream reduction.
+/// Emits the first exact staged mHC boundary. Streams are BF16; the immutable
+/// control law selects BF16 weights with normalized inputs, or F32 weights with
+/// projection before normalization. Base/post/matrix controls are F32.
+/// Collapsed output rounds once to BF16 after the ordered stream reduction.
 pub fn staged_function_and_collapse_bf16_f32_source(
   stream_width~ : Int,
   hidden_width~ : Int,
@@ -9,6 +10,7 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
   function_symbol~ : String,
+  control_law? : @precision.HyperConnectionControlLaw = NormalizedBf16Projection,
 ) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth
@@ -40,12 +42,33 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   let normalization = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(
     normalization_epsilon,
   )
+  let (weight_type, projection, operand_name, publication, numerical_contract) = match
+    control_law {
+    NormalizedBf16Projection =>
+      (
+        "__nv_bfloat16",
+        "const float normalized = __fmul_rn(__bfloat162float(streams[input_base + (unsigned long long)column]), inverse); const float weight = __bfloat162float(function_weights[weight_base + (unsigned long long)column]);",
+        "normalized",
+        "mixes[output] = dot;",
+        OrderedF32FunctionBf16CollapseV1,
+      )
+    F32ProjectionThenNormalize =>
+      (
+        "float",
+        "const float operand = __bfloat162float(streams[input_base + (unsigned long long)column]); const float weight = function_weights[weight_base + (unsigned long long)column];",
+        "operand",
+        "mixes[output] = __fmul_rn(dot, inverse);",
+        OrderedF32ProjectionThenNormalizeBf16CollapseV1,
+      )
+  }
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "__device__ __forceinline__ float lf_hc_stage_sigmoid(float x) { if (x >= 0.0f) return __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-x))); const float e = expf(x); return __fdiv_rn(e, __fadd_rn(1.0f, e)); }\n" +
     "extern \"C\" __global__ void " +
     function_symbol +
-    "(const int32_t *counts, const __nv_bfloat16 *streams, const __nv_bfloat16 *function_weights, const float *base, const float *scale, float *post, float *initial_combination, __nv_bfloat16 *collapsed) {\n" +
+    "(const int32_t *counts, const __nv_bfloat16 *streams, const " +
+    weight_type +
+    " *function_weights, const float *base, const float *scale, float *post, float *initial_combination, __nv_bfloat16 *collapsed) {\n" +
     "  const int32_t live_rows = counts[3]; if (live_rows < 0 || live_rows > " +
     maximum_rows.to_string() +
     ") return; const int32_t row = (int32_t)blockIdx.x; if (row >= live_rows || threadIdx.x != 0) return;\n" +
@@ -68,7 +91,13 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     flattened +
     "ULL; for (int32_t column = 0; column < " +
     flattened +
-    "; ++column) { const float normalized = __fmul_rn(__bfloat162float(streams[input_base + (unsigned long long)column]), inverse); const float weight = __bfloat162float(function_weights[weight_base + (unsigned long long)column]); dot = __fadd_rn(dot, __fmul_rn(normalized, weight)); } mixes[output] = dot; }\n" +
+    "; ++column) { " +
+    projection +
+    " dot = __fadd_rn(dot, __fmul_rn(" +
+    operand_name +
+    ", weight)); } " +
+    publication +
+    " }\n" +
     "  for (int32_t i = 0; i < " +
     mix +
     "; ++i) if (!isfinite(base[i])) return; for (int32_t i = 0; i < 3; ++i) if (!isfinite(scale[i])) return;\n" +
@@ -126,7 +155,7 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   )
   {
     operation: StagedFunctionAndCollapseV1,
-    numerical_contract: OrderedF32FunctionBf16CollapseV1,
+    numerical_contract,
     stream_width,
     hidden_width,
     maximum_rows,

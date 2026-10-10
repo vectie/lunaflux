@@ -90,7 +90,8 @@ pub fn HyperConnectionFrame::prepare(
   maximum_workspace_bytes~ : Int64,
 ) -> Unit raise {
   guard self.status is Fresh &&
-    self.workspace_bytes() <= maximum_workspace_bytes else {
+    self.workspace_bytes() <= maximum_workspace_bytes &&
+    function_weight.byte_count() >= self.source.plan().function_weight_bytes() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
@@ -112,8 +113,11 @@ pub fn HyperConnectionFrame::prepare(
       region(input, stream_bytes, 2L),
       region(
         function_weight,
-        width * streams.to_int64() * hidden.to_int64() * 2L,
-        2L,
+        plan.function_weight_bytes(),
+        match plan.control_law() {
+          NormalizedBf16Projection => 2L
+          F32ProjectionThenNormalize => 4L
+        },
       ),
       region(base, width * 4L, 4L),
       region(scale, 12L, 4L),
@@ -151,7 +155,7 @@ pub fn HyperConnectionFrame::prepare(
         branch,
         region(output, stream_bytes, 2L),
       ]
-    OrderedF32SingleBf16Round =>
+    OrderedF32SingleBf16Round | TransposedF32ResidualThenBranch =>
       [
         region(counts, 20L, 4L),
         branch,
@@ -163,7 +167,8 @@ pub fn HyperConnectionFrame::prepare(
   }
   let (grid, threads) = match plan.mix_law() {
     RoundedBf16ControlsAndProducts => ((stream_bytes / 2L + 255L) / 256L, 256)
-    OrderedF32SingleBf16Round => (rows.to_int64(), 256)
+    OrderedF32SingleBf16Round | TransposedF32ResidualThenBranch =>
+      (rows.to_int64(), 256)
   }
   guard grid <= 2147483647L else {
     raise @precision.PrecisionPlanError::NoImplementation

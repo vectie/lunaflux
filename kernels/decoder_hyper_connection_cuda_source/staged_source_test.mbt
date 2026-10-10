@@ -24,6 +24,27 @@ test "staged function preserves BF16 checkpoint storage and explicit outputs" {
 }
 
 ///|
+test "F32 controls normalize the projected value rather than individual operands" {
+  let rendered = staged_function_and_collapse_bf16_f32_source(
+    stream_width=4,
+    hidden_width=4096,
+    maximum_rows=8,
+    control_epsilon=0.000001,
+    normalization_epsilon=0.00001,
+    function_symbol="f32_control",
+    control_law=F32ProjectionThenNormalize,
+  )
+  assert_eq(
+    rendered.numerical_contract(),
+    OrderedF32ProjectionThenNormalizeBf16CollapseV1,
+  )
+  let source = @utf8.decode(rendered.source_bytes())
+  assert_true(source.contains("const float *function_weights"))
+  assert_true(source.contains("mixes[output] = __fmul_rn(dot, inverse);"))
+  assert_false(source.contains("normalized = __fmul_rn"))
+}
+
+///|
 test "staged Sinkhorn preserves initial-column then nineteen row-column passes" {
   let rendered = staged_positive_sinkhorn_f32_source(
     stream_width=4,
