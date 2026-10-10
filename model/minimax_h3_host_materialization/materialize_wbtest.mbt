@@ -129,14 +129,7 @@ fn fixture_manifest(envelope : Bytes) -> MiniMaxH3HostComponentManifest {
     },
   ])
   let arena_sizes = ReadOnlyArray::from_array([66L])
-  let digest = canonical_manifest_digest(
-    Ref2vaDenoiser,
-    identity,
-    shards,
-    tensors,
-    arena_sizes,
-    6L,
-  )
+  let digest = manifest_source_label(identity)
   {
     component: Ref2vaDenoiser,
     identity,
@@ -216,14 +209,9 @@ async test "adapter rejects authenticated foreign streaming metadata" {
         payload_bytes=6L,
       ),
     ])
-    let foreign_manifest_digest = canonical_manifest_digest(
-      original.component,
-      original.identity,
-      foreign_shards,
-      original.tensors,
-      original.arena_sizes,
-      original.total_tensor_bytes,
-    )
+    let foreign_manifest_digest = manifest_source_label(original.identity)
+    // Sharing a plan label does not bypass the actual tensor geometry check.
+    assert_eq(foreign_manifest_digest, original.digest)
     let forged : MiniMaxH3HostComponentManifest = {
       component: original.component,
       identity: original.identity,
@@ -281,9 +269,8 @@ test "identity manifest and VAE component boundaries remain exact" {
   } noraise {
     _ => fail("foreign identity admitted")
   }
-  let forged : MiniMaxH3HostManifestDigest = {
-    hex: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-  }
+  let forged : MiniMaxH3HostManifestDigest = { hex: String::make(64, '0'), }
+  assert_true(forged != manifest.digest)
   try
     validate_materialization_admission(
       manifest,

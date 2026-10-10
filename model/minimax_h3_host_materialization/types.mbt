@@ -57,8 +57,9 @@ pub struct MiniMaxH3TensorIndexInput {
 } derive(Debug, Eq)
 
 ///|
-/// Digest of identity, component, shard declarations, exact tensor metadata,
-/// membership, and final arena layout.
+/// Supplied model-plan association label, not a component/layout checksum.
+/// Components and arena placements may share it; their typed metadata is kept
+/// separately in the manifest.
 pub struct MiniMaxH3HostManifestDigest {
   priv hex : String
 } derive(Debug, Eq)

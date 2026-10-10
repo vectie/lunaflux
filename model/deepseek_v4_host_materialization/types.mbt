@@ -61,6 +61,8 @@ pub struct DeepSeekV4TensorIndexInput {
 } derive(Debug, Eq)
 
 ///|
+/// Supplied numeric-binding association label, not a layout or payload checksum.
+/// Different arena placements may share this label.
 pub struct DeepSeekV4HostManifestDigest {
   priv hex : String
 } derive(Debug, Eq, Hash)

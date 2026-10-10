@@ -8,8 +8,10 @@ the 703-tensor VideoVae manifest, and the 1,087-tensor AudioVae manifest.
 
 The manifest records model/plan association, exact names, official shapes and
 dtypes, shard/index membership, payload ranges, declared artifact labels, and
-deterministic arena placement. Loading reuses its construction-time label;
-it does not reserialize and rehash the manifest or authenticate its payloads.
+deterministic arena placement. Construction and loading retain the supplied
+model-plan label without serializing or hashing the manifest. Components and
+different layouts can share that label; it is not a layout-uniqueness claim.
+Loading does not authenticate payloads.
 Bounds remain checked before allocation. The result remains component-scoped
 and explicitly releasable.
 

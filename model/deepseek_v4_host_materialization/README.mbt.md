@@ -6,10 +6,11 @@ raw tensor payloads are copied directly into bounded segmented final arenas and
 owned by an explicitly invalidating release type. Release drops owner references
 without a security-only payload scrub.
 
-Loading consumes the construction-time immutable binding, numeric plan and
-manifest label. It does not repeat the numeric-manifest scan or reserialize and
-hash the tensor/layout manifest. Model/plan association, range and copy checks
-remain; supplied source labels are not runtime payload-authentication claims.
+Construction and loading retain the supplied numeric-binding label; neither
+serializes or hashes the tensor/layout manifest. Different arena placements can
+share that label. The immutable manifest carries the actual tensor/layout data.
+Model/plan association, range and copy checks remain; supplied labels are not
+runtime payload-authentication or layout-uniqueness claims.
 
 The admitted header tags are exactly `BF16`, `F32`, `I64`, `I8`, `F8_E4M3`,
 and `F8_E8M0`. Quantized tensors can be projected to the separate bounded
@@ -19,7 +20,7 @@ kernel execution remain typed unavailable. Raw host admission is therefore not
 an executable-weight claim.
 
 The first three official I64 `tid2eid` tensors can additionally be converted
-directly from their final authenticated host arenas into explicitly releasable
+directly from their final bounded host arenas into explicitly releasable
 I32 sidecars. Conversion is startup-only, binds the exact model and manifest,
 checks every expert index and per-row uniqueness, and never creates an
 intermediate I64 table copy. The sidecars remain device- and kernel-neutral.

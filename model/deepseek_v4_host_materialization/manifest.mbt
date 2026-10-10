@@ -1,5 +1,5 @@
 ///|
-/// Authenticate exact shards, bind every header tensor to the closed DeepSeek
+/// Inspect shard metadata, bind every header tensor to the closed DeepSeek
 /// V4 schema, join numeric identity, and derive a bounded final-arena layout.
 pub fn build_manifest(
   root : @approved_fs.ApprovedRoot,
@@ -29,10 +29,7 @@ pub fn build_manifest(
     raise WeightBindingFailure
   }
   let identity = binding.identity()
-  let digest = canonical_manifest_digest(
-    identity, expected_digests, binding, inspection, tensors, arena_sizes, total_tensor_bytes,
-    total_arena_bytes,
-  )
+  let digest = manifest_source_label(expected_digests)
   {
     identity,
     expected_digests,

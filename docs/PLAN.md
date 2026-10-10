@@ -2,6 +2,17 @@
 
 ## Remaining payload-hardening cleanup — 2026-10-11
 
+DeepSeek and MiniMax host-manifest construction now also omit canonical layout
+serialization and SHA computation. They retain the supplied numeric-binding or
+model-plan label respectively. Labels are associations, not unique arena-layout
+identities; typed tensor metadata and allocation/copy bounds remain explicit.
+Crypto imports are test-only. Original/converted MiniMax VideoVAE layouts remain
+distinct despite sharing a plan label. This removes startup work and makes no
+new token-throughput claim. The affected host/upload/text-encoder tests pass
+46/46 and the full native suite passes 4,968/4,968 with the existing migration
+warning configuration. No-hashing coverage now includes 21 execution packages;
+the token-step scan/copy/readback gate also passes.
+
 The remaining DeepSeek token-hash sidecar adapter no longer serializes and
 SHA-hashes metadata repeatedly during plan, validation and upload. It consumes
 the existing host-manifest label directly, with no crypto dependency. The

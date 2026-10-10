@@ -213,10 +213,7 @@ pub fn build_manifest(
   let owned_shards = ReadOnlyArray::from_array(shards)
   let owned_entries = ReadOnlyArray::from_array(entries)
   let owned_arena_sizes = ReadOnlyArray::from_array(arena_sizes)
-  let digest = canonical_manifest_digest(
-    component, expected_identity, owned_shards, owned_entries, owned_arena_sizes,
-    total_tensor_bytes,
-  )
+  let digest = manifest_source_label(expected_identity)
   {
     component,
     identity: expected_identity,

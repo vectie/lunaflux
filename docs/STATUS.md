@@ -10,6 +10,15 @@ claims and do not close those five phase gates.
 
 ## Current checkpoint execution — 2026-10-11
 
+GLM, DeepSeek and MiniMax host materializers no longer serialize and SHA-hash
+their layout manifests for source association. DeepSeek retains its supplied
+numeric-binding label and MiniMax its model-plan label; labels do not prove
+payload integrity or unique arena placement. Typed layouts, tensor geometry,
+memory bounds and explicit release remain. The latest affected tests pass
+46/46 and the full native suite passes 4,968/4,968 with existing migration
+warning exclusions. The 21-package no-hashing and token-step checks pass.
+This removes loading/planning work, not GPU arithmetic; no new token/s is claimed.
+
 The chronological updates below are historical snapshots. This table supersedes
 their pending claims only for the explicitly completed diagnostic routes:
 

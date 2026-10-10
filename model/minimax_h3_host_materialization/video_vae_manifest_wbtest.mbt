@@ -119,7 +119,11 @@ test "original VideoVAE manifest covers fused QKV and mask buffer without droppi
     original.total_tensor_bytes(),
     converted.total_tensor_bytes() + 8192L,
   )
-  assert_true(original.digest() != converted.digest())
+  // Same plan label, distinct layouts. Tensor metadata, not a checksum,
+  // preserves the original fused-versus-converted distinction.
+  assert_eq(original.digest(), converted.digest())
+  assert_eq(original.digest().as_hex(), original.identity().plan().as_hex())
+  assert_eq(converted.tensor_count(), 703)
 }
 
 ///|

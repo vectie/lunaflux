@@ -2,9 +2,7 @@ import {
   "vectie/lunaflux/model/minimax_h3_vision_conditioner" @vision_plan,
   "vectie/lunaflux/model/minimax_h3_text_encoder" @text_plan,
   "vectie/lunaflux/model/joint_audio_amp_parameter_layout",
-  "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/string",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/model/minimax_h3_weights",
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/segmented_host_borrow",
@@ -16,6 +14,8 @@ import {
 supported_targets = "native"
 
 import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "vectie/lunaflux/model/minimax_h3",

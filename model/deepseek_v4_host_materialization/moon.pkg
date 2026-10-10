@@ -1,6 +1,4 @@
 import {
-  "moonbitlang/core/encoding/utf8",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/model/deepseek_v4",
   "vectie/lunaflux/model/deepseek_v4_numeric_plan",
   "vectie/lunaflux/model/deepseek_v4_quantized_payload",
@@ -15,6 +13,8 @@ import {
 supported_targets = "native"
 
 import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "vectie/lunaflux/model/deepseek_v4_spec",

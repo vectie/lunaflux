@@ -131,9 +131,9 @@ fn visit_matches_manifest(
 }
 
 ///|
-/// Startup-only exact mixed-precision materialization from authenticated streaming
-/// safetensors shards. Each shard is reauthenticated once while tensor bytes
-/// are copied directly into final bounded arenas.
+/// Startup-only mixed-precision materialization from inspected safetensors
+/// shards. Selected tensor ranges are copied directly into bounded final arenas;
+/// source labels are not runtime-verified checksums.
 pub fn materialize_safetensors_shards(
   root : @approved_fs.ApprovedRoot,
   sources : ArrayView[MiniMaxH3ShardSource],
