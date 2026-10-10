@@ -79,6 +79,88 @@ Original frontend evidence:
 `/private/tmp/lunaflux-minimax-caption-20261010.KQkB7Fiu` and
 `/private/tmp/lunaflux-checkpoint-text-live-20261010.FwEAvaU2`.
 
+### Independent original-weight encoder comparison — 2026-10-11
+
+The actual caption now has an independent original-weight arithmetic reference,
+not just finite output or an internal component oracle. A separate test-only
+MoonBit module in `benchmarks/checkpoint_aten_reference` reads the original
+safetensors metadata and selected weight regions directly. It owns layer order
+and explicit tensor scopes; a private native bridge calls the ATen library
+already installed in the H3 reference image. The production module imports
+neither this diagnostic nor PyTorch. No Python automation, payload hash, or new
+startup prerequisite was added.
+
+The implementation follows the installed upstream
+`vllm_omni/diffusion/models/minimax_h3/encoder.py` text-only math: three separate
+Q/K/V BF16 linears, Q/K RMSNorm, staged BF16 rotary products/sum, causal GQA SDPA,
+output projection, residuals and separate gate/up SiLU MLP. It retains exactly
+the first 50 decoder layers, without the language-model final norm. It does not
+reuse LunaFlux's packed weights, rotary tables or CUDA kernels. The installed
+ATen context enables cuDNN SDPA by default, matching the source's explicit
+enable. This is an independent ATen execution of that arithmetic, not an
+execution of the complete upstream Python H3 pipeline.
+
+Both fresh .179 runs (`v2`, then final-driver `v3`) complete all 50 layers for
+`32,2518,8251`, write every layer's BF16 output and release all retained tensor
+owners. Their final 15,360 BF16 values are bitwise identical to each other.
+Compared with the previously executed native `b07c0313` caption encoder:
+
+| Metric | Measured |
+| --- | --- |
+| Exact BF16 values | 4,073 / 15,360 |
+| Nonfinite on either side | 0 |
+| Mean absolute error / RMSE | 0.0240924 / 0.0420121 |
+| Absolute-error p50 / p95 / p99 | 0.015625 / 0.078125 / 0.1328125 |
+| Global relative L1 / L2 | 0.6528% / 0.0340% |
+| Largest absolute error | 1, at native 176 versus reference 177 |
+| Maximum absolute value on both sides | 15,168 |
+
+Global cosine similarity is 0.9999999422, but large-magnitude channels dominate
+that aggregate. Report the actual token-row differences rather than using it
+alone as an equivalence claim:
+
+| Caption row | RMSE | Relative L2 | Cosine |
+| --- | --- | --- | --- |
+| 0 | 0.0165571 | 0.00774% | 0.9999999970 |
+| 1 | 0.0380258 | 0.78214% | 0.9999699130 |
+| 2 | 0.0597909 | 1.19722% | 0.9999374821 |
+
+There is no invented model-specific tolerance or automatic pass based on these
+numbers. They establish a reproducible text-encoder differential for this
+caption; broader inputs, exact reduction-level attribution, joint-denoiser/VAE
+reference comparisons and perceptual caption fidelity remain open.
+
+The final reference container exits 0 with `OOMKilled=false`, configured
+memory and memory-plus-swap limits both 8,589,934,592 bytes. Live reads of its
+actual Docker process cgroup report a peak at that 8-GiB ceiling and swap
+current/peak zero. This includes file-cache/workspace effects and is **not** the
+tiny systemd Docker-client wrapper's memory figure. The SDK retains at most
+2 GiB of explicitly owned tensor storage, uploads one projection region at a
+time and ends with retained bytes zero. The peak touches the external limit,
+so this is not a claim of spare memory or safe scaling to longer requests.
+Both GPU-owner queries after collection are empty. The 40.460/44.167-second
+reference unit lifetimes include loading, are two diagnostic samples, and are
+not a matched serving or vLLM performance comparison.
+
+Validation: standalone native warning-denied check and three tests pass without
+warning exclusions; two ARM CPU smokes pass BF16 normalization, short-read and
+oversized-allocation rollback, closed operand and deterministic release. The
+final CPU smoke also checks metadata-read recovery after a native error. The
+ATen C++ ownership probe passes Linux ASan/LSan with empty stderr; its native
+loader/metadata tests also pass macOS ASan (macOS leak detection disabled).
+The supplied skill's older ASan helper could not patch the current `moon.pkg`
+syntax; its changes were restored and the loader tests were rerun from a
+separate instrumented scratch module instead. No production toolchain or
+package flags were changed.
+
+Final evidence: `/tmp/lunaflux-minimax-aten-reference-20261011-v3`, including
+`encode/hidden-0.bf16` through `hidden-50.bf16`,
+`hidden-50-comparison.txt`, `reference-repeat-comparison.txt`, terminal receipts
+and actual cgroup samples. Earlier reference/ASan evidence is preserved in
+`/tmp/lunaflux-minimax-aten-reference-20261011-v2`; the first source archive's
+macOS AppleDouble build failure remains under `v1`. All outputs are retained
+without payload hashes or overwriting previous experiments.
+
 ## Joint request
 
 The actual caption hidden state is now the input for the separate .178 joint

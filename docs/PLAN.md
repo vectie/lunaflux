@@ -37,13 +37,23 @@ Completed diagnostic work:
   MiniMax's 165,600-sample output is preserved without cropping to 165,333.
   Its output-law correction passes 235/235 affected native regressions and the
   existing no-hashing/token-step gates; no GPU arithmetic changed.
+- MiniMax's actual three-token caption now has a separately executed ATen
+  original-weight text-encoder differential through all 50 layers. Two fresh
+  reference outputs are bitwise identical; native/reference RMSE is 0.0420121,
+  with row-relative L2 errors 0.00774%, 0.78214%, and 1.19722%. Every layer is
+  retained for localization. The separate diagnostic module adds no production
+  PyTorch dependency or payload hashes. Its final 8-GiB/no-swap container exits
+  0 without OOM, releases GPUs and reports zero retained tensor owners. This
+  is measured text-encoder error, not full-H3 numerical or perceptual parity.
 
 Required next boundaries, still open:
 
 1. Extend original-tokenizer coverage beyond the independently matched corpus
-   and establish real-weight numerical/reference comparisons for the three
-   models. Internal speculative/ordinary equality,
-   finite media arrays and component oracles cannot substitute for them.
+   and establish complete-model real-weight references for the three models.
+   MiniMax now has one independent 50-layer text-caption differential, but
+   broader text, its joint denoiser/VAE, and independent GLM/DeepSeek model
+   references remain open. Internal speculative/ordinary equality, finite
+   media arrays and component oracles cannot substitute for them.
 2. Exercise context/window wrap, capacity limits, cancellation and failure cleanup
    on the attached model paths, then connect bounded multi-request serving.
 3. Validate actual MiniMax caption fidelity and realistic output geometry within

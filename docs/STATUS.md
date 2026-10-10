@@ -17,7 +17,7 @@ their pending claims only for the explicitly completed diagnostic routes:
 | --- | --- | --- |
 | GLM-5.3 Flash | Original 13-token chat diagnostic and eight greedy output tokens; two ranks exited successfully, released GPUs and used no unit swap | Independent real-weight logit parity, arbitrary-text GPU integration, optimized serving |
 | DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition and EOS termination | Independent upstream model parity, maximum-context correctness, multi-request serving or external-framework performance |
-| MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; no nonfinite output | Reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
+| MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
 
 The three original checkpoint tokenizers now independently match vLLM 0.26.0's
 HF renderer on twelve cases each: 36 exact token-ID and 36 exact decoded-text
@@ -30,6 +30,21 @@ The three sequential renderer containers load no model weights, stay within
 Measured peaks are 2,332,917,760 bytes (DeepSeek), 2,454,654,976 (GLM) and
 2,452,099,072 (MiniMax), with all swap peaks zero. This closes corpus frontend
 parity only, not model numerics, chat-template generation or throughput.
+
+MiniMax's three caption IDs now execute independently through all 50 original
+Qwen3-VL text layers using a separate MoonBit/ATen diagnostic module. Two
+reference runs have bitwise-identical final BF16 output; native/reference RMSE
+is 0.0420121 and maximum absolute error 1. The global relative L2 (0.0340%) is
+dominated by large channels: actual token-row relative L2 errors are 0.00774%,
+0.78214% and 1.19722%. All per-layer reference outputs are retained. There is
+no arbitrary tolerance turning these numbers into full-model parity.
+The final reference container has 8-GiB/no-swap limits, exits 0 without OOM and
+releases GPU/tensor owners. Its measured cgroup peak touches that memory limit;
+it is not a spare-memory or longer-context claim. Three standalone native tests,
+ARM ownership/arithmetic smokes and diagnostic ASan checks pass. Production has
+no new PyTorch dependency, payload hashing or startup prerequisite. See the
+[MiniMax report](MINIMAX_REAL_CAPTION_EXECUTION_2026-10-10.md) for exact scope,
+error distribution, memory observations and raw evidence roots.
 
 The DeepSeek fixed-length run deliberately disables EOS stopping. Its last six
 tokens follow EOS and are not part of a normal assistant answer. A separate

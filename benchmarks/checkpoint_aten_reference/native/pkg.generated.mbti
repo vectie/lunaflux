@@ -1,0 +1,51 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/checkpoint_aten_reference/native"
+
+// Values
+
+// Errors
+pub suberror ReferenceError {
+  Native(String)
+  ClosedOwner
+}
+
+// Types and methods
+pub(all) enum Op {
+  RmsNorm
+  Linear
+  Cosine
+  Sine
+  Rotary
+  Attention
+  SiluMultiply
+  Add
+  ConcatRows
+  Constant
+}
+
+type RawSession
+
+type RawTensor
+
+pub struct Session {
+  raw : RawSession
+  mut closed : Bool
+}
+pub fn Session::bytes(Self, String, offset? : Int64, length? : Int) -> Bytes raise ReferenceError
+pub fn Session::close(Self) -> Unit
+pub fn Session::load(Self, String, Int64, Int, Int) -> Tensor raise ReferenceError
+pub fn Session::new(String, device~ : Int, budget~ : Int64) -> Self raise ReferenceError
+pub fn Session::retained_bytes(Self) -> Int64 raise ReferenceError
+pub fn Session::run(Self, Op, x? : Tensor, y? : Tensor, z? : Tensor, a? : Int, b? : Int, c? : Int, d? : Double) -> Tensor raise ReferenceError
+
+pub struct Tensor {
+  raw : RawTensor
+  session : Session
+  mut closed : Bool
+}
+pub fn Tensor::close(Self) -> Unit
+pub fn Tensor::write(Self, String) -> Unit raise ReferenceError
+
+// Type aliases
+
+// Traits

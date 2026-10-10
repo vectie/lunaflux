@@ -1,0 +1,11 @@
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/checkpoint_aten_reference/native",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

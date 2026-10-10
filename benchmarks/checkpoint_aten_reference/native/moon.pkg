@@ -1,0 +1,10 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"
+
+options(
+  "native-stub": [ "bridge.c" ],
+  link: { "native": { "cc-link-flags": "-ldl" } },
+)

@@ -1,0 +1,155 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn bf16(bytes : Bytes, i : Int) -> Double {
+  let bits = bytes[i * 2].to_uint() | (bytes[i * 2 + 1].to_uint() << 8)
+  Float::reinterpret_from_uint(bits << 16).to_double()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native_path, reference_path, output] else {
+    fail("NATIVE_BF16 REFERENCE_BF16 NEW_REPORT")
+  }
+  let native = @fs.read_file(native_path).binary()
+  let reference = @fs.read_file(reference_path).binary()
+  guard native.length() > 0 &&
+    native.length() % 2 == 0 &&
+    native.length() == reference.length() else {
+    fail("BF16 tensor extents differ")
+  }
+  let n = native.length() / 2
+  let mut exact = 0
+  let mut nonfinite = 0
+  let mut squared_error = 0.0
+  let mut squared_native = 0.0
+  let mut squared_reference = 0.0
+  let mut dot = 0.0
+  let mut abs_error = 0.0
+  let mut abs_reference = 0.0
+  let errors : Array[Double] = []
+  let magnitudes : Array[Double] = []
+  let mut max_error = 0.0
+  let mut native_max = 0.0
+  let mut reference_max = 0.0
+  let mut largest = -1
+  for i in 0..<n {
+    let a = bf16(native, i)
+    let b = bf16(reference, i)
+    if a.is_nan() || a.is_inf() || b.is_nan() || b.is_inf() {
+      nonfinite += 1
+    } else {
+      let delta = (a - b).abs()
+      if delta > max_error {
+        max_error = delta
+        largest = i
+      }
+      if a.abs() > native_max {
+        native_max = a.abs()
+      }
+      if b.abs() > reference_max {
+        reference_max = b.abs()
+      }
+      abs_error += delta
+      abs_reference += b.abs()
+      errors.push(delta)
+      magnitudes.push(b.abs())
+      squared_error += delta * delta
+      squared_native += a * a
+      squared_reference += b * b
+      dot += a * b
+    }
+    if native[i * 2] == reference[i * 2] &&
+      native[i * 2 + 1] == reference[i * 2 + 1] {
+      exact += 1
+    }
+  }
+  let rmse = (squared_error / n.to_double()).sqrt()
+  let relative_l2 = if squared_reference > 0.0 {
+    (squared_error / squared_reference).sqrt()
+  } else {
+    0.0
+  }
+  let cosine = if squared_native > 0.0 && squared_reference > 0.0 {
+    dot / (squared_native * squared_reference).sqrt()
+  } else {
+    0.0
+  }
+  let largest_native = if largest >= 0 { bf16(native, largest) } else { 0.0 }
+  let largest_reference = if largest >= 0 {
+    bf16(reference, largest)
+  } else {
+    0.0
+  }
+  errors.sort()
+  magnitudes.sort()
+  guard nonfinite == 0 else {
+    fail("nonfinite reference/native tensor; no finite-error summary")
+  }
+  let relative_l1 = if abs_reference > 0.0 {
+    abs_error / abs_reference
+  } else {
+    0.0
+  }
+  let per_row = StringBuilder()
+  guard n % 5120 == 0 else { fail("expected original encoder width 5120") }
+  for row in 0..<(n / 5120) {
+    let mut a2 = 0.0
+    let mut b2 = 0.0
+    let mut ab = 0.0
+    let mut e2 = 0.0
+    let mut e1 = 0.0
+    let mut b1 = 0.0
+    for column in 0..<5120 {
+      let a = bf16(native, row * 5120 + column)
+      let b = bf16(reference, row * 5120 + column)
+      a2 += a * a
+      b2 += b * b
+      ab += a * b
+      e2 += (a - b) * (a - b)
+      e1 += (a - b).abs()
+      b1 += b.abs()
+    }
+    let row_cosine = if a2 > 0.0 && b2 > 0.0 {
+      ab / (a2 * b2).sqrt()
+    } else {
+      0.0
+    }
+    let row_l1 = if b1 > 0.0 { e1 / b1 } else { 0.0 }
+    let row_l2 = if b2 > 0.0 { (e2 / b2).sqrt() } else { 0.0 }
+    per_row <+
+      "row=\{row} rmse=\{(e2 / 5120.0).sqrt()} relative_l1=\{row_l1} relative_l2=\{row_l2} cosine=\{row_cosine}\n"
+  }
+  let report =
+    $|scope=original_caption_text_encoder_hidden_states_50
+    $|native=\{native_path}
+    $|reference=\{reference_path}
+    $|elements=\{n}
+    $|exact_bf16=\{exact}
+    $|nonfinite=\{nonfinite}
+    $|native_max_abs=\{native_max}
+    $|reference_max_abs=\{reference_max}
+    $|mean_absolute_error=\{abs_error / n.to_double()}
+    $|relative_l1=\{relative_l1}
+    $|absolute_error_p50=\{errors[n / 2]}
+    $|absolute_error_p95=\{errors[(n - 1) * 95 / 100]}
+    $|absolute_error_p99=\{errors[(n - 1) * 99 / 100]}
+    $|reference_abs_p50=\{magnitudes[n / 2]}
+    $|reference_abs_p99=\{magnitudes[(n - 1) * 99 / 100]}
+    $|rmse=\{rmse}
+    $|relative_l2=\{relative_l2}
+    $|cosine_similarity=\{cosine}
+    $|max_absolute_error=\{max_error}
+    $|largest_error_index=\{largest}
+    $|largest_error_native=\{largest_native}
+    $|largest_error_reference=\{largest_reference}
+    $|claim=measured_difference_not_automatic_parity_or_performance
+  let complete = report + "\n" + per_row.to_string()
+  @fs.write_file(output, complete, create_mode=CreateNew)
+  println(complete)
+}

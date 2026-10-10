@@ -1,0 +1,301 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline, sequential reference diagnostic. Never part of model startup.
+
+///|
+let image : String = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+
+///|
+let socket178 : String = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+
+///|
+let socket179 : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(
+  node : String,
+  socket : String,
+  command : String,
+) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn copy(socket : String, from : String, to : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    from,
+    to,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+fn safe(path : String) -> Bool {
+  !path.contains("..") &&
+  path
+  .iter()
+  .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '_' | '.'))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root] &&
+    root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
+    safe(root) else {
+    fail("stage|self-test|asan|encode|collect NEW_OR_EXISTING_EVIDENCE_ROOT")
+  }
+  let first = "wlc003s@192.168.2.178"
+  let second = "wlc004s@192.168.2.179"
+  let tools = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain"
+  let source = root + "/source"
+  let tag = root.split("/").to_array().last().unwrap().to_owned()
+  if mode == "stage" {
+    @fs.mkdir(root)
+    @shell.Cmd("env", [
+      "COPYFILE_DISABLE=1",
+      "tar",
+      "-czf",
+      root + "/source.tar.gz",
+      "-C",
+      "benchmarks/checkpoint_aten_reference",
+      "--exclude=_build",
+      "--exclude=.mooncakes",
+      "--exclude=._*",
+      ".",
+    ])
+    .output()
+    .check()
+    record(root, "mkdir178", remote(first, socket178, "mkdir -m 755 " + root))
+    record(
+      root,
+      "mkdir-source178",
+      remote(first, socket178, "mkdir -m 755 " + source),
+    )
+    copy(
+      socket178,
+      root + "/source.tar.gz",
+      first + ":" + root + "/source.tar.gz",
+    )
+    record(
+      root,
+      "unpack178",
+      remote(
+        first,
+        socket178,
+        "tar -xf " + root + "/source.tar.gz -C " + source,
+      ),
+    )
+    record(
+      root,
+      "driver-build",
+      remote(
+        first,
+        socket178,
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-driver-build --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" +
+        source +
+        " /usr/bin/env MOON_HOME=" +
+        tools +
+        " PATH=" +
+        tools +
+        "/bin:/usr/bin:/bin MOON_CC=gcc " +
+        tools +
+        "/bin/moon build driver --release --target native --deny-warn -j 2",
+      ),
+    )
+    copy(
+      socket178,
+      first + ":" + source + "/_build/native/release/build/driver/driver.exe",
+      root + "/driver.exe",
+    )
+    record(root, "mkdir179", remote(second, socket179, "mkdir -m 755 " + root))
+    copy(socket179, root + "/driver.exe", second + ":" + root + "/driver.exe")
+    copy(
+      socket179,
+      "benchmarks/checkpoint_aten_reference/aten/ops.cpp",
+      second + ":" + root + "/ops.cpp",
+    )
+    record(
+      root,
+      "aten-build",
+      remote(
+        second,
+        socket179,
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-sdk-build --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 docker run --rm --name " +
+        tag +
+        "-build --network none --user 1000:1000 --memory 4g --memory-swap 4g --pids-limit 256 --cpuset-cpus 0-3 -v " +
+        root +
+        ":/work --entrypoint /usr/bin/g++ " +
+        image +
+        " -O2 -std=c++17 -shared -fPIC /work/ops.cpp -I/usr/local/lib/python3.12/dist-packages/torch/include -L/usr/local/lib/python3.12/dist-packages/torch/lib -Wl,-rpath,/usr/local/lib/python3.12/dist-packages/torch/lib -Wl,--no-as-needed -ltorch_cuda -ltorch_cpu -lc10_cuda -lc10 -o /work/libreference.so",
+      ),
+    )
+    println(
+      "separate MoonBit reference driver and installed ATen bridge built; no GPU inference started",
+    )
+  } else if mode == "asan" {
+    @fs.mkdir(root + "/asan")
+    record(
+      root,
+      "asan-mkdir",
+      remote(second, socket179, "mkdir -m 755 " + root + "/asan"),
+    )
+    copy(
+      socket179,
+      "benchmarks/checkpoint_aten_reference/aten/ownership_probe.cpp",
+      second + ":" + root + "/ownership_probe.cpp",
+    )
+    let common = " --network none --user 1000:1000 --memory 4g --memory-swap 4g --pids-limit 256 --cpuset-cpus 0-3 -v " +
+      root +
+      ":/work"
+    record(
+      root,
+      "asan-build",
+      remote(
+        second,
+        socket179,
+        "docker run --rm --name " +
+        tag +
+        "-asan-build" +
+        common +
+        " --entrypoint /usr/bin/g++ " +
+        image +
+        " -O1 -g -std=c++17 -fsanitize=address -fno-omit-frame-pointer /work/ops.cpp /work/ownership_probe.cpp -I/usr/local/lib/python3.12/dist-packages/torch/include -L/usr/local/lib/python3.12/dist-packages/torch/lib -Wl,-rpath,/usr/local/lib/python3.12/dist-packages/torch/lib -ltorch_cpu -lc10 -o /work/ownership_probe.exe",
+      ),
+    )
+    record(
+      root,
+      "asan",
+      remote(
+        second,
+        socket179,
+        "docker run --name " +
+        tag +
+        "-asan" +
+        common +
+        " -e ASAN_OPTIONS=detect_leaks=1:fast_unwind_on_malloc=0 --entrypoint /work/ownership_probe.exe " +
+        image +
+        " /work/asan",
+      ),
+    )
+    println("independent ATen ownership probe passed ASan and LSan")
+  } else if mode == "self-test" || mode == "encode" {
+    let name = tag + "-" + mode
+    let output = root + "/" + mode
+    @fs.mkdir(output)
+    record(
+      root,
+      mode + "-mkdir",
+      remote(second, socket179, "mkdir -m 755 " + output),
+    )
+    let model = "/tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder"
+    if mode == "encode" {
+      let owners = remote(
+        second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      record(root, "before-encode-owners", owners)
+      guard owners.stdout().trim().is_empty() else {
+        fail("GPU has an existing owner; reference not started")
+      }
+    }
+    let device = if mode == "encode" { " --gpus all" } else { "" }
+    let arguments = if mode == "encode" {
+      " encode /work/libreference.so /model 32,2518,8251 /work/encode 50"
+    } else {
+      " self-test /work/libreference.so /work/self-test"
+    }
+    record(
+      root,
+      mode,
+      remote(
+        second,
+        socket179,
+        "systemd-run --user --wait --pipe --unit=" +
+        name +
+        " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 docker run --name " +
+        name +
+        device +
+        " --network none --user 1000:1000 --memory 8g --memory-swap 8g --pids-limit 256 --cpuset-cpus 0-3 -e OMP_NUM_THREADS=2 -e OPENBLAS_NUM_THREADS=2 -v " +
+        root +
+        ":/work -v " +
+        model +
+        ":/model:ro --entrypoint /work/driver.exe " +
+        image +
+        arguments,
+      ),
+    )
+    record(
+      root,
+      mode + "-terminal",
+      remote(
+        second,
+        socket179,
+        "docker inspect --format '{{json .State}}' " + name,
+      ),
+    )
+    println("reference " + mode + " terminated; collect original outputs next")
+  } else if mode == "collect" {
+    for layer in 0..<=50 {
+      @fs.write_file(
+        root + "/encode/hidden-\{layer}.bf16",
+        b"",
+        create_mode=CreateNew,
+      )
+      copy(
+        socket179,
+        second + ":" + root + "/encode/hidden-\{layer}.bf16",
+        root + "/encode/hidden-\{layer}.bf16",
+      )
+    }
+    record(
+      root,
+      "after-encode-owners",
+      remote(
+        second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      ),
+    )
+    record(
+      root,
+      "encode-journal",
+      remote(
+        second,
+        socket179,
+        "journalctl --user -u " + tag + "-encode --no-pager",
+      ),
+    )
+    println("all independent layer outputs collected without overwrite")
+  } else {
+    fail("unknown reference runner mode")
+  }
+}
