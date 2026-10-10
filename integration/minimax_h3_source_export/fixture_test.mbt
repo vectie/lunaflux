@@ -80,6 +80,60 @@ test "complete offline export emits every schedule variant and deterministic sou
   }
   let first = make_export()
   let second = make_export()
+  let audio_only = @minimax_h3_source_export.build_audio(metadata, plan, audio)
+  assert_eq(audio_only.units.length(), 17)
+  for entry in audio_only.units {
+    guard first.units[:].filter(u => u.name == entry.name) is [full] else {
+      fail("audio component absent from full export")
+    }
+    assert_eq(full.source, entry.source)
+    assert_eq(full.symbols, entry.symbols)
+    assert_eq(full.geometry, entry.geometry)
+  }
+  let decoder_sources = @block.build_audio_decoder(
+    @vae.bind_audio_decoder_upsample_stages(metadata, audio, request)[:],
+  )
+  let decoder = @audio_checkpoint.CheckpointAudioDecoder::new(
+    decoder_sources,
+    maximum_workspace_bytes=2147483648L,
+  )
+  let memory = decoder.memory()
+  assert_eq(
+    memory.input_bytes,
+    2L * 32L * request.audio_latent_frames().to_int64() * 4L,
+  )
+  assert_eq(
+    memory.output_bytes,
+    2L * request.audio_latent_frames().to_int64() * 800L * 4L,
+  )
+  assert_eq(
+    memory.total_bytes,
+    memory.frontend_bytes +
+    memory.stage_bytes[:].fold(init=0L, (a, b) => a + b) +
+    memory.chain_bytes +
+    memory.bridge_bytes +
+    memory.tail_bytes +
+    memory.cache_bytes +
+    memory.input_bytes +
+    memory.output_bytes,
+  )
+  let exact = @audio_checkpoint.CheckpointAudioDecoder::new(
+    decoder_sources,
+    maximum_workspace_bytes=memory.total_bytes,
+  )
+  assert_eq(exact.memory().total_bytes, memory.total_bytes)
+  exact.close()
+  decoder.close()
+  try
+    @audio_checkpoint.CheckpointAudioDecoder::new(
+      decoder_sources,
+      maximum_workspace_bytes=memory.total_bytes - 1L,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("decoder aggregate admitted one byte beyond limit")
+  }
   assert_eq(first.manifest(), second.manifest())
   assert_true(first.timestep_counts.contains(1))
   assert_true(first.timestep_counts.contains(2))

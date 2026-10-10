@@ -13,6 +13,8 @@ import {
 // Values
 pub fn build(@minimax_h3_spec.MiniMaxH3ModelMetadata, @joint_diffusion_loop.PreparedPlan, @minimax_h3_sequence.Sequence, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @minimax_h3_text_encoder.TextEncoderPlan, text_config~ : @minimax_h3_text_encoder.EncoderConfig, visual_noise~ : Double, audio_noise~ : Double, vision_text_rows~ : ArrayView[Int], max_metadata_bytes~ : Int64, max_workspace_bytes~ : Int64, tile_size~ : Int, minimum_overlap~ : Int, max_tiles~ : Int, vision? : @minimax_h3_vision_conditioner.VisionPlan) -> SourceExport raise
 
+pub fn build_audio(@minimax_h3_spec.MiniMaxH3ModelMetadata, @joint_diffusion_loop.PreparedPlan, @minimax_h3_config.MiniMaxH3AudioVaeConfig) -> SourceExport raise
+
 // Errors
 pub(all) suberror ExportError {
   InvalidPlan

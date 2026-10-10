@@ -21,6 +21,7 @@ import {
 
 import {
   "vectie/lunaflux/model/spec" @identity,
+  "vectie/lunaflux/integration/minimax_h3_audio_checkpoint" @audio_checkpoint,
 } for "test"
 
 supported_targets = "native"

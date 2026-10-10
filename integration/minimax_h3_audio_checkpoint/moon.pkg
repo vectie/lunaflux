@@ -1,0 +1,10 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minimax_h3_block_source" @source,
+  "vectie/lunaflux/integration/minimax_h3_block_program" @program,
+  "vectie/lunaflux/integration/minimax_h3_weight_startup" @startup,
+  "vectie/lunaflux/model/minimax_h3_vae_reference" @vae,
+  "vectie/lunaflux/model/joint_audio_amp_parameter_layout" @parameters,
+}
+
+supported_targets = "native"

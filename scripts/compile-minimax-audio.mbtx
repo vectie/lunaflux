@@ -1,0 +1,140 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, source] &&
+    root.has_prefix("/tmp/lunaflux-minimax-aot-") &&
+    source.has_prefix("/tmp/lunaflux-minimax-audio-config-") &&
+    [root, suffix, source].all(s => {
+      !s.contains("..") &&
+      !s.is_empty() &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") else {
+    fail("NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX LOCAL_EXPORTED_AUDIO_DIRECTORY")
+  }
+  @fs.mkdir(root)
+  let node = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let remote = "/tmp/lunaflux-minimax-aot-" + suffix
+  record(
+    root,
+    "mkdir",
+    @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-S",
+      socket,
+      node,
+      "mkdir " + remote,
+    ]).output(),
+  )
+  let tools = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", socket, node, "sha256sum /usr/local/cuda-13.0/bin/nvcc",
+  ]).output()
+  record(root, "tool", tools)
+  guard tools
+    .stdout()
+    .has_prefix(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1  ",
+    ) else {
+    fail("different CUDA tool")
+  }
+  let names = ["audio_input", "audio_front", "audio_tail"]
+  for i in 0..<7 {
+    names.push("audio_up_\{i}")
+    names.push("audio_amp_\{i}")
+  }
+  for name in names {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      source + "/aot/" + name + ".cu",
+      node + ":" + remote + "/" + name + ".cu",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      name + "-compile",
+      @shell.Cmd("ssh", [
+        "-o",
+        "BatchMode=yes",
+        "-S",
+        socket,
+        node,
+        "systemd-run --user --wait --pipe --unit=lunaflux-minimax-aot-" +
+        suffix +
+        "-" +
+        name.replace(old="_", new="-") +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+        "/usr/local/cuda-13.0/bin/nvcc -arch=sm_121 -cubin -O3 " +
+        remote +
+        "/" +
+        name +
+        ".cu -o " +
+        remote +
+        "/" +
+        name +
+        ".cubin",
+      ]).output(max_output_bytes=1048576),
+    )
+    let hashes = @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-S",
+      socket,
+      node,
+      "sha256sum " +
+      remote +
+      "/" +
+      name +
+      ".cu " +
+      remote +
+      "/" +
+      name +
+      ".cubin",
+    ]).output()
+    record(root, name + "-hashes", hashes)
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + remote + "/" + name + ".cubin",
+      root + "/" + name + ".cubin",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      name + "-download",
+      @shell.Cmd("shasum", ["-a", "256", root + "/" + name + ".cubin"]).output(),
+    )
+    println("compiled " + name)
+  }
+  println("17 shared AudioVAE AOT modules compiled; no decoder execution claim")
+}

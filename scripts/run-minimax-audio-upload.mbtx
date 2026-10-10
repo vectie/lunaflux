@@ -1,0 +1,193 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, data, build, binary_hash] &&
+    root.has_prefix("/tmp/lunaflux-minimax-upload-") &&
+    data.has_prefix("/tmp/lunaflux-minimax-audio-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
+    [root, suffix, data, build].all(s => {
+      !s.is_empty() &&
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") &&
+    binary_hash.length() == 64 &&
+    binary_hash.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
+    fail(
+      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX INSPECTED_LOCAL_CHECKPOINT BUILD_ROOT BINARY_SHA256",
+    )
+  }
+  @fs.mkdir(root)
+  let first = "wlc003s@192.168.2.178"
+  let first_socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let node = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let executable = build +
+    "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  let source_hash = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    first_socket,
+    first,
+    "sha256sum " + executable,
+  ]).output()
+  record(root, "binary-source", source_hash)
+  guard source_hash.stdout().has_prefix(binary_hash + "  ") else {
+    fail("wrong built binary")
+  }
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + first_socket,
+    first + ":" + executable,
+    root + "/minimax_checkpoint.exe",
+  ])
+  .output()
+  .check()
+  let downloaded = @shell.Cmd("shasum", [
+    "-a",
+    "256",
+    root + "/minimax_checkpoint.exe",
+  ]).output()
+  record(root, "binary-download", downloaded)
+  guard downloaded.stdout().has_prefix(binary_hash + "  ") else {
+    fail("wrong downloaded binary")
+  }
+  let remote_root = "/tmp/lunaflux-minimax-upload-" + suffix
+  for
+    directory in [
+      remote_root,
+      remote_root + "/FL2VA",
+      remote_root + "/FL2VA/transformer",
+      remote_root + "/FL2VA/audio_vae",
+    ] {
+    @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-S",
+      socket,
+      node,
+      "mkdir " + directory,
+    ])
+    .output()
+    .check()
+  }
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    root + "/minimax_checkpoint.exe",
+    node + ":" + remote_root + "/minimax_checkpoint.exe",
+  ])
+  .output()
+  .check()
+  for
+    file in [
+      "model_index.json", "transformer/config.json", "AUDIO.sha256", "audio_vae/model.safetensors",
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      data + "/FL2VA/" + file,
+      node + ":" + remote_root + "/FL2VA/" + file,
+    ])
+    .output()
+    .check()
+  }
+  let installed = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "sha256sum " + remote_root + "/minimax_checkpoint.exe",
+  ]).output()
+  record(root, "binary-upload", installed)
+  guard installed.stdout().has_prefix(binary_hash + "  ") else {
+    fail("wrong installed binary")
+  }
+  let gpu = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", socket, node, "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  ]).output()
+  record(root, "device", gpu)
+  guard gpu.stdout().trim() ==
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0" else {
+    fail("wrong GPU")
+  }
+  let occupied = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", socket, node, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  ]).output()
+  record(root, "occupied", occupied)
+  guard occupied.stdout().trim().is_empty() else {
+    fail("GPU occupied; no overlapping model")
+  }
+  let unit = "lunaflux-minimax-audio-upload-" + suffix
+  let run = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "systemd-run --user --wait --pipe --unit=" +
+    unit +
+    " --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+    remote_root +
+    "/minimax_checkpoint.exe prepare-component " +
+    remote_root +
+    "/FL2VA audio_vae AUDIO.sha256 1073741824 2147483648",
+  ]).output(max_output_bytes=4194304)
+  record(root, "prepare-and-release", run)
+  guard run.stdout().contains("reserved_weight_bytes=259763748") &&
+    run.stdout().contains("component GPU weights released") else {
+    fail("missing component upload/release")
+  }
+  record(
+    root,
+    "journal",
+    @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-S",
+      socket,
+      node,
+      "journalctl --user -u " + unit + " --no-pager",
+    ]).output(),
+  )
+  let released = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", socket, node, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  ]).output()
+  record(root, "released", released)
+  guard released.stdout().trim().is_empty() else {
+    fail("GPU process still present after component release")
+  }
+  println(
+    "real AudioVAE decoder weights uploaded and released; no decoder arithmetic or full media-generation claim",
+  )
+}

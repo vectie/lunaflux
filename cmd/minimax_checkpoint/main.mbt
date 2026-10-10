@@ -32,17 +32,22 @@ fn component(
 }
 
 ///|
-fn main raise {
+async fn main {
   guard @env.args() is [_, mode, root_name, .. tail] &&
     (
-      ((mode == "config" || mode == "weight-plan") && tail.is_empty()) ||
+      (
+        (mode == "config" || mode == "weight-plan" || mode == "audio-config") &&
+        tail.is_empty()
+      ) ||
+      ((mode == "export-audio" || mode == "audio-memory") && tail.length() == 5) ||
+      (mode == "decode-audio" && tail.length() == 9) ||
       (
         (mode == "inspect-component" || mode == "prepare-component") &&
         tail.length() == 4
       )
     ) else {
     fail(
-      "config|weight-plan VARIANT_ROOT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
+      "config|weight-plan|audio-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
     )
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(root_name)
@@ -67,6 +72,56 @@ fn main raise {
     "MiniMax-H3 layers=\{plan.denoiser().layer_count()} hidden=\{plan.denoiser().hidden_size()}",
   )
   if mode == "config" {
+    return
+  }
+  if mode == "decode-audio" {
+    run_audio(root_name, root, metadata, plan, tail)
+    return
+  }
+  if mode == "audio-config" || mode == "export-audio" || mode == "audio-memory" {
+    let audio = read_audio_config(root)
+    println(
+      "AudioVAE channels=\{audio.output_channels()} sample_rate=\{audio.sampling_rate()} decoder_stages=\{audio.decoder_rates().length()}",
+    )
+    if mode == "audio-config" {
+      return
+    }
+    let shape = plan
+      .shapes()
+      .resolve_request(
+        height=@string.parse_int(tail[0]),
+        width=@string.parse_int(tail[1]),
+        requested_frames=@string.parse_int(tail[2]),
+        inference_steps=@string.parse_int(tail[3]),
+      )
+    let prepared = @loop.PreparedPlan::new(
+      plan,
+      shape,
+      max_latent_elements=2147483647L,
+    )
+    if mode == "audio-memory" {
+      let sources = @source.build_audio_decoder(
+        @vae.bind_audio_decoder_upsample_stages(metadata, audio, shape)[:],
+      )
+      let decoder = @audio.CheckpointAudioDecoder::new(
+        sources,
+        maximum_workspace_bytes=@string.parse_int64(tail[4]),
+      )
+      defer decoder.close()
+      let m = decoder.memory()
+      println(
+        "input_bytes=\{m.input_bytes} output_bytes=\{m.output_bytes} frontend_bytes=\{m.frontend_bytes} tail_bytes=\{m.tail_bytes} chain_bytes=\{m.chain_bytes} bridge_bytes=\{m.bridge_bytes} cache_bytes=\{m.cache_bytes} total_workspace_bytes=\{m.total_bytes}",
+      )
+      for i, bytes in m.stage_bytes {
+        println("stage=\{i} workspace_bytes=\{bytes}")
+      }
+      return
+    }
+    let source = @export.build_audio(metadata, prepared, audio)
+    source.write(tail[4])
+    println(
+      "audio_aot_modules=\{source.units.length()} latent_frames=\{shape.audio_latent_frames()}",
+    )
     return
   }
   if mode == "weight-plan" {

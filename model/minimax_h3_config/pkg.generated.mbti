@@ -10,6 +10,8 @@ import {
 // Values
 pub fn parse_audio_vae(StringView, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3AudioVaeConfig raise MiniMaxH3ConfigError
 
+pub fn parse_audio_vae_checkpoint(StringView, StringView, StringView, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3AudioVaeConfig raise MiniMaxH3ConfigError
+
 pub fn parse_pipeline_index(StringView, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3PipelineIndex raise MiniMaxH3ConfigError
 
 pub fn parse_scheduler(StringView, document_kind~ : MiniMaxH3ConfigDocument, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3SchedulerConfig raise MiniMaxH3ConfigError

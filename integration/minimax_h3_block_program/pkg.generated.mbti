@@ -69,6 +69,19 @@ pub fn AudioDecoder::prepare_weights(Self, @device.Context, @device.Stream, Arra
 
 type AudioDecoderLease
 
+pub struct AudioDecoderMemoryPlan {
+  frontend_bytes : Int64
+  stage_bytes : ReadOnlyArray[Int64]
+  chain_bytes : Int64
+  bridge_bytes : Int64
+  tail_bytes : Int64
+  cache_bytes : Int64
+  input_bytes : Int64
+  output_bytes : Int64
+  total_bytes : Int64
+}
+pub fn AudioDecoderMemoryPlan::new(@minimax_h3_block_source.AudioFrontendSource, ArrayView[@minimax_h3_block_source.AudioUpsampleSource], ArrayView[@minimax_h3_block_source.AudioAmpSource], @minimax_h3_block_source.AudioTailSource, maximum_bytes~ : Int64) -> Self raise @device.DeviceError
+
 pub struct AudioFrontendProgram {
   // private fields
 }

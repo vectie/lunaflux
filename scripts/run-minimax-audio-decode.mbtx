@@ -1,0 +1,202 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, build, hash, config, aot] &&
+    root.has_prefix("/tmp/lunaflux-minimax-decode-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
+    config.has_prefix("/tmp/lunaflux-minimax-audio-config-") &&
+    aot.has_prefix("/tmp/lunaflux-minimax-aot-") &&
+    [root, suffix, build, config, aot].all(s => {
+      !s.contains("..") &&
+      !s.is_empty() &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") &&
+    hash.length() == 64 &&
+    hash.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
+    fail(
+      "NEW_LOCAL_DIRECTORY SUFFIX NEW_BUILD_ROOT BINARY_SHA LOCAL_CONFIG_DIRECTORY REMOTE_AOT_DIRECTORY",
+    )
+  }
+  @fs.mkdir(root)
+  let first = "wlc003s@192.168.2.178"
+  let first_socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let node = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let executable = build +
+    "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + first_socket,
+    first + ":" + executable,
+    root + "/minimax_checkpoint.exe",
+  ])
+  .output()
+  .check()
+  let binary = @shell.Cmd("shasum", [
+    "-a",
+    "256",
+    root + "/minimax_checkpoint.exe",
+  ]).output()
+  record(root, "binary", binary)
+  guard binary.stdout().has_prefix(hash + "  ") else {
+    fail("wrong built decoder")
+  }
+  let remote = "/tmp/lunaflux-minimax-decode-" + suffix
+  for
+    command in [
+      "mkdir " + remote,
+      "mkdir " + remote + "/FL2VA",
+      "mkdir " + remote + "/FL2VA/audio_vae",
+      "mkdir " + remote + "/FL2VA/transformer",
+      "cp --reflink=auto /tmp/lunaflux-minimax-upload-20261010-v1/FL2VA/audio_vae/model.safetensors " +
+      remote +
+      "/FL2VA/audio_vae/model.safetensors",
+      "cp /tmp/lunaflux-minimax-upload-20261010-v1/FL2VA/AUDIO.sha256 " +
+      remote +
+      "/FL2VA/AUDIO.sha256",
+    ] {
+    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command])
+    .output()
+    .check()
+  }
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    root + "/minimax_checkpoint.exe",
+    node + ":" + remote + "/minimax_checkpoint.exe",
+  ])
+  .output()
+  .check()
+  for
+    file in [
+      "model_index.json", "transformer/config.json", "audio_vae/config.json", "audio_vae/metadata.json",
+      "audio_vae/config.yaml",
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      config + "/" + file,
+      node + ":" + remote + "/FL2VA/" + file,
+    ])
+    .output()
+    .check()
+  }
+  // Explicit standalone decoder fixture: NOT denoiser output or a full request.
+  @fs.write_file(
+    root + "/zero-latent.f32",
+    Bytes::make(52992, 0),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    root + "/zero-latent.f32",
+    node + ":" + remote + "/FL2VA/zero-latent.f32",
+  ])
+  .output()
+  .check()
+  let identity = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", socket, node, "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  ]).output()
+  record(root, "identity", identity)
+  guard identity.stdout().trim() ==
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0" else {
+    fail("different device")
+  }
+  let occupied = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", socket, node, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  ]).output()
+  record(root, "occupied", occupied)
+  guard occupied.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let unit = "lunaflux-minimax-audio-decode-" + suffix
+  record(
+    root,
+    "decode",
+    @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-S",
+      socket,
+      node,
+      "systemd-run --user --wait --pipe --unit=" +
+      unit +
+      " --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=3600 " +
+      remote +
+      "/minimax_checkpoint.exe decode-audio " +
+      remote +
+      "/FL2VA AUDIO.sha256 32 32 120 5 " +
+      aot +
+      " zero-latent.f32 " +
+      remote +
+      "/waveform.f32 2147483648",
+    ]).output(max_output_bytes=4194304),
+  )
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    node + ":" + remote + "/waveform.f32",
+    root + "/waveform.f32",
+  ])
+  .output()
+  .check()
+  record(
+    root,
+    "waveform-hash",
+    @shell.Cmd("shasum", ["-a", "256", root + "/waveform.f32"]).output(),
+  )
+  record(
+    root,
+    "journal",
+    @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-S",
+      socket,
+      node,
+      "journalctl --user -u " + unit + " --no-pager",
+    ]).output(),
+  )
+  let released = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", socket, node, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  ]).output()
+  record(root, "released", released)
+  guard released.stdout().trim().is_empty() else {
+    fail("decoder GPU process remains after release")
+  }
+  println(
+    "actual-checkpoint AudioVAE standalone zero-latent decode finished; independent numerical oracle and full media request remain",
+  )
+}

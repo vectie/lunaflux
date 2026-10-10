@@ -1,0 +1,69 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-minimax-audio-config-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_LOCAL_CONFIG_AND_AUDIO_SOURCE_DIRECTORY")
+  }
+  for
+    directory in [
+      root,
+      root + "/audio_vae",
+      root + "/transformer",
+      root + "/aot",
+    ] {
+    @fs.mkdir(directory)
+  }
+  let original = "/data/models/MiniMax/MiniMax-H3/FL2VA/"
+  for
+    file in [
+      "model_index.json", "transformer/config.json", "audio_vae/config.json", "audio_vae/metadata.json",
+      "audio_vae/config.yaml",
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "lunanexa-management:" + original + file,
+      root + "/" + file,
+    ])
+    .output()
+    .check()
+  }
+  let executable = "_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  let canonical = @fs.realpath(root)
+  for
+    (name, args) in [
+      ("config", ["audio-config", canonical]),
+      (
+        "export",
+        ["export-audio", canonical, "32", "32", "120", "5", canonical + "/aot"],
+      ),
+      (
+        "memory",
+        ["audio-memory", canonical, "32", "32", "120", "5", "2147483648"],
+      ),
+    ] {
+    let output = @shell.Cmd(executable, args).output(max_output_bytes=1048576)
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      output.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      output.stderr(),
+      create_mode=CreateNew,
+    )
+    output.check()
+    println(output.stdout())
+  }
+}

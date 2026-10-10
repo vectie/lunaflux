@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minimax_h3_audio_checkpoint"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minimax_h3_block_program",
+  "vectie/lunaflux/integration/minimax_h3_block_source",
+  "vectie/lunaflux/integration/minimax_h3_weight_startup",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct CheckpointAudioDecoder {
+  // private fields
+}
+pub fn CheckpointAudioDecoder::close(Self) -> Unit raise
+pub fn CheckpointAudioDecoder::memory(Self) -> @minimax_h3_block_program.AudioDecoderMemoryPlan
+pub fn CheckpointAudioDecoder::new(@minimax_h3_block_source.AudioDecoderSources, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn CheckpointAudioDecoder::prepare(Self, @device.Context, @device.Stream, @minimax_h3_weight_startup.WeightLease, (String) -> @device.Module raise) -> Unit raise
+pub fn CheckpointAudioDecoder::prepare_request(Self, @minimax_h3_block_program.AudioDecodeRequest, @device.Context, @device.Stream, @device.Allocation) -> Unit raise
+
+// Type aliases
+
+// Traits

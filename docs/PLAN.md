@@ -59,6 +59,18 @@ component upload/release. Next validate actual components and compose their
 request lifetimes, two-host conditioning/latent handoff and final media outputs;
 component upload alone is not complete H3 inference.
 
+Actual FL2VA AudioVAE inspection and bounded GPU upload/release now pass:
+1,087 checkpoint tensors, 16 prepared weight groups, 259,763,748 device bytes.
+The original wrapper JSON, metadata JSON and four-scalar source YAML now resolve
+to the existing native numeric contract without importing its Python auto_map.
+All 17 request-geometry audio AOT modules compile on GB10. Component export and
+joint-request export share source construction and have exact source/shape
+regressions. `CheckpointAudioDecoder` now composes these modules with streamed
+weights and aggregate workspace/cache/input/output budgeting; standalone raw
+latent decode is implemented but not yet physically executed. Next run actual
+decoder arithmetic, then complete conditioning/denoising/video composition and
+the two-host full media request. These component results do not close H3.
+
 DeepSeek mHC now has explicit F32-projection-then-normalization and transposed
 residual-before-branch laws, rather than reusing GLM's BF16 control contract.
 Both checkpoint envelope owners pass bounded fake-device execution, and the
