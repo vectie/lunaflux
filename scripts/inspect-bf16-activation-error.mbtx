@@ -1,0 +1,113 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn value(bytes : Bytes, index : Int) -> Double {
+  let bits = bytes[index * 2].to_uint() | (bytes[index * 2 + 1].to_uint() << 8)
+  Float::reinterpret_from_uint(bits << 16).to_double()
+}
+
+///|
+fn row_error(
+  first : Bytes,
+  second : Bytes,
+  row : Int,
+  width : Int,
+) -> (Int, Double, Double) raise {
+  guard width > 0 &&
+    first.length() > 0 &&
+    first.length() == second.length() &&
+    first.length() % 2 == 0 &&
+    first.length() / 2 % width == 0 &&
+    row >= 0 &&
+    row < first.length() / 2 / width else {
+    fail("matching finite BF16 rows required")
+  }
+  for column in 0..<width; index = row * width, maximum = -1.0, squared = 0.0 {
+    let offset = row * width + column
+    let left = value(first, offset)
+    let right = value(second, offset)
+    guard !left.is_inf() && !left.is_nan() && !right.is_inf() && !right.is_nan() else {
+      fail("nonfinite activation operand")
+    }
+    let delta = (left - right).abs()
+    if delta > maximum {
+      continue offset, delta, squared + delta * delta
+    }
+    continue index, maximum, squared + delta * delta
+  } nobreak {
+    (index, maximum, squared)
+  }
+}
+
+///|
+test "row attribution finds the actual channel and preserves zero-error cases" {
+  // BF16 [1, 2, 1, 4] versus [1, 2, 2, 2]. Only row one differs.
+  let first = b"\x80\x3f\x00\x40\x80\x3f\x80\x40"
+  let second = b"\x80\x3f\x00\x40\x00\x40\x00\x40"
+  assert_eq(row_error(first, second, 1, 2), (3, 2.0, 5.0))
+  assert_eq(row_error(first, second, 0, 2), (0, 0.0, 0.0))
+  for (row, width) in [(-1, 2), (2, 2), (0, 0), (0, 3)] {
+    try row_error(first, second, row, width) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid tensor row accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [
+      _,
+      first_projections,
+      second_projections,
+      activations,
+      row,
+      width,
+      output,
+    ] else {
+    fail(
+      "FIRST_PROJECTIONS SECOND_PROJECTIONS ACTIVATION_FACTOR_DIRECTORY ROW WIDTH NEW_REPORT",
+    )
+  }
+  let row = @string.parse_int(row)
+  let width = @string.parse_int(width)
+  let first = @fs.read_file(activations + "/first-input-bf16.bf16").binary()
+  let second = @fs.read_file(activations + "/second-input-bf16.bf16").binary()
+  let (index, maximum, squared) = row_error(first, second, row, width)
+  let report = StringBuilder()
+  report <+
+    "row=\{row}\nwidth=\{width}\nflat_index=\{index}\nchannel=\{index - row * width}\nmaximum_absolute_error=\{maximum}\nrow_squared_error=\{squared}\nsingle_channel_squared_error_share=\{if squared > 0.0 { maximum * maximum / squared } else { 0.0 }}\nactivation_first=\{value(first, index)}\nactivation_second=\{value(second, index)}\n"
+  for
+    (root, label) in [
+      (first_projections, "first"),
+      (second_projections, "second"),
+    ] {
+    for name in ["gate", "up"] {
+      for precision in ["bf16", "f64"] {
+        let bytes = @fs.read_file(root + "/" + name + "-" + precision + ".bf16").binary()
+        guard bytes.length() == first.length() else {
+          fail("operand extent mismatch")
+        }
+        report <+ "\{name}_\{label}_\{precision}=\{value(bytes, index)}\n"
+      }
+    }
+  }
+  for name in ["gate-first-up-second", "gate-second-up-first"] {
+    let bytes = @fs.read_file(activations + "/" + name + "-bf16.bf16").binary()
+    guard bytes.length() == first.length() else {
+      fail("hybrid extent mismatch")
+    }
+    report <+ "\{name}=\{value(bytes, index)}\n"
+  }
+  report.write_string("scope=one_observed_row_not_full_model_acceptance\n")
+  @fs.write_file(output, report.to_string(), create_mode=CreateNew)
+  println(report.to_string())
+}

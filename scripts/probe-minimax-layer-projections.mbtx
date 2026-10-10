@@ -86,6 +86,37 @@ fn probe_label(label : String) -> String raise {
 }
 
 ///|
+fn activation_outputs(rows : Int, width : Int) -> Array[(String, Int)] raise {
+  guard rows > 0 && rows <= 1024 && width > 0 && width <= 65536 else {
+    fail("bounded activation geometry required")
+  }
+  let files : Array[(String, Int)] = []
+  for
+    name in [
+      "first-input", "second-input", "gate-first-up-second", "gate-second-up-first",
+    ] {
+    for precision in ["bf16", "f64"] {
+      files.push((name + "-" + precision + ".bf16", rows * width * 2))
+    }
+  }
+  files
+}
+
+///|
+test "activation reuses the same bounded output collection without weight-layer semantics" {
+  let outputs = activation_outputs(140, 25600)
+  assert_eq(outputs.length(), 8)
+  assert_true(outputs.contains(("gate-first-up-second-f64.bf16", 7168000)))
+  for (rows, width) in [(0, 25600), (1025, 25600), (140, 0), (140, 65537)] {
+    try activation_outputs(rows, width) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid activation output shape accepted")
+    }
+  }
+}
+
+///|
 test "different layer inputs cannot silently reuse a probe output" {
   assert_eq(probe_label("native-input"), "native-input")
   assert_eq(probe_label("prefix-input"), "prefix-input")
@@ -100,8 +131,18 @@ test "different layer inputs cannot silently reuse a probe output" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, input, rows, layer, label] &&
-    root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
+  let (root, input, second, rows, parameter, label, activation) = match
+    @env.args() {
+    [_, "activation", root, input, second, rows, width, label] =>
+      (root, input, Some(second), rows, width, label, true)
+    [_, root, input, rows, layer, label] =>
+      (root, input, None, rows, layer, label, false)
+    _ =>
+      fail(
+        "BUILT_REFERENCE_ROOT INPUT_OPERATOR_DIRECTORY ROWS NEXT_HIDDEN_INDEX NEW_LABEL | activation BUILT_REFERENCE_ROOT FIRST_PROJECTIONS SECOND_PROJECTIONS ROWS WIDTH NEW_LABEL",
+      )
+  }
+  guard root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
     (
       input.has_prefix("/tmp/lunaflux-minimax-text-encoder-") ||
       input.has_prefix("/tmp/lunaflux-minimax-aten-reference-")
@@ -114,11 +155,23 @@ async fn main {
       "BUILT_REFERENCE_ROOT INPUT_OPERATOR_DIRECTORY ROWS NEXT_HIDDEN_INDEX NEW_LABEL",
     )
   }
+  if second is Some(path) {
+    guard path.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.')) else {
+      fail("second projection directory required")
+    }
+  }
   let rows = @string.parse_int(rows)
-  let layer = @string.parse_int(layer)
-  let files = projection_outputs(rows, layer)
+  let parameter = @string.parse_int(parameter)
+  let files = if activation {
+    activation_outputs(rows, parameter)
+  } else {
+    projection_outputs(rows, parameter)
+  }
   let label = probe_label(label)
-  let output = root + "/projection-" + label
+  let kind = if activation { "activation" } else { "projection" }
+  let output = root + "/" + kind + "-" + label
   @fs.mkdir(output)
   let mkdir = remote("mkdir " + output)
   save(output, "mkdir", mkdir)
@@ -129,8 +182,24 @@ async fn main {
   save(output, "before-owners", owners)
   owners.check()
   guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
-  let name = root.split("/").last().unwrap().to_owned() + "-projection-" + label
+  let name = root.split("/").last().unwrap().to_owned() +
+    "-" +
+    kind +
+    "-" +
+    label
   let image = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+  let inputs = if second is Some(path) {
+    " -v " + path + ":/second:ro"
+  } else {
+    " -v /tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder:/model:ro"
+  }
+  let arguments = if activation {
+    " activation-factorization /work/libreference.so \{rows} \{parameter} /native /second /work/activation-" +
+    label
+  } else {
+    " layer-projection-oracle /work/libreference.so /model \{rows} \{parameter} /native /work/projection-" +
+    label
+  }
   let execution = remote(
     "systemd-run --user --wait --pipe --unit=" +
     name +
@@ -140,10 +209,11 @@ async fn main {
     root +
     ":/work -v " +
     input +
-    ":/native:ro -v /tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder:/model:ro --entrypoint /work/driver.exe " +
+    ":/native:ro" +
+    inputs +
+    " --entrypoint /work/driver.exe " +
     image +
-    " layer-projection-oracle /work/libreference.so /model \{rows} \{layer} /native /work/projection-" +
-    label,
+    arguments,
   )
   save(output, "execute", execution)
   let terminal = remote("docker inspect --format '{{json .State}}' " + name)
@@ -155,8 +225,13 @@ async fn main {
   save(output, "released", released)
   released.check()
   execution.check()
+  let complete = if activation {
+    "activation_factorization_complete retained_bytes=0"
+  } else {
+    "projection_oracle_complete retained_bytes=0"
+  }
   guard released.stdout().trim().is_empty() &&
-    execution.stdout().contains("projection_oracle_complete retained_bytes=0") else {
+    execution.stdout().contains(complete) else {
     fail("projection probe did not release its owners")
   }
   for (name, expected) in files {
@@ -176,7 +251,5 @@ async fn main {
       fail("incomplete projection output: " + name)
     }
   }
-  println(
-    "seven same-input BF16/full-reduction/F32/F64 projection outputs collected; not full-model parity or throughput",
-  )
+  println(kind + " outputs collected; not full-model parity or throughput")
 }

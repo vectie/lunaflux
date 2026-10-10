@@ -88,8 +88,14 @@ explicit weight-layer selection. Both 140-row seven-projection GPU probes exit
 successfully with no OOM or retained owner. Twenty-four MLP comparisons separate
 same-input precision error from changed-input sensitivity. Row-5 gate/up
 BF16-vs-F64 errors are 0.01919%/0.01980%; down input sensitivity remains 15.8691%
-under both projection policies. Next inspect SiLU/product operand sensitivity
-and earlier propagated errors, not a speculative blanket precision change.
+under both projection policies. Subsequent SiLU/product operand recombination
+reproduces both original activations bitwise. Changing gate alone explains
+row-5 amplification (13.5683%), whereas changing up alone gives 0.0652%.
+Channel 24,380 contributes 99.9496% of that row's squared activation error:
+gate 1.6796875 versus 1.8828125, unchanged up 80, product 113 versus 131.
+Wider preceding projections round to the same operands at that channel. Next
+trace the gate-input difference and diverse captions, not a blanket precision
+change or an unsupported claim that native SiLU is broken.
 This remains independent offline diagnosis, not numerical acceptance or a
 production backend; no hashing/startup prerequisite is added.
 

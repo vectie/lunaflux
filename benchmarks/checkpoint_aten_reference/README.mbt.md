@@ -81,6 +81,18 @@ the existing reference memory limits, with a new output label for each input.
 identical operands separately from changing the input under the same policy.
 Its `all`/`mlp` groups report global and worst-row errors, not parity tolerances.
 
+`activation-factorization LIB ROWS WIDTH FIRST_PROJECTIONS SECOND_PROJECTIONS OUTPUT`
+recombines captured gate/up operands using the unchanged reference SiLU/product:
+both original pairs and the two cross-input pairs. It repeats those four cases
+for BF16 and F64 **preceding projection** outputs; every operand remains BF16,
+so this is not an F64 activation kernel. The existing projection runner accepts
+`activation BUILT_REFERENCE_ROOT FIRST_PROJECTIONS SECOND_PROJECTIONS ROWS WIDTH NEW_LABEL`
+and collects eight products under the same 2-GiB tensor / 8-GiB no-swap limits.
+Original pairs must reproduce the earlier reference activations before interpreting
+hybrids. `scripts/inspect-bf16-activation-error.mbtx` reports the largest-error
+channel and its squared-error share for an explicitly selected observed row.
+These are offline attribution tools, not serving dependencies or acceptance gates.
+
 `encode-full-reduction ... 50` applies that test-only projection arithmetic to
 all seven linears in each of the fifty encoder layers. Norm/rotary/SDPA/residual
 semantics and original checkpoint inputs stay unchanged. All 51 layer outputs

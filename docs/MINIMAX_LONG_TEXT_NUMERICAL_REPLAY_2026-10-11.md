@@ -64,10 +64,10 @@ Only their input hidden states differ; weights and arithmetic stay identical.
 | MLP residual | 11.1368% |
 
 For this row, the main amplification is in the MLP chain, not attention.
-The activation product combines two projections and SiLU; it does not yet
-isolate the individual gate/up projection or multiplication contribution.
-The additional precision probe below separates those projections. Diverse
-caption/media-quality tests remain necessary before defining acceptance.
+The activation product combines two projections and SiLU. The precision and
+operand-recombination probes below separate projection precision from the
+sensitivity of the gate and up branches. Diverse caption/media-quality tests
+remain necessary before defining acceptance.
 
 ## Projection precision versus input sensitivity
 
@@ -101,6 +101,50 @@ unrelated diagnostic defect: nonzero error against an all-zero reference now
 reports infinite relative error rather than zero. Existing 140-token norms are
 nonzero, so this fix does not change the previously recorded measurements.
 
+## Gate versus up operand factorization
+
+The unchanged reference SiLU/product now evaluates both original gate/up pairs
+and both cross-input pairs. Each original pair reproduces its earlier captured
+reference activation **bitwise at all 3,584,000 values**. This establishes the
+recombination's identity before interpreting the hybrids. Ten CPU comparisons
+then separate gate changes from up changes; relative norms are not additive.
+
+| Row-5 operand substitution | Relative L2 |
+| --- | --- |
+| Change gate only, BF16 preceding projection | 13.568253% |
+| Change up only, BF16 preceding projection | 0.065190% |
+| Change both, BF16 preceding projection | 13.568433% |
+| Change both, F64 preceding projection rounded to BF16 | 13.568434% |
+| Same native-prefix input, BF16 versus F64 preceding projection | 0.003412% |
+| Same reference-prefix input, BF16 versus F64 preceding projection | 0.002731% |
+
+Here F64 names the preceding projection arithmetic, **not** the activation
+arithmetic: SiLU/product still consumes BF16 operands through the same reference
+operation. Wider projection arithmetic does not remove this row's amplification.
+
+One channel accounts for **99.9496% of row 5's squared activation error**:
+
+| Channel 24,380, row 5 | Native-prefix input | Reference-prefix input |
+| --- | --- | --- |
+| Gate output | 1.6796875 | 1.8828125 |
+| Up output | 80 | 80 |
+| SiLU/product output | 113 | 131 |
+
+BF16 and F64 preceding projections round to the same gate/up values at this
+channel. Changing only gate reproduces 113 versus 131; changing only up does
+not alter this channel. A small global gate norm difference therefore conceals
+a larger relative change in this particular gate, multiplied by a large up
+value. This is measured propagated-input sensitivity in the independent
+reference itself, **not proof of a native SiLU bug** or full-model acceptance.
+The next numerical question is where that gate-input difference originates,
+followed by diverse caption and media-quality comparisons.
+
+The eight-output activation probe exits 0, reports retained bytes zero, is not
+OOM-killed and leaves no GPU owner. It uses the same 2-GiB retained-tensor and
+8-GiB/no-swap limits; actual peak memory was not captured. Its roughly one-second
+container lifetime is not a throughput benchmark. Production arithmetic, native
+ABI and model dependencies remain unchanged.
+
 ## Execution and reproduction
 
 The native run uses the existing `e704acf5` ARM binary, an exact 140-row text
@@ -127,6 +171,10 @@ Layer-7 seven-projection precision probes:
 `/tmp/lunaflux-minimax-aten-reference-layer7-precision-20261011-v1`.
 Separated precision/input-sensitivity comparison reports:
 `/tmp/lunaflux-minimax-layer7-projection-comparison-20261011-v1`.
+Activation recombination outputs:
+`/tmp/lunaflux-minimax-aten-reference-layer7-activation-20261011-v1/activation-operands`.
+Ten activation comparisons and `row5-channel.txt`:
+`/tmp/lunaflux-minimax-layer7-activation-comparison-20261011-v1`.
 
 The driver lives in the separate `benchmarks/checkpoint_aten_reference` module.
 `scripts/replay-minimax-encoder-layer.mbtx` collects one-layer outputs;

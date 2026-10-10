@@ -112,6 +112,14 @@ The added arbitrary-layer seven-projection oracle physically passes both
 either projection policy. Wider projection precision alone does not remove
 this row's MLP amplification. The twenty-four CPU comparisons and a zero-norm
 relative-error regression remain diagnostics, not full-model acceptance.
+The subsequent eight-output activation recombination reproduces both original
+reference products bitwise. Ten CPU comparisons isolate row-5 gate sensitivity
+at 13.5683% versus up sensitivity at 0.0652%. One channel contributes 99.9496%
+of its squared activation error: gate 1.6796875 versus 1.8828125, identical up
+80, product 113 versus 131. Wider preceding projection arithmetic rounds to the
+same operands there. This locates propagated-input amplification, not a native
+SiLU bug or quality acceptance. The bounded probe exits 0 without OOM, retains
+zero tensors and leaves no GPU owner; production arithmetic is untouched.
 The final reference container has 8-GiB/no-swap limits, exits 0 without OOM and
 releases GPU/tensor owners. Its measured cgroup peak touches that memory limit;
 it is not a spare-memory or longer-context claim. Three standalone native tests,
