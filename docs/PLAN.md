@@ -23,6 +23,25 @@ warning exclusions, including exact copying, failure cleanup, retained-label
 upload and inventory-prefix tests. The local no-hashing regression also passes;
 it remains a developer check, not an engine-startup prerequisite.
 
+The latest no-hashing GLM ARM release (`41650b1b`) now completes the real
+13-token checkpoint chat-template diagnostic plus eight greedy output tokens
+on .178/.179. Both ranks exit successfully, release GPUs and have zero swap;
+unit memory peaks are 48.137/49.414 GB. The scalar diagnostic still needs
+approximately 23.9 s per additional output token: loading cleanup is not
+serving-kernel optimization. See
+[BENCHMARK_GLM_NOHASH_SMOKE_2026-10-10.md](BENCHMARK_GLM_NOHASH_SMOKE_2026-10-10.md).
+
+Generic ByteLevel BPE now executes `ignore_merges=true` using whole-pretoken
+vocabulary lookup before normal ranked BPE. Its immutable sorted index is built
+once; lookup is resumable and allocation-free with one byte comparison per
+charged transition. Special/regex boundaries, fallback merges, truncation,
+overflow, Unicode bytes and worker reuse have focused regressions. Native
+tokenizer/JSON-reader/file tests pass 61/61 with the current migration warning
+exclusions. This is a common tokenizer semantic capability, not a GLM-name
+branch. Actual GLM/DeepSeek regex/normalizer/chat-template schema integration
+and independent checkpoint token parity remain open; this change was not in
+the GLM GPU smoke binary and must not be claimed as end-to-end integration.
+
 DSpark verification now connects all-position learned egress, prepared draft
 readback, a model-neutral speculative continuation and the two-rank coordinator
 to `generate-dspark`. The plaintext protocol exchanges an explicit committed

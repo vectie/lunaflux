@@ -270,7 +270,13 @@ fn LunaTokenizerWorker::progress_initialize(
   } else if self.input_offset >= self.input_length {
     self.scan_left = self.head
     self.selected_rank = -1
-    self.phase = LUNA_WORKER_SELECT_ADJACENCY
+    if self.spec.ignore_merges {
+      self.direct_start = -1
+      self.direct_node = self.head
+      self.phase = LUNA_WORKER_DIRECT_SEGMENT
+    } else {
+      self.phase = LUNA_WORKER_SELECT_ADJACENCY
+    }
   } else if self.spec.profile == TOKENIZER_PROFILE_QWEN3_BPE ||
     self.spec.profile == TOKENIZER_PROFILE_QWEN35_BPE {
     if self.qwen_segment_end >= 0 && self.input_offset >= self.qwen_segment_end {
@@ -465,6 +471,9 @@ fn LunaTokenizerWorker::progress_one(
     LUNA_WORKER_COMPACT => self.progress_compaction()
     LUNA_WORKER_SENTENCEPIECE_SCALAR => self.progress_sentencepiece_scalar()
     LUNA_WORKER_QWEN3_NORMALIZE => self.progress_qwen3_normalize()
+    LUNA_WORKER_DIRECT_SEGMENT => self.progress_direct_segment()
+    LUNA_WORKER_DIRECT_LOOKUP => self.progress_direct_lookup()
+    LUNA_WORKER_DIRECT_COMPARE => self.progress_direct_compare()
     _ => abort("invalid Luna tokenizer worker phase")
   }
 }

@@ -307,5 +307,7 @@ pub fn TokenizerSpec::new_sentencepiece_bpe(
     decoder_strip_initial_space: true,
     vocab_size: vocabulary.length(),
     merge_count: merges.length(),
+    ignore_merges: false,
+    normal_piece_ids: FixedArray::make(0, 0),
   }
 }

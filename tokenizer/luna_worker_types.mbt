@@ -35,6 +35,15 @@ const LUNA_WORKER_SENTENCEPIECE_SCALAR : Int = 9
 const LUNA_WORKER_QWEN3_NORMALIZE : Int = 10
 
 ///|
+const LUNA_WORKER_DIRECT_SEGMENT : Int = 11
+
+///|
+const LUNA_WORKER_DIRECT_LOOKUP : Int = 12
+
+///|
+const LUNA_WORKER_DIRECT_COMPARE : Int = 13
+
+///|
 const LUNA_REMOVED_NODE : Int = -2
 
 ///|
@@ -81,7 +90,8 @@ pub struct LunaTokenizerStepBudget {
 /// `progress` call or one ranged result copy. One transition is exactly one
 /// input-symbol append, special-piece byte/candidate transition, adjacency
 /// setup, CSR binary-search comparison/advance, merge candidate, compaction
-/// step/finalization, or copied token. No transition performs a collection
+/// step/finalization, exact-pretoken byte comparison/index advance, or copied
+/// token. No transition performs a collection
 /// scan, grows storage, or allocates managed memory.
 pub fn LunaTokenizerStepBudget::new(
   work_units : Int,
@@ -124,6 +134,13 @@ pub struct LunaTokenizerWorker {
   priv mut scalar_source_advance : Int
   priv mut normalized_length : Int
   priv mut qwen_segment_end : Int
+  priv mut direct_start : Int
+  priv mut direct_end : Int
+  priv mut direct_node : Int
+  priv mut direct_byte : Int
+  priv mut direct_low : Int
+  priv mut direct_high : Int
+  priv mut direct_middle : Int
   priv mut special_policy : SpecialTokenPolicy
   priv mut truncation : TruncationPolicy
   priv mut output_limit : Int

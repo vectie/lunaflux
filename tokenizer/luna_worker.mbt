@@ -37,6 +37,13 @@ pub fn LunaTokenizerWorker::new(
     scalar_source_advance: 0,
     normalized_length: 0,
     qwen_segment_end: -1,
+    direct_start: -1,
+    direct_end: -1,
+    direct_node: -1,
+    direct_byte: 0,
+    direct_low: 0,
+    direct_high: 0,
+    direct_middle: 0,
     special_policy: AsOrdinary,
     truncation: RejectOverflow,
     output_limit: 0,
@@ -77,6 +84,13 @@ fn LunaTokenizerWorker::clear_request(self : LunaTokenizerWorker) -> Unit {
   self.scalar_source_advance = 0
   self.normalized_length = 0
   self.qwen_segment_end = -1
+  self.direct_start = -1
+  self.direct_end = -1
+  self.direct_node = -1
+  self.direct_byte = 0
+  self.direct_low = 0
+  self.direct_high = 0
+  self.direct_middle = 0
   self.output_limit = 0
   self.phase = LUNA_WORKER_IDLE
   self.input_offset = 0

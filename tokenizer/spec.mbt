@@ -48,6 +48,8 @@ pub struct TokenizerSpec {
   priv decoder_strip_initial_space : Bool
   priv vocab_size : Int
   priv merge_count : Int
+  priv ignore_merges : Bool
+  priv normal_piece_ids : FixedArray[Int]
 }
 
 ///|
@@ -86,11 +88,14 @@ fn pieces_equal_joined(left : Bytes, right : Bytes, result : Bytes) -> Bool {
 /// Token IDs are dense in `0..<vocabulary.length()` and pieces are unique. A
 /// merge result must be the concatenation of its normal left and right pieces.
 /// Merge array order defines rank.
+/// With `ignore_merges=true`, an exact whole-pretoken normal vocabulary piece
+/// is emitted before ranked merging; unmatched pretokens retain ordinary BPE.
 pub fn TokenizerSpec::new(
   vocabulary : ArrayView[VocabularyEntry],
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
+  ignore_merges? : Bool = false,
 ) -> TokenizerSpec raise TokenizerError {
   new_bytelevel_bpe(
     vocabulary,
@@ -98,6 +103,7 @@ pub fn TokenizerSpec::new(
     digest,
     limits,
     profile=TOKENIZER_PROFILE_RAW_BYTE_BPE,
+    ignore_merges~,
   )
 }
 
@@ -112,6 +118,7 @@ pub fn TokenizerSpec::new_qwen3_bpe(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
+  ignore_merges? : Bool = false,
 ) -> TokenizerSpec raise TokenizerError {
   new_bytelevel_bpe(
     vocabulary,
@@ -119,6 +126,7 @@ pub fn TokenizerSpec::new_qwen3_bpe(
     digest,
     limits,
     profile=TOKENIZER_PROFILE_QWEN3_BPE,
+    ignore_merges~,
   )
 }
 
@@ -135,6 +143,7 @@ pub fn TokenizerSpec::new_qwen35_bpe(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
+  ignore_merges? : Bool = false,
 ) -> TokenizerSpec raise TokenizerError {
   new_bytelevel_bpe(
     vocabulary,
@@ -142,6 +151,7 @@ pub fn TokenizerSpec::new_qwen35_bpe(
     digest,
     limits,
     profile=TOKENIZER_PROFILE_QWEN35_BPE,
+    ignore_merges~,
   )
 }
 
@@ -152,6 +162,7 @@ fn new_bytelevel_bpe(
   digest : TokenizerDigest,
   limits : TokenizerLimits,
   profile~ : Int,
+  ignore_merges~ : Bool,
 ) -> TokenizerSpec raise TokenizerError {
   validate_positive_limit(limits.max_input_bytes, InputBytes)
   validate_positive_limit(limits.max_output_tokens, OutputTokens)
@@ -298,6 +309,17 @@ fn new_bytelevel_bpe(
     merge_right_sorted[sorted_index] = merges[rank].right_token_id
     merge_rank_sorted[sorted_index] = rank
   }
+  let normal_piece_ids : Array[Int] = []
+  if ignore_merges {
+    for entry in vocabulary {
+      if entry.kind is Normal {
+        normal_piece_ids.push(entry.token_id)
+      }
+    }
+    normal_piece_ids.sort_by((left, right) => {
+      tokens_by_id[left].piece.lexical_compare(tokens_by_id[right].piece)
+    })
+  }
   {
     digest,
     limits,
@@ -317,6 +339,8 @@ fn new_bytelevel_bpe(
     decoder_strip_initial_space: false,
     vocab_size: vocabulary.length(),
     merge_count: merges.length(),
+    ignore_merges,
+    normal_piece_ids: FixedArray::from_array(normal_piece_ids),
   }
 }
 

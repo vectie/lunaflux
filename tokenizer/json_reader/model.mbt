@@ -268,9 +268,7 @@ fn parse_model(
           feature=ByteFallbackBehavior,
         )
       }
-      if require_bool(model, "ignore_merges", Model, IgnoreMerges, 0) {
-        raise UnsupportedSemantics(component=Model, feature=IgnoreMergeBehavior)
-      }
+      ignore(require_bool(model, "ignore_merges", Model, IgnoreMerges, 0))
       (-1, -1)
     }
     SentencePieceJson(bos_token_id~) => {
@@ -318,9 +316,20 @@ fn parse_model(
     limits,
     profile,
   )
+  let ignore_merges = match profile {
+    ByteLevelJson | Qwen3Json | Qwen35Json =>
+      require_bool(model, "ignore_merges", Model, IgnoreMerges, 0)
+    SentencePieceJson(..) => false
+  }
   match profile {
     ByteLevelJson =>
-      @tokenizer.TokenizerSpec::new(vocabulary.entries, merges, digest, limits) catch {
+      @tokenizer.TokenizerSpec::new(
+        vocabulary.entries,
+        merges,
+        digest,
+        limits,
+        ignore_merges~,
+      ) catch {
         error => raise Validation(error)
       }
     Qwen3Json =>
@@ -329,6 +338,7 @@ fn parse_model(
         merges,
         digest,
         limits,
+        ignore_merges~,
       ) catch {
         error => raise Validation(error)
       }
@@ -338,6 +348,7 @@ fn parse_model(
         merges,
         digest,
         limits,
+        ignore_merges~,
       ) catch {
         error => raise Validation(error)
       }

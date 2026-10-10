@@ -42,6 +42,8 @@ fn bytelevel_token(value : Int) -> String {
 fn tokenizer_document(
   pair_merge? : Bool = false,
   special? : Bool = true,
+  ignore_merges? : Bool = false,
+  empty_merges? : Bool = false,
 ) -> String {
   let vocab : Map[String, Json] = Map([])
   for value in 0..<256 {
@@ -95,9 +97,9 @@ fn tokenizer_document(
       "end_of_word_suffix": Json::null(),
       "fuse_unk": Json::boolean(false),
       "byte_fallback": Json::boolean(false),
-      "ignore_merges": Json::boolean(false),
+      "ignore_merges": Json::boolean(ignore_merges),
       "vocab": Json::object(vocab),
-      "merges": Json::array([merge]),
+      "merges": Json::array(if empty_merges { [] } else { [merge] }),
     }),
   }).stringify()
 }
@@ -112,6 +114,28 @@ fn parse_fixture(
     limits=test_limits(),
     max_bytes=65536,
     max_depth=16,
+  )
+}
+
+///|
+test "JSON carries ignore_merges exact vocabulary lookup into execution" {
+  let document = tokenizer_document(ignore_merges=true, empty_merges=true)
+  let spec = @json_reader.parse_string(
+    document,
+    digest=test_digest(),
+    limits=test_limits(),
+    max_bytes=65536,
+    max_depth=16,
+  )
+  assert_eq(spec.merge_count(), 0)
+  debug_inspect(
+    spec.encode_text(
+      "hi",
+      special_policy=Allow,
+      output_limit=16,
+      truncation=RejectOverflow,
+    ).token_ids,
+    content="[256]",
   )
 }
 

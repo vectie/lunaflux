@@ -15,6 +15,15 @@ sorted by left token and then right token. The ranked arrays remain the
 authority for group-merge order. Request work therefore performs resumable
 binary lookup without a hash-table probe or request-time index construction.
 
+ByteLevel BPE also supports the model's `ignore_merges` semantic option.
+When enabled, an entire ordinary pretoken present in the vocabulary emits its
+token directly, even if ranked merges cannot construct it. Unmatched pretokens
+still use normal ranked BPE. A startup-sorted normal-piece index is searched
+one byte comparison per charged worker transition; no request-time hash,
+temporary byte string, proportional hidden scan, or extra worker arena is used.
+Special-token and regex pretoken boundaries remain authoritative. This option
+does not imply support for an arbitrary checkpoint's normalization or regex.
+
 `LunaTokenizerWorker` preallocates its input-byte, token, and link storage at
 startup. SentencePiece workers reserve a checked profile-specific symbol bound
 covering normalization expansion, template output, and special-token segment
