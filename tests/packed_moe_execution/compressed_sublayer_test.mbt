@@ -194,7 +194,7 @@ async test "actual-shape compressed sublayers prepare 44 or 25 shared effects wi
             @streaming.StreamingSafetensorsShardInput::new(
               locator=@approved_fs.ApprovedRelativeLocator::new(locator),
               expected_digest=@streaming.StreamingSafetensorsFileDigest::from_sha256(
-                @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+                "a".repeat(64),
               ),
             ),
           ],

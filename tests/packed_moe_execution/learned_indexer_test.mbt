@@ -98,7 +98,7 @@ async test "checkpoint-backed learned indexer shares nineteen allocation-free ef
           @streaming.StreamingSafetensorsShardInput::new(
             locator=@approved_fs.ApprovedRelativeLocator::new("indexer"),
             expected_digest=@streaming.StreamingSafetensorsFileDigest::from_sha256(
-              @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+              "a".repeat(64),
             ),
           ),
         ],

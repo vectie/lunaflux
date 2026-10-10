@@ -73,7 +73,7 @@ async test "DeepSeek complete attention envelopes retain all compression profile
             @streaming.StreamingSafetensorsShardInput::new(
               locator=@approved_fs.ApprovedRelativeLocator::new(locator),
               expected_digest=@streaming.StreamingSafetensorsFileDigest::from_sha256(
-                @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+                "a".repeat(64),
               ),
             ),
           ],

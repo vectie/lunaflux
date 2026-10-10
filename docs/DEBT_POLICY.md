@@ -80,6 +80,13 @@ and deterministic resource ownership: these are execution correctness, not
 optional security work. Pure compiler/cache identity generation is not a
 checkpoint authentication pass.
 
+Routine execution fixtures also consume explicit association labels, not
+fresh payload checksums. Packed-execution fixtures no longer SHA-scan their
+synthetic weights or sparse multi-GB zero regions. Keep their numerical,
+layout, capacity and ownership assertions; deleting unused hash work must not
+delete the actual behavioral tests. Affected fixtures still pass with the
+existing migration warning configuration.
+
 Checkpoint build, resume and download helpers follow the same policy: do not
 scan source archives, binaries or CUBINs for checksums. Use command success and
 compiler terminal status, and keep new output paths non-overwriting. Historical

@@ -74,7 +74,7 @@ async test "prediction head binds final mtp controls and borrows the global voca
           @streaming.StreamingSafetensorsShardInput::new(
             locator=@approved_fs.ApprovedRelativeLocator::new("weights"),
             expected_digest=@streaming.StreamingSafetensorsFileDigest::from_sha256(
-              @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+              "a".repeat(64),
             ),
           ),
         ],

@@ -18,7 +18,6 @@ import {
   "vectie/lunaflux/runtime/approved_fs",
   "moonbitlang/async",
   "moonbitlang/async/fs",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/integration/glm53_packed_expert_upload",
   "vectie/lunaflux/model/glm53_spec",
   "vectie/lunaflux/integration/indexed_sparse_attention_frame" @sparse,

@@ -178,14 +178,6 @@ async fn exercise_glm_checkpoint_owner(
     file.write_at(prefix, position=0L)
     file.write_at(b"\x00", position=prefix.length().to_int64() + offset - 1L)
     file.close()
-    let hasher = @crypto.SHA256::new()
-    hasher.update(prefix)
-    let zeros = Bytes::from_array(FixedArray::make(65536, b'\x00'))
-    for remaining = offset; remaining > 0L; {
-      let count = remaining.min(65536L).to_int()
-      hasher.update(zeros[:count])
-      continue remaining - count.to_int64()
-    }
     let limits = @streaming.StreamingSafetensorsLimits::new(
       maximum_shards=1,
       maximum_file_bytes=5000000000L,
@@ -209,7 +201,7 @@ async fn exercise_glm_checkpoint_owner(
           @streaming.StreamingSafetensorsShardInput::new(
             locator=@approved_fs.ApprovedRelativeLocator::new("weights"),
             expected_digest=@streaming.StreamingSafetensorsFileDigest::from_sha256(
-              @crypto.bytes_to_hex_string(hasher.finalize()),
+              "a".repeat(64),
             ),
           ),
         ],
