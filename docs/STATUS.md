@@ -10,6 +10,30 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (combined DSpark module failure and fix): exact `c2311712`
+checkpoint export succeeds with stage footprints 102,036,247,436 and
+74,593,919,512 bytes within the 96-GiB/no-swap ceilings. Stage 0 AOT compiles,
+but stage 1 fails because separately lowered base and predictor heads define
+the same private `lf_hc_head_sigmoid` helper. The shared CUDA head renderer now
+names that helper from its entry-point symbol, without changing arithmetic or
+the six-operand ABI. A regression composes the actual base and prediction text
+heads. Their combined module now compiles on GB10 under 2 GiB/no-swap; result
+is `/tmp/lunaflux-composed-heads-20261010-v1`. The affected AOT/renderer/bootstrap
+aggregate passes 57/57 and prediction/attachment/renderer aggregate 17/17.
+The failed full-stage campaign remains preserved under
+`/tmp/lunaflux-dspark-run-20261010-v2`; it is not a predictor execution pass.
+The runner now accepts explicit exact-build pins for the corrected rerun.
+
+Update 2026-10-10 (actual audio component inspection): the installed 605,429,308
+byte AudioVAE checkpoint binds all 1,087 tensors, with 605,306,340 tensor bytes
+and 259,763,748 packed decoder weight bytes. Its first inspection exposed a
+bootstrap bug: the fixed near-2-GiB logical arena ceiling exceeded the 1-GiB
+component budget. The ceiling now derives from the smaller of the caller budget
+and signed-Int allocation ABI. Small/large ceiling regression passes; the
+actual component inspection now succeeds. Both attempts remain under
+`/tmp/lunaflux-minimax-audio-20261010-v1`. This is CPU inspection, not AudioVAE
+execution, correct waveform output or complete H3 media generation.
+
 Update 2026-10-10 (installed MiniMax config dialect): the actual FL2VA
 `MiniMaxH3DiTModel` config declares `norm_eps`, `qk_norm_eps` and
 `final_norm_eps`, unlike the original shared `eps` fixture. The model adapter now

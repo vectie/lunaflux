@@ -192,11 +192,11 @@ async fn main {
     }) &&
     !suffix.contains("/") &&
     (
-      (mode == "prepare" && tail.is_empty()) ||
-      (mode == "wait-run" && tail.length() == 1)
+      (mode == "prepare" && (tail.is_empty() || tail.length() == 4)) ||
+      (mode == "wait-run" && (tail.length() == 1 || tail.length() == 5))
     ) else {
     fail(
-      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|wait-run [PRIOR_MARKOV_RUNNER_PID]",
+      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|wait-run [PRIOR_MARKOV_RUNNER_PID] [BUILD_ROOT COMMIT SOURCE_SHA256 BINARY_SHA256]",
     )
   }
   let remote_root = "/tmp/lunaflux-dspark-real-" + suffix
@@ -214,11 +214,30 @@ async fn main {
     checkpoint: "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT",
     uuid: "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
   }
-  let build = "/tmp/lunaflux-checkpoint-build-dspark-20261010-v2"
+  let pin_offset = if mode == "prepare" { 0 } else { 1 }
+  let pins = tail[pin_offset:]
+  let (build, commit, expected_source, expected_binary) = if pins.is_empty() {
+    (
+      "/tmp/lunaflux-checkpoint-build-dspark-20261010-v2", "c231171222f224408aa2f102589b2d051ee47309",
+      "02a277e739b664d712cdfc7646ea9fa817ed73c559c34984d61a41b5d49cd568", "f3a462ccdd6b82be4f348a16cdf1126b32817414791cef59766fad8ca2bf8aef",
+    )
+  } else {
+    (pins[0], pins[1], pins[2], pins[3])
+  }
+  guard build.has_prefix("/tmp/lunaflux-checkpoint-build-dspark-") &&
+    !build.contains("..") &&
+    build.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    commit.length() == 40 &&
+    [commit, expected_source, expected_binary].all(s => {
+      s.iter().all(c => c is ('a'..='f' | '0'..='9'))
+    }) &&
+    expected_source.length() == 64 &&
+    expected_binary.length() == 64 else {
+    fail("invalid exact-build pins")
+  }
+  let build_unit = build[5:].to_owned() + ".service"
   let binary = build +
     "/source/_build/native/release/build/cmd/deepseek_checkpoint/deepseek_checkpoint.exe"
-  let expected_binary = "f3a462ccdd6b82be4f348a16cdf1126b32817414791cef59766fad8ca2bf8aef"
-  let expected_source = "02a277e739b664d712cdfc7646ea9fa817ed73c559c34984d61a41b5d49cd568"
   let budgets = " 3 256 103079215104 103079215104 4294967296 "
   let model = "/DeepSeek-V4-Flash-DSpark "
   let args0 = first.checkpoint +
@@ -240,12 +259,12 @@ async fn main {
     // The non-retained transient build unit can be collected after success.
     // Its successful journal and exact output hash, not LoadState, prove the build.
     let build_journal = remote(
-      first, "journalctl --user -u lunaflux-checkpoint-build-dspark-20261010-v2.service --no-pager",
+      first,
+      "journalctl --user -u " + build_unit + " --no-pager",
     )
     record(root, "build-journal", build_journal)
-    guard build_journal
-      .stdout()
-      .contains("Finished. moon: ran 227 tasks, now up to date") else {
+    guard build_journal.stdout().contains("Finished. moon:") &&
+      build_journal.stdout().contains("now up to date") else {
       fail("exact source build has not completed")
     }
     let hashes = remote(
@@ -370,10 +389,7 @@ async fn main {
     )
     @fs.write_file(
       root + "/prepared.txt",
-      "commit=c231171222f224408aa2f102589b2d051ee47309\n" +
-      "binary=" +
-      expected_binary +
-      "\n",
+      "commit=" + commit + "\n" + "binary=" + expected_binary + "\n",
       create_mode=CreateNew,
     )
     println(
@@ -384,6 +400,9 @@ async fn main {
   guard @fs.read_file(root + "/prepared.txt")
     .text()
     .contains("binary=" + expected_binary + "\n") &&
+    @fs.read_file(root + "/prepared.txt")
+    .text()
+    .contains("commit=" + commit + "\n") &&
     tail[0] != "0" &&
     !tail[0].is_empty() &&
     tail[0].iter().all(c => c is ('0'..='9')) else {

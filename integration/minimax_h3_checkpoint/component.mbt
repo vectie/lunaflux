@@ -131,16 +131,7 @@ pub fn ComponentCheckpoint::inspect(
     )
   }
   let binding = @weights.join_complete_component(component, partial[:])
-  let limits = @host.MiniMaxH3HostMaterializationLimits::new(
-    maximum_shards=64,
-    maximum_tensors=required,
-    maximum_header_bytes=4194304,
-    maximum_payload_bytes_per_shard=maximum_component_bytes,
-    maximum_total_host_bytes=maximum_component_bytes,
-    maximum_arena_bytes=2147483584L,
-    maximum_arenas=256,
-    maximum_name_bytes=512,
-  )
+  let limits = component_host_limits(required, maximum_component_bytes)
   let manifest = @host.build_manifest(
     binding,
     expected_identity=binding.identity(),

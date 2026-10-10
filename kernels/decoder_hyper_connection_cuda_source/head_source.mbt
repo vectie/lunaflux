@@ -41,9 +41,14 @@ pub fn head_reduce_v1_bf16_f32_source(
   let width = stream_width.to_string()
   let hidden = hidden_width.to_string()
   let flattened = (stream_width * hidden_width).to_string()
+  // Private lowering helpers belong to their entry-point namespace so two
+  // independently lowered heads can inhabit one composed AOT module.
+  let sigmoid_symbol = function_symbol + "_sigmoid"
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
-    "__device__ __forceinline__ float lf_hc_head_sigmoid(float value) {\n" +
+    "__device__ __forceinline__ float " +
+    sigmoid_symbol +
+    "(float value) {\n" +
     "  if (value >= 0.0f) return __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-value)));\n" +
     "  const float exponential = expf(value); return __fdiv_rn(exponential, __fadd_rn(1.0f, exponential));\n}\n" +
     "extern \"C\" __global__ void " +
@@ -73,7 +78,9 @@ pub fn head_reduce_v1_bf16_f32_source(
     flattened +
     "ULL; for (int32_t column = 0; column < " +
     flattened +
-    "; ++column) { const float weight = function_weights[weight_base + (unsigned long long)column]; if (!isfinite(weight)) { valid = 0; break; } dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(streams[input_base + (unsigned long long)column]), weight)); } const float bias = base[stream]; if (!isfinite(bias)) { valid = 0; break; } const float mix = __fmul_rn(dot, inverse); const float logit = __fadd_rn(__fmul_rn(mix, scalar), bias); controls[stream] = __fadd_rn(lf_hc_head_sigmoid(logit), " +
+    "; ++column) { const float weight = function_weights[weight_base + (unsigned long long)column]; if (!isfinite(weight)) { valid = 0; break; } dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(streams[input_base + (unsigned long long)column]), weight)); } const float bias = base[stream]; if (!isfinite(bias)) { valid = 0; break; } const float mix = __fmul_rn(dot, inverse); const float logit = __fadd_rn(__fmul_rn(mix, scalar), bias); controls[stream] = __fadd_rn(" +
+    sigmoid_symbol +
+    "(logit), " +
     control_literal +
     "); if (!isfinite(controls[stream])) valid = 0; } } }\n" +
     "  __syncthreads();\n" +

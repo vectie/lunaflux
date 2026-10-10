@@ -29,6 +29,7 @@ import {
 
 import {
   "moonbitlang/core/env",
+  "vectie/lunaflux/integration/deepseek_v4_text_io" @base_text,
 } for "test"
 
 supported_targets = "native"

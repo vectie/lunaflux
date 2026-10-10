@@ -34,6 +34,23 @@ test "head reduction fixes normalized controls layout and one BF16 round" {
 }
 
 ///|
+test "independent composed heads use distinct private lowering helpers" {
+  let base = @utf8.decode(
+    head_test_render(4, 4096, 3, 0.000001, 0.000001, "base_head").source_bytes(),
+  )
+  let predictor = @utf8.decode(
+    head_test_render(4, 4096, 5, 0.000001, 0.000001, "prediction_head").source_bytes(),
+  )
+  assert_true(base.contains("float base_head_sigmoid(float value)"))
+  assert_true(base.contains("__fadd_rn(base_head_sigmoid(logit),"))
+  assert_false(base.contains("prediction_head_sigmoid"))
+  assert_true(predictor.contains("float prediction_head_sigmoid(float value)"))
+  assert_true(predictor.contains("__fadd_rn(prediction_head_sigmoid(logit),"))
+  assert_false(predictor.contains("base_head_sigmoid"))
+  assert_false((base + predictor).contains("lf_hc_head_sigmoid"))
+}
+
+///|
 fn head_test_render(
   width : Int,
   hidden : Int,

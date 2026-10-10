@@ -1,0 +1,124 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(
+  root : String,
+  name : String,
+  command : @shell.Cmd,
+) -> @shell.Output {
+  let result = command.output(max_output_bytes=4194304)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. tail] &&
+    root.has_prefix("/tmp/lunaflux-minimax-audio-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    (tail.is_empty() || tail is ["recheck"]) else {
+    fail("NEW_LOCAL_COMPONENT_RESULT_DIRECTORY [recheck]")
+  }
+  let executable = "_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  if tail is ["recheck"] {
+    record(
+      root,
+      "inspection-recheck",
+      @shell.Cmd(executable, [
+        "inspect-component",
+        @fs.realpath(root + "/FL2VA"),
+        "audio_vae",
+        "AUDIO.sha256",
+        "1073741824",
+        "2147483648",
+      ]),
+    )
+    |> ignore
+    println("actual complete audio component inspected; no GPU execution")
+    return
+  }
+  @fs.mkdir(root)
+  let variant = root + "/FL2VA"
+  @fs.mkdir(variant)
+  @fs.mkdir(variant + "/transformer")
+  @fs.mkdir(variant + "/audio_vae")
+  let source = "/data/models/MiniMax/MiniMax-H3/FL2VA/"
+  let expected = "37dddc2f3e6d5d5139d823d5ea283bbf304dadcb885b1ccda818aa13dade5ea2"
+  let identity = record(
+    root,
+    "source-shard",
+    @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=10",
+      "lunanexa-management",
+      "sha256sum " + source + "audio_vae/model.safetensors",
+    ]),
+  )
+  guard identity.stdout().has_prefix(expected + "  ") else {
+    fail("installed audio checkpoint changed")
+  }
+  for
+    index, file in [
+      "model_index.json", "transformer/config.json", "audio_vae/model.safetensors",
+    ] {
+    record(
+      root,
+      "download-" + index.to_string(),
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "lunanexa-management:" + source + file,
+        variant + "/" + file,
+      ]),
+    )
+    |> ignore
+  }
+  let copied = record(
+    root,
+    "download-hash",
+    @shell.Cmd("shasum", ["-a", "256", variant + "/audio_vae/model.safetensors"]),
+  )
+  guard copied.stdout().has_prefix(expected + "  ") else {
+    fail("downloaded audio checkpoint mismatch")
+  }
+  @fs.write_file(
+    variant + "/AUDIO.sha256",
+    expected + "  model.safetensors\n",
+    create_mode=CreateNew,
+  )
+  record(
+    root,
+    "inspection",
+    @shell.Cmd(executable, [
+      "inspect-component",
+      @fs.realpath(variant),
+      "audio_vae",
+      "AUDIO.sha256",
+      "1073741824",
+      "2147483648",
+    ]),
+  )
+  |> ignore
+  println("actual complete audio component inspected; no GPU execution")
+}

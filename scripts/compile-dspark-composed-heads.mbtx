@@ -1,0 +1,116 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix] &&
+    root.has_prefix("/tmp/lunaflux-composed-heads-") &&
+    [root, suffix].all(s => {
+      !s.is_empty() &&
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") else {
+    fail("NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX")
+  }
+  @fs.mkdir(root)
+  let exported = @shell.Cmd("/usr/bin/env", [
+    "LUNA_EXPORT_COMPOSED_HEADS=1", "moon", "test", "integration/deepseek_v4_prediction_prefix/composed_head_test.mbt",
+    "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+  ]).output(max_output_bytes=4194304)
+  record(root, "export", exported)
+  let source = StringBuilder()
+  let mut inside = false
+  let mut complete = false
+  for line in exported.stdout().split("\n") {
+    if line == "LUNA_COMPOSED_HEADS_BEGIN" {
+      inside = true
+    } else if line == "LUNA_COMPOSED_HEADS_END" {
+      inside = false
+      complete = true
+    } else if inside {
+      source.write_string(line.to_owned())
+      source.write_string("\n")
+    }
+  }
+  guard complete && !inside && !source.to_string().is_empty() else {
+    fail("missing composed source")
+  }
+  @fs.write_file(root + "/heads.cu", source.to_string(), create_mode=CreateNew)
+  let node = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let remote_root = "/tmp/lunaflux-composed-heads-" + suffix
+  let mkdir = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "mkdir " + remote_root,
+  ]).output()
+  record(root, "mkdir", mkdir)
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    root + "/heads.cu",
+    node + ":" + remote_root + "/heads.cu",
+  ])
+  .output()
+  .check()
+  let compiled = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "systemd-run --user --wait --pipe --unit=lunaflux-composed-heads-" +
+    suffix +
+    " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200" +
+    " /usr/local/cuda-13.0/bin/nvcc -O3 --fmad=false -std=c++17 --cubin -arch=sm_121 " +
+    remote_root +
+    "/heads.cu -o " +
+    remote_root +
+    "/heads.cubin",
+  ]).output(max_output_bytes=4194304)
+  record(root, "compile", compiled)
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    node + ":" + remote_root + "/heads.cubin",
+    root + "/heads.cubin",
+  ])
+  .output()
+  .check()
+  record(
+    root,
+    "download-hash",
+    @shell.Cmd("shasum", ["-a", "256", root + "/heads.cubin"]).output(),
+  )
+  println(
+    "combined base/predictor head module compiled on GB10; no GPU execution",
+  )
+}
