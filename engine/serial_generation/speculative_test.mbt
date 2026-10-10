@@ -87,3 +87,74 @@ test "speculative cancellation and invalid seed do not publish another proposal"
     @serial_generation.GenerationFinish::Cancelled,
   )
 }
+
+///|
+test "exact context limit clips the last speculative block before submission" {
+  let initial = seed()
+  let owner = @serial_generation.SpeculativeGreedyGeneration::new(
+    initial,
+    complete(initial, 4),
+    limits(),
+    inference(),
+    maximum_new_tokens=14,
+    maximum_context=16,
+    stop_tokens=[],
+  )
+  for epoch = 2UL; owner.finish_reason() is Running; epoch = epoch + 1UL {
+    let token = owner.token_at(owner.token_count() - 1)
+    let proposed = [token, token + 1, token + 2]
+    let remaining = owner.remaining_new_tokens()
+    let plan = owner.next_verification(proposed, sequence_value=epoch)
+    let rows = remaining.min(proposed.length())
+    assert_eq(plan.token_count(), rows)
+    assert_eq(
+      plan.prefill_row(0).sequence_token_start(),
+      owner.token_count() + 1,
+    )
+    assert_true(plan.prefill_row(0).sequence_token_start() + rows < 16)
+    let targets = [token + 1, token + 2, token + 3]
+    let prefix = @greedy.verify_greedy_prefix(
+      proposed[:rows],
+      targets[:rows],
+      remaining_new_tokens=remaining,
+      vocabulary_size=32,
+      stop_tokens=[],
+    )
+    owner.record_commit(prefix, targets[:rows])
+    assert_eq(
+      plan.prefill_row(0).sequence_token_start() + rows,
+      owner.token_count() + 1,
+    )
+  }
+  assert_eq(owner.token_count(), 14)
+  assert_eq(owner.remaining_new_tokens(), 0)
+  assert_eq(owner.finish_reason(), @serial_generation.GenerationFinish::Length)
+  // The final emitted token is not another KV input. Input plus output is 16,
+  // while the last committed input ends at 15; no speculative row is padded
+  // past this physical frontier and no extra continuation may be submitted.
+  for i in 0..<14 {
+    assert_eq(owner.token_at(i), 4 + i)
+  }
+  try owner.next_verification([17], sequence_value=7UL) catch {
+    @serial_generation.SerialGenerationError::Finished => ()
+    error => raise error
+  } noraise {
+    _ => fail("extra verification after exact-capacity generation")
+  }
+  try
+    @serial_generation.SpeculativeGreedyGeneration::new(
+      initial,
+      complete(initial, 4),
+      limits(),
+      inference(),
+      maximum_new_tokens=15,
+      maximum_context=16,
+      stop_tokens=[],
+    )
+  catch {
+    @serial_generation.SerialGenerationError::InvalidLimit => ()
+    error => raise error
+  } noraise {
+    _ => fail("one token beyond context capacity admitted")
+  }
+}
