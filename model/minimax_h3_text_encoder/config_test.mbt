@@ -12,6 +12,7 @@ test "checkpoint config selects text epsilon and theta, not denoiser defaults" {
   let c = parse_config(config_fixture(), max_bytes=4096)
   assert_eq(c.theta, 5000000.0)
   assert_eq(c.epsilon, 0.000001)
+  assert_eq(c.vocabulary_size, 151936)
   assert_eq(c.plan([1, 2, 3]).rows, 3)
   let t = c.rotary_tables(text_positions(2)[:], max_bytes=1024L)
   assert_eq(t.cosine.length(), 512)

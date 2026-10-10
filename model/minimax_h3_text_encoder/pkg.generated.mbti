@@ -34,6 +34,7 @@ pub struct EncoderConfig {
   epsilon : Double
   theta : Double
   max_positions : Int
+  vocabulary_size : Int
   image_token : Int
   video_token : Int
   vision_start_token : Int

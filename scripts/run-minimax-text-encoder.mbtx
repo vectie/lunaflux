@@ -49,7 +49,8 @@ async fn copy(socket : String, source : String, destination : String) -> Unit {
 ///|
 async fn main {
   guard @env.args() is [_, root, suffix, executable, staged, aot, .. target] &&
-    (target is [] || target is ["178"] || target is ["179"]) &&
+    (target is [] || target is ["178"] || target is ["179"] ||
+      target is ["178", _] || target is ["179", _]) &&
     root.has_prefix("/tmp/lunaflux-minimax-text-encoder-") &&
     executable.has_prefix("/tmp/lunaflux-") &&
     executable.has_suffix(".exe") &&
@@ -62,10 +63,10 @@ async fn main {
     }) &&
     !suffix.contains("/") else {
     fail(
-      "NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS REQUEST_AOT [178|179]",
+      "NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS REQUEST_AOT [178|179 [INPUT_IDS_I32]]",
     )
   }
-  let last = target is ["179"]
+  let last = target is ["179", ..]
   let node = if last {
     "wlc004s@192.168.2.179"
   } else {
@@ -81,13 +82,20 @@ async fn main {
   } else {
     "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f"
   }
+  // The existing request AOT has exactly three text rows. Caller-supplied IDs
+  // come from text-ids; the legacy default remains an explicitly synthetic probe.
+  let ids = match target {
+    [_, input] => @fs.read_file(input).binary()
+    _ => b"\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00"
+  }
+  guard ids.length() == 12 else {
+    fail("this request AOT requires exactly three little-endian I32 token IDs")
+  }
   @fs.mkdir(root)
   let binary = executable
-  // Text smoke uses explicit valid lexical IDs, not a claimed natural-language
-  // prompt or output from a fabricated conditioning encoder.
   @fs.write_file(
     root + "/ids.i32",
-    b"\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00",
+    ids,
     create_mode=CreateNew,
   )
   record(root, "mkdir", remote(node, socket, "mkdir " + root))

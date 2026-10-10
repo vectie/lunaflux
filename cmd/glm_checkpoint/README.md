@@ -29,6 +29,9 @@ text to 1 MiB; token output reserves one context position for generation.
 `TOKENIZER_LABEL` is a caller-supplied 64-lowercase-hex association label, not a
 computed or verified checksum. This offline mode does no payload hashing,
 weight-shard reads or CUDA work. It is not a text HTTP serving endpoint.
+Text encoding and little-endian ID serialization are owned by the shared
+`integration/checkpoint_text_input` frontend; GLM retains ownership of prompt
+chunking and its execution-frame protocol.
 
 Common arguments, all budgets in bytes:
 

@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/checkpoint_text_input"
+
+import {
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn encode_text_input(@tokenizer.TokenizerSpec, Bytes, maximum_tokens~ : Int) -> CheckpointTextInput raise @tokenizer.TokenizerError
+
+pub fn load_checkpoint_text(@approved_fs.ApprovedRoot, String, String, String, String, vocabulary_size~ : Int, maximum_tokens~ : Int) -> CheckpointTextInput raise
+
+// Errors
+
+// Types and methods
+pub struct CheckpointTextInput {
+  // private fields
+}
+pub fn CheckpointTextInput::decoded_bytes(Self) -> Bytes
+pub fn CheckpointTextInput::i32_le_bytes(Self) -> Bytes
+pub fn CheckpointTextInput::token_ids(Self) -> ArrayView[Int]
+
+// Type aliases
+
+// Traits

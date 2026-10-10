@@ -29,6 +29,7 @@ import {
   "vectie/lunaflux/model/minimax_h3_sequence" @sequence,
   "vectie/lunaflux/model/minimax_h3_text_encoder" @text,
   "vectie/lunaflux/integration/minimax_h3_text_encoder" @text_execution,
+  "vectie/lunaflux/integration/checkpoint_text_input" @text_input,
 }
 
 supported_targets = "native"

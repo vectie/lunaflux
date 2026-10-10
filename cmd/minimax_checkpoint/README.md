@@ -1,5 +1,17 @@
 # H3 checkpoint entry point
 
+`text-ids VARIANT_ROOT TOKENIZER_LABEL INPUT_UTF8_FILE NEW_OUTPUT_DIRECTORY
+MAX_TOKENS` loads the installed `text_encoder/tokenizer.json` and encodes literal
+caption text through the shared checkpoint text frontend. It writes
+`input-ids.i32`, `tokens.txt` and `decoded.txt` without overwriting. There is no
+implicit BOS/EOS or chat template. The tokenizer's declared normalization and
+added-token rules apply; absent BPE `ignore_merges` means false. The caller's
+64-hex label is not a checksum. This mode reads no weight inventory or shards
+and opens no CUDA context. Empty captions and image/video placeholders without
+visual placement are rejected before output creation. `MAX_TOKENS` must fit the
+actual encoder context. Copy the resulting ID file under the variant root for
+`encode-text`; its AOT text-row geometry must match the encoded token count.
+
 `config VARIANT_ROOT` parses the actual pipeline and transformer config.
 `weight-plan VARIANT_ROOT` reports exact packed component weight bytes from
 that config; it excludes execution workspace, outputs and transfer staging.

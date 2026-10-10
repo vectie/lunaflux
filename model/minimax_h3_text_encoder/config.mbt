@@ -13,6 +13,7 @@ pub struct EncoderConfig {
   epsilon : Double
   theta : Double
   max_positions : Int
+  vocabulary_size : Int
   image_token : Int
   video_token : Int
   vision_start_token : Int
@@ -184,6 +185,7 @@ pub fn parse_config(
     epsilon,
     theta,
     max_positions,
+    vocabulary_size: integer(text, "vocab_size"),
     image_token,
     video_token,
     vision_start_token,
