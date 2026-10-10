@@ -1,0 +1,165 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    },
+    if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    },
+    command,
+  ]).output(max_output_bytes=1048576)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+fn prefill_count(document : String) -> Int raise {
+  for line in document.split("\n") {
+    if line.has_prefix("prefill_count=") {
+      let count = @string.parse_int(line[14:])
+      guard count > 0 && count <= 43 else {
+        fail("invalid prepared six-row prompt")
+      }
+      return count
+    }
+  }
+  fail("prepared prompt has no frame count")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, build, commit, short_input, long_input] &&
+    root.has_prefix("/tmp/lunaflux-dspark-run-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-dspark-") &&
+    [root, suffix, build].all(path => {
+      !path.is_empty() &&
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") &&
+    commit.length() == 40 &&
+    commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) else {
+    fail(
+      "NEW_LOCAL_ROOT SUFFIX BUILD_ROOT COMMIT SHORT_LITERAL_INPUT LONG_LITERAL_INPUT",
+    )
+  }
+  @fs.mkdir(root)
+  let counts : Array[Int] = []
+  // Existing CPU-only frontend preparation builds each distinct immutable
+  // prompt. It reuses unchanged six-row/context-256 kernels, never GPU weights.
+  for index, input in [short_input, long_input] {
+    let result = @shell.Cmd("moon", [
+      "run",
+      "scripts/prepare-deepseek-text-replay.mbtx",
+      root + "-input\{index}",
+      suffix + "-input\{index}",
+      build,
+      commit,
+      "/tmp/lunaflux-dspark-real-verify-20261010-v1",
+      input,
+      "64",
+      "1",
+    ]).output(max_output_bytes=1048576)
+    record(root, "prepare-input\{index}", result)
+    counts.push(
+      prefill_count(@fs.read_file(root + "-input\{index}/prepared.txt").text()),
+    )
+  }
+  let destination = "/tmp/lunaflux-dspark-real-" + suffix
+  let source = destination + "-input0"
+  for last in [false, true] {
+    let ordinal = if last { "1" } else { "0" }
+    for
+      (label, command) in [
+        ("mkdir", "mkdir " + destination),
+        (
+          "binary",
+          "cp " +
+          source +
+          "/deepseek_checkpoint.exe " +
+          destination +
+          "/deepseek_checkpoint.exe",
+        ),
+        ("aot", "cp -r " + source + "/aot " + destination + "/aot"),
+      ] {
+      record(root, ordinal + "-" + label, remote(last, command))
+    }
+  }
+  record(
+    root,
+    "queue-mkdir",
+    remote(false, "mkdir " + destination + "/prompt-sequence"),
+  )
+  for index in 0..<2 {
+    record(
+      root,
+      "queue-input\{index}",
+      remote(
+        false,
+        "cp -r " +
+        destination +
+        "-input\{index}/prompt-text " +
+        destination +
+        "/prompt-sequence/request-\{index}",
+      ),
+    )
+  }
+  let counts_path = root + "/frame-counts.txt"
+  @fs.write_file(
+    counts_path,
+    "\{counts[0]},\{counts[1]}\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    counts_path,
+    "wlc003s@192.168.2.178:" + destination + "/prompt-sequence/frame-counts.txt",
+  ])
+  .output()
+  .check()
+  @fs.write_file(
+    root + "/prepared.txt",
+    "commit=" +
+    commit +
+    "\nbuild=" +
+    build +
+    "\nprompt_directory=prompt-sequence\nprefill_count=2\nmaximum_new_tokens=64\nstop_token=1\n",
+    create_mode=CreateNew,
+  )
+  println("two distinct literal prompts prepared; no queued GPU execution yet")
+}
