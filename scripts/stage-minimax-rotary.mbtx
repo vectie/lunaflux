@@ -1,0 +1,116 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+}
+
+///|
+async fn read_range(path : String, offset : Int64, count : Int) -> Bytes {
+  let output = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "lunanexa-management",
+    "dd if=" +
+    path +
+    " bs=65536 iflag=skip_bytes,count_bytes skip=\{offset} count=\{count} status=none",
+  ]).output(max_output_bytes=1048576)
+  output.check()
+  let bytes = output.stdout_bytes()
+  guard bytes.length() == count else { fail("checkpoint range truncated") }
+  bytes
+}
+
+///|
+fn integer(value : Json) -> Int64 raise {
+  guard value is Number(n, repr=_) &&
+    !n.is_nan() &&
+    !n.is_inf() &&
+    n >= 0.0 &&
+    n <= 75161927680.0 &&
+    n == n.trunc() else {
+    fail("invalid tensor byte offset")
+  }
+  n.to_int64()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-minimax-rotary-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_LOCAL_AND_SPARK_DIRECTORY")
+  }
+  let path = "/data/models/MiniMax/MiniMax-H3/FL2VA/transformer/model-00001-of-00013.safetensors"
+  let length_bytes = read_range(path, 0L, 8)
+  let length = for i in 0..<8; n = 0UL {
+    continue n | (length_bytes[i].to_uint64() << (i * 8))
+  } nobreak {
+    n
+  }
+  guard length > 0UL && length <= 1048576UL else {
+    fail("unbounded safetensors header")
+  }
+  let header = read_range(path, 8L, length.to_int())
+  guard @json.parse(@utf8.decode(header), max_nesting_depth=8)
+    is {
+      "rope.inv_freq": {
+        "dtype": String("F32"),
+        "shape": [Number(16.0, repr=_)],
+        "data_offsets": [start, end],
+        ..
+      },
+      ..
+    } else {
+    fail("actual checkpoint lacks 16-entry F32 rope.inv_freq")
+  }
+  let begin = integer(start)
+  guard integer(end) == begin + 64L else { fail("unexpected rotary size") }
+  let frequency = read_range(path, length.to_int64() + 8L + begin, 64)
+  for i in 0..<16 {
+    let offset = i * 4
+    let bits = frequency[offset].to_uint() |
+      (frequency[offset + 1].to_uint() << 8) |
+      (frequency[offset + 2].to_uint() << 16) |
+      (frequency[offset + 3].to_uint() << 24)
+    let f = Float::reinterpret_from_uint(bits)
+    guard !f.is_nan() && !f.is_inf() && f > 0.0F else {
+      fail("invalid checkpoint rotary frequency")
+    }
+  }
+  @fs.mkdir(root)
+  @fs.write_file(root + "/rope.inv_freq.f32", frequency, create_mode=CreateNew)
+  @fs.write_file(root + "/header.json", header, create_mode=CreateNew)
+  @fs.write_file(
+    root + "/SOURCE.txt",
+    "source=\{path}\ntensor=rope.inv_freq\npayload_offset=\{length.to_int64() + 8L + begin}\nbytes=64\npayload_hashing=false\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    "/tmp/lunaflux-checkpoint-live-20261010.sock",
+    "wlc003s@192.168.2.178",
+    "mkdir " + root,
+  ])
+  .output()
+  .check()
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    root + "/rope.inv_freq.f32",
+    "wlc003s@192.168.2.178:" + root + "/rope.inv_freq.f32",
+  ])
+  .output()
+  .check()
+  println(
+    "actual rope.inv_freq staged: header_bytes=\{length}, payload_bytes=64; no full-shard copy or hashing",
+  )
+}
