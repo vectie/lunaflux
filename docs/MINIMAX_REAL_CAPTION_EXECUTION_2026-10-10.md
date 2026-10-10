@@ -21,6 +21,32 @@ inventory, shard payload authentication or CUDA work is performed by `text-ids`.
 Related native tests passed 47/47; expanded tokenizer/frontend tests passed
 98/98. The 26-script no-hashing regression passed.
 
+### Independent original-tokenizer corpus — 2026-10-11
+
+The shared native text frontend now matches vLLM 0.26.0's HF renderer on
+twelve original text-encoder tokenizer cases, for both exact IDs and exact
+decoded text. The actual `A red cat` caption still emits `32,2518,8251`.
+The remaining cases cover a 140-token literal prompt, English, CJK/kana/Hangul,
+NFC/decomposed Unicode, mixed numeric scripts, whitespace/CRLF, emoji, original
+text special tokens, source code, multilingual scripts and punctuation.
+Reference counts in that order are `3,140,20,28,13,56,10,24,10,38,35,31`;
+all 24 comparisons pass. Both sides disable implicit special-token insertion.
+Image/video placeholder placement is deliberately not part of this text-only
+corpus and remains owned by the multimodal presentation path.
+
+The existing H3 ARM image uses Transformers 5.14.1 and tokenizers 0.22.2.
+`vllm launch render` reads the original, unmodified Qwen3-VL text-encoder
+configuration/tokenizer, not denoiser weights. Its loopback-only container has
+4 GiB/no-swap limits; measured memory peak is 2,452,099,072 bytes and swap peak
+zero. It exits successfully after collection, and its GPU compute-owner query
+is empty. This is independent frontend parity on the stated corpus, not hidden
+state/logit equivalence, encoder throughput or media quality.
+
+Evidence: `/private/tmp/lunaflux-reference-minimax-corpus-20261011-v1`;
+startup: `/private/tmp/lunaflux-reference-minimax-20261011-v1`.
+Native outputs, original text, raw reference responses and terminal/resource
+observations are retained without payload hashing or overwriting older runs.
+
 ## Real GPU text encoder
 
 The exact committed source was built on .178 with the installed ARM toolchain:

@@ -222,3 +222,37 @@ decoding: `/private/tmp/lunaflux-deepseek-decoded-wrap-20261011-v1`.
 This proves internal speculative/ordinary equality across this actual sliding
 window transition, not independent upstream model parity, maximum supported
 context, cancellation, multi-request serving or external-framework performance.
+
+## Independent original-tokenizer corpus — 2026-10-11
+
+The native frontend now matches an independent vLLM 0.26.0 HF renderer on
+all twelve actual-checkpoint corpus cases, for both exact token IDs and exact
+decoded text. The renderer uses the installed original model/tokenizer files,
+`--tokenizer-mode hf`, and `add_special_tokens=false`; neither side inserts a
+chat template, BOS or EOS. The corpus includes the actual five-token chat
+prompt and 144-token wrapped-window prompt above, English, CJK/kana/Hangul,
+composed/decomposed Unicode, mixed numeric scripts, whitespace/CRLF, emoji,
+original added/special tokens, source code, multilingual text and punctuation.
+
+Reference token counts in that order are
+`5,144,20,24,15,41,11,31,7,42,22,33`. All twelve ID comparisons and all twelve
+decode comparisons pass. This closes independent frontend parity for this
+corpus, not arbitrary-input completeness or independent real-weight logits.
+
+The existing H3 ARM image supplies vLLM 0.26.0, Transformers 5.14.1 and
+tokenizers 0.22.2. `vllm launch render` loads no model weights. Its GPU exposure
+only supplies platform identity; before/after compute-owner queries are empty.
+The isolated loopback-only container has a 4-GiB memory ceiling and no swap;
+measured cgroup memory peak is 2,332,917,760 bytes and swap peak is zero.
+It stops successfully after collection. No payload hashing or production
+service change is involved, and these are not inference-throughput results.
+
+The first renderer failed when a CGo dependency exhausted its 128-task limit.
+Its terminal logs remain preserved. The successful retry limits CPU affinity
+to four cores and library thread pools to two, with a 512-task ceiling; it is
+not a model/code compatibility workaround.
+
+Evidence: `/private/tmp/lunaflux-reference-tokenizer-corpus-20261011-v1`;
+startup/failure capture: `/private/tmp/lunaflux-reference-tokenizer-20261011-v2`.
+Requests, native IDs/decoded text, raw reference responses, terminal state and
+memory readings are retained separately without overwriting earlier attempts.

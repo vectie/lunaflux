@@ -12,6 +12,14 @@ Completed diagnostic work:
 - Original checkpoint tokenizers accept literal GLM/DeepSeek text and MiniMax
   captions through the common native frontend. Generated DeepSeek IDs now decode
   through that same original tokenizer without CUDA or weight loading.
+- Each of the three original tokenizers now matches an independent vLLM 0.26.0
+  HF renderer on twelve stated corpus cases: 36 exact-ID and 36 exact-decoding
+  comparisons pass. This is corpus parity, not arbitrary-input completeness or
+  a real-weight model reference. GLM uses its original tokenizer through the
+  renderer's explicit tokenizer override because the reference image does not
+  recognize the `glm5_next` model architecture. No model weights are loaded;
+  three sequential 4-GiB/no-swap containers exit successfully with zero swap
+  and no GPU compute owner. See the model reports below for raw evidence roots.
 - GLM's original thirteen-token diagnostic plus eight generated tokens executes
   across both Sparks with successful release and zero measured swap.
 - DSpark's actual literal chat prompt executes through draft/verify/commit and
@@ -32,8 +40,9 @@ Completed diagnostic work:
 
 Required next boundaries, still open:
 
-1. Establish independent original-tokenizer and real-weight numerical/reference
-   comparisons for the three models. Internal speculative/ordinary equality,
+1. Extend original-tokenizer coverage beyond the independently matched corpus
+   and establish real-weight numerical/reference comparisons for the three
+   models. Internal speculative/ordinary equality,
    finite media arrays and component oracles cannot substitute for them.
 2. Exercise context/window wrap, capacity limits, cancellation and failure cleanup
    on the attached model paths, then connect bounded multi-request serving.

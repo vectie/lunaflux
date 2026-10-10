@@ -15,9 +15,21 @@ their pending claims only for the explicitly completed diagnostic routes:
 
 | Model | Current physical result | What this does not establish |
 | --- | --- | --- |
-| GLM-5.3 Flash | Original 13-token chat diagnostic and eight greedy output tokens; two ranks exited successfully, released GPUs and used no unit swap | Independent token/logit parity, arbitrary-text GPU integration, optimized serving |
-| DeepSeek-V4 Flash DSpark | Original tokenizer prepares a literal non-thinking chat prompt; speculative and ordinary target execution produce the same sixteen tokens on two Sparks | Independent upstream model parity, long/wrapped contexts, multi-request serving or external-framework performance |
+| GLM-5.3 Flash | Original 13-token chat diagnostic and eight greedy output tokens; two ranks exited successfully, released GPUs and used no unit swap | Independent real-weight logit parity, arbitrary-text GPU integration, optimized serving |
+| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition and EOS termination | Independent upstream model parity, maximum-context correctness, multi-request serving or external-framework performance |
 | MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; no nonfinite output | Reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
+
+The three original checkpoint tokenizers now independently match vLLM 0.26.0's
+HF renderer on twelve cases each: 36 exact token-ID and 36 exact decoded-text
+comparisons pass. The corpus includes actual model inputs, longer literal text,
+multilingual/Unicode/numeric/whitespace cases and original text special tokens.
+GLM's reference explicitly selects the original GLM tokenizer under a supported
+API-driver configuration; this does not imply reference support for `glm5_next`.
+The three sequential renderer containers load no model weights, stay within
+4-GiB/no-swap limits, stop successfully and leave no GPU compute owner.
+Measured peaks are 2,332,917,760 bytes (DeepSeek), 2,454,654,976 (GLM) and
+2,452,099,072 (MiniMax), with all swap peaks zero. This closes corpus frontend
+parity only, not model numerics, chat-template generation or throughput.
 
 The DeepSeek fixed-length run deliberately disables EOS stopping. Its last six
 tokens follow EOS and are not part of a normal assistant answer. A separate

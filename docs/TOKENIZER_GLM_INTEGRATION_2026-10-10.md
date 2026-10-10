@@ -69,3 +69,37 @@ Independent upstream tokenizer/logit parity, checkpoint chat-template rendering,
 generated-text integration and complete model serving remain open. The earlier
 GLM GPU smoke used pretokenized frames and an older binary. No new GPU workload,
 kernel performance result or production-readiness claim is made by this change.
+
+## Independent original-tokenizer corpus — 2026-10-11
+
+Twelve real original-tokenizer cases now match vLLM 0.26.0's HF renderer,
+including exact token IDs and exact decoded text. The original thirteen-token
+GLM template remains unchanged. The other cases cover a 140-token literal
+prompt, English, CJK/kana/Hangul, composed/decomposed Unicode, mixed numeric
+scripts, whitespace/CRLF, emoji, original special tokens, code, multilingual
+text and punctuation. Reference token counts in that order are
+`13,140,20,27,14,38,10,26,8,38,34,31`; all 24 comparisons pass.
+
+The existing reference image's Transformers 5.14.1 does not recognize
+`glm5_next`, so its original-model renderer attempt fails before tokenization.
+For this strictly tokenizer-only comparison, the renderer uses its supported
+DeepSeek configuration as an API driver and explicit
+`--tokenizer /reference-tokenizer --tokenizer-mode hf` pointing to the original,
+unmodified GLM files. There is no model inference, no substituted vocabulary,
+and no claim that this image can execute GLM. Requests explicitly disable
+automatic special-token insertion. The unrelated API-driver configuration
+does not establish GLM model or chat-template support.
+
+The loopback-only renderer has 4 GiB/no-swap limits, measured memory peak
+2,454,654,976 bytes and swap peak zero. It exits successfully after collection;
+the GPU compute-owner query is empty. The original files remain read-only.
+Failed attempts retain their logs: default UID 65532 could not read the GLM
+files, UID 1000 had no passwd entry in the image, and the readable original
+model then exposed the unsupported architecture. The successful isolated
+reference container runs as root without changing host-file permissions.
+
+Evidence: `/private/tmp/lunaflux-reference-glm-corpus-20261011-v1` and
+`/private/tmp/lunaflux-reference-glm-20261011-v4`.
+This supersedes the missing independent tokenizer comparison for this corpus
+only. Real-weight numerical parity, generated-text GPU integration,
+cancellation and multi-request serving remain open.
