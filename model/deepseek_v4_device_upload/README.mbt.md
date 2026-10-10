@@ -6,9 +6,11 @@ validation, synchronous opaque host borrowing, transfer, and cleanup ownership
 to the family-neutral segmented device materializer.
 
 The token-hash path plans exactly three ordered I32 source arenas and device
-regions for official layers 0, 1, and 2. Its source digest binds the exact model
-identity, source host-manifest digest, ordered layer indices, checked table
-digests, and byte counts. Layout validation additionally checks source arena
+regions for official layers 0, 1, and 2. Its source identity consumes the supplied
+host-manifest association label without hashing or reserializing metadata at
+planning, validation or upload. Digest-shaped fields are labels, not verified
+payload checksums. Model identity, layer order and byte counts remain checked.
+Layout validation additionally checks source arena
 lengths, region order, zero source offsets, aligned device offsets, and total
 materialized/device bytes before any device allocation.
 

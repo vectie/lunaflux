@@ -80,6 +80,12 @@ and deterministic resource ownership: these are execution correctness, not
 optional security work. Pure compiler/cache identity generation is not a
 checkpoint authentication pass.
 
+DeepSeek token-hash sidecar upload consumes the supplied host-manifest label
+directly at planning, validation and transfer. It must not reconstruct and hash
+the same sidecar metadata at each boundary. This removes association hardening,
+not DeepSeek's algorithmic token-hash lookup. Ordered I32 regions, live arena
+lengths, model association and deterministic release remain required.
+
 Routine execution fixtures also consume explicit association labels, not
 fresh payload checksums. Packed-execution fixtures no longer SHA-scan their
 synthetic weights or sparse multi-GB zero regions. Keep their numerical,

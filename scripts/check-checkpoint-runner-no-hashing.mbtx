@@ -172,8 +172,17 @@ async fn main {
     "run-minimax-text-encoder", "run-cache-coordinate-probes", "run-stream-mean-capture-probe",
     "run-committed-draft-probe", "run-row-projection-norm-probe", "run-sequential-markov-probe",
     "capture-precision-transform-probes", "capture-compressed-attention-run", "capture-hyper-f32-run",
-    "capture-learned-text-laws", "assemble-luna-kernel-root",
+    "capture-learned-text-laws", "assemble-luna-kernel-root", "run-glm-resident-sequence",
   ]
+  let sidecars = @fs.read_file(
+    "model/deepseek_v4_device_upload/token_hash_sidecar.mbt",
+  ).text()
+  guard !sidecars.contains("@crypto") &&
+    !sidecars.contains("hash_sidecar_field") else {
+    fail(
+      "token-hash sidecar upload must consume its source label, not rehash metadata",
+    )
+  }
   for runner in runners {
     let source = @fs.read_file("scripts/" + runner + ".mbtx").text()
     for command in ["sha256sum", "shasum", "download-sha256", "hash-verified"] {

@@ -29,15 +29,6 @@ fn canonical_digest_text(value : StringView) -> Bool {
 }
 
 ///|
-fn hash_sidecar_field(hash : @crypto.SHA256, value : StringView) -> Unit {
-  let prefix = @utf8.encode(value.length().to_string() + ":")
-  let encoded = @utf8.encode(value)
-  hash.update_from_iter(prefix.iter())
-  hash.update_from_iter(encoded.iter())
-  hash.update_from_iter([b'\n'].iter())
-}
-
-///|
 fn validate_token_hash_metadata(
   metadata : TokenHashSidecarMetadata,
 ) -> Unit raise DeepSeekV4DeviceUploadError {
@@ -89,25 +80,14 @@ fn token_hash_metadata(
 }
 
 ///|
-fn token_hash_source_digest(
+fn token_hash_source_label(
   metadata : TokenHashSidecarMetadata,
 ) -> @segmented_device_materialize.SegmentedHostSourceDigest raise DeepSeekV4DeviceUploadError {
-  validate_token_hash_metadata(metadata)
-  let hash = @crypto.SHA256::new()
-  hash_sidecar_field(hash, "lunaflux/deepseek-v4-token-hash-sidecars/v1")
-  hash_sidecar_field(hash, metadata.identity.content().as_hex())
-  hash_sidecar_field(hash, metadata.identity.plan().as_hex())
-  hash_sidecar_field(hash, metadata.source_manifest_digest)
-  hash_sidecar_field(hash, metadata.tables.length().to_string())
-  for ordinal, table in metadata.tables {
-    hash_sidecar_field(hash, ordinal.to_string())
-    hash_sidecar_field(hash, table.layer_index.to_string())
-    hash_sidecar_field(hash, table.digest)
-    hash_sidecar_field(hash, table.byte_count.to_string())
-  }
+  // Consume the host manifest's supplied association label. Re-rendering and
+  // hashing this metadata at plan, validation and upload adds no correctness.
   from_device(() => {
     @segmented_device_materialize.SegmentedHostSourceDigest::from_sha256(
-      @crypto.bytes_to_hex_string(hash.finalize()),
+      metadata.source_manifest_digest,
     )
   })
 }
@@ -117,7 +97,8 @@ fn plan_token_hash_metadata_upload(
   metadata : TokenHashSidecarMetadata,
   limits : @segmented_device_materialize.SegmentedDeviceMaterializationLimits,
 ) -> @segmented_device_materialize.SegmentedDeviceLayout raise DeepSeekV4DeviceUploadError {
-  let digest = token_hash_source_digest(metadata)
+  validate_token_hash_metadata(metadata)
+  let digest = token_hash_source_label(metadata)
   let arena_lengths : Array[Int] = []
   let regions : Array[
     @segmented_device_materialize.SegmentedDeviceTensorRegionInput,
@@ -161,7 +142,8 @@ fn validate_token_hash_layout(
   metadata : TokenHashSidecarMetadata,
   layout : @segmented_device_materialize.SegmentedDeviceLayout,
 ) -> Unit raise DeepSeekV4DeviceUploadError {
-  let digest = token_hash_source_digest(metadata)
+  validate_token_hash_metadata(metadata)
+  let digest = token_hash_source_label(metadata)
   if layout.source_identity() != metadata.identity {
     raise TokenHashIdentityMismatch
   }
@@ -248,7 +230,7 @@ pub fn materialize_token_hash_sidecars(
 ) -> @segmented_device_materialize.SegmentedDevicePreparation raise DeepSeekV4DeviceUploadError {
   let metadata = token_hash_metadata(tables)
   validate_token_hash_layout(metadata, layout)
-  let digest = token_hash_source_digest(metadata)
+  let digest = token_hash_source_label(metadata)
   from_device(() => {
     @segmented_device_materialize.materialize_from_borrowed_source(
       context,

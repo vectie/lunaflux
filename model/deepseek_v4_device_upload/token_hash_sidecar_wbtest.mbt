@@ -94,6 +94,7 @@ test "token-hash sidecar layout binds deterministic exact official regions" {
   )
   assert_eq(first, repeated)
   assert_eq(first.source_identity(), metadata.identity)
+  assert_eq(first.source_digest().as_hex(), metadata.source_manifest_digest)
   assert_eq(first.source_arena_count(), 3)
   assert_eq(first.region_count(), 3)
   assert_eq(first.materialized_bytes(), 9308160L)
@@ -131,6 +132,29 @@ test "token-hash sidecar layout binds deterministic exact official regions" {
   )
   assert_true(first.source_digest() != changed.source_digest())
   assert_true(first.digest() != changed.digest())
+}
+
+///|
+test "sidecar association consumes the supplied label without metadata rehash" {
+  let metadata = exact_sidecar_test_metadata()
+  let relabeled_tables = sidecar_test_metadata(
+    metadata.identity,
+    'c',
+    [0, 1, 2],
+    [
+      official_token_hash_table_bytes, official_token_hash_table_bytes, official_token_hash_table_bytes,
+    ],
+    'f',
+    false,
+  )
+  let layout = plan_token_hash_metadata_upload(metadata, sidecar_test_limits())
+  let relabeled = plan_token_hash_metadata_upload(
+    relabeled_tables,
+    sidecar_test_limits(),
+  )
+  assert_eq(layout.source_digest().as_hex(), "c".repeat(64))
+  assert_eq(layout, relabeled)
+  validate_token_hash_layout(relabeled_tables, layout)
 }
 
 ///|
@@ -215,19 +239,19 @@ test "sidecar validation rejects identity source layout and live truncation" {
   } noraise {
     _ => fail("foreign sidecar identity was admitted")
   }
-  let changed_table = sidecar_test_metadata(
+  let changed_manifest = sidecar_test_metadata(
     metadata.identity,
-    'c',
+    'f',
     [0, 1, 2],
     [
       official_token_hash_table_bytes, official_token_hash_table_bytes, official_token_hash_table_bytes,
     ],
-    'f',
+    'd',
     false,
   )
   let wrong_source_layout = try! @segmented_device_materialize.plan_layout(
     source_identity=metadata.identity,
-    source_digest=token_hash_source_digest(changed_table),
+    source_digest=token_hash_source_label(changed_manifest),
     source_arena_lengths=[
       official_token_hash_table_bytes, official_token_hash_table_bytes, official_token_hash_table_bytes,
     ],
@@ -242,7 +266,7 @@ test "sidecar validation rejects identity source layout and live truncation" {
   }
   let wrong_regions = try! @segmented_device_materialize.plan_layout(
     source_identity=metadata.identity,
-    source_digest=token_hash_source_digest(metadata),
+    source_digest=token_hash_source_label(metadata),
     source_arena_lengths=[
       official_token_hash_table_bytes, official_token_hash_table_bytes, official_token_hash_table_bytes,
     ],

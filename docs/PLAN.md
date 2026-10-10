@@ -2,6 +2,13 @@
 
 ## Remaining payload-hardening cleanup — 2026-10-11
 
+The remaining DeepSeek token-hash sidecar adapter no longer serializes and
+SHA-hashes metadata repeatedly during plan, validation and upload. It consumes
+the existing host-manifest label directly, with no crypto dependency. The
+regression distinguishes supplied labels from metadata checksums, while
+preserving region ordering, capacity, truncation and model-association tests.
+This is startup cleanup, not a measured GPU/token-throughput improvement.
+
 Removed the residual CUBIN checksum scans in both split-decode startup binders.
 They consume deployment labels, while retaining exact operation, ordered symbol,
 workspace, launch and size checks. Qwen fused exporters now carry locator/plan
