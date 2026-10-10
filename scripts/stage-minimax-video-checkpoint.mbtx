@@ -1,0 +1,122 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock", "wlc003s@192.168.2.178",
+    command,
+  ]).output(max_output_bytes=1048576)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, config] &&
+    root.has_prefix("/tmp/lunaflux-minimax-video-upload-") &&
+    config.has_prefix("/tmp/lunaflux-minimax-video-config-") &&
+    [root, config].all(s => {
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) else {
+    fail("NEW_LOCAL_AND_REMOTE_DIRECTORY LOCAL_VIDEO_CONFIG_DIRECTORY")
+  }
+  @fs.mkdir(root)
+  let variant = root + "/FL2VA"
+  for
+    directory in [
+      root,
+      variant,
+      variant + "/transformer",
+      variant + "/video_vae",
+      variant + "/video_vae/source",
+    ] {
+    remote("mkdir " + directory).check()
+  }
+  let source = "/data/models/MiniMax/MiniMax-H3/FL2VA/video_vae/source/model.safetensors"
+  let identity = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "lunanexa-management",
+    "sha256sum " + source,
+  ]).output()
+  record(root, "source-shard", identity)
+  guard identity.stdout().split(" ").next() is Some(hash) &&
+    hash.length() == 64 &&
+    hash.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
+    fail("missing source checkpoint hash")
+  }
+  @fs.write_file(
+    root + "/VIDEO.sha256",
+    hash + "  model.safetensors\n",
+    create_mode=CreateNew,
+  )
+  for
+    file in [
+      "model_index.json", "transformer/config.json", "video_vae/config.json", "video_vae/source/config.json",
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+      config + "/" + file,
+      "wlc003s@192.168.2.178:" + variant + "/" + file,
+    ])
+    .output()
+    .check()
+  }
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    root + "/VIDEO.sha256",
+    "wlc003s@192.168.2.178:" + variant + "/VIDEO.sha256",
+  ])
+  .output()
+  .check()
+  // Transfer on the internal network, not a second 10-GiB local copy. This is
+  // checkpoint staging only; it opens no CUDA context or model process.
+  record(
+    root,
+    "transfer",
+    @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "lunanexa-management",
+      "scp -o BatchMode=yes " +
+      source +
+      " wlc003s@192.168.2.178:" +
+      variant +
+      "/video_vae/source/model.safetensors",
+    ]).output(max_output_bytes=1048576),
+  )
+  let copied = remote(
+    "sha256sum " + variant + "/video_vae/source/model.safetensors",
+  )
+  record(root, "installed-shard", copied)
+  guard copied.stdout().has_prefix(hash + "  ") else {
+    fail("staged VideoVAE checkpoint differs; files preserved")
+  }
+  println("actual VideoVAE weights staged and hash verified; no GPU execution")
+}

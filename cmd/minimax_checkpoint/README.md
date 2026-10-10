@@ -28,3 +28,13 @@ channel-major latent input. It does not run text conditioning or the denoiser.
 WORKSPACE_LIMIT EMPTY_OUTPUT_DIRECTORY` exports the same VideoVAE module as the
 full request and reports its exact workspace/input/output byte counts. Tiling
 and memory policy are explicit inputs, not model- or machine-hidden defaults.
+
+`decode-video VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP
+MAX_TILES AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT` streams the actual
+VideoVAE checkpoint and executes all 36 decoder blocks, temporal/spatial assembly
+and canonical pixel conversion. Input is packed standardized denoiser-layout F32,
+not channel-major destandardized data. It uses the same immutable decoder plan
+and AOT source as whole-request export. Weights, input, normalization tables,
+request workspace/output and a module/queue reserve share one explicit budget.
+The output is channel-major F32 `[1,3,T,H,W]`. An explicit latent fixture is only
+a decoder test, not text-to-media inference or independent numerical validation.

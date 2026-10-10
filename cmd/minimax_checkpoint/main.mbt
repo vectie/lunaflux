@@ -47,13 +47,14 @@ async fn main {
       ((mode == "export-audio" || mode == "audio-memory") && tail.length() == 5) ||
       (mode == "export-video" && tail.length() == 9) ||
       (mode == "decode-audio" && tail.length() == 9) ||
+      (mode == "decode-video" && tail.length() == 12) ||
       (
         (mode == "inspect-component" || mode == "prepare-component") &&
         tail.length() == 4
       )
     ) else {
     fail(
-      "config|weight-plan|audio-config|video-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | export-video VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT OUTPUT_DIRECTORY | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
+      "config|weight-plan|audio-config|video-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | export-video VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT OUTPUT_DIRECTORY | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | decode-video VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
     )
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(root_name)
@@ -81,12 +82,7 @@ async fn main {
     return
   }
   if mode == "video-config" || mode == "export-video" {
-    let video = @config.parse_video_vae_checkpoint(
-      @utf8.decode(read(root, "video_vae/config.json", 1048576L)),
-      @utf8.decode(read(root, "video_vae/source/config.json", 1048576L)),
-      max_bytes=1048576,
-      max_depth=16,
-    )
+    let video = read_video_config(root)
     println(
       "VideoVAE latent_channels=\{video.latent_channels()} layers=\{video.decoder_layer_count()} hidden=\{video.decoder_hidden_size()} compression=\{video.spatial_compression()}x\{video.temporal_compression()}",
     )
@@ -121,6 +117,10 @@ async fn main {
   }
   if mode == "decode-audio" {
     run_audio(root_name, root, metadata, plan, tail)
+    return
+  }
+  if mode == "decode-video" {
+    run_video(root_name, root, metadata, plan, tail)
     return
   }
   if mode == "audio-config" || mode == "export-audio" || mode == "audio-memory" {

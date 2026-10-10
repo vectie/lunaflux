@@ -96,6 +96,31 @@ test "complete offline export emits every schedule variant and deterministic sou
   assert_eq(video_full.source, video_only.units[0].source)
   assert_eq(video_full.symbols, video_only.units[0].symbols)
   assert_eq(video_full.geometry, video_only.units[0].geometry)
+  let runtime_video = @video.VideoDecodeBundle::from_plan(
+    plan,
+    prefix="h3_video",
+    tile_size=32,
+    minimum_overlap=0,
+    max_tiles=16,
+    max_workspace_bytes=1000000000L,
+  )
+  assert_eq(runtime_video.source, video_full.source)
+  assert_eq(runtime_video.input.value_bytes, plan.video_elements() * 4L)
+  assert_eq(runtime_video.output.frames, request.frames())
+  try
+    @video.VideoDecodeBundle::from_plan(
+      plan,
+      prefix="h3_video",
+      tile_size=32,
+      minimum_overlap=0,
+      max_tiles=16,
+      max_workspace_bytes=runtime_video.workspace_bytes - 1L,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("full video workspace budget ignored")
+  }
   assert_eq(audio_only.units.length(), 17)
   for entry in audio_only.units {
     guard first.units[:].filter(u => u.name == entry.name) is [full] else {

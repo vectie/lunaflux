@@ -218,23 +218,16 @@ fn video_unit(
   max_workspace_bytes~ : Int64,
 ) -> SourceUnit raise {
   let request = plan.request()
-  let decoder = @video.TiledDecoder::new(
-    latent_frames=request.video_latent_frames(),
-    latent_height=request.video_latent_height(),
-    latent_width=request.video_latent_width(),
-    output_frames=request.frames(),
+  let bundle = @video.VideoDecodeBundle::from_plan(
+    plan,
     tile_size~,
     minimum_overlap~,
     prefix="h3_video",
-    max_jobs=max_tiles,
+    max_tiles~,
     max_workspace_bytes~,
   )
-  let video_input = @block.build_video_input(plan)
-  let bundle = @video.VideoDecodeBundle::new(
-    video_input,
-    decoder,
-    max_workspace_bytes~,
-  )
+  let video_input = bundle.input
+  let decoder = bundle.decoder
   let symbols = video_input.symbols[:].to_owned()
   symbols.append(decoder.tile.frontend.symbols[:])
   symbols.append(decoder.tile.block.symbols[:])

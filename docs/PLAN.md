@@ -78,6 +78,13 @@ fragments; the shared offline translation-unit composer now preserves fragment
 boundaries, with nested-composition/directive regressions. The corrected bounded
 32x32, 124-frame module compiles on GB10 and its downloaded cubin hash matches.
 Actual checkpoint-backed VideoVAE execution remains unverified. Next complete
+the new `decode-video` actual-checkpoint entry point's physical run: it borrows
+the same resolved decoder plan and packed denoiser-layout input as full request
+export, streams all 38 decoder weight groups, and accounts input/statistics,
+internal workspace/output and module/queue reserve before opening CUDA. Native
+budget/byte-layout and source-equivalence regressions cover this bootstrap;
+fixture decoding must not be described as completed text-to-media generation.
+Next complete
 conditioning/denoising/video composition and
 the two-host full media request. These component results do not close H3.
 

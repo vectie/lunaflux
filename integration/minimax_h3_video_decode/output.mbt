@@ -74,6 +74,36 @@ pub struct VideoDecodeBundle {
 }
 
 ///|
+/// Resolve the complete video decoder from the denoiser's immutable request
+/// geometry. Offline source export and checkpoint execution share this plan.
+pub fn VideoDecodeBundle::from_plan(
+  plan : @joint_diffusion_loop.PreparedPlan,
+  prefix~ : String,
+  tile_size~ : Int,
+  minimum_overlap~ : Int,
+  max_tiles~ : Int,
+  max_workspace_bytes~ : Int64,
+) -> Self raise {
+  let request = plan.request()
+  let decoder = TiledDecoder::new(
+    latent_frames=request.video_latent_frames(),
+    latent_height=request.video_latent_height(),
+    latent_width=request.video_latent_width(),
+    output_frames=request.frames(),
+    tile_size~,
+    minimum_overlap~,
+    prefix~,
+    max_jobs=max_tiles,
+    max_workspace_bytes~,
+  )
+  VideoDecodeBundle::new(
+    @minimax_h3_block_source.build_video_input(plan),
+    decoder,
+    max_workspace_bytes~,
+  )
+}
+
+///|
 pub fn VideoDecodeBundle::new(
   input : @minimax_h3_block_source.VideoInputSource,
   decoder : TiledDecoder,

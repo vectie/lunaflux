@@ -149,6 +149,7 @@ pub struct VideoDecodeBundle {
   output : VideoOutput
   workspace_bytes : Int64
 }
+pub fn VideoDecodeBundle::from_plan(@joint_diffusion_loop.PreparedPlan, prefix~ : String, tile_size~ : Int, minimum_overlap~ : Int, max_tiles~ : Int, max_workspace_bytes~ : Int64) -> Self raise
 pub fn VideoDecodeBundle::new(@minimax_h3_block_source.VideoInputSource, TiledDecoder, max_workspace_bytes~ : Int64) -> Self raise
 
 pub struct VideoDecodeRequest {
