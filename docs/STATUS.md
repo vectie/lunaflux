@@ -28,6 +28,14 @@ The fixed-length
 sample takes 31.364 seconds speculative versus 39.206 seconds ordinary; the
 older BOS-only sample regressed. Neither sample is a vLLM/SGLang comparison.
 
+A fresh 144-token/24-frame prompt now crosses DeepSeek's original 128-token
+sliding window with the unchanged 256-context AOT. Both modes emit ten identical
+IDs, stop at EOS and release both GPUs with zero measured swap. Speculative and
+ordinary generation including prefill take 87.772 and 92.038 seconds: only 4.6%
+shorter in this single longer-prompt sample, not the short case's 49.3% gain.
+Independent upstream numerical parity, capacity, cancellation and multi-request
+serving are still open.
+
 MiniMax's raw decoded arrays have been downloaded and independently inspected
 for exact sizes, finite/nontrivial values. This is not perceptual validation.
 Its generic result contract now distinguishes nominal frame-duration samples

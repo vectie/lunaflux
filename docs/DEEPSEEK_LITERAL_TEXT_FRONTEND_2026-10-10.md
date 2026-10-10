@@ -181,3 +181,44 @@ outputs and empty stderr are retained at
 This closes the actual prompt's EOS-termination and internal differential check,
 not independent model parity, wrapped-context correctness, cancellation,
 multi-request serving, or production performance.
+
+## Original sliding-window wrap — 2026-10-11
+
+A fresh literal prompt repeats `Hello ` 136 times, asks `Please answer hello.`
+and uses the same original non-thinking chat presentation. The native original
+tokenizer emits 144 input tokens, divided into 24 six-row prefill frames. This
+crosses the checkpoint's 128-token sliding window while staying within the
+unchanged 256-position AOT/context envelope. The two modes use the same
+`fca56554` binary, original weights and AOT modules, with maximum output 16
+and EOS 1. No new compilation, payload hashing or concurrent GPU workload is
+introduced by this case.
+
+Both modes produce exactly these ten IDs and terminate `StopToken`:
+
+```text
+19923,3,1730,588,342,8233,440,4316,33,1
+```
+
+The original tokenizer decodes both into the exact 61-byte string
+`Hello! How can I assist you today?<｜end▁of▁sentence｜>`; decoder stderr is
+empty. The speculative route executes three verification blocks, nine committed
+input rows, eighteen submitted rows and three accepted-prefix replays.
+
+| Mode | Generation including 24-frame prefill | Peak .178 / .179 bytes |
+| --- | ---: | --- |
+| DSpark target verification | 87.772 s | 50,100,387,840 / 26,728,951,808 |
+| Ordinary greedy target | 92.038 s | 49,474,068,480 / 27,703,451,648 |
+
+The speculative completion is only 4.6% shorter in this single longer-prompt
+case, versus 49.3% in the short EOS-limited case above. Prefill and replay are
+part of the measured generation interval; these totals are not isolated decode
+throughput or a general speedup. All four user units terminate successfully
+with status zero and measured swap peak zero. All four post-mode GPU-owner
+query files are empty, and the ordinary mode starts only after speculative
+release. The 96-GiB/no-swap external limits remain in force on both nodes.
+
+Evidence: `/tmp/lunaflux-dspark-run-text-wrap-20261011-v1`; original-tokenizer
+decoding: `/private/tmp/lunaflux-deepseek-decoded-wrap-20261011-v1`.
+This proves internal speculative/ordinary equality across this actual sliding
+window transition, not independent upstream model parity, maximum supported
+context, cancellation, multi-request serving or external-framework performance.

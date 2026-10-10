@@ -19,6 +19,8 @@ Completed diagnostic work:
   diagnostic disables EOS; post-EOS output is explicitly not a normal answer.
   A separate EOS-1/maximum-64 request now emits exactly ten identical tokens,
   finishes `StopToken` in both modes and releases both ranks with zero swap.
+  A 144-token/24-frame prompt crosses the original 128-token sliding window;
+  both modes again emit ten identical IDs ending at EOS and release both ranks.
 - MiniMax's actual caption completes original text encoding, five joint
   denoising evaluations and audio/video decoding at the stated small geometry.
   Downloaded arrays have exact sizes and finite, nontrivial values.
@@ -44,7 +46,9 @@ Required next boundaries, still open:
 The fixed-length literal DSpark sample is 31.364 seconds speculative versus
 39.206 seconds ordinary, while the older BOS sample was slower speculative.
 The EOS-limited sample is 12.502 versus 24.658 seconds, with ten outputs including
-EOS. These are single diagnostic samples, not generalized throughput claims.
+EOS. The 144-token wrapped-window sample is 87.772 versus 92.038 seconds,
+including prefill. These are single diagnostic samples, not generalized
+throughput claims.
 MiniMax's 1,782-second joint lifetime includes preparation/loading. The current
 frontend/CLI regression matrix passes 95/95; the no-hashing and token-step
 developer gates also pass, without new warning exclusions. Keep payload hashing,
