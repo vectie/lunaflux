@@ -19,13 +19,13 @@ async fn main {
     "integration/serial_decoder_pipeline", "integration/serial_decoder_worker", "engine/precision_materialize",
     "model/checkpoint_inventory", "model/streaming_safetensors", "model/deepseek_v4_device_upload",
     "model/glm53_device_upload", "model/minimax_h3_device_upload", "model/glm53_host_materialize",
-    "model/deepseek_v4_host_materialization", "model/minimax_h3_host_materialization",
+    "model/deepseek_v4_host_materialization", "model/minimax_h3_host_materialization", "engine/remote_startup",
   ]
   for directory in checkpoint_packages {
     for name in @fs.readdir(directory) {
       if name.has_suffix(".mbt") && !name.has_suffix("test.mbt") {
         let source = @fs.read_file(directory + "/" + name).text()
-        for removed in ["@crypto", "SHA256::new", "hash_approved_file("] {
+        for removed in ["@crypto", "SHA256::new", "CanonicalSha256::new", "hash_approved_file("] {
           guard !source.contains(removed) else {
             fail(
               "checkpoint execution hashing reintroduced: " +

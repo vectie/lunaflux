@@ -56,6 +56,7 @@ pub fn RemoteGroupStartup::rank(
 }
 
 ///|
+/// Legacy name for the supplied deployment label, not a computed checksum.
 pub fn RemoteGroupStartup::digest_sha256(self : RemoteGroupStartup) -> String {
   self.digest
 }
@@ -87,6 +88,7 @@ pub fn RemoteRankStartup::group_generation_value(
 }
 
 ///|
+/// Legacy name for the supplied deployment label, not a frame fingerprint.
 pub fn RemoteRankStartup::group_digest_sha256(
   self : RemoteRankStartup,
 ) -> String {

@@ -4,6 +4,8 @@ test "both ordinal-zero nodes retain exact local contracts in one deterministic 
   let first = group(plan)
   let second = group(plan)
   assert_eq(first.digest_sha256(), second.digest_sha256())
+  assert_eq(first.digest_sha256(), digest('0').as_hex())
+  assert_eq(first.digest_sha256(), group(plan, generation=2UL).digest_sha256())
   assert_true(first.rank(2) is None)
   for rank in 0..<2 {
     let contract = first.rank(rank).unwrap()
@@ -34,7 +36,7 @@ test "both ordinal-zero nodes retain exact local contracts in one deterministic 
 }
 
 ///|
-test "every byte including reserved padding and embedded worker data is bound" {
+test "contract bytes remain checked without outer or embedded checksums" {
   let expected = group(compiled_plan()).rank(1).unwrap()
   let bytes = FixedArray::make(
     @remote_startup.remote_startup_frame_bytes(),
@@ -43,6 +45,11 @@ test "every byte including reserved padding and embedded worker data is bound" {
   let length = expected.copy_to(bytes)
   for index in 0..<length {
     bytes[index] = bytes[index] ^ b'\x01'
+    if index >= 1048 || (index >= 976 && index < 980) {
+      expected.verify_configure(bytes, length)
+      bytes[index] = bytes[index] ^ b'\x01'
+      continue
+    }
     try expected.verify_configure(bytes, length) catch {
       Rejected(FrameMismatch) => ()
       error => fail("unexpected: \{Repr(error)}")
@@ -55,7 +62,7 @@ test "every byte including reserved padding and embedded worker data is bound" {
 }
 
 ///|
-test "frames cannot cross ranks generations executables rendezvous leases or predecessors" {
+test "frames cannot cross ranks generations rendezvous leases or predecessors" {
   let plan = compiled_plan()
   let baseline = group(plan)
   let expected = baseline.rank(0).unwrap()
@@ -64,8 +71,6 @@ test "frames cannot cross ranks generations executables rendezvous leases or pre
     group(plan, generation=2UL).rank(0).unwrap(),
     group(plan, nonce=b'\x02').rank(0).unwrap(),
     group(plan, lease=2000UL).rank(0).unwrap(),
-    // A follower executable change also changes the leader's group binding.
-    group(plan, follower_executable='a').rank(0).unwrap(),
     group(plan, predecessor=7UL).rank(0).unwrap(),
   ]
   for alternative in alternatives {
@@ -80,6 +85,44 @@ test "frames cannot cross ranks generations executables rendezvous leases or pre
     } noraise {
       _ => fail("foreign frame accepted")
     }
+  }
+  // A supplied label is not a checksum of both frames. Each rank still checks
+  // its own executable contract; changing rank 1 does not rehash rank 0.
+  let changed = group(plan, follower_executable='a')
+  let bytes = FixedArray::make(
+    @remote_startup.remote_startup_frame_bytes(),
+    b'\x00',
+  )
+  let length = changed.rank(0).unwrap().copy_to(bytes)
+  expected.verify_configure(bytes, length)
+  ignore(changed.rank(1).unwrap().copy_to(bytes))
+  try baseline.rank(1).unwrap().verify_configure(bytes, length) catch {
+    Rejected(FrameMismatch) => ()
+    error => fail("unexpected: \{Repr(error)}")
+  } noraise {
+    _ => fail("rank-local executable mismatch accepted")
+  }
+}
+
+///|
+test "new frames emit no checksum and receivers ignore all legacy checksum bytes" {
+  let expected = group(compiled_plan()).rank(0).unwrap()
+  let bytes = FixedArray::make(
+    @remote_startup.remote_startup_frame_bytes(),
+    b'\x00',
+  )
+  let length = expected.copy_to(bytes)
+  for index in 1048..<length {
+    assert_eq(bytes[index], b'\x00')
+  }
+  for checksum in [b'\x00', b'\x01', b'\xff'] {
+    for index in 1048..<length {
+      bytes[index] = checksum
+    }
+    for index in 976..<980 {
+      bytes[index] = checksum
+    }
+    expected.verify_configure(bytes, length)
   }
 }
 

@@ -224,14 +224,16 @@ fn admit_claims(
   world_size : Int,
   claims : ArrayView[RankBootstrapClaim],
   template_digest_sha256? : StringView = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  network_lease_millis? : UInt64 = 0UL,
 ) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError {
-  if model_generation_value == 0UL ||
-    !is_lower_sha256(template_digest_sha256) ||
-    template_digest_sha256 == "0".repeat(64) {
+  if model_generation_value == 0UL || !is_lower_sha256(template_digest_sha256) {
     raise rejected(ModelGeneration, -1)
   }
   if group_generation_value == 0UL || collective_runtime_version_code <= 0 {
     raise rejected(GroupGeneration, -1)
+  }
+  if network_lease_millis > 300000UL {
+    raise rejected(Topology, -1)
   }
   let ordered = order_and_validate_claims(
     identity, model_generation_value, group_generation_value, world_size, claims,
@@ -254,6 +256,7 @@ fn admit_claims(
       world_size: claim.world_size,
       device_ordinal: claim.device_ordinal,
       collective_runtime_version_code,
+      network_lease_millis,
       group_digest,
       topology_digest,
       worker_digest: claim.worker_digest,

@@ -11,7 +11,7 @@ const WORKER_OFFSET : Int = 640
 const WORKER_BYTES : Int = 408
 
 ///|
-const CHECKSUM_OFFSET : Int = 1048
+const LEGACY_CHECKSUM_OFFSET : Int = 1048
 
 ///|
 fn put_u32(bytes : FixedArray[Byte], offset : Int, value : UInt) -> Unit {
@@ -32,16 +32,6 @@ fn put_text(bytes : FixedArray[Byte], offset : Int, value : String) -> Unit {
   for index, byte in @utf8.encode(value) {
     bytes[offset + index] = byte
   }
-}
-
-///|
-fn seal(bytes : FixedArray[Byte]) -> Unit {
-  let hash = @canonical_sha256.CanonicalSha256::new()
-  ignore(hash.update_bytes(b"lunaflux.remote-rank-configure.v1"))
-  for index in 0..<CHECKSUM_OFFSET {
-    ignore(hash.update_byte(bytes[index]))
-  }
-  put_text(bytes, CHECKSUM_OFFSET, hash.finalize_hex())
 }
 
 ///|
@@ -113,10 +103,10 @@ pub fn RemoteRankStartup::copy_to(
 
 ///|
 /// Compare a complete message against an independently composed expectation.
-/// Equality includes the version, reserved bytes, node/NIC, both-rank group
-/// binding, rendezvous, worker limits, predecessor and source/executable pins.
-/// This is not peer authentication and must run only during startup; callers
-/// still need an authenticated control channel and local device admission.
+/// Compare the startup contract, not a payload checksum. The outer legacy
+/// checksum tail and embedded worker checksum word are ignored. Rank,
+/// generation, rendezvous, worker limits and supplied association labels remain
+/// explicit. This is not peer or artifact authentication.
 pub fn RemoteRankStartup::verify_configure(
   self : RemoteRankStartup,
   source : FixedArray[Byte],
@@ -125,7 +115,10 @@ pub fn RemoteRankStartup::verify_configure(
   if length != FRAME_BYTES || source.length() < FRAME_BYTES {
     raise Rejected(FrameLength)
   }
-  for index in 0..<FRAME_BYTES {
+  for index in 0..<LEGACY_CHECKSUM_OFFSET {
+    if index >= WORKER_OFFSET + 336 && index < WORKER_OFFSET + 340 {
+      continue
+    }
     if source[index] != self.frame[index] {
       raise Rejected(FrameMismatch)
     }

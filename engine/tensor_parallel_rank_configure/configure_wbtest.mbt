@@ -209,17 +209,6 @@ fn configure_test_write_digest(
 }
 
 ///|
-fn configure_test_envelope_checksum(bytes : FixedArray[Byte]) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<752 {
-    if index < 12 || index >= 16 {
-      hash = (hash ^ bytes[index].to_uint()) * 16777619
-    }
-  }
-  hash
-}
-
-///|
 fn configure_test_envelope(
   rank : Int,
   startup : @worker_wire.WorkerStartupContract,
@@ -232,7 +221,7 @@ fn configure_test_envelope(
   )
   let bytes = FixedArray::make(752, b'\x00')
   configure_write_u32(bytes, 0, 0x4254504c)
-  configure_write_u32(bytes, 4, 3)
+  configure_write_u32(bytes, 4, 4)
   configure_write_i32(bytes, 8, 752)
   configure_write_i32(bytes, 16, rank)
   configure_write_i32(bytes, 20, 2)
@@ -276,7 +265,7 @@ fn configure_test_envelope(
   for index in 0..<128 {
     bytes[624 + index] = b'\x5a'
   }
-  configure_write_u32(bytes, 12, configure_test_envelope_checksum(bytes))
+  configure_write_u32(bytes, 12, 0) // Same-host execution has no network lease.
   try! @tensor_parallel_worker_bootstrap.TensorParallelRankEnvelopeFrameBuffer::new()
   .load(bytes, 752)
   .envelope()

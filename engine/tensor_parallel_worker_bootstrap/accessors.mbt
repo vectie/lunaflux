@@ -92,6 +92,14 @@ pub fn TensorParallelGroupBootstrap::rank_envelope(
 }
 
 ///|
+/// Explicit network watchdog duration; zero for a same-host envelope.
+pub fn TensorParallelRankBootstrapEnvelope::network_lease_millis(
+  self : Self,
+) -> UInt64 {
+  self.network_lease_millis
+}
+
+///|
 pub fn TensorParallelRankBootstrapEnvelope::identity(
   self : TensorParallelRankBootstrapEnvelope,
 ) -> @spec.ModelIdentity {

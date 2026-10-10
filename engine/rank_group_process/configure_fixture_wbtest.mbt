@@ -190,7 +190,7 @@ fn ownership_envelope(
   let binding = ownership_binding(rank)
   let bytes = FixedArray::make(752, b'\x00')
   ownership_write_u32(bytes, 0, 0x4254504c)
-  ownership_write_u32(bytes, 4, 3)
+  ownership_write_u32(bytes, 4, 4)
   ownership_write_i32(bytes, 8, 752)
   ownership_write_i32(bytes, 16, rank)
   ownership_write_i32(bytes, 20, 2)
@@ -212,13 +212,7 @@ fn ownership_envelope(
   for index in 0..<128 {
     bytes[624 + index] = b'\x5a'
   }
-  let mut checksum : UInt = 2166136261
-  for index in 0..<752 {
-    if index < 12 || index >= 16 {
-      checksum = (checksum ^ bytes[index].to_uint()) * 16777619
-    }
-  }
-  ownership_write_u32(bytes, 12, checksum)
+  ownership_write_u32(bytes, 12, 0) // Same-host execution has no network lease.
   @tensor_parallel_worker_bootstrap.TensorParallelRankEnvelopeFrameBuffer::new()
   .load(bytes, 752)
   .envelope()

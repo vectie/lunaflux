@@ -135,6 +135,39 @@ async test "two independent ordinal-zero nodes join sharded files AOT plans and 
       kv,
       collective_runtime_version_code=21403,
     )
+    for rank in 0..<2 {
+      assert_eq(
+        admitted.rank_envelope(rank).unwrap().network_lease_millis(),
+        1000UL,
+      )
+      assert_eq(
+        tp_bootstrap_decode(admitted.rank_envelope(rank).unwrap()).network_lease_millis(),
+        1000UL,
+      )
+    }
+    // A supplied association label is not a checksum. Preserve the existing
+    // startup constructor's valid zero label without hashing to make it nonzero.
+    let zero_label = @remote_startup.RemoteGroupStartup::new(
+      compiled,
+      [startup, startup],
+      [executable, executable],
+      deployment_digest=@spec.ContentDigest::from_sha256("0".repeat(64)),
+      group_generation=9UL,
+      rendezvous=bootstrap_test_rendezvous(),
+      lease_millis=1000UL,
+    )
+    let zero_admitted = admit_network(
+      model,
+      compiled,
+      zero_label,
+      inspections,
+      devices,
+      executions,
+      kv,
+      collective_runtime_version_code=21403,
+    )
+    assert_eq(zero_admitted.template_digest_sha256(), "0".repeat(64))
+    exercise_remote_group(zero_label, zero_admitted)
     exercise_remote_group(remote, admitted) catch {
       error => fail("remote protocol: \{Repr(error)}")
     }
@@ -164,6 +197,8 @@ async test "two independent ordinal-zero nodes join sharded files AOT plans and 
         collective_runtime_version_code=21403,
       )
     })
+    assert_eq(remote.digest_sha256(), replacements[0].digest_sha256())
+    assert_eq(remote.digest_sha256(), replacements[1].digest_sha256())
     exercise_remote_recovery(
       model,
       remote,

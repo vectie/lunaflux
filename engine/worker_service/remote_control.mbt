@@ -105,8 +105,7 @@ pub fn RemoteWorkerServiceControl::prepare_replacement(
   if !self.recovering ||
     !self.current.recovery_cleanup_complete() ||
     self.replacement is Some(_) ||
-    remote.rank(0).unwrap().group_generation_value() <= self.generation_floor ||
-    remote.digest_sha256() == self.current.startup().digest_sha256() {
+    remote.rank(0).unwrap().group_generation_value() <= self.generation_floor {
     raise Invalid(Recovery)
   }
   self.validate_identity(remote.rank(0).unwrap().worker())

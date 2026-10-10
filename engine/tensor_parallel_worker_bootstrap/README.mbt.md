@@ -27,11 +27,14 @@ incomplete sets, generation drift, ordinal or target substitution, and any
 model/file/device/execution/collective/KV mismatch fail before an envelope is
 published.
 
-The version-two wire envelope is exactly 752 bytes. It carries only bounded
+The version-four wire envelope is exactly 752 bytes. It carries only bounded
 scalars, lowercase SHA-256 identities, and the opaque 128-byte NCCL rendezvous
 identity. Caller-owned fixed frame buffers provide deterministic encode/load,
-structural validation, epoch-stale rejection, and bounded copies. The legacy
-checksum word is zero on encode and ignored on decode. Decoding does
+structural validation, epoch-stale rejection, and bounded copies. Version four
+uses offset 12 for an explicit network lease in milliseconds: zero for same-host
+execution, 1–300,000 for remote execution. No checksum is computed or checked.
+Earlier versions are rejected instead of treating an old checksum as a lease;
+update both endpoints together. Decoding does
 not grant readiness or communicator authority; `authenticate_local` must match
 the decoded envelope to current rank-local evidence before the private device
 owner can consume its authority-free collective contract.
@@ -44,6 +47,11 @@ locators, allocations, contexts, streams, communicator handles, scheduler
 mutation, or descriptor-v1 changes. Digest admission is not device readiness
 or physical execution evidence.
 
-All collections and hashing are startup-only. The resulting group, envelopes,
-digests, and rank-local contracts are immutable; no token-step or collective
-launch path allocates through this package.
+Remote startup reuses the supplied deployment label rather than hashing rank
+frames. Lease compatibility is compared explicitly in the coordinator and
+rank-local join, including decoded envelopes. Retained model/plan identities
+are not a substitute for that execution-semantic comparison.
+
+All collections and existing plan-identity derivation are startup-only. The
+resulting group, envelopes, digests, and rank-local contracts are immutable;
+no token-step or collective launch path allocates through this package.

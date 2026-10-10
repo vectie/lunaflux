@@ -2,13 +2,14 @@
 const RANK_ENVELOPE_MAGIC : UInt = 0x4254504c
 
 ///|
-const RANK_ENVELOPE_VERSION : UInt = 3
+const RANK_ENVELOPE_VERSION : UInt = 4
 
 ///|
 const RANK_ENVELOPE_LENGTH : Int = 752
 
 ///|
-const RANK_ENVELOPE_CHECKSUM_OFFSET : Int = 12
+// Version 4 repurposes the unused checksum word as an explicit bounded lease.
+const RANK_ENVELOPE_LEASE_OFFSET : Int = 12
 
 ///|
 const RANK_ENVELOPE_RENDEZVOUS_OFFSET : Int = 624
@@ -53,6 +54,9 @@ fn write_rank_envelope(
   if rendezvous.length() != 128 {
     raise rejected(RendezvousId, envelope.rank)
   }
+  if envelope.network_lease_millis > 300000UL {
+    raise rejected(Topology, envelope.rank)
+  }
   frame_write_u32(bytes, 0, RANK_ENVELOPE_MAGIC)
   frame_write_u32(bytes, 4, RANK_ENVELOPE_VERSION)
   frame_write_i32(bytes, 8, RANK_ENVELOPE_LENGTH)
@@ -74,7 +78,11 @@ fn write_rank_envelope(
   for index in 0..<128 {
     bytes[RANK_ENVELOPE_RENDEZVOUS_OFFSET + index] = rendezvous[index]
   }
-  frame_write_u32(bytes, RANK_ENVELOPE_CHECKSUM_OFFSET, 0)
+  frame_write_u32(
+    bytes,
+    RANK_ENVELOPE_LEASE_OFFSET,
+    envelope.network_lease_millis.to_uint(),
+  )
 }
 
 ///|
@@ -96,6 +104,9 @@ fn validate_rank_envelope_source(
   }
   if frame_read_i32(bytes, 28) <= 0 {
     raise rejected(FrameReserved, -1)
+  }
+  if frame_read_u32(bytes, RANK_ENVELOPE_LEASE_OFFSET) > 300000U {
+    raise rejected(Topology, -1)
   }
   let rank = frame_read_i32(bytes, 16)
   let world_size = frame_read_i32(bytes, 20)
@@ -156,6 +167,7 @@ fn decode_rank_envelope(
     world_size: frame_read_i32(bytes, 20),
     device_ordinal: frame_read_i32(bytes, 24),
     collective_runtime_version_code: frame_read_i32(bytes, 28),
+    network_lease_millis: frame_read_u32(bytes, RANK_ENVELOPE_LEASE_OFFSET).to_uint64(),
     group_digest: group_digest_from_hex(frame_read_digest(bytes, 176)),
     topology_digest: topology_digest_from_hex(frame_read_digest(bytes, 240)),
     worker_digest: worker_digest_from_hex(frame_read_digest(bytes, 304)),

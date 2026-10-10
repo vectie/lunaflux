@@ -218,6 +218,12 @@ pass. Exact model/profile/catalog joins and single-use ownership remain required
 
 ## Compatibility discipline
 
+Two-node startup composition must not hash complete rank envelopes or emit
+frame checksums. It consumes the supplied deployment label; the legacy checksum
+tail and embedded worker checksum word are unused. Rank, generation, rendezvous
+and resource contracts remain explicit. Replacement requires completed retirement
+and a newer generation, not a freshly hashed or changed deployment label.
+
 Deployment launch parsing and two-Spark worker configuration must not hash
 their documents or referenced startup payloads. Worker activation retains the
 already-open executable descriptor directly: no full executable read, SHA-256

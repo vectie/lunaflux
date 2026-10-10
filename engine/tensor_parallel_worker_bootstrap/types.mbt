@@ -39,6 +39,7 @@ pub struct TensorParallelRankBootstrapEnvelope {
   priv world_size : Int
   priv device_ordinal : Int
   priv collective_runtime_version_code : Int
+  priv network_lease_millis : UInt64
   priv group_digest : TensorParallelGroupBootstrapDigest
   priv topology_digest : TensorParallelTopologyDigest
   priv worker_digest : TensorParallelWorkerContractDigest

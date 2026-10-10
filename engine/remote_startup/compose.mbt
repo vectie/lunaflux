@@ -1,6 +1,7 @@
 ///|
 /// Composes exact rank-specific envelopes from root-free local worker contracts.
-/// Callers authenticate deployment inputs separately. No node is contacted,
+/// Deployment identity is a supplied association label, not a byte checksum.
+/// No node is contacted,
 /// no root or CUDA handle is acquired, and no Ready state is produced.
 pub fn RemoteGroupStartup::new(
   plan : @two_node_plan.TwoNodePlan,
@@ -60,20 +61,12 @@ pub fn RemoteGroupStartup::new(
       ),
     )
   }
-  // Bind both local artifact/executable contracts into one generation identity.
-  // The initially zero group-digest field avoids recursive self-hashing.
-  let hash = @canonical_sha256.CanonicalSha256::new()
-  ignore(hash.update_bytes(b"lunaflux.remote-group-startup.v1"))
-  for frame in frames {
-    for index in 0..<CHECKSUM_OFFSET {
-      ignore(hash.update_byte(frame[index]))
-    }
-  }
-  let digest = hash.finalize_hex()
+  // Reuse the supplied deployment label. Generation/rendezvous/worker contracts
+  // are checked explicitly; this label does not fingerprint either rank frame.
+  let digest = deployment_digest.as_hex()
   let ranks : Array[RemoteRankStartup] = []
   for rank, frame in frames {
     put_text(frame, GROUP_DIGEST_OFFSET, digest)
-    seal(frame)
     guard plan.topology().rank(rank) is Some(node) else {
       raise Rejected(Count)
     }

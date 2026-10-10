@@ -60,6 +60,7 @@ pub fn admit_network(
     2,
     claims,
     template_digest_sha256=remote.digest_sha256(),
+    network_lease_millis=first.lease_millis(),
   )
 }
 
@@ -93,6 +94,7 @@ pub fn TensorParallelRankBootstrapEnvelope::authenticate_network(
   if self.rank != rank ||
     self.world_size != 2 ||
     self.device_ordinal != claim.device_ordinal ||
+    self.network_lease_millis != remote.lease_millis() ||
     self.topology_digest !=
     network_topology_digest(compiled, remote.group_digest_sha256()) {
     raise rejected(Topology, rank)

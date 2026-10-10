@@ -53,6 +53,9 @@ pub fn TensorParallelRankBootstrapEnvelope::authenticate_local(
     expected_collective_runtime_version_code {
     raise rejected(CollectiveContract, rank)
   }
+  if self.network_lease_millis != 0UL {
+    raise rejected(Topology, rank)
+  }
   if self.world_size != topology.world_size() {
     raise rejected(WorldSize, rank)
   }

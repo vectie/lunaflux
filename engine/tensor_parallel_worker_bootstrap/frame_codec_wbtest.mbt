@@ -16,6 +16,7 @@ test "fixed rank envelope codec round trips every bounded identity" {
   assert_eq(decoded.world_size, 2)
   assert_eq(decoded.device_ordinal, 5)
   assert_eq(decoded.collective_runtime_version_code, 21403)
+  assert_eq(decoded.network_lease_millis, 0UL)
   assert_eq(decoded.group_digest, envelope.group_digest)
   assert_eq(decoded.topology_digest, envelope.topology_digest)
   assert_eq(decoded.worker_digest, envelope.worker_digest)
@@ -68,21 +69,39 @@ test "frame rejects corruption oversized lengths and stale epochs" {
 }
 
 ///|
-test "rank envelope ignores legacy checksum words" {
+test "v4 rank envelope carries an explicit lease instead of a checksum" {
   let group = bootstrap_test_group()
   let frame = TensorParallelRankEnvelopeFrameBuffer::new().encode(
     group.envelopes[0],
   )
   let wire = FixedArray::make(752, b'\x00')
   frame.copy_to(wire, destination_offset=0)
-  assert_eq(frame_read_u32(wire, RANK_ENVELOPE_CHECKSUM_OFFSET), 0U)
-  for checksum in [0U, 1U, 0xffffffffU] {
-    frame_write_u32(wire, RANK_ENVELOPE_CHECKSUM_OFFSET, checksum)
+  assert_eq(frame_read_u32(wire, RANK_ENVELOPE_LEASE_OFFSET), 0U)
+  for lease in [0U, 1U, 1000U, 300000U] {
+    frame_write_u32(wire, RANK_ENVELOPE_LEASE_OFFSET, lease)
     let decoded = TensorParallelRankEnvelopeFrameBuffer::new()
       .load(wire, 752)
       .envelope()
     assert_eq(decoded.worker_digest, group.envelopes[0].worker_digest)
     assert_eq(decoded.rank, 0)
+    assert_eq(decoded.network_lease_millis, lease.to_uint64())
+  }
+  for lease in [300001U, 0xffffffffU] {
+    frame_write_u32(wire, RANK_ENVELOPE_LEASE_OFFSET, lease)
+    try TensorParallelRankEnvelopeFrameBuffer::new().load(wire, 752) catch {
+      Rejected(rule=Topology, rank=-1) => ()
+      error => fail("unexpected: \{Repr(error)}")
+    } noraise {
+      _ => fail("unbounded lease accepted")
+    }
+  }
+  frame_write_u32(wire, RANK_ENVELOPE_LEASE_OFFSET, 0U)
+  frame_write_u32(wire, 4, 3U)
+  try TensorParallelRankEnvelopeFrameBuffer::new().load(wire, 752) catch {
+    Rejected(rule=FrameVersion, rank=-1) => ()
+    error => fail("unexpected: \{Repr(error)}")
+  } noraise {
+    _ => fail("legacy checksum word silently interpreted as lease")
   }
 }
 

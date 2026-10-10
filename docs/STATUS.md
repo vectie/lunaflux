@@ -10,6 +10,22 @@ claims and do not close those five phase gates.
 
 ## Current checkpoint execution — 2026-10-11
 
+The two-node remote startup envelope no longer SHA-hashes both rank frames or
+emits a frame checksum. It reuses the supplied deployment association label;
+receive ignores the outer and embedded legacy checksum fields. Replacement no
+longer requires a changed hash, while monotonic generation, retirement and
+worker/resource compatibility checks remain. Both endpoints must be rebuilt
+together. This is startup cleanup, not a measured token/s improvement.
+Rank-envelope v4 carries the network lease as a bounded scalar instead of an
+unused checksum word. Coordinator and decoded rank-local joins check it
+explicitly, rather than relying on a frame hash to catch changed leases.
+Affected native regressions pass 87/87 with the existing migration warning
+configuration. No-hashing coverage is now 34 scripts/22 execution packages, and
+the token-step scan/copy/readback check passes. No physical GPU speedup is claimed.
+The full current native working-tree suite passes 4,973/4,973, with the existing
+migration warning configuration unchanged. Zero association labels remain valid;
+no replacement checksum is computed to manufacture a nonzero label.
+
 GLM, DeepSeek and MiniMax host materializers no longer serialize and SHA-hash
 their layout manifests for source association. DeepSeek retains its supplied
 numeric-binding label and MiniMax its model-plan label; labels do not prove

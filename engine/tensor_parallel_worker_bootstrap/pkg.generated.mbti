@@ -84,6 +84,7 @@ pub fn TensorParallelRankBootstrapEnvelope::group_generation_value(Self) -> UInt
 pub fn TensorParallelRankBootstrapEnvelope::identity(Self) -> @spec.ModelIdentity
 pub fn TensorParallelRankBootstrapEnvelope::kv_digest(Self) -> TensorParallelKvBindingDigest
 pub fn TensorParallelRankBootstrapEnvelope::model_generation_value(Self) -> UInt64
+pub fn TensorParallelRankBootstrapEnvelope::network_lease_millis(Self) -> UInt64
 pub fn TensorParallelRankBootstrapEnvelope::rank(Self) -> Int
 pub fn TensorParallelRankBootstrapEnvelope::rendezvous_id(Self) -> @device.TensorCollectiveGroupId
 pub fn TensorParallelRankBootstrapEnvelope::topology_digest(Self) -> TensorParallelTopologyDigest

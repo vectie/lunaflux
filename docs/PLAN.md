@@ -2,6 +2,25 @@
 
 ## Remaining payload-hardening cleanup — 2026-10-11
 
+Two-node remote startup now also removes the group/frame SHA passes and its
+crypto dependency. New frames emit an unused zero checksum tail; receive ignores
+that tail and the embedded worker checksum word. Group identity consumes the
+supplied deployment label, not a checksum of either frame. Replacement continues
+to require old-rank retirement, exact worker compatibility and a strictly newer
+generation; the obsolete changed-hash prerequisite is removed. Rebuild both
+endpoints together. Header/rank/rendezvous/limits checks remain. This removes
+startup work, not CUDA math or a measured token-throughput bottleneck.
+The rank-envelope v4 carries lease duration explicitly in the former unused
+checksum word, without enlarging the 752-byte frame. Both the coordinator and
+decoded rank-local join compare the lease; v3 is rejected rather than silently
+reinterpreted. This preserves execution semantics previously hidden in a hash.
+Affected native startup/coordinator/service regressions pass 87/87 with the
+existing migration warning configuration. The no-hashing developer regression
+now covers 34 scripts/22 execution packages; the token-step boundary check passes.
+The current native working-tree suite passes 4,973/4,973, including retained
+zero-label compatibility, decoded lease checks and same-label generation
+recovery. Existing migration warning exclusions are unchanged.
+
 DeepSeek and MiniMax host-manifest construction now also omit canonical layout
 serialization and SHA computation. They retain the supplied numeric-binding or
 model-plan label respectively. Labels are associations, not unique arena-layout
