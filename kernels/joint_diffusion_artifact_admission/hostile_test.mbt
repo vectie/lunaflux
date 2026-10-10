@@ -199,7 +199,7 @@ test "distinct requirements cannot reuse one entry-point identity" {
 }
 
 ///|
-test "module set and content digests fail closed" {
+test "module sets remain bounded but supplied labels do not authenticate bytes" {
   let requirements = admission_test_requirements()
   let target = admission_test_target()
   let launches = admission_test_launches(requirements, target)
@@ -240,21 +240,16 @@ test "module set and content digests fail closed" {
   let wrong_bytes = [
     JointDiffusionModuleInput::new(digest=required_digest, module_bytes=b"abd"),
   ]
-  try
-    admit(
-      requirements,
-      target~,
-      module_inputs=wrong_bytes,
-      entry_point_inputs=entries,
-      launch_inputs=launches,
-      limits=admission_test_limits(),
-    )
-  catch {
-    ModuleDigestMismatch(digest) => assert_eq(digest, required_digest)
-    _ => fail("unexpected module-digest rejection")
-  } noraise {
-    _ => fail("wrong module bytes were admitted")
-  }
+  let labelled = admit(
+    requirements,
+    target~,
+    module_inputs=wrong_bytes,
+    entry_point_inputs=entries,
+    launch_inputs=launches,
+    limits=admission_test_limits(),
+  )
+  assert_eq(labelled.modules()[0].digest(), required_digest)
+  assert_eq(labelled.modules()[0].module_bytes(), b"abd")
   let foreign_digest = admission_test_digest(b"def")
   let unreferenced = admission_test_modules()
   unreferenced.push(

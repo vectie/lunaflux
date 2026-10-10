@@ -1,8 +1,8 @@
 ///|
 /// Admits a complete inert single-device dense-Llama runtime descriptor.
 ///
-/// `expected_digest` is an independent deployment input; the descriptor cannot
-/// authenticate itself. Model and kernel authorities remain distinct even
+/// `expected_digest` is a supplied deployment label, not a verified checksum.
+/// Model and kernel roots remain distinct even
 /// when their canonical labels name the same directory. Each label is bound to
 /// its exact caller-owned pinned root before any descendant is opened. The
 /// caller retains both roots and must close each one on every outcome.

@@ -1,5 +1,5 @@
 ///|
-/// Independent lowercase SHA-256 identity of the exact manifest bytes.
+/// Supplied lowercase SHA-256-format manifest label, not a verified checksum.
 pub struct ExecutionManifestDigest(String) derive(Debug, Eq)
 
 ///|

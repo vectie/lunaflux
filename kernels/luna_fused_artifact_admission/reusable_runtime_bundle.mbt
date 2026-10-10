@@ -463,16 +463,13 @@ pub fn export_reusable_fused_runtime_bundle(
 }
 
 ///|
-/// Admits the bundle once at startup. Canonical parsing, SHA-256 validation,
-/// duplicate rejection, and module hashing all finish before the immutable
-/// typed bundle can reach a runtime owner.
+/// Parses the bundle once at startup. Supplied digests are labels, not verified
+/// checksums. Shape, symbol, duplicate and memory bounds remain checked before
+/// the immutable typed bundle can reach a runtime owner.
 pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
   canonical : Bytes,
   expected_sha256 : String,
 ) -> ApprovedReusableFusedRuntimeBundle raise FusedArtifactAdmissionError {
-  if @crypto.bytes_to_hex_string(@crypto.sha256(canonical)) != expected_sha256 {
-    raise MismatchedFusedArtifact(Manifest)
-  }
   let source_digest = fused_deployment_digest(expected_sha256)
   let reader = fused_deployment_reader(canonical)
   let schema = reader.value("schema")
@@ -708,9 +705,6 @@ pub fn admit_digest_pinned_reusable_fused_runtime_bundle(
     reusable_runtime_validate_module(
       abi, first_operation, operation_count, symbol, launch, module_bytes,
     )
-    if fused_artifact_digest(module_bytes) != module_digest {
-      raise MismatchedFusedArtifact(Module)
-    }
     let row_variant = if has_row_metadata {
       reusable_runtime_read_row_variant(reader, prefix)
     } else {

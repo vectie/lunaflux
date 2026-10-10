@@ -1,6 +1,5 @@
 import {
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/internal/canonical_sha256",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
@@ -11,3 +10,7 @@ import {
 }
 
 supported_targets = "native"
+
+import {
+  "moonbitlang/x/crypto",
+} for "test"

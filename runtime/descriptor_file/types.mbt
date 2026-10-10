@@ -1,5 +1,5 @@
 ///|
-/// Independent lowercase SHA-256 identity of the exact descriptor bytes.
+/// Supplied lowercase SHA-256-format descriptor label, not a verified checksum.
 pub struct RuntimeDescriptorDigest(String) derive(Debug, Eq)
 
 ///|
@@ -27,8 +27,8 @@ pub struct RuntimeDescriptorFileLimits {
 }
 
 ///|
-/// Opaque inert evidence reconstructed from one independently digest-pinned
-/// descriptor and two independently bound approved roots.
+/// Opaque inert state reconstructed from one bounded descriptor snapshot and
+/// two independently bound roots. The retained digest is a supplied label.
 ///
 /// It owns no root/file alias, native handle, device context, module, or
 /// readiness authority.

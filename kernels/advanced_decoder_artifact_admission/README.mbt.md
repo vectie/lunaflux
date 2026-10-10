@@ -7,6 +7,11 @@ device target, launch dimensions, and an ordered advanced-decoder operand ABI.
 It imports no model family, scheduler, KV, API, device runtime, or native CUDA
 package.
 
+Module digests are supplied labels, not checksums authenticated by admission.
+No CUBIN scan occurs here; bounded sizes, unique labels, required symbols and
+semantic launch compatibility remain checked. Optional payload integrity
+verification belongs outside engine startup and inference.
+
 The existing catalog capability and launch operand vocabularies describe the
 current dense decoder graph and cannot faithfully name MoE, compressed
 attention, hyper-connection, token-hash, MTP, or DSpark operations. This

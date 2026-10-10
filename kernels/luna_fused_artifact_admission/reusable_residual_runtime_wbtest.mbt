@@ -46,7 +46,7 @@ test "reusable residual runtime export round-trips exact startup identity" {
 }
 
 ///|
-test "reusable residual runtime rejects changed canonical bytes" {
+test "reusable residual runtime retains an unrelated supplied label" {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
@@ -72,17 +72,10 @@ test "reusable residual runtime rejects changed canonical bytes" {
     launch~,
     module_bytes=b"deterministic-residual-rmsnorm-cubin",
   )
-  try
-    ignore(
-      admit_digest_pinned_reusable_fused_residual_runtime(
-        canonical,
-        "f".repeat(64),
-      ),
-    )
-  catch {
-    MismatchedFusedArtifact(Manifest) => ()
-    _ => fail("unexpected reusable runtime digest rejection")
-  } noraise {
-    _ => fail("changed reusable runtime digest was accepted")
-  }
+  let admitted = admit_digest_pinned_reusable_fused_residual_runtime(
+    canonical,
+    "f".repeat(64),
+  )
+  assert_eq(admitted.source_digest().as_hex(), "f".repeat(64))
+  assert_eq(admitted.module_bytes(), b"deterministic-residual-rmsnorm-cubin")
 }

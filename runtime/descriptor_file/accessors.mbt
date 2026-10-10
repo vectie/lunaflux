@@ -56,7 +56,7 @@ pub fn RuntimeDescriptorAdmission::startup_contract(
 
 ///|
 /// Returns the checked join of exact arena reservations, authenticated graph
-/// metadata, and the independently digest-pinned descriptor ceiling.
+/// metadata, and the bounded descriptor ceiling.
 pub fn RuntimeDescriptorAdmission::graph_memory_capacity(
   self : RuntimeDescriptorAdmission,
 ) -> @runtime_resolved.ResolvedGraphMemoryCapacity {

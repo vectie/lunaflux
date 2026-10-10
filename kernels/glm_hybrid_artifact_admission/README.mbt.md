@@ -20,7 +20,10 @@ final semantic role to logits output. Other still-inert operations bind the
 caller-supplied symbol and operand evidence into the admission digest but
 remain without a runnable semantic ABI.
 
-Admission authenticates supplied bytes but does not load them. A complete set
+Admission consumes supplied module labels without hashing or authenticating
+payload bytes; it checks bounded sizes and semantic/ABI joins, but does not load
+the modules. Optional payload integrity verification stays outside the engine.
+A complete set
 without a declared qualification digest is explicitly
 `NonRunnableUnqualified`. Even when every caller supplies a syntactically
 valid digest, the status is only

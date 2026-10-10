@@ -441,7 +441,7 @@ test "reusable fused runtime bundle rejects duplicate family input" {
 }
 
 ///|
-test "reusable fused runtime bundle rejects hostile ABI and changed module" {
+test "reusable bundle rejects unsupported ABI but does not checksum opaque module bytes" {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=0,
@@ -489,18 +489,10 @@ test "reusable fused runtime bundle rejects hostile ABI and changed module" {
   let hostile_module_digest = @crypto.bytes_to_hex_string(
     @crypto.sha256(hostile_module),
   )
-  try
-    ignore(
-      admit_digest_pinned_reusable_fused_runtime_bundle(
-        hostile_module, hostile_module_digest,
-      ),
-    )
-  catch {
-    MismatchedFusedArtifact(Module) => ()
-    _ => fail("unexpected substituted fused module rejection")
-  } noraise {
-    _ => fail("substituted fused module was accepted")
-  }
+  let labelled = admit_digest_pinned_reusable_fused_runtime_bundle(
+    hostile_module, hostile_module_digest,
+  )
+  assert_eq(labelled.modules()[0].module_bytes(), b"\x00")
 }
 
 ///|

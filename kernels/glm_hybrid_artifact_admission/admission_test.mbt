@@ -391,7 +391,7 @@ test "missing duplicate target capability and geometry mutations fail closed" {
 }
 
 ///|
-test "source digest bytes entrypoint and qualification mutations fail closed" {
+test "module bytes are not checksummed but source and entrypoint contracts remain checked" {
   let requirements = artifact_test_requirements()
   let target = artifact_test_target()
   let wrong_source = artifact_test_claims(
@@ -412,12 +412,13 @@ test "source digest bytes entrypoint and qualification mutations fail closed" {
     qualified=true,
     wrong_bytes=true,
   )
-  try admit(requirements, target, wrong_bytes, artifact_test_limits()) catch {
-    ArtifactDigestMismatch(ordinal=0) => ()
-    _ => fail("unexpected digest error")
-  } noraise {
-    _ => fail("wrong bytes admitted")
-  }
+  let labelled = admit(
+    requirements,
+    target,
+    wrong_bytes,
+    artifact_test_limits(),
+  )
+  assert_eq(labelled.artifacts().length(), requirements.requirements().length())
   let wrong_identity = artifact_test_claims(
     requirements,
     target,

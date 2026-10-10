@@ -5,8 +5,8 @@ const ABSOLUTE_MAX_CONFIG_BYTES : Int64 = 67108864L
 const ABSOLUTE_MAX_JSON_DEPTH : Int = 64
 
 ///|
-/// Independently supplied canonical lowercase SHA-256 identity for one model
-/// configuration file.
+/// Supplied lowercase SHA-256-format configuration label. File loading does
+/// not verify this value against configuration bytes.
 pub struct ModelConfigDigest {
   priv hex : String
 } derive(Debug, Eq)

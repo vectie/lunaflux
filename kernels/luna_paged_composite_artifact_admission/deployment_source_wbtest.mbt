@@ -1,15 +1,15 @@
 ///|
-test "digest-pinned fused production source rejects digest substitution first" {
+test "incomplete fused production source fails structurally with an unrelated label" {
   let source = @utf8.encode(
     "schema=lunaflux-fused-production-runtime-source.v1\nfused_source_hex=00\n",
   )
   try
     ignore(admit_digest_pinned_fused_production_runtime(source, "0".repeat(64)))
   catch {
-    MismatchedPagedCompositeArtifact(Digest) => ()
-    _ => fail("fused production source reported an unrelated digest failure")
+    InvalidPagedCompositeArtifact(Module) => ()
+    _ => fail("fused production source reported an unrelated parse failure")
   } noraise {
-    _ => fail("digest-substituted fused production source was admitted")
+    _ => fail("incomplete fused production source was admitted")
   }
 }
 

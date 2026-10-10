@@ -169,9 +169,9 @@ fn reusable_runtime_read_row_variant(
     _ => raise InvalidFusedArtifact(Launch)
   }
   let symbol = reader.value(prefix + "function_symbol")
-  let digest = fused_deployment_digest(reader.value(prefix + "module_sha256"))
+  ignore(fused_deployment_digest(reader.value(prefix + "module_sha256")))
   let bytes = fused_deployment_decode_hex(reader.value(prefix + "module_hex"))
-  if fused_artifact_digest(bytes) != digest {
+  if bytes.is_empty() {
     raise MismatchedFusedArtifact(Module)
   }
   Some(

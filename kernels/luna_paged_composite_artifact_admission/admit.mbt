@@ -68,8 +68,7 @@ pub fn admit_paged_attention_readonly_runtime_identity(
     runtime_device_approval.record_digest().as_hex() != runtime_device_sha256 {
     raise MismatchedPagedCompositeArtifact(Approval)
   }
-  if module_bytes.is_empty() ||
-    @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes)) != module_sha256 {
+  if module_bytes.is_empty() {
     raise MismatchedPagedCompositeArtifact(Module)
   }
   match abi {

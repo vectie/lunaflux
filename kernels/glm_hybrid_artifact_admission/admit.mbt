@@ -1,14 +1,4 @@
 ///|
-fn authenticates_bytes(
-  digest : @catalog.AotArtifactDigest,
-  bytes : Bytes,
-) -> Bool {
-  let hasher = @canonical_sha256.CanonicalSha256::new()
-  ignore(hasher.update_bytes(bytes))
-  hasher.finalize_hex() == digest.sha256()
-}
-
-///|
 fn valid_launch(launch : @launch_contract.AotLaunchDimensions) -> Bool {
   launch.grid_x() > 0 &&
   launch.grid_y() > 0 &&
@@ -72,9 +62,6 @@ pub fn admit(
     }
     total_bytes += Int64::from_int(claim.module_bytes.length())
     if total_bytes > limits.maximum_total_module_bytes {
-      raise ArtifactDigestMismatch(ordinal~)
-    }
-    if !authenticates_bytes(claim.module_digest, claim.module_bytes) {
       raise ArtifactDigestMismatch(ordinal~)
     }
     if claim.entry_point.family().module_digest() != claim.module_digest {

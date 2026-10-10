@@ -1,8 +1,8 @@
 ///|
 /// Loads and admits one exact canonical v2 ordinary or v3 specialized manifest.
 ///
-/// The caller retains the pinned root. The independently typed digest binds
-/// the immutable snapshot before parsing. Model semantics, memory placement,
+/// The caller retains the root. The supplied digest is a label; the immutable
+/// snapshot is not hashed. Model semantics, memory placement,
 /// catalog v3 semantics, full-graph operands, and launch profile capacities are
 /// derived from already-admitted typed inputs rather than deserialized.
 pub fn load_paged(

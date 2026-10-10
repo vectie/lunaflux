@@ -69,6 +69,20 @@ test "row alternatives roundtrip without changing legacy serialization" {
   assert_true(admitted.modules()[0].row_variant() == Some(variant))
   let text = @utf8.decode(bytes)
   assert_true(text.contains("allow_approximate_prefill_exponential=0\n"))
+  let changed_payload = @utf8.encode(
+    text.replace(
+      old="row_variant_module_hex=736d616c6c",
+      new="row_variant_module_hex=736d616c6d",
+    ),
+  )
+  let labelled = admit_digest_pinned_reusable_fused_runtime_bundle(
+    changed_payload,
+    "f".repeat(64),
+  )
+  guard labelled.modules()[0].row_variant() is Some(retained) else {
+    fail("row variant was lost")
+  }
+  assert_eq(retained.module_bytes, b"smalm")
   for
     altered in [
       text.replace(
@@ -77,10 +91,6 @@ test "row alternatives roundtrip without changing legacy serialization" {
       ),
       text.replace(old="row_variant_count=1", new="row_variant_count=2"),
       text.replace(old="row_variant_grid_x=4", new="row_variant_grid_x=3"),
-      text.replace(
-        old="row_variant_module_hex=736d616c6c",
-        new="row_variant_module_hex=736d616c6d",
-      ),
       text.replace(old="bundle.v13", new="bundle.v12"),
     ] {
     let bad = @utf8.encode(altered)

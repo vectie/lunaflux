@@ -347,7 +347,7 @@ fn fused_deployment_read_module(
   if toolchain.length() != 64 ||
     driver.length() != 64 ||
     symbol.contains("\n") ||
-    fused_artifact_digest(artifact_bytes) != module_digest ||
+    artifact_bytes.is_empty() ||
     abi != fused_expected_abi(family, purpose) {
     raise MismatchedFusedArtifact(Module)
   }
@@ -385,16 +385,14 @@ fn fused_deployment_read_module(
 }
 
 ///|
-/// Startup-only re-admission of an exact descriptor snapshot already pinned by
-/// the deployment/bootstrap source. No path, filesystem, or live device input
-/// is accepted here.
+/// Startup-only parsing of a supplied descriptor snapshot. Digests are labels,
+/// not runtime-verified checksums. No path, filesystem, or live device input is
+/// accepted here.
 pub fn admit_digest_pinned_fused_runtime_source(
   canonical : Bytes,
   expected_sha256 : String,
 ) -> (ApprovedFusedKernelCatalog, ApprovedFusedKernelBundle) raise FusedArtifactAdmissionError {
-  if @crypto.bytes_to_hex_string(@crypto.sha256(canonical)) != expected_sha256 {
-    raise MismatchedFusedArtifact(Manifest)
-  }
+  ignore(fused_deployment_digest(expected_sha256))
   let reader = fused_deployment_reader(canonical)
   if reader.value("schema") != "lunaflux-fused-runtime-source.v1" {
     raise InvalidFusedArtifact(Manifest)

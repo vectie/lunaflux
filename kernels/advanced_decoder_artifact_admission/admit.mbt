@@ -202,10 +202,6 @@ fn validate_modules(
     if !required.contains(digest) {
       raise UnreferencedModule(digest)
     }
-    let exact = @crypto.bytes_to_hex_string(@crypto.sha256(input.module_bytes))
-    if exact != digest.sha256() {
-      raise ModuleDigestMismatch(digest)
-    }
   }
   for digest in required {
     if module_input_index(inputs, digest) is None {

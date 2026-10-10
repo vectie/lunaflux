@@ -2192,6 +2192,21 @@ sizes, required exports, malformed metadata rejection and exact launch joins.
 This removes repeated startup scans, not GPU kernel instructions; no token/s
 speedup is claimed without a separate measurement.
 
+The same removal covers configuration, runtime-descriptor, instance-policy and
+execution-manifest snapshot readers, including Qwen/Mistral worker bootstrap
+configuration and specialization/capability snapshots. Their production
+packages no longer import crypto. Regression tests accept unrelated supplied
+labels, reject malformed bytes and retain model/rank/capacity joins. Pure
+compiler/cache identities and algorithmic token/prefix hashing are separate
+from file-integrity hardening and are not removed.
+Specialized GLM-hybrid, advanced-decoder, joint-diffusion, reusable fused sidecar, row
+variant and paged-composite loading likewise remove module/receipt/binding and
+sidecar checksum rescans. Empty modules, ABI/launch incompatibility and duplicate
+or missing modules still fail. This is startup cleanup, not measured GPU speedup.
+The Qwen token-ID bridge likewise removes executable/launch/receipt integrity
+reads and tokenizer checksum scanning. It reads only tokenizer bytes needed by
+the bounded parser; legacy positional CLI labels remain compatible.
+
 Runtime checkpoint inspection reads bounded headers, not full weight payloads.
 Supplied inventory labels are not runtime-verified checksums. Full-file SHA-256,
 copy-time hashing, and per-tensor checksums have been removed from streaming,

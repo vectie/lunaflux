@@ -460,6 +460,20 @@ runtime integrity claims. Bounded reads, module sizes, symbol resolution,
 immutable ownership and launch compatibility still apply. Optional acquisition
 verification remains external to startup and dispatch.
 
+Configuration, runtime-descriptor, instance-policy and execution-manifest
+snapshot readers follow the same rule: no byte hashing or checksum comparison.
+Qwen/Mistral descriptor and worker bootstrap configuration reads do not repeat
+that work. Existing digest fields remain supplied labels for compatibility;
+they do not authenticate snapshots. Bounded parsing, model/shape/rank joins,
+capacity planning and deterministic close remain execution correctness checks.
+The family-neutral GLM-hybrid, advanced-decoder and joint-diffusion artifact joins, fused
+runtime sidecars, row variants and paged-composite loader also do not hash
+opaque module payloads or repeat sidecar integrity scans. Offline exporters may
+still create cache/plan identities; loading consumes their supplied labels.
+The Qwen token-ID bridge does not read its own executable, launch or capacity
+receipt for integrity checks. Only tokenizer parsing requires a file read;
+the supplied tokenizer digest remains a label, not a verified checksum.
+
 No one item is execution evidence by itself. Before launch, a prepared executor
 must prove identity, device target, catalog version, exact operation order, and
 every launch operand against the actual token, weight, activation, and

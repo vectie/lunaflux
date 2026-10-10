@@ -6,6 +6,11 @@ bounded CUDA symbols, exact device-target metadata, launch dimensions, and an
 ordered diffusion operand ABI. Admission is immutable and digest-bound. It does
 not load a module, open a device, launch a kernel, compile code, or use JIT.
 
+Module digests are supplied labels, not checksums authenticated by admission.
+No CUBIN scan occurs here; bounded sizes, unique labels, required symbols and
+semantic launch compatibility remain checked. Optional payload integrity
+verification belongs outside engine startup and inference.
+
 The existing catalog and launch-contract semantic vocabularies cannot encode
 this join faithfully: `CatalogEntry` and `AotLaunchContract` require
 decoder-only `OperationKind`, `OperationShape`, `KernelCapabilityId`,

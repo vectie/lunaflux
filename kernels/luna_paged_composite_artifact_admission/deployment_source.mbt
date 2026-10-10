@@ -221,8 +221,7 @@ pub fn admit_digest_pinned_fused_production_runtime(
   canonical : Bytes,
   expected_sha256 : String,
 ) -> DigestPinnedFusedProductionRuntime raise PagedCompositeArtifactError {
-  if !paged_composite_is_sha256(expected_sha256) ||
-    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)) != expected_sha256 {
+  if !paged_composite_is_sha256(expected_sha256) {
     raise MismatchedPagedCompositeArtifact(Digest)
   }
   let f = deployment_parse(canonical)
@@ -230,9 +229,8 @@ pub fn admit_digest_pinned_fused_production_runtime(
     raise InvalidPagedCompositeArtifact(Module)
   }
   let fused_bytes = deployment_hex(deployment_value(f, "fused_source_hex"))
-  let fused_digest = @crypto.bytes_to_hex_string(@crypto.sha256(fused_bytes))
   let (catalog, bundle) = @luna_fused_artifact_admission.admit_digest_pinned_fused_runtime_source(
-    fused_bytes, fused_digest,
+    fused_bytes, expected_sha256,
   ) catch {
     _ => raise InvalidPagedCompositeArtifact(Module)
   }
@@ -253,8 +251,7 @@ pub fn admit_digest_pinned_fused_production_runtime(
     }
   }
   let module_bytes = deployment_hex(deployment_value(f, "readonly_module_hex"))
-  if @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes)) !=
-    deployment_value(f, "readonly_module_sha256") {
+  if module_bytes.is_empty() {
     raise MismatchedPagedCompositeArtifact(Module)
   }
   let target = catalog.target()

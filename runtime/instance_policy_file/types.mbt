@@ -1,5 +1,5 @@
 ///|
-/// Independent lowercase SHA-256 identity of the exact policy bytes.
+/// Supplied lowercase SHA-256-format policy label, not a verified checksum.
 pub struct InstancePolicyDigest(String) derive(Debug, Eq)
 
 ///|

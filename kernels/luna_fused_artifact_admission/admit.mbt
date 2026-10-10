@@ -79,16 +79,13 @@ fn fused_admit_module(
     raise InvalidFusedArtifact(Symbol)
   }
   let artifact_bytes = compiled.module_bytes()
-  if artifact_bytes.is_empty() ||
-    fused_artifact_digest(artifact_bytes) != compiled.module_digest() {
+  if artifact_bytes.is_empty() {
     raise MismatchedFusedArtifact(Module)
   }
-  if fused_artifact_digest(compiled.compile_receipt_bytes()) !=
-    compiled.compile_receipt_digest() {
+  if compiled.compile_receipt_bytes().is_empty() {
     raise MismatchedFusedArtifact(Receipt)
   }
-  if fused_artifact_digest(compiled.binding_record_bytes()) !=
-    compiled.binding_digest() {
+  if compiled.binding_record_bytes().is_empty() {
     raise MismatchedFusedArtifact(Binding)
   }
   fused_validate_fallbacks(compiled.family(), fallbacks)
