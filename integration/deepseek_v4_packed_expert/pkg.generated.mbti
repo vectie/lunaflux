@@ -11,6 +11,12 @@ import {
 }
 
 // Values
+pub fn bind_block_experts(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, expert_indices~ : ArrayView[Int]) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
+pub fn bind_block_router(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
+pub fn bind_block_shared_expert(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn bind_experts(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn bind_router(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
@@ -18,6 +24,12 @@ pub fn bind_router(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.De
 pub fn bind_shared_expert(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn bind_token_hash_tables(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, first_layer~ : Int, end_layer~ : Int) -> Array[@precision_materialize.CheckpointI64Table] raise
+
+pub fn block_expert_compute_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, expert_indices~ : ArrayView[Int], maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
+
+pub fn block_routing_compute_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.MoeRoutingPrecision raise
+
+pub fn block_shared_expert_compute_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
 
 pub fn expert_compute_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, expert_indices~ : ArrayView[Int], maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
 
@@ -37,6 +49,7 @@ pub struct DeepSeekFfnEnvelope {
 }
 pub fn DeepSeekFfnEnvelope::bank_bytes(Self) -> (Int64, Int64)
 pub fn DeepSeekFfnEnvelope::close(Self) -> Unit raise
+pub fn DeepSeekFfnEnvelope::for_block(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, maximum_rows~ : Int, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
 pub fn DeepSeekFfnEnvelope::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekFfnEnvelope::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
 pub fn DeepSeekFfnEnvelope::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, router_weight~ : @device.Allocation, correction_bias? : @device.Allocation, token_ids? : @device.Allocation, token_table? : @device.Allocation, token_table_offset? : Int64, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise

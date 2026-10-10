@@ -6,7 +6,14 @@ async test "checkpoint F32 hyper envelopes stream exact controls and borrow four
       @async.protect_from_cancel(() => @fs.rmdir(directory, recursive=true))
     })
     let entries : Array[String] = []
-    let payload_bytes = for name in ["attn", "ffn"]; offset = 0L {
+    let payload_bytes = for
+      (prefix, name) in [
+        ("layers.3.", "attn"),
+        ("layers.3.", "ffn"),
+        ("mtp.2.", "attn"),
+        ("mtp.2.", "ffn"),
+      ]
+      offset = 0L {
       let next = for
         (suffix, dtype, shape, size) in [
           ("hc_" + name + "_fn", "F32", "24,16384", 1572864L),
@@ -16,7 +23,7 @@ async test "checkpoint F32 hyper envelopes stream exact controls and borrow four
         ]
         current = offset {
         entries.push(
-          "\"layers.3.\{suffix}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{current},\{current + size}]}",
+          "\"\{prefix}\{suffix}\":{\"dtype\":\"\{dtype}\",\"shape\":[\{shape}],\"data_offsets\":[\{current},\{current + size}]}",
         )
         continue current + size
       } nobreak {
@@ -43,15 +50,15 @@ async test "checkpoint F32 hyper envelopes stream exact controls and borrow four
     defer root.close()
     let limits = @streaming.StreamingSafetensorsLimits::new(
       maximum_shards=1,
-      maximum_file_bytes=4194304L,
+      maximum_file_bytes=8388608L,
       maximum_header_bytes=8192,
-      maximum_tensors_per_shard=8,
-      maximum_total_tensors=8,
+      maximum_tensors_per_shard=16,
+      maximum_total_tensors=16,
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=2,
       authentication_chunk_bytes=65536,
-      maximum_copy_requests=8,
+      maximum_copy_requests=16,
       maximum_copy_bytes=payload_bytes,
     )
     let checkpoint = @materialize.PackedCheckpoint::new(
@@ -90,10 +97,19 @@ async test "checkpoint F32 hyper envelopes stream exact controls and borrow four
     defer (counts.close() catch { _ => () })
     defer (input.close() catch { _ => () })
     defer (output.close() catch { _ => () })
-    for branch in [@deepseek_hyper.DeepSeekHyperBranch::Attention, FeedForward] {
-      let owner = @deepseek_hyper.DeepSeekHyperConnection::new(
+    for
+      (block, branch) in [
+        (
+          @deepseek_spec.DeepSeekV4BlockAddress::BaseLayer(3),
+          @deepseek_hyper.DeepSeekHyperBranch::Attention,
+        ),
+        (BaseLayer(3), FeedForward),
+        (PredictionStage(2), Attention),
+        (PredictionStage(2), FeedForward),
+      ] {
+      let owner = @deepseek_hyper.DeepSeekHyperConnection::for_block(
         spec,
-        layer=3,
+        block~,
         branch~,
         maximum_rows=3,
       )

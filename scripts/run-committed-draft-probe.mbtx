@@ -100,6 +100,24 @@ async fn main {
       root + "/composite.cu", "wlc004s@192.168.2.179:" + remote_root + "/composite.cu"]).output().check()
     record(root, "composite-compile", remote(unit + "composite-build-" + suffix +
       " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 composite.cu -o composite.cubin"))
+    let blocks = @shell.Cmd("/usr/bin/env", ["LUNA_EXPORT_PREDICTION_BLOCK=1", "moon", "test",
+      "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+      "integration/deepseek_v4_prediction_prefix/block_test.mbt"]).output(max_output_bytes=4194304)
+    record(root, "blocks-export", blocks)
+    let block_source = StringBuilder()
+    let mut in_block = false
+    let mut end_block = false
+    for line in blocks.stdout().split("\n") {
+      if line == "LUNA_BLOCK_BEGIN" { in_block = true }
+      else if line == "LUNA_BLOCK_END" { in_block = false; end_block = true }
+      else if in_block { block_source.write_string(line.to_owned()); block_source.write_string("\n") }
+    }
+    guard end_block && !in_block && !block_source.to_string().is_empty() else { fail("missing complete prediction block source") }
+    @fs.write_file(root + "/blocks.cu", block_source.to_string(), create_mode=CreateNew)
+    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      root + "/blocks.cu", "wlc004s@192.168.2.179:" + remote_root + "/blocks.cu"]).output().check()
+    record(root, "blocks-compile", remote(unit + "blocks-build-" + suffix +
+      " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 blocks.cu -o blocks.cubin"))
     println("compiled and hash-verified; no GPU workload executed")
   } else {
     let expected = @fs.read_file(root + "/download-sha256.stdout").text().split(" ").next()

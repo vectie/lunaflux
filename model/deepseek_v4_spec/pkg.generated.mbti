@@ -14,6 +14,18 @@ pub(all) suberror DeepSeekV4SpecError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum DeepSeekV4BlockAddress {
+  BaseLayer(Int)
+  PredictionStage(Int)
+} derive(Eq, @debug.Debug)
+pub fn DeepSeekV4BlockAddress::checkpoint_prefix(Self, DeepSeekV4ModelSpec) -> String raise DeepSeekV4SpecError
+pub fn DeepSeekV4BlockAddress::equal(Self, Self) -> Bool
+pub fn DeepSeekV4BlockAddress::execution_layer(Self, DeepSeekV4ModelSpec) -> Int raise DeepSeekV4SpecError
+pub fn DeepSeekV4BlockAddress::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4BlockAddress::symbol_prefix(Self, DeepSeekV4ModelSpec) -> String raise DeepSeekV4SpecError
+pub fn DeepSeekV4BlockAddress::to_repr(Self) -> @debug.Repr
+pub fn DeepSeekV4BlockAddress::uses_token_hash(Self, DeepSeekV4ModelSpec) -> Bool raise DeepSeekV4SpecError
+
 pub(all) enum DeepSeekV4ExpertStorage {
   Fp4E2M1
   Fp8E4M3

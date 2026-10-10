@@ -27,17 +27,38 @@ pub fn DeepSeekFfnEnvelope::new(
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
 ) -> Self raise {
-  let routed = expert_compute_plan(
+  guard layer >= 0 && layer < spec.layer_count() else {
+    raise @precision.PrecisionPlanError::IllegalPlacement
+  }
+  DeepSeekFfnEnvelope::for_block(
     spec,
-    layer_index=layer,
+    block=BaseLayer(layer),
+    maximum_rows~,
+    maximum_expert_bytes~,
+    accuracy~,
+  )
+}
+
+///|
+pub fn DeepSeekFfnEnvelope::for_block(
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+  maximum_rows~ : Int,
+  maximum_expert_bytes~ : Int64,
+  accuracy~ : @precision.Accuracy,
+) -> Self raise {
+  let prefix = block.symbol_prefix(spec)
+  let routed = block_expert_compute_plan(
+    spec,
+    block~,
     expert_indices=Array::makei(spec.routed_expert_count(), i => i),
     maximum_rows~,
     memory_ceiling=maximum_expert_bytes,
     accuracy~,
   )
-  let shared = shared_expert_compute_plan(
+  let shared = block_shared_expert_compute_plan(
     spec,
-    layer_index=layer,
+    block~,
     maximum_rows~,
     memory_ceiling=maximum_expert_bytes,
     accuracy~,
@@ -47,14 +68,8 @@ pub fn DeepSeekFfnEnvelope::new(
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
   let program = @expert.MoeProgram::new(
-    @expert_source.packed_expert_mlp_source(
-      routed,
-      symbol="deepseek_l\{layer}_routed",
-    ),
-    @expert_source.packed_expert_mlp_source(
-      shared,
-      symbol="deepseek_l\{layer}_shared",
-    ),
+    @expert_source.packed_expert_mlp_source(routed, symbol=prefix + "_routed"),
+    @expert_source.packed_expert_mlp_source(shared, symbol=prefix + "_shared"),
     @combine_source.moe_combine_source(
       @precision.MoeCombinePrecision::new(
         maximum_rows~,
@@ -64,23 +79,23 @@ pub fn DeepSeekFfnEnvelope::new(
           spec.hidden_size().to_int64() *
           10L,
       ),
-      symbol="deepseek_l\{layer}_moe_combine",
+      symbol=prefix + "_moe_combine",
     ),
     routing=@router_source.routing_source(
-      routing_compute_plan(
+      block_routing_compute_plan(
         spec,
-        layer_index=layer,
+        block~,
         maximum_rows~,
         maximum_workspace_bytes=maximum_expert_bytes,
         accuracy~,
       ),
-      symbol="deepseek_l\{layer}_router",
+      symbol=prefix + "_router",
     ),
   )
   {
-    hyper: @hyper.DeepSeekHyperConnection::new(
+    hyper: @hyper.DeepSeekHyperConnection::for_block(
       spec,
-      layer~,
+      block~,
       branch=FeedForward,
       maximum_rows~,
     ),

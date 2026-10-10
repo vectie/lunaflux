@@ -31,13 +31,28 @@ pub fn bind_hyper_connection_weights(
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
+  bind_block_hyper_connection_weights(
+    checkpoint,
+    spec,
+    block=BaseLayer(layer),
+    branch~,
+  )
+}
+
+///|
+pub fn bind_block_hyper_connection_weights(
+  checkpoint : @materialize.PackedCheckpoint,
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+  branch~ : DeepSeekHyperBranch,
+) -> Array[@materialize.PackedCheckpointWeight] raise {
   let streams = spec.hyper_connection_width()
   let mix = streams * (streams + 2)
   let name = match branch {
     Attention => "attn"
     FeedForward => "ffn"
   }
-  let prefix = "layers.\{layer}."
+  let prefix = block.checkpoint_prefix(spec)
   let weights = [
     checkpoint.bind_weight(
       representation=@format.Representation::new(

@@ -11,7 +11,7 @@ priv enum State {
 /// prefix/suffix and writes branch_output between them in its own queue.
 pub struct DeepSeekHyperConnection {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv layer : Int
+  priv block : @spec.DeepSeekV4BlockAddress
   priv branch : DeepSeekHyperBranch
   priv frame : @frame.HyperConnectionFrame
   priv weights : @upload.CheckpointDeviceWeights
@@ -28,18 +28,34 @@ pub fn DeepSeekHyperConnection::new(
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
+  DeepSeekHyperConnection::for_block(
+    spec,
+    block=BaseLayer(layer),
+    branch~,
+    maximum_rows~,
+  )
+}
+
+///|
+pub fn DeepSeekHyperConnection::for_block(
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+  branch~ : DeepSeekHyperBranch,
+  maximum_rows~ : Int,
+) -> Self raise {
+  let prefix = block.symbol_prefix(spec)
   let name = match branch {
     Attention => "attn"
     FeedForward => "ffn"
   }
   {
     spec,
-    layer,
+    block,
     branch,
     frame: @frame.HyperConnectionFrame::new(
       @source.hyper_connection_source(
         hyper_connection_plan(spec, maximum_rows~),
-        symbol_prefix="deepseek_l\{layer}_hyper_" + name,
+        symbol_prefix=prefix + "_hyper_" + name,
       ),
     ),
     weights: @upload.CheckpointDeviceWeights::new(),
@@ -57,10 +73,10 @@ pub fn DeepSeekHyperConnection::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
 ) -> Int64 raise {
-  bind_hyper_connection_weights(
+  bind_block_hyper_connection_weights(
     checkpoint,
     self.spec,
-    layer=self.layer,
+    block=self.block,
     branch=self.branch,
   ).fold(init=self.frame.workspace_bytes(), (total, weight) => {
     total + weight.buffer_bytes()
@@ -90,10 +106,10 @@ pub fn DeepSeekHyperConnection::prepare(
     context,
     checkpoint,
     root,
-    bind_hyper_connection_weights(
+    bind_block_hyper_connection_weights(
       checkpoint,
       self.spec,
-      layer=self.layer,
+      block=self.block,
       branch=self.branch,
     ),
     maximum_device_bytes=maximum_device_bytes - self.frame.workspace_bytes(),

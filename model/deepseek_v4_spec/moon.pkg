@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/model/spec",
+  "moonbitlang/core/debug",
 }
 
 supported_targets = "native"

@@ -26,8 +26,15 @@ Separate prepared main/draft ports preserve the
 reference's distinct count/position laws; no request-time source generation or
 weight expansion is introduced.
 
-These owners are not the complete DSpark predictor. Prediction mHC mixing,
-and MoE blocks, sequential Markov/confidence, distributed
-capture assembly and base verification/commit remain required integration.
+`DeepSeekPredictionBlock` composes the same model-owned prediction address through
+mHC attention and routed/shared MoE adapters. It prepares a main-only prime table
+and a complete mHC/attention/FFN prediction table. Compact expert banks, router,
+weights and workspace are counted before upload; caller residual output remains
+borrowed. No base-layer address or base checkpoint namespace substitutes for an
+`mtp.*` stage.
+
+These owners are not the complete DSpark predictor. Three-block orchestration,
+learned head and sequential Markov/confidence, distributed capture assembly and
+base verification/commit remain required integration.
 Whole-model correctness and performance are not established by component
 ownership tests or CUDA compilation.

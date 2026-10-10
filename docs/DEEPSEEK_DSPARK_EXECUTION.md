@@ -72,6 +72,18 @@ step source generation, filesystem access, or argument-array construction.
 
 Ordinary prediction performs all three mHC attention and routed/shared FFN
 blocks using the actual `mtp.0`, `mtp.1`, and `mtp.2` tensors. The prediction
+integration uses an immutable model-owned block address, distinguishing a base
+layer from a prediction stage. The address selects checkpoint/symbol namespaces
+and the reference's absolute-layer routing law. Hyper-connection and packed-MoE
+adapters consume this address while retaining the same shared precision plans
+and prepared frames. Base entry points remain base-only; extending prediction
+must not silently widen a base-layer API or substitute base checkpoint weights.
+Priming executes only main-KV attention tables; prediction joins mHC prefix,
+attention, mHC suffix and the routed/shared FFN envelope in its parent queue.
+Compact banks and router weights are counted before upload, never expanded on
+the host or rebuilt in the token path.
+
+The prediction
 head uses `mtp.2.hc_head_*` and `mtp.2.norm`, then the shared global vocabulary
 matrix. Its output is five rows of F32 logits, not the base head's single last
 row shortcut.

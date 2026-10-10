@@ -11,6 +11,8 @@ import {
 }
 
 // Values
+pub fn bind_block_hyper_connection_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, branch~ : DeepSeekHyperBranch) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn bind_hyper_connection_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, branch~ : DeepSeekHyperBranch) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn hyper_connection_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int) -> @precision_ir.HyperConnectionPrecision raise
@@ -29,6 +31,7 @@ pub struct DeepSeekHyperConnection {
 pub fn DeepSeekHyperConnection::branch_input(Self) -> @device.Allocation raise
 pub fn DeepSeekHyperConnection::branch_output(Self) -> @device.Allocation raise
 pub fn DeepSeekHyperConnection::close(Self) -> Unit raise
+pub fn DeepSeekHyperConnection::for_block(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, branch~ : DeepSeekHyperBranch, maximum_rows~ : Int) -> Self raise
 pub fn DeepSeekHyperConnection::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, branch~ : DeepSeekHyperBranch, maximum_rows~ : Int) -> Self raise
 pub fn DeepSeekHyperConnection::prefix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekHyperConnection::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise

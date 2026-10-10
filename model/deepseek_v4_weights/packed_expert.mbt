@@ -34,6 +34,21 @@ pub fn packed_expert_weights(
     !expert_indices.is_empty() else {
     fail("invalid routed expert layer or empty partition")
   }
+  packed_block_expert_weights(
+    spec,
+    block=BaseLayer(layer_index),
+    expert_indices~,
+  )
+}
+
+///|
+pub fn packed_block_expert_weights(
+  spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
+  block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress,
+  expert_indices~ : ArrayView[Int],
+) -> Array[DeepSeekV4PackedExpertWeight] raise {
+  let prefix = block.checkpoint_prefix(spec)
+  guard !expert_indices.is_empty() else { fail("empty expert partition") }
   let seen : Set[Int] = Set([])
   let weights = []
   for expert in expert_indices {
@@ -61,7 +76,7 @@ pub fn packed_expert_weights(
           )
       }
       weights.push({
-        stem: "layers.\{layer_index}.ffn.experts.\{expert}.\{name}",
+        stem: prefix + "ffn.experts.\{expert}.\{name}",
         representation,
       })
     }
@@ -79,6 +94,15 @@ pub fn packed_shared_expert_weights(
   guard layer_index >= 0 && layer_index < spec.layer_count() else {
     fail("invalid shared expert layer")
   }
+  packed_block_shared_expert_weights(spec, block=BaseLayer(layer_index))
+}
+
+///|
+pub fn packed_block_shared_expert_weights(
+  spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
+  block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress,
+) -> Array[DeepSeekV4PackedExpertWeight] raise {
+  let prefix = block.checkpoint_prefix(spec)
   [
     ("w1", spec.moe_intermediate_size(), spec.hidden_size()),
     ("w3", spec.moe_intermediate_size(), spec.hidden_size()),
@@ -86,7 +110,7 @@ pub fn packed_shared_expert_weights(
   ].map(shape => {
     let (name, rows, columns) = shape
     {
-      stem: "layers.\{layer_index}.ffn.shared_experts.\{name}",
+      stem: prefix + "ffn.shared_experts.\{name}",
       representation: @precision_format.Representation::new(
         format=MxFp8E4M3,
         rows~,

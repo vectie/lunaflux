@@ -22,6 +22,10 @@ pub fn output_a_converted_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepS
 
 pub fn output_b_quantized_layout(@deepseek_v4_spec.DeepSeekV4ModelSpec) -> DeepSeekV4OutputBQuantizedLayout
 
+pub fn packed_block_expert_weights(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, expert_indices~ : ArrayView[Int]) -> Array[DeepSeekV4PackedExpertWeight] raise
+
+pub fn packed_block_shared_expert_weights(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress) -> Array[DeepSeekV4PackedExpertWeight] raise
+
 pub fn packed_expert_weights(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[DeepSeekV4PackedExpertWeight] raise
 
 pub fn packed_shared_expert_weights(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int) -> Array[DeepSeekV4PackedExpertWeight] raise

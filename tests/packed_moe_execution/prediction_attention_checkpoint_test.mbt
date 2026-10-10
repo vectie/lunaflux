@@ -166,6 +166,27 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
     let total = offset + owner.workspace_bytes()
     assert_eq(owner.required_device_bytes(checkpoint), total)
     let before = live_resources()
+    let block = @prediction_main.DeepSeekPredictionBlock::new(
+      spec,
+      stage=0,
+      maximum_main_rows=8,
+      maximum_positions=256,
+      maximum_workspace_bytes=16777216L,
+      maximum_expert_bytes=8589934592L,
+      accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    )
+    defer (block.close() catch { _ => () })
+    try block.required_device_bytes(checkpoint) catch {
+      @materialize.PackedCheckpointError::MissingTensor(
+        "mtp.0.ffn.experts.0.w1.weight"
+      ) => ()
+      e => raise e
+    } noraise {
+      _ =>
+        fail("attention-only checkpoint accepted as complete predictor block")
+    }
+    block.close()
+    assert_eq(live_resources(), before)
     try
       owner.prepare(
         context,

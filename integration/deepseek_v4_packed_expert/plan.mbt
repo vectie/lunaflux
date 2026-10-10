@@ -34,9 +34,28 @@ pub fn expert_compute_plan(
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
 ) -> @precision.ExpertMlpPrecision raise {
-  let family = @weights.packed_expert_weights(
+  block_expert_compute_plan(
     spec,
-    layer_index~,
+    block=base_block(spec, layer_index),
+    expert_indices~,
+    maximum_rows~,
+    memory_ceiling~,
+    accuracy~,
+  )
+}
+
+///|
+pub fn block_expert_compute_plan(
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+  expert_indices~ : ArrayView[Int],
+  maximum_rows~ : Int,
+  memory_ceiling~ : Int64,
+  accuracy~ : @precision.Accuracy,
+) -> @precision.ExpertMlpPrecision raise {
+  let family = @weights.packed_block_expert_weights(
+    spec,
+    block~,
     expert_indices~,
   )
   compute_plan(
@@ -116,9 +135,26 @@ pub fn shared_expert_compute_plan(
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
 ) -> @precision.ExpertMlpPrecision raise {
+  block_shared_expert_compute_plan(
+    spec,
+    block=base_block(spec, layer_index),
+    maximum_rows~,
+    memory_ceiling~,
+    accuracy~,
+  )
+}
+
+///|
+pub fn block_shared_expert_compute_plan(
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+  maximum_rows~ : Int,
+  memory_ceiling~ : Int64,
+  accuracy~ : @precision.Accuracy,
+) -> @precision.ExpertMlpPrecision raise {
   compute_plan(
     spec,
-    @weights.packed_shared_expert_weights(spec, layer_index~),
+    @weights.packed_block_shared_expert_weights(spec, block~),
     expert_count=1,
     selected_experts=1,
     expert_indices=[0],
@@ -134,7 +170,20 @@ pub fn bind_shared_expert(
   spec : @spec.DeepSeekV4ModelSpec,
   layer_index~ : Int,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
-  @weights.packed_shared_expert_weights(spec, layer_index~).map(weight => {
+  bind_block_shared_expert(
+    checkpoint,
+    spec,
+    block=base_block(spec, layer_index),
+  )
+}
+
+///|
+pub fn bind_block_shared_expert(
+  checkpoint : @materialize.PackedCheckpoint,
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+) -> Array[@materialize.PackedCheckpointWeight] raise {
+  @weights.packed_block_shared_expert_weights(spec, block~).map(weight => {
     checkpoint.bind_weight(
       representation=weight.representation(),
       payload_name=weight.payload_name(),
@@ -180,7 +229,22 @@ pub fn bind_experts(
   layer_index~ : Int,
   expert_indices~ : ArrayView[Int],
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
-  @weights.packed_expert_weights(spec, layer_index~, expert_indices~).map(weight => {
+  bind_block_experts(
+    checkpoint,
+    spec,
+    block=base_block(spec, layer_index),
+    expert_indices~,
+  )
+}
+
+///|
+pub fn bind_block_experts(
+  checkpoint : @materialize.PackedCheckpoint,
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+  expert_indices~ : ArrayView[Int],
+) -> Array[@materialize.PackedCheckpointWeight] raise {
+  @weights.packed_block_expert_weights(spec, block~, expert_indices~).map(weight => {
     checkpoint.bind_weight(
       representation=weight.representation(),
       payload_name=weight.payload_name(),

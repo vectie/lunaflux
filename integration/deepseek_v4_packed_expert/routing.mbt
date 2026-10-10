@@ -11,6 +11,24 @@ pub fn routing_compute_plan(
   guard layer_index >= 0 && layer_index < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
+  block_routing_compute_plan(
+    spec,
+    block=BaseLayer(layer_index),
+    maximum_rows~,
+    maximum_workspace_bytes~,
+    accuracy~,
+  )
+}
+
+///|
+pub fn block_routing_compute_plan(
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+  maximum_rows~ : Int,
+  maximum_workspace_bytes~ : Int64,
+  accuracy~ : @precision.Accuracy,
+) -> @precision.MoeRoutingPrecision raise {
+  let hash = block.uses_token_hash(spec)
   let representation = @format.Representation::new(
     format=Bf16,
     rows=spec.routed_expert_count(),
@@ -31,7 +49,7 @@ pub fn routing_compute_plan(
     selected_group_count=1,
     selected_experts=spec.experts_per_token(),
     score=SqrtSoftplus,
-    selection=if layer_index < spec.hash_layer_count() {
+    selection=if hash {
       TokenHash(vocabulary_size=spec.vocabulary_size())
     } else {
       GroupedTopK
@@ -53,7 +71,16 @@ pub fn bind_router(
   guard layer_index >= 0 && layer_index < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
-  let prefix = "layers.\{layer_index}.ffn.gate."
+  bind_block_router(checkpoint, spec, block=BaseLayer(layer_index))
+}
+
+///|
+pub fn bind_block_router(
+  checkpoint : @materialize.PackedCheckpoint,
+  spec : @spec.DeepSeekV4ModelSpec,
+  block~ : @spec.DeepSeekV4BlockAddress,
+) -> Array[@materialize.PackedCheckpointWeight] raise {
+  let prefix = block.checkpoint_prefix(spec) + "ffn.gate."
   let result = [
     checkpoint.bind_weight(
       representation=@format.Representation::new(
@@ -64,7 +91,7 @@ pub fn bind_router(
       payload_name=prefix + "weight",
     ),
   ]
-  if layer_index >= spec.hash_layer_count() {
+  if !block.uses_token_hash(spec) {
     result.push(
       checkpoint.bind_vector(
         representation=@format.Representation::new(

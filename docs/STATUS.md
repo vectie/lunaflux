@@ -10,6 +10,22 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DSpark prediction block composition): an immutable model-owned
+base-layer/prediction-stage address selects exact checkpoint and symbol prefixes
+and the absolute-layer routing law. Existing base APIs remain base-only. Each
+`DeepSeekPredictionBlock` now joins mHC attention, the complete nineteen-launch
+prediction attention output, mHC publication and routed/shared packed MoE in one
+borrowing parent queue. Its separate prime table executes only main-KV priming.
+Every compact bank, router, mHC and attention weight/workspace is counted before
+upload; output residuals remain borrowed. Thirty affected plan/owner tests,
+three upgraded checkpoint fixtures and the broader 98-test base-decoder/packed
+execution aggregate pass with the documented migration warning exclusions.
+All three composed block sources compile on GB10 under a 2-GiB/no-swap build
+unit, retained at `/tmp/lunaflux-committed-draft-results-20261010-v5`.
+This does not establish complete checkpoint prediction: three-block orchestration,
+learned output/Markov/confidence, distributed capture and verification/commit
+remain open, as does physical numerical validation of the composed blocks.
+
 Update 2026-10-10 (DSpark complete attention output): prediction attention now
 executes inverse rotary plus grouped Output-A and Output-B using the existing
 shared `GroupedAttentionOutputPrecision`/prepared frame. It binds the actual
@@ -23,7 +39,8 @@ budget-before-upload, own/borrow output, warmed submission and abort/release.
 The extended composite compiles on GB10 under a 2-GiB/no-swap build unit;
 artifacts are at `/tmp/lunaflux-committed-draft-results-20261010-v4`.
 Physical numerical validation remains pending behind the active whole-model
-DeepSeek run. Prediction mHC/MoE, Markov/confidence and verification remain open.
+DeepSeek run. See the later block-composition update above; full prediction,
+Markov/confidence and verification remain open.
 
 Update 2026-10-10 (DSpark noncausal attention): shared
 `CommittedDraftKvPrecision`, AOT source and prepared shared-ring frame now

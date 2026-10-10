@@ -52,3 +52,46 @@ test "shared expert remains replicated FP8 while routed Flash is FP4" {
   assert_eq(names[2].scales_name(), "layers.0.ffn.shared_experts.w2.scale")
   assert_eq(plan.bank_bytes(), 25167360L)
 }
+
+///|
+test "prediction expert addressing preserves compact formats and excludes hash routing" {
+  let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
+    "deepseek-ai/DeepSeek-V4-Flash-0731",
+  )
+  for stage in 0..<3 {
+    let block = @spec.DeepSeekV4BlockAddress::PredictionStage(stage)
+    let names = @weights.packed_block_expert_weights(spec, block~, expert_indices=[
+      255, 1,
+    ])
+    assert_eq(names[0].payload_name(), "mtp.\{stage}.ffn.experts.255.w1.weight")
+    assert_eq(names[1].scales_name(), "mtp.\{stage}.ffn.experts.255.w3.scale")
+    let shared = @weights.packed_block_shared_expert_weights(spec, block~)
+    assert_eq(
+      shared[0].payload_name(),
+      "mtp.\{stage}.ffn.shared_experts.w1.weight",
+    )
+    let plan = @deepseek_v4_packed_expert.block_expert_compute_plan(
+      spec,
+      block~,
+      expert_indices=[255, 1],
+      maximum_rows=5,
+      memory_ceiling=100000000L,
+      accuracy=@precision.Accuracy::new(absolute=0.1, relative=0.1),
+    )
+    assert_eq(plan.geometry(), (5, 4096, 2048, 256, 6))
+    assert_eq(plan.activation_rounding(), F32Product)
+    assert_eq(plan.routing_placement(), BeforeDownInputRound)
+    assert_eq(
+      names[0].representation(),
+      @weights.packed_expert_weights(spec, layer_index=0, expert_indices=[255])[0].representation(),
+    )
+    let router = @deepseek_v4_packed_expert.block_routing_compute_plan(
+      spec,
+      block~,
+      maximum_rows=5,
+      maximum_workspace_bytes=1048576L,
+      accuracy=@precision.Accuracy::new(absolute=0.1, relative=0.1),
+    )
+    assert_true(router.selection() is GroupedTopK)
+  }
+}

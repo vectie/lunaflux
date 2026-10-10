@@ -17,9 +17,14 @@ have a shared immutable read-set plan, two prepared phase tables, and an `mtp.*`
 checkpoint attention owner. Main/draft projections share one compact KV bank;
 initial priming skips draft computation. Native tests and composite CUDA compile
 pass; the new ring GPU numerical/sanitizer run follows the base-model campaign,
-not claimed complete. Next connect the three prediction mHC/MoE blocks and
-output projections, sequential Markov logits and confidence head,
-then verification/commit.
+not claimed complete. Inverse rotary and both output projections now produce
+five hidden-width rows. Model-owned base/prediction addresses connect each
+actual `mtp.*` block's mHC attention and routed/shared MoE envelope, retaining
+base-only entry points and aggregate compact-bank budgeting. All three composed
+block sources compile on GB10; native regressions pass. Actual checkpoint block
+preparation is not yet verified. Next compose the three-block prediction queue,
+its learned text head, sequential Markov logits and confidence head, distributed
+capture assembly and verification/commit.
 Do not substitute the learned base-model text head or ordinary causal blocks.
 Exact phase/read-set/head dependencies and completion requirements are recorded
 in [DEEPSEEK_DSPARK_EXECUTION.md](DEEPSEEK_DSPARK_EXECUTION.md).
