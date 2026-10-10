@@ -2,6 +2,7 @@
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
   "moonbitlang/core/string",
 }
@@ -29,6 +30,37 @@ test "nonzero error against a zero reference cannot report parity" {
   assert_true(relative_error(1.0, 0.0).is_inf())
   assert_eq(relative_error(1.0, 4.0), 0.25)
   assert_eq(relative_error(1.0, 4.0).sqrt(), 0.5)
+}
+
+///|
+async test "1024-row reports remain complete under bounded console capture" {
+  let temporary = @shell.Cmd("mktemp", [
+    "-d", "/tmp/lunaflux-encoder-report-XXXXXX",
+  ]).output()
+  temporary.check()
+  let root = temporary.stdout().trim().to_owned()
+  let input = root + "/zeros.bf16"
+  let report_path = root + "/comparison.txt"
+  @fs.write_file(input, Bytes::make(1024 * 5120 * 2, 0), create_mode=CreateNew)
+  let workspace = @env.get_env_var("PWD").unwrap_or_else(() => {
+    fail("test requires the invoking project directory")
+  })
+  let output = @shell.Cmd("moon", [
+    "run",
+    workspace + "/scripts/compare-minimax-encoder-reference.mbtx",
+    input,
+    input,
+    report_path,
+    "diagnostic_console_capacity",
+  ]).output(max_output_bytes=65536)
+  guard output.exit_code() == 0 else {
+    fail("bounded report process failed: " + output.stderr())
+  }
+  let report = @fs.read_file(report_path).text()
+  assert_eq(report.split("\n").filter(s => s.has_prefix("row=")).count(), 1024)
+  assert_true(report.contains("elements=5242880\nexact_bf16=5242880\n"))
+  assert_true(report.contains("row=1023 rmse=0 "))
+  assert_true(!output.stdout().contains("row="))
 }
 
 ///|
@@ -175,5 +207,7 @@ async fn main {
     $|claim=measured_difference_not_automatic_parity_or_performance
   let complete = report + "\n" + per_row.to_string()
   @fs.write_file(output, complete, create_mode=CreateNew)
-  println(complete)
+  // Full per-token diagnostics stay in the report file. Printing them again
+  // can exceed the caller's bounded console capture at supported wider shapes.
+  println(report)
 }

@@ -204,6 +204,7 @@ async fn main {
     "capture-precision-transform-probes", "capture-compressed-attention-run", "capture-hyper-f32-run",
     "capture-learned-text-laws", "assemble-luna-kernel-root", "run-glm-resident-sequence",
     "run-minimax-aten-reference", "replay-minimax-encoder-layer", "probe-minimax-layer-projections",
+    "run-minimax-diverse-encoder-corpus",
   ]
   let sidecars = @fs.read_file(
     "model/deepseek_v4_device_upload/token_hash_sidecar.mbt",

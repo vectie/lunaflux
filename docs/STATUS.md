@@ -19,6 +19,19 @@ memory bounds and explicit release remain. The latest affected tests pass
 warning exclusions. The 21-package no-hashing and token-step checks pass.
 This removes loading/planning work, not GPU arithmetic; no new token/s is claimed.
 
+The no-hashing `42b007d5` ARM MiniMax binary also completes twelve original-text
+encoder inputs with 612 per-state comparisons. Every embedding matches; first
+divergence is layer 1. Ten cases' worst final token rows differ by approximately
+1.14–2.29%, while repeated long text and digits reach 22.11%/14.75%. Digits
+layer-46 same-input replay limits local row error to 0.1885%; identical reference
+arithmetic with different prior inputs produces 15.3082%. Reference-prefix
+replay is bitwise exact. All 26 sequential GPU executions release owners and
+exit successfully; no production arithmetic changes or numerical acceptance
+follow. Offline script tests pass 11/11, the no-hashing check covers 34 scripts
+and 21 packages, and the token-step check passes. Independent audiovisual quality
+and the broader three-model completion ledger remain open. Details:
+[diverse-text encoder report](MINIMAX_DIVERSE_TEXT_ENCODER_2026-10-11.md).
+
 The chronological updates below are historical snapshots. This table supersedes
 their pending claims only for the explicitly completed diagnostic routes:
 

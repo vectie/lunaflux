@@ -1,0 +1,476 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// Offline original-text differential, never a startup or token-step gate.
+
+///|
+fn cases() -> Array[String] {
+  [
+    "actual-input", "long-input", "english", "cjk", "normalization", "digits", "whitespace",
+    "emoji", "specials", "code", "scripts", "punctuation",
+  ]
+}
+
+///|
+fn token_ids(binary : Bytes, text : String) -> Array[Int] raise {
+  guard binary.length() > 0 &&
+    binary.length() % 4 == 0 &&
+    binary.length() / 4 <= 1024 else {
+    fail("bounded original I32 token input required")
+  }
+  let ids : Array[Int] = []
+  for part in text.trim().split(",") {
+    ids.push(@string.parse_int(part))
+  }
+  guard ids.length() == binary.length() / 4 else {
+    fail("token text/binary row counts differ")
+  }
+  for index, expected in ids {
+    let actual = for byte in 0..<4; bits = 0U {
+      continue bits | (binary[index * 4 + byte].to_uint() << (byte * 8))
+    } nobreak {
+      bits
+    }
+    guard expected >= 0 &&
+      expected < 151936 &&
+      actual == expected.reinterpret_as_uint() else {
+      fail("token text/binary values differ")
+    }
+  }
+  ids
+}
+
+///|
+test "corpus uses exact original IDs without padding or repeated-text substitution" {
+  assert_eq(token_ids(b"\x20\x00\x00\x00\xd6\x09\x00\x00", "32,2518\n"), [
+    32, 2518,
+  ])
+  assert_eq(
+    token_ids(Bytes::make(1024 * 4, 0), "0,".repeat(1023) + "0").length(),
+    1024,
+  )
+  for
+    (binary, text) in [
+      (b"", ""),
+      (b"\x20", "32"),
+      (b"\x20\x00\x00\x00", "33"),
+      (b"\x20\x00\x00\x00", "32,1"),
+      (b"\xff\xff\xff\xff", "-1"),
+      (Bytes::make(1025 * 4, 0), "0,".repeat(1024) + "0"),
+    ] {
+    try token_ids(binary, text) catch {
+      _ => ()
+    } noraise {
+      _ => fail("unmatched original input accepted")
+    }
+  }
+  assert_eq(cases().length(), 12)
+}
+
+///|
+fn safe(path : String) -> Bool {
+  !path.contains("..") &&
+  path
+  .iter()
+  .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '_' | '.'))
+}
+
+///|
+async fn remote(
+  node : String,
+  socket : String,
+  command : String,
+) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn save(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn copy(socket : String, from : String, to : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    from,
+    to,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn script(
+  root : String,
+  label : String,
+  path : String,
+  arguments : Array[String],
+) -> Unit {
+  save(
+    root,
+    label,
+    @shell.Cmd("moon", ["run", path] + arguments).output(
+      max_output_bytes=4194304,
+    ),
+  )
+}
+
+///|
+fn field(report : String, key : String) -> String raise {
+  for part in report.split("\n") {
+    if part.has_prefix(key + "=") {
+      return part[key.length() + 1:].to_owned()
+    }
+  }
+  fail("missing metric " + key)
+}
+
+///|
+fn worst_row(report : String, rows : Int) -> (Int, Double) raise {
+  for line in report.split("\n"); count = 0, worst = -1, maximum = -1.0 {
+    if !line.has_prefix("row=") {
+      continue count, worst, maximum
+    }
+    let parts = line.split(" ").to_array()
+    guard parts is [row, _, _, l2, ..] && l2.has_prefix("relative_l2=") else {
+      fail("incomplete row metrics")
+    }
+    let index = @string.parse_int(row[4:])
+    let error = @string.parse_double(l2[12:])
+    guard index == count && error >= 0.0 && !error.is_nan() else {
+      fail("row metrics are not ordered or valid")
+    }
+    continue count + 1,
+      if error > maximum {
+        index
+      } else {
+        worst
+      },
+      if error > maximum {
+        error
+      } else {
+        maximum
+      }
+  } nobreak {
+    guard count == rows else { fail("incomplete row metrics") }
+    (worst, maximum)
+  }
+}
+
+///|
+test "corpus reports worst token rows instead of only magnitude-weighted norms" {
+  let report = "relative_l2=0.01\nrow=0 rmse=0 relative_l1=0 relative_l2=0.02 cosine=1\nrow=1 rmse=0 relative_l1=0 relative_l2=0.2 cosine=1\n"
+  assert_eq(field(report, "relative_l2"), "0.01")
+  assert_eq(worst_row(report, 2), (1, 0.2))
+  try worst_row(report, 3) catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing token row was accepted")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, corpus, root, .. selected] &&
+    mode is ("prepare" | "run" | "summarize") &&
+    corpus.has_prefix("/private/tmp/lunaflux-reference-minimax-corpus-") &&
+    root.has_prefix("/tmp/lunaflux-minimax-diverse-") &&
+    [corpus, root].all(safe) &&
+    (
+      selected is [] ||
+      (
+        mode is ("run" | "summarize") &&
+        selected is [name] &&
+        cases().contains(name)
+      )
+    ) else {
+    fail(
+      "prepare|run|summarize ORIGINAL_TOKENIZER_CORPUS NEW_CORPUS_ROOT [ONE_CASE_TO_RUN]",
+    )
+  }
+  let stamp = root.split("/").last().unwrap().to_owned()
+  let socket178 = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let socket179 = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let node178 = "wlc003s@192.168.2.178"
+  let node179 = "wlc004s@192.168.2.179"
+  let build = "/tmp/lunaflux-checkpoint-build-minimax-diverse-20261011-v1"
+  let built_reference = "/tmp/lunaflux-minimax-aten-reference-gate-input-20261011-v1"
+  let configuration = "/tmp/lunaflux-minimax-request-config-20261010-v2"
+  // Existing original inventory association, not a locally computed checksum.
+  let model_label = "d2dd0c60d01b9e195d9447c52da61c7302d28828524914c044d9c6e1b81d0427"
+  if mode == "summarize" {
+    let summary = StringBuilder()
+    summary.write_string(
+      "case\trows\tfinal_global_l2\tfinal_worst_row\tfinal_worst_row_l2\tall_layers_worst_layer\tall_layers_worst_row\tall_layers_worst_row_l2\tfinal_max_abs\tfirst_bitwise_difference\n",
+    )
+    for name in cases() {
+      if selected is [one] && one != name {
+        continue
+      }
+      let rows = @fs.read_file(corpus + "/" + name + ".frames/input-ids.i32")
+        .binary()
+        .length() /
+        4
+      let reports = root + "/" + name + "-run/comparisons"
+      let final_report = @fs.read_file(reports + "/layer-50.txt").text()
+      let (final_row, final_error) = worst_row(final_report, rows)
+      let (worst_layer, worst_token, maximum) = for
+        layer in 0..<=50
+        worst_layer = -1, worst_token = -1, maximum = -1.0 {
+        let report = @fs.read_file(reports + "/layer-\{layer}.txt").text()
+        guard field(report, "elements") == (rows * 5120).to_string() &&
+          field(report, "nonfinite") == "0" else {
+          fail("incomplete or nonfinite corpus comparison")
+        }
+        let (token, error) = worst_row(report, rows)
+        if error > maximum {
+          continue layer, token, error
+        } else {
+          continue worst_layer, worst_token, maximum
+        }
+      } nobreak {
+        (worst_layer, worst_token, maximum)
+      }
+      let first = field(
+        @fs.read_file(reports + "/first-difference.txt").text(),
+        "first_bitwise_difference",
+      )
+      summary <+
+        "\{name}\t\{rows}\t\{field(final_report, "relative_l2")}\t\{final_row}\t\{final_error}\t\{worst_layer}\t\{worst_token}\t\{maximum}\t\{field(final_report, "max_absolute_error")}\t\{first}\n"
+    }
+    @fs.write_file(
+      root +
+      (if selected is [one] {
+        "/" + one + "-SUMMARY.tsv"
+      } else {
+        "/CORPUS_SUMMARY.tsv"
+      }),
+      summary.to_string(),
+      create_mode=CreateNew,
+    )
+    println(summary.to_string())
+    return
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    save(root, "mkdir179", remote(node179, socket179, "mkdir " + root))
+    copy(
+      socket178,
+      node178 +
+      ":" +
+      build +
+      "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe",
+      root + "/minimax_checkpoint.exe",
+    )
+    copy(
+      socket179,
+      root + "/minimax_checkpoint.exe",
+      node179 + ":" + root + "/minimax_checkpoint.exe",
+    )
+    @fs.write_file(
+      root + "/SOURCE_REVISION.txt",
+      "native_source=42b007d54ee6a9503cd1dfb70f570d8e23026d10\nreference_reuse=" +
+      built_reference +
+      "\nscope=text_encoder_differential_not_full_H3_quality_or_throughput\n",
+      create_mode=CreateNew,
+    )
+  }
+  for name in cases() {
+    if selected is [one] && one != name {
+      continue
+    }
+    let frames = corpus + "/" + name + ".frames"
+    let binary = @fs.read_file(frames + "/input-ids.i32").binary()
+    let text = @fs.read_file(frames + "/tokens.txt").text()
+    let ids = token_ids(binary, text)
+    let config = "/tmp/lunaflux-minimax-request-config-" + stamp + "-" + name
+    let aot = "/tmp/lunaflux-minimax-request-aot-" + stamp + "-" + name
+    let reference = "/tmp/lunaflux-minimax-aten-reference-" + stamp + "-" + name
+    let native = "/tmp/lunaflux-minimax-text-encoder-" + stamp + "-" + name
+    let receipts = root + "/" + name + "-" + mode
+    @fs.mkdir(receipts)
+    if mode == "prepare" {
+      for
+        directory in [
+          config,
+          config + "/transformer",
+          config + "/text_encoder",
+          config + "/video_vae",
+          config + "/video_vae/source",
+          config + "/audio_vae",
+          config + "/aot",
+        ] {
+        @fs.mkdir(directory)
+      }
+      for
+        file in [
+          "model_index.json", "transformer/config.json", "text_encoder/config.json",
+          "video_vae/config.json", "video_vae/source/config.json", "audio_vae/config.json",
+          "audio_vae/metadata.json", "audio_vae/config.yaml",
+        ] {
+        @fs.write_file(
+          config + "/" + file,
+          @fs.read_file(configuration + "/" + file).binary(),
+          create_mode=CreateNew,
+        )
+      }
+      let archive = receipts + "/config.tar.gz"
+      save(
+        receipts,
+        "archive",
+        @shell.Cmd("env", [
+          "COPYFILE_DISABLE=1", "tar", "-czf", archive, "-C", config, "--exclude=._*",
+          ".",
+        ]).output(),
+      )
+      save(receipts, "mkdir178", remote(node178, socket178, "mkdir " + config))
+      copy(socket178, archive, node178 + ":" + config + "/config.tar.gz")
+      save(
+        receipts,
+        "unpack",
+        remote(
+          node178,
+          socket178,
+          "tar -xf " + config + "/config.tar.gz -C " + config,
+        ),
+      )
+      save(
+        receipts,
+        "export",
+        remote(
+          node178,
+          socket178,
+          "systemd-run --user --wait --pipe --unit=" +
+          stamp +
+          "-export-" +
+          name +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+          build +
+          "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe export-request " +
+          config +
+          "#label=" +
+          model_label +
+          " 32 32 120 5 \{ids.length()} 256 64 4096 8589934592 " +
+          config +
+          "/aot",
+        ),
+      )
+      for file in ["SOURCES.v1", "text.cu"] {
+        copy(
+          socket178,
+          node178 + ":" + config + "/aot/" + file,
+          config + "/aot/" + file,
+        )
+      }
+      script(receipts, "compile", "scripts/compile-minimax-request.mbtx", [
+        config,
+        aot,
+        stamp + "-" + name,
+        "text",
+      ])
+      save(receipts, "mkdir-aot179", remote(node179, socket179, "mkdir " + aot))
+      for file in ["SOURCES.v1", "text.cubin"] {
+        copy(socket179, aot + "/" + file, node179 + ":" + aot + "/" + file)
+      }
+      @fs.mkdir(reference)
+      save(
+        receipts,
+        "mkdir-reference",
+        remote(node179, socket179, "mkdir " + reference),
+      )
+      for file in ["driver.exe", "libreference.so"] {
+        save(
+          receipts,
+          "reuse-" + file,
+          remote(
+            node179,
+            socket179,
+            "cp " + built_reference + "/" + file + " " + reference + "/" + file,
+          ),
+        )
+      }
+      @fs.write_file(
+        receipts + "/input.txt",
+        @fs.read_file(corpus + "/" + name + ".txt").text(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        receipts + "/tokens.txt",
+        ids.map(id => id.to_string()).join(",") + "\n",
+        create_mode=CreateNew,
+      )
+      println("prepared case=\{name} rows=\{ids.length()} exact_row_AOT=true")
+    } else {
+      script(receipts, "native", "scripts/run-minimax-text-encoder.mbtx", [
+        native,
+        stamp + "-" + name,
+        root + "/minimax_checkpoint.exe",
+        "/tmp/lunaflux-minimax-text-upload-20261010-v2-179",
+        aot,
+        "179",
+        frames + "/input-ids.i32",
+        "layers",
+      ])
+      script(receipts, "reference", "scripts/run-minimax-aten-reference.mbtx", [
+        "encode",
+        reference,
+        frames + "/tokens.txt",
+      ])
+      script(
+        receipts,
+        "reference-collect",
+        "scripts/run-minimax-aten-reference.mbtx",
+        ["collect", reference],
+      )
+      script(
+        receipts,
+        "compare",
+        "scripts/compare-minimax-encoder-layer-series.mbtx",
+        [native + "/layers", reference + "/encode", receipts + "/comparisons"],
+      )
+      for layer in 0..<=50 {
+        for
+          path in [
+            native + "/layers/hidden-\{layer}.bf16",
+            reference + "/encode/hidden-\{layer}.bf16",
+          ] {
+          guard @fs.read_file(path).binary().length() == ids.length() * 10240 else {
+            fail("incomplete corpus layer tensor")
+          }
+        }
+      }
+      let owners = remote(
+        node179, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      save(receipts, "released", owners)
+      guard owners.stdout().trim().is_empty() else {
+        fail("corpus GPU owner remains")
+      }
+      println(
+        "completed case=\{name} rows=\{ids.length()} layers=50 scope=measured_differences_not_acceptance_or_throughput",
+      )
+    }
+  }
+}

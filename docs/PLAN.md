@@ -43,6 +43,23 @@ are not payload-integrity scans and remain distinct from this cleanup.
 
 ## Current three-model completion ledger — 2026-10-11
 
+The fresh no-hashing `42b007d5` ARM MiniMax encoder now completes all twelve
+original-tokenizer corpus cases (3–140 tokens), with 612 complete hidden-state
+comparisons. Embeddings match bitwise and first divergence is layer 1. Ten
+cases have worst final token-row relative L2 approximately 1.14–2.29%; repeated
+long text and digits instead reach 22.1058% and 14.7532%. Digits row 23 jumps
+from 5.9087% at hidden-45 to 15.3543% at hidden-46. Same-input layer-46 replay
+limits local error to 0.1885%, while the reference itself propagates the prior
+input difference to 15.3082%, with activation/down differences near 41.5/41.9%.
+Reference-prefix replay reproduces the propagated result bitwise. This expands
+the numerical diagnosis beyond repeated text; it does not close model/media
+acceptance. All 26 sequential GPU executions exit successfully and release
+owners. Offline tests pass 11/11, including the corrected wider-report console
+capacity; no-hashing coverage is 34 scripts/21 packages and the token-step check
+passes. Next: earlier numerical propagation and independent audiovisual quality,
+not blanket arithmetic replacement. See the
+[diverse-text report](MINIMAX_DIVERSE_TEXT_ENCODER_2026-10-11.md).
+
 First-layer MiniMax operator attribution adds an explicit
 `encode-text-operators` route and an independent ATen `encode-operators` route.
 The native diagnostic borrows the unchanged AOT kernels/weights and captures
