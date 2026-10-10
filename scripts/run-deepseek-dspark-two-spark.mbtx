@@ -753,7 +753,7 @@ async fn main {
       fail("sequence ranks did not explicitly release their contexts")
     }
     println(
-      "bounded resident-weight \{mode} request sequence completed; concurrent serving and independent upstream reference remain unverified",
+      "resident queue completed; concurrency and upstream parity unverified",
     )
     return
   }
@@ -795,8 +795,6 @@ async fn main {
       "real DSpark greedy verification matches ordinary target generation for \{generated.length()} tokens from the prepared prompt; finish=\{finish}; independent upstream numerical parity remains unverified",
     )
   } else {
-    println(
-      "real DSpark greedy verification/commit generation completed; run matched reference next",
-    )
+    println("DSpark generation completed; matched reference remains required")
   }
 }
