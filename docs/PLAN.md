@@ -70,6 +70,20 @@ component upload/release. Next validate actual components and compose their
 request lifetimes, two-host conditioning/latent handoff and final media outputs;
 component upload alone is not complete H3 inference.
 
+The checkpoint-to-request bridge now retains model packing descriptors beside
+each allocation and resolves complete typed denoiser/refiner bindings under a
+weight lease, without hard-coded allocation indices. A shared `PredictionSources`
+value feeds both offline export and runtime preparation; `PredictionPrograms`
+preflights aggregate scratch and prepares every schedule variant once. Exact
+source/symbol equivalence, reordered layers, duplicate/missing bindings and
+one-byte-short cumulative budgets are regression-tested. Native check and the
+full 4,850-test suite pass with the existing migration-warning exclusions.
+This is bootstrap implementation, not proof of full H3 execution. The actual
+repository README confirms FL2VA also supports zero-image T2VA. The Spark/data
+node contains both original and converted transformer layouts; current packing
+uses converted tensors, while actual `rope.inv_freq` is retained in the original
+checkpoint and must be read explicitly rather than replaced by a default base.
+
 Actual FL2VA AudioVAE inspection and bounded GPU upload/release now pass:
 1,087 checkpoint tensors, 16 prepared weight groups, 259,763,748 device bytes.
 The original wrapper JSON, metadata JSON and four-scalar source YAML now resolve

@@ -154,6 +154,15 @@ pub fn PredictionMetadata::prepare(Self, @device.Context) -> Unit raise
 
 type PredictionMetadataLayout
 
+pub struct PredictionPrograms {
+  // private fields
+}
+pub fn PredictionPrograms::close(Self) -> Unit raise @device.DeviceError
+pub fn PredictionPrograms::new(ArrayView[@minimax_h3_block_source.PredictionSources], max_workspace_bytes~ : Int64) -> Self raise @device.DeviceError
+pub fn PredictionPrograms::prepare(Self, @device.Context, ArrayView[(@device.Module, @device.Module, @device.Module)]) -> Unit raise @device.DeviceError
+pub fn PredictionPrograms::variants(Self) -> ReadOnlyArray[PredictionVariant] raise @device.DeviceError
+pub fn PredictionPrograms::workspace_bytes(Self) -> Int64
+
 pub struct PredictionVariant {
   // private fields
 }

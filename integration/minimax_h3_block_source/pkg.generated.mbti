@@ -30,6 +30,8 @@ pub fn build_input(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequenc
 
 pub fn build_output(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, function_prefix~ : String) -> OutputSource raise
 
+pub fn build_prediction_sources(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String) -> PredictionSources raise
+
 pub fn build_refiner(@joint_diffusion_plan.JointDiffusionPlan, text_rows~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String) -> RefinerSource raise
 
 pub fn build_timestep(@joint_diffusion_plan.JointDiffusionPlan, distinct_timesteps~ : Int, function_prefix~ : String) -> TimestepSource raise
@@ -136,6 +138,12 @@ pub struct OutputSource {
   packed_rows : Int
   distinct_timesteps : Int
   packed_mapping : Bytes
+}
+
+pub struct PredictionSources {
+  block : BlockSource
+  timestep : TimestepSource
+  output : OutputSource
 }
 
 pub struct RefinerSource {

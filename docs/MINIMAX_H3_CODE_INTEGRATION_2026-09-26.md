@@ -26,6 +26,32 @@ context/stream, memory budgets, weights and input media. Source export does not
 compile or admit those modules. These distinctions are integration boundaries,
 not a substitute for executable kernels.
 
+## Checkpoint-to-request bootstrap — 2026-10-10
+
+The remaining full-request work connects actual checkpoint components to those
+prepared owners. Startup retains each model-owned packing next to its allocation;
+typed denoiser borrowing resolves input, timestep, output, context, refiners and
+all DiT layers without reconstructing fixed allocation-index tables in a CLI.
+This is preparation-time metadata selection, not payload validation or hashing.
+All consumers retain an explicit weight lease until their queues are drained.
+
+Real text encoding and standalone audio/video decoding have executed on Spark,
+but they do not prove joint generation. Full execution must consume genuine
+encoded conditioning, initialize explicit noise, run every scheduled prediction
+and both RF updates, then feed the resulting latents to both real decoders.
+Reference-media inputs must be encoded; fabricated hidden conditioning is not an
+acceptable substitute. Component weights, modules and scratch have separate
+lifetimes and must fit the cumulative per-host memory budget.
+
+`PredictionSources` is the common immutable geometry used by both AOT export
+and program bootstrap; it preserves the existing CUDA bytes and symbol names.
+`PredictionPrograms` prepares all schedule-derived variants once and preflights
+the sum of their exact block/timestep/output workspace layouts before touching
+the device. A partial prepare retains each program for reverse cleanup. It
+borrows modules and does not compile, hash or load weights during a step. Input,
+metadata, rotary tables and other component allocations remain separately
+budgeted. This bridge does not by itself establish full-model execution.
+
 ## Functional/effect boundary
 
 Model/configuration parsing, sequence layout, schedules, row maps, operation

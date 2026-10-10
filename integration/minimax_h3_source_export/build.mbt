@@ -117,35 +117,27 @@ pub fn build(
   let epsilon = metadata.spec().norm_epsilon()
   for count in counts {
     let name = "dit_n\{count}"
-    let source = @block.build(
+    let prediction = @block.build_prediction_sources(
       model,
       sequence,
       distinct_timesteps=count,
       block_norm_epsilon=epsilon,
-      function_prefix="h3_block_n\{count}",
+      function_prefix="h3",
     )
+    let source = prediction.block
     units.push(
       unit(name, source.source, source.symbols, [
         ("rows", rows),
         ("timesteps", count.to_int64()),
       ]),
     )
-    let time = @block.build_timestep(
-      model,
-      distinct_timesteps=count,
-      function_prefix="h3_timestep_n\{count}",
-    )
+    let time = prediction.timestep
     units.push(
       unit("timestep_n\{count}", time.source, time.symbols, [
         ("rows", count.to_int64()),
       ]),
     )
-    let output = @block.build_output(
-      model,
-      sequence,
-      distinct_timesteps=count,
-      function_prefix="h3_output_n\{count}",
-    )
+    let output = prediction.output
     units.push(
       unit("output_n\{count}", output.source, output.symbols, [
         ("rows", rows),
