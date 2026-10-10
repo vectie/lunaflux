@@ -7,6 +7,7 @@ async fn run_text(
   metadata : @h3.MiniMaxH3ModelMetadata,
   model : @joint.JointDiffusionPlan,
   args : ArrayView[String],
+  capture_layers? : Bool = false,
 ) -> Unit {
   let config = @text.parse_config(
     read(root, "text_encoder/config.json", 1048576L),
@@ -19,6 +20,13 @@ async fn run_text(
   let ids_bytes = read(root, args[2], rows.to_int64() * 4L)
   let ids = text_input_ids(ids_bytes, rows)
   let plan = config.plan(ids[:])
+  if capture_layers {
+    validate_text_capture_budget(
+      plan.output_bytes(),
+      @string.parse_int64(args[7]),
+    )
+    @fs.mkdir(args[4])
+  }
   let source = @text_execution.build_source(plan, prefix="h3_text")
   let device_limit = @string.parse_int64(args[6])
   let component_root = @approved_fs.ApprovedRoot::open_absolute(
@@ -71,30 +79,74 @@ async fn run_text(
   let request = @text_execution.EncoderRequest::new(source, config)
   defer request.close()
   lease.with_encoder(0, weights => {
-    request.prepare(
-      context,
-      stream,
-      aot_module,
-      weights,
-      ids[:],
-      max_device_bytes=request_bytes,
-      max_table_bytes=table_bytes,
-    )
+    if capture_layers {
+      request.prepare_observed(
+        context,
+        stream,
+        aot_module,
+        weights,
+        ids[:],
+        max_device_bytes=request_bytes,
+        max_table_bytes=table_bytes,
+      )
+    } else {
+      request.prepare(
+        context,
+        stream,
+        aot_module,
+        weights,
+        ids[:],
+        max_device_bytes=request_bytes,
+        max_table_bytes=table_bytes,
+      )
+    }
   })
-  request.execute()
-  let hidden = request.with_output((output, offset) => {
-    output.copy_to_host(offset, plan.output_bytes())
-  })
+  let captures : Array[(Int, Bytes)] = []
+  let hidden = if capture_layers {
+    request.execute_observed(on_hidden_state=(index, bytes) => {
+      captures.push((index, bytes))
+    })
+    for (index, bytes) in captures {
+      @fs.write_file(
+        args[4] + "/hidden-\{index}.bf16",
+        bytes,
+        create_mode=CreateNew,
+      )
+    }
+    captures[captures.length() - 1].1
+  } else {
+    request.execute()
+    request.with_output((output, offset) => {
+      output.copy_to_host(offset, plan.output_bytes())
+    })
+  }
   guard hidden.length().to_int64() == plan.output_bytes() else {
     fail("incomplete encoder hidden-state output")
   }
-  @fs.write_file(args[4], hidden, create_mode=CreateNew, sync=Full)
+  if !capture_layers {
+    @fs.write_file(args[4], hidden, create_mode=CreateNew, sync=Full)
+  }
   let (nonfinite, maximum) = text_hidden_statistics(hidden)
   println(
     "text_encoder_complete hidden_state=50 rows=\{rows} width=5120 bytes=\{hidden.length()} nonfinite=\{nonfinite} maximum_absolute=\{maximum}",
   )
   guard nonfinite == 0 else {
     fail("nonfinite hidden-state output; data preserved")
+  }
+}
+
+///|
+fn validate_text_capture_budget(
+  output_bytes : Int64,
+  maximum : Int64,
+) -> Unit raise {
+  guard output_bytes > 0L &&
+    maximum > 0L &&
+    maximum <= 2147483647L &&
+    output_bytes <= maximum / 51L else {
+    fail(
+      "embedding plus fifty hidden-state snapshots exceed host capture budget",
+    )
   }
 }
 

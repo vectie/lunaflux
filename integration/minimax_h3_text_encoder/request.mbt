@@ -18,6 +18,7 @@ pub struct EncoderRequest {
   priv allocations : Array[@device.Allocation]
   priv mut weights : EncoderWeights?
   priv mut queue : @device.OrderedKernelExecutor?
+  priv observations : Array[(@device.OrderedKernelExecutor, Int)]
   priv mut phase : Phase
 }
 
@@ -37,12 +38,13 @@ pub fn EncoderRequest::new(
     allocations: [],
     weights: None,
     queue: None,
+    observations: [],
     phase: Empty,
   }
 }
 
 ///|
-pub fn EncoderRequest::prepare(
+fn EncoderRequest::prepare_execution(
   self : Self,
   context : @device.Context,
   stream : @device.Stream,
@@ -51,6 +53,7 @@ pub fn EncoderRequest::prepare(
   ids : ArrayView[Int],
   max_device_bytes~ : Int64,
   max_table_bytes~ : Int64,
+  observe_layers~ : Bool,
   visual? : (@device.Allocation, @text_plan.VisualPlacement),
 ) -> Unit raise {
   guard self.phase == Empty && weights.ready && weights.leases < 2147483647 else {
@@ -144,13 +147,26 @@ pub fn EncoderRequest::prepare(
     sine~,
     visual?=visual_binding,
   )
-  self.queue = Some(
-    context.create_ordered_kernel_executor(
-      stream,
-      launches,
-      policy=OrderedKernelEagerOnly,
-    ),
-  )
+  if observe_layers {
+    let boundaries = hidden_state_boundaries(visual is Some(_))
+    for (hidden, end) in boundaries; start = 0 {
+      let queue = context.create_ordered_kernel_executor(
+        stream,
+        launches[start:end],
+        policy=OrderedKernelEagerOnly,
+      )
+      self.observations.push((queue, hidden))
+      continue end
+    }
+  } else {
+    self.queue = Some(
+      context.create_ordered_kernel_executor(
+        stream,
+        launches,
+        policy=OrderedKernelEagerOnly,
+      ),
+    )
+  }
   self.phase = Prepared
 }
 
@@ -206,6 +222,9 @@ pub fn EncoderRequest::cancel(self : Self) -> Unit raise @device.DeviceError {
   if self.queue is Some(queue) {
     queue.abort()
   }
+  for (queue, _) in self.observations {
+    queue.abort()
+  }
   self.phase = Cancelled
 }
 
@@ -244,6 +263,13 @@ pub fn EncoderRequest::close(self : Self) -> Unit raise @device.DeviceError {
     queue.abort()
     queue.close()
     self.queue = None
+  }
+  while !self.observations.is_empty() {
+    let last = self.observations.length() - 1
+    let (queue, _) = self.observations[last]
+    queue.abort()
+    queue.close()
+    self.observations.remove(last) |> ignore
   }
   while !self.allocations.is_empty() {
     let last = self.allocations.length() - 1

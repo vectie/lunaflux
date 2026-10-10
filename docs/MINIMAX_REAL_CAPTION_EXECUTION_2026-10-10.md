@@ -130,6 +130,16 @@ numbers. They establish a reproducible text-encoder differential for this
 caption; broader inputs, exact reduction-level attribution, joint-denoiser/VAE
 reference comparisons and perceptual caption fidelity remain open.
 
+The native checkpoint CLI now has an explicit `encode-text-layers` diagnostic
+to capture embedding plus all 50 complete-layer outputs from the unchanged
+AOT launch recipe. It uses a pure launch-boundary partition, a separately named
+observed preparation/execution path, and a caller-supplied aggregate host capture
+budget checked before CUDA. The three-row capture requires exactly 1,566,720
+bytes for all 51 BF16 snapshots. Normal execution still submits its one complete
+queue and waits once; no per-layer observer or readback is added to production.
+Physical capture and first-divergence attribution remain pending; this source
+change by itself does not resolve or explain the measured final error.
+
 The final reference container exits 0 with `OOMKilled=false`, configured
 memory and memory-plus-swap limits both 8,589,934,592 bytes. Live reads of its
 actual Docker process cgroup report a peak at that 8-GiB ceiling and swap

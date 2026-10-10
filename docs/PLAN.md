@@ -167,6 +167,13 @@ Required next boundaries, still open:
 4. Measure matched, repeatable complete-model performance and its actual device/
    transport timeline before claiming vLLM/SGLang parity or a general DSpark win.
 
+MiniMax first-divergence work now adds the explicit native `encode-text-layers`
+diagnostic. It partitions the same launch recipe at pure embedding/layer
+boundaries, checks aggregate capture memory before CUDA and writes 51 BF16
+snapshots without hashing. Its normal production queue remains unsplit and
+unobserved. This prepares native/independent per-layer localization; the physical
+capture and numerical attribution still remain to be executed, not presumed.
+
 2026-10-11 resident-request integration: the ordinary DSpark target route now
 accepts a finite queue through `generate-sequence-reference-dspark`. The shared
 serial prompt adapter prepares all immutable prompts under one aggregate byte

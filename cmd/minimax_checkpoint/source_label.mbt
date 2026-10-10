@@ -53,7 +53,8 @@ fn checkpoint_label(
     return @spec.ContentDigest::from_sha256(label)
   }
   let selected = match mode {
-    "encode-text" | "decode-audio" | "decode-video" => Some(arguments[0])
+    "encode-text" | "encode-text-layers" | "decode-audio" | "decode-video" =>
+      Some(arguments[0])
     "inspect-component" | "prepare-component" => Some(arguments[1])
     "run-joint" => Some(arguments[8])
     _ => None

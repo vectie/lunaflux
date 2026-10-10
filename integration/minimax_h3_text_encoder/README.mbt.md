@@ -21,6 +21,13 @@ H3 context projection and two-layer refiner. Cancel drains, and failed cleanup
 retains owners for retry. Close downstream queues first. No runtime JIT.
 `execute()` composes submit plus one blocking completion wait and implements
 the shared `PreparedFrame` interface (`drain` cancels, `release` closes).
+For numerical diagnosis only, `prepare_observed()` partitions the identical
+launch recipe at embedding and layer-output boundaries; `execute_observed()`
+waits and returns each BF16 snapshot to an explicit observer. Failures stop
+before subsequent layers and keep the request failed until cancellation/release.
+The ordinary `prepare()`/`execute()` route retains its single queue and single
+completion wait, with no diagnostic copies or per-layer barriers. This observed
+route is not valid for throughput measurements.
 `prebind_refiner()` and `with_destination()` permit constructing the entire
 dependent pipeline before submission. They expose uninitialized destinations,
 not completed results. The refiner also implements `PreparedFrame`; execute
