@@ -4,23 +4,23 @@ The sharded loader composes the existing approved-file authority with an
 immutable dense-Llama tensor-parallel rank plan. Inspection parses and binds
 the complete safetensors header and bindings, then deterministically derives
 the exact rank plan from the caller's rank, world size, alignment, and arena
-ceiling. It validates every scalar source/destination recipe, hashes the
-complete file, checks the same pinned handle's stamp, and closes it without
+ceiling. It validates every scalar source/destination recipe, checks the same
+pinned handle's stamp, and closes it without hashing payloads or
 opening a device allocation. Callers never parse the file or supply
 source-offset-bearing bindings or plans.
 
-Artifact metadata authenticates the model-content digest and exact weight
-bindings; it does not replace the caller's semantic execution identity. Dense
-and paged plans for the same authenticated content therefore retain their own
+Artifact metadata declares the model-content label and exact weight
+bindings; it does not attest payload bytes or replace the caller's semantic
+execution identity. Dense and paged plans for the same declared content retain their own
 exact plan digest in the derived rank plan. Foreign content is rejected before
 rank-plan construction, while the Llama tensor-parallel planner still rejects
 a same-content semantic graph whose tensor structure or binding shapes do not
-match the authenticated file.
+match the structurally inspected file.
 
 Loading reopens the inspection's private locator and repeats that complete
-admission before allocating exactly the local rank arena. A second full-file
-pass detects mutations while hashing through one bounded reusable scratch.
-Only overlaps with the rank plan's scalar transfer ranges are copied, directly
+header inspection before allocating exactly the local rank arena. Transfer
+reads only the rank plan's selected source ranges into bounded reusable scratch
+and checks the same handle's metadata stamp. Selected ranges are copied directly
 to final compact device offsets. No complete payload, tensor, or shard host
 buffer exists, and a rank never allocates full bytes for a sharded tensor.
 

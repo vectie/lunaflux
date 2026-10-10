@@ -111,7 +111,8 @@ priv struct PreparedNumericWeightFile[S] {
 }
 
 ///|
-/// Inert evidence from a complete authenticated numeric-file admission.
+/// Inert layout from structural numeric-file inspection. The supplied artifact
+/// digest is a label; payload bytes are not cryptographically authenticated.
 /// This value owns no allocation and grants no device or kernel readiness.
 pub struct NumericWeightFileInspection {
   priv model_plan : @plan.ModelPlan

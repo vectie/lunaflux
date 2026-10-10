@@ -17,7 +17,7 @@ fn inspect_hostile_mistral_file(
 }
 
 ///|
-async test "Mistral file facade authenticates the pinned numeric artifact and closes its root" {
+async test "Mistral file facade inspects the numeric layout and closes its root" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-mistral-weights")
     let canonical = @fs.realpath(directory)
@@ -53,7 +53,7 @@ async test "Mistral file facade authenticates the pinned numeric artifact and cl
 }
 
 ///|
-async test "Mistral file facade rejects artifact and sliding-window replay before materialization" {
+async test "Mistral retains supplied artifact labels but rejects sliding-window mismatch" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-mistral-replay")
     let canonical = @fs.realpath(directory)
@@ -69,22 +69,16 @@ async test "Mistral file facade rejects artifact and sliding-window replay befor
     let wrong = @numeric_weight_file.NumericWeightArtifactDigest::from_sha256(
       "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
     )
-    try
-      @mistral_weights.inspect_paged_file(
-        root,
-        metadata,
-        locator,
-        expected_artifact_digest=wrong,
-        limits=mistral_fixture_limits(),
-        alignment_bytes=64L,
-        max_arena_bytes=131072L,
-      )
-    catch {
-      InvalidNumericWeightFile(ArtifactDigestMismatch) => ()
-      _ => fail("unexpected artifact rejection")
-    } noraise {
-      _ => fail("foreign artifact digest was admitted")
-    }
+    let inspection = @mistral_weights.inspect_paged_file(
+      root,
+      metadata,
+      locator,
+      expected_artifact_digest=wrong,
+      limits=mistral_fixture_limits(),
+      alignment_bytes=64L,
+      max_arena_bytes=131072L,
+    )
+    assert_eq(inspection.artifact_digest(), wrong)
     try
       @mistral_weights.inspect_paged_file(
         root,

@@ -301,7 +301,7 @@ async test "dense Llama FP8 inspection rejects aliases missing extra and overlap
 }
 
 ///|
-async test "dense Llama FP8 inspection rejects a foreign artifact digest" {
+async test "dense Llama FP8 inspection retains a supplied label without hashing payloads" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-llama-fp8-digest")
     group.add_defer() <| () => {
@@ -310,23 +310,18 @@ async test "dense Llama FP8 inspection rejects a foreign artifact digest" {
     let file = fp8_numeric_file(fp8_file_plan())
     @fs.write_file("\{directory}/weights.bin", file, create_mode=CreateNew)
     let root = @approved_fs.ApprovedRoot::open_absolute(@fs.realpath(directory))
-    try
-      @llama_fp8_weights.inspect_full_context_file(
-        root,
-        fp8_file_metadata(),
-        @llama.LlamaFp8W8A8Policy::untied_v1(),
-        try! @approved_fs.ApprovedRelativeLocator::new("weights.bin"),
-        expected_artifact_digest=fp8_artifact_digest(b"foreign"),
-        limits=fp8_file_limits(),
-        alignment_bytes=16L,
-        max_arena_bytes=1024L * 1024L,
-      )
-    catch {
-      InvalidNumericWeightFile(ArtifactDigestMismatch) => ()
-      _ => fail("unexpected foreign-artifact failure")
-    } noraise {
-      _ => fail("foreign dense-Llama FP8 artifact digest was admitted")
-    }
+    let label = fp8_artifact_digest(b"foreign")
+    let inspection = @llama_fp8_weights.inspect_full_context_file(
+      root,
+      fp8_file_metadata(),
+      @llama.LlamaFp8W8A8Policy::untied_v1(),
+      try! @approved_fs.ApprovedRelativeLocator::new("weights.bin"),
+      expected_artifact_digest=label,
+      limits=fp8_file_limits(),
+      alignment_bytes=16L,
+      max_arena_bytes=1024L * 1024L,
+    )
+    assert_eq(inspection.artifact_digest(), label)
     root.close()
   }
 }

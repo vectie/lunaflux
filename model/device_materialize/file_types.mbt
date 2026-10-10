@@ -68,12 +68,13 @@ priv struct PreparedStreamingLoad[S] {
 }
 
 ///|
-/// Immutable evidence from a complete read-only admission of one weight file.
+/// Immutable layout from a bounded read-only header inspection.
 ///
 /// The strict relative locator is retained privately so a later load cannot
 /// substitute another descendant. Filesystem metadata is not retained as
 /// authority: loading reopens beneath a caller-supplied approved root and
-/// completely re-hashes the current file before allocating device memory.
+/// re-inspects its header before allocating device memory. Payloads are not
+/// hashed; the supplied content identity is a label, not a byte attestation.
 pub struct DeviceWeightFileInspection {
   priv model : @spec.LlamaModelMetadata
   priv model_plan : @plan.ModelPlan

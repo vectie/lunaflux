@@ -190,11 +190,11 @@ pub fn inspect_file(
 /// handle beneath `root`.
 ///
 /// The private inspected locator cannot be substituted by the caller.
-/// Filesystem metadata is never trusted across calls: before allocating device
-/// memory this function completely re-admits and re-hashes the current bytes,
-/// then requires their semantic layout and transfer regions to equal the
-/// immutable inspection evidence. Transfer performs another complete hash and
-/// same-handle metadata check while copying bounded reusable host chunks.
+/// Before allocating device memory this function re-inspects the header and
+/// requires its semantic layout and transfer regions to match the inspection.
+/// Transfer copies only the selected regions using bounded reusable chunks;
+/// same-handle metadata checks detect structural changes, without hashing
+/// payloads or providing cryptographic authentication.
 /// A terminal file-close failure closes any otherwise-ready allocation; if
 /// that allocation close also fails, cleanup authority is returned at
 /// `SourceClose` rather than publishing readiness.

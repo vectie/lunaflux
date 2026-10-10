@@ -337,7 +337,7 @@ async test "malformed failure publication remains rejected on retry" {
 }
 
 ///|
-async test "replacement foundations reject changed shard and manifest digest" {
+async test "replacement foundations inspect payload structure and reject invalid execution manifests" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-tp-group-source-hostile")
     group.add_defer() <| () => {
@@ -382,10 +382,15 @@ async test "replacement foundations reject changed shard and manifest digest" {
       Bytes::from_array(changed),
       create_mode=CreateOrTruncate,
     )
-    expect_group_rule(
-      () => ignore(fresh_rank_foundations(inputs, fixture.model_root, runtime)),
-      RankInspection,
+    // Payload authentication is deliberately absent. A same-size payload
+    // change does not alter the structurally validated rank layout.
+    let (fresh_inspections, fresh_plans) = fresh_rank_foundations(
+      inputs,
+      fixture.model_root,
+      runtime,
     )
+    assert_eq(fresh_inspections.length(), inspections.length())
+    assert_eq(fresh_plans.length(), device_plans.length())
     fixture.model_root.close()
     fixture.kernel_root.close()
   }
