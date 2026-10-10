@@ -5,7 +5,6 @@ pub(all) suberror MiniMaxH3HostMaterializationError {
   IdentityMismatch
   ManifestDigestMismatch
   InvalidShardCount
-  DuplicateShard(Int)
   UnreferencedShard(Int)
   InvalidIndexCount(expected~ : Int, actual~ : Int)
   MissingIndex(Int)

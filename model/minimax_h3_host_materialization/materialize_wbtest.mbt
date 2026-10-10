@@ -1,4 +1,31 @@
 ///|
+test "distinct shard ordinals may share a declared checkpoint label" {
+  let label = fixture_digest(b"declared checkpoint")
+  let shards = [
+    MiniMaxH3ShardDeclarationInput::new(file_digest=label, payload_bytes=6L),
+    MiniMaxH3ShardDeclarationInput::new(file_digest=label, payload_bytes=7L),
+  ]
+  validate_shard_declarations(shards, fixture_limits())
+  try
+    validate_shard_declarations(
+      [
+        shards[0],
+        MiniMaxH3ShardDeclarationInput::new(
+          file_digest=label,
+          payload_bytes=8193L,
+        ),
+      ],
+      fixture_limits(),
+    )
+  catch {
+    ShardPayloadMismatch(1) => ()
+    _ => fail("wrong shard-size failure")
+  } noraise {
+    _ => fail("oversized shard was accepted")
+  }
+}
+
+///|
 fn fixture_limits() -> MiniMaxH3HostMaterializationLimits {
   try! MiniMaxH3HostMaterializationLimits::new(
     maximum_shards=4,

@@ -61,6 +61,24 @@ pub fn require_materializable_component(
 }
 
 ///|
+// Inventory labels may identify a whole checkpoint and repeat across shards.
+// Locator uniqueness is enforced by the streaming inventory; placement uses
+// explicit shard ordinals, not label equality.
+fn validate_shard_declarations(
+  shards : ArrayView[MiniMaxH3ShardDeclarationInput],
+  limits : MiniMaxH3HostMaterializationLimits,
+) -> Unit raise MiniMaxH3HostMaterializationError {
+  if shards.is_empty() || shards.length() > limits.maximum_shards {
+    raise InvalidShardCount
+  }
+  for shard_index, shard in shards {
+    if shard.payload_bytes > limits.maximum_payload_bytes_per_shard {
+      raise ShardPayloadMismatch(shard_index)
+    }
+  }
+}
+
+///|
 /// Builds the exact component manifest and final bounded-arena layout.
 pub fn build_manifest(
   binding : @minimax_h3_weights.MiniMaxH3CompleteComponentBinding,
@@ -80,19 +98,7 @@ pub fn build_manifest(
   if required > limits.maximum_tensors {
     raise InvalidIndexCount(expected=limits.maximum_tensors, actual=required)
   }
-  if shards.is_empty() || shards.length() > limits.maximum_shards {
-    raise InvalidShardCount
-  }
-  for shard_index, shard in shards {
-    if shard.payload_bytes > limits.maximum_payload_bytes_per_shard {
-      raise ShardPayloadMismatch(shard_index)
-    }
-    for earlier in 0..<shard_index {
-      if shards[earlier].file_digest == shard.file_digest {
-        raise DuplicateShard(shard_index)
-      }
-    }
-  }
+  validate_shard_declarations(shards, limits)
   if index.length() != required {
     raise InvalidIndexCount(expected=required, actual=index.length())
   }
