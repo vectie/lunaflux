@@ -38,7 +38,16 @@ session instead of closing snapshots/connections/ranks at each request. Its new
 socket/fake-device regression interleaves a distinct ordinary prefill with a
 second verification and rejected-prefix replay, then retires both frontiers
 without changing the resident device-resource count. Physical speculative
-sequence execution remains pending until this exact source is built and run.
+sequence execution subsequently passes on `09cb4e77`: both requests emit the
+same ten IDs as ordinary resident generation, including EOS. They consume two
+and three verification blocks with one and three rejected-prefix replays,
+respectively. Both contexts explicitly close, both units exit 0, swap peaks
+are zero and terminal GPU owner queries are empty. Request lifetimes are
+11,585 and 86,793 ms, including prefill but excluding initial model loading;
+these are single samples, not a generalized speedup. Captures are retained at
+`/tmp/lunaflux-dspark-run-sequence-spec-20261011-v1`. This closes sequential
+ordinary/speculative resident reuse, not request-level cancellation, concurrent
+serving, independent upstream numerics or matched framework performance.
 Routine packed-execution fixtures now carry non-content association labels;
 their unused full-payload SHA scans, including a sparse multi-GB GLM zero scan,
 are removed without dropping numerical, capacity, layout or release assertions.
@@ -51,7 +60,7 @@ verification retires shared ranks, `retire_publication()` resets the ordinary
 coordinator's host frontier locally. No duplicate network/device release is
 submitted. The focused verification/CLI matrix passes 11/11. The initial ARM
 session build (`v3`, `f3254a29`) is retained but not physically executed: this
-publication-frontier correction must be included in the next physical binary.
+publication-frontier correction is included in the passed `09cb4e77`/`v4` binary.
 
 The implementation objective remains executable, correct and useful GLM-5.3
 Flash, DeepSeek-V4 Flash DSpark and MiniMax-H3, not a collection of successful
@@ -127,9 +136,9 @@ socket/fake-device regression verifies the same resident resource count and
 fresh host frontiers, followed by failure cleanup. The ordinary queued-checkpoint
 route has subsequently passed the physical test above; concurrent batching,
 HTTP serving and request-level cancellation remain open. Speculative owner
-lifetime is now lifted to the session in source, but its physical queue is not
-yet verified. Do not equate the ordinary result with that unfinished execution
-proof or independent numerical/performance parity.
+lifetime is now lifted to the session and its physical queue subsequently
+passes as described above. Neither queue proves independent numerical or
+external-framework performance parity.
 Affected native tests pass 15/15, the complete packed-execution fake-device
 package passes 114/114, and formatting, native warning-denied check, runner
 self-tests and no-hashing/token-step developer checks pass. Generated public

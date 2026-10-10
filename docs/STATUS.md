@@ -16,7 +16,7 @@ their pending claims only for the explicitly completed diagnostic routes:
 | Model | Current physical result | What this does not establish |
 | --- | --- | --- |
 | GLM-5.3 Flash | Original 13-token chat diagnostic and eight greedy output tokens; two ranks exited successfully, released GPUs and used no unit swap | Independent real-weight logit parity, arbitrary-text GPU integration, optimized serving |
-| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition and EOS termination; process-level cancellation passes in both directions; two distinct ordinary requests now reuse one resident pair of ranks and match isolated outputs | Independent upstream model parity, maximum-context correctness, retained-weight request cancellation, concurrent/speculative serving or external-framework performance |
+| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition and EOS termination; process-level cancellation passes in both directions; two distinct requests now reuse one resident pair of ranks in both ordinary and speculative modes with identical outputs | Independent upstream model parity, maximum-context correctness, retained-weight request cancellation, concurrent/production serving or external-framework performance |
 | MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
 
 GLM/DeepSeek generation now resolves the full prompt and requested output length
@@ -47,8 +47,11 @@ ARM binary: five-token and 144-token prompts emit ten tokens each, exactly
 matching isolated ordinary generation. Request lifetimes are 24,587/91,800 ms,
 both unit swap peaks are zero and both explicit contexts release. This is
 sequential reuse, not concurrency or independent model equivalence. The next
-speculative-session source change keeps the verifier and its snapshot/channel
-owners across requests; its physical sequence remains pending. Unused fixture
+speculative-session change keeps the verifier and its snapshot/channel owners
+across requests. Its corrected `09cb4e77` physical sequence subsequently passes:
+both outputs exactly match ordinary generation, both contexts close and both
+swap peaks are zero. Request lifetimes are 11,585/86,793 ms including prefill;
+these single diagnostic samples do not establish general performance. Unused fixture
 payload SHA scans are removed from routine packed-execution tests; labels are
 declared associations, not verified content checksums.
 

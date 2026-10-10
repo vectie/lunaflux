@@ -48,6 +48,19 @@ drains/releases request state before reuse; GLM adapters only bind checkpoint
 layers and device effects. This diagnostic path does not replace the shared
 continuous-batching scheduler or claim real-checkpoint numerical validation.
 
+The bounded DSpark queue separates session and request lifetimes. Resident
+rank, stream, AOT, activation edge, connection and verification-snapshot owners
+live in the outer rank session; immutable prompts are prepared under one
+aggregate host budget before CUDA. Individual ordinary or speculative requests
+retire shared rank frontiers only after the remote receipt. A speculative
+release then resets the ordinary coordinator's publication frontier locally,
+without sending a second network/device release. The next request begins at
+position zero while transport epochs continue monotonically. Final session
+teardown still drains activation/model effects before closing borrowed state
+and rank allocations. No payload hash or request-path authentication is part
+of this lifetime transition. Physical coverage is recorded separately in the
+DSpark report; sequential reuse is not continuous batching or concurrency.
+
 The post-v1 [two-Spark workstream](TWO_SPARK.md) retains this ownership model
 across two explicitly assigned nodes. Its pure topology/capacity compiler,
 root-free startup envelope and local lease are separate from existing local

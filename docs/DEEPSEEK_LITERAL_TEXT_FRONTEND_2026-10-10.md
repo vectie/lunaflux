@@ -365,3 +365,49 @@ The new fake-device/socket regression exercises a distinct second prefill and
 rejected-prefix replay using the same resource owners. This source work does
 not itself prove physical speculative queue reuse, retained-weight cancellation,
 concurrent service, independent numerics or full-model performance parity.
+
+## Resident speculative request sequence — 2026-10-11
+
+`09cb4e77c334edb7258c7ad3d6e2b6a340156f0a` subsequently passes the same two
+literal requests using `generate-sequence-dspark`. Its `v4` exact-source ARM
+release build succeeds in 238 tasks, with a 649.8 MB CPU-build peak and zero
+swap. The preceding `f3254a29`/`v3` build is preserved but never physically run:
+source review found that verification request release left the ordinary prefill
+coordinator's publication frontier live. The corrected source locally retires
+that frontier after the shared rank receipt, without another network release.
+The strengthened regression also stages a third distinct zero-position prefill.
+
+| Request | Verified blocks | Submitted input rows | Committed input rows | Prefix replays | Lifetime incl. prefill | Next epoch |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0: five input tokens | 2 | 12 | 9 | 1 | 11,585 ms | 5 |
+| 1: 144 input tokens | 3 | 18 | 9 | 3 | 86,793 ms | 35 |
+
+Both requests emit ten tokens including EOS 1. Downloaded token files are
+byte-identical to the respective ordinary resident outputs and, transitively,
+their isolated ordinary-target runs. This proves reuse, reset and actual
+verification/replay on this checkpoint; it does not prove independent upstream
+model equivalence. Lifetimes exclude initial loading and are single diagnostic
+observations, not repeatable throughput or vLLM/SGLang comparisons.
+
+Both user units exit 0 with explicit ingress/egress context-close markers;
+terminal GPU owner queries are empty. Cgroup peaks are 53,723,009,024 bytes on
+.178 and 24,815,456,256 on .179; both unit swap peaks are zero. During loading,
+.178 reported 86,487 MiB (84.46 GiB) of GPU allocation and 34 GB of system
+available memory, while .179 had approximately 54 GB available. Cgroup peaks
+are not complete physical CUDA-memory accounting. Both runs use the stated
+96-GiB/no-swap process limits and no concurrent model workloads.
+
+Raw captures: `/tmp/lunaflux-dspark-run-sequence-spec-20261011-v1`.
+Remote roots: `/tmp/lunaflux-dspark-real-sequence-spec-20261011-v1`.
+Units: `lunaflux-dspark-sequence-spec-20261011-v1-sequence-spec-ingress.service`
+and `lunaflux-dspark-sequence-spec-20261011-v1-sequence-spec-egress.service`.
+New output paths preserve earlier captures; no payload hashes were computed.
+
+The affected native matrix passes 120/120 after removing unused fixture payload
+hashing; the focused verification/CLI matrix passes 11/11 and standalone runner
+tests pass 3/3. Native checks/formatting, generated API review, and no-hashing/
+token-step developer gates pass with existing migration warning settings. The
+only added public API is local `retire_publication()`; no CUDA arithmetic or
+native ABI changes were required. Independent full-model references, GPU
+maximum-capacity execution, retained-weight cancellation, concurrent serving
+and matched repeatable external-framework performance remain open.
