@@ -133,6 +133,22 @@ and exact launch/operand/workspace checks. Optional tuning and fold snapshots
 are parsed for execution scope, not authenticated by their CLI labels. Legacy
 deterministic-receipt names do not constitute a new proof of payload equality.
 
+Qwen tied-output inspection follows the declared model semantics: reference
+zero owns both embedding and output-head storage. A redundant physical head is
+checked for shape/dtype/range compatibility but its bytes are ignored, never
+scanned for equality with the embedding. Metadata-only and file inspection use
+the same binding rule. Source-manifest metadata reports the ignored copy, not
+verified byte equality; the legacy comparison-buffer constructor argument does
+not allocate or retain buffers.
+
+All worker bootstrap receivers consume the supplied footer label without
+hashing, re-encoding or byte-comparing frames, including the direct I8 entry
+point. They publish parsed typed records with one owned copy. Magic/version,
+length, UTF-8, target, KV geometry and allocation ceilings still validate before
+ownership is published. The label associates startup records; it does not
+authenticate transport bytes. Construction-time control-plan identity remains
+separate from receiving and reauthenticating an existing payload.
+
 ## Compatibility discipline
 
 - One implementation of the engine is authoritative.

@@ -83,6 +83,32 @@ async fn main {
     }
   }
   let converter = @fs.read_file("cmd/lunaflux_qwen3_weight_convert/run.mbt").text()
+  let source_reader = @fs.read_file("model/qwen3_weights/source_file.mbt").text()
+  for removed in ["qwen3_ranges_equal", "limits.compare_chunk_bytes", "redundant_lm_head_byte_equal"] {
+    guard !source_reader.contains(removed) else {
+      fail("redundant tied-weight payload scan reintroduced: " + removed)
+    }
+  }
+  let bootstrap_decoder = @fs.read_file("engine/worker_wire/bootstrap_source_decode.mbt").text()
+  guard !bootstrap_decoder.contains("bootstrap_source_digest_of(") else {
+    fail("worker bootstrap receive must not rehash its source payload")
+  }
+  let i8_codec = @fs.read_file("engine/worker_wire/bootstrap_source_i8_codec.mbt").text()
+  guard !i8_codec.contains("let expected = i8_source_digest_of(") else {
+    fail("I8 worker bootstrap receive must not rehash its source payload")
+  }
+  for name in [
+    "decode", "i8_codec", "qwen3_codec", "mistral_codec", "fp8_codec",
+    "tensor_parallel", "tensor_parallel_v8", "owned_decode",
+  ] {
+    let path = "engine/worker_wire/bootstrap_source_" + name + ".mbt"
+    let source = @fs.read_file(path).text()
+    for removed in ["let canonical = admit_", "canonical.storage[index] != source[index]"] {
+      guard !source.contains(removed) else {
+        fail("bootstrap receive re-encoding/byte comparison reintroduced: " + path)
+      }
+    }
+  }
   for
     removed in ["hash_approved_file", "SHA256::new", "crypto.sha256(document)"] {
     guard !converter.contains(removed) else {

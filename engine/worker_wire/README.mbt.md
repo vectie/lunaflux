@@ -47,10 +47,12 @@ contains model weights, model configuration bytes, manifests, CUDA modules, or
 native handles. Startup v4 binds this source digest into the independent
 `Configure` contract. The process supervisor now sends `Configure ->
 BootstrapSource -> Ready`, retains the immutable source, and reuses its exact
-canonical bytes for replacement workers. The trailing self-SHA provides
-internal integrity and canonical content identity only; it is not peer
-authentication. The child compares received source bytes with the independently
-expected `Configure` source digest over the private child channel. The full
+canonical bytes for replacement workers. Construction derives a control-plan
+identity once; receivers carry the trailing supplied label without hashing,
+re-encoding or byte-comparing the frame. It is not a verified integrity claim.
+The child compares the received label with the `Configure` label over the
+private child channel, while the codec checks lengths, paths, target, KV
+geometry and memory ceilings. The full
 startup order is `Configure -> BootstrapSource -> ParentApprovalAttestation ->
 Ready`.
 

@@ -1,5 +1,21 @@
 # LunaFlux detailed implementation plan
 
+2026-10-10 follow-up: Qwen source inspection now reads only bounded safetensors
+headers. Its declared tied-embedding contract selects reference-zero storage;
+the redundant physical head is ignored after shape/dtype/range checks, without
+payload equality scans or comparison-buffer allocation. Metadata-only binding
+uses the same rule. All worker bootstrap receive recipes, including direct I8
+decoding, also no longer hash, re-encode or byte-compare source frames; footer
+labels are associations, not verified checksums. Structural parsing,
+allocation ceilings and ownership remain required. These changes remove
+startup work, not GPU math, and carry no new token-throughput claim.
+The affected native matrix passes 107/107, including all 11 bootstrap recipes,
+direct/common I8 receive, detached frame ownership, invalid structural input,
+and Qwen declared-label/tied-storage behavior. Main CLI and weight-converter
+checks pass with existing migration exclusions `-20-25-29-35-79-92`; no new
+warning exclusions were added. The developer no-hashing and token-step gates
+also pass. No native ABI or GPU numerical path changed in this cleanup.
+
 ## Working policy
 
 Current priority (2026-10-10): executable GLM-5.3 Flash, DeepSeek-V4 Flash DSpark

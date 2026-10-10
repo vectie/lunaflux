@@ -201,14 +201,6 @@ fn validate_i8_source_header(
     read_u64(source, 224) != 0UL {
     raise InvalidBootstrapSource(Reserved)
   }
-  let expected = i8_source_digest_of(
-    source,
-    length - BOOTSTRAP_SOURCE_DIGEST_BYTES,
-  )
-  if bootstrap_source_raw_digest(source, length - BOOTSTRAP_SOURCE_DIGEST_BYTES) !=
-    expected {
-    raise InvalidBootstrapSource(Integrity)
-  }
 }
 
 ///|
@@ -274,18 +266,18 @@ pub fn decode_i8_bootstrap_source_v6(
     max_module_bytes=read_u64(source, 104).reinterpret_as_int64(),
     max_total_module_bytes=read_u64(source, 112).reinterpret_as_int64(),
   )
-  let canonical = admit_i8_bootstrap_source_v6(
-    roots, model, kernel, execution, ceilings,
+  own_decoded_bootstrap_source(
+    source,
+    length,
+    roots~,
+    model=model.model,
+    kernel~,
+    execution=execution.execution,
+    ceilings~,
+    recipe=DenseLlamaI8PagedAotV6,
+    i8_model_source=model,
+    i8_execution=execution,
   )
-  if canonical.length != length {
-    raise InvalidBootstrapSource(CanonicalEncoding)
-  }
-  for index in 0..<length {
-    if canonical.storage[index] != source[index] {
-      raise InvalidBootstrapSource(CanonicalEncoding)
-    }
-  }
-  canonical
 }
 
 ///|

@@ -44,19 +44,6 @@ fn wb_source_bytes() -> (FixedArray[Byte], Int) raise {
 }
 
 ///|
-fn wb_recompute_integrity(bytes : FixedArray[Byte], length : Int) -> Unit raise {
-  let digest = bootstrap_source_digest_of(
-    bytes,
-    length - BOOTSTRAP_SOURCE_DIGEST_BYTES,
-  )
-  write_bootstrap_source_digest(
-    bytes,
-    length - BOOTSTRAP_SOURCE_DIGEST_BYTES,
-    digest.as_hex(),
-  )
-}
-
-///|
 fn expect_source_rule(
   bytes : FixedArray[Byte],
   length : Int,
@@ -71,10 +58,16 @@ fn expect_source_rule(
 }
 
 ///|
-test "bootstrap source integrity covers every payload byte" {
+test "bootstrap source receive parses paths without rehashing the payload" {
   let (bytes, length) = wb_source_bytes()
-  bytes[BOOTSTRAP_SOURCE_HEADER_BYTES_V2] = b'X'
-  expect_source_rule(bytes, length, Integrity)
+  let supplied_label = bootstrap_source_raw_digest(
+    bytes,
+    length - BOOTSTRAP_SOURCE_DIGEST_BYTES,
+  )
+  bytes[BOOTSTRAP_SOURCE_HEADER_BYTES_V2 + 1] = b't'
+  let decoded = decode_bootstrap_source(bytes, length)
+  assert_eq(decoded.roots().model_root(), "/trv/lunaflux/models")
+  assert_eq(decoded.digest(), supplied_label)
 }
 
 ///|
@@ -100,10 +93,9 @@ test "bootstrap source validates structural header fields distinctly" {
 }
 
 ///|
-test "integrity-valid source still validates UTF-8 paths and ceilings" {
+test "bootstrap source validates UTF-8 paths and ceilings without a hash prerequisite" {
   let (utf8, length) = wb_source_bytes()
   utf8[BOOTSTRAP_SOURCE_HEADER_BYTES_V2] = b'\xff'
-  wb_recompute_integrity(utf8, length)
   expect_source_rule(utf8, length, Utf8)
 
   let (traversal, _) = wb_source_bytes()
@@ -113,40 +105,39 @@ test "integrity-valid source still validates UTF-8 paths and ceilings" {
   for index in 0..<replacement.length() {
     traversal[config_offset + index] = replacement[index]
   }
-  wb_recompute_integrity(traversal, length)
   expect_source_rule(traversal, length, RelativeLocator)
 
   let (ceiling, _) = wb_source_bytes()
   write_u64(ceiling, 104, 0UL)
-  wb_recompute_integrity(ceiling, length)
   expect_source_rule(ceiling, length, Ceiling)
 }
 
 ///|
-test "integrity-valid source still validates target and KV geometry" {
+test "bootstrap source validates target and KV geometry without a hash prerequisite" {
   let (target, length) = wb_source_bytes()
   write_i32(target, 40, 0)
-  wb_recompute_integrity(target, length)
   expect_source_rule(target, length, Target)
 
   let (tokens, _) = wb_source_bytes()
   write_i32(tokens, 52, 0)
-  wb_recompute_integrity(tokens, length)
   expect_source_rule(tokens, length, KvLayout)
 
   let (pages, _) = wb_source_bytes()
   write_i32(pages, 56, 0)
-  wb_recompute_integrity(pages, length)
   expect_source_rule(pages, length, KvLayout)
 }
 
 ///|
-test "bootstrap source rejects non-exact input lengths and footer digest" {
+test "bootstrap source rejects non-exact lengths but retains supplied footer labels" {
   let (short, length) = wb_source_bytes()
   expect_source_rule(short, length - 1, Length)
   let (footer, _) = wb_source_bytes()
   footer[length - 1] = footer[length - 1] ^ b'\x01'
-  expect_source_rule(footer, length, Integrity)
+  let decoded = decode_bootstrap_source(footer, length)
+  assert_eq(
+    decoded.digest(),
+    bootstrap_source_raw_digest(footer, length - BOOTSTRAP_SOURCE_DIGEST_BYTES),
+  )
   let tiny = FixedArray::make(8, b'\x00')
   expect_source_rule(tiny, 8, Length)
 }

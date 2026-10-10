@@ -307,16 +307,22 @@ fn decode_qwen3_bf16_paged_bootstrap_source_v12(
     max_module_bytes=read_u64(source, 104).reinterpret_as_int64(),
     max_total_module_bytes=read_u64(source, 112).reinterpret_as_int64(),
   )
-  let canonical = admit_qwen3_bf16_paged_bootstrap_source_v12(
-    roots, model, kernel, execution, ceilings,
+  if !execution.supports_bf16() {
+    raise InvalidBootstrapSource(Recipe)
+  }
+  own_decoded_bootstrap_source(
+    source,
+    length,
+    roots~,
+    model=model.model,
+    kernel~,
+    execution~,
+    ceilings~,
+    recipe=if extensions {
+      DenseQwen3Bf16PagedAotExtensionsV13
+    } else {
+      DenseQwen3Bf16PagedAotV12
+    },
+    qwen3_model_source=model,
   )
-  if canonical.length != length {
-    raise InvalidBootstrapSource(CanonicalEncoding)
-  }
-  for index in 0..<length {
-    if canonical.storage[index] != source[index] {
-      raise InvalidBootstrapSource(CanonicalEncoding)
-    }
-  }
-  canonical
 }

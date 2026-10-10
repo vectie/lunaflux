@@ -314,16 +314,22 @@ pub fn decode_mistral_bootstrap_source_v7(
     max_module_bytes=read_u64(source, 104).reinterpret_as_int64(),
     max_total_module_bytes=read_u64(source, 112).reinterpret_as_int64(),
   )
-  let canonical = admit_mistral_bootstrap_source_v7(
-    roots, model, kernel, execution, ceilings,
+  if !execution.supports_bf16() {
+    raise InvalidBootstrapSource(Recipe)
+  }
+  own_decoded_bootstrap_source(
+    source,
+    length,
+    roots~,
+    model=model.model,
+    kernel~,
+    execution~,
+    ceilings~,
+    recipe=if extensions {
+      DenseMistralBf16PagedAotExtensionsV11
+    } else {
+      DenseMistralBf16PagedAotV7
+    },
+    mistral_model_source=model,
   )
-  if canonical.length != length {
-    raise InvalidBootstrapSource(CanonicalEncoding)
-  }
-  for index in 0..<length {
-    if canonical.storage[index] != source[index] {
-      raise InvalidBootstrapSource(CanonicalEncoding)
-    }
-  }
-  canonical
 }

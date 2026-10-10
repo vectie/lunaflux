@@ -264,16 +264,22 @@ fn decode_tensor_parallel_approved_bootstrap_source(
     maximum_collective_runtime_version_code=read_i32(source, 192),
     collective_exchange_timeout_millis=read_i32(source, 200),
   )
-  let canonical = admit_tensor_parallel_approved_bootstrap_source(
-    roots, model, kernel, execution, ceilings, policy,
+  guard kernel.luna_approval() is Some(approval) else {
+    raise InvalidBootstrapSource(Recipe)
+  }
+  if approval.manifest_digest() != kernel.manifest_digest() ||
+    approval.approved_source() != kernel.manifest_digest() {
+    raise InvalidBootstrapSource(Digest)
+  }
+  own_decoded_bootstrap_source(
+    source,
+    length,
+    roots~,
+    model~,
+    kernel~,
+    execution~,
+    ceilings~,
+    recipe=DenseLlamaTensorParallelPagedAotApprovedV8,
+    tensor_parallel_policy=policy,
   )
-  if canonical.length != length {
-    raise InvalidBootstrapSource(CanonicalEncoding)
-  }
-  for index in 0..<length {
-    if canonical.storage[index] != source[index] {
-      raise InvalidBootstrapSource(CanonicalEncoding)
-    }
-  }
-  canonical
 }

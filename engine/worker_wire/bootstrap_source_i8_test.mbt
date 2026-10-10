@@ -71,6 +71,23 @@ test "I8 v6 bootstrap source roundtrips exact artifact and device facts" {
 }
 
 ///|
+test "I8 direct and common receivers retain supplied labels without rehashing" {
+  let encoded = i8_source_fixture()
+  let transport = FixedArray::make(encoded.capacity(), b'\x00')
+  encoded.copy_to(transport, destination_offset=0)
+  transport[232 + 1] = b't'
+  let direct = @worker_wire.decode_i8_bootstrap_source_v6(
+    transport,
+    encoded.length(),
+  )
+  let common = @worker_wire.decode_bootstrap_source(transport, encoded.length())
+  for decoded in [direct, common] {
+    assert_eq(decoded.roots().model_root(), "/trv/lunaflux/models")
+    assert_eq(decoded.digest(), encoded.digest())
+  }
+}
+
+///|
 test "common codec transports I8 v6 while I8 decoder rejects legacy" {
   let i8 = i8_source_fixture()
   let i8_bytes = FixedArray::make(i8.capacity(), b'\x00')

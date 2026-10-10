@@ -210,16 +210,16 @@ pub fn decode_fp8_reusable_bootstrap_source_v9(
     max_module_bytes=read_u64(source, 104).reinterpret_as_int64(),
     max_total_module_bytes=read_u64(source, 112).reinterpret_as_int64(),
   )
-  let canonical = admit_fp8_reusable_bootstrap_source_v9(
-    roots, model, kernel, execution, ceilings,
+  own_decoded_bootstrap_source(
+    source,
+    length,
+    roots~,
+    model=model.model,
+    kernel~,
+    execution=execution.execution,
+    ceilings~,
+    recipe=DenseLlamaFp8ReusablePagedAotApprovedV9,
+    fp8_model_source=model,
+    fp8_execution=execution,
   )
-  if canonical.length != length {
-    raise InvalidBootstrapSource(CanonicalEncoding)
-  }
-  for index in 0..<length {
-    if canonical.storage[index] != source[index] {
-      raise InvalidBootstrapSource(CanonicalEncoding)
-    }
-  }
-  canonical
 }

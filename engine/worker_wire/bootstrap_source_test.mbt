@@ -276,13 +276,13 @@ test "rejected bootstrap source is stateless and leaves its carrier untouched" {
   let valid = FixedArray::make(encoded.capacity(), b'\x00')
   encoded.copy_to(valid, destination_offset=0)
   let hostile = FixedArray::makei(valid.length(), index => valid[index])
-  hostile[184] = hostile[184] ^ b'\x01'
+  hostile[184] = b'\xff'
   let retained = FixedArray::makei(hostile.length(), index => hostile[index])
   try @worker_wire.decode_bootstrap_source(hostile, encoded.length()) catch {
-    InvalidBootstrapSource(Integrity) => ()
+    InvalidBootstrapSource(Utf8) => ()
     _ => fail("unexpected hostile bootstrap-source error")
   } noraise {
-    _ => fail("integrity-substituted bootstrap source was accepted")
+    _ => fail("invalid UTF-8 bootstrap source was accepted")
   }
   for index in 0..<hostile.length() {
     assert_eq(hostile[index], retained[index])

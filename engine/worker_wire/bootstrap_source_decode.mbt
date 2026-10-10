@@ -124,14 +124,6 @@ fn validate_bootstrap_source_header(
     (read_u32(source, 48) & 0xfffffffc) != 0 {
     raise InvalidBootstrapSource(Reserved)
   }
-  let expected = bootstrap_source_digest_of(
-    source,
-    length - BOOTSTRAP_SOURCE_DIGEST_BYTES,
-  )
-  if bootstrap_source_raw_digest(source, length - BOOTSTRAP_SOURCE_DIGEST_BYTES) !=
-    expected {
-    raise InvalidBootstrapSource(Integrity)
-  }
 }
 
 ///|
@@ -141,8 +133,9 @@ fn bootstrap_source_read_i64(source : FixedArray[Byte], offset : Int) -> Int64 {
 
 ///|
 /// Validates and owns one untrusted canonical bootstrap-source frame. This
-/// proves internal integrity and lexical path syntax only; it does not grant
-/// filesystem authority or establish that a root is stable or read-only.
+/// checks structural bounds and lexical path syntax, not payload integrity.
+/// The footer is a supplied association label; receiving it does not recompute
+/// a checksum. This grants no filesystem authority or read-only-root guarantee.
 /// Rejected inputs publish no partially decoded value and retain no alias to
 /// `source`.
 pub fn decode_bootstrap_source(
@@ -265,16 +258,20 @@ pub fn decode_bootstrap_source(
     max_module_bytes=bootstrap_source_read_i64(source, 104),
     max_total_module_bytes=bootstrap_source_read_i64(source, 112),
   )
-  let canonical = admit_bootstrap_source(
-    roots, model, kernel, execution, ceilings,
+  own_decoded_bootstrap_source(
+    source,
+    length,
+    roots~,
+    model~,
+    kernel~,
+    execution~,
+    ceilings~,
+    recipe=if extensions {
+      DenseLlamaBf16PagedAotExtensionsV10
+    } else if specialized {
+      DenseLlamaPagedAotV3
+    } else {
+      DenseLlamaPagedAotV2
+    },
   )
-  if canonical.length != length {
-    raise InvalidBootstrapSource(CanonicalEncoding)
-  }
-  for index in 0..<length {
-    if canonical.storage[index] != source[index] {
-      raise InvalidBootstrapSource(CanonicalEncoding)
-    }
-  }
-  canonical
 }

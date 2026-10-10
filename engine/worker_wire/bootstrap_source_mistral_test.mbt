@@ -60,9 +60,9 @@ test "Mistral v7 full frame roundtrips exact authenticated claims" {
 }
 
 ///|
-test "Mistral v7 rejects malformed reserved integrity and framing bytes" {
+test "Mistral v7 rejects malformed reserved and framing bytes" {
   let encoded = mistral_source_fixture()
-  for mutation in [16, 252, 256, 120] {
+  for mutation in [16, 252, 256] {
     let frame = FixedArray::make(encoded.capacity(), b'\x00')
     encoded.copy_to(frame, destination_offset=0)
     frame[mutation] = frame[mutation] ^ b'\x01'

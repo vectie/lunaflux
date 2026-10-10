@@ -15,8 +15,8 @@ pub(all) enum WorkerBootstrapRecipe {
 } derive(Debug, Eq)
 
 ///|
-/// SHA-256 identity of the exact canonical bootstrap-source bytes excluding the
-/// trailing digest field which contains the same value in raw form.
+/// Control-plan identity on construction, supplied association label on decode.
+/// Receiving this value does not verify a checksum of the transport bytes.
 pub struct WorkerBootstrapSourceDigest(String) derive(Debug, Eq)
 
 ///|
