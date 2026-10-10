@@ -39,6 +39,12 @@ It requires the worker's explicit absolute-position port. Text prefix/suffix
 join the decoder queue; only a prepared complete range can bind whole-model
 worker delivery. A partial stage is not an independently runnable model.
 
+`maximum_output_rows` defaults to one and can reserve an all-position learned
+egress for verification. It propagates into the existing shared text precision
+plan, generated AOT source and workspace budget. Egress preparation requires
+the worker's sample capacity to match before allocating model state. Enabling
+this envelope alone does not wire a speculative-generation coordinator.
+
 Compressed selection uses an explicit cache-relative precision-IR contract:
 the reader accesses a separate compressed buffer, not a joined tensor with a
 window prefix. No caller offset tensor, host offset update or per-step validation

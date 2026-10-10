@@ -49,6 +49,8 @@ pub fn TwoRankDecoderPipeline::new(
 ) -> Self raise {
   guard !ingress.outputs_token() &&
     remote.outputs_token() &&
+    frame.output_capacity() == 1 &&
+    remote.output_capacity() == 1 &&
     frame.geometry() == ingress.ports().geometry() &&
     timeout_millis > 0UL &&
     timeout_millis <= 300000UL else {

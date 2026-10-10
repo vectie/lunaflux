@@ -98,10 +98,17 @@ pub fn SerialDecoderWorker::geometry(self : Self) -> (Int, Int, Int) {
 }
 
 ///|
+pub fn SerialDecoderWorker::output_capacity(self : Self) -> Int {
+  self.frame.output_capacity()
+}
+
+///|
 /// Counts, metadata, live token capacity and one selected token. Decoder
 /// residuals, weights, state and AOT module are budgeted by their own owners.
 pub fn SerialDecoderWorker::required_device_bytes(self : Self) -> Int64 raise {
-  for port in 0..<self.frame.input_count(); bytes = 4L {
+  for
+    port in 0..<self.frame.input_count()
+    bytes = self.output_capacity().to_int64() * 4L {
     continue bytes + self.frame.input_capacity(port).to_int64()
   } nobreak {
     bytes
@@ -145,9 +152,10 @@ pub fn SerialDecoderWorker::prepare_ports(
     self.inputs.push(allocation)
     self.prepare_pool(context, allocation, bytes)
   }
-  let sampled = context.allocate(4L)
+  let sample_bytes = self.output_capacity() * 4
+  let sampled = context.allocate(sample_bytes.to_int64())
   self.sampled = Some(sampled)
-  self.prepare_pool(context, sampled, 4)
+  self.prepare_pool(context, sampled, sample_bytes)
   self.state = PortsPrepared
 }
 
@@ -189,7 +197,7 @@ pub fn SerialDecoderWorker::bind_executor(
   close~ : () -> Unit raise,
   append_descriptors~ : ArrayView[@device.Allocation],
 ) -> Unit raise {
-  guard self.whole_model else {
+  guard self.whole_model && self.output_capacity() == 1 else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.bind_effects(context, submit~, poll~, close~, append_descriptors~)
@@ -283,7 +291,11 @@ fn SerialDecoderWorker::download(self : Self) -> Unit raise {
         lane=0,
         host_offset=0L,
         device_offset=if port == sample_port { 0L } else { 8L },
-        bytes=4L,
+        bytes=if port == sample_port {
+          self.frame.output_rows().to_int64() * 4L
+        } else {
+          4L
+        },
         to_device=false,
       )
       pool.record(0)
@@ -310,7 +322,7 @@ fn SerialDecoderWorker::downloads_done(self : Self) -> Bool raise {
         self.payloads[port],
         host_offset=0L,
         destination_offset=0,
-        bytes=4,
+        bytes=if port == sample_port { self.frame.output_rows() * 4 } else { 4 },
       )
       self.pools[port].reset(0)
     }
@@ -319,9 +331,9 @@ fn SerialDecoderWorker::downloads_done(self : Self) -> Bool raise {
 }
 
 ///|
-fn load_i32(bytes : FixedArray[Byte]) -> Int {
+fn load_i32(bytes : FixedArray[Byte], row? : Int = 0) -> Int {
   for i in 0..<4; bits = 0U {
-    continue bits | (bytes[i].to_uint() << (i * 8))
+    continue bits | (bytes[row * 4 + i].to_uint() << (i * 8))
   } nobreak {
     bits.reinterpret_as_int()
   }

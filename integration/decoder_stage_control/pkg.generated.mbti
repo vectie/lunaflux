@@ -28,21 +28,30 @@ pub fn DecoderStageClient::close(Self) -> Unit raise
 pub fn DecoderStageClient::commit(Self, pipeline_failed~ : Bool, local_now_millis~ : UInt64) -> Unit raise
 pub fn DecoderStageClient::execution_failed(Self) -> Bool raise
 pub fn DecoderStageClient::is_terminal(Self) -> Bool
-pub fn DecoderStageClient::new(@socket.Tcp, @worker_protocol.WorkerProtocolLimits, outputs_token~ : Bool, maximum_buffer_bytes~ : Int64, timeout_millis~ : UInt64) -> Self raise
+pub fn DecoderStageClient::new(@socket.Tcp, @worker_protocol.WorkerProtocolLimits, outputs_token~ : Bool, maximum_buffer_bytes~ : Int64, timeout_millis~ : UInt64, maximum_output_rows? : Int) -> Self raise
+pub fn DecoderStageClient::output_capacity(Self) -> Int
+pub fn DecoderStageClient::output_rows(Self) -> Int raise
 pub fn DecoderStageClient::outputs_token(Self) -> Bool
 pub async fn DecoderStageClient::poll(Self, local_now_millis~ : UInt64) -> Bool
-pub fn DecoderStageClient::prepare(Self, @worker_wire.ValidatedPlanFrame, epoch~ : UInt64, local_now_millis~ : UInt64) -> Unit raise
+pub fn DecoderStageClient::prepare(Self, @worker_wire.ValidatedPlanFrame, epoch~ : UInt64, local_now_millis~ : UInt64, tentative? : Bool) -> Unit raise
 pub fn DecoderStageClient::release_request(Self, local_now_millis~ : UInt64) -> Unit raise
+pub fn DecoderStageClient::rollback(Self, local_now_millis~ : UInt64) -> Unit raise
 pub fn DecoderStageClient::run(Self, local_now_millis~ : UInt64) -> Unit raise
 pub fn DecoderStageClient::sampled_token(Self) -> Int raise
+pub fn DecoderStageClient::sampled_token_at(Self, Int) -> Int raise
 
 pub struct DecoderStageServer {
   // private fields
 }
 pub fn DecoderStageServer::close(Self) -> Unit raise
 pub fn DecoderStageServer::is_terminal(Self) -> Bool
-pub fn DecoderStageServer::new(@serial_decoder_worker.SerialDecoderRank, @socket.Tcp, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_buffer_bytes~ : Int64, timeout_millis~ : UInt64, local_now_millis~ : UInt64, ready_to_submit~ : () -> Bool raise, arm_activation? : (UInt64, Int, UInt64) -> Unit raise, committed_effect? : (Bool) -> Unit raise, poll_committed_effect? : () -> Bool raise) -> Self raise
+pub fn DecoderStageServer::new(@serial_decoder_worker.SerialDecoderRank, @socket.Tcp, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_buffer_bytes~ : Int64, timeout_millis~ : UInt64, local_now_millis~ : UInt64, ready_to_submit~ : () -> Bool raise, arm_activation? : (UInt64, Int, UInt64) -> Unit raise, committed_effect? : (Bool) -> Unit raise, poll_committed_effect? : () -> Bool raise, state_transaction? : StageStateTransaction) -> Self raise
 pub async fn DecoderStageServer::poll(Self, local_now_millis~ : UInt64) -> Unit
+
+pub struct StageStateTransaction {
+  // private fields
+}
+pub fn StageStateTransaction::new(begin_save~ : () -> Unit raise, poll_save~ : () -> Bool raise, commit~ : () -> Unit raise, begin_restore~ : () -> Unit raise, poll_restore~ : () -> Bool raise) -> Self
 
 // Type aliases
 

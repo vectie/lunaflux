@@ -21,3 +21,12 @@ request's state. Wire retention uses a startup-owned slot, not boxed optional
 value-type views in the token path.
 
 This is worker plumbing, not proof of full-model inference or GPU arithmetic.
+
+With `all_position_outputs=true`, startup reserves selected-row storage for
+every input row. Token-producing stages select `0 .. live_rows` rather than
+only the last row; ordinary generation remains unchanged. A canonical completion
+cannot contain multiple samples and explicitly rejects that operation. A retired
+verification coordinator consumes the result vector instead. `discard_stage`
+aborts its writer without advancing committed request identity or position, but
+only after the enclosing device-state restore has retired. Execution failures
+must poison history, not be treated as a rejected draft.

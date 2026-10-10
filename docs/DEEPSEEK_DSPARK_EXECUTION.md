@@ -146,11 +146,24 @@ the predictor whose allocations it leases. Contiguous Prime updates can append
 later prompt chunks or replay an accepted prefix at the committed frontier;
 Predict remains a one-main-row update and never publishes draft KV.
 
-The verified-prefix algorithm, host request-frontier transaction, all-position
-base head and inter-rank draft/result exchange must still be connected to these
-state transactions. A restored base arena must not be described as a completed
-DSpark acceptance loop. Model work must retire before rollback/commit; callers
-must order all state mutation on the prepared stream or an explicit dependency.
+The pure `engine/greedy_verification` decision now matches each target output
+against the following proposed input. Its value-type result describes accepted
+input rows, newly emitted tokens, a next seed and exact stop/length truncation.
+The seed and final correction/bonus are not counted as extra committed KV rows.
+All-position frame/worker output and the actual learned egress capacity are
+available; rank control carries the complete live vector in prepared storage.
+An optional startup-bound state transaction saves before execution and restores
+before host-frontier rollback acknowledgement. Native tests exercise accepted
+prefix replay and later-sample failure without reviving poisoned history.
+
+These APIs still need the enclosing two-rank speculative coordinator, actual
+predictor draft transport and checkpoint runner mode. The current `*-dspark`
+diagnostic runner does not enable them. No complete acceptance, stochastic
+rejection sampling, model parity or speculative speedup is claimed. Model work
+must retire before rollback/commit; callers must order all state mutation on
+the prepared stream or an explicit dependency. Cancellation/failed transport
+must drain the rank before resolving an abandoned snapshot, not silently reset
+its logical length.
 
 The commit-pinned GB10 generic snapshot probe passed 128 rollback cycles and
 commit/poll/budget/ownership checks (412 backup bytes). This proves the device

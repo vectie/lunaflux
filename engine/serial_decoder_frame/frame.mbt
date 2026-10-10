@@ -35,6 +35,7 @@ pub struct SerialDecoderFrame {
   priv maximum_rows : Int
   priv maximum_context : Int
   priv vocabulary : Int
+  priv all_position_outputs : Bool
   priv model_generation : UInt64
   priv inputs : FixedArray[FixedArray[Byte]]
   priv mut state : FrameState
@@ -62,6 +63,7 @@ pub fn SerialDecoderFrame::new(
   vocabulary_size~ : Int,
   model_generation~ : UInt64,
   with_positions? : Bool = false,
+  all_position_outputs? : Bool = false,
 ) -> Self raise SerialDecoderError {
   guard maximum_rows > 0 &&
     maximum_rows <= 536870911 &&
@@ -73,11 +75,13 @@ pub fn SerialDecoderFrame::new(
     maximum_rows,
     maximum_context,
     vocabulary: vocabulary_size,
+    all_position_outputs,
     model_generation,
     inputs: FixedArray::makei(if with_positions { 9 } else { 8 }, port => {
       let bytes = match port {
         0 => 20
         1 | 8 => maximum_rows * 4
+        7 => if all_position_outputs { maximum_rows * 4 } else { 4 }
         2 => 8
         _ => 4
       }
@@ -219,8 +223,21 @@ pub fn SerialDecoderFrame::stage(
   let reset = if self.request_live { 0 } else { 1 }
   store_i32(self.inputs[4], 0, reset)
   store_i32(self.inputs[5], 0, reset)
-  store_i32(self.inputs[6], 0, if output { 1 } else { 0 })
-  store_i32(self.inputs[7], 0, rows - 1)
+  let outputs = if !output {
+    0
+  } else if self.all_position_outputs {
+    rows
+  } else {
+    1
+  }
+  store_i32(self.inputs[6], 0, outputs)
+  if self.all_position_outputs && output {
+    for row in 0..<rows {
+      store_i32(self.inputs[7], row, row)
+    }
+  } else {
+    store_i32(self.inputs[7], 0, rows - 1)
+  }
   self.pending_id = id
   self.pending_generation = generation
   self.pending_rows = rows
@@ -244,6 +261,8 @@ pub fn SerialDecoderFrame::copy_input(
   let source = self.inputs[port]
   let length = if port == 1 || port == 8 {
     self.pending_rows * 4
+  } else if port == 7 {
+    self.output_rows().max(1) * 4
   } else {
     source.length()
   }
@@ -289,6 +308,11 @@ pub fn SerialDecoderFrame::complete(
   execution_failed~ : Bool,
 ) -> @wire.ValidatedCompletionFrame raise {
   guard self.state is Staged else { raise SerialDecoderError::Busy }
+  // A canonical completion has one token slot. Verification results must be
+  // consumed by the coordinator, never silently truncated to the first row.
+  guard self.output_rows() <= 1 else {
+    raise SerialDecoderError::UnsupportedBatch
+  }
   let frame = self.completion_slot.plan()
   let writer = self.completion_slot.writer()
   self.state = Failed

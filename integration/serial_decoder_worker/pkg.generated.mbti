@@ -39,12 +39,15 @@ pub fn SerialDecoderRank::execution_failed(Self) -> Bool raise
 pub fn SerialDecoderRank::inputs_ready(Self) -> Bool raise
 pub fn SerialDecoderRank::live_rows(Self) -> Int raise
 pub fn SerialDecoderRank::new(@serial_decoder_frame.SerialDecoderFrame, outputs_token~ : Bool) -> Self
+pub fn SerialDecoderRank::output_rows(Self) -> Int raise
 pub fn SerialDecoderRank::outputs_token(Self) -> Bool
 pub fn SerialDecoderRank::ports(Self) -> SerialDecoderWorker
 pub fn SerialDecoderRank::produces_token(Self) -> Bool raise
 pub fn SerialDecoderRank::progress(Self) -> Bool raise
 pub fn SerialDecoderRank::release_request(Self) -> Unit raise
+pub fn SerialDecoderRank::rollback_retired(Self) -> Unit raise
 pub fn SerialDecoderRank::sampled_token(Self) -> Int raise
+pub fn SerialDecoderRank::sampled_token_at(Self, Int) -> Int raise
 pub fn SerialDecoderRank::submit(Self) -> Unit raise
 
 pub struct SerialDecoderWorker {
@@ -57,6 +60,7 @@ pub fn SerialDecoderWorker::completion(Self) -> @worker_wire.ValidatedCompletion
 pub fn SerialDecoderWorker::geometry(Self) -> (Int, Int, Int)
 pub fn SerialDecoderWorker::input(Self, DecoderInputPort) -> @device.Allocation raise
 pub fn SerialDecoderWorker::new(@serial_decoder_frame.SerialDecoderFrame) -> Self
+pub fn SerialDecoderWorker::output_capacity(Self) -> Int
 pub fn SerialDecoderWorker::prepare_ports(Self, @device.Context, maximum_device_bytes~ : Int64) -> Unit raise
 pub fn SerialDecoderWorker::progress(Self) -> Bool raise
 pub fn SerialDecoderWorker::release_request(Self) -> Unit raise

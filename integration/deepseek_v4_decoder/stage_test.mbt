@@ -3,6 +3,7 @@ fn stage(
   spec : @spec.DeepSeekV4ModelSpec,
   first : Int,
   end : Int,
+  maximum_output_rows? : Int = 1,
 ) -> @deepseek_v4_decoder.DeepSeekDecoderStage raise {
   @deepseek_v4_decoder.DeepSeekDecoderStage::new(
     spec,
@@ -18,7 +19,42 @@ fn stage(
     maximum_layer_expert_bytes=8589934592L,
     maximum_text_workspace_bytes=16777216L,
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    maximum_output_rows~,
   )
+}
+
+///|
+test "verification output capacity reaches the actual learned egress source" {
+  let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
+    "deepseek-ai/DeepSeek-V4-Flash-0731",
+  )
+  let ordinary = stage(spec, spec.layer_count() - 1, spec.layer_count())
+  defer ordinary.close()
+  let verification = stage(
+    spec,
+    spec.layer_count() - 1,
+    spec.layer_count(),
+    maximum_output_rows=3,
+  )
+  defer verification.close()
+  let source = @utf8.decode(verification.source_bytes())
+  assert_true(source.contains("if(n <= 0 || n > 3"))
+  assert_false(source == @utf8.decode(ordinary.source_bytes()))
+  for outputs in [0, 4] {
+    try
+      stage(
+        spec,
+        spec.layer_count() - 1,
+        spec.layer_count(),
+        maximum_output_rows=outputs,
+      )
+    catch {
+      @precision.PrecisionPlanError::IllegalPlacement => ()
+      error => raise error
+    } noraise {
+      _ => fail("output geometry exceeded input rows before preparation")
+    }
+  }
 }
 
 ///|

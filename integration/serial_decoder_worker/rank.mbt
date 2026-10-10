@@ -110,6 +110,23 @@ pub fn SerialDecoderRank::submit(self : Self) -> Unit raise {
 }
 
 ///|
+fn SerialDecoderWorker::invalid_samples(
+  self : Self,
+  sample_port : Int,
+) -> Bool raise {
+  if !self.outputs_token {
+    return false
+  }
+  for row in 0..<self.frame.output_rows() {
+    let value = load_i32(self.payloads[sample_port], row~)
+    if value < 0 || value >= self.vocabulary {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Queue and execution-error/sample DMA retirement, not pipeline completion.
 /// Egress validates vocabulary bounds. Ingress/interior never read token output.
 pub fn SerialDecoderRank::progress(self : Self) -> Bool raise {
@@ -140,12 +157,7 @@ pub fn SerialDecoderRank::progress(self : Self) -> Bool raise {
       })
       let token = load_i32(worker.payloads[sample_port])
       worker.stage_token = token
-      worker.stage_failed = failed ||
-        (
-          worker.outputs_token &&
-          worker.frame.produces_token() &&
-          (token < 0 || token >= worker.vocabulary)
-        )
+      worker.stage_failed = failed || worker.invalid_samples(sample_port)
       worker.state = Retired
       true
     }
@@ -168,10 +180,51 @@ pub fn SerialDecoderRank::sampled_token(self : Self) -> Int raise {
   guard worker.state is Retired &&
     !worker.stage_failed &&
     worker.outputs_token &&
-    worker.frame.produces_token() else {
+    worker.frame.output_rows() == 1 else {
     raise @frame.SerialDecoderError::Busy
   }
   worker.stage_token
+}
+
+///|
+/// Retired all-position samples remain in startup-owned host storage until
+/// commit/rollback. This scalar accessor neither allocates nor downloads again.
+pub fn SerialDecoderRank::sampled_token_at(self : Self, row : Int) -> Int raise {
+  let worker = self.worker
+  guard worker.state is Retired &&
+    !worker.stage_failed &&
+    worker.outputs_token &&
+    row >= 0 &&
+    row < worker.frame.output_rows() else {
+    raise @frame.SerialDecoderError::Busy
+  }
+  load_i32(worker.payloads[worker.frame.input_count()], row~)
+}
+
+///|
+pub fn SerialDecoderRank::output_rows(self : Self) -> Int raise {
+  guard self.worker.state is Retired else {
+    raise @frame.SerialDecoderError::Busy
+  }
+  if self.worker.outputs_token {
+    self.worker.frame.output_rows()
+  } else {
+    0
+  }
+}
+
+///|
+/// Call only after the model-state snapshot has restored and retired. Rejected
+/// draft execution is not a model failure. Actual local/peer failure must go
+/// through commit(pipeline_failed=true) and cannot return a reusable frontier.
+pub fn SerialDecoderRank::rollback_retired(self : Self) -> Unit raise {
+  let worker = self.worker
+  guard worker.state is Retired && !worker.stage_failed else {
+    raise @frame.SerialDecoderError::Busy
+  }
+  worker.state = Failed
+  worker.frame.discard_stage()
+  worker.state = Ready
 }
 
 ///|

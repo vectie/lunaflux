@@ -10,6 +10,7 @@ pub struct DeepSeekDecoderStage {
   priv ingress : @text.DeepSeekTextIngress?
   priv egress : @text.DeepSeekTextIo?
   priv maximum_rows : Int
+  priv maximum_output_rows : Int
   priv maximum_context : Int
   priv vocabulary : Int
   priv residual_bytes : Int64
@@ -37,8 +38,11 @@ pub fn DeepSeekDecoderStage::new(
   maximum_text_workspace_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
   capture_prediction_inputs? : Bool = false,
+  maximum_output_rows? : Int = 1,
 ) -> Self raise {
-  guard range.layer_count() == spec.layer_count() else {
+  guard range.layer_count() == spec.layer_count() &&
+    maximum_output_rows > 0 &&
+    maximum_output_rows <= maximum_rows else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (first_layer, end_layer) = range.layer_range()
@@ -65,7 +69,7 @@ pub fn DeepSeekDecoderStage::new(
       @text.DeepSeekTextIo::new(
         spec,
         maximum_rows~,
-        maximum_output_rows=1,
+        maximum_output_rows~,
         maximum_workspace_bytes=maximum_text_workspace_bytes,
       ),
     )
@@ -79,6 +83,7 @@ pub fn DeepSeekDecoderStage::new(
     ingress,
     egress,
     maximum_rows,
+    maximum_output_rows,
     maximum_context,
     vocabulary: spec.vocabulary_size(),
     residual_bytes: maximum_rows.to_int64() *
@@ -189,6 +194,7 @@ pub fn DeepSeekDecoderStage::prepare(
   guard rows == self.maximum_rows &&
     history <= self.maximum_context &&
     vocabulary == self.vocabulary &&
+    (self.egress is None || ports.output_capacity() == self.maximum_output_rows) &&
     chunk_bytes > 0 else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }

@@ -37,3 +37,16 @@ retirement and pipeline commit. Ingress/interior ranks do not read token output;
 terminal ranks validate sampled IDs. No rank emits a model completion. Only a
 coordinator commits the step and publishes the canonical response. A peer failure
 poisons retained history. Whole-model worker APIs reject rank-owned ports.
+
+Rank verification optionally reserves and transfers one sample per live row.
+The shared worker counts its full sample capacity before allocating ports;
+only live results are downloaded. `sampled_token_at` reads retired startup-owned
+host storage, with no additional device round trip. Every returned row must be
+in vocabulary; an invalid later row fails the whole transaction. The one-token
+getter cannot silently narrow a vector. Native tests require zero heap
+allocations and no blocking synchronization for upload, execution retirement,
+sample access, successful host rollback and the pure greedy-prefix decision.
+
+`rollback_retired` is only the host transaction. Its caller must first restore
+and retire the complete device snapshot. The ordinary whole-model canonical
+worker and one-token pipeline do not accept multi-output configurations.

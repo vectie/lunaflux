@@ -71,7 +71,7 @@ pub fn DeepSeekDecoderStage::close(Self) -> Unit raise
 pub fn DeepSeekDecoderStage::input_residual(Self) -> @device.Allocation raise
 pub fn DeepSeekDecoderStage::launch_count(Self) -> Int
 pub fn DeepSeekDecoderStage::layer_range(Self) -> (Int, Int)
-pub fn DeepSeekDecoderStage::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, @decoder_pipeline_plan.DecoderStageRange, maximum_rows~ : Int, maximum_context~ : Int, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, maximum_text_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, capture_prediction_inputs? : Bool) -> Self raise
+pub fn DeepSeekDecoderStage::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, @decoder_pipeline_plan.DecoderStageRange, maximum_rows~ : Int, maximum_context~ : Int, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, maximum_text_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, capture_prediction_inputs? : Bool, maximum_output_rows? : Int) -> Self raise
 pub fn DeepSeekDecoderStage::output_residual(Self) -> @device.Allocation raise
 pub fn DeepSeekDecoderStage::persistent_state(Self) -> Array[@device.Allocation] raise
 pub fn DeepSeekDecoderStage::poll(Self) -> Bool raise

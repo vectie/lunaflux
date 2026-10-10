@@ -29,3 +29,29 @@ step. It runs only after a successful whole-pipeline commit; failed commits skip
 it. Its completion is polled before commit acknowledgement or new metadata is
 accepted. Prefill/decode kind comes from the validated plan, not row-count
 guessing. The default route has no extra side effect or wait phase.
+
+## Tentative verification
+
+An explicitly configured terminal rank/client can return every live output row.
+Results stay in the fixed control buffer until commit/rollback; scalar getters
+reject a multi-row vector instead of truncating it. Ordinary one-token messages
+retain their existing format. Multi-output peers must both select the matching
+capacity; failure exposes no partial vector.
+
+Prepare flag `1` requests a tentative state transaction. The server rejects it
+unless startup supplied `StageStateTransaction`. Save completion precedes input
+acknowledgement, activation arming and model execution. Command `9` requests
+rollback; receipt `10` arrives only after the complete device restore and the
+rank's host-frontier rollback retire. Rejection does not run the committed
+prediction side effect. An all-accepted commit discards the backup; a failed
+commit also releases that backup after retirement but permanently poisons the
+rank and never publishes successful output. Both continue to use plaintext,
+bounded control transport, without payload hashes.
+
+The state-effect owner must snapshot all actual mutable allocations, not just a
+logical length. It separately budgets backup bytes and drains/cancels model work
+before resolving an abandoned save/restore and closing snapshot leases. Closing
+the server closes transport only; it does not make unresolved tentative device
+state committed or release the borrowed rank. Native TCP tests cover save/restore
+ordering, every returned row, replay of an accepted prefix, failed later samples
+and unchanged one-token behavior. They do not prove a checkpoint DSpark loop.

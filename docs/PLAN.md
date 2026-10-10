@@ -7,6 +7,18 @@ and MiniMax-H3 model features. Additional TLS/admission expansion and unrelated
 warning migrations are paused. Retain existing ownership guarantees and focused
 tests, but do not make new hardening work a prerequisite for model execution.
 
+DSpark verification plumbing now supports all-position learned egress, prepared
+sample vectors, tentative state save/restore in the existing plaintext rank
+protocol, and a pure greedy-prefix acceptance decision. The native paths require
+zero warmed heap allocation. The actual `*-dspark` runner remains diagnostic:
+next connect the enclosing two-rank coordinator, draft exchange, accepted-prefix
+replay and cancellation/backup lifetime before a full checkpoint acceptance run.
+Do not describe these component APIs as complete speculative generation.
+The affected native regression passes 126/126, including allocation-counted
+vector retirement/prefix decisions and real TCP protocol tests. Native check
+uses the existing toolchain-migration warning exclusions; no new CUDA workload
+or full-checkpoint acceptance benchmark was run for this component change.
+
 Real two-host DeepSeek base BOS smoke now finishes successfully with tokens
 `5,223`, `Length`, and both ranks exited with status zero. Independent numerical
 correctness remains unverified. The committed-main/draft ring (254 cases) and

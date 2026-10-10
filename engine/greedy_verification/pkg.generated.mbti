@@ -1,0 +1,45 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/greedy_verification"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn verify_greedy_prefix(ArrayView[Int], ArrayView[Int], remaining_new_tokens~ : Int, vocabulary_size~ : Int, stop_tokens~ : ArrayView[Int]) -> VerifiedGreedyPrefix raise GreedyVerificationError
+
+// Errors
+pub(all) suberror GreedyVerificationError {
+  InvalidEnvelope
+  InvalidToken
+} derive(Eq, @debug.Debug)
+pub fn GreedyVerificationError::equal(Self, Self) -> Bool
+pub fn GreedyVerificationError::not_equal(Self, Self) -> Bool
+pub fn GreedyVerificationError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum GreedyVerificationFinish {
+  Continue
+  Length
+  StopToken
+} derive(Eq, @debug.Debug)
+pub fn GreedyVerificationFinish::equal(Self, Self) -> Bool
+pub fn GreedyVerificationFinish::not_equal(Self, Self) -> Bool
+pub fn GreedyVerificationFinish::to_repr(Self) -> @debug.Repr
+
+pub struct VerifiedGreedyPrefix {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn VerifiedGreedyPrefix::accepted_draft_tokens(Self) -> Int
+pub fn VerifiedGreedyPrefix::accepted_input_rows(Self) -> Int
+pub fn VerifiedGreedyPrefix::emitted_token_count(Self) -> Int
+pub fn VerifiedGreedyPrefix::equal(Self, Self) -> Bool
+pub fn VerifiedGreedyPrefix::finish_reason(Self) -> GreedyVerificationFinish
+pub fn VerifiedGreedyPrefix::next_seed(Self) -> Int
+pub fn VerifiedGreedyPrefix::not_equal(Self, Self) -> Bool
+pub fn VerifiedGreedyPrefix::rollback_required(Self) -> Bool
+pub fn VerifiedGreedyPrefix::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

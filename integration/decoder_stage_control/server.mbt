@@ -11,9 +11,11 @@ priv enum ServerPhase {
 priv enum ServerState {
   Receiving
   Uploading
+  Saving
   WaitingActivation
   Executing
   CommittedEffect
+  Restoring
   Sending
   Terminal
   FailedState
@@ -36,6 +38,7 @@ pub struct DecoderStageServer {
   priv arm_activation : (UInt64, Int, UInt64) -> Unit raise
   priv committed_effect : ((Bool) -> Unit raise)?
   priv poll_committed_effect : () -> Bool raise
+  priv state_transaction : StageStateTransaction?
   priv timeout_millis : UInt64
   priv mut last_tick : UInt64
   priv mut phase_deadline : UInt64
@@ -44,6 +47,7 @@ pub struct DecoderStageServer {
   priv mut state : ServerState
   priv mut busy : Bool
   priv mut decode_step : Bool
+  priv mut tentative : Bool
 }
 
 ///|
@@ -59,6 +63,7 @@ pub fn DecoderStageServer::new(
   arm_activation? : (UInt64, Int, UInt64) -> Unit raise = (_, _, _) => (),
   committed_effect? : (Bool) -> Unit raise,
   poll_committed_effect? : () -> Bool raise = () => true,
+  state_transaction? : StageStateTransaction,
 ) -> Self raise {
   guard maximum_buffer_bytes >= required_buffer_bytes(limits) &&
     timeout_millis > 0UL &&
@@ -88,6 +93,7 @@ pub fn DecoderStageServer::new(
     arm_activation,
     committed_effect,
     poll_committed_effect,
+    state_transaction,
     timeout_millis,
     last_tick: local_now_millis,
     phase_deadline: local_now_millis + timeout_millis,
@@ -96,6 +102,7 @@ pub fn DecoderStageServer::new(
     state: Receiving,
     busy: false,
     decode_step: false,
+    tentative: false,
   }
 }
 
@@ -127,7 +134,7 @@ fn DecoderStageServer::command(
   }
   if kind == prepare_kind {
     guard self.phase is (Idle | Released) &&
-      flags == 0 &&
+      (flags == 0 || (flags == 1 && self.state_transaction is Some(_))) &&
       epoch > self.epoch &&
       length > control_header_bytes else {
       raise StageControlError::InvalidMessage
@@ -138,6 +145,7 @@ fn DecoderStageServer::command(
     }
     let plan = self.plan.load(self.plan_bytes, bytes)
     self.decode_step = plan.decode_count() > 0
+    self.tentative = flags == 1
     let writer = self.completion.writer_for(plan)
     self.rank.begin(plan, writer)
     self.epoch = epoch
@@ -156,6 +164,13 @@ fn DecoderStageServer::command(
     self.phase is Retired {
     let failed = flags == 1 || self.rank.execution_failed()
     self.rank.commit(pipeline_failed=failed)
+    if self.tentative && self.state_transaction is Some(transaction) {
+      // A failed rank is permanently poisoned. Discard its backup only after
+      // retirement so teardown can release leases; this does not publish or
+      // validate the failed mutations, and no prediction side effect runs.
+      (transaction.commit)()
+      self.tentative = false
+    }
     self.phase = if failed { Poisoned } else { Idle }
     if !failed && self.committed_effect is Some(begin_effect) {
       begin_effect(self.decode_step)
@@ -164,6 +179,15 @@ fn DecoderStageServer::command(
     } else {
       self.reply(committed_kind, if failed { 1 } else { 0 }, 0, now)
     }
+  } else if kind == rollback_kind &&
+    flags == 0 &&
+    self.phase is Retired &&
+    self.tentative &&
+    !self.rank.execution_failed() &&
+    self.state_transaction is Some(transaction) {
+    (transaction.begin_restore)()
+    self.phase_deadline = now + self.timeout_millis
+    self.state = Restoring
   } else if kind == release_kind && flags == 0 && self.phase is Idle {
     self.rank.release_request()
     self.phase = Released
@@ -196,7 +220,13 @@ pub async fn DecoderStageServer::poll(
     raise @channel.RemoteChannelError::ClockRegressed
   }
   self.last_tick = local_now_millis
-  if self.state is (Uploading | WaitingActivation | Executing | CommittedEffect) &&
+  if self.state
+    is (Uploading
+    | Saving
+    | WaitingActivation
+    | Executing
+    | CommittedEffect
+    | Restoring) &&
     local_now_millis >= self.phase_deadline {
     raise @channel.RemoteChannelError::TimedOut
   }
@@ -213,13 +243,17 @@ pub async fn DecoderStageServer::poll(
       }
     Uploading =>
       if self.rank.inputs_ready() {
-        (self.arm_activation)(
-          self.epoch,
-          self.rank.live_rows(),
-          local_now_millis,
-        )
-        self.phase = Prepared
-        self.reply(inputs_kind, 0, 0, local_now_millis)
+        if self.tentative && self.state_transaction is Some(transaction) {
+          (transaction.begin_save)()
+          self.state = Saving
+        } else {
+          self.inputs_receipt(local_now_millis)
+        }
+      }
+    Saving =>
+      if self.state_transaction is Some(transaction) &&
+        (transaction.poll_save)() {
+        self.inputs_receipt(local_now_millis)
       }
     WaitingActivation =>
       if (self.ready_to_submit)() {
@@ -230,18 +264,50 @@ pub async fn DecoderStageServer::poll(
       if self.rank.progress() {
         let failed = self.rank.execution_failed()
         let output = !failed && self.rank.produces_token()
-        let token = if output { self.rank.sampled_token() } else { 0 }
         self.phase = Retired
-        self.reply(
-          result_kind,
-          (if failed { 1 } else { 0 }) | (if output { 2 } else { 0 }),
-          token,
-          local_now_millis,
-        )
+        let rows = if output { self.rank.output_rows() } else { 0 }
+        if rows > 1 {
+          guard rows <= (self.message.length() - control_header_bytes) / 4 else {
+            raise StageControlError::InvalidMessage
+          }
+          header(self.message, result_kind, self.epoch, 4, rows)
+          for row in 0..<rows {
+            write_i32(
+              self.message,
+              control_header_bytes + row * 4,
+              self.rank.sampled_token_at(row),
+            )
+          }
+          self.channel.begin_send(
+            self.message,
+            control_header_bytes + rows * 4,
+            local_now_millis,
+          )
+          self.state = Sending
+        } else {
+          self.reply(
+            result_kind,
+            (if failed { 1 } else { 0 }) | (if output { 2 } else { 0 }),
+            if output {
+              self.rank.sampled_token()
+            } else {
+              0
+            },
+            local_now_millis,
+          )
+        }
       }
     CommittedEffect =>
       if (self.poll_committed_effect)() {
         self.reply(committed_kind, 0, 0, local_now_millis)
+      }
+    Restoring =>
+      if self.state_transaction is Some(transaction) &&
+        (transaction.poll_restore)() {
+        self.rank.rollback_retired()
+        self.tentative = false
+        self.phase = Idle
+        self.reply(rolled_back_kind, 0, 0, local_now_millis)
       }
     Sending =>
       if self.channel.poll_send(local_now_millis) {
@@ -258,6 +324,13 @@ pub async fn DecoderStageServer::poll(
     Terminal => ()
     _ => raise StageControlError::Failed
   }
+}
+
+///|
+fn DecoderStageServer::inputs_receipt(self : Self, now : UInt64) -> Unit raise {
+  (self.arm_activation)(self.epoch, self.rank.live_rows(), now)
+  self.phase = Prepared
+  self.reply(inputs_kind, 0, 0, now)
 }
 
 ///|
