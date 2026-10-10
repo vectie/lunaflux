@@ -29,7 +29,7 @@ pub fn build_conditioning(
   guard sequence.assembly().width() == width else { raise InvalidShape }
   let copies : Array[ConditioningCopy] = []
   let symbols : Array[String] = []
-  let mut source = b""
+  let fragments : Array[Bytes] = []
   let mut bytes = 0L
   let projections : Array[(String, Bytes)] = []
   for segment in sequence.segments() {
@@ -38,11 +38,12 @@ pub fn build_conditioning(
       Text | ConditionAudio | ConditionVideo => {
         let elements = segment.count.to_int64() * width.to_int64()
         let symbol = function_prefix + "_copy_" + copies.length().to_string()
-        source = source +
+        fragments.push(
           @decoder_foundation_cuda_source.copy_bf16_source(
             elements~,
             function_symbol=symbol,
-          )
+          ),
+        )
         symbols.push(symbol)
         let latent = match segment.kind {
           ConditionAudio =>
@@ -85,10 +86,10 @@ pub fn build_conditioning(
   }
   for (symbol, projection) in projections {
     symbols.push(symbol)
-    source = source + projection
+    fragments.push(projection)
   }
   {
-    source,
+    source: @cuda_translation_unit.compose(fragments[:]),
     symbols: ReadOnlyArray::from_array(symbols),
     copies: ReadOnlyArray::from_array(copies),
     model,

@@ -1,0 +1,35 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-minimax-request-config-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("new local whole-request config directory required")
+  }
+  for path in [root, root + "/transformer", root + "/video_vae", root + "/video_vae/source", root + "/audio_vae", root + "/text_encoder", root + "/aot"] {
+    @fs.mkdir(path)
+  }
+  for file in ["model_index.json", "transformer/config.json", "video_vae/config.json", "video_vae/source/config.json", "audio_vae/config.json", "audio_vae/metadata.json", "audio_vae/config.yaml", "text_encoder/config.json"] {
+    @shell.Cmd("scp", [
+      "-o", "BatchMode=yes",
+      "lunanexa-management:/data/models/MiniMax/MiniMax-H3/FL2VA/" + file,
+      root + "/" + file,
+    ]).output().check()
+  }
+  let exported = @shell.Cmd(
+    "_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe",
+    ["export-request", @fs.realpath(root), "32", "32", "120", "5", "3", "256", "64", "4096", "8589934592", @fs.realpath(root) + "/aot"],
+  ).output(max_output_bytes=4194304)
+  @fs.write_file(root + "/export.stdout", exported.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/export.stderr", exported.stderr(), create_mode=CreateNew)
+  exported.check()
+  println(exported.stdout())
+}

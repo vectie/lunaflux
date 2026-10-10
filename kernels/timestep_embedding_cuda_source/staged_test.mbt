@@ -14,4 +14,6 @@ test "staged timestep MLP computes first projection once per hidden element" {
   assert_true(text.contains("if (i >= 16128ULL) return;"))
   assert_true(text.contains("float first = bias[hidden];"))
   assert_false(text.contains("for (int hidden"))
+  assert_false(text.contains("}#include"))
+  assert_true(text.has_suffix("\n"))
 }

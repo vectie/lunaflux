@@ -31,7 +31,7 @@ pub fn build_audio_amp(
     activation_symbol=symbols[1],
     downsample_symbol=symbols[2],
   )
-  let mut source = activation.source_bytes()
+  let fragments = [activation.source_bytes()]
   for block, kernel in [3, 7, 11] {
     for pair, first_dilation in [1, 3, 5] {
       for side in 0..<2 {
@@ -41,7 +41,7 @@ pub fn build_audio_amp(
         let convolve = prefix + "_conv"
         symbols.push(normalize)
         symbols.push(convolve)
-        source = source +
+        fragments.push(
           @channel_major_projection_cuda_source.f32_weight_normalized_dilated_conv1d_source(
             batch_count=batch,
             channel_count=channels,
@@ -51,7 +51,8 @@ pub fn build_audio_amp(
             padding=(kernel - 1) * dilation / 2,
             normalize_symbol=normalize,
             convolution_symbol=convolve,
-          ).source_bytes()
+          ).source_bytes(),
+        )
       }
     }
   }
@@ -59,14 +60,15 @@ pub fn build_audio_amp(
   let average = function_prefix + "_average"
   symbols.push(residual)
   symbols.push(average)
-  source = source +
+  fragments.push(
     @joint_audio_amp_cuda_source.f32_residual_and_three_way_average_source(
       element_count=activation.input_element_count(),
       residual_symbol=residual,
       average_symbol=average,
-    ).source_bytes()
+    ).source_bytes(),
+  )
   {
-    source,
+    source: @cuda_translation_unit.compose(fragments[:]),
     symbols: ReadOnlyArray::from_array(symbols),
     batch,
     channels,

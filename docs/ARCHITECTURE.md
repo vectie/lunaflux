@@ -880,7 +880,8 @@ and produces contiguous K/V `[T,64,256]`; Flash uses a distinct four-operand
 zero-suffix ABI to split packed `[T,64,512]`. This owns no cache handoff,
 allocation, or execution authority.
 MiniMax's joint plan binds attention rotary width and Q/K RMS epsilon instead
-of hiding them in a family adapter. Its complete 703-tensor F32 VideoVae and
+of hiding them in a family adapter. Its complete converted 703-tensor and
+original 560-tensor F32 VideoVae layouts and
 1,087-tensor F32 AudioVae vocabularies now admit bounded host materialization,
 while its
 separate conditioning reference binds request-derived geometry and ordered

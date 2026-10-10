@@ -37,7 +37,10 @@ pub fn build_audio_frontend(
     convolution_symbol=symbols[2],
   )
   {
-    source: projection.source_bytes() + convolution.source_bytes(),
+    source: @cuda_translation_unit.compose([
+      projection.source_bytes(),
+      convolution.source_bytes(),
+    ]),
     symbols: ReadOnlyArray::from_array(symbols),
     batch,
     time,

@@ -84,7 +84,9 @@ mask buffer), maps encoder/MLP names, and reads fused QKV in the upstream
 `[head,Q/K/V,channel]` order. Thirty-two head slices per projection preserve the
 existing semantic destination layout; whole-matrix Q/K/V slicing is incorrect.
 Native schema, missing/mixed-layout, source-offset and manifest regressions
-pass. Rebuild and physically inspect this exact adapter before GPU decoding.
+pass. Committed `d071f266` now physically inspects the original 10,415,484,128-byte
+payload successfully, binds all 560 tensors and prepares a 9,694,124,384-byte
+decoder packing without opening CUDA. GPU decoding remains next.
 Actual checkpoint-backed VideoVAE execution remains unverified. Next complete
 the new `decode-video` actual-checkpoint entry point's physical run: it borrows
 the same resolved decoder plan and packed denoiser-layout input as full request
@@ -95,6 +97,16 @@ fixture decoding must not be described as completed text-to-media generation.
 Next complete
 conditioning/denoising/video composition and
 the two-host full media request. These component results do not close H3.
+
+Full-request source export now reads the actual original audio/video/Qwen3-VL
+metadata without Python. The bounded 32x32, 124-frame, five-step, three-text-row
+request emits all 31 modules, including both timestep-count variants, text
+encoder, refiner, denoiser, flow updates and decoders. All H3 fragment joins use
+the shared CUDA translation-unit composer, including the nested staged timestep
+MLP. Native malformed-boundary, source-equivalence, CLI argument and row-budget
+regressions pass (26/26 focused tests). Request export derives its row ceiling
+from explicit hidden/index storage budgets instead of an invalid Int maximum.
+Full module compilation and actual composed inference remain separate steps.
 
 DeepSeek mHC now has explicit F32-projection-then-normalization and transposed
 residual-before-branch laws, rather than reusing GLM's BF16 control contract.

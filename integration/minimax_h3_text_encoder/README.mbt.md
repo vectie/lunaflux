@@ -43,9 +43,11 @@ source construction; this module does not silently truncate or bypass that guard
 These correctness-grade scalar kernels are **not a fast tiled implementation**.
 CUDA compilation, numerical parity, sanitizers and performance are unverified.
 Exact host region resolution and bounded layer/embedding upload are implemented
-in the existing host materialization and block upload packages. The current
-host component still materializes the full checkpoint before selecting these
-consumed tensors; skipping unused upper layers during file streaming remains.
+in the existing host materialization and block upload packages.
+`EncoderWeights::prepare_streamed` consumes the bounded checkpoint stream,
+uploads only embedding and layers 0–49, and skips unused upper-layer regions
+without materializing the full host checkpoint. The host-arena path remains
+available for already-resident reference weights.
 Physical qualification and fast tiled kernels remain open. Host trigonometric
 rounding has not been compared with CUDA. Source numerical contracts follow
 [Qwen3-VL](https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen3_vl/modeling_qwen3_vl.py);

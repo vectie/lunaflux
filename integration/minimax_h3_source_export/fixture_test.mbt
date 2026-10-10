@@ -195,6 +195,15 @@ test "complete offline export emits every schedule variant and deterministic sou
   }
   for i, entry in first.units {
     assert_eq(entry.source, second.units[i].source)
+    let text = @utf8.decode(entry.source)
+    guard !text.contains("}#include") && !text.contains("}#if") else {
+      fail("malformed CUDA fragment boundary in \{entry.name}")
+    }
+    for line in text.split("\n") {
+      if line.contains("#include") {
+        assert_true(line.trim().has_prefix("#include"))
+      }
+    }
   }
   let media = first.with_reference_audio(
     ordinal=0,

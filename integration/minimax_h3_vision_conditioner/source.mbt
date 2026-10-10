@@ -46,62 +46,64 @@ pub fn build_source(
   ]
   let r = plan.rows
   let m = plan.merged_rows
-  let source = @cuda_source.linear_source(
+  let source = @cuda_translation_unit.compose([
+    @cuda_source.linear_source(
       rows=r,
       input_width=1536,
       output_width=1152,
       activation=0,
       symbol=symbols[0],
-    ) +
+    ),
     @cuda_source.position_source(
       rows=r,
       geometry=geometry_source(plan, prefix),
       prefix~,
-    ) +
-    @cuda_source.norm_source(rows=r, width=1152, symbol=symbols[2]) +
+    ),
+    @cuda_source.norm_source(rows=r, width=1152, symbol=symbols[2]),
     @cuda_source.linear_source(
       rows=r,
       input_width=1152,
       output_width=3456,
       activation=0,
       symbol=symbols[3],
-    ) +
+    ),
     @cuda_source.linear_source(
       rows=r,
       input_width=1152,
       output_width=1152,
       activation=0,
       symbol=symbols[6],
-    ) +
-    @cuda_source.residual_source(rows=r, width=1152, symbol=symbols[7]) +
+    ),
+    @cuda_source.residual_source(rows=r, width=1152, symbol=symbols[7]),
     @cuda_source.linear_source(
       rows=r,
       input_width=1152,
       output_width=4304,
       activation=1,
       symbol=symbols[8],
-    ) +
+    ),
     @cuda_source.linear_source(
       rows=r,
       input_width=4304,
       output_width=1152,
       activation=0,
       symbol=symbols[9],
-    ) +
-    @cuda_source.norm_source(rows=m, width=4608, symbol=symbols[10]) +
+    ),
+    @cuda_source.norm_source(rows=m, width=4608, symbol=symbols[10]),
     @cuda_source.linear_source(
       rows=m,
       input_width=4608,
       output_width=4608,
       activation=2,
       symbol=symbols[11],
-    ) +
+    ),
     @cuda_source.linear_source(
       rows=m,
       input_width=4608,
       output_width=5120,
       activation=0,
       symbol=symbols[12],
-    )
+    ),
+  ])
   { plan, symbols, source, }
 }

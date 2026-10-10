@@ -24,6 +24,8 @@ import {
   "vectie/lunaflux/integration/minimax_h3_video_decode" @video,
   "vectie/lunaflux/model/minimax_h3_vae_reference" @vae,
   "vectie/lunaflux/model/joint_diffusion_plan" @joint,
+  "vectie/lunaflux/model/minimax_h3_sequence" @sequence,
+  "vectie/lunaflux/model/minimax_h3_text_encoder" @text,
 }
 
 supported_targets = "native"

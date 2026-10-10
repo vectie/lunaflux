@@ -46,6 +46,7 @@ async fn main {
       ) ||
       ((mode == "export-audio" || mode == "audio-memory") && tail.length() == 5) ||
       (mode == "export-video" && tail.length() == 9) ||
+      (mode == "export-request" && tail.length() == 10) ||
       (mode == "decode-audio" && tail.length() == 9) ||
       (mode == "decode-video" && tail.length() == 12) ||
       (
@@ -79,6 +80,10 @@ async fn main {
     "MiniMax-H3 layers=\{plan.denoiser().layer_count()} hidden=\{plan.denoiser().hidden_size()}",
   )
   if mode == "config" {
+    return
+  }
+  if mode == "export-request" {
+    export_request(root, metadata, plan, tail)
     return
   }
   if mode == "video-config" || mode == "export-video" {

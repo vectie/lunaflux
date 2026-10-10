@@ -14,6 +14,7 @@ import {
   "vectie/lunaflux/kernels/decoder_foundation_cuda_source",
   "vectie/lunaflux/kernels/decoder_projection_cuda_source",
   "vectie/lunaflux/kernels/gated_mlp_cuda_source",
+  "vectie/lunaflux/kernels/cuda_translation_unit",
 }
 
 supported_targets = "native"

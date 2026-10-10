@@ -68,7 +68,9 @@ pub fn build_refiner(
     function_symbol=symbols[9],
   )
   {
-    source: norm + final_norm + residual + attention + mlp + context,
+    source: @cuda_translation_unit.compose([
+      norm, final_norm, residual, attention, mlp, context,
+    ]),
     symbols: ReadOnlyArray::from_array(symbols),
     model,
     rows: text_rows,

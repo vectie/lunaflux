@@ -25,8 +25,10 @@ pub fn build_audio_input(
     function_symbol="lunaflux_audio_destandardize_v1",
   )
   {
-    source: @dense_permutation_cuda_source.render(permutation, block_size=256) +
-    affine.source_bytes(),
+    source: @cuda_translation_unit.compose([
+      @dense_permutation_cuda_source.render(permutation, block_size=256),
+      affine.source_bytes(),
+    ]),
     symbols: [
       "lunaflux_dense_permutation_u32_v1", "lunaflux_audio_destandardize_v1",
     ],

@@ -94,12 +94,14 @@ pub fn build(
     function_symbol=symbols[10],
   )
   {
-    source: attention.source_bytes() +
-    norm.source_bytes() +
-    mlp +
-    modulation +
-    parameters +
-    activation,
+    source: @cuda_translation_unit.compose([
+      attention.source_bytes(),
+      norm.source_bytes(),
+      mlp,
+      modulation,
+      parameters,
+      activation,
+    ]),
     symbols: ReadOnlyArray::from_array(symbols),
     rows,
     distinct_timesteps,

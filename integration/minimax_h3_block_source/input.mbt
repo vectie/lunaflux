@@ -34,9 +34,11 @@ pub fn build_input(
     function_symbol=symbols[1],
   ).source_bytes()
   {
-    source: video +
-    audio +
-    @packed_rows_cuda_source.render(sequence.assembly(), block_size=256),
+    source: @cuda_translation_unit.compose([
+      video,
+      audio,
+      @packed_rows_cuda_source.render(sequence.assembly(), block_size=256),
+    ]),
     symbols: ReadOnlyArray::from_array(symbols),
     model,
     sequence,

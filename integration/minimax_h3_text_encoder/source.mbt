@@ -75,18 +75,20 @@ pub fn build_source(
   {
     plan,
     symbols,
-    source: embedding +
-    norm +
-    q +
-    kv +
-    att +
-    out +
-    mlp +
-    residual +
-    @text_encoder_cuda_source.visual_scatter_source(
-      rows=plan.rows,
-      width=5120,
-      prefix~,
-    ),
+    source: @cuda_translation_unit.compose([
+      embedding,
+      norm,
+      q,
+      kv,
+      att,
+      out,
+      mlp,
+      residual,
+      @text_encoder_cuda_source.visual_scatter_source(
+        rows=plan.rows,
+        width=5120,
+        prefix~,
+      ),
+    ]),
   }
 }

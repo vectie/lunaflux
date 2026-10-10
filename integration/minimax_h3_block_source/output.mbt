@@ -106,7 +106,9 @@ pub fn build_output(
     function_symbol=symbols[5],
   ).source_bytes()
   {
-    source: parameters + norm + video_mod + audio_mod + video + audio,
+    source: @cuda_translation_unit.compose([
+      parameters, norm, video_mod, audio_mod, video, audio,
+    ]),
     symbols: ReadOnlyArray::from_array(symbols),
     video_start,
     video_rows,

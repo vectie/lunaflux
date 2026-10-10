@@ -29,6 +29,14 @@ WORKSPACE_LIMIT EMPTY_OUTPUT_DIRECTORY` exports the same VideoVAE module as the
 full request and reports its exact workspace/input/output byte counts. Tiling
 and memory policy are explicit inputs, not model- or machine-hidden defaults.
 
+`export-request VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TEXT_ROWS TILE_SIZE OVERLAP
+MAX_TILES WORKSPACE_LIMIT EMPTY_OUTPUT_DIRECTORY` reads the original audio,
+video and Qwen3-VL metadata and exports the complete text-only request module
+set: text encoder, refiner, timestep variants, joint denoiser, input/output,
+flow updates and both media decoders. Optional image/reference conditioning
+still uses the typed source-export API. This command reads metadata only and
+opens no CUDA context; compilation does not establish checkpoint execution.
+
 `decode-video VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP
 MAX_TILES AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT` streams the actual
 VideoVAE checkpoint and executes all 36 decoder blocks, temporal/spatial assembly

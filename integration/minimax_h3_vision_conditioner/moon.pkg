@@ -6,6 +6,7 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/model/minimax_h3_vision_conditioner" @vision,
   "vectie/lunaflux/kernels/vision_conditioner_cuda_source" @cuda_source,
+  "vectie/lunaflux/kernels/cuda_translation_unit",
   "vectie/lunaflux/model/minimax_h3_host_materialization",
   "vectie/lunaflux/integration/minimax_h3_block_upload",
   "vectie/lunaflux/model/spec",

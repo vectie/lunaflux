@@ -46,7 +46,10 @@ pub fn build_audio_tail(
     use_bias=false,
   )
   {
-    source: activation.source_bytes() + convolution.source_bytes(),
+    source: @cuda_translation_unit.compose([
+      activation.source_bytes(),
+      convolution.source_bytes(),
+    ]),
     symbols: ReadOnlyArray::from_array(symbols),
     batch,
     channels,

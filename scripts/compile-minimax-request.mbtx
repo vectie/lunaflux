@@ -1,0 +1,91 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock",
+    "wlc003s@192.168.2.178", command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + name + ".stdout", output.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + name + ".stderr", output.stderr(), create_mode=CreateNew)
+  output.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, config, root, suffix] &&
+    config.has_prefix("/tmp/lunaflux-minimax-request-config-") &&
+    root.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
+    [config, root, suffix].all(s => {
+      !s.is_empty() && !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) && !suffix.contains("/") else {
+    fail("existing full config/export, new output root, unique suffix")
+  }
+  @fs.mkdir(root)
+  record(root, "mkdir", remote("mkdir " + root))
+  record(root, "tool", remote("sha256sum /usr/local/cuda-13.0/bin/nvcc"))
+  guard @fs.read_file(root + "/tool.stdout").text().has_prefix(
+    "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1  ",
+  ) else { fail("different AOT compiler") }
+  let manifest = @fs.read_file(config + "/aot/SOURCES.v1").text()
+  let modules : Array[String] = []
+  for line in manifest.split("\n") {
+    if line.has_prefix("module=") {
+      guard line.split("\t").next() is Some(field) else {
+        fail("missing module name")
+      }
+      let name = field[7:].to_owned()
+      guard !name.is_empty() &&
+        name.iter().all(c => c is ('a'..='z' | '0'..='9' | '_')) &&
+        !modules.contains(name) else { fail("invalid source module") }
+      modules.push(name)
+    }
+  }
+  guard !modules.is_empty() && modules.length() <= 128 else {
+    fail("unbounded source inventory")
+  }
+  for name in modules {
+    let source = config + "/aot/" + name + ".cu"
+    @shell.Cmd("scp", [
+      "-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+      source, "wlc003s@192.168.2.178:" + root + "/" + name + ".cu",
+    ]).output().check()
+    record(root, name + "-source-remote", remote("sha256sum " + root + "/" + name + ".cu"))
+    record(root, name + "-source-local", @shell.Cmd("shasum", ["-a", "256", source]).output())
+    guard @fs.read_file(root + "/" + name + "-source-remote.stdout").text().split(" ").next() ==
+      @fs.read_file(root + "/" + name + "-source-local.stdout").text().split(" ").next() else {
+      fail("source upload differs")
+    }
+    // CPU-only, serial compilation. Never opens a CUDA context or competes for
+    // GPU execution; 2-GiB/no-swap is independent of the live decoder cgroup.
+    record(root, name + "-compile", remote(
+      "systemd-run --user --wait --pipe --unit=lunaflux-minimax-request-aot-" + suffix + "-" + name +
+      " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
+      root + "/" + name + ".cu -o " + root + "/" + name + ".cubin",
+    ))
+    @shell.Cmd("scp", [
+      "-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+      "wlc003s@192.168.2.178:" + root + "/" + name + ".cubin", root + "/" + name + ".cubin",
+    ]).output().check()
+    record(root, name + "-binary-remote", remote("sha256sum " + root + "/" + name + ".cubin"))
+    record(root, name + "-binary-local", @shell.Cmd("shasum", ["-a", "256", root + "/" + name + ".cubin"]).output())
+    guard @fs.read_file(root + "/" + name + "-binary-remote.stdout").text().split(" ").next() ==
+      @fs.read_file(root + "/" + name + "-binary-local.stdout").text().split(" ").next() else {
+      fail("cubin download differs")
+    }
+    println("compiled=\{name}")
+  }
+  @fs.write_file(root + "/COMPILED.txt", "modules=\{modules.length()}\nGPU_execution=false\n", create_mode=CreateNew)
+  println("whole-request AOT compilation complete; inference is a separate run")
+}

@@ -37,11 +37,13 @@ pub fn staged_dense_silu_dense_f32_rows_source(
       $|}
     ),
   )
-  first +
-  @decoder_projection_cuda_source.dense_projection_f32_bias_f32_source(
-    rows=rows.to_int64(),
-    input_width=hidden_width,
-    output_width~,
-    function_symbol=function_prefix + "_output",
-  ).source_bytes()
+  @cuda_translation_unit.compose([
+    first,
+    @decoder_projection_cuda_source.dense_projection_f32_bias_f32_source(
+      rows=rows.to_int64(),
+      input_width=hidden_width,
+      output_width~,
+      function_symbol=function_prefix + "_output",
+    ).source_bytes(),
+  ])
 }

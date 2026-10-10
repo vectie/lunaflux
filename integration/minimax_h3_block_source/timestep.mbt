@@ -42,7 +42,7 @@ pub fn build_timestep(
     function_symbol=symbols[3],
   )
   {
-    source: frequency + mlp + activation,
+    source: @cuda_translation_unit.compose([frequency, mlp, activation]),
     symbols: ReadOnlyArray::from_array(symbols),
     rows,
     input_width,
