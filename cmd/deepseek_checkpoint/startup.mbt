@@ -63,6 +63,11 @@ fn stage_plan(
     maximum_text_workspace_bytes=ceiling,
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
     capture_prediction_inputs=startup.dspark && ordinal == 1,
+    maximum_output_rows=if startup.dspark && ordinal == 1 {
+      startup.rows
+    } else {
+      1
+    },
   )
 }
 
@@ -94,6 +99,11 @@ fn inspect_startup(
   let spec = inspect_config(root)
   guard !dspark || spec.has_dspark() else {
     fail("checkpoint has no DSpark predictor")
+  }
+  guard !dspark || rows >= spec.dspark_block_size() + 1 else {
+    fail(
+      "verification rows must accommodate the seed and the complete draft block",
+    )
   }
   guard history <= spec.max_position_embeddings() else {
     fail("history exceeds the model context limit")
@@ -155,7 +165,7 @@ fn inspect_startup(
   let egress = @text.DeepSeekTextIo::new(
     spec,
     maximum_rows=rows,
-    maximum_output_rows=1,
+    maximum_output_rows=if dspark { rows } else { 1 },
     maximum_workspace_bytes=ceiling,
   )
   defer egress.close()
@@ -174,6 +184,7 @@ fn inspect_startup(
         0L
       }),
     additional_stage_bytes=reserve,
+    with_state_backup=dspark,
   )
   guard placement.stages().length() == 2 else {
     fail("checkpoint does not require exactly two stages under these budgets")
@@ -198,7 +209,8 @@ fn inspect_startup(
     } else {
       0L
     }
-    guard stage.required_device_bytes(checkpoint) + extra <=
+    let backup = if dspark { stage.state_backup_bytes() } else { 0L }
+    guard stage.required_device_bytes(checkpoint) + extra + backup <=
       budgets[ordinal] - reserve else {
       fail("executable stage exceeds its planned memory budget")
     }
@@ -247,8 +259,16 @@ fn inference_limits(startup : Startup) -> @inference.InferenceLimits raise {
 }
 
 ///|
-fn new_frame(startup : Startup) -> @frame.SerialDecoderFrame raise {
-  request_frame(startup.rows, startup.history, startup.spec.vocabulary_size())
+fn new_frame(
+  startup : Startup,
+  verification? : Bool = false,
+) -> @frame.SerialDecoderFrame raise {
+  request_frame(
+    startup.rows,
+    startup.history,
+    startup.spec.vocabulary_size(),
+    all_position_outputs=verification,
+  )
 }
 
 ///|
@@ -256,6 +276,7 @@ fn request_frame(
   rows : Int,
   history : Int,
   vocabulary : Int,
+  all_position_outputs? : Bool = false,
 ) -> @frame.SerialDecoderFrame raise {
   @frame.SerialDecoderFrame::new(
     maximum_rows=rows,
@@ -263,5 +284,6 @@ fn request_frame(
     vocabulary_size=vocabulary,
     model_generation=1UL,
     with_positions=true,
+    all_position_outputs~,
   )
 }

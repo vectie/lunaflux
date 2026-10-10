@@ -78,7 +78,8 @@ async fn main {
     | ("egress-dspark", 4)
     | ("ingress", 7)
     | ("generate", 9)
-    | ("generate-dspark", 9) => true
+    | ("generate-dspark", 9)
+    | ("generate-reference-dspark", 9) => true
     _ => false
   }
   guard mode_valid else {
@@ -140,6 +141,8 @@ async fn main {
     "ingress" => run_ingress(startup, root, tail, generate=false)
     "generate" | "generate-dspark" =>
       run_ingress(startup, root, tail, generate=true)
+    "generate-reference-dspark" =>
+      run_ingress(startup, root, tail, generate=true, speculate=false)
     _ => fail("invalid mode")
   }
 }

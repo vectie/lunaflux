@@ -23,13 +23,19 @@ warning exclusions, including exact copying, failure cleanup, retained-label
 upload and inventory-prefix tests. The local no-hashing regression also passes;
 it remains a developer check, not an engine-startup prerequisite.
 
-DSpark verification plumbing now supports all-position learned egress, prepared
-sample vectors, tentative state save/restore in the existing plaintext rank
-protocol, and a pure greedy-prefix acceptance decision. The native paths require
-zero warmed heap allocation. The actual `*-dspark` runner remains diagnostic:
-next connect the enclosing two-rank coordinator, draft exchange, accepted-prefix
-replay and cancellation/backup lifetime before a full checkpoint acceptance run.
-Do not describe these component APIs as complete speculative generation.
+DSpark verification now connects all-position learned egress, prepared draft
+readback, a model-neutral speculative continuation and the two-rank coordinator
+to `generate-dspark`. The plaintext protocol exchanges an explicit committed
+seed, not stale sampled-output cells after output-free rejection replay.
+Verification saves both physical states, joins target execution, restores and
+replays only accepted inputs on rejection, then commits/Primes both ranks before
+publishing target tokens. Cancellation drains model work before releasing backup
+leases. Pure placement budgets each layer's exact persistent backup separately;
+window scratch/output is not replicated. The warmed continuation and seed upload
+must allocate zero heap. `generate-reference-dspark` uses the same checkpoint,
+placement and all-position AOT but ordinary greedy generation for differential
+testing. The actual new runner still needs a bounded full-checkpoint acceptance
+run; component tests do not prove numerical parity or a speculative speedup.
 The affected native regression passes 126/126, including allocation-counted
 vector retirement/prefix decisions and real TCP protocol tests. Native check
 uses the existing toolchain-migration warning exclusions; no new CUDA workload

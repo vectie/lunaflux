@@ -63,7 +63,7 @@ async fn run_egress(
   let stage = stage_plan(startup, 1)
   defer stage.close()
   let rank = @worker.SerialDecoderRank::new(
-    new_frame(startup),
+    new_frame(startup, verification=startup.dspark),
     outputs_token=true,
   )
   defer rank.close()
@@ -119,10 +119,44 @@ async fn run_egress(
   )
   defer edge.close()
   edge.prepare(context)
+  let backup = if startup.dspark {
+    Some(
+      stage.prepare_state_snapshot(
+        context,
+        stream,
+        maximum_backup_bytes=stage.state_backup_bytes(),
+      ),
+    )
+  } else {
+    None
+  }
+  defer (if backup is Some(owner) {
+    edge.close()
+    if prediction is Some(predictor) {
+      predictor.close()
+    }
+    stage.drain()
+    owner.close_after_retirement()
+  })
+  let readback = match prediction {
+    Some(owner) =>
+      Some(
+        @draft_readback.DraftTokenReadback::new(
+          context,
+          owner.borrow_draft_output(),
+          token_count=startup.spec.dspark_block_size() + 1,
+          vocabulary_size=startup.spec.vocabulary_size(),
+          maximum_host_bytes=startup.reserve / 4L,
+        ),
+      )
+    None => None
+  }
+  defer (if readback is Some(owner) { owner.close() })
   let clock = @clock.MonotonicClock::system()
   let active = Ref(false)
   let ready = Ref(false)
   let prediction_blocks = Ref(0)
+  let reading_drafts = Ref(false)
   let server = @control.DecoderStageServer::new(
     rank,
     connection,
@@ -138,12 +172,7 @@ async fn run_egress(
       active.val = true
     },
     committed_effect?=if prediction is Some(owner) {
-      Some(decode => {
-        owner.submit(if decode { Predict } else { Prime })
-        if decode {
-          prediction_blocks.val += 1
-        }
-      })
+      Some(_ => owner.submit(Prime))
     } else {
       None
     },
@@ -152,6 +181,34 @@ async fn run_egress(
         Some(owner) => owner.poll()
         None => true
       }
+    },
+    state_transaction?=backup.map(owner => state_transaction(owner)),
+    draft_execution?=match (prediction, readback) {
+      (Some(predictor), Some(output)) =>
+        Some(
+          @control.StageDraftExecution::new(
+            maximum_tokens=startup.spec.dspark_block_size() + 1,
+            begin=() => fail("DSpark requires an explicit committed seed"),
+            begin_seeded=seed => {
+              reading_drafts.val = false
+              predictor.submit_from_committed(seed)
+              prediction_blocks.val += 1
+            },
+            poll=() => {
+              if !reading_drafts.val {
+                if !predictor.poll() {
+                  return false
+                }
+                output.begin()
+                reading_drafts.val = true
+              }
+              output.poll()
+            },
+            count=() => output.token_count(),
+            token_at=row => output.token_at(row),
+          ),
+        )
+      _ => None
     },
   )
   defer server.close()
@@ -166,36 +223,7 @@ async fn run_egress(
     server.poll(local_now_millis=now)
     @async.pause()
   }
-  if prediction_blocks.val > 0 && prediction is Some(owner) {
-    let tokens = FixedArray::make(24, b'\x00')
-    let confidence = FixedArray::make(20, b'\x00')
-    context.copy_to_fixed_host(owner.tokens(), tokens, 0L, 0L, 24L)
-    context.copy_to_fixed_host(owner.confidence(), confidence, 0L, 0L, 20L)
-    for row in 0..<6 {
-      let offset = row * 4
-      let token = tokens[offset].to_int() |
-        (tokens[offset + 1].to_int() << 8) |
-        (tokens[offset + 2].to_int() << 16) |
-        (tokens[offset + 3].to_int() << 24)
-      guard token >= 0 && token < startup.spec.vocabulary_size() else {
-        fail("prediction returned an invalid dependent token")
-      }
-    }
-    for row in 0..<5 {
-      let offset = row * 4
-      let exponent = ((confidence[offset + 3].to_int() & 0x7f) << 1) |
-        (confidence[offset + 2].to_int() >> 7)
-      guard exponent != 255 else {
-        fail("prediction returned non-finite confidence")
-      }
-    }
-    println(
-      "dspark_prediction_blocks=\{prediction_blocks.val} tokens_i32_le=\{@crypto.bytes_to_hex_string(Bytes::from_array(tokens))} confidence_f32_le=\{@crypto.bytes_to_hex_string(Bytes::from_array(confidence))}",
-    )
-    println(
-      "drafts are diagnostic output; no speculative accept/reject/commit is claimed",
-    )
-  }
+  println("dspark_prediction_blocks=\{prediction_blocks.val}")
 }
 
 ///|
@@ -204,7 +232,9 @@ async fn run_ingress(
   root : @approved_fs.ApprovedRoot,
   arguments : ArrayView[String],
   generate~ : Bool,
+  speculate? : Bool = true,
 ) -> Unit {
+  let speculative_enabled = startup.dspark && speculate
   let count = @string.parse_int(arguments[5])
   guard count > 0 && count <= startup.history else {
     fail("invalid bounded frame count")
@@ -247,6 +277,12 @@ async fn run_ingress(
     outputs_token=true,
     maximum_buffer_bytes=startup.reserve / 4L,
     timeout_millis=300000UL,
+    maximum_output_rows=if startup.dspark { startup.rows } else { 1 },
+    maximum_draft_tokens=if startup.dspark {
+      startup.spec.dspark_block_size() + 1
+    } else {
+      0
+    },
   )
   defer client.close()
   let activation_connection = @socket.Tcp::connect(
@@ -263,6 +299,22 @@ async fn run_ingress(
   defer edge.close()
   edge.prepare(context)
   let limits = worker_limits(startup)
+  let backup = if startup.dspark {
+    Some(
+      stage.prepare_state_snapshot(
+        context,
+        stream,
+        maximum_backup_bytes=stage.state_backup_bytes(),
+      ),
+    )
+  } else {
+    None
+  }
+  defer (if backup is Some(owner) {
+    edge.close()
+    stage.drain()
+    owner.close_after_retirement()
+  })
   let inference = inference_limits(startup)
   let pipeline = @pipeline.TwoRankDecoderPipeline::new(
     new_frame(startup),
@@ -274,7 +326,13 @@ async fn run_ingress(
       edge.begin(epoch~, live_rows=rows, local_now_millis=now)
     },
     poll_activation=now => edge.poll(local_now_millis=now),
-    close_activation=() => edge.close(),
+    close_activation=() => {
+      edge.close()
+      if backup is Some(saved) {
+        stage.drain()
+        saved.close_after_retirement()
+      }
+    },
   )
   defer pipeline.close()
   let plans = @wire.PlanFrameBuffer::new(limits, inference)
@@ -283,6 +341,8 @@ async fn run_ingress(
   let output = FixedArray::make(completions.capacity(), b'\x00')
   let clock = @clock.MonotonicClock::system()
   let generation : Ref[@generation.SerialGreedyGeneration?] = Ref(None)
+  let speculative : Ref[@generation.SpeculativeGreedyGeneration?] = Ref(None)
+  let generation_start = clock.now_millis()
   for index in 0..<count {
     let input = read_bounded(
       frame_root,
@@ -333,17 +393,31 @@ async fn run_ingress(
       fail("model execution returned a failed completion")
     }
     if generate && index == count - 1 {
-      generation.val = Some(
-        @generation.SerialGreedyGeneration::new(
-          plan,
-          completion,
-          limits,
-          inference,
-          maximum_new_tokens~,
-          maximum_context=startup.history,
-          stop_tokens=if stop == -1 { [] } else { [stop] },
-        ),
-      )
+      if speculative_enabled {
+        speculative.val = Some(
+          @generation.SpeculativeGreedyGeneration::new(
+            plan,
+            completion,
+            limits,
+            inference,
+            maximum_new_tokens~,
+            maximum_context=startup.history,
+            stop_tokens=if stop == -1 { [] } else { [stop] },
+          ),
+        )
+      } else {
+        generation.val = Some(
+          @generation.SerialGreedyGeneration::new(
+            plan,
+            completion,
+            limits,
+            inference,
+            maximum_new_tokens~,
+            maximum_context=startup.history,
+            stop_tokens=if stop == -1 { [] } else { [stop] },
+          ),
+        )
+      }
     }
     if entry.kind() == @protocol.CompletionEntryKind::PrefillCompletion {
       println("frame=\{index} processed=\{entry.processed_tokens()}")
@@ -353,7 +427,25 @@ async fn run_ingress(
       )
     }
   }
-  if generate {
+  let mut verification_released = false
+  if speculative.val is Some(owner) && owner.finish_reason() is Running {
+    guard backup is Some(saved) else {
+      fail("missing verification state owner")
+    }
+    generate_speculative(
+      startup,
+      owner,
+      rank,
+      client,
+      stage,
+      edge,
+      saved,
+      clock,
+      first_epoch=count.to_uint64() + 1UL,
+      stop~,
+    )
+    verification_released = true
+  } else if generate && !speculative_enabled {
     guard generation.val is Some(owner) else { fail("no completed prompt") }
     while owner.finish_reason() is Running {
       let plan = owner.next_decode()
@@ -369,24 +461,27 @@ async fn run_ingress(
       owner.accept(pipeline.completion())
     }
   }
-  pipeline.release_request(local_now_millis=clock.now_millis())
-  while !pipeline.progress(local_now_millis=clock.now_millis()) {
-    @async.pause()
+  if !verification_released {
+    pipeline.release_request(local_now_millis=clock.now_millis())
+    while !pipeline.progress(local_now_millis=clock.now_millis()) {
+      @async.pause()
+    }
   }
   if generation.val is Some(owner) {
-    // Diagnostic rendering/filesystem output happens only after generation and
-    // both ranks' request retirement, not on its decode submission path.
-    let rendered = StringBuilder()
-    for index in 0..<owner.token_count() {
-      rendered <+ "\{owner.token_at(index)}\n"
-    }
-    @fs.write_file(
-      output_directory + "/tokens.txt",
-      rendered.to_string(),
-      create_mode=CreateNew,
-    )
-    println(
-      "generated=\{owner.token_count()} finish=\{Repr(owner.finish_reason())}",
+    write_generated(
+      output_directory,
+      owner.token_count(),
+      owner.finish_reason(),
+      index => owner.token_at(index),
     )
   }
+  if speculative.val is Some(owner) {
+    write_generated(
+      output_directory,
+      owner.token_count(),
+      owner.finish_reason(),
+      index => owner.token_at(index),
+    )
+  }
+  println("generation_millis=\{clock.now_millis() - generation_start}")
 }

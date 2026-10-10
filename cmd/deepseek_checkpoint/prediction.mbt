@@ -13,6 +13,8 @@ fn prediction_plan(
     maximum_expert_bytes=ceiling,
     temperature=0.0,
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    maximum_output_rows=rows,
+    explicit_committed_seed=true,
   )
 }
 

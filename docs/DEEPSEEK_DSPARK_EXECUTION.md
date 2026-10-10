@@ -171,10 +171,11 @@ An optional startup-bound state transaction saves before execution and restores
 before host-frontier rollback acknowledgement. Native tests exercise accepted
 prefix replay and later-sample failure without reviving poisoned history.
 
-These APIs still need the enclosing two-rank speculative coordinator, actual
-predictor draft transport and checkpoint runner mode. The current `*-dspark`
-diagnostic runner does not enable them. No complete acceptance, stochastic
-rejection sampling, model parity or speculative speedup is claimed. Model work
+The checkpoint runner now connects the two-rank speculative coordinator,
+prepared predictor draft transport and greedy generation. Full-checkpoint
+acceptance remains unverified until the new bounded run completes. Stochastic
+rejection sampling, independent model parity and speculative speedup are not
+claimed. Model work
 must retire before rollback/commit; callers must order all state mutation on
 the prepared stream or an explicit dependency. Cancellation/failed transport
 must drain the rank before resolving an abandoned snapshot, not silently reset
@@ -200,8 +201,8 @@ unchanged physical ring/frontier for both retained reset flags, multi-row
 committed chunks, and invalid committed views without poisoning retained state.
 Memcheck reported zero errors/leaked bytes, racecheck zero hazards and synccheck
 zero errors. The component unit has a 2-GiB/no-swap limit. Whole-model speculative
-verification remains pending: the current diagnostic runner does not select
-this third phase or multi-output mode automatically.
+verification remains physically pending. The new runner selects this third
+phase and all-position egress; the campaign above predates that integration.
 
 The companion `.179` vector-seed/Markov campaign at
 `/tmp/lunaflux-markov-vector-seed-20261010-v1` passed 442 cases, maximum absolute
@@ -213,6 +214,26 @@ sources also compile on GB10. This remains a component numerical result, not
 independent full-checkpoint reference parity.
 
 ## Completion requirements
+
+Current runner integration uses an explicit prepared four-byte committed seed.
+The previous live-output seed ABI remains available to other consumers, but it
+cannot drive an output-free rejection replay (its output count is zero).
+`generate-dspark` requests this execution input via rank control and joins its
+H2D event before PredictCommitted; no hash, host diagnostic round-trip or stale
+sample lookup enters submission. Base snapshots exclude prediction rings because
+PredictCommitted does not mutate them and Prime runs only after accepted commit.
+The pure memory planner accounts for exact ring/frontier/cache/pooling backup
+bytes in addition to resident state, weights, scratch and reserve.
+
+`scripts/run-deepseek-dspark-two-spark.mbtx` now prepares six-row/256-context
+all-position AOT and runs sixteen BOS-generated target tokens. Its `reference`
+mode reuses that exact AOT/checkpoint/placement with ordinary greedy generation,
+requires exact token agreement and joins both releases. Both modes retain
+96-GiB/no-swap process limits. Reports include post-loading generation time,
+verified blocks, submitted/accepted rows and accepted-prefix replay count; the
+script remains a developer campaign, not a runtime prerequisite. This is a
+matched internal differential reference, not independent upstream parity or a
+general throughput benchmark.
 
 - Execute the complete checkpoint base runner on both bounded Spark ranks and
   compare numerical/token output independently; a BOS smoke is not a tokenizer

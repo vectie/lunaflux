@@ -175,8 +175,8 @@ async fn main {
       s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))
     }) &&
     !suffix.contains("/") &&
-    mode is ("prepare" | "run") else {
-    fail("NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run BUILD_ROOT COMMIT")
+    mode is ("prepare" | "run" | "reference") else {
+    fail("NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|reference BUILD_ROOT COMMIT")
   }
   let remote_root = "/tmp/lunaflux-dspark-real-" + suffix
   let first = Host::{
@@ -203,7 +203,7 @@ async fn main {
   let build_unit = build[5:].to_owned() + ".service"
   let binary = build +
     "/source/_build/native/release/build/cmd/deepseek_checkpoint/deepseek_checkpoint.exe"
-  let budgets = " 3 256 103079215104 103079215104 4294967296 "
+  let budgets = " 6 256 103079215104 103079215104 4294967296 "
   let model = "/DeepSeek-V4-Flash-DSpark "
   let args0 = first.checkpoint +
     model +
@@ -215,7 +215,8 @@ async fn main {
     last.checkpoint +
     "/SHARDS.sha256" +
     budgets
-  let name = "lunaflux-dspark-" + suffix + "-"
+  let name = "lunaflux-dspark-" + suffix + "-" +
+    (if mode == "reference" { "reference-" } else { "" })
   if mode == "prepare" {
     @fs.mkdir(root)
     // Preparation is CPU-only. No old benchmark process is a dependency.
@@ -305,7 +306,7 @@ async fn main {
         first.root +
         "/deepseek_checkpoint.exe token-frames " +
         first.checkpoint +
-        "/DeepSeek-V4-Flash-DSpark 3 256 0 " +
+        "/DeepSeek-V4-Flash-DSpark 6 256 0 " +
         first.root +
         "/prompt-bos",
       ),
@@ -329,7 +330,7 @@ async fn main {
     fail("preparation missing for this build")
   }
   @fs.write_file(
-    root + "/run-started.txt",
+    root + "/" + mode + "-started.txt",
     "starting prepared checkpoint execution\n",
     create_mode=CreateNew,
   )
@@ -398,15 +399,16 @@ async fn main {
     "96G",
     14400,
     first.root +
-    "/deepseek_checkpoint.exe generate-dspark " +
+    "/deepseek_checkpoint.exe " +
+    (if mode == "reference" { "generate-reference-dspark " } else { "generate-dspark " }) +
     args0 +
     first.root +
     "/aot stage-0.cubin " +
     peers +
     first.root +
-    "/prompt-bos 1 3 -1 " +
+    "/prompt-bos 1 16 -1 " +
     first.root +
-    "/output-bos",
+    "/output-" + mode,
   )
   {
     errdefer {
@@ -418,25 +420,26 @@ async fn main {
   }
   collect(first, root, ingress)
   collect(last, root, egress)
-  let journal = @fs.read_file(root + "/" + egress + "-journal.stdout").text()
-  guard journal
-    .split("\n")
-    .any(line => {
-      line.contains("dspark_prediction_blocks=") &&
-      !line.contains("dspark_prediction_blocks=0 ") &&
-      line.contains("tokens_i32_le=") &&
-      line.contains("confidence_f32_le=")
+  if mode == "run" {
+    let journal = @fs.read_file(root + "/" + ingress + "-journal.stdout").text()
+    guard journal.split("\n").any(line => {
+      line.contains("dspark_verified_blocks=") &&
+      !line.contains("dspark_verified_blocks=0 ") &&
+      line.contains("committed_input_rows=15 ") &&
+      line.contains("accepted_prefix_replays=")
     }) else {
-    fail("no completed real predictor phase")
+      fail("no complete speculative verification/commit generation")
+    }
   }
-  download(first, first.root + "/output-bos/tokens.txt", root + "/tokens.txt")
-  guard @fs.read_file(root + "/tokens.txt")
+  let tokens = root + "/tokens-" + mode + ".txt"
+  download(first, first.root + "/output-" + mode + "/tokens.txt", tokens)
+  guard @fs.read_file(tokens)
     .text()
     .split("\n")
     .filter(line => !line.is_empty())
     .length() ==
-    3 else {
-    fail("bounded generation did not produce all three base tokens")
+    16 else {
+    fail("bounded generation did not produce all sixteen target tokens")
   }
   for (host, label) in [(first, "178"), (last, "179")] {
     let occupied = remote(
@@ -447,7 +450,13 @@ async fn main {
       fail("GPU ownership remains after terminal generation")
     }
   }
-  println(
-    "real base generation plus attached DSpark phases completed; no speculative acceptance or reference-equivalence claim",
-  )
+  if mode == "reference" {
+    guard @fs.read_file(tokens).text() ==
+      @fs.read_file(root + "/tokens-run.txt").text() else {
+      fail("speculative tokens differ from matched ordinary target generation")
+    }
+    println("real DSpark greedy verification matches ordinary target generation for sixteen BOS tokens; independent upstream numerical parity remains unverified")
+  } else {
+    println("real DSpark greedy verification/commit generation completed; run matched reference next")
+  }
 }
