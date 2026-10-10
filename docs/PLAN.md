@@ -288,6 +288,14 @@ terminal context close and bounded/no-swap execution. CLI `--after-steps` counts
 ordinary submitted frames or speculative verification blocks, not internal
 restore/replay substeps or polling iterations. This replay control does not
 replace general serving cancellation or concurrent request scheduling.
+The pushed `514835f8` cancellation source passes 137/137 affected native tests
+and 4,973/4,973 tests in the full current working tree. Both fresh ARM release
+builds succeed without swap, and the two updated replay runners pass 7/7 tests.
+GLM's physical queue cancels request zero after one submitted frame, then runs
+the distinct thirteen-token prompt for eight output tokens. DSpark's prepared
+queue retains its original five-token and 144-token inputs for subsequent
+ordinary/verification cancellation tests. No GPU outcome is recorded as passed
+until both ranks retire and the follow-on output is checked.
 
 1. Extend original-tokenizer coverage beyond the independently matched corpus
    and establish complete-model real-weight references for the three models.

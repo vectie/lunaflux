@@ -19,6 +19,13 @@ The explicit CLI replay suffix selects a request and submitted-transaction
 count once before CUDA; it adds no default poll ceiling or payload hashing.
 Fresh commit-built two-host cancellation followed by the next request remains
 to be verified. This is not concurrent serving or three-model completion.
+Source `514835f8` is pushed and builds both GLM and DSpark native ARM release
+executables successfully (217/238 tasks; build memory peaks 529/655 MiB and
+zero build swap). The affected native matrix passes 137/137 and the full current
+working-tree suite passes 4,973/4,973 with unchanged migration warning settings.
+The two cancellation runner scripts pass 7/7 tests. Their fresh literal queues
+are prepared before CUDA. Physical request outcomes remain pending; these
+software/build results do not prove retained-weight cancellation on GPUs.
 
 The two-node remote startup envelope no longer SHA-hashes both rank frames or
 emits a frame checksum. It reuses the supplied deployment association label;
