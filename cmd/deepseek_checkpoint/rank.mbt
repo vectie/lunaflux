@@ -435,7 +435,9 @@ async fn run_ingress(
     }
   }
   let mut verification_released = false
-  println("generation_started: speculative=\{speculative_enabled}")
+  @stdio.stdout.write(
+    "generation_started: speculative=\{speculative_enabled}\n",
+  )
   if speculative.val is Some(owner) && owner.finish_reason() is Running {
     guard backup is Some(saved) else {
       fail("missing verification state owner")

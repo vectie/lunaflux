@@ -48,8 +48,9 @@ Each rank uploads only its assigned interval. Close activation/pipeline owners
 before ranks/stages, modules, streams and contexts.
 
 The native async runtime handles SIGINT/SIGTERM by cooperative cancellation.
-`generation_started` marks entry into generation after prefill; it is emitted
-once, not per token. `rank_cleanup: role=... context_closed=true` is emitted only
+`generation_started` marks entry into generation after prefill; it is written
+once directly to stdout (not buffered until exit), not per token.
+`rank_cleanup: role=... context_closed=true` is emitted only
 after explicit context close succeeds during reverse-order teardown. Context
 close rejects live child resources. This terminal marker is not successful
 request completion: a cancelled request must not publish a normal tokens file.
