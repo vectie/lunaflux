@@ -31,21 +31,46 @@ async fn record(root : String, name : String, output : @shell.Output) -> Unit {
 }
 
 ///|
+fn encoded_rows(bytes : Int) -> Int raise {
+  // hidden_states[50] has 5,120 BF16 lanes per row in the actual checkpoint.
+  guard bytes > 0 && bytes % 10240 == 0 else {
+    fail("encoder output must contain complete 5,120-lane BF16 rows")
+  }
+  bytes / 10240
+}
+
+///|
+test "joint request derives conditioning rows from actual encoder output" {
+  assert_eq(encoded_rows(30720), 3)
+  assert_eq(encoded_rows(10240), 1)
+  for bytes in [0, 30719, 30721] {
+    try encoded_rows(bytes) catch {
+      _ => ()
+    } noraise {
+      _ => fail("incomplete conditioning accepted")
+    }
+  }
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, root, suffix, build, aot] &&
+  guard @env.args() is [_, root, suffix, build, aot, encoded] &&
     root.has_prefix("/tmp/lunaflux-minimax-joint-") &&
     build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
     aot.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
-    [root, suffix, build, aot].all(s => {
+    encoded.has_prefix("/tmp/lunaflux-") &&
+    encoded.has_suffix(".bf16") &&
+    [root, suffix, build, aot, encoded].all(s => {
       !s.is_empty() &&
       !s.contains("..") &&
-      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.'))
     }) &&
     !suffix.contains("/") else {
     fail(
-      "NEW_LOCAL_AND_REMOTE_ROOT UNIQUE_SUFFIX COMMIT_BUILD_ROOT EXISTING_REQUEST_AOT",
+      "NEW_LOCAL_AND_REMOTE_ROOT UNIQUE_SUFFIX COMMIT_BUILD_ROOT EXISTING_REQUEST_AOT ACTUAL_ENCODER_BF16",
     )
   }
+  let rows = encoded_rows(@fs.read_file(encoded).binary().length())
   @fs.mkdir(root)
   let node = "wlc003s@192.168.2.178"
   let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
@@ -105,9 +130,7 @@ async fn main {
         "/tmp/lunaflux-minimax-request-config-20261010-v1/audio_vae/config.yaml",
         "audio_vae/config.yaml",
       ),
-      (
-        "/tmp/lunaflux-minimax-text-encoder-20261010-v1/hidden.bf16", "encoded.bf16",
-      ),
+      (encoded, "encoded.bf16"),
       (
         "/tmp/lunaflux-minimax-rotary-20261010-v1/rope.inv_freq.f32", "rope.inv_freq.f32",
       ),
@@ -146,7 +169,7 @@ async fn main {
   let unit = "lunaflux-minimax-joint-" + suffix
   let command = "systemd-run --user --unit=" +
     unit +
-    " --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400" +
+    " --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 --property=RemainAfterExit=yes" +
     " --property=StandardOutput=file:" +
     root +
     "/run.stdout" +
@@ -156,7 +179,9 @@ async fn main {
     binary +
     " run-joint " +
     variant +
-    " 32 32 120 5 3 encoded.bf16 rope.inv_freq.f32 " +
+    " 32 32 120 5 " +
+    rows.to_string() +
+    " encoded.bf16 rope.inv_freq.f32 " +
     aot +
     " DENOISER.inventory AUDIO.sha256 VIDEO.sha256 256 64 4096 8589934592 103079215104 17 " +
     root +
@@ -170,7 +195,11 @@ async fn main {
     root +
     "\nbuild=" +
     build +
-    "\nencoded_rows=3\nmaximum_device_bytes=103079215104\npayload_hashing=false\nstatus=dispatched-not-complete\n",
+    "\nencoded_source=" +
+    encoded +
+    "\nencoded_rows=" +
+    rows.to_string() +
+    "\nmaximum_device_bytes=103079215104\npayload_hashing=false\nstatus=dispatched-not-complete\n",
     create_mode=CreateNew,
   )
   println(

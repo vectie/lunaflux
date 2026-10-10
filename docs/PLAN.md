@@ -2343,6 +2343,12 @@ not a synthetic build-directory layout. The intended two-host request keeps
 encoder weights on .179 and denoiser/VAEs on .178, transferring only bounded
 BF16 hidden states between phases. Source preparation is not a two-host inference
 result: checkpoint execution and terminal media output still need to complete.
+The joint runner now consumes an explicit actual encoder output path and derives
+its BF16 row count from the complete 5,120-wide layout; it no longer substitutes
+a fixed earlier .178 output. The next run can consume the .179 encoder output
+without changing either model executable. New joint units retain their terminal
+status after exit so observation does not confuse unit garbage collection with
+an interrupted request. Neither wiring nor staging alone proves two-host inference.
 
 The MiniMax checkpoint diagnostic now has a `run-joint` preparation/execution
 entry. It consumes actual BF16 encoder hidden_states[50], then queues context
