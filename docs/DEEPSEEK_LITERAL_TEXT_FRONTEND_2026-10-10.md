@@ -65,3 +65,17 @@ started in this replay: .178 is still owned by the actual-caption MiniMax joint
 request. The runner now consumes the prepared prompt directory and frame count
 instead of hard-coding one BOS frame, and checks both GPUs before starting
 either owner. Matched speculative/ordinary GPU results remain pending.
+
+A second replay preparation uses the exact non-thinking single-user prompt
+string from the checked-out vLLM regression
+`tests/tokenizers_/test_deepseek_v4.py`:
+`<｜begin▁of▁sentence｜><｜User｜>Hello<｜Assistant｜></think>`.
+The original tokenizer emits `0,128803,19923,128804,128822`, one frame, with
+empty stderr and exact decoded text. This checks a reference-rendered string,
+not independent tokenizer-ID or model-output parity. It is prepared at
+`/tmp/lunaflux-dspark-run-text-20261010-v2` and the corresponding remote
+`/tmp/lunaflux-dspark-real-text-20261010-v2` roots. The active execution sequence
+waits for the existing MiniMax unit's terminal success and GPU release before
+starting speculative then ordinary target generation on this identical prompt.
+No existing model owner is restarted. Runner prompt/output regressions and the
+27-script no-hashing gate pass; the token-step scan/copy/readback gate also passes.
