@@ -46,3 +46,22 @@ Actual IDs are reported, not claimed to match an independent tokenizer yet.
 Native tokenizer/frontend, prompt-frame and three checkpoint command tests passed
 93/93. The one-off original-file parser diagnostic was removed after passing;
 the committed regression suite has no dependency on a local checkpoint path.
+
+## Prepared two-Spark literal replay
+
+Commit `fca565544b345d1c8c9f2015f7214bbb66061037` built on .178 with
+236 successful ARM native release tasks, under the existing 2-GiB/no-swap build
+unit. CPU-only preparation on that binary used the original installed tokenizer
+and emitted one six-row-envelope frame for the literal user/assistant-marker
+input (`128803,19923,128804`), with exact decoded input and empty stderr.
+
+Local preparation: `/tmp/lunaflux-dspark-run-text-20261010-v1`.
+The two hosts use the corresponding new
+`/tmp/lunaflux-dspark-real-text-20261010-v1` directories. Unchanged device code
+reuses the already-compiled six-row/context-256 AOT modules from
+`/tmp/lunaflux-dspark-real-verify-20261010-v1`; this is not a claim that those
+modules were freshly compiled from the frontend commit. No GPU request has
+started in this replay: .178 is still owned by the actual-caption MiniMax joint
+request. The runner now consumes the prepared prompt directory and frame count
+instead of hard-coding one BOS frame, and checks both GPUs before starting
+either owner. Matched speculative/ordinary GPU results remain pending.

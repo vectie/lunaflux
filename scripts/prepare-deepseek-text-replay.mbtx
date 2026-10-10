@@ -1,0 +1,196 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    },
+    if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    },
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn transfer(last : Bool, source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" +
+    (if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    }),
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, build, commit, prior, input] &&
+    root.has_prefix("/tmp/lunaflux-dspark-run-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-dspark-") &&
+    prior.has_prefix("/tmp/lunaflux-dspark-real-") &&
+    [root, suffix, build, prior].all(path => {
+      !path.is_empty() &&
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") &&
+    commit.length() == 40 &&
+    commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) else {
+    fail(
+      "NEW_LOCAL_ROOT SUFFIX COMMITTED_BUILD COMMIT EXISTING_SIX_ROW_AOT_ROOT INPUT_UTF8_FILE",
+    )
+  }
+  // CPU-only preparation: reuse unchanged, already-compiled six-row/context-256
+  // device kernels for a frontend-only source change. This never authenticates
+  // their bytes or claims fresh compiler qualification. Runtime checks ABI/shape.
+  @fs.mkdir(root)
+  let remote_root = "/tmp/lunaflux-dspark-real-" + suffix
+  let binary = build +
+    "/source/_build/native/release/build/cmd/deepseek_checkpoint/deepseek_checkpoint.exe"
+  let journal = remote(
+    false,
+    "journalctl --user -u " + build[5:].to_owned() + ".service --no-pager",
+  )
+  record(root, "build-journal", journal)
+  guard journal.stdout().contains("Finished. moon:") &&
+    journal.stdout().contains("now up to date") else {
+    fail("build incomplete")
+  }
+  transfer(
+    false,
+    "wlc003s@192.168.2.178:" + binary,
+    root + "/deepseek_checkpoint.exe",
+  )
+  for last in [false, true] {
+    let node = if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    }
+    let ordinal = if last { "1" } else { "0" }
+    record(root, ordinal + "-mkdir", remote(last, "mkdir " + remote_root))
+    record(
+      root,
+      ordinal + "-aot-directory",
+      remote(last, "mkdir " + remote_root + "/aot"),
+    )
+    record(
+      root,
+      ordinal + "-aot-copy",
+      remote(
+        last,
+        "cp " +
+        prior +
+        "/aot/stage-" +
+        ordinal +
+        ".cubin " +
+        remote_root +
+        "/aot/stage-" +
+        ordinal +
+        ".cubin",
+      ),
+    )
+    transfer(
+      last,
+      root + "/deepseek_checkpoint.exe",
+      node + ":" + remote_root + "/deepseek_checkpoint.exe",
+    )
+  }
+  transfer(false, input, "wlc003s@192.168.2.178:" + remote_root + "/prompt.txt")
+  let frontend = remote(
+    false,
+    remote_root +
+    "/deepseek_checkpoint.exe text-frames " +
+    "/tmp/lunaflux-deepseek-real-20261010.dLryo68E/DeepSeek-V4-Flash-DSpark " +
+    "6 256 " +
+    "a".repeat(64) +
+    " " +
+    remote_root +
+    "/prompt.txt " +
+    remote_root +
+    "/prompt-text",
+  )
+  record(root, "text-frames", frontend)
+  guard frontend.stderr().is_empty() else { fail("text frontend stderr") }
+  let fields = frontend.stdout().trim().split(" ").to_array()
+  guard fields.get(0) is Some(frame_field) &&
+    frame_field.has_prefix("prompt_frames=") else {
+    fail("missing prompt frame count")
+  }
+  let count = @string.parse_int(frame_field[14:])
+  guard count > 0 && count <= 43 else {
+    fail("invalid six-row prompt envelope")
+  }
+  transfer(
+    false,
+    "wlc003s@192.168.2.178:" + remote_root + "/prompt-text/tokens.txt",
+    root + "/prompt-tokens.txt",
+  )
+  transfer(
+    false,
+    "wlc003s@192.168.2.178:" + remote_root + "/prompt-text/decoded.txt",
+    root + "/prompt-decoded.txt",
+  )
+  assert_eq(
+    @fs.read_file(root + "/prompt-decoded.txt").binary(),
+    @fs.read_file(input).binary(),
+  )
+  @fs.write_file(
+    root + "/prepared.txt",
+    "commit=" +
+    commit +
+    "\nbuild=" +
+    build +
+    "\naot_origin=" +
+    prior +
+    "\nprompt_directory=prompt-text\nprefill_count=" +
+    count.to_string() +
+    "\n",
+    create_mode=CreateNew,
+  )
+  println(
+    "real text replay prepared without GPU work or payload hashing: " +
+    frame_field.to_owned(),
+  )
+}

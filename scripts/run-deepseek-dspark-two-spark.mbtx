@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -21,7 +22,46 @@ fn execution_label(mode : String, role : String) -> String {
 }
 
 ///|
-test "speculative and reference receipts never collide in one campaign root" {
+fn prepared_prompt(document : String) -> (String, Int) raise {
+  let mut directory = "prompt-bos"
+  let mut count = 1
+  for line in document.split("\n") {
+    if line.has_prefix("prompt_directory=") {
+      directory = line[17:].to_owned()
+    } else if line.has_prefix("prefill_count=") {
+      count = @string.parse_int(line[14:])
+    }
+  }
+  guard !directory.is_empty() &&
+    directory.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) &&
+    count > 0 &&
+    count <= 255 else {
+    fail("invalid prepared prompt")
+  }
+  (directory, count)
+}
+
+///|
+fn check_prepared_prompt() -> Unit raise {
+  assert_eq(prepared_prompt("build=old\n"), ("prompt-bos", 1))
+  assert_eq(
+    prepared_prompt("prompt_directory=prompt-text\nprefill_count=3\n"),
+    ("prompt-text", 3),
+  )
+  try prepared_prompt("prompt_directory=../old\nprefill_count=0\n") catch {
+    _ => ()
+  } noraise {
+    _ => fail("invalid prompt accepted")
+  }
+}
+
+///|
+test "prepared literal prompts use all frames while old BOS campaigns remain unchanged" {
+  check_prepared_prompt()
+}
+
+///|
+fn check_execution_labels() -> Unit raise {
   let roles = ["egress", "ingress", "178-gpu-terminal", "179-gpu-terminal"]
   let names : Array[String] = []
   for mode in ["run", "reference"] {
@@ -33,6 +73,11 @@ test "speculative and reference receipts never collide in one campaign root" {
   }
   assert_eq(names.length(), 8)
   assert_eq(execution_label("reference", "egress"), "reference-egress")
+}
+
+///|
+test "speculative and reference receipts never collide in one campaign root" {
+  check_execution_labels()
 }
 
 ///|
@@ -187,6 +232,12 @@ async fn admit(host : Host, root : String, label : String) -> Unit {
 
 ///|
 async fn main {
+  if @env.args() is [_, "self-test"] {
+    check_prepared_prompt()
+    check_execution_labels()
+    println("DSpark runner prompt and disjoint-output regressions passed")
+    return
+  }
   guard @env.args() is [_, root, suffix, mode, build, commit] &&
     root.has_prefix("/tmp/lunaflux-dspark-run-") &&
     [root, suffix].all(s => {
@@ -353,6 +404,9 @@ async fn main {
     .contains("commit=" + commit + "\n") else {
     fail("preparation missing for this build")
   }
+  let (prompt_directory, prefill_count) = prepared_prompt(
+    @fs.read_file(root + "/prepared.txt").text(),
+  )
   @fs.write_file(
     root + "/" + mode + "-started.txt",
     "starting prepared checkpoint execution\n",
@@ -361,6 +415,9 @@ async fn main {
   let egress = name + "egress"
   let ingress = name + "ingress"
   let peers = "192.168.2.179:28578 192.168.2.179:28579 "
+  // Check both hosts before starting either model owner. Otherwise a busy
+  // ingress GPU can leave a new egress waiting with its checkpoint resident.
+  admit(first, root, execution_label(mode, "ingress"))
   admit(last, root, execution_label(mode, "egress"))
   start(
     last,
@@ -415,7 +472,6 @@ async fn main {
     }
     @async.sleep(10000)
   }
-  admit(first, root, execution_label(mode, "ingress"))
   start(
     first,
     root,
@@ -434,7 +490,11 @@ async fn main {
     "/aot stage-0.cubin " +
     peers +
     first.root +
-    "/prompt-bos 1 16 -1 " +
+    "/" +
+    prompt_directory +
+    " " +
+    prefill_count.to_string() +
+    " 16 -1 " +
     first.root +
     "/output-" +
     mode,
@@ -487,7 +547,7 @@ async fn main {
       fail("speculative tokens differ from matched ordinary target generation")
     }
     println(
-      "real DSpark greedy verification matches ordinary target generation for sixteen BOS tokens; independent upstream numerical parity remains unverified",
+      "real DSpark greedy verification matches ordinary target generation for sixteen tokens from the prepared prompt; independent upstream numerical parity remains unverified",
     )
   } else {
     println(

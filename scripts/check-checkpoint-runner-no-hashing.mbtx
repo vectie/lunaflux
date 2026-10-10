@@ -8,12 +8,13 @@ import {
 
 ///|
 async fn main {
-  for path in [
-    "deploy/worker_executable_file/admit.mbt", "deploy/launch_file/load.mbt",
-    "ops/two_spark_worker/configuration.mbt",
-  ] {
+  for
+    path in [
+      "deploy/worker_executable_file/admit.mbt", "deploy/launch_file/load.mbt", "ops/two_spark_worker/configuration.mbt",
+    ] {
     let source = @fs.read_file(path).text()
-    guard !source.contains("@crypto.sha256(") && !source.contains("raw_snapshot_and_pin(") else {
+    guard !source.contains("@crypto.sha256(") &&
+      !source.contains("raw_snapshot_and_pin(") else {
       fail("startup payload hashing/copy reintroduced: " + path)
     }
   }
@@ -23,34 +24,50 @@ async fn main {
   }
   for name in ["admit", "v3_admit"] {
     let source = @fs.read_file("kernels/fp8_release_authority/" + name + ".mbt").text()
-    for removed in ["release_sha256(", "module_bytes != artifact_module.module_bytes()", "manifest_bytes != manifest.signing_bytes()"] {
+    for
+      removed in [
+        "release_sha256(", "module_bytes != artifact_module.module_bytes()", "manifest_bytes != manifest.signing_bytes()",
+      ] {
       guard !source.contains(removed) else {
         fail("FP8 release payload scan reintroduced: " + name + ": " + removed)
       }
     }
   }
-  for name in ["signature", "fp8_release_admit", "fp8_release_v3_admit", "persisted", "parent_startup_attestation"] {
-    let source = @fs.read_file("kernels/luna_capability_manifest/" + name + ".mbt").text()
+  for
+    name in [
+      "signature", "fp8_release_admit", "fp8_release_v3_admit", "persisted", "parent_startup_attestation",
+    ] {
+    let source = @fs.read_file(
+      "kernels/luna_capability_manifest/" + name + ".mbt",
+    ).text()
     guard !source.contains("@crypto.sha256(") else {
       fail("capability association rehash reintroduced: " + name)
     }
   }
-  let specialization = @fs.read_file("kernels/luna_specialization/persisted.mbt").text()
+  let specialization = @fs.read_file(
+    "kernels/luna_specialization/persisted.mbt",
+  ).text()
   guard !specialization.contains("@crypto.sha256(") &&
-    !specialization.contains("encode_persisted_luna_specialization(record, limits.max_canonical_bytes)") else {
+    !specialization.contains(
+      "encode_persisted_luna_specialization(record, limits.max_canonical_bytes)",
+    ) else {
     fail("persisted specialization checksum/canonical replay reintroduced")
   }
   let capability = @fs.read_file("kernels/luna_capability_manifest/admit.mbt").text()
   guard !capability.contains("@crypto.sha256(entry.canonical)") else {
     fail("typed capability manifest reauthentication reintroduced")
   }
-  let scope = @fs.read_file("kernels/luna_fused_artifact_admission/attention_routes.mbt").text()
+  let scope = @fs.read_file(
+    "kernels/luna_fused_artifact_admission/attention_routes.mbt",
+  ).text()
   guard !scope.contains("reusable_runtime_append_row_variant(") &&
     !scope.contains("module_bytes") else {
     fail("attention route scope must not serialize or hash CUBIN payloads")
   }
   for name in ["reusable_runtime_bundle", "reusable_residual_runtime"] {
-    let source = @fs.read_file("kernels/luna_fused_artifact_admission/" + name + ".mbt").text()
+    let source = @fs.read_file(
+      "kernels/luna_fused_artifact_admission/" + name + ".mbt",
+    ).text()
     guard !source.contains("@crypto.sha256(canonical)") else {
       fail("fused packaging must not hash and replay its own serialized output")
     }
@@ -58,12 +75,16 @@ async fn main {
   let lowering = @fs.read_file("kernels/luna_tile_ir/lower.mbt").text()
   guard !lowering.contains("@crypto.sha256(bytes)") &&
     !lowering.contains("@crypto.sha256(encoded_program)") else {
-    fail("typed LunaTile planning input must not be reauthenticated by lowering")
+    fail(
+      "typed LunaTile planning input must not be reauthenticated by lowering",
+    )
   }
-  for path in [
-    "cmd/deepseek_checkpoint/startup.mbt", "cmd/deepseek_checkpoint/text_prompt.mbt", "cmd/glm_checkpoint/startup.mbt", "cmd/glm_checkpoint/text_prompt.mbt",
-    "cmd/minimax_checkpoint/text_input.mbt", "integration/checkpoint_text_input/input.mbt",
-  ] {
+  for
+    path in [
+      "cmd/deepseek_checkpoint/startup.mbt", "cmd/deepseek_checkpoint/text_prompt.mbt",
+      "cmd/glm_checkpoint/startup.mbt", "cmd/glm_checkpoint/text_prompt.mbt", "cmd/minimax_checkpoint/text_input.mbt",
+      "integration/checkpoint_text_input/input.mbt",
+    ] {
     let source = @fs.read_file(path).text()
     guard !source.contains("@crypto") && !source.contains("ContentDigest") else {
       fail("unused configuration hashing reintroduced: " + path)
@@ -91,14 +112,12 @@ async fn main {
     !h3_materializer.contains("@crypto") else {
     fail("MiniMax materialization manifest rehash reintroduced")
   }
-  for path in [
-    "model/deepseek_v4_host_materialization/materialize.mbt",
-    "model/segmented_device_materialize/prepare_core.mbt",
-    "model/segmented_device_materialize/borrowed_source.mbt",
-    "model/segmented_device_materialize/streamed_source.mbt",
-    "cmd/lunaflux_qwen3_bf16_candidate_export/model_prepare.mbt",
-    "cmd/lunaflux_qwen3_bf16_release_bind/model.mbt",
-  ] {
+  for
+    path in [
+      "model/deepseek_v4_host_materialization/materialize.mbt", "model/segmented_device_materialize/prepare_core.mbt",
+      "model/segmented_device_materialize/borrowed_source.mbt", "model/segmented_device_materialize/streamed_source.mbt",
+      "cmd/lunaflux_qwen3_bf16_candidate_export/model_prepare.mbt", "cmd/lunaflux_qwen3_bf16_release_bind/model.mbt",
+    ] {
     let source = @fs.read_file(path).text()
     guard !source.contains("@crypto") &&
       !source.contains("canonical_manifest_digest(") &&
@@ -108,14 +127,14 @@ async fn main {
   }
   let runners = [
     "build-glm-current-spark", "build-model-checkpoint-spark", "capture-checkpoint-index-gpu",
-    "compile-dspark-composed-heads", "resume-dspark-preparation", "run-deepseek-dspark-two-spark",
-    "run-deepseek-base-two-spark", "run-deepseek-base-two-spark-resume", "capture-deepseek-block-builds",
-    "stage-minimax-denoiser-checkpoint", "stage-minimax-text-checkpoint", "stage-minimax-video-checkpoint",
-    "run-minimax-audio-decode", "run-minimax-video-decode", "run-minimax-joint",
-    "run-minimax-text-encoder", "run-cache-coordinate-probes", "run-stream-mean-capture-probe",
-    "run-committed-draft-probe", "run-row-projection-norm-probe", "run-sequential-markov-probe",
-    "capture-precision-transform-probes", "capture-compressed-attention-run", "capture-hyper-f32-run",
-    "capture-learned-text-laws", "assemble-luna-kernel-root",
+    "prepare-deepseek-text-replay", "compile-dspark-composed-heads", "resume-dspark-preparation",
+    "run-deepseek-dspark-two-spark", "run-deepseek-base-two-spark", "run-deepseek-base-two-spark-resume",
+    "capture-deepseek-block-builds", "stage-minimax-denoiser-checkpoint", "stage-minimax-text-checkpoint",
+    "stage-minimax-video-checkpoint", "run-minimax-audio-decode", "run-minimax-video-decode",
+    "run-minimax-joint", "run-minimax-text-encoder", "run-cache-coordinate-probes",
+    "run-stream-mean-capture-probe", "run-committed-draft-probe", "run-row-projection-norm-probe",
+    "run-sequential-markov-probe", "capture-precision-transform-probes", "capture-compressed-attention-run",
+    "capture-hyper-f32-run", "capture-learned-text-laws", "assemble-luna-kernel-root",
   ]
   for runner in runners {
     let source = @fs.read_file("scripts/" + runner + ".mbtx").text()
@@ -137,28 +156,41 @@ async fn main {
   }
   let converter = @fs.read_file("cmd/lunaflux_qwen3_weight_convert/run.mbt").text()
   let source_reader = @fs.read_file("model/qwen3_weights/source_file.mbt").text()
-  for removed in ["qwen3_ranges_equal", "limits.compare_chunk_bytes", "redundant_lm_head_byte_equal"] {
+  for
+    removed in [
+      "qwen3_ranges_equal", "limits.compare_chunk_bytes", "redundant_lm_head_byte_equal",
+    ] {
     guard !source_reader.contains(removed) else {
       fail("redundant tied-weight payload scan reintroduced: " + removed)
     }
   }
-  let bootstrap_decoder = @fs.read_file("engine/worker_wire/bootstrap_source_decode.mbt").text()
+  let bootstrap_decoder = @fs.read_file(
+    "engine/worker_wire/bootstrap_source_decode.mbt",
+  ).text()
   guard !bootstrap_decoder.contains("bootstrap_source_digest_of(") else {
     fail("worker bootstrap receive must not rehash its source payload")
   }
-  let i8_codec = @fs.read_file("engine/worker_wire/bootstrap_source_i8_codec.mbt").text()
+  let i8_codec = @fs.read_file(
+    "engine/worker_wire/bootstrap_source_i8_codec.mbt",
+  ).text()
   guard !i8_codec.contains("let expected = i8_source_digest_of(") else {
     fail("I8 worker bootstrap receive must not rehash its source payload")
   }
-  for name in [
-    "decode", "i8_codec", "qwen3_codec", "mistral_codec", "fp8_codec",
-    "tensor_parallel", "tensor_parallel_v8", "owned_decode",
-  ] {
+  for
+    name in [
+      "decode", "i8_codec", "qwen3_codec", "mistral_codec", "fp8_codec", "tensor_parallel",
+      "tensor_parallel_v8", "owned_decode",
+    ] {
     let path = "engine/worker_wire/bootstrap_source_" + name + ".mbt"
     let source = @fs.read_file(path).text()
-    for removed in ["let canonical = admit_", "canonical.storage[index] != source[index]"] {
+    for
+      removed in [
+        "let canonical = admit_", "canonical.storage[index] != source[index]",
+      ] {
       guard !source.contains(removed) else {
-        fail("bootstrap receive re-encoding/byte comparison reintroduced: " + path)
+        fail(
+          "bootstrap receive re-encoding/byte comparison reintroduced: " + path,
+        )
       }
     }
   }
@@ -175,17 +207,23 @@ async fn main {
   let materializer = @fs.read_file(
     "scripts/materialize-qwen3-bf16-v12-launch.mbtx",
   ).text()
-  for directory in [
-    "cmd/lunaflux_qwen3_bf16_release_bind", "cmd/lunaflux_bf16_release_bind",
-    "release/projection_tuning_file", "kernels/luna_kernel_bundle",
-  ] {
+  for
+    directory in [
+      "cmd/lunaflux_qwen3_bf16_release_bind", "cmd/lunaflux_bf16_release_bind", "release/projection_tuning_file",
+      "kernels/luna_kernel_bundle",
+    ] {
     for name in @fs.readdir(directory) {
       if name.has_suffix(".mbt") && !name.has_suffix("test.mbt") {
         let source = @fs.read_file(directory + "/" + name).text()
         guard !source.contains("@crypto") &&
           !source.contains("bind_sha256(") &&
           !source.contains("kernel_bundle_sha256(") else {
-          fail("release assembly payload rehash reintroduced: " + directory + "/" + name)
+          fail(
+            "release assembly payload rehash reintroduced: " +
+            directory +
+            "/" +
+            name,
+          )
         }
       }
     }
