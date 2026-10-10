@@ -23,6 +23,29 @@ are not payload-integrity scans and remain distinct from this cleanup.
 
 ## Current three-model completion ledger — 2026-10-11
 
+The common serial prompt file adapter now owns bounded `frame-counts.txt`
+parsing; DeepSeek no longer keeps a model-specific queue parser. GLM now exposes
+`preflight-generation-sequence` and `generate-sequence`, with immutable queue
+preparation before CUDA and resident rank/weight/channel ownership across
+requests. Its transport epochs continue monotonically after each two-sided
+request retirement. Context-close markers are terminal-only, and the remaining
+GLM concentrated-scale test fixture no longer hashes synthetic payloads. The
+combined affected native matrix passes 134/134 and the final CLI/file-adapter
+matrix passes 9/9 with the existing migration warning configuration. GLM queue
+physical execution remains open; no CUDA arithmetic changed.
+
+The `09cb4e77` DSpark binary also physically completes the 144-input/112-output
+exact 256-token request envelope in speculative mode: 29 verification blocks,
+111 committed continuation inputs, 173 submitted rows and 17 rejected-prefix
+replays. It emits exactly 112 tokens, finishes `Length`, releases both contexts,
+exits 0, has zero unit swap peaks and leaves no GPU owner. Captures are under
+`/tmp/lunaflux-dspark-run-capacity-20261011-v1`; matched ordinary generation is
+running next. EOS is deliberately disabled, so this is a capacity diagnostic,
+not a normal answer or independent numerical reference. The final emitted token
+is not another committed KV input: committed input history ends at 255, while
+prompt plus output is 256. The general capacity regression covers this frontier,
+last-block clipping, no extra continuation and +1 rejection (10/10 package tests).
+
 Resident ordinary DSpark requests are now physically verified on both Sparks.
 The `6894b72e` ARM binary processes the five-token and 144-token literal prompts
 in the same pair of processes, with transport epochs retiring at 11 and 44.

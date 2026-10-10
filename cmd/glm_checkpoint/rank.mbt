@@ -54,7 +54,7 @@ async fn run_egress(
   arguments : ArrayView[String],
 ) -> Unit {
   let context = @device.open_context(0)
-  defer context.close()
+  defer close_rank_context(context, "egress")
   let stream = context.create_stream()
   defer stream.close()
   let aot = load_module(context, arguments[0], arguments[1], startup.reserve)
@@ -127,6 +127,7 @@ async fn run_ingress(
   root : @approved_fs.ApprovedRoot,
   arguments : ArrayView[String],
   generate~ : Bool,
+  sequence? : Bool = false,
 ) -> Unit {
   let count = @string.parse_int(arguments[5])
   guard count > 0 && count <= startup.history else {
@@ -150,20 +151,37 @@ async fn run_ingress(
   let limits = worker_limits(startup)
   let inference = inference_limits(startup)
   let prepared = if generate {
-    let prompt = @prompt_file.load_generation_prompt(
-      frame_root,
-      count,
-      limits,
-      inference,
-      maximum_new_tokens~,
-      maximum_context=startup.history,
-      maximum_bytes=startup.reserve / 4L,
-      model_generation=1UL,
-    )
-    println(
-      "request_prepared: input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{startup.history}",
-    )
-    Some(prompt)
+    let prompts = if sequence {
+      @prompt_file.load_generation_sequence_file(
+        frame_root,
+        count,
+        limits,
+        inference,
+        maximum_new_tokens~,
+        maximum_context=startup.history,
+        maximum_bytes=startup.reserve / 4L,
+        model_generation=1UL,
+      )
+    } else {
+      ReadOnlyArray::from_array([
+        @prompt_file.load_generation_prompt(
+          frame_root,
+          count,
+          limits,
+          inference,
+          maximum_new_tokens~,
+          maximum_context=startup.history,
+          maximum_bytes=startup.reserve / 4L,
+          model_generation=1UL,
+        ),
+      ])
+    }
+    for index, prompt in prompts {
+      println(
+        "request_prepared: index=\{index} input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{startup.history}",
+      )
+    }
+    Some(prompts)
   } else {
     None
   }
@@ -172,7 +190,7 @@ async fn run_ingress(
   }
   @fs.mkdir(output_directory)
   let context = @device.open_context(0)
-  defer context.close()
+  defer close_rank_context(context, "ingress")
   let stream = context.create_stream()
   defer stream.close()
   let aot = load_module(context, arguments[0], arguments[1], startup.reserve)
@@ -221,102 +239,50 @@ async fn run_ingress(
     close_activation=() => edge.close(),
   )
   defer pipeline.close()
-  let plans = @wire.PlanFrameBuffer::new(limits, inference)
-  let completions = @wire.CompletionFrameBuffer::new(limits, inference)
-  let scratch = FixedArray::make(plans.capacity(), b'\x00')
-  let output = FixedArray::make(completions.capacity(), b'\x00')
   let clock = @clock.MonotonicClock::system()
-  let generation : Ref[@generation.SerialGreedyGeneration?] = Ref(None)
-  for index in 0..<count {
-    let input = match prepared {
-      Some(prompt) => prompt.frame_bytes(index)
-      None =>
-        read_bounded(
+  match prepared {
+    Some(prompts) =>
+      // Resident model/rank/channel owners outlive the queue. Only the request
+      // frontier retires; transport epochs remain strictly increasing.
+      for index, prompt in prompts; next_epoch = 1UL {
+        let destination = if sequence {
+          let path = output_directory + "/request-\{index}"
+          @fs.mkdir(path)
+          path
+        } else {
+          output_directory
+        }
+        let next = execute_ingress_request(
+          startup,
           frame_root,
-          "plan-\{index}.bin",
-          plans.capacity().to_int64(),
-        )
-    }
-    scratch.fill(b'\x00')
-    for i, byte in input {
-      scratch[i] = byte
-    }
-    let plan = plans.load(scratch, input.length())
-    pipeline.begin(
-      plan,
-      completions.writer_for(plan),
-      epoch=index.to_uint64() + 1UL,
-      local_now_millis=clock.now_millis(),
-    )
-    while !pipeline.progress(local_now_millis=clock.now_millis()) {
-      @async.pause()
-    }
-    let completion = pipeline.completion()
-    completion.copy_to(output, destination_offset=0)
-    @fs.write_file(
-      output_directory + "/completion-\{index}.bin",
-      Bytes::from_array(output[:completion.length()].to_owned()),
-      create_mode=CreateNew,
-    )
-    let entry = completion.entry(0)
-    guard entry.kind() != @protocol.CompletionEntryKind::FailedCompletion else {
-      fail("model execution returned a failed completion")
-    }
-    if generate && index == count - 1 {
-      generation.val = Some(
-        @generation.SerialGreedyGeneration::new(
-          plan,
-          completion,
-          limits,
-          inference,
+          Some(prompt),
+          prompt.frame_count(),
+          pipeline,
+          clock,
+          generate~,
           maximum_new_tokens~,
-          maximum_context=startup.history,
-          stop_tokens=if stop == -1 { [] } else { [stop] },
+          stop~,
+          output_directory=destination,
+          first_epoch=next_epoch,
+        )
+        println("request_retired: index=\{index} next_epoch=\{next}")
+        continue next
+      }
+    None =>
+      ignore(
+        execute_ingress_request(
+          startup,
+          frame_root,
+          None,
+          count,
+          pipeline,
+          clock,
+          generate~,
+          maximum_new_tokens~,
+          stop~,
+          output_directory~,
+          first_epoch=1UL,
         ),
       )
-    }
-    if entry.kind() == @protocol.CompletionEntryKind::PrefillCompletion {
-      println("frame=\{index} processed=\{entry.processed_tokens()}")
-    } else {
-      println(
-        "frame=\{index} token=\{entry.token_id()} processed=\{entry.processed_tokens()}",
-      )
-    }
-  }
-  if generate {
-    guard generation.val is Some(owner) else { fail("no completed prompt") }
-    while owner.finish_reason() is Running {
-      let plan = owner.next_decode()
-      pipeline.begin(
-        plan,
-        completions.writer_for(plan),
-        epoch=(count + owner.token_count()).to_uint64(),
-        local_now_millis=clock.now_millis(),
-      )
-      while !pipeline.progress(local_now_millis=clock.now_millis()) {
-        @async.pause()
-      }
-      owner.accept(pipeline.completion())
-    }
-  }
-  pipeline.release_request(local_now_millis=clock.now_millis())
-  while !pipeline.progress(local_now_millis=clock.now_millis()) {
-    @async.pause()
-  }
-  if generation.val is Some(owner) {
-    // Diagnostic rendering/filesystem output happens only after generation and
-    // both ranks' request retirement, not on its decode submission path.
-    let rendered = StringBuilder()
-    for index in 0..<owner.token_count() {
-      rendered <+ "\{owner.token_at(index)}\n"
-    }
-    @fs.write_file(
-      output_directory + "/tokens.txt",
-      rendered.to_string(),
-      create_mode=CreateNew,
-    )
-    println(
-      "generated=\{owner.token_count()} finish=\{Repr(owner.finish_reason())}",
-    )
   }
 }

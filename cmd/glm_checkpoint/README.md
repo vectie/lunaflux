@@ -18,6 +18,12 @@ generation likewise retains an immutable, byte-budgeted prompt replay before
 device preparation/output creation and closes input-file authority; files are not
 reopened during prefill. This uses the same model-neutral plan as DeepSeek.
 
+`preflight-generation-sequence` uses the same arguments with `REQUEST_COUNT`
+instead of `FRAME_COUNT`. The common `integration/serial_prompt_file` adapter
+reads `frame-counts.txt` once and prepares every `request-i/plan-N.bin` under one
+aggregate frame-byte budget before either CUDA context opens. Capacity failure
+in a later request rejects the whole queue before model/device preparation.
+
 `token-frames MODEL_ROOT ROWS HISTORY COMMA_SEPARATED_TOKEN_IDS NEW_OUTDIR`
 constructs canonical contiguous prompt chunks from already-tokenized input,
 without scanning checkpoint shards or opening CUDA. Only the last chunk samples;
@@ -74,6 +80,13 @@ inside the inventory remain relative to the read-only model root.
   no evidence rendering/filesystem writes. Prompt frame input is still the
   diagnostic entry point; `text-frames` supplies tokenized input, but this is
   still not text HTTP serving.
+- `generate-sequence` uses the same nine mode arguments as `generate`, with
+  `REQUEST_COUNT` instead of `PREFILL_COUNT` and the queue layout above. Both
+  rank/weight/channel owners remain resident through the queue; each request
+  retires on both ranks before the next starts at position zero. Transport
+  epochs increase across requests, rather than restarting at one. Completed
+  outputs live under `NEW_OUTDIR/request-i/`. This finite sequential diagnostic
+  is not concurrent batching, an HTTP service or a physical qualification claim.
 
 Use the same checkpoint inventory, geometry, budgets and reserve on both ranks.
 Set budgets from current free unified memory, leaving OS/other-process headroom;

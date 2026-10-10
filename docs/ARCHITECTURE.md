@@ -48,7 +48,10 @@ drains/releases request state before reuse; GLM adapters only bind checkpoint
 layers and device effects. This diagnostic path does not replace the shared
 continuous-batching scheduler or claim real-checkpoint numerical validation.
 
-The bounded DSpark queue separates session and request lifetimes. Resident
+The bounded GLM/DeepSeek diagnostic queues separate session and request lifetimes.
+The common `integration/serial_prompt_file` adapter parses bounded queue metadata
+and snapshots all prompts before device startup; no model-family queue parser
+or payload authentication lives in either CLI. Resident
 rank, stream, AOT, activation edge, connection and verification-snapshot owners
 live in the outer rank session; immutable prompts are prepared under one
 aggregate host budget before CUDA. Individual ordinary or speculative requests

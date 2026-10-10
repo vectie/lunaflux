@@ -45,6 +45,7 @@ fn preflight_generation(
   frames : String,
   count : String,
   byte_budget : String,
+  sequence? : Bool = false,
 ) -> Unit raise {
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
   defer root.close()
@@ -63,17 +64,35 @@ fn preflight_generation(
   let (limits, inference) = prompt_limits(rows, history, spec.vocabulary_size())
   let frame_root = @approved_fs.ApprovedRoot::open_absolute(frames)
   defer frame_root.close()
-  let prompt = @prompt_file.load_generation_prompt(
-    frame_root,
-    @string.parse_int(count),
-    limits,
-    inference,
-    maximum_new_tokens=maximum,
-    maximum_context=history,
-    maximum_bytes=@string.parse_int64(byte_budget),
-    model_generation=1UL,
-  )
-  println(
-    "request_prepared: input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{history}",
-  )
+  if sequence {
+    let prompts = @prompt_file.load_generation_sequence_file(
+      frame_root,
+      @string.parse_int(count),
+      limits,
+      inference,
+      maximum_new_tokens=maximum,
+      maximum_context=history,
+      maximum_bytes=@string.parse_int64(byte_budget),
+      model_generation=1UL,
+    )
+    for index, prompt in prompts {
+      println(
+        "request_prepared: index=\{index} input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{maximum} context=\{history}",
+      )
+    }
+  } else {
+    let prompt = @prompt_file.load_generation_prompt(
+      frame_root,
+      @string.parse_int(count),
+      limits,
+      inference,
+      maximum_new_tokens=maximum,
+      maximum_context=history,
+      maximum_bytes=@string.parse_int64(byte_budget),
+      model_generation=1UL,
+    )
+    println(
+      "request_prepared: input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{history}",
+    )
+  }
 }

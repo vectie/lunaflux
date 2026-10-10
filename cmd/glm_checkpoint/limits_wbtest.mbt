@@ -37,7 +37,7 @@ async test "checkpoint accepts concentrated 37152 scalar scales before binding" 
       @streaming.StreamingSafetensorsShardInput::new(
         locator=@approved_fs.ApprovedRelativeLocator::new("scales.safetensors"),
         expected_digest=@streaming.StreamingSafetensorsFileDigest::from_sha256(
-          @crypto.bytes_to_hex_string(@crypto.sha256(file_bytes)),
+          "a".repeat(64),
         ),
       ),
     ],
