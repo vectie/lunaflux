@@ -22,6 +22,7 @@ pub(all) enum DecoderInputPort {
   SparseReset
   OutputCount
   SelectedRows
+  Positions
 } derive(Eq, @debug.Debug)
 pub fn DecoderInputPort::equal(Self, Self) -> Bool
 pub fn DecoderInputPort::not_equal(Self, Self) -> Bool

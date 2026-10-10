@@ -7,6 +7,11 @@ pools around a separately prepared decoder executor. At startup the caller:
 2. Builds its model executor using the borrowed input and sampled-token ports.
 3. Binds submit/poll/close effects and sparse append-error descriptors.
 
+The frame's immutable input count determines sample and error port locations.
+An optional `Positions` input carries absolute rotary/cache positions without
+changing legacy port sizes or adding warmed allocations. Binding an absent
+optional port is rejected before indexing the prepared resources.
+
 The model-family adapter supplies those effects; generic worker execution has
 no model-family branch. `begin` stages an existing wire frame. `progress`
 nonblockingly retires input copies, the model queue, then sample/error copies.

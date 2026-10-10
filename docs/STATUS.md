@@ -10,6 +10,17 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (absolute request positions): the model-neutral serial frame
+has an optional startup-selected position port. Chunked prefill publishes
+`committed_start + row`; decode publishes the exact next committed position.
+Only live row bytes are copied. Worker and rank sample/error slots derive from
+the immutable input count, so the added port cannot be mistaken for output.
+Legacy GLM frames retain eight ports and their original capacities. Repeated
+position-enabled worker execution tests zero warmed allocations, no additional
+blocking synchronization, shifted error delivery and deterministic release;
+rank regressions exercise both port layouts and invalid samples/errors.
+This connects request metadata, not whole-model DeepSeek numerical execution.
+
 Update 2026-10-10 (DeepSeek text arithmetic): the output boundary now selects
 explicit precision-IR laws for F32 normalization/affine multiplication followed
 by one BF16 activation cast, and F32 accumulated vocabulary logits. GLM's default

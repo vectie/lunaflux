@@ -117,12 +117,15 @@ fn serial_wire_plan(
 }
 
 ///|
-fn serial_host() -> @serial_frame.SerialDecoderFrame raise {
+fn serial_host(
+  with_positions? : Bool = false,
+) -> @serial_frame.SerialDecoderFrame raise {
   @serial_frame.SerialDecoderFrame::new(
     maximum_rows=4,
     maximum_context=16,
     vocabulary_size=16,
     model_generation=9UL,
+    with_positions~,
   )
 }
 

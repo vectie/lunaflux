@@ -53,13 +53,15 @@ pub struct SerialDecoderFrame {
 
 ///|
 /// Input port order: counts, token IDs, sequence offsets, sequence slots,
-/// recurrent resets, sparse reset, output count, selected rows. It is a physical
+/// recurrent resets, sparse reset, output count, selected rows, and optionally
+/// absolute row positions. The optional port is fixed at startup. It is a physical
 /// decoder-frame ABI, not a CUDA or GLM scheduling policy.
 pub fn SerialDecoderFrame::new(
   maximum_rows~ : Int,
   maximum_context~ : Int,
   vocabulary_size~ : Int,
   model_generation~ : UInt64,
+  with_positions? : Bool = false,
 ) -> Self raise SerialDecoderError {
   guard maximum_rows > 0 &&
     maximum_rows <= 536870911 &&
@@ -72,16 +74,15 @@ pub fn SerialDecoderFrame::new(
     maximum_context,
     vocabulary: vocabulary_size,
     model_generation,
-    inputs: [
-      FixedArray::make(20, b'\x00'),
-      FixedArray::make(maximum_rows * 4, b'\x00'),
-      FixedArray::make(8, b'\x00'),
-      FixedArray::make(4, b'\x00'),
-      FixedArray::make(4, b'\x00'),
-      FixedArray::make(4, b'\x00'),
-      FixedArray::make(4, b'\x00'),
-      FixedArray::make(4, b'\x00'),
-    ],
+    inputs: FixedArray::makei(if with_positions { 9 } else { 8 }, port => {
+      let bytes = match port {
+        0 => 20
+        1 | 8 => maximum_rows * 4
+        2 => 8
+        _ => 4
+      }
+      FixedArray::make(bytes, b'\x00')
+    }),
     state: Idle,
     request_live: false,
     request_id: 0UL,
@@ -101,6 +102,12 @@ pub fn SerialDecoderFrame::new(
 /// Startup compatibility facts; inspecting them does not stage a request.
 pub fn SerialDecoderFrame::geometry(self : Self) -> (Int, Int, Int) {
   (self.maximum_rows, self.maximum_context, self.vocabulary)
+}
+
+///|
+/// Immutable startup ABI size, including the optional absolute-position port.
+pub fn SerialDecoderFrame::input_count(self : Self) -> Int {
+  self.inputs.length()
 }
 
 ///|
@@ -198,6 +205,9 @@ pub fn SerialDecoderFrame::stage(
   }
   for index in 0..<rows {
     store_i32(self.inputs[1], index, frame.token_at(index))
+    if self.inputs.length() == 9 {
+      store_i32(self.inputs[8], index, position + index)
+    }
   }
   store_i32(self.inputs[0], 0, prefills)
   store_i32(self.inputs[0], 1, decodes)
@@ -230,9 +240,13 @@ pub fn SerialDecoderFrame::copy_input(
   destination : FixedArray[Byte],
 ) -> Int raise SerialDecoderError {
   guard self.state is Staged else { raise Busy }
-  guard port >= 0 && port < 8 else { raise InvalidCapacity }
+  guard port >= 0 && port < self.inputs.length() else { raise InvalidCapacity }
   let source = self.inputs[port]
-  let length = if port == 1 { self.pending_rows * 4 } else { source.length() }
+  let length = if port == 1 || port == 8 {
+    self.pending_rows * 4
+  } else {
+    source.length()
+  }
   guard destination.length() >= length else { raise InvalidCapacity }
   for index in 0..<length {
     destination[index] = source[index]
@@ -245,7 +259,7 @@ pub fn SerialDecoderFrame::input_capacity(
   self : Self,
   port : Int,
 ) -> Int raise SerialDecoderError {
-  guard port >= 0 && port < 8 else { raise InvalidCapacity }
+  guard port >= 0 && port < self.inputs.length() else { raise InvalidCapacity }
   self.inputs[port].length()
 }
 

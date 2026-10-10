@@ -134,8 +134,11 @@ pub fn SerialDecoderRank::progress(self : Self) -> Bool raise {
         worker.state = Downloading
         return false
       }
-      let failed = worker.payloads[9:].any(bytes => load_i32(bytes) != 0)
-      let token = load_i32(worker.payloads[8])
+      let sample_port = worker.frame.input_count()
+      let failed = worker.payloads[sample_port + 1:].any(bytes => {
+        load_i32(bytes) != 0
+      })
+      let token = load_i32(worker.payloads[sample_port])
       worker.stage_token = token
       worker.stage_failed = failed ||
         (

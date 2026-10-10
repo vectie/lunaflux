@@ -35,9 +35,10 @@ pub fn SerialDecoderFrame::completion(Self) -> @worker_wire.ValidatedCompletionF
 pub fn SerialDecoderFrame::copy_input(Self, Int, FixedArray[Byte]) -> Int raise SerialDecoderError
 pub fn SerialDecoderFrame::geometry(Self) -> (Int, Int, Int)
 pub fn SerialDecoderFrame::input_capacity(Self, Int) -> Int raise SerialDecoderError
+pub fn SerialDecoderFrame::input_count(Self) -> Int
 pub fn SerialDecoderFrame::is_faulted(Self) -> Bool
 pub fn SerialDecoderFrame::live_rows(Self) -> Int raise SerialDecoderError
-pub fn SerialDecoderFrame::new(maximum_rows~ : Int, maximum_context~ : Int, vocabulary_size~ : Int, model_generation~ : UInt64) -> Self raise SerialDecoderError
+pub fn SerialDecoderFrame::new(maximum_rows~ : Int, maximum_context~ : Int, vocabulary_size~ : Int, model_generation~ : UInt64, with_positions? : Bool) -> Self raise SerialDecoderError
 pub fn SerialDecoderFrame::processed_tokens(Self) -> Int
 pub fn SerialDecoderFrame::produces_token(Self) -> Bool raise SerialDecoderError
 pub fn SerialDecoderFrame::release_request(Self) -> Unit raise SerialDecoderError

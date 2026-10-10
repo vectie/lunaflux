@@ -8,6 +8,7 @@ pub(all) enum DecoderInputPort {
   SparseReset
   OutputCount
   SelectedRows
+  Positions
 } derive(Debug, Eq)
 
 ///|
@@ -27,6 +28,7 @@ fn DecoderInputPort::index(self : Self) -> Int {
     SparseReset => 5
     OutputCount => 6
     SelectedRows => 7
+    Positions => 8
   }
 }
 
@@ -99,7 +101,7 @@ pub fn SerialDecoderWorker::geometry(self : Self) -> (Int, Int, Int) {
 /// Counts, metadata, live token capacity and one selected token. Decoder
 /// residuals, weights, state and AOT module are budgeted by their own owners.
 pub fn SerialDecoderWorker::required_device_bytes(self : Self) -> Int64 raise {
-  for port in 0..<8; bytes = 4L {
+  for port in 0..<self.frame.input_count(); bytes = 4L {
     continue bytes + self.frame.input_capacity(port).to_int64()
   } nobreak {
     bytes
@@ -137,7 +139,7 @@ pub fn SerialDecoderWorker::prepare_ports(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.state = Failed
-  for port in 0..<8 {
+  for port in 0..<self.frame.input_count() {
     let bytes = self.frame.input_capacity(port)
     let allocation = context.allocate(bytes.to_int64())
     self.inputs.push(allocation)
@@ -156,6 +158,9 @@ pub fn SerialDecoderWorker::input(
   port : DecoderInputPort,
 ) -> @device.Allocation raise {
   guard self.state is PortsPrepared || self.state is Ready else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  guard port.index() < self.inputs.length() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.inputs[port.index()]
@@ -233,7 +238,7 @@ fn SerialDecoderWorker::begin_inputs(
   // Rejected plans have not entered DMA or changed retained model state.
   self.frame.stage(frame, writer)
   self.state = Failed
-  for port in 0..<8 {
+  for port in 0..<self.frame.input_count() {
     let bytes = self.frame.copy_input(port, self.payloads[port])
     let pool = self.pools[port]
     pool.write_host(
@@ -256,12 +261,12 @@ fn SerialDecoderWorker::begin_inputs(
 
 ///|
 fn SerialDecoderWorker::uploads_done(self : Self) -> Bool raise {
-  for port in 0..<8 {
+  for port in 0..<self.frame.input_count() {
     if !self.pools[port].poll(0) {
       return false
     }
   }
-  for port in 0..<8 {
+  for port in 0..<self.frame.input_count() {
     self.pools[port].reset(0)
   }
   true
@@ -269,13 +274,15 @@ fn SerialDecoderWorker::uploads_done(self : Self) -> Bool raise {
 
 ///|
 fn SerialDecoderWorker::download(self : Self) -> Unit raise {
-  for port in 8..<self.pools.length() {
-    if port != 8 || (self.outputs_token && self.frame.produces_token()) {
+  let sample_port = self.frame.input_count()
+  for port in sample_port..<self.pools.length() {
+    if port != sample_port ||
+      (self.outputs_token && self.frame.produces_token()) {
       let pool = self.pools[port]
       pool.enqueue(
         lane=0,
         host_offset=0L,
-        device_offset=if port == 8 { 0L } else { 8L },
+        device_offset=if port == sample_port { 0L } else { 8L },
         bytes=4L,
         to_device=false,
       )
@@ -286,14 +293,19 @@ fn SerialDecoderWorker::download(self : Self) -> Unit raise {
 
 ///|
 fn SerialDecoderWorker::downloads_done(self : Self) -> Bool raise {
-  for port in 8..<self.pools.length() {
-    if (port != 8 || (self.outputs_token && self.frame.produces_token())) &&
+  let sample_port = self.frame.input_count()
+  for port in sample_port..<self.pools.length() {
+    if (
+        port != sample_port ||
+        (self.outputs_token && self.frame.produces_token())
+      ) &&
       !self.pools[port].poll(0) {
       return false
     }
   }
-  for port in 8..<self.pools.length() {
-    if port != 8 || (self.outputs_token && self.frame.produces_token()) {
+  for port in sample_port..<self.pools.length() {
+    if port != sample_port ||
+      (self.outputs_token && self.frame.produces_token()) {
       self.pools[port].read_host(
         self.payloads[port],
         host_offset=0L,
@@ -351,8 +363,11 @@ pub fn SerialDecoderWorker::progress(self : Self) -> Bool raise {
         self.state = Downloading
         return false
       }
-      let failed = self.payloads[9:].any(bytes => load_i32(bytes) != 0)
-      let token = load_i32(self.payloads[8])
+      let sample_port = self.frame.input_count()
+      let failed = self.payloads[sample_port + 1:].any(bytes => {
+        load_i32(bytes) != 0
+      })
+      let token = load_i32(self.payloads[sample_port])
       ignore(self.frame.complete(sampled_token=token, execution_failed=failed))
       // Frame completion validates both lower and upper vocabulary bounds.
       self.state = if self.frame.is_faulted() { Failed } else { Ready }
