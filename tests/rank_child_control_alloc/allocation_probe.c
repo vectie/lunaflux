@@ -80,10 +80,10 @@ int32_t lunaflux_alloc_probe_seed(void) {
 }
 
 /* Match the shared redirect header without changing allocator/free pairing. */
-extern void *mi_malloc(size_t size);
+#include "../allocator_probe/mimalloc.h"
 void *lunaflux_probe_mimalloc(size_t size) {
   lunaflux_probe_count(&lunaflux_probe_direct_allocations);
-  return mi_malloc(size);
+  return lunaflux_test_mimalloc(size);
 }
 
 void *lunaflux_probe_malloc(size_t size) {
