@@ -2310,6 +2310,21 @@ no additional GPU speedup is claimed for those deletions.
 
 ## Runtime checksum cleanup follow-up (2026-10-10)
 
+The MiniMax checkpoint diagnostic now has a `run-joint` preparation/execution
+entry. It consumes actual BF16 encoder hidden_states[50], then queues context
+projection, both refiners, conditioning assembly, every scheduled full-stack
+prediction, paired flow updates and both actual VAE decoders. It does not keep
+text encoder weights resident alongside denoiser weights. Rotary tables use the
+checkpoint's original inverse frequencies and family-specific position plan.
+Preflight sums all three resident weight owners, every timestep variant's
+scratch, latent arena, projections, packed row mapping, conditioning, statistics,
+external embeddings/parameters and decoder outputs before a GPU context opens.
+Driver/module/host-staging reserve is separate; a no-swap capped user unit is
+still required physically. This entry is text-only diagnostic execution, not
+reference-image/video support, independent numerical parity, prompt quality or
+a performance claim. Full physical execution remains unverified until the
+new entry actually completes on the model checkpoint.
+
 Rank-group control and opaque payload frames no longer compute or verify a
 whole-frame FNV checksum. Graph telemetry sidecars follow the same rule.
 Encoders write zero into the legacy checksum field; readers ignore it. Rank

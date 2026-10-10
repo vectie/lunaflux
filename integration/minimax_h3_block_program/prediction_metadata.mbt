@@ -130,6 +130,12 @@ pub fn PredictionMetadata::distinct_timestep_counts(
 }
 
 ///|
+/// Exact immutable metadata allocation, before opening a device context.
+pub fn PredictionMetadata::byte_count(self : Self) -> Int64 {
+  self.layout.bytes
+}
+
+///|
 pub fn PredictionMetadata::prepare(
   self : Self,
   context : @device.Context,

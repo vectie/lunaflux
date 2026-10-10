@@ -1,0 +1,181 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock", "wlc003s@192.168.2.178",
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, build, aot] &&
+    root.has_prefix("/tmp/lunaflux-minimax-joint-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
+    aot.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
+    [root, suffix, build, aot].all(s => {
+      !s.is_empty() &&
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") else {
+    fail(
+      "NEW_LOCAL_AND_REMOTE_ROOT UNIQUE_SUFFIX COMMIT_BUILD_ROOT EXISTING_REQUEST_AOT",
+    )
+  }
+  @fs.mkdir(root)
+  let node = "wlc003s@192.168.2.178"
+  let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let variant = root + "/FL2VA"
+  let binary = root + "/minimax_checkpoint.exe"
+  record(root, "mkdir", remote("mkdir " + root))
+  // Hard links add a read-only view without copying 76 GB or changing any
+  // existing checkpoint bytes. Never upload over one of these linked files.
+  for
+    (name, command) in [
+      (
+        "denoiser-view",
+        "cp -al /tmp/lunaflux-minimax-denoiser-upload-20261010-v1/FL2VA " +
+        variant,
+      ),
+      (
+        "video-view",
+        "cp -al /tmp/lunaflux-minimax-video-upload-20261010-v1/FL2VA/video_vae " +
+        variant +
+        "/video_vae",
+      ),
+      (
+        "video-inventory",
+        "cp /tmp/lunaflux-minimax-video-upload-20261010-v1/FL2VA/VIDEO.sha256 " +
+        variant +
+        "/VIDEO.sha256",
+      ),
+      ("audio-directory", "mkdir " + variant + "/audio_vae"),
+      (
+        "binary",
+        "cp " +
+        build +
+        "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe " +
+        binary,
+      ),
+    ] {
+    record(root, name, remote(command))
+  }
+  for
+    (source, destination) in [
+      (
+        "/tmp/lunaflux-minimax-audio-20261010-v1/FL2VA/audio_vae/model.safetensors",
+        "audio_vae/model.safetensors",
+      ),
+      (
+        "/tmp/lunaflux-minimax-audio-20261010-v1/FL2VA/AUDIO.sha256", "AUDIO.sha256",
+      ),
+      (
+        "/tmp/lunaflux-minimax-request-config-20261010-v1/audio_vae/config.json",
+        "audio_vae/config.json",
+      ),
+      (
+        "/tmp/lunaflux-minimax-request-config-20261010-v1/audio_vae/metadata.json",
+        "audio_vae/metadata.json",
+      ),
+      (
+        "/tmp/lunaflux-minimax-request-config-20261010-v1/audio_vae/config.yaml",
+        "audio_vae/config.yaml",
+      ),
+      (
+        "/tmp/lunaflux-minimax-text-encoder-20261010-v1/hidden.bf16", "encoded.bf16",
+      ),
+      (
+        "/tmp/lunaflux-minimax-rotary-20261010-v1/rope.inv_freq.f32", "rope.inv_freq.f32",
+      ),
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      source,
+      node + ":" + variant + "/" + destination,
+    ])
+    .output()
+    .check()
+  }
+  let identity = remote(
+    "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  )
+  record(root, "device", identity)
+  guard identity.stdout().trim() ==
+    "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f, 0000000F:01:00.0" else {
+    fail("unexpected execution GPU")
+  }
+  let occupied = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  record(root, "occupied", occupied)
+  guard occupied.stdout().trim().is_empty() else {
+    fail("GPU occupied; no overlapping workload")
+  }
+  let memory = remote("awk '/MemAvailable:/ {print $2}' /proc/meminfo")
+  record(root, "memory", memory)
+  guard @string.parse_int64(memory.stdout().trim()) >= 109051904L else {
+    fail("less than 104 GiB available; refusing unified-memory pressure")
+  }
+  let unit = "lunaflux-minimax-joint-" + suffix
+  let command = "systemd-run --user --unit=" +
+    unit +
+    " --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400" +
+    " --property=StandardOutput=file:" +
+    root +
+    "/run.stdout" +
+    " --property=StandardError=file:" +
+    root +
+    "/run.stderr " +
+    binary +
+    " run-joint " +
+    variant +
+    " 32 32 120 5 3 encoded.bf16 rope.inv_freq.f32 " +
+    aot +
+    " DENOISER.inventory AUDIO.sha256 VIDEO.sha256 256 64 4096 8589934592 103079215104 17 " +
+    root +
+    "/output"
+  record(root, "start", remote(command))
+  @fs.write_file(
+    root + "/RUN.txt",
+    "unit=" +
+    unit +
+    "\nremote_root=" +
+    root +
+    "\nbuild=" +
+    build +
+    "\nencoded_rows=3\nmaximum_device_bytes=103079215104\npayload_hashing=false\nstatus=dispatched-not-complete\n",
+    create_mode=CreateNew,
+  )
+  println(
+    "joint request dispatched: " +
+    unit +
+    "; inspect this exact user unit before any further GPU work",
+  )
+}

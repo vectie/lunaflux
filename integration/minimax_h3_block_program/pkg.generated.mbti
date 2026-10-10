@@ -146,6 +146,7 @@ pub struct PredictionMetadata {
 }
 pub fn PredictionMetadata::bind_conditioned(Self, ArrayView[PredictionVariant], InputProgram, @joint_diffusion_device.LatentStorage, @joint_diffusion_device.RotaryBindings, PredictionWeights, ConditioningProgram, timestep_embeddings~ : @device.Allocation, timestep_embeddings_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> ReadOnlyArray[ReadOnlyArray[@device.OrderedKernelLaunch]] raise
 pub fn PredictionMetadata::bind_predictions(Self, ArrayView[PredictionVariant], InputProgram, @joint_diffusion_device.LatentStorage, @joint_diffusion_device.RotaryBindings, PredictionWeights, context_rows~ : @device.Allocation, context_offset~ : Int64, timestep_embeddings~ : @device.Allocation, timestep_embeddings_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> ReadOnlyArray[ReadOnlyArray[@device.OrderedKernelLaunch]] raise
+pub fn PredictionMetadata::byte_count(Self) -> Int64
 pub fn PredictionMetadata::close(Self) -> Unit raise @device.DeviceError
 pub fn PredictionMetadata::distinct_timestep_counts(Self) -> ReadOnlyArray[Int]
 pub fn PredictionMetadata::matches_plan(Self, @joint_diffusion_loop.PreparedPlan) -> Bool

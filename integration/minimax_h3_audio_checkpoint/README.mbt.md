@@ -16,3 +16,13 @@ context. Failed preparation retains partial modules/stages for deterministic
 close. A prepared raw audio request consumes channel-major destandardized F32
 latents; it is not a substitute for the packed full-denoiser `AudioInputProgram`
 join or proof of full text-to-video/audio generation.
+
+The prepare_joint_request entry point instead borrows the actual joint
+AudioState, prepends the caller-owned packed stereo permutation/destandardization
+program and retains the exact storage/plan receipt required by the complete
+request. It neither downloads nor substitutes the latent. The matches_plan
+query is pure geometry, not an allocation-identity test. The joint_workspace_bytes
+query counts the decoder, both input-bridge regions and one waveform output;
+raw weights, AOT modules, statistics and the external joint latent arena are
+separate budgets. Close the consuming request before its input program and this
+decoder.

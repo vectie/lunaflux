@@ -3,6 +3,8 @@ package "vectie/lunaflux/integration/minimax_h3_audio_checkpoint"
 
 import {
   "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/joint_diffusion_device",
+  "vectie/lunaflux/engine/joint_diffusion_loop",
   "vectie/lunaflux/integration/minimax_h3_block_program",
   "vectie/lunaflux/integration/minimax_h3_block_source",
   "vectie/lunaflux/integration/minimax_h3_weight_startup",
@@ -17,9 +19,12 @@ pub struct CheckpointAudioDecoder {
   // private fields
 }
 pub fn CheckpointAudioDecoder::close(Self) -> Unit raise
+pub fn CheckpointAudioDecoder::joint_workspace_bytes(Self) -> Int64
+pub fn CheckpointAudioDecoder::matches_plan(Self, @joint_diffusion_loop.PreparedPlan) -> Bool
 pub fn CheckpointAudioDecoder::memory(Self) -> @minimax_h3_block_program.AudioDecoderMemoryPlan
 pub fn CheckpointAudioDecoder::new(@minimax_h3_block_source.AudioDecoderSources, maximum_workspace_bytes~ : Int64) -> Self raise
 pub fn CheckpointAudioDecoder::prepare(Self, @device.Context, @device.Stream, @minimax_h3_weight_startup.WeightLease, (String) -> @device.Module raise) -> Unit raise
+pub fn CheckpointAudioDecoder::prepare_joint_request(Self, @minimax_h3_block_program.AudioDecodeRequest, @device.Context, @device.Stream, @joint_diffusion_loop.PreparedPlan, @joint_diffusion_device.LatentStorage, @minimax_h3_block_program.AudioInputProgram) -> Unit raise
 pub fn CheckpointAudioDecoder::prepare_request(Self, @minimax_h3_block_program.AudioDecodeRequest, @device.Context, @device.Stream, @device.Allocation) -> Unit raise
 
 // Type aliases
