@@ -13,13 +13,27 @@ import {
 // Values
 pub fn bind_head_control_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
+pub fn bind_text_ingress_weight(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec) -> @precision_materialize.PackedCheckpointWeight raise
+
 pub fn bind_text_io_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn learned_text_io_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, maximum_output_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.LearnedTextIoPrecision raise
 
+pub fn text_ingress_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int) -> @precision_ir.TextIoPrecision raise
+
 // Errors
 
 // Types and methods
+pub struct DeepSeekTextIngress {
+  // private fields
+}
+pub fn DeepSeekTextIngress::close(Self) -> Unit raise
+pub fn DeepSeekTextIngress::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int) -> Self raise
+pub fn DeepSeekTextIngress::prefix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekTextIngress::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, token_ids~ : @device.Allocation, input_residual~ : @device.Allocation) -> Unit raise
+pub fn DeepSeekTextIngress::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekTextIngress::source_bytes(Self) -> Bytes
+
 pub struct DeepSeekTextIo {
   // private fields
 }

@@ -10,6 +10,27 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DeepSeek checkpoint stages): contiguous base-layer slices
+now stream complete compact routed/shared banks and router weights and use at
+most two reusable inter-layer residuals. `DeepSeekDecoderStage` adds embedding
+only on ingress and the corrected learned head only on egress, with a single
+ordered queue and two distinct boundary residuals. Its pre-upload footprint
+covers owned weights, state, workspace and residuals; caller-owned request
+ports/token tables/index offsets remain explicitly separate. Missing complete
+checkpoint tensors are rejected during footprint preflight in component fixtures.
+Only a prepared complete range may bind whole-model worker delivery.
+The affected text/precision/stage suite passes 56/56; position/serial regressions
+pass 19/19, including both rank port layouts. The broader affected native
+aggregate also passes 145/145. Combined ingress/egress stage
+source compiles under CUDA 13.0.88/sm121 in a 2-GiB/no-swap user unit. Sources,
+module and journals were downloaded with matching SHA-256 to
+`/tmp/lunaflux-deepseek-stages-results-20261010-v1`.
+This does not establish real checkpoint stage execution. Startup-streamed I64
+token-table narrowing, dynamic learned-index offsets, stage-bound activation
+leases/two-host runner and DSpark prediction execution remain integration work.
+GLM's independent numerical comparison and MiniMax whole-model integration
+also remain open; no model-wide speed or accuracy claim is made.
+
 Update 2026-10-10 (absolute request positions): the model-neutral serial frame
 has an optional startup-selected position port. Chunked prefill publishes
 `committed_start + row`; decode publishes the exact next committed position.

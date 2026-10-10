@@ -72,6 +72,12 @@ async test "learned head binds and streams exact F32 checkpoint controls" {
       },
     )
     assert_eq(copied, [262144L, 16L, 4L])
+    try @deepseek_v4_text_io.bind_text_ingress_weight(checkpoint, spec) catch {
+      @materialize.PackedCheckpointError::MissingTensor("embed.weight") => ()
+      e => raise e
+    } noraise {
+      _ => fail("missing official embedding accepted")
+    }
     // A missing final norm/head cannot silently become a mean/fixture head.
     try @deepseek_v4_text_io.bind_text_io_weights(checkpoint, spec) catch {
       @materialize.PackedCheckpointError::MissingTensor("norm.weight") => ()

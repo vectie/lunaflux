@@ -99,6 +99,74 @@ async test "DeepSeek complete attention envelopes retain all compression profile
       let operand = context.allocate(3L * 4L * 4096L * 2L)
       defer (operand.close() catch { _ => () })
       let index_offsets = if ratio == 4 { Some(operand) } else { None }
+      let stage = @deepseek_decoder.DeepSeekDecoderSlice::new(
+        spec,
+        first_layer=layer,
+        end_layer=layer + 1,
+        maximum_rows=3,
+        maximum_context=256,
+        maximum_layer_state_bytes=16777216L,
+        maximum_layer_workspace_bytes=16777216L,
+        maximum_layer_expert_bytes=8589934592L,
+        accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+      )
+      let before_stage = live_resources()
+      // This component fixture lacks expert/router tensors. The stage must
+      // reject that checkpoint before allocating any banks or residuals.
+      try
+        stage.prepare(
+          context,
+          aot,
+          stream,
+          checkpoint,
+          root,
+          counts=operand,
+          positions=operand,
+          reset_flag=operand,
+          input=operand,
+          output=operand,
+          index_offsets?,
+          token_ids=operand,
+          token_tables=if layer < spec.hash_layer_count() {
+            [operand]
+          } else {
+            []
+          },
+          maximum_device_bytes=17179869184L,
+          chunk_bytes=65536,
+          limits~,
+        )
+      catch {
+        @materialize.PackedCheckpointError::MissingTensor(_) => ()
+        _ => fail("unexpected stage checkpoint error")
+      } noraise {
+        _ => fail("missing complete expert banks must be rejected")
+      }
+      assert_eq(live_resources(), before_stage)
+      stage.close()
+      let composed = @deepseek_decoder.DeepSeekDecoderStage::new(
+        spec,
+        @pipeline.DecoderStageRange::new(
+          layer_count=spec.layer_count(),
+          first_layer=layer,
+          end_layer=layer + 1,
+        ),
+        maximum_rows=3,
+        maximum_context=256,
+        maximum_layer_state_bytes=16777216L,
+        maximum_layer_workspace_bytes=16777216L,
+        maximum_layer_expert_bytes=8589934592L,
+        maximum_text_workspace_bytes=16777216L,
+        accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+      )
+      try composed.required_device_bytes(checkpoint) catch {
+        @materialize.PackedCheckpointError::MissingTensor(_) => ()
+        e => raise e
+      } noraise {
+        _ => fail("incomplete checkpoint admitted into a text+decoder stage")
+      }
+      assert_eq(live_resources(), before_stage)
+      composed.close()
       let owner = @deepseek.DeepSeekAttentionEnvelope::new(
         spec,
         layer~,

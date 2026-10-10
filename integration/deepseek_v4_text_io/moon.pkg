@@ -5,6 +5,7 @@ import {
   "vectie/lunaflux/engine/precision_materialize" @materialize,
   "vectie/lunaflux/integration/precision_checkpoint_upload" @upload,
   "vectie/lunaflux/integration/text_io_frame" @text,
+  "vectie/lunaflux/kernels/text_io_execution_cuda_source" @text_source,
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/model/streaming_safetensors" @streaming,
   "vectie/lunaflux/device",

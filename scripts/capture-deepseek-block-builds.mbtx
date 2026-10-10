@@ -22,6 +22,11 @@ async fn main {
         "/tmp/lunaflux-deepseek-blocks-aot-20261010.2rAZf05M", "decoder_blocks",
         "lunaflux-deepseek-blocks-compile-20261010-v1.service",
       ),
+      (
+        "stage", "wlc003s@192.168.2.178", "/tmp/lunaflux-checkpoint-live-20261010.sock",
+        "/tmp/lunaflux-deepseek-stages-aot-20261010.Tp2QKFCB", "decoder_stages",
+        "lunaflux-deepseek-stages-build-20261010-v1.service",
+      ),
     ] {
     for
       (name, command) in [

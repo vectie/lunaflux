@@ -1,0 +1,28 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, directory] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(directory)
+  let result = @shell.Cmd("moon", [
+    "test", "integration/deepseek_v4_decoder/stage_test.mbt", "--target", "native",
+    "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+  ], env={ "LUNAFLUX_DEEPSEEK_STAGE_SOURCE": "1" }).output(max_output_bytes=4194304)
+  @fs.write_file(directory + "/export.stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(directory + "/export.stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+  guard result.stdout().split("LUNA_DEEPSEEK_STAGE_BEGIN\n").to_array() is [_, tail] else {
+    fail("missing stage source begin")
+  }
+  guard tail.split("LUNA_DEEPSEEK_STAGE_END").to_array() is [source, _] else {
+    fail("missing stage source end")
+  }
+  @fs.write_file(directory + "/decoder_stages.cu", source, create_mode=CreateNew)
+  println(directory)
+}
