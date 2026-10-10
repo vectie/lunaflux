@@ -12,6 +12,7 @@ priv struct Entry {
   owner : Owner
   bytes : Int64
   component : @weights.MiniMaxH3WeightComponent
+  packing : Packing
 }
 
 ///|

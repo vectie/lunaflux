@@ -3,6 +3,7 @@ package "vectie/lunaflux/integration/minimax_h3_weight_startup"
 
 import {
   "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minimax_h3_block_program",
   "vectie/lunaflux/integration/minimax_h3_media_encode",
   "vectie/lunaflux/integration/minimax_h3_text_encoder",
   "vectie/lunaflux/integration/minimax_h3_vision_conditioner",
@@ -58,6 +59,7 @@ pub struct WeightLease {
 }
 pub fn WeightLease::release(Self) -> Unit
 pub fn[T] WeightLease::with_allocation(Self, Int, (@device.Allocation) -> T raise) -> T raise
+pub fn[T] WeightLease::with_denoiser_weights(Self, @minimax_h3_weights.MiniMaxH3WeightComponent, @joint_diffusion_plan.JointDiffusionPlan, (@minimax_h3_block_program.PredictionWeights, @device.Allocation, ReadOnlyArray[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)]) -> T raise) -> T raise
 pub fn[T] WeightLease::with_encoder(Self, Int, (@minimax_h3_text_encoder.EncoderWeights) -> T raise) -> T raise
 pub fn[T] WeightLease::with_reference(Self, Int, (@segmented_device_materialize.SegmentedDeviceWeights, @minimax_h3_media_encode.WeightManifest) -> T raise) -> T raise
 pub fn[T] WeightLease::with_vision(Self, Int, (@minimax_h3_vision_conditioner.VisionWeights) -> T raise) -> T raise

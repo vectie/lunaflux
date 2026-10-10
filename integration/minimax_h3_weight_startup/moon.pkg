@@ -16,6 +16,12 @@ import {
   "vectie/lunaflux/integration/minimax_h3_text_encoder" @text,
   "vectie/lunaflux/integration/minimax_h3_vision_conditioner" @vision,
   "vectie/lunaflux/integration/minimax_h3_block_upload" @upload,
+  "vectie/lunaflux/integration/minimax_h3_block_program" @blocks,
 }
 
 supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/minimax_h3",
+  "vectie/lunaflux/model/minimax_h3_spec" @h3,
+} for "wbtest"

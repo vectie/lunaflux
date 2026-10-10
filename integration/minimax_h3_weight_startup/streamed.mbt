@@ -69,6 +69,7 @@ fn WeightStartup::prepare_streamed_packings(
           owner: Encoder(owner),
           bytes,
           component: manifest.component(),
+          packing,
         })
         self.used += bytes
         owner.prepare_streamed(
@@ -85,6 +86,7 @@ fn WeightStartup::prepare_streamed_packings(
           owner: Visual(owner),
           bytes,
           component: manifest.component(),
+          packing,
         })
         self.used += bytes
         owner.prepare_streamed(
@@ -112,6 +114,7 @@ fn WeightStartup::prepare_streamed_packings(
               owner: Segmented(owner, metadata),
               bytes,
               component: manifest.component(),
+              packing,
             })
             self.used += bytes
           }
@@ -120,6 +123,7 @@ fn WeightStartup::prepare_streamed_packings(
               owner: Cleanup(owner),
               bytes,
               component: manifest.component(),
+              packing,
             })
             self.used += bytes
             raise owner.cause()
@@ -132,6 +136,7 @@ fn WeightStartup::prepare_streamed_packings(
           owner: Packed(allocation),
           bytes,
           component: manifest.component(),
+          packing,
         })
         self.used += bytes
         allocations.push(allocation)

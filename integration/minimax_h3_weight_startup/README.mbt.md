@@ -5,8 +5,9 @@ owners. `prepare_component` inspects checkpoint metadata and streams packed
 tensor slices through bounded scratch directly into device allocations. Text,
 vision, denoiser, decoder and reference-encoder paths no longer build full host
 weight arenas. This avoids retaining a second component-sized weight copy on
-unified-memory Spark hardware. Scratch, transfer bytes and incremental hashing
-still consume bounded startup memory; modules/workspaces/KV need separate budgets.
+unified-memory Spark hardware. Scratch and transfer bytes consume bounded startup
+memory; checkpoint payloads are not hashed. Modules/workspaces/KV need separate
+budgets.
 
 Use the pure `conditioner_packings`, `denoiser_packings`,
 `video_decoder_packings`, and `audio_decoder_packings` factories. The resulting
@@ -24,6 +25,14 @@ Acquire `WeightLease` after loading, borrow via `with_encoder`, `with_vision` or
 `with_allocation`, and retain that lease for the lifetime of all dependent
 programs/queues. Release it only after downstream queues drain and close. Closing
 with a live lease is rejected. No request-path IO or cryptography is introduced.
+
+`with_denoiser_weights` resolves retained packing descriptors into the complete
+prediction and text-refiner bindings. It selects the requested component and
+orders blocks by their model layer, not hard-coded allocation indices. This
+supports an aggregate containing encoder and VAE components in any upload order.
+Resolution happens once at preparation; all denoising steps borrow the same
+device allocations. The callback does not release the lease: prepared queues
+retain these bindings and must close before the caller releases it.
 
 This package loads raw weights, not AOT modules or program working memory.
 Audio normalized-weight caches remain owned and budgeted by `AudioDecoder`.
