@@ -2,6 +2,7 @@
 fn bootstrap_mistral_test_source(
   artifact? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   manifest? : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  kernel_label? : String = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
 ) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_mistral_bootstrap_source_v7(
     @worker_wire.WorkerBootstrapRoots::new(
@@ -18,7 +19,7 @@ fn bootstrap_mistral_test_source(
     ),
     @worker_wire.WorkerBootstrapKernelSource::new(
       manifest_locator="execution.json",
-      manifest_digest_sha256="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      manifest_digest_sha256=kernel_label,
     ),
     @worker_wire.WorkerBootstrapExecution::new(
       compute_major=8,
@@ -56,11 +57,11 @@ test "Mistral worker source is exact and legacy validation rejects it" {
 }
 
 ///|
-test "Mistral source substitution fails before root acquisition" {
+test "Mistral source label mismatch fails before root acquisition" {
   let admitted = bootstrap_mistral_test_source()
   let startup = bootstrap_test_startup(admitted.digest())
   let foreign = bootstrap_mistral_test_source(
-    artifact="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    kernel_label="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   )
   let acquisitions = Ref(0)
   try {
@@ -81,11 +82,17 @@ test "Mistral source substitution fails before root acquisition" {
 }
 
 ///|
-test "Mistral artifact and route-manifest order is digest-injective" {
+test "Mistral artifact and route-manifest order survives without a frame checksum" {
   let direct = bootstrap_mistral_test_source()
   let swapped = bootstrap_mistral_test_source(
     artifact="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     manifest="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   )
-  assert_true(direct.digest() != swapped.digest())
+  assert_eq(direct.digest(), swapped.digest())
+  let model = validate_mistral_source_envelope(
+    bootstrap_test_startup(direct.digest()),
+    swapped,
+  )
+  assert_eq(model.numeric_weight_artifact_digest(), "b".repeat(64))
+  assert_eq(model.weight_manifest_digest(), "a".repeat(64))
 }

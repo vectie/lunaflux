@@ -3,6 +3,7 @@ fn bootstrap_qwen3_test_source(
   artifact? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   manifest? : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   sampling_runtime? : @worker_wire.WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
+  kernel_label? : String = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
 ) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_qwen3_bf16_paged_bootstrap_source_v12(
     @worker_wire.WorkerBootstrapRoots::new(
@@ -19,7 +20,7 @@ fn bootstrap_qwen3_test_source(
     ),
     @worker_wire.WorkerBootstrapKernelSource::new(
       manifest_locator="execution.json",
-      manifest_digest_sha256="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      manifest_digest_sha256=kernel_label,
       sampling_runtime~,
     ),
     @worker_wire.WorkerBootstrapExecution::new(
@@ -70,11 +71,11 @@ test "Qwen3 worker source is exact and legacy validation rejects it" {
 }
 
 ///|
-test "Qwen3 source substitution fails before root acquisition" {
+test "Qwen3 source label mismatch fails before root acquisition" {
   let admitted = bootstrap_qwen3_test_source()
   let startup = bootstrap_test_startup(admitted.digest())
   let foreign = bootstrap_qwen3_test_source(
-    artifact="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    kernel_label="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   )
   let acquisitions = Ref(0)
   try {
@@ -92,4 +93,16 @@ test "Qwen3 source substitution fails before root acquisition" {
     _ => fail("foreign Qwen3 source was admitted")
   }
   assert_eq(acquisitions.val, 0)
+}
+
+///|
+test "Qwen3 supplied source label is not a numeric-source checksum" {
+  let source = bootstrap_qwen3_test_source()
+  let changed = bootstrap_qwen3_test_source(artifact="f".repeat(64))
+  assert_eq(source.digest(), changed.digest())
+  let model = validate_qwen3_source_envelope(
+    bootstrap_test_startup(source.digest()),
+    changed,
+  )
+  assert_eq(model.numeric_weight_artifact_digest(), "f".repeat(64))
 }

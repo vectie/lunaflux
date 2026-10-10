@@ -386,9 +386,7 @@ async test "public admission rejects mixed worker sequence and query-limit domai
           tp_bootstrap_startup(
             model_plan.identity(),
             1,
-            source=tp_bootstrap_source(
-              maximum_collective_runtime_version_code=21404,
-            ),
+            source=tp_bootstrap_source(kernel_label="f".repeat(64)),
           ),
         ],
       ] {
@@ -420,6 +418,33 @@ async test "public admission rejects mixed worker sequence and query-limit domai
       tp_bootstrap_startup(model_plan.identity(), 0),
       tp_bootstrap_startup(model_plan.identity(), 1),
     ]
+    // Runtime compatibility is checked from explicit policy facts, not inferred
+    // from a checksum of the source envelope.
+    for runtime_version in [21402, 21404] {
+      try
+        ignore(
+          admit(
+            model_plan,
+            generation,
+            group_generation,
+            topology,
+            tp_bootstrap_source(),
+            valid_startups,
+            inspections,
+            device_plans,
+            execution_plans,
+            kv_plan,
+            bootstrap_test_rendezvous(),
+            collective_runtime_version_code=runtime_version,
+          ),
+        )
+      catch {
+        Rejected(rule=CollectiveContract, rank=-1) => ()
+        _ => fail("unexpected collective version rejection")
+      } noraise {
+        _ => fail("out-of-range collective runtime was admitted")
+      }
+    }
     try
       ignore(
         admit(

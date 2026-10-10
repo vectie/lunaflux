@@ -1,5 +1,5 @@
 ///|
-test "root-bound source mismatch precedes root acquisition" {
+test "root-bound source label mismatch precedes root acquisition" {
   let model = @approved_fs.ApprovedRoot::open_absolute("/usr")
   let kernel = @approved_fs.ApprovedRoot::open_absolute("/usr")
   model.close()

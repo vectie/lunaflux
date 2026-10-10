@@ -178,6 +178,12 @@ ownership is published. The label associates startup records; it does not
 authenticate transport bytes. Neither endpoint authenticates these frames;
 deployment owns their origin and artifact immutability.
 
+Bootstrap regression tests must distinguish label mismatches from changed
+configuration fields. Mutating roots or numeric-source labels does not imply
+a different footer. Test parsed fields directly and exercise sequence, query,
+KV capacity and collective-version bounds independently; never restore a
+frame checksum merely to satisfy an obsolete substitution test.
+
 Reusable fused sidecar exporters serialize validated inputs once, without
 hashing and decoding the new whole sidecar as a self-check. The residual
 exporter validates its launch geometry directly. Row variants retain supplied

@@ -17,7 +17,7 @@ test "startup handshake rejects an incompatible child before readiness" {
 }
 
 ///|
-test "startup source mismatch fails before executable spawn" {
+test "startup source label mismatch fails before executable spawn" {
   try
     prepare(
       @worker_executable_fixture.cat_path(),
@@ -31,6 +31,18 @@ test "startup source mismatch fails before executable spawn" {
   } noraise {
     _ => fail("foreign bootstrap source reached spawn")
   }
+}
+
+///|
+test "startup does not checksum root locators" {
+  let source = supervisor_source_for_roots("/alternate-models", "/kernels")
+  assert_eq(source.digest(), supervisor_source().digest())
+  validate_preflight_envelope(
+    supervisor_startup(),
+    source,
+    supervisor_process_limits(),
+  )
+  assert_eq(source.roots().model_root(), "/alternate-models")
 }
 
 ///|

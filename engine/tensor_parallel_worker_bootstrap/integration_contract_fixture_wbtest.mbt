@@ -43,6 +43,7 @@ fn tp_bootstrap_inference_limits() -> @inference.InferenceLimits {
 ///|
 fn tp_bootstrap_source(
   maximum_collective_runtime_version_code? : Int = 21403,
+  kernel_label? : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 ) -> @worker_wire.EncodedBootstrapSource raise {
   let ordinary = @worker_wire.admit_bootstrap_source(
     @worker_wire.WorkerBootstrapRoots::new(
@@ -56,7 +57,7 @@ fn tp_bootstrap_source(
     ),
     @worker_wire.WorkerBootstrapKernelSource::new(
       manifest_locator="tensor-parallel.manifest",
-      manifest_digest_sha256="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      manifest_digest_sha256=kernel_label,
     ),
     @worker_wire.WorkerBootstrapExecution::new(
       compute_major=8,

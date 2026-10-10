@@ -94,7 +94,10 @@ fn alternate_supervisor_source() -> @worker_wire.EncodedBootstrapSource raise {
       kernel_root="/kernels",
     ),
     base.model(),
-    base.kernel(),
+    @worker_wire.WorkerBootstrapKernelSource::new(
+      manifest_locator=base.kernel().manifest_locator(),
+      manifest_digest_sha256="f".repeat(64),
+    ),
     base.execution(),
     base.ceilings(),
   )
