@@ -59,20 +59,43 @@ fn terminal(status : String) -> Bool {
 }
 
 ///|
-fn require_retirement(status : String) -> Unit raise {
+fn require_retirement(
+  status : String,
+  journal : String,
+  role : String,
+  signalled : Bool,
+) -> Unit raise {
+  // MoonBit first unwinds all async owners, flushes stdio, then re-raises the
+  // original global signal. A SIGINT result alone cannot prove cleanup; the
+  // explicit context-close marker is mandatory for both ranks.
+  let expected_exit = if signalled {
+    status.contains("ExecMainCode=2\n") && status.contains("ExecMainStatus=2\n")
+  } else {
+    status.contains("ExecMainCode=1\n") && status.contains("ExecMainStatus=1\n")
+  }
   guard terminal(status) &&
     status.contains("LoadState=loaded\n") &&
-    status.contains("ExecMainCode=1\n") &&
+    expected_exit &&
     status.contains("MemorySwapPeak=0\n") &&
-    !status.contains("Result=oom-kill\n") else {
-    fail("rank did not exit in userspace without swap/OOM")
+    !status.contains("Result=oom-kill\n") &&
+    journal.contains("rank_cleanup: role=" + role + " context_closed=true") &&
+    !journal.contains("generated=") &&
+    !journal.contains("generation_millis=") else {
+    fail(
+      "rank retirement lacks explicit cleanup or has unexpected exit/swap/OOM",
+    )
   }
 }
 
 ///|
 fn check_retirement() -> Unit raise {
-  let valid = "LoadState=loaded\nSubState=failed\nExecMainCode=1\nMemorySwapPeak=0\nResult=exit-code\n"
-  require_retirement(valid)
+  let valid = "LoadState=loaded\nSubState=failed\nExecMainCode=1\nExecMainStatus=1\nMemorySwapPeak=0\nResult=exit-code\n"
+  let marker = "rank_cleanup: role=ingress context_closed=true\n"
+  require_retirement(valid, marker, "ingress", false)
+  let interrupted = valid
+    .replace_all(old="ExecMainCode=1", new="ExecMainCode=2")
+    .replace_all(old="ExecMainStatus=1", new="ExecMainStatus=2")
+  require_retirement(interrupted, marker, "ingress", true)
   for
     status in [
       valid.replace_all(old="ExecMainCode=1", new="ExecMainCode=2"),
@@ -81,11 +104,35 @@ fn check_retirement() -> Unit raise {
       valid.replace_all(old="SubState=failed", new="SubState=running"),
       valid.replace_all(old="LoadState=loaded", new="LoadState=not-found"),
     ] {
-    try require_retirement(status) catch {
+    try require_retirement(status, marker, "ingress", false) catch {
       _ => ()
     } noraise {
       _ => fail("invalid rank retirement accepted")
     }
+  }
+  for
+    journal in [
+      "",
+      marker + "generated=1 finish=Length",
+      marker + "generation_millis=100",
+    ] {
+    try require_retirement(interrupted, journal, "ingress", true) catch {
+      _ => ()
+    } noraise {
+      _ => fail("interrupted rank without clean unpublished teardown accepted")
+    }
+  }
+  try
+    require_retirement(
+      interrupted.replace_all(old="ExecMainStatus=2", new="ExecMainStatus=9"),
+      marker,
+      "ingress",
+      true,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("SIGKILL accepted as cooperative cancellation")
   }
 }
 
@@ -94,7 +141,7 @@ async fn main {
   if @env.args() is [_, "self-test"] {
     check_retirement()
     println(
-      "cancellation capture rejects signal death, swap, OOM, running and missing units",
+      "cancellation capture requires explicit cleanup before expected SIGINT; rejects SIGKILL, swap, OOM, published results and missing/running units",
     )
     return
   }
@@ -189,24 +236,18 @@ async fn main {
         fail("missing terminal observation")
       }
       retain(capture, role + "-terminal", final_status)
-      // CLD_EXITED=1 proves userspace exit, not death from SIGINT/SIGKILL.
-      require_retirement(final_status.stdout())
       let journal = remote(
         host,
         "journalctl --user -u " + name + " --no-pager -o cat",
       )
       retain(capture, role + "-journal", journal)
       journal.check()
-      guard journal
-        .stdout()
-        .contains("rank_cleanup: role=" + role + " context_closed=true") &&
-        !journal.stdout().contains("generated=") &&
-        !journal.stdout().contains("generation_millis=") else {
-        fail(
-          "missing explicit context release or published successful generation: " +
-          role,
-        )
-      }
+      require_retirement(
+        final_status.stdout(),
+        journal.stdout(),
+        role,
+        target == role,
+      )
       let gpu = remote(
         host, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
       )
