@@ -173,9 +173,9 @@ fn decode_split_binding_record(
 }
 
 ///|
-/// Binds the candidate to one exact content-addressed module, two ordered
+/// Binds the candidate to one deployment-labelled module, two ordered
 /// symbols and the bounded F32 partial workspace at startup. No module loading
-/// or request-path validation occurs here.
+/// or payload hashing occurs here. Deployment owns the code/label association.
 pub fn bind_manifest_paged_attention_decode_split_cuda_aot(
   candidate : PagedAttentionDecodeSplitCudaBundle,
   operation : @plan.PlanOperation,
@@ -231,8 +231,7 @@ pub fn bind_manifest_paged_attention_decode_split_cuda_aot(
     launches[1].dimensions() != candidate.merge_dimensions {
     raise Mismatch(Contract)
   }
-  if launches[0].module_digest().sha256() !=
-    paged_attention_sha256(module_bytes) {
+  if launches[0].module_digest() != launches[1].module_digest() {
     raise Mismatch(Contract)
   }
   let (partial_operands, merge_operands) = decode_split_expected_launch_operands(

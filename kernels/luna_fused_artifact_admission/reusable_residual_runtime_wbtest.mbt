@@ -71,6 +71,10 @@ test "reusable residual runtime retains an unrelated supplied label" {
     function_symbol="lunaflux_fused_residual_rmsnorm_bf16_v2",
     launch~,
     module_bytes=b"deterministic-residual-rmsnorm-cubin",
+    module_label_sha256="e".repeat(64),
+  )
+  assert_true(
+    @utf8.decode(canonical).contains("module_sha256=" + "e".repeat(64) + "\n"),
   )
   let admitted = admit_digest_pinned_reusable_fused_residual_runtime(
     canonical,

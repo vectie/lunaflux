@@ -3,7 +3,6 @@ import {
   "moonbitlang/async/fs",
   "moonbitlang/core/string",
   "moonbitlang/core/env",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_fused_artifact_admission",

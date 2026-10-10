@@ -1,5 +1,26 @@
 # LunaFlux detailed implementation plan
 
+## Remaining payload-hardening cleanup — 2026-10-11
+
+Removed the residual CUBIN checksum scans in both split-decode startup binders.
+They consume deployment labels, while retaining exact operation, ordered symbol,
+workspace, launch and size checks. Qwen fused exporters now carry locator/plan
+labels without hashing CUBINs or the whole runtime bundle; legacy SHA-named
+receipt fields explicitly report their association kind and no verified payload
+checksum. Shared partial/merge locators reuse the same read; distinct modules
+are no longer scanned for byte equality. The producer computes attention scope
+from canonical-ordered typed metadata rather than re-parsing its generated
+bundle. Regression coverage checks supplied non-content labels and equality of
+producer/receiver scopes, including reordered inputs and row variants.
+
+Affected native tests pass 83/83 with the existing toolchain migration warning
+configuration; the 29-script no-payload-hashing regression and token-step gate
+pass. Bare warning-denied native testing remains blocked by existing warning-79
+migration diagnostics; no new warning exclusions were added. This removes
+startup/packaging work, not GPU arithmetic, and claims no new token/s result.
+Offline compiler/cache identity generation and algorithmic prefix/token hashing
+are not payload-integrity scans and remain distinct from this cleanup.
+
 ## Current three-model completion ledger — 2026-10-11
 
 The implementation objective remains executable, correct and useful GLM-5.3

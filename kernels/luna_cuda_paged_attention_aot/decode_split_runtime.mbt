@@ -1,5 +1,6 @@
 ///|
-/// Joins one digest-pinned reusable CUBIN with an exact attention operation.
+/// Joins one deployment-labelled reusable CUBIN with an exact attention operation.
+/// The supplied label is not a payload checksum; do not scan the CUBIN here.
 /// The CUBIN must export the stable partial/merge symbols selected here. The
 /// device owner resolves both symbols before readiness, so an older readonly-
 /// only module fails during startup rather than on a token step.
@@ -28,7 +29,6 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
     partial_entry_point_id == merge_entry_point_id ||
     module_bytes.is_empty() ||
     module_bytes.length() > 8388608 ||
-    paged_attention_sha256(module_bytes) != expected_module_sha256 ||
     maximum_key_value_splits <= 1 ||
     maximum_workspace_bytes <= 0L {
     raise Invalid(Contract)

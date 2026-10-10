@@ -125,6 +125,18 @@ module choices are parsed for execution compatibility, not reauthenticated by
 opening and hashing every alternative. Fresh CUBIN packaging does not require
 a second checksum inventory traversal.
 
+Reusable Qwen packaging supplies locator/plan association labels rather than
+hashing CUBINs or entire sidecars. Retain those labels in typed inputs; do not
+hash again during serialization or reconstruct a generated bundle to recover
+its measurement scope. Compute scope directly from canonical-ordered execution
+metadata. Split-decode startup likewise consumes the supplied CUBIN label,
+without a checksum scan. Source/ABI, workspace and geometry checks still apply.
+Locator labels are not code fingerprints: rebuilding code requires a fresh
+locator/measurement scope; silently retaining old tuning observations is invalid.
+Legacy `*_sha256` output names must state their association kind, never claim
+verified file integrity. First-time offline compiler/cache naming remains
+separate from startup or packaging reauthentication.
+
 BF16 release binding also consumes declared toolchain, receipt and module
 labels without payload rehashing. The kernel producer and shared bundle join
 must not hash each CUBIN again or compare entire first/second-build copies.

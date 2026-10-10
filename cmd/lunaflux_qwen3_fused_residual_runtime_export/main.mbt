@@ -92,6 +92,7 @@ async fn run(
     function_symbol="lunaflux_fused_residual_rmsnorm_bf16_block128_tree_production_v2",
     launch~,
     module_bytes~,
+    module_label_sha256=model_plan,
   ) catch {
     _ => raise InvalidRuntime
   }
@@ -105,12 +106,10 @@ async fn run(
     _ => raise WriteFailed
   }
   println("schema=lunaflux-qwen3-fused-residual-runtime-export.v1")
-  println(
-    "runtime_sha256=" + @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),
-  )
-  println(
-    "module_sha256=" + @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes)),
-  )
+  println("runtime_sha256=" + model_plan)
+  println("module_sha256=" + model_plan)
+  println("identity_kind=model-plan-association")
+  println("payload_hashing=false")
   println("residual_operation=" + residual.to_string())
   println("norm_operation=" + norm.to_string())
   println("grid_x=" + grid.to_string())

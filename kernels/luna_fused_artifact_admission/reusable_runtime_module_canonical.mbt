@@ -26,7 +26,7 @@ fn reusable_runtime_append_module(
   prefill_metadata : Bool,
   row_metadata : Bool,
   partition_metadata : Bool,
-) -> Unit raise FusedArtifactAdmissionError {
+) -> Unit {
   let prefix = "module_" + ordinal.to_string() + "_"
   out.write_string(
     prefix + "abi=" + reusable_runtime_abi_name(module_.abi) + "\n",
@@ -117,10 +117,7 @@ fn reusable_runtime_append_module(
     "\n",
   )
   out.write_string(
-    prefix +
-    "module_sha256=" +
-    fused_artifact_digest(module_.module_bytes).as_hex() +
-    "\n",
+    prefix + "module_sha256=" + module_.module_label.as_hex() + "\n",
   )
   out.write_string(
     prefix +

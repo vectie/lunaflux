@@ -166,6 +166,50 @@ test "attention route scope consumes variant label without payload replay" {
   )
   let label = "f".repeat(64)
   let original = admit_digest_pinned_reusable_fused_runtime_bundle(bytes, label)
+  assert_eq(
+    reusable_fused_runtime_attention_route_scope(
+      model_content_sha256="1".repeat(64),
+      model_plan_sha256="2".repeat(64),
+      target=original.target(),
+      modules~,
+    ),
+    original.attention_route_scope(),
+  )
+  let legacy_modules = [
+    row_scope_reader(
+      QwenPagedAttentionReadOnlyDecodeSplitProductionV3,
+      "legacy",
+    ),
+    modules[2],
+  ]
+  let legacy = admit_digest_pinned_reusable_fused_runtime_bundle(
+    export_reusable_fused_runtime_bundle(
+      model_content_sha256="1".repeat(64),
+      model_plan_sha256="2".repeat(64),
+      target=original.target(),
+      modules=legacy_modules,
+    ),
+    label,
+  )
+  assert_eq(
+    reusable_fused_runtime_attention_route_scope(
+      model_content_sha256="1".repeat(64),
+      model_plan_sha256="2".repeat(64),
+      target=original.target(),
+      modules=legacy_modules,
+    ),
+    legacy.attention_route_scope(),
+  )
+  // Input order differs from canonical ABI order: scope must remain identical.
+  assert_eq(
+    reusable_fused_runtime_attention_route_scope(
+      model_content_sha256="1".repeat(64),
+      model_plan_sha256="2".repeat(64),
+      target=original.target(),
+      modules=[modules[2], modules[0], modules[1]],
+    ),
+    original.attention_route_scope(),
+  )
   let changed = admit_digest_pinned_reusable_fused_runtime_bundle(
     @utf8.encode(
       @utf8.decode(bytes).replace(

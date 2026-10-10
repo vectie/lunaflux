@@ -31,6 +31,7 @@ async fn read_ingress_row_variant(
       shared_memory_bytes=input.shared_bytes,
     ),
     module_bytes=bytes,
+    module_label_sha256=runtime_module_locator_label(input.module_path),
   ) catch {
     _ => raise InvalidRuntime
   }

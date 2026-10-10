@@ -513,22 +513,23 @@ async fn run(
   let attention_prefill_partial_bytes = read_module(
     args.attention_prefill_partial.module_path,
   )
-  let attention_prefill_merge_bytes = read_module(
-    args.attention_prefill_merge.module_path,
-  )
+  let attention_prefill_merge_bytes = if args.attention_prefill_merge.module_path ==
+    args.attention_prefill_partial.module_path {
+    attention_prefill_partial_bytes
+  } else {
+    read_module(args.attention_prefill_merge.module_path)
+  }
   let attention_prefill_partitioned8_partial_bytes = read_module(
     args.attention_prefill_partitioned8_partial.module_path,
   )
-  let attention_prefill_partitioned8_merge_bytes = read_module(
-    args.attention_prefill_partitioned8_merge.module_path,
-  )
-  // Partial and merge entries must belong to the same module. Compare their
-  // already-read bytes directly; no cryptographic reauthentication is needed.
-  if attention_prefill_partial_bytes != attention_prefill_merge_bytes ||
-    attention_prefill_partitioned8_partial_bytes !=
-    attention_prefill_partitioned8_merge_bytes {
-    raise InvalidModule
+  let attention_prefill_partitioned8_merge_bytes = if args.attention_prefill_partitioned8_merge.module_path ==
+    args.attention_prefill_partitioned8_partial.module_path {
+    attention_prefill_partitioned8_partial_bytes
+  } else {
+    read_module(args.attention_prefill_partitioned8_merge.module_path)
   }
+  // Both entries have independently validated launch contracts. Deployment
+  // owns their code association; do not compare opaque CUBINs byte by byte.
   let attention_bytes = read_module(args.attention_read.module_path)
   let target = runtime_device_target(args)
   let modules = selected_ingress_modules(
@@ -552,6 +553,9 @@ async fn run(
         StrictNaturalExponential,
       launch=launch_dimensions(args.attention_prefill),
       module_bytes=attention_prefill_bytes,
+      module_label_sha256=runtime_module_locator_label(
+        args.attention_prefill.module_path,
+      ),
       query_tile_rows=args.prefill_query_tile_rows,
       query_metadata_version=if args.query_metadata { 1 } else { 0 },
     ) catch {
@@ -569,6 +573,9 @@ async fn run(
         StrictNaturalExponential,
       launch=launch_dimensions(args.attention_prefill_wide),
       module_bytes=attention_prefill_wide_bytes,
+      module_label_sha256=runtime_module_locator_label(
+        args.attention_prefill_wide.module_path,
+      ),
       query_tile_rows=args.wide_query_tile_rows,
       query_metadata_version=if args.query_metadata { 1 } else { 0 },
     ) catch {
@@ -586,6 +593,9 @@ async fn run(
         function_symbol="lunaflux_attention_prefill_partitioned_partial_v1",
         launch=launch_dimensions(args.attention_prefill_partial),
         module_bytes=attention_prefill_partial_bytes,
+        module_label_sha256=runtime_module_locator_label(
+          args.attention_prefill_partial.module_path,
+        ),
         query_tile_rows=args.partitioned_query_tile_rows,
         query_metadata_version=if args.query_metadata { 1 } else { 0 },
       ) catch {
@@ -600,6 +610,9 @@ async fn run(
         function_symbol="lunaflux_attention_prefill_partitioned_merge_v1",
         launch=launch_dimensions(args.attention_prefill_merge),
         module_bytes=attention_prefill_merge_bytes,
+        module_label_sha256=runtime_module_locator_label(
+          args.attention_prefill_merge.module_path,
+        ),
         query_tile_rows=args.partitioned_query_tile_rows,
       ) catch {
         _ => raise InvalidRuntime
@@ -613,6 +626,9 @@ async fn run(
         function_symbol="lunaflux_attention_prefill_partitioned_partial_v1_p8",
         launch=launch_dimensions(args.attention_prefill_partitioned8_partial),
         module_bytes=attention_prefill_partitioned8_partial_bytes,
+        module_label_sha256=runtime_module_locator_label(
+          args.attention_prefill_partitioned8_partial.module_path,
+        ),
         query_tile_rows=args.deep_partitioned_query_tile_rows,
         query_metadata_version=if args.query_metadata { 1 } else { 0 },
       ) catch {
@@ -627,6 +643,9 @@ async fn run(
         function_symbol="lunaflux_attention_prefill_partitioned_merge_v1_p8",
         launch=launch_dimensions(args.attention_prefill_partitioned8_merge),
         module_bytes=attention_prefill_partitioned8_merge_bytes,
+        module_label_sha256=runtime_module_locator_label(
+          args.attention_prefill_partitioned8_merge.module_path,
+        ),
         query_tile_rows=args.deep_partitioned_query_tile_rows,
       ) catch {
         _ => raise InvalidRuntime
@@ -661,6 +680,9 @@ async fn run(
       },
       launch=launch_dimensions(args.attention_read),
       module_bytes=attention_bytes,
+      module_label_sha256=runtime_module_locator_label(
+        args.attention_read.module_path,
+      ),
       decode_execution?=args.decode_execution,
     ) catch {
       _ => raise InvalidRuntime
@@ -676,13 +698,12 @@ async fn run(
   ) catch {
     _ => raise InvalidRuntime
   }
-  let runtime_identity = @crypto.bytes_to_hex_string(@crypto.sha256(runtime))
-  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
-    runtime, runtime_identity,
+  let route_scope = @luna_fused_artifact_admission.reusable_fused_runtime_attention_route_scope(
+    model_content_sha256=args.model_content,
+    model_plan_sha256=args.model_plan,
+    target~,
+    modules~,
   ) catch {
-    _ => raise InvalidRuntime
-  }
-  let route_scope = admitted.attention_route_scope() catch {
     _ => raise InvalidRuntime
   }
   if attention_bucket_routes is Some(bytes) {
@@ -735,11 +756,14 @@ async fn run(
     "ingress_schedule=" +
     (if ingress_choice == FullyFused { "full" } else { "producer-separated" }),
   )
-  println("runtime_sha256=" + runtime_identity)
+  // Legacy field name; this is a measurement/plan label, not a byte checksum.
+  println("runtime_sha256=" + route_scope)
+  println("runtime_identity_kind=attention-route-scope-label")
+  println("payload_hashing=false")
   println("payload_checksum_verified=0")
   // Report the identities already in the typed bundle, not another SHA pass
   // over all module payloads for logging.
-  for module_ in admitted.modules() {
+  for module_ in modules {
     println(
       "module_symbol=" +
       module_.function_symbol() +

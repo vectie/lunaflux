@@ -366,3 +366,16 @@ pub fn ApprovedReusableFusedRuntimeBundle::vendor_projection_exact_rows(
 ) -> Int {
   self.vendor_projection_exact_rows
 }
+
+///|
+pub fn ReusableFusedRuntimeModuleInput::function_symbol(self : Self) -> String {
+  self.symbol
+}
+
+///|
+/// Producer-supplied association label, not proof of CUBIN contents.
+pub fn ReusableFusedRuntimeModuleInput::module_digest(
+  self : Self,
+) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest {
+  self.module_label
+}

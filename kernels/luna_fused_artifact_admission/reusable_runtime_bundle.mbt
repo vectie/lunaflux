@@ -261,6 +261,7 @@ pub fn ReusableFusedRuntimeModuleInput::new(
   prefill_exponential_law? : PrefillExponentialLaw = StrictNaturalExponential,
   allow_approximate_prefill_exponential? : Bool = false,
   row_variant? : ReusableFusedRuntimeRowVariant,
+  module_label_sha256? : String,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
   reusable_runtime_validate_prefill_exponential(
     abi, prefill_exponential_law, function_symbol, allow_approximate_prefill_exponential,
@@ -291,6 +292,12 @@ pub fn ReusableFusedRuntimeModuleInput::new(
   reusable_runtime_validate_row_variant(
     abi, function_symbol, launch, heads_per_cta, row_variant,
   )
+  // New AOT construction may name code once. Already-labelled producer inputs
+  // skip that work; packaging and route planning never rehash the code.
+  let module_label = match module_label_sha256 {
+    Some(label) => fused_deployment_digest(label)
+    None => fused_artifact_digest(module_bytes)
+  }
   {
     abi,
     first_operation,
@@ -304,6 +311,7 @@ pub fn ReusableFusedRuntimeModuleInput::new(
     prefill_exponential_law,
     module_bytes,
     row_variant,
+    module_label,
   }
 }
 

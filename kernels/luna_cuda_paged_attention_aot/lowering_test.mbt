@@ -467,10 +467,11 @@ fn pa_decode_split_multilaunch_contract(
 }
 
 ///|
-test "decode split production binding authenticates two ordered launches" {
+test "decode split production binding retains labels and two ordered launches" {
   let candidate = pa_decode_split_lowering(max_page_table_entries=1024)
   let module_bytes = @utf8.encode("compiled-split-module")
-  let module_digest = @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes))
+  // A deliberately non-content label: startup must not rehash this payload.
+  let module_digest = "a".repeat(64)
   let contract = pa_decode_split_multilaunch_contract(candidate, module_digest~)
   let binding = @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
     candidate,
@@ -496,11 +497,11 @@ test "decode split production binding authenticates two ordered launches" {
 }
 
 ///|
-test "reusable decode split runtime binds exact operation and module" {
+test "reusable decode split runtime binds operation without payload hashing" {
   let operation = pa_plan().operations()[2]
   let profile = pa_decode_split_profile(1024)
   let module_bytes = @utf8.encode("reusable-readonly-plus-split-module")
-  let module_digest = @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes))
+  let module_digest = "b".repeat(64)
   let binding = @luna_cuda_paged_attention_aot.bind_reusable_paged_attention_decode_split_cuda_aot(
     operation,
     profile,

@@ -278,6 +278,9 @@ fn selected_ingress_modules(
       function_symbol="lunaflux_fused_residual_rmsnorm_bf16_block128_tree_production_v2",
       launch=launch_dimensions(args.residual),
       module_bytes=residual_bytes,
+      module_label_sha256=runtime_module_locator_label(
+        args.residual.module_path,
+      ),
     ),
   ] catch {
     _ => raise InvalidRuntime
@@ -312,6 +315,7 @@ fn selected_ingress_modules(
       query_tile_rows?=args.ingress_query_tile_rows,
       heads_per_cta=args.ingress_heads_per_cta.unwrap_or(1),
       module_bytes=ingress_bytes,
+      module_label_sha256=runtime_module_locator_label(args.ingress.module_path),
       row_variant?,
     ) catch {
       _ => raise InvalidRuntime
@@ -345,7 +349,7 @@ async fn write_unfused_ingress_bundle(
   println("schema=lunaflux-qwen3-fused-runtime-bundle-export.v5")
   println("ingress_selection_basis=" + args.ingress_selection.canonical_name())
   println("ingress_schedule=unfused")
-  println(
-    "runtime_sha256=" + @crypto.bytes_to_hex_string(@crypto.sha256(runtime)),
-  )
+  println("runtime_sha256=" + args.model_plan)
+  println("runtime_identity_kind=model-plan-association")
+  println("payload_hashing=false")
 }

@@ -156,6 +156,7 @@ pub struct ReusableFusedRuntimeModuleInput {
   priv prefill_exponential_law : PrefillExponentialLaw
   priv module_bytes : Bytes
   priv row_variant : ReusableFusedRuntimeRowVariant?
+  priv module_label : @luna_cuda_fused_parallel_aot.FusedParallelDigest
 }
 
 ///|

@@ -77,9 +77,14 @@ pub fn export_reusable_fused_residual_runtime(
   function_symbol~ : String,
   launch~ : @launch_contract.AotLaunchDimensions,
   module_bytes~ : Bytes,
+  module_label_sha256? : String,
 ) -> Bytes raise FusedArtifactAdmissionError {
   ignore(fused_deployment_digest(model_content_sha256))
   ignore(fused_deployment_digest(model_plan_sha256))
+  let module_label = match module_label_sha256 {
+    Some(label) => fused_deployment_digest(label)
+    None => fused_artifact_digest(module_bytes)
+  }
   if residual_operation < 0 ||
     norm_operation != residual_operation + 1 ||
     function_symbol.is_empty() ||
@@ -123,9 +128,7 @@ pub fn export_reusable_fused_residual_runtime(
   out.write_string(
     "shared_bytes=" + launch.shared_memory_bytes().to_string() + "\n",
   )
-  out.write_string(
-    "module_sha256=" + fused_artifact_digest(module_bytes).as_hex() + "\n",
-  )
+  out.write_string("module_sha256=" + module_label.as_hex() + "\n")
   out.write_string(
     "module_hex=" + @crypto.bytes_to_hex_string(module_bytes) + "\n",
   )

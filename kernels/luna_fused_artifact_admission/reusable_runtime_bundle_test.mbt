@@ -1,4 +1,43 @@
 ///|
+test "packaging carries supplied module labels without checking payload checksums" {
+  let label = "e".repeat(64)
+  let input = ReusableFusedRuntimeModuleInput::new(
+    abi=ResidualRmsNormProductionV2,
+    first_operation=17,
+    operation_count=2,
+    function_symbol="lunaflux_residual",
+    launch=runtime_bundle_test_launch(128, 1, 512),
+    module_bytes=b"opaque-not-checksummed-cubin",
+    module_label_sha256=label,
+  )
+  assert_eq(input.module_digest().as_hex(), label)
+  assert_eq(input.function_symbol(), "lunaflux_residual")
+  let target = @catalog.DeviceTarget::new(
+    compute_major=12,
+    compute_minor=0,
+    supports_bf16=true,
+    supports_cublas_lt=false,
+  )
+  for _ in 0..<2 {
+    let canonical = export_reusable_fused_runtime_bundle(
+      model_content_sha256="1".repeat(64),
+      model_plan_sha256="2".repeat(64),
+      target~,
+      modules=[input],
+    )
+    let bundle = admit_digest_pinned_reusable_fused_runtime_bundle(
+      canonical,
+      "f".repeat(64),
+    )
+    assert_eq(bundle.modules()[0].module_digest().as_hex(), label)
+    assert_eq(
+      bundle.modules()[0].module_bytes(),
+      b"opaque-not-checksummed-cubin",
+    )
+  }
+}
+
+///|
 fn runtime_bundle_test_launch(
   block_x : Int,
   grid_y : Int,

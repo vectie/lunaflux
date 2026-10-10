@@ -10,6 +10,33 @@ import {
 async fn main {
   for
     path in [
+      "cmd/lunaflux_qwen3_fused_runtime_bundle_export/main.mbt", "cmd/lunaflux_qwen3_fused_runtime_bundle_export/ingress_choice.mbt",
+      "cmd/lunaflux_qwen3_fused_residual_runtime_export/main.mbt",
+    ] {
+    let source = @fs.read_file(path).text()
+    for removed in ["@crypto.sha256(runtime)", "@crypto.sha256(module_bytes)"] {
+      guard !source.contains(removed) else {
+        fail("fused exporter payload checksum reintroduced: " + path)
+      }
+    }
+  }
+  let exporter = @fs.read_file(
+    "cmd/lunaflux_qwen3_fused_runtime_bundle_export/main.mbt",
+  ).text()
+  guard !exporter.contains("admit_digest_pinned_reusable_fused_runtime_bundle(") &&
+    !exporter.contains("attention_prefill_partial_bytes !=") else {
+    fail("fused exporter must not replay or byte-compare its opaque output")
+  }
+  for name in ["decode_split_runtime", "decode_split_bind"] {
+    let source = @fs.read_file(
+      "kernels/luna_cuda_paged_attention_aot/" + name + ".mbt",
+    ).text()
+    guard !source.contains("paged_attention_sha256(module_bytes)") else {
+      fail("split-decode startup must not rehash CUBIN payloads: " + name)
+    }
+  }
+  for
+    path in [
       "deploy/worker_executable_file/admit.mbt", "deploy/launch_file/load.mbt", "ops/two_spark_worker/configuration.mbt",
     ] {
     let source = @fs.read_file(path).text()
@@ -60,9 +87,19 @@ async fn main {
   let scope = @fs.read_file(
     "kernels/luna_fused_artifact_admission/attention_routes.mbt",
   ).text()
+  // Typed producer views may retain the same immutable Bytes reference. That
+  // is not a payload scan: forbid rendering/digesting it, not borrowing it.
   guard !scope.contains("reusable_runtime_append_row_variant(") &&
-    !scope.contains("module_bytes") else {
+    !scope.contains("fused_artifact_digest(") &&
+    !scope.contains("@crypto.sha256(module") &&
+    !scope.contains("bytes_to_hex_string(module") else {
     fail("attention route scope must not serialize or hash CUBIN payloads")
+  }
+  let module_canonical = @fs.read_file(
+    "kernels/luna_fused_artifact_admission/reusable_runtime_module_canonical.mbt",
+  ).text()
+  guard !module_canonical.contains("fused_artifact_digest(") else {
+    fail("module packaging must retain typed labels, not rehash CUBINs")
   }
   for name in ["reusable_runtime_bundle", "reusable_residual_runtime"] {
     let source = @fs.read_file(

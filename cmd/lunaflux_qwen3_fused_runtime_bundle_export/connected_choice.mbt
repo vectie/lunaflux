@@ -1,4 +1,14 @@
 ///|
+/// Offline locator association, not a checksum of the referenced CUBIN.
+/// Replacing code at a locator requires a fresh locator or externally supplied
+/// tuning scope. No file bytes are read or authenticated to compute this label.
+fn runtime_module_locator_label(path : String) -> String {
+  @crypto.bytes_to_hex_string(
+    @crypto.sha256(@utf8.encode("fused-module-locator-v1\n" + path)),
+  )
+}
+
+///|
 priv struct PrefillChainMeasurements {
   context_sha256 : String
   modules : ReadOnlyArray[(String, String)]

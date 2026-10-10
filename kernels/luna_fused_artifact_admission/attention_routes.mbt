@@ -8,32 +8,86 @@ pub fn ApprovedReusableFusedRuntimeBundle::attention_bucket_routes(
 }
 
 ///|
+/// Computes an offline measurement scope from already-validated typed inputs.
+/// No serialization, CUBIN hashing or decoding of a generated bundle occurs.
+pub fn reusable_fused_runtime_attention_route_scope(
+  model_content_sha256~ : String,
+  model_plan_sha256~ : String,
+  target~ : @catalog.DeviceTarget,
+  modules~ : ArrayView[ReusableFusedRuntimeModuleInput],
+) -> String raise FusedArtifactAdmissionError {
+  let model_content = fused_deployment_digest(model_content_sha256)
+  let model_plan = fused_deployment_digest(model_plan_sha256)
+  let ordered = modules.to_array()
+  ordered.sort_by((left, right) => {
+    reusable_runtime_abi_rank(left.abi).compare(
+      reusable_runtime_abi_rank(right.abi),
+    )
+  })
+  let metadata = ReadOnlyArray::from_array(
+    ordered.map(m => {
+      abi: m.abi,
+      first_operation: m.first_operation,
+      operation_count: m.operation_count,
+      symbol: m.symbol,
+      launch: m.launch,
+      query_tile_rows: m.query_tile_rows,
+      query_metadata_version: m.query_metadata_version,
+      heads_per_cta: m.heads_per_cta,
+      decode_execution: m.decode_execution,
+      prefill_exponential_law: m.prefill_exponential_law,
+      module_digest: m.module_label,
+      module_bytes: m.module_bytes,
+      row_variant: m.row_variant,
+    }),
+  )
+  runtime_attention_route_scope(model_content, model_plan, target, metadata)
+}
+
+///|
 /// Binds measurements to the exact model plan, target and both compiled
 /// attention implementations. Device assignment remains deployment-owned.
 pub fn ApprovedReusableFusedRuntimeBundle::attention_route_scope(
   self : ApprovedReusableFusedRuntimeBundle,
 ) -> String raise FusedArtifactAdmissionError {
-  guard self.qwen_paged_attention_prefill_module() is Some(base) &&
-    self.qwen_wide_query_prefill_module() is Some(wide) else {
+  runtime_attention_route_scope(
+    self.model_content,
+    self.model_plan,
+    self.target,
+    self.modules,
+  )
+}
+
+///|
+fn runtime_attention_route_scope(
+  model_content : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
+  model_plan : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
+  target : @catalog.DeviceTarget,
+  modules : ReadOnlyArray[ApprovedReusableFusedRuntimeModule],
+) -> String raise FusedArtifactAdmissionError {
+  guard modules
+    .iter()
+    .any(m => {
+      m.abi
+      is (QwenPagedAttentionReadOnlyProductionV2
+      | QwenPagedAttentionReadOnlyDecodeSplitProductionV3)
+    }) &&
+    modules
+    .iter()
+    .any(m => m.abi == QwenPagedAttentionPrefillWideQueryProductionV5) else {
     raise InvalidFusedArtifact(Binding)
   }
-  ignore(base)
-  ignore(wide)
   let out = StringBuilder()
-  let scope_version = if self.modules.iter().any(m => m.row_variant is Some(_)) {
+  let scope_version = if modules.iter().any(m => m.row_variant is Some(_)) {
     "attention-chain-scope-v2\n"
   } else {
     "attention-chain-scope-v1\n"
   }
   out.write_string(
-    scope_version +
-    self.model_content.as_hex() +
-    "\n" +
-    self.model_plan.as_hex() +
-    "\n",
+    scope_version + model_content.as_hex() + "\n" + model_plan.as_hex() + "\n",
   )
-  reusable_runtime_append_target(out, self.target)
-  for module_ in self.modules {
+  reusable_runtime_append_target(out, target)
+  for module_ in modules {
     out.write_string(
       reusable_runtime_abi_name(module_.abi) +
       ":" +
