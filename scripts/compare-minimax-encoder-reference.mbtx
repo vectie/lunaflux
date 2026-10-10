@@ -13,8 +13,13 @@ fn bf16(bytes : Bytes, i : Int) -> Double {
 
 ///|
 async fn main {
-  guard @env.args() is [_, native_path, reference_path, output] else {
-    fail("NATIVE_BF16 REFERENCE_BF16 NEW_REPORT")
+  guard @env.args() is [_, native_path, reference_path, output, .. scope_args] &&
+    (scope_args is [] || scope_args is [_]) else {
+    fail("NATIVE_BF16 REFERENCE_BF16 NEW_REPORT [SCOPE]")
+  }
+  let scope = match scope_args {
+    [scope] => scope
+    _ => "original_caption_text_encoder_hidden_states_50"
   }
   let native = @fs.read_file(native_path).binary()
   let reference = @fs.read_file(reference_path).binary()
@@ -126,7 +131,7 @@ async fn main {
       "row=\{row} rmse=\{(e2 / 5120.0).sqrt()} relative_l1=\{row_l1} relative_l2=\{row_l2} cosine=\{row_cosine}\n"
   }
   let report =
-    $|scope=original_caption_text_encoder_hidden_states_50
+    $|scope=\{scope}
     $|native=\{native_path}
     $|reference=\{reference_path}
     $|elements=\{n}

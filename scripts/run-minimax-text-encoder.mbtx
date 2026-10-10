@@ -49,8 +49,15 @@ async fn copy(socket : String, source : String, destination : String) -> Unit {
 ///|
 async fn main {
   guard @env.args() is [_, root, suffix, executable, staged, aot, .. target] &&
-    (target is [] || target is ["178"] || target is ["179"] ||
-      target is ["178", _] || target is ["179", _]) &&
+    (
+      target is [] ||
+      target is ["178"] ||
+      target is ["179"] ||
+      target is ["178", _] ||
+      target is ["179", _] ||
+      target is ["178", _, "layers"] ||
+      target is ["179", _, "layers"]
+    ) &&
     root.has_prefix("/tmp/lunaflux-minimax-text-encoder-") &&
     executable.has_prefix("/tmp/lunaflux-") &&
     executable.has_suffix(".exe") &&
@@ -63,7 +70,7 @@ async fn main {
     }) &&
     !suffix.contains("/") else {
     fail(
-      "NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS REQUEST_AOT [178|179 [INPUT_IDS_I32]]",
+      "NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS REQUEST_AOT [178|179 [INPUT_IDS_I32 [layers]]]",
     )
   }
   let last = target is ["179", ..]
@@ -82,10 +89,11 @@ async fn main {
   } else {
     "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f"
   }
+  let capture_layers = target is [_, _, "layers"]
   // The existing request AOT has exactly three text rows. Caller-supplied IDs
   // come from text-ids; the legacy default remains an explicitly synthetic probe.
   let ids = match target {
-    [_, input] => @fs.read_file(input).binary()
+    [_, input, ..] => @fs.read_file(input).binary()
     _ => b"\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00"
   }
   guard ids.length() == 12 else {
@@ -93,11 +101,7 @@ async fn main {
   }
   @fs.mkdir(root)
   let binary = executable
-  @fs.write_file(
-    root + "/ids.i32",
-    ids,
-    create_mode=CreateNew,
-  )
+  @fs.write_file(root + "/ids.i32", ids, create_mode=CreateNew)
   record(root, "mkdir", remote(node, socket, "mkdir " + root))
   record(
     root,
@@ -138,7 +142,8 @@ async fn main {
       unit +
       " --property=MemoryMax=80G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 " +
       root +
-      "/minimax_checkpoint.exe encode-text " +
+      "/minimax_checkpoint.exe " +
+      (if capture_layers { "encode-text-layers " } else { "encode-text " }) +
       staged +
       "/FL2VA TEXT.inventory 3 ids-" +
       suffix +
@@ -146,7 +151,9 @@ async fn main {
       aot +
       " " +
       root +
-      "/hidden.bf16 75161927680 64424509440",
+      (if capture_layers { "/layers" } else { "/hidden.bf16" }) +
+      " 75161927680 64424509440" +
+      (if capture_layers { " 1566720" } else { "" }),
     ),
   )
   let run = @fs.read_file(root + "/encode.stdout").text()
@@ -155,9 +162,20 @@ async fn main {
   ) else {
     fail("missing complete finite hidden state")
   }
-  copy(socket, node + ":" + root + "/hidden.bf16", root + "/hidden.bf16")
-  guard @fs.read_file(root + "/hidden.bf16").binary().length() == 30720 else {
-    fail("incomplete downloaded hidden state")
+  if capture_layers {
+    @fs.mkdir(root + "/layers")
+    for layer in 0..<=50 {
+      let path = root + "/layers/hidden-\{layer}.bf16"
+      copy(socket, node + ":" + path, path)
+      guard @fs.read_file(path).binary().length() == 30720 else {
+        fail("incomplete downloaded layer hidden state")
+      }
+    }
+  } else {
+    copy(socket, node + ":" + root + "/hidden.bf16", root + "/hidden.bf16")
+    guard @fs.read_file(root + "/hidden.bf16").binary().length() == 30720 else {
+      fail("incomplete downloaded hidden state")
+    }
   }
   let released = remote(
     node, socket, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",

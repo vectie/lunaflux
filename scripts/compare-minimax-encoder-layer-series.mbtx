@@ -1,0 +1,83 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn field(report : String, name : String) -> String raise {
+  for line in report.split("\n") {
+    if line.has_prefix(name + "=") {
+      return line[name.length() + 1:].to_owned()
+    }
+  }
+  fail("missing comparison field " + name)
+}
+
+///|
+test "layer metric extraction uses exact field names" {
+  assert_eq(field("relative_l2=0.2\nl2=0.1\n", "l2"), "0.1")
+  assert_eq(field("elements=15360\nexact_bf16=15360\n", "exact_bf16"), "15360")
+  try field("relative_l2=0.2\n", "l2") catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing exact field was accepted")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native_root, reference_root, output] else {
+    fail(
+      "NATIVE_LAYER_DIRECTORY REFERENCE_LAYER_DIRECTORY NEW_REPORT_DIRECTORY",
+    )
+  }
+  @fs.mkdir(output)
+  let summary = StringBuilder()
+  summary.write_string(
+    "layer\texact_bf16\trmse\trelative_l2\tmax_absolute_error\n",
+  )
+  let mut first_difference : Int? = None
+  for layer in 0..<=50 {
+    let native = native_root + "/hidden-\{layer}.bf16"
+    let reference = reference_root + "/hidden-\{layer}.bf16"
+    let report_path = output + "/layer-\{layer}.txt"
+    @shell.Cmd("moon", [
+      "run",
+      "scripts/compare-minimax-encoder-reference.mbtx",
+      native,
+      reference,
+      report_path,
+      "original_caption_text_encoder_hidden_states_\{layer}",
+    ])
+    .output(max_output_bytes=65536)
+    .check()
+    let report = @fs.read_file(report_path).text()
+    let exact = field(report, "exact_bf16")
+    let elements = field(report, "elements")
+    if first_difference is None && exact != elements {
+      first_difference = Some(layer)
+    }
+    summary <+
+      "\{layer}\t\{exact}\t\{field(report, "rmse")}\t\{field(report, "relative_l2")}\t\{field(report, "max_absolute_error")}\n"
+  }
+  @fs.write_file(
+    output + "/layers.tsv",
+    summary.to_string(),
+    create_mode=CreateNew,
+  )
+  let conclusion = match first_difference {
+    None => "first_bitwise_difference=none\n"
+    Some(layer) => "first_bitwise_difference=\{layer}\n"
+  }
+  @fs.write_file(
+    output + "/first-difference.txt",
+    conclusion,
+    create_mode=CreateNew,
+  )
+  println(
+    conclusion + "Measured differences, not automatic parity or performance.",
+  )
+}
