@@ -146,6 +146,13 @@ test "prepared literal prompts use all frames while old BOS campaigns remain unc
 
 ///|
 fn check_execution_labels() -> Unit raise {
+  assert_eq(cancellation_arguments(["run"]).1, -1)
+  assert_eq(
+    cancellation_arguments([
+      "run", "--cancel-request", "0", "--after-steps", "2",
+    ]).2,
+    2,
+  )
   let roles = ["egress", "ingress", "178-gpu-terminal", "179-gpu-terminal"]
   let names : Array[String] = []
   for mode in ["run", "reference", "sequence", "sequence-spec"] {
@@ -315,6 +322,35 @@ async fn admit(host : Host, root : String, label : String) -> Unit {
 }
 
 ///|
+fn cancellation_arguments(
+  args : ArrayView[String],
+) -> (Array[String], Int, Int) raise {
+  if args is [.. rest, "--cancel-request", index, "--after-steps", steps] {
+    guard !rest.contains("--cancel-request") && !rest.contains("--after-steps") else {
+      fail("duplicate cancellation control")
+    }
+    let index = @string.parse_int(index)
+    let steps = @string.parse_int(steps)
+    guard index >= 0 && steps > 0 else { fail("invalid cancellation control") }
+    (rest.to_owned(), index, steps)
+  } else {
+    guard !args.contains("--cancel-request") && !args.contains("--after-steps") else {
+      fail("incomplete cancellation control")
+    }
+    (args.to_owned(), -1, 0)
+  }
+}
+
+///|
+test "DSpark cancellation rejects incomplete controls" {
+  try cancellation_arguments(["run", "--after-steps", "0"]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("incomplete cancellation accepted")
+  }
+}
+
+///|
 async fn main {
   if @env.args() is [_, "self-test"] {
     check_prepared_prompt()
@@ -325,7 +361,10 @@ async fn main {
     )
     return
   }
-  guard @env.args() is [_, root, suffix, mode, build, commit] &&
+  let (arguments, cancel_index, cancel_steps) = cancellation_arguments(
+    @env.args(),
+  )
+  guard arguments is [_, root, suffix, mode, build, commit] &&
     root.has_prefix("/tmp/lunaflux-dspark-run-") &&
     [root, suffix].all(s => {
       !s.is_empty() &&
@@ -339,6 +378,9 @@ async fn main {
     )
   }
   let sequence = mode is ("sequence" | "sequence-spec")
+  guard cancel_index < 0 || sequence else {
+    fail("cancellation requires a resident queue")
+  }
   let remote_root = "/tmp/lunaflux-dspark-real-" + suffix
   let first = Host::{
     node: "wlc003s@192.168.2.178",
@@ -383,9 +425,6 @@ async fn main {
     (if mode == "reference" || sequence { mode + "-" } else { "" })
   if mode == "prepare" {
     @fs.mkdir(root)
-    // Preparation is CPU-only. No old benchmark process is a dependency.
-    // The non-retained transient build unit can be collected after success.
-    // Its successful journal, not LoadState, records build completion.
     let build_journal = remote(
       first,
       "journalctl --user -u " + build_unit + " --no-pager",
@@ -499,8 +538,21 @@ async fn main {
   let (maximum_new_tokens, stop_token) = prepared_generation(
     @fs.read_file(root + "/prepared.txt").text(),
   )
-  // Resolve the entire requested context before either GPU owns checkpoint
-  // weights. This is CPU-only prompt planning, not a payload checksum scan.
+  guard cancel_index < prefill_count else {
+    fail("cancelled request outside queue")
+  }
+  let cancellation = if cancel_index < 0 {
+    ""
+  } else {
+    " --cancel-request \{cancel_index} --after-steps \{cancel_steps}"
+  }
+  if cancel_index >= 0 {
+    @fs.write_file(
+      root + "/\{mode}-cancellation.txt",
+      cancellation + "\n",
+      create_mode=CreateNew,
+    )
+  }
   record(
     root,
     execution_label(mode, "prompt-preflight"),
@@ -536,8 +588,6 @@ async fn main {
   let egress = name + "egress"
   let ingress = name + "ingress"
   let peers = "192.168.2.179:28578 192.168.2.179:28579 "
-  // Check both hosts before starting either model owner. Otherwise a busy
-  // ingress GPU can leave a new egress waiting with its checkpoint resident.
   admit(first, root, execution_label(mode, "ingress"))
   admit(last, root, execution_label(mode, "egress"))
   start(
@@ -626,7 +676,8 @@ async fn main {
     " " +
     first.root +
     "/output-" +
-    mode,
+    mode +
+    cancellation,
   )
   {
     errdefer {
@@ -650,6 +701,35 @@ async fn main {
   if sequence {
     let journal = @fs.read_file(root + "/" + ingress + "-journal.stdout").text()
     for index in 0..<prefill_count {
+      if index == cancel_index {
+        let directory = first.root + "/output-\{mode}/request-\{index}"
+        record(
+          root,
+          "\{mode}-cancelled-state",
+          remote(
+            first,
+            "test -f " +
+            directory +
+            "/cancelled.txt && test ! -e " +
+            directory +
+            "/tokens.txt",
+          ),
+        )
+        download(
+          first,
+          directory + "/cancelled.txt",
+          root + "/cancelled-\{mode}-\{index}.txt",
+        )
+        assert_eq(
+          @fs.read_file(root + "/cancelled-\{mode}-\{index}.txt").text(),
+          "request_cancelled=true\n",
+        )
+        guard journal.contains("request_retired: index=\{index} ") &&
+          journal.contains("request_released=true weights_retained=true") else {
+          fail("cancelled request did not retire with resident weights")
+        }
+        continue
+      }
       let path = root + "/tokens-\{mode}-\{index}.txt"
       download(
         first,

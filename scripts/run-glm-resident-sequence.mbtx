@@ -207,8 +207,54 @@ test "GLM success requires normal exit, explicit child-free close and no unit sw
 }
 
 ///|
+fn cancellation_arguments(
+  args : ArrayView[String],
+) -> (Array[String], Int, Int) raise {
+  if args is [.. rest, "--cancel-request", index, "--after-steps", steps] {
+    guard !rest.contains("--cancel-request") && !rest.contains("--after-steps") else {
+      fail("duplicate cancellation control")
+    }
+    let index = @string.parse_int(index)
+    let steps = @string.parse_int(steps)
+    guard index >= 0 && index < 2 && steps > 0 else {
+      fail("invalid cancellation selection")
+    }
+    (rest.to_owned(), index, steps)
+  } else {
+    guard !args.contains("--cancel-request") && !args.contains("--after-steps") else {
+      fail("incomplete cancellation control")
+    }
+    (args.to_owned(), -1, 0)
+  }
+}
+
+///|
+test "resident queue cancellation is an explicit positive submission count" {
+  assert_eq(cancellation_arguments(["run"]).1, -1)
+  assert_eq(
+    cancellation_arguments([
+      "run", "--cancel-request", "0", "--after-steps", "1",
+    ]).2,
+    1,
+  )
+  for
+    tail in [
+      ["--cancel-request", "2", "--after-steps", "1"],
+      ["--cancel-request", "0", "--after-steps", "0"],
+      ["--cancel-request", "0"],
+    ] {
+    try cancellation_arguments(tail) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid cancellation control accepted")
+    }
+  }
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, root, suffix, mode, build, commit, input0, input1] &&
+  let (args, cancel_index, cancel_steps) = cancellation_arguments(@env.args())
+  guard args is [_, root, suffix, mode, build, commit, input0, input1] &&
     root.has_prefix("/tmp/lunaflux-glm-sequence-") &&
     build.has_prefix("/tmp/lunaflux-checkpoint-build-glm-") &&
     [root, suffix, build].all(path => {
@@ -227,6 +273,12 @@ async fn main {
   let destination = "/tmp/lunaflux-glm-sequence-" + suffix
   let binary = destination + "/glm_checkpoint.exe"
   let queue = destination + "/prompt-sequence"
+  let cancellation = if cancel_index < 0 {
+    ""
+  } else {
+    " --cancel-request \{cancel_index} --after-steps \{cancel_steps}"
+  }
+  let cancellation_metadata = "cancel_request=\{cancel_index}\nafter_steps=\{cancel_steps}\n"
   if mode == "prepare" {
     @fs.mkdir(root)
     let journal = remote(
@@ -323,13 +375,21 @@ async fn main {
       commit +
       "\nbuild=" +
       build +
-      "\nrows=1\nhistory=64\nmaximum_new_tokens=8\nstop_token=-1\n",
+      "\nrows=1\nhistory=64\nmaximum_new_tokens=8\nstop_token=-1\n" +
+      cancellation_metadata,
       create_mode=CreateNew,
     )
     println(
       "two literal GLM requests prepared before CUDA; AOT unchanged, no payload hashing",
     )
     return
+  }
+  if cancel_index >= 0 {
+    guard @fs.read_file(root + "/prepared.txt")
+      .text()
+      .contains(cancellation_metadata) else {
+      fail("cancellation differs from the prepared request queue")
+    }
   }
   guard @fs.read_file(root + "/prepared.txt")
     .text()
@@ -425,7 +485,8 @@ async fn main {
       queue +
       " 2 8 -1 " +
       destination +
-      "/output",
+      "/output" +
+      cancellation,
     ),
   )
   {
@@ -456,6 +517,36 @@ async fn main {
   for index in 0..<2 {
     guard journal.contains("request_retired: index=\{index} ") else {
       fail("request did not retire")
+    }
+    if index == cancel_index {
+      retain(
+        root,
+        "cancelled-output-state",
+        remote(
+          false,
+          "test -f " +
+          destination +
+          "/output/request-\{index}/cancelled.txt && test ! -e " +
+          destination +
+          "/output/request-\{index}/tokens.txt",
+        ),
+      )
+      copy(
+        false,
+        node(false) +
+        ":" +
+        destination +
+        "/output/request-\{index}/cancelled.txt",
+        root + "/cancelled-\{index}.txt",
+      )
+      assert_eq(
+        @fs.read_file(root + "/cancelled-\{index}.txt").text(),
+        "request_cancelled=true\n",
+      )
+      guard journal.contains("request_released=true weights_retained=true") else {
+        fail("request cancellation did not release while retaining weights")
+      }
+      continue
     }
     copy(
       false,
