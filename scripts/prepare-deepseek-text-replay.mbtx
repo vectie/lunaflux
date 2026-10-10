@@ -65,7 +65,8 @@ async fn transfer(last : Bool, source : String, destination : String) -> Unit {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, suffix, build, commit, prior, input] &&
+  guard @env.args()
+    is [_, root, suffix, build, commit, prior, input, .. generation] &&
     root.has_prefix("/tmp/lunaflux-dspark-run-") &&
     build.has_prefix("/tmp/lunaflux-checkpoint-build-dspark-") &&
     prior.has_prefix("/tmp/lunaflux-dspark-real-") &&
@@ -78,8 +79,16 @@ async fn main {
     commit.length() == 40 &&
     commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) else {
     fail(
-      "NEW_LOCAL_ROOT SUFFIX COMMITTED_BUILD COMMIT EXISTING_SIX_ROW_AOT_ROOT INPUT_UTF8_FILE",
+      "NEW_LOCAL_ROOT SUFFIX COMMITTED_BUILD COMMIT EXISTING_SIX_ROW_AOT_ROOT INPUT_UTF8_FILE [MAXIMUM_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE]",
     )
+  }
+  let (maximum, stop) = match generation {
+    [] => (16, -1)
+    [maximum, stop] => (@string.parse_int(maximum), @string.parse_int(stop))
+    _ => fail("generation requires exactly a limit and stop token")
+  }
+  guard maximum > 0 && maximum <= 255 && stop >= -1 else {
+    fail("invalid generation envelope")
   }
   // CPU-only preparation: reuse unchanged, already-compiled six-row/context-256
   // device kernels for a frontend-only source change. This never authenticates
@@ -186,6 +195,10 @@ async fn main {
     prior +
     "\nprompt_directory=prompt-text\nprefill_count=" +
     count.to_string() +
+    "\nmaximum_new_tokens=" +
+    maximum.to_string() +
+    "\nstop_token=" +
+    stop.to_string() +
     "\n",
     create_mode=CreateNew,
   )

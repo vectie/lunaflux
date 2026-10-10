@@ -42,6 +42,90 @@ fn prepared_prompt(document : String) -> (String, Int) raise {
 }
 
 ///|
+fn prepared_generation(document : String) -> (Int, Int) raise {
+  let mut maximum = 16
+  let mut stop = -1
+  for line in document.split("\n") {
+    if line.has_prefix("maximum_new_tokens=") {
+      maximum = @string.parse_int(line[19:])
+    } else if line.has_prefix("stop_token=") {
+      stop = @string.parse_int(line[11:])
+    }
+  }
+  guard maximum > 0 && maximum <= 255 && stop >= -1 else {
+    fail("invalid prepared generation envelope")
+  }
+  (maximum, stop)
+}
+
+///|
+fn completed_tokens(
+  source : String,
+  maximum : Int,
+  stop : Int,
+) -> Array[Int] raise {
+  let tokens : Array[Int] = []
+  for line in source.split("\n") {
+    if !line.is_empty() {
+      tokens.push(@string.parse_int(line))
+    }
+  }
+  guard !tokens.is_empty() && tokens.length() <= maximum else {
+    fail("generation output exceeds requested envelope")
+  }
+  for index, token in tokens {
+    guard token >= 0 &&
+      (stop == -1 || token != stop || index == tokens.length() - 1) else {
+      fail("generation continued after the first stop token")
+    }
+  }
+  guard tokens.length() == maximum ||
+    (stop >= 0 && tokens[tokens.length() - 1] == stop) else {
+    fail("generation terminated before limit without a stop token")
+  }
+  tokens
+}
+
+///|
+fn check_prepared_generation() -> Unit raise {
+  assert_eq(prepared_generation("old\n"), (16, -1))
+  assert_eq(
+    prepared_generation("maximum_new_tokens=64\nstop_token=1\n"),
+    (64, 1),
+  )
+  assert_eq(completed_tokens("7\n1\n", 64, 1), [7, 1])
+  assert_eq(completed_tokens("7\n8\n", 2, -1), [7, 8])
+  for
+    document in [
+      "maximum_new_tokens=0\n", "maximum_new_tokens=256\n", "stop_token=-2\n",
+    ] {
+    try prepared_generation(document) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid generation policy accepted")
+    }
+  }
+  for
+    (source, maximum, stop) in [
+      ("7\n1\n8\n", 64, 1),
+      ("7\n", 64, 1),
+      ("", 64, 1),
+      ("7\n8\n", 1, -1),
+    ] {
+    try completed_tokens(source, maximum, stop) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid generation completion accepted")
+    }
+  }
+}
+
+///|
+test "prepared generation retains fixed-length diagnostics and ends exactly at EOS" {
+  check_prepared_generation()
+}
+
+///|
 fn check_prepared_prompt() -> Unit raise {
   assert_eq(prepared_prompt("build=old\n"), ("prompt-bos", 1))
   assert_eq(
@@ -235,7 +319,10 @@ async fn main {
   if @env.args() is [_, "self-test"] {
     check_prepared_prompt()
     check_execution_labels()
-    println("DSpark runner prompt and disjoint-output regressions passed")
+    check_prepared_generation()
+    println(
+      "DSpark runner prompt, stop-aware generation and disjoint-output regressions passed",
+    )
     return
   }
   guard @env.args() is [_, root, suffix, mode, build, commit] &&
@@ -407,6 +494,9 @@ async fn main {
   let (prompt_directory, prefill_count) = prepared_prompt(
     @fs.read_file(root + "/prepared.txt").text(),
   )
+  let (maximum_new_tokens, stop_token) = prepared_generation(
+    @fs.read_file(root + "/prepared.txt").text(),
+  )
   @fs.write_file(
     root + "/" + mode + "-started.txt",
     "starting prepared checkpoint execution\n",
@@ -494,7 +584,11 @@ async fn main {
     prompt_directory +
     " " +
     prefill_count.to_string() +
-    " 16 -1 " +
+    " " +
+    maximum_new_tokens.to_string() +
+    " " +
+    stop_token.to_string() +
+    " " +
     first.root +
     "/output-" +
     mode,
@@ -509,28 +603,34 @@ async fn main {
   }
   collect(first, root, ingress)
   collect(last, root, egress)
-  if mode == "run" {
-    let journal = @fs.read_file(root + "/" + ingress + "-journal.stdout").text()
+  let tokens = root + "/tokens-" + mode + ".txt"
+  download(first, first.root + "/output-" + mode + "/tokens.txt", tokens)
+  let generated = completed_tokens(
+    @fs.read_file(tokens).text(),
+    maximum_new_tokens,
+    stop_token,
+  )
+  let journal = @fs.read_file(root + "/" + ingress + "-journal.stdout").text()
+  let finish = if stop_token >= 0 &&
+    generated[generated.length() - 1] == stop_token {
+    "StopToken"
+  } else {
+    "Length"
+  }
+  guard journal.contains("generated=\{generated.length()} finish=\{finish}") else {
+    fail("terminal generation reason does not match output")
+  }
+  if mode == "run" && generated.length() > 1 {
     guard journal
       .split("\n")
       .any(line => {
         line.contains("dspark_verified_blocks=") &&
         !line.contains("dspark_verified_blocks=0 ") &&
-        line.contains("committed_input_rows=15 ") &&
+        line.contains("committed_input_rows=\{generated.length() - 1} ") &&
         line.contains("accepted_prefix_replays=")
       }) else {
       fail("no complete speculative verification/commit generation")
     }
-  }
-  let tokens = root + "/tokens-" + mode + ".txt"
-  download(first, first.root + "/output-" + mode + "/tokens.txt", tokens)
-  guard @fs.read_file(tokens)
-    .text()
-    .split("\n")
-    .filter(line => !line.is_empty())
-    .length() ==
-    16 else {
-    fail("bounded generation did not produce all sixteen target tokens")
   }
   for (host, label) in [(first, "178"), (last, "179")] {
     let occupied = remote(
@@ -547,7 +647,7 @@ async fn main {
       fail("speculative tokens differ from matched ordinary target generation")
     }
     println(
-      "real DSpark greedy verification matches ordinary target generation for sixteen tokens from the prepared prompt; independent upstream numerical parity remains unverified",
+      "real DSpark greedy verification matches ordinary target generation for \{generated.length()} tokens from the prepared prompt; finish=\{finish}; independent upstream numerical parity remains unverified",
     )
   } else {
     println(

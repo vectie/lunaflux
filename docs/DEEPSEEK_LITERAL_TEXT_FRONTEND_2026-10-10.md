@@ -133,3 +133,19 @@ A GPU-less, network-disabled 4-GiB CLI probe failed device inference before
 model loading. It did not produce an independent tokenizer or model reference.
 Full independent numerical parity, longer/wrapped contexts, cancellation,
 multi-request serving and matched external-framework benchmarks remain open.
+
+## Stop-aware follow-up preparation
+
+`prepare-deepseek-text-replay.mbtx` optionally accepts a maximum generated-token
+count and stop token. The runner retains `16/-1` for old fixed-length diagnostics,
+but now verifies the requested bound, the terminal `Length`/`StopToken` reason,
+and that no published token follows the first configured stop token. The actual
+number of committed speculative input rows must equal output count minus the
+initial seed, rather than hard-coding fifteen rows. Regression cases cover both
+old diagnostics and shorter stop-terminated output.
+
+The unchanged actual chat prompt, binary and device modules are prepared anew
+at `/tmp/lunaflux-dspark-run-text-eos-20261011-v1` with a 64-token maximum and
+the original checkpoint's `eos_token_id=1`. This preparation opens no GPU and
+does not overwrite the completed fixed-length run. Its speculative/ordinary
+physical completion is not yet claimed.
