@@ -17,8 +17,8 @@ frontiers without closing the rank session. Verification cancellation also
 drains an issued restore without starting another accepted-prefix replay.
 The explicit CLI replay suffix selects a request and submitted-transaction
 count once before CUDA; it adds no default poll ceiling or payload hashing.
-Fresh commit-built GLM two-host cancellation followed by the next request now
-passes. DSpark ordinary and verification cancellation remain to be verified.
+Fresh commit-built GLM and DSpark two-host cancellation followed by the next
+request now pass, including DSpark ordinary and verification execution.
 This is not concurrent serving or three-model completion.
 Source `514835f8` is pushed and builds both GLM and DSpark native ARM release
 executables successfully (217/238 tasks; build memory peaks 529/655 MiB and
@@ -33,6 +33,20 @@ units exit 0 with zero swap peaks and terminal GPU owner queries are empty.
 The next request takes 429,402 ms including prefill, not initial model loading;
 this scalar correctness route is not an optimized serving benchmark. Captures
 remain at `/tmp/lunaflux-glm-sequence-cancel-20261011-v1`.
+
+DSpark's same `514835f8` ARM binary cancels the first five-token request after
+two submitted transactions, then completes the distinct 144-token request
+without reloading rank weights in both ordinary and speculative modes. All ten
+follow-on output IDs match the corresponding earlier resident runs and each
+other, including EOS 1. Retirement epochs advance from 3 to 36 (ordinary) or
+33 (speculative); the latter executes three verification blocks and three
+accepted-prefix replays. Both modes have explicit two-rank context close,
+exit 0, zero unit swap peaks and empty terminal GPU owner queries. Follow-on
+lifetimes including prefill are 91,881/86,749 ms, excluding initial loading;
+these are single correctness diagnostics, not a new throughput comparison.
+Captures: `/tmp/lunaflux-dspark-run-request-cancel-20261011-v1`. This closes
+these retained-weight cancellation cases, not arbitrary cancellation phases,
+independent upstream numerics or concurrent serving.
 
 The two-node remote startup envelope no longer SHA-hashes both rank frames or
 emits a frame checksum. It reuses the supplied deployment association label;
@@ -78,7 +92,7 @@ their pending claims only for the explicitly completed diagnostic routes:
 | Model | Current physical result | What this does not establish |
 | --- | --- | --- |
 | GLM-5.3 Flash | Two original-tokenizer literal requests (13 and 20 tokens), eight greedy outputs each, reuse one resident rank pair; retained-weight cancellation also completes a subsequent distinct request with unchanged outputs; both ranks exit successfully, release GPUs and use no unit swap | Independent real-weight logit parity, arbitrary-input completeness, concurrent/optimized serving |
-| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition, EOS termination and the exact 144-input/112-output 256-token envelope; process-level cancellation passes in both directions; two distinct requests reuse one resident pair of ranks in both modes with identical outputs | Independent upstream model parity, larger/model-maximum contexts, retained-weight request cancellation, concurrent/production serving or external-framework performance |
+| DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition, EOS termination and the exact 144-input/112-output 256-token envelope; process-level cancellation passes in both directions; retained-weight request cancellation followed by a distinct request passes in both ordinary and speculative modes with unchanged outputs | Independent upstream model parity, larger/model-maximum contexts, concurrent/production serving or external-framework performance |
 | MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
 
 GLM/DeepSeek generation now resolves the full prompt and requested output length

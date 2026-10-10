@@ -304,9 +304,25 @@ rank pair completes the thirteen-token request. All eight output IDs exactly
 match the previously isolated request. Epochs retire at 2 and 22; explicit
 ingress/egress context close, exit 0, zero unit swap peaks and empty terminal
 GPU owner queries all pass. The subsequent request lifetime is 429,402 ms,
-including prefill but excluding initial weight loading. DSpark ordinary and
-verification cancellation tests remain pending. This closes this GLM replay
-case, not concurrent serving, independent numerical parity or performance.
+including prefill but excluding initial weight loading. This closes this GLM
+replay case, not concurrent serving, independent numerical parity or performance.
+
+DSpark's subsequent exact-source `514835f8` cancellation queues both pass at
+`/tmp/lunaflux-dspark-run-request-cancel-20261011-v1`. Ordinary and speculative
+modes cancel the first five-token request after two submitted transactions,
+publish only its cancellation marker, and retain the same rank pair for the
+144-token request. All ten follow-on output IDs, including EOS 1, match each
+other and the corresponding prior resident runs. Request epochs retire at
+3 then 36 (ordinary) or 3 then 33 (speculative). The latter executes three
+verification blocks and three accepted-prefix replays. All four units exit 0,
+close contexts explicitly, have zero unit swap peaks and leave no GPU owner.
+Follow-on lifetimes are 91,881/86,749 ms including prefill, excluding initial
+loading; no repeated benchmark or independent model parity is inferred.
+The ordinary cgroup peaks are 50,098,528,256/.178 and 57,779,171,328/.179 bytes;
+speculative peaks are 53,456,670,720/.178 and 25,204,019,200/.179. Cgroup peaks
+do not measure every CUDA allocation on unified memory. Full-model numerical
+references, concurrent serving and MiniMax quality remain the next feature
+work, not additional hashing, TLS or deployment-hardening prerequisites.
 
 1. Extend original-tokenizer coverage beyond the independently matched corpus
    and establish complete-model real-weight references for the three models.

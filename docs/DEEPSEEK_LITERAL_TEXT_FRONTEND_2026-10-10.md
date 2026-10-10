@@ -447,3 +447,53 @@ Units use `lunaflux-dspark-capacity-20261011-v1-{ingress,egress}.service` and
 `lunaflux-dspark-capacity-20261011-v1-reference-{ingress,egress}.service`.
 No payload hashing or authentication scans are added. Independent references,
 retained-weight cancellation, concurrency and matched performance remain open.
+
+## Retained-weight request cancellation in both modes — 2026-10-11
+
+The fresh ARM release built from `514835f8e05339b161121108a73856e3f559f865`
+passes ordinary and speculative cancellation followed by a distinct request.
+Both use the unchanged six-row/context-256 AOT and original five-token and
+144-token prompts. `--cancel-request 0 --after-steps 2` counts submitted
+ordinary frames or speculative verification transactions, never polling loops.
+The cancelled first request publishes `cancelled.txt`, not a final token file.
+Already issued work drains; request frontiers retire without closing the rank
+session. The same ingress and egress PIDs then execute the second request.
+
+| Mode | Retired cancellation epoch | Follow-on retired epoch | Follow-on lifetime incl. prefill | Follow-on output |
+| --- | ---: | ---: | ---: | --- |
+| Ordinary | 3 | 36 | 91,881 ms | 10 tokens, EOS 1 |
+| DSpark verification | 3 | 33 | 86,749 ms | 10 tokens, EOS 1 |
+
+Both downloaded follow-on files match the corresponding earlier resident
+outputs and each other byte-for-byte. Verification executes three blocks,
+18 submitted continuation rows, nine committed input rows and three
+accepted-prefix replays. This proves these cancellation/reuse cases and
+unchanged continuation, not independent upstream equivalence or all possible
+physical cancellation phases. Timings exclude initial weight loading and are
+single diagnostic samples, not a repeatable performance comparison.
+
+All four user units report `Result=success`, `ExecMainStatus=0` and
+`MemorySwapPeak=0`. Both contexts close explicitly after each queue, and every
+terminal GPU owner query is empty. Ordinary cgroup peaks are 50,098,528,256
+bytes on .178 and 57,779,171,328 on .179; speculative peaks are 53,456,670,720
+and 25,204,019,200 bytes. These host peaks do not account for every CUDA
+allocation on unified memory. The existing 96-GiB/no-swap limits remain;
+GPU workloads were serial, not overlapping.
+
+Raw captures and downloaded markers/tokens:
+`/tmp/lunaflux-dspark-run-request-cancel-20261011-v1`.
+Remote root on both hosts:
+`/tmp/lunaflux-dspark-real-request-cancel-20261011-v1`.
+Units use the prefix `lunaflux-dspark-request-cancel-20261011-v1-`, followed by
+`sequence-{ingress,egress}.service` or
+`sequence-spec-{ingress,egress}.service`.
+
+Reproduce the speculative case only with a fresh, noncolliding prepared root:
+
+~~~sh
+moon run scripts/run-deepseek-dspark-two-spark.mbtx PREPARED_ROOT UNIQUE_SUFFIX sequence-spec COMMIT_BUILD_ROOT COMMIT --cancel-request 0 --after-steps 2
+~~~
+
+Runner tests pass 4/4. No production source changes or payload checksums were
+needed for this physical follow-up. Concurrent serving, independent complete
+model references and matched external-framework performance remain open.
