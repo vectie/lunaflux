@@ -1,0 +1,40 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
+}
+
+async fn main {
+  guard @env.args() is [_, manifest, new_output] else {
+    fail("SOURCE_MANIFEST NEW_SHA256_INVENTORY")
+  }
+  let source = @fs.read_file(manifest).binary()
+  guard source.length() <= 1048576 else { fail("manifest exceeds bounded input") }
+  let document = @json.parse(@utf8.decode(source))
+  guard document is { "files": Array(files), .. } else { fail("missing files") }
+  let seen : Map[String, Unit] = Map([])
+  let inventory = StringBuilder()
+  let mut count = 0
+  for file in files {
+    guard file is { "path": String(path), "sha256": String(digest), .. } else {
+      fail("invalid source entry")
+    }
+    if !path.has_suffix(".safetensors") { continue }
+    guard !path.is_empty() && !path.has_prefix("/") && !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '/')) &&
+      !seen.contains(path) && digest.length() == 64 &&
+      digest.iter().all(c => c is ('0'..='9' | 'a'..='f')) && count < 512 else {
+      fail("invalid or duplicate shard identity")
+    }
+    seen[path] = ()
+    inventory <+ "\{digest}  \{path}\n"
+    count += 1
+  }
+  guard count > 0 else { fail("no checkpoint shards") }
+  // This converts existing source identities, not a substitute for the native
+  // reader hashing every actual shard before binding payloads.
+  @fs.write_file(new_output, inventory.to_string(), create_mode=CreateNew)
+  println("inventory_shards=\{count}")
+}
