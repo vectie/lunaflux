@@ -28,6 +28,12 @@ before subsequent layers and keep the request failed until cancellation/release.
 The ordinary `prepare()`/`execute()` route retains its single queue and single
 completion wait, with no diagnostic copies or per-layer barriers. This observed
 route is not valid for throughput measurements.
+`prepare_operator_observed()`/`execute_operator_observed()` stop after the first
+text-only layer and expose sixteen named intermediate tensors from the same
+launch recipe. Pure `first_layer_observation_bytes()` gives the exact host
+capture budget (589,824 bytes for three rows). Prefix completion never permits
+`with_output()` to publish it as hidden_states[50]. This is an explicit diagnostic,
+not an additional production validation or synchronization pass.
 `prebind_refiner()` and `with_destination()` permit constructing the entire
 dependent pipeline before submission. They expose uninitialized destinations,
 not completed results. The refiner also implements `PreparedFrame`; execute

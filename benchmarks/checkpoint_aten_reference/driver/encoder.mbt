@@ -71,6 +71,7 @@ fn encode_layer(
   layer : Int,
   cosine : @native.Tensor,
   sine : @native.Tensor,
+  observe? : (String, @native.Tensor) -> Unit raise,
 ) -> @native.Tensor raise {
   let prefix = "model.language_model.layers.\{layer}."
   let normalized = norm(
@@ -82,6 +83,9 @@ fn encode_layer(
     model.hidden,
   )
   defer normalized.close()
+  if observe is Some(f) {
+    f("norm-input", normalized)
+  }
   let q = project(
     model,
     session,
@@ -92,6 +96,9 @@ fn encode_layer(
     model.hidden,
   )
   defer q.close()
+  if observe is Some(f) {
+    f("q", q)
+  }
   let k = project(
     model,
     session,
@@ -102,6 +109,9 @@ fn encode_layer(
     model.hidden,
   )
   defer k.close()
+  if observe is Some(f) {
+    f("k", k)
+  }
   let v = project(
     model,
     session,
@@ -112,10 +122,17 @@ fn encode_layer(
     model.hidden,
   )
   defer v.close()
+  if observe is Some(f) {
+    f("v", v)
+  }
   let qn = norm(model, session, q, prefix, "self_attn.q_norm", model.dim)
   defer qn.close()
   let kn = norm(model, session, k, prefix, "self_attn.k_norm", model.dim)
   defer kn.close()
+  if observe is Some(f) {
+    f("q-norm", qn)
+    f("k-norm", kn)
+  }
   let qr = session.run(
     Rotary,
     x=qn,
@@ -134,6 +151,10 @@ fn encode_layer(
     b=model.dim,
   )
   defer kr.close()
+  if observe is Some(f) {
+    f("q-rotary", qr)
+    f("k-rotary", kr)
+  }
   let attention = session.run(
     Attention,
     x=qr,
@@ -144,6 +165,9 @@ fn encode_layer(
     c=model.dim,
   )
   defer attention.close()
+  if observe is Some(f) {
+    f("attention", attention)
+  }
   let output = project(
     model,
     session,
@@ -154,8 +178,14 @@ fn encode_layer(
     model.heads * model.dim,
   )
   defer output.close()
+  if observe is Some(f) {
+    f("output", output)
+  }
   let residual = session.run(Add, x~, y=output)
   defer residual.close()
+  if observe is Some(f) {
+    f("residual-attn", residual)
+  }
   let mlp_input = norm(
     model,
     session,
@@ -165,6 +195,9 @@ fn encode_layer(
     model.hidden,
   )
   defer mlp_input.close()
+  if observe is Some(f) {
+    f("norm-mlp", mlp_input)
+  }
   let gate = project(
     model,
     session,
@@ -187,6 +220,9 @@ fn encode_layer(
   defer up.close()
   let activation = session.run(SiluMultiply, x=gate, y=up)
   defer activation.close()
+  if observe is Some(f) {
+    f("activation", activation)
+  }
   let down = project(
     model,
     session,
@@ -197,7 +233,19 @@ fn encode_layer(
     model.intermediate,
   )
   defer down.close()
-  session.run(Add, x=residual, y=down)
+  if observe is Some(f) {
+    f("down", down)
+  }
+  let result = session.run(Add, x=residual, y=down)
+  if observe is Some(f) {
+    f("residual-mlp", result) catch {
+      error => {
+        result.close()
+        raise error
+      }
+    }
+  }
+  result
 }
 
 ///|
@@ -207,6 +255,7 @@ fn encode(
   ids : ArrayView[Int],
   output : String,
   layers : Int,
+  operators? : Bool = false,
 ) -> Unit raise {
   guard ids.length() > 0 && ids.length() <= 1024 && layers > 0 && layers <= 50 else {
     fail("reference request must use 1..1024 tokens and 1..50 selected layers")
@@ -218,8 +267,23 @@ fn encode(
   defer sine.close()
   let initial = embedding(model, session, ids)
   initial.write(output + "/hidden-0.bf16")
+  if operators {
+    initial.write(output + "/embedding.bf16")
+  }
   for layer = 0, hidden = initial; layer < layers; {
-    let next = encode_layer(model, session, hidden, layer, cosine, sine)
+    let next = encode_layer(
+      model,
+      session,
+      hidden,
+      layer,
+      cosine,
+      sine,
+      observe?=if operators && layer == 0 {
+        Some((name, tensor) => tensor.write(output + "/" + name + ".bf16"))
+      } else {
+        None
+      },
+    )
     hidden.close()
     next.write(output + "/hidden-\{layer + 1}.bf16")
     println(

@@ -56,7 +56,9 @@ async fn main {
       target is ["178", _] ||
       target is ["179", _] ||
       target is ["178", _, "layers"] ||
-      target is ["179", _, "layers"]
+      target is ["179", _, "layers"] ||
+      target is ["178", _, "operators"] ||
+      target is ["179", _, "operators"]
     ) &&
     root.has_prefix("/tmp/lunaflux-minimax-text-encoder-") &&
     executable.has_prefix("/tmp/lunaflux-") &&
@@ -70,7 +72,7 @@ async fn main {
     }) &&
     !suffix.contains("/") else {
     fail(
-      "NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS REQUEST_AOT [178|179 [INPUT_IDS_I32 [layers]]]",
+      "NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS REQUEST_AOT [178|179 [INPUT_IDS_I32 [layers|operators]]]",
     )
   }
   let last = target is ["179", ..]
@@ -90,6 +92,7 @@ async fn main {
     "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f"
   }
   let capture_layers = target is [_, _, "layers"]
+  let capture_operators = target is [_, _, "operators"]
   // The existing request AOT has exactly three text rows. Caller-supplied IDs
   // come from text-ids; the legacy default remains an explicitly synthetic probe.
   let ids = match target {
@@ -143,7 +146,7 @@ async fn main {
       " --property=MemoryMax=80G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 " +
       root +
       "/minimax_checkpoint.exe " +
-      (if capture_layers { "encode-text-layers " } else { "encode-text " }) +
+      (if capture_operators { "encode-text-operators " } else if capture_layers { "encode-text-layers " } else { "encode-text " }) +
       staged +
       "/FL2VA TEXT.inventory 3 ids-" +
       suffix +
@@ -151,16 +154,33 @@ async fn main {
       aot +
       " " +
       root +
-      (if capture_layers { "/layers" } else { "/hidden.bf16" }) +
+      (if capture_operators { "/operators" } else if capture_layers { "/layers" } else { "/hidden.bf16" }) +
       " 75161927680 64424509440" +
-      (if capture_layers { " 1566720" } else { "" }),
+      (if capture_operators { " 589824" } else if capture_layers { " 1566720" } else { "" }),
     ),
   )
   let run = @fs.read_file(root + "/encode.stdout").text()
+  if capture_operators {
+    guard run.contains("text_operator_prefix_complete layers=1 tensors=16 rows=3") else {
+      fail("missing first-layer operator completion")
+    }
+    @fs.mkdir(root + "/operators")
+    for (name, width) in [
+      ("embedding", 5120), ("norm-input", 5120), ("q", 8192), ("k", 1024), ("v", 1024),
+      ("q-norm", 8192), ("k-norm", 1024), ("q-rotary", 8192), ("k-rotary", 1024),
+      ("attention", 8192), ("output", 5120), ("residual-attn", 5120), ("norm-mlp", 5120),
+      ("activation", 25600), ("down", 5120), ("residual-mlp", 5120),
+    ] {
+      let path = root + "/operators/" + name + ".bf16"
+      copy(socket, node + ":" + path, path)
+      guard @fs.read_file(path).binary().length() == 3 * width * 2 else { fail("incomplete operator tensor: " + name) }
+    }
+  } else {
   guard run.contains(
     "text_encoder_complete hidden_state=50 rows=3 width=5120 bytes=30720 nonfinite=0",
   ) else {
     fail("missing complete finite hidden state")
+  }
   }
   if capture_layers {
     @fs.mkdir(root + "/layers")
@@ -190,6 +210,6 @@ async fn main {
     remote(node, socket, "journalctl --user -u " + unit + " --no-pager"),
   )
   println(
-    "checkpoint-backed hidden_states[50] complete and released; no full-media or reference-equivalence claim",
+    if capture_operators { "first-layer operator prefix complete and released; not a fifty-layer output" } else { "checkpoint-backed hidden_states[50] complete and released; no full-media or reference-equivalence claim" },
   )
 }

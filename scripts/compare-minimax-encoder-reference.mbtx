@@ -3,6 +3,7 @@ import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -14,13 +15,18 @@ fn bf16(bytes : Bytes, i : Int) -> Double {
 ///|
 async fn main {
   guard @env.args() is [_, native_path, reference_path, output, .. scope_args] &&
-    (scope_args is [] || scope_args is [_]) else {
-    fail("NATIVE_BF16 REFERENCE_BF16 NEW_REPORT [SCOPE]")
+    (scope_args is [] || scope_args is [_] || scope_args is [_, _]) else {
+    fail("NATIVE_BF16 REFERENCE_BF16 NEW_REPORT [SCOPE [ROW_WIDTH]]")
   }
   let scope = match scope_args {
-    [scope] => scope
+    [scope, ..] => scope
     _ => "original_caption_text_encoder_hidden_states_50"
   }
+  let width = match scope_args {
+    [_, width] => @string.parse_int(width)
+    _ => 5120
+  }
+  guard width > 0 else { fail("positive tensor row width required") }
   let native = @fs.read_file(native_path).binary()
   let reference = @fs.read_file(reference_path).binary()
   guard native.length() > 0 &&
@@ -102,17 +108,17 @@ async fn main {
     0.0
   }
   let per_row = StringBuilder()
-  guard n % 5120 == 0 else { fail("expected original encoder width 5120") }
-  for row in 0..<(n / 5120) {
+  guard n % width == 0 else { fail("tensor extent is not a whole number of rows") }
+  for row in 0..<(n / width) {
     let mut a2 = 0.0
     let mut b2 = 0.0
     let mut ab = 0.0
     let mut e2 = 0.0
     let mut e1 = 0.0
     let mut b1 = 0.0
-    for column in 0..<5120 {
-      let a = bf16(native, row * 5120 + column)
-      let b = bf16(reference, row * 5120 + column)
+    for column in 0..<width {
+      let a = bf16(native, row * width + column)
+      let b = bf16(reference, row * width + column)
       a2 += a * a
       b2 += b * b
       ab += a * b
@@ -128,7 +134,7 @@ async fn main {
     let row_l1 = if b1 > 0.0 { e1 / b1 } else { 0.0 }
     let row_l2 = if b2 > 0.0 { (e2 / b2).sqrt() } else { 0.0 }
     per_row <+
-      "row=\{row} rmse=\{(e2 / 5120.0).sqrt()} relative_l1=\{row_l1} relative_l2=\{row_l2} cosine=\{row_cosine}\n"
+      "row=\{row} rmse=\{(e2 / width.to_double()).sqrt()} relative_l1=\{row_l1} relative_l2=\{row_l2} cosine=\{row_cosine}\n"
   }
   let report =
     $|scope=\{scope}

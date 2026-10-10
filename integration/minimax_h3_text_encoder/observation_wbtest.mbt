@@ -1,4 +1,61 @@
 ///|
+test "operator capture failure stops before subsequent submission" {
+  for failure in ["run", "snapshot", "consume"] {
+    let submitted : Array[Int] = []
+    let captured : Array[String] = []
+    try
+      observe_operator_outputs(
+        14,
+        step => {
+          submitted.push(step)
+          if failure == "run" && step == 5 {
+            fail("run")
+          }
+        },
+        region => {
+          if failure == "snapshot" && submitted.last() == Some(5) {
+            fail("snapshot")
+          }
+          Bytes::make(1, region.to_byte())
+        },
+        (name, _) => {
+          captured.push(name)
+          if failure == "consume" && name == "q-norm" {
+            fail("consume")
+          }
+        },
+      )
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("observation failure swallowed")
+    }
+    assert_eq(submitted, [0, 1, 2, 3, 4, 5])
+    assert_true(!captured.contains("k-norm") && !captured.contains("attention"))
+  }
+}
+
+///|
+test "first-layer operator captures follow the binding recipe and valid regions" {
+  let boundaries = first_layer_operator_boundaries()
+  let outputs = first_layer_operator_outputs()
+  assert_eq(boundaries.length(), 14)
+  assert_eq(outputs.length(), 16)
+  let names : Array[String] = []
+  for (end, region, name) in outputs {
+    assert_true(end > 0 && end <= boundaries.length())
+    assert_true(region >= 0 && region < 8)
+    names.push(name)
+  }
+  assert_eq(names, [
+    "embedding", "norm-input", "q", "k", "v", "q-norm", "k-norm", "q-rotary", "k-rotary",
+    "attention", "output", "residual-attn", "norm-mlp", "activation", "down", "residual-mlp",
+  ])
+  assert_eq(boundaries[13], (13, 14))
+  assert_true(PrefixComplete != Complete)
+}
+
+///|
 test "observation partitions exactly the text and deepstack launch recipes" {
   let text = hidden_state_boundaries(false)
   let visual = hidden_state_boundaries(true)

@@ -23,6 +23,7 @@ test "request submission is one shot and completion does not rerun GPU callback"
     Empty,
     Submitted,
     Complete,
+    PrefixComplete,
     Failed,
     Cancelled,
     Closed,

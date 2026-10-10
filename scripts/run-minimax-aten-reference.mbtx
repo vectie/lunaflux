@@ -70,7 +70,7 @@ async fn main {
   guard @env.args() is [_, mode, root] &&
     root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
     safe(root) else {
-    fail("stage|self-test|asan|encode|collect NEW_OR_EXISTING_EVIDENCE_ROOT")
+    fail("stage|self-test|asan|encode|encode-operators|collect|collect-operators NEW_OR_EXISTING_EVIDENCE_ROOT")
   }
   let first = "wlc003s@192.168.2.178"
   let second = "wlc004s@192.168.2.179"
@@ -210,7 +210,7 @@ async fn main {
       ),
     )
     println("independent ATen ownership probe passed ASan and LSan")
-  } else if mode == "self-test" || mode == "encode" {
+  } else if mode == "self-test" || mode == "encode" || mode == "encode-operators" {
     let name = tag + "-" + mode
     let output = root + "/" + mode
     @fs.mkdir(output)
@@ -220,18 +220,18 @@ async fn main {
       remote(second, socket179, "mkdir -m 755 " + output),
     )
     let model = "/tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder"
-    if mode == "encode" {
+    if mode != "self-test" {
       let owners = remote(
         second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
       )
-      record(root, "before-encode-owners", owners)
+      record(root, "before-" + mode + "-owners", owners)
       guard owners.stdout().trim().is_empty() else {
         fail("GPU has an existing owner; reference not started")
       }
     }
-    let device = if mode == "encode" { " --gpus all" } else { "" }
-    let arguments = if mode == "encode" {
-      " encode /work/libreference.so /model 32,2518,8251 /work/encode 50"
+    let device = if mode != "self-test" { " --gpus all" } else { "" }
+    let arguments = if mode != "self-test" {
+      " " + mode + " /work/libreference.so /model 32,2518,8251 /work/" + mode + (if mode == "encode-operators" { " 1" } else { " 50" })
     } else {
       " self-test /work/libreference.so /work/self-test"
     }
@@ -265,6 +265,14 @@ async fn main {
       ),
     )
     println("reference " + mode + " terminated; collect original outputs next")
+  } else if mode == "collect-operators" {
+    for name in ["embedding", "norm-input", "q", "k", "v", "q-norm", "k-norm", "q-rotary", "k-rotary", "attention", "output", "residual-attn", "norm-mlp", "activation", "down", "residual-mlp"] {
+      let path = root + "/encode-operators/" + name + ".bf16"
+      @fs.write_file(path, b"", create_mode=CreateNew)
+      copy(socket179, second + ":" + path, path)
+    }
+    record(root, "after-operator-owners", remote(second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+    println("first-layer independent operator outputs collected")
   } else if mode == "collect" {
     for layer in 0..<=50 {
       @fs.write_file(

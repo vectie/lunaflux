@@ -8,6 +8,7 @@ async fn run_text(
   model : @joint.JointDiffusionPlan,
   args : ArrayView[String],
   capture_layers? : Bool = false,
+  capture_operators? : Bool = false,
 ) -> Unit {
   let config = @text.parse_config(
     read(root, "text_encoder/config.json", 1048576L),
@@ -20,14 +21,21 @@ async fn run_text(
   let ids_bytes = read(root, args[2], rows.to_int64() * 4L)
   let ids = text_input_ids(ids_bytes, rows)
   let plan = config.plan(ids[:])
-  if capture_layers {
-    validate_text_capture_budget(
-      plan.output_bytes(),
-      @string.parse_int64(args[7]),
-    )
+  let source = @text_execution.build_source(plan, prefix="h3_text")
+  if capture_layers || capture_operators {
+    if capture_operators {
+      validate_capture_bytes(
+        source.first_layer_observation_bytes(),
+        @string.parse_int64(args[7]),
+      )
+    } else {
+      validate_text_capture_budget(
+        plan.output_bytes(),
+        @string.parse_int64(args[7]),
+      )
+    }
     @fs.mkdir(args[4])
   }
-  let source = @text_execution.build_source(plan, prefix="h3_text")
   let device_limit = @string.parse_int64(args[6])
   let component_root = @approved_fs.ApprovedRoot::open_absolute(
     root_name + "/text_encoder",
@@ -79,7 +87,17 @@ async fn run_text(
   let request = @text_execution.EncoderRequest::new(source, config)
   defer request.close()
   lease.with_encoder(0, weights => {
-    if capture_layers {
+    if capture_operators {
+      request.prepare_operator_observed(
+        context,
+        stream,
+        aot_module,
+        weights,
+        ids[:],
+        max_device_bytes=request_bytes,
+        max_table_bytes=table_bytes,
+      )
+    } else if capture_layers {
       request.prepare_observed(
         context,
         stream,
@@ -101,6 +119,30 @@ async fn run_text(
       )
     }
   })
+  if capture_operators {
+    let tensors : Array[(String, Bytes)] = []
+    request.execute_operator_observed(on_tensor=(name, bytes) => {
+      tensors.push((name, bytes))
+    })
+    for (name, bytes) in tensors {
+      let (nonfinite, maximum) = text_hidden_statistics(bytes)
+      @fs.write_file(
+        args[4] + "/" + name + ".bf16",
+        bytes,
+        create_mode=CreateNew,
+      )
+      println(
+        "text_operator_complete name=\{name} bytes=\{bytes.length()} nonfinite=\{nonfinite} maximum_absolute=\{maximum}",
+      )
+      guard nonfinite == 0 else {
+        fail("nonfinite operator output; data preserved")
+      }
+    }
+    println(
+      "text_operator_prefix_complete layers=1 tensors=\{tensors.length()} rows=\{rows}",
+    )
+    return
+  }
   let captures : Array[(Int, Bytes)] = []
   let hidden = if capture_layers {
     request.execute_observed(on_hidden_state=(index, bytes) => {
@@ -140,13 +182,19 @@ fn validate_text_capture_budget(
   output_bytes : Int64,
   maximum : Int64,
 ) -> Unit raise {
-  guard output_bytes > 0L &&
+  guard output_bytes > 0L && output_bytes <= 2147483647L / 51L else {
+    fail("invalid encoder capture extent")
+  }
+  validate_capture_bytes(output_bytes * 51L, maximum)
+}
+
+///|
+fn validate_capture_bytes(required : Int64, maximum : Int64) -> Unit raise {
+  guard required > 0L &&
     maximum > 0L &&
     maximum <= 2147483647L &&
-    output_bytes <= maximum / 51L else {
-    fail(
-      "embedding plus fifty hidden-state snapshots exceed host capture budget",
-    )
+    required <= maximum else {
+    fail("tensor snapshots exceed host capture budget")
   }
 }
 

@@ -20,7 +20,7 @@ pub fn EncoderRequest::prepare(
     max_device_bytes~,
     max_table_bytes~,
     visual?,
-    observe_layers=false,
+    observation=Disabled,
   )
 }
 
@@ -48,6 +48,32 @@ pub fn EncoderRequest::prepare_observed(
     max_device_bytes~,
     max_table_bytes~,
     visual?,
-    observe_layers=true,
+    observation=HiddenLayers,
+  )
+}
+
+///|
+/// Explicit text-only numerical diagnostic. Run the unchanged embedding and
+/// first layer, observing each operator output. This prefix never publishes a
+/// complete fifty-layer result through with_output().
+pub fn EncoderRequest::prepare_operator_observed(
+  self : Self,
+  context : @device.Context,
+  stream : @device.Stream,
+  aot_module : @device.Module,
+  weights : EncoderWeights,
+  ids : ArrayView[Int],
+  max_device_bytes~ : Int64,
+  max_table_bytes~ : Int64,
+) -> Unit raise {
+  self.prepare_execution(
+    context,
+    stream,
+    aot_module,
+    weights,
+    ids,
+    max_device_bytes~,
+    max_table_bytes~,
+    observation=FirstLayerOperators,
   )
 }

@@ -4,9 +4,17 @@ priv enum Phase {
   Prepared
   Submitted
   Complete
+  PrefixComplete
   Failed
   Cancelled
   Closed
+} derive(Eq)
+
+///|
+priv enum ObservationMode {
+  Disabled
+  HiddenLayers
+  FirstLayerOperators
 } derive(Eq)
 
 ///|
@@ -53,7 +61,7 @@ fn EncoderRequest::prepare_execution(
   ids : ArrayView[Int],
   max_device_bytes~ : Int64,
   max_table_bytes~ : Int64,
-  observe_layers~ : Bool,
+  observation~ : ObservationMode,
   visual? : (@device.Allocation, @text_plan.VisualPlacement),
 ) -> Unit raise {
   guard self.phase == Empty && weights.ready && weights.leases < 2147483647 else {
@@ -147,8 +155,12 @@ fn EncoderRequest::prepare_execution(
     sine~,
     visual?=visual_binding,
   )
-  if observe_layers {
-    let boundaries = hidden_state_boundaries(visual is Some(_))
+  if observation != Disabled {
+    let boundaries = match observation {
+      HiddenLayers => hidden_state_boundaries(visual is Some(_))
+      FirstLayerOperators => first_layer_operator_boundaries()
+      Disabled => abort("unreachable observation mode")
+    }
     for (hidden, end) in boundaries; start = 0 {
       let queue = context.create_ordered_kernel_executor(
         stream,

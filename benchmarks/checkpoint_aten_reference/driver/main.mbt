@@ -64,7 +64,8 @@ fn main raise {
       defer session.close()
       self_test(session, output)
     }
-    [_, "encode", library, model, text_ids, output, depth] => {
+    [_, mode, library, model, text_ids, output, depth] if mode == "encode" ||
+      mode == "encode-operators" => {
       let ids : Array[Int] = []
       for id in text_ids.split(",") {
         ids.push(@string.parse_int(id))
@@ -72,11 +73,21 @@ fn main raise {
       let layers = @string.parse_int(depth)
       let session = @native.Session::new(library, device=1, budget=2147483648L)
       defer session.close()
-      encode(session, model, ids, output, layers)
+      guard mode != "encode-operators" || layers == 1 else {
+        fail("operator diagnostic observes exactly the first layer")
+      }
+      encode(
+        session,
+        model,
+        ids,
+        output,
+        layers,
+        operators=mode == "encode-operators",
+      )
     }
     _ =>
       fail(
-        "self-test LIB OUTPUT_DIRECTORY | encode LIB ORIGINAL_ENCODER_ROOT COMMA_IDS OUTPUT_DIRECTORY LAYERS",
+        "self-test LIB OUTPUT_DIRECTORY | encode|encode-operators LIB ORIGINAL_ENCODER_ROOT COMMA_IDS OUTPUT_DIRECTORY LAYERS",
       )
   }
 }

@@ -32,6 +32,16 @@ are not payload-integrity scans and remain distinct from this cleanup.
 
 ## Current three-model completion ledger — 2026-10-11
 
+First-layer MiniMax operator attribution adds an explicit
+`encode-text-operators` route and an independent ATen `encode-operators` route.
+The native diagnostic borrows the unchanged AOT kernels/weights and captures
+sixteen named tensors after fourteen launches, with a distinct prefix-complete
+state that cannot publish a fifty-layer result. Exact host capture storage is
+planned before CUDA; normal execution remains one unobserved queue. Local
+affected tests pass 26/26. Exact-source ARM execution and operator comparison
+remain next; no new numerical-parity or throughput claim follows from source
+tests.
+
 The common serial prompt file adapter now owns bounded `frame-counts.txt`
 parsing; DeepSeek no longer keeps a model-specific queue parser. GLM now exposes
 `preflight-generation-sequence` and `generate-sequence`, with immutable queue
