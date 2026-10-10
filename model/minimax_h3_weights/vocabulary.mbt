@@ -23,7 +23,7 @@ fn expected_denoiser_names() -> Array[String] {
   names.push("norm_out.norm.weight")
   names.push("token_refiner.final_norm.weight")
   for layer in 0..<2 {
-    let prefix = "token_refiner.blocks.\{layer}"
+    let prefix = "token_refiner.refiner_blocks.\{layer}"
     for
       suffix in [
         "attn.norm_k.weight", "attn.norm_q.weight", "attn.to_k.weight", "attn.to_out.0.weight",
@@ -170,7 +170,7 @@ fn denoiser_block(parts : Array[StringView]) -> MiniMaxH3TensorRole? {
 fn refiner_block(parts : Array[StringView]) -> MiniMaxH3TensorRole? {
   if parts.length() < 5 ||
     parts[0] != "token_refiner" ||
-    parts[1] != "blocks" ||
+    parts[1] != "refiner_blocks" ||
     !bounded_index(parts[2], 2) {
     return None
   }

@@ -376,7 +376,7 @@ test "MiniMax H3 authenticates all 50 plus 2 bias-free SwiGLU weight pairs" {
     let prefix = if index < 50 {
       "transformer_blocks.\{index}"
     } else {
-      "token_refiner.blocks.\{index - 50}"
+      "token_refiner.refiner_blocks.\{index - 50}"
     }
     for
       item in [
@@ -418,7 +418,7 @@ test "MiniMax H3 authenticates all 50 plus 2 bias-free SwiGLU weight pairs" {
     }
   }
   let out_of_range_refiner = try! one_tensor(
-    "token_refiner.blocks.2.ff.net.2.weight",
+    "token_refiner.refiner_blocks.2.ff.net.2.weight",
     shape=[5376L, 14336L],
   )
   try

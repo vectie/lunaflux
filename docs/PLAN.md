@@ -2325,6 +2325,15 @@ reference-image/video support, independent numerical parity, prompt quality or
 a performance claim. Full physical execution remains unverified until the
 new entry actually completes on the model checkpoint.
 
+The first physical joint attempt (`52242267`, v1) stopped before CUDA at denoiser
+header binding. The real converted index spells the twenty refiner tensors
+`token_refiner.refiner_blocks.*`; the previous schema and packer incorrectly
+expected `token_refiner.blocks.*`. Both now use the actual checkpoint names,
+with complete-manifest/packing regressions and rejection of the stale spelling.
+Audio and video component inspection independently passed in the same staged
+view. The failed v1 directory is preserved; the corrected full run uses a new
+build and output directory.
+
 Rank-group control and opaque payload frames no longer compute or verify a
 whole-frame FNV checksum. Graph telemetry sidecars follow the same rule.
 Encoders write zero into the legacy checksum field; readers ignore it. Rank

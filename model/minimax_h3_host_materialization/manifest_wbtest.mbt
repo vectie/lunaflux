@@ -120,7 +120,7 @@ fn complete_denoiser_fixture() -> (
     offset = append_denoiser_block(
       entries,
       indexes,
-      "token_refiner.blocks.\{layer}",
+      "token_refiner.refiner_blocks.\{layer}",
       true,
       offset,
     )

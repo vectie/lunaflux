@@ -21,7 +21,7 @@ pub fn refiner_weight_packing(
   let p = pack_transformer(
     model,
     layer,
-    "token_refiner.blocks.\{layer}.",
+    "token_refiner.refiner_blocks.\{layer}.",
     max_bytes,
     false,
   )

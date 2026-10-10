@@ -6,7 +6,7 @@ test "MiniMax H3 authenticates all 50 plus 2 bias-free attention weight sets" {
     let prefix = if index < 50 {
       "transformer_blocks.\{index}"
     } else {
-      "token_refiner.blocks.\{index - 50}"
+      "token_refiner.refiner_blocks.\{index - 50}"
     }
     for
       item in [
@@ -56,7 +56,8 @@ test "MiniMax H3 rejects attention shape dtype bias and layer substitutions" {
   }
   for
     name in [
-      "transformer_blocks.0.attn.to_q.bias", "token_refiner.blocks.2.attn.to_q.weight",
+      "transformer_blocks.0.attn.to_q.bias", "token_refiner.refiner_blocks.2.attn.to_q.weight",
+      "token_refiner.blocks.0.attn.to_q.weight",
     ] {
     let tensor = try! one_tensor(name, shape=[7168L, 5376L])
     try @minimax_h3_weights.bind(metadata, plan, Ref2vaDenoiser, tensor) catch {

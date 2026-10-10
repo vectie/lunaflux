@@ -9,7 +9,7 @@ test "refiner packing excludes AdaLN and stores final norm only after last layer
   assert_true(last.final_norm_offset is Some(_))
   assert_eq(
     first.copies[0].tensor_name,
-    "token_refiner.blocks.0.attn.to_q.weight",
+    "token_refiner.refiner_blocks.0.attn.to_q.weight",
   )
   assert_eq(first.copies[6].source_offset, 14336L * 5376L * 2L)
   assert_eq(last.copies[11].tensor_name, "token_refiner.final_norm.weight")

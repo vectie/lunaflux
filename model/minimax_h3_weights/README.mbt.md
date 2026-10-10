@@ -16,6 +16,10 @@ and audio input/output projections plus the timestep MLP are F32; the context
 path, refiner, transformer blocks, and output normalization are BF16. A tensor
 with the right name and shape but the wrong dtype fails semantic admission.
 
+Refiner source names are `token_refiner.refiner_blocks.{0,1}.*`, matching the
+actual converted checkpoint index. Semantic binding and packing use these same
+names. The nonexistent `token_refiner.blocks.*` spelling is not an alias.
+
 The VideoVae schema binds its exact three-shard index and the AudioVae schema
 binds its exact single-file header; both accept only their official F32 names,
 shapes, dtypes, and payload sizes. No binding reads raw payload bytes, executes
