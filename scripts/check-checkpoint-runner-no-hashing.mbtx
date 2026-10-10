@@ -9,7 +9,7 @@ import {
 ///|
 async fn main {
   for path in [
-    "cmd/deepseek_checkpoint/startup.mbt", "cmd/glm_checkpoint/startup.mbt",
+    "cmd/deepseek_checkpoint/startup.mbt", "cmd/glm_checkpoint/startup.mbt", "cmd/glm_checkpoint/text_prompt.mbt",
   ] {
     let source = @fs.read_file(path).text()
     guard !source.contains("@crypto") && !source.contains("ContentDigest") else {

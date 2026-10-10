@@ -1,0 +1,84 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+}
+
+// Developer check only; never run on the inference or model-startup path.
+
+///|
+fn require_text(source : String, anchor : String) -> Unit raise {
+  guard source.contains(anchor) else {
+    fail("token-step performance boundary missing: " + anchor)
+  }
+}
+
+///|
+fn reject_text(source : String, anchor : String) -> Unit raise {
+  guard !source.contains(anchor) else {
+    fail("token-step performance boundary restored: " + anchor)
+  }
+}
+
+///|
+fn occurrences(source : String, anchor : String) -> Int {
+  source.split(anchor).count() - 1
+}
+
+///|
+fn function_body(source : String, header : String) -> String raise {
+  let parts = source.split(header).collect()
+  guard parts.length() == 2 else { fail("missing or duplicate function: " + header) }
+  guard parts[1].split("\n}").head() is Some(body) else {
+    fail("missing function body: " + header)
+  }
+  body.to_owned()
+}
+
+///|
+async fn main {
+  let owner = @fs.read_file("engine/worker_protocol/plan_buffer_owner.mbt").text()
+  let tracker = @fs.read_file("engine/worker_protocol/plan_identity_tracker.mbt").text()
+  let types = @fs.read_file("engine/worker_protocol/plan_buffer_types.mbt").text()
+  reject_text(owner, "fn SchedulePlanBuffer::has_request(")
+  reject_text(owner, "fn SchedulePlanBuffer::has_slot(")
+  for anchor in ["identity_tracker_generation", "request_identity_generations", "completion_slot_generations", "track_row_identity"] {
+    require_text(tracker + types, anchor)
+  }
+  for anchor in ["Array::", "Array[", ".push("] { reject_text(tracker, anchor) }
+  let validation = function_body(owner, "fn SchedulePlanBuffer::validate_contents(")
+  for anchor in ["for ", "while ", "token_at", "prefill_row", "decode_row"] { reject_text(validation, anchor) }
+  let encode = @fs.read_file("engine/worker_wire/plan_encode.mbt").text()
+  assert_eq(occurrences(encode, "preflight_plan_for_encode("), 2)
+  let decode = @fs.read_file("engine/worker_wire/plan_validate.mbt").text()
+  // Retain range/identity correctness, but do not restore a removed checksum scan.
+  for anchor in ["validate_plan_frame_source", "validate_unique_scalar_identities", "exact_plan_frame_bytes", "validate_wire_range"] { require_text(decode, anchor) }
+  reject_text(decode, "frame_checksum(")
+  reject_text(decode, "@crypto")
+  for name in @fs.readdir("engine/worker_process") {
+    if name.has_suffix(".mbt") && !name.has_suffix("test.mbt") {
+      let source = @fs.read_file("engine/worker_process/" + name).text()
+      for suffix in ["request_ids", "request_generations", "expected_kinds", "processed_tokens", "slots", "entry_count"] {
+        reject_text(source, "exchange_" + suffix)
+      }
+    }
+  }
+  for name in ["root_bound_exchange", "supervisor"] {
+    let source = @fs.read_file("engine/worker_process/" + name + ".mbt").text()
+    reject_text(source, "frame.copy_to(")
+    if name == "root_bound_exchange" { require_text(source, "frame.validate_for(plan)") }
+  }
+  let rank = @fs.read_file("engine/rank_group_process/exchange.mbt").text()
+  reject_text(rank, "frame.copy_to(")
+  require_text(rank, "seal_rank_group_wire_embedded_payload(")
+  for name in ["paged_executor_greedy_sampling", "paged_executor_completion", "paged_executor_wire_completion"] {
+    let source = @fs.read_file("engine/device_step/" + name + ".mbt").text()
+    assert_eq(occurrences(source, "copy_paged_cuda_greedy_results("), 1)
+    if name == "paged_executor_greedy_sampling" {
+      assert_eq(occurrences(function_body(source, "fn copy_paged_cuda_greedy_results("), "copy_to_fixed_host("), 1)
+    }
+  }
+  let materializer = @fs.read_file("scripts/materialize-approved-tiny-bf16-launch.sh").text()
+  for anchor in ["authenticated_embedded_greedy_sampling", "descriptor_schema=lunaflux.runtime.v5", "sampling_runtime_json=", "embedded_cuda_greedy_v1", "descriptor_schema=lunaflux.runtime.v1"] { require_text(materializer, anchor) }
+  require_text(@fs.read_file("runtime/descriptor_file/schema_sections.mbt").text(), "None => @worker_wire.HostSamplingRuntime")
+  println("LunaFlux token-step scan/copy/readback boundary gate passed (no checksum scan).")
+}
