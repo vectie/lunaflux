@@ -8,6 +8,35 @@ import {
 
 ///|
 async fn main {
+  // Cover complete current execution packages, not only known entry points.
+  // Digest-shaped compatibility labels and algorithmic token-hash routing are
+  // valid; cryptographic payload scans are not. This check runs only locally.
+  let checkpoint_packages = [
+    "cmd/deepseek_checkpoint", "cmd/glm_checkpoint", "cmd/minimax_checkpoint", "integration/checkpoint_text_input",
+    "integration/minimax_h3_checkpoint", "integration/minimax_h3_audio_checkpoint",
+    "integration/minimax_h3_text_encoder", "integration/precision_checkpoint_upload",
+    "integration/deepseek_v4_decoder", "integration/glm53_packed_expert_upload",
+    "integration/serial_decoder_pipeline", "integration/serial_decoder_worker", "engine/precision_materialize",
+    "model/checkpoint_inventory", "model/streaming_safetensors", "model/deepseek_v4_device_upload",
+    "model/glm53_device_upload", "model/minimax_h3_device_upload",
+  ]
+  for directory in checkpoint_packages {
+    for name in @fs.readdir(directory) {
+      if name.has_suffix(".mbt") && !name.has_suffix("test.mbt") {
+        let source = @fs.read_file(directory + "/" + name).text()
+        for removed in ["@crypto", "SHA256::new", "hash_approved_file("] {
+          guard !source.contains(removed) else {
+            fail(
+              "checkpoint execution hashing reintroduced: " +
+              directory +
+              "/" +
+              name,
+            )
+          }
+        }
+      }
+    }
+  }
   for
     path in [
       "cmd/lunaflux_qwen3_fused_runtime_bundle_export/main.mbt", "cmd/lunaflux_qwen3_fused_runtime_bundle_export/ingress_choice.mbt",
@@ -173,6 +202,7 @@ async fn main {
     "run-committed-draft-probe", "run-row-projection-norm-probe", "run-sequential-markov-probe",
     "capture-precision-transform-probes", "capture-compressed-attention-run", "capture-hyper-f32-run",
     "capture-learned-text-laws", "assemble-luna-kernel-root", "run-glm-resident-sequence",
+    "run-minimax-aten-reference",
   ]
   let sidecars = @fs.read_file(
     "model/deepseek_v4_device_upload/token_hash_sidecar.mbt",
@@ -316,6 +346,6 @@ async fn main {
     }
   }
   println(
-    "checkpoint runner no-hashing regression passed: \{runners.length()} scripts",
+    "checkpoint runner no-hashing regression passed: \{runners.length()} scripts, \{checkpoint_packages.length()} execution packages",
   )
 }
