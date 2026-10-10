@@ -105,11 +105,6 @@ async fn main {
   ])
   .output()
   .check()
-  record(
-    root,
-    "download-hash",
-    @shell.Cmd("shasum", ["-a", "256", root + "/heads.cubin"]).output(),
-  )
   println(
     "combined base/predictor head module compiled on GB10; no GPU execution",
   )

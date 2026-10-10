@@ -80,6 +80,11 @@ and deterministic resource ownership: these are execution correctness, not
 optional security work. Pure compiler/cache identity generation is not a
 checkpoint authentication pass.
 
+Checkpoint build, resume and download helpers follow the same policy: do not
+scan source archives, binaries or CUBINs for checksums. Use command success and
+compiler terminal status, and keep new output paths non-overwriting. Historical
+receipts remain historical; these helpers do not claim content authentication.
+
 ## Compatibility discipline
 
 - One implementation of the engine is authoritative.

@@ -58,7 +58,6 @@ async fn main {
     command in [
       "tar -xf " + remote_directory + "/source.tar.gz -C " + source,
       "tar -xf " + previous + "/dependencies-clean.tar.gz -C " + source,
-      "sha256sum " + remote_directory + "/source.tar.gz",
       "systemd-run --user --unit=" +
       unit +
       " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=3600 --working-directory=" +
