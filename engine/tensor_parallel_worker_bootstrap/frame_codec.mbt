@@ -14,18 +14,6 @@ const RANK_ENVELOPE_CHECKSUM_OFFSET : Int = 12
 const RANK_ENVELOPE_RENDEZVOUS_OFFSET : Int = 624
 
 ///|
-fn rank_envelope_checksum(bytes : FixedArray[Byte]) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<RANK_ENVELOPE_LENGTH {
-    if index < RANK_ENVELOPE_CHECKSUM_OFFSET ||
-      index >= RANK_ENVELOPE_CHECKSUM_OFFSET + 4 {
-      hash = (hash ^ bytes[index].to_uint()) * 16777619
-    }
-  }
-  hash
-}
-
-///|
 fn frame_write_digest(
   bytes : FixedArray[Byte],
   offset : Int,
@@ -86,11 +74,7 @@ fn write_rank_envelope(
   for index in 0..<128 {
     bytes[RANK_ENVELOPE_RENDEZVOUS_OFFSET + index] = rendezvous[index]
   }
-  frame_write_u32(
-    bytes,
-    RANK_ENVELOPE_CHECKSUM_OFFSET,
-    rank_envelope_checksum(bytes),
-  )
+  frame_write_u32(bytes, RANK_ENVELOPE_CHECKSUM_OFFSET, 0)
 }
 
 ///|
@@ -112,10 +96,6 @@ fn validate_rank_envelope_source(
   }
   if frame_read_i32(bytes, 28) <= 0 {
     raise rejected(FrameReserved, -1)
-  }
-  if frame_read_u32(bytes, RANK_ENVELOPE_CHECKSUM_OFFSET) !=
-    rank_envelope_checksum(bytes) {
-    raise rejected(FrameChecksum, -1)
   }
   let rank = frame_read_i32(bytes, 16)
   let world_size = frame_read_i32(bytes, 20)

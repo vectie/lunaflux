@@ -102,11 +102,50 @@ test "parent approval attestation rejects stale generation and substitution" {
     _ => fail("stale generation entered child manifest admission")
   }
   encoded[16] = encoded[16].lxor(b'\x01')
-  try decode_parent_approval_attestation_v1(encoded, length) catch {
-    InvalidBootstrapSource(Integrity)
-    | InvalidBootstrapSource(CanonicalEncoding) => ()
+  guard decode_parent_approval_attestation_v1(encoded, length)
+    is Some(substituted) else {
+    fail("substituted present record decoded as absent")
+  }
+  try
+    substituted.authenticate_manifest_claim(
+      canonical,
+      manifest_digest_sha256=@crypto.bytes_to_hex_string(
+        @crypto.sha256(canonical),
+      ),
+      key_identity_sha256="a".repeat(64),
+      signature_digest_sha256="b".repeat(64),
+      approved_source_sha256="c".repeat(64),
+    )
+  catch {
+    Mismatch(ExternalApproval) => ()
     _ => fail("substituted attestation returned the wrong refusal")
   } noraise {
-    _ => fail("substituted attestation decoded")
+    _ => fail("substituted manifest was authorized")
   }
+}
+
+///|
+test "parent approval ignores redundant transport checksum tail" {
+  let canonical = b"schema=lunaflux-parent-attestation-test.v1\n"
+  let (encoded, length) = parent_attestation_fixture(canonical)
+  for index in 220..<length {
+    assert_eq(encoded[index], b'\x00')
+  }
+  for index in 220..<length {
+    encoded[index] = b'\xff'
+  }
+  guard decode_parent_approval_attestation_v1(encoded, length) is Some(witness) else {
+    fail("present record became absent")
+  }
+  witness.require_launch_identity(
+    bootstrap_digest_sha256="d".repeat(64),
+    source_digest_sha256="e".repeat(64),
+    model_generation=7UL,
+    device_ordinal=2,
+  )
+  ignore(encode_absent_parent_approval_attestation_v1(encoded))
+  for index in 220..<length {
+    encoded[index] = b'\xff'
+  }
+  assert_true(decode_parent_approval_attestation_v1(encoded, length) is None)
 }

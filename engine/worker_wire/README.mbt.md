@@ -18,8 +18,8 @@ exchange. Its canonical 408-byte body binds protocol version, full model
 identity, lowercase SHA-256 identities of the admitted worker bootstrap and
 the independently admitted bootstrap source, the exact ordinal within the
 worker process's visible device set, model-plan generation, predecessor
-sequence, worker limits, and inference limits under the same bounded checksum
-and reserved-field rules. A
+sequence, worker limits, and inference limits under bounded structural
+and reserved-field rules, without a frame checksum scan. A
 worker is not protocol-ready until it returns the identical validated
 contract. This proves configuration agreement, not model loading or CUDA
 readiness; a production device worker must establish those facts before it
@@ -59,7 +59,8 @@ approval attestation before waiting for `Ready`. A present record can be
 projected only from an already-authenticated Luna or FP8 release authority and
 binds the exact admitted manifest, key identity, detached signature, approved
 source, bootstrap digest, bootstrap-source digest, model generation, and device
-ordinal. Its checksum is corruption detection, not a MAC. Peer authentication
+ordinal. Its legacy checksum tail is zero on encode and ignored on decode;
+there is no redundant self-SHA scan. Peer authentication
 and per-child freshness come from the newly created root-bound inherited child
 channel; the child accepts the record only on that channel, validates the
 launch identity before root acquisition, and consumes the resulting witness on
@@ -131,6 +132,11 @@ enforces its own framing and resource limits. The receiver
 still validates every count, range, identity, token, page generation,
 capability, sampling field, request uniqueness, completion slot, and canonical
 table cursor without a redundant whole-frame checksum pass.
+
+Startup Configure/Ready frames likewise write zero into their legacy FNV word
+and do not verify it. Startup contract parsing and exact handshake agreement
+remain. Full-frame checksums are not authentication; the separately bound
+bootstrap-source identity and one-time startup authorization are unchanged.
 
 Graph telemetry sidecars also write zero to their legacy checksum word and
 ignore that word on reception. Scalar shape/count consistency and fixed frame

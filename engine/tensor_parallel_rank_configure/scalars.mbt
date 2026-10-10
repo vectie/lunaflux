@@ -53,23 +53,6 @@ fn configure_read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
 }
 
 ///|
-fn configure_checksum(
-  bytes : FixedArray[Byte],
-  start : Int,
-  length : Int,
-  checksum_offset : Int,
-) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<length {
-    let absolute = start + index
-    if absolute < checksum_offset || absolute >= checksum_offset + 4 {
-      hash = (hash ^ bytes[absolute].to_uint()) * 16777619
-    }
-  }
-  hash
-}
-
-///|
 fn configure_hex_nibble(
   unit : UInt16,
 ) -> Byte raise TensorParallelRankConfigureError {

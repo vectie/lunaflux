@@ -57,9 +57,13 @@ test "streaming startup v5 binds capacity measured shapes and worker epoch" {
   } noraise {
     _ => fail("small legacy buffer accepted extension")
   }
-  bytes[488] = b'\xff'
-  try receiver.load(bytes, 1024) catch {
-    InvalidFrame(Checksum) => ()
+  // Invalid workspace size is still rejected by the streaming capability
+  // contract, independently of the removed checksum.
+  for index in 488..<496 {
+    bytes[index] = b'\xff'
+  }
+  try receiver.load(bytes, 1024).contract() catch {
+    InvalidFrame(StartupIdentity) => ()
     _ => fail("wrong corruption error")
   } noraise {
     _ => fail("unbound policy")
@@ -91,28 +95,29 @@ test "startup frame round trips exact contract and kind" {
 ///|
 test "startup frame corruption and stale epochs fail closed" {
   let owner = @worker_wire.StartupFrameBuffer::new()
+  let receiver = @worker_wire.StartupFrameBuffer::new()
   let first = owner.encode(Configure, startup_contract())
   let transport = FixedArray::make(owner.capacity(), b'\x00')
   first.copy_to(transport, destination_offset=0)
-  transport[40] = transport[40] ^ b'\x01'
-  try owner.load(transport, transport.length()) catch {
-    InvalidFrame(Checksum) => ()
+  transport[40] = b'g'
+  try receiver.load(transport, transport.length()).contract() catch {
+    InvalidFrame(StartupIdentity) => ()
     _ => fail("unexpected startup corruption error")
   } noraise {
     _ => fail("corrupt startup frame was accepted")
   }
   first.copy_to(transport, destination_offset=0)
   transport[4] = b'\x03'
-  try owner.load(transport, transport.length()) catch {
+  try receiver.load(transport, transport.length()).contract() catch {
     InvalidFrame(Version) => ()
     _ => fail("unexpected legacy startup version error")
   } noraise {
     _ => fail("legacy startup version was accepted")
   }
   first.copy_to(transport, destination_offset=0)
-  transport[344] = transport[344] ^ b'\x01'
-  try owner.load(transport, transport.length()) catch {
-    InvalidFrame(Checksum) => ()
+  transport[344] = b'g'
+  try receiver.load(transport, transport.length()).contract() catch {
+    InvalidFrame(StartupIdentity) => ()
     _ => fail("unexpected source-digest corruption error")
   } noraise {
     _ => fail("corrupt startup source digest was accepted")
@@ -124,6 +129,28 @@ test "startup frame corruption and stale epochs fail closed" {
     _ => fail("unexpected stale startup error")
   } noraise {
     _ => fail("superseded startup frame remained live")
+  }
+}
+
+///|
+test "startup frames ignore the unused checksum word" {
+  let expected = startup_contract()
+  let frame = @worker_wire.StartupFrameBuffer::new().encode(Configure, expected)
+  let bytes = FixedArray::make(frame.length(), b'\x00')
+  frame.copy_to(bytes, destination_offset=0)
+  for index in 336..<340 {
+    assert_eq(bytes[index], b'\x00')
+  }
+  for checksum in [b'\x00', b'\x01', b'\xff'] {
+    for index in 336..<340 {
+      bytes[index] = checksum
+    }
+    assert_eq(
+      @worker_wire.StartupFrameBuffer::new()
+      .load(bytes, bytes.length())
+      .contract(),
+      expected,
+    )
   }
 }
 

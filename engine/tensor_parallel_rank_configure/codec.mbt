@@ -22,33 +22,6 @@ pub fn tensor_parallel_rank_configure_capacity() -> Int {
 }
 
 ///|
-fn rank_configure_digest(
-  bytes : FixedArray[Byte],
-  length : Int,
-) -> TensorParallelRankConfigureDigest {
-  TensorParallelRankConfigureDigest(
-    @crypto.bytes_to_hex_string(
-      @crypto.sha256(
-        Bytes::makei(length, index => {
-          if (
-              index >= RANK_CONFIGURE_CHECKSUM_OFFSET &&
-              index < RANK_CONFIGURE_CHECKSUM_OFFSET + 4
-            ) ||
-            (
-              index >= RANK_CONFIGURE_DIGEST_OFFSET &&
-              index < RANK_CONFIGURE_DIGEST_OFFSET + 32
-            ) {
-            b'\x00'
-          } else {
-            bytes[index]
-          }
-        }),
-      ),
-    ),
-  )
-}
-
-///|
 fn write_rank_configure_header(
   bytes : FixedArray[Byte],
   length : Int,
@@ -73,17 +46,12 @@ fn write_rank_configure_header(
   configure_write_i32(bytes, 60, envelope.world_size())
   configure_write_i32(bytes, 64, envelope.device_ordinal())
   configure_write_i32(bytes, 68, if startup.has_predecessor() { 1 } else { 0 })
-  let digest = rank_configure_digest(bytes, length)
   configure_write_raw_digest(
     bytes,
     RANK_CONFIGURE_DIGEST_OFFSET,
-    digest.as_sha256(),
+    envelope.worker_digest().as_sha256(),
   )
-  configure_write_u32(
-    bytes,
-    RANK_CONFIGURE_CHECKSUM_OFFSET,
-    configure_checksum(bytes, 0, length, RANK_CONFIGURE_CHECKSUM_OFFSET),
-  )
+  configure_write_u32(bytes, RANK_CONFIGURE_CHECKSUM_OFFSET, 0)
 }
 
 ///|
@@ -168,14 +136,6 @@ fn validate_rank_configure_header(
     if source[index] != b'\x00' {
       raise Invalid(Reserved)
     }
-  }
-  if configure_read_u32(source, RANK_CONFIGURE_CHECKSUM_OFFSET) !=
-    configure_checksum(source, 0, length, RANK_CONFIGURE_CHECKSUM_OFFSET) {
-    raise Invalid(Checksum)
-  }
-  if configure_read_raw_digest(source, RANK_CONFIGURE_DIGEST_OFFSET) !=
-    rank_configure_digest(source, length) {
-    raise Invalid(Digest)
   }
   if configure_read_i32(source, 68) != 0 && configure_read_i32(source, 68) != 1 {
     raise Invalid(Reserved)
@@ -262,18 +222,26 @@ pub fn decode_rank_configure(
     (configure_read_i32(source, 68) == 1) != startup.has_predecessor() {
     raise Invalid(Binding)
   }
-  let canonical = compose_rank_configure(
-    expected_binding, startup, bootstrap_source, topology, envelope,
-  )
-  if canonical.length != length {
-    raise Invalid(Length)
+  // The worker contract identity was checked against the locked binding above.
+  // Reuse it as the legacy digest label instead of self-hashing this frame.
+  let digest = configure_read_raw_digest(source, RANK_CONFIGURE_DIGEST_OFFSET)
+  if digest.as_sha256() != expected_binding.worker_digest() {
+    raise Invalid(Digest)
   }
+  let storage = FixedArray::make(RANK_CONFIGURE_CAPACITY, b'\x00')
   for index in 0..<length {
-    if canonical.storage[index] != source[index] {
-      raise Invalid(Binding)
-    }
+    storage[index] = source[index]
   }
-  canonical
+  {
+    storage,
+    length,
+    digest,
+    binding: expected_binding,
+    startup,
+    source: bootstrap_source,
+    topology,
+    envelope,
+  }
 }
 
 ///|

@@ -253,7 +253,7 @@ owners, receives responses strictly in order, and pins each completion epoch
 through scheduler publication backpressure; its echo fixture proves three
 socket-framed exchanges and A/B/A reuse. The root-bound production facade
 instead grants one outstanding credit to a serialized device child. Startup
-sends an exact checksummed `Configure`, the canonical bounded bootstrap source,
+sends an exact structurally checked `Configure`, the canonical bounded bootstrap source,
 and one parent-approval attestation before accepting `Ready`. The exchange
 binds model identity, the admitted-bootstrap
 digest derived from graph/artifact evidence, the bootstrap-source digest

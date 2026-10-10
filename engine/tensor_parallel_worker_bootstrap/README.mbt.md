@@ -30,7 +30,8 @@ published.
 The version-two wire envelope is exactly 752 bytes. It carries only bounded
 scalars, lowercase SHA-256 identities, and the opaque 128-byte NCCL rendezvous
 identity. Caller-owned fixed frame buffers provide deterministic encode/load,
-checksum validation, epoch-stale rejection, and bounded copies. Decoding does
+structural validation, epoch-stale rejection, and bounded copies. The legacy
+checksum word is zero on encode and ignored on decode. Decoding does
 not grant readiness or communicator authority; `authenticate_local` must match
 the decoded envelope to current rank-local evidence before the private device
 owner can consume its authority-free collective contract.

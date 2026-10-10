@@ -484,6 +484,23 @@ steady frames compare the locked binding without repeating hexadecimal-format
 validation. Bounds, sequencing and ownership checks remain, and checksum-field
 compatibility requires coordinated parent/child upgrades.
 
+Native-framed service traffic follows the same rule: request reception,
+text-request encoding and per-token event encoding have no checksum state or
+whole-frame FNV pass. They retain bounded parsing, UTF-8, sampling and explicit
+semantic event lifetimes. The five-byte token event regression reduces charged
+CPU steps from 428 to 215; this is not an end-to-end throughput result.
+
+Startup Configure/Ready, rank-envelope and selected-topology frames also omit
+redundant FNV scans. Rank Configure no longer computes/verifies a frame-wide
+SHA-256, reconstructs an entire canonical frame or compares it byte by byte.
+Its legacy digest slot carries the already-admitted worker contract identity,
+checked against the locked binding, not a checksum of transport bytes. Decode
+snapshots once after its structural and binding checks. Parent-approval records
+do not self-hash their transport tail; one-time launch/manifest authorization
+remains separate. Source identity binding at startup, compiler/cache identities
+and algorithmic token/prefix hashing are not payload-hardening scans. All
+startup peers must upgrade together; no mixed-version compatibility is claimed.
+
 No one item is execution evidence by itself. Before launch, a prepared executor
 must prove identity, device target, catalog version, exact operation order, and
 every launch operand against the actual token, weight, activation, and

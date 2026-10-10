@@ -30,12 +30,14 @@ pub(all) suberror TensorParallelRankConfigureError {
 } derive(Debug, Eq)
 
 ///|
-/// SHA-256 identity of the exact canonical rank Configure frame.
+/// Already-admitted worker contract identity carried in the legacy digest
+/// slot. This is not a checksum of the Configure frame.
 pub struct TensorParallelRankConfigureDigest(String) derive(Debug, Eq)
 
 ///|
 /// Immutable, authority-free, bounded rank Configure contract. Every nested
-/// owner is decoded from and exactly matches `storage`.
+/// owner is decoded from and structurally matches `storage`. Legacy FNV words
+/// are ignored; the private startup channel and locked binding own admission.
 pub struct TensorParallelRankConfigureContract {
   priv storage : FixedArray[Byte]
   priv length : Int

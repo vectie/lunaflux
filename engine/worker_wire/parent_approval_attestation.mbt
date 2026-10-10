@@ -78,8 +78,6 @@ fn encode_parent_approval_attestation_v1(
   write_bootstrap_source_digest(destination, 176, source_digest_sha256)
   write_u64(destination, 208, model_generation)
   write_i32(destination, 216, device_ordinal)
-  let checksum = bootstrap_source_digest_of(destination, 220)
-  write_bootstrap_source_digest(destination, 220, checksum.as_hex())
   PARENT_APPROVAL_ATTESTATION_BYTES
 }
 
@@ -114,8 +112,6 @@ pub fn encode_absent_parent_approval_attestation_v1(
   }
   destination.fill(b'\x00')
   parent_attestation_magic(destination)
-  let checksum = bootstrap_source_digest_of(destination, 220)
-  write_bootstrap_source_digest(destination, 220, checksum.as_hex())
   PARENT_APPROVAL_ATTESTATION_BYTES
 }
 
@@ -133,9 +129,7 @@ pub fn decode_parent_approval_attestation_v1(
     source[4] != b'1' ||
     source[5] != b'\x00' ||
     source[6] != b'\x00' ||
-    source[7] != b'\n' ||
-    bootstrap_source_raw_digest(source, 220) !=
-    bootstrap_source_digest_of(source, 220) {
+    source[7] != b'\n' {
     raise InvalidBootstrapSource(CanonicalEncoding)
   }
   if source[8] == b'\x00' {

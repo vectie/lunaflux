@@ -36,15 +36,6 @@ fn selected_topology_length(
 }
 
 ///|
-fn selected_topology_checksum(
-  bytes : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> UInt {
-  configure_checksum(bytes, offset, length, offset + 12)
-}
-
-///|
 fn write_selected_topology(
   destination : FixedArray[Byte],
   offset : Int,
@@ -80,11 +71,7 @@ fn write_selected_topology(
     }
     cursor += SELECTED_TOPOLOGY_RANK_HEADER_BYTES + name.length()
   }
-  configure_write_u32(
-    destination,
-    offset + 12,
-    selected_topology_checksum(destination, offset, length),
-  )
+  configure_write_u32(destination, offset + 12, 0)
   length
 }
 
@@ -109,10 +96,6 @@ fn decode_selected_topology(
   }
   if configure_read_u64(source, offset + 24) != 0UL {
     raise Invalid(Reserved)
-  }
-  if configure_read_u32(source, offset + 12) !=
-    selected_topology_checksum(source, offset, length) {
-    raise Invalid(Checksum)
   }
   let rank_count = configure_read_i32(source, offset + 16)
   if rank_count < 2 ||

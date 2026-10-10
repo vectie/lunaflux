@@ -14,20 +14,6 @@ let startup_source_digest_offset : Int = 344
 let startup_checksum_offset : Int = 336
 
 ///|
-/// V4 preserves every v3 field offset and appends the source digest. The
-/// checksum therefore covers the appended tail while excluding only its own
-/// four bytes at the retained v3 offset.
-fn startup_checksum(bytes : FixedArray[Byte]) -> UInt {
-  let mut hash : UInt = 2166136261
-  for index in 0..<read_i32(bytes, 16) {
-    if index < startup_checksum_offset || index >= startup_checksum_offset + 4 {
-      hash = (hash ^ bytes[index].to_uint()) * 16777619
-    }
-  }
-  hash
-}
-
-///|
 fn write_digest(
   bytes : FixedArray[Byte],
   offset : Int,
@@ -206,7 +192,7 @@ fn write_startup_contract(
       )
     }
   }
-  write_u32(bytes, startup_checksum_offset, startup_checksum(bytes))
+  write_u32(bytes, startup_checksum_offset, 0)
 }
 
 ///|
@@ -249,9 +235,6 @@ fn validate_startup_source(
         raise InvalidFrame(Reserved)
       }
     }
-  }
-  if startup_checksum(bytes) != read_u32(bytes, startup_checksum_offset) {
-    raise InvalidFrame(Checksum)
   }
 }
 

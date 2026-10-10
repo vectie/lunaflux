@@ -11,6 +11,28 @@ fn configure_test_identity() -> @spec.ModelIdentity {
 }
 
 ///|
+test "rank configure and selected topology ignore unused FNV words" {
+  let contract = configure_test_contract()
+  let wire = FixedArray::make(contract.length(), b'\x00')
+  contract.copy_to(wire, destination_offset=0)
+  assert_eq(configure_read_u32(wire, RANK_CONFIGURE_CHECKSUM_OFFSET), 0U)
+  for checksum in [0U, 1U, 0xffffffffU] {
+    configure_write_u32(wire, RANK_CONFIGURE_CHECKSUM_OFFSET, checksum)
+    let decoded = decode_rank_configure(wire, wire.length(), contract.binding())
+    assert_eq(decoded.digest(), contract.digest())
+    assert_eq(decoded.startup(), contract.startup())
+  }
+  let topology = contract.topology()
+  let storage = FixedArray::make(SELECTED_TOPOLOGY_MAX_BYTES, b'\x00')
+  let length = write_selected_topology(storage, 0, topology)
+  assert_eq(configure_read_u32(storage, 12), 0U)
+  for checksum in [0U, 1U, 0xffffffffU] {
+    configure_write_u32(storage, 12, checksum)
+    assert_eq(decode_selected_topology(storage, 0, length).rank_count(), 2)
+  }
+}
+
+///|
 fn configure_test_source() -> @worker_wire.EncodedBootstrapSource raise {
   let ordinary = @worker_wire.admit_bootstrap_source(
     @worker_wire.WorkerBootstrapRoots::new(
@@ -335,6 +357,7 @@ test "canonical rank configure roundtrips and stale views revoke" {
   let contract = configure_test_contract()
   assert_true(contract.length() < tensor_parallel_rank_configure_capacity())
   assert_eq(contract.digest().as_sha256().length(), 64)
+  assert_eq(contract.digest().as_sha256(), contract.binding().worker_digest())
   assert_eq(contract.startup().predecessor_value(), 6UL)
   assert_eq(
     contract.bootstrap_source().digest(),
@@ -364,9 +387,11 @@ test "rank configure rejects corruption reserved fields and generation replay" {
   let contract = configure_test_contract()
   let wire = FixedArray::make(contract.length(), b'\x00')
   contract.copy_to(wire, destination_offset=0)
-  wire[contract.length() - 1] = wire[contract.length() - 1] ^ b'\x01'
+  // The legacy identity label must still match the locked worker binding.
+  wire[RANK_CONFIGURE_DIGEST_OFFSET] = wire[RANK_CONFIGURE_DIGEST_OFFSET] ^
+    b'\x01'
   try decode_rank_configure(wire, wire.length(), contract.binding()) catch {
-    Invalid(Checksum) => ()
+    Invalid(Digest) => ()
     _ => fail("unexpected corrupt configure rejection")
   } noraise {
     _ => fail("corrupt configure was admitted")

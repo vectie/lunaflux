@@ -43,20 +43,15 @@ test "frame rejects corruption oversized lengths and stale epochs" {
   } noraise {
     _ => fail("oversized frame was admitted")
   }
-  wire[304] = wire[304] ^ b'\x01'
+  wire[304] = b'g'
   try receiver.load(wire, 752) catch {
-    Rejected(rule=FrameChecksum, rank=-1) => ()
+    Rejected(rule=Digest, rank=-1) => ()
     _ => fail("unexpected corruption rejection")
   } noraise {
     _ => fail("corrupt frame was admitted")
   }
   first.copy_to(wire, destination_offset=0)
   wire[432] = b'g'
-  frame_write_u32(
-    wire,
-    RANK_ENVELOPE_CHECKSUM_OFFSET,
-    rank_envelope_checksum(wire),
-  )
   try receiver.load(wire, 752) catch {
     Rejected(rule=Digest, rank=-1) => ()
     _ => fail("unexpected execution-plan digest rejection")
@@ -69,6 +64,25 @@ test "frame rejects corruption oversized lengths and stale epochs" {
     _ => fail("unexpected stale-frame rejection")
   } noraise {
     _ => fail("stale frame remained live")
+  }
+}
+
+///|
+test "rank envelope ignores legacy checksum words" {
+  let group = bootstrap_test_group()
+  let frame = TensorParallelRankEnvelopeFrameBuffer::new().encode(
+    group.envelopes[0],
+  )
+  let wire = FixedArray::make(752, b'\x00')
+  frame.copy_to(wire, destination_offset=0)
+  assert_eq(frame_read_u32(wire, RANK_ENVELOPE_CHECKSUM_OFFSET), 0U)
+  for checksum in [0U, 1U, 0xffffffffU] {
+    frame_write_u32(wire, RANK_ENVELOPE_CHECKSUM_OFFSET, checksum)
+    let decoded = TensorParallelRankEnvelopeFrameBuffer::new()
+      .load(wire, 752)
+      .envelope()
+    assert_eq(decoded.worker_digest, group.envelopes[0].worker_digest)
+    assert_eq(decoded.rank, 0)
   }
 }
 
