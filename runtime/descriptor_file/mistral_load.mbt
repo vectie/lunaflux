@@ -39,9 +39,6 @@ fn load_mistral_config_snapshot(
     Err(error) => raise error
     Ok(_) => ()
   }
-  if @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != claims.config_digest {
-    raise AdmissionRejected(ModelConfig)
-  }
   let metadata = @config_reader.parse_mistral_bytes(
     bytes,
     content,

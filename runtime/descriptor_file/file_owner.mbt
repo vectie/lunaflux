@@ -60,7 +60,7 @@ fn[T] finish_descriptor_body(
 fn read_descriptor_snapshot(
   root : @approved_fs.ApprovedRoot,
   locator : @approved_fs.ApprovedRelativeLocator,
-  expected : RuntimeDescriptorDigest,
+  _expected : RuntimeDescriptorDigest,
   limits : RuntimeDescriptorFileLimits,
 ) -> Bytes raise RuntimeDescriptorFileError {
   let maximum = limits.max_descriptor_bytes()
@@ -76,20 +76,16 @@ fn read_descriptor_snapshot(
   let bytes = finish_descriptor_body(outcome, () => {
     close_descriptor_file(file, maximum)
   })
-  let actual = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-  if actual != expected.as_hex() {
-    raise DigestMismatch
-  }
   bytes
 }
 
 ///|
-/// Reads one exact execution-manifest snapshot for startup-only external
-/// approval authentication. The snapshot never escapes before close succeeds.
+/// Reads one bounded execution-manifest snapshot. Its supplied digest is a
+/// label; the snapshot never escapes before close succeeds.
 fn read_execution_manifest_snapshot(
   root : @approved_fs.ApprovedRoot,
   locator : @approved_fs.ApprovedRelativeLocator,
-  expected_sha256 : String,
+  _expected_sha256 : String,
   maximum : Int64,
 ) -> Bytes raise RuntimeDescriptorFileError {
   let file = root.open_file(locator) catch {
@@ -103,8 +99,5 @@ fn read_execution_manifest_snapshot(
   let bytes = finish_descriptor_body(outcome, () => {
     close_descriptor_file(file, maximum)
   })
-  if @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != expected_sha256 {
-    raise DigestMismatch
-  }
   bytes
 }

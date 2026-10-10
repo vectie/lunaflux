@@ -85,7 +85,7 @@ async test "tensor-parallel v2 admits exact rank-local execution plan" {
 }
 
 ///|
-async test "tensor-parallel manifest rejects digest manifest and rank substitution" {
+async test "tensor-parallel manifest labels are not checksums but semantic and rank joins still apply" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-tp-manifest-hostile")
     group.add_defer() <| () => {
@@ -103,22 +103,17 @@ async test "tensor-parallel manifest rejects digest manifest and rank substituti
     )
     write_fixture_file(directory, "execution.json", @utf8.encode(valid))
     write_fixture_file(directory, "foreign.json", @utf8.encode(foreign))
-    try
-      load_tp_fixture_rank(
-        root,
-        "execution.json",
-        ExecutionManifestDigest::from_sha256(
-          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        ),
-        fixture,
-        0,
-      )
-    catch {
-      DigestMismatch => ()
-      _ => fail("unexpected TP digest-substitution failure")
-    } noraise {
-      _ => fail("foreign TP manifest digest was admitted")
-    }
+    let labelled = load_tp_fixture_rank(
+      root,
+      "execution.json",
+      ExecutionManifestDigest::from_sha256(
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      ),
+      fixture,
+      0,
+    )
+    assert_eq(labelled.execution_plan().rank(), 0)
+    assert_eq(labelled.model_plan(), fixture.model)
     try
       load_tp_fixture_rank(
         root,

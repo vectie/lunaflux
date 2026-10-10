@@ -3,9 +3,12 @@
 This package synchronously admits one canonical paged-AOT schema-v2 execution
 manifest through a caller-owned
 `ApprovedRoot` and an independently constructed `ApprovedRelativeLocator`.
-The expected `ExecutionManifestDigest` is a separate lowercase SHA-256 value;
-an immutable same-handle snapshot is closed successfully and hashed before
-parsing or publishing any admission.
+The expected `ExecutionManifestDigest` is a supplied deployment label, not a
+checksum authenticated by this loader. An immutable same-handle snapshot is
+closed successfully before parsing or publication, without hashing its bytes.
+The same rule applies to specialization and capability file snapshots read by
+this package. Their downstream semantic contracts remain checked; this change
+does not represent those files as cryptographically verified by the loader.
 
 The v2 document contains only implementation claims: exact model identity,
 device target, catalog version 3, one profile identifier, lexically ordered

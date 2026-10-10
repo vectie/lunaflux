@@ -42,7 +42,7 @@ fn[T] raise_primary_after_close(
 fn read_manifest_snapshot(
   root : @approved_fs.ApprovedRoot,
   locator : @approved_fs.ApprovedRelativeLocator,
-  expected : ExecutionManifestDigest,
+  _expected : ExecutionManifestDigest,
   limits : ExecutionManifestFileLimits,
 ) -> Bytes raise ExecutionManifestFileError {
   let maximum = limits.max_manifest_bytes()
@@ -57,9 +57,5 @@ fn read_manifest_snapshot(
   }
   // Successful bytes are not published until deterministic close succeeds.
   close_manifest_file(file, maximum)
-  let actual = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-  if actual != expected.as_hex() {
-    raise DigestMismatch
-  }
   bytes
 }

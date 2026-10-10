@@ -36,7 +36,6 @@ import {
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/engine/fp8_runtime_recipe",
-  "moonbitlang/x/crypto",
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
 }
@@ -46,6 +45,7 @@ supported_targets = "native"
 import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
+  "moonbitlang/x/crypto",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol",
 } for "wbtest"

@@ -1,8 +1,9 @@
-///| Snapshot and strictly admit one digest-pinned instance policy.
+///| Snapshot and parse one bounded instance policy without a checksum scan.
 
 ///|
 /// The independently caller-owned policy root is identity-bound for this call,
 /// remains caller-owned, and never escapes in the returned admission.
+/// The supplied digest is retained as a label, not verified against file bytes.
 pub fn load(
   policy_root : @approved_fs.ApprovedRoot,
   policy_root_label : StringView,

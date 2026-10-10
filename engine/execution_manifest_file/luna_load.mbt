@@ -53,7 +53,7 @@ fn validate_luna_evidence_locators(
 fn read_luna_evidence_snapshot(
   root : @approved_fs.ApprovedRoot,
   locator : @approved_fs.ApprovedRelativeLocator,
-  expected_digest : String,
+  _expected_digest : String,
   maximum : Int64,
 ) -> Bytes raise ExecutionManifestFileError {
   let file = root.open_file(locator) catch {
@@ -66,9 +66,6 @@ fn read_luna_evidence_snapshot(
     }
   }
   close_manifest_file(file, maximum)
-  if @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) != expected_digest {
-    raise DigestMismatch
-  }
   bytes
 }
 

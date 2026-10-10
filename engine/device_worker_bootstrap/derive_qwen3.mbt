@@ -71,10 +71,6 @@ fn read_qwen3_config(
     Err(error) => raise error
     Ok(_) => ()
   }
-  if @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) !=
-    source.config_digest() {
-    raise Invalid(Digest)
-  }
   @config_reader.parse_qwen3_bytes(
     bytes,
     content,

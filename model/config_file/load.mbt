@@ -70,9 +70,9 @@ fn snapshot_error(
 }
 
 ///|
-/// Loads one exact digest-pinned dense-Llama configuration beneath a caller-
-/// owned approved root. The file is terminally closed before digest-verified
-/// bytes can be parsed or metadata published; the root remains caller-owned.
+/// Loads one bounded dense-Llama configuration beneath a caller-owned root.
+/// The file is terminally closed before parsing or publishing metadata.
+/// The expected digest is a caller-supplied label, not a runtime checksum.
 /// The model content digest is independent of the configuration-file digest.
 pub fn load(
   approved_root : @approved_fs.ApprovedRoot,
@@ -86,10 +86,7 @@ pub fn load(
       error => raise snapshot_error(error, limits.maximum_bytes)
     }
   })
-  let actual = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-  if actual != expected_digest.hex {
-    raise DigestMismatch
-  }
+  let _ = expected_digest
   @config_reader.parse_bytes(
     bytes,
     model_content_digest,

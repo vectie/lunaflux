@@ -1,9 +1,10 @@
-# Digest-pinned runtime descriptor admission
+# Runtime descriptor loading
 
 `runtime/descriptor_file` owns one strict startup-only JSON boundary for the
-single-device dense-Llama runtime recipe. The descriptor is authenticated by an
-independently supplied lowercase SHA-256 digest; a digest stored inside the
-same file would not be authority.
+single-device dense-Llama runtime recipe. Supplied descriptor, configuration and
+execution-manifest digests are deployment labels, not runtime-verified
+checksums. Loading performs no SHA-256 scan of these snapshots. Optional
+integrity verification belongs outside engine startup and dispatch.
 
 Model configuration and safetensors descendants resolve only beneath a
 caller-owned model root. The execution manifest and its AOT modules resolve

@@ -62,10 +62,6 @@ fn read_mistral_config(
     Err(error) => raise error
     Ok(_) => ()
   }
-  if @crypto.bytes_to_hex_string(@crypto.sha256(bytes)) !=
-    source.config_digest() {
-    raise Invalid(Digest)
-  }
   @config_reader.parse_mistral_bytes(
     bytes,
     content,

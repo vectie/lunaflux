@@ -47,7 +47,7 @@ async fn with_descriptor_roots(
 }
 
 ///|
-async test "descriptor digest mismatch fails before parsing and retains roots" {
+async test "descriptor parsing rejects malformed bytes without authenticating its label" {
   let text = "not json"
   with_descriptor_roots(text, (label, model_root, kernel_root) => {
     let wrong = @descriptor_file.RuntimeDescriptorDigest::from_sha256(
@@ -67,10 +67,10 @@ async test "descriptor digest mismatch fails before parsing and retains roots" {
         ),
       )
     catch {
-      DigestMismatch => ()
-      _ => abort("unexpected descriptor digest failure")
+      MalformedJson => ()
+      _ => abort("unexpected descriptor parse failure")
     } noraise {
-      _ => abort("mismatched descriptor digest was admitted")
+      _ => abort("malformed descriptor was admitted")
     }
     if model_root.is_closed() || kernel_root.is_closed() {
       abort("descriptor loader consumed caller roots")
@@ -174,7 +174,7 @@ async test "descriptor bounds and ambient kernel locator fail closed" {
 }
 
 ///|
-async test "valid descriptor reaches first missing pinned descendant" {
+async test "valid descriptor with an unrelated label reaches its first missing descendant" {
   let canonical = descriptor_fixture()
   with_descriptor_roots(canonical, (label, model_root, kernel_root) => {
     try
@@ -184,7 +184,7 @@ async test "valid descriptor reaches first missing pinned descendant" {
         label,
         label,
         try! @approved_fs.ApprovedRelativeLocator::new("runtime.json"),
-        descriptor_digest(canonical),
+        descriptor_digest("deployment label, not the descriptor checksum"),
         @descriptor_file.RuntimeDescriptorFileLimits::new(
           max_descriptor_bytes=16384L,
           max_json_depth=16,

@@ -2,7 +2,6 @@ import {
   "vectie/lunaflux/engine/streaming_ir",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/config/kernels",
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/contracts/inference",
@@ -53,4 +52,5 @@ supported_targets = "native"
 import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
+  "moonbitlang/x/crypto",
 } for "test"

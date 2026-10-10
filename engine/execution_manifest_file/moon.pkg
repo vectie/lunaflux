@@ -1,7 +1,6 @@
 import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_plan",

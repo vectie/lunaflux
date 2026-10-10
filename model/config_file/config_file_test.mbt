@@ -29,7 +29,7 @@ fn fixture_limits(
 }
 
 ///|
-async test "approved config snapshot authenticates before parsing and binds independent model content" {
+async test "config snapshot accepts a supplied label and binds independent model content" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-model-config-file")
     let root_path = @fs.realpath(temporary)
@@ -48,7 +48,7 @@ async test "approved config snapshot authenticates before parsing and binds inde
     let metadata = @config_file.load(
       root,
       locator,
-      fixture_digest(bytes),
+      fixture_digest(b"deployment label, not the config checksum"),
       content,
       fixture_limits(),
     )
@@ -60,7 +60,7 @@ async test "approved config snapshot authenticates before parsing and binds inde
 }
 
 ///|
-async test "digest mismatch wins before malformed configuration parsing" {
+async test "malformed configuration still fails with an unrelated digest label" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-model-config-digest")
     let root_path = @fs.realpath(temporary)
@@ -83,10 +83,10 @@ async test "digest mismatch wins before malformed configuration parsing" {
         fixture_limits(),
       )
     catch {
-      DigestMismatch => ()
-      _ => fail("unexpected pre-parse digest failure")
+      InvalidConfiguration(MalformedJson) => ()
+      _ => fail("unexpected configuration parse failure")
     } noraise {
-      _ => fail("digest-invalid malformed config was admitted")
+      _ => fail("malformed config was admitted")
     }
     try
       @config_file.load(
@@ -98,9 +98,9 @@ async test "digest mismatch wins before malformed configuration parsing" {
       )
     catch {
       InvalidConfiguration(MalformedJson) => ()
-      _ => fail("unexpected authenticated parse failure")
+      _ => fail("unexpected configuration parse failure")
     } noraise {
-      _ => fail("malformed authenticated config was admitted")
+      _ => fail("malformed config was admitted")
     }
     root.close()
   }

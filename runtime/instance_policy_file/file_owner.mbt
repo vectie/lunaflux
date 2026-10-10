@@ -38,7 +38,7 @@ fn finish_policy_file(
 fn read_policy_snapshot(
   root : @approved_fs.ApprovedRoot,
   locator : @approved_fs.ApprovedRelativeLocator,
-  expected : InstancePolicyDigest,
+  _expected : InstancePolicyDigest,
   limits : InstancePolicyFileLimits,
 ) -> Bytes raise InstancePolicyFileError {
   let maximum = limits.max_policy_bytes()
@@ -55,9 +55,5 @@ fn read_policy_snapshot(
       error => raise map_fs_error(error, Close, maximum)
     }
   })
-  let actual = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-  if actual != expected.as_hex() {
-    raise DigestMismatch
-  }
   bytes
 }

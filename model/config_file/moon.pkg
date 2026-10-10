@@ -2,7 +2,6 @@ import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/x/crypto",
 } for "test"
 
 import {
