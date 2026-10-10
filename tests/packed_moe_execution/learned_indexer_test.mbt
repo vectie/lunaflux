@@ -112,6 +112,8 @@ async test "checkpoint-backed learned indexer shares nineteen allocation-free ef
         limits~,
       ),
     )
+    device_fixture_lane.acquire()
+    defer device_fixture_lane.release()
     let baseline = live_resources()
     let context = @device.open_context(0)
     defer (context.close() catch { _ => () })

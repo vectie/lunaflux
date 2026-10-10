@@ -8,6 +8,8 @@ import {
 // Values
 pub fn window_shared_kv_source(@precision_ir.WindowSharedKvPrecision, symbol_prefix~ : String) -> WindowSharedKvCudaSource raise
 
+pub fn window_shared_kv_transfer_source(@precision_ir.WindowSharedKvPrecision, symbol_prefix~ : String) -> Bytes raise
+
 // Errors
 
 // Types and methods

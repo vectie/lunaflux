@@ -44,9 +44,26 @@ the CUDA renderer. Its hidden-width output and append descriptor join the
 containing decoder; aggregate weights/scratch are checked before upload.
 
 These remain single-rank components, **not a DeepSeek/DSpark model runner**.
-Compressed cache/compressor/indexer, mHC/decoder composition and distributed
-head ownership remain subsequent integration work. No whole-model accuracy
+mHC/decoder composition and distributed head ownership remain subsequent
+integration work. No whole-model accuracy
 or performance claim follows from the small numerical fixtures.
+
+`DeepSeekCompressedAttention` now connects the eight ordinary input effects,
+ten learned attention-compressor/cache effects, optional nineteen-effect learned
+indexer and four-effect joint window/compressed reader. Ratio-four layers use
+learned compressed row IDs; ratio-128 layers consume all causal compressed rows.
+One sink-softmax covers both sets without expanding compressed rows into raw
+positions. The caller supplies borrowed index offsets only for learned layers.
+Aggregate state/scratch ceilings are derived from the existing immutable plans;
+compact weights and all prepared owners are summed again before upload.
+
+`DeepSeekCompressedSublayer` adds inverse rotary and the two learned output
+projections: 44 effects for learned layers, 25 for all-causal layers. Cache and
+indexer append descriptors all join the containing decoder completion boundary.
+The joint-reader GPU fixtures and learned-selection fixtures pass numerical,
+memcheck, racecheck and synccheck gates. Both full-shape compressed-sublayer
+sources compile for GB10; complete checkpoint-backed sublayer GPU numerics,
+mHC/MoE block composition and whole-model generation remain required.
 # Learned compressor pooling
 
 The next learned-index execution edge uses a separate model-neutral query plan:

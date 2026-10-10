@@ -1,0 +1,72 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn extract(text : String, marker : String) -> String raise {
+  guard text.split(marker + "_SOURCE_BEGIN\n").to_array() is [_, after] else {
+    fail("missing or duplicate source begin: " + marker)
+  }
+  guard after.split(marker + "_SOURCE_END").to_array() is [source, _] else {
+    fail("missing or duplicate source end: " + marker)
+  }
+  source.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, directory] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(directory)
+  let fixture = @shell.Cmd("env", [
+    "LUNA_EXPORT_JOINT_ATTENTION=1", "moon", "test", "kernels/window_compressed_kv_cuda_source/export_test.mbt",
+    "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+  ]).output(max_output_bytes=1048576)
+  @fs.write_file(
+    directory + "/fixture.stdout",
+    fixture.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/fixture.stderr",
+    fixture.stderr(),
+    create_mode=CreateNew,
+  )
+  fixture.check()
+  @fs.write_file(
+    directory + "/joint_attention_kernels.cuh",
+    extract(fixture.stdout(), "LUNA_JOINT_ATTENTION"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/joint_attention_probe.cu",
+    @fs.read_file("tests/packed_moe_execution/joint_attention_probe.cu"),
+    create_mode=CreateNew,
+  )
+  let full = @shell.Cmd("env", [
+    "LUNA_EXPORT_COMPRESSED_SUBLAYER=1", "moon", "test", "integration/deepseek_v4_query_kv/compressed_export_test.mbt",
+    "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+  ]).output(max_output_bytes=2097152)
+  @fs.write_file(
+    directory + "/sublayer.stdout",
+    full.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    directory + "/sublayer.stderr",
+    full.stderr(),
+    create_mode=CreateNew,
+  )
+  full.check()
+  for ratio in [4, 128] {
+    @fs.write_file(
+      directory + "/compressed_sublayer_\{ratio}.cu",
+      extract(full.stdout(), "LUNA_COMPRESSED_SUBLAYER_\{ratio}"),
+      create_mode=CreateNew,
+    )
+  }
+  println(directory)
+}

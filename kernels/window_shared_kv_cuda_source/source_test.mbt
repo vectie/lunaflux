@@ -16,6 +16,7 @@ test "window attention source delays cache overwrite until every row retires" {
   assert_eq(source.launch(2), (128, 1, 128))
   assert_eq(source.symbol(3), "window_publish")
   assert_true(source.source_bytes().length() > 2000)
+  assert_true(!@utf8.decode(source.source_bytes()).contains("}#include"))
 }
 
 ///|

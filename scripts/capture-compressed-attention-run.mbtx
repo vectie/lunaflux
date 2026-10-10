@@ -1,0 +1,91 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, output] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(output)
+  for
+    (node, socket, prefix, version, remote, artifact) in [
+      (
+        "wlc003s@192.168.2.178", "/tmp/lunaflux-checkpoint-live-20261010.sock", "joint-attention",
+        "v2", "/tmp/lunaflux-joint-attention-aot-v2-20261010.ZHSNlnHT", "joint_attention_probe",
+      ),
+      (
+        "wlc004s@192.168.2.179", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        "index-selection", "v1", "/tmp/lunaflux-index-selection-probe-20261010.ACFV1xBW",
+        "compressed_selection_probe",
+      ),
+    ] {
+    for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
+      let unit = "lunaflux-" +
+        prefix +
+        "-" +
+        gate +
+        "-20261010-" +
+        version +
+        ".service"
+      for
+        (label, command) in [
+          (
+            "unit",
+            "systemctl --user show " +
+            unit +
+            " -p Id -p ActiveState -p ExecMainStatus",
+          ),
+          ("journal", "journalctl --user -u " + unit + " --no-pager"),
+        ] {
+        let result = @shell.Cmd("ssh", [
+          "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+        ]).output(max_output_bytes=1048576)
+        @fs.write_file(
+          output + "/" + prefix + "-" + gate + "-" + label + ".txt",
+          result.stdout(),
+          create_mode=CreateNew,
+        )
+        @fs.write_file(
+          output + "/" + prefix + "-" + gate + "-" + label + ".stderr",
+          result.stderr(),
+          create_mode=CreateNew,
+        )
+        result.check()
+      }
+    }
+    let names = if prefix == "joint-attention" {
+      [
+        artifact, "joint_attention_probe.cu", "joint_attention_kernels.cuh", "compressed_sublayer_4.cu",
+        "compressed_sublayer_128.cu", "compressed_sublayer_4.cubin", "compressed_sublayer_128.cubin",
+      ]
+    } else {
+      [artifact]
+    }
+    for name in names {
+      let local_path = output + "/" + name
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + remote + "/" + name,
+        local_path,
+      ])
+      .output(max_output_bytes=1048576)
+      .check()
+      let hash = @shell.Cmd("shasum", ["-a", "256", local_path]).output(
+        max_output_bytes=1048576,
+      )
+      hash.check()
+      @fs.write_file(
+        local_path + ".sha256",
+        hash.stdout(),
+        create_mode=CreateNew,
+      )
+    }
+  }
+  println(output)
+}

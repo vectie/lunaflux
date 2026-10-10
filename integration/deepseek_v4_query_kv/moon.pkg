@@ -10,6 +10,8 @@ import {
   "vectie/lunaflux/integration/rotary_kv_frame" @rotary_frame,
   "vectie/lunaflux/kernels/window_shared_kv_cuda_source" @window_source,
   "vectie/lunaflux/integration/window_shared_kv_frame" @window_frame,
+  "vectie/lunaflux/kernels/window_compressed_kv_cuda_source" @compressed_window_source,
+  "vectie/lunaflux/integration/window_compressed_kv_frame" @compressed_window_frame,
   "vectie/lunaflux/kernels/grouped_attention_output_cuda_source" @output_source,
   "vectie/lunaflux/integration/grouped_attention_output_frame" @output_frame,
   "vectie/lunaflux/kernels/learned_gated_pool_cuda_source" @pool_source,

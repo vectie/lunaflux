@@ -10,6 +10,53 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (joint window/compressed attention): immutable
+`WindowCompressedKvPrecision` distinguishes learned row selection from all-causal
+compressed rows. Its common prepared frame keeps a single sink-softmax over
+sliding-window and compressed operands, then copies/publishes the window only
+after all queries have read it. The DeepSeek adapter now composes 41 effects for
+ratio-four attention and 22 for ratio-128 attention; inverse rotary and learned
+Output-A/B extend these to complete 44/25-effect attention sublayers. State,
+scratch and compact checkpoint banks are summed before upload. All cache/indexer
+append descriptors join the parent completion; no per-component completion,
+warm allocation, filesystem operation or cryptography is added.
+
+The affected native release regression passes 72/72. The official-shaped fake
+driver test prepares both compressed variants and verifies one-byte aggregate
+budget rejection, 32 steps, zero warm allocations, no added blocking sync and
+balanced release. Actual GB10 joint-reader fixtures pass 64 steps covering causal
+unions, learned offsets, ring wrap, reset, replay, empty/inactive rows, upstream
+error and zero compressed capacity. Memcheck reports zero errors/leaks; racecheck
+reports zero hazards; synccheck reports zero errors. Learned BF16 score/causal
+top-k selection separately passes 30 GPU cases and those three sanitizer gates.
+These are numerical component fixtures, not full-checkpoint decoder numerics.
+
+Both complete Flash compressed-sublayer sources compile under CUDA 13.0.88 /
+`sm121`, with cubin SHA-256
+`a17a7397771d4f9980fa1d795d33400625806d56ec4d62a57ea18c3fb9cff8e4`
+and `6d48fd986572135d424b56a84d4ad6cf36c5b2e1ef0a2715067b62648edfdfc7`.
+Downloaded binaries/cubins match the remote hashes under
+`/tmp/lunaflux-compressed-attention-gpu-evidence-20261010-v2`.
+The initial export lacked a source separator and failed NVCC before GPU work;
+that attempt is preserved, the separator is fixed and regression-tested.
+An async fake-device fixture now takes its own exclusive test lane, fixing
+cross-test enqueue-count interference without serializing production execution.
+Complete DeepSeek mHC/MoE decoder composition, distributed ownership and
+DeepSeek/DSpark generation remain unfinished. No speed improvement is claimed.
+
+Update 2026-10-10 (real GLM template generation terminal): the corrected v2 run
+of committed source `e7facf66` finished on both Sparks at 07:54:11 CST, with exit
+status zero, two token IDs `785,1196`, and `finish=Length`. Both journals record
+96.0 GiB peak / zero swap; both GPU processes released. The 13-token controlled
+chat-template input was processed in order. Downloaded completion frames and
+journals are in `/tmp/lunaflux-glm-template-generation-20261010-v2`. Transient
+user units were collected after exit, so their later empty timestamps are not
+the terminal evidence; the retained journals contain the actual run. This proves
+real two-stage execution and orderly shutdown, not independent output accuracy,
+general text tokenization or useful serving throughput. Each token step took
+roughly 18–23 seconds in the correctness-first implementation. Independent
+reference comparison remains required.
+
 Update 2026-10-10 (checkpoint-backed learned indexer):
 `CompressedIndexSelectionPrecision` supplies immutable compressed-row capacity,
 causal visibility, top-k and aggregate scratch sizing. Its shared CUDA lowering
@@ -36,10 +83,10 @@ also compiles into a combined AOT module: source SHA-256
 `544a2f7c461649d5367d5165efb44c641c14330fe02d6c6cc322827cfcc45789`,
 cubin `fa8ebf37cbce1e1995a459024b7cb7a63578215e67e5474b1de230efef4cb267`.
 Compilation uses a separate 2 GiB/no-swap CPU-only unit; it does not submit
-GPU work or reload the live GLM run. New GPU numerical/sanitizer
-execution remains pending while GLM owns both devices. This closes full-head
-single-rank learned indexing's source integration, not distributed head reduction, compressed
-attention, the complete DeepSeek/DSpark decoder or whole-model correctness.
+GPU work or reload the live GLM run. Selection GPU numerical/sanitizer
+execution has since passed as scoped above. This closes full-head
+single-rank learned indexing's source integration, not distributed head reduction,
+the complete DeepSeek/DSpark decoder or whole-model correctness.
 
 Update 2026-10-10 (learned index queries): `LearnedIndexQueriesPrecision`
 composes packed block-128 E4M3/UE8M0 query projection from the already-normalized

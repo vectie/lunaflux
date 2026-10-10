@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/window_shared_kv_cuda_source" @window,
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot" @float,
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/core/env",
+} for "test"
+
+supported_targets = "native"

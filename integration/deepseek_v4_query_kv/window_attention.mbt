@@ -49,6 +49,19 @@ pub fn bind_window_attention_sink(
       maximum_state_bytes=1048576L,
     ),
   )
+  bind_attention_sink(checkpoint, spec, layer~)
+}
+
+///|
+/// Sink parameters are shared by window-only and compressed attention.
+pub fn bind_attention_sink(
+  checkpoint : @materialize.PackedCheckpoint,
+  spec : @spec.DeepSeekV4ModelSpec,
+  layer~ : Int,
+) -> @materialize.PackedCheckpointWeight raise {
+  guard layer >= 0 && layer < spec.layer_count() else {
+    raise @precision.PrecisionPlanError::IllegalPlacement
+  }
   checkpoint.bind_vector(
     representation=@format.Representation::new(
       format=F32,

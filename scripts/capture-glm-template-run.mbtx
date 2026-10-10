@@ -1,0 +1,65 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, output] else { fail("NEW_OUTPUT_DIRECTORY") }
+  @fs.mkdir(output)
+  for
+    (name, node, socket, unit) in [
+      (
+        "ingress", "wlc003s@192.168.2.178", "/tmp/lunaflux-checkpoint-live-20261010.sock",
+        "lunaflux-glm-template-ingress-20261010-e7facf66-v2.service",
+      ),
+      (
+        "egress", "wlc004s@192.168.2.179", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        "lunaflux-glm-template-egress-20261010-e7facf66-v2.service",
+      ),
+    ] {
+    for
+      (label, command) in [
+        (
+          "unit",
+          "systemctl --user show " +
+          unit +
+          " -p ActiveState -p SubState -p ExecMainStatus -p ExecMainStartTimestamp -p ExecMainExitTimestamp -p MemoryMax -p MemorySwapMax",
+        ),
+        ("journal", "journalctl --user -u " + unit + " --no-pager"),
+        (
+          "gpu-after", "nvidia-smi --query-compute-apps=pid,used_gpu_memory --format=csv,noheader",
+        ),
+      ] {
+      let result = @shell.Cmd("ssh", [
+        "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+      ]).output(max_output_bytes=1048576)
+      @fs.write_file(
+        output + "/" + name + "-" + label + ".txt",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        output + "/" + name + "-" + label + ".stderr",
+        result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+    }
+  }
+  let result_root = "/tmp/lunaflux-glm-current-arm-20261010.nrWP1kZm/template-result-v2"
+  let copy = @shell.Cmd("scp", [
+    "-r",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    "wlc003s@192.168.2.178:" + result_root,
+    output + "/result",
+  ]).output(max_output_bytes=1048576)
+  copy.check()
+  println(output)
+}

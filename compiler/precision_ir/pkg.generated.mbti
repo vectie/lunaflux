@@ -62,6 +62,11 @@ pub fn CompressedIndexSelectionPrecision::new(head_count~ : Int, head_width~ : I
 pub fn CompressedIndexSelectionPrecision::selected_width(Self) -> Int
 pub fn CompressedIndexSelectionPrecision::workspace_bytes(Self) -> Int64
 
+pub(all) enum CompressedRowReadSet {
+  Learned(top_k~ : Int)
+  AllCausal
+}
+
 pub(all) enum ComputeRoute {
   Native
   DecodeToBf16
@@ -538,6 +543,19 @@ pub fn WeightSchema::memory(Self) -> (Int64, Int64)
 pub fn WeightSchema::new(ArrayView[OperandPlan], alignment_bytes~ : Int64, scratch_lifetime~ : ScratchLifetime, device_memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
 pub fn WeightSchema::not_equal(Self, Self) -> Bool
 pub fn WeightSchema::to_repr(Self) -> @debug.Repr
+
+pub struct WindowCompressedKvPrecision {
+  // private fields
+}
+pub fn WindowCompressedKvPrecision::cache_capacity(Self) -> Int
+pub fn WindowCompressedKvPrecision::compression_ratio(Self) -> Int
+pub fn WindowCompressedKvPrecision::effect(Self) -> NumericEffect
+pub fn WindowCompressedKvPrecision::new(WindowSharedKvPrecision, compression_ratio~ : Int, read_set~ : CompressedRowReadSet) -> Self raise PrecisionPlanError
+pub fn WindowCompressedKvPrecision::read_set(Self) -> CompressedRowReadSet
+pub fn WindowCompressedKvPrecision::score_scale(Self) -> Double
+pub fn WindowCompressedKvPrecision::selected_width(Self) -> Int
+pub fn WindowCompressedKvPrecision::state_bytes(Self) -> Int64
+pub fn WindowCompressedKvPrecision::window(Self) -> WindowSharedKvPrecision
 
 pub struct WindowSharedKvPrecision {
   // private fields

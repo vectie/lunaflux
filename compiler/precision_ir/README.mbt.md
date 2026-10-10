@@ -58,3 +58,11 @@ append descriptor and BF16 output sizes join the aggregate state budget.
 Single-request contiguous positions and explicit device reset define history;
 CUDA block geometry and the correctness lowering's shared-score limit remain
 outside the semantic plan.
+
+WindowCompressedKvPrecision composes that same bounded ring with a separate
+retained compressed cache. Its pure read-set policy is either learned selected
+compressed row IDs or every causally completed compressed row. Compressed rows
+remain separate from window/current rows; selected IDs are never expanded into
+raw tokens. One sink-softmax normalization covers the complete read set. Cache
+publication errors prevent the window transaction from committing, and current
+frame operands remain live until the combined attention consumes them.
