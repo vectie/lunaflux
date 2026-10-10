@@ -1,0 +1,39 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/model/checkpoint_inventory" @inventory,
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/model/deepseek_v4_config" @config,
+  "vectie/lunaflux/model/deepseek_v4_spec" @spec,
+  "vectie/lunaflux/model/spec" @model_spec,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/runtime/monotonic_clock" @clock,
+  "vectie/lunaflux/engine/precision_materialize" @materialize,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/decoder_pipeline_plan" @placement,
+  "vectie/lunaflux/integration/deepseek_v4_decoder" @deepseek,
+  "vectie/lunaflux/engine/serial_decoder_frame" @frame,
+  "vectie/lunaflux/integration/deepseek_v4_text_io" @text,
+  "vectie/lunaflux/engine/serial_generation" @generation,
+  "vectie/lunaflux/engine/serial_prompt_frames" @prompt,
+  "vectie/lunaflux/integration/serial_decoder_worker" @worker,
+  "vectie/lunaflux/integration/serial_decoder_pipeline" @pipeline,
+  "vectie/lunaflux/integration/decoder_stage_control" @control,
+  "vectie/lunaflux/engine/worker_protocol" @protocol,
+  "vectie/lunaflux/engine/worker_wire" @wire,
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/device",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)

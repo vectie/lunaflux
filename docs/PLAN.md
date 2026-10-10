@@ -17,12 +17,14 @@ compression profiles pass 32-replay allocation/ownership regressions; the
 expanded affected suite passes 93/93. Their combined CUDA module compiles on
 GB10. Contiguous checkpoint slices/stages now join complete compact expert
 banks, ingress embedding and corrected F32 learned text output in one queue,
-with aggregate pre-upload budgeting and absolute request positions. Next finish
-bind stage activation leases and connect the
-two-host runner. DSpark prediction blocks remain a distinct required execution
-path, not ordinary base-model layers. Stage-owned token tables now stream from
+with aggregate pre-upload budgeting and absolute request positions. Stage-bound
+activation leases/rank bindings and `cmd/deepseek_checkpoint` now connect the
+shared plaintext two-host runner. Next execute that runner on real checkpoint
+weights and compare its outputs independently. DSpark prediction blocks remain
+a distinct required execution path, not ordinary base-model layers. Stage-owned
+token tables now stream from
 exact I64 checkpoint planes into checked I32 device buffers with bounded chunks
-and one uniqueness row per table; no whole-model host arena is required. These
+and one uniqueness row per table; no whole-model host arena is required.
 The separate-buffer compressed reader now uses explicit cache-relative IDs in
 the shared precision IR, rather than adding then subtracting a caller offset.
 Both coordinate contracts pass GPU correctness and memory/race/synchronization

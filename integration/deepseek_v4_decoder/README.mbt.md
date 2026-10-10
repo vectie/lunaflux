@@ -44,7 +44,16 @@ the reader accesses a separate compressed buffer, not a joined tensor with a
 window prefix. No caller offset tensor, host offset update or per-step validation
 is needed. Generic offset-relative plans remain available for joined views.
 
-Stage sources and negative/preparation tests are not full-checkpoint numerical
-execution. Stage-bound activation leases,
-two-host runner integration, DSpark prediction execution and complete generation
-remain required before claiming the full DeepSeek/DSpark model is runnable.
+`DeepSeekActivationEdge` binds stage residuals to the common plaintext TCP/pinned
+DMA owner. Its lease blocks closure and resubmission until DMA/network retirement;
+rank and sender observers retire the same queue only once. `bind_rank` enforces
+ingress/interior versus egress token ownership and exact prepared request ports.
+`partition` uses shared pure feasibility planning with actual compact layer costs,
+I32 hash tables, boundary text weights, four residual frames and caller reserve.
+
+`cmd/deepseek_checkpoint` now joins these stages to shared two-rank control,
+prompt frames and greedy generation. Base layers remain distinct from DSpark
+prediction layers. Native source/build and lifecycle tests are not full-checkpoint
+numerical execution. Actual two-host checkpoint generation, DSpark prediction
+execution and independent reference comparison remain required before claiming
+the complete DeepSeek/DSpark model is runnable.

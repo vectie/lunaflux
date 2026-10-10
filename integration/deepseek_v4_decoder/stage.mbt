@@ -17,6 +17,9 @@ pub struct DeepSeekDecoderStage {
   priv token_tables : @upload.CheckpointDeviceIndexTables
   priv residuals : Array[@device.Allocation]
   priv mut counts : @device.Allocation?
+  priv mut activation_leased : Bool
+  priv mut active_rows : Int
+  priv mut submission_epoch : UInt64
   priv mut state : SliceState
 }
 
@@ -84,6 +87,9 @@ pub fn DeepSeekDecoderStage::new(
     token_tables: @upload.CheckpointDeviceIndexTables::new(),
     residuals: [],
     counts: None,
+    activation_leased: false,
+    active_rows: 0,
+    submission_epoch: 0UL,
     state: Fresh,
   }
 }
@@ -320,11 +326,18 @@ pub fn DeepSeekDecoderStage::submit(
   self : Self,
   live_rows~ : Int,
 ) -> Unit raise {
-  guard self.state is Prepared else {
+  guard self.state is Prepared && !self.activation_leased else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
+  }
+  guard live_rows > 0 &&
+    live_rows <= self.maximum_rows &&
+    self.submission_epoch < 0xffffffffffffffffUL else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
   }
   self.state = Failed
   self.decoder.submit(live_rows~)
+  self.active_rows = live_rows
+  self.submission_epoch += 1UL
   self.state = Active
 }
 
@@ -341,6 +354,40 @@ pub fn DeepSeekDecoderStage::poll(self : Self) -> Bool raise {
     self.state = Active
     false
   }
+}
+
+///|
+/// Rank retirement and the activation sender may observe the same completion.
+/// Once retired, the second observer must not poll/reset the queue again.
+fn DeepSeekDecoderStage::poll_submission(self : Self) -> Bool raise {
+  if self.state is Prepared && self.active_rows > 0 {
+    true
+  } else {
+    self.poll()
+  }
+}
+
+///|
+/// Bind only rank-local execution; the shared pipeline owns token publication.
+/// Stage request ports must be exactly the ones prepared against this rank.
+pub fn DeepSeekDecoderStage::bind_rank(
+  self : Self,
+  rank : @serial.SerialDecoderRank,
+  context : @device.Context,
+) -> Unit raise {
+  guard self.state is Prepared &&
+    rank.outputs_token() == (self.range.text_boundary() is (Egress | Complete)) &&
+    self.counts is Some(counts) &&
+    counts.same_storage(rank.ports().input(Counts)) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  rank.bind_executor(
+    context,
+    submit=rows => self.submit(live_rows=rows),
+    poll=() => self.poll_submission(),
+    close=() => self.close(),
+    append_descriptors=self.append_descriptors(),
+  )
 }
 
 ///|
@@ -372,6 +419,9 @@ pub fn DeepSeekDecoderStage::bind_worker(
 pub fn DeepSeekDecoderStage::close(self : Self) -> Unit raise {
   if self.state is Closed {
     return
+  }
+  guard !self.activation_leased else {
+    raise @device.DeviceError::Busy(OrderedExecutorClose)
   }
   self.state = Failed
   self.decoder.close()

@@ -35,8 +35,8 @@ aggregate also passes 145/145. Combined ingress/egress stage
 source compiles under CUDA 13.0.88/sm121 in a 2-GiB/no-swap user unit. Sources,
 module and journals were downloaded with matching SHA-256 to
 `/tmp/lunaflux-deepseek-stages-results-20261010-v1`.
-This does not establish real checkpoint stage execution. Stage-bound activation
-leases/two-host runner and DSpark prediction execution remain integration work.
+This does not establish real checkpoint stage execution. Real two-host checkpoint
+generation and DSpark prediction execution remain integration work.
 GLM's independent numerical comparison and MiniMax whole-model integration
 also remain open; no model-wide speed or accuracy claim is made.
 
@@ -55,6 +55,26 @@ learned-indexer and compressed-sublayer sources compile on GB10. Both hosts use
 2-GiB/no-swap user-unit limits; downloaded sources/binaries/cubins have matching
 remote hashes under `/tmp/lunaflux-cache-coordinate-results-20261010-v1`.
 These component fixtures do not establish complete-checkpoint generation.
+
+Update 2026-10-10 (DeepSeek two-rank runner): stage-bound activation leases now
+prevent resubmission/storage release during the common plaintext TCP/pinned-DMA
+transfer. Rank and sender completion observers retire a submission only once.
+Rank binding checks prepared request storage and token-output ownership.
+Shared pure placement includes actual compact layer costs, checked I32 hash
+tables, boundary text weights, four residual frames and caller reserve.
+`cmd/deepseek_checkpoint` joins prepared stages, absolute-position ports, shared
+rank control, bounded pretokenized prompts and greedy generation. The native
+release executable builds and accepts the actual installed DSpark checkpoint
+configuration (43 base layers, hidden 4096, vocabulary 129280). Lifecycle tests
+cover leased closure/resubmission, invalid row counts, epoch overflow and
+duplicate completion observation. The diagnostic executes base layers only;
+DSpark prediction/MTP remains unimplemented in it. Actual complete-checkpoint
+two-host execution and reference comparison remain unverified.
+The affected runner/stage/shared control and pipeline native release suite passes
+13/13 with the existing dependency warning-migration exclusions; the runner
+builds locally. Checkpoint copies from `.175` to new directories on `.178` and
+`.179` are running under separate 2-GiB/no-swap user units. They load no GPU
+weights; first real stage execution remains pending.
 
 Update 2026-10-10 (absolute request positions): the model-neutral serial frame
 has an optional startup-selected position port. Chunked prefill publishes

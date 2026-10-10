@@ -11,6 +11,8 @@ import {
   "vectie/lunaflux/compiler/decoder_pipeline_plan" @pipeline,
   "vectie/lunaflux/integration/deepseek_v4_text_io" @text,
   "vectie/lunaflux/integration/serial_decoder_worker" @serial,
+  "vectie/lunaflux/integration/decoder_activation_link" @activation,
+  "moonbitlang/async/socket",
 }
 
 supported_targets = "native"
