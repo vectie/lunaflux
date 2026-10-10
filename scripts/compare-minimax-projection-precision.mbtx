@@ -1,0 +1,112 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn field(report : String, name : String) -> String raise {
+  for line in report.split("\n") {
+    if line.has_prefix(name + "=") {
+      return line[name.length() + 1:].to_owned()
+    }
+  }
+  fail("missing comparison field " + name)
+}
+
+///|
+test "precision summary does not confuse relative and absolute metrics" {
+  let report = "relative_l2=0.01\nmax_absolute_error=0.03125\n"
+  assert_eq(field(report, "relative_l2"), "0.01")
+  assert_eq(field(report, "max_absolute_error"), "0.03125")
+  try field(report, "absolute_error") catch {
+    _ => ()
+  } noraise {
+    _ => fail("partial field name became a comparison result")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native, oracle, output] else {
+    fail(
+      "NATIVE_OPERATOR_DIRECTORY PRECISION_ORACLE_DIRECTORY NEW_REPORT_DIRECTORY",
+    )
+  }
+  @fs.mkdir(output)
+  let summary = StringBuilder()
+  summary.write_string(
+    "projection\tcomparison\telements\texact_bf16\trmse\trelative_l2\tmax_absolute_error\n",
+  )
+  for
+    (name, width) in [
+      ("q", 8192),
+      ("k", 1024),
+      ("v", 1024),
+      ("output", 5120),
+      ("down", 5120),
+    ] {
+    for
+      (label, left, right) in [
+        (
+          "native_vs_bf16",
+          native + "/" + name + ".bf16",
+          oracle + "/" + name + "-bf16.bf16",
+        ),
+        (
+          "native_vs_bf16_full",
+          native + "/" + name + ".bf16",
+          oracle + "/" + name + "-bf16-full.bf16",
+        ),
+        (
+          "native_vs_f32",
+          native + "/" + name + ".bf16",
+          oracle + "/" + name + "-f32.bf16",
+        ),
+        (
+          "native_vs_f64",
+          native + "/" + name + ".bf16",
+          oracle + "/" + name + "-f64.bf16",
+        ),
+        (
+          "bf16_vs_f64",
+          oracle + "/" + name + "-bf16.bf16",
+          oracle + "/" + name + "-f64.bf16",
+        ),
+        (
+          "bf16_full_vs_f64",
+          oracle + "/" + name + "-bf16-full.bf16",
+          oracle + "/" + name + "-f64.bf16",
+        ),
+        (
+          "f32_vs_f64",
+          oracle + "/" + name + "-f32.bf16",
+          oracle + "/" + name + "-f64.bf16",
+        ),
+      ] {
+      let path = output + "/" + name + "-" + label + ".txt"
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        left,
+        right,
+        path,
+        "identical_input_projection_" + name + "_" + label,
+        width.to_string(),
+      ])
+      .output(max_output_bytes=65536)
+      .check()
+      let report = @fs.read_file(path).text()
+      summary <+
+        "\{name}\t\{label}\t\{field(report, "elements")}\t\{field(report, "exact_bf16")}\t\{field(report, "rmse")}\t\{field(report, "relative_l2")}\t\{field(report, "max_absolute_error")}\n"
+    }
+  }
+  @fs.write_file(
+    output + "/precision.tsv",
+    summary.to_string(),
+    create_mode=CreateNew,
+  )
+  println(summary.to_string())
+}

@@ -38,9 +38,22 @@ The native diagnostic borrows the unchanged AOT kernels/weights and captures
 sixteen named tensors after fourteen launches, with a distinct prefix-complete
 state that cannot publish a fifty-layer result. Exact host capture storage is
 planned before CUDA; normal execution remains one unobserved queue. Local
-affected tests pass 26/26. Exact-source ARM execution and operator comparison
-remain next; no new numerical-parity or throughput claim follows from source
-tests.
+affected tests pass 26/26. The `e704acf5` ARM build and physical first-layer
+capture subsequently succeed; all sixteen tensors are finite and its final
+tensor exactly matches the previously captured layer 1. Independent embedding
+and input norm match bitwise; first divergence is Q projection, not attention.
+Matched-input replay separates propagated error from each operator. Wider
+precision probes show native Q/K/V are much closer to independently computed
+F64 projection than the default library BF16 result. The completed five-projection
+probe extends this to output/down; output is closer to F64, while down differs
+at 15/15,360 values, maximum 0.03125. Disabling the reference's reduced-precision
+BF16 projection reductions across all fifty layers only lowers final RMSE from
+0.042012108 to 0.037376341 (11.0%), so it does not explain the whole chain.
+Matched-input full-reduction replay leaves attention/output/down differences
+unchanged. Next distinguish ordered-F32 rounding from implementation errors
+before altering arithmetic, then widen independent whole-model/quality tests.
+This is numerical attribution, not an acceptance tolerance, full-model parity
+or throughput gain. All numerical probes remain outside serving and startup.
 
 The common serial prompt file adapter now owns bounded `frame-counts.txt`
 parsing; DeepSeek no longer keeps a model-specific queue parser. GLM now exposes

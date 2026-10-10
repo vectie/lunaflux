@@ -102,7 +102,19 @@ matches normal execution, while the independent embedding is also bitwise
 identical. The first reference difference occurs at layer 1 (RMSE 0.000962043)
 and reaches 0.042012108 at layer 50. The capture exits successfully with zero
 unit swap and an empty terminal GPU-owner query. This establishes first-layer
-localization, not operator attribution, numerical acceptance or full-H3 parity.
+localization, not numerical acceptance or full-H3 parity. Subsequent explicit
+operator capture and matched-input replay locate first divergence at Q
+projection: embedding/input norm, matched rotary and residual additions are
+bitwise identical. Independent F64 probes show native Q/K/V are closer to F64
+than the default reference BF16 projections. The five-projection probe also
+finds output closer to F64; down differs from F64 at 15/15,360 values with
+maximum error 0.03125. A separate complete fifty-layer full-reduction reference
+only reduces final RMSE by 11.0%, to 0.037376341. Thus reduced-precision BF16
+projection arithmetic is not a complete explanation, nor proof that all
+remaining differences are bugs. Matched-input full-reduction replay leaves
+attention/output/down differences unchanged. See the detailed report for exact
+scopes and per-operator errors. Full-model numerical/quality acceptance remains
+open; no new throughput result or production arithmetic change follows.
 
 The DeepSeek fixed-length run deliberately disables EOS stopping. Its last six
 tokens follow EOS and are not part of a normal assistant answer. A separate

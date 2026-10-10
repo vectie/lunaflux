@@ -1,4 +1,26 @@
 ///|
+priv enum ProjectionArithmetic {
+  UpstreamBf16
+  FullReductionBf16
+}
+
+///|
+fn projection_operation(arithmetic : ProjectionArithmetic) -> @native.Op {
+  match arithmetic {
+    UpstreamBf16 => Linear
+    FullReductionBf16 => LinearBf16FullReduction
+  }
+}
+
+///|
+test "ordinary reference retains upstream BF16 arithmetic" {
+  assert_true(projection_operation(UpstreamBf16) is Linear)
+  assert_true(
+    projection_operation(FullReductionBf16) is LinearBf16FullReduction,
+  )
+}
+
+///|
 fn embedding(
   model : Model,
   session : @native.Session,
@@ -43,10 +65,11 @@ fn project(
   name : String,
   rows : Int,
   columns : Int,
+  arithmetic : ProjectionArithmetic,
 ) -> @native.Tensor raise {
   let w = model.weight(session, prefix + name + ".weight", rows, columns)
   defer w.close()
-  session.run(Linear, x~, y=w)
+  session.run(projection_operation(arithmetic), x~, y=w)
 }
 
 ///|
@@ -71,13 +94,15 @@ fn encode_layer(
   layer : Int,
   cosine : @native.Tensor,
   sine : @native.Tensor,
+  arithmetic : ProjectionArithmetic,
   observe? : (String, @native.Tensor) -> Unit raise,
+  replay? : OperatorReplayInputs,
 ) -> @native.Tensor raise {
   let prefix = "model.language_model.layers.\{layer}."
   let normalized = norm(
     model,
     session,
-    x,
+    replay_operand(replay, "embedding", x),
     prefix,
     "input_layernorm",
     model.hidden,
@@ -89,11 +114,12 @@ fn encode_layer(
   let q = project(
     model,
     session,
-    normalized,
+    replay_operand(replay, "norm-input", normalized),
     prefix,
     "self_attn.q_proj",
     model.heads * model.dim,
     model.hidden,
+    arithmetic,
   )
   defer q.close()
   if observe is Some(f) {
@@ -102,11 +128,12 @@ fn encode_layer(
   let k = project(
     model,
     session,
-    normalized,
+    replay_operand(replay, "norm-input", normalized),
     prefix,
     "self_attn.k_proj",
     model.kv_heads * model.dim,
     model.hidden,
+    arithmetic,
   )
   defer k.close()
   if observe is Some(f) {
@@ -115,19 +142,34 @@ fn encode_layer(
   let v = project(
     model,
     session,
-    normalized,
+    replay_operand(replay, "norm-input", normalized),
     prefix,
     "self_attn.v_proj",
     model.kv_heads * model.dim,
     model.hidden,
+    arithmetic,
   )
   defer v.close()
   if observe is Some(f) {
     f("v", v)
   }
-  let qn = norm(model, session, q, prefix, "self_attn.q_norm", model.dim)
+  let qn = norm(
+    model,
+    session,
+    replay_operand(replay, "q", q),
+    prefix,
+    "self_attn.q_norm",
+    model.dim,
+  )
   defer qn.close()
-  let kn = norm(model, session, k, prefix, "self_attn.k_norm", model.dim)
+  let kn = norm(
+    model,
+    session,
+    replay_operand(replay, "k", k),
+    prefix,
+    "self_attn.k_norm",
+    model.dim,
+  )
   defer kn.close()
   if observe is Some(f) {
     f("q-norm", qn)
@@ -135,7 +177,7 @@ fn encode_layer(
   }
   let qr = session.run(
     Rotary,
-    x=qn,
+    x=replay_operand(replay, "q-norm", qn),
     y=cosine,
     z=sine,
     a=model.heads,
@@ -144,7 +186,7 @@ fn encode_layer(
   defer qr.close()
   let kr = session.run(
     Rotary,
-    x=kn,
+    x=replay_operand(replay, "k-norm", kn),
     y=cosine,
     z=sine,
     a=model.kv_heads,
@@ -157,9 +199,9 @@ fn encode_layer(
   }
   let attention = session.run(
     Attention,
-    x=qr,
-    y=kr,
-    z=v,
+    x=replay_operand(replay, "q-rotary", qr),
+    y=replay_operand(replay, "k-rotary", kr),
+    z=replay_operand(replay, "v", v),
     a=model.heads,
     b=model.kv_heads,
     c=model.dim,
@@ -171,17 +213,22 @@ fn encode_layer(
   let output = project(
     model,
     session,
-    attention,
+    replay_operand(replay, "attention", attention),
     prefix,
     "self_attn.o_proj",
     model.hidden,
     model.heads * model.dim,
+    arithmetic,
   )
   defer output.close()
   if observe is Some(f) {
     f("output", output)
   }
-  let residual = session.run(Add, x~, y=output)
+  let residual = session.run(
+    Add,
+    x=replay_operand(replay, "embedding", x),
+    y=replay_operand(replay, "output", output),
+  )
   defer residual.close()
   if observe is Some(f) {
     f("residual-attn", residual)
@@ -189,7 +236,7 @@ fn encode_layer(
   let mlp_input = norm(
     model,
     session,
-    residual,
+    replay_operand(replay, "residual-attn", residual),
     prefix,
     "post_attention_layernorm",
     model.hidden,
@@ -201,21 +248,23 @@ fn encode_layer(
   let gate = project(
     model,
     session,
-    mlp_input,
+    replay_operand(replay, "norm-mlp", mlp_input),
     prefix,
     "mlp.gate_proj",
     model.intermediate,
     model.hidden,
+    arithmetic,
   )
   defer gate.close()
   let up = project(
     model,
     session,
-    mlp_input,
+    replay_operand(replay, "norm-mlp", mlp_input),
     prefix,
     "mlp.up_proj",
     model.intermediate,
     model.hidden,
+    arithmetic,
   )
   defer up.close()
   let activation = session.run(SiluMultiply, x=gate, y=up)
@@ -226,17 +275,22 @@ fn encode_layer(
   let down = project(
     model,
     session,
-    activation,
+    replay_operand(replay, "activation", activation),
     prefix,
     "mlp.down_proj",
     model.hidden,
     model.intermediate,
+    arithmetic,
   )
   defer down.close()
   if observe is Some(f) {
     f("down", down)
   }
-  let result = session.run(Add, x=residual, y=down)
+  let result = session.run(
+    Add,
+    x=replay_operand(replay, "residual-attn", residual),
+    y=replay_operand(replay, "down", down),
+  )
   errdefer result.close()
   if observe is Some(f) {
     f("residual-mlp", result)
@@ -252,11 +306,20 @@ fn encode(
   output : String,
   layers : Int,
   operators? : Bool = false,
+  replay_root? : String,
+  arithmetic? : ProjectionArithmetic = UpstreamBf16,
 ) -> Unit raise {
   guard ids.length() > 0 && ids.length() <= 1024 && layers > 0 && layers <= 50 else {
     fail("reference request must use 1..1024 tokens and 1..50 selected layers")
   }
   let model = Model::new(session, root)
+  guard replay_root is None || (operators && layers == 1) else {
+    fail("matched replay requires first-layer operator mode")
+  }
+  let replay = replay_root.map(path => {
+    OperatorReplayInputs::load(session, path, ids.length())
+  })
+  defer (if replay is Some(owner) { owner.close() })
   let cosine = session.run(Cosine, a=ids.length(), b=model.dim, d=model.theta)
   defer cosine.close()
   let sine = session.run(Sine, a=ids.length(), b=model.dim, d=model.theta)
@@ -274,11 +337,13 @@ fn encode(
       layer,
       cosine,
       sine,
+      arithmetic,
       observe?=if operators && layer == 0 {
         Some((name, tensor) => tensor.write(output + "/" + name + ".bf16"))
       } else {
         None
       },
+      replay?,
     )
     hidden.close()
     next.write(output + "/hidden-\{layer + 1}.bf16")
@@ -291,10 +356,20 @@ fn encode(
   }
   cosine.close()
   sine.close()
+  if replay is Some(owner) {
+    owner.close()
+  }
   guard session.retained_bytes() == 0L else {
     fail("reference tensor owner leaked")
   }
   println(
     "reference_complete hidden_state=\{layers} rows=\{ids.length()} width=\{model.hidden} retained_bytes=0",
+  )
+  println(
+    "reference_projection_arithmetic=" +
+    (match arithmetic {
+      UpstreamBf16 => "upstream_bf16"
+      FullReductionBf16 => "bf16_full_reduction_attribution_only"
+    }),
   )
 }

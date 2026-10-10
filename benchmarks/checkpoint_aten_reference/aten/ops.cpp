@@ -69,6 +69,21 @@ struct File {
   ~File() { close(fd); }
 };
 
+// Test-only single-threaded numerical attribution. Restore the library's
+// process setting on both success and failure; never alter the production ABI.
+struct Bf16FullReductionScope {
+  at::CuBLASReductionOption previous;
+  Bf16FullReductionScope() : previous(at::globalContext().allowBF16ReductionCuBLAS()) {
+    at::globalContext().setAllowBF16ReductionCuBLAS(
+      false, previous != at::CuBLASReductionOption::DisallowReducedPrecisionDisallowSplitK);
+  }
+  ~Bf16FullReductionScope() {
+    at::globalContext().setAllowBF16ReductionCuBLAS(
+      previous == at::CuBLASReductionOption::AllowReducedPrecisionWithSplitK,
+      previous != at::CuBLASReductionOption::DisallowReducedPrecisionDisallowSplitK);
+  }
+};
+
 extern "C" void *lfr_ref_load(void *p, const char *path, int64_t offset, int rows, int cols) {
   auto &ctx = *static_cast<Context *>(p);
   ctx.error.clear();
@@ -141,6 +156,24 @@ extern "C" void *lfr_ref_apply(void *p, int op, void *xp, void *yp, void *zp, in
         if (a <= 0 || b <= 0) throw std::runtime_error("invalid constant shape");
         ctx.reserve((int64_t)a * b * 2);
         out = at::full({a, b}, d, at::TensorOptions().dtype(at::kBFloat16).device(ctx.device));
+        break;
+      }
+      case 10: case 11: {
+        // Numerical attribution only, not the upstream BF16 execution route.
+        // Account for all converted operands and the temporary output before
+        // allocating them, independently of the retained-tensor budget.
+        auto &x = ctx.get(xp); auto &w = ctx.get(yp);
+        if (x.dim() != 2 || w.dim() != 2 || x.size(1) != w.size(1))
+          throw std::runtime_error("invalid precision-probe projection shape");
+        const int64_t elements = x.numel() + w.numel() + x.size(0) * w.size(0);
+        ctx.reserve(elements * (op == 10 ? 8 : 4) + x.size(0) * w.size(0) * 2);
+        const auto dtype = op == 10 ? at::kDouble : at::kFloat;
+        out = at::linear(x.to(dtype), w.to(dtype)).to(at::kBFloat16);
+        break;
+      }
+      case 12: {
+        Bf16FullReductionScope reduction;
+        out = at::linear(ctx.get(xp), ctx.get(yp));
         break;
       }
       default: throw std::runtime_error("unknown reference operator");

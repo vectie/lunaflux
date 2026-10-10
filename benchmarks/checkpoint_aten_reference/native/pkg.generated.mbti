@@ -21,6 +21,9 @@ pub(all) enum Op {
   Add
   ConcatRows
   Constant
+  LinearFloat64
+  LinearFloat32
+  LinearBf16FullReduction
 }
 
 type RawSession

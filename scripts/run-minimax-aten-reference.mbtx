@@ -43,7 +43,11 @@ async fn copy(socket : String, from : String, to : String) -> Unit {
 }
 
 ///|
-async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+async fn save_output(
+  root : String,
+  name : String,
+  result : @shell.Output,
+) -> Unit {
   @fs.write_file(
     root + "/" + name + ".stdout",
     result.stdout(),
@@ -54,6 +58,11 @@ async fn record(root : String, name : String, result : @shell.Output) -> Unit {
     result.stderr(),
     create_mode=CreateNew,
   )
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  save_output(root, name, result)
   result.check()
 }
 
@@ -66,11 +75,58 @@ fn safe(path : String) -> Bool {
 }
 
 ///|
+fn needs_native_inputs(mode : String) -> Bool {
+  mode == "replay-operators" ||
+  mode == "replay-full-reduction" ||
+  mode == "projection-oracle"
+}
+
+///|
+fn reference_arguments(mode : String) -> String raise {
+  let prefix = " " + mode + " /work/libreference.so /model "
+  match mode {
+    "self-test" => " self-test /work/libreference.so /work/self-test"
+    "projection-oracle" => prefix + "/native /work/projection-oracle"
+    "replay-operators" | "replay-full-reduction" =>
+      prefix + "32,2518,8251 /work/" + mode + " /native"
+    "encode" | "encode-full-reduction" =>
+      prefix + "32,2518,8251 /work/" + mode + " 50"
+    "encode-operators" => prefix + "32,2518,8251 /work/encode-operators 1"
+    _ => fail("not a reference execution mode")
+  }
+}
+
+///|
+test "matched replay stays distinct from a fifty-layer reference" {
+  for mode in ["replay-operators", "replay-full-reduction"] {
+    assert_true(needs_native_inputs(mode))
+    assert_true(reference_arguments(mode).has_suffix(" /native"))
+    assert_true(reference_arguments(mode).contains("/work/" + mode))
+  }
+  assert_true(reference_arguments("encode-full-reduction").has_suffix(" 50"))
+  assert_false(needs_native_inputs("encode-full-reduction"))
+  assert_true(reference_arguments("encode-operators").has_suffix(" 1"))
+  assert_true(needs_native_inputs("projection-oracle"))
+  assert_eq(
+    reference_arguments("projection-oracle"),
+    " projection-oracle /work/libreference.so /model /native /work/projection-oracle",
+  )
+  try reference_arguments("collect") catch {
+    _ => ()
+  } noraise {
+    _ => fail("collector became an execution mode")
+  }
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, mode, root] &&
+  guard @env.args() is [_, mode, root, .. extra] &&
+    (extra is [] || (needs_native_inputs(mode) && extra is [_])) &&
     root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
     safe(root) else {
-    fail("stage|self-test|asan|encode|encode-operators|collect|collect-operators NEW_OR_EXISTING_EVIDENCE_ROOT")
+    fail(
+      "stage|self-test|asan|encode|encode-operators|encode-full-reduction|replay-operators|replay-full-reduction|projection-oracle|collect|collect-full-reduction|collect-operators|collect-replay|collect-full-replay|collect-oracle EVIDENCE_ROOT [NATIVE_OPERATOR_DIRECTORY]",
+    )
   }
   let first = "wlc003s@192.168.2.178"
   let second = "wlc004s@192.168.2.179"
@@ -210,7 +266,13 @@ async fn main {
       ),
     )
     println("independent ATen ownership probe passed ASan and LSan")
-  } else if mode == "self-test" || mode == "encode" || mode == "encode-operators" {
+  } else if mode == "self-test" ||
+    mode == "encode" ||
+    mode == "encode-operators" ||
+    mode == "encode-full-reduction" ||
+    mode == "replay-operators" ||
+    mode == "replay-full-reduction" ||
+    mode == "projection-oracle" {
     let name = tag + "-" + mode
     let output = root + "/" + mode
     @fs.mkdir(output)
@@ -230,31 +292,38 @@ async fn main {
       }
     }
     let device = if mode != "self-test" { " --gpus all" } else { "" }
-    let arguments = if mode != "self-test" {
-      " " + mode + " /work/libreference.so /model 32,2518,8251 /work/" + mode + (if mode == "encode-operators" { " 1" } else { " 50" })
-    } else {
-      " self-test /work/libreference.so /work/self-test"
+    let replay = match extra {
+      [input] if safe(input) &&
+        input.has_prefix("/tmp/lunaflux-minimax-text-encoder-operators-") =>
+        input
+      [] => ""
+      _ => fail("invalid native operator directory")
     }
-    record(
-      root,
-      mode,
-      remote(
-        second,
-        socket179,
-        "systemd-run --user --wait --pipe --unit=" +
-        name +
-        " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 docker run --name " +
-        name +
-        device +
-        " --network none --user 1000:1000 --memory 8g --memory-swap 8g --pids-limit 256 --cpuset-cpus 0-3 -e OMP_NUM_THREADS=2 -e OPENBLAS_NUM_THREADS=2 -v " +
-        root +
-        ":/work -v " +
-        model +
-        ":/model:ro --entrypoint /work/driver.exe " +
-        image +
-        arguments,
-      ),
+    guard !needs_native_inputs(mode) || !replay.is_empty() else {
+      fail("matched-input diagnostic needs native operator directory")
+    }
+    let arguments = reference_arguments(mode)
+    let execution = remote(
+      second,
+      socket179,
+      "systemd-run --user --wait --pipe --unit=" +
+      name +
+      " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 docker run --name " +
+      name +
+      device +
+      " --network none --user 1000:1000 --memory 8g --memory-swap 8g --pids-limit 256 --cpuset-cpus 0-3 -e OMP_NUM_THREADS=2 -e OPENBLAS_NUM_THREADS=2 -v " +
+      root +
+      ":/work -v " +
+      model +
+      ":/model:ro" +
+      (if replay.is_empty() { "" } else { " -v " + replay + ":/native:ro" }) +
+      " --entrypoint /work/driver.exe " +
+      image +
+      arguments,
     )
+    // Preserve the actual terminal state even when the diagnostic fails.
+    // Checking the execution status first used to discard its Docker receipt.
+    save_output(root, mode, execution)
     record(
       root,
       mode + "-terminal",
@@ -264,42 +333,103 @@ async fn main {
         "docker inspect --format '{{json .State}}' " + name,
       ),
     )
+    record(
+      root,
+      mode + "-journal",
+      remote(second, socket179, "journalctl --user -u " + name + " --no-pager"),
+    )
+    if mode != "self-test" {
+      record(
+        root,
+        mode + "-released",
+        remote(
+          second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+        ),
+      )
+    }
+    execution.check()
     println("reference " + mode + " terminated; collect original outputs next")
-  } else if mode == "collect-operators" {
-    for name in ["embedding", "norm-input", "q", "k", "v", "q-norm", "k-norm", "q-rotary", "k-rotary", "attention", "output", "residual-attn", "norm-mlp", "activation", "down", "residual-mlp"] {
-      let path = root + "/encode-operators/" + name + ".bf16"
+  } else if mode == "collect-oracle" {
+    for name in ["q", "k", "v", "output", "down"] {
+      for precision in ["bf16", "bf16-full", "f32", "f64"] {
+        let path = root +
+          "/projection-oracle/" +
+          name +
+          "-" +
+          precision +
+          ".bf16"
+        @fs.write_file(path, b"", create_mode=CreateNew)
+        copy(socket179, second + ":" + path, path)
+      }
+    }
+    record(
+      root,
+      "after-oracle-owners",
+      remote(
+        second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      ),
+    )
+    println("matched-input precision probe outputs collected")
+  } else if mode == "collect-operators" ||
+    mode == "collect-replay" ||
+    mode == "collect-full-replay" {
+    let directory = if mode == "collect-replay" {
+      "replay-operators"
+    } else if mode == "collect-full-replay" {
+      "replay-full-reduction"
+    } else {
+      "encode-operators"
+    }
+    for
+      name in [
+        "embedding", "norm-input", "q", "k", "v", "q-norm", "k-norm", "q-rotary",
+        "k-rotary", "attention", "output", "residual-attn", "norm-mlp", "activation",
+        "down", "residual-mlp",
+      ] {
+      let path = root + "/" + directory + "/" + name + ".bf16"
       @fs.write_file(path, b"", create_mode=CreateNew)
       copy(socket179, second + ":" + path, path)
     }
-    record(root, "after-operator-owners", remote(second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+    record(
+      root,
+      "after-" + directory + "-owners",
+      remote(
+        second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      ),
+    )
     println("first-layer independent operator outputs collected")
-  } else if mode == "collect" {
+  } else if mode == "collect" || mode == "collect-full-reduction" {
+    let directory = if mode == "collect-full-reduction" {
+      "encode-full-reduction"
+    } else {
+      "encode"
+    }
     for layer in 0..<=50 {
       @fs.write_file(
-        root + "/encode/hidden-\{layer}.bf16",
+        root + "/" + directory + "/hidden-\{layer}.bf16",
         b"",
         create_mode=CreateNew,
       )
       copy(
         socket179,
-        second + ":" + root + "/encode/hidden-\{layer}.bf16",
-        root + "/encode/hidden-\{layer}.bf16",
+        second + ":" + root + "/" + directory + "/hidden-\{layer}.bf16",
+        root + "/" + directory + "/hidden-\{layer}.bf16",
       )
     }
     record(
       root,
-      "after-encode-owners",
+      "after-" + directory + "-owners",
       remote(
         second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
       ),
     )
     record(
       root,
-      "encode-journal",
+      directory + "-collected-journal",
       remote(
         second,
         socket179,
-        "journalctl --user -u " + tag + "-encode --no-pager",
+        "journalctl --user -u " + tag + "-" + directory + " --no-pager",
       ),
     )
     println("all independent layer outputs collected without overwrite")

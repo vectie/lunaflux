@@ -206,6 +206,130 @@ and actual cgroup samples. Earlier reference/ASan evidence is preserved in
 macOS AppleDouble build failure remains under `v1`. All outputs are retained
 without payload hashes or overwriting previous experiments.
 
+### First-layer matched-input attribution — 2026-10-11
+
+The `e704acf5` ARM native build and original-weight first-layer operator capture
+complete successfully. Sixteen BF16 tensors are finite; the captured final
+first-layer residual is bitwise identical to the previous complete-layer-1
+snapshot. This diagnostic has a separately typed prefix-complete state and
+cannot publish a fifty-layer result. Its collector now uses one pure output
+collection plan: sixteen operator files, fifty-one complete-layer files, or one
+normal hidden-state file, never a fallthrough from the first to the last mode.
+Regression tests cover file extents, mode exclusivity and the two distinct
+reference replay routes.
+
+The independent ordinary first-layer run first differs at **Q projection**,
+not embedding, input normalization or attention. A matched-input replay then
+substitutes each corresponding native operand into the independent operator;
+this separates propagated input differences from that operator's own output.
+It is an attribution trace, **not** an end-to-end hidden state. Gate/up/SiLU is
+one complete chain because the native operation has no exposed internal BF16
+gate/up outputs.
+
+| Matched operator | Exact BF16 / elements | Relative L2 | Maximum absolute error |
+| --- | ---: | ---: | ---: |
+| Embedding / input norm | 15,360 / 15,360 each | 0 | 0 |
+| Q, default BF16 | 17,743 / 24,576 | 0.170189% | 0.001953125 |
+| K, default BF16 | 2,176 / 3,072 | 0.139706% | 0.001953125 |
+| V, default BF16 | 2,048 / 3,072 | 0.196829% | 0.0009765625 |
+| Q norm / K norm | 24,573 / 24,576; 3,072 / 3,072 | 0.003238% / 0 | 0.0078125 / 0 |
+| Q rotary / K rotary | 24,576 / 24,576; 3,072 / 3,072 | 0 | 0 |
+| Attention | 22,734 / 24,576 | 0.068552% | 0.0009765625 |
+| Output | 15,299 / 15,360 | 0.048120% | 0.0078125 |
+| Attention residual / MLP norm | 15,360 / 15,360 each | 0 | 0 |
+| Gate/up/SiLU activation | 76,526 / 76,800 | 0.009788% | 0.0009765625 |
+| Down | 15,194 / 15,360 | 0.053147% | 0.015625 |
+| MLP residual | 15,360 / 15,360 | 0 | 0 |
+
+The separately labeled matched-input full-reduction replay disables the
+reference library's reduced-precision BF16 projection reductions. Q/K/V exact
+counts become 24,536/24,576, 3,070/3,072 and 3,070/3,072; relative L2 becomes
+0.007900%, 0.004882% and 0.000010926%. Every other row above is unchanged.
+Therefore this flag explains much of the first Q/K/V mismatch but does not
+explain the remaining attention/output/down operator differences.
+
+The flag is confined to the single-threaded diagnostic's scoped ATen lowering.
+Both success and failure restore the prior reduced-precision **and split-K**
+settings under all three library modes. Its CPU ownership probe passes Linux
+ASan/LSan with empty stderr; projection CPU self-tests and standalone native
+tests pass. Production owns neither this library setting nor the ATen module.
+
+Evidence: native operators
+`/tmp/lunaflux-minimax-text-encoder-operators-20261011-v1-179/operators`;
+ordinary and matched comparisons
+`/tmp/lunaflux-minimax-operator-comparison-20261011-v2` and
+`/tmp/lunaflux-minimax-operator-matched-comparison-20261011-v1`;
+full-reduction replay
+`/tmp/lunaflux-minimax-aten-reference-full-replay-20261011-v1` and
+`/tmp/lunaflux-minimax-operator-full-matched-comparison-20261011-v1`.
+Each comparison contains all sixteen per-tensor reports, not only its summary.
+
+### Five-projection wider-precision probe
+
+Original first-layer Q/K/V/output/down weights and identical native input
+operands were independently projected using default BF16, full-reduction BF16,
+F32 and F64 accumulation; every result is rounded to BF16 at the same output
+boundary. Twenty outputs and all thirty-five pair comparisons are collected.
+This is a numerical probe, not a production F64 backend or performance test.
+
+| Projection | Native vs F64 exact / elements | Native vs F64 relative L2 | Default BF16 vs F64 relative L2 | Native vs F64 maximum error |
+| --- | ---: | ---: | ---: | ---: |
+| Q | 24,564 / 24,576 | 0.003913% | 0.170175% | 0.000244140625 |
+| K | 3,070 / 3,072 | 0.004882% | 0.139793% | 0.000244140625 |
+| V | 3,070 / 3,072 | 0.011183% | 0.196510% | 0.000244140625 |
+| Output | 15,354 / 15,360 | 0.001621% | 0.048090% | 0.000244140625 |
+| Down | 15,345 / 15,360 | 0.066682% | 0.084973% | 0.03125 |
+
+The output projection is closer to F64 than the default reference, not evidence
+of an output-projection implementation defect. Down's largest difference is
+native 4.25 versus F64-rounded 4.28125 at flat index 1,496. F32 and F64 reference
+down outputs differ at just one value, maximum 2.384185791e-7. Down native source
+uses 25,600 ascending separately rounded F32 multiply/add steps before its BF16
+output; Q/K/V/output use the same ordered arithmetic at shorter reduction lengths.
+Ordered-sum error is a candidate explanation, **not yet independently replayed**
+or a reason to silently change the numerical contract. These measurements do not
+establish an acceptance tolerance or make default-library byte equality a goal.
+
+Final probe and comparisons:
+`/tmp/lunaflux-minimax-aten-reference-all-projection-20261011-v1` and
+`/tmp/lunaflux-minimax-all-projection-precision-comparison-20261011-v1`.
+The GPU container exits 0, `OOMKilled=false`, retained tensors zero; both
+post-execution/collection GPU-owner queries are empty. It is limited to 8 GiB
+with swap disabled and a 2-GiB retained/converted-tensor preallocation budget.
+Actual container memory peak was not captured for this probe; the systemd
+Docker-client wrapper's tiny peak must not be substituted. No GPU model ran
+concurrently. The earlier precision `v2` invalid-input-mount exit is preserved;
+it occurred before projection and is not a numerical/GPU failure. The corrected
+`v3` Q/K/V probe and this extended probe succeed without overwriting that run.
+
+### Full-chain reduction-policy correction
+
+The separately labeled `encode-full-reduction` reference completes all fifty
+layers and saves 51 outputs with the same original caption and unchanged
+norm/rotary/SDPA/residual semantics. Native embedding remains bitwise exact and
+the first difference remains layer 1. Final native-versus-reference RMSE changes
+from 0.042012108 to **0.037376341**, only **11.0% lower**; layer-1 RMSE changes
+from 0.000962043 to 0.000703706. This disproves an explanation that reduced-
+precision BF16 projections alone account for the complete encoder difference.
+
+Final full-reduction exact count is 4,445/15,360, maximum absolute error 0.5,
+nonfinite zero. Row-relative L2 is 0.007463%, 0.763246% and 1.016136%; global
+relative L2 0.030240% is still dominated by large channels. Full-reduction and
+default **references themselves** have final RMSE 0.039574775. Numerical policy
+changes cannot be treated as automatic improvements or substituted references.
+Neither native arithmetic nor the ordinary upstream reference was modified.
+
+Evidence: `/tmp/lunaflux-minimax-aten-reference-full-reduction-20261011-v1`,
+`/tmp/lunaflux-minimax-text-full-reduction-comparison-20261011-v1` and
+`/tmp/lunaflux-minimax-reference-reduction-difference-20261011-v1`.
+All 51 per-layer/per-row comparisons are present. Full reference and matched
+replay containers exit 0 with `OOMKilled=false`, retained tensors zero and empty
+terminal GPU owners, under the same 8-GiB/no-swap limits. Their actual memory
+peaks were not captured. These diagnostic lifetimes include loading and must
+not be called throughput results. Wider text inputs, independently replayed
+reduction/attention semantics, joint-denoiser/VAE quality and matched serving
+performance remain required for the full three-model goal.
+
 ## Joint request
 
 The actual caption hidden state is now the input for the separate .178 joint

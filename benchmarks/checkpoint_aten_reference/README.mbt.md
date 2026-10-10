@@ -46,3 +46,33 @@ Do not infer parity from a finite output. Compare against retained native
 outputs, report measured errors and distinguish reduction-order differences
 from missing semantic operations. No model-specific hardcoded tolerance is
 used to turn a mismatch into a pass.
+
+`encode-operators ... 1` saves sixteen first-layer operator outputs.
+`replay-operators LIB MODEL IDS OUTPUT NATIVE_OPERATOR_DIRECTORY` substitutes
+the corresponding native input at each independent operation; its result is an
+attribution trace, **not an end-to-end hidden state**. Norm, rotary, attention,
+residual and projection errors are separated from propagated input differences.
+The fused native gate/up/SiLU operation is compared as one complete chain.
+
+`projection-oracle LIB MODEL NATIVE_OPERATOR_DIRECTORY OUTPUT` compares
+original first-layer Q/K/V, output and down weights on identical three-row native inputs
+using library BF16, BF16 with reduced-precision reductions disabled, F32 and
+F64 projections, then rounds each output to BF16. The test-only full-reduction
+scope restores the library setting, including split-K, after success or failure;
+it does not change the ordinary upstream arithmetic reference or serving.
+Converted operands and temporary output are checked against the same explicit
+2-GiB budget before allocation. Wider precision is an independent numerical
+probe, not an upstream BF16 performance result or a proposed production backend.
+
+`encode-full-reduction ... 50` applies that test-only projection arithmetic to
+all seven linears in each of the fifty encoder layers. Norm/rotary/SDPA/residual
+semantics and original checkpoint inputs stay unchanged. All 51 layer outputs
+are collected through `collect-full-reduction`; this separately labeled run
+attributes accumulated rounding differences and does not replace the ordinary
+upstream BF16 reference or define an acceptance tolerance.
+
+`replay-full-reduction` uses the same matched native operands at every first-layer
+boundary while disabling reduced-precision projection reductions. Collect with
+`collect-full-replay`. This isolates residual operator differences without
+changing either production arithmetic or the ordinary reference. It is still
+an attribution trace, not a complete encoder output.

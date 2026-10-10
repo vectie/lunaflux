@@ -1,0 +1,99 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn field(report : String, name : String) -> String raise {
+  for line in report.split("\n") {
+    if line.has_prefix(name + "=") {
+      return line[name.length() + 1:].to_owned()
+    }
+  }
+  fail("missing comparison field " + name)
+}
+
+///|
+test "operator summary reads exact fields and rejects absent metrics" {
+  let report = "elements=16\nexact_bf16=15\nrelative_l2=0.01\n"
+  assert_eq(field(report, "elements"), "16")
+  assert_eq(field(report, "exact_bf16"), "15")
+  try field(report, "rmse") catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing metric silently became a comparison result")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native_root, reference_root, output] else {
+    fail(
+      "NATIVE_OPERATOR_DIRECTORY REFERENCE_OPERATOR_DIRECTORY NEW_REPORT_DIRECTORY",
+    )
+  }
+  @fs.mkdir(output)
+  let summary = StringBuilder()
+  summary.write_string(
+    "operator\telements\texact_bf16\trmse\trelative_l2\tmax_absolute_error\n",
+  )
+  let mut first : String? = None
+  for
+    (name, width) in [
+      ("embedding", 5120),
+      ("norm-input", 5120),
+      ("q", 8192),
+      ("k", 1024),
+      ("v", 1024),
+      ("q-norm", 8192),
+      ("k-norm", 1024),
+      ("q-rotary", 8192),
+      ("k-rotary", 1024),
+      ("attention", 8192),
+      ("output", 5120),
+      ("residual-attn", 5120),
+      ("norm-mlp", 5120),
+      ("activation", 25600),
+      ("down", 5120),
+      ("residual-mlp", 5120),
+    ] {
+    let report_path = output + "/" + name + ".txt"
+    @shell.Cmd("moon", [
+      "run",
+      "scripts/compare-minimax-encoder-reference.mbtx",
+      native_root + "/" + name + ".bf16",
+      reference_root + "/" + name + ".bf16",
+      report_path,
+      "original_caption_first_layer_" + name,
+      width.to_string(),
+    ])
+    .output(max_output_bytes=65536)
+    .check()
+    let report = @fs.read_file(report_path).text()
+    let exact = field(report, "exact_bf16")
+    let elements = field(report, "elements")
+    if first is None && exact != elements {
+      first = Some(name)
+    }
+    summary <+
+      "\{name}\t\{elements}\t\{exact}\t\{field(report, "rmse")}\t\{field(report, "relative_l2")}\t\{field(report, "max_absolute_error")}\n"
+  }
+  @fs.write_file(
+    output + "/operators.tsv",
+    summary.to_string(),
+    create_mode=CreateNew,
+  )
+  let conclusion = "first_bitwise_difference=" + first.unwrap_or("none") + "\n"
+  @fs.write_file(
+    output + "/first-difference.txt",
+    conclusion,
+    create_mode=CreateNew,
+  )
+  println(
+    conclusion +
+    "Downstream tensors have propagated inputs; compare matched-input replays before attributing their error to each operator.",
+  )
+}

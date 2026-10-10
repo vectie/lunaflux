@@ -35,6 +35,20 @@ fn self_test(session : @native.Session, output : String) -> Unit raise {
   }
   let recovered = session.run(Add, x~, y=x)
   defer recovered.close()
+  for
+    (name, op) in [
+      ("f32", @native.Op::LinearFloat32),
+      ("f64", @native.Op::LinearFloat64),
+      ("bf16-full", @native.Op::LinearBf16FullReduction),
+    ] {
+    let projected = session.run(op, x~, y=w)
+    defer projected.close()
+    let path = output + "/linear-" + name + ".bf16"
+    projected.write(path)
+    guard session.bytes(path) == b"\x00\x41\x00\x41" else {
+      fail("precision oracle projection arithmetic")
+    }
+  }
   normalized.close()
   recovered.close()
   w.close()
@@ -59,13 +73,43 @@ fn self_test(session : @native.Session, output : String) -> Unit raise {
 ///|
 fn main raise {
   match @env.args() {
+    [_, "projection-oracle", library, model, input, output] => {
+      let session = @native.Session::new(library, device=1, budget=2147483648L)
+      defer session.close()
+      projection_oracle(session, model, input, output)
+    }
+    [_, mode, library, model, text_ids, output, input_root] if mode ==
+      "replay-operators" ||
+      mode == "replay-full-reduction" => {
+      let ids : Array[Int] = []
+      for id in text_ids.split(",") {
+        ids.push(@string.parse_int(id))
+      }
+      let session = @native.Session::new(library, device=1, budget=2147483648L)
+      defer session.close()
+      encode(
+        session,
+        model,
+        ids,
+        output,
+        1,
+        operators=true,
+        replay_root=input_root,
+        arithmetic=if mode == "replay-full-reduction" {
+          FullReductionBf16
+        } else {
+          UpstreamBf16
+        },
+      )
+    }
     [_, "self-test", library, output] => {
       let session = @native.Session::new(library, device=0, budget=2097152L)
       defer session.close()
       self_test(session, output)
     }
     [_, mode, library, model, text_ids, output, depth] if mode == "encode" ||
-      mode == "encode-operators" => {
+      mode == "encode-operators" ||
+      mode == "encode-full-reduction" => {
       let ids : Array[Int] = []
       for id in text_ids.split(",") {
         ids.push(@string.parse_int(id))
@@ -83,11 +127,16 @@ fn main raise {
         output,
         layers,
         operators=mode == "encode-operators",
+        arithmetic=if mode == "encode-full-reduction" {
+          FullReductionBf16
+        } else {
+          UpstreamBf16
+        },
       )
     }
     _ =>
       fail(
-        "self-test LIB OUTPUT_DIRECTORY | encode|encode-operators LIB ORIGINAL_ENCODER_ROOT COMMA_IDS OUTPUT_DIRECTORY LAYERS",
+        "self-test LIB OUTPUT_DIRECTORY | encode|encode-operators|encode-full-reduction LIB ORIGINAL_ENCODER_ROOT COMMA_IDS OUTPUT_DIRECTORY LAYERS | replay-operators|replay-full-reduction LIB MODEL IDS OUTPUT NATIVE_INPUTS | projection-oracle LIB MODEL NATIVE_INPUTS OUTPUT",
       )
   }
 }

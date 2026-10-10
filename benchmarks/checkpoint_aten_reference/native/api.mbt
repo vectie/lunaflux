@@ -29,6 +29,9 @@ pub(all) enum Op {
   Add
   ConcatRows
   Constant
+  LinearFloat64
+  LinearFloat32
+  LinearBf16FullReduction
 }
 
 ///|
@@ -145,6 +148,9 @@ pub fn Session::run(
     Add => 7
     ConcatRows => 8
     Constant => 9
+    LinearFloat64 => 10
+    LinearFloat32 => 11
+    LinearBf16FullReduction => 12
   }
   self.owned(
     apply(

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <ATen/Context.h>
 
 extern "C" {
 void *lfr_ref_open(int, int64_t);
@@ -26,6 +27,31 @@ int main(int argc, char **argv) {
   assert(x && w && lfr_ref_live(ctx) == 24);
   void *n = lfr_ref_apply(ctx, 0, x, w, nullptr, 0, 0, 0, 1e-6);
   assert(n && lfr_ref_live(ctx) == 40);
+  const auto original_reduction = at::globalContext().allowBF16ReductionCuBLAS();
+  for (int op : {10, 11, 12}) {
+    auto *linear = lfr_ref_apply(ctx, op, x, w, nullptr, 0, 0, 0, 0);
+    assert(linear && lfr_ref_live(ctx) == 44);
+    lfr_ref_release(ctx, linear);
+    assert(at::globalContext().allowBF16ReductionCuBLAS() == original_reduction);
+  }
+  // Restore both reduced-precision and split-K flags under all prior modes.
+  for (const auto previous : {
+      at::CuBLASReductionOption::AllowReducedPrecisionWithSplitK,
+      at::CuBLASReductionOption::DisallowReducedPrecisionAllowSplitK,
+      at::CuBLASReductionOption::DisallowReducedPrecisionDisallowSplitK}) {
+    at::globalContext().setAllowBF16ReductionCuBLAS(
+      previous == at::CuBLASReductionOption::AllowReducedPrecisionWithSplitK,
+      previous != at::CuBLASReductionOption::DisallowReducedPrecisionDisallowSplitK);
+    auto *linear = lfr_ref_apply(ctx, 12, x, w, nullptr, 0, 0, 0, 0);
+    assert(linear && at::globalContext().allowBF16ReductionCuBLAS() == previous);
+    lfr_ref_release(ctx, linear);
+    assert(!lfr_ref_apply(ctx, 12, nullptr, w, nullptr, 0, 0, 0, 0));
+    assert(at::globalContext().allowBF16ReductionCuBLAS() == previous);
+    assert(lfr_ref_live(ctx) == 40);
+  }
+  at::globalContext().setAllowBF16ReductionCuBLAS(
+    original_reduction == at::CuBLASReductionOption::AllowReducedPrecisionWithSplitK,
+    original_reduction != at::CuBLASReductionOption::DisallowReducedPrecisionDisallowSplitK);
   std::string path = std::string(argv[1]) + "/normalized.bf16";
   assert(lfr_ref_write(ctx, n, path.c_str()) == 0);
   assert(lfr_ref_write(ctx, n, path.c_str()) == -1); // No silent overwrite.
