@@ -55,7 +55,7 @@ async fn run_egress(
   arguments : ArrayView[String],
 ) -> Unit {
   let context = @device.open_context(0)
-  defer context.close()
+  defer close_rank_context(context, "egress")
   let stream = context.create_stream()
   defer stream.close()
   let aot = load_module(context, arguments[0], arguments[1], startup.reserve)
@@ -279,7 +279,7 @@ async fn run_ingress(
   }
   @fs.mkdir(output_directory)
   let context = @device.open_context(0)
-  defer context.close()
+  defer close_rank_context(context, "ingress")
   let stream = context.create_stream()
   defer stream.close()
   let aot = load_module(context, arguments[0], arguments[1], startup.reserve)
@@ -435,6 +435,7 @@ async fn run_ingress(
     }
   }
   let mut verification_released = false
+  println("generation_started: speculative=\{speculative_enabled}")
   if speculative.val is Some(owner) && owner.finish_reason() is Running {
     guard backup is Some(saved) else {
       fail("missing verification state owner")

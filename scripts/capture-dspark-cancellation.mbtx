@@ -1,0 +1,233 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Deliberate cancellation of isolated diagnostic units, never production.
+// Reuse the normal launch path; preserve its expected nonzero result rather
+// than changing cancellation into a successful generation receipt.
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    },
+    if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    },
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn retain(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".exit",
+    output.exit_code().to_string(),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+fn terminal(status : String) -> Bool {
+  status.contains("SubState=failed\n") ||
+  status.contains("SubState=exited\n") ||
+  status.contains("SubState=dead\n")
+}
+
+///|
+fn require_retirement(status : String) -> Unit raise {
+  guard terminal(status) &&
+    status.contains("LoadState=loaded\n") &&
+    status.contains("ExecMainCode=1\n") &&
+    status.contains("MemorySwapPeak=0\n") &&
+    !status.contains("Result=oom-kill\n") else {
+    fail("rank did not exit in userspace without swap/OOM")
+  }
+}
+
+///|
+fn check_retirement() -> Unit raise {
+  let valid = "LoadState=loaded\nSubState=failed\nExecMainCode=1\nMemorySwapPeak=0\nResult=exit-code\n"
+  require_retirement(valid)
+  for
+    status in [
+      valid.replace_all(old="ExecMainCode=1", new="ExecMainCode=2"),
+      valid.replace_all(old="MemorySwapPeak=0", new="MemorySwapPeak=4096"),
+      valid.replace_all(old="Result=exit-code", new="Result=oom-kill"),
+      valid.replace_all(old="SubState=failed", new="SubState=running"),
+      valid.replace_all(old="LoadState=loaded", new="LoadState=not-found"),
+    ] {
+    try require_retirement(status) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid rank retirement accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "self-test"] {
+    check_retirement()
+    println(
+      "cancellation capture rejects signal death, swap, OOM, running and missing units",
+    )
+    return
+  }
+  guard @env.args() is [_, root, suffix, build, commit, target] &&
+    root.has_prefix("/tmp/lunaflux-dspark-run-") &&
+    !suffix.is_empty() &&
+    suffix.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) &&
+    target is ("ingress" | "egress") else {
+    fail("PREPARED_LOCAL_ROOT UNIQUE_SUFFIX BUILD_ROOT COMMIT ingress|egress")
+  }
+  let first_unit = "lunaflux-dspark-" + suffix + "-ingress.service"
+  let last_unit = "lunaflux-dspark-" + suffix + "-egress.service"
+  let capture = root + "/cancellation"
+  @fs.mkdir(capture)
+  @async.with_task_group(group => {
+    let run = group.spawn(() => {
+      let result = @shell.Cmd("moon", [
+        "run", "scripts/run-deepseek-dspark-two-spark.mbtx", root, suffix, "run",
+        build, commit,
+      ]).output(max_output_bytes=4194304)
+      retain(capture, "ordinary-launcher", result)
+      guard result.exit_code() != 0 else {
+        fail("cancelled run reported ordinary success")
+      }
+    })
+    // Do not interrupt weight preparation. The selected marker follows actual
+    // GPU prefill and precedes the long generation; no artificial GPU probe.
+    for attempt in 0..<1800 {
+      let journal = remote(
+        false,
+        "journalctl --user -u " + first_unit + " -n 30 --no-pager -o cat",
+      )
+      journal.check()
+      if journal.stdout().contains("generation_started: speculative=true") {
+        retain(capture, "before-signal", journal)
+        break
+      }
+      let status = remote(
+        false,
+        "systemctl --user show " +
+        first_unit +
+        " -p LoadState -p ActiveState -p SubState",
+      )
+      status.check()
+      guard !status.stdout().contains("LoadState=loaded\n") ||
+        !terminal(status.stdout()) else {
+        retain(capture, "early-terminal", status)
+        fail("ingress terminated before generation cancellation boundary")
+      }
+      guard attempt < 1799 else {
+        fail("generation boundary observation timed out; do not restart units")
+      }
+      @async.sleep(1000)
+    }
+    // Allow execution to enter draft/verification rather than only observing
+    // the final prefill completion. Only one signal, never SIGKILL escalation.
+    @async.sleep(1000)
+    let last = target == "egress"
+    let unit = if last { last_unit } else { first_unit }
+    let signal = remote(
+      last,
+      "systemctl --user kill --kill-whom=main --signal=SIGINT " + unit,
+    )
+    retain(capture, "signal-" + target, signal)
+    signal.check()
+    for
+      (host, role, name) in [
+        (false, "ingress", first_unit),
+        (true, "egress", last_unit),
+      ] {
+      let final_status = for attempt in 0..<300 {
+        let observed = remote(
+          host,
+          "systemctl --user show " +
+          name +
+          " -p LoadState -p ActiveState -p SubState -p Result -p ExecMainCode -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+        )
+        observed.check()
+        guard observed.stdout().contains("LoadState=loaded\n") else {
+          fail("lost exact diagnostic unit before terminal capture")
+        }
+        if terminal(observed.stdout()) {
+          break observed
+        }
+        guard attempt < 299 else {
+          fail(
+            "rank did not retire after cancellation; retain live unit, no restart",
+          )
+        }
+        @async.sleep(1000)
+      } nobreak {
+        fail("missing terminal observation")
+      }
+      retain(capture, role + "-terminal", final_status)
+      // CLD_EXITED=1 proves userspace exit, not death from SIGINT/SIGKILL.
+      require_retirement(final_status.stdout())
+      let journal = remote(
+        host,
+        "journalctl --user -u " + name + " --no-pager -o cat",
+      )
+      retain(capture, role + "-journal", journal)
+      journal.check()
+      guard journal
+        .stdout()
+        .contains("rank_cleanup: role=" + role + " context_closed=true") &&
+        !journal.stdout().contains("generated=") &&
+        !journal.stdout().contains("generation_millis=") else {
+        fail(
+          "missing explicit context release or published successful generation: " +
+          role,
+        )
+      }
+      let gpu = remote(
+        host, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      retain(capture, role + "-gpu", gpu)
+      gpu.check()
+      guard gpu.stdout().trim().is_empty() else {
+        fail("GPU compute owner remains: " + role)
+      }
+    }
+    run.wait()
+  })
+  @fs.write_file(
+    capture + "/result.txt",
+    "scope=real-dspark-two-rank-cancellation\nsignal_target=" +
+    target +
+    "\nsignal=SIGINT\nforced_kill=false\ncontexts_closed=true\nunit_swap_peak=0\nnormal_generation_published=false\n",
+    create_mode=CreateNew,
+  )
+  println(
+    "real DSpark " +
+    target +
+    " cancellation retired both explicit contexts without forced kill or normal output publication",
+  )
+}
