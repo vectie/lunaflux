@@ -92,12 +92,29 @@ fn authenticate_file(
       chunk_bytes
     }
     read_exactly(shard, file, scratch, 0, count, position)
-    hash.update_from_iter(scratch[:count].iter())
+    update_file_digest(hash, scratch, count)
     position += count.to_int64()
   }
   let actual = @crypto.bytes_to_hex_string(hash.finalize())
   if actual != expected.hex {
     raise DigestMismatch(shard)
+  }
+}
+
+///|
+/// Feed full startup chunks through the hasher's block-copy path rather than
+/// invoking a byte iterator for every checkpoint byte. Only the final partial
+/// chunk needs a bounded snapshot; never hash stale bytes beyond its read count.
+fn update_file_digest(
+  hash : @crypto.SHA256,
+  scratch : FixedArray[Byte],
+  count : Int,
+) -> Unit raise StreamingSafetensorsError {
+  guard count > 0 && count <= scratch.length() else { raise InvalidLimit }
+  if count == scratch.length() {
+    hash.update(scratch)
+  } else {
+    hash.update(Bytes::from_array(scratch[:count]))
   }
 }
 

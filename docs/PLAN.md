@@ -48,6 +48,11 @@ Checkpoint loading dominated elapsed time: full-shard hashing on both ranks,
 rehashing during transfer and serial rank startup. The drafts are diagnostic;
 distributed capture assembly and speculative verification/accept/reject/KV
 commit/rollback remain required.
+Streaming checkpoint authentication now feeds full scratch chunks through
+SHA-256's block-copy API instead of a per-byte iterator; only the last partial
+chunk takes a bounded snapshot. Exact digest, partial-tail, invalid-count and
+existing replay/mutation tests pass. A local native hash-feed experiment shows
+lower CPU time, but this is not yet a measured whole-model Spark startup gain.
 Do not substitute the learned base-model text head or ordinary causal blocks.
 Exact phase/read-set/head dependencies and completion requirements are recorded
 in [DEEPSEEK_DSPARK_EXECUTION.md](DEEPSEEK_DSPARK_EXECUTION.md).
