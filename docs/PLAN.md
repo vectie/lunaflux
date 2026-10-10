@@ -43,10 +43,21 @@ combined affected native matrix passes 134/134 and the final CLI/file-adapter
 matrix passes 9/9 with the existing migration warning configuration. The
 exact-source `121d0423` ARM release build succeeds; its two original-tokenizer
 literal inputs (13 and 20 tokens) pass CPU preparation and preflight. The bounded
-resident GLM queue is now running under 96-GiB/no-swap user units, after DSpark
-terminated and both GPU owner queries became empty. GLM queue physical execution
-remains open until terminal outputs and release are checked; no CUDA arithmetic
-changed. The runner's bounded-frame/terminal-classification tests pass 2/2.
+resident GLM queue subsequently completes under 96-GiB/no-swap user units,
+after DSpark terminated and both GPU owner queries became empty. Both prompts
+emit eight tokens and finish `Length`; retirement epochs are 21 and 48. The
+first output matches its previous isolated run. Both ranks explicitly close,
+units exit 0, swap peaks are zero and post-run GPU owners are empty. Request
+timers are 429,489/614,957 ms including prefill, excluding initial weight load;
+these are scalar diagnostic samples, not optimized serving or model-reference
+parity. Captures are at `/tmp/lunaflux-glm-sequence-run-20261011-v1`.
+No CUDA arithmetic changed. The runner's tests pass 2/2.
+
+GLM now also shares the original-tokenizer output decoder with DeepSeek, rather
+than returning only numerical IDs. Shared parsing preserves special tokens and
+raw bytes and rejects invalid IDs/capacity. The CPU-only `decode-tokens` mode
+does not read weight shards or initialize CUDA. The affected frontend/CLI tests
+pass 10/10 with existing migration warning settings; no payload hash is added.
 
 The `09cb4e77` DSpark binary also physically completes the 144-input/112-output
 exact 256-token request envelope in speculative mode: 29 verification blocks,

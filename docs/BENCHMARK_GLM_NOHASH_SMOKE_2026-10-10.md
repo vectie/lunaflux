@@ -1,5 +1,39 @@
 # GLM-5.3 Flash: real two-Spark no-hashing smoke
 
+## Resident original-text sequence — 2026-10-11
+
+Exact-source `121d04239d6fe7a2aacf9b7c3c53f0e94c5aa00b` now processes
+two distinct original-tokenizer literal prompts (13 and 20 tokens) through one
+resident pair of ranks. Both prompts were prepared and capacity-checked before
+CUDA; the same row-one/history-64 AOT and model weights remain resident until
+both requests retire. No TLS or payload hashing was introduced.
+
+| Request | Input / output tokens | Generation lifetime, including prefill | Retirement epoch | Output IDs |
+| --- | --- | ---: | ---: | --- |
+| Original chat diagnostic | 13 / 8 | 429,489 ms | 21 | `785,1196,1101,3208,330,64,1,1959` |
+| Literal English corpus case | 20 / 8 | 614,957 ms | 48 | `6771,594,1490,1246,419,4278,13,34542` |
+
+Both requests finish `Length` with stopping disabled. The first matches the
+previous isolated native run below; the second has no independent real-weight
+reference yet. These timers exclude initial weight loading but include scalar
+kernel execution, prefill, host/control work and transport; they are not
+optimized serving, isolated decode token/s, or matched framework benchmarks.
+Journal stdout is buffered until exit; its displayed line timestamps must not
+be used to infer individual kernel or first-token times.
+
+Both units report `Result=success`, `ExecMainStatus=0`, `SubState=exited`;
+both explicit context-close markers are present. Ingress/egress cgroup memory
+peaks are 53,924,024,320 and 51,160,498,176 bytes, respectively, with swap peaks
+zero. Post-run GPU compute-owner queries are empty. They used the same 96-GiB
+limits and planned arenas as below. No other GPU model ran concurrently.
+
+Local and remote capture root: `/tmp/lunaflux-glm-sequence-run-20261011-v1`.
+Units: `lunaflux-glm-sequence-run-20261011-v1-ingress.service` and
+`lunaflux-glm-sequence-run-20261011-v1-egress.service`.
+The shared output decoder subsequently adds a CPU-only `decode-tokens` entry
+for GLM, preserving original special tokens/raw bytes without weights or CUDA.
+Its affected frontend/CLI matrix passes 10/10; this is not model-logit parity.
+
 ## Result and scope
 
 The ARM release built from `41650b1b8173dcc2d5aeca93d69f4f1702f16f2e`

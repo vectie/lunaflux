@@ -15,7 +15,7 @@ their pending claims only for the explicitly completed diagnostic routes:
 
 | Model | Current physical result | What this does not establish |
 | --- | --- | --- |
-| GLM-5.3 Flash | Original 13-token chat diagnostic and eight greedy output tokens; two ranks exited successfully, released GPUs and used no unit swap | Independent real-weight logit parity, arbitrary-text GPU integration, optimized serving |
+| GLM-5.3 Flash | Two original-tokenizer literal requests (13 and 20 tokens), eight greedy outputs each, reuse one resident rank pair; first matches its isolated run; both ranks exit successfully, release GPUs and use no unit swap | Independent real-weight logit parity, arbitrary-input completeness, concurrent/optimized serving |
 | DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition, EOS termination and the exact 144-input/112-output 256-token envelope; process-level cancellation passes in both directions; two distinct requests reuse one resident pair of ranks in both modes with identical outputs | Independent upstream model parity, larger/model-maximum contexts, retained-weight request cancellation, concurrent/production serving or external-framework performance |
 | MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
 
@@ -32,6 +32,16 @@ Its final output token is not an additional KV input; committed history ends at
 255. This closes this exact request envelope only, not arbitrary long contexts.
 No hashes or new authentication scans were introduced. Raw captures and the
 still-open three-model requirements are recorded in [PLAN.md](PLAN.md).
+
+The bounded GLM resident queue passes on exact-source `121d0423`, retaining the
+same weights, modules and plain-TCP rank channels across two requests. Retirement
+epochs increase to 21 and 48; both outputs finish `Length`. Measured request
+lifetimes are 429,489 and 614,957 ms, including prefill but not initial loading.
+Both explicit contexts close, unit exit statuses are zero, swap peaks are zero,
+and post-run GPU owner queries are empty. This is the scalar correctness route,
+not optimized batching or independent model numerical parity. GLM's new offline
+output decoder reuses the same original-tokenizer adapter as DeepSeek; its
+affected native frontend/CLI matrix passes 10/10 without payload hashing.
 
 Actual DSpark ingress/egress SIGINT cases now both complete explicit teardown
 after real GPU prefill. Each peer observes disconnect; all four contexts close
