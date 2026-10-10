@@ -26,7 +26,9 @@ fn streaming_limits(
     maximum_name_bytes=limits.maximum_name_bytes,
     maximum_dtype_specs=2,
     authentication_chunk_bytes=1048576,
-    maximum_copy_requests=limits.maximum_tensors,
+    // Model source layouts can split one canonical projection into 32 head
+    // slices. This bounds descriptor count, not payload or resident memory.
+    maximum_copy_requests=limits.maximum_tensors * 32,
     maximum_copy_bytes=limits.maximum_total_host_bytes,
   ) catch {
     _ => raise StreamingFailure

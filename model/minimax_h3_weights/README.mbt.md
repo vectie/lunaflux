@@ -21,3 +21,17 @@ binds its exact single-file header; both accept only their official F32 names,
 shapes, dtypes, and payload sizes. No binding reads raw payload bytes, executes
 remote code, or allocates a device tensor. Encode/decode execution remains a
 separate typed fail-closed boundary.
+
+## Original VideoVAE source layout
+
+The original `AutoencoderKLLegacy` single-file checkpoint has 560 F32 tensors;
+the converted layout has 703. Both complete vocabularies are explicit and
+cannot be mixed. `MiniMaxH3OriginalVideoVaeSchema` describes original names
+and exact shapes without changing the execution graph or kernel ABI.
+
+`original_video_vae_copies` translates canonical decoder packing once at
+startup. Original QKV rows are **head-interleaved**, as upstream reshapes its
+projection to `[batch,sequence,heads,3*head_dimension]` before chunking Q/K/V.
+The adapter emits bounded per-head slices, not three whole-matrix slices.
+Mask-token bytes remain authenticated but are unused by inference. Encoder
+aliases use the same source mapping for reference-media execution.

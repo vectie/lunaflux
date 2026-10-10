@@ -18,9 +18,11 @@ pub fn join_complete_component(
   component : MiniMaxH3WeightComponent,
   shards : ArrayView[MiniMaxH3PartialShardBinding],
 ) -> MiniMaxH3CompleteComponentBinding raise MiniMaxH3WeightsError {
-  let expected = complete_vocabulary(component)
   if shards.is_empty() {
-    raise IncompleteComponent(expected=expected.length(), actual=0)
+    raise IncompleteComponent(
+      expected=component.required_tensor_count(),
+      actual=0,
+    )
   }
   let identity = shards[0].identity
   let schema_version = shards[0].schema_version
@@ -35,6 +37,18 @@ pub fn join_complete_component(
     for tensor in shard.tensors {
       all.push(tensor)
     }
+  }
+  // Original and converted names may share normalization tensors, but their
+  // complete vocabularies must never be mixed or silently treated as aliases.
+  let original_video = component == VideoVae &&
+    all.any(t => {
+      original_video_shape(t.tensor.name()) is Some(_) &&
+      video_vae_shape(t.tensor.name()) is None
+    })
+  let expected = if original_video {
+    expected_original_video_names()
+  } else {
+    complete_vocabulary(component)
   }
   if all.length() != expected.length() {
     raise IncompleteComponent(expected=expected.length(), actual=all.length())

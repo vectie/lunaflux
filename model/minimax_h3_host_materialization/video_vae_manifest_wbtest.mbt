@@ -12,16 +12,34 @@ fn video_vae_model_metadata() -> @minimax_h3_spec.MiniMaxH3ModelMetadata {
 }
 
 ///|
-fn video_vae_manifest_fixture() -> MiniMaxH3HostComponentManifest {
+fn video_vae_manifest_fixture(
+  original? : Bool = false,
+) -> MiniMaxH3HostComponentManifest {
   let schema = @minimax_h3_weights.MiniMaxH3VideoVaeSchema::official_v1()
+  let source = @minimax_h3_weights.MiniMaxH3OriginalVideoVaeSchema::official_v1()
+  let count = if original {
+    source.tensor_count()
+  } else {
+    schema.tensor_count()
+  }
   let raw : Array[@safetensors.RawTensorMetadata] = []
   let index : Array[MiniMaxH3TensorIndexInput] = []
   let mut offset = 0L
-  for tensor_index in 0..<schema.tensor_count() {
-    guard schema.tensor_name(tensor_index) is Some(name) else {
+  for tensor_index in 0..<count {
+    guard (if original {
+        source.tensor_name(tensor_index)
+      } else {
+        schema.tensor_name(tensor_index)
+      })
+      is Some(name) else {
       abort("missing video-VAE name")
     }
-    guard schema.tensor_shape(tensor_index) is Some(shape) else {
+    guard (if original {
+        source.tensor_shape(tensor_index)
+      } else {
+        schema.tensor_shape(tensor_index)
+      })
+      is Some(shape) else {
       abort("missing video-VAE shape")
     }
     let mut elements = 1L
@@ -41,7 +59,7 @@ fn video_vae_manifest_fixture() -> MiniMaxH3HostComponentManifest {
     index.push(MiniMaxH3TensorIndexInput::new(tensor_name=name, shard_index=0))
     offset = next
   }
-  if offset != schema.tensor_bytes() {
+  if offset != (if original { 10415484128L } else { schema.tensor_bytes() }) {
     abort("video-VAE fixture byte mismatch")
   }
   let tensors = try! @safetensors.validate_metadata(
@@ -90,6 +108,18 @@ fn video_vae_manifest_fixture() -> MiniMaxH3HostComponentManifest {
       maximum_name_bytes=128,
     ),
   )
+}
+
+///|
+test "original VideoVAE manifest covers fused QKV and mask buffer without dropping bytes" {
+  let original = video_vae_manifest_fixture(original=true)
+  let converted = video_vae_manifest_fixture()
+  assert_eq(original.tensor_count(), 560)
+  assert_eq(
+    original.total_tensor_bytes(),
+    converted.total_tensor_bytes() + 8192L,
+  )
+  assert_true(original.digest() != converted.digest())
 }
 
 ///|

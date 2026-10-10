@@ -50,7 +50,10 @@ fn expected_video_vae_names() -> Array[String] {
 
 ///|
 fn video_vae_role(name : String) -> MiniMaxH3TensorRole? {
-  guard video_vae_shape(name) is Some(_) else { return None }
+  guard video_vae_shape(name) is Some(_) ||
+    original_video_shape(name) is Some(_) else {
+    return None
+  }
   if name.has_prefix("decoder.") {
     Some(VideoDecoder)
   } else if name.has_prefix("encoder.") {

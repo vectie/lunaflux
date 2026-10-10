@@ -67,10 +67,17 @@ fn resolve_weight_arguments(
   for i, tensor in manifest.tensors {
     tensors[tensor.name()] = i
   }
+  let original_video = component == VideoVae &&
+    tensors.contains("decoder.mask_token")
   let resolved : Map[String, @device.KernelArgument] = Map([])
   for value in graph.values {
     if value.origin is Weight(name) {
-      guard tensors.get(name) is Some(ordinal) &&
+      let source_name = if original_video {
+        @model_weights.original_video_vae_source_name(name).unwrap_or(name)
+      } else {
+        name
+      }
+      guard tensors.get(source_name) is Some(ordinal) &&
         layout.region(ordinal) is Some(r) &&
         r.tensor_ordinal() == ordinal &&
         r.byte_count() == value.elements * 4L else {

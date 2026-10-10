@@ -15,17 +15,39 @@ fn resolve_video_frontend_regions(
   tensors : ArrayView[MiniMaxH3HostTensor],
   packing : @minimax_h3_weights.VideoFrontendWeightPacking,
 ) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError {
+  resolve_video_source_regions(tensors, packing.copies[:])
+}
+
+///|
+fn resolve_video_source_regions(
+  tensors : ArrayView[MiniMaxH3HostTensor],
+  copies : ArrayView[@minimax_h3_weights.BlockWeightCopy],
+) -> ReadOnlyArray[ResolvedBlockWeightCopy] raise BlockWeightResolutionError {
+  let original = tensors.any(t => t.name == "decoder.mask_token")
+  let sources : Array[@minimax_h3_weights.BlockWeightCopy] = []
+  for copy in copies {
+    if original {
+      sources.append(
+        @minimax_h3_weights.original_video_vae_copies(copy) catch {
+          _ => raise InvalidSlice(copy.tensor_name)
+        },
+      )
+    } else {
+      sources.push(copy)
+    }
+  }
   ReadOnlyArray::from_array(
-    packing.copies[:].map(copy => {
+    sources.map(copy => {
       let resolved = resolve_block_slice(
         tensors,
         copy.tensor_name,
-        0L,
+        copy.source_offset,
         copy.byte_count,
         copy.destination_offset,
       )
       for tensor in tensors {
-        if tensor.name == copy.tensor_name &&
+        if !original &&
+          tensor.name == copy.tensor_name &&
           tensor.byte_length != copy.byte_count {
           raise InvalidSlice(copy.tensor_name)
         }

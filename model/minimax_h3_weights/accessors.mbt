@@ -111,8 +111,9 @@ pub fn MiniMaxH3WeightComponent::conditioning_uses(
 }
 
 ///|
-/// Exact number of source tensors required by the complete schema-v1
-/// vocabulary.
+/// Converted schema-v1 source tensor count, also an upper bound for the
+/// original VideoVAE layout. Its exact 560-name vocabulary is owned by
+/// MiniMaxH3OriginalVideoVaeSchema; complete bindings expose their actual count.
 pub fn MiniMaxH3WeightComponent::required_tensor_count(self : Self) -> Int {
   complete_vocabulary(self).length()
 }

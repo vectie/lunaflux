@@ -154,7 +154,11 @@ pub fn bind(
       VideoVae =>
         match video_vae_shape(tensor.name()) {
           Some(expected) => video_vae_shape_is(tensor.shape(), expected)
-          None => false
+          None =>
+            match original_video_shape(tensor.name()) {
+              Some(expected) => video_vae_shape_is(tensor.shape(), expected)
+              None => false
+            }
         }
       AudioVae =>
         match audio_vae_shape(tensor.name()) {

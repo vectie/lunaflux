@@ -47,7 +47,21 @@ pub fn MiniMaxH3StreamingComponent::transfers(
   copies : ArrayView[@minimax_h3_weights.BlockWeightCopy],
   destination_ordinal~ : Int,
 ) -> Array[@streaming_safetensors.StreamingSafetensorsTransfer] raise MiniMaxH3HostMaterializationError {
-  copies.map(copy => {
+  let original_video = self.manifest.component == VideoVae &&
+    self.manifest.tensors.any(t => t.tensor.name() == "decoder.mask_token")
+  let source_copies : Array[@minimax_h3_weights.BlockWeightCopy] = []
+  for copy in copies {
+    if original_video {
+      source_copies.append(
+        @minimax_h3_weights.original_video_vae_copies(copy) catch {
+          _ => raise StreamingTensorMismatch(-1)
+        },
+      )
+    } else {
+      source_copies.push(copy)
+    }
+  }
+  source_copies.map(copy => {
     let mut index = -1
     for i, tensor in self.manifest.tensors {
       if tensor.tensor.name() == copy.tensor_name {

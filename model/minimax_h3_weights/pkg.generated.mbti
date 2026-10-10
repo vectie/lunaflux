@@ -22,6 +22,10 @@ pub fn input_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, max_bytes~
 
 pub fn join_complete_component(MiniMaxH3WeightComponent, ArrayView[MiniMaxH3PartialShardBinding]) -> MiniMaxH3CompleteComponentBinding raise MiniMaxH3WeightsError
 
+pub fn original_video_vae_copies(BlockWeightCopy) -> Array[BlockWeightCopy] raise BlockPackingError
+
+pub fn original_video_vae_source_name(String) -> String?
+
 pub fn output_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, max_bytes~ : Int64) -> OutputWeightPacking raise BlockPackingError
 
 pub fn refiner_weight_packing(@joint_diffusion_plan.JointDiffusionPlan, layer~ : Int, max_bytes~ : Int64) -> RefinerWeightPacking raise BlockPackingError
@@ -142,6 +146,15 @@ pub(all) enum MiniMaxH3ConditioningUse {
   Ref2vaVideoConditioning
   Ref2vaAudioConditioning
 } derive(Eq, @debug.Debug)
+
+pub struct MiniMaxH3OriginalVideoVaeSchema {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MiniMaxH3OriginalVideoVaeSchema::matches_tensor(Self, String, @safetensors.TensorDType, ReadOnlyArray[Int64]) -> Bool
+pub fn MiniMaxH3OriginalVideoVaeSchema::official_v1() -> Self
+pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_count(Self) -> Int
+pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_name(Self, Int) -> String?
+pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_shape(Self, Int) -> ReadOnlyArray[Int64]?
 
 pub struct MiniMaxH3PartialShardBinding {
   // private fields

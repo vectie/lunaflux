@@ -77,6 +77,14 @@ module. Its first GB10 compile exposed missing newlines between generated CUDA
 fragments; the shared offline translation-unit composer now preserves fragment
 boundaries, with nested-composition/directive regressions. The corrected bounded
 32x32, 124-frame module compiles on GB10 and its downloaded cubin hash matches.
+Actual original-checkpoint inspection exposed a distinct 560-tensor source
+layout, not the converted 703-tensor layout. The model-owned source adapter now
+retains and validates the whole original vocabulary (including the inactive
+mask buffer), maps encoder/MLP names, and reads fused QKV in the upstream
+`[head,Q/K/V,channel]` order. Thirty-two head slices per projection preserve the
+existing semantic destination layout; whole-matrix Q/K/V slicing is incorrect.
+Native schema, missing/mixed-layout, source-offset and manifest regressions
+pass. Rebuild and physically inspect this exact adapter before GPU decoding.
 Actual checkpoint-backed VideoVAE execution remains unverified. Next complete
 the new `decode-video` actual-checkpoint entry point's physical run: it borrows
 the same resolved decoder plan and packed denoiser-layout input as full request

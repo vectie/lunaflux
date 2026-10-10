@@ -74,9 +74,11 @@ pub fn build_manifest(
   if binding.identity() != expected_identity {
     raise IdentityMismatch
   }
-  let required = component.required_tensor_count()
-  if binding.tensor_count() != required || required > limits.maximum_tensors {
-    raise InvalidIndexCount(expected=required, actual=binding.tensor_count())
+  // Complete bindings already prove the exact source vocabulary. VideoVAE
+  // has original fused and converted split checkpoints of different counts.
+  let required = binding.tensor_count()
+  if required > limits.maximum_tensors {
+    raise InvalidIndexCount(expected=limits.maximum_tensors, actual=required)
   }
   if shards.is_empty() || shards.length() > limits.maximum_shards {
     raise InvalidShardCount

@@ -158,6 +158,11 @@ fn exact_official_shape(
         name,
         Float32,
         shape,
+      ) ||
+      @minimax_h3_weights.MiniMaxH3OriginalVideoVaeSchema::official_v1().matches_tensor(
+        name,
+        Float32,
+        shape,
       )
     AudioVae =>
       @minimax_h3_weights.MiniMaxH3AudioVaeSchema::official_v1().matches_tensor(
