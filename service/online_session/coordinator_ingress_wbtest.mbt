@@ -336,7 +336,9 @@ test "Luna queued failure cannot preempt active request stream" {
   for index in 0..<valid.length() {
     corrupt[index] = valid[index]
   }
-  corrupt[corrupt.length() - 1] = corrupt[corrupt.length() - 1] ^ b'\x01'
+  // A legal ASCII change is no longer an integrity failure. Exercise a real
+  // malformed reserved field while preserving the failure-ordering scenario.
+  corrupt[252] = b'\x01'
   let coordinator = coordinator_fixture()
   coordinator.service.next_sequence = 1UL
   let mut cursor = 0

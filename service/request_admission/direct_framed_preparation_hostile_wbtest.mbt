@@ -446,7 +446,9 @@ test "failed and cancelled preparations cannot expose receipt proof" {
   let (corrupt, frame_length) = framed_pool_source(
     fixture_request(fixture_identity("0")),
   )
-  corrupt[frame_length - 1] = corrupt[frame_length - 1] ^ b'\x01'
+  // No checksum pass remains; use an actual malformed frame for the failed
+  // preparation lifecycle, rather than changing one valid ASCII payload byte.
+  corrupt[252] = b'\x01'
   let failed_pool = direct_hostile_pool(() => 10UL, 1, 17, 100000UL)
   let failed_admission = failed_pool.try_begin_luna_framed(
     corrupt,
