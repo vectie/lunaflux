@@ -255,10 +255,64 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
   assert_eq(local_host.processed_tokens(), 0)
   assert_eq(remote_host.processed_tokens(), 0)
   assert_eq(enqueues() - enqueued, 8UL)
+  // A second distinct request reuses the same resident ranks, queues, module
+  // and connections. Reset flags are uploaded at its zero-position prefill;
+  // its transport epochs remain monotonic across request-local sequences.
+  let resident_resources = live_resources()
+  for step in 5..<=6 {
+    let sample = if step == 5 { 13 } else { 14 }
+    context.copy_from_fixed_host(
+      samples,
+      [sample.to_byte(), 0, 0, 0],
+      0L,
+      0L,
+      4L,
+    )
+    let (_, plan, writer) = serial_wire_plan(
+      99UL,
+      position=if step == 5 { 0 } else { 2 },
+      tokens=if step == 5 { [4, 5] } else { [13] },
+      decode=step == 6,
+    )
+    pipeline.begin(plan, writer, epoch=step.to_uint64(), local_now_millis=0UL)
+    let mut done = false
+    for _ in 0..<512 {
+      if incoming_active.val && !incoming_done.val {
+        incoming_done.val = receiver.poll(local_now_millis=0UL)
+      }
+      server.poll(local_now_millis=0UL)
+      if pipeline.progress(local_now_millis=0UL) {
+        done = true
+        break
+      }
+      @async.sleep(1)
+    }
+    assert_true(done)
+    assert_eq(pipeline.completion().entry(0).token_id(), sample)
+    let processed = if step == 5 { 2 } else { 3 }
+    assert_eq(local_host.processed_tokens(), processed)
+    assert_eq(remote_host.processed_tokens(), processed)
+    assert_eq(live_resources(), resident_resources)
+  }
+  pipeline.release_request(local_now_millis=0UL)
+  let mut second_released = false
+  for _ in 0..<512 {
+    server.poll(local_now_millis=0UL)
+    if pipeline.progress(local_now_millis=0UL) {
+      second_released = true
+      break
+    }
+    @async.sleep(1)
+  }
+  assert_true(second_released)
+  assert_eq(local_host.processed_tokens(), 0)
+  assert_eq(remote_host.processed_tokens(), 0)
+  assert_eq(live_resources(), resident_resources)
+  assert_eq(enqueues() - enqueued, 12UL)
   // A terminal-stage numerical failure invalidates every rank's retained state.
   context.copy_from_fixed_host(samples, [255, 255, 255, 255], 0L, 0L, 4L)
   let (submitted, plan, writer) = serial_wire_plan(4UL)
-  pipeline.begin(plan, writer, epoch=5UL, local_now_millis=0UL)
+  pipeline.begin(plan, writer, epoch=7UL, local_now_millis=0UL)
   let mut failed = false
   for _ in 0..<512 {
     if incoming_active.val && !incoming_done.val {

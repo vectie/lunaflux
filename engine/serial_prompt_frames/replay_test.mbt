@@ -38,6 +38,7 @@ test "prepared replay admits exact prompt plus generation capacity and retains i
   assert_eq(replay.input_token_count(), 5)
   assert_eq(replay.maximum_new_tokens(), 11)
   assert_eq(replay.frame_count(), 3)
+  assert_eq(replay.encoded_bytes(), bytes)
   for index, frame in frames {
     assert_eq(replay.frame_bytes(index), frame)
   }

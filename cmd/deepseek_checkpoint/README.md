@@ -28,6 +28,22 @@ prepared executable cannot satisfy preflight; the runner stops before launching
 either GPU rank rather than silently bypassing capacity planning. Existing
 diagnostic evidence remains unchanged.
 
+`preflight-generation-sequence` takes the same arguments, interpreting the
+count as request count. Its root contains `frame-counts.txt` (comma-separated
+positive frame counts) and `request-N/plan-I.bin`. The complete queue shares
+one retained-prompt-byte budget and every prompt plus requested output must fit
+before either rank starts. It adds no weights, CUDA or payload hashing.
+
+`generate-sequence-reference-dspark` takes the existing generation arguments
+with that queue root/request count. It keeps both ranks, checkpoint weights,
+AOT modules and plaintext connections resident across requests. Each ordinary
+target generation retires before the next begins at position zero with reset
+flags; transport epochs stay increasing. Outputs live under
+`NEW_OUTDIR/request-N/`. This is a finite sequential request queue, not HTTP,
+concurrent batching or reusable speculative request cancellation. The existing
+single-request speculative helper closes shared owners at completion and must
+not be reused as though it were a serving session.
+
 The remaining modes share this prefix:
 
 ```

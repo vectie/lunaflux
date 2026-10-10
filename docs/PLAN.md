@@ -66,6 +66,27 @@ Required next boundaries, still open:
 4. Measure matched, repeatable complete-model performance and its actual device/
    transport timeline before claiming vLLM/SGLang parity or a general DSpark win.
 
+2026-10-11 resident-request integration: the ordinary DSpark target route now
+accepts a finite queue through `generate-sequence-reference-dspark`. The shared
+serial prompt adapter prepares all immutable prompts under one aggregate byte
+budget before CUDA. Both rank/weight/module/connection scopes outlive the queue;
+requests retire individually and the next prefill resets history at position
+zero, with strictly increasing transport epochs. A second distinct-request
+socket/fake-device regression verifies the same resident resource count and
+fresh host frontiers, followed by failure cleanup. This is not yet a physical
+queued-checkpoint result, concurrent batching, HTTP serving or request-level
+cancellation. The existing speculative helper closes its verifier/rank/channel
+owners at single-request completion; its serving lifetime must be refactored
+before enabling a speculative queue. Do not equate the ordinary queue with that
+unfinished work or claim independent numerical/performance parity.
+Affected native tests pass 15/15, the complete packed-execution fake-device
+package passes 114/114, and formatting, native warning-denied check, runner
+self-tests and no-hashing/token-step developer checks pass. Generated public
+interfaces add only retained-byte accounting, an optional file prefix and the
+shared queue adapter. `moon info` completes with 3,645 existing migration
+warnings and no errors, without new warning exclusions. No CUDA arithmetic or
+native ABI changed; physical queued-checkpoint execution remains next.
+
 2026-10-11 generation-capacity correction: GLM and DeepSeek previously checked
 prompt plus generation capacity only at the last prefill chunk, after weight
 upload and earlier chunks had executed. Both now use one model-neutral immutable

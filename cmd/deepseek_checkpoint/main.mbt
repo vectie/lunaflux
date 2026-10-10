@@ -3,7 +3,7 @@ async fn main {
   if @env.args()
     is [
       _,
-      "preflight-generation",
+      mode,
       model_root,
       rows,
       history,
@@ -12,9 +12,18 @@ async fn main {
       frames,
       count,
       byte_budget,
-    ] {
+    ] &&
+    (mode == "preflight-generation" || mode == "preflight-generation-sequence") {
     preflight_generation(
-      model_root, rows, history, maximum, stop, frames, count, byte_budget,
+      model_root,
+      rows,
+      history,
+      maximum,
+      stop,
+      frames,
+      count,
+      byte_budget,
+      sequence=mode == "preflight-generation-sequence",
     )
     return
   }
@@ -127,6 +136,7 @@ async fn main {
     | ("ingress", 7)
     | ("generate", 9)
     | ("generate-dspark", 9)
+    | ("generate-sequence-reference-dspark", 9)
     | ("generate-reference-dspark", 9) => true
     _ => false
   }
@@ -191,6 +201,15 @@ async fn main {
       run_ingress(startup, root, tail, generate=true)
     "generate-reference-dspark" =>
       run_ingress(startup, root, tail, generate=true, speculate=false)
+    "generate-sequence-reference-dspark" =>
+      run_ingress(
+        startup,
+        root,
+        tail,
+        generate=true,
+        speculate=false,
+        sequence=true,
+      )
     _ => fail("invalid mode")
   }
 }

@@ -9,7 +9,9 @@ import {
 }
 
 // Values
-pub fn load_generation_prompt(@approved_fs.ApprovedRoot, Int, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_new_tokens~ : Int, maximum_context~ : Int, maximum_bytes~ : Int64, model_generation~ : UInt64) -> @serial_prompt_frames.PreparedSerialPrompt raise
+pub fn load_generation_prompt(@approved_fs.ApprovedRoot, Int, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_new_tokens~ : Int, maximum_context~ : Int, maximum_bytes~ : Int64, model_generation~ : UInt64, frame_prefix? : String) -> @serial_prompt_frames.PreparedSerialPrompt raise
+
+pub fn load_generation_sequence(@approved_fs.ApprovedRoot, ArrayView[Int], @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_new_tokens~ : Int, maximum_context~ : Int, maximum_bytes~ : Int64, model_generation~ : UInt64) -> ReadOnlyArray[@serial_prompt_frames.PreparedSerialPrompt] raise
 
 // Errors
 

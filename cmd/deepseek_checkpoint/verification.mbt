@@ -23,7 +23,7 @@ async fn generate_speculative(
   clock : @clock.MonotonicClock,
   first_epoch~ : UInt64,
   stop~ : Int,
-) -> Unit {
+) -> UInt64 {
   let verifier = @verification.TwoRankGreedyVerification::new(
     rank,
     client,
@@ -93,4 +93,5 @@ async fn generate_speculative(
   println(
     "dspark_verified_blocks=\{blocks} committed_input_rows=\{accepted} submitted_input_rows=\{submitted} accepted_prefix_replays=\{replays}",
   )
+  epoch
 }

@@ -6,6 +6,7 @@ pub struct PreparedSerialPrompt {
   priv frames : ReadOnlyArray[Bytes]
   priv input_tokens : Int
   priv maximum_new_tokens : Int
+  priv encoded_bytes : Int64
 }
 
 ///|
@@ -36,7 +37,7 @@ pub fn PreparedSerialPrompt::new(
   // Invariants: end <= context - generation; used <= encoded-byte budget.
   // Validated rows are nonempty; each iteration advances the prompt end.
   // Compare before addition so neither the context nor byte sum can overflow.
-  let input_tokens = for
+  let (input_tokens, encoded_bytes) = for
     index, bytes in frames
     end = 0, used = 0L, request_id = 0UL, request_generation = 0UL {
     guard bytes.length() <= owner.capacity() &&
@@ -67,12 +68,13 @@ pub fn PreparedSerialPrompt::new(
     }
     continue end + length, used + bytes.length().to_int64(), id, generation
   } nobreak {
-    end
+    (end, used)
   }
   {
     frames: ReadOnlyArray::from_array(frames.to_owned()),
     input_tokens,
     maximum_new_tokens,
+    encoded_bytes,
   }
 }
 
@@ -89,6 +91,13 @@ pub fn PreparedSerialPrompt::input_token_count(self : Self) -> Int {
 ///|
 pub fn PreparedSerialPrompt::maximum_new_tokens(self : Self) -> Int {
   self.maximum_new_tokens
+}
+
+///|
+/// Retained immutable frame storage, computed during pure preparation. File
+/// adapters share one aggregate budget without rescanning any frame payload.
+pub fn PreparedSerialPrompt::encoded_bytes(self : Self) -> Int64 {
+  self.encoded_bytes
 }
 
 ///|

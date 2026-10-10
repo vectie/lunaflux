@@ -233,6 +233,7 @@ async fn run_ingress(
   arguments : ArrayView[String],
   generate~ : Bool,
   speculate? : Bool = true,
+  sequence? : Bool = false,
 ) -> Unit {
   let speculative_enabled = startup.dspark && speculate
   let count = @string.parse_int(arguments[5])
@@ -257,20 +258,39 @@ async fn run_ingress(
   let limits = worker_limits(startup)
   let inference = inference_limits(startup)
   let prepared = if generate {
-    let prompt = @prompt_file.load_generation_prompt(
-      frame_root,
-      count,
-      limits,
-      inference,
-      maximum_new_tokens~,
-      maximum_context=startup.history,
-      maximum_bytes=startup.reserve / 4L,
-      model_generation=1UL,
-    )
-    println(
-      "request_prepared: input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{startup.history}",
-    )
-    Some(prompt)
+    guard !sequence || !speculative_enabled else {
+      fail("sequence execution requires a reusable target-generation session")
+    }
+    let prompts = if sequence {
+      prepare_prompt_sequence(
+        frame_root,
+        count,
+        limits,
+        inference,
+        maximum_new_tokens~,
+        maximum_context=startup.history,
+        maximum_bytes=startup.reserve / 4L,
+      )
+    } else {
+      ReadOnlyArray::from_array([
+        @prompt_file.load_generation_prompt(
+          frame_root,
+          count,
+          limits,
+          inference,
+          maximum_new_tokens~,
+          maximum_context=startup.history,
+          maximum_bytes=startup.reserve / 4L,
+          model_generation=1UL,
+        ),
+      ])
+    }
+    for index, prompt in prompts {
+      println(
+        "request_prepared: index=\{index} input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{startup.history}",
+      )
+    }
+    Some(prompts)
   } else {
     None
   }
@@ -356,142 +376,62 @@ async fn run_ingress(
     },
   )
   defer pipeline.close()
-  let plans = @wire.PlanFrameBuffer::new(limits, inference)
-  let completions = @wire.CompletionFrameBuffer::new(limits, inference)
-  let scratch = FixedArray::make(plans.capacity(), b'\x00')
-  let output = FixedArray::make(completions.capacity(), b'\x00')
   let clock = @clock.MonotonicClock::system()
-  let generation : Ref[@generation.SerialGreedyGeneration?] = Ref(None)
-  let speculative : Ref[@generation.SpeculativeGreedyGeneration?] = Ref(None)
-  let generation_start = clock.now_millis()
-  for index in 0..<count {
-    let input = match prepared {
-      Some(prompt) => prompt.frame_bytes(index)
-      None =>
-        read_bounded(
+  match prepared {
+    Some(prompts) =>
+      // The model, rank, activation edge and connection owners outlive every
+      // request. Each completed request retires before the next starts at zero.
+      for index, prompt in prompts; next_epoch = 1UL {
+        let destination = if sequence {
+          let path = output_directory + "/request-\{index}"
+          @fs.mkdir(path)
+          path
+        } else {
+          output_directory
+        }
+        let next = execute_ingress_request(
+          startup,
           frame_root,
-          "plan-\{index}.bin",
-          plans.capacity().to_int64(),
+          Some(prompt),
+          prompt.frame_count(),
+          pipeline,
+          rank,
+          client,
+          stage,
+          edge,
+          backup,
+          clock,
+          generate~,
+          speculative_enabled~,
+          maximum_new_tokens~,
+          stop~,
+          output_directory=destination,
+          first_epoch=next_epoch,
         )
-    }
-    scratch.fill(b'\x00')
-    for i, byte in input {
-      scratch[i] = byte
-    }
-    let plan = plans.load(scratch, input.length())
-    pipeline.begin(
-      plan,
-      completions.writer_for(plan),
-      epoch=index.to_uint64() + 1UL,
-      local_now_millis=clock.now_millis(),
-    )
-    while !pipeline.progress(local_now_millis=clock.now_millis()) {
-      @async.pause()
-    }
-    let completion = pipeline.completion()
-    completion.copy_to(output, destination_offset=0)
-    @fs.write_file(
-      output_directory + "/completion-\{index}.bin",
-      Bytes::from_array(output[:completion.length()].to_owned()),
-      create_mode=CreateNew,
-    )
-    let entry = completion.entry(0)
-    guard entry.kind() != @protocol.CompletionEntryKind::FailedCompletion else {
-      fail("model execution returned a failed completion")
-    }
-    if generate && index == count - 1 {
-      if speculative_enabled {
-        speculative.val = Some(
-          @generation.SpeculativeGreedyGeneration::new(
-            plan,
-            completion,
-            limits,
-            inference,
-            maximum_new_tokens~,
-            maximum_context=startup.history,
-            stop_tokens=if stop == -1 { [] } else { [stop] },
-          ),
-        )
-      } else {
-        generation.val = Some(
-          @generation.SerialGreedyGeneration::new(
-            plan,
-            completion,
-            limits,
-            inference,
-            maximum_new_tokens~,
-            maximum_context=startup.history,
-            stop_tokens=if stop == -1 { [] } else { [stop] },
-          ),
-        )
+        println("request_retired: index=\{index} next_epoch=\{next}")
+        continue next
       }
-    }
-    if entry.kind() == @protocol.CompletionEntryKind::PrefillCompletion {
-      println("frame=\{index} processed=\{entry.processed_tokens()}")
-    } else {
-      println(
-        "frame=\{index} token=\{entry.token_id()} processed=\{entry.processed_tokens()}",
+    None =>
+      ignore(
+        execute_ingress_request(
+          startup,
+          frame_root,
+          None,
+          count,
+          pipeline,
+          rank,
+          client,
+          stage,
+          edge,
+          backup,
+          clock,
+          generate~,
+          speculative_enabled~,
+          maximum_new_tokens~,
+          stop~,
+          output_directory~,
+          first_epoch=1UL,
+        ),
       )
-    }
   }
-  let mut verification_released = false
-  @stdio.stdout.write(
-    "generation_started: speculative=\{speculative_enabled}\n",
-  )
-  if speculative.val is Some(owner) && owner.finish_reason() is Running {
-    guard backup is Some(saved) else {
-      fail("missing verification state owner")
-    }
-    generate_speculative(
-      startup,
-      owner,
-      rank,
-      client,
-      stage,
-      edge,
-      saved,
-      clock,
-      first_epoch=count.to_uint64() + 1UL,
-      stop~,
-    )
-    verification_released = true
-  } else if generate && !speculative_enabled {
-    guard generation.val is Some(owner) else { fail("no completed prompt") }
-    while owner.finish_reason() is Running {
-      let plan = owner.next_decode()
-      pipeline.begin(
-        plan,
-        completions.writer_for(plan),
-        epoch=(count + owner.token_count()).to_uint64(),
-        local_now_millis=clock.now_millis(),
-      )
-      while !pipeline.progress(local_now_millis=clock.now_millis()) {
-        @async.pause()
-      }
-      owner.accept(pipeline.completion())
-    }
-  }
-  if !verification_released {
-    pipeline.release_request(local_now_millis=clock.now_millis())
-    while !pipeline.progress(local_now_millis=clock.now_millis()) {
-      @async.pause()
-    }
-  }
-  if generation.val is Some(owner) {
-    write_generated(
-      output_directory,
-      owner.token_count(),
-      owner.finish_reason(),
-      index => owner.token_at(index),
-    )
-  }
-  if speculative.val is Some(owner) {
-    write_generated(
-      output_directory,
-      owner.token_count(),
-      owner.finish_reason(),
-      index => owner.token_at(index),
-    )
-  }
-  println("generation_millis=\{clock.now_millis() - generation_start}")
 }

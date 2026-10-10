@@ -333,9 +333,9 @@ async fn main {
       s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))
     }) &&
     !suffix.contains("/") &&
-    mode is ("prepare" | "run" | "reference") else {
+    mode is ("prepare" | "run" | "reference" | "sequence") else {
     fail(
-      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|reference BUILD_ROOT COMMIT",
+      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|reference|sequence BUILD_ROOT COMMIT",
     )
   }
   let remote_root = "/tmp/lunaflux-dspark-real-" + suffix
@@ -379,7 +379,7 @@ async fn main {
   let name = "lunaflux-dspark-" +
     suffix +
     "-" +
-    (if mode == "reference" { "reference-" } else { "" })
+    (if mode == "reference" || mode == "sequence" { mode + "-" } else { "" })
   if mode == "prepare" {
     @fs.mkdir(root)
     // Preparation is CPU-only. No old benchmark process is a dependency.
@@ -506,7 +506,12 @@ async fn main {
     remote(
       first,
       first.root +
-      "/deepseek_checkpoint.exe preflight-generation " +
+      "/deepseek_checkpoint.exe " +
+      (if mode == "sequence" {
+        "preflight-generation-sequence "
+      } else {
+        "preflight-generation "
+      }) +
       first.checkpoint +
       "/DeepSeek-V4-Flash-DSpark 6 256 " +
       maximum_new_tokens.to_string() +
@@ -595,7 +600,9 @@ async fn main {
     14400,
     first.root +
     "/deepseek_checkpoint.exe " +
-    (if mode == "reference" {
+    (if mode == "sequence" {
+      "generate-sequence-reference-dspark "
+    } else if mode == "reference" {
       "generate-reference-dspark "
     } else {
       "generate-dspark "
@@ -628,6 +635,45 @@ async fn main {
   }
   collect(first, root, ingress)
   collect(last, root, egress)
+  for (host, label) in [(first, "178"), (last, "179")] {
+    let occupied = remote(
+      host, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, execution_label(mode, label + "-gpu-terminal"), occupied)
+    guard occupied.stdout().trim().is_empty() else {
+      fail("GPU ownership remains after terminal generation")
+    }
+  }
+  if mode == "sequence" {
+    let journal = @fs.read_file(root + "/" + ingress + "-journal.stdout").text()
+    for index in 0..<prefill_count {
+      let path = root + "/tokens-sequence-\{index}.txt"
+      download(
+        first,
+        first.root + "/output-sequence/request-\{index}/tokens.txt",
+        path,
+      )
+      let tokens = completed_tokens(
+        @fs.read_file(path).text(),
+        maximum_new_tokens,
+        stop_token,
+      )
+      guard journal.contains("request_retired: index=\{index} ") else {
+        fail("sequence request did not retire before publication")
+      }
+      println("target_sequence_request=\{index} generated=\{tokens.length()}")
+    }
+    guard journal.contains("rank_cleanup: role=ingress context_closed=true") &&
+      @fs.read_file(root + "/" + egress + "-journal.stdout")
+      .text()
+      .contains("rank_cleanup: role=egress context_closed=true") else {
+      fail("sequence ranks did not explicitly release their contexts")
+    }
+    println(
+      "bounded resident-weight target request sequence completed; speculative serving and independent upstream reference remain unverified",
+    )
+    return
+  }
   let tokens = root + "/tokens-" + mode + ".txt"
   download(first, first.root + "/output-" + mode + "/tokens.txt", tokens)
   let generated = completed_tokens(
@@ -655,15 +701,6 @@ async fn main {
         line.contains("accepted_prefix_replays=")
       }) else {
       fail("no complete speculative verification/commit generation")
-    }
-  }
-  for (host, label) in [(first, "178"), (last, "179")] {
-    let occupied = remote(
-      host, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
-    )
-    record(root, execution_label(mode, label + "-gpu-terminal"), occupied)
-    guard occupied.stdout().trim().is_empty() else {
-      fail("GPU ownership remains after terminal generation")
     }
   }
   if mode == "reference" {

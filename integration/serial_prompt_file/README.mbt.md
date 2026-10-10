@@ -9,3 +9,11 @@ identity, ordering, final sampling and total generation-capacity semantics.
 
 No model-family branch, weight inventory, hashing, network or GPU operation is
 present. This is startup preparation, not a live scheduler or per-token scan.
+
+## Finite request queues
+
+`load_generation_sequence` prepares every request in a finite queue before
+device startup. Request i is stored under `request-i/plan-N.bin`; all requests
+share one aggregate retained-byte budget. It returns immutable, model-neutral
+prompt plans with no retained file authority. Capacity and byte-budget failure
+in a later request prevents any request from executing.
