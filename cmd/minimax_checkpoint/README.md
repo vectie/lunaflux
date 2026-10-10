@@ -61,6 +61,11 @@ neither `video.f32` nor `audio.f32` is copied/published. Real execution or clean
 failure still fails. This command-level control is not concurrent serving or
 independent model numerical/quality acceptance.
 
+The committed `5008ed24` Spark checkpoint run passes cancellation after two
+conditioning frames: successful process exit, empty stderr, zero unit swap,
+no terminal GPU owner and no published media. This is a bounded cancellation
+case, not a numerical/quality result. See `docs/STATUS.md` for current scope.
+
 `encode-text VARIANT_ROOT INVENTORY TEXT_ROWS INPUT_IDS_I32 AOT_DIRECTORY
 OUTPUT_BF16 COMPONENT_LIMIT DEVICE_LIMIT` runs the original Qwen3-VL checkpoint
 through H3's selected unnormalized `hidden_states[50]`. Input contains exactly

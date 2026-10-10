@@ -334,9 +334,25 @@ modality. Genuine execution/cleanup failures propagate. Command tests pass
 than 1,048,576 advances. The affected command/pipeline/request/parser packages
 pass 35/35 native tests, and the runner passes 2/2 tests. Focused warning-denied
 native check, no-payload-hash and token-step gates pass; `moon info` completes
-with the existing warning-79 migration backlog and no errors. A fresh bounded
-actual-checkpoint cancellation run is next; local tests are not a physical
-result or a numerical/quality fix.
+with the existing warning-79 migration backlog and no errors. The complete
+current working-tree native suite passes 4,978/4,978; runner and cancellation
+collector tests pass 3/3. Fresh committed `5008ed24` ARM release builds in
+206 tasks, with a 723.1-MiB CPU memory peak and zero build swap.
+
+Actual-checkpoint MiniMax cancellation now passes on Spark `.178`: original
+three-row caption encoding and the unchanged 32×32/120-frame, five-step AOT
+plan complete two conditioning frames, then close before denoising and media
+publication. The sole output is `cancelled.txt` with completed count two. The
+unit exits 0, stderr is empty, swap peak is zero and terminal GPU ownership is
+empty. Planned aggregate bytes are 81,920,540,616 within the 96-GiB limit;
+host-cgroup peak is 44,000,579,584 bytes, not all CUDA unified-memory residency.
+The 82-second process lifetime includes loading and is not a serving benchmark.
+Local captures: `/tmp/lunaflux-minimax-joint-request-cancel-20261011-v1/cancellation`.
+Reproduce with `scripts/run-minimax-joint.mbtx` and the explicit request-zero,
+after-two suffix, then `scripts/collect-minimax-joint-cancellation.mbtx` after
+the exact user unit terminates. This does not close cancellation during
+denoising/decoding, retained-weight MiniMax queues, numerical parity or quality.
+Next work is model execution/correctness, not more artifact/TLS hardening.
 
 1. Extend original-tokenizer coverage beyond the independently matched corpus
    and establish complete-model real-weight references for the three models.
@@ -374,8 +390,9 @@ requests retire individually and the next prefill resets history at position
 zero, with strictly increasing transport epochs. A second distinct-request
 socket/fake-device regression verifies the same resident resource count and
 fresh host frontiers, followed by failure cleanup. The ordinary queued-checkpoint
-route has subsequently passed the physical test above; concurrent batching,
-HTTP serving and request-level cancellation remain open. Speculative owner
+route has subsequently passed the physical test above; concurrent batching and
+HTTP serving remain open. Request-level cancellation in both modes subsequently
+passes as described above. Speculative owner
 lifetime is now lifted to the session and its physical queue subsequently
 passes as described above. Neither queue proves independent numerical or
 external-framework performance parity.

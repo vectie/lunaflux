@@ -1,0 +1,141 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn cancellation_result(
+  status : String,
+  marker : String,
+  outputs : String,
+  stderr : String,
+  owners : String,
+  frames : Int,
+) -> Unit raise {
+  guard frames > 0 &&
+    status.contains("LoadState=loaded\n") &&
+    status.contains("SubState=exited\n") &&
+    status.contains("Result=success\n") &&
+    status.contains("ExecMainStatus=0\n") &&
+    status.contains("MemorySwapPeak=0\n") &&
+    marker ==
+    "request_cancelled=true\ncompleted_frames=\{frames}\noutputs_published=false\n" &&
+    outputs.trim() == "cancelled.txt" &&
+    stderr.is_empty() &&
+    owners.trim().is_empty() else {
+    fail("joint cancellation has not completed cleanly without published media")
+  }
+}
+
+///|
+test "joint cancellation collection requires a terminal unpublished result" {
+  let status = "LoadState=loaded\nSubState=exited\nResult=success\nExecMainStatus=0\nMemorySwapPeak=0\n"
+  let marker = "request_cancelled=true\ncompleted_frames=2\noutputs_published=false\n"
+  cancellation_result(status, marker, "cancelled.txt\n", "", "", 2)
+  for
+    (s, m, files, error, owners) in [
+      (
+        status.replace_all(old="SubState=exited", new="SubState=running"),
+        marker,
+        "cancelled.txt",
+        "",
+        "",
+      ),
+      (
+        status.replace_all(old="ExecMainStatus=0", new="ExecMainStatus=1"),
+        marker,
+        "cancelled.txt",
+        "",
+        "",
+      ),
+      (
+        status.replace_all(old="MemorySwapPeak=0", new="MemorySwapPeak=1"),
+        marker,
+        "cancelled.txt",
+        "",
+        "",
+      ),
+      (
+        status,
+        marker.replace_all(old="completed_frames=2", new="completed_frames=1"),
+        "cancelled.txt",
+        "",
+        "",
+      ),
+      (status, marker, "cancelled.txt\nvideo.f32", "", ""),
+      (status, marker, "cancelled.txt", "failure", ""),
+      (status, marker, "cancelled.txt", "", "123"),
+    ] {
+    try cancellation_result(s, m, files, error, owners, 2) catch {
+      _ => ()
+    } noraise {
+      _ => fail("incomplete joint cancellation accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, frame_count] &&
+    root.has_prefix("/tmp/lunaflux-minimax-joint-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    !suffix.is_empty() &&
+    suffix.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+    fail("EXISTING_LOCAL_AND_REMOTE_ROOT UNIT_SUFFIX EXPECTED_COMPLETED_FRAMES")
+  }
+  let frames = @string.parse_int(frame_count)
+  guard frames > 0 else { fail("expected frame count must be positive") }
+  let capture = root + "/cancellation"
+  @fs.mkdir(capture)
+  let results : Array[String] = []
+  for
+    (name, command) in [
+      (
+        "status",
+        "systemctl --user show lunaflux-minimax-joint-" +
+        suffix +
+        ".service -p LoadState -p ActiveState -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak -p ExecMainStartTimestamp -p ExecMainExitTimestamp",
+      ),
+      ("marker", "cat " + root + "/output/cancelled.txt"),
+      (
+        "outputs",
+        "find " + root + "/output -maxdepth 1 -type f -printf '%f\\n'",
+      ),
+      ("stderr", "cat " + root + "/run.stderr"),
+      ("owners", "nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+      ("stdout", "cat " + root + "/run.stdout"),
+    ] {
+    let result = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock",
+      "wlc003s@192.168.2.178", command,
+    ]).output(max_output_bytes=4194304)
+    @fs.write_file(
+      capture + "/" + name + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      capture + "/" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    results.push(result.stdout())
+  }
+  cancellation_result(
+    results[0],
+    results[1],
+    results[2],
+    results[3],
+    results[4],
+    frames,
+  )
+  println(
+    "joint cancellation passed: completed_frames=\{frames}, no published media, no unit swap, no GPU owner",
+  )
+}

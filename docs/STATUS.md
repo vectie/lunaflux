@@ -17,11 +17,21 @@ including conditioning and decoder frames; default execution has no ceiling.
 Cancellation closes request stages before writing a cancellation marker and
 copies/publishes neither audio nor video. Real execution/cleanup failures still
 propagate. The command's native tests pass 19/19, including cleanup ordering,
-last-frame completion and execution beyond 1,048,576 frames. These are local
-control-flow tests, not physical MiniMax cancellation or numerical/quality
-acceptance; the checkpoint follow-up remains to run. Affected native packages
-pass 35/35 tests and the runner passes 2/2; focused warning-denied native check,
-token-step and no-payload-hash gates also pass.
+last-frame completion and execution beyond 1,048,576 frames. Fresh commit
+`5008ed24` builds on Spark and passes actual-checkpoint cancellation after two
+conditioning frames, before denoising. Its process exits 0, stderr is empty,
+unit swap peak is zero and the terminal GPU owner query is empty. Only
+`cancelled.txt` is published, with `completed_frames=2`; neither audio nor video
+is copied. Planned aggregate bytes are 81,920,540,616 under the 96-GiB device
+limit; cgroup peak is 44,000,579,584 bytes, not a complete CUDA unified-memory
+residency measure. The 82-second lifetime includes preparation/loading and is
+not inference throughput. Captures are downloaded under
+`/tmp/lunaflux-minimax-joint-request-cancel-20261011-v1/cancellation`.
+Affected native packages pass 35/35 tests, the complete current working-tree
+suite passes 4,978/4,978, and runner/collector tests pass 3/3. Focused
+warning-denied native check, token-step and no-payload-hash gates pass. This
+closes this stage-boundary cancellation case, not arbitrary cancellation
+phases, retained-weight MiniMax queues or numerical/media-quality acceptance.
 
 Retained-weight request cancellation is now implemented in the model-neutral
 ordinary and verification coordinators and connected to GLM/DeepSeek generation.
@@ -106,7 +116,7 @@ their pending claims only for the explicitly completed diagnostic routes:
 | --- | --- | --- |
 | GLM-5.3 Flash | Two original-tokenizer literal requests (13 and 20 tokens), eight greedy outputs each, reuse one resident rank pair; retained-weight cancellation also completes a subsequent distinct request with unchanged outputs; both ranks exit successfully, release GPUs and use no unit swap | Independent real-weight logit parity, arbitrary-input completeness, concurrent/optimized serving |
 | DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition, EOS termination and the exact 144-input/112-output 256-token envelope; process-level cancellation passes in both directions; retained-weight request cancellation followed by a distinct request passes in both ordinary and speculative modes with unchanged outputs | Independent upstream model parity, larger/model-maximum contexts, concurrent/production serving or external-framework performance |
-| MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
+| MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential measured; actual-checkpoint cancellation after two conditioning frames exits cleanly without media publication | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance, retained-weight queues or production serving |
 
 GLM/DeepSeek generation now resolves the full prompt and requested output length
 before device preparation using one immutable model-neutral replay and one
