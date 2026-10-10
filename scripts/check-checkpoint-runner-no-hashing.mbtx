@@ -14,15 +14,34 @@ async fn main {
     "run-deepseek-base-two-spark", "run-deepseek-base-two-spark-resume", "capture-deepseek-block-builds",
     "stage-minimax-denoiser-checkpoint", "stage-minimax-text-checkpoint", "stage-minimax-video-checkpoint",
     "run-minimax-audio-decode", "run-minimax-video-decode", "run-minimax-joint",
-    "run-minimax-text-encoder",
+    "run-minimax-text-encoder", "run-cache-coordinate-probes", "run-stream-mean-capture-probe",
+    "run-committed-draft-probe", "run-row-projection-norm-probe", "run-sequential-markov-probe",
+    "capture-precision-transform-probes", "capture-compressed-attention-run", "capture-hyper-f32-run",
+    "capture-learned-text-laws", "assemble-luna-kernel-root",
   ]
   for runner in runners {
     let source = @fs.read_file("scripts/" + runner + ".mbtx").text()
-    for command in ["sha256sum", "shasum"] {
+    for command in ["sha256sum", "shasum", "download-sha256", "hash-verified"] {
       guard !source.contains(command) else {
         fail("payload hashing reintroduced in " + runner)
       }
     }
+  }
+  let builder = @fs.read_file("scripts/build-qwen3-reusable-fused-runtime.mbtx").text()
+  for
+    removed in [
+      "source_sha256", "checked(\"cmp\"", "second/kernel.cubin", "ingress-partial-second.cubin",
+      "inspect-luna-cuda-aot-driver.sh",
+    ] {
+    guard !builder.contains(removed) else {
+      fail("redundant Qwen build hardening reintroduced: " + removed)
+    }
+  }
+  let materializer = @fs.read_file(
+    "scripts/materialize-qwen3-bf16-v12-launch.mbtx",
+  ).text()
+  guard !materializer.contains("assert_eq(sha(") else {
+    fail("Qwen materializer checksum verification reintroduced")
   }
   println(
     "checkpoint runner no-hashing regression passed: \{runners.length()} scripts",

@@ -1,3 +1,4 @@
+///|
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
@@ -5,93 +6,217 @@ import {
   "moonbitlang/core/env",
 }
 
+///|
 async fn remote(command : String) -> @shell.Output {
-  @shell.Cmd("ssh",["-o","BatchMode=yes","-o","ConnectTimeout=10","-S",
-    "/tmp/lunaflux-checkpoint-live179-20261010.sock","wlc004s@192.168.2.179",command]).output(max_output_bytes=2097152)
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    "wlc004s@192.168.2.179", command,
+  ]).output(max_output_bytes=2097152)
 }
-async fn record(root : String,name : String,result : @shell.Output) -> Unit {
-  @fs.write_file(root+"/"+name+".stdout",result.stdout(),create_mode=CreateNew)
-  @fs.write_file(root+"/"+name+".stderr",result.stderr(),create_mode=CreateNew)
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
   result.check()
 }
-async fn admission(root : String,gate : String) -> Unit {
-  let identity=remote("nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader")
-  record(root,gate+"-identity",identity)
-  guard identity.stdout().trim()=="GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0" else {fail("wrong device")}
-  let occupied=remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
-  record(root,gate+"-occupied",occupied)
-  guard occupied.stdout().trim().is_empty() else {fail("GPU occupied; no overlapping campaign")}
-  let tools=remote("sha256sum /usr/local/cuda-13.0/bin/nvcc /usr/local/cuda-13.0/compute-sanitizer/compute-sanitizer")
-  record(root,gate+"-tools",tools)
-  guard tools.stdout().contains("fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1") &&
-    tools.stdout().contains("7a7fcdefb67042731daf021478176f4919e1843d0b10cb697af28a7d8a3d108b") else {fail("wrong tools")}
+
+///|
+async fn admission(root : String, gate : String) -> Unit {
+  let identity = remote(
+    "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  )
+  record(root, gate + "-identity", identity)
+  guard identity.stdout().trim() ==
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0" else {
+    fail("wrong device")
+  }
+  let occupied = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  record(root, gate + "-occupied", occupied)
+  guard occupied.stdout().trim().is_empty() else {
+    fail("GPU occupied; no overlapping campaign")
+  }
 }
-async fn export_source(root : String,environment : String,test_path : String,marker : String,file : String) -> Unit {
-  let output=@shell.Cmd("/usr/bin/env",[environment+"=1","moon","test","--target","native","--release",
-    "--deny-warn","--warn-list","-20-25-29-35-79-92",test_path]).output(max_output_bytes=4194304)
-  record(root,file+"-export",output)
-  let source=StringBuilder()
-  let mut inside=false
-  let mut complete=false
+
+///|
+async fn export_source(
+  root : String,
+  environment : String,
+  test_path : String,
+  marker : String,
+  file : String,
+) -> Unit {
+  let output = @shell.Cmd("/usr/bin/env", [
+    environment + "=1",
+    "moon",
+    "test",
+    "--target",
+    "native",
+    "--release",
+    "--deny-warn",
+    "--warn-list",
+    "-20-25-29-35-79-92",
+    test_path,
+  ]).output(max_output_bytes=4194304)
+  record(root, file + "-export", output)
+  let source = StringBuilder()
+  let mut inside = false
+  let mut complete = false
   for line in output.stdout().split("\n") {
-    if line==marker+"_BEGIN" {inside=true}
-    else if line==marker+"_END" {inside=false;complete=true}
-    else if inside {source.write_string(line.to_owned());source.write_string("\n")}
-  }
-  guard complete && !inside && !source.to_string().is_empty() else {fail("missing source")}
-  @fs.write_file(root+"/"+file,source.to_string(),create_mode=CreateNew)
-}
-async fn main {
-  guard @env.args() is [_,root,suffix,mode,..tail] &&
-    root.has_prefix("/tmp/lunaflux-markov-") &&
-    [root,suffix].all(s => !s.is_empty() && s.iter().all(c => c is ('a'..='z'|'0'..='9'|'-'|'/'))) && !suffix.contains("/") &&
-    ((mode=="build" && tail.is_empty()) || (mode=="wait-run" && tail.length()==1)) else {
-    fail("NEW_LOCAL_DIRECTORY SAFE_SUFFIX build|wait-run [PRIOR_RING_RUNNER_PID]")
-  }
-  let remote_root="/tmp/lunaflux-markov-"+suffix
-  let unit="systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory="+remote_root+" --unit=lunaflux-markov-"
-  if mode=="build" {
-    @fs.mkdir(root)
-    export_source(root,"LUNA_EXPORT_MARKOV","kernels/sequential_markov_cuda_source/source_test.mbt","LUNA_MARKOV","markov.cuh")
-    export_source(root,"LUNA_EXPORT_PREDICTION_HEAD","integration/deepseek_v4_prediction_prefix/head_test.mbt","LUNA_HEAD","head.cu")
-    export_source(root,"LUNA_EXPORT_PREDICTOR","integration/deepseek_v4_prediction_prefix/predictor_test.mbt","LUNA_PREDICTOR","predictor.cu")
-    @fs.write_file(root+"/probe.cu",@fs.read_file("tests/packed_moe_execution/sequential_markov_probe.cu").binary(),create_mode=CreateNew)
-    record(root,"mkdir",remote("mkdir "+remote_root))
-    for file in ["markov.cuh","head.cu","predictor.cu","probe.cu"] {
-      @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
-        root+"/"+file,"wlc004s@192.168.2.179:"+remote_root+"/"+file]).output().check()
+    if line == marker + "_BEGIN" {
+      inside = true
+    } else if line == marker + "_END" {
+      inside = false
+      complete = true
+    } else if inside {
+      source.write_string(line.to_owned())
+      source.write_string("\n")
     }
-    record(root,"compile",remote(unit+"build-"+suffix+" /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_121 probe.cu -o probe"))
-    record(root,"head-compile",remote(unit+"head-build-"+suffix+" /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 head.cu -o head.cubin"))
-    record(root,"predictor-compile",remote(unit+"predictor-build-"+suffix+" /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 predictor.cu -o predictor.cubin"))
-    let hash=remote("sha256sum "+remote_root+"/probe")
-    hash.check()
-    @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
-      "wlc004s@192.168.2.179:"+remote_root+"/probe",root+"/probe"]).output().check()
-    let local_hash=@shell.Cmd("shasum",["-a","256",root+"/probe"]).output()
-    local_hash.check()
-    guard hash.stdout().split(" ").next()==local_hash.stdout().split(" ").next() else {fail("download mismatch")}
-    record(root,"download-sha256",local_hash)
-    println("head and greedy/stochastic chain compiled; no GPU workload executed")
+  }
+  guard complete && !inside && !source.to_string().is_empty() else {
+    fail("missing source")
+  }
+  @fs.write_file(root + "/" + file, source.to_string(), create_mode=CreateNew)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, mode, .. tail] &&
+    root.has_prefix("/tmp/lunaflux-markov-") &&
+    [root, suffix].all(s => {
+      !s.is_empty() &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))
+    }) &&
+    !suffix.contains("/") &&
+    (
+      (mode == "build" && tail.is_empty()) ||
+      (mode == "wait-run" && tail.length() == 1)
+    ) else {
+    fail(
+      "NEW_LOCAL_DIRECTORY SAFE_SUFFIX build|wait-run [PRIOR_RING_RUNNER_PID]",
+    )
+  }
+  let remote_root = "/tmp/lunaflux-markov-" + suffix
+  let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" +
+    remote_root +
+    " --unit=lunaflux-markov-"
+  if mode == "build" {
+    @fs.mkdir(root)
+    export_source(
+      root, "LUNA_EXPORT_MARKOV", "kernels/sequential_markov_cuda_source/source_test.mbt",
+      "LUNA_MARKOV", "markov.cuh",
+    )
+    export_source(
+      root, "LUNA_EXPORT_PREDICTION_HEAD", "integration/deepseek_v4_prediction_prefix/head_test.mbt",
+      "LUNA_HEAD", "head.cu",
+    )
+    export_source(
+      root, "LUNA_EXPORT_PREDICTOR", "integration/deepseek_v4_prediction_prefix/predictor_test.mbt",
+      "LUNA_PREDICTOR", "predictor.cu",
+    )
+    @fs.write_file(
+      root + "/probe.cu",
+      @fs.read_file("tests/packed_moe_execution/sequential_markov_probe.cu").binary(),
+      create_mode=CreateNew,
+    )
+    record(root, "mkdir", remote("mkdir " + remote_root))
+    for file in ["markov.cuh", "head.cu", "predictor.cu", "probe.cu"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        root + "/" + file,
+        "wlc004s@192.168.2.179:" + remote_root + "/" + file,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        unit +
+        "build-" +
+        suffix +
+        " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_121 probe.cu -o probe",
+      ),
+    )
+    record(
+      root,
+      "head-compile",
+      remote(
+        unit +
+        "head-build-" +
+        suffix +
+        " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 head.cu -o head.cubin",
+      ),
+    )
+    record(
+      root,
+      "predictor-compile",
+      remote(
+        unit +
+        "predictor-build-" +
+        suffix +
+        " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 predictor.cu -o predictor.cubin",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      "wlc004s@192.168.2.179:" + remote_root + "/probe",
+      root + "/probe",
+    ])
+    .output()
+    .check()
+    println(
+      "head and greedy/stochastic chain compiled; no GPU workload executed",
+    )
   } else {
-    guard tail[0].iter().all(c => c is ('0'..='9')) && tail[0]!="0" else {fail("invalid wait PID")}
+    guard tail[0].iter().all(c => c is ('0'..='9')) && tail[0] != "0" else {
+      fail("invalid wait PID")
+    }
     for ;; {
-      let process=@shell.Cmd("ps",["-p",tail[0],"-o","args="]).output()
-      if process.stdout().trim().is_empty() {break}
+      let process = @shell.Cmd("ps", ["-p", tail[0], "-o", "args="]).output()
+      if process.stdout().trim().is_empty() {
+        break
+      }
       process.check()
-      guard (process.stdout().contains("run-committed-draft-probe.mbtx") || process.stdout().contains("run-sequential-markov-probe.mbtx")) && process.stdout().contains("wait-run") else {fail("wrong prior runner")}
+      guard (
+          process.stdout().contains("run-committed-draft-probe.mbtx") ||
+          process.stdout().contains("run-sequential-markov-probe.mbtx")
+        ) &&
+        process.stdout().contains("wait-run") else {
+        fail("wrong prior runner")
+      }
       @async.sleep(10000)
     }
-    let hash=remote("sha256sum "+remote_root+"/probe")
-    hash.check()
-    guard hash.stdout().split(" ").next()==@fs.read_file(root+"/download-sha256.stdout").text().split(" ").next() else {fail("executable changed")}
-    for gate in ["correctness","memcheck","racecheck","synccheck"] {
-      admission(root,gate)
-      let command=if gate=="correctness" {remote_root+"/probe"} else {
-        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool "+gate+
-          (if gate=="memcheck" {" --leak-check full"} else {""})+" "+remote_root+"/probe"
+    for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
+      admission(root, gate)
+      let command = if gate == "correctness" {
+        remote_root + "/probe"
+      } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " +
+        gate +
+        (if gate == "memcheck" { " --leak-check full" } else { "" }) +
+        " " +
+        remote_root +
+        "/probe"
       }
-      record(root,gate,remote(unit+gate+"-"+suffix+" "+command))
+      record(root, gate, remote(unit + gate + "-" + suffix + " " + command))
     }
     println("sequential Markov numerical and sanitizer gates passed")
   }

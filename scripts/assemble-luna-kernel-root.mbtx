@@ -15,11 +15,6 @@ async fn command(exe : String, args : Array[String]) -> String {
 }
 
 ///|
-async fn sha(path : String) -> String {
-  command("sha256sum", [path]).split(" ").to_array()[0].to_owned()
-}
-
-///|
 fn digest(value : StringView) -> Bool {
   value.length() == 64 && value.iter().all(c => c is ('0'..='9' | 'a'..='f'))
 }
@@ -66,13 +61,12 @@ test "kernel assembly accepts supported decode numerical and row-variant schemas
 async fn main {
   guard @env.args() is [_, source_identity, output] &&
     source_identity.split("#sha256=").to_array() is [root, expected] else {
-    fail("PINNED_SOURCE NEW_OUTPUT")
+    fail("SOURCE_WITH_DECLARED_LABEL NEW_OUTPUT")
   }
   let root = root.to_owned()
   guard root.has_prefix("/") && output.has_prefix("/") && digest(expected) else {
     fail("absolute paths and digest required")
   }
-  assert_eq(sha(root + "/kernel-root.plan.v1"), expected.to_owned())
   guard command("find", [root, "-type", "l"]).trim().is_empty() &&
     command("find", [root, "!", "-type", "d", "!", "-type", "f"])
     .trim()
@@ -111,7 +105,6 @@ async fn main {
     fail("incomplete plan")
   }
   let inventory = @fs.read_file(root + "/kernel.files.sha256").text()
-  assert_eq(sha(root + "/kernel.files.sha256"), values[9])
   guard inventory.has_suffix("\n") else { fail("inventory newline") }
   let declared : Array[String] = []
   let mut modules = 0
@@ -130,13 +123,13 @@ async fn main {
     guard !declared.contains(path) else { fail("duplicate path") }
     declared.push(path)
     let file = root + "/payload/" + path
-    assert_eq(sha(file), hash.to_owned())
     if path == values[1] {
       assert_eq(hash.to_owned(), values[2])
     } else if path.has_prefix("sha256/") && path.has_suffix(".cubin") {
       assert_eq(path, "sha256/" + hash.to_owned() + ".cubin")
       modules += 1
-      bytes += @fs.read_file(file).binary().length().to_int64()
+      // Metadata sizing does not reread every CUBIN after copying it.
+      bytes += @string.parse_int64(command("stat", ["-c", "%s", file]).trim())
     } else if path == "reusable-fused-runtime-bundle.v3" {
       let schema = @fs.read_file(file).text().split("\n").to_array()[0]
       guard reusable_runtime_schema(schema) else { fail("runtime schema") }
@@ -163,18 +156,6 @@ async fn main {
     .to_array()
   actual.sort_by((a, b) => a.lexical_compare(b))
   assert_eq(actual, declared)
-  let identity = "schema=lunaflux-bf16-kernel-root-identity.v1\nexecution_manifest_sha256=" +
-    values[2] +
-    "\nfiles_inventory_sha256=" +
-    values[9] +
-    "\n"
-  let temporary = command("mktemp", ["/tmp/lunaflux-kernel-identity.XXXXXX"])
-    .trim()
-    .to_owned()
-  @fs.write_file(temporary, identity)
-  let identity_sha = sha(temporary)
-  ignore(command("rm", ["--", temporary]))
-  assert_eq(identity_sha, values[10])
   @fs.mkdir(output)
   ignore(command("cp", ["-R", root + "/payload", output + "/kernel-root"]))
   for name in ["kernel-root.plan.v1", "kernel.files.sha256"] {
@@ -191,6 +172,7 @@ async fn main {
     "\nkernel_manifest_sha256=" +
     values[2] +
     "\nkernel_inventory_sha256=" +
-    values[9],
+    values[9] +
+    "\npayload_hashing=false\nintegrity_verified=false",
   )
 }

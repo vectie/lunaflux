@@ -2313,10 +2313,29 @@ no additional GPU speedup is claimed for those deletions.
 The historical DeepSeek base-run and live-resume helpers now also omit CUDA-tool
 and executable checksum scans. The block/source download helper copies outputs
 without hashing them locally or remotely. The local no-hashing regression covers
-these helpers and the MiniMax joint/text runners (16 scripts). Successful process
+these helpers and the MiniMax joint/text runners. Successful process
 and copy status remain required; neither staged paths nor downloaded files are
 claimed cryptographically authenticated. Live-unit ownership, GPU exclusivity,
 memory/no-swap limits and execution correctness checks are unchanged.
+
+The same cleanup now covers nine cache-coordinate, stream-capture, draft/Markov,
+projection-normalization and historical probe-download helpers. They do not scan
+CUDA tools or transferred source/binary/CUBIN bytes, create checksum sidecars,
+or require a saved checksum receipt to resume execution. Local regression coverage
+now covers 26 helpers. Numerical/sanitizer tests remain developer diagnostics;
+they are not inserted into inference or startup. Compilation/copy failures,
+GPU exclusivity and memory/no-swap limits remain explicit. Downloaded files are
+not claimed cryptographically authenticated.
+
+Qwen kernel-root assembly likewise stops rescanning plans, inventories and every
+module for integrity. Module byte totals use stat metadata, not full-file reads.
+The reusable-runtime producer compiles each selected module once, no longer
+recompiles it for bytewise determinism, and omits source/toolchain/driver integrity
+rescans. The materializer omits incoming and copied runtime checksum validation.
+Producer-side content-address generation remains for distinct AOT/cache artifacts;
+it is offline naming, not repeated admission hardening or request-time work.
+The helper regression checks these removed scans/builds cannot return. This does
+not claim the older shell release-packaging workflow is entirely checksum-free.
 
 MiniMax text checkpoint staging and encoder execution can now target either
 Spark explicitly. The encoder runner takes an actual committed ARM executable,

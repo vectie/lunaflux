@@ -1,3 +1,4 @@
+///|
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
@@ -5,75 +6,144 @@ import {
   "moonbitlang/core/env",
 }
 
+///|
 async fn remote(command : String) -> @shell.Output {
-  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
-    "-S", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
-    "wlc004s@192.168.2.179", command]).output(max_output_bytes=2097152)
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    "wlc004s@192.168.2.179", command,
+  ]).output(max_output_bytes=2097152)
 }
 
+///|
 async fn record(root : String, name : String, result : @shell.Output) -> Unit {
-  @fs.write_file(root + "/" + name + ".stdout", result.stdout(), create_mode=CreateNew)
-  @fs.write_file(root + "/" + name + ".stderr", result.stderr(), create_mode=CreateNew)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
   result.check()
 }
 
+///|
 async fn admission(root : String, gate : String) -> Unit {
-  let identity = remote("nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader")
+  let identity = remote(
+    "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  )
   record(root, gate + "-identity", identity)
-  guard identity.stdout().trim() == "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0" else { fail("wrong device") }
-  let occupied = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+  guard identity.stdout().trim() ==
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0" else {
+    fail("wrong device")
+  }
+  let occupied = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
   record(root, gate + "-occupied", occupied)
-  guard occupied.stdout().trim().is_empty() else { fail("GPU already occupied") }
-  let tools = remote("sha256sum /usr/local/cuda-13.0/bin/nvcc /usr/local/cuda-13.0/compute-sanitizer/compute-sanitizer")
-  record(root, gate + "-tools", tools)
-  guard tools.stdout().contains("fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1") &&
-    tools.stdout().contains("7a7fcdefb67042731daf021478176f4919e1843d0b10cb697af28a7d8a3d108b") else { fail("wrong tools") }
+  guard occupied.stdout().trim().is_empty() else {
+    fail("GPU already occupied")
+  }
 }
 
+///|
 async fn main {
-  guard @env.args() is [_, root, suffix] && root.has_prefix("/tmp/lunaflux-stream-capture-") &&
-    [root, suffix].all(s => !s.is_empty() && s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))) &&
-    !suffix.contains("/") else { fail("NEW_LOCAL_DIRECTORY UNIQUE_SAFE_SUFFIX") }
+  guard @env.args() is [_, root, suffix] &&
+    root.has_prefix("/tmp/lunaflux-stream-capture-") &&
+    [root, suffix].all(s => {
+      !s.is_empty() &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))
+    }) &&
+    !suffix.contains("/") else {
+    fail("NEW_LOCAL_DIRECTORY UNIQUE_SAFE_SUFFIX")
+  }
   @fs.mkdir(root)
-  let exported = @shell.Cmd("/usr/bin/env", ["LUNA_EXPORT_STREAM_CAPTURE=1", "moon", "test",
-    "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
-    "kernels/stream_mean_capture_cuda_source/export_test.mbt"]).output(max_output_bytes=2097152)
+  let exported = @shell.Cmd("/usr/bin/env", [
+    "LUNA_EXPORT_STREAM_CAPTURE=1", "moon", "test", "--target", "native", "--release",
+    "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "kernels/stream_mean_capture_cuda_source/export_test.mbt",
+  ]).output(max_output_bytes=2097152)
   record(root, "export", exported)
   let source = StringBuilder()
   let mut inside = false
   let mut finished = false
   for line in exported.stdout().split("\n") {
-    if line == "LUNA_CAPTURE_BEGIN" { inside = true }
-    else if line == "LUNA_CAPTURE_END" { inside = false; finished = true }
-    else if inside { source.write_string(line.to_owned()); source.write_string("\n") }
+    if line == "LUNA_CAPTURE_BEGIN" {
+      inside = true
+    } else if line == "LUNA_CAPTURE_END" {
+      inside = false
+      finished = true
+    } else if inside {
+      source.write_string(line.to_owned())
+      source.write_string("\n")
+    }
   }
-  guard finished && !inside && !source.to_string().is_empty() else { fail("missing exported source") }
-  @fs.write_file(root + "/capture.cuh", source.to_string(), create_mode=CreateNew)
-  @fs.write_file(root + "/probe.cu", @fs.read_file("tests/packed_moe_execution/stream_mean_capture_probe.cu").binary(), create_mode=CreateNew)
+  guard finished && !inside && !source.to_string().is_empty() else {
+    fail("missing exported source")
+  }
+  @fs.write_file(
+    root + "/capture.cuh",
+    source.to_string(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/probe.cu",
+    @fs.read_file("tests/packed_moe_execution/stream_mean_capture_probe.cu").binary(),
+    create_mode=CreateNew,
+  )
   let remote_root = "/tmp/lunaflux-stream-capture-" + suffix
   record(root, "mkdir", remote("mkdir " + remote_root))
   for file in ["capture.cuh", "probe.cu"] {
-    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
-      root + "/" + file, "wlc004s@192.168.2.179:" + remote_root + "/" + file]).output().check()
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      root + "/" + file,
+      "wlc004s@192.168.2.179:" + remote_root + "/" + file,
+    ])
+    .output()
+    .check()
   }
-  let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" + remote_root + " --unit=lunaflux-stream-capture-"
-  record(root, "compile", remote(unit + "build-" + suffix + " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_121 probe.cu -o probe"))
+  let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" +
+    remote_root +
+    " --unit=lunaflux-stream-capture-"
+  record(
+    root,
+    "compile",
+    remote(
+      unit +
+      "build-" +
+      suffix +
+      " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_121 probe.cu -o probe",
+    ),
+  )
   for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
     admission(root, gate)
     let executable = remote_root + "/probe"
-    let command = if gate == "correctness" { executable } else {
-      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " + gate +
-      (if gate == "memcheck" { " --leak-check full" } else { "" }) + " " + executable
+    let command = if gate == "correctness" {
+      executable
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " +
+      gate +
+      (if gate == "memcheck" { " --leak-check full" } else { "" }) +
+      " " +
+      executable
     }
     record(root, gate, remote(unit + gate + "-" + suffix + " " + command))
   }
-  let hash = remote("sha256sum " + remote_root + "/probe")
-  hash.check()
-  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
-    "wlc004s@192.168.2.179:" + remote_root + "/probe", root + "/probe"]).output().check()
-  let local_hash = @shell.Cmd("shasum", ["-a", "256", root + "/probe"]).output()
-  local_hash.check()
-  guard (hash.stdout().split(" ").next(), local_hash.stdout().split(" ").next()) is (Some(expected), Some(actual)) && expected == actual else { fail("download mismatch") }
-  record(root, "download-sha256", local_hash)
-  println("capture numerical/deterministic/sanitizer gates passed and executable downloaded")
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    "wlc004s@192.168.2.179:" + remote_root + "/probe",
+    root + "/probe",
+  ])
+  .output()
+  .check()
+  println(
+    "capture numerical/deterministic/sanitizer gates passed and executable downloaded",
+  )
 }

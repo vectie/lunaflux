@@ -76,15 +76,6 @@ async fn main {
       ])
       .output(max_output_bytes=1048576)
       .check()
-      let hash = @shell.Cmd("shasum", ["-a", "256", local_path]).output(
-        max_output_bytes=1048576,
-      )
-      hash.check()
-      @fs.write_file(
-        local_path + ".sha256",
-        hash.stdout(),
-        create_mode=CreateNew,
-      )
     }
   }
   println(output)

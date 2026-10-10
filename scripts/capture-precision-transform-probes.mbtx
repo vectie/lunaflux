@@ -1,3 +1,4 @@
+///|
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
@@ -5,6 +6,7 @@ import {
   "moonbitlang/core/env",
 }
 
+///|
 async fn main {
   guard @env.args() is [_, output, final_hadamard_directory] else {
     fail("NEW_OUTPUT_DIRECTORY FINAL_HADAMARD_DIRECTORY")
@@ -12,38 +14,54 @@ async fn main {
   @fs.mkdir(output)
   let node = "wlc003s@192.168.2.178"
   let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
-  for stem in [
-    "retained-rows-build", "retained-rows-correctness", "retained-rows-memcheck",
-    "retained-rows-racecheck", "retained-rows-synccheck",
-    "hadamard-fp4-build", "hadamard-fp4-correctness", "hadamard-fp4-memcheck",
-    "hadamard-fp4-racecheck", "hadamard-fp4-synccheck",
-  ] {
-    let versions = if stem.has_prefix("hadamard") { [1,2,3] } else { [1] }
+  for
+    stem in [
+      "retained-rows-build", "retained-rows-correctness", "retained-rows-memcheck",
+      "retained-rows-racecheck", "retained-rows-synccheck", "hadamard-fp4-build",
+      "hadamard-fp4-correctness", "hadamard-fp4-memcheck", "hadamard-fp4-racecheck",
+      "hadamard-fp4-synccheck",
+    ] {
+    let versions = if stem.has_prefix("hadamard") { [1, 2, 3] } else { [1] }
     for version in versions {
       let unit = "lunaflux-" + stem + "-20261010-v\{version}.service"
-      let command = "systemctl --user show " + unit + " -p LoadState -p ActiveState -p ExecMainStatus; journalctl --user -u " + unit + " --no-pager"
-      let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command]).output(max_output_bytes=1048576)
-      @fs.write_file(output + "/" + unit + ".txt", result.stdout(), create_mode=CreateNew)
-      @fs.write_file(output + "/" + unit + ".stderr", result.stderr(), create_mode=CreateNew)
+      let command = "systemctl --user show " +
+        unit +
+        " -p LoadState -p ActiveState -p ExecMainStatus; journalctl --user -u " +
+        unit +
+        " --no-pager"
+      let result = @shell.Cmd("ssh", [
+        "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+      ]).output(max_output_bytes=1048576)
+      @fs.write_file(
+        output + "/" + unit + ".txt",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        output + "/" + unit + ".stderr",
+        result.stderr(),
+        create_mode=CreateNew,
+      )
       result.check()
     }
   }
-  for (directory, name) in [
-    ("/tmp/lunaflux-precision-transforms-20261010.8ka3jHRR", "retained_rows"),
-    (final_hadamard_directory, "rotary_hadamard_fp4"),
-  ] {
+  for
+    (directory, name) in [
+      ("/tmp/lunaflux-precision-transforms-20261010.8ka3jHRR", "retained_rows"),
+      (final_hadamard_directory, "rotary_hadamard_fp4"),
+    ] {
     for suffix in ["_kernels.cuh", "_probe.cu", "_probe.exe"] {
       let file = name + suffix
-      let result = @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
-        node + ":" + directory + "/" + file, output + "/" + file,
+      let result = @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + directory + "/" + file,
+        output + "/" + file,
       ]).output(max_output_bytes=1048576)
       result.check()
     }
-    let hashed = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node,
-      "sha256sum " + directory + "/" + name + "_kernels.cuh " + directory + "/" + name + "_probe.cu " + directory + "/" + name + "_probe.exe",
-    ]).output(max_output_bytes=1048576)
-    hashed.check()
-    @fs.write_file(output + "/" + name + "-remote.sha256", hashed.stdout(), create_mode=CreateNew)
   }
   println(output)
 }

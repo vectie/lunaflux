@@ -1,3 +1,4 @@
+///|
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
@@ -5,42 +6,74 @@ import {
   "moonbitlang/core/env",
 }
 
+///|
 async fn remote(command : String) -> @shell.Output {
-  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
-    "-S", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
-    "wlc004s@192.168.2.179", command]).output(max_output_bytes=2097152)
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    "wlc004s@192.168.2.179", command,
+  ]).output(max_output_bytes=2097152)
 }
 
+///|
 async fn record(root : String, name : String, result : @shell.Output) -> Unit {
-  @fs.write_file(root + "/" + name + ".stdout", result.stdout(), create_mode=CreateNew)
-  @fs.write_file(root + "/" + name + ".stderr", result.stderr(), create_mode=CreateNew)
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
   result.check()
 }
 
+///|
 async fn admission(root : String, gate : String) -> Unit {
-  let identity = remote("nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader")
+  let identity = remote(
+    "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  )
   record(root, gate + "-identity", identity)
-  guard identity.stdout().trim() == "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0" else { fail("wrong device") }
-  let occupied = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+  guard identity.stdout().trim() ==
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6, 0000000F:01:00.0" else {
+    fail("wrong device")
+  }
+  let occupied = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
   record(root, gate + "-occupied", occupied)
-  guard occupied.stdout().trim().is_empty() else { fail("GPU occupied; preserve build and run later") }
-  let tools = remote("sha256sum /usr/local/cuda-13.0/bin/nvcc /usr/local/cuda-13.0/compute-sanitizer/compute-sanitizer")
-  record(root, gate + "-tools", tools)
-  guard tools.stdout().contains("fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1") &&
-    tools.stdout().contains("7a7fcdefb67042731daf021478176f4919e1843d0b10cb697af28a7d8a3d108b") else { fail("wrong tools") }
+  guard occupied.stdout().trim().is_empty() else {
+    fail("GPU occupied; preserve build and run later")
+  }
 }
 
+///|
 async fn main {
   guard @env.args() is [_, root, suffix, mode, .. tail] &&
-    (((mode == "build" || mode == "run") && tail.is_empty()) || (mode == "wait-run" && tail.length() == 1)) &&
+    (
+      ((mode == "build" || mode == "run") && tail.is_empty()) ||
+      (mode == "wait-run" && tail.length() == 1)
+    ) &&
     root.has_prefix("/tmp/lunaflux-committed-draft-") &&
-    [root, suffix].all(s => !s.is_empty() && s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))) &&
-    !suffix.contains("/") else { fail("LOCAL_DIRECTORY UNIQUE_SAFE_SUFFIX build|run|wait-run [DEEPSEEK_RUNNER_PID]") }
+    [root, suffix].all(s => {
+      !s.is_empty() &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))
+    }) &&
+    !suffix.contains("/") else {
+    fail(
+      "LOCAL_DIRECTORY UNIQUE_SAFE_SUFFIX build|run|wait-run [DEEPSEEK_RUNNER_PID]",
+    )
+  }
   if mode == "wait-run" {
-    guard tail[0].iter().all(c => c is ('0'..='9')) && tail[0] != "0" else { fail("invalid runner PID") }
+    guard tail[0].iter().all(c => c is ('0'..='9')) && tail[0] != "0" else {
+      fail("invalid runner PID")
+    }
     for ;; {
       let process = @shell.Cmd("ps", ["-p", tail[0], "-o", "args="]).output()
-      if process.stdout().trim().is_empty() { break }
+      if process.stdout().trim().is_empty() {
+        break
+      }
       process.check()
       guard process.stdout().contains("run-deepseek-base-two-spark.mbtx") &&
         process.stdout().contains("/tmp/lunaflux-deepseek-run-") else {
@@ -50,85 +83,185 @@ async fn main {
     }
   }
   let remote_root = "/tmp/lunaflux-committed-draft-" + suffix
-  let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" + remote_root + " --unit=lunaflux-committed-draft-"
+  let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" +
+    remote_root +
+    " --unit=lunaflux-committed-draft-"
   if mode == "build" {
     @fs.mkdir(root)
-    let exported = @shell.Cmd("/usr/bin/env", ["LUNA_EXPORT_COMMITTED_DRAFT=1", "moon", "test",
-      "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
-      "kernels/committed_draft_kv_cuda_source/source_test.mbt"]).output(max_output_bytes=2097152)
+    let exported = @shell.Cmd("/usr/bin/env", [
+      "LUNA_EXPORT_COMMITTED_DRAFT=1", "moon", "test", "--target", "native", "--release",
+      "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "kernels/committed_draft_kv_cuda_source/source_test.mbt",
+    ]).output(max_output_bytes=2097152)
     record(root, "export", exported)
     let source = StringBuilder()
     let mut inside = false
     let mut finished = false
     for line in exported.stdout().split("\n") {
-      if line == "LUNA_MAIN_BEGIN" { inside = true }
-      else if line == "LUNA_MAIN_END" { inside = false; finished = true }
-      else if inside { source.write_string(line.to_owned()); source.write_string("\n") }
+      if line == "LUNA_MAIN_BEGIN" {
+        inside = true
+      } else if line == "LUNA_MAIN_END" {
+        inside = false
+        finished = true
+      } else if inside {
+        source.write_string(line.to_owned())
+        source.write_string("\n")
+      }
     }
-    guard finished && !inside && !source.to_string().is_empty() else { fail("missing source") }
-    @fs.write_file(root + "/main.cuh", source.to_string(), create_mode=CreateNew)
-    @fs.write_file(root + "/probe.cu", @fs.read_file("tests/packed_moe_execution/committed_draft_probe.cu").binary(), create_mode=CreateNew)
+    guard finished && !inside && !source.to_string().is_empty() else {
+      fail("missing source")
+    }
+    @fs.write_file(
+      root + "/main.cuh",
+      source.to_string(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/probe.cu",
+      @fs.read_file("tests/packed_moe_execution/committed_draft_probe.cu").binary(),
+      create_mode=CreateNew,
+    )
     record(root, "mkdir", remote("mkdir " + remote_root))
     for file in ["main.cuh", "probe.cu"] {
-      @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
-        root + "/" + file, "wlc004s@192.168.2.179:" + remote_root + "/" + file]).output().check()
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        root + "/" + file,
+        "wlc004s@192.168.2.179:" + remote_root + "/" + file,
+      ])
+      .output()
+      .check()
     }
-    record(root, "compile", remote(unit + "build-" + suffix + " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_121 probe.cu -o probe"))
-    let hash = remote("sha256sum " + remote_root + "/probe")
-    hash.check()
-    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
-      "wlc004s@192.168.2.179:" + remote_root + "/probe", root + "/probe"]).output().check()
-    let local_hash = @shell.Cmd("shasum", ["-a", "256", root + "/probe"]).output()
-    local_hash.check()
-    guard (hash.stdout().split(" ").next(), local_hash.stdout().split(" ").next()) is (Some(expected), Some(actual)) && expected == actual else { fail("download mismatch") }
-    record(root, "download-sha256", local_hash)
-    let composite = @shell.Cmd("/usr/bin/env", ["LUNA_EXPORT_PREDICTION_ATTENTION=1", "moon", "test",
-      "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
-      "integration/deepseek_v4_prediction_prefix/plan_test.mbt"]).output(max_output_bytes=2097152)
+    record(
+      root,
+      "compile",
+      remote(
+        unit +
+        "build-" +
+        suffix +
+        " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false -arch=sm_121 probe.cu -o probe",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      "wlc004s@192.168.2.179:" + remote_root + "/probe",
+      root + "/probe",
+    ])
+    .output()
+    .check()
+    let composite = @shell.Cmd("/usr/bin/env", [
+      "LUNA_EXPORT_PREDICTION_ATTENTION=1", "moon", "test", "--target", "native",
+      "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "integration/deepseek_v4_prediction_prefix/plan_test.mbt",
+    ]).output(max_output_bytes=2097152)
     record(root, "composite-export", composite)
     let combined = StringBuilder()
     let mut copying = false
     let mut complete = false
     for line in composite.stdout().split("\n") {
-      if line == "LUNA_ATTENTION_BEGIN" { copying = true }
-      else if line == "LUNA_ATTENTION_END" { copying = false; complete = true }
-      else if copying { combined.write_string(line.to_owned()); combined.write_string("\n") }
+      if line == "LUNA_ATTENTION_BEGIN" {
+        copying = true
+      } else if line == "LUNA_ATTENTION_END" {
+        copying = false
+        complete = true
+      } else if copying {
+        combined.write_string(line.to_owned())
+        combined.write_string("\n")
+      }
     }
-    guard complete && !copying && !combined.to_string().is_empty() else { fail("missing composite source") }
-    @fs.write_file(root + "/composite.cu", combined.to_string(), create_mode=CreateNew)
-    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
-      root + "/composite.cu", "wlc004s@192.168.2.179:" + remote_root + "/composite.cu"]).output().check()
-    record(root, "composite-compile", remote(unit + "composite-build-" + suffix +
-      " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 composite.cu -o composite.cubin"))
-    let blocks = @shell.Cmd("/usr/bin/env", ["LUNA_EXPORT_PREDICTION_BLOCK=1", "moon", "test",
-      "--target", "native", "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
-      "integration/deepseek_v4_prediction_prefix/block_test.mbt"]).output(max_output_bytes=4194304)
+    guard complete && !copying && !combined.to_string().is_empty() else {
+      fail("missing composite source")
+    }
+    @fs.write_file(
+      root + "/composite.cu",
+      combined.to_string(),
+      create_mode=CreateNew,
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      root + "/composite.cu",
+      "wlc004s@192.168.2.179:" + remote_root + "/composite.cu",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      "composite-compile",
+      remote(
+        unit +
+        "composite-build-" +
+        suffix +
+        " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 composite.cu -o composite.cubin",
+      ),
+    )
+    let blocks = @shell.Cmd("/usr/bin/env", [
+      "LUNA_EXPORT_PREDICTION_BLOCK=1", "moon", "test", "--target", "native", "--release",
+      "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "integration/deepseek_v4_prediction_prefix/block_test.mbt",
+    ]).output(max_output_bytes=4194304)
     record(root, "blocks-export", blocks)
     let block_source = StringBuilder()
     let mut in_block = false
     let mut end_block = false
     for line in blocks.stdout().split("\n") {
-      if line == "LUNA_BLOCK_BEGIN" { in_block = true }
-      else if line == "LUNA_BLOCK_END" { in_block = false; end_block = true }
-      else if in_block { block_source.write_string(line.to_owned()); block_source.write_string("\n") }
+      if line == "LUNA_BLOCK_BEGIN" {
+        in_block = true
+      } else if line == "LUNA_BLOCK_END" {
+        in_block = false
+        end_block = true
+      } else if in_block {
+        block_source.write_string(line.to_owned())
+        block_source.write_string("\n")
+      }
     }
-    guard end_block && !in_block && !block_source.to_string().is_empty() else { fail("missing complete prediction block source") }
-    @fs.write_file(root + "/blocks.cu", block_source.to_string(), create_mode=CreateNew)
-    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
-      root + "/blocks.cu", "wlc004s@192.168.2.179:" + remote_root + "/blocks.cu"]).output().check()
-    record(root, "blocks-compile", remote(unit + "blocks-build-" + suffix +
-      " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 blocks.cu -o blocks.cubin"))
-    println("compiled and hash-verified; no GPU workload executed")
+    guard end_block && !in_block && !block_source.to_string().is_empty() else {
+      fail("missing complete prediction block source")
+    }
+    @fs.write_file(
+      root + "/blocks.cu",
+      block_source.to_string(),
+      create_mode=CreateNew,
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      root + "/blocks.cu",
+      "wlc004s@192.168.2.179:" + remote_root + "/blocks.cu",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      "blocks-compile",
+      remote(
+        unit +
+        "blocks-build-" +
+        suffix +
+        " /usr/local/cuda-13.0/bin/nvcc -std=c++17 -O2 --fmad=false --cubin -arch=sm_121 blocks.cu -o blocks.cubin",
+      ),
+    )
+    println(
+      "compiled and copied without checksum scanning; no GPU workload executed",
+    )
   } else {
-    let expected = @fs.read_file(root + "/download-sha256.stdout").text().split(" ").next()
-    let actual = remote("sha256sum " + remote_root + "/probe")
-    actual.check()
-    guard actual.stdout().split(" ").next() == expected else { fail("built executable changed") }
     for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
       admission(root, gate)
-      let command = if gate == "correctness" { remote_root + "/probe" } else {
-        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " + gate +
-        (if gate == "memcheck" { " --leak-check full" } else { "" }) + " " + remote_root + "/probe"
+      let command = if gate == "correctness" {
+        remote_root + "/probe"
+      } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " +
+        gate +
+        (if gate == "memcheck" { " --leak-check full" } else { "" }) +
+        " " +
+        remote_root +
+        "/probe"
       }
       record(root, gate, remote(unit + gate + "-" + suffix + " " + command))
     }
