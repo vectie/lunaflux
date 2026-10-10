@@ -34,3 +34,46 @@ fn prompt_limits(
     ),
   )
 }
+
+///|
+fn preflight_generation(
+  model_root : String,
+  rows : String,
+  history : String,
+  maximum : String,
+  stop : String,
+  frames : String,
+  count : String,
+  byte_budget : String,
+) -> Unit raise {
+  let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
+  defer root.close()
+  let spec = inspect_config(root)
+  let rows = @string.parse_int(rows)
+  let history = @string.parse_int(history)
+  let maximum = @string.parse_int(maximum)
+  let stop = @string.parse_int(stop)
+  guard rows > 0 &&
+    rows <= history &&
+    history <= spec.context_length() &&
+    stop >= -1 &&
+    stop < spec.vocabulary_size() else {
+    fail("invalid generation geometry or stop token")
+  }
+  let (limits, inference) = prompt_limits(rows, history, spec.vocabulary_size())
+  let frame_root = @approved_fs.ApprovedRoot::open_absolute(frames)
+  defer frame_root.close()
+  let prompt = @prompt_file.load_generation_prompt(
+    frame_root,
+    @string.parse_int(count),
+    limits,
+    inference,
+    maximum_new_tokens=maximum,
+    maximum_context=history,
+    maximum_bytes=@string.parse_int64(byte_budget),
+    model_generation=1UL,
+  )
+  println(
+    "request_prepared: input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{history}",
+  )
+}

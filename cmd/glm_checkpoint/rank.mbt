@@ -147,6 +147,29 @@ async fn run_ingress(
   let output_directory = arguments[if generate { 8 } else { 6 }]
   let frame_root = @approved_fs.ApprovedRoot::open_absolute(arguments[4])
   defer frame_root.close()
+  let limits = worker_limits(startup)
+  let inference = inference_limits(startup)
+  let prepared = if generate {
+    let prompt = @prompt_file.load_generation_prompt(
+      frame_root,
+      count,
+      limits,
+      inference,
+      maximum_new_tokens~,
+      maximum_context=startup.history,
+      maximum_bytes=startup.reserve / 4L,
+      model_generation=1UL,
+    )
+    println(
+      "request_prepared: input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{startup.history}",
+    )
+    Some(prompt)
+  } else {
+    None
+  }
+  if prepared is Some(_) {
+    frame_root.close()
+  }
   @fs.mkdir(output_directory)
   let context = @device.open_context(0)
   defer context.close()
@@ -185,8 +208,6 @@ async fn run_ingress(
   )
   defer edge.close()
   edge.prepare(context)
-  let limits = worker_limits(startup)
-  let inference = inference_limits(startup)
   let pipeline = @pipeline.TwoRankDecoderPipeline::new(
     new_frame(startup),
     rank,
@@ -207,34 +228,20 @@ async fn run_ingress(
   let clock = @clock.MonotonicClock::system()
   let generation : Ref[@generation.SerialGreedyGeneration?] = Ref(None)
   for index in 0..<count {
-    let input = read_bounded(
-      frame_root,
-      "plan-\{index}.bin",
-      plans.capacity().to_int64(),
-    )
+    let input = match prepared {
+      Some(prompt) => prompt.frame_bytes(index)
+      None =>
+        read_bounded(
+          frame_root,
+          "plan-\{index}.bin",
+          plans.capacity().to_int64(),
+        )
+    }
     scratch.fill(b'\x00')
     for i, byte in input {
       scratch[i] = byte
     }
     let plan = plans.load(scratch, input.length())
-    if generate {
-      guard plan.prefill_count() == 1 &&
-        plan.decode_count() == 0 &&
-        plan.prefill_row(0).produces_token() == (index == count - 1) else {
-        fail(
-          "generation requires prompt-only chunks followed by one final prefill",
-        )
-      }
-      if index == count - 1 {
-        let row = plan.prefill_row(0)
-        let prompt = row.sequence_token_start() + row.token_length()
-        guard maximum_new_tokens <= startup.history - prompt else {
-          fail(
-            "prompt and generated decode positions exceed the reserved context",
-          )
-        }
-      }
-    }
     pipeline.begin(
       plan,
       completions.writer_for(plan),

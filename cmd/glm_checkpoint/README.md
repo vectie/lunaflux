@@ -9,6 +9,15 @@ weights into a host model arena or runs JIT in the request path.
 `config MODEL_ROOT` admits only the bounded real configuration without reading
 shards or touching CUDA. This is a cheap compatibility check before full startup.
 
+`preflight-generation MODEL_ROOT ROWS HISTORY MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE
+FRAME_ROOT FRAME_COUNT PROMPT_BYTE_BUDGET` resolves the entire request using only
+config and prompt bytes before either rank starts weight loading. Prompt length
+plus generation must fit the context; chunk positions, order, final sampling and
+request identity must agree. No hashes, shard reads or CUDA are involved. Normal
+generation likewise retains an immutable, byte-budgeted prompt replay before
+device preparation/output creation and closes input-file authority; files are not
+reopened during prefill. This uses the same model-neutral plan as DeepSeek.
+
 `token-frames MODEL_ROOT ROWS HISTORY COMMA_SEPARATED_TOKEN_IDS NEW_OUTDIR`
 constructs canonical contiguous prompt chunks from already-tokenized input,
 without scanning checkpoint shards or opening CUDA. Only the last chunk samples;

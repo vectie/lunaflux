@@ -62,6 +62,31 @@ Required next boundaries, still open:
 4. Measure matched, repeatable complete-model performance and its actual device/
    transport timeline before claiming vLLM/SGLang parity or a general DSpark win.
 
+2026-10-11 generation-capacity correction: GLM and DeepSeek previously checked
+prompt plus generation capacity only at the last prefill chunk, after weight
+upload and earlier chunks had executed. Both now use one model-neutral immutable
+`PreparedSerialPrompt` and one shared bounded file adapter before opening CUDA
+or creating generation output. Each file is read once and input-file authority
+closes before execution; retained snapshots are not reopened during prefill.
+The DSpark two-host runner performs the same CPU-only `preflight-generation`
+before starting either rank. This is request planning, not artifact hardening;
+it adds no payload hashes, weight inventory scan or token-step authentication.
+
+Three actual original-input capacity pairs pass locally against the original
+configs: GLM 13 input + 51 output exactly fits 64, DeepSeek 5 + 251 fits 256,
+and its wrapped-window 144 + 112 fits 256. One additional output token is rejected
+in every pair before weight/CUDA startup. Raw CPU captures are retained under
+`/private/tmp/lunaflux-prompt-capacity-real-20261011-v3`; v2 also passes before the
+shared file-adapter extraction. v1 is a preserved harness
+failure because native errors render on stdout, not stderr. These checks do not
+execute the maximum-length requests on GPU, establish cancellation/multi-request
+serving or close the independent model-reference/performance boundaries above.
+The affected seven-package native matrix passes 23/23 and both command release
+builds/checks pass with the existing migration warning exclusions
+`-20-25-29-35-79-92`. Formatting, generated APIs, the DSpark runner self-test and
+the no-hashing/token-step developer gates also pass. No native ABI or CUDA
+arithmetic changed; this is not a new full-suite or physical execution claim.
+
 The fixed-length literal DSpark sample is 31.364 seconds speculative versus
 39.206 seconds ordinary, while the older BOS sample was slower speculative.
 The EOS-limited sample is 12.502 versus 24.658 seconds, with ten outputs including

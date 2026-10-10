@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/serial_prompt_file"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/serial_prompt_frames",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn load_generation_prompt(@approved_fs.ApprovedRoot, Int, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_new_tokens~ : Int, maximum_context~ : Int, maximum_bytes~ : Int64, model_generation~ : UInt64) -> @serial_prompt_frames.PreparedSerialPrompt raise
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

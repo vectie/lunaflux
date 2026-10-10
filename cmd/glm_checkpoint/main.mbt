@@ -3,6 +3,24 @@ async fn main {
   if @env.args()
     is [
       _,
+      "preflight-generation",
+      model_root,
+      rows,
+      history,
+      maximum,
+      stop,
+      frames,
+      count,
+      byte_budget,
+    ] {
+    preflight_generation(
+      model_root, rows, history, maximum, stop, frames, count, byte_budget,
+    )
+    return
+  }
+  if @env.args()
+    is [
+      _,
       "text-frames",
       model_root,
       rows,

@@ -363,7 +363,8 @@ async fn main {
   let build_unit = build[5:].to_owned() + ".service"
   let binary = build +
     "/source/_build/native/release/build/cmd/deepseek_checkpoint/deepseek_checkpoint.exe"
-  let budgets = " 6 256 103079215104 103079215104 4294967296 "
+  let reserve = 4294967296L
+  let budgets = " 6 256 103079215104 103079215104 " + reserve.to_string() + " "
   let model = "/DeepSeek-V4-Flash-DSpark "
   let args0 = first.checkpoint +
     model +
@@ -496,6 +497,30 @@ async fn main {
   )
   let (maximum_new_tokens, stop_token) = prepared_generation(
     @fs.read_file(root + "/prepared.txt").text(),
+  )
+  // Resolve the entire requested context before either GPU owns checkpoint
+  // weights. This is CPU-only prompt planning, not a payload checksum scan.
+  record(
+    root,
+    execution_label(mode, "prompt-preflight"),
+    remote(
+      first,
+      first.root +
+      "/deepseek_checkpoint.exe preflight-generation " +
+      first.checkpoint +
+      "/DeepSeek-V4-Flash-DSpark 6 256 " +
+      maximum_new_tokens.to_string() +
+      " " +
+      stop_token.to_string() +
+      " " +
+      first.root +
+      "/" +
+      prompt_directory +
+      " " +
+      prefill_count.to_string() +
+      " " +
+      (reserve / 4L).to_string(),
+    ),
   )
   @fs.write_file(
     root + "/" + mode + "-started.txt",

@@ -1,5 +1,23 @@
 ///|
 async fn main {
+  if @env.args()
+    is [
+      _,
+      "preflight-generation",
+      model_root,
+      rows,
+      history,
+      maximum,
+      stop,
+      frames,
+      count,
+      byte_budget,
+    ] {
+    preflight_generation(
+      model_root, rows, history, maximum, stop, frames, count, byte_budget,
+    )
+    return
+  }
   if @env.args() is [_, "decode-tokens", model_root, label, ids, output] {
     let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
     defer root.close()

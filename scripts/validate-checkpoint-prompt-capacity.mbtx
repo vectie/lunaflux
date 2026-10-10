@@ -1,0 +1,123 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, output, glm_config_root, deepseek_config_root] else {
+    fail(
+      "NEW_OUTPUT_DIRECTORY ORIGINAL_GLM_CONFIG_ROOT ORIGINAL_DEEPSEEK_CONFIG_ROOT",
+    )
+  }
+  @fs.mkdir(output)
+  let root = @fs.realpath(output)
+  let inputs = [
+    (
+      "glm", glm_config_root, 1, 64, "154822,154824,154826,25062,287,29905,371,25,12035,154827,64,154828,154841",
+      13,
+    ),
+    (
+      "deepseek-short", deepseek_config_root, 6, 256, "0,128803,19923,128804,128822",
+      5,
+    ),
+    (
+      "deepseek-window",
+      deepseek_config_root,
+      6,
+      256,
+      "0,128803,19923," +
+      Array::make(135, "45948").join(",") +
+      ",11992,3287,44388,16,128804,128822",
+      144,
+    ),
+  ]
+  for (name, model, rows, context, ids, input_count) in inputs {
+    let binary = "_build/native/release/build/cmd/" +
+      (if name == "glm" {
+        "glm_checkpoint/glm_checkpoint.exe"
+      } else {
+        "deepseek_checkpoint/deepseek_checkpoint.exe"
+      })
+    let frames = root + "/" + name + "-frames"
+    let preparation = @shell.Cmd(binary, [
+      "token-frames",
+      model,
+      rows.to_string(),
+      context.to_string(),
+      ids,
+      frames,
+    ]).output()
+    record(root, name + "-frames", preparation)
+    preparation.check()
+    guard preparation.stdout().contains("input_tokens=\{input_count}") else {
+      fail("original-token fixture length changed")
+    }
+    let count = (input_count + rows - 1) / rows
+    for extra in [0, 1] {
+      let maximum = context - input_count + extra
+      let label = name + (if extra == 0 { "-exact" } else { "-overflow" })
+      let result = @shell.Cmd(binary, [
+        "preflight-generation",
+        model,
+        rows.to_string(),
+        context.to_string(),
+        maximum.to_string(),
+        "1",
+        frames,
+        count.to_string(),
+        "1048576",
+      ]).output(max_output_bytes=1048576)
+      record(root, label, result)
+      if extra == 0 {
+        result.check()
+        guard result
+          .stdout()
+          .contains(
+            "input_tokens=\{input_count} maximum_new_tokens=\{maximum} context=\{context}",
+          ) &&
+          result.stderr().is_empty() else {
+          fail("missing exact-capacity prompt preparation")
+        }
+      } else {
+        try result.check() catch {
+          _ => ()
+        } noraise {
+          _ => fail("one-token overflow incorrectly accepted")
+        }
+        let error = result.stdout() + result.stderr()
+        guard (
+            error.contains("prompt and generated decode positions exceed") ||
+            error.contains("invalid prompt replay envelope")
+          ) &&
+          !result.stdout().contains("request_prepared:") else {
+          fail("overflow did not fail at the prompt-capacity boundary")
+        }
+      }
+      guard !result.stdout().contains("checkpoint_startup:") &&
+        !result.stderr().contains("CUDA") else {
+        fail("CPU preflight attempted checkpoint/device startup")
+      }
+    }
+  }
+  println(
+    "three original-input prompt capacity pairs passed: exact fit admitted, one-token overflow rejected; no weight inventory, CUDA or hashing",
+  )
+}

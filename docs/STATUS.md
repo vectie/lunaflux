@@ -19,6 +19,16 @@ their pending claims only for the explicitly completed diagnostic routes:
 | DeepSeek-V4 Flash DSpark | Original tokenizer prepares literal chat input; speculative and ordinary execution match, including a 144-token sliding-window transition and EOS termination | Independent upstream model parity, maximum-context correctness, multi-request serving or external-framework performance |
 | MiniMax-H3 | Actual `A red cat` caption, original text encoder, five joint denoising evaluations and both decoded media arrays at 32×32/120 frames; independent original-weight ATen text-encoder differential now measured | Full-H3 reference equivalence, caption fidelity, realistic-resolution quality/performance or production serving |
 
+GLM/DeepSeek generation now resolves the full prompt and requested output length
+before device preparation using one immutable model-neutral replay and one
+shared file adapter. Input bytes are read once; input-file authority is closed
+and the same snapshots feed prefill. The DSpark runner also preflights before
+either remote rank loads weights. Three original-input CPU exact/overflow pairs
+pass: 13+51/64, 5+251/256 and 144+112/256; +1 output fails in each. This is a
+capacity/source fix, not a maximum-context GPU result or token/s improvement.
+No hashes or new authentication scans were introduced. Raw captures and the
+still-open three-model requirements are recorded in [PLAN.md](PLAN.md).
+
 The three original checkpoint tokenizers now independently match vLLM 0.26.0's
 HF renderer on twelve cases each: 36 exact token-ID and 36 exact decoded-text
 comparisons pass. The corpus includes actual model inputs, longer literal text,

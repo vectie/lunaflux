@@ -12,6 +12,14 @@ pub fn encode_prompt(ArrayView[Int], @worker_protocol.WorkerProtocolLimits, @inf
 // Errors
 
 // Types and methods
+pub struct PreparedSerialPrompt {
+  // private fields
+}
+pub fn PreparedSerialPrompt::frame_bytes(Self, Int) -> Bytes raise
+pub fn PreparedSerialPrompt::frame_count(Self) -> Int
+pub fn PreparedSerialPrompt::input_token_count(Self) -> Int
+pub fn PreparedSerialPrompt::maximum_new_tokens(Self) -> Int
+pub fn PreparedSerialPrompt::new(ArrayView[Bytes], @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_new_tokens~ : Int, maximum_context~ : Int, maximum_encoded_bytes~ : Int64, model_generation~ : UInt64) -> Self raise
 
 // Type aliases
 

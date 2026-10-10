@@ -15,6 +15,19 @@ runtime-verified integrity claims. Both old sha256sum records and explicit
 `token-frames MODEL_ROOT ROWS HISTORY COMMA_SEPARATED_TOKEN_IDS NEW_OUTDIR`
 creates bounded canonical prefill frames (no guessed tokenizer/chat template).
 
+`preflight-generation MODEL_ROOT ROWS HISTORY MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE
+FRAME_ROOT FRAME_COUNT PROMPT_BYTE_BUDGET` reads only the model config and bounded
+prompt frames, without weight-shard inspection or CUDA. It rejects requests whose
+entire prompt plus generation cannot fit, missing/malformed/out-of-order chunks,
+or inconsistent request identities. The DSpark two-host runner uses this before
+starting either rank. Normal generation also performs this planning before
+opening CUDA or creating output; it retains those same immutable prompt bytes
+and closes their file authority rather than reopening files during prefill.
+Rebuild the runner's checkpoint executable to obtain this command. An older
+prepared executable cannot satisfy preflight; the runner stops before launching
+either GPU rank rather than silently bypassing capacity planning. Existing
+diagnostic evidence remains unchanged.
+
 The remaining modes share this prefix:
 
 ```

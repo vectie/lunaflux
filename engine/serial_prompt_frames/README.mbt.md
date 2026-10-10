@@ -10,3 +10,16 @@ ownership; the serial diagnostic runner owns its request-local retained state.
 The producer reserves at least one context position for generation, validates
 token IDs against the supplied envelope, and retires each temporary plan only
 after copying the frame into owned immutable bytes.
+
+`PreparedSerialPrompt` resolves an entire generation request before GPU startup.
+It requires contiguous positions from zero, one request identity, ordered model
+generation/sequence fields, and exactly one final producing chunk. Prompt length
+plus the requested maximum generation must fit the reserved context. Encoded
+frames have an aggregate retained-byte ceiling and are immutable snapshots;
+changing a caller's frame list cannot change the prepared replay. There is no
+checksum scan, model-family policy or hot-path filesystem access.
+
+The GLM and DeepSeek diagnostic generation adapters load each frame once before
+device preparation, close input-file authority, and reuse these snapshots.
+Their `preflight-generation` commands perform the same CPU-only planning before
+a remote peer begins weight loading. This is not live multi-request serving.
