@@ -71,10 +71,11 @@ fn merger_shape(
   parts : Array[StringView],
   offset : Int,
   shape : ReadOnlyArray[Int64],
+  normalization_width : Int64,
 ) -> Bool {
   if suffix_is(parts, offset, ["norm", "weight"]) ||
     suffix_is(parts, offset, ["norm", "bias"]) {
-    shape_is(shape, [1152L])
+    shape_is(shape, [normalization_width])
   } else if suffix_is(parts, offset, ["linear_fc1", "weight"]) {
     shape_is(shape, [4608L, 4608L])
   } else if suffix_is(parts, offset, ["linear_fc1", "bias"]) {
@@ -130,13 +131,15 @@ fn vision_shape(name : String, shape : ReadOnlyArray[Int64]) -> Bool {
         parts[0] == "model" &&
         parts[1] == "visual" &&
         parts[2] == "merger" {
-        merger_shape(parts, 3, shape)
+        // The main merger normalizes before the 2x2 spatial merge.
+        merger_shape(parts, 3, shape, 1152L)
       } else if parts.length() >= 6 &&
         parts[0] == "model" &&
         parts[1] == "visual" &&
         parts[2] == "deepstack_merger_list" &&
         index_in(parts[3], 3) {
-        merger_shape(parts, 4, shape)
+        // Deepstack mergers normalize the already-merged four-patch row.
+        merger_shape(parts, 4, shape, 4608L)
       } else {
         false
       }

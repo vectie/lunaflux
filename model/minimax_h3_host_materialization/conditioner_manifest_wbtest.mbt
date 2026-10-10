@@ -84,12 +84,13 @@ fn append_merger(
   indexes : Array[MiniMaxH3TensorIndexInput],
   prefix : String,
   offset : Int64,
+  normalization_width? : Int64 = 1152L,
 ) -> Int64 {
   let mut next = offset
   for
     named in [
-      ("norm.weight", [1152L]),
-      ("norm.bias", [1152L]),
+      ("norm.weight", [normalization_width]),
+      ("norm.bias", [normalization_width]),
       ("linear_fc1.weight", [4608L, 4608L]),
       ("linear_fc1.bias", [4608L]),
       ("linear_fc2.weight", [5120L, 4608L]),
@@ -145,6 +146,7 @@ fn complete_conditioner_fixture() -> (
       indexes,
       "model.visual.deepstack_merger_list.\{merger}",
       offset,
+      normalization_width=4608L,
     )
   }
   let limits = try! @safetensors.HeaderLimits::new(
@@ -165,6 +167,29 @@ fn complete_conditioner_fixture() -> (
     indexes,
     offset,
   )
+}
+
+///|
+test "conditioner merger normalization width follows spatial merge ownership" {
+  assert_true(
+    vision_shape(
+      "model.visual.merger.norm.weight",
+      ReadOnlyArray::from_array([1152L]),
+    ),
+  )
+  assert_false(
+    vision_shape(
+      "model.visual.merger.norm.weight",
+      ReadOnlyArray::from_array([4608L]),
+    ),
+  )
+  for merger in 0..<3 {
+    for suffix in ["weight", "bias"] {
+      let name = "model.visual.deepstack_merger_list.\{merger}.norm.\{suffix}"
+      assert_true(vision_shape(name, ReadOnlyArray::from_array([4608L])))
+      assert_false(vision_shape(name, ReadOnlyArray::from_array([1152L])))
+    }
+  }
 }
 
 ///|
