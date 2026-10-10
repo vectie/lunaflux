@@ -10,6 +10,22 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DSpark noncausal attention): shared
+`CommittedDraftKvPrecision`, AOT source and prepared shared-ring frame now
+separate initial main-KV priming from main-publication/all-draft attention.
+`DeepSeekPredictionAttention` streams the exact six `mtp.*.attn` weight groups,
+sharing KV matrix/norm between main and draft paths. Priming has seven ordered
+launches; prediction has sixteen, including rotary and simulated KV precision.
+Stage selection uses the three-block artifact count, not the legacy config
+field of one. The expanded affected native suite passes 140/140, including the
+new checkpoint-owner regression for exact summed budget, missing-stage rejection,
+warmed allocation-free phases and abort/release.
+Both ring kernels and the complete checkpoint attention source compile on GB10
+under 2-GiB/no-swap build units. Build artifacts are retained at
+`/tmp/lunaflux-committed-draft-results-20261010-v3`; no GPU numerical pass is
+claimed yet because the full DeepSeek run has priority. Output projection,
+prediction mHC/MoE, Markov/confidence and verified generation remain unfinished.
+
 Update 2026-10-10 (DSpark main projection): generic `RowProjectionNormPrecision`
 preserves packed block-128 E4M3/UE8M0 activation/weight arithmetic, an intermediate
 BF16 boundary, and F32 weighted RMSNorm with final BF16 rounding. The prepared
@@ -50,9 +66,12 @@ Checkpoint run progress: exact `19c8f35a` builds as ARM64 and accepts the actual
 43-layer DeepSeek config on both Sparks. Both executables have SHA-256
 `04e6c3a07c8ad5ad5d42bac667a6522d777c756b046d9aebe216052917fd9dd4`.
 The broader affected native stage/runner/packed-execution tests pass 92/92.
-Actual checkpoint copies are still active under user units; full loading and
-generation have not passed yet. The dedicated `.mbtx` runner waits for those
-specific copies rather than starting concurrent downloads or GPU runs.
+Both checkpoint copies, payload export, placement and rank AOT compilation have
+passed. Placement assigns layers 0–26 to `.178` and 27–42 to `.179`, with planned
+footprints 102,036,247,436 and 62,659,803,764 bytes within each 96-GiB ceiling,
+including a 4-GiB reserve. The egress startup loader is active; generation has
+not passed yet. The dedicated `.mbtx` runner waits for actual egress readiness
+before starting ingress, without concurrent whole-model GPU campaigns.
 
 MiniMax footprint correction: the management repository's approximately
 465 GiB total includes duplicate root layouts and both FL2VA/Ref2VA variants.

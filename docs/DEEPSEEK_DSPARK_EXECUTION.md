@@ -48,7 +48,16 @@ For prediction after prefill:
 
 Shared execution planning must express main publication and noncausal draft
 consumption as separate effects. Prediction never publishes draft KV into the
-committed-main ring. The base request's committed frontier remains authoritative;
+committed-main ring. `CommittedDraftKvPrecision` now expresses this separate
+read set; its AOT lowering and shared-ring frame build priming/prediction tables
+once. `DeepSeekPredictionAttention` binds actual `mtp.*.attn` planes and joins
+main projection/norm/rotary/simulation, draft query/KV transforms, publication
+and noncausal attention. Its priming table has seven launches; prediction has
+sixteen. The KV matrix and learned norm are uploaded once and borrowed by both
+branches. Stage bounds use the three-block artifact count, not the config's
+legacy value of one. Composite CUDA compilation and native ownership tests
+pass; GPU ring correctness and the complete prediction queue remain unverified.
+The base request's committed frontier remains authoritative;
 prediction history must not independently advance or commit rejected drafts.
 Prefill and draft counts/positions are separate prepared ports, not reinterpretations
 of one mutable descriptor. Both phase plans are built at startup, without token-

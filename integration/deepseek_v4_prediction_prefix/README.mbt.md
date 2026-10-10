@@ -1,4 +1,4 @@
-# DSpark executable main-hidden prefix
+# DSpark executable prediction prefixes
 
 The model adapter binds actual `mtp.0.main_proj.weight`, its UE8M0 scale plane,
 and `mtp.0.main_norm.weight`. Three official target hidden captures form ordered
@@ -12,8 +12,17 @@ storage stays separately owned. Partial or reordered target-layer lists fail
 before upload. A distributed caller must assemble all ordered segments before
 preparation, not silently reinterpret a local capture as complete input.
 
-This owner produces the main stream consumed by prediction attention. It is not
-the complete DSpark predictor: committed-main ring publication, noncausal draft
-attention, three prediction blocks, sequential Markov/confidence and draft
-verification remain distinct required operations. It never substitutes ordinary
-causal base layers or the base text head for those operations.
+`DeepSeekPredictionAttention` now binds the six compact query/KV/norm/sink
+weights for each actual `mtp.0` through `mtp.2` stage. Main and draft projection
+share the same KV matrix/vector. Priming projects, normalizes, rotates/simulates
+main KV and retains the ring without draft computation (seven launches).
+Prediction also computes draft queries/KV and reads all draft slots after main
+publication (sixteen launches). Separate prepared main/draft ports preserve the
+reference's distinct count/position laws; no request-time source generation or
+weight expansion is introduced.
+
+These owners are not the complete DSpark predictor. Prediction mHC mixing,
+output projections and MoE blocks, sequential Markov/confidence, distributed
+capture assembly and base verification/commit remain required integration.
+Whole-model correctness and performance are not established by component
+ownership tests or CUDA compilation.

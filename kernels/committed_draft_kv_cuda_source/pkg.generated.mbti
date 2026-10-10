@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/committed_draft_kv_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn committed_draft_kv_source(@precision_ir.CommittedDraftKvPrecision, phase~ : @precision_ir.CommittedDraftPhase, symbol_prefix~ : String) -> CommittedDraftKvCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct CommittedDraftKvCudaSource {
+  // private fields
+}
+pub fn CommittedDraftKvCudaSource::launch(Self, Int) -> (Int, Int, Int)
+pub fn CommittedDraftKvCudaSource::phase(Self) -> @precision_ir.CommittedDraftPhase
+pub fn CommittedDraftKvCudaSource::plan(Self) -> @precision_ir.CommittedDraftKvPrecision
+pub fn CommittedDraftKvCudaSource::source_bytes(Self) -> Bytes
+pub fn CommittedDraftKvCudaSource::stage_count(Self) -> Int
+pub fn CommittedDraftKvCudaSource::symbol(Self, Int) -> String
+
+// Type aliases
+
+// Traits

@@ -12,8 +12,13 @@ base decoder's ordered queue when explicitly enabled. Preserve local target
 segment metadata across placement; a partial rank capture must be assembled
 before the DSpark main projection. That projection and weighted RMSNorm now have
 a shared precision plan, AOT lowering, prepared frame and exact `mtp.0` checkpoint
-owner. Next connect committed-main-KV plus noncausal draft-block attention,
-three prediction mHC/MoE blocks, sequential Markov logits and confidence head,
+owner. Committed-main-KV publication and noncausal draft-block attention now
+have a shared immutable read-set plan, two prepared phase tables, and an `mtp.*`
+checkpoint attention owner. Main/draft projections share one compact KV bank;
+initial priming skips draft computation. Native tests and composite CUDA compile
+pass; the new ring GPU numerical/sanitizer run follows the base-model campaign,
+not claimed complete. Next connect the three prediction mHC/MoE blocks and
+output projections, sequential Markov logits and confidence head,
 then verification/commit.
 Do not substitute the learned base-model text head or ordinary causal blocks.
 Exact phase/read-set/head dependencies and completion requirements are recorded

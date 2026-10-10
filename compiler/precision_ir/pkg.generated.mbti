@@ -51,6 +51,24 @@ pub fn CausalConvolutionPrecision::geometry(Self) -> (Int, Int)
 pub fn CausalConvolutionPrecision::new(channel_count~ : Int, kernel_size~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn CausalConvolutionPrecision::state_bytes(Self) -> Int64
 
+pub struct CommittedDraftKvPrecision {
+  // private fields
+}
+pub fn CommittedDraftKvPrecision::buffer_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn CommittedDraftKvPrecision::effect(Self) -> NumericEffect
+pub fn CommittedDraftKvPrecision::geometry(Self) -> (Int, Int, Int, Int, Int, Int)
+pub fn CommittedDraftKvPrecision::new(query_heads~ : Int, head_width~ : Int, window_tokens~ : Int, maximum_main_rows~ : Int, maximum_draft_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn CommittedDraftKvPrecision::state_bytes(Self) -> Int64
+pub fn CommittedDraftKvPrecision::visible_main_slots(Self, Int) -> Int raise PrecisionPlanError
+
+pub(all) enum CommittedDraftPhase {
+  Prime
+  Predict
+} derive(Eq, @debug.Debug)
+pub fn CommittedDraftPhase::equal(Self, Self) -> Bool
+pub fn CommittedDraftPhase::not_equal(Self, Self) -> Bool
+pub fn CommittedDraftPhase::to_repr(Self) -> @debug.Repr
+
 pub struct CompressedIndexSelectionPrecision {
   // private fields
 }

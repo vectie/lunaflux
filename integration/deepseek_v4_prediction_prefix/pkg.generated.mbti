@@ -5,19 +5,39 @@ import {
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/integration/committed_draft_kv_frame",
   "vectie/lunaflux/model/deepseek_v4_spec",
   "vectie/lunaflux/model/streaming_safetensors",
   "vectie/lunaflux/runtime/approved_fs",
 }
 
 // Values
+pub fn bind_prediction_attention_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, stage~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn bind_prediction_main_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
+pub fn prediction_attention_frame(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64, symbol_prefix~ : String) -> @committed_draft_kv_frame.CommittedDraftKvFrame raise
+
+pub fn prediction_attention_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64) -> @precision_ir.CommittedDraftKvPrecision raise
 
 pub fn prediction_main_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RowProjectionNormPrecision raise
 
 // Errors
 
 // Types and methods
+pub struct DeepSeekPredictionAttention {
+  // private fields
+}
+pub fn DeepSeekPredictionAttention::close(Self) -> Unit raise
+pub fn DeepSeekPredictionAttention::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, stage~ : Int, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekPredictionAttention::output(Self) -> @device.Allocation raise
+pub fn DeepSeekPredictionAttention::prediction_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekPredictionAttention::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, main_counts~ : @device.Allocation, draft_counts~ : @device.Allocation, main_positions~ : @device.Allocation, draft_positions~ : @device.Allocation, main_hidden~ : @device.Allocation, draft_hidden~ : @device.Allocation, reset_flag~ : @device.Allocation, start_position~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekPredictionAttention::prime_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekPredictionAttention::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekPredictionAttention::source_bytes(Self) -> Bytes
+pub fn DeepSeekPredictionAttention::workspace_bytes(Self) -> Int64
+
 pub struct DeepSeekPredictionMain {
   // private fields
 }

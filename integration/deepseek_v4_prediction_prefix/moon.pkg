@@ -4,11 +4,22 @@ import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/kernels/row_projection_norm_cuda_source" @source,
   "vectie/lunaflux/integration/row_projection_norm_frame" @frame,
+  "vectie/lunaflux/kernels/committed_draft_kv_cuda_source" @draft_source,
+  "vectie/lunaflux/integration/committed_draft_kv_frame" @draft_frame,
+  "vectie/lunaflux/kernels/quantized_query_kv_cuda_source" @query_source,
+  "vectie/lunaflux/integration/quantized_query_kv_frame" @query_frame,
+  "vectie/lunaflux/kernels/rotary_kv_cuda_source" @rotary_source,
+  "vectie/lunaflux/integration/rotary_kv_frame" @rotary_frame,
   "vectie/lunaflux/integration/precision_checkpoint_upload" @upload,
   "vectie/lunaflux/engine/precision_materialize" @materialize,
   "vectie/lunaflux/model/streaming_safetensors" @streaming,
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/device",
 }
+
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+} for "test"
 
 supported_targets = "native"
