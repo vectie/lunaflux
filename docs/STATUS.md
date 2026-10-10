@@ -113,8 +113,13 @@ only reduces final RMSE by 11.0%, to 0.037376341. Thus reduced-precision BF16
 projection arithmetic is not a complete explanation, nor proof that all
 remaining differences are bugs. Matched-input full-reduction replay leaves
 attention/output/down differences unchanged. See the detailed report for exact
-scopes and per-operator errors. Full-model numerical/quality acceptance remains
-open; no new throughput result or production arithmetic change follows.
+scopes and per-operator errors. CPU down replay reproduces all fifteen native
+differences with ordered F32 and all corresponding wider results with F64.
+Independent F64 attention matches native at 24,574/24,576 values; library SDPA
+matches 22,734/24,576. This supports arithmetic-policy attribution for the stated
+first-layer sample, not changing production kernels to imitate the reference.
+Full-model numerical/quality acceptance remains open; no new throughput result
+or production arithmetic change follows.
 
 The DeepSeek fixed-length run deliberately disables EOS stopping. Its last six
 tokens follow EOS and are not part of a normal assistant answer. A separate

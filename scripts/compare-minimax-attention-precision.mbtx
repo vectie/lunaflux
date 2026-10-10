@@ -1,0 +1,157 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/math",
+}
+
+///|
+fn values(bytes : Bytes) -> Array[Double] raise {
+  guard bytes.length() % 2 == 0 else { fail("incomplete BF16 input") }
+  [
+    for i in 0..<(bytes.length() / 2) => {
+      let bits = bytes[i * 2].to_uint() | (bytes[i * 2 + 1].to_uint() << 8)
+      let value = Float::reinterpret_from_uint(bits << 16).to_double()
+      guard !value.is_nan() && !value.is_inf() else {
+        fail("nonfinite attention operand")
+      }
+      value
+    }
+  ]
+}
+
+///|
+/// Independent two-pass causal GQA in F64. Unlike production's online F32
+/// recurrence, scores/softmax are evaluated in complete row order here.
+fn attention(
+  q : ArrayView[Double],
+  k : ArrayView[Double],
+  v : ArrayView[Double],
+  rows : Int,
+  heads : Int,
+  kv_heads : Int,
+  dim : Int,
+) -> FixedArray[Double] raise {
+  guard rows > 0 &&
+    rows <= 16 &&
+    heads > 0 &&
+    kv_heads > 0 &&
+    heads % kv_heads == 0 &&
+    dim > 0 &&
+    dim <= 256 &&
+    q.length() == rows * heads * dim &&
+    k.length() == rows * kv_heads * dim &&
+    v.length() == k.length() else {
+    fail("bounded causal GQA operand extents differ")
+  }
+  let output = FixedArray::make(q.length(), 0.0)
+  let scale = 1.0 / dim.to_double().sqrt()
+  for row in 0..<rows {
+    for head in 0..<heads {
+      let kv_head = head / (heads / kv_heads)
+      let scores = [
+        for key in 0..<=row => {
+          let dot = for d in 0..<dim; sum = 0.0 {
+            continue sum +
+              q[(row * heads + head) * dim + d] *
+              k[(key * kv_heads + kv_head) * dim + d]
+          } nobreak {
+            sum
+          }
+          dot * scale
+        }
+      ]
+      let maximum = scores.fold(init=scores[0], (a, b) => a.max(b))
+      let probabilities = scores.map(score => @math.exp(score - maximum))
+      let denominator = probabilities.fold(init=0.0, (sum, p) => sum + p)
+      for d in 0..<dim {
+        let numerator = for key in 0..<=row; sum = 0.0 {
+          continue sum +
+            probabilities[key] * v[(key * kv_heads + kv_head) * dim + d]
+        } nobreak {
+          sum
+        }
+        output[(row * heads + head) * dim + d] = numerator / denominator
+      }
+    }
+  }
+  output
+}
+
+///|
+test "wider attention preserves causal masking and grouped head reuse" {
+  let output = attention(
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0, 0.0],
+    [1.0, 3.0, 5.0, 7.0],
+    2,
+    2,
+    1,
+    2,
+  )
+  assert_eq(output[:].to_owned(), [1.0, 3.0, 1.0, 3.0, 3.0, 5.0, 3.0, 5.0])
+  try attention([], [], [], 1, 2, 1, 2) catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing operands accepted")
+  }
+}
+
+///|
+fn rounded_bytes(output : ArrayView[Double]) -> Bytes {
+  let bytes : FixedArray[Byte] = FixedArray::make(output.length() * 2, 0)
+  for i, value in output {
+    let raw = Float::from_double(value).reinterpret_as_uint()
+    let bits = (raw + 0x7fffU + ((raw >> 16) & 1U)) >> 16
+    bytes[i * 2] = bits.to_byte()
+    bytes[i * 2 + 1] = (bits >> 8).to_byte()
+  }
+  Bytes::from_array(bytes)
+}
+
+///|
+test "wider output keeps BF16 ties and finite operand checks" {
+  assert_eq(rounded_bytes([1.00390625, 1.01171875]), b"\x80\x3f\x82\x3f")
+  try values(b"\x80\x7f") catch {
+    _ => ()
+  } noraise {
+    _ => fail("infinite operand accepted")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native, reference, output] else {
+    fail(
+      "NATIVE_OPERATOR_DIRECTORY MATCHED_REFERENCE_DIRECTORY NEW_OUTPUT_DIRECTORY",
+    )
+  }
+  let q = values(@fs.read_file(native + "/q-rotary.bf16").binary())
+  let k = values(@fs.read_file(native + "/k-rotary.bf16").binary())
+  let v = values(@fs.read_file(native + "/v.bf16").binary())
+  guard q.length() == 3 * 8192 else {
+    fail("this probe uses the three-row original caption")
+  }
+  let result = rounded_bytes(attention(q, k, v, 3, 64, 8, 128))
+  @fs.mkdir(output)
+  let wider = output + "/attention-f64.bf16"
+  @fs.write_file(wider, result, create_mode=CreateNew)
+  for (name, left) in [("native", native), ("reference", reference)] {
+    let compared = @shell.Cmd("moon", [
+      "run",
+      "scripts/compare-minimax-encoder-reference.mbtx",
+      left + "/attention.bf16",
+      wider,
+      output + "/" + name + "-vs-f64.txt",
+      "matched_input_two_pass_f64_causal_attention_" + name,
+      "8192",
+    ]).output(max_output_bytes=65536)
+    compared.check()
+    println(compared.stdout())
+  }
+  println(
+    "attention_precision_complete scope=three_row_matched_inputs_only performance_claim=false",
+  )
+}

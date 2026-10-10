@@ -50,8 +50,13 @@ at 15/15,360 values, maximum 0.03125. Disabling the reference's reduced-precisio
 BF16 projection reductions across all fifty layers only lowers final RMSE from
 0.042012108 to 0.037376341 (11.0%), so it does not explain the whole chain.
 Matched-input full-reduction replay leaves attention/output/down differences
-unchanged. Next distinguish ordered-F32 rounding from implementation errors
-before altering arithmetic, then widen independent whole-model/quality tests.
+unchanged. Independent CPU down replay now reproduces all fifteen differing
+outputs using the respective ordered-F32/F64 sums; the worst case straddles a
+BF16 rounding midpoint. Independent two-pass F64 attention matches native at
+24,574/24,576 values versus 22,734/24,576 for the library reference. These tests
+attribute this first-layer sample, not a complete numerical/quality acceptance.
+Next widen independent whole-model and joint-denoiser/VAE quality tests; do not
+modify production arithmetic just to imitate a lower-precision reference.
 This is numerical attribution, not an acceptance tolerance, full-model parity
 or throughput gain. All numerical probes remain outside serving and startup.
 

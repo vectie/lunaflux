@@ -286,8 +286,9 @@ native 4.25 versus F64-rounded 4.28125 at flat index 1,496. F32 and F64 referenc
 down outputs differ at just one value, maximum 2.384185791e-7. Down native source
 uses 25,600 ascending separately rounded F32 multiply/add steps before its BF16
 output; Q/K/V/output use the same ordered arithmetic at shorter reduction lengths.
-Ordered-sum error is a candidate explanation, **not yet independently replayed**
-or a reason to silently change the numerical contract. These measurements do not
+The separate CPU replay below now reproduces these down differences from the
+two arithmetic orders; this is not a reason to silently change the numerical
+contract. These measurements do not
 establish an acceptance tolerance or make default-library byte equality a goal.
 
 Final probe and comparisons:
@@ -329,6 +330,49 @@ peaks were not captured. These diagnostic lifetimes include loading and must
 not be called throughput results. Wider text inputs, independently replayed
 reduction/attention semantics, joint-denoiser/VAE quality and matched serving
 performance remain required for the full three-model goal.
+
+### Independent down and attention arithmetic replay
+
+The CPU-only `replay-down-reduction` reads only the original first-layer weight
+rows corresponding to all fifteen native-versus-F64 down differences. It uses
+the identical native activation input, explicit separately rounded F32 product
+and sum steps, and an independent F64 sum. All **15/15** ordered-F32 BF16 outputs
+match native; all **15/15** F64-rounded results match the wider reference.
+There are zero unexplained outputs in this selected set, not a claim that every
+down output, layer, shape or complete model has been independently verified.
+
+The largest case is now explained numerically: ordered F32 gives
+4.265617370605469, F64 gives 4.2656318470385415, while the BF16 midpoint is
+4.265625. The two sums differ by approximately 0.00001448 but round to 4.25 and
+4.28125 respectively. Thus a 0.03125 **output** difference is not evidence of a
+0.03125 accumulation error or an incorrect weight/layout. This test proves
+agreement with the declared ordered arithmetic for those fifteen cases; it
+does not declare that arithmetic optimal or introduce a model tolerance.
+
+Replay evidence: `/tmp/lunaflux-minimax-aten-reference-down-reduction-20261011-v1`.
+The process exits 0, `OOMKilled=false`, retained tensor bytes zero. It does not
+request GPU access, reads 51,200 bytes per selected original weight row, and runs
+within the existing 8-GiB/no-swap external limit. Native tests cover separate
+F32 rounding and BF16 ties; no native ABI or production code changed.
+
+A separate local MoonBit diagnostic independently computes complete causal GQA
+scores and two-pass softmax/PV in F64, then rounds to BF16. It consumes the same
+three-row native Q-rotary/K-rotary/V operands; it does not call native CUDA or
+ATen attention or reuse an online-softmax implementation.
+
+| Result against this F64 attention | Exact BF16 / 24,576 | RMSE | Relative L2 | Maximum error |
+| --- | ---: | ---: | ---: | ---: |
+| Native | 24,574 | 1.52381e-9 | 4.38133e-8 | 2.384185791e-7 |
+| Matched library SDPA | 22,734 | 2.38417e-5 | 0.000685507 | 0.0009765625 |
+
+Both first-token attention rows are bitwise exact. The remaining native
+differences are tiny near-zero values, not the larger SDPA discrepancies.
+This confirms native is much closer to the wider mathematical reference in
+this exact invocation. It does not identify the selected library's internal
+rounding instruction, qualify all attention shapes, or justify bypassing wider
+model/quality tests. The diagnostic has causal/GQA and BF16-rounding/nonfinite
+tests (2/2); output is retained at
+`/tmp/lunaflux-minimax-attention-precision-comparison-20261011-v1`.
 
 ## Joint request
 

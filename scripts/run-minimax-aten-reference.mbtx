@@ -78,7 +78,13 @@ fn safe(path : String) -> Bool {
 fn needs_native_inputs(mode : String) -> Bool {
   mode == "replay-operators" ||
   mode == "replay-full-reduction" ||
-  mode == "projection-oracle"
+  mode == "projection-oracle" ||
+  mode == "replay-down-reduction"
+}
+
+///|
+fn needs_gpu(mode : String) -> Bool {
+  mode != "self-test" && mode != "replay-down-reduction"
 }
 
 ///|
@@ -87,6 +93,7 @@ fn reference_arguments(mode : String) -> String raise {
   match mode {
     "self-test" => " self-test /work/libreference.so /work/self-test"
     "projection-oracle" => prefix + "/native /work/projection-oracle"
+    "replay-down-reduction" => prefix + "/native /oracle"
     "replay-operators" | "replay-full-reduction" =>
       prefix + "32,2518,8251 /work/" + mode + " /native"
     "encode" | "encode-full-reduction" =>
@@ -107,6 +114,12 @@ test "matched replay stays distinct from a fifty-layer reference" {
   assert_false(needs_native_inputs("encode-full-reduction"))
   assert_true(reference_arguments("encode-operators").has_suffix(" 1"))
   assert_true(needs_native_inputs("projection-oracle"))
+  assert_true(needs_native_inputs("replay-down-reduction"))
+  assert_false(needs_gpu("replay-down-reduction"))
+  assert_eq(
+    reference_arguments("replay-down-reduction"),
+    " replay-down-reduction /work/libreference.so /model /native /oracle",
+  )
   assert_eq(
     reference_arguments("projection-oracle"),
     " projection-oracle /work/libreference.so /model /native /work/projection-oracle",
@@ -121,11 +134,15 @@ test "matched replay stays distinct from a fifty-layer reference" {
 ///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
-    (extra is [] || (needs_native_inputs(mode) && extra is [_])) &&
+    (
+      extra is [] ||
+      (needs_native_inputs(mode) && extra is [_]) ||
+      (mode == "replay-down-reduction" && extra is [_, _])
+    ) &&
     root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
     safe(root) else {
     fail(
-      "stage|self-test|asan|encode|encode-operators|encode-full-reduction|replay-operators|replay-full-reduction|projection-oracle|collect|collect-full-reduction|collect-operators|collect-replay|collect-full-replay|collect-oracle EVIDENCE_ROOT [NATIVE_OPERATOR_DIRECTORY]",
+      "stage|self-test|asan|encode|encode-operators|encode-full-reduction|replay-operators|replay-full-reduction|projection-oracle|replay-down-reduction|collect|collect-full-reduction|collect-operators|collect-replay|collect-full-replay|collect-oracle EVIDENCE_ROOT [NATIVE_OPERATOR_DIRECTORY [PRECISION_ORACLE_DIRECTORY]]",
     )
   }
   let first = "wlc003s@192.168.2.178"
@@ -272,6 +289,7 @@ async fn main {
     mode == "encode-full-reduction" ||
     mode == "replay-operators" ||
     mode == "replay-full-reduction" ||
+    mode == "replay-down-reduction" ||
     mode == "projection-oracle" {
     let name = tag + "-" + mode
     let output = root + "/" + mode
@@ -282,7 +300,7 @@ async fn main {
       remote(second, socket179, "mkdir -m 755 " + output),
     )
     let model = "/tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder"
-    if mode != "self-test" {
+    if needs_gpu(mode) {
       let owners = remote(
         second, socket179, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
       )
@@ -291,9 +309,9 @@ async fn main {
         fail("GPU has an existing owner; reference not started")
       }
     }
-    let device = if mode != "self-test" { " --gpus all" } else { "" }
+    let device = if needs_gpu(mode) { " --gpus all" } else { "" }
     let replay = match extra {
-      [input] if safe(input) &&
+      [input, ..] if safe(input) &&
         input.has_prefix("/tmp/lunaflux-minimax-text-encoder-operators-") =>
         input
       [] => ""
@@ -301,6 +319,15 @@ async fn main {
     }
     guard !needs_native_inputs(mode) || !replay.is_empty() else {
       fail("matched-input diagnostic needs native operator directory")
+    }
+    let oracle = match extra {
+      [_, precision] if mode == "replay-down-reduction" &&
+        safe(precision) &&
+        precision.has_prefix("/tmp/lunaflux-minimax-aten-reference-") =>
+        " -v " + precision + ":/oracle:ro"
+      _ if mode == "replay-down-reduction" =>
+        fail("down replay needs precision oracle")
+      _ => ""
     }
     let arguments = reference_arguments(mode)
     let execution = remote(
@@ -317,6 +344,7 @@ async fn main {
       model +
       ":/model:ro" +
       (if replay.is_empty() { "" } else { " -v " + replay + ":/native:ro" }) +
+      oracle +
       " --entrypoint /work/driver.exe " +
       image +
       arguments,
@@ -338,7 +366,7 @@ async fn main {
       mode + "-journal",
       remote(second, socket179, "journalctl --user -u " + name + " --no-pager"),
     )
-    if mode != "self-test" {
+    if needs_gpu(mode) {
       record(
         root,
         mode + "-released",

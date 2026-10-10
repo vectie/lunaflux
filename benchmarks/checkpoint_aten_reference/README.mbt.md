@@ -76,3 +76,10 @@ boundary while disabling reduced-precision projection reductions. Collect with
 `collect-full-replay`. This isolates residual operator differences without
 changing either production arithmetic or the ordinary reference. It is still
 an attribution trace, not a complete encoder output.
+
+`replay-down-reduction LIB MODEL NATIVE_INPUTS PRECISION_ORACLE` is CPU-only.
+It reads only original first-layer down weight rows whose native output differs
+from the wider probe, replays separately rounded ordered F32 and F64 sums, and
+compares their BF16 results to the respective recorded outputs. It must not
+acquire CUDA or become an encoder acceptance tolerance. Functional loop state
+and explicit F64 intermediates preserve F32 rounding without host FMA contraction.

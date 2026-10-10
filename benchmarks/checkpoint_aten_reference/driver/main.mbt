@@ -73,6 +73,11 @@ fn self_test(session : @native.Session, output : String) -> Unit raise {
 ///|
 fn main raise {
   match @env.args() {
+    [_, "replay-down-reduction", library, model, input, oracle] => {
+      let session = @native.Session::new(library, device=0, budget=2097152L)
+      defer session.close()
+      replay_down_reduction(session, model, input, oracle)
+    }
     [_, "projection-oracle", library, model, input, output] => {
       let session = @native.Session::new(library, device=1, budget=2147483648L)
       defer session.close()
@@ -136,7 +141,7 @@ fn main raise {
     }
     _ =>
       fail(
-        "self-test LIB OUTPUT_DIRECTORY | encode|encode-operators|encode-full-reduction LIB ORIGINAL_ENCODER_ROOT COMMA_IDS OUTPUT_DIRECTORY LAYERS | replay-operators|replay-full-reduction LIB MODEL IDS OUTPUT NATIVE_INPUTS | projection-oracle LIB MODEL NATIVE_INPUTS OUTPUT",
+        "self-test LIB OUTPUT_DIRECTORY | encode|encode-operators|encode-full-reduction LIB ORIGINAL_ENCODER_ROOT COMMA_IDS OUTPUT_DIRECTORY LAYERS | replay-operators|replay-full-reduction LIB MODEL IDS OUTPUT NATIVE_INPUTS | projection-oracle LIB MODEL NATIVE_INPUTS OUTPUT | replay-down-reduction LIB MODEL NATIVE_INPUTS PRECISION_ORACLE",
       )
   }
 }
