@@ -41,3 +41,34 @@ test "literal text and encoder ID serialization" {
   assert_eq(input.i32_le_bytes(), b"\x61\x00\x00\x00")
 }
 ```
+
+## Shared output decoding
+
+This native frontend loads the installed tokenizer JSON for all checkpoint
+diagnostics. It does not render model-specific chat templates, add BOS/EOS,
+authenticate payloads, read weight shards or own CUDA resources. Caller-supplied
+labels are compatibility metadata, not checksums.
+
+`load_checkpoint_text` loads a tokenizer, encodes literal bytes and returns IDs
+plus decoded bytes. `load_checkpoint_tokenizer` exposes the same bounded loader
+for decoding generated output without inventing a second envelope. The returned
+pure tokenizer owns no file or root handle; decoding is valid after root release.
+
+For an installed checkpoint (paths/IDs supplied by the caller):
+
+```mbt nocheck
+let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
+let tokenizer = @checkpoint_text_input.load_checkpoint_tokenizer(
+  root, model_root, "tokenizer.json", tokenizer_label,
+  vocabulary_size~, maximum_tokens~,
+)
+root.close()
+let output_bytes = tokenizer.decode_bytes(generated_ids, special_policy=Preserve)
+```
+
+Preserve special tokens for diagnostic comparisons. Presentation may deliberately
+skip them, but that must not erase an EOS boundary from a correctness result.
+An arbitrary partial token vector may end inside a UTF-8 scalar; decoded output
+is consequently `Bytes`, not an implicitly repaired string. The black-box loaded
+fixture tests encoding, preserved/skipped special tokens, unknown-token rejection
+and use after root release.

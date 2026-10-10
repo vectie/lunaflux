@@ -38,19 +38,26 @@ The un-suffixed modes execute only base layers, even for a DSpark checkpoint.
 `export-dspark`, `egress-dspark` and `generate-dspark` accept the same respective
 arguments and additionally plan and execute the actual three-block predictor.
 The egress budget includes predictor banks, local embedding, captures and result
-buffers; the vocabulary is borrowed from base egress. The current local route
-requires all target layers on egress and rejects a split capture placement.
+buffers; the vocabulary is borrowed from base egress. Target verification
+executes the two-rank decoder placement; prediction state and its local
+embedding/head are owned by egress.
 
 After each successful whole-base commit, prefill chunks prime main KV; decode
 steps execute prediction. Commit acknowledgement waits for the prediction queue
 to retire before request metadata can be reused. Terminal diagnostic output
-contains the last dependent token block and raw confidence bytes. Drafts are
-not accepted speculatively: the base greedy route remains authoritative, with
-verification/accept/reject/commit still required for acceleration.
+contains the dependent draft blocks and target-controlled tokens. The
+`generate-dspark` route performs greedy target verification with state
+backup, rollback/replay and accepted-input commit before publishing output.
+`generate-reference-dspark` retains the same checkpoint and prepared geometry
+but runs ordinary greedy generation without speculative verification.
 
 Native compile and component GPU results are not proof of complete-checkpoint
-numerical correctness or throughput. The new attached route has not yet passed
-a complete real-checkpoint run.
+numerical correctness or throughput. The attached route has not yet passed an
+independent upstream parity check. Real two-rank checkpoint execution and
+internal greedy parity are recorded in
+[the real-checkpoint report](../../docs/BENCHMARK_DSPARK_GREEDY_VERIFICATION_2026-10-10.md)
+and [the literal-text report](../../docs/DEEPSEEK_LITERAL_TEXT_FRONTEND_2026-10-10.md),
+not claimed as optimized serving throughput.
 
 ## Literal text frontend
 
@@ -63,3 +70,9 @@ CJK/kana and word/symbol Split sequence retains all earlier split boundaries
 during BPE. The 64-hex label is caller supplied, not a computed checksum. This
 mode reads no weight inventory/shards and opens no CUDA context. Token output
 reserves one context position for generation; overflow is rejected.
+
+`decode-tokens MODEL_ROOT TOKENIZER_LABEL COMMA_SEPARATED_TOKEN_IDS NEW_OUTPUT_FILE`
+decodes generated output through the same original tokenizer envelope, preserving
+explicit special tokens. It reads only config/tokenizer metadata, adds no template
+and never loads weights or opens CUDA. Output is raw decoded bytes; arbitrary
+partial token vectors are not guaranteed to form complete UTF-8 text.

@@ -1,5 +1,11 @@
 ///|
 async fn main {
+  if @env.args() is [_, "decode-tokens", model_root, label, ids, output] {
+    let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
+    defer root.close()
+    decode_text_tokens(root, model_root, label, ids, output)
+    return
+  }
   if @env.args()
     is [
       _,

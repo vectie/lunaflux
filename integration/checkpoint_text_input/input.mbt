@@ -62,18 +62,17 @@ fn read_text_input(path : String, maximum : Int) -> Bytes raise {
 }
 
 ///|
-/// Load installed tokenizer and literal text without payload authentication.
-/// File/root handles are closed before encoding; only the result escapes.
-fn load_text_input(
+/// Load installed tokenizer without payload authentication. File handles close
+/// before returning the pure tokenizer; no filesystem owner escapes.
+fn load_tokenizer(
   root : @approved_fs.ApprovedRoot,
   root_name : String,
   tokenizer_relative : String,
   tokenizer_label : String,
-  input_path : String,
   file_limits~ : @tokenizer_file.TokenizerFileLimits,
   limits~ : @tokenizer.TokenizerLimits,
-) -> CheckpointTextInput raise {
-  let spec = @tokenizer_file.load(
+) -> @tokenizer.TokenizerSpec raise {
+  @tokenizer_file.load(
     root,
     root_name,
     tokenizer_relative,
@@ -81,29 +80,25 @@ fn load_text_input(
     file_limits,
     limits,
   ).spec()
-  let input = read_text_input(input_path, limits.max_input_bytes)
-  encode_text_input(spec, input, maximum_tokens=limits.max_output_tokens)
 }
 
 ///|
-/// Versioned checkpoint text envelope: 64 MiB JSON, 1 MiB literal text, and
-/// output bounded by the caller's model context. Large added-token tables are
-/// allowed without special-casing a model family.
-pub fn load_checkpoint_text(
+/// Shared encode/decode envelope: 64 MiB JSON, 1 MiB literal/decoded text,
+/// caller-bounded token count. The label is not a payload checksum.
+/// The returned tokenizer remains usable after the filesystem root is closed.
+pub fn load_checkpoint_tokenizer(
   root : @approved_fs.ApprovedRoot,
   root_name : String,
   tokenizer_relative : String,
   tokenizer_label : String,
-  input_path : String,
   vocabulary_size~ : Int,
   maximum_tokens~ : Int,
-) -> CheckpointTextInput raise {
-  load_text_input(
+) -> @tokenizer.TokenizerSpec raise {
+  load_tokenizer(
     root,
     root_name,
     tokenizer_relative,
     tokenizer_label,
-    input_path,
     file_limits=@tokenizer_file.TokenizerFileLimits::new(
       max_file_bytes=67108864,
       max_json_depth=16,
@@ -118,4 +113,27 @@ pub fn load_checkpoint_text(
       max_special_tokens: 4096,
     },
   )
+}
+
+///|
+/// Encode literal checkpoint text. No implicit template, BOS or EOS is added.
+pub fn load_checkpoint_text(
+  root : @approved_fs.ApprovedRoot,
+  root_name : String,
+  tokenizer_relative : String,
+  tokenizer_label : String,
+  input_path : String,
+  vocabulary_size~ : Int,
+  maximum_tokens~ : Int,
+) -> CheckpointTextInput raise {
+  let spec = load_checkpoint_tokenizer(
+    root,
+    root_name,
+    tokenizer_relative,
+    tokenizer_label,
+    vocabulary_size~,
+    maximum_tokens~,
+  )
+  let input = read_text_input(input_path, 1048576)
+  encode_text_input(spec, input, maximum_tokens~)
 }
