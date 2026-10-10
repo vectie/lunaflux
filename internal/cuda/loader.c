@@ -57,6 +57,9 @@ static void lf_load_optional_streaming(lf_cuda_api *api) {
   api->cuMemcpyDtoHAsync =
     (CUresult (*)(void *, CUdeviceptr, size_t, CUstream))
       lf_symbol(api->driver_library, "cuMemcpyDtoHAsync_v2");
+  api->cuMemcpyDtoDAsync =
+    (CUresult (*)(CUdeviceptr, CUdeviceptr, size_t, CUstream))
+      lf_symbol(api->driver_library, "cuMemcpyDtoDAsync_v2");
 }
 
 static void lf_load_optional_graph(lf_cuda_api *api) {

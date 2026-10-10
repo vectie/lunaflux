@@ -3,6 +3,9 @@
 #include <limits.h>
 #include <stdint.h>
 
+/* Prepared device-only transactions share the existing native build unit. */
+#include "device_copy.c"
+
 static int32_t lf_copy_to_device_range(
   lf_allocation *allocation,
   const uint8_t *source,

@@ -1,0 +1,32 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, directory, include_directory, compiler] else {
+    fail("NEW_OUTPUT_DIRECTORY MOON_INCLUDE_DIRECTORY C_COMPILER")
+  }
+  @fs.mkdir(directory)
+  let binary = directory + "/device-copy-sanitizer"
+  let build = @shell.Cmd(compiler, [
+    "-std=c11", "-Wall", "-Wextra", "-Werror", "-g", "-pthread",
+    "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+    "-DLF_DEVICE_COPY_SANITIZER", "-I" + include_directory,
+    "internal/cuda/ordered_executor_sanitizer_main.c",
+    "internal/cuda/device_copy.c", "internal/cuda/resources.c",
+    "internal/cuda/regions.c", "-o", binary,
+  ]).output(max_output_bytes=1048576)
+  @fs.write_file(directory + "/build.stdout", build.stdout())
+  @fs.write_file(directory + "/build.stderr", build.stderr())
+  build.check()
+  let result = @shell.Cmd(binary, []).output(max_output_bytes=1048576)
+  @fs.write_file(directory + "/run.stdout", result.stdout())
+  @fs.write_file(directory + "/run.stderr", result.stderr())
+  result.check()
+  println("device-copy ASan/UBSan regression passed: " + directory)
+}

@@ -117,6 +117,30 @@ ownership operations. The verified main model determines which tokens become
 committed. A completed prediction alone cannot claim speculative generation or
 its speed benefit.
 
+## Verification state rollback
+
+The base stage now declares its actual persistent allocations at preparation:
+window payload/frontier, retained compressed values/frontier/counts, incomplete
+learned-pooling numerators/gates/history, and the learned indexer's corresponding
+pool/cache. Weights, query/output scratch and recomputed append descriptors are
+excluded. A logical length reset alone is not rollback: tentative execution can
+overwrite a ring slot or complete a previously partial compression group.
+
+`compiler/state_snapshot_plan` purely places these declared sizes into a bounded
+backup arena. `integration/device_state_snapshot` prepares a reusable device-only
+copy transaction on the model stream. The CUDA backend resolves and leases the
+regions once; forward and reverse copies share one reusable completion event.
+Submission allocates no heap, computes no hash and stages no payload on the host.
+Failed/partial submissions must drain before resource release. Backup capacity
+is additional to the model's resident budget and is checked before allocation.
+
+This is the physical state transaction, not complete speculative generation.
+The verified-prefix algorithm, host request-frontier transaction, all-position
+base head, inter-rank draft/result exchange and predictor-ring rollback must
+still be connected. A restored base arena must not be described as a completed
+DSpark acceptance loop. Model work must retire before rollback/commit; callers
+must order all state mutation on the prepared stream or an explicit dependency.
+
 ## Completion requirements
 
 - Execute the complete checkpoint base runner on both bounded Spark ranks and

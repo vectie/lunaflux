@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/state_snapshot_plan"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn plan_state_snapshot(ArrayView[Int64], maximum_backup_bytes~ : Int64) -> StateSnapshotPlan raise StateSnapshotPlanError
+
+// Errors
+pub(all) suberror StateSnapshotPlanError {
+  InvalidStateSize
+  SnapshotBudgetExceeded
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+pub struct StateSnapshotPlan {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn StateSnapshotPlan::backup_bytes(Self) -> Int64
+pub fn StateSnapshotPlan::offsets(Self) -> ReadOnlyArray[Int64]
+pub fn StateSnapshotPlan::sizes(Self) -> ReadOnlyArray[Int64]
+
+// Type aliases
+
+// Traits

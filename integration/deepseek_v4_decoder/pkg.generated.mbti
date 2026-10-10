@@ -7,6 +7,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/integration/device_state_snapshot",
   "vectie/lunaflux/integration/serial_decoder_worker",
   "vectie/lunaflux/model/deepseek_v4_spec",
   "vectie/lunaflux/model/streaming_safetensors",
@@ -72,12 +73,14 @@ pub fn DeepSeekDecoderStage::launch_count(Self) -> Int
 pub fn DeepSeekDecoderStage::layer_range(Self) -> (Int, Int)
 pub fn DeepSeekDecoderStage::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, @decoder_pipeline_plan.DecoderStageRange, maximum_rows~ : Int, maximum_context~ : Int, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, maximum_text_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, capture_prediction_inputs? : Bool) -> Self raise
 pub fn DeepSeekDecoderStage::output_residual(Self) -> @device.Allocation raise
+pub fn DeepSeekDecoderStage::persistent_state(Self) -> Array[@device.Allocation] raise
 pub fn DeepSeekDecoderStage::poll(Self) -> Bool raise
 pub fn DeepSeekDecoderStage::prediction_capture_layers(Self) -> ReadOnlyArray[Int]
 pub fn DeepSeekDecoderStage::prediction_counts(Self) -> @device.Allocation raise
 pub fn DeepSeekDecoderStage::prediction_input(Self) -> @device.Allocation? raise
 pub fn DeepSeekDecoderStage::prediction_vocabulary(Self) -> @device.Allocation raise
 pub fn DeepSeekDecoderStage::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @serial_decoder_worker.SerialDecoderWorker, maximum_device_bytes~ : Int64, maximum_host_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekDecoderStage::prepare_state_snapshot(Self, @device.Context, @device.Stream, maximum_backup_bytes~ : Int64) -> @device_state_snapshot.DeviceStateSnapshot raise
 pub fn DeepSeekDecoderStage::release_prediction_input(Self) -> Unit raise
 pub fn DeepSeekDecoderStage::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekDecoderStage::source_bytes(Self) -> Bytes raise

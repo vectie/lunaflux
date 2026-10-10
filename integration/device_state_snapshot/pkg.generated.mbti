@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/device_state_snapshot"
+
+import {
+  "vectie/lunaflux/device",
+}
+
+// Values
+pub fn prepare_device_state_snapshot(@device.Context, @device.Stream, ArrayView[@device.Allocation], maximum_backup_bytes~ : Int64) -> DeviceStateSnapshot raise
+
+// Errors
+
+// Types and methods
+pub struct DeviceStateSnapshot {
+  // private fields
+}
+pub fn DeviceStateSnapshot::backup_bytes(Self) -> Int64
+pub fn DeviceStateSnapshot::begin(Self) -> Unit raise
+pub fn DeviceStateSnapshot::close(Self) -> Unit raise
+pub fn DeviceStateSnapshot::commit(Self) -> Unit raise
+pub fn DeviceStateSnapshot::poll_completion(Self) -> Bool raise
+pub fn DeviceStateSnapshot::rollback(Self) -> Unit raise
+pub fn DeviceStateSnapshot::wait_completion(Self) -> Unit raise
+
+// Type aliases
+
+// Traits

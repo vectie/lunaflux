@@ -1,0 +1,9 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/device_state_snapshot" @snapshot,
+  "vectie/lunaflux/compiler/state_snapshot_plan" @plan,
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

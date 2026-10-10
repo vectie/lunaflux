@@ -15,6 +15,8 @@ pub fn link_collective_interop() -> Unit
 
 pub fn open_context(Int) -> Context raise CudaError
 
+pub fn prepare_device_copy_batch(Context, Stream, FixedArray[Allocation], FixedArray[Allocation], FixedArray[Int64], FixedArray[Int64], FixedArray[Int64]) -> DeviceCopyBatch raise CudaError
+
 pub fn prepare_ordered_kernel_executor(Context, Stream, FixedArray[Function], FixedArray[Int], FixedArray[Int], FixedArray[Allocation], FixedArray[Int64], FixedArray[Int64], FixedArray[Int64], policy? : OrderedExecutorPolicy, projections? : FixedArray[Int]?) -> OrderedKernelExecutor raise CudaError
 
 pub fn probe() -> DriverInventory
@@ -89,6 +91,11 @@ pub(all) enum CudaOperation {
   AllocationRegionValidate
   CopyToDevice
   CopyToHost
+  DeviceCopyCreate
+  DeviceCopySubmit
+  DeviceCopyPoll
+  DeviceCopyWait
+  DeviceCopyClose
   StreamingTransfer
   ModuleLoad
   ModuleClose
@@ -110,6 +117,12 @@ pub(all) enum CudaOperation {
   Bf16GemmPlanClose
   Bf16GemmRun
 } derive(Eq, @debug.Debug)
+
+type DeviceCopyBatch
+pub fn DeviceCopyBatch::close(Self) -> Unit raise CudaError
+pub fn DeviceCopyBatch::poll(Self) -> Bool raise CudaError
+pub fn DeviceCopyBatch::submit(Self, reverse~ : Bool) -> Unit raise CudaError
+pub fn DeviceCopyBatch::wait(Self) -> Unit raise CudaError
 
 pub(all) enum DriverAvailability {
   Available

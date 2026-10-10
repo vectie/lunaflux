@@ -22,6 +22,11 @@ pub(all) enum DeviceOperation {
   AllocationRegionValidate
   CopyToDevice
   CopyToHost
+  DeviceCopyCreate
+  DeviceCopySubmit
+  DeviceCopyPoll
+  DeviceCopyWait
+  DeviceCopyClose
   StreamingTransfer
   ModuleLoad
   ModuleClose

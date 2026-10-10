@@ -87,6 +87,7 @@ pub fn Context::has_separate_host_memory(Self) -> Bool raise DeviceError
 pub fn Context::lease_allocation(Self, Allocation) -> AllocationLease raise DeviceError
 pub fn Context::load_module(Self, Bytes) -> Module raise DeviceError
 pub fn Context::ordinal(Self) -> Int
+pub fn Context::prepare_device_copy(Self, Stream, ArrayView[DeviceCopyRegion]) -> DeviceCopyBatch raise DeviceError
 pub fn Context::prepare_transfer_pool(Self, Allocation, host_bytes~ : Int64, lanes~ : Int, max_regions_per_lane~ : Int) -> TransferPool
 pub fn Context::validate_allocation_region(Self, Allocation, offset~ : Int64, byte_count~ : Int64, alignment~ : Int64) -> Unit raise DeviceError
 
@@ -124,6 +125,19 @@ pub(all) enum DeviceCapabilityObservationRule {
   InvalidComputeCapability
   InvalidTotalMemory
 } derive(Eq, @debug.Debug)
+
+pub struct DeviceCopyBatch {
+  // private fields
+}
+pub fn DeviceCopyBatch::close(Self) -> Unit raise DeviceError
+pub fn DeviceCopyBatch::poll_completion(Self) -> Bool raise DeviceError
+pub fn DeviceCopyBatch::submit(Self, reverse? : Bool) -> Unit raise DeviceError
+pub fn DeviceCopyBatch::wait_completion(Self) -> Unit raise DeviceError
+
+pub struct DeviceCopyRegion {
+  // private fields
+}
+pub fn DeviceCopyRegion::new(Allocation, Allocation, source_offset? : Int64, destination_offset? : Int64, byte_count~ : Int64) -> Self raise DeviceError
 
 pub struct DeviceInfo {
   ordinal : Int
@@ -193,6 +207,11 @@ pub(all) enum DeviceOperation {
   AllocationRegionValidate
   CopyToDevice
   CopyToHost
+  DeviceCopyCreate
+  DeviceCopySubmit
+  DeviceCopyPoll
+  DeviceCopyWait
+  DeviceCopyClose
   StreamingTransfer
   ModuleLoad
   ModuleClose

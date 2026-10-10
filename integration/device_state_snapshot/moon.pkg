@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/compiler/state_snapshot_plan" @plan,
+}
+
+supported_targets = "native"

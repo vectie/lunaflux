@@ -9,6 +9,7 @@ int32_t lunaflux_cuda_test_ordered_executor(int32_t cycles);
 int32_t lunaflux_cuda_test_ordered_graph(int32_t cycles);
 int32_t lunaflux_cuda_test_streaming(int32_t cycles);
 int32_t lunaflux_cuda_test_event_wait(void);
+int32_t lunaflux_cuda_test_device_copy(int32_t cycles);
 
 static void *lf_probe_object(
   uint32_t payload_size,
@@ -92,7 +93,13 @@ lf_cuda_api *lf_cuda_api_get(void) {
 }
 
 int main(void) {
-#if defined(LF_STREAMING_SANITIZER)
+#if defined(LF_DEVICE_COPY_SANITIZER)
+  int32_t result = lunaflux_cuda_test_device_copy(1024);
+  if (result != LF_OK) {
+    fprintf(stderr, "device copy probe failed: %d\n", result);
+    return 1;
+  }
+#elif defined(LF_STREAMING_SANITIZER)
   int32_t result = lunaflux_cuda_test_streaming(1024);
   if (result != LF_OK) {
     fprintf(stderr, "streaming probe failed: %d\n", result);

@@ -14,8 +14,9 @@ seeded/dependent Markov chain (352 cases) now pass GB10 correctness and
 memcheck/racecheck/synccheck. Next run the actual attached `*-dspark` checkpoint
 route using the isolated `.mbtx` runner, then connect verification/accept/reject
 and KV commit/rollback. Do not equate component gates or diagnostic drafts with
-complete speculative generation. MiniMax's actual checkpoint bootstrap and
-two-host full request remain required.
+complete speculative generation. MiniMax's actual checkpoint-backed two-host
+text-to-audio/video diagnostic now finishes; independent numerical/quality
+validation and complete user-facing model serving remain required.
 
 DSpark target capture now reaches executable shared precision lowering and the
 base decoder's ordered queue when explicitly enabled. Preserve local target
@@ -2371,9 +2372,14 @@ finishes: conditioning, five complete 50-layer denoiser steps, VideoVAE and
 AudioVAE produce 1,523,712 video bytes and 1,324,800 audio bytes with no nonfinite
 values. Elapsed startup-inclusive time is 29m37s, CPU time 28m54.501s, cgroup
 memory peak 34.6 GiB, zero swap, empty stderr and GPU release. Downloaded outputs
-were not hashed. The new v3 request consumes .179's actual encoder output on
-.178; it remains active and is not yet a completed two-host request. Independent
-reference parity, prompt quality and performance optimization remain open.
+were not hashed. The v3 request now consumes .179's actual encoder output on
+.178 and completes at 18:30:50 CST after 29m53s for the joint phase: five full
+50-layer denoiser steps, both decoders, the same output sizes, no nonfinite
+values, exit zero, empty stderr, 51,317,784,576 cgroup peak bytes and zero swap.
+Both GPU processes have released their allocations. Logs and media are downloaded
+without checksum scans to the new v3 directory. This is actual two-host
+conditioning handoff plus checkpoint execution, not independent reference
+parity, natural-language prompt quality or optimized production performance.
 
 The MiniMax checkpoint diagnostic now has a `run-joint` preparation/execution
 entry. It consumes actual BF16 encoder hidden_states[50], then queues context
@@ -2388,8 +2394,20 @@ Driver/module/host-staging reserve is separate; a no-swap capped user unit is
 still required physically. This entry is text-only diagnostic execution, not
 reference-image/video support, independent numerical parity, prompt quality or
 a performance claim. The bounded checkpoint execution is now verified by the
-terminal v2 result above, not merely this entry point's existence; complete
-two-host execution and independent numerical/quality comparison remain open.
+terminal v2/v3 results above, not merely this entry point's existence;
+independent numerical/quality comparison and serving integration remain open.
+
+DSpark base-state rollback now has a pure bounded backup placement plan and a
+prepared device-to-device transaction. The actual decoder stage enumerates its
+window KV, compressed retained cache, incomplete learned pooling and learned
+index-cache state; neither weights nor scratch enter the backup. Forward and
+reverse copies reuse fixed pointers, resource leases and one completion event.
+No payload hashing, filesystem access, host staging or per-submit heap allocation
+is introduced. CPU fake-driver copy/failure/retirement/release tests, native plan
+budget tests and ASan/UBSan pass; a fresh GB10 commit/rollback probe follows.
+This does not yet connect all-position base verification, inter-rank draft/result
+exchange, predictor-ring transactions or host-frontier acceptance. Those remain
+required before describing the route as complete speculative generation.
 
 The first physical joint attempt (`52242267`, v1) stopped before CUDA at denoiser
 header binding. The real converted index spells the twenty refiner tensors

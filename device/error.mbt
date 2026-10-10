@@ -21,6 +21,11 @@ fn operation_from_cuda(operation : @cuda.CudaOperation) -> DeviceOperation {
     AllocationRegionValidate => AllocationRegionValidate
     CopyToDevice => CopyToDevice
     CopyToHost => CopyToHost
+    DeviceCopyCreate => DeviceCopyCreate
+    DeviceCopySubmit => DeviceCopySubmit
+    DeviceCopyPoll => DeviceCopyPoll
+    DeviceCopyWait => DeviceCopyWait
+    DeviceCopyClose => DeviceCopyClose
     StreamingTransfer => StreamingTransfer
     ModuleLoad => ModuleLoad
     ModuleClose => ModuleClose

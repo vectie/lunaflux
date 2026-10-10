@@ -27,7 +27,8 @@ async fn main {
     target_package
     is ("cmd/deepseek_checkpoint"
     | "cmd/glm_checkpoint"
-    | "cmd/minimax_checkpoint") &&
+    | "cmd/minimax_checkpoint"
+    | "cmd/device_state_snapshot_probe") &&
     unit.has_prefix("lunaflux-checkpoint-build-") &&
     unit.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '.')) else {
     fail("invalid isolated build arguments")
