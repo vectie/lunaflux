@@ -22,18 +22,25 @@ async fn record(root : String, name : String, result : @shell.Output) -> Unit {
 }
 
 ///|
-async fn remote(command : String) -> @shell.Output {
-  @shell.Cmd("ssh", [
-    "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock", "wlc003s@192.168.2.178",
-    command,
-  ]).output(max_output_bytes=4194304)
+async fn remote(
+  node : String,
+  socket : String,
+  command : String,
+) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
 }
 
 ///|
-async fn copy(source : String, destination : String) -> Unit {
+async fn copy(socket : String, source : String, destination : String) -> Unit {
   @shell.Cmd("scp", [
-    "-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
-    source, destination,
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
   ])
   .output()
   .check()
@@ -41,22 +48,41 @@ async fn copy(source : String, destination : String) -> Unit {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, suffix, build, staged, aot] &&
+  guard @env.args() is [_, root, suffix, executable, staged, aot, .. target] &&
+    (target is [] || target is ["178"] || target is ["179"]) &&
     root.has_prefix("/tmp/lunaflux-minimax-text-encoder-") &&
-    build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
+    executable.has_prefix("/tmp/lunaflux-") &&
+    executable.has_suffix(".exe") &&
     staged.has_prefix("/tmp/lunaflux-minimax-text-upload-") &&
     aot.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
-    [root, suffix, build, staged, aot].all(s => {
+    [root, suffix, executable, staged, aot].all(s => {
       !s.is_empty() &&
       !s.contains("..") &&
-      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.'))
     }) &&
     !suffix.contains("/") else {
-    fail("NEW_ROOT SUFFIX COMMITTED_BUILD STAGED_WEIGHTS REQUEST_AOT")
+    fail(
+      "NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS REQUEST_AOT [178|179]",
+    )
+  }
+  let last = target is ["179"]
+  let node = if last {
+    "wlc004s@192.168.2.179"
+  } else {
+    "wlc003s@192.168.2.178"
+  }
+  let socket = if last {
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  } else {
+    "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  }
+  let expected_uuid = if last {
+    "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6"
+  } else {
+    "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f"
   }
   @fs.mkdir(root)
-  let binary = build +
-    "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  let binary = executable
   // Text smoke uses explicit valid lexical IDs, not a claimed natural-language
   // prompt or output from a fabricated conditioning encoder.
   @fs.write_file(
@@ -64,26 +90,30 @@ async fn main {
     b"\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00",
     create_mode=CreateNew,
   )
-  record(root, "mkdir", remote("mkdir " + root))
+  record(root, "mkdir", remote(node, socket, "mkdir " + root))
   record(
     root,
     "copy-binary",
-    remote("cp " + binary + " " + root + "/minimax_checkpoint.exe"),
+    remote(
+      node,
+      socket,
+      "cp " + binary + " " + root + "/minimax_checkpoint.exe",
+    ),
   )
   copy(
+    socket,
     root + "/ids.i32",
-    "wlc003s@192.168.2.178:" + staged + "/FL2VA/ids-" + suffix + ".i32",
+    node + ":" + staged + "/FL2VA/ids-" + suffix + ".i32",
   )
   let gpu = remote(
-    "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+    node, socket, "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
   )
   record(root, "gpu", gpu)
-  guard gpu.stdout().trim() ==
-    "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f, 0000000F:01:00.0" else {
+  guard gpu.stdout().trim() == expected_uuid + ", 0000000F:01:00.0" else {
     fail("different GPU")
   }
   let occupied = remote(
-    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    node, socket, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
   )
   record(root, "occupied", occupied)
   guard occupied.stdout().trim().is_empty() else {
@@ -94,6 +124,8 @@ async fn main {
     root,
     "encode",
     remote(
+      node,
+      socket,
       "systemd-run --user --wait --pipe --unit=" +
       unit +
       " --property=MemoryMax=80G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 " +
@@ -115,12 +147,12 @@ async fn main {
   ) else {
     fail("missing complete finite hidden state")
   }
-  copy("wlc003s@192.168.2.178:" + root + "/hidden.bf16", root + "/hidden.bf16")
+  copy(socket, node + ":" + root + "/hidden.bf16", root + "/hidden.bf16")
   guard @fs.read_file(root + "/hidden.bf16").binary().length() == 30720 else {
     fail("incomplete downloaded hidden state")
   }
   let released = remote(
-    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    node, socket, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
   )
   record(root, "released", released)
   guard released.stdout().trim().is_empty() else {
@@ -129,7 +161,7 @@ async fn main {
   record(
     root,
     "journal",
-    remote("journalctl --user -u " + unit + " --no-pager"),
+    remote(node, socket, "journalctl --user -u " + unit + " --no-pager"),
   )
   println(
     "checkpoint-backed hidden_states[50] complete and released; no full-media or reference-equivalence claim",

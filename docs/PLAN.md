@@ -2313,10 +2313,17 @@ no additional GPU speedup is claimed for those deletions.
 The historical DeepSeek base-run and live-resume helpers now also omit CUDA-tool
 and executable checksum scans. The block/source download helper copies outputs
 without hashing them locally or remotely. The local no-hashing regression covers
-these helpers and the new MiniMax joint runner (15 scripts). Successful process
+these helpers and the MiniMax joint/text runners (16 scripts). Successful process
 and copy status remain required; neither staged paths nor downloaded files are
 claimed cryptographically authenticated. Live-unit ownership, GPU exclusivity,
 memory/no-swap limits and execution correctness checks are unchanged.
+
+MiniMax text checkpoint staging and encoder execution can now target either
+Spark explicitly. The encoder runner takes an actual committed ARM executable,
+not a synthetic build-directory layout. The intended two-host request keeps
+encoder weights on .179 and denoiser/VAEs on .178, transferring only bounded
+BF16 hidden states between phases. Source preparation is not a two-host inference
+result: checkpoint execution and terminal media output still need to complete.
 
 The MiniMax checkpoint diagnostic now has a `run-joint` preparation/execution
 entry. It consumes actual BF16 encoder hidden_states[50], then queues context
