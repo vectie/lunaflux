@@ -3,6 +3,7 @@ import {
   "vectie/lunaflux/engine/precision_materialize" @materialize,
   "vectie/lunaflux/model/streaming_safetensors" @streaming,
   "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/checked_integer_narrow" @narrow,
 }
 
 supported_targets = "native"

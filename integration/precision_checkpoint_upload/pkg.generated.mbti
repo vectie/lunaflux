@@ -9,10 +9,20 @@ import {
 }
 
 // Values
+pub fn i64_table_host_bytes(ArrayView[@precision_materialize.CheckpointI64Table], chunk_bytes~ : Int) -> Int64 raise @device.DeviceError
 
 // Errors
 
 // Types and methods
+pub struct CheckpointDeviceIndexTables {
+  // private fields
+}
+pub fn CheckpointDeviceIndexTables::allocations(Self) -> ArrayView[@device.Allocation] raise @device.DeviceError
+pub fn CheckpointDeviceIndexTables::close(Self) -> Unit raise @device.DeviceError
+pub fn CheckpointDeviceIndexTables::device_bytes(Self) -> Int64
+pub fn CheckpointDeviceIndexTables::new() -> Self
+pub fn CheckpointDeviceIndexTables::upload(Self, @device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, ArrayView[@precision_materialize.CheckpointI64Table], minimum_value~ : Int, exclusive_maximum_value~ : Int, maximum_device_bytes~ : Int64, maximum_host_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+
 pub struct CheckpointDeviceWeights {
   // private fields
 }

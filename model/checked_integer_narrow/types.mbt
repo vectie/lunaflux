@@ -3,6 +3,8 @@ pub(all) suberror CheckedIntegerNarrowError {
   InvalidGeometry
   InputByteCountMismatch(expected~ : Int, actual~ : Int)
   OutputByteBudgetExceeded
+  InvalidStreamState
+  StreamByteCountMismatch(expected~ : Int64, actual~ : Int64)
   ValueOutOfRange(row~ : Int, column~ : Int, value~ : Int64)
   DuplicateRowValue(
     row~ : Int,

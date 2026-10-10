@@ -1,0 +1,21 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize" @materialize,
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/model/checked_integer_narrow" @narrow,
+  "vectie/lunaflux/integration/precision_checkpoint_upload" @upload,
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)

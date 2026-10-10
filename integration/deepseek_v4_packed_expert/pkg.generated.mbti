@@ -17,6 +17,8 @@ pub fn bind_router(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.De
 
 pub fn bind_shared_expert(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
+pub fn bind_token_hash_tables(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, first_layer~ : Int, end_layer~ : Int) -> Array[@precision_materialize.CheckpointI64Table] raise
+
 pub fn expert_compute_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, expert_indices~ : ArrayView[Int], maximum_rows~ : Int, memory_ceiling~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.ExpertMlpPrecision raise
 
 pub fn routing_compute_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.MoeRoutingPrecision raise

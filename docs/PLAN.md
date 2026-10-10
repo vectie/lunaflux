@@ -18,10 +18,13 @@ expanded affected suite passes 93/93. Their combined CUDA module compiles on
 GB10. Contiguous checkpoint slices/stages now join complete compact expert
 banks, ingress embedding and corrected F32 learned text output in one queue,
 with aggregate pre-upload budgeting and absolute request positions. Next finish
-startup-streamed I64 token-table narrowing, derive learned-index offsets from
+derive learned-index offsets from
 the actual KV assembly view, bind stage activation leases and connect the
 two-host runner. DSpark prediction blocks remain a distinct required execution
-path, not ordinary base-model layers. These component gates do not establish complete
+path, not ordinary base-model layers. Stage-owned token tables now stream from
+exact I64 checkpoint planes into checked I32 device buffers with bounded chunks
+and one uniqueness row per table; no whole-model host arena is required. These
+component gates do not establish complete
 DeepSeek/DSpark generation or complete-checkpoint numerical equivalence.
 
 Activation transfer now has a plain framed-TCP/pinned-DMA execution owner and a

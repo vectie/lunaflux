@@ -16,7 +16,14 @@ most two reusable inter-layer residuals. `DeepSeekDecoderStage` adds embedding
 only on ingress and the corrected learned head only on egress, with a single
 ordered queue and two distinct boundary residuals. Its pre-upload footprint
 covers owned weights, state, workspace and residuals; caller-owned request
-ports/token tables/index offsets remain explicitly separate. Missing complete
+ports/index offsets remain explicitly separate. Token tables are now stage-owned
+and included in that footprint: exact I64 checkpoint planes stream through bounded
+chunks into checked I32 device allocations, without a whole-model host arena.
+Payload scratch and per-table uniqueness rows are preflighted separately from
+reader metadata/process memory. Split-cell chunks, exact device bytes, budget
+rejection before allocation, malformed rows and cleanup pass native device-double
+tests. A real-driver probe is implemented but its GPU run remains pending.
+Missing complete
 checkpoint tensors are rejected during footprint preflight in component fixtures.
 Only a prepared complete range may bind whole-model worker delivery.
 The affected text/precision/stage suite passes 56/56; position/serial regressions
@@ -25,8 +32,8 @@ aggregate also passes 145/145. Combined ingress/egress stage
 source compiles under CUDA 13.0.88/sm121 in a 2-GiB/no-swap user unit. Sources,
 module and journals were downloaded with matching SHA-256 to
 `/tmp/lunaflux-deepseek-stages-results-20261010-v1`.
-This does not establish real checkpoint stage execution. Startup-streamed I64
-token-table narrowing, dynamic learned-index offsets, stage-bound activation
+This does not establish real checkpoint stage execution. Dynamic learned-index
+offsets, stage-bound activation
 leases/two-host runner and DSpark prediction execution remain integration work.
 GLM's independent numerical comparison and MiniMax whole-model integration
 also remain open; no model-wide speed or accuracy claim is made.

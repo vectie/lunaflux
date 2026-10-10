@@ -56,7 +56,7 @@ pub fn DeepSeekDecoderStage::layer_range(Self) -> (Int, Int)
 pub fn DeepSeekDecoderStage::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, @decoder_pipeline_plan.DecoderStageRange, maximum_rows~ : Int, maximum_context~ : Int, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, maximum_text_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> Self raise
 pub fn DeepSeekDecoderStage::output_residual(Self) -> @device.Allocation raise
 pub fn DeepSeekDecoderStage::poll(Self) -> Bool raise
-pub fn DeepSeekDecoderStage::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @serial_decoder_worker.SerialDecoderWorker, index_offsets? : @device.Allocation, token_tables? : ArrayView[@device.Allocation], maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekDecoderStage::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @serial_decoder_worker.SerialDecoderWorker, index_offsets? : @device.Allocation, maximum_device_bytes~ : Int64, maximum_host_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekDecoderStage::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekDecoderStage::source_bytes(Self) -> Bytes raise
 pub fn DeepSeekDecoderStage::submit(Self, live_rows~ : Int) -> Unit raise

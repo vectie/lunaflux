@@ -28,12 +28,18 @@ the caller budgets those once. No checkpoint file access occurs in submit/poll.
 
 `DeepSeekDecoderStage` composes embedding only at ingress, learned output only
 at egress, and two distinct boundary residuals. Its aggregate pre-upload budget
-includes text weights, compact banks, private state/workspace and residuals.
+includes text weights, compact banks, private state/workspace, residuals and its
+own checked I32 token-hash tables. Startup streams exact I64 checkpoint tables
+through bounded source/output chunks and row-local uniqueness state. It does not
+retain a whole-model I64/I32 host arena. `maximum_host_bytes` bounds those payload
+buffers; reader authentication/header metadata and request/transport ports must
+still be budgeted by the process-level loader. Missing tables or insufficient
+table payload budgets fail before any stage allocation.
 It requires the worker's explicit absolute-position port. Text prefix/suffix
 join the decoder queue; only a prepared complete range can bind whole-model
 worker delivery. A partial stage is not an independently runnable model.
 
 Stage sources and negative/preparation tests are not full-checkpoint numerical
-execution. Owned startup token-table narrowing, stage-bound activation leases,
+execution. Stage-bound activation leases,
 two-host runner integration, DSpark prediction execution and complete generation
 remain required before claiming the full DeepSeek/DSpark model is runnable.

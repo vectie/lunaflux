@@ -14,6 +14,8 @@ pub(all) suberror CheckedIntegerNarrowError {
   InvalidGeometry
   InputByteCountMismatch(expected~ : Int, actual~ : Int)
   OutputByteBudgetExceeded
+  InvalidStreamState
+  StreamByteCountMismatch(expected~ : Int64, actual~ : Int64)
   ValueOutOfRange(row~ : Int, column~ : Int, value~ : Int64)
   DuplicateRowValue(row~ : Int, first_column~ : Int, second_column~ : Int, value~ : Int64)
 } derive(Eq, @debug.Debug)
@@ -36,6 +38,14 @@ pub struct CheckedI32TableDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn CheckedI32TableDigest::as_hex(Self) -> String
+
+pub struct I64RowNarrowStream {
+  // private fields
+}
+pub fn I64RowNarrowStream::close(Self) -> Unit
+pub fn I64RowNarrowStream::consume(Self, Int64, ArrayView[Byte], FixedArray[Byte]) -> (Int64, Int) raise CheckedIntegerNarrowError
+pub fn I64RowNarrowStream::finish(Self) -> Unit raise CheckedIntegerNarrowError
+pub fn I64RowNarrowStream::new(row_count~ : Int, column_count~ : Int, minimum_value~ : Int, exclusive_maximum_value~ : Int, maximum_row_state_bytes~ : Int64) -> Self raise CheckedIntegerNarrowError
 
 // Type aliases
 

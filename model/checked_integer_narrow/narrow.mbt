@@ -29,6 +29,19 @@ fn write_i32_le(output : FixedArray[Byte], offset : Int, value : Int64) -> Unit 
 }
 
 ///|
+fn require_index_range(
+  value : Int64,
+  row : Int,
+  column : Int,
+  minimum : Int,
+  maximum : Int,
+) -> Unit raise CheckedIntegerNarrowError {
+  if value < minimum.to_int64() || value >= maximum.to_int64() {
+    raise ValueOutOfRange(row~, column~, value~)
+  }
+}
+
+///|
 /// Checked-narrow one exact little-endian row-major I64 table into I32.
 /// Validation is completed before the returned owner can escape. Values must
 /// lie in `[minimum_value, exclusive_maximum_value)` and each row must contain
@@ -66,10 +79,13 @@ pub fn narrow_unique_i64_le_rows(
     for column in 0..<column_count {
       let element = row * column_count + column
       let value = decode_i64_le(input, element * 8)
-      if value < minimum_value.to_int64() ||
-        value >= exclusive_maximum_value.to_int64() {
-        output.fill(b'\x00')
-        raise ValueOutOfRange(row~, column~, value~)
+      require_index_range(
+        value, row, column, minimum_value, exclusive_maximum_value,
+      ) catch {
+        error => {
+          output.fill(b'\x00')
+          raise error
+        }
       }
       for previous in 0..<column {
         let previous_element = row * column_count + previous

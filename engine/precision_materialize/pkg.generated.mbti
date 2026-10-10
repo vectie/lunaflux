@@ -36,13 +36,22 @@ pub fn PackedCheckpointError::not_equal(Self, Self) -> Bool
 pub fn PackedCheckpointError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub struct CheckpointI64Table {
+  // private fields
+}
+pub fn CheckpointI64Table::geometry(Self) -> (Int, Int)
+pub fn CheckpointI64Table::i32_bytes(Self) -> Int64
+pub fn CheckpointI64Table::input_bytes(Self) -> Int64
+
 pub struct PackedCheckpoint {
   // private fields
 }
 pub fn PackedCheckpoint::bind_dense_tensor(Self, representation~ : @precision_format.Representation, payload_name~ : String, source_shape~ : ArrayView[Int64]) -> PackedCheckpointWeight raise PackedCheckpointError
+pub fn PackedCheckpoint::bind_i64_table(Self, payload_name~ : String, rows~ : Int, columns~ : Int) -> CheckpointI64Table raise PackedCheckpointError
 pub fn PackedCheckpoint::bind_vector(Self, representation~ : @precision_format.Representation, payload_name~ : String) -> PackedCheckpointWeight raise PackedCheckpointError
 pub fn PackedCheckpoint::bind_weight(Self, representation~ : @precision_format.Representation, payload_name~ : String, scales_name? : String, global_scale_name? : String) -> PackedCheckpointWeight raise PackedCheckpointError
 pub fn PackedCheckpoint::new(@streaming_safetensors.StreamingSafetensorsInspection) -> Self
+pub fn PackedCheckpoint::transfer_i64_tables(Self, @approved_fs.ApprovedRoot, ArrayView[CheckpointI64Table], scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise PackedCheckpointError
 pub fn PackedCheckpoint::transfer_weights(Self, @approved_fs.ApprovedRoot, ArrayView[PackedCheckpointWeight], scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise PackedCheckpointError
 pub fn PackedCheckpoint::transfer_weights_to(Self, @approved_fs.ApprovedRoot, ArrayView[PackedCheckpointWeight], destinations~ : ArrayView[(Int, Int64)], destination_bytes~ : ArrayView[Int64], scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise PackedCheckpointError
 pub fn[T] PackedCheckpoint::with_transfer_session(Self, @approved_fs.ApprovedRoot, @streaming_safetensors.StreamingSafetensorsLimits, (Self) -> T raise) -> T raise

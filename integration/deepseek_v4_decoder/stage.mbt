@@ -1,8 +1,10 @@
 ///|
 /// A contiguous base-model stage with text effects only at the model edges.
 /// Compact checkpoint weights/state and two residual boundaries are owned;
-/// request ports, token tables, index offsets, AOT module and stream are borrowed.
+/// token tables are also stage-owned; request ports, index offsets, AOT module
+/// and stream are borrowed.
 pub struct DeepSeekDecoderStage {
+  priv spec : @spec.DeepSeekV4ModelSpec
   priv range : @pipeline.DecoderStageRange
   priv decoder : DeepSeekDecoderSlice
   priv ingress : @text.DeepSeekTextIngress?
@@ -12,6 +14,7 @@ pub struct DeepSeekDecoderStage {
   priv vocabulary : Int
   priv residual_bytes : Int64
   priv token_table_count : Int
+  priv token_tables : @upload.CheckpointDeviceIndexTables
   priv needs_index : Bool
   priv residuals : Array[@device.Allocation]
   priv mut counts : @device.Allocation?
@@ -71,6 +74,7 @@ pub fn DeepSeekDecoderStage::new(
     false
   }
   {
+    spec,
     range,
     decoder,
     ingress,
@@ -85,6 +89,7 @@ pub fn DeepSeekDecoderStage::new(
     token_table_count: (end_layer.min(spec.hash_layer_count()) - first_layer).max(
       0,
     ),
+    token_tables: @upload.CheckpointDeviceIndexTables::new(),
     needs_index,
     residuals: [],
     counts: None,
@@ -118,7 +123,7 @@ pub fn DeepSeekDecoderStage::source_bytes(self : Self) -> Bytes raise {
 }
 
 ///|
-/// All owned weights/state/workspace/residuals. Borrowed ports, token tables,
+/// All owned weights/state/workspace/residuals/token tables. Borrowed ports,
 /// index offsets and transport buffers must be budgeted separately by the caller.
 pub fn DeepSeekDecoderStage::required_device_bytes(
   self : Self,
@@ -132,10 +137,29 @@ pub fn DeepSeekDecoderStage::required_device_bytes(
     Some(egress) => egress.required_device_bytes(checkpoint)
     None => 0L
   }
+  let tables = self.bind_token_tables(checkpoint)
+  let table_bytes = tables.fold(init=0L, (total, table) => {
+    total + table.i32_bytes()
+  })
   self.decoder.required_device_bytes(checkpoint) +
   ingress_bytes +
   egress_bytes +
-  2L * self.residual_bytes
+  2L * self.residual_bytes +
+  table_bytes
+}
+
+///|
+fn DeepSeekDecoderStage::bind_token_tables(
+  self : Self,
+  checkpoint : @materialize.PackedCheckpoint,
+) -> Array[@materialize.CheckpointI64Table] raise {
+  let (first_layer, end_layer) = self.range.layer_range()
+  @expert.bind_token_hash_tables(
+    checkpoint,
+    self.spec,
+    first_layer~,
+    end_layer~,
+  )
 }
 
 ///|
@@ -150,8 +174,8 @@ pub fn DeepSeekDecoderStage::prepare(
   root : @approved_fs.ApprovedRoot,
   ports : @serial.SerialDecoderWorker,
   index_offsets? : @device.Allocation,
-  token_tables? : ArrayView[@device.Allocation] = [],
   maximum_device_bytes~ : Int64,
+  maximum_host_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
@@ -162,13 +186,22 @@ pub fn DeepSeekDecoderStage::prepare(
   guard rows == self.maximum_rows &&
     history <= self.maximum_context &&
     vocabulary == self.vocabulary &&
-    token_tables.length() == self.token_table_count &&
     (!self.needs_index || index_offsets is Some(_)) &&
     chunk_bytes > 0 else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let required = self.required_device_bytes(checkpoint)
   guard required <= maximum_device_bytes else {
+    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+  }
+  let tables = self.bind_token_tables(checkpoint)
+  let host_bytes = if tables.is_empty() {
+    chunk_bytes.to_int64()
+  } else {
+    @upload.i64_table_host_bytes(tables, chunk_bytes~)
+  }
+  guard tables.length() == self.token_table_count &&
+    host_bytes <= maximum_host_bytes else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
   let counts = ports.input(Counts)
@@ -179,6 +212,25 @@ pub fn DeepSeekDecoderStage::prepare(
   let selected_rows = ports.input(SelectedRows)
   let sampled_tokens = ports.sampled_tokens()
   self.state = Failed
+  let token_tables : ArrayView[@device.Allocation] = if tables.is_empty() {
+    []
+  } else {
+    self.token_tables.upload(
+      context,
+      checkpoint,
+      root,
+      tables,
+      minimum_value=0,
+      exclusive_maximum_value=self.spec.routed_expert_count(),
+      maximum_device_bytes=tables.fold(init=0L, (total, table) => {
+        total + table.i32_bytes()
+      }),
+      maximum_host_bytes~,
+      chunk_bytes~,
+      limits~,
+    )
+    self.token_tables.allocations()
+  }
   self.residuals.push(context.allocate(self.residual_bytes))
   self.residuals.push(context.allocate(self.residual_bytes))
   let prefix_launches = match self.ingress {
@@ -335,6 +387,7 @@ pub fn DeepSeekDecoderStage::close(self : Self) -> Unit raise {
   }
   self.state = Failed
   self.decoder.close()
+  self.token_tables.close()
   self.counts = None
   if self.egress is Some(egress) {
     egress.close()
