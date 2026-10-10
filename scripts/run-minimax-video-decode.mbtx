@@ -76,10 +76,15 @@ async fn main {
       "-S",
       socket,
       host,
-      "systemctl --user show " + unit + " -p ActiveState --value",
+      "systemctl --user show " + unit +
+      " -p ActiveState -p SubState -p MainPID",
     ]).output()
     state.check()
-    guard state.stdout().trim() is ("inactive" | "failed") else {
+    let status = state.stdout()
+    guard status.contains("MainPID=0\n") &&
+      (status.contains("ActiveState=inactive\n") ||
+       status.contains("ActiveState=failed\n") ||
+       status.contains("SubState=exited\n")) else {
       fail("two-host DSpark campaign has not retired; no GPU overlap")
     }
   }

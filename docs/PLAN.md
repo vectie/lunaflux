@@ -41,8 +41,13 @@ private budget pass source/native checks and GB10 AOT compilation. Next verify
 complete checkpoint preparation/replay. The local egress attachment and explicit
 post-commit phase now exist in `cmd/deepseek_checkpoint`'s `*-dspark` modes:
 vocabulary is shared, local embedding/predictor bytes enter startup placement,
-and metadata reuse waits for phase retirement. Next physically verify this
-attached route, then finish distributed capture assembly and verification/commit.
+and metadata reuse waits for phase retirement. The actual committed `b76d63ee`
+two-Spark attached route now completes: three base tokens, two predictor phases
+with draft tokens/confidence, both ranks status zero and both GPUs released.
+Checkpoint loading dominated elapsed time: full-shard hashing on both ranks,
+rehashing during transfer and serial rank startup. The drafts are diagnostic;
+distributed capture assembly and speculative verification/accept/reject/KV
+commit/rollback remain required.
 Do not substitute the learned base-model text head or ordinary causal blocks.
 Exact phase/read-set/head dependencies and completion requirements are recorded
 in [DEEPSEEK_DSPARK_EXECUTION.md](DEEPSEEK_DSPARK_EXECUTION.md).
@@ -106,7 +111,15 @@ the shared CUDA translation-unit composer, including the nested staged timestep
 MLP. Native malformed-boundary, source-equivalence, CLI argument and row-budget
 regressions pass (26/26 focused tests). Request export derives its row ceiling
 from explicit hidden/index storage budgets instead of an invalid Int maximum.
-Full module compilation and actual composed inference remain separate steps.
+All 31 actual-config modules now compile on GB10; downloaded cubin hashes match
+their remote copies. This CPU AOT compilation performed no GPU inference.
+The checkpoint-backed `encode-text` entry point now streams the original
+Qwen3-VL component and executes the same 651-launch text-only encoder source
+through unnormalized `hidden_states[50]`. Aggregate weight/workspace/table/module
+budgeting precedes CUDA allocation; outputs use the plan's exact byte count,
+not the borrowed output-offset field. Token-ID layout and empty/nonfinite BF16
+diagnostic regressions pass. Actual encoder weights and execution, independent
+numerical comparison and composed two-host inference remain required.
 
 DeepSeek mHC now has explicit F32-projection-then-normalization and transposed
 residual-before-branch laws, rather than reusing GLM's BF16 control contract.

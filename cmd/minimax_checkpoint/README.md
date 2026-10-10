@@ -37,6 +37,18 @@ flow updates and both media decoders. Optional image/reference conditioning
 still uses the typed source-export API. This command reads metadata only and
 opens no CUDA context; compilation does not establish checkpoint execution.
 
+`encode-text VARIANT_ROOT INVENTORY TEXT_ROWS INPUT_IDS_I32 AOT_DIRECTORY
+OUTPUT_BF16 COMPONENT_LIMIT DEVICE_LIMIT` runs the original Qwen3-VL checkpoint
+through H3's selected unnormalized `hidden_states[50]`. Input contains exactly
+TEXT_ROWS signed I32 little-endian token IDs relative to the variant root;
+media placeholders require the separate visual-conditioning route. It uses
+`text.cubin` from the same full-request export and streams the complete text
+component into the explicit weight owner. Weights, request workspace, rotary
+tables, metadata and module reserve must fit one aggregate device budget.
+Output is exactly `[TEXT_ROWS,5120]` BF16 and is created without overwriting.
+Finite-output diagnostics do not establish independent numerical equivalence
+or complete text-to-media generation.
+
 `decode-video VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP
 MAX_TILES AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT` streams the actual
 VideoVAE checkpoint and executes all 36 decoder blocks, temporal/spatial assembly
