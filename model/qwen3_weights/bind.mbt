@@ -160,7 +160,7 @@ fn tied_output_tensor(
 /// norms; output projection; post-attention norm; gate, up, and down
 /// projections. The final norm follows all layers. The language-model head is
 /// the embedding table's exact reference-zero storage alias. A source artifact
-/// may omit `lm_head.weight`, or carry one validated redundant tied copy; that
+/// may omit `lm_head.weight`, or carry one shape-valid redundant copy; that
 /// copy is never assigned a second reference or counted for materialization.
 fn bind_qwen3_metadata(
   metadata : @qwen3_spec.Qwen3ModelMetadata,
@@ -206,19 +206,12 @@ fn bind_qwen3_metadata(
 }
 
 ///|
-/// Binds metadata-only Qwen3 sources which omit redundant tied-output bytes.
-///
-/// Metadata can prove shape and range but cannot prove that a physical
-/// `lm_head.weight` is byte-identical to the embedding. Such sources must use
-/// `inspect_source_safetensors_file`, which performs the actual byte proof
-/// before returning bindings with a reference-zero LM-head alias.
+/// Binds metadata according to the declared tied-embedding model semantics.
+/// A shape-valid redundant head is ignored, not authenticated or compared with
+/// the embedding payload. Untied models remain unsupported by this binding.
 pub fn bind(
   metadata : @qwen3_spec.Qwen3ModelMetadata,
   tensors : @safetensors.SafetensorsMetadata,
 ) -> Qwen3WeightBindings raise Qwen3WeightsError {
-  let bindings = bind_qwen3_metadata(metadata, tensors)
-  if bindings.redundant_lm_head_tensor() is Some(_) {
-    raise InvalidTensor(reference=0, TiedOutputByteEquality)
-  }
-  bindings
+  bind_qwen3_metadata(metadata, tensors)
 }

@@ -152,7 +152,7 @@ fn qwen3_numeric_limits() -> @numeric_weight_file.NumericWeightFileLimits {
 }
 
 ///|
-async test "Qwen3 source inspection proves redundant LM-head byte equality" {
+async test "Qwen3 header inspection ignores redundant head payload and retains supplied labels" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-qwen3-source")
     let canonical = @fs.realpath(directory)
@@ -178,37 +178,30 @@ async test "Qwen3 source inspection proves redundant LM-head byte equality" {
       inspection.bindings().embedding_binding(),
       inspection.bindings().lm_head_binding(),
     )
-    try
-      inspect_source_safetensors_file(
-        root,
-        qwen3_file_test_metadata(),
-        @approved_fs.ApprovedRelativeLocator::new("unequal"),
-        expected_artifact_sha256=qwen3_file_sha256(unequal),
-        limits=qwen3_file_source_limits(),
-      )
-    catch {
-      InvalidTensor(reference=0, TiedOutputByteEquality) => ()
-      _ => fail("unexpected redundant-head byte mismatch")
-    } noraise {
-      _ => fail("unequal redundant LM head was aliased")
-    }
+    let supplied_label = "e".repeat(64)
+    let ignored_head = inspect_source_safetensors_file(
+      root,
+      qwen3_file_test_metadata(),
+      @approved_fs.ApprovedRelativeLocator::new("unequal"),
+      expected_artifact_sha256=supplied_label,
+      limits=qwen3_file_source_limits(),
+    )
+    assert_eq(ignored_head.artifact_sha256(), supplied_label)
+    assert_eq(ignored_head.bindings(), inspection.bindings())
     root.close()
   }
 }
 
 ///|
-test "Qwen3 metadata-only binding rejects unproved redundant storage" {
+test "Qwen3 metadata-only binding follows declared tied embedding semantics" {
   let file = qwen3_file_source_fixture()
   let tensors = @safetensors_reader.read_metadata(
     file,
     limits=qwen3_file_source_limits().safetensors,
   )
-  try bind(qwen3_file_test_metadata(), tensors) catch {
-    InvalidTensor(reference=0, TiedOutputByteEquality) => ()
-    _ => fail("unexpected metadata-only tied-output rejection")
-  } noraise {
-    _ => fail("metadata-only binding claimed byte equality")
-  }
+  let bindings = bind(qwen3_file_test_metadata(), tensors)
+  assert_true(bindings.redundant_lm_head_tensor() is Some(_))
+  assert_eq(bindings.embedding_binding(), bindings.lm_head_binding())
 }
 
 ///|

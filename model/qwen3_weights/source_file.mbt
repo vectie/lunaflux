@@ -43,35 +43,6 @@ fn qwen3_close_source_file(
 }
 
 ///|
-fn qwen3_ranges_equal(
-  file : @approved_fs.ApprovedFile,
-  left_start : Int64,
-  right_start : Int64,
-  byte_length : Int64,
-  left : FixedArray[Byte],
-  right : FixedArray[Byte],
-) -> Bool raise Qwen3WeightsError {
-  let mut position = 0L
-  while position < byte_length {
-    let remaining = byte_length - position
-    let count = if remaining < left.length().to_int64() {
-      remaining.to_int()
-    } else {
-      left.length()
-    }
-    qwen3_read_source_range(file, left, 0, left_start + position, count)
-    qwen3_read_source_range(file, right, 0, right_start + position, count)
-    for index in 0..<count {
-      if left[index] != right[index] {
-        return false
-      }
-    }
-    position += count.to_int64()
-  }
-  true
-}
-
-///|
 fn qwen3_source_manifest_sha256(
   metadata : @qwen3_spec.Qwen3ModelMetadata,
   bindings : Qwen3WeightBindings,
@@ -87,7 +58,7 @@ fn qwen3_source_manifest_sha256(
     bindings.source_tensor_count().to_string() +
     "\nmaterialized_bytes=" +
     bindings.materialized_bytes().to_string() +
-    "\ntied_lm_head_tensor_ref=0\nredundant_lm_head_byte_equal=" +
+    "\ntied_lm_head_tensor_ref=0\nredundant_lm_head_ignored=" +
     (if bindings.redundant_lm_head_tensor() is Some(_) {
       "true"
     } else {
@@ -169,24 +140,6 @@ fn qwen3_inspect_open_source(
     error => raise InvalidSourceSafetensors(error)
   }
   let bindings = bind_qwen3_metadata(metadata, tensors)
-  let left = FixedArray::make(limits.compare_chunk_bytes, b'\x00')
-  let right = FixedArray::make(limits.compare_chunk_bytes, b'\x00')
-  match bindings.redundant_lm_head_tensor() {
-    None => ()
-    Some(head) => {
-      let embedding = bindings.embedding_binding().tensor()
-      if !qwen3_ranges_equal(
-          file,
-          payload_offset_bytes + embedding.data_start(),
-          payload_offset_bytes + head.data_start(),
-          embedding.byte_length(),
-          left,
-          right,
-        ) {
-        raise InvalidTensor(reference=0, TiedOutputByteEquality)
-      }
-    }
-  }
   let artifact_sha256 = expected_artifact_sha256.to_owned()
   if qwen3_source_stamp(file) != initial_stamp {
     raise SourceFileChanged
@@ -203,8 +156,8 @@ fn qwen3_inspect_open_source(
 ///|
 /// Inspects one original dense-Qwen3 BF16 safetensors artifact offline.
 /// The supplied artifact digest is a label; no complete-file hash is computed.
-/// A redundant physical LM head is accepted only after comparing every source
-/// byte with the embedding range on the same pinned file handle.
+/// Only the bounded header is read. The model's tied-embedding contract selects
+/// reference zero; redundant physical LM-head bytes are not read or compared.
 pub fn inspect_source_safetensors_file(
   root : @approved_fs.ApprovedRoot,
   metadata : @qwen3_spec.Qwen3ModelMetadata,

@@ -42,8 +42,8 @@ pub struct Qwen3TensorBinding {
 /// Complete unique-storage weight mapping for one dense Qwen3 model.
 ///
 /// Qwen3's language-model head aliases reference zero, the embedding table.
-/// A redundant physical `lm_head.weight` in an authenticated source artifact
-/// is validated but deliberately excluded from the materialization byte count.
+/// A redundant physical `lm_head.weight` is shape-validated but ignored under
+/// the model's tied-embedding contract, without scanning its payload.
 pub struct Qwen3WeightBindings {
   priv content_digest : @spec.ContentDigest
   priv bindings : ReadOnlyArray[Qwen3TensorBinding]
@@ -57,13 +57,12 @@ pub struct Qwen3WeightBindings {
 /// Startup bounds for offline admission of an original Qwen3 safetensors file.
 pub struct Qwen3SourceFileLimits {
   priv max_file_bytes : Int64
-  priv compare_chunk_bytes : Int
   priv safetensors : @safetensors.HeaderLimits
 } derive(Debug, Eq)
 
 ///|
-/// Inert proof that one original dense-Qwen3 artifact has the exact tensor
-/// vocabulary and, when present, byte-identical redundant tied-output storage.
+/// Header inspection of an original dense-Qwen3 artifact's tensor vocabulary.
+/// Supplied labels do not prove payload integrity or redundant-head equality.
 pub struct Qwen3SourceFileInspection {
   priv bindings : Qwen3WeightBindings
   priv artifact_sha256 : String
@@ -81,7 +80,9 @@ pub fn Qwen3SourceFileLimits::new(
     compare_chunk_bytes > 16 * 1024 * 1024 {
     raise InvalidSourceFileLimit
   }
-  { max_file_bytes, compare_chunk_bytes, safetensors, }
+  // Keep the legacy constructor argument source-compatible, but do not retain
+  // or allocate a comparison buffer: inspection reads headers only.
+  { max_file_bytes, safetensors, }
 }
 
 ///|
