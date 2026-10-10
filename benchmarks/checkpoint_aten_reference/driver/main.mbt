@@ -73,6 +73,29 @@ fn self_test(session : @native.Session, output : String) -> Unit raise {
 ///|
 fn main raise {
   match @env.args() {
+    [_, "rotary-tables", library, model_root, rows, output] => {
+      let rows = @string.parse_int(rows)
+      guard rows > 0 && rows <= 1024 else {
+        fail("bounded rotary rows required")
+      }
+      // CPU-only independent F32 table arithmetic; does not acquire CUDA.
+      let session = @native.Session::new(library, device=0, budget=2097152L)
+      defer session.close()
+      let model = Model::new(session, model_root)
+      for
+        (name, op) in [
+          ("cosine", @native.Op::Cosine),
+          ("sine", @native.Op::Sine),
+        ] {
+        let table = session.run(op, a=rows, b=model.dim, d=model.theta)
+        table.write(output + "/" + name + ".bf16")
+        table.close()
+      }
+      assert_eq(session.retained_bytes(), 0L)
+      println(
+        "reference_rotary_tables_complete rows=\{rows} device=cpu retained_bytes=0",
+      )
+    }
     [_, "replay-gate-input", library, model, layer, row, channel, first, second] => {
       let session = @native.Session::new(library, device=0, budget=2097152L)
       defer session.close()

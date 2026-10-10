@@ -1,0 +1,304 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline independent implementation, never imported by the native runtime.
+// The reference image is already present on both Sparks. No image pull,
+// checkpoint mutation, model edit, TLS, hash or production cutover is involved.
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+fn node(last : Bool) -> String {
+  if last {
+    "wlc004s@192.168.2.179"
+  } else {
+    "wlc003s@192.168.2.178"
+  }
+}
+
+///|
+fn socket(last : Bool) -> String {
+  if last {
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  } else {
+    "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  }
+}
+
+///|
+fn quote(value : String) -> String {
+  "'" + value.replace_all(old="'", new="'\"'\"'") + "'"
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    socket(last),
+    node(last),
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn save(root : String, label : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+fn field(value : Json, name : String) -> Json raise {
+  guard value is Object(fields) && fields.get(name) is Some(result) else {
+    fail("missing checkpoint field: " + name)
+  }
+  result
+}
+
+///|
+/// Preserve weights, exclusions and BF16 inputs. The on-disk NVFP4 label
+/// alone would select activation quantization in this vLLM version.
+fn glm_overrides(source : String) -> String raise {
+  let config = @json.parse(source)
+  let q = field(config, "quantization_config")
+  guard field(q, "quant_algo") is String("NVFP4") &&
+    field(q, "quant_method") is String("modelopt") else {
+    fail("not the staged ModelOpt NVFP4 checkpoint")
+  }
+  let group = field(field(q, "config_groups"), "group_0")
+  let weights = field(group, "weights")
+  guard field(group, "input_activations") is Null &&
+    field(group, "output_activations") is Null &&
+    field(weights, "num_bits") is Number(4.0, ..) &&
+    field(weights, "group_size") is Number(16.0, ..) &&
+    field(weights, "type") is String("float") else {
+    fail("reference override cannot change activation/weight arithmetic")
+  }
+  let ignore = field(q, "ignore")
+  let overrides : Json = {
+    "quantization_config": {
+      "quant_method": "modelopt",
+      "quant_algo": "W4A16_NVFP4",
+      "group_size": 16,
+      "kv_cache_scheme": null,
+      "ignore": ignore,
+    },
+  }
+  overrides.stringify()
+}
+
+///|
+test "weight-only reference retains checkpoint exclusions and activations" {
+  let source =
+    #|{"quantization_config":{"quant_method":"modelopt","quant_algo":"NVFP4","config_groups":{"group_0":{"weights":{"num_bits":4,"group_size":16,"type":"float"},"input_activations":null,"output_activations":null}},"ignore":["lm_head","*.q_proj"]}}
+  let output = @json.parse(glm_overrides(source))
+  let q = field(output, "quantization_config")
+  assert_true(field(q, "quant_algo") is String("W4A16_NVFP4"))
+  assert_eq(
+    field(q, "ignore"),
+    field(field(@json.parse(source), "quantization_config"), "ignore"),
+  )
+  for
+    invalid in [
+      source.replace_all(
+        old="\"input_activations\":null",
+        new="\"input_activations\":{}",
+      ),
+      source.replace_all(old="\"num_bits\":4", new="\"num_bits\":8"),
+    ] {
+    try glm_overrides(invalid) catch {
+      _ => ()
+    } noraise {
+      _ => fail("reference changed the checkpoint arithmetic")
+    }
+  }
+}
+
+///|
+fn literal_ids(source : String, vocabulary : Int) -> Array[Int] raise {
+  let ids : Array[Int] = []
+  for value in source.trim().split(",") {
+    ids.push(@string.parse_int(value))
+  }
+  guard ids.length() > 0 &&
+    ids.length() <= 192 &&
+    ids.all(id => id >= 0 && id < vocabulary) else {
+    fail("literal IDs exceed this bounded reference request")
+  }
+  ids
+}
+
+///|
+test "reference takes literal IDs rather than silently retemplating a prompt" {
+  assert_eq(literal_ids("1,5,0\n", 6), [1, 5, 0])
+  for source in ["", "-1", "6", "1,".repeat(192) + "1"] {
+    try literal_ids(source, 6) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid reference request")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, family, root, .. extra] &&
+    family is ("glm" | "deepseek") else {
+    fail("start|inspect|stop|request glm|deepseek NEW_ROOT [TOKEN_IDS_FILE]")
+  }
+  let label = root.split("/").last().unwrap().to_owned()
+  guard label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+    fail("short run label required")
+  }
+  if mode == "start" {
+    @fs.mkdir(root)
+    for last in [false, true] {
+      let health = remote(
+        last, "free -m; nvidia-smi --query-compute-apps=pid --format=csv,noheader; docker ps --format '{{.Names}}'",
+      )
+      save(root, if last { "179-health" } else { "178-health" }, health)
+      health.check()
+      let owners = remote(
+        last, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    }
+    let overrides = if family == "glm" {
+      let config = remote(
+        true, "cat /tmp/lunaflux-glm-real-20261010.ekEYBzqU/GLM-5.3-Flash-NVFP4/config.json",
+      )
+      save(root, "checkpoint-config", config)
+      config.check()
+      " --hf-overrides " + quote(glm_overrides(config.stdout()))
+    } else {
+      ""
+    }
+    for last in [true, false] {
+      let model = if family == "glm" {
+        (if last {
+          "/tmp/lunaflux-glm-real-20261010.ekEYBzqU"
+        } else {
+          "/tmp/lunaflux-glm-real-20261010.6yIBQN35"
+        }) +
+        "/GLM-5.3-Flash-NVFP4"
+      } else {
+        // The data root is an explicit input for DeepSeek's rank zero.
+        guard extra is [first] else {
+          fail("DeepSeek start requires rank-zero model directory")
+        }
+        if last {
+          "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT/DeepSeek-V4-Flash-DSpark"
+        } else {
+          first
+        }
+      }
+      let rank = if last { "1" } else { "0" }
+      let name = label + "-" + rank
+      let command = "systemd-run --user --unit=" +
+        name +
+        " --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=2700 " +
+        "docker run --pull=never --name " +
+        name +
+        " --gpus all --network host --ipc=host --memory 96g --memory-swap 96g " +
+        "-e ABLIT=0 -e GLM53_SUPPRESS_STOPS_IN_REASONING=0 " +
+        "-e GLOO_SOCKET_IFNAME=enP7s7 -e NCCL_SOCKET_IFNAME=enP7s7 " +
+        "-e VLLM_HOST_IP=" +
+        (if last { "192.168.2.179" } else { "192.168.2.178" }) +
+        " -e OMP_NUM_THREADS=2 -v " +
+        quote(model + ":/model:ro") +
+        " --entrypoint vllm " +
+        image +
+        " serve /model --served-model-name " +
+        family +
+        " --distributed-executor-backend mp --nnodes 2 --node-rank " +
+        rank +
+        " --tensor-parallel-size 2 --master-addr 192.168.2.178 --master-port 29853 " +
+        "--host 192.168.2.178 --port 18888 --enforce-eager --max-model-len 256 " +
+        "--max-num-seqs 1 --max-num-batched-tokens 256 --gpu-memory-utilization 0.78 " +
+        "--kv-cache-memory-bytes 536870912 --language-model-only --no-enable-prefix-caching " +
+        "--compilation-config '{\"mode\":0}'" +
+        overrides +
+        (if last { " --headless" } else { "" })
+      @fs.write_file(
+        root + "/command-" + rank + ".txt",
+        command,
+        create_mode=CreateNew,
+      )
+      let result = remote(last, command)
+      save(root, "start-" + rank, result)
+      result.check()
+    }
+  } else if mode == "inspect" || mode == "stop" {
+    for last in [false, true] {
+      let rank = if last { "1" } else { "0" }
+      let name = label + "-" + rank
+      if mode == "stop" {
+        let stop = remote(last, "docker stop --time 30 " + name)
+        save(root, "stop-" + rank, stop)
+      }
+      let result = remote(
+        last,
+        "docker logs " +
+        name +
+        "; docker inspect --format '{{json .State}}' " +
+        name +
+        "; systemctl --user show " +
+        name +
+        ".service -p ActiveState -p Result -p MemoryPeak -p MemorySwapPeak; nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      save(root, mode + "-" + rank, result)
+      println(result.stdout())
+      println(result.stderr())
+    }
+  } else if mode == "request" {
+    guard extra is [input] else { fail("literal token file required") }
+    let ids = literal_ids(
+      @fs.read_file(input).text(),
+      if family == "glm" {
+        154880
+      } else {
+        129280
+      },
+    )
+    let request : Json = {
+      "model": family,
+      "prompt": ids,
+      "max_tokens": 8,
+      "temperature": 0,
+      "logprobs": 5,
+      "return_tokens_as_token_ids": true,
+      "ignore_eos": true,
+    }
+    let result = remote(
+      false,
+      "curl --fail-with-body --max-time 900 --silent --show-error -H 'Content-Type: application/json' --data " +
+      quote(request.stringify()) +
+      " http://192.168.2.178:18888/v1/completions",
+    )
+    save(root, "literal-reference", result)
+    result.check()
+    println(result.stdout())
+  } else {
+    fail("unknown mode")
+  }
+}
