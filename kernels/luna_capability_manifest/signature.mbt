@@ -104,9 +104,9 @@ pub struct LunaAdmittedExternalRecord {
 } derive(Debug, Eq)
 
 ///|
-/// Replays a deployment-owned detached-signature approval against the exact
-/// immutable bytes supplied by an owning evidence package. This function does
-/// not verify signatures and cannot manufacture an approval receipt.
+/// Consumes deployment-owned approval metadata and bounds the supplied record.
+/// The retained label is an association, not a checksum of these bytes. This
+/// function performs neither payload authentication nor signature verification.
 pub fn admit_luna_external_approved_record(
   canonical : Bytes,
   envelope : LunaDetachedSignatureEnvelope,
@@ -119,19 +119,13 @@ pub fn admit_luna_external_approved_record(
     canonical.length() > maximum_canonical_bytes {
     raise Invalid(CanonicalBytes)
   }
-  let actual = LunaCapabilityManifestDigest(
-    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
-  )
-  if approval.manifest_digest != actual {
-    raise Mismatch(Digest)
-  }
   if envelope.algorithm != approval.algorithm ||
     envelope.key_identity != approval.key_identity ||
     envelope.signature_digest != approval.signature_digest {
     raise Mismatch(ExternalApproval)
   }
   {
-    record_digest: actual,
+    record_digest: approval.manifest_digest,
     approved_source: approval.approved_source,
     key_identity: approval.key_identity,
     signature_digest: approval.signature_digest,

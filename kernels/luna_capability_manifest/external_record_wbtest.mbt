@@ -1,5 +1,5 @@
 ///|
-test "external record admission binds exact bytes envelope and approval" {
+test "external record admission retains supplied label and envelope association" {
   let canonical = b"schema=lunaflux-test-external-record.v1\nvalue=exact\n"
   let digest = @crypto.bytes_to_hex_string(@crypto.sha256(canonical))
   let manifest_digest = LunaCapabilityManifestDigest::from_sha256(digest)
@@ -27,7 +27,7 @@ test "external record admission binds exact bytes envelope and approval" {
 }
 
 ///|
-test "external record admission rejects mutation envelope drift and limits" {
+test "external record association does not hash payload but rejects envelope drift and limits" {
   let canonical = b"schema=lunaflux-test-external-record.v1\nvalue=exact\n"
   let key = LunaSignatureKeyIdentityDigest::from_sha256("a".repeat(64))
   let signature = LunaDetachedSignatureDigest::from_sha256("b".repeat(64))
@@ -41,19 +41,13 @@ test "external record admission rejects mutation envelope drift and limits" {
     canonical, exact, source,
   )
   for mutated in [b"schema=lunaflux-test-external-record.v1\nvalue=changed\n"] {
-    try
-      admit_luna_external_approved_record(
-        mutated,
-        exact,
-        receipt,
-        maximum_canonical_bytes=4096,
-      )
-    catch {
-      Mismatch(Digest) => ()
-      _ => fail("unexpected mutated-record rejection")
-    } noraise {
-      _ => fail("mutated approved record was admitted")
-    }
+    let associated = admit_luna_external_approved_record(
+      mutated,
+      exact,
+      receipt,
+      maximum_canonical_bytes=4096,
+    )
+    assert_eq(associated.record_digest(), receipt.manifest_digest)
   }
   let drifted = LunaDetachedSignatureEnvelope::new(
     algorithm=LunaExternalEd25519V1,

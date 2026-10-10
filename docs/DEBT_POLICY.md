@@ -163,6 +163,18 @@ Header, length, memory geometry and semantic operand checks remain required.
 First construction of offline AOT/cache identities is distinct from payload
 reauthentication; no runtime integrity claim follows from a supplied label.
 
+FP8 v2/v3 release loading follows the same policy: consume the typed manifest,
+without reopening its file, and read each unique CUBIN once. Never hash or
+byte-compare a shared CUBIN again for every operation. Check module lengths,
+unique/aggregate byte budgets, launch geometry, operands and workspace instead.
+Typed capability and external-record joins retain the existing label without
+replaying a canonical checksum. Optional deployment verification remains a
+separate boundary, not a payload rescan inside loading or token execution.
+Persisted specialization/capability readers parse semantics once and retain
+caller labels without hashing and re-encoding the entire record. Child startup
+handoff likewise consumes the parent association without a manifest checksum
+pass. Exact model/profile/catalog joins and single-use ownership remain required.
+
 ## Compatibility discipline
 
 - One implementation of the engine is authoritative.

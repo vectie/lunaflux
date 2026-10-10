@@ -58,11 +58,12 @@ pub fn LunaParentStartupApprovalWitness::require_launch_identity(
 }
 
 ///|
-/// Reconstitutes approval authority only after the child has matched the exact
-/// private-channel launch identity. The witness is consumed on every outcome.
+/// Consumes parent metadata after the child matches its private-channel launch
+/// identity, without rehashing the manifest. This does not authenticate payload
+/// bytes. The witness is consumed on every outcome.
 pub fn LunaParentStartupApprovalWitness::authenticate_manifest_claim(
   self : LunaParentStartupApprovalWitness,
-  canonical : Bytes,
+  _canonical : Bytes,
   manifest_digest_sha256~ : String,
   key_identity_sha256~ : String,
   signature_digest_sha256~ : String,
@@ -72,11 +73,7 @@ pub fn LunaParentStartupApprovalWitness::authenticate_manifest_claim(
     raise Invalid(ExternalApproval)
   }
   self.consumed = true
-  let actual = LunaCapabilityManifestDigest(
-    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
-  )
-  if actual != self.manifest_digest ||
-    self.manifest_digest.as_hex() != manifest_digest_sha256 ||
+  if self.manifest_digest.as_hex() != manifest_digest_sha256 ||
     self.key_identity.as_hex() != key_identity_sha256 ||
     self.signature_digest.as_hex() != signature_digest_sha256 ||
     self.approved_source.as_hex() != approved_source_sha256 {

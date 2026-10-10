@@ -1,26 +1,16 @@
 ///|
-fn release_sha256(bytes : BytesView) -> String {
-  @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-}
-
-///|
 pub fn admit_v2(
   kernel_root : @approved_fs.ApprovedRoot,
-  manifest_locator : @approved_fs.ApprovedRelativeLocator,
+  _manifest_locator : @approved_fs.ApprovedRelativeLocator,
   approval : @luna_capability_manifest.LunaAdmittedFp8ReleaseManifestV2,
   recipe : @fp8_runtime_recipe.Fp8RuntimeRecipeV2,
   limits : Fp8ReleaseAuthorityLimits,
 ) -> Fp8ReleaseAuthorityV2 raise Fp8ReleaseAuthorityError {
   let manifest = approval.manifest()
-  let manifest_bytes = read_release_file(
-    kernel_root,
-    manifest_locator,
-    limits.max_manifest_bytes,
-    ManifestFile,
-  )
-  if manifest_bytes != manifest.signing_bytes() ||
-    release_sha256(manifest_bytes) != manifest.digest().as_hex() {
-    raise InvalidFp8ReleaseAuthority(ExternalApproval)
+  // The typed manifest is already retained. The legacy locator is not a
+  // prerequisite for execution and must not cause another disk/hash pass.
+  if manifest.signing_bytes().length().to_int64() > limits.max_manifest_bytes {
+    raise InvalidFp8ReleaseAuthority(ManifestFile)
   }
   let startup = recipe.startup()
   if manifest.runtime_recipe_digest_sha256() != recipe.digest().as_hex() {
@@ -102,12 +92,10 @@ pub fn admit_v2(
         snapshot
       }
     }
-    if release_sha256(module_bytes) != module_digest {
-      raise InvalidFp8ReleaseAuthority(ModuleDigest)
-    }
-    if module_bytes != artifact_module.module_bytes() {
-      raise InvalidFp8ReleaseAuthority(ArtifactBytes)
-    }
+    check_release_module_length(
+      module_bytes,
+      artifact_module.module_bytes().length(),
+    )
     operations.push({
       operation: launch.operation(),
       entry_point: launch.entry_point(),
@@ -126,8 +114,7 @@ pub fn admit_v2(
     recipe,
     approval,
     operations: retained,
-    // The externally approved manifest already canonically binds the exact
-    // runtime-recipe digest and every operation/file identity.
+    // Association only: the retained label does not certify loaded bytes.
     digest: Fp8ReleaseAuthorityDigest(manifest.digest().as_hex()),
   }
 }

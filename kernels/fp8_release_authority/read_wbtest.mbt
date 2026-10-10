@@ -1,4 +1,17 @@
 ///|
+test "module size compatibility is not payload authentication" {
+  check_release_module_length(b"changed-cubin", b"initial-cubin".length())
+  for bytes in [b"", b"short"] {
+    try check_release_module_length(bytes, 13) catch {
+      InvalidFp8ReleaseAuthority(ArtifactBytes) => ()
+      _ => fail("unexpected size compatibility error")
+    } noraise {
+      _ => fail("invalid module size was accepted")
+    }
+  }
+}
+
+///|
 fn expect_release_read_rule(
   root : @approved_fs.ApprovedRoot,
   locator : String,

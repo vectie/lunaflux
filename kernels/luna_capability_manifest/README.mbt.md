@@ -21,3 +21,9 @@ Graph metadata declares a shape class, bounded startup memory, capture safety,
 and an exact validated eager-fallback evidence digest. The only executable
 disposition in this software foundation is `LunaValidatedEagerFallback`; the
 type cannot claim that physical CUDA graph capture succeeded.
+
+Typed capability/release joins and raw external-record association consume the
+existing metadata label without rehashing canonical payloads. The explicit
+deployment-verifier API remains separate; these joins do not authenticate
+supplied bytes. Format, size, target and execution compatibility are still
+checked. No verifier or developer regression is a token-step prerequisite.

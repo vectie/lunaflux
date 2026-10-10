@@ -164,69 +164,9 @@ fn decode_luna_numerical(
 }
 
 ///|
-fn encode_persisted_luna_specialization(
-  record : LunaSpecializationRecord,
-  maximum : Int,
-) -> Bytes raise LunaSpecializationError {
-  let encoder : LunaSpecializationEncoder = { bytes: [], maximum, }
-  encoder.append_string("LUNA-SPECIALIZATION-V1")
-  encoder.append_string(record.identity.content().as_hex())
-  encoder.append_string(record.identity.plan().as_hex())
-  encoder.append_int(record.target.compute_major())
-  encoder.append_int(record.target.compute_minor())
-  encoder.append_int(if record.target.supports_bf16() { 1 } else { 0 })
-  encoder.append_int(if record.target.supports_cublas_lt() { 1 } else { 0 })
-  encoder.append_int(record.catalog_version.as_int())
-  encoder.append_int(record.operation_id.as_int())
-  encoder.append_int(record.capability.as_int())
-  encoder.append_int(record.semantic_version.as_int())
-  encoder.append_string(record.module_digest.sha256())
-  encoder.append_int(record.entry_point_id.as_int())
-  encoder.append_operation_shape(record.operation_shape)
-  let shape = record.profile_shape
-  encoder.append_int(shape.phase().as_stable_int())
-  encoder.append_int(shape.batch_rows())
-  encoder.append_int(shape.query_tokens_per_row())
-  encoder.append_int(shape.context_tokens())
-  encoder.append_i64(shape.token_rows())
-  encoder.append_i64(record.workspace_bytes)
-  encoder.append_i64(record.workspace_alignment)
-  encoder.append_u64(record.rope_theta_bits)
-  encoder.append_u64(record.rms_epsilon_bits)
-  encoder.append_int(1)
-  encoder.append_compiler(record.compiler)
-  encoder.append_numerical(record.numerical)
-  encoder.append_string(record.program_digest.as_hex())
-  encoder.append_string(record.cuda_aot_digest.as_hex())
-  encoder.append_int(record.regions.length())
-  for region in record.regions {
-    encoder.append_int(
-      match region.space {
-        LunaWeightArena => 1
-        LunaTokenInput => 2
-        LunaActivationWorkspaceArena => 3
-      },
-    )
-    encoder.append_int(region.semantic_id)
-    encoder.append_i64(region.offset_bytes)
-    encoder.append_i64(region.byte_length)
-    encoder.append_i64(region.alignment_bytes)
-  }
-  for
-    digest in [
-      record.evidence.scalar_referee,
-      record.evidence.admitted_tensor_rows,
-      record.evidence.dispatch_canary,
-      record.evidence.benchmark,
-    ] {
-    encoder.append_string(digest.as_hex())
-  }
-  Bytes::from_array(encoder.bytes)
-}
-
-///|
-/// Decodes one offline canonical record without granting compiler or file authority.
-/// Publication requires full consumption, exact re-encoding, and digest equality.
+/// Parses one bounded specialization without granting compiler/file authority.
+/// Retains the supplied label without checksum or re-encoding replay. Execution
+/// semantics must still match the model, profile and catalog before use.
 pub fn admit_persisted_luna_specialization(
   canonical : Bytes,
   expected_digest : LunaSpecializationDigest,
@@ -350,12 +290,6 @@ pub fn admit_persisted_luna_specialization(
   if decoder.cursor != canonical.length() {
     raise Invalid(CanonicalBytes)
   }
-  let actual_digest = LunaSpecializationDigest(
-    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
-  )
-  if actual_digest != expected_digest {
-    raise Mismatch(Digest)
-  }
   let record : LunaSpecializationRecord = {
     identity,
     target,
@@ -380,11 +314,7 @@ pub fn admit_persisted_luna_specialization(
     cuda_aot_digest,
     evidence,
     canonical,
-    digest: actual_digest,
-  }
-  if encode_persisted_luna_specialization(record, limits.max_canonical_bytes) !=
-    canonical {
-    raise Mismatch(CanonicalBytes)
+    digest: expected_digest,
   }
   record
 }

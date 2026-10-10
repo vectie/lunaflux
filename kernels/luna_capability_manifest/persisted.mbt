@@ -131,8 +131,8 @@ fn decode_luna_capability_numerical(
 }
 
 ///|
-/// Decodes one approved-file candidate without signature-verification authority.
-/// Publication requires full consumption, exact re-encoding, and digest equality.
+/// Parses the execution semantics once, retaining the supplied association
+/// label. Full consumption is required; checksum/re-encoding replay is not.
 pub fn admit_persisted_luna_capability_manifest(
   canonical : Bytes,
   expected_digest : LunaCapabilityManifestDigest,
@@ -234,12 +234,6 @@ pub fn admit_persisted_luna_capability_manifest(
   if decoder.cursor != canonical.length() {
     raise Invalid(CanonicalBytes)
   }
-  let actual_digest = LunaCapabilityManifestDigest(
-    @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
-  )
-  if actual_digest != expected_digest {
-    raise Mismatch(Digest)
-  }
   let entry : LunaCapabilityManifestEntry = {
     version: LunaCapabilityManifestVersion::v1(),
     specialization,
@@ -251,22 +245,7 @@ pub fn admit_persisted_luna_capability_manifest(
     minimum_alignment_bytes,
     graph,
     canonical,
-    digest: actual_digest,
-  }
-  if encode_luna_capability_entry(
-      entry.version,
-      specialization,
-      architecture,
-      input_dtype,
-      accumulator_dtype,
-      tensor_layout,
-      kv_layout,
-      minimum_alignment_bytes,
-      graph,
-      maximum_canonical_bytes,
-    ) !=
-    canonical {
-    raise Mismatch(CanonicalBytes)
+    digest: expected_digest,
   }
   entry
 }

@@ -1,4 +1,16 @@
 ///|
+/// Preserve module-size compatibility without scanning the payload for a
+/// checksum or equality. Declared module labels do not authenticate the bytes.
+fn check_release_module_length(
+  bytes : Bytes,
+  expected_length : Int,
+) -> Unit raise Fp8ReleaseAuthorityError {
+  if bytes.is_empty() || bytes.length() != expected_length {
+    raise InvalidFp8ReleaseAuthority(ArtifactBytes)
+  }
+}
+
+///|
 fn read_release_file(
   root : @approved_fs.ApprovedRoot,
   locator : @approved_fs.ApprovedRelativeLocator,

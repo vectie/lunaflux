@@ -1,0 +1,21 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/shell",
+}
+
+// Developer-only regression; never an execution or model-startup prerequisite.
+// Payload integrity rescans are intentionally not admission invariants.
+
+///|
+async fn main {
+  @shell.Cmd("moon", ["run", "scripts/check-checkpoint-runner-no-hashing.mbtx"]).output().check()
+  for action in ["check", "test"] {
+    let result = @shell.Cmd("moon", [
+      action, "kernels/fp8_release_authority", "kernels/luna_capability_manifest",
+      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+    ]).output(max_output_bytes=1048576)
+    result.check()
+    println(result.stdout())
+  }
+  println("FP8 release compatibility boundary passed without payload hashing.")
+}

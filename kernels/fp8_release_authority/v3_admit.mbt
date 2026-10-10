@@ -1,21 +1,14 @@
 ///|
 pub fn admit_reusable_paged_v3(
   kernel_root : @approved_fs.ApprovedRoot,
-  manifest_locator : @approved_fs.ApprovedRelativeLocator,
+  _manifest_locator : @approved_fs.ApprovedRelativeLocator,
   approval : @luna_capability_manifest.LunaAdmittedFp8ReusablePagedReleaseManifestV3,
   recipe : @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3,
   limits : Fp8ReleaseAuthorityLimits,
 ) -> Fp8ReusablePagedEnvelopeAuthorityV3 raise Fp8ReleaseAuthorityError {
   let manifest = approval.manifest()
-  let manifest_bytes = read_release_file(
-    kernel_root,
-    manifest_locator,
-    limits.max_manifest_bytes,
-    ManifestFile,
-  )
-  if manifest_bytes != manifest.signing_bytes() ||
-    release_sha256(manifest_bytes) != manifest.digest().as_hex() {
-    raise InvalidFp8ReleaseAuthority(ExternalApproval)
+  if manifest.signing_bytes().length().to_int64() > limits.max_manifest_bytes {
+    raise InvalidFp8ReleaseAuthority(ManifestFile)
   }
   if manifest.reusable_recipe_digest_sha256() != recipe.digest().as_hex() {
     raise InvalidFp8ReleaseAuthority(Recipe)
@@ -104,12 +97,10 @@ pub fn admit_reusable_paged_v3(
         snapshot
       }
     }
-    if release_sha256(module_bytes) != module_digest {
-      raise InvalidFp8ReleaseAuthority(ModuleDigest)
-    }
-    if module_bytes != artifact_module.module_bytes() {
-      raise InvalidFp8ReleaseAuthority(ArtifactBytes)
-    }
+    check_release_module_length(
+      module_bytes,
+      artifact_module.module_bytes().length(),
+    )
     operations.push({
       operation: launch.operation(),
       entry_point: launch.entry_point(),

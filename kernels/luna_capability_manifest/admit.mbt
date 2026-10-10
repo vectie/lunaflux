@@ -66,10 +66,9 @@ pub fn admit_luna_external_approved_capability(
   if entry.version != LunaCapabilityManifestVersion::v1() {
     raise Unsupported(Version)
   }
-  let actual_digest = LunaCapabilityManifestDigest(
-    @crypto.bytes_to_hex_string(@crypto.sha256(entry.canonical)),
-  )
-  if entry.digest != actual_digest || approval.manifest_digest != actual_digest {
+  // The immutable constructor already owns this label. Joining it does not
+  // require replaying the canonical bytes or claiming payload authentication.
+  if approval.manifest_digest != entry.digest {
     raise Mismatch(Digest)
   }
   if envelope.algorithm != approval.algorithm ||

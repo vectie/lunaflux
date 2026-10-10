@@ -1,5 +1,25 @@
 # LunaFlux detailed implementation plan
 
+2026-10-10 FP8 loading follow-up: v2/v3 release assembly no longer reopens
+the already-retained manifest, hashes shared CUBINs per operation, or compares
+whole CUBIN copies. Unique module snapshots are read once; length, aggregate
+budget, launch, operand and workspace compatibility remain checked. Typed
+capability/release joins and raw external-record association likewise retain
+existing labels rather than rehash canonical payloads. These labels do not
+authenticate the loaded bytes. Optional deployment verification remains a
+separate API; the developer boundary no longer requires removed checksum scans.
+Persisted specialization/capability decoding also omits checksum and canonical
+re-encoding replay, and child startup handoff consumes the parent association
+without hashing the manifest again. Parsing and model/profile/catalog binding
+remain required.
+This changes CPU preparation/loading only, not CUDA arithmetic or measured GPU
+throughput. Focused native regressions and no-hashing/token-step gates are the
+validation boundary for this cleanup.
+The affected 13-package native matrix passes 453/453 with the existing migration
+warning exclusions `-20-25-29-35-79-92`; no new exclusions were introduced.
+The developer no-hashing/token-step gates pass. This is not a new physical
+qualification, remote deployment, or throughput result.
+
 2026-10-10 further cleanup: reusable fused exporters no longer hash and parse
 their freshly serialized whole sidecars. Residual launch validation is direct.
 Row-variant startup consumes the declared module label; attention-route scope

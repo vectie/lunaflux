@@ -13,7 +13,7 @@ test "Phase5 specialization and signed capability records are byte deterministic
 }
 
 ///|
-test "persisted Phase5 records require exact canonical roundtrip" {
+test "persisted Phase5 records preserve semantic roundtrip without replay" {
   let offline = phase5_specialization()
   let specialization = @luna_specialization.admit_persisted_luna_specialization(
     offline.canonical_bytes(),
@@ -105,43 +105,31 @@ test "persisted Phase5 records reject truncation and trailing bytes" {
 }
 
 ///|
-test "persisted Phase5 records reject substituted content identities" {
+test "persisted Phase5 records retain caller labels without payload hashing" {
   let offline = phase5_specialization()
   let wrong_specialization = @luna_specialization.LunaSpecializationDigest::from_sha256(
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   )
-  try
-    @luna_specialization.admit_persisted_luna_specialization(
-      offline.canonical_bytes(),
-      wrong_specialization,
-      @luna_specialization.LunaSpecializationLimits::new(
-        max_canonical_bytes=16384,
-        max_bound_regions=4,
-      ),
-    )
-  catch {
-    Mismatch(Digest) => ()
-    _ => fail("unexpected specialization digest substitution failure")
-  } noraise {
-    _ => fail("substituted specialization digest was admitted")
-  }
+  let labeled = @luna_specialization.admit_persisted_luna_specialization(
+    offline.canonical_bytes(),
+    wrong_specialization,
+    @luna_specialization.LunaSpecializationLimits::new(
+      max_canonical_bytes=16384,
+      max_bound_regions=4,
+    ),
+  )
+  assert_eq(labeled.digest(), wrong_specialization)
   let capability = phase5_manifest()
   let wrong_capability = @luna_capability_manifest.LunaCapabilityManifestDigest::from_sha256(
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   )
-  try
-    @luna_capability_manifest.admit_persisted_luna_capability_manifest(
-      capability.signing_bytes(),
-      wrong_capability,
-      offline,
-      16384,
-    )
-  catch {
-    Mismatch(Digest) => ()
-    _ => fail("unexpected capability digest substitution failure")
-  } noraise {
-    _ => fail("substituted capability digest was admitted")
-  }
+  let labeled_capability = @luna_capability_manifest.admit_persisted_luna_capability_manifest(
+    capability.signing_bytes(),
+    wrong_capability,
+    offline,
+    16384,
+  )
+  assert_eq(labeled_capability.digest(), wrong_capability)
 }
 
 ///|

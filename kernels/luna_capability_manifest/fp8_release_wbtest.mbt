@@ -100,6 +100,19 @@ test "FP8 release approval is canonical, detached, and externally joined" {
     ),
   )
   assert_eq(admitted.manifest().digest(), first.digest())
+  // Internal fixture replaces bytes while preserving the constructor label.
+  // The public type is immutable; a join must consume its label, not replay it.
+  let replaced = { ..first, canonical: b"not reauthenticated", }
+  let associated = admit_luna_external_approved_fp8_release_v2(
+    replaced,
+    envelope,
+    luna_test_authenticated_external_approval(
+      first.signing_bytes(),
+      envelope,
+      LunaApprovedImmutableSourceIdentity::from_sha256("8".repeat(64)),
+    ),
+  )
+  assert_eq(associated.manifest().digest(), first.digest())
   try
     admit_luna_external_approved_fp8_release_v2(
       first,

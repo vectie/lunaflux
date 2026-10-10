@@ -54,7 +54,7 @@ test "parent approval attestation binds launch identity and consumes once" {
   )
   ignore(
     witness.authenticate_manifest_claim(
-      canonical,
+      b"payload is not rehashed on child handoff",
       manifest_digest_sha256=@crypto.bytes_to_hex_string(
         @crypto.sha256(canonical),
       ),

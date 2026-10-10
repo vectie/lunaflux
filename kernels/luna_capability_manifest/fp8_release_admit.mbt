@@ -1,15 +1,12 @@
 ///|
-/// Joins the exact FP8 release-manifest bytes to the existing externally
-/// verified deployment approval. This function verifies no signature itself.
+/// Joins the immutable FP8 manifest's existing label to deployment metadata.
+/// No canonical replay, payload checksum or signature verification occurs.
 pub fn admit_luna_external_approved_fp8_release_v2(
   manifest : LunaFp8ReleaseManifestV2,
   envelope : LunaDetachedSignatureEnvelope,
   approval : LunaAuthenticatedExternalApproval,
 ) -> LunaAdmittedFp8ReleaseManifestV2 raise LunaCapabilityManifestError {
-  let digest = LunaCapabilityManifestDigest(
-    @crypto.bytes_to_hex_string(@crypto.sha256(manifest.canonical)),
-  )
-  if digest != manifest.digest || digest != approval.manifest_digest {
+  if manifest.digest != approval.manifest_digest {
     raise Mismatch(Digest)
   }
   if envelope.algorithm != approval.algorithm ||

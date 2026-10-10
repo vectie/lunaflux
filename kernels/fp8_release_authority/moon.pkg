@@ -1,5 +1,4 @@
 import {
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/engine/fp8_runtime_recipe",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",

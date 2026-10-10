@@ -8,6 +8,29 @@ import {
 
 ///|
 async fn main {
+  for name in ["admit", "v3_admit"] {
+    let source = @fs.read_file("kernels/fp8_release_authority/" + name + ".mbt").text()
+    for removed in ["release_sha256(", "module_bytes != artifact_module.module_bytes()", "manifest_bytes != manifest.signing_bytes()"] {
+      guard !source.contains(removed) else {
+        fail("FP8 release payload scan reintroduced: " + name + ": " + removed)
+      }
+    }
+  }
+  for name in ["signature", "fp8_release_admit", "fp8_release_v3_admit", "persisted", "parent_startup_attestation"] {
+    let source = @fs.read_file("kernels/luna_capability_manifest/" + name + ".mbt").text()
+    guard !source.contains("@crypto.sha256(") else {
+      fail("capability association rehash reintroduced: " + name)
+    }
+  }
+  let specialization = @fs.read_file("kernels/luna_specialization/persisted.mbt").text()
+  guard !specialization.contains("@crypto.sha256(") &&
+    !specialization.contains("encode_persisted_luna_specialization(record, limits.max_canonical_bytes)") else {
+    fail("persisted specialization checksum/canonical replay reintroduced")
+  }
+  let capability = @fs.read_file("kernels/luna_capability_manifest/admit.mbt").text()
+  guard !capability.contains("@crypto.sha256(entry.canonical)") else {
+    fail("typed capability manifest reauthentication reintroduced")
+  }
   let scope = @fs.read_file("kernels/luna_fused_artifact_admission/attention_routes.mbt").text()
   guard !scope.contains("reusable_runtime_append_row_variant(") &&
     !scope.contains("module_bytes") else {
