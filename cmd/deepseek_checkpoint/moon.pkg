@@ -10,7 +10,6 @@ import {
   "vectie/lunaflux/model/streaming_safetensors" @streaming,
   "vectie/lunaflux/model/deepseek_v4_config" @config,
   "vectie/lunaflux/model/deepseek_v4_spec" @spec,
-  "vectie/lunaflux/model/spec" @model_spec,
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/runtime/monotonic_clock" @clock,
   "vectie/lunaflux/engine/precision_materialize" @materialize,

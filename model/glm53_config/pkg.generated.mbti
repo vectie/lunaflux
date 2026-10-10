@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn parse_flash_spec_bytes(BytesView, max_bytes~ : Int, max_depth~ : Int) -> @glm53_spec.Glm53FlashSpec raise Glm53ConfigError
+
 pub fn parse_glm53_config(StringView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> Glm53ConfigAdmission raise Glm53ConfigError
 
 pub fn parse_glm53_config_bytes(Bytes, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> Glm53ConfigAdmission raise Glm53ConfigError

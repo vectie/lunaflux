@@ -5,12 +5,10 @@ import {
   "moonbitlang/core/env",
   "moonbitlang/core/string",
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/model/checkpoint_inventory" @inventory,
   "vectie/lunaflux/model/streaming_safetensors" @streaming,
   "vectie/lunaflux/model/glm53_config" @config,
   "vectie/lunaflux/model/glm53_spec" @spec,
-  "vectie/lunaflux/model/spec" @model_spec,
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/runtime/monotonic_clock" @clock,
   "vectie/lunaflux/engine/precision_materialize" @materialize,
@@ -28,6 +26,10 @@ import {
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/device",
 }
+
+import {
+  "moonbitlang/x/crypto",
+} for "wbtest"
 
 supported_targets = "native"
 

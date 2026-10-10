@@ -10,6 +10,8 @@ import {
 // Values
 pub fn parse_bytes(BytesView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError
 
+pub fn parse_spec_bytes(BytesView, max_bytes~ : Int, max_depth~ : Int) -> @deepseek_v4_spec.DeepSeekV4ModelSpec raise DeepSeekV4ConfigError
+
 pub fn parse_string(StringView, @spec.ContentDigest, max_bytes~ : Int, max_depth~ : Int) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError
 
 // Errors

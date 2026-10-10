@@ -396,11 +396,10 @@ fn validate_exact(
 }
 
 ///|
-fn parse_text(
+fn parse_spec_text(
   document : StringView,
-  content : @spec.ContentDigest,
   max_depth : Int,
-) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError {
+) -> @deepseek_v4_spec.DeepSeekV4ModelSpec raise DeepSeekV4ConfigError {
   @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
     InvalidDepthLimit => raise InvalidDepthLimit
     DepthLimitExceeded(limit~) => raise NestingLimitExceeded(limit)
@@ -411,18 +410,17 @@ fn parse_text(
   guard parsed is Object(root) else { raise NonObjectRoot }
   let spec = select_spec(root)
   validate_exact(root, spec)
-  @deepseek_v4_spec.DeepSeekV4ModelMetadata::from_verified_content(
-    spec, content,
-  )
+  spec
 }
 
 ///|
-pub fn parse_bytes(
+/// Parse execution semantics without requiring a content identity or hashing
+/// the configuration. Uses the same bounded schema as metadata parsing.
+pub fn parse_spec_bytes(
   document : BytesView,
-  content : @spec.ContentDigest,
   max_bytes~ : Int,
   max_depth~ : Int,
-) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError {
+) -> @deepseek_v4_spec.DeepSeekV4ModelSpec raise DeepSeekV4ConfigError {
   if max_bytes <= 0 {
     raise InvalidByteLimit
   }
@@ -433,7 +431,20 @@ pub fn parse_bytes(
     raise ByteLimitExceeded(max_bytes)
   }
   let text = @utf8.decode(document) catch { _ => raise InvalidUtf8 }
-  parse_text(text, content, max_depth)
+  parse_spec_text(text, max_depth)
+}
+
+///|
+pub fn parse_bytes(
+  document : BytesView,
+  content : @spec.ContentDigest,
+  max_bytes~ : Int,
+  max_depth~ : Int,
+) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError {
+  @deepseek_v4_spec.DeepSeekV4ModelMetadata::from_verified_content(
+    parse_spec_bytes(document, max_bytes~, max_depth~),
+    content,
+  )
 }
 
 ///|
@@ -453,5 +464,8 @@ pub fn parse_string(
   if encoded.length() > max_bytes {
     raise ByteLimitExceeded(max_bytes)
   }
-  parse_text(document, content, max_depth)
+  @deepseek_v4_spec.DeepSeekV4ModelMetadata::from_verified_content(
+    parse_spec_text(document, max_depth),
+    content,
+  )
 }

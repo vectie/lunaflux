@@ -71,10 +71,7 @@ fn inspect_config(
   root : @approved_fs.ApprovedRoot,
 ) -> @spec.DeepSeekV4ModelSpec raise {
   let config = read_bounded(root, "config.json", 1048576L)
-  let digest = @model_spec.ContentDigest::from_sha256(
-    @crypto.bytes_to_hex_string(@crypto.sha256(config)),
-  )
-  @config.parse_bytes(config, digest, max_bytes=1048576, max_depth=16).spec()
+  @config.parse_spec_bytes(config, max_bytes=1048576, max_depth=16)
 }
 
 ///|

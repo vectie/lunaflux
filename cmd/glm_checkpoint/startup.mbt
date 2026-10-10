@@ -67,19 +67,7 @@ fn inspect_config(
   root : @approved_fs.ApprovedRoot,
 ) -> @spec.Glm53FlashSpec raise {
   let config = read_bounded(root, "config.json", 1048576L)
-  let digest = @model_spec.ContentDigest::from_sha256(
-    @crypto.bytes_to_hex_string(@crypto.sha256(config)),
-  )
-  guard @config.parse_glm53_config_bytes(
-      config,
-      digest,
-      max_bytes=1048576,
-      max_depth=16,
-    )
-    is Flash(metadata) else {
-    fail("this executable requires the GLM-5.3 Flash config")
-  }
-  metadata.spec()
+  @config.parse_flash_spec_bytes(config, max_bytes=1048576, max_depth=16)
 }
 
 ///|

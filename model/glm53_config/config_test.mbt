@@ -134,6 +134,38 @@ test "bounded GLM config admission recognizes exact full and Flash profiles" {
   assert_eq(flash_metadata.spec().layer_count(), 45)
   assert_eq(full_metadata.content_digest(), config_digest())
   assert_eq(flash_metadata.content_digest(), config_digest())
+  assert_eq(
+    @glm53_config.parse_flash_spec_bytes(
+      @utf8.encode(flash_config()),
+      max_bytes=16384,
+      max_depth=8,
+    ),
+    flash_metadata.spec(),
+  )
+}
+
+///|
+test "spec-only Flash parsing retains profile and byte boundaries" {
+  try
+    @glm53_config.parse_flash_spec_bytes(
+      @utf8.encode(full_config()),
+      max_bytes=16384,
+      max_depth=8,
+    )
+  catch {
+    InvalidValue(ModelType) => ()
+    _ => fail("unexpected profile error")
+  } noraise {
+    _ => fail("full profile admitted as Flash")
+  }
+  try
+    @glm53_config.parse_flash_spec_bytes(b"{}", max_bytes=1, max_depth=8)
+  catch {
+    ByteLimitExceeded(limit=1) => ()
+    _ => fail("unexpected byte-limit error")
+  } noraise {
+    _ => fail("byte bound ignored")
+  }
 }
 
 ///|

@@ -96,6 +96,11 @@ parse the bytes needed for execution without a separate config/tokenizer hash
 pass. Digest-shaped compatibility fields retain caller-supplied labels; they
 do not certify the loaded bytes. Bounds and semantic parsing remain required.
 
+Checkpoint consumers that only require model execution semantics must use
+spec-only parsing, without computing and discarding a configuration digest.
+GLM Flash and DeepSeek checkpoint startup follow this route. Do not replace
+discarded hashes with fabricated content identities.
+
 Weight conversion must not reopen an entire converted payload to hash it or
 repeat source inspection after copying. Compatibility `*_sha256` fields may
 carry supplied or plan-derived identity labels; report their kind and never

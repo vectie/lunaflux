@@ -66,6 +66,26 @@ test "all five exact official DeepSeek V4 profiles are closed" {
       max_depth=8,
     )
     assert_eq(bytes_metadata, metadata)
+    assert_eq(
+      parse_spec_bytes(@utf8.encode(document), max_bytes=8192, max_depth=8),
+      metadata.spec(),
+    )
+  }
+}
+
+///|
+test "spec-only parsing retains byte and schema boundaries" {
+  try parse_spec_bytes(b"{}", max_bytes=1, max_depth=8) catch {
+    ByteLimitExceeded(1) => ()
+    _ => fail("unexpected byte-limit error")
+  } noraise {
+    _ => fail("byte bound ignored")
+  }
+  try parse_spec_bytes(b"{}", max_bytes=8192, max_depth=8) catch {
+    MissingField(_) => ()
+    _ => fail("unexpected schema error")
+  } noraise {
+    _ => fail("missing execution semantics admitted")
   }
 }
 

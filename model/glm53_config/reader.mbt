@@ -60,6 +60,26 @@ fn parse_root(
 }
 
 ///|
+/// Parse Flash execution semantics without manufacturing or computing a
+/// content digest. Bounds and the family-owned numeric/schema checks remain.
+pub fn parse_flash_spec_bytes(
+  document : BytesView,
+  max_bytes~ : Int,
+  max_depth~ : Int,
+) -> @glm53_spec.Glm53FlashSpec raise Glm53ConfigError {
+  validate_limits(max_bytes, max_depth)
+  if document.length() > max_bytes {
+    raise ByteLimitExceeded(limit=max_bytes)
+  }
+  let text = @utf8.decode(document) catch { _ => raise InvalidUtf8 }
+  let root = parse_root(text, max_depth)
+  guard require_string(root, "model_type", ModelType) == "glm5_next" else {
+    raise invalid(ModelType)
+  }
+  validate_flash_config(root)
+}
+
+///|
 pub fn parse_glm53_config(
   document : StringView,
   content_digest : @spec.ContentDigest,
