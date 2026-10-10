@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#if defined(__linux__)
+#if defined(LF_EXECUTABLE_SNAPSHOT_DIAGNOSTIC) && defined(__linux__)
 #include <linux/memfd.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -59,6 +59,8 @@ static int lf_exec_close(int fd) {
   return status == 0 ? LF_EXECUTABLE_OK : LF_EXECUTABLE_FAILED;
 }
 
+#ifdef LF_EXECUTABLE_SNAPSHOT_DIAGNOSTIC
+/* Historical snapshot probe only. Not compiled into the runtime. */
 static int lf_exec_begin(lf_approved_executable *owner, int *fd) {
   if (owner == NULL || fd == NULL) return LF_EXECUTABLE_CLOSED;
   uint32_t state = atomic_load_explicit(&owner->state, memory_order_acquire);
@@ -82,6 +84,7 @@ static int lf_exec_begin(lf_approved_executable *owner, int *fd) {
 static void lf_exec_end(lf_approved_executable *owner) {
   (void)atomic_fetch_sub_explicit(&owner->state, 1, memory_order_release);
 }
+#endif
 
 static void lf_exec_finalize(void *object) {
   lf_approved_executable *owner = (lf_approved_executable *)object;
@@ -217,6 +220,7 @@ lf_approved_executable *lunaflux_worker_executable_open(
   return owner;
 }
 
+#ifdef LF_EXECUTABLE_SNAPSHOT_DIAGNOSTIC
 #if defined(__linux__)
 static int lf_exec_memfd(void) {
   return (int)syscall(SYS_memfd_create, "lunaflux-worker",
@@ -342,6 +346,7 @@ fail_before_allocation:
   lf_exec_end(owner);
   return lf_exec_snapshot_failure(failure);
 }
+#endif
 
 MOONBIT_FFI_EXPORT
 int32_t lunaflux_worker_executable_close(lf_approved_executable *owner) {

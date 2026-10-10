@@ -42,7 +42,8 @@ fn parse_argument(
 }
 
 ///|
-/// Loads the fixed launch descendant and closes all launch authority first.
+/// Parses the fixed launch descendant and closes all launch authority first.
+/// The argument's digest is a supplied association label, not a payload checksum.
 pub fn load_argument(
   argument : StringView,
   limits : LaunchFileLimits,
@@ -84,12 +85,6 @@ pub fn load_argument(
     Err(primary) => raise primary
     Ok(_) if file_close is Err(_) => raise FileOperationFailed
     Ok(_) if root_close is Err(_) => raise FileOperationFailed
-    Ok(bytes) => {
-      let actual = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-      if actual != expected.as_hex() {
-        raise DigestMismatch
-      }
-      parse_launch(bytes, expected, limits)
-    }
+    Ok(bytes) => parse_launch(bytes, expected, limits)
   }
 }

@@ -1,5 +1,5 @@
 ///|
-async test "launch file is digest pinned and authority closed before publication" {
+async test "launch parsing retains supplied labels without payload authentication" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-launch-file")
     let root = @fs.realpath(temporary)
@@ -17,16 +17,14 @@ async test "launch file is digest pinned and authority closed before publication
     assert_eq(admitted.digest().as_hex(), digest)
     @fs.rename(root, "\{root}.closed")
     @fs.rename("\{root}.closed", root)
-    try
-      load_argument(
-        "\{root}#sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        try! LaunchFileLimits::new(maximum_bytes=65536L, maximum_json_depth=8),
-      )
-    catch {
-      DigestMismatch => ()
-      _ => fail("unexpected independent digest failure")
-    } noraise {
-      _ => fail("wrong independent launch digest was admitted")
-    }
+    let supplied = load_argument(
+      "\{root}#sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      try! LaunchFileLimits::new(maximum_bytes=65536L, maximum_json_depth=8),
+    )
+    assert_eq(
+      supplied.digest().as_hex(),
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    )
+    assert_eq(supplied.model_root_label(), admitted.model_root_label())
   }
 }

@@ -70,6 +70,7 @@ static void probe_snapshot_hook(int stage, int fd) {
 }
 
 #define LF_EXECUTABLE_CLOSE probe_close
+#define LF_EXECUTABLE_SNAPSHOT_DIAGNOSTIC 1
 #define LF_EXECUTABLE_PREAD probe_pread
 #define LF_EXECUTABLE_SNAPSHOT_HOOK(stage, fd) probe_snapshot_hook((stage), (fd))
 #define LF_EXECUTABLE_PIN_FAILURE() (pin_failure)

@@ -1,9 +1,9 @@
 ///|
-/// Exact independently supplied worker executable identity.
+/// Deployment-supplied worker label; does not authenticate executable bytes.
 pub struct WorkerExecutableDigest(String) derive(Debug, Eq)
 
 ///|
-/// Startup bound for hashing one executable snapshot.
+/// Startup file-size ceiling, checked without reading the executable payload.
 pub struct WorkerExecutableFileLimits {
   priv maximum_bytes : Int64
 }

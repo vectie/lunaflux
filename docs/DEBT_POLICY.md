@@ -177,6 +177,14 @@ pass. Exact model/profile/catalog joins and single-use ownership remain required
 
 ## Compatibility discipline
 
+Deployment launch parsing and two-Spark worker configuration must not hash
+their documents or referenced startup payloads. Worker activation retains the
+already-open executable descriptor directly: no full executable read, SHA-256
+pass or sealed-memfd copy. Offline materialized-worker inspection is metadata
+only. Deployment owns inode immutability; supplied labels do not prove payload
+integrity. Certificate/private-key loading belongs to the selected transport,
+not an extra worker preflight read. Size ceilings and deterministic close remain.
+
 - One implementation of the engine is authoritative.
 - Experiments live behind an explicit package/capability boundary and are
   removed or promoted before the next phase ends.

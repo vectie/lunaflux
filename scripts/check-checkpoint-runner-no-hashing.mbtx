@@ -8,6 +8,19 @@ import {
 
 ///|
 async fn main {
+  for path in [
+    "deploy/worker_executable_file/admit.mbt", "deploy/launch_file/load.mbt",
+    "ops/two_spark_worker/configuration.mbt",
+  ] {
+    let source = @fs.read_file(path).text()
+    guard !source.contains("@crypto.sha256(") && !source.contains("raw_snapshot_and_pin(") else {
+      fail("startup payload hashing/copy reintroduced: " + path)
+    }
+  }
+  let executable = @fs.read_file("deploy/worker_executable_file/admit.mbt").text()
+  guard !executable.contains("read_immutable_snapshot(") else {
+    fail("executable admission must use metadata, not read the entire payload")
+  }
   for name in ["admit", "v3_admit"] {
     let source = @fs.read_file("kernels/fp8_release_authority/" + name + ".mbt").text()
     for removed in ["release_sha256(", "module_bytes != artifact_module.module_bytes()", "manifest_bytes != manifest.signing_bytes()"] {

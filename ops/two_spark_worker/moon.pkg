@@ -5,7 +5,6 @@ import {
   "moonbitlang/core/json",
   "moonbitlang/core/string",
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/internal/json_guard",
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/runtime/remote_tls",
@@ -25,3 +24,7 @@ import {
 }
 
 supported_targets = "native"
+
+import {
+  "moonbitlang/async/fs",
+} for "wbtest"

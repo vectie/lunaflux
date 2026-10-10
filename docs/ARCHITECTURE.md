@@ -462,6 +462,12 @@ verification remains external to startup and dispatch.
 
 Configuration, runtime-descriptor, instance-policy and execution-manifest
 snapshot readers follow the same rule: no byte hashing or checksum comparison.
+Launch-file and two-Spark startup readers also consume supplied labels without
+payload hashing. Executable activation opens the staged regular executable and
+retains its descriptor without reading the complete binary or copying it into
+a sealed memfd. Materialized executable inspection reads metadata only.
+Deployment must keep the opened inode immutable; this path does not protect
+against in-place binary mutation or claim verified payload integrity.
 Qwen/Mistral descriptor and worker bootstrap configuration reads do not repeat
 that work. Existing digest fields remain supplied labels for compatibility;
 they do not authenticate snapshots. Bounded parsing, model/shape/rank joins,

@@ -1,5 +1,5 @@
 ///|
-/// Runs one operator-launched rank from a digest-pinned local deployment root.
+/// Runs one operator-launched rank from a deployment-staged local root.
 /// After execution ends, retains a release-only listener for recovery receipts.
 /// It cannot execute another generation; deployment starts a fresh process.
 pub async fn run(
@@ -101,8 +101,6 @@ pub async fn run(
   let credential = @remote_tls.RemoteCredential::from_bytes(
     pinned(root, field(config, "credential"), 32L),
   )
-  ignore(pinned(root, field(config, "certificate"), 1048576L))
-  ignore(pinned(root, field(config, "private_key"), 1048576L))
   guard field(config, "certificate") is Object(certificate) else {
     raise Configuration
   }

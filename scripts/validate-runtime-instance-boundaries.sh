@@ -31,15 +31,14 @@ if rg -n '\.require_absolute_identity\(' \
     deploy/worker_executable_file/admit.mbt ||
   [ "$(rg -c 'raw_open_executable\(' \
     deploy/worker_executable_file/admit.mbt)" -ne 1 ] ||
-  [ "$(rg -c 'raw_snapshot_and_pin\(' \
-    deploy/worker_executable_file/admit.mbt)" -ne 1 ] ||
+  rg -q 'raw_snapshot_and_pin\(|@crypto\.sha256|read_immutable_snapshot' \
+    deploy/worker_executable_file/admit.mbt ||
   ! rg -Fq 'ignore(split_absolute_path(absolute_path))' \
     deploy/worker_executable_file/admit.mbt ||
-  ! rg -q '@crypto\.sha256' deploy/worker_executable_file/admit.mbt ||
   ! rg -Fq \
-    '{ activation_path: @utf8.encode(absolute_path), digest: expected, handle }' \
+    '{ activation_path: @utf8.encode(absolute_path), digest: expected, handle, }' \
     deploy/worker_executable_file/admit.mbt; then
-  fail 'worker executable adapter lost direct no-follow snapshot/digest ownership'
+  fail 'worker executable adapter must retain no-follow descriptor ownership without payload scanning'
 fi
 
 for required in \
@@ -385,6 +384,7 @@ expected_launch_recipe_interface='pub(all) enum LaunchRuntimeRecipe {
   DenseLlamaPagedAotV5
   DenseLlamaI8PagedAotV6
   DenseMistralBf16PagedAotV7
+  DenseQwen3Bf16PagedAotV12
   DenseLlamaTensorParallelPagedAotApprovedV8
   DenseLlamaFp8ReusablePagedAotApprovedV9
 } derive(Eq, @debug.Debug)'

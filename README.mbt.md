@@ -74,6 +74,13 @@ LunaFlux does not own:
 
 For the focused edit/check workflow, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
+Current runtime loading does not hash staged weights, tokenizer assets, CUBINs,
+launch/configuration snapshots or worker executables. Legacy digest fields are
+supplied association labels, not verified payload checksums. Executable startup
+retains the opened descriptor without a binary snapshot or sealed-memfd copy;
+deployment owns file immutability. Bounds, model/ABI compatibility, cancellation
+and deterministic resource release remain execution requirements.
+
 ## Initial release scope
 
 The first useful release targets a single CUDA GPU and one dense,

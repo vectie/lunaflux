@@ -79,16 +79,8 @@ if ! rg -q \
   fail 'live executable authority admits an impossible optional state'
 fi
 
-if ! rg -q 'MFD_CLOEXEC \| MFD_ALLOW_SEALING' \
-    deploy/worker_executable_file/approved_executable.c ||
-  ! rg -q \
-    'F_SEAL_WRITE \| F_SEAL_GROW \| F_SEAL_SHRINK \| F_SEAL_SEAL' \
-    deploy/worker_executable_file/approved_executable.c ||
-  ! rg -U -q \
-    'int prior = owner->fd;[\s\S]*lf_exec_close\(prior\)[\s\S]*owner->fd = sealed;' \
-    deploy/worker_executable_file/approved_executable.c; then
-  fail 'Linux executable snapshot is not sealed before safe authority publish'
-fi
+# Runtime activation must not scan or copy the executable payload.
+moon run scripts/check-checkpoint-runner-no-hashing.mbtx
 
 if ! rg -q 'fexecve\(5, argv, sanitized_environment\)' \
     internal/process/process_approved_spawn.c ||
@@ -116,7 +108,7 @@ if [ -z "$process_archive" ] || [ -z "$executable_archive" ]; then
   fail 'release executable-authority archives were not produced'
 fi
 if nm -g "$process_archive" "$executable_archive" | rg -q \
-    'lunaflux_process_spawn_prepared$|lunaflux_process_spawn_prepared_with_approved_roots$|lf_process_spawn_path|lf_approved_executable_duplicate|lunaflux_process_test_spawn_fixture|lunaflux_worker_executable_.*(fixture|test)'; then
+    'lunaflux_process_spawn_prepared$|lunaflux_process_spawn_prepared_with_approved_roots$|lf_process_spawn_path|lf_approved_executable_duplicate|lunaflux_process_test_spawn_fixture|lunaflux_worker_executable_snapshot_and_pin|lunaflux_worker_executable_.*(fixture|test)'; then
   fail 'release archives export a pathname or test executable seam'
 fi
 if find "$release_root" \

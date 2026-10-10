@@ -6,7 +6,7 @@ pub struct LaunchFileLimits {
 }
 
 ///|
-/// Independent lowercase SHA-256 of exact launch-file bytes.
+/// Supplied lowercase SHA-256-format launch association label, not a checksum.
 pub struct LaunchFileDigest(String) derive(Debug, Eq)
 
 ///|
@@ -21,7 +21,7 @@ pub struct LaunchLunaApproval {
 }
 
 ///|
-/// Closed runtime-recipe selection authenticated by the launch-file digest.
+/// Closed runtime-recipe selection parsed from the launch document.
 /// Legacy launch v1 always projects the legacy recipe; launch v2 must state
 /// exactly one recipe and cannot be extended by an unknown string.
 pub(all) enum LaunchRuntimeRecipe {

@@ -1,6 +1,5 @@
 import {
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/x/crypto",
   "vectie/lunaflux/internal/approved_fs_capability" @cap,
   "vectie/lunaflux/internal/process",
   "vectie/lunaflux/runtime/approved_fs",

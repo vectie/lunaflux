@@ -1,5 +1,5 @@
 ///|
-async test "worker executable snapshot binds exact path digest and closes owners" {
+async test "worker executable retains caller label and descriptor without scanning payload" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-worker-executable")
     let root = @fs.realpath(temporary)
@@ -10,9 +10,7 @@ async test "worker executable snapshot binds exact path digest and closes owners
     let bytes = b"worker fixture"
     @fs.write_file(path, bytes, create_mode=CreateNew)
     @fs.chmod(path, 0o500)
-    let digest = WorkerExecutableDigest::from_sha256(
-      @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
-    )
+    let digest = WorkerExecutableDigest::from_sha256("1".repeat(64))
     let admission = verify(
       path,
       digest,
@@ -28,7 +26,7 @@ async test "worker executable snapshot binds exact path digest and closes owners
 }
 
 ///|
-async test "worker executable rejects directories bad paths and digest drift" {
+async test "worker executable rejects directories and bad paths" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-worker-executable-hostile")
     let root = @fs.realpath(temporary)
@@ -57,7 +55,7 @@ async test "worker executable rejects directories bad paths and digest drift" {
 }
 
 ///|
-async test "materialized worker verifies staged bytes for exact target path" {
+async test "materialized worker checks metadata and exact target path without hashing" {
   @async.with_task_group() <| group => {
     let temporary = @fs.tmpdir(prefix="lunaflux-worker-materialized")
     let source_label = @fs.realpath(temporary)
@@ -70,9 +68,7 @@ async test "materialized worker verifies staged bytes for exact target path" {
       bytes,
       create_mode=CreateNew,
     )
-    let digest = WorkerExecutableDigest::from_sha256(
-      @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
-    )
+    let digest = WorkerExecutableDigest::from_sha256("2".repeat(64))
     let source_root = @approved_fs.ApprovedRoot::open_absolute(source_label)
     let source = source_root.materialization_view(
       source_label, "/opt/lunaflux/bin",
@@ -89,6 +85,20 @@ async test "materialized worker verifies staged bytes for exact target path" {
       @utf8.decode(admission.activation_path()),
       "/opt/lunaflux/bin/lunaflux-device-worker",
     )
+    try
+      verify_materialized(
+        source,
+        "lunaflux-device-worker",
+        "/opt/lunaflux/bin/lunaflux-device-worker",
+        digest,
+        WorkerExecutableFileLimits::new(maximum_bytes=2L),
+      )
+    catch {
+      FileTooLarge => ()
+      _ => fail("wrong size-ceiling error")
+    } noraise {
+      _ => fail("size ceiling ignored")
+    }
     try
       verify_materialized(
         source,

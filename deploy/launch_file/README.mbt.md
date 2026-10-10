@@ -1,9 +1,9 @@
-# Pinned launch-file admission
+# Launch-file parsing
 
 `load_argument` accepts exactly one canonical absolute deployment-root label
 followed by `#sha256=` and 64 lowercase hexadecimal digits. It opens only the
-fixed `lunaflux.launch.json` descendant. The independent suffix authenticates
-the immutable snapshot; both the file and launch-root authorities are closed
+fixed `lunaflux.launch.json` descendant. The legacy suffix is a supplied label,
+not a checksum: loading does not hash or authenticate the snapshot. Both authorities are closed
 before JSON claims are published.
 
 The strict `lunaflux.launch.v1` envelope remains legacy-only. The separate

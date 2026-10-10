@@ -155,7 +155,9 @@ fn map_fs_error(
 }
 
 ///|
-/// Snapshot-verifies an executable before retaining only path/digest evidence.
+/// Opens the deployment-staged executable without reading or hashing its bytes.
+/// The supplied digest is a label, not an integrity check. The retained descriptor
+/// is used directly for activation; the deployment must keep its inode immutable.
 pub fn verify(
   absolute_path : StringView,
   expected : WorkerExecutableDigest,
@@ -177,30 +179,6 @@ pub fn verify(
     9 => raise FileTooLarge
     _ => raise FileOperationFailed
   }
-  let snapshot_status = Ref(1)
-  let bytes = raw_snapshot_and_pin(
-    handle,
-    limits.maximum_bytes,
-    b"",
-    snapshot_status,
-  )
-  if snapshot_status.val != 0 {
-    ignore(raw_close_executable(handle))
-    raise match snapshot_status.val {
-      3 => UnsupportedFileType
-      4 => FileUnavailable
-      5 => FileTruncated
-      7 => FileBusy
-      8 => FileChangedDuringRead
-      9 => FileTooLarge
-      _ => FileOperationFailed
-    }
-  }
-  let actual = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-  if actual != expected.as_hex() {
-    ignore(raw_close_executable(handle))
-    raise DigestMismatch
-  }
   { activation_path: @utf8.encode(absolute_path), digest: expected, handle, }
 }
 
@@ -215,8 +193,8 @@ fn verify_bound(
   let file = root.open_file(locator) catch {
     error => raise map_fs_error(error)
   }
-  let read : Result[Bytes, WorkerExecutableFileError] = Ok(
-    file.read_immutable_snapshot(maximum_bytes=limits.maximum_bytes),
+  let inspection : Result[Int64, WorkerExecutableFileError] = Ok(
+    file.stamp().byte_count(),
   ) catch {
     error => Err(map_fs_error(error))
   }
@@ -224,13 +202,15 @@ fn verify_bound(
   file.close() catch {
     _ => file_close.val = false
   }
-  match read {
+  match inspection {
     Err(primary) => raise primary
     Ok(_) if !file_close.val => raise FileOperationFailed
-    Ok(bytes) => {
-      let actual = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-      if actual != expected.as_hex() {
-        raise DigestMismatch
+    Ok(length) => {
+      if length <= 0L {
+        raise UnsupportedFileType
+      }
+      if length > limits.maximum_bytes {
+        raise FileTooLarge
       }
       { activation_path: @utf8.encode(activation_path), digest: expected, }
     }
@@ -238,7 +218,7 @@ fn verify_bound(
 }
 
 ///|
-/// Snapshot-verifies the staged worker bytes through a typed source root while
+/// Checks staged worker metadata through a typed source root without a payload read,
 /// retaining only the exact final deployment activation path.
 ///
 /// The source basename is explicit because an offline assembler may rename an

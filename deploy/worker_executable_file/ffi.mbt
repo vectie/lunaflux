@@ -7,15 +7,6 @@ extern "c" fn raw_open_executable(
 ) -> @cap.ApprovedExecutableHandle = "lunaflux_worker_executable_open"
 
 ///|
-#borrow(handle, failure, status)
-extern "c" fn raw_snapshot_and_pin(
-  handle : @cap.ApprovedExecutableHandle,
-  maximum_bytes : Int64,
-  failure : Bytes,
-  status : Ref[Int],
-) -> Bytes = "lunaflux_worker_executable_snapshot_and_pin"
-
-///|
 #borrow(handle)
 extern "c" fn raw_close_executable(
   handle : @cap.ApprovedExecutableHandle,
