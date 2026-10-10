@@ -1,6 +1,27 @@
 ///|
 async fn main {
   if @env.args()
+    is [
+      _,
+      "text-frames",
+      model_root,
+      rows,
+      history,
+      tokenizer_label,
+      input,
+      output,
+    ] {
+    prepare_text_frames(
+      model_root,
+      @string.parse_int(rows),
+      @string.parse_int(history),
+      tokenizer_label,
+      input,
+      output,
+    )
+    return
+  }
+  if @env.args()
     is [_, "token-frames", model_root, rows, history, token_ids, output] {
     let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
     defer root.close()

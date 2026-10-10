@@ -137,6 +137,7 @@ fn qwen3_pretoken_end(
   length : Int,
   offset : Int,
   include_marks~ : Bool,
+  digit_triplets? : Bool = false,
 ) -> Int raise TokenizerError {
   let contraction = qwen3_contraction_end(input, length, offset)
   if contraction >= 0 {
@@ -158,7 +159,20 @@ fn qwen3_pretoken_end(
     }
   }
   if qwen3_is_number(first) {
-    return offset + first_width
+    return if digit_triplets {
+      // The quantifier counts Unicode scalars, not UTF-8 bytes.
+      for count = 1, cursor = offset + first_width; count < 3 && cursor < length; {
+        let (next, width) = qwen3_scalar_at(input, length, cursor)
+        if !qwen3_is_number(next) {
+          break cursor
+        }
+        continue count + 1, cursor + width
+      } nobreak {
+        cursor
+      }
+    } else {
+      offset + first_width
+    }
   }
   let mut symbol_start = offset
   if first == 0x20 && offset + 1 < length {

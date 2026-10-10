@@ -27,11 +27,18 @@ fn parse_vocabulary(
         if special.content != raw_piece {
           raise AddedTokenContentMismatch(index=special.source_index)
         }
-        (special.piece, @tokenizer.TokenKind::Special)
+        (
+          special.piece,
+          if special.special {
+            @tokenizer.TokenKind::Special
+          } else {
+            @tokenizer.TokenKind::Added
+          },
+        )
       }
       None =>
         match profile {
-          ByteLevelJson | Qwen3Json | Qwen35Json =>
+          ByteLevelJson | Qwen3Json | Qwen35Json | DigitTripletJson =>
             (decode_bytelevel_piece(raw_piece, entries.length()), Normal)
           SentencePieceJson(..) =>
             match decode_sentencepiece_byte_fallback(raw_piece) {
@@ -48,6 +55,10 @@ fn parse_vocabulary(
   }
   for _, special in specials {
     match profile {
+      DigitTripletJson =>
+        if raw_id_by_token.get(special.content) is Some(id) && id != special.id {
+          raise AddedTokenContentMismatch(index=special.source_index)
+        }
       Qwen3Json | Qwen35Json =>
         if raw_id_by_token.contains(special.content) {
           raise AddedTokenContentMismatch(index=special.source_index)
@@ -58,6 +69,9 @@ fn parse_vocabulary(
           _ => raise AddedTokenNotInVocabulary(index=special.source_index)
         }
     }
+  }
+  if profile is DigitTripletJson {
+    append_external_added_tokens(entries, raw_id_by_token, specials)
   }
   let qwen_first = qwen_profile_first_added(profile)
   let qwen_last = qwen_profile_last_added(profile)
@@ -166,12 +180,12 @@ fn parse_merges(
   for index, row in rows {
     let (left_raw, right_raw) = decode_merge_pair(row, index)
     let left_piece = match profile {
-      ByteLevelJson | Qwen3Json | Qwen35Json =>
+      ByteLevelJson | Qwen3Json | Qwen35Json | DigitTripletJson =>
         decode_bytelevel_piece(left_raw, index)
       SentencePieceJson(..) => @utf8.encode(left_raw)
     }
     let right_piece = match profile {
-      ByteLevelJson | Qwen3Json | Qwen35Json =>
+      ByteLevelJson | Qwen3Json | Qwen35Json | DigitTripletJson =>
         decode_bytelevel_piece(right_raw, index)
       SentencePieceJson(..) => @utf8.encode(right_raw)
     }
@@ -251,7 +265,7 @@ fn parse_model(
     }
   }
   let (unknown_token_id, bos_token_id) = match profile {
-    ByteLevelJson | Qwen3Json | Qwen35Json => {
+    ByteLevelJson | Qwen3Json | Qwen35Json | DigitTripletJson => {
       require_null(
         model,
         "unk_token",
@@ -317,11 +331,21 @@ fn parse_model(
     profile,
   )
   let ignore_merges = match profile {
-    ByteLevelJson | Qwen3Json | Qwen35Json =>
+    ByteLevelJson | Qwen3Json | Qwen35Json | DigitTripletJson =>
       require_bool(model, "ignore_merges", Model, IgnoreMerges, 0)
     SentencePieceJson(..) => false
   }
   match profile {
+    DigitTripletJson =>
+      @tokenizer.TokenizerSpec::new_digit_triplet_bpe(
+        vocabulary.entries,
+        merges,
+        digest,
+        limits,
+        ignore_merges~,
+      ) catch {
+        error => raise Validation(error)
+      }
     ByteLevelJson =>
       @tokenizer.TokenizerSpec::new(
         vocabulary.entries,

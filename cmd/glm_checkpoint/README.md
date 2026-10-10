@@ -14,9 +14,21 @@ constructs canonical contiguous prompt chunks from already-tokenized input,
 without scanning checkpoint shards or opening CUDA. Only the last chunk samples;
 sequence/model/request identities match `generate`. It is an offline diagnostic
 producer, not live scheduler admission, a chat template or a tokenizer. The
-model's actual tokenizer must supply these IDs. GLM's non-normalizing ByteLevel
-regex, three-digit groups, ordinary added tokens and `ignore_merges=true` are
-not yet supported by the existing Qwen tokenizer profile.
+model's actual tokenizer must supply these IDs.
+
+`text-frames MODEL_ROOT ROWS HISTORY TOKENIZER_LABEL INPUT_UTF8_FILE NEW_OUTDIR`
+reads the installed `tokenizer.json` with the common tokenizer reader and emits
+the same prompt frames, plus `tokens.txt` and `decoded.txt`. The input file must
+have an absolute canonical path and contain the already rendered prompt/chat
+template. This mode does not invent a chat template or add normalization beyond
+the installed tokenizer's declared pipeline. The
+generic no-normalizer digit-triplet ByteLevel profile supports the actual GLM
+regex, ordinary/special added tokens and `ignore_merges=true`, without a
+model-name branch or rewriting its JSON. Tokenizer JSON is bounded to 64 MiB;
+text to 1 MiB; token output reserves one context position for generation.
+`TOKENIZER_LABEL` is a caller-supplied 64-lowercase-hex association label, not a
+computed or verified checksum. This offline mode does no payload hashing,
+weight-shard reads or CUDA work. It is not a text HTTP serving endpoint.
 
 Common arguments, all budgets in bytes:
 
@@ -48,7 +60,8 @@ inside the inventory remain relative to the read-only model root.
   Length/context/EOS bound continuation. After both ranks release the request,
   write generated IDs to `tokens.txt` without overwrite. The decode loop does
   no evidence rendering/filesystem writes. Prompt frame input is still the
-  diagnostic entry point; this is not text HTTP serving or tokenizer support.
+  diagnostic entry point; `text-frames` supplies tokenized input, but this is
+  still not text HTTP serving.
 
 Use the same checkpoint inventory, geometry, budgets and reserve on both ranks.
 Set budgets from current free unified memory, leaving OS/other-process headroom;
@@ -60,8 +73,10 @@ correctness, not long-context/concurrency campaigns.
 
 This is a diagnostic execution entry point, not a production-ready admission or
 a positive real-model correctness/performance claim. Exact checkpoint loading,
-GPU numerics and two-host generation must still be tested. Self-feeding greedy
-continuation is implemented, not a positive actual-checkpoint result. It uses the existing
+independent GPU numerical parity remains to be tested. The real two-Spark
+13-token prompt/eight-output smoke now completes with released GPUs and no
+swap, documented in `docs/BENCHMARK_GLM_NOHASH_SMOKE_2026-10-10.md`. That binary
+predates the `text-frames` frontend. It uses the existing
 correctness-first reference lowering, not the throughput Qwen path. Startup
 uploads use an explicit scoped file-handle session. Header inspection and
 upload perform no checkpoint payload hashing. Existing sha256sum inventory

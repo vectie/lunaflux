@@ -42,6 +42,26 @@ branch. Actual GLM/DeepSeek regex/normalizer/chat-template schema integration
 and independent checkpoint token parity remain open; this change was not in
 the GLM GPU smoke binary and must not be claimed as end-to-end integration.
 
+The no-normalizer digit-triplet ByteLevel pipeline is now a common semantic
+profile, including external Added/Special IDs, one-to-three Unicode numeric
+scalars and literal whole-pretoken lookup. `glm_checkpoint text-frames` reads
+the original GLM tokenizer and already-rendered UTF-8 prompt, producing the
+same canonical serial input frames without touching weights/CUDA or computing
+a payload hash. On the actual 20,217,442-byte tokenizer, the template emits
+the exact 13 diagnostic IDs; a 22-token multilingual sample roundtrips its
+original bytes, including decomposed Unicode and Arabic digits. Context
+overflow is rejected before output creation. The caller-supplied tokenizer
+label is unverified, not payload authentication. Native affected tests pass
+65/65 with current migration exclusions. These are frontend/software results,
+not independent upstream arbitrary-text token parity or a new GPU benchmark.
+See [TOKENIZER_GLM_INTEGRATION_2026-10-10.md](TOKENIZER_GLM_INTEGRATION_2026-10-10.md).
+
+The token-step performance gate now runs in MoonBit script mode. Its obsolete
+requirement for a deleted frame checksum is removed; the gate prohibits its
+reintroduction while retaining bounded range/identity checks and the existing
+single batched readback/no-extra-copy assertions. It is developer automation,
+never a model-startup prerequisite.
+
 DSpark verification now connects all-position learned egress, prepared draft
 readback, a model-neutral speculative continuation and the two-rank coordinator
 to `generate-dspark`. The plaintext protocol exchanges an explicit committed

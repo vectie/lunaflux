@@ -13,6 +13,7 @@ priv enum TokenizerJsonProfile {
   SentencePieceJson(bos_token_id~ : Int)
   Qwen3Json
   Qwen35Json
+  DigitTripletJson
 }
 
 ///|
@@ -165,6 +166,7 @@ fn parse_added_tokens(
           )
         }
       }
+      DigitTripletJson => ()
       _ =>
         if !special {
           raise UnsupportedSemantics(
@@ -201,6 +203,10 @@ fn validate_root_semantics(
   require_null(root, "padding", Root, Padding, PaddingBehavior)
   match require_field(root, "normalizer", Root, NormalizerField) {
     Null => {
+      if require_field(root, "pre_tokenizer", Root, PreTokenizerField)
+        is { "type": String("Sequence"), .. } {
+        return validate_digit_triplet_pipeline(root)
+      }
       validate_pre_tokenizer(
         require_field(root, "pre_tokenizer", Root, PreTokenizerField),
       )

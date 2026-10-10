@@ -1,6 +1,6 @@
 # LunaFlux tokenizer
 
-This package owns two closed, validated BPE profiles, deterministic
+This package owns closed, validated BPE profiles, deterministic
 encode/decode behavior, and one reusable bounded tokenization workspace. The
 original profile is raw ByteLevel BPE. The selected Llama compatibility profile
 is the exact SentencePiece-derived `tokenizer.json` pipeline used by the pinned
@@ -23,6 +23,13 @@ one byte comparison per charged worker transition; no request-time hash,
 temporary byte string, proportional hidden scan, or extra worker arena is used.
 Special-token and regex pretoken boundaries remain authoritative. This option
 does not imply support for an arbitrary checkpoint's normalization or regex.
+
+The no-normalizer digit-triplet profile uses the same Unicode-aware scanner
+with one-to-three numeric scalars per pretoken and no NFC rewrite. Its JSON
+adapter consumes externally appended Added/Special tokens without fixed model
+IDs. ByteLevel postprocessor/decoder offset options do not insert token IDs or
+change decoded bytes. This is a semantic pipeline capability, not a GLM-name
+conditional; the same constructor can serve any checkpoint with that pipeline.
 
 `LunaTokenizerWorker` preallocates its input-byte, token, and link storage at
 startup. SentencePiece workers reserve a checked profile-specific symbol bound
