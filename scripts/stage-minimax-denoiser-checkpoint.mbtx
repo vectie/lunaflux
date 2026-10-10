@@ -1,0 +1,172 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn spark(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock", "wlc003s@192.168.2.178",
+    command,
+  ]).output(max_output_bytes=1048576)
+}
+
+///|
+async fn management(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "lunanexa-management", command]).output(
+    max_output_bytes=1048576,
+  )
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, label] &&
+    root.has_prefix("/tmp/lunaflux-minimax-denoiser-upload-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    label.length() == 64 &&
+    label.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
+    fail(
+      "NEW_LOCAL_AND_REMOTE_DIRECTORY DECLARED_CHECKPOINT_LABEL (not a checksum)",
+    )
+  }
+  let source = "/data/models/MiniMax/MiniMax-H3"
+  let variant = root + "/FL2VA"
+  @fs.mkdir(root)
+  for directory in [root, variant, variant + "/transformer"] {
+    spark("mkdir " + directory).check()
+  }
+  // Original pipeline/config describe H3; the canonical converted weight names
+  // match the model-owned packer. No extra text/vision/VAE payload is copied.
+  for
+    (original, destination) in [
+      (source + "/FL2VA/model_index.json", "model_index.json"),
+      (source + "/FL2VA/transformer/config.json", "transformer/config.json"),
+      (
+        source + "/transformer/diffusion_pytorch_model.safetensors.index.json",
+        "transformer/index.json",
+      ),
+    ] {
+    let local_name = root + "/" + destination.replace(old="/", new="-")
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "lunanexa-management:" + original,
+      local_name,
+    ])
+    .output()
+    .check()
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+      local_name,
+      "wlc003s@192.168.2.178:" + variant + "/" + destination,
+    ])
+    .output()
+    .check()
+  }
+  guard @json.parse(@fs.read_file(root + "/transformer-index.json").text())
+    is { "weight_map": Object(weights), .. } else {
+    fail("missing transformer weight map")
+  }
+  let names : Array[String] = []
+  for _, value in weights {
+    guard value is String(name) &&
+      name.has_prefix("diffusion_pytorch_model-") &&
+      name.has_suffix(".safetensors") &&
+      name.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '_' | '.')) else {
+      fail("unsupported transformer shard locator")
+    }
+    if !names.contains(name) {
+      names.push(name)
+    }
+  }
+  names.sort()
+  guard names.length() > 0 && names.length() <= 64 else {
+    fail("invalid transformer shard count")
+  }
+  let sizes : Array[Int64] = []
+  let total = for name in names; total = 0L {
+    let size = management("stat -c %s " + source + "/transformer/" + name)
+    size.check()
+    let bytes = @string.parse_int64(size.stdout().trim())
+    guard bytes > 0L && bytes <= 75161927680L - total else {
+      fail("transformer exceeds 70 GiB disk staging limit")
+    }
+    sizes.push(bytes)
+    continue total + bytes
+  } nobreak {
+    total
+  }
+  let disk = spark("df -B1 --output=avail /tmp")
+  disk.check()
+  guard disk.stdout().trim().split("\n").collect() is [_, available] &&
+    @string.parse_int64(available.trim()) >= total + 4294967296L else {
+    fail("insufficient staging disk space")
+  }
+  println(
+    "staging denoiser shards=\{names.length()} bytes=\{total}; GPU_execution=false",
+  )
+  let inventory = StringBuilder()
+  for i, name in names {
+    let original = source + "/transformer/" + name
+    let destination = variant + "/transformer/" + name
+    record(
+      root,
+      "shard-\{i}",
+      management(
+        "scp -o BatchMode=yes " +
+        original +
+        " wlc003s@192.168.2.178:" +
+        destination,
+      ),
+    )
+    let copied = spark("stat -c %s " + destination)
+    copied.check()
+    guard @string.parse_int64(copied.stdout().trim()) == sizes[i] else {
+      fail("incomplete shard preserved; choose a new staging directory")
+    }
+    inventory <+ "label:\{label}  \{name}\n"
+    println("staged denoiser shard \{i + 1}/\{names.length()}")
+  }
+  @fs.write_file(
+    root + "/DENOISER.inventory",
+    inventory.to_string(),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    root + "/DENOISER.inventory",
+    "wlc003s@192.168.2.178:" + variant + "/DENOISER.inventory",
+  ])
+  .output()
+  .check()
+  println(
+    "actual transformer staged bytes=\{total}; no payload hashing or CUDA execution",
+  )
+}
