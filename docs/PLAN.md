@@ -34,12 +34,19 @@ leases. Pure placement budgets each layer's exact persistent backup separately;
 window scratch/output is not replicated. The warmed continuation and seed upload
 must allocate zero heap. `generate-reference-dspark` uses the same checkpoint,
 placement and all-position AOT but ordinary greedy generation for differential
-testing. The actual new runner still needs a bounded full-checkpoint acceptance
-run; component tests do not prove numerical parity or a speculative speedup.
-The affected native regression passes 126/126, including allocation-counted
+testing. The commit-pinned `41650b1b` two-Spark run now produces sixteen BOS
+target tokens through nine actual draft/verify blocks and eight rejection
+replays. Ordinary greedy generation with the same AOT/checkpoint produces the
+exact same sixteen tokens. Both runs exit zero, release both GPUs and use no
+unit swap. This is internal differential correctness, not independent upstream
+parity. The speculative diagnostic takes 50.562 seconds versus 38.790 seconds
+for ordinary generation: a 30.3% regression, not a speedup. See
+[BENCHMARK_DSPARK_GREEDY_VERIFICATION_2026-10-10.md](BENCHMARK_DSPARK_GREEDY_VERIFICATION_2026-10-10.md).
+The affected native regression passes 135/135, including allocation-counted
 vector retirement/prefix decisions and real TCP protocol tests. Native check
-uses the existing toolchain-migration warning exclusions; no new CUDA workload
-or full-checkpoint acceptance benchmark was run for this component change.
+uses the existing toolchain-migration warning exclusions. The campaign's run
+and reference receipts now have disjoint names, with a standalone script
+regression, so a paired run can preserve both results in one local root.
 
 The next component now supplies `PredictCommitted`: prediction reads an already
 primed prompt/accepted prefix without projecting/publishing the same main KV
@@ -49,7 +56,7 @@ live sampled token and validates the complete seed span at preparation. On
 .179 the new ring campaign passed 480 GPU cases (maximum absolute error zero),
 memcheck with zero errors/leaks, racecheck with zero hazards, and synccheck with
 zero errors, under a 2-GiB/no-swap limit. Do not confuse this component result
-with the still-unconnected two-rank acceptance coordinator or a model speedup.
+with the later connected two-rank acceptance result or a model speedup.
 The companion vector-seed/Markov campaign passed 442 cases with zero maximum
 absolute error and clean memcheck/racecheck/synccheck; complete head/predictor
 AOT compilation also passed. Six native allocation-probe executables run
@@ -61,10 +68,10 @@ Real two-host DeepSeek base BOS smoke now finishes successfully with tokens
 `5,223`, `Length`, and both ranks exited with status zero. Independent numerical
 correctness remains unverified. The committed-main/draft ring (254 cases) and
 seeded/dependent Markov chain (352 cases) now pass GB10 correctness and
-memcheck/racecheck/synccheck. Next run the actual attached `*-dspark` checkpoint
-route using the isolated `.mbtx` runner, then connect verification/accept/reject
-and KV commit/rollback. Do not equate component gates or diagnostic drafts with
-complete speculative generation. MiniMax's actual checkpoint-backed two-host
+memcheck/racecheck/synccheck. That historical smoke predates the complete
+six-row verification runner and sixteen-token internal differential above.
+Independent base/predictor parity and a positive speculative performance result
+remain open. MiniMax's actual checkpoint-backed two-host
 text-to-audio/video diagnostic now finishes; independent numerical/quality
 validation and complete user-facing model serving remain required.
 

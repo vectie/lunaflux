@@ -1,8 +1,10 @@
 # DeepSeek-V4 Flash DSpark execution
 
 The installed checkpoint's upstream `inference/model.py` distinguishes base
-generation from prediction. This document specifies the remaining executable
-integration, not a claim that complete DSpark already runs.
+generation from prediction. The complete checkpoint greedy verification route
+now runs on two Sparks and matches ordinary target generation on a sixteen-token
+BOS differential. Independent upstream parity and useful speculative performance
+remain incomplete; the measured smoke is slower, not a speedup.
 
 ## Base capture and main prefix
 
@@ -172,8 +174,10 @@ before host-frontier rollback acknowledgement. Native tests exercise accepted
 prefix replay and later-sample failure without reviving poisoned history.
 
 The checkpoint runner now connects the two-rank speculative coordinator,
-prepared predictor draft transport and greedy generation. Full-checkpoint
-acceptance remains unverified until the new bounded run completes. Stochastic
+prepared predictor draft transport and greedy generation. The `41650b1b`
+bounded checkpoint run completes nine prediction/verification blocks with eight
+rejection replays and matches sixteen ordinary greedy target tokens exactly.
+This does not establish independent numerical parity. Stochastic
 rejection sampling, independent model parity and speculative speedup are not
 claimed. Model work
 must retire before rollback/commit; callers must order all state mutation on
@@ -201,7 +205,7 @@ unchanged physical ring/frontier for both retained reset flags, multi-row
 committed chunks, and invalid committed views without poisoning retained state.
 Memcheck reported zero errors/leaked bytes, racecheck zero hazards and synccheck
 zero errors. The component unit has a 2-GiB/no-swap limit. Whole-model speculative
-verification remains physically pending. The new runner selects this third
+verification was still pending at that component capture. The later runner selects this third
 phase and all-position egress; the campaign above predates that integration.
 
 The companion `.179` vector-seed/Markov campaign at

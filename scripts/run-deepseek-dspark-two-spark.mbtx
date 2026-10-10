@@ -16,6 +16,26 @@ priv struct Host {
 }
 
 ///|
+fn execution_label(mode : String, role : String) -> String {
+  mode + "-" + role
+}
+
+///|
+test "speculative and reference receipts never collide in one campaign root" {
+  let roles = ["egress", "ingress", "178-gpu-terminal", "179-gpu-terminal"]
+  let names : Array[String] = []
+  for mode in ["run", "reference"] {
+    for role in roles {
+      let name = execution_label(mode, role)
+      assert_false(names.contains(name))
+      names.push(name)
+    }
+  }
+  assert_eq(names.length(), 8)
+  assert_eq(execution_label("reference", "egress"), "reference-egress")
+}
+
+///|
 async fn remote(host : Host, command : String) -> @shell.Output {
   @shell.Cmd("ssh", [
     "-o",
@@ -176,7 +196,9 @@ async fn main {
     }) &&
     !suffix.contains("/") &&
     mode is ("prepare" | "run" | "reference") else {
-    fail("NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|reference BUILD_ROOT COMMIT")
+    fail(
+      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|reference BUILD_ROOT COMMIT",
+    )
   }
   let remote_root = "/tmp/lunaflux-dspark-real-" + suffix
   let first = Host::{
@@ -215,7 +237,9 @@ async fn main {
     last.checkpoint +
     "/SHARDS.sha256" +
     budgets
-  let name = "lunaflux-dspark-" + suffix + "-" +
+  let name = "lunaflux-dspark-" +
+    suffix +
+    "-" +
     (if mode == "reference" { "reference-" } else { "" })
   if mode == "prepare" {
     @fs.mkdir(root)
@@ -337,7 +361,7 @@ async fn main {
   let egress = name + "egress"
   let ingress = name + "ingress"
   let peers = "192.168.2.179:28578 192.168.2.179:28579 "
-  admit(last, root, "egress")
+  admit(last, root, execution_label(mode, "egress"))
   start(
     last,
     root,
@@ -391,7 +415,7 @@ async fn main {
     }
     @async.sleep(10000)
   }
-  admit(first, root, "ingress")
+  admit(first, root, execution_label(mode, "ingress"))
   start(
     first,
     root,
@@ -400,7 +424,11 @@ async fn main {
     14400,
     first.root +
     "/deepseek_checkpoint.exe " +
-    (if mode == "reference" { "generate-reference-dspark " } else { "generate-dspark " }) +
+    (if mode == "reference" {
+      "generate-reference-dspark "
+    } else {
+      "generate-dspark "
+    }) +
     args0 +
     first.root +
     "/aot stage-0.cubin " +
@@ -408,7 +436,8 @@ async fn main {
     first.root +
     "/prompt-bos 1 16 -1 " +
     first.root +
-    "/output-" + mode,
+    "/output-" +
+    mode,
   )
   {
     errdefer {
@@ -422,12 +451,14 @@ async fn main {
   collect(last, root, egress)
   if mode == "run" {
     let journal = @fs.read_file(root + "/" + ingress + "-journal.stdout").text()
-    guard journal.split("\n").any(line => {
-      line.contains("dspark_verified_blocks=") &&
-      !line.contains("dspark_verified_blocks=0 ") &&
-      line.contains("committed_input_rows=15 ") &&
-      line.contains("accepted_prefix_replays=")
-    }) else {
+    guard journal
+      .split("\n")
+      .any(line => {
+        line.contains("dspark_verified_blocks=") &&
+        !line.contains("dspark_verified_blocks=0 ") &&
+        line.contains("committed_input_rows=15 ") &&
+        line.contains("accepted_prefix_replays=")
+      }) else {
       fail("no complete speculative verification/commit generation")
     }
   }
@@ -445,7 +476,7 @@ async fn main {
     let occupied = remote(
       host, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
-    record(root, label + "-gpu-terminal", occupied)
+    record(root, execution_label(mode, label + "-gpu-terminal"), occupied)
     guard occupied.stdout().trim().is_empty() else {
       fail("GPU ownership remains after terminal generation")
     }
@@ -455,8 +486,12 @@ async fn main {
       @fs.read_file(root + "/tokens-run.txt").text() else {
       fail("speculative tokens differ from matched ordinary target generation")
     }
-    println("real DSpark greedy verification matches ordinary target generation for sixteen BOS tokens; independent upstream numerical parity remains unverified")
+    println(
+      "real DSpark greedy verification matches ordinary target generation for sixteen BOS tokens; independent upstream numerical parity remains unverified",
+    )
   } else {
-    println("real DSpark greedy verification/commit generation completed; run matched reference next")
+    println(
+      "real DSpark greedy verification/commit generation completed; run matched reference next",
+    )
   }
 }
