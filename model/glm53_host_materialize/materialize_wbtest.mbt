@@ -30,19 +30,17 @@ fn fixture_file(header : StringView, payload : BytesView) -> Bytes {
 }
 
 ///|
-fn fixture_digest(
-  bytes : Bytes,
-) -> @streaming_safetensors.StreamingSafetensorsFileDigest {
+fn fixture_digest() -> @streaming_safetensors.StreamingSafetensorsFileDigest {
   try! @streaming_safetensors.StreamingSafetensorsFileDigest::from_sha256(
-    @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+    String::make(64, 'a'),
   )
 }
 
 ///|
-fn fixture_source(name : StringView, bytes : Bytes) -> Glm53HostShardSource {
+fn fixture_source(name : StringView) -> Glm53HostShardSource {
   Glm53HostShardSource::new(
     locator=try! @approved_fs.ApprovedRelativeLocator::new(name),
-    artifact_digest=fixture_digest(bytes),
+    artifact_digest=fixture_digest(),
   )
 }
 
@@ -112,7 +110,7 @@ async test "neutral segmented copy fills canonical mixed arenas and close drops 
     let limits = fixture_limits()
     let inspection = inspect_host_shards(
       root,
-      [fixture_source("route", route), fixture_source("weight", weight)],
+      [fixture_source("route"), fixture_source("weight")],
       limits,
     )
     let prepared = prepare_expected_host_materialization(
@@ -130,7 +128,7 @@ async test "neutral segmented copy fills canonical mixed arenas and close drops 
       manifest_layout: expected.manifest_layout,
       numeric_schema: expected.numeric_schema,
       numeric_binding: expected.numeric_binding,
-      source_digest: { hex: String::make(64, 'a'), },
+      source_digest: host_source_label(expected),
       regions: prepared.regions,
       arenas: prepared.arenas,
       total_bytes: prepared.total_bytes,
@@ -140,6 +138,10 @@ async test "neutral segmented copy fills canonical mixed arenas and close drops 
     assert_eq(weights.tensor_byte(0, 3L), b'\x04')
     assert_eq(weights.tensor_byte(1, 0L), b'\x05')
     assert_eq(weights.tensor_byte(1, 3L), b'\x08')
+    assert_eq(
+      weights.source_digest().as_hex(),
+      expected.manifest_layout.as_hex(),
+    )
     assert_eq(weights.tensor_region(1).span_count(), 2)
     weights.close()
     assert_true(weights.is_closed())
@@ -218,11 +220,11 @@ async test "adapter rejects name dtype shape byte-range and payload-gap mutation
     let root = @approved_fs.ApprovedRoot::open_absolute(canonical)
     let limits = fixture_limits()
     for index, item in fixtures {
-      let (name, bytes) = item
+      let (name, _) = item
       let admitted : Result[
         @streaming_safetensors.StreamingSafetensorsInspection,
         Glm53HostMaterializeError,
-      ] = Ok(inspect_host_shards(root, [fixture_source(name, bytes)], limits)) catch {
+      ] = Ok(inspect_host_shards(root, [fixture_source(name)], limits)) catch {
         error => Err(error)
       }
       match (index, admitted) {
@@ -272,7 +274,7 @@ async test "neutral duplicate rejection and declared inventory labels stay typed
     try
       inspect_host_shards(
         root,
-        [fixture_source("a", bytes), fixture_source("b", bytes)],
+        [fixture_source("a"), fixture_source("b")],
         limits,
       )
     catch {

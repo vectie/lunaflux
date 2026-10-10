@@ -71,8 +71,8 @@ pub fn Glm53HostExpectedDigests::new(
 }
 
 ///|
-/// Canonical identity of the authenticated shard set and exact final host
-/// segmentation. It is derived internally and has no public constructor.
+/// Manifest association label retained during loading, not a checksum of the
+/// shard set or host segmentation. Execution identity and regions are explicit.
 pub struct Glm53HostSourceDigest {
   priv hex : String
 } derive(Debug, Eq, Hash)

@@ -18,7 +18,7 @@ async fn main {
     "integration/deepseek_v4_decoder", "integration/glm53_packed_expert_upload",
     "integration/serial_decoder_pipeline", "integration/serial_decoder_worker", "engine/precision_materialize",
     "model/checkpoint_inventory", "model/streaming_safetensors", "model/deepseek_v4_device_upload",
-    "model/glm53_device_upload", "model/minimax_h3_device_upload",
+    "model/glm53_device_upload", "model/minimax_h3_device_upload", "model/glm53_host_materialize",
   ]
   for directory in checkpoint_packages {
     for name in @fs.readdir(directory) {

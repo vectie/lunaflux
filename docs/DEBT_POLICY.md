@@ -110,6 +110,12 @@ rehashing them on load. The label comparison is a plan association, not a
 payload authentication claim. Allocation budgets, ranges, shapes and dtypes
 remain execution-correctness constraints.
 
+GLM host materialization also reuses the existing manifest-layout association
+label. It must not traverse every prepared span to serialize and hash a second
+host-source identity after copying weights. The retained label is not unique
+to shards or segmentation and does not authenticate bytes; upload retains live
+region/arena bounds and explicit execution identity.
+
 DeepSeek host materialization and all segmented device upload modes likewise
 consume their immutable construction-time plans without replaying numeric
 manifest validation or canonical layout hashing. Qwen candidate export/release

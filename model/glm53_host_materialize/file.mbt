@@ -197,9 +197,9 @@ fn copy_prepared_materialization(
 
 ///|
 /// Startup-only exact mixed BF16/F32 materialization from inspected
-/// safetensors shards. The neutral reader inspects and authenticates each
-/// shard, then one segmented operation copies all tensor spans directly into
-/// their bounded final arenas.
+/// safetensors shards. The neutral reader parses bounded shard headers, then
+/// one segmented operation copies tensor spans into their final arenas. The
+/// supplied association labels do not authenticate payload bytes.
 pub fn materialize_safetensors_shards(
   root : @approved_fs.ApprovedRoot,
   sources : ArrayView[Glm53HostShardSource],
@@ -220,7 +220,7 @@ pub fn materialize_safetensors_shards(
     manifest, numeric, expected, inspection, limits,
   )
   copy_prepared_materialization(root, inspection, prepared, limits)
-  let source_digest = canonical_host_source_digest(expected, sources, prepared)
+  let source_digest = host_source_label(expected)
   {
     execution_identity: expected.execution_identity,
     manifest_layout: expected.manifest_layout,

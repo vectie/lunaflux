@@ -4,7 +4,7 @@ This package is the startup-only bridge from exact GLM-5.3 safetensors shards
 to bounded final host arenas. It admits only the converted mixed BF16/F32
 logical manifest. Official block-FP8 remains a typed unsupported encoding.
 
-Header parsing, duplicate-key rejection, file authentication, stamp replay,
+Header parsing, duplicate-key rejection, file metadata consistency,
 range validation, and approved-file close handling are delegated to the
 family-neutral `model/streaming_safetensors` package. GLM retains only its
 manifest/numeric admission, exact BF16/F32 role checks, payload-coverage rule,
@@ -12,9 +12,14 @@ canonical arena layout, and release contract.
 
 Payload bytes are read from pinned approved files directly into final segmented
 arenas with one neutral multi-destination copy call. Names, shapes, dtypes,
-byte ranges, shard content digests,
+byte ranges, supplied shard association labels,
 manifest/execution identity, numeric schema digest, and numeric binding digest
 must all agree before an open owner is returned.
+
+Loading does not hash shards or reserialize and hash the host segmentation.
+The source label reuses the manifest-layout label constructed during planning;
+it is not a payload checksum or a unique fingerprint of the shard set or arena
+layout. Actual regions, arena lengths and execution identity remain explicit.
 
 `Glm53HostWeights::close` drops owner references and invalidates every
 arena without scrubbing its bytes. MoonBit `FixedArray` storage is GC-managed, so
