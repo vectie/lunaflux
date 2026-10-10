@@ -1,0 +1,199 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock", "wlc003s@192.168.2.178",
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn copy(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    source, destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix, build, hash, config, staged, aot] &&
+    root.has_prefix("/tmp/lunaflux-minimax-video-decode-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
+    config.has_prefix("/tmp/lunaflux-minimax-video-config-") &&
+    staged.has_prefix("/tmp/lunaflux-minimax-video-upload-") &&
+    aot.has_prefix("/tmp/lunaflux-minimax-video-aot-") &&
+    [root, suffix, build, config, staged, aot].all(s => {
+      !s.is_empty() &&
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) &&
+    !suffix.contains("/") &&
+    hash.length() == 64 &&
+    hash.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
+    fail("NEW_ROOT SUFFIX COMMITTED_BUILD BINARY_SHA CONFIG STAGED_WEIGHTS AOT")
+  }
+  @fs.mkdir(root)
+  // Fail before making any GPU admission if either rank is still active.
+  for
+    (host, socket, unit) in [
+      (
+        "wlc003s@192.168.2.178", "/tmp/lunaflux-checkpoint-live-20261010.sock", "lunaflux-dspark-20261010-v3-ingress.service",
+      ),
+      (
+        "wlc004s@192.168.2.179", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        "lunaflux-dspark-20261010-v3-egress.service",
+      ),
+    ] {
+    let state = @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-S",
+      socket,
+      host,
+      "systemctl --user show " + unit + " -p ActiveState --value",
+    ]).output()
+    state.check()
+    guard state.stdout().trim() is ("inactive" | "failed") else {
+      fail("two-host DSpark campaign has not retired; no GPU overlap")
+    }
+  }
+  let binary = build +
+    "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  let built = remote("sha256sum " + binary)
+  record(root, "built-binary", built)
+  guard built.stdout().has_prefix(hash + "  ") else { fail("wrong ARM binary") }
+  record(root, "mkdir", remote("mkdir " + root))
+  record(
+    root,
+    "copy-binary",
+    remote("cp " + binary + " " + root + "/minimax_checkpoint.exe"),
+  )
+  let input_bytes = @fs.read_file(config + "/export.stdout")
+    .text()
+    .split("\n")
+    .filter(line => line.has_prefix("input_bytes="))
+    .collect()
+  guard input_bytes is [line] else {
+    fail("missing exact exported input geometry")
+  }
+  guard line is [.. "input_bytes=", .. count] else {
+    fail("malformed exported input geometry")
+  }
+  let size = @string.parse_int(count)
+  guard size > 0 && size <= 1048576 else {
+    fail("standalone fixture too large")
+  }
+  // Explicit standardized zero latent fixture, not a fabricated denoiser result.
+  @fs.write_file(
+    root + "/zero-packed-latent.f32",
+    Bytes::make(size, 0),
+    create_mode=CreateNew,
+  )
+  copy(
+    root + "/zero-packed-latent.f32",
+    "wlc003s@192.168.2.178:" +
+    staged +
+    "/FL2VA/zero-packed-latent-" +
+    suffix +
+    ".f32",
+  )
+  let identity = remote(
+    "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  )
+  record(root, "identity", identity)
+  guard identity.stdout().trim() ==
+    "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f, 0000000F:01:00.0" else {
+    fail("different GPU")
+  }
+  let tools = remote(
+    "sha256sum /usr/local/cuda-13.0/bin/nvcc /usr/local/cuda-13.0/compute-sanitizer/compute-sanitizer",
+  )
+  record(root, "tools", tools)
+  guard tools
+    .stdout()
+    .contains(
+      "fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1  ",
+    ) &&
+    tools
+    .stdout()
+    .contains(
+      "7a7fcdefb67042731daf021478176f4919e1843d0b10cb697af28a7d8a3d108b  ",
+    ) else {
+    fail("different CUDA tools")
+  }
+  let occupied = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  record(root, "occupied", occupied)
+  guard occupied.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let unit = "lunaflux-minimax-video-decode-" + suffix
+  record(
+    root,
+    "decode",
+    remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      unit +
+      " --property=MemoryMax=16G --property=MemorySwapMax=0 --property=RuntimeMaxSec=3600 " +
+      root +
+      "/minimax_checkpoint.exe decode-video " +
+      staged +
+      "/FL2VA VIDEO.sha256 32 32 120 5 256 64 4096 " +
+      aot +
+      " zero-packed-latent-" +
+      suffix +
+      ".f32 " +
+      root +
+      "/pixels.f32 12884901888",
+    ),
+  )
+  copy("wlc003s@192.168.2.178:" + root + "/pixels.f32", root + "/pixels.f32")
+  let remote_hash = remote("sha256sum " + root + "/pixels.f32")
+  record(root, "pixels-remote", remote_hash)
+  let local_hash = @shell.Cmd("shasum", ["-a", "256", root + "/pixels.f32"]).output()
+  record(root, "pixels-local", local_hash)
+  guard remote_hash.stdout().split(" ").next() ==
+    local_hash.stdout().split(" ").next() else {
+    fail("pixel download mismatch")
+  }
+  record(
+    root,
+    "journal",
+    remote("journalctl --user -u " + unit + " --no-pager"),
+  )
+  let released = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  record(root, "released", released)
+  guard released.stdout().trim().is_empty() else {
+    fail("decoder process not released")
+  }
+  println(
+    "actual VideoVAE fixture decoded; no denoiser or reference-equivalence claim",
+  )
+}
