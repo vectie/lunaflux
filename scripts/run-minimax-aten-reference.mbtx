@@ -417,7 +417,7 @@ async fn main {
     execution.check()
     println("reference " + mode + " terminated; collect original outputs next")
   } else if mode == "collect-oracle" {
-    for name in ["q", "k", "v", "output", "down"] {
+    for name in ["q", "k", "v", "output", "gate", "up", "down"] {
       for precision in ["bf16", "bf16-full", "f32", "f64"] {
         let path = root +
           "/projection-oracle/" +

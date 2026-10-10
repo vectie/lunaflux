@@ -106,6 +106,12 @@ input difference to 11.1368%, mainly in the MLP activation/down chain. Replaying
 reference layer 7 on reference hidden-6 reproduces its output bitwise. This
 localizes input sensitivity, not an acceptance tolerance or complete bug fix.
 See [the longer-text replay](MINIMAX_LONG_TEXT_NUMERICAL_REPLAY_2026-10-11.md).
+The added arbitrary-layer seven-projection oracle physically passes both
+140-row input cases. Same-input gate/up BF16-vs-F64 row-5 errors are only
+0.01919%/0.01980%, while changed-input down sensitivity stays 15.8691% under
+either projection policy. Wider projection precision alone does not remove
+this row's MLP amplification. The twenty-four CPU comparisons and a zero-norm
+relative-error regression remain diagnostics, not full-model acceptance.
 The final reference container has 8-GiB/no-swap limits, exits 0 without OOM and
 releases GPU/tensor owners. Its measured cgroup peak touches that memory limit;
 it is not a spare-memory or longer-context claim. Three standalone native tests,

@@ -64,7 +64,7 @@ residual and projection errors are separated from propagated input differences.
 The fused native gate/up/SiLU operation is compared as one complete chain.
 
 `projection-oracle LIB MODEL NATIVE_OPERATOR_DIRECTORY OUTPUT` compares
-original first-layer Q/K/V, output and down weights on identical three-row native inputs
+original first-layer Q/K/V, output, gate/up and down weights on identical three-row inputs
 using library BF16, BF16 with reduced-precision reductions disabled, F32 and
 F64 projections, then rounds each output to BF16. The test-only full-reduction
 scope restores the library setting, including split-K, after success or failure;
@@ -72,6 +72,14 @@ it does not change the ordinary upstream arithmetic reference or serving.
 Converted operands and temporary output are checked against the same explicit
 2-GiB budget before allocation. Wider precision is an independent numerical
 probe, not an upstream BF16 performance result or a proposed production backend.
+
+`layer-projection-oracle LIB MODEL ROWS NEXT_HIDDEN_INDEX INPUT_OPERATORS OUTPUT`
+uses the same seven projections with an explicit 1..1,024-row input and layer
+1..50. `scripts/probe-minimax-layer-projections.mbtx` runs it sequentially within
+the existing reference memory limits, with a new output label for each input.
+`scripts/compare-minimax-projection-oracles.mbtx` compares precision policies on
+identical operands separately from changing the input under the same policy.
+Its `all`/`mlp` groups report global and worst-row errors, not parity tolerances.
 
 `encode-full-reduction ... 50` applies that test-only projection arithmetic to
 all seven linears in each of the fifty encoder layers. Norm/rotary/SDPA/residual

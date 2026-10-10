@@ -1,0 +1,182 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// Independent offline arithmetic diagnosis. Not a production startup gate.
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
+}
+
+///|
+async fn save(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+fn projection_outputs(rows : Int, layer : Int) -> Array[(String, Int)] raise {
+  guard rows > 0 && rows <= 1024 && layer > 0 && layer <= 50 else {
+    fail("bounded rows and hidden-state frontier required")
+  }
+  let files : Array[(String, Int)] = []
+  for
+    (name, width) in [
+      ("q", 8192),
+      ("k", 1024),
+      ("v", 1024),
+      ("output", 5120),
+      ("gate", 25600),
+      ("up", 25600),
+      ("down", 5120),
+    ] {
+    for precision in ["bf16", "bf16-full", "f32", "f64"] {
+      files.push((name + "-" + precision + ".bf16", rows * width * 2))
+    }
+  }
+  files
+}
+
+///|
+test "layer probe includes each MLP operand at the requested row geometry" {
+  let outputs = projection_outputs(140, 7)
+  assert_eq(outputs.length(), 28)
+  assert_true(outputs.contains(("gate-f64.bf16", 7168000)))
+  assert_true(outputs.contains(("up-bf16.bf16", 7168000)))
+  assert_true(outputs.contains(("down-f32.bf16", 1433600)))
+  for (rows, layer) in [(0, 7), (1025, 7), (140, 0), (140, 51)] {
+    try projection_outputs(rows, layer) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid projection geometry accepted")
+    }
+  }
+}
+
+///|
+fn probe_label(label : String) -> String raise {
+  guard !label.is_empty() &&
+    label.length() <= 40 &&
+    label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+    fail("probe label must be a short nonempty lowercase name")
+  }
+  label
+}
+
+///|
+test "different layer inputs cannot silently reuse a probe output" {
+  assert_eq(probe_label("native-input"), "native-input")
+  assert_eq(probe_label("prefix-input"), "prefix-input")
+  for label in ["", "../old", "x".repeat(41)] {
+    try probe_label(label) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid output label accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, input, rows, layer, label] &&
+    root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
+    (
+      input.has_prefix("/tmp/lunaflux-minimax-text-encoder-") ||
+      input.has_prefix("/tmp/lunaflux-minimax-aten-reference-")
+    ) &&
+    [root, input].all(path => {
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.'))
+    }) else {
+    fail(
+      "BUILT_REFERENCE_ROOT INPUT_OPERATOR_DIRECTORY ROWS NEXT_HIDDEN_INDEX NEW_LABEL",
+    )
+  }
+  let rows = @string.parse_int(rows)
+  let layer = @string.parse_int(layer)
+  let files = projection_outputs(rows, layer)
+  let label = probe_label(label)
+  let output = root + "/projection-" + label
+  @fs.mkdir(output)
+  let mkdir = remote("mkdir " + output)
+  save(output, "mkdir", mkdir)
+  mkdir.check()
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  save(output, "before-owners", owners)
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let name = root.split("/").last().unwrap().to_owned() + "-projection-" + label
+  let image = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+  let execution = remote(
+    "systemd-run --user --wait --pipe --unit=" +
+    name +
+    " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
+    name +
+    " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g --pids-limit 256 --cpuset-cpus 0-3 -e OMP_NUM_THREADS=2 -v " +
+    root +
+    ":/work -v " +
+    input +
+    ":/native:ro -v /tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder:/model:ro --entrypoint /work/driver.exe " +
+    image +
+    " layer-projection-oracle /work/libreference.so /model \{rows} \{layer} /native /work/projection-" +
+    label,
+  )
+  save(output, "execute", execution)
+  let terminal = remote("docker inspect --format '{{json .State}}' " + name)
+  save(output, "terminal", terminal)
+  terminal.check()
+  let released = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  save(output, "released", released)
+  released.check()
+  execution.check()
+  guard released.stdout().trim().is_empty() &&
+    execution.stdout().contains("projection_oracle_complete retained_bytes=0") else {
+    fail("projection probe did not release its owners")
+  }
+  for (name, expected) in files {
+    let path = output + "/" + name
+    @fs.write_file(path, b"", create_mode=CreateNew)
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + path,
+      path,
+    ])
+    .output()
+    .check()
+    guard @fs.read_file(path).binary().length() == expected else {
+      fail("incomplete projection output: " + name)
+    }
+  }
+  println(
+    "seven same-input BF16/full-reduction/F32/F64 projection outputs collected; not full-model parity or throughput",
+  )
+}

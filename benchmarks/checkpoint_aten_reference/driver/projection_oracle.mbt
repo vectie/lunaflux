@@ -6,7 +6,10 @@ fn projection_oracle(
   root : String,
   input_root : String,
   output : String,
+  rows? : Int = 3,
+  layer? : Int = 1,
 ) -> Unit raise {
+  let weight_layer = replay_layer_index(rows, layer)
   let model = Model::new(session, root)
   for
     (name, input, weight, width, columns) in [
@@ -38,13 +41,15 @@ fn projection_oracle(
         model.hidden,
         model.heads * model.dim,
       ),
+      ("gate", "norm-mlp", "mlp.gate_proj", model.intermediate, model.hidden),
+      ("up", "norm-mlp", "mlp.up_proj", model.intermediate, model.hidden),
       ("down", "activation", "mlp.down_proj", model.hidden, model.intermediate),
     ] {
-    let x = session.load(input_root + "/" + input + ".bf16", 0L, 3, columns)
+    let x = session.load(input_root + "/" + input + ".bf16", 0L, rows, columns)
     defer x.close()
     let w = model.weight(
       session,
-      "model.language_model.layers.0." + weight + ".weight",
+      "model.language_model.layers.\{weight_layer}." + weight + ".weight",
       width,
       columns,
     )
@@ -60,7 +65,7 @@ fn projection_oracle(
       defer y.close()
       y.write(output + "/" + name + "-" + precision + ".bf16")
       println(
-        "projection_oracle_complete name=\{name} accumulation=\{precision} rows=3 width=\{width}",
+        "projection_oracle_complete name=\{name} accumulation=\{precision} rows=\{rows} layer=\{layer} width=\{width}",
       )
     }
   }

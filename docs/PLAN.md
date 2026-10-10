@@ -83,6 +83,16 @@ Variable-row collection and same-input replay are diagnostic-only and add no
 runtime hash or production dependency. Details and next numerical tests are in
 [the longer-text report](MINIMAX_LONG_TEXT_NUMERICAL_REPLAY_2026-10-11.md).
 
+Layer-7 precision probes now include gate/up, arbitrary bounded row counts and
+explicit weight-layer selection. Both 140-row seven-projection GPU probes exit
+successfully with no OOM or retained owner. Twenty-four MLP comparisons separate
+same-input precision error from changed-input sensitivity. Row-5 gate/up
+BF16-vs-F64 errors are 0.01919%/0.01980%; down input sensitivity remains 15.8691%
+under both projection policies. Next inspect SiLU/product operand sensitivity
+and earlier propagated errors, not a speculative blanket precision change.
+This remains independent offline diagnosis, not numerical acceptance or a
+production backend; no hashing/startup prerequisite is added.
+
 The common serial prompt file adapter now owns bounded `frame-counts.txt`
 parsing; DeepSeek no longer keeps a model-specific queue parser. GLM now exposes
 `preflight-generation-sequence` and `generate-sequence`, with immutable queue

@@ -66,8 +66,40 @@ Only their input hidden states differ; weights and arithmetic stay identical.
 For this row, the main amplification is in the MLP chain, not attention.
 The activation product combines two projections and SiLU; it does not yet
 isolate the individual gate/up projection or multiplication contribution.
-Matched-input wider precision and diverse-caption/media-quality tests remain
-necessary before changing arithmetic or defining acceptance.
+The additional precision probe below separates those projections. Diverse
+caption/media-quality tests remain necessary before defining acceptance.
+
+## Projection precision versus input sensitivity
+
+Two new independent probes consume the respective captured layer-7 operator
+inputs. Each executes Q/K/V, output, gate, up and down with library BF16,
+full-reduction BF16, F32 and F64 projection arithmetic. Original layer-7 weights
+are used; all four outputs are rounded to the **same BF16 output boundary**.
+The probes do not form a full F64 encoder or an unrounded F64 MLP chain.
+
+| Row-5 comparison | Gate relative L2 | Up relative L2 | Down relative L2 |
+| --- | --- | --- | --- |
+| BF16 vs F64, same native-prefix operator input | 0.01919% | 0.01980% | 0.003827% |
+| BF16 vs F64, same reference-prefix operator input | 0.01657% | 0.009697% | 0.004149% |
+| Different operator inputs, same BF16 projection | 0.35780% | 0.53283% | 15.86910% |
+| Different operator inputs, same F64 projection | 0.35764% | 0.53277% | 15.86910% |
+
+The down input is the already captured activation product for each replay.
+Its nearly unchanged sensitivity with wider projection arithmetic rules out
+down's projection precision as the explanation for this row's large jump.
+Gate/up projections themselves show much smaller differences than their
+13.5684% activation-product difference. That localizes the next investigation
+to how changed operands combine through SiLU/product and propagate from earlier
+layers, rather than changing every projection's accumulation policy blindly.
+It does not establish full-model quality or prove all native operators correct.
+
+Both precision probes exit 0, are not OOM-killed, report zero retained tensors,
+and leave no GPU owner. Each retains at most the enforced 2-GiB tensor budget
+inside an 8-GiB/no-swap container; actual container peak was not captured.
+The twenty-four MLP comparisons are CPU-only. Their comparator also fixes an
+unrelated diagnostic defect: nonzero error against an all-zero reference now
+reports infinite relative error rather than zero. Existing 140-token norms are
+nonzero, so this fix does not change the previously recorded measurements.
 
 ## Execution and reproduction
 
@@ -91,6 +123,10 @@ Layer replays and identity comparisons:
 `/tmp/lunaflux-minimax-aten-reference-layer7-20261011-v1`.
 Operator sensitivity reports:
 `/tmp/lunaflux-minimax-layer7-input-sensitivity-20261011-v1`.
+Layer-7 seven-projection precision probes:
+`/tmp/lunaflux-minimax-aten-reference-layer7-precision-20261011-v1`.
+Separated precision/input-sensitivity comparison reports:
+`/tmp/lunaflux-minimax-layer7-projection-comparison-20261011-v1`.
 
 The driver lives in the separate `benchmarks/checkpoint_aten_reference` module.
 `scripts/replay-minimax-encoder-layer.mbtx` collects one-layer outputs;

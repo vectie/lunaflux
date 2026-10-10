@@ -1,0 +1,150 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn comparison_jobs(
+  group : String,
+) -> Array[(String, Int, String, String, String, String)] raise {
+  let projections = match group {
+    "mlp" => [("gate", 25600), ("up", 25600), ("down", 5120)]
+    "all" =>
+      [
+        ("q", 8192),
+        ("k", 1024),
+        ("v", 1024),
+        ("output", 5120),
+        ("gate", 25600),
+        ("up", 25600),
+        ("down", 5120),
+      ]
+    _ => fail("projection group must be all or mlp")
+  }
+  let jobs : Array[(String, Int, String, String, String, String)] = []
+  for (name, width) in projections {
+    for (input, label) in [("first", "first-input"), ("second", "second-input")] {
+      for precision in ["bf16", "bf16-full", "f32"] {
+        jobs.push(
+          (
+            label + "-" + name + "-" + precision + "-vs-f64",
+            width,
+            input,
+            name + "-" + precision,
+            input,
+            name + "-f64",
+          ),
+        )
+      }
+    }
+    for precision in ["bf16", "f64"] {
+      jobs.push(
+        (
+          "input-sensitivity-" + name + "-" + precision,
+          width,
+          "first",
+          name + "-" + precision,
+          "second",
+          name + "-" + precision,
+        ),
+      )
+    }
+  }
+  jobs
+}
+
+///|
+fn metric(report : String, name : String) -> String raise {
+  for line in report.split("\n") {
+    if line.has_prefix(name + "=") {
+      return line[name.length() + 1:].to_owned()
+    }
+  }
+  fail("missing comparison metric: " + name)
+}
+
+///|
+fn row_metric(line : StringView, name : String) -> String raise {
+  for part in line.split(" ") {
+    if part.has_prefix(name + "=") {
+      return part[name.length() + 1:].to_owned()
+    }
+  }
+  fail("missing row metric: " + name)
+}
+
+///|
+test "precision error and input sensitivity remain distinct comparisons" {
+  let jobs = comparison_jobs("mlp")
+  assert_eq(jobs.length(), 24)
+  assert_eq(comparison_jobs("all").length(), 56)
+  let precision = jobs[0]
+  assert_eq(precision.2, precision.4)
+  assert_eq(precision.3, "gate-bf16")
+  assert_eq(precision.5, "gate-f64")
+  let sensitivity = jobs[6]
+  assert_true(sensitivity.2 != sensitivity.4)
+  assert_eq(sensitivity.3, sensitivity.5)
+  assert_eq(row_metric("row=5 rmse=2 relative_l2=0.1", "relative_l2"), "0.1")
+  assert_eq(metric("elements=42\nrelative_l2=0.02\n", "elements"), "42")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, first, second, output, group] else {
+    fail(
+      "FIRST_PROJECTION_ORACLE SECOND_PROJECTION_ORACLE NEW_REPORT_DIRECTORY all|mlp",
+    )
+  }
+  let jobs = comparison_jobs(group)
+  @fs.mkdir(output)
+  let summary = StringBuilder()
+  summary.write_string(
+    "comparison\telements\texact_bf16\trmse\trelative_l2\tmax_absolute_error\tworst_row\tworst_row_relative_l2\n",
+  )
+  for (name, width, left_root, left_tensor, right_root, right_tensor) in jobs {
+    let left = if left_root == "first" { first } else { second }
+    let right = if right_root == "first" { first } else { second }
+    let path = output + "/" + name + ".txt"
+    @shell.Cmd("moon", [
+      "run",
+      "scripts/compare-minimax-encoder-reference.mbtx",
+      left + "/" + left_tensor + ".bf16",
+      right + "/" + right_tensor + ".bf16",
+      path,
+      name,
+      width.to_string(),
+    ])
+    .output(max_output_bytes=65536)
+    .check()
+    let report = @fs.read_file(path).text()
+    let (worst_row, worst_error) = for
+      line in report.split("\n")
+      row = "none", error = -1.0 {
+      if line.has_prefix("row=") {
+        let value = @string.parse_double(row_metric(line, "relative_l2"))
+        if value > error {
+          continue row_metric(line, "row"), value
+        }
+      }
+      continue row, error
+    } nobreak {
+      (row, error)
+    }
+    summary <+
+      "\{name}\t\{metric(report, "elements")}\t\{metric(report, "exact_bf16")}\t\{metric(report, "rmse")}\t\{metric(report, "relative_l2")}\t\{metric(report, "max_absolute_error")}\t\{worst_row}\t\{worst_error}\n"
+    println("compared " + name)
+  }
+  @fs.write_file(
+    output + "/projections.tsv",
+    summary.to_string(),
+    create_mode=CreateNew,
+  )
+  println(
+    "projection error and propagated input sensitivity measured separately; not full-model parity",
+  )
+}
