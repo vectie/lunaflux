@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/sequential_markov_frame"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/sequential_markov_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct SequentialMarkovFrame {
+  // private fields
+}
+pub fn SequentialMarkovFrame::close(Self) -> Unit raise
+pub fn SequentialMarkovFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn SequentialMarkovFrame::new(@sequential_markov_cuda_source.SequentialMarkovCudaSource) -> Self
+pub fn SequentialMarkovFrame::prepare(Self, @device.Context, @device.Module, output_count~ : @device.Allocation, tokens~ : @device.Allocation, pre_normalized_hidden~ : @device.Allocation, logits~ : @device.Allocation, embedding_weight~ : @device.Allocation, bias_weight~ : @device.Allocation, confidence_weight~ : @device.Allocation, rng~ : @device.Allocation, confidence~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn SequentialMarkovFrame::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

@@ -10,6 +10,29 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DSpark dependent output head): generic immutable
+`SequentialMarkovPrecision`, CUDA lowering and prepared frame now preserve
+previous-sampled-token embedding dependencies, F32 bias addition, stable greedy
+or explicit-seed/sequence categorical sampling, and raw confidence over
+pre-normalization hidden plus the corresponding previous-token embedding.
+`DeepSeekPredictionHead` binds seven actual `mtp.2` checkpoint groups and borrows
+the base vocabulary allocation. Three learned collapse/norm/head launches join
+twenty sequential row launches in a single parent queue. Existing base-head
+suffixes remain unchanged. The 53-test affected precision/source/prediction suite
+and the checkpoint-backed head fixture pass; warmed native fixtures allocate
+nothing and retain explicit ownership. Complete head and greedy/stochastic oracle
+sources compile on GB10 in 2-GiB/no-swap units, downloaded under
+`/tmp/lunaflux-markov-results-20261010-v1`. Numerical/sanitizer execution remains
+queued, not passed. Complete predictor orchestration, embedding, actual checkpoint
+block execution and verification/commit remain open.
+
+Base-run launcher correction: the live egress had loaded its checkpoint and
+owned both listening ports, while the launcher was waiting for a journal message
+that had not appeared. Readiness now checks both listeners against the current
+user-unit PID. A bounded resume runner verified that ownership and the unchanged
+commit-pinned executable, then started ingress without restarting egress or
+recopying weights. Generation is still pending; this is not a numerical pass.
+
 Update 2026-10-10 (DSpark prediction block composition): an immutable model-owned
 base-layer/prediction-stage address selects exact checkpoint and symbol prefixes
 and the absolute-layer routing law. Existing base APIs remain base-only. Each

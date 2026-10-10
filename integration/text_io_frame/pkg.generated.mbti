@@ -18,7 +18,9 @@ pub struct LearnedTextIoFrame {
 pub fn LearnedTextIoFrame::close(Self) -> Unit raise
 pub fn LearnedTextIoFrame::logits(Self) -> @device.Allocation raise
 pub fn LearnedTextIoFrame::new(@precision_ir.LearnedTextIoPrecision, symbol_prefix~ : String) -> Self raise
+pub fn LearnedTextIoFrame::pre_normalized_hidden(Self) -> @device.Allocation raise
 pub fn LearnedTextIoFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, output_count~ : @device.Allocation, selected_rows~ : @device.Allocation, output_residual~ : @device.Allocation, function_weight~ : @device.Allocation, base~ : @device.Allocation, scale~ : @device.Allocation, norm_weight~ : @device.Allocation, head_weight~ : @device.Allocation, sampled_tokens~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn LearnedTextIoFrame::projection_suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn LearnedTextIoFrame::source_bytes(Self) -> Bytes
 pub fn LearnedTextIoFrame::suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn LearnedTextIoFrame::workspace_bytes(Self) -> Int64

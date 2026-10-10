@@ -14,6 +14,8 @@ import {
 // Values
 pub fn bind_prediction_attention_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, stage~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
+pub fn bind_prediction_head_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
 pub fn bind_prediction_main_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn prediction_attention_frame(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64, symbol_prefix~ : String) -> @committed_draft_kv_frame.CommittedDraftKvFrame raise
@@ -23,6 +25,10 @@ pub fn prediction_attention_output_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, m
 pub fn prediction_attention_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64) -> @precision_ir.CommittedDraftKvPrecision raise
 
 pub fn prediction_main_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RowProjectionNormPrecision raise
+
+pub fn prediction_markov_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, temperature~ : Double, maximum_workspace_bytes~ : Int64) -> @precision_ir.SequentialMarkovPrecision raise
+
+pub fn prediction_text_head_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_workspace_bytes~ : Int64) -> @precision_ir.LearnedTextIoPrecision raise
 
 // Errors
 
@@ -52,6 +58,17 @@ pub fn DeepSeekPredictionBlock::prepare(Self, @device.Context, @device.Module, @
 pub fn DeepSeekPredictionBlock::prime_launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekPredictionBlock::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekPredictionBlock::source_bytes(Self) -> Bytes raise
+
+pub struct DeepSeekPredictionHead {
+  // private fields
+}
+pub fn DeepSeekPredictionHead::close(Self) -> Unit raise
+pub fn DeepSeekPredictionHead::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekPredictionHead::logits(Self) -> @device.Allocation raise
+pub fn DeepSeekPredictionHead::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, temperature~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekPredictionHead::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, residual~ : @device.Allocation, vocabulary_weight~ : @device.Allocation, tokens~ : @device.Allocation, confidence~ : @device.Allocation, rng~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekPredictionHead::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekPredictionHead::source_bytes(Self) -> Bytes
 
 pub struct DeepSeekPredictionMain {
   // private fields

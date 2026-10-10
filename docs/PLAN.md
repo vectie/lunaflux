@@ -22,9 +22,11 @@ five hidden-width rows. Model-owned base/prediction addresses connect each
 actual `mtp.*` block's mHC attention and routed/shared MoE envelope, retaining
 base-only entry points and aggregate compact-bank budgeting. All three composed
 block sources compile on GB10; native regressions pass. Actual checkpoint block
-preparation is not yet verified. Next compose the three-block prediction queue,
-its learned text head, sequential Markov logits and confidence head, distributed
-capture assembly and verification/commit.
+preparation is not yet verified. The learned five-row text head, sequential
+Markov sampling and raw confidence now have prepared checkpoint-backed
+composition, native tests and GB10 compilation; numerical GPU gates remain
+queued. Next compose the three-block prediction queue with draft embedding and
+this head, distributed capture assembly and verification/commit.
 Do not substitute the learned base-model text head or ordinary causal blocks.
 Exact phase/read-set/head dependencies and completion requirements are recorded
 in [DEEPSEEK_DSPARK_EXECUTION.md](DEEPSEEK_DSPARK_EXECUTION.md).

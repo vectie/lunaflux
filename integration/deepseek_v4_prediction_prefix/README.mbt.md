@@ -33,8 +33,15 @@ weights and workspace are counted before upload; caller residual output remains
 borrowed. No base-layer address or base checkpoint namespace substitutes for an
 `mtp.*` stage.
 
+`DeepSeekPredictionHead` binds the last prediction stage's learned mHC controls,
+norm and Markov/confidence planes while borrowing the global vocabulary matrix.
+It selects all five output rows, borrows the learned frame's pre-normalization
+hidden, and appends the dependent sampling chain instead of its independent
+greedy suffix. Sampling/precision laws are shared; model checkpoint addressing
+stays here and CUDA scheduling stays in the backend.
+
 These owners are not the complete DSpark predictor. Three-block orchestration,
-learned head and sequential Markov/confidence, distributed capture assembly and
-base verification/commit remain required integration.
+draft embedding, distributed capture assembly and base verification/commit remain
+required integration. Head and block physical numerical validation are pending.
 Whole-model correctness and performance are not established by component
 ownership tests or CUDA compilation.

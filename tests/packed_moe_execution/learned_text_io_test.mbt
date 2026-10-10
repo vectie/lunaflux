@@ -45,6 +45,8 @@ test "learned text suffix shares one completion and warmed steps allocate nothin
     maximum_workspace_bytes=248L,
   )
   assert_eq(io.suffix().length(), 4)
+  assert_eq(io.projection_suffix().length(), 3)
+  assert_eq(io.pre_normalized_hidden().byte_count(), 80L)
   assert_eq(io.logits().byte_count(), 136L)
   let queue = context.create_ordered_kernel_executor(stream, io.suffix())
   defer (queue.abort() catch { _ => () })
@@ -68,6 +70,11 @@ test "learned text suffix shares one completion and warmed steps allocate nothin
   queue.close()
   io.close()
   io.close()
+  try io.pre_normalized_hidden() catch {
+    _ => ()
+  } noraise {
+    _ => fail("closed head scratch exposed")
+  }
   operand.close()
   aot.close()
   stream.close()

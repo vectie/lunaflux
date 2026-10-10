@@ -29,6 +29,8 @@ import {
   "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source" @hyper_source,
   "vectie/lunaflux/kernels/text_io_execution_cuda_source" @text_source,
   "vectie/lunaflux/integration/text_io_frame" @text_frame,
+  "vectie/lunaflux/integration/sequential_markov_frame" @markov_frame,
+  "vectie/lunaflux/kernels/sequential_markov_cuda_source" @markov_source,
   "vectie/lunaflux/integration/stream_mean_capture_frame" @capture_frame,
   "vectie/lunaflux/kernels/stream_mean_capture_cuda_source" @capture_source,
   "vectie/lunaflux/integration/row_projection_norm_frame" @main_frame,

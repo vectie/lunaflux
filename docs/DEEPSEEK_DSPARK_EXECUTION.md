@@ -98,6 +98,20 @@ the **corresponding previous-token** Markov embedding. The checkpoint's BF16
 linear parameter is evaluated in F32 and returns a scalar without a sigmoid.
 Confidence must not be computed from the normalized vocabulary-head input.
 
+`DeepSeekPredictionHead` now binds these seven actual final-stage weight groups,
+borrowing the shared global vocabulary matrix instead of uploading it again.
+The learned frame exposes its three projection launches and pre-normalization
+hidden view; its existing base four-launch suffix is unchanged. The shared
+`SequentialMarkovPrecision`/prepared frame expresses the dependent sampling and
+raw confidence laws. A complete head prepares three projection launches plus
+four launches for each of five dependent rows (23 total), with one parent
+completion. Seed/sequence RNG ports are explicit; positive-temperature
+categorical sampling is not claimed random-seed-identical to PyTorch.
+Native checkpoint/ownership tests and complete GB10 head compilation pass.
+The independent chain numerical/sanitizer campaign is queued behind the current
+base-model and ring campaigns; no physical chain or complete predictor pass is
+claimed yet.
+
 Draft verification and accept/reject/commit remain explicit scheduling and KV
 ownership operations. The verified main model determines which tokens become
 committed. A completed prediction alone cannot claim speculative generation or

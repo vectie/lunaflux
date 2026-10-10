@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/sequential_markov_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn sequential_markov_source(@precision_ir.SequentialMarkovPrecision, symbol_prefix~ : String) -> SequentialMarkovCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct SequentialMarkovCudaSource {
+  // private fields
+}
+pub fn SequentialMarkovCudaSource::launch(Self, Int) -> (Int, Int) raise
+pub fn SequentialMarkovCudaSource::plan(Self) -> @precision_ir.SequentialMarkovPrecision
+pub fn SequentialMarkovCudaSource::source_bytes(Self) -> Bytes
+pub fn SequentialMarkovCudaSource::symbol(Self, Int) -> String raise
+
+// Type aliases
+
+// Traits

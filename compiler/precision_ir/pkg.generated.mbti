@@ -537,6 +537,18 @@ pub fn ScratchLifetime::equal(Self, Self) -> Bool
 pub fn ScratchLifetime::not_equal(Self, Self) -> Bool
 pub fn ScratchLifetime::to_repr(Self) -> @debug.Repr
 
+pub struct SequentialMarkovPrecision {
+  // private fields
+}
+pub fn SequentialMarkovPrecision::embedding_frame_bytes(Self) -> Int64
+pub fn SequentialMarkovPrecision::geometry(Self) -> (Int, Int, Int, Int)
+pub fn SequentialMarkovPrecision::hidden_bytes(Self) -> Int64
+pub fn SequentialMarkovPrecision::logits_bytes(Self) -> Int64 raise PrecisionPlanError
+pub fn SequentialMarkovPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, embedding_width~ : Int, maximum_rows~ : Int, temperature~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn SequentialMarkovPrecision::temperature(Self) -> Double
+pub fn SequentialMarkovPrecision::weight_bytes(Self) -> (Int64, Int64, Int64)
+pub fn SequentialMarkovPrecision::workspace_bytes(Self) -> Int64
+
 pub(all) enum SimulatedCacheScale {
   LinearF32
   PowerOfTwo

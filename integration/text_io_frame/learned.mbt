@@ -132,6 +132,31 @@ pub fn LearnedTextIoFrame::suffix(
 }
 
 ///|
+/// Learned collapse, normalization and vocabulary projection without sampling.
+/// Consumers with dependent sampling borrow this view into the same parent
+/// queue; the existing four-launch suffix remains unchanged.
+pub fn LearnedTextIoFrame::projection_suffix(
+  self : Self,
+) -> ArrayView[@device.OrderedKernelLaunch] raise {
+  guard self.state is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.after[:3]
+}
+
+///|
+/// Borrow the BF16 learned collapse before final normalization. This buffer is
+/// owned by the frame and must outlive every borrowing confidence consumer.
+pub fn LearnedTextIoFrame::pre_normalized_hidden(
+  self : Self,
+) -> @device.Allocation raise {
+  guard self.state is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.buffers[0]
+}
+
+///|
 pub fn LearnedTextIoFrame::logits(self : Self) -> @device.Allocation raise {
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
