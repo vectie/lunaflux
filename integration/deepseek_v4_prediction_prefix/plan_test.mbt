@@ -39,6 +39,27 @@ test "official DSpark main prefix uses complete ordered captured width" {
   )
   assert_true(phases.source_bytes().length() > 0)
   phases.close()
+  let output = @deepseek_v4_prediction_prefix.prediction_attention_output_plan(
+    spec,
+    maximum_positions=256,
+    maximum_workspace_bytes=4194304L,
+  )
+  assert_eq(
+    output.rotary().frequency(),
+    @precision.RotaryFrequency::Base(theta=spec.rope_theta()),
+  )
+  assert_eq(
+    output.geometry(),
+    (
+      spec.output_group_count(),
+      spec.attention_head_count() *
+      spec.head_dimension() /
+      spec.output_group_count(),
+      spec.o_lora_rank(),
+      5,
+    ),
+  )
+  assert_eq(output.hidden_width(), spec.hidden_size())
   for stage in 0..<3 {
     let attention = @deepseek_v4_prediction_prefix.DeepSeekPredictionAttention::new(
       spec,
@@ -49,6 +70,10 @@ test "official DSpark main prefix uses complete ordered captured width" {
     )
     assert_true(attention.workspace_bytes() > 458776L)
     assert_true(attention.source_bytes().length() > 0)
+    let code = @utf8.decode(attention.source_bytes())
+    assert_true(code.contains("deepseek_prediction_s\{stage}_output_inverse"))
+    assert_true(code.contains("deepseek_prediction_s\{stage}_output_grouped"))
+    assert_true(code.contains("deepseek_prediction_s\{stage}_output_output"))
     if stage == 0 &&
       @env.get_env_var("LUNA_EXPORT_PREDICTION_ATTENTION") == Some("1") {
       println("LUNA_ATTENTION_BEGIN")

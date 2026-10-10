@@ -53,7 +53,12 @@ read set; its AOT lowering and shared-ring frame build priming/prediction tables
 once. `DeepSeekPredictionAttention` binds actual `mtp.*.attn` planes and joins
 main projection/norm/rotary/simulation, draft query/KV transforms, publication
 and noncausal attention. Its priming table has seven launches; prediction has
-sixteen. The KV matrix and learned norm are uploaded once and borrowed by both
+nineteen, including inverse rotary and both grouped output projections. The
+result has five hidden-width BF16 rows and can write directly into a borrowed
+enclosing mHC branch buffer without an extra copy. Output-A's BF16 parameter
+boundary and Output-B's block-FP8 activation arithmetic use the existing shared
+`GroupedAttentionOutputPrecision` and prepared frame. The KV matrix and learned
+norm are uploaded once and borrowed by both
 branches. Stage bounds use the three-block artifact count, not the config's
 legacy value of one. Composite CUDA compilation and native ownership tests
 pass; GPU ring correctness and the complete prediction queue remain unverified.

@@ -10,6 +10,21 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DSpark complete attention output): prediction attention now
+executes inverse rotary plus grouped Output-A and Output-B using the existing
+shared `GroupedAttentionOutputPrecision`/prepared frame. It binds the actual
+`mtp.*.attn.wo_a/wo_b` compact payload/scale planes alongside the six shared
+query/KV/norm/sink groups. The phase tables remain seven priming launches and
+now nineteen prediction launches. Output is five hidden-width BF16 rows;
+enclosing mHC output may be borrowed with exact workspace subtraction and no
+ownership transfer. Both targeted owner/plan tests and all five existing output
+frame/adapter tests pass, exercising symbols, eight-group binding,
+budget-before-upload, own/borrow output, warmed submission and abort/release.
+The extended composite compiles on GB10 under a 2-GiB/no-swap build unit;
+artifacts are at `/tmp/lunaflux-committed-draft-results-20261010-v4`.
+Physical numerical validation remains pending behind the active whole-model
+DeepSeek run. Prediction mHC/MoE, Markov/confidence and verification remain open.
+
 Update 2026-10-10 (DSpark noncausal attention): shared
 `CommittedDraftKvPrecision`, AOT source and prepared shared-ring frame now
 separate initial main-KV priming from main-publication/all-draft attention.

@@ -20,9 +20,16 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
       activation_amax_floor=0.0001,
       maximum_workspace_bytes=4194304L,
     )
-    let matrices = q.weight_representations()
+    let matrices = q.weight_representations()[:].to_array()
+    matrices.append(
+      @prediction_main.prediction_attention_output_plan(
+        spec,
+        maximum_positions=256,
+        maximum_workspace_bytes=4194304L,
+      ).weight_representations(),
+    )
     let fields : Array[(String, String, String, Int64)] = []
-    for i, name in ["wq_a", "wq_b", "wkv"] {
+    for i, name in ["wq_a", "wq_b", "wkv", "wo_a", "wo_b"] {
       let matrix = matrices[i]
       let (rows, columns) = matrix.shape()
       fields.append([
@@ -84,13 +91,13 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
       maximum_shards=1,
       maximum_file_bytes=offset + 8192L,
       maximum_header_bytes=4096,
-      maximum_tensors_per_shard=9,
-      maximum_total_tensors=9,
+      maximum_tensors_per_shard=13,
+      maximum_total_tensors=13,
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=4,
       authentication_chunk_bytes=65536,
-      maximum_copy_requests=9,
+      maximum_copy_requests=13,
       maximum_copy_bytes=offset,
     )
     let checkpoint = @materialize.PackedCheckpoint::new(
@@ -118,7 +125,7 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
       spec,
       stage=0,
     )
-    assert_eq(bound.length(), 6)
+    assert_eq(bound.length(), 8)
     assert_eq(bound.fold(init=0L, (sum, w) => sum + w.buffer_bytes()), offset)
     try
       @prediction_main.bind_prediction_attention_weights(
@@ -202,7 +209,11 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
       limits~,
     )
     assert_eq(owner.prime_launches().length(), 7)
-    assert_eq(owner.prediction_launches().length(), 16)
+    assert_eq(owner.prediction_launches().length(), 19)
+    assert_eq(
+      owner.output().byte_count(),
+      5L * spec.hidden_size().to_int64() * 2L,
+    )
     let prime = context.create_ordered_kernel_executor(
       stream,
       owner.prime_launches(),
@@ -225,7 +236,7 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
         ()
       }
       prime.reset()
-      for i in 0..<16 {
+      for i in 0..<19 {
         predict.enqueue(i)
       }
       predict.record_completion()
@@ -240,6 +251,51 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
     predict.close()
     prime.close()
     owner.close()
+    let result_bytes = 5L * spec.hidden_size().to_int64() * 2L
+    let result = context.allocate(result_bytes)
+    defer (result.close() catch { _ => () })
+    let borrowed = @prediction_main.DeepSeekPredictionAttention::new(
+      spec,
+      stage=0,
+      maximum_main_rows=8,
+      maximum_positions=256,
+      maximum_workspace_bytes=4194304L,
+    )
+    defer (borrowed.close() catch { _ => () })
+    assert_eq(
+      total - borrowed.required_device_bytes(checkpoint, output_borrowed=true),
+      result_bytes,
+    )
+    borrowed.prepare(
+      context,
+      aot,
+      checkpoint,
+      root,
+      main_counts=main,
+      draft_counts=draft,
+      main_positions=main,
+      draft_positions=draft,
+      main_hidden=main,
+      draft_hidden=draft,
+      reset_flag=main,
+      start_position=draft,
+      output=result,
+      maximum_device_bytes=total - result_bytes,
+      chunk_bytes=4093,
+      limits~,
+    )
+    assert_true(borrowed.output().same_storage(result))
+    assert_eq(borrowed.prime_launches().length(), 7)
+    assert_eq(borrowed.prediction_launches().length(), 19)
+    borrowed.close()
+    // Closing the branch must not release the enclosing block's result.
+    context.validate_allocation_region(
+      result,
+      offset=0L,
+      byte_count=result_bytes,
+      alignment=2L,
+    )
+    result.close()
     draft.close()
     main.close()
     aot.close()

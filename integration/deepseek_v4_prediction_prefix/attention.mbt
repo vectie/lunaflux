@@ -50,3 +50,27 @@ pub fn prediction_attention_frame(
     ),
   )
 }
+
+///|
+/// Prediction blocks have no compressed-history rotary policy. Inverse RoPE
+/// and both compact output projections retain the same shared arithmetic plan
+/// as base attention, with draft-row geometry and base frequencies.
+pub fn prediction_attention_output_plan(
+  spec : @spec.DeepSeekV4ModelSpec,
+  maximum_positions~ : Int,
+  maximum_workspace_bytes~ : Int64,
+) -> @precision.GroupedAttentionOutputPrecision raise {
+  require_prediction_stage(spec, 0)
+  @precision.GroupedAttentionOutputPrecision::new(
+    head_count=spec.attention_head_count(),
+    head_width=spec.head_dimension(),
+    rotary_width=spec.rope_head_dimension(),
+    group_count=spec.output_group_count(),
+    output_rank=spec.o_lora_rank(),
+    hidden_width=spec.hidden_size(),
+    maximum_rows=spec.dspark_block_size(),
+    maximum_positions~,
+    frequency=Base(theta=spec.rope_theta()),
+    maximum_workspace_bytes~,
+  )
+}

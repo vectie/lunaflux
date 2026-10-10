@@ -7,9 +7,9 @@ priv enum AttentionState {
 }
 
 ///|
-/// Checkpoint-backed prediction attention through pre-inverse-RoPE output.
+/// Complete checkpoint-backed prediction attention through hidden-width output.
 /// Both phase tables share one committed ring and one compact weight owner.
-/// mHC input mixing, output projection and prediction FFN remain downstream.
+/// mHC input/output mixing and prediction FFN remain enclosing operations.
 pub struct DeepSeekPredictionAttention {
   priv spec : @spec.DeepSeekV4ModelSpec
   priv stage : Int
@@ -18,6 +18,8 @@ pub struct DeepSeekPredictionAttention {
   priv query : @query_frame.QuantizedQueryKvFrame
   priv draft_rotary : @rotary_frame.RotaryKvFrame
   priv ring : @draft_frame.CommittedDraftKvFrame
+  priv output : @output_frame.GroupedAttentionOutputFrame
+  priv output_bytes : Int64
   priv weights : @upload.CheckpointDeviceWeights
   priv workspace : Int64
   priv prime : Array[@device.OrderedKernelLaunch]
@@ -105,11 +107,23 @@ pub fn DeepSeekPredictionAttention::new(
     maximum_positions~,
     maximum_state_bytes=maximum_workspace_bytes,
   )
+  let output_plan = prediction_attention_output_plan(
+    spec,
+    maximum_positions~,
+    maximum_workspace_bytes~,
+  )
+  let output = @output_frame.GroupedAttentionOutputFrame::new(
+    @output_source.grouped_attention_output_source(
+      output_plan,
+      symbol_prefix=prefix + "_output",
+    ),
+  )
   let workspace = main.plan().workspace_bytes() +
     main_rotary.workspace_bytes() +
     query.workspace_bytes() +
     draft_rotary.workspace_bytes() +
-    p.state_bytes()
+    p.state_bytes() +
+    output.workspace_bytes()
   guard workspace <= maximum_workspace_bytes else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
@@ -120,6 +134,8 @@ pub fn DeepSeekPredictionAttention::new(
     main_rotary,
     query,
     draft_rotary,
+    output,
+    output_bytes: output_plan.frame_bytes()[2],
     ring: prediction_attention_frame(
       spec,
       maximum_main_rows~,
@@ -145,21 +161,27 @@ pub fn DeepSeekPredictionAttention::source_bytes(self : Self) -> Bytes {
   b"\n" +
   self.draft_rotary.source_bytes() +
   b"\n" +
-  self.ring.source_bytes()
+  self.ring.source_bytes() +
+  b"\n" +
+  self.output.source_bytes()
 }
 
 ///|
-pub fn DeepSeekPredictionAttention::workspace_bytes(self : Self) -> Int64 {
-  self.workspace
+pub fn DeepSeekPredictionAttention::workspace_bytes(
+  self : Self,
+  output_borrowed? : Bool = false,
+) -> Int64 {
+  self.workspace - (if output_borrowed { self.output_bytes } else { 0L })
 }
 
 ///|
 pub fn DeepSeekPredictionAttention::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
+  output_borrowed? : Bool = false,
 ) -> Int64 raise {
   bind_prediction_attention_weights(checkpoint, self.spec, stage=self.stage).fold(
-    init=self.workspace,
+    init=self.workspace_bytes(output_borrowed~),
     (total, w) => total + w.buffer_bytes(),
   )
 }
@@ -179,6 +201,7 @@ pub fn DeepSeekPredictionAttention::prepare(
   draft_hidden~ : @device.Allocation,
   reset_flag~ : @device.Allocation,
   start_position~ : @device.Allocation,
+  output? : @device.Allocation,
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming.StreamingSafetensorsLimits,
@@ -186,8 +209,21 @@ pub fn DeepSeekPredictionAttention::prepare(
   guard self.state is Fresh && !main_counts.same_storage(draft_counts) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
-  guard self.required_device_bytes(checkpoint) <= maximum_device_bytes else {
+  let workspace = self.workspace_bytes(output_borrowed=output is Some(_))
+  guard self.required_device_bytes(
+      checkpoint,
+      output_borrowed=output is Some(_),
+    ) <=
+    maximum_device_bytes else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+  }
+  if output is Some(buffer) {
+    context.validate_allocation_region(
+      buffer,
+      offset=0L,
+      byte_count=self.output_bytes,
+      alignment=2L,
+    )
   }
   let (_, _, main_rows) = self.main.plan().geometry()
   let draft_rows = self.spec.dspark_block_size()
@@ -219,7 +255,7 @@ pub fn DeepSeekPredictionAttention::prepare(
     checkpoint,
     root,
     bind_prediction_attention_weights(checkpoint, self.spec, stage=self.stage),
-    maximum_device_bytes=maximum_device_bytes - self.workspace,
+    maximum_device_bytes=maximum_device_bytes - workspace,
     chunk_bytes~,
     limits~,
   )
@@ -278,6 +314,18 @@ pub fn DeepSeekPredictionAttention::prepare(
     attention_sink=self.weights.allocation(5),
     maximum_state_bytes=self.ring.state_bytes(),
   )
+  self.output.prepare(
+    context,
+    aot,
+    counts=draft_counts,
+    positions=draft_positions,
+    attention=self.ring.output(),
+    weights=[self.weights.allocation(6), self.weights.allocation(7)],
+    output?,
+    maximum_workspace_bytes=self.output.workspace_bytes(
+      output_borrowed=output is Some(_),
+    ),
+  )
   self.prime.append(self.main.launches())
   self.prime.append(self.main_rotary.launches())
   self.prime.append(self.ring.prime_launches())
@@ -286,6 +334,7 @@ pub fn DeepSeekPredictionAttention::prepare(
   self.predict.append(self.query.launches())
   self.predict.append(self.draft_rotary.launches())
   self.predict.append(self.ring.prediction_launches())
+  self.predict.append(self.output.launches())
   self.state = Prepared
 }
 
@@ -316,7 +365,7 @@ pub fn DeepSeekPredictionAttention::output(
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
-  self.ring.output()
+  self.output.output()
 }
 
 ///|
@@ -327,6 +376,7 @@ pub fn DeepSeekPredictionAttention::close(self : Self) -> Unit raise {
   self.state = Failed
   self.prime.clear()
   self.predict.clear()
+  self.output.close()
   self.ring.close()
   self.draft_rotary.close()
   self.query.close()
