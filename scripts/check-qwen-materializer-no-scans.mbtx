@@ -1,0 +1,196 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/json",
+}
+
+// Local CPU fixture: exercise real entry points with deliberately unverified
+// payload labels. This is not an inference-startup or release prerequisite.
+
+///|
+async fn command(program : String, args : Array[String]) -> String {
+  let (code, out, err) = @process.collect_output(program, args)
+  guard code == 0 else { fail(out.text() + err.text()) }
+  out.text()
+}
+
+///|
+async fn write(path : String, text : String) -> Unit {
+  @fs.write_file(path, text, create_mode=CreateNew)
+}
+
+///|
+async fn main {
+  let root = command("mktemp", [
+      "-d", "/tmp/lunaflux-no-scan-materializer.XXXXXX",
+    ])
+    .trim()
+    .to_owned()
+  let label = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  let model = root + "/model"
+  let release = root + "/release"
+  ignore(command("mkdir", ["-p", model, release + "/payload/sha256"]))
+  for name in ["config.json", "tokenizer.json", "weights.safetensors"] {
+    write(model + "/" + name, "deliberately not the supplied digest\n")
+  }
+  write(root + "/worker", "fixture executable bytes\n")
+  write(root + "/corpus", "{}\n")
+  write(release + "/payload/lunaflux.execution.json", "{}\n")
+  write(
+    release + "/payload/sha256/" + label + ".cubin",
+    "not an executable kernel\n",
+  )
+  write(
+    release + "/kernel.files.sha256",
+    label +
+    "  lunaflux.execution.json\n" +
+    label +
+    "  sha256/" +
+    label +
+    ".cubin\n",
+  )
+  write(
+    release + "/kernel-root.plan.v1",
+    "schema=lunaflux-bf16-kernel-root-plan.v1\nexecution_manifest_relative=lunaflux.execution.json\nexecution_manifest_sha256=" +
+    label +
+    "\nmanifest_schema_version=2\ncatalog_version=3\noperation_count=9\nmodule_count=1\nentry_point_count=9\ntotal_module_bytes=25\nfiles_inventory_sha256=" +
+    label +
+    "\nkernel_root_identity_sha256=" +
+    label +
+    "\nexact_inventory=1\ncompiler_jit_free=1\n",
+  )
+  write(
+    root + "/runtime",
+    "schema=lunaflux-reusable-fused-runtime-bundle.v15\nfixture=true\n",
+  )
+  for
+    (name, profile, rows, tokens, greedy, fused) in [
+      ("c1", "native-framed-v1", "1", "1", "0", false),
+      ("c32", "native-framed-c32-benchmark-v1", "32", "4096", "1", true),
+      ("openai", "openai-responses-v1", "32", "4096", "0", false),
+    ] {
+    let binding = root + "/" + name + ".bind"
+    write(
+      binding,
+      "schema=lunaflux-qwen3-bf16-release-bind.v1\nrecipe=dense_qwen3_bf16_paged_aot_v12\nmodel_content_sha256=" +
+      label +
+      "\nweight_route_manifest_sha256=" +
+      label +
+      "\nmodel_plan_sha256=" +
+      label +
+      "\nadmitted_bootstrap_sha256=" +
+      label +
+      "\nbootstrap_source_sha256=" +
+      label +
+      "\nkernel_manifest_relative=lunaflux.execution.json\nkernel_manifest_sha256=" +
+      label +
+      "\ntarget=sm_121\nmax_batch_rows=" +
+      rows +
+      "\nmax_query_rows=" +
+      rows +
+      "\nmax_query_tokens=" +
+      tokens +
+      "\ntokens_per_page=16\nmax_sequence_tokens=8192\ntotal_page_count=1024\nmax_page_table_entries=512\nauthenticated_embedded_greedy_sampling=" +
+      greedy +
+      "\n",
+    )
+    let output = root + "/" + name
+    let args = [
+      model,
+      label,
+      label,
+      label,
+      "weights.safetensors",
+      label,
+      label,
+      release,
+      binding + "#sha256=" + label,
+      root + "/worker#sha256=" + label,
+      root + "/corpus#sha256=" + label,
+      "8888",
+      output,
+      profile,
+    ]
+    if fused {
+      args.push(root + "/runtime#sha256=" + label)
+    }
+    if fused {
+      write(
+        release + "/payload/reusable-fused-runtime-bundle.v3",
+        "older runtime, keep source unchanged\n",
+      )
+    }
+    let report = command("scripts/materialize-qwen3-bf16-v12-launch.sh", args)
+    for
+      line in [
+        "payload_hashing=false", "integrity_verified=false", "preflight_replayed=false",
+      ] {
+      assert_true(report.contains(line))
+    }
+    assert_eq(
+      @fs.read_file(output + "/model-root/weights.safetensors").text(),
+      "deliberately not the supplied digest\n",
+    )
+    let descriptor = @json.parse(
+      @fs.read_file(output + "/model-root/runtime/descriptor.json").text(),
+    )
+    guard descriptor
+      is {
+        "execution": {
+          "supports_cublas_lt": False,
+          "compute_major": Number(12, ..),
+          ..
+        },
+        "worker_limits": { "max_plan_tokens": Number(actual_tokens, ..), .. },
+        ..
+      } else {
+      fail("lost execution contract")
+    }
+    assert_eq(actual_tokens, if name == "c1" { 1.0 } else { 4096.0 })
+    let policy = @json.parse(
+      @fs.read_file(output + "/policy-root/instance/policy.json").text(),
+    )
+    guard policy
+      is {
+        "cache": { "block_table_pages_per_request": Number(512, ..), .. },
+        ..
+      } else {
+      fail("lost KV capacity")
+    }
+    if name == "openai" {
+      guard policy
+        is {
+          "external_protocol": {
+            "transport_security": String("loopback_plaintext"),
+            ..
+          },
+          ..
+        } else {
+        fail("unexpected transport policy")
+      }
+    }
+    if fused {
+      assert_eq(
+        @fs.read_file(release + "/payload/reusable-fused-runtime-bundle.v3").text(),
+        "older runtime, keep source unchanged\n",
+      )
+      assert_eq(
+        @fs.read_file(
+          output +
+          "/kernel-release/kernel-root/reusable-fused-runtime-bundle.v3",
+        ).text(),
+        "schema=lunaflux-reusable-fused-runtime-bundle.v15\nfixture=true\n",
+      )
+      @fs.remove(release + "/payload/reusable-fused-runtime-bundle.v3")
+    }
+    let (code, _, _) = @process.collect_output(
+      "scripts/materialize-qwen3-bf16-v12-launch.sh", args,
+    )
+    assert_true(code != 0) // A second invocation must not overwrite a run.
+  }
+  println(
+    "no-scan packaging fixture passed: c1/c32-fused/openai; retained at " + root,
+  )
+}

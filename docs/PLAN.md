@@ -2334,8 +2334,20 @@ recompiles it for bytewise determinism, and omits source/toolchain/driver integr
 rescans. The materializer omits incoming and copied runtime checksum validation.
 Producer-side content-address generation remains for distinct AOT/cache artifacts;
 it is offline naming, not repeated admission hardening or request-time work.
-The helper regression checks these removed scans/builds cannot return. This does
-not claim the older shell release-packaging workflow is entirely checksum-free.
+The helper regression checks these removed scans/builds cannot return. The
+historical Qwen launch materializer and reusable-runtime builder shell entry
+points now only launch their authoritative MoonBit implementations; they no
+longer retain alternate checksum-enforcing or twice-compiling implementations.
+The launch materializer consumes supplied artifact labels, copies model/kernel
+payloads once, and constructs descriptor/policy/launch metadata without a
+full-payload inventory or repeated release preflight. Newly generated small
+documents retain offline content identities; existing payloads are not hashed.
+Developer validation exercises real C1, C32 fused and OpenAI materialization
+with deliberately unverified labels, numeric capacity fields, sampling/profile
+agreement, source-preserving runtime replacement and non-overwriting outputs.
+Legacy source-string and cryptographic receipt fixtures are not startup gates.
+The affected native serving package passes 7/7 tests and planning passes 2/2;
+this is packaging validation, not a new model-throughput result.
 
 MiniMax text checkpoint staging and encoder execution can now target either
 Spark explicitly. The encoder runner takes an actual committed ARM executable,
@@ -2350,6 +2362,19 @@ without changing either model executable. New joint units retain their terminal
 status after exit so observation does not confuse unit garbage collection with
 an interrupted request. Neither wiring nor staging alone proves two-host inference.
 
+The actual .179 encoder now finishes its 50-layer, three-token checkpoint request:
+30,720 BF16 bytes, hidden_states[50], no nonfinite values, 23.1-GiB cgroup memory
+peak and zero swap. Its output exactly matches the earlier .178 encoder bytes
+for the same explicit token-ID fixture; this is not an independent numerical
+oracle or a natural-language quality result. The .178 joint v2 request now also
+finishes: conditioning, five complete 50-layer denoiser steps, VideoVAE and
+AudioVAE produce 1,523,712 video bytes and 1,324,800 audio bytes with no nonfinite
+values. Elapsed startup-inclusive time is 29m37s, CPU time 28m54.501s, cgroup
+memory peak 34.6 GiB, zero swap, empty stderr and GPU release. Downloaded outputs
+were not hashed. The new v3 request consumes .179's actual encoder output on
+.178; it remains active and is not yet a completed two-host request. Independent
+reference parity, prompt quality and performance optimization remain open.
+
 The MiniMax checkpoint diagnostic now has a `run-joint` preparation/execution
 entry. It consumes actual BF16 encoder hidden_states[50], then queues context
 projection, both refiners, conditioning assembly, every scheduled full-stack
@@ -2362,8 +2387,9 @@ external embeddings/parameters and decoder outputs before a GPU context opens.
 Driver/module/host-staging reserve is separate; a no-swap capped user unit is
 still required physically. This entry is text-only diagnostic execution, not
 reference-image/video support, independent numerical parity, prompt quality or
-a performance claim. Full physical execution remains unverified until the
-new entry actually completes on the model checkpoint.
+a performance claim. The bounded checkpoint execution is now verified by the
+terminal v2 result above, not merely this entry point's existence; complete
+two-host execution and independent numerical/quality comparison remain open.
 
 The first physical joint attempt (`52242267`, v1) stopped before CUDA at denoiser
 header binding. The real converted index spells the twenty refiner tensors

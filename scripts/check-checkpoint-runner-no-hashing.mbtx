@@ -40,8 +40,41 @@ async fn main {
   let materializer = @fs.read_file(
     "scripts/materialize-qwen3-bf16-v12-launch.mbtx",
   ).text()
-  guard !materializer.contains("assert_eq(sha(") else {
-    fail("Qwen materializer checksum verification reintroduced")
+  for
+    removed in [".sh", "assert_eq(sha(", "inventory(output", "validate-release"] {
+    guard !materializer.contains(removed) else {
+      fail("Qwen materializer legacy hardening reintroduced: " + removed)
+    }
+  }
+  for
+    name in [
+      "materialize-qwen3-bf16-v12-launch", "build-qwen3-reusable-fused-runtime",
+    ] {
+    let launcher = @fs.read_file("scripts/" + name + ".sh").text()
+    guard launcher.contains("exec moon run") else {
+      fail("legacy Qwen entry point bypasses MoonBit: " + name)
+    }
+    for
+      removed in [
+        "sha256sum", "shasum", "lbf_sha256_file", "bundle_require_digest", "for pass",
+        "verify-luna-kernel-root",
+      ] {
+      guard !launcher.contains(removed) else {
+        fail("legacy Qwen hardening reintroduced: " + name + ": " + removed)
+      }
+    }
+  }
+  let core = @fs.read_file("scripts/materialize-qwen3-bf16-launch-core.mbtx").text()
+  for
+    removed in [
+      "sha256sum", "shasum", "validate-release", "bundle.files.sha256", ".base",
+      "verify-luna-kernel-root",
+    ] {
+    guard !core.contains(removed) else {
+      fail(
+        "Qwen packaging payload scan/copy/preflight reintroduced: " + removed,
+      )
+    }
   }
   println(
     "checkpoint runner no-hashing regression passed: \{runners.length()} scripts",

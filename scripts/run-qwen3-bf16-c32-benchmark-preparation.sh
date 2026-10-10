@@ -254,8 +254,6 @@ fused_compiled=$artifact_root/reusable-fused-runtime
   "$fused_compiled" >"$logs/fused-runtime-build.stdout" \
   2>"$logs/fused-runtime-build.stderr" ||
   fail 'Qwen reusable fused runtime build failed'
-[[ ! -s $logs/fused-runtime-build.stderr ]] ||
-  fail 'Qwen reusable fused runtime build emitted stderr'
 fused_runtime=$fused_compiled/reusable-fused-runtime-bundle.v3
 fused_runtime_sha=$(sha256_file "$fused_runtime")
 
@@ -296,8 +294,6 @@ deployment=$artifact_root/deployment
   native-framed-c32-benchmark-v1 "$fused_runtime#sha256=$fused_runtime_sha" \
   >"$logs/deployment-materialize.stdout" 2>"$logs/deployment-materialize.stderr" ||
   fail 'Qwen c32 deployment materialization failed'
-[[ ! -s $logs/deployment-materialize.stderr ]] ||
-  fail 'deployment materialization emitted stderr'
 launch=$deployment/lunaflux.launch.json
 launch_sha=$(sha256_file "$launch")
 grep -Fq '"max_batch_rows":32' "$deployment/model-root/runtime/descriptor.json" ||

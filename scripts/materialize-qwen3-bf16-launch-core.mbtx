@@ -1,0 +1,684 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/fs",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x@0.4.48/crypto",
+}
+
+// Offline document identities name newly generated plans. Existing payloads
+// are copied, never hashed. Supplied labels are not integrity receipts.
+
+///|
+fn document_identity(text : String) -> String {
+  @crypto.bytes_to_hex_string(@crypto.sha256(@utf8.encode(text)))
+}
+
+///|
+async fn command(program : String, args : Array[String]) -> String {
+  let (code, out, err) = @process.collect_output(program, args)
+  guard code == 0 else { fail(out.text() + err.text()) }
+  out.text()
+}
+
+///|
+async fn document(path : String, text : String) -> String {
+  @fs.write_file(path, text, create_mode=CreateNew, permission=0o444)
+  document_identity(text)
+}
+
+///|
+fn label(value : StringView) -> Bool {
+  value.length() == 64 && value.iter().all(c => c is ('0'..='9' | 'a'..='f'))
+}
+
+///|
+fn absolute(path : StringView) -> Bool {
+  path.has_prefix("/") &&
+  path.length() > 1 &&
+  path
+  .iter()
+  .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '.' | '_' | '-')) &&
+  path[1:].split("/").all(x => !x.is_empty() && x != "." && x != "..")
+}
+
+///|
+fn declared_file(argument : String) -> (String, String) raise {
+  guard argument.split("#sha256=").to_array() is [path, digest] &&
+    absolute(path) &&
+    label(digest) else {
+    fail("absolute file with declared label required")
+  }
+  (path.to_owned(), digest.to_owned())
+}
+
+///|
+fn fields(text : String) -> Map[String, String] raise {
+  let values : Map[String, String] = Map([])
+  for line in text.split("\n") {
+    if line.is_empty() {
+      continue
+    }
+    guard line.split("=").to_array() is [key, value] &&
+      !key.is_empty() &&
+      !value.is_empty() &&
+      !values.contains(key.to_owned()) else {
+      fail("missing or duplicate release field")
+    }
+    values[key.to_owned()] = value.to_owned()
+  }
+  values
+}
+
+///|
+fn required(values : Map[String, String], key : String) -> String raise {
+  guard values.get(key) is Some(value) else {
+    fail("missing release field: " + key)
+  }
+  value
+}
+
+///|
+fn integer(
+  values : Map[String, String],
+  key : String,
+  lower : Int64,
+  upper : Int64,
+) -> Int64 raise {
+  let value = @string.parse_int64(required(values, key))
+  guard lower <= value && value <= upper else {
+    fail("release capacity outside bounds: " + key)
+  }
+  value
+}
+
+///|
+struct Geometry {
+  rows : Int64
+  tokens : Int64
+  pages : Int64
+  table : Int64
+  context : Int64
+  page_tokens : Int64
+  activation : Int64
+  major : Int64
+  minor : Int64
+  greedy : Bool
+}
+
+///|
+fn geometry(values : Map[String, String], profile : String) -> Geometry raise {
+  guard [
+    "native-framed-v1", "native-framed-c32-benchmark-v1", "openai-responses-v1",
+  ].contains(profile) else {
+    fail("unsupported materialization profile")
+  }
+  let target = required(values, "target")
+  guard target.has_prefix("sm_") else { fail("invalid device target") }
+  let capability = @string.parse_int64(target[3:])
+  guard capability >= 80 && capability <= 999 else {
+    fail("BF16 target required")
+  }
+  let rows = integer(values, "max_batch_rows", 1, 32)
+  let query_rows = integer(values, "max_query_rows", 1, 32)
+  let tokens = integer(values, "max_query_tokens", 1, 2147483647L)
+  guard (
+      profile == "native-framed-v1" &&
+      rows == 1 &&
+      query_rows == 1 &&
+      tokens == 1
+    ) ||
+    (
+      profile != "native-framed-v1" &&
+      rows == 32 &&
+      query_rows == 32 &&
+      tokens >= 32
+    ) else {
+    fail("profile and execution geometry differ")
+  }
+  let page_tokens = integer(values, "tokens_per_page", 1, 2147483647L)
+  let context = integer(values, "max_sequence_tokens", 1, 2147483647L)
+  let pages = integer(values, "total_page_count", 1, 2147483647L)
+  let table = integer(values, "max_page_table_entries", 1, pages)
+  guard (context + page_tokens - 1) / page_tokens <= table else {
+    fail("insufficient context page table")
+  }
+  let sampling = required(values, "authenticated_embedded_greedy_sampling")
+  guard sampling == "0" || sampling == "1" else {
+    fail("invalid sampling mode")
+  }
+  let greedy = sampling == "1"
+  guard greedy == (profile == "native-framed-c32-benchmark-v1") else {
+    fail("sampling profile differs")
+  }
+  let activation = match values.get("max_activation_arena_bytes") {
+    None => 2147483648L
+    Some(_) =>
+      integer(values, "max_activation_arena_bytes", 1073741824L, 68719476736L)
+  }
+  {
+    rows,
+    tokens,
+    pages,
+    table,
+    context,
+    page_tokens,
+    activation,
+    major: capability / 10,
+    minor: capability % 10,
+    greedy,
+  }
+}
+
+///|
+fn runtime_locator(schema : StringView) -> String raise {
+  if schema == "schema=lunaflux-reusable-fused-residual-rmsnorm-runtime.v1" {
+    return "reusable-fused-residual.runtime.v1"
+  }
+  for version in 3..<16 {
+    if schema == "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}" {
+      return "reusable-fused-runtime-bundle.v3"
+    }
+  }
+  fail("unsupported fused runtime schema")
+}
+
+///|
+fn with_runtime(
+  inventory : String,
+  path : String,
+  digest : String,
+) -> String raise {
+  let records : Array[(String, String)] = []
+  for line in inventory.split("\n") {
+    if line.is_empty() {
+      continue
+    }
+    guard line.split("  ").to_array() is [old_digest, old_path] &&
+      label(old_digest) else {
+      fail("invalid declared kernel inventory")
+    }
+    if old_path != path {
+      records.push((old_path.to_owned(), old_digest.to_owned()))
+    }
+  }
+  records.push((path, digest))
+  records.sort_by((a, b) => a.0.lexical_compare(b.0))
+  records.map(x => x.1 + "  " + x.0 + "\n").join("")
+}
+
+///|
+fn descriptor(
+  args : Array[String],
+  binding : Map[String, String],
+  g : Geometry,
+  runtime : Json?,
+) -> Json raise {
+  let kernels : Map[String, Json] = {
+    "manifest_locator": Json::string(
+      required(binding, "kernel_manifest_relative"),
+    ),
+    "manifest_sha256": Json::string(required(binding, "kernel_manifest_sha256")),
+    "policy": "deployment_approved_aot_only",
+    "admitted_bootstrap_sha256": Json::string(
+      required(binding, "admitted_bootstrap_sha256"),
+    ),
+  }
+  if g.greedy {
+    kernels["sampling_runtime"] = "embedded_cuda_greedy_v1"
+  }
+  if runtime is Some(value) {
+    kernels["fused_runtime"] = value
+  }
+  {
+    "schema_version": Json::string(
+      if runtime is Some(_) {
+        "lunaflux.runtime.qwen3_bf16.v2"
+      } else {
+        "lunaflux.runtime.qwen3_bf16.v1"
+      },
+    ),
+    "model": {
+      "family": "qwen3",
+      "config_locator": "config.json",
+      "config_sha256": Json::string(args[1]),
+      "content_sha256": Json::string(args[2]),
+      "numeric_weights_locator": Json::string(args[4]),
+      "numeric_weight_artifact_sha256": Json::string(args[5]),
+      "weight_manifest_sha256": Json::string(args[6]),
+      "tied_embeddings": true,
+      "max_batch_rows": g.rows.to_double().to_json(),
+    },
+    "kernels": Json::object(kernels),
+    "execution": {
+      "device_ordinal": 0,
+      "compute_major": g.major.to_double().to_json(),
+      "compute_minor": g.minor.to_double().to_json(),
+      "supports_bf16": true,
+      "supports_cublas_lt": false,
+      "tokens_per_page": g.page_tokens.to_double().to_json(),
+      "total_page_count": g.pages.to_double().to_json(),
+      "model_generation": 1,
+    },
+    "worker_limits": {
+      "max_prefill_rows": g.rows.to_double().to_json(),
+      "max_decode_rows": g.rows.to_double().to_json(),
+      "max_plan_rows": g.rows.to_double().to_json(),
+      "max_plan_tokens": g.tokens.to_double().to_json(),
+      "max_plan_pages": g.table.to_double().to_json(),
+      "max_capabilities": 1024,
+      "max_completion_slots": g.rows.to_double().to_json(),
+      "max_sequence_tokens": g.context.to_double().to_json(),
+      "max_token_id": 151935,
+    },
+    "inference_limits": {
+      "max_text_bytes": 65536,
+      "max_input_tokens": 4096,
+      "max_new_tokens": 256,
+      "max_context_tokens": g.context.to_double().to_json(),
+      "max_token_id": 151935,
+      "max_stop_token_ids": 16,
+      "max_stop_strings": 16,
+      "max_stop_string_bytes": 256,
+      "max_trace_bytes": 128,
+      "max_cache_scope_bytes": 64,
+      "max_decoded_delta_bytes": 4099,
+      "max_deadline_millis": 60000,
+      "max_top_k": 151936,
+      "max_temperature": 2.0,
+    },
+    "ceilings": {
+      "max_model_config_bytes": 1048576,
+      "max_weight_file_bytes": 3221225472L.to_double().to_json(),
+      "max_weight_arena_bytes": 3221225472L.to_double().to_json(),
+      "max_activation_arena_bytes": g.activation.to_double().to_json(),
+      "max_kv_arena_bytes": 17179869184L.to_double().to_json(),
+      "max_execution_manifest_bytes": 1048576,
+      "max_module_bytes": 4194304,
+      "max_total_module_bytes": 2147483647,
+    },
+  }
+}
+
+///|
+fn policy(
+  descriptor_label : String,
+  tokenizer_label : String,
+  g : Geometry,
+  port : Int64,
+  openai : Bool,
+) -> Json {
+  let c1 = g.rows == 1
+  let result : Map[String, Json] = {
+    "schema_version": Json::string(
+      if openai {
+        "lunaflux.instance-policy.v3"
+      } else {
+        "lunaflux.instance-policy.v1"
+      },
+    ),
+    "runtime_descriptor_sha256": Json::string(descriptor_label),
+    "tokenizer": {
+      "locator": "tokenizer.json",
+      "sha256": Json::string(tokenizer_label),
+      "max_file_bytes": 67108864,
+      "max_json_depth": 64,
+      "max_input_bytes": 65536,
+      "max_output_tokens": 65536,
+      "max_decoded_bytes": 1048576,
+      "max_vocab_entries": 200000,
+      "max_merge_rules": 1000000,
+      "max_token_bytes": 4096,
+      "max_special_tokens": 64,
+    },
+    "scheduler": {
+      "step_token_budget": g.tokens.to_double().to_json(),
+      "max_active_requests": g.rows.to_double().to_json(),
+      "max_waiting_requests": g.rows.to_double().to_json(),
+      "prefill_chunk_tokens": g.tokens.to_double().to_json(),
+      "emergency_decode_page_reserve": 1,
+      "waiting_age_threshold_steps": 8,
+      "output_event_capacity": (if c1 { 512 } else { 16384 }).to_json(),
+    },
+    "cache": {
+      "tokens_per_page": g.page_tokens.to_double().to_json(),
+      "total_page_count": g.pages.to_double().to_json(),
+      "block_table_pages_per_request": ((g.context + g.page_tokens - 1) /
+      g.page_tokens)
+      .to_double()
+      .to_json(),
+      "prefix_enabled": false,
+      "max_prefix_entries": 0,
+      "max_prefix_nodes": 0,
+      "max_prefix_tokens_per_entry": 0,
+      "max_prefix_pages": 0,
+      "max_prefix_scope_bytes": 0,
+      "max_active_references_per_page": 1,
+      "max_cached_references_per_page": 1,
+      "layout_version": 1,
+    },
+    "service": {
+      "listen_host": "127.0.0.1",
+      "listen_port": port.to_double().to_json(),
+      "max_request_bytes": 1048576,
+      "graceful_drain_milliseconds": 30000,
+      "diagnostic_mode": "normal",
+    },
+    "worker_process": {
+      "max_frame_bytes": 1048576,
+      "startup_io_timeout_millis": 600000,
+      "io_timeout_millis": 600000,
+      "shutdown_timeout_millis": 600000,
+    },
+    "restart": {
+      "initial_backoff_millis": 10,
+      "maximum_backoff_millis": 1000,
+      "stable_after_millis": 1000,
+      "maximum_attempts": 3,
+    },
+    "transport": {
+      "read_chunk_bytes": 65536,
+      "write_chunk_bytes": 65536,
+      "accept_timeout_millis": 1000,
+      "input_idle_timeout_millis": 60000,
+      "write_timeout_millis": 60000,
+      "reactor_transition_budget": 256,
+    },
+    "preparation": {
+      "framed_max_frame_bytes": 1048576,
+      "lane_count": (if c1 { 1L } else { 2L * g.rows }).to_double().to_json(),
+      "step_work_units": 256,
+      "total_work_units": 10000000,
+      "storage_int_cells": (if c1 { 2000000 } else { 38282560 }).to_json(),
+      "storage_byte_cells": (if c1 { 8388608 } else { 80499072 }).to_json(),
+      "storage_reference_cells": 200000,
+      "event_work_units": 256,
+    },
+    "telemetry": { "instance_log_capacity": 4096 },
+  }
+  if openai {
+    result["external_protocol"] = {
+      "mode": "openai_responses_v1",
+      "transport_security": "loopback_plaintext",
+      "control_authentication": "deployment_bearer",
+      "invocation_path": "/v1/responses",
+      "health_path": "/healthz",
+      "readiness_path": "/readyz",
+      "drain_path": "/v1/drain",
+      "drain_method": "POST",
+    }
+    result["openai_service"] = {
+      "maximum_credential_bytes": 128,
+      "max_head_bytes": 65536,
+      "max_body_bytes": 1048576,
+      "http_step_work_units": 256,
+      "response_step_work_units": 256,
+      "inbound_step_work_units": 256,
+      "outbound_step_work_units": 256,
+      "max_messages": 32,
+      "system_prefix": "<|im_start|>system\n",
+      "system_suffix": "<|im_end|>\n",
+      "user_prefix": "<|im_start|>user\n",
+      "user_suffix": "<|im_end|>\n",
+      "assistant_prefix": "<|im_start|>assistant\n",
+      "assistant_suffix": "<|im_end|>\n",
+      "assistant_cue": "<|im_start|>assistant\n",
+      "max_rendered_prompt_bytes": 65536,
+      "model_alias": "qwen3-0.6b-bf16",
+      "response_id_prefix": "resp_lunaflux_qwen3_",
+      "cache_scope_ascii": "qwen3-openai-v1",
+      "max_new_tokens": 256,
+      "context_ceiling": g.context.to_double().to_json(),
+      "sampling_seed": 1,
+      "deadline_milliseconds": 60000,
+    }
+  }
+  Json::object(result)
+}
+
+///|
+async fn main {
+  let args = @env.args()[1:].to_owned()
+  guard args.length() >= 13 && args.length() <= 15 else {
+    fail("13..15 materialization arguments required")
+  }
+  let model = args[0]
+  let release = args[7]
+  let output = args[12]
+  guard [model, release, output].all(path => absolute(path)) &&
+    !args[4].contains("/") &&
+    !args[4].is_empty() &&
+    args[4] != "." &&
+    args[4] != ".." else {
+    fail("invalid model/release/output path")
+  }
+  for index in [1, 2, 3, 5, 6] {
+    guard label(args[index]) else { fail("invalid supplied label") }
+  }
+  let (bind_path, _) = declared_file(args[8])
+  let (worker, worker_label) = declared_file(args[9])
+  let (corpus, corpus_label) = declared_file(args[10])
+  let binding_text = @fs.read_file(bind_path).text()
+  let binding = fields(binding_text)
+  assert_eq(required(binding, "schema"), "lunaflux-qwen3-bf16-release-bind.v1")
+  assert_eq(required(binding, "recipe"), "dense_qwen3_bf16_paged_aot_v12")
+  assert_eq(required(binding, "model_content_sha256"), args[2])
+  assert_eq(required(binding, "weight_route_manifest_sha256"), args[6])
+  let profile = if args.length() >= 14 { args[13] } else { "native-framed-v1" }
+  let g = geometry(binding, profile)
+  let port = @string.parse_int64(args[11])
+  guard port > 0 && port <= 65535 else { fail("listen port outside 1..65535") }
+  let plan_text = @fs.read_file(release + "/kernel-root.plan.v1").text()
+  let inventory_text = @fs.read_file(release + "/kernel.files.sha256").text()
+  let runtime = if args.length() == 15 {
+    let (path, digest) = declared_file(args[14])
+    let text = @fs.read_file(path).text()
+    let locator = runtime_locator(text.split("\n").to_array()[0])
+    Some((locator, digest, text))
+  } else {
+    None
+  }
+  // mkdir fails if the destination exists. Partial output is retained on an
+  // error; never remove another run's artifacts or overwrite hard links.
+  @fs.mkdir(output)
+  ignore(
+    command("mkdir", [
+      "-p",
+      output + "/model-root/runtime",
+      output + "/policy-root/instance",
+      output + "/bin",
+      output + "/corpus",
+      output + "/evidence",
+      output + "/kernel-release",
+    ]),
+  )
+  ignore(
+    command("cp", [
+      "-R",
+      release + "/payload",
+      output + "/kernel-release/kernel-root",
+    ]),
+  )
+  let (final_plan, final_inventory) = match runtime {
+    None => (plan_text, inventory_text)
+    Some((locator, digest, text)) => {
+      let staged_runtime = output + "/kernel-release/runtime.staged"
+      @fs.write_file(
+        staged_runtime,
+        text,
+        create_mode=CreateNew,
+        permission=0o444,
+      )
+      // Only replace our fresh copy; never overwrite the source release view.
+      @fs.rename(
+        staged_runtime,
+        output + "/kernel-release/kernel-root/" + locator,
+        replace=true,
+      )
+      let updated = with_runtime(inventory_text, locator, digest)
+      let lines = plan_text.split("\n").map(x => x.to_owned()).to_array()
+      guard lines.length() == 14 &&
+        lines[2].has_prefix("execution_manifest_sha256=") else {
+        fail("kernel plan fields")
+      }
+      let inventory_label = document_identity(updated)
+      let identity = "schema=lunaflux-bf16-kernel-root-identity.v1\n" +
+        lines[2] +
+        "\nfiles_inventory_sha256=" +
+        inventory_label +
+        "\n"
+      lines[9] = "files_inventory_sha256=" + inventory_label
+      lines[10] = "kernel_root_identity_sha256=" + document_identity(identity)
+      (lines.join("\n"), updated)
+    }
+  }
+  ignore(document(output + "/kernel-release/kernel-root.plan.v1", final_plan))
+  ignore(
+    document(output + "/kernel-release/kernel.files.sha256", final_inventory),
+  )
+  for name in ["config.json", "tokenizer.json", args[4]] {
+    ignore(command("cp", [model + "/" + name, output + "/model-root/" + name]))
+  }
+  ignore(command("cp", [worker, output + "/bin/lunaflux-device-worker"]))
+  ignore(command("chmod", ["555", output + "/bin/lunaflux-device-worker"]))
+  ignore(command("cp", [corpus, output + "/corpus/reference.json"]))
+  @fs.write_file(
+    output + "/evidence/release-bind.v1",
+    binding_text,
+    create_mode=CreateNew,
+  )
+  let runtime_json : Json? = match runtime {
+    None => None
+    Some((locator, digest, _)) =>
+      Some({ "locator": Json::string(locator), "sha256": Json::string(digest) })
+  }
+  let descriptor_label = document(
+    output + "/model-root/runtime/descriptor.json",
+    descriptor(args, binding, g, runtime_json).stringify() + "\n",
+  )
+  let policy_label = document(
+    output + "/policy-root/instance/policy.json",
+    policy(descriptor_label, args[3], g, port, profile == "openai-responses-v1").stringify() +
+    "\n",
+  )
+  let launch : Json = {
+    "schema": "lunaflux.launch.v5",
+    "runtime_recipe": "dense_qwen3_bf16_paged_aot_v12",
+    "model_root": Json::string(output + "/model-root"),
+    "kernel_root": Json::string(output + "/kernel-release/kernel-root"),
+    "policy_root": Json::string(output + "/policy-root"),
+    "runtime_descriptor": {
+      "locator": "runtime/descriptor.json",
+      "sha256": Json::string(descriptor_label),
+    },
+    "instance_policy": {
+      "locator": "instance/policy.json",
+      "sha256": Json::string(policy_label),
+    },
+    "worker_executable": {
+      "path": Json::string(output + "/bin/lunaflux-device-worker"),
+      "sha256": Json::string(worker_label),
+    },
+    "luna_approval": { "mode": "none" },
+  }
+  let launch_label = document(
+    output + "/lunaflux.launch.json",
+    launch.stringify() + "\n",
+  )
+  // Runtime preparation performs the necessary ABI/shape/budget joins once.
+  // Do not replay it here or produce a full-payload checksum inventory.
+  let report = "schema=lunaflux-qwen3-v12-launch-materialization.v2\ndeployment_root=" +
+    output +
+    "\nlaunch_sha256=" +
+    launch_label +
+    "\nmodel_plan_sha256=" +
+    required(binding, "model_plan_sha256") +
+    "\nbootstrap_sha256=" +
+    required(binding, "admitted_bootstrap_sha256") +
+    "\nbootstrap_source_sha256=" +
+    required(binding, "bootstrap_source_sha256") +
+    "\nreference_corpus_sha256=" +
+    corpus_label +
+    "\nlisten_addr=127.0.0.1:" +
+    port.to_string() +
+    "\nsampling_runtime=" +
+    (if g.greedy { "embedded_cuda_greedy_v1" } else { "host" }) +
+    "\nmaterialization_profile=" +
+    profile +
+    "\nmax_batch_rows=" +
+    g.rows.to_string() +
+    "\nscheduler_max_active_requests=" +
+    g.rows.to_string() +
+    "\nscheduler_max_waiting_requests=" +
+    g.rows.to_string() +
+    "\npayload_hashing=false\nintegrity_verified=false\npreflight_replayed=false\n"
+  @fs.write_file(
+    output + "/evidence/materialization.v2",
+    report,
+    create_mode=CreateNew,
+  )
+  println(report)
+}
+
+///|
+test "declared payload label is consumed without inspecting its bytes" {
+  let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  assert_eq(
+    declared_file("/not-opened/weights.safetensors#sha256=" + digest),
+    ("/not-opened/weights.safetensors", digest),
+  )
+  assert_eq(
+    with_runtime(
+      digest + "  sha256/old.cubin\n",
+      "reusable-fused-runtime-bundle.v3",
+      digest,
+    ),
+    digest +
+    "  reusable-fused-runtime-bundle.v3\n" +
+    digest +
+    "  sha256/old.cubin\n",
+  )
+}
+
+///|
+test "materializer retains numerical capacity and profile contracts" {
+  let binding = fields(
+    "target=sm_121\nmax_batch_rows=32\nmax_query_rows=32\nmax_query_tokens=4096\ntokens_per_page=16\nmax_sequence_tokens=8192\ntotal_page_count=1024\nmax_page_table_entries=512\nauthenticated_embedded_greedy_sampling=1\n",
+  )
+  let g = geometry(binding, "native-framed-c32-benchmark-v1")
+  assert_eq(g.tokens, 4096L)
+  assert_eq(g.major, 12L)
+  assert_eq(g.minor, 1L)
+  binding["authenticated_embedded_greedy_sampling"] = "2"
+  try geometry(binding, "native-framed-c32-benchmark-v1") catch {
+    _ => ()
+  } noraise {
+    _ => fail("invalid sampling mode accepted")
+  }
+  binding["authenticated_embedded_greedy_sampling"] = "1"
+  binding["max_page_table_entries"] = "511"
+  try geometry(binding, "native-framed-c32-benchmark-v1") catch {
+    _ => ()
+  } noraise {
+    _ => fail("undersized KV table accepted")
+  }
+  try fields("target=sm_121\ntarget=sm_120\n") catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate field accepted")
+  }
+  assert_eq(
+    runtime_locator("schema=lunaflux-reusable-fused-runtime-bundle.v15"),
+    "reusable-fused-runtime-bundle.v3",
+  )
+  try
+    runtime_locator("schema=lunaflux-reusable-fused-runtime-bundle.v16")
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("future runtime accepted")
+  }
+}

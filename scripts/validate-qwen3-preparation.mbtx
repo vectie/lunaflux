@@ -1,0 +1,41 @@
+///|
+import {
+  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.20.3/process",
+  "moonbitlang/core/env",
+}
+
+// Developer validation, never called by materialization or model startup.
+// Validate executable planning behavior instead of preserving obsolete shell
+// source-string anchors or cryptographic receipt-substitution fixtures.
+
+///|
+async fn checked(args : Array[String]) -> Unit {
+  let (code, out, err) = @process.collect_output("moon", args)
+  guard code == 0 else { fail(out.text() + err.text()) }
+  println(out.text())
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode] &&
+    ["serving", "benchmark", "capacity"].contains(mode) else {
+    fail("serving|benchmark|capacity required")
+  }
+  checked([
+    "test", "scripts/materialize-qwen3-bf16-launch-core.mbtx", "--deny-warn",
+  ])
+  checked(["run", "scripts/check-checkpoint-runner-no-hashing.mbtx"])
+  checked(["run", "scripts/check-qwen-materializer-no-scans.mbtx"])
+  if mode == "serving" {
+    checked([
+      "test", "tests/qwen3_bf16_physical", "--target", "native", "--deny-warn", "--warn-list",
+      "-20-25-29-35-79-92",
+    ])
+  }
+  println(
+    "Qwen3 " +
+    mode +
+    " preparation validation passed; payload authentication not claimed",
+  )
+}

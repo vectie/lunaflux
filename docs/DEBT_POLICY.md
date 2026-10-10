@@ -84,6 +84,12 @@ Checkpoint build, resume and download helpers follow the same policy: do not
 scan source archives, binaries or CUBINs for checksums. Use command success and
 compiler terminal status, and keep new output paths non-overwriting. Historical
 receipts remain historical; these helpers do not claim content authentication.
+Compatibility entry points must launch the same implementation, not preserve a
+hidden shell fallback that rescans payloads or compiles AOT modules twice for
+bytewise comparison. Materialization must not repeat runtime preparation or
+scan copied model/kernel payloads to create a full checksum inventory. Small
+newly generated plan/descriptor identities are computed once offline; existing
+artifact labels are consumed, not reauthenticated.
 
 ## Compatibility discipline
 
