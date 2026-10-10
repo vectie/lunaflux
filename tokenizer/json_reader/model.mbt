@@ -282,7 +282,6 @@ fn parse_model(
           feature=ByteFallbackBehavior,
         )
       }
-      ignore(require_bool(model, "ignore_merges", Model, IgnoreMerges, 0))
       (-1, -1)
     }
     SentencePieceJson(bos_token_id~) => {
@@ -318,6 +317,11 @@ fn parse_model(
       (unknown_token_id, bos_token_id)
     }
   }
+  let ignore_merges = match profile {
+    ByteLevelJson | Qwen3Json | Qwen35Json | DigitTripletJson =>
+      optional_ignore_merges(model)
+    SentencePieceJson(..) => false
+  }
   let vocabulary = parse_vocabulary(
     require_field(model, "vocab", Model, Vocab),
     specials,
@@ -330,11 +334,6 @@ fn parse_model(
     limits,
     profile,
   )
-  let ignore_merges = match profile {
-    ByteLevelJson | Qwen3Json | Qwen35Json | DigitTripletJson =>
-      require_bool(model, "ignore_merges", Model, IgnoreMerges, 0)
-    SentencePieceJson(..) => false
-  }
   match profile {
     DigitTripletJson =>
       @tokenizer.TokenizerSpec::new_digit_triplet_bpe(
