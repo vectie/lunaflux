@@ -281,14 +281,23 @@ fn LunaTokenizerWorker::progress_initialize(
       self.qwen_segment_end = -1
     } else {
       if self.qwen_segment_end < 0 {
-        self.qwen_segment_end = qwen3_pretoken_end(
-          self.input,
-          self.input_length,
-          self.input_offset,
-          include_marks=self.spec.profile == TOKENIZER_PROFILE_QWEN35_BPE,
-          digit_triplets=self.spec.profile ==
-            TOKENIZER_PROFILE_DIGIT_TRIPLET_BPE,
-        )
+        self.qwen_segment_end = if self.spec.profile ==
+          TOKENIZER_PROFILE_ORDERED_SCRIPT_BPE {
+          ordered_script_pretoken_end(
+            self.input,
+            self.input_length,
+            self.input_offset,
+          )
+        } else {
+          qwen3_pretoken_end(
+            self.input,
+            self.input_length,
+            self.input_offset,
+            include_marks=self.spec.profile == TOKENIZER_PROFILE_QWEN35_BPE,
+            digit_triplets=self.spec.profile ==
+              TOKENIZER_PROFILE_DIGIT_TRIPLET_BPE,
+          )
+        }
       }
       if self.special_policy is AsOrdinary ||
         self.spec.special_tokens.is_empty() {

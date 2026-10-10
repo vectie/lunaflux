@@ -51,3 +51,15 @@ verification/accept/reject/commit still required for acceleration.
 Native compile and component GPU results are not proof of complete-checkpoint
 numerical correctness or throughput. The new attached route has not yet passed
 a complete real-checkpoint run.
+
+## Literal text frontend
+
+`text-frames MODEL_ROOT ROWS HISTORY TOKENIZER_LABEL INPUT_UTF8_FILE NEW_OUTDIR`
+loads the original tokenizer JSON through the common native frontend and writes
+the same prompt frames as `token-frames`, plus token IDs and decoded text. The
+input file is literal already-rendered text: no implicit BOS/EOS, chat template
+or normalization is added. The installed identity-normalizer ordered numeric,
+CJK/kana and word/symbol Split sequence retains all earlier split boundaries
+during BPE. The 64-hex label is caller supplied, not a computed checksum. This
+mode reads no weight inventory/shards and opens no CUDA context. Token output
+reserves one context position for generation; overflow is rejected.

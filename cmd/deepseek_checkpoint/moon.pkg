@@ -20,6 +20,7 @@ import {
   "vectie/lunaflux/integration/deepseek_v4_text_io" @text,
   "vectie/lunaflux/engine/serial_generation" @generation,
   "vectie/lunaflux/engine/serial_prompt_frames" @prompt,
+  "vectie/lunaflux/integration/checkpoint_text_input" @text_input,
   "vectie/lunaflux/integration/serial_decoder_worker" @worker,
   "vectie/lunaflux/integration/serial_decoder_pipeline" @pipeline,
   "vectie/lunaflux/integration/decoder_stage_control" @control,

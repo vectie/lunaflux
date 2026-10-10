@@ -14,6 +14,7 @@ priv enum TokenizerJsonProfile {
   Qwen3Json
   Qwen35Json
   DigitTripletJson
+  OrderedScriptJson
 }
 
 ///|
@@ -144,7 +145,14 @@ fn parse_added_tokens(
       index,
     )
     let special = require_bool(entry, "special", AddedToken, Special, index)
-    if single_word || left_strip || right_strip || normalized {
+    // In an identity-normalized pipeline the normalized and raw matching
+    // domains are identical. Other profiles must still implement normalization
+    // before accepting this flag; stripping and word boundaries are separate.
+    let identity_normalized = profile is OrderedScriptJson
+    if single_word ||
+      left_strip ||
+      right_strip ||
+      (normalized && !identity_normalized) {
       raise UnsupportedSemantics(
         component=AddedToken,
         feature=AddedTokenMatching,
@@ -166,7 +174,7 @@ fn parse_added_tokens(
           )
         }
       }
-      DigitTripletJson => ()
+      DigitTripletJson | OrderedScriptJson => ()
       _ =>
         if !special {
           raise UnsupportedSemantics(
@@ -227,6 +235,10 @@ fn validate_root_semantics(
               feature=NormalizationBehavior,
             )
         }
+      } else if normalizer.get("type") is Some(String("Sequence")) &&
+        normalizer.get("normalizers") is Some(Array([])) {
+        validate_fields(normalizer, Normalizer, ["type", "normalizers"])
+        validate_ordered_script_pipeline(root)
       } else {
         validate_sentencepiece_pipeline(root)
       }

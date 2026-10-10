@@ -24,10 +24,14 @@ const TOKENIZER_PROFILE_QWEN35_BPE : Int = 3
 const TOKENIZER_PROFILE_DIGIT_TRIPLET_BPE : Int = 4
 
 ///|
+const TOKENIZER_PROFILE_ORDERED_SCRIPT_BPE : Int = 5
+
+///|
 fn TokenizerSpec::has_regex_pretokens(self : TokenizerSpec) -> Bool {
   self.profile == TOKENIZER_PROFILE_QWEN3_BPE ||
   self.profile == TOKENIZER_PROFILE_QWEN35_BPE ||
-  self.profile == TOKENIZER_PROFILE_DIGIT_TRIPLET_BPE
+  self.profile == TOKENIZER_PROFILE_DIGIT_TRIPLET_BPE ||
+  self.profile == TOKENIZER_PROFILE_ORDERED_SCRIPT_BPE
 }
 
 ///|
@@ -37,7 +41,8 @@ fn TokenizerSpec::has_regex_pretokens(self : TokenizerSpec) -> Bool {
 /// SentencePiece-derived BPE `tokenizer.json` pipeline, the pinned dense Qwen3
 /// NFC/regex ByteLevel-BPE pipeline, and the separately pinned Qwen3.5/Qwen3.6
 /// NFC/mark-aware ByteLevel-BPE pipeline, and the no-normalizer digit-triplet
-/// ByteLevel-BPE pipeline. This type does not claim
+/// ByteLevel-BPE pipeline and ordered numeric/script/word isolated splits.
+/// This type does not claim
 /// compatibility with arbitrary normalizer, template, decoder, or model-family
 /// profiles.
 pub struct TokenizerSpec {

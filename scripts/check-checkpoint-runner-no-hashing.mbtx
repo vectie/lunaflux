@@ -61,7 +61,7 @@ async fn main {
     fail("typed LunaTile planning input must not be reauthenticated by lowering")
   }
   for path in [
-    "cmd/deepseek_checkpoint/startup.mbt", "cmd/glm_checkpoint/startup.mbt", "cmd/glm_checkpoint/text_prompt.mbt",
+    "cmd/deepseek_checkpoint/startup.mbt", "cmd/deepseek_checkpoint/text_prompt.mbt", "cmd/glm_checkpoint/startup.mbt", "cmd/glm_checkpoint/text_prompt.mbt",
     "cmd/minimax_checkpoint/text_input.mbt", "integration/checkpoint_text_input/input.mbt",
   ] {
     let source = @fs.read_file(path).text()
