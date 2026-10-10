@@ -78,13 +78,12 @@ fn canonical_contract_digest(
   block_shape : DeepSeekV4QuantizedBlockShape,
   logical_shape : ArrayView[Int64],
   model_content_digest : @spec.ContentDigest,
-  payload_digest : DeepSeekV4QuantizedPayloadDigest,
   fp4_codebook : @deepseek_v4_numeric_plan.DeepSeekV4Fp4CodebookBinding?,
   payload_bytes : Int64,
   maximum : Int,
 ) -> DeepSeekV4QuantizedPayloadContractDigest raise DeepSeekV4QuantizedPayloadError {
   let writer = PayloadCanonicalWriter::new(maximum)
-  writer.digest_text("lunaflux/deepseek-v4-quantized-payload/v1")
+  writer.digest_text("lunaflux/deepseek-v4-quantized-layout/v2")
   writer.byte(encoding_tag(encoding))
   writer.int(block_shape.rows())
   writer.int(block_shape.columns())
@@ -93,7 +92,6 @@ fn canonical_contract_digest(
     writer.int64(dimension)
   }
   writer.digest_text(model_content_digest.as_hex())
-  writer.digest_text(payload_digest.as_hex())
   writer.byte(if fp4_codebook is Some(_) { 1 } else { 0 })
   writer.int64(payload_bytes)
   { hex: writer.hash.finalize_hex(), }

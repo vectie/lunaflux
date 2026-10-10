@@ -38,7 +38,6 @@ async fn exercise_checkpoint_index_tables(
       maximum_rank=2,
       maximum_name_bytes=64,
       maximum_dtype_specs=1,
-      authentication_chunk_bytes=32,
       maximum_copy_requests=2,
       maximum_copy_bytes=96L,
     )

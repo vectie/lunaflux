@@ -1,5 +1,5 @@
 ///|
-test "same-size mutation of copied bytes rejects and closes exactly once" {
+test "same-size source stamp change rejects and closes exactly once" {
   let file = wb_stream_file()
   let changed_array = file.to_array()
   changed_array[changed_array.length() - 1] = (changed_array[changed_array.length() -
@@ -22,7 +22,7 @@ test "same-size mutation of copied bytes rejects and closes exactly once" {
         let source = if opens.val == 0 { file } else { changed }
         wb_fill(source, destination, destination_offset, position, count)
       },
-      () => wb_stamp(file),
+      () => wb_stamp(file, modified=if opens.val == 0 { 1 } else { 2 }),
       _arena_bytes => {
         opens.val = opens.val + 1
         3

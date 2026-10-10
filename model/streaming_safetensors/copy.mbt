@@ -46,23 +46,12 @@ fn copy_open_shard(
   shard : InspectedShard,
   destination : FixedArray[Byte],
   requests : ArrayView[StreamingSafetensorsCopyRequest],
-  limits : StreamingSafetensorsLimits,
   visit : (StreamingSafetensorsTensorMetadata, StreamingSafetensorsVisitedRange) -> Unit raise StreamingSafetensorsError,
 ) -> Unit raise StreamingSafetensorsError {
   let initial_stamp = stamp_file(shard_ordinal, file)
   if initial_stamp != shard.stamp ||
     initial_stamp.byte_count() != shard.metadata.file_byte_count {
     raise InspectionReplayMismatch(shard_ordinal)
-  }
-  authenticate_file(
-    shard_ordinal,
-    file,
-    shard.metadata.file_byte_count,
-    shard.expected_digest,
-    limits.authentication_chunk_bytes,
-  )
-  if stamp_file(shard_ordinal, file) != initial_stamp {
-    raise FileChanged(shard_ordinal)
   }
   for request in requests {
     if request.shard_ordinal != shard_ordinal {
@@ -104,7 +93,7 @@ fn copy_open_shard(
 }
 
 ///|
-/// Reauthenticate every inspected shard, copy requested source ranges directly
+/// Copy requested source ranges from inspected shards directly
 /// into final caller-owned spans, and visit authority-free metadata.
 ///
 /// The caller must discard destination contents if this function raises.
@@ -121,10 +110,11 @@ pub fn copy_ranges(
 ) -> Unit raise StreamingSafetensorsError {
   validate_copy_requests(inspection, destination, requests, limits)
   for shard_ordinal, shard in inspection.shards {
+    if !requests.any(request => request.shard_ordinal == shard_ordinal) {
+      continue
+    }
     with_file(root, shard.locator, shard_ordinal, file => {
-      copy_open_shard(
-        shard_ordinal, file, shard, destination, requests, limits, visit,
-      )
+      copy_open_shard(shard_ordinal, file, shard, destination, requests, visit)
     })
   }
 }
@@ -182,7 +172,6 @@ fn copy_open_shard_segmented(
   shard : InspectedShard,
   destination_arenas : ArrayView[FixedArray[Byte]],
   requests : ArrayView[StreamingSafetensorsSegmentedCopyRequest],
-  limits : StreamingSafetensorsLimits,
   visit : (
     StreamingSafetensorsTensorMetadata,
     StreamingSafetensorsSegmentedVisitedRange,
@@ -192,16 +181,6 @@ fn copy_open_shard_segmented(
   if initial_stamp != shard.stamp ||
     initial_stamp.byte_count() != shard.metadata.file_byte_count {
     raise InspectionReplayMismatch(shard_ordinal)
-  }
-  authenticate_file(
-    shard_ordinal,
-    file,
-    shard.metadata.file_byte_count,
-    shard.expected_digest,
-    limits.authentication_chunk_bytes,
-  )
-  if stamp_file(shard_ordinal, file) != initial_stamp {
-    raise FileChanged(shard_ordinal)
   }
   for request in requests {
     if request.shard_ordinal != shard_ordinal {
@@ -246,7 +225,7 @@ fn copy_open_shard_segmented(
 }
 
 ///|
-/// Reauthenticate every inspected shard once and copy ranges directly into
+/// Copy inspected ranges directly into
 /// bounded caller-owned final arenas. The visitor receives metadata only.
 ///
 /// The caller must discard or zeroize every destination arena if this raises.
@@ -265,9 +244,12 @@ pub fn copy_segmented_ranges(
     inspection, destination_arenas, requests, limits,
   )
   for shard_ordinal, shard in inspection.shards {
+    if !requests.any(request => request.shard_ordinal == shard_ordinal) {
+      continue
+    }
     with_file(root, shard.locator, shard_ordinal, file => {
       copy_open_shard_segmented(
-        shard_ordinal, file, shard, destination_arenas, requests, limits, visit,
+        shard_ordinal, file, shard, destination_arenas, requests, visit,
       )
     })
   }

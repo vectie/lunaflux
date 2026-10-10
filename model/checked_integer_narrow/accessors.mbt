@@ -24,16 +24,6 @@ pub fn CheckedI32Table::byte_count(self : Self) -> Int {
 }
 
 ///|
-pub fn CheckedI32Table::digest(self : Self) -> CheckedI32TableDigest {
-  self.digest
-}
-
-///|
-pub fn CheckedI32TableDigest::as_hex(self : Self) -> String {
-  self.hex
-}
-
-///|
 pub fn CheckedI32Table::is_released(self : Self) -> Bool {
   self.released
 }
@@ -53,13 +43,10 @@ pub fn CheckedI32Table::provide_arena(
 }
 
 ///|
-/// Zeroes and drops the derived I32 payload exactly once.
+/// Drops the derived I32 payload exactly once without scrubbing its bytes.
 pub fn CheckedI32Table::release(self : Self) -> Bool {
   if self.released {
     return false
-  }
-  if self.bytes is Some(bytes) {
-    bytes.fill(b'\x00')
   }
   self.bytes = None
   self.released = true

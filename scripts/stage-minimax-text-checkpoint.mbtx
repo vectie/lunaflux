@@ -31,18 +31,22 @@ async fn management(command : String) -> @shell.Output {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root] &&
+  guard @env.args() is [_, root, label] &&
     root.has_prefix("/tmp/lunaflux-minimax-text-upload-") &&
     !root.contains("..") &&
-    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
-    fail("NEW_LOCAL_AND_REMOTE_DIRECTORY")
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    label.length() == 64 && label.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
+    fail("LOCAL_AND_REMOTE_DIRECTORY DECLARED_CHECKPOINT_LABEL (not a payload checksum)")
   }
-  @fs.mkdir(root)
+  let resuming = try @fs.read_file(root + "/metadata-3") catch { _ => false } noraise { _ => true }
+  if !resuming { @fs.mkdir(root) }
   let variant = root + "/FL2VA"
   let origin = "/data/models/MiniMax/MiniMax-H3/FL2VA"
   // All destinations are beneath a newly-created root. No checkpoint is replaced.
-  for directory in [root, variant, variant + "/transformer", variant + "/text_encoder"] {
-    remote("mkdir " + directory).check()
+  if !resuming {
+    for directory in [root, variant, variant + "/transformer", variant + "/text_encoder"] {
+      remote("mkdir " + directory).check()
+    }
   }
   for i, file in [
     "model_index.json", "transformer/config.json", "text_encoder/config.json",
@@ -50,22 +54,13 @@ async fn main {
     "text_encoder/tokenizer_config.json", "text_encoder/vocab.json",
     "text_encoder/merges.txt", "text_encoder/chat_template.json",
   ] {
-    let identity = management("sha256sum " + origin + "/" + file)
-    record(root, "metadata-source-\{i}", identity)
-    guard identity.stdout().split(" ").next() is Some(hash) && hash.length() == 64 else {
-      fail("missing source metadata digest")
-    }
+    if resuming { continue }
     @shell.Cmd("scp", ["-o", "BatchMode=yes", "lunanexa-management:" + origin + "/" + file, root + "/metadata-\{i}"])
       .output().check()
     @shell.Cmd("scp", [
       "-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
       root + "/metadata-\{i}", "wlc003s@192.168.2.178:" + variant + "/" + file,
     ]).output().check()
-    let installed = remote("sha256sum " + variant + "/" + file)
-    record(root, "metadata-installed-\{i}", installed)
-    guard installed.stdout().has_prefix(hash + "  ") else {
-      fail("metadata transfer mismatch; files preserved")
-    }
   }
   guard @json.parse(@fs.read_file(root + "/metadata-3").text())
     is { "weight_map": Object(weights), .. } else {
@@ -87,7 +82,7 @@ async fn main {
   // No complete checkpoint copy on the local workstation. Bound disk admission
   // before copying and keep transfers sequential with ordinary scp staging.
   let disk = remote("df -B1 --output=avail /tmp")
-  record(root, "disk", disk)
+  disk.check()
   let lines = disk.stdout().trim().split("\n").collect()
   guard lines is [_, available] && @string.parse_int64(available.trim()) > 75161927680L else {
     fail("less than 70 GiB free staging space")
@@ -97,33 +92,36 @@ async fn main {
   for i, name in shards {
     let source = origin + "/text_encoder/" + name
     let size = management("stat -c %s " + source)
-    record(root, "shard-size-\{i}", size)
+    size.check()
     let bytes = @string.parse_int64(size.stdout().trim())
     guard bytes > 0L && bytes <= 75161927680L - total_bytes else {
       fail("text checkpoint exceeds 70 GiB staging limit")
     }
     total_bytes += bytes
-    let identity = management("sha256sum " + source)
-    record(root, "shard-source-\{i}", identity)
-    guard identity.stdout().split(" ").next() is Some(hash) &&
-      hash.length() == 64 && hash.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
-      fail("missing source checkpoint digest")
+    let destination = variant + "/text_encoder/" + name
+    let installed = remote("stat -c %s " + destination)
+    let present = try installed.check() catch { _ => false } noraise { _ => true }
+    if present {
+      guard @string.parse_int64(installed.stdout().trim()) == bytes else {
+        fail("partial destination preserved; choose a new staging directory")
+      }
+    } else {
+      record(root, "shard-copy-nohash-\{i}", management(
+        "scp -o BatchMode=yes " + source + " wlc003s@192.168.2.178:" + destination,
+      ))
+      let copied = remote("stat -c %s " + destination)
+      copied.check()
+      guard @string.parse_int64(copied.stdout().trim()) == bytes else {
+        fail("incomplete copy preserved")
+      }
     }
-    record(root, "shard-transfer-\{i}", management(
-      "scp -o BatchMode=yes " + source + " wlc003s@192.168.2.178:" + variant + "/text_encoder/" + name,
-    ))
-    let installed = remote("sha256sum " + variant + "/text_encoder/" + name)
-    record(root, "shard-installed-\{i}", installed)
-    guard installed.stdout().has_prefix(hash + "  ") else {
-      fail("staged text checkpoint differs; files preserved")
-    }
-    inventory <+ "\{hash}  \{name}\n"
+    inventory <+ "label:\{label}  \{name}\n"
     println("staged text shard \{i + 1}/\{shards.length()} bytes=\{total_bytes}")
   }
-  @fs.write_file(root + "/TEXT.sha256", inventory.to_string(), create_mode=CreateNew)
+  @fs.write_file(root + "/TEXT.inventory", inventory.to_string(), create_mode=CreateNew)
   @shell.Cmd("scp", [
     "-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
-    root + "/TEXT.sha256", "wlc003s@192.168.2.178:" + variant + "/TEXT.sha256",
+    root + "/TEXT.inventory", "wlc003s@192.168.2.178:" + variant + "/TEXT.inventory",
   ]).output().check()
-  println("actual text checkpoint staged: shards=\{shards.length()} bytes=\{total_bytes}; no CUDA execution")
+  println("actual text checkpoint staged: shards=\{shards.length()} bytes=\{total_bytes}; no checkpoint hashing or CUDA execution")
 }

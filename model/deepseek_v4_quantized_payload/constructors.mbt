@@ -37,11 +37,6 @@ pub fn DeepSeekV4QuantizedBlockShape::columns(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4QuantizedPayloadDigest::as_hex(self : Self) -> String {
-  self.hex
-}
-
-///|
 pub fn DeepSeekV4QuantizedPayloadContractDigest::as_hex(self : Self) -> String {
   self.hex
 }
@@ -148,9 +143,6 @@ pub fn admit(
       }
     }
   }
-  let payload_digest : DeepSeekV4QuantizedPayloadDigest = {
-    hex: @crypto.bytes_to_hex_string(@crypto.sha256(payload_bytes)),
-  }
   let copied_shape = ReadOnlyArray::from_array(logical_shape)
   let fp4_codebook = if encoding is PackedFp4E2M1Block32Parameter {
     Some(@deepseek_v4_numeric_plan.DeepSeekV4Fp4CodebookBinding::CanonicalE2M1)
@@ -162,19 +154,17 @@ pub fn admit(
     block_shape,
     copied_shape,
     model_content_digest,
-    payload_digest,
     fp4_codebook,
     actual,
     limits.maximum_canonical_bytes,
   )
   {
-    schema_version: 1,
+    schema_version: 2,
     encoding,
     block_shape,
     logical_shape: copied_shape,
     logical_element_count: elements,
     payload_bytes,
-    payload_digest,
     model_content_digest,
     fp4_codebook,
     contract_digest,

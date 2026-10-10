@@ -3,7 +3,8 @@
 This startup-only package joins authenticated streaming safetensors metadata to
 the exact DeepSeek V4 semantic weight binding and numeric-plan digests. Complete
 raw tensor payloads are copied directly into bounded segmented final arenas and
-owned by an explicitly zeroizing release type.
+owned by an explicitly invalidating release type. Release drops owner references
+without a security-only payload scrub.
 
 The admitted header tags are exactly `BF16`, `F32`, `I64`, `I8`, `F8_E4M3`,
 and `F8_E8M0`. Quantized tensors can be projected to the separate bounded

@@ -12,7 +12,9 @@ requirements identity, exact `TokenHashRouting(3,129280,6,experts)` operation,
 I32 candidate contract, operand role/3,102,720-byte extent/4-byte alignment,
 and the matching sidecar region, tensor ordinal, and aligned device offset.
 The plan digest also binds candidate source/recipe digests, sidecar source and
-layout digests, source manifest digest, and the selected table digest.
+layout digests, source manifest label, and selected table source label. These
+labels are not hashes of the converted table payload; narrowing performs no
+payload checksum pass.
 
 The operand-plan result is `InertUnqualified`. Its `require_launch_authority`
 always fails because the candidate contains source only; no compiled module,

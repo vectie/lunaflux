@@ -122,7 +122,7 @@ fn fixture_manifest(envelope : Bytes) -> MiniMaxH3HostComponentManifest {
 }
 
 ///|
-async test "streaming adapter materializes once into final arena and zeroizes release" {
+async test "streaming adapter materializes once and releases without scrubbing" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-minimax-h3-streaming")
     let canonical = @fs.realpath(directory)
@@ -152,7 +152,8 @@ async test "streaming adapter materializes once into final arena and zeroizes re
     assert_eq(host.tensor_byte(1, 1L), b'\x06')
     assert_true(host.release())
     assert_true(host.is_released())
-    assert_true(captured[:].all(byte => byte == b'\x00'))
+    assert_eq(captured[0], b'\x01')
+    assert_true(host.arenas.iter().all(arena => arena is None))
     assert_false(host.release())
     try host.tensor_byte(0, 0L) catch {
       ArenaReleased => ()

@@ -2167,6 +2167,23 @@ measurements, and comparison/reviewer acceptance have not been supplied.
 - LunaFlux and LunaNexa build independently;
 - named security, operations, and performance reviewers accept the evidence.
 
+## Checkpoint loading performance — 2026-10-10
+
+Runtime checkpoint inspection reads bounded headers, not full weight payloads.
+Supplied inventory labels are not runtime-verified checksums. Full-file SHA-256,
+copy-time hashing, and per-tensor checksums have been removed from streaming,
+numeric, Qwen, legacy device/host loaders, narrowed integer tables, and
+DeepSeek quantized payload contracts. Rank-sharded transfers read only
+selected source ranges; unrelated shards are not opened for copying. Optional
+payload verification belongs outside the engine, before model startup.
+Host-weight release invalidates access and drops references without walking or
+scrubbing every payload byte; deterministic GPU/KV cleanup is unchanged.
+
+Keep bounds, dtype/scale semantics, exact-copy tests, file-change handling, and
+deterministic resource release. These prevent incorrect execution and memory
+corruption; they are not security scans. Do not infer a token/s improvement from
+removing startup I/O. Measure startup separately from steady-state inference.
+
 ## Deferred capabilities
 
 These require separate architecture decisions after the first release:

@@ -82,15 +82,11 @@ pub fn narrow_unique_i64_le_rows(
       require_index_range(
         value, row, column, minimum_value, exclusive_maximum_value,
       ) catch {
-        error => {
-          output.fill(b'\x00')
-          raise error
-        }
+        error => raise error
       }
       for previous in 0..<column {
         let previous_element = row * column_count + previous
         if decode_i64_le(input, previous_element * 8) == value {
-          output.fill(b'\x00')
           raise DuplicateRowValue(
             row~,
             first_column=previous,
@@ -102,15 +98,11 @@ pub fn narrow_unique_i64_le_rows(
       write_i32_le(output, element * 4, value)
     }
   }
-  let digest : CheckedI32TableDigest = {
-    hex: @crypto.bytes_to_hex_string(@crypto.sha256(output)),
-  }
   {
     row_count,
     column_count,
     minimum_value,
     exclusive_maximum_value,
-    digest,
     bytes: Some(output),
     released: false,
   }

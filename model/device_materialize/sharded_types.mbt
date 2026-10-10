@@ -72,7 +72,6 @@ priv struct AbsoluteShardedTransfer {
 priv struct ShardedTransferCursor {
   mut order_index : Int
   mut segment : Int64
-  mut reference : Int
   mut source_offset_bytes : Int64
   mut destination_offset_bytes : Int64
   mut byte_length : Int64

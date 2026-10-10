@@ -202,14 +202,14 @@ pub fn MiniMaxH3HostComponentArena::tensor_byte(
 }
 
 ///|
-/// Zeroizes every arena, drops all owner references, and invalidates access.
+/// Drops all owner references and invalidates access without scrubbing payloads.
 /// MoonBit storage remains GC-managed; this makes no operating-system release
 /// timing claim.
 pub fn MiniMaxH3HostComponentArena::release(self : Self) -> Bool {
   if self.released {
     return false
   }
-  zero_and_drop(self.arenas)
+  drop_arenas(self.arenas)
   self.released = true
   true
 }

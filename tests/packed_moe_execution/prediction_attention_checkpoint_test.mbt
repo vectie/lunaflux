@@ -96,7 +96,6 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=4,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=13,
       maximum_copy_bytes=offset,
     )

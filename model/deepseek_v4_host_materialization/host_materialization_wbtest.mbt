@@ -50,7 +50,6 @@ fn host_test_streaming_limits() -> @streaming_safetensors.StreamingSafetensorsLi
     maximum_rank=4,
     maximum_name_bytes=256,
     maximum_dtype_specs=8,
-    authentication_chunk_bytes=3,
     maximum_copy_requests=16,
     maximum_copy_bytes=1024L,
   )
@@ -112,8 +111,8 @@ async test "tiny shards stream exact raw dtypes into bounded final arenas" {
     assert_eq(Bytes::from_array(first_arena[0:4]), b"abcd")
     assert_eq(Bytes::from_array(first_arena[64:68]), b"WXYZ")
     assert_eq(Bytes::from_array(second_arena[:]), b"123")
-    zero_and_drop(owners)
-    assert_eq(Bytes::from_array(first_arena[0:4]), b"\x00\x00\x00\x00")
+    drop_arenas(owners)
+    assert_eq(Bytes::from_array(first_arena[0:4]), b"abcd")
     assert_eq(owners[0], None)
     root.close()
   }

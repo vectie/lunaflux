@@ -61,7 +61,6 @@ fn streaming_test_limits() -> StreamingSafetensorsLimits {
     maximum_rank=8,
     maximum_name_bytes=128,
     maximum_dtype_specs=16,
-    authentication_chunk_bytes=3,
     maximum_copy_requests=16,
     maximum_copy_bytes=1024L,
   )
@@ -88,7 +87,7 @@ fn streaming_test_shard1(name? : String = "c") -> Bytes {
 }
 
 ///|
-async test "two shards authenticate and copy Int64 ranges into final spans" {
+async test "two shards inspect and copy Int64 ranges into final spans" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-streaming-safetensors")
     let canonical = @fs.realpath(directory)
@@ -118,7 +117,7 @@ async test "two shards authenticate and copy Int64 ranges into final spans" {
     assert_eq(inspection.total_tensor_count(), 4)
     guard inspection.shard(0) is Some(first) &&
       first.tensor(1) is Some(opaque_tensor) else {
-      fail("authenticated shard metadata missing")
+      fail("inspected shard metadata missing")
     }
     assert_eq(first.file_byte_count(), shard0.length().to_int64())
     assert_eq(opaque_tensor.name(), "b")
@@ -165,7 +164,7 @@ async test "two shards authenticate and copy Int64 ranges into final spans" {
 }
 
 ///|
-async test "cross-shard duplicate names and complete-file digest mismatch fail" {
+async test "cross-shard duplicates fail but inventory labels are not payload checks" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-streaming-hostile-shards")
     let canonical = @fs.realpath(directory)
@@ -204,19 +203,31 @@ async test "cross-shard duplicate names and complete-file digest mismatch fail" 
         String::make(64, '0'),
       ),
     )
-    try
-      inspect_shards(
-        root,
-        [wrong_digest],
-        dtype_specs=streaming_test_specs(),
-        limits=streaming_test_limits(),
-      )
-    catch {
-      DigestMismatch(0) => ()
-      _ => fail("unexpected digest mismatch rejection")
-    } noraise {
-      _ => fail("wrong complete-file digest was admitted")
-    }
+    let inspection = inspect_shards(
+      root,
+      [wrong_digest],
+      dtype_specs=streaming_test_specs(),
+      limits=streaming_test_limits(),
+    )
+    assert_eq(inspection.shard_count(), 1)
+    let destination = FixedArray::make(4, b'?')
+    copy_ranges(
+      root,
+      inspection,
+      destination~,
+      requests=[
+        StreamingSafetensorsCopyRequest::new(
+          shard_ordinal=0,
+          tensor_ordinal=0,
+          tensor_byte_offset=0L,
+          destination_offset=0,
+          byte_count=4,
+        ),
+      ],
+      limits=streaming_test_limits(),
+      visit=(_, _) => (),
+    )
+    assert_eq(Bytes::from_array(destination), b"abcd")
     root.close()
   }
 }
@@ -424,7 +435,6 @@ test "dtype digest and startup constructors reject hostile values" {
       maximum_rank=1,
       maximum_name_bytes=1,
       maximum_dtype_specs=1,
-      authentication_chunk_bytes=1,
       maximum_copy_requests=1,
       maximum_copy_bytes=1L,
     )

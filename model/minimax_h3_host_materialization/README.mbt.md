@@ -7,7 +7,7 @@ denoiser manifests, the complete 1,058-tensor Qwen3-VL conditioner manifest,
 the 703-tensor VideoVae manifest, and the 1,087-tensor AudioVae manifest.
 
 The manifest proves model identity, exact names, official shapes and dtypes,
-shard/index membership, payload ranges, artifact digests, and deterministic
+shard/index membership, payload ranges, declared artifact labels, and deterministic
 arena placement. The result remains component-scoped and explicitly releasable.
 
 VAE materialization remains component-scoped; this package never marks the
@@ -17,7 +17,8 @@ protocol.
 
 `model/materialize` is intentionally not reused: its public contract is bound
 to Llama weights and a single in-memory byte view. File inspection, bounded
-header parsing, incremental authentication, replay checks, and segmented direct
+header parsing, same-file checks, and segmented direct
 copy belong to the family-neutral `model/streaming_safetensors` package. It
-keeps 64-bit source offsets, never forms whole-file `Bytes`, and authenticates
-each shard once while filling all final MiniMax-owned arenas.
+keeps 64-bit source offsets and never forms whole-file `Bytes` or hashes weight
+payloads. Loading reads only selected slices into final MiniMax-owned arenas.
+Declared inventory labels do not prove payload integrity.

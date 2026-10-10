@@ -88,7 +88,6 @@ async test "checkpoint-backed learned indexer shares nineteen allocation-free ef
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=4,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=7,
       maximum_copy_bytes=size,
     )

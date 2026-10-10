@@ -37,8 +37,22 @@ test "checked I64 rows narrow deterministically and release explicitly" {
   assert_eq(first.row_count(), 2)
   assert_eq(first.column_count(), 3)
   assert_eq(first.byte_count(), 24)
-  assert_eq(first.digest(), repeated.digest())
-  assert_eq(first.digest().as_hex().length(), 64)
+  let expected = b"\x00\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x03\x00\x00\x00\x05\x00\x00\x00\x04\x00\x00\x00"
+  for table in [first, repeated] {
+    table.provide_arena(
+      @segmented_host_borrow.SegmentedHostArenaConsumer::new(
+        arena_ordinal=0,
+        expected_length=24,
+        consume=arena => {
+          let mut matches = true
+          for i in 0..<24 {
+            matches = matches && arena[i] == expected[i]
+          }
+          matches
+        },
+      ),
+    )
+  }
   assert_true(first.release())
   assert_false(first.release())
   assert_true(first.is_released())

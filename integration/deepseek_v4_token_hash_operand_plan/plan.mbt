@@ -24,7 +24,7 @@ fn source_evidence(
   for ordinal in 0..<tables.table_count() {
     entries.push({
       layer_index: from_token_hash(() => tables.layer_index(ordinal)),
-      digest: from_token_hash(() => tables.table_digest(ordinal)).as_hex(),
+      digest: from_token_hash(() => tables.table_source_label(ordinal)).as_hex(),
       byte_count: from_token_hash(() => tables.table_byte_count(ordinal)),
     })
   }
@@ -190,7 +190,7 @@ fn plan_from_evidence(
     sidecar_layout_digest: layout.digest(),
     sidecar_source_digest: layout.source_digest(),
     source_manifest_digest: source.source_manifest_digest,
-    table_digest: table.digest,
+    table_source_label: table.digest,
     requirement_ordinal: candidate.requirement_ordinal,
     layer_index,
     routed_expert_count,

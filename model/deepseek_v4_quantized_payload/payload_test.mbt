@@ -75,7 +75,7 @@ test "independent finite E4M3 bit patterns decode exactly" {
 }
 
 ///|
-test "FP8 payload identity binds encoding shape content and bytes" {
+test "FP8 layout identity binds geometry and declared content, not payload bytes" {
   let bytes = b"\x38\x3c\x40\xb8"
   let first = payload_test_admit(Fp8E4M3Block128Parameter, [1L, 4L], bytes)
   let repeated = payload_test_admit(Fp8E4M3Block128Parameter, [1L, 4L], bytes)
@@ -90,7 +90,7 @@ test "FP8 payload identity binds encoding shape content and bytes" {
     [1L, 4L],
     b"\x38\x3c\x40\x38",
   )
-  assert_eq(first.schema_version(), 1)
+  assert_eq(first.schema_version(), 2)
   assert_eq(first.encoding(), Fp8E4M3Block128Parameter)
   assert_eq(first.block_shape().rows(), 128)
   assert_eq(first.block_shape().columns(), 128)
@@ -99,10 +99,10 @@ test "FP8 payload identity binds encoding shape content and bytes" {
   assert_eq(first.scalar_interpretation(), FiniteFp8E4M3Available)
   assert_eq(first.reference_decode_scalar(1L), 1.5)
   assert_eq(first.contract_digest(), repeated.contract_digest())
-  assert_eq(first.payload_digest(), other_content.payload_digest())
   assert_true(first.contract_digest() != other_content.contract_digest())
-  assert_true(first.payload_digest() != other_bytes.payload_digest())
-  assert_true(first.contract_digest() != other_bytes.contract_digest())
+  assert_eq(first.contract_digest(), other_bytes.contract_digest())
+  assert_eq(first.payload_bytes(), bytes)
+  assert_eq(other_bytes.payload_bytes(), b"\x38\x3c\x40\x38")
 }
 
 ///|

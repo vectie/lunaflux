@@ -1,6 +1,7 @@
 ///|
 priv struct TokenHashSidecarTableMetadata {
   layer_index : Int
+  // Supplied source label, not a table-payload checksum.
   digest : String
   byte_count : Int
 }
@@ -73,7 +74,7 @@ fn token_hash_metadata(
   for ordinal in 0..<tables.table_count() {
     entries.push({
       layer_index: from_token_hash(() => tables.layer_index(ordinal)),
-      digest: from_token_hash(() => tables.table_digest(ordinal)).as_hex(),
+      digest: from_token_hash(() => tables.table_source_label(ordinal)).as_hex(),
       byte_count: from_token_hash(() => tables.table_byte_count(ordinal)),
     })
   }
@@ -203,7 +204,7 @@ fn validate_token_hash_layout(
 ///|
 /// Plans one isolated I32 device region for each official hash-routed layer.
 /// The source digest binds model identity, source manifest, ordered layer ids,
-/// checked table digests, and exact byte counts.
+/// declared source labels and exact byte counts, without table-payload hashing.
 pub fn plan_token_hash_sidecar_upload(
   tables : @deepseek_v4_host_materialization.DeepSeekV4TokenHashTables,
   limits : @segmented_device_materialize.SegmentedDeviceMaterializationLimits,

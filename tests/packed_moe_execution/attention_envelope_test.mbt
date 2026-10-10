@@ -63,7 +63,6 @@ async test "DeepSeek complete attention envelopes retain all compression profile
         maximum_rank=2,
         maximum_name_bytes=128,
         maximum_dtype_specs=4,
-        authentication_chunk_bytes=65536,
         maximum_copy_requests=32,
         maximum_copy_bytes=size,
       )

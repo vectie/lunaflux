@@ -122,8 +122,9 @@ fn verify(
 /// explicitly named dense-Llama v1 files.
 ///
 /// Each regular file is sized against both its own and the aggregate limit
-/// before allocating owned bytes. The exact returned snapshot is hashed and
-/// compared with an independently supplied SHA-256 identity before parsing.
+/// before allocating owned bytes. Configuration/tokenizer metadata is checked
+/// against supplied identities; weight payloads are not hashed. Their content
+/// identity is retained as a caller-supplied label, not verified bytes.
 /// Model and tokenizer readers then reject executable metadata and unsupported
 /// semantics; safetensors metadata must describe the complete payload.
 ///
@@ -195,7 +196,6 @@ pub fn load_reference_bundle(
     limits.max_weights_bytes,
     remaining_after_tokenizer,
   )
-  ignore(verify(weights_bytes, expected.weights, Weights))
   let safetensors = @safetensors_reader.read_metadata(
     weights_bytes,
     limits=limits.safetensors_limits,

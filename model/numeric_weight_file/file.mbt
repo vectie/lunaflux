@@ -136,12 +136,11 @@ fn[T] finish_ready_numeric_source_close(
 }
 
 ///|
-/// Completely authenticates one strict numeric-safetensors descendant without
+/// Structurally inspects one numeric-safetensors descendant without
 /// opening a device resource.
 ///
-/// The full-file digest is independently pinned because the file metadata
-/// embeds model content, plan, and schema identities and therefore cannot also
-/// be its own content digest. Tensor names are exactly
+/// The supplied artifact digest is retained as a label, not recomputed from
+/// payload bytes. Numeric schema validation still applies. Tensor names are exactly
 /// `lunaflux.tensor.v1.<ordinal>` and payload bytes are contiguous in ordinal
 /// order. Only exact BF16, F8_E4M3, I8, and F32 spellings admitted by the
 /// schema exist.
@@ -172,7 +171,7 @@ pub fn inspect_file(
 }
 
 ///|
-/// Reopens and completely reauthenticates the private inspected descendant.
+/// Reopens and structurally reinspects the private inspected descendant.
 /// The result is still inert and owns no device allocation.
 pub fn NumericWeightFileInspection::reauthenticate(
   self : NumericWeightFileInspection,
@@ -190,8 +189,8 @@ pub fn NumericWeightFileInspection::reauthenticate(
 }
 
 ///|
-/// Reauthenticates an inspection before allocation, then hashes the exact
-/// bytes again while streaming every tensor directly into its final aligned
+/// Rechecks an inspection before allocation, then streams
+/// every tensor directly into its final aligned
 /// region. No conversion or runtime quantization is performed.
 pub fn load_inspected_file(
   context : @device.Context,

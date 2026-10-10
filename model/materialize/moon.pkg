@@ -3,7 +3,6 @@ import {
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/safetensors",
   "vectie/lunaflux/model/spec",
-  "moonbitlang/x/crypto",
 }
 
 import {

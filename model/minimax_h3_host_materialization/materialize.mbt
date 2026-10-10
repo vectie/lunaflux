@@ -1,15 +1,7 @@
 ///|
-fn zero_and_drop(arenas : Array[FixedArray[Byte]?]) -> Unit {
+fn drop_arenas(arenas : Array[FixedArray[Byte]?]) -> Unit {
   for index in 0..<arenas.length() {
-    match arenas[index] {
-      Some(arena) => {
-        for byte_index in 0..<arena.length() {
-          arena[byte_index] = b'\x00'
-        }
-        arenas[index] = None
-      }
-      None => ()
-    }
+    arenas[index] = None
   }
 }
 
@@ -186,13 +178,13 @@ pub fn materialize_safetensors_shards(
   }
   match copied {
     Err(_) => {
-      zero_and_drop(arenas)
+      drop_arenas(arenas)
       raise StreamingFailure
     }
     Ok(_) => {
       for binding_index, was_seen in seen {
         if !was_seen {
-          zero_and_drop(arenas)
+          drop_arenas(arenas)
           raise StreamingTensorMismatch(binding_index)
         }
       }

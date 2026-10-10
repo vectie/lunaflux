@@ -8,6 +8,12 @@ test "checkpoint inventory is bounded metadata, not an executable file list" {
     maximum_shards=2,
   )
   assert_eq(inventory.shards().length(), 2)
+  let declared = @checkpoint_inventory.CheckpointInventory::parse(
+    "label:" + hash + "  model-00001.safetensors\n",
+    maximum_bytes=1024,
+    maximum_shards=1,
+  )
+  assert_eq(declared.shards().length(), 1)
   let unicode = hash + "  中文.safetensors"
   try
     @checkpoint_inventory.CheckpointInventory::parse(

@@ -74,51 +74,6 @@ fn stamp_file(
 }
 
 ///|
-fn authenticate_file(
-  shard : Int,
-  file : @approved_fs.ApprovedFile,
-  file_bytes : Int64,
-  expected : StreamingSafetensorsFileDigest,
-  chunk_bytes : Int,
-) -> Unit raise StreamingSafetensorsError {
-  let scratch = FixedArray::make(chunk_bytes, b'\x00')
-  let hash = @crypto.SHA256::new()
-  let mut position = 0L
-  while position < file_bytes {
-    let remaining = file_bytes - position
-    let count = if remaining < chunk_bytes.to_int64() {
-      remaining.to_int()
-    } else {
-      chunk_bytes
-    }
-    read_exactly(shard, file, scratch, 0, count, position)
-    update_file_digest(hash, scratch, count)
-    position += count.to_int64()
-  }
-  let actual = @crypto.bytes_to_hex_string(hash.finalize())
-  if actual != expected.hex {
-    raise DigestMismatch(shard)
-  }
-}
-
-///|
-/// Feed full startup chunks through the hasher's block-copy path rather than
-/// invoking a byte iterator for every checkpoint byte. Only the final partial
-/// chunk needs a bounded snapshot; never hash stale bytes beyond its read count.
-fn update_file_digest(
-  hash : @crypto.SHA256,
-  scratch : FixedArray[Byte],
-  count : Int,
-) -> Unit raise StreamingSafetensorsError {
-  guard count > 0 && count <= scratch.length() else { raise InvalidLimit }
-  if count == scratch.length() {
-    hash.update(scratch)
-  } else {
-    hash.update(Bytes::from_array(scratch[:count]))
-  }
-}
-
-///|
 fn validate_dtype_specs(
   specs : ArrayView[StreamingSafetensorsDTypeSpec],
   limits : StreamingSafetensorsLimits,
@@ -180,20 +135,12 @@ fn inspect_open_file(
     STREAMING_SAFETENSORS_PREFIX_BYTES.to_int64(),
   )
   let tensors = parse_header(header, shard, payload_bytes, specs, limits)
-  authenticate_file(
-    shard,
-    file,
-    file_bytes,
-    input.expected_digest,
-    limits.authentication_chunk_bytes,
-  )
   let final_stamp = stamp_file(shard, file)
   if final_stamp != initial_stamp {
     raise FileChanged(shard)
   }
   {
     locator: input.locator,
-    expected_digest: input.expected_digest,
     stamp: initial_stamp,
     metadata: {
       file_byte_count: file_bytes,
@@ -206,7 +153,8 @@ fn inspect_open_file(
 }
 
 ///|
-/// Inspect, authenticate, and close every shard before publishing metadata.
+/// Read bounded headers and close each shard before publishing metadata.
+/// Supplied digests are inventory labels, not verified payload identities.
 pub fn inspect_shards(
   root : @approved_fs.ApprovedRoot,
   inputs : ArrayView[StreamingSafetensorsShardInput],

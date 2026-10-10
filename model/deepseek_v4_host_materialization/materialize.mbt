@@ -1,15 +1,7 @@
 ///|
-fn zero_and_drop(arenas : Array[FixedArray[Byte]?]) -> Unit {
+fn drop_arenas(arenas : Array[FixedArray[Byte]?]) -> Unit {
   for arena_index in 0..<arenas.length() {
-    match arenas[arena_index] {
-      Some(arena) => {
-        for byte_index in 0..<arena.length() {
-          arena[byte_index] = b'\x00'
-        }
-        arenas[arena_index] = None
-      }
-      None => ()
-    }
+    arenas[arena_index] = None
   }
 }
 
@@ -116,12 +108,12 @@ fn copy_layout_into_final_arenas(
     visit=(_, _) => visited += 1,
   ) catch {
     _ => {
-      zero_and_drop(owners)
+      drop_arenas(owners)
       raise StreamingFailure
     }
   }
   if visited != tensors.length() {
-    zero_and_drop(owners)
+    drop_arenas(owners)
     raise StreamingFailure
   }
   owners
@@ -147,7 +139,7 @@ pub fn materialize(
   let tensors : Array[DeepSeekV4HostTensor] = []
   for layout in manifest.tensors {
     guard manifest.binding.tensor(layout.binding_index) is Some(binding) else {
-      zero_and_drop(owners)
+      drop_arenas(owners)
       raise WeightBindingFailure
     }
     tensors.push({
@@ -171,13 +163,13 @@ pub fn materialize(
 }
 
 ///|
-/// Zeroize every arena, drop all owner references, and invalidate byte access.
+/// Drop all arena references and invalidate byte access without scrubbing bytes.
 /// Storage remains GC-managed; no operating-system release timing is claimed.
 pub fn DeepSeekV4HostWeights::release(self : Self) -> Bool {
   if self.released {
     return false
   }
-  zero_and_drop(self.arenas)
+  drop_arenas(self.arenas)
   self.released = true
   true
 }

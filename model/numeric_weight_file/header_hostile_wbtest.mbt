@@ -221,7 +221,7 @@ test "declared header bound precedes schema and layout preflight without body re
 }
 
 ///|
-test "second pass rejects same-stamp byte mutation by digest and closes arena" {
+test "numeric transfer detects changed source stamp and closes arena" {
   let plan = numeric_fixture_plan()
   let file = numeric_fixture_file(plan)
   let prepared = prepare_fixture(plan, file)
@@ -240,7 +240,7 @@ test "second pass rejects same-stamp byte mutation by digest and closes arena" {
           }
         }
       },
-      () => 1,
+      () => 2,
       arena_bytes => {
         let arena = {
           bytes: FixedArray::make(arena_bytes.to_int(), b'\x00'),
@@ -258,10 +258,10 @@ test "second pass rejects same-stamp byte mutation by digest and closes arena" {
       arena => arena.closed = true,
     )
   catch {
-    ArtifactDigestMismatch => ()
+    FileChanged => ()
     _ => fail("unexpected error")
   } noraise {
-    _ => fail("same-stamp mutation admitted")
+    _ => fail("changed source stamp admitted")
   }
   guard owner.val is Some(arena) else { fail("arena was not opened") }
   assert_true(arena.closed)

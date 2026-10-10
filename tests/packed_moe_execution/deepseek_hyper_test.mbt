@@ -57,7 +57,6 @@ async test "checkpoint F32 hyper envelopes stream exact controls and borrow four
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=2,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=16,
       maximum_copy_bytes=payload_bytes,
     )

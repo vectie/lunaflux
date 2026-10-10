@@ -56,7 +56,6 @@ pub fn DeepSeekV4QuantizedPayloadContract::logical_element_count(Self) -> Int64
 pub fn DeepSeekV4QuantizedPayloadContract::logical_shape(Self) -> ReadOnlyArray[Int64]
 pub fn DeepSeekV4QuantizedPayloadContract::model_content_digest(Self) -> @spec.ContentDigest
 pub fn DeepSeekV4QuantizedPayloadContract::payload_bytes(Self) -> Bytes
-pub fn DeepSeekV4QuantizedPayloadContract::payload_digest(Self) -> DeepSeekV4QuantizedPayloadDigest
 pub fn DeepSeekV4QuantizedPayloadContract::reference_decode_scalar(Self, Int64) -> Double raise DeepSeekV4QuantizedPayloadError
 pub fn DeepSeekV4QuantizedPayloadContract::reference_dequantize_scalar(Self, Self, Int64) -> Double raise DeepSeekV4QuantizedPayloadError
 pub fn DeepSeekV4QuantizedPayloadContract::scalar_interpretation(Self) -> DeepSeekV4ScalarInterpretationAvailability
@@ -67,11 +66,6 @@ pub struct DeepSeekV4QuantizedPayloadContractDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn DeepSeekV4QuantizedPayloadContractDigest::as_hex(Self) -> String
-
-pub struct DeepSeekV4QuantizedPayloadDigest {
-  // private fields
-} derive(Eq, Hash, @debug.Debug)
-pub fn DeepSeekV4QuantizedPayloadDigest::as_hex(Self) -> String
 
 pub(all) enum DeepSeekV4QuantizedPayloadEncoding {
   Fp8E4M3Block128Parameter

@@ -150,8 +150,7 @@ fn with_weight_file_load(
 /// `root` is an independently approved pinned directory capability and
 /// `locator` must be a strict relative descendant. The loader opens the file
 /// component-by-component without following symlinks, validates the bounded
-/// header and exact tensor vocabulary, plans every final arena region, hashes
-/// the complete pinned file against the model content digest, binds the exact
+/// header and exact tensor vocabulary, plans every final arena region, binds the exact
 /// rebuilt `ModelPlan`, and rechecks metadata from that same handle. The
 /// validated locator is retained privately in the returned inert evidence.
 pub fn inspect_file(
@@ -237,10 +236,10 @@ pub fn load_inspected_file(
 /// aligned device arena without retaining a model-sized host snapshot.
 ///
 /// Admission opens the strict relative locator beneath `root`, validates the
-/// complete file and model digest before allocating the arena, then performs a
-/// second bounded pass that hashes the exact bytes copied through one reusable
-/// fixed host buffer. Namespace replacement cannot redirect either pinned
-/// handle; digest and same-handle stamp checks remain authoritative for bytes.
+/// bounded header and model geometry before allocating the arena, then copies
+/// selected tensor bytes through one reusable fixed host buffer. No full-file
+/// or transfer digest is computed. Same-handle metadata checks detect source
+/// changes; declared content identity is not independently verified here.
 ///
 /// `WeightsReady` transfers complete weight ownership to the caller.
 /// `WeightsCleanupRequired` retains an incomplete allocation when either a

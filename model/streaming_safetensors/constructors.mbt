@@ -72,7 +72,6 @@ pub fn StreamingSafetensorsLimits::new(
   maximum_rank~ : Int,
   maximum_name_bytes~ : Int,
   maximum_dtype_specs~ : Int,
-  authentication_chunk_bytes~ : Int,
   maximum_copy_requests~ : Int,
   maximum_copy_bytes~ : Int64,
 ) -> Self raise StreamingSafetensorsError {
@@ -91,8 +90,6 @@ pub fn StreamingSafetensorsLimits::new(
     maximum_name_bytes > 4096 ||
     maximum_dtype_specs <= 0 ||
     maximum_dtype_specs > 256 ||
-    authentication_chunk_bytes <= 0 ||
-    authentication_chunk_bytes > 67108864 ||
     maximum_copy_requests <= 0 ||
     maximum_copy_requests > 1000000 ||
     maximum_copy_bytes <= 0L {
@@ -107,7 +104,6 @@ pub fn StreamingSafetensorsLimits::new(
     maximum_rank,
     maximum_name_bytes,
     maximum_dtype_specs,
-    authentication_chunk_bytes,
     maximum_copy_requests,
     maximum_copy_bytes,
   }

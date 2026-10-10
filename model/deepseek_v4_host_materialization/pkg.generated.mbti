@@ -151,7 +151,7 @@ pub fn DeepSeekV4TokenHashTables::source_manifest_digest(Self) -> DeepSeekV4Host
 pub fn DeepSeekV4TokenHashTables::source_tensor_index(Self, Int) -> Int raise DeepSeekV4TokenHashMaterializationError
 pub fn DeepSeekV4TokenHashTables::table_byte_count(Self, Int) -> Int raise DeepSeekV4TokenHashMaterializationError
 pub fn DeepSeekV4TokenHashTables::table_count(Self) -> Int
-pub fn DeepSeekV4TokenHashTables::table_digest(Self, Int) -> @checked_integer_narrow.CheckedI32TableDigest raise DeepSeekV4TokenHashMaterializationError
+pub fn DeepSeekV4TokenHashTables::table_source_label(Self, Int) -> DeepSeekV4HostManifestDigest raise DeepSeekV4TokenHashMaterializationError
 
 // Type aliases
 

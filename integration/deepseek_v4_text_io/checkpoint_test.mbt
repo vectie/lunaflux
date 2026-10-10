@@ -30,7 +30,6 @@ async test "learned head binds and streams exact F32 checkpoint controls" {
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=1,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=3,
       maximum_copy_bytes=262164L,
     )

@@ -140,7 +140,7 @@ test "official DeepSeek hash tables checked-narrow without an I64 staging copy" 
     assert_eq(tables.layer_index(layer), layer)
     assert_eq(tables.source_tensor_index(layer), layer)
     assert_eq(tables.table_byte_count(layer), expected_bytes)
-    assert_eq(tables.table_digest(layer).as_hex().length(), 64)
+    assert_eq(tables.table_source_label(layer), tables.source_manifest_digest())
   }
   let observed = Ref(false)
   let consumer = try! @segmented_host_borrow.SegmentedHostArenaConsumer::new(

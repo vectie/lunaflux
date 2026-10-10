@@ -1,12 +1,12 @@
 ///|
-/// Explicit startup-only cache of pinned authenticated shard handles. A cache
-/// miss uses the same replay/digest checks as transfer_ranges; reuse checks the
+/// Explicit startup-only cache of pinned inspected shard handles. A cache
+/// miss uses the same file checks as transfer_ranges; reuse checks the
 /// same-handle stamp before and after each transfer. No host weight arena.
 pub struct StreamingSafetensorsTransferSession {
   priv root : @approved_fs.ApprovedRoot
   priv inspection : StreamingSafetensorsInspection
   priv files : Array[@approved_fs.ApprovedFile?]
-  priv mut authenticated : Int
+  priv mut opened : Int
   priv mut closed : Bool
   priv mut failed : Bool
   priv mut busy : Bool
@@ -25,7 +25,7 @@ pub fn StreamingSafetensorsTransferSession::new(
     root,
     inspection,
     files: Array::make(inspection.shard_count(), None),
-    authenticated: 0,
+    opened: 0,
     closed: false,
     failed: false,
     busy: false,
@@ -33,11 +33,9 @@ pub fn StreamingSafetensorsTransferSession::new(
 }
 
 ///|
-/// Number of unique shards authenticated by this session, not by inspection.
-pub fn StreamingSafetensorsTransferSession::authenticated_shards(
-  self : Self,
-) -> Int {
-  self.authenticated
+/// Number of unique shards opened by this session, not by inspection.
+pub fn StreamingSafetensorsTransferSession::opened_shards(self : Self) -> Int {
+  self.opened
 }
 
 ///|
@@ -61,7 +59,7 @@ pub fn StreamingSafetensorsTransferSession::transfer_ranges(
     self.failed = true
   }
   // Pointer identity is only a cache optimization. Different root wrappers
-  // always fall back to the ordinary authenticated transfer, never admission.
+  // always fall back to the ordinary inspected transfer.
   if !physical_equal(root, self.root) {
     transfer_ranges(
       root,
@@ -91,17 +89,7 @@ pub fn StreamingSafetensorsTransferSession::transfer_ranges(
         guard stamp_file(ordinal, file) == shard.stamp else {
           raise InspectionReplayMismatch(ordinal)
         }
-        authenticate_file(
-          ordinal,
-          file,
-          shard.metadata.file_byte_count,
-          shard.expected_digest,
-          limits.authentication_chunk_bytes,
-        )
-        guard stamp_file(ordinal, file) == shard.stamp else {
-          raise FileChanged(ordinal)
-        }
-        self.authenticated += 1
+        self.opened += 1
         file
       }
     }

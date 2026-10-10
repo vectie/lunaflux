@@ -179,7 +179,7 @@ async fn write_bundle(
 }
 
 ///|
-async test "valid explicit bundle returns the hashed byte snapshot and metadata" {
+async test "valid explicit bundle returns exact bytes without hashing weight payloads" {
   @async.with_task_group() <| group => {
     let directory = @fs.tmpdir(prefix="lunaflux-artifact")
     group.add_defer() <| () => {
@@ -212,6 +212,18 @@ async test "valid explicit bundle returns the hashed byte snapshot and metadata"
       artifact_digest(tokenizer).as_hex(),
     )
     assert_false(root.is_closed())
+    let labeled = @artifact.load_reference_bundle(
+      root,
+      source,
+      @artifact.ExpectedDigests::new(
+        model_config=artifact_digest(config),
+        tokenizer=artifact_digest(tokenizer),
+        weights=@artifact.ArtifactDigest::parse("f".repeat(64)),
+      ),
+      test_limits(),
+    )
+    assert_eq(labeled.weights_bytes(), weights)
+    assert_eq(labeled.identity().model_content().as_hex(), "f".repeat(64))
     root.close()
   }
 }
@@ -317,7 +329,7 @@ async test "missing oversized digest and path-type failures are payload safe" {
 }
 
 ///|
-async test "truncated weights and executable metadata are rejected after hashing" {
+async test "truncated weights and executable metadata are rejected structurally" {
   @async.with_task_group() <| group => {
     let truncated_directory = @fs.tmpdir(prefix="lunaflux-artifact-truncated")
     group.add_defer() <| () => {

@@ -19,7 +19,7 @@ pub struct StreamingSafetensorsFileDigest {
 } derive(Debug, Eq, Hash)
 
 ///|
-/// One strict relative shard and its expected complete-file digest.
+/// One relative shard and its declared inventory label. Loading does not hash it.
 pub struct StreamingSafetensorsShardInput {
   priv locator : @approved_fs.ApprovedRelativeLocator
   priv expected_digest : StreamingSafetensorsFileDigest
@@ -35,7 +35,6 @@ pub struct StreamingSafetensorsLimits {
   priv maximum_rank : Int
   priv maximum_name_bytes : Int
   priv maximum_dtype_specs : Int
-  priv authentication_chunk_bytes : Int
   priv maximum_copy_requests : Int
   priv maximum_copy_bytes : Int64
 } derive(Debug, Eq)
@@ -51,7 +50,7 @@ pub struct StreamingSafetensorsTensorMetadata {
 } derive(Debug, Eq)
 
 ///|
-/// Public authority-free metadata for one authenticated shard.
+/// Public metadata for one structurally inspected shard, not hash-verified bytes.
 pub struct StreamingSafetensorsShardMetadata {
   priv file_byte_count : Int64
   priv payload_offset : Int64
@@ -64,7 +63,6 @@ pub struct StreamingSafetensorsShardMetadata {
 /// Internal retained replay key plus public metadata.
 priv struct InspectedShard {
   locator : @approved_fs.ApprovedRelativeLocator
-  expected_digest : StreamingSafetensorsFileDigest
   stamp : @approved_fs.ApprovedFileStamp
   metadata : StreamingSafetensorsShardMetadata
 }
@@ -137,7 +135,6 @@ pub(all) suberror StreamingSafetensorsError {
   FileTooLarge(Int)
   FileChanged(Int)
   FileCloseFailed(Int)
-  DigestMismatch(Int)
   MissingHeaderLength(Int)
   HeaderLengthOverflow(Int)
   HeaderTooLarge(Int)

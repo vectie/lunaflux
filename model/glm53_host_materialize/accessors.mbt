@@ -116,16 +116,13 @@ pub fn Glm53HostWeights::tensor_byte(
 }
 
 ///|
-/// Deterministically zeroizes every final arena, invalidates all access, and
+/// Invalidates all access and
 /// drops the owner references. MoonBit FixedArray storage remains GC-managed;
 /// this API does not claim deterministic operating-system deallocation.
 pub fn Glm53HostWeights::close(self : Self) -> Unit {
   if !self.open {
     return
   }
-  zero_arenas(self.arenas)
-  for index in 0..<self.arenas.length() {
-    self.arenas[index].bytes = FixedArray::make(0, b'\x00')
-  }
+  drop_arenas(self.arenas)
   self.open = false
 }

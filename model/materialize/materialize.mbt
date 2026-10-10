@@ -1,9 +1,4 @@
 ///|
-fn checksum(bytes : BytesView) -> TensorChecksum {
-  { hex: @crypto.bytes_to_hex_string(@crypto.sha256(bytes)), }
-}
-
-///|
 /// Validates the complete safetensors envelope and every bound tensor range,
 /// then visits zero-copy tensor views in semantic `TensorRef` order.
 ///
@@ -27,19 +22,16 @@ pub fn visit(
       for prepared_tensor in tensors {
         let binding = prepared_tensor.binding
         let bytes = prepared_tensor.bytes
-        let digest = checksum(bytes)
         let chunk : TensorChunk = {
           reference: binding.reference(),
           tensor: binding.tensor(),
           file_offset_bytes: prepared_tensor.file_offset_bytes,
           bytes,
-          checksum: digest,
         }
         visitor(chunk)
         receipts.push({
           reference: binding.reference(),
           byte_length: binding.tensor().byte_length(),
-          checksum: digest,
         })
       }
       Ok({
@@ -73,7 +65,6 @@ pub fn copy_to_host(
       reference: binding.reference(),
       tensor: binding.tensor(),
       bytes: view.to_owned(),
-      checksum: checksum(view),
     })
   }
   {

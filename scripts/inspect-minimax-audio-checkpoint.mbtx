@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -61,7 +62,7 @@ async fn main {
   @fs.mkdir(variant + "/audio_vae")
   let source = "/data/models/MiniMax/MiniMax-H3/FL2VA/"
   let expected = "37dddc2f3e6d5d5139d823d5ea283bbf304dadcb885b1ccda818aa13dade5ea2"
-  let identity = record(
+  let source_size = record(
     root,
     "source-shard",
     @shell.Cmd("ssh", [
@@ -70,12 +71,9 @@ async fn main {
       "-o",
       "ConnectTimeout=10",
       "lunanexa-management",
-      "sha256sum " + source + "audio_vae/model.safetensors",
+      "stat -c %s " + source + "audio_vae/model.safetensors",
     ]),
   )
-  guard identity.stdout().has_prefix(expected + "  ") else {
-    fail("installed audio checkpoint changed")
-  }
   for
     index, file in [
       "model_index.json", "transformer/config.json", "audio_vae/model.safetensors",
@@ -94,17 +92,14 @@ async fn main {
     )
     |> ignore
   }
-  let copied = record(
-    root,
-    "download-hash",
-    @shell.Cmd("shasum", ["-a", "256", variant + "/audio_vae/model.safetensors"]),
-  )
-  guard copied.stdout().has_prefix(expected + "  ") else {
-    fail("downloaded audio checkpoint mismatch")
+  let copied = @fs.open(variant + "/audio_vae/model.safetensors", mode=ReadOnly)
+  defer copied.close()
+  guard copied.size() == @string.parse_int64(source_size.stdout().trim()) else {
+    fail("incomplete downloaded audio checkpoint")
   }
   @fs.write_file(
     variant + "/AUDIO.sha256",
-    expected + "  model.safetensors\n",
+    "label:" + expected + "  model.safetensors\n",
     create_mode=CreateNew,
   )
   record(

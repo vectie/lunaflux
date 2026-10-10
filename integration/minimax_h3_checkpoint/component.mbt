@@ -28,7 +28,7 @@ pub fn component_packings(
 }
 
 ///|
-/// Authenticate a component, bind every actual tensor to the closed model
+/// Inspect component headers, bind every actual tensor to the closed model
 /// schema and retain a directly consumable streaming manifest. Inventory order
 /// remains the source ordinal throughout planning and upload.
 pub fn ComponentCheckpoint::inspect(
@@ -59,7 +59,6 @@ pub fn ComponentCheckpoint::inspect(
     maximum_rank=5,
     maximum_name_bytes=512,
     maximum_dtype_specs=2,
-    authentication_chunk_bytes=1048576,
     maximum_copy_requests=required,
     maximum_copy_bytes=maximum_component_bytes,
   )

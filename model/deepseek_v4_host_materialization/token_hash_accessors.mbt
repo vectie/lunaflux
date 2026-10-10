@@ -54,11 +54,13 @@ pub fn DeepSeekV4TokenHashTables::table_byte_count(
 }
 
 ///|
-pub fn DeepSeekV4TokenHashTables::table_digest(
+/// Declared source-manifest label; not a checksum of the derived table bytes.
+pub fn DeepSeekV4TokenHashTables::table_source_label(
   self : Self,
   index : Int,
-) -> @checked_integer_narrow.CheckedI32TableDigest raise DeepSeekV4TokenHashMaterializationError {
-  self.entry(index).table.digest()
+) -> DeepSeekV4HostManifestDigest raise DeepSeekV4TokenHashMaterializationError {
+  ignore(self.entry(index))
+  self.source_manifest_digest
 }
 
 ///|
@@ -82,7 +84,7 @@ pub fn DeepSeekV4TokenHashTables::is_released(self : Self) -> Bool {
 }
 
 ///|
-/// Zeroes and releases every derived table exactly once.
+/// Drops and invalidates every derived table exactly once without payload scrubbing.
 pub fn DeepSeekV4TokenHashTables::release(self : Self) -> Bool {
   if self.released {
     return false

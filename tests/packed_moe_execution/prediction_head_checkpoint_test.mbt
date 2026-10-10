@@ -64,7 +64,6 @@ async test "prediction head binds final mtp controls and borrows the global voca
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=2,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=7,
       maximum_copy_bytes=offset,
     )

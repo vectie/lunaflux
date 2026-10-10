@@ -15,7 +15,7 @@ pub struct DeepSeekV4TokenHashOperandPlan {
   priv sidecar_layout_digest : @segmented_device_materialize.SegmentedDeviceLayoutDigest
   priv sidecar_source_digest : @segmented_device_materialize.SegmentedHostSourceDigest
   priv source_manifest_digest : String
-  priv table_digest : String
+  priv table_source_label : String
   priv requirement_ordinal : Int
   priv layer_index : Int
   priv routed_expert_count : Int

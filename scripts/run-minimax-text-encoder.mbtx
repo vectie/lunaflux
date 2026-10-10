@@ -82,7 +82,7 @@ async fn main {
     "systemd-run --user --wait --pipe --unit=" + unit +
     " --property=MemoryMax=80G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 " +
     root + "/minimax_checkpoint.exe encode-text " + staged +
-    "/FL2VA TEXT.sha256 3 ids-" + suffix + ".i32 " + aot +
+    "/FL2VA TEXT.inventory 3 ids-" + suffix + ".i32 " + aot +
     " " + root + "/hidden.bf16 75161927680 64424509440",
   ))
   let run = @fs.read_file(root + "/encode.stdout").text()

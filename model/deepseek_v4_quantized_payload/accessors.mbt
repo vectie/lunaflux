@@ -37,13 +37,6 @@ pub fn DeepSeekV4QuantizedPayloadContract::payload_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn DeepSeekV4QuantizedPayloadContract::payload_digest(
-  self : Self,
-) -> DeepSeekV4QuantizedPayloadDigest {
-  self.payload_digest
-}
-
-///|
 pub fn DeepSeekV4QuantizedPayloadContract::model_content_digest(
   self : Self,
 ) -> @spec.ContentDigest {

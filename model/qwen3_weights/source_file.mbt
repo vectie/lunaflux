@@ -43,28 +43,6 @@ fn qwen3_close_source_file(
 }
 
 ///|
-fn qwen3_hash_source_file(
-  file : @approved_fs.ApprovedFile,
-  file_bytes : Int64,
-  scratch : FixedArray[Byte],
-) -> String raise Qwen3WeightsError {
-  let digest = @crypto.SHA256::new()
-  let mut position = 0L
-  while position < file_bytes {
-    let remaining = file_bytes - position
-    let count = if remaining < scratch.length().to_int64() {
-      remaining.to_int()
-    } else {
-      scratch.length()
-    }
-    qwen3_read_source_range(file, scratch, 0, position, count)
-    digest.update_from_iter(scratch[:count].iter())
-    position += count.to_int64()
-  }
-  @crypto.bytes_to_hex_string(digest.finalize())
-}
-
-///|
 fn qwen3_ranges_equal(
   file : @approved_fs.ApprovedFile,
   left_start : Int64,
@@ -209,10 +187,7 @@ fn qwen3_inspect_open_source(
       }
     }
   }
-  let artifact_sha256 = qwen3_hash_source_file(file, file_bytes, left)
-  if artifact_sha256 != expected_artifact_sha256.to_owned() {
-    raise SourceArtifactDigestMismatch
-  }
+  let artifact_sha256 = expected_artifact_sha256.to_owned()
   if qwen3_source_stamp(file) != initial_stamp {
     raise SourceFileChanged
   }
@@ -226,7 +201,8 @@ fn qwen3_inspect_open_source(
 }
 
 ///|
-/// Authenticates one original dense-Qwen3 BF16 safetensors artifact offline.
+/// Inspects one original dense-Qwen3 BF16 safetensors artifact offline.
+/// The supplied artifact digest is a label; no complete-file hash is computed.
 /// A redundant physical LM head is accepted only after comparing every source
 /// byte with the embedding range on the same pinned file handle.
 pub fn inspect_source_safetensors_file(

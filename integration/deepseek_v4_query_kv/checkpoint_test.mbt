@@ -81,7 +81,6 @@ async test "official query and KV planes bind and stream without expansion" {
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=5,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=8,
       maximum_copy_bytes=offset,
     )

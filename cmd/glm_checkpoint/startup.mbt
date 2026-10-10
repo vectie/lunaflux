@@ -129,7 +129,7 @@ fn inspect_startup(
     @streaming.StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E4M3FN"),
   ]
   println(
-    "checkpoint_startup: authenticating shards=\{inventory.shards().length()}",
+    "checkpoint_startup: inspecting headers shards=\{inventory.shards().length()} payload_hashing=false",
   )
   let inspection = @streaming.inspect_shards(
     root,

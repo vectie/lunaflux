@@ -197,7 +197,6 @@ async fn exercise_glm_checkpoint_owner(
       maximum_rank=3,
       maximum_name_bytes=256,
       maximum_dtype_specs=4,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=shapes.length(),
       maximum_copy_bytes=weight_bytes,
     )

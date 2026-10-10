@@ -9,7 +9,6 @@ import {
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/model/tensor_parallel_plan",
   "vectie/lunaflux/runtime/approved_fs",
-  "moonbitlang/x/crypto",
 }
 
 import {

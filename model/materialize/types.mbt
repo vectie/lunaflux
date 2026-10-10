@@ -8,12 +8,6 @@ pub struct MaterializationLimits {
 } derive(Debug, Eq)
 
 ///|
-/// Validated lowercase SHA-256 checksum for one tensor's exact payload bytes.
-pub struct TensorChecksum {
-  priv hex : String
-} derive(Debug, Eq)
-
-///|
 /// Immutable zero-copy view delivered to a final-destination visitor.
 ///
 /// `bytes` remains backed by the immutable complete-file input. A visitor must
@@ -24,7 +18,6 @@ pub struct TensorChunk {
   priv tensor : @safetensors.TensorMetadata
   priv file_offset_bytes : Int64
   priv bytes : BytesView
-  priv checksum : TensorChecksum
 } derive(Debug, Eq)
 
 ///|
@@ -32,7 +25,6 @@ pub struct TensorChunk {
 pub struct TensorReceipt {
   priv reference : @plan.TensorRef
   priv byte_length : Int64
-  priv checksum : TensorChecksum
 } derive(Debug, Eq)
 
 ///|
@@ -49,7 +41,6 @@ pub struct HostTensor {
   priv reference : @plan.TensorRef
   priv tensor : @safetensors.TensorMetadata
   priv bytes : Bytes
-  priv checksum : TensorChecksum
 } derive(Debug, Eq)
 
 ///|
@@ -112,11 +103,6 @@ pub fn MaterializationLimits::max_host_bytes(
 }
 
 ///|
-pub fn TensorChecksum::as_hex(self : TensorChecksum) -> String {
-  self.hex
-}
-
-///|
 pub fn TensorChunk::reference(self : TensorChunk) -> @plan.TensorRef {
   self.reference
 }
@@ -142,11 +128,6 @@ pub fn TensorChunk::bytes(self : TensorChunk) -> BytesView {
 }
 
 ///|
-pub fn TensorChunk::checksum(self : TensorChunk) -> TensorChecksum {
-  self.checksum
-}
-
-///|
 pub fn TensorReceipt::reference(self : TensorReceipt) -> @plan.TensorRef {
   self.reference
 }
@@ -154,11 +135,6 @@ pub fn TensorReceipt::reference(self : TensorReceipt) -> @plan.TensorRef {
 ///|
 pub fn TensorReceipt::byte_length(self : TensorReceipt) -> Int64 {
   self.byte_length
-}
-
-///|
-pub fn TensorReceipt::checksum(self : TensorReceipt) -> TensorChecksum {
-  self.checksum
 }
 
 ///|
@@ -201,11 +177,6 @@ pub fn HostTensor::tensor(self : HostTensor) -> @safetensors.TensorMetadata {
 ///|
 pub fn HostTensor::bytes(self : HostTensor) -> Bytes {
   self.bytes
-}
-
-///|
-pub fn HostTensor::checksum(self : HostTensor) -> TensorChecksum {
-  self.checksum
 }
 
 ///|

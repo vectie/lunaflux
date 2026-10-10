@@ -1,9 +1,13 @@
 # Device-weight layout planning and materialization
 
 `plan_layout` preserves the established dense-Llama safetensors path: it lays
-out the already authenticated legacy weight bindings and records no model
-numeric-schema digest. Its file inspection, allocation, streaming, and cleanup
-contracts are unchanged.
+out the structurally validated legacy weight bindings and records no model
+numeric-schema digest. Its inspection, allocation, streaming geometry, and
+cleanup contracts are retained. Checkpoint payload hashing has
+been removed: inspection reads bounded headers; loading reads only final tensor
+ranges. Per-rank uploads read exactly that rank's materialized bytes, not the
+complete checkpoint. Declared content IDs remain metadata, not cryptographic
+proof of bytes. Bounds, file-change checks, and deterministic cleanup remain.
 
 `plan_numeric_layout` is a separate pure startup planner over a validated
 `ModelPlan`. It walks the complete numeric tensor table in exact `TensorRef`

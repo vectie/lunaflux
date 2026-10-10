@@ -12,29 +12,6 @@ fn preflight_numeric_weight_scalars(
 }
 
 ///|
-fn hash_numeric_file(
-  file_bytes : Int64,
-  scratch : FixedArray[Byte],
-  chunk_bytes : Int,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
-) -> String raise NumericWeightFileError {
-  let digest = @crypto.SHA256::new()
-  let mut position = 0L
-  while position < file_bytes {
-    let remaining = file_bytes - position
-    let count = if remaining < chunk_bytes.to_int64() {
-      remaining.to_int()
-    } else {
-      chunk_bytes
-    }
-    read_numeric_exact(read, scratch, position, count)
-    digest.update_from_iter(scratch[:count].iter())
-    position += count.to_int64()
-  }
-  @crypto.bytes_to_hex_string(digest.finalize())
-}
-
-///|
 fn[S : Eq] prepare_numeric_weight_file(
   model_plan : @plan.ModelPlan,
   expected_artifact_digest : NumericWeightArtifactDigest,
@@ -114,18 +91,9 @@ fn[S : Eq] prepare_numeric_weight_file(
     limits.transfer_chunk_bytes(),
     read,
   )
-  let digest = hash_numeric_file(
-    file_bytes,
-    scratch,
-    limits.transfer_chunk_bytes(),
-    read,
-  )
   let final_stamp = observe_stamp() catch { _ => raise FileChanged }
   if final_stamp != source_stamp {
     raise FileChanged
-  }
-  if digest != expected_artifact_digest.as_hex() {
-    raise ArtifactDigestMismatch
   }
   {
     stamp: source_stamp,
@@ -184,22 +152,8 @@ fn[S : Eq, T] transfer_prepared_numeric_file(
   let resource = open(prepared.layout.arena_bytes()) catch {
     error => raise DeviceFailed(error)
   }
-  let digest = @crypto.SHA256::new()
   let outcome : Result[Unit, NumericWeightFileError] = Ok(
     {
-      let mut position = 0L
-      while position < prepared.payload_offset_bytes {
-        let remaining = prepared.payload_offset_bytes - position
-        let count = if remaining <
-          prepared.limits.transfer_chunk_bytes().to_int64() {
-          remaining.to_int()
-        } else {
-          prepared.limits.transfer_chunk_bytes()
-        }
-        read_numeric_exact(read, prepared.scratch, position, count)
-        digest.update_from_iter(prepared.scratch[:count].iter())
-        position += count.to_int64()
-      }
       for region in prepared.regions {
         let mut offset = 0L
         while offset < region.byte_length {
@@ -216,7 +170,6 @@ fn[S : Eq, T] transfer_prepared_numeric_file(
             region.source_offset_bytes + offset,
             count,
           )
-          digest.update_from_iter(prepared.scratch[:count].iter())
           copy(
             resource,
             prepared.scratch,
@@ -232,10 +185,6 @@ fn[S : Eq, T] transfer_prepared_numeric_file(
       let final_stamp = observe_stamp() catch { _ => raise FileChanged }
       if final_stamp != prepared.stamp {
         raise FileChanged
-      }
-      if @crypto.bytes_to_hex_string(digest.finalize()) !=
-        prepared.artifact_digest.as_hex() {
-        raise ArtifactDigestMismatch
       }
     },
   ) catch {

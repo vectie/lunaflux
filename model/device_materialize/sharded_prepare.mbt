@@ -247,20 +247,11 @@ fn[S : Eq] prepare_sharded_streaming_load(
   validate_sharded_transfers(
     rank_plan, source_order, payload_offset_bytes, file_bytes,
   )
-  let digest = hash_stream(
-    file_bytes,
-    limits.transfer_chunk_bytes(),
-    scratch,
-    read,
-  )
   let verified_stamp = observe_stamp() catch {
     _ => raise FileChangedDuringLoad
   }
   if verified_stamp != source_stamp {
     raise FileChangedDuringLoad
-  }
-  if digest != model.content_digest().as_hex() {
-    raise ContentDigestMismatch
   }
   { source_stamp, payload_offset_bytes, rank_plan, source_order, scratch, }
 }

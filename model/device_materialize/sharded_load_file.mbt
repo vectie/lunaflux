@@ -74,10 +74,10 @@ fn with_sharded_weight_file_load(
 }
 
 ///|
-/// Authenticates a complete approved safetensors descendant and its exact
+/// Inspects bounded safetensors metadata and derives its exact
 /// dense-Llama rank plan without opening a device allocation. Topology and
 /// arena limits are inputs; source-bearing transfer recipes are derived only
-/// from the freshly authenticated file bindings.
+/// from the structurally validated file bindings. Payloads are not hashed.
 pub fn inspect_sharded_file(
   root : @approved_fs.ApprovedRoot,
   model : @spec.LlamaModelMetadata,
@@ -121,7 +121,7 @@ pub fn inspect_sharded_file(
 }
 
 ///|
-/// Reauthenticates this exact source-bound rank inspection without exposing
+/// Structurally reinspects this exact source-bound rank without exposing
 /// model-family metadata, locators, parser limits, or transfer recipes to the
 /// engine owner. The returned inspection is freshly derived from the current
 /// approved file and the immutable private planning evidence.
@@ -144,8 +144,8 @@ pub fn DeviceShardedWeightFileInspection::reauthenticate(
 }
 
 ///|
-/// Reauthenticates the complete inspected file before allocating exactly one
-/// local rank arena, then hashes it again while streaming only authenticated
+/// Reinspects bounded headers before allocating exactly one
+/// local rank arena, then reads only its selected source
 /// scalar shard ranges into their final compact destinations.
 pub fn load_inspected_sharded_file(
   context : @device.Context,
@@ -180,7 +180,6 @@ pub fn load_inspected_sharded_file(
     load_prepared_sharded_streaming_with_resource(
       prepared,
       file_bytes,
-      inspection.content_digest().as_hex(),
       inspection.limits.transfer_chunk_bytes(),
       (destination, destination_offset, position, byte_count) => {
         read_weight_range(

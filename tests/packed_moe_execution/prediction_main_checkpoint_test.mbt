@@ -47,7 +47,6 @@ async test "DSpark main prefix uploads exact compact mtp weights and rejects par
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=3,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=3,
       maximum_copy_bytes=weight_bytes,
     )

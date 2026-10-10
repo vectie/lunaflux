@@ -8,9 +8,11 @@ pub(all) suberror CheckpointInventoryError {
 }
 
 ///|
-/// Startup-only sha256sum inventory. Entries contain digest, two spaces, and
+/// Startup-only inventory. Entries contain a declared label, two spaces, and
 /// an approved relative safetensors locator. No shell syntax is interpreted.
-/// The resulting inspection still authenticates the actual shard content.
+/// Plain sha256sum records remain readable as unverified labels. `label:HEX`
+/// explicitly denotes a supplied checkpoint identity, not a shard checksum.
+/// Neither form triggers payload hashing during inspection or loading.
 pub struct CheckpointInventory {
   priv shards : Array[@streaming.StreamingSafetensorsShardInput]
 }
@@ -36,13 +38,14 @@ pub fn CheckpointInventory::parse(
     if line.is_empty() {
       continue
     }
-    guard line.length() > 66 && line[64:66] == "  " else {
+    let record = if line.has_prefix("label:") { line[6:] } else { line }
+    guard record.length() > 66 && record[64:66] == "  " else {
       raise CheckpointInventoryError::InvalidEntry(ordinal)
     }
     guard shards.length() < maximum_shards else {
       raise CheckpointInventoryError::TooManyShards
     }
-    let name = line[66:].to_owned()
+    let name = record[66:].to_owned()
     guard name.has_suffix(".safetensors") else {
       raise CheckpointInventoryError::InvalidEntry(ordinal)
     }
@@ -51,7 +54,7 @@ pub fn CheckpointInventory::parse(
     }
     let locator = @approved_fs.ApprovedRelativeLocator::new(name)
     let digest = @streaming.StreamingSafetensorsFileDigest::from_sha256(
-      line[:64].to_owned(),
+      record[:64].to_owned(),
     )
     names[name] = ()
     shards.push(

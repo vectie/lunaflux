@@ -46,10 +46,6 @@ test "visitor receives exact bytes in semantic TensorRef order" {
   }
   assert_eq(receipt.reference(), first_ref)
   assert_eq(receipt.byte_length(), 64L)
-  assert_eq(
-    receipt.checksum().as_hex(),
-    "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
-  )
 }
 
 ///|
@@ -68,10 +64,6 @@ test "host materialization copies exact tensor bytes under its own bound" {
   assert_eq(tensor.reference(), first_ref)
   assert_eq(tensor.tensor().name(), "model.embed_tokens.weight")
   assert_eq(tensor.bytes(), Bytes::makei(64, index => index.to_byte()))
-  assert_eq(
-    tensor.checksum().as_hex(),
-    "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
-  )
   assert_eq(file, source_before)
 }
 

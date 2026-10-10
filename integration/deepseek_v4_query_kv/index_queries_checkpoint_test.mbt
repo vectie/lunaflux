@@ -54,7 +54,6 @@ async test "learned index queries bind and stream their compact checkpoint banks
       maximum_rank=2,
       maximum_name_bytes=128,
       maximum_dtype_specs=3,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=3,
       maximum_copy_bytes=offset,
     )

@@ -26,18 +26,12 @@ pub struct CheckedI32Table {
 }
 pub fn CheckedI32Table::byte_count(Self) -> Int
 pub fn CheckedI32Table::column_count(Self) -> Int
-pub fn CheckedI32Table::digest(Self) -> CheckedI32TableDigest
 pub fn CheckedI32Table::exclusive_maximum_value(Self) -> Int
 pub fn CheckedI32Table::is_released(Self) -> Bool
 pub fn CheckedI32Table::minimum_value(Self) -> Int
 pub fn CheckedI32Table::provide_arena(Self, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError
 pub fn CheckedI32Table::release(Self) -> Bool
 pub fn CheckedI32Table::row_count(Self) -> Int
-
-pub struct CheckedI32TableDigest {
-  // private fields
-} derive(Eq, Hash, @debug.Debug)
-pub fn CheckedI32TableDigest::as_hex(Self) -> String
 
 pub struct I64RowNarrowStream {
   // private fields

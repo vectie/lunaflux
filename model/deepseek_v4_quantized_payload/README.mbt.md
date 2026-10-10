@@ -5,7 +5,8 @@ quantized storage roles already present in the DeepSeek V4 logical numeric
 plan: finite E4M3 parameters with 128×128 scales, UE8M0 scale grids, packed
 E2M1 expert parameters with 32-element row scales, and their UE8M0 grids.
 Every contract binds the storage encoding, exact block shape, source tensor
-logical shape, model content digest, byte count, and payload SHA-256.
+logical shape, declared model identity, and byte count. Payloads are not hashed;
+the layout fingerprint must not be treated as a checksum of tensor contents.
 
 Only finite E4M3FN scalar interpretation is established by captured LunaFlux
 evidence, including the two non-finite codes. UE8M0 exponent bias and special

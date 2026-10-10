@@ -47,7 +47,6 @@ pub struct HostTensor {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn HostTensor::bytes(Self) -> Bytes
-pub fn HostTensor::checksum(Self) -> TensorChecksum
 pub fn HostTensor::reference(Self) -> @plan.TensorRef
 pub fn HostTensor::tensor(Self) -> @safetensors.TensorMetadata
 
@@ -75,16 +74,10 @@ pub fn MaterializationReport::length(Self) -> Int
 pub fn MaterializationReport::receipt(Self, @plan.TensorRef) -> TensorReceipt?
 pub fn MaterializationReport::total_bytes(Self) -> Int64
 
-pub struct TensorChecksum {
-  // private fields
-} derive(Eq, @debug.Debug)
-pub fn TensorChecksum::as_hex(Self) -> String
-
 pub struct TensorChunk {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorChunk::bytes(Self) -> BytesView
-pub fn TensorChunk::checksum(Self) -> TensorChecksum
 pub fn TensorChunk::file_offset_bytes(Self) -> Int64
 pub fn TensorChunk::reference(Self) -> @plan.TensorRef
 pub fn TensorChunk::tensor(Self) -> @safetensors.TensorMetadata
@@ -93,7 +86,6 @@ pub struct TensorReceipt {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorReceipt::byte_length(Self) -> Int64
-pub fn TensorReceipt::checksum(Self) -> TensorChecksum
 pub fn TensorReceipt::reference(Self) -> @plan.TensorRef
 
 // Type aliases

@@ -1,5 +1,5 @@
 ///|
-async test "startup transfer session authenticates a referenced shard once and closes explicitly" {
+async test "startup transfer session opens a referenced shard once and closes explicitly" {
   @async.with_task_group() <| group => {
     let directory = @fs.realpath(@fs.tmpdir(prefix="lunaflux-transfer-session"))
     group.add_defer() <| () => {
@@ -45,7 +45,7 @@ async test "startup transfer session authenticates a referenced shard once and c
         },
       )
     }
-    assert_eq(session.authenticated_shards(), 1)
+    assert_eq(session.opened_shards(), 1)
     assert_eq(Bytes::from_array(bytes), b"abcdabcdabcdabcdabcdabcdabcdabcd")
     // Another approved root object is a cache miss, not an identity shortcut.
     let other = @approved_fs.ApprovedRoot::open_absolute(directory)
@@ -58,7 +58,7 @@ async test "startup transfer session authenticates a referenced shard once and c
       limits~,
       consume=(_, _, _, _) => true,
     )
-    assert_eq(session.authenticated_shards(), 1)
+    assert_eq(session.opened_shards(), 1)
     session.close()
     session.close()
     try

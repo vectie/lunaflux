@@ -27,7 +27,6 @@ pub(all) suberror StreamingSafetensorsError {
   FileTooLarge(Int)
   FileChanged(Int)
   FileCloseFailed(Int)
-  DigestMismatch(Int)
   MissingHeaderLength(Int)
   HeaderLengthOverflow(Int)
   HeaderTooLarge(Int)
@@ -109,7 +108,7 @@ pub(all) enum StreamingSafetensorsJsonField {
 pub struct StreamingSafetensorsLimits {
   // private fields
 } derive(Eq, @debug.Debug)
-pub fn StreamingSafetensorsLimits::new(maximum_shards~ : Int, maximum_file_bytes~ : Int64, maximum_header_bytes~ : Int, maximum_tensors_per_shard~ : Int, maximum_total_tensors~ : Int, maximum_rank~ : Int, maximum_name_bytes~ : Int, maximum_dtype_specs~ : Int, authentication_chunk_bytes~ : Int, maximum_copy_requests~ : Int, maximum_copy_bytes~ : Int64) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsLimits::new(maximum_shards~ : Int, maximum_file_bytes~ : Int64, maximum_header_bytes~ : Int, maximum_tensors_per_shard~ : Int, maximum_total_tensors~ : Int, maximum_rank~ : Int, maximum_name_bytes~ : Int, maximum_dtype_specs~ : Int, maximum_copy_requests~ : Int, maximum_copy_bytes~ : Int64) -> Self raise StreamingSafetensorsError
 
 pub struct StreamingSafetensorsSegmentedCopyRequest {
   // private fields
@@ -160,9 +159,9 @@ pub fn StreamingSafetensorsTransfer::new(shard_ordinal~ : Int, tensor_ordinal~ :
 pub struct StreamingSafetensorsTransferSession {
   // private fields
 }
-pub fn StreamingSafetensorsTransferSession::authenticated_shards(Self) -> Int
 pub fn StreamingSafetensorsTransferSession::close(Self) -> Unit raise StreamingSafetensorsError
 pub fn StreamingSafetensorsTransferSession::new(@approved_fs.ApprovedRoot, StreamingSafetensorsInspection, StreamingSafetensorsLimits) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsTransferSession::opened_shards(Self) -> Int
 pub fn StreamingSafetensorsTransferSession::transfer_ranges(Self, @approved_fs.ApprovedRoot, requests~ : ArrayView[StreamingSafetensorsTransfer], destination_bytes~ : ArrayView[Int64], scratch~ : FixedArray[Byte], limits~ : StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise StreamingSafetensorsError
 
 pub struct StreamingSafetensorsVisitedRange {

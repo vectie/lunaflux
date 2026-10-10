@@ -415,13 +415,19 @@ every worker.
 
 The current single-device loader resolves a strict relative descendant beneath
 an independently approved pinned root with component-wise no-follow traversal.
-Its one-shot API performs two bounded reads: it validates the complete digest
-and exact selected-model tensor vocabulary before opening the destination
-arena, then copies source-ordered chunks into final aligned regions while
-hashing the exact bytes again. Inspection-based worker preparation adds an
-earlier complete device-free admission and privately retains that validated
-locator; later loading reopens only that descendant and still completely
-re-admits it before allocation. Payload I/O reuses caller-owned fixed host
+Its inspection reads bounded headers and validates the selected-model tensor
+vocabulary and placement before opening the destination arena. Loading reads
+only selected tensor ranges into final aligned regions, with no complete-file
+hashing, copied-byte hashing, or per-tensor checksums. Sharded loading reads
+only the rank's actual source segments rather than scanning other ranks' bytes.
+The family-neutral sharded reader uses this same no-payload-hash rule for GLM,
+DeepSeek and MiniMax. Supplied inventory hashes are declared labels, not
+runtime-verified payload identities; optional acquisition verification is an
+external concern. `label:HEX` inventory entries explicitly carry a supplied
+checkpoint label without representing a shard checksum.
+Inspection-based preparation retains geometry and locators; loading rechecks
+bounded structure and same-file metadata, not cryptographic integrity.
+Payload I/O reuses caller-owned fixed host
 storage apart from the bounded immutable safetensors header required by the
 parser. No model-sized host snapshot or ambient path authority is retained.
 Terminal source-file close must succeed before readiness is published. If it

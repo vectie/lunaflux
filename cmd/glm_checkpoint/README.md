@@ -1,8 +1,8 @@
 # GLM checkpoint pipeline diagnostic
 
 Native executable for the installed GLM-5.3 Flash NVFP4 checkpoint. It reads
-`config.json` and a sha256sum-style safetensors inventory, authenticates
-the shards through the existing streaming reader, and plans all 45 layers using
+`config.json` and a safetensors inventory, inspects bounded shard headers
+through the streaming reader, and plans all 45 layers using
 actual tensor storage plus state/workspace/text costs. It never expands packed
 weights into a host model arena or runs JIT in the request path.
 
@@ -63,10 +63,10 @@ a positive real-model correctness/performance claim. Exact checkpoint loading,
 GPU numerics and two-host generation must still be tested. Self-feeding greedy
 continuation is implemented, not a positive actual-checkpoint result. It uses the existing
 correctness-first reference lowering, not the throughput Qwen path. Startup
-uploads use an explicit scoped authenticated-handle session: each
-referenced shard is reauthenticated once for the whole stage upload, rather
-than once per layer/weight owner. Initial inspection and the upload session
-remain separate passes; neither is repeated in token execution. Cross-shard
+uploads use an explicit scoped file-handle session. Header inspection and
+upload perform no checkpoint payload hashing. Existing sha256sum inventory
+records are declared labels only; `label:HEX  filename` records explicitly
+carry a supplied checkpoint label, not a shard checksum. Cross-shard
 duplicate-name detection is indexed rather than quadratic. These are source
 improvements, not a measured full-checkpoint startup timing claim.
 
@@ -74,5 +74,5 @@ The per-shard tensor bound equals the bounded total population (500,000), not
 an assumed weight-shard distribution. ModelOpt may concentrate all 37,152
 input scales in one small auxiliary shard. File/header byte limits remain
 independent. Header overlap validation uses sorted ranges; startup reports the
-authentication and binding/placement phases. Capture both output streams in
+header-inspection and binding/placement phases. Capture both output streams in
 the service journal so a terminal startup error is retained.

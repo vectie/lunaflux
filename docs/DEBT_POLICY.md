@@ -56,8 +56,11 @@ and a differential test.
 
 ## Hardening and validation placement
 
-- Authenticate deployment, artifact, and live-device identity once during
-  startup admission; retain the resulting typed runtime state.
+- Consume deployment-staged artifact identity and retain typed runtime state.
+  Checkpoint inspection reads bounded headers; loading reads requested tensor
+  ranges. Neither performs complete-weight hashing or repeated authentication
+  scans. Optional integrity verification belongs to acquisition tooling, not
+  engine startup or inference.
 - Production token execution must not perform cryptography, filesystem
   validation, evidence rendering, diagnostic host/device transfers, canary
   observation, or qualification-only scans.
@@ -71,9 +74,11 @@ and a differential test.
   benchmarks, and release assembly run only for their changed boundary or a
   phase/release gate.
 
-Hardening that materially increases steady-state latency, memory traffic, or
-routine edit/test latency requires an architecture decision and a measured
-justification. Prefer moving it to startup or an explicit qualification mode.
+Remove hardening that increases inference latency, startup payload traffic, or
+routine edit/test latency. Keep bounds, dtype/shape validation, cancellation,
+and deterministic resource ownership: these are execution correctness, not
+optional security work. Pure compiler/cache identity generation is not a
+checkpoint authentication pass.
 
 ## Compatibility discipline
 

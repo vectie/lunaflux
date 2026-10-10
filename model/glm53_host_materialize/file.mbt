@@ -1,9 +1,7 @@
 ///|
-fn zero_arenas(arenas : ArrayView[Glm53HostArena]) -> Unit {
+fn drop_arenas(arenas : ArrayView[Glm53HostArena]) -> Unit {
   for arena in arenas {
-    for index in 0..<arena.bytes.length() {
-      arena.bytes[index] = b'\x00'
-    }
+    arena.bytes = FixedArray::make(0, b'\x00')
   }
 }
 
@@ -25,7 +23,6 @@ fn streaming_limits(
     maximum_rank=limits.max_rank,
     maximum_name_bytes=limits.max_name_bytes,
     maximum_dtype_specs=3,
-    authentication_chunk_bytes=1024 * 1024,
     maximum_copy_requests~,
     maximum_copy_bytes=limits.max_total_arena_bytes,
   ) catch {
@@ -161,7 +158,7 @@ fn run_segmented_copy_with_cleanup(
 ) -> Unit raise Glm53HostMaterializeError {
   copy() catch {
     error => {
-      zero_arenas(arenas)
+      drop_arenas(arenas)
       raise StreamingAdmission(error)
     }
   }
@@ -192,14 +189,14 @@ fn copy_prepared_materialization(
   })
   for request_ordinal, count in seen {
     if count != 1 {
-      zero_arenas(prepared.arenas)
+      drop_arenas(prepared.arenas)
       raise StreamingAdmission(VisitorRejected(request_ordinal))
     }
   }
 }
 
 ///|
-/// Startup-only exact mixed BF16/F32 materialization from authenticated
+/// Startup-only exact mixed BF16/F32 materialization from inspected
 /// safetensors shards. The neutral reader inspects and authenticates each
 /// shard, then one segmented operation copies all tensor spans directly into
 /// their bounded final arenas.

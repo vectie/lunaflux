@@ -318,7 +318,7 @@ test "strict numeric admission rejects trailing bytes and stamp changes" {
 }
 
 ///|
-test "strict numeric admission rejects an unpinned artifact digest last" {
+test "numeric inspection retains declared labels without payload authentication" {
   let plan = numeric_fixture_plan()
   let file = numeric_fixture_file(plan)
   let wrong = try! NumericWeightArtifactDigest::from_sha256(
@@ -342,10 +342,9 @@ test "strict numeric admission rejects an unpinned artifact digest last" {
       () => 1,
     )
   catch {
-    ArtifactDigestMismatch => ()
-    _ => fail("unexpected error")
+    error => raise error
   } noraise {
-    _ => fail("expected artifact digest rejection")
+    prepared => assert_eq(prepared.artifact_digest, wrong)
   }
 }
 
@@ -356,7 +355,7 @@ priv struct FixtureArena {
 }
 
 ///|
-test "authenticated second pass copies only into final numeric regions" {
+test "numeric transfer copies only into final numeric regions" {
   let plan = numeric_fixture_plan()
   let file = numeric_fixture_file(plan)
   let prepared = prepare_fixture(plan, file)

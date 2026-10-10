@@ -16,7 +16,7 @@ byte ranges, shard content digests,
 manifest/execution identity, numeric schema digest, and numeric binding digest
 must all agree before an open owner is returned.
 
-`Glm53HostWeights::close` deterministically zeroizes and invalidates every
-arena and drops its references. MoonBit `FixedArray` storage is GC-managed, so
+`Glm53HostWeights::close` drops owner references and invalidates every
+arena without scrubbing its bytes. MoonBit `FixedArray` storage is GC-managed, so
 the package deliberately does not claim deterministic OS-level deallocation,
 device materialization, kernel readiness, or execution authority.

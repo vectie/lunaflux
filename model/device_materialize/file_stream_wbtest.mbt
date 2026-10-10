@@ -126,7 +126,7 @@ fn wb_stamp(
 }
 
 ///|
-test "streaming validation opens no destination for malformed or unapproved bytes" {
+test "streaming rejects malformed files but does not verify inventory labels" {
   let opens = Ref(0)
   try
     load_streaming_with_resource(
@@ -189,12 +189,13 @@ test "streaming validation opens no destination for malformed or unapproved byte
       _resource => (),
     )
   catch {
-    ContentDigestMismatch => ()
-    _ => fail("unexpected digest error")
+    error => raise error
   } noraise {
-    _ => fail("expected digest mismatch")
+    result => {
+      guard result is ResourceReady(_) else { fail("unexpected cleanup") }
+    }
   }
-  assert_eq(opens.val, 0)
+  assert_eq(opens.val, 1)
 }
 
 ///|

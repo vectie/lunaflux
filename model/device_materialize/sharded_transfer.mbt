@@ -43,7 +43,6 @@ fn[S] advance_sharded_transfer(
         destination_end > prepared.rank_plan.arena_bytes() {
         raise InvalidShardedTransfer(reference~, segment=segment.to_int())
       }
-      cursor.reference = reference
       cursor.source_offset_bytes = source
       cursor.destination_offset_bytes = destination
       cursor.byte_length = byte_length
@@ -60,74 +59,47 @@ fn[S] advance_sharded_transfer(
 fn[S : Eq, T] transfer_sharded_streaming_load(
   prepared : PreparedShardedStreamingLoad[S],
   file_bytes : Int64,
-  expected_digest : String,
   chunk_bytes : Int,
   resource : T,
   read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
   observe_stamp : () -> S raise DeviceWeightError,
   copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
 ) -> Unit raise DeviceWeightError {
-  let digest = @crypto.SHA256::new()
   let cursor : ShardedTransferCursor = {
     order_index: 0,
     segment: 0L,
-    reference: 0,
     source_offset_bytes: 0L,
     destination_offset_bytes: 0L,
     byte_length: 0L,
   }
-  let mut has_next = advance_sharded_transfer(prepared, file_bytes, cursor)
-  let mut position = 0L
-  while position < file_bytes {
-    let remaining = file_bytes - position
-    let count = if remaining < chunk_bytes.to_int64() {
-      remaining.to_int()
-    } else {
-      chunk_bytes
-    }
-    read_exact_chunk(read, prepared.scratch, position, count)
-    digest.update_from_iter(prepared.scratch[:count].iter())
-    let chunk_end = position + count.to_int64()
-    let mut scan = true
-    while scan {
-      if !has_next || cursor.source_offset_bytes >= chunk_end {
-        scan = false
-      } else {
-        let segment_end = cursor.source_offset_bytes + cursor.byte_length
-        let overlap_start = cursor.source_offset_bytes.max(position)
-        let overlap_end = segment_end.min(chunk_end)
-        if overlap_start < overlap_end {
-          copy(
-            resource,
-            prepared.scratch,
-            (overlap_start - position).to_int(),
-            cursor.destination_offset_bytes +
-            (overlap_start - cursor.source_offset_bytes),
-            overlap_end - overlap_start,
-          ) catch {
-            error => raise DeviceFailed(error)
-          }
-        }
-        if segment_end <= chunk_end {
-          has_next = advance_sharded_transfer(prepared, file_bytes, cursor)
-        } else {
-          scan = false
-        }
+  // Read only this rank's selected source segments, not the complete file.
+  while advance_sharded_transfer(prepared, file_bytes, cursor) {
+    for offset = 0L; offset < cursor.byte_length; {
+      let count = (cursor.byte_length - offset)
+        .min(chunk_bytes.to_int64())
+        .to_int()
+      read_exact_chunk(
+        read,
+        prepared.scratch,
+        cursor.source_offset_bytes + offset,
+        count,
+      )
+      copy(
+        resource,
+        prepared.scratch,
+        0,
+        cursor.destination_offset_bytes + offset,
+        count.to_int64(),
+      ) catch {
+        error => raise DeviceFailed(error)
       }
+      continue offset + count.to_int64()
     }
-    position = chunk_end
-  }
-  if has_next {
-    raise InvalidShardedTransfer(
-      reference=cursor.reference,
-      segment=(cursor.segment - 1L).to_int(),
-    )
   }
   let observed_stamp = observe_stamp() catch {
     _ => raise FileChangedDuringLoad
   }
-  if observed_stamp != prepared.source_stamp ||
-    @crypto.bytes_to_hex_string(digest.finalize()) != expected_digest {
+  if observed_stamp != prepared.source_stamp {
     raise FileChangedDuringLoad
   }
 }
@@ -158,7 +130,6 @@ fn[T] sharded_resource_failure(
 fn[S : Eq, T] load_prepared_sharded_streaming_with_resource(
   prepared : PreparedShardedStreamingLoad[S],
   file_bytes : Int64,
-  expected_digest : String,
   chunk_bytes : Int,
   read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
   observe_stamp : () -> S raise DeviceWeightError,
@@ -171,8 +142,7 @@ fn[S : Eq, T] load_prepared_sharded_streaming_with_resource(
   }
   let transferred : Result[Unit, DeviceWeightError] = try {
     transfer_sharded_streaming_load(
-      prepared, file_bytes, expected_digest, chunk_bytes, resource, read, observe_stamp,
-      copy,
+      prepared, file_bytes, chunk_bytes, resource, read, observe_stamp, copy,
     )
     Ok(())
   } catch {

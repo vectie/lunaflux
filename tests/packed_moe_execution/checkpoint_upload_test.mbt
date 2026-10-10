@@ -34,7 +34,6 @@ async test "checkpoint device owner uploads original dense rank and float contro
       maximum_rank=3,
       maximum_name_bytes=64,
       maximum_dtype_specs=2,
-      authentication_chunk_bytes=32,
       maximum_copy_requests=2,
       maximum_copy_bytes=24L,
     )

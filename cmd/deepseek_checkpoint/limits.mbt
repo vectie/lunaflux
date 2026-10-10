@@ -15,7 +15,6 @@ fn checkpoint_limits(
     maximum_rank=8,
     maximum_name_bytes=512,
     maximum_dtype_specs=11,
-    authentication_chunk_bytes=1048576,
     maximum_copy_requests=20000,
     maximum_copy_bytes~,
   )

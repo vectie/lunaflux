@@ -40,7 +40,9 @@ membership checks, then derive copy requests from the already bounded arena
 layout. Preserve separate FL2VA, Ref2VA, text-conditioner, video-VAE, and
 audio-VAE ownership; do not combine them into a synthetic complete model.
 
-For every family, the expected complete-file digest and approved relative
+For every family, the declared inventory label and approved relative
 locator become `StreamingSafetensorsShardInput`s. A successful adapter must
 publish family metadata or host ownership only after `inspect_shards` or
 `copy_ranges` returns successfully; destination spans are discarded on error.
+No runtime full-file hashing is performed. Payload integrity is not claimed by
+structural inspection or bounded direct copy.

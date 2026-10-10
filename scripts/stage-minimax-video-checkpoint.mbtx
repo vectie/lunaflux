@@ -31,14 +31,15 @@ async fn remote(command : String) -> @shell.Output {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, config] &&
+  guard @env.args() is [_, root, config, label] &&
     root.has_prefix("/tmp/lunaflux-minimax-video-upload-") &&
     config.has_prefix("/tmp/lunaflux-minimax-video-config-") &&
+    label.length() == 64 && label.iter().all(c => c is ('a'..='f' | '0'..='9')) &&
     [root, config].all(s => {
       !s.contains("..") &&
       s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
     }) else {
-    fail("NEW_LOCAL_AND_REMOTE_DIRECTORY LOCAL_VIDEO_CONFIG_DIRECTORY")
+    fail("NEW_LOCAL_AND_REMOTE_DIRECTORY LOCAL_VIDEO_CONFIG_DIRECTORY DECLARED_CHECKPOINT_LABEL")
   }
   @fs.mkdir(root)
   let variant = root + "/FL2VA"
@@ -57,17 +58,12 @@ async fn main {
     "-o",
     "BatchMode=yes",
     "lunanexa-management",
-    "sha256sum " + source,
+    "stat -c %s " + source,
   ]).output()
   record(root, "source-shard", identity)
-  guard identity.stdout().split(" ").next() is Some(hash) &&
-    hash.length() == 64 &&
-    hash.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
-    fail("missing source checkpoint hash")
-  }
   @fs.write_file(
     root + "/VIDEO.sha256",
-    hash + "  model.safetensors\n",
+    "label:" + label + "  model.safetensors\n",
     create_mode=CreateNew,
   )
   for
@@ -112,11 +108,11 @@ async fn main {
     ]).output(max_output_bytes=1048576),
   )
   let copied = remote(
-    "sha256sum " + variant + "/video_vae/source/model.safetensors",
+    "stat -c %s " + variant + "/video_vae/source/model.safetensors",
   )
   record(root, "installed-shard", copied)
-  guard copied.stdout().has_prefix(hash + "  ") else {
-    fail("staged VideoVAE checkpoint differs; files preserved")
+  guard copied.stdout().trim() == identity.stdout().trim() else {
+    fail("incomplete staged VideoVAE checkpoint; files preserved")
   }
-  println("actual VideoVAE weights staged and hash verified; no GPU execution")
+  println("actual VideoVAE weights staged with a declared label and size check; no hashing or GPU execution")
 }

@@ -213,7 +213,7 @@ test "weight inspection exposes exact immutable layout evidence" {
 }
 
 ///|
-test "readmission hashes exact bytes instead of trusting old file stamps" {
+test "structural reinspection derives layout using the current file stamp" {
   let file = wb_stream_file()
   let inspection = wb_inspect_file(file)
   let current_stamp = wb_stamp(file, modified=17)
@@ -231,7 +231,7 @@ test "readmission hashes exact bytes instead of trusting old file stamps" {
 }
 
 ///|
-test "readmission rejects changed content before device allocation" {
+test "structural reinspection does not hash otherwise valid payloads" {
   let file = wb_stream_file()
   let inspection = wb_inspect_file(file)
   let changed_data = file.to_array()
@@ -256,12 +256,13 @@ test "readmission rejects changed content before device allocation" {
       _resource => (),
     )
   catch {
-    ContentDigestMismatch => ()
-    _ => fail("unexpected changed-content error")
+    error => raise error
   } noraise {
-    _ => fail("expected changed-content rejection")
+    result => {
+      guard result is ResourceReady(_) else { fail("unexpected cleanup") }
+    }
   }
-  assert_eq(opens.val, 0)
+  assert_eq(opens.val, 1)
 }
 
 ///|

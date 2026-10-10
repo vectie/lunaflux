@@ -23,7 +23,7 @@ fn canonical_operand_plan_digest(
   hash_operand_plan_field(hash, plan.sidecar_layout_digest.as_hex())
   hash_operand_plan_field(hash, plan.sidecar_source_digest.as_hex())
   hash_operand_plan_field(hash, plan.source_manifest_digest)
-  hash_operand_plan_field(hash, plan.table_digest)
+  hash_operand_plan_field(hash, plan.table_source_label)
   hash_operand_plan_field(hash, plan.requirement_ordinal.to_string())
   hash_operand_plan_field(hash, plan.layer_index.to_string())
   hash_operand_plan_field(hash, plan.routed_expert_count.to_string())

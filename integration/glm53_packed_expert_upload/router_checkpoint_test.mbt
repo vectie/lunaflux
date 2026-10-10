@@ -31,7 +31,6 @@ async test "installed-size GLM router binds BF16 matrix and true F32 vector" {
       maximum_rank=2,
       maximum_name_bytes=256,
       maximum_dtype_specs=2,
-      authentication_chunk_bytes=65536,
       maximum_copy_requests=2,
       maximum_copy_bytes=2360448L,
     )

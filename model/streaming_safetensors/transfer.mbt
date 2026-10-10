@@ -83,12 +83,12 @@ fn validate_transfers(
 }
 
 ///|
-/// Stream authenticated slices through one reusable caller-owned scratch span.
+/// Stream inspected slices through one reusable caller-owned scratch span.
 /// `consume(destination, offset, scratch, count)` must finish consuming the
 /// first `count` bytes synchronously: the next chunk overwrites them. Returning
 /// false stops immediately. Destinations stay caller-owned, and must not be
 /// executed after failure. No complete tensor or host weight arena is built.
-/// Each referenced shard is opened and reauthenticated once, not once per chunk.
+/// Only requested tensor slices are read; no full-file hash pass is performed.
 pub fn transfer_ranges(
   root : @approved_fs.ApprovedRoot,
   inspection : StreamingSafetensorsInspection,
@@ -108,16 +108,6 @@ pub fn transfer_ranges(
       let stamp = stamp_file(shard_ordinal, file)
       guard stamp == shard.stamp else {
         raise InspectionReplayMismatch(shard_ordinal)
-      }
-      authenticate_file(
-        shard_ordinal,
-        file,
-        shard.metadata.file_byte_count,
-        shard.expected_digest,
-        limits.authentication_chunk_bytes,
-      )
-      guard stamp_file(shard_ordinal, file) == stamp else {
-        raise FileChanged(shard_ordinal)
       }
       transfer_open_file(shard_ordinal, shard, file, requests, scratch, consume)
       guard stamp_file(shard_ordinal, file) == stamp else {

@@ -18,32 +18,6 @@ fn read_exact_chunk(
 }
 
 ///|
-fn hash_stream(
-  file_bytes : Int64,
-  chunk_bytes : Int,
-  scratch : FixedArray[Byte],
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
-) -> String raise DeviceWeightError {
-  let digest = @crypto.SHA256::new()
-  let mut position = 0L
-  while position < file_bytes {
-    let remaining = file_bytes - position
-    let count = if remaining < chunk_bytes.to_int64() {
-      remaining.to_int()
-    } else {
-      chunk_bytes
-    }
-    read_exact_chunk(read, scratch, position, count)
-    // `moonbitlang/x/crypto` does not yet expose a range update for a
-    // FixedArray. This iterator is confined to startup file admission and
-    // avoids allocating a fresh immutable Bytes value for every chunk.
-    digest.update_from_iter(scratch[:count].iter())
-    position = position + count.to_int64()
-  }
-  @crypto.bytes_to_hex_string(digest.finalize())
-}
-
-///|
 fn compare_transfer_source(
   left : StreamingTransferRegion,
   right : StreamingTransferRegion,
@@ -166,20 +140,11 @@ fn[S : Eq] prepare_streaming_load(
   let regions = streaming_regions(
     bindings, layout, payload_offset_bytes, file_bytes,
   )
-  let verified_digest = hash_stream(
-    file_bytes,
-    limits.transfer_chunk_bytes(),
-    scratch,
-    read,
-  )
   let verified_stamp = observe_stamp() catch {
     _ => raise FileChangedDuringLoad
   }
   if verified_stamp != source_stamp {
     raise FileChangedDuringLoad
-  }
-  if verified_digest != model.content_digest().as_hex() {
-    raise ContentDigestMismatch
   }
   { source_stamp, payload_offset_bytes, layout, regions, scratch, }
 }
@@ -258,7 +223,6 @@ fn[S : Eq, T] load_inspected_streaming_with_resource(
   )
   load_prepared_streaming_with_resource(
     prepared,
-    inspection.content_digest().as_hex(),
     inspection.limits.transfer_chunk_bytes(),
     read,
     observe_stamp,
@@ -271,26 +235,12 @@ fn[S : Eq, T] load_inspected_streaming_with_resource(
 ///|
 fn[S : Eq, T] transfer_streaming_load(
   prepared : PreparedStreamingLoad[S],
-  expected_digest : String,
   chunk_bytes : Int,
   resource : T,
   read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
   observe_stamp : () -> S raise DeviceWeightError,
   copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
 ) -> Unit raise DeviceWeightError {
-  let digest = @crypto.SHA256::new()
-  let mut header_position = 0L
-  while header_position < prepared.payload_offset_bytes {
-    let remaining = prepared.payload_offset_bytes - header_position
-    let count = if remaining < chunk_bytes.to_int64() {
-      remaining.to_int()
-    } else {
-      chunk_bytes
-    }
-    read_exact_chunk(read, prepared.scratch, header_position, count)
-    digest.update_from_iter(prepared.scratch[:count].iter())
-    header_position = header_position + count.to_int64()
-  }
   for region in prepared.regions {
     let mut transferred = 0L
     while transferred < region.byte_length {
@@ -306,7 +256,6 @@ fn[S : Eq, T] transfer_streaming_load(
         region.source_offset_bytes + transferred,
         count,
       )
-      digest.update_from_iter(prepared.scratch[:count].iter())
       copy(
         resource,
         prepared.scratch,
@@ -322,8 +271,7 @@ fn[S : Eq, T] transfer_streaming_load(
   let observed_stamp = observe_stamp() catch {
     _ => raise FileChangedDuringLoad
   }
-  if observed_stamp != prepared.source_stamp ||
-    @crypto.bytes_to_hex_string(digest.finalize()) != expected_digest {
+  if observed_stamp != prepared.source_stamp {
     raise FileChangedDuringLoad
   }
 }
@@ -349,7 +297,6 @@ fn[S : Eq, T] load_streaming_with_resource(
   )
   load_prepared_streaming_with_resource(
     prepared,
-    model.content_digest().as_hex(),
     limits.transfer_chunk_bytes(),
     read,
     observe_stamp,
@@ -362,7 +309,6 @@ fn[S : Eq, T] load_streaming_with_resource(
 ///|
 fn[S : Eq, T] load_prepared_streaming_with_resource(
   prepared : PreparedStreamingLoad[S],
-  expected_digest : String,
   chunk_bytes : Int,
   read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
   observe_stamp : () -> S raise DeviceWeightError,
@@ -375,7 +321,7 @@ fn[S : Eq, T] load_prepared_streaming_with_resource(
   }
   let transfer_result : Result[Unit, DeviceWeightError] = try {
     transfer_streaming_load(
-      prepared, expected_digest, chunk_bytes, resource, read, observe_stamp, copy,
+      prepared, chunk_bytes, resource, read, observe_stamp, copy,
     )
     Ok(())
   } catch {

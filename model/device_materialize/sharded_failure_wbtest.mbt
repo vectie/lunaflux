@@ -11,12 +11,11 @@ test "sharded mutation and read failures close local allocation" {
     load_prepared_sharded_streaming_with_resource(
       prepared,
       changed.length().to_int64(),
-      wb_sharded_model(file).content_digest().as_hex(),
       17,
       (destination, destination_offset, position, count) => {
         wb_fill(changed, destination, destination_offset, position, count)
       },
-      () => wb_stamp(changed),
+      () => wb_stamp(changed, modified=2),
       _arena_bytes => 3,
       (_resource, _source, _source_offset, _destination, _count) => (),
       _resource => mutation_closes.val += 1,
@@ -33,7 +32,6 @@ test "sharded mutation and read failures close local allocation" {
     load_prepared_sharded_streaming_with_resource(
       prepared,
       file.length().to_int64(),
-      wb_sharded_model(file).content_digest().as_hex(),
       17,
       (_destination, _destination_offset, _position, _count) => {
         raise FileUnavailable
@@ -60,7 +58,6 @@ test "sharded copy failure retains cleanup authority when close fails" {
   let result = load_prepared_sharded_streaming_with_resource(
     prepared,
     file.length().to_int64(),
-    wb_sharded_model(file).content_digest().as_hex(),
     17,
     (destination, destination_offset, position, count) => {
       wb_fill(file, destination, destination_offset, position, count)
@@ -85,13 +82,14 @@ test "sharded copy failure retains cleanup authority when close fails" {
 }
 
 ///|
-test "sharded preflight authenticates complete file before allocation" {
+test "sharded preflight reads only bounded metadata, not whole payload" {
   let file = wb_sharded_file()
   let model = wb_sharded_model(file)
   let changed_array = file.to_array()
   let last = changed_array.length() - 1
   changed_array[last] = (changed_array[last].to_int() ^ 1).to_byte()
   let changed = Bytes::from_array(changed_array)
+  let maximum_end = Ref(0L)
   try
     prepare_sharded_streaming_load(
       model,
@@ -104,15 +102,15 @@ test "sharded preflight authenticates complete file before allocation" {
       changed.length().to_int64(),
       wb_stream_limits(),
       (destination, destination_offset, position, count) => {
+        maximum_end.val = maximum_end.val.max(position + count.to_int64())
         wb_fill(changed, destination, destination_offset, position, count)
       },
       () => wb_stamp(changed),
     )
   catch {
-    ContentDigestMismatch => ()
-    _ => fail("unexpected preflight digest error")
+    error => raise error
   } noraise {
-    _ => fail("changed complete file passed shard preflight")
+    prepared => assert_eq(maximum_end.val, prepared.payload_offset_bytes)
   }
 }
 

@@ -14,12 +14,16 @@ test "sharded stream copies row column and replicated ranges directly" {
       b'\x00',
     )
     let opened = Ref(0L)
+    let read_bytes = Ref(0L)
     let result = load_prepared_sharded_streaming_with_resource(
       prepared,
       file.length().to_int64(),
-      wb_sharded_model(file).content_digest().as_hex(),
       17,
       (destination, destination_offset, position, count) => {
+        guard position >= prepared.payload_offset_bytes else {
+          raise FileTruncated
+        }
+        read_bytes.val += count.to_int64()
         wb_fill(file, destination, destination_offset, position, count)
       },
       () => wb_stamp(file),
@@ -36,6 +40,7 @@ test "sharded stream copies row column and replicated ranges directly" {
       fail("successful shard retained cleanup authority")
     }
     assert_eq(opened.val, prepared.rank_plan.arena_bytes())
+    assert_eq(read_bytes.val, prepared.rank_plan.materialized_bytes())
     assert_true(opened.val < dense_layout.arena_bytes())
     assert_eq(ready.rank_plan, prepared.rank_plan)
     for reference in 0..<prepared.rank_plan.tensor_count() {
@@ -86,7 +91,6 @@ fn wb_materialize_sharded_inspection(
   let outcome = load_prepared_sharded_streaming_with_resource(
     prepared,
     file.length().to_int64(),
-    inspection.content_digest().as_hex(),
     inspection.limits.transfer_chunk_bytes(),
     (destination, destination_offset, position, count) => {
       wb_fill(file, destination, destination_offset, position, count)
@@ -223,7 +227,6 @@ fn wb_assert_all_rank_shard_reconstruction(file : Bytes) -> Unit raise {
       load_prepared_sharded_streaming_with_resource(
         prepared[rank],
         file.length().to_int64(),
-        wb_sharded_model(file).content_digest().as_hex(),
         17,
         (destination, destination_offset, position, count) => {
           wb_fill(file, destination, destination_offset, position, count)

@@ -56,13 +56,7 @@ pub struct DeepSeekV4QuantizedBlockShape {
 } derive(Debug, Eq)
 
 ///|
-/// SHA-256 of the exact admitted host bytes.
-pub struct DeepSeekV4QuantizedPayloadDigest {
-  priv hex : String
-} derive(Debug, Eq, Hash)
-
-///|
-/// Digest binding storage, block, logical shape, model content, and bytes.
+/// Fingerprint of storage geometry and declared model identity, not payload bytes.
 pub struct DeepSeekV4QuantizedPayloadContractDigest {
   priv hex : String
 } derive(Debug, Eq, Hash)
@@ -75,7 +69,6 @@ pub struct DeepSeekV4QuantizedPayloadContract {
   priv logical_shape : ReadOnlyArray[Int64]
   priv logical_element_count : Int64
   priv payload_bytes : Bytes
-  priv payload_digest : DeepSeekV4QuantizedPayloadDigest
   priv model_content_digest : @spec.ContentDigest
   priv fp4_codebook : @deepseek_v4_numeric_plan.DeepSeekV4Fp4CodebookBinding?
   priv contract_digest : DeepSeekV4QuantizedPayloadContractDigest

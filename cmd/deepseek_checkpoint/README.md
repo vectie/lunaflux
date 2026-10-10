@@ -6,6 +6,11 @@ checkpoint-backed DeepSeek base stages. It plans compact weights plus state,
 workspace, I32 token tables, residuals and a caller reserve before device upload.
 Rank request metadata includes absolute positions. No TLS or runtime JIT is added.
 
+Inspection reads only bounded headers; upload reads selected tensor slices.
+Neither hashes checkpoint payloads. Inventory IDs are declared labels, not
+runtime-verified integrity claims. Both old sha256sum records and explicit
+`label:HEX  filename` inventory records are accepted.
+
 `config MODEL_ROOT` inspects the actual configuration without loading weights.
 `token-frames MODEL_ROOT ROWS HISTORY COMMA_SEPARATED_TOKEN_IDS NEW_OUTDIR`
 creates bounded canonical prefill frames (no guessed tokenizer/chat template).

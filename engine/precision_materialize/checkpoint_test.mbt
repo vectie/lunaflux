@@ -42,7 +42,6 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
       maximum_rank=3,
       maximum_name_bytes=128,
       maximum_dtype_specs=6,
-      authentication_chunk_bytes=32,
       maximum_copy_requests=10,
       maximum_copy_bytes=1024L,
     )
