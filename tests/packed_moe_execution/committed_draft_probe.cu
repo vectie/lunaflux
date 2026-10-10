@@ -119,6 +119,53 @@ int main() {
       ++cases;
     }
   }
+  // Later prompt chunks and verified-prefix replay append at the frontier.
+  history[0]=0; history[1]=0; mc[2]=1; dc[2]=1;
+  std::fill(expected_ring.begin(),expected_ring.end(),23.f);
+  for(int i=0;i<window*width;++i) ring[i]=__float2bfloat16_rn(23.f);
+  int frontier=0;
+  for(int count : {3,2,8,7,5}) {
+    reset[0]=frontier==0; start[0]=frontier; mc[3]=count;
+    for(int row=0;row<count;++row) for(int c=0;c<width;++c) {
+      main_kv[row*width+c]=__float2bfloat16_rn(value(frontier+row,c));
+      expected_ring[((frontier+row)%window)*width+c]=value(frontier+row,c);
+    }
+    sentinel(); submit(true); frontier+=count;
+    if(history[0]!=frontier || history[1] || descriptor[3]) return 14;
+    for(int i=0;i<window*width;++i) if(__bfloat162float(ring[i])!=expected_ring[i]) return 15;
+    for(int i=0;i<rows*heads*width;++i) if(__bfloat162float(output[i])!=19.f) return 16;
+    ++cases;
+  }
+  // Undo restores overwritten physical slots, not just the logical length.
+  auto backup_ring=allocate<__nv_bfloat16>(window*width);
+  auto backup_history=allocate<int>(2);
+  check(cudaMemcpy(backup_ring,ring,window*width*sizeof(__nv_bfloat16),cudaMemcpyDeviceToDevice));
+  check(cudaMemcpy(backup_history,history,2*sizeof(int),cudaMemcpyDeviceToDevice));
+  reset[0]=0; start[0]=frontier; mc[3]=4;
+  for(int row=0;row<4;++row) for(int c=0;c<width;++c) main_kv[row*width+c]=__float2bfloat16_rn(value(frontier+row,c));
+  submit(true); if(history[0]!=frontier+4 || history[1]) return 17;
+  bool changed=false;
+  for(int i=0;i<window*width;++i) changed|=__bfloat162float(ring[i])!=expected_ring[i];
+  if(!changed) return 18;
+  check(cudaMemcpy(ring,backup_ring,window*width*sizeof(__nv_bfloat16),cudaMemcpyDeviceToDevice));
+  check(cudaMemcpy(history,backup_history,2*sizeof(int),cudaMemcpyDeviceToDevice));
+  if(history[0]!=frontier || history[1]) return 19;
+  for(int i=0;i<window*width;++i) if(__bfloat162float(ring[i])!=expected_ring[i]) return 20;
+  ++cases;
+  // Replay only the accepted two rows after restoring the tentative four.
+  start[0]=frontier; mc[3]=2; sentinel(); submit(true);
+  for(int row=0;row<2;++row) for(int c=0;c<width;++c) expected_ring[((frontier+row)%window)*width+c]=value(frontier+row,c);
+  frontier+=2;
+  if(history[0]!=frontier || history[1]) return 21;
+  for(int i=0;i<window*width;++i) if(__bfloat162float(ring[i])!=expected_ring[i]) return 22;
+  for(int i=0;i<rows*heads*width;++i) if(__bfloat162float(output[i])!=19.f) return 23;
+  ++cases;
+  // A gap remains illegal; general append retains frontier ownership.
+  start[0]=frontier+1; mc[3]=1; submit(true);
+  if(history[0]!=frontier || !history[1] || !descriptor[3]) return 24;
+  for(int i=0;i<window*width;++i) if(__bfloat162float(ring[i])!=expected_ring[i]) return 25;
+  ++cases;
+  check(cudaFree(backup_history)); check(cudaFree(backup_ring));
   // Future draft visibility: row zero with zero queries sees the last KV row.
   history[0]=1; history[1]=0; mc[3]=1; dc[3]=3; reset[0]=0; start[0]=1;
   for(int i=0;i<rows*heads*width;++i) query[i]=__float2bfloat16_rn(0.f);
@@ -130,5 +177,5 @@ int main() {
   check(cudaFree(sink)); check(cudaFree(output)); check(cudaFree(ring)); check(cudaFree(query)); check(cudaFree(draft)); check(cudaFree(main_kv));
   check(cudaFree(descriptor)); check(cudaFree(history)); check(cudaFree(start)); check(cudaFree(reset)); check(cudaFree(dc)); check(cudaFree(mc));
   check(cudaDeviceReset());
-  std::printf("committed draft: %d cases passed; maxabs=%g; prime/wrap/all-draft visibility/sticky failure/replay; allocations released\n",cases,worst);
+  std::printf("committed draft: %d cases passed; maxabs=%g; chunk-prime/wrap/device-undo/accepted-prefix-replay/all-draft visibility/sticky failure; allocations released\n",cases,worst);
 }

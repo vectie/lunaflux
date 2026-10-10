@@ -18,6 +18,13 @@ test "prediction execution does not publish unprepared results" {
   } noraise {
     _ => fail("unprepared drafts exposed")
   }
+  assert_eq(owner.state_backup_bytes(), 393256L)
+  try owner.persistent_state() catch {
+    @device.DeviceError::Busy(DeviceCopyCreate) => ()
+    e => raise e
+  } noraise {
+    _ => fail("unprepared predictor state exposed")
+  }
   try owner.submit(Predict) catch {
     @device.DeviceError::Busy(OrderedExecutorEnqueue) => ()
     e => raise e
@@ -26,4 +33,10 @@ test "prediction execution does not publish unprepared results" {
   }
   owner.close()
   owner.close()
+  try owner.persistent_state() catch {
+    @device.DeviceError::Busy(DeviceCopyCreate) => ()
+    e => raise e
+  } noraise {
+    _ => fail("closed predictor state exposed")
+  }
 }

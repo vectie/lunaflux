@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/device_state_snapshot" @snapshot,
   "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/model/deepseek_v4_spec" @spec,
   "vectie/lunaflux/integration/deepseek_v4_prediction_prefix" @prediction,

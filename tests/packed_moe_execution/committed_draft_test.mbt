@@ -38,6 +38,13 @@ test "committed draft phases share a ring and parent completion without warmed a
   defer (draft.close() catch { _ => () })
   let frame = draft_fixture()
   defer (frame.close() catch { _ => () })
+  assert_eq(frame.persistent_state_bytes(), 72L)
+  try frame.persistent_state() catch {
+    @device.DeviceError::InvalidArgument(DeviceCopyCreate) => ()
+    e => raise e
+  } noraise {
+    _ => fail("fresh ring exposed as prepared state")
+  }
   frame.prepare(
     context,
     aot,
@@ -54,6 +61,13 @@ test "committed draft phases share a ring and parent completion without warmed a
   assert_eq(frame.prime_launches().length(), 3)
   assert_eq(frame.prediction_launches().length(), 4)
   assert_eq(frame.output().byte_count(), 96L)
+  let state = frame.persistent_state()
+  assert_eq(state.length(), 2)
+  assert_eq(state.map(b => b.byte_count()), [64L, 8L])
+  for buffer in state {
+    assert_false(buffer.same_storage(frame.output()))
+    assert_false(buffer.same_storage(frame.descriptor()))
+  }
   let prime = context.create_ordered_kernel_executor(
     stream,
     frame.prime_launches(),
@@ -96,6 +110,12 @@ test "committed draft phases share a ring and parent completion without warmed a
   prime.close()
   frame.close()
   frame.close()
+  try frame.persistent_state() catch {
+    @device.DeviceError::InvalidArgument(DeviceCopyCreate) => ()
+    e => raise e
+  } noraise {
+    _ => fail("closed ring exposed as prepared state")
+  }
   draft.close()
   main.close()
   aot.close()

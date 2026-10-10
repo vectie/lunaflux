@@ -61,7 +61,8 @@ boundary and Output-B's block-FP8 activation arithmetic use the existing shared
 norm are uploaded once and borrowed by both
 branches. Stage bounds use the three-block artifact count, not the config's
 legacy value of one. Composite CUDA compilation and native ownership tests
-pass; GPU ring correctness and the complete prediction queue remain unverified.
+pass. The standalone ring now passes independent GB10 correctness and sanitizer
+checks; complete checkpoint prediction correctness remains unverified.
 The base request's committed frontier remains authoritative;
 prediction history must not independently advance or commit rejected drafts.
 Prefill and draft counts/positions are separate prepared ports, not reinterpretations
@@ -135,11 +136,34 @@ Failed/partial submissions must drain before resource release. Backup capacity
 is additional to the model's resident budget and is checked before allocation.
 
 This is the physical state transaction, not complete speculative generation.
+The predictor now declares each of its three committed-main ring/frontier
+pairs, excluding draft output and recomputed descriptors. Its attached execution
+owner also includes the explicit 16-byte RNG and prepares the same device-only
+snapshot transaction. At the official 128x512 BF16 ring geometry, backup is
+393,256 bytes for all three rings/frontiers plus RNG. This is additional budget,
+not silently charged to an unspecified reserve. The snapshot must close before
+the predictor whose allocations it leases. Contiguous Prime updates can append
+later prompt chunks or replay an accepted prefix at the committed frontier;
+Predict remains a one-main-row update and never publishes draft KV.
+
 The verified-prefix algorithm, host request-frontier transaction, all-position
-base head, inter-rank draft/result exchange and predictor-ring rollback must
-still be connected. A restored base arena must not be described as a completed
+base head and inter-rank draft/result exchange must still be connected to these
+state transactions. A restored base arena must not be described as a completed
 DSpark acceptance loop. Model work must retire before rollback/commit; callers
 must order all state mutation on the prepared stream or an explicit dependency.
+
+The commit-pinned GB10 generic snapshot probe passed 128 rollback cycles and
+commit/poll/budget/ownership checks (412 backup bytes). This proves the device
+copy transaction, not a complete checkpoint DSpark acceptance result.
+
+The working-tree ring campaign on .179 at
+`/tmp/lunaflux-committed-draft-chunk-undo-20261010-v1` passed 262 independent
+cases with maximum absolute error zero. It covers contiguous prompt chunks,
+ring wrap, device-only undo of overwritten payload and frontier, replay of only
+the accepted prefix, and rejection of a position gap without state mutation.
+Memcheck reported zero errors and zero leaked bytes; racecheck reported zero
+hazards; synccheck reported zero errors. This is component evidence, not a
+whole-model acceptance or speculative-speed result.
 
 ## Completion requirements
 

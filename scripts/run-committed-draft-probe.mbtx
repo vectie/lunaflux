@@ -52,7 +52,10 @@ async fn admission(root : String, gate : String) -> Unit {
 async fn main {
   guard @env.args() is [_, root, suffix, mode, .. tail] &&
     (
-      ((mode == "build" || mode == "run") && tail.is_empty()) ||
+      (
+        (mode == "build" || mode == "build-ring" || mode == "run") &&
+        tail.is_empty()
+      ) ||
       (mode == "wait-run" && tail.length() == 1)
     ) &&
     root.has_prefix("/tmp/lunaflux-committed-draft-") &&
@@ -62,7 +65,7 @@ async fn main {
     }) &&
     !suffix.contains("/") else {
     fail(
-      "LOCAL_DIRECTORY UNIQUE_SAFE_SUFFIX build|run|wait-run [DEEPSEEK_RUNNER_PID]",
+      "LOCAL_DIRECTORY UNIQUE_SAFE_SUFFIX build|build-ring|run|wait-run [DEEPSEEK_RUNNER_PID]",
     )
   }
   if mode == "wait-run" {
@@ -86,7 +89,7 @@ async fn main {
   let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" +
     remote_root +
     " --unit=lunaflux-committed-draft-"
-  if mode == "build" {
+  if mode == "build" || mode == "build-ring" {
     @fs.mkdir(root)
     let exported = @shell.Cmd("/usr/bin/env", [
       "LUNA_EXPORT_COMMITTED_DRAFT=1", "moon", "test", "--target", "native", "--release",
@@ -153,6 +156,12 @@ async fn main {
     ])
     .output()
     .check()
+    if mode == "build-ring" {
+      println(
+        "compiled ring probe without checksum scanning; no GPU workload executed",
+      )
+      return
+    }
     let composite = @shell.Cmd("/usr/bin/env", [
       "LUNA_EXPORT_PREDICTION_ATTENTION=1", "moon", "test", "--target", "native",
       "--release", "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "integration/deepseek_v4_prediction_prefix/plan_test.mbt",

@@ -230,6 +230,14 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
     )
     assert_eq(owner.prime_launches().length(), 7)
     assert_eq(owner.prediction_launches().length(), 19)
+    assert_eq(owner.persistent_state_bytes(), 131080L)
+    let persistent = owner.persistent_state()
+    assert_eq(persistent.map(b => b.byte_count()), [131072L, 8L])
+    for buffer in persistent {
+      assert_false(buffer.same_storage(owner.output()))
+      assert_false(buffer.same_storage(main))
+      assert_false(buffer.same_storage(draft))
+    }
     assert_eq(
       owner.output().byte_count(),
       5L * spec.hidden_size().to_int64() * 2L,

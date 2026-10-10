@@ -40,7 +40,7 @@ pub fn committed_draft_kv_source(
       $|  const int base = start[0], main = main_counts[3], draft = \{priming} ? 0 : draft_counts[3];
       $|  descriptor[0] = base; descriptor[1] = 0; descriptor[2] = 0; descriptor[3] = 1;
       $|  if (reset[0] < 0 || reset[0] > 1 || history[1] || base < 0 || base >= \{positions} || base != history[0] || main < 1 || main > \{main_rows} || main > \{positions} - base || main_counts[2] != 1) { history[1] = 1; return; }
-      $|  if (\{priming} ? base != 0 : (base == 0 || main != 1 || draft < 1 || draft > \{draft_rows} || draft_counts[2] != 1 || draft > \{positions} - base - main)) { history[1] = 1; return; }
+      $|  if (!\{priming} && (base == 0 || main != 1 || draft < 1 || draft > \{draft_rows} || draft_counts[2] != 1 || draft > \{positions} - base - main)) { history[1] = 1; return; }
       $|  descriptor[1] = main; descriptor[2] = draft; descriptor[3] = 0;
       $|}
       $|extern "C" __global__ void \{symbols[1]}(const int32_t *descriptor, const uint16_t *main_kv, uint16_t *ring) {

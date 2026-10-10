@@ -2412,9 +2412,19 @@ index-cache state; neither weights nor scratch enter the backup. Forward and
 reverse copies reuse fixed pointers, resource leases and one completion event.
 No payload hashing, filesystem access, host staging or per-submit heap allocation
 is introduced. CPU fake-driver copy/failure/retirement/release tests, native plan
-budget tests and ASan/UBSan pass; a fresh GB10 commit/rollback probe follows.
+budget tests and ASan/UBSan pass. The `1d5051b1` GB10 snapshot probe passed 128
+rollback cycles plus commit/poll/budget/ownership (412 backup bytes, exit 0).
+The predictor now declares all three committed ring/frontier pairs and its RNG
+for the same reusable transaction, with an explicit 393,256-byte backup budget.
+Contiguous Prime updates now support later prompt chunks and accepted-prefix
+replay, rather than rejecting every nonzero base position.
+The .179 ring campaign `chunk-undo-20261010-v1` passed 262 independent GPU
+cases (maximum absolute error zero), including wrap, device undo and accepted
+prefix replay. Memcheck reported zero errors/leaked bytes; racecheck zero
+hazards and synccheck zero errors. These are component results, not a full
+checkpoint speculative-generation claim.
 This does not yet connect all-position base verification, inter-rank draft/result
-exchange, predictor-ring transactions or host-frontier acceptance. Those remain
+exchange or host-frontier acceptance to these state transactions. Those remain
 required before describing the route as complete speculative generation.
 
 The first physical joint attempt (`52242267`, v1) stopped before CUDA at denoiser

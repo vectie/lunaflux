@@ -13,6 +13,13 @@ test "whole prediction source joins all three stages and distinct main/draft por
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
   )
   defer owner.close()
+  assert_eq(owner.persistent_state_bytes(), 393240L)
+  try owner.persistent_state() catch {
+    @device.DeviceError::InvalidArgument(DeviceCopyCreate) => ()
+    e => raise e
+  } noraise {
+    _ => fail("unprepared predictor rings exposed")
+  }
   let code = @utf8.decode(owner.source_bytes())
   for
     name in [
