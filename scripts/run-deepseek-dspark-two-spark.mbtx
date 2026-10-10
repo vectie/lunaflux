@@ -148,14 +148,14 @@ test "prepared literal prompts use all frames while old BOS campaigns remain unc
 fn check_execution_labels() -> Unit raise {
   let roles = ["egress", "ingress", "178-gpu-terminal", "179-gpu-terminal"]
   let names : Array[String] = []
-  for mode in ["run", "reference"] {
+  for mode in ["run", "reference", "sequence", "sequence-spec"] {
     for role in roles {
       let name = execution_label(mode, role)
       assert_false(names.contains(name))
       names.push(name)
     }
   }
-  assert_eq(names.length(), 8)
+  assert_eq(names.length(), 16)
   assert_eq(execution_label("reference", "egress"), "reference-egress")
 }
 
@@ -333,11 +333,12 @@ async fn main {
       s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))
     }) &&
     !suffix.contains("/") &&
-    mode is ("prepare" | "run" | "reference" | "sequence") else {
+    mode is ("prepare" | "run" | "reference" | "sequence" | "sequence-spec") else {
     fail(
-      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|reference|sequence BUILD_ROOT COMMIT",
+      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|reference|sequence|sequence-spec BUILD_ROOT COMMIT",
     )
   }
+  let sequence = mode is ("sequence" | "sequence-spec")
   let remote_root = "/tmp/lunaflux-dspark-real-" + suffix
   let first = Host::{
     node: "wlc003s@192.168.2.178",
@@ -379,7 +380,7 @@ async fn main {
   let name = "lunaflux-dspark-" +
     suffix +
     "-" +
-    (if mode == "reference" || mode == "sequence" { mode + "-" } else { "" })
+    (if mode == "reference" || sequence { mode + "-" } else { "" })
   if mode == "prepare" {
     @fs.mkdir(root)
     // Preparation is CPU-only. No old benchmark process is a dependency.
@@ -507,7 +508,7 @@ async fn main {
       first,
       first.root +
       "/deepseek_checkpoint.exe " +
-      (if mode == "sequence" {
+      (if sequence {
         "preflight-generation-sequence "
       } else {
         "preflight-generation "
@@ -600,7 +601,9 @@ async fn main {
     14400,
     first.root +
     "/deepseek_checkpoint.exe " +
-    (if mode == "sequence" {
+    (if mode == "sequence-spec" {
+      "generate-sequence-dspark "
+    } else if sequence {
       "generate-sequence-reference-dspark "
     } else if mode == "reference" {
       "generate-reference-dspark "
@@ -644,13 +647,13 @@ async fn main {
       fail("GPU ownership remains after terminal generation")
     }
   }
-  if mode == "sequence" {
+  if sequence {
     let journal = @fs.read_file(root + "/" + ingress + "-journal.stdout").text()
     for index in 0..<prefill_count {
-      let path = root + "/tokens-sequence-\{index}.txt"
+      let path = root + "/tokens-\{mode}-\{index}.txt"
       download(
         first,
-        first.root + "/output-sequence/request-\{index}/tokens.txt",
+        first.root + "/output-\{mode}/request-\{index}/tokens.txt",
         path,
       )
       let tokens = completed_tokens(
@@ -661,7 +664,7 @@ async fn main {
       guard journal.contains("request_retired: index=\{index} ") else {
         fail("sequence request did not retire before publication")
       }
-      println("target_sequence_request=\{index} generated=\{tokens.length()}")
+      println("\{mode}_request=\{index} generated=\{tokens.length()}")
     }
     guard journal.contains("rank_cleanup: role=ingress context_closed=true") &&
       @fs.read_file(root + "/" + egress + "-journal.stdout")
@@ -670,7 +673,7 @@ async fn main {
       fail("sequence ranks did not explicitly release their contexts")
     }
     println(
-      "bounded resident-weight target request sequence completed; speculative serving and independent upstream reference remain unverified",
+      "bounded resident-weight \{mode} request sequence completed; concurrent serving and independent upstream reference remain unverified",
     )
     return
   }

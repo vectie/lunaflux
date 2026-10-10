@@ -68,11 +68,8 @@ async fn execute_ingress_request(
   prepared : @prompt.PreparedSerialPrompt?,
   count : Int,
   pipeline : @pipeline.TwoRankDecoderPipeline,
-  rank : @worker.SerialDecoderRank,
   client : @control.DecoderStageClient,
-  stage : @deepseek.DeepSeekDecoderStage,
-  edge : @deepseek.DeepSeekActivationEdge,
-  backup : @snapshot.DeviceStateSnapshot?,
+  verifier : @verification.TwoRankGreedyVerification?,
   clock : @clock.MonotonicClock,
   generate~ : Bool,
   speculative_enabled~ : Bool,
@@ -167,20 +164,16 @@ async fn execute_ingress_request(
     "generation_started: speculative=\{speculative_enabled}\n",
   )
   if speculative.val is Some(owner) && owner.finish_reason() is Running {
-    guard backup is Some(saved) else {
-      fail("missing verification state owner")
+    guard verifier is Some(session) else {
+      fail("missing resident verification session")
     }
     next_epoch = generate_speculative(
       startup,
       owner,
-      rank,
       client,
-      stage,
-      edge,
-      saved,
+      session,
       clock,
       first_epoch=next_epoch,
-      stop~,
     )
     verification_released = true
   } else if generate && !speculative_enabled {

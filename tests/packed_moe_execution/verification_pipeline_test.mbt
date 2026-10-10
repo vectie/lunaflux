@@ -46,6 +46,7 @@ async fn run_verification_pipeline_case(
   stop? : Int = -1,
   failure? : Bool = false,
   fail_replay? : Bool = false,
+  reuse? : Bool = false,
 ) -> Unit {
   device_fixture_lane.acquire()
   defer device_fixture_lane.release()
@@ -321,6 +322,85 @@ async fn run_verification_pipeline_case(
     assert_true(released)
     assert_eq(local_host.processed_tokens(), 0)
     assert_eq(remote_host.processed_tokens(), 0)
+    assert_false(closed_state.val)
+    if reuse {
+      let resident = live_resources()
+      let retained_local = local_state.val
+      let retained_remote = remote_state.val
+      // A fresh request prefills through the ordinary coordinator, then hands
+      // the same rank/client owners back to the retained verification session.
+      let pipeline = @serial_pipeline.TwoRankDecoderPipeline::new(
+        serial_host(),
+        ingress,
+        client,
+        limits,
+        serial_inference_limits(),
+        begin_activation=(_, _, _) => (),
+        poll_activation=_ => true,
+        close_activation=() => (),
+      )
+      defer (pipeline.close() catch { _ => () })
+      let epoch = coordinator.last_epoch() + 1UL
+      let (_, prompt, writer) = serial_wire_plan(
+        99UL,
+        tokens=[10, 11],
+        produces=false,
+      )
+      pipeline.begin(prompt, writer, epoch~, local_now_millis=0UL)
+      let mut prefilled = false
+      for _ in 0..<512 {
+        server.poll(local_now_millis=0UL)
+        if pipeline.progress(local_now_millis=0UL) {
+          prefilled = true
+          break
+        }
+        @async.sleep(1)
+      }
+      assert_true(prefilled)
+      assert_eq(local_host.processed_tokens(), 2)
+      assert_eq(remote_host.processed_tokens(), 2)
+      store_verification_samples(context, egress.ports(), [5, 9, 0])
+      let (_, next, _) = serial_wire_plan(99UL, position=2, tokens=[4, 5, 6])
+      coordinator.begin(
+        next,
+        epoch=epoch + 1UL,
+        remaining_new_tokens=10,
+        local_now_millis=0UL,
+      )
+      let mut committed = false
+      for _ in 0..<512 {
+        server.poll(local_now_millis=0UL)
+        if coordinator.progress(local_now_millis=0UL) {
+          committed = true
+          break
+        }
+        @async.sleep(1)
+      }
+      assert_true(committed)
+      assert_eq(coordinator.result().accepted_input_rows(), 2)
+      assert_eq(coordinator.token_at(1), 9)
+      assert_eq(coordinator.last_epoch(), epoch + 2UL)
+      assert_eq(local_host.processed_tokens(), 4)
+      assert_eq(remote_host.processed_tokens(), 4)
+      assert_eq(local_state.val, retained_local + 4)
+      assert_eq(remote_state.val, retained_remote + 4)
+      coordinator.release_request(local_now_millis=0UL)
+      let mut second_released = false
+      for _ in 0..<512 {
+        server.poll(local_now_millis=0UL)
+        if coordinator.progress(local_now_millis=0UL) {
+          second_released = true
+          break
+        }
+        @async.sleep(1)
+      }
+      assert_true(second_released)
+      assert_eq(local_host.processed_tokens(), 0)
+      assert_eq(remote_host.processed_tokens(), 0)
+      assert_false(closed_state.val)
+      assert_eq(live_resources(), resident)
+      coordinator.close()
+    }
   }
   coordinator.close()
   assert_true(closed_state.val)
@@ -337,6 +417,11 @@ async fn run_verification_pipeline_case(
 ///|
 async test "two-rank verification commits all accepted inputs before exposing target tokens" {
   run_verification_pipeline_case([5, 6, 9], 3)
+}
+
+///|
+async test "resident verification session survives distinct request prefill and rejection replay" {
+  run_verification_pipeline_case([5, 6, 9], 3, reuse=true)
 }
 
 ///|

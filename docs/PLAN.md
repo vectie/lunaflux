@@ -23,6 +23,30 @@ are not payload-integrity scans and remain distinct from this cleanup.
 
 ## Current three-model completion ledger — 2026-10-11
 
+Resident ordinary DSpark requests are now physically verified on both Sparks.
+The `6894b72e` ARM binary processes the five-token and 144-token literal prompts
+in the same pair of processes, with transport epochs retiring at 11 and 44.
+Both ten-token EOS outputs exactly match their separate ordinary-target runs.
+Measured request lifetimes are 24,587 and 91,800 ms, including prefill but not
+initial weight loading. Both contexts close, both units exit 0, their swap peaks
+are zero and terminal GPU owner queries are empty. Captures are retained under
+`/tmp/lunaflux-dspark-run-sequence-20261011-v1`. This proves sequential resident
+target reuse, not concurrent serving, independent model parity or a speedup.
+
+The next source change lifts speculative verification ownership into the rank
+session instead of closing snapshots/connections/ranks at each request. Its new
+socket/fake-device regression interleaves a distinct ordinary prefill with a
+second verification and rejected-prefix replay, then retires both frontiers
+without changing the resident device-resource count. Physical speculative
+sequence execution remains pending until this exact source is built and run.
+Routine packed-execution fixtures now carry non-content association labels;
+their unused full-payload SHA scans, including a sparse multi-GB GLM zero scan,
+are removed without dropping numerical, capacity, layout or release assertions.
+The combined affected native matrix passes 120/120; native check, formatting,
+runner self-test and both no-hashing/token-step developer checks pass with the
+existing migration warning configuration. No new warning exclusions or CUDA
+arithmetic changes are introduced.
+
 The implementation objective remains executable, correct and useful GLM-5.3
 Flash, DeepSeek-V4 Flash DSpark and MiniMax-H3, not a collection of successful
 component smokes. The dated notes below preserve earlier results and failures;
@@ -94,12 +118,12 @@ budget before CUDA. Both rank/weight/module/connection scopes outlive the queue;
 requests retire individually and the next prefill resets history at position
 zero, with strictly increasing transport epochs. A second distinct-request
 socket/fake-device regression verifies the same resident resource count and
-fresh host frontiers, followed by failure cleanup. This is not yet a physical
-queued-checkpoint result, concurrent batching, HTTP serving or request-level
-cancellation. The existing speculative helper closes its verifier/rank/channel
-owners at single-request completion; its serving lifetime must be refactored
-before enabling a speculative queue. Do not equate the ordinary queue with that
-unfinished work or claim independent numerical/performance parity.
+fresh host frontiers, followed by failure cleanup. The ordinary queued-checkpoint
+route has subsequently passed the physical test above; concurrent batching,
+HTTP serving and request-level cancellation remain open. Speculative owner
+lifetime is now lifted to the session in source, but its physical queue is not
+yet verified. Do not equate the ordinary result with that unfinished execution
+proof or independent numerical/performance parity.
 Affected native tests pass 15/15, the complete packed-execution fake-device
 package passes 114/114, and formatting, native warning-denied check, runner
 self-tests and no-hashing/token-step developer checks pass. Generated public

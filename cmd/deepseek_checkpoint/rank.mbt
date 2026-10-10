@@ -258,9 +258,6 @@ async fn run_ingress(
   let limits = worker_limits(startup)
   let inference = inference_limits(startup)
   let prepared = if generate {
-    guard !sequence || !speculative_enabled else {
-      fail("sequence execution requires a reusable target-generation session")
-    }
     let prompts = if sequence {
       prepare_prompt_sequence(
         frame_root,
@@ -376,6 +373,23 @@ async fn run_ingress(
     },
   )
   defer pipeline.close()
+  let verifier = if speculative_enabled {
+    guard backup is Some(saved) else { fail("missing verification snapshot") }
+    Some(
+      prepare_verification_session(
+        startup,
+        rank,
+        client,
+        stage,
+        edge,
+        saved,
+        stop~,
+      ),
+    )
+  } else {
+    None
+  }
+  defer (if verifier is Some(owner) { owner.close() })
   let clock = @clock.MonotonicClock::system()
   match prepared {
     Some(prompts) =>
@@ -395,11 +409,8 @@ async fn run_ingress(
           Some(prompt),
           prompt.frame_count(),
           pipeline,
-          rank,
           client,
-          stage,
-          edge,
-          backup,
+          verifier,
           clock,
           generate~,
           speculative_enabled~,
@@ -419,11 +430,8 @@ async fn run_ingress(
           None,
           count,
           pipeline,
-          rank,
           client,
-          stage,
-          edge,
-          backup,
+          verifier,
           clock,
           generate~,
           speculative_enabled~,

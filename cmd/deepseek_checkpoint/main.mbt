@@ -137,6 +137,7 @@ async fn main {
     | ("generate", 9)
     | ("generate-dspark", 9)
     | ("generate-sequence-reference-dspark", 9)
+    | ("generate-sequence-dspark", 9)
     | ("generate-reference-dspark", 9) => true
     _ => false
   }
@@ -210,6 +211,8 @@ async fn main {
         speculate=false,
         sequence=true,
       )
+    "generate-sequence-dspark" =>
+      run_ingress(startup, root, tail, generate=true, sequence=true)
     _ => fail("invalid mode")
   }
 }

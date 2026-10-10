@@ -12,19 +12,16 @@ fn state_transaction(
 }
 
 ///|
-async fn generate_speculative(
+fn prepare_verification_session(
   startup : Startup,
-  owner : @generation.SpeculativeGreedyGeneration,
   rank : @worker.SerialDecoderRank,
   client : @control.DecoderStageClient,
   stage : @deepseek.DeepSeekDecoderStage,
   edge : @deepseek.DeepSeekActivationEdge,
   backup : @snapshot.DeviceStateSnapshot,
-  clock : @clock.MonotonicClock,
-  first_epoch~ : UInt64,
   stop~ : Int,
-) -> UInt64 {
-  let verifier = @verification.TwoRankGreedyVerification::new(
+) -> @verification.TwoRankGreedyVerification raise {
+  @verification.TwoRankGreedyVerification::new(
     rank,
     client,
     worker_limits(startup),
@@ -41,7 +38,19 @@ async fn generate_speculative(
     close_activation=() => edge.close(),
     stop_tokens=if stop == -1 { [] } else { [stop] },
   )
-  defer verifier.close()
+}
+
+///|
+// The caller owns the resident verifier. A request retires its KV/frontier
+// state, never its model, snapshot, connection or activation resources.
+async fn generate_speculative(
+  startup : Startup,
+  owner : @generation.SpeculativeGreedyGeneration,
+  client : @control.DecoderStageClient,
+  verifier : @verification.TwoRankGreedyVerification,
+  clock : @clock.MonotonicClock,
+  first_epoch~ : UInt64,
+) -> UInt64 {
   let proposal = FixedArray::make(startup.rows, 0)
   let target = FixedArray::make(startup.rows, 0)
   let mut epoch = first_epoch

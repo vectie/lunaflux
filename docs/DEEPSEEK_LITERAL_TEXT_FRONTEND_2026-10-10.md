@@ -324,3 +324,44 @@ This is process-level cancellation of this attached single-request DSpark
 diagnostic, not reusable request cancellation with retained weights. It does
 not close bounded multi-request serving, other model cancellation paths,
 independent model numerics, or performance comparison.
+
+## Resident ordinary request sequence — 2026-10-11
+
+The corrected `6894b72e22308009ea4a7ba0340bf1015163ead0` ARM release binary
+processes two different original-text requests in one pair of processes, without
+reloading weights, modules or connections. CPU preparation retains both prompts
+before device startup under one aggregate byte budget. The original five-token
+chat prompt is followed by the 144-token sliding-window prompt; both request
+limits are maximum 64 new tokens and EOS 1. Six-row/context-256 AOT kernels are
+unchanged and reused; this is a session-lifetime test, not new kernel validation.
+
+| Request | Input tokens | Output tokens including EOS | Request lifetime incl. prefill | Next transport epoch |
+| --- | ---: | ---: | ---: | ---: |
+| 0 | 5 | 10 | 24,587 ms | 11 |
+| 1 | 144 | 10 | 91,800 ms | 44 |
+
+Both downloaded outputs are byte-identical to the corresponding earlier
+isolated ordinary-target token files. They are not compared to an independent
+upstream model in this test. The timing excludes initial model loading and is
+one diagnostic sample, not a repeatable throughput or speedup claim.
+
+Both user units exit 0 (`active/exited` because `RemainAfterExit=yes`), with
+explicit ingress/egress context-close markers and empty terminal GPU owner
+queries. Cgroup memory peaks are 48,372,363,264 bytes on .178 and 31,970,054,144
+on .179; both unit swap peaks are zero. These cgroup values do not include every
+physical CUDA allocation on unified memory. Process limits remain 96 GiB/no-swap
+and both machines had over 125 GB available before startup.
+
+Raw local captures and downloaded outputs:
+`/tmp/lunaflux-dspark-run-sequence-20261011-v1`.
+Remote input/output roots: `/tmp/lunaflux-dspark-real-sequence-20261011-v1`.
+User units: `lunaflux-dspark-sequence-20261011-v1-sequence-ingress.service` and
+`lunaflux-dspark-sequence-20261011-v1-sequence-egress.service`.
+
+The next speculative-session source change moves verifier ownership from a
+single generation helper into the outer rank session. It preserves explicit
+final drain/release while individual requests release only their KV/frontiers.
+The new fake-device/socket regression exercises a distinct second prefill and
+rejected-prefix replay using the same resource owners. This source work does
+not itself prove physical speculative queue reuse, retained-weight cancellation,
+concurrent service, independent numerics or full-model performance parity.
