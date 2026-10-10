@@ -228,7 +228,8 @@ fn copy_open_shard_segmented(
 /// Copy inspected ranges directly into
 /// bounded caller-owned final arenas. The visitor receives metadata only.
 ///
-/// The caller must discard or zeroize every destination arena if this raises.
+/// The caller must discard every partially written destination arena if this
+/// raises. Payload scrubbing is not required; failed arenas cannot be reused.
 pub fn copy_segmented_ranges(
   root : @approved_fs.ApprovedRoot,
   inspection : StreamingSafetensorsInspection,

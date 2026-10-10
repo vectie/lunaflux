@@ -48,11 +48,12 @@ Checkpoint loading dominated elapsed time: full-shard hashing on both ranks,
 rehashing during transfer and serial rank startup. The drafts are diagnostic;
 distributed capture assembly and speculative verification/accept/reject/KV
 commit/rollback remain required.
-Streaming checkpoint authentication now feeds full scratch chunks through
-SHA-256's block-copy API instead of a per-byte iterator; only the last partial
-chunk takes a bounded snapshot. Exact digest, partial-tail, invalid-count and
-existing replay/mutation tests pass. A local native hash-feed experiment shows
-lower CPU time, but this is not yet a measured whole-model Spark startup gain.
+That hash-feed optimization is superseded: checkpoint payload hashing has
+been removed entirely. Startup now inspects bounded headers and copies only
+selected tensor ranges. Supplied inventory labels are not integrity claims.
+The MiniMax text smoke likewise performs no binary, tool, or output checksum
+scans; it retains GPU-idle checks, process/device memory ceilings, output size
+and finite-value checks, and deterministic release.
 Do not substitute the learned base-model text head or ordinary causal blocks.
 Exact phase/read-set/head dependencies and completion requirements are recorded
 in [DEEPSEEK_DSPARK_EXECUTION.md](DEEPSEEK_DSPARK_EXECUTION.md).
@@ -2195,6 +2196,31 @@ deepstack post-spatial-merge width 4,608; the shape contract and regression
 fixtures now reflect that distinction. Inventory labels may repeat across
 different shards; duplicate filenames and overlapping tensor regions remain
 invalid.
+
+The subsequent checkpoint-backed text execution on .178 completed under
+`lunaflux-minimax-text-encoder-20261010-v1.service`: 51,506,191,840 uploaded
+weight bytes, all 50 Qwen3-VL text layers, three explicit token IDs, and a
+30,720-byte `[3,5120]` BF16 hidden_states[50] output with no nonfinite values.
+The service took 20.788 s including upload and execution, used 10.617 s CPU,
+reported a 6.2 GiB cgroup memory peak and zero cgroup swap, and released its
+GPU owner. The allocated weights reside in GB10 unified GPU memory; the
+reported cgroup peak is not total system/unified-memory consumption. The
+process had an 80 GiB ceiling, no swap allowance and a 64 GiB device budget.
+No checkpoint, binary, CUDA-tool or downloaded-output checksum scan ran in
+the smoke runner. Logs and output are retained at
+`/tmp/lunaflux-minimax-text-encoder-20261010-v1` locally and on .178.
+This is executable component evidence, not independent numerical parity,
+full joint denoising, natural-language quality, or throughput evidence.
+
+The DSpark two-Spark runner now requires an explicit committed build location
+and revision (`prepare|run BUILD_ROOT COMMIT`), rather than defaulting to an
+older hashing binary. It no longer scans source archives, binaries, tools or
+CUBINs for checksums, nor depends on an unrelated historical probe PID.
+Prepared-build metadata is descriptive, not cryptographic authentication.
+Build/test correctness remains a development boundary; model execution still
+checks both GPUs are idle and retains per-rank memory/no-swap limits, bounded
+generation and terminal resource checks. The shared checkpoint build helper
+also no longer hashes uploaded source archives.
 
 ## Deferred capabilities
 
