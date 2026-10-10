@@ -90,12 +90,12 @@ test "all official profiles lower replicated Query-A with exact raw ABI" {
     if entry.0 == "deepseek-ai/DeepSeek-V4-Flash-0731" {
       inspect(
         candidate.source_digest().as_hex(),
-        content="2e0c9a5726d2ad629b1be8cb36eb67c73dfb442716013036323bf7635c66ab06",
+        content="86837864be2271db200acd3d24085684e5b737b8a99739c88941fb319c602816",
       )
     } else if entry.0 == "deepseek-ai/DeepSeek-V4-Pro" {
       inspect(
         candidate.source_digest().as_hex(),
-        content="19cfb7d9621946ac2f52d390aea6397ad007b0ac26b50e52a2d24631911f8886",
+        content="1bf8871c544c00a81da835113ba606e2628fed883d73223c3e7f0f0651097d2a",
       )
     }
   }

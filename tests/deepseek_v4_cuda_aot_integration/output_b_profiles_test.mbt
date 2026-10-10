@@ -63,12 +63,12 @@ test "all five profiles bind exact dense FP8 Output-B ABI" {
     if model_id == "deepseek-ai/DeepSeek-V4-Flash-0731" {
       inspect(
         candidate.source_digest().as_hex(),
-        content="664365a8c35880af1ef787621541d8035e98404edf207ad2a28bd4a4ff8fc83f",
+        content="3d24979ba6cb8e04e16211731eb641837b031623c70eb10404ef0cd9a2c26a2c",
       )
     } else if model_id == "deepseek-ai/DeepSeek-V4-Pro" {
       inspect(
         candidate.source_digest().as_hex(),
-        content="c34ed246f905c892607443af999d0c13117be92a82e86deb2d3bd6605a42a8fc",
+        content="63075862b3009b8c786a1d92d3cf48fd1de3129fb767ae93bf6dd0d35ba9c5a7",
       )
     }
   }

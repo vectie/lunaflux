@@ -108,7 +108,7 @@ test "all five profiles join replicated Query-A checkpoint storage" {
       )
       inspect(
         plan.digest_sha256(),
-        content="1b82739ce404fc2d8d91f58a805aaa07549837c7f3a249b794d0f8be82a4b88f",
+        content="1a59a68a1da9c8bc038a328650145c8592e838682895df3ba858f441d3ba424b",
       )
     }
   }

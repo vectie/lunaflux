@@ -189,7 +189,7 @@ test "Output-B join exposes no downstream authority" {
   )
   inspect(
     plan.digest_sha256(),
-    content="614cbc83d9195f46ac9ff372188eb0486d149e1f49e12b3970b94ff78d9c98e0",
+    content="d09bc95ab8e741e9cd0cfcd27315f3c16f7d45d9d41d90733fc4ae703f13684f",
   )
   try plan.require_collective_authority() catch {
     NoCollectiveAuthority => ()

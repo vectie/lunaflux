@@ -484,7 +484,7 @@ test "official GLM candidate coverage remains exact incomplete and inert" {
       content=if profile_index == 0 {
         "ad14aa79800b7623194952e53b531af53b3559bd1d16c029b1bb4571a3969938"
       } else {
-        "d2f16caff7efba95ac3ff9e382d5d4e8a3281a8296f85556edf6e083a6599ec3"
+        "c34a6c405be1ed09ac972751b8ea61b6d9bc2f2aa0b9c37084125137bf950369"
       },
     )
   }

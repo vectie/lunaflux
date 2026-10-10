@@ -87,15 +87,15 @@ test "official key/value projection source identities stay exact" {
   )
   inspect(
     flash_candidate.source_digest().as_hex(),
-    content="1e632b2e89e0142c731eae2e432a2098574a2d5e1962eeb4b2e72c9bc49d5341",
+    content="f8bb78e2d6906143918469bf7087de621365c479fc28fa036a0c6c8c8c0c21a8",
   )
   inspect(
     flash_candidate.recipe_digest().as_hex(),
-    content="cb0c6b8df5063656527101acc01082233cbb02735e8de00fd924abe02a6cad15",
+    content="351d15e64d40bd71af2c9f82b1a7f9dcdf62de601fb1ec84e09a30afefcfe5ba",
   )
   inspect(
     pro_candidate.source_digest().as_hex(),
-    content="6db3d4fa9e76b109999ddaf8da86a078dba95f9a08075532d55db3caf06ce1f5",
+    content="59d8c55cf0732c7ecc41ae013c628c5d7d95f84b8fba8d3b435c828a989d6517",
   )
   assert_false(
     flash_candidate.recipe_digest().as_hex() ==

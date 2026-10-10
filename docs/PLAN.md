@@ -2184,6 +2184,18 @@ deterministic resource release. These prevent incorrect execution and memory
 corruption; they are not security scans. Do not infer a token/s improvement from
 removing startup I/O. Measure startup separately from steady-state inference.
 
+The clean ARM release at `0569ec4f` passed real MiniMax text-component header
+inspection on Spark .178: 14 shards, 1,058 tensors, 66,714,780,128 declared
+checkpoint payload bytes, and 51,506,191,840 selected device-weight bytes.
+`/usr/bin/time -v` measured 0.17 s wall time, 4,196 KiB maximum RSS, and zero
+swap under a 2 GiB process ceiling. This checks header/layout planning only:
+no device weights were uploaded and no inference or token/s result is implied.
+Real headers also confirmed main-merger normalization width 1,152 versus
+deepstack post-spatial-merge width 4,608; the shape contract and regression
+fixtures now reflect that distinction. Inventory labels may repeat across
+different shards; duplicate filenames and overlapping tensor regions remain
+invalid.
+
 ## Deferred capabilities
 
 These require separate architecture decisions after the first release:

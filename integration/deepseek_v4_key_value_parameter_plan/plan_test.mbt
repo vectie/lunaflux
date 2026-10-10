@@ -207,7 +207,7 @@ test "key/value join exposes no interpretation or execution authority" {
   )
   inspect(
     plan.digest_sha256(),
-    content="c1ddc8d3eef692e6818b5dcaab80b874a629fbca8772c0829a63752dd3847c48",
+    content="0cc48c59aa6ef70c6a2635bda06d005a3750610cded72a80b3c10df5f05c225c",
   )
   try plan.require_interpretation_authority() catch {
     NoInterpretationAuthority => ()
