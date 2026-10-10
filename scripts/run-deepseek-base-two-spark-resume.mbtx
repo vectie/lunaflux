@@ -1,74 +1,198 @@
+///|
 import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
 }
-async fn remote(last : Bool,command : String) -> @shell.Output {
-  @shell.Cmd("ssh",["-o","BatchMode=yes","-o","ConnectTimeout=10","-S",
-    if last {"/tmp/lunaflux-checkpoint-live179-20261010.sock"} else {"/tmp/lunaflux-checkpoint-live-20261010.sock"},
-    if last {"wlc004s@192.168.2.179"} else {"wlc003s@192.168.2.178"},command]).output(max_output_bytes=2097152)
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    },
+    if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    },
+    command,
+  ]).output(max_output_bytes=2097152)
 }
-async fn record(root : String,name : String,result : @shell.Output) -> Unit {
-  @fs.write_file(root+"/"+name+".stdout",result.stdout(),create_mode=CreateNew)
-  @fs.write_file(root+"/"+name+".stderr",result.stderr(),create_mode=CreateNew)
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
   result.check()
 }
-async fn wait_unit(last : Bool,unit : String) -> Unit {
+
+///|
+async fn wait_unit(last : Bool, unit : String) -> Unit {
   for ;; {
-    let result=remote(last,"systemctl --user show "+unit+" -p ActiveState -p SubState -p Result -p ExecMainStatus")
+    let result = remote(
+      last,
+      "systemctl --user show " +
+      unit +
+      " -p ActiveState -p SubState -p Result -p ExecMainStatus",
+    )
     result.check()
-    let status=result.stdout()
-    if status.contains("ActiveState=failed") || !status.contains("ExecMainStatus=0\n") {fail(status)}
-    if status.contains("SubState=exited") && status.contains("Result=success") {return}
+    let status = result.stdout()
+    if status.contains("ActiveState=failed") ||
+      !status.contains("ExecMainStatus=0\n") {
+      fail(status)
+    }
+    if status.contains("SubState=exited") && status.contains("Result=success") {
+      return
+    }
     @async.sleep(10000)
   }
 }
+
+///|
 async fn main {
-  guard @env.args() is [_,root] && root.has_prefix("/tmp/lunaflux-deepseek-run-") &&
-    root.iter().all(c => c is ('a'..='z'|'0'..='9'|'-'|'/')) else {fail("NEW_LOCAL_RESULT_DIRECTORY")}
-  @fs.mkdir(root)
-  let egress="lunaflux-deepseek-real-egress-20261010-v1.service"
-  let ingress="lunaflux-deepseek-real-ingress-20261010-v1.service"
-  let status=remote(true,"systemctl --user show "+egress+" -p MainPID -p ActiveState -p SubState")
-  record(root,"egress-unit",status)
-  guard status.stdout().contains("MainPID=1020697\n") && status.stdout().contains("ActiveState=active\n") && status.stdout().contains("SubState=running\n") else {fail("expected live egress missing; do not restart it")}
-  let cgroup=remote(true,"cat /proc/1020697/cgroup")
-  record(root,"egress-cgroup",cgroup)
-  guard cgroup.stdout().contains("app.slice/"+egress) else {fail("wrong egress owner")}
-  let listeners=remote(true,"ss -ltnp")
-  record(root,"egress-listeners",listeners)
-  for port in ["192.168.2.179:28478","192.168.2.179:28479"] {
-    guard listeners.stdout().split("\n").any(line => line.contains(port) && line.contains("pid=1020697,")) else {fail("egress not ready")}
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-run-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/')) else {
+    fail("NEW_LOCAL_RESULT_DIRECTORY")
   }
-  let existing=remote(false,"systemctl --user show "+ingress+" -p LoadState")
+  @fs.mkdir(root)
+  let egress = "lunaflux-deepseek-real-egress-20261010-v1.service"
+  let ingress = "lunaflux-deepseek-real-ingress-20261010-v1.service"
+  let status = remote(
+    true,
+    "systemctl --user show " + egress + " -p MainPID -p ActiveState -p SubState",
+  )
+  record(root, "egress-unit", status)
+  guard status.stdout().contains("MainPID=1020697\n") &&
+    status.stdout().contains("ActiveState=active\n") &&
+    status.stdout().contains("SubState=running\n") else {
+    fail("expected live egress missing; do not restart it")
+  }
+  let cgroup = remote(true, "cat /proc/1020697/cgroup")
+  record(root, "egress-cgroup", cgroup)
+  guard cgroup.stdout().contains("app.slice/" + egress) else {
+    fail("wrong egress owner")
+  }
+  let listeners = remote(true, "ss -ltnp")
+  record(root, "egress-listeners", listeners)
+  for port in ["192.168.2.179:28478", "192.168.2.179:28479"] {
+    guard listeners
+      .stdout()
+      .split("\n")
+      .any(line => line.contains(port) && line.contains("pid=1020697,")) else {
+      fail("egress not ready")
+    }
+  }
+  let existing = remote(
+    false,
+    "systemctl --user show " + ingress + " -p LoadState",
+  )
   existing.check()
-  guard existing.stdout().trim()=="LoadState=not-found" else {fail("ingress already exists; do not overwrite or duplicate")}
-  let identity=remote(false,"nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader")
-  record(root,"ingress-identity",identity)
-  guard identity.stdout().trim()=="GPU-9c3d3cf0-439a-5da2-67e9-20414255879f, 0000000F:01:00.0" else {fail("wrong GPU")}
-  let occupied=remote(false,"nvidia-smi --query-compute-apps=pid --format=csv,noheader")
-  record(root,"ingress-occupied",occupied)
-  guard occupied.stdout().trim().is_empty() else {fail("ingress GPU occupied")}
-  let tools=remote(false,"sha256sum /usr/local/cuda-13.0/bin/nvcc /usr/local/cuda-13.0/compute-sanitizer/compute-sanitizer")
-  record(root,"tools",tools)
-  guard tools.stdout().contains("fbb111f057786ddd10ba723d993cc7dd43abf978b6baa32fedd3c9d806dc79e1") &&
-    tools.stdout().contains("7a7fcdefb67042731daf021478176f4919e1843d0b10cb697af28a7d8a3d108b") else {fail("wrong tools")}
-  let binary="/tmp/lunaflux-checkpoint-build-deepseek-20261010-v1/source/_build/native/release/build/cmd/deepseek_checkpoint/deepseek_checkpoint.exe"
-  let hash=remote(false,"sha256sum "+binary)
-  record(root,"binary",hash)
-  guard hash.stdout().has_prefix("04e6c3a07c8ad5ad5d42bac667a6522d777c756b046d9aebe216052917fd9dd4 ") else {fail("immutable binary changed")}
-  let directory="/tmp/lunaflux-deepseek-real-20261010.dLryo68E"
-  record(root,"start",remote(false,"systemd-run --user --unit="+ingress+" --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=14400 "+
-    binary+" generate "+directory+"/DeepSeek-V4-Flash-DSpark "+directory+"/SHARDS.sha256 3 256 103079215104 103079215104 4294967296 "+directory+"/aot stage-0.cubin 192.168.2.179:28478 192.168.2.179:28479 "+directory+"/prompt-bos 1 2 -1 "+directory+"/output-bos"))
-  println("started ingress against the existing loaded egress; no rank restarted")
-  wait_unit(false,ingress)
-  wait_unit(true,egress)
-  @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
-    "wlc003s@192.168.2.178:"+directory+"/output-bos/tokens.txt",root+"/tokens.txt"]).output().check()
-  record(root,"ingress-terminal",remote(false,"systemctl --user show "+ingress+" -p ActiveState -p SubState -p ExecMainStatus -p Result"))
-  record(root,"egress-terminal",remote(true,"systemctl --user show "+egress+" -p ActiveState -p SubState -p ExecMainStatus -p Result"))
-  record(root,"ingress-journal",remote(false,"journalctl --user -u "+ingress+" --no-pager"))
-  record(root,"egress-journal",remote(true,"journalctl --user -u "+egress+" --no-pager"))
-  println("resumed base-model smoke terminal; DSpark and independent reference remain separate")
+  guard existing.stdout().trim() == "LoadState=not-found" else {
+    fail("ingress already exists; do not overwrite or duplicate")
+  }
+  let identity = remote(
+    false, "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
+  )
+  record(root, "ingress-identity", identity)
+  guard identity.stdout().trim() ==
+    "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f, 0000000F:01:00.0" else {
+    fail("wrong GPU")
+  }
+  let occupied = remote(
+    false, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  record(root, "ingress-occupied", occupied)
+  guard occupied.stdout().trim().is_empty() else {
+    fail("ingress GPU occupied")
+  }
+  let binary = "/tmp/lunaflux-checkpoint-build-deepseek-20261010-v1/source/_build/native/release/build/cmd/deepseek_checkpoint/deepseek_checkpoint.exe"
+  let directory = "/tmp/lunaflux-deepseek-real-20261010.dLryo68E"
+  record(
+    root,
+    "start",
+    remote(
+      false,
+      "systemd-run --user --unit=" +
+      ingress +
+      " --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=14400 " +
+      binary +
+      " generate " +
+      directory +
+      "/DeepSeek-V4-Flash-DSpark " +
+      directory +
+      "/SHARDS.sha256 3 256 103079215104 103079215104 4294967296 " +
+      directory +
+      "/aot stage-0.cubin 192.168.2.179:28478 192.168.2.179:28479 " +
+      directory +
+      "/prompt-bos 1 2 -1 " +
+      directory +
+      "/output-bos",
+    ),
+  )
+  println(
+    "started ingress against the existing loaded egress; no rank restarted",
+  )
+  wait_unit(false, ingress)
+  wait_unit(true, egress)
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+    "wlc003s@192.168.2.178:" + directory + "/output-bos/tokens.txt",
+    root + "/tokens.txt",
+  ])
+  .output()
+  .check()
+  record(
+    root,
+    "ingress-terminal",
+    remote(
+      false,
+      "systemctl --user show " +
+      ingress +
+      " -p ActiveState -p SubState -p ExecMainStatus -p Result",
+    ),
+  )
+  record(
+    root,
+    "egress-terminal",
+    remote(
+      true,
+      "systemctl --user show " +
+      egress +
+      " -p ActiveState -p SubState -p ExecMainStatus -p Result",
+    ),
+  )
+  record(
+    root,
+    "ingress-journal",
+    remote(false, "journalctl --user -u " + ingress + " --no-pager"),
+  )
+  record(
+    root,
+    "egress-journal",
+    remote(true, "journalctl --user -u " + egress + " --no-pager"),
+  )
+  println(
+    "resumed base-model smoke terminal; DSpark and independent reference remain separate",
+  )
 }

@@ -57,15 +57,6 @@ async fn main {
       let filename = stem + "." + extension
       let destination = output + "/" + filename
       let source = remote + "/" + filename
-      let remote_hash = @shell.Cmd("ssh", [
-        "-o",
-        "BatchMode=yes",
-        "-S",
-        socket,
-        node,
-        "sha256sum " + source,
-      ]).output(max_output_bytes=1048576)
-      remote_hash.check()
       @shell.Cmd("scp", [
         "-o",
         "BatchMode=yes",
@@ -76,24 +67,6 @@ async fn main {
       ])
       .output(max_output_bytes=1048576)
       .check()
-      let local_hash = @shell.Cmd("shasum", ["-a", "256", destination]).output(
-        max_output_bytes=1048576,
-      )
-      local_hash.check()
-      guard remote_hash.stdout().split(" ").nth(0) ==
-        local_hash.stdout().split(" ").nth(0) else {
-        fail("download hash mismatch")
-      }
-      @fs.write_file(
-        destination + ".sha256",
-        local_hash.stdout(),
-        create_mode=CreateNew,
-      )
-      @fs.write_file(
-        destination + ".remote.sha256",
-        remote_hash.stdout(),
-        create_mode=CreateNew,
-      )
     }
   }
   println(output)

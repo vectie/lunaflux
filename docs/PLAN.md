@@ -2310,6 +2310,14 @@ no additional GPU speedup is claimed for those deletions.
 
 ## Runtime checksum cleanup follow-up (2026-10-10)
 
+The historical DeepSeek base-run and live-resume helpers now also omit CUDA-tool
+and executable checksum scans. The block/source download helper copies outputs
+without hashing them locally or remotely. The local no-hashing regression covers
+these helpers and the new MiniMax joint runner (15 scripts). Successful process
+and copy status remain required; neither staged paths nor downloaded files are
+claimed cryptographically authenticated. Live-unit ownership, GPU exclusivity,
+memory/no-swap limits and execution correctness checks are unchanged.
+
 The MiniMax checkpoint diagnostic now has a `run-joint` preparation/execution
 entry. It consumes actual BF16 encoder hidden_states[50], then queues context
 projection, both refiners, conditioning assembly, every scheduled full-stack

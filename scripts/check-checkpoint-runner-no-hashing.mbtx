@@ -11,8 +11,9 @@ async fn main {
   let runners = [
     "build-glm-current-spark", "build-model-checkpoint-spark", "capture-checkpoint-index-gpu",
     "compile-dspark-composed-heads", "resume-dspark-preparation", "run-deepseek-dspark-two-spark",
+    "run-deepseek-base-two-spark", "run-deepseek-base-two-spark-resume", "capture-deepseek-block-builds",
     "stage-minimax-denoiser-checkpoint", "stage-minimax-text-checkpoint", "stage-minimax-video-checkpoint",
-    "run-minimax-audio-decode", "run-minimax-video-decode",
+    "run-minimax-audio-decode", "run-minimax-video-decode", "run-minimax-joint",
   ]
   for runner in runners {
     let source = @fs.read_file("scripts/" + runner + ".mbtx").text()
