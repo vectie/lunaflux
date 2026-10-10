@@ -20,6 +20,8 @@ pub fn parse_transformer(StringView, variant~ : @minimax_h3_spec.MiniMaxH3Varian
 
 pub fn parse_video_vae(StringView, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3VideoVaeConfig raise MiniMaxH3ConfigError
 
+pub fn parse_video_vae_checkpoint(StringView, StringView, max_bytes~ : Int, max_depth~ : Int) -> MiniMaxH3VideoVaeConfig raise MiniMaxH3ConfigError
+
 // Errors
 pub(all) suberror MiniMaxH3ConfigError {
   InvalidLimit

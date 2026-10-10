@@ -67,8 +67,12 @@ All 17 request-geometry audio AOT modules compile on GB10. Component export and
 joint-request export share source construction and have exact source/shape
 regressions. `CheckpointAudioDecoder` now composes these modules with streamed
 weights and aggregate workspace/cache/input/output budgeting; standalone raw
-latent decode is implemented but not yet physically executed. Next run actual
-decoder arithmetic, then complete conditioning/denoising/video composition and
+latent decode now physically executes on GB10: 165,600 stereo samples per channel,
+1,324,800 output bytes, no nonfinite values, 31.467 seconds, status zero and GPU
+release. This is an explicit zero-latent component fixture, not denoiser output or
+an independent numerical equivalence result. The original VideoVAE wrapper/source
+configuration now resolves to the same native decoder contract without executing
+its Python metadata. Next complete conditioning/denoising/video composition and
 the two-host full media request. These component results do not close H3.
 
 DeepSeek mHC now has explicit F32-projection-then-normalization and transposed

@@ -1,0 +1,142 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    },
+    if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    },
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root == "/tmp/lunaflux-dspark-run-20261010-v3" else {
+    fail("existing exact v3 preparation directory required")
+  }
+  // Resume collection only. Never restart export, compilation, or a GPU rank.
+  for file in ["prepared.txt", "run-started.txt"] {
+    @shell.Cmd("test", ["!", "-e", root + "/" + file]).output().check()
+  }
+  let remote_root = "/tmp/lunaflux-dspark-real-20261010-v3"
+  let binary = "70391bc88ec4f880b2c5e8f3392690356653a54b80c58a195004d22b79b86371"
+  for last in [false, true] {
+    let hash = remote(
+      last,
+      "sha256sum " + remote_root + "/deepseek_checkpoint.exe",
+    )
+    hash.check()
+    guard hash.stdout().has_prefix(binary + "  ") else {
+      fail("prepared binary changed")
+    }
+    let ordinal = if last { "1" } else { "0" }
+    let name = "stage-" + ordinal
+    let source_hash = remote(
+      last,
+      "sha256sum " + remote_root + "/aot/" + name + ".cu",
+    )
+    source_hash.check()
+    let local_source = @shell.Cmd("shasum", [
+      "-a",
+      "256",
+      root + "/" + name + ".cu",
+    ]).output()
+    local_source.check()
+    guard source_hash.stdout().split(" ").next() ==
+      local_source.stdout().split(" ").next() else {
+      fail("compiled source differs from exported source")
+    }
+    let prior = @fs.read_file(
+      root + "/lunaflux-dspark-20261010-v3-aot" + ordinal + "-terminal.stdout",
+    ).text()
+    guard prior.contains("Result=success\n") &&
+      prior.contains("ExecMainStatus=0\n") &&
+      prior.contains("SubState=exited\n") else {
+      fail("no terminal compiler success")
+    }
+    let file = name + ".cubin"
+    let existing = @shell.Cmd("test", ["-f", root + "/" + file]).output()
+    if existing.exit_code() != 0 {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" +
+        (if last {
+          "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+        } else {
+          "/tmp/lunaflux-checkpoint-live-20261010.sock"
+        }),
+        (if last { "wlc004s@192.168.2.179" } else { "wlc003s@192.168.2.178" }) +
+        ":" +
+        remote_root +
+        "/aot/" +
+        file,
+        root + "/" + file,
+      ])
+      .output()
+      .check()
+    }
+    let hash = remote(last, "sha256sum " + remote_root + "/aot/" + file)
+    hash.check()
+    let downloaded = @shell.Cmd("shasum", ["-a", "256", root + "/" + file]).output()
+    downloaded.check()
+    guard hash.stdout().split(" ").next() ==
+      downloaded.stdout().split(" ").next() else {
+      fail("downloaded cubin differs")
+    }
+    @fs.write_file(
+      root + "/resume-" + name + "-hash.stdout",
+      hash.stdout() + downloaded.stdout(),
+      create_mode=CreateNew,
+    )
+  }
+  let absent = remote(false, "test ! -e " + remote_root + "/prompt-bos")
+  absent.check()
+  let frames = remote(
+    false,
+    remote_root +
+    "/deepseek_checkpoint.exe token-frames /tmp/lunaflux-deepseek-real-20261010.dLryo68E/DeepSeek-V4-Flash-DSpark 3 256 0 " +
+    remote_root +
+    "/prompt-bos",
+  )
+  @fs.write_file(
+    root + "/resume-token-frames.stdout",
+    frames.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/resume-token-frames.stderr",
+    frames.stderr(),
+    create_mode=CreateNew,
+  )
+  frames.check()
+  @fs.write_file(
+    root + "/prepared.txt",
+    "commit=b76d63ee648facb7a12a4c787ab22ae4867059b8\nbinary=" + binary + "\n",
+    create_mode=CreateNew,
+  )
+  println(
+    "existing DSpark compilation collected; no export or compiler restarted",
+  )
+}

@@ -381,6 +381,11 @@ fn decode_video_vae(
     number_field(object, "decoder_norm_eps") != 0.00001 {
     raise InvalidField
   }
+  official_video_vae_config()
+}
+
+///|
+fn official_video_vae_config() -> MiniMaxH3VideoVaeConfig {
   {
     architecture_schema_version: 1,
     input_channels: 3,

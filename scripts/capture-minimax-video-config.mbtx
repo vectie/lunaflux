@@ -1,0 +1,55 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-minimax-video-config-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("new local VideoVAE config directory required")
+  }
+  for
+    path in [
+      root,
+      root + "/transformer",
+      root + "/video_vae",
+      root + "/video_vae/source",
+    ] {
+    @fs.mkdir(path)
+  }
+  for
+    file in [
+      "model_index.json", "transformer/config.json", "video_vae/config.json", "video_vae/source/config.json",
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "lunanexa-management:/data/models/MiniMax/MiniMax-H3/FL2VA/" + file,
+      root + "/" + file,
+    ])
+    .output()
+    .check()
+  }
+  let output = @shell.Cmd(
+    "_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe",
+    ["video-config", @fs.realpath(root)],
+  ).output()
+  @fs.write_file(
+    root + "/config.stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/config.stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+  println(output.stdout())
+}

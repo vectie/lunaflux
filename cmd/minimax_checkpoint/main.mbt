@@ -36,7 +36,12 @@ async fn main {
   guard @env.args() is [_, mode, root_name, .. tail] &&
     (
       (
-        (mode == "config" || mode == "weight-plan" || mode == "audio-config") &&
+        (
+          mode == "config" ||
+          mode == "weight-plan" ||
+          mode == "audio-config" ||
+          mode == "video-config"
+        ) &&
         tail.is_empty()
       ) ||
       ((mode == "export-audio" || mode == "audio-memory") && tail.length() == 5) ||
@@ -47,7 +52,7 @@ async fn main {
       )
     ) else {
     fail(
-      "config|weight-plan|audio-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
+      "config|weight-plan|audio-config|video-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
     )
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(root_name)
@@ -72,6 +77,18 @@ async fn main {
     "MiniMax-H3 layers=\{plan.denoiser().layer_count()} hidden=\{plan.denoiser().hidden_size()}",
   )
   if mode == "config" {
+    return
+  }
+  if mode == "video-config" {
+    let video = @config.parse_video_vae_checkpoint(
+      @utf8.decode(read(root, "video_vae/config.json", 1048576L)),
+      @utf8.decode(read(root, "video_vae/source/config.json", 1048576L)),
+      max_bytes=1048576,
+      max_depth=16,
+    )
+    println(
+      "VideoVAE latent_channels=\{video.latent_channels()} layers=\{video.decoder_layer_count()} hidden=\{video.decoder_hidden_size()} compression=\{video.spatial_compression()}x\{video.temporal_compression()}",
+    )
     return
   }
   if mode == "decode-audio" {
