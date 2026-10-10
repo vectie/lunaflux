@@ -13,6 +13,25 @@ fn bf16(bytes : Bytes, i : Int) -> Double {
 }
 
 ///|
+fn relative_error(error : Double, reference : Double) -> Double {
+  if reference > 0.0 {
+    error / reference
+  } else if error == 0.0 {
+    0.0
+  } else {
+    0x7FF0000000000000L.reinterpret_as_double()
+  }
+}
+
+///|
+test "nonzero error against a zero reference cannot report parity" {
+  assert_eq(relative_error(0.0, 0.0), 0.0)
+  assert_true(relative_error(1.0, 0.0).is_inf())
+  assert_eq(relative_error(1.0, 4.0), 0.25)
+  assert_eq(relative_error(1.0, 4.0).sqrt(), 0.5)
+}
+
+///|
 async fn main {
   guard @env.args() is [_, native_path, reference_path, output, .. scope_args] &&
     (scope_args is [] || scope_args is [_] || scope_args is [_, _]) else {
@@ -81,11 +100,7 @@ async fn main {
     }
   }
   let rmse = (squared_error / n.to_double()).sqrt()
-  let relative_l2 = if squared_reference > 0.0 {
-    (squared_error / squared_reference).sqrt()
-  } else {
-    0.0
-  }
+  let relative_l2 = relative_error(squared_error, squared_reference).sqrt()
   let cosine = if squared_native > 0.0 && squared_reference > 0.0 {
     dot / (squared_native * squared_reference).sqrt()
   } else {
@@ -102,13 +117,11 @@ async fn main {
   guard nonfinite == 0 else {
     fail("nonfinite reference/native tensor; no finite-error summary")
   }
-  let relative_l1 = if abs_reference > 0.0 {
-    abs_error / abs_reference
-  } else {
-    0.0
-  }
+  let relative_l1 = relative_error(abs_error, abs_reference)
   let per_row = StringBuilder()
-  guard n % width == 0 else { fail("tensor extent is not a whole number of rows") }
+  guard n % width == 0 else {
+    fail("tensor extent is not a whole number of rows")
+  }
   for row in 0..<(n / width) {
     let mut a2 = 0.0
     let mut b2 = 0.0
@@ -131,8 +144,8 @@ async fn main {
     } else {
       0.0
     }
-    let row_l1 = if b1 > 0.0 { e1 / b1 } else { 0.0 }
-    let row_l2 = if b2 > 0.0 { (e2 / b2).sqrt() } else { 0.0 }
+    let row_l1 = relative_error(e1, b1)
+    let row_l2 = relative_error(e2, b2).sqrt()
     per_row <+
       "row=\{row} rmse=\{(e2 / width.to_double()).sqrt()} relative_l1=\{row_l1} relative_l2=\{row_l2} cosine=\{row_cosine}\n"
   }
