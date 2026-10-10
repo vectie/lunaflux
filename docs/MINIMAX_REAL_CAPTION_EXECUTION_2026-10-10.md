@@ -90,3 +90,33 @@ This establishes actual-caption end-to-end component execution and complete,
 finite, nontrivial decoded arrays at the stated small geometry. It does not
 establish independent reference equivalence, caption fidelity, perceptual
 quality, realistic-resolution performance or a production serving result.
+
+## Output-length contract correction — 2026-10-11
+
+The requested 120 video frames resolve to 124 by the declared temporal shape
+law. At 32×32 RGB F32 this is exactly 1,523,712 bytes. The AudioVAE retains
+207 rounded latent frames × 800 samples = 165,600 samples per channel,
+exactly 1,324,800 stereo F32 bytes. This is the reference's latent-rounded
+duration, not accidental trailing output to crop away.
+
+An integration mismatch remained: generic result metadata and reference output
+budgets still used the nominal frame-duration count, 165,333. The shared pure
+shape contract now explicitly chooses `FrameDuration` or `LatentStride(stride)`;
+MiniMax selects the latter. `audio_samples()` remains nominal timing, whereas
+`audio_output_samples()` determines publication length. Canonical results,
+reference output budgets and prepared decoder joins use the actual extent.
+The rule is selected in the model adapter, not a family branch in generic
+result handling or CUDA dispatch. It adds no payload hashing or token-step work.
+
+The existing physical output above predates this metadata correction. No decoder
+arithmetic or media bytes were changed, and no new GPU execution or performance
+claim follows from changing their result contract.
+
+The affected nineteen-package native regression matrix passes 235/235, including
+the default duration law, rounded output counts, invalid strides, exact stereo
+output-budget boundary, terminal metadata and prepared decoder joins. Existing
+CUDA source-byte snapshots remain unchanged; plan-dependent recipe snapshots
+were intentionally refreshed for the new output law. Whole-repository native
+check and affected formatting/interfaces pass with the existing migration
+warning exclusions `-20-25-29-35-79-92`, not an unfiltered warning-clean claim.
+The 27-script no-hashing and token-step scan/copy/readback checks also pass.

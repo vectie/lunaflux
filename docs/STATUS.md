@@ -30,6 +30,13 @@ older BOS-only sample regressed. Neither sample is a vLLM/SGLang comparison.
 
 MiniMax's raw decoded arrays have been downloaded and independently inspected
 for exact sizes, finite/nontrivial values. This is not perceptual validation.
+Its generic result contract now distinguishes nominal frame-duration samples
+from declared latent-rounded decoder samples, accepting the actual 165,600
+per-channel output instead of demanding a 165,333-sample crop. This metadata
+fix does not change the previously executed CUDA arithmetic.
+Its nineteen-package affected native matrix passes 235/235, including exact
+rounded output-budget and result-count boundaries; the no-hashing/token-step
+checks pass without new warning exclusions.
 The joint request's 1,782 seconds includes loading/preparation, not GPU-only
 latency. Its running swap samples were zero, but terminal swap peak is unavailable.
 

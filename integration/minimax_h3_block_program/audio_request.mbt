@@ -60,6 +60,8 @@ pub fn AudioDecodeRequest::prepare(
     guard input_program is Some(program) &&
       !program.closed &&
       program.layout.value_bytes == plan.audio_elements() * 4L &&
+      decoder.tail.source.time.to_int64() ==
+      plan.request().audio_output_samples() &&
       audio_join_geometry(
         plan.request().audio_latent_frames(),
         decoder.tail.source.batch,

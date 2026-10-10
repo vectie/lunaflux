@@ -18,9 +18,16 @@ conditioning limits, deterministic identity, and bounded request/latent shape
 resolution through `model/joint_diffusion_plan`. It also binds the official
 frame-major patch-vector and channel-major audio-row layouts.
 
-This is an execution-plan foundation, not physical runtime readiness. Metadata
-binding now has exact complete-manifest joins for the denoiser and Qwen3-VL
-conditioner; VAE complete vocabularies and every component's payload/device
-materialization still fail closed. Conditioning execution, transformer/VAE
-kernels, device-worker ownership, and bounded audio/video request/result
-protocols do not yet exist.
+The audio shape law explicitly preserves 800 output samples per rounded latent.
+For 124 resolved video frames, the nominal duration is 165,333 samples, while
+the actual decoder emits 165,600 per channel. These values are distinct;
+canonical result metadata and output budgets must use `audio_output_samples()`.
+The model adapter selects this law once; neither the generic result protocol
+nor device dispatch branches on a MiniMax name.
+
+Checkpoint-backed text conditioning, denoising and both VAE decoders now execute
+through explicit bounded device owners. Actual-caption execution at small
+geometry is recorded in
+[the current report](../../docs/MINIMAX_REAL_CAPTION_EXECUTION_2026-10-10.md).
+That result is not independent numerical/quality validation, production serving
+or an optimized realistic-resolution benchmark.

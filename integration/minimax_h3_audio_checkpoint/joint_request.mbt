@@ -11,6 +11,7 @@ pub fn CheckpointAudioDecoder::matches_plan(
   self.sources.frontend.time == time &&
   self.sources.tail.batch == 2 &&
   self.sources.tail.time.to_int64() == time.to_int64() * 800L &&
+  self.sources.tail.time.to_int64() == plan.request().audio_output_samples() &&
   self.memory.input_bytes == plan.audio_elements() * 4L &&
   self.memory.output_bytes == time.to_int64() * 800L * 8L
 }

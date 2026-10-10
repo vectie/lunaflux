@@ -205,7 +205,7 @@ pub fn assess_joint_vae_decode(
     request.audio_token_rows().to_int64(),
   ])
   let audio_output_elements = checked_product([
-    request.audio_samples(),
+    request.audio_output_samples(),
     shapes.audio_output_channels().to_int64(),
   ])
   if video_latent_elements > limits.maximum_video_latent_elements ||
@@ -231,7 +231,7 @@ pub fn assess_joint_vae_decode(
     audio_latent_channels: shapes.audio_latent_channels(),
     audio_latent_frames: request.audio_latent_frames(),
     audio_latent_elements,
-    audio_output_samples: request.audio_samples(),
+    audio_output_samples: request.audio_output_samples(),
     audio_output_channels: shapes.audio_output_channels(),
     audio_output_elements,
   }

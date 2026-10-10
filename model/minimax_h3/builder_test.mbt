@@ -128,6 +128,8 @@ test "MiniMax H3 resolves released canvas frame and latent geometry" {
   assert_eq(plan.shapes().audio_latent_streams(), 2)
   assert_eq(shape.audio_token_rows(), 414)
   assert_eq(shape.audio_samples(), 165333L)
+  assert_eq(shape.audio_output_samples(), 165600L)
+  assert_eq(plan.shapes().audio_output_length(), LatentStride(800))
   assert_eq(shape.model_evaluations(), 50)
   assert_eq(plan.video_scheduler().shift(), 12.0)
   assert_eq(plan.audio_scheduler().shift(), 3.0)

@@ -22,6 +22,11 @@ pub(all) suberror JointDiffusionPlanError {
 } derive(Eq, @debug.Debug)
 
 // Types and methods
+pub(all) enum JointAudioOutputLength {
+  FrameDuration
+  LatentStride(Int)
+} derive(Eq, @debug.Debug)
+
 pub(all) enum JointDiffusionAudioRowLayout {
   ChannelMajorTime
 } derive(Eq, @debug.Debug)
@@ -114,6 +119,7 @@ pub struct JointDiffusionRequestShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointDiffusionRequestShape::audio_latent_frames(Self) -> Int
+pub fn JointDiffusionRequestShape::audio_output_samples(Self) -> Int64
 pub fn JointDiffusionRequestShape::audio_samples(Self) -> Int64
 pub fn JointDiffusionRequestShape::audio_token_rows(Self) -> Int
 pub fn JointDiffusionRequestShape::frames(Self) -> Int
@@ -147,6 +153,7 @@ pub fn JointDiffusionShapeContract::audio_latent_channels(Self) -> Int
 pub fn JointDiffusionShapeContract::audio_latent_streams(Self) -> Int
 pub fn JointDiffusionShapeContract::audio_latents_per_second(Self) -> Int
 pub fn JointDiffusionShapeContract::audio_output_channels(Self) -> Int
+pub fn JointDiffusionShapeContract::audio_output_length(Self) -> JointAudioOutputLength
 pub fn JointDiffusionShapeContract::audio_sample_rate(Self) -> Int
 pub fn JointDiffusionShapeContract::audio_vae_decoder_dimension(Self) -> Int
 pub fn JointDiffusionShapeContract::audio_vae_latent_dimension(Self) -> Int
@@ -163,7 +170,7 @@ pub fn JointDiffusionShapeContract::min_aspect_denominator(Self) -> Int
 pub fn JointDiffusionShapeContract::min_aspect_numerator(Self) -> Int
 pub fn JointDiffusionShapeContract::min_duration_seconds(Self) -> Int
 pub fn JointDiffusionShapeContract::min_inference_steps(Self) -> Int
-pub fn JointDiffusionShapeContract::new(frames_per_second~ : Int, min_duration_seconds~ : Int, max_duration_seconds~ : Int, frames_per_chunk~ : Int, latents_per_chunk~ : Int, canvas_multiple~ : Int, max_canvas_pixels~ : Int64, min_aspect_numerator~ : Int, min_aspect_denominator~ : Int, max_aspect_numerator~ : Int, max_aspect_denominator~ : Int, video_latent_channels~ : Int, video_spatial_compression~ : Int, audio_latent_channels~ : Int, audio_latents_per_second~ : Int, audio_sample_rate~ : Int, audio_output_channels~ : Int, audio_vae_latent_dimension~ : Int, audio_vae_decoder_dimension~ : Int, min_inference_steps~ : Int, max_inference_steps~ : Int, video_patch_temporal? : Int, video_patch_height? : Int, video_patch_width? : Int, audio_latent_streams? : Int) -> Self raise JointDiffusionPlanError
+pub fn JointDiffusionShapeContract::new(frames_per_second~ : Int, min_duration_seconds~ : Int, max_duration_seconds~ : Int, frames_per_chunk~ : Int, latents_per_chunk~ : Int, canvas_multiple~ : Int, max_canvas_pixels~ : Int64, min_aspect_numerator~ : Int, min_aspect_denominator~ : Int, max_aspect_numerator~ : Int, max_aspect_denominator~ : Int, video_latent_channels~ : Int, video_spatial_compression~ : Int, audio_latent_channels~ : Int, audio_latents_per_second~ : Int, audio_sample_rate~ : Int, audio_output_channels~ : Int, audio_vae_latent_dimension~ : Int, audio_vae_decoder_dimension~ : Int, min_inference_steps~ : Int, max_inference_steps~ : Int, video_patch_temporal? : Int, video_patch_height? : Int, video_patch_width? : Int, audio_latent_streams? : Int, audio_output_length? : JointAudioOutputLength) -> Self raise JointDiffusionPlanError
 pub fn JointDiffusionShapeContract::resolve_request(Self, height~ : Int, width~ : Int, requested_frames~ : Int, inference_steps~ : Int) -> JointDiffusionRequestShape raise JointDiffusionPlanError
 pub fn JointDiffusionShapeContract::video_latent_channels(Self) -> Int
 pub fn JointDiffusionShapeContract::video_patch_height(Self) -> Int

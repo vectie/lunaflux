@@ -22,6 +22,11 @@ Completed diagnostic work:
 - MiniMax's actual caption completes original text encoding, five joint
   denoising evaluations and audio/video decoding at the stated small geometry.
   Downloaded arrays have exact sizes and finite, nontrivial values.
+  Generic result metadata and VAE output budgets now consume the explicitly
+  declared decoder output-length law, not nominal frame-duration samples.
+  MiniMax's 165,600-sample output is preserved without cropping to 165,333.
+  Its output-law correction passes 235/235 affected native regressions and the
+  existing no-hashing/token-step gates; no GPU arithmetic changed.
 
 Required next boundaries, still open:
 

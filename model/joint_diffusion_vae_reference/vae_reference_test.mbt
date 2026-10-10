@@ -240,7 +240,7 @@ test "official MiniMax geometry is plan-bound without importing family code in p
   let geometry = assess_joint_vae_decode(
     plan,
     request,
-    limits=vae_limits(maximum_audio_output_elements=1000000L),
+    limits=vae_limits(maximum_audio_output_elements=331200L),
   ).geometry()
   assert_eq(geometry.plan_digest(), plan.plan_digest())
   assert_eq(geometry.video_latent_channels(), 24)
@@ -253,9 +253,21 @@ test "official MiniMax geometry is plan-bound without importing family code in p
   assert_eq(geometry.audio_latent_channels(), 32)
   assert_eq(geometry.audio_latent_frames(), 207)
   assert_eq(geometry.audio_latent_elements(), 13248L)
-  assert_eq(geometry.audio_output_samples(), 165333L)
+  assert_eq(geometry.audio_output_samples(), 165600L)
   assert_eq(geometry.audio_output_channels(), 2)
-  assert_eq(geometry.audio_output_elements(), 330666L)
+  assert_eq(geometry.audio_output_elements(), 331200L)
+  try
+    assess_joint_vae_decode(
+      plan,
+      request,
+      limits=vae_limits(maximum_audio_output_elements=331199L),
+    )
+  catch {
+    GeometryBudgetExceeded(AudioVae) => ()
+    _ => fail("unexpected rounded audio output budget error")
+  } noraise {
+    _ => fail("rounded decoder output exceeded its exact element budget")
+  }
 }
 
 ///|

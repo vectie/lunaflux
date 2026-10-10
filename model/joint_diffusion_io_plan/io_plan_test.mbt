@@ -95,6 +95,7 @@ test "MiniMax FL2VA projection binds exact resolved media and latent shape" {
   assert_eq(request.shape().audio_latent_frames(), 207)
   assert_eq(request.audio_latent_channels(), 32)
   assert_eq(request.shape().audio_samples(), 165333L)
+  assert_eq(request.shape().audio_output_samples(), 165600L)
   assert_eq(request.audio_sample_rate(), 32000)
   assert_eq(request.audio_output_channels(), 2)
   assert_eq(request.guidance(), DistilledUnitGuidance)
@@ -341,14 +342,14 @@ test "terminal metadata remains request-bound and exact" {
   let success = try! JointDiffusionResultMetadata::succeeded(
     request,
     video_frame_count=124,
-    audio_sample_count=165333L,
+    audio_sample_count=165600L,
   )
   assert_eq(success.identity(), request.identity())
   assert_eq(success.request_digest(), request.request_digest())
   assert_eq(success.status(), Succeeded)
   assert_eq(success.completed_stage_count(), request.stage_count())
   assert_eq(success.video_frame_count(), Some(124))
-  assert_eq(success.audio_sample_count(), Some(165333L))
+  assert_eq(success.audio_sample_count(), Some(165600L))
   let cancelled = try! JointDiffusionResultMetadata::cancelled(
     request,
     reason=CallerRequested,
@@ -362,6 +363,18 @@ test "terminal metadata remains request-bound and exact" {
 ///|
 test "forged output counts and completed cancellation fail closed" {
   let request = io_text_request(io_minimax_plan())
+  try
+    JointDiffusionResultMetadata::succeeded(
+      request,
+      video_frame_count=124,
+      audio_sample_count=165333L,
+    )
+  catch {
+    InvalidResultMetadata => ()
+    _ => fail("unexpected rounded audio rejection")
+  } noraise {
+    _ => fail("nominal duration substituted for actual decoder output")
+  }
   try
     JointDiffusionResultMetadata::succeeded(
       request,

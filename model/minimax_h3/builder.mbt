@@ -41,6 +41,8 @@ fn shape_contract() -> @joint_diffusion_plan.JointDiffusionShapeContract {
     audio_latents_per_second=40,
     audio_sample_rate=32000,
     audio_output_channels=2,
+    // The checkpoint decoder retains all 800 samples per rounded latent.
+    audio_output_length=LatentStride(800),
     audio_vae_latent_dimension=2048,
     audio_vae_decoder_dimension=1024,
     min_inference_steps=2,

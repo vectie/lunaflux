@@ -60,8 +60,8 @@ test "FL2VA and Ref2VA bind exact official audio latent destandardization" {
     parameter_digests,
     content=(
       #|[
-      #|  "9b7eb4925c22f1293fcdba4123549c2db7faf0af8b71db03655687cc64bb8254",
-      #|  "9912bfadda55ec1d2f701779fd5a16441c752f1534bc6804341c364cbcde900a",
+      #|  "e7c3abbc6fdbed388887d6df52fe01ca145e32ad421bb0d64115fbb0e220fb64",
+      #|  "382c1b998e6892a2d018fecde6f532e6bc272cc0c5148ba9d03847149372e0b1",
       #|]
     ),
   )
@@ -78,8 +78,8 @@ test "FL2VA and Ref2VA bind exact official audio latent destandardization" {
     recipe_digests,
     content=(
       #|[
-      #|  "c4c58aeb6ed42533f679f8fca749d87a513c5d17b74e1f665ad91601c05ab3a6",
-      #|  "b54afa1c1f36ae647dec7ff30f7724cdeda123fcbef53340aff5947e5994a161",
+      #|  "715cc2dab2373063a5b9f78a563b196861e184c68892e5da8639d90e4531b2e5",
+      #|  "33479b8d476544d10e90ab429be34ceadd4b3af216094802408013cbf6cce90f",
       #|]
     ),
   )

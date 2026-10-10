@@ -92,11 +92,11 @@ test "official profiles bind exact 97-launch first AMP stage" {
   assert_eq(recipes.length(), 2)
   assert_eq(
     recipes[0],
-    "42d32891f4a010f74b1d07aa7bce25e299a7650c2a1d234cae28fc13cf0b73b3",
+    "7a4357596467bb4d3e493917b6d25e992193cb2e91c5dbda719e87349d14ab8c",
   )
   assert_eq(
     recipes[1],
-    "618125455f602757972ac82bcb85466b202db600d02d0e387399117d9f43aea5",
+    "0119ca9320e03f7313ed38e1ee40d4a5448a349966efcd1a0514271b5e9e9af6",
   )
   assert_eq(
     sources[0],

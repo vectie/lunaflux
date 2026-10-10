@@ -25,6 +25,7 @@ pub fn JointDiffusionShapeContract::new(
   video_patch_height? : Int = 1,
   video_patch_width? : Int = 1,
   audio_latent_streams? : Int = 1,
+  audio_output_length? : JointAudioOutputLength = FrameDuration,
 ) -> JointDiffusionShapeContract raise JointDiffusionPlanError {
   if frames_per_second <= 0 ||
     frames_per_second > 1000000 ||
@@ -74,6 +75,14 @@ pub fn JointDiffusionShapeContract::new(
     canvas_multiple % (video_spatial_compression * video_patch_width) != 0 {
     raise InvalidShapeContract
   }
+  if audio_output_length is LatentStride(stride) &&
+    (
+      stride <= 0 ||
+      stride.to_int64() * audio_latents_per_second.to_int64() !=
+      audio_sample_rate.to_int64()
+    ) {
+    raise InvalidShapeContract
+  }
   {
     frames_per_second,
     min_duration_seconds,
@@ -93,6 +102,7 @@ pub fn JointDiffusionShapeContract::new(
     audio_latents_per_second,
     audio_sample_rate,
     audio_output_channels,
+    audio_output_length,
     audio_vae_latent_dimension,
     audio_vae_decoder_dimension,
     min_inference_steps,
@@ -190,6 +200,13 @@ pub fn JointDiffusionShapeContract::audio_sample_rate(self : Self) -> Int {
 ///|
 pub fn JointDiffusionShapeContract::audio_output_channels(self : Self) -> Int {
   self.audio_output_channels
+}
+
+///|
+pub fn JointDiffusionShapeContract::audio_output_length(
+  self : Self,
+) -> JointAudioOutputLength {
+  self.audio_output_length
 }
 
 ///|
@@ -297,6 +314,10 @@ pub fn JointDiffusionShapeContract::resolve_request(
       (self.frames_per_second / 2).to_int64()
     ) /
     self.frames_per_second.to_int64()
+  let audio_output_samples = match self.audio_output_length {
+    FrameDuration => audio_samples
+    LatentStride(stride) => audio_latent_frames.to_int64() * stride.to_int64()
+  }
   guard audio_latent_frames > 0 &&
     self.audio_latent_streams <= 2147483647 / audio_latent_frames else {
     raise InvalidFrameCount
@@ -314,6 +335,7 @@ pub fn JointDiffusionShapeContract::resolve_request(
     audio_latent_frames,
     audio_token_rows,
     audio_samples,
+    audio_output_samples,
   }
 }
 
@@ -376,4 +398,11 @@ pub fn JointDiffusionShapeContract::audio_latent_streams(self : Self) -> Int {
 ///|
 pub fn JointDiffusionRequestShape::audio_samples(self : Self) -> Int64 {
   self.audio_samples
+}
+
+///|
+/// Exact samples per output channel, including declared decoder rounding.
+/// `audio_samples()` instead describes the nominal video-frame duration.
+pub fn JointDiffusionRequestShape::audio_output_samples(self : Self) -> Int64 {
+  self.audio_output_samples
 }

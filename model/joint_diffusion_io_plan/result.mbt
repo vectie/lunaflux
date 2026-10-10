@@ -5,7 +5,7 @@ pub fn JointDiffusionResultMetadata::succeeded(
   audio_sample_count~ : Int64,
 ) -> JointDiffusionResultMetadata raise JointDiffusionIoPlanError {
   if video_frame_count != request.shape().frames() ||
-    audio_sample_count != request.shape().audio_samples() {
+    audio_sample_count != request.shape().audio_output_samples() {
     raise InvalidResultMetadata
   }
   {

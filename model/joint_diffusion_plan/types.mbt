@@ -151,6 +151,14 @@ pub struct JointDiffusionProjectionContract {
 } derive(Debug, Eq)
 
 ///|
+/// Decoder output length is independent of the nominal frame duration.
+/// LatentStride retains the decoder's complete rounded latent duration.
+pub(all) enum JointAudioOutputLength {
+  FrameDuration
+  LatentStride(Int)
+} derive(Debug, Eq)
+
+///|
 /// Model and runtime geometry needed to resolve one joint audio/video request.
 pub struct JointDiffusionShapeContract {
   priv frames_per_second : Int
@@ -171,6 +179,7 @@ pub struct JointDiffusionShapeContract {
   priv audio_latents_per_second : Int
   priv audio_sample_rate : Int
   priv audio_output_channels : Int
+  priv audio_output_length : JointAudioOutputLength
   priv audio_vae_latent_dimension : Int
   priv audio_vae_decoder_dimension : Int
   priv min_inference_steps : Int
@@ -194,6 +203,7 @@ pub struct JointDiffusionRequestShape {
   priv audio_latent_frames : Int
   priv audio_token_rows : Int
   priv audio_samples : Int64
+  priv audio_output_samples : Int64
 } derive(Debug, Eq)
 
 ///|

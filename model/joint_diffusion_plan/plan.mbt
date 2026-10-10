@@ -205,6 +205,9 @@ fn encode_plan_digest(
   if shapes.audio_latent_streams() != 1 {
     out <+ "|audio-latent-streams=\{shapes.audio_latent_streams()}"
   }
+  if shapes.audio_output_length() is LatentStride(stride) {
+    out <+ "|audio-output-latent-stride=\{stride}"
+  }
   out <+
     "|vpatch=\{shapes.video_patch_temporal()}:\{shapes.video_patch_height()}:\{shapes.video_patch_width()}"
   out <+

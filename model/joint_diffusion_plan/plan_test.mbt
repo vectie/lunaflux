@@ -8,8 +8,9 @@ fn test_digest() -> @spec.ContentDigest {
 ///|
 fn test_shapes(
   streams? : Int = 1,
-) -> @joint_diffusion_plan.JointDiffusionShapeContract {
-  try! @joint_diffusion_plan.JointDiffusionShapeContract::new(
+  audio_output_length? : @joint_diffusion_plan.JointAudioOutputLength = FrameDuration,
+) -> @joint_diffusion_plan.JointDiffusionShapeContract raise @joint_diffusion_plan.JointDiffusionPlanError {
+  @joint_diffusion_plan.JointDiffusionShapeContract::new(
     frames_per_second=24,
     min_duration_seconds=5,
     max_duration_seconds=15,
@@ -28,6 +29,7 @@ fn test_shapes(
     audio_latents_per_second=40,
     audio_sample_rate=32000,
     audio_output_channels=2,
+    audio_output_length~,
     audio_vae_latent_dimension=2048,
     audio_vae_decoder_dimension=1024,
     min_inference_steps=2,
@@ -45,6 +47,98 @@ fn test_scheduler(
     kind=RectifiedFlowEuler,
     shift_numerator=shift,
     shift_denominator=1,
+  )
+}
+
+///|
+test "audio output law distinguishes nominal duration from latent decoder output" {
+  let nominal = test_shapes()
+  let rounded = test_shapes(audio_output_length=LatentStride(800))
+  assert_eq(nominal.audio_output_length(), FrameDuration)
+  assert_eq(rounded.audio_output_length(), LatentStride(800))
+  for frames in [120, 124, 175, 260, 345] {
+    let first = nominal.resolve_request(
+      height=32,
+      width=32,
+      requested_frames=frames,
+      inference_steps=5,
+    )
+    let second = rounded.resolve_request(
+      height=32,
+      width=32,
+      requested_frames=frames,
+      inference_steps=5,
+    )
+    assert_eq(first.frames(), second.frames())
+    assert_eq(first.audio_latent_frames(), second.audio_latent_frames())
+    assert_eq(first.audio_samples(), second.audio_samples())
+    assert_eq(first.audio_output_samples(), first.audio_samples())
+    assert_eq(
+      second.audio_output_samples(),
+      second.audio_latent_frames().to_int64() * 800L,
+    )
+  }
+  for stride in [-1, 0, 799, 801, 2147483647] {
+    try test_shapes(audio_output_length=LatentStride(stride)) catch {
+      InvalidShapeContract => ()
+      _ => fail("unexpected decoder stride rejection")
+    } noraise {
+      _ => fail("invalid decoder output law accepted")
+    }
+  }
+}
+
+///|
+test "distinct output length laws cannot alias the same model plan" {
+  let stages = [
+    @joint_diffusion_plan.JointDiffusionStage::new(
+      kind=ResolveRequest,
+      presence=Required,
+    ),
+    @joint_diffusion_plan.JointDiffusionStage::new(
+      kind=EncodeTextConditioning,
+      presence=Required,
+    ),
+    @joint_diffusion_plan.JointDiffusionStage::new(
+      kind=InitializeJointLatents,
+      presence=Required,
+    ),
+    @joint_diffusion_plan.JointDiffusionStage::new(
+      kind=JointAudioVideoDenoise,
+      presence=Required,
+    ),
+    @joint_diffusion_plan.JointDiffusionStage::new(
+      kind=DecodeVideo,
+      presence=Required,
+    ),
+    @joint_diffusion_plan.JointDiffusionStage::new(
+      kind=DecodeAudio,
+      presence=Required,
+    ),
+  ]
+  fn resolve(
+    policy : @joint_diffusion_plan.JointAudioOutputLength,
+  ) -> @joint_diffusion_plan.JointDiffusionPlan raise {
+    @joint_diffusion_plan.JointDiffusionPlan::new(
+      schema_version=1,
+      content_digest=test_digest(),
+      workflows=[TextToAudioVideo],
+      stages~,
+      video_scheduler=test_scheduler(VideoLatent, 12),
+      audio_scheduler=test_scheduler(AudioLatent, 3),
+      shapes=test_shapes(audio_output_length=policy),
+      conditioning=no_conditioning(),
+      denoiser=test_denoiser(),
+      projection=JointDiffusionProjectionContract::mixed_precision_float32_heads(),
+    )
+  }
+  assert_true(
+    resolve(FrameDuration).plan_digest() !=
+    resolve(LatentStride(800)).plan_digest(),
+  )
+  assert_eq(
+    resolve(FrameDuration).plan_digest(),
+    resolve(FrameDuration).plan_digest(),
   )
 }
 

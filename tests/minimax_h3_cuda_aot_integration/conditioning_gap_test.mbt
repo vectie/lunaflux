@@ -164,7 +164,7 @@ test "FL2VA exposes exact keyframe geometry but no AOT authority" {
   inspect(
     assessment.gap_digest().as_hex(),
     content=(
-      #|6b5a46a4fc9f5d36234c6302ccaea4a6ad517172b760ba8b6989f38251a02ec0
+      #|8b997df90e9531cfda861db66fc4d17d4119b0c065a4ec24d5b645ffacb061db
     ),
   )
   try
@@ -208,7 +208,7 @@ test "Ref2VA retains per-reference and soundtrack blockers" {
   inspect(
     assessment.gap_digest().as_hex(),
     content=(
-      #|eca64f142c5cd840294a5b153b8c97558d8e61c585a86d4c49b36e3e7ae760ae
+      #|e1009173593a8c6feaebe030b72f0ce2e02eceb13747f25e804a418fabbb3874
     ),
   )
 }

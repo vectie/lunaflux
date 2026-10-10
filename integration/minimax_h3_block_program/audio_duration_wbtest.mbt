@@ -22,6 +22,7 @@ test "124-frame request retains rounded decoder duration rather than requested s
   assert_eq(request.audio_samples(), 165333L)
   let actual_samples = request.audio_latent_frames() * 800
   assert_eq(actual_samples, 165600)
+  assert_eq(actual_samples.to_int64(), request.audio_output_samples())
   assert_true(actual_samples.to_int64() != request.audio_samples())
   assert_true(
     audio_join_geometry(
