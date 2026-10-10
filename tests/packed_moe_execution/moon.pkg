@@ -65,6 +65,7 @@ import {
   "vectie/lunaflux/integration/deepseek_v4_hyper_connection" @deepseek_hyper,
   "vectie/lunaflux/integration/deepseek_v4_decoder" @deepseek_decoder,
   "vectie/lunaflux/integration/deepseek_v4_prediction_prefix" @prediction_main,
+  "vectie/lunaflux/integration/prediction_phase_execution" @prediction_execution,
   "vectie/lunaflux/model/deepseek_v4_spec" @deepseek_spec,
   "vectie/lunaflux/integration/serial_decoder_pipeline" @serial_pipeline,
   "vectie/lunaflux/engine/serial_generation",

@@ -29,7 +29,20 @@ module, protocol, pinned transfer and reader metadata memory outside stage weigh
 Each rank uploads only its assigned interval. Close activation/pipeline owners
 before ranks/stages, modules, streams and contexts.
 
-This executes base layers even when the checkpoint contains DSpark extensions.
-It does **not** execute DSpark prediction/MTP, and must not be presented as full
-DSpark qualification. Native compile and component GPU results are not proof of
-complete-checkpoint numerical correctness or throughput.
+The un-suffixed modes execute only base layers, even for a DSpark checkpoint.
+`export-dspark`, `egress-dspark` and `generate-dspark` accept the same respective
+arguments and additionally plan and execute the actual three-block predictor.
+The egress budget includes predictor banks, local embedding, captures and result
+buffers; the vocabulary is borrowed from base egress. The current local route
+requires all target layers on egress and rejects a split capture placement.
+
+After each successful whole-base commit, prefill chunks prime main KV; decode
+steps execute prediction. Commit acknowledgement waits for the prediction queue
+to retire before request metadata can be reused. Terminal diagnostic output
+contains the last dependent token block and raw confidence bytes. Drafts are
+not accepted speculatively: the base greedy route remains authoritative, with
+verification/accept/reject/commit still required for acceleration.
+
+Native compile and component GPU results are not proof of complete-checkpoint
+numerical correctness or throughput. The new attached route has not yet passed
+a complete real-checkpoint run.

@@ -44,6 +44,7 @@ pub fn DeepSeekTextIo::prepare(Self, @device.Context, @device.Module, @precision
 pub fn DeepSeekTextIo::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekTextIo::source_bytes(Self) -> Bytes
 pub fn DeepSeekTextIo::suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekTextIo::vocabulary_weight(Self) -> @device.Allocation raise
 
 // Type aliases
 

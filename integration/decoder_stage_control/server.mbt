@@ -13,6 +13,7 @@ priv enum ServerState {
   Uploading
   WaitingActivation
   Executing
+  CommittedEffect
   Sending
   Terminal
   FailedState
@@ -33,6 +34,8 @@ pub struct DecoderStageServer {
   priv completion : @wire.CompletionFrameBuffer
   priv ready_to_submit : () -> Bool raise
   priv arm_activation : (UInt64, Int, UInt64) -> Unit raise
+  priv committed_effect : ((Bool) -> Unit raise)?
+  priv poll_committed_effect : () -> Bool raise
   priv timeout_millis : UInt64
   priv mut last_tick : UInt64
   priv mut phase_deadline : UInt64
@@ -40,6 +43,7 @@ pub struct DecoderStageServer {
   priv mut phase : ServerPhase
   priv mut state : ServerState
   priv mut busy : Bool
+  priv mut decode_step : Bool
 }
 
 ///|
@@ -53,6 +57,8 @@ pub fn DecoderStageServer::new(
   local_now_millis~ : UInt64,
   ready_to_submit~ : () -> Bool raise,
   arm_activation? : (UInt64, Int, UInt64) -> Unit raise = (_, _, _) => (),
+  committed_effect? : (Bool) -> Unit raise,
+  poll_committed_effect? : () -> Bool raise = () => true,
 ) -> Self raise {
   guard maximum_buffer_bytes >= required_buffer_bytes(limits) &&
     timeout_millis > 0UL &&
@@ -80,6 +86,8 @@ pub fn DecoderStageServer::new(
     completion,
     ready_to_submit,
     arm_activation,
+    committed_effect,
+    poll_committed_effect,
     timeout_millis,
     last_tick: local_now_millis,
     phase_deadline: local_now_millis + timeout_millis,
@@ -87,6 +95,7 @@ pub fn DecoderStageServer::new(
     phase: Idle,
     state: Receiving,
     busy: false,
+    decode_step: false,
   }
 }
 
@@ -128,6 +137,7 @@ fn DecoderStageServer::command(
       self.plan_bytes[i] = self.message[control_header_bytes + i]
     }
     let plan = self.plan.load(self.plan_bytes, bytes)
+    self.decode_step = plan.decode_count() > 0
     let writer = self.completion.writer_for(plan)
     self.rank.begin(plan, writer)
     self.epoch = epoch
@@ -147,7 +157,13 @@ fn DecoderStageServer::command(
     let failed = flags == 1 || self.rank.execution_failed()
     self.rank.commit(pipeline_failed=failed)
     self.phase = if failed { Poisoned } else { Idle }
-    self.reply(committed_kind, if failed { 1 } else { 0 }, 0, now)
+    if !failed && self.committed_effect is Some(begin_effect) {
+      begin_effect(self.decode_step)
+      self.phase_deadline = now + self.timeout_millis
+      self.state = CommittedEffect
+    } else {
+      self.reply(committed_kind, if failed { 1 } else { 0 }, 0, now)
+    }
   } else if kind == release_kind && flags == 0 && self.phase is Idle {
     self.rank.release_request()
     self.phase = Released
@@ -180,7 +196,7 @@ pub async fn DecoderStageServer::poll(
     raise @channel.RemoteChannelError::ClockRegressed
   }
   self.last_tick = local_now_millis
-  if self.state is (Uploading | WaitingActivation | Executing) &&
+  if self.state is (Uploading | WaitingActivation | Executing | CommittedEffect) &&
     local_now_millis >= self.phase_deadline {
     raise @channel.RemoteChannelError::TimedOut
   }
@@ -222,6 +238,10 @@ pub async fn DecoderStageServer::poll(
           token,
           local_now_millis,
         )
+      }
+    CommittedEffect =>
+      if (self.poll_committed_effect)() {
+        self.reply(committed_kind, 0, 0, local_now_millis)
       }
     Sending =>
       if self.channel.poll_send(local_now_millis) {

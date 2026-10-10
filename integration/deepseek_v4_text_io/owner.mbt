@@ -122,6 +122,18 @@ pub fn DeepSeekTextIo::logits(self : Self) -> @device.Allocation raise {
 }
 
 ///|
+/// Borrow the exact prepared global vocabulary matrix, without re-uploading it.
+/// Consumers must retire and close their queues before closing this owner.
+pub fn DeepSeekTextIo::vocabulary_weight(
+  self : Self,
+) -> @device.Allocation raise {
+  guard self.state is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.weights.allocation(1)
+}
+
+///|
 pub fn DeepSeekTextIo::close(self : Self) -> Unit raise {
   match self.state {
     Closed => return

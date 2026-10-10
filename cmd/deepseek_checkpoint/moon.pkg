@@ -17,6 +17,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/compiler/decoder_pipeline_plan" @placement,
   "vectie/lunaflux/integration/deepseek_v4_decoder" @deepseek,
+  "vectie/lunaflux/integration/deepseek_v4_prediction_execution" @prediction,
   "vectie/lunaflux/engine/serial_decoder_frame" @frame,
   "vectie/lunaflux/integration/deepseek_v4_text_io" @text,
   "vectie/lunaflux/engine/serial_generation" @generation,

@@ -18,6 +18,8 @@ pub struct DeepSeekDecoderStage {
   priv residuals : Array[@device.Allocation]
   priv mut counts : @device.Allocation?
   priv mut activation_leased : Bool
+  priv mut prediction_leased : Bool
+  priv prediction_complete : Bool
   priv mut active_rows : Int
   priv mut submission_epoch : UInt64
   priv mut state : SliceState
@@ -90,6 +92,9 @@ pub fn DeepSeekDecoderStage::new(
     residuals: [],
     counts: None,
     activation_leased: false,
+    prediction_leased: false,
+    prediction_complete: capture_prediction_inputs &&
+    decoder.prediction_capture_layers()[:] == spec.dspark_target_layer_ids()[:],
     active_rows: 0,
     submission_epoch: 0UL,
     state: Fresh,
@@ -328,7 +333,9 @@ pub fn DeepSeekDecoderStage::submit(
   self : Self,
   live_rows~ : Int,
 ) -> Unit raise {
-  guard self.state is Prepared && !self.activation_leased else {
+  guard self.state is Prepared &&
+    !self.activation_leased &&
+    !self.prediction_leased else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
   }
   guard live_rows > 0 &&
@@ -422,7 +429,7 @@ pub fn DeepSeekDecoderStage::close(self : Self) -> Unit raise {
   if self.state is Closed {
     return
   }
-  guard !self.activation_leased else {
+  guard !self.activation_leased && !self.prediction_leased else {
     raise @device.DeviceError::Busy(OrderedExecutorClose)
   }
   self.state = Failed

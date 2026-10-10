@@ -8,6 +8,7 @@ priv struct Startup {
   history : Int
   budgets : Array[Int64]
   reserve : Int64
+  dspark : Bool
 }
 
 ///|
@@ -61,6 +62,7 @@ fn stage_plan(
     maximum_layer_expert_bytes=ceiling,
     maximum_text_workspace_bytes=ceiling,
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    capture_prediction_inputs=startup.dspark && ordinal == 1,
   )
 }
 
@@ -83,6 +85,7 @@ fn inspect_startup(
   history : Int,
   budgets : Array[Int64],
   reserve : Int64,
+  dspark? : Bool = false,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -92,6 +95,9 @@ fn inspect_startup(
     fail("invalid geometry or per-host memory budget")
   }
   let spec = inspect_config(root)
+  guard !dspark || spec.has_dspark() else {
+    fail("checkpoint has no DSpark predictor")
+  }
   guard history <= spec.max_position_embeddings() else {
     fail("history exceeds the model context limit")
   }
@@ -160,7 +166,16 @@ fn inspect_startup(
     checkpoint,
     budgets,
     ingress_bytes=ingress.required_device_bytes(checkpoint),
-    egress_bytes=egress.required_device_bytes(checkpoint),
+    egress_bytes=egress.required_device_bytes(checkpoint) +
+      prediction_bytes(spec, checkpoint, rows, history, ceiling, enabled=dspark) +
+      (if dspark {
+        rows.to_int64() *
+        spec.hidden_size().to_int64() *
+        spec.dspark_target_layer_ids().length().to_int64() *
+        2L
+      } else {
+        0L
+      }),
     additional_stage_bytes=reserve,
   )
   guard placement.stages().length() == 2 else {
@@ -175,13 +190,25 @@ fn inspect_startup(
     history,
     budgets,
     reserve,
+    dspark,
   }
   // Recheck the executable owners, not only the planner's layer estimates.
   for ordinal in 0..<2 {
     let stage = stage_plan(startup, ordinal)
     defer stage.close()
-    guard stage.required_device_bytes(checkpoint) <= budgets[ordinal] - reserve else {
+    let extra = if ordinal == 1 {
+      prediction_bytes(spec, checkpoint, rows, history, ceiling, enabled=dspark)
+    } else {
+      0L
+    }
+    guard stage.required_device_bytes(checkpoint) + extra <=
+      budgets[ordinal] - reserve else {
       fail("executable stage exceeds its planned memory budget")
+    }
+    guard !dspark ||
+      ordinal != 1 ||
+      stage.prediction_capture_layers()[:] == spec.dspark_target_layer_ids()[:] else {
+      fail("DSpark target captures span ranks; explicit assembly is required")
     }
   }
   startup

@@ -1,0 +1,16 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/model/deepseek_v4_spec" @spec,
+  "vectie/lunaflux/integration/deepseek_v4_prediction_prefix" @prediction,
+  "vectie/lunaflux/integration/deepseek_v4_decoder" @decoder,
+  "vectie/lunaflux/integration/deepseek_v4_text_io" @text,
+  "vectie/lunaflux/integration/prediction_phase_execution" @execution,
+  "vectie/lunaflux/integration/serial_decoder_worker" @serial,
+  "vectie/lunaflux/integration/precision_checkpoint_upload" @upload,
+  "vectie/lunaflux/engine/precision_materialize" @materialize,
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+supported_targets = "native"

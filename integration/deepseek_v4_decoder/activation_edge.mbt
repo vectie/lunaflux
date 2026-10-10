@@ -19,7 +19,9 @@ pub fn DeepSeekActivationEdge::new(
   maximum_host_bytes~ : Int64,
   timeout_millis~ : UInt64,
 ) -> Self raise {
-  guard stage.state is Prepared && !stage.activation_leased else {
+  guard stage.state is Prepared &&
+    !stage.activation_leased &&
+    !stage.prediction_leased else {
     raise @activation.ActivationLinkError::InvalidState
   }
   let boundary = stage.text_boundary()
@@ -83,6 +85,7 @@ pub fn DeepSeekActivationEdge::begin(
   guard self.prepared &&
     !self.leased &&
     !self.stage.activation_leased &&
+    !self.stage.prediction_leased &&
     (if self.outgoing {
       self.stage.state is (Active | Prepared) &&
       self.stage.submission_epoch > self.last_submission &&

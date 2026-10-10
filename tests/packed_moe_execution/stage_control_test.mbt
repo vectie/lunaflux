@@ -65,6 +65,9 @@ async test "plain stage control carries exact metadata waits for activation and 
   )
   defer (client.close() catch { _ => () })
   let activation_ready = Ref(false)
+  let committed_effects = Ref(0)
+  let committed_decode = Ref(false)
+  let committed_ready = Ref(false)
   let server = @stage_control.DecoderStageServer::new(
     rank,
     peer,
@@ -74,6 +77,11 @@ async test "plain stage control carries exact metadata waits for activation and 
     timeout_millis=1000UL,
     local_now_millis=0UL,
     ready_to_submit=() => activation_ready.val,
+    committed_effect=decode => {
+      committed_decode.val = decode
+      committed_effects.val += 1
+    },
+    poll_committed_effect=() => committed_ready.val,
   )
   defer (server.close() catch { _ => () })
   let coordinator = serial_host()
@@ -104,6 +112,15 @@ async test "plain stage control carries exact metadata waits for activation and 
   assert_eq(host.processed_tokens(), 0)
   let token = client.sampled_token()
   client.commit(pipeline_failed=false, local_now_millis=0UL)
+  for _ in 0..<8 {
+    server.poll(local_now_millis=0UL)
+    assert_false(client.poll(local_now_millis=0UL))
+    @async.sleep(1)
+  }
+  assert_eq(committed_effects.val, 1)
+  assert_false(committed_decode.val)
+  // Metadata reuse/commit acknowledgement waits for the explicit side effect.
+  committed_ready.val = true
   control_exchange(client, server)
   assert_eq(host.processed_tokens(), 2)
   let completion = coordinator.complete(
@@ -112,16 +129,32 @@ async test "plain stage control carries exact metadata waits for activation and 
   )
   completion.validate_for(submitted)
   assert_eq(completion.entry(0).token_id(), 7)
+  let (_, decode_plan, _) = serial_wire_plan(
+    7UL,
+    position=2,
+    tokens=[7],
+    decode=true,
+  )
+  client.prepare(decode_plan, epoch=2UL, local_now_millis=0UL)
+  control_exchange(client, server)
+  client.run(local_now_millis=0UL)
+  control_exchange(client, server)
+  client.commit(pipeline_failed=false, local_now_millis=0UL)
+  control_exchange(client, server)
+  assert_eq(committed_effects.val, 2)
+  assert_true(committed_decode.val)
+  assert_eq(host.processed_tokens(), 3)
   client.release_request(local_now_millis=0UL)
   control_exchange(client, server)
   assert_eq(host.processed_tokens(), 0)
-  client.prepare(plan, epoch=2UL, local_now_millis=0UL)
+  client.prepare(plan, epoch=3UL, local_now_millis=0UL)
   control_exchange(client, server)
   client.run(local_now_millis=0UL)
   control_exchange(client, server)
   client.commit(pipeline_failed=true, local_now_millis=0UL)
   control_exchange(client, server)
   assert_true(host.is_faulted())
+  assert_eq(committed_effects.val, 2)
   assert_true(server.is_terminal())
   server.close()
   client.close()

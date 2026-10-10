@@ -23,3 +23,9 @@ After an acknowledged request release, an orderly EOF at the next frame boundary
 terminates the server cleanly. Commit alone does not release request ownership:
 EOF before release or within any next prefix/body remains a failure. A released
 connection can also accept another prepare, preserving reusable-rank behavior.
+
+An optional startup-bound committed side effect can consume a retired base
+step. It runs only after a successful whole-pipeline commit; failed commits skip
+it. Its completion is polled before commit acknowledgement or new metadata is
+accepted. Prefill/decode kind comes from the validated plan, not row-count
+guessing. The default route has no extra side effect or wait phase.

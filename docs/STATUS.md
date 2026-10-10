@@ -10,6 +10,23 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DSpark base-serving attachment): the new local
+`DeepSeekPredictionExecution` prepares the complete predictor against a retired
+egress capture, shares its vocabulary matrix and explicitly budgets a local
+embedding copy plus result/RNG ports. Two shared phase executors retain startup
+tables; their 32-replay native fixture has zero warmed allocation, no blocking
+sync and balanced resource release. A capture lease excludes concurrent base
+overwrite/activation transfer while prediction runs. The control server's
+optional committed effect waits for prediction retirement before acknowledging
+global commit or accepting new metadata; failed commits skip prediction.
+The diagnostic's `export-dspark`, `egress-dspark`, `generate-dspark` modes now
+connect those effects and emit terminal draft/confidence bytes. Prefill/decode
+phase comes from the validated request plan, not row-count heuristics. The
+19-test focused suite and native release executable build pass. No attached
+real-checkpoint numerical pass is claimed yet. Drafts remain diagnostic output:
+speculative verification/accept/reject/commit and split-capture assembly are
+still unfinished, and MiniMax whole-model execution remains open.
+
 Update 2026-10-10 (DSpark local predictor composition): `DeepSeekPredictor` joins
 the ordered capture projection, seed/four-noise embedding, all three checkpoint
 prediction blocks and the dependent learned output head. Its separate priming

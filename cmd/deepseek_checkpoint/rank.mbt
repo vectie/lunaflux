@@ -68,6 +68,35 @@ async fn run_egress(
   )
   defer rank.close()
   prepare_rank(startup, 1, context, aot, stream, root, rank, stage)
+  let prediction = if startup.dspark {
+    let owner = prediction_plan(
+      startup.spec,
+      startup.rows,
+      startup.history,
+      startup.budgets[1] - startup.reserve,
+    )
+    errdefer owner.close()
+    let required = owner.required_device_bytes(startup.checkpoint)
+    startup.checkpoint.with_transfer_session(root, startup.limits, checkpoint => {
+      owner.prepare(
+        context,
+        aot,
+        stream,
+        checkpoint,
+        root,
+        stage,
+        rank.ports(),
+        b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        maximum_device_bytes=required,
+        chunk_bytes=1048576,
+        limits=startup.limits,
+      )
+    })
+    Some(owner)
+  } else {
+    None
+  }
+  defer (if prediction is Some(owner) { owner.close() })
   let control_listener = @socket.TcpServer::TcpServer(
     @socket.Addr::parse(arguments[2]),
   )
@@ -93,6 +122,7 @@ async fn run_egress(
   let clock = @clock.MonotonicClock::system()
   let active = Ref(false)
   let ready = Ref(false)
+  let prediction_blocks = Ref(0)
   let server = @control.DecoderStageServer::new(
     rank,
     connection,
@@ -107,6 +137,22 @@ async fn run_egress(
       ready.val = false
       active.val = true
     },
+    committed_effect?=if prediction is Some(owner) {
+      Some(decode => {
+        owner.submit(if decode { Predict } else { Prime })
+        if decode {
+          prediction_blocks.val += 1
+        }
+      })
+    } else {
+      None
+    },
+    poll_committed_effect=() => {
+      match prediction {
+        Some(owner) => owner.poll()
+        None => true
+      }
+    },
   )
   defer server.close()
   // Cancellation/EOF drains through explicit owners; there is no poll counter
@@ -119,6 +165,36 @@ async fn run_egress(
     }
     server.poll(local_now_millis=now)
     @async.pause()
+  }
+  if prediction_blocks.val > 0 && prediction is Some(owner) {
+    let tokens = FixedArray::make(24, b'\x00')
+    let confidence = FixedArray::make(20, b'\x00')
+    context.copy_to_fixed_host(owner.tokens(), tokens, 0L, 0L, 24L)
+    context.copy_to_fixed_host(owner.confidence(), confidence, 0L, 0L, 20L)
+    for row in 0..<6 {
+      let offset = row * 4
+      let token = tokens[offset].to_int() |
+        (tokens[offset + 1].to_int() << 8) |
+        (tokens[offset + 2].to_int() << 16) |
+        (tokens[offset + 3].to_int() << 24)
+      guard token >= 0 && token < startup.spec.vocabulary_size() else {
+        fail("prediction returned an invalid dependent token")
+      }
+    }
+    for row in 0..<5 {
+      let offset = row * 4
+      let exponent = ((confidence[offset + 3].to_int() & 0x7f) << 1) |
+        (confidence[offset + 2].to_int() >> 7)
+      guard exponent != 255 else {
+        fail("prediction returned non-finite confidence")
+      }
+    }
+    println(
+      "dspark_prediction_blocks=\{prediction_blocks.val} tokens_i32_le=\{@crypto.bytes_to_hex_string(Bytes::from_array(tokens))} confidence_f32_le=\{@crypto.bytes_to_hex_string(Bytes::from_array(confidence))}",
+    )
+    println(
+      "drafts are diagnostic output; no speculative accept/reject/commit is claimed",
+    )
   }
 }
 

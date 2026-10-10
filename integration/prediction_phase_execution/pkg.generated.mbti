@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/prediction_phase_execution"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum PredictionPhase {
+  Prime
+  Predict
+} derive(Eq, @debug.Debug)
+
+pub struct PredictionPhaseExecution {
+  // private fields
+}
+pub fn PredictionPhaseExecution::abort(Self) -> Unit raise
+pub fn PredictionPhaseExecution::close(Self) -> Unit raise
+pub fn PredictionPhaseExecution::poll(Self) -> Bool raise
+pub fn PredictionPhaseExecution::prepare(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch]) -> Self raise
+pub fn PredictionPhaseExecution::submit(Self, PredictionPhase) -> Unit raise
+
+// Type aliases
+
+// Traits

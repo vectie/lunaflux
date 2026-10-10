@@ -28,8 +28,11 @@ composition, native tests and GB10 compilation; numerical GPU gates remain
 queued. `DeepSeekPredictor` now composes all three blocks with shared seeded/noise
 embedding and the dependent head. Its distinct prime/predict tables and aggregate
 private budget pass source/native checks and GB10 AOT compilation. Next verify
-complete checkpoint preparation/replay and attach this composition to the base
-worker, then finish distributed capture assembly and verification/commit.
+complete checkpoint preparation/replay. The local egress attachment and explicit
+post-commit phase now exist in `cmd/deepseek_checkpoint`'s `*-dspark` modes:
+vocabulary is shared, local embedding/predictor bytes enter startup placement,
+and metadata reuse waits for phase retirement. Next physically verify this
+attached route, then finish distributed capture assembly and verification/commit.
 Do not substitute the learned base-model text head or ordinary causal blocks.
 Exact phase/read-set/head dependencies and completion requirements are recorded
 in [DEEPSEEK_DSPARK_EXECUTION.md](DEEPSEEK_DSPARK_EXECUTION.md).

@@ -72,7 +72,13 @@ async fn main {
   }
   // Reject mode/arguments before opening or hashing checkpoint payloads.
   let mode_valid = match (mode, tail.length()) {
-    ("export", 1) | ("egress", 4) | ("ingress", 7) | ("generate", 9) => true
+    ("export", 1)
+    | ("export-dspark", 1)
+    | ("egress", 4)
+    | ("egress-dspark", 4)
+    | ("ingress", 7)
+    | ("generate", 9)
+    | ("generate-dspark", 9) => true
     _ => false
   }
   guard mode_valid else {
@@ -91,6 +97,7 @@ async fn main {
       @string.parse_int(history),
       [@string.parse_int64(budget0), @string.parse_int64(budget1)],
       @string.parse_int64(reserve),
+      dspark=mode.has_suffix("-dspark"),
     )
   }
   for ordinal, range in startup.placement.stages() {
@@ -100,14 +107,26 @@ async fn main {
     )
   }
   match mode {
-    "export" => {
+    "export" | "export-dspark" => {
       @fs.mkdir(tail[0])
       for ordinal in 0..<2 {
         let stage = stage_plan(startup, ordinal)
         defer stage.close()
+        let source = if startup.dspark && ordinal == 1 {
+          let prediction = prediction_plan(
+            startup.spec,
+            startup.rows,
+            startup.history,
+            startup.budgets[ordinal] - startup.reserve,
+          )
+          defer prediction.close()
+          stage.source_bytes() + b"\n" + prediction.source_bytes()
+        } else {
+          stage.source_bytes()
+        }
         @fs.write_file(
           tail[0] + "/stage-\{ordinal}.cu",
-          stage.source_bytes(),
+          source,
           create_mode=CreateNew,
         )
       }
@@ -117,9 +136,10 @@ async fn main {
         create_mode=CreateNew,
       )
     }
-    "egress" => run_egress(startup, root, tail)
+    "egress" | "egress-dspark" => run_egress(startup, root, tail)
     "ingress" => run_ingress(startup, root, tail, generate=false)
-    "generate" => run_ingress(startup, root, tail, generate=true)
+    "generate" | "generate-dspark" =>
+      run_ingress(startup, root, tail, generate=true)
     _ => fail("invalid mode")
   }
 }
