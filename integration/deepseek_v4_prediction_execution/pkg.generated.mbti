@@ -22,9 +22,10 @@ import {
 pub struct DeepSeekPredictionExecution {
   // private fields
 }
+pub fn DeepSeekPredictionExecution::borrow_draft_output(Self) -> @device.Allocation raise
 pub fn DeepSeekPredictionExecution::close(Self) -> Unit raise
 pub fn DeepSeekPredictionExecution::confidence(Self) -> @device.Allocation raise
-pub fn DeepSeekPredictionExecution::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, temperature~ : Double, accuracy~ : @precision_ir.Accuracy, maximum_output_rows? : Int) -> Self raise
+pub fn DeepSeekPredictionExecution::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_main_rows~ : Int, maximum_positions~ : Int, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, temperature~ : Double, accuracy~ : @precision_ir.Accuracy, maximum_output_rows? : Int, explicit_committed_seed? : Bool) -> Self raise
 pub fn DeepSeekPredictionExecution::persistent_state(Self) -> Array[@device.Allocation] raise
 pub fn DeepSeekPredictionExecution::poll(Self) -> Bool raise
 pub fn DeepSeekPredictionExecution::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @deepseek_v4_decoder.DeepSeekDecoderStage, @serial_decoder_worker.SerialDecoderWorker, Bytes, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
@@ -33,6 +34,7 @@ pub fn DeepSeekPredictionExecution::required_device_bytes(Self, @precision_mater
 pub fn DeepSeekPredictionExecution::source_bytes(Self) -> Bytes raise
 pub fn DeepSeekPredictionExecution::state_backup_bytes(Self) -> Int64
 pub fn DeepSeekPredictionExecution::submit(Self, @prediction_phase_execution.PredictionPhase) -> Unit raise
+pub fn DeepSeekPredictionExecution::submit_from_committed(Self, Int) -> Unit raise
 pub fn DeepSeekPredictionExecution::tokens(Self) -> @device.Allocation raise
 
 // Type aliases

@@ -24,3 +24,28 @@ pub fn StageStateTransaction::new(
 ) -> Self {
   { begin_save, poll_save, commit, begin_restore, poll_restore, }
 }
+
+///|
+pub fn StageStateTransaction::save(self : Self) -> Unit raise {
+  (self.begin_save)()
+}
+
+///|
+pub fn StageStateTransaction::saved(self : Self) -> Bool raise {
+  (self.poll_save)()
+}
+
+///|
+pub fn StageStateTransaction::keep(self : Self) -> Unit raise {
+  (self.commit)()
+}
+
+///|
+pub fn StageStateTransaction::restore(self : Self) -> Unit raise {
+  (self.begin_restore)()
+}
+
+///|
+pub fn StageStateTransaction::restored(self : Self) -> Bool raise {
+  (self.poll_restore)()
+}

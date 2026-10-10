@@ -12,6 +12,15 @@ import {
 // Errors
 
 // Types and methods
+pub struct CommittedTokenSeed {
+  // private fields
+}
+pub fn CommittedTokenSeed::allocation(Self) -> @device.Allocation raise
+pub fn CommittedTokenSeed::begin(Self, Int) -> Unit raise
+pub fn CommittedTokenSeed::close(Self) -> Unit raise
+pub fn CommittedTokenSeed::new(@device.Context, vocabulary_size~ : Int) -> Self raise
+pub fn CommittedTokenSeed::poll(Self) -> Bool raise
+
 pub struct LearnedTextIoFrame {
   // private fields
 }

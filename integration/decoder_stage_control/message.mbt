@@ -42,6 +42,12 @@ let rollback_kind : Int = 9
 let rolled_back_kind : Int = 10
 
 ///|
+let predict_kind : Int = 11
+
+///|
+let drafts_kind : Int = 12
+
+///|
 /// Fixed byte/integer storage ceiling for a server or client. Object/socket
 /// runtime overhead and rank/device/activation storage are reserved separately.
 pub fn required_buffer_bytes(

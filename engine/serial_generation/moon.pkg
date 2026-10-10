@@ -3,6 +3,7 @@ import {
   "vectie/lunaflux/engine/worker_wire" @wire,
   "vectie/lunaflux/engine/worker_protocol" @protocol,
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/greedy_verification" @greedy,
 }
 
 import {

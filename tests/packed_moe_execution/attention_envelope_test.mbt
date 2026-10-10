@@ -173,6 +173,7 @@ async test "DeepSeek complete attention envelopes retain all compression profile
         maximum_workspace_bytes=16777216L,
       )
       defer (owner.close() catch { _ => () })
+      assert_eq(owner.persistent_state_bytes(), composed.state_backup_bytes())
       let required = owner.required_device_bytes(checkpoint)
       let before = live_resources()
       try
@@ -210,6 +211,12 @@ async test "DeepSeek complete attention envelopes retain all compression profile
         maximum_device_bytes=required,
         chunk_bytes=65536,
         limits~,
+      )
+      assert_eq(
+        owner
+        .persistent_state()
+        .fold(init=0L, (bytes, allocation) => bytes + allocation.byte_count()),
+        owner.persistent_state_bytes(),
       )
       let effects = match ratio {
         0 => 19

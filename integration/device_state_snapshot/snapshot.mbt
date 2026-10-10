@@ -118,6 +118,19 @@ pub fn DeviceStateSnapshot::rollback(self : Self) -> Unit raise {
 }
 
 ///|
+/// Terminal cancellation cleanup after the caller has drained all model users.
+/// A tentative backup is discarded, not promoted or restored into a live
+/// request. Copies retire before leases disappear; no publication is possible
+/// because the caller is closing the corresponding rank.
+pub fn DeviceStateSnapshot::close_after_retirement(self : Self) -> Unit raise {
+  if self.phase is Closed {
+    return
+  }
+  self.phase = Failed
+  self.close()
+}
+
+///|
 /// Pending transfers are drained. An unresolved tentative transaction must be
 /// explicitly committed or rolled back before a healthy owner is released.
 pub fn DeviceStateSnapshot::close(self : Self) -> Unit raise {

@@ -4,6 +4,7 @@ package "vectie/lunaflux/engine/serial_generation"
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/greedy_verification",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_wire",
 }
@@ -43,6 +44,18 @@ pub fn SerialGreedyGeneration::new(@worker_wire.ValidatedPlanFrame, @worker_wire
 pub fn SerialGreedyGeneration::next_decode(Self) -> @worker_wire.ValidatedPlanFrame raise
 pub fn SerialGreedyGeneration::token_at(Self, Int) -> Int raise SerialGenerationError
 pub fn SerialGreedyGeneration::token_count(Self) -> Int
+
+pub struct SpeculativeGreedyGeneration {
+  // private fields
+}
+pub fn SpeculativeGreedyGeneration::cancel(Self) -> Unit
+pub fn SpeculativeGreedyGeneration::finish_reason(Self) -> GenerationFinish
+pub fn SpeculativeGreedyGeneration::new(@worker_wire.ValidatedPlanFrame, @worker_wire.ValidatedCompletionFrame, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, maximum_new_tokens~ : Int, maximum_context~ : Int, stop_tokens~ : ArrayView[Int]) -> Self raise
+pub fn SpeculativeGreedyGeneration::next_verification(Self, ArrayView[Int], sequence_value~ : UInt64) -> @worker_wire.ValidatedPlanFrame raise
+pub fn SpeculativeGreedyGeneration::record_commit(Self, @greedy_verification.VerifiedGreedyPrefix, ArrayView[Int]) -> Unit raise
+pub fn SpeculativeGreedyGeneration::remaining_new_tokens(Self) -> Int
+pub fn SpeculativeGreedyGeneration::token_at(Self, Int) -> Int raise SerialGenerationError
+pub fn SpeculativeGreedyGeneration::token_count(Self) -> Int
 
 // Type aliases
 

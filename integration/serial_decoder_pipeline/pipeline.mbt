@@ -50,7 +50,8 @@ pub fn TwoRankDecoderPipeline::new(
   guard !ingress.outputs_token() &&
     remote.outputs_token() &&
     frame.output_capacity() == 1 &&
-    remote.output_capacity() == 1 &&
+    remote.output_capacity() > 0 &&
+    remote.output_capacity() <= frame.geometry().0 &&
     frame.geometry() == ingress.ports().geometry() &&
     timeout_millis > 0UL &&
     timeout_millis <= 300000UL else {
@@ -166,7 +167,10 @@ pub async fn TwoRankDecoderPipeline::progress(
         self.step_failed = self.ingress.execution_failed() ||
           self.remote.execution_failed()
         self.token = if !self.step_failed && self.frame.produces_token() {
-          self.remote.sampled_token()
+          // This coordinator publishes one next token, including after a
+          // prompt executed by an all-position terminal rank. Vector samples
+          // remain the separate verification coordinator's responsibility.
+          self.remote.sampled_token_at(self.remote.output_rows() - 1)
         } else {
           0
         }

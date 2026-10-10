@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/draft_token_readback"
+
+import {
+  "vectie/lunaflux/device",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct DraftTokenReadback {
+  // private fields
+}
+pub fn DraftTokenReadback::begin(Self) -> Unit raise
+pub fn DraftTokenReadback::close(Self) -> Unit raise
+pub fn DraftTokenReadback::new(@device.Context, @device.Allocation, token_count~ : Int, vocabulary_size~ : Int, maximum_host_bytes~ : Int64) -> Self raise
+pub fn DraftTokenReadback::poll(Self) -> Bool raise
+pub fn DraftTokenReadback::token_at(Self, Int) -> Int raise
+pub fn DraftTokenReadback::token_count(Self) -> Int raise
+
+// Type aliases
+
+// Traits

@@ -17,6 +17,7 @@ pub struct DeviceStateSnapshot {
 pub fn DeviceStateSnapshot::backup_bytes(Self) -> Int64
 pub fn DeviceStateSnapshot::begin(Self) -> Unit raise
 pub fn DeviceStateSnapshot::close(Self) -> Unit raise
+pub fn DeviceStateSnapshot::close_after_retirement(Self) -> Unit raise
 pub fn DeviceStateSnapshot::commit(Self) -> Unit raise
 pub fn DeviceStateSnapshot::poll_completion(Self) -> Bool raise
 pub fn DeviceStateSnapshot::rollback(Self) -> Unit raise

@@ -5,6 +5,7 @@ priv enum ClientState {
   Receiving(Int)
   InputsReady
   Retired
+  DraftsReady
   FailedState
   Closed
 }
@@ -19,8 +20,10 @@ pub struct DecoderStageClient {
   priv outputs_token : Bool
   priv maximum_output_rows : Int
   priv maximum_token : Int
+  priv maximum_draft_tokens : Int
   priv mut expect_token : Bool
   priv mut expected_rows : Int
+  priv mut draft_rows : Int
   priv mut result_failed : Bool
   priv mut token : Int
   priv mut commit_failed : Bool
@@ -38,10 +41,13 @@ pub fn DecoderStageClient::new(
   maximum_buffer_bytes~ : Int64,
   timeout_millis~ : UInt64,
   maximum_output_rows? : Int = 1,
+  maximum_draft_tokens? : Int = 0,
 ) -> Self raise {
   guard maximum_buffer_bytes >= required_buffer_bytes(limits) &&
     maximum_output_rows > 0 &&
-    maximum_output_rows <= limits.max_plan_tokens() else {
+    maximum_output_rows <= limits.max_plan_tokens() &&
+    maximum_draft_tokens >= 0 &&
+    maximum_draft_tokens <= limits.max_plan_tokens() else {
     raise StageControlError::InvalidConfiguration
   }
   let capacity = @wire.plan_frame_byte_capacity(limits) + control_header_bytes
@@ -57,8 +63,10 @@ pub fn DecoderStageClient::new(
     outputs_token,
     maximum_output_rows,
     maximum_token: limits.max_token_id(),
+    maximum_draft_tokens,
     expect_token: false,
     expected_rows: 0,
+    draft_rows: 0,
     result_failed: false,
     commit_failed: false,
     tentative: false,
@@ -77,7 +85,7 @@ pub fn DecoderStageClient::prepare(
   local_now_millis~ : UInt64,
   tentative? : Bool = false,
 ) -> Unit raise {
-  guard !self.busy && self.state is Idle && epoch > self.epoch else {
+  guard !self.busy && self.state is (Idle | DraftsReady) && epoch > self.epoch else {
     raise StageControlError::InvalidState
   }
   let length = plan.length()
@@ -111,6 +119,7 @@ pub fn DecoderStageClient::prepare(
   self.expect_token = expect_token
   self.expected_rows = expected_rows
   self.tentative = tentative
+  self.draft_rows = 0
   self.state = Sending(inputs_kind)
 }
 
@@ -183,7 +192,7 @@ pub fn DecoderStageClient::release_request(
   self : Self,
   local_now_millis~ : UInt64,
 ) -> Unit raise {
-  guard !self.busy && self.state is Idle && self.epoch > 0UL else {
+  guard !self.busy && self.state is (Idle | DraftsReady) && self.epoch > 0UL else {
     raise StageControlError::InvalidState
   }
   self.command(release_kind, released_kind, 0, local_now_millis)
@@ -202,7 +211,22 @@ fn DecoderStageClient::receipt(
   }
   let flags = read_i32(self.message, 4)
   let token = read_i32(self.message, 16)
-  if kind == result_kind {
+  if kind == drafts_kind {
+    guard flags == 0 &&
+      token > 0 &&
+      token <= self.maximum_draft_tokens &&
+      length == control_header_bytes + token * 4 else {
+      raise StageControlError::InvalidMessage
+    }
+    for row in 0..<token {
+      let sample = read_i32(self.message, control_header_bytes + row * 4)
+      guard sample >= 0 && sample <= self.maximum_token else {
+        raise StageControlError::InvalidMessage
+      }
+    }
+    self.draft_rows = token
+    self.state = DraftsReady
+  } else if kind == result_kind {
     if flags == 4 {
       guard self.expected_rows > 1 &&
         token == self.expected_rows &&

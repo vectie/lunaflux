@@ -145,6 +145,8 @@ pub fn PlanFrameBuffer::capacity(Self) -> Int
 pub fn PlanFrameBuffer::current(Self) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::encode_greedy_decode_after(Self, ValidatedPlanFrame, ValidatedCompletionFrame) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::encode_plan(Self, @worker_protocol.SubmittedSchedulePlan) -> ValidatedPlanFrame raise WorkerWireError
+pub fn PlanFrameBuffer::encode_prefix_replay(Self, ValidatedPlanFrame, accepted_rows~ : Int, sequence_value~ : UInt64) -> ValidatedPlanFrame raise WorkerWireError
+pub fn PlanFrameBuffer::encode_verification_after(Self, ValidatedPlanFrame, committed_input_rows~ : Int, draft_inputs~ : ArrayView[Int], sequence_value~ : UInt64) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::load(Self, FixedArray[Byte], Int) -> ValidatedPlanFrame raise WorkerWireError
 pub fn PlanFrameBuffer::new(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits) -> Self raise WorkerWireError
 pub fn PlanFrameBuffer::new_transport_owned(@worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, FixedArray[Byte], frame_offset~ : Int) -> Self raise WorkerWireError

@@ -34,6 +34,7 @@ pub fn DeepSeekDecoderSlice::partition(
   ingress_bytes~ : Int64,
   egress_bytes~ : Int64,
   additional_stage_bytes~ : Int64,
+  with_state_backup? : Bool = false,
 ) -> @pipeline.DecoderPipelinePlan raise {
   guard self.first_layer == 0 && self.end_layer == self.spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -42,8 +43,18 @@ pub fn DeepSeekDecoderSlice::partition(
     additional_stage_bytes <= 9223372036854775807L - 4L * self.residual_bytes else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
+  let layers = self.layer_device_bytes(checkpoint)
+  if with_state_backup {
+    for i in 0..<layers.length() {
+      let backup = self.layers[i].block.attention.persistent_state_bytes()
+      guard backup <= 9223372036854775807L - layers[i] else {
+        raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+      }
+      layers[i] += backup
+    }
+  }
   @pipeline.DecoderPipelinePlan::partition(
-    self.layer_device_bytes(checkpoint),
+    layers,
     device_budgets,
     stage_overhead_bytes=additional_stage_bytes + 4L * self.residual_bytes,
     ingress_bytes~,

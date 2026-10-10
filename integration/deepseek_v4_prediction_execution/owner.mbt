@@ -15,6 +15,9 @@ pub struct DeepSeekPredictionExecution {
   priv spec : @spec.DeepSeekV4ModelSpec
   priv main_rows : Int
   priv output_rows : Int
+  priv explicit_seed : Bool
+  priv mut seed_input : @text_frame.CommittedTokenSeed?
+  priv mut seed_pending : Bool
   priv predictor : @prediction.DeepSeekPredictor
   priv embedding : @upload.CheckpointDeviceWeights
   priv results : Array[@device.Allocation]
@@ -35,11 +38,15 @@ pub fn DeepSeekPredictionExecution::new(
   temperature~ : Double,
   accuracy~ : @precision.Accuracy,
   maximum_output_rows? : Int = 1,
+  explicit_committed_seed? : Bool = false,
 ) -> Self raise {
   {
     spec,
     main_rows: maximum_main_rows,
     output_rows: maximum_output_rows,
+    explicit_seed: explicit_committed_seed,
+    seed_input: None,
+    seed_pending: false,
     predictor: @prediction.DeepSeekPredictor::new(
       spec,
       maximum_main_rows~,
@@ -48,7 +55,11 @@ pub fn DeepSeekPredictionExecution::new(
       maximum_expert_bytes~,
       temperature~,
       accuracy~,
-      maximum_output_rows~,
+      maximum_output_rows=if explicit_committed_seed {
+        1
+      } else {
+        maximum_output_rows
+      },
     ),
     embedding: @upload.CheckpointDeviceWeights::new(),
     results: [],
@@ -75,7 +86,8 @@ pub fn DeepSeekPredictionExecution::required_device_bytes(
   @text.bind_text_ingress_weight(checkpoint, self.spec).buffer_bytes() +
   (self.spec.dspark_block_size().to_int64() + 1L) * 4L +
   self.spec.dspark_block_size().to_int64() * 4L +
-  16L
+  16L +
+  (if self.explicit_seed { 4L } else { 0L })
 }
 
 ///|
@@ -142,6 +154,14 @@ pub fn DeepSeekPredictionExecution::prepare(
     self.results.push(context.allocate(bytes))
   }
   self.results[2].copy_from_host(rng, 0L, 0L, 16L)
+  if self.explicit_seed {
+    self.seed_input = Some(
+      @text_frame.CommittedTokenSeed::new(
+        context,
+        vocabulary_size=self.spec.vocabulary_size(),
+      ),
+    )
+  }
   self.predictor.prepare(
     context,
     aot,
@@ -153,7 +173,10 @@ pub fn DeepSeekPredictionExecution::prepare(
     target_layers=base.prediction_capture_layers(),
     embedding_weight=self.embedding.allocation(0),
     vocabulary_weight=vocabulary,
-    seed_token=ports.sampled_tokens(),
+    seed_token=match self.seed_input {
+      Some(seed) => seed.allocation()
+      None => ports.sampled_tokens()
+    },
     reset_flag=ports.input(SparseReset),
     start_position=ports.input(Positions),
     tokens=self.results[0],
@@ -189,6 +212,9 @@ pub fn DeepSeekPredictionExecution::submit(
     self.queues is Some(queues) else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
   }
+  guard !self.explicit_seed || phase is Prime else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+  }
   ignore(base.acquire_prediction_input())
   self.leased = true
   self.ready_result = false
@@ -211,12 +237,42 @@ pub fn DeepSeekPredictionExecution::poll(self : Self) -> Bool raise {
     self.queues is Some(queues) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
   }
+  if self.seed_pending {
+    guard self.seed_input is Some(seed) else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    }
+    if !seed.poll() {
+      return false
+    }
+    self.seed_pending = false
+    queues.submit(PredictCommitted) catch {
+      error => {
+        queues.abort()
+        base.release_prediction_input()
+        self.leased = false
+        raise error
+      }
+    }
+  }
   if !queues.poll() {
     return false
   }
   base.release_prediction_input()
   self.leased = false
   true
+}
+
+///|
+/// Startup-only binding for a prepared result readback. This does not make the
+/// uninitialized/pending tokens readable; submit/poll still owns execution.
+/// The readback must retire and close before this owner releases the output.
+pub fn DeepSeekPredictionExecution::borrow_draft_output(
+  self : Self,
+) -> @device.Allocation raise {
+  guard self.state is Prepared && !self.leased else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.results[0]
 }
 
 ///|
@@ -258,6 +314,10 @@ pub fn DeepSeekPredictionExecution::close(self : Self) -> Unit raise {
     self.leased = false
   }
   self.predictor.close()
+  if self.seed_input is Some(seed) {
+    seed.close()
+    self.seed_input = None
+  }
   while self.results.last() is Some(buffer) {
     buffer.close()
     ignore(self.results.pop())

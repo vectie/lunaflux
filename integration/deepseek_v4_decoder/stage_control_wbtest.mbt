@@ -1,4 +1,33 @@
 ///|
+test "snapshot cancellation drain retains state but forbids model reuse" {
+  let stage = unallocated_stage()
+  stage.state = Prepared
+  for activation in [true, false] {
+    stage.activation_leased = activation
+    stage.prediction_leased = !activation
+    try stage.drain() catch {
+      @device.DeviceError::Busy(OrderedExecutorAbort) => ()
+      error => raise error
+    } noraise {
+      _ => fail("drained while an external user still owns state")
+    }
+    assert_true(stage.state is Prepared)
+  }
+  stage.activation_leased = false
+  stage.prediction_leased = false
+  stage.drain()
+  assert_true(stage.state is Failed)
+  try stage.submit(live_rows=1) catch {
+    @device.DeviceError::Busy(OrderedExecutorEnqueue) => ()
+    error => raise error
+  } noraise {
+    _ => fail("cancelled stage resumed without reinitialization")
+  }
+  stage.close()
+  stage.drain()
+}
+
+///|
 fn unallocated_stage() -> DeepSeekDecoderStage raise {
   let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
     "deepseek-ai/DeepSeek-V4-Flash-0731",

@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/serial_verification_pipeline"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/greedy_verification",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/integration/decoder_stage_control",
+  "vectie/lunaflux/integration/serial_decoder_worker",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct TwoRankGreedyVerification {
+  // private fields
+}
+pub fn TwoRankGreedyVerification::begin(Self, @worker_wire.ValidatedPlanFrame, epoch~ : UInt64, remaining_new_tokens~ : Int, local_now_millis~ : UInt64) -> Unit raise
+pub fn TwoRankGreedyVerification::close(Self) -> Unit raise
+pub fn TwoRankGreedyVerification::is_failed(Self) -> Bool
+pub fn TwoRankGreedyVerification::last_epoch(Self) -> UInt64
+pub fn TwoRankGreedyVerification::new(@serial_decoder_worker.SerialDecoderRank, @decoder_stage_control.DecoderStageClient, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, local_state~ : @decoder_stage_control.StageStateTransaction, close_local_state~ : () -> Unit raise, begin_activation~ : (UInt64, Int, UInt64) -> Unit raise, poll_activation~ : async (UInt64) -> Bool, close_activation~ : () -> Unit raise, stop_tokens~ : ArrayView[Int], timeout_millis? : UInt64) -> Self raise
+pub async fn TwoRankGreedyVerification::progress(Self, local_now_millis~ : UInt64) -> Bool
+pub fn TwoRankGreedyVerification::release_request(Self, local_now_millis~ : UInt64) -> Unit raise
+pub fn TwoRankGreedyVerification::result(Self) -> @greedy_verification.VerifiedGreedyPrefix raise
+pub fn TwoRankGreedyVerification::token_at(Self, Int) -> Int raise
+
+// Type aliases
+
+// Traits

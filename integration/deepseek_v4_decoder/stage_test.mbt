@@ -1,4 +1,23 @@
 ///|
+test "state backup placement composes without copying weights or scratch" {
+  let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
+    "deepseek-ai/DeepSeek-V4-Flash-0731",
+  )
+  let first = stage(spec, 0, 2)
+  defer first.close()
+  let second = stage(spec, 2, 4)
+  defer second.close()
+  let joined = stage(spec, 0, 4)
+  defer joined.close()
+  assert_true(first.state_backup_bytes() > 0L)
+  assert_true(second.state_backup_bytes() > 0L)
+  assert_eq(
+    joined.state_backup_bytes(),
+    first.state_backup_bytes() + second.state_backup_bytes(),
+  )
+}
+
+///|
 fn stage(
   spec : @spec.DeepSeekV4ModelSpec,
   first : Int,

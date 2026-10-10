@@ -68,6 +68,8 @@ import {
   "vectie/lunaflux/integration/prediction_phase_execution" @prediction_execution,
   "vectie/lunaflux/model/deepseek_v4_spec" @deepseek_spec,
   "vectie/lunaflux/integration/serial_decoder_pipeline" @serial_pipeline,
+  "vectie/lunaflux/integration/serial_verification_pipeline" @verify_pipeline,
+  "vectie/lunaflux/integration/draft_token_readback" @draft_readback,
   "vectie/lunaflux/engine/serial_generation",
   "vectie/lunaflux/engine/greedy_verification",
   "vectie/lunaflux/runtime/remote_channel" @channel,

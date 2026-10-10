@@ -50,7 +50,7 @@ pub fn DeepSeekDecoderSlice::launch_count(Self) -> Int
 pub fn DeepSeekDecoderSlice::layer_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Array[Int64] raise
 pub fn DeepSeekDecoderSlice::layer_range(Self) -> (Int, Int)
 pub fn DeepSeekDecoderSlice::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, first_layer~ : Int, end_layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, capture_prediction_inputs? : Bool) -> Self raise
-pub fn DeepSeekDecoderSlice::partition(Self, @precision_materialize.PackedCheckpoint, ArrayView[Int64], ingress_bytes~ : Int64, egress_bytes~ : Int64, additional_stage_bytes~ : Int64) -> @decoder_pipeline_plan.DecoderPipelinePlan raise
+pub fn DeepSeekDecoderSlice::partition(Self, @precision_materialize.PackedCheckpoint, ArrayView[Int64], ingress_bytes~ : Int64, egress_bytes~ : Int64, additional_stage_bytes~ : Int64, with_state_backup? : Bool) -> @decoder_pipeline_plan.DecoderPipelinePlan raise
 pub fn DeepSeekDecoderSlice::poll(Self) -> Bool raise @device.DeviceError
 pub fn DeepSeekDecoderSlice::prediction_capture_bytes(Self) -> Int64
 pub fn DeepSeekDecoderSlice::prediction_capture_layers(Self) -> ReadOnlyArray[Int]
@@ -68,6 +68,7 @@ pub fn DeepSeekDecoderStage::append_descriptors(Self) -> ArrayView[@device.Alloc
 pub fn DeepSeekDecoderStage::bind_rank(Self, @serial_decoder_worker.SerialDecoderRank, @device.Context) -> Unit raise
 pub fn DeepSeekDecoderStage::bind_worker(Self, @serial_decoder_worker.SerialDecoderWorker, @device.Context) -> Unit raise
 pub fn DeepSeekDecoderStage::close(Self) -> Unit raise
+pub fn DeepSeekDecoderStage::drain(Self) -> Unit raise
 pub fn DeepSeekDecoderStage::input_residual(Self) -> @device.Allocation raise
 pub fn DeepSeekDecoderStage::launch_count(Self) -> Int
 pub fn DeepSeekDecoderStage::layer_range(Self) -> (Int, Int)
@@ -84,6 +85,7 @@ pub fn DeepSeekDecoderStage::prepare_state_snapshot(Self, @device.Context, @devi
 pub fn DeepSeekDecoderStage::release_prediction_input(Self) -> Unit raise
 pub fn DeepSeekDecoderStage::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekDecoderStage::source_bytes(Self) -> Bytes raise
+pub fn DeepSeekDecoderStage::state_backup_bytes(Self) -> Int64
 pub fn DeepSeekDecoderStage::submit(Self, live_rows~ : Int) -> Unit raise
 pub fn DeepSeekDecoderStage::text_boundary(Self) -> @precision_ir.TextBoundary
 

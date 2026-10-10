@@ -15,6 +15,7 @@ priv enum ServerState {
   WaitingActivation
   Executing
   CommittedEffect
+  Predicting
   Restoring
   Sending
   Terminal
@@ -39,6 +40,8 @@ pub struct DecoderStageServer {
   priv committed_effect : ((Bool) -> Unit raise)?
   priv poll_committed_effect : () -> Bool raise
   priv state_transaction : StageStateTransaction?
+  priv draft_execution : StageDraftExecution?
+  priv maximum_token : Int
   priv timeout_millis : UInt64
   priv mut last_tick : UInt64
   priv mut phase_deadline : UInt64
@@ -64,6 +67,7 @@ pub fn DecoderStageServer::new(
   committed_effect? : (Bool) -> Unit raise,
   poll_committed_effect? : () -> Bool raise = () => true,
   state_transaction? : StageStateTransaction,
+  draft_execution? : StageDraftExecution,
 ) -> Self raise {
   guard maximum_buffer_bytes >= required_buffer_bytes(limits) &&
     timeout_millis > 0UL &&
@@ -72,6 +76,11 @@ pub fn DecoderStageServer::new(
     raise StageControlError::InvalidConfiguration
   }
   let plan_capacity = @wire.plan_frame_byte_capacity(limits)
+  if draft_execution is Some(drafts) {
+    guard drafts.capacity <= limits.max_plan_tokens() else {
+      raise StageControlError::InvalidConfiguration
+    }
+  }
   let plan = @wire.PlanFrameBuffer::new(limits, inference_limits)
   let completion = @wire.CompletionFrameBuffer::new(limits, inference_limits)
   let message = FixedArray::make(plan_capacity + control_header_bytes, b'\x00')
@@ -94,6 +103,8 @@ pub fn DecoderStageServer::new(
     committed_effect,
     poll_committed_effect,
     state_transaction,
+    draft_execution,
+    maximum_token: limits.max_token_id(),
     timeout_millis,
     last_tick: local_now_millis,
     phase_deadline: local_now_millis + timeout_millis,
@@ -129,7 +140,8 @@ fn DecoderStageServer::command(
   let kind = read_i32(self.message, 0)
   let flags = read_i32(self.message, 4)
   let epoch = read_u64(self.message, 8)
-  guard read_i32(self.message, 16) == 0 else {
+  let seed = read_i32(self.message, 16)
+  guard seed == 0 || (kind == predict_kind && flags == 1) else {
     raise StageControlError::InvalidMessage
   }
   if kind == prepare_kind {
@@ -156,7 +168,23 @@ fn DecoderStageServer::command(
   guard length == control_header_bytes && epoch == self.epoch && epoch > 0UL else {
     raise StageControlError::InvalidMessage
   }
-  if kind == run_kind && flags == 0 && self.phase is Prepared {
+  if kind == predict_kind &&
+    (flags == 0 || flags == 1) &&
+    self.phase is Idle &&
+    self.draft_execution is Some(drafts) {
+    if flags == 1 {
+      guard seed >= 0 &&
+        seed <= self.maximum_token &&
+        drafts.begin_seeded is Some(begin) else {
+        raise StageControlError::InvalidMessage
+      }
+      begin(seed)
+    } else {
+      (drafts.begin)()
+    }
+    self.phase_deadline = now + self.timeout_millis
+    self.state = Predicting
+  } else if kind == run_kind && flags == 0 && self.phase is Prepared {
     self.phase_deadline = now + self.timeout_millis
     self.state = WaitingActivation
   } else if kind == commit_kind &&
@@ -226,6 +254,7 @@ pub async fn DecoderStageServer::poll(
     | WaitingActivation
     | Executing
     | CommittedEffect
+    | Predicting
     | Restoring) &&
     local_now_millis >= self.phase_deadline {
     raise @channel.RemoteChannelError::TimedOut
@@ -300,6 +329,29 @@ pub async fn DecoderStageServer::poll(
     CommittedEffect =>
       if (self.poll_committed_effect)() {
         self.reply(committed_kind, 0, 0, local_now_millis)
+      }
+    Predicting =>
+      if self.draft_execution is Some(drafts) && (drafts.poll)() {
+        let count = (drafts.count)()
+        guard count > 0 &&
+          count <= drafts.capacity &&
+          count <= (self.message.length() - control_header_bytes) / 4 else {
+          raise StageControlError::InvalidMessage
+        }
+        header(self.message, drafts_kind, self.epoch, 0, count)
+        for row in 0..<count {
+          let token = (drafts.token_at)(row)
+          guard token >= 0 && token <= self.maximum_token else {
+            raise StageControlError::InvalidMessage
+          }
+          write_i32(self.message, control_header_bytes + row * 4, token)
+        }
+        self.channel.begin_send(
+          self.message,
+          control_header_bytes + count * 4,
+          local_now_millis,
+        )
+        self.state = Sending
       }
     Restoring =>
       if self.state_transaction is Some(transaction) &&

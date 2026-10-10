@@ -26,6 +26,7 @@ pub fn WindowCompressedKvFrame::launches(Self) -> ArrayView[@device.OrderedKerne
 pub fn WindowCompressedKvFrame::new(@window_compressed_kv_cuda_source.WindowCompressedKvCudaSource) -> Self
 pub fn WindowCompressedKvFrame::output(Self) -> @device.Allocation raise
 pub fn WindowCompressedKvFrame::persistent_state(Self) -> Array[@device.Allocation] raise
+pub fn WindowCompressedKvFrame::persistent_state_bytes(Self) -> Int64
 pub fn WindowCompressedKvFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, reset_flag~ : @device.Allocation, positions~ : @device.Allocation, queries~ : @device.Allocation, shared_kv~ : @device.Allocation, attention_sink~ : @device.Allocation, compressed_values~ : @device.Allocation, compressed_counts~ : @device.Allocation, compressed_append~ : @device.Allocation, read_ports~ : CompressedReadPorts, maximum_state_bytes~ : Int64) -> Unit raise
 pub fn WindowCompressedKvFrame::source_bytes(Self) -> Bytes
 pub fn WindowCompressedKvFrame::state_bytes(Self) -> Int64

@@ -1,4 +1,29 @@
 ///|
+/// Startup-only exact base-state backup budget, available before GPU allocation.
+pub fn DeepSeekDecoderStage::state_backup_bytes(self : Self) -> Int64 {
+  self.decoder.layers.fold(init=0L, (total, layer) => {
+    total + layer.block.attention.persistent_state_bytes()
+  })
+}
+
+///|
+/// Cancellation barrier without releasing state borrowed by snapshot owners.
+/// Activation/prediction borrowers must retire first. No successful request
+/// publication is implied; this owner is terminal and only close may follow.
+pub fn DeepSeekDecoderStage::drain(self : Self) -> Unit raise {
+  guard !self.activation_leased && !self.prediction_leased else {
+    raise @device.DeviceError::Busy(OrderedExecutorAbort)
+  }
+  if self.state is Closed {
+    return
+  }
+  self.state = Failed
+  if self.decoder.queue is Some(queue) {
+    queue.abort()
+  }
+}
+
+///|
 /// Declare actual mutable base state, not weights or scratch. Enumeration is
 /// startup-only and includes learned index caches and incomplete pooling groups.
 pub fn DeepSeekDecoderStage::persistent_state(
