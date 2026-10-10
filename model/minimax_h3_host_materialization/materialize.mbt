@@ -27,16 +27,10 @@ fn validate_materialization_admission(
   if manifest.identity != expected_identity {
     raise IdentityMismatch
   }
-  let recomputed = canonical_manifest_digest(
-    manifest.component,
-    manifest.identity,
-    manifest.shards,
-    manifest.tensors,
-    manifest.arena_sizes,
-    manifest.total_tensor_bytes,
-  )
-  if manifest.digest != expected_manifest_digest ||
-    recomputed != manifest.digest {
+  // The immutable manifest already owns its construction-time label. Loading
+  // checks plan association, not content authentication; do not serialize and
+  // hash the complete tensor/layout description again here.
+  if manifest.digest != expected_manifest_digest {
     raise ManifestDigestMismatch
   }
   if manifest.shards.is_empty() ||

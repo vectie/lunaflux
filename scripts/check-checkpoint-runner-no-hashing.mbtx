@@ -22,6 +22,13 @@ async fn main {
       fail("payload authentication scan reintroduced: " + path)
     }
   }
+  let h3_materializer = @fs.read_file(
+    "model/minimax_h3_host_materialization/materialize.mbt",
+  ).text()
+  guard !h3_materializer.contains("canonical_manifest_digest(") &&
+    !h3_materializer.contains("@crypto") else {
+    fail("MiniMax materialization manifest rehash reintroduced")
+  }
   let runners = [
     "build-glm-current-spark", "build-model-checkpoint-spark", "capture-checkpoint-index-gpu",
     "compile-dspark-composed-heads", "resume-dspark-preparation", "run-deepseek-dspark-two-spark",

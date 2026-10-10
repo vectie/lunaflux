@@ -91,6 +91,12 @@ scan copied model/kernel payloads to create a full checksum inventory. Small
 newly generated plan/descriptor identities are computed once offline; existing
 artifact labels are consumed, not reauthenticated.
 
+MiniMax host materialization likewise consumes the immutable manifest's
+construction-time label without reserializing its tensor/layout entries or
+rehashing them on load. The label comparison is a plan association, not a
+payload authentication claim. Allocation budgets, ranges, shapes and dtypes
+remain execution-correctness constraints.
+
 The shared tokenizer-file loader and reference bundle follow this policy too:
 parse the bytes needed for execution without a separate config/tokenizer hash
 pass. Digest-shaped compatibility fields retain caller-supplied labels; they

@@ -302,6 +302,42 @@ test "identity manifest and VAE component boundaries remain exact" {
 }
 
 ///|
+test "materialization consumes manifest labels without rehashing" {
+  let envelope = fixture_envelope(fixture_header(), [1, 2, 3, 4, 5, 6])
+  let original = fixture_manifest(envelope)
+  let label : MiniMaxH3HostManifestDigest = {
+    hex: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  }
+  // A matching opaque label associates the already-built immutable manifest.
+  // It deliberately does not assert a checksum of its contents or payloads.
+  let manifest : MiniMaxH3HostComponentManifest = { ..original, digest: label, }
+  validate_materialization_admission(
+    manifest,
+    manifest.identity,
+    label,
+    fixture_limits(),
+  )
+  // Removing authentication must not remove allocation bounds.
+  let oversized : MiniMaxH3HostComponentManifest = {
+    ..manifest,
+    arena_sizes: ReadOnlyArray::from_array([2147483648L]),
+  }
+  try
+    validate_materialization_admission(
+      oversized,
+      oversized.identity,
+      label,
+      fixture_limits(),
+    )
+  catch {
+    HostBudgetExceeded => ()
+    _ => fail("unexpected budget error")
+  } noraise {
+    _ => fail("oversized arena admitted")
+  }
+}
+
+///|
 test "official Qwen3-VL shapes remain exact" {
   assert_true(
     exact_official_shape(
