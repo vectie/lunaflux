@@ -10,6 +10,26 @@ claims and do not close those five phase gates.
 
 ## Executable compact expert features — 2026-10-09
 
+Update 2026-10-10 (DSpark main projection): generic `RowProjectionNormPrecision`
+preserves packed block-128 E4M3/UE8M0 activation/weight arithmetic, an intermediate
+BF16 boundary, and F32 weighted RMSNorm with final BF16 rounding. The prepared
+frame reuses existing projection and RMSNorm renderers and parent completion;
+native tests cover pre-allocation span/budget rejection, partial abort, 32 warmed
+submissions without allocations or extra blocking synchronization, and release.
+`DeepSeekPredictionMain` binds actual `mtp.0.main_proj` and `main_norm` planes,
+accounts for compact weight/workspace bytes, and rejects incomplete/reordered
+target-layer captures. The affected native precision/source/prefix/packed-execution
+suite passes 137/137 with the documented toolchain-migration warning exclusions.
+The independent GB10 fixture passes 36 numerical/replay
+cases with measured zero maximum absolute error for both stages, memcheck with
+zero errors/leaks, racecheck with zero hazards, and synccheck with zero errors.
+The 2-GiB/no-swap artifacts are downloaded under
+`/tmp/lunaflux-row-norm-results-20261010-v1`, executable SHA-256
+`dd99984347df3e7669d82245bde677cc498db396c8c78f44831638237455f89b`.
+This is a prepared prefix/component result, not a complete DSpark run or speed
+claim. Prediction KV/read-set semantics, prediction blocks, Markov/confidence,
+and verification/commit still require integration and whole-model validation.
+
 Update 2026-10-10 (DSpark target capture): the shared precision IR now describes
 BF16 residual-stream mean with F32 accumulation and one BF16 output round into
 ordered hidden segments. A prepared generic frame joins captures to the parent

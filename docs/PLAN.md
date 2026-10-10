@@ -10,10 +10,14 @@ tests, but do not make new hardening work a prerequisite for model execution.
 DSpark target capture now reaches executable shared precision lowering and the
 base decoder's ordered queue when explicitly enabled. Preserve local target
 segment metadata across placement; a partial rank capture must be assembled
-before the DSpark main projection. Next connect the distinct main projection,
-committed-main-KV plus noncausal draft-block attention, three prediction mHC/MoE
-blocks, sequential Markov logits and confidence head, then verification/commit.
+before the DSpark main projection. That projection and weighted RMSNorm now have
+a shared precision plan, AOT lowering, prepared frame and exact `mtp.0` checkpoint
+owner. Next connect committed-main-KV plus noncausal draft-block attention,
+three prediction mHC/MoE blocks, sequential Markov logits and confidence head,
+then verification/commit.
 Do not substitute the learned base-model text head or ordinary causal blocks.
+Exact phase/read-set/head dependencies and completion requirements are recorded
+in [DEEPSEEK_DSPARK_EXECUTION.md](DEEPSEEK_DSPARK_EXECUTION.md).
 
 For MiniMax, plan one actual variant, not the 465-GiB aggregate repository with
 duplicates. Its roughly 63-GiB conditioning encoder and 62-GiB transformer may

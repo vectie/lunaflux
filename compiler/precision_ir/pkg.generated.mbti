@@ -499,6 +499,18 @@ pub fn RotaryTensorPrecision::inverse(Self) -> Bool
 pub fn RotaryTensorPrecision::new(head_count~ : Int, head_width~ : Int, rotary_width~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, frequency~ : RotaryFrequency, inverse~ : Bool, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn RotaryTensorPrecision::workspace_bytes(Self) -> Int64
 
+pub struct RowProjectionNormPrecision {
+  // private fields
+}
+pub fn RowProjectionNormPrecision::activation_quantization(Self) -> QuantizationPlan
+pub fn RowProjectionNormPrecision::frame_bytes(Self) -> Int64
+pub fn RowProjectionNormPrecision::geometry(Self) -> (Int, Int, Int)
+pub fn RowProjectionNormPrecision::input_bytes(Self) -> Int64
+pub fn RowProjectionNormPrecision::new(input_width~ : Int, output_width~ : Int, maximum_rows~ : Int, normalization_epsilon~ : Double, activation_amax_floor~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn RowProjectionNormPrecision::normalization_epsilon(Self) -> Double
+pub fn RowProjectionNormPrecision::weight_representation(Self) -> @precision_format.Representation
+pub fn RowProjectionNormPrecision::workspace_bytes(Self) -> Int64
+
 pub(all) enum ScratchLifetime {
   Sequential
   Concurrent

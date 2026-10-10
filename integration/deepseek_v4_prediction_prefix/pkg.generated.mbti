@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/deepseek_v4_prediction_prefix"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/model/deepseek_v4_spec",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn bind_prediction_main_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+
+pub fn prediction_main_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RowProjectionNormPrecision raise
+
+// Errors
+
+// Types and methods
+pub struct DeepSeekPredictionMain {
+  // private fields
+}
+pub fn DeepSeekPredictionMain::close(Self) -> Unit raise
+pub fn DeepSeekPredictionMain::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn DeepSeekPredictionMain::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekPredictionMain::output(Self) -> @device.Allocation raise
+pub fn DeepSeekPredictionMain::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, captured_hidden~ : @device.Allocation, target_layers~ : ArrayView[Int], maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn DeepSeekPredictionMain::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
+pub fn DeepSeekPredictionMain::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,14 @@
+import {
+  "vectie/lunaflux/model/deepseek_v4_spec" @spec,
+  "vectie/lunaflux/model/precision_format" @format,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/row_projection_norm_cuda_source" @source,
+  "vectie/lunaflux/integration/row_projection_norm_frame" @frame,
+  "vectie/lunaflux/integration/precision_checkpoint_upload" @upload,
+  "vectie/lunaflux/engine/precision_materialize" @materialize,
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/device",
+}
+
+supported_targets = "native"

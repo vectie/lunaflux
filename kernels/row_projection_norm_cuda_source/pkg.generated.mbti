@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/row_projection_norm_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn row_projection_norm_source(@precision_ir.RowProjectionNormPrecision, symbol_prefix~ : String) -> RowProjectionNormCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct RowProjectionNormCudaSource {
+  // private fields
+}
+pub fn RowProjectionNormCudaSource::launch(Self, Int) -> (Int, Int, Int)
+pub fn RowProjectionNormCudaSource::plan(Self) -> @precision_ir.RowProjectionNormPrecision
+pub fn RowProjectionNormCudaSource::source_bytes(Self) -> Bytes
+pub fn RowProjectionNormCudaSource::symbol(Self, Int) -> String
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,28 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/row_projection_norm_frame"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/row_projection_norm_cuda_source",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct RowProjectionNormFrame {
+  // private fields
+}
+pub fn RowProjectionNormFrame::close(Self) -> Unit raise
+pub fn RowProjectionNormFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn RowProjectionNormFrame::new(@row_projection_norm_cuda_source.RowProjectionNormCudaSource) -> Self
+pub fn RowProjectionNormFrame::output(Self) -> @device.Allocation raise
+pub fn RowProjectionNormFrame::plan(Self) -> @precision_ir.RowProjectionNormPrecision
+pub fn RowProjectionNormFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, input~ : @device.Allocation, matrix~ : @device.Allocation, norm~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
+pub fn RowProjectionNormFrame::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

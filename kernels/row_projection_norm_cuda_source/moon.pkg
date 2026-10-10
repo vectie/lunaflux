@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/block_fp8_ue8m0_projection_cuda_source" @projection,
+  "vectie/lunaflux/kernels/prefix_rms_norm_cuda_source" @norm,
+}
+
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+} for "test"
+
+supported_targets = "native"
