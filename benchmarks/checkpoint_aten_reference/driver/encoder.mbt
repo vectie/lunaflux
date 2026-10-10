@@ -237,13 +237,9 @@ fn encode_layer(
     f("down", down)
   }
   let result = session.run(Add, x=residual, y=down)
+  errdefer result.close()
   if observe is Some(f) {
-    f("residual-mlp", result) catch {
-      error => {
-        result.close()
-        raise error
-      }
-    }
+    f("residual-mlp", result)
   }
   result
 }
