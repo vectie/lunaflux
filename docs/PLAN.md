@@ -91,9 +91,12 @@ existing semantic destination layout; whole-matrix Q/K/V slicing is incorrect.
 Native schema, missing/mixed-layout, source-offset and manifest regressions
 pass. Committed `d071f266` now physically inspects the original 10,415,484,128-byte
 payload successfully, binds all 560 tensors and prepares a 9,694,124,384-byte
-decoder packing without opening CUDA. GPU decoding remains next.
-Actual checkpoint-backed VideoVAE execution remains unverified. Next complete
-the new `decode-video` actual-checkpoint entry point's physical run: it borrows
+decoder packing without opening CUDA. The actual checkpoint-backed VideoVAE
+now completes on GB10 using the committed decoder: 124 frames at 32x32,
+1,523,712 output bytes, no nonfinite values, status zero, 3m17.190s including
+startup and all GPU allocations released. The downloaded pixel hash matches.
+This is a standardized zero-latent fixture, not denoiser output or independent
+reference equivalence. The `decode-video` actual-checkpoint entry point borrows
 the same resolved decoder plan and packed denoiser-layout input as full request
 export, streams all 38 decoder weight groups, and accounts input/statistics,
 internal workspace/output and module/queue reserve before opening CUDA. Native
