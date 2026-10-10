@@ -1,5 +1,5 @@
 ///|
-test "all bootstrap receive recipes consume footer labels without reconstruction hashing" {
+test "all bootstrap send and receive recipes consume supplied labels without hashing" {
   let fused = @worker_wire.WorkerBootstrapFusedRuntimeSource::new(
     locator="aggregates/fused-runtime.v1",
     digest_sha256=source_digest_a(),
@@ -30,6 +30,7 @@ test "all bootstrap receive recipes consume footer labels without reconstruction
       source_tp_fixture(),
       source_tp_approved_fixture(),
     ] {
+    assert_eq(encoded.digest().as_hex(), encoded.kernel().manifest_digest())
     let frame = FixedArray::make(encoded.capacity(), b'\x00')
     encoded.copy_to(frame, destination_offset=0)
     frame[encoded.length() - 1] = frame[encoded.length() - 1] ^ b'\x01'

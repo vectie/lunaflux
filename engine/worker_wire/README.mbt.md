@@ -27,12 +27,12 @@ emits `Ready`.
 
 Bootstrap-source v2 is a separate inert transport value for the production
 device-worker handshake. It owns five strict filesystem names below two
-lexically validated absolute root locators, independent SHA-256 identities for
+lexically validated absolute root locators, independent supplied labels for
 model configuration and the schema-v2 full-graph execution manifest, exact
 device target and KV page geometry, and focused file/arena ceilings. The
 canonical little-endian
 body has a fixed 184-byte header, variable UTF-8 path section bounded to five
-4096-byte fields, and a trailing raw SHA-256 of every preceding byte. Its
+4096-byte fields, and a legacy 32-byte footer carrying the manifest label. Its
 maximum is 20,696 bytes. Absolute artifact locators, traversal, aliases,
 backslashes, empty path segments, reserved flags, noncanonical lengths, and
 unbounded ceilings fail closed. Lexical admission and decode do not prove a root
@@ -47,10 +47,13 @@ contains model weights, model configuration bytes, manifests, CUDA modules, or
 native handles. Startup v4 binds this source digest into the independent
 `Configure` contract. The process supervisor now sends `Configure ->
 BootstrapSource -> Ready`, retains the immutable source, and reuses its exact
-canonical bytes for replacement workers. Construction derives a control-plan
-identity once; receivers carry the trailing supplied label without hashing,
+canonical bytes for replacement workers. Construction reuses the supplied
+manifest label without copying or hashing the serialized frame; receivers
+carry the trailing supplied label without hashing,
 re-encoding or byte-comparing the frame. It is not a verified integrity claim.
-The child compares the received label with the `Configure` label over the
+The label is not a unique fingerprint of the roots, capacities or approval
+fields. Old footer labels are retained as received, not recomputed. The child
+compares the received label with the `Configure` label over the
 private child channel, while the codec checks lengths, paths, target, KV
 geometry and memory ceilings. The full
 startup order is `Configure -> BootstrapSource -> ParentApprovalAttestation ->

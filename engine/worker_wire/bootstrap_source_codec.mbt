@@ -93,17 +93,6 @@ fn write_bootstrap_source_digest(
 }
 
 ///|
-fn bootstrap_source_digest_of(
-  bytes : FixedArray[Byte],
-  length : Int,
-) -> WorkerBootstrapSourceDigest raise WorkerWireError {
-  let snapshot = Bytes::makei(length, index => bytes[index])
-  WorkerBootstrapSourceDigest::from_sha256(
-    @crypto.bytes_to_hex_string(@crypto.sha256(snapshot)),
-  )
-}
-
-///|
 fn bootstrap_source_raw_digest(
   bytes : FixedArray[Byte],
   offset : Int,
@@ -315,7 +304,8 @@ pub fn admit_bootstrap_source(
       cursor = write_bootstrap_source_string(storage, cursor, source.locator)
     None => ()
   }
-  let digest = bootstrap_source_digest_of(storage, cursor)
+  // Compatibility footer: a supplied association label, never a frame checksum.
+  let digest = WorkerBootstrapSourceDigest::from_sha256(kernel.manifest_digest)
   write_bootstrap_source_digest(storage, cursor, digest.as_hex())
   {
     storage,

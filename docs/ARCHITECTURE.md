@@ -522,6 +522,11 @@ do not self-hash their transport tail; one-time launch/manifest authorization
 remains separate. Source identity binding at startup, compiler/cache identities
 and algorithmic token/prefix hashing are not payload-hardening scans. All
 startup peers must upgrade together; no mixed-version compatibility is claimed.
+Bootstrap source construction likewise performs no frame snapshot or SHA pass:
+its legacy footer carries the existing manifest association label. Roots,
+capacity, execution target and approval fields are serialized and parsed
+explicitly, not authenticated through that label. New receivers still preserve
+old footer labels without computing or checking their former payload checksum.
 
 No one item is execution evidence by itself. Before launch, a prepared executor
 must prove identity, device target, catalog version, exact operation order, and

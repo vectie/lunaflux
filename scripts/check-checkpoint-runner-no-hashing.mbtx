@@ -247,6 +247,22 @@ async fn main {
   guard !bootstrap_decoder.contains("bootstrap_source_digest_of(") else {
     fail("worker bootstrap receive must not rehash its source payload")
   }
+  // Send and receive are both loading paths, not offline cache-key generation.
+  for name in @fs.readdir("engine/worker_wire") {
+    if name.has_prefix("bootstrap_source_") &&
+      name.has_suffix(".mbt") &&
+      !name.has_suffix("test.mbt") {
+      let source = @fs.read_file("engine/worker_wire/" + name).text()
+      for
+        removed in [
+          "@crypto.sha256(", "SHA256::new", "bootstrap_source_digest_of(", "i8_source_digest_of(",
+        ] {
+        guard !source.contains(removed) else {
+          fail("bootstrap send/receive payload hashing reintroduced: " + name)
+        }
+      }
+    }
+  }
   let i8_codec = @fs.read_file(
     "engine/worker_wire/bootstrap_source_i8_codec.mbt",
   ).text()

@@ -166,13 +166,17 @@ the same binding rule. Source-manifest metadata reports the ignored copy, not
 verified byte equality; the legacy comparison-buffer constructor argument does
 not allocate or retain buffers.
 
+All worker bootstrap senders reuse the supplied manifest label in their footer,
+without snapshotting or SHA-scanning the serialized startup frame. This label
+is not a unique fingerprint of roots, capacities, approvals or execution facts;
+those remain explicit typed fields. Receivers retain legacy supplied labels.
 All worker bootstrap receivers consume the supplied footer label without
 hashing, re-encoding or byte-comparing frames, including the direct I8 entry
 point. They publish parsed typed records with one owned copy. Magic/version,
 length, UTF-8, target, KV geometry and allocation ceilings still validate before
 ownership is published. The label associates startup records; it does not
-authenticate transport bytes. Construction-time control-plan identity remains
-separate from receiving and reauthenticating an existing payload.
+authenticate transport bytes. Neither endpoint authenticates these frames;
+deployment owns their origin and artifact immutability.
 
 Reusable fused sidecar exporters serialize validated inputs once, without
 hashing and decoding the new whole sidecar as a self-check. The residual

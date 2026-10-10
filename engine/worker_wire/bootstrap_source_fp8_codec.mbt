@@ -111,7 +111,9 @@ pub fn admit_fp8_reusable_bootstrap_source_v9(
     ] {
     cursor = i8_source_write_string(storage, cursor, value)
   }
-  let digest = i8_source_digest_of(storage, cursor)
+  let digest = WorkerBootstrapSourceDigest::from_sha256(
+    kernel.manifest_digest(),
+  )
   write_bootstrap_source_digest(storage, cursor, digest.as_hex())
   {
     storage,

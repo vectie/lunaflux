@@ -92,15 +92,12 @@ fn source_v10_fused_fixture() -> @worker_wire.EncodedBootstrapSource raise {
 }
 
 ///|
-test "canonical bootstrap source has stable bytes, digest, and roundtrip" {
+test "canonical bootstrap source retains supplied label and roundtrips" {
   let encoded = source_fixture()
   assert_eq(encoded.recipe(), DenseLlamaPagedAotV2)
   assert_eq(encoded.capacity(), @worker_wire.bootstrap_source_capacity())
   assert_eq(encoded.length(), 316)
-  assert_eq(
-    encoded.digest().as_hex(),
-    "1aa7ca648cfd4c246fe6fa7687ee78b4254365a9ec22e98c1e2aa4961ccd979f",
-  )
+  assert_eq(encoded.digest().as_hex(), source_digest_b())
   let transport = FixedArray::make(encoded.capacity(), b'\x55')
   encoded.copy_to(transport, destination_offset=0)
   let decoded = @worker_wire.decode_bootstrap_source(
@@ -203,7 +200,7 @@ test "fused bootstrap source rejects manifest locator alias" {
 }
 
 ///|
-test "worker bootstrap digest retains exact untrusted Luna claim" {
+test "worker bootstrap fields retain exact untrusted Luna claim without hashing it" {
   let encoded = source_v3_fixture()
   assert_eq(encoded.recipe(), DenseLlamaPagedAotV3)
   let transport = FixedArray::make(encoded.capacity(), b'\x00')
@@ -221,9 +218,11 @@ test "worker bootstrap digest retains exact untrusted Luna claim" {
   assert_eq(approval.signature_digest(), source_digest_a())
   assert_eq(approval.approved_source(), source_digest_b())
   assert_eq(decoded.digest(), encoded.digest())
-  assert_true(
-    encoded.digest() !=
-    source_v3_fixture(approved_source="f".repeat(64)).digest(),
+  let changed = source_v3_fixture(approved_source="f".repeat(64))
+  assert_eq(encoded.digest(), changed.digest())
+  assert_eq(
+    changed.kernel().luna_approval().unwrap().approved_source(),
+    "f".repeat(64),
   )
 }
 

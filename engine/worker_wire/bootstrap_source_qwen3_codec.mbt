@@ -172,7 +172,9 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
       cursor = write_bootstrap_source_string(storage, cursor, source.locator())
     None => ()
   }
-  let digest = bootstrap_source_digest_of(storage, cursor)
+  let digest = WorkerBootstrapSourceDigest::from_sha256(
+    kernel.manifest_digest(),
+  )
   write_bootstrap_source_digest(storage, cursor, digest.as_hex())
   {
     storage,

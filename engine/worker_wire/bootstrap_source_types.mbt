@@ -15,8 +15,9 @@ pub(all) enum WorkerBootstrapRecipe {
 } derive(Debug, Eq)
 
 ///|
-/// Control-plan identity on construction, supplied association label on decode.
-/// Receiving this value does not verify a checksum of the transport bytes.
+/// Supplied association label on construction and decode. New senders reuse
+/// the manifest label; this is neither a control-plan fingerprint nor a checksum
+/// of transport bytes. Receivers retain legacy supplied footer labels as-is.
 pub struct WorkerBootstrapSourceDigest(String) derive(Debug, Eq)
 
 ///|
@@ -31,7 +32,7 @@ pub struct WorkerBootstrapRoots {
 } derive(Eq)
 
 ///|
-/// Digest-pinned model metadata and weight locators below the model root.
+/// Model metadata and weight locators with supplied association labels.
 pub struct WorkerBootstrapModelSource {
   priv config_locator : String
   priv weights_locator : String
@@ -39,7 +40,7 @@ pub struct WorkerBootstrapModelSource {
 } derive(Eq)
 
 ///|
-/// Digest-pinned execution-manifest locator below the kernel root.
+/// Execution-manifest locator and supplied association label below the kernel root.
 pub struct WorkerBootstrapKernelSource {
   priv manifest_locator : String
   priv manifest_digest : String
@@ -57,7 +58,7 @@ pub(all) enum WorkerBootstrapSamplingRuntime {
 } derive(Debug, Eq)
 
 ///|
-/// Digest-pinned optional fused-runtime descriptor below the inherited kernel
+/// Label-associated optional fused-runtime descriptor below the inherited kernel
 /// root. This is inert wire evidence: it grants neither filesystem nor module
 /// loading authority.
 pub struct WorkerBootstrapFusedRuntimeSource {

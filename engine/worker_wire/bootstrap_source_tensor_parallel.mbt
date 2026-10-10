@@ -138,7 +138,9 @@ pub fn admit_tensor_parallel_bootstrap_source(
     cursor,
     kernel.manifest_locator(),
   )
-  let digest = bootstrap_source_digest_of(storage, cursor)
+  let digest = WorkerBootstrapSourceDigest::from_sha256(
+    kernel.manifest_digest(),
+  )
   write_bootstrap_source_digest(storage, cursor, digest.as_hex())
   {
     storage,

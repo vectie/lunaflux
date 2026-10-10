@@ -31,17 +31,6 @@ fn i8_source_lengths(
 }
 
 ///|
-fn i8_source_digest_of(
-  bytes : FixedArray[Byte],
-  length : Int,
-) -> WorkerBootstrapSourceDigest raise WorkerWireError {
-  let snapshot = Bytes::makei(length, index => bytes[index])
-  WorkerBootstrapSourceDigest::from_sha256(
-    @crypto.bytes_to_hex_string(@crypto.sha256(snapshot)),
-  )
-}
-
-///|
 fn i8_source_write_string(
   destination : FixedArray[Byte],
   cursor : Int,
@@ -153,7 +142,9 @@ pub fn admit_i8_bootstrap_source_v6(
   )
   cursor = i8_source_write_string(storage, cursor, roots.kernel_root())
   cursor = i8_source_write_string(storage, cursor, kernel.manifest_locator())
-  let digest = i8_source_digest_of(storage, cursor)
+  let digest = WorkerBootstrapSourceDigest::from_sha256(
+    kernel.manifest_digest(),
+  )
   write_bootstrap_source_digest(storage, cursor, digest.as_hex())
   {
     storage,
