@@ -68,6 +68,19 @@ moon run scripts/replay-deepseek-original-expert.mbtx sanitize ROOT
 moon run scripts/replay-deepseek-original-expert.mbtx collect ROOT
 ```
 
+## Attention post-publication on matched original operands
+
+The FFN runner additionally replays the native attention `hc_post` using the
+original BF16 branch, original BF16 residual streams and original F32 post/
+combination coefficients. Its output is compared with the installed original
+`Block.hc_post` result, before either FFN pre-mixer consumes it.
+
+All **2,359,296 BF16 values match bit-for-bit**, including all 144 rows and four
+streams. The v2 FFN pre-mixing results remain unchanged from v1. Artifacts are
+at `/tmp/lunaflux-deepseek-original-hyper-ffn-20261011-v2`; native, original,
+memcheck/leak, racecheck and synccheck all exit zero. This rules out an error
+in this matched publication boundary, not the accumulated whole-model gap.
+
 Two runner tests and three affected-package tests pass. The original adapter
 compiles with `-Wall -Wextra -Werror`; native checking passes with existing
 toolchain-migration warning exclusions. No serving dependency, hashing,

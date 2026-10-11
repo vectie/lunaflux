@@ -303,7 +303,7 @@ async fn main {
         "/" +
         gate +
         " " +
-        rows.to_string()
+        rows.to_string() + (if ffn is Some(_) { " " + root + "/prior" } else { "" })
       record(
         root,
         gate + "-run",
@@ -380,6 +380,17 @@ async fn main {
           "original_deepseek_first_layer_" + file,
         ]).output(),
       )
+    }
+    let ffn = try @fs.read_file(root + "/FFN.txt") catch { _ => None } noraise { _ => Some(()) }
+    if ffn is Some(_) {
+      let target = root + "/native/attention-post.bf16"
+      @fs.write_file(target, b"", create_mode=CreateNew)
+      @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
+        node + ":" + target, target]).output().check()
+      record(root, "attention-post-comparison", @shell.Cmd("moon", ["run",
+        "scripts/compare-minimax-encoder-reference.mbtx", target,
+        root + "/original/streams.bf16", root + "/attention-post-comparison.txt",
+        "original_deepseek_matched_attention_post", "16384"]).output())
     }
   } else {
     fail("unknown mode")
