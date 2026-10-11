@@ -300,6 +300,7 @@ async fn run_joint(
           parameters,
           video_update,
           audio_update,
+          refiners[:],
           blocks=capture_blocks,
         ),
       )

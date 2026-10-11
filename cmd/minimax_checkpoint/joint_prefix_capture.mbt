@@ -26,12 +26,13 @@ fn capture_joint_prefix(
   parameters : @device.Allocation,
   video_update : @device.Function,
   audio_update : @device.Function,
+  refiners : ArrayView[(@weights.RefinerWeightPacking, @device.Allocation)],
   blocks~ : Int,
 ) -> Array[(String, Bytes)] raise {
   guard blocks > 0 && blocks <= 50 else {
     fail("invalid diagnostic block extent")
   }
-  text.execute()
+  let text_captures = text.capture_stages(stream, refiners)
   conditioning.execute()
   let predictions = layout.metadata.bind_conditioned(
     variants,
@@ -92,6 +93,7 @@ fn capture_joint_prefix(
     allocation.copy_to_host(offset, size)
   })
   let captures : Array[(String, Bytes)] = []
+  captures.append(text_captures)
   for block in 0..<blocks {
     let first = layout.metadata.bind_initial_block(
       variants,

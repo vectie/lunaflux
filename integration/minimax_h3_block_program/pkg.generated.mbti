@@ -206,6 +206,7 @@ pub struct TextConditioningProgram {
   // private fields
 }
 pub fn TextConditioningProgram::bind_input(Self, InputProgram, @minimax_h3_weights.InputWeightPacking, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn TextConditioningProgram::capture_stages(Self, @device.Stream, ArrayView[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)]) -> Array[(String, Bytes)] raise @device.DeviceError
 pub fn TextConditioningProgram::close(Self) -> Unit raise @device.DeviceError
 pub fn TextConditioningProgram::execute(Self) -> Unit raise @device.DeviceError
 pub fn TextConditioningProgram::new(@minimax_h3_block_source.RefinerSource) -> Self

@@ -63,7 +63,7 @@ pub fn RefinerProgram::bind(
   state~ : @device.Allocation,
   state_offset~ : Int64,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
-  guard self.ready && self.workspace is Some(workspace) else {
+  guard self.ready && self.workspace is Some(_) else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
   validate_layer_order(
@@ -71,29 +71,9 @@ pub fn RefinerProgram::bind(
     self.source.model.denoiser().refiner_layer_count(),
   )
   let f = self.functions
-  let attention = @joint_diffusion_device.AttentionFunctions::new(
-    f[3],
-    f[4],
-    f[5],
-    f[6],
-  )
   let launches : Array[@device.OrderedKernelLaunch] = []
   for (p, weights) in layers {
-    launches.append(
-      workspace.bind_refiner(
-        attention,
-        norm=f[0],
-        residual=f[2],
-        gate_up=f[7],
-        down=f[8],
-        state~,
-        state_offset~,
-        weights~,
-        attention_weight_offset=p.attention_offset,
-        mlp_weight_offset=p.mlp_offset,
-        norm_weight_offset=p.norm_offset,
-      ),
-    )
+    launches.append(self.bind_layer(p, weights, state~, state_offset~))
   }
   let (last, weights) = layers[layers.length() - 1]
   guard last.final_norm_offset is Some(weight_offset) else {
@@ -113,4 +93,33 @@ pub fn RefinerProgram::bind(
     ),
   )
   launches
+}
+
+///|
+/// One immutable launch description shared by ordinary binding and offline
+/// frontier discovery. Neither caller executes or guesses a layer's length.
+fn RefinerProgram::bind_layer(
+  self : Self,
+  packing : @minimax_h3_weights.RefinerWeightPacking,
+  weights : @device.Allocation,
+  state~ : @device.Allocation,
+  state_offset~ : Int64,
+) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
+  guard self.ready && self.workspace is Some(workspace) else {
+    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+  }
+  let f = self.functions
+  workspace.bind_refiner(
+    @joint_diffusion_device.AttentionFunctions::new(f[3], f[4], f[5], f[6]),
+    norm=f[0],
+    residual=f[2],
+    gate_up=f[7],
+    down=f[8],
+    state~,
+    state_offset~,
+    weights~,
+    attention_weight_offset=packing.attention_offset,
+    mlp_weight_offset=packing.mlp_offset,
+    norm_weight_offset=packing.norm_offset,
+  )
 }

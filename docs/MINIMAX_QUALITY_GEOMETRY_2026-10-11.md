@@ -333,7 +333,7 @@ The diagnostic's initial-time reconstruction was corrected accordingly in
 `3f8f7321`, with compile-time cases for unequal times; production already used
 that convention. The installed original warnings remain preserved.
 
-### Full original trajectory control — completed, decoder quality pending
+### Full original trajectory control — completed, original smoke also fails
 
 `scripts/replay-minimax-original-trajectory.mbtx` calls the installed original
 `MiniMaxH3DiTModel`, packed-sequence builder and denoise loop. It receives the
@@ -386,5 +386,26 @@ trajectory video preparation also stopped during management-source copying
 before GPU admission. The runner can now reuse the already retained unchanged
 reference source in a fresh directory; this avoids unrelated source re-fetching
 without changing decoder arithmetic.
+
+The installed original VideoVAE subsequently decodes these **original** terminal
+latents in
+`/tmp/lunaflux-minimax-upstream-video-original-trajectory-20261012-v2`, exits
+zero and releases CUDA. Literal output remains `[1,3,124,128,128]`. The twelve
+sampled frames were actually inspected at
+`/tmp/lunaflux-minimax-original-trajectory-preview-20261012-v1/frames.png`:
+they also show colored lattice-like patterns and no recognizable red cat.
+Thus the native-only body is not sufficient to explain the failed smoke
+appearance. This original control retains the identical supplied **native
+encoder rows**, not an independently re-encoded caption; it cannot yet exclude
+the shared caption input or establish which larger geometry succeeds. Neither
+run earns a media-quality pass.
+
+The native offline prefix capture now additionally retains context projection,
+each actual refiner boundary and final conditioning. Stage extents are derived
+from the unchanged bound layer launch descriptions, not guessed kernel indices.
+Ordinary text conditioning still uses its original single queue/completion with
+no intermediate copy or observer branch. These finer controls are implemented
+but must be physically measured before assigning the remaining 0.354% complete
+conditioning difference to any particular operator.
 
 No new production arithmetic or precision policy is selected by these findings.
