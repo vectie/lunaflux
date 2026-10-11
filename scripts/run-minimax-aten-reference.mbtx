@@ -131,6 +131,12 @@ test "matched replay stays distinct from a fifty-layer reference" {
     assert_true(needs_native_inputs(mode))
     assert_true(reference_arguments(mode).has_suffix(" /native"))
     assert_true(reference_arguments(mode).contains("/work/" + mode))
+    let long_ids = "1,".repeat(139) + "2"
+    assert_true(
+      reference_arguments(mode, ids=long_ids).contains(
+        " /model " + long_ids + " ",
+      ),
+    )
   }
   assert_true(reference_arguments("encode-full-reduction").has_suffix(" 50"))
   assert_false(needs_native_inputs("encode-full-reduction"))
@@ -170,7 +176,14 @@ async fn main {
     (
       extra is [] ||
       ((needs_native_inputs(mode) || mode.has_prefix("encode")) && extra is [_]) ||
-      (mode == "replay-down-reduction" && extra is [_, _])
+      (
+        (
+          mode == "replay-down-reduction" ||
+          mode == "replay-operators" ||
+          mode == "replay-full-reduction"
+        ) &&
+        extra is [_, _]
+      )
     ) &&
     root.has_prefix("/tmp/lunaflux-minimax-aten-reference-") &&
     safe(root) else {
@@ -365,6 +378,8 @@ async fn main {
     }
     let ids = match extra {
       [path] if mode.has_prefix("encode") =>
+        text_ids(@fs.read_file(path).text())
+      [_, path] if mode == "replay-operators" || mode == "replay-full-reduction" =>
         text_ids(@fs.read_file(path).text())
       _ => "32,2518,8251"
     }
