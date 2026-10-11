@@ -74,6 +74,10 @@ itself changes logits; matched native one-token replay completes but retains
 12.4704% full-logit relative L2, despite the same first token. Preserve
 these actual arithmetic/workload differences rather than call the installed
 serving backends interchangeable numerical oracles.
+The subsequent original sampler and native ordinary-target run both produce
+`[33310, 1]` and stop at genuinely sampled EOS for this prompt. Retained target
+means already differ by 17.94–21.11% before the head, ruling out a head-only
+explanation. See [the retained comparison](DEEPSEEK_RETAINED_TARGET_COMPARISON_2026-10-11.md).
 
 MiniMax source `49b15d75` propagates compensated F32 normalization through its
 immutable precision plan and unmodified AOT export. The complete twelve-case
@@ -102,7 +106,8 @@ Remaining work is numerical/functional, not hardening:
   conversion is not used. Bounded streaming conversion and the original-source
   dependency adapter now run on the Sparks; the earlier conversion/dependency
   blockers are historical, not remaining work. Matched prefill partition,
-  EOS, multiple literal prompts and full-logit agreement remain to be completed.
+  multiple literal prompts and full-logit agreement remain to be completed;
+  actual generated-token/EOS agreement is complete for the stated prompt.
 - MiniMax needs whole-model numerical/media-quality attribution in addition
   to its accurate normalization component. Its fresh committed full media
   request completes on Spark with finite arrays and explicit resource release.
@@ -123,11 +128,17 @@ defect: the F32 inclusive-zero grid counts points, not evaluations. Five points
 must run four denoiser evaluations, not the previous five. The backend-neutral
 grid/interval plan matches 2,174 original CPU sigma values bitwise and passes
 the complete 5,004-test working-tree native suite. Commit-pinned corrected
-media execution is running with four intervals. Matched original AudioVAE
-replays complete: 0.053442% relative L2 for destandardized zero and 0.071764%
-for actual standardized generated latents. Original generated VideoVAE replay
-and meaningful media quality remain open; finite old-schedule 32×32 media is
-not a quality pass.
+media execution completes with four intervals and empty execution stderr.
+Matched original AudioVAE replays complete: 0.053442% relative L2 for
+destandardized zero and 0.071764%
+for actual standardized generated latents. The original generated VideoVAE
+replay also completes at 0.044344% relative L2 for the earlier isolation fixture.
+Those are matched-decoder comparisons, not whole-denoiser quality validation.
+The corrected 32×32 preview still lacks recognizable caption content. A separate
+128×128/twenty-evaluation native run is active; the original decoder's larger
+geometry is validated independently on `.179`. This larger smoke fixture is
+not the original pipeline's default 768×1344/fifty-step quality workload.
+See [geometry and remaining quality work](MINIMAX_QUALITY_GEOMETRY_2026-10-11.md).
 
 No payload hash, TLS, authentication step or production dependency is added by
 these diagnostics. Existing memory ceilings and deterministic release remain.
