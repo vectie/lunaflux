@@ -48,7 +48,9 @@ test "square summation policy preserves BF16 boundaries and ordered default" {
   assert_true(ordered.contains("sum=__fadd_rn(sum,__fmul_rn(v,v));"))
   assert_false(ordered.contains("correction"))
   assert_true(
-    compensated.contains("correction=__fsub_rn(__fsub_rn(next,sum),adjusted);"),
+    compensated.contains(
+      "correction=isfinite(next) ? __fsub_rn(__fsub_rn(next,sum),adjusted) : 0.0f;",
+    ),
   )
   assert_true(
     compensated.contains("__bfloat162float(__float2bfloat16_rn(__fmul_rn"),
@@ -66,6 +68,7 @@ test "square summation policy preserves BF16 boundaries and ordered default" {
     ),
   )
   assert_true(head.contains("float sum=0.0f, correction=0.0f;"))
+  assert_true(head.contains("correction=isfinite(next) ?"))
   assert_true(head.contains("score=__fadd_rn(score,__fmul_rn"))
   assert_true(head.contains("threadIdx.x!=0"))
 }

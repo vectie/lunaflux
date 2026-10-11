@@ -411,3 +411,30 @@ error under the existing warning-denied configuration. The working-tree root
 result above includes an existing uncommitted TLS migration, whereas these
 93 tests do not. That unrelated migration is not staged into the numerical
 commits, no alert exclusion is added, and these model executions do not use TLS.
+
+### Compensated-reduction F32 overflow correction
+
+A new boundary probe reproduces a concrete defect in the initial compensation:
+finite BF16 values can have finite squares whose F32 sum overflows, or squares
+that already overflow. The initial `(next - sum) - adjusted` correction then
+becomes NaN and poisons the accumulator. On Spark `.179` the actual old renderer
+fails with `compensated-row index=0 actual=nan expected=0`, whereas the ordered
+F32 renderer returns zero after the reciprocal of an infinite sum.
+
+The pure precision law now explicitly retains F32 overflow semantics. CUDA
+lowering discards compensation when the updated sum is nonfinite; the sum
+itself is preserved, so original NaN inputs still propagate. There is no
+clamping threshold, dtype widening, model-specific rule or runtime validation
+step. Row/head kernels consume the same numerical law as before.
+
+The actual fixed lowering passes two overflow patterns (2^61 and 2^80 values),
+eight deterministic F64 component cases, memcheck (zero errors/leaked bytes),
+racecheck (zero hazards) and synccheck (zero errors). Native affected-package
+tests pass 74/74. Old/fixed probe captures remain separately at
+`/tmp/lunaflux-text-norm-overflow-{before,fixed}-20261011-v1`.
+The small probe runs on `.179` while the isolated media control owns `.178`;
+sanitizer timing is not performance evidence. Unsanitized row timing is
+284.5–285.6 us ordered versus 323.4–324.6 us compensated. This is a correctness
+correction, not a speedup or a fix for all twelve propagated corpus differences.
+The two full-media runs above use the previously built `49b15d75` binary/AOT;
+they must not be described as including this later overflow correction.

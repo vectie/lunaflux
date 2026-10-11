@@ -45,6 +45,17 @@ static void compare(const __nv_bfloat16 *actual,const std::vector<__nv_bfloat16>
     }
   }
 }
+// F64 is deliberately not the oracle for F32 overflow: this numerical law
+// retains the F32 square/sum domain, including a zero inverse after overflow.
+static void overflow_fixture(__nv_bfloat16 *x,__nv_bfloat16 *w,int width,int heads,int exponent) {
+  for(int d=0;d<width;++d) w[d]=__float2bfloat16_rn(1.f);
+  for(int i=0;i<3*heads*width;++i) x[i]=__float2bfloat16_rn(std::ldexp(1.f,exponent));
+}
+static void compare_overflow(const __nv_bfloat16 *actual,size_t count,const char *name) {
+  for(size_t i=0;i<count;++i) if(__bfloat162float(actual[i])!=0.f) {
+    std::fprintf(stderr,"F32 overflow %s index=%zu actual=%g expected=0\n",name,i,__bfloat162float(actual[i])); std::exit(5);
+  }
+}
 int main() {
   auto x=allocate<__nv_bfloat16>(3*5120),w=allocate<__nv_bfloat16>(5120),y=allocate<__nv_bfloat16>(3*5120);
   auto q=allocate<__nv_bfloat16>(3*4*128),k=allocate<__nv_bfloat16>(3*2*128);
@@ -61,6 +72,21 @@ int main() {
       std::memcpy(first.data(),y,first.size()*2); std::memcpy(first_q.data(),q,first_q.size()*2); std::memcpy(first_k.data(),k,first_k.size()*2);
     } else if(std::memcmp(first.data(),y,first.size()*2) || std::memcmp(first_q.data(),q,first_q.size()*2) || std::memcmp(first_k.data(),k,first_k.size()*2)) return 4;
     ++cases;
+  }
+  for(int exponent : {61,80}) {
+    // 2^61 has finite squares but an overflowing sum; 2^80 squares overflow.
+    overflow_fixture(x,w,5120,1,exponent);
+    overflow_fixture(q,qw,128,4,exponent);
+    overflow_fixture(k,kw,128,2,exponent);
+    ordered_norm<<<3,1>>>(x,w,y);
+    check(cudaGetLastError()); check(cudaDeviceSynchronize());
+    compare_overflow(y,3*5120,"ordered-row");
+    compensated_norm<<<3,1>>>(x,w,y);
+    compensated_qknorm<<<dim3(3,6),1>>>(q,k,qw,kw);
+    check(cudaGetLastError()); check(cudaDeviceSynchronize());
+    compare_overflow(y,3*5120,"compensated-row");
+    compare_overflow(q,3*4*128,"compensated-query");
+    compare_overflow(k,3*2*128,"compensated-key");
   }
   fixture(x,w,5120,1,3);
   cudaEvent_t start,stop; check(cudaEventCreate(&start)); check(cudaEventCreate(&stop));
@@ -80,5 +106,5 @@ int main() {
   check(cudaEventDestroy(stop)); check(cudaEventDestroy(start));
   check(cudaFree(kw)); check(cudaFree(qw)); check(cudaFree(k)); check(cudaFree(q));
   check(cudaFree(y)); check(cudaFree(w)); check(cudaFree(x)); check(cudaDeviceReset());
-  std::printf("text normalization cases=%d row_width=5120 head_width=128 deterministic=true f64_oracle_max_bf16_steps=1 allocations_released=true\n",cases);
+  std::printf("text normalization cases=%d f32_overflow_cases=2 row_width=5120 head_width=128 deterministic=true f64_oracle_max_bf16_steps=1 allocations_released=true\n",cases);
 }
