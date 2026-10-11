@@ -35,8 +35,19 @@ runner now explicitly selects their shared `enP7s7` interface for Gloo/NCCL.
 The second attempt retains its own commands and results under
 `/tmp/lunaflux-independent-glm-20261011-v2`.
 
-Independent full-model GLM/DeepSeek comparisons are still pending; model
-architecture recognition or a running server is not a correctness pass.
+The GLM reference now executes both original literal prompts across both real
+Sparks. The 13-token prompt matches all eight native generated tokens. The
+20-token prompt matches its first seven, then differs: native token `34542`
+(" Numbers") versus reference `26682` (" Testing"). Reference top-five scores
+include the native token, but its teacher-forced prefill score ranks it 11th.
+The teacher-forced and incremental reference scores themselves differ because
+they use different execution shapes; neither score is a native logit capture.
+Raw completions, log probabilities and prefix reports are retained in `v2`.
+Both reference GPU owners are released before the subsequent experiments.
+
+Strict original-arithmetic GLM equivalence remains unresolved for the concrete
+reference limitations below; DeepSeek's independent comparison is pending.
+Model architecture recognition or a running server is not a correctness pass.
 Reference requests must use identical literal IDs to the native captures,
 retain token/log-probability outputs, and distinguish greedy agreement from
 teacher-forced numerical comparison. Existing native cancellation and
@@ -82,3 +93,12 @@ completion is useful as a differential but cannot certify exact original-
 checkpoint arithmetic. Its sparse MLA backend also selects FP8 KV storage.
 These differences must be reported, not silently treated as native bugs or
 fixed by altering the original checkpoint.
+
+## Source validation
+
+The full native suite passes 4,978/4,978 tests, and the root native check passes
+with the existing toolchain migration warning exclusions
+`-20-25-29-35-79-92`. `moon info` completes with zero errors and the existing
+3,646 migration warnings. The separate reference module passes its eight tests;
+the production rotary planner's nine tests pass. No warning exclusion, runtime
+authentication, TLS, cryptographic scan or production numerical policy was added.

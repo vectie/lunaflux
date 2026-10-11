@@ -256,7 +256,7 @@ async fn main {
       let name = label + "-" + rank
       if mode == "stop" {
         let stop = remote(last, "docker stop --time 30 " + name)
-        save(root, "stop-" + rank, stop)
+        save(root, "stop-command-" + rank, stop)
       }
       let result = remote(
         last,
@@ -268,9 +268,8 @@ async fn main {
         name +
         ".service -p ActiveState -p Result -p MemoryPeak -p MemorySwapPeak; nvidia-smi --query-compute-apps=pid --format=csv,noheader",
       )
-      save(root, mode + "-" + rank, result)
-      println(result.stdout())
-      println(result.stderr())
+      save(root, mode + "-state-" + rank, result)
+      println("reference_\{mode}_collected rank=\{rank} root=\{root}")
     }
   } else if mode == "request" || mode == "teacher-force" {
     let (input, label) = match extra {
