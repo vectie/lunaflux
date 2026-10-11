@@ -53,26 +53,69 @@ test "output statistics distinguish finite, zero and nonfinite results" {
 }
 
 ///|
+fn latent_outputs(options : ArrayView[String]) -> Array[(String, Int)] raise {
+  if options.is_empty() {
+    []
+  } else {
+    guard options is ["--latents", video, audio] else {
+      fail("optional --latents VIDEO_LATENT_BYTES AUDIO_LATENT_BYTES")
+    }
+    let sizes = [@string.parse_int(video), @string.parse_int(audio)]
+    guard sizes.all(n => n > 0 && n % 4 == 0) else {
+      fail("latent outputs must contain complete F32 values")
+    }
+    [("video-latent.f32", sizes[0]), ("audio-latent.f32", sizes[1])]
+  }
+}
+
+///|
+test "latent download is explicit and keeps video and audio extents separate" {
+  assert_eq(latent_outputs([]), [])
+  assert_eq(latent_outputs(["--latents", "14208", "52992"]), [
+    ("video-latent.f32", 14208),
+    ("audio-latent.f32", 52992),
+  ])
+  for
+    options in [
+      ["--latents"],
+      ["--latents", "0", "4"],
+      ["--latents", "3", "4"],
+      ["--latents", "4", "x"],
+    ] {
+    try latent_outputs(options) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid latent extents accepted")
+    }
+  }
+}
+
+///|
 async fn main {
   if @env.args() is [_, "self-test"] {
     check_statistics()
     println("media output statistics regressions passed")
     return
   }
-  guard @env.args() is [_, source, destination, video_size, audio_size] &&
+  guard @env.args()
+    is [_, source, destination, video_size, audio_size, .. extra] &&
     [source, destination].all(s => {
       s.has_prefix("/tmp/lunaflux-") &&
       !s.contains("..") &&
       s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_'))
     }) else {
-    fail("REMOTE_JOINT_ROOT NEW_LOCAL_DIRECTORY VIDEO_BYTES AUDIO_BYTES")
+    fail(
+      "REMOTE_JOINT_ROOT NEW_LOCAL_DIRECTORY VIDEO_BYTES AUDIO_BYTES [--latents VIDEO_LATENT_BYTES AUDIO_LATENT_BYTES]",
+    )
   }
+  let latent = latent_outputs(extra)
+  let outputs = [
+    ("video.f32", @string.parse_int(video_size)),
+    ("audio.f32", @string.parse_int(audio_size)),
+  ]
+  outputs.append(latent)
   @fs.mkdir(destination)
-  for
-    (name, expected) in [
-      ("video.f32", @string.parse_int(video_size)),
-      ("audio.f32", @string.parse_int(audio_size)),
-    ] {
+  for (name, expected) in outputs {
     let output = @shell.Cmd("scp", [
       "-o",
       "BatchMode=yes",
@@ -105,5 +148,17 @@ async fn main {
     guard result.contains("nonfinite=0 ") else {
       fail("nonfinite media output")
     }
+  }
+  if !latent.is_empty() {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+      "wlc003s@192.168.2.178:" + source + "/output/LATENTS.txt",
+      destination + "/LATENTS.txt",
+    ])
+    .output()
+    .check()
   }
 }

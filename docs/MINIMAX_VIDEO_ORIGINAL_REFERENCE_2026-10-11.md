@@ -98,3 +98,30 @@ the pipeline supplies one text tag per token. The existing three-token
 chat-format tokens would change the original model input, not fix it. This is
 a source-level presentation check, not proof that the encoder's remaining
 numerical differences are harmless or that tiny smoke-run media is acceptable.
+
+## Generated-latent replay support
+
+The selected compensated-square/ordered-dot caption now feeds a new joint replay
+at `/tmp/lunaflux-minimax-joint-latents-selected-20261011-v1`, with the existing
+five-step seed and FP16 VideoVAE module. Commit `98d5e90b` enables terminal-only
+canonical latent capture; the other joint AOT modules are unchanged. Its declared
+residency budget remains below 96 GiB, and no GPU workloads overlap on `.178`.
+The running replay is not yet a completed media-quality result.
+
+`scripts/collect-minimax-joint-output.mbtx` can explicitly collect the canonical
+latents with `--latents VIDEO_LATENT_BYTES AUDIO_LATENT_BYTES`, preserving the
+separate layout metadata. For this bounded geometry the byte counts are 14,208
+for standardized video `[1,24,37,2,2]` and 52,992 for standardized audio
+`[2,32,207]`. This is a diagnostic geometry, not a restriction on production
+request shapes.
+
+`scripts/run-minimax-upstream-audio.mbtx` now complements the original VideoVAE
+replay. Its test-only C++ bridge calls the installed original H3 AudioVAE adapter,
+which retains FP32 weights/decoding, original mean/std conversion, and canonical
+stereo waveform layout. It does not reimplement audio arithmetic. The two bridges
+share a CPU-owned, byte-preserving canonical F32 input loader. CPU extent/ownership
+tests and the audio AddressSanitizer probe pass; leak detection for third-party
+Torch/CPython process lifetime is disabled, so this is not an LSAN result.
+The native suite remains **5,003/5,003**, with the documented preexisting
+toolchain warning exclusions. Generated-latent GPU comparisons and meaningful
+media quality remain open until the corresponding actual outputs are inspected.

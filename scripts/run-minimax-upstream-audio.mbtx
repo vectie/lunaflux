@@ -1,0 +1,238 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, label : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+fn canonical_input(bytes : Bytes) -> Bytes raise {
+  // Bounded companion to the 120-frame joint replay: stereo, 32 channels,
+  // 207 latent frames. This is not a general request-shape restriction.
+  guard bytes.length() == 2 * 32 * 207 * 4 else {
+    fail("expected canonical standardized [2,32,207] F32 audio latent")
+  }
+  bytes
+}
+
+///|
+test "audio replay accepts exact canonical extent without changing payload" {
+  let bytes = Bytes::from_array(
+    FixedArray::makei(2 * 32 * 207 * 4, i => i.to_byte()),
+  )
+  assert_eq(canonical_input(bytes), bytes)
+  for bad in [b"", bytes[:bytes.length() - 4].to_owned(), bytes + b"\x00"] {
+    try canonical_input(bad) catch {
+      _ => ()
+    } noraise {
+      _ => fail("bad latent extent accepted")
+    }
+  }
+}
+
+///|
+async fn upload(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    node + ":" + destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn ownership_probe(root : String) -> Unit {
+  @fs.write_file(
+    root + "/probe.f32",
+    Bytes::from_array(FixedArray::makei(2 * 32 * 207 * 4, i => i.to_byte())),
+    create_mode=CreateNew,
+  )
+  upload(root + "/probe.f32", root + "/probe.f32")
+  record(
+    root,
+    "ownership-probe",
+    remote(
+      "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+      root +
+      ":/work --entrypoint /work/audio-upstream " +
+      image +
+      " --input-probe /work/probe.f32",
+    ),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    mode is ("prepare" | "probe" | "run" | "inspect") &&
+    (if mode == "run" { extra.length() == 1 } else { extra.is_empty() }) &&
+    root.has_prefix("/tmp/lunaflux-minimax-upstream-audio-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT | probe PREPARED_ROOT | run PREPARED_ROOT CANONICAL_LATENT_F32 | inspect ROOT",
+    )
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    @fs.mkdir(root + "/audio_vae")
+    for
+      file in [
+        "config.json", "config.yaml", "metadata.json", "minimax_h3_audio_vae.py",
+        "dac_activations.py", "dac_alias_free_act.py", "dac_alias_free_filter.py",
+        "dac_alias_free_resample.py", "dac_attn_proj.py", "dac_audio_vae.py", "dac_bigvgan.py",
+        "dac_utils.py",
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "lunanexa-management:/data/models/MiniMax/MiniMax-H3/FL2VA/audio_vae/" +
+        file,
+        root + "/audio_vae/" + file,
+      ])
+      .output()
+      .check()
+    }
+    @shell.Cmd("scp", [
+      "-r",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      root,
+      node + ":/tmp/",
+    ])
+    .output()
+    .check()
+    record(root, "weights-directory", remote("mkdir " + root + "/weights"))
+    upload(
+      "/tmp/lunaflux-minimax-audio-20261010-v1/FL2VA/audio_vae/model.safetensors",
+      root + "/weights/model.safetensors",
+    )
+    record(
+      root,
+      "weights-view",
+      remote(
+        "ln -s /checkpoint/model.safetensors " +
+        root +
+        "/audio_vae/model.safetensors",
+      ),
+    )
+    for file in ["audio_upstream.cpp", "canonical_latent_input.h"] {
+      upload(
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        root + "/" + file,
+      )
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        "docker run --rm --user 0 --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -I/usr/include/python3.12 /work/audio_upstream.cpp -o /work/audio-upstream -lpython3.12",
+      ),
+    )
+    // CPU-only ownership/byte-layout probe; no model load or CUDA context.
+    // Distinct byte patterns exercise the clone, not just a zero-filled tensor.
+    ownership_probe(root)
+  } else if mode == "probe" {
+    ownership_probe(root)
+  } else if mode == "run" {
+    let input = canonical_input(@fs.read_file(extra[0]).binary())
+    @fs.write_file(root + "/latent.f32", input, create_mode=CreateNew)
+    upload(root + "/latent.f32", root + "/latent.f32")
+    record(
+      root,
+      "input-probe",
+      remote(
+        "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint /work/audio-upstream " +
+        image +
+        " --input-probe /work/latent.f32",
+      ),
+    )
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    record(
+      root,
+      "start",
+      remote(
+        "systemd-run --user --unit=" +
+        tag +
+        " --property=MemoryMax=16G --property=MemorySwapMax=0 --property=RuntimeMaxSec=3600 --property=RemainAfterExit=yes docker run --name " +
+        tag +
+        " --user 0 --pull=never --network none --gpus all --memory 16g --memory-swap 16g -v " +
+        root +
+        ":/work -v " +
+        root +
+        "/weights:/checkpoint:ro --entrypoint /work/audio-upstream " +
+        image +
+        " /work/audio_vae /work/latent.f32 /work/waveform.f32",
+      ),
+    )
+  } else {
+    record(
+      root,
+      "terminal",
+      remote(
+        "docker logs " +
+        tag +
+        "; docker inspect --format '{{json .State}}' " +
+        tag,
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + root + "/waveform.f32",
+      root + "/waveform.f32",
+    ])
+    .output()
+    .check()
+  }
+}

@@ -1,16 +1,10 @@
 // Test-only CPython bridge to the ORIGINAL VideoVAE modules. No alternative
 // decoder, tensor math implementation, or Python automation is supplied here.
-#include <Python.h>
+#include "canonical_latent_input.h"
 #include <cstdio>
 #include <fstream>
 #include <iterator>
 #include <string>
-struct Owned {
-  PyObject *p;
-  explicit Owned(PyObject *v):p(v){}
-  ~Owned(){Py_XDECREF(p);}
-  Owned(const Owned&)=delete;
-};
 static PyObject* tensor(PyObject *torch,PyObject *values) {
   Owned fn(PyObject_GetAttrString(torch,"tensor")),args(PyTuple_Pack(1,values));
   Owned kwargs(Py_BuildValue("{s:s}","device","cuda"));
@@ -19,32 +13,10 @@ static PyObject* tensor(PyObject *torch,PyObject *values) {
 // The joint diagnostic exports standardized canonical NCTHW, not decoder
 // activations or destandardized latents. Loading stays CPU-only until replay.
 static PyObject *read_latent(PyObject *torch,const char *path) {
-  std::ifstream stream(path,std::ios::binary);
-  if(!stream){PyErr_SetString(PyExc_OSError,"latent input cannot be opened");return nullptr;}
-  std::string payload((std::istreambuf_iterator<char>(stream)),{});
-  if(payload.size()!=24*37*2*2*sizeof(float)) {
-    PyErr_SetString(PyExc_ValueError,"expected F32 standardized latent [1,24,37,2,2]");return nullptr;
-  }
-  Owned buffer(PyByteArray_FromStringAndSize(payload.data(),payload.size()));
-  Owned fn(PyObject_GetAttrString(torch,"frombuffer")),f32(PyObject_GetAttrString(torch,"float32"));
-  Owned args(buffer.p?PyTuple_Pack(1,buffer.p):nullptr),kwargs(f32.p?Py_BuildValue("{s:O}","dtype",f32.p):nullptr);
-  Owned view(fn.p&&args.p&&kwargs.p?PyObject_Call(fn.p,args.p,kwargs.p):nullptr);
-  // Clone before releasing the owning bytearray; no borrowed storage escapes.
-  Owned owned(view.p?PyObject_CallMethod(view.p,"clone",nullptr):nullptr);
-  return owned.p?PyObject_CallMethod(owned.p,"view","iiiii",1,24,37,2,2):nullptr;
+  return read_canonical_latent(torch,path,{1,24,37,2,2});
 }
 static int input_probe(const char *path) {
-  Owned torch(PyImport_ImportModule("torch"));
-  Owned input(torch.p?read_latent(torch.p,path):nullptr);
-  Owned array(input.p?PyObject_CallMethod(input.p,"numpy",nullptr):nullptr);
-  Owned bytes(array.p?PyObject_CallMethod(array.p,"tobytes",nullptr):nullptr);
-  if(!bytes.p)return -1;
-  std::ifstream stream(path,std::ios::binary);
-  std::string payload((std::istreambuf_iterator<char>(stream)),{});
-  if(payload.size()!=static_cast<size_t>(PyBytes_Size(bytes.p))||
-     payload!=std::string(PyBytes_AsString(bytes.p),PyBytes_Size(bytes.p))) {
-    PyErr_SetString(PyExc_AssertionError,"canonical latent loader changed F32 bytes");return -1;
-  }
+  if(canonical_input_probe(path,{1,24,37,2,2}))return -1;
   std::puts("original_video_latent_input_probe_passed cpu_only=true shape=NCTHW bytes_unchanged=true");
   return 0;
 }

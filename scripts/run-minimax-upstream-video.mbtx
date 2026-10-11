@@ -44,7 +44,9 @@ async fn main {
     (extra.is_empty() || (mode == "prepare" && extra.length() == 1)) &&
     root.has_prefix("/tmp/lunaflux-minimax-upstream-video-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
-    fail("prepare NEW_ROOT [CANONICAL_STANDARDIZED_LATENT_F32] | run|inspect PREPARED_ROOT")
+    fail(
+      "prepare NEW_ROOT [CANONICAL_STANDARDIZED_LATENT_F32] | run|inspect PREPARED_ROOT",
+    )
   }
   let tag = root.split("/").last().unwrap().to_owned()
   if mode == "prepare" {
@@ -59,8 +61,15 @@ async fn main {
       }
       @fs.write_file(root + "/latent.f32", input, create_mode=CreateNew)
     }
-    @fs.write_file(root + "/LATENT_INPUT.txt",
-      if captured { "captured" } else { "zero" }, create_mode=CreateNew)
+    @fs.write_file(
+      root + "/LATENT_INPUT.txt",
+      if captured {
+        "captured"
+      } else {
+        "zero"
+      },
+      create_mode=CreateNew,
+    )
     for
       file in [
         "config.json", "source/config.json", "attention.py", "base_module.py", "conv.py",
@@ -89,16 +98,18 @@ async fn main {
     ])
     .output()
     .check()
-    @shell.Cmd("scp", [
-      "-o",
-      "BatchMode=yes",
-      "-o",
-      "ControlPath=" + socket,
-      "benchmarks/checkpoint_aten_reference/aten/video_upstream.cpp",
-      node + ":" + root + "/video_upstream.cpp",
-    ])
-    .output()
-    .check()
+    for file in ["video_upstream.cpp", "canonical_latent_input.h"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        node + ":" + root + "/" + file,
+      ])
+      .output()
+      .check()
+    }
     record(
       root,
       "weights-view",
@@ -120,10 +131,17 @@ async fn main {
       ),
     )
     if captured {
-      record(root, "input-probe", remote(
-        "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
-        root + ":/work --entrypoint /work/video-upstream " + image +
-        " --input-probe /work/latent.f32"))
+      record(
+        root,
+        "input-probe",
+        remote(
+          "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+          root +
+          ":/work --entrypoint /work/video-upstream " +
+          image +
+          " --input-probe /work/latent.f32",
+        ),
+      )
     }
   } else if mode == "run" {
     let owners = remote(
@@ -146,7 +164,9 @@ async fn main {
         " /work /work/pixels.f32" +
         (if @fs.read_file(root + "/LATENT_INPUT.txt").text() == "captured" {
           " /work/latent.f32"
-        } else { "" }),
+        } else {
+          ""
+        }),
       ),
     )
   } else {
