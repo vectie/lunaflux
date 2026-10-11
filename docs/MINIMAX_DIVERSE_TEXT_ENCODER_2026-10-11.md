@@ -35,13 +35,41 @@ Inputs are not padded/truncated and old outputs are not overwritten.
 Eight worst-row comparisons improve and four worsen against the unchanged
 library reference. Compensation fixes loss of small contributions, as the
 independent component F64 oracle confirms; it does **not** establish uniform
-fifty-layer reference alignment. Row-only/head sensitivity remains under test.
+fifty-layer reference alignment. The isolated interventions below distinguish
+their interaction from a single faulty head or row kernel.
 No acceptance threshold is relaxed to call this corpus a numerical pass.
 
 Fresh source-selected digits and long outputs reproduce the separate AOT
 experiments bitwise. Final tensors, per-token comparisons and summary remain at
 `/tmp/lunaflux-minimax-source-norm-20261011-v2`. The comparator regression ensures
 that worst-token errors are not hidden by magnitude-weighted global norms.
+
+### Independent row/head interventions
+
+These fifty-layer Spark runs preserve the original projections, attention,
+weights, literal IDs and BF16 boundaries, changing only the named reduction.
+The independent reference remains unchanged. Each number is the **worst final
+token row**, which need not be the same row between runs.
+
+| Input | Original | Row-only compensation | Head-only compensation | Both, source-selected |
+| --- | --- | --- | --- | --- |
+| English, 20 rows | 1.7530% | 1.6158% | 1.4635% | 3.5986% |
+| Digits, 56 rows | 14.7532% | 14.2352% | 22.7025% | 3.1238% |
+| Long, 140 rows | 22.1058% | 5.3483% | Pending | 9.0533% |
+
+English improves under either isolated change, but worsens under their
+combination. Digits improves strongly only under their combination; changing
+the head reduction alone worsens it. Therefore the earlier row-only digits
+result does **not** isolate head normalization as the sole cause. The observed
+fifty-layer response is nonlinear and input-dependent; the two interventions'
+effects cannot be added or used to select a prompt-specific production rule.
+The component F64 accuracy result remains valid, but is distinct from matching
+the propagated output of a particular BF16 library implementation.
+
+Final tensors are under
+`/tmp/lunaflux-minimax-text-encoder-compensated-{row,head}-{english,digits}-20261011-v1`;
+the completed long row-only capture uses the corresponding `row-long` directory.
+All completed interventions exit zero, have finite tensors and release the GPU.
 
 ## Method and scope
 
