@@ -441,3 +441,20 @@ were intentionally refreshed for the new output law. Whole-repository native
 check and affected formatting/interfaces pass with the existing migration
 warning exclusions `-20-25-29-35-79-92`, not an unfiltered warning-clean claim.
 The 27-script no-hashing and token-step scan/copy/readback checks also pass.
+
+## Actual media inspection — 2026-10-11
+
+The completed stable-noise replay's raw video/audio were rendered for inspection
+with `scripts/render-minimax-preview.mbtx`. The converter preserves the request's
+already canonical `[0,1]` pixels (no second normalization), samples twelve frames
+across all 124 frames, and interleaves the two planar audio channels into 32-kHz
+PCM. Its pixel and stereo-order regressions pass. Spark `.179`'s existing ffmpeg
+converted the contact sheet without a GPU workload or image modification.
+
+The inspected contact sheet is visibly blurry/low-detail at **32×32 and five
+denoising evaluations**. It cannot establish caption fidelity or usable media
+quality. The WAV is a viewable artifact, not an independent audio-quality pass.
+Artifacts are retained at `/tmp/lunaflux-minimax-media-preview-20261011-v1`.
+The previous finite-array result remains an execution smoke test only. Meaningful
+resolution/step-count tests and an independent full-media comparison remain open;
+these have not been substituted with a tiny successful byte-count test.

@@ -48,6 +48,10 @@ set: text encoder, refiner, timestep variants, joint denoiser, input/output,
 flow updates and both media decoders. Optional image/reference conditioning
 still uses the typed source-export API. This command reads metadata only and
 opens no CUDA context; compilation does not establish checkpoint execution.
+For offline numerical interventions, append `SQUARE_LAW DOT_LAW`, independently
+`ordered` or `compensated`. Defaults retain compensated square reduction and
+ordered dots: blanket compensated dots failed the complete encoder corpus.
+These AOT-only choices do not add request-path configuration or device checks.
 
 `run-joint` executes the prepared text-only conditioning, paired denoising and
 both decoders. Its optional suffix `--cancel-request 0 --after-steps N` cancels

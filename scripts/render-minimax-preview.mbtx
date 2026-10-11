@@ -1,0 +1,137 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/string",
+}
+
+///|
+fn f32(bytes : Bytes, index : Int) -> Double raise {
+  let at = index * 4
+  guard at >= 0 && at + 4 <= bytes.length() else {
+    fail("truncated F32 output")
+  }
+  let bits = bytes[at].to_uint() |
+    (bytes[at + 1].to_uint() << 8) |
+    (bytes[at + 2].to_uint() << 16) |
+    (bytes[at + 3].to_uint() << 24)
+  let value = Float::reinterpret_from_uint(bits)
+  guard !value.is_nan() && !value.is_inf() else { fail("nonfinite output") }
+  value.to_double()
+}
+
+///|
+fn rgb(value : Double) -> Byte {
+  // The request already applies ImageNet inverse normalization and [0,1]
+  // clamp. Do NOT reinterpret these pixels as [-1,1] or normalize twice.
+  (value.max(0.0).min(1.0) * 255.0 + 0.5).to_int().to_byte()
+}
+
+///|
+fn little(bytes : Array[Byte], value : UInt, count : Int) -> Unit {
+  for shift in 0..<count {
+    bytes.push((value >> (shift * 8)).to_byte())
+  }
+}
+
+///|
+fn stereo_wav(audio : Bytes) -> Bytes raise {
+  guard audio.length() > 0 && audio.length() % 8 == 0 else {
+    fail("stereo F32 extent")
+  }
+  let samples = audio.length() / 8
+  let bytes : Array[Byte] = []
+  bytes.append(b"RIFF".to_array())
+  little(bytes, (samples * 4 + 36).reinterpret_as_uint(), 4)
+  bytes.append(b"WAVEfmt ".to_array())
+  little(bytes, 16U, 4)
+  little(bytes, 1U, 2)
+  little(bytes, 2U, 2)
+  little(bytes, 32000U, 4)
+  little(bytes, 128000U, 4)
+  little(bytes, 4U, 2)
+  little(bytes, 16U, 2)
+  bytes.append(b"data".to_array())
+  little(bytes, (samples * 4).reinterpret_as_uint(), 4)
+  for t in 0..<samples {
+    for c in 0..<2 {
+      let x = f32(audio, c * samples + t).max(-1.0).min(1.0)
+      let pcm = (x * (if x < 0.0 { 32768.0 } else { 32767.0 })).to_int()
+      little(bytes, pcm.reinterpret_as_uint(), 2)
+    }
+  }
+  Bytes::from_array(bytes)
+}
+
+///|
+fn contact_sheet(
+  video : Bytes,
+  frames : Int,
+  height : Int,
+  width : Int,
+) -> Bytes raise {
+  guard frames > 0 &&
+    height > 0 &&
+    width > 0 &&
+    video.length() == frames * height * width * 3 * 4 else {
+    fail("NCTHW extent")
+  }
+  let scale = if width <= 64 { 8 } else { 1 }
+  let canvas_w = 4 * width * scale
+  let canvas_h = 3 * height * scale
+  let pixels = Bytes::make(canvas_w * canvas_h * 3, 0).to_array()
+  for cell in 0..<12 {
+    let frame = cell * (frames - 1) / 11
+    for y in 0..<height {
+      for x in 0..<width {
+        for c in 0..<3 {
+          let source = ((c * frames + frame) * height + y) * width + x
+          let v = rgb(f32(video, source))
+          for sy in 0..<scale {
+            for sx in 0..<scale {
+              let dst_y = (cell / 4 * height + y) * scale + sy
+              let dst_x = (cell % 4 * width + x) * scale + sx
+              pixels[(dst_y * canvas_w + dst_x) * 3 + c] = v
+            }
+          }
+        }
+      }
+    }
+  }
+  let header = "P6\n\{canvas_w} \{canvas_h}\n255\n"
+  let result = @utf8.encode(header).to_array()
+  result.append(pixels)
+  Bytes::from_array(result)
+}
+
+///|
+test "preview preserves canonical pixels and interleaves stereo channels" {
+  assert_eq(rgb(0.0), (0).to_byte())
+  assert_eq(rgb(1.0), (255).to_byte())
+  assert_eq(rgb(0.5), (128).to_byte())
+  let waveform = stereo_wav(b"\x00\x00\x80\x3f\x00\x00\x80\xbf")
+  assert_eq(waveform.length(), 48)
+  assert_eq(waveform[44:48].to_owned(), b"\xff\x7f\x00\x80")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, source, destination, f, h, w] else {
+    fail("EXISTING_OUTPUT_DIRECTORY NEW_PREVIEW_DIRECTORY FRAMES HEIGHT WIDTH")
+  }
+  let frames = @string.parse_int(f)
+  let height = @string.parse_int(h)
+  let width = @string.parse_int(w)
+  let video = @fs.read_file(source + "/video.f32").binary()
+  let audio = @fs.read_file(source + "/audio.f32").binary()
+  let sheet = contact_sheet(video, frames, height, width)
+  let wav = stereo_wav(audio)
+  @fs.mkdir(destination)
+  @fs.write_file(destination + "/frames.ppm", sheet, create_mode=CreateNew)
+  @fs.write_file(destination + "/audio.wav", wav, create_mode=CreateNew)
+  println(
+    "preview_created frames=\{frames} dimensions=\{width}x\{height} fps=24 audio_hz=32000 scope=inspection_not_quality_pass",
+  )
+}

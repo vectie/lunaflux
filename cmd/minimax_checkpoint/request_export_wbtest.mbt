@@ -1,4 +1,25 @@
 ///|
+test "offline export independently selects explicit numerical reduction laws" {
+  let geometry = [
+    "32", "32", "120", "5", "3", "256", "64", "4096", "8589934592", "/tmp/output",
+  ]
+  let default = request_export_arguments(geometry)
+  assert_eq(default.square_law, @precision.CompensatedFloat32)
+  assert_eq(default.dot_law, @precision.OrderedFloat32)
+  let selected = geometry.copy()
+  selected.append(["ordered", "compensated"])
+  let independent = request_export_arguments(selected)
+  assert_eq(independent.square_law, @precision.OrderedFloat32)
+  assert_eq(independent.dot_law, @precision.CompensatedFloat32)
+  selected[11] = "unknown"
+  try request_export_arguments(selected) catch {
+    _ => ()
+  } noraise {
+    _ => fail("unknown numerical law")
+  }
+}
+
+///|
 test "full request export keeps each argument in its semantic role" {
   let options = request_export_arguments([
     "32", "48", "120", "5", "3", "256", "64", "4096", "8589934592", "/tmp/export",

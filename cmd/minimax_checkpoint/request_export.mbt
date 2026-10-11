@@ -33,6 +33,8 @@ async fn export_request(
   let text_plan = @text.TextEncoderPlan::new(
     rows=options.text_rows,
     epsilon=text.epsilon,
+    square_reduction_law=options.square_law,
+    dot_reduction_law=options.dot_law,
   )
   let max_metadata_bytes = 1073741824L
   // Each row needs BF16 hidden storage and two I32 indexing fields. Derive the
@@ -106,13 +108,34 @@ priv struct RequestExportArguments {
   max_tiles : Int
   workspace_bytes : Int64
   output_directory : String
+  square_law : @precision.SquareReductionLaw
+  dot_law : @precision.DotReductionLaw
 }
 
 ///|
 fn request_export_arguments(
   args : ArrayView[String],
 ) -> RequestExportArguments raise {
-  guard args
+  let (geometry, square_law, dot_law) = if args.length() == 12 {
+    let square : @precision.SquareReductionLaw = match args[10] {
+      "ordered" => OrderedFloat32
+      "compensated" => CompensatedFloat32
+      _ => fail("square reduction must be ordered or compensated")
+    }
+    let dot : @precision.DotReductionLaw = match args[11] {
+      "ordered" => OrderedFloat32
+      "compensated" => CompensatedFloat32
+      _ => fail("dot reduction must be ordered or compensated")
+    }
+    (args[:10], square, dot)
+  } else {
+    (
+      args,
+      @precision.SquareReductionLaw::CompensatedFloat32,
+      @precision.DotReductionLaw::OrderedFloat32,
+    )
+  }
+  guard geometry
     is [
       height,
       width,
@@ -138,6 +161,8 @@ fn request_export_arguments(
     max_tiles: @string.parse_int(tiles),
     workspace_bytes: @string.parse_int64(workspace),
     output_directory: output,
+    square_law,
+    dot_law,
   }
   guard options.height > 0 &&
     options.width > 0 &&

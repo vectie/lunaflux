@@ -5,6 +5,7 @@ import {
   "moonbitlang/core/buffer",
   "moonbitlang/core/string",
   "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/model/minimax_h3_config" @config,

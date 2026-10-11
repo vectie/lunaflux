@@ -9,13 +9,13 @@ reported separately below; the original tensors and reference remain unchanged.
 
 ## Source-selected normalization correction
 
-### Cancellation-sensitive dot-product correction (full encoder retest pending)
+### Cancellation-sensitive dot-product experiment (default rollout rejected)
 
 The precision IR now explicitly distinguishes ordered and compensated F32 dot
 reductions. A shared CUDA lowering implements Neumaier compensation; BF16
 operands, activation/normalization boundaries and final BF16 rounding remain.
-The MiniMax text plan selects this law for Q, K/V, output and staged MLP
-projections. Other callers keep the existing ordered default. This is an
+The MiniMax text plan can select this law for Q, K/V, output and staged MLP
+projections. Callers keep the existing ordered dot default. This is an
 accuracy-policy change, not bitwise equivalence to the old ordered sum.
 
 The actual generated kernels were tested on Spark `.179` against independent
@@ -25,9 +25,32 @@ MLP preserves projection, SiLU, product and down-projection rounding boundaries.
 CUDA memcheck/leak, racecheck and synccheck report zero errors. Results are in
 `/tmp/lunaflux-compensated-dot-20261011-v2`.
 
-These component results do not close the fifty-layer corpus differences.
-Fresh commit-pinned full-encoder runs and independent media-quality validation
-are still required; no acceptance threshold has been changed.
+All twelve commit-pinned fifty-layer runs completed on Spark `.179` with finite
+outputs and deterministic release. Their unchanged-reference worst-row errors
+are below. Component F64 accuracy did **not** predict uniform propagated
+alignment; the blanket rollout is therefore removed from the default path.
+The two reduction laws are now independently selectable in the immutable plan
+and offline exporter, enabling isolated dot-versus-normalization experiments.
+No prompt-specific production policy or relaxed acceptance threshold is added.
+
+| Input | Compensated squares, ordered dots | Compensated squares and dots |
+| --- | --- | --- |
+| Actual caption | 0.9558% | 1.1946% |
+| Long input | 9.0533% | 22.7638% |
+| English | 3.5986% | 1.3989% |
+| CJK | 1.5856% | 1.4158% |
+| Normalization | 1.6672% | 1.3907% |
+| Digits | 3.1238% | 9.6243% |
+| Whitespace | 1.1193% | 1.4348% |
+| Emoji | 1.5603% | 1.5960% |
+| Special-token text | 1.2104% | 1.3914% |
+| Code | 1.6576% | 1.3558% |
+| Scripts | 3.1358% | 2.5547% |
+| Punctuation | 2.1491% | 2.5755% |
+
+The source-selected experiment is retained at
+`/tmp/lunaflux-minimax-source-norm-dot-20261011-v1`. Five worst-row comparisons
+improve and seven worsen. Independent media-quality validation remains open.
 
 Pushed source `49b15d75` selects compensated F32 square summation explicitly in
 the pure precision plan. Both row and Q/K-head normalization consume that law

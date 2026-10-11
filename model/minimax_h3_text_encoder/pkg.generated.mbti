@@ -65,9 +65,10 @@ pub struct LayerWeights {
 pub struct TextEncoderPlan {
   rows : Int
   epsilon : Double
+  // private fields
 }
 pub fn TextEncoderPlan::dot_reduction_law(Self) -> @precision_ir.DotReductionLaw
-pub fn TextEncoderPlan::new(rows~ : Int, epsilon~ : Double) -> Self raise TextEncoderError
+pub fn TextEncoderPlan::new(rows~ : Int, epsilon~ : Double, square_reduction_law? : @precision_ir.SquareReductionLaw, dot_reduction_law? : @precision_ir.DotReductionLaw) -> Self raise TextEncoderError
 pub fn TextEncoderPlan::output_bytes(Self) -> Int64
 pub fn TextEncoderPlan::selected_hidden_state(Self) -> Int
 pub fn TextEncoderPlan::square_reduction_law(Self) -> @precision_ir.SquareReductionLaw

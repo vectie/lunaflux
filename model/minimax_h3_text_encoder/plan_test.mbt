@@ -1,4 +1,19 @@
 ///|
+test "encoder reduction laws are explicit and default excludes rejected dot rollout" {
+  let default = TextEncoderPlan::new(rows=3, epsilon=0.000001)
+  assert_eq(default.dot_reduction_law(), @precision.OrderedFloat32)
+  assert_eq(default.square_reduction_law(), @precision.CompensatedFloat32)
+  let independent = TextEncoderPlan::new(
+    rows=3,
+    epsilon=0.000001,
+    square_reduction_law=@precision.OrderedFloat32,
+    dot_reduction_law=@precision.CompensatedFloat32,
+  )
+  assert_eq(independent.dot_reduction_law(), @precision.CompensatedFloat32)
+  assert_eq(independent.square_reduction_law(), @precision.OrderedFloat32)
+}
+
+///|
 test "extractor excludes final norm and upper fourteen checkpoint layers" {
   let p = TextEncoderPlan::new(rows=3, epsilon=0.000001)
   assert_eq(p.selected_hidden_state(), 50)

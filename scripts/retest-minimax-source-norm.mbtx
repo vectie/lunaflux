@@ -94,7 +94,16 @@ async fn main {
       "prepare|run NEW_ROOT [--build BUILD_ROOT --commit COMMIT] ORIGINAL_CORPUS_CASES",
     )
   }
-  let (build_root, commit, cases) = source_selection(tail)
+  let (build_root, commit, selected) = source_selection(tail)
+  let (cases, reductions) = if selected
+    is ["--reductions", square, dot, .. cases] {
+    guard [square, dot].all(law => law == "ordered" || law == "compensated") else {
+      fail("explicit square and dot reductions must be ordered or compensated")
+    }
+    (cases, square + " " + dot)
+  } else {
+    (selected, "compensated ordered")
+  }
   guard mode is ("prepare" | "run") &&
     root.has_prefix("/tmp/lunaflux-minimax-source-norm-") &&
     !root.contains("..") &&
@@ -191,7 +200,8 @@ async fn main {
           rows.to_string() +
           " 256 64 4096 8589934592 " +
           config +
-          "/aot",
+          "/aot " +
+          reductions,
         ),
       )
       for file in ["SOURCES.v1", "text.cu"] {
@@ -270,7 +280,7 @@ async fn main {
           name +
           "/encode/hidden-50.bf16",
           receipts + "/comparison.txt",
-          "source_selected_compensated_norm",
+          "source_selected_encoder_numerics " + reductions,
         ]).output(max_output_bytes=65536),
       )
       println(

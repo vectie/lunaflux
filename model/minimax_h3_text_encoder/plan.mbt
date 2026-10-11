@@ -13,18 +13,27 @@ pub(all) suberror TextEncoderError {
 pub struct TextEncoderPlan {
   rows : Int
   epsilon : Double
+  priv square_law : @precision.SquareReductionLaw
+  priv dot_law : @precision.DotReductionLaw
 }
 
 ///|
 pub fn TextEncoderPlan::new(
   rows~ : Int,
   epsilon~ : Double,
+  square_reduction_law? : @precision.SquareReductionLaw = CompensatedFloat32,
+  dot_reduction_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise TextEncoderError {
   guard rows > 0 && rows <= 262144 else { raise InvalidRows }
   guard epsilon > 0.0 && epsilon <= 1.0 && !epsilon.is_nan() else {
     raise InvalidEpsilon
   }
-  { rows, epsilon, }
+  {
+    rows,
+    epsilon,
+    square_law: square_reduction_law,
+    dot_law: dot_reduction_law,
+  }
 }
 
 ///|
@@ -37,18 +46,18 @@ pub fn TextEncoderPlan::selected_hidden_state(_self : Self) -> Int {
 /// weight multiplication still round independently to BF16. This immutable law
 /// contains no device instructions and is consumed only during AOT lowering.
 pub fn TextEncoderPlan::square_reduction_law(
-  _self : Self,
+  self : Self,
 ) -> @precision.SquareReductionLaw {
-  CompensatedFloat32
+  self.square_law
 }
 
 ///|
 /// Cancellation-sensitive projection sums retain discarded F32 terms. This
 /// accuracy policy keeps all intermediate/operator BF16 rounding boundaries.
 pub fn TextEncoderPlan::dot_reduction_law(
-  _self : Self,
+  self : Self,
 ) -> @precision.DotReductionLaw {
-  CompensatedFloat32
+  self.dot_law
 }
 
 ///|

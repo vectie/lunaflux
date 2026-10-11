@@ -13,6 +13,28 @@ test "source distinguishes causal encoder from noncausal DiT and omits final nor
   // Both row and Q/K-head reductions consume the plan, not a patched cubin.
   assert_eq(text.split("float sum=0.0f, correction=0.0f;").count(), 3)
   assert_eq(text.split("const float square=__fmul_rn(v,v);").count(), 3)
+  assert_false(text.contains("accumulator_correction"))
+}
+
+///|
+test "independent numerical laws propagate through every encoder projection" {
+  let plan = @text_plan.TextEncoderPlan::new(
+    rows=3,
+    epsilon=0.000001,
+    square_reduction_law=OrderedFloat32,
+    dot_reduction_law=CompensatedFloat32,
+  )
+  let text = @utf8.decode(build_source(plan, prefix="isolated_dot").source)
+  assert_eq(text.split("float sum=0.0f, correction=0.0f;").count(), 1)
+  assert_eq(
+    text
+    .split("float accumulator = 0.0f, accumulator_correction = 0.0f;")
+    .count(),
+    4,
+  )
+  assert_true(text.contains("up_sum_correction"))
+  assert_true(text.contains("gate_sum_correction"))
+  assert_true(text.contains("sum_correction"))
 }
 
 ///|
