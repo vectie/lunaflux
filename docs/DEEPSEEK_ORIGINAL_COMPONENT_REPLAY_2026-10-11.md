@@ -1,5 +1,39 @@
 # DeepSeek original first-layer component replay — 2026-10-11
 
+## Learned compression corpus qualification
+
+The installed original `Compressor` and the production learned-pool CUDA
+lowering replay the same literal 144-row original FFN-normalized corpus with
+original layer-2 ratio-4 and layer-3 ratio-128 parameters. Forward hooks observe
+the original pooled and normalized values without replacing arithmetic.
+These are **not the actual inputs at layers 2 and 3** of a full execution:
+this qualifies component geometry and arithmetic, not later-layer alignment.
+
+| Boundary | Ratio 4 exact / values | Ratio 4 relative L2 | Ratio 128 exact / values |
+| --- | --- | --- | --- |
+| Pool, original projected operands | 18,432 / 18,432 | 0 | 512 / 512 |
+| Norm, original pooled operands | 18,431 / 18,432 | 0.001673019% | 512 / 512 |
+| Pool, native projections propagated | 18,430 / 18,432 | 0.000438643% | 512 / 512 |
+| Norm, native projections propagated | 18,429 / 18,432 | 0.001725301% | 512 / 512 |
+
+Both projection comparisons have F32 relative L2 below 0.000065%; the largest
+absolute difference is 0.00001192093. Rotary/cache quantization after norm,
+incremental compression across multiple submissions and full two-rank
+propagation are excluded. This does not explain the retained 18–21% state gap.
+
+Artifacts: `/tmp/lunaflux-deepseek-original-pool-20261011-v1`. Original and
+native runs exit zero, original containers report `OOMKilled=false`, and both
+ratios pass memcheck/leak, racecheck and synccheck with deterministic release.
+One runner regression and three source-package tests pass. No production
+arithmetic, acceptance tolerance or runtime hardening changed.
+
+```sh
+moon run scripts/replay-deepseek-original-pool.mbtx prepare NEW_ROOT ORIGINAL_144_ROW_BF16
+moon run scripts/replay-deepseek-original-pool.mbtx run ROOT
+moon run scripts/replay-deepseek-original-pool.mbtx sanitize ROOT
+moon run scripts/replay-deepseek-original-pool.mbtx collect ROOT
+```
+
 The final retained-state discrepancy is not localized by agreeing greedy tokens.
 The bounded offline replay starts earlier, with the same 144 literal prompt IDs
 and original first-layer checkpoint weights on Spark `.179`. The installed

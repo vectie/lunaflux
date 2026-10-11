@@ -1,0 +1,169 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+///|
+let checkpoint : String = "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT/DeepSeek-V4-Flash-DSpark"
+///|
+let inference : String = "/tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference"
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(max_output_bytes=2097152)
+}
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + name + ".stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + name + ".stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+}
+///|
+async fn upload(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
+    source, node + ":" + destination]).output().check()
+}
+///|
+fn stages(ratio : Int) -> Array[(String, Int)] {
+  let channels = if ratio == 4 { 1024 } else { 512 }
+  [("wkv-projection.f32", 144 * channels * 4), ("wgate-projection.f32", 144 * channels * 4),
+    ("pooled.bf16", 144 / ratio * 512 * 2), ("normalized.bf16", 144 / ratio * 512 * 2)]
+}
+///|
+fn parameters(ratio : Int) -> Array[(String, Int)] {
+  let channels = if ratio == 4 { 1024 } else { 512 }
+  [("wkv.bf16", channels * 4096 * 2), ("wgate.bf16", channels * 4096 * 2),
+    ("ape.f32", ratio * channels * 4), ("norm.bf16", 1024),
+    ("transformed.bf16", 144 / ratio * 1024)]
+}
+///|
+test "pool replay separates original staged operands and both compression ratios" {
+  assert_eq(stages(4)[2], ("pooled.bf16", 36864))
+  assert_eq(stages(128)[2], ("pooled.bf16", 1024))
+  assert_eq(parameters(4)[2], ("ape.f32", 16384))
+  assert_eq(parameters(128)[2], ("ape.f32", 262144))
+}
+///|
+async fn idle() -> Unit {
+  let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+}
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-original-pool-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("prepare NEW_ROOT LITERAL_ORIGINAL_144_ROW_BF16 | run|sanitize|collect ROOT")
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    guard extra is [input] else { fail("literal original corpus required") }
+    let bytes = @fs.read_file(input).binary()
+    guard bytes.length() == 144 * 8192 else { fail("complete 144-row input required") }
+    @fs.mkdir(root)
+    @fs.write_file(root + "/input.bf16", bytes, create_mode=CreateNew)
+    record(root, "mkdir", remote("mkdir " + root))
+    upload(root + "/input.bf16", root + "/input.bf16")
+    for ratio in [4, 128] {
+      let path = root + "/ratio" + ratio.to_string()
+      @fs.mkdir(path)
+      for dir in ["original", "matched", "propagated"] { @fs.mkdir(path + "/" + dir) }
+      record(root, "mkdir-" + ratio.to_string(), remote("mkdir " + path + " " +
+        path + "/original " + path + "/matched " + path + "/propagated"))
+    }
+    record(root, "export", @shell.Cmd("moon", ["test", "--target", "native", "--deny-warn",
+      "--warn-list", "-20-25-29-35-79-92", "kernels/learned_gated_pool_cuda_source",
+      "--filter", "original pool replay covers full ratio4 and ratio128 projection and state geometry"],
+      env={"LUNAFLUX_MATCHED_POOL_SOURCE_OUTPUT_4": root + "/ratio4/pool_matched_kernels.cuh",
+        "LUNAFLUX_MATCHED_POOL_SOURCE_OUTPUT_128": root + "/ratio128/pool_matched_kernels.cuh"}).output())
+    for file in ["pool_upstream.cpp", "original_tensor_io.h"] {
+      upload("benchmarks/checkpoint_aten_reference/aten/" + file, root + "/" + file)
+    }
+    upload("tests/packed_moe_execution/pool_matched_probe.cu", root + "/pool_matched_probe.cu")
+    record(root, "compile-original", remote("docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+      root + ":/work --entrypoint g++ " + image +
+      " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/pool_upstream.cpp -o /work/pool-upstream -lpython3.12"))
+    for ratio in [4, 128] {
+      let path = root + "/ratio" + ratio.to_string()
+      upload(path + "/pool_matched_kernels.cuh", path + "/pool_matched_kernels.cuh")
+      record(root, "compile-native-" + ratio.to_string(), remote("systemd-run --user --wait --pipe --unit=" +
+        tag + "-compile" + ratio.to_string() + " --property=MemoryMax=2G --property=MemorySwapMax=0 " +
+        "/usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 -I" + path + " " +
+        root + "/pool_matched_probe.cu -o " + path + "/pool-native"))
+    }
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected options") }
+    for ratio in [4, 128] {
+      idle()
+      let r = ratio.to_string()
+      let path = root + "/ratio" + r
+      record(root, "original-run-" + r, remote("systemd-run --user --wait --pipe --unit=" +
+        tag + "-original" + r + " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+        "docker run --name " + tag + "-r" + r + " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+        root + ":/work -v " + checkpoint + ":/model:ro -v " + inference + ":/inference:ro " +
+        "--entrypoint /work/pool-upstream " + image + " /inference /model /work/input.bf16 /work/ratio" + r + "/original 144 " + r))
+      record(root, "original-terminal-" + r, remote("docker inspect --format '{{json .State}}' " + tag + "-r" + r))
+      for route in ["matched", "propagated"] {
+        idle()
+        record(root, route + "-run-" + r, remote("systemd-run --user --wait --pipe --unit=" +
+          tag + "-" + route + r + " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+          path + "/pool-native " + path + "/original " + path + "/" + route + " " + root + "/input.bf16 " + route))
+      }
+    }
+    record(root, "released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+  } else if mode == "sanitize" {
+    guard extra.is_empty() else { fail("unexpected options") }
+    for ratio in [4, 128] {
+      let r = ratio.to_string()
+      let path = root + "/ratio" + r
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        idle()
+        let out = path + "/" + tool
+        record(root, tool + "-mkdir-" + r, remote("mkdir " + out))
+        record(root, tool + "-run-" + r, remote("systemd-run --user --wait --pipe --unit=" +
+          tag + "-" + tool + r + " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+          "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " + tool +
+          (if tool == "memcheck" { " --leak-check full" } else { "" }) + " --error-exitcode 99 " +
+          path + "/pool-native " + path + "/original " + out + " " + root + "/input.bf16 matched"))
+      }
+    }
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected options") }
+    for ratio in [4, 128] {
+      let r = ratio.to_string()
+      let path = root + "/ratio" + r
+      for dir in ["original", "matched", "propagated"] {
+        let files = stages(ratio)
+        if dir == "original" { files.append(parameters(ratio)) }
+        for (file, expected) in files {
+          let target = path + "/" + dir + "/" + file
+          @fs.write_file(target, b"", create_mode=CreateNew)
+          @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
+            node + ":" + target, target]).output().check()
+          guard @fs.read_file(target).binary().length() == expected else { fail("truncated " + target) }
+        }
+        if dir == "original" { continue }
+        for (file, _) in stages(ratio) {
+          let output = path + "/" + dir + "-" + file + ".txt"
+          let args = if file.has_suffix(".bf16") {
+            ["run", "scripts/compare-minimax-encoder-reference.mbtx", path + "/" + dir + "/" + file,
+              path + "/original/" + file, output, "original_pool_" + dir, "512"]
+          } else {
+            ["run", "scripts/compare-f32-tensors.mbtx", path + "/" + dir + "/" + file,
+              path + "/original/" + file, output, "original_pool_" + dir]
+          }
+          record(root, "comparison-" + r + "-" + dir + "-" + file, @shell.Cmd("moon", args).output())
+        }
+      }
+    }
+  } else { fail("unknown mode") }
+  println("original_pool_" + mode + " complete; corpus qualification, not a matched full layer")
+}
