@@ -92,11 +92,27 @@ The native frontend replay now supports an explicit `--prefill-rows 1..6`
 diagnostic partition. This changes only logical prompt frames: the unchanged
 six-row AOT allocation/execution capacity still accommodates DSpark's five-row
 verification block. It must not be described as a newly compiled one-row kernel.
-The one-row native campaign is prepared at
+The one-row native campaign completed at
 `/tmp/lunaflux-dspark-run-token-prefill-20261011-v1` with the same corrected
-`4ecd2040` binary/AOT and all 144 literal IDs. CPU generation preflight passes
-for eight new tokens and stop token one; GPU comparison is pending while the
-independent MiniMax capture owns `.178`. Preparation does not initialize CUDA.
+`4ecd2040` binary/AOT and all 144 literal IDs. Both ranks exit zero and release
+their GPU owners. Logical row count is one, while physical AOT capacity remains
+six. The captured frontier is therefore physical row **zero**, not row five.
+
+| Native one-row vs original one-row, 129,280 logits | Result |
+| --- | --- |
+| Native / original greedy token | 33310 / 33310 |
+| Native / original winning score | 34.619720 / 34.679176 |
+| RMSE | 0.686261 |
+| Relative L2 | **12.4704%** |
+| Maximum absolute difference | 4.995758 |
+
+The matched logical partition does **not** close the full-logit discrepancy.
+The earlier native-six-row versus original-one-row comparison is a different
+experiment and remains preserved. Matching the first token is not distribution
+equivalence. This diagnostic requests one generated token to capture logits;
+the prepared eight-token/EOS envelope still needs its separate native replay.
+Full outputs and the exact row selection are recorded in
+`MATCHED_ONE_ROW_LOGITS.txt`; no correctness threshold is relaxed.
 
 The complete local native suite after this change passed **4,997/4,997**, using
 the existing toolchain-migration warning exclusions `-20-25-29-35-79-92`.

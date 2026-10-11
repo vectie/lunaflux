@@ -113,7 +113,8 @@ at `/tmp/lunaflux-minimax-joint-latents-selected-20261011-v1`, with the existing
 five-step seed and FP16 VideoVAE module. Commit `98d5e90b` enables terminal-only
 canonical latent capture; the other joint AOT modules are unchanged. Its declared
 residency budget remains below 96 GiB, and no GPU workloads overlap on `.178`.
-The running replay is not yet a completed media-quality result.
+That replay completed and released its GPU; its five old-schedule evaluations
+make it a decoder-isolation fixture, not an original-schedule quality result.
 
 `scripts/collect-minimax-joint-output.mbtx` can explicitly collect the canonical
 latents with `--latents VIDEO_LATENT_BYTES AUDIO_LATENT_BYTES`, preserving the
@@ -132,3 +133,19 @@ Torch/CPython process lifetime is disabled, so this is not an LSAN result.
 The native suite remains **5,003/5,003**, with the documented preexisting
 toolchain warning exclusions. Generated-latent GPU comparisons and meaningful
 media quality remain open until the corresponding actual outputs are inspected.
+
+The original AudioVAE has now decoded this captured standardized latent. All
+331,200 waveform values are finite; native versus original has **0.071764%**
+relative L2 and maximum absolute error 0.000357319. Evidence is under
+`/tmp/lunaflux-minimax-upstream-audio-generated-20261011-v1`. A separate matched
+destandardized-zero replay measures 0.053442% relative L2. The earlier 97.5%
+zero comparison used different standardized/destandardized inputs and is not
+decoder-error attribution. Generated VideoVAE replay is separate; neither
+decoder comparison by itself validates caption fidelity or audio quality.
+
+Corrected-schedule joint replay uses committed `de9e1ec8` under
+`/tmp/lunaflux-minimax-joint-sigma-20261011-v1`. Fresh AOT preparation is at
+`/tmp/lunaflux-minimax-request-aot-sigma-20261011-v3`: 27 unchanged module sources
+reuse their prior CUBINs; four changed module sources are recompiled. The request
+contains five original F32 grid points and therefore **four** model evaluations.
+Its completion and media inspection remain required; dispatch is not a pass.

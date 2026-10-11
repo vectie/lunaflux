@@ -42,7 +42,7 @@ fn canonical_input(bytes : Bytes) -> Bytes raise {
   // Bounded companion to the 120-frame joint replay: stereo, 32 channels,
   // 207 latent frames. This is not a general request-shape restriction.
   guard bytes.length() == 2 * 32 * 207 * 4 else {
-    fail("expected canonical standardized [2,32,207] F32 audio latent")
+    fail("expected canonical [2,32,207] F32 audio latent")
   }
   bytes
 }
@@ -100,12 +100,12 @@ async fn ownership_probe(root : String) -> Unit {
 ///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
-    mode is ("prepare" | "probe" | "run" | "inspect") &&
-    (if mode == "run" { extra.length() == 1 } else { extra.is_empty() }) &&
+    mode is ("prepare" | "probe" | "run" | "run-destandardized" | "inspect") &&
+    (if mode == "run" || mode == "run-destandardized" { extra.length() == 1 } else { extra.is_empty() }) &&
     root.has_prefix("/tmp/lunaflux-minimax-upstream-audio-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail(
-      "prepare NEW_ROOT | probe PREPARED_ROOT | run PREPARED_ROOT CANONICAL_LATENT_F32 | inspect ROOT",
+      "prepare NEW_ROOT | probe PREPARED_ROOT | run|run-destandardized PREPARED_ROOT CANONICAL_LATENT_F32 | inspect ROOT",
     )
   }
   let tag = root.split("/").last().unwrap().to_owned()
@@ -176,7 +176,7 @@ async fn main {
     ownership_probe(root)
   } else if mode == "probe" {
     ownership_probe(root)
-  } else if mode == "run" {
+  } else if mode == "run" || mode == "run-destandardized" {
     let input = canonical_input(@fs.read_file(extra[0]).binary())
     @fs.write_file(root + "/latent.f32", input, create_mode=CreateNew)
     upload(root + "/latent.f32", root + "/latent.f32")
@@ -210,7 +210,8 @@ async fn main {
         root +
         "/weights:/checkpoint:ro --entrypoint /work/audio-upstream " +
         image +
-        " /work/audio_vae /work/latent.f32 /work/waveform.f32",
+        " /work/audio_vae /work/latent.f32 /work/waveform.f32" +
+        (if mode == "run-destandardized" { " --destandardized" } else { "" }),
       ),
     )
   } else {

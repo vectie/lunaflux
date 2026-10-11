@@ -2,13 +2,14 @@
 // destandardization and decoding are original code, not a new arithmetic port.
 #include "canonical_latent_input.h"
 #include <cstdio>
-static int execute(const char *root,const char *source,const char *destination) {
+static int execute(const char *root,const char *source,const char *destination,bool standardized) {
   Owned torch(PyImport_ImportModule("torch"));
   Owned module(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.vae"));
   if(!torch.p||!module.p)return -1;
   Owned threads(PyObject_CallMethod(torch.p,"set_num_threads","i",2));
+  Owned grad_mode(PyObject_CallMethod(torch.p,"set_grad_enabled","O",Py_False));
   Owned input(read_canonical_latent(torch.p,source,{2,32,207}));
-  if(!threads.p||!input.p)return -1;
+  if(!threads.p||!grad_mode.p||!input.p)return -1;
   Owned cls(PyObject_GetAttrString(module.p,"MiniMaxH3AudioVAE"));
   Owned path(PyUnicode_FromString(root));
   Owned args(path.p?PyTuple_Pack(1,path.p):nullptr);
@@ -16,7 +17,12 @@ static int execute(const char *root,const char *source,const char *destination) 
   Owned kwargs(device.p?Py_BuildValue("{s:O}","device",device.p):nullptr);
   Owned model(cls.p&&args.p&&kwargs.p?PyObject_Call(cls.p,args.p,kwargs.p):nullptr);
   Owned moved(PyObject_CallMethod(input.p,"to","s","cuda"));
-  Owned waveform(model.p&&moved.p?PyObject_CallMethod(model.p,"decode_latent","O",moved.p):nullptr);
+  Owned remote(model.p&&!standardized?PyObject_GetAttrString(model.p,"remote"):nullptr);
+  Owned raw(remote.p&&moved.p?PyObject_CallMethod(remote.p,"decode","O",moved.p):nullptr);
+  Owned permuted(raw.p?PyObject_CallMethod(raw.p,"permute","iii",1,0,2):nullptr);
+  Owned waveform(standardized?
+    (model.p&&moved.p?PyObject_CallMethod(model.p,"decode_latent","O",moved.p):nullptr):
+    (permuted.p?PyObject_CallMethod(permuted.p,"contiguous",nullptr):nullptr));
   if(!waveform.p)return -1;
   Owned cpu(PyObject_CallMethod(waveform.p,"cpu",nullptr));
   Owned array(cpu.p?PyObject_CallMethod(cpu.p,"numpy",nullptr):nullptr);
@@ -34,15 +40,17 @@ static int execute(const char *root,const char *source,const char *destination) 
   const bool written=std::fwrite(PyBytes_AsString(bytes.p),1,count,file)==static_cast<size_t>(count);
   const bool closed=std::fclose(file)==0;
   if(!written||!closed){PyErr_SetString(PyExc_OSError,"original waveform write failed");return -1;}
-  std::printf("original_audio_vae=true standardized_latent=[2,32,207] dtype=float32 output_shape=%s output_bytes=%zd\n",PyUnicode_AsUTF8(repr.p),count);
+  std::printf("original_audio_vae=true standardized_latent=%s latent_shape=[2,32,207] dtype=float32 output_shape=%s output_bytes=%zd\n",standardized?"true":"false",PyUnicode_AsUTF8(repr.p),count);
   return 0;
 }
 int main(int argc,char **argv) {
-  if(argc!=3&&argc!=4){std::fputs("ORIGINAL_COMPONENT CANONICAL_LATENT_F32 NEW_WAVEFORM_F32 | --input-probe LATENT_F32\n",stderr);return 2;}
+  if(argc!=3&&argc!=4&&argc!=5){std::fputs("ORIGINAL_COMPONENT CANONICAL_LATENT_F32 NEW_WAVEFORM_F32 [--destandardized] | --input-probe LATENT_F32\n",stderr);return 2;}
   const bool probe=std::string(argv[1])=="--input-probe";
-  if(!probe&&argc!=4)return 2;
+  if(!probe&&argc!=4&&argc!=5)return 2;
+  const bool standardized=argc!=5;
+  if(!standardized&&std::string(argv[4])!="--destandardized")return 2;
   Py_Initialize();
-  const int result=probe?canonical_input_probe(argv[2],{2,32,207}):execute(argv[1],argv[2],argv[3]);
+  const int result=probe?canonical_input_probe(argv[2],{2,32,207}):execute(argv[1],argv[2],argv[3],standardized);
   if(PyErr_Occurred())PyErr_Print();
   if(!result&&probe)std::puts("original_audio_latent_input_probe_passed cpu_only=true bytes_unchanged=true");
   const int finalized=Py_FinalizeEx();

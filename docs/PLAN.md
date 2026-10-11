@@ -62,14 +62,18 @@ are not payload-integrity scans and remain distinct from this cleanup.
 
 ## Current three-model completion ledger — 2026-10-11
 
-Latest numerical work supersedes the original baseline below. Independent
-original-weight GLM/DeepSeek full-model differential runs are complete on both
-Sparks, but are not strict original-arithmetic acceptance: GLM's reference
-collapses unequal gate/up scales, while DeepSeek's reference changes KV
-precision and routing-weight placement relative to rounding. The corrected
-DeepSeek head capture verifies the emitted token on physical row 5 before
-comparing margins. Preserve the actual numerical contracts rather than change
-native math/checkpoint bytes to imitate these reference limitations.
+Latest numerical work supersedes the original baseline below. GLM's original
+expert-parallel reference now preserves unequal gate/up global scales and matches
+16/16 bounded native greedy tokens across two literal prompts. This is not
+full-vocabulary/all-prompt parity. The original-source DeepSeek MP2 route also
+runs with bounded rank loading and the disclosed sixteen-head GB10 launch
+adapter. Its literal 144-token prompt and two rank logits agree. Native's
+corrected BF16 probability boundary fixes the first-token disagreement, while
+full-logit differences remain. Whole-prompt versus one-token original prefill
+itself changes logits; matched native one-token replay completes but retains
+12.4704% full-logit relative L2, despite the same first token. Preserve
+these actual arithmetic/workload differences rather than call the installed
+serving backends interchangeable numerical oracles.
 
 MiniMax source `49b15d75` propagates compensated F32 normalization through its
 immutable precision plan and unmodified AOT export. The complete twelve-case
@@ -88,17 +92,17 @@ reference regression and does not close the existing four propagated ones.
 
 Remaining work is numerical/functional, not hardening:
 
-- A faithful GLM comparison must preserve separate original gate/up global
-  scales; the installed fused reference is not such an oracle.
+- Extend the completed bounded GLM EP comparison beyond sixteen greedy tokens;
+  the installed collapsed-scale TP backend is not an interchangeable oracle.
 - A faithful DeepSeek comparison must retain original expert rounding order
   and explicit KV numeric boundaries: block-64 FP8 simulation on the non-rotary
   prefix, BF16 rotary suffix and BF16 persistent publication, not the installed
   serving reference's mandatory persistent FP8 cache. Its upstream converter retains
-  the full checkpoint's rank dictionaries before writing; do not run that
-  unbounded conversion against the Spark memory limit. A bounded streaming
-  adapter is needed before that route is usable. The installed reference image
-  also lacks `fast_hadamard_transform` and has TileLang 0.1.12, not the original
-  source's required 0.1.8. No original-upstream execution is claimed.
+  the full checkpoint's rank dictionaries before writing; that unbounded
+  conversion is not used. Bounded streaming conversion and the original-source
+  dependency adapter now run on the Sparks; the earlier conversion/dependency
+  blockers are historical, not remaining work. Matched prefill partition,
+  EOS, multiple literal prompts and full-logit agreement remain to be completed.
 - MiniMax needs whole-model numerical/media-quality attribution in addition
   to its accurate normalization component. Its fresh committed full media
   request completes on Spark with finite arrays and explicit resource release.
@@ -113,6 +117,17 @@ Remaining work is numerical/functional, not hardening:
   Rerolled-noise attribution is complete for this fixture. Independent upstream
   media quality and the four encoder/reference regressions remain open; do not
   assign the former large array change to normalization or call it a quality gain.
+
+Original MiniMax schedule comparison now identifies and fixes a separate real
+defect: the F32 inclusive-zero grid counts points, not evaluations. Five points
+must run four denoiser evaluations, not the previous five. The backend-neutral
+grid/interval plan matches 2,174 original CPU sigma values bitwise and passes
+the complete 5,004-test working-tree native suite. Commit-pinned corrected
+media execution is running with four intervals. Matched original AudioVAE
+replays complete: 0.053442% relative L2 for destandardized zero and 0.071764%
+for actual standardized generated latents. Original generated VideoVAE replay
+and meaningful media quality remain open; finite old-schedule 32×32 media is
+not a quality pass.
 
 No payload hash, TLS, authentication step or production dependency is added by
 these diagnostics. Existing memory ceilings and deterministic release remain.

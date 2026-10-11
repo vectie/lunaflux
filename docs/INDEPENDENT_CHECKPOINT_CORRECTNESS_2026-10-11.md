@@ -42,6 +42,17 @@ mode for that standalone fixture; joint generated latents continue through the
 original adapter's normal standardization conversion. Identical-input replay
 must precede decoder-error and media-quality claims.
 
+That identical-input audio replay is now complete on Spark `.179`. Original
+raw decoding versus native standalone destandardized zero has **0.053442%**
+relative L2, RMSE 0.0000493934 and maximum absolute error 0.000781611 over
+331,200 finite waveform values. The normal original adapter also decoded the
+captured **standardized generated** latent from the selected-conditioning joint
+run: relative L2 **0.071764%**, RMSE 0.0000250496, maximum absolute error
+0.000357319. The separate reports are under
+`/tmp/lunaflux-minimax-upstream-audio-raw-zero-20261011-v2` and
+`/tmp/lunaflux-minimax-upstream-audio-generated-20261011-v1`.
+Neither numerical replay establishes intelligibility or semantic media quality.
+
 The schedule correction passes the complete working-tree native suite,
 **5,004/5,004**, with unchanged migration warning exclusions. AOT integration
 fixtures retain their numerical/source assertions; only plan-dependent
@@ -106,6 +117,13 @@ both select `33310`; corrected native versus one-token reference differs by
 **11.7744%**. This does not prove that native's six-row execution is numerically
 equivalent or that partitioning explains every difference. The separate full
 comparison and remaining limits are recorded in the probability-precision report.
+
+The subsequent **native one-row** run completes too, with all 144 literal IDs
+and the unchanged six-row physical AOT capacity. Comparing its active row zero
+against the original one-token reference still leaves **12.4704% full-vocabulary
+relative L2**, RMSE 0.686261 and maximum error 4.995758. Both choose `33310`,
+but matching logical prefill partition has not solved numerical equivalence.
+This capture requests only one new token, so EOS agreement remains open.
 
 The original-layout GLM scale adapter completed both real TP-rank requests in
 `/tmp/lunaflux-independent-glm-20261011-v3`. The 13-token prompt still matches

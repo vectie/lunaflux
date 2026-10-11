@@ -1,0 +1,69 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock", "wlc003s@192.168.2.178", command]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn record(root : String, label : String, result : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + label + ".stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + label + ".stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, build, previous_variant, previous_aot] &&
+    root.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    [root, build, previous_variant, previous_aot].all(path => {
+      !path.contains("..") && path.iter().all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '_' | '.'))
+    }) else { fail("NEW_ROOT COMMIT_BUILD PREVIOUS_CONFIG_VARIANT PREVIOUS_AOT") }
+  @fs.mkdir(root)
+  let tag = root.split("/").last().unwrap().to_owned()
+  let config = root + "/config"
+  record(root, "mkdir", remote("mkdir " + root + " " + config + " " + root + "/aot " + config + "/transformer " + config + "/text_encoder " + config + "/audio_vae " + config + "/video_vae " + config + "/video_vae/source"))
+  for file in ["DENOISER.inventory", "model_index.json", "transformer/config.json", "text_encoder/config.json", "audio_vae/config.json", "audio_vae/metadata.json", "audio_vae/config.yaml", "video_vae/config.json", "video_vae/source/config.json"] {
+    if file == "text_encoder/config.json" {
+      @shell.Cmd("scp", ["-o", "BatchMode=yes", "lunanexa-management:/data/models/MiniMax/MiniMax-H3/FL2VA/" + file, root + "/text-encoder-config.json"]).output().check()
+      @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock", root + "/text-encoder-config.json", "wlc003s@192.168.2.178:" + config + "/" + file]).output().check()
+    } else {
+      remote("cp " + previous_variant + "/" + file + " " + config + "/" + file).check()
+    }
+  }
+  let binary = build + "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  record(root, "export", remote("systemd-run --user --wait --pipe --unit=" + tag + "-export --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " + binary + " export-request " + config + " 32 32 120 5 3 256 64 4096 8589934592 " + root + "/aot"))
+  let manifest = remote("cat " + root + "/aot/SOURCES.v1")
+  manifest.check()
+  @fs.write_file(root + "/SOURCES.v1", manifest.stdout(), create_mode=CreateNew)
+  let reused : Array[String] = []
+  let compiled : Array[String] = []
+  for line in manifest.stdout().split("\n") {
+    if !line.has_prefix("module=") { continue }
+    let name = line.split("\t").next().unwrap()[7:].to_owned()
+    guard !name.is_empty() && name.iter().all(c => c is ('a'..='z' | '0'..='9' | '_')) else { fail("bad module name") }
+    let unchanged = remote("cmp " + root + "/aot/" + name + ".cu " + previous_aot + "/" + name + ".cu")
+    @fs.write_file(root + "/" + name + "-source-comparison.stdout", unchanged.stdout(), create_mode=CreateNew)
+    @fs.write_file(root + "/" + name + "-source-comparison.stderr", unchanged.stderr(), create_mode=CreateNew)
+    try unchanged.check() catch {
+      _ => {
+        record(root, name + "-compile", remote("systemd-run --user --wait --pipe --unit=" + tag + "-" + name + " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " + root + "/aot/" + name + ".cu -o " + root + "/aot/" + name + ".cubin"))
+        compiled.push(name)
+      }
+    } noraise {
+      _ => {
+        remote("cp " + previous_aot + "/" + name + ".cubin " + root + "/aot/" + name + ".cubin").check()
+        reused.push(name)
+      }
+    }
+  }
+  @fs.write_file(root + "/PREPARED.txt", "build=" + build + "\nrequested_sigma_points=5\nmodel_evaluations=4\nreused_modules=" + reused.join(",") + "\ncompiled_modules=" + compiled.join(",") + "\nGPU_execution=false\n", create_mode=CreateNew)
+  println("schedule replay prepared from committed exporter; reused=\{reused.length()} compiled=\{compiled.length()}")
+}
