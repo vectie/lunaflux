@@ -1,0 +1,118 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+/// Byte permutation only: packed [T,H/2,W/2,C,2,2] -> canonical [C,T,H,W].
+/// No RNG, rounding, scaling, or diffusion arithmetic is performed here.
+fn unpatch(
+  input : Bytes,
+  channels : Int,
+  time : Int,
+  height : Int,
+  width : Int,
+) -> Bytes raise {
+  guard channels > 0 &&
+    time > 0 &&
+    height > 0 &&
+    width > 0 &&
+    height % 2 == 0 &&
+    width % 2 == 0 &&
+    channels.to_int64() *
+    time.to_int64() *
+    height.to_int64() *
+    width.to_int64() *
+    4L ==
+    input.length().to_int64() else {
+    fail("literal packed video noise extent differs")
+  }
+  let output = FixedArray::make(input.length(), b'\x00')
+  for c in 0..<channels {
+    for t in 0..<time {
+      for y in 0..<height {
+        for x in 0..<width {
+          let row = (t * (height / 2) + y / 2) * (width / 2) + x / 2
+          let column = (c * 2 + y % 2) * 2 + x % 2
+          let source = (row * channels * 4 + column) * 4
+          let target = (((c * time + t) * height + y) * width + x) * 4
+          for byte in 0..<4 {
+            output[target + byte] = input[source + byte]
+          }
+        }
+      }
+    }
+  }
+  Bytes::from_array(output)
+}
+
+///|
+test "canonical noise keeps channel and spatial ownership with exact bytes" {
+  let packed = [0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 6, 7, 10, 11, 14, 15]
+  // One word per element; deliberately use non-F32-specific bit patterns.
+  let words = Bytes::from_array(Array::makei(64, i => packed[i / 4].to_byte()))
+  let result = unpatch(words, 2, 1, 2, 4)
+  for element in 0..<16 {
+    for byte in 0..<4 {
+      assert_eq(result[element * 4 + byte], element.to_byte())
+    }
+  }
+  let temporal = [0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15]
+  let temporal_words = Bytes::from_array(
+    Array::makei(64, i => temporal[i / 4].to_byte()),
+  )
+  assert_eq(unpatch(temporal_words, 2, 2, 2, 2), result)
+  try unpatch(words, 2, 1, 2, 3) catch {
+    _ => ()
+  } noraise {
+    _ => fail("incomplete patch accepted")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, source, output, time, height, width, audio_time] else {
+    fail(
+      "ORIGINAL_OUTPUT_DIRECTORY NEW_CANONICAL_DIRECTORY LATENT_TIME LATENT_HEIGHT LATENT_WIDTH AUDIO_LATENT_TIME",
+    )
+  }
+  let t = @string.parse_int(time)
+  let h = @string.parse_int(height)
+  let w = @string.parse_int(width)
+  let at = @string.parse_int(audio_time)
+  guard t > 0 &&
+    t <= 128 &&
+    h > 0 &&
+    h <= 16 &&
+    w > 0 &&
+    w <= 16 &&
+    at > 0 &&
+    at <= 1024 else {
+    fail("bounded literal diagnostic geometry required")
+  }
+  let video = unpatch(
+    @fs.read_file(source + "/initial-video-rows.f32").binary(),
+    24,
+    t,
+    h,
+    w,
+  )
+  let audio = @fs.read_file(source + "/initial-audio-rows.f32").binary()
+  guard audio.length() == at * 2 * 32 * 4 else {
+    fail("literal original initial audio must be token-major, not a VAE latent")
+  }
+  @fs.mkdir(output)
+  @fs.write_file(output + "/initial-video.f32", video, create_mode=CreateNew)
+  @fs.write_file(output + "/initial-audio.f32", audio, create_mode=CreateNew)
+  @fs.write_file(
+    output + "/INPUTS.txt",
+    "source=\{source}\nvideo_layout=NCTHW\nvideo_shape=1,24,\{t},\{h},\{w}\naudio_layout=token_major\naudio_shape=\{at * 2},32\narithmetic=byte_permutation_only\n",
+    create_mode=CreateNew,
+  )
+  println(
+    "literal_noise_prepared random_generator_not_used=true bytes_not_rounded=true",
+  )
+}

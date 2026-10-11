@@ -262,10 +262,28 @@ test "long quality campaigns have an explicit non-default time budget" {
 ///|
 // Offline process I/O only: progress must be visible while a long media request
 // computes. This does not change the runtime, kernels or request semantics.
-fn diagnostic_process(binary : String, capture_latents : Bool, capture_prefix : Bool, full_prefix? : Bool = false) -> String {
+fn diagnostic_process(
+  binary : String,
+  capture_latents : Bool,
+  capture_prefix : Bool,
+  full_prefix? : Bool = false,
+  literal? : Bool = false,
+) -> String {
+  let mode = if full_prefix {
+    "run-joint-prefix-full"
+  } else if capture_prefix {
+    "run-joint-prefix"
+  } else if capture_latents {
+    "run-joint-latents"
+  } else {
+    "run-joint"
+  }
   " /usr/bin/stdbuf -oL -eL " +
   binary +
-  (if full_prefix { " run-joint-prefix-full " } else if capture_prefix { " run-joint-prefix " } else if capture_latents { " run-joint-latents " } else { " run-joint " })
+  " " +
+  mode +
+  (if literal { "-literal" } else { "" }) +
+  " "
 }
 
 ///|
@@ -278,19 +296,75 @@ test "long media diagnostics publish progress without changing execution mode" {
     diagnostic_process("/tmp/media.exe", true, false),
     " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-latents ",
   )
-  assert_eq(diagnostic_process("/tmp/media.exe", false, true), " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-prefix ")
-  assert_eq(diagnostic_process("/tmp/media.exe", false, true, full_prefix=true), " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-prefix-full ")
+  assert_eq(
+    diagnostic_process("/tmp/media.exe", false, true),
+    " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-prefix ",
+  )
+  assert_eq(
+    diagnostic_process("/tmp/media.exe", false, true, full_prefix=true),
+    " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-prefix-full ",
+  )
+  assert_eq(
+    diagnostic_process("/tmp/media.exe", false, true, literal=true),
+    " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-prefix-literal ",
+  )
 }
 
 ///|
-fn prefix_arguments(args : ArrayView[String]) -> (ArrayView[String], Bool) raise {
+fn literal_arguments(
+  args : ArrayView[String],
+) -> (ArrayView[String], String?) raise {
+  match args {
+    [.. rest, "--initial-noise", path] if !rest.contains("--initial-noise") => {
+      guard path.has_prefix("/tmp/lunaflux-") &&
+        !path.contains("..") &&
+        path
+        .iter()
+        .all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.')) else {
+        fail("literal noise requires an explicit diagnostic input directory")
+      }
+      (rest, Some(path))
+    }
+    _ => {
+      guard !args.contains("--initial-noise") else {
+        fail("--initial-noise DIRECTORY must be final")
+      }
+      (args, None)
+    }
+  }
+}
+
+///|
+test "literal noise cannot silently replace default seeded initialization" {
+  assert_eq(literal_arguments(["script"]).1, None)
+  assert_eq(
+    literal_arguments([
+      "script", "--initial-noise", "/tmp/lunaflux-original-noise",
+    ]).1,
+    Some("/tmp/lunaflux-original-noise"),
+  )
+  try literal_arguments(["script", "--initial-noise"]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("partial literal noise option accepted")
+  }
+}
+
+///|
+fn prefix_arguments(
+  args : ArrayView[String],
+) -> (ArrayView[String], Bool) raise {
   if args is [.. rest, "--capture-prefix"] {
-    guard !rest.contains("--capture-prefix") && !rest.contains("--capture-final-latents") && !rest.contains("--cancel-request") else {
+    guard !rest.contains("--capture-prefix") &&
+      !rest.contains("--capture-final-latents") &&
+      !rest.contains("--cancel-request") else {
       fail("prefix capture is separate from media or cancellation execution")
     }
     (rest, true)
   } else {
-    guard !args.contains("--capture-prefix") else { fail("prefix option must be final") }
+    guard !args.contains("--capture-prefix") else {
+      fail("prefix option must be final")
+    }
     (args, false)
   }
 }
@@ -299,20 +373,32 @@ fn prefix_arguments(args : ArrayView[String]) -> (ArrayView[String], Bool) raise
 test "prefix capture cannot silently replace a media run" {
   assert_false(prefix_arguments(["script"]).1)
   assert_true(prefix_arguments(["script", "--capture-prefix"]).1)
-  for args in [["--capture-prefix", "x"], ["--capture-prefix", "--capture-prefix"], ["--capture-final-latents", "--capture-prefix"], ["--cancel-request", "0", "--after-steps", "1", "--capture-prefix"]] {
-    try prefix_arguments(args) catch { _ => () } noraise { _ => fail("ambiguous run accepted") }
+  for
+    args in [
+      ["--capture-prefix", "x"],
+      ["--capture-prefix", "--capture-prefix"],
+      ["--capture-final-latents", "--capture-prefix"],
+      ["--cancel-request", "0", "--after-steps", "1", "--capture-prefix"],
+    ] {
+    try prefix_arguments(args) catch {
+      _ => ()
+    } noraise {
+      _ => fail("ambiguous run accepted")
+    }
   }
 }
 
 ///|
 async fn main {
-  let raw = @env.args()
+  let (raw, literal) = literal_arguments(@env.args())
   let full_prefix = raw.last() == Some("--capture-prefix-full")
   let prefix_selected = if full_prefix {
-    let selected = raw[:raw.length()-1].to_owned()
+    let selected = raw[:raw.length() - 1].to_owned()
     selected.push("--capture-prefix")
     selected
-  } else { raw }
+  } else {
+    raw.to_owned()
+  }
   let (prefix_args, capture_prefix) = prefix_arguments(prefix_selected)
   let (runtime_args, runtime_seconds) = runtime_arguments(prefix_args)
   let (capture_args, capture_latents) = capture_arguments(runtime_args)
@@ -367,7 +453,8 @@ async fn main {
       (
         "audio-view",
         "ln /tmp/lunaflux-minimax-joint-quality128-20261011-v1/FL2VA/audio_vae/model.safetensors " +
-        variant + "/audio_vae/model.safetensors",
+        variant +
+        "/audio_vae/model.safetensors",
       ),
       (
         "binary",
@@ -412,6 +499,20 @@ async fn main {
     .output()
     .check()
   }
+  if literal is Some(directory) {
+    for file in ["initial-video.f32", "initial-audio.f32"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        directory + "/" + file,
+        node + ":" + variant + "/" + file,
+      ])
+      .output()
+      .check()
+    }
+  }
   let identity = remote(
     "nvidia-smi --query-gpu=uuid,pci.bus_id --format=csv,noheader",
   )
@@ -442,7 +543,13 @@ async fn main {
     " --property=StandardError=file:" +
     root +
     "/run.stderr" +
-    diagnostic_process(binary, capture_latents, capture_prefix, full_prefix~) +
+    diagnostic_process(
+      binary,
+      capture_latents,
+      capture_prefix,
+      full_prefix~,
+      literal=literal is Some(_),
+    ) +
     variant +
     " " +
     geometry +
@@ -452,9 +559,18 @@ async fn main {
     aot +
     " DENOISER.inventory AUDIO.sha256 VIDEO.sha256 256 64 4096 8589934592 103079215104 " +
     seed.to_string() +
+    "\nseed_used=" +
+    (literal is None).to_string() +
+    "\nliteral_initial_noise_source=" +
+    literal.unwrap_or("none") +
     " " +
     root +
     "/output" +
+    (if literal is Some(_) {
+      " initial-video.f32 initial-audio.f32"
+    } else {
+      ""
+    }) +
     (if cancel_after_frames == 0 {
       ""
     } else {
@@ -481,7 +597,8 @@ async fn main {
     seed.to_string() +
     "\nterminal_latent_capture=" +
     capture_latents.to_string() +
-    "\ninitial_prefix_capture=" + capture_prefix.to_string() +
+    "\ninitial_prefix_capture=" +
+    capture_prefix.to_string() +
     "\nruntime_seconds=" +
     runtime_seconds.to_string() +
     "\nmaximum_device_bytes=103079215104\npayload_hashing=false\nstatus=dispatched-not-complete\n",

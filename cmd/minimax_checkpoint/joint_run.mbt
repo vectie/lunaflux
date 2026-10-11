@@ -13,6 +13,7 @@ async fn run_joint(
   capture_latents~ : Bool,
   capture_prefix~ : Bool,
   capture_blocks? : Int = 1,
+  literal_inputs? : (String, String),
 ) -> Unit {
   let layout = joint_layout(root, metadata, model, args)
   let limit = @string.parse_int64(args[15])
@@ -73,6 +74,11 @@ async fn run_joint(
   guard encoded_bytes.length().to_int64() == layout.encoded_bytes else {
     fail("encoded text must be exact BF16 hidden_states[50] rows")
   }
+  let initial_inputs = read_joint_literal_inputs(
+    root,
+    layout.storage,
+    literal_inputs,
+  )
   println(
     "joint_preflight weights=\{denoiser.required_device_bytes() + audio.required_device_bytes() + video.required_device_bytes()} workspace=\{layout.workspace_bytes} reserve=\{reserve} planned_total=\{total} device_limit=\{limit}",
   )
@@ -119,10 +125,19 @@ async fn run_joint(
   defer modules.close()
   let storage = @latent.LatentStorage::allocate(context, layout.storage)
   defer storage.close()
-  storage.initialize_noise(
-    seed=@string.parse_int64(args[16]),
-    chunk_elements=262144,
-  )
+  match initial_inputs {
+    None =>
+      storage.initialize_noise(
+        seed=@string.parse_int64(args[16]),
+        chunk_elements=262144,
+      )
+    Some((video, audio)) => {
+      upload_joint_literal_inputs(storage, video, audio)
+      println(
+        "joint_literal_initial_inputs=true video_layout=NCTHW audio_layout=token_major seed_not_used=true",
+      )
+    }
+  }
   ignore(storage.upload_flow_table(context))
   pack_joint_noise(context, stream, storage, modules)
   let encoded = upload_joint_bytes(context, encoded_bytes)

@@ -690,3 +690,24 @@ and terminal latents, retaining all step captures on the host. The runner's
 three regressions and ARM bridge compilation with `-Wall -Wextra -Werror` pass.
 This is diagnostic plumbing, not a production arithmetic/default change or
 proof that 256×256 is representative full-resolution checkpoint quality.
+
+### Literal-original initialization for the next native replay
+
+The native checkpoint diagnostic now has explicit `run-joint-*-literal` modes.
+They read the two complete original initial tensors before opening CUDA, using
+the prepared latent plan for their extents, then upload them once into the
+existing owned latent arena. Canonical NCTHW video still passes through the
+ordinary native patchifier; original token-major audio is copied unchanged.
+The seed is explicitly not used in this mode. Normal seeded initialization,
+model semantics, kernels and serving defaults are unchanged; no filesystem or
+reference operation is added to denoising steps.
+
+`scripts/unpatch-minimax-original-noise.mbtx` performs only an exact byte
+permutation from original `[T,H/2,W/2,C,2,2]` video rows to canonical `[C,T,H,W]`,
+retaining original F32 bits and original audio rows. Regressions cover spatial,
+channel and time ownership. `scripts/run-minimax-joint.mbtx` accepts a final,
+explicit `--initial-noise DIRECTORY` control, preserving separate prefix,
+full-prefix and terminal-latent modes. This closes an input-matching gap; it
+does not repair encoder arithmetic or establish media quality. A fresh native
+256×256 prefix must verify its captured initial rows against original rows
+before any downstream numerical comparison is interpreted.
