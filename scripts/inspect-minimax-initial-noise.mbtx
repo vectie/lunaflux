@@ -1,0 +1,77 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn value(bytes : Bytes, index : Int) -> Double {
+  let at = index * 4
+  let bits = bytes[at].to_uint() |
+    (bytes[at + 1].to_uint() << 8) |
+    (bytes[at + 2].to_uint() << 16) |
+    (bytes[at + 3].to_uint() << 24)
+  Float::reinterpret_from_uint(bits).to_double()
+}
+
+///|
+fn describe(bytes : Bytes) -> String raise {
+  guard bytes.length() > 0 && bytes.length() % 4 == 0 else {
+    fail("complete literal F32 samples required")
+  }
+  let count = bytes.length() / 4
+  let mut mean = 0.0
+  let mut m2 = 0.0
+  let mut maximum = 0.0
+  for i in 0..<count {
+    let x = value(bytes, i)
+    guard !x.is_nan() && !x.is_inf() else { fail("nonfinite initial noise") }
+    let delta = x - mean
+    mean += delta / (i + 1).to_double()
+    m2 += delta * (x - mean)
+    maximum = maximum.max(x.abs())
+  }
+  let correlations = StringBuilder()
+  for lag in [1, 2, 32, 96] {
+    if lag < count {
+      let mut cross = 0.0
+      let mut left = 0.0
+      let mut right = 0.0
+      for i in lag..<count {
+        let a = value(bytes, i - lag) - mean
+        let b = value(bytes, i) - mean
+        cross += a * b
+        left += a * a
+        right += b * b
+      }
+      let denominator = (left * right).sqrt()
+      let correlation = if denominator == 0.0 {
+        0.0
+      } else {
+        cross / denominator
+      }
+      correlations.write_string("lag=\{lag} correlation=\{correlation}\n")
+    }
+  }
+  "samples=\{count}\nmean=\{mean}\nvariance=\{m2 / count.to_double()}\nmaximum_absolute=\{maximum}\n" +
+  correlations.to_string() +
+  "claim=distribution_diagnostic_not_quality_or_rng_equivalence\n"
+}
+
+///|
+test "literal statistics are population moments, not regenerated RNG" {
+  let result = describe(b"\x00\x00\x80\xbf\x00\x00\x80\x3f")
+  assert_true(result.contains("samples=2\nmean=0\nvariance=1\n"))
+  assert_true(result.contains("lag=1 correlation=-1\n"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, source, report] else {
+    fail("LITERAL_INITIAL_F32 NEW_REPORT")
+  }
+  let result = "input=\{source}\n" + describe(@fs.read_file(source).binary())
+  @fs.write_file(report, result, create_mode=CreateNew)
+  println(result)
+}

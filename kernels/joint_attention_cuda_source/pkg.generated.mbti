@@ -3,10 +3,11 @@ package "vectie/lunaflux/kernels/joint_attention_cuda_source"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
-pub fn staged_joint_attention_bf16_source(rows~ : Int, hidden_size~ : Int, head_count~ : Int, head_dimension~ : Int, rotary_dimension~ : Int, epsilon_numerator~ : Int, epsilon_denominator~ : Int, apply_rotary~ : Bool, function_prefix~ : String, document_boundaries? : ArrayView[Int]) -> JointAttentionCudaSource raise JointAttentionCudaSourceError
+pub fn staged_joint_attention_bf16_source(rows~ : Int, hidden_size~ : Int, head_count~ : Int, head_dimension~ : Int, rotary_dimension~ : Int, epsilon_numerator~ : Int, epsilon_denominator~ : Int, apply_rotary~ : Bool, function_prefix~ : String, document_boundaries? : ArrayView[Int], probability_law? : @precision_ir.AttentionProbabilityLaw) -> JointAttentionCudaSource raise JointAttentionCudaSourceError
 
 // Errors
 pub(all) suberror JointAttentionCudaSourceError {
@@ -16,6 +17,7 @@ pub(all) suberror JointAttentionCudaSourceError {
   InvalidEpsilon
   DimensionOverflow
   InvalidFunctionSymbol
+  InvalidProbabilityLaw
 } derive(Eq, @debug.Debug)
 
 // Types and methods
@@ -34,6 +36,7 @@ pub fn JointAttentionCudaSource::source_bytes(Self) -> Bytes
 
 pub(all) enum JointAttentionNumericalContract {
   OrderedF32AccumulationBf16StagedAttentionV1
+  GlobalBf16ProbabilityF32DenominatorStagedAttentionV1
 } derive(Eq, @debug.Debug)
 
 // Type aliases

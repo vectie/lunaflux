@@ -12,6 +12,7 @@ pub fn build_refiner(
   text_rows~ : Int,
   block_norm_epsilon~ : Double,
   function_prefix~ : String,
+  probability_law? : @precision.AttentionProbabilityLaw = GlobalF32,
 ) -> RefinerSource raise {
   let s = model.denoiser()
   let symbols = [
@@ -52,6 +53,7 @@ pub fn build_refiner(
     epsilon_denominator=s.query_key_norm_epsilon_denominator(),
     apply_rotary=false,
     function_prefix=function_prefix + "_attn",
+    probability_law~,
   ).source_bytes()
   let mlp = @gated_mlp_cuda_source.staged_packed_swiglu_bf16_source(
     rows=text_rows,

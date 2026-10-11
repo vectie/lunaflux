@@ -43,6 +43,7 @@ pub fn Accuracy::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionProbabilityLaw {
   GlobalF32
+  GlobalUnnormalizedBf16
   OrderedOnlineF32
   OnlineBf16(block_tokens~ : Int)
 } derive(Eq, @debug.Debug)

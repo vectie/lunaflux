@@ -1,0 +1,220 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn copy(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+fn exported(text : String) -> String raise {
+  let source = StringBuilder()
+  let mut inside = false
+  let mut complete = false
+  for line in text.split("\n") {
+    if line == "LUNA_REFINER_PROBABILITY_BEGIN" {
+      inside = true
+    } else if line == "LUNA_REFINER_PROBABILITY_END" {
+      inside = false
+      complete = true
+    } else if inside {
+      source.write_string(line.to_owned() + "\n")
+    }
+  }
+  guard complete && !inside else { fail("exact source export incomplete") }
+  source.to_string()
+}
+
+///|
+test "matched probability export selects only the actual bounded source" {
+  assert_eq(
+    exported(
+      "test output\nLUNA_REFINER_PROBABILITY_BEGIN\nsource\nLUNA_REFINER_PROBABILITY_END\n",
+    ),
+    "source\n",
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. args] &&
+    root.has_prefix("/tmp/lunaflux-minimax-refiner-probability-") else {
+    fail(
+      "prepare NEW_ROOT NATIVE_FRONTIERS ORIGINAL_FRONTIERS | run|collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --working-directory=" +
+    root +
+    " --unit=" +
+    tag
+  if mode == "prepare" {
+    guard args is [native, original] else {
+      fail("identical-input captures required")
+    }
+    @fs.mkdir(root)
+    for dir in ["native", "reference", "output"] {
+      @fs.mkdir(root + "/" + dir)
+    }
+    record(
+      root,
+      "mkdir",
+      remote(
+        "mkdir " +
+        root +
+        " " +
+        root +
+        "/native " +
+        root +
+        "/reference " +
+        root +
+        "/output",
+      ),
+    )
+    let generated = @shell.Cmd("env", [
+      "LUNA_EXPORT_REFINER_PROBABILITY=1", "moon", "test", "kernels/joint_attention_cuda_source",
+      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "--filter",
+      "global BF16 probability law preserves the F32 denominator and explicit contract",
+    ]).output(max_output_bytes=2097152)
+    generated.check()
+    @fs.write_file(
+      root + "/main.cuh",
+      exported(generated.stdout()),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/probe.cu",
+      @fs.read_file("tests/packed_moe_execution/refiner_probability_probe.cu").binary(),
+      create_mode=CreateNew,
+    )
+    for file in ["main.cuh", "probe.cu"] {
+      copy(root + "/" + file, node + ":" + root + "/" + file)
+    }
+    for layer in 0..<2 {
+      for
+        (dir, source, file) in [
+          ("native", native, "qk-norm"),
+          ("native", native, "attention"),
+          ("reference", original, "attention"),
+        ] {
+        let name = "refiner-\{layer}-\{file}.bf16"
+        let bytes = @fs.read_file(source + "/" + name).binary()
+        guard bytes.length() == (if file == "qk-norm" { 129024 } else { 43008 }) else {
+          fail("literal attention extent differs")
+        }
+        let target = root + "/" + dir + "/" + name
+        @fs.write_file(target, bytes, create_mode=CreateNew)
+        copy(target, node + ":" + target)
+      }
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        unit +
+        "-compile /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 probe.cu -o probe",
+      ),
+    )
+  } else if mode == "run" {
+    guard args.is_empty() else { fail("unexpected run options") }
+    for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else {
+        fail("serialize GPU probes")
+      }
+      let invocation = root +
+        "/probe " +
+        root +
+        "/native " +
+        root +
+        "/reference " +
+        root +
+        "/output"
+      let command = if gate == "correctness" {
+        invocation
+      } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " +
+        gate +
+        (if gate == "memcheck" { " --leak-check full" } else { "" }) +
+        " " +
+        invocation +
+        " --verify-only"
+      }
+      record(root, gate, remote(unit + "-" + gate + " " + command))
+    }
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    guard args.is_empty() else { fail("unexpected collect options") }
+    for layer in 0..<2 {
+      for law in ["f32", "bf16"] {
+        let name = "refiner-\{layer}-\{law}.bf16"
+        let path = root + "/output/" + name
+        copy(node + ":" + path, path)
+        record(
+          root,
+          name + "-comparison",
+          @shell.Cmd("moon", [
+            "run",
+            "scripts/compare-minimax-encoder-reference.mbtx",
+            path,
+            root + "/reference/refiner-\{layer}-attention.bf16",
+            root + "/" + name + ".txt",
+            "generated_" + law + "_probability_on_identical_native_operands",
+            "7168",
+          ]).output(max_output_bytes=65536),
+        )
+      }
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

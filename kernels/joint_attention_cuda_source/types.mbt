@@ -1,6 +1,7 @@
 ///|
 pub(all) enum JointAttentionNumericalContract {
   OrderedF32AccumulationBf16StagedAttentionV1
+  GlobalBf16ProbabilityF32DenominatorStagedAttentionV1
 } derive(Debug, Eq)
 
 ///|
@@ -11,6 +12,7 @@ pub(all) suberror JointAttentionCudaSourceError {
   InvalidEpsilon
   DimensionOverflow
   InvalidFunctionSymbol
+  InvalidProbabilityLaw
 } derive(Debug, Eq)
 
 ///|

@@ -508,3 +508,123 @@ are required before interpreting any operator-level result.
 Even the first observer's final conditioning is bitwise unchanged: all
 16,128 BF16 values match the earlier native capture. That only proves observing
 did not change execution, not that its scratch readback ranges were correct.
+
+The corrected committed observer `2fcd361f` completes with empty stderr in
+`/tmp/lunaflux-minimax-joint-refiner-operators-width-quality128-20261012-v1`.
+All corrected scratch extents are retained locally in
+`/tmp/lunaflux-minimax-refiner-operators-width-native-20261012-v1`; final
+conditioning remains bitwise identical to the prior native result. Full native
+suite passes **5,023/5,023**. Original operator replay `...operators-20261012-v2`
+completes serially on `.179`, releases CUDA and retains its installed warnings.
+
+Every table entry below supplies the **native predecessor independently**.
+`refiner-0.bf16`/`refiner-1.bf16` in this intervention are just final residual
+adds on native norm2/MLP frontiers, not whole original refiner blocks.
+
+| Local operation | Layer 0 relative L2 | Layer 1 relative L2 |
+| --- | --- | --- |
+| Norm1 | bitwise | 0.00413304% (one BF16 value) |
+| QKV projection | 0.02390364% | 0.01584161% |
+| QK norm | bitwise | 0.00101676% (one BF16 value) |
+| Attention | 0.05662943% | 0.09536291% |
+| Output projection | 0.01785792% | 0.02357913% |
+| Attention residual add | bitwise | bitwise |
+| Norm2 | bitwise | bitwise |
+| Gate/up activation | 0.00862203% | 0.00142271% |
+| Down projection | 0.02446209% | 0.03988011% |
+| Final MLP residual add | bitwise | bitwise |
+| Final conditioning RMSNorm | bitwise | bitwise |
+
+### Attention's remaining difference is a specific rounding contract
+
+The independent MoonBit F64 oracle reads each layer's **literal native planar
+Q/K/V** and evaluates complete noncausal three-row softmax. It does not call
+either CUDA backend or re-encode the caption. Native attention matches its
+BF16 output in **21,503/21,504** and **21,502/21,504** values; relative L2 is
+0.000005536% / 0.000574302%. The installed original backend differs from this
+F64 result by 0.05662997% / 0.09536477%.
+
+An explicit alternative rounds **unnormalized** `exp(score-global_max)` to
+BF16 before P×V, retaining the original unrounded denominator. On these
+identical operands, that oracle reproduces the installed original attention
+**bitwise: 21,504/21,504 in both layers**. Rounding normalized probabilities
+instead does not reproduce it. Thus blanket precision widening is not the
+reference-matching fix: native's existing F32 weights are more accurate to this
+oracle, but implement a different probability-storage law.
+
+`compiler/precision_ir` now expresses `GlobalUnnormalizedBf16` alongside the
+existing global/online laws. The staged joint CUDA renderer can lower it while
+keeping F32 maxima/denominator/accumulation. Unsupported online/global
+combinations are explicit, not silent substitutions. Existing production
+selection remains **GlobalF32** pending exact-source CUDA, sanitizer and full
+conditioning/trajectory measurements. This is an arithmetic-contract candidate,
+not a tolerance waiver or a new runtime dependency. CPU oracle root:
+`/tmp/lunaflux-minimax-refiner-attention-oracle-20261012-v1`.
+
+The shared literal initial-noise fixture also has no obvious scale/correlation
+defect: video 56,832 samples have mean 0.0038243, variance 1.0027756; audio
+13,248 samples mean -0.0118228, variance 0.9994523. Absolute tested lag
+correlations (1,2,32,96) are below 0.008. These are distribution diagnostics,
+not equivalence to the original RNG, a model-input quality pass, or proof that
+the failed 128 geometry is the sole cause. Installed t2va presentation explicitly
+uses verbatim prompt tokens without a chat template; adding a guessed system
+prompt is not justified by its source.
+
+### Exact-source CUDA probability intervention
+
+The fresh bounded physical probe at
+`/tmp/lunaflux-minimax-refiner-probability-20261012-v1` replays the literal
+captured Q/K/V for both layers. Its unchanged F32 source reproduces the native
+capture bitwise, confirming that this intervention tests the executed source.
+
+| Identical-input attention | Existing F32 law | Unnormalized BF16 law |
+| --- | --- | --- |
+| Layer 0 exact original values | 20,991 / 21,504 | **21,504 / 21,504** |
+| Layer 1 exact original values | 19,511 / 21,504 | **21,503 / 21,504** |
+| Layer 1 relative L2 | 0.09536291% | **0.00459427%** |
+
+The remaining layer-1 value differs by 0.03125; it is retained and reported,
+not waived. Memcheck plus full leak checking report zero errors/zero bytes
+leaked, racecheck zero hazards, synccheck zero errors. CUDA resources are
+released between serial checks. This proves a local reference-matching
+improvement, not full encoder/conditioning parity or a media-quality pass.
+
+The refiner builder now accepts the same explicit generic probability law;
+the default remains F32. Its regression verifies that selecting the BF16 law
+changes only the numerator's probability conversion, preserving every other
+generated operation and symbol. A separate whole-conditioning AOT experiment
+uses that source without replacing the original bundle or changing production
+selection. Failed visual controls and unresolved DeepSeek results remain
+unchanged by this isolated experiment.
+
+Whole conditioning now completes with this single changed probability law in
+`/tmp/lunaflux-minimax-joint-refiner-probability-quality128-20261012-v1`.
+It exits zero, empty stderr, no unit swap; captured operators and conditioning
+are preserved under `/tmp/lunaflux-minimax-refiner-probability-native-20261012-v1`.
+Against the same original full conditioning/encoded caption, **relative L2 is
+0.35584173% versus baseline 0.35402103%**, and exact BF16 values are
+11,030 versus 11,095 out of 16,128. Thus the local attention improvement does
+**not** improve this whole-chain comparison; production remains unchanged.
+This negative result is not silently relabeled as a completed encoder fix.
+An original propagated-refiner replay beginning at the literal native context
+projection will isolate projection drift from subsequent original arithmetic;
+unlike per-block interventions, its second block consumes its own first output.
+
+That control completes at
+`/tmp/lunaflux-minimax-original-refiner-native-context-20261012-v1`, using the
+installed original two refiners and final norm with the **same initial native
+context** as both native alternatives. Context is bitwise unchanged. Baseline
+final conditioning differs by **0.34671401%**; the BF16-probability candidate
+differs by **0.29873496%** (11,978 versus 10,997 exact values). Thus the
+refiner-only propagated comparison improves about 13.8% in relative-error norm,
+while the complete original-projection-plus-refiner comparison above does not.
+These are different interventions; neither replaces the other. The candidate
+has a genuine local and same-context-chain benefit, not a demonstrated complete
+conditioning or media-quality fix. Original projection and remaining refiner
+GEMM/reduction/storage behavior still require independent attribution.
+
+Full native suite passes **5,026/5,026**, affected compiler/source packages
+**64/64**, and offline refiner/oracle/noise/bundle regressions pass. Existing
+toolchain migration-warning exclusions are unchanged. The refiner adapter
+continues calling installed original operations; new context-chain mode changes
+only its supplied initial input and propagates original outputs thereafter.

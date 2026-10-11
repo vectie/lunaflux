@@ -12,6 +12,10 @@ test "online BF16 probabilities are explicit validated numerical semantics" {
     )
   }
   assert_eq(make(GlobalF32).probability_law(), GlobalF32)
+  assert_eq(
+    make(GlobalUnnormalizedBf16).probability_law(),
+    GlobalUnnormalizedBf16,
+  )
   for block in [1, 64, 4096] {
     assert_eq(
       make(OnlineBf16(block_tokens=block)).probability_law(),

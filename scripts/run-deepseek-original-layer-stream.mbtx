@@ -238,6 +238,14 @@ async fn main {
         let path = root + "/original/" + name + ".bf16"
         transfer(node + ":" + path, path)
       }
+      // Older preserved captures have ten frontiers; new observations add the
+      // original inverse-RoPE return without changing arithmetic or old files.
+      let inverse = remote("find " + root + "/original -maxdepth 1 -name attention-inverse.bf16 -print")
+      inverse.check()
+      if !inverse.stdout().trim().is_empty() {
+        let path = root + "/original/attention-inverse.bf16"
+        transfer(node + ":" + path, path)
+      }
     }
   } else {
     fail("unknown mode")

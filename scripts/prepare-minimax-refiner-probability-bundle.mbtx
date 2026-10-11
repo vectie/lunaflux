@@ -1,0 +1,89 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline whole-conditioning intervention. Only the explicitly generated
+// refiner probability law differs; no model weights or other AOT modules do.
+///|
+fn exported(output : String) -> String raise {
+  let source = StringBuilder()
+  let mut inside = false
+  let mut complete = false
+  for line in output.split("\n") {
+    if line == "LUNA_REFINER_BUNDLE_BEGIN" {
+      inside = true
+    } else if line == "LUNA_REFINER_BUNDLE_END" {
+      inside = false
+      complete = true
+    } else if inside {
+      source.write_string(line.to_owned() + "\n")
+    }
+  }
+  guard complete && !inside else { fail("whole refiner source export missing") }
+  source.to_string()
+}
+
+///|
+test "bundle export is the whole generated translation unit only" {
+  assert_eq(
+    exported("noise\nLUNA_REFINER_BUNDLE_BEGIN\nsource\nLUNA_REFINER_BUNDLE_END\n"),
+    "source\n",
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, previous] &&
+    root.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
+    previous.has_prefix("/tmp/lunaflux-minimax-request-aot-") else {
+    fail("NEW_THREE_ROW_EXPERIMENT_AOT_ROOT EXISTING_AOT_DIRECTORY")
+  }
+  let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let node = "wlc003s@192.168.2.178"
+  @fs.mkdir(root)
+  let generated = @shell.Cmd("env", [
+    "LUNA_EXPORT_REFINER_BUNDLE=1", "moon", "test", "integration/minimax_h3_block_source",
+    "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+    "--filter", "refiner explicit probability law preserves projection and ABI",
+  ]).output(max_output_bytes=4194304)
+  generated.check()
+  @fs.write_file(root + "/refiner.cu", exported(generated.stdout()), create_mode=CreateNew)
+  @fs.write_file(root + "/EXPERIMENT.txt",
+    "scope=whole_refiner_global_unnormalized_bf16_probability\ntext_rows=3\nunchanged_weights_and_other_modules=true\nproduction_default_changed=false\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node,
+    "mkdir " + root + " " + root + "/aot",
+  ]).output().check()
+  // Copy literal existing module files into an empty non-overwriting directory.
+  // The old refiner is deliberately omitted, not overwritten in either root.
+  let inventory = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node,
+    "find " + previous + " -maxdepth 1 -type f -printf '%f\\n'",
+  ]).output()
+  inventory.check()
+  for name in inventory.stdout().split("\n") {
+    if name.has_suffix(".cubin") && name != "refiner.cubin" {
+      let file = name.to_owned()
+      @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node,
+        "cp -n " + previous + "/" + file + " " + root + "/aot/" + file,
+      ]).output().check()
+    }
+  }
+  for name in ["refiner.cu", "EXPERIMENT.txt"] {
+    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
+      root + "/" + name, node + ":" + root + "/" + name,
+    ]).output().check()
+  }
+  let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node,
+    "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --unit=" +
+    root[5:].to_owned() + "-compile /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
+    root + "/refiner.cu -o " + root + "/aot/refiner.cubin",
+  ]).output()
+  @fs.write_file(root + "/compile.stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/compile.stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+}

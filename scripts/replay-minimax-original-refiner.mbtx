@@ -80,21 +80,64 @@ test "refiner replay does not instantiate the denoiser or regenerate encoder inp
 }
 
 ///|
+fn stage_files(operators : Bool) -> Array[String] {
+  let files = [
+    "context.bf16", "refiner-0.bf16", "refiner-1.bf16", "conditioning.bf16",
+  ]
+  if operators {
+    for layer in 0..<2 {
+      for
+        name in [
+          "norm1", "qkv", "qk-norm", "attention", "projection", "attention-residual",
+          "norm2", "gate-up", "down",
+        ] {
+        files.push("refiner-\{layer}-\{name}.bf16")
+      }
+    }
+  }
+  files
+}
+
+///|
+fn stage_shape(file : String) -> (Int, Int) {
+  if file.has_suffix("-qkv.bf16") || file.has_suffix("-qk-norm.bf16") {
+    (9, 7168)
+  } else if file.has_suffix("-attention.bf16") {
+    (3, 7168)
+  } else if file.has_suffix("-gate-up.bf16") {
+    (3, 14336)
+  } else {
+    (3, 5376)
+  }
+}
+
+///|
+test "refiner frontier extents distinguish planar QKV and materialized MLP" {
+  assert_eq(stage_files(false).length(), 4)
+  assert_eq(stage_files(true).length(), 22)
+  assert_eq(stage_shape("refiner-0-qkv.bf16"), (9, 7168))
+  assert_eq(stage_shape("refiner-1-attention.bf16"), (3, 7168))
+  assert_eq(stage_shape("refiner-1-gate-up.bf16"), (3, 14336))
+  assert_eq(stage_shape("refiner-0.bf16"), (3, 5376))
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] else {
     fail(
-      "collect-native NEW_ROOT NATIVE_REMOTE_ROOT | prepare NEW_ROOT EXISTING_MODEL_ROOT ENCODED_BF16 PACKED_NATIVE_INPUT | inputs ROOT NATIVE_STAGE_DIRECTORY | run|run-matched ROOT | collect ROOT | collect-matched ROOT NATIVE_STAGE_DIRECTORY",
+      "collect-native NEW_ROOT NATIVE_REMOTE_ROOT [--operators] | prepare NEW_ROOT EXISTING_MODEL_ROOT ENCODED_BF16 PACKED_NATIVE_INPUT | inputs ROOT NATIVE_STAGE_DIRECTORY | run|run-matched|run-operators ROOT | collect ROOT | collect-matched|collect-operators ROOT NATIVE_STAGE_DIRECTORY",
     )
   }
   let tag = root[5:].to_owned()
   if mode == "collect-native" {
-    guard extra is [previous] else { fail("native remote root required") }
+    guard extra is [previous, .. options] &&
+      (options.is_empty() || options is ["--operators"]) else {
+      fail("native remote root [--operators] required")
+    }
     @fs.mkdir(root)
-    for
-      file in [
-        "context.bf16", "refiner-0.bf16", "refiner-1.bf16", "conditioning.bf16",
-        "packed-input.bf16",
-      ] {
+    let files = stage_files(!options.is_empty())
+    files.push("packed-input.bf16")
+    for file in files {
       @shell.Cmd("scp", [
         "-o",
         "BatchMode=yes",
@@ -158,7 +201,8 @@ async fn main {
     )
     for
       file in [
-        "refiner_upstream.cpp", "original_h3_loading.h", "original_tensor_io.h",
+        "refiner_upstream.cpp", "refiner_operator_upstream.h", "original_h3_loading.h",
+        "original_tensor_io.h",
       ] {
       copy(
         "benchmarks/checkpoint_aten_reference/aten/" + file,
@@ -182,13 +226,12 @@ async fn main {
     }
     @fs.mkdir(root + "/input")
     record(root, "mkdir-input", remote("mkdir " + root + "/input"))
-    for
-      file in [
-        "context.bf16", "refiner-0.bf16", "refiner-1.bf16", "conditioning.bf16",
-      ] {
+    let operators = @fs.exists(native + "/refiner-0-norm1.bf16")
+    for file in stage_files(operators) {
       let stage = @fs.read_file(native + "/" + file).binary()
-      guard stage.length() == 3 * 5376 * 2 else {
-        fail("literal three-row stage required")
+      let (rows, width) = stage_shape(file)
+      guard stage.length() == rows * width * 2 else {
+        fail("literal stage extent required")
       }
       @fs.write_file(root + "/input/" + file, stage, create_mode=CreateNew)
       copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
@@ -260,7 +303,7 @@ async fn main {
         "5376",
       ]).output(),
     )
-  } else if mode == "run" || mode == "run-matched" {
+  } else if mode == "run" || mode == "run-matched" || mode == "run-operators" || mode == "run-context" {
     guard extra.is_empty() else { fail("unexpected refiner run arguments") }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
@@ -280,7 +323,15 @@ async fn main {
         ":/work --entrypoint /work/original-refiner " +
         image +
         " /work/model /work/encoded.bf16 /work/output 3" +
-        (if mode == "run-matched" { " /work/input" } else { "" }),
+        (if mode == "run-matched" {
+          " /work/input"
+        } else if mode == "run-operators" {
+          " /work/input --operators"
+        } else if mode == "run-context" {
+          " /work/input --context-chain"
+        } else {
+          ""
+        }),
       ),
     )
     record(
@@ -288,14 +339,11 @@ async fn main {
       "released",
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
-  } else if mode == "collect-matched" {
+  } else if mode == "collect-matched" || mode == "collect-operators" || mode == "collect-context" {
     guard extra is [native] else {
       fail("literal native stage directory required")
     }
-    for
-      file in [
-        "context.bf16", "refiner-0.bf16", "refiner-1.bf16", "conditioning.bf16",
-      ] {
+    for file in stage_files(mode == "collect-operators") {
       copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
       record(
         root,
@@ -306,8 +354,10 @@ async fn main {
           native + "/" + file,
           root + "/output/" + file,
           root + "/" + file + ".txt",
-          "installed_original_conditioning_stage_on_identical_native_predecessor",
-          "5376",
+          (if mode == "collect-context" {
+            "installed_original_refiners_propagated_from_literal_native_context"
+          } else { "installed_original_conditioning_stage_on_identical_native_predecessor" }),
+          stage_shape(file).1.to_string(),
         ]).output(),
       )
     }

@@ -23,7 +23,21 @@ fn values(bytes : Bytes) -> Array[Double] raise {
 }
 
 ///|
-/// Independent two-pass causal GQA in F64. Unlike production's online F32
+enum ProbabilityLaw {
+  F64Exact
+  NormalizedBf16
+  UnnormalizedBf16
+}
+
+///|
+fn as_bf16(value : Double) -> Double {
+  let raw = Float::from_double(value).reinterpret_as_uint()
+  let bits = (raw + 0x7fffU + ((raw >> 16) & 1U)) >> 16
+  Float::reinterpret_from_uint(bits << 16).to_double()
+}
+
+///|
+/// Independent two-pass GQA in F64. Unlike production's online F32
 /// recurrence, scores/softmax are evaluated in complete row order here.
 fn attention(
   q : ArrayView[Double],
@@ -33,6 +47,8 @@ fn attention(
   heads : Int,
   kv_heads : Int,
   dim : Int,
+  causal? : Bool = true,
+  probability_law? : ProbabilityLaw = F64Exact,
 ) -> FixedArray[Double] raise {
   guard rows > 0 &&
     rows <= 256 &&
@@ -51,8 +67,9 @@ fn attention(
   for row in 0..<rows {
     for head in 0..<heads {
       let kv_head = head / (heads / kv_heads)
+      let key_rows = if causal { row + 1 } else { rows }
       let scores = [
-        for key in 0..<=row => {
+        for key in 0..<key_rows => {
           let dot = for d in 0..<dim; sum = 0.0 {
             continue sum +
               q[(row * heads + head) * dim + d] *
@@ -66,18 +83,56 @@ fn attention(
       let maximum = scores.fold(init=scores[0], (a, b) => a.max(b))
       let probabilities = scores.map(score => @math.exp(score - maximum))
       let denominator = probabilities.fold(init=0.0, (sum, p) => sum + p)
+      let weights = probabilities.map(p => {
+        match probability_law {
+          F64Exact => p
+          NormalizedBf16 => as_bf16(p / denominator)
+          UnnormalizedBf16 => as_bf16(p)
+        }
+      })
       for d in 0..<dim {
-        let numerator = for key in 0..<=row; sum = 0.0 {
-          continue sum +
-            probabilities[key] * v[(key * kv_heads + kv_head) * dim + d]
+        let numerator = for key in 0..<key_rows; sum = 0.0 {
+          continue sum + weights[key] * v[(key * kv_heads + kv_head) * dim + d]
         } nobreak {
           sum
         }
-        output[(row * heads + head) * dim + d] = numerator / denominator
+        output[(row * heads + head) * dim + d] = match probability_law {
+          NormalizedBf16 => numerator
+          F64Exact | UnnormalizedBf16 => numerator / denominator
+        }
       }
     }
   }
   output
+}
+
+///|
+test "refiner oracle is noncausal and makes probability rounding explicit" {
+  let result = attention(
+    [0.0, 0.0],
+    [0.0, 0.0],
+    [1.0, 3.0],
+    2,
+    1,
+    1,
+    1,
+    causal=false,
+  )
+  assert_eq(result[:].to_owned(), [2.0, 2.0])
+  assert_eq(as_bf16(1.00390625), 1.0)
+  assert_eq(as_bf16(1.01171875), 1.015625)
+  let rounded = attention(
+    [0.0, 0.0],
+    [0.0, 0.0],
+    [1.0, 3.0],
+    2,
+    1,
+    1,
+    1,
+    causal=false,
+    probability_law=NormalizedBf16,
+  )
+  assert_eq(rounded[:].to_owned(), [2.0, 2.0])
 }
 
 ///|
@@ -135,9 +190,61 @@ test "wider output keeps BF16 ties and finite operand checks" {
 
 ///|
 async fn main {
+  if @env.args() is [_, "--refiner", native, reference, output] {
+    @fs.mkdir(output)
+    for layer in 0..<2 {
+      let prefix = "refiner-\{layer}-"
+      let operands = values(
+        @fs.read_file(native + "/" + prefix + "qk-norm.bf16").binary(),
+      )
+      let cells = 3 * 56 * 128
+      guard operands.length() == cells * 3 else {
+        fail("literal 56-head refiner Q/K/V required")
+      }
+      for
+        (name, law) in [
+          ("f64", F64Exact),
+          ("normalized-bf16", NormalizedBf16),
+          ("unnormalized-bf16", UnnormalizedBf16),
+        ] {
+        let result = rounded_bytes(
+          attention(
+            operands[:cells],
+            operands[cells:cells * 2],
+            operands[cells * 2:],
+            3,
+            56,
+            56,
+            128,
+            causal=false,
+            probability_law=law,
+          ),
+        )
+        let path = output + "/" + prefix + name + ".bf16"
+        @fs.write_file(path, result, create_mode=CreateNew)
+        for (side, root) in [("native", native), ("reference", reference)] {
+          let measured = @shell.Cmd("moon", [
+            "run",
+            "scripts/compare-minimax-encoder-reference.mbtx",
+            root + "/" + prefix + "attention.bf16",
+            path,
+            output + "/" + prefix + side + "-vs-" + name + ".txt",
+            "identical_native_noncausal_refiner_operands_" + name,
+            "7168",
+          ]).output(max_output_bytes=65536)
+          measured.check()
+          println(measured.stdout())
+        }
+      }
+    }
+    println(
+      "refiner_attention_oracle_complete production_arithmetic_unchanged=true",
+    )
+    return
+  }
   guard @env.args() is [_, native, reference, output] else {
     fail(
-      "NATIVE_OPERATOR_DIRECTORY MATCHED_REFERENCE_DIRECTORY NEW_OUTPUT_DIRECTORY",
+      "NATIVE_OPERATOR_DIRECTORY MATCHED_REFERENCE_DIRECTORY NEW_OUTPUT_DIRECTORY | --refiner NATIVE_FRONTIERS MATCHED_ORIGINAL_FRONTIERS NEW_OUTPUT_DIRECTORY",
     )
   }
   let q = values(@fs.read_file(native + "/q-rotary.bf16").binary())

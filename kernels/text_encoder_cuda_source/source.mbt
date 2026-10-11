@@ -80,7 +80,7 @@ pub fn attention_source(
         $|  for(int d=0;d<\{dimension};++d) out[qb+d]=__float2bfloat16_rn(__fdiv_rn(accum[d],denominator));
         $|}
       )
-    GlobalF32 => raise InvalidProbabilityLaw
+    GlobalF32 | GlobalUnnormalizedBf16 => raise InvalidProbabilityLaw
   }
   @utf8.encode(
     (

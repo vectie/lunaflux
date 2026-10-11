@@ -22,7 +22,17 @@ pub fn staged_joint_attention_bf16_source(
   apply_rotary~ : Bool,
   function_prefix~ : String,
   document_boundaries? : ArrayView[Int],
+  probability_law? : @precision.AttentionProbabilityLaw = GlobalF32,
 ) -> JointAttentionCudaSource raise JointAttentionCudaSourceError {
+  let (probability_value, numerical_contract) = match probability_law {
+    GlobalF32 => ("probability", OrderedF32AccumulationBf16StagedAttentionV1)
+    GlobalUnnormalizedBf16 =>
+      (
+        "__bfloat162float(__float2bfloat16_rn(probability))",
+        GlobalBf16ProbabilityF32DenominatorStagedAttentionV1,
+      )
+    OrderedOnlineF32 | OnlineBf16(block_tokens=_) => raise InvalidProbabilityLaw
+  }
   if rows <= 0 {
     raise InvalidRowCount
   }
@@ -203,7 +213,9 @@ pub fn staged_joint_attention_bf16_source(
     inner.to_string() +
     "ULL + (unsigned long long)head * " +
     head_dimension.to_string() +
-    "ULL + vc; numerator = __fadd_rn(numerator, __fmul_rn(probability, __bfloat162float(value[vi]))); } attention_output[i] = __float2bfloat16_rn(__fdiv_rn(numerator, denominator)); }\n" +
+    "ULL + vc; numerator = __fadd_rn(numerator, __fmul_rn(" +
+    probability_value +
+    ", __bfloat162float(value[vi]))); } attention_output[i] = __float2bfloat16_rn(__fdiv_rn(numerator, denominator)); }\n" +
     "extern \"C\" __global__ void " +
     function_prefix +
     "_output(const __nv_bfloat16 *attention_input, const __nv_bfloat16 *output_weight, __nv_bfloat16 *output) { const unsigned long long i = (unsigned long long)blockIdx.x * 256ULL + threadIdx.x; if (i >= " +
@@ -221,7 +233,7 @@ pub fn staged_joint_attention_bf16_source(
     "; c += 1) sum = __fadd_rn(sum, __fmul_rn(__bfloat162float(attention_input[ib + c]), __bfloat162float(output_weight[wb + c]))); output[i] = __float2bfloat16_rn(sum); }\n",
   )
   {
-    numerical_contract: OrderedF32AccumulationBf16StagedAttentionV1,
+    numerical_contract,
     row_count: rows,
     hidden_size,
     head_count,

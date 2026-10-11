@@ -2,6 +2,7 @@
 package "vectie/lunaflux/integration/minimax_h3_block_source"
 
 import {
+  "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/engine/joint_diffusion_loop",
   "vectie/lunaflux/kernels/dense_permutation_plan",
   "vectie/lunaflux/model/joint_diffusion_plan",
@@ -32,7 +33,7 @@ pub fn build_output(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequen
 
 pub fn build_prediction_sources(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String) -> PredictionSources raise
 
-pub fn build_refiner(@joint_diffusion_plan.JointDiffusionPlan, text_rows~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String) -> RefinerSource raise
+pub fn build_refiner(@joint_diffusion_plan.JointDiffusionPlan, text_rows~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String, probability_law? : @precision_ir.AttentionProbabilityLaw) -> RefinerSource raise
 
 pub fn build_timestep(@joint_diffusion_plan.JointDiffusionPlan, distinct_timesteps~ : Int, function_prefix~ : String) -> TimestepSource raise
 

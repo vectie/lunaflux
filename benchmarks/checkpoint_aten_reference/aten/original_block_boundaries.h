@@ -42,6 +42,16 @@ static int trace_original_boundary(PyObject *,PyFrameObject *frame,int event,PyO
     boundary_observer->inside_attention=true;return 0;
   }
   if(event!=PyTrace_RETURN||result==Py_None)return 0;
+  if(boundary_observer->inside_attention&&std::strcmp(function,"apply_rotary_emb")==0&&
+     PyDict_GetItemString(locals.p,"inverse")==Py_True) {
+    // Observe the original in-place return before grouped output projection.
+    // Prefix channels outside RoPE are retained in the same complete row.
+    Owned caller(reinterpret_cast<PyObject *>(PyFrame_GetBack(frame)));
+    Owned caller_locals(caller.p?PyFrame_GetLocals(reinterpret_cast<PyFrameObject *>(caller.p)):nullptr);
+    auto *full=caller_locals.p?PyDict_GetItemString(caller_locals.p,"o"):nullptr;
+    if(!full){PyErr_SetString(PyExc_ValueError,"original inverse caller output missing");return -1;}
+    return append_original_boundary("attention-inverse",full,32768);
+  }
   if(boundary_observer->inside_attention&&std::strcmp(function,"sparse_attn")==0) {
     // The original recursively partitions heads on GB10. Retain its complete
     // outer return, not the four 16-head internal returns as extra rows.
@@ -79,10 +89,10 @@ static int trace_original_boundary(PyObject *,PyFrameObject *frame,int event,PyO
 }
 
 static bool write_original_boundaries(const OriginalBoundaries &observer,const char *out) {
-  if(observer.values.size()!=10){PyErr_SetString(PyExc_ValueError,"original boundary observer incomplete");return false;}
+  if(observer.values.size()!=11){PyErr_SetString(PyExc_ValueError,"original boundary observer incomplete");return false;}
   for(const auto &[name,values]:observer.values) {
     const int width=name=="attention-residual"?16384:
-      (name=="q-rope"||name=="sparse-attention")?32768:
+      (name=="q-rope"||name=="sparse-attention"||name=="attention-inverse")?32768:
       name=="kv-sim"?512:name=="attention-low-rank"?1024:
       name=="attention-output-a"?8192:4096;
     const size_t expected=144ULL*width*2;

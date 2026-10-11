@@ -241,3 +241,28 @@ Four hyper-runner regressions and the streamed-runner regression pass.
 Warning-denied native checking and the full suite pass **5,015/5,015**, with
 the existing toolchain migration-warning exclusions and no added exclusions.
 Offline reference bridges compile with `-Wall -Wextra -Werror` on ARM.
+
+## Original inverse-RoPE frontier — 2026-10-12
+
+The previous production observation skipped the inverse rotation between
+sparse attention and grouped output-A. The offline original observer now
+captures the complete caller-owned attention row after the original in-place
+inverse return, not merely its rotated suffix. Original math, token IDs and
+one-row submission geometry remain unchanged. A fresh layer-0 replay at
+`/tmp/lunaflux-deepseek-original-layer-stream-inverse-20261012-v1` exits zero
+and releases CUDA; all 2,359,296 final four-stream values remain **bitwise
+identical** to the earlier original observation.
+
+| Propagated frontier | Exact BF16 / values | Relative L2 |
+| --- | --- | --- |
+| Sparse attention | 4,717,504 / 4,718,592 | 0.006288009% |
+| After inverse RoPE | 4,717,521 / 4,718,592 | 0.007179415% |
+| Grouped output-A | 1,163,683 / 1,179,648 | 0.031320318% |
+| Output-B / attention branch | 491,296 / 589,824 | 0.138442652% |
+
+These frontiers still carry differing upstream operands; they are **not**
+local matched-input inverse-rotation errors. The added observation excludes a
+large missing aggregate jump at this boundary in layer 0, but does not prove
+the inverse implementation bitwise or resolve the accumulated full-model gap.
+Reports: `/tmp/lunaflux-deepseek-one-row-inverse-components-20261012-v1`.
+No production kernel or arithmetic law was changed by this observation.
