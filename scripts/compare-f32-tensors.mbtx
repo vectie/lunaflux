@@ -1,0 +1,123 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn f32(bytes : BytesView, offset : Int) -> Double {
+  let bits = bytes[offset].to_uint() |
+    (bytes[offset + 1].to_uint() << 8) |
+    (bytes[offset + 2].to_uint() << 16) |
+    (bytes[offset + 3].to_uint() << 24)
+  Float::reinterpret_from_uint(bits).to_double()
+}
+
+///|
+struct Difference {
+  elements : Int
+  exact : Int
+  square_error : Double
+  reference_square : Double
+  maximum : Double
+}
+
+///|
+fn difference(a : BytesView, b : BytesView) -> Difference raise {
+  guard !a.is_empty() && a.length() == b.length() && a.length() % 4 == 0 else {
+    fail("F32 tensors must have identical nonempty complete extents")
+  }
+  for offset = 0, exact = 0, error = 0.0, reference = 0.0, maximum = 0.0; offset <
+     a.length(); {
+    let x = f32(a, offset)
+    let y = f32(b, offset)
+    guard !x.is_nan() && !x.is_inf() && !y.is_nan() && !y.is_inf() else {
+      fail("nonfinite tensor at element \{offset / 4}")
+    }
+    let delta = x - y
+    let same = a[offset:offset + 4] == b[offset:offset + 4]
+    continue offset + 4,
+      exact + (if same { 1 } else { 0 }),
+      error + delta * delta,
+      reference + y * y,
+      maximum.max(delta.abs())
+  } nobreak {
+    {
+      elements: a.length() / 4,
+      exact,
+      square_error: error,
+      reference_square: reference,
+      maximum,
+    }
+  }
+}
+
+///|
+fn Difference::relative_l2(self : Self) -> Double {
+  if self.reference_square > 0.0 {
+    (self.square_error / self.reference_square).sqrt()
+  } else if self.square_error == 0.0 {
+    0.0
+  } else {
+    0x7ff0000000000000L.reinterpret_as_double()
+  }
+}
+
+///|
+test "F32 comparison does not hide nonfinite or zero-reference differences" {
+  let result = difference(
+    b"\x00\x00\x80\x3f\x00\x00\x00\x40", b"\x00\x00\x80\x3f\x00\x00\x80\x3f",
+  )
+  assert_eq(result.elements, 2)
+  assert_eq(result.exact, 1)
+  assert_eq(result.square_error, 1.0)
+  assert_eq(result.maximum, 1.0)
+  assert_eq(result.relative_l2(), 0.5.sqrt())
+  assert_eq(
+    difference(b"\x00\x00\x00\x00", b"\x00\x00\x00\x00").relative_l2(),
+    0.0,
+  )
+  assert_true(
+    difference(b"\x00\x00\x80\x3f", b"\x00\x00\x00\x00").relative_l2().is_inf(),
+  )
+  for
+    (a, b) in [
+      (b"", b""),
+      (b"x", b"x"),
+      (b"\x00\x00\x00\x00", b"\x00\x00\x00\x00\x00\x00\x00\x00"),
+      (b"\x00\x00\x80\x7f", b"\x00\x00\x00\x00"),
+      (b"\x00\x00\x00\x00", b"\x00\x00\xc0\x7f"),
+    ] {
+    try difference(a, b) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid tensor accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, actual, reference, report, scope] else {
+    fail("ACTUAL_F32 REFERENCE_F32 NEW_REPORT COMPARISON_SCOPE")
+  }
+  let result = difference(
+    @fs.read_file(actual).binary(),
+    @fs.read_file(reference).binary(),
+  )
+  let text =
+    $|scope=\{scope}
+    $|actual=\{actual}
+    $|reference=\{reference}
+    $|elements=\{result.elements}
+    $|exact_f32=\{result.exact}
+    $|nonfinite=0
+    $|rmse=\{(result.square_error / result.elements.to_double()).sqrt()}
+    $|relative_l2=\{result.relative_l2()}
+    $|maximum_absolute_error=\{result.maximum}
+    $|claim=difference_only_not_quality_or_equivalence
+    $|
+  @fs.write_file(report, text, create_mode=CreateNew)
+  println(text)
+}
