@@ -95,7 +95,7 @@ async fn main {
     root.has_prefix("/tmp/lunaflux-minimax-upstream-video-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail(
-      "prepare NEW_ROOT [CANONICAL_STANDARDIZED_LATENT_F32] [--latent-shape TIME HEIGHT WIDTH] | run|inspect PREPARED_ROOT",
+      "prepare NEW_ROOT [--existing-reference ROOT] [CANONICAL_STANDARDIZED_LATENT_F32] [--latent-shape TIME HEIGHT WIDTH] | run|inspect PREPARED_ROOT",
     )
   }
   let tag = root.split("/").last().unwrap().to_owned()
@@ -103,7 +103,12 @@ async fn main {
     @fs.mkdir(root)
     @fs.mkdir(root + "/video_vae")
     @fs.mkdir(root + "/video_vae/source")
-    let (source, time, height, width) = latent_shape(extra)
+    let (reference, options) : (String?, ArrayView[String]) = match extra {
+      ["--existing-reference", previous, .. options] =>
+        (Some(previous), options)
+      _ => (None, extra)
+    }
+    let (source, time, height, width) = latent_shape(options)
     let shape = "\{time} \{height} \{width}"
     if source is Some(path) {
       let input = @fs.read_file(path).binary()
@@ -131,15 +136,23 @@ async fn main {
         "normalize.py", "parallel.py", "utils.py", "vae_cnn.py", "vae_module.py",
         "vae_processor.py", "vae_vit.py",
       ] {
-      @shell.Cmd("scp", [
-        "-o",
-        "BatchMode=yes",
-        "lunanexa-management:/data/models/MiniMax/MiniMax-H3/FL2VA/video_vae/" +
-        file,
-        root + "/video_vae/" + file,
-      ])
-      .output()
-      .check()
+      if reference is Some(previous) {
+        @fs.write_file(
+          root + "/video_vae/" + file,
+          @fs.read_file(previous + "/video_vae/" + file).binary(),
+          create_mode=CreateNew,
+        )
+      } else {
+        @shell.Cmd("scp", [
+          "-o",
+          "BatchMode=yes",
+          "lunanexa-management:/data/models/MiniMax/MiniMax-H3/FL2VA/video_vae/" +
+          file,
+          root + "/video_vae/" + file,
+        ])
+        .output()
+        .check()
+      }
     }
     @shell.Cmd("scp", [
       "-r",

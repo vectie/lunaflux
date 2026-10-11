@@ -333,7 +333,7 @@ The diagnostic's initial-time reconstruction was corrected accordingly in
 `3f8f7321`, with compile-time cases for unequal times; production already used
 that convention. The installed original warnings remain preserved.
 
-### Full original trajectory control — implemented, pending measurement
+### Full original trajectory control — completed, decoder quality pending
 
 `scripts/replay-minimax-original-trajectory.mbtx` calls the installed original
 `MiniMaxH3DiTModel`, packed-sequence builder and denoise loop. It receives the
@@ -352,5 +352,39 @@ requires an idle `.179` GPU and at least 104 GiB available memory, with a
 96-GiB process/container ceiling and zero permitted unit swap. Decoding runs
 only after the original DiT releases the GPU. This is offline comparison setup,
 not new request-path validation or production hardening.
+
+The full installed-original trajectory completes at approximately 05:34 CST,
+exit zero, all twenty updates, and releases the GPU. Original warnings are
+retained. Root:
+`/tmp/lunaflux-minimax-original-trajectory-quality128-20261012-v2`.
+Packed F32 positions, document boundaries and initial modality ownership all
+match exactly. The reference consumes the literal native sigma points; the
+original independently generated 21-point schedule differs by at most
+2.98023224e-8 at one video point and two audio points, explicitly reported
+rather than called bitwise-equivalent. Its original time/flow routines remain
+unchanged.
+
+| Complete original trajectory, matched noise/caption/geometry | Relative L2 | Maximum absolute difference |
+| --- | --- | --- |
+| First complete video update versus native | 0.01948708% | 0.0009775385 |
+| First complete audio update versus native | 0.01673137% | 0.0006986260 |
+| Terminal standardized video latent versus native | 2.69715095% | 0.60274291 |
+| Terminal standardized audio latent versus native | 1.62026389% | 0.13460186 |
+
+All compared values are finite. The first-update differences include the
+complete producer/body/head chain; they are not the isolated head or scheduler
+errors above. Terminal errors accumulate over repeated nonlinear evaluations.
+These are measured differences, not acceptance thresholds or quality claims.
+All twenty original updated video/audio states are retained locally without
+duplicating model weights. The original decoder is now testing these **original
+trajectory latents**, not merely decoding native latents again.
+
+The initial trajectory preparation lacked a desktop rotary-table copy and
+stopped before compile/GPU execution. Its incomplete `v1` directory is preserved;
+`v2` copies the exact already-retained host rotary buffer. The first original
+trajectory video preparation also stopped during management-source copying
+before GPU admission. The runner can now reuse the already retained unchanged
+reference source in a fresh directory; this avoids unrelated source re-fetching
+without changing decoder arithmetic.
 
 No new production arithmetic or precision policy is selected by these findings.
