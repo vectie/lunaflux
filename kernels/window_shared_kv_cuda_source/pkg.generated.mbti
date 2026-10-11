@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn online_window_attention_source(@precision_ir.WindowSharedKvPrecision, symbol_prefix~ : String, maximum_slots~ : Int, logical_slots~ : String, setup~ : String, lookup~ : String) -> Bytes raise
+
 pub fn window_shared_kv_source(@precision_ir.WindowSharedKvPrecision, symbol_prefix~ : String) -> WindowSharedKvCudaSource raise
 
 pub fn window_shared_kv_transfer_source(@precision_ir.WindowSharedKvPrecision, symbol_prefix~ : String) -> Bytes raise

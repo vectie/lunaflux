@@ -22,6 +22,7 @@ pub fn compressed_attention_plan(
       maximum_rows~,
       maximum_positions=maximum_context,
       maximum_state_bytes~,
+      probability=OnlineBf16(block_tokens=64),
     ),
     compression_ratio=ratio,
     coordinates=CacheRelative,

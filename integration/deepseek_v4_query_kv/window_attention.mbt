@@ -32,6 +32,9 @@ pub fn window_attention_plan(
     maximum_rows~,
     maximum_positions=spec.max_position_embeddings(),
     maximum_state_bytes~,
+    // Original sparse-attention numerical boundary: F32 online state, BF16
+    // unnormalized P per KV64 block, sink mass only in the final denominator.
+    probability=OnlineBf16(block_tokens=64),
   )
 }
 

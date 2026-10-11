@@ -28,50 +28,71 @@ pub fn window_shared_kv_source(
     symbol_prefix + "_copy",
     symbol_prefix + "_publish",
   ]
-  let source = @utf8.encode(
-      (
-        $|#include <cuda_bf16.h>
-        $|#include <stdint.h>
-        $|#include <math.h>
-        $|extern "C" __global__ void \{symbols[0]}(const int32_t *counts, const int32_t *reset, const int32_t *positions, int32_t *history, int32_t *append) {
-        $|  if (threadIdx.x || blockIdx.x) return;
-        $|  if (reset[0] == 1) { history[0] = 0; history[1] = 0; }
-        $|  const int base = history[0], live = counts[3]; append[0] = base; append[1] = 0; append[2] = 1;
-        $|  if (reset[0] < 0 || reset[0] > 1 || history[1] || base < 0 || base > \{positions} || live < 0 || live > \{rows} || live > \{positions} - base || (live > 0 && counts[2] != 1)) { history[1] = 1; return; }
-        $|  for (int row = 0; row < live; ++row) if (positions[row] != base + row) { history[1] = 1; return; }
-        $|  append[1] = live; append[2] = 0;
-        $|}
-        $|extern "C" __global__ void \{symbols[1]}(const int32_t *append, const __nv_bfloat16 *queries, const __nv_bfloat16 *current_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output) {
-        $|  const int row = blockIdx.x, head = blockIdx.y, lane = threadIdx.x;
-        $|  if (append[2] || row >= append[1] || head >= \{heads}) return;
-        $|  const int base = append[0], position = base + row, first = position >= \{window - 1} ? position - \{window - 1} : 0, length = position - first + 1;
-        $|  const unsigned long long query_base = ((unsigned long long)row * \{heads}ULL + head) * \{width}ULL;
-        $|  __shared__ float scores[\{window}]; __shared__ float denominator;
-        $|  if (lane == 0) {
-        $|    float maximum = sink[head];
-        $|    for (int slot = 0; slot < length; ++slot) {
-        $|      const int absolute = first + slot;
-        $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
-        $|      float dot = 0.0f; for (int component = 0; component < \{width}; ++component) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(queries[query_base + component]), __bfloat162float(key[component])));
-        $|      scores[slot] = __fmul_rn(dot, rsqrtf(\{width}.0f)); maximum = fmaxf(maximum, scores[slot]);
-        $|    }
-        $|    float sum = expf(__fsub_rn(sink[head], maximum));
-        $|    for (int slot = 0; slot < length; ++slot) { scores[slot] = expf(__fsub_rn(scores[slot], maximum)); sum = __fadd_rn(sum, scores[slot]); }
-        $|    denominator = sum;
-        $|  }
-        $|  __syncthreads();
-        $|  for (int component = lane; component < \{width}; component += blockDim.x) {
-        $|    float sum = 0.0f;
-        $|    for (int slot = 0; slot < length; ++slot) {
-        $|      const int absolute = first + slot;
-        $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
-        $|      sum = __fadd_rn(sum, __fmul_rn(scores[slot], __bfloat162float(key[component])));
-        $|    }
-        $|    output[query_base + component] = __float2bfloat16_rn(__fdiv_rn(sum, denominator));
-        $|  }
-        $|}
-      ),
-    ) +
+  let reserve = @utf8.encode(
+    (
+      $|#include <cuda_bf16.h>
+      $|#include <stdint.h>
+      $|#include <math.h>
+      $|extern "C" __global__ void \{symbols[0]}(const int32_t *counts, const int32_t *reset, const int32_t *positions, int32_t *history, int32_t *append) {
+      $|  if (threadIdx.x || blockIdx.x) return;
+      $|  if (reset[0] == 1) { history[0] = 0; history[1] = 0; }
+      $|  const int base = history[0], live = counts[3]; append[0] = base; append[1] = 0; append[2] = 1;
+      $|  if (reset[0] < 0 || reset[0] > 1 || history[1] || base < 0 || base > \{positions} || live < 0 || live > \{rows} || live > \{positions} - base || (live > 0 && counts[2] != 1)) { history[1] = 1; return; }
+      $|  for (int row = 0; row < live; ++row) if (positions[row] != base + row) { history[1] = 1; return; }
+      $|  append[1] = live; append[2] = 0;
+      $|}
+    ),
+  )
+  let attention = match plan.probability_law() {
+    OnlineBf16(block_tokens=_) =>
+      online_window_attention_source(
+        plan,
+        symbol_prefix~,
+        maximum_slots=window,
+        logical_slots="window_span",
+        setup="const int32_t *append, const __nv_bfloat16 *queries, const __nv_bfloat16 *current_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output",
+        lookup=(
+          $|      if (ordinal < length) { const int absolute = first + ordinal; key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL; }
+        ),
+      )
+    GlobalF32 =>
+      @utf8.encode(
+        (
+          $|extern "C" __global__ void \{symbols[1]}(const int32_t *append, const __nv_bfloat16 *queries, const __nv_bfloat16 *current_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output) {
+          $|  const int row = blockIdx.x, head = blockIdx.y, lane = threadIdx.x;
+          $|  if (append[2] || row >= append[1] || head >= \{heads}) return;
+          $|  const int base = append[0], position = base + row, first = position >= \{window - 1} ? position - \{window - 1} : 0, length = position - first + 1;
+          $|  const unsigned long long query_base = ((unsigned long long)row * \{heads}ULL + head) * \{width}ULL;
+          $|  __shared__ float scores[\{window}]; __shared__ float denominator;
+          $|  if (lane == 0) {
+          $|    float maximum = sink[head];
+          $|    for (int slot = 0; slot < length; ++slot) {
+          $|      const int absolute = first + slot;
+          $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
+          $|      float dot = 0.0f; for (int component = 0; component < \{width}; ++component) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(queries[query_base + component]), __bfloat162float(key[component])));
+          $|      scores[slot] = __fmul_rn(dot, rsqrtf(\{width}.0f)); maximum = fmaxf(maximum, scores[slot]);
+          $|    }
+          $|    float sum = expf(__fsub_rn(sink[head], maximum));
+          $|    for (int slot = 0; slot < length; ++slot) { scores[slot] = expf(__fsub_rn(scores[slot], maximum)); sum = __fadd_rn(sum, scores[slot]); }
+          $|    denominator = sum;
+          $|  }
+          $|  __syncthreads();
+          $|  for (int component = lane; component < \{width}; component += blockDim.x) {
+          $|    float sum = 0.0f;
+          $|    for (int slot = 0; slot < length; ++slot) {
+          $|      const int absolute = first + slot;
+          $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
+          $|      sum = __fadd_rn(sum, __fmul_rn(scores[slot], __bfloat162float(key[component])));
+          $|    }
+          $|    output[query_base + component] = __float2bfloat16_rn(__fdiv_rn(sum, denominator));
+          $|  }
+          $|}
+        ),
+      )
+  }
+  let source = reserve +
+    b"\n" +
+    attention +
     b"\n" +
     window_shared_kv_transfer_source(plan, symbol_prefix~)
   { plan, source, symbols: ReadOnlyArray::from_array(symbols), }

@@ -41,6 +41,11 @@ pub fn Accuracy::new(absolute~ : Double, relative~ : Double) -> Self raise Preci
 pub fn Accuracy::not_equal(Self, Self) -> Bool
 pub fn Accuracy::to_repr(Self) -> @debug.Repr
 
+pub(all) enum AttentionProbabilityLaw {
+  GlobalF32
+  OnlineBf16(block_tokens~ : Int)
+} derive(Eq, @debug.Debug)
+
 pub(all) enum AutocastFloat {
   Float16
   Bfloat16
@@ -683,7 +688,8 @@ pub struct WindowSharedKvPrecision {
 pub fn WindowSharedKvPrecision::buffer_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn WindowSharedKvPrecision::effect(Self) -> NumericEffect
 pub fn WindowSharedKvPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
-pub fn WindowSharedKvPrecision::new(query_heads~ : Int, head_width~ : Int, window_tokens~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn WindowSharedKvPrecision::new(query_heads~ : Int, head_width~ : Int, window_tokens~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64, probability? : AttentionProbabilityLaw) -> Self raise PrecisionPlanError
+pub fn WindowSharedKvPrecision::probability_law(Self) -> AttentionProbabilityLaw
 pub fn WindowSharedKvPrecision::state_bytes(Self) -> Int64
 
 // Type aliases
