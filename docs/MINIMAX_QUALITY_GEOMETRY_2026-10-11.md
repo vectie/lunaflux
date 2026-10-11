@@ -233,9 +233,9 @@ moon run scripts/replay-minimax-original-refiner.mbtx run NEW_ROOT
 moon run scripts/replay-minimax-original-refiner.mbtx collect NEW_ROOT
 ```
 
-A quiet thread continuation checks the active repaired media run every ten
-minutes and will collect terminal outputs and latents before running original
-decoder controls. The exact terminal collector uses suffix
+A quiet thread continuation checks outstanding numerical/media work every ten
+minutes. The repaired media run and same-latent original decoder controls are
+now terminal and collected. The exact terminal collector used suffix
 `mlp-order-quality128-20261012-v1`, not the full prefixed unit name. Media and
 audio assessment, encoder drift and full-conditioning operator isolation remain
 open. No new hardening or speculative precision change was introduced.
@@ -284,8 +284,7 @@ from its prepared source instead of guessing kernel positions. An independent
 adapter calls the installed original final layer on literal native block-49
 output and calls the original scheduler on literal native velocity. No observer,
 host readback or new validation is added to ordinary serving. These comparisons
-are implemented but not yet measured; the new capture must finish before any
-head/flow numerical conclusion.
+are now measured below; they do not establish full-trajectory equivalence.
 
 The same independent replay additionally tests the original F32 video/audio
 input projections and original time embedder on the captured initial states
@@ -306,5 +305,52 @@ of its `aot` subdirectory. A preserved `openat` trace locates `ENOENT` precisely
 at `video_pack.cubin`, after successful checkpoint loading—not a weight-reader
 or numerical failure. Corrected run
 `/tmp/lunaflux-minimax-joint-head-flow-20261012-v2` uses the actual `aot` directory;
-its outputs must finish before collection/comparison. No existing evidence or
-production artifact was overwritten.
+it terminates successfully with empty native stderr and zero unit swap peak.
+No existing evidence or production artifact was overwritten.
+
+### Literal first-evaluation controls — completed
+
+The new capture's packed input and block-49 tensor match the preserved repaired
+fifty-block replay **bitwise**. Observation does not change the native body.
+Installed-original replay root is
+`/tmp/lunaflux-minimax-original-head-actual-20261012-v3`; local native operands
+are at `/tmp/lunaflux-minimax-head-flow-capture-20261012-v2`.
+
+| Original operator on literal native inputs | Exact values | Relative L2 | Maximum absolute difference |
+| --- | --- | --- | --- |
+| Final video head, native block 49 | 1,506 / 56,832 F32 | 0.0001438434% | 0.0000467300415 |
+| Final audio head, native block 49 | 351 / 13,248 F32 | 0.0001272711% | 0.0000129938126 |
+| First video RF update, native state/velocity | 56,832 / 56,832 F32 | 0, bitwise | 0 |
+| First audio RF update, native state/velocity | 13,248 / 13,248 F32 | 0, bitwise | 0 |
+| Time embedder, actual unique times | 3 / 2,688 F32 | 0.0015086934% | 0.00000543892384 |
+| Video input projection, native initial state | 3,182,147 / 3,182,592 BF16 | 0.0024798051% | 0.0625 |
+| Audio input projection, native initial state | 2,225,437 / 2,225,664 BF16 | 0.0009477162% | 0.0078125 |
+
+These controls exclude a large **first-evaluation** input/head/update error.
+They neither waive accumulated body/conditioning error nor prove representative
+quality. Text and padding inherit **video time**, audio inherits audio time.
+The diagnostic's initial-time reconstruction was corrected accordingly in
+`3f8f7321`, with compile-time cases for unequal times; production already used
+that convention. The installed original warnings remain preserved.
+
+### Full original trajectory control — implemented, pending measurement
+
+`scripts/replay-minimax-original-trajectory.mbtx` calls the installed original
+`MiniMaxH3DiTModel`, packed-sequence builder and denoise loop. It receives the
+same native initial F32 noise, actual three-row encoded caption, literal
+twenty-update sigma schedule, original checkpoint and rotary table. It compares
+packed positions, document boundaries and initial modality ownership before
+execution, records all twenty post-update states, and unpacks terminal latents
+using installed original helpers. The independently generated original sigma
+routine is also reported; the integration comparison uses captured native
+points rather than silently changing its inputs.
+
+The model is instantiated **directly on CUDA** to avoid a second full CPU
+weight copy. Checkpoint tensors are supplied one at a time. Neither the 51-GB
+encoder nor either VAE coexists with the approximately 66-GB DiT. Admission
+requires an idle `.179` GPU and at least 104 GiB available memory, with a
+96-GiB process/container ceiling and zero permitted unit swap. Decoding runs
+only after the original DiT releases the GPU. This is offline comparison setup,
+not new request-path validation or production hardening.
+
+No new production arithmetic or precision policy is selected by these findings.

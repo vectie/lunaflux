@@ -1,0 +1,257 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn copy(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+fn model_shards(index : String) -> Array[String] raise {
+  guard @json.parse(index) is { "weight_map": Object(fields), .. } else {
+    fail("checkpoint index required")
+  }
+  let shards : Map[String, Unit] = Map([])
+  for _, value in fields {
+    guard value is String(shard) else { fail("checkpoint shard required") }
+    shards[shard] = ()
+  }
+  let result = shards.keys().to_array()
+  result.sort()
+  guard !result.is_empty() else { fail("empty model") }
+  result
+}
+
+///|
+test "trajectory retains the full model, deduplicating shard storage only" {
+  assert_eq(
+    model_shards(
+      "{\"weight_map\":{\"proj_in.weight\":\"a\",\"transformer_blocks.49.norm1.weight\":\"b\",\"token_refiner.final_norm.weight\":\"a\"}}",
+    ),
+    ["a", "b"],
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-minimax-original-trajectory-") else {
+    fail(
+      "prepare NEW_ROOT ORIGINAL_FULL_BLOCK_ROOT NATIVE_HEAD_CAPTURE ENCODED_BF16 | run ROOT | collect ROOT NATIVE_TERMINAL_OUTPUT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [previous, capture, encoded] else {
+      fail("literal trajectory inputs required")
+    }
+    @fs.mkdir(root)
+    for directory in ["model", "input", "output"] {
+      @fs.mkdir(root + "/" + directory)
+    }
+    record(
+      root,
+      "mkdir",
+      remote(
+        "mkdir " +
+        root +
+        " " +
+        root +
+        "/model " +
+        root +
+        "/input " +
+        root +
+        "/output",
+      ),
+    )
+    for
+      file in ["config.json", "diffusion_pytorch_model.safetensors.index.json"] {
+      @fs.write_file(
+        root + "/model/" + file,
+        @fs.read_file(previous + "/model/" + file).binary(),
+        create_mode=CreateNew,
+      )
+      copy(root + "/model/" + file, node + ":" + root + "/model/" + file)
+    }
+    // The earlier replay retained its checkpoint rotary buffer on the host,
+    // not in its small desktop metadata copy. Reuse that exact original table.
+    copy(
+      node + ":" + previous + "/model/rope.inv_freq.f32",
+      root + "/model/rope.inv_freq.f32",
+    )
+    copy(
+      root + "/model/rope.inv_freq.f32",
+      node + ":" + root + "/model/rope.inv_freq.f32",
+    )
+    for
+      shard in model_shards(
+        @fs.read_file(
+          root + "/model/diffusion_pytorch_model.safetensors.index.json",
+        ).text(),
+      ) {
+      record(
+        root,
+        "link-" + shard,
+        remote(
+          "ln " + previous + "/model/" + shard + " " + root + "/model/" + shard,
+        ),
+      )
+    }
+    for
+      (file, source) in [
+        ("video-state.f32", capture + "/video-state.f32"),
+        ("audio-state.f32", capture + "/audio-state.f32"),
+        ("flow-table.f32", capture + "/flow-table.f32"),
+        ("combined.i32", capture + "/combined.i32"),
+        ("documents.i32", capture + "/documents.i32"),
+        ("positions.f32", previous + "/input/positions.f32"),
+        ("encoded.bf16", encoded),
+      ] {
+      @fs.write_file(
+        root + "/input/" + file,
+        @fs.read_file(source).binary(),
+        create_mode=CreateNew,
+      )
+      copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
+    }
+    for
+      file in [
+        "trajectory_upstream.cpp", "original_h3_loading.h", "original_tensor_io.h",
+      ] {
+      copy(
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        node + ":" + root + "/" + file,
+      )
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        "docker run --rm --pull=never --user 1000:1000 --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/trajectory_upstream.cpp -o /work/original-trajectory -lpython3.12",
+      ),
+    )
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected trajectory arguments") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU replay")
+    }
+    let available = remote("awk '/^MemAvailable:/ {print $2}' /proc/meminfo")
+    available.check()
+    guard @string.parse_int64(available.stdout().trim()) >= 104L * 1024L * 1024L else {
+      fail("trajectory requires 104 GiB available before its 96 GiB budget")
+    }
+    record(
+      root,
+      "start",
+      remote(
+        "systemd-run --user --unit=" +
+        tag +
+        " --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 --property=RemainAfterExit=yes --property=StandardOutput=append:" +
+        root +
+        "/stdout.log --property=StandardError=append:" +
+        root +
+        "/stderr.log docker run --rm --pull=never --gpus all --user 1000:1000 --network none --memory 96g --memory-swap 96g -e OMP_NUM_THREADS=2 -e LOGNAME=wlc004s -e PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True -v " +
+        root +
+        ":/work --entrypoint /work/original-trajectory " +
+        image +
+        " /work/model /work/input /work/output",
+      ),
+    )
+  } else if mode == "collect" {
+    guard extra is [native] else {
+      fail("native terminal output directory required")
+    }
+    let terminal = remote(
+      "systemctl --user show " +
+      tag +
+      ".service -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+    )
+    terminal.check()
+    guard terminal.stdout().contains("SubState=exited") &&
+      terminal.stdout().contains("ExecMainStatus=0\n") &&
+      terminal.stdout().contains("Result=success") else {
+      fail("original trajectory not successfully terminal")
+    }
+    record(root, "terminal", terminal)
+    for file in ["stdout.log", "stderr.log"] {
+      copy(node + ":" + root + "/" + file, root + "/" + file)
+    }
+    for label in ["video", "audio"] {
+      for step in 0..<20 {
+        let file = label + "-step-\{step}.f32"
+        copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
+      }
+      let file = label + "-latent.f32"
+      copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
+      record(
+        root,
+        "compare-" + label + "-terminal",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-f32-tensors.mbtx",
+          native + "/" + file,
+          root + "/output/" + file,
+          root + "/" + label + "-terminal.txt",
+          "original_full_trajectory_same_native_noise_caption_geometry_and_sigma_points",
+        ]).output(),
+      )
+    }
+  } else {
+    fail("unknown replay stage")
+  }
+}
