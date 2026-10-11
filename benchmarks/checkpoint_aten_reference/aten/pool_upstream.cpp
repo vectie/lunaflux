@@ -2,7 +2,7 @@
 // Forward hooks observe pooled and normalized tensors without replacing math.
 #include "original_tensor_io.h"
 
-struct Capture { const char *out; PyObject *u8; int rows; };
+struct Capture { const char *out; PyObject *u8; int rows; PyObject *pool_list; PyObject *norm_list; };
 static PyObject *observe_pool(PyObject *self,PyObject *args) {
   auto *capture=static_cast<Capture *>(PyCapsule_GetPointer(self,"pool.capture"));
   if(!capture)return nullptr;
@@ -13,13 +13,33 @@ static PyObject *observe_pool(PyObject *self,PyObject *args) {
     if(!PyTuple_Check(input)||PyTuple_Size(input)!=1)return nullptr;
     tensor=PyTuple_GetItem(input,0);
   } else if(PyTuple_Size(args)==3) tensor=PyTuple_GetItem(args,2);
-  if(!tensor||!save(tensor,capture->u8,std::string(capture->out)+
+  if(!tensor)return nullptr;
+  if(capture->pool_list) {
+    Owned copy(PyObject_CallMethod(tensor,"clone",nullptr));
+    if(!copy.p||PyList_Append(before?capture->pool_list:capture->norm_list,copy.p)<0)return nullptr;
+    Py_RETURN_NONE;
+  }
+  if(!save(tensor,capture->u8,std::string(capture->out)+
       (before?"/pooled.bf16":"/normalized.bf16"),int64_t(capture->rows)*512*2))return nullptr;
   Py_RETURN_NONE;
 }
 static PyMethodDef observer={"observe_pool",observe_pool,METH_VARARGS,"Observe original boundaries."};
 
-static int execute(const char *inference,const char *root,const char *input,const char *out,int rows,int ratio) {
+static PyObject *observe_projection(PyObject *self,PyObject *args) {
+  auto *list=PyCapsule_GetPointer(self,"pool.projection");
+  if(!list||PyTuple_Size(args)!=3)return nullptr;
+  Owned copy(PyObject_CallMethod(PyTuple_GetItem(args,2),"clone",nullptr));
+  if(!copy.p||PyList_Append(static_cast<PyObject *>(list),copy.p)<0)return nullptr;
+  Py_RETURN_NONE;
+}
+static PyMethodDef projection_observer={"observe_projection",observe_projection,METH_VARARGS,"Observe original projections."};
+
+static bool save_sequence(PyObject *torch,PyObject *list,PyObject *u8,const std::string &path,int64_t bytes) {
+  Owned cat(PyObject_CallMethod(torch,"cat","Oi",list,1));
+  return cat.p&&save(cat.p,u8,path,bytes);
+}
+
+static int execute(const char *inference,const char *root,const char *input,const char *out,int rows,int ratio,bool incremental) {
   Owned path(PyUnicode_FromString(inference));
   if(!path.p||PyList_Insert(PySys_GetObject("path"),0,path.p)<0)return -1;
   Owned torch(PyImport_ImportModule("torch")),model(PyImport_ImportModule("model"));
@@ -48,6 +68,11 @@ static int execute(const char *inference,const char *root,const char *input,cons
   const int layer=ratio==4?2:3,channels=ratio==4?1024:512;
   const std::string prefix="layers."+std::to_string(layer)+".attn.compressor.";
   Owned xf(PyObject_CallMethod(x.p,"float",nullptr));
+  Owned value_list(PyList_New(0)),score_list(PyList_New(0));
+  Owned value_capsule(PyCapsule_New(value_list.p,"pool.projection",nullptr));
+  Owned score_capsule(PyCapsule_New(score_list.p,"pool.projection",nullptr));
+  Owned value_hook(PyCFunction_NewEx(&projection_observer,value_capsule.p,nullptr));
+  Owned score_hook(PyCFunction_NewEx(&projection_observer,score_capsule.p,nullptr));
   for(const char *name:{"wkv","wgate","norm","ape"}) {
     const bool position=std::string(name)=="ape";
     const std::string key=prefix+name+(position?"":".weight");
@@ -59,13 +84,20 @@ static int execute(const char *inference,const char *root,const char *input,cons
       std::string(name)=="norm"?512*2:int64_t(channels)*4096*2;
     if(!copied.p||!save(payload.p,u8.p,std::string(out)+"/"+name+(position?".f32":".bf16"),bytes))return -1;
     if(std::string(name)=="wkv"||std::string(name)=="wgate") {
-      Owned operand(PyTuple_Pack(1,xf.p));
-      Owned result(PyObject_CallObject(module.p,operand.p));
-      if(!result.p||!save(result.p,u8.p,std::string(out)+"/"+name+"-projection.f32",int64_t(rows)*channels*4))return -1;
+      if(incremental) {
+        Owned handle(PyObject_CallMethod(module.p,"register_forward_hook","O",
+          std::string(name)=="wkv"?value_hook.p:score_hook.p));
+        if(!handle.p)return -1;
+      } else {
+        Owned operand(PyTuple_Pack(1,xf.p));
+        Owned result(PyObject_CallObject(module.p,operand.p));
+        if(!result.p||!save(result.p,u8.p,std::string(out)+"/"+name+"-projection.f32",int64_t(rows)*channels*4))return -1;
+      }
     }
   }
   Owned norm(PyObject_GetAttrString(gpu.p,"norm"));
-  Capture capture{out,u8.p,rows/ratio};
+  Owned pooled_list(PyList_New(0)),normalized_list(PyList_New(0));
+  Capture capture{out,u8.p,rows/ratio,incremental?pooled_list.p:nullptr,incremental?normalized_list.p:nullptr};
   Owned capsule(PyCapsule_New(&capture,"pool.capture",nullptr));
   Owned hook(PyCFunction_NewEx(&observer,capsule.p,nullptr));
   Owned pre(PyObject_CallMethod(norm.p,"register_forward_pre_hook","O",hook.p));
@@ -80,17 +112,32 @@ static int execute(const char *inference,const char *root,const char *input,cons
   Owned freq(freq_cpu.p?PyObject_CallMethod(freq_cpu.p,"to","s","cuda"):nullptr);
   if(!pre.p||!post.p||!cache.p||!freq.p||
      PyObject_SetAttrString(gpu.p,"kv_cache",cache.p)<0||PyObject_SetAttrString(gpu.p,"freqs_cis",freq.p)<0)return -1;
-  Owned operands(Py_BuildValue("Oi",x.p,0));
-  Owned result(PyObject_CallObject(gpu.p,operands.p));
-  if(!result.p||!save(result.p,u8.p,std::string(out)+"/transformed.bf16",int64_t(rows/ratio)*512*2))return -1;
-  std::printf("original_pool_complete parameter_layer=%d ratio=%d rows=%d input=literal_original_ffn_corpus full_model=false\n",layer,ratio,rows);
+  if(incremental) {
+    for(int row=0;row<rows;++row) {
+      Owned current(PyObject_CallMethod(x.p,"narrow","iii",1,row,1));
+      Owned operands(current.p?Py_BuildValue("Oi",current.p,row):nullptr);
+      Owned result(operands.p?PyObject_CallObject(gpu.p,operands.p):nullptr);
+      if(!result.p)return -1;
+    }
+    if(!save_sequence(torch.p,value_list.p,u8.p,std::string(out)+"/wkv-projection.f32",int64_t(rows)*channels*4)||
+       !save_sequence(torch.p,score_list.p,u8.p,std::string(out)+"/wgate-projection.f32",int64_t(rows)*channels*4)||
+       !save_sequence(torch.p,pooled_list.p,u8.p,std::string(out)+"/pooled.bf16",int64_t(rows/ratio)*512*2)||
+       !save_sequence(torch.p,normalized_list.p,u8.p,std::string(out)+"/normalized.bf16",int64_t(rows/ratio)*512*2))return -1;
+  } else {
+    Owned operands(Py_BuildValue("Oi",x.p,0));
+    Owned result(PyObject_CallObject(gpu.p,operands.p));
+    if(!result.p)return -1;
+  }
+  if(!save(cache.p,u8.p,std::string(out)+"/transformed.bf16",int64_t(rows/ratio)*512*2))return -1;
+  std::printf("original_pool_complete parameter_layer=%d ratio=%d rows=%d submissions=%d input=literal_original_ffn_corpus full_model=false\n",layer,ratio,rows,incremental?rows:1);
   return 0;
 }
 int main(int argc,char **argv) {
-  if(argc!=7)return 2;
+  if(argc!=7&&argc!=8)return 2;
+  if(argc==8&&std::string(argv[7])!="--incremental")return 2;
   const int rows=std::atoi(argv[5]),ratio=std::atoi(argv[6]);
   if(rows!=144||(ratio!=4&&ratio!=128))return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],rows,ratio);
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],rows,ratio,argc==8);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

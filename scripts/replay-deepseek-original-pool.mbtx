@@ -51,6 +51,20 @@ test "pool replay separates original staged operands and both compression ratios
   assert_eq(parameters(128)[2], ("ape.f32", 262144))
 }
 ///|
+fn input_options(options : ArrayView[String]) -> (String, Bool) raise {
+  match options {
+    [input] => (input, false)
+    [input, "--incremental"] => (input, true)
+    _ => fail("literal original corpus and optional --incremental required")
+  }
+}
+///|
+test "incremental replay changes submissions, not the literal corpus" {
+  assert_eq(input_options(["original.bf16"]), ("original.bf16", false))
+  assert_eq(input_options(["original.bf16", "--incremental"]), ("original.bf16", true))
+  try input_options(["original.bf16", "--other"]) catch { _ => () } noraise { _ => fail("unknown replay mode accepted") }
+}
+///|
 async fn idle() -> Unit {
   let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
   owners.check()
@@ -65,11 +79,12 @@ async fn main {
   }
   let tag = root.split("/").last().unwrap().to_owned()
   if mode == "prepare" {
-    guard extra is [input] else { fail("literal original corpus required") }
+    let (input, incremental) = input_options(extra)
     let bytes = @fs.read_file(input).binary()
     guard bytes.length() == 144 * 8192 else { fail("complete 144-row input required") }
     @fs.mkdir(root)
     @fs.write_file(root + "/input.bf16", bytes, create_mode=CreateNew)
+    @fs.write_file(root + "/SUBMISSIONS.txt", if incremental { "144" } else { "1" }, create_mode=CreateNew)
     record(root, "mkdir", remote("mkdir " + root))
     upload(root + "/input.bf16", root + "/input.bf16")
     for ratio in [4, 128] {
@@ -101,6 +116,7 @@ async fn main {
     }
   } else if mode == "run" {
     guard extra.is_empty() else { fail("unexpected options") }
+    let option = if @fs.read_file(root + "/SUBMISSIONS.txt").text() == "144" { " --incremental" } else { "" }
     for ratio in [4, 128] {
       idle()
       let r = ratio.to_string()
@@ -109,18 +125,19 @@ async fn main {
         tag + "-original" + r + " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
         "docker run --name " + tag + "-r" + r + " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
         root + ":/work -v " + checkpoint + ":/model:ro -v " + inference + ":/inference:ro " +
-        "--entrypoint /work/pool-upstream " + image + " /inference /model /work/input.bf16 /work/ratio" + r + "/original 144 " + r))
+        "--entrypoint /work/pool-upstream " + image + " /inference /model /work/input.bf16 /work/ratio" + r + "/original 144 " + r + option))
       record(root, "original-terminal-" + r, remote("docker inspect --format '{{json .State}}' " + tag + "-r" + r))
       for route in ["matched", "propagated"] {
         idle()
         record(root, route + "-run-" + r, remote("systemd-run --user --wait --pipe --unit=" +
           tag + "-" + route + r + " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
-          path + "/pool-native " + path + "/original " + path + "/" + route + " " + root + "/input.bf16 " + route))
+          path + "/pool-native " + path + "/original " + path + "/" + route + " " + root + "/input.bf16 " + route + option))
       }
     }
     record(root, "released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
   } else if mode == "sanitize" {
     guard extra.is_empty() else { fail("unexpected options") }
+    let option = if @fs.read_file(root + "/SUBMISSIONS.txt").text() == "144" { " --incremental" } else { "" }
     for ratio in [4, 128] {
       let r = ratio.to_string()
       let path = root + "/ratio" + r
@@ -132,7 +149,7 @@ async fn main {
           tag + "-" + tool + r + " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
           "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " + tool +
           (if tool == "memcheck" { " --leak-check full" } else { "" }) + " --error-exitcode 99 " +
-          path + "/pool-native " + path + "/original " + out + " " + root + "/input.bf16 matched"))
+          path + "/pool-native " + path + "/original " + out + " " + root + "/input.bf16 matched" + option))
       }
     }
   } else if mode == "collect" {

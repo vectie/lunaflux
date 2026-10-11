@@ -2,6 +2,17 @@
 
 ## Learned compression corpus qualification
 
+The follow-up `pool-incremental-20261011-v1` runs the same 144 literal rows as
+144 one-row submissions, retaining original and native compression state.
+Matched pools are exact for both ratios; ratio-4 matched norm still differs at
+one value. Propagated ratio-4 pool/norm relative L2 is 0.000112815% /
+0.001677099%; ratio-128 pool/norm is exact. The **native** propagated final
+normalizations are bitwise identical between full-prompt and incremental
+execution for both ratios. Original projection shape changes are not replaced
+with native values. All six incremental sanitizer runs report zero errors.
+The runner now has two passing regressions. Use `prepare ... --incremental`
+to select this separate diagnostic without changing corpus bytes.
+
 The installed original `Compressor` and the production learned-pool CUDA
 lowering replay the same literal 144-row original FFN-normalized corpus with
 original layer-2 ratio-4 and layer-3 ratio-128 parameters. Forward hooks observe
