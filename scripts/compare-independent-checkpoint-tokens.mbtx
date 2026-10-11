@@ -1,0 +1,83 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn reference_tokens(response : String) -> Array[Int] raise {
+  let response = @json.parse(response)
+  guard response is Object(fields) &&
+    fields.get("choices") is Some(Array([Object(choice)])) &&
+    choice.get("logprobs") is Some(Object(logprobs)) &&
+    logprobs.get("tokens") is Some(Array(tokens)) else {
+    fail("reference response has no literal token log-probability trace")
+  }
+  tokens.map(token => {
+    guard token is String(id) && id.has_prefix("token_id:") else {
+      fail("reference re-decoded tokens rather than literal token IDs")
+    }
+    @string.parse_int(id[9:])
+  })
+}
+
+///|
+fn shared_prefix(a : ArrayView[Int], b : ArrayView[Int]) -> Int {
+  for i in 0..<a.length().min(b.length()) {
+    if a[i] != b[i] {
+      return i
+    }
+  }
+  a.length().min(b.length())
+}
+
+///|
+test "greedy agreement stops at divergence and is not numerical equivalence" {
+  assert_eq(shared_prefix([1, 2, 3], [1, 4, 3]), 1)
+  assert_eq(shared_prefix([1], [1, 2]), 1)
+  assert_eq(
+    reference_tokens(
+      (
+        #|{"choices":[{"logprobs":{"tokens":["token_id:0","token_id:129279"]}}]}
+      ),
+    ),
+    [0, 129279],
+  )
+  try
+    reference_tokens(
+      (
+        #|{"choices":[{"logprobs":{"tokens":["hello"]}}]}
+      ),
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("decoded text accepted as token ID")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native, reference, output] else {
+    fail("NATIVE_TOKEN_LINES REFERENCE_JSON NEW_REPORT")
+  }
+  let native_ids : Array[Int] = []
+  for line in @fs.read_file(native).text().trim().split("\n") {
+    native_ids.push(@string.parse_int(line.trim()))
+  }
+  let native = native_ids
+  let reference = reference_tokens(@fs.read_file(reference).text())
+  let prefix = shared_prefix(native[:], reference[:])
+  let report = StringBuilder()
+  report <+
+    "scope=greedy_token_differential_only\nnumerical_equivalence_claim=false\nnative_tokens=\{native.length()}\nreference_tokens=\{reference.length()}\nshared_prefix=\{prefix}\n"
+  for i in 0..<native.length().min(reference.length()) {
+    report <+
+      "position=\{i} native=\{native[i]} reference=\{reference[i]} equal=\{native[i] == reference[i]} same_generated_prefix=\{i <= prefix}\n"
+  }
+  @fs.write_file(output, report.to_string(), create_mode=CreateNew)
+  println(report.to_string())
+}

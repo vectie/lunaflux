@@ -163,7 +163,9 @@ test "reference takes literal IDs rather than silently retemplating a prompt" {
 async fn main {
   guard @env.args() is [_, mode, family, root, .. extra] &&
     family is ("glm" | "deepseek") else {
-    fail("start|inspect|stop|request glm|deepseek NEW_ROOT [TOKEN_IDS_FILE]")
+    fail(
+      "start|inspect|stop|request|teacher-force glm|deepseek NEW_ROOT [TOKEN_IDS_FILE [CASE_LABEL]]",
+    )
   }
   let label = root.split("/").last().unwrap().to_owned()
   guard label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
@@ -270,8 +272,16 @@ async fn main {
       println(result.stdout())
       println(result.stderr())
     }
-  } else if mode == "request" {
-    guard extra is [input] else { fail("literal token file required") }
+  } else if mode == "request" || mode == "teacher-force" {
+    let (input, label) = match extra {
+      [input] => (input, "literal-reference")
+      [input, label] => (input, label)
+      _ => fail("literal token file and optional case label required")
+    }
+    guard !label.is_empty() &&
+      label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+      fail("short case label required")
+    }
     let ids = literal_ids(
       @fs.read_file(input).text(),
       if family == "glm" {
@@ -283,11 +293,16 @@ async fn main {
     let request : Json = {
       "model": family,
       "prompt": ids,
-      "max_tokens": 8,
+      "max_tokens": if mode == "teacher-force" {
+        1
+      } else {
+        8
+      },
       "temperature": 0,
       "logprobs": 5,
       "return_tokens_as_token_ids": true,
       "ignore_eos": true,
+      "echo": mode == "teacher-force",
     }
     let result = remote(
       false,
@@ -295,7 +310,7 @@ async fn main {
       quote(request.stringify()) +
       " http://192.168.2.178:18888/v1/completions",
     )
-    save(root, "literal-reference", result)
+    save(root, label, result)
     result.check()
     println(result.stdout())
   } else {
