@@ -1,0 +1,165 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+let checkpoint : String = "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT/DeepSeek-V4-Flash-DSpark"
+
+///|
+let inference : String = "/tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, label : String, output : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + label + ".stdout", output.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + label + ".stderr", output.stderr(), create_mode=CreateNew)
+  output.check()
+}
+
+///|
+async fn upload(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, source,
+    node + ":" + destination]).output().check()
+}
+
+///|
+fn literal_ids(text : String) -> (Bytes, Int) raise {
+  let tokens = [for t in text.trim().split(",") => @string.parse_int(t)]
+  guard tokens.length() > 0 && tokens.length() <= 144 &&
+    tokens.all(t => t >= 0 && t < 129280) else { fail("complete original prompt required") }
+  let bytes = Bytes::from_array([
+    for i in 0..<(tokens.length() * 4) =>
+      ((tokens[i / 4].reinterpret_as_uint() >> (i % 4 * 8)) & 255U).to_byte()
+  ])
+  (bytes, tokens.length())
+}
+
+///|
+test "component replay preserves original IDs, including repetitions" {
+  let (bytes, rows) = literal_ids("0,128803,16,16\n")
+  assert_eq(rows, 4)
+  assert_eq(bytes, b"\x00\x00\x00\x00\x23\xf7\x01\x00\x10\x00\x00\x00\x10\x00\x00\x00")
+}
+
+///|
+fn captures(rows : Int) -> Array[(String, Int)] {
+  [("streams.bf16", rows * 16384 * 2), ("function.f32", 24 * 16384 * 4),
+    ("base.f32", 96), ("scale.f32", 12), ("norm.bf16", 8192),
+    ("collapsed.bf16", rows * 8192), ("normalized.bf16", rows * 8192),
+    ("post.f32", rows * 16), ("combination.f32", rows * 64)]
+}
+
+///|
+test "component capture is explicit, not a whole-model result" {
+  assert_eq(captures(144)[0].1, 4718592)
+  assert_eq(captures(1)[7], ("post.f32", 16))
+  assert_eq(captures(144).length(), 9)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-original-hyper-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("prepare NEW_ROOT ORIGINAL_IDS_TEXT | run|collect ROOT")
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    guard extra is [ids] else { fail("original IDs text required") }
+    let (bytes, rows) = literal_ids(@fs.read_file(ids).text())
+    @fs.mkdir(root)
+    for dir in ["original", "native", "memcheck", "racecheck", "synccheck"] {
+      @fs.mkdir(root + "/" + dir)
+    }
+    @fs.write_file(root + "/ids.i32", bytes, create_mode=CreateNew)
+    @fs.write_file(root + "/ROWS.txt", rows.to_string(), create_mode=CreateNew)
+    record(root, "export", @shell.Cmd("moon", ["test", "--target", "native", "--deny-warn",
+      "--warn-list", "-20-25-29-35-79-92", "kernels/hyper_connection_execution_cuda_source",
+      "--filter", "original DeepSeek component replay exports the same numerical envelope"],
+      env={"LUNAFLUX_MATCHED_HYPER_SOURCE_OUTPUT": root + "/hyper_matched_kernels.cuh"}).output())
+    record(root, "mkdir", remote("mkdir " + root + " " + root + "/original " + root +
+      "/native " + root + "/memcheck " + root + "/racecheck " + root + "/synccheck"))
+    for file in ["ids.i32", "hyper_matched_kernels.cuh"] {
+      upload(root + "/" + file, root + "/" + file)
+    }
+    upload("benchmarks/checkpoint_aten_reference/aten/hyper_upstream.cpp", root + "/hyper_upstream.cpp")
+    upload("tests/packed_moe_execution/hyper_matched_probe.cu", root + "/hyper_matched_probe.cu")
+    record(root, "compile-original", remote("docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+      root + ":/work --entrypoint g++ " + image +
+      " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/hyper_upstream.cpp -o /work/hyper-upstream -lpython3.12"))
+    record(root, "compile-native", remote("systemd-run --user --wait --pipe --unit=" + tag +
+      "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" + root +
+      " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 hyper_matched_probe.cu -o hyper-native"))
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected options") }
+    let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
+    let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+    record(root, "before-owners", owners)
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    // --wait retires the exact unit/container before the next launch, including
+    // the import phase in which the CUDA ownership list can still be empty.
+    record(root, "original-run", remote("systemd-run --user --wait --pipe --unit=" + tag +
+      "-original --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
+      tag + " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+      root + ":/work -v " + checkpoint + ":/model:ro -v " + inference +
+      ":/inference:ro --entrypoint /work/hyper-upstream " + image + " /inference /model /work/ids.i32 /work/original"))
+    record(root, "original-terminal", remote("docker inspect --format '{{json .State}}' " + tag))
+    for gate in ["native", "memcheck", "racecheck", "synccheck"] {
+      let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+      owners.check()
+      guard owners.stdout().trim().is_empty() else { fail("serialize GPU replays") }
+      let command = (if gate == "native" { "" } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " + gate +
+        (if gate == "memcheck" { " --leak-check full" } else { "" }) + " "
+      }) + root + "/hyper-native " + root + "/original " + root + "/" + gate + " " + rows.to_string()
+      record(root, gate + "-run", remote("systemd-run --user --wait --pipe --unit=" + tag + "-" + gate +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " + command))
+    }
+    record(root, "released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+  } else if mode == "collect" {
+    let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
+    for dir in ["original", "native"] {
+      for (file, expected) in captures(rows) {
+        if dir == "native" && file is ("streams.bf16" | "function.f32" | "base.f32" | "scale.f32" | "norm.bf16") {
+          continue
+        }
+        let target = root + "/" + dir + "/" + file
+        @fs.write_file(target, b"", create_mode=CreateNew)
+        @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
+          node + ":" + target, target]).output().check()
+        guard @fs.read_file(target).binary().length() == expected else { fail("truncated " + target) }
+      }
+    }
+    for (file, width) in [("collapsed", 4096), ("normalized", 4096)] {
+      record(root, file + "-comparison", @shell.Cmd("moon", ["run", "scripts/compare-minimax-encoder-reference.mbtx",
+        root + "/native/" + file + ".bf16", root + "/original/" + file + ".bf16",
+        root + "/" + file + "-comparison.txt", "original_deepseek_first_layer_" + file, width.to_string()]).output())
+    }
+    for file in ["post", "combination"] {
+      record(root, file + "-comparison", @shell.Cmd("moon", ["run", "scripts/compare-f32-tensors.mbtx",
+        root + "/native/" + file + ".f32", root + "/original/" + file + ".f32",
+        root + "/" + file + "-comparison.txt", "original_deepseek_first_layer_" + file]).output())
+    }
+  } else { fail("unknown mode") }
+  println("matched_original_component_" + mode + " complete; not full-model parity")
+}

@@ -69,3 +69,24 @@ async test "F32 envelope consumes precision-owned control arithmetic" {
     @fs.write_file(path, rendered.source_bytes(), create_mode=CreateNew)
   }
 }
+
+///|
+async test "original DeepSeek component replay exports the same numerical envelope" {
+  let rendered = @hyper_connection_execution_cuda_source.hyper_connection_source(
+    @precision.HyperConnectionPrecision::new(
+      stream_count=4,
+      hidden_width=4096,
+      maximum_rows=144,
+      sinkhorn_iterations=20,
+      control_epsilon=0.000001,
+      normalization_epsilon=0.000001,
+      mix_law=TransposedF32ResidualThenBranch,
+      control_law=F32ProjectionThenNormalize,
+    ),
+    symbol_prefix="matched_hyper",
+  )
+  assert_eq(rendered.plan().geometry(), (4, 4096, 144))
+  if @env.get_env_var("LUNAFLUX_MATCHED_HYPER_SOURCE_OUTPUT") is Some(path) {
+    @fs.write_file(path, rendered.source_bytes(), create_mode=CreateNew)
+  }
+}
