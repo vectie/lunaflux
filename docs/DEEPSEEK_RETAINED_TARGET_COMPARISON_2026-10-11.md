@@ -20,9 +20,17 @@ not count as generated output. At positions 143 and 144 the original model sampl
 `33310` (`hello`) and `1` (EOS), respectively. The final CLI's appended EOS is not
 used as evidence of EOS sampling.
 
-The native one-token logit capture emits `33310`. Its independent eight-token
-ordinary-target replay is separate and still required to check EOS agreement;
-the logit capture is not an eight-token generation result.
+The native one-token logit capture emits `33310`. Its separate ordinary-target
+replay requests up to eight new tokens, samples `[33310, 1]`, and stops at EOS.
+Both observed generated tokens agree with the original actual sampler. Both
+native ranks exit zero, release their GPU owners and report zero unit swap.
+This closes sequence/EOS agreement for this literal prompt, not full-logit
+equivalence or broad multi-prompt accuracy.
+
+Report: `/tmp/lunaflux-deepseek-actual-target-eos-comparison-20261011-v1.txt`.
+The command is `run-deepseek-dspark-two-spark.mbtx ... target ...`; this ordinary
+target mode neither requires a speculative run nor treats native-to-native
+agreement as an independent original-model comparison.
 
 ## Difference is already present before the vocabulary head
 
