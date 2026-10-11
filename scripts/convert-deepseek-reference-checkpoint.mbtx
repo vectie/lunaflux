@@ -1,0 +1,587 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/math",
+  "moonbitlang/core/encoding/utf8",
+}
+
+// Bounded offline counterpart of the checkpoint's original inference/convert.py.
+// Keep only metadata and <= 1 MiB data chunks, never both rank state dictionaries.
+
+///|
+fn field(j : Json, key : String) -> Json raise {
+  guard j is Object(m) && m.get(key) is Some(v) else { fail("missing " + key) }
+  v
+}
+
+///|
+fn integer(j : Json) -> Int64 raise {
+  guard j is Number(n, ..) && n >= 0 && n < 9007199254740992.0 && n == n.trunc() else {
+    fail("integer extent required")
+  }
+  n.to_int64()
+}
+
+///|
+fn u64(bytes : Bytes) -> Int64 {
+  for i in 0..<8; n = 0UL {
+    continue n | (bytes[i].to_uint64() << (i * 8))
+  } nobreak {
+    n.reinterpret_as_int64()
+  }
+}
+
+///|
+fn prefix(n : Int64) -> Bytes {
+  Bytes::from_array(Array::makei(8, i => ((n >> (i * 8)) & 255L).to_byte()))
+}
+
+///|
+struct Region {
+  path : String
+  offset : Int64
+  bytes : Int64
+  shape : Array[Int64]
+  dtype : String
+}
+
+///|
+struct CopyPlan {
+  name : String
+  original : Region
+  scale : Region?
+  dtype : String
+  shape : Array[Int64]
+  split : Int?
+  rank : Int
+  bytes : Int64
+}
+
+///|
+fn renamed(name : String) -> String {
+  let name = if name.has_prefix("model.") { name[6:].to_owned() } else { name }
+  name
+  .replace_all(old="self_attn", new="attn")
+  .replace_all(old="mlp", new="ffn")
+  .replace_all(old="weight_scale_inv", new="scale")
+  .replace_all(old="e_score_correction_bias", new="bias")
+}
+
+///|
+fn placement(name : String, rank : Int) -> (Bool, Int?) raise {
+  if name.has_prefix("mtp.") &&
+    (name.contains("emb") || name.has_suffix("head.weight")) {
+    return (false, None)
+  }
+  if name.contains(".experts.") && !name.contains("shared_experts") {
+    let parts = name.split(".").to_array()
+    let expert = @string.parse_int(parts[parts.length() - 3])
+    guard expert >= 0 && expert < 256 else { fail("original expert index") }
+    return (expert / 128 == rank, None)
+  }
+  let parts = name.split(".").to_array()
+  let key = if name.contains("hc") ||
+    name.contains("attn_sink") ||
+    name.contains("tie2eid") ||
+    name.contains("ape") {
+    parts.last().unwrap()
+  } else {
+    parts[parts.length() - 2]
+  }
+  let split = match key {
+    "embed"
+    | "wq_b"
+    | "wo_a"
+    | "head"
+    | "attn_sink"
+    | "weights_proj"
+    | "markov_w1"
+    | "markov_w2" => Some(0)
+    "wo_b" => Some(1)
+    _ => None
+  }
+  (true, split)
+}
+
+///|
+fn plan(
+  name : String,
+  region : Region,
+  scale : Region?,
+  rank : Int,
+) -> CopyPlan? raise {
+  let (included, split) = placement(name, rank)
+  if !included || name.has_suffix("wo_a.scale") {
+    return None
+  }
+  let shape = region.shape.copy()
+  if split is Some(axis) {
+    guard axis < shape.length() && shape[axis] % 2L == 0L else {
+      fail("TP axis must divide in two")
+    }
+    shape[axis] /= 2L
+  }
+  let convert = name.has_suffix("wo_a.weight")
+  if convert {
+    guard region.dtype == "F8_E4M3" &&
+      shape.length() == 2 &&
+      shape[0] % 128L == 0L &&
+      shape[1] % 128L == 0L &&
+      scale is Some(s) &&
+      s.dtype == "F8_E8M0" &&
+      s.shape == [region.shape[0] / 128L, region.shape[1] / 128L] else {
+      fail("original wo_a block-128 FP8 geometry required")
+    }
+  }
+  let fp4 = name.contains("experts") && region.dtype == "I8"
+  Some({
+    name,
+    original: region,
+    scale,
+    dtype: if convert {
+      "BF16"
+    } else if fp4 {
+      "F4"
+    } else {
+      region.dtype
+    },
+    shape,
+    split,
+    rank,
+    bytes: region.bytes /
+    (if split is Some(_) { 2L } else { 1L }) *
+    (if convert { 2L } else { 1L }),
+  })
+}
+
+///|
+fn e4(code : Int) -> Float {
+  let sign = if (code & 128) != 0 { -1.0 } else { 1.0 }
+  let magnitude = code & 127
+  if magnitude == 127 {
+    return Float::reinterpret_from_uint(0x7fc00000U)
+  }
+  let exponent = magnitude >> 3
+  let mantissa = magnitude & 7
+  let value = if exponent == 0 {
+    mantissa.to_double() / 512.0
+  } else {
+    (1.0 + mantissa.to_double() / 8.0) *
+    @math.pow(2.0, exponent.to_double() - 7.0)
+  }
+  Float::from_double(sign * value)
+}
+
+///|
+fn ue8(code : Byte) -> Float {
+  if code == 255 {
+    Float::reinterpret_from_uint(0x7fc00000U)
+  } else if code == 0 {
+    Float::reinterpret_from_int(0x00400000)
+  } else {
+    Float::reinterpret_from_int(code.to_int() << 23)
+  }
+}
+
+///|
+fn bf16(v : Float) -> UInt {
+  let bits = v.reinterpret_as_uint()
+  if v.is_nan() {
+    (bits >> 16) | 64U
+  } else {
+    (bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16
+  }
+}
+
+///|
+test "original FP8 conversion preserves F32 scale multiply and BF16 ties" {
+  assert_eq(e4(0x38), 1.0F)
+  assert_eq(e4(0x7e), 448.0F)
+  assert_eq(e4(0x81), -0.001953125F)
+  assert_eq(ue8(127), 1.0F)
+  assert_eq(ue8(0).reinterpret_as_uint(), 0x00400000U)
+  assert_eq(bf16(Float::reinterpret_from_uint(0x3f808000U)), 0x3f80U)
+  assert_eq(bf16(Float::reinterpret_from_uint(0x3f818000U)), 0x3f82U)
+  assert_eq(u64(prefix(166878536440L)), 166878536440L)
+}
+
+///|
+test "rank mapping retains expert ownership and draft names without payload rewrites" {
+  assert_eq(
+    renamed("model.layers.3.mlp.experts.7.w1.weight_scale_inv"),
+    "layers.3.ffn.experts.7.w1.scale",
+  )
+  assert_eq(placement("layers.3.ffn.experts.127.w1.weight", 0), (true, None))
+  assert_eq(placement("layers.3.ffn.experts.128.w1.weight", 0), (false, None))
+  assert_eq(placement("layers.3.ffn.experts.128.w1.weight", 1), (true, None))
+  assert_eq(placement("layers.3.ffn.shared_experts.w1.weight", 1), (true, None))
+  assert_eq(placement("mtp.0.markov_w1.weight", 1), (true, Some(0)))
+  assert_eq(placement("layers.3.attn.wo_b.scale", 0), (true, Some(1)))
+  assert_eq(placement("mtp.0.embed.weight", 0), (false, None))
+}
+
+///|
+async fn regions(root : String) -> Map[String, Region] {
+  let index = @json.parse(
+    @fs.read_file(root + "/model.safetensors.index.json").text(),
+  )
+  guard field(index, "weight_map") is Object(map) else {
+    fail("checkpoint index")
+  }
+  let headers : Map[String, (Int64, Json)] = Map([])
+  let result : Map[String, Region] = Map([])
+  for old_name, value in map {
+    guard value is String(file) else { fail("shard name") }
+    let path = root + "/" + file
+    let (start, header) = match headers.get(file) {
+      Some(v) => v
+      None => {
+        let f = @fs.open(path, mode=ReadOnly)
+        defer f.close()
+        let n = u64(f.read_exactly_at(8, position=0L))
+        guard n > 0L && n < 8388608L else { fail("bounded metadata header") }
+        let j = @json.parse(
+          @utf8.decode(f.read_exactly_at(n.to_int(), position=8L)),
+        )
+        headers[file] = (8L + n, j)
+        (8L + n, j)
+      }
+    }
+    let entry = field(header, old_name)
+    guard field(entry, "shape") is Array(shape) &&
+      field(entry, "dtype") is String(dtype) &&
+      field(entry, "data_offsets") is Array([begin, end]) else {
+      fail("original tensor metadata")
+    }
+    let name = renamed(old_name)
+    result[name] = {
+      path,
+      offset: start + integer(begin),
+      bytes: integer(end) - integer(begin),
+      shape: shape.map(integer),
+      dtype,
+    }
+  }
+  result
+}
+
+///|
+async fn copy_region(
+  input : @fs.File,
+  output : @fs.File,
+  start : Int64,
+  destination : Int64,
+  count : Int64,
+) -> Unit {
+  for done = 0L; done < count; {
+    let n = 1048576L.min(count - done).to_int()
+    let bytes = input.read_exactly_at(n, position=start + done)
+    output.write_at(bytes, position=destination + done)
+    continue done + n.to_int64()
+  }
+}
+
+///|
+async fn write_plan(
+  p : CopyPlan,
+  output : @fs.File,
+  destination : Int64,
+  table : Array[Float],
+) -> Unit {
+  let input = @fs.open(p.original.path, mode=ReadOnly)
+  defer input.close()
+  if p.name.has_suffix("wo_a.weight") {
+    let scale = p.scale.unwrap()
+    let sf = @fs.open(scale.path, mode=ReadOnly)
+    defer sf.close()
+    let scales = sf.read_exactly_at(scale.bytes.to_int(), position=scale.offset)
+    let rows = p.shape[0].to_int()
+    let columns = p.shape[1].to_int()
+    let first = p.rank * rows
+    for row = 0; row < rows; {
+      let count = Int::min(64, rows - row)
+      let raw = input.read_exactly_at(
+        count * columns,
+        position=p.original.offset +
+          (first + row).to_int64() * columns.to_int64(),
+      )
+      let converted : FixedArray[Byte] = FixedArray::make(raw.length() * 2, 0)
+      for r in 0..<count {
+        let scale_row = (first + row + r) / 128 * (columns / 128)
+        for c in 0..<columns {
+          let v = table[raw[r * columns + c].to_int()] *
+            ue8(scales[scale_row + c / 128])
+          let bits = bf16(v)
+          let cell = (r * columns + c) * 2
+          converted[cell] = (bits & 255U).to_byte()
+          converted[cell + 1] = (bits >> 8).to_byte()
+        }
+      }
+      output.write_at(
+        Bytes::from_array(converted),
+        position=destination + row.to_int64() * columns.to_int64() * 2L,
+      )
+      continue row + count
+    }
+  } else if p.split is Some(1) {
+    let rows = p.original.shape[0]
+    let row_bytes = p.original.bytes / rows
+    let half = row_bytes / 2L
+    for row = 0L; row < rows; row = row + 1L {
+      copy_region(
+        input,
+        output,
+        p.original.offset + row * row_bytes + p.rank.to_int64() * half,
+        destination + row * half,
+        half,
+      )
+    }
+  } else {
+    copy_region(
+      input,
+      output,
+      p.original.offset +
+      (if p.split is Some(0) { p.rank.to_int64() * p.bytes } else { 0L }),
+      destination,
+      p.bytes,
+    )
+  }
+}
+
+///|
+async fn convert(root : String, output : String, rank : Int) -> Unit {
+  @fs.mkdir(output)
+  let weights = regions(root)
+  let names = weights.keys().to_array()
+  names.sort()
+  let plans : Array[CopyPlan] = []
+  let header : Map[String, Json] = Map([])
+  let mut offset = 0L
+  for name in names {
+    let region = weights[name]
+    let scale = if name.has_suffix("wo_a.weight") {
+      weights.get(name.replace_all(old=".weight", new=".scale"))
+    } else {
+      None
+    }
+    if plan(name, region, scale, rank) is Some(p) {
+      plans.push(p)
+      header[name] = {
+        "dtype": p.dtype,
+        "shape": p.shape.map(n => n.to_double()),
+        "data_offsets": [offset.to_double(), (offset + p.bytes).to_double()],
+      }
+      offset += p.bytes
+    }
+  }
+  let text = header.to_json().stringify()
+  let encoded = @utf8.encode(text)
+  let padding = (8 - encoded.length() % 8) % 8
+  let header_bytes = encoded + Bytes::make(padding, 32)
+  let out = @fs.open(
+    output + "/model\{rank}-mp2.safetensors",
+    mode=WriteOnly,
+    create_mode=CreateNew,
+  )
+  defer out.close()
+  out.write_at(prefix(header_bytes.length().to_int64()), position=0L)
+  out.write_at(header_bytes, position=8L)
+  let table = Array::makei(256, e4)
+  for i, p in plans; at = 8L + header_bytes.length().to_int64() {
+    write_plan(p, out, at, table)
+    if i % 256 == 0 {
+      println(
+        "reference_conversion tensor=\{i}/\{plans.length()} written=\{at} rank=\{rank}",
+      )
+    }
+    continue at + p.bytes
+  }
+  out.sync()
+  for file in ["tokenizer.json", "tokenizer_config.json"] {
+    let source = @fs.open(root + "/" + file, mode=ReadOnly)
+    defer source.close()
+    let target = @fs.open(
+      output + "/" + file,
+      mode=WriteOnly,
+      create_mode=CreateNew,
+    )
+    defer target.close()
+    copy_region(source, target, 0L, 0L, source.size())
+  }
+  println(
+    "reference_conversion_complete rank=\{rank} tensors=\{plans.length()} payload_bytes=\{offset} original_fp4_bits_preserved=true data_chunk_limit=1048576",
+  )
+}
+
+///|
+async fn self_test() -> Unit {
+  let root = @fs.tmpdir(prefix="lunaflux-deepseek-converter-test-")
+  let header : Map[String, Json] = Map([])
+  let index : Map[String, String] = Map([])
+  let payload : Array[Byte] = []
+  for
+    (name, dtype, shape, data) in [
+      ("embed.weight", "BF16", [4L, 2L], Bytes::makei(16, i => i.to_byte())),
+      (
+        "layers.0.attn.wo_a.weight",
+        "F8_E4M3",
+        [256L, 128L],
+        Bytes::make(32768, 0x38),
+      ),
+      ("layers.0.attn.wo_a.scale", "F8_E8M0", [2L, 1L], b"\x7f\x80"),
+      (
+        "layers.0.attn.wo_b.weight",
+        "BF16",
+        [2L, 4L],
+        Bytes::makei(16, i => i.to_byte()),
+      ),
+      (
+        "layers.0.ffn.experts.0.w1.weight",
+        "I8",
+        [16L, 8L],
+        Bytes::make(128, 0x78),
+      ),
+      (
+        "layers.0.ffn.experts.128.w1.weight",
+        "I8",
+        [16L, 8L],
+        Bytes::make(128, 0x87),
+      ),
+    ] {
+    index[name] = "original.safetensors"
+    header[name] = {
+      "dtype": dtype,
+      "shape": shape.map(n => n.to_double()),
+      "data_offsets": [payload.length(), payload.length() + data.length()],
+    }
+    for b in data {
+      payload.push(b)
+    }
+  }
+  let h = @utf8.encode(header.to_json().stringify())
+  let original = prefix(h.length().to_int64()) + h + Bytes::from_array(payload)
+  @fs.write_file(
+    root + "/original.safetensors",
+    original,
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/model.safetensors.index.json",
+    ({ "weight_map": index } : Json).stringify(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(root + "/tokenizer.json", "{}", create_mode=CreateNew)
+  @fs.write_file(root + "/tokenizer_config.json", "{}", create_mode=CreateNew)
+  for rank in 0..<2 {
+    let output = root + "/rank\{rank}"
+    convert(root, output, rank)
+    let file = @fs.open(output + "/model\{rank}-mp2.safetensors", mode=ReadOnly)
+    defer file.close()
+    let n = u64(file.read_exactly_at(8, position=0L))
+    let j = @json.parse(
+      @utf8.decode(file.read_exactly_at(n.to_int(), position=8L)),
+    )
+    for
+      (name, expected) in [
+        (
+          "embed.weight",
+          if rank == 0 {
+            b"\x00\x01\x02\x03\x04\x05\x06\x07"
+          } else {
+            b"\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+          },
+        ),
+        (
+          "layers.0.attn.wo_b.weight",
+          if rank == 0 {
+            b"\x00\x01\x02\x03\x08\x09\x0a\x0b"
+          } else {
+            b"\x04\x05\x06\x07\x0c\x0d\x0e\x0f"
+          },
+        ),
+        (
+          "layers.0.attn.wo_a.weight",
+          (if rank == 0 { b"\x80\x3f" } else { b"\x00\x40" }).repeat(128 * 128),
+        ),
+        (
+          "layers.0.ffn.experts.\{rank * 128}.w1.weight",
+          Bytes::make(128, if rank == 0 { 0x78 } else { 0x87 }),
+        ),
+      ] {
+      let entry = field(j, name)
+      guard field(entry, "data_offsets") is Array([begin, end]) else {
+        fail("converted fixture metadata")
+      }
+      assert_eq(integer(end) - integer(begin), expected.length().to_int64())
+      assert_eq(
+        file.read_exactly_at(
+          expected.length(),
+          position=8L + n + integer(begin),
+        ),
+        expected,
+      )
+    }
+    guard j is Object(fields) else { fail("converted fixture header") }
+    assert_false(fields.contains("layers.0.attn.wo_a.scale"))
+    assert_true(
+      field(field(j, "layers.0.ffn.experts.\{rank * 128}.w1.weight"), "dtype")
+      is String("F4"),
+    )
+  }
+  assert_eq(@fs.read_file(root + "/original.safetensors").binary(), original)
+  println(
+    "reference_converter_file_test_passed original_unchanged=true row_split=true column_split=true fp4_payload_exact=true wo_a_scale_blocks=true root=" +
+    root,
+  )
+}
+
+///|
+async fn main {
+  match @env.args() {
+    [_, "--self-test"] => self_test()
+    [_, "--inspect", root] => {
+      let weights = regions(root)
+      let names = weights.keys().to_array()
+      names.sort()
+      for rank in 0..<2 {
+        let mut count = 0
+        let mut bytes = 0L
+        let mut dequantized = 0
+        let mut packed = 0
+        for name in names {
+          let scale = if name.has_suffix("wo_a.weight") {
+            weights.get(name.replace_all(old=".weight", new=".scale"))
+          } else {
+            None
+          }
+          if plan(name, weights[name], scale, rank) is Some(p) {
+            count += 1
+            bytes += p.bytes
+            if p.name.has_suffix("wo_a.weight") {
+              dequantized += 1
+            }
+            if p.dtype == "F4" {
+              packed += 1
+            }
+          }
+        }
+        println(
+          "reference_rank_plan rank=\{rank} tensors=\{count} payload_bytes=\{bytes} wo_a_dequantizations=\{dequantized} packed_fp4_tensors=\{packed}",
+        )
+      }
+    }
+    [_, root, output, rank_text] => {
+      let rank = @string.parse_int(rank_text)
+      guard rank is (0 | 1) else { fail("two-rank original model only") }
+      convert(root, output, rank)
+    }
+    _ =>
+      fail(
+        "ORIGINAL_CHECKPOINT NEW_RANK_OUTPUT_DIRECTORY RANK_0_OR_1 | --inspect ORIGINAL_CHECKPOINT | --self-test",
+      )
+  }
+}

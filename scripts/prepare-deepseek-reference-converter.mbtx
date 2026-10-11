@@ -1,0 +1,150 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Test-only CPU conversion. A fresh dependency snapshot avoids modifying the
+// older remote build toolchain or materializing entire rank dictionaries.
+
+///|
+fn quote(s : String) -> String {
+  "'" + s.replace_all(old="'", new="'\"'\"'") + "'"
+}
+
+///|
+async fn main {
+  if @env.args() is [_, "convert", root, rank] {
+    guard root.has_prefix("/tmp/lunaflux-deepseek-reference-converter-") &&
+      root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+      rank is ("0" | "1") else {
+      fail("prepared root and rank 0 or 1 required")
+    }
+    let unit = root.split("/").last().unwrap().to_owned() + "-rank" + rank
+    let command = "systemd-run --user --unit=" +
+      unit +
+      " --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=3600 --property=RemainAfterExit=yes" +
+      " --property=StandardOutput=file:" +
+      root +
+      "/rank" +
+      rank +
+      ".stdout" +
+      " --property=StandardError=file:" +
+      root +
+      "/rank" +
+      rank +
+      ".stderr " +
+      root +
+      "/_build/convert-deepseek-reference-checkpoint.mbtx/native/debug/build/single/single.exe" +
+      " /tmp/lunaflux-deepseek-real-20261010.dLryo68E/DeepSeek-V4-Flash-DSpark " +
+      root +
+      "/rank" +
+      rank +
+      " " +
+      rank
+    let result = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock",
+      "wlc003s@192.168.2.178", command,
+    ]).output()
+    @fs.write_file(
+      root + "/rank" + rank + "-start.stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/rank" + rank + "-start.stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    println(
+      "bounded_cpu_reference_conversion_started rank=" + rank + " unit=" + unit,
+    )
+    return
+  }
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-reference-converter-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_CPU_PREPARATION_DIRECTORY required")
+  }
+  @fs.mkdir(root)
+  let home = @env.get_env_var("HOME").unwrap()
+  let archive = root + "/dependencies.tar.gz"
+  let pack = @shell.Cmd("env", [
+    "COPYFILE_DISABLE=1",
+    "tar",
+    "--exclude=._*",
+    "-czf",
+    archive,
+    "-C",
+    home + "/.moon",
+    "cache/deps",
+    "registry",
+  ]).output()
+  pack.check()
+  let connection = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let node = "wlc003s@192.168.2.178"
+  let base = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain"
+  let setup = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    connection,
+    node,
+    "mkdir " +
+    quote(root) +
+    " " +
+    quote(root + "/toolchain") +
+    "; ln -s " +
+    quote(base + "/bin") +
+    " " +
+    quote(root + "/toolchain/bin") +
+    "; ln -s " +
+    quote(base + "/lib") +
+    " " +
+    quote(root + "/toolchain/lib") +
+    "; ln -s " +
+    quote(base + "/include") +
+    " " +
+    quote(root + "/toolchain/include"),
+  ]).output()
+  setup.check()
+  let upload = @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + connection,
+    archive,
+    "scripts/convert-deepseek-reference-checkpoint.mbtx",
+    node + ":" + root + "/",
+  ]).output()
+  upload.check()
+  let command = "tar -xzf " +
+    quote(root + "/dependencies.tar.gz") +
+    " -C " +
+    quote(root + "/toolchain") +
+    "; env MOON_HOME=" +
+    quote(root + "/toolchain") +
+    " PATH=" +
+    quote(root + "/toolchain/bin:/usr/bin:/bin") +
+    " moon run --target native " +
+    quote(root + "/convert-deepseek-reference-checkpoint.mbtx") +
+    " --inspect /tmp/lunaflux-deepseek-real-20261010.dLryo68E/DeepSeek-V4-Flash-DSpark"
+  let result = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", connection, node, command,
+  ]).output(max_output_bytes=4194304)
+  @fs.write_file(
+    root + "/inspect.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/inspect.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  println(result.stdout())
+  result.check()
+}

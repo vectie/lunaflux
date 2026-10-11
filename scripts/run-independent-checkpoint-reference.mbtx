@@ -200,8 +200,11 @@ async fn main {
   guard label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
     fail("short run label required")
   }
-  if mode == "start" || mode == "start-scale-reference" {
-    let scale_reference = if mode == "start-scale-reference" {
+  if mode == "start" ||
+    mode == "start-scale-reference" ||
+    mode == "start-scale-ep-reference" {
+    let scale_reference = if mode == "start-scale-reference" ||
+      mode == "start-scale-ep-reference" {
       guard family == "glm" &&
         extra is [path] &&
         path.has_prefix("/tmp/lunaflux-glm-scale-reference-") &&
@@ -288,7 +291,13 @@ async fn main {
         family +
         " --distributed-executor-backend mp --nnodes 2 --node-rank " +
         rank +
-        " --tensor-parallel-size 2 --master-addr 192.168.2.178 --master-port 29853 " +
+        " --tensor-parallel-size 2 " +
+        (if mode == "start-scale-ep-reference" {
+          "--enable-expert-parallel "
+        } else {
+          ""
+        }) +
+        "--master-addr 192.168.2.178 --master-port 29853 " +
         "--host 192.168.2.178 --port 18888 --enforce-eager --max-model-len 256 " +
         "--max-num-seqs 1 --max-num-batched-tokens 256 --gpu-memory-utilization 0.78 " +
         "--kv-cache-memory-bytes 536870912 --language-model-only --no-enable-prefix-caching " +

@@ -1,0 +1,124 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Original upstream numerical dependency, isolated from all serving images.
+// Only setup.py's compilation target list changes: CUDA 13 removed sm75.
+
+///|
+fn setup_for_spark(source : String) -> String raise {
+  let start = source.split("    cc_flag.append(\"-gencode\")").to_array()
+  guard start.length() > 1 else { fail("upstream target list missing") }
+  let end = source.split("    # HACK: The compiler flag").to_array()
+  guard end.length() == 2 else { fail("upstream build seam changed") }
+  start[0].to_owned() +
+  "    cc_flag.extend([\"-gencode\", \"arch=compute_121,code=sm_121\"])\n\n" +
+  "    # HACK: The compiler flag" +
+  end[1].to_owned()
+}
+
+///|
+test "upstream numerical source is not replaced by target-list adaptation" {
+  let original = "before\n    cc_flag.append(\"-gencode\")\n    cc_flag.append(\"arch=compute_75,code=sm_75\")\n    # HACK: The compiler flag after"
+  let actual = setup_for_spark(original)
+  assert_true(actual.has_prefix("before\n"))
+  assert_true(actual.has_suffix("The compiler flag after"))
+  assert_true(actual.contains("compute_121"))
+  assert_false(actual.contains("compute_75"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, original, root] &&
+    original.has_prefix("/tmp/lunaflux-deepseek-original-hadamard-") &&
+    root.has_prefix("/tmp/lunaflux-deepseek-upstream-dependency-") &&
+    [original, root].all(s => {
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) else {
+    fail("EXISTING_UPSTREAM_SOURCE NEW_PREPARATION_ROOT required")
+  }
+  @fs.mkdir(root)
+  @fs.write_file(
+    root + "/setup.py",
+    setup_for_spark(@fs.read_file(original + "/setup.py").text()),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("env", [
+    "COPYFILE_DISABLE=1",
+    "tar",
+    "--exclude=.git",
+    "--exclude=._*",
+    "-czf",
+    root + "/source.tar.gz",
+    "-C",
+    original,
+    ".",
+  ])
+  .output()
+  .check()
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let node = "wlc004s@192.168.2.179"
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "mkdir " + root + " " + root + "/source " + root + "/wheel",
+  ])
+  .output()
+  .check()
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    root + "/source.tar.gz",
+    root + "/setup.py",
+    node + ":" + root + "/",
+  ])
+  .output()
+  .check()
+  let tag = root.split("/").last().unwrap().to_owned()
+  let command = "tar -xzf " +
+    root +
+    "/source.tar.gz -C " +
+    root +
+    "/source && cp " +
+    root +
+    "/setup.py " +
+    root +
+    "/source/setup.py && " +
+    "systemd-run --user --unit=" +
+    tag +
+    " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+    "--property=StandardOutput=file:" +
+    root +
+    "/build.stdout --property=StandardError=file:" +
+    root +
+    "/build.stderr " +
+    "docker run --rm --network none --memory 8g --memory-swap 8g " +
+    "-e FAST_HADAMARD_TRANSFORM_FORCE_BUILD=TRUE -e MAX_JOBS=1 -e NVCC_THREADS=1 " +
+    "-v " +
+    root +
+    "/source:/source -v " +
+    root +
+    "/wheel:/wheel --entrypoint pip " +
+    "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 " +
+    "wheel --no-deps --no-build-isolation --no-index /source --wheel-dir /wheel"
+  let result = @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", socket, node, command,
+  ]).output()
+  @fs.write_file(root + "/start.stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/start.stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+  println(
+    "upstream_dependency_cpu_build_started unit=" +
+    tag +
+    " numerical_source_changed=false",
+  )
+}

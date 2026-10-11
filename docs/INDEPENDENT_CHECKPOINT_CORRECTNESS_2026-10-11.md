@@ -4,6 +4,47 @@ Internal ordinary/speculative agreement and successful resource cleanup are
 not independent numerical correctness. This work keeps that distinction and
 does not add production authentication, hashing, TLS or release prerequisites.
 
+## Original-scale reference rerun and bounded upstream conversion
+
+The original-layout GLM scale adapter completed both real TP-rank requests in
+`/tmp/lunaflux-independent-glm-20261011-v3`. The 13-token prompt still matches
+8/8 native tokens. The 20-token prompt now matches 6/8: its first same-prefix
+disagreement is native `13` versus reference `448`. The previous 7/8 result
+used the installed backend's collapsed gate/up global scale and must not be
+treated as a better or more faithful numerical result. A teacher-forced request
+with the original 20 IDs plus the six native generated IDs retains this exact
+frontier. Both reference containers are stopped and both GPU owners released.
+
+Expert decomposition also changes rounding: the ordinary TP reference splits
+the intermediate dimension, whereas the native plan partitions complete
+experts. The next isolated reference uses `--enable-expert-parallel`, retaining
+the same original-scale adapter, literal prompts and memory ceilings. Its
+results are pending; neither scale preservation nor expert-parallel startup
+alone establishes model parity. Persistent sparse-MLA FP8 KV remains an
+explicit independent-reference limitation.
+
+DeepSeek's official `inference/convert.py` retains both full rank dictionaries
+in RAM. The test-only MoonBit counterpart,
+`scripts/convert-deepseek-reference-checkpoint.mbtx`, streams payloads in at
+most 1-MiB chunks. It applies the same MP2 row/column split and expert ownership,
+views the original packed expert bytes as safetensors `F4`, and performs only
+the official block-128 FP8/UE8M0-to-BF16 `wo_a` conversion. It never expands all
+experts to BF16 or changes original files. Unit and complete-file fixtures
+cover both ranks, nibble preservation, row/column splits, scale blocks and
+BF16 ties. The actual checkpoint's metadata gives 36,943 tensors and
+85,397,296,888 payload bytes per rank, including 46 `wo_a` conversions and
+17,664 packed FP4 tensors. Real conversion runs under a 4-GiB/no-swap CPU unit;
+the upstream model execution/comparison is still pending.
+
+`scripts/prepare-deepseek-upstream-dependency.mbtx` separately prepares the
+missing original fast-Hadamard dependency in an isolated test directory. It
+changes only the dependency's setup target list to SM121 because CUDA 13 no
+longer compiles SM75; numerical source and serving images are untouched.
+This dependency build is not a production runtime dependency or a correctness
+pass. The upstream reference is required to remove the installed reference's
+persistent-FP8-cache and routing-rounding mismatches, not to rerun those
+mismatches and call the result faithful.
+
 ## Matching reference discovered
 
 Both Spark `.178` and `.179` already contain
