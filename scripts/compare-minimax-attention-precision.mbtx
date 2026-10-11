@@ -35,7 +35,7 @@ fn attention(
   dim : Int,
 ) -> FixedArray[Double] raise {
   guard rows > 0 &&
-    rows <= 16 &&
+    rows <= 256 &&
     heads > 0 &&
     kv_heads > 0 &&
     heads % kv_heads == 0 &&
@@ -100,6 +100,18 @@ test "wider attention preserves causal masking and grouped head reuse" {
 }
 
 ///|
+test "wider oracle covers the real 140-row caption without truncation" {
+  let rows = 140
+  let q = Array::make(rows * 2, 0.0)
+  let k = Array::make(rows * 2, 0.0)
+  let v = [ for i in 0..<(rows * 2) => (i / 2).to_double() ]
+  let result = attention(q, k, v, rows, 1, 1, 2)
+  assert_eq(result[0], 0.0)
+  assert_eq(result[(rows - 1) * 2], 69.5)
+  assert_eq(result.length(), rows * 2)
+}
+
+///|
 fn rounded_bytes(output : ArrayView[Double]) -> Bytes {
   let bytes : FixedArray[Byte] = FixedArray::make(output.length() * 2, 0)
   for i, value in output {
@@ -131,10 +143,11 @@ async fn main {
   let q = values(@fs.read_file(native + "/q-rotary.bf16").binary())
   let k = values(@fs.read_file(native + "/k-rotary.bf16").binary())
   let v = values(@fs.read_file(native + "/v.bf16").binary())
-  guard q.length() == 3 * 8192 else {
-    fail("this probe uses the three-row original caption")
+  guard q.length() > 0 && q.length() % 8192 == 0 else {
+    fail("original caption query extent is not a whole token row")
   }
-  let result = rounded_bytes(attention(q, k, v, 3, 64, 8, 128))
+  let rows = q.length() / 8192
+  let result = rounded_bytes(attention(q, k, v, rows, 64, 8, 128))
   @fs.mkdir(output)
   let wider = output + "/attention-f64.bf16"
   @fs.write_file(wider, result, create_mode=CreateNew)
@@ -152,6 +165,6 @@ async fn main {
     println(compared.stdout())
   }
   println(
-    "attention_precision_complete scope=three_row_matched_inputs_only performance_claim=false",
+    "attention_precision_complete scope=matched_inputs_only rows=\{rows} performance_claim=false",
   )
 }
