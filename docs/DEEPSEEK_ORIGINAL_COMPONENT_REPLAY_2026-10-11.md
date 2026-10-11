@@ -1,5 +1,44 @@
 # DeepSeek original first-layer component replay — 2026-10-11
 
+## Original routing on all 144 literal FFN rows
+
+The routed-expert replay supplied original routing weights, so it did not test
+the native router. The separate routing replay now executes installed original
+`Gate` and the production numeric routing lowering on all 144 original
+first-layer FFN-normalized rows and their literal token IDs. Layer-0 hash
+selection is the actual first-layer input. Layer-3 learned selection uses that
+same corpus with its own checkpoint weights/bias: this is a component test,
+**not the actual propagated layer-3 input**.
+
+Both paths select identical expert IDs in every slot, **864/864 for each
+router**. Identity-aware comparison also reports zero changed expert sets in
+144 rows. This comparison does not assume that original unsorted top-k and
+native descending publication must always use the same slot order.
+
+| Original router | Logit relative L2 | Score relative L2 | Selected-weight relative L2 | Weight maximum error |
+| --- | --- | --- | --- | --- |
+| Layer-0 token hash | 0.0000599616% | 0.0000231966% | 0.0000438517% | 0.000000566244 |
+| Layer-3 learned, first-layer corpus | 0.0000570585% | 0.0000227907% | 0.0000192749% | 0.000000238419 |
+
+These results do not explain or resolve the 18–21% retained-state difference.
+They rule out a large router error on this matched corpus; later actual router
+inputs, shared-expert addition and two-rank/full-model propagation remain open.
+No production arithmetic or acceptance tolerance changed.
+
+Artifacts: `/tmp/lunaflux-deepseek-original-router-20261011-v2`. Original
+containers exit zero with `OOMKilled=false`. Both native executions and all
+six memcheck/leak, racecheck and synccheck runs complete without errors, with
+GPU owners released. Two runner regressions and four source-package tests
+pass. The preserved v1 failed during diagnostic source concatenation because
+two kernels lacked a separating newline; it did not execute on the GPU.
+
+```sh
+moon run scripts/replay-deepseek-original-router.mbtx prepare NEW_ROOT ORIGINAL_FFN_BF16 ORIGINAL_IDS_I32
+moon run scripts/replay-deepseek-original-router.mbtx run ROOT
+moon run scripts/replay-deepseek-original-router.mbtx sanitize ROOT
+moon run scripts/replay-deepseek-original-router.mbtx collect ROOT
+```
+
 ## Learned compression corpus qualification
 
 The follow-up `pool-incremental-20261011-v1` runs the same 144 literal rows as

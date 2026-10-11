@@ -1,0 +1,422 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn upload(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    node + ":" + destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn literal_inputs(input : Bytes, ids : Bytes) -> Unit raise {
+  guard input.length() == 144 * 4096 * 2 && ids.length() == 144 * 4 else {
+    fail("retain all 144 original FFN rows and token IDs")
+  }
+}
+
+///|
+test "routing never substitutes original scores or truncates the input corpus" {
+  literal_inputs(Bytes::make(144 * 8192, 0), Bytes::make(576, 0))
+  for
+    (input, ids) in [
+      (Bytes::make(8192, 0), Bytes::make(576, 0)),
+      (Bytes::make(144 * 8192, 0), Bytes::make(575, 0)),
+    ] {
+    try literal_inputs(input, ids) catch {
+      _ => ()
+    } noraise {
+      _ => fail("incomplete corpus")
+    }
+  }
+}
+
+///|
+async fn idle() -> Unit {
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else {
+    fail("serialize original/native workloads")
+  }
+}
+
+///|
+// Original topk(sorted=false) need not publish native's descending slot order.
+// Compare selected sets, then align weights by expert identity, never by rank.
+fn aligned_weights(
+  native_ids : BytesView,
+  original_ids : BytesView,
+  native_weights : BytesView,
+) -> (Int, Bytes?) raise {
+  guard native_ids.length() == 144 * 6 * 4 &&
+    original_ids.length() == native_ids.length() &&
+    native_weights.length() == native_ids.length() else {
+    fail("routing extent")
+  }
+  let output = Array::make(native_weights.length(), b'\x00')
+  let mut mismatched_rows = 0
+  for row in 0..<144 {
+    let mut mismatch = false
+    let used = Array::make(6, false)
+    for slot in 0..<6 {
+      let target = (row * 6 + slot) * 4
+      let mut found : Int? = None
+      for candidate in 0..<6 {
+        let offset = (row * 6 + candidate) * 4
+        if !used[candidate] &&
+          original_ids[target:target + 4] == native_ids[offset:offset + 4] {
+          found = Some(candidate)
+          break
+        }
+      }
+      match found {
+        None => mismatch = true
+        Some(candidate) => {
+          used[candidate] = true
+          for byte in 0..<4 {
+            output[target + byte] = native_weights[(row * 6 + candidate) * 4 +
+              byte]
+          }
+        }
+      }
+    }
+    if mismatch {
+      mismatched_rows += 1
+    }
+  }
+  (
+    mismatched_rows,
+    if mismatched_rows == 0 {
+      Some(Bytes::from_array(output))
+    } else {
+      None
+    },
+  )
+}
+
+///|
+test "learned routing compares expert identities rather than unsorted topk slots" {
+  let native = b"aaaabbbbccccddddeeeeffff".repeat(144)
+  let original = b"ffffddddbbbbccccaaaaeeee".repeat(144)
+  let (changed, weights) = aligned_weights(native[:], original[:], native[:])
+  assert_eq(changed, 0)
+  assert_eq(weights, Some(original))
+  let different = b"ggggddddbbbbccccaaaaeeee".repeat(144)
+  assert_eq(aligned_weights(native[:], different[:], native[:]), (144, None))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-original-router-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT ORIGINAL_FFN_BF16 ORIGINAL_IDS_I32 | run|sanitize|collect ROOT",
+    )
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    guard extra is [input, ids] else {
+      fail("two literal input files required")
+    }
+    let bytes = @fs.read_file(input).binary()
+    let tokens = @fs.read_file(ids).binary()
+    literal_inputs(bytes, tokens)
+    @fs.mkdir(root)
+    @fs.write_file(root + "/input.bf16", bytes, create_mode=CreateNew)
+    @fs.write_file(root + "/ids.i32", tokens, create_mode=CreateNew)
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "kernels/moe_routing_cuda_source", "--filter", "original routing replay exports full literal hash and learned rows",
+        ],
+        env={
+          "LUNAFLUX_MATCHED_ROUTER_SOURCE_OUTPUT": root +
+          "/router_matched_kernels.cuh",
+        },
+      ).output(),
+    )
+    record(root, "mkdir", remote("mkdir " + root))
+    for file in ["input.bf16", "ids.i32", "router_matched_kernels.cuh"] {
+      upload(root + "/" + file, root + "/" + file)
+    }
+    for file in ["router_upstream.cpp", "original_tensor_io.h"] {
+      upload(
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        root + "/" + file,
+      )
+    }
+    upload(
+      "tests/packed_moe_execution/router_matched_probe.cu",
+      root + "/router_matched_probe.cu",
+    )
+    record(
+      root,
+      "compile-original",
+      remote(
+        "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/router_upstream.cpp -o /work/router-upstream -lpython3.12",
+      ),
+    )
+    record(
+      root,
+      "compile-native",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 router_matched_probe.cu -o router-native",
+      ),
+    )
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected options") }
+    for layer in [0, 3] {
+      idle()
+      let suffix = "layer-\{layer}"
+      let original = root + "/original-" + suffix
+      let native = root + "/native-" + suffix
+      record(
+        root,
+        "mkdir-" + suffix,
+        remote("mkdir " + original + " " + native),
+      )
+      record(
+        root,
+        "original-" + suffix,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-original-" +
+          suffix +
+          " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
+          tag +
+          "-" +
+          suffix +
+          " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+          root +
+          ":/work -v /tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT/DeepSeek-V4-Flash-DSpark:/model:ro -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro --entrypoint /work/router-upstream " +
+          image +
+          " /inference /model /work/input.bf16 /work/ids.i32 /work/original-" +
+          suffix +
+          " \{layer}",
+        ),
+      )
+      record(
+        root,
+        "terminal-" + suffix,
+        remote(
+          "docker inspect --format '{{.State.Running}} {{.State.ExitCode}} {{.State.OOMKilled}}' " +
+          tag +
+          "-" +
+          suffix,
+        ),
+      )
+      guard @fs.read_file(root + "/terminal-" + suffix + ".stdout")
+        .text()
+        .trim() ==
+        "false 0 false" else {
+        fail("original did not retire successfully")
+      }
+      idle()
+      record(
+        root,
+        "native-" + suffix,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-native-" +
+          suffix +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+          root +
+          "/router-native " +
+          original +
+          " " +
+          root +
+          "/ids.i32 " +
+          native +
+          " \{layer}",
+        ),
+      )
+    }
+    idle()
+  } else if mode == "sanitize" {
+    for layer in [0, 3] {
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        idle()
+        let suffix = "layer-\{layer}-" + tool
+        let out = root + "/sanitizer-" + suffix
+        record(root, "mkdir-" + suffix, remote("mkdir " + out))
+        record(
+          root,
+          "sanitizer-" + suffix,
+          remote(
+            "systemd-run --user --wait --pipe --unit=" +
+            tag +
+            "-" +
+            suffix +
+            " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 /usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+            tool +
+            (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+            " --error-exitcode 99 " +
+            root +
+            "/router-native " +
+            root +
+            "/original-layer-\{layer} " +
+            root +
+            "/ids.i32 " +
+            out +
+            " \{layer}",
+          ),
+        )
+      }
+    }
+    idle()
+  } else if mode == "collect" {
+    for layer in [0, 3] {
+      for route in ["original", "native"] {
+        let dir = root + "/" + route + "-layer-\{layer}"
+        @fs.mkdir(dir)
+        for
+          (file, size) in [
+            ("logits.f32", 144 * 256 * 4),
+            ("scores.f32", 144 * 256 * 4),
+            ("indices.i32", 144 * 6 * 4),
+            ("weights.f32", 144 * 6 * 4),
+          ] {
+          @fs.write_file(dir + "/" + file, b"", create_mode=CreateNew)
+          @shell.Cmd("scp", [
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ControlPath=" + socket,
+            node + ":" + dir + "/" + file,
+            dir + "/" + file,
+          ])
+          .output()
+          .check()
+          guard @fs.read_file(dir + "/" + file).binary().length() == size else {
+            fail("incomplete output")
+          }
+        }
+      }
+      let original = root + "/original-layer-\{layer}"
+      let native = root + "/native-layer-\{layer}"
+      println(
+        "layer=\{layer} indices_bitwise_equal=\{@fs.read_file(native + "/indices.i32").binary() == @fs.read_file(original + "/indices.i32").binary()}",
+      )
+      let (mismatches, aligned) = aligned_weights(
+        @fs.read_file(native + "/indices.i32").binary()[:],
+        @fs.read_file(original + "/indices.i32").binary()[:],
+        @fs.read_file(native + "/weights.f32").binary()[:],
+      )
+      @fs.write_file(
+        root + "/layer-\{layer}-selection.txt",
+        "mismatched_rows=\{mismatches}\nrows=144\n",
+        create_mode=CreateNew,
+      )
+      if aligned is Some(bytes) {
+        @fs.write_file(
+          native + "/aligned-weights.f32",
+          bytes,
+          create_mode=CreateNew,
+        )
+        record(
+          root,
+          "compare-layer-\{layer}-aligned-weights",
+          @shell.Cmd("moon", [
+            "run",
+            "scripts/compare-checkpoint-logits.mbtx",
+            native + "/aligned-weights.f32",
+            original + "/weights.f32",
+            root + "/layer-\{layer}-aligned-weights.txt",
+            "864",
+            "0",
+            "0",
+          ]).output(),
+        )
+      }
+      for
+        (file, cells) in [
+          ("logits", 144 * 256),
+          ("scores", 144 * 256),
+          ("weights", 144 * 6),
+        ] {
+        record(
+          root,
+          "compare-layer-\{layer}-" + file,
+          @shell.Cmd("moon", [
+            "run",
+            "scripts/compare-checkpoint-logits.mbtx",
+            native + "/" + file + ".f32",
+            original + "/" + file + ".f32",
+            root + "/layer-\{layer}-" + file + ".txt",
+            cells.to_string(),
+            "0",
+            "0",
+          ]).output(),
+        )
+      }
+    }
+  } else {
+    fail("unknown mode")
+  }
+  println(
+    "matched_original_router_" +
+    mode +
+    " complete; layer3 uses a component corpus, not its actual propagated input",
+  )
+}
