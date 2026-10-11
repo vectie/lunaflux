@@ -84,6 +84,21 @@ performance measurements. Two incomplete local preparation attempts precede
 `v2` (missing original manifest/input pathname); neither executes inference or
 overwrites an earlier artifact.
 
+### Complete overflow-correction retest
+
+The later source fix `5ccd4147` prevents compensation from turning an
+overflowing F32 square sum into NaN. Actual Spark lowering passes the
+independent finite F64 oracle, both F32-overflow patterns, NaN/infinity
+propagation and all three CUDA sanitizers. A fresh commit-pinned ARM build
+exports all twelve exact-row AOT modules; every original fifty-layer case
+executes and releases its GPU.
+**All twelve final tensors reproduce the preceding compensated corpus bitwise.**
+This confirms propagation of the fix while preserving the measured in-range
+behavior, not a new reduction in the four remaining reference regressions.
+The updated comparison summaries are `THREE_CASES.tsv` under
+`/tmp/lunaflux-minimax-source-norm-overflow-20261011-v1` and `NINE_CASES.tsv`
+under `/tmp/lunaflux-minimax-source-norm-overflow-remainder-20261011-v1`.
+
 ## Method and scope
 
 - Native ARM executable: committed `42b007d54ee6a9503cd1dfb70f570d8e23026d10`,

@@ -80,6 +80,12 @@ whereas digits improves strongly only with both. A prompt-specific rule is not
 an acceptable fix. See [the complete corpus](MINIMAX_DIVERSE_TEXT_ENCODER_2026-10-11.md)
 and [independent correctness investigation](INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md).
 
+The follow-up `5ccd4147` fixes compensated-reduction F32 overflow semantics.
+Its fresh ARM build and exact-row AOT complete all twelve original cases;
+every final tensor matches the earlier compensated corpus bitwise. Component
+F64/determinism, F32 overflow and CUDA sanitizer gates pass. This adds no new
+reference regression and does not close the existing four propagated ones.
+
 Remaining work is numerical/functional, not hardening:
 
 - A faithful GLM comparison must preserve separate original gate/up global

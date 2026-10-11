@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <vector>
 #include "main.cuh"
 
@@ -56,6 +57,20 @@ static void compare_overflow(const __nv_bfloat16 *actual,size_t count,const char
     std::fprintf(stderr,"F32 overflow %s index=%zu actual=%g expected=0\n",name,i,__bfloat162float(actual[i])); std::exit(5);
   }
 }
+static void nonfinite_fixture(__nv_bfloat16 *x,__nv_bfloat16 *w,int width,int heads,bool nan) {
+  overflow_fixture(x,w,width,heads,0);
+  for(int row=0;row<3*heads;++row) x[row*width]=__float2bfloat16_rn(
+    nan?std::numeric_limits<float>::quiet_NaN():std::numeric_limits<float>::infinity());
+}
+static void compare_nonfinite(const __nv_bfloat16 *actual,size_t count,int width,bool nan) {
+  for(size_t i=0;i<count;++i) {
+    const float v=__bfloat162float(actual[i]);
+    const bool expected_nan=nan||i%width==0;
+    if(expected_nan?!std::isnan(v):v!=0.f) {
+      std::fprintf(stderr,"nonfinite propagation index=%zu actual=%g expected_nan=%d\n",i,v,expected_nan); std::exit(6);
+    }
+  }
+}
 int main() {
   auto x=allocate<__nv_bfloat16>(3*5120),w=allocate<__nv_bfloat16>(5120),y=allocate<__nv_bfloat16>(3*5120);
   auto q=allocate<__nv_bfloat16>(3*4*128),k=allocate<__nv_bfloat16>(3*2*128);
@@ -88,6 +103,20 @@ int main() {
     compare_overflow(q,3*4*128,"compensated-query");
     compare_overflow(k,3*2*128,"compensated-key");
   }
+  for(bool nan : {false,true}) {
+    nonfinite_fixture(x,w,5120,1,nan);
+    nonfinite_fixture(q,qw,128,4,nan);
+    nonfinite_fixture(k,kw,128,2,nan);
+    ordered_norm<<<3,1>>>(x,w,y);
+    check(cudaGetLastError()); check(cudaDeviceSynchronize());
+    compare_nonfinite(y,3*5120,5120,nan);
+    compensated_norm<<<3,1>>>(x,w,y);
+    compensated_qknorm<<<dim3(3,6),1>>>(q,k,qw,kw);
+    check(cudaGetLastError()); check(cudaDeviceSynchronize());
+    compare_nonfinite(y,3*5120,5120,nan);
+    compare_nonfinite(q,3*4*128,128,nan);
+    compare_nonfinite(k,3*2*128,128,nan);
+  }
   fixture(x,w,5120,1,3);
   cudaEvent_t start,stop; check(cudaEventCreate(&start)); check(cudaEventCreate(&stop));
   for(int trial=0;trial<4;++trial) for(int route=0;route<2;++route) {
@@ -106,5 +135,5 @@ int main() {
   check(cudaEventDestroy(stop)); check(cudaEventDestroy(start));
   check(cudaFree(kw)); check(cudaFree(qw)); check(cudaFree(k)); check(cudaFree(q));
   check(cudaFree(y)); check(cudaFree(w)); check(cudaFree(x)); check(cudaDeviceReset());
-  std::printf("text normalization cases=%d f32_overflow_cases=2 row_width=5120 head_width=128 deterministic=true f64_oracle_max_bf16_steps=1 allocations_released=true\n",cases);
+  std::printf("text normalization cases=%d f32_overflow_cases=2 nonfinite_propagation_cases=2 row_width=5120 head_width=128 deterministic=true f64_oracle_max_bf16_steps=1 allocations_released=true\n",cases);
 }

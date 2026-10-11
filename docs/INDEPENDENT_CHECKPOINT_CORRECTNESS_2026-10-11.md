@@ -438,3 +438,30 @@ sanitizer timing is not performance evidence. Unsanitized row timing is
 correction, not a speedup or a fix for all twelve propagated corpus differences.
 The two full-media runs above use the previously built `49b15d75` binary/AOT;
 they must not be described as including this later overflow correction.
+
+The extended actual-source probe also passes explicit NaN/infinity propagation
+in row and Q/K-head normalization, with the same ordered-F32 classifications.
+Memcheck/racecheck/synccheck remain clean and all allocations are released.
+Those captures are under
+`/tmp/lunaflux-text-norm-overflow-special-values-20261011-v1`. This tests
+arithmetic semantics rather than adding production input validation.
+
+Pushed `5ccd4147` also builds the ARM command from a fresh archive on Spark
+(208 tasks). Its exporter generates unmodified exact-row AOT for **all twelve**
+original inputs. Fifty-layer execution completes every case on `.179`, with
+finite final tensors and released GPU owners. All twelve final tensors match
+the previous compensated `49b15d75` corpus **bitwise**; the source fix therefore
+corrects the overflow defect without changing the measured in-range corpus.
+The eight-improved/four-regressed comparison remains unchanged, not closed by
+this additional fix. Results are split between
+`/tmp/lunaflux-minimax-source-norm-overflow-20261011-v1` (caption/digits/long)
+and `/tmp/lunaflux-minimax-source-norm-overflow-remainder-20261011-v1`
+(the remaining nine original inputs). Both `SOURCE.txt` files name the actual
+committed build and exporter; the retest script now permits explicit selection
+instead of always exporting from the old hardcoded build.
+
+A second clean archive, now of `5ccd4147`, passes the same **93/93** affected
+native tests. The current working-tree native check and complete **4,981/4,981**
+suite also pass with unchanged migration warning settings. The existing clean
+whole-repository TLS alert limitation above is not resolved or hidden by these
+affected-package and working-tree results.

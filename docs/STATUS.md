@@ -33,6 +33,11 @@ four worsen against the unchanged reference. English/digits/long row/head
 ablations are complete and show nonlinear interaction, not one universally
 faulty normalization kernel.
 Component correctness/determinism and all three CUDA sanitizer checks pass.
+The subsequent `5ccd4147` fix preserves F32 overflow instead of poisoning
+compensation with NaN. Its fresh ARM build and exact-row AOT pass all twelve
+fifty-layer real-machine cases; every final tensor reproduces the preceding
+compensated corpus bitwise. The four reference regressions therefore remain,
+not a newly introduced overflow-fix regression.
 This is not yet complete numerical/media-quality acceptance. See the [independent correctness investigation](INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md).
 The new wider-attention full-encoder diagnostic stays in the separate test-only
 MoonBit/ATen module, outside all production imports and execution paths.
