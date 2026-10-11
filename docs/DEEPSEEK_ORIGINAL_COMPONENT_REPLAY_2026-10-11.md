@@ -125,3 +125,38 @@ moon run scripts/replay-deepseek-original-window.mbtx run ROOT
 moon run scripts/replay-deepseek-original-window.mbtx sanitize ROOT
 moon run scripts/replay-deepseek-original-window.mbtx collect ROOT
 ```
+
+## Grouped output projections and quantization propagation
+
+The next replay consumes the literal original inverse-rotated attention output.
+Original output-A weights undergo the original checkpoint converter's block
+dequantization and BF16 publication; the adapter executes the original grouped
+`einsum` and original FP8 output-B `linear`. Native execution uses the exported
+production grouped-output lowering with all eight groups and 144 rows.
+
+| Boundary | Values | Matched exact BF16 | Matched relative L2 | Propagated relative L2 |
+| --- | --- | --- | --- | --- |
+| Grouped output-A | 1,179,648 | 1,178,284 | 0.0102101% | 0.0102101% |
+| Quantized output-B | 589,824 | 589,810 | 0.0000826156% | 0.0467903% |
+
+Output-A maximum error is 0.015625. Matched output-B maximum error is
+0.0009765625; propagated output-B maximum error is 0.0625. The quantizer
+amplifies a small preceding difference, but this two-stage result still does
+not account for the later 18–21% state discrepancy. The result excludes
+two-rank collective rounding and later-layer propagation.
+
+Artifacts: `/tmp/lunaflux-deepseek-original-output-20261011-v4`.
+Original and both native modes exit zero; the original container is not
+OOM-killed. Full-geometry CUDA memcheck/leak, racecheck and synccheck report
+zero errors, and GPU allocations are released. Three source-package tests
+and one runner test pass. Earlier diagnostic setup failures are retained:
+`v1` lacked the async test import, `v2` had an incorrectly renamed diagnostic
+GPU-query option, and `v3` attempted execution before preparation retired.
+None was a production runtime or numerical defect.
+
+```sh
+moon run scripts/replay-deepseek-original-output.mbtx prepare NEW_ROOT ORIGINAL_INVERSE_BF16 144
+moon run scripts/replay-deepseek-original-output.mbtx run ROOT
+moon run scripts/replay-deepseek-original-output.mbtx sanitize ROOT
+moon run scripts/replay-deepseek-original-output.mbtx collect ROOT
+```

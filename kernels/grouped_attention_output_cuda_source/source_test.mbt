@@ -15,6 +15,31 @@ fn fixture() -> @precision.GroupedAttentionOutputPrecision raise {
 }
 
 ///|
+async test "original grouped output replay exports full checkpoint geometry" {
+  let plan = @precision.GroupedAttentionOutputPrecision::new(
+    head_count=64,
+    head_width=512,
+    rotary_width=64,
+    group_count=8,
+    output_rank=1024,
+    hidden_width=4096,
+    maximum_rows=144,
+    maximum_positions=1048576,
+    frequency=Base(theta=10000.0),
+    maximum_workspace_bytes=33554432L,
+  )
+  let source = @grouped_attention_output_cuda_source.grouped_attention_output_source(
+    plan,
+    symbol_prefix="matched_output",
+  )
+  assert_eq(source.launch(1), (144, 8, 256))
+  assert_eq(source.launch(2), (144, 16, 256))
+  if @env.get_env_var("LUNAFLUX_MATCHED_OUTPUT_SOURCE_OUTPUT") is Some(path) {
+    @fs.write_file(path, source.source_bytes(), create_mode=CreateNew)
+  }
+}
+
+///|
 test "grouped output has inverse rotation and separate BF16 versus quantized projection" {
   let source = @grouped_attention_output_cuda_source.grouped_attention_output_source(
     fixture(),
