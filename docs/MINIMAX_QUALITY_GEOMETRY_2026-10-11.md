@@ -644,12 +644,42 @@ identical noise after the canvas changes.
 Root / exact user unit on `.179`:
 `/tmp/lunaflux-minimax-original-trajectory-original-rng-quality256-20261012-v1`
 / `lunaflux-minimax-original-trajectory-original-rng-quality256-20261012-v1.service`.
-This run is **pending**, not a numerical or quality pass. It has a 96-GiB
+The original DiT completes all **49 updates**, exits zero, releases CUDA and
+has `MemorySwapPeak=0`. It has a 96-GiB
 resident-memory limit, zero unit swap and a two-hour timeout; no other GPU
 work is admitted there. Video has 2,368 patch rows, audio 414, caption 3;
 the canonical terminal video latent is `[1,24,37,16,16]`. Actual decoded
-geometry and semantic content must be checked after the original DiT releases
-the GPU and the original VAE runs separately.
+geometry and semantic content are checked after the original DiT releases
+the GPU and the original VAE runs separately. Original VideoVAE root
+`/tmp/lunaflux-minimax-upstream-video-original-rng256-20261012-v1` also exits
+zero, releases CUDA and reports zero unit swap. Its literal output is
+**`[1,3,124,256,256]`, 97,517,568 F32 bytes**. Installed original warnings remain
+in the logs; stderr is not relabeled empty.
+
+The twelve-frame contact sheet now shows a **recognizable reddish-brown cat**,
+unlike the failed 128×128 controls. However, it also shows conspicuous lattice
+texture, malformed/glowing eye features and changing saturated red/green/blue
+patches. This establishes prompt-related visual content at this control, not
+a clean media-quality pass or full-resolution validation. Original geometry
+and initial noise both changed, so their individual effects are not identified.
+Preview: `/tmp/lunaflux-minimax-original-rng256-preview-20261012-v1/frames.png`.
+Audio is not decoded or listened to in this new control.
+
+A separate original-noise **128×128**, same-caption / 49-update control completes
+at
+`/tmp/lunaflux-minimax-original-trajectory-original-rng-quality128-20261012-v1`.
+It and the separate original decoder
+`/tmp/lunaflux-minimax-upstream-video-original-rng128-20261012-v1` exit zero,
+release CUDA and record zero unit swap. Literal decoded output remains
+`[1,3,124,128,128]`. Its inspected contact sheet again shows scrambled colored
+lattice and **no recognizable cat**:
+`/tmp/lunaflux-minimax-original-rng128-preview-20261012-v1/frames.png`.
+This restores the old canvas while using the installed original noise route.
+The 128 failure is therefore not unique to LunaFlux's random generator. The
+256 control provides recognizable prompt content, but neither original control
+is a clean quality pass; changing canvas also changes actual sampled input
+positions, so the experiment does not identify geometry as the sole cause.
+It is not a native numerical parity replay or a production RNG selection change.
 
 The offline bridge now makes observer extents and unpatchification geometry
 explicit rather than retaining hard-coded 592-row / 8×8 assumptions. Existing
