@@ -1,0 +1,63 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn metric(report : String) -> (Double, Int, Double) raise {
+  let mut global : Double? = None
+  let mut row = -1
+  let mut maximum = -1.0
+  for line in report.split("\n") {
+    if line.has_prefix("relative_l2=") {
+      global = Some(@string.parse_double(line[12:]))
+    }
+    if line.has_prefix("row=") {
+      let fields = line.split(" ").collect()
+      let index = @string.parse_int(fields[0][4:])
+      for field in fields {
+        if field.has_prefix("relative_l2=") {
+          let error = @string.parse_double(field[12:])
+          if error > maximum {
+            maximum = error
+            row = index
+          }
+        }
+      }
+    }
+  }
+  guard global is Some(error) && row >= 0 else {
+    fail("incomplete tensor comparison")
+  }
+  (error, row, maximum)
+}
+
+///|
+test "retains worst token error independently of global norm" {
+  assert_eq(
+    metric("relative_l2=0.01\nrow=0 relative_l2=0.03\nrow=1 relative_l2=0.2\n"),
+    (0.01, 1, 0.2),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output, .. cases] && !cases.is_empty() else {
+    fail("RETEST_DIRECTORY NEW_SUMMARY_FILE CORPUS_CASES")
+  }
+  let summary = StringBuilder()
+  summary.write_string(
+    "case\tglobal_relative_l2\tworst_row\tworst_row_relative_l2\n",
+  )
+  for name in cases {
+    let (global, row, worst) = metric(
+      @fs.read_file(root + "/" + name + "/comparison.txt").text(),
+    )
+    summary.write_string("\{name}\t\{global}\t\{row}\t\{worst}\n")
+  }
+  @fs.write_file(output, summary.to_string(), create_mode=CreateNew)
+  println(summary.to_string())
+}
