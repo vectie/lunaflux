@@ -142,8 +142,9 @@ The sparse-only launch probe succeeds with finite outputs on Spark `.178`.
 The full MP2 reference completed under `v7` on both Sparks with exit zero and
 `OOMKilled=false`; both loaded all 36,943 rank tensors and released GPU owners.
 Actual input IDs match all 144 native IDs. Its first generated token is
-`33310` ("hello"), versus native `19923` ("Hello"). It then stops at EOS;
-the CLI's appended reporting EOS is excluded from the one-token comparison.
+`33310` ("hello"), versus native `19923` ("Hello"). The CLI always appends a
+reporting EOS, which is excluded from the one-token comparison; this run does
+not establish actual EOS sampling or EOS agreement.
 Thus **0/1** same-prefix tokens agree. This reproduces the independent backend's
 capitalization disagreement, now without its FP8 sparse-KV substitution. It
 is a measured unresolved native/reference differential, not a correctness pass.
