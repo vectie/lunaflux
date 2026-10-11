@@ -184,16 +184,12 @@ result. Outputs and all 51 states are downloaded under
 ## Native-logit localization
 
 The explicit DeepSeek `egress-logits-dspark` command borrows the existing head
-allocation, prepares a readback outside execution and copies its final retired
-vocabulary row only after the control session ends. Its runner's `logits` mode
+allocation, prepares a readback outside execution and copies the allocated
+vocabulary rows only after the control session ends. Its runner's `logits` mode
 requests one generated token, preserving the same literal prefill. Ordinary
 generation prepares no additional pool and performs no additional readback.
 This supports comparing native margins against reference scores instead of
-guessing from decoded wording. Physical capture remains to be run; an accessor
-and passing source tests are not native-logit evidence.
-
-The fresh commit-pinned native-logit run is now dispatched across both Sparks
-with the original 144 literal IDs. The offline F32 inspector reports native
+guessing from decoded wording. The offline F32 inspector reports native
 top-five scores and selected-token margins; separately rounding that head row
 to BF16 is labeled an attribution-only view, not another runtime route.
 
@@ -206,6 +202,35 @@ first-generation reference scores. The correction copies the entire allocated
 head after retirement. The offline inspector now requires an explicit output
 row and checks that its greedy winner equals the actual emitted token before
 reporting margins. A two-row regression rejects the misleading row-zero case.
+
+The corrected run, `/tmp/lunaflux-dspark-run-logits-20261011-v2`, uses committed
+`c8c64721437bbdfae9c9d53512224d791a761832`, the unchanged six-row AOT kernels and
+the original 144 literal IDs (compared byte-for-byte before execution). The full
+allocated head is downloaded. **Physical row 5 reproduces the actual emitted
+token**, making this a usable native first-generation score capture:
+
+| Implementation / diagnostic view | `Hello` (19923) | `hello` (33310) | Winner |
+| --- | --- | --- | --- |
+| Actual native F32 head | 31.737299 | 31.683079 | `Hello`, margin 0.054220 |
+| Native head rounded to BF16, diagnostic only | 31.750000 | 31.625000 | `Hello`, margin 0.125000 |
+| Independent reference, same literal input | second candidate | first candidate | `hello`, margin 0.250000 |
+
+Absolute reference logits are not inferred from log probabilities. Their
+pairwise margin is comparable; these opposite signed margins differ by about
+0.3042 logit units. BF16 rounding of the captured native head alone does not
+explain the winner reversal. The original checkpoint's `ParallelHead` explicitly
+converts both its input and stored BF16 weight to F32 computation; changing
+native head precision merely to imitate the serving reference is not a fix.
+The remaining arithmetic attribution must occur before the final head, not in
+the now-corrected row observer.
+
+Both ranks exit zero, explicitly close their contexts and leave no GPU owners.
+User-unit memory peaks are 58,820,612,096 bytes on `.178` and 37,478,076,416 bytes
+on `.179`, below their 96-GiB limits, with zero unit swap peaks. These cgroup
+figures are not complete CUDA unified-memory residency or a zero-host-swap claim.
+The 69,114-ms generation window includes all 24 prefill frames and one generated
+token; it is not steady-state token throughput. Strict independent equivalence
+remains unresolved because of the reference arithmetic differences below.
 
 The next two MiniMax interventions have now completed all fifty layers on the
 real Spark for the original 56-token digits input. Both preserve BF16 operator
