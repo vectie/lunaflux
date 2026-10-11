@@ -1,0 +1,331 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, label : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn upload(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    node + ":" + destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn stages() -> Array[(String, Int)] {
+  [
+    ("q-rope", 32768),
+    ("kv-rope", 512),
+    ("kv-sim", 512),
+    ("attention", 32768),
+    ("inverse", 32768),
+  ]
+}
+
+///|
+test "window replay retains original masking and full-head operands" {
+  assert_eq(stages()[0], ("q-rope", 32768))
+  assert_eq(stages()[2], ("kv-sim", 512))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-original-window-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT ORIGINAL_QUERY_ROOT ROWS | run|sanitize|collect ROOT",
+    )
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    guard extra is [input, row_text] else {
+      fail("original query directory and rows required")
+    }
+    let rows = @string.parse_int(row_text)
+    guard rows >= 128 && rows <= 144 else {
+      fail("complete original window read set required")
+    }
+    @fs.mkdir(root)
+    for dir in ["input", "original", "matched", "propagated"] {
+      @fs.mkdir(root + "/" + dir)
+    }
+    @fs.write_file(root + "/ROWS.txt", row_text, create_mode=CreateNew)
+    for (file, width) in [("q-head.bf16", 32768), ("kv-norm.bf16", 512)] {
+      let bytes = @fs.read_file(input + "/" + file).binary()
+      guard bytes.length() == rows * width * 2 else {
+        fail("literal original input extent differs")
+      }
+      @fs.write_file(root + "/input/" + file, bytes, create_mode=CreateNew)
+    }
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "kernels/window_shared_kv_cuda_source", "--filter", "original window replay exports literal full-head rotary and online probability boundaries",
+        ],
+        env={
+          "LUNAFLUX_MATCHED_WINDOW_SOURCE_OUTPUT": root +
+          "/window_matched_kernels.cuh",
+        },
+      ).output(),
+    )
+    record(
+      root,
+      "mkdir",
+      remote(
+        "mkdir " +
+        root +
+        " " +
+        root +
+        "/input " +
+        root +
+        "/original " +
+        root +
+        "/matched " +
+        root +
+        "/propagated",
+      ),
+    )
+    for file in ["q-head.bf16", "kv-norm.bf16"] {
+      upload(root + "/input/" + file, root + "/input/" + file)
+    }
+    upload(
+      root + "/window_matched_kernels.cuh",
+      root + "/window_matched_kernels.cuh",
+    )
+    for file in ["window_upstream.cpp", "original_tensor_io.h"] {
+      upload(
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        root + "/" + file,
+      )
+    }
+    upload(
+      "tests/packed_moe_execution/window_matched_probe.cu",
+      root + "/window_matched_probe.cu",
+    )
+    record(
+      root,
+      "compile-original",
+      remote(
+        "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/window_upstream.cpp -o /work/window-upstream -lpython3.12",
+      ),
+    )
+    record(
+      root,
+      "compile-native",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 window_matched_probe.cu -o window-native",
+      ),
+    )
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected options") }
+    let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, "before-owners", owners)
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    record(
+      root,
+      "original-run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-original --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
+        tag +
+        " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+        root +
+        ":/work -v /tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT/DeepSeek-V4-Flash-DSpark:/model:ro" +
+        " -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro" +
+        " --entrypoint /work/window-upstream " +
+        image +
+        " /inference /model /work/input /work/original " +
+        rows.to_string(),
+      ),
+    )
+    record(
+      root,
+      "original-terminal",
+      remote("docker inspect --format '{{json .State}}' " + tag),
+    )
+    for route in ["matched", "propagated"] {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else { fail("serialize replays") }
+      record(
+        root,
+        route + "-run",
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          route +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+          root +
+          "/window-native " +
+          root +
+          "/original " +
+          root +
+          "/" +
+          route +
+          " " +
+          rows.to_string() +
+          " " +
+          route,
+        ),
+      )
+    }
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "sanitize" {
+    let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else {
+        fail("serialize sanitizer replays")
+      }
+      let out = root + "/sanitizer-" + tool
+      record(root, "sanitizer-" + tool + "-mkdir", remote("mkdir " + out))
+      let leak = if tool == "memcheck" { " --leak-check full" } else { "" }
+      record(
+        root,
+        "sanitizer-" + tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          tool +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+          " /usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+          tool +
+          leak +
+          " --error-exitcode 99 " +
+          root +
+          "/window-native " +
+          root +
+          "/original " +
+          out +
+          " " +
+          rows.to_string() +
+          " matched",
+        ),
+      )
+    }
+  } else if mode == "collect" {
+    let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
+    for dir in ["original", "matched", "propagated"] {
+      let files = stages().map(pair => (pair.0 + ".bf16", pair.1 * rows * 2))
+      if dir == "original" {
+        files.append([
+          ("q-input.bf16", rows * 32768 * 2),
+          ("kv-input.bf16", rows * 512 * 2),
+          ("sink.f32", 256),
+          ("frequencies.complex64", rows * 32 * 8),
+          ("indices.i32", rows * 128 * 4),
+        ])
+      }
+      for (file, expected) in files {
+        let target = root + "/" + dir + "/" + file
+        @fs.write_file(target, b"", create_mode=CreateNew)
+        @shell.Cmd("scp", [
+          "-o",
+          "BatchMode=yes",
+          "-o",
+          "ControlPath=" + socket,
+          node + ":" + target,
+          target,
+        ])
+        .output()
+        .check()
+        guard @fs.read_file(target).binary().length() == expected else {
+          fail("truncated " + target)
+        }
+      }
+      if dir != "original" {
+        for (stage, width) in stages() {
+          record(
+            root,
+            dir + "-" + stage + "-comparison",
+            @shell.Cmd("moon", [
+              "run",
+              "scripts/compare-minimax-encoder-reference.mbtx",
+              root + "/" + dir + "/" + stage + ".bf16",
+              root + "/original/" + stage + ".bf16",
+              root + "/" + dir + "-" + stage + "-comparison.txt",
+              "original_deepseek_window_" + dir + "_" + stage,
+              width.to_string(),
+            ]).output(),
+          )
+        }
+      }
+    }
+  } else {
+    fail("unknown mode")
+  }
+  println(
+    "matched_original_window_" +
+    mode +
+    " complete; not full-model or tensor-parallel parity",
+  )
+}

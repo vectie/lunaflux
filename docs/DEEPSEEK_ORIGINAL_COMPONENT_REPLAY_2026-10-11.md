@@ -89,3 +89,39 @@ moon run scripts/replay-deepseek-original-query.mbtx collect ROOT
 This is an original TP1 full-head **component** comparison. It is not a new
 full-model or two-rank DeepSeek correctness pass. No production dependency or
 hardening is added.
+
+## Rotary, cache simulation and window attention on original operands
+
+The installed original rotary implementation, UE8M0 cache simulation,
+window-index builder and sparse-attention kernel now run on the literal
+144-row Q/KV outputs above. All 64 heads are retained; matching each operator
+independently distinguishes its own rounding from propagated differences.
+
+| Boundary | Values | Matched exact BF16 | Matched relative L2 | Propagated relative L2 |
+| --- | --- | --- | --- | --- |
+| Query rotary | 4,718,592 | 4,718,570 | 0.000858670% | 0.000858670% |
+| KV rotary | 73,728 | 73,728 | 0 | 0 |
+| KV cache quantization simulation | 73,728 | 73,728 | 0 | 0 |
+| Window attention | 4,718,592 | 4,717,516 | 0.00627383% | 0.00633559% |
+| Inverse rotary | 4,718,592 | 4,718,570 | 0.000359987% | 0.00728139% |
+
+Maximum matched errors are 0.015625 for query rotary and attention, and
+0.00390625 for inverse rotary. These first-layer differences still do not
+explain the approximately 18–21% later retained-state discrepancy. Output
+projections, distinct-stream residual mixing, expert execution and later
+compressed layers remain to be traced on original inputs. No tolerance or
+production arithmetic has been changed to hide that discrepancy.
+
+Artifacts: `/tmp/lunaflux-deepseek-original-window-20261011-v1`.
+Original and native replays exit zero; the original container reports
+`OOMKilled=false`. Full-geometry CUDA memcheck/leak, racecheck and synccheck
+report zero errors. GPU allocations are released. The source package has
+three passing tests and the runner one. This is a TP1 first-layer component
+comparison, not a full-model numerical pass.
+
+```sh
+moon run scripts/replay-deepseek-original-window.mbtx prepare NEW_ROOT ORIGINAL_QUERY_DIRECTORY 144
+moon run scripts/replay-deepseek-original-window.mbtx run ROOT
+moon run scripts/replay-deepseek-original-window.mbtx sanitize ROOT
+moon run scripts/replay-deepseek-original-window.mbtx collect ROOT
+```
