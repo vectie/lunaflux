@@ -143,6 +143,14 @@ zero comparison used different standardized/destandardized inputs and is not
 decoder-error attribution. Generated VideoVAE replay is separate; neither
 decoder comparison by itself validates caption fidelity or audio quality.
 
+The generated-latent **VideoVAE** replay also completes on `.179`, preserving
+the identical standardized latent, FP16 autocast and original decoder/processor.
+All 380,928 pixels are finite: relative L2 **0.044344%**, RMSE 0.000157752,
+maximum absolute error 0.001491547. Its independent report is under
+`/tmp/lunaflux-minimax-upstream-video-generated-20261011-v1`. These close decoder
+comparisons do not erase the old-schedule limitation of their shared latent
+fixture or establish generated-media quality.
+
 Corrected-schedule joint replay uses committed `de9e1ec8` under
 `/tmp/lunaflux-minimax-joint-sigma-20261011-v1`. Fresh AOT preparation is at
 `/tmp/lunaflux-minimax-request-aot-sigma-20261011-v3`: 27 unchanged module sources

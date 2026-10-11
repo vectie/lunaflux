@@ -1,0 +1,187 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn upload(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    node + ":" + destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+fn literal_rows(bytes : Bytes) -> Int raise {
+  guard bytes.length() > 0 && bytes.length() % 4 == 0 && bytes.length() <= 4096 else {
+    fail("bounded complete I32 input required")
+  }
+  bytes.length() / 4
+}
+
+///|
+test "original module replay retains complete literal inputs" {
+  assert_eq(literal_rows(Bytes::make(140 * 4, 0)), 140)
+  assert_eq(literal_rows(Bytes::make(1024 * 4, 0)), 1024)
+  for bytes in [b"", b"\x00", Bytes::make(4097, 0)] {
+    try literal_rows(bytes) catch {
+      _ => ()
+    } noraise {
+      _ => fail("incomplete or unbounded literal input accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    mode is ("prepare" | "run" | "inspect") &&
+    (if mode == "prepare" { extra.length() == 2 } else { extra.is_empty() }) &&
+    root.has_prefix("/tmp/lunaflux-minimax-upstream-encoder-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("prepare NEW_ROOT LITERAL_IDS_I32 LAYERS | run|inspect ROOT")
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    let bytes = @fs.read_file(extra[0]).binary()
+    let rows = literal_rows(bytes)
+    let layers = @string.parse_int(extra[1])
+    guard layers >= 1 && layers <= 50 else {
+      fail("1..50 original layers required")
+    }
+    @fs.mkdir(root)
+    @fs.mkdir(root + "/layers")
+    @fs.write_file(root + "/ids.i32", bytes, create_mode=CreateNew)
+    @fs.write_file(
+      root + "/LAYERS.txt",
+      layers.to_string(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(root + "/ROWS.txt", rows.to_string(), create_mode=CreateNew)
+    record(root, "mkdir", remote("mkdir " + root + " " + root + "/layers"))
+    upload(root + "/ids.i32", root + "/ids.i32")
+    upload(
+      "benchmarks/checkpoint_aten_reference/aten/encoder_upstream.cpp",
+      root + "/encoder_upstream.cpp",
+    )
+    record(
+      root,
+      "compile",
+      remote(
+        "docker run --rm --user 0 --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -I/usr/include/python3.12 /work/encoder_upstream.cpp -o /work/encoder-upstream -lpython3.12",
+      ),
+    )
+  } else if mode == "run" {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    let layers = @string.parse_int(@fs.read_file(root + "/LAYERS.txt").text())
+    record(
+      root,
+      "start",
+      remote(
+        "systemd-run --user --unit=" +
+        tag +
+        " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 --property=RemainAfterExit=yes docker run --name " +
+        tag +
+        " --user 0 --pull=never --network none --gpus all --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+        root +
+        ":/work -v /tmp/lunaflux-minimax-text-upload-20261010-v2-179/FL2VA/text_encoder:/model:ro --entrypoint /work/encoder-upstream " +
+        image +
+        " /model /work/ids.i32 /work/layers " +
+        layers.to_string(),
+      ),
+    )
+  } else {
+    let terminal = remote(
+      "docker inspect --format '{{.State.Running}} {{.State.ExitCode}} {{.State.OOMKilled}}' " +
+      tag,
+    )
+    terminal.check()
+    guard terminal.stdout().trim() == "false 0 false" else {
+      fail(
+        "original module replay is not successfully terminal: " +
+        terminal.stdout(),
+      )
+    }
+    record(
+      root,
+      "terminal",
+      remote(
+        "docker logs " +
+        tag +
+        "; docker inspect --format '{{json .State}}' " +
+        tag,
+      ),
+    )
+    let layers = @string.parse_int(@fs.read_file(root + "/LAYERS.txt").text())
+    let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
+    for layer in 0..<=layers {
+      let name = "hidden-" + layer.to_string() + ".bf16"
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + root + "/layers/" + name,
+        root + "/layers/" + name,
+      ])
+      .output()
+      .check()
+      guard @fs.read_file(root + "/layers/" + name).binary().length() ==
+        rows * 5120 * 2 else {
+        fail("incomplete original hidden tensor")
+      }
+    }
+    println(
+      "original module replay collected layers=\{layers} rows=\{rows}; not media-quality acceptance",
+    )
+  }
+}

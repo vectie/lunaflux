@@ -53,6 +53,33 @@ run: relative L2 **0.071764%**, RMSE 0.0000250496, maximum absolute error
 `/tmp/lunaflux-minimax-upstream-audio-generated-20261011-v1`.
 Neither numerical replay establishes intelligibility or semantic media quality.
 
+Identical generated-latent VideoVAE replay is also complete: **0.044344%**
+relative L2, RMSE 0.000157752 and maximum error 0.001491547 over 380,928 finite
+pixels. The original FP16 decoder/processor ran on `.179` and released its GPU;
+the separate comparison is at
+`/tmp/lunaflux-minimax-upstream-video-generated-20261011-v1`.
+
+### Direct installed-original text-encoder replay
+
+The new offline bridge invokes installed `MiniMaxH3Qwen3VLTextDecoderLayer`
+and `MiniMaxH3Qwen3VLTextRotaryEmbedding`, with original packed weight loaders,
+BF16 dtype, TP1, SDPA configuration, residuals and unnormalized hidden-state-50
+output. It changes only residency: one original layer is live at a time, rather
+than a full CPU plus device model. It is test-only C++/CPython, not a production
+dependency or a reimplementation of encoder math.
+
+The three literal caption IDs completed all fifty original layers on Spark
+`.179`, under an 8-GiB/no-swap limit with no OOM. **All 51 hidden tensors match
+the earlier reconstructed original reference bitwise**. Native final hidden
+has **0.029421% overall relative L2**, RMSE 0.0363636 and maximum absolute
+error 0.5; the worst row remains **0.955769%**. The unusually large first-row
+hidden magnitude dominates the global norm: global and worst-row error must
+both be reported. Direct invocation rules out an inaccurate reference
+reconstruction for this input; it does not prove all encoder inputs equivalent.
+Evidence is at `/tmp/lunaflux-minimax-upstream-encoder-caption-20261011-v1`,
+including `vs-reconstructed-caption/layers.tsv` and `NATIVE_VS_ORIGINAL.txt`.
+The literal digit and long-input cases require separate same-shape replay.
+
 The schedule correction passes the complete working-tree native suite,
 **5,004/5,004**, with unchanged migration warning exclusions. AOT integration
 fixtures retain their numerical/source assertions; only plan-dependent
