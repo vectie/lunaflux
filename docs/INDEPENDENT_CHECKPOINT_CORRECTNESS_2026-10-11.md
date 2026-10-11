@@ -381,7 +381,9 @@ native media run, not independent media quality:
 Neither array has bitwise-equal F32 elements. Such a large downstream change
 must not be called an improvement just because encoder component arithmetic
 is more accurate. The previous actual-caption encoder output matches the
-unchanged twelve-case baseline bitwise. A fresh control now uses **the new
+unchanged twelve-case baseline bitwise. Corrected/old conditioning differs by
+0.0337185% global relative L2 (5,815/15,360 BF16 elements exact); that small
+global measure does not establish downstream stability. A fresh control now uses **the new
 binary and AOT but that old conditioning tensor**, with the same weights,
 geometry, steps and seed. It is retained separately at
 `/tmp/lunaflux-minimax-joint-old-conditioning-control-20261011-v1`.
@@ -398,3 +400,14 @@ the production rotary planner's nine tests pass. No warning exclusion, runtime
 authentication, TLS or cryptographic scan was added. The new explicit
 normalization precision policy above is the measured numerical correction;
 it is not a hardening gate or an independent whole-model acceptance claim.
+
+A separate clean archive of pushed `31196b5f` passes **93/93** native tests for
+precision IR, the text CUDA renderer, MiniMax text plan/integration and the
+MiniMax checkpoint command. This removes reliance on unrelated local changes
+for the affected-package claim. Whole-repository checking of that clean archive
+is separately blocked at the unchanged `runtime/remote_tls/channel.mbt:174`:
+the pinned async dependency marks `Tls::server` internal-only, promoted to an
+error under the existing warning-denied configuration. The working-tree root
+result above includes an existing uncommitted TLS migration, whereas these
+93 tests do not. That unrelated migration is not staged into the numerical
+commits, no alert exclusion is added, and these model executions do not use TLS.
