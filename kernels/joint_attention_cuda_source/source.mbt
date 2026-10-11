@@ -31,7 +31,16 @@ pub fn staged_joint_attention_bf16_source(
         "__bfloat162float(__float2bfloat16_rn(probability))",
         GlobalBf16ProbabilityF32DenominatorStagedAttentionV1,
       )
-    OrderedOnlineF32 | OnlineBf16(block_tokens=_) => raise InvalidProbabilityLaw
+    OnlineBf16(block_tokens~) => {
+      probability_law.validate() catch {
+        _ => raise InvalidProbabilityLaw
+      }
+      (
+        "__bfloat162float(__float2bfloat16_rn(probability))",
+        OnlineBf16ProbabilityF32DenominatorStagedAttentionV1(block_tokens~),
+      )
+    }
+    OrderedOnlineF32 => raise InvalidProbabilityLaw
   }
   if rows <= 0 {
     raise InvalidRowCount
@@ -185,37 +194,9 @@ pub fn staged_joint_attention_bf16_source(
     head_dimension.to_string() +
     "ULL;" +
     document_scope +
-    " float maximum = -INFINITY; for (int kr = " +
-    key_start +
-    "; kr < " +
-    key_end +
-    "; kr += 1) { float dot = 0.0f; const unsigned long long kb = (unsigned long long)kr * " +
-    inner.to_string() +
-    "ULL + (unsigned long long)head * " +
-    head_dimension.to_string() +
-    "ULL; for (int c = 0; c < " +
-    head_dimension.to_string() +
-    "; c += 1) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(query[qb + c]), __bfloat162float(key[kb + c]))); maximum = fmaxf(maximum, __fmul_rn(dot, " +
-    scale.to_string() +
-    "f)); } float denominator = 0.0f; float numerator = 0.0f; for (int kr = " +
-    key_start +
-    "; kr < " +
-    key_end +
-    "; kr += 1) { float dot = 0.0f; const unsigned long long kb = (unsigned long long)kr * " +
-    inner.to_string() +
-    "ULL + (unsigned long long)head * " +
-    head_dimension.to_string() +
-    "ULL; for (int c = 0; c < " +
-    head_dimension.to_string() +
-    "; c += 1) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(query[qb + c]), __bfloat162float(key[kb + c]))); const float probability = expf(__fsub_rn(__fmul_rn(dot, " +
-    scale.to_string() +
-    "f), maximum)); denominator = __fadd_rn(denominator, probability); const unsigned long long vi = (unsigned long long)kr * " +
-    inner.to_string() +
-    "ULL + (unsigned long long)head * " +
-    head_dimension.to_string() +
-    "ULL + vc; numerator = __fadd_rn(numerator, __fmul_rn(" +
-    probability_value +
-    ", __bfloat162float(value[vi]))); } attention_output[i] = __float2bfloat16_rn(__fdiv_rn(numerator, denominator)); }\n" +
+    probability_fold(
+      inner, head_dimension, scale, key_start, key_end, probability_law, probability_value,
+    ) +
     "extern \"C\" __global__ void " +
     function_prefix +
     "_output(const __nv_bfloat16 *attention_input, const __nv_bfloat16 *output_weight, __nv_bfloat16 *output) { const unsigned long long i = (unsigned long long)blockIdx.x * 256ULL + threadIdx.x; if (i >= " +

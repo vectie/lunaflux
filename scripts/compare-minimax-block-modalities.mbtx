@@ -3,6 +3,7 @@ import {
   "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -101,16 +102,35 @@ async fn main {
     (
       options.is_empty() ||
       options is ["--first-block"] ||
-      options is ["--first-block", "--native-prefix", _]
+      options is ["--first-block", "--native-prefix", _] ||
+      options
+      is ["--operator", "attention" | "projection" | "gate-up" | "down", _] ||
+      options
+      is [
+        "--operator",
+        "attention"
+        | "projection"
+        | "gate-up"
+        | "down",
+        _,
+        "--native-prefix",
+        _,
+      ]
     ) else {
     fail(
-      "CAPTURE_ROOT NEW_REPORT_TSV [--first-block [--native-prefix LOCAL_CAPTURE]]",
+      "CAPTURE_ROOT NEW_REPORT_TSV [--first-block [--native-prefix LOCAL_CAPTURE] | --operator STAGE WIDTH]",
     )
   }
   let native_root = match options {
     ["--first-block", "--native-prefix", path] => path
+    ["--operator", _, _, "--native-prefix", path] => path
     _ => root + "/input"
   }
+  let width = match options {
+    ["--operator", _, width, ..] => @string.parse_int(width)
+    _ => 5376
+  }
+  guard width > 0 else { fail("positive literal operator width required") }
   let docs = @fs.read_file(root + "/input/documents.i32").binary()
   guard docs.length() == 12 && word(docs, 0) == 0U else {
     fail("primary and padding documents required")
@@ -123,7 +143,11 @@ async fn main {
   )
   let blocks = if options.is_empty() { [0, 1, 10, 20, 30, 40, 49] } else { [0] }
   for block in blocks {
-    let native = @fs.read_file(native_root + "/block-\{block}.bf16").binary()
+    let native_name = match options {
+      ["--operator", stage, _, ..] => "block-0-" + stage + ".bf16"
+      _ => "block-\{block}.bf16"
+    }
+    let native = @fs.read_file(native_root + "/" + native_name).binary()
     let predecessors = if options.is_empty() {
       ["matched", "propagated"]
     } else {
@@ -133,13 +157,15 @@ async fn main {
       let original = @fs.read_file(
         root +
         "/output/" +
-        (if options.is_empty() {
+        (if options is ["--operator", stage, _, ..] {
+          "block-0-" + stage + ".bf16"
+        } else if options.is_empty() {
           "\{predecessor}-block-\{block}.bf16"
         } else {
           "block-0.bf16"
         }),
       ).binary()
-      for tag, state in compare(native, original, tags, rows, 5376) {
+      for tag, state in compare(native, original, tags, rows, width) {
         let label = ["video", "text", "audio"][tag]
         let ratio = if state.reference_squared > 0.0 {
           (state.error_squared / state.reference_squared).sqrt()
@@ -149,7 +175,7 @@ async fn main {
           0x7FF0000000000000L.reinterpret_as_double()
         }
         report.write_string(
-          "\{block}\t\{predecessor}\t\{label}\t\{state.elements/5376}\t\{state.exact}\t\{state.elements}\t\{ratio}\t\{state.maximum_error}\n",
+          "\{block}\t\{predecessor}\t\{label}\t\{state.elements/width}\t\{state.exact}\t\{state.elements}\t\{ratio}\t\{state.maximum_error}\n",
         )
       }
     }

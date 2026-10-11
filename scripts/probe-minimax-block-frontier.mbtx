@@ -1,0 +1,149 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc003s@192.168.2.178"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=1048576,
+  )
+}
+
+///|
+fn safe_path(path : String) -> Bool {
+  path.has_prefix("/tmp/lunaflux-") &&
+  !path.contains("..") &&
+  path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.'))
+}
+
+///|
+test "frontier probe paths remain literal and cannot expand shell expressions" {
+  assert_true(safe_path("/tmp/lunaflux-minimax-block-frontier-v1"))
+  assert_false(safe_path("/tmp/lunaflux-a/../b"))
+  assert_false(safe_path("/tmp/lunaflux-a;echo"))
+}
+
+///|
+async fn record(root : String, label : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, aot, capture] &&
+    [root, aot, capture].all(safe_path) &&
+    root.has_prefix("/tmp/lunaflux-minimax-block-frontier-") &&
+    mode is ("prepare" | "run" | "memcheck" | "racecheck" | "synccheck") else {
+    fail(
+      "prepare|run|memcheck|racecheck|synccheck NEW_PROBE_ROOT EXACT_SOURCE_ROOT RETIRED_NATIVE_ROOT",
+    )
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    record(
+      root,
+      "prepare",
+      remote(
+        "mkdir " +
+        root +
+        " && cp -n " +
+        aot +
+        "/dit_n1.cu " +
+        root +
+        "/dit_n1.cu",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      "tests/packed_moe_execution/dit_probability_frontier_probe.cu",
+      node + ":" + root + "/probe.cu",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --unit=" +
+        root[5:].to_owned() +
+        "-compile /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+  } else {
+    let terminal = remote(
+      "systemctl --user show " +
+      capture[5:].to_owned() +
+      ".service -p SubState -p Result -p ExecMainStatus",
+    )
+    terminal.check()
+    guard terminal.stdout().contains("SubState=exited") &&
+      terminal.stdout().contains("Result=success") &&
+      terminal.stdout().contains("ExecMainStatus=0\n") else {
+      fail("captured native run must be successfully terminal")
+    }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("serialize GPU work") }
+    let sanitizer = if mode == "run" {
+      ""
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+      mode +
+      (if mode == "memcheck" { " --leak-check full" } else { "" }) +
+      " "
+    }
+    record(
+      root,
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --unit=" +
+        root[5:].to_owned() +
+        "-" +
+        mode +
+        " " +
+        sanitizer +
+        root +
+        "/probe " +
+        capture +
+        "/output/block-0-qk-norm.bf16 " +
+        capture +
+        "/output/block-0-attention.bf16",
+      ),
+    )
+    record(
+      root,
+      mode + "-released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  }
+  println("block_frontier_probe " + mode + " full_work_domain_not_claimed=true")
+}

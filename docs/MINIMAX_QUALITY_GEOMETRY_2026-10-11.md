@@ -788,3 +788,71 @@ adapter consumes each captured native predecessor independently for attention,
 output projection, gate/up and down. This distinguishes local arithmetic from
 propagated conditioning/block differences; results are pending, not a new
 correctness claim. All captures stay in separate non-overwriting roots.
+
+This first-block capture now completes at
+`/tmp/lunaflux-minimax-joint-block-frontiers256-prefix-20261012-v1`, with empty
+stderr and released CUDA. Its input and final block output are bitwise equal
+to the earlier BF16-P candidate, demonstrating unchanged arithmetic despite
+the intermediate observation waits. Literal original startup rows again match.
+The committed native suite passes **5,031/5,031**.
+
+Installed original local operators also complete at
+`/tmp/lunaflux-minimax-upstream-block-operators256-20261012-v1`, using each
+native predecessor separately, not a propagated reference chain. The original
+block weights, cuDNN attention backend and separate BF16 SiLU/multiply are
+unchanged. Actual real-row differences are:
+
+| Matched local operation | Video relative L2 | Text relative L2 | Audio relative L2 |
+| --- | ---: | ---: | ---: |
+| Attention, candidate BF16 P | 0.0986211% | 0.0542969% | 0.0984160% |
+| Output projection | 0.0235109% | 0.0124977% | 0.0201437% |
+| Gate/up | 0.0285391% | 0.0100834% | 0.0285161% |
+| Down | 0.0272605% | 0.0200258% | 0.0271991% |
+
+These isolate attention as the largest of these four local differences for
+this block/input; they do not prove it is the largest source across all layers
+or denoising timesteps. Norm, modulation, QKV/RoPE and conditioning still need
+their own matched attribution. No media-quality pass follows from this table.
+
+The exact candidate translation unit is independently replayed for its **first
+attention CTA only** on captured Q/K/V. All 256 BF16 outputs reproduce the
+native capture in 10 repeats; ordinary CUDA-event mean is **12.2842 ms** for
+this partial work domain (not whole-kernel or serving performance). Allocations
+and events are explicitly released. Memcheck/full leak check reports zero
+errors/leaks, racecheck zero hazards/errors/warnings, synccheck zero errors.
+Root: `/tmp/lunaflux-minimax-block-frontier-probability256-20261012-v1`.
+These sanitizer observations do **not** cover the whole 2,816-row work domain.
+The production/default probability law remains unchanged.
+
+An independent F64 oracle now evaluates the first, middle and last real query
+of **each modality**, at heads 0, 1, 28 and 55, retaining the entire 2,785-key
+document for every query. It compares 36 query/head pairs / **4,608 BF16 output
+values**. Padding is not used to rank the alternatives.
+
+| Oracle probability storage / partition | Exact original outputs / 4,608 |
+| --- | ---: |
+| Unrounded F64 mathematical softmax | 3,818 |
+| Global BF16 unnormalized P | 4,054 |
+| Online BF16 P, 32 keys | 4,470 |
+| Online BF16 P, 64 keys | **4,598** |
+| Online BF16 P, 128 keys | 4,348 |
+| Online BF16 P, 256 keys | 4,228 |
+| Online BF16 P, 512 keys | 4,127 |
+
+The global BF16 oracle also reproduces **4,604/4,608** native candidate values.
+This identifies a strong rounding/partition explanation for the residual
+attention difference on this subset; it does not prove the original backend's
+tile geometry from SASS or establish other inputs. The oracle uses F64 dot,
+rescaling, denominator and PV accumulation, unlike production F32 arithmetic.
+File: `subset-attention-laws.tsv` in the matched-operator root above.
+
+The joint CUDA renderer now has an explicit lowering for the already existing
+`OnlineBf16(block_tokens=...)` precision-IR contract. Its partition remains a
+validated parameter, not a MiniMax-specific implicit constant. It rescales
+old numerator/denominator mass, rounds only the tile P operand and handles
+document tails without integer-overflow-prone loop increments. The previous
+global translation unit remains byte-identical, including the default route.
+The candidate's numerical contract records the partition. A fresh 64-key
+first-block experiment is in progress; it is not yet production-selected or
+a full-model/media correctness result. No reference arithmetic or tolerance
+is changed to make that experiment pass.

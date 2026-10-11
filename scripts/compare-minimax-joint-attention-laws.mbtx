@@ -1,0 +1,199 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/math",
+}
+
+///|
+fn word(bytes : Bytes, offset : Int) -> UInt {
+  bytes[offset].to_uint() |
+  (bytes[offset + 1].to_uint() << 8) |
+  (bytes[offset + 2].to_uint() << 16) |
+  (bytes[offset + 3].to_uint() << 24)
+}
+
+///|
+fn bf16(bytes : Bytes, index : Int) -> Double {
+  Float::reinterpret_from_uint(
+    (bytes[index * 2].to_uint() | (bytes[index * 2 + 1].to_uint() << 8)) << 16,
+  ).to_double()
+}
+
+///|
+fn round_bf16(value : Double) -> Double {
+  let raw = Float::from_double(value).reinterpret_as_uint()
+  let bits = (raw + 0x7fffU + ((raw >> 16) & 1U)) & 0xffff0000U
+  Float::reinterpret_from_uint(bits).to_double()
+}
+
+///|
+/// Independent F64 recurrence. A zero block size denotes global softmax;
+/// otherwise each P tile is rounded relative to its running maximum. Maxima,
+/// denominator, rescaling and PV sums remain F64 here, not production F32.
+fn reduce_row(
+  scores : ArrayView[Double],
+  values : ArrayView[Double],
+  width : Int,
+  block : Int,
+  round_probability : Bool,
+) -> Array[Double] raise {
+  guard !scores.is_empty() &&
+    width > 0 &&
+    values.length() == scores.length() * width &&
+    block >= 0 else {
+    fail("whole key domain and value channels required")
+  }
+  let stride = if block == 0 { scores.length() } else { block }
+  let result = Array::make(width, 0.0)
+  let mut maximum = -0x7ff0000000000000L.reinterpret_as_double()
+  let mut denominator = 0.0
+  for start = 0; start < scores.length(); start = start + stride {
+    let end = (start + stride).min(scores.length())
+    let tile_maximum = scores[start:end].fold(init=maximum, (a, b) => a.max(b))
+    let alpha = @math.exp(maximum - tile_maximum)
+    for channel in 0..<width {
+      result[channel] *= alpha
+    }
+    denominator *= alpha
+    for key in start..<end {
+      let p = @math.exp(scores[key] - tile_maximum)
+      denominator += p
+      let stored = if round_probability { round_bf16(p) } else { p }
+      for channel in 0..<width {
+        result[channel] += stored * values[key * width + channel]
+      }
+    }
+    maximum = tile_maximum
+  }
+  result.map(value => round_bf16(value / denominator))
+}
+
+///|
+test "online law rescales old mass and rounds only each numerator tile" {
+  assert_eq(reduce_row([0.0, 0.0], [1.0, 3.0], 1, 1, true), [2.0])
+  let scores = [0.0, 3.0, 1.0, 7.0, 2.0]
+  let values = [1.0, -2.0, 3.0, 4.0, -5.0]
+  assert_eq(
+    reduce_row(scores, values, 1, 2, false),
+    reduce_row(scores, values, 1, 0, false),
+  )
+  assert_eq(round_bf16(1.00390625), 1.0)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("MATCHED_OPERATOR_CAPTURE_ROOT NEW_REPORT_TSV")
+  }
+  let tags = @fs.read_file(root + "/input/combined.i32").binary()
+  let documents = @fs.read_file(root + "/input/documents.i32").binary()
+  guard documents.length() == 12 && word(documents, 0) == 0U else {
+    fail("literal primary/padding document required")
+  }
+  let rows = word(documents, 8).reinterpret_as_int()
+  let primary = word(documents, 4).reinterpret_as_int()
+  let operands = @fs.read_file(root + "/input/block-0-qk-norm.bf16").binary()
+  let native = @fs.read_file(root + "/input/block-0-attention.bf16").binary()
+  let original = @fs.read_file(root + "/output/block-0-attention.bf16").binary()
+  let heads = 56
+  let dimension = 128
+  let cells = rows * heads * dimension
+  guard primary > 0 &&
+    primary <= rows &&
+    rows <= 4096 &&
+    tags.length() == rows * 4 &&
+    operands.length() == cells * 6 &&
+    native.length() == cells * 2 &&
+    original.length() == native.length() else {
+    fail("complete literal joint attention captures required")
+  }
+  let report = StringBuilder()
+  report.write_string(
+    "modality\tquery\thead\tlaw\texact_vs_original\texact_vs_native\telements\trelative_l2_vs_original\trelative_l2_vs_native\n",
+  )
+  for modality in 0..<3 {
+    let candidates = [
+      for row in 0..<primary if word(tags, row * 4) % 3 ==
+      modality.reinterpret_as_uint() => row
+    ]
+    guard !candidates.is_empty() else { fail("each real modality required") }
+    for
+      row in [
+        candidates[0],
+        candidates[candidates.length() / 2],
+        candidates.last().unwrap(),
+      ] {
+      for head in [0, 1, heads / 2, heads - 1] {
+        let query_base = (row * heads + head) * dimension
+        let query = [
+          for channel in 0..<dimension => bf16(operands, query_base + channel)
+        ]
+        let scores = [
+          for key in 0..<primary => {
+            let key_base = cells + (key * heads + head) * dimension
+            let dot = for channel in 0..<dimension; sum = 0.0 {
+              continue sum + query[channel] * bf16(operands, key_base + channel)
+            } nobreak {
+              sum
+            }
+            dot / dimension.to_double().sqrt()
+          }
+        ]
+        let values = Array::makei(primary * dimension, index => {
+          let key = index / dimension
+          let channel = index % dimension
+          bf16(operands, 2 * cells + (key * heads + head) * dimension + channel)
+        })
+        for block in [-1, 0, 32, 64, 128, 256, 512] {
+          let result = reduce_row(
+            scores,
+            values,
+            dimension,
+            block.max(0),
+            block != -1,
+          )
+          let mut exact_original = 0
+          let mut exact_native = 0
+          let mut original_norm = 0.0
+          let mut native_norm = 0.0
+          let mut original_error = 0.0
+          let mut native_error = 0.0
+          for channel, value in result {
+            let a = bf16(native, query_base + channel)
+            let b = bf16(original, query_base + channel)
+            guard !a.is_nan() && !a.is_inf() && !b.is_nan() && !b.is_inf() else {
+              fail("nonfinite observation")
+            }
+            if value == b {
+              exact_original += 1
+            }
+            if value == a {
+              exact_native += 1
+            }
+            original_norm += b * b
+            native_norm += a * a
+            original_error += (value - b) * (value - b)
+            native_error += (value - a) * (value - a)
+          }
+          let law = if block == -1 {
+            "f64_math"
+          } else if block == 0 {
+            "global_bf16_p"
+          } else {
+            "online_bf16_p_\{block}"
+          }
+          report.write_string(
+            "\{modality}\t\{row}\t\{head}\t\{law}\t\{exact_original}\t\{exact_native}\t\{dimension}\t\{(original_error/original_norm).sqrt()}\t\{(native_error/native_norm).sqrt()}\n",
+          )
+        }
+      }
+    }
+  }
+  @fs.write_file(output, report.to_string(), create_mode=CreateNew)
+  println(
+    "joint_attention_law_subset_complete rows=first_middle_last_per_modality heads=0_1_middle_last accumulator=f64 production_arithmetic_unchanged=true report=" +
+    output,
+  )
+}

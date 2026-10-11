@@ -2,6 +2,7 @@
 pub(all) enum JointAttentionNumericalContract {
   OrderedF32AccumulationBf16StagedAttentionV1
   GlobalBf16ProbabilityF32DenominatorStagedAttentionV1
+  OnlineBf16ProbabilityF32DenominatorStagedAttentionV1(block_tokens~ : Int)
 } derive(Debug, Eq)
 
 ///|

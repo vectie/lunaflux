@@ -372,17 +372,24 @@ async fn main {
     )
   } else if stage == "inputs" ||
     mode == "inputs-local" ||
-    mode == "inputs-operators" {
+    mode == "inputs-operators" ||
+    mode == "inputs-operator-outputs" {
     guard extra is [capture] else { fail("literal native output required") }
     if !@fs.exists(root + "/input") {
       @fs.mkdir(root + "/input")
     }
-    let files = [
-      "packed-input.bf16", "timestep.f32", "positions.f32", "combined.i32", "documents.i32",
-      "PREFIX.txt",
-    ]
-    for i in 0..<(if full { 50 } else { 1 }) {
-      files.push("block-\{i}.bf16")
+    let files = if mode == "inputs-operator-outputs" {
+      ["block-0-projection.bf16", "block-0-down.bf16"]
+    } else {
+      [
+        "packed-input.bf16", "timestep.f32", "positions.f32", "combined.i32", "documents.i32",
+        "PREFIX.txt",
+      ]
+    }
+    if mode != "inputs-operator-outputs" {
+      for i in 0..<(if full { 50 } else { 1 }) {
+        files.push("block-\{i}.bf16")
+      }
     }
     if mode == "inputs-operators" {
       files.append([

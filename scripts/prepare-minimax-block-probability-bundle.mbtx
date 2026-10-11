@@ -48,14 +48,15 @@ test "source framing preserves the original final newline exactly" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, previous] &&
+  guard @env.args() is [_, root, previous, .. options] &&
+    (options.is_empty() || options is ["--online64"]) &&
     root.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
     previous.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
     [root, previous].all(path => {
       !path.contains("..") &&
       path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_'))
     }) else {
-    fail("NEW_256_EXPERIMENT_ROOT EXISTING_256_AOT_DIRECTORY")
+    fail("NEW_256_EXPERIMENT_ROOT EXISTING_256_AOT_DIRECTORY [--online64]")
   }
   let node = "wlc003s@192.168.2.178"
   let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
@@ -66,7 +67,13 @@ async fn main {
       "test", "integration/minimax_h3_block_source", "--target", "native", "--deny-warn",
       "--warn-list", "-20-25-29-35-79-92", "--filter", "DiT probability intervention changes only its declared storage boundary",
     ],
-    env={ "LUNA_EXPORT_BLOCK_PROBABILITY": "1" },
+    env={
+      "LUNA_EXPORT_BLOCK_PROBABILITY": if options.is_empty() {
+        "1"
+      } else {
+        "online64"
+      },
+    },
   ).output(max_output_bytes=4194304)
   generated.check()
   @fs.write_file(
@@ -97,7 +104,13 @@ async fn main {
   }
   @fs.write_file(
     root + "/EXPERIMENT.txt",
-    "scope=one_block_256_matched_original_probability_law\nrows=2816\nchanged_module=dit_n1\nsource_baseline_byte_identical=true\nother_modules_unchanged=true\nrefiner_unchanged=true\nproduction_default_changed=false\n",
+    "scope=one_block_256_matched_original_probability_law\nrows=2816\nchanged_module=dit_n1\nsource_baseline_byte_identical=true\nother_modules_unchanged=true\nrefiner_unchanged=true\nproduction_default_changed=false\nprobability_law=" +
+    (if options.is_empty() {
+      "global_unnormalized_bf16"
+    } else {
+      "online_bf16_64"
+    }) +
+    "\n",
     create_mode=CreateNew,
   )
   @shell.Cmd("ssh", [

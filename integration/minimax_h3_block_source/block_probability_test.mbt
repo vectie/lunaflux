@@ -45,12 +45,28 @@ test "DiT probability intervention changes only its declared storage boundary" {
     ),
     @utf8.decode(baseline.block.source),
   )
-  if @env.get_env_var("LUNA_EXPORT_BLOCK_PROBABILITY") == Some("1") {
+  if @env.get_env_var("LUNA_EXPORT_BLOCK_PROBABILITY") is Some("1" | "online64") {
+    let exported_source = if @env.get_env_var("LUNA_EXPORT_BLOCK_PROBABILITY") ==
+      Some("online64") {
+      let online = @minimax_h3_block_source.build_prediction_sources(
+        model,
+        sequence,
+        distinct_timesteps=1,
+        block_norm_epsilon=config.norm_epsilon(),
+        function_prefix="h3",
+        probability_law=OnlineBf16(block_tokens=64),
+      )
+      assert_eq(online.timestep.source, baseline.timestep.source)
+      assert_eq(online.output.source, baseline.output.source)
+      @utf8.decode(online.block.source)
+    } else {
+      source
+    }
     println("LUNA_BLOCK_BASELINE_BEGIN")
     println(@utf8.decode(baseline.block.source))
     println("LUNA_BLOCK_BASELINE_END")
     println("LUNA_BLOCK_CANDIDATE_BEGIN")
-    println(source)
+    println(exported_source)
     println("LUNA_BLOCK_CANDIDATE_END")
   }
 }

@@ -68,7 +68,9 @@ test "prefix collection derives larger row extents without truncating to smoke" 
 
 ///|
 async fn main {
-  guard @env.args() is [_, destination, source, suffix, original_noise] &&
+  guard @env.args()
+    is [_, destination, source, suffix, original_noise, .. options] &&
+    (options.is_empty() || options is ["--attention-frontier"]) &&
     [destination, source, original_noise].all(path => {
       path.has_prefix("/tmp/lunaflux-") &&
       !path.contains("..") &&
@@ -76,7 +78,7 @@ async fn main {
     }) &&
     suffix.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
     fail(
-      "NEW_LOCAL_CAPTURE REMOTE_NATIVE_ROOT USER_UNIT_SUFFIX ORIGINAL_INITIAL_OUTPUT_DIRECTORY",
+      "NEW_LOCAL_CAPTURE REMOTE_NATIVE_ROOT USER_UNIT_SUFFIX ORIGINAL_INITIAL_OUTPUT_DIRECTORY [--attention-frontier]",
     )
   }
   let terminal = remote(
@@ -99,6 +101,14 @@ async fn main {
   let metadata = remote("cat " + source + "/output/PREFIX.txt")
   metadata.check()
   let files = capture_extents(metadata.stdout())
+  if !options.is_empty() {
+    files.push(
+      (
+        "block-0-attention.bf16",
+        integer_field(metadata.stdout(), "packed_rows") * 56 * 128 * 2,
+      ),
+    )
+  }
   @fs.mkdir(destination)
   @fs.write_file(
     destination + "/unit.txt",
