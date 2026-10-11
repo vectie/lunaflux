@@ -40,9 +40,62 @@ async fn record(root : String, name : String, output : @shell.Output) -> Unit {
 }
 
 ///|
+fn source_selection(
+  args : ArrayView[String],
+) -> (String, String, ArrayView[String]) raise {
+  if args is ["--build", build, "--commit", commit, .. cases] {
+    guard build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+      !build.contains("..") &&
+      build.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/')) &&
+      commit.length() == 40 &&
+      commit.iter().all(c => c is ('a'..='f' | '0'..='9')) &&
+      !cases.is_empty() else {
+      fail("explicit source build and commit required")
+    }
+    (build, commit, cases)
+  } else {
+    guard !args.contains("--build") && !args.contains("--commit") else {
+      fail(
+        "source selection requires --build BUILD --commit COMMIT before cases",
+      )
+    }
+    (
+      "/tmp/lunaflux-checkpoint-build-compensated-norm-20261011-v1", "49b15d75f8678cf6177d30b229258dabf62e2fb8",
+      args,
+    )
+  }
+}
+
+///|
+test "source retest uses the selected exporter instead of a stale build" {
+  let explicit = [
+    "--build", "/tmp/lunaflux-checkpoint-build-test-v1", "--commit", "0123456789abcdef0123456789abcdef01234567",
+    "actual-input",
+  ]
+  let (build, commit, cases) = source_selection(explicit)
+  assert_eq(build, explicit[1])
+  assert_eq(commit, explicit[3])
+  assert_eq(cases.to_owned(), ["actual-input"])
+  assert_eq(
+    source_selection(["digits"]).1,
+    "49b15d75f8678cf6177d30b229258dabf62e2fb8",
+  )
+  try source_selection(["digits", "--build", explicit[1]]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("misplaced source option accepted")
+  }
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, mode, root, .. cases] &&
-    mode is ("prepare" | "run") &&
+  guard @env.args() is [_, mode, root, .. tail] else {
+    fail(
+      "prepare|run NEW_ROOT [--build BUILD_ROOT --commit COMMIT] ORIGINAL_CORPUS_CASES",
+    )
+  }
+  let (build_root, commit, cases) = source_selection(tail)
+  guard mode is ("prepare" | "run") &&
     root.has_prefix("/tmp/lunaflux-minimax-source-norm-") &&
     !root.contains("..") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/')) &&
@@ -53,16 +106,23 @@ async fn main {
         "whitespace", "emoji", "specials", "code", "scripts", "punctuation",
       ].contains(s)
     }) else {
-    fail("prepare|run NEW_ROOT ONE_OR_MORE_ORIGINAL_CORPUS_CASES")
+    fail(
+      "prepare|run NEW_ROOT [--build BUILD_ROOT --commit COMMIT] ORIGINAL_CORPUS_CASES",
+    )
   }
   let stamp = root.split("/").last().unwrap().to_owned()
   let corpus = "/private/tmp/lunaflux-reference-minimax-corpus-20261011-v1"
-  let build = "/tmp/lunaflux-checkpoint-build-compensated-norm-20261011-v1/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  let build = build_root +
+    "/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
   if mode == "prepare" {
     @fs.mkdir(root)
     @fs.write_file(
       root + "/SOURCE.txt",
-      "commit=49b15d75f8678cf6177d30b229258dabf62e2fb8\nAOT=unmodified_source_export\n",
+      "commit=" +
+      commit +
+      "\nbuild=" +
+      build_root +
+      "\nAOT=unmodified_source_export\n",
       create_mode=CreateNew,
     )
     @fs.write_file(root + "/minimax_checkpoint.exe", b"", create_mode=CreateNew)
