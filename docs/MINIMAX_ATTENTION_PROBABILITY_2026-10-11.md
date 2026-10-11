@@ -58,3 +58,37 @@ Roots: `/tmp/lunaflux-minimax-source-norm-prob64-20261011-v1` and
 rerun at the 140-row shape is bitwise identical to the previous reference at all
 716,800 final BF16 values; enabling the original cuDNN preference alone did not
 explain or fix the mismatch. Local native suite: **5,002/5,002**.
+
+## Independent matched-operand probability oracle — 2026-10-12
+
+The refiner investigation motivates a separate **local encoder operator**
+check, not a repeated blanket fifty-layer rollout. The MoonBit two-pass F64
+oracle now exposes exact, normalized-BF16 and unnormalized-BF16 probability
+hypotheses on the captured native Q/K rotary and V operands. Causal masking,
+64 query heads / 8 KV heads and dimension 128 are unchanged. The latter law
+rounds `exp(score-max)` before P×V, retaining the unrounded denominator; it is
+distinct from rounding normalized probabilities or declaring the original
+Flash kernel uses this exact global two-pass reduction schedule.
+
+Against the installed original attention on **identical native operands**:
+
+| Local input / oracle | Exact BF16 values | Relative L2 |
+| --- | --- | --- |
+| Caption, F64 probabilities | 22,734 / 24,576 | 0.06855072% |
+| Caption, normalized BF16 probabilities | 19,918 / 24,576 | 0.21593402% |
+| Caption, unnormalized BF16 probabilities | **24,576 / 24,576** | **0** |
+| 140 rows, F64 probabilities | 1,115,899 / 1,146,880 | 0.07352157% |
+| 140 rows, normalized BF16 probabilities | 1,084,457 / 1,146,880 | 0.10366336% |
+| 140 rows, unnormalized BF16 probabilities | **1,146,074 / 1,146,880** | **0.01411798%** |
+
+Native versus the F64-probability oracle is 24,574/24,576 exact for the caption
+and 1,146,861/1,146,880 for the long input. Native being closer to an F64
+mathematical oracle does not imply bitwise parity with the original's
+intermediate probability storage. The remaining 806 original/global-oracle
+differences at 140 rows are not assigned to an unmeasured reduction schedule.
+
+Roots: `/tmp/lunaflux-minimax-encoder-attention-laws-caption-20261012-v1` and
+`/tmp/lunaflux-minimax-encoder-attention-laws-long-20261012-v1`.
+The oracle's four regressions pass. No production precision selection changes;
+the mixed full-encoder BF16 ablation findings above remain valid, and no
+complete encoder or media-quality pass follows from this local agreement.

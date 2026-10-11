@@ -242,10 +242,14 @@ async fn main {
     )
     return
   }
-  guard @env.args() is [_, native, reference, output] else {
-    fail(
-      "NATIVE_OPERATOR_DIRECTORY MATCHED_REFERENCE_DIRECTORY NEW_OUTPUT_DIRECTORY | --refiner NATIVE_FRONTIERS MATCHED_ORIGINAL_FRONTIERS NEW_OUTPUT_DIRECTORY",
-    )
+  let (native, reference, output, all_laws) = match @env.args() {
+    [_, native, reference, output] => (native, reference, output, false)
+    [_, "--encoder-laws", native, reference, output] =>
+      (native, reference, output, true)
+    _ =>
+      fail(
+        "[--encoder-laws] NATIVE_OPERATOR_DIRECTORY MATCHED_REFERENCE_DIRECTORY NEW_OUTPUT_DIRECTORY | --refiner NATIVE_FRONTIERS MATCHED_ORIGINAL_FRONTIERS NEW_OUTPUT_DIRECTORY",
+      )
   }
   let q = values(@fs.read_file(native + "/q-rotary.bf16").binary())
   let k = values(@fs.read_file(native + "/k-rotary.bf16").binary())
@@ -254,22 +258,35 @@ async fn main {
     fail("original caption query extent is not a whole token row")
   }
   let rows = q.length() / 8192
-  let result = rounded_bytes(attention(q, k, v, rows, 64, 8, 128))
   @fs.mkdir(output)
-  let wider = output + "/attention-f64.bf16"
-  @fs.write_file(wider, result, create_mode=CreateNew)
-  for (name, left) in [("native", native), ("reference", reference)] {
-    let compared = @shell.Cmd("moon", [
-      "run",
-      "scripts/compare-minimax-encoder-reference.mbtx",
-      left + "/attention.bf16",
-      wider,
-      output + "/" + name + "-vs-f64.txt",
-      "matched_input_two_pass_f64_causal_attention_" + name,
-      "8192",
-    ]).output(max_output_bytes=65536)
-    compared.check()
-    println(compared.stdout())
+  let laws : Array[(String, ProbabilityLaw)] = if all_laws {
+    [
+      ("f64", F64Exact),
+      ("normalized-bf16", NormalizedBf16),
+      ("unnormalized-bf16", UnnormalizedBf16),
+    ]
+  } else {
+    [("f64", F64Exact)]
+  }
+  for (law_name, law) in laws {
+    let result = rounded_bytes(
+      attention(q, k, v, rows, 64, 8, 128, probability_law=law),
+    )
+    let wider = output + "/attention-" + law_name + ".bf16"
+    @fs.write_file(wider, result, create_mode=CreateNew)
+    for (name, left) in [("native", native), ("reference", reference)] {
+      let compared = @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        left + "/attention.bf16",
+        wider,
+        output + "/" + name + "-vs-" + law_name + ".txt",
+        "matched_input_two_pass_causal_attention_" + law_name + "_" + name,
+        "8192",
+      ]).output(max_output_bytes=65536)
+      compared.check()
+      println(compared.stdout())
+    }
   }
   println(
     "attention_precision_complete scope=matched_inputs_only rows=\{rows} performance_claim=false",
