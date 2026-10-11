@@ -33,3 +33,28 @@ synccheck report zero errors under 2-GiB/no-swap limits. Evidence:
 The component result does not establish fifty-layer encoder parity or audiovisual
 quality. Diverse original-weight encoder ablations must determine whether this
 boundary helps propagated alignment before any default selection changes.
+
+## Completed original-weight fifty-layer ablation
+
+Both fresh commit `3588f916` variants completed all four diagnostic inputs on
+Spark `.179`, with unchanged literal IDs, original weights and reference tensors.
+The worst final-token relative L2 errors are:
+
+| Input | Selected ordered-online default | BF16 block 64 | BF16 block 128 |
+| --- | --- | --- | --- |
+| Caption, 3 rows | 0.9558% | 0.9501% | 0.9501% |
+| Long, 140 rows | 9.0533% | 9.4053% | 9.4053% |
+| English, 20 rows | 3.5986% | 2.5406% | 2.5406% |
+| Digits, 56 rows | 3.1238% | 17.3256% | 17.3256% |
+
+Block 128 slightly reduces the long tensor's global relative L2 from 0.8006%
+to 0.7883%; it does not change the worst row. These results reject a blanket
+BF16-probability rollout, despite component correctness. The ordered-online
+default remains selected. This is propagated library alignment, not a relaxed
+acceptance criterion or a media-quality pass.
+
+Roots: `/tmp/lunaflux-minimax-source-norm-prob64-20261011-v1` and
+`/tmp/lunaflux-minimax-source-norm-prob128-20261011-v1`. The original SDPA preference
+rerun at the 140-row shape is bitwise identical to the previous reference at all
+716,800 final BF16 values; enabling the original cuDNN preference alone did not
+explain or fix the mismatch. Local native suite: **5,002/5,002**.

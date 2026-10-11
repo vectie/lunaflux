@@ -122,6 +122,28 @@ test "bounded reference preserves numerical fields and original user content" {
 }
 
 ///|
+fn reference_options_valid(options : ArrayView[String]) -> Bool {
+  options.is_empty() ||
+  options == ["--spark-head-tiles"] ||
+  options == ["--spark-head-tiles", "--prefill-rows", "1"]
+}
+
+///|
+test "original continuation only supports the explicit one-row shape ablation" {
+  assert_true(reference_options_valid([]))
+  assert_true(reference_options_valid(["--spark-head-tiles"]))
+  assert_true(reference_options_valid(["--spark-head-tiles", "--prefill-rows", "1"]))
+  for options in [
+    ["--spark-head-tiles", "--prefill-rows", "6"],
+    ["--prefill-rows", "1"],
+    ["--spark-head-tiles", "--prefill-rows", "0"],
+    ["--spark-head-tiles", "--prefill-rows"],
+  ] {
+    assert_false(reference_options_valid(options))
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     root.has_prefix("/tmp/lunaflux-deepseek-upstream-reference-") &&
@@ -166,7 +188,7 @@ async fn main {
       for source in ["config.json", "input.txt", wheel] {
         copy(last, root + "/" + source, node(last) + ":" + root + "/" + source)
       }
-      for file in ["upstream_trace.cpp", "upstream_stream_load.cpp"] {
+      for file in ["upstream_trace.cpp", "upstream_stream_load.cpp", "upstream_prefill_partition.cpp"] {
         copy(
           last,
           "benchmarks/checkpoint_aten_reference/aten/" + file,
@@ -177,7 +199,7 @@ async fn main {
         root +
         ":/work --entrypoint g++ " +
         image +
-        " -O2 -std=c++20 -I/usr/include/python3.12 /work/upstream_trace.cpp /work/upstream_stream_load.cpp -o /work/upstream-observer -lpython3.12"
+        " -O2 -std=c++20 -I/usr/include/python3.12 /work/upstream_trace.cpp /work/upstream_stream_load.cpp /work/upstream_prefill_partition.cpp -o /work/upstream-observer -lpython3.12"
       save(root, "build-" + rank, remote(last, build))
       let install = "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
         root +
@@ -193,6 +215,7 @@ async fn main {
         ":/original:ro --entrypoint /work/upstream-observer " +
         image
       save(root, "observer-probe-" + rank, remote(last, prefix + " --probe"))
+      save(root, "partition-probe-" + rank, remote(last, prefix + " --partition-probe"))
       save(
         root,
         "original-cli-" + rank,
@@ -206,7 +229,7 @@ async fn main {
     )
   } else if mode == "start" {
     guard extra is [first, second, .. options] &&
-      (options.is_empty() || options == ["--spark-head-tiles"]) &&
+      reference_options_valid(options) &&
       [first, second].all(p => {
         p.has_prefix("/tmp/lunaflux-deepseek-") &&
         p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
@@ -241,6 +264,7 @@ async fn main {
         " -e NCCL_SOCKET_IFNAME=" +
         (if last { "enp1s0f0np0" } else { "enp1s0f1np1" }) +
         " -e OMP_NUM_THREADS=2 -e LUNA_UPSTREAM_LOGIT_CAPTURE=/work/prefill-logits.f32 " +
+        (if options.contains("--prefill-rows") { " -e LUNA_UPSTREAM_PREFILL_ROWS=1 " } else { "" }) +
         "-v " +
         root +
         ":/work -v " +
@@ -254,7 +278,7 @@ async fn main {
         rank +
         " --master-addr=10.0.0.1 --master-port=29854 --no-python " +
         "/work/upstream-observer " +
-        (if options == ["--spark-head-tiles"] {
+        (if options.contains("--spark-head-tiles") {
           "/work/spark-inference/generate.py"
         } else {
           "/original/inference/generate.py"

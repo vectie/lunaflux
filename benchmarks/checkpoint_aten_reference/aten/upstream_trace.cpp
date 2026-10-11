@@ -8,6 +8,8 @@
 #include <string>
 
 int install_upstream_stream_loader();
+int install_upstream_prefill_partition();
+int upstream_prefill_partition_probe();
 
 struct Owned {
   PyObject *p;
@@ -22,7 +24,21 @@ static int capture_prefill(PyObject *locals, PyObject *result) {
   const char *path = std::getenv("LUNA_UPSTREAM_LOGIT_CAPTURE");
   if (!path || !*path || !PyTuple_Check(result) || PyTuple_Size(result) != 3) return 0;
   auto *position = PyDict_GetItemString(locals, "start_pos");
-  if (!position || !PyLong_Check(position) || PyLong_AsLong(position) != 0) return 0;
+  if (!position || !PyLong_Check(position)) return 0;
+  const char *partition = std::getenv("LUNA_UPSTREAM_PREFILL_ROWS");
+  if (partition && *partition) {
+    auto *input=PyDict_GetItemString(locals,"input_ids");
+    if(!input)return 0;
+    Owned count(PyObject_CallMethod(input,"size","i",1));
+    if(!count.p)return -1;
+    // The wrapper supplies this invocation's full prompt extent. Capture
+    // its final chunk, not the first chunk or a later decode invocation.
+    const char *expected=std::getenv("LUNA_UPSTREAM_PREFILL_END");
+    if(!expected)return 0;
+    char *end=nullptr;long length=std::strtol(expected,&end,10);
+    if(!end||*end||length<1||length>256){PyErr_SetString(PyExc_ValueError,"invalid prefill capture extent");return -1;}
+    if(PyLong_AsLong(position)+PyLong_AsLong(count.p)!=length)return 0;
+  } else if (PyLong_AsLong(position) != 0) return 0;
   auto *self = PyDict_GetItemString(locals, "self");
   if (!self) return 0;
   Owned cls(PyObject_GetAttrString(self, "__class__"));
@@ -109,7 +125,9 @@ int main(int argc, char **argv) {
   if (PyStatus_Exception(status)) { std::fputs("upstream observer interpreter initialization failed\n", stderr); return 1; }
   int failed = 0;
   {
-    if (std::strcmp(argv[1], "--probe") == 0) {
+    if (std::strcmp(argv[1], "--partition-probe") == 0) {
+      failed=upstream_prefill_partition_probe();
+    } else if (std::strcmp(argv[1], "--probe") == 0) {
       Owned input(Py_BuildValue("[[ii]]", 5, 223)), output(Py_BuildValue("[[ii]]", 19923, 1));
       failed = emit(input.p, output.p);
     } else {
@@ -120,6 +138,7 @@ int main(int argc, char **argv) {
       Owned filename(PyUnicode_FromString(path.c_str()));
       auto *paths = PySys_GetObject("path");
       if (!directory.p || !filename.p || !paths || PyList_Insert(paths, 0, directory.p) < 0) failed = -1;
+      if(!failed && install_upstream_prefill_partition()<0) failed=-1;
       auto *file = failed ? nullptr : std::fopen(path.c_str(), "r");
       if (!file) { std::fputs("original CLI cannot be opened\n", stderr); failed = -1; }
       else {

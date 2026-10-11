@@ -14,7 +14,7 @@ It uses the previously disclosed GB10 sixteen-head launch adapter, not an
 unmodified original launch. Literal input IDs match native at all 144 positions.
 Both original ranks produce bitwise identical 129,280-value prefill logits.
 
-At that identical prompt frontier, original chooses `33310` (32.385582), while
+In the pre-correction capture at that identical prompt frontier, original chooses `33310` (32.385582), while
 native's retired physical row 5 chooses `19923` (31.737299). Original scores
 `19923` at 31.466326; native scores `33310` at 31.683079. The matched full-vocabulary
 RMSE is **0.604927**, relative L2 **11.4684%**, and maximum absolute error
@@ -33,10 +33,30 @@ does not confuse captured capacity rows with the logical prompt frontier.
 Source inspection finds an actual precision-contract difference: original
 sparse attention rounds each online KV64 block's unnormalized probabilities to
 BF16 before P×V, retains an F32 denominator, and adds sink mass after the final
-block. Native currently uses global F32 probabilities without that BF16
+block. The pre-correction native capture uses global F32 probabilities without that BF16
 intermediate. This is an actionable arithmetic difference, **not yet a measured
 attribution of the full-logit error**. Block boundaries and masked index slots
 also matter; a simple final probability cast cannot reproduce online rounding.
+
+The subsequently pushed `4ecd2040` correction explicitly carries the original
+online BF16 probability law through precision IR and sparse-attention lowering.
+Actual generated component kernels pass correctness and CUDA diagnostic gates.
+The real MP2 rerun at `/tmp/lunaflux-dspark-run-probability-20261011-v2` now selects
+`33310` (32.257904), matching the original first generated token. Whole-vocabulary
+relative L2 moves from 11.4684% to **11.2971%**, but maximum absolute error worsens
+from 3.865801 to **4.363262**. Thus this fixes the observed first-token mismatch,
+not full numerical parity, EOS equivalence, or multi-prompt correctness. See
+`DEEPSEEK_PROBABILITY_PRECISION_2026-10-11.md` for the corrected capture.
+
+The next original-reference diagnostic partitions initial prefill into valid
+one-token continuation calls. This is explicitly a shape ablation, not the
+unchanged whole-prompt baseline. Source inspection ruled out six-row continuation:
+the original `get_window_topk_idxs` and `get_compress_topk_idxs` use decode-row
+read sets whenever `start_pos > 0`, so six-row chunks would change causality,
+not merely rounding. Those preparation directories were never run on GPUs.
+The optional observer adapter accepts only one-row increments, captures the last
+literal prompt frontier, and leaves subsequent decode invocations unchanged.
+CPU probes pass on both Sparks; this is not yet a GPU comparison result.
 
 The original-layout GLM scale adapter completed both real TP-rank requests in
 `/tmp/lunaflux-independent-glm-20261011-v3`. The 13-token prompt still matches
