@@ -3,10 +3,11 @@ package "vectie/lunaflux/kernels/decoder_projection_cuda_source"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
-pub fn dense_projection_bf16_source(input_width~ : Int, output_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderProjectionCudaSource raise DecoderProjectionCudaSourceError
+pub fn dense_projection_bf16_source(input_width~ : Int, output_width~ : Int, maximum_rows~ : Int, function_symbol~ : String, dot_reduction_law? : @precision_ir.DotReductionLaw) -> DecoderProjectionCudaSource raise DecoderProjectionCudaSourceError
 
 pub fn dense_projection_f32_bias_bf16_source(rows~ : Int64, input_width~ : Int, output_width~ : Int, function_symbol~ : String) -> FixedRowsDecoderProjectionCudaSource raise DecoderProjectionCudaSourceError
 
@@ -46,6 +47,7 @@ pub(all) enum DecoderProjectionNumericalContract {
   OrderedFloat32AccumulationBf16RoundV1
   OrderedFloat32BiasAccumulationBf16RoundV1
   OrderedFloat32AccumulationF32OutputV1
+  CompensatedFloat32AccumulationBf16RoundV1
 } derive(Eq, @debug.Debug)
 
 pub struct FixedRowsDecoderProjectionCudaSource {

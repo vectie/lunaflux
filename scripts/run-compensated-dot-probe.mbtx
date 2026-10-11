@@ -1,0 +1,140 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    "wlc004s@192.168.2.179", command,
+  ]).output(max_output_bytes=2097152)
+}
+
+///|
+async fn record(root : String, label : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+fn extracted(text : String, begin : String, end : String) -> String raise {
+  let result = StringBuilder()
+  let mut inside = false
+  let mut found = false
+  for line in text.split("\n") {
+    if line == begin {
+      inside = true
+    } else if line == end {
+      inside = false
+      found = true
+    } else if inside {
+      result.write_string(line.to_owned() + "\n")
+    }
+  }
+  guard found && !inside else { fail("actual lowered source missing") }
+  result.to_string()
+}
+
+///|
+test "source capture keeps generated code only" {
+  assert_eq(extracted("log\nBEGIN\ncode\nEND\nlog\n", "BEGIN", "END"), "code\n")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root] && mode is ("prepare" | "run") else {
+    fail("prepare|run NEW_OR_PREPARED_ROOT")
+  }
+  let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --working-directory=" +
+    root +
+    " --unit=" +
+    root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let source = StringBuilder()
+    for
+      (variable, test_path, begin, end) in [
+        (
+          "LUNA_EXPORT_COMPENSATED_DOT=1", "kernels/decoder_projection_cuda_source/source_test.mbt",
+          "LUNA_DOT_BEGIN", "LUNA_DOT_END",
+        ),
+        (
+          "LUNA_EXPORT_COMPENSATED_MLP=1", "kernels/gated_mlp_cuda_source/staged_test.mbt",
+          "LUNA_MLP_BEGIN", "LUNA_MLP_END",
+        ),
+      ] {
+      let output = @shell.Cmd("env", [
+        variable, "moon", "test", "--target", "native", "--deny-warn", "--warn-list",
+        "-20-25-29-35-79-92", test_path,
+      ]).output(max_output_bytes=2097152)
+      output.check()
+      source.write_string(extracted(output.stdout(), begin, end))
+    }
+    @fs.write_file(
+      root + "/main.cuh",
+      source.to_string(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/probe.cu",
+      @fs.read_file("tests/packed_moe_execution/compensated_dot_probe.cu").binary(),
+      create_mode=CreateNew,
+    )
+    record(root, "mkdir", remote("mkdir " + root))
+    for file in ["main.cuh", "probe.cu"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        root + "/" + file,
+        "wlc004s@192.168.2.179:" + root + "/" + file,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        unit +
+        "-compile /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 probe.cu -o probe",
+      ),
+    )
+  } else {
+    for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+      let command = if gate == "correctness" {
+        root + "/probe"
+      } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " +
+        gate +
+        (if gate == "memcheck" { " --leak-check full" } else { "" }) +
+        " " +
+        root +
+        "/probe"
+      }
+      record(root, gate, remote(unit + "-" + gate + " " + command))
+    }
+    println(
+      "actual compensated dot/MLP lowering passed independent oracle and sanitizers",
+    )
+  }
+}

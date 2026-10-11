@@ -42,12 +42,14 @@ pub fn build_source(
     output_width=8192,
     maximum_rows=plan.rows,
     function_symbol=symbols[2],
+    dot_reduction_law=plan.dot_reduction_law(),
   ).source_bytes()
   let kv = @decoder_projection_cuda_source.dense_projection_bf16_source(
     input_width=5120,
     output_width=1024,
     maximum_rows=plan.rows,
     function_symbol=symbols[3],
+    dot_reduction_law=plan.dot_reduction_law(),
   ).source_bytes()
   let att = @text_encoder_cuda_source.attention_source(
     rows=plan.rows,
@@ -63,12 +65,14 @@ pub fn build_source(
     output_width=5120,
     maximum_rows=plan.rows,
     function_symbol=symbols[7],
+    dot_reduction_law=plan.dot_reduction_law(),
   ).source_bytes()
   let mlp = @gated_mlp_cuda_source.staged_packed_swiglu_bf16_source(
     rows=plan.rows,
     hidden_size=5120,
     intermediate_size=25600,
     function_prefix=prefix + "_mlp",
+    dot_reduction_law=plan.dot_reduction_law(),
   )
   let residual = @decoder_foundation_cuda_source.residual_add_bf16_source(
     elements=plan.rows.to_int64() * 5120L,

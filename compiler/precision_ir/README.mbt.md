@@ -11,6 +11,14 @@ It is a numerical accuracy choice, not permission to reassociate an ordered
 reduction. MiniMax text encoding selects compensation in its immutable plan;
 the CUDA renderer consumes that law without model-specific device branching.
 
+`DotReductionLaw` similarly makes cancellation-sensitive dot summation an
+explicit accuracy choice. BF16 products and final BF16 operator boundaries
+remain unchanged. Compensated F32 retains contributions lost to a large running
+sum; it is not bitwise equivalence to ordered F32. The reusable CUDA lowering
+uses Neumaier compensation and preserves nonfinite/overflow propagation rather
+than manufacturing finite outputs. Physical component probes check the actual
+generated dense and staged-MLP source against an independent F64 oracle.
+
 `PhysicalOperand` refines an existing physical operand region; it does not invent
 an unrelated shared-memory map. Local/global F32 scaling and BF16 rounding are
 retained boundaries. A caller-provided supported-placement set is a capability

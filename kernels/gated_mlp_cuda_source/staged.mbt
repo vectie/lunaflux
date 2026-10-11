@@ -9,6 +9,7 @@ pub fn staged_packed_swiglu_bf16_source(
   hidden_size~ : Int,
   intermediate_size~ : Int,
   function_prefix~ : String,
+  dot_reduction_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Bytes raise GatedMlpCudaSourceError {
   if rows <= 0 {
     raise InvalidRowCount
@@ -28,6 +29,18 @@ pub fn staged_packed_swiglu_bf16_source(
   let m = intermediate_size.to_string()
   let product_elements = (rows.to_int64() * intermediate_size.to_int64()).to_string()
   let output_elements = (rows.to_int64() * hidden_size.to_int64()).to_string()
+  let (up_init, up_update, up_finish) = @reduction.dot_accumulator_source(
+    dot_reduction_law,
+    accumulator="up_sum",
+  )
+  let (gate_init, gate_update, gate_finish) = @reduction.dot_accumulator_source(
+    dot_reduction_law,
+    accumulator="gate_sum",
+  )
+  let (down_init, down_update, down_finish) = @reduction.dot_accumulator_source(
+    dot_reduction_law,
+    accumulator="sum",
+  )
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n" +
     "extern \"C\" __global__ void " +
@@ -41,20 +54,31 @@ pub fn staged_packed_swiglu_bf16_source(
     "ULL; const unsigned long long inner = i % " +
     m +
     "ULL;\n" +
-    "float up_sum = 0.0f; float gate_sum = 0.0f; for (int c = 0; c < " +
+    up_init +
+    " " +
+    gate_init +
+    " for (int c = 0; c < " +
     h +
     "; c += 1) {\n" +
     "const float x = __bfloat162float(input[row * " +
     h +
     "ULL + c]);\n" +
-    "up_sum = __fadd_rn(up_sum, __fmul_rn(x, __bfloat162float(weight[inner * " +
+    "{ const float product = __fmul_rn(x, __bfloat162float(weight[inner * " +
     h +
-    "ULL + c])));\n" +
-    "gate_sum = __fadd_rn(gate_sum, __fmul_rn(x, __bfloat162float(weight[(inner + " +
+    "ULL + c])); " +
+    up_update +
+    " }\n" +
+    "{ const float product = __fmul_rn(x, __bfloat162float(weight[(inner + " +
     m +
     "ULL) * " +
     h +
-    "ULL + c]))); }\n" +
+    "ULL + c])); " +
+    gate_update +
+    " } }\n" +
+    up_finish +
+    " " +
+    gate_finish +
+    "\n" +
     "const __nv_bfloat16 up = __float2bfloat16_rn(up_sum); const __nv_bfloat16 gate = __float2bfloat16_rn(gate_sum);\n" +
     "const float g = __bfloat162float(gate); const __nv_bfloat16 activated = __float2bfloat16_rn(__fdiv_rn(g, __fadd_rn(1.0f, expf(-g))));\n" +
     "product[i] = __float2bfloat16_rn(__fmul_rn(__bfloat162float(up), __bfloat162float(activated))); }\n" +
@@ -68,14 +92,20 @@ pub fn staged_packed_swiglu_bf16_source(
     h +
     "ULL; const unsigned long long out = i % " +
     h +
-    "ULL; float sum = 0.0f;\n" +
+    "ULL; " +
+    down_init +
+    "\n" +
     "for (int c = 0; c < " +
     m +
-    "; c += 1) sum = __fadd_rn(sum, __fmul_rn(__bfloat162float(product[row * " +
+    "; c += 1) { const float product_value = __fmul_rn(__bfloat162float(product[row * " +
     m +
     "ULL + c]), __bfloat162float(weight[out * " +
     m +
-    "ULL + c])));\n" +
+    "ULL + c])); const float product = product_value; " +
+    down_update +
+    " }\n" +
+    down_finish +
+    "\n" +
     "output[i] = __float2bfloat16_rn(sum); }\n",
   )
 }

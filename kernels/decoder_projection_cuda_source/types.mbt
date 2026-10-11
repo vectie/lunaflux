@@ -11,6 +11,7 @@ pub(all) enum DecoderProjectionNumericalContract {
   OrderedFloat32AccumulationBf16RoundV1
   OrderedFloat32BiasAccumulationBf16RoundV1
   OrderedFloat32AccumulationF32OutputV1
+  CompensatedFloat32AccumulationBf16RoundV1
 } derive(Debug, Eq)
 
 ///|

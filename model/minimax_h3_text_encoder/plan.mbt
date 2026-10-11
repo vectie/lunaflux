@@ -43,6 +43,15 @@ pub fn TextEncoderPlan::square_reduction_law(
 }
 
 ///|
+/// Cancellation-sensitive projection sums retain discarded F32 terms. This
+/// accuracy policy keeps all intermediate/operator BF16 rounding boundaries.
+pub fn TextEncoderPlan::dot_reduction_law(
+  _self : Self,
+) -> @precision.DotReductionLaw {
+  CompensatedFloat32
+}
+
+///|
 pub fn TextEncoderPlan::output_bytes(self : Self) -> Int64 {
   self.rows.to_int64() * 5120L * 2L
 }

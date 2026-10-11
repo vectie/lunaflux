@@ -9,6 +9,26 @@ reported separately below; the original tensors and reference remain unchanged.
 
 ## Source-selected normalization correction
 
+### Cancellation-sensitive dot-product correction (full encoder retest pending)
+
+The precision IR now explicitly distinguishes ordered and compensated F32 dot
+reductions. A shared CUDA lowering implements Neumaier compensation; BF16
+operands, activation/normalization boundaries and final BF16 rounding remain.
+The MiniMax text plan selects this law for Q, K/V, output and staged MLP
+projections. Other callers keep the existing ordered default. This is an
+accuracy-policy change, not bitwise equivalence to the old ordered sum.
+
+The actual generated kernels were tested on Spark `.179` against independent
+F64 dot oracles: 8/8 outputs agree exactly after BF16 rounding, recovering the
+two cancellation failures in the four distinct ordered-sum cases. The staged
+MLP preserves projection, SiLU, product and down-projection rounding boundaries.
+CUDA memcheck/leak, racecheck and synccheck report zero errors. Results are in
+`/tmp/lunaflux-compensated-dot-20261011-v2`.
+
+These component results do not close the fifty-layer corpus differences.
+Fresh commit-pinned full-encoder runs and independent media-quality validation
+are still required; no acceptance threshold has been changed.
+
 Pushed source `49b15d75` selects compensated F32 square summation explicitly in
 the pure precision plan. Both row and Q/K-head normalization consume that law
 at CUDA lowering; BF16 normalized-value and weight-product boundaries remain.

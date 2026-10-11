@@ -28,6 +28,40 @@ test "dense BF16 projection source is deterministic and exact" {
 }
 
 ///|
+test "compensated dot policy reaches actual dense source and contract" {
+  let source = dense_projection_bf16_source(
+    input_width=5120,
+    output_width=4,
+    maximum_rows=1,
+    function_symbol="compensated_dot",
+    dot_reduction_law=CompensatedFloat32,
+  )
+  assert_eq(
+    source.numerical_contract(),
+    CompensatedFloat32AccumulationBf16RoundV1,
+  )
+  let text = @utf8.decode(source.source_bytes())
+  assert_true(text.contains("accumulator_correction"))
+  assert_true(text.contains("fabsf(accumulator) >= fabsf(product)"))
+  assert_true(text.contains("__float2bfloat16_rn(accumulator)"))
+  if @env.get_env_var("LUNA_EXPORT_COMPENSATED_DOT") is Some("1") {
+    println("LUNA_DOT_BEGIN")
+    println(text)
+    println(
+      @utf8.decode(
+        dense_projection_bf16_source(
+          input_width=5120,
+          output_width=4,
+          maximum_rows=1,
+          function_symbol="ordered_dot",
+        ).source_bytes(),
+      ),
+    )
+    println("LUNA_DOT_END")
+  }
+}
+
+///|
 test "dense BF16 projection source validation fails closed" {
   let cases = [
     (0, 1, 1, "valid_symbol"),

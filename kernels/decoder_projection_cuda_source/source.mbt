@@ -91,6 +91,7 @@ pub fn dense_projection_bf16_source(
   output_width~ : Int,
   maximum_rows~ : Int,
   function_symbol~ : String,
+  dot_reduction_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> DecoderProjectionCudaSource raise DecoderProjectionCudaSourceError {
   if input_width <= 0 {
     raise InvalidInputWidth
@@ -104,8 +105,12 @@ pub fn dense_projection_bf16_source(
   if !valid_projection_symbol(function_symbol) {
     raise InvalidFunctionSymbol
   }
+  let (initialization, update, finish) = @reduction.dot_accumulator_source(
+    dot_reduction_law,
+    accumulator="accumulator",
+  )
   let source = @utf8.encode(
-    "#include <cuda_bf16.h>\n#include <stdint.h>\n" +
+    "#include <cuda_bf16.h>\n#include <stdint.h>\n#include <math.h>\n" +
     "extern \"C\" __global__ void " +
     function_symbol +
     "(const int32_t *counts, const __nv_bfloat16 *input, const __nv_bfloat16 *weight, __nv_bfloat16 *output) {\n" +
@@ -130,18 +135,28 @@ pub fn dense_projection_bf16_source(
     "  const unsigned long long weight_base = column * " +
     input_width.to_string() +
     "ULL;\n" +
-    "  float accumulator = 0.0f;\n" +
+    "  " +
+    initialization +
+    "\n" +
     "  for (int inner = 0; inner < " +
     input_width.to_string() +
     "; ++inner) {\n" +
     "    const float product = __fmul_rn(__bfloat162float(input[input_base + inner]), __bfloat162float(weight[weight_base + inner]));\n" +
-    "    accumulator = __fadd_rn(accumulator, product);\n" +
+    "    " +
+    update +
+    "\n" +
     "  }\n" +
+    "  " +
+    finish +
+    "\n" +
     "  output[index] = __float2bfloat16_rn(accumulator);\n}\n",
   )
   {
     operation: DenseProjectionBf16,
-    numerical_contract: OrderedFloat32AccumulationBf16RoundV1,
+    numerical_contract: match dot_reduction_law {
+      OrderedFloat32 => OrderedFloat32AccumulationBf16RoundV1
+      CompensatedFloat32 => CompensatedFloat32AccumulationBf16RoundV1
+    },
     input_width,
     output_width,
     maximum_rows,

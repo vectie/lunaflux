@@ -123,6 +123,14 @@ pub fn DenseSwiGluPrecision::new(hidden_width~ : Int, intermediate_width~ : Int,
 pub fn DenseSwiGluPrecision::weight_bytes(Self) -> Int64
 pub fn DenseSwiGluPrecision::workspace_bytes(Self) -> Int64
 
+pub(all) enum DotReductionLaw {
+  OrderedFloat32
+  CompensatedFloat32
+} derive(Eq, @debug.Debug)
+pub fn DotReductionLaw::equal(Self, Self) -> Bool
+pub fn DotReductionLaw::not_equal(Self, Self) -> Bool
+pub fn DotReductionLaw::to_repr(Self) -> @debug.Repr
+
 pub(all) enum ExpertActivationRounding {
   Bf16Stages
   F32Product

@@ -1,6 +1,12 @@
 import {
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/float32_reduction_cuda_source" @reduction,
 }
 
 supported_targets = "native"
+
+import {
+  "moonbitlang/core/env",
+} for "test"
