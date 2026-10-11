@@ -7,6 +7,11 @@
 #include <cstdlib>
 #include <cstring>
 
+struct TrajectoryObservation {
+  const char *output;
+  int video_rows;
+};
+
 static bool linear(PyObject *parent,const char *child,PyObject *open,PyObject *map,
                    const char *root,const std::string &prefix,bool bias=true) {
   Owned module(PyObject_GetAttrString(parent,child));
@@ -52,11 +57,11 @@ static bool load_model(PyObject *model,PyObject *open,PyObject *map,const char *
 static PyObject *observe(PyObject *self,PyObject *args) {
   int step;PyObject *video,*audio;
   if(!PyArg_ParseTuple(args,"iOO",&step,&video,&audio))return nullptr;
-  auto *path=static_cast<const char*>(PyCapsule_GetPointer(self,"trajectory_output"));
+  auto *context=static_cast<TrajectoryObservation*>(PyCapsule_GetPointer(self,"trajectory_output"));
   Owned torch(PyImport_ImportModule("torch")),u8(torch.p?PyObject_GetAttrString(torch.p,"uint8"):nullptr);
-  if(!path||!u8.p||!save(video,u8.p,std::string(path)+"/video-step-"+std::to_string(step)+".f32",592LL*96*4)||
-     !save(audio,u8.p,std::string(path)+"/audio-step-"+std::to_string(step)+".f32",414LL*32*4))return nullptr;
-  std::printf("original_trajectory_update=%d video_rows=592 audio_rows=414\n",step+1);std::fflush(stdout);
+  if(!context||!u8.p||!save(video,u8.p,std::string(context->output)+"/video-step-"+std::to_string(step)+".f32",int64_t(context->video_rows)*96*4)||
+     !save(audio,u8.p,std::string(context->output)+"/audio-step-"+std::to_string(step)+".f32",414LL*32*4))return nullptr;
+  std::printf("original_trajectory_update=%d video_rows=%d audio_rows=414\n",step+1,context->video_rows);std::fflush(stdout);
   Py_RETURN_NONE;
 }
 
@@ -123,7 +128,12 @@ static PyObject *schedule(PyObject *module,const char *input,int modality,int or
   return Py_NewRef(sigmas.p);
 }
 
-static int execute(const char *root,const char *input,const char *out,int original_points) {
+static int execute(const char *root,const char *input,const char *out,int original_points,
+                   int quality_height=0,int quality_width=0) {
+  const bool original_noise=quality_height!=0;
+  const int latent_h=original_noise?quality_height/16:8;
+  const int latent_w=original_noise?quality_width/16:8;
+  const int video_rows=37*(latent_h/2)*(latent_w/2);
   Owned torch(PyImport_ImportModule("torch")),safe(PyImport_ImportModule("safetensors"));
   Owned dist(PyImport_ImportModule("vllm.distributed")),cfgmod(PyImport_ImportModule("vllm.config"));
   Owned cfgcls(cfgmod.p?PyObject_GetAttrString(cfgmod.p,"VllmConfig"):nullptr),cfg(cfgcls.p?PyObject_CallNoArgs(cfgcls.p):nullptr);
@@ -168,16 +178,33 @@ static int execute(const char *root,const char *input,const char *out,int origin
   Owned packing(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.packed_sequence"));
   Owned packfn(packing.p?PyObject_GetAttrString(packing.p,"minimax_h3_packed_sequence"):nullptr);
   Owned packkw(Py_BuildValue("{s:i,s:i,s:i,s:i,s:i,s:O}","text_len",3,"latent_t",37,
-    "latent_h",8,"latent_w",8,"audio_t",207,"include_keyframe_cond",Py_False));
+    "latent_h",latent_h,"latent_w",latent_w,"audio_t",207,"include_keyframe_cond",Py_False));
   Owned packed(packfn.p?PyObject_Call(packfn.p,empty.p,packkw.p):nullptr);
-  if(!packed.p||!packed_identity(torch.p,packed.p,f32.p,u8.p,input,out))return -1;
+  if(!packed.p||(!original_noise&&!packed_identity(torch.p,packed.p,f32.p,u8.p,input,out)))return -1;
   const std::string base(input);
   Owned caption0(literal_bf16(torch.p,bf16.p,(base+"/encoded.bf16").c_str(),3,5120));
   Owned caption(caption0.p?PyObject_CallMethod(caption0.p,"view","ii",3,5120):nullptr);
-  Owned video0(literal_tensor(torch.p,f32.p,(base+"/video-state.f32").c_str(),592,96,4));
-  Owned audio0(literal_tensor(torch.p,f32.p,(base+"/audio-state.f32").c_str(),414,32,4));
-  Owned video(video0.p?PyObject_CallMethod(video0.p,"view","ii",592,96):nullptr);
-  Owned audio(audio0.p?PyObject_CallMethod(audio0.p,"view","ii",414,32):nullptr);
+  Owned video,audio;
+  if(original_noise) {
+    // Call the installed pipeline's own CPU RNG + video patchifier. The seed
+    // does not assert identity with native noise or across geometry changes.
+    Owned pipeline(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.pipeline_minimax_h3"));
+    Owned pipeline_cls(pipeline.p?PyObject_GetAttrString(pipeline.p,"MiniMaxH3Pipeline"):nullptr);
+    Owned noise_fn(pipeline_cls.p?PyObject_GetAttrString(pipeline_cls.p,"_initial_noise"):nullptr);
+    Owned noise_args(PyTuple_Pack(1,Py_None));
+    Owned noise_kw(Py_BuildValue("{s:i,s:i,s:i,s:i,s:i}","seed",17,"latent_t",37,
+      "latent_h",latent_h,"latent_w",latent_w,"audio_t",207));
+    Owned noise(noise_fn.p?PyObject_Call(noise_fn.p,noise_args.p,noise_kw.p):nullptr);
+    if(!noise.p||!PyTuple_Check(noise.p)||PyTuple_Size(noise.p)!=2)return -1;
+    video.p=Py_NewRef(PyTuple_GetItem(noise.p,0));audio.p=Py_NewRef(PyTuple_GetItem(noise.p,1));
+    if(!save(video.p,u8.p,std::string(out)+"/initial-video-rows.f32",int64_t(video_rows)*96*4)||
+       !save(audio.p,u8.p,std::string(out)+"/initial-audio-rows.f32",414LL*32*4))return -1;
+  } else {
+    Owned video0(literal_tensor(torch.p,f32.p,(base+"/video-state.f32").c_str(),video_rows,96,4));
+    Owned audio0(literal_tensor(torch.p,f32.p,(base+"/audio-state.f32").c_str(),414,32,4));
+    video.p=video0.p?PyObject_CallMethod(video0.p,"view","ii",video_rows,96):nullptr;
+    audio.p=audio0.p?PyObject_CallMethod(audio0.p,"view","ii",414,32):nullptr;
+  }
   Owned denoise(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.denoise_loop"));
   Owned branchcls(denoise.p?PyObject_GetAttrString(denoise.p,"MiniMaxH3DenoiseBranch"):nullptr);
   auto *tags=PyDict_GetItemString(packed.p,"token_tags");
@@ -186,7 +213,8 @@ static int execute(const char *root,const char *input,const char *out,int origin
   Owned branch(branchcls.p&&branchkw.p?PyObject_Call(branchcls.p,empty.p,branchkw.p):nullptr);
   Owned timemod(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.time_request"));
   Owned sv(timemod.p?schedule(timemod.p,input,0,original_points):nullptr),sa(timemod.p?schedule(timemod.p,input,1,original_points):nullptr);
-  Owned capsule(PyCapsule_New(const_cast<char*>(out),"trajectory_output",nullptr));
+  TrajectoryObservation observation{out,video_rows};
+  Owned capsule(PyCapsule_New(&observation,"trajectory_output",nullptr));
   Owned callback(capsule.p?PyCFunction_New(&observer,capsule.p):nullptr);
   Owned fn(denoise.p?PyObject_GetAttrString(denoise.p,"minimax_h3_denoise_loop"):nullptr);
   Owned kw(branch.p&&sv.p&&sa.p&&video.p&&audio.p&&callback.p?Py_BuildValue("{s:O,s:O,s:O,s:O,s:O,s:O,s:O,s:O,s:O}",
@@ -194,32 +222,42 @@ static int execute(const char *root,const char *input,const char *out,int origin
     "keyframe_cond_rows",Py_None,"sigmas_video",sv.p,"sigmas_audio",sa.p,"device",device.p,"on_step",callback.p):nullptr);
   if(!fn.p||!kw.p)return -1;
   const int updates=original_points?original_points-1:20;
-  std::printf("original_trajectory_start updates=%d literal_noise=true literal_caption=true encoder_omitted=true\n",updates);std::fflush(stdout);
+  std::printf("original_trajectory_start updates=%d literal_noise=%s literal_caption=true encoder_omitted=true original_pipeline_noise=%s output_height=%d output_width=%d matched_native_geometry=%s\n",
+    updates,original_noise?"false":"true",original_noise?"true":"false",latent_h*16,latent_w*16,original_noise?"false":"true");std::fflush(stdout);
   Owned terminal(PyObject_Call(fn.p,empty.p,kw.p));
   Owned tokens(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.packed_tokens"));
   Owned vfn(tokens.p?PyObject_GetAttrString(tokens.p,"minimax_h3_unpatchify_video_tokens"):nullptr);
   Owned afn(tokens.p?PyObject_GetAttrString(tokens.p,"minimax_h3_unpack_audio_tokens"):nullptr);
   if(!terminal.p||!vfn.p||!afn.p)return -1;
   Owned vargs(PyTuple_Pack(1,PyTuple_GetItem(terminal.p,0))),aargs(PyTuple_Pack(1,PyTuple_GetItem(terminal.p,1)));
-  Owned vkw(Py_BuildValue("{s:[iiii],s:[iii]}","latent_shape",37,4,4,24,"patch_size",1,2,2));
+  Owned vkw(Py_BuildValue("{s:[iiii],s:[iii]}","latent_shape",37,latent_h/2,latent_w/2,24,"patch_size",1,2,2));
   Owned akw(Py_BuildValue("{s:i,s:i}","audio_t",414,"audio_channel",2));
   Owned vl(PyObject_Call(vfn.p,vargs.p,vkw.p)),al(PyObject_Call(afn.p,aargs.p,akw.p));
-  if(!vl.p||!al.p||!save(vl.p,u8.p,std::string(out)+"/video-latent.f32",24LL*37*8*8*4)||
+  if(!vl.p||!al.p||!save(vl.p,u8.p,std::string(out)+"/video-latent.f32",24LL*37*latent_h*latent_w*4)||
      !save(al.p,u8.p,std::string(out)+"/audio-latent.f32",2LL*32*207*4))return -1;
   Owned closed(PyObject_CallMethod(scope.p,"__exit__","OOO",Py_None,Py_None,Py_None));
-  std::printf("original_trajectory_terminal updates=%d video_latent=1,24,37,8,8 audio_latent=2,32,207 media_quality=unassessed\n",updates);
+  std::printf("original_trajectory_terminal updates=%d video_latent=1,24,37,%d,%d audio_latent=2,32,207 media_quality=unassessed\n",updates,latent_h,latent_w);
   return closed.p?0:-1;
 }
 
 int main(int argc,char **argv) {
-  if(argc!=4&&argc!=5)return 2;
+  if(argc!=4&&argc!=5&&argc!=8)return 2;
   int points=0;
-  if(argc==5) {
+  if(argc>=5) {
     char *end=nullptr;const long parsed=std::strtol(argv[4],&end,10);
     if(end==argv[4]||*end||parsed<2||parsed>50)return 2;
     points=static_cast<int>(parsed);
   }
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],points);
+  int height=0,width=0;
+  if(argc==8) {
+    if(std::string(argv[5])!="--quality-geometry")return 2;
+    char *end=nullptr;const long h=std::strtol(argv[6],&end,10);
+    if(end==argv[6]||*end||h<32||h>256||h%32)return 2;
+    const long w=std::strtol(argv[7],&end,10);
+    if(end==argv[7]||*end||w<32||w>256||w%32)return 2;
+    height=static_cast<int>(h);width=static_cast<int>(w);
+  }
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],points,height,width);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

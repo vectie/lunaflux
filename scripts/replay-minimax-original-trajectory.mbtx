@@ -128,16 +128,87 @@ async fn original_points(root : String) -> Int {
 }
 
 ///|
+fn quality_geometry(
+  args : ArrayView[String],
+) -> (ArrayView[String], (Int, Int)?) raise {
+  match args {
+    [.. rest, "--quality-geometry", height, width] => {
+      let h = @string.parse_int(height)
+      let w = @string.parse_int(width)
+      guard h >= 32 &&
+        h <= 256 &&
+        h % 32 == 0 &&
+        w >= 32 &&
+        w <= 256 &&
+        w % 32 == 0 &&
+        !rest.contains("--quality-geometry") else {
+        fail(
+          "bounded original-only canvas requires 32..256 pixel multiples of 32",
+        )
+      }
+      (rest, Some((h, w)))
+    }
+    _ => {
+      guard !args.contains("--quality-geometry") else {
+        fail("quality geometry must be an explicit final control")
+      }
+      (args, None)
+    }
+  }
+}
+
+///|
+test "original RNG geometry control is distinct from matched native replay" {
+  assert_eq(quality_geometry(["literal-input"]).1, None)
+  assert_eq(
+    quality_geometry(["--quality-geometry", "256", "128"]).1,
+    Some((256, 128)),
+  )
+  for
+    args in [
+      ["--quality-geometry", "512", "256"],
+      ["--quality-geometry", "33", "128"],
+      ["--quality-geometry", "128"],
+    ] {
+    try quality_geometry(args) catch {
+      _ => ()
+    } noraise {
+      _ => fail("unbounded or malformed quality canvas admitted")
+    }
+  }
+}
+
+///|
+async fn prepared_geometry(root : String) -> (Int, Int)? {
+  let path = root + "/QUALITY_GEOMETRY.txt"
+  if @fs.exists(path) {
+    let fields = @fs.read_file(path).text().split(" ").to_array()
+    guard fields is [height, width] else {
+      fail("prepared quality geometry differs")
+    }
+    Some((@string.parse_int(height), @string.parse_int(width)))
+  } else {
+    None
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     root.has_prefix("/tmp/lunaflux-minimax-original-trajectory-") else {
     fail(
-      "prepare NEW_ROOT ORIGINAL_FULL_BLOCK_ROOT NATIVE_HEAD_CAPTURE ENCODED_BF16 | run ROOT | collect ROOT NATIVE_TERMINAL_OUTPUT",
+      "prepare NEW_ROOT ORIGINAL_FULL_BLOCK_ROOT NATIVE_HEAD_CAPTURE ENCODED_BF16 [--original-points N] [--quality-geometry H W] | run ROOT | collect ROOT NATIVE_TERMINAL_OUTPUT | collect-quality ROOT",
     )
   }
   let tag = root[5:].to_owned()
   if mode == "prepare" {
-    let (operands, points) = schedule_control(extra)
+    let (schedule_args, geometry) = quality_geometry(extra)
+    let (operands, points) = schedule_control(schedule_args)
+    guard geometry is None || points > 0 else {
+      fail(
+        "changed-geometry original RNG control requires an explicit original schedule",
+      )
+    }
     guard operands is [previous, capture, encoded] else {
       fail("literal trajectory inputs required")
     }
@@ -147,6 +218,13 @@ async fn main {
       "\{points}",
       create_mode=CreateNew,
     )
+    if geometry is Some((height, width)) {
+      @fs.write_file(
+        root + "/QUALITY_GEOMETRY.txt",
+        "\{height} \{width}",
+        create_mode=CreateNew,
+      )
+    }
     for directory in ["model", "input", "output"] {
       @fs.mkdir(root + "/" + directory)
     }
@@ -238,6 +316,7 @@ async fn main {
   } else if mode == "run" {
     guard extra.is_empty() else { fail("unexpected trajectory arguments") }
     let points = original_points(root)
+    let geometry = prepared_geometry(root)
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -265,10 +344,67 @@ async fn main {
         ":/work --entrypoint /work/original-trajectory " +
         image +
         " /work/model /work/input /work/output" +
-        (if points == 0 { "" } else { " \{points}" }),
+        (if points == 0 { "" } else { " \{points}" }) +
+        (match geometry {
+          None => ""
+          Some((height, width)) => " --quality-geometry \{height} \{width}"
+        }),
       ),
     )
+  } else if mode == "collect-quality" {
+    guard extra.is_empty() && prepared_geometry(root) is Some((height, width)) else {
+      fail("collect-quality requires a prepared original-only geometry control")
+    }
+    let points = original_points(root)
+    let terminal = remote(
+      "systemctl --user show " +
+      tag +
+      ".service -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+    )
+    terminal.check()
+    guard terminal.stdout().contains("SubState=exited") &&
+      terminal.stdout().contains("ExecMainStatus=0\n") &&
+      terminal.stdout().contains("Result=success") else {
+      fail("original-only trajectory not successfully terminal")
+    }
+    record(root, "terminal", terminal)
+    for file in ["stdout.log", "stderr.log"] {
+      copy(node + ":" + root + "/" + file, root + "/" + file)
+    }
+    guard @fs.read_file(root + "/stdout.log")
+      .text()
+      .contains(
+        "original_trajectory_terminal updates=\{points - 1} video_latent=1,24,37,\{height / 16},\{width / 16}",
+      ) else {
+      fail("missing literal terminal geometry")
+    }
+    // Keep all step captures on the host. Download only canonical latents and
+    // exact original RNG inputs; do not compare different canvases as parity.
+    for
+      (file, bytes) in [
+        ("video-latent.f32", 24 * 37 * (height / 16) * (width / 16) * 4),
+        ("audio-latent.f32", 2 * 32 * 207 * 4),
+        ("initial-video-rows.f32", 37 * (height / 32) * (width / 32) * 96 * 4),
+        ("initial-audio-rows.f32", 414 * 32 * 4),
+      ] {
+      let path = root + "/output/" + file
+      guard !@fs.exists(path) else {
+        fail("existing collected output preserved")
+      }
+      copy(node + ":" + path, path)
+      guard @fs.read_file(path).binary().length() == bytes else {
+        fail("literal quality tensor geometry differs: " + file)
+      }
+    }
+    println(
+      "original_only_control_collected canvas=\{height}x\{width} original_noise=true native_parity=false media_quality=unassessed",
+    )
   } else if mode == "collect" {
+    guard prepared_geometry(root) is None else {
+      fail(
+        "changed geometry/noise requires collect-quality, not a native parity comparison",
+      )
+    }
     guard extra is [native, .. options] else {
       fail("native terminal output directory required")
     }

@@ -628,3 +628,35 @@ Full native suite passes **5,026/5,026**, affected compiler/source packages
 toolchain migration-warning exclusions are unchanged. The refiner adapter
 continues calling installed original operations; new context-chain mode changes
 only its supplied initial input and propagates original outputs thereafter.
+
+### Bounded original RNG / larger-canvas control
+
+The three failed 128×128 original controls still used captured native initial
+noise. Its measured marginal statistics look normal, but that is not an
+independent check of the installed pipeline's noise/patchifier route. A new
+explicit **original-only quality control** calls the installed
+`MiniMaxH3Pipeline._initial_noise` unchanged, with seed 17, the actual original
+three-row caption, 256×256 canvas and fifty original sigma points / 49 updates.
+It uses the same installed original full DiT and checkpoint weights; the task
+remains text-to-video/audio. Neither a seed nor a shared caption asserts
+identical noise after the canvas changes.
+
+Root / exact user unit on `.179`:
+`/tmp/lunaflux-minimax-original-trajectory-original-rng-quality256-20261012-v1`
+/ `lunaflux-minimax-original-trajectory-original-rng-quality256-20261012-v1.service`.
+This run is **pending**, not a numerical or quality pass. It has a 96-GiB
+resident-memory limit, zero unit swap and a two-hour timeout; no other GPU
+work is admitted there. Video has 2,368 patch rows, audio 414, caption 3;
+the canonical terminal video latent is `[1,24,37,16,16]`. Actual decoded
+geometry and semantic content must be checked after the original DiT releases
+the GPU and the original VAE runs separately.
+
+The offline bridge now makes observer extents and unpatchification geometry
+explicit rather than retaining hard-coded 592-row / 8×8 assumptions. Existing
+matched 128×128 replays keep their literal captured noise, packing identity
+checks and output extents. Changed-noise/geometry runs cannot enter the native
+parity collector: `collect-quality` downloads only original initial operands
+and terminal latents, retaining all step captures on the host. The runner's
+three regressions and ARM bridge compilation with `-Wall -Wextra -Werror` pass.
+This is diagnostic plumbing, not a production arithmetic/default change or
+proof that 256×256 is representative full-resolution checkpoint quality.
