@@ -9,6 +9,11 @@ reported separately below; the original tensors and reference remain unchanged.
 
 ## Source-selected normalization correction
 
+The later isolated [mean-publication ablation](MINIMAX_MEAN_PUBLICATION_ABLATION_2026-10-11.md)
+does not materially improve the four direct-original comparisons. Caption and
+English remain bitwise unchanged; the worst digits and long rows remain
+3.1238% and 9.0533%. The reciprocal variant is not selected for production.
+
 ### Cancellation-sensitive dot-product experiment (default rollout rejected)
 
 The precision IR now explicitly distinguishes ordered and compensated F32 dot
