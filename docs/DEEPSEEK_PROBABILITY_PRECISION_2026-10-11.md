@@ -58,5 +58,35 @@ of either limit. The native run requested only one generated token and cannot
 establish EOS agreement. Streaming partition and
 matrix/scalar reduction differences remain to be isolated.
 
+## Completed valid one-token prefill ablation
+
+Both original MP2 ranks completed
+`/tmp/lunaflux-deepseek-upstream-reference-token-prefill-20261011-v1` with exit
+zero, `OOMKilled=false`, all 36,943 tensors loaded, and identical rank logit
+outputs. The 144 literal prompt tokens match the native prompt. Only the
+initial prompt is partitioned into 144 calls of the original one-token forward;
+the original numerical kernels and subsequent generation remain unchanged.
+Both the whole-prompt and one-token references generate content token `33310`.
+
+| Final-prefill vocabulary comparison | RMSE | Relative L2 | Maximum absolute difference |
+| --- | --- | --- | --- |
+| Corrected native vs original whole-prompt | 0.595892 | 11.2971% | 4.36326 |
+| Corrected native vs original one-token calls | 0.647957 | 11.7744% | 3.86141 |
+| Original one-token calls vs original whole-prompt | 0.763808 | 14.4805% | 4.01242 |
+
+This establishes that the original model's own legal execution partition changes
+its floating-point output substantially. It does **not** establish that the
+native discrepancy is solely partitioning, prove native numerical equivalence,
+or justify accepting a mismatching token. Native still uses six-row prompt
+frames, not either matched reference geometry. Partition-sensitive projection,
+compression and attention arithmetic must be attributed before declaring a
+full correctness pass. In particular, six-row *original* continuation is not a
+valid comparison: its decode read-set helpers assume one query row. The valid
+one-row experiment must not be presented as an exact native-shape reference.
+
+Reports `NATIVE_VS_TOKEN_PREFILL.txt` and `TOKEN_VS_WHOLE_PREFILL.txt` preserve all
+129,280-value comparisons; no production execution or acceptance threshold was
+changed for this experiment.
+
 The complete local native suite after this change passed **4,997/4,997**, using
 the existing toolchain-migration warning exclusions `-20-25-29-35-79-92`.

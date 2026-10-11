@@ -48,7 +48,7 @@ from 3.865801 to **4.363262**. Thus this fixes the observed first-token mismatch
 not full numerical parity, EOS equivalence, or multi-prompt correctness. See
 `DEEPSEEK_PROBABILITY_PRECISION_2026-10-11.md` for the corrected capture.
 
-The next original-reference diagnostic partitions initial prefill into valid
+The completed original-reference diagnostic partitions initial prefill into valid
 one-token continuation calls. This is explicitly a shape ablation, not the
 unchanged whole-prompt baseline. Source inspection ruled out six-row continuation:
 the original `get_window_topk_idxs` and `get_compress_topk_idxs` use decode-row
@@ -56,7 +56,12 @@ read sets whenever `start_pos > 0`, so six-row chunks would change causality,
 not merely rounding. Those preparation directories were never run on GPUs.
 The optional observer adapter accepts only one-row increments, captures the last
 literal prompt frontier, and leaves subsequent decode invocations unchanged.
-CPU probes pass on both Sparks; this is not yet a GPU comparison result.
+Both GPU ranks completed with exit zero and identical logit captures. Original
+whole-prompt versus one-token prefill differs by **14.4805% relative L2** while
+both select `33310`; corrected native versus one-token reference differs by
+**11.7744%**. This does not prove that native's six-row execution is numerically
+equivalent or that partitioning explains every difference. The separate full
+comparison and remaining limits are recorded in the probability-precision report.
 
 The original-layout GLM scale adapter completed both real TP-rank requests in
 `/tmp/lunaflux-independent-glm-20261011-v3`. The 13-token prompt still matches
