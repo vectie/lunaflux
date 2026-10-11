@@ -286,6 +286,28 @@ selecting another kernel backend cannot restore the discarded up scale.
 
 ## Source validation
 
+### Original-layout GLM scale adapter
+
+`scripts/prepare-glm-scale-reference.mbtx` now builds a separate test-only
+ATen expert path that retains both original gate/up global scale planes and
+does not perform the reference's Marlin weight permutation. It decodes only
+the currently selected expert, with a conservative 2-GiB temporary bound,
+instead of expanding the complete checkpoint to BF16. Routing and the rest
+of the reference model remain external to this adapter.
+
+CPU and real `.179` GPU probes pass. Fixtures cover all E2M1 magnitudes/signs,
+distinct gate/up scales, selected-token routing and explicit BF16 boundaries;
+deliberately collapsing the up scale changes the result. The CPU native probe
+also passes ASan/LSan. Results are under
+`/tmp/lunaflux-glm-scale-reference-20261011-v2`. The failed first schema
+registration attempt remains separately preserved in `v1`.
+
+A two-Spark original-checkpoint run is loading under
+`/tmp/lunaflux-independent-glm-20261011-v3`, with the same original literal
+prompts, eager context and 96-GiB/no-swap limits. This corrects the known scale
+reference defect, not the sparse-MLA KV-storage difference. No full-model
+numerical pass or production change is claimed before its outputs are compared.
+
 ### MiniMax normalization-only intervention
 
 Two real Spark runs replace only the row/head RMSNorm square summation with

@@ -200,7 +200,20 @@ async fn main {
   guard label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
     fail("short run label required")
   }
-  if mode == "start" {
+  if mode == "start" || mode == "start-scale-reference" {
+    let scale_reference = if mode == "start-scale-reference" {
+      guard family == "glm" &&
+        extra is [path] &&
+        path.has_prefix("/tmp/lunaflux-glm-scale-reference-") &&
+        path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+        fail(
+          "GLM scale-reference start requires its prepared test-only directory",
+        )
+      }
+      Some(path)
+    } else {
+      None
+    }
     @fs.mkdir(root)
     for last in [false, true] {
       let health = remote(
@@ -252,6 +265,18 @@ async fn main {
         name +
         " --gpus all --network host --ipc=host --memory 96g --memory-swap 96g " +
         "-e ABLIT=0 -e GLM53_SUPPRESS_STOPS_IN_REASONING=0 " +
+        (if scale_reference is Some(path) {
+          "-e VLLM_DISABLE_SHARED_EXPERTS_STREAM=1 -v " +
+          quote(path + ":/reference:ro") +
+          " -v " +
+          quote(
+            path +
+            "/modelopt.py:/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/modelopt.py:ro",
+          ) +
+          " "
+        } else {
+          ""
+        }) +
         "-e GLOO_SOCKET_IFNAME=enP7s7 -e NCCL_SOCKET_IFNAME=enP7s7 " +
         "-e VLLM_HOST_IP=" +
         (if last { "192.168.2.179" } else { "192.168.2.178" }) +

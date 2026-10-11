@@ -24,6 +24,15 @@ Every layer's raw output is written without overwrite for differential
 localization. Successful completion requires all retained tensor owners released.
 These startup/offline diagnostics are never part of serving or token steps.
 
+The separate `aten/nvfp4_reference.cpp` adapter covers GLM's original row-major
+NVFP4 expert operands. It retains independent gate/up global scales, decodes
+only selected experts, and preserves explicit BF16 operation boundaries. Its
+CPU/GPU probe checks all E2M1 magnitudes/signs and demonstrably detects an
+incorrectly collapsed up scale. The `.mbtx` preparer creates a test-only
+read-only vLLM numerical-method overlay; it neither changes checkpoint files
+nor introduces a production dependency. A corrected expert reference is not
+yet a claim of identical attention/KV arithmetic or full-model equivalence.
+
 Build the MoonBit driver with `moon build driver --target native --release`.
 Build `aten/ops.cpp` as a shared library with the existing reference image's
 ATen headers/libraries; the runner supplies that library path explicitly.

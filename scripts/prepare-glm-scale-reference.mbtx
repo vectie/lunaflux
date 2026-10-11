@@ -1,0 +1,254 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline reference arithmetic adapter only. No source/checkpoint mutation on
+// the host and no dependency added to the first-party production runtime.
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+let modelopt : String = "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/modelopt.py"
+
+///|
+fn overlay(source : String) -> String raise {
+  let pieces = source.split("class ModelOptNvFp4FusedMoE(").to_array()
+  guard pieces.length() == 2 else { fail("NVFP4 class not found once") }
+  let end = pieces[1]
+    .split("\n\nModelOptNvFp4Config.LinearMethodCls")
+    .to_array()
+  guard end.length() == 2 else { fail("NVFP4 class boundary changed") }
+  let process = "        # Use a single gscale for w13."
+  let apply = "        assert not self.is_monolithic\n        assert self.moe_kernel is not None"
+  guard end[0].split(process).count() == 2 && end[0].split(apply).count() == 2 else {
+    fail("installed numerical method differs from the inspected source")
+  }
+  let body = end[0]
+    .to_owned()
+    .replace(
+      old=process,
+      new=(
+          #|        if self.use_a16:
+          #|            # Offline original-layout comparison: retain BOTH scale planes.
+          #|            torch.ops.load_library("/reference/libnvfp4-reference.so")
+          #|            self._original_layout_reference = True
+          #|            return
+          #|
+        ) +
+        process,
+    )
+    .replace(
+      old=apply,
+      new=(
+          #|        if getattr(self, "_original_layout_reference", False):
+          #|            assert not layer.apply_router_weight_on_input
+          #|            return torch.ops.lunaflux_reference.nvfp4_experts(
+          #|                x, layer.w13_weight, layer.w13_weight_scale,
+          #|                layer.w13_weight_scale_2, layer.w2_weight,
+          #|                layer.w2_weight_scale, layer.w2_weight_scale_2,
+          #|                topk_weights, topk_ids, layer.expert_map,
+          #|                float(getattr(layer, "swiglu_limit", None) or 0.0),
+          #|            )
+          #|
+        ) +
+        apply,
+    )
+  pieces[0].to_owned() +
+  "class ModelOptNvFp4FusedMoE(" +
+  body +
+  "\n\nModelOptNvFp4Config.LinearMethodCls" +
+  end[1].to_owned()
+}
+
+///|
+test "adapter preserves unrelated methods and changes only offline W4A16 experts" {
+  let source = "unchanged\nclass ModelOptNvFp4FusedMoE(X):\n        # Use a single gscale for w13.\n        assert not self.is_monolithic\n        assert self.moe_kernel is not None\n\nModelOptNvFp4Config.LinearMethodCls = untouched"
+  let result = overlay(source)
+  assert_true(result.has_prefix("unchanged\n"))
+  assert_true(result.has_suffix("LinearMethodCls = untouched"))
+  assert_true(result.contains("if self.use_a16:"))
+  assert_true(result.contains("layer.w13_weight_scale_2, layer.w2_weight"))
+  assert_true(result.contains("# Use a single gscale for w13."))
+  assert_true(result.contains("assert not self.is_monolithic"))
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    },
+    if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    },
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn save(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn copy(last : Bool, from : String, to : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" +
+    (if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    }),
+    from,
+    to,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-scale-reference-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW /tmp/lunaflux-glm-scale-reference-RUN required")
+  }
+  @fs.mkdir(root)
+  let original = remote(
+    true,
+    "docker run --rm --network none --entrypoint /bin/cat " +
+    image +
+    " " +
+    modelopt,
+  )
+  save(root, "installed-source", original)
+  @fs.write_file(
+    root + "/modelopt.py",
+    overlay(original.stdout()),
+    create_mode=CreateNew,
+  )
+  for last in [true, false] {
+    let node = if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    }
+    save(
+      root,
+      if last {
+        "mkdir179"
+      } else {
+        "mkdir178"
+      },
+      remote(last, "mkdir " + root),
+    )
+    copy(last, root + "/modelopt.py", node + ":" + root + "/modelopt.py")
+  }
+  for file in ["nvfp4_reference.cpp", "nvfp4_probe.cpp"] {
+    copy(
+      true,
+      "benchmarks/checkpoint_aten_reference/aten/" + file,
+      "wlc004s@192.168.2.179:" + root + "/" + file,
+    )
+  }
+  let includes = " -I/usr/local/lib/python3.12/dist-packages/torch/include -I/usr/local/lib/python3.12/dist-packages/torch/include/torch/csrc/api/include"
+  let links = " -L/usr/local/lib/python3.12/dist-packages/torch/lib -Wl,-rpath,/usr/local/lib/python3.12/dist-packages/torch/lib -Wl,--no-as-needed -ltorch_cuda -ltorch_cpu -lc10_cuda -lc10"
+  let tag = root.split("/").last().unwrap().to_owned()
+  for
+    (label, command) in [
+      (
+        "build-library",
+        "g++ -O2 -std=c++20 -shared -fPIC /reference/nvfp4_reference.cpp -o /reference/libnvfp4-reference.so" +
+        includes +
+        links,
+      ),
+      (
+        "build-probe",
+        "g++ -O2 -std=c++20 /reference/nvfp4_reference.cpp /reference/nvfp4_probe.cpp -o /reference/probe" +
+        includes +
+        links,
+      ),
+      (
+        "build-asan",
+        "g++ -O1 -g -std=c++20 -fsanitize=address -fno-omit-frame-pointer /reference/nvfp4_reference.cpp /reference/nvfp4_probe.cpp -o /reference/probe-asan" +
+        includes +
+        links,
+      ),
+      (
+        "asan-probe", "env ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 /reference/probe-asan cpu",
+      ),
+      ("cpu-probe", "/reference/probe cpu"),
+      ("gpu-probe", "/reference/probe cuda"),
+    ] {
+    if label == "gpu-probe" {
+      let owners = remote(
+        true, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    }
+    save(
+      root,
+      label,
+      remote(
+        true,
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-" +
+        label +
+        " --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --rm --network none --memory 4g --memory-swap 4g " +
+        (if label == "gpu-probe" { "--gpus all " } else { "" }) +
+        "-v " +
+        root +
+        ":/reference --entrypoint " +
+        command.split(" ").to_array()[0].to_owned() +
+        " " +
+        image +
+        " " +
+        command.split(" ").to_array()[1:].join(" "),
+      ),
+    )
+  }
+  copy(
+    true,
+    "wlc004s@192.168.2.179:" + root + "/libnvfp4-reference.so",
+    root + "/libnvfp4-reference.so",
+  )
+  copy(
+    false,
+    root + "/libnvfp4-reference.so",
+    "wlc003s@192.168.2.178:" + root + "/libnvfp4-reference.so",
+  )
+  println(
+    "original_layout_scale_reference_ready root=" +
+    root +
+    " production_runtime_changed=false persistent_kv_parity_not_claimed=true",
+  )
+}
