@@ -63,7 +63,11 @@ async fn main {
       (mode == "decode-audio" && tail.length() == 9) ||
       (mode == "decode-video" && tail.length() == 12) ||
       (
-        (mode == "run-joint" || mode == "run-joint-latents") &&
+        (
+          mode == "run-joint" ||
+          mode == "run-joint-latents" ||
+          mode == "run-joint-prefix"
+        ) &&
         tail.length() == 18
       ) ||
       (
@@ -128,7 +132,9 @@ async fn main {
     )
     return
   }
-  if mode == "run-joint" || mode == "run-joint-latents" {
+  if mode == "run-joint" ||
+    mode == "run-joint-latents" ||
+    mode == "run-joint-prefix" {
     run_joint(
       root_name,
       root,
@@ -137,6 +143,7 @@ async fn main {
       tail,
       cancel_after_frames~,
       capture_latents=mode == "run-joint-latents",
+      capture_prefix=mode == "run-joint-prefix",
     )
     return
   }

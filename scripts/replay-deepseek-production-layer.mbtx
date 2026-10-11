@@ -185,6 +185,7 @@ async fn main {
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
   } else if mode == "collect" {
+    guard extra is [] || extra is ["--boundaries"] else { fail("optional --boundaries required") }
     @fs.mkdir(root + "/output")
     @shell.Cmd("scp", [
       "-o",
@@ -196,6 +197,12 @@ async fn main {
     ])
     .output()
     .check()
+    if extra is ["--boundaries"] {
+      for name in ["attention-input", "attention-output", "attention-residual", "ffn-input", "ffn-output"] {
+        @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
+          node + ":" + root + "/output/" + name + ".bf16", root + "/output/" + name + ".bf16"]).output().check()
+      }
+    }
     record(
       root,
       "comparison",

@@ -1,5 +1,14 @@
 # H3 checkpoint entry point
 
+`run-joint-prefix` takes the same positional arguments as `run-joint`, but is
+an offline numerical replay, not a media request. It executes the real caption
+refiners, conditioning, first-step timestep/input producers and exactly the
+first block. After queue retirement it writes literal `packed-input.bf16`,
+`timestep.f32`, `positions.f32`, `combined.i32`, `documents.i32` and
+`block-0.bf16` for an unmodified original-block comparison. It does not change
+the model layer count, substitute noise by seed equivalence, execute a flow
+update, or publish media. Ordinary serving performs none of these readbacks.
+
 `text-ids VARIANT_ROOT TOKENIZER_LABEL INPUT_UTF8_FILE NEW_OUTPUT_DIRECTORY
 MAX_TOKENS` loads the installed `text_encoder/tokenizer.json` and encodes literal
 caption text through the shared checkpoint text frontend. It writes

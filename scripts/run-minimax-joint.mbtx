@@ -262,27 +262,51 @@ test "long quality campaigns have an explicit non-default time budget" {
 ///|
 // Offline process I/O only: progress must be visible while a long media request
 // computes. This does not change the runtime, kernels or request semantics.
-fn diagnostic_process(binary : String, capture_latents : Bool) -> String {
+fn diagnostic_process(binary : String, capture_latents : Bool, capture_prefix : Bool) -> String {
   " /usr/bin/stdbuf -oL -eL " +
   binary +
-  (if capture_latents { " run-joint-latents " } else { " run-joint " })
+  (if capture_prefix { " run-joint-prefix " } else if capture_latents { " run-joint-latents " } else { " run-joint " })
 }
 
 ///|
 test "long media diagnostics publish progress without changing execution mode" {
   assert_eq(
-    diagnostic_process("/tmp/media.exe", false),
+    diagnostic_process("/tmp/media.exe", false, false),
     " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint ",
   )
   assert_eq(
-    diagnostic_process("/tmp/media.exe", true),
+    diagnostic_process("/tmp/media.exe", true, false),
     " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-latents ",
   )
+  assert_eq(diagnostic_process("/tmp/media.exe", false, true), " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-prefix ")
+}
+
+///|
+fn prefix_arguments(args : ArrayView[String]) -> (ArrayView[String], Bool) raise {
+  if args is [.. rest, "--capture-prefix"] {
+    guard !rest.contains("--capture-prefix") && !rest.contains("--capture-final-latents") && !rest.contains("--cancel-request") else {
+      fail("prefix capture is separate from media or cancellation execution")
+    }
+    (rest, true)
+  } else {
+    guard !args.contains("--capture-prefix") else { fail("prefix option must be final") }
+    (args, false)
+  }
+}
+
+///|
+test "prefix capture cannot silently replace a media run" {
+  assert_false(prefix_arguments(["script"]).1)
+  assert_true(prefix_arguments(["script", "--capture-prefix"]).1)
+  for args in [["--capture-prefix", "x"], ["--capture-prefix", "--capture-prefix"], ["--capture-final-latents", "--capture-prefix"], ["--cancel-request", "0", "--after-steps", "1", "--capture-prefix"]] {
+    try prefix_arguments(args) catch { _ => () } noraise { _ => fail("ambiguous run accepted") }
+  }
 }
 
 ///|
 async fn main {
-  let (runtime_args, runtime_seconds) = runtime_arguments(@env.args())
+  let (prefix_args, capture_prefix) = prefix_arguments(@env.args())
+  let (runtime_args, runtime_seconds) = runtime_arguments(prefix_args)
   let (capture_args, capture_latents) = capture_arguments(runtime_args)
   let (seed_args, seed) = seed_arguments(capture_args)
   let (cancel_args, cancel_after_frames) = cancellation_arguments(seed_args)
@@ -409,7 +433,7 @@ async fn main {
     " --property=StandardError=file:" +
     root +
     "/run.stderr" +
-    diagnostic_process(binary, capture_latents) +
+    diagnostic_process(binary, capture_latents, capture_prefix) +
     variant +
     " " +
     geometry +
@@ -448,6 +472,7 @@ async fn main {
     seed.to_string() +
     "\nterminal_latent_capture=" +
     capture_latents.to_string() +
+    "\ninitial_prefix_capture=" + capture_prefix.to_string() +
     "\nruntime_seconds=" +
     runtime_seconds.to_string() +
     "\nmaximum_device_bytes=103079215104\npayload_hashing=false\nstatus=dispatched-not-complete\n",

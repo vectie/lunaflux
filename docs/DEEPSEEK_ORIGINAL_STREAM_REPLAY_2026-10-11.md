@@ -103,8 +103,24 @@ attention residual, and FFN input/output after native queue retirement. An
 optional original CPython return observer records the same boundaries from
 unmodified `Block.forward`, RMSNorm, Attention and MoE, retaining one-row
 submissions and token-hash routing. Ordinary serving has no observer, readback,
-extra launch or changed arithmetic. These boundary comparisons are pending;
-the full-model numerical difference is **not fixed** by adding an observer.
+extra launch or changed arithmetic. The literal one-row layer-0 boundary run
+now completes, with all 144 actual token IDs:
+
+| Boundary | Exact BF16 / values | Relative L2 |
+| --- | --- | --- |
+| Attention input | 589,824 / 589,824 | 0% |
+| Attention output | 491,296 / 589,824 | 0.1384427% |
+| Four-stream attention residual | 2,298,899 / 2,359,296 | 0.0932574% |
+| FFN input | 530,322 / 589,824 | 0.1506909% |
+| FFN output | 156,579 / 589,824 | 0.5006931% |
+
+Original root: `/tmp/lunaflux-deepseek-original-layer-stream-boundaries-20261011-v1`.
+Native root: `/tmp/lunaflux-deepseek-production-layer-0-boundaries-20261011-v1`.
+The first normalized branch input is bitwise identical; divergence first
+appears inside attention. The larger FFN discrepancy includes a different
+input, so it cannot yet be attributed solely to routed experts. A matched FFN
+input intervention is required. The full-model numerical difference is **not
+fixed** by adding an observer.
 
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]

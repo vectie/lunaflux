@@ -11,6 +11,7 @@ async fn run_joint(
   args : ArrayView[String],
   cancel_after_frames~ : Int,
   capture_latents~ : Bool,
+  capture_prefix~ : Bool,
 ) -> Unit {
   let layout = joint_layout(root, metadata, model, args)
   let limit = @string.parse_int64(args[15])
@@ -256,6 +257,7 @@ async fn run_joint(
   let audio_update = modules.function(
     "flow_audio", "lunaflux_rectified_flow_f32_eta0_v1",
   )
+  let prefix_files : Array[(String, Bytes)] = []
   denoiser_lease.with_denoiser_weights(denoiser_kind, model, (
     weights,
     context_weights,
@@ -280,6 +282,25 @@ async fn run_joint(
       [],
       max_output_bytes=layout.conditioning.byte_count,
     )
+    if capture_prefix {
+      prefix_files.append(
+        capture_joint_prefix(
+          context,
+          stream,
+          layout,
+          storage,
+          text,
+          conditioning,
+          input,
+          variants[:],
+          rotary,
+          weights,
+          embeddings,
+          parameters,
+        ),
+      )
+      return
+    }
     request.prepare_model(
       context,
       stream,
@@ -304,6 +325,16 @@ async fn run_joint(
       audio_block_size=256,
     )
   })
+  if capture_prefix {
+    @fs.mkdir(args[17])
+    for (name, bytes) in prefix_files {
+      @fs.write_file(args[17] + "/" + name, bytes, create_mode=CreateNew)
+    }
+    println(
+      "joint_prefix_captured actual_conditioning=true actual_initial_noise=true denoiser_blocks=1 no_media_output=true",
+    )
+    return
+  }
   let (terminal, completed) = advance_joint_frames(
     () => {
       let stage = request.advance()

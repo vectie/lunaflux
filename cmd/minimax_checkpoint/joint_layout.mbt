@@ -2,6 +2,7 @@
 // All geometry and residency checks run before a GPU context is opened. This
 // is a text-only diagnostic request: reference-media rows are not fabricated.
 struct JointLayout {
+  positions : @sequence.PositionedSequence
   plan : @loop.PreparedPlan
   sequence : @sequence.Sequence
   storage : @loop.LatentStoragePlan
@@ -222,6 +223,7 @@ fn joint_layout(
     @string.parse_int64(args[15]),
   )
   {
+    positions,
     plan,
     sequence,
     storage,

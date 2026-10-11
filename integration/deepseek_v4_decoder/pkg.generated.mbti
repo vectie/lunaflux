@@ -59,6 +59,7 @@ pub fn DeepSeekDecoderSlice::prepare(Self, @device.Context, @device.Module, @dev
 pub fn DeepSeekDecoderSlice::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekDecoderSlice::source_bytes(Self) -> Bytes raise
 pub fn DeepSeekDecoderSlice::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
+pub fn DeepSeekDecoderSlice::visit_retired_boundaries(Self, (String, @device.Allocation, Int) -> Unit raise) -> Unit raise
 
 pub struct DeepSeekDecoderStage {
   // private fields

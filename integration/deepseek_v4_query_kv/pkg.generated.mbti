@@ -77,6 +77,7 @@ pub fn DeepSeekAttentionEnvelope::persistent_state_bytes(Self) -> Int64
 pub fn DeepSeekAttentionEnvelope::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekAttentionEnvelope::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekAttentionEnvelope::source_bytes(Self) -> Bytes
+pub fn[T] DeepSeekAttentionEnvelope::with_branch_ports(Self, (@device.Allocation, @device.Allocation) -> T raise) -> T raise
 
 pub(all) struct DeepSeekAttentionInputBuffers {
   low_rank_queries : @device.Allocation
