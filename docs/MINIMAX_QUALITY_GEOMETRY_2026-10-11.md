@@ -90,6 +90,34 @@ failed picture, so this review does not introduce speculative fixes there.
 Remaining encoder differences and matched original denoiser comparison remain
 open; neither is waived because the two VAEs agree.
 
+## Literal first DiT block
+
+The first native denoising evaluation now captures its packed input, unique
+time table, rotary positions, row/time mapping and document boundaries. An
+offline bridge loads the same converted checkpoint tensors into the installed,
+unmodified original DiT block. The omitted rotary buffer is supplied from the
+exact original FL2VA table already used by native execution; it is not
+recomputed. The original module runs in its real vLLM configuration and
+single-rank process-group context. Setup failures are retained separately.
+
+The successful original replay exits zero without OOM and releases CUDA owners
+under a 12-GiB/no-swap limit. Root:
+`/tmp/lunaflux-minimax-upstream-block-quality128-20261011-v1`.
+
+| Literal first-block comparison | Relative L2 | Interpretation |
+| --- | --- | --- |
+| All 1,024 packed rows | 6.3001196% | Includes 15 alignment-padding rows |
+| All 1,009 real text/audio/video rows | 0.1335998% | Matched original inputs and weights |
+
+The original attention backend unpads the alignment rows; native execution
+attends them as a separate document. That difference dominates the full-array
+norm but cannot cross the document boundary into real rows. Both reports are
+preserved, rather than silently discarding the padding discrepancy. Real-row
+RMSE is 0.0286172 and cosine similarity is 0.999999108. This is one block at
+the first step, not fifty-block/twenty-step parity or a media-quality pass.
+The next comparison must trace the complete denoiser on identical noise and
+conditioning; the failed native video is not repaired by this diagnostic.
+
 ```sh
 moon run scripts/run-minimax-upstream-video.mbtx prepare NEW_REFERENCE_ROOT CAPTURED_VIDEO_LATENT_F32 --latent-shape 37 8 8
 moon run scripts/run-minimax-upstream-video.mbtx run NEW_REFERENCE_ROOT

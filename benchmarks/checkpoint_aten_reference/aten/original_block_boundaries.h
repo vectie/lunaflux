@@ -9,6 +9,7 @@ struct OriginalBoundaries {
   PyObject *attention_norm=nullptr, *attention=nullptr, *ffn_norm=nullptr, *ffn=nullptr;
   PyObject *block=nullptr, *u8=nullptr;
   int post_count=0;
+  bool inside_attention=false;
   std::map<std::string,std::vector<char>> values;
 };
 static OriginalBoundaries *boundary_observer=nullptr;
@@ -29,14 +30,40 @@ static int append_original_boundary(const char *name,PyObject *value,int width) 
 }
 
 static int trace_original_boundary(PyObject *,PyFrameObject *frame,int event,PyObject *result) {
-  if(event!=PyTrace_RETURN||result==Py_None||!boundary_observer)return 0;
+  if(!boundary_observer||(event!=PyTrace_RETURN&&event!=PyTrace_CALL))return 0;
   Owned code(reinterpret_cast<PyObject *>(PyFrame_GetCode(frame)));
   Owned name(code.p?PyObject_GetAttrString(code.p,"co_name"):nullptr);
   Owned locals(PyFrame_GetLocals(frame));
   if(!name.p||!locals.p)return -1;
   const char *function=PyUnicode_AsUTF8(name.p);
   auto *self=PyDict_GetItemString(locals.p,"self");
-  if(!function||!self)return PyErr_Occurred()?-1:0;
+  if(!function)return -1;
+  if(self==boundary_observer->attention&&std::strcmp(function,"forward")==0&&event==PyTrace_CALL) {
+    boundary_observer->inside_attention=true;return 0;
+  }
+  if(event!=PyTrace_RETURN||result==Py_None)return 0;
+  if(boundary_observer->inside_attention&&std::strcmp(function,"sparse_attn")==0) {
+    // The original recursively partitions heads on GB10. Retain its complete
+    // outer return, not the four 16-head internal returns as extra rows.
+    auto *query=PyDict_GetItemString(locals.p,"q");
+    Owned count(query?PyObject_CallMethod(query,"numel",nullptr):nullptr);
+    if(!count.p)return -1;
+    if(PyLong_AsLong(count.p)==32768)
+      return append_original_boundary("sparse-attention",result,32768);
+    return PyErr_Occurred()?-1:0;
+  }
+  if(!self)return 0;
+  if(self==boundary_observer->attention&&std::strcmp(function,"forward")==0) {
+    boundary_observer->inside_attention=false;
+    for(const auto &component:std::vector<std::pair<const char*,int>>{
+      {"qr",1024},{"q",32768},{"kv",512},{"o",8192}}) {
+      const char *name=std::strcmp(component.first,"qr")==0?"attention-low-rank":
+        std::strcmp(component.first,"q")==0?"q-rope":
+        std::strcmp(component.first,"kv")==0?"kv-sim":"attention-output-a";
+      auto *value=PyDict_GetItemString(locals.p,component.first);
+      if(!value||append_original_boundary(name,value,component.second)<0)return -1;
+    }
+  }
   if(std::strcmp(function,"forward")==0) {
     for(auto boundary : {
       std::pair{"attention-input",boundary_observer->attention_norm},
@@ -52,9 +79,13 @@ static int trace_original_boundary(PyObject *,PyFrameObject *frame,int event,PyO
 }
 
 static bool write_original_boundaries(const OriginalBoundaries &observer,const char *out) {
-  if(observer.values.size()!=5){PyErr_SetString(PyExc_ValueError,"original boundary observer incomplete");return false;}
+  if(observer.values.size()!=10){PyErr_SetString(PyExc_ValueError,"original boundary observer incomplete");return false;}
   for(const auto &[name,values]:observer.values) {
-    const size_t expected=144ULL*(name=="attention-residual"?16384:4096)*2;
+    const int width=name=="attention-residual"?16384:
+      (name=="q-rope"||name=="sparse-attention")?32768:
+      name=="kv-sim"?512:name=="attention-low-rank"?1024:
+      name=="attention-output-a"?8192:4096;
+    const size_t expected=144ULL*width*2;
     if(values.size()!=expected){PyErr_SetString(PyExc_ValueError,"original boundary row count differs");return false;}
     const std::string path=std::string(out)+"/"+name+".bf16";
     auto *file=std::fopen(path.c_str(),"wbx");

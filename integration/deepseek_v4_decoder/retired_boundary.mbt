@@ -15,6 +15,7 @@ pub fn DeepSeekDecoderSlice::visit_retired_boundaries(
     observe("attention-input", input, width)
     observe("attention-output", output, width)
   })
+  block.attention.visit_retired_components(observe)
   guard block.intermediate is Some(intermediate) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
   }

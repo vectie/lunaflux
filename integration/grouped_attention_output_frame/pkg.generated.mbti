@@ -20,6 +20,7 @@ pub fn GroupedAttentionOutputFrame::new(@grouped_attention_output_cuda_source.Gr
 pub fn GroupedAttentionOutputFrame::output(Self) -> @device.Allocation raise
 pub fn GroupedAttentionOutputFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, positions~ : @device.Allocation, attention~ : @device.Allocation, weights~ : ArrayView[@device.Allocation], output? : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
 pub fn GroupedAttentionOutputFrame::source_bytes(Self) -> Bytes
+pub fn GroupedAttentionOutputFrame::visit_retired_outputs(Self, (String, @device.Allocation, Int) -> Unit raise) -> Unit raise
 pub fn GroupedAttentionOutputFrame::workspace_bytes(Self, output_borrowed? : Bool) -> Int64
 
 // Type aliases

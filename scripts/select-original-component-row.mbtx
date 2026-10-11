@@ -1,0 +1,63 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn literal_row(
+  data : Bytes,
+  tokens : Bytes,
+  width : Int,
+  row : Int,
+) -> (Bytes, Int) raise {
+  guard width > 0 &&
+    row >= 0 &&
+    data.length() % (width * 2) == 0 &&
+    tokens.length() == data.length() / (width * 2) * 4 &&
+    row < tokens.length() / 4 else {
+    fail("matched tensor and token extent required")
+  }
+  let i = row * 4
+  let token = (tokens[i].to_uint() |
+  (tokens[i + 1].to_uint() << 8) |
+  (tokens[i + 2].to_uint() << 16) |
+  (tokens[i + 3].to_uint() << 24)).reinterpret_as_int()
+  (data[row * width * 2:(row + 1) * width * 2].to_owned(), token)
+}
+
+///|
+test "literal row keeps the corresponding original token, not BOS" {
+  let (data, token) = literal_row(
+    b"\x01\x02\x03\x04\x05\x06\x07\x08", b"\x01\x00\x00\x00\x7c\xb3\x00\x00", 2,
+    1,
+  )
+  assert_eq(data, b"\x05\x06\x07\x08")
+  assert_eq(token, 45948)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, tensor, ids, width_text, row_text, output] else {
+    fail("ORIGINAL_BF16 ORIGINAL_IDS_I32 WIDTH ROW NEW_OUTPUT_DIRECTORY")
+  }
+  let row = @string.parse_int(row_text)
+  let (data, token) = literal_row(
+    @fs.read_file(tensor).binary(),
+    @fs.read_file(ids).binary(),
+    @string.parse_int(width_text),
+    row,
+  )
+  @fs.mkdir(output)
+  @fs.write_file(output + "/input.bf16", data, create_mode=CreateNew)
+  @fs.write_file(
+    output + "/TOKEN.txt",
+    token.to_string(),
+    create_mode=CreateNew,
+  )
+  println(
+    "literal_row=" + row.to_string() + " literal_token=" + token.to_string(),
+  )
+}

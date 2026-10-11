@@ -122,6 +122,24 @@ input, so it cannot yet be attributed solely to routed experts. A matched FFN
 input intervention is required. The full-model numerical difference is **not
 fixed** by adding an observer.
 
+## Literal original FFN row-47 intervention
+
+The layer-0 row with the largest complete-layer relative error is replayed using
+the original `ffn-input.bf16` row **47** and its actual original token **45948**.
+It does not use the changed native FFN input or substitute BOS routing.
+All six original hash-selected routed experts complete on `.179`; both native
+matched-down-input and propagated gate/up/down modes agree **bitwise** at every
+weighted activation and output (12,288 activation values and 24,576 output values
+per mode). Original/native runs exit zero and release CUDA owners.
+
+Root: `/tmp/lunaflux-deepseek-original-expert-row47-20261011-v1`.
+This excludes those six routed-expert kernels as the local source of this row's
+discrepancy. It does not test the shared expert, final MoE combination, other
+rows, or full-model parity. Attention remains the first differing branch.
+The retired observer now exposes rotary query/KV, sparse attention and grouped
+output-A as well, so that production one-row execution can be compared without
+confounding it with the earlier 144-row component geometry.
+
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]
 moon run scripts/run-deepseek-original-layer-stream.mbtx run ROOT 43

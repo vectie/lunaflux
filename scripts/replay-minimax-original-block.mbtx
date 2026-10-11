@@ -1,0 +1,313 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn copy(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn block_shards(index : String) -> Array[String] raise {
+  guard @json.parse(index) is { "weight_map": Object(fields), .. } else {
+    fail("original index required")
+  }
+  let shards : Map[String, Unit] = Map([])
+  for name, entry in fields {
+    if name.has_prefix("transformer_blocks.0.") || name == "rope.inv_freq" {
+      guard entry is String(shard) else { fail("original shard name required") }
+      shards[shard] = ()
+    }
+  }
+  let names = shards.keys().to_array()
+  names.sort()
+  guard !names.is_empty() else { fail("no original first-block tensors") }
+  names
+}
+
+///|
+test "only literal first-block and rotary shards are staged" {
+  assert_eq(
+    block_shards(
+      "{\"weight_map\":{\"transformer_blocks.0.attn.to_q.weight\":\"a\",\"transformer_blocks.1.attn.to_q.weight\":\"b\",\"rope.inv_freq\":\"a\"}}",
+    ),
+    ["a"],
+  )
+}
+
+///|
+fn primary_document_rows(boundaries : Bytes) -> Int raise {
+  guard boundaries.length() == 12 && boundaries[:4] == b"\x00\x00\x00\x00" else {
+    fail("literal primary and padding documents required")
+  }
+  let rows = (boundaries[4].to_uint() | (boundaries[5].to_uint() << 8) |
+    (boundaries[6].to_uint() << 16) | (boundaries[7].to_uint() << 24)).reinterpret_as_int()
+  guard rows > 0 && rows <= 1024 else { fail("captured primary document extent differs") }
+  rows
+}
+
+///|
+test "primary document excludes only the explicit padding document" {
+  assert_eq(primary_document_rows(b"\x00\x00\x00\x00\xf1\x03\x00\x00\x00\x04\x00\x00"), 1009)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-minimax-upstream-block-") else {
+    fail(
+      "prepare NEW_ROOT | finish-prepare|compile ROOT | inputs ROOT NATIVE_CAPTURE_ROOT | run|collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  let source = "/data/models/MiniMax/MiniMax-H3/transformer/"
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    @fs.mkdir(root + "/model")
+    for
+      (original, name) in [
+        (
+          "/data/models/MiniMax/MiniMax-H3/FL2VA/transformer/config.json", "config.json",
+        ),
+        (
+          source + "diffusion_pytorch_model.safetensors.index.json",
+          "diffusion_pytorch_model.safetensors.index.json",
+        ),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "lunanexa-management:" + original,
+        root + "/model/" + name,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      root,
+      "mkdir",
+      remote(
+        "mkdir " +
+        root +
+        " " +
+        root +
+        "/model " +
+        root +
+        "/input " +
+        root +
+        "/output",
+      ),
+    )
+    for
+      name in ["config.json", "diffusion_pytorch_model.safetensors.index.json"] {
+      copy(root + "/model/" + name, node + ":" + root + "/model/" + name)
+    }
+  }
+  if mode == "prepare" || mode == "finish-prepare" {
+    for
+      shard in block_shards(
+        @fs.read_file(
+          root + "/model/diffusion_pytorch_model.safetensors.index.json",
+        ).text(),
+      ) {
+      println("staging original shard over cluster-local link " + shard)
+      // Retain an interrupted desktop copy separately when resuming.
+      record(
+        root,
+        "preserve-" + shard,
+        remote(
+          "if test -e " +
+          root +
+          "/model/" +
+          shard +
+          "; then mv -n " +
+          root +
+          "/model/" +
+          shard +
+          " " +
+          root +
+          "/model/" +
+          shard +
+          ".partial-desktop; fi; test ! -e " +
+          root +
+          "/model/" +
+          shard,
+        ),
+      )
+      record(
+        root,
+        "stage-" + shard,
+        @shell.Cmd("ssh", [
+          "-o",
+          "BatchMode=yes",
+          "lunanexa-management",
+          "scp -o BatchMode=yes " +
+          source +
+          shard +
+          " " +
+          node +
+          ":" +
+          root +
+          "/model/" +
+          shard,
+        ]).output(),
+      )
+    }
+  }
+  if mode == "prepare" || mode == "finish-prepare" || mode.has_prefix("compile") {
+    copy(
+      "/tmp/lunaflux-minimax-rotary-20261010-v1/rope.inv_freq.f32",
+      node + ":" + root + "/model/rope.inv_freq.f32",
+    )
+    for file in ["dit_block_upstream.cpp", "original_tensor_io.h"] {
+      copy(
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        node + ":" + root + "/" + file,
+      )
+    }
+    record(
+      root,
+      if mode.has_prefix("compile") {
+        mode
+      } else {
+        "compile"
+      },
+      remote(
+        "docker run --rm --pull=never --user 1000:1000 --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/dit_block_upstream.cpp -o /work/original-block -lpython3.12",
+      ),
+    )
+  } else if mode == "inputs" {
+    guard extra is [capture] else { fail("literal native output required") }
+    @fs.mkdir(root + "/input")
+    for
+      file in [
+        "packed-input.bf16", "timestep.f32", "positions.f32", "combined.i32", "documents.i32",
+        "block-0.bf16", "PREFIX.txt",
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+        "wlc003s@192.168.2.178:" + capture + "/output/" + file,
+        root + "/input/" + file,
+      ])
+      .output()
+      .check()
+      copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
+    }
+  } else if mode == "run" || mode.has_prefix("run-retry") {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU replays")
+    }
+    let invocation = if mode == "run" { tag } else { tag + "-" + mode }
+    record(
+      root,
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        invocation +
+        " --property=MemoryMax=12G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 docker run --name " +
+        invocation +
+        " --gpus all --user 1000:1000 --network none --memory 12g --memory-swap 12g -e OMP_NUM_THREADS=2 -e LOGNAME=wlc004s -v " +
+        root +
+        ":/work --entrypoint /work/original-block " +
+        image +
+        " /work/model /work/input /work/output",
+      ),
+    )
+    record(
+      root,
+      "terminal",
+      remote("docker inspect --format '{{json .State}}' " + invocation),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "compare-used" {
+    let rows = primary_document_rows(@fs.read_file(root + "/input/documents.i32").binary())
+    for (label, source) in [("native", "/input/block-0.bf16"), ("original", "/output/block-0.bf16")] {
+      let data = @fs.read_file(root + source).binary()
+      guard data.length() == 1024 * 5376 * 2 else { fail("complete packed comparison required") }
+      @fs.write_file(root + "/used-" + label + ".bf16", data[:rows * 5376 * 2], create_mode=CreateNew)
+    }
+    record(root, "comparison-used", @shell.Cmd("moon", ["run", "scripts/compare-minimax-encoder-reference.mbtx", root + "/used-native.bf16", root + "/used-original.bf16", root + "/comparison-used.txt", "matched_original_first_dit_block_primary_document_padding_report_retained_separately", "5376"]).output())
+  } else if mode == "collect" {
+    @fs.mkdir(root + "/output")
+    copy(
+      node + ":" + root + "/output/block-0.bf16",
+      root + "/output/block-0.bf16",
+    )
+    record(
+      root,
+      "comparison",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        root + "/input/block-0.bf16",
+        root + "/output/block-0.bf16",
+        root + "/comparison.txt",
+        "matched_original_first_dit_block",
+        "5376",
+      ]).output(),
+    )
+  } else {
+    fail("unknown mode")
+  }
+  println("original block " + mode + " complete; not a media quality pass")
+}
