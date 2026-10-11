@@ -49,7 +49,10 @@ execution and deterministic release remain explicit through prepared frames.
 
 `initialize_noise` fills the preallocated video boundary and audio state using
 bounded native F32 chunks before execution. Its explicit chunk limit avoids a
-full host latent temporary. Video must then be packed before denoising. It is
+full host latent temporary. RNG v2 depends only on the seed, modality stream
+and element counter, never model-plan identity or output publication length.
+This deliberately changes the v1 seed-to-tensor sequence, which mixed a plan
+label into the seed. Video must then be packed before denoising. It is
 not CUDA/PyTorch RNG-compatible: use identical externally supplied initial
 latents for model comparisons. Copy failure retains the storage owner and
 requires a full retry or close; never submit partially initialized storage.

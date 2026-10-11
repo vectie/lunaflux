@@ -27,5 +27,10 @@ The counts are not a complete device-memory estimate: dtype, prediction
 layout, conditioning, transformer workspace and VAE arenas remain separate.
 
 No model-family, CUDA or reference package is imported by production code.
+Native counter-based noise v2 uses only the explicit seed, stream and counter.
+Plan association, audio publication rounding and compiler choices do not
+change initial latents. V1 instead mixed the whole plan label into the seed;
+historical v1 runs require identical supplied initial tensors or their captured
+effective key for matched replay. Neither version matches PyTorch CUDA RNG.
 Tests use H3's reference grids and tiny numerical fixtures. They do not execute
 H3 weights or prove GPU performance. Full media inference remains incomplete.

@@ -101,8 +101,12 @@ Remaining work is numerical/functional, not hardening:
   to its accurate normalization component. Its fresh committed full media
   request completes on Spark with finite arrays and explicit resource release.
   Video/audio change by 72.05% / 108.17% relative L2 from the previous native
-  arrays. A new-runtime/old-conditioning control is running; do not assign
-  that downstream change to normalization alone or call it a quality gain.
+  arrays. The completed new-runtime/old-conditioning control retains that large
+  difference. Original-config CPU replay identifies plan-label mixing in RNG
+  v1: the publication-law change rerolls initial noise. RNG v2 separates seed
+  semantics from plan association, and the captured old effective key exactly
+  reproduces old initial cells. Complete the matched-noise media replay;
+  do not assign the old array change to normalization or call it a quality gain.
 
 No payload hash, TLS, authentication step or production dependency is added by
 these diagnostics. Existing memory ceilings and deterministic release remain.

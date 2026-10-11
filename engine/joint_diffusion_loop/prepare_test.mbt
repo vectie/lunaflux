@@ -197,6 +197,24 @@ test "production preparation matches independent H3 schedules across step counts
         max_latent_elements=1000000000L,
       )
       assert_true(!storage.matches_prepared(other_prepared))
+      let other_storage = @joint_diffusion_loop.LatentStoragePlan::new(
+        other_prepared,
+        max_bytes=1000000000L,
+      )
+      for seed in [0L, 17L, -1L] {
+        let first = storage.noise(seed~, max_chunk_elements=13)
+        let second = other_storage.noise(seed~, max_chunk_elements=13)
+        let kinds : Array[@joint_diffusion_plan.JointDiffusionLatentKind] = [
+          VideoLatent,
+          AudioLatent,
+        ]
+        for latent in kinds {
+          assert_eq(
+            first.chunk(latent, start=0L, count=13),
+            second.chunk(latent, start=0L, count=13),
+          )
+        }
+      }
       try storage.projections(other_model, max_bytes=1000000000L) catch {
         @joint_diffusion_loop.ProjectionPlanError::ModelMismatch => ()
         @joint_diffusion_loop.ProjectionPlanError::ByteLimitExceeded =>

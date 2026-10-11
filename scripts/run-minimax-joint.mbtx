@@ -100,8 +100,36 @@ test "joint runner preserves default execution and explicit frame cancellation" 
 }
 
 ///|
+fn seed_arguments(args : ArrayView[String]) -> (ArrayView[String], Int64) raise {
+  if args is [.. rest, "--seed", value] {
+    guard !rest.contains("--seed") else { fail("duplicate seed") }
+    (rest, @string.parse_int64(value))
+  } else {
+    guard !args.contains("--seed") else { fail("--seed requires a final signed I64 value") }
+    (args, 17L)
+  }
+}
+
+///|
+test "joint replay supplies an explicit seed without changing default controls" {
+  let base = ["script", "root", "suffix", "build", "aot", "encoded"]
+  assert_eq(seed_arguments(base).1, 17L)
+  let explicit = base.copy()
+  explicit.append(["--seed", "-5814885994241873734"])
+  let (plain, seed) = seed_arguments(explicit)
+  assert_eq(plain.to_owned(), base)
+  assert_eq(seed, -5814885994241873734L)
+  for suffix in [["--seed"], ["--seed", "x"], ["--seed", "17", "--seed", "18"]] {
+    let bad = base.copy()
+    bad.append(suffix)
+    try seed_arguments(bad) catch { _ => () } noraise { _ => fail("bad seed accepted") }
+  }
+}
+
+///|
 async fn main {
-  let (args, cancel_after_frames) = cancellation_arguments(@env.args())
+  let (seed_args, seed) = seed_arguments(@env.args())
+  let (args, cancel_after_frames) = cancellation_arguments(seed_args)
   guard args is [_, root, suffix, build, aot, encoded] &&
     root.has_prefix("/tmp/lunaflux-minimax-joint-") &&
     build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
@@ -115,7 +143,7 @@ async fn main {
     }) &&
     !suffix.contains("/") else {
     fail(
-      "NEW_LOCAL_AND_REMOTE_ROOT UNIQUE_SUFFIX COMMIT_BUILD_ROOT EXISTING_REQUEST_AOT ACTUAL_ENCODER_BF16 [--cancel-request 0 --after-steps COMPLETED_FRAMES]",
+    "NEW_LOCAL_AND_REMOTE_ROOT UNIQUE_SUFFIX COMMIT_BUILD_ROOT EXISTING_REQUEST_AOT ACTUAL_ENCODER_BF16 [--cancel-request 0 --after-steps COMPLETED_FRAMES] [--seed SIGNED_I64]",
     )
   }
   let rows = encoded_rows(@fs.read_file(encoded).binary().length())
@@ -231,7 +259,7 @@ async fn main {
     rows.to_string() +
     " encoded.bf16 rope.inv_freq.f32 " +
     aot +
-    " DENOISER.inventory AUDIO.sha256 VIDEO.sha256 256 64 4096 8589934592 103079215104 17 " +
+    " DENOISER.inventory AUDIO.sha256 VIDEO.sha256 256 64 4096 8589934592 103079215104 " + seed.to_string() + " " +
     root +
     "/output" +
     (if cancel_after_frames == 0 {
@@ -254,6 +282,7 @@ async fn main {
     rows.to_string() +
     "\ncancel_after_frames=" +
     cancel_after_frames.to_string() +
+    "\nseed=" + seed.to_string() +
     "\nmaximum_device_bytes=103079215104\npayload_hashing=false\nstatus=dispatched-not-complete\n",
     create_mode=CreateNew,
   )

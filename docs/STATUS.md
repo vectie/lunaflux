@@ -48,8 +48,13 @@ finite video/audio, exit 0, empty stderr, no unit swap and released GPU ownershi
 The requested 32 x 32 / 120-frame request resolves to 124 decoded frames by the
 existing temporal contract. Decoded video/audio differ substantially from the
 previous native arrays (72.05% / 108.17% relative L2); this is **not** a quality
-improvement claim. A matched new-runtime/old-conditioning control is running
-to isolate that downstream change before any further numerical modification.
+improvement claim. The matched new-runtime/old-conditioning control completes
+but retains the large old/new difference. Source inspection and original-config
+CPU replay identify a concrete cause: RNG v1 mixes the whole plan label into
+the seed, so the audio publication-length correction rerolled initial latents.
+RNG v2 uses only explicit seed/stream/counter. Its regressions pass; a historical
+effective seed reproduces all old initial cells bitwise. A matched full-media
+replay remains necessary before calling downstream attribution complete.
 
 MiniMax's `run-joint` now connects its existing generic pipeline cancellation
 to the same explicit request-zero/count CLI suffix. Parsing occurs before

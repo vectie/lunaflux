@@ -383,14 +383,49 @@ must not be called an improvement just because encoder component arithmetic
 is more accurate. The previous actual-caption encoder output matches the
 unchanged twelve-case baseline bitwise. Corrected/old conditioning differs by
 0.0337185% global relative L2 (5,815/15,360 BF16 elements exact); that small
-global measure does not establish downstream stability. A fresh control now uses **the new
+global measure does not establish downstream stability. A fresh control uses **the new
 binary and AOT but that old conditioning tensor**, with the same weights,
-geometry, steps and seed. It is retained separately at
+geometry, steps and CLI seed. It is retained separately at
 `/tmp/lunaflux-minimax-joint-old-conditioning-control-20261011-v1`.
-Until that control completes, these array differences cannot be attributed
-exclusively to conditioning sensitivity rather than another runtime change.
+The control completes 09:49:32–10:19:08 CST with exit 0, empty stderr,
+zero unit swap and released GPU ownership. Its video/audio still differ from
+the old run by 72.0318% / 108.2589% relative L2. Changing conditioning within
+the same new runtime changes video/audio by only 0.2263% / 5.9088% relative L2.
+The prior large media change therefore cannot be assigned to normalization.
 The later global GPU-owner snapshot in the first run's collector can contain
 this control's PID; it is not a leak from the already completed first unit.
+
+### Initial-noise identity coupling found and corrected
+
+The old RNG mixed the entire model-plan label into the explicit seed. The
+rounded audio-output publication fix changed that label even though video/audio
+latent shapes and denoising kernels stayed unchanged. Comparing the two AOT
+directories finds only the unused `text` module different; all thirty media
+modules match. Both control runs consume identical old conditioning bytes.
+
+A CPU-only original-config replay at declared label `d2dd0c60...81d0427`
+reproduces different initial noise at CLI seed 17: old plan
+`74401f8c...7251e648` resolves to effective key -5814885994241873734;
+new plan `49ff4861...c9220e16` resolves to -4047618836202750322. None of the
+3,552 video or 13,248 audio initial F32 cells match. This is a concrete
+experiment-comparability/reproducibility defect, not an attention numerical
+failure or quality result.
+
+RNG v2 now depends only on explicit seed, modality stream and counter. Both
+production and independent scalar reference drop the plan-label key mixing.
+Typed model/storage association remains unchanged; this adds no hashing,
+authentication, dtype change or token-step work. Regression tests exercise
+different plan/content labels and audio publication laws, negative seeds,
+disjoint streams and chunk-independent values. The new regression fails
+against original `b07c0313` and passes after the fix. Supplying the captured
+old effective key as the v2 explicit seed reproduces **every initial F32 cell
+bitwise**. Historical v1 seed values alone are not compatible with v2.
+
+`benchmarks/joint_noise_probe` reads only small configuration and records this
+offline attribution; it never loads weights or opens CUDA. Full-media replay
+with the matched historical initial noise is still required to attribute the
+decoded change. The same-new-runtime conditioning contrast above is valid
+because both runs used the same v1 effective key.
 
 The full native suite passes 4,981/4,981 tests, and the root native check passes
 with the existing toolchain migration warning exclusions

@@ -5,8 +5,9 @@ pub(all) suberror NoiseError {
 }
 
 ///|
-/// Stateless native startup generator. Version 1 follows the independent
-/// SplitMix64/Box-Muller reference, not PyTorch's seed-to-tensor sequence.
+/// Stateless native startup generator. Version 2 uses the explicit seed,
+/// stream and counter only. Planning/publication identities cannot change the
+/// initial tensor. It is not PyTorch's seed-to-tensor sequence.
 /// Video counters enumerate raw channel-major cells; audio counters enumerate
 /// stream-major token rows. Chunk boundaries do not affect any sample.
 pub struct NoisePlan {
@@ -25,14 +26,8 @@ pub fn LatentStoragePlan::noise(
   guard max_chunk_elements > 0 && max_chunk_elements <= 536870911 else {
     raise InvalidChunkLimit
   }
-  let digest = self.model_digest.as_hex()
-  let hash = for index in 0..<digest.length(); hash = 14695981039346656037UL {
-    continue (hash ^ digest[index].to_uint64()) * 1099511628211UL
-  } nobreak {
-    hash
-  }
   {
-    key: seed.reinterpret_as_uint64() ^ hash,
+    key: seed.reinterpret_as_uint64(),
     video_elements: self.region(VideoState).byte_count / 4L,
     audio_elements: self.region(AudioState).byte_count / 4L,
     chunk_elements: max_chunk_elements,

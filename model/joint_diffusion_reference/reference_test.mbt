@@ -19,10 +19,13 @@ fn minimax_plan(
 }
 
 ///|
-fn tiny_plan() -> @joint_diffusion_plan.JointDiffusionPlan {
+fn tiny_plan(
+  label? : Char = '8',
+  audio_output_length? : @joint_diffusion_plan.JointAudioOutputLength = FrameDuration,
+) -> @joint_diffusion_plan.JointDiffusionPlan {
   try! @joint_diffusion_plan.JointDiffusionPlan::new(
     schema_version=1,
-    content_digest=content('8'),
+    content_digest=content(label),
     workflows=[TextToAudioVideo],
     stages=[
       @joint_diffusion_plan.JointDiffusionStage::new(
@@ -80,6 +83,7 @@ fn tiny_plan() -> @joint_diffusion_plan.JointDiffusionPlan {
       audio_latents_per_second=2,
       audio_sample_rate=8,
       audio_output_channels=1,
+      audio_output_length~,
       audio_vae_latent_dimension=4,
       audio_vae_decoder_dimension=2,
       min_inference_steps=2,
@@ -226,14 +230,52 @@ test "counter-based streams are repeatable disjoint and bounded" {
   assert_eq(rng.draw_limit(ConditioningStream), 3L)
   assert_eq(rng.draw_limit(VideoLatentStream), 24L)
   assert_eq(rng.draw_limit(AudioLatentStream), 4L)
-  assert_true(close(conditioning, 0.626064151676309))
-  assert_true(close(video, -1.2409333736868997))
-  assert_true(close(audio, -0.5518632908582728))
+  inspect(conditioning, content=(
+    #|0.18389922842209264
+  ))
+  inspect(video, content=(
+    #|-0.5732123933783531
+  ))
+  inspect(audio, content=(
+    #|0.8297106631629779
+  ))
   try rng.normal(AudioLatentStream, 4L) catch {
     InvalidRandomCounter(AudioLatentStream) => ()
     _ => fail("unexpected audio counter error")
   } noraise {
     _ => fail("out-of-range audio counter was admitted")
+  }
+}
+
+///|
+test "initial noise is independent of plan labels and publication lengths" {
+  let first = tiny_plan()
+  let second = tiny_plan(label='9', audio_output_length=LatentStride(4))
+  assert_true(first.plan_digest() != second.plan_digest())
+  for seed in [0L, 17L, -1L] {
+    let a = @joint_diffusion_reference.CounterBasedJointLatentRng::new(
+      first,
+      tiny_request(first),
+      seed~,
+      conditioning_draw_limit=3L,
+    )
+    let b = @joint_diffusion_reference.CounterBasedJointLatentRng::new(
+      second,
+      tiny_request(second),
+      seed~,
+      conditioning_draw_limit=3L,
+    )
+    assert_true(a.plan_digest() != b.plan_digest())
+    let streams : Array[@joint_diffusion_reference.JointLatentRandomStream] = [
+      ConditioningStream,
+      VideoLatentStream,
+      AudioLatentStream,
+    ]
+    for stream in streams {
+      for counter in 0L..<a.draw_limit(stream) {
+        assert_eq(a.normal(stream, counter), b.normal(stream, counter))
+      }
+    }
   }
 }
 

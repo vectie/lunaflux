@@ -1,14 +1,4 @@
 ///|
-fn digest_hash(digest : @spec.PlanDigest) -> UInt64 {
-  let text = digest.as_hex()
-  let mut hash = 14695981039346656037UL
-  for index in 0..<text.length() {
-    hash = (hash ^ text[index].to_uint64()) * 1099511628211UL
-  }
-  hash
-}
-
-///|
 fn splitmix64(input : UInt64) -> UInt64 {
   let mut value = input + 0x9e3779b97f4a7c15UL
   value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL
@@ -33,7 +23,8 @@ fn uniform_open(value : UInt64) -> Double {
 ///|
 /// Constructs three disjoint, stateless random streams. The output for one
 /// `(stream, counter)` pair is independent of call order and does not mutate
-/// shared RNG state.
+/// shared RNG state. Version 2 does not mix the plan label into the key:
+/// output publication and plan association changes must not reroll latents.
 pub fn CounterBasedJointLatentRng::new(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
@@ -60,7 +51,7 @@ pub fn CounterBasedJointLatentRng::new(
     shapes.audio_latent_channels().to_int64(),
   ])
   let plan_digest = plan.plan_digest()
-  let key = seed.reinterpret_as_uint64() ^ digest_hash(plan_digest)
+  let key = seed.reinterpret_as_uint64()
   {
     plan_digest,
     key,
