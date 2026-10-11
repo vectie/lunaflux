@@ -105,8 +105,23 @@ fn primary_document_rows(boundaries : Bytes) -> Int raise {
   (boundaries[5].to_uint() << 8) |
   (boundaries[6].to_uint() << 16) |
   (boundaries[7].to_uint() << 24)).reinterpret_as_int()
-  guard rows > 0 && rows <= 1024 else {
+  guard rows > 0 && rows <= packed_document_rows(boundaries) else {
     fail("captured primary document extent differs")
+  }
+  rows
+}
+
+///|
+fn packed_document_rows(boundaries : Bytes) -> Int raise {
+  guard boundaries.length() == 12 else {
+    fail("literal primary and padding documents required")
+  }
+  let rows = (boundaries[8].to_uint() |
+  (boundaries[9].to_uint() << 8) |
+  (boundaries[10].to_uint() << 16) |
+  (boundaries[11].to_uint() << 24)).reinterpret_as_int()
+  guard rows > 0 && rows <= 4096 else {
+    fail("bounded packed document extent required")
   }
   rows
 }
@@ -117,6 +132,9 @@ test "primary document excludes only the explicit padding document" {
     primary_document_rows(b"\x00\x00\x00\x00\xf1\x03\x00\x00\x00\x04\x00\x00"),
     1009,
   )
+  let larger = b"\x00\x00\x00\x00\xe1\x0a\x00\x00\x00\x0b\x00\x00"
+  assert_eq(primary_document_rows(larger), 2785)
+  assert_eq(packed_document_rows(larger), 2816)
 }
 
 ///|
@@ -440,16 +458,16 @@ async fn main {
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
   } else if mode == "compare-used" {
-    let rows = primary_document_rows(
-      @fs.read_file(root + "/input/documents.i32").binary(),
-    )
+    let boundaries = @fs.read_file(root + "/input/documents.i32").binary()
+    let rows = primary_document_rows(boundaries)
+    let packed_rows = packed_document_rows(boundaries)
     for
       (label, source) in [
         ("native", "/input/block-0.bf16"),
         ("original", "/output/block-0.bf16"),
       ] {
       let data = @fs.read_file(root + source).binary()
-      guard data.length() == 1024 * 5376 * 2 else {
+      guard data.length() == packed_rows * 5376 * 2 else {
         fail("complete packed comparison required")
       }
       @fs.write_file(
@@ -488,14 +506,14 @@ async fn main {
     guard first >= 0 && first < 50 else {
       fail("block range outside full model")
     }
-    let real = primary_document_rows(
-      @fs.read_file(root + "/input/documents.i32").binary(),
-    )
+    let boundaries = @fs.read_file(root + "/input/documents.i32").binary()
+    let real = primary_document_rows(boundaries)
+    let packed_rows = packed_document_rows(boundaries)
     let summary = StringBuilder()
     summary.write_string("block\tpredecessor\treal_rows\treport\n")
     for i in first..<50 {
       let npath = root + "/input/block-\{i}.bf16"
-      guard @fs.read_file(npath).binary().length() == 1024 * 5376 * 2 else {
+      guard @fs.read_file(npath).binary().length() == packed_rows * 5376 * 2 else {
         fail("complete native capture required")
       }
       for predecessor in ["matched", "propagated"] {

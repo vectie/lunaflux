@@ -724,3 +724,19 @@ from metadata and passes a regression rejecting embedded metadata lines.
 The revised runner has **10/10** tests; original-noise unpatchification has
 **1/1**. A fresh `v2` prefix will reuse the same committed native executable,
 original operands and newly compiled AOT modules without overwriting `v1`.
+
+The corrected `v2` native prefix exits zero with empty stderr, zero unit swap
+and one completed DiT block. Its planned resident total is **82,890,073,512
+bytes**, below the existing 96-GiB budget; literal startup mode is recorded and
+the seed is not used. This is not a terminal media run. The diagnostic prefix
+now also retains actual initial video/audio rows after native patchification,
+even when stopping after one block, so a fresh capture can demonstrate byte
+identity with original rows rather than relying on supplied filenames alone.
+
+The original block adapter's old 1,024 packed / 1,009 real-row constants are
+removed. It derives packed row count, primary document and maximum document
+length from the actual captured boundaries, within its existing bounded
+single-block residency strategy. At 256×256 this is **2,816 packed / 2,785 real
+rows**, not the old smoke geometry. The original module's arithmetic is
+unchanged. Its runner regressions cover both canvases, and the larger adapter
+compiles in the installed ARM image with `-Wall -Wextra -Werror`.

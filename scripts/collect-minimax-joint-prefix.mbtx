@@ -1,0 +1,174 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let node : String = "wlc003s@192.168.2.178"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=1048576,
+  )
+}
+
+///|
+fn integer_field(metadata : String, key : String) -> Int raise {
+  for line in metadata.split("\n") {
+    if line.has_prefix(key + "=") {
+      return @string.parse_int(line[key.length() + 1:].to_owned())
+    }
+  }
+  fail("missing prefix field " + key)
+}
+
+///|
+fn capture_extents(metadata : String) -> Array[(String, Int)] raise {
+  let rows = integer_field(metadata, "packed_rows")
+  let times = integer_field(metadata, "distinct_times")
+  let blocks = integer_field(metadata, "block_count")
+  guard rows > 0 &&
+    rows <= 4096 &&
+    times > 0 &&
+    times <= 16 &&
+    blocks > 0 &&
+    blocks <= 50 else {
+    fail("bounded literal prefix geometry required")
+  }
+  let files = [
+    ("packed-input.bf16", rows * 5376 * 2),
+    ("positions.f32", rows * 3 * 4),
+    ("combined.i32", rows * 4),
+    ("inverse.i32", rows * 4),
+    ("documents.i32", 12),
+    ("timestep.f32", times * 2688 * 4),
+  ]
+  for block in 0..<blocks {
+    files.push(("block-\{block}.bf16", rows * 5376 * 2))
+  }
+  files
+}
+
+///|
+test "prefix collection derives larger row extents without truncating to smoke" {
+  let files = capture_extents(
+    "packed_rows=2816\ndistinct_times=1\nblock_count=1\n",
+  )
+  assert_eq(files[0], ("packed-input.bf16", 30277632))
+  assert_eq(files[6], ("block-0.bf16", 30277632))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, destination, source, suffix, original_noise] &&
+    [destination, source, original_noise].all(path => {
+      path.has_prefix("/tmp/lunaflux-") &&
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_' | '.'))
+    }) &&
+    suffix.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+    fail(
+      "NEW_LOCAL_CAPTURE REMOTE_NATIVE_ROOT USER_UNIT_SUFFIX ORIGINAL_INITIAL_OUTPUT_DIRECTORY",
+    )
+  }
+  let terminal = remote(
+    "systemctl --user show lunaflux-minimax-joint-" +
+    suffix +
+    ".service -p SubState -p Result -p ExecMainStatus -p MemorySwapPeak",
+  )
+  terminal.check()
+  guard terminal.stdout().contains("SubState=exited") &&
+    terminal.stdout().contains("Result=success") &&
+    terminal.stdout().contains("ExecMainStatus=0\n") else {
+    fail("native prefix not successfully terminal")
+  }
+  let run = remote("cat " + source + "/run.stdout")
+  run.check()
+  guard run.stdout().contains("joint_prefix_captured ") &&
+    run.stdout().contains(" no_media_output=true") else {
+    fail("missing prefix completion")
+  }
+  let metadata = remote("cat " + source + "/output/PREFIX.txt")
+  metadata.check()
+  let files = capture_extents(metadata.stdout())
+  @fs.mkdir(destination)
+  @fs.write_file(
+    destination + "/unit.txt",
+    terminal.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    destination + "/run.stdout",
+    run.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    destination + "/PREFIX.txt",
+    metadata.stdout(),
+    create_mode=CreateNew,
+  )
+  for name in ["run.stderr"] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + source + "/" + name,
+      destination + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  for (name, bytes) in files {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + source + "/output/" + name,
+      destination + "/" + name,
+    ])
+    .output()
+    .check()
+    guard @fs.read_file(destination + "/" + name).binary().length() == bytes else {
+      fail("incomplete capture " + name)
+    }
+  }
+  for name in ["initial-video-rows.f32", "initial-audio-rows.f32"] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + source + "/output/" + name,
+      destination + "/" + name,
+    ])
+    .output()
+    .check()
+    @shell.Cmd("moon", [
+      "run",
+      "scripts/compare-f32-tensors.mbtx",
+      destination + "/" + name,
+      original_noise + "/" + name,
+      destination + "/" + name + "-comparison.txt",
+      "literal_original_initial_noise_after_native_patchifier",
+    ])
+    .output()
+    .check()
+    guard @fs.read_file(destination + "/" + name).binary() ==
+      @fs.read_file(original_noise + "/" + name).binary() else {
+      fail("native packed initial noise differs from the literal original")
+    }
+  }
+  println(
+    "native_prefix_collected literal_initial_noise_bitwise=true numerical_block_parity_and_media_quality_not_claimed=true",
+  )
+}

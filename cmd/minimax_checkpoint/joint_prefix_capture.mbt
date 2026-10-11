@@ -9,6 +9,21 @@ fn joint_float_bytes(values : ArrayView[Float]) -> Bytes {
 }
 
 ///|
+fn joint_initial_capture_regions() -> Array[(String, @loop.LatentBuffer)] {
+  [
+    ("initial-video-rows.f32", VideoState),
+    ("initial-audio-rows.f32", AudioState),
+  ]
+}
+
+///|
+test "every prefix retains packed initial noise independently of final head" {
+  assert_eq(joint_initial_capture_regions().length(), 2)
+  assert_eq(joint_initial_capture_regions()[0].0, "initial-video-rows.f32")
+  assert_eq(joint_initial_capture_regions()[1].0, "initial-audio-rows.f32")
+}
+
+///|
 // Diagnostic only: execute serving producers, expose literal initial
 // packed input and raw timestep embedding, stop before denoising or VAEs.
 fn capture_joint_prefix(
@@ -94,6 +109,12 @@ fn capture_joint_prefix(
   })
   let captures : Array[(String, Bytes)] = []
   captures.append(text_captures)
+  // A one-block prefix must also demonstrate literal input identity. Capture
+  // after producer retirement and before any flow update; final-head captures
+  // keep their existing names. Ordinary serving never enters this diagnostic.
+  for (name, region) in joint_initial_capture_regions() {
+    captures.push((name, storage.copy_to_host(region)))
+  }
   for block in 0..<blocks {
     let first = layout.metadata.bind_initial_block(
       variants,

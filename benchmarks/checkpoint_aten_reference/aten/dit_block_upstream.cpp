@@ -2,6 +2,19 @@
 // literal serving input/timestep/position/document tensors are supplied by replay.
 #include "original_h3_loading.h"
 #include <cstdlib>
+#include <algorithm>
+
+struct CapturedBlockGeometry { int rows, primary, maximum_document; };
+static bool captured_geometry(const std::string &base,CapturedBlockGeometry &geometry) {
+  std::ifstream file(base+"/documents.i32",std::ios::binary);
+  int32_t bounds[3];file.read(reinterpret_cast<char*>(bounds),sizeof(bounds));
+  if(!file||file.peek()!=std::ifstream::traits_type::eof()||bounds[0]!=0||
+     bounds[1]<=0||bounds[2]<bounds[1]||bounds[2]>4096) {
+    PyErr_SetString(PyExc_ValueError,"bounded literal primary/padding geometry required");return false;
+  }
+  geometry={bounds[2],bounds[1],std::max(bounds[1],bounds[2]-bounds[1])};
+  return true;
+}
 
 // The original vLLM modules require their public configuration context even
 // in a one-block offline replay. This changes setup, not module arithmetic.
@@ -156,8 +169,11 @@ static int execute(const char *root,const char *input,const char *out,int blocks
     return audit_weights(torch.p,cls.p,ctor.p,gpu.p,open.p,map,root,canonical,out)?0:-1;
   }
   const std::string base(input);
-  Owned x0(literal_bf16(torch.p,bf16.p,(base+"/packed-input.bf16").c_str(),1024,5376));
-  Owned x(x0.p?PyObject_CallMethod(x0.p,"view","ii",1024,5376):nullptr);
+  CapturedBlockGeometry geometry{};
+  if(!captured_geometry(base,geometry))return -1;
+  const int rows=geometry.rows;
+  Owned x0(literal_bf16(torch.p,bf16.p,(base+"/packed-input.bf16").c_str(),rows,5376));
+  Owned x(x0.p?PyObject_CallMethod(x0.p,"view","ii",rows,5376):nullptr);
   // Use the captured unique-time table, never infer it from modality counts.
   // Distilled FL2VA can have one unique time shared by all packed rows.
   std::ifstream time_file(base+"/timestep.f32",std::ios::binary|std::ios::ate);
@@ -168,9 +184,9 @@ static int execute(const char *root,const char *input,const char *out,int blocks
   const int times=static_cast<int>(time_bytes/(2688*4));
   Owned t0(literal_tensor(torch.p,f32.p,(base+"/timestep.f32").c_str(),times,2688,4));
   Owned t(t0.p?PyObject_CallMethod(t0.p,"view","ii",times,2688):nullptr);
-  Owned p(literal_tensor(torch.p,f32.p,(base+"/positions.f32").c_str(),1024,3,4));
-  Owned indices0(literal_tensor(torch.p,i32.p,(base+"/combined.i32").c_str(),1024,1,4));
-  Owned flat_indices(indices0.p?PyObject_CallMethod(indices0.p,"view","i",1024):nullptr);
+  Owned p(literal_tensor(torch.p,f32.p,(base+"/positions.f32").c_str(),rows,3,4));
+  Owned indices0(literal_tensor(torch.p,i32.p,(base+"/combined.i32").c_str(),rows,1,4));
+  Owned flat_indices(indices0.p?PyObject_CallMethod(indices0.p,"view","i",rows):nullptr);
   Owned indices(flat_indices.p?PyObject_CallMethod(flat_indices.p,"long",nullptr):nullptr);
   Owned docs0(literal_tensor(torch.p,i32.p,(base+"/documents.i32").c_str(),3,1,4));
   Owned docs(docs0.p?PyObject_CallMethod(docs0.p,"view","i",3):nullptr);
@@ -188,27 +204,27 @@ static int execute(const char *root,const char *input,const char *out,int blocks
   Owned frequencies(copied.p&&positions.p?PyObject_CallObject(rope_gpu.p,positions.p):nullptr);
   Owned kw(t.p&&indices.p&&frequencies.p&&docs.p?Py_BuildValue("{s:O,s:O,s:O,s:O,s:i}",
     "t_emb",t.p,"combined_indices",indices.p,"rope_freqs",frequencies.p,
-    "cu_seqlens",docs.p,"max_seqlen",1009):nullptr);
+    "cu_seqlens",docs.p,"max_seqlen",geometry.maximum_document):nullptr);
   if(!x.p||!kw.p)return -1;
   Owned propagated(Py_NewRef(x.p));
   for(int number=0;number<blocks;++number) {
     if(raw?!load_raw_block(gpu.p,module.p,arch.p,open.p,map,root,number):
            !load_block(gpu.p,open.p,map,root,number))return -1;
     Owned previous(number?literal_bf16(torch.p,bf16.p,
-      (base+"/block-"+std::to_string(number-1)+".bf16").c_str(),1024,5376):Py_NewRef(x.p));
-    Owned matched(previous.p?PyObject_CallMethod(previous.p,"view","ii",1024,5376):nullptr);
+      (base+"/block-"+std::to_string(number-1)+".bf16").c_str(),rows,5376):Py_NewRef(x.p));
+    Owned matched(previous.p?PyObject_CallMethod(previous.p,"view","ii",rows,5376):nullptr);
     Owned args(matched.p?PyTuple_Pack(1,matched.p):nullptr);
     Owned result(args.p?PyObject_Call(gpu.p,args.p,kw.p):nullptr);
     const std::string label=std::to_string(number)+".bf16";
     if(!result.p||!save(result.p,u8.p,std::string(out)+"/"+
-        (blocks==1?"block-":"matched-block-")+label,1024LL*5376*2))return -1;
+        (blocks==1?"block-":"matched-block-")+label,int64_t(rows)*5376*2))return -1;
     if(blocks>1) {
       Owned pargs(PyTuple_Pack(1,propagated.p));
       Owned next(pargs.p?PyObject_Call(gpu.p,pargs.p,kw.p):nullptr);
-      if(!next.p||!save(next.p,u8.p,std::string(out)+"/propagated-block-"+label,1024LL*5376*2))return -1;
+      if(!next.p||!save(next.p,u8.p,std::string(out)+"/propagated-block-"+label,int64_t(rows)*5376*2))return -1;
       Py_SETREF(propagated.p,Py_NewRef(next.p));
     }
-    std::printf("original_dit_block=%d literal_predecessor=true propagated_predecessor=%s\n",number,blocks>1?"true":"false");
+    std::printf("original_dit_block=%d packed_rows=%d primary_rows=%d literal_predecessor=true propagated_predecessor=%s\n",number,rows,geometry.primary,blocks>1?"true":"false");
     std::fflush(stdout);
   }
   std::puts("original_dit_blocks_complete literal_inputs=true original_arithmetic=true media_quality=false");
