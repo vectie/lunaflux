@@ -273,6 +273,17 @@ and BF16 rounding make these orders observably different. This is another
 explicit reference arithmetic incompatibility, not permission to replace the
 original native numerical contract to force token agreement.
 
+The original DeepSeek `Attention.forward` also makes the KV boundary precise:
+it applies rotary to the 64-lane suffix, simulates block-64 FP8 quantization on
+the 448 non-rotary lanes, and publishes the result to a **BF16 persistent cache**.
+Its comment explicitly distinguishes this simulation from future FP8 storage.
+LunaFlux's `RotaryKvPrecision` preserves those boundaries; BF16 storage alone
+does not imply that the quantization simulation was omitted. The installed
+serving reference instead requires persistent FP8 sparse-MLA KV on this device.
+The GLM scale collapse was independently reconfirmed in installed
+`modelopt.py:1530–1555`: it happens before backend-format conversion, so merely
+selecting another kernel backend cannot restore the discarded up scale.
+
 ## Source validation
 
 ### MiniMax normalization-only intervention
@@ -426,6 +437,12 @@ offline attribution; it never loads weights or opens CUDA. Full-media replay
 with the matched historical initial noise is still required to attribute the
 decoded change. The same-new-runtime conditioning contrast above is valid
 because both runs used the same v1 effective key.
+
+At pushed `c77c724c`, the current working-tree native check and full suite pass
+with the unchanged migration warning settings: **4,983/4,983** tests. This
+includes both plan-label and actual audio-publication-law seed regressions.
+This does not supersede the clean-archive TLS limitation below or convert an
+independent full-model differential into a numerical acceptance result.
 
 The full native suite passes 4,981/4,981 tests, and the root native check passes
 with the existing toolchain migration warning exclusions

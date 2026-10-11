@@ -19,6 +19,9 @@ different generated contexts. Both models' strict numerical acceptance remains
 open: the GLM reference collapses unequal gate/up FP4 scales, and DeepSeek's
 reference selects mandatory FP8 KV instead of native BF16. Both rank pairs exit
 zero without container OOM and release their GPU owners.
+Original DeepSeek explicitly simulates FP8 on the non-rotary KV prefix before
+BF16 cache publication; the native precision plan preserves that operation.
+Its BF16 storage must not be mistaken for an omission of the simulation.
 
 MiniMax's exact 140-token first-layer replay agrees closely with an independent
 F64 attention oracle (0.001331% relative L2), and rotary tables match bitwise.

@@ -91,7 +91,9 @@ Remaining work is numerical/functional, not hardening:
 - A faithful GLM comparison must preserve separate original gate/up global
   scales; the installed fused reference is not such an oracle.
 - A faithful DeepSeek comparison must retain original expert rounding order
-  and explicit KV numeric boundaries. Its original upstream converter retains
+  and explicit KV numeric boundaries: block-64 FP8 simulation on the non-rotary
+  prefix, BF16 rotary suffix and BF16 persistent publication, not the installed
+  serving reference's mandatory persistent FP8 cache. Its upstream converter retains
   the full checkpoint's rank dictionaries before writing; do not run that
   unbounded conversion against the Spark memory limit. A bounded streaming
   adapter is needed before that route is usable. The installed reference image
