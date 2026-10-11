@@ -78,7 +78,40 @@ both be reported. Direct invocation rules out an inaccurate reference
 reconstruction for this input; it does not prove all encoder inputs equivalent.
 Evidence is at `/tmp/lunaflux-minimax-upstream-encoder-caption-20261011-v1`,
 including `vs-reconstructed-caption/layers.tsv` and `NATIVE_VS_ORIGINAL.txt`.
-The literal digit and long-input cases require separate same-shape replay.
+The literal digit, long-input and English cases now complete separately too.
+All **204** hidden tensors across the four direct-original replays match the
+reconstructed references bitwise. The source-selected native differences are:
+
+| Literal input | Rows | Overall relative L2 | Worst final-row relative L2 |
+| --- | ---: | ---: | ---: |
+| Caption | 3 | 0.029421% | 0.9558% |
+| Digits | 56 | 0.453213% | 3.1238% |
+| Long input | 140 | 0.795929% | 9.0533% |
+| English | 20 | 0.107935% | 3.5986% |
+
+Roots are `/tmp/lunaflux-minimax-upstream-encoder-{caption,digits,long,english}-20261011-v1`.
+These verify the original-reference route, not uniform native parity. The
+earlier compensation ablations still improve eight corpus worst-row results
+and worsen four; neither global averaging nor direct reference verification
+closes those propagated differences.
+
+### Corrected schedule on real hardware
+
+The committed inclusive-zero F32 schedule completes on Spark `.178` at
+`/tmp/lunaflux-minimax-joint-sigma-20261011-v1`, from 17:33:19 to 17:57:21 CST:
+**four** model evaluations, all fifty layers, 380,928 finite video values and
+331,200 finite audio values. No execution stderr, unit swap or residual GPU
+owner remains. Declared residency is 81,920,540,576 bytes below 96 GiB; the
+33,580,765,184-byte cgroup peak is not a total CUDA residency measurement.
+
+Canonical terminal media and latents are downloaded to
+`/tmp/lunaflux-minimax-joint-sigma-download-20261011-v1`. The twelve-frame contact
+sheet is `/tmp/lunaflux-minimax-sigma-preview-20261011-v1/frames.png` and audio
+preview is beside it. Visual inspection still finds blurred colored regions,
+not a recognizable red cat. Correct execution of a 32x32/five-point smoke test
+is **not semantic media-quality validation**. Audio finiteness/statistics do not
+establish intelligibility. A meaningful-resolution/original-step media test and
+whole-denoiser comparison remain necessary.
 
 The schedule correction passes the complete working-tree native suite,
 **5,004/5,004**, with unchanged migration warning exclusions. AOT integration

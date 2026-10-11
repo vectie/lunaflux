@@ -3141,6 +3141,37 @@ This removes redundant CPU scans, not GPU arithmetic; no throughput improvement
 is claimed without a matched benchmark. Offline compiler/cache identities and
 startup-only envelopes are distinct from token-step payload integrity scans.
 
+### Independent checkpoint comparison — 11 October 2026
+
+The direct-original MiniMax text encoder now runs the installed upstream
+decoder layers and rotary implementation, one GPU layer at a time. Across
+caption, digits, English and long-input cases, all 204 captured hidden tensors
+match the reconstructed reference bitwise. Native final-hidden relative L2
+errors remain 0.0294%, 0.4532%, 0.1079% and 0.7959%, respectively; worst-row
+errors are larger (up to 9.05%). Oracle agreement does not close these native
+encoder differences.
+
+The inclusive-zero sigma-grid correction completed a fresh real MiniMax joint
+run: five grid points, four denoiser evaluations through all fifty layers,
+then both VAEs. Both outputs are finite; exit status is zero, stderr empty,
+GPU allocations released and unit swap peak zero. Planned device residency
+is 81,920,540,576 bytes under 96 GiB. The 32-by-32 preview remains blurred
+colored regions rather than a recognizable requested subject; this bounded
+execution smoke is not a media-quality acceptance result. Matched original
+generated-latent decoder comparisons passed at 0.04434% video / 0.07176%
+audio relative L2, but those decoder results alone do not establish denoiser
+parity or semantic quality.
+
+DeepSeek comparison now observes the original sampler's actual return and
+captures layer-40/41/42 stream means. Native diagnostic readback uses the
+existing retained DSpark target buffers only after execution; ordinary token
+steps gain no copies or graph nodes. Compare identical 144-token, one-row
+prefill frontiers before attributing the remaining 12.47% vocabulary-logit
+error. Full-reference and native replays are serialized on both Sparks;
+GLM's existing sixteen matched continuation tokens are not a universal
+all-prompt numerical proof. Detailed scope and results are recorded in
+`docs/INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md`.
+
 ## Deferred capabilities
 
 These require separate architecture decisions after the first release:

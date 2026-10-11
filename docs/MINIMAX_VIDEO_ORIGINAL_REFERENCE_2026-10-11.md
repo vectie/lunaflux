@@ -156,4 +156,12 @@ Corrected-schedule joint replay uses committed `de9e1ec8` under
 `/tmp/lunaflux-minimax-request-aot-sigma-20261011-v3`: 27 unchanged module sources
 reuse their prior CUBINs; four changed module sources are recompiled. The request
 contains five original F32 grid points and therefore **four** model evaluations.
-Its completion and media inspection remain required; dispatch is not a pass.
+It now completes with exit zero, four evaluations and all fifty layers, at
+17:57:21 CST. Both media arrays and terminal latents are finite; GPU resources
+are released and `MemorySwapPeak=0`. The unit runs 1,442 seconds including
+startup. Downloaded outputs are at
+`/tmp/lunaflux-minimax-joint-sigma-download-20261011-v1`; inspected contact sheet
+is `/tmp/lunaflux-minimax-sigma-preview-20261011-v1/frames.png`. It still shows
+blurred colored regions rather than an identifiable cat. The corrected schedule
+is physically exercised, but this 32x32/five-point smoke test does **not** pass
+semantic media quality. No intelligibility claim follows from audio statistics.
