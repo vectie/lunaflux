@@ -207,10 +207,26 @@ head after retirement. The offline inspector now requires an explicit output
 row and checks that its greedy winner equals the actual emitted token before
 reporting margins. A two-row regression rejects the misleading row-zero case.
 
-MiniMax's next two separate reference interventions widen only projection, then
-projection plus attention. Both preserve all BF16 operator boundaries, original
-weights, fixed literal IDs and existing memory ceilings. They are not numerical
-fixes or completed physical results before their captures are compared.
+The next two MiniMax interventions have now completed all fifty layers on the
+real Spark for the original 56-token digits input. Both preserve BF16 operator
+boundaries, original weights and literal IDs. All 51 states from each run are
+downloaded under `/tmp/lunaflux-minimax-aten-reference-wide-projection-20261011-v2`.
+Both containers exit zero, release their retained tensors and GPU owners, and
+report no OOM. These are arithmetic attribution tests, not production fixes.
+
+| Reference policy | Native/final global relative L2 | Native/worst final row relative L2 |
+| --- | --- | --- |
+| Original BF16 | 0.5081% | 14.7532% |
+| F64 projection, original attention | 0.2901% | 14.9842% |
+| F64 projection and F64 attention | 0.3371% | 18.2173% |
+
+The worst row remains row 23. Wider projections lower the magnitude-weighted
+global norm without fixing that row; widening attention as well increases its
+difference. Neither result supports claiming that a projection/attention
+precision switch fixes MiniMax. The earlier same-input layer replay still
+distinguishes small local operator differences from substantially larger
+propagated input sensitivity. Numerical alignment and media-quality impact
+remain unresolved; no production arithmetic is changed to manufacture parity.
 
 ## GLM reference arithmetic caveat
 
@@ -234,7 +250,7 @@ original native numerical contract to force token agreement.
 
 ## Source validation
 
-The full native suite passes 4,978/4,978 tests, and the root native check passes
+The full native suite passes 4,979/4,979 tests, and the root native check passes
 with the existing toolchain migration warning exclusions
 `-20-25-29-35-79-92`. `moon info` completes with zero errors and the existing
 3,646 migration warnings. The separate reference module passes its eight tests;
