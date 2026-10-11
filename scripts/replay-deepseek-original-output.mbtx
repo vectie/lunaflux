@@ -174,7 +174,10 @@ async fn main {
       ),
     )
   } else if mode == "run" {
-    guard extra.is_empty() else { fail("unexpected options") }
+    guard extra.is_empty() || extra is ["--one-row"] else {
+      fail("unexpected options")
+    }
+    let geometry = if extra.is_empty() { "" } else { " --one-row" }
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
@@ -196,7 +199,8 @@ async fn main {
         " --entrypoint /work/output-upstream " +
         image +
         " /inference /model /work/input.bf16 /work/original " +
-        rows.to_string(),
+        rows.to_string() +
+        geometry,
       ),
     )
     record(

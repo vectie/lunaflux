@@ -1,0 +1,253 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn copy(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn operands() -> Array[(String, Int)] {
+  [
+    ("q-rope.bf16", 144 * 32768 * 2),
+    ("kv-sim.bf16", 144 * 512 * 2),
+    ("sink.f32", 64 * 4),
+  ]
+}
+
+///|
+test "attention intervention begins after rotary and quantization" {
+  assert_eq(operands().length(), 3)
+  assert_eq(operands()[0], ("q-rope.bf16", 9437184))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-window-operands-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT ACTUAL_NATIVE_COMPONENTS ORIGINAL_SINK | run|collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [input, sink] else {
+      fail("literal production operands required")
+    }
+    @fs.mkdir(root)
+    for dir in ["input", "original", "native", "fast-exp"] {
+      @fs.mkdir(root + "/" + dir)
+    }
+    record(
+      root,
+      "mkdir",
+      remote(
+        "mkdir " +
+        root +
+        " " +
+        root +
+        "/input " +
+        root +
+        "/original " +
+        root +
+        "/native " +
+        root +
+        "/fast-exp",
+      ),
+    )
+    for (file, bytes) in operands() {
+      let source = if file == "sink.f32" { sink } else { input + "/" + file }
+      let data = @fs.read_file(source).binary()
+      guard data.length() == bytes else {
+        fail("literal operand extent differs")
+      }
+      @fs.write_file(root + "/input/" + file, data, create_mode=CreateNew)
+      copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
+    }
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "kernels/window_shared_kv_cuda_source", "--filter", "original window replay exports literal full-head rotary and online probability boundaries",
+        ],
+        env={
+          "LUNAFLUX_MATCHED_WINDOW_SOURCE_OUTPUT": root +
+          "/window_matched_kernels.cuh",
+        },
+      ).output(),
+    )
+    for
+      (source, file) in [
+        (root + "/window_matched_kernels.cuh", "window_matched_kernels.cuh"),
+        (
+          "benchmarks/checkpoint_aten_reference/aten/window_operands_upstream.cpp",
+          "window_operands_upstream.cpp",
+        ),
+        (
+          "benchmarks/checkpoint_aten_reference/aten/original_tensor_io.h", "original_tensor_io.h",
+        ),
+        (
+          "tests/packed_moe_execution/window_operands_probe.cu", "window_operands_probe.cu",
+        ),
+      ] {
+      copy(source, node + ":" + root + "/" + file)
+    }
+    record(
+      root,
+      "compile-original",
+      remote(
+        "docker run --rm --pull=never --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/window_operands_upstream.cpp -o /work/original.exe -lpython3.12",
+      ),
+    )
+    for
+      (name, flags) in [
+        ("native", ""),
+        ("fast-exp", " -DLUNA_EXPERIMENT_FAST_EXP"),
+      ] {
+      record(
+        root,
+        "compile-" + name,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-compile-" +
+          name +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121" +
+          flags +
+          " " +
+          root +
+          "/window_operands_probe.cu -o " +
+          root +
+          "/" +
+          name +
+          ".exe",
+        ),
+      )
+    }
+  } else if mode == "run" {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU replays")
+    }
+    record(
+      root,
+      "original-run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-original --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --rm --pull=never --gpus all --user 1000:1000 --network none --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+        root +
+        ":/work -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro --entrypoint /work/original.exe " +
+        image +
+        " /inference /work/input /work/original",
+      ),
+    )
+    for name in ["native", "fast-exp"] {
+      record(
+        root,
+        name + "-run",
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          name +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+          root +
+          "/" +
+          name +
+          ".exe " +
+          root +
+          "/input " +
+          root +
+          "/" +
+          name,
+        ),
+      )
+    }
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    for name in ["original", "native", "fast-exp"] {
+      copy(
+        node + ":" + root + "/" + name + "/attention.bf16",
+        root + "/" + name + "/attention.bf16",
+      )
+    }
+    for name in ["native", "fast-exp"] {
+      record(
+        root,
+        name + "-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          root + "/" + name + "/attention.bf16",
+          root + "/original/attention.bf16",
+          root + "/" + name + "-comparison.txt",
+          "identical_production_rotary_query_kv_attention_" + name,
+          "32768",
+        ]).output(),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

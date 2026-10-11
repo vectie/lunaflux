@@ -2,7 +2,7 @@
 // FP8 output-A startup conversion follows inference/convert.py exactly.
 #include "original_tensor_io.h"
 
-static int execute(const char *inference,const char *root,const char *input,const char *output,int rows) {
+static int execute(const char *inference,const char *root,const char *input,const char *output,int rows,bool one_row) {
   Owned path(PyUnicode_FromString(inference));
   if(!path.p||PyList_Insert(PySys_GetObject("path"),0,path.p)<0)return -1;
   Owned torch(PyImport_ImportModule("torch")),model(PyImport_ImportModule("model"));
@@ -37,10 +37,35 @@ static int execute(const char *inference,const char *root,const char *input,cons
   Owned grouped_input(PyObject_CallMethod(x.p,"view","iiii",1,rows,8,4096));
   Owned equation(PyUnicode_FromString("bsgd,grd->bsgr"));
   Owned args(grouped_weight.p&&grouped_input.p?PyTuple_Pack(3,equation.p,grouped_input.p,grouped_weight.p):nullptr);
-  Owned oa(args.p?PyObject_CallObject(einsum.p,args.p):nullptr);
+  Owned oa,ob;
+  if(one_row) {
+    // The production capture advances one literal token at a time. Retain
+    // that GEMM geometry instead of silently substituting a 144-row prefill.
+    Owned allocation(PyObject_CallMethod(grouped_input.p,"new_empty","(iiii)",1,rows,8,1024));
+    Owned output_allocation(PyObject_CallMethod(grouped_input.p,"new_empty","(iii)",1,rows,4096));
+    if(!allocation.p||!output_allocation.p)return -1;
+    oa.p=allocation.p;allocation.p=nullptr;
+    ob.p=output_allocation.p;output_allocation.p=nullptr;
+    for(int row=0;row<rows;++row) {
+      Owned operand(PyObject_CallMethod(grouped_input.p,"narrow","iii",1,row,1));
+      Owned operands(operand.p?PyTuple_Pack(3,equation.p,operand.p,grouped_weight.p):nullptr);
+      Owned a(operands.p?PyObject_CallObject(einsum.p,operands.p):nullptr);
+      Owned flat_row(a.p?PyObject_CallMethod(a.p,"flatten","i",2):nullptr);
+      Owned b_operands(flat_row.p?PyTuple_Pack(2,flat_row.p,wb.p):nullptr);
+      Owned b(b_operands.p?PyObject_CallObject(linear.p,b_operands.p):nullptr);
+      Owned a_target(PyObject_CallMethod(oa.p,"narrow","iii",1,row,1));
+      Owned b_target(PyObject_CallMethod(ob.p,"narrow","iii",1,row,1));
+      Owned a_copy(a.p&&a_target.p?PyObject_CallMethod(a_target.p,"copy_","O",a.p):nullptr);
+      Owned b_copy(b.p&&b_target.p?PyObject_CallMethod(b_target.p,"copy_","O",b.p):nullptr);
+      if(!a_copy.p||!b_copy.p)return -1;
+    }
+  } else {
+    oa.p=args.p?PyObject_CallObject(einsum.p,args.p):nullptr;
+    Owned flat_batch(oa.p?PyObject_CallMethod(oa.p,"flatten","i",2):nullptr);
+    Owned b_args(flat_batch.p?PyTuple_Pack(2,flat_batch.p,wb.p):nullptr);
+    ob.p=b_args.p?PyObject_CallObject(linear.p,b_args.p):nullptr;
+  }
   Owned flat(oa.p?PyObject_CallMethod(oa.p,"flatten","i",2):nullptr);
-  Owned b_args(flat.p?PyTuple_Pack(2,flat.p,wb.p):nullptr);
-  Owned ob(b_args.p?PyObject_CallObject(linear.p,b_args.p):nullptr);
   if(!oa.p||!ob.p)return -1;
   // Attribution of the original row-parallel publication boundary. Execute
   // the two original K shards serially on one device, publish each BF16
@@ -77,15 +102,17 @@ static int execute(const char *inference,const char *root,const char *input,cons
     !save(sb.p,u8.p,std::string(output)+"/wo_b.scale",32*64)||
     !save(oa.p,u8.p,std::string(output)+"/output-a.bf16",int64_t(rows)*8192*2)||
     !save(ob.p,u8.p,std::string(output)+"/output-b.bf16",int64_t(rows)*4096*2))return -1;
-  std::printf("original_grouped_output_complete rows=%d bf16_einsum=true original_fp8_output=true tp=1 serial_sharded_output_b=true full_model=false\n",rows);
+  std::printf("original_grouped_output_complete rows=%d one_row_geometry=%s bf16_einsum=true original_fp8_output=true tp=1 serial_sharded_output_b=true sharded_control_geometry=batched full_model=false\n",rows,one_row?"true":"false");
   return 0;
 }
 
 int main(int argc,char **argv) {
-  if(argc!=6)return 2;
+  if(argc!=6&&argc!=7)return 2;
+  const bool one_row=argc==7&&std::string(argv[6])=="--one-row";
+  if(argc==7&&!one_row)return 2;
   char *end=nullptr;long rows=std::strtol(argv[5],&end,10);
   if(end==argv[5]||!end||*end||rows<1||rows>144)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],static_cast<int>(rows));
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],static_cast<int>(rows),one_row);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

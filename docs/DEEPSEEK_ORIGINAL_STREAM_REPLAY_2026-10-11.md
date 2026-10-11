@@ -202,6 +202,34 @@ the reference tolerance. Original execution exits zero and releases CUDA.
 
 Root: `/tmp/lunaflux-deepseek-original-layer-stream-native-ffn-20261012-v1`.
 
+### Identical native attention and output operands
+
+The unchanged original sparse-attention implementation now consumes all 144
+literal production rotary queries, simulated KV values and checkpoint sink
+biases. Neither side repeats rotary or quantization. Current native attention
+has **4,717,516/4,718,592** exact BF16 outputs and **0.006273834%** relative L2.
+An offline intrinsic-exp experiment measures **0.006254344%** but has three
+fewer exact outputs: this negligible change does not justify a production fix
+and is **not selected in serving**. Both runs release their GPU allocations.
+Root: `/tmp/lunaflux-deepseek-window-operands-native-20261012-v2`.
+
+The output chain is separately replayed on all 144 literal native inverse-RoPE
+attention operands. The original retains **one-row GEMM submissions**, not a
+replacement 144-row prefill, and uses the unchanged grouped einsum/FP8 linear.
+
+| Intervention | Exact BF16 / values | Relative L2 |
+| --- | --- | --- |
+| Output-A on identical attention input | 1,179,321 / 1,179,648 | 0.002753354% |
+| Output-B on identical original output-A | 589,815 / 589,824 | 0.000026891% |
+| Output-B consuming native output-A | 588,515 / 589,824 | 0.011284933% |
+
+Root: `/tmp/lunaflux-deepseek-original-output-native-all144-20261012-v1`.
+These isolate local output-B arithmetic from amplification of earlier input
+differences; they do not establish full-model parity. The optional serialized
+two-shard control remains explicitly batched and is not a TP2/NCCL reference.
+The earlier 18–21% full-model difference remains unresolved. No altered
+reference or relaxed tolerance is substituted for a faithful comparison.
+
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]
 moon run scripts/run-deepseek-original-layer-stream.mbtx run ROOT 43
