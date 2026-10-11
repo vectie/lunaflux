@@ -1,5 +1,30 @@
 # DeepSeek original first-layer component replay — 2026-10-11
 
+## Original row-parallel output publication attribution
+
+The original output-B operator now also runs its two K shards serially on
+one device, using literal original attention/output-A operands and checkpoint
+weight/scale slices. Each original shard publishes BF16, the two partials add
+in F32, and the sum publishes BF16, following `RowParallelLinear`. This is an
+arithmetic-boundary experiment, not a distributed/NCCL or full TP2 pass.
+
+On all 144 first-layer rows (589,824 output values), original unsharded versus
+original serial-sharded output has relative L2 **0.279533926%**, maximum error
+**0.125**, and 381,028 exact BF16 values. Native matched versus serial-sharded
+original has relative L2 **0.279533935%**; native propagated versus that original
+has **0.280483612%**. Thus an original TP1 component oracle cannot substitute
+for the original TP2 publication arithmetic. This does **not** demonstrate that
+this rounding difference accounts for the 18–21% full-model retained-state gap,
+and production arithmetic has not been changed to imitate a different topology.
+
+Artifacts: `/tmp/lunaflux-deepseek-original-output-sharded-20261011-v1`.
+Original, matched and propagated executions exit zero and release GPU owners;
+the original container reports `OOMKilled=false`. This follow-up does not rerun
+sanitizers on unchanged native output kernels; the prior v4 sanitizer results
+remain separately attributed. The adapter compiles with warnings denied and
+the runner regression passes. The full local suite passes **5,013/5,013** with
+the existing migration-warning exclusions, not new exclusions.
+
 ## Original routing on all 144 literal FFN rows
 
 The routed-expert replay supplied original routing weights, so it did not test

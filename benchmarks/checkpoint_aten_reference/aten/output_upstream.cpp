@@ -42,6 +42,34 @@ static int execute(const char *inference,const char *root,const char *input,cons
   Owned b_args(flat.p?PyTuple_Pack(2,flat.p,wb.p):nullptr);
   Owned ob(b_args.p?PyObject_CallObject(linear.p,b_args.p):nullptr);
   if(!oa.p||!ob.p)return -1;
+  // Attribution of the original row-parallel publication boundary. Execute
+  // the two original K shards serially on one device, publish each BF16
+  // partial, add in F32 and publish BF16 exactly as RowParallelLinear does.
+  // This is not a distributed/NCCL or complete TP2-model qualification.
+  Owned partial_sum;
+  for(int rank=0;rank<2;++rank) {
+    Owned input_view(PyObject_CallMethod(flat.p,"narrow","iii",2,rank*4096,4096));
+    Owned operand(input_view.p?PyObject_CallMethod(input_view.p,"contiguous",nullptr):nullptr);
+    Owned weight_view(PyObject_CallMethod(wb.p,"narrow","iii",1,rank*4096,4096));
+    Owned matrix(weight_view.p?PyObject_CallMethod(weight_view.p,"contiguous",nullptr):nullptr);
+    Owned scale_view(PyObject_CallMethod(sb.p,"narrow","iii",1,rank*32,32));
+    Owned scales(scale_view.p?PyObject_CallMethod(scale_view.p,"contiguous",nullptr):nullptr);
+    if(!operand.p||!matrix.p||!scales.p||PyObject_SetAttrString(matrix.p,"scale",scales.p)<0)return -1;
+    Owned operands(PyTuple_Pack(2,operand.p,matrix.p));
+    Owned result(PyObject_CallObject(linear.p,operands.p));
+    if(!result.p||!save(result.p,u8.p,std::string(output)+"/output-b-partial-"+
+      std::to_string(rank)+".bf16",int64_t(rows)*4096*2))return -1;
+    Owned wide(PyObject_CallMethod(result.p,"float",nullptr));
+    if(!wide.p)return -1;
+    if(rank==0){partial_sum.p=wide.p;wide.p=nullptr;}
+    else {
+      Owned added(PyObject_CallMethod(partial_sum.p,"add_","O",wide.p));
+      if(!added.p)return -1;
+    }
+  }
+  Owned sharded(PyObject_CallMethod(partial_sum.p,"bfloat16",nullptr));
+  if(!sharded.p||!save(sharded.p,u8.p,std::string(output)+"/output-b-sharded.bf16",
+    int64_t(rows)*4096*2))return -1;
   if(!save(x.p,u8.p,std::string(output)+"/input.bf16",int64_t(rows)*32768*2)||
     !save(wa.p,u8.p,std::string(output)+"/wo_a.fp8",8192LL*4096)||
     !save(sa.p,u8.p,std::string(output)+"/wo_a.scale",64*32)||
@@ -49,7 +77,7 @@ static int execute(const char *inference,const char *root,const char *input,cons
     !save(sb.p,u8.p,std::string(output)+"/wo_b.scale",32*64)||
     !save(oa.p,u8.p,std::string(output)+"/output-a.bf16",int64_t(rows)*8192*2)||
     !save(ob.p,u8.p,std::string(output)+"/output-b.bf16",int64_t(rows)*4096*2))return -1;
-  std::printf("original_grouped_output_complete rows=%d bf16_einsum=true original_fp8_output=true tp=1 full_model=false\n",rows);
+  std::printf("original_grouped_output_complete rows=%d bf16_einsum=true original_fp8_output=true tp=1 serial_sharded_output_b=true full_model=false\n",rows);
   return 0;
 }
 

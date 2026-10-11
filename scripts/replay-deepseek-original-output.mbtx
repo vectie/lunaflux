@@ -60,6 +60,9 @@ fn originals(rows : Int) -> Array[(String, Int)] {
     ("wo_a.scale", 64 * 32),
     ("wo_b.fp8", 4096 * 8192),
     ("wo_b.scale", 32 * 64),
+    ("output-b-partial-0.bf16", rows * 8192),
+    ("output-b-partial-1.bf16", rows * 8192),
+    ("output-b-sharded.bf16", rows * 8192),
   ]
 }
 
@@ -72,6 +75,7 @@ fn stages() -> Array[(String, Int)] {
 test "output replay retains eight grouped BF16 projections and quantized output" {
   assert_eq(stages()[0], ("output-a", 8192))
   assert_eq(originals(144)[0], ("input.bf16", 9437184))
+  assert_eq(originals(144)[7], ("output-b-sharded.bf16", 1179648))
 }
 
 ///|
@@ -313,6 +317,26 @@ async fn main {
           )
         }
       }
+    }
+    for
+      (label, file) in [
+        ("original-unsharded", "/original/output-b.bf16"),
+        ("native-matched", "/matched/output-b.bf16"),
+        ("native-propagated", "/propagated/output-b.bf16"),
+      ] {
+      record(
+        root,
+        label + "-vs-sharded",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          root + file,
+          root + "/original/output-b-sharded.bf16",
+          root + "/" + label + "-vs-sharded.txt",
+          "original_row_parallel_publication_not_distributed_" + label,
+          "4096",
+        ]).output(),
+      )
     }
   } else {
     fail("unknown mode")
