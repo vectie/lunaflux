@@ -711,3 +711,16 @@ full-prefix and terminal-latent modes. This closes an input-matching gap; it
 does not repair encoder arithmetic or establish media quality. A fresh native
 256×256 prefix must verify its captured initial rows against original rows
 before any downstream numerical comparison is interpreted.
+
+Committed native implementation `bb617c57` builds cleanly on ARM and passes
+the local **5,027/5,027** native suite. The 256×256/50-point AOT export completes,
+reusing 23 identical modules and compiling 8 changed-geometry modules in a new
+directory. The first launch
+`/tmp/lunaflux-minimax-joint-original-noise256-prefix-20261012-v1` fails **before
+CUDA setup**: diagnostic metadata newlines entered the command, truncating its
+argument list. That root/unit and logs are preserved; it is not a numerical or
+memory-pressure failure. The launcher now isolates initial-output arguments
+from metadata and passes a regression rejecting embedded metadata lines.
+The revised runner has **10/10** tests; original-noise unpatchification has
+**1/1**. A fresh `v2` prefix will reuse the same committed native executable,
+original operands and newly compiled AOT modules without overwriting `v1`.

@@ -1,0 +1,158 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=1048576,
+  )
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn copy(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn input_extents() -> Array[(String, Int)] {
+  [("attention.bf16", 144 * 32768 * 2), ("frequencies.complex64", 144 * 32 * 8)]
+}
+
+///|
+test "inverse intervention retains full heads rather than only the suffix" {
+  assert_eq(input_extents()[0].1, 9437184)
+  assert_eq(input_extents()[1].1, 36864)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. args] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-original-inverse-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT NATIVE_SPARSE_BF16 ORIGINAL_COMPLEX_FREQUENCIES | run ROOT | collect ROOT NATIVE_INVERSE_BF16",
+    )
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard args is [attention, frequencies] else {
+      fail("literal attention and original frequencies required")
+    }
+    @fs.mkdir(root)
+    record(root, "mkdir", remote("mkdir " + root))
+    for (source, (name, bytes)) in [attention, frequencies].zip(input_extents()) {
+      let data = @fs.read_file(source).binary()
+      guard data.length() == bytes else {
+        fail("complete literal inverse operand required")
+      }
+      @fs.write_file(root + "/" + name, data, create_mode=CreateNew)
+      copy(root + "/" + name, node + ":" + root + "/" + name)
+    }
+    for file in ["inverse_rotary_upstream.cpp", "original_tensor_io.h"] {
+      copy(
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        node + ":" + root + "/" + file,
+      )
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/inverse_rotary_upstream.cpp -o /work/inverse-original -lpython3.12",
+      ),
+    )
+  } else if mode == "run" {
+    guard args.is_empty() else { fail("unexpected inverse replay argument") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU replay")
+    }
+    record(
+      root,
+      "execution",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        " --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 docker run --rm --network none --gpus all --memory 4g --memory-swap 4g -v " +
+        root +
+        ":/work -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro --entrypoint /work/inverse-original " +
+        image +
+        " /inference /work/attention.bf16 /work/frequencies.complex64 /work/inverse.bf16",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    guard args is [native] && !@fs.exists(root + "/inverse.bf16") else {
+      fail("literal native inverse and new collection required")
+    }
+    copy(node + ":" + root + "/inverse.bf16", root + "/inverse.bf16")
+    guard @fs.read_file(root + "/inverse.bf16").binary().length() == 9437184 else {
+      fail("incomplete original inverse")
+    }
+    record(
+      root,
+      "comparison",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        native,
+        root + "/inverse.bf16",
+        root + "/comparison.txt",
+        "matched_native_sparse_attention_original_inverse_rotary",
+        "32768",
+      ]).output(max_output_bytes=65536),
+    )
+  } else {
+    fail("unknown inverse replay stage")
+  }
+}

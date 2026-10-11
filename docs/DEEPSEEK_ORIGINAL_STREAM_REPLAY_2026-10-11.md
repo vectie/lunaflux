@@ -264,5 +264,27 @@ These frontiers still carry differing upstream operands; they are **not**
 local matched-input inverse-rotation errors. The added observation excludes a
 large missing aggregate jump at this boundary in layer 0, but does not prove
 the inverse implementation bitwise or resolve the accumulated full-model gap.
+
+### Matched native sparse-attention inverse intervention
+
+The installed original `apply_rotary_emb(..., inverse=True)` now consumes the
+literal **native** sparse-attention output for all 144 rows, with one-row
+submissions and the original pure-window complex64 frequency table retained
+from the original replay. It does not repeat attention, change query/KV inputs,
+or substitute a new frequency-generation algorithm. Native inverse output and
+the original inverse therefore begin from identical attention operands.
+
+Root: `/tmp/lunaflux-deepseek-original-inverse-native-all144-20261012-v1`.
+Both computations retain the complete 64×512 row, including the 448 channels
+outside the rotary suffix. **4,718,570/4,718,592** BF16 values agree; relative
+L2 is **0.0003599874%**, maximum difference **0.00390625**, all values finite.
+Original execution exits zero, releases CUDA and uses a 4-GiB/no-swap limit.
+The ARM bridge compiles with `-Wall -Wextra -Werror`; its runner regression passes.
+
+This isolates a small local inverse difference, not merely the propagated
+comparison above. It does not eliminate or explain the accumulated 18–21%
+full-model gap. The earlier matched output projection input is also verified
+byte-identical to the native inverse capture, so those output-chain reports
+did not accidentally feed pre-inverse attention into either projection.
 Reports: `/tmp/lunaflux-deepseek-one-row-inverse-components-20261012-v1`.
 No production kernel or arithmetic law was changed by this observation.

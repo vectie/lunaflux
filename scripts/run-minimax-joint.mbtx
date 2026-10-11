@@ -335,6 +335,27 @@ fn literal_arguments(
 }
 
 ///|
+fn initial_output_arguments(root : String, literal : Bool) -> String {
+  " " +
+  root +
+  "/output" +
+  (if literal { " initial-video.f32 initial-audio.f32" } else { "" })
+}
+
+///|
+test "literal process operands remain arguments, never metadata lines" {
+  assert_eq(
+    initial_output_arguments("/tmp/lunaflux-run", false),
+    " /tmp/lunaflux-run/output",
+  )
+  let literal = initial_output_arguments("/tmp/lunaflux-run", true)
+  assert_eq(
+    literal, " /tmp/lunaflux-run/output initial-video.f32 initial-audio.f32",
+  )
+  assert_false(literal.contains("\n"))
+}
+
+///|
 test "literal noise cannot silently replace default seeded initialization" {
   assert_eq(literal_arguments(["script"]).1, None)
   assert_eq(
@@ -559,18 +580,7 @@ async fn main {
     aot +
     " DENOISER.inventory AUDIO.sha256 VIDEO.sha256 256 64 4096 8589934592 103079215104 " +
     seed.to_string() +
-    "\nseed_used=" +
-    (literal is None).to_string() +
-    "\nliteral_initial_noise_source=" +
-    literal.unwrap_or("none") +
-    " " +
-    root +
-    "/output" +
-    (if literal is Some(_) {
-      " initial-video.f32 initial-audio.f32"
-    } else {
-      ""
-    }) +
+    initial_output_arguments(root, literal is Some(_)) +
     (if cancel_after_frames == 0 {
       ""
     } else {
@@ -595,6 +605,10 @@ async fn main {
     cancel_after_frames.to_string() +
     "\nseed=" +
     seed.to_string() +
+    "\nseed_used=" +
+    (literal is None).to_string() +
+    "\nliteral_initial_noise_source=" +
+    literal.unwrap_or("none") +
     "\nterminal_latent_capture=" +
     capture_latents.to_string() +
     "\ninitial_prefix_capture=" +
