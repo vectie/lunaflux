@@ -5,6 +5,12 @@ output precision. Conversion placement and accuracy bounds are semantic inputs.
 Startup writes, ordinary step writes and transactional cache commits are explicit
 effects. Quantization publication stages are planned before device lowering.
 
+`SquareReductionLaw` makes ordered versus compensated F32 square summation
+explicit, independently of tensor storage and normalize-before-weight rounding.
+It is a numerical accuracy choice, not permission to reassociate an ordered
+reduction. MiniMax text encoding selects compensation in its immutable plan;
+the CUDA renderer consumes that law without model-specific device branching.
+
 `PhysicalOperand` refines an existing physical operand region; it does not invent
 an unrelated shared-memory map. Local/global F32 scaling and BF16 rounding are
 retained boundaries. A caller-provided supported-placement set is a capability

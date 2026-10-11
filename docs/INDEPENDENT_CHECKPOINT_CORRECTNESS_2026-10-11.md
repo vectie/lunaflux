@@ -310,7 +310,31 @@ consumes it in both row and Q/K-head normalization. Generic callers retain the
 explicit ordered-F32 default. Compensation does not widen storage or move the
 BF16 normalize-before-weight boundary. There is no token-path configuration,
 new allocation, hashing, TLS or additional hardware-specific model branching.
-Fresh source-selected AOT execution remains the next validation step.
+Fresh ARM build of pushed `49b15d75f8678cf6177d30b229258dabf62e2fb8` passes on
+Spark `.178` (208 build tasks, 588.1 MiB peak, zero build swap). Unmodified
+source exports then compile exact 56/140-row AOT modules. Fifty-layer execution
+on `.179` reproduces both experimental final tensors **bitwise**, confirming
+the selected source policy actually reaches the runtime. The source-selected
+corpus is retained in `/tmp/lunaflux-minimax-source-norm-20261011-v2`; the initial
+`v1` failed before inference because the runner binary was not staged on the
+execution host. That receipt is retained, the runner is corrected, and `v2`
+stages the committed binary explicitly before execution.
+
+The actual row/head CUDA renderer also passes a bounded independent F64 oracle
+(zero/constant/outlier/mixed inputs, eight deterministic runs, at most one BF16
+step at reciprocal-square-root publication). Memcheck reports zero errors and
+zero leaked allocations; racecheck reports zero hazards; synccheck reports zero
+errors. These are component correctness checks, not a whole-model tolerance.
+Results are in `/tmp/lunaflux-text-norm-compensated-20261011-v1`.
+
+Four alternating, unsanitized isolated row-normalization timing trials measure
+283.1–284.7 microseconds ordered versus 311.4–312.0 microseconds compensated
+(three 5,120-lane rows). Compensation adds about 10% in this scalar kernel;
+it is an accuracy fix, not a performance claim. Instrumented sanitizer timing
+is excluded. The original unchanged F64-projection reference also corroborates
+the digits improvement: final global relative L2 is 0.1943% instead of 0.2901%,
+and worst final row is 4.5235% instead of 14.9842%. Remaining error is not hidden
+by global norms or declared a pass.
 
 The full native suite passes 4,979/4,979 tests, and the root native check passes
 with the existing toolchain migration warning exclusions

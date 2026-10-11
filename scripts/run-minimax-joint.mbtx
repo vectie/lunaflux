@@ -104,7 +104,7 @@ async fn main {
   let (args, cancel_after_frames) = cancellation_arguments(@env.args())
   guard args is [_, root, suffix, build, aot, encoded] &&
     root.has_prefix("/tmp/lunaflux-minimax-joint-") &&
-    build.has_prefix("/tmp/lunaflux-checkpoint-build-minimax-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
     aot.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
     encoded.has_prefix("/tmp/lunaflux-") &&
     encoded.has_suffix(".bf16") &&

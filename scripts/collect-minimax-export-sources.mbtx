@@ -1,0 +1,43 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, config] &&
+    config.has_prefix("/tmp/lunaflux-minimax-request-config-") &&
+    !config.contains("..") &&
+    config.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/')) else {
+    fail("EXISTING_EXACT_SOURCE_EXPORT_CONFIGURATION")
+  }
+  let manifest = @fs.read_file(config + "/aot/SOURCES.v1").text()
+  for line in manifest.split("\n") {
+    if line.has_prefix("module=") {
+      let name = line.split("\t").next().unwrap()[7:].to_owned()
+      guard name.iter().all(c => c is ('a'..='z' | '0'..='9' | '_')) else {
+        fail("unknown source filename")
+      }
+      // Text was already collected in the encoder-only pass; preserve it.
+      if name == "text" {
+        continue
+      }
+      let path = config + "/aot/" + name + ".cu"
+      @fs.write_file(path, b"", create_mode=CreateNew)
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+        "wlc003s@192.168.2.178:" + path,
+        path,
+      ])
+      .output()
+      .check()
+    }
+  }
+  println("complete exact-source export collected; no GPU execution")
+}
