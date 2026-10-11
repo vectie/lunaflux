@@ -1,0 +1,59 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Hardware scheduling port of third-party reference code, NOT an alternate
+// mathematical oracle. Original files remain read-only and unchanged.
+///|
+fn head_tiles(source : String) -> String raise {
+  let parts = source.split("    b, s, h, d = q.size()\n    # Pad heads to 16 for kernel efficiency (stripped after)\n").to_array()
+  guard parts is [before, after] else { fail("original sparse wrapper required") }
+  before.to_owned() +
+  "    b, s, h, d = q.size()\n" +
+  // Heads are independent. Retain the original KV64 blocks, online softmax
+  // recurrence, all arithmetic and original kernel function verbatim.
+  "    if h > 16:\n" +
+  "        return torch.cat([sparse_attn(q[:, :, first:first + 16, :].contiguous(), kv, attn_sink[first:first + 16].contiguous(), topk_idxs, softmax_scale) for first in range(0, h, 16)], dim=2)\n" +
+  "    # Pad heads to 16 for kernel efficiency (stripped after)\n" + after.to_owned()
+}
+
+///|
+test "independent head fission retains the original kernel including KV partition and pipeline" {
+  let original = "def sparse_attn_kernel(h, d):\n    num_stages = 2\n    block = 64\n    T.gemm(q, kv, acc)\ndef sparse_attn(q):\n    b, s, h, d = q.size()\n    # Pad heads to 16 for kernel efficiency (stripped after)\n    original_body()\n"
+  let adapted = head_tiles(original)
+  assert_true(adapted.has_prefix("def sparse_attn_kernel(h, d):\n    num_stages = 2\n    block = 64\n    T.gemm(q, kv, acc)\n"))
+  assert_true(adapted.contains("range(0, h, 16)"))
+  assert_true(adapted.has_suffix("    original_body()\n"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] && root.has_prefix("/tmp/lunaflux-deepseek-upstream-reference-") else {
+    fail("NEW_PREPARED_UPSTREAM_REFERENCE_ROOT")
+  }
+  let image = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+  @fs.mkdir(root + "/spark-inference")
+  for file in ["generate.py", "model.py", "kernel.py"] {
+    let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock", "wlc003s@192.168.2.178", "cat /tmp/lunaflux-deepseek-real-20261010.dLryo68E/DeepSeek-V4-Flash-DSpark/inference/" + file]).output()
+    result.check()
+    @fs.write_file(root + "/spark-inference/" + file,
+      if file == "kernel.py" { head_tiles(result.stdout()) } else { result.stdout() }, create_mode=CreateNew)
+  }
+  @fs.write_file(root + "/SPARK_REFERENCE.txt", "third_party_reference_hardware_port=true\nsparse_attention_independent_head_tiles=16\npipeline_stages=2\nblock=64\nkernel_arithmetic_source_changed=false\noriginal_files_changed=false\nnot_unmodified_original_launch=true\n", create_mode=CreateNew)
+  for last in [false, true] {
+    let socket = if last { "/tmp/lunaflux-checkpoint-live179-20261010.sock" } else { "/tmp/lunaflux-checkpoint-live-20261010.sock" }
+    let node = if last { "wlc004s@192.168.2.179" } else { "wlc003s@192.168.2.178" }
+    @shell.Cmd("scp", ["-r", "-o", "BatchMode=yes", "-o", "ControlPath=" + socket, root + "/spark-inference", node + ":" + root + "/"]).output().check()
+    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, "benchmarks/checkpoint_aten_reference/aten/upstream_sparse_probe.cpp", node + ":" + root + "/"]).output().check()
+    let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node,
+      "ln -s /original/encoding " + root + "/encoding && docker run --rm --network none --memory 2g --memory-swap 2g -v " + root + ":/work --entrypoint g++ " + image + " -O2 -std=c++20 -I/usr/include/python3.12 /work/upstream_sparse_probe.cpp -o /work/upstream-sparse-probe -lpython3.12"]).output()
+    @fs.write_file(root + "/spark-prepare-" + (if last { "1" } else { "0" }) + ".stdout", result.stdout(), create_mode=CreateNew)
+    @fs.write_file(root + "/spark-prepare-" + (if last { "1" } else { "0" }) + ".stderr", result.stderr(), create_mode=CreateNew)
+    result.check()
+  }
+  println("spark_reference_scheduling_port_prepared original_arithmetic_retained=true")
+}

@@ -205,7 +205,8 @@ async fn main {
       " arithmetic_source_changed=false",
     )
   } else if mode == "start" {
-    guard extra is [first, second] &&
+    guard extra is [first, second, .. options] &&
+      (options.is_empty() || options == ["--spark-head-tiles"]) &&
       [first, second].all(p => {
         p.has_prefix("/tmp/lunaflux-deepseek-") &&
         p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
@@ -252,7 +253,13 @@ async fn main {
         " --nnodes=2 --nproc-per-node=1 --node-rank=" +
         rank +
         " --master-addr=10.0.0.1 --master-port=29854 --no-python " +
-        "/work/upstream-observer /original/inference/generate.py --ckpt-path /checkpoint --config /work/config.json --input-file /work/input.txt --max-new-tokens 8 --temperature 0"
+        "/work/upstream-observer " +
+        (if options == ["--spark-head-tiles"] {
+          "/work/spark-inference/generate.py"
+        } else {
+          "/original/inference/generate.py"
+        }) +
+        " --ckpt-path /checkpoint --config /work/config.json --input-file /work/input.txt --max-new-tokens 8 --temperature 0"
       @fs.write_file(
         root + "/command-" + rank + ".txt",
         command,

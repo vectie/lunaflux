@@ -110,7 +110,11 @@ pub fn dense_projection_bf16_source(
     accumulator="accumulator",
   )
   let source = @utf8.encode(
-    "#include <cuda_bf16.h>\n#include <stdint.h>\n#include <math.h>\n" +
+    "#include <cuda_bf16.h>\n#include <stdint.h>\n" +
+    (match dot_reduction_law {
+      OrderedFloat32 => ""
+      CompensatedFloat32 => "#include <math.h>\n"
+    }) +
     "extern \"C\" __global__ void " +
     function_symbol +
     "(const int32_t *counts, const __nv_bfloat16 *input, const __nv_bfloat16 *weight, __nv_bfloat16 *output) {\n" +
@@ -146,9 +150,7 @@ pub fn dense_projection_bf16_source(
     update +
     "\n" +
     "  }\n" +
-    "  " +
-    finish +
-    "\n" +
+    (if finish.is_empty() { "" } else { "  " + finish + "\n" }) +
     "  output[index] = __float2bfloat16_rn(accumulator);\n}\n",
   )
   {

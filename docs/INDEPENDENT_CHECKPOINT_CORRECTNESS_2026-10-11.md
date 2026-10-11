@@ -70,9 +70,28 @@ map. A bounded device-copy probe isolates this lifetime: the original persistent
 map exceeds a 4-GiB CPU limit before 1,536 tensors; reopening every 128 tensors
 keeps resident CPU memory around 632 MiB through all 4,096 probe tensors. The
 `v5` loader applies this backing-store lifetime fix while retaining original
-Torch copy/conversion operations. It is loading with roughly 33 GiB available.
-None of these loader checks is
-a model correctness pass.
+Torch copy/conversion operations. Both ranks finish loading **36,943 tensors**,
+with zero missing/unexpected keys and approximately 32–34 GiB host memory
+available. Neither rank is OOM-killed. The original CLI then fails at its first
+sparse-attention launch: Tilelang requests **104,448 bytes** dynamic shared
+memory; an independent GB10 device query reports only **101,376 bytes** opt-in
+capacity. This is an original-reference hardware launch failure, not a native
+token mismatch. Logs remain at
+`/tmp/lunaflux-deepseek-upstream-reference-20261011-v5`.
+
+A scheduling-only one-stage probe still requests the same 104,448 bytes and
+fails; its separate `v6` artifacts are preserved. The next bounded reference
+port instead splits independent attention heads into groups of sixteen. It
+retains the entire original Tilelang kernel verbatim, including KV64 online
+softmax partitioning, two pipeline stages, sink arithmetic and output dtype.
+This hardware adapter changes the wrapper's work decomposition, not weights or
+model equations; it is explicitly **not an unmodified original launch**.
+The sparse-only launch probe succeeds with finite outputs on Spark `.178`.
+The full MP2 reference is running under `v7`; no full-model comparison pass is
+claimed until its actual literal outputs are available and match native inputs.
+The offline adapter is `scripts/prepare-deepseek-spark-reference.mbtx` and the
+runner requires the explicit `--spark-head-tiles` option. Original checkpoint
+sources remain unchanged and mounted read-only.
 
 `scripts/run-deepseek-upstream-reference.mbtx` runs the checkpoint's unmodified
 `generate.py`, original arithmetic/config fields, MP2 and literal user text,

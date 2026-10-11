@@ -33,6 +33,41 @@ The two reduction laws are now independently selectable in the immutable plan
 and offline exporter, enabling isolated dot-versus-normalization experiments.
 No prompt-specific production policy or relaxed acceptance threshold is added.
 
+### Independent dot-only and causal-prefix checks
+
+The source-pinned dot-only ablation (ordered square sums, compensated dots)
+completed fifty layers on Spark `.179` for the four diagnostic inputs:
+
+| Input | Existing selected default | Dot-only compensation |
+| --- | --- | --- |
+| Actual caption | 0.9558% | 1.0621% |
+| Long input | 9.0533% | 21.4642% |
+| English | 3.5986% | 1.4956% |
+| Digits | 3.1238% | 11.1469% |
+
+These are worst final-row relative L2 errors against the same unchanged library
+reference. Isolating compensation does not fix the propagated discrepancies.
+The original ordered-dot default remains selected; the failed numerical policy
+is not promoted. Full outputs and comparisons are retained under
+`/tmp/lunaflux-minimax-source-norm-dot-only-20261011-v1`.
+
+`scripts/probe-minimax-prefix-invariance.mbtx` also compared the literal first
+six IDs of the 140-token input at two execution extents. Both implementations
+remain causal, so later tokens should not change the mathematical prefix.
+The selected native encoder's six final rows are **30,720/30,720 BF16 values
+bitwise identical** between the 6-row and 140-row executions. The unchanged
+ATen reference matches only 3,149/30,720 values across those shapes; its worst
+prefix-row relative L2 variation is **10.3957%**. For the matched six-row shape,
+native versus reference worst-row error is **3.6168%**. All outputs are finite.
+
+This is direct evidence of reference shape-dependent floating-point sensitivity,
+not proof of a reference causal bug, not a universal accuracy tolerance, and
+not permission to dismiss native mismatches. Component accuracy, propagated
+library alignment and media quality must remain distinct conclusions. The
+six-row reference, fifty-one retained layer tensors and three comparisons are
+under `/tmp/lunaflux-minimax-prefix-invariance-20261011-v1`. No future-token
+padding, retokenization or reference arithmetic replacement is used.
+
 | Input | Compensated squares, ordered dots | Compensated squares and dots |
 | --- | --- | --- |
 | Actual caption | 0.9558% | 1.1946% |
