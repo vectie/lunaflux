@@ -32,5 +32,26 @@ This component test fixes a demonstrable precision-contract omission, but
 cannot attribute the previous **11.4684%** full-logit relative L2 to it alone.
 Native six-row streaming and original whole-prompt prefill also have different
 floating-point partitioning, and scalar versus matrix reductions can differ.
-The fresh committed full-model logit retest must report the remaining difference
-without relabeling internal agreement as independent correctness.
+The fresh full-model retest used commit `4ecd2040`, newly exported AOT kernels,
+and the identical 144 literal token IDs as the original MP2 reference. Both
+native ranks retired successfully, with GPU contexts released. Evidence:
+`/tmp/lunaflux-dspark-run-probability-20261011-v2`; the reference remains
+`/tmp/lunaflux-deepseek-upstream-reference-20261011-v9`.
+
+| Matched final-prefill row, 129,280 logits | Previous native | Corrected native | Original reference |
+| --- | --- | --- | --- |
+| Greedy token | 19923 (Hello) | 33310 (hello) | 33310 (hello) |
+| Token 33310 score | 31.68308 | 32.25790 | 32.38558 |
+| Logit RMSE | 0.604927 | 0.595892 | — |
+| Relative L2 | 11.4684% | 11.2971% | — |
+| Maximum absolute error | 3.86580 | 4.36326 | — |
+
+The single observed generated-token mismatch is fixed, but the complete logit
+distribution is still materially different; maximum error actually increased.
+This is **one matched greedy token**, not EOS agreement, multi-prompt acceptance,
+or full-model numerical equivalence. The original run emitted EOS after hello;
+the native run requested only one generated token. Streaming partition and
+matrix/scalar reduction differences remain to be isolated.
+
+The complete local native suite after this change passed **4,997/4,997**, using
+the existing toolchain-migration warning exclusions `-20-25-29-35-79-92`.
