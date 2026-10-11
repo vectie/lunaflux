@@ -485,3 +485,26 @@ does not enter ordinary execution. This adds operator-level attribution rather
 than another guessed precision change. Warning-denied native checking and
 affected tests pass **55/55**, full native suite **5,022/5,022**; physical
 operator measurements remain pending.
+
+### Operator observation geometry correction
+
+The first original operator replay at
+`/tmp/lunaflux-minimax-original-refiner-operators-20261012-v1` stops after
+norm1 with `component extent differs`. Inspection identifies a new diagnostic
+bug: the native observer sized planar Q/K/V and attention output using hidden
+width 5,376, but this checkpoint has **56 heads × 128 = 7,168** attention
+channels. Production launch binding already uses the correct head geometry;
+this is not evidence of a serving QKV geometry defect.
+
+The corrected observer derives byte ranges from the prepared workspace's
+head count and head dimension. For three text rows, planar Q/K/V requires
+129,024 bytes and attention output 43,008 bytes, whereas normalized/residual
+state remains 32,256 bytes. A regression uses unequal hidden and attention
+widths. The original adapter reads head geometry from its installed module,
+not an assumed `hidden/head_dimension` ratio. Failed original output and
+truncated diagnostic captures are preserved; fresh captures and comparisons
+are required before interpreting any operator-level result.
+
+Even the first observer's final conditioning is bitwise unchanged: all
+16,128 BF16 values match the earlier native capture. That only proves observing
+did not change execution, not that its scratch readback ranges were correct.

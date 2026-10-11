@@ -176,16 +176,30 @@ pub fn BlockWorkspace::capture_refiner_stage(
   self : Self,
   stage : RefinerStage,
 ) -> Bytes raise @device.DeviceError {
-  let p = self.layout
+  let (offset, count) = self.layout.refiner_capture_region(stage)
+  self.allocation.copy_to_host(offset, count)
+}
+
+///|
+/// Attention's inner width need not equal the residual state's hidden width.
+/// Reuse the prepared workspace dimensions, including planar Q/K/V ownership.
+fn BlockWorkspaceLayout::refiner_capture_region(
+  p : Self,
+  stage : RefinerStage,
+) -> (Int64, Int64) raise @device.DeviceError {
+  let attention_bytes = p.rows.to_int64() *
+    p.heads.to_int64() *
+    p.dimension.to_int64() *
+    2L
   let (offset, count) = match stage {
     Norm1 | Norm2 => (p.normalized_offset, p.hidden_bytes)
-    Qkv | QkNorm => (p.scratch_offset, p.hidden_bytes * 3L)
-    Attention => (p.scratch_offset + p.hidden_bytes * 3L, p.hidden_bytes)
+    Qkv | QkNorm => (p.scratch_offset, attention_bytes * 3L)
+    Attention => (p.scratch_offset + attention_bytes * 3L, attention_bytes)
     Projection | Down => (p.branch_offset, p.hidden_bytes)
     GateUp =>
       (p.scratch_offset, p.rows.to_int64() * p.intermediate.to_int64() * 2L)
     AttentionResidual | MlpResidual =>
       raise @device.DeviceError::InvalidArgument(CopyToHost)
   }
-  self.allocation.copy_to_host(offset, count)
+  (offset, count)
 }

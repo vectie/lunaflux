@@ -30,3 +30,23 @@ test "unrotated QK norm omits rotary operands instead of binding dummy tables" {
   assert_eq(rotated[4], 4)
   assert_eq(rotated[6], 0)
 }
+
+///|
+test "refiner capture keeps attention inner width distinct from hidden state" {
+  let p = BlockWorkspaceLayout::new(
+    rows=3,
+    hidden_width=5376,
+    head_count=56,
+    head_dimension=128,
+    intermediate_width=14336,
+    max_bytes=1048576L,
+  )
+  assert_eq(p.refiner_capture_region(Qkv), (p.scratch_offset, 129024L))
+  assert_eq(p.refiner_capture_region(QkNorm), (p.scratch_offset, 129024L))
+  assert_eq(
+    p.refiner_capture_region(Attention),
+    (p.scratch_offset + 129024L, 43008L),
+  )
+  assert_eq(p.refiner_capture_region(Projection).1, 32256L)
+  assert_eq(p.refiner_capture_region(GateUp).1, 86016L)
+}
