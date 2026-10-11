@@ -29,11 +29,22 @@ worst final-row relative L2 falls from 14.75% to 3.12% for digits and 22.11% to
 precision law for row/head normalization, preserving every BF16 boundary;
 fresh source-selected kernels reproduce both improvements bitwise and complete
 all twelve real-machine corpus cases. Eight worst-row comparisons improve and
-four worsen against the unchanged reference; row/head attribution continues.
+four worsen against the unchanged reference. English/digits/long row/head
+ablations are complete and show nonlinear interaction, not one universally
+faulty normalization kernel.
 Component correctness/determinism and all three CUDA sanitizer checks pass.
 This is not yet complete numerical/media-quality acceptance. See the [independent correctness investigation](INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md).
 The new wider-attention full-encoder diagnostic stays in the separate test-only
 MoonBit/ATen module, outside all production imports and execution paths.
+
+Fresh committed MiniMax source/AOT now also completes the full original-weight
+media pipeline: five fifty-block denoising evaluations, then both VAEs, with
+finite video/audio, exit 0, empty stderr, no unit swap and released GPU ownership.
+The requested 32 x 32 / 120-frame request resolves to 124 decoded frames by the
+existing temporal contract. Decoded video/audio differ substantially from the
+previous native arrays (72.05% / 108.17% relative L2); this is **not** a quality
+improvement claim. A matched new-runtime/old-conditioning control is running
+to isolate that downstream change before any further numerical modification.
 
 MiniMax's `run-joint` now connects its existing generic pipeline cancellation
 to the same explicit request-zero/count CLI suffix. Parsing occurs before

@@ -1,0 +1,97 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+/// Offline observation only: no production gate or numerical acceptance claim.
+fn completed(status : String, stdout : String, stderr : String) -> Bool {
+  status.contains("SubState=exited\n") &&
+  status.contains("Result=success\n") &&
+  status.contains("ExecMainStatus=0\n") &&
+  stdout.contains("joint_complete steps=") &&
+  stdout.contains(" nonfinite=0\n") &&
+  stderr.is_empty()
+}
+
+///|
+test "terminal observation does not mistake active or failed work for completion" {
+  let status = "SubState=exited\nResult=success\nExecMainStatus=0\n"
+  let stdout = "joint_complete steps=5 nonfinite=0\n"
+  assert_true(completed(status, stdout, ""))
+  assert_false(
+    completed(status.replace_all(old="exited", new="running"), stdout, ""),
+  )
+  assert_false(
+    completed(
+      status.replace_all(old="ExecMainStatus=0", new="ExecMainStatus=1"),
+      stdout,
+      "",
+    ),
+  )
+  assert_false(completed(status, "joint_stage=Completed\n", ""))
+  assert_false(completed(status, stdout, "execution failure"))
+  assert_false(
+    completed(
+      status,
+      stdout.replace_all(old="nonfinite=0", new="nonfinite=1"),
+      "",
+    ),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix] &&
+    root.has_prefix("/tmp/lunaflux-minimax-joint-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    !suffix.is_empty() &&
+    suffix.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+    fail("EXISTING_LOCAL_AND_REMOTE_ROOT UNIT_SUFFIX")
+  }
+  let capture = root + "/terminal"
+  @fs.mkdir(capture)
+  let unit = "lunaflux-minimax-joint-" + suffix + ".service"
+  let results : Array[String] = []
+  for
+    (name, command) in [
+      (
+        "unit",
+        "systemctl --user show " +
+        unit +
+        " -p LoadState -p ActiveState -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak -p ExecMainStartTimestamp -p ExecMainExitTimestamp -p ExecStart",
+      ),
+      ("run", "cat " + root + "/run.stdout"),
+      ("execution-error", "cat " + root + "/run.stderr"),
+      // A later control may already own this GPU when old logs are collected.
+      // This global snapshot is not attributed to the completed unit.
+      (
+        "gpu-owners", "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      ),
+      ("journal", "journalctl --user -u " + unit + " --no-pager -n 30"),
+    ] {
+    let result = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", "/tmp/lunaflux-checkpoint-live-20261010.sock",
+      "wlc003s@192.168.2.178", command,
+    ]).output(max_output_bytes=4194304)
+    @fs.write_file(
+      capture + "/" + name + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      capture + "/" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    results.push(result.stdout())
+  }
+  println(
+    "joint_terminal_complete=\{completed(results[0], results[1], results[2])} scope=execution_not_numerical_acceptance",
+  )
+}

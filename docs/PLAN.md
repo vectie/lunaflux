@@ -93,7 +93,10 @@ Remaining work is numerical/functional, not hardening:
   source's required 0.1.8. No original-upstream execution is claimed.
 - MiniMax needs whole-model numerical/media-quality attribution in addition
   to its accurate normalization component. Its fresh committed full media
-  request is under test; a finite media array alone is not quality acceptance.
+  request completes on Spark with finite arrays and explicit resource release.
+  Video/audio change by 72.05% / 108.17% relative L2 from the previous native
+  arrays. A new-runtime/old-conditioning control is running; do not assign
+  that downstream change to normalization alone or call it a quality gain.
 
 No payload hash, TLS, authentication step or production dependency is added by
 these diagnostics. Existing memory ceilings and deterministic release remain.

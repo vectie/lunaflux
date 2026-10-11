@@ -342,8 +342,53 @@ improve and four worsen against the unchanged library reference; the complete
 table, including regressions, is in
 [the diverse-input report](MINIMAX_DIVERSE_TEXT_ENCODER_2026-10-11.md).
 The more accurate component reduction is not evidence that every propagated
-library differential must decrease. Row-only/head-only interventions now
-separate their contributions before any further source change.
+library differential must decrease. The completed English/digits/long
+row-only/head-only interventions show nonlinear interaction, not one universal
+bad kernel; the full matrix is in the diverse-input report. No prompt-specific
+precision rule is introduced.
+
+### Fresh complete MiniMax media execution
+
+The committed `49b15d75` ARM binary and freshly exported, unmodified 31-module
+request AOT bundle execute the corrected three-row `A red cat` conditioning on
+Spark `.178`. The original FL2VA weights, geometry and seed 17 are unchanged.
+The request executes five denoising evaluations through all fifty blocks,
+then both actual video/audio VAEs. It exits zero, with empty execution stderr,
+zero unit swap and no GPU owner at the terminal observation. Its cgroup memory
+peak is 44,880,248,832 bytes, not complete CUDA unified-memory residency.
+Planned aggregate memory remains 81,920,540,616 under the 96-GiB device budget.
+
+Requested 120 frames resolve to **124 decoded frames** by the existing temporal
+shape contract, not an accidental tail or a newly changed frame rule. Output
+contains 380,928 finite video F32 values (32 x 32 x 124 x 3) and 331,200 finite
+stereo audio values (165,600 samples/channel). Start/exit times are 09:17:28 /
+09:46:52 CST. This single 29m24s correctness lifetime includes preparation and
+is not a comparative throughput or speedup claim.
+
+The new arrays are downloaded to
+`/tmp/lunaflux-minimax-joint-compensated-download-20261011-v1`;
+terminal logs/arguments are under
+`/tmp/lunaflux-minimax-joint-compensated-20261011-v1/terminal`.
+The offline F32 comparator passes its regression and an identity check on the
+previous real audio output. It measures the following change from the prior
+native media run, not independent media quality:
+
+| Array | RMSE | Relative L2 to prior native output | Maximum absolute difference |
+| --- | --- | --- | --- |
+| Video | 0.256252 | 72.0499% | 0.963326 |
+| Audio | 0.0377942 | 108.1699% | 0.277255 |
+
+Neither array has bitwise-equal F32 elements. Such a large downstream change
+must not be called an improvement just because encoder component arithmetic
+is more accurate. The previous actual-caption encoder output matches the
+unchanged twelve-case baseline bitwise. A fresh control now uses **the new
+binary and AOT but that old conditioning tensor**, with the same weights,
+geometry, steps and seed. It is retained separately at
+`/tmp/lunaflux-minimax-joint-old-conditioning-control-20261011-v1`.
+Until that control completes, these array differences cannot be attributed
+exclusively to conditioning sensitivity rather than another runtime change.
+The later global GPU-owner snapshot in the first run's collector can contain
+this control's PID; it is not a leak from the already completed first unit.
 
 The full native suite passes 4,981/4,981 tests, and the root native check passes
 with the existing toolchain migration warning exclusions
