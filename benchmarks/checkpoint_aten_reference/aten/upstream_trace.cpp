@@ -4,6 +4,7 @@
 #include <Python.h>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <string>
 
 int install_upstream_stream_loader();
@@ -14,6 +15,40 @@ struct Owned {
   ~Owned() { Py_XDECREF(p); }
   Owned(const Owned &) = delete;
 };
+
+// Explicit test-only capture at the first matched prefill frontier. Both
+// rank directories are distinct; no forwarding arithmetic is replaced.
+static int capture_prefill(PyObject *locals, PyObject *result) {
+  const char *path = std::getenv("LUNA_UPSTREAM_LOGIT_CAPTURE");
+  if (!path || !*path || !PyTuple_Check(result) || PyTuple_Size(result) != 3) return 0;
+  auto *position = PyDict_GetItemString(locals, "start_pos");
+  if (!position || !PyLong_Check(position) || PyLong_AsLong(position) != 0) return 0;
+  auto *self = PyDict_GetItemString(locals, "self");
+  if (!self) return 0;
+  Owned cls(PyObject_GetAttrString(self, "__class__"));
+  Owned name(cls.p ? PyObject_GetAttrString(cls.p, "__name__") : nullptr);
+  if (!name.p) return -1;
+  const char *class_name = PyUnicode_AsUTF8(name.p);
+  if (!class_name) return -1;
+  if (std::strcmp(class_name, "Transformer") != 0) return 0;
+  Owned f32(PyObject_CallMethod(PyTuple_GetItem(result, 1), "float", nullptr));
+  Owned cpu(f32.p ? PyObject_CallMethod(f32.p, "cpu", nullptr) : nullptr);
+  Owned array(cpu.p ? PyObject_CallMethod(cpu.p, "numpy", nullptr) : nullptr);
+  Owned bytes(array.p ? PyObject_CallMethod(array.p, "tobytes", nullptr) : nullptr);
+  if (!bytes.p || !PyBytes_Check(bytes.p)) return -1;
+  const auto size = PyBytes_Size(bytes.p);
+  if (size != 129280 * 4) {
+    PyErr_SetString(PyExc_ValueError, "original prefill vocabulary row has unexpected extent");
+    return -1;
+  }
+  auto *file = std::fopen(path, "wbx");
+  if (!file) { PyErr_SetFromErrnoWithFilename(PyExc_OSError, path); return -1; }
+  const bool written = std::fwrite(PyBytes_AsString(bytes.p), 1, size, file) == static_cast<size_t>(size);
+  const bool closed = std::fclose(file) == 0;
+  if (!written || !closed) { PyErr_SetString(PyExc_OSError, "prefill capture write failed"); return -1; }
+  std::printf("upstream_prefill_logits bytes=%zd numerical_path=unchanged\n", size);
+  return 0;
+}
 
 static int emit(PyObject *input, PyObject *output) {
   if (!PyList_Check(input) || !PyList_Check(output) ||
@@ -49,6 +84,10 @@ static int trace(PyObject *filename, PyFrameObject *frame, int event, PyObject *
   if (!file.p || !name.p) return -1;
   const char *function = PyUnicode_AsUTF8(name.p);
   if (!function) return -1;
+  if (std::strcmp(function, "forward") == 0) {
+    Owned locals(PyFrame_GetLocals(frame));
+    return locals.p ? capture_prefill(locals.p, result) : -1;
+  }
   if (std::strcmp(function, "generate") != 0) return 0;
   const int matched = PyObject_RichCompareBool(file.p, filename, Py_EQ);
   if (matched <= 0) return matched;

@@ -240,7 +240,7 @@ async fn main {
         (if last { "enp1s0f0np0" } else { "enp1s0f1np1" }) +
         " -e NCCL_SOCKET_IFNAME=" +
         (if last { "enp1s0f0np0" } else { "enp1s0f1np1" }) +
-        " -e OMP_NUM_THREADS=2 " +
+        " -e OMP_NUM_THREADS=2 -e LUNA_UPSTREAM_LOGIT_CAPTURE=/work/prefill-logits.f32 " +
         "-v " +
         root +
         ":/work -v " +

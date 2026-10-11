@@ -51,8 +51,8 @@ the **same eight payload bytes**, and loads back to the original Torch shape.
 The converter now expresses that distinction and has a regression. The new
 `--repair-packed` mode rewrites metadata and streams the unchanged payload into
 new rank directories; it never mutates the failed file or original checkpoint.
-Both repaired rank files now pass the upstream reader. The faithful upstream
-generation comparison is still pending.
+Both repaired rank files now pass the upstream reader. The bounded original
+generation comparison completed with the explicit hardware adapter below.
 
 The original `load_model` also builds an owning CPU tensor dictionary while
 the entire device model is already allocated. On Spark's unified memory that
@@ -87,8 +87,15 @@ softmax partitioning, two pipeline stages, sink arithmetic and output dtype.
 This hardware adapter changes the wrapper's work decomposition, not weights or
 model equations; it is explicitly **not an unmodified original launch**.
 The sparse-only launch probe succeeds with finite outputs on Spark `.178`.
-The full MP2 reference is running under `v7`; no full-model comparison pass is
-claimed until its actual literal outputs are available and match native inputs.
+The full MP2 reference completed under `v7` on both Sparks with exit zero and
+`OOMKilled=false`; both loaded all 36,943 rank tensors and released GPU owners.
+Actual input IDs match all 144 native IDs. Its first generated token is
+`33310` ("hello"), versus native `19923` ("Hello"). It then stops at EOS;
+the CLI's appended reporting EOS is excluded from the one-token comparison.
+Thus **0/1** same-prefix tokens agree. This reproduces the independent backend's
+capitalization disagreement, now without its FP8 sparse-KV substitution. It
+is a measured unresolved native/reference differential, not a correctness pass.
+Commands, logs and `COMPARISON.txt` remain in the separate `v7` directory.
 The offline adapter is `scripts/prepare-deepseek-spark-reference.mbtx` and the
 runner requires the explicit `--spark-head-tiles` option. Original checkpoint
 sources remain unchanged and mounted read-only.
