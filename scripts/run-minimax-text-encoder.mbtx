@@ -128,6 +128,23 @@ fn require_aot_rows(geometry : String, rows : Int) -> Unit raise {
 }
 
 ///|
+// A completed collector may overlap a later, independent GPU job. Attribute
+// retirement to this exact user unit, not every process visible on the GPU.
+fn encoder_retired(status : String) -> Bool {
+  status.contains("MainPID=0\n") &&
+  status.contains("ExecMainStatus=0\n") &&
+  (status.contains("SubState=dead\n") || status.contains("SubState=exited\n"))
+}
+
+///|
+test "encoder retirement is per-unit, not a later GPU owner's lifetime" {
+  assert_true(encoder_retired("MainPID=0\nExecMainStatus=0\nSubState=dead\n"))
+  assert_true(encoder_retired("MainPID=0\nExecMainStatus=0\nSubState=exited\n"))
+  assert_false(encoder_retired("MainPID=19\nExecMainStatus=0\nSubState=running\n"))
+  assert_false(encoder_retired("MainPID=0\nExecMainStatus=1\nSubState=dead\n"))
+}
+
+///|
 test "capture extents follow input rows, including longer original text" {
   for rows in [1, 3, 140, 1024] {
     assert_eq(input_rows(Bytes::make(rows * 4, 0)), rows)
@@ -323,8 +340,15 @@ async fn main {
     node, socket, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
   )
   record(root, "released", released)
-  guard released.stdout().trim().is_empty() else {
-    fail("encoder GPU owner remains")
+  let retired = remote(
+    node,
+    socket,
+    "systemctl --user show " + unit +
+      ".service -p MainPID -p ExecMainStatus -p SubState",
+  )
+  record(root, "retired-unit", retired)
+  guard encoder_retired(retired.stdout()) else {
+    fail("this encoder process has not retired")
   }
   record(
     root,
