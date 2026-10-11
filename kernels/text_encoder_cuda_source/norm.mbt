@@ -5,6 +5,7 @@ pub fn norm_source(
   width~ : Int,
   epsilon~ : Double,
   symbol~ : String,
+  square_reduction_law? : @precision.SquareReductionLaw = OrderedFloat32,
 ) -> Bytes raise TextEncoderSourceError {
   guard rows > 0 && rows <= 262144 && width > 0 && width <= 65536 else {
     raise InvalidShape
@@ -14,6 +15,7 @@ pub fn norm_source(
     raise InvalidEpsilon
   }
   let eps = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(epsilon)
+  let (initialization, update) = square_reduction(square_reduction_law)
   @utf8.encode(
     (
       $|#include <cuda_bf16.h>
@@ -22,8 +24,8 @@ pub fn norm_source(
       $|  const int row=blockIdx.x;
       $|  if(row>=\{rows} || threadIdx.x!=0) return;
       $|  const unsigned long long base=(unsigned long long)row*\{width};
-      $|  float sum=0.0f;
-      $|  for(int d=0;d<\{width};++d) { float v=__bfloat162float(input[base+d]); sum=__fadd_rn(sum,__fmul_rn(v,v)); }
+      $|  \{initialization}
+      $|  for(int d=0;d<\{width};++d) { float v=__bfloat162float(input[base+d]); \{update} }
       $|  const float inv=rsqrtf(__fadd_rn(__fdiv_rn(sum,\{width}.0f),\{eps}));
       $|  for(int d=0;d<\{width};++d) {
       $|    const float normalized=__bfloat162float(__float2bfloat16_rn(__fmul_rn(__bfloat162float(input[base+d]),inv)));

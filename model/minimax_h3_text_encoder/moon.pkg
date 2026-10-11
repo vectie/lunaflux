@@ -3,6 +3,7 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/math",
   "vectie/lunaflux/internal/json_guard",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
 }
 
 supported_targets = "native"

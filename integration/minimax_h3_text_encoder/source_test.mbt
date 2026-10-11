@@ -10,6 +10,9 @@ test "source distinguishes causal encoder from noncausal DiT and omits final nor
   assert_true(text.contains("h3text_rotary"))
   assert_false(text.contains("final_norm"))
   assert_false(text.contains("lm_head"))
+  // Both row and Q/K-head reductions consume the plan, not a patched cubin.
+  assert_eq(text.split("float sum=0.0f, correction=0.0f;").count(), 3)
+  assert_eq(text.split("const float square=__fmul_rn(v,v);").count(), 3)
 }
 
 ///|

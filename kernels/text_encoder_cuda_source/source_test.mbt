@@ -30,3 +30,42 @@ test "causal GQA source keeps normalized and rotary BF16 stage boundaries" {
     _ => fail("invalid GQA admitted")
   }
 }
+
+///|
+test "square summation policy preserves BF16 boundaries and ordered default" {
+  let ordered = @utf8.decode(
+    norm_source(rows=2, width=5120, epsilon=0.000001, symbol="ordered"),
+  )
+  let compensated = @utf8.decode(
+    norm_source(
+      rows=2,
+      width=5120,
+      epsilon=0.000001,
+      symbol="accurate",
+      square_reduction_law=CompensatedFloat32,
+    ),
+  )
+  assert_true(ordered.contains("sum=__fadd_rn(sum,__fmul_rn(v,v));"))
+  assert_false(ordered.contains("correction"))
+  assert_true(
+    compensated.contains("correction=__fsub_rn(__fsub_rn(next,sum),adjusted);"),
+  )
+  assert_true(
+    compensated.contains("__bfloat162float(__float2bfloat16_rn(__fmul_rn"),
+  )
+  assert_false(compensated.contains("double"))
+  let head = @utf8.decode(
+    attention_source(
+      rows=2,
+      query_heads=4,
+      kv_heads=2,
+      dimension=128,
+      epsilon=0.000001,
+      prefix="accurate",
+      square_reduction_law=CompensatedFloat32,
+    ),
+  )
+  assert_true(head.contains("float sum=0.0f, correction=0.0f;"))
+  assert_true(head.contains("score=__fadd_rn(score,__fmul_rn"))
+  assert_true(head.contains("threadIdx.x!=0"))
+}

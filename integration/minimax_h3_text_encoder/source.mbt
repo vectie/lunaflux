@@ -35,6 +35,7 @@ pub fn build_source(
     width=5120,
     epsilon=plan.epsilon,
     symbol=symbols[1],
+    square_reduction_law=plan.square_reduction_law(),
   )
   let q = @decoder_projection_cuda_source.dense_projection_bf16_source(
     input_width=5120,
@@ -55,6 +56,7 @@ pub fn build_source(
     dimension=128,
     epsilon=plan.epsilon,
     prefix~,
+    square_reduction_law=plan.square_reduction_law(),
   )
   let out = @decoder_projection_cuda_source.dense_projection_bf16_source(
     input_width=8192,

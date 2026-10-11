@@ -25,6 +25,7 @@ pub fn attention_source(
   dimension~ : Int,
   epsilon~ : Double,
   prefix~ : String,
+  square_reduction_law? : @precision.SquareReductionLaw = OrderedFloat32,
 ) -> Bytes raise TextEncoderSourceError {
   guard rows > 0 &&
     rows <= 262144 &&
@@ -43,6 +44,7 @@ pub fn attention_source(
     raise InvalidEpsilon
   }
   let eps = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(epsilon)
+  let (initialization, update) = square_reduction(square_reduction_law)
   let group = query_heads / kv_heads
   @utf8.encode(
     (
@@ -56,8 +58,8 @@ pub fn attention_source(
       $|  const int heads=h<\{query_heads} ? \{query_heads} : \{kv_heads};
       $|  const int head=h<\{query_heads} ? h : h-\{query_heads};
       $|  const unsigned long long base=((unsigned long long)row*heads+head)*\{dimension};
-      $|  float sum=0.0f;
-      $|  for (int d=0;d<\{dimension};++d) { float v=__bfloat162float(x[base+d]); sum=__fadd_rn(sum,__fmul_rn(v,v)); }
+      $|  \{initialization}
+      $|  for (int d=0;d<\{dimension};++d) { float v=__bfloat162float(x[base+d]); \{update} }
       $|  const float inv=rsqrtf(__fadd_rn(__fdiv_rn(sum,\{dimension}.0f),\{eps}));
       $|  for (int d=0;d<\{dimension};++d) {
       $|    float v=__bfloat162float(__float2bfloat16_rn(__fmul_rn(__bfloat162float(x[base+d]),inv)));

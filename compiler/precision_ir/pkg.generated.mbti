@@ -567,6 +567,14 @@ pub fn SimulatedCacheScale::equal(Self, Self) -> Bool
 pub fn SimulatedCacheScale::not_equal(Self, Self) -> Bool
 pub fn SimulatedCacheScale::to_repr(Self) -> @debug.Repr
 
+pub(all) enum SquareReductionLaw {
+  OrderedFloat32
+  CompensatedFloat32
+} derive(Eq, @debug.Debug)
+pub fn SquareReductionLaw::equal(Self, Self) -> Bool
+pub fn SquareReductionLaw::not_equal(Self, Self) -> Bool
+pub fn SquareReductionLaw::to_repr(Self) -> @debug.Repr
+
 pub struct StreamMeanCapturePrecision {
   // private fields
 }

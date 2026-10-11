@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "vectie/lunaflux/model/minimax_h3_text_encoder"
 
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
 // Values
 pub fn embedding_region() -> WeightRegion
 
@@ -65,6 +69,7 @@ pub struct TextEncoderPlan {
 pub fn TextEncoderPlan::new(rows~ : Int, epsilon~ : Double) -> Self raise TextEncoderError
 pub fn TextEncoderPlan::output_bytes(Self) -> Int64
 pub fn TextEncoderPlan::selected_hidden_state(Self) -> Int
+pub fn TextEncoderPlan::square_reduction_law(Self) -> @precision_ir.SquareReductionLaw
 pub fn TextEncoderPlan::validate_text_tokens(Self, ArrayView[Int], image_token~ : Int, video_token~ : Int) -> Unit raise TextEncoderError
 pub fn TextEncoderPlan::workspace_regions(Self) -> ReadOnlyArray[(Int64, Int64)]
 

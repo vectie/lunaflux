@@ -275,6 +275,43 @@ original native numerical contract to force token agreement.
 
 ## Source validation
 
+### MiniMax normalization-only intervention
+
+Two real Spark runs replace only the row/head RMSNorm square summation with
+compensated F32 addition. Original weights, literal tokens, scalar launch
+geometry, projections, attention and BF16 operator boundaries remain unchanged.
+Both fifty-layer executions exit zero with empty execution stderr, download all
+51 hidden states and leave no GPU owner. The original independent reference is
+unchanged; neither library arithmetic nor its acceptance threshold is adjusted.
+
+| Original input | Original native worst final-row relative L2 | Compensated native worst final-row relative L2 | Compensated final global relative L2 |
+| --- | --- | --- | --- |
+| Digits, 56 rows | 14.7532% (row 23) | 3.1238% (row 17) | 0.4532% |
+| Long input, 140 rows | 22.1058% (row 5) | 9.0533% (row 6) | 0.7959% |
+
+Digits row 23 specifically improves to 2.3349%. Reporting the new worst row is
+important: that improvement alone must not be presented as the whole tensor's
+error. The experiment isolates lost small square contributions in the original
+ordered F32 accumulator as a substantial contributor, not the sole cause of
+all numerical differences. Remaining propagated differences are still open.
+
+The separate experimental AOT directories are
+`/tmp/lunaflux-minimax-request-aot-compensated-{digits,long}-20261011-v2`;
+native captures and final reports are under the corresponding
+`/tmp/lunaflux-minimax-text-encoder-compensated-{digits,long}-20261011-v2`.
+Layer reports are in `/tmp/lunaflux-minimax-compensated-{digits,long}-series-20261011-v2`.
+The reused experiment manifest supplies original geometry/symbols only; it is
+not proof of original source identity. These artifacts are separate from the
+original AOT and are not a source-selected production validation.
+
+The source fix expresses `SquareReductionLaw` in the backend-neutral precision
+IR. The immutable MiniMax text plan selects compensated F32; CUDA lowering
+consumes it in both row and Q/K-head normalization. Generic callers retain the
+explicit ordered-F32 default. Compensation does not widen storage or move the
+BF16 normalize-before-weight boundary. There is no token-path configuration,
+new allocation, hashing, TLS or additional hardware-specific model branching.
+Fresh source-selected AOT execution remains the next validation step.
+
 The full native suite passes 4,979/4,979 tests, and the root native check passes
 with the existing toolchain migration warning exclusions
 `-20-25-29-35-79-92`. `moon info` completes with zero errors and the existing

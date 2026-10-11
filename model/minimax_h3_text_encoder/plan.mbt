@@ -33,6 +33,16 @@ pub fn TextEncoderPlan::selected_hidden_state(_self : Self) -> Int {
 }
 
 ///|
+/// Accuracy policy for row and head RMSNorm. Intermediate normalization and
+/// weight multiplication still round independently to BF16. This immutable law
+/// contains no device instructions and is consumed only during AOT lowering.
+pub fn TextEncoderPlan::square_reduction_law(
+  _self : Self,
+) -> @precision.SquareReductionLaw {
+  CompensatedFloat32
+}
+
+///|
 pub fn TextEncoderPlan::output_bytes(self : Self) -> Int64 {
   self.rows.to_int64() * 5120L * 2L
 }
