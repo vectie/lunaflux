@@ -24,7 +24,11 @@ fn capture_joint_prefix(
   weights : @program.PredictionWeights,
   embeddings : @device.Allocation,
   parameters : @device.Allocation,
+  blocks~ : Int,
 ) -> Array[(String, Bytes)] raise {
+  guard blocks > 0 && blocks <= 50 else {
+    fail("invalid diagnostic block extent")
+  }
   text.execute()
   conditioning.execute()
   let predictions = layout.metadata.bind_conditioned(
@@ -85,37 +89,43 @@ fn capture_joint_prefix(
   let embedding = variant.with_timestep_embedding((allocation, offset, size) => {
     allocation.copy_to_host(offset, size)
   })
-  let first = layout.metadata.bind_first_block(
-    variants,
-    input,
-    rotary,
-    weights,
-    timestep_embeddings=embeddings,
-    parameters~,
-  )
-  let block_queue = context.create_ordered_kernel_executor(
-    stream,
-    first[:],
-    policy=OrderedKernelEagerOnly,
-  )
-  defer block_queue.close()
-  for index in 0..<block_queue.kernel_count() {
-    block_queue.enqueue(index)
-  }
-  block_queue.record_completion()
-  block_queue.wait_completion()
-  let first_output = input
-    .packed_state()
-    .with_state(
-      layout.sequence.assembly().mapping(),
-      width=layout.sequence.assembly().width(),
-      (allocation, offset) => {
-        allocation.copy_to_host(
-          offset,
-          layout.sequence.assembly().element_count() * 2L,
-        )
-      },
+  let captures : Array[(String, Bytes)] = []
+  for block in 0..<blocks {
+    let first = layout.metadata.bind_initial_block(
+      variants,
+      input,
+      rotary,
+      weights,
+      timestep_embeddings=embeddings,
+      parameters~,
+      block~,
     )
+    let block_queue = context.create_ordered_kernel_executor(
+      stream,
+      first[:],
+      policy=OrderedKernelEagerOnly,
+    )
+    defer block_queue.close()
+    for index in 0..<block_queue.kernel_count() {
+      block_queue.enqueue(index)
+    }
+    block_queue.record_completion()
+    block_queue.wait_completion()
+    let first_output = input
+      .packed_state()
+      .with_state(
+        layout.sequence.assembly().mapping(),
+        width=layout.sequence.assembly().width(),
+        (allocation, offset) => {
+          allocation.copy_to_host(
+            offset,
+            layout.sequence.assembly().element_count() * 2L,
+          )
+        },
+      )
+    captures.push(("block-\{block}.bf16", first_output))
+    println("joint_prefix_block=\{block}")
+  }
   let positions : Array[Float] = []
   for position in layout.positions.positions() {
     positions.append([
@@ -124,10 +134,9 @@ fn capture_joint_prefix(
       Float::from_double(position.width),
     ])
   }
-  [
+  let files = [
     ("packed-input.bf16", packed),
     ("timestep.f32", embedding),
-    ("block-0.bf16", first_output),
     ("positions.f32", joint_float_bytes(positions[:])),
     (
       "combined.i32",
@@ -142,10 +151,12 @@ fn capture_joint_prefix(
     (
       "PREFIX.txt",
       @utf8.encode(
-        "scope=first_real_denoiser_input_and_block\npacked_rows=\{layout.sequence.assembly().rows().length()}\ndistinct_times=\{count}\nblock_count=1\nno_media_output=true\n",
+        "scope=first_real_denoiser_input_and_blocks\npacked_rows=\{layout.sequence.assembly().rows().length()}\ndistinct_times=\{count}\nblock_count=\{blocks}\nno_media_output=true\n",
       ),
     ),
   ]
+  files.append(captures)
+  files
 }
 
 ///|

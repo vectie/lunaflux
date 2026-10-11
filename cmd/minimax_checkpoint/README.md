@@ -9,6 +9,11 @@ first block. After queue retirement it writes literal `packed-input.bf16`,
 the model layer count, substitute noise by seed equivalence, execute a flow
 update, or publish media. Ordinary serving performs none of these readbacks.
 
+`run-joint-prefix-full` uses the same inputs but retires and captures all fifty
+blocks of the initial evaluation. It writes `block-0.bf16` through
+`block-49.bf16`, preserving literal predecessor inputs for local-versus-
+propagated original comparisons. It still produces no media or flow update.
+
 `text-ids VARIANT_ROOT TOKENIZER_LABEL INPUT_UTF8_FILE NEW_OUTPUT_DIRECTORY
 MAX_TOKENS` loads the installed `text_encoder/tokenizer.json` and encodes literal
 caption text through the shared checkpoint text frontend. It writes

@@ -53,13 +53,14 @@ async fn copy(source : String, destination : String) -> Unit {
 }
 
 ///|
-fn block_shards(index : String) -> Array[String] raise {
+fn block_shards(index : String, blocks? : Int = 1) -> Array[String] raise {
   guard @json.parse(index) is { "weight_map": Object(fields), .. } else {
     fail("original index required")
   }
   let shards : Map[String, Unit] = Map([])
+  let prefixes = Array::makei(blocks, i => "transformer_blocks.\{i}.")
   for name, entry in fields {
-    if name.has_prefix("transformer_blocks.0.") || name == "rope.inv_freq" {
+    if prefixes.any(prefix => name.has_prefix(prefix)) || name == "rope.inv_freq" {
       guard entry is String(shard) else { fail("original shard name required") }
       shards[shard] = ()
     }
@@ -105,8 +106,10 @@ async fn main {
     )
   }
   let tag = root[5:].to_owned()
+  let full = mode.has_suffix("-full")
+  let stage = if full { mode[:mode.length()-5].to_owned() } else { mode }
   let source = "/data/models/MiniMax/MiniMax-H3/transformer/"
-  if mode == "prepare" {
+  if stage == "prepare" {
     @fs.mkdir(root)
     @fs.mkdir(root + "/model")
     for
@@ -148,12 +151,13 @@ async fn main {
       copy(root + "/model/" + name, node + ":" + root + "/model/" + name)
     }
   }
-  if mode == "prepare" || mode == "finish-prepare" {
+  if stage == "prepare" || mode == "finish-prepare" {
     for
       shard in block_shards(
         @fs.read_file(
           root + "/model/diffusion_pytorch_model.safetensors.index.json",
         ).text(),
+        blocks=if full { 50 } else { 1 },
       ) {
       println("staging original shard over cluster-local link " + shard)
       // Retain an interrupted desktop copy separately when resuming.
@@ -199,7 +203,7 @@ async fn main {
       )
     }
   }
-  if mode == "prepare" || mode == "finish-prepare" || mode.has_prefix("compile") {
+  if stage == "prepare" || mode == "finish-prepare" || mode.has_prefix("compile") {
     copy(
       "/tmp/lunaflux-minimax-rotary-20261010-v1/rope.inv_freq.f32",
       node + ":" + root + "/model/rope.inv_freq.f32",
@@ -225,14 +229,15 @@ async fn main {
         " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/dit_block_upstream.cpp -o /work/original-block -lpython3.12",
       ),
     )
-  } else if mode == "inputs" {
+  } else if stage == "inputs" {
     guard extra is [capture] else { fail("literal native output required") }
     @fs.mkdir(root + "/input")
-    for
-      file in [
+    let files = [
         "packed-input.bf16", "timestep.f32", "positions.f32", "combined.i32", "documents.i32",
-        "block-0.bf16", "PREFIX.txt",
-      ] {
+        "PREFIX.txt",
+      ]
+    for i in 0..<(if full { 50 } else { 1 }) { files.push("block-\{i}.bf16") }
+    for file in files {
       @shell.Cmd("scp", [
         "-o",
         "BatchMode=yes",
@@ -245,7 +250,7 @@ async fn main {
       .check()
       copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
     }
-  } else if mode == "run" || mode.has_prefix("run-retry") {
+  } else if stage == "run" || mode.has_prefix("run-retry") {
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -266,7 +271,7 @@ async fn main {
         root +
         ":/work --entrypoint /work/original-block " +
         image +
-        " /work/model /work/input /work/output",
+        " /work/model /work/input /work/output" + (if full { " 50" } else { "" }),
       ),
     )
     record(
@@ -287,6 +292,28 @@ async fn main {
       @fs.write_file(root + "/used-" + label + ".bf16", data[:rows * 5376 * 2], create_mode=CreateNew)
     }
     record(root, "comparison-used", @shell.Cmd("moon", ["run", "scripts/compare-minimax-encoder-reference.mbtx", root + "/used-native.bf16", root + "/used-original.bf16", root + "/comparison-used.txt", "matched_original_first_dit_block_primary_document_padding_report_retained_separately", "5376"]).output())
+  } else if mode == "collect-full" {
+    @fs.mkdir(root + "/output")
+    let real = primary_document_rows(@fs.read_file(root + "/input/documents.i32").binary())
+    let summary = StringBuilder()
+    summary.write_string("block\tpredecessor\treal_rows\treport\n")
+    for i in 0..<50 {
+      let native = @fs.read_file(root + "/input/block-\{i}.bf16").binary()
+      for predecessor in ["matched", "propagated"] {
+        let file = "\{predecessor}-block-\{i}.bf16"
+        copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
+        let original = @fs.read_file(root + "/output/" + file).binary()
+        let npath = root + "/output/native-real-\{i}-\{predecessor}.bf16"
+        let opath = root + "/output/original-real-\{i}-\{predecessor}.bf16"
+        @fs.write_file(npath, native[:real*5376*2].to_owned(), create_mode=CreateNew)
+        @fs.write_file(opath, original[:real*5376*2].to_owned(), create_mode=CreateNew)
+        let report = root + "/output/\{predecessor}-block-\{i}.txt"
+        @shell.Cmd("moon", ["run", "scripts/compare-minimax-encoder-reference.mbtx",
+          npath, opath, report, "literal_original_dit_\{predecessor}_block_\{i}", "5376"]).output().check()
+        summary.write_string("\{i}\t\{predecessor}\t\{real}\t\{report}\n")
+      }
+    }
+    @fs.write_file(root + "/block-reports.tsv", summary.to_string(), create_mode=CreateNew)
   } else if mode == "collect" {
     @fs.mkdir(root + "/output")
     copy(

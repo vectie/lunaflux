@@ -118,6 +118,14 @@ the first step, not fifty-block/twenty-step parity or a media-quality pass.
 The next comparison must trace the complete denoiser on identical noise and
 conditioning; the failed native video is not repaired by this diagnostic.
 
+The full initial-evaluation replay is now implemented: native captures each of
+the fifty retired blocks, and the installed original executes each block twice,
+on its literal native predecessor and its propagated original predecessor.
+Only one original block's weights reside on CUDA at a time. This separates
+local implementation error from accumulated drift without exceeding the
+machine's unified-memory budget. Implementation is not a completed numerical
+or quality result; first-step input embedding/refiner parity also remains open.
+
 ```sh
 moon run scripts/run-minimax-upstream-video.mbtx prepare NEW_REFERENCE_ROOT CAPTURED_VIDEO_LATENT_F32 --latent-shape 37 8 8
 moon run scripts/run-minimax-upstream-video.mbtx run NEW_REFERENCE_ROOT

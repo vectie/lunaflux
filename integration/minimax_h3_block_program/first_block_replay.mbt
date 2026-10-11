@@ -11,6 +11,33 @@ pub fn PredictionMetadata::bind_first_block(
   timestep_embeddings~ : @device.Allocation,
   parameters~ : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise {
+  self.bind_initial_block(
+    variants,
+    input,
+    rotary,
+    weights,
+    block=0,
+    timestep_embeddings~,
+    parameters~,
+  )
+}
+
+///|
+/// Offline layer replay retains the original first-step mapping and lets a
+/// caller retire each block independently. No observer enters serving plans.
+pub fn PredictionMetadata::bind_initial_block(
+  self : Self,
+  variants : ArrayView[PredictionVariant],
+  input : InputProgram,
+  rotary : @joint_diffusion_device.RotaryBindings,
+  weights : PredictionWeights,
+  block~ : Int,
+  timestep_embeddings~ : @device.Allocation,
+  parameters~ : @device.Allocation,
+) -> Array[@device.OrderedKernelLaunch] raise {
+  guard block >= 0 && block < weights.layers.length() else {
+    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+  }
   guard self.ready else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
@@ -22,7 +49,7 @@ pub fn PredictionMetadata::bind_first_block(
   } nobreak {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
-  let (packing, allocation) = weights.layers[0]
+  let (packing, allocation) = weights.layers[block]
   input
   .packed_state()
   .with_state(

@@ -262,10 +262,10 @@ test "long quality campaigns have an explicit non-default time budget" {
 ///|
 // Offline process I/O only: progress must be visible while a long media request
 // computes. This does not change the runtime, kernels or request semantics.
-fn diagnostic_process(binary : String, capture_latents : Bool, capture_prefix : Bool) -> String {
+fn diagnostic_process(binary : String, capture_latents : Bool, capture_prefix : Bool, full_prefix? : Bool = false) -> String {
   " /usr/bin/stdbuf -oL -eL " +
   binary +
-  (if capture_prefix { " run-joint-prefix " } else if capture_latents { " run-joint-latents " } else { " run-joint " })
+  (if full_prefix { " run-joint-prefix-full " } else if capture_prefix { " run-joint-prefix " } else if capture_latents { " run-joint-latents " } else { " run-joint " })
 }
 
 ///|
@@ -279,6 +279,7 @@ test "long media diagnostics publish progress without changing execution mode" {
     " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-latents ",
   )
   assert_eq(diagnostic_process("/tmp/media.exe", false, true), " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-prefix ")
+  assert_eq(diagnostic_process("/tmp/media.exe", false, true, full_prefix=true), " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-prefix-full ")
 }
 
 ///|
@@ -305,7 +306,14 @@ test "prefix capture cannot silently replace a media run" {
 
 ///|
 async fn main {
-  let (prefix_args, capture_prefix) = prefix_arguments(@env.args())
+  let raw = @env.args()
+  let full_prefix = raw.last() == Some("--capture-prefix-full")
+  let prefix_selected = if full_prefix {
+    let selected = raw[:raw.length()-1].to_owned()
+    selected.push("--capture-prefix")
+    selected
+  } else { raw }
+  let (prefix_args, capture_prefix) = prefix_arguments(prefix_selected)
   let (runtime_args, runtime_seconds) = runtime_arguments(prefix_args)
   let (capture_args, capture_latents) = capture_arguments(runtime_args)
   let (seed_args, seed) = seed_arguments(capture_args)
@@ -433,7 +441,7 @@ async fn main {
     " --property=StandardError=file:" +
     root +
     "/run.stderr" +
-    diagnostic_process(binary, capture_latents, capture_prefix) +
+    diagnostic_process(binary, capture_latents, capture_prefix, full_prefix~) +
     variant +
     " " +
     geometry +

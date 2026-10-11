@@ -1,6 +1,7 @@
 // Offline original H3 block. All math stays in the installed unmodified module;
 // literal serving input/timestep/position/document tensors are supplied by replay.
 #include "original_tensor_io.h"
+#include <cstdlib>
 
 // The original vLLM modules require their public configuration context even
 // in a one-block offline replay. This changes setup, not module arithmetic.
@@ -32,24 +33,25 @@ static bool parameter(PyObject *object, PyObject *open, PyObject *map,
   return copied.p!=nullptr;
 }
 
-static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *root) {
+static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *root,int number) {
+  const std::string prefix="transformer_blocks."+std::to_string(number)+".";
   Owned attention(PyObject_GetAttrString(block,"attn"));
   Owned qkv(attention.p?PyObject_GetAttrString(attention.p,"qkv_proj"):nullptr);
   if(!qkv.p)return false;
   for(const char *part:{"q","k","v"}) {
-    const std::string name="transformer_blocks.0.attn.to_"+std::string(part)+".weight";
+    const std::string name=prefix+"attn.to_"+std::string(part)+".weight";
     if(!parameter(qkv.p,open,map,root,"weight",name.c_str(),part))return false;
   }
   for(const auto &pair:std::vector<std::pair<const char*,const char*>>{
       {"q_norm","attn.norm_q.weight"},{"k_norm","attn.norm_k.weight"},
       {"out_proj","attn.to_out.0.weight"}}) {
     Owned child(PyObject_GetAttrString(attention.p,pair.first));
-    const std::string source="transformer_blocks.0."+std::string(pair.second);
+    const std::string source=prefix+std::string(pair.second);
     if(!child.p||!parameter(child.p,open,map,root,"weight",source.c_str()))return false;
   }
   for(const char *name:{"norm1","norm2"}) {
     Owned child(PyObject_GetAttrString(block,name));
-    const std::string source="transformer_blocks.0."+std::string(name)+".weight";
+    const std::string source=prefix+std::string(name)+".weight";
     if(!child.p||!parameter(child.p,open,map,root,"weight",source.c_str()))return false;
   }
   Owned mlp(PyObject_GetAttrString(block,"mlp"));
@@ -57,7 +59,7 @@ static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *
   Owned fc2(mlp.p?PyObject_GetAttrString(mlp.p,"fc2"):nullptr);
   Owned target(fc1.p?PyObject_GetAttrString(fc1.p,"weight"):nullptr);
   Owned loader(target.p?PyObject_GetAttrString(target.p,"weight_loader"):nullptr);
-  Owned fused(weight(open,map,root,"transformer_blocks.0.ff.net.0.proj.weight"));
+  Owned fused(weight(open,map,root,(prefix+"ff.net.0.proj.weight").c_str()));
   if(!loader.p||!fused.p||!fc2.p)return false;
   for(int shard=0;shard<2;++shard) {
     Owned half(PyObject_CallMethod(fused.p,"narrow","iii",0,shard*14336,14336));
@@ -65,14 +67,14 @@ static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *
     Owned copied(args.p?PyObject_CallObject(loader.p,args.p):nullptr);
     if(!copied.p)return false;
   }
-  if(!parameter(fc2.p,open,map,root,"weight","transformer_blocks.0.ff.net.2.weight"))return false;
+  if(!parameter(fc2.p,open,map,root,"weight",(prefix+"ff.net.2.weight").c_str()))return false;
   Owned adaln(PyObject_GetAttrString(block,"adaln_proj"));
   Owned linear(adaln.p?PyObject_GetAttrString(adaln.p,"linear"):nullptr);
-  return linear.p&&parameter(linear.p,open,map,root,"weight","transformer_blocks.0.adaln_proj.linear.weight")&&
-    parameter(linear.p,open,map,root,"bias","transformer_blocks.0.adaln_proj.linear.bias");
+  return linear.p&&parameter(linear.p,open,map,root,"weight",(prefix+"adaln_proj.linear.weight").c_str())&&
+    parameter(linear.p,open,map,root,"bias",(prefix+"adaln_proj.linear.bias").c_str());
 }
 
-static int execute(const char *root,const char *input,const char *out) {
+static int execute(const char *root,const char *input,const char *out,int blocks) {
   Owned torch(PyImport_ImportModule("torch")),safe(PyImport_ImportModule("safetensors"));
   Owned distributed(PyImport_ImportModule("vllm.distributed"));
   if(!torch.p||!safe.p||!distributed.p)return -1;
@@ -106,7 +108,7 @@ static int execute(const char *root,const char *input,const char *out) {
   Owned ctor(arch.p?PyTuple_Pack(2,arch.p,Py_None):nullptr);
   Owned block(cls.p&&ctor.p?PyObject_CallObject(cls.p,ctor.p):nullptr);
   Owned gpu(block.p?PyObject_CallMethod(block.p,"to","s","cuda"):nullptr);
-  if(!gpu.p||!map||!open.p||!load_block(gpu.p,open.p,map,root))return -1;
+  if(!gpu.p||!map||!open.p)return -1;
   const std::string base(input);
   Owned x0(literal_bf16(torch.p,bf16.p,(base+"/packed-input.bf16").c_str(),1024,5376));
   Owned x(x0.p?PyObject_CallMethod(x0.p,"view","ii",1024,5376):nullptr);
@@ -138,19 +140,39 @@ static int execute(const char *root,const char *input,const char *out) {
   Owned copied(inverse.p&&source.p?PyObject_CallMethod(inverse.p,"copy_","O",source.p):nullptr);
   Owned positions(p.p?PyTuple_Pack(1,p.p):nullptr);
   Owned frequencies(copied.p&&positions.p?PyObject_CallObject(rope_gpu.p,positions.p):nullptr);
-  Owned args(x.p?PyTuple_Pack(1,x.p):nullptr);
   Owned kw(t.p&&indices.p&&frequencies.p&&docs.p?Py_BuildValue("{s:O,s:O,s:O,s:O,s:i}",
     "t_emb",t.p,"combined_indices",indices.p,"rope_freqs",frequencies.p,
     "cu_seqlens",docs.p,"max_seqlen",1009):nullptr);
-  Owned result(args.p&&kw.p?PyObject_Call(gpu.p,args.p,kw.p):nullptr);
-  if(!result.p||!save(result.p,u8.p,std::string(out)+"/block-0.bf16",1024LL*5376*2))return -1;
-  std::puts("original_dit_block_complete literal_inputs=true original_arithmetic=true media_quality=false");
+  if(!x.p||!kw.p)return -1;
+  Owned propagated(Py_NewRef(x.p));
+  for(int number=0;number<blocks;++number) {
+    if(!load_block(gpu.p,open.p,map,root,number))return -1;
+    Owned previous(number?literal_bf16(torch.p,bf16.p,
+      (base+"/block-"+std::to_string(number-1)+".bf16").c_str(),1024,5376):Py_NewRef(x.p));
+    Owned matched(previous.p?PyObject_CallMethod(previous.p,"view","ii",1024,5376):nullptr);
+    Owned args(matched.p?PyTuple_Pack(1,matched.p):nullptr);
+    Owned result(args.p?PyObject_Call(gpu.p,args.p,kw.p):nullptr);
+    const std::string label=std::to_string(number)+".bf16";
+    if(!result.p||!save(result.p,u8.p,std::string(out)+"/"+
+        (blocks==1?"block-":"matched-block-")+label,1024LL*5376*2))return -1;
+    if(blocks>1) {
+      Owned pargs(PyTuple_Pack(1,propagated.p));
+      Owned next(pargs.p?PyObject_Call(gpu.p,pargs.p,kw.p):nullptr);
+      if(!next.p||!save(next.p,u8.p,std::string(out)+"/propagated-block-"+label,1024LL*5376*2))return -1;
+      Py_SETREF(propagated.p,Py_NewRef(next.p));
+    }
+    std::printf("original_dit_block=%d literal_predecessor=true propagated_predecessor=%s\n",number,blocks>1?"true":"false");
+    std::fflush(stdout);
+  }
+  std::puts("original_dit_blocks_complete literal_inputs=true original_arithmetic=true media_quality=false");
   return 0;
 }
 
 int main(int argc,char **argv) {
-  if(argc!=4)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3]);
+  if(argc!=4&&argc!=5)return 2;
+  const int blocks=argc==5?std::atoi(argv[4]):1;
+  if(blocks<1||blocks>50)return 2;
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],blocks);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

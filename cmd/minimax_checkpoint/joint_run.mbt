@@ -12,6 +12,7 @@ async fn run_joint(
   cancel_after_frames~ : Int,
   capture_latents~ : Bool,
   capture_prefix~ : Bool,
+  capture_blocks? : Int = 1,
 ) -> Unit {
   let layout = joint_layout(root, metadata, model, args)
   let limit = @string.parse_int64(args[15])
@@ -297,6 +298,7 @@ async fn run_joint(
           weights,
           embeddings,
           parameters,
+          blocks=capture_blocks,
         ),
       )
       return
@@ -331,7 +333,7 @@ async fn run_joint(
       @fs.write_file(args[17] + "/" + name, bytes, create_mode=CreateNew)
     }
     println(
-      "joint_prefix_captured actual_conditioning=true actual_initial_noise=true denoiser_blocks=1 no_media_output=true",
+      "joint_prefix_captured actual_conditioning=true actual_initial_noise=true denoiser_blocks=\{capture_blocks} no_media_output=true",
     )
     return
   }

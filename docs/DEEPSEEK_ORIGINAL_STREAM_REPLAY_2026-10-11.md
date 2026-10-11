@@ -140,6 +140,30 @@ The retired observer now exposes rotary query/KV, sparse attention and grouped
 output-A as well, so that production one-row execution can be compared without
 confounding it with the earlier 144-row component geometry.
 
+## Executed one-row attention components — 2026-10-12
+
+Both complete layer-0 executions retain the same original 144 token IDs,
+one-row submission geometry and persistent history. Native `e8ad0197` and the
+unmodified original complete, exit zero and release their GPU owners.
+
+| Frontier | Exact BF16 / values | Relative L2 |
+| --- | --- | --- |
+| Attention input | 589,824 / 589,824 | 0 |
+| Normalized low-rank query | 147,456 / 147,456 | 0 |
+| Rotary query | 4,718,441 / 4,718,592 | 0.000226269% |
+| Quantized simulated KV | 73,728 / 73,728 | 0 |
+| Sparse attention | 4,717,504 / 4,718,592 | 0.006288009% |
+| Grouped output-A | 1,163,683 / 1,179,648 | 0.031320318% |
+| Output-B / attention branch | 491,296 / 589,824 | 0.138442652% |
+
+Root: `/tmp/lunaflux-deepseek-one-row-components-20261012-v1`.
+This locates the first bitwise difference at query normalization/rotary and
+larger amplification across the output projection chain. Downstream inputs
+are not identical, so the table alone does not prove an output-B arithmetic
+bug. The active window path already selects `OnlineBf16(block_tokens=64)`;
+the unused F32-only selected-sparse source is not the executed cause. No
+production numerical change is justified by inspecting that unused renderer.
+
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]
 moon run scripts/run-deepseek-original-layer-stream.mbtx run ROOT 43

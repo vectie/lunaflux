@@ -1,0 +1,44 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn metric(report : String, name : String) -> String raise {
+  for line in report.split("\n") {
+    if line.has_prefix(name + "=") { return line[name.length()+1:].to_owned() }
+  }
+  fail("missing measured field " + name)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native, original, output] else {
+    fail("NATIVE_COMPONENT_DIRECTORY ORIGINAL_COMPONENT_DIRECTORY NEW_OUTPUT")
+  }
+  @fs.mkdir(output)
+  let summary = StringBuilder()
+  summary.write_string("component\telements\texact_bf16\trelative_l2\trmse\tmax_absolute_error\n")
+  for (name, width) in [
+    ("attention-input",4096), ("attention-low-rank",1024),
+    ("q-rope",32768), ("kv-sim",512), ("sparse-attention",32768),
+    ("attention-output-a",8192), ("attention-output",4096),
+    ("attention-residual",16384), ("ffn-input",4096), ("ffn-output",4096),
+  ] {
+    let report = output + "/" + name + ".txt"
+    @shell.Cmd("moon",["run","scripts/compare-minimax-encoder-reference.mbtx",
+      native+"/"+name+".bf16",original+"/"+name+".bf16",report,
+      "literal_original_one_row_"+name,width.to_string()]).output().check()
+    let values = @fs.read_file(report).text()
+    summary.write_string(name)
+    for key in ["elements","exact_bf16","relative_l2","rmse","max_absolute_error"] {
+      summary.write_string("\t"+metric(values,key))
+    }
+    summary.write_string("\n")
+  }
+  @fs.write_file(output+"/components.tsv",summary.to_string(),create_mode=CreateNew)
+  println(summary.to_string())
+}

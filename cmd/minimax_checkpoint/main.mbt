@@ -66,7 +66,8 @@ async fn main {
         (
           mode == "run-joint" ||
           mode == "run-joint-latents" ||
-          mode == "run-joint-prefix"
+          mode == "run-joint-prefix" ||
+          mode == "run-joint-prefix-full"
         ) &&
         tail.length() == 18
       ) ||
@@ -134,7 +135,8 @@ async fn main {
   }
   if mode == "run-joint" ||
     mode == "run-joint-latents" ||
-    mode == "run-joint-prefix" {
+    mode == "run-joint-prefix" ||
+    mode == "run-joint-prefix-full" {
     run_joint(
       root_name,
       root,
@@ -143,7 +145,9 @@ async fn main {
       tail,
       cancel_after_frames~,
       capture_latents=mode == "run-joint-latents",
-      capture_prefix=mode == "run-joint-prefix",
+      capture_prefix=mode == "run-joint-prefix" ||
+        mode == "run-joint-prefix-full",
+      capture_blocks=if mode == "run-joint-prefix-full" { 50 } else { 1 },
     )
     return
   }
