@@ -1,6 +1,7 @@
 ///|
 async fn main {
-  if @env.args() is [_, "replay-layer", .. arguments] && arguments.length() == 9 {
+  if @env.args() is [_, "replay-layer", .. arguments] &&
+    (arguments.length() == 9 || arguments.length() == 10) {
     replay_matched_layer(arguments)
     return
   }

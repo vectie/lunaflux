@@ -39,8 +39,8 @@ async fn record(root : String, name : String, result : @shell.Output) -> Unit {
 fn replay_geometry(layer : String, rows : String) -> Unit raise {
   let layer = @string.parse_int(layer)
   let rows = @string.parse_int(rows)
-  guard layer >= 3 && layer < 43 && rows > 0 && rows <= 144 else {
-    fail("learned-router base layer and bounded row shape required")
+  guard layer >= 0 && layer < 43 && rows > 0 && rows <= 144 else {
+    fail("base layer and bounded row shape required")
   }
 }
 
@@ -48,6 +48,7 @@ fn replay_geometry(layer : String, rows : String) -> Unit raise {
 test "matched replay supports native chunk and original one-row geometries" {
   replay_geometry("40", "6")
   replay_geometry("3", "1")
+  replay_geometry("0", "1")
   try replay_geometry("43", "6") catch {
     _ => ()
   } noraise {
@@ -61,13 +62,14 @@ async fn main {
     root.has_prefix("/tmp/lunaflux-deepseek-production-layer-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail(
-      "prepare NEW_ROOT ARM_EXECUTABLE LAYER PHYSICAL_ROWS ORIGINAL_INPUT_BF16 ORIGINAL_OUTPUT_BF16 | run ROOT | collect ROOT",
+      "prepare NEW_ROOT ARM_EXECUTABLE LAYER PHYSICAL_ROWS ORIGINAL_INPUT_BF16 ORIGINAL_OUTPUT_BF16 [ORIGINAL_IDS_I32] | run ROOT [REMOTE_IDS_I32] | collect ROOT",
     )
   }
   let tag = root[5:].to_owned()
   let model = "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT"
   if mode == "prepare" {
-    guard extra is [executable, layer, rows, input, reference] else {
+    guard extra is [executable, layer, rows, input, reference, .. optional] &&
+      optional.length() <= 1 else {
       fail("matched operands required")
     }
     replay_geometry(layer, rows)
@@ -95,6 +97,18 @@ async fn main {
       .output()
       .check()
     }
+    if optional is [ids] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        ids,
+        node + ":" + root + "/ids.i32",
+      ])
+      .output()
+      .check()
+    }
     record(root, "permissions", remote("chmod 755 " + root + "/decoder.exe"))
     let args = " " +
       model +
@@ -118,7 +132,8 @@ async fn main {
         root +
         "/input.bf16 " +
         root +
-        "/export",
+        "/export" +
+        (if optional.is_empty() { "" } else { " " + root + "/ids.i32" }),
       ),
     )
     record(
@@ -136,7 +151,9 @@ async fn main {
       ),
     )
   } else if mode == "run" {
-    guard extra.is_empty() else { fail("unexpected options") }
+    guard extra.length() <= 1 else {
+      fail("optional literal remote IDs required")
+    }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -158,7 +175,8 @@ async fn main {
         root +
         "/input.bf16 " +
         root +
-        "/output",
+        "/output" +
+        (if extra is [ids] { " " + ids } else { "" }),
       ),
     )
     record(

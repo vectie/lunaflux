@@ -69,7 +69,7 @@ Root: `/tmp/lunaflux-deepseek-original-hyper-layer40-20261011-v1`.
 ## Next executable comparison
 
 `cmd/deepseek_checkpoint` now has an offline `replay-layer` diagnostic. It uses
-the existing production `DeepSeekDecoderSlice` for one learned-router base
+the existing production `DeepSeekDecoderSlice` for one base
 layer, feeds literal original predecessor streams in explicit row batches,
 and captures each complete output only after retirement. It does not change
 the serving graph, precision laws or acceptance tolerances. Real matched
@@ -88,6 +88,12 @@ These controls separate local complete-layer error from the accumulated gap,
 but do not isolate submission geometry or prove full-model parity.
 Roots: `/tmp/lunaflux-deepseek-production-layer-3-rows6-20261011-v1` and
 `/tmp/lunaflux-deepseek-production-layer-40-rows6-20261011-v1`.
+
+First-three-layer replay now accepts literal original I32 token IDs and loads
+the actual checkpoint token-to-expert tables through the production index-table
+uploader. It does not substitute learned routing for token-hash routing. Its
+reference comparison remains pending until the committed ARM executable runs.
+One-row submissions are supported to control the original incremental geometry.
 
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]

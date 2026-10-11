@@ -72,6 +72,15 @@ quality geometry. Full original-denoiser input matching is still required.
 Do not substitute a zero latent or the same integer RNG seed for identical
 initial noise.
 
+The original AudioVAE also replays the literal generated audio latent, terminates
+without OOM, and releases CUDA owners. It produces `[1,2,165600]`, matching the
+native extent. Relative waveform L2 is **0.0982279%**, RMSE **0.0000386479**,
+maximum difference **0.00150323**. Root:
+`/tmp/lunaflux-minimax-upstream-audio-quality128-captured-20261011-v2`.
+This is matched-latent decoder agreement, not a listening or audio-quality pass.
+The incomplete `v1` weight-copy attempt was stopped and preserved; `v2` reuses
+the already staged original checkpoint instead of transferring it again.
+
 ```sh
 moon run scripts/run-minimax-upstream-video.mbtx prepare NEW_REFERENCE_ROOT CAPTURED_VIDEO_LATENT_F32 --latent-shape 37 8 8
 moon run scripts/run-minimax-upstream-video.mbtx run NEW_REFERENCE_ROOT

@@ -2,15 +2,13 @@
 // Offline matched-layer replay. The ordinary service graph is unchanged.
 // Only one complete production decoder layer and its state reside on device.
 fn matched_layer_shape(layer : Int, rows : Int, input_bytes : Int) -> Int raise {
-  guard layer >= 3 &&
+  guard layer >= 0 &&
     layer < 43 &&
     rows > 0 &&
     rows <= 144 &&
     input_bytes > 0 &&
     input_bytes % 32768 == 0 else {
-    fail(
-      "matched replay requires a learned-router base layer and complete residual streams",
-    )
+    fail("matched replay requires a base layer and complete residual streams")
   }
   let count = input_bytes / 32768
   guard count <= 256 else { fail("matched replay exceeds retained context") }
@@ -21,9 +19,10 @@ fn matched_layer_shape(layer : Int, rows : Int, input_bytes : Int) -> Int raise 
 test "matched layer replay retains every stream and partial final submission" {
   assert_eq(matched_layer_shape(40, 6, 144 * 32768), 144)
   assert_eq(matched_layer_shape(42, 7, 144 * 32768), 144)
+  assert_eq(matched_layer_shape(0, 1, 144 * 32768), 144)
   for
     (layer, rows, bytes) in [
-      (2, 6, 32768),
+      (-1, 6, 32768),
       (43, 6, 32768),
       (40, 0, 32768),
       (40, 6, 32767),
@@ -82,6 +81,18 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
   defer root.close()
   let spec = inspect_config(root)
+  let ids = if arguments.length() == 10 {
+    let bytes = @fs.read_file(arguments[9]).binary()
+    guard bytes.length() == count * 4 else {
+      fail("literal token IDs must match the complete predecessor rows")
+    }
+    Some(bytes)
+  } else {
+    guard layer >= spec.hash_layer_count() else {
+      fail("token-hash replay requires literal original I32 token IDs")
+    }
+    None
+  }
   let ceiling = 8589934592L
   let decoder = @deepseek.DeepSeekDecoderSlice::new(
     spec,
@@ -152,6 +163,42 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
   defer stream.close()
   let module = load_module(context, arguments[5], arguments[6], 1073741824L)
   defer module.close()
+  let tables = @expert.bind_token_hash_tables(
+    checkpoint,
+    spec,
+    first_layer=layer,
+    end_layer=layer + 1,
+  )
+  let table_owner = @upload.CheckpointDeviceIndexTables::new()
+  defer table_owner.close()
+  if !tables.is_empty() {
+    table_owner.upload(
+      context,
+      checkpoint,
+      root,
+      tables,
+      minimum_value=0,
+      exclusive_maximum_value=spec.routed_expert_count(),
+      maximum_device_bytes=tables.fold(init=0L, (total, table) => {
+        total + table.i32_bytes()
+      }),
+      maximum_host_bytes=16777216L,
+      chunk_bytes=1048576,
+      limits~,
+    )
+  }
+  let token_ids = context.allocate(rows.to_int64() * 4L)
+  defer token_ids.close()
+  let token_pool = context.prepare_transfer_pool(
+    token_ids,
+    host_bytes=rows.to_int64() * 4L,
+    lanes=1,
+    max_regions_per_lane=1,
+  )
+  defer {
+    token_pool.drain(0)
+    token_pool.close()
+  }
   let counts = context.allocate(20L)
   defer counts.close()
   let positions = context.allocate(rows.to_int64() * 4L)
@@ -226,6 +273,8 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
     reset_flag=reset,
     input=source,
     output=destination,
+    token_ids?=if tables.is_empty() { None } else { Some(token_ids) },
+    token_tables=if tables.is_empty() { [] } else { table_owner.allocations() },
     maximum_device_bytes=ceiling,
     chunk_bytes=1048576,
     limits~,
@@ -237,6 +286,13 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
     let padded = input[start * 32768:(start + live) * 32768].to_owned() +
       Bytes::make((rows - live) * 32768, 0)
     matched_upload(input_pool, padded)
+    if ids is Some(bytes) {
+      matched_upload(
+        token_pool,
+        bytes[start * 4:(start + live) * 4].to_owned() +
+        Bytes::make((rows - live) * 4, 0),
+      )
+    }
     matched_upload(counts_pool, matched_ints([0, 0, 1, live, 0]))
     matched_upload(
       positions_pool,
