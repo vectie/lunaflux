@@ -192,6 +192,16 @@ This supports comparing native margins against reference scores instead of
 guessing from decoded wording. Physical capture remains to be run; an accessor
 and passing source tests are not native-logit evidence.
 
+The fresh commit-pinned native-logit run is now dispatched across both Sparks
+with the original 144 literal IDs. The offline F32 inspector reports native
+top-five scores and selected-token margins; separately rounding that head row
+to BF16 is labeled an attribution-only view, not another runtime route.
+
+MiniMax's next two separate reference interventions widen only projection, then
+projection plus attention. Both preserve all BF16 operator boundaries, original
+weights, fixed literal IDs and existing memory ceilings. They are not numerical
+fixes or completed physical results before their captures are compared.
+
 ## GLM reference arithmetic caveat
 
 The installed reference warns that gate/up global FP4 scales differ. Its

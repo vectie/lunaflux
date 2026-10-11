@@ -204,7 +204,9 @@ fn main raise {
     [_, mode, library, model, text_ids, output, depth] if mode == "encode" ||
       mode == "encode-operators" ||
       mode == "encode-full-reduction" ||
-      mode == "encode-wide-attention" => {
+      mode == "encode-wide-attention" ||
+      mode == "encode-wide-projection" ||
+      mode == "encode-wide-linear-attention" => {
       let ids : Array[Int] = []
       for id in text_ids.split(",") {
         ids.push(@string.parse_int(id))
@@ -226,6 +228,10 @@ fn main raise {
           FullReductionBf16
         } else if mode == "encode-wide-attention" {
           WiderAttention
+        } else if mode == "encode-wide-projection" {
+          WiderProjection
+        } else if mode == "encode-wide-linear-attention" {
+          WiderProjectionAndAttention
         } else {
           UpstreamBf16
         },

@@ -120,6 +120,15 @@ BF16 reference. The CPU smoke checks both constant-value attention and causal
 GQA with distinct value rows. The transient wider allocation estimate includes
 score/probability copies and repeated KV heads before allocating them.
 
+`encode-wide-projection ... 50` instead widens only the seven projection
+accumulators to F64, then returns to BF16 at each original operator boundary.
+`encode-wide-linear-attention ... 50` widens both projections and attention.
+Collect with the corresponding `collect-wide-*` modes. These two interventions
+separate projection error propagation from attention error propagation using
+the same original weights and literal IDs; neither changes ordinary reference
+arithmetic or production serving. They reuse the already tested wider linear
+and causal-GQA primitives and their allocation budgets.
+
 `replay-full-reduction` uses the same matched native operands at every first-layer
 boundary while disabling reduced-precision projection reductions. Collect with
 `collect-full-replay`. This isolates residual operator differences without

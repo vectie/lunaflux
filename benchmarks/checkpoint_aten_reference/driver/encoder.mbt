@@ -3,6 +3,8 @@ priv enum ReferenceArithmetic {
   UpstreamBf16
   FullReductionBf16
   WiderAttention
+  WiderProjection
+  WiderProjectionAndAttention
 }
 
 ///|
@@ -11,14 +13,15 @@ fn projection_operation(arithmetic : ReferenceArithmetic) -> @native.Op {
     UpstreamBf16 => Linear
     FullReductionBf16 => LinearBf16FullReduction
     WiderAttention => Linear
+    WiderProjection | WiderProjectionAndAttention => LinearFloat64
   }
 }
 
 ///|
 fn attention_operation(arithmetic : ReferenceArithmetic) -> @native.Op {
   match arithmetic {
-    WiderAttention => AttentionFloat64
-    UpstreamBf16 | FullReductionBf16 => Attention
+    WiderAttention | WiderProjectionAndAttention => AttentionFloat64
+    UpstreamBf16 | FullReductionBf16 | WiderProjection => Attention
   }
 }
 
@@ -32,6 +35,14 @@ test "ordinary reference retains upstream BF16 arithmetic" {
   assert_true(attention_operation(WiderAttention) is AttentionFloat64)
   assert_true(attention_operation(UpstreamBf16) is Attention)
   assert_true(attention_operation(FullReductionBf16) is Attention)
+  assert_true(projection_operation(WiderProjection) is LinearFloat64)
+  assert_true(attention_operation(WiderProjection) is Attention)
+  assert_true(
+    projection_operation(WiderProjectionAndAttention) is LinearFloat64,
+  )
+  assert_true(
+    attention_operation(WiderProjectionAndAttention) is AttentionFloat64,
+  )
 }
 
 ///|
@@ -386,6 +397,9 @@ fn encode(
       FullReductionBf16 => "bf16_full_reduction_attribution_only"
       WiderAttention =>
         "upstream_bf16_projection_f64_attention_attribution_only"
+      WiderProjection => "f64_projection_upstream_attention_attribution_only"
+      WiderProjectionAndAttention =>
+        "f64_projection_and_attention_attribution_only"
     }),
   )
 }
