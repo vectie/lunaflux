@@ -70,3 +70,26 @@ test "offline quantized query prefix exporter" {
     println("LUNA_QUERY_KV_SOURCE_END")
   }
 }
+
+///|
+async test "original DeepSeek query replay exports full-width numerical stages" {
+  let plan = @precision.QuantizedQueryKvPrecision::new(
+    hidden_width=4096,
+    query_rank=1024,
+    head_count=64,
+    head_width=512,
+    maximum_rows=144,
+    normalization_epsilon=1.0e-6,
+    activation_amax_floor=0.0001,
+    maximum_workspace_bytes=33554432L,
+  )
+  let source = @quantized_query_kv_cuda_source.quantized_query_kv_source(
+    plan,
+    symbol_prefix="matched_query",
+  )
+  assert_eq(source.launch(2), (144, 128, 256))
+  assert_eq(source.launch(3), (144, 64, 256))
+  if @env.get_env_var("LUNAFLUX_MATCHED_QUERY_SOURCE_OUTPUT") is Some(path) {
+    @fs.write_file(path, source.source_bytes(), create_mode=CreateNew)
+  }
+}

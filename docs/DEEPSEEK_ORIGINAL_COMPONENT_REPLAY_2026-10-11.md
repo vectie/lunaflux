@@ -41,3 +41,51 @@ Two runner tests and three affected-package tests pass. The original adapter
 compiles with `-Wall -Wextra -Werror`; native checking passes with existing
 toolchain-migration warning exclusions. No serving dependency, hashing,
 authentication, or deployment changes are part of this diagnostic.
+
+## Query/KV prefix on the literal original normalized input
+
+The next replay calls the installed original `linear`, its activation quantizer
+and FP8 matrix kernels, original learned `RMSNorm`, and the original BF16
+per-head normalization expression. Checkpoint weights and UE8M0 scale bytes are
+unchanged. All 144 original rows and all 64 heads are retained. Each native
+operator receives the literal original intermediate in **matched** mode; a
+second **propagated** replay executes the complete native six-stage prefix.
+
+| Boundary | Values | Matched exact BF16 | Matched relative L2 | Propagated relative L2 |
+| --- | --- | --- | --- | --- |
+| Q-A projection | 147,456 | 147,456 | 0 | 0 |
+| Learned Q normalization | 147,456 | 147,456 | 0 | 0 |
+| Q-B projection | 4,718,592 | 4,718,452 | 0.000151050% | 0.000151050% |
+| BF16 head normalization | 4,718,592 | 4,718,592 | 0 | 0.0000112431% |
+| KV projection | 73,728 | 73,728 | 0 | 0 |
+| Learned KV normalization | 73,728 | 73,728 | 0 | 0 |
+
+Q-B maximum error is 0.0001220703125; propagated head-normalization maximum
+error is 0.000244140625, with 139 differing BF16 values. These tiny discrepancies
+do not identify the cause of the approximately 18–21% later retained-state
+discrepancy. The next boundary is rotary/cache simulation/window attention,
+not an unmeasured change to the already agreeing normalization contracts.
+
+Artifacts: `/tmp/lunaflux-deepseek-original-query-20261011-v2`.
+Original exit is zero, `OOMKilled=false`; matched and propagated native runs
+exit zero and release CUDA allocations. Full-geometry memcheck with leak
+checking, racecheck and synccheck all report zero errors. The runner has one
+passing test and the source package has four. The shared test-only tensor I/O
+header removes duplicate literal-input/checkpoint loading code from the hyper
+and query adapters; it performs no model arithmetic.
+
+The preserved `v1` replay failed because the adapter had not selected the
+original generator's BF16 framework default dtype. The original FP8 output
+allocation then had an incompatible F32 dtype. `v2` fixes this **test setup**;
+it is not a production source bug or a model-numerical repair.
+
+```sh
+moon run scripts/replay-deepseek-original-query.mbtx prepare NEW_ROOT ORIGINAL_NORMALIZED_BF16 144
+moon run scripts/replay-deepseek-original-query.mbtx run ROOT
+moon run scripts/replay-deepseek-original-query.mbtx sanitize ROOT
+moon run scripts/replay-deepseek-original-query.mbtx collect ROOT
+```
+
+This is an original TP1 full-head **component** comparison. It is not a new
+full-model or two-rank DeepSeek correctness pass. No production dependency or
+hardening is added.

@@ -103,6 +103,7 @@ async fn main {
       upload(root + "/" + file, root + "/" + file)
     }
     upload("benchmarks/checkpoint_aten_reference/aten/hyper_upstream.cpp", root + "/hyper_upstream.cpp")
+    upload("benchmarks/checkpoint_aten_reference/aten/original_tensor_io.h", root + "/original_tensor_io.h")
     upload("tests/packed_moe_execution/hyper_matched_probe.cu", root + "/hyper_matched_probe.cu")
     record(root, "compile-original", remote("docker run --rm --network none --memory 2g --memory-swap 2g -v " +
       root + ":/work --entrypoint g++ " + image +
