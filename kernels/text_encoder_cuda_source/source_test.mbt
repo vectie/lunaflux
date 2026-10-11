@@ -69,3 +69,42 @@ test "square summation policy preserves BF16 boundaries and ordered default" {
   assert_true(head.contains("score=__fadd_rn(score,__fmul_rn"))
   assert_true(head.contains("threadIdx.x!=0"))
 }
+
+///|
+test "export bounded actual normalization lowering for independent GPU oracle" {
+  if @env.get_env_var("LUNA_EXPORT_TEXT_NORM") != Some("1") {
+    return
+  }
+  println("LUNA_TEXT_NORM_BEGIN")
+  for
+    (name, law) in [
+      ("ordered", @precision.OrderedFloat32),
+      ("compensated", @precision.CompensatedFloat32),
+    ] {
+    println(
+      @utf8.decode(
+        norm_source(
+          rows=3,
+          width=5120,
+          epsilon=0.000001,
+          symbol=name + "_norm",
+          square_reduction_law=law,
+        ),
+      ),
+    )
+    println(
+      @utf8.decode(
+        attention_source(
+          rows=3,
+          query_heads=4,
+          kv_heads=2,
+          dimension=128,
+          epsilon=0.000001,
+          prefix=name,
+          square_reduction_law=law,
+        ),
+      ),
+    )
+  }
+  println("LUNA_TEXT_NORM_END")
+}

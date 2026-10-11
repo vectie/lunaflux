@@ -1,0 +1,119 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-S", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    "wlc004s@192.168.2.179", command,
+  ]).output(max_output_bytes=2097152)
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, suffix] &&
+    root.has_prefix("/tmp/lunaflux-text-norm-") &&
+    [root, suffix].all(s => {
+      !s.is_empty() &&
+      !s.contains("..") &&
+      s.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '/'))
+    }) &&
+    !suffix.contains("/") else {
+    fail("NEW_LOCAL_AND_REMOTE_DIRECTORY UNIQUE_SUFFIX")
+  }
+  @fs.mkdir(root)
+  let exported = @shell.Cmd("env", [
+    "LUNA_EXPORT_TEXT_NORM=1", "moon", "test", "--target", "native", "--deny-warn",
+    "--warn-list", "-20-25-29-35-79-92", "kernels/text_encoder_cuda_source/source_test.mbt",
+  ]).output(max_output_bytes=2097152)
+  record(root, "export", exported)
+  let source = StringBuilder()
+  let mut inside = false
+  let mut finished = false
+  for line in exported.stdout().split("\n") {
+    if line == "LUNA_TEXT_NORM_BEGIN" {
+      inside = true
+    } else if line == "LUNA_TEXT_NORM_END" {
+      inside = false
+      finished = true
+    } else if inside {
+      source.write_string(line.to_owned() + "\n")
+    }
+  }
+  guard finished && !inside else { fail("missing actual lowered source") }
+  @fs.write_file(root + "/main.cuh", source.to_string(), create_mode=CreateNew)
+  @fs.write_file(
+    root + "/probe.cu",
+    @fs.read_file("tests/packed_moe_execution/text_encoder_norm_probe.cu").binary(),
+    create_mode=CreateNew,
+  )
+  record(root, "mkdir", remote("mkdir " + root))
+  for name in ["main.cuh", "probe.cu"] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      root + "/" + name,
+      "wlc004s@192.168.2.179:" + root + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  let unit = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --working-directory=" +
+    root +
+    " --unit=lunaflux-text-norm-"
+  record(
+    root,
+    "compile",
+    remote(
+      unit +
+      "compile-" +
+      suffix +
+      " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 probe.cu -o probe",
+    ),
+  )
+  for gate in ["correctness", "memcheck", "racecheck", "synccheck"] {
+    let occupied = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, gate + "-occupied", occupied)
+    guard occupied.stdout().trim().is_empty() else {
+      fail("GPU occupied; serialize tests")
+    }
+    let command = if gate == "correctness" {
+      root + "/probe"
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " +
+      gate +
+      (if gate == "memcheck" { " --leak-check full" } else { "" }) +
+      " " +
+      root +
+      "/probe"
+    }
+    record(root, gate, remote(unit + gate + "-" + suffix + " " + command))
+  }
+  println(
+    "actual normalization lowering passed bounded independent oracle and sanitizer gates",
+  )
+}
