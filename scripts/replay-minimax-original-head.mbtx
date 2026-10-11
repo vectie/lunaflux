@@ -38,7 +38,7 @@ fn head_shards(index : String) -> Array[String] raise {
   guard @json.parse(index) is { "weight_map": Object(fields), .. } else { fail("checkpoint index required") }
   let shards : Map[String, Unit] = Map([])
   for name, value in fields {
-    if ["norm_out.", "proj_out.", "audio_proj_out."].any(prefix => name.has_prefix(prefix)) {
+    if ["norm_out.", "proj_out.", "audio_proj_out.", "proj_in.", "audio_proj_in.", "time_embedder."].any(prefix => name.has_prefix(prefix)) {
       guard value is String(shard) else { fail("checkpoint shard required") }
       shards[shard] = ()
     }
@@ -50,13 +50,13 @@ fn head_shards(index : String) -> Array[String] raise {
 }
 
 ///|
-test "final-head replay selects head weights, never the fifty-block stack" {
-  assert_eq(head_shards("{\"weight_map\":{\"norm_out.norm.weight\":\"a\",\"proj_out.weight\":\"a\",\"audio_proj_out.weight\":\"b\",\"transformer_blocks.49.norm1.weight\":\"c\"}}"), ["a", "b"])
+test "producer/head replay selects their weights, never the fifty-block stack" {
+  assert_eq(head_shards("{\"weight_map\":{\"norm_out.norm.weight\":\"a\",\"proj_out.weight\":\"a\",\"audio_proj_out.weight\":\"b\",\"proj_in.weight\":\"d\",\"audio_proj_in.weight\":\"d\",\"time_embedder.linear_1.weight\":\"e\",\"transformer_blocks.49.norm1.weight\":\"c\"}}"), ["a", "b", "d", "e"])
 }
 
 ///|
 let inputs : Array[String] = [
-  "block-49.bf16", "timestep.f32", "inverse.i32", "combined.i32",
+  "block-49.bf16", "packed-input.bf16", "timestep.f32", "inverse.i32", "combined.i32",
   "documents.i32", "video-state.f32", "audio-state.f32",
   "video-velocity.f32", "audio-velocity.f32", "video-updated.f32",
   "audio-updated.f32", "flow-table.f32", "sigmas.f32",
@@ -80,7 +80,7 @@ async fn main {
     for shard in head_shards(@fs.read_file(root + "/model/diffusion_pytorch_model.safetensors.index.json").text()) {
       record(root, "link-" + shard, remote("ln " + previous + "/model/" + shard + " " + root + "/model/" + shard))
     }
-    for file in ["final_head_upstream.cpp", "original_h3_loading.h", "original_tensor_io.h"] {
+    for file in ["final_head_upstream.cpp", "initial_h3_upstream.h", "original_h3_loading.h", "original_tensor_io.h"] {
       copy("benchmarks/checkpoint_aten_reference/aten/" + file, node + ":" + root + "/" + file)
     }
     record(root, "compile", remote("docker run --rm --pull=never --user 1000:1000 --network none --memory 2g --memory-swap 2g -v " + root + ":/work --entrypoint g++ " + image + " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/final_head_upstream.cpp -o /work/original-head -lpython3.12"))
@@ -109,6 +109,21 @@ async fn main {
           if boundary == "velocity" { "original_final_head_on_literal_native_block49" } else { "original_first_flow_update_on_literal_native_velocity" },
         ]).output())
       }
+      for prefix in ["", "native-"] {
+        let file = prefix + label + "-embedded.bf16"
+        copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
+      }
+      record(root, "compare-" + label + "-embedded", @shell.Cmd("moon", [
+        "run", "scripts/compare-minimax-encoder-reference.mbtx",
+        root + "/output/native-" + label + "-embedded.bf16",
+        root + "/output/" + label + "-embedded.bf16",
+        root + "/" + label + "-embedded.txt", "original_media_projection_on_literal_native_initial_state", "5376",
+      ]).output())
     }
+    copy(node + ":" + root + "/output/timestep.f32", root + "/output/timestep.f32")
+    record(root, "compare-timestep", @shell.Cmd("moon", [
+      "run", "scripts/compare-f32-tensors.mbtx", root + "/input/timestep.f32",
+      root + "/output/timestep.f32", root + "/timestep.txt", "original_time_embedder_on_literal_native_schedule",
+    ]).output())
   } else { fail("unknown replay stage") }
 }

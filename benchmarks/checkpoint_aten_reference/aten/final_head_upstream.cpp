@@ -18,6 +18,8 @@ static PyObject *indices(PyObject *torch,PyObject *dtype,const std::string &base
   return fn.p?PyObject_Call(fn.p,args.p,kw.p):nullptr;
 }
 
+#include "initial_h3_upstream.h"
+
 static bool flow(PyObject *torch,PyObject *f32,PyObject *u8,const std::string &base,
                  const char *out,const char *label,PyObject *velocity,int rows,int width,
                  float sigma,float next,float timestep) {
@@ -95,6 +97,8 @@ static int execute(const char *root,const char *input,const char *out) {
   if(!result.p)return -1;
   float sigmas[6];std::ifstream sf(base+"/sigmas.f32",std::ios::binary);
   sf.read(reinterpret_cast<char*>(sigmas),sizeof(sigmas));if(!sf)return -1;
+  if(!initial_producers(torch.p,module.p,arch.p,open.p,map,bf16.p,f32.p,i64.p,u8.p,
+                        root,base,out,times,sigmas))return -1;
   for(int modality=0;modality<2;++modality) {
     const char *label=modality?"audio":"video";const int width=modality?32:96;
     int rows=0;Owned ids(indices(torch.p,i64.p,base,modality?2:0,rows));

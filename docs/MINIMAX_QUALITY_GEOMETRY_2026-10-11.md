@@ -286,3 +286,25 @@ output and calls the original scheduler on literal native velocity. No observer,
 host readback or new validation is added to ordinary serving. These comparisons
 are implemented but not yet measured; the new capture must finish before any
 head/flow numerical conclusion.
+
+The same independent replay additionally tests the original F32 video/audio
+input projections and original time embedder on the captured initial states
+and literal time-index ownership. This distinguishes input-producer drift from
+head/flow error without reintroducing an independently generated noise fixture.
+
+Task compatibility was checked against both the installed original pipeline
+and the actual partition's `model_index.json`: the `fl2va` **checkpoint partition
+supports both `t2va` and `fl2va` tasks**. This caption-only diagnostic follows
+`t2va`; the original uses the verbatim caption without special tokens and no
+first-frame anchors. The lack of an image is therefore not a task mismatch.
+This does not establish that 128×128 and twenty updates are sufficient for
+representative output quality.
+
+The native final-head/flow diagnostic is committed and pushed as `6a29cc6e`;
+its clean ARM build succeeds. First dispatch passed the campaign root instead
+of its `aot` subdirectory. A preserved `openat` trace locates `ENOENT` precisely
+at `video_pack.cubin`, after successful checkpoint loading—not a weight-reader
+or numerical failure. Corrected run
+`/tmp/lunaflux-minimax-joint-head-flow-20261012-v2` uses the actual `aot` directory;
+its outputs must finish before collection/comparison. No existing evidence or
+production artifact was overwritten.
