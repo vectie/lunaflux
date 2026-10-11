@@ -24,6 +24,7 @@ pub fn build(
   distinct_timesteps~ : Int,
   block_norm_epsilon~ : Double,
   function_prefix~ : String,
+  probability_law? : @precision.AttentionProbabilityLaw = GlobalF32,
 ) -> BlockSource raise {
   let shape = model.denoiser()
   let rows = sequence.assembly().rows().length()
@@ -61,6 +62,7 @@ pub fn build(
     apply_rotary=true,
     function_prefix=function_prefix + "_attn",
     document_boundaries=sequence.attention_boundaries(),
+    probability_law~,
   )
   let norm = @decoder_foundation_cuda_source.rms_norm_bf16_fixed_rows_source(
     rows=rows.to_int64(),

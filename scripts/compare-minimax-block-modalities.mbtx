@@ -97,8 +97,19 @@ test "modality attribution uses literal tags and excludes only explicit padding"
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, output] else {
-    fail("CAPTURE_ROOT NEW_REPORT_TSV")
+  guard @env.args() is [_, root, output, .. options] &&
+    (
+      options.is_empty() ||
+      options is ["--first-block"] ||
+      options is ["--first-block", "--native-prefix", _]
+    ) else {
+    fail(
+      "CAPTURE_ROOT NEW_REPORT_TSV [--first-block [--native-prefix LOCAL_CAPTURE]]",
+    )
+  }
+  let native_root = match options {
+    ["--first-block", "--native-prefix", path] => path
+    _ => root + "/input"
   }
   let docs = @fs.read_file(root + "/input/documents.i32").binary()
   guard docs.length() == 12 && word(docs, 0) == 0U else {
@@ -110,11 +121,23 @@ async fn main {
   report.write_string(
     "block\tpredecessor\tmodality\trows\texact\telements\trelative_l2\tmaximum_error\n",
   )
-  for block in [0, 1, 10, 20, 30, 40, 49] {
-    let native = @fs.read_file(root + "/input/block-\{block}.bf16").binary()
-    for predecessor in ["matched", "propagated"] {
+  let blocks = if options.is_empty() { [0, 1, 10, 20, 30, 40, 49] } else { [0] }
+  for block in blocks {
+    let native = @fs.read_file(native_root + "/block-\{block}.bf16").binary()
+    let predecessors = if options.is_empty() {
+      ["matched", "propagated"]
+    } else {
+      ["matched"]
+    }
+    for predecessor in predecessors {
       let original = @fs.read_file(
-        root + "/output/\{predecessor}-block-\{block}.bf16",
+        root +
+        "/output/" +
+        (if options.is_empty() {
+          "\{predecessor}-block-\{block}.bf16"
+        } else {
+          "block-0.bf16"
+        }),
       ).binary()
       for tag, state in compare(native, original, tags, rows, 5376) {
         let label = ["video", "text", "audio"][tag]

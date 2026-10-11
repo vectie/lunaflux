@@ -1,0 +1,183 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn exported(output : String, label : String) -> String raise {
+  let source = StringBuilder()
+  let mut inside = false
+  let mut complete = false
+  for line in output.split("\n") {
+    if line == "LUNA_BLOCK_" + label + "_BEGIN" {
+      inside = true
+    } else if line == "LUNA_BLOCK_" + label + "_END" {
+      inside = false
+      complete = true
+    } else if inside {
+      source.write_string(line.to_owned() + "\n")
+    }
+  }
+  let result = source.to_string()
+  guard complete && !inside && result.has_suffix("\n") else {
+    fail("complete generated block translation unit required")
+  }
+  // println adds exactly one newline to the source payload. Remove framing,
+  // not source whitespace, so the baseline can be compared byte-for-byte.
+  result[:result.length() - 1].to_owned()
+}
+
+///|
+test "source framing preserves the original final newline exactly" {
+  assert_eq(
+    exported(
+      "LUNA_BLOCK_BASELINE_BEGIN\nbody\nLUNA_BLOCK_BASELINE_END\n", "BASELINE",
+    ),
+    "body",
+  )
+  assert_eq(
+    exported(
+      "LUNA_BLOCK_BASELINE_BEGIN\nbody\n\nLUNA_BLOCK_BASELINE_END\n", "BASELINE",
+    ),
+    "body\n",
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, previous] &&
+    root.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
+    previous.has_prefix("/tmp/lunaflux-minimax-request-aot-") &&
+    [root, previous].all(path => {
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_'))
+    }) else {
+    fail("NEW_256_EXPERIMENT_ROOT EXISTING_256_AOT_DIRECTORY")
+  }
+  let node = "wlc003s@192.168.2.178"
+  let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  @fs.mkdir(root)
+  let generated = @shell.Cmd(
+    "moon",
+    [
+      "test", "integration/minimax_h3_block_source", "--target", "native", "--deny-warn",
+      "--warn-list", "-20-25-29-35-79-92", "--filter", "DiT probability intervention changes only its declared storage boundary",
+    ],
+    env={ "LUNA_EXPORT_BLOCK_PROBABILITY": "1" },
+  ).output(max_output_bytes=4194304)
+  generated.check()
+  @fs.write_file(
+    root + "/baseline.cu",
+    exported(generated.stdout(), "BASELINE"),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/dit_n1.cu",
+    exported(generated.stdout(), "CANDIDATE"),
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    node + ":" + previous + "/dit_n1.cu",
+    root + "/existing-baseline.cu",
+  ])
+  .output()
+  .check()
+  guard @fs.read_file(root + "/baseline.cu").binary() ==
+    @fs.read_file(root + "/existing-baseline.cu").binary() else {
+    fail(
+      "generated baseline does not reproduce the executed source; no candidate admitted",
+    )
+  }
+  @fs.write_file(
+    root + "/EXPERIMENT.txt",
+    "scope=one_block_256_matched_original_probability_law\nrows=2816\nchanged_module=dit_n1\nsource_baseline_byte_identical=true\nother_modules_unchanged=true\nrefiner_unchanged=true\nproduction_default_changed=false\n",
+    create_mode=CreateNew,
+  )
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "mkdir " + root + " " + root + "/aot",
+  ])
+  .output()
+  .check()
+  let inventory = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "find " + previous + " -maxdepth 1 -type f -printf '%f\\n'",
+  ]).output()
+  inventory.check()
+  for name in inventory.stdout().split("\n") {
+    if name.has_suffix(".cubin") && name != "dit_n1.cubin" {
+      @shell.Cmd("ssh", [
+        "-o",
+        "BatchMode=yes",
+        "-S",
+        socket,
+        node,
+        "cp -n " +
+        previous +
+        "/" +
+        name.to_owned() +
+        " " +
+        root +
+        "/aot/" +
+        name.to_owned(),
+      ])
+      .output()
+      .check()
+    }
+  }
+  for name in ["dit_n1.cu", "EXPERIMENT.txt"] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      root + "/" + name,
+      node + ":" + root + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  let compile = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --unit=" +
+    root[5:].to_owned() +
+    "-compile /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
+    root +
+    "/dit_n1.cu -o " +
+    root +
+    "/aot/dit_n1.cubin",
+  ]).output()
+  @fs.write_file(
+    root + "/compile.stdout",
+    compile.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/compile.stderr",
+    compile.stderr(),
+    create_mode=CreateNew,
+  )
+  compile.check()
+  println(
+    "block_probability_experiment_prepared baseline_source_identical=true production_default_changed=false",
+  )
+}

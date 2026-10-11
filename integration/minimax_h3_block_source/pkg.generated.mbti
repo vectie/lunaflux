@@ -11,7 +11,7 @@ import {
 }
 
 // Values
-pub fn build(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String) -> BlockSource raise
+pub fn build(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String, probability_law? : @precision_ir.AttentionProbabilityLaw) -> BlockSource raise
 
 pub fn build_audio_amp(batch~ : Int, channels~ : Int, time~ : Int, function_prefix~ : String) -> AudioAmpSource raise
 
@@ -31,7 +31,7 @@ pub fn build_input(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequenc
 
 pub fn build_output(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, function_prefix~ : String) -> OutputSource raise
 
-pub fn build_prediction_sources(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String) -> PredictionSources raise
+pub fn build_prediction_sources(@joint_diffusion_plan.JointDiffusionPlan, @minimax_h3_sequence.Sequence, distinct_timesteps~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String, probability_law? : @precision_ir.AttentionProbabilityLaw) -> PredictionSources raise
 
 pub fn build_refiner(@joint_diffusion_plan.JointDiffusionPlan, text_rows~ : Int, block_norm_epsilon~ : Double, function_prefix~ : String, probability_law? : @precision_ir.AttentionProbabilityLaw) -> RefinerSource raise
 

@@ -142,7 +142,7 @@ async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     root.has_prefix("/tmp/lunaflux-minimax-upstream-block-") else {
     fail(
-      "prepare NEW_ROOT | finish-prepare|compile ROOT | inputs ROOT NATIVE_CAPTURE_ROOT | run|collect ROOT",
+      "prepare NEW_ROOT | finish-prepare|compile ROOT | inputs ROOT REMOTE_NATIVE_ROOT | inputs-local ROOT LOCAL_NATIVE_CAPTURE | run|collect ROOT",
     )
   }
   let tag = root[5:].to_owned()
@@ -369,9 +369,11 @@ async fn main {
         " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/dit_block_upstream.cpp -o /work/original-block -lpython3.12",
       ),
     )
-  } else if stage == "inputs" {
+  } else if stage == "inputs" || mode == "inputs-local" {
     guard extra is [capture] else { fail("literal native output required") }
-    @fs.mkdir(root + "/input")
+    if !@fs.exists(root + "/input") {
+      @fs.mkdir(root + "/input")
+    }
     let files = [
       "packed-input.bf16", "timestep.f32", "positions.f32", "combined.i32", "documents.i32",
       "PREFIX.txt",
@@ -380,16 +382,28 @@ async fn main {
       files.push("block-\{i}.bf16")
     }
     for file in files {
-      @shell.Cmd("scp", [
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
-        "wlc003s@192.168.2.178:" + capture + "/output/" + file,
-        root + "/input/" + file,
-      ])
-      .output()
-      .check()
+      let target = root + "/input/" + file
+      guard !@fs.exists(target) else {
+        fail("existing input capture preserved: " + target)
+      }
+      if mode == "inputs-local" {
+        @fs.write_file(
+          target,
+          @fs.read_file(capture + "/" + file).binary(),
+          create_mode=CreateNew,
+        )
+      } else {
+        @shell.Cmd("scp", [
+          "-o",
+          "BatchMode=yes",
+          "-o",
+          "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+          "wlc003s@192.168.2.178:" + capture + "/output/" + file,
+          target,
+        ])
+        .output()
+        .check()
+      }
       copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
     }
   } else if stage == "audit" {

@@ -14,6 +14,7 @@ pub fn build_prediction_sources(
   distinct_timesteps~ : Int,
   block_norm_epsilon~ : Double,
   function_prefix~ : String,
+  probability_law? : @precision.AttentionProbabilityLaw = GlobalF32,
 ) -> PredictionSources raise {
   guard distinct_timesteps > 0 && distinct_timesteps <= 4 else {
     raise InvalidShape
@@ -25,6 +26,7 @@ pub fn build_prediction_sources(
       distinct_timesteps~,
       block_norm_epsilon~,
       function_prefix=function_prefix + "_block_n\{distinct_timesteps}",
+      probability_law~,
     ),
     timestep: build_timestep(
       model,

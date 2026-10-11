@@ -740,3 +740,41 @@ single-block residency strategy. At 256×256 this is **2,816 packed / 2,785 real
 rows**, not the old smoke geometry. The original module's arithmetic is
 unchanged. Its runner regressions cover both canvases, and the larger adapter
 compiles in the installed ARM image with `-Wall -Wextra -Werror`.
+
+### Matched 256 first-block probability intervention
+
+The `v3` native prefix completes with empty stderr and released CUDA. After
+the ordinary native patchifier, all **227,328 video F32 values** and **13,248
+audio F32 values** are bitwise identical to installed-original startup rows.
+The installed original block then consumes the literal native packed input,
+time table, positions, tags and documents, at 2,816 packed / 2,785 real rows.
+Its unchanged first block completes under the bounded single-block budget.
+Original installed warnings remain present in stderr.
+
+A separate candidate changes only `dit_n1`'s attention probability numerator
+storage to `GlobalUnnormalizedBf16`. Its generated baseline reproduces the
+executed baseline translation unit byte-for-byte. All other AOT modules,
+including both text refiners, are unchanged. The native input is bitwise equal
+to the baseline prefix, and both initial noise arrays again match the original.
+Root: `/tmp/lunaflux-minimax-joint-block-probability256-prefix-20261012-v1`.
+It completes one block, not a full trajectory or terminal media run.
+
+| Real-row comparison with the same original block output | Default F32 P | BF16 unnormalized P candidate |
+| --- | ---: | ---: |
+| Combined relative L2 | 0.0841358% | 0.0711123% |
+| Video relative L2 | 0.2891593% | 0.2325272% |
+| Audio relative L2 | 0.1004746% | 0.0818648% |
+| Text relative L2 | 0.0418689% | 0.0405842% |
+| Exact real-row BF16 values | 11,502,428 / 14,972,160 | 12,050,986 / 14,972,160 |
+
+Probability storage explains part of the local difference, not all of it.
+The combined norm is dominated by large text features; modality attribution
+is retained rather than using that aggregate as a quality claim. This is not
+a full-stack, all-timestep, encoder, performance or media-quality pass.
+The production/default probability law remains F32. The source builder merely
+forwards the existing explicit numeric contract; unchanged timestep/output
+source and byte-identical baseline source have regression coverage.
+
+The audio inspection tool in this conversation does not support audio input.
+The WAV is retained, but listening quality has **not** been assessed here;
+finite arrays and close decoder outputs cannot substitute for that assessment.
