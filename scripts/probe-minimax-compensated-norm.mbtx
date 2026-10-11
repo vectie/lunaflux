@@ -9,7 +9,11 @@ import {
 // Offline AOT experiment. No production policy, weights or launch geometry change.
 
 ///|
-fn compensated_norm(source : String, row_only? : Bool = false) -> String raise {
+fn compensated_norm(
+  source : String,
+  row_only? : Bool = false,
+  head_only? : Bool = false,
+) -> String raise {
   let update = "sum=__fadd_rn(sum,__fmul_rn(v,v));"
   guard source.split(update).count() == 3 &&
     source.split("float sum=0.0f;").count() == 3 else {
@@ -27,7 +31,23 @@ fn compensated_norm(source : String, row_only? : Bool = false) -> String raise {
     #|  sum = next;
     #|}
     #|
-  let rendered = if row_only {
+  guard !(row_only && head_only) else {
+    fail("one intervention scope required")
+  }
+  let rendered = if head_only {
+    let init = source.split("float sum=0.0f;").collect()
+    let selected = init[0].to_owned() +
+      "float sum=0.0f;" +
+      init[1].to_owned() +
+      "float sum=0.0f, correction=0.0f;" +
+      init[2].to_owned()
+    let parts = selected.split(update).collect()
+    parts[0].to_owned() +
+    update +
+    parts[1].to_owned() +
+    "luna_norm_compensated_square(v,sum,correction);" +
+    parts[2].to_owned()
+  } else if row_only {
     source
     .replace(old="float sum=0.0f;", new="float sum=0.0f, correction=0.0f;")
     .replace(old=update, new="luna_norm_compensated_square(v,sum,correction);")
@@ -71,19 +91,34 @@ test "compensation retains small square contributions without widening BF16 boun
     2,
   )
   assert_eq(row.split("sum=__fadd_rn(sum,__fmul_rn(v,v));").count(), 2)
+  let head = compensated_norm(source, head_only=true)
+  assert_true(
+    head.has_suffix(
+      "float sum=0.0f, correction=0.0f; luna_norm_compensated_square(v,sum,correction);\n",
+    ),
+  )
+  assert_eq(
+    head.split("luna_norm_compensated_square(v,sum,correction);").count(),
+    2,
+  )
 }
 
 ///|
 async fn main {
   guard @env.args() is [_, input, manifest, output, .. policy] &&
-    (policy is [] || policy is ["row-only"]) &&
+    (policy is [] || policy is ["row-only"] || policy is ["head-only"]) &&
     output.has_prefix("/tmp/lunaflux-minimax-request-aot-") else {
     fail(
       "ORIGINAL_TEXT_CUDA ORIGINAL_SOURCES_MANIFEST NEW_EXPERIMENT_AOT_DIRECTORY",
     )
   }
   let row_only = policy is ["row-only"]
-  let source = compensated_norm(@fs.read_file(input).text(), row_only~)
+  let head_only = policy is ["head-only"]
+  let source = compensated_norm(
+    @fs.read_file(input).text(),
+    row_only~,
+    head_only~,
+  )
   @fs.mkdir(output)
   @fs.write_file(output + "/text.cu", source, create_mode=CreateNew)
   @fs.write_file(
@@ -93,7 +128,7 @@ async fn main {
   )
   @fs.write_file(
     output + "/EXPERIMENT.txt",
-    "scope=offline_compensated_norm_only\nrow_only=\{row_only}\noriginal_launch_geometry=true\noriginal_weights_and_bf16_boundaries=true\nproduction_selection_changed=false\n",
+    "scope=offline_compensated_norm_only\nrow_only=\{row_only}\nhead_only=\{head_only}\noriginal_launch_geometry=true\noriginal_weights_and_bf16_boundaries=true\nproduction_selection_changed=false\n",
     create_mode=CreateNew,
   )
   let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"

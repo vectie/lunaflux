@@ -336,9 +336,20 @@ the digits improvement: final global relative L2 is 0.1943% instead of 0.2901%,
 and worst final row is 4.5235% instead of 14.9842%. Remaining error is not hidden
 by global norms or declared a pass.
 
-The full native suite passes 4,979/4,979 tests, and the root native check passes
+The complete source-selected twelve-case corpus is now finished, with all
+native units exiting zero and releasing their GPU. Eight worst-row comparisons
+improve and four worsen against the unchanged library reference; the complete
+table, including regressions, is in
+[the diverse-input report](MINIMAX_DIVERSE_TEXT_ENCODER_2026-10-11.md).
+The more accurate component reduction is not evidence that every propagated
+library differential must decrease. Row-only/head-only interventions now
+separate their contributions before any further source change.
+
+The full native suite passes 4,981/4,981 tests, and the root native check passes
 with the existing toolchain migration warning exclusions
 `-20-25-29-35-79-92`. `moon info` completes with zero errors and the existing
 3,646 migration warnings. The separate reference module passes its eight tests;
 the production rotary planner's nine tests pass. No warning exclusion, runtime
-authentication, TLS, cryptographic scan or production numerical policy was added.
+authentication, TLS or cryptographic scan was added. The new explicit
+normalization precision policy above is the measured numerical correction;
+it is not a hardening gate or an independent whole-model acceptance claim.
