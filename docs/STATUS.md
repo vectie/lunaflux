@@ -56,8 +56,14 @@ but retains the large old/new difference. Source inspection and original-config
 CPU replay identify a concrete cause: RNG v1 mixes the whole plan label into
 the seed, so the audio publication-length correction rerolled initial latents.
 RNG v2 uses only explicit seed/stream/counter. Its regressions pass; a historical
-effective seed reproduces all old initial cells bitwise. A matched full-media
-replay remains necessary before calling downstream attribution complete.
+effective seed reproduces all old initial cells bitwise. The fresh committed
+`d9e5c996` full-media replay now also reproduces **all 712,128 decoded F32 cells
+bitwise**, with zero video/audio error against the historical native run.
+It completes all five fifty-block evaluations and both VAEs, exits zero with
+empty stderr, zero unit swap and released GPU ownership. This closes the
+rerolled-noise attribution for that fixture, not independent media quality or
+the four encoder/reference regressions. The current working-tree native suite
+passes 4,983/4,983; the clean committed noise packages pass 18/18 separately.
 
 MiniMax's `run-joint` now connects its existing generic pipeline cancellation
 to the same explicit request-zero/count CLI suffix. Parsing occurs before

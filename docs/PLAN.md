@@ -107,8 +107,12 @@ Remaining work is numerical/functional, not hardening:
   difference. Original-config CPU replay identifies plan-label mixing in RNG
   v1: the publication-law change rerolls initial noise. RNG v2 separates seed
   semantics from plan association, and the captured old effective key exactly
-  reproduces old initial cells. Complete the matched-noise media replay;
-  do not assign the old array change to normalization or call it a quality gain.
+  reproduces old initial cells. The committed full-media replay now reproduces
+  all 380,928 video and 331,200 audio F32 cells bitwise against the historical
+  native run, with exit 0, empty stderr, zero unit swap and released GPU ownership.
+  Rerolled-noise attribution is complete for this fixture. Independent upstream
+  media quality and the four encoder/reference regressions remain open; do not
+  assign the former large array change to normalization or call it a quality gain.
 
 No payload hash, TLS, authentication step or production dependency is added by
 these diagnostics. Existing memory ceilings and deterministic release remain.

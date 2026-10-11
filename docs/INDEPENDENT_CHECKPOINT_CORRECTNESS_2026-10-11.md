@@ -433,16 +433,52 @@ old effective key as the v2 explicit seed reproduces **every initial F32 cell
 bitwise**. Historical v1 seed values alone are not compatible with v2.
 
 `benchmarks/joint_noise_probe` reads only small configuration and records this
-offline attribution; it never loads weights or opens CUDA. Full-media replay
-with the matched historical initial noise is still required to attribute the
-decoded change. The same-new-runtime conditioning contrast above is valid
-because both runs used the same v1 effective key.
+offline attribution; it never loads weights or opens CUDA. The same-new-runtime
+conditioning contrast above is valid because both runs used the same v1
+effective key.
+
+### Matched-noise full-media replay completed
+
+The fresh committed `d9e5c996` ARM binary now completes the full request using
+the captured historical effective key as its explicit v2 seed and the exact
+old conditioning bytes. This is not a seed search: the key was derived from the
+original v1 plan before replay. The thirty unchanged media AOT modules and
+original checkpoint remain unchanged. Five evaluations through all fifty
+denoising blocks, then both actual VAEs, finish successfully on Spark `.178`.
+
+| Decoded array against historical native run | F32 cells | Bitwise identical | RMSE / relative L2 / maximum error |
+| --- | --- | --- | --- |
+| Video | 380,928 | 380,928 | 0 / 0 / 0 |
+| Stereo audio | 331,200 | 331,200 | 0 / 0 / 0 |
+
+Both byte comparisons also return zero. This establishes that the earlier
+72.03% / 108.26% old-conditioning output change came from the rerolled initial
+noise in this fixture, not a changed denoiser/VAE arithmetic path. It is native
+historical reproducibility, **not independent upstream media correctness**.
+The same-new-runtime conditioning contrast remains 0.2263% video / 5.9088%
+audio relative L2; the four encoder corpus regressions and media-quality
+acceptance are still open.
+
+The unit starts/exits at 10:27:55 / 10:56:47 CST (28m52s, including preparation;
+not a throughput measurement). Exit status is zero, execution stderr is empty,
+all outputs are finite, unit swap peak is zero, and the terminal GPU-owner
+snapshot is empty. Cgroup memory peak is 20,477,472,768 bytes, not complete
+CUDA unified-memory residency; planned aggregate remains 81,920,540,616 bytes
+under the 96-GiB device budget. Terminal records are under
+`/tmp/lunaflux-minimax-joint-stable-noise-old-conditioning-20261011-v1/terminal`.
+Both decoded arrays and zero-error reports are downloaded without overwrite to
+`/tmp/lunaflux-minimax-joint-stable-noise-old-conditioning-download-20261011-v1`.
 
 At pushed `c77c724c`, the current working-tree native check and full suite pass
 with the unchanged migration warning settings: **4,983/4,983** tests. This
 includes both plan-label and actual audio-publication-law seed regressions.
 This does not supersede the clean-archive TLS limitation below or convert an
 independent full-model differential into a numerical acceptance result.
+The clean `c77c724c` archive separately passes 11/11 production iteration tests
+and 7/7 scalar reference tests. Formatting and the output/terminal/comparison
+script regressions also pass. Later commits only format these golden tests and
+update this ledger; GLM/DeepSeek execution sources are unchanged from the
+corrected `c8c64721` physical capture.
 
 The full native suite passes 4,981/4,981 tests, and the root native check passes
 with the existing toolchain migration warning exclusions
