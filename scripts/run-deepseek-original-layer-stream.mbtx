@@ -1,0 +1,198 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn transfer(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn layers(text : String) -> Int raise {
+  let count = @string.parse_int(text)
+  guard count >= 1 && count <= 43 else { fail("1..43 original base layers") }
+  count
+}
+
+///|
+test "streamed reference counts real base layers and preserves complete streams" {
+  assert_eq(layers("43"), 43)
+  assert_eq(144 * 4 * 4096 * 2, 4718592)
+  for bad in ["0", "44", "-1"] {
+    try layers(bad) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid layers")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, count, .. options] &&
+    (options.is_empty() || (mode == "prepare" && options is ["--prefill"])) &&
+    root.has_prefix("/tmp/lunaflux-deepseek-original-layer-stream-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("prepare NEW_ROOT LAYERS [--prefill] | run|collect ROOT LAYERS")
+  }
+  let number = layers(count)
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    @fs.mkdir(root + "/original")
+    @fs.write_file(
+      root + "/SUBMISSION_ROWS.txt",
+      if options is ["--prefill"] {
+        "144"
+      } else {
+        "1"
+      },
+      create_mode=CreateNew,
+    )
+    for
+      (name, source) in [
+        (
+          "config.json", "/tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/config.json",
+        ),
+        ("ids.i32", "/tmp/lunaflux-deepseek-original-hyper-20261011-v1/ids.i32"),
+      ] {
+      @fs.write_file(
+        root + "/" + name,
+        @fs.read_file(source).binary(),
+        create_mode=CreateNew,
+      )
+    }
+    record(root, "mkdir", remote("mkdir " + root + " " + root + "/original"))
+    for name in ["config.json", "ids.i32"] {
+      transfer(root + "/" + name, node + ":" + root + "/" + name)
+    }
+    for name in ["upstream_layer_stream.cpp", "original_tensor_io.h"] {
+      transfer(
+        "benchmarks/checkpoint_aten_reference/aten/" + name,
+        node + ":" + root + "/" + name,
+      )
+    }
+    record(
+      root,
+      "build",
+      remote(
+        "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/upstream_layer_stream.cpp -o /work/layer-stream -lpython3.12",
+      ),
+    )
+  } else if mode == "run" {
+    let prefill = @fs.read_file(root + "/SUBMISSION_ROWS.txt").text() == "144"
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, "before-owners", owners)
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    let execution = remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      tag +
+      " --property=MemoryMax=16G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 docker run --name " +
+      tag +
+      " --gpus all --network none --user 1000:1000 --memory 16g --memory-swap 16g -e OMP_NUM_THREADS=2" +
+      " -e PYTHONPATH=/dependency -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/dependency:/dependency:ro" +
+      " -v " +
+      root +
+      ":/work -v /tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT/DeepSeek-V4-Flash-DSpark:/model:ro" +
+      " -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro --entrypoint /work/layer-stream " +
+      image +
+      " /inference /model /work/config.json /work/ids.i32 /work/original " +
+      number.to_string() +
+      (if prefill { " --prefill" } else { "" }),
+    )
+    @fs.write_file(
+      root + "/run.stdout",
+      execution.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/run.stderr",
+      execution.stderr(),
+      create_mode=CreateNew,
+    )
+    record(
+      root,
+      "terminal",
+      remote("docker inspect --format '{{json .State}}' " + tag),
+    )
+    execution.check()
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    for index in 0..<=number {
+      let path = root + "/original/hidden-\{index}.bf16"
+      @fs.write_file(path, b"", create_mode=CreateNew)
+      transfer(node + ":" + path, path)
+      guard @fs.read_file(path).binary().length() == 4718592 else {
+        fail("incomplete streams")
+      }
+    }
+    for index in 0..<number {
+      let path = root + "/original/mean-layer-\{index}.bf16"
+      @fs.write_file(path, b"", create_mode=CreateNew)
+      transfer(node + ":" + path, path)
+      guard @fs.read_file(path).binary().length() == 8192 else {
+        fail("incomplete mean")
+      }
+    }
+  } else {
+    fail("unknown mode")
+  }
+  println(
+    "original_layer_stream_" + mode + " complete; not a native parity claim",
+  )
+}

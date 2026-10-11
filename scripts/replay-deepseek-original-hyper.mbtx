@@ -108,19 +108,52 @@ test "component capture is explicit, not a whole-model result" {
 }
 
 ///|
-fn preparation_operands(extra : ArrayView[String]) -> (String, (String, String)?) raise {
+fn preparation_operands(
+  extra : ArrayView[String],
+) -> (String, (String, String)?) raise {
   match extra {
     [ids] => (ids, None)
     [ids, "--ffn-input", hyper, branch] => (ids, Some((hyper, branch)))
-    _ => fail("original IDs and optional original attention-output operands required")
+    _ =>
+      fail(
+        "original IDs and optional original attention-output operands required",
+      )
+  }
+}
+
+///|
+fn attention_replay(extra : ArrayView[String]) -> (Int, String)? raise {
+  match extra {
+    [_, "--attention-layer", layer, streams] => {
+      let layer = @string.parse_int(layer)
+      guard layer >= 0 && layer < 43 else { fail("real base layer required") }
+      Some((layer, streams))
+    }
+    _ => None
+  }
+}
+
+///|
+test "later hyper replay uses the literal predecessor and matching checkpoint layer" {
+  assert_eq(
+    attention_replay(["ids", "--attention-layer", "40", "hidden-40.bf16"]),
+    Some((40, "hidden-40.bf16")),
+  )
+  assert_eq(attention_replay(["ids"]), None)
+  try attention_replay(["ids", "--attention-layer", "43", "hidden"]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("predictor is not a base layer")
   }
 }
 
 ///|
 test "FFN replay retains literal original residual and branch operands" {
   assert_eq(preparation_operands(["ids"]), ("ids", None))
-  assert_eq(preparation_operands(["ids", "--ffn-input", "hyper", "branch"]),
-    ("ids", Some(("hyper", "branch"))))
+  assert_eq(
+    preparation_operands(["ids", "--ffn-input", "hyper", "branch"]),
+    ("ids", Some(("hyper", "branch"))),
+  )
 }
 
 ///|
@@ -132,7 +165,11 @@ async fn main {
   }
   let tag = root.split("/").last().unwrap().to_owned()
   if mode == "prepare" {
-    let (ids, prior) = preparation_operands(extra)
+    let replay = attention_replay(extra)
+    let (ids, prior) = match replay {
+      Some(_) => (extra[0], None)
+      None => preparation_operands(extra)
+    }
     let (bytes, rows) = literal_ids(@fs.read_file(ids).text())
     @fs.mkdir(root)
     for dir in ["original", "native", "memcheck", "racecheck", "synccheck"] {
@@ -176,6 +213,19 @@ async fn main {
     )
     for file in ["ids.i32", "hyper_matched_kernels.cuh"] {
       upload(root + "/" + file, root + "/" + file)
+    }
+    if replay is Some((layer, path)) {
+      let input = @fs.read_file(path).binary()
+      guard input.length() == rows * 16384 * 2 else {
+        fail("literal streams extent differs")
+      }
+      @fs.write_file(root + "/STREAM_INPUT.bf16", input, create_mode=CreateNew)
+      @fs.write_file(
+        root + "/LAYER.txt",
+        layer.to_string(),
+        create_mode=CreateNew,
+      )
+      upload(root + "/STREAM_INPUT.bf16", root + "/STREAM_INPUT.bf16")
     }
     if prior is Some((hyper, branch)) {
       @fs.mkdir(root + "/prior")
@@ -252,7 +302,11 @@ async fn main {
     let ffn_args = if ffn is Some(_) {
       " /work/prior /work/prior/branch.bf16"
     } else {
-      ""
+      try @fs.read_file(root + "/LAYER.txt").text() catch {
+        _ => ""
+      } noraise {
+        layer => " --attention-layer " + layer + " /work/STREAM_INPUT.bf16"
+      }
     }
     record(
       root,
@@ -303,7 +357,8 @@ async fn main {
         "/" +
         gate +
         " " +
-        rows.to_string() + (if ffn is Some(_) { " " + root + "/prior" } else { "" })
+        rows.to_string() +
+        (if ffn is Some(_) { " " + root + "/prior" } else { "" })
       record(
         root,
         gate + "-run",
@@ -324,6 +379,7 @@ async fn main {
     )
   } else if mode == "collect" {
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
+    let layer = @fs.read_file(root + "/LAYER.txt").text() catch { _ => "0" }
     for dir in ["original", "native"] {
       for (file, expected) in captures(rows) {
         if dir == "native" &&
@@ -362,7 +418,7 @@ async fn main {
           root + "/native/" + file + ".bf16",
           root + "/original/" + file + ".bf16",
           root + "/" + file + "-comparison.txt",
-          "original_deepseek_first_layer_" + file,
+          "original_deepseek_layer_" + layer + "_" + file,
           width.to_string(),
         ]).output(),
       )
@@ -377,20 +433,41 @@ async fn main {
           root + "/native/" + file + ".f32",
           root + "/original/" + file + ".f32",
           root + "/" + file + "-comparison.txt",
-          "original_deepseek_first_layer_" + file,
+          "original_deepseek_layer_" + layer + "_" + file,
         ]).output(),
       )
     }
-    let ffn = try @fs.read_file(root + "/FFN.txt") catch { _ => None } noraise { _ => Some(()) }
+    let ffn = try @fs.read_file(root + "/FFN.txt") catch {
+      _ => None
+    } noraise {
+      _ => Some(())
+    }
     if ffn is Some(_) {
       let target = root + "/native/attention-post.bf16"
       @fs.write_file(target, b"", create_mode=CreateNew)
-      @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
-        node + ":" + target, target]).output().check()
-      record(root, "attention-post-comparison", @shell.Cmd("moon", ["run",
-        "scripts/compare-minimax-encoder-reference.mbtx", target,
-        root + "/original/streams.bf16", root + "/attention-post-comparison.txt",
-        "original_deepseek_matched_attention_post", "16384"]).output())
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + target,
+        target,
+      ])
+      .output()
+      .check()
+      record(
+        root,
+        "attention-post-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          target,
+          root + "/original/streams.bf16",
+          root + "/attention-post-comparison.txt",
+          "original_deepseek_matched_attention_post",
+          "16384",
+        ]).output(),
+      )
     }
   } else {
     fail("unknown mode")
