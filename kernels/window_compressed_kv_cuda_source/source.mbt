@@ -82,6 +82,7 @@ pub fn window_compressed_kv_source(
     ),
   )
   let attention = match plan.window().probability_law() {
+    OrderedOnlineF32 => raise @precision.PrecisionPlanError::NoImplementation
     OnlineBf16(block_tokens=_) =>
       @window.online_window_attention_source(
         plan.window(),

@@ -95,7 +95,7 @@ async fn main {
     )
   }
   let (build_root, commit, selected) = source_selection(tail)
-  let (cases, reductions) = if selected
+  let (remaining, reductions) = if selected
     is ["--reductions", square, dot, .. cases] {
     guard [square, dot].all(law => law == "ordered" || law == "compensated") else {
       fail("explicit square and dot reductions must be ordered or compensated")
@@ -103,6 +103,14 @@ async fn main {
     (cases, square + " " + dot)
   } else {
     (selected, "compensated ordered")
+  }
+  let (cases, probability) = if remaining is ["--probability", law, .. cases] {
+    guard law is ("ordered-online" | "bf16-64" | "bf16-128") else {
+      fail("attention probability must be ordered-online, bf16-64 or bf16-128")
+    }
+    (cases, law)
+  } else {
+    (remaining, "ordered-online")
   }
   guard mode is ("prepare" | "run") &&
     root.has_prefix("/tmp/lunaflux-minimax-source-norm-") &&
@@ -131,7 +139,7 @@ async fn main {
       commit +
       "\nbuild=" +
       build_root +
-      "\nAOT=unmodified_source_export\n",
+      "\nAOT=unmodified_source_export\nprobability=" + probability + "\n",
       create_mode=CreateNew,
     )
     @fs.write_file(root + "/minimax_checkpoint.exe", b"", create_mode=CreateNew)
@@ -201,7 +209,7 @@ async fn main {
           " 256 64 4096 8589934592 " +
           config +
           "/aot " +
-          reductions,
+          reductions + " " + probability,
         ),
       )
       for file in ["SOURCES.v1", "text.cu"] {

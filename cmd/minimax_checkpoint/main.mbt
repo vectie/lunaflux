@@ -49,7 +49,10 @@ async fn main {
       ) ||
       ((mode == "export-audio" || mode == "audio-memory") && tail.length() == 5) ||
       (mode == "export-video" && tail.length() == 9) ||
-      (mode == "export-request" && (tail.length() == 10 || tail.length() == 12)) ||
+      (
+        mode == "export-request" &&
+        (tail.length() == 10 || tail.length() == 12 || tail.length() == 13)
+      ) ||
       (mode == "encode-text" && tail.length() == 7) ||
       (
         (mode == "encode-text-layers" || mode == "encode-text-operators") &&

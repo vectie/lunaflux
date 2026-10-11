@@ -35,6 +35,7 @@ async fn export_request(
     epsilon=text.epsilon,
     square_reduction_law=options.square_law,
     dot_reduction_law=options.dot_law,
+    probability_law=options.probability_law,
   )
   let max_metadata_bytes = 1073741824L
   // Each row needs BF16 hidden storage and two I32 indexing fields. Derive the
@@ -110,13 +111,29 @@ priv struct RequestExportArguments {
   output_directory : String
   square_law : @precision.SquareReductionLaw
   dot_law : @precision.DotReductionLaw
+  probability_law : @precision.AttentionProbabilityLaw
 }
 
 ///|
 fn request_export_arguments(
   args : ArrayView[String],
 ) -> RequestExportArguments raise {
-  let (geometry, square_law, dot_law) = if args.length() == 12 {
+  let probability_law : @precision.AttentionProbabilityLaw = if args.length() ==
+    13 {
+    match args[12] {
+      "ordered-online" => OrderedOnlineF32
+      "bf16-64" => OnlineBf16(block_tokens=64)
+      "bf16-128" => OnlineBf16(block_tokens=128)
+      _ =>
+        fail(
+          "attention probability must be ordered-online, bf16-64 or bf16-128",
+        )
+    }
+  } else {
+    OrderedOnlineF32
+  }
+  let (geometry, square_law, dot_law) = if args.length() == 12 ||
+    args.length() == 13 {
     let square : @precision.SquareReductionLaw = match args[10] {
       "ordered" => OrderedFloat32
       "compensated" => CompensatedFloat32
@@ -163,6 +180,7 @@ fn request_export_arguments(
     output_directory: output,
     square_law,
     dot_law,
+    probability_law,
   }
   guard options.height > 0 &&
     options.width > 0 &&

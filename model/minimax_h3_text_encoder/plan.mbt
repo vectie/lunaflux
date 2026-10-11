@@ -2,6 +2,7 @@
 pub(all) suberror TextEncoderError {
   InvalidRows
   InvalidEpsilon
+  InvalidProbabilityLaw
   InvalidLayer
   InvalidToken
   VisualTokensRequireEncoder
@@ -15,6 +16,7 @@ pub struct TextEncoderPlan {
   epsilon : Double
   priv square_law : @precision.SquareReductionLaw
   priv dot_law : @precision.DotReductionLaw
+  priv probability_law : @precision.AttentionProbabilityLaw
 }
 
 ///|
@@ -23,17 +25,32 @@ pub fn TextEncoderPlan::new(
   epsilon~ : Double,
   square_reduction_law? : @precision.SquareReductionLaw = CompensatedFloat32,
   dot_reduction_law? : @precision.DotReductionLaw = OrderedFloat32,
+  probability_law? : @precision.AttentionProbabilityLaw = OrderedOnlineF32,
 ) -> Self raise TextEncoderError {
   guard rows > 0 && rows <= 262144 else { raise InvalidRows }
   guard epsilon > 0.0 && epsilon <= 1.0 && !epsilon.is_nan() else {
     raise InvalidEpsilon
+  }
+  guard probability_law != @precision.AttentionProbabilityLaw::GlobalF32 else {
+    raise InvalidProbabilityLaw
+  }
+  probability_law.validate() catch {
+    _ => raise InvalidProbabilityLaw
   }
   {
     rows,
     epsilon,
     square_law: square_reduction_law,
     dot_law: dot_reduction_law,
+    probability_law,
   }
+}
+
+///|
+pub fn TextEncoderPlan::attention_probability_law(
+  self : Self,
+) -> @precision.AttentionProbabilityLaw {
+  self.probability_law
 }
 
 ///|

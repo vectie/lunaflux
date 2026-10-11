@@ -59,6 +59,7 @@ pub fn build_source(
     epsilon=plan.epsilon,
     prefix~,
     square_reduction_law=plan.square_reduction_law(),
+    probability_law=plan.attention_probability_law(),
   )
   let out = @decoder_projection_cuda_source.dense_projection_bf16_source(
     input_width=8192,

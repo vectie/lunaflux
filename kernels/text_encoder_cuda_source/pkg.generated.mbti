@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn attention_source(rows~ : Int, query_heads~ : Int, kv_heads~ : Int, dimension~ : Int, epsilon~ : Double, prefix~ : String, square_reduction_law? : @precision_ir.SquareReductionLaw) -> Bytes raise TextEncoderSourceError
+pub fn attention_source(rows~ : Int, query_heads~ : Int, kv_heads~ : Int, dimension~ : Int, epsilon~ : Double, prefix~ : String, square_reduction_law? : @precision_ir.SquareReductionLaw, probability_law? : @precision_ir.AttentionProbabilityLaw) -> Bytes raise TextEncoderSourceError
 
 pub fn norm_source(rows~ : Int, width~ : Int, epsilon~ : Double, symbol~ : String, square_reduction_law? : @precision_ir.SquareReductionLaw) -> Bytes raise TextEncoderSourceError
 
@@ -17,6 +17,7 @@ pub(all) suberror TextEncoderSourceError {
   InvalidShape
   InvalidSymbol
   InvalidEpsilon
+  InvalidProbabilityLaw
 } derive(Eq)
 
 // Types and methods

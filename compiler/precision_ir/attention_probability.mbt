@@ -5,15 +5,16 @@
 /// Sink mass is added to the final denominator without participating in maxima.
 pub(all) enum AttentionProbabilityLaw {
   GlobalF32
+  OrderedOnlineF32
   OnlineBf16(block_tokens~ : Int)
 } derive(Eq, Debug)
 
 ///|
-fn AttentionProbabilityLaw::validate(
+pub fn AttentionProbabilityLaw::validate(
   self : Self,
 ) -> Unit raise PrecisionPlanError {
   match self {
-    GlobalF32 => ()
+    GlobalF32 | OrderedOnlineF32 => ()
     OnlineBf16(block_tokens~) => {
       guard block_tokens > 0 &&
         block_tokens <= 4096 &&

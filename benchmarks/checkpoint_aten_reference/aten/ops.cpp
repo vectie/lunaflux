@@ -5,12 +5,14 @@
 #include <ATen/Context.h>
 #include <ATen/Parallel.h>
 #include <ATen/ops/scaled_dot_product_attention.h>
+#include <ATen/ops/_fused_sdp_choice.h>
 #include <ATen/ops/silu.h>
 #include <ATen/core/grad_mode.h>
 #include <cerrno>
 #include <cstdint>
 #include <cmath>
 #include <cstring>
+#include <cstdio>
 #include <fcntl.h>
 #include <limits>
 #include <stdexcept>
@@ -23,7 +25,11 @@ struct Context {
   int64_t budget, live = 0;
   std::string error;
   std::unordered_map<at::Tensor *, int64_t> tensors;
-  Context(int gpu, int64_t limit) : device(gpu ? at::kCUDA : at::kCPU), budget(limit) {}
+  Context(int gpu, int64_t limit) : device(gpu ? at::kCUDA : at::kCPU), budget(limit) {
+    // The installed original H3 encode_ids() explicitly enables cuDNN SDPA.
+    // Keep all other library preferences unchanged; do not force a backend.
+    at::globalContext().setSDPUseCuDNN(true);
+  }
   ~Context() { for (auto &item : tensors) delete item.first; }
   void reserve(int64_t bytes) const {
     if (bytes < 0 || bytes > budget - live) throw std::runtime_error("reference tensor budget exceeded");
@@ -148,6 +154,13 @@ extern "C" void *lfr_ref_apply(void *p, int op, void *xp, void *yp, void *zp, in
         auto qs = q.reshape({1, rows, a, c}).transpose(1, 2);
         auto ks = ctx.get(yp).reshape({1, rows, b, c}).transpose(1, 2).repeat_interleave(a / b, 1);
         auto vs = ctx.get(zp).reshape({1, rows, b, c}).transpose(1, 2).repeat_interleave(a / b, 1);
+        if (ctx.device.is_cuda()) {
+          const auto backend = at::_fused_sdp_choice(qs, ks, vs, {}, 0.0, true);
+          std::fprintf(stderr, "reference_sdpa rows=%lld heads=%d dimension=%d backend=%lld cudnn_enabled=%d flash_enabled=%d\n",
+                       (long long)rows, a, c, (long long)backend,
+                       at::globalContext().userEnabledCuDNNSDP(),
+                       at::globalContext().userEnabledFlashSDP());
+        }
         out = at::scaled_dot_product_attention(qs, ks, vs, {}, 0.0, true).transpose(1, 2).reshape({rows, a * c}).contiguous();
         break;
       }

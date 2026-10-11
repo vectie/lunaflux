@@ -28,6 +28,7 @@ pub(all) suberror EncoderConfigError {
 pub(all) suberror TextEncoderError {
   InvalidRows
   InvalidEpsilon
+  InvalidProbabilityLaw
   InvalidLayer
   InvalidToken
   VisualTokensRequireEncoder
@@ -67,8 +68,9 @@ pub struct TextEncoderPlan {
   epsilon : Double
   // private fields
 }
+pub fn TextEncoderPlan::attention_probability_law(Self) -> @precision_ir.AttentionProbabilityLaw
 pub fn TextEncoderPlan::dot_reduction_law(Self) -> @precision_ir.DotReductionLaw
-pub fn TextEncoderPlan::new(rows~ : Int, epsilon~ : Double, square_reduction_law? : @precision_ir.SquareReductionLaw, dot_reduction_law? : @precision_ir.DotReductionLaw) -> Self raise TextEncoderError
+pub fn TextEncoderPlan::new(rows~ : Int, epsilon~ : Double, square_reduction_law? : @precision_ir.SquareReductionLaw, dot_reduction_law? : @precision_ir.DotReductionLaw, probability_law? : @precision_ir.AttentionProbabilityLaw) -> Self raise TextEncoderError
 pub fn TextEncoderPlan::output_bytes(Self) -> Int64
 pub fn TextEncoderPlan::selected_hidden_state(Self) -> Int
 pub fn TextEncoderPlan::square_reduction_law(Self) -> @precision_ir.SquareReductionLaw

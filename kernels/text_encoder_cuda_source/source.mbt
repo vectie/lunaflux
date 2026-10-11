@@ -3,6 +3,7 @@ pub(all) suberror TextEncoderSourceError {
   InvalidShape
   InvalidSymbol
   InvalidEpsilon
+  InvalidProbabilityLaw
 } derive(Eq)
 
 ///|
@@ -26,6 +27,7 @@ pub fn attention_source(
   epsilon~ : Double,
   prefix~ : String,
   square_reduction_law? : @precision.SquareReductionLaw = OrderedFloat32,
+  probability_law? : @precision.AttentionProbabilityLaw = OrderedOnlineF32,
 ) -> Bytes raise TextEncoderSourceError {
   guard rows > 0 &&
     rows <= 262144 &&
@@ -46,6 +48,40 @@ pub fn attention_source(
   let eps = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(epsilon)
   let (initialization, update) = square_reduction(square_reduction_law)
   let group = query_heads / kv_heads
+  guard probability_law != @precision.AttentionProbabilityLaw::GlobalF32 else {
+    raise InvalidProbabilityLaw
+  }
+  probability_law.validate() catch {
+    _ => raise InvalidProbabilityLaw
+  }
+  let attention = match probability_law {
+    OnlineBf16(block_tokens~) =>
+      online_bf16_attention(
+        rows, query_heads, kv_heads, dimension, group, prefix, block_tokens,
+      )
+    OrderedOnlineF32 =>
+      (
+        $|extern "C" __global__ void \{prefix}_attention(const __nv_bfloat16 *q, const __nv_bfloat16 *k, const __nv_bfloat16 *v, __nv_bfloat16 *out) {
+        $|  const int row=blockIdx.x,h=blockIdx.y;
+        $|  if(row>=\{rows} || h>=\{query_heads} || threadIdx.x!=0) return;
+        $|  const int kh=h/\{group};
+        $|  const unsigned long long qb=((unsigned long long)row*\{query_heads}+h)*\{dimension};
+        $|  float accum[\{dimension}]={0}, maximum=-INFINITY, denominator=0.0f;
+        $|  for(int key=0;key<=row;++key) {
+        $|    const unsigned long long kb=((unsigned long long)key*\{kv_heads}+kh)*\{dimension};
+        $|    float score=0.0f;
+        $|    for(int d=0;d<\{dimension};++d) score=__fadd_rn(score,__fmul_rn(__bfloat162float(q[qb+d]),__bfloat162float(k[kb+d])));
+        $|    score=__fmul_rn(score,rsqrtf(\{dimension}.0f));
+        $|    const float next=fmaxf(maximum,score), old=expf(maximum-next), p=expf(score-next);
+        $|    denominator=__fadd_rn(__fmul_rn(denominator,old),p);
+        $|    for(int d=0;d<\{dimension};++d) accum[d]=__fadd_rn(__fmul_rn(accum[d],old),__fmul_rn(p,__bfloat162float(v[kb+d])));
+        $|    maximum=next;
+        $|  }
+        $|  for(int d=0;d<\{dimension};++d) out[qb+d]=__float2bfloat16_rn(__fdiv_rn(accum[d],denominator));
+        $|}
+      )
+    GlobalF32 => raise InvalidProbabilityLaw
+  }
   @utf8.encode(
     (
       $|#include <cuda_bf16.h>
@@ -82,24 +118,7 @@ pub fn attention_source(
       $|  x[base+d]=__float2bfloat16_rn(__fadd_rn(ac,bs));
       $|  x[base+d+\{dimension/2}]=__float2bfloat16_rn(__fadd_rn(bc,as));
       $|}
-      $|extern "C" __global__ void \{prefix}_attention(const __nv_bfloat16 *q, const __nv_bfloat16 *k, const __nv_bfloat16 *v, __nv_bfloat16 *out) {
-      $|  const int row=blockIdx.x,h=blockIdx.y;
-      $|  if(row>=\{rows} || h>=\{query_heads} || threadIdx.x!=0) return;
-      $|  const int kh=h/\{group};
-      $|  const unsigned long long qb=((unsigned long long)row*\{query_heads}+h)*\{dimension};
-      $|  float accum[\{dimension}]={0}, maximum=-INFINITY, denominator=0.0f;
-      $|  for(int key=0;key<=row;++key) {
-      $|    const unsigned long long kb=((unsigned long long)key*\{kv_heads}+kh)*\{dimension};
-      $|    float score=0.0f;
-      $|    for(int d=0;d<\{dimension};++d) score=__fadd_rn(score,__fmul_rn(__bfloat162float(q[qb+d]),__bfloat162float(k[kb+d])));
-      $|    score=__fmul_rn(score,rsqrtf(\{dimension}.0f));
-      $|    const float next=fmaxf(maximum,score), old=expf(maximum-next), p=expf(score-next);
-      $|    denominator=__fadd_rn(__fmul_rn(denominator,old),p);
-      $|    for(int d=0;d<\{dimension};++d) accum[d]=__fadd_rn(__fmul_rn(accum[d],old),__fmul_rn(p,__bfloat162float(v[kb+d])));
-      $|    maximum=next;
-      $|  }
-      $|  for(int d=0;d<\{dimension};++d) out[qb+d]=__float2bfloat16_rn(__fdiv_rn(accum[d],denominator));
-      $|}
+      $|\{attention}
     ),
   )
 }

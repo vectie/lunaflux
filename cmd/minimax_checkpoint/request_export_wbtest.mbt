@@ -90,3 +90,26 @@ test "request source row capacity comes from hidden and index storage budgets" {
     }
   }
 }
+
+///|
+test "export selects explicit probability law without changing legacy defaults" {
+  let geometry = [
+    "32", "32", "120", "5", "3", "256", "64", "4096", "8589934592", "/tmp/export",
+  ]
+  assert_eq(
+    request_export_arguments(geometry).probability_law,
+    @precision.AttentionProbabilityLaw::OrderedOnlineF32,
+  )
+  let args = geometry.copy()
+  args.append(["compensated", "ordered", "bf16-64"])
+  assert_eq(
+    request_export_arguments(args).probability_law,
+    @precision.AttentionProbabilityLaw::OnlineBf16(block_tokens=64),
+  )
+  args[12] = "implicit-tuned"
+  try request_export_arguments(args) catch {
+    _ => ()
+  } noraise {
+    _ => fail("unknown attention precision selected")
+  }
+}

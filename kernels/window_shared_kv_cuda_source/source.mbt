@@ -44,6 +44,7 @@ pub fn window_shared_kv_source(
     ),
   )
   let attention = match plan.probability_law() {
+    OrderedOnlineF32 => raise @precision.PrecisionPlanError::NoImplementation
     OnlineBf16(block_tokens=_) =>
       online_window_attention_source(
         plan,
