@@ -280,6 +280,7 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
     limits~,
   )
   let captured = Array::new(capacity=input.length())
+  let boundaries : Map[String, Array[Byte]] = Map([])
   let readback = FixedArray::make(port_bytes, b'\x00')
   for start = 0; start < count; start = start + rows {
     let live = rows.min(count - start)
@@ -303,6 +304,16 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
     while !decoder.poll() {
       @async.pause()
     }
+    decoder.visit_retired_boundaries((name, allocation, width) => {
+      let values = allocation.copy_to_host(
+        0L,
+        live.to_int64() * width.to_int64() * 2L,
+      )
+      let target = boundaries.get_or_init(name, () => [])
+      for byte in values {
+        target.push(byte)
+      }
+    })
     output_pool.enqueue(
       lane=0,
       host_offset=0L,
@@ -328,6 +339,13 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
     Bytes::from_array(captured),
     create_mode=CreateNew,
   )
+  for name, bytes in boundaries {
+    @fs.write_file(
+      arguments[8] + "/" + name + ".bf16",
+      Bytes::from_array(bytes),
+      create_mode=CreateNew,
+    )
+  }
   println(
     "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} production_layer=true full_model=false",
   )

@@ -39,6 +39,16 @@ test "contiguous DeepSeek slice preserves layer geometry and compact expert bank
   assert_true(joined.source_bytes().length() > 0)
   inspect(joined.launch_count(), content="0")
   inspect(joined.append_descriptors().length(), content="0")
+  try
+    joined.visit_retired_boundaries((_, _, _) => {
+      fail("unexpected borrowed port")
+    })
+  catch {
+    @device.DeviceError::InvalidArgument(OrderedExecutorPoll) => ()
+    _ => fail("unexpected observer error")
+  } noraise {
+    _ => fail("unprepared slice cannot expose diagnostic boundaries")
+  }
   try joined.submit(live_rows=1) catch {
     @device.DeviceError::Busy(OrderedExecutorEnqueue) => ()
     _ => fail("unexpected submit error")

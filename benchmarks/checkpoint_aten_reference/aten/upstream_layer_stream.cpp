@@ -3,6 +3,8 @@
 // state. Reordering independent layers' weight residency changes no arithmetic.
 // No replacement kernel, model plugin or Python dependency enters production.
 #include "original_tensor_io.h"
+#include "original_block_boundaries.h"
+#include <cstdlib>
 
 static bool copy_bytes(PyObject *target,PyObject *source,PyObject *u8) {
   Owned a(PyObject_CallMethod(target,"view","O",u8));
@@ -113,10 +115,25 @@ static int execute(const char *inference,const char *root,const char *config_pat
     Owned ctor(Py_BuildValue("iO",layer,args.p));
     Owned block(block_cls.p?PyObject_CallObject(block_cls.p,ctor.p):nullptr);
     if(!block.p||!load_block(block.p,open.p,map,root,layer,u8.p))return -1;
+    const bool observe=layer==0&&std::getenv("LUNA_ORIGINAL_BOUNDARIES");
+    if(observe&&prefill){PyErr_SetString(PyExc_ValueError,"matched observer requires one-row submissions");return -1;}
+    OriginalBoundaries observer;
+    Owned an(observe?PyObject_GetAttrString(block.p,"attn_norm"):nullptr);
+    Owned attention(observe?PyObject_GetAttrString(block.p,"attn"):nullptr);
+    Owned fn(observe?PyObject_GetAttrString(block.p,"ffn_norm"):nullptr);
+    Owned ffn(observe?PyObject_GetAttrString(block.p,"ffn"):nullptr);
+    if(observe) {
+      if(!an.p||!attention.p||!fn.p||!ffn.p)return -1;
+      observer.attention_norm=an.p;observer.attention=attention.p;
+      observer.ffn_norm=fn.p;observer.ffn=ffn.p;observer.block=block.p;observer.u8=u8.p;
+      boundary_observer=&observer;
+      PyEval_SetTrace(trace_original_boundary,Py_None);
+    }
     Owned output(PyObject_CallMethod(torch.p,"empty_like","O",h.p));
     if(!output.p)return -1;
     const int step=prefill?144:1;
     for(int position=0;position<144;position+=step) {
+      observer.post_count=0;
       Owned x(PyObject_CallMethod(h.p,"narrow","iii",1,position,step));
       Owned id(PyObject_CallMethod(ids.p,"narrow","iii",1,position,step));
       Owned callargs(x.p&&id.p?Py_BuildValue("OiO",x.p,position,id.p):nullptr);
@@ -124,6 +141,11 @@ static int execute(const char *inference,const char *root,const char *config_pat
       Owned destination(PyObject_CallMethod(output.p,"narrow","iii",1,position,step));
       Owned copied(y.p&&destination.p?PyObject_CallMethod(destination.p,"copy_","O",y.p):nullptr);
       if(!copied.p)return -1;
+    }
+    if(observe) {
+      PyEval_SetTrace(nullptr,nullptr);boundary_observer=nullptr;
+      if(!write_original_boundaries(observer,out))return -1;
+      std::puts("original_layer_boundaries layer=0 rows=144 submission_rows=1 arithmetic=unchanged");
     }
     if(!save(output.p,u8.p,std::string(out)+"/hidden-"+std::to_string(layer+1)+".bf16",144LL*4*4096*2))return -1;
     Owned last(PyObject_CallMethod(output.p,"narrow","iii",1,143,1));

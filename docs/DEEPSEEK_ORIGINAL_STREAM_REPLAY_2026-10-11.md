@@ -92,8 +92,19 @@ Roots: `/tmp/lunaflux-deepseek-production-layer-3-rows6-20261011-v1` and
 First-three-layer replay now accepts literal original I32 token IDs and loads
 the actual checkpoint token-to-expert tables through the production index-table
 uploader. It does not substitute learned routing for token-hash routing. Its
-reference comparison remains pending until the committed ARM executable runs.
-One-row submissions are supported to control the original incremental geometry.
+committed ARM executable now completes the first layer using one-row submissions
+and all 144 original IDs. Layer 0 aggregate relative L2 is **0.3749400%**;
+row 47 is **1.6313947%**. This is the first matched complete-layer discrepancy,
+not only a late-layer accumulated effect. Root:
+`/tmp/lunaflux-deepseek-production-layer-0-rows1-20261011-v1`.
+
+The next diagnostic records attention input/output, the complete four-stream
+attention residual, and FFN input/output after native queue retirement. An
+optional original CPython return observer records the same boundaries from
+unmodified `Block.forward`, RMSNorm, Attention and MoE, retaining one-row
+submissions and token-hash routing. Ordinary serving has no observer, readback,
+extra launch or changed arithmetic. These boundary comparisons are pending;
+the full-model numerical difference is **not fixed** by adding an observer.
 
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]

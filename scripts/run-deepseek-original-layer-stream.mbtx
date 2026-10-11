@@ -75,10 +75,10 @@ test "streamed reference counts real base layers and preserves complete streams"
 ///|
 async fn main {
   guard @env.args() is [_, mode, root, count, .. options] &&
-    (options.is_empty() || (mode == "prepare" && options is ["--prefill"])) &&
+    (options.is_empty() || (mode == "prepare" && options is ["--prefill" | "--boundaries"])) &&
     root.has_prefix("/tmp/lunaflux-deepseek-original-layer-stream-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
-    fail("prepare NEW_ROOT LAYERS [--prefill] | run|collect ROOT LAYERS")
+    fail("prepare NEW_ROOT LAYERS [--prefill|--boundaries] | run|collect ROOT LAYERS")
   }
   let number = layers(count)
   let tag = root.split("/").last().unwrap().to_owned()
@@ -94,6 +94,7 @@ async fn main {
       },
       create_mode=CreateNew,
     )
+    @fs.write_file(root + "/BOUNDARIES.txt", if options is ["--boundaries"] { "true" } else { "false" }, create_mode=CreateNew)
     for
       (name, source) in [
         (
@@ -111,7 +112,7 @@ async fn main {
     for name in ["config.json", "ids.i32"] {
       transfer(root + "/" + name, node + ":" + root + "/" + name)
     }
-    for name in ["upstream_layer_stream.cpp", "original_tensor_io.h"] {
+    for name in ["upstream_layer_stream.cpp", "original_tensor_io.h", "original_block_boundaries.h"] {
       transfer(
         "benchmarks/checkpoint_aten_reference/aten/" + name,
         node + ":" + root + "/" + name,
@@ -130,6 +131,7 @@ async fn main {
     )
   } else if mode == "run" {
     let prefill = @fs.read_file(root + "/SUBMISSION_ROWS.txt").text() == "144"
+    let boundaries = (@fs.read_file(root + "/BOUNDARIES.txt").text() == "true") catch { _ => false }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -141,6 +143,7 @@ async fn main {
       " --property=MemoryMax=16G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 docker run --name " +
       tag +
       " --gpus all --network none --user 1000:1000 --memory 16g --memory-swap 16g -e OMP_NUM_THREADS=2" +
+      (if boundaries { " -e LUNA_ORIGINAL_BOUNDARIES=1" } else { "" }) +
       " -e PYTHONPATH=/dependency -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/dependency:/dependency:ro" +
       " -v " +
       root +
@@ -187,6 +190,13 @@ async fn main {
       transfer(node + ":" + path, path)
       guard @fs.read_file(path).binary().length() == 8192 else {
         fail("incomplete mean")
+      }
+    }
+    let boundaries = (@fs.read_file(root + "/BOUNDARIES.txt").text() == "true") catch { _ => false }
+    if boundaries {
+      for name in ["attention-input", "attention-output", "attention-residual", "ffn-input", "ffn-output"] {
+        let path = root + "/original/" + name + ".bf16"
+        transfer(node + ":" + path, path)
       }
     }
   } else {

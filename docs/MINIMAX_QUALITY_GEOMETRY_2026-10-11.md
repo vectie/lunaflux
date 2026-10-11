@@ -81,6 +81,15 @@ This is matched-latent decoder agreement, not a listening or audio-quality pass.
 The incomplete `v1` weight-copy attempt was stopped and preserved; `v2` reuses
 the already staged original checkpoint instead of transferring it again.
 
+Source review of the installed original denoiser confirms that CFG-distilled
+FL2VA uses one positive forward per step, packed padding is a separate document,
+the timestep is unscaled `1-sigma`, normalization epsilon is `1e-5`, and the
+original text boundary is unnormalized `hidden_states[50]`. Native planning
+already expresses these contracts. They are not demonstrated causes of the
+failed picture, so this review does not introduce speculative fixes there.
+Remaining encoder differences and matched original denoiser comparison remain
+open; neither is waived because the two VAEs agree.
+
 ```sh
 moon run scripts/run-minimax-upstream-video.mbtx prepare NEW_REFERENCE_ROOT CAPTURED_VIDEO_LATENT_F32 --latent-shape 37 8 8
 moon run scripts/run-minimax-upstream-video.mbtx run NEW_REFERENCE_ROOT
