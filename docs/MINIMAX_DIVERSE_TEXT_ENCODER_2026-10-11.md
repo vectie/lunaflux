@@ -4,7 +4,44 @@ This extends the previous three-token caption and mostly repeated 140-token
 input to twelve existing original-tokenizer cases. It measures original-weight
 encoder numerical differences, not full-H3 audiovisual quality, acceptance or
 serving throughput. No production arithmetic, CUDA lowering or runtime hashing
-is changed.
+was changed for the original baseline. The later normalization correction is
+reported separately below; the original tensors and reference remain unchanged.
+
+## Source-selected normalization correction
+
+Pushed source `49b15d75` selects compensated F32 square summation explicitly in
+the pure precision plan. Both row and Q/K-head normalization consume that law
+at CUDA lowering; BF16 normalized-value and weight-product boundaries remain.
+All twelve fresh exact-row AOT modules execute fifty layers on Spark `.179`,
+using the committed ARM binary, original weights and the same literal tokens.
+Every unit exits zero with finite complete final tensors and releases its GPU.
+Inputs are not padded/truncated and old outputs are not overwritten.
+
+| Input | Original worst final-row relative L2 | Compensated worst final-row relative L2 |
+| --- | --- | --- |
+| Actual caption | 1.1972% | 0.9558% |
+| Long input | 22.1058% | 9.0533% |
+| English | 1.7530% | 3.5986% |
+| CJK/multilingual | 1.5909% | 1.5856% |
+| Normalization | 1.8529% | 1.6672% |
+| Digits | 14.7532% | 3.1238% |
+| Whitespace | 1.1383% | 1.1193% |
+| Emoji | 1.7026% | 1.5603% |
+| Special-token text | 1.2689% | 1.2104% |
+| Code | 1.2131% | 1.6576% |
+| Scripts | 2.2873% | 3.1358% |
+| Punctuation | 2.0948% | 2.1491% |
+
+Eight worst-row comparisons improve and four worsen against the unchanged
+library reference. Compensation fixes loss of small contributions, as the
+independent component F64 oracle confirms; it does **not** establish uniform
+fifty-layer reference alignment. Row-only/head sensitivity remains under test.
+No acceptance threshold is relaxed to call this corpus a numerical pass.
+
+Fresh source-selected digits and long outputs reproduce the separate AOT
+experiments bitwise. Final tensors, per-token comparisons and summary remain at
+`/tmp/lunaflux-minimax-source-norm-20261011-v2`. The comparator regression ensures
+that worst-token errors are not hidden by magnitude-weighted global norms.
 
 ## Method and scope
 

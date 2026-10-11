@@ -27,8 +27,11 @@ normalization-only fifty-layer intervention does improve both difficult inputs:
 worst final-row relative L2 falls from 14.75% to 3.12% for digits and 22.11% to
 9.05% for long input. The source now selects an explicit compensated-F32
 precision law for row/head normalization, preserving every BF16 boundary;
-fresh source-selected physical validation remains pending. This is not yet
-complete numerical/media-quality acceptance. See the [independent correctness investigation](INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md).
+fresh source-selected kernels reproduce both improvements bitwise and complete
+all twelve real-machine corpus cases. Eight worst-row comparisons improve and
+four worsen against the unchanged reference; row/head attribution continues.
+Component correctness/determinism and all three CUDA sanitizer checks pass.
+This is not yet complete numerical/media-quality acceptance. See the [independent correctness investigation](INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md).
 The new wider-attention full-encoder diagnostic stays in the separate test-only
 MoonBit/ATen module, outside all production imports and execution paths.
 
