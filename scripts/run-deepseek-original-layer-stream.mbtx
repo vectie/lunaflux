@@ -77,7 +77,8 @@ async fn main {
   guard @env.args() is [_, mode, root, count, .. options] &&
     (
       options.is_empty() ||
-      (mode == "prepare" && options is ["--prefill" | "--boundaries"])
+      (mode == "prepare" && options is ["--prefill" | "--boundaries"]) ||
+      (mode == "prepare" && options is ["--ffn-input", _])
     ) &&
     root.has_prefix("/tmp/lunaflux-deepseek-original-layer-stream-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
@@ -125,6 +126,13 @@ async fn main {
     for name in ["config.json", "ids.i32"] {
       transfer(root + "/" + name, node + ":" + root + "/" + name)
     }
+    if options is ["--ffn-input", input] {
+      guard number == 1 else { fail("matched FFN uses literal layer zero") }
+      let bytes = @fs.read_file(input).binary()
+      guard bytes.length() == 144 * 4096 * 2 else { fail("all literal FFN rows required") }
+      @fs.write_file(root + "/ffn-input.bf16", bytes, create_mode=CreateNew)
+      transfer(root + "/ffn-input.bf16", node + ":" + root + "/ffn-input.bf16")
+    }
     for
       name in [
         "upstream_layer_stream.cpp", "original_tensor_io.h", "original_block_boundaries.h",
@@ -150,6 +158,7 @@ async fn main {
     let boundaries = (@fs.read_file(root + "/BOUNDARIES.txt").text() == "true") catch {
       _ => false
     }
+    let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -170,7 +179,7 @@ async fn main {
       image +
       " /inference /model /work/config.json /work/ids.i32 /work/original " +
       number.to_string() +
-      (if prefill { " --prefill" } else { "" }),
+      (if matched_ffn { " --ffn-input /work/ffn-input.bf16" } else if prefill { " --prefill" } else { "" }),
     )
     @fs.write_file(
       root + "/run.stdout",
@@ -194,6 +203,12 @@ async fn main {
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
   } else if mode == "collect" {
+    let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
+    if matched_ffn {
+      transfer(node + ":" + root + "/original/matched-ffn-output.bf16", root + "/original/matched-ffn-output.bf16")
+      println("original matched FFN collected; not full-model parity")
+      return
+    }
     for index in 0..<=number {
       let path = root + "/original/hidden-\{index}.bf16"
       @fs.write_file(path, b"", create_mode=CreateNew)

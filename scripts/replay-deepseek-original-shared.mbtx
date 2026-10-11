@@ -1,0 +1,81 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node = "wlc004s@192.168.2.179"
+
+///|
+let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn copy(from : String, to : String) -> Unit {
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, from, to]).output().check()
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + name + ".stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + name + ".stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+}
+
+///|
+test "shared replay retains literal full row and FP8 block scales" {
+  assert_eq(4096 * 2048, 8388608)
+  assert_eq((4096 / 128) * (2048 / 128), 512)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. args] && root.has_prefix("/tmp/lunaflux-deepseek-original-shared-") else {
+    fail("prepare NEW_ROOT LITERAL_FFN_ROW_BF16 | run|collect ROOT")
+  }
+  if mode == "prepare" {
+    guard args is [input] else { fail("literal original FFN row required") }
+    let data = @fs.read_file(input).binary()
+    guard data.length() == 8192 else { fail("one complete original FFN row required") }
+    @fs.mkdir(root)
+    for name in ["original", "matched", "propagated"] { @fs.mkdir(root + "/" + name) }
+    @fs.write_file(root + "/input.bf16", data, create_mode=CreateNew)
+    record(root, "export", @shell.Cmd("moon", ["test", "integration/deepseek_v4_packed_expert", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "--filter", "literal shared expert replay exports actual production FP8 plan"], env={"LUNAFLUX_MATCHED_SHARED_SOURCE_OUTPUT": root + "/shared_matched_kernels.cuh"}).output())
+    record(root, "mkdir", remote("mkdir " + root + " " + root + "/original " + root + "/matched " + root + "/propagated"))
+    for file in ["input.bf16", "shared_matched_kernels.cuh"] { copy(root + "/" + file, node + ":" + root + "/" + file) }
+    for file in ["shared_expert_upstream.cpp", "original_tensor_io.h"] { copy("benchmarks/checkpoint_aten_reference/aten/" + file, node + ":" + root + "/" + file) }
+    copy("tests/packed_moe_execution/shared_expert_matched_probe.cu", node + ":" + root + "/shared_expert_matched_probe.cu")
+    record(root, "compile-original", remote("docker run --rm --network none --memory 2g --memory-swap 2g -v " + root + ":/work --entrypoint g++ " + image + " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/shared_expert_upstream.cpp -o /work/shared-original -lpython3.12"))
+    record(root, "compile-native", remote("systemd-run --user --wait --pipe --unit=" + root[5:].to_owned() + "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 " + root + "/shared_expert_matched_probe.cu -o " + root + "/shared-native"))
+  } else if mode == "run" {
+    let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("serialize GPU replays") }
+    record(root, "original-run", remote("docker run --rm --gpus all --network none --user 1000:1000 --memory 4g --memory-swap 4g -e OMP_NUM_THREADS=2 -e PYTHONPATH=/dependency -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/dependency:/dependency:ro -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro -v /tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT/DeepSeek-V4-Flash-DSpark:/model:ro -v " + root + ":/work --entrypoint /work/shared-original " + image + " /inference /model /work/input.bf16 /work/original"))
+    for route in ["matched", "propagated"] {
+      record(root, route + "-run", remote("systemd-run --user --wait --pipe --unit=" + root[5:].to_owned() + "-" + route + " --property=MemoryMax=2G --property=MemorySwapMax=0 " + root + "/shared-native " + root + "/original " + root + "/" + route + " " + route))
+    }
+    record(root, "released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+  } else if mode == "collect" {
+    for route in ["original", "matched", "propagated"] {
+      for file in ["activation.bf16", "output.bf16"] {
+        copy(node + ":" + root + "/" + route + "/" + file, root + "/" + route + "/" + file)
+      }
+    }
+    for route in ["matched", "propagated"] {
+      for stage in ["activation", "output"] {
+        record(root, route + "-" + stage + "-comparison", @shell.Cmd("moon", ["run", "scripts/compare-minimax-encoder-reference.mbtx", root + "/" + route + "/" + stage + ".bf16", root + "/original/" + stage + ".bf16", root + "/" + route + "-" + stage + ".txt", "literal_original_shared_expert_" + route + "_" + stage, if stage == "activation" { "2048" } else { "4096" }]).output())
+      }
+    }
+  } else { fail("unknown mode") }
+  println("shared expert " + mode + " complete; not full-model parity")
+}

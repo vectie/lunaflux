@@ -174,6 +174,22 @@ rows or full-model parity. Original unsharded versus serialized two-shard
 output-B differs by 0.28165656%; topology remains part of the comparison.
 Root: `/tmp/lunaflux-deepseek-original-output-native-row47-20261012-v1`.
 
+The previously untested **shared expert** now consumes the identical original
+row-47 FFN input. Its actual production precision plan is exported unchanged;
+the offline original calls the installed `Expert` and FP8 linears with the
+literal checkpoint payloads/scales. All **2,048** activation values are bitwise
+identical; both matched and propagated down modes have **4,095/4,096** exact
+outputs, relative L2 **0.0003934733%**, maximum difference **0.0000610352**.
+Both original and native complete under bounded no-swap execution and release
+CUDA owners. Combined with the six exact routed experts, this rules out a large
+local expert-chain error for this input, but does not waive the propagated
+full-layer/full-model difference or establish other rows.
+
+Root: `/tmp/lunaflux-deepseek-original-shared-row47-20261012-v1`.
+The next intervention must include routing and final combination on literal
+inputs, and continue tracing the earliest differing attention operands. No
+production arithmetic is changed merely to force a bitwise diagnostic match.
+
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]
 moon run scripts/run-deepseek-original-layer-stream.mbtx run ROOT 43

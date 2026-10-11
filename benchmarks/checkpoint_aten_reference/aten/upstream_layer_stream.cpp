@@ -71,7 +71,7 @@ static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *
 }
 
 static int execute(const char *inference,const char *root,const char *config_path,
-                   const char *ids_path,const char *out,int layers,bool prefill) {
+                   const char *ids_path,const char *out,int layers,bool prefill,const char *ffn_input) {
   Owned path(PyUnicode_FromString(inference));
   if(!path.p||PyList_Insert(PySys_GetObject("path"),0,path.p)<0)return -1;
   Owned torch(PyImport_ImportModule("torch")),model(PyImport_ImportModule("model"));
@@ -115,6 +115,26 @@ static int execute(const char *inference,const char *root,const char *config_pat
     Owned ctor(Py_BuildValue("iO",layer,args.p));
     Owned block(block_cls.p?PyObject_CallObject(block_cls.p,ctor.p):nullptr);
     if(!block.p||!load_block(block.p,open.p,map,root,layer,u8.p))return -1;
+    if(ffn_input) {
+      if(layer!=0||layers!=1||prefill){PyErr_SetString(PyExc_ValueError,"literal layer-0 one-row FFN replay required");return -1;}
+      Owned literal(literal_bf16(torch.p,bf16.p,ffn_input,144,4096));
+      Owned input(literal.p?PyObject_CallMethod(literal.p,"view","iii",1,144,4096):nullptr);
+      Owned ffn(PyObject_GetAttrString(block.p,"ffn"));
+      Owned output(input.p?PyObject_CallMethod(torch.p,"empty_like","O",input.p):nullptr);
+      if(!input.p||!ffn.p||!output.p)return -1;
+      for(int position=0;position<144;++position) {
+        Owned row(PyObject_CallMethod(input.p,"narrow","iii",1,position,1));
+        Owned id(PyObject_CallMethod(ids.p,"narrow","iii",1,position,1));
+        Owned operands(row.p&&id.p?PyTuple_Pack(2,row.p,id.p):nullptr);
+        Owned result(operands.p?PyObject_CallObject(ffn.p,operands.p):nullptr);
+        Owned destination(PyObject_CallMethod(output.p,"narrow","iii",1,position,1));
+        Owned copied(result.p&&destination.p?PyObject_CallMethod(destination.p,"copy_","O",result.p):nullptr);
+        if(!copied.p)return -1;
+      }
+      if(!save(output.p,u8.p,std::string(out)+"/matched-ffn-output.bf16",144LL*4096*2))return -1;
+      std::puts("original_ffn_replay_complete layer=0 rows=144 submission_rows=1 original_inputs=true original_routes=true");
+      return 0;
+    }
     const bool observe=layer==0&&std::getenv("LUNA_ORIGINAL_BOUNDARIES");
     if(observe&&prefill){PyErr_SetString(PyExc_ValueError,"matched observer requires one-row submissions");return -1;}
     OriginalBoundaries observer;
@@ -160,10 +180,11 @@ static int execute(const char *inference,const char *root,const char *config_pat
   return 0;
 }
 int main(int argc,char **argv) {
-  if(argc!=7&&argc!=8)return 2;
+  if(argc!=7&&argc!=8&&argc!=9)return 2;
   if(argc==8&&std::string(argv[7])!="--prefill")return 2;
+  if(argc==9&&std::string(argv[7])!="--ffn-input")return 2;
   const int layers=std::atoi(argv[6]);if(layers<1||layers>43)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],argv[5],layers,argc==8);
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],argv[5],layers,argc==8,argc==9?argv[8]:nullptr);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }
