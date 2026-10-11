@@ -789,6 +789,19 @@ async fn main {
       last.root + "/output-logits/logits.f32",
       root + "/logits.f32",
     )
+    // New diagnostic builds expose already-retained DSpark means. Older
+    // builds keep their logit-only replay valid; no source or graph changes.
+    let available = remote(
+      last,
+      "test -f " + last.root + "/output-logits/prediction-inputs.bf16",
+    )
+    if available.exit_code() == 0 {
+      download(
+        last,
+        last.root + "/output-logits/prediction-inputs.bf16",
+        root + "/prediction-inputs.bf16",
+      )
+    }
   }
   download(first, first.root + "/output-" + mode + "/tokens.txt", tokens)
   let generated = completed_tokens(

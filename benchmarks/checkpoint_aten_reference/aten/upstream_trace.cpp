@@ -66,6 +66,54 @@ static int capture_prefill(PyObject *locals, PyObject *result) {
   return 0;
 }
 
+// Inspect the same three pre-head layer means already retained by native
+// DSpark. Only the matched prompt frontier is copied; original math is intact.
+static int capture_layer(PyObject *locals, PyObject *result) {
+  const char *path=std::getenv("LUNA_UPSTREAM_LOGIT_CAPTURE");
+  if(!path||!*path||PyTuple_Check(result))return 0;
+  auto *self=PyDict_GetItemString(locals,"self");
+  auto *position=PyDict_GetItemString(locals,"start_pos");
+  if(!self||!position||!PyLong_Check(position))return 0;
+  Owned cls(PyObject_GetAttrString(self,"__class__"));
+  Owned name(cls.p?PyObject_GetAttrString(cls.p,"__name__"):nullptr);
+  const char *type=name.p?PyUnicode_AsUTF8(name.p):nullptr;
+  if(!type)return -1;
+  if(std::strcmp(type,"Block")!=0)return 0;
+  Owned layer(PyObject_GetAttrString(self,"layer_id"));
+  if(!layer.p)return -1;
+  const long index=PyLong_AsLong(layer.p);
+  if(PyErr_Occurred())return -1;
+  if(index<40||index>42)return 0;
+  Owned rows(PyObject_CallMethod(result,"size","i",1));
+  if(!rows.p)return -1;
+  const long count=PyLong_AsLong(rows.p);
+  const char *partition=std::getenv("LUNA_UPSTREAM_PREFILL_ROWS");
+  if(partition&&*partition) {
+    const char *end=std::getenv("LUNA_UPSTREAM_PREFILL_END");
+    if(!end||PyLong_AsLong(position)+count!=std::strtol(end,nullptr,10))return 0;
+  } else if(PyLong_AsLong(position)!=0)return 0;
+  Owned torch(PyImport_ImportModule("torch"));
+  Owned bf16(torch.p?PyObject_GetAttrString(torch.p,"bfloat16"):nullptr);
+  Owned u8(torch.p?PyObject_GetAttrString(torch.p,"uint8"):nullptr);
+  Owned last(PyObject_CallMethod(result,"narrow","ili",1,count-1,1));
+  Owned wide(last.p?PyObject_CallMethod(last.p,"float",nullptr):nullptr);
+  Owned mean(wide.p?PyObject_CallMethod(wide.p,"mean","i",2):nullptr);
+  Owned rounded(mean.p&&bf16.p?PyObject_CallMethod(mean.p,"to","O",bf16.p):nullptr);
+  Owned cpu(rounded.p?PyObject_CallMethod(rounded.p,"cpu",nullptr):nullptr);
+  Owned raw(cpu.p&&u8.p?PyObject_CallMethod(cpu.p,"view","O",u8.p):nullptr);
+  Owned array(raw.p?PyObject_CallMethod(raw.p,"numpy",nullptr):nullptr);
+  Owned bytes(array.p?PyObject_CallMethod(array.p,"tobytes",nullptr):nullptr);
+  if(!bytes.p||PyBytes_Size(bytes.p)!=4096*2)return -1;
+  const std::string filename=std::string(path)+".layer-"+std::to_string(index)+".bf16";
+  auto *file=std::fopen(filename.c_str(),"wbx");
+  if(!file){PyErr_SetFromErrnoWithFilename(PyExc_OSError,filename.c_str());return -1;}
+  const bool written=std::fwrite(PyBytes_AsString(bytes.p),1,4096*2,file)==4096*2;
+  const bool closed=std::fclose(file)==0;
+  if(!written||!closed){PyErr_SetString(PyExc_OSError,"original layer mean capture failed");return -1;}
+  std::printf("upstream_layer_mean layer=%ld start_pos=%ld rows=%ld frontier=last_literal_prompt_row\n",index,PyLong_AsLong(position),count);
+  return 0;
+}
+
 static int emit(PyObject *input, PyObject *output) {
   if (!PyList_Check(input) || !PyList_Check(output) ||
       PyList_Size(input) != 1 || PyList_Size(output) != 1) {
@@ -90,6 +138,31 @@ static int emit(PyObject *input, PyObject *output) {
   return 0;
 }
 
+// observe the actual sampler result, not generate.py's reporting-only EOS
+// suffix. The caller's frontier distinguishes target and predictor calls.
+static int emit_sample(PyFrameObject *frame, PyObject *result) {
+  const char *path=std::getenv("LUNA_UPSTREAM_LOGIT_CAPTURE");
+  if(!path||!*path)return 0;
+  Owned caller(reinterpret_cast<PyObject *>(PyFrame_GetBack(frame)));
+  Owned code(caller.p?reinterpret_cast<PyObject *>(PyFrame_GetCode(
+    reinterpret_cast<PyFrameObject *>(caller.p))):nullptr);
+  Owned name(code.p?PyObject_GetAttrString(code.p,"co_name"):nullptr);
+  Owned locals(caller.p?PyFrame_GetLocals(reinterpret_cast<PyFrameObject *>(caller.p)):nullptr);
+  if(!name.p||!locals.p)return -1;
+  auto *position=PyDict_GetItemString(locals.p,"start_pos");
+  if(!position||!PyLong_Check(position))return 0;
+  Owned ids(PyList_Check(result)?Py_NewRef(result):PyObject_CallMethod(result,"tolist",nullptr));
+  Owned json(PyImport_ImportModule("json"));
+  Owned encoded(ids.p&&json.p?PyObject_CallMethod(json.p,"dumps","O",ids.p):nullptr);
+  const char *text=encoded.p?PyUnicode_AsUTF8(encoded.p):nullptr;
+  const char *function=PyUnicode_AsUTF8(name.p);
+  if(!text||!function)return -1;
+  std::printf("upstream_actual_sample caller=%s start_pos=%ld ids=%s reporting_suffix=false\n",
+    function,PyLong_AsLong(position),text);
+  std::fflush(stdout);
+  return PyErr_Occurred()?-1:0;
+}
+
 static int trace(PyObject *filename, PyFrameObject *frame, int event, PyObject *result) {
   // A failing original function can emit a RETURN/None trace. Do not replace
   // its actual exception with an observer shape error.
@@ -100,9 +173,12 @@ static int trace(PyObject *filename, PyFrameObject *frame, int event, PyObject *
   if (!file.p || !name.p) return -1;
   const char *function = PyUnicode_AsUTF8(name.p);
   if (!function) return -1;
+  if (std::strcmp(function,"sample")==0) return emit_sample(frame,result);
   if (std::strcmp(function, "forward") == 0) {
     Owned locals(PyFrame_GetLocals(frame));
-    return locals.p ? capture_prefill(locals.p, result) : -1;
+    if(!locals.p)return -1;
+    if(capture_layer(locals.p,result)<0)return -1;
+    return capture_prefill(locals.p,result);
   }
   if (std::strcmp(function, "generate") != 0) return 0;
   const int matched = PyObject_RichCompareBool(file.p, filename, Py_EQ);

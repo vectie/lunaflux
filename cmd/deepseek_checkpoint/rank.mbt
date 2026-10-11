@@ -121,6 +121,28 @@ async fn run_egress(
     pool.drain(0)
     pool.close()
   })
+  // The diagnostic reads DSpark's existing target-layer means after EOF.
+  // No extra graph node, AOT source, layer snapshot or token-step copy.
+  let prediction_capture = if logit_capture is Some(_) &&
+    stage.prediction_input() is Some(input) {
+    Some(
+      (
+        context.prepare_transfer_pool(
+          input,
+          host_bytes=input.byte_count(),
+          lanes=1,
+          max_regions_per_lane=1,
+        ),
+        input.byte_count().to_int(),
+      ),
+    )
+  } else {
+    None
+  }
+  defer (if prediction_capture is Some((pool, _)) {
+    pool.drain(0)
+    pool.close()
+  })
   let control_listener = @socket.TcpServer::TcpServer(
     @socket.Addr::parse(arguments[2]),
   )
@@ -250,6 +272,16 @@ async fn run_egress(
   println("dspark_prediction_blocks=\{prediction_blocks.val}")
   if logit_capture is Some(pool) {
     capture_retired_logits(pool, logit_bytes, arguments[4])
+    if prediction_capture is Some((pool, bytes)) {
+      capture_retired_logits(
+        pool,
+        bytes,
+        arguments[4],
+        filename="prediction-inputs.bf16",
+        create_directory=false,
+      )
+      println("retired_prediction_layers=\{stage.prediction_capture_layers()}")
+    }
   }
 }
 

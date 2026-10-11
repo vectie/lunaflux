@@ -6,6 +6,8 @@ async fn capture_retired_logits(
   pool : @device.TransferPool,
   bytes : Int,
   destination : String,
+  filename? : String = "logits.f32",
+  create_directory? : Bool = true,
 ) -> Unit {
   pool.enqueue(
     lane=0,
@@ -21,13 +23,15 @@ async fn capture_retired_logits(
   let payload = FixedArray::make(bytes, b'\x00')
   pool.read_host(payload, host_offset=0L, destination_offset=0, bytes~)
   pool.reset(0)
-  @fs.mkdir(destination)
+  if create_directory {
+    @fs.mkdir(destination)
+  }
   @fs.write_file(
-    destination + "/logits.f32",
+    destination + "/" + filename,
     Bytes::from_array(payload[:]),
     create_mode=CreateNew,
   )
   println(
-    "retired_logit_capture values=\{bytes / 4} scope=allocated_vocabulary_rows",
+    "retired_tensor_capture file=\{filename} bytes=\{bytes} scope=allocated_physical_rows",
   )
 }
