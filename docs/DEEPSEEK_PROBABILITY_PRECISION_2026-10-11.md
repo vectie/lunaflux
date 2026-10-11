@@ -116,3 +116,10 @@ Full outputs and the exact row selection are recorded in
 
 The complete local native suite after this change passed **4,997/4,997**, using
 the existing toolchain-migration warning exclusions `-20-25-29-35-79-92`.
+
+The later [retained-target comparison](DEEPSEEK_RETAINED_TARGET_COMPARISON_2026-10-11.md)
+directly observes the original sampled EOS and localizes a material difference
+before the vocabulary head. Native EOS agreement and full-distribution parity
+must still be distinguished from the agreeing first content token. The latest
+full local native suite passes **5,004/5,004**, with the same migration warning
+exclusions; this software result is not physical numerical equivalence.
