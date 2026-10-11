@@ -31,12 +31,40 @@ pub fn TextConditioningProgram::capture_stages(
     self.output is Some(output) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
   }
-  let counts = layers.map(pair => {
+  guard self.refiner.workspace is Some(workspace) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+  }
+  let descriptions = layers.map(pair => {
     self.refiner
-    .bind_layer(pair.0, pair.1, state=output, state_offset=0L)
-    .length()
+    .bind_layer_stages(pair.0, pair.1, state=output, state_offset=0L)
+    .map(stage => stage.0)
   })
-  let boundaries = text_capture_boundaries(counts)
+  let targets : Map[String, @joint_diffusion_device.RefinerStage] = Map([])
+  let boundaries : Array[(String, Int)] = [("context.bf16", 1)]
+  for layer, stages in descriptions {
+    for stage in stages {
+      let name = match stage {
+        Norm1 => "norm1"
+        Qkv => "qkv"
+        QkNorm => "qk-norm"
+        Attention => "attention"
+        Projection => "projection"
+        AttentionResidual => "attention-residual"
+        Norm2 => "norm2"
+        GateUp => "gate-up"
+        Down => "down"
+        MlpResidual => "residual"
+      }
+      let label = if stage is MlpResidual {
+        "refiner-\{layer}.bf16"
+      } else {
+        "refiner-\{layer}-\{name}.bf16"
+      }
+      boundaries.push((label, boundaries.last().unwrap().1 + 1))
+      targets[label] = stage
+    }
+  }
+  boundaries.push(("conditioning.bf16", boundaries.last().unwrap().1 + 1))
   guard boundaries.last().unwrap().1 == queue.kernel_count() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
@@ -53,7 +81,12 @@ pub fn TextConditioningProgram::capture_stages(
         queue.wait_completion()
       },
       label => {
-        snapshots.push((label, output.copy_to_host(0L, output.byte_count())))
+        let bytes = match targets.get(label) {
+          Some(AttentionResidual | MlpResidual) | None =>
+            output.copy_to_host(0L, output.byte_count())
+          Some(stage) => workspace.capture_refiner_stage(stage)
+        }
+        snapshots.push((label, bytes))
       },
     )
   })

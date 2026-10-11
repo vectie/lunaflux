@@ -105,11 +105,24 @@ fn RefinerProgram::bind_layer(
   state~ : @device.Allocation,
   state_offset~ : Int64,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
+  self
+  .bind_layer_stages(packing, weights, state~, state_offset~)
+  .map(pair => pair.1)
+}
+
+///|
+fn RefinerProgram::bind_layer_stages(
+  self : Self,
+  packing : @minimax_h3_weights.RefinerWeightPacking,
+  weights : @device.Allocation,
+  state~ : @device.Allocation,
+  state_offset~ : Int64,
+) -> Array[(@joint_diffusion_device.RefinerStage, @device.OrderedKernelLaunch)] raise @device.DeviceError {
   guard self.ready && self.workspace is Some(workspace) else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
   let f = self.functions
-  workspace.bind_refiner(
+  workspace.bind_refiner_stages(
     @joint_diffusion_device.AttentionFunctions::new(f[3], f[4], f[5], f[6]),
     norm=f[0],
     residual=f[2],

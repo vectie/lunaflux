@@ -1,10 +1,22 @@
 ///|
 test "refiner uses ungated pre-norm ordering with no modulation stage" {
-  let stages = compose_refiner(0, [1, 2, 3, 4], 5, 6, [7, 8], 9)
+  let stages = describe_refiner(0, [1, 2, 3, 4], 5, 6, [7, 8], 9).map(pair => {
+    pair.1
+  })
   assert_eq(stages.length(), 10)
   for i, stage in stages {
     assert_eq(i, stage)
   }
+}
+
+///|
+test "named refiner description flattens to the identical production order" {
+  let described = describe_refiner(0, [1, 2, 3, 4], 5, 6, [7, 8], 9)
+  assert_eq(described.map(pair => pair.1), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+  assert_true(described[0].0 is Norm1)
+  assert_true(described[5].0 is AttentionResidual)
+  assert_true(described[7].0 is GateUp)
+  assert_true(described[9].0 is MlpResidual)
 }
 
 ///|

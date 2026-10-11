@@ -15,6 +15,54 @@ pub fn BlockWorkspace::bind_refiner(
   mlp_weight_offset~ : Int64,
   norm_weight_offset~ : Int64,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
+  self
+  .bind_refiner_stages(
+    attention,
+    norm~,
+    residual~,
+    gate_up~,
+    down~,
+    state~,
+    state_offset~,
+    weights~,
+    attention_weight_offset~,
+    mlp_weight_offset~,
+    norm_weight_offset~,
+  )
+  .map(pair => pair.1)
+}
+
+///|
+pub(all) enum RefinerStage {
+  Norm1
+  Qkv
+  QkNorm
+  Attention
+  Projection
+  AttentionResidual
+  Norm2
+  GateUp
+  Down
+  MlpResidual
+}
+
+///|
+/// Immutable prepared order. Offline observers consume the same description
+/// as ordinary binding, never reconstructing stage indices from kernel counts.
+pub fn BlockWorkspace::bind_refiner_stages(
+  self : Self,
+  attention : AttentionFunctions,
+  norm~ : @device.Function,
+  residual~ : @device.Function,
+  gate_up~ : @device.Function,
+  down~ : @device.Function,
+  state~ : @device.Allocation,
+  state_offset~ : Int64,
+  weights~ : @device.Allocation,
+  attention_weight_offset~ : Int64,
+  mlp_weight_offset~ : Int64,
+  norm_weight_offset~ : Int64,
+) -> Array[(RefinerStage, @device.OrderedKernelLaunch)] raise @device.DeviceError {
   let p = self.layout
   let a = self.allocation
   fn normalization(
@@ -85,7 +133,7 @@ pub fn BlockWorkspace::bind_refiner(
     weights~,
     weight_offset=mlp_weight_offset,
   )
-  compose_refiner(
+  describe_refiner(
     normalization(0),
     att,
     addition(),
@@ -96,22 +144,48 @@ pub fn BlockWorkspace::bind_refiner(
 }
 
 ///|
-fn[T] compose_refiner(
+fn[T] describe_refiner(
   norm1 : T,
   attention : ArrayView[T],
   residual1 : T,
   norm2 : T,
   mlp : ArrayView[T],
   residual2 : T,
-) -> Array[T] raise @device.DeviceError {
+) -> Array[(RefinerStage, T)] raise @device.DeviceError {
   guard attention.length() == 4 && mlp.length() == 2 else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
-  let stages = [norm1]
-  stages.append(attention)
-  stages.push(residual1)
-  stages.push(norm2)
-  stages.append(mlp)
-  stages.push(residual2)
-  stages
+  [
+    (Norm1, norm1),
+    (Qkv, attention[0]),
+    (QkNorm, attention[1]),
+    (Attention, attention[2]),
+    (Projection, attention[3]),
+    (AttentionResidual, residual1),
+    (Norm2, norm2),
+    (GateUp, mlp[0]),
+    (Down, mlp[1]),
+    (MlpResidual, residual2),
+  ]
+}
+
+///|
+/// Diagnostic readback only, after the bound stream has been retired. State
+/// residuals live externally and are read by their owner, not this workspace.
+pub fn BlockWorkspace::capture_refiner_stage(
+  self : Self,
+  stage : RefinerStage,
+) -> Bytes raise @device.DeviceError {
+  let p = self.layout
+  let (offset, count) = match stage {
+    Norm1 | Norm2 => (p.normalized_offset, p.hidden_bytes)
+    Qkv | QkNorm => (p.scratch_offset, p.hidden_bytes * 3L)
+    Attention => (p.scratch_offset + p.hidden_bytes * 3L, p.hidden_bytes)
+    Projection | Down => (p.branch_offset, p.hidden_bytes)
+    GateUp =>
+      (p.scratch_offset, p.rows.to_int64() * p.intermediate.to_int64() * 2L)
+    AttentionResidual | MlpResidual =>
+      raise @device.DeviceError::InvalidArgument(CopyToHost)
+  }
+  self.allocation.copy_to_host(offset, count)
 }

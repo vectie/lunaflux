@@ -112,6 +112,8 @@ pub fn BlockWorkspace::allocate(@device.Context, BlockWorkspaceLayout) -> Self r
 pub fn BlockWorkspace::bind_block(Self, BlockFunctions, RotaryBindings, ModulationBindings, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation, attention_weight_offset~ : Int64, mlp_weight_offset~ : Int64, norm_weight_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn BlockWorkspace::bind_conditioned_block(Self, BlockFunctions, @device.Function, RotaryBindings, ModulationBindings, conditioning~ : @device.Allocation, conditioning_offset~ : Int64, conditioning_width~ : Int, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation, attention_weight_offset~ : Int64, mlp_weight_offset~ : Int64, norm_weight_offset~ : Int64, parameter_weight_offset~ : Int64, parameter_bias_offset~ : Int64, parameters~ : @device.Allocation, parameter_offset~ : Int64, modality_count~ : Int) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn BlockWorkspace::bind_refiner(Self, AttentionFunctions, norm~ : @device.Function, residual~ : @device.Function, gate_up~ : @device.Function, down~ : @device.Function, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation, attention_weight_offset~ : Int64, mlp_weight_offset~ : Int64, norm_weight_offset~ : Int64) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn BlockWorkspace::bind_refiner_stages(Self, AttentionFunctions, norm~ : @device.Function, residual~ : @device.Function, gate_up~ : @device.Function, down~ : @device.Function, state~ : @device.Allocation, state_offset~ : Int64, weights~ : @device.Allocation, attention_weight_offset~ : Int64, mlp_weight_offset~ : Int64, norm_weight_offset~ : Int64) -> Array[(RefinerStage, @device.OrderedKernelLaunch)] raise @device.DeviceError
+pub fn BlockWorkspace::capture_refiner_stage(Self, RefinerStage) -> Bytes raise @device.DeviceError
 pub fn BlockWorkspace::close(Self) -> Unit raise @device.DeviceError
 pub fn BlockWorkspace::layout(Self) -> BlockWorkspaceLayout
 
@@ -214,6 +216,19 @@ pub fn PipelineProgram::new() -> Self
 pub fn PipelineProgram::outputs_ready(Self) -> Bool
 pub fn PipelineProgram::prepare(Self, @device.Context, @device.Stream, @joint_diffusion_loop.PreparedPlan, LatentStorage, ArrayView[ReadOnlyArray[@device.OrderedKernelLaunch]], ArrayView[ReadOnlyArray[@device.OrderedKernelLaunch]], ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int) -> Unit raise
 pub fn PipelineProgram::prepare_stages(Self, @device.Context, @device.Stream, @joint_diffusion_loop.PreparedPlan, LatentStorage, ArrayView[@joint_diffusion_execution.PreparedStage], ArrayView[ReadOnlyArray[@device.OrderedKernelLaunch]], @joint_diffusion_execution.PreparedStage, @joint_diffusion_execution.PreparedStage, video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int) -> Unit raise
+
+pub(all) enum RefinerStage {
+  Norm1
+  Qkv
+  QkNorm
+  Attention
+  Projection
+  AttentionResidual
+  Norm2
+  GateUp
+  Down
+  MlpResidual
+}
 
 pub struct RotaryBindings {
   // private fields

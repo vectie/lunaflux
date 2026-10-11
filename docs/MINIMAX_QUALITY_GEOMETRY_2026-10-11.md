@@ -462,8 +462,26 @@ is a validated representative-quality pipeline.
 Next schedule-only control uses the original pipeline's default **50 sigma
 points / 49 updates**, same original encoder caption/noise/128 geometry. Root
 `/tmp/lunaflux-minimax-original-trajectory-original-caption50-20261012-v1`
-is running serially on `.179` under the same bounded-memory setup. Changed
+completed all 49 updates serially on `.179` under the same bounded-memory setup. Changed
 schedule is labeled explicitly and cannot earn matched twenty-update parity.
 Its larger step count does not make 128×128 representative-quality evidence.
 Audio remains quantitatively compared but not listened to; no audio-quality
 pass is claimed.
+
+Its installed-original VideoVAE completes in
+`/tmp/lunaflux-minimax-upstream-video-original-caption50-20261012-v1`.
+Actual geometry remains `[1,3,124,128,128]`. The contact sheet at
+`/tmp/lunaflux-minimax-original-caption50-preview-20261012-v1/frames.png` was
+inspected: lattice-like color patterns persist, no recognizable cat. The
+default step count does not rescue this small-geometry result. Next quality
+work must check shared fixture/reference setup and a representative positive
+original control, not claim that native rounding alone caused this appearance.
+
+The next native diagnostic derives named norm/QKV/QK-norm/attention/projection,
+residual and gate/up/down frontiers from the **same immutable refiner launch
+description** used by ordinary binding. Scratch ownership/layout remains in
+`engine/joint_diffusion_device`; offline readback consumes a retired stage and
+does not enter ordinary execution. This adds operator-level attribution rather
+than another guessed precision change. Warning-denied native checking and
+affected tests pass **55/55**, full native suite **5,022/5,022**; physical
+operator measurements remain pending.
