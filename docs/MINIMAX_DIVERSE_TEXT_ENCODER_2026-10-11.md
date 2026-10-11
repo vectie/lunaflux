@@ -55,7 +55,7 @@ token row**, which need not be the same row between runs.
 | --- | --- | --- | --- | --- |
 | English, 20 rows | 1.7530% | 1.6158% | 1.4635% | 3.5986% |
 | Digits, 56 rows | 14.7532% | 14.2352% | 22.7025% | 3.1238% |
-| Long, 140 rows | 22.1058% | 5.3483% | Pending | 9.0533% |
+| Long, 140 rows | 22.1058% | 5.3483% | 21.9356% | 9.0533% |
 
 English improves under either isolated change, but worsens under their
 combination. Digits improves strongly only under their combination; changing
@@ -65,11 +65,24 @@ fifty-layer response is nonlinear and input-dependent; the two interventions'
 effects cannot be added or used to select a prompt-specific production rule.
 The component F64 accuracy result remains valid, but is distinct from matching
 the propagated output of a particular BF16 library implementation.
+The long head-only intervention barely changes its original worst row; the
+row-only intervention accounts for substantially more of that case's response.
+Neither observation supplies a universal production policy: digits responds
+in the opposite way to their combination.
 
 Final tensors are under
 `/tmp/lunaflux-minimax-text-encoder-compensated-{row,head}-{english,digits}-20261011-v1`;
 the completed long row-only capture uses the corresponding `row-long` directory.
 All completed interventions exit zero, have finite tensors and release the GPU.
+The final `head-long` run is retained under
+`/tmp/lunaflux-minimax-text-encoder-compensated-head-long-20261011-v2`.
+Its 140 IDs match the prior row-only input byte-for-byte. This final ablation
+runs on idle `.179` concurrently with the standalone full-media request on
+`.178`, with independent GPUs, memory limits and no peer inference traffic.
+All earlier corpus runs remain serial; concurrent lifetimes are not used as
+performance measurements. Two incomplete local preparation attempts precede
+`v2` (missing original manifest/input pathname); neither executes inference or
+overwrites an earlier artifact.
 
 ## Method and scope
 
