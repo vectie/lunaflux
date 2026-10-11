@@ -131,8 +131,22 @@ fn capture_joint_prefix(
       policy=OrderedKernelEagerOnly,
     )
     defer block_queue.close()
+    let frontiers = if block == 0 { joint_block_frontiers() } else { [] }
+    guard frontiers.is_empty() || block_queue.kernel_count() == 13 else {
+      fail("bound block changed; diagnostic frontiers must be updated")
+    }
     for index in 0..<block_queue.kernel_count() {
       block_queue.enqueue(index)
+      for (name, end, stage) in frontiers {
+        if index + 1 == end {
+          // Completion events belong to the complete executor. Retire only
+          // this stream at intermediate frontiers, without replaying a kernel.
+          stream.synchronize()
+          captures.push(
+            ("block-0-\{name}.bf16", variant.capture_block_stage(stage)),
+          )
+        }
+      }
     }
     block_queue.record_completion()
     block_queue.wait_completion()

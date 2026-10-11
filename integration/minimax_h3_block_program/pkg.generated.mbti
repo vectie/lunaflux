@@ -169,6 +169,7 @@ pub fn PredictionPrograms::workspace_bytes(Self) -> Int64
 pub struct PredictionVariant {
   // private fields
 }
+pub fn PredictionVariant::capture_block_stage(Self, @joint_diffusion_device.RefinerStage) -> Bytes raise @device.DeviceError
 pub fn PredictionVariant::input_launch_count(Self, InputProgram) -> Int
 pub fn PredictionVariant::new(Program, TimestepProgram, OutputProgram) -> Self
 pub fn PredictionVariant::output_launch_count(Self) -> Int

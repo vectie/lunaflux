@@ -1,6 +1,7 @@
 // Offline original H3 block. All math stays in the installed unmodified module;
 // literal serving input/timestep/position/document tensors are supplied by replay.
 #include "original_h3_loading.h"
+#include "dit_operator_upstream.h"
 #include <cstdlib>
 #include <algorithm>
 
@@ -129,7 +130,7 @@ static bool audit_weights(PyObject *torch,PyObject *cls,PyObject *ctor,PyObject 
   return !PyErr_Occurred();
 }
 
-static int execute(const char *root,const char *input,const char *out,int blocks,bool raw,const char *canonical) {
+static int execute(const char *root,const char *input,const char *out,int blocks,bool raw,const char *canonical,bool operators) {
   Owned torch(PyImport_ImportModule("torch")),safe(PyImport_ImportModule("safetensors"));
   Owned distributed(PyImport_ImportModule("vllm.distributed"));
   if(!torch.p||!safe.p||!distributed.p)return -1;
@@ -190,6 +191,13 @@ static int execute(const char *root,const char *input,const char *out,int blocks
   Owned indices(flat_indices.p?PyObject_CallMethod(flat_indices.p,"long",nullptr):nullptr);
   Owned docs0(literal_tensor(torch.p,i32.p,(base+"/documents.i32").c_str(),3,1,4));
   Owned docs(docs0.p?PyObject_CallMethod(docs0.p,"view","i",3):nullptr);
+  if(operators) {
+    if(!docs.p||!load_block(gpu.p,open.p,map,root,0)||
+       !dit_operators(torch.p,bf16.p,u8.p,gpu.p,docs.p,geometry.maximum_document,
+                      input,out,rows))return -1;
+    std::puts("original_dit_operators_complete each_literal_native_predecessor=true production_arithmetic_changed=false");
+    return 0;
+  }
   Owned rope_cls(module.p?PyObject_GetAttrString(module.p,"MiniMaxH3Rope"):nullptr);
   Owned rope(rope_cls.p?PyObject_CallFunction(rope_cls.p,"i",16):nullptr);
   Owned rope_gpu(rope.p?PyObject_CallMethod(rope.p,"to","s","cuda"):nullptr);
@@ -236,8 +244,9 @@ int main(int argc,char **argv) {
   const int blocks=argc>=5?std::atoi(argv[4]):1;
   if(blocks<1||blocks>50)return 2;
   const bool raw=argc>=6&&std::string(argv[5])=="raw";
-  if(argc>=6&&!raw)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],blocks,raw,argc==7?argv[6]:nullptr);
+  const bool operators=argc==6&&blocks==1&&std::string(argv[5])=="operators";
+  if(argc>=6&&!raw&&!operators)return 2;
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],blocks,raw,argc==7?argv[6]:nullptr,operators);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

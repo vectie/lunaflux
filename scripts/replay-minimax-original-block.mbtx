@@ -142,7 +142,7 @@ async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     root.has_prefix("/tmp/lunaflux-minimax-upstream-block-") else {
     fail(
-      "prepare NEW_ROOT | finish-prepare|compile ROOT | inputs ROOT REMOTE_NATIVE_ROOT | inputs-local ROOT LOCAL_NATIVE_CAPTURE | run|collect ROOT",
+      "prepare NEW_ROOT | finish-prepare|compile ROOT | inputs|inputs-operators ROOT REMOTE_NATIVE_ROOT | inputs-local ROOT LOCAL_NATIVE_CAPTURE | run|run-operators|collect|collect-operators ROOT",
     )
   }
   let tag = root[5:].to_owned()
@@ -348,6 +348,7 @@ async fn main {
     for
       file in [
         "dit_block_upstream.cpp", "original_tensor_io.h", "original_h3_loading.h",
+        "dit_operator_upstream.h", "refiner_operator_upstream.h",
       ] {
       copy(
         "benchmarks/checkpoint_aten_reference/aten/" + file,
@@ -369,7 +370,9 @@ async fn main {
         " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/dit_block_upstream.cpp -o /work/original-block -lpython3.12",
       ),
     )
-  } else if stage == "inputs" || mode == "inputs-local" {
+  } else if stage == "inputs" ||
+    mode == "inputs-local" ||
+    mode == "inputs-operators" {
     guard extra is [capture] else { fail("literal native output required") }
     if !@fs.exists(root + "/input") {
       @fs.mkdir(root + "/input")
@@ -380,6 +383,12 @@ async fn main {
     ]
     for i in 0..<(if full { 50 } else { 1 }) {
       files.push("block-\{i}.bf16")
+    }
+    if mode == "inputs-operators" {
+      files.append([
+        "block-0-qk-norm.bf16", "block-0-attention.bf16", "block-0-mlp-input.bf16",
+        "block-0-gate-up.bf16",
+      ])
     }
     for file in files {
       let target = root + "/input/" + file
@@ -436,7 +445,9 @@ async fn main {
       node + ":" + root + "/output/weight-layout-with-refiners.tsv",
       root + "/weight-layout-with-refiners.tsv",
     )
-  } else if stage == "run" || mode.has_prefix("run-retry") {
+  } else if stage == "run" ||
+    mode.has_prefix("run-retry") ||
+    mode == "run-operators" {
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -458,7 +469,15 @@ async fn main {
         ":/work --entrypoint /work/original-block " +
         image +
         " /work/model /work/input /work/output" +
-        (if full { " 50" } else if raw { " 1 raw" } else { "" }),
+        (if mode == "run-operators" {
+          " 1 operators"
+        } else if full {
+          " 50"
+        } else if raw {
+          " 1 raw"
+        } else {
+          ""
+        }),
       ),
     )
     record(
@@ -471,6 +490,17 @@ async fn main {
       "released",
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
+  } else if mode == "collect-operators" {
+    if !@fs.exists(root + "/output") {
+      @fs.mkdir(root + "/output")
+    }
+    for stage in ["attention", "projection", "gate-up", "down"] {
+      let file = "block-0-" + stage + ".bf16"
+      guard !@fs.exists(root + "/output/" + file) else {
+        fail("prior operator output preserved")
+      }
+      copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
+    }
   } else if mode == "compare-used" {
     let boundaries = @fs.read_file(root + "/input/documents.i32").binary()
     let rows = primary_document_rows(boundaries)

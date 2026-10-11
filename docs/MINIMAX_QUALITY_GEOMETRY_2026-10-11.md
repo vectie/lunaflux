@@ -778,3 +778,13 @@ source and byte-identical baseline source have regression coverage.
 The audio inspection tool in this conversation does not support audio input.
 The WAV is retained, but listening quality has **not** been assessed here;
 finite arrays and close decoder outputs cannot substitute for that assessment.
+
+The next native prefix observer retires the first block's actual bound stream
+at named norm/affine, QKV, QK-normalization/RoPE, attention, projection and MLP
+frontiers, before the later MLP reuses attention scratch. It never records a
+whole-executor completion event at an intermediate frontier or replays input
+producers. The normal serving path remains observer-free. An offline original
+adapter consumes each captured native predecessor independently for attention,
+output projection, gate/up and down. This distinguishes local arithmetic from
+propagated conditioning/block differences; results are pending, not a new
+correctness claim. All captures stay in separate non-overwriting roots.
