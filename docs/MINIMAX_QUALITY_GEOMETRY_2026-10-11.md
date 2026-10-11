@@ -1,4 +1,4 @@
-# MiniMax meaningful-resolution quality replay — 2026-10-11
+# MiniMax larger smoke and quality investigation — 2026-10-11
 
 The 32×32 smoke output is blurred and does not establish semantic media quality.
 The larger native run is dispatched separately on Spark `.178`:
@@ -17,6 +17,19 @@ At the most recent check the exact user unit is running, stderr is empty and
 unit swap use is zero. The redirected diagnostic stdout is buffered; an empty
 log alone is not evidence that the GPU request has not begun. Actual media has
 not yet been collected or inspected. No visual or audio quality pass is claimed.
+
+The installed original pipeline defaults to **768×1344 and fifty steps** when
+the caller supplies neither a canvas nor a step count. It accepts the smaller
+explicit canvas, but that does not establish representative checkpoint quality
+there. The 128×128/twenty-evaluation run is a larger smoke/attribution fixture,
+not a replacement for full-resolution quality validation. No conclusion about
+encoder adequacy follows from a blurred 32×32 output alone.
+
+Future diagnostic launches use process-level line-buffered stdout/stderr, so
+the existing stage prints become visible during long execution. This changes
+only the offline runner's I/O; no callback, synchronization, host readback or
+logging is added to production token/kernel execution. The already running
+quality128 unit is left unchanged rather than losing its completed computation.
 
 ## Geometry-correct original decoder reference
 

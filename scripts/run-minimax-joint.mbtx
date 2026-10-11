@@ -260,6 +260,27 @@ test "long quality campaigns have an explicit non-default time budget" {
 }
 
 ///|
+// Offline process I/O only: progress must be visible while a long media request
+// computes. This does not change the runtime, kernels or request semantics.
+fn diagnostic_process(binary : String, capture_latents : Bool) -> String {
+  " /usr/bin/stdbuf -oL -eL " +
+  binary +
+  (if capture_latents { " run-joint-latents " } else { " run-joint " })
+}
+
+///|
+test "long media diagnostics publish progress without changing execution mode" {
+  assert_eq(
+    diagnostic_process("/tmp/media.exe", false),
+    " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint ",
+  )
+  assert_eq(
+    diagnostic_process("/tmp/media.exe", true),
+    " /usr/bin/stdbuf -oL -eL /tmp/media.exe run-joint-latents ",
+  )
+}
+
+///|
 async fn main {
   let (runtime_args, runtime_seconds) = runtime_arguments(@env.args())
   let (capture_args, capture_latents) = capture_arguments(runtime_args)
@@ -387,9 +408,8 @@ async fn main {
     "/run.stdout" +
     " --property=StandardError=file:" +
     root +
-    "/run.stderr " +
-    binary +
-    (if capture_latents { " run-joint-latents " } else { " run-joint " }) +
+    "/run.stderr" +
+    diagnostic_process(binary, capture_latents) +
     variant +
     " " +
     geometry +
