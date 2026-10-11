@@ -103,7 +103,8 @@ static bool write_tensor(PyObject *tensor,PyObject *byte_dtype,const std::string
   return true;
 }
 
-static int execute(const char *root,const char *input,const char *output,int layers) {
+static int execute(const char *root,const char *input,const char *output,int layers,
+                   int replay_layer=-1,const char *replay_input=nullptr) {
   Owned torch(PyImport_ImportModule("torch"));
   Owned module(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.encoder"));
   Owned transformers(PyImport_ImportModule("transformers"));
@@ -142,14 +143,31 @@ static int execute(const char *root,const char *input,const char *output,int lay
   Owned id_args(PyTuple_Pack(1,list.p));
   Owned id_options(Py_BuildValue("{s:O}","dtype",i64.p));
   Owned token_ids(call(tensor_fn.p,id_args.p,id_options.p));
-  Owned embedding(weight(open.p,map,root,"model.language_model.embed_tokens.weight"));
-  Owned selected(embedding.p&&token_ids.p?PyObject_CallMethod(embedding.p,"index_select","iO",0,token_ids.p):nullptr);
-  Owned batch(selected.p?PyObject_CallMethod(selected.p,"unsqueeze","i",0):nullptr);
-  Owned hidden(batch.p?PyObject_CallMethod(batch.p,"to","s","cuda"):nullptr);
-  // The full CPU embedding is not needed after the literal rows are selected.
-  Py_CLEAR(embedding.p);Py_CLEAR(selected.p);Py_CLEAR(batch.p);
-  if(!hidden.p)return -1;
   const int rows=static_cast<int>(ids.size());
+  const int64_t bytes=static_cast<int64_t>(rows)*5120*2;
+  Owned hidden;
+  if(replay_layer>=0) {
+    // Literal BF16 input, not re-encoding its prefix or substituting F32 values.
+    // The bytearray owner remains live until the blocking CUDA copy retires.
+    std::ifstream file(replay_input,std::ios::binary);
+    const std::vector<char> data((std::istreambuf_iterator<char>(file)),{});
+    if(!file||static_cast<int64_t>(data.size())!=bytes) {
+      PyErr_SetString(PyExc_ValueError,"matched layer input extent differs");return -1;
+    }
+    Owned buffer(PyByteArray_FromStringAndSize(data.data(),data.size()));
+    Owned frombuffer(PyObject_GetAttrString(torch.p,"frombuffer"));
+    Owned buffer_args(buffer.p?PyTuple_Pack(1,buffer.p):nullptr);
+    Owned buffer_options(Py_BuildValue("{s:O}","dtype",bf16.p));
+    Owned flat(call(frombuffer.p,buffer_args.p,buffer_options.p));
+    Owned batch(flat.p?PyObject_CallMethod(flat.p,"view","iii",1,rows,5120):nullptr);
+    hidden.p=batch.p?PyObject_CallMethod(batch.p,"to","s","cuda"):nullptr;
+  } else {
+    Owned embedding(weight(open.p,map,root,"model.language_model.embed_tokens.weight"));
+    Owned selected(embedding.p&&token_ids.p?PyObject_CallMethod(embedding.p,"index_select","iO",0,token_ids.p):nullptr);
+    Owned batch(selected.p?PyObject_CallMethod(selected.p,"unsqueeze","i",0):nullptr);
+    hidden.p=batch.p?PyObject_CallMethod(batch.p,"to","s","cuda"):nullptr;
+  }
+  if(!hidden.p)return -1;
   Owned positions(PyObject_CallMethod(torch.p,"arange","i",rows));
   Owned position_view(positions.p?PyObject_CallMethod(positions.p,"view","iii",1,1,rows):nullptr);
   Owned expanded(position_view.p?PyObject_CallMethod(position_view.p,"expand","iii",3,1,rows):nullptr);
@@ -162,9 +180,9 @@ static int execute(const char *root,const char *input,const char *output,int lay
   Owned layer_cls(PyObject_GetAttrString(module.p,"MiniMaxH3Qwen3VLTextDecoderLayer"));
   Owned layer_args(PyTuple_Pack(3,group.p,text.p,bf16.p));
   if(!tables.p||!layer_cls.p||!layer_args.p)return -1;
-  const int64_t bytes=static_cast<int64_t>(rows)*5120*2;
-  if(!write_tensor(hidden.p,u8.p,std::string(output)+"/hidden-0.bf16",bytes))return -1;
-  for(int layer=0;layer<layers;++layer) {
+  const int first=replay_layer>=0?replay_layer:0;
+  if(!write_tensor(hidden.p,u8.p,std::string(output)+"/hidden-"+std::to_string(first)+".bf16",bytes))return -1;
+  for(int layer=first;layer<first+layers;++layer) {
     Owned cpu_layer(call(layer_cls.p,layer_args.p));
     Owned gpu(cpu_layer.p?PyObject_CallMethod(cpu_layer.p,"to","s","cuda"):nullptr);
     if(!gpu.p||!load_layer(gpu.p,open.p,map,root,layer))return -1;
@@ -174,16 +192,24 @@ static int execute(const char *root,const char *input,const char *output,int lay
     Py_SETREF(hidden.p,next.p);next.p=nullptr;
     std::printf("original_encoder_layer=%d rows=%d arithmetic=installed_module\n",layer+1,rows);std::fflush(stdout);
   }
-  std::printf("original_encoder_complete layers=%d rows=%d output_boundary=unnormalized_hidden residency=one_layer\n",layers,rows);
+  std::printf("original_encoder_complete layers=%d rows=%d first_layer=%d matched_input=%s output_boundary=unnormalized_hidden residency=one_layer\n",
+              layers,rows,first,replay_layer>=0?"true":"false");
   return 0;
 }
 
 int main(int argc,char **argv) {
-  if(argc!=5) { std::fputs("ORIGINAL_TEXT_ROOT LITERAL_IDS_I32 NEW_OUTPUT_DIR LAYERS\n",stderr);return 2; }
+  if(argc!=5&&argc!=8) { std::fputs("ORIGINAL_TEXT_ROOT LITERAL_IDS_I32 NEW_OUTPUT_DIR LAYERS [--replay-layer ZERO_BASED_LAYER INPUT_BF16]\n",stderr);return 2; }
   char *end=nullptr;const auto count=std::strtol(argv[4],&end,10);
   if(!end||*end||count<1||count>50)return 2;
+  int first=-1;
+  if(argc==8) {
+    if(std::string(argv[5])!="--replay-layer"||count!=1)return 2;
+    const auto ordinal=std::strtol(argv[6],&end,10);
+    if(end==argv[6]||!end||*end||ordinal<0||ordinal>=50)return 2;
+    first=static_cast<int>(ordinal);
+  }
   Py_Initialize();
-  int result=execute(argv[1],argv[2],argv[3],static_cast<int>(count));
+  int result=execute(argv[1],argv[2],argv[3],static_cast<int>(count),first,argc==8?argv[7]:nullptr);
   if(PyErr_Occurred()) { PyErr_Print();result=-1; }
   const int finalized=Py_FinalizeEx();
   return result||finalized<0?1:0;

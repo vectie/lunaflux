@@ -13,6 +13,9 @@ The later isolated [mean-publication ablation](MINIMAX_MEAN_PUBLICATION_ABLATION
 does not materially improve the four direct-original comparisons. Caption and
 English remain bitwise unchanged; the worst digits and long rows remain
 3.1238% and 9.0533%. The reciprocal variant is not selected for production.
+The [installed-original matched-layer replay](MINIMAX_ORIGINAL_MATCHED_LAYER_2026-10-11.md)
+now separates local layer arithmetic from propagated input sensitivity directly,
+without reimplementing the selected reference layer.
 
 ### Cancellation-sensitive dot-product experiment (default rollout rejected)
 
