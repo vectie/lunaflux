@@ -89,6 +89,31 @@ fn needs_gpu(mode : String) -> Bool {
 }
 
 ///|
+fn native_operator_directory(input : String) -> Bool {
+  safe(input) && input.has_prefix("/tmp/lunaflux-minimax-text-encoder-")
+}
+
+///|
+test "matched operator replay accepts the encoder runner output names" {
+  assert_true(
+    native_operator_directory(
+      "/tmp/lunaflux-minimax-text-encoder-matched-first-operators-20261011-v1/operators",
+    ),
+  )
+  assert_true(
+    native_operator_directory(
+      "/tmp/lunaflux-minimax-text-encoder-operators-20261011-v1/operators",
+    ),
+  )
+  assert_false(native_operator_directory("/tmp/other/operators"))
+  assert_false(
+    native_operator_directory(
+      "/tmp/lunaflux-minimax-text-encoder-v1/../operators",
+    ),
+  )
+}
+
+///|
 fn reference_arguments(
   mode : String,
   ids? : String = "32,2518,8251",
@@ -100,9 +125,11 @@ fn reference_arguments(
     "replay-down-reduction" => prefix + "/native /oracle"
     "replay-operators" | "replay-full-reduction" =>
       prefix + ids + " /work/" + mode + " /native"
-    "encode" | "encode-full-reduction" | "encode-wide-attention"
-    | "encode-wide-projection" | "encode-wide-linear-attention" =>
-      prefix + ids + " /work/" + mode + " 50"
+    "encode"
+    | "encode-full-reduction"
+    | "encode-wide-attention"
+    | "encode-wide-projection"
+    | "encode-wide-linear-attention" => prefix + ids + " /work/" + mode + " 50"
     "encode-operators" => prefix + ids + " /work/encode-operators 1"
     _ => fail("not a reference execution mode")
   }
@@ -368,9 +395,7 @@ async fn main {
     let device = if needs_gpu(mode) { " --gpus all" } else { "" }
     let replay = match extra {
       [_] if mode.has_prefix("encode") => ""
-      [input, ..] if safe(input) &&
-        input.has_prefix("/tmp/lunaflux-minimax-text-encoder-operators-") =>
-        input
+      [input, ..] if native_operator_directory(input) => input
       [] => ""
       _ => fail("invalid native operator directory")
     }

@@ -11,8 +11,37 @@ copies or synchronization. Outputs are diagnostic local-layer comparisons,
 not a propagated hidden-state-50 encoder or media-quality result.
 
 The host bound accounts separately for 50 original inputs and 51 snapshots.
-Input extent and predecessor-index regressions pass. Physical comparison is
-pending; this new diagnostic alone does not fix the remaining encoder gap.
+Input extent and predecessor-index regressions pass. Physical comparison now
+completed for all 50 layers; this diagnostic alone does not fix the remaining
+encoder gap.
+
+On `.179`, 140 literal original token IDs and original predecessor tensors
+produce 51 native snapshots. Embedding matches all 716,800 BF16 values exactly.
+The largest independent layer-wide relative L2 is **0.1854224% at layer 1**.
+Layer 7 has the largest independent per-row error: **0.8251653% at row 97**.
+Later layer-wide norms are much smaller, but large features dominate those
+norms; they are not evidence that every row matches. This separates local
+layer discrepancies from the previously recorded accumulated encoder error.
+
+The first-layer operator trace begins differing at Q projection. Input RMSNorm
+is bitwise identical. Q/K/V relative L2 is 0.0112170% / 0.0474268% /
+0.0006329%; downstream attention, output and final residual are 0.0734488% /
+0.1196788% / 0.1854224%. These latter values include propagated differences;
+matched-intermediate operator replays are necessary before assigning causes.
+The operator reference is the separate installed-ATen reconstruction, not an
+unmodified installed-original layer capture.
+
+Both native diagnostics terminate successfully with empty stderr and release
+the GPU. The full local suite passes 5,013/5,013. No production arithmetic,
+acceptance tolerance or media-quality result is changed by this measurement.
+
+New retained roots:
+
+- `/tmp/lunaflux-minimax-text-encoder-original-matched-long-20261011-v1`
+- `/tmp/lunaflux-minimax-matched-long-comparison-20261011-v1`
+- `/tmp/lunaflux-minimax-text-encoder-matched-first-operators-20261011-v1`
+- `/tmp/lunaflux-minimax-aten-reference-matched-first-long-20261011-v1`
+- `/tmp/lunaflux-minimax-matched-first-operator-comparison-20261011-v1`
 
 ```sh
 moon run scripts/run-minimax-text-encoder.mbtx NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS EXACT_ROW_AOT 179 ORIGINAL_IDS_I32 matched ORIGINAL_HIDDEN_DIRECTORY
