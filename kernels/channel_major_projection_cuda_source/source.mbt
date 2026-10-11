@@ -30,6 +30,7 @@ pub fn f32_pointwise_conv1d_source(
   output_channels~ : Int,
   time_count~ : Int,
   function_symbol~ : String,
+  autocast? : @precision.AutocastFloat? = None,
 ) -> ChannelMajorProjectionCudaSource raise ChannelMajorProjectionCudaSourceError {
   if batch_count <= 0 {
     raise InvalidBatchCount
@@ -53,7 +54,17 @@ pub fn f32_pointwise_conv1d_source(
     checked_mul(batch, output_channels.to_int64()),
     time,
   )
+  fn rounded(value : String) -> String {
+    match autocast {
+      Some(dtype) => @autocast.round_source(value, dtype)
+      None => value
+    }
+  }
   let source = @utf8.encode(
+    (match autocast {
+      Some(dtype) => @autocast.include_source(dtype)
+      None => ""
+    }) +
     "#include <stdint.h>\nextern \"C\" __global__ void " +
     function_symbol +
     "(const float *input, const float *weight, const float *bias, float *output) {\n" +
@@ -73,7 +84,11 @@ pub fn f32_pointwise_conv1d_source(
     "  const unsigned long long batch_index = outer / " +
     output_channels.to_string() +
     "ULL;\n" +
-    "  float sum = bias[output_channel];\n" +
+    (if autocast is Some(_) {
+      "  float sum = 0.0f;\n"
+    } else {
+      "  float sum = bias[output_channel];\n"
+    }) +
     "  const unsigned long long weight_base = output_channel * " +
     input_channels.to_string() +
     "ULL;\n" +
@@ -85,14 +100,31 @@ pub fn f32_pointwise_conv1d_source(
     "  for (int channel = 0; channel < " +
     input_channels.to_string() +
     "; channel += 1) {\n" +
-    "    const float product = __fmul_rn(input[input_batch_base + (unsigned long long)channel * " +
-    time_count.to_string() +
-    "ULL + time_index], weight[weight_base + channel]);\n" +
-    "    sum = __fadd_rn(sum, product);\n  }\n  output[flat] = sum;\n}\n",
+    "    const float product = __fmul_rn(" +
+    rounded(
+      "input[input_batch_base + (unsigned long long)channel * " +
+      time_count.to_string() +
+      "ULL + time_index]",
+    ) +
+    ", " +
+    rounded("weight[weight_base + channel]") +
+    ");\n" +
+    "    sum = __fadd_rn(sum, product);\n  }\n" +
+    (if autocast is Some(_) {
+      "  sum = __fadd_rn(sum, " + rounded("bias[output_channel]") + ");\n"
+    } else {
+      ""
+    }) +
+    "  output[flat] = " +
+    rounded("sum") +
+    ";\n}\n",
   )
   {
     operation: F32PointwiseConv1d,
-    numerical_contract: OrderedF32BiasAccumulationF32OutputV1,
+    numerical_contract: match autocast {
+      Some(dtype) => AutocastPointwiseF32AccumulationV1(dtype)
+      None => OrderedF32BiasAccumulationF32OutputV1
+    },
     batch_count,
     input_channels,
     output_channels,

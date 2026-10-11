@@ -35,6 +35,7 @@ pub fn Block::new(
     head_dimension=64,
     intermediate=8192,
     prefix~,
+    autocast=@config.video_decoder_autocast(),
   )
   let qk_offset = align256(stem.scratch_bytes)
   let attention_offset = align256(qk_offset + stem.qkv_bytes)

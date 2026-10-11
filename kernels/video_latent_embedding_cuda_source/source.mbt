@@ -23,6 +23,7 @@ pub fn render(
   hidden_channels~ : Int,
   register_rows~ : Int,
   symbol~ : String,
+  output_rounding? : @precision.AutocastFloat? = None,
 ) -> EmbeddingSource raise EmbeddingError {
   guard batch > 0 &&
     positions > 0 &&
@@ -49,6 +50,10 @@ pub fn render(
     rows.to_int64() *
     hidden_channels.to_int64()
   let source = @utf8.encode(
+    (match output_rounding {
+      Some(dtype) => @autocast.include_source(dtype)
+      None => ""
+    }) +
     (
       $|#include <stdint.h>
       $|extern "C" __global__ void \{symbol}(const float *input, const float *weight, const float *bias, const float *registers, float *output) {
@@ -61,12 +66,12 @@ pub fn render(
       $|    output[flat] = row < \{positions + register_rows}ULL ? registers[(row - \{positions}ULL) * \{hidden_channels}ULL + channel] : 0.0f;
       $|    return;
       $|  }
-      $|  float sum = bias[channel];
+      $|  float sum = \{if output_rounding is Some(_) { "0.0f" } else { "bias[channel]" }};
       $|  for (int k = 0; k < \{input_channels}; ++k) {
       $|    const float product = __fmul_rn(input[(batch_index * \{input_channels}ULL + k) * \{positions}ULL + row], weight[channel * \{input_channels}ULL + k]);
       $|    sum = __fadd_rn(sum, product);
       $|  }
-      $|  output[flat] = sum;
+      $|  output[flat] = \{match output_rounding { Some(dtype) => @autocast.round_source("__fadd_rn(sum, bias[channel])", dtype); None => "sum" }};
       $|}
     ),
   )

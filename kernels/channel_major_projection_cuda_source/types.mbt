@@ -9,6 +9,7 @@ pub(all) enum ChannelMajorProjectionOperation {
 ///|
 pub(all) enum ChannelMajorProjectionNumericalContract {
   OrderedF32BiasAccumulationF32OutputV1
+  AutocastPointwiseF32AccumulationV1(@precision.AutocastFloat)
   OrderedF32PerOutputWeightNormConv1dV1
   OrderedF32PerOutputWeightNormBiasFreeConv1dV1
   OrderedF32PerOutputWeightNormDilatedConv1dV1

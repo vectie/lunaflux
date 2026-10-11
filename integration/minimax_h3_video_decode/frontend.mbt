@@ -35,6 +35,7 @@ pub fn Frontend::new(
     hidden_channels=2048,
     register_rows=4,
     symbol=symbols[1],
+    output_rounding=Some(@config.video_decoder_autocast()),
   )
   let input_bytes = embedding.input_elements * 4L
   let output_bytes = embedding.output_elements * 4L
@@ -48,6 +49,7 @@ pub fn Frontend::new(
     output_channels=24,
     time_count=positions,
     function_symbol=symbols[0],
+    autocast=Some(@config.video_decoder_autocast()),
   )
   {
     source: @cuda_translation_unit.compose([

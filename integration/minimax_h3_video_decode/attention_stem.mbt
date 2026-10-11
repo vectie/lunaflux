@@ -1,5 +1,5 @@
 ///|
-/// One tile, one batch. Q/K/V output is planar BF16 [3,rows,32,64].
+/// One tile, one batch. Q/K/V output is planar FP16 [3,rows,32,64].
 pub struct AttentionStem {
   source : Bytes
   symbols : ReadOnlyArray[String]
@@ -31,6 +31,7 @@ pub fn AttentionStem::new(
     rotary_dimension=48,
     register_rows=4,
     prefix~,
+    autocast=@config.video_decoder_autocast(),
   )
   let rows = temporal * height * width + 5
   let hidden_bytes = rows.to_int64() * 2048L * 2L

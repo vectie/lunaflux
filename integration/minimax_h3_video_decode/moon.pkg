@@ -9,6 +9,7 @@ import {
   "vectie/lunaflux/model/minimax_h3_weights",
   "vectie/lunaflux/kernels/channel_major_projection_cuda_source",
   "vectie/lunaflux/kernels/video_latent_embedding_cuda_source",
+  "vectie/lunaflux/model/minimax_h3_config" @config,
 }
 
 supported_targets = "native"

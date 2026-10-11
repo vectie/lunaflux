@@ -4,6 +4,7 @@ import {
   "vectie/lunaflux/internal/json_guard",
   "vectie/lunaflux/model/minimax_h3_spec",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
 }
 
 supported_targets = "native"

@@ -1,5 +1,12 @@
 import {
   "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/autocast_cuda_source" @autocast,
 }
 
 supported_targets = "native"
+
+import {
+  "moonbitlang/core/env",
+  "vectie/lunaflux/kernels/channel_major_projection_cuda_source" @projection,
+} for "test"

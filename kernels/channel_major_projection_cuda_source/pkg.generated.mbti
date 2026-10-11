@@ -3,10 +3,11 @@ package "vectie/lunaflux/kernels/channel_major_projection_cuda_source"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
-pub fn f32_pointwise_conv1d_source(batch_count~ : Int, input_channels~ : Int, output_channels~ : Int, time_count~ : Int, function_symbol~ : String) -> ChannelMajorProjectionCudaSource raise ChannelMajorProjectionCudaSourceError
+pub fn f32_pointwise_conv1d_source(batch_count~ : Int, input_channels~ : Int, output_channels~ : Int, time_count~ : Int, function_symbol~ : String, autocast? : @precision_ir.AutocastFloat?) -> ChannelMajorProjectionCudaSource raise ChannelMajorProjectionCudaSourceError
 
 pub fn f32_weight_normalized_conv1d_source(batch_count~ : Int, input_channels~ : Int, output_channels~ : Int, input_time~ : Int, kernel_size~ : Int, padding~ : Int, stride~ : Int, normalize_symbol~ : String, convolution_symbol~ : String, use_bias? : Bool) -> WeightNormalizedConv1dCudaSource raise ChannelMajorProjectionCudaSourceError
 
@@ -45,6 +46,7 @@ pub(all) enum ChannelMajorProjectionNumericalContract {
   OrderedF32PerOutputWeightNormConv1dV1
   OrderedF32PerOutputWeightNormBiasFreeConv1dV1
   OrderedF32PerOutputWeightNormDilatedConv1dV1
+  AutocastPointwiseF32AccumulationV1(@precision_ir.AutocastFloat)
   OrderedF32PerInputWeightNormConvTranspose1dV1
 } derive(Eq, @debug.Debug)
 
