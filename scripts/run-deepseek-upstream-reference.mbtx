@@ -166,16 +166,18 @@ async fn main {
       for source in ["config.json", "input.txt", wheel] {
         copy(last, root + "/" + source, node(last) + ":" + root + "/" + source)
       }
-      copy(
-        last,
-        "benchmarks/checkpoint_aten_reference/aten/upstream_trace.cpp",
-        node(last) + ":" + root + "/upstream_trace.cpp",
-      )
+      for file in ["upstream_trace.cpp", "upstream_stream_load.cpp"] {
+        copy(
+          last,
+          "benchmarks/checkpoint_aten_reference/aten/" + file,
+          node(last) + ":" + root + "/" + file,
+        )
+      }
       let build = "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
         root +
         ":/work --entrypoint g++ " +
         image +
-        " -O2 -std=c++20 -I/usr/include/python3.12 /work/upstream_trace.cpp -o /work/upstream-observer -lpython3.12"
+        " -O2 -std=c++20 -I/usr/include/python3.12 /work/upstream_trace.cpp /work/upstream_stream_load.cpp -o /work/upstream-observer -lpython3.12"
       save(root, "build-" + rank, remote(last, build))
       let install = "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
         root +

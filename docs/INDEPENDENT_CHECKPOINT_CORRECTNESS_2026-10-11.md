@@ -51,7 +51,21 @@ the **same eight payload bytes**, and loads back to the original Torch shape.
 The converter now expresses that distinction and has a regression. The new
 `--repair-packed` mode rewrites metadata and streams the unchanged payload into
 new rank directories; it never mutates the failed file or original checkpoint.
-The faithful upstream generation comparison is still pending.
+Both repaired rank files now pass the upstream reader. The faithful upstream
+generation comparison is still pending.
+
+The original `load_model` also builds an owning CPU tensor dictionary while
+the entire device model is already allocated. On Spark's unified memory that
+duplicates roughly 80 GB; the `v2` test was stopped before OOM when available
+RAM fell to about 18 GiB. The test-only C++ allocation adapter now copies one
+named mmap tensor at a time into those same original device parameters, then
+releases its CPU view. It leaves original forward/sampling arithmetic unchanged.
+A shared-parameter CPU fixture compares its tensor values and alias/missing-key
+result against upstream `save_model`/`load_model` exactly. A real rank's first
+tensor also passes the independent reader. The attempted pread adapter in `v3`
+failed on tensor access before loading; `v4` retains the upstream mmap backend
+and is progressing through the full tensor set. None of these loader checks is
+a model correctness pass.
 
 `scripts/run-deepseek-upstream-reference.mbtx` runs the checkpoint's unmodified
 `generate.py`, original arithmetic/config fields, MP2 and literal user text,

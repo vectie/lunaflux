@@ -6,6 +6,8 @@
 #include <cstring>
 #include <string>
 
+int install_upstream_stream_loader();
+
 struct Owned {
   PyObject *p;
   explicit Owned(PyObject *value) : p(value) {}
@@ -72,6 +74,7 @@ int main(int argc, char **argv) {
       Owned input(Py_BuildValue("[[ii]]", 5, 223)), output(Py_BuildValue("[[ii]]", 19923, 1));
       failed = emit(input.p, output.p);
     } else {
+      if(install_upstream_stream_loader()<0) failed=-1;
       std::string path(argv[1]);
       const auto slash = path.find_last_of('/');
       Owned directory(PyUnicode_FromString(path.substr(0, slash).c_str()));
