@@ -5,6 +5,8 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <cstdlib>
+struct VideoShape { int time=37, height=2, width=2; };
 static PyObject* tensor(PyObject *torch,PyObject *values) {
   Owned fn(PyObject_GetAttrString(torch,"tensor")),args(PyTuple_Pack(1,values));
   Owned kwargs(Py_BuildValue("{s:s}","device","cuda"));
@@ -12,15 +14,15 @@ static PyObject* tensor(PyObject *torch,PyObject *values) {
 }
 // The joint diagnostic exports standardized canonical NCTHW, not decoder
 // activations or destandardized latents. Loading stays CPU-only until replay.
-static PyObject *read_latent(PyObject *torch,const char *path) {
-  return read_canonical_latent(torch,path,{1,24,37,2,2});
+static PyObject *read_latent(PyObject *torch,const char *path,VideoShape shape) {
+  return read_canonical_latent(torch,path,{1,24,shape.time,shape.height,shape.width});
 }
-static int input_probe(const char *path) {
-  if(canonical_input_probe(path,{1,24,37,2,2}))return -1;
+static int input_probe(const char *path,VideoShape shape) {
+  if(canonical_input_probe(path,{1,24,shape.time,shape.height,shape.width}))return -1;
   std::puts("original_video_latent_input_probe_passed cpu_only=true shape=NCTHW bytes_unchanged=true");
   return 0;
 }
-static int execute(const char *root,const char *destination,const char *source) {
+static int execute(const char *root,const char *destination,const char *source,VideoShape geometry) {
   auto *paths=PySys_GetObject("path");
   Owned directory(PyUnicode_FromString(root));
   if(!paths||!directory.p||PyList_Insert(paths,0,directory.p)<0)return -1;
@@ -42,11 +44,11 @@ static int execute(const char *root,const char *destination,const char *source) 
   Owned stddev(tensor(torch.p,PyDict_GetItemString(config.p,"latents_std")));
   Owned mean_view(mean.p?PyObject_CallMethod(mean.p,"view","iiiii",1,24,1,1,1):nullptr);
   Owned std_view(stddev.p?PyObject_CallMethod(stddev.p,"view","iiiii",1,24,1,1,1):nullptr);
-  Owned shape(Py_BuildValue("(iiiii)",1,24,37,2,2)),args(PyTuple_Pack(1,shape.p));
+  Owned shape(Py_BuildValue("(iiiii)",1,24,geometry.time,geometry.height,geometry.width)),args(PyTuple_Pack(1,shape.p));
   Owned zeros(PyObject_GetAttrString(torch.p,"zeros"));
   Owned f32(PyObject_GetAttrString(torch.p,"float32"));
   Owned kwargs(Py_BuildValue("{s:s,s:O}","device","cuda","dtype",f32.p));
-  Owned cpu_input(source?read_latent(torch.p,source):nullptr);
+  Owned cpu_input(source?read_latent(torch.p,source,geometry):nullptr);
   Owned input(source?(cpu_input.p?PyObject_CallMethod(cpu_input.p,"to","s","cuda"):nullptr):
     (zeros.p?PyObject_Call(zeros.p,args.p,kwargs.p):nullptr));
   Owned scaled(input.p&&std_view.p?PyNumber_Multiply(input.p,std_view.p):nullptr);
@@ -82,15 +84,29 @@ static int execute(const char *root,const char *destination,const char *source) 
   const bool written=std::fwrite(PyBytes_AsString(bytes.p),1,count,file)==static_cast<size_t>(count);
   const bool closed=std::fclose(file)==0;
   if(!written||!closed)return -1;
-  std::printf("original_video_vae=true standardized_latent=[1,24,37,2,2] latent_input=%s autocast=float16 output_shape=%s output_bytes=%zd\n",source?source:"zero",PyUnicode_AsUTF8(repr.p),count);
+  std::printf("original_video_vae=true standardized_latent=[1,24,%d,%d,%d] latent_input=%s autocast=float16 output_shape=%s output_bytes=%zd\n",geometry.time,geometry.height,geometry.width,source?source:"zero",PyUnicode_AsUTF8(repr.p),count);
   Owned exited(PyObject_CallMethod(inference.p,"__exit__","OOO",Py_None,Py_None,Py_None));
   return exited.p?0:-1;
 }
 int main(int argc,char **argv) {
-  if(argc!=3&&argc!=4){std::fputs("ORIGINAL_SOURCE_ROOT NEW_PIXELS_F32 [CANONICAL_STANDARDIZED_LATENT_F32] | --input-probe LATENT_F32\n",stderr);return 2;}
+  if(argc!=3&&argc!=4&&argc!=6&&argc!=7){std::fputs("ORIGINAL_SOURCE_ROOT NEW_PIXELS_F32 [CANONICAL_STANDARDIZED_LATENT_F32] [LATENT_TIME LATENT_HEIGHT LATENT_WIDTH] | --input-probe LATENT_F32 [LATENT_TIME LATENT_HEIGHT LATENT_WIDTH]\n",stderr);return 2;}
+  const bool probe=std::string(argv[1])=="--input-probe";
+  if(probe&&(argc==4||argc==7))return 2;
+  VideoShape shape;
+  if(argc>=6) {
+    int *fields[]={&shape.time,&shape.height,&shape.width};
+    for(int i=0;i<3;++i) {
+      char *end=nullptr;
+      const long value=std::strtol(argv[argc-3+i],&end,10);
+      // This diagnostic's 32-GiB budget does not admit arbitrary-resolution
+      // decoder requests. Both real smoke/quality shapes fit these bounds.
+      if(!end||*end||value<=0||value>(i==0?128:16))return 2;
+      *fields[i]=static_cast<int>(value);
+    }
+  }
+  const char *source=!probe&&(argc==4||argc==7)?argv[3]:nullptr;
   Py_Initialize();
-  const int result=std::string(argv[1])=="--input-probe"?
-    input_probe(argv[2]):execute(argv[1],argv[2],argc==4?argv[3]:nullptr);
+  const int result=probe?input_probe(argv[2],shape):execute(argv[1],argv[2],source,shape);
   if(PyErr_Occurred())PyErr_Print();
   const int finalized=Py_FinalizeEx();
   return result||finalized<0?1:0;

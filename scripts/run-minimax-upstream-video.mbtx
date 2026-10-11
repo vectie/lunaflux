@@ -4,6 +4,56 @@ import {
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn latent_shape(options : ArrayView[String]) -> (String?, Int, Int, Int) raise {
+  let (source, axes) : (String?, ArrayView[String]) = match options {
+    [] => (None, [])
+    [source] => (Some(source), [])
+    ["--latent-shape", .. axes] => (None, axes)
+    [source, "--latent-shape", .. axes] => (Some(source), axes)
+    _ => fail("[CANONICAL_LATENT_F32] [--latent-shape TIME HEIGHT WIDTH]")
+  }
+  let dimensions = match axes {
+    [] => [37, 2, 2]
+    [time, height, width] =>
+      [time, height, width].map(value => @string.parse_int(value))
+    _ => fail("three literal latent dimensions required")
+  }
+  guard dimensions[0] > 0 &&
+    dimensions[0] <= 128 &&
+    dimensions[1] > 0 &&
+    dimensions[1] <= 16 &&
+    dimensions[2] > 0 &&
+    dimensions[2] <= 16 else {
+    fail("latent shape exceeds the diagnostic decoder memory budget")
+  }
+  (source, dimensions[0], dimensions[1], dimensions[2])
+}
+
+///|
+test "original decoder replay uses explicit canonical quality geometry" {
+  assert_eq(latent_shape([]), (None, 37, 2, 2))
+  assert_eq(latent_shape(["captured.f32"]), (Some("captured.f32"), 37, 2, 2))
+  assert_eq(
+    latent_shape(["captured.f32", "--latent-shape", "37", "8", "8"]),
+    (Some("captured.f32"), 37, 8, 8),
+  )
+  assert_eq(latent_shape(["--latent-shape", "37", "8", "4"]), (None, 37, 8, 4))
+  for
+    args in [
+      ["--latent-shape", "37", "8"],
+      ["--latent-shape", "37", "0", "8"],
+      ["--latent-shape", "37", "32", "8"],
+    ] {
+    try latent_shape(args) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid diagnostic geometry accepted")
+    }
+  }
 }
 
 ///|
@@ -41,11 +91,11 @@ async fn record(root : String, label : String, output : @shell.Output) -> Unit {
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     mode is ("prepare" | "run" | "inspect") &&
-    (extra.is_empty() || (mode == "prepare" && extra.length() == 1)) &&
+    (extra.is_empty() || mode == "prepare") &&
     root.has_prefix("/tmp/lunaflux-minimax-upstream-video-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail(
-      "prepare NEW_ROOT [CANONICAL_STANDARDIZED_LATENT_F32] | run|inspect PREPARED_ROOT",
+      "prepare NEW_ROOT [CANONICAL_STANDARDIZED_LATENT_F32] [--latent-shape TIME HEIGHT WIDTH] | run|inspect PREPARED_ROOT",
     )
   }
   let tag = root.split("/").last().unwrap().to_owned()
@@ -53,23 +103,27 @@ async fn main {
     @fs.mkdir(root)
     @fs.mkdir(root + "/video_vae")
     @fs.mkdir(root + "/video_vae/source")
-    let captured = !extra.is_empty()
-    if captured {
-      let input = @fs.read_file(extra[0]).binary()
-      guard input.length() == 24 * 37 * 2 * 2 * 4 else {
-        fail("expected canonical standardized [1,24,37,2,2] F32")
+    let (source, time, height, width) = latent_shape(extra)
+    let shape = "\{time} \{height} \{width}"
+    if source is Some(path) {
+      let input = @fs.read_file(path).binary()
+      guard input.length() == 24 * time * height * width * 4 else {
+        fail(
+          "canonical standardized F32 latent extent differs from the declared geometry",
+        )
       }
       @fs.write_file(root + "/latent.f32", input, create_mode=CreateNew)
     }
     @fs.write_file(
       root + "/LATENT_INPUT.txt",
-      if captured {
+      if source is Some(_) {
         "captured"
       } else {
         "zero"
       },
       create_mode=CreateNew,
     )
+    @fs.write_file(root + "/LATENT_SHAPE.txt", shape, create_mode=CreateNew)
     for
       file in [
         "config.json", "source/config.json", "attention.py", "base_module.py", "conv.py",
@@ -130,7 +184,7 @@ async fn main {
         " -O2 -std=c++20 -I/usr/include/python3.12 /work/video_upstream.cpp -o /work/video-upstream -lpython3.12",
       ),
     )
-    if captured {
+    if source is Some(_) {
       record(
         root,
         "input-probe",
@@ -139,7 +193,8 @@ async fn main {
           root +
           ":/work --entrypoint /work/video-upstream " +
           image +
-          " --input-probe /work/latent.f32",
+          " --input-probe /work/latent.f32 " +
+          shape,
         ),
       )
     }
@@ -166,7 +221,9 @@ async fn main {
           " /work/latent.f32"
         } else {
           ""
-        }),
+        }) +
+        " " +
+        @fs.read_file(root + "/LATENT_SHAPE.txt").text(),
       ),
     )
   } else {
