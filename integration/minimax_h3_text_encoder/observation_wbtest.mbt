@@ -36,6 +36,30 @@ test "operator capture failure stops before subsequent submission" {
 }
 
 ///|
+test "matched layers consume original predecessors, never the previous diagnostic output" {
+  let inputs : Array[Int] = []
+  let original : (Int) -> Bytes raise = i => {
+    inputs.push(i)
+    Bytes::make(2, i.to_byte())
+  }
+  assert_eq(matched_layer_input(0, 2L, Some(original)), None)
+  for next in 1..<=50 {
+    assert_eq(
+      matched_layer_input(next, 2L, Some(original)),
+      Some(Bytes::make(2, (next - 1).to_byte())),
+    )
+  }
+  assert_eq(inputs, Array::makei(50, i => i))
+  assert_eq(matched_layer_input(7, 2L, None), None)
+  try matched_layer_input(7, 3L, Some(original)) catch {
+    @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue) => ()
+    error => raise error
+  } noraise {
+    _ => fail("a different input shape was substituted")
+  }
+}
+
+///|
 test "first-layer operator captures follow the binding recipe and valid regions" {
   let boundaries = first_layer_operator_boundaries()
   let outputs = first_layer_operator_outputs()

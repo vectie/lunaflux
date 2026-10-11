@@ -25,6 +25,7 @@ fn hidden_state_boundaries(visual : Bool) -> ReadOnlyArray[(Int, Int)] {
 pub fn EncoderRequest::execute_observed(
   self : Self,
   on_hidden_state~ : (Int, Bytes) -> Unit raise,
+  original_hidden_state? : (Int) -> Bytes raise,
 ) -> Unit raise {
   guard self.phase == Prepared &&
     self.queue is None &&
@@ -36,6 +37,22 @@ pub fn EncoderRequest::execute_observed(
   observe_hidden_states(
     self.observations.length(),
     index => {
+      // Offline attribution only: replace the previous layer's input with its
+      // literal original state. Never propagate a diagnostic output as the
+      // next matched input, or change any kernel/rounding law.
+      if matched_layer_input(
+          index,
+          self.source.plan.output_bytes(),
+          original_hidden_state,
+        )
+        is Some(bytes) {
+        self.allocations[0].copy_from_host(
+          bytes,
+          0L,
+          0L,
+          self.source.plan.output_bytes(),
+        )
+      }
       let (queue, _) = self.observations[index]
       for index in 0..<queue.kernel_count() {
         queue.enqueue(index)
@@ -47,6 +64,22 @@ pub fn EncoderRequest::execute_observed(
     (index, snapshot) => on_hidden_state(self.observations[index].1, snapshot),
   )
   self.phase = Complete
+}
+
+///|
+fn matched_layer_input(
+  next_hidden : Int,
+  output_bytes : Int64,
+  original : ((Int) -> Bytes raise)?,
+) -> Bytes? raise {
+  if next_hidden == 0 || original is None {
+    return None
+  }
+  let bytes = original.unwrap()(next_hidden - 1)
+  guard bytes.length().to_int64() == output_bytes else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+  }
+  Some(bytes)
 }
 
 ///|

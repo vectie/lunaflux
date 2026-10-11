@@ -140,7 +140,9 @@ fn encoder_retired(status : String) -> Bool {
 test "encoder retirement is per-unit, not a later GPU owner's lifetime" {
   assert_true(encoder_retired("MainPID=0\nExecMainStatus=0\nSubState=dead\n"))
   assert_true(encoder_retired("MainPID=0\nExecMainStatus=0\nSubState=exited\n"))
-  assert_false(encoder_retired("MainPID=19\nExecMainStatus=0\nSubState=running\n"))
+  assert_false(
+    encoder_retired("MainPID=19\nExecMainStatus=0\nSubState=running\n"),
+  )
   assert_false(encoder_retired("MainPID=0\nExecMainStatus=1\nSubState=dead\n"))
 }
 
@@ -190,7 +192,9 @@ async fn main {
       target is ["178", _, "layers"] ||
       target is ["179", _, "layers"] ||
       target is ["178", _, "operators"] ||
-      target is ["179", _, "operators"]
+      target is ["179", _, "operators"] ||
+      target is ["178", _, "matched", _] ||
+      target is ["179", _, "matched", _]
     ) &&
     root.has_prefix("/tmp/lunaflux-minimax-text-encoder-") &&
     executable.has_prefix("/tmp/lunaflux-") &&
@@ -223,7 +227,11 @@ async fn main {
   } else {
     "GPU-9c3d3cf0-439a-5da2-67e9-20414255879f"
   }
-  let capture_layers = target is [_, _, "layers"]
+  let matched = match target {
+    [_, _, "matched", directory] => Some(directory)
+    _ => None
+  }
+  let capture_layers = target is [_, _, "layers"] || matched is Some(_)
   let capture_operators = target is [_, _, "operators"]
   // Caller-supplied IDs come from text-ids. The default remains an explicitly
   // synthetic probe; each wider input requires its own exact-row AOT geometry.
@@ -241,6 +249,25 @@ async fn main {
   let binary = executable
   @fs.write_file(root + "/ids.i32", ids, create_mode=CreateNew)
   record(root, "mkdir", remote(node, socket, "mkdir " + root))
+  if matched is Some(directory) {
+    record(
+      root,
+      "matched-mkdir",
+      remote(node, socket, "mkdir " + root + "/original-layers"),
+    )
+    for index in 0..<50 {
+      let filename = "/hidden-\{index}.bf16"
+      guard @fs.read_file(directory + filename).binary().length() ==
+        rows * 10240 else {
+        fail("matched original state must contain every literal row")
+      }
+      copy(
+        socket,
+        directory + filename,
+        node + ":" + root + "/original-layers" + filename,
+      )
+    }
+  }
   record(
     root,
     "copy-binary",
@@ -281,7 +308,9 @@ async fn main {
       " --property=MemoryMax=80G --property=MemorySwapMax=0 --property=RuntimeMaxSec=5400 " +
       root +
       "/minimax_checkpoint.exe " +
-      (if capture_operators {
+      (if matched is Some(_) {
+        "encode-text-matched-layers "
+      } else if capture_operators {
         "encode-text-operators "
       } else if capture_layers {
         "encode-text-layers "
@@ -304,10 +333,11 @@ async fn main {
       }) +
       " 75161927680 64424509440" +
       (if capture_operators || capture_layers {
-        " \{capture_bytes}"
+        " \{capture_bytes + (if matched is Some(_) { rows * 10240 * 50 } else { 0 })}"
       } else {
         ""
-      }),
+      }) +
+      (if matched is Some(_) { " " + root + "/original-layers" } else { "" }),
     ),
   )
   let run = @fs.read_file(root + "/encode.stdout").text()
@@ -343,8 +373,9 @@ async fn main {
   let retired = remote(
     node,
     socket,
-    "systemctl --user show " + unit +
-      ".service -p MainPID -p ExecMainStatus -p SubState",
+    "systemctl --user show " +
+    unit +
+    ".service -p MainPID -p ExecMainStatus -p SubState",
   )
   record(root, "retired-unit", retired)
   guard encoder_retired(retired.stdout()) else {
@@ -356,7 +387,9 @@ async fn main {
     remote(node, socket, "journalctl --user -u " + unit + " --no-pager"),
   )
   println(
-    if capture_operators {
+    if matched is Some(_) {
+      "all fifty matched-input native layers complete and released; not a propagated encoder or media-quality pass"
+    } else if capture_operators {
       "first-layer operator prefix complete and released; not a fifty-layer output"
     } else {
       "checkpoint-backed hidden_states[50] complete and released; no full-media or reference-equivalence claim"

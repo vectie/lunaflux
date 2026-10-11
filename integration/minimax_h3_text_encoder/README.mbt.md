@@ -28,6 +28,10 @@ before subsequent layers and keep the request failed until cancellation/release.
 The ordinary `prepare()`/`execute()` route retains its single queue and single
 completion wait, with no diagnostic copies or per-layer barriers. This observed
 route is not valid for throughput measurements.
+Its optional `original_hidden_state` callback supplies each layer's literal
+original BF16 input before that layer executes, so local arithmetic error is
+not conflated with fifty-layer propagation. This is diagnostic host I/O/copy,
+absent from ordinary execution and not a media-quality acceptance result.
 `prepare_operator_observed()`/`execute_operator_observed()` stop after the first
 text-only layer and expose sixteen named intermediate tensors from the same
 launch recipe. Pure `first_layer_observation_bytes()` gives the exact host

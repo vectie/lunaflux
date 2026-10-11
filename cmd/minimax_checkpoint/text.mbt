@@ -9,6 +9,7 @@ async fn run_text(
   args : ArrayView[String],
   capture_layers? : Bool = false,
   capture_operators? : Bool = false,
+  matched_layers? : String,
 ) -> Unit {
   let config = @text.parse_config(
     read(root, "text_encoder/config.json", 1048576L),
@@ -32,9 +33,20 @@ async fn run_text(
       validate_text_capture_budget(
         plan.output_bytes(),
         @string.parse_int64(args[7]),
+        matched_inputs=matched_layers is Some(_),
       )
     }
     @fs.mkdir(args[4])
+  }
+  let original_inputs : Array[Bytes] = []
+  if matched_layers is Some(directory) {
+    for index in 0..<50 {
+      let bytes = @fs.read_file(directory + "/hidden-\{index}.bf16").binary()
+      guard bytes.length().to_int64() == plan.output_bytes() else {
+        fail("matched original hidden-state extent differs")
+      }
+      original_inputs.push(bytes)
+    }
   }
   let device_limit = @string.parse_int64(args[6])
   let component_root = @approved_fs.ApprovedRoot::open_absolute(
@@ -145,9 +157,12 @@ async fn run_text(
   }
   let captures : Array[(Int, Bytes)] = []
   let hidden = if capture_layers {
-    request.execute_observed(on_hidden_state=(index, bytes) => {
-      captures.push((index, bytes))
-    })
+    request.execute_observed(
+      on_hidden_state=(index, bytes) => captures.push((index, bytes)),
+      original_hidden_state?=matched_layers.map(_ => {
+        index => original_inputs[index]
+      }),
+    )
     for (index, bytes) in captures {
       @fs.write_file(
         args[4] + "/hidden-\{index}.bf16",
@@ -170,7 +185,7 @@ async fn run_text(
   }
   let (nonfinite, maximum) = text_hidden_statistics(hidden)
   println(
-    "text_encoder_complete hidden_state=50 rows=\{rows} width=5120 bytes=\{hidden.length()} nonfinite=\{nonfinite} maximum_absolute=\{maximum}",
+    "text_encoder_complete hidden_state=50 rows=\{rows} width=5120 bytes=\{hidden.length()} nonfinite=\{nonfinite} maximum_absolute=\{maximum} matched_layer_inputs=\{matched_layers is Some(_)}",
   )
   guard nonfinite == 0 else {
     fail("nonfinite hidden-state output; data preserved")
@@ -181,11 +196,13 @@ async fn run_text(
 fn validate_text_capture_budget(
   output_bytes : Int64,
   maximum : Int64,
+  matched_inputs? : Bool = false,
 ) -> Unit raise {
-  guard output_bytes > 0L && output_bytes <= 2147483647L / 51L else {
+  let states = if matched_inputs { 101L } else { 51L }
+  guard output_bytes > 0L && output_bytes <= 2147483647L / states else {
     fail("invalid encoder capture extent")
   }
-  validate_capture_bytes(output_bytes * 51L, maximum)
+  validate_capture_bytes(output_bytes * states, maximum)
 }
 
 ///|

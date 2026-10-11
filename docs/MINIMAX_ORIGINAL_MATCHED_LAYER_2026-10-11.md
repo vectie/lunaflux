@@ -1,5 +1,23 @@
 # MiniMax installed-original matched-layer replay — 2026-10-11
 
+## Fifty independent native layer comparisons
+
+The diagnostic `encode-text-matched-layers` mode now reuses the existing native
+observation queues and supplies original `hidden-0` through `hidden-49` before
+their corresponding layers. Each output is independent: native layer N does
+not become the input of native layer N+1. Kernels, weights, positions, precision
+laws and BF16 publication remain unchanged. Ordinary serving has no extra
+copies or synchronization. Outputs are diagnostic local-layer comparisons,
+not a propagated hidden-state-50 encoder or media-quality result.
+
+The host bound accounts separately for 50 original inputs and 51 snapshots.
+Input extent and predecessor-index regressions pass. Physical comparison is
+pending; this new diagnostic alone does not fix the remaining encoder gap.
+
+```sh
+moon run scripts/run-minimax-text-encoder.mbtx NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS EXACT_ROW_AOT 179 ORIGINAL_IDS_I32 matched ORIGINAL_HIDDEN_DIRECTORY
+```
+
 The offline original encoder adapter can now consume an explicit BF16 hidden
 state and run exactly one selected installed `MiniMaxH3Qwen3VLTextDecoderLayer`.
 It preserves original packed weight loaders, rotary positions, normalization,

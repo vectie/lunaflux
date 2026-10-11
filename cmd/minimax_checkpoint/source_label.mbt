@@ -55,6 +55,7 @@ fn checkpoint_label(
   let selected = match mode {
     "encode-text"
     | "encode-text-layers"
+    | "encode-text-matched-layers"
     | "encode-text-operators"
     | "decode-audio"
     | "decode-video" => Some(arguments[0])

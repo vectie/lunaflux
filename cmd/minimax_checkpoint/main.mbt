@@ -54,6 +54,7 @@ async fn main {
         (tail.length() == 10 || tail.length() == 12 || tail.length() == 13)
       ) ||
       (mode == "encode-text" && tail.length() == 7) ||
+      (mode == "encode-text-matched-layers" && tail.length() == 9) ||
       (
         (mode == "encode-text-layers" || mode == "encode-text-operators") &&
         tail.length() == 8
@@ -108,6 +109,7 @@ async fn main {
   }
   if mode == "encode-text" ||
     mode == "encode-text-layers" ||
+    mode == "encode-text-matched-layers" ||
     mode == "encode-text-operators" {
     run_text(
       root_name,
@@ -115,8 +117,14 @@ async fn main {
       metadata,
       plan,
       tail,
-      capture_layers=mode == "encode-text-layers",
+      capture_layers=mode == "encode-text-layers" ||
+        mode == "encode-text-matched-layers",
       capture_operators=mode == "encode-text-operators",
+      matched_layers?=if mode == "encode-text-matched-layers" {
+        Some(tail[8])
+      } else {
+        None
+      },
     )
     return
   }
