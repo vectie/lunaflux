@@ -110,6 +110,16 @@ are collected through `collect-full-reduction`; this separately labeled run
 attributes accumulated rounding differences and does not replace the ordinary
 upstream BF16 reference or define an acceptance tolerance.
 
+`encode-wide-attention ... 50` changes **only attention** to an independent
+two-pass F64 score/causal-softmax/value implementation, rounding its result to
+BF16 at the original boundary. Projection, RMSNorm, rotary, residual and MLP
+arithmetic remain the upstream BF16 reference. Collect all 51 states with
+`collect-wide-attention`. This isolates propagation of attention-rounding
+differences; it is neither a new production precision policy nor the upstream
+BF16 reference. The CPU smoke checks both constant-value attention and causal
+GQA with distinct value rows. The transient wider allocation estimate includes
+score/probability copies and repeated KV heads before allocating them.
+
 `replay-full-reduction` uses the same matched native operands at every first-layer
 boundary while disabling reduced-precision projection reductions. Collect with
 `collect-full-replay`. This isolates residual operator differences without

@@ -1,14 +1,24 @@
 ///|
-priv enum ProjectionArithmetic {
+priv enum ReferenceArithmetic {
   UpstreamBf16
   FullReductionBf16
+  WiderAttention
 }
 
 ///|
-fn projection_operation(arithmetic : ProjectionArithmetic) -> @native.Op {
+fn projection_operation(arithmetic : ReferenceArithmetic) -> @native.Op {
   match arithmetic {
     UpstreamBf16 => Linear
     FullReductionBf16 => LinearBf16FullReduction
+    WiderAttention => Linear
+  }
+}
+
+///|
+fn attention_operation(arithmetic : ReferenceArithmetic) -> @native.Op {
+  match arithmetic {
+    WiderAttention => AttentionFloat64
+    UpstreamBf16 | FullReductionBf16 => Attention
   }
 }
 
@@ -18,6 +28,10 @@ test "ordinary reference retains upstream BF16 arithmetic" {
   assert_true(
     projection_operation(FullReductionBf16) is LinearBf16FullReduction,
   )
+  assert_true(projection_operation(WiderAttention) is Linear)
+  assert_true(attention_operation(WiderAttention) is AttentionFloat64)
+  assert_true(attention_operation(UpstreamBf16) is Attention)
+  assert_true(attention_operation(FullReductionBf16) is Attention)
 }
 
 ///|
@@ -65,7 +79,7 @@ fn project(
   name : String,
   rows : Int,
   columns : Int,
-  arithmetic : ProjectionArithmetic,
+  arithmetic : ReferenceArithmetic,
 ) -> @native.Tensor raise {
   let w = model.weight(session, prefix + name + ".weight", rows, columns)
   defer w.close()
@@ -94,7 +108,7 @@ fn encode_layer(
   layer : Int,
   cosine : @native.Tensor,
   sine : @native.Tensor,
-  arithmetic : ProjectionArithmetic,
+  arithmetic : ReferenceArithmetic,
   observe? : (String, @native.Tensor) -> Unit raise,
   replay? : OperatorReplayInputs,
 ) -> @native.Tensor raise {
@@ -198,7 +212,7 @@ fn encode_layer(
     f("k-rotary", kr)
   }
   let attention = session.run(
-    Attention,
+    attention_operation(arithmetic),
     x=replay_operand(replay, "q-rotary", qr),
     y=replay_operand(replay, "k-rotary", kr),
     z=replay_operand(replay, "v", v),
@@ -307,7 +321,7 @@ fn encode(
   layers : Int,
   operators? : Bool = false,
   replay_root? : String,
-  arithmetic? : ProjectionArithmetic = UpstreamBf16,
+  arithmetic? : ReferenceArithmetic = UpstreamBf16,
 ) -> Unit raise {
   guard ids.length() > 0 && ids.length() <= 1024 && layers > 0 && layers <= 50 else {
     fail("reference request must use 1..1024 tokens and 1..50 selected layers")
@@ -370,6 +384,8 @@ fn encode(
     (match arithmetic {
       UpstreamBf16 => "upstream_bf16"
       FullReductionBf16 => "bf16_full_reduction_attribution_only"
+      WiderAttention =>
+        "upstream_bf16_projection_f64_attention_attribution_only"
     }),
   )
 }

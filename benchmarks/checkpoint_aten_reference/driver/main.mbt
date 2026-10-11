@@ -35,6 +35,35 @@ fn self_test(session : @native.Session, output : String) -> Unit raise {
   }
   let recovered = session.run(Add, x~, y=x)
   defer recovered.close()
+  let attention = session.run(AttentionFloat64, x~, y=x, z=x, a=2, b=2, c=2)
+  attention.write(output + "/attention-f64.bf16")
+  guard session.bytes(output + "/attention-f64.bf16") == b"\x00\x40".repeat(8) else {
+    fail("wider causal attention constant-value arithmetic")
+  }
+  attention.close()
+  let key = session.run(Constant, a=2, b=2, d=2.0)
+  let first_value = session.run(Constant, a=1, b=2, d=1.0)
+  let last_value = session.run(Constant, a=1, b=2, d=3.0)
+  let values = session.run(ConcatRows, x=first_value, y=last_value)
+  let grouped = session.run(
+    AttentionFloat64,
+    x~,
+    y=key,
+    z=values,
+    a=2,
+    b=1,
+    c=2,
+  )
+  grouped.write(output + "/attention-f64-gqa.bf16")
+  guard session.bytes(output + "/attention-f64-gqa.bf16") ==
+    b"\x80\x3f".repeat(4) + b"\x00\x40".repeat(4) else {
+    fail("wider attention causal mask or grouped KV ownership")
+  }
+  grouped.close()
+  values.close()
+  last_value.close()
+  first_value.close()
+  key.close()
   for
     (name, op) in [
       ("f32", @native.Op::LinearFloat32),
@@ -174,7 +203,8 @@ fn main raise {
     }
     [_, mode, library, model, text_ids, output, depth] if mode == "encode" ||
       mode == "encode-operators" ||
-      mode == "encode-full-reduction" => {
+      mode == "encode-full-reduction" ||
+      mode == "encode-wide-attention" => {
       let ids : Array[Int] = []
       for id in text_ids.split(",") {
         ids.push(@string.parse_int(id))
@@ -194,6 +224,8 @@ fn main raise {
         operators=mode == "encode-operators",
         arithmetic=if mode == "encode-full-reduction" {
           FullReductionBf16
+        } else if mode == "encode-wide-attention" {
+          WiderAttention
         } else {
           UpstreamBf16
         },

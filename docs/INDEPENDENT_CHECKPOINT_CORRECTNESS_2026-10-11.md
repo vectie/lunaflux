@@ -46,7 +46,7 @@ Raw completions, log probabilities and prefix reports are retained in `v2`.
 Both reference GPU owners are released before the subsequent experiments.
 
 Strict original-arithmetic GLM equivalence remains unresolved for the concrete
-reference limitations below; DeepSeek's independent comparison is pending.
+reference limitations below; DeepSeek also has a measured differential below.
 Model architecture recognition or a running server is not a correctness pass.
 Reference requests must use identical literal IDs to the native captures,
 retain token/log-probability outputs, and distinguish greedy agreement from
@@ -57,8 +57,33 @@ DeepSeek attempt `v1` exits before loading weights: its SM120-family sparse
 MLA implementation requires an explicit FP8 KV dtype instead of `auto`.
 Attempt `v2` supplies `--kv-cache-dtype fp8` to that independent implementation;
 it does not change LunaFlux's KV dtype or checkpoint. Both ranks load the
-original 48 shards, with rank zero reporting 73.85 GiB of model memory. Request
-execution and numerical comparison remain pending, not inferred from loading.
+original 48 shards, with rank zero reporting 73.85 GiB of model memory. Both
+reference ranks execute literal requests on the original checkpoint, then exit
+zero with `OOMKilled=false` and release both GPU owners.
+
+### DeepSeek independent results
+
+The one-token BOS input reproduces both available native tokens, `5,223`.
+The 144-token input uses the exact literal IDs from the native retained-request
+cancellation run. Native emits `Hello! How can I assist you today?` and the
+reference's eight-token window emits `hello! How can I help you today`.
+Their first token differs (`19923` versus `33310`), so later positional matches
+are not same-prefix equivalence. At the first token the native choice is the
+reference's second candidate, 0.25 logit units below its winner.
+
+A teacher-forced reference receives the original 144 IDs **plus the native
+first five tokens**. On this identical prefix it prefers `help` (`1694`) over
+native `assist` (`8233`) by 0.75 logit units. The 4.5-unit gap from the ordinary
+reference completion used a different capitalization prefix and must not be
+used for native arithmetic attribution. Raw JSON and comparisons remain in
+`/tmp/lunaflux-independent-deepseek-20261011-v2`.
+
+This is an independent checkpoint differential, not a strict numerical pass.
+The SM120-family reference uses mandatory FP8 sparse-MLA KV storage and
+DeepGEMM MXFP4 experts; native uses its existing BF16 KV/math route. No native
+logit or same-input layer comparison has yet isolated the contribution of
+those boundaries. Internal ordinary/speculative agreement does not close this
+remaining numerical investigation.
 
 ## MiniMax follow-up
 

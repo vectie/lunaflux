@@ -10,6 +10,24 @@ claims and do not close those five phase gates.
 
 ## Current checkpoint execution — 2026-10-11
 
+Independent original-checkpoint references now run GLM and DeepSeek across
+both real Sparks, with bounded memory and no overlapping GPU workloads. GLM
+matches 8/8 tokens on one prompt and 7/8 on another; DeepSeek matches the two
+available BOS tokens but differs on the 144-token prompt. Teacher forcing
+retains the native prefix instead of attributing later mismatches across
+different generated contexts. Both models' strict numerical acceptance remains
+open: the GLM reference collapses unequal gate/up FP4 scales, and DeepSeek's
+reference selects mandatory FP8 KV instead of native BF16. Both rank pairs exit
+zero without container OOM and release their GPU owners.
+
+MiniMax's exact 140-token first-layer replay agrees closely with an independent
+F64 attention oracle (0.001331% relative L2), and rotary tables match bitwise.
+Disabling reduced BF16 projection reductions does not resolve the propagated
+fifty-layer differences; no arbitrary production arithmetic change or numerical
+pass is claimed. See the [independent correctness investigation](INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md).
+The new wider-attention full-encoder diagnostic stays in the separate test-only
+MoonBit/ATen module, outside all production imports and execution paths.
+
 MiniMax's `run-joint` now connects its existing generic pipeline cancellation
 to the same explicit request-zero/count CLI suffix. Parsing occurs before
 checkpoint/CUDA access. Counts are completed synchronous prepared frames,

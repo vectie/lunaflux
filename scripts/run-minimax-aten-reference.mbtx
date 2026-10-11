@@ -100,7 +100,7 @@ fn reference_arguments(
     "replay-down-reduction" => prefix + "/native /oracle"
     "replay-operators" | "replay-full-reduction" =>
       prefix + ids + " /work/" + mode + " /native"
-    "encode" | "encode-full-reduction" =>
+    "encode" | "encode-full-reduction" | "encode-wide-attention" =>
       prefix + ids + " /work/" + mode + " 50"
     "encode-operators" => prefix + ids + " /work/encode-operators 1"
     _ => fail("not a reference execution mode")
@@ -140,6 +140,8 @@ test "matched replay stays distinct from a fifty-layer reference" {
   }
   assert_true(reference_arguments("encode-full-reduction").has_suffix(" 50"))
   assert_false(needs_native_inputs("encode-full-reduction"))
+  assert_true(reference_arguments("encode-wide-attention").has_suffix(" 50"))
+  assert_false(needs_native_inputs("encode-wide-attention"))
   assert_true(reference_arguments("encode-operators").has_suffix(" 1"))
   assert_true(needs_native_inputs("projection-oracle"))
   assert_true(needs_native_inputs("replay-down-reduction"))
@@ -333,6 +335,7 @@ async fn main {
     mode == "encode" ||
     mode == "encode-operators" ||
     mode == "encode-full-reduction" ||
+    mode == "encode-wide-attention" ||
     mode == "replay-operators" ||
     mode == "replay-full-reduction" ||
     mode == "replay-down-reduction" ||
@@ -480,9 +483,13 @@ async fn main {
       ),
     )
     println("first-layer independent operator outputs collected")
-  } else if mode == "collect" || mode == "collect-full-reduction" {
+  } else if mode == "collect" ||
+    mode == "collect-full-reduction" ||
+    mode == "collect-wide-attention" {
     let directory = if mode == "collect-full-reduction" {
       "encode-full-reduction"
+    } else if mode == "collect-wide-attention" {
+      "encode-wide-attention"
     } else {
       "encode"
     }

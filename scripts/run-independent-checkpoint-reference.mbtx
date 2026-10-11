@@ -160,6 +160,35 @@ test "reference takes literal IDs rather than silently retemplating a prompt" {
 }
 
 ///|
+fn native_prefix(
+  prompt : String,
+  native : String,
+  count : Int,
+  vocabulary : Int,
+) -> Array[Int] raise {
+  let ids = literal_ids(prompt, vocabulary)
+  let output = literal_ids(native.trim().split("\n").join(","), vocabulary)
+  guard count >= 0 && count <= output.length() && ids.length() + count <= 192 else {
+    fail("native prefix exceeds captured output or reference capacity")
+  }
+  for i in 0..<count {
+    ids.push(output[i])
+  }
+  ids
+}
+
+///|
+test "teacher forcing retains the native prefix before the compared token" {
+  assert_eq(native_prefix("0,2", "4\n5\n", 1, 6), [0, 2, 4])
+  assert_eq(native_prefix("0,2", "4\n5\n", 0, 6), [0, 2])
+  try native_prefix("0,2", "4\n5\n", 3, 6) catch {
+    _ => ()
+  } noraise {
+    _ => fail("uncaptured prefix accepted")
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, family, root, .. extra] &&
     family is ("glm" | "deepseek") else {
@@ -272,6 +301,30 @@ async fn main {
       save(root, mode + "-state-" + rank, result)
       println("reference_\{mode}_collected rank=\{rank} root=\{root}")
     }
+  } else if mode == "native-prefix" {
+    guard extra is [prompt, native, count, label] &&
+      !label.is_empty() &&
+      label.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+      fail(
+        "native-prefix requires prompt file, captured tokens, count and label",
+      )
+    }
+    let ids = native_prefix(
+      @fs.read_file(prompt).text(),
+      @fs.read_file(native).text(),
+      @string.parse_int(count),
+      if family == "glm" {
+        154880
+      } else {
+        129280
+      },
+    )
+    @fs.write_file(
+      root + "/" + label + ".txt",
+      ids.map(id => id.to_string()).join(",") + "\n",
+      create_mode=CreateNew,
+    )
+    println("native_prefix_retained input_tokens=\{ids.length()}")
   } else if mode == "request" || mode == "teacher-force" {
     let (input, label) = match extra {
       [input] => (input, "literal-reference")

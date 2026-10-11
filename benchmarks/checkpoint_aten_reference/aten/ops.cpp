@@ -9,8 +9,10 @@
 #include <ATen/core/grad_mode.h>
 #include <cerrno>
 #include <cstdint>
+#include <cmath>
 #include <cstring>
 #include <fcntl.h>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -174,6 +176,31 @@ extern "C" void *lfr_ref_apply(void *p, int op, void *xp, void *yp, void *zp, in
       case 12: {
         Bf16FullReductionScope reduction;
         out = at::linear(ctx.get(xp), ctx.get(yp));
+        break;
+      }
+      case 13: {
+        // Diagnostic two-pass causal GQA, independent of the production
+        // online recurrence and of the library's fused BF16 SDPA kernels.
+        const auto &q = ctx.get(xp); const auto &k = ctx.get(yp); const auto &v = ctx.get(zp);
+        if (q.dim() != 2 || k.dim() != 2 || v.dim() != 2 || a <= 0 || b <= 0 ||
+            c <= 0 || a % b || q.size(1) != (int64_t)a * c ||
+            k.size(1) != (int64_t)b * c || v.sizes() != k.sizes() ||
+            k.size(0) != q.size(0) || q.size(0) <= 0 || q.size(0) > 1024)
+          throw std::runtime_error("invalid wider attention shape");
+        const int64_t rows = q.size(0);
+        // Wider operands, score/probability temporaries, causal mask, output
+        // and conservative matmul/softmax copies. Retained BF16 tensors are
+        // already counted by Context; this is transient allocation headroom.
+        ctx.reserve((6 * rows * a * c + 4 * a * rows * rows) * 8 +
+                    rows * rows + rows * a * c * 2);
+        auto qs = q.to(at::kDouble).reshape({1, rows, a, c}).transpose(1, 2);
+        auto ks = k.to(at::kDouble).reshape({1, rows, b, c}).transpose(1, 2).repeat_interleave(a / b, 1);
+        auto vs = v.to(at::kDouble).reshape({1, rows, b, c}).transpose(1, 2).repeat_interleave(a / b, 1);
+        auto scores = at::matmul(qs, ks.transpose(-2, -1)) / std::sqrt((double)c);
+        auto causal = at::ones({rows, rows}, at::TensorOptions().dtype(at::kBool).device(ctx.device)).triu(1);
+        scores.masked_fill_(causal, -std::numeric_limits<double>::infinity());
+        out = at::matmul(at::softmax(scores, -1), vs).transpose(1, 2)
+                .reshape({rows, (int64_t)a * c}).to(at::kBFloat16).contiguous();
         break;
       }
       default: throw std::runtime_error("unknown reference operator");

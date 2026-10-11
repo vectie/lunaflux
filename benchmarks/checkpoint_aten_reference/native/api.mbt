@@ -32,6 +32,7 @@ pub(all) enum Op {
   LinearFloat64
   LinearFloat32
   LinearBf16FullReduction
+  AttentionFloat64
 }
 
 ///|
@@ -151,6 +152,7 @@ pub fn Session::run(
     LinearFloat64 => 10
     LinearFloat32 => 11
     LinearBf16FullReduction => 12
+    AttentionFloat64 => 13
   }
   self.owned(
     apply(
