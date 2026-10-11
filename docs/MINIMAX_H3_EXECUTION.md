@@ -606,15 +606,17 @@ successful host compilation.
 
 The H3 weight package now emits bounded per-block copy plans for Q/K/V,
 Q/K normalization, output projection, MLP and both block RMSNorm vectors.
-Crucially, checkpoint `ff.net.0.proj.weight` is [gate,up], whereas the staged
-runtime ABI is [up,gate]: two source slices explicitly swap the halves without
-numeric conversion. Destination offsets match the device block binder's
+Correction from the 2026-10-12 raw-checkpoint replay: converted checkpoint
+`ff.net.0.proj.weight` is already [up,gate], matching the staged runtime ABI.
+Original `mlp.fc1.weight` is [gate,up]. Swapping the converted halves again was
+an execution bug; packing now preserves their order without numeric conversion.
+Destination offsets match the device block binder's
 attention/MLP/norm spans. AdaLN projection remains a separate weight component.
 This pure plan is not itself a checkpoint upload; actual materialized source
 resolution and chunked copying still need integration.
 
 The materialized host component can now resolve each block copy to its actual
-arena index and byte offset, including the two swapped MLP slices. Resolution
+arena index and byte offset, including the two MLP slices. Resolution
 checks arena availability, expected component identity, denoiser component kind,
 tensor presence and overflow-safe slice bounds without allocating payloads.
 Returned offsets are borrowed and expire when the host arena is released.

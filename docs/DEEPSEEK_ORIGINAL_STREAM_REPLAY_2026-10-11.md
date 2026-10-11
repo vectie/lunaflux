@@ -164,6 +164,16 @@ bug. The active window path already selects `OnlineBf16(block_tokens=64)`;
 the unused F32-only selected-sparse source is not the executed cause. No
 production numerical change is justified by inspecting that unused renderer.
 
+The output projection chain was then replayed with **literal native row 47
+attention operands**, preserving its actual token ID. Both native matched and
+propagated modes have **8,190/8,192** exact output-A values (relative L2
+0.0004143985%) and **4,096/4,096** exact output-B values. Thus the larger
+production output-B difference in this row is propagated from attention,
+not a demonstrated local output-B kernel bug. This does not establish other
+rows or full-model parity. Original unsharded versus serialized two-shard
+output-B differs by 0.28165656%; topology remains part of the comparison.
+Root: `/tmp/lunaflux-deepseek-original-output-native-row47-20261012-v1`.
+
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]
 moon run scripts/run-deepseek-original-layer-stream.mbtx run ROOT 43

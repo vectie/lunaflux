@@ -1,5 +1,5 @@
 ///|
-test "H3 block packing swaps gate-up and preserves contiguous ABI spans" {
+test "converted H3 MLP is already up-gate and must not be swapped twice" {
   let model = @minimax_h3.build(h3_weight_metadata())
   let plan = block_weight_packing(model, block=0, max_bytes=2000000000L)
   assert_eq(plan.layer, 0)
@@ -7,8 +7,8 @@ test "H3 block packing swaps gate-up and preserves contiguous ABI spans" {
   assert_eq(plan.copies[11].destination_offset, plan.adaln_offset)
   assert_eq(plan.copies[11].byte_count, 96768L * 2688L * 2L)
   assert_eq(plan.copies[12].destination_offset, plan.adaln_bias_offset)
-  assert_eq(plan.copies[6].source_offset, 14336L * 5376L * 2L)
-  assert_eq(plan.copies[7].source_offset, 0L)
+  assert_eq(plan.copies[6].source_offset, 0L)
+  assert_eq(plan.copies[7].source_offset, 14336L * 5376L * 2L)
   assert_eq(plan.copies[6].tensor_name, plan.copies[7].tensor_name)
   assert_eq(plan.copies[6].destination_offset, plan.mlp_offset)
   assert_eq(plan.copies[9].destination_offset, plan.norm_offset)

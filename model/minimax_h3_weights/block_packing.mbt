@@ -46,7 +46,9 @@ pub fn BlockWeightCopy::new(
 ///|
 /// Pure copy plan for an admitted H3 denoiser block. Source metadata and model
 /// identity must already match the plan. Copies preserve BF16 bytes, including
-/// swapping checkpoint [gate,up] halves into the staged runtime [up,gate] ABI.
+/// preserving converted checkpoint [up,gate] in the staged [up,gate] ABI.
+/// The original fused `mlp.fc1` uses [gate,up]; the released diffusers
+/// `ff.net.0.proj` has already reversed those halves. Do not reverse twice.
 /// Includes the block's three-modality, six-field AdaLN weight and bias.
 pub fn block_weight_packing(
   model : @joint_diffusion_plan.JointDiffusionPlan,
@@ -110,8 +112,8 @@ fn pack_transformer(
   let qn = add("attn.norm_q.weight", 0L, head_norm, v)
   let kn = add("attn.norm_k.weight", 0L, head_norm, qn)
   let mlp_offset = add("attn.to_out.0.weight", 0L, matrix, kn)
-  let up = add("ff.net.0.proj.weight", mlp_matrix, mlp_matrix, mlp_offset)
-  let gate = add("ff.net.0.proj.weight", 0L, mlp_matrix, up)
+  let up = add("ff.net.0.proj.weight", 0L, mlp_matrix, mlp_offset)
+  let gate = add("ff.net.0.proj.weight", mlp_matrix, mlp_matrix, up)
   let norm_offset = add("ff.net.2.weight", 0L, mlp_matrix, gate)
   let norm1 = add("norm1.weight", 0L, hidden_norm, norm_offset)
   let adaln_offset = add("norm2.weight", 0L, hidden_norm, norm1)

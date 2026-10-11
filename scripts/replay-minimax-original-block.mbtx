@@ -53,12 +53,12 @@ async fn copy(source : String, destination : String) -> Unit {
 }
 
 ///|
-fn block_shards(index : String, blocks? : Int = 1) -> Array[String] raise {
+fn block_shards(index : String, blocks? : Int = 1, raw? : Bool = false) -> Array[String] raise {
   guard @json.parse(index) is { "weight_map": Object(fields), .. } else {
     fail("original index required")
   }
   let shards : Map[String, Unit] = Map([])
-  let prefixes = Array::makei(blocks, i => "transformer_blocks.\{i}.")
+  let prefixes = Array::makei(blocks, i => (if raw { "blocks." } else { "transformer_blocks." }) + i.to_string() + ".")
   for name, entry in fields {
     if prefixes.any(prefix => name.has_prefix(prefix)) || name == "rope.inv_freq" {
       guard entry is String(shard) else { fail("original shard name required") }
@@ -78,6 +78,10 @@ test "only literal first-block and rotary shards are staged" {
       "{\"weight_map\":{\"transformer_blocks.0.attn.to_q.weight\":\"a\",\"transformer_blocks.1.attn.to_q.weight\":\"b\",\"rope.inv_freq\":\"a\"}}",
     ),
     ["a"],
+  )
+  assert_eq(
+    block_shards("{\"weight_map\":{\"blocks.0.attn.qkv_proj.weight\":\"raw-a\",\"blocks.1.attn.qkv_proj.weight\":\"raw-b\"}}",raw=true),
+    ["raw-a"],
   )
 }
 
@@ -107,8 +111,10 @@ async fn main {
   }
   let tag = root[5:].to_owned()
   let full = mode.has_suffix("-full")
-  let stage = if full { mode[:mode.length()-5].to_owned() } else { mode }
-  let source = "/data/models/MiniMax/MiniMax-H3/transformer/"
+  let raw = mode.has_suffix("-raw")
+  let stage = if full { mode[:mode.length()-5].to_owned() } else if raw { mode[:mode.length()-4].to_owned() } else { mode }
+  let source = if raw { "/data/models/MiniMax/MiniMax-H3/FL2VA/transformer/" } else { "/data/models/MiniMax/MiniMax-H3/transformer/" }
+  let index_name = if raw { "model.safetensors.index.json" } else { "diffusion_pytorch_model.safetensors.index.json" }
   if stage == "prepare" {
     @fs.mkdir(root)
     @fs.mkdir(root + "/model")
@@ -118,8 +124,8 @@ async fn main {
           "/data/models/MiniMax/MiniMax-H3/FL2VA/transformer/config.json", "config.json",
         ),
         (
-          source + "diffusion_pytorch_model.safetensors.index.json",
-          "diffusion_pytorch_model.safetensors.index.json",
+          source + index_name,
+          index_name,
         ),
       ] {
       @shell.Cmd("scp", [
@@ -147,7 +153,7 @@ async fn main {
       ),
     )
     for
-      name in ["config.json", "diffusion_pytorch_model.safetensors.index.json"] {
+      name in ["config.json", index_name] {
       copy(root + "/model/" + name, node + ":" + root + "/model/" + name)
     }
   }
@@ -155,9 +161,10 @@ async fn main {
     for
       shard in block_shards(
         @fs.read_file(
-          root + "/model/diffusion_pytorch_model.safetensors.index.json",
+          root + "/model/" + index_name,
         ).text(),
         blocks=if full { 50 } else { 1 },
+        raw~,
       ) {
       println("staging original shard over cluster-local link " + shard)
       // Retain an interrupted desktop copy separately when resuming.
@@ -250,6 +257,17 @@ async fn main {
       .check()
       copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
     }
+  } else if stage == "audit" {
+    guard raw && extra is [canonical] && canonical.has_prefix("/tmp/lunaflux-minimax-upstream-block-") else {
+      fail("audit-raw ROOT CANONICAL_ROOT")
+    }
+    let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("serialize GPU replays") }
+    record(root, "audit-refiners", remote(
+      "docker run --rm --gpus all --user 1000:1000 --network none --memory 12g --memory-swap 12g -e OMP_NUM_THREADS=2 -e LOGNAME=wlc004s -v " + root + ":/work -v " + canonical + "/model:/canonical:ro --entrypoint /work/original-block " + image + " /work/model /work/input /work/output 1 raw /canonical",
+    ))
+    copy(node + ":" + root + "/output/weight-layout-with-refiners.tsv", root + "/weight-layout-with-refiners.tsv")
   } else if stage == "run" || mode.has_prefix("run-retry") {
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
@@ -271,7 +289,7 @@ async fn main {
         root +
         ":/work --entrypoint /work/original-block " +
         image +
-        " /work/model /work/input /work/output" + (if full { " 50" } else { "" }),
+        " /work/model /work/input /work/output" + (if full { " 50" } else if raw { " 1 raw" } else { "" }),
       ),
     )
     record(

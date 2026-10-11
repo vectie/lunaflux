@@ -62,7 +62,10 @@ static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *
   Owned fused(weight(open,map,root,(prefix+"ff.net.0.proj.weight").c_str()));
   if(!loader.p||!fused.p||!fc2.p)return false;
   for(int shard=0;shard<2;++shard) {
-    Owned half(PyObject_CallMethod(fused.p,"narrow","iii",0,shard*14336,14336));
+    // Converted diffusers SwiGLU stores [up,gate], while the original H3
+    // MergedColumnParallelLinear consumes [gate,up]. This translation is
+    // checkpoint layout only; preserve the original activation arithmetic.
+    Owned half(PyObject_CallMethod(fused.p,"narrow","iii",0,(1-shard)*14336,14336));
     Owned args(half.p?Py_BuildValue("OOi",target.p,half.p,shard):nullptr);
     Owned copied(args.p?PyObject_CallObject(loader.p,args.p):nullptr);
     if(!copied.p)return false;
@@ -74,7 +77,97 @@ static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *
     parameter(linear.p,open,map,root,"bias",(prefix+"adaln_proj.linear.bias").c_str());
 }
 
-static int execute(const char *root,const char *input,const char *out,int blocks) {
+// Independently exercise the installed original checkpoint conversion, rather
+// than trusting the previously converted diffusers shard set as an oracle.
+static bool load_raw_block(PyObject *block,PyObject *module,PyObject *arch,
+                           PyObject *open,PyObject *map,const char *root,int number) {
+  Owned parameters(PyObject_CallMethod(block,"named_parameters",nullptr));
+  Owned iterator(parameters.p?PyObject_GetIter(parameters.p):nullptr);
+  if(!iterator.p)return false;
+  while(auto *next=PyIter_Next(iterator.p)) {
+    Owned entry(next);
+    const char *local=PyUnicode_AsUTF8(PyTuple_GetItem(entry.p,0));
+    auto *target=PyTuple_GetItem(entry.p,1);
+    if(!local||!target)return false;
+    const std::string name="blocks."+std::to_string(number)+"."+local;
+    Owned value(weight(open,map,root,name.c_str()));
+    Owned factory(PyObject_GetAttrString(module,"_prepare_h3_checkpoint_weight"));
+    Owned args(value.p?Py_BuildValue("sO",name.c_str(),value.p):nullptr);
+    Owned kw(Py_BuildValue("{s:O}","arch",arch));
+    Owned prepared(factory.p&&args.p?PyObject_Call(factory.p,args.p,kw.p):nullptr);
+    Owned copied(prepared.p?PyObject_CallMethod(target,"copy_","O",prepared.p):nullptr);
+    if(!copied.p)return false;
+  }
+  return !PyErr_Occurred();
+}
+
+static bool audit_weights(PyObject *torch,PyObject *cls,PyObject *ctor,PyObject *raw_block,
+                          PyObject *open,PyObject *raw_map,const char *raw_root,const char *canonical,const char *out) {
+  Owned index(json_file(std::string(canonical)+"/diffusion_pytorch_model.safetensors.index.json"));
+  auto *map=index.p?PyDict_GetItemString(index.p,"weight_map"):nullptr;
+  Owned block(PyObject_CallObject(cls,ctor));
+  Owned gpu(block.p?PyObject_CallMethod(block.p,"to","s","cuda"):nullptr);
+  if(!gpu.p||!map||!load_block(gpu.p,open,map,canonical,0))return false;
+  Owned raw_params(PyObject_CallMethod(raw_block,"named_parameters",nullptr));
+  Owned dict_cls(PyObject_GetAttrString(PyImport_AddModule("builtins"),"dict"));
+  Owned raw_dict(raw_params.p?PyObject_CallFunctionObjArgs(dict_cls.p,raw_params.p,nullptr):nullptr);
+  Owned params(PyObject_CallMethod(gpu.p,"named_parameters",nullptr));
+  Owned iterator(params.p?PyObject_GetIter(params.p):nullptr);
+  std::ofstream report(std::string(out)+"/weight-layout-with-refiners.tsv");
+  report<<"parameter\texact\telements\trelative_l2\thalf_swapped_exact\n";
+  if(!raw_dict.p||!iterator.p||!report)return false;
+  while(auto *next=PyIter_Next(iterator.p)) {
+    Owned entry(next);
+    auto *name=PyTuple_GetItem(entry.p,0),*value=PyTuple_GetItem(entry.p,1);
+    auto *raw=PyDict_GetItem(raw_dict.p,name);
+    Owned a(PyObject_CallMethod(value,"float",nullptr));
+    Owned b(raw?PyObject_CallMethod(raw,"float",nullptr):nullptr);
+    Owned equal(raw?PyObject_CallMethod(value,"eq","O",raw):nullptr);
+    Owned count(equal.p?PyObject_CallMethod(equal.p,"sum",nullptr):nullptr);
+    Owned count_item(count.p?PyObject_CallMethod(count.p,"item",nullptr):nullptr);
+    Owned extent(PyObject_CallMethod(value,"numel",nullptr));
+    Owned diff(a.p&&b.p?PyNumber_Subtract(a.p,b.p):nullptr);
+    Owned norm(diff.p?PyObject_CallMethod(diff.p,"norm",nullptr):nullptr);
+    Owned base(b.p?PyObject_CallMethod(b.p,"norm",nullptr):nullptr);
+    Owned ratio(norm.p&&base.p?PyNumber_TrueDivide(norm.p,base.p):nullptr);
+    Owned item(ratio.p?PyObject_CallMethod(ratio.p,"item",nullptr):nullptr);
+    if(!count_item.p||!extent.p||!item.p)return false;
+    long long swapped_exact=-1;
+    if(std::string(PyUnicode_AsUTF8(name))=="mlp.fc1.weight") {
+      Owned shifted(PyObject_CallMethod(value,"roll","ii",14336,0));
+      Owned same(shifted.p?PyObject_CallMethod(shifted.p,"eq","O",raw):nullptr);
+      Owned sum(same.p?PyObject_CallMethod(same.p,"sum",nullptr):nullptr);
+      Owned exact(sum.p?PyObject_CallMethod(sum.p,"item",nullptr):nullptr);
+      if(!exact.p)return false;
+      swapped_exact=PyLong_AsLongLong(exact.p);
+    }
+    report<<PyUnicode_AsUTF8(name)<<'\t'<<PyLong_AsLongLong(count_item.p)<<'\t'
+          <<PyLong_AsLongLong(extent.p)<<'\t'<<PyFloat_AsDouble(item.p)<<'\t'<<swapped_exact<<'\n';
+    report.flush();
+  }
+  for(int layer=0;layer<2;++layer) {
+    const std::string name="token_refiner.refiner_blocks."+std::to_string(layer)+".ff.net.0.proj.weight";
+    const std::string raw_name="token_refiner.blocks."+std::to_string(layer)+".mlp.fc1.weight";
+    Owned a(weight(open,map,canonical,name.c_str()));
+    Owned b(weight(open,raw_map,raw_root,raw_name.c_str()));
+    Owned shifted(a.p?PyObject_CallMethod(a.p,"roll","ii",14336,0):nullptr);
+    Owned same(a.p&&b.p?PyObject_CallMethod(a.p,"eq","O",b.p):nullptr);
+    Owned swapped(shifted.p&&b.p?PyObject_CallMethod(shifted.p,"eq","O",b.p):nullptr);
+    Owned sum(same.p?PyObject_CallMethod(same.p,"sum",nullptr):nullptr);
+    Owned swapped_sum(swapped.p?PyObject_CallMethod(swapped.p,"sum",nullptr):nullptr);
+    Owned exact(sum.p?PyObject_CallMethod(sum.p,"item",nullptr):nullptr);
+    Owned swapped_exact(swapped_sum.p?PyObject_CallMethod(swapped_sum.p,"item",nullptr):nullptr);
+    Owned extent(a.p?PyObject_CallMethod(a.p,"numel",nullptr):nullptr);
+    if(!exact.p||!swapped_exact.p||!extent.p)return false;
+    report<<name<<'\t'<<PyLong_AsLongLong(exact.p)<<'\t'<<PyLong_AsLongLong(extent.p)
+          <<"\tNA\t"<<PyLong_AsLongLong(swapped_exact.p)<<'\n';
+    report.flush();
+  }
+  (void)torch;
+  return !PyErr_Occurred();
+}
+
+static int execute(const char *root,const char *input,const char *out,int blocks,bool raw,const char *canonical) {
   Owned torch(PyImport_ImportModule("torch")),safe(PyImport_ImportModule("safetensors"));
   Owned distributed(PyImport_ImportModule("vllm.distributed"));
   if(!torch.p||!safe.p||!distributed.p)return -1;
@@ -101,7 +194,7 @@ static int execute(const char *root,const char *input,const char *out,int blocks
   Owned config(json_file(std::string(root)+"/config.json"));
   Owned arch_cls(module.p?PyObject_GetAttrString(module.p,"MiniMaxH3DiTArchConfig"):nullptr);
   Owned arch(arch_cls.p&&config.p?PyObject_CallMethod(arch_cls.p,"from_mapping","O",config.p):nullptr);
-  Owned index(json_file(std::string(root)+"/diffusion_pytorch_model.safetensors.index.json"));
+  Owned index(json_file(std::string(root)+(raw?"/model.safetensors.index.json":"/diffusion_pytorch_model.safetensors.index.json")));
   auto *map=index.p?PyDict_GetItemString(index.p,"weight_map"):nullptr;
   Owned open(PyObject_GetAttrString(safe.p,"safe_open"));
   Owned cls(module.p?PyObject_GetAttrString(module.p,"MiniMaxH3DiTBlock"):nullptr);
@@ -109,6 +202,10 @@ static int execute(const char *root,const char *input,const char *out,int blocks
   Owned block(cls.p&&ctor.p?PyObject_CallObject(cls.p,ctor.p):nullptr);
   Owned gpu(block.p?PyObject_CallMethod(block.p,"to","s","cuda"):nullptr);
   if(!gpu.p||!map||!open.p)return -1;
+  if(canonical) {
+    if(!load_raw_block(gpu.p,module.p,arch.p,open.p,map,root,0))return -1;
+    return audit_weights(torch.p,cls.p,ctor.p,gpu.p,open.p,map,root,canonical,out)?0:-1;
+  }
   const std::string base(input);
   Owned x0(literal_bf16(torch.p,bf16.p,(base+"/packed-input.bf16").c_str(),1024,5376));
   Owned x(x0.p?PyObject_CallMethod(x0.p,"view","ii",1024,5376):nullptr);
@@ -146,7 +243,8 @@ static int execute(const char *root,const char *input,const char *out,int blocks
   if(!x.p||!kw.p)return -1;
   Owned propagated(Py_NewRef(x.p));
   for(int number=0;number<blocks;++number) {
-    if(!load_block(gpu.p,open.p,map,root,number))return -1;
+    if(raw?!load_raw_block(gpu.p,module.p,arch.p,open.p,map,root,number):
+           !load_block(gpu.p,open.p,map,root,number))return -1;
     Owned previous(number?literal_bf16(torch.p,bf16.p,
       (base+"/block-"+std::to_string(number-1)+".bf16").c_str(),1024,5376):Py_NewRef(x.p));
     Owned matched(previous.p?PyObject_CallMethod(previous.p,"view","ii",1024,5376):nullptr);
@@ -169,10 +267,12 @@ static int execute(const char *root,const char *input,const char *out,int blocks
 }
 
 int main(int argc,char **argv) {
-  if(argc!=4&&argc!=5)return 2;
-  const int blocks=argc==5?std::atoi(argv[4]):1;
+  if(argc<4||argc>7)return 2;
+  const int blocks=argc>=5?std::atoi(argv[4]):1;
   if(blocks<1||blocks>50)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],blocks);
+  const bool raw=argc>=6&&std::string(argv[5])=="raw";
+  if(argc>=6&&!raw)return 2;
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],blocks,raw,argc==7?argv[6]:nullptr);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

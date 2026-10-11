@@ -92,6 +92,28 @@ open; neither is waived because the two VAEs agree.
 
 ## Literal first DiT block
 
+**Correction — 2026-10-12:** the converted-checkpoint comparison below used
+the same incorrect MLP half-order assumption as native packing. It is not an
+independent numerical pass. The raw FL2VA checkpoint, loaded through the
+installed original converter, differs by **25.1320251% relative L2** on the
+same 1,009 real rows. An exact tensor audit identifies the cause: every
+non-MLP block weight matches, but converted `ff.net.0.proj.weight` is [up,gate]
+and raw `mlp.fc1.weight` is [gate,up]. After exchanging the halves, all
+**154,140,672** MLP values match bitwise. Both refiner MLPs have the same
+bitwise-confirmed ordering. Native packing was swapping already-converted
+halves, reversing gate/up throughout the denoiser and both refiners.
+
+The shared pure packing plan now preserves converted [up,gate]; regression
+tests cover block and refiner source offsets. The offline original bridge
+translates converted [up,gate] to original [gate,up], without changing original
+arithmetic. This is a source-layout fix, not a CUDA special case or added
+request-path validation. Repaired physical replay and real media quality are
+still pending. The failed previous video is retained.
+
+Raw replay/audit root:
+`/tmp/lunaflux-minimax-upstream-block-raw-quality128-20261012-v1`.
+Reports: `comparison-used.txt`, `weight-layout-with-refiners.tsv`.
+
 The first native denoising evaluation now captures its packed input, unique
 time table, rotary positions, row/time mapping and document boundaries. An
 offline bridge loads the same converted checkpoint tensors into the installed,
