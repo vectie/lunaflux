@@ -230,15 +230,24 @@ test "counter-based streams are repeatable disjoint and bounded" {
   assert_eq(rng.draw_limit(ConditioningStream), 3L)
   assert_eq(rng.draw_limit(VideoLatentStream), 24L)
   assert_eq(rng.draw_limit(AudioLatentStream), 4L)
-  inspect(conditioning, content=(
-    #|0.18389922842209264
-  ))
-  inspect(video, content=(
-    #|-0.5732123933783531
-  ))
-  inspect(audio, content=(
-    #|0.8297106631629779
-  ))
+  inspect(
+    conditioning,
+    content=(
+      #|0.18389922842209264
+    ),
+  )
+  inspect(
+    video,
+    content=(
+      #|-0.5732123933783531
+    ),
+  )
+  inspect(
+    audio,
+    content=(
+      #|0.8297106631629779
+    ),
+  )
   try rng.normal(AudioLatentStream, 4L) catch {
     InvalidRandomCounter(AudioLatentStream) => ()
     _ => fail("unexpected audio counter error")
