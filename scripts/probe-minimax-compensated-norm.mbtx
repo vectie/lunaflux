@@ -1,0 +1,137 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline AOT experiment. No production policy, weights or launch geometry change.
+
+///|
+fn compensated_norm(source : String) -> String raise {
+  let update = "sum=__fadd_rn(sum,__fmul_rn(v,v));"
+  guard source.split(update).count() == 3 &&
+    source.split("float sum=0.0f;").count() == 3 else {
+    fail(
+      "experiment requires exactly the row and head normalization reductions",
+    )
+  }
+  let helper =
+    #|#include <cuda_bf16.h>
+    #|__device__ __forceinline__ void luna_norm_compensated_square(float value, float &sum, float &correction) {
+    #|  const float square = __fmul_rn(value, value);
+    #|  const float adjusted = __fsub_rn(square, correction);
+    #|  const float next = __fadd_rn(sum, adjusted);
+    #|  correction = __fsub_rn(__fsub_rn(next, sum), adjusted);
+    #|  sum = next;
+    #|}
+    #|
+  helper +
+  source
+  .replace_all(old="float sum=0.0f;", new="float sum=0.0f, correction=0.0f;")
+  .replace_all(
+    old=update,
+    new="luna_norm_compensated_square(v,sum,correction);",
+  )
+}
+
+///|
+test "compensation retains small square contributions without widening BF16 boundaries" {
+  let source = "float sum=0.0f; sum=__fadd_rn(sum,__fmul_rn(v,v));\n".repeat(2)
+  let rendered = compensated_norm(source)
+  assert_eq(
+    rendered.split("luna_norm_compensated_square(v,sum,correction);").count(),
+    3,
+  )
+  let (ordered, compensated) = for
+    _ in 0..<5120
+    ordered = 16777216.0F, sum = 16777216.0F, correction = 0.0F {
+    let adjusted = Float::from_double(1.0 - correction.to_double())
+    let next = Float::from_double(sum.to_double() + adjusted.to_double())
+    let residue = Float::from_double(
+      Float::from_double(next.to_double() - sum.to_double()).to_double() -
+      adjusted.to_double(),
+    )
+    continue Float::from_double(ordered.to_double() + 1.0), next, residue
+  } nobreak {
+    (ordered, sum)
+  }
+  assert_eq(ordered, 16777216.0F)
+  assert_eq(compensated, 16782336.0F)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, input, manifest, output] &&
+    output.has_prefix("/tmp/lunaflux-minimax-request-aot-") else {
+    fail(
+      "ORIGINAL_TEXT_CUDA ORIGINAL_SOURCES_MANIFEST NEW_EXPERIMENT_AOT_DIRECTORY",
+    )
+  }
+  let source = compensated_norm(@fs.read_file(input).text())
+  @fs.mkdir(output)
+  @fs.write_file(output + "/text.cu", source, create_mode=CreateNew)
+  @fs.write_file(
+    output + "/SOURCES.v1",
+    @fs.read_file(manifest).binary(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    output + "/EXPERIMENT.txt",
+    "scope=offline_compensated_norm_only\noriginal_launch_geometry=true\noriginal_weights_and_bf16_boundaries=true\nproduction_selection_changed=false\n",
+    create_mode=CreateNew,
+  )
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let node = "wlc004s@192.168.2.179"
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "mkdir " + output,
+  ])
+  .output()
+  .check()
+  for name in ["text.cu", "SOURCES.v1", "EXPERIMENT.txt"] {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      output + "/" + name,
+      node + ":" + output + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  let result = @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "systemd-run --user --wait --pipe --unit=" +
+    output.split("/").last().unwrap().to_owned() +
+    " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
+    output +
+    "/text.cu -o " +
+    output +
+    "/text.cubin",
+  ]).output()
+  @fs.write_file(
+    output + "/compile.stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    output + "/compile.stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+  println(
+    "separate compensated-norm AOT compiled; not a model correctness or production-selection claim",
+  )
+}
