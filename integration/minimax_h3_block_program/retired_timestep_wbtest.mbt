@@ -24,6 +24,7 @@ test "offline prefix observer borrows no unprepared timestep storage" {
     variant.input_launch_count(input),
     source.timestep.symbols.length() + 3,
   )
+  assert_eq(variant.output_launch_count(), source.output.symbols.length())
   let observed = Ref(false)
   try variant.with_timestep_embedding((_, _, _) => observed.val = true) catch {
     @device.DeviceError::InvalidArgument(OrderedExecutorPoll) => ()

@@ -24,6 +24,8 @@ fn capture_joint_prefix(
   weights : @program.PredictionWeights,
   embeddings : @device.Allocation,
   parameters : @device.Allocation,
+  video_update : @device.Function,
+  audio_update : @device.Function,
   blocks~ : Int,
 ) -> Array[(String, Bytes)] raise {
   guard blocks > 0 && blocks <= 50 else {
@@ -126,6 +128,79 @@ fn capture_joint_prefix(
     captures.push(("block-\{block}.bf16", first_output))
     println("joint_prefix_block=\{block}")
   }
+  // Only the complete-stack diagnostic may execute the final head. Retain
+  // literal packed velocities and pre/post-update states for an independent
+  // original-head/flow replay; ordinary media serving has no observers.
+  if blocks == weights.layers.length() {
+    let head_count = variant.output_launch_count()
+    let tail = joint_prediction_tail(
+      predictions[0].length(),
+      prefix,
+      head_count,
+    )
+    let head = context.create_ordered_kernel_executor(
+      stream,
+      predictions[0][tail:],
+      policy=OrderedKernelEagerOnly,
+    )
+    defer head.close()
+    for index in 0..<head.kernel_count() {
+      head.enqueue(index)
+    }
+    head.record_completion()
+    head.wait_completion()
+    for
+      (name, region) in [
+        ("video-state.f32", @loop.LatentBuffer::VideoState),
+        ("audio-state.f32", AudioState),
+        ("video-velocity.f32", VideoVelocity),
+        ("audio-velocity.f32", AudioVelocity),
+      ] {
+      captures.push((name, storage.copy_to_host(region)))
+    }
+    let flow = context.create_ordered_kernel_executor(
+      stream,
+      [
+        storage.flow_launch(
+          video_update,
+          step=0,
+          latent=VideoLatent,
+          block_size=256,
+        ),
+        storage.flow_launch(
+          audio_update,
+          step=0,
+          latent=AudioLatent,
+          block_size=256,
+        ),
+      ],
+      policy=OrderedKernelEagerOnly,
+    )
+    defer flow.close()
+    for index in 0..<flow.kernel_count() {
+      flow.enqueue(index)
+    }
+    flow.record_completion()
+    flow.wait_completion()
+    captures.push(("video-updated.f32", storage.copy_to_host(VideoState)))
+    captures.push(("audio-updated.f32", storage.copy_to_host(AudioState)))
+    captures.push(("flow-table.f32", layout.plan.flow_table().bytes()))
+    let step = layout.plan.steps()[0]
+    captures.push(
+      (
+        "sigmas.f32",
+        joint_float_bytes([
+          Float::from_double(step.video_sigma),
+          Float::from_double(step.video_next_sigma),
+          Float::from_double(step.video_timestep),
+          Float::from_double(step.audio_sigma),
+          Float::from_double(step.audio_next_sigma),
+          Float::from_double(step.audio_timestep),
+        ]),
+      ),
+    )
+    println("joint_prefix_head_and_first_update=true")
+  }
   let positions : Array[Float] = []
   for position in layout.positions.positions() {
     positions.append([
@@ -149,6 +224,12 @@ fn capture_joint_prefix(
       matched_joint_ints(layout.sequence.attention_boundaries()[:]),
     ),
     (
+      "inverse.i32",
+      matched_joint_ints(
+        schedule.patterns()[schedule.steps()[0].pattern].indices[:],
+      ),
+    ),
+    (
       "PREFIX.txt",
       @utf8.encode(
         "scope=first_real_denoiser_input_and_blocks\npacked_rows=\{layout.sequence.assembly().rows().length()}\ndistinct_times=\{count}\nblock_count=\{blocks}\nno_media_output=true\n",
@@ -157,6 +238,27 @@ fn capture_joint_prefix(
   ]
   files.append(captures)
   files
+}
+
+///|
+fn joint_prediction_tail(total : Int, prefix : Int, head : Int) -> Int raise {
+  guard prefix > 0 && head > 0 && total > prefix + head else {
+    fail("complete prediction must include input, blocks and final head")
+  }
+  total - head
+}
+
+///|
+test "head capture follows the complete stack and never replays input producers" {
+  assert_eq(joint_prediction_tail(107, 7, 6), 101)
+  for
+    (total, prefix, head) in [(13, 7, 6), (12, 7, 6), (107, 0, 6), (107, 7, 0)] {
+    try joint_prediction_tail(total, prefix, head) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid head capture extent accepted")
+    }
+  }
 }
 
 ///|

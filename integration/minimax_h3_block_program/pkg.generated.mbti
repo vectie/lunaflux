@@ -171,6 +171,7 @@ pub struct PredictionVariant {
 }
 pub fn PredictionVariant::input_launch_count(Self, InputProgram) -> Int
 pub fn PredictionVariant::new(Program, TimestepProgram, OutputProgram) -> Self
+pub fn PredictionVariant::output_launch_count(Self) -> Int
 pub fn[T] PredictionVariant::with_timestep_embedding(Self, (@device.Allocation, Int64, Int64) -> T raise) -> T raise
 
 pub struct PredictionWeights {

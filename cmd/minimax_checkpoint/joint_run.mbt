@@ -298,6 +298,8 @@ async fn run_joint(
           weights,
           embeddings,
           parameters,
+          video_update,
+          audio_update,
           blocks=capture_blocks,
         ),
       )

@@ -193,13 +193,12 @@ resumed at block 29. Only reproducible row slices were removed, with recovery
 ledgers; full raw tensors and numerical reports remain. The comparator can now
 select primary rows directly without creating duplicate tensor files.
 
-A fresh repaired full-media run is active at
+A fresh repaired full-media run executes at
 `/tmp/lunaflux-minimax-joint-mlp-order-quality128-20261012-v1` on `.178`, using
 128×128, 120 requested frames, 21 original schedule points (20 model updates),
 the actual caption encoding and terminal latent capture. Its declared residency
 plan is **82,132,052,256 bytes**, under the 96-GiB device limit; no competing GPU
-work runs on that host. **Media quality is pending until this run terminates,
-the generated video is inspected, and the audio is assessed.** Text-encoder
+work runs on that host. Its terminal and quality findings are recorded below. Text-encoder
 drift and input/refiner parity are not waived by the packing improvement.
 
 ### Literal-caption conditioning replay
@@ -246,3 +245,44 @@ block 0 on the preserved full literal input: **5,505,024/5,505,024 BF16 values
 match bitwise**, including the separately retained padding document. Both
 original adapters compile with `-Wall -Wextra -Werror`; runner regressions pass
 (refiner 1/1, block 2/2). This verifies reference preservation, not native parity.
+
+## Repaired media terminal and decoder controls — 2026-10-12
+
+The repaired unit finishes at approximately **04:46 CST**, with all twenty
+updates, fifty blocks per update and both decoders complete. User-unit result
+is success, exit status zero, stderr empty and swap peak zero. Literal output
+is **124 frames at 128×128**, not 120 decoded frames, plus stereo audio with
+165,600 samples/channel at 32 kHz. Outputs and both standardized terminal
+latents have no nonfinite values. Collection retains their original bytes at
+`/tmp/lunaflux-minimax-mlp-order-media-output-20261012-v1`.
+
+**Visual quality still fails after the packing repair:** the twelve-frame
+contact sheet shows colored lattice-like patches, no recognizable red cat and
+no intelligible depicted scene. The original VideoVAE on these exact repaired
+latents shows the same failed appearance. Thus decoder implementation drift
+does not explain this visual failure; conditioning, complete denoiser/head,
+flow evolution and the nonrepresentative smoke geometry still need attribution.
+
+| Original decoder on identical repaired latents | Relative L2 | RMSE | Maximum absolute difference |
+| --- | --- | --- | --- |
+| Video, 6,094,848 F32 pixels | 0.04290649% | 0.0002480033 | 0.010872424 |
+| Audio, 331,200 F32 samples | 0.03794870% | 0.00000877134 | 0.0001439126 |
+
+Reference roots are
+`/tmp/lunaflux-minimax-upstream-video-mlp-order-captured-20261012-v1` and
+`/tmp/lunaflux-minimax-upstream-audio-mlp-order-captured-20261012-v1`.
+They run serially on `.179`, terminate successfully and release GPU ownership.
+Their installed-module warnings are preserved; empty stderr is claimed only
+for the native media run. The original waveform comparison is numerical, not
+a listening, content, or audiovisual synchronization pass. Native contact
+sheet/WAV are at `/tmp/lunaflux-minimax-mlp-order-media-preview-20261012-v1`.
+
+The complete-prefix diagnostic now additionally captures the **selected final
+head, literal packed pre-update states/velocities and first RF update**, with
+literal inverse-time indices and sigma records. It derives the head extent
+from its prepared source instead of guessing kernel positions. An independent
+adapter calls the installed original final layer on literal native block-49
+output and calls the original scheduler on literal native velocity. No observer,
+host readback or new validation is added to ordinary serving. These comparisons
+are implemented but not yet measured; the new capture must finish before any
+head/flow numerical conclusion.

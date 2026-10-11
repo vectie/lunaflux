@@ -1,0 +1,114 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(max_output_bytes=2097152)
+}
+
+///|
+async fn copy(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, source, destination]).output().check()
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + name + ".stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + name + ".stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+}
+
+///|
+fn head_shards(index : String) -> Array[String] raise {
+  guard @json.parse(index) is { "weight_map": Object(fields), .. } else { fail("checkpoint index required") }
+  let shards : Map[String, Unit] = Map([])
+  for name, value in fields {
+    if ["norm_out.", "proj_out.", "audio_proj_out."].any(prefix => name.has_prefix(prefix)) {
+      guard value is String(shard) else { fail("checkpoint shard required") }
+      shards[shard] = ()
+    }
+  }
+  let result = shards.keys().to_array()
+  result.sort()
+  guard !result.is_empty() else { fail("no final-head weights") }
+  result
+}
+
+///|
+test "final-head replay selects head weights, never the fifty-block stack" {
+  assert_eq(head_shards("{\"weight_map\":{\"norm_out.norm.weight\":\"a\",\"proj_out.weight\":\"a\",\"audio_proj_out.weight\":\"b\",\"transformer_blocks.49.norm1.weight\":\"c\"}}"), ["a", "b"])
+}
+
+///|
+let inputs : Array[String] = [
+  "block-49.bf16", "timestep.f32", "inverse.i32", "combined.i32",
+  "documents.i32", "video-state.f32", "audio-state.f32",
+  "video-velocity.f32", "audio-velocity.f32", "video-updated.f32",
+  "audio-updated.f32", "flow-table.f32", "sigmas.f32",
+]
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] && root.has_prefix("/tmp/lunaflux-minimax-original-head-") else {
+    fail("prepare NEW_ROOT EXISTING_ORIGINAL_MODEL_ROOT | inputs ROOT NATIVE_CAPTURE_DIRECTORY | run|collect ROOT")
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [previous] else { fail("existing original model required") }
+    @fs.mkdir(root)
+    for directory in ["model", "input", "output"] { @fs.mkdir(root + "/" + directory) }
+    record(root, "mkdir", remote("mkdir " + root + " " + root + "/model " + root + "/input " + root + "/output"))
+    for file in ["config.json", "diffusion_pytorch_model.safetensors.index.json"] {
+      @fs.write_file(root + "/model/" + file, @fs.read_file(previous + "/model/" + file).binary(), create_mode=CreateNew)
+      copy(root + "/model/" + file, node + ":" + root + "/model/" + file)
+    }
+    for shard in head_shards(@fs.read_file(root + "/model/diffusion_pytorch_model.safetensors.index.json").text()) {
+      record(root, "link-" + shard, remote("ln " + previous + "/model/" + shard + " " + root + "/model/" + shard))
+    }
+    for file in ["final_head_upstream.cpp", "original_h3_loading.h", "original_tensor_io.h"] {
+      copy("benchmarks/checkpoint_aten_reference/aten/" + file, node + ":" + root + "/" + file)
+    }
+    record(root, "compile", remote("docker run --rm --pull=never --user 1000:1000 --network none --memory 2g --memory-swap 2g -v " + root + ":/work --entrypoint g++ " + image + " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/final_head_upstream.cpp -o /work/original-head -lpython3.12"))
+  } else if mode == "inputs" {
+    guard extra is [native] else { fail("literal native capture required") }
+    for file in inputs {
+      let bytes = @fs.read_file(native + "/" + file).binary()
+      @fs.write_file(root + "/input/" + file, bytes, create_mode=CreateNew)
+      copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
+    }
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected replay arguments") }
+    let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("serialize GPU replay") }
+    record(root, "run", remote("systemd-run --user --wait --pipe --unit=" + tag + " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --rm --pull=never --gpus all --user 1000:1000 --network none --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -e LOGNAME=wlc004s -v " + root + ":/work --entrypoint /work/original-head " + image + " /work/model /work/input /work/output"))
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected collection arguments") }
+    for label in ["video", "audio"] {
+      for boundary in ["velocity", "updated"] {
+        let file = label + "-" + boundary + ".f32"
+        copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
+        record(root, "compare-" + label + "-" + boundary, @shell.Cmd("moon", [
+          "run", "scripts/compare-f32-tensors.mbtx", root + "/input/" + file,
+          root + "/output/" + file, root + "/" + label + "-" + boundary + ".txt",
+          if boundary == "velocity" { "original_final_head_on_literal_native_block49" } else { "original_first_flow_update_on_literal_native_velocity" },
+        ]).output())
+      }
+    }
+  } else { fail("unknown replay stage") }
+}

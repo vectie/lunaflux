@@ -20,3 +20,10 @@ pub fn PredictionVariant::input_launch_count(
 ) -> Int {
   self.timestep.source.symbols.length() + input.source.symbols.length()
 }
+
+///|
+/// Offline observer extent. The final head is the tail of a complete
+/// prediction, after all blocks; never infer its length from a kernel index.
+pub fn PredictionVariant::output_launch_count(self : Self) -> Int {
+  self.output.source.symbols.length()
+}
