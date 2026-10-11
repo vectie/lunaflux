@@ -49,6 +49,7 @@ fn shape_contract() -> @joint_diffusion_plan.JointDiffusionShapeContract {
     // This is a LunaFlux admission ceiling, not a checkpoint recommendation.
     // It makes scheduler storage and launch counts finitely plannable.
     max_inference_steps=1000,
+    sigma_grid=InclusiveZeroFloat32,
     video_patch_temporal=1,
     video_patch_height=2,
     video_patch_width=2,

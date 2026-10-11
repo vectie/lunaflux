@@ -202,6 +202,9 @@ fn encode_plan_digest(
     "|al=\{shapes.audio_latent_channels()}:\{shapes.audio_latents_per_second()}:\{shapes.audio_sample_rate()}:\{shapes.audio_output_channels()}:\{shapes.audio_vae_latent_dimension()}:\{shapes.audio_vae_decoder_dimension()}"
   out <+
     "|steps=\{shapes.min_inference_steps()}-\{shapes.max_inference_steps()}"
+  if shapes.sigma_grid() == InclusiveZeroFloat32 {
+    out <+ "|sigma-grid=inclusive-zero-f32"
+  }
   if shapes.audio_latent_streams() != 1 {
     out <+ "|audio-latent-streams=\{shapes.audio_latent_streams()}"
   }

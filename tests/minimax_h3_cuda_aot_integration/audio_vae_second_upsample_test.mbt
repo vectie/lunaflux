@@ -83,8 +83,8 @@ test "official profiles bind exact staged F32 second AudioVAE upsampler" {
     parameter_digests,
     content=(
       #|[
-      #|  "ed8e61c22162b065a68efc27ca62756c136189d1be948cbb475709d8b174b548",
-      #|  "9ade6a13f2534f70d563a027bda5a2e94eb52b324be99bdeeb712a592972c283",
+      #|  "43f822d0c7def45937d1766b170f5b25b5e8fac023dbdca96c4418be98c4e70f",
+      #|  "6f3995dd4a86c8ee6b6f6976d0a7861a44eaa551d900c71fd59a36f0bff47fd4",
       #|]
     ),
   )
@@ -101,8 +101,8 @@ test "official profiles bind exact staged F32 second AudioVAE upsampler" {
     recipe_digests,
     content=(
       #|[
-      #|  "004a66e30041c0bf11c53d767bc368990132e173c7142b3684ae49a356d1de2c",
-      #|  "8f37a140cbf0a03933f9a26c8e93a9640c03fc8c62823ca593155b59adf16570",
+      #|  "46c0bc264f04bb8302bd7d89836efb821bcaf85a0b73d86dca05bd7d86ab3fcc",
+      #|  "d871e4c5cc515f774371c676601fbd7b45817a7d4d1bddb1c3a1741f65afacd0",
       #|]
     ),
   )

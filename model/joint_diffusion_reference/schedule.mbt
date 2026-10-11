@@ -32,9 +32,9 @@ fn scheduler_for(
 ///
 /// `shifted = shift * base / (1 + (shift - 1) * base)`
 ///
-/// The inference grid spans training sigma `1` through `1 / T`, applies the
-/// shift, and appends terminal sigma `0`. Thus `N` model timesteps have `N + 1`
-/// sigma points. Timesteps use the scheduler's plan-bound training count.
+/// TrainingFloorFloat64 counts evaluations and appends zero after `1 / T`.
+/// InclusiveZeroFloat32 counts points on `[1,0]`, producing `N-1` evaluations.
+/// Timesteps retain the plan-bound training scale for reference consumers.
 pub fn build_shifted_rectified_flow_schedule(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
@@ -47,26 +47,49 @@ pub fn build_shifted_rectified_flow_schedule(
   if scheduler.latent() != latent || scheduler.kind() != RectifiedFlowEuler {
     raise InvalidPlanContract
   }
-  let evaluation_count = request.inference_steps()
-  if evaluation_count < 2 || request.model_evaluations() != evaluation_count {
+  let evaluation_count = request.model_evaluations()
+  if evaluation_count < 1 {
     raise InvalidSchedule
   }
   let shift = scheduler.shift()
   if shift <= 0.0 || shift.is_nan() || shift.is_inf() {
     raise InvalidSchedule
   }
-  let denominator = (evaluation_count - 1).to_double()
+  let point_count = request.inference_steps()
+  let denominator = (point_count - 1).to_double()
   let minimum_sigma = 1.0 / scheduler.training_timestep_count().to_double()
   let sigmas : Array[Double] = []
   let timesteps : Array[Double] = []
-  for index in 0..<evaluation_count {
-    let fraction = index.to_double() / denominator
-    let base = 1.0 + (minimum_sigma - 1.0) * fraction
-    let shifted = shift * base / (1.0 + (shift - 1.0) * base)
+  for index in 0..<point_count {
+    let shifted = match request.sigma_grid() {
+      TrainingFloorFloat64 => {
+        let fraction = index.to_double() / denominator
+        let base = 1.0 + (minimum_sigma - 1.0) * fraction
+        shift * base / (1.0 + (shift - 1.0) * base)
+      }
+      InclusiveZeroFloat32 => {
+        let delta : Float = -1.0 / Float::from_int(point_count - 1)
+        let base : Float = if index < point_count / 2 {
+          Float::from_double(1.0 + delta.to_double() * index.to_double())
+        } else {
+          Float::from_double(
+            0.0 - delta.to_double() * (point_count - index - 1).to_double(),
+          )
+        }
+        let s = Float::from_double(shift)
+        let product = (s - 1.0) * base
+        let divisor : Float = 1.0 + product
+        (s * base / divisor).to_double()
+      }
+    }
     sigmas.push(shifted)
-    timesteps.push(shifted * scheduler.training_timestep_count().to_double())
+    if index < evaluation_count {
+      timesteps.push(shifted * scheduler.training_timestep_count().to_double())
+    }
   }
-  sigmas.push(0.0)
+  if request.sigma_grid() == TrainingFloorFloat64 {
+    sigmas.push(0.0)
+  }
   if sigmas[0] != 1.0 || sigmas[evaluation_count] != 0.0 {
     raise InvalidSchedule
   }

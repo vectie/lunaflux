@@ -151,17 +151,23 @@ test "independent shifted Rectified Flow fixtures match both MiniMax modalities"
     AudioLatent,
   )
   let video_fixture = [
-    1.0, 0.973008024641323, 0.923218814848974, 0.8006385950908003, 0.011869436201780425,
+    1.0,
+    Float::from_double(9.0 / 9.25).to_double(),
+    Float::from_double(6.0 / 6.5).to_double(),
+    Float::from_double(0.8).to_double(),
     0.0,
   ]
   let audio_fixture = [
-    1.0, 0.9001199760047992, 0.7503748125937031, 0.5009990009990011, 0.002994011976047907,
+    1.0,
+    Float::from_double(2.25 / 2.5).to_double(),
+    0.75,
+    0.5,
     0.0,
   ]
-  for index in 0..<6 {
+  for index in 0..<5 {
     assert_true(close(video.sigma(index).unwrap(), video_fixture[index]))
     assert_true(close(audio.sigma(index).unwrap(), audio_fixture[index]))
-    if index < 5 {
+    if index < 4 {
       assert_true(
         close(video.timestep(index).unwrap(), video_fixture[index] * 1000.0),
       )
@@ -169,8 +175,8 @@ test "independent shifted Rectified Flow fixtures match both MiniMax modalities"
       assert_eq(video.timestep(index), None)
     }
   }
-  assert_eq(video.evaluation_count(), 5)
-  assert_eq(audio.point_count(), 6)
+  assert_eq(video.evaluation_count(), 4)
+  assert_eq(audio.point_count(), 5)
 }
 
 ///|

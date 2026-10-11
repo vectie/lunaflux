@@ -156,7 +156,7 @@ test "H3 five-step dual shifted grid drives joint numeric backend" {
     AudioLatent,
   )
   let steps : Array[@joint_diffusion_loop.JointStep] = [
-    for i in 0..<5 => {
+    for i in 0..<4 => {
       {
         video_timestep: 1.0 - video.sigma(i).unwrap(),
         audio_timestep: 1.0 - audio.sigma(i).unwrap(),
@@ -169,12 +169,12 @@ test "H3 five-step dual shifted grid drives joint numeric backend" {
   ]
   let driver = @joint_diffusion_loop.Loop::new(steps)
   let backend = backend()
-  for i in 0..<5 {
+  for i in 0..<4 {
     ignore(driver.advance(backend))
     assert_eq(driver.completed_steps(), i + 1)
   }
   assert_eq(driver.progress(), Completed)
-  assert_eq(backend.calls, 5)
+  assert_eq(backend.calls, 4)
   assert_true(!backend.video[0].is_nan() && !backend.audio[0].is_nan())
 }
 

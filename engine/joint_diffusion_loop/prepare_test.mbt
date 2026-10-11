@@ -44,7 +44,8 @@ test "production preparation matches independent H3 schedules across step counts
       )
       assert_eq(prepared.model_digest(), model.plan_digest())
       assert_eq(prepared.request(), request)
-      assert_eq(prepared.steps().length(), count)
+      let evaluations = count - 1
+      assert_eq(prepared.steps().length(), evaluations)
       let table = prepared.flow_table()
       let storage = @joint_diffusion_loop.LatentStoragePlan::new(
         prepared,
@@ -286,7 +287,7 @@ test "production preparation matches independent H3 schedules across step counts
           _ => fail("invalid noise chunk ceiling accepted")
         }
       }
-      assert_eq(table.byte_count(), count.to_int64() * 32L)
+      assert_eq(table.byte_count(), evaluations.to_int64() * 32L)
       // First record starts with IEEE F32 1.0, little endian, not host endian.
       assert_eq(payload[0], b'\x00')
       assert_eq(payload[1], b'\x00')
@@ -322,9 +323,9 @@ test "production preparation matches independent H3 schedules across step counts
           )
         }
       }
-      assert_eq(read_u32_le(payload, (count - 1) * 32 + 4), 0U)
-      assert_eq(read_u32_le(payload, (count - 1) * 32 + 8), 0x3f800000U)
-      for invalid_index in [-1, count] {
+      assert_eq(read_u32_le(payload, (evaluations - 1) * 32 + 4), 0U)
+      assert_eq(read_u32_le(payload, (evaluations - 1) * 32 + 8), 0x3f800000U)
+      for invalid_index in [-1, evaluations] {
         try table.coefficient_offset(invalid_index, VideoLatent) catch {
           @joint_diffusion_loop.FlowTableError::StepOutOfBounds => ()
         } noraise {
@@ -393,12 +394,12 @@ test "production preparation matches independent H3 schedules across step counts
       assert_eq(first.progress(), Cancelled)
       assert_eq(second.progress(), Running)
       let numeric = backend()
-      for _ in 0..<count {
+      for _ in 0..<evaluations {
         ignore(second.advance(numeric))
       }
       assert_eq(second.progress(), Completed)
-      assert_eq(second.completed_steps(), count)
-      assert_eq(numeric.calls, count)
+      assert_eq(second.completed_steps(), evaluations)
+      assert_eq(numeric.calls, evaluations)
     }
   }
 }

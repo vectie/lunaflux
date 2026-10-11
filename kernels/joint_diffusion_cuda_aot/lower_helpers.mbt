@@ -24,8 +24,7 @@ fn validate_request_shape(
     ) catch {
       error => raise Request(error)
     }
-  if resolved != request ||
-    request.model_evaluations() != request.inference_steps() {
+  if resolved != request {
     raise Invalid(RequestShape)
   }
 }

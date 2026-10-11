@@ -159,6 +159,14 @@ pub(all) enum JointAudioOutputLength {
 } derive(Debug, Eq)
 
 ///|
+/// Requested step cardinality and scalar arithmetic are model semantics, not
+/// device scheduling. InclusiveZeroFloat32 counts sigma points (N-1 updates).
+pub(all) enum JointDiffusionSigmaGrid {
+  TrainingFloorFloat64
+  InclusiveZeroFloat32
+} derive(Debug, Eq)
+
+///|
 /// Model and runtime geometry needed to resolve one joint audio/video request.
 pub struct JointDiffusionShapeContract {
   priv frames_per_second : Int
@@ -184,6 +192,7 @@ pub struct JointDiffusionShapeContract {
   priv audio_vae_decoder_dimension : Int
   priv min_inference_steps : Int
   priv max_inference_steps : Int
+  priv sigma_grid : JointDiffusionSigmaGrid
   priv video_patch_temporal : Int
   priv video_patch_height : Int
   priv video_patch_width : Int
@@ -197,6 +206,7 @@ pub struct JointDiffusionRequestShape {
   priv frames : Int
   priv inference_steps : Int
   priv model_evaluations : Int
+  priv sigma_grid : JointDiffusionSigmaGrid
   priv video_latent_frames : Int
   priv video_latent_height : Int
   priv video_latent_width : Int

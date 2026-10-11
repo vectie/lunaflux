@@ -1,5 +1,12 @@
 # Original MiniMax VideoVAE comparison — 2026-10-11
 
+Later source comparison found the five-step joint runs below used the wrong
+sigma grid: original H3 counts five F32 points including zero, hence four model
+evaluations. The correction and original CPU comparison are documented in
+`INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md`. This does not change the
+zero-latent decoder comparison, but rules out labeling those earlier joint
+runs original-schedule media-quality validation.
+
 The source-selected FP16 operator boundaries in `b12c330f`, built with import
 fix `79bf2a27`, were tested on real Spark hardware against the original
 checkpoint's VideoVAE modules. This is a bounded decoder correctness experiment,

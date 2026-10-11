@@ -438,14 +438,14 @@ test "official MiniMax candidate coverage remains exact incomplete and inert" {
     if profile_index == 0 {
       assert_eq(
         coverage.digest().as_hex(),
-        "ae07b9c1866f6506098c08ee73ca25e8d4c67bc2298c998c8efe9a14e6796a78",
+        "b8db7d3de1f28d720e6b1345d8920a9b529b4edb51157162d93b199040d96ef0",
       )
       continue
     }
     inspect(
       coverage.digest().as_hex(),
       content=(
-        #|257778149a3a4c8d39d66a17048fe88268ad59d2600ad56ece19149211167d3f
+        #|c76d39d0a6e071d0b806f361f6f3bedbc8ef5cfc647f410ac5884569f578b8c1
       ),
     )
   }

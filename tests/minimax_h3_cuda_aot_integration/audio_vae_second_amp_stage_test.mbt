@@ -132,8 +132,8 @@ test "official profiles bind exact second alias-free activation and 97-launch AM
     activation_recipes,
     content=(
       #|[
-      #|  "59b6d3c7401eb78e8bef020cf25e490990134a339c2f3b82b0dbeceee0aa3206",
-      #|  "c5cfa906fcce9d203c716a6d3162e6476ff484a53a80670749703456859ce9ca",
+      #|  "308ff2dc8d2092176cd85a7f51440cce1a1563f034cb6ac22e8888278ca031b5",
+      #|  "d2864f8e078ca1e4b6e165d9dcd557f3870cccbfd19eee95a1bbf2c8bdea55bb",
       #|]
     ),
   )
@@ -141,8 +141,8 @@ test "official profiles bind exact second alias-free activation and 97-launch AM
     stage_recipes,
     content=(
       #|[
-      #|  "fefdda7bca4f87ec40b5378f3f2176b5c1dc502a4e3606eebad569b6296d80c4",
-      #|  "2c4080d47d11ab0f2991cfe82385fceabe3d5ac23d9c006b13e3d2023dcc7888",
+      #|  "9a785f4777080225d4d66505014e0e70679a35f949307ced4d7240c23bff0630",
+      #|  "21e5b3c96c19ad65fb00f13cc8c4b1f1812d19b00bdc6a3ae3026b0078883106",
       #|]
     ),
   )
@@ -150,8 +150,8 @@ test "official profiles bind exact second alias-free activation and 97-launch AM
     activation_parameters,
     content=(
       #|[
-      #|  "79b0e97327491737de8507dba3d8e1fad3fae2c9051ecbe47d9e48259aa82c7e",
-      #|  "eb8f7b026b64a1033cedea736afd95c11ca2832989beec79b6f581ba1e6a7ee5",
+      #|  "1906d42de0a7c992e2ddde158a37bcbdbbc4efc21784b9e1fbddafb1e0992711",
+      #|  "a1ca676a6326aec1e39bfb78ceb87fcf072f1c2b0302f221ce8da08ca6aa71ca",
       #|]
     ),
   )

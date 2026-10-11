@@ -66,8 +66,8 @@ test "official profiles bind exact F32 AudioVAE decoder input projection" {
     parameter_digests,
     content=(
       #|[
-      #|  "dba7ace424f3ee08aee35139ac9679ae4d32c65ca834dae799e634bb5f18ac03",
-      #|  "831accb54acf0d35dae9b5989b6b1cf80d40af10a70a2734166379c52f68d4ec",
+      #|  "2bb9b088375ee3b4e0001afbdc29a1c90eb13bde4d15ec749a82d210d5e40533",
+      #|  "8f4a7579b78c5681fc8615606e2ac5ed62210a467c0b737cc0bf7c746d26bf7f",
       #|]
     ),
   )
@@ -84,8 +84,8 @@ test "official profiles bind exact F32 AudioVAE decoder input projection" {
     recipe_digests,
     content=(
       #|[
-      #|  "f7483be29b804ae5e561363d7bd8c2b46ab4412826df5f77123e6b669459fde7",
-      #|  "a40c8afbb604e1ddbe680c3de90fa3e70b12c792ce387cdd39a05336ca5e5ca9",
+      #|  "ff4a76acfa3cbb572d938a7de76d14e4bc56f8357c2823de6cb391d32f4124c0",
+      #|  "a652a6e312907921decd9b4cdba8390757fec85e0e74d0feaa4c2e7ca08bf98f",
       #|]
     ),
   )

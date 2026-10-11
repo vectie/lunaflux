@@ -41,22 +41,6 @@ fn bounded_product(
 }
 
 ///|
-fn sigma_at(
-  scheduler : @joint_diffusion_plan.JointDiffusionScheduler,
-  count : Int,
-  index : Int,
-) -> Double {
-  if index == count {
-    return 0.0
-  }
-  let fraction = index.to_double() / (count - 1).to_double()
-  let base = 1.0 +
-    (1.0 / scheduler.training_timestep_count().to_double() - 1.0) * fraction
-  let shift = scheduler.shift()
-  shift * base / (1.0 + (shift - 1.0) * base)
-}
-
-///|
 /// Prepare once from family-neutral semantics, before allocating tensors.
 /// The independent reference implementation remains test-only.
 pub fn PreparedPlan::new(
@@ -136,20 +120,34 @@ pub fn PreparedPlan::new(
     _ => raise InvalidRequest
   }
   let count = request.model_evaluations()
-  guard count >= 2 && count == request.inference_steps() else {
-    raise InvalidRequest
-  }
+  guard count >= 1 else { raise InvalidRequest }
   let steps : Array[JointStep] = []
   for i in 0..<count {
-    let vs = sigma_at(video, count, i)
-    let as_ = sigma_at(audio, count, i)
+    let vs = video.sigma_at(request.sigma_grid(), request.inference_steps(), i) catch {
+      _ => raise InvalidScheduler
+    }
+    let as_ = audio.sigma_at(request.sigma_grid(), request.inference_steps(), i) catch {
+      _ => raise InvalidScheduler
+    }
     steps.push({
       video_timestep: 1.0 - vs,
       audio_timestep: 1.0 - as_,
       video_sigma: vs,
       audio_sigma: as_,
-      video_next_sigma: sigma_at(video, count, i + 1),
-      audio_next_sigma: sigma_at(audio, count, i + 1),
+      video_next_sigma: video.sigma_at(
+        request.sigma_grid(),
+        request.inference_steps(),
+        i + 1,
+      ) catch {
+        _ => raise InvalidScheduler
+      },
+      audio_next_sigma: audio.sigma_at(
+        request.sigma_grid(),
+        request.inference_steps(),
+        i + 1,
+      ) catch {
+        _ => raise InvalidScheduler
+      },
     })
   }
   // Validate scalar records once, never in the execution loop.

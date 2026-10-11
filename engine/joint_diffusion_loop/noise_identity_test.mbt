@@ -28,6 +28,7 @@ fn publication_variant(
     audio_vae_decoder_dimension=shapes.audio_vae_decoder_dimension(),
     min_inference_steps=shapes.min_inference_steps(),
     max_inference_steps=shapes.max_inference_steps(),
+    sigma_grid=shapes.sigma_grid(),
     video_patch_temporal=shapes.video_patch_temporal(),
     video_patch_height=shapes.video_patch_height(),
     video_patch_width=shapes.video_patch_width(),

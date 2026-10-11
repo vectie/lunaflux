@@ -68,8 +68,8 @@ test "FL2VA and Ref2VA bind exact official video latent destandardization" {
     requirement_digests,
     content=(
       #|[
-      #|  "a1b32f7c3ab403d67e95392d31c1b95dcdebd3cae7251444b4cb9da97ef2c32d",
-      #|  "ae892e0bef758deb1b923fe8cb18645327bebd1ee737cdb3e9057f51959ae58a",
+      #|  "07693309235e6bd6318689a3bbed0c12414656b62143b8b8b9df1fd813f78972",
+      #|  "f296b7089e950c42a19502e0e32aaaf39b07181c39350d8fd93a743a460dcecc",
       #|]
     ),
   )
@@ -77,8 +77,8 @@ test "FL2VA and Ref2VA bind exact official video latent destandardization" {
     parameter_digests,
     content=(
       #|[
-      #|  "3326243a513a66206d5e2172bd91baaeabaef799269433121b8ba2c6f0f8a8f1",
-      #|  "397443c8eb7e95dd80219345eac596a35c728950557b54652bef528a8d18972c",
+      #|  "7052fe60e591d7d40b1d3fe4e3a005c851575f6c2eebf18f6b0f8d9c88884355",
+      #|  "3bccc990948185dfb057523c2f200f60181de155ecf2c7c027081234d261b112",
       #|]
     ),
   )
@@ -95,8 +95,8 @@ test "FL2VA and Ref2VA bind exact official video latent destandardization" {
     recipe_digests,
     content=(
       #|[
-      #|  "1d63a66ae1beb4f269141f90f02cb9e695b79cf5e3e130c230ba5beed475dca8",
-      #|  "0eee3f20a39aefd9c1834e7f067d6fa462589d734e50185c9e7012c9d9ac6a08",
+      #|  "8ee07d604addeb8eaeedf88598a5975c090774c188dcc2decf2504d3ef4e84db",
+      #|  "874df3872e0fc4769ec6acb6535a086311e92d2f26a8fab8cf2167c27a8aff50",
       #|]
     ),
   )

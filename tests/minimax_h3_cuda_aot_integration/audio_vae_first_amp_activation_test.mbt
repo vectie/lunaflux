@@ -79,8 +79,8 @@ test "official profiles bind exact alias-free first AMP activation" {
     parameter_digests,
     content=(
       #|[
-      #|  "8cc7064689385433c377bc4f2b706ffe2496c34eaec423009a0a4d8592de718b",
-      #|  "e1401f17cbc496a1949f8400c7bc345733b2bcfc8305cd92221b2b86a735f520",
+      #|  "9e0d43c25d13403e1061525715ffe1c8352064971499f9f0b60412aca357006d",
+      #|  "11ae5a690bd9c4ca136903a54533a57c4047012e28ca096efc7a9fa58600864c",
       #|]
     ),
   )
@@ -97,8 +97,8 @@ test "official profiles bind exact alias-free first AMP activation" {
     recipe_digests,
     content=(
       #|[
-      #|  "e2d135d278db6b2ccb6b41c5a1896cef021b7173ed1369ee5a357a453cf2791d",
-      #|  "7d60c11fd296600dd09d8135cd12c3c4c2ccb853b2f30539602ad7cbe6af04f2",
+      #|  "a1f7cdae496e35ca55ba9ffd97fbb92549ee277bb9e3ebed270ecc5eef8bf417",
+      #|  "8326b085f8d31c662ccbac63a4a44f0d46b66a9ceb47c6b328cacad70a02179b",
       #|]
     ),
   )

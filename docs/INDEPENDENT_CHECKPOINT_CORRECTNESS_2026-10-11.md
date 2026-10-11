@@ -4,6 +4,50 @@ Internal ordinary/speculative agreement and successful resource cleanup are
 not independent numerical correctness. This work keeps that distinction and
 does not add production authentication, hashing, TLS or release prerequisites.
 
+## MiniMax schedule correction and matched decoder inputs
+
+Source comparison found a concrete schedule mismatch, independently of text
+encoder rounding. Installed original H3 uses CPU F32 `linspace(1,0,N)`, applies
+the modality shift in F32, and evaluates `N-1` intervals. Native previously used
+the generic F64 training-floor grid ending at `1/1000`, appended zero, and ran
+`N` evaluations. Thus the earlier five-step media runs are not original-schedule
+executions, even when all outputs are finite.
+
+The family-neutral shape contract now declares its sigma-grid law. MiniMax
+selects inclusive-zero F32; other plans retain their existing training-floor
+law. Pure startup planning computes the scalar grid and interval cardinality;
+device lowering consumes the prepared flow table without model branching.
+The AOT request helper no longer assumes every grid has `N` intervals. Existing
+plan associations distinguish the changed law; no new payload scan, runtime
+cryptography or serving validation is introduced.
+
+The pure planner matches **2,174 actual original CPU sigma outputs bitwise**
+at counts 2, 5, 10, 20, 50 and 1,000 with shifts 3 and 12. The non-exact linspace
+points require one final F32 multiply-add rounding; the subsequent shift
+operations round separately. Original outputs and comparison are preserved at
+`/tmp/lunaflux-minimax-original-sigma-20261011-v5`. The test-only bridge imports
+the installed original routine; it does not substitute a new reference formula.
+
+The selected-conditioning captured-latent run completed on Spark `.178` at
+`/tmp/lunaflux-minimax-joint-latents-selected-20261011-v1`: five old-schedule
+evaluations, all fifty layers, both VAEs, finite media and canonical terminal
+latents. It is an isolation fixture, not a corrected-schedule quality pass.
+Downloaded latents are standardized, before mean/std conversion.
+
+An initial audio comparison incorrectly paired the older standalone native
+**destandardized zero** with the original adapter's **standardized zero**.
+Its 97.5% waveform relative L2 is an input-mismatch result, not attribution of
+an AudioVAE defect. The original replay now has an explicit destandardized-input
+mode for that standalone fixture; joint generated latents continue through the
+original adapter's normal standardization conversion. Identical-input replay
+must precede decoder-error and media-quality claims.
+
+The schedule correction passes the complete working-tree native suite,
+**5,004/5,004**, with unchanged migration warning exclusions. AOT integration
+fixtures retain their numerical/source assertions; only plan-dependent
+association snapshots change. Separate request preparation and execution tests
+exercise four intervals from five points, including the final zero endpoint.
+
 ## Original-scale reference rerun and bounded upstream conversion
 
 ### Original-reference full-vocabulary capture

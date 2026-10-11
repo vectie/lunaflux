@@ -1,0 +1,34 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, output] else { fail("NEW_LOCAL_OUTPUT_DIRECTORY") }
+  @fs.mkdir(output)
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let node = "wlc004s@192.168.2.179"
+  let root = "/tmp/lunaflux-minimax-upstream-audio-zero-20261011-v1"
+  let image = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
+    "benchmarks/checkpoint_aten_reference/aten/schedule_upstream.cpp", node + ":" + root + "/schedule_upstream.cpp"])
+    .output().check()
+  for (label, command) in [
+    ("compile", "docker run --rm --user 0:0 --network none --memory 2g --memory-swap 2g -v " + root + ":/work --entrypoint g++ " + image + " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/schedule_upstream.cpp -o /work/schedule-upstream -lpython3.12"),
+    ("original", "docker run --rm --network none --memory 2g --memory-swap 2g -v " + root + ":/work --entrypoint /work/schedule-upstream " + image),
+  ] {
+    let result = @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(max_output_bytes=1048576)
+    @fs.write_file(output + "/" + label + ".stdout", result.stdout(), create_mode=CreateNew)
+    @fs.write_file(output + "/" + label + ".stderr", result.stderr(), create_mode=CreateNew)
+    result.check()
+  }
+  let result = @shell.Cmd("moon", ["run", "benchmarks/minimax_schedule_probe", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "--", output + "/original.stdout"]).output()
+  @fs.write_file(output + "/comparison.stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(output + "/comparison.stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+  println(result.stdout())
+}

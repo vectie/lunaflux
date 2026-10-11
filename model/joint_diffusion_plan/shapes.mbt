@@ -26,6 +26,7 @@ pub fn JointDiffusionShapeContract::new(
   video_patch_width? : Int = 1,
   audio_latent_streams? : Int = 1,
   audio_output_length? : JointAudioOutputLength = FrameDuration,
+  sigma_grid? : JointDiffusionSigmaGrid = TrainingFloorFloat64,
 ) -> JointDiffusionShapeContract raise JointDiffusionPlanError {
   if frames_per_second <= 0 ||
     frames_per_second > 1000000 ||
@@ -107,6 +108,7 @@ pub fn JointDiffusionShapeContract::new(
     audio_vae_decoder_dimension,
     min_inference_steps,
     max_inference_steps,
+    sigma_grid,
     video_patch_temporal,
     video_patch_height,
     video_patch_width,
@@ -328,7 +330,11 @@ pub fn JointDiffusionShapeContract::resolve_request(
     width,
     frames,
     inference_steps,
-    model_evaluations: inference_steps,
+    model_evaluations: match self.sigma_grid {
+      TrainingFloorFloat64 => inference_steps
+      InclusiveZeroFloat32 => inference_steps - 1
+    },
+    sigma_grid: self.sigma_grid,
     video_latent_frames,
     video_latent_height: height / self.video_spatial_compression,
     video_latent_width: width / self.video_spatial_compression,
@@ -362,6 +368,20 @@ pub fn JointDiffusionRequestShape::inference_steps(self : Self) -> Int {
 ///|
 pub fn JointDiffusionRequestShape::model_evaluations(self : Self) -> Int {
   self.model_evaluations
+}
+
+///|
+pub fn JointDiffusionShapeContract::sigma_grid(
+  self : Self,
+) -> JointDiffusionSigmaGrid {
+  self.sigma_grid
+}
+
+///|
+pub fn JointDiffusionRequestShape::sigma_grid(
+  self : Self,
+) -> JointDiffusionSigmaGrid {
+  self.sigma_grid
 }
 
 ///|

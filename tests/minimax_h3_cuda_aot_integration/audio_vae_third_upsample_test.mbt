@@ -133,8 +133,8 @@ test "official profiles bind exact decoder ups two and following AMP activation"
     parameter_digests,
     content=(
       #|[
-      #|  "8240f4f745ff7db292cda2a4d0e0e347cafe389c9f2208179e1e0cd3f8f20441",
-      #|  "015307366fb8a0682e7406a705eb2109d1e8a4d69c8a5cd5bd43735a2ad35029",
+      #|  "c4c21dd6b1297cda020431b2004fb802ebefd923ffc39ccec6aa6d8be440d10f",
+      #|  "6e8e5de82bcef64cb78e9dcd6c3d6dc444309fc671e215a36c7c33aaba470aa6",
       #|]
     ),
   )
@@ -142,8 +142,8 @@ test "official profiles bind exact decoder ups two and following AMP activation"
     activation_digests,
     content=(
       #|[
-      #|  "a855d4ec0ebc7e38e704e9030870a09193b63c150a4b178e4b162b0e2927a4c2",
-      #|  "fe00ad5d87b0a5688b9ae92cd8eea57ed8cf42d8eeee43bdb2eb213b725f5194",
+      #|  "a7ea61593ccd34e2caea3a89d9a18acc414a6f36076abce78d8c8d3a1b38b1e6",
+      #|  "dca8d12a87d7e3e04dc02e63805fc6c2eb48345a016f45ad9f62a0adb10dfa44",
       #|]
     ),
   )
@@ -169,8 +169,8 @@ test "official profiles bind exact decoder ups two and following AMP activation"
     upsample_recipes,
     content=(
       #|[
-      #|  "f4ae9131dbebca02936de5b317cc9c15b90197bc1362286adcd5fe2fa4f43ad7",
-      #|  "a3f7a2a507585c570c8370bbd26a8ed93b849ee96ffa3abdbcffca9a1e620a3e",
+      #|  "9d7d7975f5b0f8d7dc6bcd29fcfe5e57069770cbafe89105b2246a0b3da20a5e",
+      #|  "d7734587d41ba863edd48a25bc81ea55536b3e56a004e0cb0b510f4be1d0c706",
       #|]
     ),
   )
@@ -178,8 +178,8 @@ test "official profiles bind exact decoder ups two and following AMP activation"
     activation_recipes,
     content=(
       #|[
-      #|  "19ea19ae1efd0663d8425d39d05f9a6776dcc1de72d0918fda1d1a3a830ca2c9",
-      #|  "dfd58c542afdf416323f5b61e3d320f91377f316e1db6ed0149e0e3482670247",
+      #|  "4315a73a1300465e2a4ffe2a8068b8223e38604b09ffbc76087ee120065ac1f4",
+      #|  "db4a3924429e636ba59307d8380debb7a68de873893bc2961416e6b3a39dd370",
       #|]
     ),
   )

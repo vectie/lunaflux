@@ -63,7 +63,7 @@ fn plan() -> @joint_diffusion_loop.PreparedPlan raise {
       height=768,
       width=1344,
       requested_frames=120,
-      inference_steps=2,
+      inference_steps=3,
     )
   @joint_diffusion_loop.PreparedPlan::new(
     model,
