@@ -409,3 +409,61 @@ but must be physically measured before assigning the remaining 0.354% complete
 conditioning difference to any particular operator.
 
 No new production arithmetic or precision policy is selected by these findings.
+
+### Retired conditioning frontiers — matched local operators
+
+Clean main `1d0a0ed6` passes the full native suite **5,021/5,021** and ARM
+compilation. Its `.178` prefix capture completes in
+`/tmp/lunaflux-minimax-joint-refiner-stages-quality128-20261012-v1`, exit zero,
+empty native stderr, with CUDA released. Final conditioning is **16,128/16,128
+bitwise-identical BF16 values** to the preceding native capture: intermediate
+observation does not change the arithmetic.
+
+The original refiner replay in
+`/tmp/lunaflux-minimax-original-refiner-stages-20261012-v3` supplies each literal
+native predecessor independently, rather than propagating a different original
+output and misattributing accumulated error to the next operator.
+
+| Local original stage on identical native predecessor | Exact BF16 / 16,128 | Relative L2 |
+| --- | --- | --- |
+| Context projection on actual encoded caption | 16,076 | 0.02407941% |
+| Refiner block 0 on native context | 12,395 | 0.05489051% |
+| Refiner block 1 on native block 0 | 14,075 | 0.03818560% |
+| Final RMSNorm on native block 1 | 16,128 | 0, bitwise |
+
+All values are finite. Complete conditioning's earlier 0.354021% difference
+includes propagation through the nonlinear blocks; it is not a demonstrated
+final-normalization bug. Local block-0 row-relative errors reach 0.21775% and
+block-1 0.21080%; the global norm is dominated by the large first caption row.
+Original warnings are retained. The reported 11.4-MB user-unit memory peak is
+the Docker client measurement, **not** complete CUDA/container residency.
+No precision change or correctness acceptance follows merely from these sizes.
+
+### Original encoder caption control — original smoke still fails
+
+`/tmp/lunaflux-minimax-original-trajectory-original-caption-20261012-v3` replaces
+the supplied native encoder rows with the installed original encoder's actual
+three rows for the same caption. It retains native initial noise, literal
+21-point schedule, checkpoint, geometry and original denoiser/packing/flow.
+All twenty updates complete and release CUDA. This is explicitly a
+**changed-caption-input control**, not an identical-caption local comparison.
+Versus native terminal latents, video/audio relative L2 are
+**3.30244827% / 3.43541439%**; all finite, not quality acceptance.
+
+The original VideoVAE subsequently completes at
+`/tmp/lunaflux-minimax-upstream-video-original-caption-20261012-v1` with actual
+output `[1,3,124,128,128]`. Its twelve sampled frames were actually inspected at
+`/tmp/lunaflux-minimax-original-caption-preview-20261012-v1/frames.png`:
+colored lattice/no recognizable red cat persists. Native caption encoding is
+therefore not the sole cause of this failed smoke appearance. This does not
+prove that larger geometry succeeds or that every installed reference adapter
+is a validated representative-quality pipeline.
+
+Next schedule-only control uses the original pipeline's default **50 sigma
+points / 49 updates**, same original encoder caption/noise/128 geometry. Root
+`/tmp/lunaflux-minimax-original-trajectory-original-caption50-20261012-v1`
+is running serially on `.179` under the same bounded-memory setup. Changed
+schedule is labeled explicitly and cannot earn matched twenty-update parity.
+Its larger step count does not make 128×128 representative-quality evidence.
+Audio remains quantitatively compared but not listened to; no audio-quality
+pass is claimed.

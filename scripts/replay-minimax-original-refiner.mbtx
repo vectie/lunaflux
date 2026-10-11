@@ -83,11 +83,30 @@ test "refiner replay does not instantiate the denoiser or regenerate encoder inp
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] else {
     fail(
-      "prepare NEW_ROOT EXISTING_MODEL_ROOT ENCODED_BF16 PACKED_NATIVE_INPUT | run|collect ROOT",
+      "collect-native NEW_ROOT NATIVE_REMOTE_ROOT | prepare NEW_ROOT EXISTING_MODEL_ROOT ENCODED_BF16 PACKED_NATIVE_INPUT | inputs ROOT NATIVE_STAGE_DIRECTORY | run|run-matched ROOT | collect ROOT | collect-matched ROOT NATIVE_STAGE_DIRECTORY",
     )
   }
   let tag = root[5:].to_owned()
-  if mode == "prepare" {
+  if mode == "collect-native" {
+    guard extra is [previous] else { fail("native remote root required") }
+    @fs.mkdir(root)
+    for
+      file in [
+        "context.bf16", "refiner-0.bf16", "refiner-1.bf16", "conditioning.bf16",
+        "packed-input.bf16",
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=/tmp/lunaflux-checkpoint-live-20261010.sock",
+        "wlc003s@192.168.2.178:" + previous + "/output/" + file,
+        root + "/" + file,
+      ])
+      .output()
+      .check()
+    }
+  } else if mode == "prepare" {
     guard extra is [previous, encoded, packed] else {
       fail("literal operands required")
     }
@@ -157,6 +176,23 @@ async fn main {
         " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/refiner_upstream.cpp -o /work/original-refiner -lpython3.12",
       ),
     )
+  } else if mode == "inputs" {
+    guard extra is [native] else {
+      fail("literal native stage directory required")
+    }
+    @fs.mkdir(root + "/input")
+    record(root, "mkdir-input", remote("mkdir " + root + "/input"))
+    for
+      file in [
+        "context.bf16", "refiner-0.bf16", "refiner-1.bf16", "conditioning.bf16",
+      ] {
+      let stage = @fs.read_file(native + "/" + file).binary()
+      guard stage.length() == 3 * 5376 * 2 else {
+        fail("literal three-row stage required")
+      }
+      @fs.write_file(root + "/input/" + file, stage, create_mode=CreateNew)
+      copy(root + "/input/" + file, node + ":" + root + "/input/" + file)
+    }
   } else if mode == "verify-block" {
     guard extra is [previous] else {
       fail("prior full literal block replay required")
@@ -224,7 +260,8 @@ async fn main {
         "5376",
       ]).output(),
     )
-  } else if mode == "run" {
+  } else if mode == "run" || mode == "run-matched" {
+    guard extra.is_empty() else { fail("unexpected refiner run arguments") }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -242,7 +279,8 @@ async fn main {
         root +
         ":/work --entrypoint /work/original-refiner " +
         image +
-        " /work/model /work/encoded.bf16 /work/output 3",
+        " /work/model /work/encoded.bf16 /work/output 3" +
+        (if mode == "run-matched" { " /work/input" } else { "" }),
       ),
     )
     record(
@@ -250,6 +288,29 @@ async fn main {
       "released",
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
+  } else if mode == "collect-matched" {
+    guard extra is [native] else {
+      fail("literal native stage directory required")
+    }
+    for
+      file in [
+        "context.bf16", "refiner-0.bf16", "refiner-1.bf16", "conditioning.bf16",
+      ] {
+      copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
+      record(
+        root,
+        "compare-" + file,
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          native + "/" + file,
+          root + "/output/" + file,
+          root + "/" + file + ".txt",
+          "installed_original_conditioning_stage_on_identical_native_predecessor",
+          "5376",
+        ]).output(),
+      )
+    }
   } else if mode == "collect" {
     for
       file in [

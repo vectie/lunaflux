@@ -80,6 +80,54 @@ test "trajectory retains the full model, deduplicating shard storage only" {
 }
 
 ///|
+fn schedule_control(args : ArrayView[String]) -> (ArrayView[String], Int) raise {
+  match args {
+    [.. rest, "--original-points", value] => {
+      let points = @string.parse_int(value)
+      guard points >= 2 && points <= 50 && !rest.contains("--original-points") else {
+        fail("bounded original schedule requires 2..50 points")
+      }
+      (rest, points)
+    }
+    _ => {
+      guard !args.contains("--original-points") else {
+        fail("original schedule must be explicit and final")
+      }
+      (args, 0)
+    }
+  }
+}
+
+///|
+test "quality schedule control does not silently alter a matched replay" {
+  assert_eq(schedule_control(["a", "b"]).1, 0)
+  assert_eq(schedule_control(["a", "--original-points", "50"]).1, 50)
+  for
+    args in [
+      ["--original-points", "1"],
+      ["--original-points", "51"],
+      ["--original-points"],
+      ["--original-points", "20", "x"],
+    ] {
+    try schedule_control(args) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid control admitted")
+    }
+  }
+}
+
+///|
+async fn original_points(root : String) -> Int {
+  let path = root + "/ORIGINAL_POINTS.txt"
+  if @fs.exists(path) {
+    @string.parse_int(@fs.read_file(path).text())
+  } else {
+    0
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     root.has_prefix("/tmp/lunaflux-minimax-original-trajectory-") else {
@@ -89,10 +137,16 @@ async fn main {
   }
   let tag = root[5:].to_owned()
   if mode == "prepare" {
-    guard extra is [previous, capture, encoded] else {
+    let (operands, points) = schedule_control(extra)
+    guard operands is [previous, capture, encoded] else {
       fail("literal trajectory inputs required")
     }
     @fs.mkdir(root)
+    @fs.write_file(
+      root + "/ORIGINAL_POINTS.txt",
+      "\{points}",
+      create_mode=CreateNew,
+    )
     for directory in ["model", "input", "output"] {
       @fs.mkdir(root + "/" + directory)
     }
@@ -183,6 +237,7 @@ async fn main {
     )
   } else if mode == "run" {
     guard extra.is_empty() else { fail("unexpected trajectory arguments") }
+    let points = original_points(root)
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -209,13 +264,29 @@ async fn main {
         root +
         ":/work --entrypoint /work/original-trajectory " +
         image +
-        " /work/model /work/input /work/output",
+        " /work/model /work/input /work/output" +
+        (if points == 0 { "" } else { " \{points}" }),
       ),
     )
   } else if mode == "collect" {
-    guard extra is [native] else {
+    guard extra is [native, .. options] else {
       fail("native terminal output directory required")
     }
+    let base_scope = match options {
+      [] =>
+        "original_full_trajectory_same_native_noise_caption_geometry_and_sigma_points"
+      ["--original-caption"] =>
+        "original_full_trajectory_original_encoder_caption_same_noise_geometry_sigma_points_changed_caption_control"
+      _ => fail("[--original-caption] required for changed-caption control")
+    }
+    let points = original_points(root)
+    let updates = if points == 0 { 20 } else { points - 1 }
+    let scope = base_scope +
+      (if points == 0 {
+        ""
+      } else {
+        "_changed_original_\{points}_point_schedule_not_matched_trajectory"
+      })
     let terminal = remote(
       "systemctl --user show " +
       tag +
@@ -232,7 +303,7 @@ async fn main {
       copy(node + ":" + root + "/" + file, root + "/" + file)
     }
     for label in ["video", "audio"] {
-      for step in 0..<20 {
+      for step in 0..<updates {
         let file = label + "-step-\{step}.f32"
         copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
       }
@@ -247,7 +318,7 @@ async fn main {
           native + "/" + file,
           root + "/output/" + file,
           root + "/" + label + "-terminal.txt",
-          "original_full_trajectory_same_native_noise_caption_geometry_and_sigma_points",
+          scope,
         ]).output(),
       )
     }

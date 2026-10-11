@@ -3,7 +3,7 @@
 #include "original_h3_loading.h"
 #include <cstdlib>
 
-static int execute(const char *root,const char *input,const char *out,int rows) {
+static int execute(const char *root,const char *input,const char *out,int rows,const char *matched) {
   Owned torch(PyImport_ImportModule("torch")),safe(PyImport_ImportModule("safetensors"));
   Owned distributed(PyImport_ImportModule("vllm.distributed")),config_module(PyImport_ImportModule("vllm.config"));
   Owned config_cls(config_module.p?PyObject_GetAttrString(config_module.p,"VllmConfig"):nullptr);
@@ -63,27 +63,36 @@ static int execute(const char *root,const char *input,const char *out,int rows) 
     Owned block(PyObject_GetItem(blocks.p,key.p));
     if(!block.p||!h3_attention_mlp(block.p,open.p,map,root,
        "token_refiner.refiner_blocks."+std::to_string(layer)+"."))return -1;
-    Owned operands(PyTuple_Pack(1,state.p));
+    // An explicit intervention supplies each literal native predecessor. Do
+    // not propagate a reference output and call it a matched local operator.
+    Owned prior(matched?literal_bf16(torch.p,bf16.p,
+      (std::string(matched)+"/"+(layer?"refiner-0.bf16":"context.bf16")).c_str(),rows,5376):Py_NewRef(state.p));
+    Owned flat_prior(prior.p?PyObject_CallMethod(prior.p,"view","ii",rows,5376):nullptr);
+    Owned operands(flat_prior.p?PyTuple_Pack(1,flat_prior.p):nullptr);
+    if(!operands.p)return -1;
     Owned next(PyObject_Call(block.p,operands.p,attention_kw.p));
     if(!next.p||!save(next.p,u8.p,std::string(out)+"/refiner-"+std::to_string(layer)+".bf16",int64_t(rows)*5376*2))return -1;
     Py_SETREF(state.p,Py_NewRef(next.p));
   }
   Owned norm(PyObject_GetAttrString(refiner_gpu.p,"final_norm"));
   if(!norm.p||!h3_parameter(norm.p,open.p,map,root,"weight","token_refiner.final_norm.weight"))return -1;
-  Owned operands(PyTuple_Pack(1,state.p));
+  Owned prior(matched?literal_bf16(torch.p,bf16.p,(std::string(matched)+"/refiner-1.bf16").c_str(),rows,5376):Py_NewRef(state.p));
+  Owned flat_prior(prior.p?PyObject_CallMethod(prior.p,"view","ii",rows,5376):nullptr);
+  Owned operands(flat_prior.p?PyTuple_Pack(1,flat_prior.p):nullptr);
+  if(!operands.p)return -1;
   Owned result(PyObject_CallObject(norm.p,operands.p));
   if(!result.p||!save(result.p,u8.p,std::string(out)+"/conditioning.bf16",int64_t(rows)*5376*2))return -1;
   Owned closed(PyObject_CallMethod(scope.p,"__exit__","OOO",Py_None,Py_None,Py_None));
   if(!closed.p)return -1;
-  std::printf("original_conditioning_complete rows=%d literal_encoder=true original_projection=true original_refiners=true\n",rows);
+  std::printf("original_conditioning_complete rows=%d literal_encoder=true original_projection=true original_refiners=true matched_native_frontiers=%s\n",rows,matched?"true":"false");
   return 0;
 }
 
 int main(int argc,char **argv) {
-  if(argc!=5)return 2;
+  if(argc!=5&&argc!=6)return 2;
   char *end=nullptr;const long rows=std::strtol(argv[4],&end,10);
   if(end==argv[4]||*end||rows<1||rows>1024)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],static_cast<int>(rows));
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],static_cast<int>(rows),argc==6?argv[5]:nullptr);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

@@ -4,6 +4,7 @@
 #include "original_h3_loading.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 
 static bool linear(PyObject *parent,const char *child,PyObject *open,PyObject *map,
@@ -92,7 +93,15 @@ static bool packed_identity(PyObject *torch,PyObject *packed,PyObject *f32,PyObj
   return true;
 }
 
-static PyObject *schedule(PyObject *module,const char *input,int modality) {
+static PyObject *schedule(PyObject *module,const char *input,int modality,int original_points) {
+  Owned fn(PyObject_GetAttrString(module,"minimax_h3_time_shift_sigmas")),args(PyTuple_New(0));
+  Owned kw(Py_BuildValue("{s:i,s:d}","num_steps",original_points?original_points:21,"shift_scale",modality?3.0:12.0));
+  Owned original(fn.p?PyObject_Call(fn.p,args.p,kw.p):nullptr);
+  if(!original.p)return nullptr;
+  if(original_points) {
+    std::printf("original_schedule modality=%s points=%d literal_native_schedule=false quality_schedule_control=true\n",modality?"audio":"video",original_points);
+    return Py_NewRef(original.p);
+  }
   // Use literal native sigma points for matched integration. Independently
   // report the installed original schedule's differences, without substituting
   // a newly generated seed or claiming bitwise trajectory equivalence.
@@ -102,10 +111,7 @@ static PyObject *schedule(PyObject *module,const char *input,int modality) {
   Owned sigmas(PyList_New(21));
   for(int step=0;step<20;++step)PyList_SET_ITEM(sigmas.p,step,PyFloat_FromDouble(flow[step*8+modality*4]));
   PyList_SET_ITEM(sigmas.p,20,PyFloat_FromDouble(0.0));
-  Owned fn(PyObject_GetAttrString(module,"minimax_h3_time_shift_sigmas")),args(PyTuple_New(0));
-  Owned kw(Py_BuildValue("{s:i,s:d}","num_steps",21,"shift_scale",modality?3.0:12.0));
-  Owned original(fn.p?PyObject_Call(fn.p,args.p,kw.p):nullptr);
-  if(!original.p||PyObject_Length(original.p)!=21)return nullptr;
+  if(PyObject_Length(original.p)!=21)return nullptr;
   double max_difference=0;int exact=0;
   for(int step=0;step<21;++step) {
     const double a=PyFloat_AsDouble(PyList_GetItem(sigmas.p,step));
@@ -117,7 +123,7 @@ static PyObject *schedule(PyObject *module,const char *input,int modality) {
   return Py_NewRef(sigmas.p);
 }
 
-static int execute(const char *root,const char *input,const char *out) {
+static int execute(const char *root,const char *input,const char *out,int original_points) {
   Owned torch(PyImport_ImportModule("torch")),safe(PyImport_ImportModule("safetensors"));
   Owned dist(PyImport_ImportModule("vllm.distributed")),cfgmod(PyImport_ImportModule("vllm.config"));
   Owned cfgcls(cfgmod.p?PyObject_GetAttrString(cfgmod.p,"VllmConfig"):nullptr),cfg(cfgcls.p?PyObject_CallNoArgs(cfgcls.p):nullptr);
@@ -179,7 +185,7 @@ static int execute(const char *root,const char *input,const char *out) {
     "text_embeddings",caption.p,"token_tags",tags,"device",device.p):nullptr);
   Owned branch(branchcls.p&&branchkw.p?PyObject_Call(branchcls.p,empty.p,branchkw.p):nullptr);
   Owned timemod(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.time_request"));
-  Owned sv(timemod.p?schedule(timemod.p,input,0):nullptr),sa(timemod.p?schedule(timemod.p,input,1):nullptr);
+  Owned sv(timemod.p?schedule(timemod.p,input,0,original_points):nullptr),sa(timemod.p?schedule(timemod.p,input,1,original_points):nullptr);
   Owned capsule(PyCapsule_New(const_cast<char*>(out),"trajectory_output",nullptr));
   Owned callback(capsule.p?PyCFunction_New(&observer,capsule.p):nullptr);
   Owned fn(denoise.p?PyObject_GetAttrString(denoise.p,"minimax_h3_denoise_loop"):nullptr);
@@ -187,7 +193,8 @@ static int execute(const char *root,const char *input,const char *out) {
     "model",model.p,"positive",branch.p,"initial_video_rows",video.p,"initial_audio_rows",audio.p,
     "keyframe_cond_rows",Py_None,"sigmas_video",sv.p,"sigmas_audio",sa.p,"device",device.p,"on_step",callback.p):nullptr);
   if(!fn.p||!kw.p)return -1;
-  std::puts("original_trajectory_start updates=20 literal_noise=true literal_caption=true encoder_omitted=true");std::fflush(stdout);
+  const int updates=original_points?original_points-1:20;
+  std::printf("original_trajectory_start updates=%d literal_noise=true literal_caption=true encoder_omitted=true\n",updates);std::fflush(stdout);
   Owned terminal(PyObject_Call(fn.p,empty.p,kw.p));
   Owned tokens(PyImport_ImportModule("vllm_omni.diffusion.models.minimax_h3.packed_tokens"));
   Owned vfn(tokens.p?PyObject_GetAttrString(tokens.p,"minimax_h3_unpatchify_video_tokens"):nullptr);
@@ -200,13 +207,19 @@ static int execute(const char *root,const char *input,const char *out) {
   if(!vl.p||!al.p||!save(vl.p,u8.p,std::string(out)+"/video-latent.f32",24LL*37*8*8*4)||
      !save(al.p,u8.p,std::string(out)+"/audio-latent.f32",2LL*32*207*4))return -1;
   Owned closed(PyObject_CallMethod(scope.p,"__exit__","OOO",Py_None,Py_None,Py_None));
-  std::puts("original_trajectory_terminal updates=20 video_latent=1,24,37,8,8 audio_latent=2,32,207 media_quality=unassessed");
+  std::printf("original_trajectory_terminal updates=%d video_latent=1,24,37,8,8 audio_latent=2,32,207 media_quality=unassessed\n",updates);
   return closed.p?0:-1;
 }
 
 int main(int argc,char **argv) {
-  if(argc!=4)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3]);
+  if(argc!=4&&argc!=5)return 2;
+  int points=0;
+  if(argc==5) {
+    char *end=nullptr;const long parsed=std::strtol(argv[4],&end,10);
+    if(end==argv[4]||*end||parsed<2||parsed>50)return 2;
+    points=static_cast<int>(parsed);
+  }
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],points);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }
