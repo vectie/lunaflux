@@ -157,3 +157,47 @@ moon run scripts/run-minimax-upstream-video.mbtx inspect NEW_REFERENCE_ROOT
 Decoded pixels, temporal stability, correspondence to the caption and actual
 audio must be inspected separately. Finite arrays, clean retirement and a
 successful standardized-zero reference do not complete those checks.
+
+## Repaired fifty-block replay — 2026-10-12
+
+Committed packing fix `b97acf10` completes the native initial evaluation;
+the corrected original runs both matched-native-predecessor and propagated
+original-predecessor chains through all fifty blocks. Inputs, time table,
+rotary table and document boundaries are literal captures, not a regenerated
+noise fixture. Both runs terminate successfully with empty execution stderr.
+
+First-block primary-document relative L2 falls from **25.1320251%** against the
+raw original to **0.07388181%** after the packing repair. The final propagated
+fifty-block error is **3.467995%**, versus **347.544392%** for the wrong-packed
+chain. All fifty matched-input block errors are retained; the largest primary
+document error is **0.2582222%** at block 49. This is a major correction, not
+bitwise equality or a media-quality acceptance threshold.
+
+Global norms are insufficient to assess the modalities separately. Literal
+captured AdaLN tags identify 3 text, 414 audio and 592 video rows; 15 padding
+rows remain a separate document in the preserved raw captures. At block 49:
+
+| Modality | Matched-input block relative L2 | Propagated fifty-block relative L2 |
+| --- | --- | --- |
+| Video | 0.3288291% | 4.3214408% |
+| Audio | 0.1030160% | 1.7358533% |
+| Text | 0 | 1.3556040% |
+
+Root: `/tmp/lunaflux-minimax-upstream-block-repaired50-20261012-v1`.
+`modality-reports.tsv` retains modality attribution at seven block frontiers;
+the ordinary reports retain every row of every block. The initial container
+attempt failed because host-path symlinks were not visible inside its mount;
+the successful retry uses hard-linked immutable weight payloads, preserving
+the failed logs. Desktop collection was interrupted by disk exhaustion, then
+resumed at block 29. Only reproducible row slices were removed, with recovery
+ledgers; full raw tensors and numerical reports remain. The comparator can now
+select primary rows directly without creating duplicate tensor files.
+
+A fresh repaired full-media run is active at
+`/tmp/lunaflux-minimax-joint-mlp-order-quality128-20261012-v1` on `.178`, using
+128×128, 120 requested frames, 21 original schedule points (20 model updates),
+the actual caption encoding and terminal latent capture. Its declared residency
+plan is **82,132,052,256 bytes**, under the 96-GiB device limit; no competing GPU
+work runs on that host. **Media quality is pending until this run terminates,
+the generated video is inspected, and the audio is assessed.** Text-encoder
+drift and input/refiner parity are not waived by the packing improvement.

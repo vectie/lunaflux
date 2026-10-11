@@ -1,0 +1,136 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+fn word(bytes : Bytes, offset : Int) -> UInt {
+  bytes[offset].to_uint() |
+  (bytes[offset + 1].to_uint() << 8) |
+  (bytes[offset + 2].to_uint() << 16) |
+  (bytes[offset + 3].to_uint() << 24)
+}
+
+///|
+fn bf16(bytes : Bytes, i : Int) -> Double {
+  Float::reinterpret_from_uint(
+    (bytes[2 * i].to_uint() | (bytes[2 * i + 1].to_uint() << 8)) << 16,
+  ).to_double()
+}
+
+///|
+struct ErrorTotals {
+  elements : Int
+  exact : Int
+  error_squared : Double
+  reference_squared : Double
+  maximum_error : Double
+}
+
+///|
+fn compare(
+  native : Bytes,
+  original : Bytes,
+  tags : Bytes,
+  rows : Int,
+  width : Int,
+) -> Array[ErrorTotals] raise {
+  guard native.length() == original.length() &&
+    native.length() == tags.length() / 4 * width * 2 &&
+    tags.length() % 4 == 0 &&
+    rows > 0 &&
+    rows <= tags.length() / 4 else {
+    fail("complete literal captures required")
+  }
+  let totals = Array::make(3, {
+    elements: 0,
+    exact: 0,
+    error_squared: 0.0,
+    reference_squared: 0.0,
+    maximum_error: 0.0,
+  })
+  for row in 0..<rows {
+    // The captured AdaLN index is time*3+modality: video=0,text=1,audio=2.
+    // Exclude only the separately declared padding document, never a modality.
+    let tag = (word(tags, row * 4) % 3).reinterpret_as_int()
+    let previous = totals[tag]
+    let next = for column in 0..<width; state = previous {
+      let i = row * width + column
+      let a = bf16(native, i)
+      let b = bf16(original, i)
+      guard !a.is_nan() && !a.is_inf() && !b.is_nan() && !b.is_inf() else {
+        fail("nonfinite captured value")
+      }
+      let delta = a - b
+      continue {
+          elements: state.elements + 1,
+          exact: state.exact +
+          (if native[2 * i] == original[2 * i] &&
+            native[2 * i + 1] == original[2 * i + 1] {
+            1
+          } else {
+            0
+          }),
+          error_squared: state.error_squared + delta * delta,
+          reference_squared: state.reference_squared + b * b,
+          maximum_error: state.maximum_error.max(delta.abs()),
+        }
+    } nobreak {
+      state
+    }
+    totals[tag] = next
+  }
+  totals
+}
+
+///|
+test "modality attribution uses literal tags and excludes only explicit padding" {
+  let values = b"\x80\x3f\x00\x40\x40\x40\x80\x40"
+  let tags = b"\x01\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00"
+  let result = compare(values, values, tags, 3, 1)
+  assert_eq(result.map(x => x.elements), [1, 1, 1])
+  assert_eq(result.map(x => x.exact), [1, 1, 1])
+  assert_eq(result[1].reference_squared, 1.0)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, output] else {
+    fail("CAPTURE_ROOT NEW_REPORT_TSV")
+  }
+  let docs = @fs.read_file(root + "/input/documents.i32").binary()
+  guard docs.length() == 12 && word(docs, 0) == 0U else {
+    fail("primary and padding documents required")
+  }
+  let rows = word(docs, 4).reinterpret_as_int()
+  let tags = @fs.read_file(root + "/input/combined.i32").binary()
+  let report = StringBuilder()
+  report.write_string(
+    "block\tpredecessor\tmodality\trows\texact\telements\trelative_l2\tmaximum_error\n",
+  )
+  for block in [0, 1, 10, 20, 30, 40, 49] {
+    let native = @fs.read_file(root + "/input/block-\{block}.bf16").binary()
+    for predecessor in ["matched", "propagated"] {
+      let original = @fs.read_file(
+        root + "/output/\{predecessor}-block-\{block}.bf16",
+      ).binary()
+      for tag, state in compare(native, original, tags, rows, 5376) {
+        let label = ["video", "text", "audio"][tag]
+        let ratio = if state.reference_squared > 0.0 {
+          (state.error_squared / state.reference_squared).sqrt()
+        } else if state.error_squared == 0.0 {
+          0.0
+        } else {
+          0x7FF0000000000000L.reinterpret_as_double()
+        }
+        report.write_string(
+          "\{block}\t\{predecessor}\t\{label}\t\{state.elements/5376}\t\{state.exact}\t\{state.elements}\t\{ratio}\t\{state.maximum_error}\n",
+        )
+      }
+    }
+  }
+  @fs.write_file(output, report.to_string(), create_mode=CreateNew)
+  println(report.to_string())
+}

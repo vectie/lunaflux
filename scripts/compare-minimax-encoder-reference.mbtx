@@ -61,20 +61,46 @@ async test "1024-row reports remain complete under bounded console capture" {
   assert_true(report.contains("elements=5242880\nexact_bf16=5242880\n"))
   assert_true(report.contains("row=1023 rmse=0 "))
   assert_true(!output.stdout().contains("row="))
+  let limited = root + "/primary.txt"
+  @shell.Cmd("moon", [
+    "run",
+    workspace + "/scripts/compare-minimax-encoder-reference.mbtx",
+    input,
+    input,
+    limited,
+    "explicit_primary_document",
+    "5120",
+    "1009",
+  ])
+  .output()
+  .check()
+  let primary = @fs.read_file(limited).text()
+  assert_eq(primary.split("\n").filter(s => s.has_prefix("row=")).count(), 1009)
+  assert_true(
+    primary.contains("captured_elements=5242880\ncompared_rows=1009\n"),
+  )
+  assert_eq(@fs.read_file(input).binary().length(), 1024 * 5120 * 2)
 }
 
 ///|
 async fn main {
   guard @env.args() is [_, native_path, reference_path, output, .. scope_args] &&
-    (scope_args is [] || scope_args is [_] || scope_args is [_, _]) else {
-    fail("NATIVE_BF16 REFERENCE_BF16 NEW_REPORT [SCOPE [ROW_WIDTH]]")
+    (
+      scope_args is [] ||
+      scope_args is [_] ||
+      scope_args is [_, _] ||
+      scope_args is [_, _, _]
+    ) else {
+    fail(
+      "NATIVE_BF16 REFERENCE_BF16 NEW_REPORT [SCOPE [ROW_WIDTH [PRIMARY_ROWS]]]",
+    )
   }
   let scope = match scope_args {
     [scope, ..] => scope
     _ => "original_caption_text_encoder_hidden_states_50"
   }
   let width = match scope_args {
-    [_, width] => @string.parse_int(width)
+    [_, width, ..] => @string.parse_int(width)
     _ => 5120
   }
   guard width > 0 else { fail("positive tensor row width required") }
@@ -85,7 +111,12 @@ async fn main {
     native.length() == reference.length() else {
     fail("BF16 tensor extents differ")
   }
-  let n = native.length() / 2
+  let captured_elements = native.length() / 2
+  let n = match scope_args {
+    [_, _, rows] =>
+      comparison_elements(captured_elements, width, @string.parse_int(rows))
+    _ => captured_elements
+  }
   let mut exact = 0
   let mut nonfinite = 0
   let mut squared_error = 0.0
@@ -185,6 +216,8 @@ async fn main {
     $|scope=\{scope}
     $|native=\{native_path}
     $|reference=\{reference_path}
+    $|captured_elements=\{captured_elements}
+    $|compared_rows=\{n / width}
     $|elements=\{n}
     $|exact_bf16=\{exact}
     $|nonfinite=\{nonfinite}
@@ -210,4 +243,24 @@ async fn main {
   // Full per-token diagnostics stay in the report file. Printing them again
   // can exceed the caller's bounded console capture at supported wider shapes.
   println(report)
+}
+
+///|
+fn comparison_elements(total : Int, width : Int, rows : Int) -> Int raise {
+  guard width > 0 && total % width == 0 && rows > 0 && rows <= total / width else {
+    fail("requested primary rows exceed complete captured tensor")
+  }
+  rows * width
+}
+
+///|
+test "row-limited comparison retains raw padding without making slice copies" {
+  assert_eq(comparison_elements(1024 * 5376, 5376, 1009), 1009 * 5376)
+  for rows in [0, 1025] {
+    try comparison_elements(1024 * 5376, 5376, rows) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid row extent accepted")
+    }
+  }
 }
