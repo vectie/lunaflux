@@ -143,8 +143,11 @@ The full MP2 reference completed under `v7` on both Sparks with exit zero and
 `OOMKilled=false`; both loaded all 36,943 rank tensors and released GPU owners.
 Actual input IDs match all 144 native IDs. Its first generated token is
 `33310` ("hello"), versus native `19923` ("Hello"). The CLI always appends a
-reporting EOS, which is excluded from the one-token comparison; this run does
-not establish actual EOS sampling or EOS agreement.
+reporting EOS, which is excluded from the one-token comparison. The preserved
+command requests eight new tokens and has adequate context capacity; stopping
+after one content token implies that the original loop sampled EOS on its next
+step. The marker alone is not evidence of this, and the native one-token run
+still cannot establish EOS agreement.
 Thus **0/1** same-prefix tokens agree. This reproduces the independent backend's
 capitalization disagreement, now without its FP8 sparse-KV substitution. It
 is a measured unresolved native/reference differential, not a correctness pass.

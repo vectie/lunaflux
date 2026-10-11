@@ -88,3 +88,13 @@ media-quality acceptance. Latent capture and original replay on generated inputs
 are the next isolation step; meaningful resolution/step coverage remains open.
 No audio intelligibility assessment is claimed from waveform statistics alone.
 Preview: `/tmp/lunaflux-minimax-fp16-media-preview-20261011-v1/frames.png`.
+
+## Prompt presentation cross-check
+
+The installed original H3 pipeline calls `minimax_h3_text_only_ids` for `t2va`.
+That function explicitly tokenizes the prompt verbatim without special tokens;
+the pipeline supplies one text tag per token. The existing three-token
+"A red cat" conditioning is therefore not missing a chat template. Adding
+chat-format tokens would change the original model input, not fix it. This is
+a source-level presentation check, not proof that the encoder's remaining
+numerical differences are harmless or that tiny smoke-run media is acceptable.

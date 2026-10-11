@@ -49,9 +49,13 @@ native ranks retired successfully, with GPU contexts released. Evidence:
 The single observed generated-token mismatch is fixed, but the complete logit
 distribution is still materially different; maximum error actually increased.
 This is **one matched greedy token**, not EOS agreement, multi-prompt acceptance,
-or full-model numerical equivalence. The original CLI appends a reporting EOS
-even when no EOS was sampled; its one-token run cannot establish actual EOS
-agreement. The native run also requested only one generated token. Streaming partition and
+or full-model numerical equivalence. The original CLI always appends a reporting
+EOS, so that marker alone does not prove sampling. The preserved original
+command requests eight new tokens with a 144-token prompt and 256-token
+capacity. Stopping after one content token therefore implies a sampled EOS on
+the following step under the original generation loop, rather than exhaustion
+of either limit. The native run requested only one generated token and cannot
+establish EOS agreement. Streaming partition and
 matrix/scalar reduction differences remain to be isolated.
 
 The complete local native suite after this change passed **4,997/4,997**, using
