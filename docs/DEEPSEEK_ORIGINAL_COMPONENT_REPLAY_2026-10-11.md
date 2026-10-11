@@ -1,5 +1,38 @@
 # DeepSeek original first-layer component replay — 2026-10-11
 
+## Compressed attention on identical literal operands
+
+The production compressed-attention renderer now has an offline replay against
+the unmodified original `get_window_topk_idxs`, `get_compress_topk_idxs` and
+`kernel.sparse_attn`. Both receive the same 144 post-rotary queries, simulated
+window KV, sink values and one ratio-128 compressed cache row. These operands
+combine earlier original component captures: they are **not the actual full
+layer-3 inputs**, and this is not a complete model comparison.
+
+On Spark `.179`, **4,717,533/4,718,592 BF16 values match exactly**. Relative L2
+is **0.006262170%**, RMSE 0.0000334948, maximum absolute error 0.015625, and
+both outputs are finite. This rules out a large compressed-attention discrepancy
+on this corpus; it does not explain the 18–21% retained-state difference.
+The native launch uses the production OnlineBf16/K64 arithmetic, not a rewritten
+reference kernel. No production arithmetic or tolerance is changed.
+
+Original and native executions exit zero and release GPU owners. The original
+container reports `OOMKilled=false`. Memcheck including leak checking reports
+zero errors/allocations leaked; racecheck and synccheck also report zero errors.
+The reference and native limits are 8 GiB and 2 GiB respectively with no swap;
+these limits are not CUDA residency measurements. The original compiler's
+ThreadSync warning is retained separately from its successful result.
+Six source-package tests and the runner regression pass.
+
+Retained root: `/tmp/lunaflux-deepseek-original-compressed-attention-20261011-v1`.
+
+```sh
+moon run scripts/replay-deepseek-original-compressed-attention.mbtx prepare NEW_ROOT ORIGINAL_WINDOW_ROOT ORIGINAL_COMPRESSED_BF16
+moon run scripts/replay-deepseek-original-compressed-attention.mbtx run ROOT
+moon run scripts/replay-deepseek-original-compressed-attention.mbtx collect ROOT
+moon run scripts/replay-deepseek-original-compressed-attention.mbtx sanitize ROOT
+```
+
 ## Original row-parallel output publication attribution
 
 The original output-B operator now also runs its two K shards serially on

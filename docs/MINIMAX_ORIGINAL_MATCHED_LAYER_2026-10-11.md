@@ -43,6 +43,48 @@ New retained roots:
 - `/tmp/lunaflux-minimax-aten-reference-matched-first-long-20261011-v1`
 - `/tmp/lunaflux-minimax-matched-first-operator-comparison-20261011-v1`
 
+## Matched first-layer operators and precision attribution
+
+The separate ATen reconstruction now consumes each literal native intermediate
+independently, rather than propagating its own preceding operator. On 140 real
+original token IDs, input RMSNorm, Q/K normalization, both rotary transforms and
+both residual additions match bit-for-bit. This localizes differences away from
+those normalization/layout/publication boundaries on this input. The reconstruction
+is not an unmodified installed-original individual-operator capture.
+
+| Operator, identical inputs | Relative L2 | Exact BF16 / values |
+| --- | --- | --- |
+| Q projection | 0.0112170% | 1,144,230 / 1,146,880 |
+| K projection | 0.0474268% | 142,948 / 143,360 |
+| V projection | 0.000632876% | 143,350 / 143,360 |
+| Attention | 0.0735295% | 1,115,895 / 1,146,880 |
+| Output projection | 0.0271678% | 713,342 / 716,800 |
+| SwiGLU activation | 0.0230035% | 3,571,010 / 3,584,000 |
+| Down projection | 0.0412059% | 710,166 / 716,800 |
+
+A projection precision replay on those same intermediate bytes compares native
+and original BF16 output with F64 accumulation followed by BF16 publication.
+Native versus F64 relative L2 is 0.00116923% for Q, 0.000000996722% for K,
+0.000202730% for V, 0.0110001% for output and 0.00852634% for down. Original
+BF16 versus F64 errors are respectively 0.0112758%, 0.0474245%, 0.000599594%,
+0.0262432% and 0.0411539%. Disabling reduced-precision BF16 reduction produces
+the same original BF16 output at this geometry.
+
+Thus a blanket increase in accumulation precision is **not** a justified fix
+for faithful original-output agreement: native is often closer to the F64 oracle
+already. Different reduction/publication arithmetic remains observable, but
+neither this observation nor a small local norm proves propagated encoder or
+media quality acceptable. Existing mean/probability/compensated-dot experiments
+remain unselected. No numerical tolerance is relaxed.
+
+All reference/precision executions terminate and release their GPU owners.
+The offline adapter is separate from the production MoonBit runtime.
+
+Additional retained reports:
+
+- `/tmp/lunaflux-minimax-matched-first-replay-comparison-20261011-v1/operators.tsv`
+- `/tmp/lunaflux-minimax-projection-precision-first140-20261011-v1/precision.tsv`
+
 ```sh
 moon run scripts/run-minimax-text-encoder.mbtx NEW_ROOT SUFFIX COMMITTED_ARM_EXECUTABLE STAGED_WEIGHTS EXACT_ROW_AOT 179 ORIGINAL_IDS_I32 matched ORIGINAL_HIDDEN_DIRECTORY
 ```

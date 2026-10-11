@@ -1,0 +1,285 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn transfer(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn input_files() -> Array[(String, Int)] {
+  [
+    ("q-rope.bf16", 144 * 32768 * 2),
+    ("kv-sim.bf16", 144 * 512 * 2),
+    ("sink.f32", 64 * 4),
+    ("compressed.bf16", 512 * 2),
+  ]
+}
+
+///|
+test "compressed replay includes the full literal query and retained cache" {
+  assert_eq(input_files().length(), 4)
+  assert_eq(input_files()[0].1, 9437184)
+  assert_eq(input_files()[3].1, 1024)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] else {
+    fail(
+      "prepare NEW_ROOT ORIGINAL_WINDOW_ROOT ORIGINAL_COMPRESSED_BF16 | run|collect|sanitize ROOT",
+    )
+  }
+  guard root.has_prefix("/tmp/lunaflux-deepseek-original-compressed-attention-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("new diagnostic root required")
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    guard extra is [window, compressed] else {
+      fail("literal original operands required")
+    }
+    @fs.mkdir(root)
+    for dir in ["input", "original", "native"] {
+      @fs.mkdir(root + "/" + dir)
+    }
+    for (name, extent) in input_files() {
+      let path = if name == "compressed.bf16" {
+        compressed
+      } else {
+        window + "/" + name
+      }
+      let bytes = @fs.read_file(path).binary()
+      guard bytes.length() == extent else {
+        fail("literal operand extent differs: " + name)
+      }
+      @fs.write_file(root + "/input/" + name, bytes, create_mode=CreateNew)
+    }
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "kernels/window_compressed_kv_cuda_source", "--filter", "export original-input compressed attention kernel",
+        ],
+        env={
+          "LUNA_MATCHED_COMPRESSED_ATTENTION_SOURCE": root +
+          "/compressed_matched_kernels.cuh",
+        },
+      ).output(),
+    )
+    record(root, "mkdir", remote("mkdir " + root))
+    @shell.Cmd("scp", [
+      "-r",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      root + "/input",
+      root + "/original",
+      root + "/native",
+      node + ":" + root + "/",
+    ])
+    .output()
+    .check()
+    transfer(
+      root + "/compressed_matched_kernels.cuh",
+      node + ":" + root + "/compressed_matched_kernels.cuh",
+    )
+    for name in ["compressed_attention_upstream.cpp", "original_tensor_io.h"] {
+      transfer(
+        "benchmarks/checkpoint_aten_reference/aten/" + name,
+        node + ":" + root + "/" + name,
+      )
+    }
+    transfer(
+      "tests/packed_moe_execution/compressed_attention_matched_probe.cu",
+      node + ":" + root + "/compressed_attention_matched_probe.cu",
+    )
+    record(
+      root,
+      "compile-original",
+      remote(
+        "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/compressed_attention_upstream.cpp -o /work/compressed-upstream -lpython3.12",
+      ),
+    )
+    record(
+      root,
+      "compile-native",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 compressed_attention_matched_probe.cu -o compressed-native",
+      ),
+    )
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected options") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, "before-owners", owners)
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    let original = remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      tag +
+      "-original --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
+      tag +
+      " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+      root +
+      ":/work -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro" +
+      " --entrypoint /work/compressed-upstream " +
+      image +
+      " /inference /work/input /work/original",
+    )
+    @fs.write_file(
+      root + "/original-run.stdout",
+      original.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/original-run.stderr",
+      original.stderr(),
+      create_mode=CreateNew,
+    )
+    record(
+      root,
+      "original-terminal",
+      remote("docker inspect --format '{{json .State}}' " + tag),
+    )
+    original.check()
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("reference not retired")
+    }
+    record(
+      root,
+      "native-run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-native --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+        root +
+        "/compressed-native " +
+        root +
+        "/input " +
+        root +
+        "/native",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    for directory in ["original", "native"] {
+      let path = root + "/" + directory + "/attention.bf16"
+      @fs.write_file(path, b"", create_mode=CreateNew)
+      transfer(node + ":" + path, path)
+    }
+    let indices = root + "/original/indices.i32"
+    @fs.write_file(indices, b"", create_mode=CreateNew)
+    transfer(node + ":" + indices, indices)
+    record(
+      root,
+      "comparison",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        root + "/native/attention.bf16",
+        root + "/original/attention.bf16",
+        root + "/comparison.txt",
+        "literal_component_compressed_attention_not_complete_layer",
+        "32768",
+      ]).output(),
+    )
+  } else if mode == "sanitize" {
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+      let out = root + "/" + tool
+      record(root, tool + "-mkdir", remote("mkdir " + out))
+      let leak = if tool == "memcheck" { " --leak-check full" } else { "" }
+      record(
+        root,
+        tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          tool +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 /usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+          tool +
+          leak +
+          " --error-exitcode 99 " +
+          root +
+          "/compressed-native " +
+          root +
+          "/input " +
+          out,
+        ),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+}
