@@ -62,6 +62,27 @@ struct CopyPlan {
 }
 
 ///|
+/// Torch's float4_e2m1fn_x2 shape counts packed bytes; safetensors F4 shape
+/// counts logical four-bit elements. The reader restores the packed shape.
+/// This affects wire metadata only, never copy strides or payload bytes.
+fn wire_shape(dtype : String, packed : Array[Int64]) -> Array[Int64] raise {
+  let shape = packed.copy()
+  if dtype == "F4" {
+    guard !shape.is_empty() else { fail("packed FP4 needs a final axis") }
+    shape[shape.length() - 1] *= 2L
+  }
+  shape
+}
+
+///|
+test "F4 wire shape counts two values per byte without changing physical shape" {
+  let physical = [16L, 8L]
+  assert_eq(wire_shape("F4", physical), [16L, 16L])
+  assert_eq(physical, [16L, 8L])
+  assert_eq(wire_shape("BF16", physical), physical)
+}
+
+///|
 fn renamed(name : String) -> String {
   let name = if name.has_prefix("model.") { name[6:].to_owned() } else { name }
   name
@@ -372,7 +393,7 @@ async fn convert(root : String, output : String, rank : Int) -> Unit {
       plans.push(p)
       header[name] = {
         "dtype": p.dtype,
-        "shape": p.shape.map(n => n.to_double()),
+        "shape": wire_shape(p.dtype, p.shape).map(n => n.to_double()),
         "data_offsets": [offset.to_double(), (offset + p.bytes).to_double()],
       }
       offset += p.bytes
@@ -531,6 +552,10 @@ async fn self_test() -> Unit {
       field(field(j, "layers.0.ffn.experts.\{rank * 128}.w1.weight"), "dtype")
       is String("F4"),
     )
+    assert_eq(
+      field(field(j, "layers.0.ffn.experts.\{rank * 128}.w1.weight"), "shape"),
+      ([16, 16] : Json),
+    )
   }
   assert_eq(@fs.read_file(root + "/original.safetensors").binary(), original)
   println(
@@ -540,9 +565,63 @@ async fn self_test() -> Unit {
 }
 
 ///|
+/// Recover the earlier test-only packed-byte header into a NEW file. Stream
+/// the unchanged contiguous payload locally rather than retransfer 85 GB.
+async fn repair_packed(root : String, output : String, rank : Int) -> Unit {
+  let source = @fs.open(root + "/model\{rank}-mp2.safetensors", mode=ReadOnly)
+  defer source.close()
+  let n = u64(source.read_exactly_at(8, position=0L))
+  guard n > 0L && n < 8388608L else { fail("metadata extent") }
+  guard @json.parse(@utf8.decode(source.read_exactly_at(n.to_int(), position=8L)))
+    is Object(header) else { fail("converted header") }
+  let mut repaired = 0
+  for name, entry in header {
+    if field(entry, "dtype") is String("F4") {
+      guard entry is Object(fields) && field(entry, "shape") is Array(a) &&
+        field(entry, "data_offsets") is Array([begin, end]) else {
+        fail("packed header")
+      }
+      let shape = a.map(integer)
+      let bytes = integer(end) - integer(begin)
+      guard shape.fold(init=1L, (n, extent) => n * extent) == bytes else {
+        fail("not the earlier packed-byte shape; no second expansion")
+      }
+      fields["shape"] = wire_shape("F4", shape).map(n => n.to_double()).to_json()
+      header[name] = fields.to_json()
+      repaired += 1
+    }
+  }
+  guard repaired > 0 else { fail("no packed shapes to repair") }
+  @fs.mkdir(output)
+  let text = @utf8.encode(header.to_json().stringify())
+  let encoded = text + Bytes::make((8 - text.length() % 8) % 8, 32)
+  let target = @fs.open(output + "/model\{rank}-mp2.safetensors", mode=WriteOnly,
+    create_mode=CreateNew)
+  defer target.close()
+  target.write_at(prefix(encoded.length().to_int64()), position=0L)
+  target.write_at(encoded, position=8L)
+  copy_region(source, target, 8L + n, 8L + encoded.length().to_int64(),
+    source.size() - 8L - n)
+  target.sync()
+  for file in ["tokenizer.json", "tokenizer_config.json"] {
+    let input = @fs.open(root + "/" + file, mode=ReadOnly)
+    defer input.close()
+    let out = @fs.open(output + "/" + file, mode=WriteOnly, create_mode=CreateNew)
+    defer out.close()
+    copy_region(input, out, 0L, 0L, input.size())
+  }
+  println("packed_header_repair_complete rank=\{rank} tensors=\{repaired} payload_unchanged=true old_file_preserved=true")
+}
+
+///|
 async fn main {
   match @env.args() {
     [_, "--self-test"] => self_test()
+    [_, "--repair-packed", root, output, rank_text] => {
+      let rank = @string.parse_int(rank_text)
+      guard rank is (0 | 1) else { fail("two-rank original model only") }
+      repair_packed(root, output, rank)
+    }
     [_, "--inspect", root] => {
       let weights = regions(root)
       let names = weights.keys().to_array()

@@ -15,13 +15,21 @@ treated as a better or more faithful numerical result. A teacher-forced request
 with the original 20 IDs plus the six native generated IDs retains this exact
 frontier. Both reference containers are stopped and both GPU owners released.
 
+The subsequent `/tmp/lunaflux-independent-glm-20261011-v4` expert-parallel run
+matches **8/8 tokens on each literal input (16/16 total)**. It preserves the
+separate original gate/up global scales and uses complete experts, matching
+native's expert partition instead of TP-splitting each intermediate sum. Both
+reference containers are stopped and GPU owners released. This closes the
+observed bounded greedy disagreement; it does not establish full-logit or
+all-input numerical equivalence. Persistent sparse-MLA FP8 KV remains a
+reference limitation.
+
 Expert decomposition also changes rounding: the ordinary TP reference splits
 the intermediate dimension, whereas the native plan partitions complete
 experts. The next isolated reference uses `--enable-expert-parallel`, retaining
 the same original-scale adapter, literal prompts and memory ceilings. Its
-results are pending; neither scale preservation nor expert-parallel startup
-alone establishes model parity. Persistent sparse-MLA FP8 KV remains an
-explicit independent-reference limitation.
+completed with the result above; neither scale preservation nor
+expert-parallel startup alone establishes model parity.
 
 DeepSeek's official `inference/convert.py` retains both full rank dictionaries
 in RAM. The test-only MoonBit counterpart,
@@ -34,13 +42,34 @@ cover both ranks, nibble preservation, row/column splits, scale blocks and
 BF16 ties. The actual checkpoint's metadata gives 36,943 tensors and
 85,397,296,888 payload bytes per rank, including 46 `wo_a` conversions and
 17,664 packed FP4 tensors. Real conversion runs under a 4-GiB/no-swap CPU unit;
-the upstream model execution/comparison is still pending.
+both real conversions completed without OOM. The initial original-CLI attempt
+`/tmp/lunaflux-deepseek-upstream-reference-20261011-v1` then failed before
+inference because the converter confused Torch's packed-byte shape with
+safetensors' logical F4 shape. A separate C++/CPython probe calls the installed
+upstream `save_file`/`load_file`: packed `[2,4]` serializes as F4 `[2,8]` with
+the **same eight payload bytes**, and loads back to the original Torch shape.
+The converter now expresses that distinction and has a regression. The new
+`--repair-packed` mode rewrites metadata and streams the unchanged payload into
+new rank directories; it never mutates the failed file or original checkpoint.
+The faithful upstream generation comparison is still pending.
+
+`scripts/run-deepseek-upstream-reference.mbtx` runs the checkpoint's unmodified
+`generate.py`, original arithmetic/config fields, MP2 and literal user text,
+changing only allocation capacities to one sequence/256 tokens. Its test-only
+C++ observer captures the original function's actual input/output token lists;
+the comparison requires identical literal inputs and excludes only the CLI's
+appended reporting EOS. The observer preserves original exceptions. Runtime
+uses the existing CX7 link (`10.0.0.1/2`) and the actual per-node NIC names,
+96-GiB/no-swap limits, and no concurrent GPU workload. The CPU observer probe
+and original CLI import/help checks pass on both Sparks; these are not GPU
+model correctness results.
 
 `scripts/prepare-deepseek-upstream-dependency.mbtx` separately prepares the
 missing original fast-Hadamard dependency in an isolated test directory. It
 changes only the dependency's setup target list to SM121 because CUDA 13 no
 longer compiles SM75; numerical source and serving images are untouched.
-This dependency build is not a production runtime dependency or a correctness
+The original SM121-targeted Hadamard wheel built successfully. This dependency
+build is not a production runtime dependency or a correctness
 pass. The upstream reference is required to remove the installed reference's
 persistent-FP8-cache and routing-rounding mismatches, not to rerun those
 mismatches and call the result faithful.

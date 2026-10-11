@@ -1,0 +1,282 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+fn node(last : Bool) -> String {
+  if last {
+    "wlc004s@192.168.2.179"
+  } else {
+    "wlc003s@192.168.2.178"
+  }
+}
+
+///|
+fn socket(last : Bool) -> String {
+  if last {
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  } else {
+    "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  }
+}
+
+///|
+fn original(last : Bool) -> String {
+  (if last {
+    "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT"
+  } else {
+    "/tmp/lunaflux-deepseek-real-20261010.dLryo68E"
+  }) +
+  "/DeepSeek-V4-Flash-DSpark"
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket(last),
+    node(last),
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn save(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn copy(last : Bool, source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket(last),
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn bounded_config(source : String) -> String raise {
+  guard @json.parse(source) is Object(fields) else {
+    fail("original model arguments required")
+  }
+  // Only allocation capacities change; every architecture/numeric field stays.
+  fields["max_batch_size"] = 1
+  fields["max_seq_len"] = 256
+  fields.to_json().stringify()
+}
+
+///|
+fn user_text(rendered : String) -> String raise {
+  let prefix = "<｜begin▁of▁sentence｜><｜User｜>"
+  let suffix = "<｜Assistant｜></think>"
+  guard rendered.has_prefix(prefix) && rendered.has_suffix(suffix) else {
+    fail("only the existing single-user chat prompt is matched here")
+  }
+  rendered[prefix.length():rendered.length() - suffix.length()].to_owned()
+}
+
+///|
+test "bounded reference preserves numerical fields and original user content" {
+  let bounded = @json.parse(
+    bounded_config(
+      "{\"dtype\":\"fp8\",\"expert_dtype\":\"fp4\",\"scale_fmt\":\"ue8m0\",\"norm_eps\":0.000001}",
+    ),
+  )
+  guard bounded is Object(fields) else { fail("config") }
+  assert_eq(fields["dtype"], "fp8")
+  assert_eq(fields["expert_dtype"], "fp4")
+  assert_eq(fields["scale_fmt"], "ue8m0")
+  assert_eq(fields["max_batch_size"], 1)
+  assert_eq(fields["max_seq_len"], 256)
+  assert_eq(
+    user_text(
+      "<｜begin▁of▁sentence｜><｜User｜>Hello<｜Assistant｜></think>",
+    ),
+    "Hello",
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-upstream-reference-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare|start|inspect NEW_OR_PREPARED_ROOT [RANK0_CHECKPOINT RANK1_CHECKPOINT]",
+    )
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let config = remote(
+      true,
+      "cat " + original(true) + "/inference/config.json",
+    )
+    save(root, "original-config", config)
+    @fs.write_file(
+      root + "/config.json",
+      bounded_config(config.stdout()),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/input.txt",
+      user_text(
+        @fs.read_file(
+          "/tmp/lunaflux-dspark-run-request-cancel-20261011-v1-input1/prompt-decoded.txt",
+        ).text(),
+      ),
+      create_mode=CreateNew,
+    )
+    let wheel = "fast_hadamard_transform-1.1.0-cp312-cp312-linux_aarch64.whl"
+    copy(
+      true,
+      node(true) +
+      ":/tmp/lunaflux-deepseek-upstream-dependency-20261011-v1/wheel/" +
+      wheel,
+      root + "/" + wheel,
+    )
+    for last in [true, false] {
+      let rank = if last { "1" } else { "0" }
+      save(root, "mkdir-" + rank, remote(last, "mkdir " + root))
+      for source in ["config.json", "input.txt", wheel] {
+        copy(last, root + "/" + source, node(last) + ":" + root + "/" + source)
+      }
+      copy(
+        last,
+        "benchmarks/checkpoint_aten_reference/aten/upstream_trace.cpp",
+        node(last) + ":" + root + "/upstream_trace.cpp",
+      )
+      let build = "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -I/usr/include/python3.12 /work/upstream_trace.cpp -o /work/upstream-observer -lpython3.12"
+      save(root, "build-" + rank, remote(last, build))
+      let install = "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint pip " +
+        image +
+        " install --no-deps --no-index --target /work/dependency /work/" +
+        wheel
+      save(root, "dependency-" + rank, remote(last, install))
+      let prefix = "docker run --rm --network none --memory 2g --memory-swap 2g -e PYTHONPATH=/work/dependency -v " +
+        root +
+        ":/work -v " +
+        original(last) +
+        ":/original:ro --entrypoint /work/upstream-observer " +
+        image
+      save(root, "observer-probe-" + rank, remote(last, prefix + " --probe"))
+      save(
+        root,
+        "original-cli-" + rank,
+        remote(last, prefix + " /original/inference/generate.py --help"),
+      )
+    }
+    println(
+      "upstream_original_cli_prepared root=" +
+      root +
+      " arithmetic_source_changed=false",
+    )
+  } else if mode == "start" {
+    guard extra is [first, second] &&
+      [first, second].all(p => {
+        p.has_prefix("/tmp/lunaflux-deepseek-") &&
+        p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+      }) else {
+      fail("converted rank directories required")
+    }
+    for last in [false, true] {
+      let owners = remote(
+        last, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else {
+        fail("GPU occupied; no overlapping reference workload")
+      }
+      save(
+        root,
+        "memory-" + (if last { "1" } else { "0" }),
+        remote(last, "free -m"),
+      )
+    }
+    for last in [true, false] {
+      let rank = if last { "1" } else { "0" }
+      let name = tag + "-" + rank
+      let command = "systemd-run --user --unit=" +
+        name +
+        " --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=3600 --property=RemainAfterExit=yes " +
+        "docker run --name " +
+        name +
+        " --pull=never --network host --ipc=host --gpus all --memory 96g --memory-swap 96g " +
+        "-e PYTHONPATH=/work/dependency -e GLOO_SOCKET_IFNAME=" +
+        (if last { "enp1s0f0np0" } else { "enp1s0f1np1" }) +
+        " -e NCCL_SOCKET_IFNAME=" +
+        (if last { "enp1s0f0np0" } else { "enp1s0f1np1" }) +
+        " -e OMP_NUM_THREADS=2 " +
+        "-v " +
+        root +
+        ":/work -v " +
+        original(last) +
+        ":/original:ro -v " +
+        (if last { second } else { first }) +
+        ":/checkpoint:ro " +
+        "--entrypoint torchrun " +
+        image +
+        " --nnodes=2 --nproc-per-node=1 --node-rank=" +
+        rank +
+        " --master-addr=10.0.0.1 --master-port=29854 --no-python " +
+        "/work/upstream-observer /original/inference/generate.py --ckpt-path /checkpoint --config /work/config.json --input-file /work/input.txt --max-new-tokens 8 --temperature 0"
+      @fs.write_file(
+        root + "/command-" + rank + ".txt",
+        command,
+        create_mode=CreateNew,
+      )
+      save(root, "start-" + rank, remote(last, command))
+    }
+  } else if mode == "inspect" {
+    for last in [false, true] {
+      let rank = if last { "1" } else { "0" }
+      let result = remote(
+        last,
+        "docker logs " +
+        tag +
+        "-" +
+        rank +
+        "; docker inspect --format '{{json .State}}' " +
+        tag +
+        "-" +
+        rank +
+        "; nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      save(root, "terminal-" + rank, result)
+      println(result.stdout())
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

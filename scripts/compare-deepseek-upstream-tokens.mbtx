@@ -1,0 +1,96 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn ids(values : Array[Json]) -> Array[Int] raise {
+  values.map(v => {
+    guard v is Number(n, ..) && n >= 0 && n < 129280 && n == n.trunc() else {
+      fail("literal vocabulary ID required")
+    }
+    n.to_int()
+  })
+}
+
+///|
+fn observed(source : String) -> (Array[Int], Array[Int]) raise {
+  let records = source
+    .split("\n")
+    .filter_map(line => {
+      let start = line.find("upstream_literal_tokens=")
+      start.map(i => line[i + 24:].to_owned())
+    })
+    .to_array()
+  guard records is [one] &&
+    @json.parse(one) is Object(fields) &&
+    fields.get("prompt_tokens") is Some(Array([Array(prompt)])) &&
+    fields.get("completion_tokens") is Some(Array([Array(output)])) else {
+    fail("one original generation record required")
+  }
+  let output = ids(output)
+  // Original generate.py appends EOS to its reporting list, even when the
+  // model exhausted max_new_tokens without producing it. Never count that
+  // harness marker as another generated/compared token.
+  guard output.last() is Some(1) else { fail("original reporting EOS missing") }
+  (ids(prompt), output[:output.length() - 1].to_owned())
+}
+
+///|
+test "upstream observer retains IDs and excludes only its reporting marker" {
+  let (prompt, output) = observed(
+    "rank0 upstream_literal_tokens={\"prompt_tokens\":[[5,223]],\"completion_tokens\":[[19923,1]]}\n",
+  )
+  assert_eq(prompt, [5, 223])
+  assert_eq(output, [19923])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native_prompt, native_output, upstream_log, report] else {
+    fail(
+      "NATIVE_PROMPT_COMMA_IDS NATIVE_OUTPUT_LINES UPSTREAM_STDOUT NEW_REPORT",
+    )
+  }
+  let prompt = @fs.read_file(native_prompt)
+    .text()
+    .trim()
+    .split(",")
+    .to_array()
+    .map(s => @string.parse_int(s))
+  let native = @fs.read_file(native_output)
+    .text()
+    .trim()
+    .split("\n")
+    .to_array()
+    .map(s => @string.parse_int(s))
+  let (reference_prompt, reference) = observed(
+    @fs.read_file(upstream_log).text(),
+  )
+  guard prompt == reference_prompt else {
+    fail(
+      "upstream rendered different literal input IDs; no differential is valid",
+    )
+  }
+  let count = native.length().min(reference.length())
+  let prefix = for i in 0..<count {
+    if native[i] != reference[i] {
+      break i
+    }
+  } nobreak {
+    count
+  }
+  let text = StringBuilder()
+  text <+
+    "scope=original_checkpoint_greedy_differential\ninput_ids_exact=true\nprompt_tokens=\{prompt.length()}\ncompared_tokens=\{count}\nshared_prefix=\{prefix}\nreporting_eos_not_counted=true\nfull_numerical_equivalence_claim=false\n"
+  for i in 0..<count {
+    text <+
+      "position=\{i} native=\{native[i]} reference=\{reference[i]} equal=\{native[i] == reference[i]} same_generated_prefix=\{i <= prefix}\n"
+  }
+  @fs.write_file(report, text.to_string(), create_mode=CreateNew)
+  println(text.to_string())
+}
