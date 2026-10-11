@@ -37,6 +37,37 @@ moon run scripts/replay-deepseek-original-hyper.mbtx run ROOT
 moon run scripts/replay-deepseek-original-hyper.mbtx collect ROOT
 ```
 
+## Actual six routed FP4 experts on a literal original FFN row
+
+The installed original hash gate routes token ID 0 using the literal original
+post-attention FFN-normalized row. Its six selected checkpoint experts and F32
+routing weights are retained in original slot order. Native execution uses the
+production precision plan (FP4/E8M0 weights, dynamic K128 FP8 activations,
+clamp 10, F32 SwiGLU product and routing before the down-input BF16 round).
+Compact expert IDs are only an offline slot remapping of those actual weights.
+
+All **12,288 gate/up activation values are bitwise identical**. Four down
+outputs are completely identical; two have one differing value each. The worst
+matched down relative L2 is **0.0150414%** (slot 4); slot 2 is 0.00000306464%.
+Propagated results agree with matched results because all preceding activation
+values match. This does not test shared-expert addition, all 144 prompt rows,
+two-rank summation or later-layer experts.
+
+Artifacts: `/tmp/lunaflux-deepseek-original-expert-20261011-v3`. Original and
+both native executions exit zero, the original is not OOM-killed, all three
+CUDA sanitizers report zero errors and GPU allocations are released. Earlier
+setup failures remain preserved: v1 omitted the quantizer error argument and
+complete block grid; v2 attempted typed shell-dtype copying unsupported by the
+installed framework. v3 copies literal checkpoint bytes through uint8 views.
+These were test-adapter errors, not production numerical fixes.
+
+```sh
+moon run scripts/replay-deepseek-original-expert.mbtx prepare NEW_ROOT EXACT_ORIGINAL_FFN_BF16 ORIGINAL_TOKEN_ID
+moon run scripts/replay-deepseek-original-expert.mbtx run ROOT
+moon run scripts/replay-deepseek-original-expert.mbtx sanitize ROOT
+moon run scripts/replay-deepseek-original-expert.mbtx collect ROOT
+```
+
 Two runner tests and three affected-package tests pass. The original adapter
 compiles with `-Wall -Wextra -Werror`; native checking passes with existing
 toolchain-migration warning exclusions. No serving dependency, hashing,
