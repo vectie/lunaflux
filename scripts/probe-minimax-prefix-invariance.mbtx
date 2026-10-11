@@ -1,0 +1,264 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// A causal prefix must not acquire future tokens. Floating-point library
+// schedules may nevertheless depend on total row count. Measure that effect
+// separately in each implementation; never call one implementation's output
+// an exact oracle for another because their shapes happen to match.
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    },
+    if last {
+      "wlc004s@192.168.2.179"
+    } else {
+      "wlc003s@192.168.2.178"
+    },
+    command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn copy(last : Bool, from : String, to : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" +
+    (if last {
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+    } else {
+      "/tmp/lunaflux-checkpoint-live-20261010.sock"
+    }),
+    from,
+    to,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn prefix(ids : Bytes, text : String, rows : Int) -> (Bytes, String) raise {
+  let tokens = text.trim().split(",").to_array()
+  guard rows > 0 &&
+    tokens.length() * 4 == ids.length() &&
+    rows <= tokens.length() else {
+    fail("literal binary/text token extents must agree")
+  }
+  (ids[:rows * 4].to_owned(), tokens[:rows].join(","))
+}
+
+///|
+test "prefix retains literal IDs without padding or retokenization" {
+  let (bytes, text) = prefix(b"\x01\x00\x00\x00\x02\x00\x00\x00", "1,2", 1)
+  assert_eq(bytes, b"\x01\x00\x00\x00")
+  assert_eq(text, "1")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root] && (mode == "prepare" || mode == "run") else {
+    fail("prepare|run NEW_PREFIX_PROBE_ROOT")
+  }
+  let stamp = root.split("/").last().unwrap().to_owned()
+  let reference = "/tmp/lunaflux-minimax-aten-reference-" + stamp
+  let config = "/tmp/lunaflux-minimax-request-config-" + stamp
+  let aot = "/tmp/lunaflux-minimax-request-aot-" + stamp
+  let native = "/tmp/lunaflux-minimax-text-encoder-" + stamp
+  let build = "/tmp/lunaflux-checkpoint-build-encoder-laws-20261011-v1/source/_build/native/release/build/cmd/minimax_checkpoint/minimax_checkpoint.exe"
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let corpus = "/private/tmp/lunaflux-reference-minimax-corpus-20261011-v1/long-input.frames"
+    let (ids, text) = prefix(
+      @fs.read_file(corpus + "/input-ids.i32").binary(),
+      @fs.read_file(corpus + "/tokens.txt").text(),
+      6,
+    )
+    @fs.write_file(root + "/ids.i32", ids, create_mode=CreateNew)
+    @fs.write_file(root + "/tokens.txt", text, create_mode=CreateNew)
+    @fs.mkdir(config)
+    @fs.mkdir(config + "/aot")
+    record(root, "mkdir-config", remote(false, "mkdir -p " + config + "/aot"))
+    let metadata = "/tmp/lunaflux-minimax-request-config-lunaflux-minimax-diverse-20261011-v2-long-input#label=d2dd0c60d01b9e195d9447c52da61c7302d28828524914c044d9c6e1b81d0427"
+    record(
+      root,
+      "export",
+      remote(
+        false,
+        "systemd-run --user --wait --pipe --unit=" +
+        stamp +
+        "-export --property=MemoryMax=2G --property=MemorySwapMax=0 " +
+        build +
+        " export-request " +
+        metadata +
+        " 32 32 120 5 6 256 64 4096 8589934592 " +
+        config +
+        "/aot",
+      ),
+    )
+    for file in ["SOURCES.v1", "text.cu"] {
+      copy(
+        false,
+        "wlc003s@192.168.2.178:" + config + "/aot/" + file,
+        config + "/aot/" + file,
+      )
+    }
+    record(
+      root,
+      "compile",
+      @shell.Cmd("moon", [
+        "run", "scripts/compile-minimax-request.mbtx", config, aot, stamp, "text",
+      ]).output(max_output_bytes=4194304),
+    )
+    record(
+      root,
+      "mkdir-native",
+      remote(true, "mkdir " + root + "; mkdir " + aot + "; mkdir " + reference),
+    )
+    copy(
+      false,
+      "wlc003s@192.168.2.178:" + build,
+      root + "/minimax_checkpoint.exe",
+    )
+    copy(
+      true,
+      root + "/minimax_checkpoint.exe",
+      "wlc004s@192.168.2.179:" + root + "/minimax_checkpoint.exe",
+    )
+    for file in ["SOURCES.v1", "text.cubin"] {
+      copy(true, aot + "/" + file, "wlc004s@192.168.2.179:" + aot + "/" + file)
+    }
+    @fs.mkdir(reference)
+    let existing = "/tmp/lunaflux-minimax-aten-reference-gate-input-20261011-v1"
+    record(
+      root,
+      "reuse-reference",
+      remote(
+        true,
+        "cp " +
+        existing +
+        "/driver.exe " +
+        existing +
+        "/libreference.so " +
+        reference +
+        "/",
+      ),
+    )
+    @fs.write_file(
+      reference + "/REFERENCE.txt",
+      "unchanged_reference=" + existing + "\n",
+      create_mode=CreateNew,
+    )
+    for
+      (name, source) in [
+        (
+          "native-full-prefix.bf16", "/tmp/lunaflux-minimax-text-encoder-lunaflux-minimax-source-norm-20261011-v2-long-input/hidden.bf16",
+        ),
+        (
+          "reference-full-prefix.bf16", "/tmp/lunaflux-minimax-aten-reference-lunaflux-minimax-diverse-20261011-v2-long-input/encode/hidden-50.bf16",
+        ),
+      ] {
+      @fs.write_file(
+        root + "/" + name,
+        @fs.read_file(source).binary()[:6 * 10240].to_owned(),
+        create_mode=CreateNew,
+      )
+    }
+    println(
+      "literal_prefix_prepared rows=6 parent_rows=140 no_future_tokens=true",
+    )
+  } else {
+    record(
+      root,
+      "native",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/run-minimax-text-encoder.mbtx",
+        native,
+        stamp,
+        root + "/minimax_checkpoint.exe",
+        "/tmp/lunaflux-minimax-text-upload-20261010-v2-179",
+        aot,
+        "179",
+        root + "/ids.i32",
+      ]).output(max_output_bytes=4194304),
+    )
+    record(
+      root,
+      "reference",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/run-minimax-aten-reference.mbtx",
+        "encode",
+        reference,
+        root + "/tokens.txt",
+      ]).output(max_output_bytes=4194304),
+    )
+    record(
+      root,
+      "collect",
+      @shell.Cmd("moon", [
+        "run", "scripts/run-minimax-aten-reference.mbtx", "collect", reference,
+      ]).output(max_output_bytes=4194304),
+    )
+    for
+      (name, short, full) in [
+        (
+          "native-shape",
+          native + "/hidden.bf16",
+          root + "/native-full-prefix.bf16",
+        ),
+        (
+          "reference-shape",
+          reference + "/encode/hidden-50.bf16",
+          root + "/reference-full-prefix.bf16",
+        ),
+        (
+          "matched-prefix",
+          native + "/hidden.bf16",
+          reference + "/encode/hidden-50.bf16",
+        ),
+      ] {
+      record(
+        root,
+        name,
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          short,
+          full,
+          root + "/" + name + ".txt",
+          name,
+        ]).output(max_output_bytes=65536),
+      )
+    }
+  }
+}

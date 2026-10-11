@@ -81,8 +81,8 @@ test "export bounded actual normalization lowering for independent GPU oracle" {
   println("LUNA_TEXT_NORM_BEGIN")
   for
     (name, law) in [
-      ("ordered", @precision.OrderedFloat32),
-      ("compensated", @precision.CompensatedFloat32),
+      ("ordered", @precision.SquareReductionLaw::OrderedFloat32),
+      ("compensated", @precision.SquareReductionLaw::CompensatedFloat32),
     ] {
     println(
       @utf8.decode(
