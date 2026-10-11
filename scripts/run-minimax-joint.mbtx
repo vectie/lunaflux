@@ -127,8 +127,34 @@ test "joint replay supplies an explicit seed without changing default controls" 
 }
 
 ///|
+fn capture_arguments(args : ArrayView[String]) -> (ArrayView[String], Bool) raise {
+  if args is [.. rest, "--capture-final-latents"] {
+    guard !rest.contains("--capture-final-latents") else { fail("duplicate capture option") }
+    (rest, true)
+  } else {
+    guard !args.contains("--capture-final-latents") else { fail("capture option must be final") }
+    (args, false)
+  }
+}
+
+///|
+test "latent readback is diagnostic opt-in and retains other controls" {
+  let base = ["script", "root", "suffix", "build", "aot", "encoded", "--seed", "17"]
+  assert_false(capture_arguments(base).1)
+  let captured = base.copy()
+  captured.push("--capture-final-latents")
+  let (plain, enabled) = capture_arguments(captured)
+  assert_true(enabled)
+  assert_eq(plain.to_owned(), base)
+  for args in [["--capture-final-latents", "unexpected"], ["--capture-final-latents", "--capture-final-latents"]] {
+    try capture_arguments(args) catch { _ => () } noraise { _ => fail("invalid capture controls") }
+  }
+}
+
+///|
 async fn main {
-  let (seed_args, seed) = seed_arguments(@env.args())
+  let (capture_args, capture_latents) = capture_arguments(@env.args())
+  let (seed_args, seed) = seed_arguments(capture_args)
   let (args, cancel_after_frames) = cancellation_arguments(seed_args)
   guard args is [_, root, suffix, build, aot, encoded] &&
     root.has_prefix("/tmp/lunaflux-minimax-joint-") &&
@@ -253,7 +279,7 @@ async fn main {
     root +
     "/run.stderr " +
     binary +
-    " run-joint " +
+    (if capture_latents { " run-joint-latents " } else { " run-joint " }) +
     variant +
     " 32 32 120 5 " +
     rows.to_string() +
@@ -283,6 +309,7 @@ async fn main {
     "\ncancel_after_frames=" +
     cancel_after_frames.to_string() +
     "\nseed=" + seed.to_string() +
+    "\nterminal_latent_capture=" + capture_latents.to_string() +
     "\nmaximum_device_bytes=103079215104\npayload_hashing=false\nstatus=dispatched-not-complete\n",
     create_mode=CreateNew,
   )

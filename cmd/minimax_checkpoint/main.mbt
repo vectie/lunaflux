@@ -61,14 +61,17 @@ async fn main {
       (mode == "text-ids" && tail.length() == 4) ||
       (mode == "decode-audio" && tail.length() == 9) ||
       (mode == "decode-video" && tail.length() == 12) ||
-      (mode == "run-joint" && tail.length() == 18) ||
+      (
+        (mode == "run-joint" || mode == "run-joint-latents") &&
+        tail.length() == 18
+      ) ||
       (
         (mode == "inspect-component" || mode == "prepare-component") &&
         tail.length() == 4
       )
     ) else {
     fail(
-      "text-ids VARIANT_ROOT TOKENIZER_LABEL INPUT_UTF8_FILE NEW_OUTPUT_DIRECTORY MAX_TOKENS | run-joint VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TEXT_ROWS ENCODED_BF16 ROTARY_F32 AOT_DIRECTORY DENOISER_INVENTORY AUDIO_INVENTORY VIDEO_INVENTORY TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT DEVICE_LIMIT SEED OUTPUT_DIRECTORY | export-request VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TEXT_ROWS TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT OUTPUT_DIRECTORY | encode-text VARIANT_ROOT INVENTORY TEXT_ROWS INPUT_IDS_I32 AOT_DIRECTORY OUTPUT_BF16 COMPONENT_LIMIT DEVICE_LIMIT | encode-text-layers VARIANT_ROOT INVENTORY TEXT_ROWS INPUT_IDS_I32 AOT_DIRECTORY NEW_OUTPUT_DIRECTORY COMPONENT_LIMIT DEVICE_LIMIT HOST_CAPTURE_LIMIT | " +
+      "text-ids VARIANT_ROOT TOKENIZER_LABEL INPUT_UTF8_FILE NEW_OUTPUT_DIRECTORY MAX_TOKENS | run-joint|run-joint-latents VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TEXT_ROWS ENCODED_BF16 ROTARY_F32 AOT_DIRECTORY DENOISER_INVENTORY AUDIO_INVENTORY VIDEO_INVENTORY TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT DEVICE_LIMIT SEED OUTPUT_DIRECTORY | export-request VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TEXT_ROWS TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT OUTPUT_DIRECTORY | encode-text VARIANT_ROOT INVENTORY TEXT_ROWS INPUT_IDS_I32 AOT_DIRECTORY OUTPUT_BF16 COMPONENT_LIMIT DEVICE_LIMIT | encode-text-layers VARIANT_ROOT INVENTORY TEXT_ROWS INPUT_IDS_I32 AOT_DIRECTORY NEW_OUTPUT_DIRECTORY COMPONENT_LIMIT DEVICE_LIMIT HOST_CAPTURE_LIMIT | " +
       "encode-text-operators VARIANT_ROOT INVENTORY TEXT_ROWS INPUT_IDS_I32 AOT_DIRECTORY NEW_OUTPUT_DIRECTORY COMPONENT_LIMIT DEVICE_LIMIT HOST_CAPTURE_LIMIT | config|weight-plan|audio-config|video-config VARIANT_ROOT | export-audio|audio-memory VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS OUTPUT_DIRECTORY_OR_WORKSPACE_LIMIT | export-video VARIANT_ROOT HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES WORKSPACE_LIMIT OUTPUT_DIRECTORY | decode-audio VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | decode-video VARIANT_ROOT INVENTORY HEIGHT WIDTH FRAMES STEPS TILE_SIZE OVERLAP MAX_TILES AOT_DIRECTORY INPUT_F32 OUTPUT_F32 DEVICE_BYTE_LIMIT | inspect-component|prepare-component VARIANT_ROOT COMPONENT SHA256_INVENTORY_RELATIVE_TO_VARIANT COMPONENT_BYTE_LIMIT DEVICE_BYTE_LIMIT",
     )
   }
@@ -117,8 +120,16 @@ async fn main {
     )
     return
   }
-  if mode == "run-joint" {
-    run_joint(root_name, root, metadata, plan, tail, cancel_after_frames~)
+  if mode == "run-joint" || mode == "run-joint-latents" {
+    run_joint(
+      root_name,
+      root,
+      metadata,
+      plan,
+      tail,
+      cancel_after_frames~,
+      capture_latents=mode == "run-joint-latents",
+    )
     return
   }
   if mode == "video-config" || mode == "export-video" {

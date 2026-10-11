@@ -9,6 +9,11 @@ test "joint cancellation options are explicit and rejected before model access" 
   let (plain, count) = joint_cancellation_arguments(explicit)
   assert_eq(plain.to_owned(), ordinary)
   assert_eq(count, 2)
+  let capture = [
+    "exe", "run-joint-latents", "/missing-model", "--cancel-request", "0", "--after-steps",
+    "2",
+  ]
+  assert_eq(joint_cancellation_arguments(capture).1, 2)
   for
     arguments in [
       ["exe", "run-joint", "/x", "--cancel-request", "1", "--after-steps", "2"],

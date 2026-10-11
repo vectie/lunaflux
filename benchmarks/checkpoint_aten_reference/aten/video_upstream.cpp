@@ -16,7 +16,39 @@ static PyObject* tensor(PyObject *torch,PyObject *values) {
   Owned kwargs(Py_BuildValue("{s:s}","device","cuda"));
   return fn.p&&args.p&&kwargs.p?PyObject_Call(fn.p,args.p,kwargs.p):nullptr;
 }
-static int execute(const char *root,const char *destination) {
+// The joint diagnostic exports standardized canonical NCTHW, not decoder
+// activations or destandardized latents. Loading stays CPU-only until replay.
+static PyObject *read_latent(PyObject *torch,const char *path) {
+  std::ifstream stream(path,std::ios::binary);
+  if(!stream){PyErr_SetString(PyExc_OSError,"latent input cannot be opened");return nullptr;}
+  std::string payload((std::istreambuf_iterator<char>(stream)),{});
+  if(payload.size()!=24*37*2*2*sizeof(float)) {
+    PyErr_SetString(PyExc_ValueError,"expected F32 standardized latent [1,24,37,2,2]");return nullptr;
+  }
+  Owned buffer(PyByteArray_FromStringAndSize(payload.data(),payload.size()));
+  Owned fn(PyObject_GetAttrString(torch,"frombuffer")),f32(PyObject_GetAttrString(torch,"float32"));
+  Owned args(buffer.p?PyTuple_Pack(1,buffer.p):nullptr),kwargs(f32.p?Py_BuildValue("{s:O}","dtype",f32.p):nullptr);
+  Owned view(fn.p&&args.p&&kwargs.p?PyObject_Call(fn.p,args.p,kwargs.p):nullptr);
+  // Clone before releasing the owning bytearray; no borrowed storage escapes.
+  Owned owned(view.p?PyObject_CallMethod(view.p,"clone",nullptr):nullptr);
+  return owned.p?PyObject_CallMethod(owned.p,"view","iiiii",1,24,37,2,2):nullptr;
+}
+static int input_probe(const char *path) {
+  Owned torch(PyImport_ImportModule("torch"));
+  Owned input(torch.p?read_latent(torch.p,path):nullptr);
+  Owned array(input.p?PyObject_CallMethod(input.p,"numpy",nullptr):nullptr);
+  Owned bytes(array.p?PyObject_CallMethod(array.p,"tobytes",nullptr):nullptr);
+  if(!bytes.p)return -1;
+  std::ifstream stream(path,std::ios::binary);
+  std::string payload((std::istreambuf_iterator<char>(stream)),{});
+  if(payload.size()!=static_cast<size_t>(PyBytes_Size(bytes.p))||
+     payload!=std::string(PyBytes_AsString(bytes.p),PyBytes_Size(bytes.p))) {
+    PyErr_SetString(PyExc_AssertionError,"canonical latent loader changed F32 bytes");return -1;
+  }
+  std::puts("original_video_latent_input_probe_passed cpu_only=true shape=NCTHW bytes_unchanged=true");
+  return 0;
+}
+static int execute(const char *root,const char *destination,const char *source) {
   auto *paths=PySys_GetObject("path");
   Owned directory(PyUnicode_FromString(root));
   if(!paths||!directory.p||PyList_Insert(paths,0,directory.p)<0)return -1;
@@ -42,7 +74,9 @@ static int execute(const char *root,const char *destination) {
   Owned zeros(PyObject_GetAttrString(torch.p,"zeros"));
   Owned f32(PyObject_GetAttrString(torch.p,"float32"));
   Owned kwargs(Py_BuildValue("{s:s,s:O}","device","cuda","dtype",f32.p));
-  Owned input(zeros.p?PyObject_Call(zeros.p,args.p,kwargs.p):nullptr);
+  Owned cpu_input(source?read_latent(torch.p,source):nullptr);
+  Owned input(source?(cpu_input.p?PyObject_CallMethod(cpu_input.p,"to","s","cuda"):nullptr):
+    (zeros.p?PyObject_Call(zeros.p,args.p,kwargs.p):nullptr));
   Owned scaled(input.p&&std_view.p?PyNumber_Multiply(input.p,std_view.p):nullptr);
   Owned latent(scaled.p&&mean_view.p?PyNumber_Add(scaled.p,mean_view.p):nullptr);
   if(!latent.p)return -1;
@@ -76,14 +110,15 @@ static int execute(const char *root,const char *destination) {
   const bool written=std::fwrite(PyBytes_AsString(bytes.p),1,count,file)==static_cast<size_t>(count);
   const bool closed=std::fclose(file)==0;
   if(!written||!closed)return -1;
-  std::printf("original_video_vae=true standardized_zero_latent=[1,24,37,2,2] autocast=float16 output_shape=%s output_bytes=%zd\n",PyUnicode_AsUTF8(repr.p),count);
+  std::printf("original_video_vae=true standardized_latent=[1,24,37,2,2] latent_input=%s autocast=float16 output_shape=%s output_bytes=%zd\n",source?source:"zero",PyUnicode_AsUTF8(repr.p),count);
   Owned exited(PyObject_CallMethod(inference.p,"__exit__","OOO",Py_None,Py_None,Py_None));
   return exited.p?0:-1;
 }
 int main(int argc,char **argv) {
-  if(argc!=3){std::fputs("ORIGINAL_SOURCE_ROOT NEW_PIXELS_F32\n",stderr);return 2;}
+  if(argc!=3&&argc!=4){std::fputs("ORIGINAL_SOURCE_ROOT NEW_PIXELS_F32 [CANONICAL_STANDARDIZED_LATENT_F32] | --input-probe LATENT_F32\n",stderr);return 2;}
   Py_Initialize();
-  const int result=execute(argv[1],argv[2]);
+  const int result=std::string(argv[1])=="--input-probe"?
+    input_probe(argv[2]):execute(argv[1],argv[2],argc==4?argv[3]:nullptr);
   if(PyErr_Occurred())PyErr_Print();
   const int finalized=Py_FinalizeEx();
   return result||finalized<0?1:0;

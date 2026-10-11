@@ -10,6 +10,7 @@ async fn run_joint(
   model : @joint.JointDiffusionPlan,
   args : ArrayView[String],
   cancel_after_frames~ : Int,
+  capture_latents~ : Bool,
 ) -> Unit {
   let layout = joint_layout(root, metadata, model, args)
   let limit = @string.parse_int64(args[15])
@@ -334,6 +335,33 @@ async fn run_joint(
     a.copy_to_host(0L, layout.audio.memory().output_bytes)
   })
   @fs.mkdir(args[17])
+  if capture_latents {
+    // Diagnostic-only terminal readback. The prepared decoder consumes packed
+    // state directly; boundary arena regions are not assumed to be populated.
+    // Use the same pure layout's inverse permutation to expose canonical
+    // standardized latents, before mean/std conversion, for original VAE replay.
+    for
+      (name, boundary) in [
+        ("video-latent.f32", @loop.LatentBoundary::UnpackVideoOutput),
+        ("audio-latent.f32", @loop.LatentBoundary::UnpackAudioOutput),
+      ] {
+      let transfer = layout.storage.boundary(boundary)
+      let packed = storage.copy_to_host(transfer.input)
+      let canonical = unpack_joint_latent(packed, transfer.permutation)
+      @fs.write_file(
+        args[17] + "/" + name,
+        canonical,
+        create_mode=CreateNew,
+        sync=Full,
+      )
+    }
+    @fs.write_file(
+      args[17] + "/LATENTS.txt",
+      "terminal_only=true\nstandardized=true\nvideo_layout=NCTHW\naudio_layout=stereo-channel-time\n",
+      create_mode=CreateNew,
+      sync=Full,
+    )
+  }
   @fs.write_file(
     args[17] + "/video.f32",
     pixels,

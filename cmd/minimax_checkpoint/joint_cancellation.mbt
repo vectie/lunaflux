@@ -10,8 +10,8 @@ fn joint_cancellation_arguments(
   match cancellation {
     None => (plain, 0)
     Some(plan) => {
-      guard plain is [_, "run-joint", _, ..] else {
-        fail("request cancellation is supported only by run-joint")
+      guard plain is [_, "run-joint" | "run-joint-latents", _, ..] else {
+        fail("request cancellation is supported only by joint execution")
       }
       plan.validate_request_count(1)
       (plain, plan.after_steps_for(0))

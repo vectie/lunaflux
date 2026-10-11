@@ -32,6 +32,7 @@ import {
   "vectie/lunaflux/integration/minimax_h3_text_encoder" @text_execution,
   "vectie/lunaflux/integration/checkpoint_text_input" @text_input,
   "vectie/lunaflux/integration/serial_prompt_file" @prompt_file,
+  "vectie/lunaflux/kernels/dense_permutation_plan" @permutation,
 }
 
 supported_targets = "native"

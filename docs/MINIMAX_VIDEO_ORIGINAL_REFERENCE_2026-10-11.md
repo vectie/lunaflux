@@ -39,3 +39,27 @@ Those require actual denoising inputs and independently assessed generated
 media. The earlier 32×32/five-step colored output is not a quality acceptance
 result. No acceptance threshold, runtime hashing, TLS or deployment hardening
 was added.
+
+## Generated-latent differential replay
+
+`run-joint-latents` is an opt-in checkpoint diagnostic, not a serving path.
+After successful terminal GPU completion it reads the final packed video/audio
+states and applies the storage planner's existing inverse permutations on CPU.
+It writes canonical **standardized** F32 latents beside the final media, before
+mean/std conversion. The boundary arena is not assumed populated. Default
+`run-joint` performs no extra readback; cancelled requests publish no latents.
+Permutation regressions preserve all F32 bits for video patch and stereo layouts.
+
+The original VideoVAE bridge can now consume that exact canonical video latent
+instead of zeros. It still calls original decode/processor math under FP16
+autocast; its CPU-only input probe verifies byte preservation and ownership.
+The probe passes on Spark `.179` at
+`/tmp/lunaflux-minimax-upstream-video-input-20261011-v1` (zero fixture, not a
+generated-latent result). No full encoder/denoiser/decoder equivalence is implied.
+
+Use the final `--capture-final-latents` option with
+`scripts/run-minimax-joint.mbtx`, then prepare a **new** original reference root
+with `scripts/run-minimax-upstream-video.mbtx prepare ROOT VIDEO_LATENT_F32`.
+Capturing the actual denoiser output is necessary to distinguish encoder/denoiser
+errors from decoder errors and to inspect media honestly. A 32×32/five-step
+smoke run remains inadequate for semantic quality acceptance.

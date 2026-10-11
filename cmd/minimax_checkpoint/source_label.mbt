@@ -59,7 +59,7 @@ fn checkpoint_label(
     | "decode-audio"
     | "decode-video" => Some(arguments[0])
     "inspect-component" | "prepare-component" => Some(arguments[1])
-    "run-joint" => Some(arguments[8])
+    "run-joint" | "run-joint-latents" => Some(arguments[8])
     _ => None
   }
   if selected is Some(name) {
