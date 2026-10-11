@@ -64,6 +64,50 @@ async fn transfer(last : Bool, source : String, destination : String) -> Unit {
 }
 
 ///|
+fn replay_options(options : ArrayView[String]) -> (Int, Int, Int) raise {
+  let (generation, rows) = if options is [.. rest, "--prefill-rows", rows] {
+    (rest, @string.parse_int(rows))
+  } else {
+    (options, 6)
+  }
+  let (maximum, stop) = match generation {
+    [] => (16, -1)
+    [maximum, stop] => (@string.parse_int(maximum), @string.parse_int(stop))
+    _ =>
+      fail(
+        "generation requires a limit and stop token, then optional --prefill-rows",
+      )
+  }
+  guard maximum > 0 && maximum <= 255 && stop >= -1 && rows > 0 && rows <= 6 else {
+    fail("invalid generation or logical prefill envelope")
+  }
+  (maximum, stop, rows)
+}
+
+///|
+test "logical prefill partition changes neither physical capacity nor defaults" {
+  assert_eq(replay_options([]), (16, -1, 6))
+  assert_eq(replay_options(["8", "1"]), (8, 1, 6))
+  assert_eq(replay_options(["8", "1", "--prefill-rows", "1"]), (8, 1, 1))
+  assert_eq(replay_options(["--prefill-rows", "3"]), (16, -1, 3))
+  for
+    options in [
+      ["--prefill-rows"],
+      ["--prefill-rows", "0"],
+      ["--prefill-rows", "7"],
+      ["8"],
+      ["0", "1"],
+      ["8", "1", "--prefill-rows", "1", "--prefill-rows", "2"],
+    ] {
+    try replay_options(options) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid logical prefill options accepted")
+    }
+  }
+}
+
+///|
 async fn main {
   guard @env.args()
     is [_, root, suffix, build, commit, prior, input, .. generation] &&
@@ -79,17 +123,10 @@ async fn main {
     commit.length() == 40 &&
     commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) else {
     fail(
-      "NEW_LOCAL_ROOT SUFFIX COMMITTED_BUILD COMMIT EXISTING_SIX_ROW_AOT_ROOT INPUT_UTF8_FILE [MAXIMUM_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE]",
+      "NEW_LOCAL_ROOT SUFFIX COMMITTED_BUILD COMMIT EXISTING_SIX_ROW_AOT_ROOT INPUT_UTF8_FILE [MAXIMUM_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE] [--prefill-rows 1..6]",
     )
   }
-  let (maximum, stop) = match generation {
-    [] => (16, -1)
-    [maximum, stop] => (@string.parse_int(maximum), @string.parse_int(stop))
-    _ => fail("generation requires exactly a limit and stop token")
-  }
-  guard maximum > 0 && maximum <= 255 && stop >= -1 else {
-    fail("invalid generation envelope")
-  }
+  let (maximum, stop, prefill_rows) = replay_options(generation)
   // CPU-only preparation: reuse unchanged, already-compiled six-row/context-256
   // device kernels for a frontend-only source change. This never authenticates
   // their bytes or claims fresh compiler qualification. Runtime checks ABI/shape.
@@ -152,7 +189,8 @@ async fn main {
     remote_root +
     "/deepseek_checkpoint.exe text-frames " +
     "/tmp/lunaflux-deepseek-real-20261010.dLryo68E/DeepSeek-V4-Flash-DSpark " +
-    "6 256 " +
+    prefill_rows.to_string() +
+    " 256 " +
     "a".repeat(64) +
     " " +
     remote_root +
@@ -168,8 +206,8 @@ async fn main {
     fail("missing prompt frame count")
   }
   let count = @string.parse_int(frame_field[14:])
-  guard count > 0 && count <= 43 else {
-    fail("invalid six-row prompt envelope")
+  guard count > 0 && count <= (255 + prefill_rows - 1) / prefill_rows else {
+    fail("invalid logical prefill prompt envelope")
   }
   transfer(
     false,
@@ -193,6 +231,8 @@ async fn main {
     build +
     "\naot_origin=" +
     prior +
+    "\nphysical_rows=6\nlogical_prefill_rows=" +
+    prefill_rows.to_string() +
     "\nprompt_directory=prompt-text\nprefill_count=" +
     count.to_string() +
     "\nmaximum_new_tokens=" +

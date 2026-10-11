@@ -88,5 +88,15 @@ Reports `NATIVE_VS_TOKEN_PREFILL.txt` and `TOKEN_VS_WHOLE_PREFILL.txt` preserve 
 129,280-value comparisons; no production execution or acceptance threshold was
 changed for this experiment.
 
+The native frontend replay now supports an explicit `--prefill-rows 1..6`
+diagnostic partition. This changes only logical prompt frames: the unchanged
+six-row AOT allocation/execution capacity still accommodates DSpark's five-row
+verification block. It must not be described as a newly compiled one-row kernel.
+The one-row native campaign is prepared at
+`/tmp/lunaflux-dspark-run-token-prefill-20261011-v1` with the same corrected
+`4ecd2040` binary/AOT and all 144 literal IDs. CPU generation preflight passes
+for eight new tokens and stop token one; GPU comparison is pending while the
+independent MiniMax capture owns `.178`. Preparation does not initialize CUDA.
+
 The complete local native suite after this change passed **4,997/4,997**, using
 the existing toolchain-migration warning exclusions `-20-25-29-35-79-92`.
