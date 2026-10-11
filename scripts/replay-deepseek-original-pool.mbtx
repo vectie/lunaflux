@@ -34,14 +34,14 @@ async fn upload(source : String, destination : String) -> Unit {
 fn stages(ratio : Int) -> Array[(String, Int)] {
   let channels = if ratio == 4 { 1024 } else { 512 }
   [("wkv-projection.f32", 144 * channels * 4), ("wgate-projection.f32", 144 * channels * 4),
-    ("pooled.bf16", 144 / ratio * 512 * 2), ("normalized.bf16", 144 / ratio * 512 * 2)]
+    ("pooled.bf16", 144 / ratio * 512 * 2), ("normalized.bf16", 144 / ratio * 512 * 2),
+    ("transformed.bf16", 144 / ratio * 512 * 2)]
 }
 ///|
 fn parameters(ratio : Int) -> Array[(String, Int)] {
   let channels = if ratio == 4 { 1024 } else { 512 }
   [("wkv.bf16", channels * 4096 * 2), ("wgate.bf16", channels * 4096 * 2),
-    ("ape.f32", ratio * channels * 4), ("norm.bf16", 1024),
-    ("transformed.bf16", 144 / ratio * 1024)]
+    ("ape.f32", ratio * channels * 4), ("norm.bf16", 1024)]
 }
 ///|
 test "pool replay separates original staged operands and both compression ratios" {
@@ -49,6 +49,8 @@ test "pool replay separates original staged operands and both compression ratios
   assert_eq(stages(128)[2], ("pooled.bf16", 1024))
   assert_eq(parameters(4)[2], ("ape.f32", 16384))
   assert_eq(parameters(128)[2], ("ape.f32", 262144))
+  assert_eq(stages(4)[4], ("transformed.bf16", 36864))
+  assert_eq(stages(128)[4], ("transformed.bf16", 1024))
 }
 ///|
 fn input_options(options : ArrayView[String]) -> (String, Bool) raise {

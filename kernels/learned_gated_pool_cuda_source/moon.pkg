@@ -8,6 +8,7 @@ import {
   "moonbitlang/core/env",
   "moonbitlang/async",
   "moonbitlang/async/fs",
+  "vectie/lunaflux/kernels/rotary_kv_cuda_source" @rotary_source,
 } for "test"
 
 supported_targets = "native"

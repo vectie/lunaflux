@@ -41,6 +41,19 @@ moon run scripts/replay-deepseek-original-router.mbtx collect ROOT
 
 ## Learned compression corpus qualification
 
+The `pool-cache-20261011-v1` incremental replay now continues through the
+original compressor's YaRN rotary and UE8M0 cache simulation. Its matched
+transform consumes the **literal original normalized tensors**, not native
+normalizations. Both ratios are bitwise exact: 18,432/18,432 ratio-4 values
+and 512/512 ratio-128 values. Propagating native projections, pooling and
+normalization leaves one ratio-4 transformed value different (relative L2
+0.000418077%, maximum 0.00048828125); ratio-128 remains exact. All six
+incremental sanitizer runs report zero errors with deterministic release.
+The separate full-prompt `pool-cache-full-20261011-v1` produces the same
+native propagated transformed bytes for both ratios. This closes the cache
+transform portion of this corpus replay, **not full compressed-layer or
+two-rank model correctness**. It does not explain the retained-state gap.
+
 The follow-up `pool-incremental-20261011-v1` runs the same 144 literal rows as
 144 one-row submissions, retaining original and native compression state.
 Matched pools are exact for both ratios; ratio-4 matched norm still differs at
@@ -67,9 +80,10 @@ this qualifies component geometry and arithmetic, not later-layer alignment.
 | Norm, native projections propagated | 18,429 / 18,432 | 0.001725301% | 512 / 512 |
 
 Both projection comparisons have F32 relative L2 below 0.000065%; the largest
-absolute difference is 0.00001192093. Rotary/cache quantization after norm,
-incremental compression across multiple submissions and full two-rank
-propagation are excluded. This does not explain the retained 18–21% state gap.
+absolute difference is 0.00001192093. The original full-prompt replay stopped
+before rotary/cache quantization; the follow-ups above cover those operations
+and incremental submissions. Full two-rank propagation remains excluded.
+This does not explain the retained 18–21% state gap.
 
 Artifacts: `/tmp/lunaflux-deepseek-original-pool-20261011-v1`. Original and
 native runs exit zero, original containers report `OOMKilled=false`, and both

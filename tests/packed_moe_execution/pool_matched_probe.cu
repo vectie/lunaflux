@@ -46,9 +46,11 @@ int main(int argc,char **argv) {
   auto *kv=allocate<float>(rows*pool_channels),*scores=allocate<float>(rows*pool_channels);
   auto *kv_state=allocate<float>(pool_state_rows*pool_channels),*score_state=allocate<float>(pool_state_rows*pool_channels);
   auto *pooled=allocate<__nv_bfloat16>((completed+1)*512),*normalized=allocate<__nv_bfloat16>((completed+1)*512);
+  auto *transformed=allocate<__nv_bfloat16>((completed+1)*512);
   auto *original_kv=matched?load<float>(input+"/wkv-projection.f32",rows*pool_channels):nullptr;
   auto *original_scores=matched?load<float>(input+"/wgate-projection.f32",rows*pool_channels):nullptr;
   auto *original_pooled=matched?load<__nv_bfloat16>(input+"/pooled.bf16",completed*512):nullptr;
+  auto *original_normalized=matched?load<__nv_bfloat16>(input+"/normalized.bf16",completed*512):nullptr;
   const int chunk=incremental?1:rows;
   int published=0;
   for(int base=0;base<rows;base+=chunk) {
@@ -61,7 +63,13 @@ int main(int argc,char **argv) {
       (matched?original_kv:kv)+base*pool_channels,(matched?original_scores:scores)+base*pool_channels,
       ape,kv_state,score_state,pooled+published*512);
     const int produced=(base+chunk)/pool_ratio-base/pool_ratio;
-    if(produced)matched_pool_norm<<<produced,256>>>(append,(matched?original_pooled:pooled)+published*512,norm,normalized+published*512);
+    if(produced){
+      matched_pool_norm<<<produced,256>>>(append,(matched?original_pooled:pooled)+published*512,norm,normalized+published*512);
+      matched_cache_rotary<<<produced,256>>>(output_counts,output_positions,
+        reinterpret_cast<uint16_t*>((matched?original_normalized:normalized)+published*512),
+        reinterpret_cast<uint16_t*>(transformed+published*512));
+      matched_cache_simulate<<<dim3(produced,7),64>>>(output_counts,transformed+published*512);
+    }
     matched_pool_publish<<<1,1>>>(append,history);
     check(cudaGetLastError());check(cudaDeviceSynchronize());
     published+=produced;
@@ -69,11 +77,12 @@ int main(int argc,char **argv) {
   if(published!=completed)return 5;
   save(kv,rows*pool_channels,out+"/wkv-projection.f32");save(scores,rows*pool_channels,out+"/wgate-projection.f32");
   save(pooled,completed*512,out+"/pooled.bf16");save(normalized,completed*512,out+"/normalized.bf16");
+  save(transformed,completed*512,out+"/transformed.bf16");
   int host_history[2];check(cudaMemcpy(host_history,history,sizeof(host_history),cudaMemcpyDeviceToHost));
   if(host_history[0]!=rows||host_history[1])return 5;
   for(void *p:{(void*)x,(void*)wkv,(void*)wgate,(void*)ape,(void*)norm,(void*)counts,(void*)positions,
     (void*)reset,(void*)history,(void*)append,(void*)output_counts,(void*)output_positions,(void*)kv,
-    (void*)scores,(void*)kv_state,(void*)score_state,(void*)pooled,(void*)normalized})check(cudaFree(p));
-  if(matched){check(cudaFree(original_kv));check(cudaFree(original_scores));check(cudaFree(original_pooled));}
+    (void*)scores,(void*)kv_state,(void*)score_state,(void*)pooled,(void*)normalized,(void*)transformed})check(cudaFree(p));
+  if(matched){check(cudaFree(original_kv));check(cudaFree(original_scores));check(cudaFree(original_pooled));check(cudaFree(original_normalized));}
   std::printf("native_pool_complete ratio=%d rows=%d completed=%d submissions=%d release=balanced full_model=false\n",pool_ratio,rows,completed,rows/chunk);
 }
