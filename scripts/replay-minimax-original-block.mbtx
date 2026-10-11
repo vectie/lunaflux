@@ -115,6 +115,24 @@ async fn main {
   let stage = if full { mode[:mode.length()-5].to_owned() } else if raw { mode[:mode.length()-4].to_owned() } else { mode }
   let source = if raw { "/data/models/MiniMax/MiniMax-H3/FL2VA/transformer/" } else { "/data/models/MiniMax/MiniMax-H3/transformer/" }
   let index_name = if raw { "model.safetensors.index.json" } else { "diffusion_pytorch_model.safetensors.index.json" }
+  if stage == "reuse" {
+    guard full && extra is [previous] && previous.has_prefix("/tmp/lunaflux-minimax-upstream-block-") &&
+      previous.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+      fail("reuse-full NEW_ROOT PREVIOUS_CANONICAL_ROOT")
+    }
+    @fs.mkdir(root)
+    @fs.mkdir(root + "/model")
+    record(root, "mkdir", remote("mkdir " + root + " " + root + "/model " + root + "/input " + root + "/output"))
+    // Each replay owns its metadata and outputs; only immutable weight payloads
+    // are referenced. Uploading the rotary table cannot mutate a prior replay.
+    for name in ["config.json", index_name] {
+      @fs.write_file(root + "/model/" + name, @fs.read_file(previous + "/model/" + name).binary(), create_mode=CreateNew)
+      copy(root + "/model/" + name, node + ":" + root + "/model/" + name)
+    }
+    for shard in block_shards(@fs.read_file(root + "/model/" + index_name).text(), blocks=50) {
+      record(root, "reuse-" + shard, remote("ln -s " + previous + "/model/" + shard + " " + root + "/model/" + shard))
+    }
+  }
   if stage == "prepare" {
     @fs.mkdir(root)
     @fs.mkdir(root + "/model")
@@ -210,7 +228,7 @@ async fn main {
       )
     }
   }
-  if stage == "prepare" || mode == "finish-prepare" || mode.has_prefix("compile") {
+  if stage == "prepare" || stage == "reuse" || mode == "finish-prepare" || mode.has_prefix("compile") {
     copy(
       "/tmp/lunaflux-minimax-rotary-20261010-v1/rope.inv_freq.f32",
       node + ":" + root + "/model/rope.inv_freq.f32",

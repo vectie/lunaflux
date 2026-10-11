@@ -365,6 +365,11 @@ async fn main {
       ),
       ("audio-directory", "mkdir " + variant + "/audio_vae"),
       (
+        "audio-view",
+        "ln /tmp/lunaflux-minimax-joint-quality128-20261011-v1/FL2VA/audio_vae/model.safetensors " +
+        variant + "/audio_vae/model.safetensors",
+      ),
+      (
         "binary",
         "cp " +
         build +
@@ -376,10 +381,6 @@ async fn main {
   }
   for
     (source, destination) in [
-      (
-        "/tmp/lunaflux-minimax-audio-20261010-v1/FL2VA/audio_vae/model.safetensors",
-        "audio_vae/model.safetensors",
-      ),
       (
         "/tmp/lunaflux-minimax-audio-20261010-v1/FL2VA/AUDIO.sha256", "AUDIO.sha256",
       ),

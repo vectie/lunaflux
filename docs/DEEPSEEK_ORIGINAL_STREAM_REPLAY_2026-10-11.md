@@ -190,6 +190,18 @@ The next intervention must include routing and final combination on literal
 inputs, and continue tracing the earliest differing attention operands. No
 production arithmetic is changed merely to force a bitwise diagnostic match.
 
+The complete original layer-0 FFN was then evaluated on **all 144 literal native
+FFN inputs**, with one-row submissions and the actual token IDs. Original
+routing, all routed/shared experts and their final combination are unchanged.
+**587,809/589,824** BF16 outputs are exact; relative L2 is **0.00750338%**,
+maximum absolute difference **0.00390625**, with no nonfinite outputs. This is
+substantially smaller than the **0.5006931%** propagated FFN branch difference
+above. It isolates upstream input drift as the dominant contributor in this
+layer; it is not a full-model correctness pass or a justification for changing
+the reference tolerance. Original execution exits zero and releases CUDA.
+
+Root: `/tmp/lunaflux-deepseek-original-layer-stream-native-ffn-20261012-v1`.
+
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]
 moon run scripts/run-deepseek-original-layer-stream.mbtx run ROOT 43
