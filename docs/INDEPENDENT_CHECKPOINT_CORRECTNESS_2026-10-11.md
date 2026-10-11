@@ -53,6 +53,13 @@ retain token/log-probability outputs, and distinguish greedy agreement from
 teacher-forced numerical comparison. Existing native cancellation and
 retained-weight results remain valid in their narrower scope.
 
+DeepSeek attempt `v1` exits before loading weights: its SM120-family sparse
+MLA implementation requires an explicit FP8 KV dtype instead of `auto`.
+Attempt `v2` supplies `--kv-cache-dtype fp8` to that independent implementation;
+it does not change LunaFlux's KV dtype or checkpoint. Both ranks load the
+original 48 shards, with rank zero reporting 73.85 GiB of model memory. Request
+execution and numerical comparison remain pending, not inferred from loading.
+
 ## MiniMax follow-up
 
 The existing independent fifty-layer encoder corpus remains the starting
@@ -82,6 +89,55 @@ uses three separate Q/K/V GEMMs and separate gate/up GEMMs despite packed
 parameter storage. The independent encoder already follows that operation
 order. Switching its oracle to packed GEMMs would change the reference,
 not fix the native implementation.
+
+### Exact 140-token operator replay
+
+A fresh native first-layer capture uses the original 140 literal IDs, not the
+reference runner's older three-token default. The replay CLI now accepts those
+IDs for matched-operand experiments and has a regression checking all 140 are
+retained. Native execution exits zero with empty stderr and a 51,861,016,576-byte
+user-unit memory peak. The independent replay exits zero and releases its GPU.
+
+The wider independent F64 causal-GQA oracle uses the **same native Q, K and V**:
+
+| Attention result against wider oracle | Relative L2 | BF16 cells identical |
+| --- | --- | --- |
+| Native | 0.001331% | 1,146,861 / 1,146,880 |
+| Independent library BF16 | 0.073522% | 1,115,899 / 1,146,880 |
+
+The first native/library difference is the Q projection. Other matched operator
+differences remain small: K 0.047427%, output 0.027177%, MLP activation 0.023342%
+and down 0.040891% relative L2. Matched residual additions are bitwise exact.
+These are first-layer, same-input results, not a fifty-layer acceptance bound.
+In particular they do not support rewriting the native attention math to
+imitate the less accurate library result.
+
+The fresh capture and replay are retained at
+`/tmp/lunaflux-minimax-text-encoder-operators-long-20261011-v1` and
+`/tmp/lunaflux-minimax-aten-reference-long-operators-20261011-v1`.
+Wider and per-operator CPU comparisons are at
+`/tmp/lunaflux-minimax-attention-precision-long-20261011-v1`.
+
+### Fifty-layer reduction sensitivity
+
+Two additional independent runs disable reduced-precision BF16 GEMM partial
+reductions while preserving BF16 operator boundaries, original weights and the
+same library attention. All fifty layers execute on the real Spark; these are
+not simulated full-encoder results.
+
+* Long input, 140 tokens: default and full-reduction reference final outputs
+  match **all 716,800 BF16 cells**. The native/reference final difference remains
+  0.9633% globally and 22.1058% on its worst row. The reduction flag alone
+  therefore cannot explain or fix this case.
+* Digits, 56 tokens: changing only the reference reduction policy changes its
+  worst row by 13.8845%. Native versus that wider-reduction route has a worst-row
+  difference of 27.9439%, versus 14.7532% with the default route. Switching the
+  reference policy is not a native numerical fix.
+
+These results demonstrate input-dependent amplification of small arithmetic
+differences, but do not establish its acceptable impact on media quality or
+rule out defects in every later layer. MiniMax numerical alignment is still
+open. No production arithmetic change has been made without a diagnosed bug.
 
 ## GLM reference arithmetic caveat
 

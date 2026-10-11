@@ -238,6 +238,7 @@ async fn main {
         "--host 192.168.2.178 --port 18888 --enforce-eager --max-model-len 256 " +
         "--max-num-seqs 1 --max-num-batched-tokens 256 --gpu-memory-utilization 0.78 " +
         "--kv-cache-memory-bytes 536870912 --language-model-only --no-enable-prefix-caching " +
+        (if family == "deepseek" { "--kv-cache-dtype fp8 " } else { "" }) +
         "--compilation-config '{\"mode\":0}'" +
         overrides +
         (if last { " --headless" } else { "" })
