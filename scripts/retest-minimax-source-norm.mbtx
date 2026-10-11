@@ -67,6 +67,40 @@ async fn main {
     )
     @fs.write_file(root + "/minimax_checkpoint.exe", b"", create_mode=CreateNew)
     copy("wlc003s@192.168.2.178:" + build, root + "/minimax_checkpoint.exe")
+    record(
+      root,
+      "mkdir179",
+      @shell.Cmd("ssh", [
+        "-o",
+        "BatchMode=yes",
+        "-S",
+        "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        "wlc004s@192.168.2.179",
+        "mkdir " + root,
+      ]).output(),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      root + "/minimax_checkpoint.exe",
+      "wlc004s@192.168.2.179:" + root + "/minimax_checkpoint.exe",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      "executable179",
+      @shell.Cmd("ssh", [
+        "-o",
+        "BatchMode=yes",
+        "-S",
+        "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        "wlc004s@192.168.2.179",
+        "chmod 755 " + root + "/minimax_checkpoint.exe",
+      ]).output(),
+    )
   }
   for name in cases {
     let ids = corpus + "/" + name + ".frames/input-ids.i32"
