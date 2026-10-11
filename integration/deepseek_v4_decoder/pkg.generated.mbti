@@ -67,6 +67,7 @@ pub fn DeepSeekDecoderStage::acquire_prediction_input(Self) -> @device.Allocatio
 pub fn DeepSeekDecoderStage::append_descriptors(Self) -> ArrayView[@device.Allocation]
 pub fn DeepSeekDecoderStage::bind_rank(Self, @serial_decoder_worker.SerialDecoderRank, @device.Context) -> Unit raise
 pub fn DeepSeekDecoderStage::bind_worker(Self, @serial_decoder_worker.SerialDecoderWorker, @device.Context) -> Unit raise
+pub fn DeepSeekDecoderStage::borrow_text_logits(Self) -> @device.Allocation raise
 pub fn DeepSeekDecoderStage::close(Self) -> Unit raise
 pub fn DeepSeekDecoderStage::drain(Self) -> Unit raise
 pub fn DeepSeekDecoderStage::input_residual(Self) -> @device.Allocation raise

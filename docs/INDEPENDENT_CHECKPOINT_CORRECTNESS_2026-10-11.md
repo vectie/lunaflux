@@ -164,6 +164,34 @@ differences, but do not establish its acceptable impact on media quality or
 rule out defects in every later layer. MiniMax numerical alignment is still
 open. No production arithmetic change has been made without a diagnosed bug.
 
+An additional fifty-layer reference changes only attention to independent
+two-pass F64 math and keeps all BF16 projection/operator boundaries. Both real
+Spark runs complete and release their owners; the independent native bridge
+passes CPU causal-GQA smoke, ASan and LSan. This policy is attribution-only:
+
+| Input | Native/default worst final row | Native/F64-attention worst final row |
+| --- | --- | --- |
+| Long, 140 tokens | 22.1058% | 48.2269% |
+| Digits, 56 tokens | 14.7532% | 25.0560% |
+
+Global native/F64-attention errors are 0.8759% and 0.6076% respectively.
+Replacing the attention precision alone therefore does **not** resolve the
+model differential, despite native first-layer attention's accurate same-input
+result. Outputs and all 51 states are downloaded under
+`/tmp/lunaflux-minimax-aten-reference-wide-attention-20261011-v1` (long) and
+`v2` (digits). No acceptance tolerance is manufactured from these measurements.
+
+## Native-logit localization
+
+The explicit DeepSeek `egress-logits-dspark` command borrows the existing head
+allocation, prepares a readback outside execution and copies its final retired
+vocabulary row only after the control session ends. Its runner's `logits` mode
+requests one generated token, preserving the same literal prefill. Ordinary
+generation prepares no additional pool and performs no additional readback.
+This supports comparing native margins against reference scores instead of
+guessing from decoded wording. Physical capture remains to be run; an accessor
+and passing source tests are not native-logit evidence.
+
 ## GLM reference arithmetic caveat
 
 The installed reference warns that gate/up global FP4 scales differ. Its

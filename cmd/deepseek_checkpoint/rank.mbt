@@ -97,6 +97,23 @@ async fn run_egress(
     None
   }
   defer (if prediction is Some(owner) { owner.close() })
+  let logit_bytes = startup.spec.vocabulary_size() * 4
+  let logit_capture = if arguments.length() == 5 {
+    Some(
+      context.prepare_transfer_pool(
+        stage.borrow_text_logits(),
+        host_bytes=logit_bytes.to_int64(),
+        lanes=1,
+        max_regions_per_lane=1,
+      ),
+    )
+  } else {
+    None
+  }
+  defer (if logit_capture is Some(pool) {
+    pool.drain(0)
+    pool.close()
+  })
   let control_listener = @socket.TcpServer::TcpServer(
     @socket.Addr::parse(arguments[2]),
   )
@@ -224,6 +241,9 @@ async fn run_egress(
     @async.pause()
   }
   println("dspark_prediction_blocks=\{prediction_blocks.val}")
+  if logit_capture is Some(pool) {
+    capture_retired_logits(pool, logit_bytes, arguments[4])
+  }
 }
 
 ///|

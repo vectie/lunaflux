@@ -139,6 +139,7 @@ async fn main {
     | ("export-dspark", 1)
     | ("egress", 4)
     | ("egress-dspark", 4)
+    | ("egress-logits-dspark", 5)
     | ("ingress", 7)
     | ("generate", 9)
     | ("generate-dspark", 9)
@@ -202,7 +203,8 @@ async fn main {
         create_mode=CreateNew,
       )
     }
-    "egress" | "egress-dspark" => run_egress(startup, root, tail)
+    "egress" | "egress-dspark" | "egress-logits-dspark" =>
+      run_egress(startup, root, tail)
     "ingress" => run_ingress(startup, root, tail, generate=false)
     "generate" | "generate-dspark" =>
       run_ingress(startup, root, tail, generate=true, cancellation~)
