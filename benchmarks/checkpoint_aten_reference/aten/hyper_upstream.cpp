@@ -2,7 +2,8 @@
 // Block.hc_pre/RMSNorm and kernel.hc_split_sinkhorn, not reconstructed math.
 #include "original_tensor_io.h"
 
-static int execute(const char *inference,const char *root,const char *input,const char *out) {
+static int execute(const char *inference,const char *root,const char *input,const char *out,
+                   const char *prior=nullptr,const char *branch_input=nullptr) {
   Owned path(PyUnicode_FromString(inference));
   if(!path.p||PyList_Insert(PySys_GetObject("path"),0,path.p)<0)return -1;
   Owned torch(PyImport_ImportModule("torch")),model(PyImport_ImportModule("model"));
@@ -31,15 +32,29 @@ static int execute(const char *inference,const char *root,const char *input,cons
   Owned view(embed.p?PyObject_CallMethod(embed.p,"view","iiii",1,rows,1,4096):nullptr);
   Owned expanded(view.p?PyObject_CallMethod(view.p,"expand","iiii",1,rows,4,4096):nullptr);
   Owned streams(expanded.p?PyObject_CallMethod(expanded.p,"contiguous",nullptr):nullptr);
-  Owned fn(weight(open.p,map,root,"layers.0.hc_attn_fn"));
-  Owned scale(weight(open.p,map,root,"layers.0.hc_attn_scale"));
-  Owned base(weight(open.p,map,root,"layers.0.hc_attn_base"));
-  Owned norm(weight(open.p,map,root,"layers.0.attn_norm.weight"));
+  Owned cls(PyObject_GetAttrString(model.p,"Block"));
+  if(prior) {
+    Owned residual_flat(literal_bf16(torch.p,bf16.p,(std::string(prior)+"/streams.bf16").c_str(),rows,16384));
+    Owned residual(residual_flat.p?PyObject_CallMethod(residual_flat.p,"view","iiii",1,rows,4,4096):nullptr);
+    Owned branch(literal_bf16(torch.p,bf16.p,branch_input,rows,4096));
+    Owned post(literal_tensor(torch.p,f32.p,(std::string(prior)+"/post.f32").c_str(),rows,4,4));
+    Owned comb_flat(literal_tensor(torch.p,f32.p,(std::string(prior)+"/combination.f32").c_str(),rows,16,4));
+    Owned comb(comb_flat.p?PyObject_CallMethod(comb_flat.p,"view","iiii",1,rows,4,4):nullptr);
+    Owned method(cls.p?PyObject_GetAttrString(cls.p,"hc_post"):nullptr);
+    Owned operands(residual.p&&branch.p&&post.p&&comb.p?PyTuple_Pack(5,Py_None,branch.p,residual.p,post.p,comb.p):nullptr);
+    Owned next(method.p&&operands.p?PyObject_CallObject(method.p,operands.p):nullptr);
+    if(!next.p)return -1;
+    Py_SETREF(streams.p,next.p);next.p=nullptr;
+  }
+  const std::string family=prior?"ffn":"attn";
+  Owned fn(weight(open.p,map,root,("layers.0.hc_"+family+"_fn").c_str()));
+  Owned scale(weight(open.p,map,root,("layers.0.hc_"+family+"_scale").c_str()));
+  Owned base(weight(open.p,map,root,("layers.0.hc_"+family+"_base").c_str()));
+  Owned norm(weight(open.p,map,root,("layers.0."+family+"_norm.weight").c_str()));
   if(!streams.p||!fn.p||!scale.p||!base.p||!norm.p)return -1;
   Owned ns(PyObject_GetAttrString(types.p,"SimpleNamespace")),empty(PyTuple_New(0));
   Owned options(Py_BuildValue("{s:d,s:i,s:i,s:d}","norm_eps",1e-6,"hc_mult",4,"hc_sinkhorn_iters",20,"hc_eps",1e-6));
   Owned self(PyObject_Call(ns.p,empty.p,options.p));
-  Owned cls(PyObject_GetAttrString(model.p,"Block"));
   Owned method(cls.p?PyObject_GetAttrString(cls.p,"hc_pre"):nullptr);
   Owned operands(PyTuple_Pack(5,self.p,streams.p,fn.p,scale.p,base.p));
   Owned result(method.p?PyObject_CallObject(method.p,operands.p):nullptr);
@@ -65,14 +80,14 @@ static int execute(const char *inference,const char *root,const char *input,cons
      !save(post,u8.p,std::string(out)+"/post.f32",int64_t(rows)*4*4)||
      !save(comb,u8.p,std::string(out)+"/combination.f32",int64_t(rows)*16*4)||
      !save(normalized.p,u8.p,std::string(out)+"/normalized.bf16",int64_t(rows)*4096*2))return -1;
-  std::printf("original_hyper_complete rows=%d first_layer=0 operands=original_literal arithmetic=Block.hc_pre+RMSNorm full_model=false\n",rows);
+  std::printf("original_hyper_complete rows=%d first_layer=0 family=%s operands=original_literal arithmetic=Block.hc_pre+RMSNorm full_model=false\n",rows,family.c_str());
   return 0;
 }
 
 int main(int argc,char **argv) {
-  if(argc!=5)return 2;
+  if(argc!=5&&argc!=7)return 2;
   Py_Initialize();
-  const int result=execute(argv[1],argv[2],argv[3],argv[4]);
+  const int result=execute(argv[1],argv[2],argv[3],argv[4],argc==7?argv[5]:nullptr,argc==7?argv[6]:nullptr);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

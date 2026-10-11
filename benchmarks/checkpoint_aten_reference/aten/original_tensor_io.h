@@ -53,10 +53,10 @@ inline bool save(PyObject *tensor,PyObject *u8,const std::string &path,int64_t e
   return true;
 }
 
-inline PyObject *literal_bf16(PyObject *torch,PyObject *dtype,const char *path,int rows,int width) {
+inline PyObject *literal_tensor(PyObject *torch,PyObject *dtype,const char *path,int rows,int width,int bytes_per_value) {
   std::ifstream file(path,std::ios::binary);
   const std::vector<char> data((std::istreambuf_iterator<char>(file)),{});
-  if(!file||static_cast<int64_t>(data.size())!=int64_t(rows)*width*2){
+  if(!file||static_cast<int64_t>(data.size())!=int64_t(rows)*width*bytes_per_value){
     PyErr_SetString(PyExc_ValueError,"literal component input extent differs");return nullptr;
   }
   Owned bytes(PyByteArray_FromStringAndSize(data.data(),data.size()));
@@ -65,4 +65,8 @@ inline PyObject *literal_bf16(PyObject *torch,PyObject *dtype,const char *path,i
   Owned flat(factory.p&&args.p?PyObject_Call(factory.p,args.p,kw.p):nullptr);
   Owned shape(flat.p?PyObject_CallMethod(flat.p,"view","iii",1,rows,width):nullptr);
   return shape.p?PyObject_CallMethod(shape.p,"to","s","cuda"):nullptr;
+}
+
+inline PyObject *literal_bf16(PyObject *torch,PyObject *dtype,const char *path,int rows,int width) {
+  return literal_tensor(torch,dtype,path,rows,width,2);
 }

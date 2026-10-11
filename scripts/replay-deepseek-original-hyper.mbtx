@@ -31,26 +31,48 @@ async fn remote(command : String) -> @shell.Output {
 
 ///|
 async fn record(root : String, label : String, output : @shell.Output) -> Unit {
-  @fs.write_file(root + "/" + label + ".stdout", output.stdout(), create_mode=CreateNew)
-  @fs.write_file(root + "/" + label + ".stderr", output.stderr(), create_mode=CreateNew)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
   output.check()
 }
 
 ///|
 async fn upload(source : String, destination : String) -> Unit {
-  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, source,
-    node + ":" + destination]).output().check()
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    node + ":" + destination,
+  ])
+  .output()
+  .check()
 }
 
 ///|
 fn literal_ids(text : String) -> (Bytes, Int) raise {
-  let tokens = [for t in text.trim().split(",") => @string.parse_int(t)]
-  guard tokens.length() > 0 && tokens.length() <= 144 &&
-    tokens.all(t => t >= 0 && t < 129280) else { fail("complete original prompt required") }
-  let bytes = Bytes::from_array([
-    for i in 0..<(tokens.length() * 4) =>
-      ((tokens[i / 4].reinterpret_as_uint() >> (i % 4 * 8)) & 255U).to_byte()
-  ])
+  let tokens = [ for t in text.trim().split(",") => @string.parse_int(t) ]
+  guard tokens.length() > 0 &&
+    tokens.length() <= 144 &&
+    tokens.all(t => t >= 0 && t < 129280) else {
+    fail("complete original prompt required")
+  }
+  let bytes = Bytes::from_array(
+    [
+      for i in 0..<(tokens.length() * 4) => {
+        ((tokens[i / 4].reinterpret_as_uint() >> (i % 4 * 8)) & 255U).to_byte()
+      }
+    ],
+  )
   (bytes, tokens.length())
 }
 
@@ -58,15 +80,24 @@ fn literal_ids(text : String) -> (Bytes, Int) raise {
 test "component replay preserves original IDs, including repetitions" {
   let (bytes, rows) = literal_ids("0,128803,16,16\n")
   assert_eq(rows, 4)
-  assert_eq(bytes, b"\x00\x00\x00\x00\x23\xf7\x01\x00\x10\x00\x00\x00\x10\x00\x00\x00")
+  assert_eq(
+    bytes, b"\x00\x00\x00\x00\x23\xf7\x01\x00\x10\x00\x00\x00\x10\x00\x00\x00",
+  )
 }
 
 ///|
 fn captures(rows : Int) -> Array[(String, Int)] {
-  [("streams.bf16", rows * 16384 * 2), ("function.f32", 24 * 16384 * 4),
-    ("base.f32", 96), ("scale.f32", 12), ("norm.bf16", 8192),
-    ("collapsed.bf16", rows * 8192), ("normalized.bf16", rows * 8192),
-    ("post.f32", rows * 16), ("combination.f32", rows * 64)]
+  [
+    ("streams.bf16", rows * 16384 * 2),
+    ("function.f32", 24 * 16384 * 4),
+    ("base.f32", 96),
+    ("scale.f32", 12),
+    ("norm.bf16", 8192),
+    ("collapsed.bf16", rows * 8192),
+    ("normalized.bf16", rows * 8192),
+    ("post.f32", rows * 16),
+    ("combination.f32", rows * 64),
+  ]
 }
 
 ///|
@@ -74,6 +105,22 @@ test "component capture is explicit, not a whole-model result" {
   assert_eq(captures(144)[0].1, 4718592)
   assert_eq(captures(1)[7], ("post.f32", 16))
   assert_eq(captures(144).length(), 9)
+}
+
+///|
+fn preparation_operands(extra : ArrayView[String]) -> (String, (String, String)?) raise {
+  match extra {
+    [ids] => (ids, None)
+    [ids, "--ffn-input", hyper, branch] => (ids, Some((hyper, branch)))
+    _ => fail("original IDs and optional original attention-output operands required")
+  }
+}
+
+///|
+test "FFN replay retains literal original residual and branch operands" {
+  assert_eq(preparation_operands(["ids"]), ("ids", None))
+  assert_eq(preparation_operands(["ids", "--ffn-input", "hyper", "branch"]),
+    ("ids", Some(("hyper", "branch"))))
 }
 
 ///|
@@ -85,7 +132,7 @@ async fn main {
   }
   let tag = root.split("/").last().unwrap().to_owned()
   if mode == "prepare" {
-    guard extra is [ids] else { fail("original IDs text required") }
+    let (ids, prior) = preparation_operands(extra)
     let (bytes, rows) = literal_ids(@fs.read_file(ids).text())
     @fs.mkdir(root)
     for dir in ["original", "native", "memcheck", "racecheck", "synccheck"] {
@@ -93,74 +140,251 @@ async fn main {
     }
     @fs.write_file(root + "/ids.i32", bytes, create_mode=CreateNew)
     @fs.write_file(root + "/ROWS.txt", rows.to_string(), create_mode=CreateNew)
-    record(root, "export", @shell.Cmd("moon", ["test", "--target", "native", "--deny-warn",
-      "--warn-list", "-20-25-29-35-79-92", "kernels/hyper_connection_execution_cuda_source",
-      "--filter", "original DeepSeek component replay exports the same numerical envelope"],
-      env={"LUNAFLUX_MATCHED_HYPER_SOURCE_OUTPUT": root + "/hyper_matched_kernels.cuh"}).output())
-    record(root, "mkdir", remote("mkdir " + root + " " + root + "/original " + root +
-      "/native " + root + "/memcheck " + root + "/racecheck " + root + "/synccheck"))
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "kernels/hyper_connection_execution_cuda_source", "--filter", "original DeepSeek component replay exports the same numerical envelope",
+        ],
+        env={
+          "LUNAFLUX_MATCHED_HYPER_SOURCE_OUTPUT": root +
+          "/hyper_matched_kernels.cuh",
+        },
+      ).output(),
+    )
+    record(
+      root,
+      "mkdir",
+      remote(
+        "mkdir " +
+        root +
+        " " +
+        root +
+        "/original " +
+        root +
+        "/native " +
+        root +
+        "/memcheck " +
+        root +
+        "/racecheck " +
+        root +
+        "/synccheck",
+      ),
+    )
     for file in ["ids.i32", "hyper_matched_kernels.cuh"] {
       upload(root + "/" + file, root + "/" + file)
     }
-    upload("benchmarks/checkpoint_aten_reference/aten/hyper_upstream.cpp", root + "/hyper_upstream.cpp")
-    upload("benchmarks/checkpoint_aten_reference/aten/original_tensor_io.h", root + "/original_tensor_io.h")
-    upload("tests/packed_moe_execution/hyper_matched_probe.cu", root + "/hyper_matched_probe.cu")
-    record(root, "compile-original", remote("docker run --rm --network none --memory 2g --memory-swap 2g -v " +
-      root + ":/work --entrypoint g++ " + image +
-      " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/hyper_upstream.cpp -o /work/hyper-upstream -lpython3.12"))
-    record(root, "compile-native", remote("systemd-run --user --wait --pipe --unit=" + tag +
-      "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" + root +
-      " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 hyper_matched_probe.cu -o hyper-native"))
+    if prior is Some((hyper, branch)) {
+      @fs.mkdir(root + "/prior")
+      record(root, "prior-mkdir", remote("mkdir " + root + "/prior"))
+      for file in ["streams.bf16", "post.f32", "combination.f32"] {
+        @fs.write_file(
+          root + "/prior/" + file,
+          @fs.read_file(hyper + "/" + file).binary(),
+          create_mode=CreateNew,
+        )
+        upload(root + "/prior/" + file, root + "/prior/" + file)
+      }
+      @fs.write_file(
+        root + "/prior/branch.bf16",
+        @fs.read_file(branch).binary(),
+        create_mode=CreateNew,
+      )
+      upload(root + "/prior/branch.bf16", root + "/prior/branch.bf16")
+      @fs.write_file(
+        root + "/FFN.txt",
+        "original-attention-operands",
+        create_mode=CreateNew,
+      )
+    }
+    upload(
+      "benchmarks/checkpoint_aten_reference/aten/hyper_upstream.cpp",
+      root + "/hyper_upstream.cpp",
+    )
+    upload(
+      "benchmarks/checkpoint_aten_reference/aten/original_tensor_io.h",
+      root + "/original_tensor_io.h",
+    )
+    upload(
+      "tests/packed_moe_execution/hyper_matched_probe.cu",
+      root + "/hyper_matched_probe.cu",
+    )
+    record(
+      root,
+      "compile-original",
+      remote(
+        "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/hyper_upstream.cpp -o /work/hyper-upstream -lpython3.12",
+      ),
+    )
+    record(
+      root,
+      "compile-native",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 hyper_matched_probe.cu -o hyper-native",
+      ),
+    )
   } else if mode == "run" {
     guard extra.is_empty() else { fail("unexpected options") }
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
-    let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
     record(root, "before-owners", owners)
     guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
     // --wait retires the exact unit/container before the next launch, including
     // the import phase in which the CUDA ownership list can still be empty.
-    record(root, "original-run", remote("systemd-run --user --wait --pipe --unit=" + tag +
-      "-original --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
-      tag + " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
-      root + ":/work -v " + checkpoint + ":/model:ro -v " + inference +
-      ":/inference:ro --entrypoint /work/hyper-upstream " + image + " /inference /model /work/ids.i32 /work/original"))
-    record(root, "original-terminal", remote("docker inspect --format '{{json .State}}' " + tag))
-    for gate in ["native", "memcheck", "racecheck", "synccheck"] {
-      let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
-      owners.check()
-      guard owners.stdout().trim().is_empty() else { fail("serialize GPU replays") }
-      let command = (if gate == "native" { "" } else {
-        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " + gate +
-        (if gate == "memcheck" { " --leak-check full" } else { "" }) + " "
-      }) + root + "/hyper-native " + root + "/original " + root + "/" + gate + " " + rows.to_string()
-      record(root, gate + "-run", remote("systemd-run --user --wait --pipe --unit=" + tag + "-" + gate +
-        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " + command))
+    let ffn = try @fs.read_file(root + "/FFN.txt") catch {
+      _ => None
+    } noraise {
+      _ => Some(())
     }
-    record(root, "released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+    let ffn_args = if ffn is Some(_) {
+      " /work/prior /work/prior/branch.bf16"
+    } else {
+      ""
+    }
+    record(
+      root,
+      "original-run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-original --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
+        tag +
+        " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+        root +
+        ":/work -v " +
+        checkpoint +
+        ":/model:ro -v " +
+        inference +
+        ":/inference:ro --entrypoint /work/hyper-upstream " +
+        image +
+        " /inference /model /work/ids.i32 /work/original" +
+        ffn_args,
+      ),
+    )
+    record(
+      root,
+      "original-terminal",
+      remote("docker inspect --format '{{json .State}}' " + tag),
+    )
+    for gate in ["native", "memcheck", "racecheck", "synccheck"] {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else {
+        fail("serialize GPU replays")
+      }
+      let command = (if gate == "native" {
+          ""
+        } else {
+          "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode=91 --tool " +
+          gate +
+          (if gate == "memcheck" { " --leak-check full" } else { "" }) +
+          " "
+        }) +
+        root +
+        "/hyper-native " +
+        root +
+        "/original " +
+        root +
+        "/" +
+        gate +
+        " " +
+        rows.to_string()
+      record(
+        root,
+        gate + "-run",
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          gate +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+          command,
+        ),
+      )
+    }
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
   } else if mode == "collect" {
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
     for dir in ["original", "native"] {
       for (file, expected) in captures(rows) {
-        if dir == "native" && file is ("streams.bf16" | "function.f32" | "base.f32" | "scale.f32" | "norm.bf16") {
+        if dir == "native" &&
+          file
+          is ("streams.bf16"
+          | "function.f32"
+          | "base.f32"
+          | "scale.f32"
+          | "norm.bf16") {
           continue
         }
         let target = root + "/" + dir + "/" + file
         @fs.write_file(target, b"", create_mode=CreateNew)
-        @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket,
-          node + ":" + target, target]).output().check()
-        guard @fs.read_file(target).binary().length() == expected else { fail("truncated " + target) }
+        @shell.Cmd("scp", [
+          "-o",
+          "BatchMode=yes",
+          "-o",
+          "ControlPath=" + socket,
+          node + ":" + target,
+          target,
+        ])
+        .output()
+        .check()
+        guard @fs.read_file(target).binary().length() == expected else {
+          fail("truncated " + target)
+        }
       }
     }
     for (file, width) in [("collapsed", 4096), ("normalized", 4096)] {
-      record(root, file + "-comparison", @shell.Cmd("moon", ["run", "scripts/compare-minimax-encoder-reference.mbtx",
-        root + "/native/" + file + ".bf16", root + "/original/" + file + ".bf16",
-        root + "/" + file + "-comparison.txt", "original_deepseek_first_layer_" + file, width.to_string()]).output())
+      record(
+        root,
+        file + "-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          root + "/native/" + file + ".bf16",
+          root + "/original/" + file + ".bf16",
+          root + "/" + file + "-comparison.txt",
+          "original_deepseek_first_layer_" + file,
+          width.to_string(),
+        ]).output(),
+      )
     }
     for file in ["post", "combination"] {
-      record(root, file + "-comparison", @shell.Cmd("moon", ["run", "scripts/compare-f32-tensors.mbtx",
-        root + "/native/" + file + ".f32", root + "/original/" + file + ".f32",
-        root + "/" + file + "-comparison.txt", "original_deepseek_first_layer_" + file]).output())
+      record(
+        root,
+        file + "-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-f32-tensors.mbtx",
+          root + "/native/" + file + ".f32",
+          root + "/original/" + file + ".f32",
+          root + "/" + file + "-comparison.txt",
+          "original_deepseek_first_layer_" + file,
+        ]).output(),
+      )
     }
-  } else { fail("unknown mode") }
-  println("matched_original_component_" + mode + " complete; not full-model parity")
+  } else {
+    fail("unknown mode")
+  }
+  println(
+    "matched_original_component_" + mode + " complete; not full-model parity",
+  )
 }

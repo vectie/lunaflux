@@ -160,3 +160,31 @@ moon run scripts/replay-deepseek-original-output.mbtx run ROOT
 moon run scripts/replay-deepseek-original-output.mbtx sanitize ROOT
 moon run scripts/replay-deepseek-original-output.mbtx collect ROOT
 ```
+
+## FFN mixing on distinct original residual streams
+
+The FFN replay first calls the installed original block's attention `hc_post`
+with the original output-B branch and original attention mixing coefficients.
+It then compares native FFN `hc_pre` and normalization against the original
+on those literal, distinct residual streams. This avoids the easier initial
+embedding case, where all four streams are identical.
+
+| Boundary | Values | Exact BF16 | Relative L2 |
+| --- | --- | --- | --- |
+| FFN collapse | 589,824 | 589,716 | 0.003552047% |
+| FFN normalization | 589,824 | 589,701 | 0.005719365% |
+| FFN post coefficients (F32) | 576 | — | 0.000227973% |
+| FFN combination coefficients (F32) | 2,304 | — | 0.000429354% |
+
+Maximum BF16 error is 0.00390625 at both boundaries. Artifacts are retained at
+`/tmp/lunaflux-deepseek-original-hyper-ffn-20261011-v1`. Original execution,
+native execution and memcheck/leak, racecheck and synccheck all exit zero;
+the original container reports `OOMKilled=false` and allocations are released.
+This tests native FFN pre-mixing, **not native attention post-mixing** or a
+full two-rank block. Production arithmetic and tolerances are unchanged.
+
+```sh
+moon run scripts/replay-deepseek-original-hyper.mbtx prepare NEW_ROOT ORIGINAL_IDS_TEXT --ffn-input ORIGINAL_HYPER_DIRECTORY ORIGINAL_OUTPUT_B_BF16
+moon run scripts/replay-deepseek-original-hyper.mbtx run ROOT
+moon run scripts/replay-deepseek-original-hyper.mbtx collect ROOT
+```
