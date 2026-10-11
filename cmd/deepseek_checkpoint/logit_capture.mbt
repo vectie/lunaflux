@@ -1,5 +1,5 @@
 ///|
-/// Offline capture of the last retired vocabulary row. The explicit egress
+/// Offline capture of all retired physical vocabulary rows. The explicit egress
 /// diagnostic mode prepares this transfer before serving, then reads only once
 /// after control EOF. It never changes the execution graph or token steps.
 async fn capture_retired_logits(
@@ -28,6 +28,6 @@ async fn capture_retired_logits(
     create_mode=CreateNew,
   )
   println(
-    "retired_logit_capture values=\{bytes / 4} scope=last_vocabulary_row_only",
+    "retired_logit_capture values=\{bytes / 4} scope=allocated_vocabulary_rows",
   )
 }

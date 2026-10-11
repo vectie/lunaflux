@@ -48,6 +48,22 @@ fn bf16_round(value : Float) -> Float {
 }
 
 ///|
+fn selected_row(bytes : Bytes, width : Int, row : Int) -> Array[Float] raise {
+  guard width > 0 && width <= 1000000 && row >= 0 &&
+    bytes.length() % (width * 4) == 0 && row < bytes.length() / (width * 4) else {
+    fail("vocabulary row outside physical capture")
+  }
+  logits(bytes[row * width * 4:(row + 1) * width * 4].to_owned())
+}
+
+///|
+fn verify_selected(values : ArrayView[Float], token : Int) -> Unit raise {
+  guard token >= 0 && token < values.length() && ranked(values, 1)[0] == token else {
+    fail("captured row does not reproduce the emitted greedy token")
+  }
+}
+
+///|
 test "native logit analysis retains ties and actual F32 scores" {
   let row = logits(b"\x00\x00\x80\x3f\x00\x00\x00\x40\x00\x00\x00\x40")
   assert_eq(row, [1.0F, 2.0F, 2.0F])
@@ -62,13 +78,34 @@ test "native logit analysis retains ties and actual F32 scores" {
 }
 
 ///|
-async fn main {
-  guard @env.args() is [_, input, output, .. selected] && !selected.is_empty() else {
-    fail("NATIVE_LOGITS_F32 NEW_REPORT SELECTED_TOKEN_IDS...")
+test "selected physical row must reproduce the emitted token" {
+  let bytes = b"\x00\x00\x80\x3f\x00\x00\x00\x40\x00\x00\x40\x40\x00\x00\x00\x40"
+  let first = selected_row(bytes, 2, 0)
+  let last = selected_row(bytes, 2, 1)
+  verify_selected(first, 1)
+  verify_selected(last, 0)
+  try verify_selected(first, 0) catch { _ => () } noraise {
+    _ => fail("wrong captured row accepted")
   }
-  let values = logits(@fs.read_file(input).binary())
+  for (width, row) in [(0, 0), (2, -1), (2, 2), (3, 0)] {
+    try selected_row(bytes, width, row) catch { _ => () } noraise {
+      _ => fail("invalid row geometry accepted")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, input, output, width, row, emitted, .. selected] && !selected.is_empty() else {
+    fail("NATIVE_LOGITS_F32 NEW_REPORT VOCABULARY_WIDTH PHYSICAL_ROW EMITTED_GREEDY_TOKEN SELECTED_TOKEN_IDS...")
+  }
+  let width = @string.parse_int(width)
+  let row = @string.parse_int(row)
+  let emitted = @string.parse_int(emitted)
+  let values = selected_row(@fs.read_file(input).binary(), width, row)
+  verify_selected(values, emitted)
   let report = StringBuilder()
-  report <+ "vocabulary=\{values.length()}\n"
+  report <+ "vocabulary=\{values.length()} physical_row=\{row} emitted_greedy_token=\{emitted}\n"
   for (name, scores) in [
     ("native_f32", values),
     ("rounded_head_bf16_only", values.map(bf16_round)),

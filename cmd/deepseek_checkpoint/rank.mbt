@@ -97,7 +97,14 @@ async fn run_egress(
     None
   }
   defer (if prediction is Some(owner) { owner.close() })
-  let logit_bytes = startup.spec.vocabulary_size() * 4
+  // The head stores one vocabulary row per physical token row. Copy the full
+  // retired allocation: row zero is not generally the row sampled at the end
+  // of a chunked prefill. The offline caller supplies the exact live-row index.
+  let logit_bytes = if arguments.length() == 5 {
+    stage.borrow_text_logits().byte_count().to_int()
+  } else {
+    0
+  }
   let logit_capture = if arguments.length() == 5 {
     Some(
       context.prepare_transfer_pool(

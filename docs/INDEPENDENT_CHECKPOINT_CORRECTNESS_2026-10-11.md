@@ -197,6 +197,16 @@ with the original 144 literal IDs. The offline F32 inspector reports native
 top-five scores and selected-token margins; separately rounding that head row
 to BF16 is labeled an attribution-only view, not another runtime route.
 
+The first physical capture completes with both ranks exiting zero and releasing
+their contexts. It reveals an **observer bug**, not a model conclusion: copying
+row zero alone cannot reproduce the emitted token when the prepared head has
+multiple output rows. Its raw scores are retained in
+`/tmp/lunaflux-dspark-run-logits-20261011-v1`, but must not be compared to the
+first-generation reference scores. The correction copies the entire allocated
+head after retirement. The offline inspector now requires an explicit output
+row and checks that its greedy winner equals the actual emitted token before
+reporting margins. A two-row regression rejects the misleading row-zero case.
+
 MiniMax's next two separate reference interventions widen only projection, then
 projection plus attention. Both preserve all BF16 operator boundaries, original
 weights, fixed literal IDs and existing memory ceilings. They are not numerical
@@ -212,6 +222,15 @@ completion is useful as a differential but cannot certify exact original-
 checkpoint arithmetic. Its sparse MLA backend also selects FP8 KV storage.
 These differences must be reported, not silently treated as native bugs or
 fixed by altering the original checkpoint.
+
+The original DeepSeek checkpoint's `inference/model.py`, `Expert.forward`, also
+confirms `weights * (silu(gate) * up)` **before** conversion to BF16 and the down
+projection. LunaFlux's immutable precision plan preserves that order. The
+installed vLLM DeepGEMM FP4 expert performs activation quantization/down first,
+then `deepgemm_unpermute_and_reduce` applies the routing weights. FP8 requantization
+and BF16 rounding make these orders observably different. This is another
+explicit reference arithmetic incompatibility, not permission to replace the
+original native numerical contract to force token agreement.
 
 ## Source validation
 
