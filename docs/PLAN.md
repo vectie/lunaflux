@@ -62,6 +62,42 @@ are not payload-integrity scans and remain distinct from this cleanup.
 
 ## Current three-model completion ledger — 2026-10-11
 
+Latest numerical work supersedes the original baseline below. Independent
+original-weight GLM/DeepSeek full-model differential runs are complete on both
+Sparks, but are not strict original-arithmetic acceptance: GLM's reference
+collapses unequal gate/up scales, while DeepSeek's reference changes KV
+precision and routing-weight placement relative to rounding. The corrected
+DeepSeek head capture verifies the emitted token on physical row 5 before
+comparing margins. Preserve the actual numerical contracts rather than change
+native math/checkpoint bytes to imitate these reference limitations.
+
+MiniMax source `49b15d75` propagates compensated F32 normalization through its
+immutable precision plan and unmodified AOT export. The complete twelve-case
+physical retest improves eight worst final-row comparisons and worsens four.
+Row/head ablations show nonlinear interaction, not a single universal head
+failure; English improves under either isolated change but regresses with both,
+whereas digits improves strongly only with both. A prompt-specific rule is not
+an acceptable fix. See [the complete corpus](MINIMAX_DIVERSE_TEXT_ENCODER_2026-10-11.md)
+and [independent correctness investigation](INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md).
+
+Remaining work is numerical/functional, not hardening:
+
+- A faithful GLM comparison must preserve separate original gate/up global
+  scales; the installed fused reference is not such an oracle.
+- A faithful DeepSeek comparison must retain original expert rounding order
+  and explicit KV numeric boundaries. Its original upstream converter retains
+  the full checkpoint's rank dictionaries before writing; do not run that
+  unbounded conversion against the Spark memory limit. A bounded streaming
+  adapter is needed before that route is usable. The installed reference image
+  also lacks `fast_hadamard_transform` and has TileLang 0.1.12, not the original
+  source's required 0.1.8. No original-upstream execution is claimed.
+- MiniMax needs whole-model numerical/media-quality attribution in addition
+  to its accurate normalization component. Its fresh committed full media
+  request is under test; a finite media array alone is not quality acceptance.
+
+No payload hash, TLS, authentication step or production dependency is added by
+these diagnostics. Existing memory ceilings and deterministic release remain.
+
 The fresh no-hashing `42b007d5` ARM MiniMax encoder now completes all twelve
 original-tokenizer corpus cases (3–140 tokens), with 612 complete hidden-state
 comparisons. Embeddings match bitwise and first divergence is layer 1. Ten
