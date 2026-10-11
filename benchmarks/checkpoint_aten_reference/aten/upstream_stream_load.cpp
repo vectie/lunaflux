@@ -12,6 +12,7 @@ struct Owned {
   Owned(const Owned &) = delete;
 };
 
+
 static PyObject *stream_load(PyObject *, PyObject *args, PyObject *kwargs) {
   PyObject *model=nullptr,*filename=nullptr,*device=nullptr;
   int strict=1; const char *backend="mmap";
@@ -60,6 +61,14 @@ static PyObject *stream_load(PyObject *, PyObject *args, PyObject *kwargs) {
     if(!copied.p||PySet_Discard(missing.p,key)<0) return nullptr;
     ++loaded;
     if(loaded%512==0) { std::printf("upstream_stream_loaded=%zd\n",loaded); std::fflush(stdout); }
+    // The reader retains its mmap backing store after views are released.
+    // Device copies touch that store; on unified RAM it must not remain live
+    // for the whole checkpoint. Reopen bounded groups, preserving all values.
+    if(loaded%128==0) {
+      Py_CLEAR(file.p);
+      file.p=PyObject_Call(open.p,positional.p,options.p);
+      if(!file.p) return nullptr;
+    }
   }
   // Preserve the upstream duplicate-parameter missing/unexpected semantics.
   PyObject *ignored,*group; Py_ssize_t at=0;

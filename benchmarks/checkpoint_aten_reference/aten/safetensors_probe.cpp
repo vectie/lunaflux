@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
+#include <malloc.h>
 
 struct Owned {
   PyObject *p;
@@ -11,6 +12,51 @@ struct Owned {
 };
 
 int install_upstream_stream_loader();
+
+static int scan_tensors(const char *path, bool copy_to_device) {
+  Owned module(PyImport_ImportModule("safetensors"));
+  Owned gc(PyImport_ImportModule("gc"));
+  Owned cuda(copy_to_device?PyImport_ImportModule("torch.cuda"):nullptr);
+  Owned handle(module.p?PyObject_CallMethod(module.p,"safe_open","ss",path,"pt"):nullptr);
+  Owned keys(handle.p?PyObject_CallMethod(handle.p,"keys",nullptr):nullptr);
+  if(!keys.p||!gc.p) return -1;
+  for(Py_ssize_t i=0;i<4096&&i<PyList_Size(keys.p);++i) {
+    {
+      auto *key=PyList_GetItem(keys.p,i);
+      Owned value(PyObject_CallMethod(handle.p,"get_tensor","O",key));
+      if(!value.p) return -1;
+      Owned copied(copy_to_device?PyObject_CallMethod(value.p,"to","s","cuda"):nullptr);
+      if(copy_to_device&&!copied.p) return -1;
+      if(i%512==0) {
+        Owned device(PyObject_GetAttrString(value.p,"device"));
+        Owned repr(device.p?PyObject_Str(device.p):nullptr);
+        std::printf("scan key=%s device=%s refs=%zd\n",PyUnicode_AsUTF8(key),repr.p?PyUnicode_AsUTF8(repr.p):"error",Py_REFCNT(value.p));
+      }
+    }
+    // Bound the lifetime of the mapped backing storage, not only tensor views.
+    if((i+1)%128==0) {
+      Py_CLEAR(handle.p);
+      handle.p=PyObject_CallMethod(module.p,"safe_open","ss",path,"pt");
+      if(!handle.p) return -1;
+    }
+    if((i+1)%512==0) {
+      std::ifstream before("/proc/self/status"); std::string line;
+      while(std::getline(before,line)) if(line.starts_with("VmRSS:")) std::printf("before_gc %zd %s\n",i+1,line.c_str());
+      Owned collected(PyObject_CallMethod(gc.p,"collect",nullptr));
+      if(!collected.p) return -1;
+      if(copy_to_device) {
+        Owned synced(PyObject_CallMethod(cuda.p,"synchronize",nullptr));
+        Owned emptied(PyObject_CallMethod(cuda.p,"empty_cache",nullptr));
+        if(!synced.p||!emptied.p) return -1;
+      }
+      malloc_trim(0);
+      std::ifstream after("/proc/self/status");
+      while(std::getline(after,line)) if(line.starts_with("VmRSS:")) std::printf("after_gc %zd %s\n",i+1,line.c_str());
+      std::fflush(stdout);
+    }
+  }
+  return 0;
+}
 
 static int probe_loader(const char *path) {
   Owned nn(PyImport_ImportModule("torch.nn"));
@@ -49,6 +95,10 @@ int main(int argc, char **argv) {
     Owned safe(PyImport_ImportModule("safetensors.torch"));
     if (argc == 3 && std::string(argv[1]) == "--stream-load") {
       failed=probe_loader(argv[2]);
+    } else if (argc == 3 && std::string(argv[1]) == "--scan-tensors") {
+      failed=scan_tensors(argv[2],false);
+    } else if (argc == 3 && std::string(argv[1]) == "--copy-scan") {
+      failed=scan_tensors(argv[2],true);
     } else if (argc == 3 && std::string(argv[1]) == "--read-first") {
       Owned module(PyImport_ImportModule("safetensors"));
       Owned handle(module.p ? PyObject_CallMethod(module.p,"safe_open","ss",argv[2],"pt") : nullptr);

@@ -64,7 +64,14 @@ A shared-parameter CPU fixture compares its tensor values and alias/missing-key
 result against upstream `save_model`/`load_model` exactly. A real rank's first
 tensor also passes the independent reader. The attempted pread adapter in `v3`
 failed on tensor access before loading; `v4` retains the upstream mmap backend
-and is progressing through the full tensor set. None of these loader checks is
+and progressed through 9,728 tensors before the test was stopped with about
+13 GiB available: releasing tensor views did not release the reader's backing
+map. A bounded device-copy probe isolates this lifetime: the original persistent
+map exceeds a 4-GiB CPU limit before 1,536 tensors; reopening every 128 tensors
+keeps resident CPU memory around 632 MiB through all 4,096 probe tensors. The
+`v5` loader applies this backing-store lifetime fix while retaining original
+Torch copy/conversion operations. It is loading with roughly 33 GiB available.
+None of these loader checks is
 a model correctness pass.
 
 `scripts/run-deepseek-upstream-reference.mbtx` runs the checkpoint's unmodified
