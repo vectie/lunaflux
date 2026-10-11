@@ -1,0 +1,276 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn copy(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+fn refiner_shards(index : String) -> Array[String] raise {
+  guard @json.parse(index) is { "weight_map": Object(fields), .. } else {
+    fail("checkpoint index required")
+  }
+  let shards : Map[String, Unit] = Map([])
+  for name, value in fields {
+    if name.has_prefix("context_embedder.") || name.has_prefix("token_refiner.") {
+      guard value is String(shard) else { fail("checkpoint shard required") }
+      shards[shard] = ()
+    }
+  }
+  let result = shards.keys().to_array()
+  result.sort()
+  result
+}
+
+///|
+test "refiner replay does not instantiate the denoiser or regenerate encoder input" {
+  assert_eq(
+    refiner_shards(
+      "{\"weight_map\":{\"context_embedder.weight\":\"a\",\"token_refiner.refiner_blocks.0.norm1.weight\":\"b\",\"transformer_blocks.0.norm1.weight\":\"c\"}}",
+    ),
+    ["a", "b"],
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] else {
+    fail(
+      "prepare NEW_ROOT EXISTING_MODEL_ROOT ENCODED_BF16 PACKED_NATIVE_INPUT | run|collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [previous, encoded, packed] else {
+      fail("literal operands required")
+    }
+    @fs.mkdir(root)
+    @fs.mkdir(root + "/model")
+    @fs.mkdir(root + "/output")
+    record(
+      root,
+      "mkdir",
+      remote("mkdir " + root + " " + root + "/model " + root + "/output"),
+    )
+    for
+      file in ["config.json", "diffusion_pytorch_model.safetensors.index.json"] {
+      @fs.write_file(
+        root + "/model/" + file,
+        @fs.read_file(previous + "/model/" + file).binary(),
+        create_mode=CreateNew,
+      )
+      copy(root + "/model/" + file, node + ":" + root + "/model/" + file)
+    }
+    for
+      shard in refiner_shards(
+        @fs.read_file(
+          root + "/model/diffusion_pytorch_model.safetensors.index.json",
+        ).text(),
+      ) {
+      record(
+        root,
+        "link-" + shard,
+        remote(
+          "ln " + previous + "/model/" + shard + " " + root + "/model/" + shard,
+        ),
+      )
+    }
+    let encoder = @fs.read_file(encoded).binary()
+    guard encoder.length() == 3 * 5120 * 2 else {
+      fail("actual three-row caption required")
+    }
+    @fs.write_file(root + "/encoded.bf16", encoder, create_mode=CreateNew)
+    copy(root + "/encoded.bf16", node + ":" + root + "/encoded.bf16")
+    let native = @fs.read_file(packed).binary()
+    guard native.length() == 1024 * 5376 * 2 else {
+      fail("literal full prefix required")
+    }
+    @fs.write_file(
+      root + "/native-conditioning.bf16",
+      native[:3 * 5376 * 2],
+      create_mode=CreateNew,
+    )
+    for
+      file in [
+        "refiner_upstream.cpp", "original_h3_loading.h", "original_tensor_io.h",
+      ] {
+      copy(
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        node + ":" + root + "/" + file,
+      )
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        "docker run --rm --pull=never --user 1000:1000 --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/refiner_upstream.cpp -o /work/original-refiner -lpython3.12",
+      ),
+    )
+  } else if mode == "verify-block" {
+    guard extra is [previous] else {
+      fail("prior full literal block replay required")
+    }
+    for
+      file in [
+        "dit_block_upstream.cpp", "original_h3_loading.h", "original_tensor_io.h",
+      ] {
+      copy(
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        node + ":" + root + "/" + file,
+      )
+    }
+    copy(
+      "/tmp/lunaflux-minimax-rotary-20261010-v1/rope.inv_freq.f32",
+      node + ":" + root + "/model/rope.inv_freq.f32",
+    )
+    record(
+      root,
+      "compile-block",
+      remote(
+        "docker run --rm --pull=never --user 1000:1000 --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/dit_block_upstream.cpp -o /work/original-block -lpython3.12",
+      ),
+    )
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU replays")
+    }
+    record(
+      root,
+      "run-block",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-block --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --rm --pull=never --gpus all --user 1000:1000 --network none --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -e LOGNAME=wlc004s -v " +
+        root +
+        ":/work -v " +
+        previous +
+        "/input:/capture:ro --entrypoint /work/original-block " +
+        image +
+        " /work/model /capture /work/output",
+      ),
+    )
+    copy(
+      node + ":" + root + "/output/block-0.bf16",
+      root + "/output/block-0.bf16",
+    )
+    record(
+      root,
+      "block-loader-identity",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        root + "/output/block-0.bf16",
+        previous + "/output/matched-block-0.bf16",
+        root + "/block-loader-identity.txt",
+        "unchanged_original_block_shared_layout_adapter",
+        "5376",
+      ]).output(),
+    )
+  } else if mode == "run" {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU replays")
+    }
+    record(
+      root,
+      "run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --rm --pull=never --gpus all --user 1000:1000 --network none --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -e LOGNAME=wlc004s -v " +
+        root +
+        ":/work --entrypoint /work/original-refiner " +
+        image +
+        " /work/model /work/encoded.bf16 /work/output 3",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    for
+      file in [
+        "context.bf16", "refiner-0.bf16", "refiner-1.bf16", "conditioning.bf16",
+      ] {
+      copy(node + ":" + root + "/output/" + file, root + "/output/" + file)
+    }
+    record(
+      root,
+      "comparison",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        root + "/native-conditioning.bf16",
+        root + "/output/conditioning.bf16",
+        root + "/comparison.txt",
+        "identical_actual_caption_original_projection_and_refiners",
+        "5376",
+      ]).output(),
+    )
+  } else {
+    fail("unknown replay mode")
+  }
+}

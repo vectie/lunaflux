@@ -1,6 +1,6 @@
 // Offline original H3 block. All math stays in the installed unmodified module;
 // literal serving input/timestep/position/document tensors are supplied by replay.
-#include "original_tensor_io.h"
+#include "original_h3_loading.h"
 #include <cstdlib>
 
 // The original vLLM modules require their public configuration context even
@@ -17,64 +17,13 @@ struct OriginalConfigScope {
   }
 };
 
-static bool parameter(PyObject *object, PyObject *open, PyObject *map,
-                      const char *root, const char *target, const char *source,
-                      const char *part=nullptr) {
-  Owned destination(PyObject_GetAttrString(object,target));
-  Owned value(weight(open,map,root,source));
-  if(!destination.p||!value.p)return false;
-  if(part) {
-    Owned loader(PyObject_GetAttrString(destination.p,"weight_loader"));
-    Owned args(Py_BuildValue("OOs",destination.p,value.p,part));
-    Owned copied(loader.p?PyObject_CallObject(loader.p,args.p):nullptr);
-    return copied.p!=nullptr;
-  }
-  Owned copied(PyObject_CallMethod(destination.p,"copy_","O",value.p));
-  return copied.p!=nullptr;
-}
-
 static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *root,int number) {
   const std::string prefix="transformer_blocks."+std::to_string(number)+".";
-  Owned attention(PyObject_GetAttrString(block,"attn"));
-  Owned qkv(attention.p?PyObject_GetAttrString(attention.p,"qkv_proj"):nullptr);
-  if(!qkv.p)return false;
-  for(const char *part:{"q","k","v"}) {
-    const std::string name=prefix+"attn.to_"+std::string(part)+".weight";
-    if(!parameter(qkv.p,open,map,root,"weight",name.c_str(),part))return false;
-  }
-  for(const auto &pair:std::vector<std::pair<const char*,const char*>>{
-      {"q_norm","attn.norm_q.weight"},{"k_norm","attn.norm_k.weight"},
-      {"out_proj","attn.to_out.0.weight"}}) {
-    Owned child(PyObject_GetAttrString(attention.p,pair.first));
-    const std::string source=prefix+std::string(pair.second);
-    if(!child.p||!parameter(child.p,open,map,root,"weight",source.c_str()))return false;
-  }
-  for(const char *name:{"norm1","norm2"}) {
-    Owned child(PyObject_GetAttrString(block,name));
-    const std::string source=prefix+std::string(name)+".weight";
-    if(!child.p||!parameter(child.p,open,map,root,"weight",source.c_str()))return false;
-  }
-  Owned mlp(PyObject_GetAttrString(block,"mlp"));
-  Owned fc1(mlp.p?PyObject_GetAttrString(mlp.p,"fc1"):nullptr);
-  Owned fc2(mlp.p?PyObject_GetAttrString(mlp.p,"fc2"):nullptr);
-  Owned target(fc1.p?PyObject_GetAttrString(fc1.p,"weight"):nullptr);
-  Owned loader(target.p?PyObject_GetAttrString(target.p,"weight_loader"):nullptr);
-  Owned fused(weight(open,map,root,(prefix+"ff.net.0.proj.weight").c_str()));
-  if(!loader.p||!fused.p||!fc2.p)return false;
-  for(int shard=0;shard<2;++shard) {
-    // Converted diffusers SwiGLU stores [up,gate], while the original H3
-    // MergedColumnParallelLinear consumes [gate,up]. This translation is
-    // checkpoint layout only; preserve the original activation arithmetic.
-    Owned half(PyObject_CallMethod(fused.p,"narrow","iii",0,(1-shard)*14336,14336));
-    Owned args(half.p?Py_BuildValue("OOi",target.p,half.p,shard):nullptr);
-    Owned copied(args.p?PyObject_CallObject(loader.p,args.p):nullptr);
-    if(!copied.p)return false;
-  }
-  if(!parameter(fc2.p,open,map,root,"weight",(prefix+"ff.net.2.weight").c_str()))return false;
+  if(!h3_attention_mlp(block,open,map,root,prefix))return false;
   Owned adaln(PyObject_GetAttrString(block,"adaln_proj"));
   Owned linear(adaln.p?PyObject_GetAttrString(adaln.p,"linear"):nullptr);
-  return linear.p&&parameter(linear.p,open,map,root,"weight",(prefix+"adaln_proj.linear.weight").c_str())&&
-    parameter(linear.p,open,map,root,"bias",(prefix+"adaln_proj.linear.bias").c_str());
+  return linear.p&&h3_parameter(linear.p,open,map,root,"weight",(prefix+"adaln_proj.linear.weight").c_str())&&
+    h3_parameter(linear.p,open,map,root,"bias",(prefix+"adaln_proj.linear.bias").c_str());
 }
 
 // Independently exercise the installed original checkpoint conversion, rather

@@ -201,3 +201,48 @@ plan is **82,132,052,256 bytes**, under the 96-GiB device limit; no competing GP
 work runs on that host. **Media quality is pending until this run terminates,
 the generated video is inspected, and the audio is assessed.** Text-encoder
 drift and input/refiner parity are not waived by the packing improvement.
+
+### Literal-caption conditioning replay
+
+The installed original `ColumnParallelLinear` context projection and both
+unmodified `MiniMaxH3TokenRefinerBlock` forwards now consume the **same three
+BF16 caption rows** as the repaired native run. This does not substitute a
+different encoder or regenerate the caption. Canonical checkpoint loading
+uses the corrected converted-up/gate adapter shared with the original DiT
+replay; original kernels and arithmetic remain unchanged.
+
+Native post-refiner text rows are extracted from the literal packed initial
+denoiser input. Against original final-normalized conditioning, **11,095/16,128**
+BF16 values agree, global relative L2 is **0.3540210%**, and the maximum absolute
+difference is **0.09375**. Individual row errors are 0.0849923%, 0.4535983% and
+0.3983551%. These are not acceptance thresholds. The adapter retains context,
+both block outputs and final normalization; the native prefix presently
+retains only their complete final result, so this comparison does **not** yet
+assign the conditioning error to an individual native operator.
+
+Root: `/tmp/lunaflux-minimax-original-refiner-actual-20261012-v2`.
+Original execution terminates zero and releases CUDA. Its stderr retains the
+installed vLLM/Omni version and Gloo hostname warnings, not an empty-stderr
+claim. The first preparation attempt lacked the container's output UID and
+failed compilation before GPU execution; its `v1` logs are retained. The
+successful bounded replay uses the existing owner UID, 8-GiB/no-swap limits
+and no concurrent workload on `.179`.
+
+```sh
+moon run scripts/replay-minimax-original-refiner.mbtx prepare NEW_ROOT EXISTING_FULL_REPLAY_ROOT LITERAL_ENCODER_BF16 LITERAL_PACKED_INPUT
+moon run scripts/replay-minimax-original-refiner.mbtx run NEW_ROOT
+moon run scripts/replay-minimax-original-refiner.mbtx collect NEW_ROOT
+```
+
+A quiet thread continuation checks the active repaired media run every ten
+minutes and will collect terminal outputs and latents before running original
+decoder controls. The exact terminal collector uses suffix
+`mlp-order-quality128-20261012-v1`, not the full prefixed unit name. Media and
+audio assessment, encoder drift and full-conditioning operator isolation remain
+open. No new hardening or speculative precision change was introduced.
+
+The shared layout adapter is independently checked by reexecuting original
+block 0 on the preserved full literal input: **5,505,024/5,505,024 BF16 values
+match bitwise**, including the separately retained padding document. Both
+original adapters compile with `-Wall -Wextra -Werror`; runner regressions pass
+(refiner 1/1, block 2/2). This verifies reference preservation, not native parity.

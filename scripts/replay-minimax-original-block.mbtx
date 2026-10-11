@@ -327,7 +327,10 @@ async fn main {
       "/tmp/lunaflux-minimax-rotary-20261010-v1/rope.inv_freq.f32",
       node + ":" + root + "/model/rope.inv_freq.f32",
     )
-    for file in ["dit_block_upstream.cpp", "original_tensor_io.h"] {
+    for
+      file in [
+        "dit_block_upstream.cpp", "original_tensor_io.h", "original_h3_loading.h",
+      ] {
       copy(
         "benchmarks/checkpoint_aten_reference/aten/" + file,
         node + ":" + root + "/" + file,
