@@ -13,10 +13,21 @@ The larger native run is dispatched separately on Spark `.178`:
 - Declared device budget: 96 GiB; unit swap limit zero; six-hour timeout.
 - Canonical terminal latents are captured before decoder mean/std conversion.
 
-At the most recent check the exact user unit is running, stderr is empty and
-unit swap use is zero. The redirected diagnostic stdout is buffered; an empty
-log alone is not evidence that the GPU request has not begun. Actual media has
-not yet been collected or inspected. No visual or audio quality pass is claimed.
+The exact user unit completes at **22:41:17 CST**, after **4 h 8 m 25 s**,
+with exit status zero, empty stderr, no remaining CUDA owner, and a cgroup peak
+of 34,053,476,352 bytes (not a complete CUDA-residency measurement). All twenty
+denoising evaluations, fifty blocks, and both decoders execute. Downloaded
+video is `[1,3,124,128,128]` (24,379,392 F32 bytes), and stereo audio contains
+165,600 samples/channel at 32 kHz. Both arrays and both terminal latents are
+finite. Buffered diagnostic logs were empty during execution; they are now
+retained under `terminal/`.
+
+**Visual quality fails:** twelve sampled frames show scrambled colored patches
+and no recognizable cat. Successful execution and finite arrays are not a
+semantic-quality pass. Native outputs are retained at
+`/tmp/lunaflux-minimax-media-quality128-20261011-v1`; the contact sheet and WAV
+are at `/tmp/lunaflux-minimax-preview-quality128-20261011-v1`. Audio has not
+been independently listened to or judged for prompt correspondence.
 
 The installed original pipeline defaults to **768×1344 and fifty steps** when
 the caller supplies neither a canvas nor a step count. It accepts the smaller
@@ -49,8 +60,17 @@ the 32-GiB/no-swap Docker limit is not a measurement of complete CUDA residency.
 
 Reference root: `/tmp/lunaflux-minimax-upstream-video-quality128-zero-20261011-v1`.
 Source tests pass; the original bridge compiles with `-Wall -Wextra -Werror` in
-the installed ARM reference image. After native completion, replay its literal
-captured latent rather than substituting the standardized zero used here.
+the installed ARM reference image. After native completion, its literal generated
+latent is replayed through the original VideoVAE in
+`/tmp/lunaflux-minimax-upstream-video-quality128-captured-20261011-v1`.
+That run exits zero, releases its GPU, and produces the same pixel extent.
+Relative L2 is **0.0428699%**, RMSE **0.000149684**, maximum pixel difference
+**0.00272679**. The original contact sheet also shows scrambled colored patches.
+This localizes the failed appearance upstream of the native video decoder;
+it does not yet distinguish denoiser arithmetic, conditioning, or an unsupported
+quality geometry. Full original-denoiser input matching is still required.
+Do not substitute a zero latent or the same integer RNG seed for identical
+initial noise.
 
 ```sh
 moon run scripts/run-minimax-upstream-video.mbtx prepare NEW_REFERENCE_ROOT CAPTURED_VIDEO_LATENT_F32 --latent-shape 37 8 8

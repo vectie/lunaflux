@@ -118,8 +118,22 @@ test "preview preserves canonical pixels and interleaves stereo channels" {
 
 ///|
 async fn main {
+  if @env.args() is [_, "--video-only", source, destination, f, h, w] {
+    let sheet = contact_sheet(
+      @fs.read_file(source).binary(),
+      @string.parse_int(f),
+      @string.parse_int(h),
+      @string.parse_int(w),
+    )
+    @fs.mkdir(destination)
+    @fs.write_file(destination + "/frames.ppm", sheet, create_mode=CreateNew)
+    println("video_preview_created scope=inspection_not_quality_pass")
+    return
+  }
   guard @env.args() is [_, source, destination, f, h, w] else {
-    fail("EXISTING_OUTPUT_DIRECTORY NEW_PREVIEW_DIRECTORY FRAMES HEIGHT WIDTH")
+    fail(
+      "EXISTING_OUTPUT_DIRECTORY NEW_PREVIEW_DIRECTORY FRAMES HEIGHT WIDTH | --video-only PIXELS_F32 NEW_PREVIEW_DIRECTORY FRAMES HEIGHT WIDTH",
+    )
   }
   let frames = @string.parse_int(f)
   let height = @string.parse_int(h)

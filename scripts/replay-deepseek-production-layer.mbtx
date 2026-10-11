@@ -1,0 +1,202 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+fn replay_geometry(layer : String, rows : String) -> Unit raise {
+  let layer = @string.parse_int(layer)
+  let rows = @string.parse_int(rows)
+  guard layer >= 3 && layer < 43 && rows > 0 && rows <= 144 else {
+    fail("learned-router base layer and bounded row shape required")
+  }
+}
+
+///|
+test "matched replay supports native chunk and original one-row geometries" {
+  replay_geometry("40", "6")
+  replay_geometry("3", "1")
+  try replay_geometry("43", "6") catch {
+    _ => ()
+  } noraise {
+    _ => fail("not a base decoder layer")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-production-layer-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT ARM_EXECUTABLE LAYER PHYSICAL_ROWS ORIGINAL_INPUT_BF16 ORIGINAL_OUTPUT_BF16 | run ROOT | collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  let model = "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT"
+  if mode == "prepare" {
+    guard extra is [executable, layer, rows, input, reference] else {
+      fail("matched operands required")
+    }
+    replay_geometry(layer, rows)
+    @fs.mkdir(root)
+    record(root, "mkdir", remote("mkdir " + root))
+    for
+      (name, source) in [
+        ("decoder.exe", executable),
+        ("input.bf16", input),
+        ("reference.bf16", reference),
+      ] {
+      @fs.write_file(
+        root + "/" + name,
+        @fs.read_file(source).binary(),
+        create_mode=CreateNew,
+      )
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        root + "/" + name,
+        node + ":" + root + "/" + name,
+      ])
+      .output()
+      .check()
+    }
+    record(root, "permissions", remote("chmod 755 " + root + "/decoder.exe"))
+    let args = " " +
+      model +
+      "/DeepSeek-V4-Flash-DSpark " +
+      model +
+      "/SHARDS.sha256 " +
+      layer +
+      " " +
+      rows
+    @fs.write_file(root + "/ARGS.txt", args, create_mode=CreateNew)
+    record(
+      root,
+      "export",
+      remote(
+        root +
+        "/decoder.exe replay-layer" +
+        args +
+        " export " +
+        root +
+        " layer.cubin " +
+        root +
+        "/input.bf16 " +
+        root +
+        "/export",
+      ),
+    )
+    record(
+      root,
+      "build-aot",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800" +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
+        root +
+        "/export/layer.cu -o " +
+        root +
+        "/layer.cubin",
+      ),
+    )
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected options") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, "before-owners", owners)
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    record(
+      root,
+      "run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        " --property=MemoryMax=12G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+        root +
+        "/decoder.exe replay-layer" +
+        @fs.read_file(root + "/ARGS.txt").text() +
+        " run " +
+        root +
+        " layer.cubin " +
+        root +
+        "/input.bf16 " +
+        root +
+        "/output",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    @fs.mkdir(root + "/output")
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + root + "/output/hidden.bf16",
+      root + "/output/hidden.bf16",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      "comparison",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        root + "/output/hidden.bf16",
+        root + "/reference.bf16",
+        root + "/comparison.txt",
+        "matched_original_complete_production_layer",
+        "16384",
+      ]).output(),
+    )
+  } else {
+    fail("unknown mode")
+  }
+  println(
+    "matched_complete_production_layer_" +
+    mode +
+    " complete; not full-model parity",
+  )
+}

@@ -1,0 +1,75 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, commit] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-matched-arm-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    commit.length() == 40 &&
+    commit.iter().all(c => c is ('a'..='f' | '0'..='9')) else {
+    fail("NEW_ROOT COMMIT")
+  }
+  @fs.mkdir(root)
+  let node = "wlc003s@192.168.2.178"
+  let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let base = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b"
+  let archive = root + "/source.tar.gz"
+  @shell.Cmd("git", [
+    "archive",
+    "--format=tar.gz",
+    "--output=" + archive,
+    commit,
+  ])
+  .output()
+  .check()
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-S",
+    socket,
+    node,
+    "mkdir " + root + " " + root + "/source",
+  ])
+  .output()
+  .check()
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    archive,
+    node + ":" + archive,
+  ])
+  .output()
+  .check()
+  for
+    command in [
+      "tar -xf " + archive + " -C " + root + "/source",
+      "tar -xf " + base + "/dependencies-clean.tar.gz -C " + root + "/source",
+      "systemd-run --user --unit=" +
+      root[5:].to_owned() +
+      " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=3600 --working-directory=" +
+      root +
+      "/source /usr/bin/env MOON_HOME=" +
+      base +
+      "/toolchain PATH=" +
+      base +
+      "/toolchain/bin:/usr/bin:/bin MOON_CC=gcc " +
+      base +
+      "/toolchain/bin/moon build cmd/deepseek_checkpoint --release --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2",
+    ] {
+    let result = @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-S", socket, node, command,
+    ]).output()
+    println(result.stdout())
+    println(result.stderr())
+    result.check()
+  }
+  println("CPU-only committed build dispatched; GPU completion is not claimed")
+}

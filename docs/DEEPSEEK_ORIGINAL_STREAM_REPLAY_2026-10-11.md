@@ -28,14 +28,16 @@ so the bridge does not pretend it supports six-row continuation chunks.
 | Native PP2, physical rows 6 versus original TP1 incremental | 21.1670% |
 | Native PP2 versus original TP1 full prefill | 20.9906% |
 | Original TP1 incremental versus original TP1 full prefill | 14.5487% |
-| Original TP1 full prefill versus original TP2 full prefill | 17.2087% |
+| Original TP1 incremental versus original TP2 incremental | 17.2535% |
+| Original TP1 full prefill versus original TP2 incremental | 17.2087% |
 
 Native versus original TP1 incremental at layers 41/42 remains
 21.0974% / 17.7848%. All compared tensors are finite. These differences are
 **not additive** and do not demonstrate that the native gap is acceptable or
-fixed. In particular, the first incremental run changed both topology and
-submission shape relative to the older TP2 reference. The second run controls
-submission shape for the original TP1-versus-TP2 comparison. Actual original
+fixed. The older TP2 sampler reference also submits one logical row at a time:
+the incremental TP1-versus-TP2 comparison controls submission shape. Comparing
+TP1 full prefill to that TP2 reference changes both topology and submission
+shape, and must not be described as an isolated topology comparison. Actual original
 arithmetic also varies considerably across these configurations; a single
 retained-state norm cannot identify a production bug by itself.
 
@@ -70,8 +72,22 @@ Root: `/tmp/lunaflux-deepseek-original-hyper-layer40-20261011-v1`.
 the existing production `DeepSeekDecoderSlice` for one learned-router base
 layer, feeds literal original predecessor streams in explicit row batches,
 and captures each complete output only after retirement. It does not change
-the serving graph, precision laws or acceptance tolerances. The first real
-matched complete-layer replay is pending; source tests alone are not GPU parity.
+the serving graph, precision laws or acceptance tolerances. Real matched
+complete-layer replays now complete on Spark `.179`, using original TP1
+incremental predecessor tensors and production native six-row batches:
+
+| Layer | All-row relative L2 | Position-143 relative L2 |
+| --- | --- | --- |
+| 3 (compression ratio 128) | 0.2316441% | 0.6626280% |
+| 40 | 0.0037391% | 0.547154% |
+
+Both runs exit zero and release CUDA owners. Layer 40's small global norm is
+dominated by unusually large early-row features; it is not evidence of equally
+small error on every row. Layer 3 includes individual rows exceeding 4%.
+These controls separate local complete-layer error from the accumulated gap,
+but do not isolate submission geometry or prove full-model parity.
+Roots: `/tmp/lunaflux-deepseek-production-layer-3-rows6-20261011-v1` and
+`/tmp/lunaflux-deepseek-production-layer-40-rows6-20261011-v1`.
 
 ```sh
 moon run scripts/run-deepseek-original-layer-stream.mbtx prepare NEW_ROOT 43 [--prefill]
