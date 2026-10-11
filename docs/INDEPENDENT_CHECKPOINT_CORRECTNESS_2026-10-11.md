@@ -6,6 +6,38 @@ does not add production authentication, hashing, TLS or release prerequisites.
 
 ## Original-scale reference rerun and bounded upstream conversion
 
+### Original-reference full-vocabulary capture
+
+The subsequent `v9` original DeepSeek MP2 execution completes on both Sparks
+without OOM, with all 36,943 rank tensors loaded and no missing/unexpected keys.
+It uses the previously disclosed GB10 sixteen-head launch adapter, not an
+unmodified original launch. Literal input IDs match native at all 144 positions.
+Both original ranks produce bitwise identical 129,280-value prefill logits.
+
+At that identical prompt frontier, original chooses `33310` (32.385582), while
+native's retired physical row 5 chooses `19923` (31.737299). Original scores
+`19923` at 31.466326; native scores `33310` at 31.683079. The matched full-vocabulary
+RMSE is **0.604927**, relative L2 **11.4684%**, and maximum absolute error
+**3.865801**. Original generates `33310,1`; excluding its reporting EOS leaves
+**0/1 same-prefix generated tokens matched**. This is a confirmed differential,
+not parity. Reference ranks agree with each other; rank disagreement cannot
+explain this capture.
+
+Reports and logits are under
+`/tmp/lunaflux-deepseek-upstream-reference-20261011-v9`, including
+`NATIVE_REFERENCE_LOGITS.txt`. The native capture remains separately at
+`/tmp/lunaflux-dspark-run-logits-20261011-v2/logits.f32`.
+`scripts/compare-checkpoint-logits.mbtx` selects the explicit physical row and
+does not confuse captured capacity rows with the logical prompt frontier.
+
+Source inspection finds an actual precision-contract difference: original
+sparse attention rounds each online KV64 block's unnormalized probabilities to
+BF16 before P×V, retains an F32 denominator, and adds sink mass after the final
+block. Native currently uses global F32 probabilities without that BF16
+intermediate. This is an actionable arithmetic difference, **not yet a measured
+attribution of the full-logit error**. Block boundaries and masked index slots
+also matter; a simple final probability cast cannot reproduce online rounding.
+
 The original-layout GLM scale adapter completed both real TP-rank requests in
 `/tmp/lunaflux-independent-glm-20261011-v3`. The 13-token prompt still matches
 8/8 native tokens. The 20-token prompt now matches 6/8: its first same-prefix

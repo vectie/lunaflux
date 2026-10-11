@@ -1,0 +1,117 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn row(payload : BytesView, width : Int, index : Int) -> BytesView raise {
+  guard width > 0 &&
+    width <= 1000000 &&
+    index >= 0 &&
+    payload.length() % (width * 4) == 0 &&
+    index < payload.length() / (width * 4) else {
+    fail("invalid captured row")
+  }
+  payload[index * width * 4:(index + 1) * width * 4]
+}
+
+///|
+fn value(payload : BytesView, index : Int) -> Double raise {
+  let offset = index * 4
+  let bits = payload[offset].to_uint() |
+    (payload[offset + 1].to_uint() << 8) |
+    (payload[offset + 2].to_uint() << 16) |
+    (payload[offset + 3].to_uint() << 24)
+  let result = Float::reinterpret_from_uint(bits).to_double()
+  guard !result.is_nan() && !result.is_inf() else { fail("nonfinite logit") }
+  result
+}
+
+///|
+fn compare(actual : BytesView, reference : BytesView) -> String raise {
+  guard !actual.is_empty() &&
+    actual.length() == reference.length() &&
+    actual.length() % 4 == 0 else {
+    fail("different vocabulary extents")
+  }
+  let count = actual.length() / 4
+  let (winner_a, winner_b, error, norm, maximum) = for
+    i in 0..<count
+    wa = 0, wb = 0, error = 0.0, norm = 0.0, maximum = 0.0 {
+    let a = value(actual, i)
+    let b = value(reference, i)
+    let delta = a - b
+    continue if a > value(actual, wa) {
+        i
+      } else {
+        wa
+      },
+      if b > value(reference, wb) {
+        i
+      } else {
+        wb
+      },
+      error + delta * delta,
+      norm + b * b,
+      maximum.max(delta.abs())
+  } nobreak {
+    (wa, wb, error, norm, maximum)
+  }
+  let report = StringBuilder()
+  report <+
+    "vocabulary=\{count} native_greedy=\{winner_a} reference_greedy=\{winner_b}\n"
+  report <+
+    "rmse=\{(error / count.to_double()).sqrt()} relative_l2=\{if norm > 0.0 { (error / norm).sqrt() } else if error == 0.0 { 0.0 } else { 0x7FF0000000000000L.reinterpret_as_double() }} maximum_absolute_error=\{maximum}\n"
+  for token in [winner_a, winner_b] {
+    report <+
+      "token=\{token} native_score=\{value(actual, token)} reference_score=\{value(reference, token)}\n"
+  }
+  report.write_string(
+    "scope=matched_prefill_vocabulary_row_difference_not_equivalence\n",
+  )
+  report.to_string()
+}
+
+///|
+test "comparison preserves physical row selection and greedy disagreements" {
+  let a = b"\x00\x00\x80\x3f\x00\x00\x00\x40"
+  let b = b"\x00\x00\x40\x40\x00\x00\x00\x40"
+  assert_eq(row(a + b, 2, 1), b[:])
+  assert_true(compare(a, b).contains("native_greedy=1 reference_greedy=0"))
+  try row(a, 2, 1) catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing row accepted")
+  }
+}
+
+///|
+test "nonzero logits against zero reference do not report zero relative error" {
+  assert_true(
+    compare(b"\x00\x00\x80\x3f", b"\x00\x00\x00\x00").contains(
+      "relative_l2=Infinity",
+    ),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [_, actual, reference, output, width, actual_row, reference_row] else {
+    fail(
+      "ACTUAL REFERENCE NEW_REPORT VOCABULARY_WIDTH ACTUAL_ROW REFERENCE_ROW",
+    )
+  }
+  let width = @string.parse_int(width)
+  let a = @fs.read_file(actual).binary()
+  let b = @fs.read_file(reference).binary()
+  let report = compare(
+    row(a, width, @string.parse_int(actual_row)),
+    row(b, width, @string.parse_int(reference_row)),
+  )
+  @fs.write_file(output, report, create_mode=CreateNew)
+  println(report)
+}

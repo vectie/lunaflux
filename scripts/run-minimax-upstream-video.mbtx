@@ -1,0 +1,155 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "lunanexa-registry.lunanexa-registry.svc.cluster.local:5000/moon/h3-runtime-serving:20260923-arm64-r2"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, label : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root] &&
+    mode is ("prepare" | "run" | "inspect") &&
+    root.has_prefix("/tmp/lunaflux-minimax-upstream-video-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("prepare|run|inspect NEW_OR_PREPARED_ROOT")
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    @fs.mkdir(root + "/video_vae")
+    @fs.mkdir(root + "/video_vae/source")
+    for
+      file in [
+        "config.json", "source/config.json", "attention.py", "base_module.py", "conv.py",
+        "flash.py", "func.py", "klvae.py", "minimax_h3_video_vae.py", "norm.py",
+        "normalize.py", "parallel.py", "utils.py", "vae_cnn.py", "vae_module.py",
+        "vae_processor.py", "vae_vit.py",
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "lunanexa-management:/data/models/MiniMax/MiniMax-H3/FL2VA/video_vae/" +
+        file,
+        root + "/video_vae/" + file,
+      ])
+      .output()
+      .check()
+    }
+    @shell.Cmd("scp", [
+      "-r",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      root,
+      node + ":/tmp/",
+    ])
+    .output()
+    .check()
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      "benchmarks/checkpoint_aten_reference/aten/video_upstream.cpp",
+      node + ":" + root + "/video_upstream.cpp",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      "weights-view",
+      remote(
+        "ln -s /checkpoint/model.safetensors " +
+        root +
+        "/video_vae/source/model.safetensors",
+      ),
+    )
+    record(
+      root,
+      "compile",
+      remote(
+        "docker run --rm --user 0 --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -I/usr/include/python3.12 /work/video_upstream.cpp -o /work/video-upstream -lpython3.12",
+      ),
+    )
+  } else if mode == "run" {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    record(
+      root,
+      "start",
+      remote(
+        "systemd-run --user --unit=" +
+        tag +
+        " --property=MemoryMax=32G --property=MemorySwapMax=0 --property=RuntimeMaxSec=3600 --property=RemainAfterExit=yes docker run --name " +
+        tag +
+        " --user 0 --pull=never --network none --gpus all --memory 32g --memory-swap 32g -v " +
+        root +
+        ":/work -v /tmp/lunaflux-minimax-video-reference-weights-20261011-v3:/checkpoint:ro --entrypoint /work/video-upstream " +
+        image +
+        " /work /work/pixels.f32",
+      ),
+    )
+  } else {
+    record(
+      root,
+      "terminal",
+      remote(
+        "docker logs " +
+        tag +
+        "; docker inspect --format '{{json .State}}' " +
+        tag +
+        "; nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + root + "/pixels.f32",
+      root + "/pixels.f32",
+    ])
+    .output()
+    .check()
+  }
+}
