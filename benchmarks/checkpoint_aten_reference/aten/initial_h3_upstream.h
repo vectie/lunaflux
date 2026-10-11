@@ -1,6 +1,14 @@
 #pragma once
 // Offline original input producers on the same captured state and schedule.
 // `indices` and checkpoint I/O are supplied by the final-head bridge.
+static constexpr float initial_time_for_tag(int tag,float video,float audio) {
+  return tag%3==2?audio:video;
+}
+static_assert(initial_time_for_tag(0,0.25f,0.75f)==0.25f);
+static_assert(initial_time_for_tag(1,0.25f,0.75f)==0.25f);
+static_assert(initial_time_for_tag(2,0.25f,0.75f)==0.75f);
+static_assert(initial_time_for_tag(4,0.25f,0.75f)==0.25f);
+
 static bool initial_producers(PyObject *torch,PyObject *module,PyObject *arch,
                               PyObject *open,PyObject *map,PyObject *bf16,
                               PyObject *f32,PyObject *i64,PyObject *u8,
@@ -40,7 +48,8 @@ static bool initial_producers(PyObject *torch,PyObject *module,PyObject *arch,
   for(int row=0;row<1024;++row) {
     int32_t index,tag;inverse.read(reinterpret_cast<char*>(&index),4);tags.read(reinterpret_cast<char*>(&tag),4);
     if(!inverse||!tags||index<0||index>=times||tag<0)return false;
-    const float value=tag%3==0?sigmas[2]:tag%3==2?sigmas[5]:1.0f;
+    // H3 text and padding inherit video time; only target audio uses audio time.
+    const float value=initial_time_for_tag(tag,sigmas[2],sigmas[5]);
     if(seen[index]&&values[index]!=value)return false;
     values[index]=value;seen[index]=true;
   }
