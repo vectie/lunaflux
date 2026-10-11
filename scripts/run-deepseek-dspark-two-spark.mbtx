@@ -31,6 +31,11 @@ fn generation_limit(mode : String, requested : Int) -> Int {
 }
 
 ///|
+fn ordinary_target(mode : String) -> Bool {
+  mode is ("target" | "reference" | "logits")
+}
+
+///|
 fn prepared_prompt(document : String) -> (String, Int) raise {
   let mut directory = "prompt-bos"
   let mut count = 1
@@ -164,18 +169,24 @@ fn check_execution_labels() -> Unit raise {
   )
   let roles = ["egress", "ingress", "178-gpu-terminal", "179-gpu-terminal"]
   let names : Array[String] = []
-  for mode in ["run", "reference", "sequence", "sequence-spec", "logits"] {
+  for
+    mode in [
+      "run", "target", "reference", "sequence", "sequence-spec", "logits",
+    ] {
     for role in roles {
       let name = execution_label(mode, role)
       assert_false(names.contains(name))
       names.push(name)
     }
   }
-  assert_eq(names.length(), 20)
+  assert_eq(names.length(), 24)
   assert_eq(generation_limit("logits", 64), 1)
   assert_eq(generation_limit("run", 64), 64)
   assert_eq(generation_limit("reference", 64), 64)
   assert_eq(execution_label("reference", "egress"), "reference-egress")
+  assert_true(ordinary_target("target"))
+  assert_false(ordinary_target("run"))
+  assert_eq(generation_limit("target", 8), 8)
 }
 
 ///|
@@ -387,12 +398,13 @@ async fn main {
     mode
     is ("prepare"
     | "run"
+    | "target"
     | "reference"
     | "sequence"
     | "sequence-spec"
     | "logits") else {
     fail(
-      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|reference|sequence|sequence-spec BUILD_ROOT COMMIT",
+      "NEW_LOCAL_DIRECTORY UNIQUE_SUFFIX prepare|run|target|reference|sequence|sequence-spec|logits BUILD_ROOT COMMIT",
     )
   }
   let sequence = mode is ("sequence" | "sequence-spec")
@@ -440,11 +452,7 @@ async fn main {
   let name = "lunaflux-dspark-" +
     suffix +
     "-" +
-    (if mode == "reference" || sequence || mode == "logits" {
-      mode + "-"
-    } else {
-      ""
-    })
+    (if ordinary_target(mode) || sequence { mode + "-" } else { "" })
   if mode == "prepare" {
     @fs.mkdir(root)
     let build_journal = remote(
@@ -680,7 +688,7 @@ async fn main {
       "generate-sequence-dspark "
     } else if sequence {
       "generate-sequence-reference-dspark "
-    } else if mode == "reference" || mode == "logits" {
+    } else if ordinary_target(mode) {
       "generate-reference-dspark "
     } else {
       "generate-dspark "

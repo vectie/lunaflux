@@ -50,6 +50,61 @@ test "upstream observer retains IDs and excludes only its reporting marker" {
 }
 
 ///|
+// One-row prompt ablations also sample intermediate prompt rows. Those are
+// observations, not generation. Predictor samples have a different caller.
+fn actual_generation(source : String, prompt_rows : Int) -> Array[Int]? raise {
+  let output : Array[Int] = []
+  for line in source.split("\n") {
+    let marker = "upstream_actual_sample caller=forward start_pos="
+    guard line.find(marker) is Some(start) else { continue }
+    let record = line[start + marker.length():]
+    guard record.find(" ids=") is Some(split) else {
+      fail("incomplete actual sampler observation")
+    }
+    let position = @string.parse_int(record[:split])
+    if position < prompt_rows - 1 {
+      continue
+    }
+    guard position == prompt_rows - 1 + output.length() &&
+      output.last() != Some(1) &&
+      record.has_suffix(" reporting_suffix=false") &&
+      @json.parse(record[split + 5:record.length() - 23]) is Array(sampled) &&
+      ids(sampled) is [token] else {
+      fail("noncontiguous or invalid actual target sampling frontier")
+    }
+    output.push(token)
+  }
+  if output.is_empty() {
+    None
+  } else {
+    Some(output)
+  }
+}
+
+///|
+test "actual generation excludes prompt samples but retains model EOS" {
+  let source =
+    $|upstream_actual_sample caller=forward start_pos=141 ids=[7] reporting_suffix=false
+    $|upstream_actual_sample caller=forward_head start_pos=143 ids=[9] reporting_suffix=false
+    $|upstream_actual_sample caller=forward start_pos=143 ids=[33310] reporting_suffix=false
+    $|upstream_actual_sample caller=forward start_pos=144 ids=[1] reporting_suffix=false
+  assert_eq(actual_generation(source, 144), Some([33310, 1]))
+  assert_eq(actual_generation("no sampler records", 144), None)
+  for
+    invalid in [
+      "upstream_actual_sample caller=forward start_pos=144 ids=[1] reporting_suffix=false",
+      "upstream_actual_sample caller=forward start_pos=143 ids=[1,2] reporting_suffix=false",
+      "upstream_actual_sample caller=forward start_pos=143 ids=[129280] reporting_suffix=false",
+    ] {
+    try actual_generation(invalid, 144) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid target observation accepted")
+    }
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, native_prompt, native_output, upstream_log, report] else {
     fail(
@@ -68,13 +123,24 @@ async fn main {
     .split("\n")
     .to_array()
     .map(s => @string.parse_int(s))
-  let (reference_prompt, reference) = observed(
-    @fs.read_file(upstream_log).text(),
-  )
+  let source = @fs.read_file(upstream_log).text()
+  let (reference_prompt, reported) = observed(source)
   guard prompt == reference_prompt else {
     fail(
       "upstream rendered different literal input IDs; no differential is valid",
     )
+  }
+  let actual = actual_generation(source, prompt.length())
+  let reference = actual.unwrap_or(reported)
+  if actual is Some(sampled) {
+    let content = if sampled.last() == Some(1) {
+      sampled[:sampled.length() - 1]
+    } else {
+      sampled[:]
+    }
+    guard content == reported else {
+      fail("actual sampler and original reporting content disagree")
+    }
   }
   let count = native.length().min(reference.length())
   let prefix = for i in 0..<count {
@@ -86,7 +152,7 @@ async fn main {
   }
   let text = StringBuilder()
   text <+
-    "scope=original_checkpoint_greedy_differential\ninput_ids_exact=true\nprompt_tokens=\{prompt.length()}\ncompared_tokens=\{count}\nshared_prefix=\{prefix}\nreporting_eos_not_counted=true\nfull_numerical_equivalence_claim=false\n"
+    "scope=original_checkpoint_greedy_differential\ninput_ids_exact=true\nprompt_tokens=\{prompt.length()}\ncompared_tokens=\{count}\nshared_prefix=\{prefix}\nnative_generated_tokens=\{native.length()}\nreference_generated_tokens=\{reference.length()}\nactual_sampler_observed=\{actual is Some(_)}\nreporting_eos_not_counted=true\nfull_numerical_equivalence_claim=false\n"
   for i in 0..<count {
     text <+
       "position=\{i} native=\{native[i]} reference=\{reference[i]} equal=\{native[i] == reference[i]} same_generated_prefix=\{i <= prefix}\n"
