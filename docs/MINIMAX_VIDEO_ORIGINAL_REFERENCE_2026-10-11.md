@@ -63,3 +63,28 @@ with `scripts/run-minimax-upstream-video.mbtx prepare ROOT VIDEO_LATENT_F32`.
 Capturing the actual denoiser output is necessary to distinguish encoder/denoiser
 errors from decoder errors and to inspect media honestly. A 32×32/five-step
 smoke run remains inadequate for semantic quality acceptance.
+
+## Completed FP16 joint decoder ablation
+
+Spark `.178` completed all fifty denoiser blocks over five flow steps and both
+VAEs at `/tmp/lunaflux-minimax-joint-fp16-media-20261011-v1`: 1,523,712 video bytes
+and 1,324,800 audio bytes, all finite. Unit lifetime was 1,807 seconds including
+loading/preparation; `MemorySwapPeak=0`. The declared device-residency plan was
+81,920,540,616 bytes. Cgroup peak was 36,347,752,448 bytes, which is **not** a
+complete measurement of CUDA unified/device allocations.
+
+This uses the same caption conditioning, five-step geometry and signed seed as
+the earlier smoke run, changing only the VideoVAE AOT module's FP16 boundaries.
+The remaining AOT modules are reused; this is an isolated decoder ablation,
+not a claim that a new whole serving bundle was independently qualified.
+Audio is bitwise unchanged at all **331,200 F32 values**. Video differs with
+RMSE 0.000867734, relative L2 0.243979%, maximum absolute change 0.008955061.
+Those are native-to-native changes, **not** error against the original decoder.
+
+The downloaded 124-frame, 32×32 contact sheet remains blurred colored regions;
+it does not visibly establish the requested "A red cat". Finite pixels,
+unchanged audio, and the earlier zero-latent decoder improvement do not constitute
+media-quality acceptance. Latent capture and original replay on generated inputs
+are the next isolation step; meaningful resolution/step coverage remains open.
+No audio intelligibility assessment is claimed from waveform statistics alone.
+Preview: `/tmp/lunaflux-minimax-fp16-media-preview-20261011-v1/frames.png`.
