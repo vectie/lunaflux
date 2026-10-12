@@ -35,6 +35,14 @@ fn NumericExpr::exact_normal_form(
         b.exact_normal_form(inputs),
         c.exact_normal_form(inputs),
       )
+    Select(op, a, b, yes, no) =>
+      Select(
+        op,
+        a.exact_normal_form(inputs),
+        b.exact_normal_form(inputs),
+        yes.exact_normal_form(inputs),
+        no.exact_normal_form(inputs),
+      )
     Input(_) | Float32Bits(_) => self
   }
 }

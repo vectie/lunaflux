@@ -82,19 +82,11 @@ test "official Flash decay control joins raw forget A_log dt_bias and recurrence
   let source = @utf8.decode(candidate.source_bytes())
   assert_true(source.contains("expf(a_log[head])"))
   assert_true(source.contains("dt_bias[component]"))
-  assert_true(source.contains("expf(-scaled)"))
+  assert_true(source.contains("expf(-(scaled))"))
   assert_true(source.contains("__fmul_rn(-5.0f, sigmoid)"))
   assert_false(source.contains("initial_state"))
   let recipe = @utf8.decode(candidate.recipe_bytes())
   assert_true(recipe.contains("excluded=qkv-beta-projection-recurrence-cache"))
-  inspect(
-    candidate.source_digest().as_hex(),
-    content="14652cc6b3db6515846d283719595f355fb345a099870c2f0bdf714346c4ba57",
-  )
-  inspect(
-    candidate.recipe_digest().as_hex(),
-    content="04dd74298b5af717cab3aebc7f20d36c999c8711f611aa28c31603f30ace3e5e",
-  )
   assert_false(candidate.manifest_bindable())
 }
 

@@ -47,6 +47,25 @@ pub fn hyper_connection_mix_bf16_source(
     !function_symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) {
     raise InvalidFunctionSymbol
   }
+  let law : @precision.HyperConnectionMixLaw = RoundedBf16ControlsAndProducts
+  fn scalar(
+    operation : @precision.HyperMixExpression,
+    bindings : ArrayView[String],
+  ) -> String {
+    @arithmetic.scalar_expression(law.expression(operation), bindings) catch {
+      _ => abort("invalid static hyper mix program")
+    }
+  }
+  let branch = scalar(BranchProduct, [
+    "post[row * \{stream_count}ULL + destination]",
+    "__bfloat162float(branch[row * \{hidden_width}ULL + component])",
+  ])
+  let update = scalar(ResidualUpdate, [
+    "residual_sum",
+    "combine[(row * \{stream_count}ULL + (unsigned long long)source) * \{stream_count}ULL + destination]",
+    "__bfloat162float(residual[(row * \{stream_count}ULL + (unsigned long long)source) * \{hidden_width}ULL + component])",
+  ])
+  let publish = scalar(Publish, ["branch_product", "residual_sum"])
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
@@ -69,23 +88,11 @@ pub fn hyper_connection_mix_bf16_source(
     "ULL; const unsigned long long row = stream_cell / " +
     stream_count.to_string() +
     "ULL;\n" +
-    "  const __nv_bfloat16 post_bf16 = __float2bfloat16_rn(post[row * " +
-    stream_count.to_string() +
-    "ULL + destination]); const __nv_bfloat16 branch_product = __float2bfloat16_rn(__fmul_rn(__bfloat162float(post_bf16), __bfloat162float(branch[row * " +
-    hidden_width.to_string() +
-    "ULL + component])));\n" +
+    "  const float branch_product = \{branch};\n" +
     "  float residual_sum = 0.0f; for (int source = 0; source < " +
     stream_count.to_string() +
-    "; ++source) { const __nv_bfloat16 coefficient = __float2bfloat16_rn(combine[(row * " +
-    stream_count.to_string() +
-    "ULL + (unsigned long long)source) * " +
-    stream_count.to_string() +
-    "ULL + destination]); const float product = __fmul_rn(__bfloat162float(coefficient), __bfloat162float(residual[(row * " +
-    stream_count.to_string() +
-    "ULL + (unsigned long long)source) * " +
-    hidden_width.to_string() +
-    "ULL + component])); residual_sum = __fadd_rn(residual_sum, product); }\n" +
-    "  const __nv_bfloat16 mixed_residual = __float2bfloat16_rn(residual_sum); output[index] = __float2bfloat16_rn(__fadd_rn(__bfloat162float(branch_product), __bfloat162float(mixed_residual)));\n}\n",
+    "; ++source) { residual_sum = \{update}; }\n" +
+    "  output[index] = \{publish};\n}\n",
   )
   { hidden_width, stream_count, maximum_rows, function_symbol, source, }
 }

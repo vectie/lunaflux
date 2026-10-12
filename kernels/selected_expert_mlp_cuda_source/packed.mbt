@@ -136,7 +136,15 @@ pub fn packed_expert_mlp_source(
     None => ""
     Some(limit) => {
       let literal = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(limit)
-      "gate=__float2bfloat16_rn(fminf(__bfloat162float(gate),\{literal})); up=__float2bfloat16_rn(fmaxf(-\{literal},fminf(__bfloat162float(up),\{literal})));"
+      let gate = @luna_cuda_precision.scalar_expression(
+        plan.expression(ClampGate),
+        ["gate", literal],
+      )
+      let up = @luna_cuda_precision.scalar_expression(
+        plan.expression(ClampUp),
+        ["up", literal],
+      )
+      "gate=\{gate}; up=\{up};"
     }
   }
   let gate_up = symbol + "_gate_up"
@@ -148,22 +156,38 @@ pub fn packed_expert_mlp_source(
   } else {
     ""
   }
-  let product = match plan.activation_rounding() {
-    Bf16Stages =>
-      "const __nv_bfloat16 activated=__float2bfloat16_rn(__fdiv_rn(g,__fadd_rn(1.0f,expf(-g)))); float product=__fmul_rn(__bfloat162float(activated),__bfloat162float(up));"
-    F32Product =>
-      "float product=__fmul_rn(__fdiv_rn(g,__fadd_rn(1.0f,expf(-g))),__bfloat162float(up));"
+  fn expr(
+    operation : @precision_ir.ExpertExpression,
+    bindings : ArrayView[String],
+  ) -> String raise {
+    @luna_cuda_precision.scalar_expression(plan.expression(operation), bindings)
   }
+  let product = "float product=\{expr(Product, ["g", "up"])};"
   let apply_route = if route_before {
-    "product=__fmul_rn(product,selected_weights[job]);"
+    "product=\{expr(ApplyRoute, ["product", "selected_weights[job]"])};"
   } else {
     ""
   }
-  let down_output = if route_before {
-    "__float2bfloat16_rn(sum)"
-  } else {
-    "__float2bfloat16_rn(__fmul_rn(__bfloat162float(__float2bfloat16_rn(sum)),selected_weights[job]))"
-  }
+  let down_output = expr(DownPublish, ["sum", "selected_weights[job]"])
+  let gate_update = expr(DotUpdate, [
+    "gate_sum",
+    "x",
+    "__bfloat162float(\{symbol}_w0(w0,s0,g0,out,column))",
+  ])
+  let up_update = expr(DotUpdate, [
+    "up_sum",
+    "x",
+    "__bfloat162float(\{symbol}_w1(w1,s1,g1,out,column))",
+  ])
+  let down_update = expr(DotUpdate, [
+    "sum",
+    activation_load,
+    "__bfloat162float(\{symbol}_w2(w2,s2,g2,out,column))",
+  ])
+  let combine_update = expr(CombineUpdate, [
+    "sum",
+    "weighted[(row*\{selected}ULL+slot)*\{hidden}ULL+column]",
+  ])
   let text = loads.join("\n") +
     (
       $|
@@ -183,8 +207,8 @@ pub fn packed_expert_mlp_source(
       $|  float gate_sum=0.0f,up_sum=0.0f;
       $|  for(int column=lane;column<\{hidden};column+=32) {
       $|    const float x=\{input_load};
-      $|    gate_sum=__fadd_rn(gate_sum,__fmul_rn(x,__bfloat162float(\{symbol}_w0(w0,s0,g0,out,column))));
-      $|    up_sum=__fadd_rn(up_sum,__fmul_rn(x,__bfloat162float(\{symbol}_w1(w1,s1,g1,out,column))));
+      $|    gate_sum=\{gate_update};
+      $|    up_sum=\{up_update};
       $|  }
       $|  gate_sum=\{symbol}_reduce(gate_sum); up_sum=\{symbol}_reduce(up_sum);
       $|  if(lane==0) {
@@ -203,7 +227,7 @@ pub fn packed_expert_mlp_source(
       $|  const int expert=selected_indices[job]; const int local=(expert>=0&&expert<\{expert_count})?expert_map[expert]:-1;
       $|  if(local<0||local>=\{plan.local_experts().length()}) { if(lane==0) weighted[cell]=__float2bfloat16_rn(0.0f); return; }
       $|  \{addresses[2]}
-      $|  float sum=0.0f; for(int column=lane;column<\{intermediate};column+=32) sum=__fadd_rn(sum,__fmul_rn(\{activation_load},__bfloat162float(\{symbol}_w2(w2,s2,g2,out,column))));
+      $|  float sum=0.0f; for(int column=lane;column<\{intermediate};column+=32) sum=\{down_update};
       $|  sum=\{symbol}_reduce(sum); if(lane==0) weighted[cell]=\{down_output};
       $|}
       $|extern "C" __global__ void \{combine}(const int *counts, const int *selected_indices, const __nv_bfloat16 *weighted, float *output) {
@@ -215,7 +239,7 @@ pub fn packed_expert_mlp_source(
       $|  for(int n=0;n<\{selected};++n) {
       $|    int next=\{expert_count},slot=-1;
       $|    for(int j=0;j<\{selected};++j) { const int expert=selected_indices[row*\{selected}ULL+j]; if(expert>previous&&expert<next) {next=expert;slot=j;} }
-      $|    if(slot<0) break; sum=__fadd_rn(sum,__bfloat162float(weighted[(row*\{selected}ULL+slot)*\{hidden}ULL+column])); previous=next;
+      $|    if(slot<0) break; sum=\{combine_update}; previous=next;
       $|  }
       $|  output[cell]=sum;
       $|}

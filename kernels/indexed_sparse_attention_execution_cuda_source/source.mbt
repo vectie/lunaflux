@@ -6,6 +6,7 @@ pub struct IndexedSparseAttentionCudaSource {
   priv plan : @precision.IndexedSparseAttentionPrecision
   priv symbols : ReadOnlyArray[String]
   priv source : Bytes
+  priv order : ReadOnlyArray[Int]
 }
 
 ///|
@@ -16,6 +17,20 @@ pub fn indexed_sparse_attention_source(
   let (ih, id, pool_size, top_k, tail) = plan.index_geometry()
   let (qh, kvh, qkd, vd) = plan.attention_geometry()
   let (queries, history) = plan.capacity()
+  let program = plan.program()
+  let order = program
+    .lower(Ordered)
+    .commands(ComputeLane)
+    .map(command => {
+      match command {
+        Execute(step~) =>
+          match program.steps()[step].action() {
+            Compute(stage) => stage
+            _ => raise @precision.PrecisionPlanError::NoImplementation
+          }
+        _ => raise @precision.PrecisionPlanError::NoImplementation
+      }
+    })
   let symbols = [
     symbol_prefix + "_pool",
     symbol_prefix + "_index",
@@ -49,6 +64,7 @@ pub fn indexed_sparse_attention_source(
   )
   {
     plan,
+    order,
     symbols: ReadOnlyArray::from_array(symbols),
     source: pool.source_bytes() +
     b"\n" +
@@ -56,6 +72,13 @@ pub fn indexed_sparse_attention_source(
     b"\n" +
     attention.source_bytes(),
   }
+}
+
+///|
+pub fn IndexedSparseAttentionCudaSource::execution_order(
+  self : Self,
+) -> ReadOnlyArray[Int] {
+  self.order
 }
 
 ///|

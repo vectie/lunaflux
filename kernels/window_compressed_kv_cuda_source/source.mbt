@@ -63,6 +63,26 @@ pub fn window_compressed_kv_source(
     ""
   }
   let scale = @float.canonical_cuda_float_literal(plan.score_scale())
+  fn expr(
+    operation : @precision.AttentionExpression,
+    bindings : ArrayView[String],
+  ) -> String raise {
+    @arithmetic.scalar_expression(
+      plan
+      .window()
+      .probability_law()
+      .expression(operation, accumulation=plan.window().accumulation_law()),
+      bindings,
+    )
+  }
+  let dot = expr(DotUpdate, ["dot", "queries[query_base + col]", "key[col]"])
+  let scaled = expr(ScaledScore, ["dot", "\{scale}"])
+  let maximum = expr(Maximum, ["maximum", "scores[ordinal]"])
+  let sink = expr(Exponential, ["sink[head]", "maximum"])
+  let exponential = expr(Exponential, ["scores[ordinal]", "maximum"])
+  let sum = expr(SumUpdate, ["sum", "scores[ordinal]"])
+  let value = expr(ValueUpdate, ["sum", "scores[ordinal]", "key[col]"])
+  let publish = expr(Publish, ["sum", "denominator"])
   let symbols = [
     symbol_prefix + "_reserve",
     symbol_prefix + "_attention",
@@ -124,11 +144,11 @@ pub fn window_compressed_kv_source(
           $|      const __nv_bfloat16 *key;
           $|      if (ordinal < length) { const int absolute = first + ordinal; key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL; }
           $|      else { const int slot = ordinal - length, index = \{selected_row}; key = compressed + (unsigned long long)index * \{width}ULL; }
-          $|      float dot = 0.0f; for (int col = 0; col < \{width}; ++col) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(queries[query_base + col]), __bfloat162float(key[col])));
-          $|      scores[ordinal] = __fmul_rn(dot, \{scale}); maximum = fmaxf(maximum, scores[ordinal]);
+          $|      float dot = 0.0f; for (int col = 0; col < \{width}; ++col) dot = \{dot};
+          $|      scores[ordinal] = \{scaled}; maximum = \{maximum};
           $|    }
-          $|    float sum = expf(__fsub_rn(sink[head], maximum));
-          $|    for (int ordinal = 0; ordinal < length + compressed_length; ++ordinal) { scores[ordinal] = expf(__fsub_rn(scores[ordinal], maximum)); sum = __fadd_rn(sum, scores[ordinal]); }
+          $|    float sum = \{sink};
+          $|    for (int ordinal = 0; ordinal < length + compressed_length; ++ordinal) { scores[ordinal] = \{exponential}; sum = \{sum}; }
           $|    denominator = sum;
           $|  }
           $|  __syncthreads();
@@ -138,9 +158,9 @@ pub fn window_compressed_kv_source(
           $|      const __nv_bfloat16 *key;
           $|      if (ordinal < length) { const int absolute = first + ordinal; key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL; }
           $|      else { const int slot = ordinal - length, index = \{selected_row}; key = compressed + (unsigned long long)index * \{width}ULL; }
-          $|      sum = __fadd_rn(sum, __fmul_rn(scores[ordinal], __bfloat162float(key[col])));
+          $|      sum = \{value};
           $|    }
-          $|    output[query_base + col] = __float2bfloat16_rn(__fdiv_rn(sum, denominator));
+          $|    output[query_base + col] = \{publish};
           $|  }
           $|}
         ),

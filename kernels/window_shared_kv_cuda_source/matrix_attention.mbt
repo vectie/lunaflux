@@ -26,6 +26,22 @@ fn matrix_window_attention_source(
   }
   let output_windows = (width + 63) / 64
   let scale = (1.0 / width.to_double().sqrt()).to_string() + "f"
+  let probability = attention_expression(plan, Exponential, [
+    "scores[h*\{block_tokens}+col]",
+    "maxima[h]",
+  ])
+  let rescale = attention_expression(plan, Exponential, ["maxima[h]", "next"])
+  let total = attention_expression(plan, OnlineTotal, [
+    "totals[h]", "alpha[h]", "sum",
+  ])
+  let sink = attention_expression(plan, SinkTotal, [
+    "totals[tid]",
+    "head_first+tid<\{heads}?sink[head_first+tid]:0.0f",
+    "maxima[tid]",
+  ])
+  let publish = attention_expression(plan, Publish, [
+    "fragments[warp*256+i]", "totals[i/16]",
+  ])
   @utf8.encode(
     (
       $|#include <mma.h>
@@ -92,21 +108,21 @@ fn matrix_window_attention_source(
       $|    for(int stride=128;stride>=32;stride/=2) { if(tid<stride) for(int r=0;r<2;++r) partial[r*256+tid]=fmaxf(partial[r*256+tid],partial[r*256+tid+stride]); __syncthreads(); }
       $|    if(tid<32) for(int r=0;r<2;++r) {
       $|      float value=partial[r*256+tid]; value=fmaxf(value,__shfl_xor_sync(0xffffffffu,value,2)); value=fmaxf(value,__shfl_xor_sync(0xffffffffu,value,1));
-      $|      if(lane%4==0) { const int h=lane/4+r*8; const float next=fmaxf(maxima[h],value); alpha[h]=next==-INFINITY?1.0f:(maxima[h]==-INFINITY?0.0f:expf(__fsub_rn(maxima[h],next))); maxima[h]=next; }
+      $|      if(lane%4==0) { const int h=lane/4+r*8; const float next=fmaxf(maxima[h],value); alpha[h]=next==-INFINITY?1.0f:(maxima[h]==-INFINITY?0.0f:\{rescale}); maxima[h]=next; }
       $|    }
       $|    __syncthreads();
       $|    for(int r=0;r<2;++r) {
       $|      const int h=lane/4+r*8; float sum=0.0f;
       $|      for(int j=0;j<\{block_tokens/32};++j) {
       $|        const int col=warp*\{block_tokens/8}+(lane%4)*\{block_tokens/32}+j;
-      $|        const float p=maxima[h]==-INFINITY?0.0f:expf(__fsub_rn(scores[h*\{block_tokens}+col],maxima[h]));
+      $|        const float p=maxima[h]==-INFINITY?0.0f:\{probability};
       $|        probabilities[h*\{block_tokens}+col]=__float2bfloat16_rn(p); sum=__fadd_rn(sum,p);
       $|      }
       $|      partial[r*256+tid]=sum;
       $|    }
       $|    __syncthreads();
       $|    for(int stride=128;stride>=32;stride/=2) { if(tid<stride) for(int r=0;r<2;++r) partial[r*256+tid]=__fadd_rn(partial[r*256+tid],partial[r*256+tid+stride]); __syncthreads(); }
-      $|    if(tid<32) for(int r=0;r<2;++r) { float sum=partial[r*256+tid]; sum=__fadd_rn(sum,__shfl_xor_sync(0xffffffffu,sum,2)); sum=__fadd_rn(sum,__shfl_xor_sync(0xffffffffu,sum,1)); if(lane%4==0) { const int h=lane/4+r*8; totals[h]=__fmaf_rn(totals[h],alpha[h],sum); } }
+      $|    if(tid<32) for(int r=0;r<2;++r) { float sum=partial[r*256+tid]; sum=__fadd_rn(sum,__shfl_xor_sync(0xffffffffu,sum,2)); sum=__fadd_rn(sum,__shfl_xor_sync(0xffffffffu,sum,1)); if(lane%4==0) { const int h=lane/4+r*8; totals[h]=\{total}; } }
       $|    __syncthreads();
       $|    // Rescale in an explicit row-owned F32 domain; never guess the
       $|    // vendor fragment register-to-row mapping or round the accumulator.
@@ -138,12 +154,12 @@ fn matrix_window_attention_source(
       $|      }
       $|    }
       $|  }
-      $|  if(tid<16) totals[tid]=__fadd_rn(totals[tid],expf(__fsub_rn(head_first+tid<\{heads}?sink[head_first+tid]:0.0f,maxima[tid])));
+      $|  if(tid<16) totals[tid]=\{sink};
       $|  __syncthreads();
       $|  for(int w=0;w<\{output_windows};++w) {
       $|    if(warp<4) wm::store_matrix_sync(fragments+warp*256,accumulated[w],16,wm::mem_row_major);
       $|    __syncthreads();
-      $|    if(warp<4) for(int i=lane;i<256;i+=32) { const int h=head_first+i/16, col=w*64+warp*16+i%16; if(h<\{heads} && col<\{width}) output[((unsigned long long)row*\{heads}+h)*\{width}+col]=__float2bfloat16_rn(__fdiv_rn(fragments[warp*256+i],totals[i/16])); }
+      $|    if(warp<4) for(int i=lane;i<256;i+=32) { const int h=head_first+i/16, col=w*64+warp*16+i%16; if(h<\{heads} && col<\{width}) output[((unsigned long long)row*\{heads}+h)*\{width}+col]=\{publish}; }
       $|    __syncthreads();
       $|  }
       $|}

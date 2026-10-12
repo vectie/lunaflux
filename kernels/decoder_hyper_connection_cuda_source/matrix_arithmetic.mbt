@@ -3,10 +3,12 @@ fn matrix_affine_source(
   index : String,
   law : @precision.Float32AffineLaw,
 ) -> String {
-  match law {
-    SeparateMultiplyAdd =>
-      "__fadd_rn(__fmul_rn(mixes[\{index}], scale[2]), base[\{index}])"
-    FusedMultiplyAdd => "__fmaf_rn(mixes[\{index}], scale[2], base[\{index}])"
+  @arithmetic.scalar_expression(law.expression(), [
+    "mixes[\{index}]",
+    "scale[2]",
+    "base[\{index}]",
+  ]) catch {
+    _ => abort("invalid closed matrix affine program")
   }
 }
 

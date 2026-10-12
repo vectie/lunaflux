@@ -79,6 +79,15 @@ pub fn projected_index_score_stable_topk_bf16_source(
   } else {
     ""
   }
+  let dot = scalar(DotUpdate, [
+    "dot", "queries[query_base + component]", "candidate_keys[key_base + component]",
+  ])
+  let activated = scalar(ReluScore, ["dot", "dimension_scale"])
+  let weighted = scalar(WeightedScore, [
+    "activated",
+    "head_weights[query * \{head_count} + head]",
+    "head_scale",
+  ])
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n#include <math.h>\n" +
     "extern \"C\" __global__ void " +
@@ -149,13 +158,10 @@ pub fn projected_index_score_stable_topk_bf16_source(
     "          for (int component = 0; component < " +
     head_dimension.to_string() +
     "; ++component) {\n" +
-    "            const float product = __fmul_rn(__bfloat162float(queries[query_base + component]), __bfloat162float(candidate_keys[key_base + component]));\n" +
-    "            dot = __fadd_rn(dot, product);\n" +
+    "            dot = \{dot};\n" +
     "          }\n" +
-    "          const float activated = fmaxf(__fmul_rn(dot, dimension_scale), 0.0f);\n" +
-    "          const float weighted = __fmul_rn(activated, __fmul_rn(__bfloat162float(head_weights[query * " +
-    head_count.to_string() +
-    " + head]), head_scale));\n" +
+    "          const float activated = \{activated};\n" +
+    "          const float weighted = \{weighted};\n" +
     "          score = __fadd_rn(score, weighted);\n" +
     "        }\n" +
     "        if (score > best_score || (score == best_score && (best < 0 || candidate < best))) { best = candidate; best_score = score; }\n" +

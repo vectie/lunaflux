@@ -30,6 +30,17 @@ pub fn dsa_key_pool_compression_bf16_source(
     raise InvalidFunctionSymbol
   }
   let pool_capacity = maximum_tokens / pool_size
+  let logit = scalar(PoolLogit, [
+    "gate_scores[raw * head_dimension + component]", "pool_ape[offset * head_dimension + component]",
+  ])
+  let denominator = scalar(DenominatorUpdate, [
+    "denominator", "logit", "maximum",
+  ])
+  let probability = scalar(Probability, ["logit", "maximum", "denominator"])
+  let update = scalar(DotUpdate, [
+    "accumulator", "probability", "keys[raw * head_dimension + component]",
+  ])
+  let publish = scalar(Publish, ["accumulator"])
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n#include <math.h>\n" +
     "extern \"C\" __global__ void " +
@@ -67,24 +78,23 @@ pub fn dsa_key_pool_compression_bf16_source(
     "      float maximum = -INFINITY;\n" +
     "      for (int offset = 0; offset < pool_size; ++offset) {\n" +
     "        const int raw = raw_start + offset;\n" +
-    "        const float logit = __fadd_rn(__bfloat162float(gate_scores[raw * head_dimension + component]), __bfloat162float(pool_ape[offset * head_dimension + component]));\n" +
+    "        const float logit = \{logit};\n" +
     "        if (logit > maximum) maximum = logit;\n" +
     "      }\n" +
     "      float denominator = 0.0f;\n" +
     "      for (int offset = 0; offset < pool_size; ++offset) {\n" +
     "        const int raw = raw_start + offset;\n" +
-    "        const float logit = __fadd_rn(__bfloat162float(gate_scores[raw * head_dimension + component]), __bfloat162float(pool_ape[offset * head_dimension + component]));\n" +
-    "        denominator = __fadd_rn(denominator, expf(__fsub_rn(logit, maximum)));\n" +
+    "        const float logit = \{logit};\n" +
+    "        denominator = \{denominator};\n" +
     "      }\n" +
     "      float accumulator = 0.0f;\n" +
     "      for (int offset = 0; offset < pool_size; ++offset) {\n" +
     "        const int raw = raw_start + offset;\n" +
-    "        const float logit = __fadd_rn(__bfloat162float(gate_scores[raw * head_dimension + component]), __bfloat162float(pool_ape[offset * head_dimension + component]));\n" +
-    "        const __nv_bfloat16 probability = __float2bfloat16_rn(__fdividef(expf(__fsub_rn(logit, maximum)), denominator));\n" +
-    "        const float product = __fmul_rn(__bfloat162float(probability), __bfloat162float(keys[raw * head_dimension + component]));\n" +
-    "        accumulator = __fadd_rn(accumulator, product);\n" +
+    "        const float logit = \{logit};\n" +
+    "        const __nv_bfloat16 probability = \{probability};\n" +
+    "        accumulator = \{update};\n" +
     "      }\n" +
-    "      pooled_keys[emitted * head_dimension + component] = __float2bfloat16_rn(accumulator);\n" +
+    "      pooled_keys[emitted * head_dimension + component] = \{publish};\n" +
     "    }\n" +
     "    pool_valid[emitted] = 1;\n    ++emitted;\n" +
     "  }\n  *pool_count = emitted;\n}\n",

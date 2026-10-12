@@ -20,7 +20,8 @@ test "grouped routing source keeps choice and weight score streams distinct" {
   assert_true(source.contains("int32_t group_top[2]"))
   assert_true(source.contains("int32_t selected_groups[1]"))
   assert_true(source.contains("__fadd_rn(denominator, 1.0e-20f)"))
-  assert_true(source.contains("__fmul_rn(normalized, 2.5f)"))
+  assert_true(source.contains("__fmul_rn(__fdiv_rn(value, denominator), 2.5f)"))
+  assert_true(source.contains(": __fmul_rn(value, 2.5f)"))
   assert_false(source.contains("expert_output"))
 }
 

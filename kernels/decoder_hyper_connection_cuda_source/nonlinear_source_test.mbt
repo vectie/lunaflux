@@ -26,7 +26,7 @@ test "nonlinear rounding choices are explicit and matrix logits stay unchanged" 
         text.contains("__fmaf_rn(mixes[p], scale[1], base[p])"),
         affine == FusedMultiplyAdd,
       )
-      assert_eq(text.contains("if (x >= 0.0f)"), sigmoid == StableBranches)
+      assert_eq(text.contains("((x) >= (0.0f) ?"), sigmoid == StableBranches)
       assert_true(
         text.contains(
           "__fadd_rn(__fmul_rn(mixes[control_index], scale[2]), base[control_index])",

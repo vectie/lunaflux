@@ -59,3 +59,39 @@ test "root and negation preserve distinct primitives and signed inputs" {
   )
   assert_eq(@luna_cuda_precision.scalar_expression(negated, ["a+b"]), "-(a+b)")
 }
+
+///|
+test "conditional lowering is lazy and preserves log1p primitive" {
+  let program = @precision.NumericExpression::new(
+    [(Float32, AnyFloat)],
+    Select(
+      GreaterThan,
+      Input(0),
+      Float32Bits(0U),
+      Input(0),
+      Unary(NaturalLogOnePlus, Unary(NaturalExp, Input(0))),
+    ),
+  )
+  assert_eq(
+    @luna_cuda_precision.scalar_expression(program, ["x"]),
+    "((x) > (0.0f) ? (x) : (log1pf(expf(x))))",
+  )
+  let converted = @precision.NumericExpression::new(
+    [(Float32, AnyFloat)],
+    Convert(
+      Float32,
+      Select(
+        GreaterOrEqual,
+        Input(0),
+        Float32Bits(0U),
+        Convert(BFloat16, Input(0)),
+        Convert(BFloat16, Float32Bits(0U)),
+      ),
+    ),
+  )
+  assert_true(
+    @luna_cuda_precision.scalar_expression(converted, ["x"]).has_prefix(
+      "__bfloat162float(",
+    ),
+  )
+}

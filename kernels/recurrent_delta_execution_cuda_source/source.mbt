@@ -29,6 +29,31 @@ pub fn recurrent_delta_source(
   let epsilon = @literal.canonical_cuda_float_literal(
     plan.normalization_epsilon(),
   )
+  fn scalar(
+    operation : @precision.RecurrentDeltaExpression,
+    bindings : ArrayView[String],
+  ) -> String raise {
+    @arithmetic.scalar_expression(plan.expression(operation), bindings)
+  }
+  let scale = scalar(QueryScale, ["\{keys}.0f"])
+  let decay = scalar(Decay, ["log_decay[qbase+lane]"])
+  let square = plan.fold(SquareUpdate)
+  let qs = @arithmetic.scalar_expression(square.update, ["qs", "q[k]"])
+  let ks = @arithmetic.scalar_expression(square.update, ["ks", "kn[k]"])
+  let qinv = scalar(NormInverse, ["qs", epsilon])
+  let kinv = scalar(NormInverse, ["ks", epsilon])
+  let q = scalar(QueryNormalize, ["q[lane]", "qinv", "qscale"])
+  let k = scalar(KeyNormalize, ["kn[lane]", "kinv"])
+  let state_decay = scalar(StateDecay, ["memory_state[k]", "decay[k]"])
+  let read = @arithmetic.scalar_expression(plan.fold(DotUpdate).update, [
+    "read", "memory_state[k]", "kn[k]",
+  ])
+  let delta = scalar(Delta, ["value[vbase+lane]", "read", "b"])
+  let update = scalar(StateUpdate, ["memory_state[k]", "kn[k]", "delta"])
+  let result = @arithmetic.scalar_expression(plan.fold(DotUpdate).update, [
+    "result", "memory_state[k]", "q[k]",
+  ])
+  let publish = scalar(Publish, ["result"])
   let text =
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
@@ -42,28 +67,28 @@ pub fn recurrent_delta_source(
     $|  float memory_state[\{keys}];
     $|  if(lane<\{values}) for(int k=0;k<\{keys};++k) memory_state[k]=reset[sequence] ? 0.0f : state[state_base+(unsigned long long)k*\{values}ULL+lane];
     $|  __shared__ float q[\{keys}], kn[\{keys}], decay[\{keys}], qinv, kinv, b;
-    $|  const float qscale=__fdiv_rn(1.0f,sqrtf(\{keys}.0f));
+    $|  const float qscale=\{scale};
     $|  for(int row=begin;row<end;++row) {
     $|    const unsigned long long qbase=((unsigned long long)row*\{heads}ULL+head)*\{keys}ULL;
     $|    const unsigned long long vbase=((unsigned long long)row*\{heads}ULL+head)*\{values}ULL;
-    $|    if(lane<\{keys}) { q[lane]=__bfloat162float(query[qbase+lane]); kn[lane]=__bfloat162float(key[qbase+lane]); decay[lane]=expf(log_decay[qbase+lane]); }
+    $|    if(lane<\{keys}) { q[lane]=__bfloat162float(query[qbase+lane]); kn[lane]=__bfloat162float(key[qbase+lane]); decay[lane]=\{decay}; }
     $|    __syncthreads();
     $|    if(lane==0) {
     $|      float qs=0.0f,ks=0.0f;
-    $|      for(int k=0;k<\{keys};++k) { qs=__fadd_rn(qs,__fmul_rn(q[k],q[k])); ks=__fadd_rn(ks,__fmul_rn(kn[k],kn[k])); }
-    $|      qinv=__fdiv_rn(1.0f,sqrtf(__fadd_rn(qs,\{epsilon}))); kinv=__fdiv_rn(1.0f,sqrtf(__fadd_rn(ks,\{epsilon})));
+    $|      for(int k=0;k<\{square.extent};++k) { qs=\{qs}; ks=\{ks}; }
+    $|      qinv=\{qinv}; kinv=\{kinv};
     $|      b=__bfloat162float(beta[(unsigned long long)row*\{heads}ULL+head]);
     $|    }
     $|    __syncthreads();
-    $|    if(lane<\{keys}) { q[lane]=__fmul_rn(__fmul_rn(q[lane],qinv),qscale); kn[lane]=__fmul_rn(kn[lane],kinv); }
+    $|    if(lane<\{keys}) { q[lane]=\{q}; kn[lane]=\{k}; }
     $|    __syncthreads();
     $|    if(lane<\{values}) {
     $|      float read=0.0f;
-    $|      for(int k=0;k<\{keys};++k) { memory_state[k]=__fmul_rn(memory_state[k],decay[k]); read=__fadd_rn(read,__fmul_rn(memory_state[k],kn[k])); }
-    $|      const float delta=__fmul_rn(__fsub_rn(__bfloat162float(value[vbase+lane]),read),b);
+    $|      for(int k=0;k<\{keys};++k) { memory_state[k]=\{state_decay}; read=\{read}; }
+    $|      const float delta=\{delta};
     $|      float result=0.0f;
-    $|      for(int k=0;k<\{keys};++k) { memory_state[k]=__fadd_rn(memory_state[k],__fmul_rn(kn[k],delta)); result=__fadd_rn(result,__fmul_rn(memory_state[k],q[k])); }
-    $|      output[vbase+lane]=__float2bfloat16_rn(result);
+    $|      for(int k=0;k<\{keys};++k) { memory_state[k]=\{update}; result=\{result}; }
+    $|      output[vbase+lane]=\{publish};
     $|    }
     $|    __syncthreads();
     $|  }

@@ -170,7 +170,7 @@ test "rotary product law reaches main query cache and output without changing de
       // Two rotations per window layer; query, pooled KV and output per
       // compressed layer. Indexer/Hadamard arithmetic is a separate policy.
       assert_eq(
-        text.split("__fmaf_rn(left, cosine, -__fmul_rn(right, sine))").count(),
+        text.split("__fmaf_rn(left, cosine, -(__fmul_rn(right, sine)))").count(),
         11,
       )
       assert_eq(

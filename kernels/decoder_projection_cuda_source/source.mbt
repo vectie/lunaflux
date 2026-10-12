@@ -33,6 +33,11 @@ pub fn grouped_projection_bf16_source(
   if !valid_projection_symbol(function_symbol) {
     raise InvalidFunctionSymbol
   }
+  let product = projection_expression(Product, [
+    "input[input_base + inner]", "weight[weight_base + inner]",
+  ])
+  let update = projection_expression(AddProduct, ["accumulator", "product"])
+  let publish = projection_expression(Publish, ["accumulator"])
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
@@ -62,14 +67,14 @@ pub fn grouped_projection_bf16_source(
     "    for (int inner = 0; inner < " +
     input_width.to_string() +
     "; ++inner) {\n" +
-    "      const float product = __fmul_rn(__bfloat162float(input[input_base + inner]), __bfloat162float(weight[weight_base + inner]));\n" +
-    "      accumulator = __fadd_rn(accumulator, product);\n    }\n" +
+    "      const float product = \{product};\n" +
+    "      accumulator = \{update};\n    }\n" +
     "    const unsigned long long out = ((unsigned long long)row * " +
     group_count.to_string() +
     "ULL + group) * " +
     output_width.to_string() +
     "ULL + column;\n" +
-    "    output[out] = __float2bfloat16_rn(accumulator);\n  }\n}\n",
+    "    output[out] = \{publish};\n  }\n}\n",
   )
   {
     operation: GroupedDenseProjectionBf16V1,
@@ -111,10 +116,15 @@ pub fn dense_projection_bf16_source(
   ) catch {
     _ => raise UnsupportedDotReductionLaw
   }
+  let product = projection_expression(Product, [
+    "input[input_base + inner]", "weight[weight_base + inner]",
+  ])
+  let publish = projection_expression(Publish, ["accumulator"])
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n" +
     (match dot_reduction_law {
-      StripedTreeFloat32(_) | GroupedVectorFloat32(..) => raise UnsupportedDotReductionLaw
+      StripedTreeFloat32(_) | GroupedVectorFloat32(..) =>
+        raise UnsupportedDotReductionLaw
       OrderedFloat32 => ""
       CompensatedFloat32 => "#include <math.h>\n"
     }) +
@@ -148,18 +158,19 @@ pub fn dense_projection_bf16_source(
     "  for (int inner = 0; inner < " +
     input_width.to_string() +
     "; ++inner) {\n" +
-    "    const float product = __fmul_rn(__bfloat162float(input[input_base + inner]), __bfloat162float(weight[weight_base + inner]));\n" +
+    "    const float product = \{product};\n" +
     "    " +
     update +
     "\n" +
     "  }\n" +
     (if finish.is_empty() { "" } else { "  " + finish + "\n" }) +
-    "  output[index] = __float2bfloat16_rn(accumulator);\n}\n",
+    "  output[index] = \{publish};\n}\n",
   )
   {
     operation: DenseProjectionBf16,
     numerical_contract: match dot_reduction_law {
-      StripedTreeFloat32(_) | GroupedVectorFloat32(..) => raise UnsupportedDotReductionLaw
+      StripedTreeFloat32(_) | GroupedVectorFloat32(..) =>
+        raise UnsupportedDotReductionLaw
       OrderedFloat32 => OrderedFloat32AccumulationBf16RoundV1
       CompensatedFloat32 => CompensatedFloat32AccumulationBf16RoundV1
     },

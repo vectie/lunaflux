@@ -3,6 +3,7 @@ pub struct DenseMlpCudaSource {
   priv plan : @precision.DenseSwiGluPrecision
   priv prefix : String
   priv source : Bytes
+  priv order : ReadOnlyArray[Int]
 }
 
 ///|
@@ -11,8 +12,23 @@ pub fn dense_mlp_source(
   symbol_prefix~ : String,
 ) -> DenseMlpCudaSource raise {
   let (hidden, intermediate, rows) = plan.geometry()
+  let program = plan.program()
+  let order = program
+    .lower(Ordered)
+    .commands(ComputeLane)
+    .map(command => {
+      match command {
+        Execute(step~) =>
+          match program.steps()[step].action() {
+            Compute(stage) => stage
+            _ => raise @precision.PrecisionPlanError::NoImplementation
+          }
+        _ => raise @precision.PrecisionPlanError::NoImplementation
+      }
+    })
   {
     plan,
+    order,
     prefix: symbol_prefix,
     source: @lowering.staged_separate_swiglu_bf16_source(
       hidden_size=hidden,
@@ -21,6 +37,11 @@ pub fn dense_mlp_source(
       function_prefix=symbol_prefix,
     ),
   }
+}
+
+///|
+pub fn DenseMlpCudaSource::execution_order(self : Self) -> ReadOnlyArray[Int] {
+  self.order
 }
 
 ///|

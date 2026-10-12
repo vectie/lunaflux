@@ -77,7 +77,7 @@ test "dynamic expert lowering consumes quantization and numeric order" {
   assert_true(text.contains("dynamic_a0(input,"))
   assert_true(text.contains("dynamic_a1(activation,"))
   assert_true(
-    text.contains("product=__fmul_rn(product,selected_weights[job]);"),
+    text.contains("product=__fmul_rn(product, selected_weights[job]);"),
   )
   assert_false(text.contains("const __nv_bfloat16 activated="))
   assert_true(text.contains("weighted[cell]=__float2bfloat16_rn(sum);"))

@@ -29,6 +29,15 @@ fn vector_prefix_norm_source(
     ""
   }
   let eps = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(epsilon)
+  let square = rms_expression(SquareUpdate, ["sums[component]", "value"])
+  let component_sum = rms_expression(SumUpdate, ["sums[0]", "sums[component]"])
+  let tree_sum = rms_expression(SumUpdate, [
+    "partial[lane]", "partial[lane + span]",
+  ])
+  let inverse = rms_inverse("partial[0]", prefix_width, eps)
+  let publish = rms_expression(WeightedPublish, [
+    "__bfloat162float(input[input_base + column])", "inverse", "__bfloat162float(weight[column])",
+  ])
   let text =
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
@@ -42,15 +51,15 @@ fn vector_prefix_norm_source(
     $|  for (int base = lane * \{vector_width}; base < \{prefix_width}; base += \{partitions * vector_width}) {
     $|    for (int component = 0; component < \{vector_width} && base + component < \{prefix_width}; ++component) {
     $|      const float value = __bfloat162float(input[input_base + base + component]);
-    $|      sums[component] = __fadd_rn(sums[component], __fmul_rn(value, value));
+    $|      sums[component] = \{square};
     $|    }
     $|  }
-    $|  for (int component = 1; component < \{vector_width}; ++component) sums[0] = __fadd_rn(sums[0], sums[component]);
+    $|  for (int component = 1; component < \{vector_width}; ++component) sums[0] = \{component_sum};
     $|  partial[lane] = sums[0]; __syncthreads();
-    $|  for (int span = \{partitions / 2}; span > 0; span >>= 1) { if (lane < span) partial[lane] = __fadd_rn(partial[lane], partial[lane + span]); __syncthreads(); }
-    $|  const float inverse = rsqrtf(__fadd_rn(__fdiv_rn(partial[0], \{prefix_width}.0f), \{eps}));
+    $|  for (int span = \{partitions / 2}; span > 0; span >>= 1) { if (lane < span) partial[lane] = \{tree_sum}; __syncthreads(); }
+    $|  const float inverse = \{inverse};
     $|  const unsigned long long output_base = (unsigned long long)row * \{prefix_width}ULL;
-    $|  for (int column = lane; column < \{prefix_width}; column += \{partitions}) normalized_output[output_base + column] = __float2bfloat16_rn(__fmul_rn(__fmul_rn(__bfloat162float(input[input_base + column]), inverse), __bfloat162float(weight[column])));
+    $|  for (int column = lane; column < \{prefix_width}; column += \{partitions}) normalized_output[output_base + column] = \{publish};
     $|  \{suffix_copy}
     $|}
   {

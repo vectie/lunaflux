@@ -63,6 +63,16 @@ pub fn prefix_rms_norm_bf16_with_optional_suffix_copy_source(
   } else {
     ""
   }
+  let square = rms_expression(SquareUpdate, ["sum", "value"])
+  let sum = rms_expression(SumUpdate, [
+    "partial[threadIdx.x]", "partial[threadIdx.x + stride]",
+  ])
+  let inverse = rms_inverse(
+    "partial[0]",
+    prefix_width,
+    @luna_cuda_pointwise_aot.canonical_cuda_float_literal(epsilon),
+  )
+  let publish = rms_expression(WeightedPublish, ["value", "inverse", "scale"])
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n#include <math.h>\n" +
     "extern \"C\" __global__ void " +
@@ -80,20 +90,16 @@ pub fn prefix_rms_norm_bf16_with_optional_suffix_copy_source(
     "ULL;\n" +
     "  for (int column = threadIdx.x; column < " +
     prefix_width.to_string() +
-    "; column += 256) { const float value = __bfloat162float(input[input_base + column]); sum = __fadd_rn(sum, __fmul_rn(value, value)); }\n" +
+    "; column += 256) { const float value = __bfloat162float(input[input_base + column]); sum = \{square}; }\n" +
     "  partial[threadIdx.x] = sum; __syncthreads();\n" +
-    "  for (int stride = 128; stride > 0; stride >>= 1) { if (threadIdx.x < stride) partial[threadIdx.x] = __fadd_rn(partial[threadIdx.x], partial[threadIdx.x + stride]); __syncthreads(); }\n" +
-    "  const float inverse = rsqrtf(__fadd_rn(__fdiv_rn(partial[0], " +
-    prefix_width.to_string() +
-    ".0f), " +
-    @luna_cuda_pointwise_aot.canonical_cuda_float_literal(epsilon) +
-    "));\n" +
+    "  for (int stride = 128; stride > 0; stride >>= 1) { if (threadIdx.x < stride) partial[threadIdx.x] = \{sum}; __syncthreads(); }\n" +
+    "  const float inverse = \{inverse};\n" +
     "  const unsigned long long output_base = (unsigned long long)row * " +
     prefix_width.to_string() +
     "ULL;\n" +
     "  for (int column = threadIdx.x; column < " +
     prefix_width.to_string() +
-    "; column += 256) { const float value = __bfloat162float(input[input_base + column]); const float scale = __bfloat162float(weight[column]); normalized_output[output_base + column] = __float2bfloat16_rn(__fmul_rn(__fmul_rn(value, inverse), scale)); }\n" +
+    "; column += 256) { const float value = __bfloat162float(input[input_base + column]); const float scale = __bfloat162float(weight[column]); normalized_output[output_base + column] = \{publish}; }\n" +
     suffix_copy +
     "}\n",
   )

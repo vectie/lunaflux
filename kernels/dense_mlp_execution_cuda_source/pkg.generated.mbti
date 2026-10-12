@@ -14,6 +14,7 @@ pub fn dense_mlp_source(@precision_ir.DenseSwiGluPrecision, symbol_prefix~ : Str
 pub struct DenseMlpCudaSource {
   // private fields
 }
+pub fn DenseMlpCudaSource::execution_order(Self) -> ReadOnlyArray[Int]
 pub fn DenseMlpCudaSource::plan(Self) -> @precision_ir.DenseSwiGluPrecision
 pub fn DenseMlpCudaSource::source_bytes(Self) -> Bytes
 pub fn DenseMlpCudaSource::symbol(Self, Int) -> String raise @precision_ir.PrecisionPlanError

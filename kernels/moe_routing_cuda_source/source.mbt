@@ -62,16 +62,14 @@ pub fn routing_source(
   } else {
     "__bfloat162float(weight[base+k])"
   }
-  let score = match plan.score() {
-    Sigmoid => "__fdiv_rn(1.0f,__fadd_rn(1.0f,expf(-x)))"
-    SqrtSoftplus =>
-      match plan.softplus_law() {
-        StableFloat32 =>
-          "sqrtf(x>0.0f ? __fadd_rn(x,log1pf(expf(-x))) : log1pf(expf(x)))"
-        ThresholdedFloat32(threshold~) =>
-          "sqrtf(x>\{@literal.canonical_cuda_float_literal(threshold)} ? x : log1pf(expf(x)))"
-      }
+  let threshold = match plan.softplus_law() {
+    StableFloat32 => "0.0f"
+    ThresholdedFloat32(threshold~) =>
+      @literal.canonical_cuda_float_literal(threshold)
   }
+  let score = @arithmetic.scalar_expression(plan.score_expression(), [
+    "x", threshold,
+  ])
   let score_arguments = if plan.selection() is GroupedTopK {
     "const float *bias, float *scores, float *choice"
   } else {

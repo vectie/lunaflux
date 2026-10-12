@@ -49,12 +49,33 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   let normalization = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(
     normalization_epsilon,
   )
+  let normalized = control_expression(NormalizeProduct, [
+    "__bfloat162float(streams[input_base + (unsigned long long)column])", "inverse",
+  ])
+  let normalized_dot = control_expression(NormalizeProduct, ["dot", "inverse"])
+  let pre = control_expression(PreOffset, [
+    "lf_hc_stage_sigmoid(pre_logit)", control,
+  ])
+  let post = control_expression(PostScale, ["lf_hc_stage_sigmoid(post_logit)"])
+  let exponential = control_expression(SoftmaxWeight, [
+    matrix_affine_source("control_index", control_matrix_affine_law),
+    "maximum",
+  ])
+  let probability = control_expression(SoftmaxPublish, [
+    "initial_combination[index]", "sum", control,
+  ])
+  let collapse = control_expression(CollapseUpdate, [
+    "sum",
+    "pre[stream]",
+    "streams[input_base + (unsigned long long)stream * \{hidden}ULL + (unsigned long long)column]",
+  ])
+  let publish = control_expression(Publish, ["sum"])
   let (weight_type, projection, operand_name, publication, numerical_contract) = match
     control_law {
     NormalizedBf16Projection =>
       (
         "__nv_bfloat16",
-        "const float normalized = __fmul_rn(__bfloat162float(streams[input_base + (unsigned long long)column]), inverse); const float weight = __bfloat162float(function_weights[weight_base + (unsigned long long)column]);",
+        "const float normalized = \{normalized}; const float weight = __bfloat162float(function_weights[weight_base + (unsigned long long)column]);",
         "normalized",
         "mixes[output] = dot;",
         OrderedF32FunctionBf16CollapseV1,
@@ -64,7 +85,7 @@ pub fn staged_function_and_collapse_bf16_f32_source(
         "float",
         "const float operand = __bfloat162float(streams[input_base + (unsigned long long)column]); const float weight = function_weights[weight_base + (unsigned long long)column];",
         "operand",
-        "mixes[output] = __fmul_rn(dot, inverse);",
+        "mixes[output] = \{normalized_dot};",
         OrderedF32ProjectionThenNormalizeBf16CollapseV1,
       )
   }
@@ -171,13 +192,11 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     width +
     "; ++stream) { const float pre_logit = " +
     control_vector_affine_source("stream", "0", control_vector_affine_law) +
-    "; pre[stream] = __fadd_rn(lf_hc_stage_sigmoid(pre_logit), " +
-    control +
-    "); const int32_t p = " +
+    "; pre[stream] = \{pre}; const int32_t p = " +
     width +
     " + stream; const float post_logit = " +
     control_vector_affine_source("p", "1", control_vector_affine_law) +
-    "; post[vector_base + (unsigned long long)stream] = __fmul_rn(2.0f, lf_hc_stage_sigmoid(post_logit)); }\n" +
+    "; post[vector_base + (unsigned long long)stream] = \{post}; }\n" +
     "  const unsigned long long matrix_base = (unsigned long long)row * " +
     width +
     "ULL * " +
@@ -204,9 +223,7 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     width +
     " + destination * " +
     width +
-    " + source; const float value = expf(__fadd_rn(" +
-    matrix_affine_source("control_index", control_matrix_affine_law) +
-    ", -maximum)); const unsigned long long index = matrix_base + (unsigned long long)destination * " +
+    " + source; const float value = \{exponential}; const unsigned long long index = matrix_base + (unsigned long long)destination * " +
     width +
     "ULL + (unsigned long long)source; initial_combination[index] = value; " +
     (if matrix_sum_law is OrderedFloat32 {
@@ -224,18 +241,14 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     width +
     "; ++source) { const unsigned long long index = matrix_base + (unsigned long long)destination * " +
     width +
-    "ULL + (unsigned long long)source; initial_combination[index] = __fadd_rn(__fdiv_rn(initial_combination[index], sum), " +
-    control +
-    "); } }\n" +
+    "ULL + (unsigned long long)source; initial_combination[index] = \{probability}; } }\n" +
     "  const unsigned long long collapsed_base = (unsigned long long)row * " +
     hidden +
     "ULL; for (int32_t column = 0; column < " +
     hidden +
     "; ++column) { float sum = 0.0f; for (int32_t stream = 0; stream < " +
     width +
-    "; ++stream) sum = __fadd_rn(sum, __fmul_rn(pre[stream], __bfloat162float(streams[input_base + (unsigned long long)stream * " +
-    hidden +
-    "ULL + (unsigned long long)column]))); if (isfinite(sum)) collapsed[collapsed_base + (unsigned long long)column] = __float2bfloat16_rn(sum); }\n}\n",
+    "; ++stream) sum = \{collapse}; if (isfinite(sum)) collapsed[collapsed_base + (unsigned long long)column] = \{publish}; }\n}\n",
   )
   {
     operation: StagedFunctionAndCollapseV1,

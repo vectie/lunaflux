@@ -34,9 +34,8 @@ pub fn moe_combine_source(
   guard valid_symbol(symbol) else { raise InvalidSymbol }
   let (rows, hidden) = plan.geometry()
   let cells = rows.to_int64() * hidden.to_int64()
-  let routed = match plan.rounding() {
-    SumThenBf16 => "routed[i]"
-    Bf16RoutedThenSum => "__bfloat162float(__float2bfloat16_rn(routed[i]))"
+  let publish = scalar_expression(plan.expression(), ["routed[i]", "shared[i]"]) catch {
+    _ => raise InvalidSymbol
   }
   let text =
     $|#include <cuda_bf16.h>
@@ -44,7 +43,7 @@ pub fn moe_combine_source(
     $|  const int live=counts[3]; if(live<=0||live>\{rows}) return;
     $|  const unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;
     $|  if(i>=(unsigned long long)live*\{hidden}ULL) return;
-    $|  output[i]=__float2bfloat16_rn(__fadd_rn(\{routed},shared[i]));
+    $|  output[i]=\{publish};
     $|}
   { text, symbol, plan, launch: launch((cells + 255L) / 256L, 256), }
 }

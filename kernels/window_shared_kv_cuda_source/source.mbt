@@ -22,6 +22,27 @@ pub fn window_shared_kv_source(
   guard window <= 4096 else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
+  fn expr(
+    operation : @precision.AttentionExpression,
+    bindings : ArrayView[String],
+  ) -> String raise {
+    @arithmetic.scalar_expression(
+      plan
+      .probability_law()
+      .expression(operation, accumulation=plan.accumulation_law()),
+      bindings,
+    )
+  }
+  let dot = expr(DotUpdate, [
+    "dot", "queries[query_base + component]", "key[component]",
+  ])
+  let scaled = expr(ScaledScore, ["dot", "rsqrtf(\{width}.0f)"])
+  let maximum = expr(Maximum, ["maximum", "scores[slot]"])
+  let sink = expr(Exponential, ["sink[head]", "maximum"])
+  let exponential = expr(Exponential, ["scores[slot]", "maximum"])
+  let sum = expr(SumUpdate, ["sum", "scores[slot]"])
+  let value = expr(ValueUpdate, ["sum", "scores[slot]", "key[component]"])
+  let publish = expr(Publish, ["sum", "denominator"])
   let symbols = [
     symbol_prefix + "_reserve",
     symbol_prefix + "_attention",
@@ -84,11 +105,11 @@ pub fn window_shared_kv_source(
             $|    for (int slot = 0; slot < length; ++slot) {
             $|      const int absolute = first + slot;
             $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
-            $|      float dot = 0.0f; for (int component = 0; component < \{width}; ++component) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(queries[query_base + component]), __bfloat162float(key[component])));
-            $|      scores[slot] = __fmul_rn(dot, rsqrtf(\{width}.0f)); maximum = fmaxf(maximum, scores[slot]);
+            $|      float dot = 0.0f; for (int component = 0; component < \{width}; ++component) dot = \{dot};
+            $|      scores[slot] = \{scaled}; maximum = \{maximum};
             $|    }
-            $|    float sum = expf(__fsub_rn(sink[head], maximum));
-            $|    for (int slot = 0; slot < length; ++slot) { scores[slot] = expf(__fsub_rn(scores[slot], maximum)); sum = __fadd_rn(sum, scores[slot]); }
+            $|    float sum = \{sink};
+            $|    for (int slot = 0; slot < length; ++slot) { scores[slot] = \{exponential}; sum = \{sum}; }
             $|    denominator = sum;
             $|  }
             $|  __syncthreads();
@@ -97,9 +118,9 @@ pub fn window_shared_kv_source(
             $|    for (int slot = 0; slot < length; ++slot) {
             $|      const int absolute = first + slot;
             $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
-            $|      sum = __fadd_rn(sum, __fmul_rn(scores[slot], __bfloat162float(key[component])));
+            $|      sum = \{value};
             $|    }
-            $|    output[query_base + component] = __float2bfloat16_rn(__fdiv_rn(sum, denominator));
+            $|    output[query_base + component] = \{publish};
             $|  }
             $|}
           ),

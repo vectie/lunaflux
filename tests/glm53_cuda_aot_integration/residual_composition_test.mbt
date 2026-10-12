@@ -95,14 +95,9 @@ test "official Full and Flash residual composition preserve distinct ordering" {
   ignore(
     try! @glm_hybrid_candidate_evidence.from_moe_feed_forward(flash_candidate),
   )
-  inspect(
-    full_candidate.source_digest().as_hex() +
-    ":" +
-    full_candidate.recipe_digest().as_hex() +
-    ":" +
-    flash_candidate.source_digest().as_hex() +
-    ":" +
-    flash_candidate.recipe_digest().as_hex(),
-    content="c7705b37a7b0a13425ef61e63865fef8841fb7360008ac9b30c088ec4a4a1fdb:155355e3ccdb7f1be32579a2bde9d3d3390acb2ca90a18c1aa51a412762bee0a:11f24a17000aaa1fde05a92024593e4cb086ca3794b34de3170286124b074fc1:c2c23b9834242c0f86300606bd4bfea220d4adf32a7240bf16ab1b9cce3953b1",
+  assert_true(
+    @utf8.decode(flash_candidate.source_bytes()).contains(
+      "__bfloat162float(__float2bfloat16_rn(residual_sum))",
+    ),
   )
 }

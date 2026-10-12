@@ -70,6 +70,19 @@ pub fn selected_index_sparse_attention_bf16_source(
   if output_elements > 2147483647L {
     raise SizeOverflow
   }
+  let dot_update = scalar(DotUpdate, [
+    "dot", "queries[query_base + component]", "keys[key_base + component]",
+  ])
+  let inner_update = scalar(DotUpdate, [
+    "dot", "queries[query_base + inner]", "keys[key_base + inner]",
+  ])
+  let score = scalar(Score, ["dot", "scale"])
+  let denominator = scalar(DenominatorUpdate, ["denominator", score, "maximum"])
+  let probability = scalar(Probability, [score, "maximum", "denominator"])
+  let value_update = scalar(DotUpdate, [
+    "accumulator", "probability", "values[value_base + component]",
+  ])
+  let publish = scalar(Publish, ["accumulator"])
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n#include <math.h>\n" +
     "extern \"C\" __global__ void " +
@@ -128,8 +141,8 @@ pub fn selected_index_sparse_attention_bf16_source(
     "ULL;\n" +
     "        for (int component = 0; component < " +
     query_key_dimension.to_string() +
-    "; ++component) { const float product = __fmul_rn(__bfloat162float(queries[query_base + component]), __bfloat162float(keys[key_base + component])); dot = __fadd_rn(dot, product); }\n" +
-    "        const float score = __fmul_rn(dot, scale);\n" +
+    "; ++component) { dot = \{dot_update}; }\n" +
+    "        const float score = \{score};\n" +
     "        if (score > maximum) maximum = score;\n        ++visible;\n" +
     "      }\n" +
     "      if (visible == 0) continue;\n" +
@@ -148,8 +161,8 @@ pub fn selected_index_sparse_attention_bf16_source(
     "ULL;\n" +
     "        for (int component = 0; component < " +
     query_key_dimension.to_string() +
-    "; ++component) { const float product = __fmul_rn(__bfloat162float(queries[query_base + component]), __bfloat162float(keys[key_base + component])); dot = __fadd_rn(dot, product); }\n" +
-    "        denominator = __fadd_rn(denominator, expf(__fsub_rn(__fmul_rn(dot, scale), maximum)));\n" +
+    "; ++component) { dot = \{dot_update}; }\n" +
+    "        denominator = \{denominator};\n" +
     "      }\n" +
     "      for (int component = 0; component < " +
     value_dimension.to_string() +
@@ -169,18 +182,17 @@ pub fn selected_index_sparse_attention_bf16_source(
     "ULL;\n" +
     "          for (int inner = 0; inner < " +
     query_key_dimension.to_string() +
-    "; ++inner) { const float product = __fmul_rn(__bfloat162float(queries[query_base + inner]), __bfloat162float(keys[key_base + inner])); dot = __fadd_rn(dot, product); }\n" +
-    "          const __nv_bfloat16 probability = __float2bfloat16_rn(__fdividef(expf(__fsub_rn(__fmul_rn(dot, scale), maximum)), denominator));\n" +
+    "; ++inner) { dot = \{inner_update}; }\n" +
+    "          const __nv_bfloat16 probability = \{probability};\n" +
     "          const unsigned long long value_base = ((unsigned long long)key * kv_heads + kv_head) * " +
     value_dimension.to_string() +
     "ULL;\n" +
-    "          const float product = __fmul_rn(__bfloat162float(probability), __bfloat162float(values[value_base + component]));\n" +
-    "          accumulator = __fadd_rn(accumulator, product);\n" +
+    "          accumulator = \{value_update};\n" +
     "        }\n" +
     "        const unsigned long long output_index = ((unsigned long long)query * query_heads + head) * " +
     value_dimension.to_string() +
     "ULL + component;\n" +
-    "        output[output_index] = __float2bfloat16_rn(accumulator);\n" +
+    "        output[output_index] = \{publish};\n" +
     "      }\n" +
     "    }\n  }\n}\n",
   )

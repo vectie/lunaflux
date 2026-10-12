@@ -66,6 +66,15 @@ pub fn grouped_choice_and_selected_weight_f32_source(
       output_symbol="denominator",
     )
   }
+  let group_sum = weight_expression(SumUpdate, ["sum", "best_value"])
+  let selected_sum = weight_expression(SumUpdate, [
+    "denominator", "uncorrected_scores[score_base + selected_indices[output_base + slot]]",
+  ])
+  let denominator = weight_expression(Denominator, ["denominator", "1.0e-20f"])
+  let publish = weight_expression(Publish, [
+    "value", "denominator", scaling_literal,
+  ])
+  let unnormalized = weight_expression(ScaleOnly, ["value", scaling_literal])
   let source_text = "#include <math.h>\n#include <stdint.h>\n#include <stdbool.h>\n" +
     "extern \"C\" __global__ void " +
     function_symbol +
@@ -101,7 +110,7 @@ pub fn grouped_choice_and_selected_weight_f32_source(
     "; ++offset) { const int32_t expert = group * " +
     experts_per_group.to_string() +
     " + offset; bool used = false; for (int32_t previous = 0; previous < slot; ++previous) if (group_top[previous] == expert) used = true; const float value = choice_scores[score_base + expert]; if (!used && (best < 0 || value > best_value || (value == best_value && expert < best))) { best = expert; best_value = value; } }\n" +
-    "      group_top[slot] = best; sum = __fadd_rn(sum, best_value); } group_scores[group] = sum; }\n" +
+    "      group_top[slot] = best; sum = \{group_sum}; } group_scores[group] = sum; }\n" +
     "  int32_t selected_groups[" +
     selected_group_count.to_string() +
     "]; for (int32_t slot = 0; slot < " +
@@ -122,18 +131,16 @@ pub fn grouped_choice_and_selected_weight_f32_source(
     "; ++group_slot) if (selected_groups[group_slot] == group) group_selected = true; bool used = false; for (int32_t previous = 0; previous < slot; ++previous) if (selected_indices[output_base + previous] == expert) used = true; const float value = choice_scores[score_base + expert]; if (group_selected && !used && (best < 0 || value > best_value || (value == best_value && expert < best))) { best = expert; best_value = value; } } selected_indices[output_base + slot] = best; }\n" +
     "  float denominator = 0.0f; for (int32_t slot = 0; slot < " +
     experts_per_token.to_string() +
-    "; ++slot) denominator = __fadd_rn(denominator, uncorrected_scores[score_base + selected_indices[output_base + slot]]); " +
+    "; ++slot) denominator = \{selected_sum}; " +
     reduction +
     "if (" +
     normalize_literal +
-    ") denominator = __fadd_rn(denominator, 1.0e-20f);\n" +
+    ") denominator = \{denominator};\n" +
     "  for (int32_t slot = 0; slot < " +
     experts_per_token.to_string() +
-    "; ++slot) { const float value = uncorrected_scores[score_base + selected_indices[output_base + slot]]; const float normalized = " +
+    "; ++slot) { const float value = uncorrected_scores[score_base + selected_indices[output_base + slot]]; selected_weights[output_base + slot] = " +
     normalize_literal +
-    " ? __fdiv_rn(value, denominator) : value; selected_weights[output_base + slot] = __fmul_rn(normalized, " +
-    scaling_literal +
-    "); }\n" +
+    " ? \{publish} : \{unnormalized}; }\n" +
     "}\n"
   let source = @utf8.encode(source_text)
   {

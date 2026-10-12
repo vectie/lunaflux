@@ -8,6 +8,18 @@ fn hash_weight_source(
   let (rows, _, experts, selected) = plan.geometry()
   let normalize = if plan.normalize() { "true" } else { "false" }
   let scaling = @literal.canonical_cuda_float_literal(plan.scaling())
+  let sum = @arithmetic.scalar_expression(
+    @precision.RoutingWeightExpression::SumUpdate.program(),
+    ["sum", "value"],
+  )
+  let denominator = @arithmetic.scalar_expression(
+    @precision.RoutingWeightExpression::Denominator.program(),
+    ["sum", "1.0e-20f"],
+  )
+  let publish = @arithmetic.scalar_expression(
+    @precision.RoutingWeightExpression::Publish.program(),
+    ["scores[score_base+indices[output+slot]]", "denominator", scaling],
+  )
   let reduction = if plan.selected_sum_law() is OrderedFloat32 {
     ""
   } else {
@@ -29,12 +41,12 @@ fn hash_weight_source(
     $|    if(expert<0||expert>=\{experts}) { valid=false; continue; }
     $|    const float value=scores[score_base+expert];
     $|    if(!isfinite(value)) valid=false;
-    $|    sum=__fadd_rn(sum,value);
+    $|    sum=\{sum};
     $|  }
-    $|\{reduction}  const float denominator=\{normalize} ? __fadd_rn(sum,1.0e-20f) : 1.0f;
+    $|\{reduction}  const float denominator=\{normalize} ? \{denominator} : 1.0f;
     $|  for(int slot=0;slot<\{selected};++slot) {
     $|    if(!valid) { weights[output+slot]=0.0f; continue; }
-    $|    weights[output+slot]=__fmul_rn(__fdiv_rn(scores[score_base+indices[output+slot]],denominator),\{scaling});
+    $|    weights[output+slot]=\{publish};
     $|  }
     $|}
   source

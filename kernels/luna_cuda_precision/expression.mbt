@@ -22,7 +22,9 @@ pub fn scalar_expression(
           SubtractRN => "__fsub_rn"
           MultiplyRN => "__fmul_rn"
           DivideRN => "__fdiv_rn"
+          DivideEstimate => "__fdividef"
           MaximumNumber => "fmaxf"
+          MinimumNumber => "fminf"
         }
         "\{name}(\{render(a)}, \{render(b)})"
       }
@@ -30,6 +32,7 @@ pub fn scalar_expression(
       Unary(op, value) => {
         let name = match op {
           NaturalExp => "expf"
+          NaturalLogOnePlus => "log1pf"
           ReciprocalSqrt => "rsqrtf"
           SquareRoot => "sqrtf"
           Negate => abort("handled above")
@@ -38,6 +41,13 @@ pub fn scalar_expression(
       }
       FusedMultiplyAdd(a, b, c) =>
         "__fmaf_rn(\{render(a)}, \{render(b)}, \{render(c)})"
+      Select(op, a, b, yes, no) => {
+        let relation = match op {
+          GreaterThan => ">"
+          GreaterOrEqual => ">="
+        }
+        "((\{render(a)}) \{relation} (\{render(b)}) ? (\{render(yes)}) : (\{render(no)}))"
+      }
       Convert(kind, value) => {
         // Same-type conversions are exact identity, including NaN payloads;
         // avoid a spurious roundtrip through a different storage type.
@@ -45,6 +55,7 @@ pub fn scalar_expression(
           match expr {
             Input(i) => program.inputs()[i].0
             Convert(k, _) => k
+            Select(_, _, _, yes, _) => scalar(yes)
             _ => Float32
           }
         }

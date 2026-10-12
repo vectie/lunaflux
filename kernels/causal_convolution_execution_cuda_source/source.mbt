@@ -25,6 +25,20 @@ pub fn causal_convolution_source(
     raise @precision.PrecisionPlanError::NoImplementation
   }
   let history = kernel - 1
+  let fold = plan.projection_fold()
+  let past_update = @arithmetic.scalar_expression(fold.update, [
+    "sum",
+    "past[lag]",
+    "weight[channel*\{kernel}ULL+lag]",
+  ])
+  let current_update = @arithmetic.scalar_expression(fold.update, [
+    "sum",
+    "current",
+    "weight[channel*\{kernel}ULL+\{history}ULL]",
+  ])
+  let activation = @arithmetic.scalar_expression(plan.activation_expression(), [
+    "sum",
+  ])
   let text =
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
@@ -41,9 +55,9 @@ pub fn causal_convolution_source(
     $|  for(int row=begin;row<end;++row) {
     $|    const unsigned long long cell=(unsigned long long)row*\{channels}ULL+channel;
     $|    const __nv_bfloat16 current=input[cell]; float sum=0.0f;
-    $|    for(int lag=0;lag<\{history};++lag) sum=__fadd_rn(sum,__fmul_rn(__bfloat162float(past[lag]),__bfloat162float(weight[channel*\{kernel}ULL+lag])));
-    $|    sum=__fadd_rn(sum,__fmul_rn(__bfloat162float(current),__bfloat162float(weight[channel*\{kernel}ULL+\{history}ULL])));
-    $|    output[cell]=__float2bfloat16_rn(__fdiv_rn(sum,__fadd_rn(1.0f,expf(-sum))));
+    $|    for(int lag=0;lag<\{fold.extent - 1};++lag) sum=\{past_update};
+    $|    sum=\{current_update};
+    $|    output[cell]=\{activation};
     $|    for(int lag=0;lag<\{history - 1};++lag) past[lag]=past[lag+1]; past[\{history - 1}]=current;
     $|  }
     $|  for(int lag=0;lag<\{history};++lag) state[state_base+lag]=past[lag];

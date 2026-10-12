@@ -124,7 +124,7 @@ test "compact expert lowering emits separate linear-work stages from precision I
     assert_true(text.contains("__shfl_down_sync"))
     assert_true(text.contains("expert_map[expert]"))
     assert_true(text.contains("float *output"))
-    assert_true(text.contains("fminf(__bfloat162float(gate),10.0f)"))
+    assert_true(text.contains("fminf(__bfloat162float(gate), 10.0f)"))
     assert_false(text.contains("cudaMalloc"))
     assert_false(text.contains("glm"))
   }

@@ -14,7 +14,7 @@ test "decay control renders official bias rate sigmoid lower-bound order" {
   )
   assert_true(source.contains("decay_rate = expf(a_log[head])"))
   assert_true(source.contains("__fmul_rn(decay_rate, biased_logit)"))
-  assert_true(source.contains("expf(-scaled)"))
+  assert_true(source.contains("expf(-(scaled))"))
   assert_true(source.contains("__fmul_rn(-5.0f, sigmoid)"))
   assert_false(source.contains("query"))
   assert_false(source.contains("initial_state"))

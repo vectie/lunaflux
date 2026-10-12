@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/luna_cuda_precision" @arithmetic,
   "moonbitlang/core/encoding/utf8",
 }
 

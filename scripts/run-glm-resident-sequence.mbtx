@@ -8,8 +8,9 @@ import {
 }
 
 // CPU-only preparation followed by explicitly bounded two-rank execution.
-// Reuse the unchanged row-one/history-64 AOT, never hash copied payloads and
-// never overlap another GPU workload. New paths preserve earlier observations.
+// Export and compile row-one/history-64 AOT from the supplied source-pinned
+// executable. Reuse only declared checkpoint labels, never old executable code.
+// Never hash copied payloads or overlap another GPU workload.
 
 ///|
 fn node(last : Bool) -> String {
@@ -40,7 +41,7 @@ fn model(last : Bool) -> String {
 }
 
 ///|
-fn aot(last : Bool) -> String {
+fn declared_shards(last : Bool) -> String {
   if last {
     "/tmp/lunaflux-glm-real-aot-20261010.uvS6YcCC"
   } else {
@@ -271,6 +272,7 @@ async fn main {
     )
   }
   let destination = "/tmp/lunaflux-glm-sequence-" + suffix
+  let aot = destination + "/aot"
   let binary = destination + "/glm_checkpoint.exe"
   let queue = destination + "/prompt-sequence"
   let cancellation = if cancel_index < 0 {
@@ -309,6 +311,30 @@ async fn main {
         remote(last, "mkdir " + destination),
       )
       copy(last, root + "/glm_checkpoint.exe", node(last) + ":" + binary)
+    }
+    let export_unit = "lunaflux-glm-sequence-" + suffix + "-export.service"
+    retain(root, "export-start", remote(false,
+      "systemd-run --user --unit=" + export_unit +
+      " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+      binary + " export " + model(false) + " " + declared_shards(false) +
+      "/SHARDS.sha256 1 64 103079215104 103079215104 2147483648 " + aot))
+    { errdefer collect(root, false, export_unit); wait_unit(false, export_unit) }
+    collect(root, false, export_unit)
+    retain(root, "179-aot-mkdir", remote(true, "mkdir " + aot))
+    for (last, ordinal) in [(false, 0), (true, 1)] {
+      let source = "stage-\{ordinal}.cu"
+      copy(false, node(false) + ":" + aot + "/" + source, root + "/" + source)
+      if last { copy(true, root + "/" + source, node(true) + ":" + aot + "/" + source) }
+      retain(root, "\{ordinal}-declared-shards", remote(last,
+        "cp -n " + declared_shards(last) + "/SHARDS.sha256 " + aot + "/SHARDS.sha256"))
+      let unit = "lunaflux-glm-sequence-" + suffix + "-compile-\{ordinal}.service"
+      retain(root, "\{ordinal}-compile-start", remote(last,
+        "systemd-run --user --unit=" + unit +
+        " --property=RemainAfterExit=yes --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
+        aot + "/" + source + " -o " + aot + "/stage-\{ordinal}.cubin"))
+      { errdefer collect(root, last, unit); wait_unit(last, unit) }
+      collect(root, last, unit)
+      copy(last, node(last) + ":" + aot + "/stage-\{ordinal}.cubin", root + "/stage-\{ordinal}.cubin")
     }
     retain(root, "queue-mkdir", remote(false, "mkdir " + queue))
     let counts : Array[Int] = []
@@ -380,7 +406,7 @@ async fn main {
       create_mode=CreateNew,
     )
     println(
-      "two literal GLM requests prepared before CUDA; AOT unchanged, no payload hashing",
+      "two literal GLM requests prepared; fresh source-pinned AOT compiled, no payload hashing",
     )
     return
   }
@@ -422,10 +448,10 @@ async fn main {
       " egress " +
       model(true) +
       " " +
-      aot(true) +
+      aot +
       "/SHARDS.sha256" +
       common +
-      aot(true) +
+      aot +
       " stage-1.cubin" +
       peers,
     ),
@@ -475,10 +501,10 @@ async fn main {
       " generate-sequence " +
       model(false) +
       " " +
-      aot(false) +
+      aot +
       "/SHARDS.sha256" +
       common +
-      aot(false) +
+      aot +
       " stage-0.cubin" +
       peers +
       " " +

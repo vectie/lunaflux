@@ -35,6 +35,27 @@ pub fn safe_lower_bound_sigmoid_decay_f32_source(
     row_width * maximum_rows.to_int64() > 9223372036854775807L {
     raise DimensionOverflow
   }
+  fn expr(
+    op : @precision.RecurrentBlockExpression,
+    bindings : ArrayView[String],
+  ) -> String {
+    @arithmetic.scalar_expression(op.program(), bindings) catch {
+      _ => abort("invalid decay program")
+    }
+  }
+  let bias = expr(BiasedForget, ["raw_forget[index]", "dt_bias[component]"])
+  let rate = expr(DecayRate, ["a_log[head]"])
+  let scaled = expr(ScaleForget, ["decay_rate", "biased_logit"])
+  let sigmoid = @arithmetic.scalar_expression(
+    @precision.SigmoidEvaluationLaw::DirectReciprocal.expression(),
+    ["scaled"],
+  ) catch {
+    _ => abort("invalid decay sigmoid")
+  }
+  let publish = expr(BoundDecay, [
+    @luna_cuda_pointwise_aot.canonical_cuda_float_literal(lower_bound),
+    "sigmoid",
+  ])
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n#include <math.h>\n" +
     "extern \"C\" __global__ void " +
@@ -50,12 +71,10 @@ pub fn safe_lower_bound_sigmoid_decay_f32_source(
     "  const unsigned long long component = index % row_width; const unsigned long long head = component / " +
     head_dimension.to_string() +
     "ULL;\n" +
-    "  const float biased_logit = __fadd_rn(__bfloat162float(raw_forget[index]), dt_bias[component]);\n" +
-    "  const float decay_rate = expf(a_log[head]); const float scaled = __fmul_rn(decay_rate, biased_logit);\n" +
-    "  const float sigmoid = __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-scaled)));\n" +
-    "  log_decay[index] = __fmul_rn(" +
-    @luna_cuda_pointwise_aot.canonical_cuda_float_literal(lower_bound) +
-    ", sigmoid);\n}\n",
+    "  const float biased_logit = \{bias};\n" +
+    "  const float decay_rate = \{rate}; const float scaled = \{scaled};\n" +
+    "  const float sigmoid = \{sigmoid};\n" +
+    "  log_decay[index] = \{publish};\n}\n",
   )
   {
     operation: SafeLowerBoundSigmoidDecayF32,

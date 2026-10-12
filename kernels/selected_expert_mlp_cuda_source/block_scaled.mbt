@@ -50,31 +50,40 @@ fn block_scaled_expert_source(
     None => ""
     Some(limit) => {
       let value = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(limit)
-      "gate=__float2bfloat16_rn(fminf(__bfloat162float(gate),\{value}));up=__float2bfloat16_rn(fmaxf(-\{value},fminf(__bfloat162float(up),\{value})));"
+      let gate = @luna_cuda_precision.scalar_expression(
+        plan.expression(ClampGate),
+        ["gate", value],
+      )
+      let up = @luna_cuda_precision.scalar_expression(
+        plan.expression(ClampUp),
+        ["up", value],
+      )
+      "gate=\{gate};up=\{up};"
     }
   }
   let route_before = plan.routing_placement() == BeforeDownInputRound
-  let product_expression = match plan.activation_rounding() {
-    Bf16Stages =>
-      "__fmul_rn(__bfloat162float(__float2bfloat16_rn(__fdiv_rn(g,__fadd_rn(1.0f,expf(-g))))),__bfloat162float(up))"
-    F32Product =>
-      "__fmul_rn(__fdiv_rn(g,__fadd_rn(1.0f,expf(-g))),__bfloat162float(up))"
+  fn expr(
+    operation : @precision_ir.ExpertExpression,
+    bindings : ArrayView[String],
+  ) -> String raise {
+    @luna_cuda_precision.scalar_expression(plan.expression(operation), bindings)
   }
+  let product_expression = expr(Product, ["g", "up"])
   let route_parameter = if route_before {
     ",const float *selected_weights"
   } else {
     ""
   }
   let apply_route = if route_before {
-    "v=__fmul_rn(v,selected_weights[job]);"
+    "v=\{expr(ApplyRoute, ["v", "selected_weights[job]"])};"
   } else {
     ""
   }
-  let down_output = if route_before {
-    "__float2bfloat16_rn(sums[i])"
-  } else {
-    "__float2bfloat16_rn(__fmul_rn(__bfloat162float(__float2bfloat16_rn(sums[i])),selected_weights[job]))"
-  }
+  let down_output = expr(DownPublish, ["sums[i]", "selected_weights[job]"])
+  let combine_update = expr(CombineUpdate, [
+    "sum",
+    "weighted[(row*\{selected}ULL+slot)*\{hidden}ULL+column]",
+  ])
   let gate_up = symbol + "_gate_up"
   let down = symbol + "_down"
   let combine = symbol + "_combine"
@@ -113,7 +122,7 @@ fn block_scaled_expert_source(
       $|  const int live=counts[3];if(live<=0||live>\{maximum_rows})return;
       $|  const unsigned long long cell=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(cell>=(unsigned long long)live*\{hidden}ULL)return;
       $|  const unsigned long long row=cell/\{hidden}ULL;const int column=cell%\{hidden}ULL;float sum=0.0f;int previous=-1;
-      $|  for(int n=0;n<\{selected};++n) {int next=\{experts},slot=-1;for(int j=0;j<\{selected};++j){int e=selected_indices[row*\{selected}ULL+j];if(e>previous&&e<next){next=e;slot=j;}}if(slot<0)break;sum=__fadd_rn(sum,__bfloat162float(weighted[(row*\{selected}ULL+slot)*\{hidden}ULL+column]));previous=next;}
+      $|  for(int n=0;n<\{selected};++n) {int next=\{experts},slot=-1;for(int j=0;j<\{selected};++j){int e=selected_indices[row*\{selected}ULL+j];if(e>previous&&e<next){next=e;slot=j;}}if(slot<0)break;sum=\{combine_update};previous=next;}
       $|  output[cell]=sum;
       $|}
     ) +

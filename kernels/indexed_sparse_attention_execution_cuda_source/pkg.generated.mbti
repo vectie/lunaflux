@@ -16,6 +16,7 @@ pub fn indexed_sparse_history_source(@precision_ir.IndexedSparseHistoryPrecision
 pub struct IndexedSparseAttentionCudaSource {
   // private fields
 }
+pub fn IndexedSparseAttentionCudaSource::execution_order(Self) -> ReadOnlyArray[Int]
 pub fn IndexedSparseAttentionCudaSource::plan(Self) -> @precision_ir.IndexedSparseAttentionPrecision
 pub fn IndexedSparseAttentionCudaSource::source_bytes(Self) -> Bytes
 pub fn IndexedSparseAttentionCudaSource::symbol(Self, Int) -> String

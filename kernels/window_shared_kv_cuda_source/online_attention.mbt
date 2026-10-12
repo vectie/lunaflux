@@ -31,6 +31,31 @@ pub fn online_window_attention_source(
     (maximum_slots.to_int64() + blocks.to_int64()) * 4L + 4L <= 49152L else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
+  let dot = attention_expression(plan, DotUpdate, [
+    "dot", "queries[query_base + col]", "key[col]",
+  ])
+  let scale = attention_expression(plan, ScaledScore, [
+    "dot",
+    "rsqrtf(\{width}.0f)",
+  ])
+  let maximum = attention_expression(plan, Maximum, ["next", "scores[ordinal]"])
+  let rescale = attention_expression(plan, Exponential, ["maximum", "next"])
+  let probability = attention_expression(plan, Exponential, [
+    "scores[ordinal]", "next",
+  ])
+  let sum = attention_expression(plan, SumUpdate, ["sum", "probability"])
+  let storage = attention_expression(plan, ProbabilityStorage, ["probability"])
+  let total = attention_expression(plan, OnlineTotal, [
+    "total", "rescale", "sum",
+  ])
+  let denominator = attention_expression(plan, SinkTotal, [
+    "total", "sink[head]", "maximum",
+  ])
+  let rescale_sum = attention_expression(plan, Rescale, ["sum", "alpha[block]"])
+  let value = attention_expression(plan, ValueUpdate, [
+    "sum", "scores[ordinal]", "key[col]",
+  ])
+  let output = attention_expression(plan, Publish, ["sum", "denominator"])
   @utf8.encode(
     (
       $|extern "C" __global__ void \{symbol_prefix}_attention(\{setup}) {
@@ -48,41 +73,41 @@ pub fn online_window_attention_source(
       $|      const __nv_bfloat16 *key = nullptr;
       $|\{lookup}
       $|      float dot = 0.0f;
-      $|      if (key) for (int col = 0; col < \{width}; ++col) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(queries[query_base + col]), __bfloat162float(key[col])));
-      $|      scores[ordinal] = key ? __fmul_rn(dot, rsqrtf(\{width}.0f)) : -INFINITY;
+      $|      if (key) for (int col = 0; col < \{width}; ++col) dot = \{dot};
+      $|      scores[ordinal] = key ? \{scale} : -INFINITY;
       $|    }
       $|    float maximum = -INFINITY, total = 0.0f;
       $|    for (int block = 0; block < blocks; ++block) {
       $|      const int begin = block * \{block_tokens}, end = min(slots, begin + \{block_tokens});
       $|      float next = maximum;
-      $|      for (int ordinal = begin; ordinal < end; ++ordinal) next = fmaxf(next, scores[ordinal]);
+      $|      for (int ordinal = begin; ordinal < end; ++ordinal) next = \{maximum};
       $|      // Entirely masked early blocks must not manufacture exp(-inf- -inf).
       $|      if (next == -INFINITY) { alpha[block] = 1.0f; for (int ordinal = begin; ordinal < end; ++ordinal) scores[ordinal] = 0.0f; continue; }
-      $|      const float rescale = maximum == -INFINITY ? 0.0f : expf(__fsub_rn(maximum, next));
+      $|      const float rescale = maximum == -INFINITY ? 0.0f : \{rescale};
       $|      alpha[block] = rescale;
       $|      float sum = 0.0f;
       $|      for (int ordinal = begin; ordinal < end; ++ordinal) {
-      $|        const float probability = expf(__fsub_rn(scores[ordinal], next));
-      $|        sum = __fadd_rn(sum, probability);
-      $|        scores[ordinal] = __bfloat162float(__float2bfloat16_rn(probability));
+      $|        const float probability = \{probability};
+      $|        sum = \{sum};
+      $|        scores[ordinal] = \{storage};
       $|      }
-      $|      total = __fadd_rn(__fmul_rn(total, rescale), sum); maximum = next;
+      $|      total = \{total}; maximum = next;
       $|    }
-      $|    denominator = __fadd_rn(total, expf(__fsub_rn(sink[head], maximum)));
+      $|    denominator = \{denominator};
       $|  }
       $|  __syncthreads();
       $|  for (int col = lane; col < \{width}; col += blockDim.x) {
       $|    float sum = 0.0f;
       $|    for (int block = 0; block < blocks; ++block) {
-      $|      sum = __fmul_rn(sum, alpha[block]);
+      $|      sum = \{rescale_sum};
       $|      const int begin = block * \{block_tokens}, end = min(slots, begin + \{block_tokens});
       $|      for (int ordinal = begin; ordinal < end; ++ordinal) {
       $|        const __nv_bfloat16 *key = nullptr;
       $|\{lookup}
-      $|        if (key) sum = __fmaf_rn(scores[ordinal], __bfloat162float(key[col]), sum);
+      $|        if (key) sum = \{value};
       $|      }
       $|    }
-      $|    output[query_base + col] = __float2bfloat16_rn(__fdiv_rn(sum, denominator));
+      $|    output[query_base + col] = \{output};
       $|  }
       $|}
     ),

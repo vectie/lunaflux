@@ -28,7 +28,11 @@ pub(all) enum NumericBinary {
   SubtractRN
   MultiplyRN
   DivideRN
+  // Named device estimate, not algebraically interchangeable with DivideRN.
+  // Its target-specific exceptional/denormal behavior is preserved by lowering.
+  DivideEstimate
   MaximumNumber
+  MinimumNumber
 } derive(Eq)
 
 ///|
@@ -37,6 +41,7 @@ pub extend NumericBinary with Eq::{equal, not_equal}
 ///|
 pub(all) enum NumericUnary {
   NaturalExp
+  NaturalLogOnePlus
   ReciprocalSqrt
   SquareRoot
   Negate
@@ -44,6 +49,17 @@ pub(all) enum NumericUnary {
 
 ///|
 pub extend NumericUnary with Eq::{equal, not_equal}
+
+///|
+/// Ordered F32 comparisons; NaN makes both false. Select evaluates only its
+/// selected arm, not both arms followed by an arithmetic blend.
+pub(all) enum NumericComparison {
+  GreaterThan
+  GreaterOrEqual
+} derive(Eq)
+
+///|
+pub extend NumericComparison with Eq::{equal, not_equal}
 
 ///|
 /// Pure expressions; memory reads are bound by the containing effect plan.
@@ -55,6 +71,7 @@ pub(all) enum NumericExpr {
   Unary(NumericUnary, NumericExpr)
   FusedMultiplyAdd(NumericExpr, NumericExpr, NumericExpr)
   Convert(NumericScalar, NumericExpr)
+  Select(NumericComparison, NumericExpr, NumericExpr, NumericExpr, NumericExpr)
 } derive(Eq)
 
 ///|
@@ -101,6 +118,14 @@ fn NumericExpr::scalar(
         raise IllegalPlacement
       }
       Float32
+    }
+    Select(_, a, b, yes, no) => {
+      guard a.scalar(inputs) == Float32 && b.scalar(inputs) == Float32 else {
+        raise IllegalPlacement
+      }
+      let result = yes.scalar(inputs)
+      guard no.scalar(inputs) == result else { raise IllegalPlacement }
+      result
     }
   }
 }

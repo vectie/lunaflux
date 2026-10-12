@@ -7,15 +7,15 @@ pub fn dot_accumulator_source(
   law : @precision.DotReductionLaw,
   accumulator~ : String,
 ) -> (String, String, String) raise @precision.PrecisionPlanError {
+  let add = @arithmetic.scalar_expression(
+    @precision.ProjectionExpression::AddProduct.program(),
+    [accumulator, "product"],
+  )
   match law {
     StripedTreeFloat32(_) | GroupedVectorFloat32(..) =>
       raise @precision.PrecisionPlanError::NoImplementation
     OrderedFloat32 =>
-      (
-        "float \{accumulator} = 0.0f;",
-        "\{accumulator} = __fadd_rn(\{accumulator}, product);",
-        "",
-      )
+      ("float \{accumulator} = 0.0f;", "\{accumulator} = \{add};", "")
     CompensatedFloat32 =>
       (
         "float \{accumulator} = 0.0f, \{accumulator}_correction = 0.0f;",

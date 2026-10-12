@@ -18,6 +18,46 @@ pub fn staged_separate_swiglu_bf16_source(
   let h = hidden_size.to_string()
   let m = intermediate_size.to_string()
   let r = maximum_rows.to_string()
+  let plan = @precision.DenseSwiGluPrecision::new(
+    hidden_width=hidden_size,
+    intermediate_width=intermediate_size,
+    maximum_rows~,
+  ) catch {
+    _ => raise DimensionOverflow
+  }
+  fn expression(
+    op : @precision.DenseSwiGluExpression,
+    bindings : ArrayView[String],
+  ) -> String {
+    @arithmetic.scalar_expression(plan.expression(op), bindings) catch {
+      _ => abort("invalid dense program")
+    }
+  }
+  let gate_update = expression(ProjectionUpdate, [
+    "gate_sum",
+    "input[row*\{h}ULL+column]",
+    "gate_weight[inner*\{h}ULL+column]",
+  ])
+  let up_update = expression(ProjectionUpdate, [
+    "up_sum",
+    "input[row*\{h}ULL+column]",
+    "up_weight[inner*\{h}ULL+column]",
+  ])
+  let gate_publish = expression(ProjectionPublish, ["gate_sum"])
+  let up_publish = expression(ProjectionPublish, ["up_sum"])
+  let activation = expression(Activation, ["gate"])
+  let product = expression(Product, ["activated", "up"])
+  let down_fold = plan.projection_fold(down=true) catch {
+    _ => abort("invalid dense fold")
+  }
+  let down_update = @arithmetic.scalar_expression(down_fold.update, [
+    "sum",
+    "product[row*\{m}ULL+inner]",
+    "down_weight[out*\{m}ULL+inner]",
+  ]) catch {
+    _ => abort("invalid dense bindings")
+  }
+  let down_publish = expression(ProjectionPublish, ["sum"])
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
@@ -36,14 +76,8 @@ pub fn staged_separate_swiglu_bf16_source(
     "ULL; float gate_sum=0.0f, up_sum=0.0f;\n" +
     "for(int column=0; column<" +
     h +
-    "; ++column) { const float x=__bfloat162float(input[row*" +
-    h +
-    "ULL+column]); gate_sum=__fadd_rn(gate_sum,__fmul_rn(x,__bfloat162float(gate_weight[inner*" +
-    h +
-    "ULL+column]))); up_sum=__fadd_rn(up_sum,__fmul_rn(x,__bfloat162float(up_weight[inner*" +
-    h +
-    "ULL+column]))); }\n" +
-    "const __nv_bfloat16 gate=__float2bfloat16_rn(gate_sum), up=__float2bfloat16_rn(up_sum); const float g=__bfloat162float(gate); const __nv_bfloat16 activated=__float2bfloat16_rn(__fdiv_rn(g,__fadd_rn(1.0f,expf(-g)))); product[i]=__float2bfloat16_rn(__fmul_rn(__bfloat162float(activated),__bfloat162float(up))); }\n" +
+    "; ++column) { gate_sum=\{gate_update}; up_sum=\{up_update}; }\n" +
+    "const __nv_bfloat16 gate=\{gate_publish}, up=\{up_publish}; const __nv_bfloat16 activated=\{activation}; product[i]=\{product}; }\n" +
     "extern \"C\" __global__ void " +
     function_prefix +
     "_down(const int32_t *counts, const __nv_bfloat16 *product, const __nv_bfloat16 *down_weight, __nv_bfloat16 *output) {\n" +
@@ -58,11 +92,7 @@ pub fn staged_separate_swiglu_bf16_source(
     "ULL, out=i%" +
     h +
     "ULL; float sum=0.0f; for(int inner=0; inner<" +
-    m +
-    "; ++inner) sum=__fadd_rn(sum,__fmul_rn(__bfloat162float(product[row*" +
-    m +
-    "ULL+inner]),__bfloat162float(down_weight[out*" +
-    m +
-    "ULL+inner]))); output[i]=__float2bfloat16_rn(sum); }\n",
+    down_fold.extent.to_string() +
+    "; ++inner) sum=\{down_update}; output[i]=\{down_publish}; }\n",
   )
 }

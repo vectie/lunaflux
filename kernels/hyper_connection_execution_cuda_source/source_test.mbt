@@ -26,7 +26,9 @@ async test "complete hyper envelope preserves controls normalization and both po
     assert_true(source.contains("hyper" + index.to_string() + "_sigmoid"))
     assert_eq(rendered.plan().geometry(), (4, 6, 8))
     if index == 0 {
-      assert_true(source.contains("mixed_residual = __float2bfloat16_rn"))
+      assert_true(
+        source.contains("__bfloat162float(__float2bfloat16_rn(residual_sum))"),
+      )
     }
     text.push(source)
   }

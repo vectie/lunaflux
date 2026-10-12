@@ -33,7 +33,7 @@ async test "inverse arithmetic intervention exports the actual renderer and freq
     symbol="contracted_inverse",
   )
   assert_true(
-    contracted.contains("__fmaf_rn(left, cosine, -__fmul_rn(right, sine))"),
+    contracted.contains("__fmaf_rn(left, cosine, -(__fmul_rn(right, sine)))"),
   )
   assert_true(
     contracted.contains("__fmaf_rn(right, cosine, __fmul_rn(left, sine))"),

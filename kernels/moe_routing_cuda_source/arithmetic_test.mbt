@@ -34,7 +34,7 @@ test "explicit router arithmetic reaches both weight representations and selecti
       )
       let text = @utf8.decode(source.source_bytes())
       assert_true(text.contains("__fmaf_rn("))
-      assert_true(text.contains("x>18.0f ? x : log1pf(expf(x))"))
+      assert_true(text.contains("((x) > (18.0f) ? (x) : (log1pf(expf(x))))"))
       assert_true(text.contains("selected_partial[2]"))
       assert_true(text.contains("span=8"))
     }

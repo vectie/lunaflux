@@ -278,30 +278,61 @@ pub fn post_combine_v1_bf16_source(
   let width = stream_width.to_string()
   let hidden = hidden_width.to_string()
   let flattened = (stream_width * hidden_width).to_string()
-  let (initial, control_index, accumulate, finish, numerical_contract) = match
-    mix_law {
+  let (control_index, numerical_contract) = match mix_law {
     OrderedF32SingleBf16Round =>
       (
-        "float value = __fmul_rn(post_value, branch_value); bool valid = isfinite(value);",
         "(unsigned long long)destination * " +
         width +
         "ULL + (unsigned long long)source",
-        "value = __fadd_rn(value, __fmul_rn(control, residual_value));",
-        "",
         OrderedF32PostCombineBf16RoundV1,
       )
     TransposedF32ResidualThenBranch =>
       (
-        "float mixed_residual = 0.0f; bool valid = true;",
         "(unsigned long long)source * " +
         width +
         "ULL + (unsigned long long)destination",
-        "mixed_residual = __fadd_rn(mixed_residual, __fmul_rn(control, residual_value));",
-        "const float value = __fadd_rn(__fmul_rn(post_value, branch_value), mixed_residual); ",
         OrderedF32TransposedPostCombineBf16RoundV1,
       )
     RoundedBf16ControlsAndProducts => raise InvalidNumericalContract
   }
+  let branch = @arithmetic.scalar_expression(
+    mix_law.expression(BranchProduct),
+    ["post_value", "branch_value"],
+  ) catch {
+    _ => raise InvalidNumericalContract
+  }
+  let residual_name = match mix_law {
+    TransposedF32ResidualThenBranch => "mixed_residual"
+    _ => "value"
+  }
+  let residual = @arithmetic.scalar_expression(
+    mix_law.expression(ResidualUpdate),
+    [residual_name, "control", "residual_value"],
+  ) catch {
+    _ => raise InvalidNumericalContract
+  }
+  let publish = @arithmetic.scalar_expression(mix_law.expression(Publish), [
+    if mix_law is TransposedF32ResidualThenBranch {
+      branch
+    } else {
+      "value"
+    },
+    residual_name,
+  ]) catch {
+    _ => raise InvalidNumericalContract
+  }
+  // The finite-value guard observes the same pre-publication F32 value.
+  let initial = if mix_law is OrderedF32SingleBf16Round {
+    "float value = \{branch}; bool valid = isfinite(value);"
+  } else {
+    "float mixed_residual = 0.0f; bool valid = true;"
+  }
+  let finish = if mix_law is TransposedF32ResidualThenBranch {
+    "const float value = __fadd_rn(\{branch}, mixed_residual); "
+  } else {
+    ""
+  }
+  let accumulate = "\{residual_name} = \{residual};"
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
@@ -345,7 +376,7 @@ pub fn post_combine_v1_bf16_source(
     accumulate +
     " } " +
     finish +
-    "if (valid && isfinite(value)) output[state_base + (unsigned long long)linear] = __float2bfloat16_rn(value); }\n" +
+    "if (valid && isfinite(value)) output[state_base + (unsigned long long)linear] = \{publish}; }\n" +
     "}\n",
   )
   {

@@ -5,9 +5,14 @@ pub fn e4m3_block_matrix_helper(
   symbol~ : String,
   publication~ : @precision.Float32AffineLaw,
 ) -> String {
-  let raw_fold = match publication {
-    SeparateMultiplyAdd => "__fadd_rn(total[i],__fmul_rn(d[i],scale))"
-    FusedMultiplyAdd => "__fmaf_rn(d[i],scale,total[i])"
+  let law = @precision.ScaledDotReductionLaw::UnscaledBlockMatrixFloat32(
+    block_columns=128,
+    publication~,
+  )
+  let raw_fold = scalar_expression(law.publication_expression(), [
+    "total[i]", "d[i]", "scale",
+  ]) catch {
+    _ => abort("invalid scaled publication program")
   }
   (
     $|#include <cuda_bf16.h>

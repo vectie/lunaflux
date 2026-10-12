@@ -6,10 +6,10 @@ fn control_nonlinear_counterfactual(
   route : String,
 ) -> String raise {
   let text = if route.contains("direct") {
-    let stable = "if (x >= 0.0f) return __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-x))); const float e = expf(x); return __fdiv_rn(e, __fadd_rn(1.0f, e));"
+    let stable = "return ((x) >= (0.0f) ? (__fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-(x))))) : (__fdiv_rn(expf(x), __fadd_rn(1.0f, expf(x)))));"
     assert_eq(source.split(stable).count(), 2)
     source.substitute(
-      stable, "return __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-x)));",
+      stable, "return __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-(x))));",
     )
   } else {
     source

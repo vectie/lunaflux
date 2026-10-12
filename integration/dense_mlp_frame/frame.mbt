@@ -84,7 +84,7 @@ pub fn DenseMlpFrame::prepare(
       region(output, input_bytes, 2L),
     ],
   ]
-  for stage in 0..<2 {
+  for stage in self.source.execution_order() {
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
     self.functions.push(function)
     let width = if stage == 0 { intermediate } else { hidden }

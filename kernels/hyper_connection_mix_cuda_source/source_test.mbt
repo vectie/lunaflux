@@ -11,10 +11,12 @@ test "hyper-connection mix source fixes transpose, round, and alias semantics" {
   assert_true(
     text.contains("+ (unsigned long long)source) * 4ULL + destination"),
   )
-  assert_true(text.contains("post_bf16 = __float2bfloat16_rn(post"))
-  assert_true(text.contains("coefficient = __float2bfloat16_rn(combine"))
+  assert_true(text.contains("__bfloat162float(__float2bfloat16_rn(post"))
+  assert_true(text.contains("__bfloat162float(__float2bfloat16_rn(combine"))
   assert_true(text.contains("residual_sum = __fadd_rn"))
-  assert_true(text.contains("mixed_residual = __float2bfloat16_rn"))
+  assert_true(
+    text.contains("__bfloat162float(__float2bfloat16_rn(residual_sum))"),
+  )
   assert_eq(rendered.numerical_contract(), F32ControlsRoundedBf16OrderedMixV1)
 }
 

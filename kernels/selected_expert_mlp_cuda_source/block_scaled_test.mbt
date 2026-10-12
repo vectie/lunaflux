@@ -18,9 +18,9 @@ test "block scaled matrix lowering retains independent raw accumulator and launc
   )
   assert_true(text.contains("float d[4]={0.0f,0.0f,0.0f,0.0f}"))
   assert_true(
-    text.contains("total[i]=__fadd_rn(total[i],__fmul_rn(d[i],scale))"),
+    text.contains("total[i]=__fadd_rn(total[i], __fmul_rn(d[i], scale))"),
   )
-  assert_true(text.contains("v=__fmul_rn(v,selected_weights[job]);"))
+  assert_true(text.contains("v=__fmul_rn(v, selected_weights[job]);"))
   assert_false(text.contains("matrix_shared_a0"))
   assert_false(text.contains("DeepSeek"))
   let ordinary = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(

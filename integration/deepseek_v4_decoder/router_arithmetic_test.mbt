@@ -25,7 +25,10 @@ test "independent router laws reach hash and learned decoder layers" {
   )
   defer selected.close()
   let text = @utf8.decode(selected.source_bytes())
-  assert_eq(text.split("sqrtf(x>20.0f ? x : log1pf(expf(x)))").count(), 5)
+  assert_eq(
+    text.split("sqrtf(((x) > (20.0f) ? (x) : (log1pf(expf(x)))))").count(),
+    5,
+  )
   assert_eq(text.split("selected_partial[8]").count(), 5)
   for layer in 0..<4 {
     assert_true(text.contains("deepseek_l\{layer}_router_project"))

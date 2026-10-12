@@ -37,7 +37,7 @@ test "KV and standalone cache lower the same explicit complex rounding law" {
   for source in [kv.source_bytes(), cache.source_bytes()] {
     let text = @utf8.decode(source)
     assert_true(
-      text.contains("__fmaf_rn(left, cosine, -__fmul_rn(right, sine))"),
+      text.contains("__fmaf_rn(left, cosine, -(__fmul_rn(right, sine)))"),
     )
     assert_true(
       text.contains("__fmaf_rn(right, cosine, __fmul_rn(left, sine))"),

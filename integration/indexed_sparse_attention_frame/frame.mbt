@@ -147,7 +147,7 @@ pub fn IndexedSparseAttentionFrame::prepare(
       output,
     ),
   ]
-  for stage in 0..<3 {
+  for stage in self.source.execution_order() {
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
     self.functions.push(function)
     self.launches.push(
