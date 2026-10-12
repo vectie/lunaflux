@@ -1,0 +1,95 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(max_output_bytes=2097152)
+}
+
+///|
+async fn record(root : String, label : String, result : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + label + ".stdout", result.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + label + ".stderr", result.stderr(), create_mode=CreateNew)
+  result.check()
+}
+
+///|
+async fn transfer(source : String, target : String) -> Unit {
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, source, target]).output().check()
+}
+
+///|
+fn routes() -> Array[String] {
+  ["stripe256-rsqrt", "stripe512-rsqrt", "vector256-rsqrt", "vector512-rsqrt", "vector512-divsqrt", "literal-mean-rsqrt", "literal-mean-divsqrt"]
+}
+
+///|
+test "RMS probe separates fold geometry and reciprocal arithmetic from literal control" {
+  assert_eq(routes().length(), 7)
+  assert_eq(routes()[0], "stripe256-rsqrt")
+  assert_eq(routes()[5], "literal-mean-rsqrt")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] && root.has_prefix("/tmp/lunaflux-deepseek-rms-arithmetic-") else {
+    fail("prepare NEW_ROOT ORIGINAL_HYPER_ROOT | run|sanitize|collect ROOT")
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [hyper] else { fail("actual original hyper root required") }
+    @fs.mkdir(root)
+    @fs.write_file(root + "/HYPER_ROOT.txt", hyper, create_mode=CreateNew)
+    record(root, "mkdir", remote("mkdir " + root))
+    transfer("tests/packed_moe_execution/rms_arithmetic_probe.cu", node + ":" + root + "/rms-probe.cu")
+    record(root, "compile", remote("systemd-run --user --wait --pipe --unit=" + tag + "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" + root + " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 rms-probe.cu -o rms-probe"))
+  } else if mode == "run" || mode == "sanitize" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("serialize GPU probes") }
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    for tool in (if mode == "run" { ["output"] } else { ["memcheck", "racecheck", "synccheck"] }) {
+      record(root, tool + "-mkdir", remote("mkdir " + root + "/" + tool))
+      record(root, tool, remote("systemd-run --user --wait --pipe --unit=" + tag + "-" + tool + " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+        (if tool == "output" { "" } else { "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 7 --tool " + tool + (if tool == "memcheck" { " --leak-check full" } else { "" }) + " " }) +
+        root + "/rms-probe " + hyper + "/original " + root + "/" + tool))
+    }
+    record(root, mode + "-released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    @fs.mkdir(root + "/output")
+    @fs.mkdir(root + "/reference")
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    for (field, original) in [("control-mean", "control-mean-replay"), ("control-rsqrt", "rsqrt"), ("norm-variance", "norm-variance")] {
+      let reference = root + "/reference/" + original + ".f32"
+      transfer(node + ":" + hyper + "/original/" + original + ".f32", reference)
+      for route in routes() {
+        let target = root + "/output/" + route + "-" + field + ".f32"
+        transfer(node + ":" + target, target)
+        record(root, route + "-" + field + "-comparison", @shell.Cmd("moon", ["run", "scripts/compare-f32-tensors.mbtx", target, reference, root + "/" + route + "-" + field + "-comparison.txt", "matched_original_rms_" + route + "_" + field]).output())
+      }
+    }
+    let reference = root + "/reference/normalized.bf16"
+    transfer(node + ":" + hyper + "/original/normalized.bf16", reference)
+    for route in routes() {
+      let target = root + "/output/" + route + "-normalized.bf16"
+      transfer(node + ":" + target, target)
+      record(root, route + "-normalized-comparison", @shell.Cmd("moon", ["run", "scripts/compare-minimax-encoder-reference.mbtx", target, reference, root + "/" + route + "-normalized-comparison.txt", "matched_original_rms_" + route, "4096"]).output())
+      transfer(node + ":" + root + "/output/" + route + "-norm-rsqrt.f32", root + "/output/" + route + "-norm-rsqrt.f32")
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

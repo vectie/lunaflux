@@ -296,3 +296,33 @@ to **113/144**, without normalized-branch parity. The existing variants do not
 resolve this and are not promoted. Next probes must use the observed original
 means/projection operands and exact normalization rounding, not replace model
 data or change the comparison tolerance.
+
+### Exact RMS reduction order — 2026-10-12
+
+The new offline observer retains actual original RMSNorm `var` and replays the
+installed control square/mean operation on the original flattened `x` operand.
+That replay does not feed back into original computation. Source root
+`/tmp/lunaflux-deepseek-original-hyper-layer3-rows1-20261012-v2` preserves both
+original collapse and normalized outputs bitwise against `v1`.
+
+The installed ATen reduction source explains the missing order: input vectors
+use four independent accumulators per partition, joined in component order;
+512 partition totals then reduce in a descending binary tree. This is different
+from native stripe-256's single accumulator and from a compensated scalar sum.
+The new independent GPU probe implements that explicit F32 ordering, not a
+Torch production dependency or a copied reference result. Root:
+`/tmp/lunaflux-deepseek-rms-arithmetic-20261012-v1`.
+
+| Matched original operands | Control means exact / 144 | Control inverses exact / 144 | Weighted-normalized BF16 exact / 589,824 |
+| --- | ---: | ---: | ---: |
+| Stripe-256, reciprocal sqrt | 95 | 110 | 589,822 |
+| Four-component vector fold, 512 partitions, reciprocal sqrt | **144** | **144** | **589,824** |
+| Literal original means, reciprocal sqrt, offline causal control | 144 | 144 | 589,824 |
+
+The vector fold also matches all **144 original branch variances**, while
+unmodified collapse/weights and BF16 publication are retained. Seven variants
+pass memcheck/leak, racecheck and synccheck, zero reports, 2-GiB/no-swap and
+balanced release. This demonstrates the needed RMS arithmetic on these operands,
+not control-projection/full-layer/full-model parity or a performance gain.
+Next: encode vector-fold and reciprocal-square-root choices in immutable
+precision contracts and verify actual lowering and complete-layer propagation.

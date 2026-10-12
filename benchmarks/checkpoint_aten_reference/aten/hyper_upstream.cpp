@@ -118,8 +118,10 @@ static int execute(const char *inference,const char *root,const char *input,cons
   Owned wide_norm(norm.p?PyObject_CallMethod(norm.p,"float",nullptr):nullptr);
   Owned copied(parameter.p&&wide_norm.p?PyObject_CallMethod(parameter.p,"copy_","O",wide_norm.p):nullptr);
   Owned rms_args(PyTuple_Pack(1,collapsed));
+  if(one_row) { hyper_internal_u8=u8.p;hyper_norm_observer=true;PyEval_SetTrace(trace_hyper_internal,Py_None); }
   Owned normalized(copied.p?(one_row?one_row_norm(gpu.p,collapsed,rows):
     PyObject_CallObject(gpu.p,rms_args.p)):nullptr);
+  if(one_row) { PyEval_SetTrace(nullptr,nullptr);hyper_norm_observer=false;hyper_internal_u8=nullptr; }
   Owned cuda(PyObject_GetAttrString(torch.p,"cuda"));
   Owned sync(cuda.p?PyObject_CallMethod(cuda.p,"synchronize",nullptr):nullptr);
   if(!normalized.p||!sync.p)return -1;
