@@ -44,7 +44,14 @@ int main(int argc,char **argv) {
 } while(false)
   RUN(hc_probe_function,"production");
   RUN(hc_refined_function,"refined");
+  RUN(hc_refined_direct_function,"refined_direct");
+  RUN(hc_refined_affine_fma_function,"refined_affine_fma");
+  RUN(hc_refined_direct_affine_fma_function,"refined_direct_affine_fma");
+  RUN(hc_refined_rsqrt_function,"refined_rsqrt");
   RUN(hc_literal_mix_function,"literal_mix");
+  RUN(hc_literal_mix_direct_function,"literal_mix_direct");
+  RUN(hc_literal_mix_affine_fma_function,"literal_mix_affine_fma");
+  RUN(hc_literal_mix_direct_affine_fma_function,"literal_mix_direct_affine_fma");
   RUN(hc_literal_inverse_function,"literal_inverse");
   RUN(hc_striped32_function,"striped32");
   RUN(hc_striped32_fma_function,"striped32_fma");

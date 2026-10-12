@@ -51,15 +51,16 @@ async fn transfer(source : String, target : String) -> Unit {
 ///|
 fn routes() -> Array[String] {
   [
-    "production", "literal_mix", "literal_inverse", "striped32", "striped32_fma",
+    "production", "literal_mix", "literal_mix_direct", "literal_mix_affine_fma", "literal_mix_direct_affine_fma", "literal_inverse", "striped32", "striped32_fma",
     "refined", "striped32_literal_inverse", "striped32_fma_literal_inverse", "compensated_square",
     "square256", "striped32_fma_compensated_square", "striped32_fma_square256",
+    "refined_direct", "refined_affine_fma", "refined_direct_affine_fma", "refined_rsqrt",
   ]
 }
 
 ///|
 test "control probe isolates inverse and product/reduction order without changing reference" {
-  assert_eq(routes().length(), 12)
+  assert_eq(routes().length(), 19)
   assert_eq(routes()[0], "production")
   assert_eq(routes()[1], "literal_mix")
 }

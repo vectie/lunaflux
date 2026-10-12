@@ -42,7 +42,18 @@ async test "offline control arithmetic probe retains the actual renderer" {
   )
   for
     route in [
-      "literal_mix", "literal_inverse", "striped32", "striped32_fma", "striped32_literal_inverse",
+      "refined_direct", "refined_affine_fma", "refined_direct_affine_fma", "refined_rsqrt",
+    ] {
+    let source = @utf8.decode(refined.source_bytes()).substitute(
+      "hc_refined_",
+      "hc_" + route + "_",
+    )
+    sources.push(arithmetic_capture(source, route))
+  }
+  for
+    route in [
+      "literal_mix", "literal_mix_direct", "literal_mix_affine_fma", "literal_mix_direct_affine_fma",
+      "literal_inverse", "striped32", "striped32_fma", "striped32_literal_inverse",
       "striped32_fma_literal_inverse", "compensated_square", "square256", "striped32_fma_compensated_square",
       "striped32_fma_square256",
     ] {
@@ -137,13 +148,14 @@ fn arithmetic_capture(source : String, route : String) -> String raise {
   } else {
     text
   }
-  let text = if route == "literal_mix" {
+  let text = if route.has_prefix("literal_mix") {
     text.substitute(
       "mixes[output] = __fmul_rn(dot, inverse);", "mixes[output] = literal_mixes[(unsigned long long)row * 24ULL + output];",
     )
   } else {
     text
   }
+  let text = control_nonlinear_counterfactual(text, route)
   text
   .substitute(
     "float mixes[24];", "measured_inverse[row] = inverse; float mixes[24];",

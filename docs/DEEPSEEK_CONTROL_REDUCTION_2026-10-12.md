@@ -138,3 +138,37 @@ comparison is retained; local error and propagated error are not conflated or
 assumed to add linearly. Other rows retain a small local FFN discrepancy. The
 next priority is remaining control/publication-input differences, plus separate
 compressed-attention isolation; blindly rewriting row-47 experts is unjustified.
+
+## Nonlinear and affine isolation
+
+Fresh root `/tmp/lunaflux-deepseek-hyper-arithmetic-20261012-v5` adds seven
+offline counterfactuals to the twelve retained routes. All 144 original streams,
+F32 weights, scales and bases remain identical. Default controls reproduce the
+retained native arrays bitwise. Original normalized mixes are substituted only
+in explicit offline causal controls, never in the actual candidate.
+
+| Identical original mixes, post controls | Exact F32 / 576 | Relative L2 |
+| --- | ---: | ---: |
+| Stable sigmoid, separate affine products | 18 | 0.000021391% |
+| Direct reciprocal sigmoid only | 303 | 0.000021347% |
+| Fused affine multiply-add only | 154 | 0.000000648% |
+| Direct reciprocal sigmoid + fused affine | **576** | **0%** |
+
+This isolates a real numerical-order mismatch: strict `expf`, direct reciprocal
+sigmoid and a single F32 affine FMA reproduce every original post control.
+No approximate/intrinsic exponential is selected. With native refined mixes,
+the same pair gives **430/576** exact post controls, relative L2
+**0.000003151%**, versus 15 exact and 0.000021539% before. Remaining mix error
+is visible; this is not whole-layer parity.
+
+Applying FMA indiscriminately to the matrix logits does **not** improve
+Sinkhorn combination: refined combination relative L2 increases from
+0.000004574% to 0.000005847%. Vector affine and matrix affine must not be
+conflated. An `rsqrtf` intervention raises exact inverse count from 141 to 142
+of 144, but leaves post error essentially unchanged; it is not a demonstrated
+solution to downstream drift.
+
+All nineteen routes finish memcheck/leak, racecheck and synccheck with zero
+errors/hazards/warnings in 2-GiB/no-swap units and release CUDA. Serving sources
+and policy are unchanged. Next: represent vector affine and sigmoid arithmetic
+explicitly in numerical IR, retain matrix arithmetic, and measure propagation.
