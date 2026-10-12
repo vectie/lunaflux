@@ -138,6 +138,36 @@ test "primary document excludes only the explicit padding document" {
 }
 
 ///|
+fn cluster_input_files(front : Bool, full : Bool) -> Array[String] {
+  let files = [
+    "packed-input.bf16", "timestep.f32", "positions.f32", "combined.i32", "documents.i32",
+    "PREFIX.txt",
+  ]
+  for block in 0..<(if full { 50 } else { 1 }) {
+    files.push("block-\{block}.bf16")
+  }
+  if front {
+    for
+      stage in [
+        "parameters", "norm1", "attention-input", "qkv", "qk-norm", "projection",
+        "attention-residual", "norm2", "mlp-input", "down",
+      ] {
+      files.push("block-0-\{stage}.bf16")
+    }
+  }
+  files
+}
+
+///|
+test "cluster full replay retains all fifty literal predecessors" {
+  let full = cluster_input_files(false, true)
+  assert_eq(full.length(), 56)
+  assert_eq(full[6], "block-0.bf16")
+  assert_eq(full.last().unwrap(), "block-49.bf16")
+  assert_eq(cluster_input_files(true, false).length(), 17)
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     root.has_prefix("/tmp/lunaflux-minimax-upstream-block-") else {
@@ -370,12 +400,14 @@ async fn main {
         " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/dit_block_upstream.cpp -o /work/original-block -lpython3.12",
       ),
     )
-  } else if mode == "inputs-front-cluster" {
+  } else if mode == "inputs-front-cluster" || stage == "inputs-cluster" {
     guard extra is [capture] &&
       capture.has_prefix("/tmp/lunaflux-minimax-joint-") &&
       !capture.contains("..") &&
       capture.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
-      fail("inputs-front-cluster ROOT RETIRED_NATIVE_ROOT")
+      fail(
+        "inputs-front-cluster|inputs-cluster[-full] ROOT RETIRED_NATIVE_ROOT",
+      )
     }
     let producer_node = "wlc003s@192.168.2.178"
     let producer_socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
@@ -395,14 +427,7 @@ async fn main {
       terminal.stdout().contains("ExecMainStatus=0\n") else {
       fail("native frontiers must be successfully terminal")
     }
-    for
-      file in [
-        "packed-input.bf16", "timestep.f32", "positions.f32", "combined.i32", "documents.i32",
-        "PREFIX.txt", "block-0.bf16", "block-0-parameters.bf16", "block-0-norm1.bf16",
-        "block-0-attention-input.bf16", "block-0-qkv.bf16", "block-0-qk-norm.bf16",
-        "block-0-projection.bf16", "block-0-attention-residual.bf16", "block-0-norm2.bf16",
-        "block-0-mlp-input.bf16", "block-0-down.bf16",
-      ] {
+    for file in cluster_input_files(mode == "inputs-front-cluster", full) {
       record(
         root,
         "absent-" + file,

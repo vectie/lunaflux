@@ -65,6 +65,7 @@ async fn run_report(
   width : Int,
   planes : Int,
   plane? : Int,
+  operator? : Bool = true,
 ) -> Unit {
   let file = label + "-modalities.tsv"
   let selection = match plane {
@@ -95,13 +96,17 @@ async fn run_report(
       root +
       "/" +
       file +
-      " --operator " +
-      stage +
-      " " +
-      width.to_string() +
-      " --planes " +
-      planes.to_string() +
-      selection,
+      (if operator {
+        " --operator " +
+        stage +
+        " " +
+        width.to_string() +
+        " --planes " +
+        planes.to_string() +
+        selection
+      } else {
+        ""
+      }),
     ),
   )
   @shell.Cmd("scp", [
@@ -121,7 +126,7 @@ async fn run_report(
 ///|
 async fn main {
   guard @env.args() is [_, mode, root, original, capture, build] &&
-    mode is ("prepare" | "run" | "parameters") &&
+    mode is ("prepare" | "run" | "parameters" | "prepare-full" | "run-full") &&
     root.has_prefix("/tmp/lunaflux-minimax-front-comparison-") &&
     [root, original, capture, build].all(path => {
       path.has_prefix("/tmp/lunaflux-") &&
@@ -129,12 +134,13 @@ async fn main {
       path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '.'))
     }) else {
     fail(
-      "prepare|run|parameters NEW_COMPARISON_ROOT ORIGINAL_FRONT_ROOT RETIRED_NATIVE_ROOT EXISTING_ARM_BUILD",
+      "prepare[-full]|run[-full]|parameters NEW_COMPARISON_ROOT ORIGINAL_ROOT RETIRED_NATIVE_ROOT EXISTING_ARM_BUILD",
     )
   }
   let original_tools = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain"
   let tools = root + "/tools"
-  if mode == "prepare" {
+  let full = mode.has_suffix("-full")
+  if mode == "prepare" || mode == "prepare-full" {
     @fs.mkdir(root)
     record(
       root,
@@ -170,7 +176,7 @@ async fn main {
         ),
       )
     }
-    for (stage, _, _) in stages() {
+    for (stage, _, _) in (if full { [] } else { stages() }) {
       let name = "block-0-" + stage + ".bf16"
       let native_name = if stage == "residual" { "block-0.bf16" } else { name }
       record(
@@ -201,6 +207,44 @@ async fn main {
           name,
         ),
       )
+    }
+    if full {
+      // Full-series comparator reports these same checkpoints independently
+      // for matched native predecessors and propagated original predecessors.
+      for block in [0, 1, 10, 20, 30, 40, 49] {
+        let name = "block-\{block}.bf16"
+        record(
+          root,
+          "link-block-\{block}",
+          remote(
+            "ln -s " +
+            capture +
+            "/output/" +
+            name +
+            " " +
+            root +
+            "/input/" +
+            name,
+          ),
+        )
+        for predecessor in ["matched", "propagated"] {
+          let output = "\{predecessor}-" + name
+          record(
+            root,
+            "copy-\{predecessor}-block-\{block}",
+            remote(
+              "scp -o BatchMode=yes wlc004s@192.168.2.179:" +
+              original +
+              "/output/" +
+              output +
+              " " +
+              root +
+              "/output/" +
+              output,
+            ),
+          )
+        }
+      }
     }
     record(
       root,
@@ -265,6 +309,10 @@ async fn main {
   } else {
     guard @fs.exists(root) else { fail("prepare the comparison root first") }
     remote("test -d " + tools + "/lib").check()
+    if full {
+      run_report(root, build, tools, "full-series", "", 5376, 1, operator=false)
+      return
+    }
     for (stage, width, planes) in stages() {
       run_report(root, build, tools, stage, stage, width, planes)
       if planes == 3 {

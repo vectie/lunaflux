@@ -967,3 +967,32 @@ failures are retained; they occurred before numerical comparison, not in model
 execution. Large arrays remain on the cluster, and report units use a 2-GiB,
 zero-swap limit. No GPU work overlaps these CPU reductions. Original installed
 warnings remain recorded; native prefix stderr is empty.
+
+### Online64 complete-stack intervention in progress
+
+The next isolated experiment runs the same 256×256, original-encoder caption,
+literal original initialization and first timestep through **all 50 denoiser
+blocks**, followed by the actual output heads and first Euler update. It does
+not run a full denoising trajectory or decode media. Only the shared DiT
+probability source is the unselected online64 candidate; refiner, projection,
+modulation, residual, head and flow sources stay unchanged.
+
+Native root `/tmp/lunaflux-minimax-joint-online64-256-full-prefix-20261012-v1`,
+exact user unit
+`lunaflux-minimax-joint-online64-256-full-prefix-20261012-v1.service`, started
+2026-10-12 08:36:04 CST. Source-pinned executable is from `f50b4ce3`; the AOT
+is `/tmp/lunaflux-minimax-request-aot-block-online64-256-20261012-v2/aot`.
+The planned weight/workspace/reserve total is 82,890,073,512 bytes, below the
+96-GiB device ceiling. The user unit has a 96-GiB memory cap, zero swap and
+7,200-second runtime cap. Process-cgroup memory is not total GPU residency.
+Do not overlap another GPU operation on `.178` while this unit is running.
+
+Original comparison root is prepared separately at
+`/tmp/lunaflux-minimax-upstream-block-online64-256-full-20261012-v1` on `.179`.
+Once native is successfully terminal, `inputs-cluster-full` transfers the
+literal packed input and all 50 native block outputs directly between cluster
+nodes. `run-full` then produces independent matched-input and propagated
+original series under the existing 12-GiB/no-swap limit. Cluster CPU reduction
+returns modality reports for blocks 0/1/10/20/30/40/49 without downloading the
+multi-gigabyte tensor series to the desktop. No result or quality pass is yet
+claimed for this in-progress complete-stack intervention.
