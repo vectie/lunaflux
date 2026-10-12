@@ -773,3 +773,89 @@ Warning-denied native check succeeds with the existing warning exclusions;
 `moon info` completes with 936 pre-existing migration warnings and no errors.
 Only task-owned interfaces are retained. No payload hashes were introduced
 or computed; these numerical probes compare actual arrays directly.
+
+### Source-pinned router replay and complete propagated chain
+
+Implementation **f9d6dc2c** is pushed. Its clean ARM build completes under the
+2-GiB/no-swap CPU-only boundary (745.3 MiB reported peak). Source export and
+execution both select the independent router laws; ordinary serving is still
+unchanged. Complete one-row, 144-predecessor replays close CUDA without swap:
+
+| Boundary | Before router correction, relative L2 (%) | Corrected (%) | Exact BF16 |
+| --- | ---: | ---: | ---: |
+| Layer-0 FFN | 0.007635825 | **0.000746736** | 589,810 / 589,824 |
+| Layer-0 complete hidden | 0.006187106 | **0.000808384** | 2,359,272 / 2,359,296 |
+| Layer-3 complete hidden | 0.027058402 | 0.027008126 | 2,317,277 / 2,359,296 |
+
+The old worst row **54** now has bitwise FFN output. Layer 3's input-driven
+frontier remains: FFN input 0.039682893%, FFN output 0.371844611%. Router fixes
+do not remove preceding attention/input differences.
+
+The new native layer-major replay executes **all 43 base layers** on `.179`:
+`/tmp/lunaflux-deepseek-native-layer-chain-router-20261012-v1`.
+It starts at original hidden-0 and feeds each subsequent layer the **previous
+native output**, retaining all 144 rows and the original token IDs. Only one
+bank is resident; runs are serialized in 12-GiB/no-swap user units. CUDA owners
+retire between layers. The independently computed original position-143 mean
+matches the actual original observer bytes before every comparison.
+
+| Retired layer | Position-143 stream-mean relative L2 (%) |
+| --- | ---: |
+| 0 | **0, all 4,096 values bitwise** |
+| 1 | 0.432739059 |
+| 2 | 1.546022872 |
+| 3 | 2.204441841 |
+| 9 | 11.278133835 |
+| 40 | 17.704235998 |
+| 42 | **15.878691075** |
+
+This is not a quality pass. Final row-143 **complete streams** differ by
+16.527097826%; final all-144-stream aggregate L2 is only 0.307705020%, heavily
+dominated by very large original entries (maximum 69,632). The aggregate cannot
+hide the late-token discrepancy. The older 18–21% measurements also used
+different topology/physical-row geometry; this fresh curve does not justify a
+pure improvement claim against those runs. No model head, generated tokens,
+TP2 serving or throughput is validated by this hidden-chain diagnostic.
+
+### First propagated divergence: a shared-FP8 output, not routed experts
+
+Layer 1 replayed on **original hidden-1** has bitwise rows 6 and 143, while its
+all-row complete error is 0.025672617%. On previous-native hidden-1, row 6 is
+1.276885949% different. The predecessor row differs at exactly **one of 16,384
+BF16 stream values**, channel 12,919, by 0.00390625. Root
+`/tmp/lunaflux-deepseek-layer0-stream-row6-difference-20261012-v1.txt`.
+Fresh original layer-1 boundaries use
+`/tmp/lunaflux-deepseek-original-layer-stream-layer1-frontiers-20261012-v1`;
+its hidden-1/2 are bitwise the retained full reference. The original run emits
+an installed ThreadSync warning; it is not described as empty stderr.
+
+On row **6**, actual token **45948**, all six routed experts' activations and
+outputs are bitwise on original weights in both matched and propagated modes:
+`/tmp/lunaflux-deepseek-original-expert-row6-20261012-v1`.
+The shared FP8 expert in `...original-shared-row6-20261012-v1` differs at
+activation 1,555 and down-output **631**. Crucially, down-output 631 still
+differs on the **identical original activation**: 4,095 / 4,096 exact, relative
+L2 0.012854112%. Its native and original values are -0.439453125 / -0.4375.
+Thus the down difference cannot be dismissed as propagation of the single
+activation mismatch; both frontiers must be retained.
+
+The shared-only offline combination intervention keeps all original routed
+outputs and the actual ascending expert order. Original shared output gives
+the actual original FFN **4,096 / 4,096 bitwise**; substituting only the observed
+native shared output gives the actual native FFN **4,096 / 4,096 bitwise**.
+Root `/tmp/lunaflux-deepseek-shared-combination-row6-20261012-v1`.
+This proves the entire remaining FFN discrepancy on that first-divergence row
+comes from the shared expert, not router selection, routed experts or combine.
+
+Source review identifies a concrete **arithmetic-domain difference to test**:
+installed original FP8 GEMM resets an unscaled F32 dot accumulator every
+128-wide block, applies the block scale, then updates a separate scaled F32
+accumulator. Native packed-expert lowering reconstructs scaled BF16 operands
+before a whole-width striped dot. Those orders are not equivalent. Next probe
+unscaled-block reductions, scale application and publication on the captured
+original activation, and independently compare gate/up before SiLU. Do not
+blindly change scale/reduction policies, transplant HC dot laws, relax tolerance
+or promote the candidate because a global norm looks small. A general scaled-
+dot arithmetic contract belongs in precision IR and backend lowering, not a
+row/token/model-specific exception. All `.179` probes have retired; MiniMax
+`.178` remains in denoising with zero swap and empty application stderr.

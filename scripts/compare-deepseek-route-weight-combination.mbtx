@@ -60,11 +60,16 @@ async fn main {
       native_ffn,
       row_text,
       root,
+      .. options,
     ] else {
     fail(
       "ORIGINAL_EXPERT_ROOT WEIGHT_EFFECT_ROOT SHARED_ROOT ORIGINAL_FFN_BF16 NATIVE_FFN_BF16 ROW NEW_REPORT",
     )
   }
+  guard options is [] || options is ["--shared-effect"] else {
+    fail("optional --shared-effect required")
+  }
+  let shared_effect = options is ["--shared-effect"]
   let row = @string.parse_int(row_text)
   let slots : Array[(Int, Int)] = []
   for line in @fs.read_file(expert + "/original-run.stdout").text().split("\n") {
@@ -86,12 +91,21 @@ async fn main {
       @fs.read_file(expert + "/original/slot\{slot}-output.bf16").binary()
     }
   ]
-  let changed_outputs = [
-    for slot in 0..<6 => {
-      @fs.read_file(changed + "/output/slot\{slot}-output.bf16").binary()
-    }
-  ]
+  let changed_outputs = if shared_effect {
+    baseline
+  } else {
+    [
+      for slot in 0..<6 => {
+        @fs.read_file(changed + "/output/slot\{slot}-output.bf16").binary()
+      }
+    ]
+  }
   let shared = @fs.read_file(shared_root + "/original/output.bf16").binary()
+  let changed_shared = if shared_effect {
+    @fs.read_file(shared_root + "/propagated/output.bf16").binary()
+  } else {
+    shared
+  }
   @fs.mkdir(root)
   @fs.write_file(
     root + "/original-combined.bf16",
@@ -100,7 +114,7 @@ async fn main {
   )
   @fs.write_file(
     root + "/changed-combined.bf16",
-    combine(changed_outputs[:], order[:], shared),
+    combine(changed_outputs[:], order[:], changed_shared),
     create_mode=CreateNew,
   )
   for (name, path) in [("original", original_ffn), ("native", native_ffn)] {
@@ -118,9 +132,23 @@ async fn main {
     (a, b, tag) in [
       ("original-combined", "original-row", "original_combination_control"),
       (
-        "changed-combined", "native-row", "causal_native_route_weight_combination",
+        "changed-combined",
+        "native-row",
+        if shared_effect {
+          "causal_native_shared_output_combination"
+        } else {
+          "causal_native_route_weight_combination"
+        },
       ),
-      ("changed-combined", "original-row", "route_weight_changed_only"),
+      (
+        "changed-combined",
+        "original-row",
+        if shared_effect {
+          "shared_output_changed_only"
+        } else {
+          "route_weight_changed_only"
+        },
+      ),
     ] {
     @shell.Cmd("moon", [
       "run",

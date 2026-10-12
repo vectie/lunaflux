@@ -1,0 +1,153 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn stream_mean(bytes : Bytes, row : Int) -> Bytes raise {
+  guard bytes.length() == 144 * 4 * 4096 * 2 && row >= 0 && row < 144 else {
+    fail("all literal stream rows required")
+  }
+  let output = Array::make(8192, b'\x00')
+  for column in 0..<4096 {
+    let sum = for stream in 0..<4; total = (0.0 : Float) {
+      let offset = (row * 16384 + stream * 4096 + column) * 2
+      let value = Float::reinterpret_from_uint(
+        (bytes[offset].to_uint() | (bytes[offset + 1].to_uint() << 8)) << 16,
+      )
+      guard !value.is_nan() && !value.is_inf() else {
+        fail("nonfinite complete boundary")
+      }
+      continue total + value
+    } nobreak {
+      total
+    }
+    let bits = (sum / 4.0).reinterpret_as_uint()
+    let bf16 = (bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16
+    output[column * 2] = (bf16 & 255U).to_byte()
+    output[column * 2 + 1] = (bf16 >> 8).to_byte()
+  }
+  Bytes::from_array(output)
+}
+
+///|
+test "chain means retain literal row and float32 publication" {
+  let all = b"\x80\x3f".repeat(144 * 16384)
+  assert_eq(stream_mean(all, 143), b"\x80\x3f".repeat(4096))
+  try stream_mean(all, 144) catch {
+    _ => ()
+  } noraise {
+    _ => fail("padding selected")
+  }
+}
+
+///|
+fn layer_root(root : String, layer : Int) -> String {
+  "/tmp/lunaflux-deepseek-production-layer-" +
+  root[5:].to_owned() +
+  "-layer\{layer}"
+}
+
+///|
+async fn command(root : String, label : String, args : Array[String]) -> Unit {
+  let result = @shell.Cmd("moon", args).output(max_output_bytes=2097152)
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, executable, original, root, count_text] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-native-layer-chain-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "PINNED_ARM_EXECUTABLE ORIGINAL_FULL_STREAM_ROOT NEW_CHAIN_ROOT BASE_LAYERS",
+    )
+  }
+  let count = @string.parse_int(count_text)
+  guard count >= 1 && count <= 43 else { fail("1..43 base layers") }
+  @fs.mkdir(root)
+  @fs.write_file(
+    root + "/PLAN.txt",
+    "literal original hidden0; subsequent inputs are previous NATIVE hidden; one bank resident; physical_rows=1; all144 rows; 12GiB/no swap; no payload hashing; no head/token/serving parity claim",
+    create_mode=CreateNew,
+  )
+  for layer in 0..<count {
+    let current = layer_root(root, layer)
+    let input = if layer == 0 {
+      original + "/original/hidden-0.bf16"
+    } else {
+      layer_root(root, layer - 1) + "/output/hidden.bf16"
+    }
+    let reference = original + "/original/hidden-\{layer + 1}.bf16"
+    let original_mean = stream_mean(@fs.read_file(reference).binary(), 143)
+    // Check the observer-derived mean independently before comparing native
+    // means. A different mean reduction must not rewrite the original record.
+    guard original_mean ==
+      @fs.read_file(original + "/original/mean-layer-\{layer}.bf16").binary() else {
+      fail(
+        "original observer mean differs at layer \{layer}; isolate that arithmetic before comparing means",
+      )
+    }
+    command(root, "layer\{layer}-prepare", [
+      "run",
+      "scripts/replay-deepseek-production-layer.mbtx",
+      "prepare-router-arithmetic",
+      current,
+      executable,
+      layer.to_string(),
+      "1",
+      input,
+      reference,
+      original + "/ids.i32",
+    ])
+    command(root, "layer\{layer}-run", [
+      "run",
+      "scripts/replay-deepseek-production-layer.mbtx",
+      "run",
+      current,
+      current + "/ids.i32",
+    ])
+    command(root, "layer\{layer}-collect", [
+      "run", "scripts/replay-deepseek-production-layer.mbtx", "collect", current,
+    ])
+    let native = @fs.read_file(current + "/output/hidden.bf16").binary()
+    let mean = root + "/native-mean-layer-\{layer}.bf16"
+    @fs.write_file(mean, stream_mean(native, 143), create_mode=CreateNew)
+    command(root, "layer\{layer}-mean-comparison", [
+      "run",
+      "scripts/compare-minimax-encoder-reference.mbtx",
+      mean,
+      original + "/original/mean-layer-\{layer}.bf16",
+      root + "/layer\{layer}-mean.txt",
+      "matching_original_one_row_position143_mean",
+      "4096",
+    ])
+    @fs.write_file(
+      root + "/LAYER_\{layer}_DONE.txt",
+      current,
+      create_mode=CreateNew,
+    )
+    println(
+      "completed_native_chain_layer=\{layer} input=previous_native full_original_rows=144 bank_released=true",
+    )
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "layers=\{count}; compare matching original boundaries; hidden-chain only, no model-head or generated-token correctness claim",
+    create_mode=CreateNew,
+  )
+}
