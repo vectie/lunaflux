@@ -23,6 +23,7 @@ pub fn DeepSeekCompressedAttention::new(
   maximum_context~ : Int,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise {
   let plan = compressed_attention_plan(
     spec,
@@ -30,6 +31,7 @@ pub fn DeepSeekCompressedAttention::new(
     maximum_rows~,
     maximum_context~,
     maximum_state_bytes~,
+    attention_accumulation~,
   )
   let prefix_bytes = query_kv_plan(
       spec,

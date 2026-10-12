@@ -5,6 +5,7 @@ pub fn compressed_attention_plan(
   maximum_rows~ : Int,
   maximum_context~ : Int,
   maximum_state_bytes~ : Int64,
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> @precision.WindowCompressedKvPrecision raise {
   guard layer >= 0 &&
     layer < spec.layer_count() &&
@@ -23,6 +24,7 @@ pub fn compressed_attention_plan(
       maximum_positions=maximum_context,
       maximum_state_bytes~,
       probability=OnlineBf16(block_tokens=64),
+      accumulation=attention_accumulation,
     ),
     compression_ratio=ratio,
     coordinates=CacheRelative,

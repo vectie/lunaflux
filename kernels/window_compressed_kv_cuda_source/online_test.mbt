@@ -37,6 +37,36 @@ test "online law retains masked window slots and BF16 P before value accumulatio
 }
 
 ///|
+test "tiled compressed join preserves selected-slot addressing and launch policy" {
+  let window = @precision.WindowSharedKvPrecision::new(
+    query_heads=18,
+    head_width=80,
+    window_tokens=128,
+    maximum_rows=144,
+    maximum_positions=512,
+    maximum_state_bytes=1000000L,
+    probability=OnlineBf16(block_tokens=64),
+    accumulation=TiledFloat32,
+  )
+  for read_set in [@precision.CompressedRowReadSet::Learned(top_k=2), AllCausal] {
+    let source = @window_compressed_kv_cuda_source.window_compressed_kv_source(
+      @precision.WindowCompressedKvPrecision::new(
+        window,
+        compression_ratio=4,
+        read_set~,
+        coordinates=CacheRelative,
+      ),
+      symbol_prefix="joined_matrix",
+    )
+    assert_eq(source.launch(1), (144, 2, 256))
+    let text = @utf8.decode(source.source_bytes())
+    assert_true(text.contains("ordinal - window_span"))
+    assert_true(text.contains("key = compressed"))
+    assert_true(text.contains("wm::mma_sync"))
+  }
+}
+
+///|
 test "offline online probability kernel exporter" {
   if @env.get_env_var("LUNA_EXPORT_ONLINE_PROBABILITY") != Some("1") {
     return

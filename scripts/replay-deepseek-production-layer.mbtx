@@ -57,6 +57,21 @@ test "matched replay supports native chunk and original one-row geometries" {
 }
 
 ///|
+fn replay_mode(mode : String) -> String {
+  if mode == "prepare-tiled" {
+    "replay-layer-tiled"
+  } else {
+    "replay-layer"
+  }
+}
+
+///|
+test "tiled replay uses the same explicit policy at export and execution" {
+  assert_eq(replay_mode("prepare-tiled"), "replay-layer-tiled")
+  assert_eq(replay_mode("prepare"), "replay-layer")
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, root, .. extra] &&
     root.has_prefix("/tmp/lunaflux-deepseek-production-layer-") &&
@@ -67,7 +82,7 @@ async fn main {
   }
   let tag = root[5:].to_owned()
   let model = "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT"
-  if mode == "prepare" {
+  if mode == "prepare" || mode == "prepare-tiled" {
     guard extra is [executable, layer, rows, input, reference, .. optional] &&
       optional.length() <= 1 else {
       fail("matched operands required")
@@ -119,12 +134,18 @@ async fn main {
       " " +
       rows
     @fs.write_file(root + "/ARGS.txt", args, create_mode=CreateNew)
+    @fs.write_file(
+      root + "/REPLAY_MODE.txt",
+      replay_mode(mode),
+      create_mode=CreateNew,
+    )
     record(
       root,
       "export",
       remote(
         root +
-        "/decoder.exe replay-layer" +
+        "/decoder.exe " +
+        replay_mode(mode) +
         args +
         " export " +
         root +
@@ -167,7 +188,12 @@ async fn main {
         tag +
         " --property=MemoryMax=12G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
         root +
-        "/decoder.exe replay-layer" +
+        "/decoder.exe " +
+        (if @fs.exists(root + "/REPLAY_MODE.txt") {
+          @fs.read_file(root + "/REPLAY_MODE.txt").text()
+        } else {
+          "replay-layer"
+        }) +
         @fs.read_file(root + "/ARGS.txt").text() +
         " run " +
         root +

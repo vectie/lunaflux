@@ -1,8 +1,16 @@
 ///|
 async fn main {
-  if @env.args() is [_, "replay-layer", .. arguments] &&
+  if @env.args()
+    is [_, "replay-layer" | "replay-layer-tiled" as mode, .. arguments] &&
     (arguments.length() == 9 || arguments.length() == 10) {
-    replay_matched_layer(arguments)
+    replay_matched_layer(
+      arguments,
+      attention_accumulation=if mode == "replay-layer-tiled" {
+        TiledFloat32
+      } else {
+        OrderedFloat32
+      },
+    )
     return
   }
   if @env.args()

@@ -12,6 +12,10 @@ test "shared window KV storage is bounded by window not context" {
   assert_eq(plan.buffer_bytes()[0], 131072L)
   assert_eq(plan.buffer_bytes()[3], 1048576L)
   assert_eq(plan.effect(), @precision_ir.NumericEffect::CacheCommit)
+  assert_eq(
+    plan.accumulation_law(),
+    @precision_ir.AttentionAccumulationLaw::OrderedFloat32,
+  )
   try
     @precision_ir.WindowSharedKvPrecision::new(
       query_heads=64,

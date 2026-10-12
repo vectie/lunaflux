@@ -16,6 +16,7 @@ pub fn DeepSeekCompressedSublayer::new(
   maximum_context~ : Int,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise {
   let output = attention_output_plan(
     spec,
@@ -31,6 +32,7 @@ pub fn DeepSeekCompressedSublayer::new(
       maximum_context~,
       maximum_state_bytes~,
       maximum_workspace_bytes=maximum_workspace_bytes - output.workspace_bytes(),
+      attention_accumulation~,
     ),
     output: DeepSeekAttentionOutput::new(
       spec,

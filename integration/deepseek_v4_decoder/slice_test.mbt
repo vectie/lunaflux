@@ -18,6 +18,47 @@ fn slice(
 }
 
 ///|
+test "explicit attention accumulation reaches window and compressed decoder sources" {
+  let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
+    "deepseek-ai/DeepSeek-V4-Flash-0731",
+  )
+  let original = slice(spec, 0, 4)
+  defer original.close()
+  let ordered = @deepseek_v4_decoder.DeepSeekDecoderSlice::new(
+    spec,
+    first_layer=0,
+    end_layer=4,
+    maximum_rows=3,
+    maximum_context=256,
+    maximum_layer_state_bytes=16777216L,
+    maximum_layer_workspace_bytes=16777216L,
+    maximum_layer_expert_bytes=8589934592L,
+    accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    attention_accumulation=OrderedFloat32,
+  )
+  defer ordered.close()
+  let tiled = @deepseek_v4_decoder.DeepSeekDecoderSlice::new(
+    spec,
+    first_layer=0,
+    end_layer=4,
+    maximum_rows=3,
+    maximum_context=256,
+    maximum_layer_state_bytes=16777216L,
+    maximum_layer_workspace_bytes=16777216L,
+    maximum_layer_expert_bytes=8589934592L,
+    accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    attention_accumulation=TiledFloat32,
+  )
+  defer tiled.close()
+  assert_eq(original.source_bytes(), ordered.source_bytes())
+  let text = @utf8.decode(tiled.source_bytes())
+  assert_true(text.contains("wm::mma_sync"))
+  assert_true(text.contains("deepseek_l0_window_attention"))
+  assert_true(text.contains("deepseek_l3_joint_attention_attention"))
+  assert_eq(original.expert_bank_bytes(), tiled.expert_bank_bytes())
+}
+
+///|
 test "contiguous DeepSeek slice preserves layer geometry and compact expert banks" {
   let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
     "deepseek-ai/DeepSeek-V4-Flash-0731",

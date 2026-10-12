@@ -996,3 +996,29 @@ original series under the existing 12-GiB/no-swap limit. Cluster CPU reduction
 returns modality reports for blocks 0/1/10/20/30/40/49 without downloading the
 multi-gigabyte tensor series to the desktop. No result or quality pass is yet
 claimed for this in-progress complete-stack intervention.
+
+The native complete-stack intervention is now terminal: all 50 blocks, the
+output heads and first Euler update complete, exit zero with empty stderr and
+released CUDA owners. The installed-original full replay also completes on
+`.179`, using the same packed input/timestep/positions and each literal native
+predecessor independently, plus a separately propagated original series.
+Cluster-only report root:
+`/tmp/lunaflux-minimax-front-comparison-online64-full-20261012-v1`.
+
+| Block | Local matched video error | Propagated video error | Propagated text error | Propagated audio error |
+| --- | ---: | ---: | ---: | ---: |
+| 0 | 0.208922% | 0.208922% | 0.039318% | 0.082354% |
+| 1 | 0.165514% | 0.268262% | 0.081756% | 0.074053% |
+| 10 | 0.028449% | 0.379610% | 0.118381% | 0.197370% |
+| 20 | 0.062621% | 1.065413% | 0.610106% | 0.215064% |
+| 30 | 0.211125% | 2.566078% | 0.448590% | 0.446194% |
+| 40 | 0.154002% | 5.597277% | 0.252760% | 1.620296% |
+| 49 | 0.203502% | 2.580187% | 0.645958% | 0.664931% |
+
+Each error is modality-specific relative L2 over all real rows, never the
+padding document. All values are finite. This confirms remaining propagated
+differences despite the earlier local attention improvement. There is **no
+same-geometry 256×256 default full-stack control yet**; the older 128×128
+3.467995% result cannot establish a whole-stack benefit for this experiment.
+The original series checks blocks only, not the newly captured heads/first
+update. No trajectory/media-quality pass or production selection follows.

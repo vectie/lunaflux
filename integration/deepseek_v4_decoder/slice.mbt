@@ -39,6 +39,7 @@ pub fn DeepSeekDecoderSlice::new(
   maximum_layer_expert_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
   capture_prediction_inputs? : Bool = false,
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise {
   guard first_layer >= 0 &&
     end_layer > first_layer &&
@@ -90,6 +91,7 @@ pub fn DeepSeekDecoderSlice::new(
         maximum_workspace_bytes=maximum_layer_workspace_bytes,
         maximum_expert_bytes=maximum_layer_expert_bytes,
         accuracy~,
+        attention_accumulation~,
       ),
       routed: @expert.expert_compute_plan(
         spec,

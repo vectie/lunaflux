@@ -14,6 +14,7 @@ pub fn DeepSeekWindowSublayer::new(
   layer~ : Int,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise {
   let output_plan = attention_output_plan(
     spec,
@@ -28,6 +29,7 @@ pub fn DeepSeekWindowSublayer::new(
       maximum_rows~,
       maximum_workspace_bytes=maximum_workspace_bytes -
         output_plan.workspace_bytes(),
+      attention_accumulation~,
     ),
     output: DeepSeekAttentionOutput::new(
       spec,

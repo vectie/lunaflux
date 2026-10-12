@@ -41,6 +41,14 @@ pub fn Accuracy::new(absolute~ : Double, relative~ : Double) -> Self raise Preci
 pub fn Accuracy::not_equal(Self, Self) -> Bool
 pub fn Accuracy::to_repr(Self) -> @debug.Repr
 
+pub(all) enum AttentionAccumulationLaw {
+  OrderedFloat32
+  TiledFloat32
+} derive(Eq, @debug.Debug)
+pub fn AttentionAccumulationLaw::equal(Self, Self) -> Bool
+pub fn AttentionAccumulationLaw::not_equal(Self, Self) -> Bool
+pub fn AttentionAccumulationLaw::to_repr(Self) -> @debug.Repr
+
 pub(all) enum AttentionProbabilityLaw {
   GlobalF32
   GlobalUnnormalizedBf16
@@ -688,10 +696,11 @@ pub fn WindowCompressedKvPrecision::window(Self) -> WindowSharedKvPrecision
 pub struct WindowSharedKvPrecision {
   // private fields
 }
+pub fn WindowSharedKvPrecision::accumulation_law(Self) -> AttentionAccumulationLaw
 pub fn WindowSharedKvPrecision::buffer_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn WindowSharedKvPrecision::effect(Self) -> NumericEffect
 pub fn WindowSharedKvPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
-pub fn WindowSharedKvPrecision::new(query_heads~ : Int, head_width~ : Int, window_tokens~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64, probability? : AttentionProbabilityLaw) -> Self raise PrecisionPlanError
+pub fn WindowSharedKvPrecision::new(query_heads~ : Int, head_width~ : Int, window_tokens~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, maximum_state_bytes~ : Int64, probability? : AttentionProbabilityLaw, accumulation? : AttentionAccumulationLaw) -> Self raise PrecisionPlanError
 pub fn WindowSharedKvPrecision::probability_law(Self) -> AttentionProbabilityLaw
 pub fn WindowSharedKvPrecision::state_bytes(Self) -> Int64
 

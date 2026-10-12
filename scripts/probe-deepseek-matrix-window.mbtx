@@ -1,0 +1,210 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+fn runs() -> Array[(String, String)] {
+  [
+    ("ordinary", ""),
+    (
+      "memcheck", "/usr/local/cuda-13.0/bin/compute-sanitizer --tool memcheck --leak-check full --error-exitcode 97 ",
+    ),
+    (
+      "racecheck", "/usr/local/cuda-13.0/bin/compute-sanitizer --tool racecheck --error-exitcode 97 ",
+    ),
+    (
+      "synccheck", "/usr/local/cuda-13.0/bin/compute-sanitizer --tool synccheck --error-exitcode 97 ",
+    ),
+  ]
+}
+
+///|
+test "matrix candidate keeps ordinary results separate from sanitizer outputs" {
+  assert_eq(runs().length(), 4)
+  assert_eq(runs()[0], ("ordinary", ""))
+  assert_true(runs()[1].1.contains("--leak-check full"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, previous] &&
+    mode is ("prepare" | "run" | "collect") &&
+    root.has_prefix("/tmp/lunaflux-deepseek-matrix-window-") &&
+    previous.has_prefix("/tmp/lunaflux-deepseek-window-operands-") &&
+    [root, previous].all(path => {
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) else {
+    fail("prepare|run|collect NEW_MATRIX_ROOT RETIRED_OPERAND_REPLAY_ROOT")
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    record(root, "mkdir", remote("mkdir " + root + " " + root + "/input"))
+    for file in ["q-rope.bf16", "kv-sim.bf16", "sink.f32"] {
+      record(
+        root,
+        "copy-" + file,
+        remote(
+          "cp " + previous + "/input/" + file + " " + root + "/input/" + file,
+        ),
+      )
+    }
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "kernels/window_shared_kv_cuda_source", "--filter", "offline matrix window exporter uses the retained numerical policy",
+        ],
+        env={
+          "LUNAFLUX_MATRIX_WINDOW_SOURCE_OUTPUT": root +
+          "/window_matrix_kernels.cuh",
+        },
+      ).output(),
+    )
+    for
+      (source, file) in [
+        (root + "/window_matrix_kernels.cuh", "window_matrix_kernels.cuh"),
+        (
+          "tests/packed_moe_execution/window_matrix_probe.cu", "window_matrix_probe.cu",
+        ),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        source,
+        node + ":" + root + "/" + file,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 " +
+        root +
+        "/window_matrix_probe.cu -o " +
+        root +
+        "/matrix.exe",
+      ),
+    )
+  } else if mode == "run" {
+    for (label, prefix) in runs() {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      record(root, label + "-owners", owners)
+      guard owners.stdout().trim().is_empty() else {
+        fail("GPU already occupied")
+      }
+      record(root, "mkdir-" + label, remote("mkdir " + root + "/" + label))
+      record(
+        root,
+        label,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          label +
+          (if label == "racecheck" {
+            " --property=MemoryMax=8G"
+          } else {
+            " --property=MemoryMax=2G"
+          }) +
+          " --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+          prefix +
+          root +
+          "/matrix.exe " +
+          root +
+          "/input " +
+          root +
+          "/" +
+          label,
+        ),
+      )
+    }
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else {
+    @fs.mkdir(root + "/ordinary")
+    for file in ["prefill.bf16", "incremental.bf16"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + root + "/ordinary/" + file,
+        root + "/ordinary/" + file,
+      ])
+      .output()
+      .check()
+    }
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + previous + "/original/attention.bf16",
+      root + "/original-attention.bf16",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      "comparison",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        root + "/ordinary/prefill.bf16",
+        root + "/original-attention.bf16",
+        root + "/comparison.txt",
+        "literal_post_rotary_matrix_attention_same_original_inputs_unselected_candidate",
+        "32768",
+      ]).output(max_output_bytes=65536),
+    )
+    println(@fs.read_file(root + "/comparison.txt").text())
+  }
+}

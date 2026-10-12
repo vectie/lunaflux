@@ -18,6 +18,7 @@ pub fn window_attention_plan(
   layer~ : Int,
   maximum_rows~ : Int,
   maximum_state_bytes~ : Int64,
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> @precision.WindowSharedKvPrecision raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -35,6 +36,7 @@ pub fn window_attention_plan(
     // Original sparse-attention numerical boundary: F32 online state, BF16
     // unnormalized P per KV64 block, sink mass only in the final denominator.
     probability=OnlineBf16(block_tokens=64),
+    accumulation=attention_accumulation,
   )
 }
 
@@ -81,12 +83,14 @@ pub fn DeepSeekWindowAttention::new(
   layer~ : Int,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise {
   let plan = window_attention_plan(
     spec,
     layer~,
     maximum_rows~,
     maximum_state_bytes=maximum_workspace_bytes,
+    attention_accumulation~,
   )
   {
     spec,

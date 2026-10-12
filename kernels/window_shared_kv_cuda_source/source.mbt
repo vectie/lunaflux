@@ -43,54 +43,68 @@ pub fn window_shared_kv_source(
       $|}
     ),
   )
-  let attention = match plan.probability_law() {
-    OrderedOnlineF32 | GlobalUnnormalizedBf16 =>
-      raise @precision.PrecisionPlanError::NoImplementation
-    OnlineBf16(block_tokens=_) =>
-      online_window_attention_source(
-        plan,
-        symbol_prefix~,
-        maximum_slots=window,
-        logical_slots="window_span",
-        setup="const int32_t *append, const __nv_bfloat16 *queries, const __nv_bfloat16 *current_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output",
-        lookup=(
-          $|      if (ordinal < length) { const int absolute = first + ordinal; key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL; }
-        ),
-      )
-    GlobalF32 =>
-      @utf8.encode(
-        (
-          $|extern "C" __global__ void \{symbols[1]}(const int32_t *append, const __nv_bfloat16 *queries, const __nv_bfloat16 *current_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output) {
-          $|  const int row = blockIdx.x, head = blockIdx.y, lane = threadIdx.x;
-          $|  if (append[2] || row >= append[1] || head >= \{heads}) return;
-          $|  const int base = append[0], position = base + row, first = position >= \{window - 1} ? position - \{window - 1} : 0, length = position - first + 1;
-          $|  const unsigned long long query_base = ((unsigned long long)row * \{heads}ULL + head) * \{width}ULL;
-          $|  __shared__ float scores[\{window}]; __shared__ float denominator;
-          $|  if (lane == 0) {
-          $|    float maximum = sink[head];
-          $|    for (int slot = 0; slot < length; ++slot) {
-          $|      const int absolute = first + slot;
-          $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
-          $|      float dot = 0.0f; for (int component = 0; component < \{width}; ++component) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(queries[query_base + component]), __bfloat162float(key[component])));
-          $|      scores[slot] = __fmul_rn(dot, rsqrtf(\{width}.0f)); maximum = fmaxf(maximum, scores[slot]);
-          $|    }
-          $|    float sum = expf(__fsub_rn(sink[head], maximum));
-          $|    for (int slot = 0; slot < length; ++slot) { scores[slot] = expf(__fsub_rn(scores[slot], maximum)); sum = __fadd_rn(sum, scores[slot]); }
-          $|    denominator = sum;
-          $|  }
-          $|  __syncthreads();
-          $|  for (int component = lane; component < \{width}; component += blockDim.x) {
-          $|    float sum = 0.0f;
-          $|    for (int slot = 0; slot < length; ++slot) {
-          $|      const int absolute = first + slot;
-          $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
-          $|      sum = __fadd_rn(sum, __fmul_rn(scores[slot], __bfloat162float(key[component])));
-          $|    }
-          $|    output[query_base + component] = __float2bfloat16_rn(__fdiv_rn(sum, denominator));
-          $|  }
-          $|}
-        ),
-      )
+  let attention = if plan.accumulation_law() ==
+    @precision.AttentionAccumulationLaw::TiledFloat32 {
+    matrix_window_attention_source(
+      plan,
+      symbol_prefix~,
+      maximum_slots=window,
+      logical_slots="window_span",
+      setup="const int32_t *append, const __nv_bfloat16 *queries, const __nv_bfloat16 *current_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output",
+      lookup=(
+        $|      if (ordinal < length) { const int absolute = first + ordinal; key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL; }
+      ),
+    )
+  } else {
+    match plan.probability_law() {
+      OrderedOnlineF32 | GlobalUnnormalizedBf16 =>
+        raise @precision.PrecisionPlanError::NoImplementation
+      OnlineBf16(block_tokens=_) =>
+        online_window_attention_source(
+          plan,
+          symbol_prefix~,
+          maximum_slots=window,
+          logical_slots="window_span",
+          setup="const int32_t *append, const __nv_bfloat16 *queries, const __nv_bfloat16 *current_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output",
+          lookup=(
+            $|      if (ordinal < length) { const int absolute = first + ordinal; key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL; }
+          ),
+        )
+      GlobalF32 =>
+        @utf8.encode(
+          (
+            $|extern "C" __global__ void \{symbols[1]}(const int32_t *append, const __nv_bfloat16 *queries, const __nv_bfloat16 *current_kv, const __nv_bfloat16 *ring, const float *sink, __nv_bfloat16 *output) {
+            $|  const int row = blockIdx.x, head = blockIdx.y, lane = threadIdx.x;
+            $|  if (append[2] || row >= append[1] || head >= \{heads}) return;
+            $|  const int base = append[0], position = base + row, first = position >= \{window - 1} ? position - \{window - 1} : 0, length = position - first + 1;
+            $|  const unsigned long long query_base = ((unsigned long long)row * \{heads}ULL + head) * \{width}ULL;
+            $|  __shared__ float scores[\{window}]; __shared__ float denominator;
+            $|  if (lane == 0) {
+            $|    float maximum = sink[head];
+            $|    for (int slot = 0; slot < length; ++slot) {
+            $|      const int absolute = first + slot;
+            $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
+            $|      float dot = 0.0f; for (int component = 0; component < \{width}; ++component) dot = __fadd_rn(dot, __fmul_rn(__bfloat162float(queries[query_base + component]), __bfloat162float(key[component])));
+            $|      scores[slot] = __fmul_rn(dot, rsqrtf(\{width}.0f)); maximum = fmaxf(maximum, scores[slot]);
+            $|    }
+            $|    float sum = expf(__fsub_rn(sink[head], maximum));
+            $|    for (int slot = 0; slot < length; ++slot) { scores[slot] = expf(__fsub_rn(scores[slot], maximum)); sum = __fadd_rn(sum, scores[slot]); }
+            $|    denominator = sum;
+            $|  }
+            $|  __syncthreads();
+            $|  for (int component = lane; component < \{width}; component += blockDim.x) {
+            $|    float sum = 0.0f;
+            $|    for (int slot = 0; slot < length; ++slot) {
+            $|      const int absolute = first + slot;
+            $|      const __nv_bfloat16 *key = absolute >= base ? current_kv + (unsigned long long)(absolute - base) * \{width}ULL : ring + (unsigned long long)(absolute % \{window}) * \{width}ULL;
+            $|      sum = __fadd_rn(sum, __fmul_rn(scores[slot], __bfloat162float(key[component])));
+            $|    }
+            $|    output[query_base + component] = __float2bfloat16_rn(__fdiv_rn(sum, denominator));
+            $|  }
+            $|}
+          ),
+        )
+    }
   }
   let source = reserve +
     b"\n" +
@@ -155,7 +169,13 @@ pub fn WindowSharedKvCudaSource::launch(
 ) -> (Int, Int, Int) {
   let (heads, _, window, rows, _) = self.plan.geometry()
   match stage {
-    1 => (rows, heads, 128)
+    1 =>
+      if self.plan.accumulation_law() ==
+        @precision.AttentionAccumulationLaw::TiledFloat32 {
+        (rows, (heads + 15) / 16, 256)
+      } else {
+        (rows, heads, 128)
+      }
     2 => (window, 1, 128)
     _ => (1, 1, 1)
   }

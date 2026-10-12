@@ -11,6 +11,7 @@ pub struct WindowSharedKvPrecision {
   priv sizes : ReadOnlyArray[Int64]
   priv bytes : Int64
   priv probability : AttentionProbabilityLaw
+  priv accumulation : AttentionAccumulationLaw
 }
 
 ///|
@@ -22,6 +23,7 @@ pub fn WindowSharedKvPrecision::new(
   maximum_positions~ : Int,
   maximum_state_bytes~ : Int64,
   probability? : AttentionProbabilityLaw = GlobalF32,
+  accumulation? : AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise PrecisionPlanError {
   probability.validate()
   guard query_heads > 0 &&
@@ -58,7 +60,15 @@ pub fn WindowSharedKvPrecision::new(
     sizes: ReadOnlyArray::from_array(sizes),
     bytes,
     probability,
+    accumulation,
   }
+}
+
+///|
+pub fn WindowSharedKvPrecision::accumulation_law(
+  self : Self,
+) -> AttentionAccumulationLaw {
+  self.accumulation
 }
 
 ///|

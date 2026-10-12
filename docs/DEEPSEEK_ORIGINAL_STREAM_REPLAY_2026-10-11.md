@@ -340,3 +340,56 @@ moon run scripts/inspect-deepseek-window-source.mbtx prepare NEW_SOURCE_ROOT RET
 moon run scripts/inspect-deepseek-window-source.mbtx run NEW_SOURCE_ROOT RETIRED_OPERAND_REPLAY_ROOT
 moon run scripts/inspect-deepseek-window-source.mbtx collect NEW_SOURCE_ROOT RETIRED_OPERAND_REPLAY_ROOT
 ```
+
+## Explicit tiled F32 candidate — local attention difference eliminated
+
+The precision IR now records `AttentionAccumulationLaw` independently of P
+storage. The ordered default stays unchanged; `TiledFloat32` explicitly permits
+F32 reassociation for QK/PV and softmax sums. CUDA-only physical lowering uses
+matrix-MMA, shared KV operand reuse, parallel reduction and row-owned F32
+fragment rescaling. It does not infer opaque fragment register ownership.
+The policy flows through the complete decoder constructor chain and both
+window/compressed source launch metadata. No NVIDIA type enters the semantic
+policy or scheduler. The diagnostic `replay-layer-tiled` explicitly selects it
+for both export and execution; ordinary serving remains ordered/default.
+
+Fresh root `/tmp/lunaflux-deepseek-matrix-window-20261012-v3` consumes the
+identical captured native post-rotary Q, simulated KV and original sink bias.
+Across **144 rows × 64 heads × 512 channels**, the candidate now matches the
+installed original **4,718,592/4,718,592 BF16 outputs**, zero relative L2,
+zero maximum error and zero nonfinite values. The earlier ordered candidate
+had 1,076 differing outputs and 0.006273834% relative L2 on these operands.
+This is an actual eliminated local difference, not a relaxed tolerance or
+replacement original implementation.
+
+The same compiled kernel produces bitwise-identical all-row prefill and
+one-row incremental results, including real ring rollover after 128 positions.
+An 18-head/80-column shape control checks both physical tail dimensions and
+prefill/incremental equality. That tail control is not an independently
+reconstructed original-model mathematical oracle.
+
+Memcheck/full leak check reports zero errors and zero leaked bytes; racecheck
+zero errors/warnings/hazards; synccheck zero errors. These cover the ordinary
+and incremental candidate paths and the tail control, not every possible
+geometry. All owners release. The failed `v1` C++ mixed-`auto` compile is
+preserved, then corrected. `v2` ordinary execution and memcheck pass, but
+racecheck is killed at its 2-GiB instrumentation cap. `v3` repeats in fresh
+directories with an **8-GiB racecheck-only cap**, no swap; ordinary, memcheck
+and synccheck retain 2-GiB caps. This is not a higher inference memory budget.
+Reported small wrapper peaks are not complete CUDA/tool residency.
+
+The higher-level default and explicit ordered exports remain byte-identical;
+regressions verify policy propagation into window and compressed source and
+grouped launch geometry. Complete-layer, compressed-read-set physical parity
+and the accumulated 18–21% discrepancy remain pending. This local match alone
+does not select the candidate for production or establish generation quality.
+
+The affected decoder/kernel checks pass with the existing toolchain warning
+exclusions, and source propagation tests cover four layers including a
+compressed layer. The attempted full local native suite reports
+**5,035/5,040**, with five failures explicitly `No space left on device` while
+writing checkpoint fixtures, not failed numerical assertions. This desktop
+has less than 1 GiB available; concurrent large fixtures exhaust it. A complete
+clean-host rerun is still required. No exclusions, fixture shapes or numerical
+tolerances are changed to hide those failures, and unrelated dirty toolchain
+files remain untouched by the task commits.

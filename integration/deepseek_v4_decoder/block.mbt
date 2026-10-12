@@ -29,6 +29,7 @@ pub fn DeepSeekDecoderBlock::new(
   maximum_workspace_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise {
   {
     attention: @attention.DeepSeekAttentionEnvelope::new(
@@ -38,6 +39,7 @@ pub fn DeepSeekDecoderBlock::new(
       maximum_context~,
       maximum_state_bytes~,
       maximum_workspace_bytes~,
+      attention_accumulation~,
     ),
     ffn: @expert.DeepSeekFfnEnvelope::new(
       spec,

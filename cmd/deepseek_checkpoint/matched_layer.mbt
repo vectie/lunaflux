@@ -70,7 +70,10 @@ fn matched_ints(values : ArrayView[Int]) -> Bytes {
 }
 
 ///|
-async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
+async fn replay_matched_layer(
+  arguments : ArrayView[String],
+  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
+) -> Unit {
   let model_root = arguments[0]
   let layer = @string.parse_int(arguments[2])
   let rows = @string.parse_int(arguments[3])
@@ -104,6 +107,7 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
     maximum_layer_workspace_bytes=ceiling,
     maximum_layer_expert_bytes=ceiling,
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    attention_accumulation~,
   )
   defer decoder.close()
   @fs.mkdir(arguments[8])
@@ -114,7 +118,7 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
       create_mode=CreateNew,
     )
     println(
-      "matched_layer_export layer=\{layer} physical_rows=\{rows} input_rows=\{count}",
+      "matched_layer_export layer=\{layer} physical_rows=\{rows} input_rows=\{count} accumulation=\{Repr(attention_accumulation)}",
     )
     return
   }
@@ -347,6 +351,6 @@ async fn replay_matched_layer(arguments : ArrayView[String]) -> Unit {
     )
   }
   println(
-    "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} production_layer=true full_model=false",
+    "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} shared_decoder_slice=true accumulation=\{Repr(attention_accumulation)} production_default_policy=\{attention_accumulation == @precision.AttentionAccumulationLaw::OrderedFloat32} full_model=false",
   )
 }

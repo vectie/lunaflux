@@ -11,6 +11,17 @@ pub fn online_window_attention_source(
   setup~ : String,
   lookup~ : String,
 ) -> Bytes raise {
+  if plan.accumulation_law() ==
+    @precision.AttentionAccumulationLaw::TiledFloat32 {
+    return matrix_window_attention_source(
+      plan,
+      symbol_prefix~,
+      maximum_slots~,
+      logical_slots~,
+      setup~,
+      lookup~,
+    )
+  }
   guard plan.probability_law() is OnlineBf16(block_tokens~) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
