@@ -118,3 +118,23 @@ all are finite, maximum absolute error 0.018493652. The candidate combines
 control, rotary and output changes, so this is not an isolated attribution to
 one of those changes. It exits zero and closes CUDA; default selection stays
 unchanged and a dedicated compressed-attention intervention remains necessary.
+
+## Latest-input FFN intervention
+
+Root `/tmp/lunaflux-deepseek-original-layer-stream-refined-ffn-20261012-v1`
+executes the installed original MoE on the **exact latest native FFN inputs**,
+all 144 original IDs and one-row geometry. The original weights/arithmetic stay
+unchanged; this is a causal input intervention, not a replacement reference.
+Compared with native FFN on those identical inputs, **587,960/589,824 BF16
+values match**, relative L2 **0.007706382%**, maximum error **0.00390625**.
+Original runs retire, exit zero and release CUDA; installed warnings remain.
+
+In **row 47, all 4,096 FFN outputs are bitwise identical** on the latest shared
+input. Running that same original FFN on native versus original inputs produces
+aggregate relative L2 **0.030914458%**, close to the propagated **0.031858964%**.
+Thus this row's larger difference and small regression are input/quantization
+sensitivity, **not** a demonstrated native FFN kernel bug. The original input
+comparison is retained; local error and propagated error are not conflated or
+assumed to add linearly. Other rows retain a small local FFN discrepancy. The
+next priority is remaining control/publication-input differences, plus separate
+compressed-attention isolation; blindly rewriting row-47 experts is unjustified.
