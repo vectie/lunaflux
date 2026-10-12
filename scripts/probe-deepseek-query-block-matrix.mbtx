@@ -53,7 +53,7 @@ async fn main {
     valid_path(root) &&
     root.has_prefix("/tmp/lunaflux-deepseek-query-block-") else {
     fail(
-      "prepare NEW_ROOT ORIGINAL_QUERY_ROOT ACTUAL_MATRIX_SHARED_ROOT | run ROOT",
+      "prepare NEW_ROOT ORIGINAL_QUERY_ROOT ACTUAL_MATRIX_SHARED_ROOT | run|collect ROOT",
     )
   }
   if mode == "prepare" {
@@ -122,6 +122,36 @@ async fn main {
       "released",
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
+  } else if mode == "collect" {
+    guard args is [] else { fail("collect ROOT") }
+    let original = @fs.read_file(root + "/ORIGINAL.txt").text()
+    for (stage, width) in [("q-a", 1024), ("q-b", 32768), ("kv", 512)] {
+      let output = root + "/" + stage + ".bf16"
+      @fs.write_file(output, b"", create_mode=CreateNew)
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + output,
+        output,
+      ])
+      .output()
+      .check()
+      record(
+        root,
+        stage + "-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          output,
+          original + "/original/" + stage + ".bf16",
+          root + "/" + stage + ".txt",
+          "matched_raw_matrix_query_" + stage,
+          width.to_string(),
+        ]).output(),
+      )
+    }
   } else {
     fail("unknown mode")
   }
