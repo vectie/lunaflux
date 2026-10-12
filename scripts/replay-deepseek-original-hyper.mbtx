@@ -298,6 +298,10 @@ async fn main {
       root + "/original_tensor_io.h",
     )
     upload(
+      "benchmarks/checkpoint_aten_reference/aten/hyper_internal_observer.h",
+      root + "/hyper_internal_observer.h",
+    )
+    upload(
       "tests/packed_moe_execution/hyper_matched_probe.cu",
       root + "/hyper_matched_probe.cu",
     )

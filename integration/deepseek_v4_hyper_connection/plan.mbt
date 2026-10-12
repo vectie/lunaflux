@@ -8,6 +8,8 @@ pub(all) enum DeepSeekHyperBranch {
 pub fn hyper_connection_plan(
   spec : @spec.DeepSeekV4ModelSpec,
   maximum_rows~ : Int,
+  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> @precision.HyperConnectionPrecision raise {
   @precision.HyperConnectionPrecision::new(
     stream_count=spec.hyper_connection_width(),
@@ -18,6 +20,8 @@ pub fn hyper_connection_plan(
     normalization_epsilon=spec.rms_norm_epsilon(),
     control_law=F32ProjectionThenNormalize,
     mix_law=TransposedF32ResidualThenBranch,
+    control_square_law~,
+    control_dot_law~,
   )
 }
 

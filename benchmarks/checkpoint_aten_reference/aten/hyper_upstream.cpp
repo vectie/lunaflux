@@ -1,6 +1,7 @@
 // Offline matched first-layer component replay. Calls the installed original
 // Block.hc_pre/RMSNorm and kernel.hc_split_sinkhorn, not reconstructed math.
 #include "original_tensor_io.h"
+#include "hyper_internal_observer.h"
 
 static PyObject *one_row_controls(PyObject *method,PyObject *self,PyObject *streams,
     PyObject *fn,PyObject *scale,PyObject *base,int rows) {
@@ -104,8 +105,10 @@ static int execute(const char *inference,const char *root,const char *input,cons
   Owned self(PyObject_Call(ns.p,empty.p,options.p));
   Owned method(cls.p?PyObject_GetAttrString(cls.p,"hc_pre"):nullptr);
   Owned operands(PyTuple_Pack(5,self.p,streams.p,fn.p,scale.p,base.p));
+  if(one_row) { hyper_internal_u8=u8.p;PyEval_SetTrace(trace_hyper_internal,Py_None); }
   Owned result(method.p?(one_row?one_row_controls(method.p,self.p,streams.p,fn.p,scale.p,base.p,rows):
     PyObject_CallObject(method.p,operands.p)):nullptr);
+  if(one_row) { PyEval_SetTrace(nullptr,nullptr);hyper_internal_u8=nullptr; }
   if(!result.p||!PyTuple_Check(result.p)||PyTuple_Size(result.p)!=3)return -1;
   auto *collapsed=PyTuple_GetItem(result.p,0),*post=PyTuple_GetItem(result.p,1),*comb=PyTuple_GetItem(result.p,2);
   Owned norm_cls(PyObject_GetAttrString(model.p,"RMSNorm"));
@@ -129,6 +132,7 @@ static int execute(const char *inference,const char *root,const char *input,cons
      !save(post,u8.p,std::string(out)+"/post.f32",int64_t(rows)*4*4)||
      !save(comb,u8.p,std::string(out)+"/combination.f32",int64_t(rows)*16*4)||
      !save(normalized.p,u8.p,std::string(out)+"/normalized.bf16",int64_t(rows)*4096*2))return -1;
+  if(one_row&&!write_hyper_internals(out,rows))return -1;
   std::printf("original_hyper_complete rows=%d layer=%d family=%s one_row_geometry=%s operands=original_literal arithmetic=Block.hc_pre+RMSNorm full_model=false\n",rows,layer,family.c_str(),one_row?"true":"false");
   return 0;
 }

@@ -20,7 +20,13 @@ pub(all) enum HyperConnectionMixLaw {
 pub(all) enum HyperConnectionControlLaw {
   NormalizedBf16Projection
   F32ProjectionThenNormalize
-}
+} derive(Debug, Eq)
+
+///|
+pub extend HyperConnectionControlLaw with @debug.Debug::{to_repr}
+
+///|
+pub extend HyperConnectionControlLaw with Eq::{equal, not_equal}
 
 ///|
 /// Immutable mHC branch envelope: controls, positive Sinkhorn, collapsed
@@ -34,6 +40,8 @@ pub struct HyperConnectionPrecision {
   priv normalization_epsilon : Double
   priv law : HyperConnectionMixLaw
   priv control_law : HyperConnectionControlLaw
+  priv control_square_law : SquareReductionLaw
+  priv control_dot_law : DotReductionLaw
   priv function_bytes : Int64
   priv frames : ReadOnlyArray[Int64]
   priv bytes : Int64
@@ -49,6 +57,8 @@ pub fn HyperConnectionPrecision::new(
   normalization_epsilon~ : Double,
   mix_law~ : HyperConnectionMixLaw,
   control_law? : HyperConnectionControlLaw = NormalizedBf16Projection,
+  control_square_law? : SquareReductionLaw = OrderedFloat32,
+  control_dot_law? : DotReductionLaw = OrderedFloat32,
 ) -> Self raise PrecisionPlanError {
   guard stream_count > 1 &&
     hidden_width > 0 &&
@@ -67,6 +77,11 @@ pub fn HyperConnectionPrecision::new(
   let rows = maximum_rows.to_int64()
   let streams = stream_count.to_int64()
   let hidden = hidden_width.to_int64()
+  if control_dot_law is StripedTreeFloat32(_) {
+    let flattened = expert_checked_mul(streams, hidden)
+    guard flattened <= 2147483647L else { raise IllegalPlacement }
+    control_dot_law.validate(flattened.to_int())
+  }
   let vector = expert_checked_mul(expert_checked_mul(rows, streams), 4L)
   let matrix = expert_checked_mul(vector, streams)
   let branch = expert_checked_mul(expert_checked_mul(rows, hidden), 2L)
@@ -100,10 +115,26 @@ pub fn HyperConnectionPrecision::new(
     normalization_epsilon,
     law: mix_law,
     control_law,
+    control_square_law,
+    control_dot_law,
     function_bytes,
     frames: ReadOnlyArray::from_array(frames),
     bytes,
   }
+}
+
+///|
+pub fn HyperConnectionPrecision::control_square_law(
+  self : Self,
+) -> SquareReductionLaw {
+  self.control_square_law
+}
+
+///|
+pub fn HyperConnectionPrecision::control_dot_law(
+  self : Self,
+) -> DotReductionLaw {
+  self.control_dot_law
 }
 
 ///|

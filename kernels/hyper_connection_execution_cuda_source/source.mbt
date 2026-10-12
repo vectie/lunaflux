@@ -21,6 +21,8 @@ pub fn hyper_connection_source(
     normalization_epsilon=plan.normalization_epsilon(),
     function_symbol=symbol_prefix + "_function",
     control_law=plan.control_law(),
+    control_square_law=plan.control_square_law(),
+    control_dot_law=plan.control_dot_law(),
   )
   // Multiple branch envelopes may share a module without duplicate helpers.
   let function_source = @utf8.encode(

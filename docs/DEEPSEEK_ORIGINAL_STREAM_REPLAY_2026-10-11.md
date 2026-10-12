@@ -1,5 +1,7 @@
 # DeepSeek matched original layer-stream replay — 2026-10-11
 
+Latest: [matched mHC control reductions and actual refined lowering](DEEPSEEK_CONTROL_REDUCTION_2026-10-12.md).
+
 ## Matched output-A accumulation isolation — 2026-10-12
 
 After attention/inverse become exact, output-A has 324 differing BF16 values.

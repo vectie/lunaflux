@@ -6,7 +6,8 @@ async fn main {
       "replay-layer"
       | "replay-layer-tiled"
       | "replay-layer-complex"
-      | "replay-layer-striped" as mode,
+      | "replay-layer-striped"
+      | "replay-layer-refined" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
@@ -18,12 +19,24 @@ async fn main {
         OrderedFloat32
       },
       rotary_product=if mode == "replay-layer-complex" ||
-        mode == "replay-layer-striped" {
+        mode == "replay-layer-striped" ||
+        mode == "replay-layer-refined" {
         ComplexFloat32Fma
       } else {
         SeparateFloat32Products
       },
-      output_accumulation=if mode == "replay-layer-striped" {
+      output_accumulation=if mode == "replay-layer-striped" ||
+        mode == "replay-layer-refined" {
+        StripedTreeFloat32(partitions=32)
+      } else {
+        OrderedFloat32
+      },
+      control_square_law=if mode == "replay-layer-refined" {
+        CompensatedFloat32
+      } else {
+        OrderedFloat32
+      },
+      control_dot_law=if mode == "replay-layer-refined" {
         StripedTreeFloat32(partitions=32)
       } else {
         OrderedFloat32

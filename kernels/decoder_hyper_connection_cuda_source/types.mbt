@@ -13,6 +13,11 @@ pub(all) enum DecoderHyperConnectionNumericalContract {
   OrderedF32BlockControlV1
   OrderedF32FunctionBf16CollapseV1
   OrderedF32ProjectionThenNormalizeBf16CollapseV1
+  RefinedControlFunctionBf16CollapseV1(
+    control~ : @precision.HyperConnectionControlLaw,
+    square~ : @precision.SquareReductionLaw,
+    dot~ : @precision.DotReductionLaw
+  )
   OrderedF32PositiveSinkhornV1
   OrderedF32PreReduceBf16RoundV1
   OrderedF32PostCombineBf16RoundV1

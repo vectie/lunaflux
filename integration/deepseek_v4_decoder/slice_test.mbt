@@ -1,4 +1,49 @@
 ///|
+test "control laws reach both envelopes without changing default source" {
+  let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
+    "deepseek-ai/DeepSeek-V4-Flash-0731",
+  )
+  let default = slice(spec, 0, 4)
+  defer default.close()
+  let refined = @deepseek_v4_decoder.DeepSeekDecoderSlice::new(
+    spec,
+    first_layer=0,
+    end_layer=4,
+    maximum_rows=3,
+    maximum_context=256,
+    maximum_layer_state_bytes=16777216L,
+    maximum_layer_workspace_bytes=16777216L,
+    maximum_layer_expert_bytes=8589934592L,
+    accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    control_square_law=CompensatedFloat32,
+    control_dot_law=StripedTreeFloat32(partitions=32),
+  )
+  defer refined.close()
+  let code = @utf8.decode(refined.source_bytes())
+  assert_eq(
+    code.split("float square_sum = 0.0f, square_sum_correction = 0.0f").count(),
+    9,
+  )
+  assert_eq(code.split("float dot_partials[32] = {}").count(), 9)
+  assert_eq(default.expert_bank_bytes(), refined.expert_bank_bytes())
+  let explicit_default = @deepseek_v4_decoder.DeepSeekDecoderSlice::new(
+    spec,
+    first_layer=0,
+    end_layer=4,
+    maximum_rows=3,
+    maximum_context=256,
+    maximum_layer_state_bytes=16777216L,
+    maximum_layer_workspace_bytes=16777216L,
+    maximum_layer_expert_bytes=8589934592L,
+    accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    control_square_law=OrderedFloat32,
+    control_dot_law=OrderedFloat32,
+  )
+  defer explicit_default.close()
+  assert_eq(default.source_bytes(), explicit_default.source_bytes())
+}
+
+///|
 fn slice(
   spec : @spec.DeepSeekV4ModelSpec,
   first : Int,

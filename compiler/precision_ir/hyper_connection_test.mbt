@@ -15,7 +15,46 @@ test "hyper connection precision accounts six frames without device schedules" {
   assert_eq(plan.sinkhorn_iterations(), 20)
   assert_true(plan.mix_law() is RoundedBf16ControlsAndProducts)
   assert_true(plan.control_law() is NormalizedBf16Projection)
+  assert_eq(plan.control_square_law(), OrderedFloat32)
+  assert_eq(plan.control_dot_law(), OrderedFloat32)
   assert_eq(plan.function_weight_bytes(), 786432L)
+}
+
+///|
+test "refined control laws retain frame and parameter budgets" {
+  let plan = @precision_ir.HyperConnectionPrecision::new(
+    stream_count=4,
+    hidden_width=4096,
+    maximum_rows=32,
+    sinkhorn_iterations=20,
+    control_epsilon=0.000001,
+    normalization_epsilon=0.00001,
+    mix_law=TransposedF32ResidualThenBranch,
+    control_law=F32ProjectionThenNormalize,
+    control_square_law=CompensatedFloat32,
+    control_dot_law=StripedTreeFloat32(partitions=32),
+  )
+  assert_eq(plan.control_square_law(), CompensatedFloat32)
+  assert_eq(plan.control_dot_law(), StripedTreeFloat32(partitions=32))
+  assert_eq(plan.workspace_bytes(), 791040L)
+  assert_eq(plan.function_weight_bytes(), 1572864L)
+  try
+    @precision_ir.HyperConnectionPrecision::new(
+      stream_count=4,
+      hidden_width=4096,
+      maximum_rows=1,
+      sinkhorn_iterations=20,
+      control_epsilon=0.000001,
+      normalization_epsilon=0.000001,
+      mix_law=TransposedF32ResidualThenBranch,
+      control_dot_law=StripedTreeFloat32(partitions=3),
+    )
+  catch {
+    @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+    error => raise error
+  } noraise {
+    _ => fail("invalid control partition accepted")
+  }
 }
 
 ///|

@@ -26,6 +26,8 @@ pub fn DeepSeekFfnEnvelope::new(
   maximum_rows~ : Int,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
+  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -36,6 +38,8 @@ pub fn DeepSeekFfnEnvelope::new(
     maximum_rows~,
     maximum_expert_bytes~,
     accuracy~,
+    control_square_law~,
+    control_dot_law~,
   )
 }
 
@@ -46,6 +50,8 @@ pub fn DeepSeekFfnEnvelope::for_block(
   maximum_rows~ : Int,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
+  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   let prefix = block.symbol_prefix(spec)
   let routed = block_expert_compute_plan(
@@ -97,6 +103,8 @@ pub fn DeepSeekFfnEnvelope::for_block(
       spec,
       block~,
       branch=FeedForward,
+      control_square_law~,
+      control_dot_law~,
       maximum_rows~,
     ),
     program,

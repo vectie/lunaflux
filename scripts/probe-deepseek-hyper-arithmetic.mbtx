@@ -1,0 +1,248 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, label : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn transfer(source : String, target : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    target,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn routes() -> Array[String] {
+  [
+    "production", "literal_mix", "literal_inverse", "striped32", "striped32_fma",
+    "refined", "striped32_literal_inverse", "striped32_fma_literal_inverse", "compensated_square",
+    "square256", "striped32_fma_compensated_square", "striped32_fma_square256",
+  ]
+}
+
+///|
+test "control probe isolates inverse and product/reduction order without changing reference" {
+  assert_eq(routes().length(), 12)
+  assert_eq(routes()[0], "production")
+  assert_eq(routes()[1], "literal_mix")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-hyper-arithmetic-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("prepare NEW_ROOT REMOTE_ORIGINAL_HYPER_ROOT | run|collect ROOT")
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [hyper] else {
+      fail("literal original control root required")
+    }
+    @fs.mkdir(root)
+    @fs.write_file(root + "/HYPER_ROOT.txt", hyper, create_mode=CreateNew)
+    record(root, "mkdir", remote("mkdir " + root))
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "kernels/hyper_connection_execution_cuda_source/arithmetic_export_test.mbt",
+          "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+        ],
+        env={
+          "LUNAFLUX_HYPER_ARITHMETIC_SOURCE": root +
+          "/hyper_arithmetic_kernels.cuh",
+        },
+      ).output(),
+    )
+    for file in ["hyper_arithmetic_kernels.cuh", "hyper_arithmetic_probe.cu"] {
+      transfer(
+        if file == "hyper_arithmetic_probe.cu" {
+          "tests/packed_moe_execution/" + file
+        } else {
+          root + "/" + file
+        },
+        node + ":" + root + "/" + file,
+      )
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 hyper_arithmetic_probe.cu -o hyper-probe",
+      ),
+    )
+  } else if mode == "verify-default" {
+    guard extra is [old_source] else {
+      fail("retained default source required")
+    }
+    let current = root + "/default-control-source.cuh"
+    record(
+      root,
+      "default-export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "kernels/hyper_connection_execution_cuda_source", "--filter", "original DeepSeek component replay exports the same numerical envelope",
+          "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+        ],
+        env={ "LUNAFLUX_MATCHED_HYPER_SOURCE_OUTPUT": current },
+      ).output(),
+    )
+    record(
+      root,
+      "default-source-preserved",
+      @shell.Cmd("cmp", [old_source, current]).output(),
+    )
+  } else if mode == "run" || mode == "sanitize" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU probes")
+    }
+    if mode == "sanitize" {
+      let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        record(root, tool + "-mkdir", remote("mkdir " + root + "/" + tool))
+        record(
+          root,
+          tool,
+          remote(
+            "systemd-run --user --wait --pipe --unit=" +
+            tag +
+            "-" +
+            tool +
+            " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 7 --tool " +
+            tool +
+            (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+            " " +
+            root +
+            "/hyper-probe " +
+            hyper +
+            "/original " +
+            root +
+            "/" +
+            tool,
+          ),
+        )
+      }
+      record(
+        root,
+        "sanitizers-released",
+        remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+      )
+      return
+    }
+    record(root, "output-mkdir", remote("mkdir " + root + "/output"))
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    record(
+      root,
+      "run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+        root +
+        "/hyper-probe " +
+        hyper +
+        "/original " +
+        root +
+        "/output",
+      ),
+    )
+    record(
+      root,
+      "baseline-control",
+      remote(
+        "cmp " +
+        root +
+        "/output/production-post.f32 " +
+        hyper +
+        "/native/post.f32 && cmp " +
+        root +
+        "/output/production-combination.f32 " +
+        hyper +
+        "/native/combination.f32",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    @fs.mkdir(root + "/output")
+    @fs.mkdir(root + "/reference")
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    for field in ["mixes", "rsqrt", "post", "combination"] {
+      let reference = root + "/reference/" + field + ".f32"
+      transfer(node + ":" + hyper + "/original/" + field + ".f32", reference)
+      for route in routes() {
+        let target = root + "/output/" + route + "-" + field + ".f32"
+        transfer(node + ":" + target, target)
+        record(
+          root,
+          route + "-" + field + "-comparison",
+          @shell.Cmd("moon", [
+            "run",
+            "scripts/compare-f32-tensors.mbtx",
+            target,
+            reference,
+            root + "/" + route + "-" + field + "-comparison.txt",
+            "matched_original_hyper_" + route + "_" + field,
+          ]).output(),
+        )
+      }
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

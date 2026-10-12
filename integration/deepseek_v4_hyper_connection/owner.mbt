@@ -24,6 +24,8 @@ pub fn DeepSeekHyperConnection::new(
   layer~ : Int,
   branch~ : DeepSeekHyperBranch,
   maximum_rows~ : Int,
+  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -33,6 +35,8 @@ pub fn DeepSeekHyperConnection::new(
     block=BaseLayer(layer),
     branch~,
     maximum_rows~,
+    control_square_law~,
+    control_dot_law~,
   )
 }
 
@@ -42,6 +46,8 @@ pub fn DeepSeekHyperConnection::for_block(
   block~ : @spec.DeepSeekV4BlockAddress,
   branch~ : DeepSeekHyperBranch,
   maximum_rows~ : Int,
+  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   let prefix = block.symbol_prefix(spec)
   let name = match branch {
@@ -54,7 +60,12 @@ pub fn DeepSeekHyperConnection::for_block(
     branch,
     frame: @frame.HyperConnectionFrame::new(
       @source.hyper_connection_source(
-        hyper_connection_plan(spec, maximum_rows~),
+        hyper_connection_plan(
+          spec,
+          maximum_rows~,
+          control_square_law~,
+          control_dot_law~,
+        ),
         symbol_prefix=prefix + "_hyper_" + name,
       ),
     ),

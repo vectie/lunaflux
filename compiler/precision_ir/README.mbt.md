@@ -27,6 +27,14 @@ in its backend. Unsupported lowerings report the missing implementation rather
 than substituting ordered or compensated sums. Ordinary callers retain ordered
 accumulation. Matching one projection is not a whole-model quality guarantee.
 
+`HyperConnectionPrecision` independently records control square-sum and
+control-dot laws. Both learned attention and FFN envelopes consume those same
+immutable laws. Compensated F32 and striped-tree F32 refine arithmetic without
+changing stream ownership, parameter dtype, global workspace or queue effects.
+Default control source remains byte-identical; an explicit diagnostic policy
+is required to select the refined candidate. No reference tensors or vendor
+library calls are embedded in the production lowering.
+
 `PhysicalOperand` refines an existing physical operand region; it does not invent
 an unrelated shared-memory map. Local/global F32 scaling and BF16 rounding are
 retained boundaries. A caller-provided supported-placement set is a capability

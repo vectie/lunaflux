@@ -1,4 +1,48 @@
 ///|
+test "refined control source reports both semantic reduction laws" {
+  let source = @decoder_hyper_connection_cuda_source.staged_function_and_collapse_bf16_f32_source(
+    stream_width=4,
+    hidden_width=4096,
+    maximum_rows=3,
+    control_epsilon=0.000001,
+    normalization_epsilon=0.000001,
+    function_symbol="refined_control",
+    control_law=F32ProjectionThenNormalize,
+    control_square_law=CompensatedFloat32,
+    control_dot_law=StripedTreeFloat32(partitions=32),
+  )
+  assert_eq(
+    source.numerical_contract(),
+    RefinedControlFunctionBf16CollapseV1(
+      control=F32ProjectionThenNormalize,
+      square=CompensatedFloat32,
+      dot=StripedTreeFloat32(partitions=32),
+    ),
+  )
+  let text = @utf8.decode(source.source_bytes())
+  assert_true(text.contains("square_sum_correction"))
+  assert_true(text.contains("dot_partials[32]"))
+  assert_false(text.contains("__expf"))
+  try
+    @decoder_hyper_connection_cuda_source.staged_function_and_collapse_bf16_f32_source(
+      stream_width=4,
+      hidden_width=4096,
+      maximum_rows=1,
+      control_epsilon=0.000001,
+      normalization_epsilon=0.000001,
+      function_symbol="unsupported_control",
+      control_dot_law=StripedTreeFloat32(partitions=512),
+    )
+  catch {
+    @decoder_hyper_connection_cuda_source.DecoderHyperConnectionCudaSourceError::InvalidNumericalContract =>
+      ()
+    _ => fail("unexpected unsupported reduction error")
+  } noraise {
+    _ => fail("unsupported partition was silently discarded")
+  }
+}
+
+///|
 test "staged function preserves BF16 checkpoint storage and explicit outputs" {
   let rendered = staged_function_and_collapse_bf16_f32_source(
     stream_width=4,

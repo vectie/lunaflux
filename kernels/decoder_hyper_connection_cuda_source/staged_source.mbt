@@ -11,6 +11,8 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   normalization_epsilon~ : Double,
   function_symbol~ : String,
   control_law? : @precision.HyperConnectionControlLaw = NormalizedBf16Projection,
+  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth
@@ -61,6 +63,24 @@ pub fn staged_function_and_collapse_bf16_f32_source(
         OrderedF32ProjectionThenNormalizeBf16CollapseV1,
       )
   }
+  let (square_init, square_update, square_finish) = control_square_source(
+    control_square_law,
+  )
+  let (dot_init, dot_update, dot_finish) = control_dot_source(
+    control_dot_law,
+    operand_name,
+    stream_width * hidden_width,
+  )
+  let numerical_contract = if control_square_law is OrderedFloat32 &&
+    control_dot_law is OrderedFloat32 {
+    numerical_contract
+  } else {
+    RefinedControlFunctionBf16CollapseV1(
+      control=control_law,
+      square=control_square_law,
+      dot=control_dot_law,
+    )
+  }
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "__device__ __forceinline__ float lf_hc_stage_sigmoid(float x) { if (x >= 0.0f) return __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-x))); const float e = expf(x); return __fdiv_rn(e, __fadd_rn(1.0f, e)); }\n" +
@@ -75,10 +95,16 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     "  const void *buffers[8] = {(const void*)counts, (const void*)streams, (const void*)function_weights, (const void*)base, (const void*)scale, (const void*)post, (const void*)initial_combination, (const void*)collapsed}; for (int32_t left = 0; left < 8; ++left) for (int32_t right = left + 1; right < 8; ++right) if (buffers[left] == buffers[right]) return;\n" +
     "  const unsigned long long input_base = (unsigned long long)row * " +
     flattened +
-    "ULL; float square_sum = 0.0f; for (int32_t column = 0; column < " +
+    "ULL; " +
+    square_init +
+    " for (int32_t column = 0; column < " +
     flattened +
-    "; ++column) { const float x = __bfloat162float(streams[input_base + (unsigned long long)column]); if (!isfinite(x)) return; square_sum = __fadd_rn(square_sum, __fmul_rn(x, x)); }\n" +
-    "  const float inverse = __fdiv_rn(1.0f, sqrtf(__fadd_rn(__fdiv_rn(square_sum, " +
+    "; ++column) { const float x = __bfloat162float(streams[input_base + (unsigned long long)column]); if (!isfinite(x)) return; " +
+    square_update +
+    " }\n" +
+    "  " +
+    (if square_finish.is_empty() { "" } else { square_finish + " " }) +
+    "const float inverse = __fdiv_rn(1.0f, sqrtf(__fadd_rn(__fdiv_rn(square_sum, " +
     flattened +
     ".0f), " +
     normalization +
@@ -87,15 +113,18 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     "];\n" +
     "  for (int32_t output = 0; output < " +
     mix +
-    "; ++output) { float dot = 0.0f; const unsigned long long weight_base = (unsigned long long)output * " +
+    "; ++output) { " +
+    dot_init +
+    " const unsigned long long weight_base = (unsigned long long)output * " +
     flattened +
     "ULL; for (int32_t column = 0; column < " +
     flattened +
     "; ++column) { " +
     projection +
-    " dot = __fadd_rn(dot, __fmul_rn(" +
-    operand_name +
-    ", weight)); } " +
+    " " +
+    dot_update +
+    " } " +
+    (if dot_finish.is_empty() { "" } else { dot_finish + " " }) +
     publication +
     " }\n" +
     "  for (int32_t i = 0; i < " +

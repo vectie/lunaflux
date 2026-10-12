@@ -1,6 +1,7 @@
 ///|
-/// BF16 operand products are exact in F32. These laws differ only in how
-/// those products are summed, retaining the same final BF16 rounding point.
+/// Products have an explicit F32 rounding boundary; BF16×BF16 products happen
+/// to be exact there. These laws change summation, not product precision or
+/// the enclosing operator's publication boundary.
 /// Compensation is an explicit numerical policy, not ordered-sum equivalence.
 /// Finite cancellation must not discard contributions already accumulated.
 pub(all) enum DotReductionLaw {
@@ -18,7 +19,10 @@ pub extend DotReductionLaw with @debug.Debug::{to_repr}
 pub extend DotReductionLaw with Eq::{equal, not_equal}
 
 ///|
-fn DotReductionLaw::validate(self : Self, width : Int) -> Unit raise {
+fn DotReductionLaw::validate(
+  self : Self,
+  width : Int,
+) -> Unit raise PrecisionPlanError {
   match self {
     OrderedFloat32 | CompensatedFloat32 => ()
     StripedTreeFloat32(partitions~) => {
