@@ -1,0 +1,156 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let image : String = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+fn input_files() -> Array[String] {
+  ["q-rope.bf16", "kv-sim.bf16", "sink.f32"]
+}
+
+///|
+test "source audit reuses already retired post-rotary operands" {
+  assert_eq(input_files(), ["q-rope.bf16", "kv-sim.bf16", "sink.f32"])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, previous] &&
+    mode is ("prepare" | "run" | "collect") &&
+    root.has_prefix("/tmp/lunaflux-deepseek-window-source-") &&
+    previous.has_prefix("/tmp/lunaflux-deepseek-window-operands-") &&
+    [root, previous].all(path => {
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) else {
+    fail("prepare|run|collect NEW_SOURCE_ROOT RETIRED_OPERAND_REPLAY_ROOT")
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    record(
+      root,
+      "mkdir",
+      remote("mkdir " + root + " " + root + "/input " + root + "/original"),
+    )
+    for file in input_files() {
+      record(
+        root,
+        "copy-" + file,
+        remote(
+          "cp " + previous + "/input/" + file + " " + root + "/input/" + file,
+        ),
+      )
+    }
+    for file in ["window_operands_upstream.cpp", "original_tensor_io.h"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        "benchmarks/checkpoint_aten_reference/aten/" + file,
+        node + ":" + root + "/" + file,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        "docker run --rm --pull=never --user 1000:1000 --network none --memory 2g --memory-swap 2g -v " +
+        root +
+        ":/work --entrypoint g++ " +
+        image +
+        " -O2 -std=c++20 -Wall -Wextra -Werror -I/usr/include/python3.12 /work/window_operands_upstream.cpp -o /work/original.exe -lpython3.12",
+      ),
+    )
+  } else if mode == "run" {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, "owners", owners)
+    guard owners.stdout().trim().is_empty() else {
+      fail("GPU already occupied")
+    }
+    record(
+      root,
+      "run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --rm --pull=never --gpus all --user 1000:1000 --network none --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+        root +
+        ":/work -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro --entrypoint /work/original.exe " +
+        image +
+        " /inference /work/input /work/original source",
+      ),
+    )
+    record(
+      root,
+      "original-identity",
+      remote(
+        "cmp " +
+        root +
+        "/original/attention.bf16 " +
+        previous +
+        "/original/attention.bf16",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+    println("source_observation_all_original_outputs_bitwise_unchanged=true")
+  } else {
+    guard !@fs.exists(root + "/original-window.cu") else {
+      fail("previous source retained")
+    }
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + root + "/original/original-window.cu",
+      root + "/original-window.cu",
+    ])
+    .output()
+    .check()
+    println("generated_original_source_retained production_unchanged=true")
+  }
+}

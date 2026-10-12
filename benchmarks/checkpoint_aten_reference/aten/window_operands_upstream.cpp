@@ -3,7 +3,22 @@
 #include "original_tensor_io.h"
 #include <cmath>
 
-static int execute(const char *inference,const char *input,const char *out) {
+static bool save_kernel_source(PyObject *kernel,const char *out) {
+  Owned factory(PyObject_GetAttrString(kernel,"sparse_attn_kernel"));
+  Owned arguments(Py_BuildValue("(iid)",16,512,1.0/std::sqrt(512.0)));
+  Owned compiled(factory.p&&arguments.p?PyObject_CallObject(factory.p,arguments.p):nullptr);
+  Owned source(compiled.p?PyObject_CallMethod(compiled.p,"get_kernel_source",nullptr):nullptr);
+  Py_ssize_t length=0;
+  const char *text=source.p?PyUnicode_AsUTF8AndSize(source.p,&length):nullptr;
+  if(!text||length<=0)return false;
+  auto *file=std::fopen((std::string(out)+"/original-window.cu").c_str(),"wx");
+  if(!file)return false;
+  const bool written=std::fwrite(text,1,static_cast<size_t>(length),file)==static_cast<size_t>(length);
+  const bool closed=std::fclose(file)==0;
+  return written&&closed;
+}
+
+static int execute(const char *inference,const char *input,const char *out,bool source) {
   Owned path(PyUnicode_FromString(inference));
   if(!path.p||PyList_Insert(PySys_GetObject("path"),0,path.p)<0)return -1;
   Owned torch(PyImport_ImportModule("torch")),model(PyImport_ImportModule("model")),kernel(PyImport_ImportModule("kernel"));
@@ -24,12 +39,13 @@ static int execute(const char *inference,const char *input,const char *out) {
   Owned operands(Py_BuildValue("(OOOOd)",q.p,kv.p,sink.p,gpu.p,1.0/std::sqrt(512.0)));
   Owned result(PyObject_CallObject(attention.p,operands.p));
   if(!result.p||!save(result.p,u8.p,std::string(out)+"/attention.bf16",144LL*32768*2))return -1;
+  if(source&&!save_kernel_source(kernel.p,out))return -1;
   std::puts("original_window_literal_operands rows=144 heads=64 original_sparse_attention=true");
   return 0;
 }
 int main(int argc,char **argv) {
-  if(argc!=4)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3]);
+  if(argc!=4&&(argc!=5||std::string(argv[4])!="source"))return 2;
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argc==5);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

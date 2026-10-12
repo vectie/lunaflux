@@ -288,3 +288,55 @@ byte-identical to the native inverse capture, so those output-chain reports
 did not accidentally feed pre-inverse attention into either projection.
 Reports: `/tmp/lunaflux-deepseek-one-row-inverse-components-20261012-v1`.
 No production kernel or arithmetic law was changed by this observation.
+
+## Original generated sparse-attention arithmetic — 2026-10-12
+
+The offline original adapter now has an optional `source` observation. Its
+ordinary three-argument numerical replay is unchanged. Observation obtains
+the generated CUDA from the same installed `sparse_attn_kernel(16,512,scale)`
+factory used by the original wrapper's four sixteen-head calls; it does not
+substitute another attention implementation or alter the original inputs.
+
+The bounded source run completes in
+`/tmp/lunaflux-deepseek-window-source-20261012-v5` on `.179`. All
+**4,718,592 original BF16 outputs are bitwise identical** to the earlier
+literal-native-operand original replay. CUDA owners retire. The C++ bridge
+compiles with `-Wall -Wextra -Werror`; the MoonBit runner regression passes.
+Limits are 8 GiB/no swap. The tiny user-unit peak is the Docker client, not
+complete GPU/container residency. Installed ThreadSync warnings are retained.
+
+The retained `original-window.cu` shows:
+
+- QK: BF16/F32 `mma_sync` with 16×8×16 instructions, iterating 32 sixteen-wide
+  reduction slices across the 512-channel head.
+- Softmax: 64-key online blocks; per-thread two-value partial sums, then
+  explicit cross-warp and four-lane `AllReduce` stages. Its denominator
+  update is expressed as `old_sum * rescale + tile_sum`.
+- P is cast to BF16 before PV. PV uses four sixteen-key MMA slices per tile,
+  rather than the current native per-key scalar FMA loop.
+- The generated original source uses **`expf`**, not an explicit `exp2`
+  algorithm. The existing unsuccessful intrinsic-exp experiment therefore
+  does not establish exponent choice as the full-model cause.
+
+The current native online64 source uses ordered scalar QK accumulation and a
+serial probability sum. Thus agreement on BF16 probability storage and tile
+length does not mean agreement on QK/PV accumulation or denominator reduction
+order. These are concrete source differences to isolate; this source audit
+does not measure their individual error contributions, prove the compiler's
+final FMA contraction, or resolve the accumulated 18–21% gap. Generated CUDA
+is **not** selected-kernel SASS or a hardware-counter capture.
+
+Earlier `v2`–`v4` attempts to retain the loaded binary fail only at metadata
+export: the installed TVM-FFI adapter has no Cython `libpath`, its CUDA module
+does not support object-file writes, and it has no Python `save_to_bytes`
+method. Those outputs/logs remain preserved. No rebuilt binary is mislabeled
+as the originally loaded kernel; unsupported binary extraction is removed
+from the committed diagnostic. Production arithmetic and selection remain
+unchanged. This observation runs independently of the active MiniMax
+complete-stack experiment on `.178`.
+
+```sh
+moon run scripts/inspect-deepseek-window-source.mbtx prepare NEW_SOURCE_ROOT RETIRED_OPERAND_REPLAY_ROOT
+moon run scripts/inspect-deepseek-window-source.mbtx run NEW_SOURCE_ROOT RETIRED_OPERAND_REPLAY_ROOT
+moon run scripts/inspect-deepseek-window-source.mbtx collect NEW_SOURCE_ROOT RETIRED_OPERAND_REPLAY_ROOT
+```
