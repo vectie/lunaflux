@@ -13,6 +13,10 @@ pub fn prefix_rms_norm_bf16_with_optional_suffix_copy_source(
   maximum_rows~ : Int,
   epsilon~ : Double,
   function_symbol~ : String,
+  square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> PrefixRmsNormCudaSource raise PrefixRmsNormCudaSourceError {
   if prefix_width <= 0 || prefix_width > 65536 {
     raise InvalidPrefixWidth
@@ -28,6 +32,20 @@ pub fn prefix_rms_norm_bf16_with_optional_suffix_copy_source(
   }
   if !valid_prefix_norm_symbol(function_symbol) {
     raise InvalidFunctionSymbol
+  }
+  if square_law !=
+    @precision.SquareReductionLaw::VectorizedTreeFloat32(
+      partitions=256,
+      vector_width=1,
+    ) {
+    return vector_prefix_norm_source(
+      prefix_width~,
+      suffix_width~,
+      maximum_rows~,
+      epsilon~,
+      function_symbol~,
+      square_law~,
+    )
   }
   let suffix_parameter = if suffix_width > 0 {
     ", __nv_bfloat16 *suffix_output"
@@ -88,5 +106,6 @@ pub fn prefix_rms_norm_bf16_with_optional_suffix_copy_source(
     epsilon,
     function_symbol,
     source,
+    threads: 256,
   }
 }

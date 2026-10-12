@@ -18,7 +18,8 @@ pub(all) enum DecoderHyperConnectionNumericalContract {
     square~ : @precision.SquareReductionLaw,
     dot~ : @precision.DotReductionLaw,
     vector_affine~ : @precision.Float32AffineLaw,
-    sigmoid~ : @precision.SigmoidEvaluationLaw
+    sigmoid~ : @precision.SigmoidEvaluationLaw,
+    root~ : @precision.ReciprocalRootLaw
   )
   OrderedF32PositiveSinkhornV1
   OrderedF32PreReduceBf16RoundV1

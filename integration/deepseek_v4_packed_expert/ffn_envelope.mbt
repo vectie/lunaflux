@@ -30,6 +30,11 @@ pub fn DeepSeekFfnEnvelope::new(
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
   control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
+  normalization_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> Self raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -44,6 +49,8 @@ pub fn DeepSeekFfnEnvelope::new(
     control_dot_law~,
     control_vector_affine_law~,
     control_sigmoid_law~,
+    control_root_law~,
+    normalization_square_law~,
   )
 }
 
@@ -58,6 +65,11 @@ pub fn DeepSeekFfnEnvelope::for_block(
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
   control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
+  normalization_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> Self raise {
   let prefix = block.symbol_prefix(spec)
   let routed = block_expert_compute_plan(
@@ -113,6 +125,8 @@ pub fn DeepSeekFfnEnvelope::for_block(
       control_dot_law~,
       control_vector_affine_law~,
       control_sigmoid_law~,
+      control_root_law~,
+      normalization_square_law~,
       maximum_rows~,
     ),
     program,

@@ -17,6 +17,21 @@ fn control_square_source(
       }
       (init, "const float product = __fmul_rn(x, x); " + update, finish)
     }
+    VectorizedTreeFloat32(partitions~, vector_width~) => {
+      guard partitions > 0 &&
+        partitions <= 1024 &&
+        (partitions & (partitions - 1)) == 0 &&
+        vector_width > 0 &&
+        vector_width <= 4 &&
+        (vector_width & (vector_width - 1)) == 0 else {
+        raise InvalidNumericalContract
+      }
+      (
+        "float square_sum = 0.0f; float square_vectors[\{partitions * vector_width}] = {};",
+        "const int slot = ((column / \{vector_width}) % \{partitions}) * \{vector_width} + column % \{vector_width}; square_vectors[slot] = __fadd_rn(square_vectors[slot], __fmul_rn(x, x));",
+        "for (int p = 0; p < \{partitions}; ++p) for (int v = 1; v < \{vector_width}; ++v) square_vectors[p * \{vector_width}] = __fadd_rn(square_vectors[p * \{vector_width}], square_vectors[p * \{vector_width} + v]); for (int span = \{partitions / 2}; span > 0; span >>= 1) for (int p = 0; p < span; ++p) square_vectors[p * \{vector_width}] = __fadd_rn(square_vectors[p * \{vector_width}], square_vectors[(p + span) * \{vector_width}]); square_sum = square_vectors[0];",
+      )
+    }
   }
 }
 

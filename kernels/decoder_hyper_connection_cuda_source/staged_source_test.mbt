@@ -19,6 +19,7 @@ test "refined control source reports both semantic reduction laws" {
       dot=StripedTreeFloat32(partitions=32),
       vector_affine=SeparateMultiplyAdd,
       sigmoid=StableBranches,
+      root=DivideRoundedSqrtFloat32,
     ),
   )
   let text = @utf8.decode(source.source_bytes())

@@ -15,6 +15,7 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
   control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
 ) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth
@@ -76,7 +77,8 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   let numerical_contract = if control_square_law is OrderedFloat32 &&
     control_dot_law is OrderedFloat32 &&
     control_vector_affine_law is SeparateMultiplyAdd &&
-    control_sigmoid_law is StableBranches {
+    control_sigmoid_law is StableBranches &&
+    control_root_law is DivideRoundedSqrtFloat32 {
     numerical_contract
   } else {
     RefinedControlFunctionBf16CollapseV1(
@@ -85,6 +87,7 @@ pub fn staged_function_and_collapse_bf16_f32_source(
       dot=control_dot_law,
       vector_affine=control_vector_affine_law,
       sigmoid=control_sigmoid_law,
+      root=control_root_law,
     )
   }
   let source = @utf8.encode(
@@ -112,11 +115,16 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     " }\n" +
     "  " +
     (if square_finish.is_empty() { "" } else { square_finish + " " }) +
-    "const float inverse = __fdiv_rn(1.0f, sqrtf(__fadd_rn(__fdiv_rn(square_sum, " +
-    flattened +
-    ".0f), " +
-    normalization +
-    "))); if (!isfinite(inverse)) return; float mixes[" +
+    "const float inverse = " +
+    control_root_source(
+      "__fadd_rn(__fdiv_rn(square_sum, " +
+      flattened +
+      ".0f), " +
+      normalization +
+      ")",
+      control_root_law,
+    ) +
+    "; if (!isfinite(inverse)) return; float mixes[" +
     mix +
     "];\n" +
     "  for (int32_t output = 0; output < " +

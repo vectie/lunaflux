@@ -42,6 +42,7 @@ test "nonlinear rounding choices are explicit and matrix logits stay unchanged" 
             dot=OrderedFloat32,
             vector_affine=affine,
             sigmoid~,
+            root=DivideRoundedSqrtFloat32,
           ),
         )
       }

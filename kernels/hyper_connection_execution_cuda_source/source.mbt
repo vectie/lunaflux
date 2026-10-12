@@ -3,6 +3,7 @@ pub struct HyperConnectionCudaSource {
   priv plan : @precision.HyperConnectionPrecision
   priv prefix : String
   priv source : Bytes
+  priv normalization_threads : Int
 }
 
 ///|
@@ -25,6 +26,7 @@ pub fn hyper_connection_source(
     control_dot_law=plan.control_dot_law(),
     control_vector_affine_law=plan.control_vector_affine_law(),
     control_sigmoid_law=plan.control_sigmoid_law(),
+    control_root_law=plan.control_root_law(),
   )
   // Multiple branch envelopes may share a module without duplicate helpers.
   let function_source = @utf8.encode(
@@ -46,7 +48,8 @@ pub fn hyper_connection_source(
     maximum_rows=rows,
     epsilon=plan.normalization_epsilon(),
     function_symbol=symbol_prefix + "_norm",
-  ).source_bytes()
+    square_law=plan.normalization_square_law(),
+  )
   let post = match plan.mix_law() {
     RoundedBf16ControlsAndProducts =>
       @mix.hyper_connection_mix_bf16_source(
@@ -71,9 +74,10 @@ pub fn hyper_connection_source(
     b"\n" +
     sinkhorn +
     b"\n" +
-    normalization +
+    normalization.source_bytes() +
     b"\n" +
     post,
+    normalization_threads: normalization.launch_threads(),
   }
 }
 
@@ -87,6 +91,11 @@ pub fn HyperConnectionCudaSource::plan(
 ///|
 pub fn HyperConnectionCudaSource::source_bytes(self : Self) -> Bytes {
   self.source
+}
+
+///|
+pub fn HyperConnectionCudaSource::normalization_threads(self : Self) -> Int {
+  self.normalization_threads
 }
 
 ///|

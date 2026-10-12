@@ -44,6 +44,8 @@ pub struct HyperConnectionPrecision {
   priv control_dot_law : DotReductionLaw
   priv control_vector_affine_law : Float32AffineLaw
   priv control_sigmoid_law : SigmoidEvaluationLaw
+  priv control_root_law : ReciprocalRootLaw
+  priv normalization_square_law : SquareReductionLaw
   priv function_bytes : Int64
   priv frames : ReadOnlyArray[Int64]
   priv bytes : Int64
@@ -63,6 +65,11 @@ pub fn HyperConnectionPrecision::new(
   control_dot_law? : DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : Float32AffineLaw = SeparateMultiplyAdd,
   control_sigmoid_law? : SigmoidEvaluationLaw = StableBranches,
+  control_root_law? : ReciprocalRootLaw = DivideRoundedSqrtFloat32,
+  normalization_square_law? : SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> Self raise PrecisionPlanError {
   guard stream_count > 1 &&
     hidden_width > 0 &&
@@ -79,6 +86,8 @@ pub fn HyperConnectionPrecision::new(
     raise IllegalPlacement
   }
   let rows = maximum_rows.to_int64()
+  control_square_law.validate()
+  normalization_square_law.validate()
   let streams = stream_count.to_int64()
   let hidden = hidden_width.to_int64()
   if control_dot_law is StripedTreeFloat32(_) {
@@ -123,6 +132,8 @@ pub fn HyperConnectionPrecision::new(
     control_dot_law,
     control_vector_affine_law,
     control_sigmoid_law,
+    control_root_law,
+    normalization_square_law,
     function_bytes,
     frames: ReadOnlyArray::from_array(frames),
     bytes,
@@ -155,6 +166,20 @@ pub fn HyperConnectionPrecision::control_sigmoid_law(
   self : Self,
 ) -> SigmoidEvaluationLaw {
   self.control_sigmoid_law
+}
+
+///|
+pub fn HyperConnectionPrecision::control_root_law(
+  self : Self,
+) -> ReciprocalRootLaw {
+  self.control_root_law
+}
+
+///|
+pub fn HyperConnectionPrecision::normalization_square_law(
+  self : Self,
+) -> SquareReductionLaw {
+  self.normalization_square_law
 }
 
 ///|

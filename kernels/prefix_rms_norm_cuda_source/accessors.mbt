@@ -41,3 +41,8 @@ pub fn PrefixRmsNormCudaSource::function_symbol(self : Self) -> String {
 pub fn PrefixRmsNormCudaSource::source_bytes(self : Self) -> Bytes {
   self.source
 }
+
+///|
+pub fn PrefixRmsNormCudaSource::launch_threads(self : Self) -> Int {
+  self.threads
+}

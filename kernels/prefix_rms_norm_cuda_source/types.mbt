@@ -6,6 +6,9 @@ pub(all) enum PrefixRmsNormCudaOperation {
 ///|
 pub(all) enum PrefixRmsNormNumericalContract {
   OrderedFloat32PrefixReductionBf16RoundAndBitExactSuffixCopyV1
+  VectorizedTreeFloat32PrefixReductionBf16RoundAndBitExactSuffixCopyV1(
+    @precision.SquareReductionLaw
+  )
 } derive(Debug, Eq)
 
 ///|
@@ -15,6 +18,7 @@ pub(all) suberror PrefixRmsNormCudaSourceError {
   InvalidMaximumRows
   InvalidEpsilon
   InvalidFunctionSymbol
+  UnsupportedSquareReductionLaw
 } derive(Debug, Eq)
 
 ///|
@@ -29,4 +33,5 @@ pub struct PrefixRmsNormCudaSource {
   priv epsilon : Double
   priv function_symbol : String
   priv source : Bytes
+  priv threads : Int
 }

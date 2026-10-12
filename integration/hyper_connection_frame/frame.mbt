@@ -134,7 +134,7 @@ pub fn HyperConnectionFrame::prepare(
     ]),
   )
   self.before.push(
-    self.launch(aot, 2, rows, 256, [
+    self.launch(aot, 2, rows, self.source.normalization_threads(), [
       region(counts, 20L, 4L),
       region(frame[3], sizes[3], 2L),
       region(norm_weight, hidden.to_int64() * 2L, 2L),

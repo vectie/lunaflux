@@ -11,6 +11,15 @@ It is a numerical accuracy choice, not permission to reassociate an ordered
 reduction. MiniMax text encoding selects compensation in its immutable plan;
 the CUDA renderer consumes that law without model-specific device branching.
 
+`VectorizedTreeFloat32(partitions, vector_width)` specifies a different exact
+F32 square-fold order: independent per-component sums, ordered component join,
+then a descending partition tree, including explicit empty/tail identities.
+`ReciprocalRootLaw` separately distinguishes reciprocal-sqrt from dividing by a
+rounded sqrt. These are numerical contracts, not NVIDIA scheduling names.
+Hyper control RMS and weighted branch RMS carry their own fold choices; their
+default sources and six global frames remain unchanged. Lowerings must carry
+the chosen workgroup requirement into execution, not reuse a fixed launch width.
+
 `DotReductionLaw` similarly makes cancellation-sensitive dot summation an
 explicit accuracy choice. BF16 products and final BF16 operator boundaries
 remain unchanged. Compensated F32 retains contributions lost to a large running

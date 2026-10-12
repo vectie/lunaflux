@@ -8,7 +8,8 @@ async fn main {
       | "replay-layer-complex"
       | "replay-layer-striped"
       | "replay-layer-refined"
-      | "replay-layer-nonlinear" as mode,
+      | "replay-layer-nonlinear"
+      | "replay-layer-vector-rms" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
@@ -22,39 +23,50 @@ async fn main {
       rotary_product=if mode == "replay-layer-complex" ||
         mode == "replay-layer-striped" ||
         mode == "replay-layer-refined" ||
-        mode == "replay-layer-nonlinear" {
+        mode == "replay-layer-nonlinear" ||
+        mode == "replay-layer-vector-rms" {
         ComplexFloat32Fma
       } else {
         SeparateFloat32Products
       },
       output_accumulation=if mode == "replay-layer-striped" ||
         mode == "replay-layer-refined" ||
-        mode == "replay-layer-nonlinear" {
+        mode == "replay-layer-nonlinear" ||
+        mode == "replay-layer-vector-rms" {
         StripedTreeFloat32(partitions=32)
       } else {
         OrderedFloat32
       },
-      control_square_law=if mode == "replay-layer-refined" ||
+      control_square_law=if mode == "replay-layer-vector-rms" {
+        VectorizedTreeFloat32(partitions=512, vector_width=4)
+      } else if mode == "replay-layer-refined" ||
         mode == "replay-layer-nonlinear" {
         CompensatedFloat32
       } else {
         OrderedFloat32
       },
-      control_dot_law=if mode == "replay-layer-refined" ||
-        mode == "replay-layer-nonlinear" {
-        StripedTreeFloat32(partitions=32)
-      } else {
-        OrderedFloat32
-      },
-      control_vector_affine_law=if mode == "replay-layer-nonlinear" {
+      control_dot_law=matched_control_dot_law(mode),
+      control_vector_affine_law=if mode == "replay-layer-nonlinear" ||
+        mode == "replay-layer-vector-rms" {
         FusedMultiplyAdd
       } else {
         SeparateMultiplyAdd
       },
-      control_sigmoid_law=if mode == "replay-layer-nonlinear" {
+      control_sigmoid_law=if mode == "replay-layer-nonlinear" ||
+        mode == "replay-layer-vector-rms" {
         DirectReciprocal
       } else {
         StableBranches
+      },
+      control_root_law=if mode == "replay-layer-vector-rms" {
+        ReciprocalSqrtFloat32
+      } else {
+        DivideRoundedSqrtFloat32
+      },
+      normalization_square_law=if mode == "replay-layer-vector-rms" {
+        VectorizedTreeFloat32(partitions=512, vector_width=4)
+      } else {
+        VectorizedTreeFloat32(partitions=256, vector_width=1)
       },
     )
     return

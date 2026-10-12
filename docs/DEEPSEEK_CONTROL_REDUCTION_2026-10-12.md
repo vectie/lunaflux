@@ -326,3 +326,27 @@ balanced release. This demonstrates the needed RMS arithmetic on these operands,
 not control-projection/full-layer/full-model parity or a performance gain.
 Next: encode vector-fold and reciprocal-square-root choices in immutable
 precision contracts and verify actual lowering and complete-layer propagation.
+
+The implemented alternative now lives in the existing `SquareReductionLaw`
+(`VectorizedTreeFloat32`) and a separate `ReciprocalRootLaw`, not another IR
+layer or a model/backend switch. Both control RMS and weighted branch RMS
+propagate through attention and FFN envelopes. The prefix lowering carries
+`launch_threads`; the frame consumes that requirement instead of always
+launching 256 threads. Vector tails are explicit. Unsupported numerical laws
+are rejected by lowerings that do not implement them, never silently replaced.
+Default generated source is independently byte-identical to the retained
+pre-change source; matrix arithmetic, global frames and serving defaults stay
+unchanged.
+
+Actual generated-source probe
+`/tmp/lunaflux-deepseek-hyper-arithmetic-20261012-v8` executes the serial
+control fold and cooperative 512-thread weighted norm, not just the independent
+prototype. It matches **144/144 original control inverses bitwise** on layer 3.
+Actual normalized native input has 589,775/589,824 exact BF16 values, relative
+L2 **0.003034660%**, versus previous nonlinear 589,768 and 0.003129244%.
+Control projection still differs, so these native inputs are not parity.
+All twenty-one actual-source diagnostic routes pass memcheck/leak, racecheck
+and synccheck with zero reports, 2-GiB/no-swap and released CUDA. Native check
+passes with unchanged warning exclusions; affected native tests **130/130**,
+replay/probe runner tests **3/3**. Actual complete-layer propagation remains the
+next check; no throughput or full-model benefit is inferred from these counts.

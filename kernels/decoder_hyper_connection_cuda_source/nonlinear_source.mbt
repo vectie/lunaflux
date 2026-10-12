@@ -25,3 +25,14 @@ fn control_sigmoid_source(law : @precision.SigmoidEvaluationLaw) -> String {
     DirectReciprocal => "return __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-x)));"
   }
 }
+
+///|
+fn control_root_source(
+  argument : String,
+  law : @precision.ReciprocalRootLaw,
+) -> String {
+  match law {
+    DivideRoundedSqrtFloat32 => "__fdiv_rn(1.0f, sqrtf(" + argument + "))"
+    ReciprocalSqrtFloat32 => "rsqrtf(" + argument + ")"
+  }
+}

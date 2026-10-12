@@ -4,6 +4,7 @@ pub(all) suberror TextEncoderSourceError {
   InvalidSymbol
   InvalidEpsilon
   InvalidProbabilityLaw
+  UnsupportedSquareReductionLaw
 } derive(Eq)
 
 ///|
