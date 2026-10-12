@@ -662,7 +662,8 @@ has less than 1 GiB available; concurrent large fixtures exhaust it. A complete
 clean-host rerun is still required. No exclusions, fixture shapes or numerical
 tolerances are changed to hide those failures, and unrelated dirty toolchain
 files remain untouched by the task commits.
-# Matched control follow-up — 2026-10-12
+
+## Matched control follow-up — 2026-10-12
 
 The source-pinned **a6e2ad1a** explicit hierarchical-control candidate fixes the
 captured layer-3 control/frontend boundary without vendor calls or original
@@ -674,4 +675,3 @@ Sinkhorn and propagated FFN differences are not full-model parity. The previous
 serving policy remains unchanged. See
 [the control reduction report](DEEPSEEK_CONTROL_REDUCTION_2026-10-12.md) for
 matched operands, native IR/lowering proof, counters, sanitizer scope and roots.
-
