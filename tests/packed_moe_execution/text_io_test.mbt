@@ -51,6 +51,14 @@ test "text IO and recurrent decoder share one completion and no step allocations
     maximum_workspace_bytes=112L,
   )
   assert_eq(io.logits().byte_count(), 88L)
+  assert_eq(io.projection_suffix().length(), 2)
+  let ports = io.replay_buffers()
+  assert_eq(ports.length(), 5)
+  assert_eq(ports[0].1.byte_count(), 24L)
+  assert_eq(ports[1].0.label, "logits")
+  assert_eq(ports[1].1.byte_count(), 88L)
+  assert_eq(ports[4].0.label, "selected.local_rows")
+  assert_true(ports[4].0.extent is CountedRows(buffer=3, index=0, row_bytes=4L))
   decoder.prepare_block_frame(
     context,
     aot,
@@ -96,6 +104,11 @@ test "text IO and recurrent decoder share one completion and no step allocations
   decoder.close()
   io.close()
   io.close()
+  try io.replay_buffers() catch {
+    _ => ()
+  } noraise {
+    _ => fail("closed head replay")
+  }
   output.close()
   input.close()
   operand.close()

@@ -19,3 +19,13 @@ suffix launches. Controls and multi-stream residual input remain caller-owned;
 the vocabulary consumer receives exactly one stream. It has no embedding
 prefix, model-family branching or per-step compilation. Invalid live controls
 produce NaN reduction rows and rejected (`-1`) samples, never stale values.
+
+Both suffixes now consume effect-derived execution order and typed numerical
+programs. Their physical launches and arithmetic are unchanged. `projection_suffix`
+omits greedy sampling for teacher-forced evaluation. `replay_buffers` borrows
+normalized/logit buffers and caller-supplied input counts, output count and selected
+local rows; the learned frame additionally exposes collapsed rows. Calling it
+does not synchronize, copy data, evaluate a metric or perform hashing. The offline
+caller must retire the producing queue, validate live counts and selection, map
+local rows to absolute token positions, and capture before reuse or closure.
+Fresh, failed, closed and ingress/interior-only frames reject these egress ports.

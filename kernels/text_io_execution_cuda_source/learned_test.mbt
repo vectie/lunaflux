@@ -17,6 +17,9 @@ test "learned lowering retains controls and consumes one collapsed stream" {
       symbol_prefix="learned_fixture",
     ),
   )
+  assert_eq([..@text_io_execution_cuda_source.learned_egress_order(plan)], [
+    0, 1, 2, 3,
+  ])
   assert_true(source.contains("void learned_fixture_stream_reduce("))
   assert_true(source.contains("function_weights[weight_base"))
   assert_true(source.contains("controls[stream], value"))

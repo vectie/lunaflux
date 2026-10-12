@@ -37,25 +37,28 @@ fn TextIoFrame::bind_egress(
   self.buffers.push(context.allocate(plan.logits_bytes()))
   let normalized = region(self.buffers[0], plan.normalized_bytes(), 2L)
   let logits = region(self.buffers[1], plan.logits_bytes(), 4L)
-  self.after.push(
-    self.launch(aot, 1, outputs.to_int64(), 256, [
-      counts, output_count, selected, residual, norm, normalized,
-    ]),
-  )
-  self.after.push(
-    self.launch(
-      aot,
-      2,
-      (outputs.to_int64() * vocabulary.to_int64() + 255L) / 256L,
-      256,
-      [output_count, normalized, head, logits],
-    ),
-  )
-  self.after.push(
-    self.launch(aot, 3, outputs.to_int64(), 1, [
-      counts, output_count, selected, logits, tokens,
-    ]),
-  )
+  for stage in self.source.egress_order() {
+    let launch = match stage {
+      0 =>
+        self.launch(aot, 1, outputs.to_int64(), 256, [
+          counts, output_count, selected, residual, norm, normalized,
+        ])
+      1 =>
+        self.launch(
+          aot,
+          2,
+          (outputs.to_int64() * vocabulary.to_int64() + 255L) / 256L,
+          256,
+          [output_count, normalized, head, logits],
+        )
+      2 =>
+        self.launch(aot, 3, outputs.to_int64(), 1, [
+          counts, output_count, selected, logits, tokens,
+        ])
+      _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+    self.after.push(launch)
+  }
 }
 
 ///|
@@ -103,6 +106,7 @@ pub fn TextIoFrame::prepare_egress(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.state = Failed
+  self.replay_inputs.append([counts, output_count, selected_rows])
   let plan = self.source.plan()
   let (_, hidden, _, _, outputs) = plan.geometry()
   let counts = region(counts, 20L, 4L)

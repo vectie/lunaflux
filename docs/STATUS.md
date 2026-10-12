@@ -8,6 +8,25 @@ Phases 5 through 9 remain open. References below to a complete graph, a Ready
 rank, startup admission, or a locally complete software slice are scoped
 claims and do not close those five phase gates.
 
+## DeepSeek/GLM numerical-program integration — 2026-10-12
+
+The actual prepared prediction heads now consume typed finite-precision
+expressions, ordered folds and effect-derived schedules. GLM's stream mean and
+BF16 boundaries remain distinct from DeepSeek's learned collapse and F32 logits.
+Both owners expose offline logits/count/selected-local-row ports and a projection
+suffix without sampling. DeepSeek's compressor forwards its existing replay
+ports. No comparison, hashing, new GPU readback or per-step allocation enters
+the compiler/execution path. This does not migrate every decoder operator.
+
+Both small generated head fixtures pass `.179` correctness/determinism and
+memcheck/leak/race/synchronization gates with 2 GiB/no swap. Paired pre-refactor
+and current fixture timings are effectively unchanged. Affected native tests pass
+103/103 and the full working-tree suite passes 5,095/5,095 with the existing
+warning exclusions; unrelated toolchain/TLS edits are not committed here.
+Source, validation and
+remaining full-checkpoint/quality scope are recorded in
+[the integration report](NUMERICAL_MODEL_INTEGRATION_2026-10-12.md).
+
 ## Current checkpoint execution — 2026-10-11
 
 Independent original-checkpoint references now run GLM and DeepSeek across

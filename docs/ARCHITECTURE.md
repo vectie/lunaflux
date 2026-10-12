@@ -29,6 +29,15 @@ numeric policy nor token-step diagnostics, and does not prove model quality.
 Device cost calibration may rank already-legal schedules; it cannot certify
 arithmetic equivalence or authorize a different numerical program.
 
+The [DeepSeek/GLM head integration](NUMERICAL_MODEL_INTEGRATION_2026-10-12.md)
+now consumes those same scalar/fold semantics and parallel effects in actual
+prepared model heads. Learned collapse and stream mean remain different
+programs, not interchangeable rewrites. Offline descriptors expose already
+materialized logits and exact count/local-row metadata; comparison and absolute
+position mapping remain external. No compiler dependency on evaluation or extra
+request-path readback is introduced. Decoder-wide expression migration and
+whole-checkpoint quality evaluation remain separate work.
+
 LunaFlux is an instance-level execution engine. Deployment systems are callers,
 not libraries.
 

@@ -1,24 +1,4 @@
 ///|
-pub(all) enum ReplayScalar {
-  ReplayF32
-  ReplayBf16
-  ReplayI32
-}
-
-///|
-/// Describes an already materialized semantic boundary, not a quality metric.
-/// Capture only after producer completion. Capacity is not live extent:
-/// rows are append[1] for projections, append[3] for pooled/normalized outputs.
-pub struct NumericBoundary {
-  label : String
-  buffer : Int
-  after_stage : Int
-  scalar : ReplayScalar
-  capacity_bytes : Int64
-  live_rows_append_index : Int?
-}
-
-///|
 pub fn LearnedGatedPoolPrecision::replay_boundaries(
   self : Self,
 ) -> ReadOnlyArray[NumericBoundary] {
@@ -27,66 +7,82 @@ pub fn LearnedGatedPoolPrecision::replay_boundaries(
     {
       label: "projection.kv",
       buffer: 3,
-      after_stage: 1,
+      after_stage: Some(1),
       scalar: ReplayF32,
       capacity_bytes: sizes[3],
-      live_rows_append_index: Some(1),
+      extent: CountedRows(
+        buffer=9,
+        index=1,
+        row_bytes=sizes[3] / self.rows.to_int64(),
+      ),
     },
     {
       label: "projection.gate",
       buffer: 4,
-      after_stage: 1,
+      after_stage: Some(1),
       scalar: ReplayF32,
       capacity_bytes: sizes[4],
-      live_rows_append_index: Some(1),
+      extent: CountedRows(
+        buffer=9,
+        index=1,
+        row_bytes=sizes[4] / self.rows.to_int64(),
+      ),
     },
     {
       label: "pooled",
       buffer: 5,
-      after_stage: 2,
+      after_stage: Some(2),
       scalar: ReplayBf16,
       capacity_bytes: sizes[5],
-      live_rows_append_index: Some(3),
+      extent: CountedRows(
+        buffer=9,
+        index=3,
+        row_bytes=self.feature_width.to_int64() * 2L,
+      ),
     },
     {
       label: "normalized",
       buffer: 6,
-      after_stage: 3,
+      after_stage: Some(3),
       scalar: ReplayBf16,
       capacity_bytes: sizes[6],
-      live_rows_append_index: Some(3),
+      extent: CountedRows(
+        buffer=9,
+        index=3,
+        row_bytes=self.feature_width.to_int64() * 2L,
+      ),
     },
     {
       label: "next.kv",
       buffer: 0,
-      after_stage: 2,
+      after_stage: Some(2),
       scalar: ReplayF32,
       capacity_bytes: sizes[0],
-      live_rows_append_index: None,
+      extent: Capacity,
     },
     {
       label: "next.gate",
       buffer: 1,
-      after_stage: 2,
+      after_stage: Some(2),
       scalar: ReplayF32,
       capacity_bytes: sizes[1],
-      live_rows_append_index: None,
+      extent: Capacity,
     },
     {
       label: "next.history",
       buffer: 2,
-      after_stage: 4,
+      after_stage: Some(4),
       scalar: ReplayI32,
       capacity_bytes: sizes[2],
-      live_rows_append_index: None,
+      extent: Capacity,
     },
     {
       label: "append",
       buffer: 9,
-      after_stage: 0,
+      after_stage: Some(0),
       scalar: ReplayI32,
       capacity_bytes: sizes[9],
-      live_rows_append_index: None,
+      extent: Capacity,
     },
   ])
 }

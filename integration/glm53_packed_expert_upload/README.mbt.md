@@ -76,6 +76,14 @@ Invalid selected rows or non-finite logits yield a sampled-token sentinel `-1`;
 the worker must reject it and check sparse append error ports before delivery.
 
 The text kernels are ordered reference schedules, not throughput-tuned kernels.
+Their arithmetic now comes from typed numerical expressions and ordered folds;
+their suffix order comes from the existing parallel effect compiler. GLM's mean,
+intermediate BF16 normalization and BF16-rounded logits are preserved. The model
+owner forwards `projection_suffix` without greedy sampling and `replay_buffers`
+with five offline ports including logits, counts and selected local rows. The
+caller retires the queue and maps local rows to absolute positions before any
+comparison; no metric or capture operation runs in the inference hot path.
+
 Their small GB10 numerical/deterministic/sanitizer fixture passes; this is not
 full-dimension or real-checkpoint validation. Native composition tests use
 device doubles. The official-shaped first-stage fixture streams embedding and

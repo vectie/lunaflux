@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn learned_egress_order(@precision_ir.LearnedTextIoPrecision) -> ReadOnlyArray[Int] raise @precision_ir.PrecisionPlanError
+
 pub fn learned_text_io_source(@precision_ir.LearnedTextIoPrecision, symbol_prefix~ : String) -> Bytes raise
 
 pub fn seeded_token_block_source(@precision_ir.SeededTokenBlockPrecision, symbol_prefix~ : String) -> Bytes raise
@@ -18,6 +20,7 @@ pub fn text_io_source(@precision_ir.TextIoPrecision, symbol_prefix~ : String) ->
 pub struct TextIoCudaSource {
   // private fields
 }
+pub fn TextIoCudaSource::egress_order(Self) -> ReadOnlyArray[Int]
 pub fn TextIoCudaSource::plan(Self) -> @precision_ir.TextIoPrecision
 pub fn TextIoCudaSource::source_bytes(Self) -> Bytes
 pub fn TextIoCudaSource::symbol(Self, Int) -> String raise @precision_ir.PrecisionPlanError

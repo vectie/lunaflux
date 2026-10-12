@@ -18,6 +18,12 @@ first, then this owner, then its external operands/context. Partial preparation
 can be closed deterministically. No file reads, authentication, source generation
 or scratch allocation occur in the token-step path.
 
+The separate `DeepSeekCompressorPool` owner forwards its generic numerical
+program's eight `replay_buffers` ports for offline analysis. These are borrowed
+allocations with producer and live-extent metadata, not automatic copies or
+comparison results. Capture after queue retirement and before reuse; cancellation
+must snapshot or discard all pool state, not restore only its history counter.
+
 `DeepSeekAttentionInputs` extends this prefix with a model-neutral
 `RotaryKvPrecision` plan and prepared rotary/KV frame. It borrows all eight
 launches into the same executor. The adapter selects base theta without YaRN

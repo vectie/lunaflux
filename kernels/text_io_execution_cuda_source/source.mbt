@@ -3,6 +3,7 @@ pub struct TextIoCudaSource {
   priv plan : @precision.TextIoPrecision
   priv prefix : String
   priv bytes : Bytes
+  priv order : ReadOnlyArray[Int]
 }
 
 ///|
@@ -16,26 +17,59 @@ pub fn text_io_source(
     symbol_prefix.length() <= 100 &&
     symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
     symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
-    raise IllegalPlacement
+    raise @precision.PrecisionPlanError::IllegalPlacement
   }
-  let (vocabulary, hidden, streams, rows, outputs) = plan.geometry()
+  let (vocabulary, hidden, _, rows, outputs) = plan.geometry()
   let v = vocabulary.to_string()
   let h = hidden.to_string()
-  let s = streams.to_string()
+  let s = plan.fold(StreamUpdate).extent.to_string()
   let r = rows.to_string()
   let o = outputs.to_string()
   let epsilon = @literal.canonical_cuda_float_literal(
     plan.normalization_epsilon(),
   )
-  let normalized = match plan.normalization_law() {
-    Bf16NormalizeThenWeight =>
-      "__bfloat162float(__float2bfloat16_rn(__fmul_rn(mean,inverse)))"
-    F32NormalizeThenWeight => "__fmul_rn(mean,inverse)"
+  fn expression(
+    op : @precision.TextExpression,
+    bindings : ArrayView[String],
+  ) -> String raise @precision.PrecisionPlanError {
+    @arithmetic.scalar_expression(plan.expression(op), bindings)
+    .split(", ")
+    .map(part => part.to_owned())
+    .collect()
+    .join(",")
   }
-  let logits = match plan.logits_law() {
-    Bf16Round => "__bfloat162float(__float2bfloat16_rn(sum))"
-    F32Accumulate => "sum"
+  fn seed(
+    op : @precision.TextExpression,
+  ) -> String raise @precision.PrecisionPlanError {
+    @arithmetic.scalar_expression(
+      @precision.NumericExpression::new(
+        [],
+        Float32Bits(plan.fold(op).initial_bits),
+      ),
+      [],
+    )
   }
+  let stream_seed = seed(StreamUpdate)
+  let square_seed = seed(SquareUpdate)
+  let head_seed = seed(HeadUpdate)
+  let square_extent = plan.fold(SquareUpdate).extent.to_string()
+  let head_extent = plan.fold(HeadUpdate).extent.to_string()
+  let stream_update = expression(StreamUpdate, [
+    "sum",
+    "residual[((unsigned long long)input_row*\{s}ULL+stream)*\{h}ULL+c]",
+  ])
+  let mean = expression(Mean, ["sum", s + ".0f"])
+  let square_update = expression(SquareUpdate, ["squares", "mean"])
+  let inverse = expression(Inverse, ["squares", h + ".0f", epsilon])
+  let normalized = expression(Normalize, ["mean", "inverse"])
+  let weight = expression(Weight, ["normalized", "weight[c]"])
+  let head_update = expression(HeadUpdate, [
+    "sum",
+    "hidden[row*\{h}ULL+c]",
+    "weight[word*\{h}ULL+c]",
+  ])
+  let logits = expression(Logits, ["sum"])
+  let order = ordered_text_stages(plan.egress_program())
   let source = "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
     symbol_prefix +
@@ -72,50 +106,54 @@ pub fn text_io_source(
     " || row >= n) return;\n" +
     "  const int input_row = selected[row]; const int live = counts[3];\n" +
     "  __shared__ float inverse;\n" +
-    "  if(threadIdx.x == 0) { float squares = 0.0f;\n" +
+    "  if(threadIdx.x == 0) { float squares = " +
+    square_seed +
+    ";\n" +
     "    if(live > 0 && live <= " +
     r +
     " && input_row >= 0 && input_row < live) {\n" +
     "      for(int c=0;c<" +
-    h +
-    ";++c) { float sum=0.0f;\n" +
+    square_extent +
+    ";++c) { float sum=" +
+    stream_seed +
+    ";\n" +
     "        for(int stream=0;stream<" +
     s +
-    ";++stream) sum=__fadd_rn(sum,__bfloat162float(residual[((unsigned long long)input_row*" +
-    s +
-    "ULL+stream)*" +
-    h +
-    "ULL+c]));\n" +
-    "        const float mean=__bfloat162float(__float2bfloat16_rn(__fdiv_rn(sum," +
-    s +
-    ".0f))); squares=__fadd_rn(squares,__fmul_rn(mean,mean));\n" +
-    "      } inverse=rsqrtf(__fadd_rn(__fdiv_rn(squares," +
-    h +
-    ".0f)," +
-    epsilon +
-    "));\n" +
+    ";++stream) sum=" +
+    stream_update +
+    ";\n" +
+    "        const float mean=" +
+    mean +
+    "; squares=" +
+    square_update +
+    ";\n" +
+    "      } inverse=" +
+    inverse +
+    ";\n" +
     "    } else inverse=0.0f;\n  } __syncthreads();\n" +
     "  for(int c=threadIdx.x;c<" +
     h +
-    ";c+=256) { float sum=0.0f;\n" +
+    ";c+=256) { float sum=" +
+    stream_seed +
+    ";\n" +
     "    if(live > 0 && live <= " +
     r +
     " && input_row >= 0 && input_row < live) for(int stream=0;stream<" +
     s +
-    ";++stream) sum=__fadd_rn(sum,__bfloat162float(residual[((unsigned long long)input_row*" +
-    s +
-    "ULL+stream)*" +
-    h +
-    "ULL+c]));\n" +
-    "    const float mean=__bfloat162float(__float2bfloat16_rn(__fdiv_rn(sum," +
-    s +
-    ".0f)));\n" +
+    ";++stream) sum=" +
+    stream_update +
+    ";\n" +
+    "    const float mean=" +
+    mean +
+    ";\n" +
     "    const float normalized=" +
     normalized +
     ";\n" +
     "    out[(unsigned long long)row*" +
     h +
-    "ULL+c]=__float2bfloat16_rn(__fmul_rn(normalized,__bfloat162float(weight[c])));\n  }\n}\n" +
+    "ULL+c]=" +
+    weight +
+    ";\n  }\n}\n" +
     "extern \"C\" __global__ void " +
     symbol_prefix +
     "_head(" +
@@ -130,14 +168,14 @@ pub fn text_io_source(
     v +
     "ULL, word=i%" +
     v +
-    "ULL; float sum=0.0f;\n" +
+    "ULL; float sum=" +
+    head_seed +
+    ";\n" +
     "  for(int c=0;c<" +
-    h +
-    ";++c) sum=__fadd_rn(sum,__fmul_rn(__bfloat162float(hidden[row*" +
-    h +
-    "ULL+c]),__bfloat162float(weight[word*" +
-    h +
-    "ULL+c])));\n" +
+    head_extent +
+    ";++c) sum=" +
+    head_update +
+    ";\n" +
     "  logits[i]=" +
     logits +
     ";\n}\n" +
@@ -156,7 +194,38 @@ pub fn text_io_source(
     ";++word) { const float value=logits[(unsigned long long)row*" +
     v +
     "ULL+word]; if(!isfinite(value)) { tokens[row]=-1; return; } if(token<0 || value>best) {best=value;token=word;} } tokens[row]=token;\n}\n"
-  { plan, prefix: symbol_prefix, bytes: @utf8.encode(source), }
+  { plan, prefix: symbol_prefix, bytes: @utf8.encode(source), order, }
+}
+
+///|
+fn ordered_text_stages(
+  program : @parallel.Program,
+) -> ReadOnlyArray[Int] raise @precision.PrecisionPlanError {
+  program
+  .lower(Ordered)
+  .commands(ComputeLane)
+  .map(command => {
+    match command {
+      Execute(step~) =>
+        match program.steps()[step].action() {
+          Compute(stage) => stage
+          _ => raise @precision.PrecisionPlanError::NoImplementation
+        }
+      _ => raise @precision.PrecisionPlanError::NoImplementation
+    }
+  })
+}
+
+///|
+pub fn TextIoCudaSource::egress_order(self : Self) -> ReadOnlyArray[Int] {
+  self.order
+}
+
+///|
+pub fn learned_egress_order(
+  plan : @precision.LearnedTextIoPrecision,
+) -> ReadOnlyArray[Int] raise @precision.PrecisionPlanError {
+  ordered_text_stages(plan.egress_program())
 }
 
 ///|

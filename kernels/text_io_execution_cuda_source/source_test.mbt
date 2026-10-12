@@ -14,6 +14,7 @@ test "text lowering preserves mean and normalized BF16 boundaries" {
     symbol_prefix="text_a",
   )
   let text = @utf8.decode(source.source_bytes())
+  assert_eq([..source.egress_order()], [0, 1, 2])
   assert_true(text.contains("ids[i/(4ULL*8ULL)]"))
   assert_true(
     text.contains(

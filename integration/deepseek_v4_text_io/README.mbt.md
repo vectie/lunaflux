@@ -25,3 +25,11 @@ weights or adding another queue completion.
 
 These are text components, not a complete decoder/tokenizer frontend,
 DSpark runner or full-checkpoint numerical result.
+
+The learned collapse, normalization and head now consume typed scalar programs
+and ordered folds; the prepared suffix consumes the compiler's explicit effects.
+`projection_suffix` excludes the greedy consumer. `replay_buffers` forwards six
+offline ports, including literal logits and selected-local-row/count metadata.
+Comparison remains external: the caller supplies matching token positions and
+captures only after the producing queue retires. Neither these ports nor a
+matching fixture establish real-checkpoint quality or migrate every decoder op.

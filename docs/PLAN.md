@@ -18,7 +18,18 @@ Affected tests pass95/95; the current full working-tree native suite passes
 5092/5092 with existing warning exclusions. Unrelated in-progress toolchain/TLS
 files remain outside these commits; this is not a clean commit-only suite claim.
 
-Remaining evaluation work: actual final-head capture/mapping for native and
+The next integration now connects typed arithmetic, ordered folds, parallel-IR
+effects and borrowed logits/row ports to the **actual GLM and DeepSeek heads**.
+GLM mean/BF16 boundaries and DeepSeek learned-collapse/F32 logits are distinct,
+preserved programs. The DeepSeek compressor owner forwards its existing replay
+ports. Both generated head fixtures pass physical correctness, determinism,
+memcheck/leak/race/sync checks on `.179` (2 GiB/no swap). Retained old/new source
+and paired tiny-head timings show preservation, not throughput improvement.
+Affected tests pass 103/103; the full working-tree suite passes 5,095/5,095 with
+the same warning exclusions and uncommitted toolchain/TLS context noted above.
+See [scope and results](NUMERICAL_MODEL_INTEGRATION_2026-10-12.md).
+
+Remaining evaluation work: actual whole-checkpoint final-head capture/mapping for native and
 original; exact-checkpoint vLLM/SGLang comparisons and within-framework controls;
 varied held-out quality. The architecture implementation does not complete those
 experiments or prove whole-model correctness. No default arithmetic, reference,

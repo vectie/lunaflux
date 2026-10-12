@@ -13,6 +13,7 @@ pub fn scalar_expression(
     match expr {
       Input(index) => bindings[index]
       Float32Bits(0U) => "0.0f"
+      Float32Bits(0x3f800000U) => "1.0f"
       Float32Bits(0xff800000U) => "-INFINITY"
       Float32Bits(bits) => "__uint_as_float(\{bits}U)"
       Binary(op, a, b) => {
@@ -25,10 +26,13 @@ pub fn scalar_expression(
         }
         "\{name}(\{render(a)}, \{render(b)})"
       }
+      Unary(Negate, value) => "-(\{render(value)})"
       Unary(op, value) => {
         let name = match op {
           NaturalExp => "expf"
           ReciprocalSqrt => "rsqrtf"
+          SquareRoot => "sqrtf"
+          Negate => abort("handled above")
         }
         "\{name}(\{render(value)})"
       }

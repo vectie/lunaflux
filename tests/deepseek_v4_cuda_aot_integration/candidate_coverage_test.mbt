@@ -331,6 +331,6 @@ test "Flash-0731 candidate coverage remains exact incomplete and inert" {
   }
   inspect(
     coverage.digest().as_hex(),
-    content="d35caf50456919dc4c4165a22715c8b3580f76c630d36fabfb0356fa251a8e59",
+    content="05675f3a70c75720bfc0cf1b5d18a084c8e82571063ec36e43590b605ee7fb07",
   )
 }

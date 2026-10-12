@@ -31,6 +31,12 @@ the Python runtime and compatibility debt of existing inference systems.
 
 **LunaNexa manages the fleet. LunaFlux executes inference.**
 
+The [numerical-program integration for DeepSeek and GLM](docs/NUMERICAL_MODEL_INTEGRATION_2026-10-12.md)
+now covers their actual prediction heads: typed rounding/reduction semantics,
+effect-derived schedules and offline logits/row metadata. Framework comparison
+stays outside the compiler and is not a correctness proof. This preserves head
+behavior; it is not full-model quality validation or a throughput claim.
+
 ~~~mermaid
 flowchart LR
     C["OpenAI-compatible or native clients"] --> F["LunaFlux"]

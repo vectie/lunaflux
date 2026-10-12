@@ -48,6 +48,16 @@ test "learned text suffix shares one completion and warmed steps allocate nothin
   assert_eq(io.projection_suffix().length(), 3)
   assert_eq(io.pre_normalized_hidden().byte_count(), 80L)
   assert_eq(io.logits().byte_count(), 136L)
+  let ports = io.replay_buffers()
+  assert_eq(ports.length(), 6)
+  assert_eq(ports[0].0.label, "collapsed")
+  assert_eq(ports[0].1.byte_count(), 80L)
+  assert_eq(ports[1].1.byte_count(), 32L)
+  assert_eq(ports[2].0.label, "logits")
+  assert_eq(ports[2].1.byte_count(), 136L)
+  assert_true(
+    ports[2].0.extent is CountedRows(buffer=4, index=0, row_bytes=68L),
+  )
   let queue = context.create_ordered_kernel_executor(stream, io.suffix())
   defer (queue.abort() catch { _ => () })
   defer (queue.close() catch { _ => () })
@@ -70,6 +80,11 @@ test "learned text suffix shares one completion and warmed steps allocate nothin
   queue.close()
   io.close()
   io.close()
+  try io.replay_buffers() catch {
+    _ => ()
+  } noraise {
+    _ => fail("closed learned replay")
+  }
   try io.pre_normalized_hidden() catch {
     _ => ()
   } noraise {

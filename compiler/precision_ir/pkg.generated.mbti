@@ -335,15 +335,42 @@ pub fn LearnedIndexQueriesPrecision::transform(Self) -> RotaryHadamardFp4Precisi
 pub fn LearnedIndexQueriesPrecision::weight_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn LearnedIndexQueriesPrecision::workspace_bytes(Self) -> Int64
 
+pub struct LearnedStreamCollapsePrecision {
+  // private fields
+}
+pub fn LearnedStreamCollapsePrecision::epsilons(Self) -> (Double, Double)
+pub fn LearnedStreamCollapsePrecision::expression(Self, LearnedStreamExpression) -> NumericExpression raise PrecisionPlanError
+pub fn LearnedStreamCollapsePrecision::fold(Self, LearnedStreamExpression) -> OrderedNumericFold raise PrecisionPlanError
+pub fn LearnedStreamCollapsePrecision::geometry(Self) -> (Int, Int, Int)
+pub fn LearnedStreamCollapsePrecision::new(stream_count~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double) -> Self raise PrecisionPlanError
+
+pub(all) enum LearnedStreamExpression {
+  SquareUpdate
+  Mean
+  Inverse
+  DotUpdate
+  Mix
+  Affine
+  SigmoidNonnegative
+  Exponential
+  SigmoidNegativeExponential
+  Control
+  CollapseUpdate
+  Publish
+}
+
 pub struct LearnedTextIoPrecision {
   // private fields
 }
 pub fn LearnedTextIoPrecision::collapse_bytes(Self) -> Int64
+pub fn LearnedTextIoPrecision::collapse_program(Self) -> LearnedStreamCollapsePrecision
 pub fn LearnedTextIoPrecision::control_epsilon(Self) -> Double
 pub fn LearnedTextIoPrecision::control_normalization_epsilon(Self) -> Double
 pub fn LearnedTextIoPrecision::control_weight_bytes(Self) -> (Int64, Int64, Int64)
+pub fn LearnedTextIoPrecision::egress_program(Self) -> @parallel_ir.Program raise PrecisionPlanError
 pub fn LearnedTextIoPrecision::input_bytes(Self) -> Int64
 pub fn LearnedTextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, control_epsilon~ : Double, control_normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn LearnedTextIoPrecision::replay_boundaries(Self) -> ReadOnlyArray[NumericBoundary]
 pub fn LearnedTextIoPrecision::stream_count(Self) -> Int
 pub fn LearnedTextIoPrecision::text(Self) -> TextIoPrecision
 pub fn LearnedTextIoPrecision::workspace_bytes(Self) -> Int64
@@ -421,10 +448,10 @@ pub fn NumericBinary::not_equal(Self, Self) -> Bool
 pub struct NumericBoundary {
   label : String
   buffer : Int
-  after_stage : Int
+  after_stage : Int?
   scalar : ReplayScalar
   capacity_bytes : Int64
-  live_rows_append_index : Int?
+  extent : NumericExtent
 }
 
 pub(all) enum NumericDomain {
@@ -468,6 +495,11 @@ pub fn NumericExpression::relation_to(Self, Self) -> NumericRelation
 pub fn NumericExpression::root(Self) -> NumericExpr
 pub fn NumericExpression::simplify_exact(Self) -> Self
 
+pub(all) enum NumericExtent {
+  Capacity
+  CountedRows(buffer~ : Int, index~ : Int, row_bytes~ : Int64)
+}
+
 pub(all) enum NumericRelation {
   IdenticalProgram
   ExactFiniteBf16Roundtrip
@@ -487,6 +519,8 @@ pub fn NumericScalar::not_equal(Self, Self) -> Bool
 pub(all) enum NumericUnary {
   NaturalExp
   ReciprocalSqrt
+  SquareRoot
+  Negate
 } derive(Eq)
 pub fn NumericUnary::equal(Self, Self) -> Bool
 pub fn NumericUnary::not_equal(Self, Self) -> Bool
@@ -812,10 +846,24 @@ pub fn TextBoundary::has_ingress(Self) -> Bool
 pub fn TextBoundary::not_equal(Self, Self) -> Bool
 pub fn TextBoundary::to_repr(Self) -> @debug.Repr
 
+pub(all) enum TextExpression {
+  StreamUpdate
+  Mean
+  SquareUpdate
+  Inverse
+  Normalize
+  Weight
+  HeadUpdate
+  Logits
+}
+
 pub struct TextIoPrecision {
   // private fields
 }
 pub fn TextIoPrecision::boundary_workspace_bytes(Self, TextBoundary) -> Int64
+pub fn TextIoPrecision::egress_program(Self) -> @parallel_ir.Program raise PrecisionPlanError
+pub fn TextIoPrecision::expression(Self, TextExpression) -> NumericExpression raise PrecisionPlanError
+pub fn TextIoPrecision::fold(Self, TextExpression) -> OrderedNumericFold raise PrecisionPlanError
 pub fn TextIoPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn TextIoPrecision::logits_bytes(Self) -> Int64
 pub fn TextIoPrecision::logits_law(Self) -> TextLogitsLaw
@@ -823,6 +871,7 @@ pub fn TextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_
 pub fn TextIoPrecision::normalization_epsilon(Self) -> Double
 pub fn TextIoPrecision::normalization_law(Self) -> TextNormalizationLaw
 pub fn TextIoPrecision::normalized_bytes(Self) -> Int64
+pub fn TextIoPrecision::replay_boundaries(Self) -> ReadOnlyArray[NumericBoundary]
 pub fn TextIoPrecision::residual_bytes(Self) -> Int64
 pub fn TextIoPrecision::table_bytes(Self) -> Int64
 pub fn TextIoPrecision::workspace_bytes(Self) -> Int64

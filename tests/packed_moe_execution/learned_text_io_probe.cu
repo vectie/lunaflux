@@ -12,6 +12,7 @@
 static void check(cudaError_t e) {
   if (e != cudaSuccess) { std::fprintf(stderr, "%s\n", cudaGetErrorString(e)); std::exit(2); }
 }
+#include "text_head_timing.cuh"
 template<class T> static T* allocate(size_t n) {
   T* p = nullptr;
   check(cudaMallocManaged(&p, n * sizeof(T)));
@@ -23,7 +24,7 @@ static float sigmoid(float x) {
   if (x >= 0) return 1.f / (1.f + std::exp(-x));
   float e = std::exp(x); return e / (1.f + e);
 }
-int main() {
+int main(int argc, char** argv) {
   int normalization_witnesses=0, logits_witnesses=0;
   constexpr int H=8, S=4, V=17, R=5, O=2, F=S*H;
   auto counts=allocate<int32_t>(5), outputs=allocate<int32_t>(1);
@@ -39,13 +40,14 @@ int main() {
   scale[0]=0.75f;
   for (int c=0;c<H;++c) norm[c]=__float2bfloat16_rn(0.5f+c*0.0625f);
   for (int i=0;i<V*H;++i) head[i]=__float2bfloat16_rn(float((i*7)%23-11)*0.0625f);
-  auto run=[&]() {
+  auto launch=[&]() {
     learned_fixture_stream_reduce<<<R,256>>>(counts,residual,function,base,scale,collapse);
     learned_fixture_norm<<<O,256>>>(counts,outputs,selected,collapse,norm,hidden);
     learned_fixture_head<<<1,256>>>(outputs,hidden,head,logits);
     learned_fixture_greedy<<<O,1>>>(counts,outputs,selected,logits,tokens);
-    check(cudaGetLastError()); check(cudaDeviceSynchronize());
+    check(cudaGetLastError());
   };
+  auto run=[&]() { launch(); check(cudaDeviceSynchronize()); };
   for (int live : {1,3,5}) {
     counts[3]=live; outputs[0]=live==1 ? 1 : 2;
     selected[0]=live-1; selected[1]=0;
@@ -116,6 +118,7 @@ int main() {
       std::printf("live=%d repeat=%d maxabs=%.9g greedy=exact inactive=untouched\n",live,repeat,error);
     }
   }
+  if(argc==2 && std::strcmp(argv[1],"--benchmark")==0) time_text_head(launch);
   counts[3]=R; outputs[0]=O; selected[0]=4; selected[1]=1;
   // Invalid controls must overwrite previous successful data, not sample it.
   const float original_base=base[0], original_scale=scale[0], original_function=function[0];

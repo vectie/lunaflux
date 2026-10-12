@@ -68,8 +68,9 @@ test "pool effect graph orders all publication and in place state dependencies" 
   let sizes = [..plan.state_bytes(), ..plan.frame_bytes()]
   for boundary in plan.replay_boundaries() {
     assert_eq(boundary.capacity_bytes, sizes[boundary.buffer])
+    guard boundary.after_stage is Some(stage) else { fail("missing producer") }
     assert_true(
-      effects.steps()[boundary.after_stage]
+      effects.steps()[stage]
       .accesses()
       .any(a => a.buffer() == boundary.buffer && a.mode() != Read),
     )

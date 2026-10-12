@@ -6,13 +6,15 @@ pub fn learned_text_io_source(
   symbol_prefix~ : String,
 ) -> Bytes raise {
   let text = text_io_source(plan.text(), symbol_prefix~)
-  let (_, hidden, _, rows, _) = plan.text().geometry()
+  let collapse = plan.collapse_program()
+  let (streams, hidden, rows) = collapse.geometry()
+  let (control_epsilon, normalization_epsilon) = collapse.epsilons()
   let reduction = @head.head_reduce_v1_bf16_f32_source(
-    stream_width=plan.stream_count(),
+    stream_width=streams,
     hidden_width=hidden,
     maximum_rows=rows,
-    control_epsilon=plan.control_epsilon(),
-    normalization_epsilon=plan.control_normalization_epsilon(),
+    control_epsilon~,
+    normalization_epsilon~,
     function_symbol=symbol_prefix + "_stream_reduce",
   )
   @utf8.encode(

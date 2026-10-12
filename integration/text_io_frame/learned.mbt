@@ -7,6 +7,7 @@ pub struct LearnedTextIoFrame {
   priv text : TextIoFrame
   priv source : Bytes
   priv prefix : String
+  priv order : ReadOnlyArray[Int]
   priv buffers : Array[@device.Allocation]
   priv functions : Array[@device.Function]
   priv after : Array[@device.OrderedKernelLaunch]
@@ -26,6 +27,7 @@ pub fn LearnedTextIoFrame::new(
     ),
     source: @source.learned_text_io_source(plan, symbol_prefix~),
     prefix: symbol_prefix,
+    order: @source.learned_egress_order(plan),
     buffers: [],
     functions: [],
     after: [],
@@ -83,27 +85,25 @@ pub fn LearnedTextIoFrame::prepare(
   let function = aot.load_function(@utf8.encode(self.prefix + "_stream_reduce"))
   self.functions.push(function)
   let (_, _, _, rows, _) = self.plan.text().geometry()
-  self.after.push(
-    @device.OrderedKernelLaunch::new(
-      function,
-      @device.KernelLaunchDimensions::new(
-        grid_x=rows,
-        grid_y=1,
-        grid_z=1,
-        block_x=256,
-        block_y=1,
-        block_z=1,
-        shared_memory_bytes=0,
-      ),
-      @device.KernelArguments::new([
-        counts_arg,
-        input,
-        function_arg,
-        base_arg,
-        scale_arg,
-        region(collapsed, self.plan.collapse_bytes(), 2L),
-      ]),
+  let collapse_launch = @device.OrderedKernelLaunch::new(
+    function,
+    @device.KernelLaunchDimensions::new(
+      grid_x=rows,
+      grid_y=1,
+      grid_z=1,
+      block_x=256,
+      block_y=1,
+      block_z=1,
+      shared_memory_bytes=0,
     ),
+    @device.KernelArguments::new([
+      counts_arg,
+      input,
+      function_arg,
+      base_arg,
+      scale_arg,
+      region(collapsed, self.plan.collapse_bytes(), 2L),
+    ]),
   )
   self.text.prepare_egress(
     context,
@@ -117,7 +117,16 @@ pub fn LearnedTextIoFrame::prepare(
     sampled_tokens~,
     maximum_workspace_bytes=self.plan.text().workspace_bytes(),
   )
-  self.after.append(self.text.suffix())
+  let text_launches = self.text.suffix()
+  for stage in self.order {
+    self.after.push(
+      if stage == 0 {
+        collapse_launch
+      } else {
+        text_launches[stage - 1]
+      },
+    )
+  }
   self.state = Prepared
 }
 

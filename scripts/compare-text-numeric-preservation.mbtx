@@ -1,0 +1,167 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+// Reuse retained small generated sources, not checkpoint archives or hashes.
+// Only source text is read on178; all physical work remains serialized on179.
+async fn main {
+  guard @env.args() is [_, current, root] &&
+    current.has_prefix("/tmp/lunaflux-text-numeric-") &&
+    root.has_prefix("/tmp/lunaflux-text-preservation-") &&
+    [current, root].all(p => {
+      p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) else {
+    fail("CURRENT_HEAD_FIXTURE NEW_PRESERVATION_ROOT; requires exclusive179")
+  }
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let node = "wlc004s@192.168.2.179"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+      max_output_bytes=1048576,
+    )
+  }
+  async fn save(path : String, name : String, result : @shell.Output) -> Unit {
+    @fs.write_file(
+      path + "/" + name + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      path + "/" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  @fs.mkdir(root)
+  remote("mkdir " + root).check()
+  for
+    (mode, old) in [
+      (
+        "mean", "/tmp/lunaflux-text-io-physical-20261010.hHllqd1o/text_io_kernels.cuh",
+      ),
+      (
+        "learned", "/tmp/lunaflux-learned-text-laws-aot-20261010.DDrJKHbq/learned_text_io_kernels.cuh",
+      ),
+    ] {
+    let path = root + "/" + mode
+    @fs.mkdir(path)
+    remote("mkdir " + path).check()
+    let old_source = @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-S",
+      "/tmp/lunaflux-checkpoint-live-20261010.sock",
+      "wlc003s@192.168.2.178",
+      "cat " + old,
+    ]).output(max_output_bytes=1048576)
+    old_source.check()
+    let header = mode + "_text_io_kernels.cuh"
+    let now = @fs.read_file(current + "/" + mode + "/" + header).text()
+    @fs.write_file(
+      path + "/" + header,
+      old_source.stdout(),
+      create_mode=CreateNew,
+    )
+    // The retained fixture predates the private helper's symbol scoping.
+    // Permit only that alpha-renaming and redundant negation parentheses.
+    guard preservation_text(now) == preservation_text(old_source.stdout()) else {
+      fail("unexpected default source change for " + mode)
+    }
+    @fs.write_file(
+      path + "/source-comparison.txt",
+      "identical after private sigmoid alpha-renaming, redundant unary-negation parentheses and outer whitespace only\n",
+      create_mode=CreateNew,
+    )
+    let probe = mode + "_text_io_probe.cu"
+    for
+      file in [
+        path + "/" + header,
+        "tests/packed_moe_execution/" + probe,
+        "tests/packed_moe_execution/text_head_timing.cuh",
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        file,
+        node + ":" + path + "/",
+      ])
+      .output()
+      .check()
+    }
+    let prefix = "systemd-run --user --wait --collect --pipe -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=300 "
+    save(
+      path,
+      "compile",
+      remote(
+        prefix +
+        "/usr/local/cuda-13.0/bin/nvcc -O3 --fmad=false -Xcompiler=-ffp-contract=off -std=c++17 -arch=sm_121 -I" +
+        path +
+        " " +
+        path +
+        "/" +
+        probe +
+        " -o " +
+        path +
+        "/probe",
+      ),
+    )
+    for repeat in 0..<3 {
+      // Alternate on the same idle GPU; report raw samples, not a speedup claim.
+      for
+        (label, binary) in [
+          ("previous", path + "/probe"),
+          ("current", current + "/" + mode + "/probe"),
+        ] {
+        save(
+          path,
+          label + "-" + repeat.to_string(),
+          remote(prefix + binary + " --benchmark"),
+        )
+      }
+    }
+    println(mode + ": default source and paired fixture execution checked")
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "source/fixture preservation only; not full-model quality or serving throughput\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+fn preservation_text(source : String) -> String {
+  source
+  .replace(old="expf(-(value))", new="expf(-value)")
+  .split("learned_fixture_stream_reduce_sigmoid")
+  .map(part => part.to_owned())
+  .collect()
+  .join("lf_hc_head_sigmoid")
+  .trim()
+  .to_owned()
+}
+
+///|
+test "preservation ignores only fixture alpha renaming and parentheses" {
+  assert_eq(
+    preservation_text(
+      " learned_fixture_stream_reduce_sigmoid(expf(-(value))); learned_fixture_stream_reduce_sigmoid(x)\n",
+    ),
+    preservation_text("lf_hc_head_sigmoid(expf(-value)); lf_hc_head_sigmoid(x)"),
+  )
+  assert_true(
+    preservation_text("__fadd_rn(a,b)") != preservation_text("__fmul_rn(a,b)"),
+  )
+}

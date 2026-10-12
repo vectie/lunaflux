@@ -65,6 +65,11 @@ test "compressor geometry follows each layer and the separate indexer width" {
           }
           owner.close()
           owner.close()
+          try owner.replay_buffers() catch {
+            _ => ()
+          } noraise {
+            _ => fail("closed model compressor exposed replay")
+          }
         }
       }
     }

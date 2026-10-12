@@ -13,6 +13,12 @@ test "DeepSeek learned text adapter selects official semantics, not GLM mean" {
   assert_eq(plan.text().geometry().2, 1)
   assert_eq(plan.control_epsilon(), spec.hyper_connection_epsilon())
   assert_eq(plan.control_normalization_epsilon(), spec.rms_norm_epsilon())
+  assert_eq(
+    plan.collapse_program().fold(DotUpdate).extent,
+    spec.hidden_size() * spec.hyper_connection_width(),
+  )
+  assert_eq(plan.text().fold(HeadUpdate).extent, spec.hidden_size())
+  assert_true(plan.egress_program().happens_before(0, 3))
   let owner = @deepseek_v4_text_io.DeepSeekTextIo::new(
     spec,
     maximum_rows=1,
@@ -31,4 +37,9 @@ test "DeepSeek learned text adapter selects official semantics, not GLM mean" {
   }
   owner.close()
   owner.close()
+  try owner.replay_buffers() catch {
+    _ => ()
+  } noraise {
+    _ => fail("closed model head exposed replay")
+  }
 }

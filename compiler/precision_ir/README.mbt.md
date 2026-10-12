@@ -20,6 +20,17 @@ output/state replay boundaries. Prediction comparison and measured selection
 remain outside the compiler and never add token-step effects. This is not a
 formal proof system or a migration of every existing operator to expression IR.
 
+The same architecture now reaches the actual DeepSeek and GLM prediction heads.
+`TextIoPrecision` expresses stream mean, normalization, vocabulary dot and logit
+rounding; `LearnedStreamCollapsePrecision` expresses the distinct learned head
+collapse. Ordered folds preserve seeds and summation order, including separate
+multiply/add and stable sigmoid evaluation. The prepared frames consume the
+parallel-IR head schedule, with decoder output an external producer. They do
+not connect embedding directly to egress. `NumericBoundary` describes either
+an external input or a produced port, with explicit capacity or a live row count
+in another I32 port. Selected local rows require an external absolute-position
+mapping before prediction comparison. See [integration and validation](../../docs/NUMERICAL_MODEL_INTEGRATION_2026-10-12.md).
+
 `SquareReductionLaw` makes ordered versus compensated F32 square summation
 explicit, independently of tensor storage and normalize-before-weight rounding.
 It is a numerical accuracy choice, not permission to reassociate an ordered

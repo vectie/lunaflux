@@ -64,6 +64,20 @@ test "pipeline text boundaries bind only their own kernels and workspace" {
   assert_eq(interior.prefix().length(), 0)
   assert_eq(interior.suffix().length(), 0)
   assert_eq(egress.logits().byte_count(), 88L)
+  assert_eq(egress.replay_buffers().length(), 5)
+  assert_eq(egress.projection_suffix().length(), 2)
+  for frame in [ingress, interior] {
+    try frame.replay_buffers() catch {
+      _ => ()
+    } noraise {
+      _ => fail("non-egress replay")
+    }
+    try frame.projection_suffix() catch {
+      _ => ()
+    } noraise {
+      _ => fail("non-egress head")
+    }
+  }
   try ingress.logits() catch {
     @device.DeviceError::InvalidArgument(OrderedExecutorCreate) => ()
     e => raise e

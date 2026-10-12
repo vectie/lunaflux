@@ -38,6 +38,8 @@ pub extend NumericBinary with Eq::{equal, not_equal}
 pub(all) enum NumericUnary {
   NaturalExp
   ReciprocalSqrt
+  SquareRoot
+  Negate
 } derive(Eq)
 
 ///|

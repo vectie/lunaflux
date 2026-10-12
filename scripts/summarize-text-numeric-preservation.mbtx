@@ -1,0 +1,42 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("PRESERVATION_ROOT") }
+  ignore(@fs.read_file(root + "/COMPLETE.txt"))
+  for mode in ["mean", "learned"] {
+    for label in ["previous", "current"] {
+      let samples : Array[Double] = []
+      for repeat in 0..<3 {
+        let text = @fs.read_file(
+          root + "/" + mode + "/" + label + "-" + repeat.to_string() + ".stdout",
+        ).text()
+        for line in text.split("\n") {
+          if line.has_prefix("head_fixture_sample=") {
+            guard line.split(" suffix_us=").to_array() is [_, time] &&
+              time.split(" iterations=").to_array() is [micros, "500"] else {
+              fail("unexpected fixture timing")
+            }
+            let value = @string.parse_double(micros)
+            guard value > 0.0 && !value.is_inf() && !value.is_nan() else {
+              fail("nonfinite fixture timing")
+            }
+            samples.push(value)
+          }
+        }
+      }
+      assert_eq(samples.length(), 21)
+      samples.sort()
+      println(
+        "\{mode} \{label}: median=\{samples[10]}us min=\{samples[0]}us max=\{samples[20]}us n=21",
+      )
+    }
+  }
+  println("Synthetic launch-sensitive suffix only; not checkpoint throughput.")
+}

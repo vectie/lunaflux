@@ -1,0 +1,149 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node = "wlc004s@192.168.2.179"
+
+///|
+let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=1048576,
+  )
+}
+
+///|
+async fn save(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+fn exported(text : String, marker : String) -> String raise {
+  guard text.split(marker + "_BEGIN\n").to_array() is [_, after] &&
+    after.split(marker + "_END").to_array() is [source, _] else {
+    fail("missing or duplicate export marker")
+  }
+  source.to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-text-numeric-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_/tmp/lunaflux-text-numeric-NAME; caller must hold exclusive179")
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  @fs.mkdir(root)
+  remote("mkdir " + root).check()
+  let exports = @shell.Cmd("env", [
+    "LUNA_EXPORT_TEXT_IO=1", "LUNA_EXPORT_LEARNED_TEXT_IO=1", "moon", "test", "kernels/text_io_execution_cuda_source",
+    "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+  ]).output(max_output_bytes=1048576)
+  save(root, "export", exports)
+  for
+    (mode, marker) in [
+      ("mean", "LUNA_TEXT_SOURCE"),
+      ("learned", "LUNA_LEARNED_TEXT_SOURCE"),
+    ] {
+    let path = root + "/" + mode
+    @fs.mkdir(path)
+    remote("mkdir " + path).check()
+    let header = mode + "_text_io_kernels.cuh"
+    let probe = mode + "_text_io_probe.cu"
+    @fs.write_file(
+      path + "/" + header,
+      exported(exports.stdout(), marker),
+      create_mode=CreateNew,
+    )
+    for
+      file in [
+        path + "/" + header,
+        "tests/packed_moe_execution/" + probe,
+        "tests/packed_moe_execution/text_head_timing.cuh",
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        file,
+        node + ":" + path + "/",
+      ])
+      .output()
+      .check()
+    }
+    let prefix = "systemd-run --user --wait --collect --pipe -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=300 "
+    save(
+      path,
+      "compile",
+      remote(
+        prefix +
+        "/usr/local/cuda-13.0/bin/nvcc -O3 --fmad=false -Xcompiler=-ffp-contract=off -std=c++17 -arch=sm_121 -I" +
+        path +
+        " " +
+        path +
+        "/" +
+        probe +
+        " -o " +
+        path +
+        "/probe",
+      ),
+    )
+    save(path, "correctness", remote(prefix + path + "/probe"))
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      let leak = if tool == "memcheck" { " --leak-check full" } else { "" }
+      save(
+        path,
+        tool,
+        remote(
+          prefix +
+          "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+          tool +
+          leak +
+          " --error-exitcode 86 " +
+          path +
+          "/probe",
+        ),
+      )
+    }
+    save(path, "timing", remote(prefix + path + "/probe --benchmark"))
+    println(mode + ": correctness and sanitizers complete")
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "head fixtures only; no checkpoint quality or speedup claim\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "source extraction rejects ambiguous export" {
+  assert_eq(exported("X_BEGIN\nbody\nX_END\n", "X"), "body\n")
+  try exported("X_BEGIN\none\nX_END\nX_BEGIN\ntwo\nX_END", "X") catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate accepted")
+  }
+}

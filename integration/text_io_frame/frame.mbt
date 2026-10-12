@@ -16,6 +16,7 @@ pub struct TextIoFrame {
   priv functions : Array[@device.Function]
   priv before : Array[@device.OrderedKernelLaunch]
   priv after : Array[@device.OrderedKernelLaunch]
+  priv replay_inputs : Array[@device.Allocation]
   priv mut state : State
 }
 
@@ -31,6 +32,7 @@ pub fn TextIoFrame::new(
     functions: [],
     before: [],
     after: [],
+    replay_inputs: [],
     state: Fresh,
   }
 }
@@ -113,6 +115,7 @@ pub fn TextIoFrame::prepare(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.state = Failed
+  self.replay_inputs.append([counts, output_count, selected_rows])
   let plan = self.source.plan()
   let (_, hidden, _, rows, outputs) = plan.geometry()
   // Validate borrowed spans before allocating the private workspace.
@@ -169,6 +172,7 @@ pub fn TextIoFrame::close(self : Self) -> Unit raise {
   self.state = Failed
   self.before.clear()
   self.after.clear()
+  self.replay_inputs.clear()
   while self.functions.last() is Some(function) {
     function.close()
     ignore(self.functions.pop())
