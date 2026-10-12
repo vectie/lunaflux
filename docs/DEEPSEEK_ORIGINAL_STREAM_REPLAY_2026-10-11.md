@@ -50,6 +50,32 @@ exclusions; the prior clean full-suite TLS blocker is not waived. Complete-layer
 propagation and full-model correctness remain pending; local bitwise agreement
 is not a media-quality or throughput result. No reference or tolerance changes.
 
+The commit-pinned `b99d3de2` ARM executable completes the same **144 original
+one-row layer-0 submissions** with `prepare-striped`; application stderr is
+empty, exit zero, no swap and CUDA closed. The runtime log explicitly records
+the selected tiled/complex/striped laws. Native root:
+`/tmp/lunaflux-deepseek-production-layer-0-striped-rows1-20261012-v1`;
+reports: `/tmp/lunaflux-deepseek-layer-0-striped-frontiers-20261012-v1`.
+
+| Propagated frontier | Before striped output-A | After striped output-A |
+| --- | ---: | ---: |
+| Sparse attention and inverse | Both bitwise | Both bitwise |
+| Output-A differing BF16 / 1,179,648 | 324 | **0** |
+| Output-B relative L2 | 0.009394881% | **0.000062340%** |
+| Attention residual relative L2 | 0.010978451% | 0.009148849% |
+| FFN input relative L2 | 0.024279547% | 0.021675558% |
+| FFN output relative L2 | 0.201573955% | 0.198810072% |
+| Complete layer relative L2 | 0.155807089% | **0.153870184%** |
+
+Output-A is genuinely corrected in the complete executable, not only the
+component probe. But full-layer error falls only **1.24%**: eleven output-B
+values differ, while 2,386 residual and 2,131 FFN-input values differ, followed
+by larger FFN amplification. These counts locate the next interventions;
+they do not by themselves assign residual error to a specific local kernel.
+Matched controls/branch-input publication and matched FFN input are still
+required. Whole-model 18–21% drift and MiniMax media quality remain unresolved;
+ordinary serving is unchanged. This is numerical error, not elapsed-time gain.
+
 ## Matched rotary arithmetic isolation — 2026-10-12
 
 An offline intervention now separates generated frequency/trigonometry from
