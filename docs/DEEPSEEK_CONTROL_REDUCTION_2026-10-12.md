@@ -262,3 +262,37 @@ that native attention is exact: local query/output differences remain. These
 norms do not add linearly and are not a decomposition into percentage shares.
 Reports: `/tmp/lunaflux-deepseek-layer-3-matched-attention-frontiers-20261012-v1`
 and `/tmp/lunaflux-deepseek-layer-3-attention-input-propagation-20261012-v1`.
+
+### Layer-3 control collapse versus branch normalization
+
+`/tmp/lunaflux-deepseek-original-hyper-layer3-rows1-20261012-v1` observes
+unmodified original `hc_pre` and RMSNorm on the literal layer-3 predecessor,
+all 144 one-row inputs and actual layer-3 checkpoint weights. Its normalized
+branch input matches the original full-layer observation **bitwise**. Its
+native default, memcheck/leak, racecheck and synccheck finish with zero reports.
+
+Fresh `/tmp/lunaflux-deepseek-hyper-arithmetic-20261012-v7` additionally captures
+actual collapse and weighted normalization for each of the twenty routes,
+without altering the published default or refined source. All twenty finish
+bounded memcheck/leak, racecheck and synccheck with zero reports. The actual
+refined collapse/normalization reproduces the retained complete-layer-3 native
+frontiers, including **63** differing normalized BF16 values. Frontend captures
+are separately collected under `frontend/`, without overwriting older outputs.
+
+| Layer-3 control route | Collapse exact BF16 / 589,824 | Normalized exact BF16 / 589,824 |
+| --- | ---: | ---: |
+| Ordered production arithmetic | 589,212 | 589,196 |
+| Refined reduction | 589,759 | 589,761 |
+| Refined + vector affine/direct sigmoid | 589,766 | 589,768 |
+| Literal original mixes + fused vector affine/direct sigmoid, **offline only** | **589,824** | **589,822** |
+
+The literal-mix intervention makes all post controls and the entire BF16
+collapse bitwise exact, while two weighted-normalization outputs still differ.
+Thus the residual error is not an unexplained failure of the collapse layout:
+normalized control projection and branch RMS arithmetic are separate remaining
+frontiers. Layer-3 compensated control squares match only **90/144** original
+inverse values (unlike layer 0's 141/144); the `rsqrtf` intervention raises this
+to **113/144**, without normalized-branch parity. The existing variants do not
+resolve this and are not promoted. Next probes must use the observed original
+means/projection operands and exact normalization rounding, not replace model
+data or change the comparison tolerance.

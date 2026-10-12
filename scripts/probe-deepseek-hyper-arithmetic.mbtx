@@ -218,6 +218,24 @@ async fn main {
       "released",
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
+  } else if mode == "collect-frontend" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let frontend = root + "/frontend"
+    @fs.mkdir(frontend)
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    for field in ["collapsed", "normalized"] {
+      let reference = frontend + "/original-" + field + ".bf16"
+      transfer(node + ":" + hyper + "/original/" + field + ".bf16", reference)
+      for route in routes() {
+        let target = frontend + "/" + route + "-" + field + ".bf16"
+        transfer(node + ":" + root + "/output/" + route + "-" + field + ".bf16", target)
+        record(frontend, route + "-" + field + "-comparison", @shell.Cmd("moon", [
+          "run", "scripts/compare-minimax-encoder-reference.mbtx", target, reference,
+          frontend + "/" + route + "-" + field + "-comparison.txt",
+          "matched_original_hyper_" + route + "_" + field, "4096",
+        ]).output())
+      }
+    }
   } else if mode == "collect" {
     guard extra.is_empty() else { fail("unexpected arguments") }
     @fs.mkdir(root + "/output")

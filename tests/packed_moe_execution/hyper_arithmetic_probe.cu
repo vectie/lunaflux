@@ -30,17 +30,21 @@ int main(int argc,char **argv) {
   auto *x=load<__nv_bfloat16>(input+"/streams.bf16",144*16384);
   auto *fn=load<float>(input+"/function.f32",24*16384),*base=load<float>(input+"/base.f32",24),*scale=load<float>(input+"/scale.f32",3);
   auto *literal=load<float>(input+"/mixes.f32",144*24),*literal_inverse=load<float>(input+"/rsqrt.f32",144);
+  auto *norm=load<__nv_bfloat16>(input+"/norm.bf16",4096);
   auto *mixes=allocate<float>(144*24),*inverse=allocate<float>(144),*post=allocate<float>(144*4);
   auto *initial=allocate<float>(144*16),*comb=allocate<float>(144*16);
   auto *collapsed=allocate<__nv_bfloat16>(144*4096);
+  auto *normalized=allocate<__nv_bfloat16>(144*4096);
   auto *counts=allocate<int>(5);int host[5]={0,0,0,144,0};
   check(cudaMemcpy(counts,host,sizeof(host),cudaMemcpyHostToDevice));
 #define RUN(symbol,label) do { \
   symbol<<<144,1>>>(counts,x,fn,base,scale,literal,literal_inverse,mixes,inverse,post,initial,collapsed); \
   hc_probe_sinkhorn<<<144,1>>>(counts,initial,comb); \
+  hc_probe_norm<<<144,256>>>(counts,collapsed,norm,normalized); \
   check(cudaGetLastError());check(cudaDeviceSynchronize()); \
   save(mixes,144*24,out+"/" label "-mixes.f32");save(inverse,144,out+"/" label "-rsqrt.f32"); \
   save(post,144*4,out+"/" label "-post.f32");save(comb,144*16,out+"/" label "-combination.f32"); \
+  save(collapsed,144*4096,out+"/" label "-collapsed.bf16");save(normalized,144*4096,out+"/" label "-normalized.bf16"); \
 } while(false)
   RUN(hc_probe_function,"production");
   RUN(hc_refined_function,"refined");
@@ -63,6 +67,6 @@ int main(int argc,char **argv) {
   RUN(hc_striped32_fma_compensated_square_function,"striped32_fma_compensated_square");
   RUN(hc_striped32_fma_square256_function,"striped32_fma_square256");
   for(void *p:{(void*)x,(void*)fn,(void*)base,(void*)scale,(void*)literal,(void*)literal_inverse,
-    (void*)mixes,(void*)inverse,(void*)post,(void*)initial,(void*)comb,(void*)collapsed,(void*)counts})check(cudaFree(p));
+    (void*)mixes,(void*)inverse,(void*)post,(void*)initial,(void*)comb,(void*)collapsed,(void*)norm,(void*)normalized,(void*)counts})check(cudaFree(p));
   std::puts("hyper_arithmetic_probe rows=144 original_internal_operands=true production_control=true offline_only=true release=balanced");
 }
