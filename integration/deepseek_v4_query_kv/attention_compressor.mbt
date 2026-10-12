@@ -4,6 +4,7 @@ pub fn compressor_cache_plan(
   layer~ : Int,
   maximum_input_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> @precision.RotaryCachePrecision raise {
   guard layer >= 0 &&
     layer < spec.layer_count() &&
@@ -25,6 +26,7 @@ pub fn compressor_cache_plan(
     simulation_amax_floor=0.0001,
     simulation_scale=PowerOfTwo,
     maximum_workspace_bytes~,
+    product=rotary_product,
   )
 }
 

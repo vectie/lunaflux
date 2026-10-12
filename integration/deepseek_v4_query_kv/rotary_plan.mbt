@@ -29,6 +29,7 @@ pub fn rotary_kv_plan(
   layer~ : Int,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> @precision.RotaryKvPrecision raise {
   let frequency = rotary_frequency_policy(spec, layer~)
   @precision.RotaryKvPrecision::new(
@@ -43,5 +44,6 @@ pub fn rotary_kv_plan(
     simulation_amax_floor=0.0001,
     simulation_scale=PowerOfTwo,
     maximum_workspace_bytes~,
+    product=rotary_product,
   )
 }

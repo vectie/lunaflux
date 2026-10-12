@@ -30,9 +30,26 @@ compact-cache lowering consume that immutable law through one private CUDA
 renderer. Separate products remain the default and the exported default
 inverse source is byte-identical to its previous source. The actual
 `ComplexFloat32Fma` renderer matches the measured generated-frequency FMA
-intervention exactly. No model builder or serving path selects the new law yet;
-complete-layer propagation, generated frequency correction, forward/YaRN
-physical coverage and full-model comparison remain required.
+intervention exactly. Ordinary model builders retain the default; generated
+frequency correction, forward/YaRN physical coverage and full-model comparison
+remain required.
+
+The explicit product law now propagates through decoder slice/block,
+attention envelope, main query/KV rotation, pooled attention-cache rotation
+and learned-output inverse rotation. A regression initially found only six of
+the ten expected product consumers: grouped output had a duplicated inline
+inverse implementation which **ignored the IR law**. It now reuses
+`rotary_tensor_source`, removing the duplicate lowering rather than changing
+the test expectation. The test covers two window and two compressed layers,
+all ten main-attention product consumers, unchanged default policy and
+unchanged expert-bank bytes. Indexer/Hadamard numerical policy is separate
+and is not silently changed by this main-attention option.
+
+The offline `replay-layer-complex` / runner `prepare-complex` route selects
+tiled attention plus the explicit complex product for a matched complete-layer
+test. Existing replay modes and ordinary serving retain their original policies.
+Physical complete-layer propagation is pending; the isolated inverse result
+above is not relabeled as a full-decoder result.
 
 Root: `/tmp/lunaflux-deepseek-rotary-arithmetic-20261012-v3` on `.179` and
 locally; runner: `scripts/probe-deepseek-rotary-arithmetic.mbtx`.

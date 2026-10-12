@@ -23,6 +23,7 @@ pub fn GroupedAttentionOutputPrecision::new(
   maximum_positions~ : Int,
   frequency~ : RotaryFrequency,
   maximum_workspace_bytes~ : Int64,
+  rotary_product? : RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise {
   guard group_count > 0 &&
     group_count <= head_count &&
@@ -50,6 +51,7 @@ pub fn GroupedAttentionOutputPrecision::new(
     frequency~,
     inverse=true,
     maximum_workspace_bytes~,
+    product=rotary_product,
   )
   let frames = [
     rotary.workspace_bytes(),

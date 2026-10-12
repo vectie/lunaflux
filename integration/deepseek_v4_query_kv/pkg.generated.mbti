@@ -14,7 +14,7 @@ import {
 }
 
 // Values
-pub fn attention_output_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.GroupedAttentionOutputPrecision raise
+pub fn attention_output_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, rotary_product? : @precision_ir.RotaryProductLaw) -> @precision_ir.GroupedAttentionOutputPrecision raise
 
 pub fn bind_attention_output_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
@@ -32,7 +32,7 @@ pub fn compressed_attention_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ :
 
 pub fn compressed_cache_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> @precision_ir.RetainedRowsPrecision raise
 
-pub fn compressor_cache_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_input_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RotaryCachePrecision raise
+pub fn compressor_cache_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_input_rows~ : Int, maximum_workspace_bytes~ : Int64, rotary_product? : @precision_ir.RotaryProductLaw) -> @precision_ir.RotaryCachePrecision raise
 
 pub fn compressor_pool_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool, maximum_rows~ : Int, maximum_context? : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> @precision_ir.LearnedGatedPoolPrecision raise
 
@@ -44,7 +44,7 @@ pub fn indexer_cache_transform_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer
 
 pub fn query_kv_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.QuantizedQueryKvPrecision raise
 
-pub fn rotary_kv_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.RotaryKvPrecision raise
+pub fn rotary_kv_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, rotary_product? : @precision_ir.RotaryProductLaw) -> @precision_ir.RotaryKvPrecision raise
 
 pub fn window_attention_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_state_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw) -> @precision_ir.WindowSharedKvPrecision raise
 
@@ -71,7 +71,7 @@ pub struct DeepSeekAttentionEnvelope {
 pub fn DeepSeekAttentionEnvelope::append_descriptors(Self) -> ArrayView[@device.Allocation] raise
 pub fn DeepSeekAttentionEnvelope::close(Self) -> Unit raise
 pub fn DeepSeekAttentionEnvelope::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
-pub fn DeepSeekAttentionEnvelope::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw) -> Self raise
+pub fn DeepSeekAttentionEnvelope::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw, rotary_product? : @precision_ir.RotaryProductLaw) -> Self raise
 pub fn DeepSeekAttentionEnvelope::persistent_state(Self) -> Array[@device.Allocation] raise
 pub fn DeepSeekAttentionEnvelope::persistent_state_bytes(Self) -> Int64
 pub fn DeepSeekAttentionEnvelope::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
@@ -91,7 +91,7 @@ pub struct DeepSeekAttentionInputs {
 }
 pub fn DeepSeekAttentionInputs::close(Self) -> Unit raise
 pub fn DeepSeekAttentionInputs::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
-pub fn DeepSeekAttentionInputs::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekAttentionInputs::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, rotary_product? : @precision_ir.RotaryProductLaw) -> Self raise
 pub fn DeepSeekAttentionInputs::outputs(Self) -> DeepSeekAttentionInputBuffers raise
 pub fn DeepSeekAttentionInputs::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, hidden~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekAttentionInputs::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
@@ -102,7 +102,7 @@ pub struct DeepSeekAttentionOutput {
 }
 pub fn DeepSeekAttentionOutput::close(Self) -> Unit raise
 pub fn DeepSeekAttentionOutput::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
-pub fn DeepSeekAttentionOutput::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekAttentionOutput::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, rotary_product? : @precision_ir.RotaryProductLaw) -> Self raise
 pub fn DeepSeekAttentionOutput::output(Self) -> @device.Allocation raise
 pub fn DeepSeekAttentionOutput::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, attention~ : @device.Allocation, output? : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekAttentionOutput::required_device_bytes(Self, @precision_materialize.PackedCheckpoint, output_borrowed? : Bool) -> Int64 raise
@@ -114,7 +114,7 @@ pub struct DeepSeekCompressedAttention {
 pub fn DeepSeekCompressedAttention::append_descriptors(Self) -> ArrayView[@device.Allocation] raise
 pub fn DeepSeekCompressedAttention::close(Self) -> Unit raise
 pub fn DeepSeekCompressedAttention::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
-pub fn DeepSeekCompressedAttention::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw) -> Self raise
+pub fn DeepSeekCompressedAttention::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw, rotary_product? : @precision_ir.RotaryProductLaw) -> Self raise
 pub fn DeepSeekCompressedAttention::output(Self) -> @device.Allocation raise
 pub fn DeepSeekCompressedAttention::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekCompressedAttention::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
@@ -127,7 +127,7 @@ pub fn DeepSeekCompressedKvCache::append_descriptors(Self) -> ArrayView[@device.
 pub fn DeepSeekCompressedKvCache::close(Self) -> Unit raise
 pub fn DeepSeekCompressedKvCache::counts(Self) -> @device.Allocation raise
 pub fn DeepSeekCompressedKvCache::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
-pub fn DeepSeekCompressedKvCache::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn DeepSeekCompressedKvCache::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, for_indexer? : Bool, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, rotary_product? : @precision_ir.RotaryProductLaw) -> Self raise
 pub fn DeepSeekCompressedKvCache::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekCompressedKvCache::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn DeepSeekCompressedKvCache::source_bytes(Self) -> Bytes
@@ -139,7 +139,7 @@ pub struct DeepSeekCompressedSublayer {
 pub fn DeepSeekCompressedSublayer::append_descriptors(Self) -> ArrayView[@device.Allocation] raise
 pub fn DeepSeekCompressedSublayer::close(Self) -> Unit raise
 pub fn DeepSeekCompressedSublayer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
-pub fn DeepSeekCompressedSublayer::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw) -> Self raise
+pub fn DeepSeekCompressedSublayer::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_context~ : Int, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw, rotary_product? : @precision_ir.RotaryProductLaw) -> Self raise
 pub fn DeepSeekCompressedSublayer::output(Self) -> @device.Allocation raise
 pub fn DeepSeekCompressedSublayer::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output? : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekCompressedSublayer::required_device_bytes(Self, @precision_materialize.PackedCheckpoint, output_borrowed? : Bool) -> Int64 raise
@@ -199,7 +199,7 @@ pub struct DeepSeekWindowAttention {
 pub fn DeepSeekWindowAttention::append_descriptor(Self) -> @device.Allocation raise
 pub fn DeepSeekWindowAttention::close(Self) -> Unit raise
 pub fn DeepSeekWindowAttention::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
-pub fn DeepSeekWindowAttention::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw) -> Self raise
+pub fn DeepSeekWindowAttention::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw, rotary_product? : @precision_ir.RotaryProductLaw) -> Self raise
 pub fn DeepSeekWindowAttention::output(Self) -> @device.Allocation raise
 pub fn DeepSeekWindowAttention::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekWindowAttention::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
@@ -211,7 +211,7 @@ pub struct DeepSeekWindowSublayer {
 pub fn DeepSeekWindowSublayer::append_descriptor(Self) -> @device.Allocation raise
 pub fn DeepSeekWindowSublayer::close(Self) -> Unit raise
 pub fn DeepSeekWindowSublayer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
-pub fn DeepSeekWindowSublayer::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw) -> Self raise
+pub fn DeepSeekWindowSublayer::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, attention_accumulation? : @precision_ir.AttentionAccumulationLaw, rotary_product? : @precision_ir.RotaryProductLaw) -> Self raise
 pub fn DeepSeekWindowSublayer::output(Self) -> @device.Allocation raise
 pub fn DeepSeekWindowSublayer::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, positions~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output? : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekWindowSublayer::required_device_bytes(Self, @precision_materialize.PackedCheckpoint, output_borrowed? : Bool) -> Int64 raise

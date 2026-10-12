@@ -21,12 +21,14 @@ pub fn DeepSeekAttentionInputs::new(
   layer~ : Int,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise {
   let plan = rotary_kv_plan(
     spec,
     layer~,
     maximum_rows~,
     maximum_workspace_bytes~,
+    rotary_product~,
   )
   {
     prefix: DeepSeekQueryKv::new(

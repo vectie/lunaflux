@@ -84,6 +84,7 @@ pub fn DeepSeekWindowAttention::new(
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise {
   let plan = window_attention_plan(
     spec,
@@ -100,6 +101,7 @@ pub fn DeepSeekWindowAttention::new(
       layer~,
       maximum_rows~,
       maximum_workspace_bytes=maximum_workspace_bytes - plan.state_bytes(),
+      rotary_product~,
     ),
     window: @window_frame.WindowSharedKvFrame::new(
       @window_source.window_shared_kv_source(

@@ -16,17 +16,14 @@ pub fn grouped_attention_output_source(
     symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
-  let (heads, width, suffix, rows, positions) = plan.rotary().geometry()
+  let (_, _, _, rows, _) = plan.rotary().geometry()
   let (groups, input, rank, _) = plan.geometry()
   let symbols = [
     symbol_prefix + "_inverse",
     symbol_prefix + "_grouped",
     symbol_prefix + "_output",
   ]
-  let frequency = @rotary.rotary_frequency_source(
-    plan.rotary().frequency(),
-    suffix,
-  )
+  let inverse = @rotary.rotary_tensor_source(plan.rotary(), symbol=symbols[0])
   let output_b = @projection.block_fp8_ue8m0_projection_cuda_source(
     input_width=groups * rank,
     output_width=plan.hidden_width(),
@@ -34,24 +31,9 @@ pub fn grouped_attention_output_source(
     function_symbol=symbols[2],
   )
   let source = output_b.source_bytes() +
+    @utf8.encode(inverse) +
     @utf8.encode(
       (
-        $|extern "C" __global__ void \{symbols[0]}(const int32_t *counts, const int32_t *positions, const uint16_t *input_words, uint16_t *output_words) {
-        $|  const int row = blockIdx.x, head = blockIdx.y, live = counts[3];
-        $|  if (live <= 0 || live > \{rows} || row >= live || head >= \{heads}) return;
-        $|  const int position = positions[row]; if (position < 0 || position >= \{positions}) return;
-        $|  const unsigned long long base = ((unsigned long long)row * \{heads}ULL + head) * \{width}ULL;
-        $|  for (int col = threadIdx.x; col < \{width - suffix}; col += blockDim.x) output_words[base + col] = input_words[base + col];
-        $|  for (int pair = threadIdx.x; pair < \{suffix / 2}; pair += blockDim.x) {
-        $|    \{frequency}
-        $|    const float angle = __fmul_rn((float)position, frequency), cosine = cosf(angle), sine = -sinf(angle);
-        $|    const unsigned long long index = base + \{width - suffix}ULL + pair * 2ULL;
-        $|    const __nv_bfloat16 *input = (const __nv_bfloat16 *)input_words; __nv_bfloat16 *output = (__nv_bfloat16 *)output_words;
-        $|    const float left = __bfloat162float(input[index]), right = __bfloat162float(input[index + 1ULL]);
-        $|    output[index] = __float2bfloat16_rn(__fadd_rn(__fmul_rn(left, cosine), -__fmul_rn(right, sine)));
-        $|    output[index + 1ULL] = __float2bfloat16_rn(__fadd_rn(__fmul_rn(left, sine), __fmul_rn(right, cosine)));
-        $|  }
-        $|}
         $|extern "C" __global__ void \{symbols[1]}(const int32_t *counts, const __nv_bfloat16 *input, const unsigned char *weight, const unsigned char *scales, __nv_bfloat16 *output) {
         $|  const int row = blockIdx.x, group = blockIdx.y, live = counts[3];
         $|  if (live <= 0 || live > \{rows} || row >= live || group >= \{groups}) return;

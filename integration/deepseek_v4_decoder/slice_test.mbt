@@ -59,6 +59,50 @@ test "explicit attention accumulation reaches window and compressed decoder sour
 }
 
 ///|
+test "rotary product law reaches main query cache and output without changing default" {
+  let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
+    "deepseek-ai/DeepSeek-V4-Flash-0731",
+  )
+  let omitted = slice(spec, 0, 4)
+  defer omitted.close()
+  for
+    product in [
+      @precision.RotaryProductLaw::SeparateFloat32Products,
+      ComplexFloat32Fma,
+    ] {
+    let selected = @deepseek_v4_decoder.DeepSeekDecoderSlice::new(
+      spec,
+      first_layer=0,
+      end_layer=4,
+      maximum_rows=3,
+      maximum_context=256,
+      maximum_layer_state_bytes=16777216L,
+      maximum_layer_workspace_bytes=16777216L,
+      maximum_layer_expert_bytes=8589934592L,
+      accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+      rotary_product=product,
+    )
+    defer selected.close()
+    if product == SeparateFloat32Products {
+      assert_eq(omitted.source_bytes(), selected.source_bytes())
+    } else {
+      let text = @utf8.decode(selected.source_bytes())
+      // Two rotations per window layer; query, pooled KV and output per
+      // compressed layer. Indexer/Hadamard arithmetic is a separate policy.
+      assert_eq(
+        text.split("__fmaf_rn(left, cosine, -__fmul_rn(right, sine))").count(),
+        11,
+      )
+      assert_eq(
+        text.split("__fmaf_rn(right, cosine, __fmul_rn(left, sine))").count(),
+        11,
+      )
+    }
+    assert_eq(omitted.expert_bank_bytes(), selected.expert_bank_bytes())
+  }
+}
+
+///|
 test "contiguous DeepSeek slice preserves layer geometry and compact expert banks" {
   let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
     "deepseek-ai/DeepSeek-V4-Flash-0731",

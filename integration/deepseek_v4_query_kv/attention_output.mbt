@@ -15,6 +15,7 @@ pub fn attention_output_plan(
   layer~ : Int,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> @precision.GroupedAttentionOutputPrecision raise {
   let frequency = rotary_frequency_policy(spec, layer~)
   @precision.GroupedAttentionOutputPrecision::new(
@@ -28,6 +29,7 @@ pub fn attention_output_plan(
     maximum_positions=spec.max_position_embeddings(),
     frequency~,
     maximum_workspace_bytes~,
+    rotary_product~,
   )
 }
 
@@ -64,12 +66,14 @@ pub fn DeepSeekAttentionOutput::new(
   layer~ : Int,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise {
   let plan = attention_output_plan(
     spec,
     layer~,
     maximum_rows~,
     maximum_workspace_bytes~,
+    rotary_product~,
   )
   {
     spec,

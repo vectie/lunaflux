@@ -1,14 +1,25 @@
 ///|
 async fn main {
   if @env.args()
-    is [_, "replay-layer" | "replay-layer-tiled" as mode, .. arguments] &&
+    is [
+      _,
+      "replay-layer"
+      | "replay-layer-tiled"
+      | "replay-layer-complex" as mode,
+      .. arguments,
+    ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
     replay_matched_layer(
       arguments,
-      attention_accumulation=if mode == "replay-layer-tiled" {
+      attention_accumulation=if mode != "replay-layer" {
         TiledFloat32
       } else {
         OrderedFloat32
+      },
+      rotary_product=if mode == "replay-layer-complex" {
+        ComplexFloat32Fma
+      } else {
+        SeparateFloat32Products
       },
     )
     return

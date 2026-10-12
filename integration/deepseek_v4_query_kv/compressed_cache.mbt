@@ -57,6 +57,7 @@ pub fn DeepSeekCompressedKvCache::new(
   maximum_context~ : Int,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
+  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise {
   let plan = compressed_cache_plan(
     spec,
@@ -95,6 +96,7 @@ pub fn DeepSeekCompressedKvCache::new(
             maximum_input_rows=maximum_rows,
             maximum_workspace_bytes=maximum_workspace_bytes -
               plan.workspace_bytes(),
+            rotary_product~,
           ),
           symbol_prefix="deepseek_l\{layer}_compressed_kv",
         ),
