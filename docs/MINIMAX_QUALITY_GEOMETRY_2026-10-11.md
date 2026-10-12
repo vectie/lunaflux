@@ -921,3 +921,49 @@ runs on the cluster under a 2-GiB/no-swap limit and returns only small reports.
 This avoids consuming the desktop's remaining disk space or overlapping GPU
 work. New front-operator numerical results are pending, not a correctness fix
 or complete trajectory/media-quality claim.
+
+### Matched first-block front results — 2026-10-12
+
+The original front replay and native capture have now completed independently,
+with the original operation receiving its literal native predecessor at each
+frontier. CPU comparisons cover all 2,785 real rows: video 2,368, text 3,
+audio 414. Q and K are also reduced separately, so unchanged V does not hide
+normalization/rotary differences.
+
+| Local operation | Video relative L2 | Text relative L2 | Audio relative L2 |
+| --- | ---: | ---: | ---: |
+| Norm1 | 0.00093691% | bitwise | 0.00117152% |
+| Attention affine modulation | bitwise | bitwise | bitwise |
+| QKV projection | 0.01752048% | 0.01466033% | 0.01682853% |
+| Q normalization/rotary, without V | 0.00275094% | bitwise | 0.00201013% |
+| K normalization/rotary, without V | 0.00323687% | bitwise | 0.00132681% |
+| Norm2 | 0.00105047% | bitwise | 0.00058296% |
+| MLP affine modulation | bitwise | bitwise | bitwise |
+| Attention gated residual | bitwise | bitwise | bitwise |
+| MLP gated residual | bitwise | bitwise | bitwise |
+
+Original AdaLN projection on the literal native F32 timestep embedding matches
+**96,762/96,768 BF16 values**, relative L2 **0.002914699%**, maximum difference
+0.00390625. These parameters have six fields, three modalities and 5,376
+channels at this unique timestep. All compared values are finite.
+
+This excludes a large first-block parameter permutation, affine rounding or
+gated-residual formula mismatch on this input. It does not establish other
+blocks/timesteps, encoder parity or media quality. Remaining local projection
+and attention discrepancies propagate nonlinearly; their norms are not an
+additive whole-chain error budget. The ordinary production arithmetic and
+probability selection remain unchanged.
+
+Roots:
+
+- Native: `/tmp/lunaflux-minimax-joint-front-operands256-prefix-20261012-v1`.
+- Original: `/tmp/lunaflux-minimax-upstream-block-front-operators256-20261012-v1`.
+- CPU reports: `/tmp/lunaflux-minimax-front-comparison-256-20261012-v3`.
+- Small parameter comparison: `parameters-comparison.txt` in comparison `v1`.
+
+The diagnostic CPU runner now uses the native target and a task-local SDK copy
+without cloning the old SDK's incompatible dependency cache. Earlier Wasm/cache
+failures are retained; they occurred before numerical comparison, not in model
+execution. Large arrays remain on the cluster, and report units use a 2-GiB,
+zero-swap limit. No GPU work overlaps these CPU reductions. Original installed
+warnings remain recorded; native prefix stderr is empty.

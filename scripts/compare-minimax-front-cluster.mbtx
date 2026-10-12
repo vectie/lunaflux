@@ -56,9 +56,72 @@ test "front comparison retains all QKV planes and both residual frontiers" {
 }
 
 ///|
+async fn run_report(
+  root : String,
+  build : String,
+  tools : String,
+  label : String,
+  stage : String,
+  width : Int,
+  planes : Int,
+  plane? : Int,
+) -> Unit {
+  let file = label + "-modalities.tsv"
+  let selection = match plane {
+    Some(index) => " --plane " + index.to_string()
+    None => ""
+  }
+  record(
+    root,
+    label,
+    remote(
+      "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --working-directory=" +
+      build +
+      "/source --unit=" +
+      root[5:].to_owned() +
+      "-" +
+      label +
+      " /usr/bin/env MOON_HOME=" +
+      tools +
+      " PATH=" +
+      tools +
+      "/bin:/usr/bin:/bin MOON_CC=gcc " +
+      tools +
+      "/bin/moon run --target native " +
+      root +
+      "/compare-native.mbtx " +
+      root +
+      " " +
+      root +
+      "/" +
+      file +
+      " --operator " +
+      stage +
+      " " +
+      width.to_string() +
+      " --planes " +
+      planes.to_string() +
+      selection,
+    ),
+  )
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    node + ":" + root + "/" + file,
+    root + "/" + file,
+  ])
+  .output()
+  .check()
+  println("stage=" + label)
+  println(@fs.read_file(root + "/" + file).text())
+}
+
+///|
 async fn main {
   guard @env.args() is [_, mode, root, original, capture, build] &&
-    mode is ("prepare" | "run") &&
+    mode is ("prepare" | "run" | "parameters") &&
     root.has_prefix("/tmp/lunaflux-minimax-front-comparison-") &&
     [root, original, capture, build].all(path => {
       path.has_prefix("/tmp/lunaflux-") &&
@@ -66,10 +129,11 @@ async fn main {
       path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '.'))
     }) else {
     fail(
-      "prepare|run NEW_COMPARISON_ROOT ORIGINAL_FRONT_ROOT RETIRED_NATIVE_ROOT EXISTING_ARM_BUILD",
+      "prepare|run|parameters NEW_COMPARISON_ROOT ORIGINAL_FRONT_ROOT RETIRED_NATIVE_ROOT EXISTING_ARM_BUILD",
     )
   }
-  let tools = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain"
+  let original_tools = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain"
+  let tools = root + "/tools"
   if mode == "prepare" {
     @fs.mkdir(root)
     record(
@@ -77,13 +141,23 @@ async fn main {
       "mkdir",
       remote("mkdir " + root + " " + root + "/input " + root + "/output"),
     )
+    // The old SDK's dependency cache uses a different format. Preserve it and
+    // copy only SDK/runtime assets; this task owns a fresh dependency cache.
+    record(root, "mkdir-tools", remote("mkdir " + tools))
+    for directory in ["bin", "lib", "include", "share", "registry"] {
+      record(
+        root,
+        "tools-" + directory,
+        remote("cp -a " + original_tools + "/" + directory + " " + tools),
+      )
+    }
     @shell.Cmd("scp", [
       "-o",
       "BatchMode=yes",
       "-o",
       "ControlPath=" + socket,
       "scripts/compare-minimax-block-modalities.mbtx",
-      node + ":" + root + "/compare.mbtx",
+      node + ":" + root + "/compare-native.mbtx",
     ])
     .output()
     .check()
@@ -140,59 +214,73 @@ async fn main {
         tools +
         " PATH=" +
         tools +
-        "/bin:/usr/bin:/bin " +
+        "/bin:/usr/bin:/bin MOON_CC=gcc " +
         tools +
         "/bin/moon test " +
         root +
-        "/compare.mbtx",
+        "/compare-native.mbtx --target native",
       ),
     )
-  } else {
-    for (stage, width, planes) in stages() {
-      let file = stage + "-modalities.tsv"
-      record(
-        root,
-        stage,
-        remote(
-          "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --working-directory=" +
-          build +
-          "/source --unit=" +
-          root[5:].to_owned() +
-          "-" +
-          stage +
-          " /usr/bin/env MOON_HOME=" +
-          tools +
-          " PATH=" +
-          tools +
-          "/bin:/usr/bin:/bin " +
-          tools +
-          "/bin/moon run " +
-          root +
-          "/compare.mbtx " +
-          root +
-          " " +
-          root +
-          "/" +
-          file +
-          " --operator " +
-          stage +
-          " " +
-          width.to_string() +
-          " --planes " +
-          planes.to_string(),
+  } else if mode == "parameters" {
+    for
+      (host, control, source, name) in [
+        (
+          node,
+          socket,
+          capture + "/output/block-0-parameters.bf16",
+          "native-parameters.bf16",
         ),
-      )
+        (
+          "wlc004s@192.168.2.179",
+          "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+          original + "/output/block-0-parameters.bf16",
+          "original-parameters.bf16",
+        ),
+      ] {
+      guard !@fs.exists(root + "/" + name) else {
+        fail("previous parameter capture preserved")
+      }
       @shell.Cmd("scp", [
         "-o",
         "BatchMode=yes",
         "-o",
-        "ControlPath=" + socket,
-        node + ":" + root + "/" + file,
-        root + "/" + file,
+        "ControlPath=" + control,
+        host + ":" + source,
+        root + "/" + name,
       ])
       .output()
       .check()
-      println(@fs.read_file(root + "/" + file).text())
+    }
+    let compared = @shell.Cmd("moon", [
+      "run",
+      "scripts/compare-minimax-encoder-reference.mbtx",
+      root + "/native-parameters.bf16",
+      root + "/original-parameters.bf16",
+      root + "/parameters-comparison.txt",
+      "literal_native_timestep_original_adaln_projection",
+      "5376",
+    ]).output(max_output_bytes=65536)
+    compared.check()
+    println(compared.stdout())
+  } else {
+    guard @fs.exists(root) else { fail("prepare the comparison root first") }
+    remote("test -d " + tools + "/lib").check()
+    for (stage, width, planes) in stages() {
+      run_report(root, build, tools, stage, stage, width, planes)
+      if planes == 3 {
+        for plane, component in ["query", "key", "value"] {
+          run_report(
+            root,
+            build,
+            tools,
+            stage + "-" + component,
+            stage,
+            width,
+            planes,
+            plane~,
+          )
+        }
+      }
     }
   }
   println(
