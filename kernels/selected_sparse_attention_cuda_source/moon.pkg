@@ -1,0 +1,15 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/attention_physical_ir" @physical,
+  "vectie/lunaflux/kernels/luna_cuda_precision" @arithmetic,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/kernels/glm_hybrid_sparse_attention_cuda_source" @serial,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/env",
+} for "test"

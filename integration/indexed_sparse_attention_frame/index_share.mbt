@@ -1,6 +1,6 @@
 ///|
 /// A consumer performs only sparse attention using an earlier layer's
-/// device-resident selection. It owns no pool/index scratch and does not rerun
+/// device-resident selection. It owns score scratch, no pool/index scratch, and does not rerun
 /// the selector. The producer's selection must outlive every consumer queue.
 pub fn IndexedSparseAttentionFrame::for_shared_indices(
   source : @source.IndexedSparseAttentionCudaSource,
@@ -28,6 +28,7 @@ fn IndexedSparseAttentionFrame::attention_arguments(
   values : @device.Allocation,
   selected_indices : @device.Allocation,
   output : @device.Allocation,
+  scratch : @device.Allocation,
 ) -> Array[@device.KernelArgument] raise @device.DeviceError {
   let plan = self.source.plan()
   let (rows, history) = plan.capacity()
@@ -49,6 +50,7 @@ fn IndexedSparseAttentionFrame::attention_arguments(
     region(values, h * kvh.to_int64() * vd.to_int64() * 2L, 2L),
     region(selected_indices, plan.frame_bytes()[4], 4L),
     region(output, r * qh.to_int64() * vd.to_int64() * 2L, 2L),
+    region(scratch, self.source.scratch_bytes(), 4L),
   ]
 }
 
@@ -58,7 +60,9 @@ fn IndexedSparseAttentionFrame::attention_arguments(
 /// which producer is reused. All histories and output remain caller-owned.
 pub fn IndexedSparseAttentionFrame::prepare_shared_indices(
   self : Self,
+  context : @device.Context,
   aot : @device.Module,
+  maximum_workspace_bytes~ : Int64,
   query_counts~ : @device.Allocation,
   history_counts~ : @device.Allocation,
   query_positions~ : @device.Allocation,
@@ -69,24 +73,29 @@ pub fn IndexedSparseAttentionFrame::prepare_shared_indices(
   selected_indices~ : @device.Allocation,
   output~ : @device.Allocation,
 ) -> Unit raise {
-  guard self.status is Fresh && self.shared else {
+  guard self.status is Fresh &&
+    self.shared &&
+    self.workspace_bytes() <= maximum_workspace_bytes else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
+  let scratch = context.allocate(self.source.scratch_bytes())
+  self.buffers.push(scratch)
   let arguments = self.attention_arguments(
     query_counts, history_counts, query_positions, history_valid, queries, keys,
-    values, selected_indices, output,
+    values, selected_indices, output, scratch,
   )
   let function = aot.load_function(@utf8.encode(self.source.symbol(2)))
   self.functions.push(function)
+  let (grid, block) = self.source.launch(2)
   self.launches.push(
     @device.OrderedKernelLaunch::new(
       function,
       @device.KernelLaunchDimensions::new(
-        grid_x=1,
+        grid_x=grid,
         grid_y=1,
         grid_z=1,
-        block_x=1,
+        block_x=block,
         block_y=1,
         block_z=1,
         shared_memory_bytes=0,

@@ -1,0 +1,19 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/selected_sparse_attention_cuda_source"
+
+// Values
+pub fn selected_sparse_source(query_heads~ : Int, kv_heads~ : Int, qk_dimension~ : Int, value_dimension~ : Int, selected_width~ : Int, maximum_queries~ : Int, maximum_history~ : Int, symbol~ : String) -> SelectedSparseCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct SelectedSparseCudaSource {
+  // private fields
+}
+pub fn SelectedSparseCudaSource::launch(Self) -> (Int, Int)
+pub fn SelectedSparseCudaSource::scratch_bytes(Self) -> Int64
+pub fn SelectedSparseCudaSource::source_bytes(Self) -> Bytes
+
+// Type aliases
+
+// Traits

@@ -1,12 +1,14 @@
 ///|
 /// CUDA lowering of a generic projected sparse attention plan. The arithmetic
-/// remains the existing ordered BF16/F32 law; these reference schedules are not
-/// throughput-optimized serving kernels.
+/// remains the existing ordered BF16/F32 law. Attention distributes independent
+/// query/head/score/value work and materializes scores once; pooling and index
+/// selection keep their existing schedules.
 pub struct IndexedSparseAttentionCudaSource {
   priv plan : @precision.IndexedSparseAttentionPrecision
   priv symbols : ReadOnlyArray[String]
   priv source : Bytes
   priv order : ReadOnlyArray[Int]
+  priv attention : @attention.SelectedSparseCudaSource
 }
 
 ///|
@@ -34,7 +36,7 @@ pub fn indexed_sparse_attention_source(
   let symbols = [
     symbol_prefix + "_pool",
     symbol_prefix + "_index",
-    symbol_prefix + "_attention",
+    symbol_prefix + "_attention_retained_scores_v1",
   ]
   let pool = @pooling.dsa_key_pool_compression_bf16_source(
     head_dimension=id,
@@ -52,25 +54,43 @@ pub fn indexed_sparse_attention_source(
     maximum_queries=queries,
     function_symbol=symbols[1],
   )
-  let attention = @attention.selected_index_sparse_attention_bf16_source(
-    query_head_count=qh,
-    key_value_head_count=kvh,
-    query_key_dimension=qkd,
+  let attention = @attention.selected_sparse_source(
+    query_heads=qh,
+    kv_heads=kvh,
+    qk_dimension=qkd,
     value_dimension=vd,
     selected_width=plan.selected_width(),
-    maximum_tokens=history,
+    maximum_history=history,
     maximum_queries=queries,
-    function_symbol=symbols[2],
+    symbol=symbols[2],
   )
   {
     plan,
     order,
+    attention,
     symbols: ReadOnlyArray::from_array(symbols),
     source: pool.source_bytes() +
     b"\n" +
     index.source_bytes() +
     b"\n" +
     attention.source_bytes(),
+  }
+}
+
+///|
+pub fn IndexedSparseAttentionCudaSource::scratch_bytes(self : Self) -> Int64 {
+  self.attention.scratch_bytes()
+}
+
+///|
+pub fn IndexedSparseAttentionCudaSource::launch(
+  self : Self,
+  stage : Int,
+) -> (Int, Int) {
+  if stage == 2 {
+    self.attention.launch()
+  } else {
+    (1, 1)
   }
 }
 

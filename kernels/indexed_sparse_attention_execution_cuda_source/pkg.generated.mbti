@@ -17,7 +17,9 @@ pub struct IndexedSparseAttentionCudaSource {
   // private fields
 }
 pub fn IndexedSparseAttentionCudaSource::execution_order(Self) -> ReadOnlyArray[Int]
+pub fn IndexedSparseAttentionCudaSource::launch(Self, Int) -> (Int, Int)
 pub fn IndexedSparseAttentionCudaSource::plan(Self) -> @precision_ir.IndexedSparseAttentionPrecision
+pub fn IndexedSparseAttentionCudaSource::scratch_bytes(Self) -> Int64
 pub fn IndexedSparseAttentionCudaSource::source_bytes(Self) -> Bytes
 pub fn IndexedSparseAttentionCudaSource::symbol(Self, Int) -> String
 

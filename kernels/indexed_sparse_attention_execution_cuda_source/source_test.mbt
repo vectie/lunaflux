@@ -31,11 +31,12 @@ test "projected sparse lowering keeps query and history domains distinct" {
         "ULL * (unsigned long long)output_width",
       ),
     )
-    assert_true(
-      text.contains(
-        "cell < " + (queries * 8).to_string() + "ULL; ++cell) output[cell]",
-      ),
-    )
+    assert_true(text.contains("retained-score-v1"))
+    assert_eq(source.symbol(2), prefix + "_attention_retained_scores_v1")
+    assert_eq(source.launch(0), (1, 1))
+    assert_eq(source.launch(1), (1, 1))
+    assert_eq(source.launch(2), (queries * 2, 256))
+    assert_eq(source.scratch_bytes(), queries.to_int64() * 176L)
     if @env.get_env_var("LUNA_EXPORT_INDEXED_SPARSE") is Some("1") {
       println("LUNA_SOURCE_BEGIN " + prefix)
       println(text)

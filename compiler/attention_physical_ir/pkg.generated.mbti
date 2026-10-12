@@ -263,6 +263,20 @@ pub fn RetainedCopyOwnership::not_equal(Self, Self) -> Bool
 pub fn RetainedCopyOwnership::to_repr(Self) -> @debug.Repr
 pub fn RetainedCopyOwnership::vector_index(Self, Int, Int) -> Int?
 
+pub struct SelectedSparseSchedule {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn SelectedSparseSchedule::equal(Self, Self) -> Bool
+pub fn SelectedSparseSchedule::independent_owner(Self, Int) -> Int?
+pub fn SelectedSparseSchedule::new(queries~ : Int, heads~ : Int, selected_width~ : Int, history~ : Int, workers~ : Int) -> Self?
+pub fn SelectedSparseSchedule::not_equal(Self, Self) -> Bool
+pub fn SelectedSparseSchedule::region_cells(Self, Int) -> (Int64, Int64)?
+pub fn SelectedSparseSchedule::retained_slots(Self) -> Int
+pub fn SelectedSparseSchedule::scratch_bytes(Self) -> Int64
+pub fn SelectedSparseSchedule::to_repr(Self) -> @debug.Repr
+pub fn SelectedSparseSchedule::workers(Self) -> Int
+pub fn SelectedSparseSchedule::workgroups(Self) -> Int
+
 pub struct ValueComponentOwnership {
   // private fields
 } derive(Eq, @debug.Debug)

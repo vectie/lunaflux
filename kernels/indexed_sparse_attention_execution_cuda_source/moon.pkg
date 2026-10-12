@@ -2,7 +2,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/kernels/glm_hybrid_dsa_pooling_cuda_source" @pooling,
   "vectie/lunaflux/kernels/glm_hybrid_dsa_index_cuda_source" @index,
-  "vectie/lunaflux/kernels/glm_hybrid_sparse_attention_cuda_source" @attention,
+  "vectie/lunaflux/kernels/selected_sparse_attention_cuda_source" @attention,
   "moonbitlang/core/encoding/utf8",
 }
 

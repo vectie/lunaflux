@@ -28,13 +28,39 @@ test "projected sparse frame composes three launches with bounded decode scratch
     ),
   )
   defer (frame.close() catch { _ => () })
-  assert_eq(frame.workspace_bytes(), 272L)
+  assert_eq(frame.workspace_bytes(), 448L)
   let external = context.allocate(1024L)
   defer (external.close() catch { _ => () })
+  let before_prepare = live_resources()
+  try
+    frame.prepare(
+      context,
+      aot,
+      maximum_workspace_bytes=447L,
+      query_counts=external,
+      history_counts=external,
+      query_positions=external,
+      index_queries=external,
+      index_head_weights=external,
+      index_keys=external,
+      pool_gate_scores=external,
+      pool_ape=external,
+      history_valid=external,
+      queries=external,
+      keys=external,
+      values=external,
+      output=external,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("retained scores must fit the physical workspace budget")
+  }
+  assert_eq(live_resources(), before_prepare)
   frame.prepare(
     context,
     aot,
-    maximum_workspace_bytes=272L,
+    maximum_workspace_bytes=448L,
     query_counts=external,
     history_counts=external,
     query_positions=external,
@@ -57,9 +83,33 @@ test "projected sparse frame composes three launches with bounded decode scratch
     ),
   )
   defer (consumer.close() catch { _ => () })
-  assert_eq(consumer.workspace_bytes(), 0L)
+  assert_eq(consumer.workspace_bytes(), 176L)
+  let before_consumer = live_resources()
+  try
+    consumer.prepare_shared_indices(
+      context,
+      aot,
+      maximum_workspace_bytes=175L,
+      query_counts=external,
+      history_counts=external,
+      query_positions=external,
+      history_valid=external,
+      queries=external,
+      keys=external,
+      values=external,
+      selected_indices=frame.selected_indices(),
+      output=external,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("shared selection consumers still own bounded score storage")
+  }
+  assert_eq(live_resources(), before_consumer)
   consumer.prepare_shared_indices(
+    context,
     aot,
+    maximum_workspace_bytes=176L,
     query_counts=external,
     history_counts=external,
     query_positions=external,

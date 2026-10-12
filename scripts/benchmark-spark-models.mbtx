@@ -56,9 +56,23 @@ fn selected(glm : Bool) -> String {
 }
 
 ///|
-fn binary(glm : Bool) -> String {
-  selected(glm) +
+fn binary(glm : Bool, runtime : String) -> String {
+  runtime +
   (if glm { "/glm_checkpoint.exe" } else { "/deepseek_checkpoint.exe" })
+}
+
+///|
+fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
+  if options.is_empty() {
+    return selected(glm)
+  }
+  guard options is ["--runtime", runtime] &&
+    runtime.has_prefix("/tmp/lunaflux-") &&
+    !runtime.contains("..") &&
+    runtime.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("expected --runtime /tmp/lunaflux-NEW-RUNTIME")
+  }
+  runtime
 }
 
 ///|
@@ -156,20 +170,58 @@ test "prompt and memory measurement boundaries" {
 }
 
 ///|
+test "fresh runtime selection is explicit and preserves the retained baseline" {
+  assert_eq(runtime_selection(true, []), selected(true))
+  assert_eq(
+    binary(
+      true,
+      runtime_selection(true, ["--runtime", "/tmp/lunaflux-glm-new-v1"]),
+    ),
+    "/tmp/lunaflux-glm-new-v1/glm_checkpoint.exe",
+  )
+  for
+    options in [
+      ["--runtime"],
+      ["--runtime", "/tmp/lunaflux-../old"],
+      ["--runtime", "/tmp/lunaflux-a b"],
+    ] {
+    try runtime_selection(true, options) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid runtime selection accepted")
+    }
+  }
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, root, family, mode] &&
+  guard @env.args() is [_, root, family, mode, .. options] &&
     root.has_prefix("/tmp/lunaflux-model-bench-") &&
     !root.contains("..") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
     family is ("glm" | "deepseek") &&
     mode is ("prepare" | "prepare-profile" | "start" | "watch" | "collect") else {
-    fail("NEW_ROOT glm|deepseek prepare|prepare-profile|start|watch|collect")
+    fail(
+      "NEW_ROOT glm|deepseek prepare|prepare-profile|start|watch|collect [--runtime NEW_RUNTIME]",
+    )
   }
   let glm = family == "glm"
+  let runtime = runtime_selection(glm, options)
+  let executable = binary(glm, runtime)
   let rows = if glm { 1 } else { 6 }
   let history = if glm { 64 } else { 256 }
   let queue = root + "/queue"
-  let aot = selected(glm) + "/aot"
+  let aot = runtime + "/aot"
+  let selection = "binary=" +
+    executable +
+    "\naot=" +
+    aot +
+    "\ncomparison_outside_compiler=true\npayload_hashing=false\n"
+  if mode != "prepare" && mode != "prepare-profile" {
+    guard @fs.read_file(root + "/selected.txt").text() == selection else {
+      fail("runtime must match the explicitly prepared executable and AOT")
+    }
+  }
   let prefix = root[5:].to_owned()
   if mode == "watch" {
     let observations = StringBuilder()
@@ -260,7 +312,7 @@ async fn main {
       copy(false, literal, host(false) + ":" + literal)
       let output = remote(
         false,
-        binary(glm) +
+        executable +
         " text-frames " +
         model(glm, false) +
         " \{rows} \{history} " +
@@ -307,15 +359,7 @@ async fn main {
       },
       create_mode=CreateNew,
     )
-    @fs.write_file(
-      root + "/selected.txt",
-      "binary=" +
-      binary(glm) +
-      "\naot=" +
-      aot +
-      "\ncomparison_outside_compiler=true\npayload_hashing=false\n",
-      create_mode=CreateNew,
-    )
+    @fs.write_file(root + "/selected.txt", selection, create_mode=CreateNew)
     println("prepared " + root)
     return
   }
@@ -357,7 +401,7 @@ async fn main {
       "preflight",
       remote(
         false,
-        binary(glm) +
+        executable +
         " preflight-generation-sequence " +
         model(glm, false) +
         " \{rows} \{history} \{maximum} \{stop} " +
@@ -410,7 +454,7 @@ async fn main {
           root +
           " --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800 " +
           profile_prefix +
-          binary(glm) +
+          executable +
           " " +
           command +
           " " +
@@ -512,7 +556,7 @@ async fn main {
       "decode-\{i}",
       remote(
         false,
-        binary(glm) +
+        executable +
         " decode-tokens " +
         model(glm, false) +
         " " +

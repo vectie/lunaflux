@@ -43,9 +43,9 @@ pub fn IndexedSparseAttentionFrame::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn IndexedSparseAttentionFrame::workspace_bytes(self : Self) -> Int64 {
   if self.shared {
-    0L
+    self.source.scratch_bytes()
   } else {
-    self.source.plan().workspace_bytes()
+    self.source.plan().workspace_bytes() + self.source.scratch_bytes()
   }
 }
 
@@ -109,6 +109,7 @@ pub fn IndexedSparseAttentionFrame::prepare(
   for bytes in sizes {
     self.buffers.push(context.allocate(bytes))
   }
+  self.buffers.push(context.allocate(self.source.scratch_bytes()))
   let buffers = self.buffers
   let selected = region(buffers[4], sizes[4], 4L)
   let arguments = [
@@ -145,19 +146,21 @@ pub fn IndexedSparseAttentionFrame::prepare(
       values,
       buffers[4],
       output,
+      buffers[5],
     ),
   ]
   for stage in self.source.execution_order() {
+    let (grid, block) = self.source.launch(stage)
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
     self.functions.push(function)
     self.launches.push(
       @device.OrderedKernelLaunch::new(
         function,
         @device.KernelLaunchDimensions::new(
-          grid_x=1,
+          grid_x=grid,
           grid_y=1,
           grid_z=1,
-          block_x=1,
+          block_x=block,
           block_y=1,
           block_z=1,
           shared_memory_bytes=0,

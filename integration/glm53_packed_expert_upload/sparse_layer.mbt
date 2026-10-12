@@ -54,20 +54,21 @@ pub fn GlmSparseLayer::new(
   let ffn = make_moe_ffn(
     spec, layer_index, maximum_queries, maximum_expert_bytes, accuracy,
   )
+  let decoder = @sparse_frame.IndexedSparseDecoderFrame::new(
+    @sparse_source.indexed_sparse_decoder_source(
+      plan,
+      symbol_prefix="glm_sparse_" + layer_index.to_string(),
+    ),
+  )
   guard ffn.workspace_bytes() <=
-    maximum_workspace_bytes - plan.workspace_bytes() else {
+    maximum_workspace_bytes - decoder.workspace_bytes() else {
     raise @precision_ir.PrecisionPlanError::MemoryBudgetExceeded
   }
   {
     spec,
     layer_index,
     maximum_rows: maximum_queries,
-    decoder: @sparse_frame.IndexedSparseDecoderFrame::new(
-      @sparse_source.indexed_sparse_decoder_source(
-        plan,
-        symbol_prefix="glm_sparse_" + layer_index.to_string(),
-      ),
-    ),
+    decoder,
     ffn,
     weights: @upload.CheckpointDeviceWeights::new(),
     queue: None,
