@@ -1,0 +1,207 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn weight_row(bytes : Bytes, row : Int) -> Bytes raise {
+  guard bytes.length() == 144 * 6 * 4 && row >= 0 && row < 144 else {
+    fail("complete identity-aligned route weights and actual row required")
+  }
+  bytes[row * 24:(row + 1) * 24].to_owned()
+}
+
+///|
+test "route intervention retains one literal F32 weight per actual expert slot" {
+  let bytes = Bytes::from_array([ for i in 0..<3456 => (i % 251).to_byte() ])
+  assert_eq(weight_row(bytes, 54), bytes[1296:1320].to_owned())
+  try weight_row(bytes, 144) catch {
+    _ => ()
+  } noraise {
+    _ => fail("padding selected")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, original, weights, row_text, root] &&
+    original.has_prefix("/tmp/lunaflux-deepseek-original-expert-") &&
+    root.has_prefix("/tmp/lunaflux-deepseek-route-weight-effect-") else {
+    fail("ORIGINAL_EXPERT_ROOT ALIGNED_NATIVE_WEIGHTS_F32 ACTUAL_ROW NEW_ROOT")
+  }
+  let row = @string.parse_int(row_text)
+  let data = weight_row(@fs.read_file(weights).binary(), row)
+  let node = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let remote = command => {
+    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+      max_output_bytes=4194304,
+    )
+  }
+  let upload = path => {
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      path,
+      node + ":" + path,
+    ])
+    .output()
+    .check()
+  }
+  @fs.mkdir(root)
+  @fs.mkdir(root + "/output")
+  @fs.write_file(root + "/weights.f32", data, create_mode=CreateNew)
+  @fs.write_file(
+    root + "/expert_matched_kernels.cuh",
+    @fs.read_file(original + "/expert_matched_kernels.cuh").binary(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/expert_matched_probe.cu",
+    @fs.read_file("tests/packed_moe_execution/expert_matched_probe.cu").binary(),
+    create_mode=CreateNew,
+  )
+  remote("mkdir " + root + " " + root + "/output").check()
+  for
+    name in [
+      "weights.f32", "expert_matched_kernels.cuh", "expert_matched_probe.cu",
+    ] {
+    upload(root + "/" + name)
+  }
+  let tag = root[5:].to_owned()
+  let compile = remote(
+    "systemd-run --user --wait --pipe --unit=" +
+    tag +
+    "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 --working-directory=" +
+    root +
+    " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 expert_matched_probe.cu -o expert-probe",
+  )
+  @fs.write_file(
+    root + "/compile.stdout",
+    compile.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/compile.stderr",
+    compile.stderr(),
+    create_mode=CreateNew,
+  )
+  compile.check()
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("serialize GPU probes") }
+  let execution = remote(
+    "systemd-run --user --wait --pipe --unit=" +
+    tag +
+    " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+    root +
+    "/expert-probe " +
+    original +
+    "/original " +
+    root +
+    "/output propagated " +
+    root +
+    "/weights.f32",
+  )
+  @fs.write_file(
+    root + "/run.stdout",
+    execution.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/run.stderr",
+    execution.stderr(),
+    create_mode=CreateNew,
+  )
+  execution.check()
+  let released = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  @fs.write_file(
+    root + "/released.stdout",
+    released.stdout(),
+    create_mode=CreateNew,
+  )
+  released.check()
+  guard released.stdout().trim().is_empty() else { fail("probe owner remains") }
+  for gate in ["memcheck", "racecheck", "synccheck"] {
+    let idle = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    idle.check()
+    guard idle.stdout().trim().is_empty() else {
+      fail("serialize sanitizer probes")
+    }
+    remote("mkdir " + root + "/" + gate).check()
+    let sanitizer = remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      tag +
+      "-" +
+      gate +
+      " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 99 --tool " +
+      gate +
+      (if gate == "memcheck" { " --leak-check full" } else { "" }) +
+      " " +
+      root +
+      "/expert-probe " +
+      original +
+      "/original " +
+      root +
+      "/" +
+      gate +
+      " propagated " +
+      root +
+      "/weights.f32",
+    )
+    @fs.write_file(
+      root + "/" + gate + ".stdout",
+      sanitizer.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + gate + ".stderr",
+      sanitizer.stderr(),
+      create_mode=CreateNew,
+    )
+    sanitizer.check()
+  }
+  for slot in 0..<6 {
+    for (stage, width) in [("activation", 2048), ("output", 4096)] {
+      let file = "slot\{slot}-\{stage}.bf16"
+      let target = root + "/output/" + file
+      @fs.write_file(target, b"", create_mode=CreateNew)
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + target,
+        target,
+      ])
+      .output()
+      .check()
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-minimax-encoder-reference.mbtx",
+        target,
+        original + "/original/" + file,
+        root + "/slot\{slot}-\{stage}.txt",
+        "literal_native_route_weight_effect",
+        width.to_string(),
+      ])
+      .output()
+      .check()
+    }
+  }
+  println(
+    "route weight intervention complete row=\{row}; only literal routing weights changed, not production data or references",
+  )
+}

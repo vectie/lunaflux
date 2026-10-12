@@ -1,0 +1,140 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn bf16(bytes : Bytes, column : Int) -> Float {
+  Float::reinterpret_from_uint(
+    (bytes[column * 2].to_uint() | (bytes[column * 2 + 1].to_uint() << 8)) << 16,
+  )
+}
+
+///|
+fn round_bf16(value : Float) -> (Byte, Byte) {
+  let bits = value.reinterpret_as_uint()
+  let rounded = (bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16
+  ((rounded & 255U).to_byte(), (rounded >> 8).to_byte())
+}
+
+///|
+fn combine(
+  outputs : ArrayView[Bytes],
+  order : ArrayView[Int],
+  shared : Bytes,
+) -> Bytes {
+  let result = Array::make(8192, b'\x00')
+  for column in 0..<4096 {
+    let sum = for slot in order; sum = (0.0 : Float) {
+      continue sum + bf16(outputs[slot], column)
+    } nobreak {
+      sum
+    }
+    let (lo, hi) = round_bf16(sum + bf16(shared, column))
+    result[column * 2] = lo
+    result[column * 2 + 1] = hi
+  }
+  Bytes::from_array(result)
+}
+
+///|
+test "combination preserves expert order, F32 sums and final BF16 ties" {
+  assert_eq(round_bf16(1.00390625), (b'\x80', b'\x3f'))
+  let zeros = Bytes::make(8192, b'\x00')
+  assert_eq(combine([zeros, zeros], [1, 0], zeros), zeros)
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [
+      _,
+      expert,
+      changed,
+      shared_root,
+      original_ffn,
+      native_ffn,
+      row_text,
+      root,
+    ] else {
+    fail(
+      "ORIGINAL_EXPERT_ROOT WEIGHT_EFFECT_ROOT SHARED_ROOT ORIGINAL_FFN_BF16 NATIVE_FFN_BF16 ROW NEW_REPORT",
+    )
+  }
+  let row = @string.parse_int(row_text)
+  let slots : Array[(Int, Int)] = []
+  for line in @fs.read_file(expert + "/original-run.stdout").text().split("\n") {
+    if line.has_prefix("original_expert_slot=") {
+      let fields = line.split(" ").collect()
+      slots.push(
+        (
+          @string.parse_int(fields[0].split("=").last().unwrap()),
+          @string.parse_int(fields[1].split("=").last().unwrap()),
+        ),
+      )
+    }
+  }
+  guard slots.length() == 6 else { fail("actual expert identities required") }
+  slots.sort_by((a, b) => a.1.compare(b.1))
+  let order = slots.map(pair => pair.0)
+  let baseline = [
+    for slot in 0..<6 => {
+      @fs.read_file(expert + "/original/slot\{slot}-output.bf16").binary()
+    }
+  ]
+  let changed_outputs = [
+    for slot in 0..<6 => {
+      @fs.read_file(changed + "/output/slot\{slot}-output.bf16").binary()
+    }
+  ]
+  let shared = @fs.read_file(shared_root + "/original/output.bf16").binary()
+  @fs.mkdir(root)
+  @fs.write_file(
+    root + "/original-combined.bf16",
+    combine(baseline[:], order[:], shared),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/changed-combined.bf16",
+    combine(changed_outputs[:], order[:], shared),
+    create_mode=CreateNew,
+  )
+  for (name, path) in [("original", original_ffn), ("native", native_ffn)] {
+    let bytes = @fs.read_file(path).binary()
+    guard row >= 0 && row < 144 && bytes.length() == 144 * 8192 else {
+      fail("complete actual FFN row corpus required")
+    }
+    @fs.write_file(
+      root + "/" + name + "-row.bf16",
+      bytes[row * 8192:(row + 1) * 8192].to_owned(),
+      create_mode=CreateNew,
+    )
+  }
+  for
+    (a, b, tag) in [
+      ("original-combined", "original-row", "original_combination_control"),
+      (
+        "changed-combined", "native-row", "causal_native_route_weight_combination",
+      ),
+      ("changed-combined", "original-row", "route_weight_changed_only"),
+    ] {
+    @shell.Cmd("moon", [
+      "run",
+      "scripts/compare-minimax-encoder-reference.mbtx",
+      root + "/" + a + ".bf16",
+      root + "/" + b + ".bf16",
+      root + "/" + tag + ".txt",
+      tag,
+      "4096",
+    ])
+    .output()
+    .check()
+  }
+  println(
+    "actual expert-order combination compared; measured causal control, not production substitution",
+  )
+}

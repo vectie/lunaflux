@@ -34,7 +34,7 @@ static void host_load(const std::string &path,unsigned char *destination,size_t 
   std::fclose(file);if(!ok)std::exit(3);
 }
 int main(int argc,char **argv) {
-  if(argc!=4)return 2;
+  if(argc!=4&&argc!=5)return 2;
   const std::string input(argv[1]),out(argv[2]),mode(argv[3]);
   const bool matched=mode=="matched";if(!matched&&mode!="propagated")return 2;
   std::vector<unsigned char> host_bank(expert_stride*6,0);
@@ -46,7 +46,7 @@ int main(int argc,char **argv) {
   auto *bank=allocate<unsigned char>(host_bank.size());
   check(cudaMemcpy(bank,host_bank.data(),host_bank.size(),cudaMemcpyHostToDevice));
   auto *x=load<__nv_bfloat16>(input+"/input.bf16",4096);
-  auto *weights=load<float>(input+"/scores.f32",6);
+  auto *weights=load<float>(argc==5?std::string(argv[4]):input+"/scores.f32",6);
   auto *counts=allocate<int>(5),*indices=allocate<int>(6),*map=allocate<int>(6);
   int host_counts[5]={0,0,0,1,0},host_indices[6]={0,1,2,3,4,5};
   check(cudaMemcpy(counts,host_counts,sizeof(host_counts),cudaMemcpyHostToDevice));
@@ -71,6 +71,6 @@ int main(int argc,char **argv) {
   int host_error=0;check(cudaMemcpy(&host_error,error,sizeof(int),cudaMemcpyDeviceToHost));
   if(host_error){std::fprintf(stderr,"nonfinite quantizer input %d\n",host_error);return 5;}
   for(void *p:{(void*)bank,(void*)x,(void*)weights,(void*)counts,(void*)indices,(void*)map,(void*)q0,(void*)q1,(void*)activation,(void*)outputs,(void*)error})check(cudaFree(p));
-  std::puts("native_experts_complete route_mapping=original_slot_order release=balanced full_model=false");
+  std::printf("native_experts_complete route_mapping=original_slot_order weights=%s release=balanced full_model=false\n",argc==5?"literal_intervention":"original");
 }
 

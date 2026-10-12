@@ -2,7 +2,7 @@
 #include "original_tensor_io.h"
 
 static int execute(const char *inference,const char *root,const char *input,
-                   const char *ids_path,const char *out,int layer) {
+                   const char *ids_path,const char *out,int layer,bool one_row) {
   Owned path(PyUnicode_FromString(inference));
   if(!path.p||PyList_Insert(PySys_GetObject("path"),0,path.p)<0)return -1;
   Owned torch(PyImport_ImportModule("torch")),model(PyImport_ImportModule("model"));
@@ -40,28 +40,44 @@ static int execute(const char *inference,const char *root,const char *input,
     const std::string suffix=std::string(name)=="weight"?"weight.bf16":layer<3?"table.i32":"bias.f32";
     if(!copied.p||!save(target.p,u8.p,std::string(out)+"/"+suffix,bytes))return -1;
   }
-  Owned operands(PyTuple_Pack(2,x.p,ids.p)),routed(PyObject_CallObject(gpu.p,operands.p));
-  Owned w(PyObject_GetAttrString(gpu.p,"weight")),xf(PyObject_CallMethod(x.p,"float",nullptr));
+  Owned w(PyObject_GetAttrString(gpu.p,"weight"));
   Owned wf(w.p?PyObject_CallMethod(w.p,"float",nullptr):nullptr);
   Owned linear(PyObject_GetAttrString(model.p,"linear"));
+  const int step=one_row?1:144;
+  Owned pieces[4];
+  for(auto &list:pieces){list.p=PyList_New(144/step);if(!list.p)return -1;}
+  for(int row=0;row<144;row+=step) {
+  Owned part(PyObject_CallMethod(x.p,"narrow","iii",0,row,step));
+  Owned token(PyObject_CallMethod(ids.p,"narrow","iii",0,row,step));
+  if(!part.p||!token.p)return -1;
+  Owned operands(PyTuple_Pack(2,part.p,token.p)),routed(PyObject_CallObject(gpu.p,operands.p));
+  if(!routed.p||!PyTuple_Check(routed.p)||PyTuple_Size(routed.p)!=2)return -1;
+  Owned xf(PyObject_CallMethod(part.p,"float",nullptr));
   Owned linear_args(xf.p&&wf.p?PyTuple_Pack(2,xf.p,wf.p):nullptr);
   Owned logits(linear_args.p?PyObject_CallObject(linear.p,linear_args.p):nullptr);
   Owned softplus(logits.p?PyObject_CallMethod(functional.p,"softplus","O",logits.p):nullptr);
   Owned scores(softplus.p?PyObject_CallMethod(softplus.p,"sqrt",nullptr):nullptr);
-  if(!routed.p||!PyTuple_Check(routed.p)||PyTuple_Size(routed.p)!=2||!scores.p)return -1;
+  if(!scores.p)return -1;
   Owned selected(PyObject_CallMethod(PyTuple_GetItem(routed.p,1),"to","O",i32.p));
-  if(!save(logits.p,u8.p,std::string(out)+"/logits.f32",144*256*4)||
-     !save(scores.p,u8.p,std::string(out)+"/scores.f32",144*256*4)||
-     !save(selected.p,u8.p,std::string(out)+"/indices.i32",144*6*4)||
-     !save(PyTuple_GetItem(routed.p,0),u8.p,std::string(out)+"/weights.f32",144*6*4))return -1;
-  std::printf("original_router_complete layer=%d rows=144 inputs=literal_original_ffn full_model=false\n",layer);
+  if(!selected.p)return -1;
+  PyObject *values[4]={logits.p,scores.p,selected.p,PyTuple_GetItem(routed.p,0)};
+  for(int i=0;i<4;++i){Py_INCREF(values[i]);PyList_SET_ITEM(pieces[i].p,row/step,values[i]);}
+  }
+  const char *names[4]={"logits.f32","scores.f32","indices.i32","weights.f32"};
+  const int widths[4]={256,256,6,6};
+  for(int i=0;i<4;++i) {
+    Owned joined(PyObject_CallMethod(torch.p,"cat","Oi",pieces[i].p,0));
+    if(!joined.p||!save(joined.p,u8.p,std::string(out)+"/"+names[i],144LL*widths[i]*4))return -1;
+  }
+  std::printf("original_router_complete layer=%d rows=144 submission_rows=%d inputs=literal_original_ffn full_model=false\n",layer,step);
   return 0;
 }
 
 int main(int argc,char **argv) {
-  if(argc!=7)return 2;
+  if(argc!=7&&argc!=8)return 2;
+  if(argc==8&&std::string(argv[7])!="--one-row")return 2;
   const int layer=std::atoi(argv[6]);if(layer!=0&&layer!=3)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],argv[5],layer);
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],argv[5],layer,argc==8);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

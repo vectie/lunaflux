@@ -659,3 +659,69 @@ regressions. Replay-runner tests2/2 pass. Targeted `moon info` completes with
 936 existing migration warnings and zero errors; only affected public
 interfaces are retained with this implementation. This does not replace the
 unresolved clean full-suite/whole-model validation.
+
+### Complete vector-query replay: local fix, no downstream gain
+
+Clean source-pinned **58836d3b** ARM build succeeds. Complete layer-0 and
+layer-3 one-row replays select `query_square=VectorizedTreeFloat32(256,4)` in
+both export and execution, close CUDA and use no swap. Layer-3 low-rank query
+mismatches fall **three → two**, removing the learned-query fold difference;
+the remaining two originate in Query-A projection. Rotary, attention and
+complete hidden output are **byte-identical to the preceding butterfly run**.
+Layer 0 also remains byte-identical at complete output, including its already
+exact learned query/FFN inputs. Complete-layer errors therefore remain
+**0.006187106% / 0.027058402%**, not a further whole-chain improvement.
+This correction reaches execution but is erased before changing downstream
+quantized work; it does not establish a speed/quality gain or justify blanket
+policy selection. Roots
+`/tmp/lunaflux-deepseek-production-layer-{0,3}-vector-query-rows1-20261012-v1`;
+frontiers `/tmp/lunaflux-deepseek-layer-{0,3}-vector-query-frontiers-20261012-v1`.
+
+### Worst local FFN row: routing weights are a demonstrated cause
+
+The fresh installed-original router observer now supports explicit **one-row
+submission** rather than comparing a 144-row GEMM with production increments.
+Root `/tmp/lunaflux-deepseek-original-router-layer0-rows1-20261012-v1` retains
+all 144 literal layer-0 FFN inputs and original IDs. Layer-0 expert identities
+are bitwise; identity-aligned route weights differ (relative L2
+**0.000042622%**, maximum absolute error 0.0000005364418). Router logits and
+scores differ too. Its layer-3 run uses this layer-0 component corpus, not the
+actual layer-3 FFN input; no propagated layer-3 conclusion is inferred.
+
+The original shared FP8 expert on actual row **54**, token **45948**, is
+bitwise in both matched and propagated modes: 2,048 weighted activations and
+4,096 outputs. Root `/tmp/lunaflux-deepseek-original-shared-row54-20261012-v1`.
+Together with the preceding routed controls, no local expert discrepancy has
+been demonstrated on this row with identical original routing weights.
+
+In `/tmp/lunaflux-deepseek-route-weight-effect-row54-20261012-v1`, changing
+**only the literal route weights to the observed native values** changes two
+BF16 weighted activations in slot 0 and one in slot 1. Slot 0's down output
+stays bitwise; slot 1's output changes **1,455/4,096 values**, relative L2
+**0.215495331%**. All other routed outputs remain bitwise. This is a measured
+quantization-sensitive amplification, not an assumed expert-kernel failure.
+
+The actual ascending expert-identity/F32 combination, plus the bitwise shared
+output, provides the decisive control:
+
+| Row-54 combination comparison | Exact BF16 / 4,096 | Relative L2 (%) |
+| --- | ---: | ---: |
+| Original expert outputs/weights vs actual original FFN | **4,096** | **0** |
+| Native-weight intervention vs actual native FFN | **4,096** | **0** |
+| Native-weight intervention vs actual original FFN | 3,637 | **0.128003179** |
+
+Root `/tmp/lunaflux-deepseek-route-weight-combination-row54-20261012-v1`.
+Thus the router-weight change reproduces the **entire actual native FFN row
+bitwise**; final combination is not an unexplained difference for that row.
+This does not establish every other row, router arithmetic parity, full-model
+parity or media quality. Next isolate router projection order, softplus/sqrt
+evaluation and selected-weight sum on **identical observed operands** before
+changing production arithmetic. No original data, tolerance or serving default
+is altered by these offline interventions.
+
+The repeated weight-only intervention `row54-v2` passes memcheck/full leak,
+racecheck and synccheck with zero reports in serialized 2-GiB/no-swap user
+units. It uses the same observed weights and preserves the first result.
+Router/weight-intervention/combination runner regressions **5/5** pass.
+The application releases CUDA resources; no new router arithmetic is selected
+in production from this causal experiment.

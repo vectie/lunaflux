@@ -60,6 +60,26 @@ fn literal_inputs(input : Bytes, ids : Bytes) -> Unit raise {
 }
 
 ///|
+fn original_submission_rows(options : ArrayView[String]) -> Int raise {
+  match options {
+    [] => 144
+    ["--one-row"] => 1
+    _ => fail("optional --one-row original geometry required")
+  }
+}
+
+///|
+test "original one-row geometry is explicit and leaves prior batched observations unchanged" {
+  assert_eq(original_submission_rows([]), 144)
+  assert_eq(original_submission_rows(["--one-row"]), 1)
+  try original_submission_rows(["--replace-reference"]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("unknown original geometry accepted")
+  }
+}
+
+///|
 test "routing never substitutes original scores or truncates the input corpus" {
   literal_inputs(Bytes::make(144 * 8192, 0), Bytes::make(576, 0))
   for
@@ -157,12 +177,12 @@ async fn main {
     root.has_prefix("/tmp/lunaflux-deepseek-original-router-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail(
-      "prepare NEW_ROOT ORIGINAL_FFN_BF16 ORIGINAL_IDS_I32 | run|sanitize|collect ROOT",
+      "prepare NEW_ROOT ORIGINAL_FFN_BF16 ORIGINAL_IDS_I32 [--one-row] | run|sanitize|collect ROOT",
     )
   }
   let tag = root.split("/").last().unwrap().to_owned()
   if mode == "prepare" {
-    guard extra is [input, ids] else {
+    guard extra is [input, ids, .. options] else {
       fail("two literal input files required")
     }
     let bytes = @fs.read_file(input).binary()
@@ -171,6 +191,11 @@ async fn main {
     @fs.mkdir(root)
     @fs.write_file(root + "/input.bf16", bytes, create_mode=CreateNew)
     @fs.write_file(root + "/ids.i32", tokens, create_mode=CreateNew)
+    @fs.write_file(
+      root + "/SUBMISSION_ROWS.txt",
+      original_submission_rows(options).to_string(),
+      create_mode=CreateNew,
+    )
     record(
       root,
       "export",
@@ -223,6 +248,9 @@ async fn main {
       ),
     )
   } else if mode == "run" {
+    let one_row = (@fs.read_file(root + "/SUBMISSION_ROWS.txt").text() == "1") catch {
+      _ => false
+    }
     guard extra.is_empty() else { fail("unexpected options") }
     for layer in [0, 3] {
       idle()
@@ -252,7 +280,8 @@ async fn main {
           image +
           " /inference /model /work/input.bf16 /work/ids.i32 /work/original-" +
           suffix +
-          " \{layer}",
+          " \{layer}" +
+          (if one_row { " --one-row" } else { "" }),
         ),
       )
       record(
