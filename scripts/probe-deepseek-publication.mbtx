@@ -1,0 +1,201 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, label : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn transfer(source : String, target : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    target,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn routes() -> Array[String] {
+  [
+    "attention-post", "post-native-controls", "post-native-branch", "post-native-both",
+  ]
+}
+
+///|
+test "publication intervention separates controls from branch and their interaction" {
+  assert_eq(routes().length(), 4)
+  assert_eq(routes()[0], "attention-post")
+  assert_eq(routes()[3], "post-native-both")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-publication-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT REMOTE_HYPER_ROOT REMOTE_NATIVE_OUTPUT REMOTE_ORIGINAL_BOUNDARIES | run|collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [hyper, native, original] else {
+      fail("three exact roots required")
+    }
+    @fs.mkdir(root)
+    record(root, "mkdir", remote("mkdir " + root + " " + root + "/prior"))
+    record(
+      root,
+      "operands",
+      remote(
+        "cp -n " +
+        hyper +
+        "/hyper_matched_kernels.cuh " +
+        root +
+        "/ && cp -n " +
+        hyper +
+        "/original/streams.bf16 " +
+        hyper +
+        "/original/post.f32 " +
+        hyper +
+        "/original/combination.f32 " +
+        root +
+        "/prior/ && cp -n " +
+        original +
+        "/attention-output.bf16 " +
+        root +
+        "/prior/branch.bf16 && cp -n " +
+        native +
+        "/attention-output.bf16 " +
+        root +
+        "/prior/native-branch.bf16 && cp -n " +
+        original +
+        "/attention-residual.bf16 " +
+        root +
+        "/reference.bf16 && cp -n " +
+        native +
+        "/attention-residual.bf16 " +
+        root +
+        "/retained-native.bf16",
+      ),
+    )
+    @fs.write_file(root + "/HYPER_ROOT.txt", hyper, create_mode=CreateNew)
+    transfer(
+      "tests/packed_moe_execution/hyper_matched_probe.cu",
+      node + ":" + root + "/hyper_matched_probe.cu",
+    )
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 hyper_matched_probe.cu -o publication-probe",
+      ),
+    )
+  } else if mode == "run" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU probes")
+    }
+    record(root, "output-mkdir", remote("mkdir " + root + "/output"))
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    record(
+      root,
+      "run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+        root +
+        "/publication-probe " +
+        hyper +
+        "/original " +
+        root +
+        "/output 144 " +
+        root +
+        "/prior --publication",
+      ),
+    )
+    record(
+      root,
+      "reproduces-native",
+      remote(
+        "cmp " +
+        root +
+        "/output/post-native-both.bf16 " +
+        root +
+        "/retained-native.bf16",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    @fs.mkdir(root + "/output")
+    transfer(node + ":" + root + "/reference.bf16", root + "/reference.bf16")
+    for route in routes() {
+      let target = root + "/output/" + route + ".bf16"
+      transfer(node + ":" + target, target)
+      record(
+        root,
+        route + "-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          target,
+          root + "/reference.bf16",
+          root + "/" + route + "-comparison.txt",
+          "literal_original_publication_" + route,
+          "16384",
+        ]).output(),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

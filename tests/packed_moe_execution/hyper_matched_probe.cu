@@ -31,7 +31,9 @@ template<class T> static void save(T *p,size_t n,const std::string &path) {
   const bool closed=std::fclose(file)==0;if(!wrote||!closed)std::exit(4);
 }
 int main(int argc,char **argv) {
-  if(argc!=4&&argc!=5)return 2;
+  if(argc!=4&&argc!=5&&argc!=6)return 2;
+  const bool publication=argc==6&&std::string(argv[5])=="--publication";
+  if(argc==6&&!publication)return 2;
   const int rows=std::atoi(argv[3]);if(rows<1||rows>144)return 2;
   const std::string input(argv[1]),out(argv[2]);
   auto *streams=load<__nv_bfloat16>(input+"/streams.bf16",rows*16384);
@@ -48,7 +50,7 @@ int main(int argc,char **argv) {
   check(cudaGetLastError());check(cudaDeviceSynchronize());
   save(collapsed,rows*4096,out+"/collapsed.bf16");save(normalized,rows*4096,out+"/normalized.bf16");
   save(post,rows*4,out+"/post.f32");save(comb,rows*16,out+"/combination.f32");
-  if(argc==5) {
+  if(argc>=5) {
     const std::string prior(argv[4]);
     auto *residual=load<__nv_bfloat16>(prior+"/streams.bf16",rows*16384);
     auto *branch=load<__nv_bfloat16>(prior+"/branch.bf16",rows*4096);
@@ -58,6 +60,19 @@ int main(int argc,char **argv) {
     matched_hyper_post<<<rows,256>>>(counts,branch,residual,old_post,old_comb,published);
     check(cudaGetLastError());check(cudaDeviceSynchronize());
     save(published,rows*16384,out+"/attention-post.bf16");
+    if(publication) {
+      auto *native_branch=load<__nv_bfloat16>(prior+"/native-branch.bf16",rows*4096);
+      matched_hyper_post<<<rows,256>>>(counts,branch,residual,post,comb,published);
+      check(cudaGetLastError());check(cudaDeviceSynchronize());
+      save(published,rows*16384,out+"/post-native-controls.bf16");
+      matched_hyper_post<<<rows,256>>>(counts,native_branch,residual,old_post,old_comb,published);
+      check(cudaGetLastError());check(cudaDeviceSynchronize());
+      save(published,rows*16384,out+"/post-native-branch.bf16");
+      matched_hyper_post<<<rows,256>>>(counts,native_branch,residual,post,comb,published);
+      check(cudaGetLastError());check(cudaDeviceSynchronize());
+      save(published,rows*16384,out+"/post-native-both.bf16");
+      check(cudaFree(native_branch));
+    }
     for(void *p:{(void*)residual,(void*)branch,(void*)old_post,(void*)old_comb,(void*)published})check(cudaFree(p));
   }
   for(void *p:{(void*)streams,(void*)fn,(void*)base,(void*)scale,(void*)norm,(void*)counts,

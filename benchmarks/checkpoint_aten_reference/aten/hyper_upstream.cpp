@@ -2,9 +2,48 @@
 // Block.hc_pre/RMSNorm and kernel.hc_split_sinkhorn, not reconstructed math.
 #include "original_tensor_io.h"
 
+static PyObject *one_row_controls(PyObject *method,PyObject *self,PyObject *streams,
+    PyObject *fn,PyObject *scale,PyObject *base,int rows) {
+  Owned collapsed,post,combination;
+  for(int row=0;row<rows;++row) {
+    Owned operand(PyObject_CallMethod(streams,"narrow","iii",1,row,1));
+    Owned args(operand.p?PyTuple_Pack(5,self,operand.p,fn,scale,base):nullptr);
+    Owned result(args.p?PyObject_CallObject(method,args.p):nullptr);
+    if(!result.p||!PyTuple_Check(result.p)||PyTuple_Size(result.p)!=3)return nullptr;
+    auto *c=PyTuple_GetItem(result.p,0),*p=PyTuple_GetItem(result.p,1),*m=PyTuple_GetItem(result.p,2);
+    if(row==0) {
+      collapsed.p=PyObject_CallMethod(c,"new_empty","(iii)",1,rows,4096);
+      post.p=PyObject_CallMethod(p,"new_empty","(iii)",1,rows,4);
+      combination.p=PyObject_CallMethod(m,"new_empty","(iiii)",1,rows,4,4);
+      if(!collapsed.p||!post.p||!combination.p)return nullptr;
+    }
+    for(auto pair:{std::pair{collapsed.p,c},std::pair{post.p,p},std::pair{combination.p,m}}) {
+      Owned destination(PyObject_CallMethod(pair.first,"narrow","iii",1,row,1));
+      Owned copied(destination.p?PyObject_CallMethod(destination.p,"copy_","O",pair.second):nullptr);
+      if(!copied.p)return nullptr;
+    }
+  }
+  return PyTuple_Pack(3,collapsed.p,post.p,combination.p);
+}
+
+static PyObject *one_row_norm(PyObject *method,PyObject *input,int rows) {
+  Owned all;
+  for(int row=0;row<rows;++row) {
+    Owned operand(PyObject_CallMethod(input,"narrow","iii",1,row,1));
+    Owned args(operand.p?PyTuple_Pack(1,operand.p):nullptr);
+    Owned result(args.p?PyObject_CallObject(method,args.p):nullptr);
+    if(!result.p)return nullptr;
+    if(row==0) { all.p=PyObject_CallMethod(result.p,"new_empty","(iii)",1,rows,4096);if(!all.p)return nullptr; }
+    Owned destination(PyObject_CallMethod(all.p,"narrow","iii",1,row,1));
+    Owned copied(destination.p?PyObject_CallMethod(destination.p,"copy_","O",result.p):nullptr);
+    if(!copied.p)return nullptr;
+  }
+  auto *result=all.p;all.p=nullptr;return result;
+}
+
 static int execute(const char *inference,const char *root,const char *input,const char *out,
                    const char *prior=nullptr,const char *branch_input=nullptr,
-                   int layer=0,const char *literal_streams=nullptr) {
+                   int layer=0,const char *literal_streams=nullptr,bool one_row=false) {
   Owned path(PyUnicode_FromString(inference));
   if(!path.p||PyList_Insert(PySys_GetObject("path"),0,path.p)<0)return -1;
   Owned torch(PyImport_ImportModule("torch")),model(PyImport_ImportModule("model"));
@@ -65,7 +104,8 @@ static int execute(const char *inference,const char *root,const char *input,cons
   Owned self(PyObject_Call(ns.p,empty.p,options.p));
   Owned method(cls.p?PyObject_GetAttrString(cls.p,"hc_pre"):nullptr);
   Owned operands(PyTuple_Pack(5,self.p,streams.p,fn.p,scale.p,base.p));
-  Owned result(method.p?PyObject_CallObject(method.p,operands.p):nullptr);
+  Owned result(method.p?(one_row?one_row_controls(method.p,self.p,streams.p,fn.p,scale.p,base.p,rows):
+    PyObject_CallObject(method.p,operands.p)):nullptr);
   if(!result.p||!PyTuple_Check(result.p)||PyTuple_Size(result.p)!=3)return -1;
   auto *collapsed=PyTuple_GetItem(result.p,0),*post=PyTuple_GetItem(result.p,1),*comb=PyTuple_GetItem(result.p,2);
   Owned norm_cls(PyObject_GetAttrString(model.p,"RMSNorm"));
@@ -75,7 +115,8 @@ static int execute(const char *inference,const char *root,const char *input,cons
   Owned wide_norm(norm.p?PyObject_CallMethod(norm.p,"float",nullptr):nullptr);
   Owned copied(parameter.p&&wide_norm.p?PyObject_CallMethod(parameter.p,"copy_","O",wide_norm.p):nullptr);
   Owned rms_args(PyTuple_Pack(1,collapsed));
-  Owned normalized(copied.p?PyObject_CallObject(gpu.p,rms_args.p):nullptr);
+  Owned normalized(copied.p?(one_row?one_row_norm(gpu.p,collapsed,rows):
+    PyObject_CallObject(gpu.p,rms_args.p)):nullptr);
   Owned cuda(PyObject_GetAttrString(torch.p,"cuda"));
   Owned sync(cuda.p?PyObject_CallMethod(cuda.p,"synchronize",nullptr):nullptr);
   if(!normalized.p||!sync.p)return -1;
@@ -88,16 +129,18 @@ static int execute(const char *inference,const char *root,const char *input,cons
      !save(post,u8.p,std::string(out)+"/post.f32",int64_t(rows)*4*4)||
      !save(comb,u8.p,std::string(out)+"/combination.f32",int64_t(rows)*16*4)||
      !save(normalized.p,u8.p,std::string(out)+"/normalized.bf16",int64_t(rows)*4096*2))return -1;
-  std::printf("original_hyper_complete rows=%d layer=%d family=%s operands=original_literal arithmetic=Block.hc_pre+RMSNorm full_model=false\n",rows,layer,family.c_str());
+  std::printf("original_hyper_complete rows=%d layer=%d family=%s one_row_geometry=%s operands=original_literal arithmetic=Block.hc_pre+RMSNorm full_model=false\n",rows,layer,family.c_str(),one_row?"true":"false");
   return 0;
 }
 
 int main(int argc,char **argv) {
+  const bool one_row=argc>1&&std::string(argv[argc-1])=="--one-row";
+  if(one_row)--argc;
   if(argc!=5&&argc!=7&&argc!=8)return 2;
   const int layer=argc==8?std::atoi(argv[6]):0;
   if(argc==8&&(std::string(argv[5])!="--attention-layer"||layer<0||layer>=43))return 2;
   Py_Initialize();
-  const int result=execute(argv[1],argv[2],argv[3],argv[4],argc==7?argv[5]:nullptr,argc==7?argv[6]:nullptr,layer,argc==8?argv[7]:nullptr);
+  const int result=execute(argv[1],argv[2],argv[3],argv[4],argc==7?argv[5]:nullptr,argc==7?argv[6]:nullptr,layer,argc==8?argv[7]:nullptr,one_row);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

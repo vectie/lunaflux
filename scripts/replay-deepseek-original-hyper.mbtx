@@ -5,6 +5,7 @@ import {
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
   "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
 }
 
 ///|
@@ -74,6 +75,44 @@ fn literal_ids(text : String) -> (Bytes, Int) raise {
     ],
   )
   (bytes, tokens.length())
+}
+
+///|
+fn literal_id_input(path : String, bytes : Bytes) -> (Bytes, Int) raise {
+  if path.has_suffix(".i32") {
+    guard bytes.length() > 0 &&
+      bytes.length() <= 144 * 4 &&
+      bytes.length() % 4 == 0 else {
+      fail("complete bounded original I32 token IDs required")
+    }
+    let text = [
+      for i in 0..<(bytes.length() / 4) => {
+        let at = i * 4
+        (bytes[at].to_uint() |
+        (bytes[at + 1].to_uint() << 8) |
+        (bytes[at + 2].to_uint() << 16) |
+        (bytes[at + 3].to_uint() << 24))
+        .reinterpret_as_int()
+        .to_string()
+      }
+    ].join(",")
+    let (checked, rows) = literal_ids(text)
+    assert_eq(checked, bytes)
+    (bytes, rows)
+  } else {
+    literal_ids(@utf8.decode(bytes))
+  }
+}
+
+///|
+test "original I32 IDs retain repetitions and literal byte order" {
+  let (bytes, _) = literal_ids("0,128803,16,16")
+  assert_eq(literal_id_input("ids.i32", bytes), (bytes, 4))
+  try literal_id_input("ids.i32", b"\x00") catch {
+    _ => ()
+  } noraise {
+    _ => fail("truncated token admitted")
+  }
 }
 
 ///|
@@ -170,7 +209,7 @@ async fn main {
       Some(_) => (extra[0], None)
       None => preparation_operands(extra)
     }
-    let (bytes, rows) = literal_ids(@fs.read_file(ids).text())
+    let (bytes, rows) = literal_id_input(ids, @fs.read_file(ids).binary())
     @fs.mkdir(root)
     for dir in ["original", "native", "memcheck", "racecheck", "synccheck"] {
       @fs.mkdir(root + "/" + dir)
@@ -285,7 +324,9 @@ async fn main {
       ),
     )
   } else if mode == "run" {
-    guard extra.is_empty() else { fail("unexpected options") }
+    guard extra.is_empty() || extra is ["--one-row"] else {
+      fail("unexpected options")
+    }
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
@@ -325,7 +366,8 @@ async fn main {
         ":/inference:ro --entrypoint /work/hyper-upstream " +
         image +
         " /inference /model /work/ids.i32 /work/original" +
-        ffn_args,
+        ffn_args +
+        (if extra.is_empty() { "" } else { " --one-row" }),
       ),
     )
     record(

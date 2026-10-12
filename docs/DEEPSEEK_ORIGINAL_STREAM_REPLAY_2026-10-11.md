@@ -76,6 +76,36 @@ Matched controls/branch-input publication and matched FFN input are still
 required. Whole-model 18–21% drift and MiniMax media quality remain unresolved;
 ordinary serving is unchanged. This is numerical error, not elapsed-time gain.
 
+### Residual publication attribution on matched controls and branch
+
+The original `hc_pre`/RMSNorm bridge now retains **one-row** GEMM submissions,
+not a 144-row substitute. Actual I32 token IDs and complete original predecessor
+streams are retained. In
+`/tmp/lunaflux-deepseek-original-hyper-layer0-rows1-20261012-v1`, collapsed and
+normalized inputs match all 589,824 BF16 values. F32 post-control error is
+0.000590706%; combination error is 0.000014289%. All four component/sanitizer
+units exit zero and release CUDA; installed-original warnings are retained.
+
+The actual exported residual publisher then receives four independently
+matched combinations. Root:
+`/tmp/lunaflux-deepseek-publication-layer0-20261012-v1`.
+
+| Publisher inputs | Different BF16 / 2,359,296 | Relative L2 |
+| --- | ---: | ---: |
+| Original controls + original branch | **0** | **0%, bitwise** |
+| Native controls + original branch | 2,385 | 0.009148681% |
+| Original controls + native branch | 1 | 0.000055542% |
+| Native controls + native branch | 2,386 | 0.009148849% |
+
+The final intervention is bitwise identical to the retained complete-layer
+native residual, so the attribution reaches the real executable. Publication
+arithmetic is **not** the next bug in this capture: almost all residual drift
+comes from control generation. The next isolation must distinguish control
+projection/reduction, inverse RMS arithmetic, nonlinear controls and Sinkhorn.
+It must not change the publisher or infer correctness from a global norm.
+The original/native component runner tests pass 5/5 and publication runner 1/1;
+no production arithmetic, reference, tolerance, or serving policy changes.
+
 ## Matched rotary arithmetic isolation — 2026-10-12
 
 An offline intervention now separates generated frequency/trigonometry from
