@@ -60,6 +60,29 @@ fn layers(text : String) -> Int raise {
 }
 
 ///|
+fn boundary_layer(options : ArrayView[String], count : Int) -> Int? raise {
+  match options {
+    ["--boundaries"] => Some(0)
+    ["--boundaries", index] => {
+      let layer = @string.parse_int(index)
+      guard layer >= 0 && layer < count else { fail("boundary must be an executed layer") }
+      Some(layer)
+    }
+    _ => None
+  }
+}
+
+///|
+test "compressed boundary observation retains actual original predecessor layers" {
+  assert_eq(boundary_layer(["--boundaries"], 1), Some(0))
+  assert_eq(boundary_layer(["--boundaries", "3"], 4), Some(3))
+  assert_eq(boundary_layer([], 4), None)
+  for index in ["4", "-1"] {
+    try boundary_layer(["--boundaries", index], 4) catch { _ => () } noraise { _ => fail("unexecuted observer layer") }
+  }
+}
+
+///|
 test "streamed reference counts real base layers and preserves complete streams" {
   assert_eq(layers("43"), 43)
   assert_eq(144 * 4 * 4096 * 2, 4718592)
@@ -78,6 +101,7 @@ async fn main {
     (
       options.is_empty() ||
       (mode == "prepare" && options is ["--prefill" | "--boundaries"]) ||
+      (mode == "prepare" && options is ["--boundaries", _]) ||
       (mode == "prepare" && options is ["--ffn-input", _])
     ) &&
     root.has_prefix("/tmp/lunaflux-deepseek-original-layer-stream-") &&
@@ -102,13 +126,16 @@ async fn main {
     )
     @fs.write_file(
       root + "/BOUNDARIES.txt",
-      if options is ["--boundaries"] {
+      if boundary_layer(options, number) is Some(_) {
         "true"
       } else {
         "false"
       },
       create_mode=CreateNew,
     )
+    if boundary_layer(options, number) is Some(layer) {
+      @fs.write_file(root + "/BOUNDARY_LAYER.txt", layer.to_string(), create_mode=CreateNew)
+    }
     for
       (name, source) in [
         (
@@ -158,6 +185,7 @@ async fn main {
     let boundaries = (@fs.read_file(root + "/BOUNDARIES.txt").text() == "true") catch {
       _ => false
     }
+    let observed_layer = (@fs.read_file(root + "/BOUNDARY_LAYER.txt").text()) catch { _ => "0" }
     let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
@@ -170,7 +198,7 @@ async fn main {
       " --property=MemoryMax=16G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 docker run --name " +
       tag +
       " --gpus all --network none --user 1000:1000 --memory 16g --memory-swap 16g -e OMP_NUM_THREADS=2" +
-      (if boundaries { " -e LUNA_ORIGINAL_BOUNDARIES=1" } else { "" }) +
+      (if boundaries { " -e LUNA_ORIGINAL_BOUNDARIES=1 -e LUNA_ORIGINAL_BOUNDARIES_LAYER=" + observed_layer } else { "" }) +
       " -e PYTHONPATH=/dependency -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/dependency:/dependency:ro" +
       " -v " +
       root +

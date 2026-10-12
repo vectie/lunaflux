@@ -135,7 +135,9 @@ static int execute(const char *inference,const char *root,const char *config_pat
       std::puts("original_ffn_replay_complete layer=0 rows=144 submission_rows=1 original_inputs=true original_routes=true");
       return 0;
     }
-    const bool observe=layer==0&&std::getenv("LUNA_ORIGINAL_BOUNDARIES");
+    const char *boundary_layer=std::getenv("LUNA_ORIGINAL_BOUNDARIES_LAYER");
+    const bool observe=std::getenv("LUNA_ORIGINAL_BOUNDARIES")&&
+      layer==(boundary_layer?std::atoi(boundary_layer):0);
     if(observe&&prefill){PyErr_SetString(PyExc_ValueError,"matched observer requires one-row submissions");return -1;}
     OriginalBoundaries observer;
     Owned an(observe?PyObject_GetAttrString(block.p,"attn_norm"):nullptr);
@@ -165,7 +167,7 @@ static int execute(const char *inference,const char *root,const char *config_pat
     if(observe) {
       PyEval_SetTrace(nullptr,nullptr);boundary_observer=nullptr;
       if(!write_original_boundaries(observer,out))return -1;
-      std::puts("original_layer_boundaries layer=0 rows=144 submission_rows=1 arithmetic=unchanged");
+      std::printf("original_layer_boundaries layer=%d rows=144 submission_rows=1 arithmetic=unchanged\n",layer);
     }
     if(!save(output.p,u8.p,std::string(out)+"/hidden-"+std::to_string(layer+1)+".bf16",144LL*4*4096*2))return -1;
     Owned last(PyObject_CallMethod(output.p,"narrow","iii",1,143,1));

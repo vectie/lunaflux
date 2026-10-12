@@ -1088,3 +1088,15 @@ extent is 124 frames at 256×256, but report literal observed geometry and updat
 counts. Finite tensors and the earlier local head/update match are not a media
 quality or complete numerical parity pass. The existing heartbeat remains
 active with this exact unit and the unresolved correctness work recorded.
+
+## User listening assessment — 2026-10-12
+
+In response to the pending listening question about the earlier **native
+MiniMax clip** shown in this conversation, the user reports: “natural coherent
+sound, although i do not understand.” This is direct human listening evidence
+for that previously displayed clip, not an automated assessment. It does not
+establish intelligible speech, recognizable cat-related content, caption
+alignment, or video quality. The still-running online64/original-noise 256×256
+experiment has no terminal clip yet, so this feedback is **not** assigned to
+that run. Earlier statements that listening was unassessed describe the state
+before this feedback; audio and video conclusions remain separate.
