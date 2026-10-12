@@ -48,8 +48,46 @@ and is not silently changed by this main-attention option.
 The offline `replay-layer-complex` / runner `prepare-complex` route selects
 tiled attention plus the explicit complex product for a matched complete-layer
 test. Existing replay modes and ordinary serving retain their original policies.
-Physical complete-layer propagation is pending; the isolated inverse result
-above is not relabeled as a full-decoder result.
+The committed `1e86e56e` ARM executable now completes the matched one-row
+layer-0 replay on `.179`, retaining all 144 original predecessors/token IDs,
+unchanged model weights and the same reference. It exits zero with empty
+application stderr and releases CUDA.
+
+| Propagated frontier | Tiled + separate products | Tiled + complex products |
+| --- | ---: | ---: |
+| Rotary query relative L2 | 0.000226269% | 0.000011243% |
+| Sparse-attention exact BF16 / values | 4,718,580 / 4,718,592 | **4,718,592 / 4,718,592** |
+| After inverse exact BF16 / values | 4,718,570 / 4,718,592 | **4,718,592 / 4,718,592** |
+| Grouped output-A relative L2 | 0.004923267% | 0.002497892% |
+| Output-B / attention branch relative L2 | 0.027743304% | 0.009394881% |
+| Four-stream residual relative L2 | 0.021144838% | 0.010978451% |
+| FFN input relative L2 | 0.041244792% | 0.024279547% |
+| FFN output relative L2 | 0.227111820% | 0.201573955% |
+| Complete layer relative L2 | 0.175669656% | **0.155807089%** |
+
+The attention and inverse frontiers now agree **bitwise** for this replay,
+despite 139 tiny query differences remaining. Remaining layer drift first
+appears at output-A (324 differing values on identical attention operands),
+then amplifies through output-B, residual normalization and FFN. Complete-layer
+error falls another **11.3%**, about **58.4% below** the original 0.3749400%
+baseline. This is a real propagated numerical improvement, not full-model
+parity or a throughput claim. The earlier isolated inverse's eleven residual
+differences were on different sparse-attention operands and are not erased
+or relabeled by this complete-layer result.
+
+Native root: `/tmp/lunaflux-deepseek-production-layer-0-complex-rows1-20261012-v1`.
+Boundary reports: `/tmp/lunaflux-deepseek-layer-0-complex-frontiers-20261012-v1`.
+A separate physical default-policy replay at
+`/tmp/lunaflux-deepseek-production-layer-0-default-shared-rows1-20261012-v1`
+remains bitwise equal to the retained complete-layer default output from
+`production-layer-0-components-20261012-v1`. Sharing the output inverse renderer
+therefore preserves observed ordinary-policy arithmetic. All arrays are finite.
+Clean commit-pinned ARM decoder regressions pass 15/15; local query/KV, grouped
+source, checkpoint command and replay runner tests pass 18/18, 3/3, 4/4 and 2/2.
+The main-attention law is not applied to indexer/Hadamard arithmetic; an explicit
+complex-product request for an indexer cache is rejected instead of ignored.
+Ordinary serving remains unchanged. Compressed-path and full-model numerical
+corrections, remaining output-A drift and MiniMax media quality are unfinished.
 
 Root: `/tmp/lunaflux-deepseek-rotary-arithmetic-20261012-v3` on `.179` and
 locally; runner: `scripts/probe-deepseek-rotary-arithmetic.mbtx`.

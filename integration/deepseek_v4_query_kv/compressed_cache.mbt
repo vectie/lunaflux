@@ -59,6 +59,11 @@ pub fn DeepSeekCompressedKvCache::new(
   maximum_workspace_bytes~ : Int64,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise {
+  // Main-attention complex rounding does not silently change or disappear
+  // inside the indexer/Hadamard numerical operation.
+  guard !for_indexer || rotary_product == SeparateFloat32Products else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
   let plan = compressed_cache_plan(
     spec,
     layer~,
