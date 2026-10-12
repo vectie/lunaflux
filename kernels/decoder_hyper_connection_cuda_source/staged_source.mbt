@@ -15,6 +15,8 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
   control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_matrix_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  matrix_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
   control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
 ) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
@@ -78,9 +80,12 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     control_dot_law is OrderedFloat32 &&
     control_vector_affine_law is SeparateMultiplyAdd &&
     control_sigmoid_law is StableBranches &&
-    control_root_law is DivideRoundedSqrtFloat32 {
+    control_root_law is DivideRoundedSqrtFloat32 &&
+    control_matrix_affine_law is SeparateMultiplyAdd &&
+    matrix_sum_law is OrderedFloat32 {
     numerical_contract
-  } else {
+  } else if control_matrix_affine_law is SeparateMultiplyAdd &&
+    matrix_sum_law is OrderedFloat32 {
     RefinedControlFunctionBf16CollapseV1(
       control=control_law,
       square=control_square_law,
@@ -89,12 +94,24 @@ pub fn staged_function_and_collapse_bf16_f32_source(
       sigmoid=control_sigmoid_law,
       root=control_root_law,
     )
+  } else {
+    RefinedControlFunctionBf16CollapseV2(
+      control=control_law,
+      square=control_square_law,
+      dot=control_dot_law,
+      vector_affine=control_vector_affine_law,
+      sigmoid=control_sigmoid_law,
+      root=control_root_law,
+      matrix_affine=control_matrix_affine_law,
+      matrix_sum=matrix_sum_law,
+    )
   }
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "__device__ __forceinline__ float lf_hc_stage_sigmoid(float x) { " +
     control_sigmoid_source(control_sigmoid_law) +
     " }\n" +
+    matrix_sum_helper(matrix_sum_law, stream_width, "lf_hc_stage_sum") +
     "extern \"C\" __global__ void " +
     function_symbol +
     "(const int32_t *counts, const __nv_bfloat16 *streams, const " +
@@ -171,21 +188,39 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     width +
     " + destination * " +
     width +
-    "; float maximum = __fadd_rn(__fmul_rn(mixes[control_index], scale[2]), base[control_index]); for (int32_t source = 1; source < " +
+    "; float maximum = " +
+    matrix_affine_source("control_index", control_matrix_affine_law) +
+    "; for (int32_t source = 1; source < " +
     width +
     "; ++source) { control_index = 2 * " +
     width +
     " + destination * " +
     width +
-    " + source; const float value = __fadd_rn(__fmul_rn(mixes[control_index], scale[2]), base[control_index]); if (value > maximum) maximum = value; } float sum = 0.0f; for (int32_t source = 0; source < " +
+    " + source; const float value = " +
+    matrix_affine_source("control_index", control_matrix_affine_law) +
+    "; if (value > maximum) maximum = value; } float sum = 0.0f; for (int32_t source = 0; source < " +
     width +
     "; ++source) { control_index = 2 * " +
     width +
     " + destination * " +
     width +
-    " + source; const float value = expf(__fadd_rn(__fadd_rn(__fmul_rn(mixes[control_index], scale[2]), base[control_index]), -maximum)); const unsigned long long index = matrix_base + (unsigned long long)destination * " +
+    " + source; const float value = expf(__fadd_rn(" +
+    matrix_affine_source("control_index", control_matrix_affine_law) +
+    ", -maximum)); const unsigned long long index = matrix_base + (unsigned long long)destination * " +
     width +
-    "ULL + (unsigned long long)source; initial_combination[index] = value; sum = __fadd_rn(sum, value); } for (int32_t source = 0; source < " +
+    "ULL + (unsigned long long)source; initial_combination[index] = value; " +
+    (if matrix_sum_law is OrderedFloat32 {
+      "sum = __fadd_rn(sum, value); "
+    } else {
+      ""
+    }) +
+    "} " +
+    (if matrix_sum_law is ButterflyFloat32 {
+      "sum = lf_hc_stage_sum(initial_combination + matrix_base + (unsigned long long)destination * \{stream_width}ULL, 1); "
+    } else {
+      ""
+    }) +
+    "for (int32_t source = 0; source < " +
     width +
     "; ++source) { const unsigned long long index = matrix_base + (unsigned long long)destination * " +
     width +
@@ -224,6 +259,7 @@ pub fn staged_positive_sinkhorn_f32_source(
   sinkhorn_iterations~ : Int,
   control_epsilon~ : Double,
   function_symbol~ : String,
+  sum_law? : @precision.SumReductionLaw = OrderedFloat32,
 ) -> DecoderHyperConnectionSinkhornCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth
@@ -247,7 +283,9 @@ pub fn staged_positive_sinkhorn_f32_source(
     control_epsilon,
   )
   let source = @utf8.encode(
-    "#include <math.h>\n#include <stdint.h>\nextern \"C\" __global__ void " +
+    "#include <math.h>\n#include <stdint.h>\n" +
+    matrix_sum_helper(sum_law, stream_width, "lf_hc_sinkhorn_sum") +
+    "extern \"C\" __global__ void " +
     function_symbol +
     "(const int32_t *counts, const float *initial_combination, float *combination) {\n" +
     "  const int32_t live_rows = counts[3]; if (live_rows < 0 || live_rows > " +
@@ -264,11 +302,17 @@ pub fn staged_positive_sinkhorn_f32_source(
     "; ++i) { const float value = initial_combination[base + (unsigned long long)i]; if (!isfinite(value) || value <= 0.0f) return; combination[base + (unsigned long long)i] = value; }\n" +
     "  for (int32_t source = 0; source < " +
     width +
-    "; ++source) { float sum = 0.0f; for (int32_t destination = 0; destination < " +
-    width +
-    "; ++destination) sum = __fadd_rn(sum, combination[base + (unsigned long long)destination * " +
-    width +
-    "ULL + (unsigned long long)source]); const float denominator = __fadd_rn(sum, " +
+    "; ++source) { " +
+    (if sum_law is ButterflyFloat32 {
+      "const float sum = lf_hc_sinkhorn_sum(combination + base + source, \{stream_width});"
+    } else {
+      "float sum = 0.0f; for (int32_t destination = 0; destination < " +
+      width +
+      "; ++destination) sum = __fadd_rn(sum, combination[base + (unsigned long long)destination * " +
+      width +
+      "ULL + (unsigned long long)source]);"
+    }) +
+    " const float denominator = __fadd_rn(sum, " +
     epsilon +
     "); for (int32_t destination = 0; destination < " +
     width +
@@ -279,11 +323,17 @@ pub fn staged_positive_sinkhorn_f32_source(
     sinkhorn_iterations.to_string() +
     "; ++iteration) { for (int32_t destination = 0; destination < " +
     width +
-    "; ++destination) { float sum = 0.0f; for (int32_t source = 0; source < " +
-    width +
-    "; ++source) sum = __fadd_rn(sum, combination[base + (unsigned long long)destination * " +
-    width +
-    "ULL + (unsigned long long)source]); const float denominator = __fadd_rn(sum, " +
+    "; ++destination) { " +
+    (if sum_law is ButterflyFloat32 {
+      "const float sum = lf_hc_sinkhorn_sum(combination + base + (unsigned long long)destination * \{stream_width}ULL, 1);"
+    } else {
+      "float sum = 0.0f; for (int32_t source = 0; source < " +
+      width +
+      "; ++source) sum = __fadd_rn(sum, combination[base + (unsigned long long)destination * " +
+      width +
+      "ULL + (unsigned long long)source]);"
+    }) +
+    " const float denominator = __fadd_rn(sum, " +
     epsilon +
     "); for (int32_t source = 0; source < " +
     width +
@@ -291,11 +341,17 @@ pub fn staged_positive_sinkhorn_f32_source(
     width +
     "ULL + (unsigned long long)source; combination[index] = __fdiv_rn(combination[index], denominator); } } for (int32_t source = 0; source < " +
     width +
-    "; ++source) { float sum = 0.0f; for (int32_t destination = 0; destination < " +
-    width +
-    "; ++destination) sum = __fadd_rn(sum, combination[base + (unsigned long long)destination * " +
-    width +
-    "ULL + (unsigned long long)source]); const float denominator = __fadd_rn(sum, " +
+    "; ++source) { " +
+    (if sum_law is ButterflyFloat32 {
+      "const float sum = lf_hc_sinkhorn_sum(combination + base + source, \{stream_width});"
+    } else {
+      "float sum = 0.0f; for (int32_t destination = 0; destination < " +
+      width +
+      "; ++destination) sum = __fadd_rn(sum, combination[base + (unsigned long long)destination * " +
+      width +
+      "ULL + (unsigned long long)source]);"
+    }) +
+    " const float denominator = __fadd_rn(sum, " +
     epsilon +
     "); for (int32_t destination = 0; destination < " +
     width +
@@ -305,7 +361,11 @@ pub fn staged_positive_sinkhorn_f32_source(
   )
   {
     operation: StagedSinkhornV1,
-    numerical_contract: OrderedF32PositiveSinkhornV1,
+    numerical_contract: if sum_law is OrderedFloat32 {
+      OrderedF32PositiveSinkhornV1
+    } else {
+      ExplicitF32PositiveSinkhornV1(sum=sum_law)
+    },
     stream_width,
     maximum_rows,
     sinkhorn_iterations,

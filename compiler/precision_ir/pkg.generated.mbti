@@ -232,6 +232,7 @@ pub struct HyperConnectionPrecision {
 pub fn HyperConnectionPrecision::control_dot_law(Self) -> DotReductionLaw
 pub fn HyperConnectionPrecision::control_epsilon(Self) -> Double
 pub fn HyperConnectionPrecision::control_law(Self) -> HyperConnectionControlLaw
+pub fn HyperConnectionPrecision::control_matrix_affine_law(Self) -> Float32AffineLaw
 pub fn HyperConnectionPrecision::control_root_law(Self) -> ReciprocalRootLaw
 pub fn HyperConnectionPrecision::control_sigmoid_law(Self) -> SigmoidEvaluationLaw
 pub fn HyperConnectionPrecision::control_square_law(Self) -> SquareReductionLaw
@@ -239,8 +240,9 @@ pub fn HyperConnectionPrecision::control_vector_affine_law(Self) -> Float32Affin
 pub fn HyperConnectionPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn HyperConnectionPrecision::function_weight_bytes(Self) -> Int64
 pub fn HyperConnectionPrecision::geometry(Self) -> (Int, Int, Int)
+pub fn HyperConnectionPrecision::matrix_sum_law(Self) -> SumReductionLaw
 pub fn HyperConnectionPrecision::mix_law(Self) -> HyperConnectionMixLaw
-pub fn HyperConnectionPrecision::new(stream_count~ : Int, hidden_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, mix_law~ : HyperConnectionMixLaw, control_law? : HyperConnectionControlLaw, control_square_law? : SquareReductionLaw, control_dot_law? : DotReductionLaw, control_vector_affine_law? : Float32AffineLaw, control_sigmoid_law? : SigmoidEvaluationLaw, control_root_law? : ReciprocalRootLaw, normalization_square_law? : SquareReductionLaw) -> Self raise PrecisionPlanError
+pub fn HyperConnectionPrecision::new(stream_count~ : Int, hidden_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, mix_law~ : HyperConnectionMixLaw, control_law? : HyperConnectionControlLaw, control_square_law? : SquareReductionLaw, control_dot_law? : DotReductionLaw, control_vector_affine_law? : Float32AffineLaw, control_sigmoid_law? : SigmoidEvaluationLaw, control_matrix_affine_law? : Float32AffineLaw, matrix_sum_law? : SumReductionLaw, control_root_law? : ReciprocalRootLaw, normalization_square_law? : SquareReductionLaw) -> Self raise PrecisionPlanError
 pub fn HyperConnectionPrecision::normalization_epsilon(Self) -> Double
 pub fn HyperConnectionPrecision::normalization_square_law(Self) -> SquareReductionLaw
 pub fn HyperConnectionPrecision::sinkhorn_iterations(Self) -> Int
@@ -661,6 +663,14 @@ pub fn StreamMeanCapturePrecision::geometry(Self) -> (Int, Int, Int, Int)
 pub fn StreamMeanCapturePrecision::input_bytes(Self) -> Int64
 pub fn StreamMeanCapturePrecision::new(stream_count~ : Int, hidden_width~ : Int, maximum_rows~ : Int, segment_count~ : Int, maximum_output_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn StreamMeanCapturePrecision::output_bytes(Self) -> Int64
+
+pub(all) enum SumReductionLaw {
+  OrderedFloat32
+  ButterflyFloat32
+} derive(Eq, @debug.Debug)
+pub fn SumReductionLaw::equal(Self, Self) -> Bool
+pub fn SumReductionLaw::not_equal(Self, Self) -> Bool
+pub fn SumReductionLaw::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TextBoundary {
   Ingress

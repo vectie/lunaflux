@@ -10,10 +10,14 @@ async fn main {
       | "replay-layer-refined"
       | "replay-layer-nonlinear"
       | "replay-layer-vector-rms"
-      | "replay-layer-hierarchical-controls" as mode,
+      | "replay-layer-hierarchical-controls"
+      | "replay-layer-butterfly-controls" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
+    let grouped = mode == "replay-layer-hierarchical-controls" ||
+      mode == "replay-layer-butterfly-controls"
+    let vector_rms = grouped || mode == "replay-layer-vector-rms"
     replay_matched_layer(
       arguments,
       attention_accumulation=if mode != "replay-layer" {
@@ -25,8 +29,7 @@ async fn main {
         mode == "replay-layer-striped" ||
         mode == "replay-layer-refined" ||
         mode == "replay-layer-nonlinear" ||
-        mode == "replay-layer-vector-rms" ||
-        mode == "replay-layer-hierarchical-controls" {
+        vector_rms {
         ComplexFloat32Fma
       } else {
         SeparateFloat32Products
@@ -34,14 +37,12 @@ async fn main {
       output_accumulation=if mode == "replay-layer-striped" ||
         mode == "replay-layer-refined" ||
         mode == "replay-layer-nonlinear" ||
-        mode == "replay-layer-vector-rms" ||
-        mode == "replay-layer-hierarchical-controls" {
+        vector_rms {
         StripedTreeFloat32(partitions=32)
       } else {
         OrderedFloat32
       },
-      control_square_law=if mode == "replay-layer-vector-rms" ||
-        mode == "replay-layer-hierarchical-controls" {
+      control_square_law=if vector_rms {
         VectorizedTreeFloat32(partitions=512, vector_width=4)
       } else if mode == "replay-layer-refined" ||
         mode == "replay-layer-nonlinear" {
@@ -51,27 +52,32 @@ async fn main {
       },
       control_dot_law=matched_control_dot_law(mode),
       control_vector_affine_law=if mode == "replay-layer-nonlinear" ||
-        mode == "replay-layer-vector-rms" ||
-        mode == "replay-layer-hierarchical-controls" {
+        vector_rms {
         FusedMultiplyAdd
       } else {
         SeparateMultiplyAdd
       },
-      control_sigmoid_law=if mode == "replay-layer-nonlinear" ||
-        mode == "replay-layer-vector-rms" ||
-        mode == "replay-layer-hierarchical-controls" {
+      control_sigmoid_law=if mode == "replay-layer-nonlinear" || vector_rms {
         DirectReciprocal
       } else {
         StableBranches
       },
-      control_root_law=if mode == "replay-layer-vector-rms" ||
-        mode == "replay-layer-hierarchical-controls" {
+      control_matrix_affine_law=if mode == "replay-layer-butterfly-controls" {
+        FusedMultiplyAdd
+      } else {
+        SeparateMultiplyAdd
+      },
+      matrix_sum_law=if mode == "replay-layer-butterfly-controls" {
+        ButterflyFloat32
+      } else {
+        OrderedFloat32
+      },
+      control_root_law=if vector_rms {
         ReciprocalSqrtFloat32
       } else {
         DivideRoundedSqrtFloat32
       },
-      normalization_square_law=if mode == "replay-layer-vector-rms" ||
-        mode == "replay-layer-hierarchical-controls" {
+      normalization_square_law=if vector_rms {
         VectorizedTreeFloat32(partitions=512, vector_width=4)
       } else {
         VectorizedTreeFloat32(partitions=256, vector_width=1)

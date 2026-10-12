@@ -26,14 +26,15 @@ pub fn hyper_connection_source(
     control_dot_law=plan.control_dot_law(),
     control_vector_affine_law=plan.control_vector_affine_law(),
     control_sigmoid_law=plan.control_sigmoid_law(),
+    control_matrix_affine_law=plan.control_matrix_affine_law(),
+    matrix_sum_law=plan.matrix_sum_law(),
     control_root_law=plan.control_root_law(),
   )
   // Multiple branch envelopes may share a module without duplicate helpers.
   let function_source = @utf8.encode(
-    @utf8.decode(function.source_bytes()).replace_all(
-      old="lf_hc_stage_sigmoid",
-      new=symbol_prefix + "_sigmoid",
-    ),
+    @utf8.decode(function.source_bytes())
+    .replace_all(old="lf_hc_stage_sigmoid", new=symbol_prefix + "_sigmoid")
+    .replace_all(old="lf_hc_stage_sum", new=symbol_prefix + "_matrix_sum"),
   )
   let sinkhorn = @control.staged_positive_sinkhorn_f32_source(
     stream_width=streams,
@@ -41,7 +42,14 @@ pub fn hyper_connection_source(
     sinkhorn_iterations=plan.sinkhorn_iterations(),
     control_epsilon=plan.control_epsilon(),
     function_symbol=symbol_prefix + "_sinkhorn",
+    sum_law=plan.matrix_sum_law(),
   ).source_bytes()
+  let sinkhorn = @utf8.encode(
+    @utf8.decode(sinkhorn).replace_all(
+      old="lf_hc_sinkhorn_sum",
+      new=symbol_prefix + "_sinkhorn_sum",
+    ),
+  )
   let normalization = @norm.prefix_rms_norm_bf16_with_optional_suffix_copy_source(
     prefix_width=hidden,
     suffix_width=0,

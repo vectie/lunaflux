@@ -302,6 +302,10 @@ async fn main {
       root + "/hyper_internal_observer.h",
     )
     upload(
+      "benchmarks/checkpoint_aten_reference/aten/hyper_source_observer.h",
+      root + "/hyper_source_observer.h",
+    )
+    upload(
       "tests/packed_moe_execution/hyper_matched_probe.cu",
       root + "/hyper_matched_probe.cu",
     )
@@ -328,7 +332,9 @@ async fn main {
       ),
     )
   } else if mode == "run" {
-    guard extra.is_empty() || extra is ["--one-row"] else {
+    guard extra.is_empty() ||
+      extra is ["--one-row"] ||
+      extra is ["--one-row", "--capture-source"] else {
       fail("unexpected options")
     }
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
@@ -361,7 +367,13 @@ async fn main {
         tag +
         "-original --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
         tag +
-        " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+        " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 " +
+        (if extra is ["--one-row", "--capture-source"] {
+          "-e LUNA_ORIGINAL_HYPER_KERNEL_SOURCE=/work/original-sinkhorn.cu "
+        } else {
+          ""
+        }) +
+        "-v " +
         root +
         ":/work -v " +
         checkpoint +
@@ -423,6 +435,20 @@ async fn main {
       "released",
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
+  } else if mode == "collect-source" {
+    guard extra.is_empty() else { fail("unexpected collection options") }
+    let source = root + "/original-sinkhorn.cu"
+    @fs.write_file(source, b"", create_mode=CreateNew)
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      node + ":" + source,
+      source,
+    ])
+    .output()
+    .check()
   } else if mode == "collect" {
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
     let layer = @fs.read_file(root + "/LAYER.txt").text() catch { _ => "0" }

@@ -12,6 +12,8 @@ pub fn hyper_connection_plan(
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
   control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_matrix_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  matrix_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
   control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
   normalization_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
@@ -31,6 +33,8 @@ pub fn hyper_connection_plan(
     control_dot_law~,
     control_vector_affine_law~,
     control_sigmoid_law~,
+    control_matrix_affine_law~,
+    matrix_sum_law~,
     control_root_law~,
     normalization_square_law~,
   )

@@ -115,6 +115,39 @@ async test "offline control arithmetic probe retains the actual renderer" {
     symbol_prefix="hc_hierarchical",
   )
   assert_eq(hierarchical.normalization_threads(), 512)
+  let butterfly = @hyper_connection_execution_cuda_source.hyper_connection_source(
+    @precision.HyperConnectionPrecision::new(
+      stream_count=4,
+      hidden_width=4096,
+      maximum_rows=144,
+      sinkhorn_iterations=20,
+      control_epsilon=0.000001,
+      normalization_epsilon=0.000001,
+      mix_law=TransposedF32ResidualThenBranch,
+      control_law=F32ProjectionThenNormalize,
+      control_square_law=VectorizedTreeFloat32(partitions=512, vector_width=4),
+      control_dot_law=GroupedVectorFloat32(
+        groups=18,
+        partitions=128,
+        vector_width=2,
+        publication_partitions=4,
+        multiply_add=FusedMultiplyAdd,
+      ),
+      control_vector_affine_law=FusedMultiplyAdd,
+      control_sigmoid_law=DirectReciprocal,
+      control_matrix_affine_law=FusedMultiplyAdd,
+      matrix_sum_law=ButterflyFloat32,
+      control_root_law=ReciprocalSqrtFloat32,
+      normalization_square_law=VectorizedTreeFloat32(
+        partitions=512,
+        vector_width=4,
+      ),
+    ),
+    symbol_prefix="hc_butterfly",
+  )
+  sources.push(
+    arithmetic_capture(@utf8.decode(butterfly.source_bytes()), "butterfly"),
+  )
   sources.push(
     arithmetic_capture(
       @utf8.decode(hierarchical.source_bytes()),

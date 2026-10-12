@@ -15,9 +15,9 @@ pub fn post_combine_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, max
 
 pub fn pre_reduce_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderHyperConnectionPreReduceCudaSource raise DecoderHyperConnectionCudaSourceError
 
-pub fn staged_function_and_collapse_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String, control_law? : @precision_ir.HyperConnectionControlLaw, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw, control_vector_affine_law? : @precision_ir.Float32AffineLaw, control_sigmoid_law? : @precision_ir.SigmoidEvaluationLaw, control_root_law? : @precision_ir.ReciprocalRootLaw) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError
+pub fn staged_function_and_collapse_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String, control_law? : @precision_ir.HyperConnectionControlLaw, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw, control_vector_affine_law? : @precision_ir.Float32AffineLaw, control_sigmoid_law? : @precision_ir.SigmoidEvaluationLaw, control_matrix_affine_law? : @precision_ir.Float32AffineLaw, matrix_sum_law? : @precision_ir.SumReductionLaw, control_root_law? : @precision_ir.ReciprocalRootLaw) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError
 
-pub fn staged_positive_sinkhorn_f32_source(stream_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionSinkhornCudaSource raise DecoderHyperConnectionCudaSourceError
+pub fn staged_positive_sinkhorn_f32_source(stream_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, function_symbol~ : String, sum_law? : @precision_ir.SumReductionLaw) -> DecoderHyperConnectionSinkhornCudaSource raise DecoderHyperConnectionCudaSourceError
 
 // Errors
 pub(all) suberror DecoderHyperConnectionCudaSourceError {
@@ -85,7 +85,9 @@ pub(all) enum DecoderHyperConnectionNumericalContract {
   OrderedF32FunctionBf16CollapseV1
   OrderedF32ProjectionThenNormalizeBf16CollapseV1
   RefinedControlFunctionBf16CollapseV1(control~ : @precision_ir.HyperConnectionControlLaw, square~ : @precision_ir.SquareReductionLaw, dot~ : @precision_ir.DotReductionLaw, vector_affine~ : @precision_ir.Float32AffineLaw, sigmoid~ : @precision_ir.SigmoidEvaluationLaw, root~ : @precision_ir.ReciprocalRootLaw)
+  RefinedControlFunctionBf16CollapseV2(control~ : @precision_ir.HyperConnectionControlLaw, square~ : @precision_ir.SquareReductionLaw, dot~ : @precision_ir.DotReductionLaw, vector_affine~ : @precision_ir.Float32AffineLaw, sigmoid~ : @precision_ir.SigmoidEvaluationLaw, root~ : @precision_ir.ReciprocalRootLaw, matrix_affine~ : @precision_ir.Float32AffineLaw, matrix_sum~ : @precision_ir.SumReductionLaw)
   OrderedF32PositiveSinkhornV1
+  ExplicitF32PositiveSinkhornV1(sum~ : @precision_ir.SumReductionLaw)
   OrderedF32PreReduceBf16RoundV1
   OrderedF32PostCombineBf16RoundV1
   OrderedF32TransposedPostCombineBf16RoundV1

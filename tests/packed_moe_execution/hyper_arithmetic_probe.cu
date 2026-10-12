@@ -37,21 +37,23 @@ int main(int argc,char **argv) {
   auto *normalized=allocate<__nv_bfloat16>(144*4096);
   auto *counts=allocate<int>(5);int host[5]={0,0,0,144,0};
   check(cudaMemcpy(counts,host,sizeof(host),cudaMemcpyHostToDevice));
-#define RUN_NORM(symbol,norm_symbol,threads,label) do { \
+#define RUN_ENVELOPE(symbol,sinkhorn_symbol,norm_symbol,threads,label) do { \
   symbol<<<144,1>>>(counts,x,fn,base,scale,literal,literal_inverse,mixes,inverse,post,initial,collapsed); \
-  hc_probe_sinkhorn<<<144,1>>>(counts,initial,comb); \
+  sinkhorn_symbol<<<144,1>>>(counts,initial,comb); \
   norm_symbol<<<144,threads>>>(counts,collapsed,norm,normalized); \
   check(cudaGetLastError());check(cudaDeviceSynchronize()); \
   save(mixes,144*24,out+"/" label "-mixes.f32");save(inverse,144,out+"/" label "-rsqrt.f32"); \
   save(post,144*4,out+"/" label "-post.f32");save(comb,144*16,out+"/" label "-combination.f32"); \
   save(collapsed,144*4096,out+"/" label "-collapsed.bf16");save(normalized,144*4096,out+"/" label "-normalized.bf16"); \
 } while(false)
+#define RUN_NORM(symbol,norm_symbol,threads,label) RUN_ENVELOPE(symbol,hc_probe_sinkhorn,norm_symbol,threads,label)
 #define RUN(symbol,label) RUN_NORM(symbol,hc_probe_norm,256,label)
   RUN(hc_probe_function,"production");
   RUN(hc_refined_function,"refined");
   RUN(hc_nonlinear_function,"nonlinear");
   RUN_NORM(hc_vector_rms_function,hc_vector_rms_norm,512,"vector_rms");
   RUN_NORM(hc_hierarchical_function,hc_hierarchical_norm,512,"hierarchical");
+  RUN_ENVELOPE(hc_butterfly_function,hc_butterfly_sinkhorn,hc_butterfly_norm,512,"butterfly");
   RUN(hc_refined_direct_function,"refined_direct");
   RUN(hc_refined_affine_fma_function,"refined_affine_fma");
   RUN(hc_refined_direct_affine_fma_function,"refined_direct_affine_fma");

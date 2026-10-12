@@ -44,6 +44,8 @@ pub struct HyperConnectionPrecision {
   priv control_dot_law : DotReductionLaw
   priv control_vector_affine_law : Float32AffineLaw
   priv control_sigmoid_law : SigmoidEvaluationLaw
+  priv control_matrix_affine_law : Float32AffineLaw
+  priv matrix_sum_law : SumReductionLaw
   priv control_root_law : ReciprocalRootLaw
   priv normalization_square_law : SquareReductionLaw
   priv function_bytes : Int64
@@ -65,6 +67,8 @@ pub fn HyperConnectionPrecision::new(
   control_dot_law? : DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : Float32AffineLaw = SeparateMultiplyAdd,
   control_sigmoid_law? : SigmoidEvaluationLaw = StableBranches,
+  control_matrix_affine_law? : Float32AffineLaw = SeparateMultiplyAdd,
+  matrix_sum_law? : SumReductionLaw = OrderedFloat32,
   control_root_law? : ReciprocalRootLaw = DivideRoundedSqrtFloat32,
   normalization_square_law? : SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
@@ -88,6 +92,7 @@ pub fn HyperConnectionPrecision::new(
   let rows = maximum_rows.to_int64()
   control_square_law.validate()
   normalization_square_law.validate()
+  matrix_sum_law.validate(stream_count)
   let streams = stream_count.to_int64()
   let hidden = hidden_width.to_int64()
   if control_dot_law is (StripedTreeFloat32(_) | GroupedVectorFloat32(..)) {
@@ -132,12 +137,26 @@ pub fn HyperConnectionPrecision::new(
     control_dot_law,
     control_vector_affine_law,
     control_sigmoid_law,
+    control_matrix_affine_law,
+    matrix_sum_law,
     control_root_law,
     normalization_square_law,
     function_bytes,
     frames: ReadOnlyArray::from_array(frames),
     bytes,
   }
+}
+
+///|
+pub fn HyperConnectionPrecision::control_matrix_affine_law(
+  self : Self,
+) -> Float32AffineLaw {
+  self.control_matrix_affine_law
+}
+
+///|
+pub fn HyperConnectionPrecision::matrix_sum_law(self : Self) -> SumReductionLaw {
+  self.matrix_sum_law
 }
 
 ///|

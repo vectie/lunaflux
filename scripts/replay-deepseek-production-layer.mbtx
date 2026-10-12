@@ -72,6 +72,8 @@ fn replay_mode(mode : String) -> String {
     "replay-layer-vector-rms"
   } else if mode == "prepare-hierarchical-controls" {
     "replay-layer-hierarchical-controls"
+  } else if mode == "prepare-butterfly-controls" {
+    "replay-layer-butterfly-controls"
   } else {
     "replay-layer"
   }
@@ -89,6 +91,10 @@ test "tiled replay uses the same explicit policy at export and execution" {
   assert_eq(
     replay_mode("prepare-hierarchical-controls"),
     "replay-layer-hierarchical-controls",
+  )
+  assert_eq(
+    replay_mode("prepare-butterfly-controls"),
+    "replay-layer-butterfly-controls",
   )
 }
 
@@ -110,7 +116,8 @@ async fn main {
     mode == "prepare-refined" ||
     mode == "prepare-nonlinear" ||
     mode == "prepare-vector-rms" ||
-    mode == "prepare-hierarchical-controls" {
+    mode == "prepare-hierarchical-controls" ||
+    mode == "prepare-butterfly-controls" {
     guard extra is [executable, layer, rows, input, reference, .. optional] &&
       optional.length() <= 1 else {
       fail("matched operands required")

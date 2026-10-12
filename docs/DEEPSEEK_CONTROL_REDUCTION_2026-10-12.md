@@ -474,3 +474,52 @@ and `/tmp/lunaflux-deepseek-production-layer-3-hierarchical-controls-rows1-20261
 frontiers `/tmp/lunaflux-deepseek-layer-0-hierarchical-controls-frontiers-20261012-v1`
 and `/tmp/lunaflux-deepseek-layer-3-hierarchical-controls-frontiers-20261012-v1`.
 Original data/tolerances and earlier positive/negative probe results are retained.
+
+## Sinkhorn: matrix-affine FMA and butterfly sums
+
+The fresh original one-row observer
+`/tmp/lunaflux-deepseek-original-hyper-layer3-rows1-20261012-v3` additionally
+inspects the installed TileLang kernel's own emitted source, without changing
+its operations or inputs. Original normalized/combination outputs remain
+bitwise against `v2`. The captured `original-sinkhorn.cu` and installed
+`reduce.h` show descending XOR-butterfly sums: for four entries the sum is
+`(a+c)+(b+d)`, not `((a+b)+c)+d`. Matrix logits also use affine FMA. Strict
+exponential and rounded division can remain unchanged.
+
+Eight exact-control probes in `/tmp/lunaflux-deepseek-sinkhorn-20261012-v1`
+separate affine, reduction and division. All use strict `expf` and unchanged
+original mixes/weights/epsilon/20 iterations.
+
+| Matrix arithmetic on identical original controls | Exact combination F32 / 2,304 | Relative L2 (%) |
+| --- | ---: | ---: |
+| Separate affine, ordered sum, rounded quotient | 501 | 0.000006108 |
+| Separate affine, butterfly sum, rounded quotient | 1,349 | 0.000001913 |
+| FMA affine, ordered sum, rounded quotient | 521 | 0.000006126 |
+| **FMA affine, butterfly sum, rounded quotient** | **2,304** | **0** |
+| FMA affine, butterfly sum, reciprocal then multiply | 434 | 0.000005493 |
+
+All eight routes pass full-144-row memcheck/leak, racecheck and synccheck with
+zero reports, 2-GiB/no-swap and balanced release. No intrinsic exponential,
+tolerance change or literal result enters production. The implementation
+adds the independent matrix-affine law and `SumReductionLaw` to the existing
+immutable precision plan. Both initial softmax and iterative row/column
+Sinkhorn lowering consume that sum law. It propagates through both
+attention/FFN envelopes, while ordinary defaults and the earlier explicit
+hierarchical replay policy remain unchanged. A distinct
+`replay-layer-butterfly-controls` mode selects the new candidate. Generated
+source and complete-layer propagation remain to be checked; this section is
+an isolated arithmetic proof, not full-model parity or a throughput gain.
+
+The actual generated envelope in
+`/tmp/lunaflux-deepseek-hyper-arithmetic-20261012-v10` now matches **all 2,304
+original F32 combination values bitwise**, alongside all mixes/inverses/post
+controls and both 589,824-element BF16 collapse/weighted-normalization outputs.
+The probe calls the **selected envelope's own Sinkhorn symbol**, not the former
+default diagnostic Sinkhorn. All 23 actual-source routes pass full-144-row
+memcheck/leak, racecheck and synccheck with zero reports, 2-GiB/no-swap and
+released CUDA. Default emitted source remains byte-identical to the retained
+original default source. Warning-denied native check passes; 125 affected
+native tests pass, including both attention/FFN envelope propagation across
+window/compressed layers. Original-source runner tests5/5 and sinkhorn/replay
+runner tests3/3 pass. Complete-layer propagation is still pending, and matrix
+parity on these original controls does not establish full-model parity.

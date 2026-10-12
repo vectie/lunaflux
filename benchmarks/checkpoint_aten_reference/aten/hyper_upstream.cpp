@@ -2,6 +2,7 @@
 // Block.hc_pre/RMSNorm and kernel.hc_split_sinkhorn, not reconstructed math.
 #include "original_tensor_io.h"
 #include "hyper_internal_observer.h"
+#include "hyper_source_observer.h"
 
 static PyObject *one_row_controls(PyObject *method,PyObject *self,PyObject *streams,
     PyObject *fn,PyObject *scale,PyObject *base,int rows) {
@@ -135,6 +136,7 @@ static int execute(const char *inference,const char *root,const char *input,cons
      !save(comb,u8.p,std::string(out)+"/combination.f32",int64_t(rows)*16*4)||
      !save(normalized.p,u8.p,std::string(out)+"/normalized.bf16",int64_t(rows)*4096*2))return -1;
   if(one_row&&!write_hyper_internals(out,rows))return -1;
+  if(!observe_hyper_source())return -1;
   std::printf("original_hyper_complete rows=%d layer=%d family=%s one_row_geometry=%s operands=original_literal arithmetic=Block.hc_pre+RMSNorm full_model=false\n",rows,layer,family.c_str(),one_row?"true":"false");
   return 0;
 }
