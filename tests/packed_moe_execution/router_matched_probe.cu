@@ -21,7 +21,9 @@ template<class T> static void save(T *p,size_t n,const std::string &path){
   const bool closed=std::fclose(file)==0;if(!ok||!closed)std::exit(4);
 }
 int main(int argc,char **argv){
-  if(argc!=5)return 2;const std::string input(argv[1]),ids_path(argv[2]),out(argv[3]);
+  if(argc!=5&&argc!=6)return 2;
+  const bool striped=argc==6&&std::string(argv[5])=="--striped32";if(argc==6&&!striped)return 2;
+  const std::string input(argv[1]),ids_path(argv[2]),out(argv[3]);
   const int layer=std::atoi(argv[4]);if(layer!=0&&layer!=3)return 2;
   auto *x=load<__nv_bfloat16>(input+"/../input.bf16",144*4096);
   auto *w=load<__nv_bfloat16>(input+"/weight.bf16",256*4096);
@@ -31,13 +33,13 @@ int main(int argc,char **argv){
   int *table=nullptr;float *bias=nullptr;
   if(layer==0){
     table=load<int>(input+"/table.i32",129280*6);
-    matched_hash_project<<<144,256>>>(counts,x,w,logits);
+    matched_hash_project<<<striped?36864:144,striped?32:256>>>(counts,x,w,logits);
     matched_hash_score<<<144,256>>>(counts,logits,scores);
     matched_hash_lookup<<<144,256>>>(counts,ids,table,indices);
     matched_hash_gather<<<144,1>>>(counts,scores,indices,weights);
   }else{
     bias=load<float>(input+"/bias.f32",256);
-    matched_learned_project<<<144,256>>>(counts,x,w,logits);
+    matched_learned_project<<<striped?36864:144,striped?32:256>>>(counts,x,w,logits);
     matched_learned_score<<<144,256>>>(counts,logits,bias,scores,choice);
     matched_learned_choose<<<144,1>>>(counts,scores,choice,indices,weights);
   }

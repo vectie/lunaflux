@@ -4,7 +4,8 @@ fn matched_control_dot_law(mode : String) -> @precision.DotReductionLaw {
   match mode {
     "replay-layer-hierarchical-controls"
     | "replay-layer-butterfly-controls"
-    | "replay-layer-vector-query" =>
+    | "replay-layer-vector-query"
+    | "replay-layer-router-arithmetic" =>
       GroupedVectorFloat32(
         groups=18,
         partitions=128,

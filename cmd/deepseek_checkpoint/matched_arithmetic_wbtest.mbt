@@ -17,4 +17,8 @@ test "vector RMS replay retains the refined control dot rather than falling back
       multiply_add=FusedMultiplyAdd,
     ),
   )
+  assert_eq(
+    matched_control_dot_law("replay-layer-router-arithmetic"),
+    matched_control_dot_law("replay-layer-vector-query"),
+  )
 }

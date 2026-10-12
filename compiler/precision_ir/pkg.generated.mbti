@@ -360,11 +360,14 @@ pub struct MoeRoutingPrecision {
 pub fn MoeRoutingPrecision::buffer_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn MoeRoutingPrecision::geometry(Self) -> (Int, Int, Int, Int)
 pub fn MoeRoutingPrecision::grouping(Self) -> (Int, Int, Int)
-pub fn MoeRoutingPrecision::new(weight~ : OperandPlan, maximum_rows~ : Int, group_count~ : Int, group_score_topk~ : Int, selected_group_count~ : Int, selected_experts~ : Int, score~ : MoeRoutingScore, selection? : MoeRoutingSelection, normalize~ : Bool, scaling~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn MoeRoutingPrecision::new(weight~ : OperandPlan, maximum_rows~ : Int, group_count~ : Int, group_score_topk~ : Int, selected_group_count~ : Int, selected_experts~ : Int, score~ : MoeRoutingScore, projection_law? : DotReductionLaw, softplus_law? : SoftplusEvaluationLaw, selected_sum_law? : SumReductionLaw, selection? : MoeRoutingSelection, normalize~ : Bool, scaling~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn MoeRoutingPrecision::normalize(Self) -> Bool
+pub fn MoeRoutingPrecision::projection_law(Self) -> DotReductionLaw
 pub fn MoeRoutingPrecision::scaling(Self) -> Double
 pub fn MoeRoutingPrecision::score(Self) -> MoeRoutingScore
+pub fn MoeRoutingPrecision::selected_sum_law(Self) -> SumReductionLaw
 pub fn MoeRoutingPrecision::selection(Self) -> MoeRoutingSelection
+pub fn MoeRoutingPrecision::softplus_law(Self) -> SoftplusEvaluationLaw
 pub fn MoeRoutingPrecision::weight(Self) -> OperandPlan
 pub fn MoeRoutingPrecision::workspace_bytes(Self) -> Int64
 
@@ -647,6 +650,14 @@ pub(all) enum SimulatedCacheScale {
 pub fn SimulatedCacheScale::equal(Self, Self) -> Bool
 pub fn SimulatedCacheScale::not_equal(Self, Self) -> Bool
 pub fn SimulatedCacheScale::to_repr(Self) -> @debug.Repr
+
+pub(all) enum SoftplusEvaluationLaw {
+  StableFloat32
+  ThresholdedFloat32(threshold~ : Double)
+} derive(Eq, @debug.Debug)
+pub fn SoftplusEvaluationLaw::equal(Self, Self) -> Bool
+pub fn SoftplusEvaluationLaw::not_equal(Self, Self) -> Bool
+pub fn SoftplusEvaluationLaw::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SquareReductionLaw {
   OrderedFloat32

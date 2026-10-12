@@ -12,6 +12,20 @@ pub extend MoeRoutingScore with Eq::{equal, not_equal}
 pub extend MoeRoutingScore with @debug.Debug::{to_repr}
 
 ///|
+/// Exact softplus evaluation, independent of device or routing selection.
+/// ThresholdedFloat32 evaluates log1p(exp(x)) unless x exceeds the threshold.
+pub(all) enum SoftplusEvaluationLaw {
+  StableFloat32
+  ThresholdedFloat32(threshold~ : Double)
+} derive(Eq, Debug)
+
+///|
+pub extend SoftplusEvaluationLaw with Eq::{equal, not_equal}
+
+///|
+pub extend SoftplusEvaluationLaw with @debug.Debug::{to_repr}
+
+///|
 /// Selection is independent of score arithmetic and device scheduling.
 pub(all) enum MoeRoutingSelection {
   GroupedTopK
@@ -35,6 +49,9 @@ pub struct MoeRoutingPrecision {
   priv selected_groups : Int
   priv selected_experts : Int
   priv score : MoeRoutingScore
+  priv projection_law : DotReductionLaw
+  priv softplus_law : SoftplusEvaluationLaw
+  priv selected_sum_law : SumReductionLaw
   priv selection : MoeRoutingSelection
   priv normalize : Bool
   priv scaling : Double
@@ -51,12 +68,25 @@ pub fn MoeRoutingPrecision::new(
   selected_group_count~ : Int,
   selected_experts~ : Int,
   score~ : MoeRoutingScore,
+  projection_law? : DotReductionLaw = OrderedFloat32,
+  softplus_law? : SoftplusEvaluationLaw = StableFloat32,
+  selected_sum_law? : SumReductionLaw = OrderedFloat32,
   selection? : MoeRoutingSelection = GroupedTopK,
   normalize~ : Bool,
   scaling~ : Double,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
-  let (experts, _) = weight.representation().shape()
+  let (experts, hidden) = weight.representation().shape()
+  projection_law.validate(hidden)
+  if softplus_law is ThresholdedFloat32(threshold~) {
+    guard score is SqrtSoftplus &&
+      !threshold.is_nan() &&
+      !threshold.is_inf() &&
+      threshold > 0.0 &&
+      threshold <= 80.0 else {
+      raise MissingAccuracyContract
+    }
+  }
   guard weight.role() == Weight &&
     weight.effect() == Pure &&
     weight.placement() is (NativeOperand | DecodeInOperandTile) &&
@@ -76,6 +106,15 @@ pub fn MoeRoutingPrecision::new(
     ) else {
     raise IllegalPlacement
   }
+  // Neutral padding is a pure extent calculation. Use wide arithmetic so an
+  // oversized logical plan cannot overflow while finding its tree extent.
+  let padded_selected = for extent = 1L; extent < selected_experts.to_int64(); {
+    continue extent * 2L
+  } nobreak {
+    extent
+  }
+  guard padded_selected <= 2147483647L else { raise ArithmeticOverflow }
+  selected_sum_law.validate(padded_selected.to_int())
   if selection is TokenHash(vocabulary_size~) {
     guard vocabulary_size > 0 else { raise IllegalPlacement }
     ignore(
@@ -126,6 +165,9 @@ pub fn MoeRoutingPrecision::new(
     selected_groups: selected_group_count,
     selected_experts,
     score,
+    projection_law,
+    softplus_law,
+    selected_sum_law,
     selection,
     normalize,
     scaling,
@@ -153,6 +195,21 @@ pub fn MoeRoutingPrecision::grouping(self : Self) -> (Int, Int, Int) {
 ///|
 pub fn MoeRoutingPrecision::score(self : Self) -> MoeRoutingScore {
   self.score
+}
+
+///|
+pub fn MoeRoutingPrecision::projection_law(self : Self) -> DotReductionLaw {
+  self.projection_law
+}
+
+///|
+pub fn MoeRoutingPrecision::softplus_law(self : Self) -> SoftplusEvaluationLaw {
+  self.softplus_law
+}
+
+///|
+pub fn MoeRoutingPrecision::selected_sum_law(self : Self) -> SumReductionLaw {
+  self.selected_sum_law
 }
 
 ///|

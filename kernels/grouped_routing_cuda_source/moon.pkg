@@ -1,5 +1,6 @@
 import {
   "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
 }
 

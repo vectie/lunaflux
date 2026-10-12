@@ -4,10 +4,20 @@
 fn hash_weight_source(
   plan : @precision.MoeRoutingPrecision,
   symbol : String,
-) -> String {
+) -> String raise {
   let (rows, _, experts, selected) = plan.geometry()
   let normalize = if plan.normalize() { "true" } else { "false" }
   let scaling = @literal.canonical_cuda_float_literal(plan.scaling())
+  let reduction = if plan.selected_sum_law() is OrderedFloat32 {
+    ""
+  } else {
+    "  if(valid) " +
+    @grouped.selected_weight_butterfly_source(
+      width=selected,
+      value_expression="scores[score_base+indices[output+slot]]",
+      output_symbol="sum",
+    )
+  }
   let source =
     $|extern "C" __global__ void \{symbol}(const int *counts, const float *scores, const int *indices, float *weights) {
     $|  const int live=counts[3], row=blockIdx.x;
@@ -21,7 +31,7 @@ fn hash_weight_source(
     $|    if(!isfinite(value)) valid=false;
     $|    sum=__fadd_rn(sum,value);
     $|  }
-    $|  const float denominator=\{normalize} ? __fadd_rn(sum,1.0e-20f) : 1.0f;
+    $|\{reduction}  const float denominator=\{normalize} ? __fadd_rn(sum,1.0e-20f) : 1.0f;
     $|  for(int slot=0;slot<\{selected};++slot) {
     $|    if(!valid) { weights[output+slot]=0.0f; continue; }
     $|    weights[output+slot]=__fmul_rn(__fdiv_rn(scores[score_base+indices[output+slot]],denominator),\{scaling});

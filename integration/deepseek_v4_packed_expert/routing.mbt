@@ -7,6 +7,9 @@ pub fn routing_compute_plan(
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
+  projection_law? : @precision.DotReductionLaw = OrderedFloat32,
+  softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
+  selected_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
 ) -> @precision.MoeRoutingPrecision raise {
   guard layer_index >= 0 && layer_index < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -17,6 +20,9 @@ pub fn routing_compute_plan(
     maximum_rows~,
     maximum_workspace_bytes~,
     accuracy~,
+    projection_law~,
+    softplus_law~,
+    selected_sum_law~,
   )
 }
 
@@ -27,6 +33,9 @@ pub fn block_routing_compute_plan(
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
+  projection_law? : @precision.DotReductionLaw = OrderedFloat32,
+  softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
+  selected_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
 ) -> @precision.MoeRoutingPrecision raise {
   let hash = block.uses_token_hash(spec)
   let representation = @format.Representation::new(
@@ -49,6 +58,9 @@ pub fn block_routing_compute_plan(
     selected_group_count=1,
     selected_experts=spec.experts_per_token(),
     score=SqrtSoftplus,
+    projection_law~,
+    softplus_law~,
+    selected_sum_law~,
     selection=if hash {
       TokenHash(vocabulary_size=spec.vocabulary_size())
     } else {

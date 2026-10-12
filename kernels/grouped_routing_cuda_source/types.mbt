@@ -6,6 +6,7 @@ pub(all) enum GroupedRoutingCudaOperation {
 ///|
 pub(all) enum GroupedRoutingNumericalContract {
   SerialF32TopGroupChoiceGatherNormalizeScaleV1
+  SerialF32TopGroupChoiceButterflyGatherNormalizeScaleV1
 } derive(Debug, Eq)
 
 ///|

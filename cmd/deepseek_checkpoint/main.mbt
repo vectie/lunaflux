@@ -12,18 +12,39 @@ async fn main {
       | "replay-layer-vector-rms"
       | "replay-layer-hierarchical-controls"
       | "replay-layer-butterfly-controls"
-      | "replay-layer-vector-query" as mode,
+      | "replay-layer-vector-query"
+      | "replay-layer-router-arithmetic" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
-    let grouped = mode == "replay-layer-hierarchical-controls" ||
+    let router = mode == "replay-layer-router-arithmetic"
+    let grouped = router ||
+      mode == "replay-layer-hierarchical-controls" ||
       mode == "replay-layer-butterfly-controls" ||
       mode == "replay-layer-vector-query"
     let vector_rms = grouped || mode == "replay-layer-vector-rms"
-    let butterfly = mode == "replay-layer-butterfly-controls" ||
+    let butterfly = router ||
+      mode == "replay-layer-butterfly-controls" ||
       mode == "replay-layer-vector-query"
     replay_matched_layer(
       arguments,
+      routing_projection_law=if router {
+        GroupedVectorFloat32(
+          groups=1,
+          partitions=32,
+          vector_width=1,
+          publication_partitions=1,
+          multiply_add=FusedMultiplyAdd,
+        )
+      } else {
+        OrderedFloat32
+      },
+      routing_softplus_law=if router {
+        ThresholdedFloat32(threshold=20.0)
+      } else {
+        StableFloat32
+      },
+      routing_sum_law=if router { ButterflyFloat32 } else { OrderedFloat32 },
       attention_accumulation=if mode != "replay-layer" {
         TiledFloat32
       } else {
@@ -55,7 +76,7 @@ async fn main {
         OrderedFloat32
       },
       control_dot_law=matched_control_dot_law(mode),
-      query_square_law=if mode == "replay-layer-vector-query" {
+      query_square_law=if router || mode == "replay-layer-vector-query" {
         VectorizedTreeFloat32(partitions=256, vector_width=4)
       } else {
         VectorizedTreeFloat32(partitions=256, vector_width=1)

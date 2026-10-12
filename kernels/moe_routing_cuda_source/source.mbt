@@ -12,7 +12,7 @@ pub fn routing_source(
   plan : @precision.MoeRoutingPrecision,
   symbol~ : String,
 ) -> MoeRoutingCudaSource raise {
-  let (rows, hidden, experts, selected) = plan.geometry()
+  let (rows, _, experts, selected) = plan.geometry()
   let (groups, group_topk, selected_groups) = plan.grouping()
   let (selection_source, selection_symbols, selection_launches) = match
     plan.selection() {
@@ -27,6 +27,7 @@ pub fn routing_source(
         scaling=plan.scaling(),
         maximum_rows=rows,
         function_symbol=symbol + "_choose",
+        selected_sum_law=plan.selected_sum_law(),
       )
       (@utf8.decode(choose.source_bytes()), [symbol + "_choose"], [(rows, 1)])
     }
@@ -64,7 +65,12 @@ pub fn routing_source(
   let score = match plan.score() {
     Sigmoid => "__fdiv_rn(1.0f,__fadd_rn(1.0f,expf(-x)))"
     SqrtSoftplus =>
-      "sqrtf(x>0.0f ? __fadd_rn(x,log1pf(expf(-x))) : log1pf(expf(x)))"
+      match plan.softplus_law() {
+        StableFloat32 =>
+          "sqrtf(x>0.0f ? __fadd_rn(x,log1pf(expf(-x))) : log1pf(expf(x)))"
+        ThresholdedFloat32(threshold~) =>
+          "sqrtf(x>\{@literal.canonical_cuda_float_literal(threshold)} ? x : log1pf(expf(x)))"
+      }
   }
   let score_arguments = if plan.selection() is GroupedTopK {
     "const float *bias, float *scores, float *choice"
@@ -76,18 +82,14 @@ pub fn routing_source(
   } else {
     ""
   }
-  let prefix =
+  let (projection, projection_launch) = projection_source(
+    plan, symbol, weight_type, weight_load,
+  )
+  let headers =
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
     $|#include <math.h>
-    $|extern "C" __global__ void \{symbol}_project(const int *counts, const __nv_bfloat16 *input, const \{weight_type} *weight, float *logits) {
-    $|  const int live=counts[3]; if(live<=0||live>\{rows}) return;
-    $|  const unsigned long long cell=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;
-    $|  if(cell>=(unsigned long long)live*\{experts}ULL) return;
-    $|  const unsigned long long row=cell/\{experts}ULL, base=(cell%\{experts}ULL)*\{hidden}ULL;
-    $|  float sum=0.0f; for(int k=0;k<\{hidden};++k) sum=__fadd_rn(sum,__fmul_rn(__bfloat162float(input[row*\{hidden}ULL+k]),\{weight_load}));
-    $|  logits[cell]=sum;
-    $|}
+  let score_source =
     $|extern "C" __global__ void \{symbol}_score(const int *counts, const float *logits, \{score_arguments}) {
     $|  const int live=counts[3]; if(live<=0||live>\{rows}) return;
     $|  const unsigned long long cell=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;
@@ -97,12 +99,20 @@ pub fn routing_source(
     $|}
   {
     plan,
-    source: @utf8.encode(prefix + "\n" + selection_source),
+    source: @utf8.encode(
+      headers +
+      "\n" +
+      projection +
+      "\n" +
+      score_source +
+      "\n" +
+      selection_source,
+    ),
     symbols: ReadOnlyArray::from_array(
       [symbol + "_project", symbol + "_score"] + selection_symbols,
     ),
     launches: ReadOnlyArray::from_array(
-      [(grid.to_int(), 256), (grid.to_int(), 256)] + selection_launches,
+      [projection_launch, (grid.to_int(), 256)] + selection_launches,
     ),
   }
 }

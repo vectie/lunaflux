@@ -1,0 +1,332 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn transfer(source : String, target : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    target,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn cases() -> Array[(String, String)] {
+  let result = [
+    ("native-striped32-fma", "logits"),
+    ("native-chain-scores", "scores"),
+    ("native-chain-weights", "weights"),
+    ("vendor-gemv", "logits"),
+    ("vendor-gemm", "logits"),
+    ("score-stable", "scores"),
+    ("score-direct-log1p", "scores"),
+    ("score-direct-log", "scores"),
+  ]
+  for order in 0..<5 {
+    for divide in ["divide", "reciprocal"] {
+      result.push(("original-score-sum\{order}-\{divide}", "weights"))
+    }
+  }
+  result
+}
+
+///|
+test "router arithmetic isolates observed boundary values rather than updating references" {
+  assert_eq(cases().length(), 18)
+  assert_eq(cases()[5], ("score-stable", "scores"))
+  assert_eq(cases()[17], ("original-score-sum4-reciprocal", "weights"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-router-arithmetic-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("prepare NEW_ROOT OBSERVED_ROUTER_ROOT | run|sanitize|collect ROOT")
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [observed] &&
+      observed.has_prefix("/tmp/lunaflux-deepseek-original-router-") else {
+      fail("literal router root required")
+    }
+    @fs.mkdir(root)
+    @fs.write_file(root + "/OBSERVED_ROOT.txt", observed, create_mode=CreateNew)
+    record(root, "mkdir", remote("mkdir " + root))
+    transfer(
+      "tests/packed_moe_execution/router_arithmetic_probe.cu",
+      node + ":" + root + "/probe.cu",
+    )
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 -lineinfo probe.cu -lcublas -o probe",
+      ),
+    )
+  } else if mode == "collect-profile" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    @fs.mkdir(root + "/profile-kernel")
+    transfer(
+      node + ":" + root + "/profile-kernel/router.ncu-rep",
+      root + "/profile-kernel/router.ncu-rep",
+    )
+    record(
+      root,
+      "profile-source",
+      remote(
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu --import " +
+        root +
+        "/profile-kernel/router.ncu-rep --page source --print-source sass",
+      ),
+    )
+    record(
+      root,
+      "profile-launch",
+      remote(
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu --import " +
+        root +
+        "/profile-kernel/router.ncu-rep --page details",
+      ),
+    )
+  } else if mode == "prepare-source" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    record(
+      root,
+      "export-source",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "kernels/moe_routing_cuda_source", "--filter", "original routing replay exports full literal hash and learned rows",
+        ],
+        env={
+          "LUNAFLUX_MATCHED_ROUTER_ARITHMETIC": "1",
+          "LUNAFLUX_MATCHED_ROUTER_SOURCE_OUTPUT": root +
+          "/router_matched_kernels.cuh",
+        },
+      ).output(),
+    )
+    transfer(
+      root + "/router_matched_kernels.cuh",
+      node + ":" + root + "/router_matched_kernels.cuh",
+    )
+    transfer(
+      "tests/packed_moe_execution/router_matched_probe.cu",
+      node + ":" + root + "/source-probe.cu",
+    )
+    record(
+      root,
+      "compile-source",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-source-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 source-probe.cu -o source-probe",
+      ),
+    )
+  } else if mode == "source" || mode == "source-sanitize" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let observed = @fs.read_file(root + "/OBSERVED_ROOT.txt").text()
+    for layer in [0, 3] {
+      for
+        tool in (if mode == "source" {
+          ["output"]
+        } else {
+          ["memcheck", "racecheck", "synccheck"]
+        }) {
+        let name = "source-layer-\{layer}-\{tool}"
+        let owners = remote(
+          "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+        )
+        owners.check()
+        guard owners.stdout().trim().is_empty() else {
+          fail("serialize GPU work")
+        }
+        record(root, name + "-mkdir", remote("mkdir " + root + "/" + name))
+        record(
+          root,
+          name,
+          remote(
+            "systemd-run --user --wait --pipe --unit=" +
+            tag +
+            "-" +
+            name +
+            " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+            (if tool == "output" {
+              ""
+            } else {
+              "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 7 --tool " +
+              tool +
+              (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+              " "
+            }) +
+            root +
+            "/source-probe " +
+            observed +
+            "/original-layer-\{layer} " +
+            observed +
+            "/ids.i32 " +
+            root +
+            "/" +
+            name +
+            " \{layer} --striped32",
+          ),
+        )
+      }
+    }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, mode + "-released", owners)
+    guard owners.stdout().trim().is_empty() else { fail("GPU owner remains") }
+  } else if mode == "collect-source" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let observed = @fs.read_file(root + "/OBSERVED_ROOT.txt").text()
+    for layer in [0, 3] {
+      let directory = root + "/source-layer-\{layer}-output"
+      @fs.mkdir(directory)
+      for field in ["logits", "scores", "weights"] {
+        let file = directory + "/" + field + ".f32"
+        transfer(node + ":" + file, file)
+        record(
+          root,
+          "source-layer-\{layer}-\{field}-comparison",
+          @shell.Cmd("moon", [
+            "run",
+            "scripts/compare-f32-tensors.mbtx",
+            file,
+            observed + "/original-layer-\{layer}/" + field + ".f32",
+            root + "/source-layer-\{layer}-\{field}.txt",
+            "actual_generated_routing_source",
+          ]).output(),
+        )
+      }
+      transfer(
+        node + ":" + directory + "/indices.i32",
+        directory + "/indices.i32",
+      )
+      guard @fs.read_file(directory + "/indices.i32").binary() ==
+        @fs.read_file(observed + "/original-layer-\{layer}/indices.i32").binary() else {
+        fail(
+          "selected identities or slot order changed; do not compare weights unaligned",
+        )
+      }
+    }
+  } else if mode == "run" || mode == "sanitize" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let observed = @fs.read_file(root + "/OBSERVED_ROOT.txt").text()
+    for
+      tool in (if mode == "run" {
+        ["output"]
+      } else {
+        ["memcheck", "racecheck", "synccheck"]
+      }) {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else {
+        fail("serialize GPU work")
+      }
+      record(root, tool + "-mkdir", remote("mkdir " + root + "/" + tool))
+      record(
+        root,
+        tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          tool +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+          (if tool == "output" {
+            ""
+          } else {
+            "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 7 --tool " +
+            tool +
+            (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+            " "
+          }) +
+          root +
+          "/probe " +
+          observed +
+          " " +
+          root +
+          "/" +
+          tool +
+          (if tool == "output" { "" } else { " --native-only" }),
+        ),
+      )
+    }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    record(root, mode + "-released", owners)
+    guard owners.stdout().trim().is_empty() else { fail("GPU owner remains") }
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let observed = @fs.read_file(root + "/OBSERVED_ROOT.txt").text()
+    @fs.mkdir(root + "/output")
+    for (name, reference) in cases() {
+      let file = root + "/output/" + name + ".f32"
+      transfer(node + ":" + file, file)
+      record(
+        root,
+        name + "-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-f32-tensors.mbtx",
+          file,
+          observed + "/original-layer-0/" + reference + ".f32",
+          root + "/" + name + ".txt",
+          "router_identical_observed_operands_" + name,
+        ]).output(),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

@@ -17,6 +17,7 @@ pub fn grouped_choice_and_selected_weight_f32_source(
   scaling~ : Double,
   maximum_rows~ : Int,
   function_symbol~ : String,
+  selected_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
 ) -> GroupedRoutingCudaSource raise GroupedRoutingCudaSourceError {
   if routed_expert_count <= 0 ||
     routed_expert_count > 1048576 ||
@@ -56,8 +57,16 @@ pub fn grouped_choice_and_selected_weight_f32_source(
   let scaling_literal = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(
     scaling,
   )
-  let source = @utf8.encode(
-    "#include <math.h>\n#include <stdint.h>\n#include <stdbool.h>\n" +
+  let reduction = if selected_sum_law is OrderedFloat32 {
+    ""
+  } else {
+    selected_weight_butterfly_source(
+      width=experts_per_token,
+      value_expression="uncorrected_scores[score_base + selected_indices[output_base + slot]]",
+      output_symbol="denominator",
+    )
+  }
+  let source_text = "#include <math.h>\n#include <stdint.h>\n#include <stdbool.h>\n" +
     "extern \"C\" __global__ void " +
     function_symbol +
     "(const int32_t *counts, const float *uncorrected_scores, const float *choice_scores, int32_t *selected_indices, float *selected_weights) {\n" +
@@ -113,7 +122,9 @@ pub fn grouped_choice_and_selected_weight_f32_source(
     "; ++group_slot) if (selected_groups[group_slot] == group) group_selected = true; bool used = false; for (int32_t previous = 0; previous < slot; ++previous) if (selected_indices[output_base + previous] == expert) used = true; const float value = choice_scores[score_base + expert]; if (group_selected && !used && (best < 0 || value > best_value || (value == best_value && expert < best))) { best = expert; best_value = value; } } selected_indices[output_base + slot] = best; }\n" +
     "  float denominator = 0.0f; for (int32_t slot = 0; slot < " +
     experts_per_token.to_string() +
-    "; ++slot) denominator = __fadd_rn(denominator, uncorrected_scores[score_base + selected_indices[output_base + slot]]); if (" +
+    "; ++slot) denominator = __fadd_rn(denominator, uncorrected_scores[score_base + selected_indices[output_base + slot]]); " +
+    reduction +
+    "if (" +
     normalize_literal +
     ") denominator = __fadd_rn(denominator, 1.0e-20f);\n" +
     "  for (int32_t slot = 0; slot < " +
@@ -123,11 +134,15 @@ pub fn grouped_choice_and_selected_weight_f32_source(
     " ? __fdiv_rn(value, denominator) : value; selected_weights[output_base + slot] = __fmul_rn(normalized, " +
     scaling_literal +
     "); }\n" +
-    "}\n",
-  )
+    "}\n"
+  let source = @utf8.encode(source_text)
   {
     operation: GroupedChoiceAndSelectedWeightF32,
-    numerical_contract: SerialF32TopGroupChoiceGatherNormalizeScaleV1,
+    numerical_contract: if selected_sum_law is OrderedFloat32 {
+      SerialF32TopGroupChoiceGatherNormalizeScaleV1
+    } else {
+      SerialF32TopGroupChoiceButterflyGatherNormalizeScaleV1
+    },
     routed_expert_count,
     group_count,
     group_score_topk,

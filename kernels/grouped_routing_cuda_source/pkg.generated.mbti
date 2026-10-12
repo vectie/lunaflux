@@ -3,10 +3,13 @@ package "vectie/lunaflux/kernels/grouped_routing_cuda_source"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
-pub fn grouped_choice_and_selected_weight_f32_source(routed_expert_count~ : Int, group_count~ : Int, group_score_topk~ : Int, selected_group_count~ : Int, experts_per_token~ : Int, normalize~ : Bool, scaling~ : Double, maximum_rows~ : Int, function_symbol~ : String) -> GroupedRoutingCudaSource raise GroupedRoutingCudaSourceError
+pub fn grouped_choice_and_selected_weight_f32_source(routed_expert_count~ : Int, group_count~ : Int, group_score_topk~ : Int, selected_group_count~ : Int, experts_per_token~ : Int, normalize~ : Bool, scaling~ : Double, maximum_rows~ : Int, function_symbol~ : String, selected_sum_law? : @precision_ir.SumReductionLaw) -> GroupedRoutingCudaSource raise GroupedRoutingCudaSourceError
+
+pub fn selected_weight_butterfly_source(width~ : Int, value_expression~ : String, output_symbol~ : String) -> String raise GroupedRoutingCudaSourceError
 
 // Errors
 pub(all) suberror GroupedRoutingCudaSourceError {
@@ -41,6 +44,7 @@ pub fn GroupedRoutingCudaSource::source_bytes(Self) -> Bytes
 
 pub(all) enum GroupedRoutingNumericalContract {
   SerialF32TopGroupChoiceGatherNormalizeScaleV1
+  SerialF32TopGroupChoiceButterflyGatherNormalizeScaleV1
 } derive(Eq, @debug.Debug)
 
 // Type aliases

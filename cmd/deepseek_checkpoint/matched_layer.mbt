@@ -72,6 +72,9 @@ fn matched_ints(values : ArrayView[Int]) -> Bytes {
 ///|
 async fn replay_matched_layer(
   arguments : ArrayView[String],
+  routing_projection_law? : @precision.DotReductionLaw = OrderedFloat32,
+  routing_softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
+  routing_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
@@ -124,6 +127,9 @@ async fn replay_matched_layer(
     maximum_layer_workspace_bytes=ceiling,
     maximum_layer_expert_bytes=ceiling,
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+    routing_projection_law~,
+    routing_softplus_law~,
+    routing_sum_law~,
     attention_accumulation~,
     rotary_product~,
     output_accumulation~,
@@ -140,6 +146,9 @@ async fn replay_matched_layer(
   defer decoder.close()
   @fs.mkdir(arguments[8])
   if mode == "export" {
+    println(
+      "matched_routing_export projection=\{Repr(routing_projection_law)} softplus=\{Repr(routing_softplus_law)} selected_sum=\{Repr(routing_sum_law)}",
+    )
     @fs.write_file(
       arguments[8] + "/layer.cu",
       decoder.source_bytes(),
@@ -150,6 +159,9 @@ async fn replay_matched_layer(
     )
     return
   }
+  println(
+    "matched_routing_execution projection=\{Repr(routing_projection_law)} softplus=\{Repr(routing_softplus_law)} selected_sum=\{Repr(routing_sum_law)} ordinary_routing=\{routing_projection_law == @precision.DotReductionLaw::OrderedFloat32 && routing_softplus_law == @precision.SoftplusEvaluationLaw::StableFloat32 && routing_sum_law == @precision.SumReductionLaw::OrderedFloat32}",
+  )
   let inventory = @inventory.CheckpointInventory::parse(
     @utf8.decode(read_inventory(root, arguments[1])),
     maximum_bytes=1048576,

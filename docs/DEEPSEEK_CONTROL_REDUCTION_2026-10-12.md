@@ -725,3 +725,51 @@ units. It uses the same observed weights and preserves the first result.
 Router/weight-intervention/combination runner regressions **5/5** pass.
 The application releases CUDA resources; no new router arithmetic is selected
 in production from this causal experiment.
+
+### Router arithmetic isolated and implemented without vendor dependencies
+
+`/tmp/lunaflux-deepseek-router-arithmetic-20261012-v2` isolates each boundary on
+the preceding literal layer-0 corpus, retaining all 144 rows and expert slots.
+Strict direct `log1pf(expf(x))` (threshold 20) plus `sqrtf` matches **36,864 /
+36,864** original scores on original logits. The stabilized expression matches
+35,574; replacing log1p with log matches only 20,271. No intrinsic/approximate
+exponential is selected. On original scores, neutral-padded descending
+butterfly sums and rounded division match **864 / 864** selected weights;
+serial sums match 549, and reciprocal multiplication is not equivalent.
+
+Both offline pedantic vendor projection controls match all 36,864 original
+logits. A scoped administrator Nsight capture of the matching GEMV has
+grid 32, block `(32,8,1)`, one FMA chain per 32-way striped partition and
+descending-half shared additions. The native reproduction uses the existing
+`GroupedVectorFloat32(1,32,1,1,FusedMultiplyAdd)` law, not a vendor call or
+literal output substitution. Root `v3` reproduces **all logits, scores and
+864 weights bitwise** through the independent native chain.
+
+The actual compiler-generated sources are also exercised: `v3/source-layer-
+{0,3}-output` has exact logits 36,864, scores 36,864, selected identities 864
+and weights 864 for both hash and learned selection. Layer 3 here is still
+the **layer-0 component corpus**, not the actual latest layer-3 FFN input.
+Native arithmetic and both actual generated routes pass full-144-row
+memcheck/leak/racecheck/synccheck, serialized in 2-GiB/no-swap units, with
+balanced CUDA release. The earlier vendor-inclusive `v2` racecheck exhausted
+the 2-GiB bound; its failure is retained, and vendor controls are excluded
+from the subsequent native sanitizer run. `v1`'s offline C++ compile failure
+and the first no-kernel Nsight name filter are also retained.
+
+Immutable routing precision now carries independent projection, softplus and
+selected-sum laws; neutral padding is explicit and does not add logical
+expert slots. Unsupported dot lowering rejects rather than falling back.
+Propagation reaches model routing plans, the FFN envelope, decoder block and
+slice, and the distinct `replay-layer-router-arithmetic` mode. Export and
+execution log all three policies. Ordinary defaults remain unchanged and
+their generated router source was independently byte-compared with the
+retained original corpus export. This is numerical correctness work, not a
+speed result. Complete-layer improvement and whole-model parity still require
+the next source-pinned replay; the preceding row-54 causal result alone does
+not prove every FFN row or complete-model correctness.
+
+Warning-denied native check succeeds with the existing warning exclusions;
+**99/99 affected tests** and three `.mbtx` runner tests pass. Targeted
+`moon info` completes with 936 pre-existing migration warnings and no errors.
+Only task-owned interfaces are retained. No payload hashes were introduced
+or computed; these numerical probes compare actual arrays directly.

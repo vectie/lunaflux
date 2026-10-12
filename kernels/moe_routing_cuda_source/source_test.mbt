@@ -3,6 +3,9 @@ fn routing_fixture(
   format : @format.Format,
   score : @precision.MoeRoutingScore,
   selection? : @precision.MoeRoutingSelection = GroupedTopK,
+  projection_law? : @precision.DotReductionLaw = OrderedFloat32,
+  softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
+  selected_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
 ) -> @precision.MoeRoutingPrecision raise {
   let representation = @format.Representation::new(format~, rows=4, columns=32)
   @precision.MoeRoutingPrecision::new(
@@ -20,6 +23,9 @@ fn routing_fixture(
     selected_group_count=1,
     selected_experts=2,
     score~,
+    projection_law~,
+    softplus_law~,
+    selected_sum_law~,
     selection~,
     normalize=true,
     scaling=2.5,

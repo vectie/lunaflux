@@ -76,6 +76,8 @@ fn replay_mode(mode : String) -> String {
     "replay-layer-butterfly-controls"
   } else if mode == "prepare-vector-query" {
     "replay-layer-vector-query"
+  } else if mode == "prepare-router-arithmetic" {
+    "replay-layer-router-arithmetic"
   } else {
     "replay-layer"
   }
@@ -99,6 +101,10 @@ test "tiled replay uses the same explicit policy at export and execution" {
     "replay-layer-butterfly-controls",
   )
   assert_eq(replay_mode("prepare-vector-query"), "replay-layer-vector-query")
+  assert_eq(
+    replay_mode("prepare-router-arithmetic"),
+    "replay-layer-router-arithmetic",
+  )
 }
 
 ///|
@@ -121,7 +127,8 @@ async fn main {
     mode == "prepare-vector-rms" ||
     mode == "prepare-hierarchical-controls" ||
     mode == "prepare-butterfly-controls" ||
-    mode == "prepare-vector-query" {
+    mode == "prepare-vector-query" ||
+    mode == "prepare-router-arithmetic" {
     guard extra is [executable, layer, rows, input, reference, .. optional] &&
       optional.length() <= 1 else {
       fail("matched operands required")

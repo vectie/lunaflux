@@ -78,7 +78,15 @@ The compute implementation uses pairwise F32 dot reductions and explicit BF16
 stage rounding; it does not promise bitwise equivalence to a serial dot product.
 
 MoeRoutingPrecision describes BF16 hidden rows, BF16/F32 router weights, F32
-projection/score arithmetic, choice-only correction, group selection, stable
+logits with an explicit dot-reduction law, an independent softplus evaluation
+law, and selected-weight summation. The ordinary policies remain ordered dot,
+stable softplus, and ordered selected sum. Thresholded strict softplus is an
+explicit alternative, not a claim of stable-expression bitwise equivalence.
+Selected butterfly sums pad to a power-of-two extent with zero identities;
+no logical expert slot is introduced. All policies are immutable arithmetic
+contracts; CUDA launch geometry belongs only to lowering.
+
+The routing plan also specifies choice-only correction, group selection, stable
 lower-ID ties, and unbiased selected-weight normalization/scaling. Sigmoid and
 stable sqrt-softplus are explicit numeric policies. Five compact routing buffers
 have an exact aggregate workspace size; no CUDA geometry or model name enters
