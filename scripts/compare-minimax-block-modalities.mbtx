@@ -37,9 +37,15 @@ fn compare(
   tags : Bytes,
   rows : Int,
   width : Int,
+  planes? : Int = 1,
 ) -> Array[ErrorTotals] raise {
   guard native.length() == original.length() &&
-    native.length() == tags.length() / 4 * width * 2 &&
+    width > 0 &&
+    planes > 0 &&
+    native.length() % 2 == 0 &&
+    native.length() / 2 % width == 0 &&
+    native.length() / 2 / width % planes == 0 &&
+    native.length() / 2 / width / planes == tags.length() / 4 &&
     tags.length() % 4 == 0 &&
     rows > 0 &&
     rows <= tags.length() / 4 else {
@@ -57,8 +63,9 @@ fn compare(
     // Exclude only the separately declared padding document, never a modality.
     let tag = (word(tags, row * 4) % 3).reinterpret_as_int()
     let previous = totals[tag]
-    let next = for column in 0..<width; state = previous {
-      let i = row * width + column
+    let next = for column in 0..<(width * planes); state = previous {
+      let plane = column / width
+      let i = (plane * (tags.length() / 4) + row) * width + column % width
       let a = bf16(native, i)
       let b = bf16(original, i)
       guard !a.is_nan() && !a.is_inf() && !b.is_nan() && !b.is_inf() else {
@@ -94,6 +101,40 @@ test "modality attribution uses literal tags and excludes only explicit padding"
   assert_eq(result.map(x => x.elements), [1, 1, 1])
   assert_eq(result.map(x => x.exact), [1, 1, 1])
   assert_eq(result[1].reference_squared, 1.0)
+  let planar = compare(values + values, values + values, tags, 3, 1, planes=2)
+  assert_eq(planar.map(x => x.elements), [2, 2, 2])
+  assert_eq(planar.map(x => x.exact), [2, 2, 2])
+  assert_eq(planar[1].reference_squared, 2.0)
+}
+
+///|
+fn operator_options(options : ArrayView[String]) -> Bool {
+  if options is ["--operator", stage, _, .. rest] {
+    !stage.is_empty() &&
+    stage.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) &&
+    (
+      rest.is_empty() ||
+      rest is ["--planes", _] ||
+      rest is ["--native-prefix", _] ||
+      rest is ["--planes", _, "--native-prefix", _]
+    )
+  } else {
+    false
+  }
+}
+
+///|
+test "operator plane selection is explicit and does not silently reorder flags" {
+  assert_true(operator_options(["--operator", "qkv", "7168", "--planes", "3"]))
+  assert_true(
+    operator_options([
+      "--operator", "norm1", "5376", "--native-prefix", "capture",
+    ]),
+  )
+  assert_false(operator_options(["--operator", "../outside", "5376"]))
+  assert_false(
+    operator_options(["--operator", "qkv", "7168", "--unknown", "3"]),
+  )
 }
 
 ///|
@@ -103,27 +144,15 @@ async fn main {
       options.is_empty() ||
       options is ["--first-block"] ||
       options is ["--first-block", "--native-prefix", _] ||
-      options
-      is ["--operator", "attention" | "projection" | "gate-up" | "down", _] ||
-      options
-      is [
-        "--operator",
-        "attention"
-        | "projection"
-        | "gate-up"
-        | "down",
-        _,
-        "--native-prefix",
-        _,
-      ]
+      operator_options(options)
     ) else {
     fail(
-      "CAPTURE_ROOT NEW_REPORT_TSV [--first-block [--native-prefix LOCAL_CAPTURE] | --operator STAGE WIDTH]",
+      "CAPTURE_ROOT NEW_REPORT_TSV [--first-block [--native-prefix LOCAL_CAPTURE] | --operator STAGE WIDTH [--planes COUNT] [--native-prefix LOCAL_CAPTURE]]",
     )
   }
   let native_root = match options {
     ["--first-block", "--native-prefix", path] => path
-    ["--operator", _, _, "--native-prefix", path] => path
+    ["--operator", _, _, .., "--native-prefix", path] => path
     _ => root + "/input"
   }
   let width = match options {
@@ -131,6 +160,11 @@ async fn main {
     _ => 5376
   }
   guard width > 0 else { fail("positive literal operator width required") }
+  let planes = match options {
+    ["--operator", _, _, "--planes", value, ..] => @string.parse_int(value)
+    _ => 1
+  }
+  guard planes > 0 else { fail("positive planar ownership required") }
   let docs = @fs.read_file(root + "/input/documents.i32").binary()
   guard docs.length() == 12 && word(docs, 0) == 0U else {
     fail("primary and padding documents required")
@@ -165,7 +199,7 @@ async fn main {
           "block-0.bf16"
         }),
       ).binary()
-      for tag, state in compare(native, original, tags, rows, width) {
+      for tag, state in compare(native, original, tags, rows, width, planes~) {
         let label = ["video", "text", "audio"][tag]
         let ratio = if state.reference_squared > 0.0 {
           (state.error_squared / state.reference_squared).sqrt()
@@ -175,7 +209,7 @@ async fn main {
           0x7FF0000000000000L.reinterpret_as_double()
         }
         report.write_string(
-          "\{block}\t\{predecessor}\t\{label}\t\{state.elements/width}\t\{state.exact}\t\{state.elements}\t\{ratio}\t\{state.maximum_error}\n",
+          "\{block}\t\{predecessor}\t\{label}\t\{state.elements/width/planes}\t\{state.exact}\t\{state.elements}\t\{ratio}\t\{state.maximum_error}\n",
         )
       }
     }

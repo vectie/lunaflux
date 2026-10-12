@@ -1,0 +1,203 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc003s@192.168.2.178"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=1048576,
+  )
+}
+
+///|
+async fn record(root : String, label : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+fn stages() -> Array[(String, Int, Int)] {
+  [
+    ("norm1", 5376, 1),
+    ("attention-input", 5376, 1),
+    ("qkv", 7168, 3),
+    ("qk-norm", 7168, 3),
+    ("norm2", 5376, 1),
+    ("mlp-input", 5376, 1),
+    ("attention-residual", 5376, 1),
+    ("residual", 5376, 1),
+  ]
+}
+
+///|
+test "front comparison retains all QKV planes and both residual frontiers" {
+  assert_eq(stages()[2], ("qkv", 7168, 3))
+  assert_eq(stages()[3], ("qk-norm", 7168, 3))
+  assert_eq(stages().last().unwrap(), ("residual", 5376, 1))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, original, capture, build] &&
+    mode is ("prepare" | "run") &&
+    root.has_prefix("/tmp/lunaflux-minimax-front-comparison-") &&
+    [root, original, capture, build].all(path => {
+      path.has_prefix("/tmp/lunaflux-") &&
+      !path.contains("..") &&
+      path.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '.'))
+    }) else {
+    fail(
+      "prepare|run NEW_COMPARISON_ROOT ORIGINAL_FRONT_ROOT RETIRED_NATIVE_ROOT EXISTING_ARM_BUILD",
+    )
+  }
+  let tools = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain"
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    record(
+      root,
+      "mkdir",
+      remote("mkdir " + root + " " + root + "/input " + root + "/output"),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      "scripts/compare-minimax-block-modalities.mbtx",
+      node + ":" + root + "/compare.mbtx",
+    ])
+    .output()
+    .check()
+    for name in ["combined.i32", "documents.i32"] {
+      record(
+        root,
+        "link-" + name,
+        remote(
+          "ln -s " + capture + "/output/" + name + " " + root + "/input/" + name,
+        ),
+      )
+    }
+    for (stage, _, _) in stages() {
+      let name = "block-0-" + stage + ".bf16"
+      let native_name = if stage == "residual" { "block-0.bf16" } else { name }
+      record(
+        root,
+        "link-" + stage,
+        remote(
+          "ln -s " +
+          capture +
+          "/output/" +
+          native_name +
+          " " +
+          root +
+          "/input/" +
+          name,
+        ),
+      )
+      record(
+        root,
+        "copy-" + stage,
+        remote(
+          "scp -o BatchMode=yes wlc004s@192.168.2.179:" +
+          original +
+          "/output/" +
+          name +
+          " " +
+          root +
+          "/output/" +
+          name,
+        ),
+      )
+    }
+    record(
+      root,
+      "script-tests",
+      remote(
+        "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --working-directory=" +
+        build +
+        "/source --unit=" +
+        root[5:].to_owned() +
+        "-script-tests /usr/bin/env MOON_HOME=" +
+        tools +
+        " PATH=" +
+        tools +
+        "/bin:/usr/bin:/bin " +
+        tools +
+        "/bin/moon test " +
+        root +
+        "/compare.mbtx",
+      ),
+    )
+  } else {
+    for (stage, width, planes) in stages() {
+      let file = stage + "-modalities.tsv"
+      record(
+        root,
+        stage,
+        remote(
+          "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --working-directory=" +
+          build +
+          "/source --unit=" +
+          root[5:].to_owned() +
+          "-" +
+          stage +
+          " /usr/bin/env MOON_HOME=" +
+          tools +
+          " PATH=" +
+          tools +
+          "/bin:/usr/bin:/bin " +
+          tools +
+          "/bin/moon run " +
+          root +
+          "/compare.mbtx " +
+          root +
+          " " +
+          root +
+          "/" +
+          file +
+          " --operator " +
+          stage +
+          " " +
+          width.to_string() +
+          " --planes " +
+          planes.to_string(),
+        ),
+      )
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + root + "/" + file,
+        root + "/" + file,
+      ])
+      .output()
+      .check()
+      println(@fs.read_file(root + "/" + file).text())
+    }
+  }
+  println(
+    "matched_front_comparison " +
+    mode +
+    " large_payloads_retained_on_cluster=true quality_not_claimed=true",
+  )
+}

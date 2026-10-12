@@ -902,3 +902,22 @@ Objective signal statistics are finite, RMS 0.1920855, peak 1.0, zero values
 outside the PCM range. The audio-only renderer preserves a WAV for listening,
 but these metrics establish neither semantic content nor listening quality.
 Preview: `/tmp/lunaflux-minimax-original-rng256-audio-preview-20261012-v1/audio.wav`.
+
+### Remaining first-block frontiers
+
+The prefix diagnostic now also retains all six AdaLN fields for every actual
+unique timestep/modality, immediately after the parameter producer retires,
+and the complete attention residual before norm2. These are observer-only
+changes: normal serving still has no readbacks, extra waits or host buffers.
+The installed-original adapter can now isolate norm1/norm2, parameter
+projection, both affine modulations, QKV, QK norm/RoPE and both gated residuals
+on their literal native predecessors. No original operation is reimplemented
+inside the adapter, and local oracle outputs are not fed into later operations.
+
+The modality comparator explicitly handles planar Q/K/V ownership, retaining
+all three planes and excluding only each plane's declared padding rows. Large
+input and oracle tensors transfer over the existing cluster link; CPU reduction
+runs on the cluster under a 2-GiB/no-swap limit and returns only small reports.
+This avoids consuming the desktop's remaining disk space or overlapping GPU
+work. New front-operator numerical results are pending, not a correctness fix
+or complete trajectory/media-quality claim.

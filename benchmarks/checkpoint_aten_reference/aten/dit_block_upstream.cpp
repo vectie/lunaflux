@@ -2,6 +2,7 @@
 // literal serving input/timestep/position/document tensors are supplied by replay.
 #include "original_h3_loading.h"
 #include "dit_operator_upstream.h"
+#include "dit_front_operator_upstream.h"
 #include <cstdlib>
 #include <algorithm>
 
@@ -130,7 +131,7 @@ static bool audit_weights(PyObject *torch,PyObject *cls,PyObject *ctor,PyObject 
   return !PyErr_Occurred();
 }
 
-static int execute(const char *root,const char *input,const char *out,int blocks,bool raw,const char *canonical,bool operators) {
+static int execute(const char *root,const char *input,const char *out,int blocks,bool raw,const char *canonical,bool operators,bool front_operators) {
   Owned torch(PyImport_ImportModule("torch")),safe(PyImport_ImportModule("safetensors"));
   Owned distributed(PyImport_ImportModule("vllm.distributed"));
   if(!torch.p||!safe.p||!distributed.p)return -1;
@@ -214,6 +215,13 @@ static int execute(const char *root,const char *input,const char *out,int blocks
     "t_emb",t.p,"combined_indices",indices.p,"rope_freqs",frequencies.p,
     "cu_seqlens",docs.p,"max_seqlen",geometry.maximum_document):nullptr);
   if(!x.p||!kw.p)return -1;
+  if(front_operators) {
+    if(!load_block(gpu.p,open.p,map,root,0)||
+       !dit_front_operators(torch.p,bf16.p,u8.p,module.p,gpu.p,t.p,indices.p,
+                            frequencies.p,input,out,rows,times))return -1;
+    std::puts("original_dit_front_operators_complete each_literal_native_predecessor=true original_module_math=true");
+    return 0;
+  }
   Owned propagated(Py_NewRef(x.p));
   for(int number=0;number<blocks;++number) {
     if(raw?!load_raw_block(gpu.p,module.p,arch.p,open.p,map,root,number):
@@ -245,8 +253,9 @@ int main(int argc,char **argv) {
   if(blocks<1||blocks>50)return 2;
   const bool raw=argc>=6&&std::string(argv[5])=="raw";
   const bool operators=argc==6&&blocks==1&&std::string(argv[5])=="operators";
-  if(argc>=6&&!raw&&!operators)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],blocks,raw,argc==7?argv[6]:nullptr,operators);
+  const bool front_operators=argc==6&&blocks==1&&std::string(argv[5])=="front-operators";
+  if(argc>=6&&!raw&&!operators&&!front_operators)return 2;
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],blocks,raw,argc==7?argv[6]:nullptr,operators,front_operators);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

@@ -24,6 +24,25 @@ test "every prefix retains packed initial noise independently of final head" {
 }
 
 ///|
+fn capture_joint_packed_state(
+  input : @program.InputProgram,
+  layout : JointLayout,
+) -> Bytes raise {
+  input
+  .packed_state()
+  .with_state(
+    layout.sequence.assembly().mapping(),
+    width=layout.sequence.assembly().width(),
+    (allocation, offset) => {
+      allocation.copy_to_host(
+        offset,
+        layout.sequence.assembly().element_count() * 2L,
+      )
+    },
+  )
+}
+
+///|
 // Diagnostic only: execute serving producers, expose literal initial
 // packed input and raw timestep embedding, stop before denoising or VAEs.
 fn capture_joint_prefix(
@@ -92,18 +111,7 @@ fn capture_joint_prefix(
   }
   queue.record_completion()
   queue.wait_completion()
-  let packed = input
-    .packed_state()
-    .with_state(
-      layout.sequence.assembly().mapping(),
-      width=layout.sequence.assembly().width(),
-      (allocation, offset) => {
-        allocation.copy_to_host(
-          offset,
-          layout.sequence.assembly().element_count() * 2L,
-        )
-      },
-    )
+  let packed = capture_joint_packed_state(input, layout)
   let embedding = variant.with_timestep_embedding((allocation, offset, size) => {
     allocation.copy_to_host(offset, size)
   })
@@ -137,31 +145,37 @@ fn capture_joint_prefix(
     }
     for index in 0..<block_queue.kernel_count() {
       block_queue.enqueue(index)
+      if block == 0 && index == 0 {
+        stream.synchronize()
+        captures.push(
+          (
+            "block-0-parameters.bf16",
+            parameters.copy_to_host(
+              0L,
+              joint_parameter_capture_bytes(
+                count,
+                layout.sequence.assembly().width(),
+              ),
+            ),
+          ),
+        )
+      }
       for (name, end, stage) in frontiers {
         if index + 1 == end {
           // Completion events belong to the complete executor. Retire only
           // this stream at intermediate frontiers, without replaying a kernel.
           stream.synchronize()
-          captures.push(
-            ("block-0-\{name}.bf16", variant.capture_block_stage(stage)),
-          )
+          let bytes = match stage {
+            AttentionResidual => capture_joint_packed_state(input, layout)
+            _ => variant.capture_block_stage(stage)
+          }
+          captures.push(("block-0-\{name}.bf16", bytes))
         }
       }
     }
     block_queue.record_completion()
     block_queue.wait_completion()
-    let first_output = input
-      .packed_state()
-      .with_state(
-        layout.sequence.assembly().mapping(),
-        width=layout.sequence.assembly().width(),
-        (allocation, offset) => {
-          allocation.copy_to_host(
-            offset,
-            layout.sequence.assembly().element_count() * 2L,
-          )
-        },
-      )
+    let first_output = capture_joint_packed_state(input, layout)
     captures.push(("block-\{block}.bf16", first_output))
     println("joint_prefix_block=\{block}")
   }
