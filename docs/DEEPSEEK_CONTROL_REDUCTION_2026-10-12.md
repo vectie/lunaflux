@@ -99,3 +99,22 @@ unchanged toolchain exclusions. The whole-module clean TLS blocker remains.
 
 The residual publisher itself is unchanged. Speed, compressed-path parity,
 full-model 18–21% drift and MiniMax media/encoder differences remain open.
+
+The aggregate improvement is not a per-row parity claim. Position 143 improves
+from **0.324717%** complete-output error to about **9.54e-8%**. But row 47 moves
+from **0.246268% to 0.253464%**, a small regression despite FFN-input error
+decreasing from **0.010825% to 0.001572%**. Its FFN-output error increases from
+**0.322967% to 0.336369%**. A matched latest-input FFN intervention is required
+to distinguish local arithmetic from quantization/routing sensitivity. These
+rows remain visible; the new candidate is not a blanket serving selection.
+
+The same committed executable also completes the original-input **compressed
+layer 3**, one-row geometry, in
+`/tmp/lunaflux-deepseek-production-layer-3-refined-rows1-20261012-v1`.
+Complete-output relative L2 is **0.155833791%**, versus earlier ordered
+**0.231644100%** and tiled-only **0.232746659%**. This is about **32.7% less
+error** than ordered, not parity. Only **1,210,863/2,359,296 BF16 values** match;
+all are finite, maximum absolute error 0.018493652. The candidate combines
+control, rotary and output changes, so this is not an isolated attribution to
+one of those changes. It exits zero and closes CUDA; default selection stays
+unchanged and a dedicated compressed-attention intervention remains necessary.
