@@ -33,6 +33,34 @@ test "learned gated pooling preserves F32 projections and cross-chunk overlap" {
   assert_eq(source.launch(1), (5, 1, 256))
   assert_eq(source.launch(3), (2, 1, 256))
   assert_eq(fixture(128, false, "pool128").launch(3), (1, 1, 256))
+  assert_eq([..source.execution_order()], [0, 1, 2, 3, 4])
+}
+
+///|
+test "explicit projection alternative reaches source without rewriting other arithmetic" {
+  let before = fixture(4, true, "pool4")
+  let after = @learned_gated_pool_cuda_source.learned_gated_pool_source(
+    before.plan().with_projection_multiply_add(FusedMultiplyAdd),
+    symbol_prefix="pool4",
+  )
+  let text = @utf8.decode(after.source_bytes())
+  let original = @utf8.decode(before.source_bytes())
+  assert_true(
+    text.contains("value = __fmaf_rn(x, __bfloat162float(wkv[offset]), value)"),
+  )
+  assert_eq(
+    text,
+    original
+    .replace(
+      old="__fadd_rn(value, __fmul_rn(x, __bfloat162float(wkv[offset])))",
+      new="__fmaf_rn(x, __bfloat162float(wkv[offset]), value)",
+    )
+    .replace(
+      old="__fadd_rn(score, __fmul_rn(x, __bfloat162float(wgate[offset])))",
+      new="__fmaf_rn(x, __bfloat162float(wgate[offset]), score)",
+    ),
+  )
+  assert_eq([..after.execution_order()], [..before.execution_order()])
 }
 
 ///|
@@ -44,4 +72,27 @@ test "offline learned gated pool exporter" {
   println(@utf8.decode(fixture(4, true, "pool4").source_bytes()))
   println(@utf8.decode(fixture(128, false, "pool128").source_bytes()))
   println("LUNA_GATED_POOL_SOURCE_END")
+}
+
+///|
+async test "offline numeric program fixture exporter" {
+  if @env.get_env_var("LUNA_GATED_POOL_FIXTURE_SOURCE_OUTPUT") is Some(path) {
+    let fused = @env.get_env_var("LUNA_GATED_POOL_FIXTURE_FMA") == Some("1")
+    let parts = [fixture(4, true, "pool4"), fixture(128, false, "pool128")].map(source => {
+        if fused {
+          @learned_gated_pool_cuda_source.learned_gated_pool_source(
+            source.plan().with_projection_multiply_add(FusedMultiplyAdd),
+            symbol_prefix=if source.plan().geometry().2 == 4 {
+              "pool4"
+            } else {
+              "pool128"
+            },
+          ).source_bytes()
+        } else {
+          source.source_bytes()
+        }
+      },
+    )
+    @fs.write_file(path, parts[0] + b"\n" + parts[1], create_mode=CreateNew)
+  }
 }

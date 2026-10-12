@@ -139,7 +139,10 @@ model operations + logical state
 
 semantic boundary mapping + executed plan
   -> offline replay -> operator / prediction / held-out quality measurements
-  -> quality-constrained complete-plan selection
+  -> EXTERNAL quality-constrained complete-plan selection
+
+external selection -> requests a declared numerical program from compiler
+compiler legality NEVER depends on comparison scores or a reference engine
 ```
 
 The existing precision IR already owns reduction, scaling, quantization and
@@ -148,17 +151,73 @@ a parallel family of disconnected configuration flags:
 
 | Capability | Required implementation boundary |
 | --- | --- |
-| Finite-precision expressions | Explicit casts, scale placement, reduction trees, FMA and quantization nodes; lowering must consume them. |
-| Rewrite classification | Exact under stated assumptions; mathematically bounded with domain/bound; or empirical arithmetic alternative. Tests do not upgrade an empirical alternative into an exact rewrite. |
-| State transition semantics | `(inputs, previous_state) -> (outputs, next_state, effects)`; cache/compressor publication and rollback remain explicit. |
-| Differential replay | Map semantic tensor/state boundaries through fusion to an offline instrumented AOT variant. No diagnostic traffic in normal token steps. |
-| Selection | Compare complete-plan latency/memory only among candidates satisfying the fixed quality contract. An exact diagnostic profile need not be the fastest production profile. |
+| Finite-precision expressions | Implemented typed F32/BF16 expressions and ascending folds at the learned compressor. Existing scale, quantization and tree laws remain in the same precision IR. |
+| Rewrite classification | Implemented a closed rule checker and exact simplifier consumed by lowering. Conditional exact BF16 roundtrip; analytic local BF16 conversion bound; unknown transformations rejected. No empirical proof constructor. |
+| State transition semantics | Compressor effects now use existing `parallel_ir`; its actual prepared launch order consumes that schedule. In-place writes are explicit, not mislabeled rollback. |
+| Differential replay | Eight compiler-described, already materialized compressor boundaries bind to borrowed frame allocations. Capture/evaluation remains offline; no token-step copies. This is not automatic instrumentation of every fused operator. |
+| Selection | Offline `benchmarks/numeric_selection` filters numerical programs independently of measured complete-plan latency/memory. Quality filtering and state/layout equivalence remain caller responsibilities, not results of a scalar check. |
 
-For example, the learned compressor currently carries geometry/state while
-projection, softmax and RMS arithmetic are partly selected in its CUDA generator.
-That is a concrete migration target. Do not copy a shape-specific reduction law
-from another operator without inspecting its mathematical and rounding contract.
-No blanket lowerer rewrite or default arithmetic change is made in this phase.
+The learned compressor now constructs projection, gate bias, maximum,
+denominator, weighted sum, BF16 publication and learned RMS expressions in
+`precision_ir`. Private CUDA lowering only spells their primitives. Ordered
+folds carry seed bits, extent and update expressions. An explicitly requested
+projection FMA is a different numerical program, not an equivalent rewrite.
+Default generated ratio-4/ratio-128 sources remain byte-identical.
+
+### What the rules establish—and do not establish
+
+`NumericExpression` checks types and input slots. Preconditions such as finite
+BF16 inputs or a declared absolute input bound are part of the operator contract,
+not inferred from observed samples. Exact simplification can remove a finite
+BF16→F32→BF16 roundtrip even inside a larger pure expression. It excludes NaN
+payload assumptions. It does not reassociate sums, contract FMA, move scales,
+replace `expf`, or drop rounding boundaries based on test agreement.
+
+The one bounded rule concerns F32→BF16→F32, with nearest-even rounding, gradual
+underflow and `|x| ≤ M ≤ 2^126`. Normal BF16 rounding has absolute error at most
+`|x|/256`; subnormal rounding at most `2^-134`. The implementation conservatively
+returns `M/128 + 2^-132`, allowing margin for computing the bound in F64. This
+local bound needs an explicit local approximation budget; the exact gate rejects
+it. It is not a whole-model error budget or permission to sum observed layer
+norms. The rule implementation and primitive contracts are trusted code with
+tests and mathematical reasoning, **not a machine-checked proof of the compiler**.
+
+Device natural exponential/reciprocal-sqrt remain named backend primitives,
+not a claim of correctly rounded transcendental functions across hardware.
+Different numerical programs may be legitimate experiments; matching vLLM,
+SGLang or the installed original does not change their semantic classification.
+
+### State and replay ownership
+
+The pool's reserve stage may reset/poison history; pooling mutates retained KV
+and gate state; final publication advances the history counter. Existing
+`parallel_ir` derives read/write hazards and an explicit normalization→publish
+dependency. The prepared frame consumes that schedule once, before serving.
+There is no new token-step allocation, dependency analysis or synchronization.
+Abort/retry must restore all three persistent buffers using the enclosing
+snapshot owner, or discard request state. A history counter alone is not rollback.
+
+Replay descriptors identify source stages, allocation slots, scalar types,
+capacities and live-row count fields in append. Captures require producer
+completion and live extents; unused capacity is not a numerical observation.
+The frame exposes borrowed buffers without copying, waiting or evaluating.
+Existing physical tests cover chunk boundaries, zero-length chunks, retained
+state and rejected position gaps. They do not prove every cancellation path.
+
+### External selection boundary
+
+`benchmarks/numeric_selection` can select the fastest measured complete plan
+within a memory ceiling after checking its declared scalar programs and folds
+against an exact-program requirement. Seed and extent changes are rejected.
+It cannot use a faster time, large error allowance, or output agreement to
+authorize an unknown rewrite. It is only the numerical portion of offline
+plan selection—not a verifier of all caller-supplied state/layout bindings.
+Different-program quality experiments remain external and explicitly named.
+
+`scripts/validate-numerical-program-boundary.mbtx` checks compiler package
+dependencies transitively for evaluation/benchmark imports, reading only package
+declarations. It is a development architecture check, not a payload integrity
+scan. The teacher-forced comparator still emits descriptive measurements only.
 
 ## Next experiments
 
@@ -172,8 +231,9 @@ No blanket lowerer rewrite or default arithmetic change is made in this phase.
 4. Grow to varied held-out sequences, context lengths and execution shapes before
    defining quality-constrained selection. Avoid one repetitive sequence becoming
    both a tuning objective and the acceptance set.
-5. Implement the compressor's numerical/effect boundary and generated replay using
-   this real case, preserving the existing functional IR and AOT runtime boundary.
+5. Use the implemented compressor numerical/effect boundary and offline replay
+   ports to localize remaining differences. Broader fused-operator instrumentation
+   and further analytic rewrite rules require their own real consumers.
 
 ## Implementation validation
 
@@ -185,6 +245,28 @@ file-to-report execution without overwriting. Script type-check and formatting
 checks pass. Targeted precision-IR interface generation has two existing
 derived-method migration warnings, zero errors and no interface change.
 
-These are tool tests, not real model-quality results. No GPU workload, production
-arithmetic, model reference or tolerance was changed in this phase. The recurring
-monitor stays cancelled.
+These are tool tests, not real model-quality results. The comparator-only phase
+changed no GPU workload, production arithmetic, model reference or tolerance.
+The recurring monitor stays cancelled.
+
+### Architectural implementation validation
+
+The subsequent architectural iteration preserves default CUDA source bytes for
+both actual checkpoint-sized ratio-4 and ratio-128 exports. New CPU regressions
+exercise typed expressions, rewrite rejection, conditional exact and bounded
+rules, fold semantics, effect hazards, replay binding and external selection.
+The affected native group passes **95/95**, including the existing parallel IR
+tests and the frame's allocation-free warm loop. The separate comparator still
+passes **9/9**; the architecture-dependency script passes its test and checks the
+11-package compiler dependency closure. Native check passes with the existing
+migration-warning exclusions unchanged. Targeted interface generation reports
+441 existing migration warnings and zero errors.
+
+Physical fixture root: `/tmp/lunaflux-numeric-program-20261012-v1` (local and179).
+Actual generated ordered and explicitly requested FMA variants both run the
+existing small ratio-4/128 fixture, with zero observed output error on those
+fixture operands, exact retained state and successful gap rejection. Both pass
+memcheck/full-leak, racecheck and synccheck under 2GiB/no-swap user units.
+No default numerical policy is changed. These deliberately small fixture results
+do **not** establish FMA equivalence, checkpoint parity, model/media quality or
+speedup; they validate this source/frame integration. No hashing is performed.

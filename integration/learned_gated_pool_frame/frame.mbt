@@ -111,7 +111,7 @@ pub fn LearnedGatedPoolFrame::prepare(
     [b[9], b[5], w[3], b[6]],
     [b[9], b[2]],
   ]
-  for stage in 0..<5 {
+  for stage in self.source.execution_order() {
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
     self.functions.push(function)
     let (x, y, threads) = self.source.launch(stage)

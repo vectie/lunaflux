@@ -13,6 +13,7 @@ pub struct LearnedGatedPoolPrecision {
   priv states : ReadOnlyArray[Int64]
   priv frames : ReadOnlyArray[Int64]
   priv parameters : ReadOnlyArray[Int64]
+  priv projection_multiply_add : Float32AffineLaw
 }
 
 ///|
@@ -70,6 +71,7 @@ pub fn LearnedGatedPoolPrecision::new(
     rows: maximum_rows,
     positions: maximum_positions,
     epsilon: norm_epsilon,
+    projection_multiply_add: SeparateMultiplyAdd,
     states: ReadOnlyArray::from_array(states),
     frames: ReadOnlyArray::from_array(frames),
     parameters: ReadOnlyArray::from_array([

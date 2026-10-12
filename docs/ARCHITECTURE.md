@@ -17,12 +17,17 @@ Source coverage and physical performance completion are tracked separately.
 
 The [numerical correctness rethink](NUMERICAL_CORRECTNESS_RETHINK_2026-10-12.md)
 separates semantic validity, finite-precision compatibility, next-token prediction
-differences and held-out task/media quality. Exact, bounded and empirically
-evaluated rewrites are distinct contracts, not interchangeable test outcomes.
-The next evolution completes existing precision/effect/replay layers; it does
-not introduce a global numerical policy or diagnostics into token execution.
-Offline teacher-forced comparisons are implemented separately from the planned
-compiler-generated replay and quality-constrained complete-plan selection.
+differences and held-out task/media quality. Exact rewrites, analytically bounded
+rewrites and empirically evaluated **different programs** are distinct. Comparison
+cannot prove correctness and never authorizes compiler transformations.
+Typed scalar expressions, ordered folds and a closed rewrite checker now live
+in precision IR and are consumed by learned-compressor lowering. Its effect
+schedule reuses parallel IR; eight semantic replay ports are offline-only.
+Quality evaluation and measured plan selection live outside the compiler;
+dependency checks prohibit the reverse import. This introduces neither a global
+numeric policy nor token-step diagnostics, and does not prove model quality.
+Device cost calibration may rank already-legal schedules; it cannot certify
+arithmetic equivalence or authorize a different numerical program.
 
 LunaFlux is an instance-level execution engine. Deployment systems are callers,
 not libraries.

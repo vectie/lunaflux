@@ -1,6 +1,7 @@
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/compiler/physical_tile_ir" @physical,
+  "vectie/lunaflux/compiler/parallel_ir" @parallel,
   "vectie/lunaflux/model/precision_format" @format,
 }
 

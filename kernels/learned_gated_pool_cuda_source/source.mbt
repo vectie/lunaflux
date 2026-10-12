@@ -3,6 +3,7 @@ pub struct LearnedGatedPoolCudaSource {
   priv plan : @precision.LearnedGatedPoolPrecision
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
+  priv order : ReadOnlyArray[Int]
 }
 
 ///|
@@ -23,6 +24,73 @@ pub fn learned_gated_pool_source(
   let current = if overlap { ratio } else { 0 }
   let selected_half = if overlap { width } else { 0 }
   let epsilon = @literal.canonical_cuda_float_literal(plan.norm_epsilon())
+  fn expression(
+    op : @precision.GatedPoolExpression,
+    bindings : ArrayView[String],
+  ) -> String raise {
+    @arithmetic.scalar_expression(plan.expression(op), bindings)
+  }
+  fn seed(op : @precision.GatedPoolExpression) -> String raise {
+    @arithmetic.scalar_expression(
+      @precision.NumericExpression::new(
+        [],
+        Float32Bits(plan.fold(op).initial_bits),
+      ),
+      [],
+    )
+  }
+  let projection_extent = plan.fold(ProjectionUpdate).extent
+  let pooling_extent = plan.fold(WeightedUpdate).extent
+  let maximum_extent = plan.fold(Maximum).extent
+  let denominator_extent = plan.fold(DenominatorUpdate).extent
+  let square_extent = plan.fold(SquareUpdate).extent
+  let projection_seed = seed(ProjectionUpdate)
+  let maximum_seed = seed(Maximum)
+  let denominator_seed = seed(DenominatorUpdate)
+  let weighted_seed = seed(WeightedUpdate)
+  let square_seed = seed(SquareUpdate)
+  let project_value = expression(ProjectionUpdate, ["value", "x", "wkv[offset]"])
+  let project_score = expression(ProjectionUpdate, [
+    "score", "x", "wgate[offset]",
+  ])
+  let score_bias = expression(ScoreBias, [
+    "scores[source]",
+    "ape[(unsigned long long)local * \{channels}ULL + channel]",
+  ])
+  let maximum = expression(Maximum, [
+    "maximum",
+    "score_state[(unsigned long long)slot * \{channels}ULL + channel]",
+  ])
+  let denominator = expression(DenominatorUpdate, [
+    "denominator",
+    "score_state[(unsigned long long)slot * \{channels}ULL + channel]",
+    "maximum",
+  ])
+  let weighted = expression(WeightedUpdate, [
+    "value", "kv_state[offset]", "score_state[offset]", "maximum", "denominator",
+  ])
+  let publish = expression(Publish, ["value"])
+  let square = expression(SquareUpdate, ["sum", "x"])
+  let inverse = expression(Inverse, ["sum", "\{width}.0f", epsilon])
+  let normalized = expression(Normalize, [
+    "pooled[(unsigned long long)row * \{width}ULL + col]",
+    "inverse",
+    "norm[col]",
+  ])
+  let program = plan.effect_program()
+  let order = program
+    .lower(Ordered)
+    .commands(ComputeLane)
+    .map(command => {
+      match command {
+        Execute(step~) =>
+          match program.steps()[step].action() {
+            Compute(stage) => stage
+            _ => raise @precision.PrecisionPlanError::NoImplementation
+          }
+        _ => raise @precision.PrecisionPlanError::NoImplementation
+      }
+    })
   let symbols = [
     symbol_prefix + "_reserve",
     symbol_prefix + "_project",
@@ -51,12 +119,12 @@ pub fn learned_gated_pool_source(
       $|extern "C" __global__ void \{symbols[1]}(const int32_t *append, const __nv_bfloat16 *input, const __nv_bfloat16 *wkv, const __nv_bfloat16 *wgate, float *kv, float *scores) {
       $|  const int row = blockIdx.x, col = blockIdx.y * blockDim.x + threadIdx.x;
       $|  if (append[2] || row >= append[1] || col >= \{channels}) return;
-      $|  float value = 0.0f, score = 0.0f;
-      $|  for (int inner = 0; inner < \{hidden}; ++inner) {
+      $|  float value = \{projection_seed}, score = \{projection_seed};
+      $|  for (int inner = 0; inner < \{projection_extent}; ++inner) {
       $|    const float x = __bfloat162float(input[(unsigned long long)row * \{hidden}ULL + inner]);
       $|    const unsigned long long offset = (unsigned long long)col * \{hidden}ULL + inner;
-      $|    value = __fadd_rn(value, __fmul_rn(x, __bfloat162float(wkv[offset])));
-      $|    score = __fadd_rn(score, __fmul_rn(x, __bfloat162float(wgate[offset])));
+      $|    value = \{project_value};
+      $|    score = \{project_score};
       $|  }
       $|  kv[(unsigned long long)row * \{channels}ULL + col] = value; scores[(unsigned long long)row * \{channels}ULL + col] = score;
       $|}
@@ -68,30 +136,37 @@ pub fn learned_gated_pool_source(
       $|    const int position = append[0] + row, local = position % \{ratio};
       $|    for (int half = 0; half < \{coefficient}; ++half) {
       $|      const int channel = half * \{width} + col; const unsigned long long destination = (unsigned long long)(\{current} + local) * \{channels}ULL + channel, source = (unsigned long long)row * \{channels}ULL + channel;
-      $|      kv_state[destination] = kv[source]; score_state[destination] = __fadd_rn(scores[source], ape[(unsigned long long)local * \{channels}ULL + channel]);
+      $|      kv_state[destination] = kv[source]; score_state[destination] = \{score_bias};
       $|    }
       $|    if ((position + 1) % \{ratio}) continue;
-      $|    float maximum = -INFINITY;
-      $|    for (int slot = 0; slot < \{state_rows}; ++slot) { const int channel = slot < \{current} ? col : \{selected_half} + col; maximum = fmaxf(maximum, score_state[(unsigned long long)slot * \{channels}ULL + channel]); }
-      $|    float denominator = 0.0f;
-      $|    for (int slot = 0; slot < \{state_rows}; ++slot) { const int channel = slot < \{current} ? col : \{selected_half} + col; denominator = __fadd_rn(denominator, expf(__fsub_rn(score_state[(unsigned long long)slot * \{channels}ULL + channel], maximum))); }
-      $|    float value = 0.0f;
-      $|    for (int slot = 0; slot < \{state_rows}; ++slot) { const int channel = slot < \{current} ? col : \{selected_half} + col; const unsigned long long offset = (unsigned long long)slot * \{channels}ULL + channel; value = __fadd_rn(value, __fmul_rn(kv_state[offset], __fdiv_rn(expf(__fsub_rn(score_state[offset], maximum)), denominator))); }
-      $|    pooled[(unsigned long long)published++ * \{width}ULL + col] = __float2bfloat16_rn(value);
+      $|    float maximum = \{maximum_seed};
+      $|    for (int slot = 0; slot < \{maximum_extent}; ++slot) { const int channel = slot < \{current} ? col : \{selected_half} + col; maximum = \{maximum}; }
+      $|    float denominator = \{denominator_seed};
+      $|    for (int slot = 0; slot < \{denominator_extent}; ++slot) { const int channel = slot < \{current} ? col : \{selected_half} + col; denominator = \{denominator}; }
+      $|    float value = \{weighted_seed};
+      $|    for (int slot = 0; slot < \{pooling_extent}; ++slot) { const int channel = slot < \{current} ? col : \{selected_half} + col; const unsigned long long offset = (unsigned long long)slot * \{channels}ULL + channel; value = \{weighted}; }
+      $|    pooled[(unsigned long long)published++ * \{width}ULL + col] = \{publish};
       $|    if (\{if overlap { 1 } else { 0 }}) for (int slot = 0; slot < \{ratio}; ++slot) for (int half = 0; half < \{coefficient}; ++half) { const unsigned long long destination = (unsigned long long)slot * \{channels}ULL + half * \{width}ULL + col, source = destination + \{ratio * channels}ULL; kv_state[destination] = kv_state[source]; score_state[destination] = score_state[source]; }
       $|  }
       $|}
       $|extern "C" __global__ void \{symbols[3]}(const int32_t *append, const __nv_bfloat16 *pooled, const __nv_bfloat16 *norm, __nv_bfloat16 *output) {
       $|  const int row = blockIdx.x; if (append[2] || row >= append[3]) return;
       $|  __shared__ float inverse;
-      $|  if (threadIdx.x == 0) { float sum = 0.0f; for (int col = 0; col < \{width}; ++col) { const float x = __bfloat162float(pooled[(unsigned long long)row * \{width}ULL + col]); sum = __fadd_rn(sum, __fmul_rn(x, x)); } inverse = rsqrtf(__fadd_rn(__fdiv_rn(sum, \{width}.0f), \{epsilon})); }
+      $|  if (threadIdx.x == 0) { float sum = \{square_seed}; for (int col = 0; col < \{square_extent}; ++col) { const float x = __bfloat162float(pooled[(unsigned long long)row * \{width}ULL + col]); sum = \{square}; } inverse = \{inverse}; }
       $|  __syncthreads();
-      $|  for (int col = threadIdx.x; col < \{width}; col += blockDim.x) output[(unsigned long long)row * \{width}ULL + col] = __float2bfloat16_rn(__fmul_rn(__fmul_rn(__bfloat162float(pooled[(unsigned long long)row * \{width}ULL + col]), inverse), __bfloat162float(norm[col])));
+      $|  for (int col = threadIdx.x; col < \{width}; col += blockDim.x) output[(unsigned long long)row * \{width}ULL + col] = \{normalized};
       $|}
       $|extern "C" __global__ void \{symbols[4]}(const int32_t *append, int32_t *history) { if (threadIdx.x || blockIdx.x || append[2]) return; history[0] = append[0] + append[1]; }
     ),
   )
-  { plan, source, symbols: ReadOnlyArray::from_array(symbols), }
+  { plan, source, symbols: ReadOnlyArray::from_array(symbols), order, }
+}
+
+///|
+pub fn LearnedGatedPoolCudaSource::execution_order(
+  self : Self,
+) -> ReadOnlyArray[Int] {
+  self.order
 }
 
 ///|

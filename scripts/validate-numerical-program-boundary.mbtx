@@ -1,0 +1,80 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+// Conservative dependency check, not a proof checker or runtime integrity scan.
+// Read package declarations only. No model, tensor or artifact payloads.
+fn local_imports(text : String) -> Array[String] {
+  let prefix = "vectie/lunaflux/"
+  text
+  .split("\"")
+  .filter_map(part => {
+    let value = part.to_owned()
+    if value.has_prefix(prefix) &&
+      value
+      .iter()
+      .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '_' | '-')) {
+      Some(value[prefix.length():].to_owned())
+    } else {
+      None
+    }
+  })
+  .collect()
+}
+
+///|
+fn forbidden(path : String) -> Bool {
+  ["benchmarks", "evaluation", "quality", "scripts", "release/evidence"].any(prefix => {
+    path == prefix || path.has_prefix(prefix + "/")
+  })
+}
+
+///|
+async fn visit(root : String, pkg : String, seen : Map[String, Bool]) -> Unit {
+  if forbidden(pkg) {
+    fail("evaluation dependency reached from compiler: \{pkg}")
+  }
+  if seen.contains(pkg) {
+    return
+  }
+  seen[pkg] = true
+  let text = @fs.read_file(root + "/" + pkg + "/moon.pkg").text()
+  for dependency in local_imports(text) {
+    visit(root, dependency, seen)
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("usage: ROOT_WORKSPACE") }
+  let seen : Map[String, Bool] = Map([])
+  let packages = @fs.readdir(root + "/compiler")
+  for pkg in packages {
+    let relative = "compiler/" + pkg
+    if @fs.exists(root + "/" + relative + "/moon.pkg") {
+      visit(root, relative, seen)
+    }
+  }
+  println(
+    "compiler dependency closure: \{seen.length()} packages; no evaluation dependency",
+  )
+}
+
+///|
+test "dependency policy recognizes aliases and transitive forbidden destinations" {
+  assert_eq(
+    local_imports(
+      "import { \"vectie/lunaflux/compiler/precision_ir\" @p, \"vectie/lunaflux/benchmarks/numeric_selection\" @s }",
+    ),
+    ["compiler/precision_ir", "benchmarks/numeric_selection"],
+  )
+  assert_true(forbidden("benchmarks/numeric_selection"))
+  assert_true(forbidden("evaluation"))
+  assert_true(forbidden("release/evidence"))
+  assert_false(forbidden("compiler/precision_ir"))
+  assert_false(forbidden("model/numeric_contract"))
+}

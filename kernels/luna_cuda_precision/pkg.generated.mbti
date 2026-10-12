@@ -18,6 +18,8 @@ pub fn quantize_bf16_rows_source(@precision_ir.QuantizationPlan, row_multiplier~
 
 pub fn quantize_source(@precision_ir.OperandPlan, symbol~ : String) -> QuantizationSource raise LoweringError
 
+pub fn scalar_expression(@precision_ir.NumericExpression, ArrayView[String]) -> String raise @precision_ir.PrecisionPlanError
+
 pub fn tile_load_source(@precision_ir.PhysicalOperand, symbol~ : String) -> String raise LoweringError
 
 // Errors

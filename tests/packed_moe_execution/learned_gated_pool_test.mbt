@@ -41,6 +41,12 @@ test "learned gated pooling owns persistent state with five warm allocation-free
   assert_eq(frame.output_counts().byte_count(), 20L)
   assert_eq(frame.output_positions().byte_count(), 8L)
   assert_eq(frame.append_descriptor().byte_count(), 24L)
+  let boundaries = frame.replay_buffers()
+  assert_eq(boundaries.length(), 8)
+  for (boundary, allocation) in boundaries {
+    assert_eq(boundary.capacity_bytes, allocation.byte_count())
+  }
+  assert_eq(frame.persistent_state().length(), 3)
   let queue = context.create_ordered_kernel_executor(stream, frame.launches())
   let before = enqueues()
   let syncs = blocking_syncs()

@@ -2,15 +2,23 @@
 
 Pure, immutable plans separate storage precision from activation/accumulator/
 output precision. Conversion placement and accuracy bounds are semantic inputs.
-Startup writes, ordinary step writes and transactional cache commits are explicit
-effects. Quantization publication stages are planned before device lowering.
+Startup writes, ordinary step writes and retained-state/cache writes are explicit
+effects. `CacheCommit` is an effect class, not by itself an atomicity or rollback
+guarantee; those require the owner's transition/snapshot protocol. Quantization
+publication stages are planned before device lowering.
 
 The [numerical correctness roadmap](../../docs/NUMERICAL_CORRECTNESS_RETHINK_2026-10-12.md)
 distinguishes exact rewrites, bounded rewrites with assumptions, and empirical
 arithmetic alternatives. Existing laws do not imply that one vendor's reduction
 order is universally correct, or that local bitwise agreement guarantees model
-quality. Compositional expression/replay integration is planned, not claimed as
-complete. Prediction comparison runs offline and never adds token-step effects.
+quality. Typed F32/BF16 expression and ordered-fold integration now reaches the
+learned compressor. Its exact simplifier uses a closed conditional rule, while a
+separate local bounded-conversion rule requires explicit domain and budget.
+Unknown transformations are rejected, not justified by measured agreement.
+The existing parallel IR supplies its effect schedule; descriptors name offline
+output/state replay boundaries. Prediction comparison and measured selection
+remain outside the compiler and never add token-step effects. This is not a
+formal proof system or a migration of every existing operator to expression IR.
 
 `SquareReductionLaw` makes ordered versus compensated F32 square summation
 explicit, independently of tensor storage and normalize-before-weight rounding.

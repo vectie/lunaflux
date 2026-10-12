@@ -3,6 +3,7 @@ package "vectie/lunaflux/compiler/precision_ir"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/parallel_ir",
   "vectie/lunaflux/compiler/physical_tile_ir",
   "vectie/lunaflux/model/precision_format",
 }
@@ -201,6 +202,18 @@ pub fn Float32AffineLaw::equal(Self, Self) -> Bool
 pub fn Float32AffineLaw::not_equal(Self, Self) -> Bool
 pub fn Float32AffineLaw::to_repr(Self) -> @debug.Repr
 
+pub(all) enum GatedPoolExpression {
+  ProjectionUpdate
+  ScoreBias
+  Maximum
+  DenominatorUpdate
+  WeightedUpdate
+  Publish
+  SquareUpdate
+  Inverse
+  Normalize
+}
+
 pub struct GroupedAttentionOutputPrecision {
   // private fields
 }
@@ -296,12 +309,18 @@ pub struct LearnedGatedPoolPrecision {
 }
 pub fn LearnedGatedPoolPrecision::compressed_rows(Self) -> Int
 pub fn LearnedGatedPoolPrecision::effect(Self) -> NumericEffect
+pub fn LearnedGatedPoolPrecision::effect_program(Self) -> @parallel_ir.Program raise
+pub fn LearnedGatedPoolPrecision::expression(Self, GatedPoolExpression) -> NumericExpression raise PrecisionPlanError
+pub fn LearnedGatedPoolPrecision::fold(Self, GatedPoolExpression) -> OrderedNumericFold raise PrecisionPlanError
 pub fn LearnedGatedPoolPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn LearnedGatedPoolPrecision::geometry(Self) -> (Int, Int, Int, Bool, Int, Int)
 pub fn LearnedGatedPoolPrecision::new(input_width~ : Int, feature_width~ : Int, ratio~ : Int, preceding_window_overlap~ : Bool, maximum_rows~ : Int, maximum_positions~ : Int, norm_epsilon~ : Double, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn LearnedGatedPoolPrecision::norm_epsilon(Self) -> Double
 pub fn LearnedGatedPoolPrecision::parameter_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn LearnedGatedPoolPrecision::reduction_extent(Self, GatedPoolExpression) -> Int raise PrecisionPlanError
+pub fn LearnedGatedPoolPrecision::replay_boundaries(Self) -> ReadOnlyArray[NumericBoundary]
 pub fn LearnedGatedPoolPrecision::state_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn LearnedGatedPoolPrecision::with_projection_multiply_add(Self, Float32AffineLaw) -> Self
 
 pub struct LearnedIndexQueriesPrecision {
   // private fields
@@ -389,6 +408,33 @@ pub fn MoeRoutingSelection::equal(Self, Self) -> Bool
 pub fn MoeRoutingSelection::not_equal(Self, Self) -> Bool
 pub fn MoeRoutingSelection::to_repr(Self) -> @debug.Repr
 
+pub(all) enum NumericBinary {
+  AddRN
+  SubtractRN
+  MultiplyRN
+  DivideRN
+  MaximumNumber
+} derive(Eq)
+pub fn NumericBinary::equal(Self, Self) -> Bool
+pub fn NumericBinary::not_equal(Self, Self) -> Bool
+
+pub struct NumericBoundary {
+  label : String
+  buffer : Int
+  after_stage : Int
+  scalar : ReplayScalar
+  capacity_bytes : Int64
+  live_rows_append_index : Int?
+}
+
+pub(all) enum NumericDomain {
+  AnyFloat
+  FiniteFloat
+  BoundedFinite(Double)
+} derive(Eq)
+pub fn NumericDomain::equal(Self, Self) -> Bool
+pub fn NumericDomain::not_equal(Self, Self) -> Bool
+
 pub(all) enum NumericEffect {
   Pure
   StartupWrite
@@ -398,6 +444,52 @@ pub(all) enum NumericEffect {
 pub fn NumericEffect::equal(Self, Self) -> Bool
 pub fn NumericEffect::not_equal(Self, Self) -> Bool
 pub fn NumericEffect::to_repr(Self) -> @debug.Repr
+
+pub(all) enum NumericExpr {
+  Input(Int)
+  Float32Bits(UInt)
+  Binary(NumericBinary, NumericExpr, NumericExpr)
+  Unary(NumericUnary, NumericExpr)
+  FusedMultiplyAdd(NumericExpr, NumericExpr, NumericExpr)
+  Convert(NumericScalar, NumericExpr)
+} derive(Eq)
+pub fn NumericExpr::equal(Self, Self) -> Bool
+pub fn NumericExpr::not_equal(Self, Self) -> Bool
+
+pub struct NumericExpression {
+  // private fields
+}
+pub fn NumericExpression::bounded_replacement(Self, Self, maximum_absolute_error~ : Double) -> Self raise PrecisionPlanError
+pub fn NumericExpression::exact_replacement(Self, Self) -> Self raise PrecisionPlanError
+pub fn NumericExpression::inputs(Self) -> ReadOnlyArray[(NumericScalar, NumericDomain)]
+pub fn NumericExpression::new(ArrayView[(NumericScalar, NumericDomain)], NumericExpr) -> Self raise PrecisionPlanError
+pub fn NumericExpression::output(Self) -> NumericScalar
+pub fn NumericExpression::relation_to(Self, Self) -> NumericRelation
+pub fn NumericExpression::root(Self) -> NumericExpr
+pub fn NumericExpression::simplify_exact(Self) -> Self
+
+pub(all) enum NumericRelation {
+  IdenticalProgram
+  ExactFiniteBf16Roundtrip
+  BoundedBf16Rounding(absolute_error~ : Double)
+  DifferentProgram
+} derive(Eq)
+pub fn NumericRelation::equal(Self, Self) -> Bool
+pub fn NumericRelation::not_equal(Self, Self) -> Bool
+
+pub(all) enum NumericScalar {
+  Float32
+  BFloat16
+} derive(Eq)
+pub fn NumericScalar::equal(Self, Self) -> Bool
+pub fn NumericScalar::not_equal(Self, Self) -> Bool
+
+pub(all) enum NumericUnary {
+  NaturalExp
+  ReciprocalSqrt
+} derive(Eq)
+pub fn NumericUnary::equal(Self, Self) -> Bool
+pub fn NumericUnary::not_equal(Self, Self) -> Bool
 
 pub struct OperandPlan {
   // private fields
@@ -425,6 +517,13 @@ pub(all) enum OperandRole {
 pub fn OperandRole::equal(Self, Self) -> Bool
 pub fn OperandRole::not_equal(Self, Self) -> Bool
 pub fn OperandRole::to_repr(Self) -> @debug.Repr
+
+pub struct OrderedNumericFold {
+  extent : Int
+  initial_bits : UInt
+  update : NumericExpression
+}
+pub fn OrderedNumericFold::new(extent~ : Int, initial_bits~ : UInt, update~ : NumericExpression) -> Self raise PrecisionPlanError
 
 pub struct PackedBufferLayout {
   // private fields
@@ -527,6 +626,12 @@ pub fn RecurrentDeltaPrecision::log_decay_lower_bound(Self) -> Double
 pub fn RecurrentDeltaPrecision::new(head_count~ : Int, key_dimension~ : Int, value_dimension~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, normalization_epsilon~ : Double, log_decay_lower_bound~ : Double, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn RecurrentDeltaPrecision::normalization_epsilon(Self) -> Double
 pub fn RecurrentDeltaPrecision::state_bytes(Self) -> Int64
+
+pub(all) enum ReplayScalar {
+  ReplayF32
+  ReplayBf16
+  ReplayI32
+}
 
 pub struct RetainedRowsPrecision {
   // private fields

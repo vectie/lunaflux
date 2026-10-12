@@ -7,11 +7,19 @@ The first implementation is the offline, framework-neutral teacher-forced
 distribution comparator. It checks literal token/position alignment and reports
 JS/KL/TV, top-token margins and prescribed-token NLL without defining one engine
 as ground truth. It makes no task-quality or production-selection decision.
-Next: actual final-head capture/mapping for native and original; exact-checkpoint
-vLLM/SGLang comparisons and within-framework controls; varied held-out quality;
-then the compressor's compositional numerical/effect boundary and generated
-replay. These remain separate unfinished tasks, not completed by the comparator.
-No default kernel, reference, tolerance, payload-hashing or scheduled-task change.
+The compiler iteration now implements typed scalar expressions, ordered folds,
+closed exact/bounded rewrite rules, learned-compressor arithmetic consumption,
+existing parallel-IR effect scheduling and eight offline replay ports. External
+numeric selection cannot use agreement or timings as rewrite authorization;
+a transitive development dependency check enforces the separation. Default
+generated compressor sources are unchanged. Ordered and explicit FMA fixtures
+pass179 correctness/state and memcheck/leak/race/sync gates (2GiB/no swap).
+
+Remaining evaluation work: actual final-head capture/mapping for native and
+original; exact-checkpoint vLLM/SGLang comparisons and within-framework controls;
+varied held-out quality. The architecture implementation does not complete those
+experiments or prove whole-model correctness. No default arithmetic, reference,
+tolerance, payload-hashing or scheduled-task change.
 
 ## Remaining payload-hardening cleanup — 2026-10-11
 
