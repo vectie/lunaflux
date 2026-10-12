@@ -34,6 +34,8 @@ test "DiT probability intervention changes only its declared storage boundary" {
     probability_law=GlobalUnnormalizedBf16,
   )
   assert_eq(baseline.block.rows, 2816)
+  assert_eq(baseline.block.probability_law, GlobalF32)
+  assert_eq(candidate.block.probability_law, GlobalUnnormalizedBf16)
   assert_eq(baseline.block.symbols, candidate.block.symbols)
   assert_eq(baseline.timestep.source, candidate.timestep.source)
   assert_eq(baseline.output.source, candidate.output.source)

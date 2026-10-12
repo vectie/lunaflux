@@ -4,6 +4,7 @@ pub struct RefinerSource {
   symbols : ReadOnlyArray[String]
   model : @joint_diffusion_plan.JointDiffusionPlan
   rows : Int
+  probability_law : @precision.AttentionProbabilityLaw
 }
 
 ///|
@@ -76,5 +77,6 @@ pub fn build_refiner(
     symbols: ReadOnlyArray::from_array(symbols),
     model,
     rows: text_rows,
+    probability_law,
   }
 }

@@ -74,6 +74,7 @@ fn prediction_workspaces(
     let b = source.block
     guard !counts.contains(b.distinct_timesteps) &&
       b.model == first.model &&
+      b.probability_law == first.probability_law &&
       b.rows == first.rows &&
       b.packed_mapping == first.packed_mapping else {
       raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)

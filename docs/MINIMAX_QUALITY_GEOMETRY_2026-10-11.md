@@ -853,6 +853,52 @@ old numerator/denominator mass, rounds only the tile P operand and handles
 document tails without integer-overflow-prone loop increments. The previous
 global translation unit remains byte-identical, including the default route.
 The candidate's numerical contract records the partition. A fresh 64-key
-first-block experiment is in progress; it is not yet production-selected or
-a full-model/media correctness result. No reference arithmetic or tolerance
+first-block experiment now completes; it is not production-selected or a
+full-model/media correctness result. No reference arithmetic or tolerance
 is changed to make that experiment pass.
+
+Root: `/tmp/lunaflux-minimax-joint-block-online64-256-prefix-20261012-v1`.
+Packed input and the complete normalized/rotated QKV operands are bitwise
+equal to the earlier candidate. Initial original noise matches again; stderr
+is empty and CUDA owners retire. Compared with the same installed-original
+attention output on these identical operands:
+
+| Modality | Global BF16 P local attention error | Online BF16 P64 local attention error |
+| --- | ---: | ---: |
+| Video | 0.0986211% | **0.0222604%** |
+| Text | 0.0542969% | **0.0138850%** |
+| Audio | 0.0984160% | **0.0228316%** |
+
+These are **numerical error reductions**, not throughput or latency speedups.
+Whole-block video error moves from 0.2325272% to **0.2089222%**, text from
+0.0405842% to **0.0393180%**, but audio moves from 0.0818648% to **0.0823538%**.
+All three remain better than the original default-F32 first-block comparison,
+but online64 does not improve every modality versus the intermediate global
+BF16 experiment. Local reductions cannot be added or converted directly into
+whole-block gains: upstream differences and downstream residual arithmetic
+can amplify or cancel. Norm/modulation, QKV/RoPE and complete trajectory
+correctness remain unresolved.
+
+The exact online64 translation unit's first-CTA probe reproduces 256/256
+captured BF16 outputs in ten repeats; memcheck/full leak, racecheck and
+synccheck report zero errors/leaks/hazards. Ordinary event mean is 11.3831 ms
+for that one CTA, not the entire attention operation or serving workload.
+The same partial-domain sanitizer limitation applies as before. Probe root:
+`/tmp/lunaflux-minimax-block-frontier-online64-256-20261012-v1`.
+
+Immutable block/refiner source values now retain their explicit probability
+law, instead of discarding it after rendering source. Prediction-variant
+preflight rejects inconsistent laws between timestep buckets, so a variant
+selection cannot silently change precision semantics. This is a one-time
+semantic plan join, not filesystem validation or request-path qualification.
+Both default laws are unchanged. The native suite passes **5,033/5,033**.
+
+The original256 terminal audio latent also decodes separately through the
+installed original AudioVAE at
+`/tmp/lunaflux-minimax-upstream-audio-original-rng256-20261012-v1`. Literal
+output is `[1,2,165600]` F32, 1,324,800 bytes, **5.175 seconds at 32 kHz**.
+Execution exits zero and releases CUDA; installed warnings are retained.
+Objective signal statistics are finite, RMS 0.1920855, peak 1.0, zero values
+outside the PCM range. The audio-only renderer preserves a WAV for listening,
+but these metrics establish neither semantic content nor listening quality.
+Preview: `/tmp/lunaflux-minimax-original-rng256-audio-preview-20261012-v1/audio.wav`.

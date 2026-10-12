@@ -7,6 +7,7 @@ pub struct BlockSource {
   shape : @joint_diffusion_plan.JointDiffusionDenoiserShape
   model : @joint_diffusion_plan.JointDiffusionPlan
   packed_mapping : Bytes
+  probability_law : @precision.AttentionProbabilityLaw
 }
 
 ///|
@@ -110,5 +111,6 @@ pub fn build(
     shape,
     model,
     packed_mapping: sequence.assembly().mapping(),
+    probability_law,
   }
 }

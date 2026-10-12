@@ -118,6 +118,31 @@ test "preview preserves canonical pixels and interleaves stereo channels" {
 
 ///|
 async fn main {
+  if @env.args() is [_, "--audio-only", source, destination] {
+    let audio = @fs.read_file(source).binary()
+    let wav = stereo_wav(audio)
+    let count = audio.length() / 4
+    let (maximum, square_sum, clipped) = for
+      i in 0..<count
+      maximum = 0.0, square_sum = 0.0, clipped = 0 {
+      let value = f32(audio, i)
+      continue maximum.max(value.abs()),
+        square_sum + value * value,
+        clipped + (if value.abs() > 1.0 { 1 } else { 0 })
+    } nobreak {
+      (maximum, square_sum, clipped)
+    }
+    @fs.mkdir(destination)
+    @fs.write_file(destination + "/audio.wav", wav, create_mode=CreateNew)
+    let statistics = "channels=2\nsamples_per_channel=\{count/2}\naudio_hz=32000\nduration_seconds=\{(count/2).to_double()/32000.0}\nnonfinite=0\npeak_absolute=\{maximum}\nrms=\{(square_sum/count.to_double()).sqrt()}\nvalues_outside_pcm_range=\{clipped}\nclaim=objective_signal_statistics_not_listening_or_content_quality\n"
+    @fs.write_file(
+      destination + "/audio-statistics.txt",
+      statistics,
+      create_mode=CreateNew,
+    )
+    println(statistics)
+    return
+  }
   if @env.args() is [_, "--video-only", source, destination, f, h, w] {
     let sheet = contact_sheet(
       @fs.read_file(source).binary(),
@@ -132,7 +157,7 @@ async fn main {
   }
   guard @env.args() is [_, source, destination, f, h, w] else {
     fail(
-      "EXISTING_OUTPUT_DIRECTORY NEW_PREVIEW_DIRECTORY FRAMES HEIGHT WIDTH | --video-only PIXELS_F32 NEW_PREVIEW_DIRECTORY FRAMES HEIGHT WIDTH",
+      "EXISTING_OUTPUT_DIRECTORY NEW_PREVIEW_DIRECTORY FRAMES HEIGHT WIDTH | --video-only PIXELS_F32 NEW_PREVIEW_DIRECTORY FRAMES HEIGHT WIDTH | --audio-only WAVEFORM_F32 NEW_PREVIEW_DIRECTORY",
     )
   }
   let frames = @string.parse_int(f)

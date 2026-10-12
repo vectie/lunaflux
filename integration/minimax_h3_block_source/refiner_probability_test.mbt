@@ -24,6 +24,8 @@ test "refiner explicit probability law preserves projection and ABI" {
     probability_law=GlobalUnnormalizedBf16,
   )
   assert_eq(baseline.symbols, candidate.symbols)
+  assert_eq(baseline.probability_law, GlobalF32)
+  assert_eq(candidate.probability_law, GlobalUnnormalizedBf16)
   let source = @utf8.decode(candidate.source)
   assert_eq(
     source.replace(

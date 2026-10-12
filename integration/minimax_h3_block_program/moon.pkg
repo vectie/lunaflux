@@ -14,6 +14,7 @@ import {
 supported_targets = "native"
 
 import {
+  "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/model/minimax_h3",
   "vectie/lunaflux/model/minimax_h3_spec",
   "vectie/lunaflux/model/spec",

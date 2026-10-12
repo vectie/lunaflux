@@ -102,6 +102,7 @@ pub struct BlockSource {
   shape : @joint_diffusion_plan.JointDiffusionDenoiserShape
   model : @joint_diffusion_plan.JointDiffusionPlan
   packed_mapping : Bytes
+  probability_law : @precision_ir.AttentionProbabilityLaw
 }
 
 pub struct ConditioningCopy {
@@ -152,6 +153,7 @@ pub struct RefinerSource {
   symbols : ReadOnlyArray[String]
   model : @joint_diffusion_plan.JointDiffusionPlan
   rows : Int
+  probability_law : @precision_ir.AttentionProbabilityLaw
 }
 
 pub struct TimestepSource {

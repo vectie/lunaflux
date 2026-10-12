@@ -1,7 +1,7 @@
 ///|
-fn prediction_program_fixture() -> Array[
-  @minimax_h3_block_source.PredictionSources,
-] raise {
+fn prediction_program_fixture(
+  online? : Bool = false,
+) -> Array[@minimax_h3_block_source.PredictionSources] raise {
   let spec = @minimax_h3_spec.MiniMaxH3TransformerSpec::official(
     variant=Fl2va,
     checkpoint_format=DiffusersV1,
@@ -27,8 +27,30 @@ fn prediction_program_fixture() -> Array[
       distinct_timesteps=count,
       block_norm_epsilon=spec.norm_epsilon(),
       function_prefix="h3",
+      probability_law=if online {
+        @precision_ir.AttentionProbabilityLaw::OnlineBf16(block_tokens=64)
+      } else {
+        GlobalF32
+      },
     )
   })
+}
+
+///|
+test "timestep buckets cannot silently substitute a different probability partition" {
+  let sources = prediction_program_fixture()
+  let changed = prediction_program_fixture(online=true)[1]
+  try
+    PredictionPrograms::new(
+      [sources[0], changed],
+      max_workspace_bytes=1073741824L,
+    )
+  catch {
+    @device.DeviceError::InvalidArgument(OrderedExecutorCreate) => ()
+    _ => fail("wrong precision join error")
+  } noraise {
+    _ => fail("variant selection changed mathematical storage semantics")
+  }
 }
 
 ///|
