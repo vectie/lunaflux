@@ -10,6 +10,7 @@ pub fn rotary_tensor_source(
   }
   let (heads, width, rotary, rows, positions) = plan.geometry()
   let frequency = rotary_frequency_source(plan.frequency(), rotary)
+  let product = rotary_product_source(plan.product_law())
   let sign = if plan.inverse() { "-" } else { "" }
   (
     $|extern "C" __global__ void \{symbol}(const int32_t *counts, const int32_t *positions, const uint16_t *input_words, uint16_t *output_words) {
@@ -24,8 +25,7 @@ pub fn rotary_tensor_source(
     $|    const unsigned long long index = base + \{width - rotary}ULL + pair * 2ULL;
     $|    const __nv_bfloat16 *input = (const __nv_bfloat16 *)input_words; __nv_bfloat16 *output = (__nv_bfloat16 *)output_words;
     $|    const float left = __bfloat162float(input[index]), right = __bfloat162float(input[index + 1ULL]);
-    $|    output[index] = __float2bfloat16_rn(__fadd_rn(__fmul_rn(left, cosine), -__fmul_rn(right, sine)));
-    $|    output[index + 1ULL] = __float2bfloat16_rn(__fadd_rn(__fmul_rn(left, sine), __fmul_rn(right, cosine)));
+    $|\{product}
     $|  }
     $|}
   )

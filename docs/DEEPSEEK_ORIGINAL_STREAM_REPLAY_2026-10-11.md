@@ -1,5 +1,48 @@
 # DeepSeek matched original layer-stream replay — 2026-10-11
 
+## Matched rotary arithmetic isolation — 2026-10-12
+
+An offline intervention now separates generated frequency/trigonometry from
+complex-product rounding. Every route consumes the same captured native sparse
+attention, original complex64 frequencies and unchanged installed-original
+inverse output. The actual exported default renderer reproduces its retained
+production output **bitwise**, so this is not a substitute baseline or a new
+reference. Prefix channels remain bitwise unchanged and all outputs are finite.
+
+| Matched inverse route | Different BF16 / 4,718,592 | Relative L2 | Maximum error |
+| --- | ---: | ---: | ---: |
+| Current generated frequencies, separate products | 22 | 0.000359987% | 0.00390625 |
+| Literal original frequencies, separate products | 17 | 0.000359987% | 0.00390625 |
+| Generated frequencies, measured complex FMA ordering | 11 | 0.000086529% | 0.0009765625 |
+| Literal original frequencies, measured complex FMA ordering | **0** | **0%, bitwise** | **0** |
+
+The measured product is `real=fma(left,cosine,-round(right*sine))`,
+`imag=fma(right,cosine,round(left*sine))`, after conjugating sine for inverse
+rotation. Fusing the opposite products is **not equivalent** and can increase
+error. The generated-frequency contracted path reduces local inverse error
+about **76.0%**, but retains eleven differing values. The exact literal-frequency
+control proves two distinct contributions; it does not mean runtime frequency
+generation is already corrected or that full-model parity is achieved.
+
+`RotaryProductLaw` now owns the explicit device-neutral rounding choice in
+precision IR. KV rotation, standalone tensor inverse/forward rotation and
+compact-cache lowering consume that immutable law through one private CUDA
+renderer. Separate products remain the default and the exported default
+inverse source is byte-identical to its previous source. The actual
+`ComplexFloat32Fma` renderer matches the measured generated-frequency FMA
+intervention exactly. No model builder or serving path selects the new law yet;
+complete-layer propagation, generated frequency correction, forward/YaRN
+physical coverage and full-model comparison remain required.
+
+Root: `/tmp/lunaflux-deepseek-rotary-arithmetic-20261012-v3` on `.179` and
+locally; runner: `scripts/probe-deepseek-rotary-arithmetic.mbtx`.
+Ordinary execution, full memcheck/leak, racecheck and synccheck all finish with
+zero errors/hazards/leaks and released CUDA ownership. Controls are bounded
+to 2 GiB, except racecheck's 8-GiB tool allowance; all disable swap. Precision
+tests pass 51/51, rotary source tests 6/6 and runner regression 1/1. Local
+warning-denied native check succeeds; generated interfaces are reviewed.
+The previous clean whole-module TLS compilation blocker is not waived.
+
 ## Complete-layer tiled-accumulation intervention — 2026-10-12
 
 Commit `1d509053` adds an explicit backend-neutral `TiledFloat32` accumulation

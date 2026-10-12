@@ -42,6 +42,7 @@ pub struct RotaryKvPrecision {
   priv rows : Int
   priv positions : Int
   priv frequency : RotaryFrequency
+  priv product : RotaryProductLaw
   priv block_width : Int
   priv amax_floor : Double
   priv scale : SimulatedCacheScale
@@ -84,6 +85,7 @@ pub fn RotaryKvPrecision::new(
   simulation_amax_floor~ : Double,
   simulation_scale~ : SimulatedCacheScale,
   maximum_workspace_bytes~ : Int64,
+  product? : RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise PrecisionPlanError {
   guard query_heads > 0 &&
     query_heads <= 512 &&
@@ -119,6 +121,7 @@ pub fn RotaryKvPrecision::new(
     rows: maximum_rows,
     positions: maximum_positions,
     frequency,
+    product,
     block_width: simulation_block_width,
     amax_floor: simulation_amax_floor,
     scale: simulation_scale,
@@ -143,6 +146,11 @@ pub fn RotaryKvPrecision::geometry(
 ///|
 pub fn RotaryKvPrecision::frequency(self : Self) -> RotaryFrequency {
   self.frequency
+}
+
+///|
+pub fn RotaryKvPrecision::product_law(self : Self) -> RotaryProductLaw {
+  self.product
 }
 
 ///|

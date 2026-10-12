@@ -1,0 +1,200 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn transfer(source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn operands() -> Array[(String, Int)] {
+  [
+    ("attention.bf16", 9437184),
+    ("inverse.bf16", 9437184),
+    ("frequencies.complex64", 36864),
+    ("native-inverse.bf16", 9437184),
+  ]
+}
+
+///|
+test "rotary isolation retains full data, original frequencies and production control" {
+  assert_eq(operands().length(), 4)
+  assert_eq(operands()[2], ("frequencies.complex64", 144 * 32 * 8))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-rotary-arithmetic-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT ORIGINAL_INVERSE_ROOT RETAINED_NATIVE_INVERSE | run|sanitize|collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [original, native] else {
+      fail("identical original/native operands required")
+    }
+    @fs.mkdir(root)
+    record(root, "mkdir", remote("mkdir " + root))
+    for (name, bytes) in operands() {
+      let source = if name == "native-inverse.bf16" {
+        native
+      } else {
+        original + "/" + name
+      }
+      let data = @fs.read_file(source).binary()
+      guard data.length() == bytes else {
+        fail("complete literal operand required: " + name)
+      }
+      @fs.write_file(root + "/" + name, data, create_mode=CreateNew)
+      transfer(root + "/" + name, node + ":" + root + "/" + name)
+    }
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "kernels/rotary_kv_cuda_source/arithmetic_export_test.mbt", "--target",
+          "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+        ],
+        env={
+          "LUNAFLUX_ROTARY_ARITHMETIC_SOURCE": root +
+          "/rotary_arithmetic_kernels.cuh",
+        },
+      ).output(),
+    )
+    transfer(
+      root + "/rotary_arithmetic_kernels.cuh",
+      node + ":" + root + "/rotary_arithmetic_kernels.cuh",
+    )
+    transfer(
+      "tests/packed_moe_execution/rotary_arithmetic_probe.cu",
+      node + ":" + root + "/rotary_arithmetic_probe.cu",
+    )
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 rotary_arithmetic_probe.cu -o rotary-probe",
+      ),
+    )
+  } else if mode == "run" || mode == "sanitize" {
+    guard extra.is_empty() else { fail("unexpected probe arguments") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU probes")
+    }
+    let gates = if mode == "run" {
+      ["ordinary"]
+    } else {
+      ["memcheck", "racecheck", "synccheck"]
+    }
+    for gate in gates {
+      record(root, gate + "-mkdir", remote("mkdir " + root + "/" + gate))
+      let tool = if gate == "ordinary" {
+        ""
+      } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 7 --tool " +
+        gate +
+        (if gate == "memcheck" { " --leak-check full " } else { " " })
+      }
+      record(
+        root,
+        gate,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          gate +
+          " --property=MemoryMax=" +
+          (if gate == "racecheck" { "8G" } else { "2G" }) +
+          " --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+          tool +
+          root +
+          "/rotary-probe " +
+          root +
+          " " +
+          root +
+          "/" +
+          gate,
+        ),
+      )
+      let released = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      record(root, gate + "-released", released)
+      guard released.stdout().trim().is_empty() else {
+        fail("probe did not release GPU ownership")
+      }
+    }
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected collection arguments") }
+    @fs.mkdir(root + "/ordinary")
+    for
+      name in [
+        "production", "lowered_complex", "computed_separate", "literal_separate",
+        "computed_fma_left", "computed_fma_right", "computed_fma_left_right", "computed_fma_right_left",
+        "literal_fma_left", "literal_fma_right", "literal_fma_left_right", "literal_fma_right_left",
+      ] {
+      transfer(
+        node + ":" + root + "/ordinary/" + name + ".bf16",
+        root + "/ordinary/" + name + ".bf16",
+      )
+    }
+  } else {
+    fail("unknown probe mode")
+  }
+}

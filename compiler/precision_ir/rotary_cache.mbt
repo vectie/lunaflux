@@ -21,6 +21,7 @@ pub fn RotaryCachePrecision::new(
   simulation_amax_floor~ : Double,
   simulation_scale~ : SimulatedCacheScale,
   maximum_workspace_bytes~ : Int64,
+  product? : RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise PrecisionPlanError {
   let rotary = RotaryTensorPrecision::new(
     head_count~,
@@ -31,6 +32,7 @@ pub fn RotaryCachePrecision::new(
     frequency~,
     inverse=false,
     maximum_workspace_bytes~,
+    product~,
   )
   validate_cache_simulation(
     head_width, rotary_width, simulation_block_width, simulation_amax_floor,

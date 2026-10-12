@@ -32,6 +32,7 @@ pub struct RotaryTensorPrecision {
   priv rows : Int
   priv positions : Int
   priv frequency : RotaryFrequency
+  priv product : RotaryProductLaw
   priv inverse : Bool
   priv bytes : Int64
 }
@@ -46,6 +47,7 @@ pub fn RotaryTensorPrecision::new(
   frequency~ : RotaryFrequency,
   inverse~ : Bool,
   maximum_workspace_bytes~ : Int64,
+  product? : RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise PrecisionPlanError {
   guard head_count > 0 &&
     head_count <= 512 &&
@@ -73,6 +75,7 @@ pub fn RotaryTensorPrecision::new(
     rows: maximum_rows,
     positions: maximum_positions,
     frequency,
+    product,
     inverse,
     bytes,
   }
@@ -88,6 +91,11 @@ pub fn RotaryTensorPrecision::geometry(
 ///|
 pub fn RotaryTensorPrecision::frequency(self : Self) -> RotaryFrequency {
   self.frequency
+}
+
+///|
+pub fn RotaryTensorPrecision::product_law(self : Self) -> RotaryProductLaw {
+  self.product
 }
 
 ///|
