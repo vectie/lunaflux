@@ -45,6 +45,21 @@ fn replay_geometry(layer : String, rows : String) -> Unit raise {
 }
 
 ///|
+fn boundary_names() -> Array[String] {
+  [
+    "attention-input", "attention-output", "attention-residual", "ffn-input", "ffn-output",
+    "attention-low-rank", "q-rope", "kv-sim", "sparse-attention", "attention-inverse",
+    "attention-output-a",
+  ]
+}
+
+///|
+test "retired boundary collection preserves all eleven operator fronts" {
+  assert_eq(boundary_names().length(), 11)
+  assert_true(boundary_names().contains("sparse-attention"))
+}
+
+///|
 test "matched replay supports native chunk and original one-row geometries" {
   replay_geometry("40", "6")
   replay_geometry("3", "1")
@@ -298,6 +313,23 @@ async fn main {
       "terminal-recovery-owners",
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
+  } else if mode == "collect-boundaries" {
+    guard extra is [] else { fail("collect-boundaries ROOT") }
+    for name in boundary_names() {
+      let target = root + "/output/" + name + ".bf16"
+      // Reserve only a new collector destination, never an existing array.
+      @fs.write_file(target, b"", create_mode=CreateNew)
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        node + ":" + target,
+        target,
+      ])
+      .output()
+      .check()
+    }
   } else if mode == "collect" {
     guard extra is [] || extra is ["--boundaries"] else {
       fail("optional --boundaries required")
@@ -314,12 +346,7 @@ async fn main {
     .output()
     .check()
     if extra is ["--boundaries"] {
-      for
-        name in [
-          "attention-input", "attention-output", "attention-residual", "ffn-input",
-          "ffn-output", "attention-low-rank", "q-rope", "kv-sim", "sparse-attention",
-          "attention-inverse", "attention-output-a",
-        ] {
+      for name in boundary_names() {
         @shell.Cmd("scp", [
           "-o",
           "BatchMode=yes",

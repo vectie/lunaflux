@@ -1081,6 +1081,28 @@ previous native hidden, is the next test. No updated43-layer result, model
 head/generated-token, TP2 serving or performance claim is made yet. MiniMax
 remains active on178, empty application stderr and zero swap; no GPU overlap.
 
+### Fresh native chain: first remaining divergence is ratio-4 layer2
+
+The fresh43-layer controller reserves179 until retirement at
+`/tmp/lunaflux-deepseek-native-layer-chain-fp8-projections-20261012-v1`.
+Already-retired layers0 AND1 match all2359296 hidden values bitwise. The
+independent `layer2-input-original-proof.txt` compares the actual previous native
+hidden against originalhidden2 and is also wholly bitwise. Therefore the first
+remaining divergence is local to layer2 on this corpus, not earlier input drift.
+Model config identifies layer2 as the first ratio4 compressed/indexed attention
+layer; ratio128 layer3 is a different case. No operator cause is yet assigned.
+
+All eleven native layer2 fronts are downloaded without overwrite from the
+retired child using `collect-boundaries`; existing hidden/comparison files are
+not rewritten. The unmodified original observer for3 layers, boundary2, is
+CPU-prepared at
+`/tmp/lunaflux-deepseek-original-layer-stream-ratio4-frontiers-20261012-v1`.
+Its GPU execution waits for the chain to release179. Future original observer
+units/containers use12GiB/no swap, aligning with the requested complete-layer
+limit; older16GiB results and arithmetic remain untouched. Collector tests3/3,
+original observer runner tests2/2 pass. No new final43-layer outcome or operator
+fix follows from this preparation alone.
+
 Default shared source is independently byte-compared with the pre-change
 retained export; it remains unchanged. Native affected tests99/99 and offline
 source/chain/query runner regressions pass. Actual shared source sanitizers are

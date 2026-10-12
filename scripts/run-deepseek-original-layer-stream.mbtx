@@ -232,9 +232,9 @@ async fn main {
     let execution = remote(
       "systemd-run --user --wait --pipe --unit=" +
       tag +
-      " --property=MemoryMax=16G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 docker run --name " +
+      " --property=MemoryMax=12G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 docker run --name " +
       tag +
-      " --gpus all --network none --user 1000:1000 --memory 16g --memory-swap 16g -e OMP_NUM_THREADS=2" +
+      " --gpus all --network none --user 1000:1000 --memory 12g --memory-swap 12g -e OMP_NUM_THREADS=2" +
       (if boundaries {
         " -e LUNA_ORIGINAL_BOUNDARIES=1 -e LUNA_ORIGINAL_BOUNDARIES_LAYER=" +
         observed_layer
