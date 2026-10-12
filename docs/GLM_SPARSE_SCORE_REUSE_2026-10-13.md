@@ -67,28 +67,34 @@ and materialization principle. It does not claim to implement all of FlashInfer.
 
 ## Spark kernel result, 13 October
 
-Paired root: `/tmp/lunaflux-glm-sparse-retained-20261013-v2`, on .178 GB10.
+Paired root: `/tmp/lunaflux-glm-sparse-retained-20261013-v4`, on .178 GB10.
 Generated old and new leaves share the same varied BF16 inputs, dimensions and
 numeric expressions; five alternating-order CUDA-event trials follow warmup.
 New-kernel events average 20 launches, old-kernel events one launch. These are
 isolated GPU times, not request latency or throughput.
+This repeat uses production CUDA flags (`-O3`, default FMA setting, sm121).
+The retained v2 run additionally disabled implicit FMA and showed the same
+numerical results and essentially the same timing. Arithmetic intrinsics
+already preserve the specified ordered RN operations in both builds.
 
 | Geometry | Old median ms | Retained-score median ms | Scratch |
 | --- | ---: | ---: | ---: |
-| 64 heads, 256 QK/V, 16 live keys, 2051 selected slots | 1936.456 | 0.356552 | 32 KiB |
-| Same, 32 live keys | 2485.530 | 0.383242 | 32 KiB |
-| Same, 64 live keys | 3549.664 | 0.411691 | 32 KiB |
-| 2 query heads/1 KV head, 2048 live keys, 2051 slots | 4037.819 | 0.793538 | 32816 B |
-| 3 queries, 6/2 heads, QK17/V33, 7 live keys | 1.085952 | 0.006171 | 1584 B |
-| 2/1 heads, QK8/V8, 16 live keys, 65536 slots | 87.040 | 25.620838 | 512 B |
+| 64 heads, 256 QK/V, 16 live keys, 2051 selected slots | 1936.603 | 0.356702 | 32 KiB |
+| Same, 32 live keys | 2485.177 | 0.383163 | 32 KiB |
+| Same, 64 live keys | 3549.122 | 0.411600 | 32 KiB |
+| 2 query heads/1 KV head, 2048 live keys, 2051 slots | 4037.726 | 0.794133 | 32816 B |
+| 3 queries, 6/2 heads, QK17/V33, 7 live keys | 1.085824 | 0.006174 | 1584 B |
+| 2/1 heads, QK8/V8, 16 live keys, 65536 slots | 87.026 | 25.616364 | 512 B |
 
 All 60 valid, sentinel, duplicate, invalid-index, future-key, invalid-mask and
 inactive-query fixtures are bitwise identical to the retained serial leaf.
 This establishes preservation of that numerical program, not independent proof
 that the model/reference is correct. The full new-kernel fixture matrix passes
 memcheck/full leak, racecheck and synccheck: zero errors/hazards/leaks. Probe
-unit memory peak was 69.1 MiB, zero swap; every run was capped at 2 GiB.
-An independent single-key identity test at the fresh v3 root passes all six
+v2 paired unit memory peak was 69.1 MiB, zero swap; every run was capped at
+2 GiB. This is process-accounting data, not a claim that systemd accounts for
+all unified GPU memory; the host reserve is checked separately.
+An independent single-key identity test at the fresh v3/v4 roots passes all six
 geometries: probability is one and output copies the corresponding value,
 including grouped-query head mapping. This does not use the serial kernel as
 an oracle. Invalid-row zero-output assertions are also independent.
@@ -114,6 +120,28 @@ new clean full-suite claim. Unrelated dirty toolchain/TLS files are preserved.
 
 The failed v1 probe compilation (missing newline between generated leaves) is
 retained; source concatenation was corrected before the successful v2 run.
+The AKO loop is retained, but its older `ako_trial.mbtx` wrapper performs
+mandatory `sha256sum` scans. This task deliberately uses the bounded,
+no-hashing paired runner instead, honoring the user's explicit instruction.
+
+## Committed full-model export
+
+Implementation `015722c7bff4ee992b50749cfe3460ec822f1e8a` is pushed to main.
+Its clean, CPU-only ARM build passes on .178 (220 tasks, reported 160.3 MiB
+process peak, zero swap, 2 GiB cap). Runtime/artifact root:
+`/tmp/lunaflux-checkpoint-build-glm-sparse-retained-20261013-v1`.
+
+The committed executable exported the real 45-layer GLM placement at physical
+rows1/history64. Startup explicitly reports `payload_hashing=false`; existing
+shard labels are reused, no payload digest is computed. Planned stage bytes are
+102064287736 and 91516690644, both under the existing 103079215104-byte limit.
+The actual stage sources contain six and five new
+`*_attention_retained_scores_v1` entries respectively. Both full stage cubins
+compile for sm121 under independent 2 GiB/no-swap CPU units and are downloaded
+along with the binary and source without overwriting previous artifacts.
+Existing CUDA unused-variable warnings remain visible. No full model was
+loaded for these checks; this proves export/build propagation, not execution
+of all 45 layers or end-to-end correctness.
 
 ## End-to-end comparison status
 
