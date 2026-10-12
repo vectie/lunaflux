@@ -443,3 +443,34 @@ byte-identical. Warning-denied native check and 122 affected native tests pass;
 the eight attention/FFN envelopes across window/compressed layers consume the
 new grouped dot law in the source regression. Runner tests 4/4 pass. Complete
 layers and full-model drift remain separate, pending checks.
+
+### Complete hierarchical-control propagation
+
+Source-pinned ARM build **a6e2ad1a** completes in the isolated 2-GiB/no-swap
+CPU unit on `.178`; the active MiniMax GPU run is not interrupted. Complete
+matched replays on `.179` record the grouped-dot policy at **both export and
+execution**, use the original 144 predecessors/IDs with one-row calls, exit
+zero and close CUDA. All compared values are finite; no serving default changes.
+
+| Complete layer | Vector-RMS relative L2 (%) | Hierarchical-controls relative L2 (%) | Exact BF16 / 2,359,296 |
+| --- | ---: | ---: | ---: |
+| Layer 0 | 0.015280325 | **0.015244816** | 2,353,681 |
+| Compressed layer 3 | 0.156252161 | **0.031195749** | 2,281,992 |
+
+Layer 3's error falls **80.0%**, about fivefold. Its attention input is now
+589,824/589,824 BF16 bitwise, instead of 49 differences. This resolves the
+demonstrated matched control/frontend defect, not all compressed attention or
+full-model drift. Remaining local frontiers include three low-rank query values,
+25 rotary query values and output-B relative L2 0.033465559%; FFN-input
+0.040668498% and FFN-output 0.419555492% include propagated upstream differences.
+They must not be added or interpreted as isolated expert-kernel errors. Layer 0
+changes only slightly; its remaining FFN-input has 53 BF16 differences,
+FFN-output 0.018087820%, residual 48 differences. Sinkhorn combination and local
+projection/rotary arithmetic remain open. These are **numerical corrections,
+not speed or quality gains**; full-model 18–21% drift has not been remeasured.
+
+Roots `/tmp/lunaflux-deepseek-production-layer-0-hierarchical-controls-rows1-20261012-v1`
+and `/tmp/lunaflux-deepseek-production-layer-3-hierarchical-controls-rows1-20261012-v1`;
+frontiers `/tmp/lunaflux-deepseek-layer-0-hierarchical-controls-frontiers-20261012-v1`
+and `/tmp/lunaflux-deepseek-layer-3-hierarchical-controls-frontiers-20261012-v1`.
+Original data/tolerances and earlier positive/negative probe results are retained.

@@ -662,3 +662,16 @@ has less than 1 GiB available; concurrent large fixtures exhaust it. A complete
 clean-host rerun is still required. No exclusions, fixture shapes or numerical
 tolerances are changed to hide those failures, and unrelated dirty toolchain
 files remain untouched by the task commits.
+# Matched control follow-up — 2026-10-12
+
+The source-pinned **a6e2ad1a** explicit hierarchical-control candidate fixes the
+captured layer-3 control/frontend boundary without vendor calls or original
+output substitutions. Attention input is bitwise on all 589,824 BF16 values.
+Complete compressed layer-3 relative L2 falls from 0.156252161% to 0.031195749%;
+layer 0 changes 0.015280325% to 0.015244816%. Remaining projection/rotary,
+Sinkhorn and propagated FFN differences are not full-model parity. The previous
+18–21% full-model drift is **not remeasured or declared fixed**. Ordinary
+serving policy remains unchanged. See
+[the control reduction report](DEEPSEEK_CONTROL_REDUCTION_2026-10-12.md) for
+matched operands, native IR/lowering proof, counters, sanitizer scope and roots.
+
