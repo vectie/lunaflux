@@ -1,4 +1,23 @@
 ///|
+test "staged serial MLP rejects an unsupported striped reduction" {
+  try
+    @gated_mlp_cuda_source.staged_packed_swiglu_bf16_source(
+      rows=1,
+      hidden_size=128,
+      intermediate_size=128,
+      function_prefix="striped_unsupported",
+      dot_reduction_law=StripedTreeFloat32(partitions=32),
+    )
+  catch {
+    @gated_mlp_cuda_source.GatedMlpCudaSourceError::UnsupportedDotReductionLaw =>
+      ()
+    _ => fail("unexpected unsupported MLP error")
+  } noraise {
+    _ => fail("serial MLP silently changed the requested law")
+  }
+}
+
+///|
 test "staged packed MLP writes one product per row and intermediate channel" {
   let source = @utf8.decode(
     staged_packed_swiglu_bf16_source(

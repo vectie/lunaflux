@@ -25,6 +25,7 @@ pub fn DeepSeekAttentionEnvelope::new(
   maximum_workspace_bytes~ : Int64,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   let hyper = @hyper.DeepSeekHyperConnection::new(
     spec,
@@ -45,6 +46,7 @@ pub fn DeepSeekAttentionEnvelope::new(
           maximum_workspace_bytes~,
           attention_accumulation~,
           rotary_product~,
+          output_accumulation~,
         ),
       )
     }
@@ -59,6 +61,7 @@ pub fn DeepSeekAttentionEnvelope::new(
           maximum_workspace_bytes~,
           attention_accumulation~,
           rotary_product~,
+          output_accumulation~,
         ),
       )
     _ => raise @precision.PrecisionPlanError::IllegalPlacement

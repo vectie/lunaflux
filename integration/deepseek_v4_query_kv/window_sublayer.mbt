@@ -16,12 +16,14 @@ pub fn DeepSeekWindowSublayer::new(
   maximum_workspace_bytes~ : Int64,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   let output_plan = attention_output_plan(
     spec,
     layer~,
     maximum_rows~,
     maximum_workspace_bytes~,
+    accumulation=output_accumulation,
   )
   {
     attention: DeepSeekWindowAttention::new(
@@ -39,6 +41,7 @@ pub fn DeepSeekWindowSublayer::new(
       maximum_rows~,
       maximum_workspace_bytes~,
       rotary_product~,
+      accumulation=output_accumulation,
     ),
     launches: [],
     state: Fresh,

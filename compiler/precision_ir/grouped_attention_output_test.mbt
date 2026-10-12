@@ -13,6 +13,7 @@ test "grouped attention output bounds all intermediates and distinct numeric sta
     maximum_workspace_bytes=1000000L,
   )
   assert_eq(plan.geometry(), (8, 4096, 1024, 3))
+  assert_eq(plan.accumulation(), OrderedFloat32)
   assert_eq(plan.frame_bytes()[:], [196608L, 49152L, 24576L])
   assert_eq(plan.workspace_bytes(), 270336L)
   assert_true(plan.rotary().inverse())
@@ -54,4 +55,44 @@ test "grouped attention output bounds all intermediates and distinct numeric sta
   } noraise {
     _ => fail("odd rotary suffix accepted")
   }
+}
+
+///|
+test "dot accumulation validates semantic partitions independently of hardware" {
+  for partitions in [0, 1, 3, 8192] {
+    try
+      @precision_ir.GroupedAttentionOutputPrecision::new(
+        head_count=64,
+        head_width=512,
+        rotary_width=64,
+        group_count=8,
+        output_rank=1024,
+        hidden_width=4096,
+        maximum_rows=3,
+        maximum_positions=1048576,
+        frequency=Base(theta=10000.0),
+        maximum_workspace_bytes=1000000L,
+        accumulation=StripedTreeFloat32(partitions~),
+      )
+    catch {
+      @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+      _ => fail("unexpected partition error")
+    } noraise {
+      _ => fail("invalid reduction partition accepted")
+    }
+  }
+  let generic = @precision_ir.GroupedAttentionOutputPrecision::new(
+    head_count=64,
+    head_width=512,
+    rotary_width=64,
+    group_count=8,
+    output_rank=1024,
+    hidden_width=4096,
+    maximum_rows=3,
+    maximum_positions=1048576,
+    frequency=Base(theta=10000.0),
+    maximum_workspace_bytes=1000000L,
+    accumulation=StripedTreeFloat32(partitions=64),
+  )
+  assert_eq(generic.accumulation(), StripedTreeFloat32(partitions=64))
 }

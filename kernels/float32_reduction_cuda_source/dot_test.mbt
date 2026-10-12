@@ -15,3 +15,18 @@ test "compensation is explicit and retains the F32 domain" {
   assert_eq(ordered, "sum = __fadd_rn(sum, product);")
   assert_eq(close, "")
 }
+
+///|
+test "serial scalar lowering never silently discards a striped tree" {
+  try
+    @float32_reduction_cuda_source.dot_accumulator_source(
+      StripedTreeFloat32(partitions=32),
+      accumulator="sum",
+    )
+  catch {
+    @precision.PrecisionPlanError::NoImplementation => ()
+    _ => fail("unexpected unsupported reduction error")
+  } noraise {
+    _ => fail("serial lowering discarded explicit partitions")
+  }
+}

@@ -1,5 +1,55 @@
 # DeepSeek matched original layer-stream replay — 2026-10-11
 
+## Matched output-A accumulation isolation — 2026-10-12
+
+After attention/inverse become exact, output-A has 324 differing BF16 values.
+The new intervention uses that **identical original inverse input**, unchanged
+weights and the complete 144-row original output-A. Exported production code
+reproduces the retained native output bitwise; separate BF16 dequantization
+also reproduces it. This isolates dot summation order, not input or scale drift.
+
+| Output-A reduction | Different BF16 / 1,179,648 | Relative L2 |
+| --- | ---: | ---: |
+| Production ordered F32 | 324 | 0.002497892% |
+| 8 striped partials + fixed tree | 169 | 0.001352904% |
+| 16 striped partials + fixed tree | 137 | 0.001543245% |
+| 32 contiguous partials + fixed tree | 195 | 0.002182036% |
+| F64 accumulator, final F32/BF16 rounding | 121 | 0.001466773% |
+| **32 striped partials + fixed tree** | **0** | **0%, bitwise** |
+| Original-library one-row grouped GEMM control | **0** | **0%, bitwise** |
+
+Thus higher accumulator precision alone does not reproduce the original's
+rounding; partition ownership and its join order matter. Root
+`/tmp/lunaflux-deepseek-output-arithmetic-20261012-v1` retains all controls.
+`v2` exports the actual cooperative CUDA lowering: **all 1,179,648 outputs
+match bitwise**, both all-row and incremental one-row execution. Default CUDA
+source remains byte-identical. All arrays are finite.
+
+The existing immutable `DotReductionLaw` gains `StripedTreeFloat32(partitions)`;
+there is no second numerical-policy type. Grouped output owns that law, the
+decoder propagates it through window/compressed paths, and CUDA alone owns
+subgroup/shuffle geometry. Scalar renderers explicitly reject this unsupported
+law instead of substituting another sum. The offline `prepare-striped` route
+selects tiled attention, complex rotary and this output reduction at both export
+and run. Ordinary serving retains its original ordered policy.
+
+The full-144-row actual lowering passes memcheck with zero errors/leaked bytes.
+Racecheck is killed at its 2-GiB then 8-GiB **instrumentation** cap, with zero
+swap; those failures are preserved. Fresh `v3` bounded **one-row/all eight groups
+and 1,024 channels per group**, bulk and incremental executions complete
+memcheck/leak, racecheck and synccheck with zero errors/hazards/leaks. Racecheck
+uses an 8-GiB tool allowance; the other tools retain 2 GiB, all with no swap.
+This does not claim racecheck coverage of the full 144-row workload. CUDA owners
+release after each run. Reusing the existing numerical-law type produces
+byte-identical default and candidate CUDA to the physical `v2` exports.
+
+Affected package tests pass **111/111**, and the two added serial-unsupported
+regressions pass with their package tests **17/17**. Both offline runner suites
+pass. Local warning-denied native check succeeds with the unchanged toolchain
+exclusions; the prior clean full-suite TLS blocker is not waived. Complete-layer
+propagation and full-model correctness remain pending; local bitwise agreement
+is not a media-quality or throughput result. No reference or tolerance changes.
+
 ## Matched rotary arithmetic isolation — 2026-10-12
 
 An offline intervention now separates generated frequency/trigonometry from

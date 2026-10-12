@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn dot_accumulator_source(@precision_ir.DotReductionLaw, accumulator~ : String) -> (String, String, String)
+pub fn dot_accumulator_source(@precision_ir.DotReductionLaw, accumulator~ : String) -> (String, String, String) raise @precision_ir.PrecisionPlanError
 
 // Errors
 

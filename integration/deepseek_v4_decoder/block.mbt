@@ -31,6 +31,7 @@ pub fn DeepSeekDecoderBlock::new(
   accuracy~ : @precision.Accuracy,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   {
     attention: @attention.DeepSeekAttentionEnvelope::new(
@@ -42,6 +43,7 @@ pub fn DeepSeekDecoderBlock::new(
       maximum_workspace_bytes~,
       attention_accumulation~,
       rotary_product~,
+      output_accumulation~,
     ),
     ffn: @expert.DeepSeekFfnEnvelope::new(
       spec,

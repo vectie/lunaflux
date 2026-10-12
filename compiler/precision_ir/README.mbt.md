@@ -19,6 +19,14 @@ uses Neumaier compensation and preserves nonfinite/overflow propagation rather
 than manufacturing finite outputs. Physical component probes check the actual
 generated dense and staged-MLP source against an independent F64 oracle.
 
+`StripedTreeFloat32(partitions)` adds an exact summation-order choice to that
+same `DotReductionLaw`, not another numerical-policy layer. Partition p sums
+p,p+P,... and a fixed upper-half/lower-half tree joins the partials. The grouped
+BF16 output lowering implements it cooperatively; CUDA subgroup details stay
+in its backend. Unsupported lowerings report the missing implementation rather
+than substituting ordered or compensated sums. Ordinary callers retain ordered
+accumulation. Matching one projection is not a whole-model quality guarantee.
+
 `PhysicalOperand` refines an existing physical operand region; it does not invent
 an unrelated shared-memory map. Local/global F32 scaling and BF16 rounding are
 retained boundaries. A caller-provided supported-placement set is a capability

@@ -1,4 +1,23 @@
 ///|
+test "dense serial projection rejects an unsupported striped reduction" {
+  try
+    @decoder_projection_cuda_source.dense_projection_bf16_source(
+      input_width=128,
+      output_width=128,
+      maximum_rows=1,
+      function_symbol="striped_unsupported",
+      dot_reduction_law=StripedTreeFloat32(partitions=32),
+    )
+  catch {
+    @decoder_projection_cuda_source.DecoderProjectionCudaSourceError::UnsupportedDotReductionLaw =>
+      ()
+    _ => fail("unexpected unsupported projection error")
+  } noraise {
+    _ => fail("serial projection silently changed the requested law")
+  }
+}
+
+///|
 test "dense BF16 projection source is deterministic and exact" {
   let source = dense_projection_bf16_source(
     input_width=16,

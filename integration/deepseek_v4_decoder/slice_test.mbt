@@ -18,6 +18,41 @@ fn slice(
 }
 
 ///|
+test "output reduction law propagates through window and compressed layers" {
+  let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
+    "deepseek-ai/DeepSeek-V4-Flash-0731",
+  )
+  let ordinary = slice(spec, 0, 4)
+  defer ordinary.close()
+  for
+    law in [
+      @precision.DotReductionLaw::OrderedFloat32,
+      StripedTreeFloat32(partitions=32),
+    ] {
+    let selected = @deepseek_v4_decoder.DeepSeekDecoderSlice::new(
+      spec,
+      first_layer=0,
+      end_layer=4,
+      maximum_rows=3,
+      maximum_context=256,
+      maximum_layer_state_bytes=16777216L,
+      maximum_layer_workspace_bytes=16777216L,
+      maximum_layer_expert_bytes=8589934592L,
+      accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
+      output_accumulation=law,
+    )
+    defer selected.close()
+    if law == OrderedFloat32 {
+      assert_eq(ordinary.source_bytes(), selected.source_bytes())
+    } else {
+      let text = @utf8.decode(selected.source_bytes())
+      assert_eq(text.split("const int partition = threadIdx.x % 32").count(), 5)
+    }
+    assert_eq(ordinary.expert_bank_bytes(), selected.expert_bank_bytes())
+  }
+}
+
+///|
 test "explicit attention accumulation reaches window and compressed decoder sources" {
   let spec = @spec.DeepSeekV4ModelSpec::from_official_model_id(
     "deepseek-ai/DeepSeek-V4-Flash-0731",

@@ -108,10 +108,13 @@ pub fn dense_projection_bf16_source(
   let (initialization, update, finish) = @reduction.dot_accumulator_source(
     dot_reduction_law,
     accumulator="accumulator",
-  )
+  ) catch {
+    _ => raise UnsupportedDotReductionLaw
+  }
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <stdint.h>\n" +
     (match dot_reduction_law {
+      StripedTreeFloat32(_) => raise UnsupportedDotReductionLaw
       OrderedFloat32 => ""
       CompensatedFloat32 => "#include <math.h>\n"
     }) +
@@ -156,6 +159,7 @@ pub fn dense_projection_bf16_source(
   {
     operation: DenseProjectionBf16,
     numerical_contract: match dot_reduction_law {
+      StripedTreeFloat32(_) => raise UnsupportedDotReductionLaw
       OrderedFloat32 => OrderedFloat32AccumulationBf16RoundV1
       CompensatedFloat32 => CompensatedFloat32AccumulationBf16RoundV1
     },

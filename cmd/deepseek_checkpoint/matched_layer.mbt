@@ -74,6 +74,7 @@ async fn replay_matched_layer(
   arguments : ArrayView[String],
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Unit {
   let model_root = arguments[0]
   let layer = @string.parse_int(arguments[2])
@@ -110,6 +111,7 @@ async fn replay_matched_layer(
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
     attention_accumulation~,
     rotary_product~,
+    output_accumulation~,
   )
   defer decoder.close()
   @fs.mkdir(arguments[8])
@@ -120,7 +122,7 @@ async fn replay_matched_layer(
       create_mode=CreateNew,
     )
     println(
-      "matched_layer_export layer=\{layer} physical_rows=\{rows} input_rows=\{count} accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)}",
+      "matched_layer_export layer=\{layer} physical_rows=\{rows} input_rows=\{count} accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)}",
     )
     return
   }
@@ -353,6 +355,6 @@ async fn replay_matched_layer(
     )
   }
   println(
-    "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} shared_decoder_slice=true accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} production_default_policy=\{attention_accumulation == @precision.AttentionAccumulationLaw::OrderedFloat32 && rotary_product == @precision.RotaryProductLaw::SeparateFloat32Products} full_model=false",
+    "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} shared_decoder_slice=true accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} production_default_policy=\{attention_accumulation == @precision.AttentionAccumulationLaw::OrderedFloat32 && rotary_product == @precision.RotaryProductLaw::SeparateFloat32Products && output_accumulation == @precision.DotReductionLaw::OrderedFloat32} full_model=false",
   )
 }

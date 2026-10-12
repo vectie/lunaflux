@@ -16,6 +16,7 @@ pub(all) enum DecoderProjectionNumericalContract {
 
 ///|
 pub(all) suberror DecoderProjectionCudaSourceError {
+  UnsupportedDotReductionLaw
   InvalidInputWidth
   InvalidOutputWidth
   InvalidMaximumRows

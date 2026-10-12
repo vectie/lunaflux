@@ -9,6 +9,7 @@ pub struct GroupedAttentionOutputPrecision {
   priv hidden : Int
   priv matrices : ReadOnlyArray[@format.Representation]
   priv frames : ReadOnlyArray[Int64]
+  priv accumulation : DotReductionLaw
 }
 
 ///|
@@ -24,6 +25,7 @@ pub fn GroupedAttentionOutputPrecision::new(
   frequency~ : RotaryFrequency,
   maximum_workspace_bytes~ : Int64,
   rotary_product? : RotaryProductLaw = SeparateFloat32Products,
+  accumulation? : DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   guard group_count > 0 &&
     group_count <= head_count &&
@@ -53,6 +55,7 @@ pub fn GroupedAttentionOutputPrecision::new(
     maximum_workspace_bytes~,
     product=rotary_product,
   )
+  accumulation.validate(head_count * head_width / group_count)
   let frames = [
     rotary.workspace_bytes(),
     maximum_rows.to_int64() *
@@ -78,12 +81,20 @@ pub fn GroupedAttentionOutputPrecision::new(
     groups: group_count,
     rank: output_rank,
     hidden: hidden_width,
+    accumulation,
     matrices: ReadOnlyArray::from_array([
       matrix(group_count * output_rank, head_count * head_width / group_count),
       matrix(hidden_width, group_count * output_rank),
     ]),
     frames: ReadOnlyArray::from_array(frames),
   }
+}
+
+///|
+pub fn GroupedAttentionOutputPrecision::accumulation(
+  self : Self,
+) -> DotReductionLaw {
+  self.accumulation
 }
 
 ///|

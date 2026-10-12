@@ -19,6 +19,7 @@ pub fn staged_separate_swiglu_bf16_source(hidden_size~ : Int, intermediate_size~
 
 // Errors
 pub(all) suberror GatedMlpCudaSourceError {
+  UnsupportedDotReductionLaw
   InvalidRowCount
   InvalidWidth
   DimensionOverflow

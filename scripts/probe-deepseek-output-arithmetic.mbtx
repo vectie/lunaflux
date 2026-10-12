@@ -1,0 +1,328 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, label : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn transfer(source : String, target : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    target,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn routes() -> Array[String] {
+  [
+    "production", "ordered", "striped2", "striped4", "striped8", "striped16", "striped32",
+    "contiguous8", "contiguous32", "float64", "vendor_one_row", "lowered", "lowered_incremental",
+  ]
+}
+
+///|
+test "output arithmetic retains production and independent accumulation controls" {
+  assert_eq(routes().length(), 13)
+  assert_eq(routes()[0], "production")
+  assert_eq(routes()[10], "vendor_one_row")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-output-arithmetic-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "prepare NEW_ROOT REMOTE_NATIVE_OUTPUT REMOTE_ORIGINAL_BOUNDARIES REMOTE_WEIGHTS | run|collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [native, original, weights] else {
+      fail("three matched input roots required")
+    }
+    @fs.mkdir(root)
+    record(root, "mkdir", remote("mkdir " + root))
+    // Compare literal operands, rather than replace either output or its reference.
+    record(
+      root,
+      "identical-inverse",
+      remote(
+        "cmp " +
+        native +
+        "/attention-inverse.bf16 " +
+        original +
+        "/attention-inverse.bf16",
+      ),
+    )
+    record(
+      root,
+      "operands",
+      remote(
+        "cp -n " +
+        native +
+        "/attention-inverse.bf16 " +
+        root +
+        "/input.bf16 && cp -n " +
+        original +
+        "/attention-output-a.bf16 " +
+        root +
+        "/reference.bf16 && cp -n " +
+        native +
+        "/attention-output-a.bf16 " +
+        root +
+        "/retained-native.bf16 && cp -n " +
+        weights +
+        "/wo_a.fp8 " +
+        weights +
+        "/wo_a.scale " +
+        root +
+        "/",
+      ),
+    )
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "kernels/grouped_attention_output_cuda_source", "--filter", "original grouped output replay exports full checkpoint geometry",
+          "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+        ],
+        env={
+          "LUNAFLUX_MATCHED_OUTPUT_SOURCE_OUTPUT": root +
+          "/output_matched_kernels.cuh",
+          "LUNAFLUX_STRIPED_OUTPUT_SOURCE_OUTPUT": root +
+          "/output_striped_kernels.cuh",
+        },
+      ).output(),
+    )
+    for
+      file in [
+        "output_matched_kernels.cuh", "output_striped_kernels.cuh", "output_arithmetic_probe.cu",
+      ] {
+      transfer(
+        if file == "output_arithmetic_probe.cu" {
+          "tests/packed_moe_execution/" + file
+        } else {
+          root + "/" + file
+        },
+        node + ":" + root + "/" + file,
+      )
+    }
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 output_arithmetic_probe.cu -lcublas -o output-probe",
+      ),
+    )
+  } else if mode == "verify-source" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    record(
+      root,
+      "shared-law-export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "kernels/grouped_attention_output_cuda_source", "--filter", "original grouped output replay exports full checkpoint geometry",
+          "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+        ],
+        env={
+          "LUNAFLUX_MATCHED_OUTPUT_SOURCE_OUTPUT": root +
+          "/shared-law-default.cuh",
+          "LUNAFLUX_STRIPED_OUTPUT_SOURCE_OUTPUT": root +
+          "/shared-law-striped.cuh",
+        },
+      ).output(),
+    )
+    for
+      (label, original, current) in [
+        ("default", "output_matched_kernels.cuh", "shared-law-default.cuh"),
+        ("striped", "output_striped_kernels.cuh", "shared-law-striped.cuh"),
+      ] {
+      record(
+        root,
+        "shared-law-" + label,
+        @shell.Cmd("cmp", [root + "/" + original, root + "/" + current]).output(),
+      )
+    }
+  } else if mode == "run" ||
+    mode == "sanitize" ||
+    mode == "sanitize-retry" ||
+    mode == "sanitize-small" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU probes")
+    }
+    if mode != "run" {
+      let gates = if mode == "sanitize-retry" {
+        [("racecheck8g", "racecheck"), ("synccheck", "synccheck")]
+      } else {
+        [
+          ("memcheck", "memcheck"),
+          ("racecheck", "racecheck"),
+          ("synccheck", "synccheck"),
+        ]
+      }
+      for (label, tool) in gates {
+        record(root, label + "-mkdir", remote("mkdir " + root + "/" + label))
+        record(
+          root,
+          label,
+          remote(
+            "systemd-run --user --wait --pipe --unit=" +
+            tag +
+            "-" +
+            label +
+            " --property=MemoryMax=" +
+            (if tool == "racecheck" { "8G" } else { "2G" }) +
+            " --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 7 --tool " +
+            tool +
+            (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+            " " +
+            root +
+            "/output-probe " +
+            root +
+            " " +
+            root +
+            "/" +
+            label +
+            " --lowered-only" +
+            (if mode == "sanitize-small" { " --one-row" } else { "" }),
+          ),
+        )
+      }
+      record(
+        root,
+        "sanitizers-released",
+        remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+      )
+      return
+    }
+    record(root, "ordinary-mkdir", remote("mkdir " + root + "/ordinary"))
+    record(
+      root,
+      "ordinary",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-ordinary --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+        root +
+        "/output-probe " +
+        root +
+        " " +
+        root +
+        "/ordinary",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+    record(
+      root,
+      "production-control",
+      remote(
+        "cmp " +
+        root +
+        "/ordinary/production.bf16 " +
+        root +
+        "/retained-native.bf16 && cmp " +
+        root +
+        "/ordinary/ordered.bf16 " +
+        root +
+        "/ordinary/production.bf16",
+      ),
+    )
+  } else if mode == "verify-small" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      for route in ["lowered", "lowered_incremental"] {
+        let file = root + "/" + tool + "/" + route + ".bf16"
+        record(
+          root,
+          tool + "-" + route + "-reference",
+          remote(
+            "test $(stat -c %s " +
+            file +
+            ") -eq 16384 && cmp -n 16384 " +
+            file +
+            " " +
+            root +
+            "/reference.bf16",
+          ),
+        )
+      }
+    }
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    @fs.mkdir(root + "/ordinary")
+    transfer(node + ":" + root + "/reference.bf16", root + "/reference.bf16")
+    for route in routes() {
+      let file = root + "/ordinary/" + route + ".bf16"
+      transfer(node + ":" + file, file)
+      record(
+        root,
+        route + "-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          file,
+          root + "/reference.bf16",
+          root + "/" + route + "-comparison.txt",
+          "identical_original_inverse_output_a_" + route,
+          "8192",
+        ]).output(),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

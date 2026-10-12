@@ -41,6 +41,7 @@ pub fn DeepSeekDecoderSlice::new(
   capture_prediction_inputs? : Bool = false,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Self raise {
   guard first_layer >= 0 &&
     end_layer > first_layer &&
@@ -94,6 +95,7 @@ pub fn DeepSeekDecoderSlice::new(
         accuracy~,
         attention_accumulation~,
         rotary_product~,
+        output_accumulation~,
       ),
       routed: @expert.expert_compute_plan(
         spec,

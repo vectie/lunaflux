@@ -6,8 +6,10 @@
 pub fn dot_accumulator_source(
   law : @precision.DotReductionLaw,
   accumulator~ : String,
-) -> (String, String, String) {
+) -> (String, String, String) raise @precision.PrecisionPlanError {
   match law {
+    StripedTreeFloat32(_) =>
+      raise @precision.PrecisionPlanError::NoImplementation
     OrderedFloat32 =>
       (
         "float \{accumulator} = 0.0f;",

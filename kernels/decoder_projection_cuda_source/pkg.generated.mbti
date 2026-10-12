@@ -17,6 +17,7 @@ pub fn grouped_projection_bf16_source(group_count~ : Int, input_width~ : Int, ou
 
 // Errors
 pub(all) suberror DecoderProjectionCudaSourceError {
+  UnsupportedDotReductionLaw
   InvalidInputWidth
   InvalidOutputWidth
   InvalidMaximumRows

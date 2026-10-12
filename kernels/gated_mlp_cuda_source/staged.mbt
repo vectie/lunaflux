@@ -32,15 +32,21 @@ pub fn staged_packed_swiglu_bf16_source(
   let (up_init, up_update, up_finish) = @reduction.dot_accumulator_source(
     dot_reduction_law,
     accumulator="up_sum",
-  )
+  ) catch {
+    _ => raise UnsupportedDotReductionLaw
+  }
   let (gate_init, gate_update, gate_finish) = @reduction.dot_accumulator_source(
     dot_reduction_law,
     accumulator="gate_sum",
-  )
+  ) catch {
+    _ => raise UnsupportedDotReductionLaw
+  }
   let (down_init, down_update, down_finish) = @reduction.dot_accumulator_source(
     dot_reduction_law,
     accumulator="sum",
-  )
+  ) catch {
+    _ => raise UnsupportedDotReductionLaw
+  }
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n" +
     "extern \"C\" __global__ void " +

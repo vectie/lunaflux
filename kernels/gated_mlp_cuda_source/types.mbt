@@ -6,6 +6,7 @@ pub(all) enum GatedMlpNumericalContract {
 
 ///|
 pub(all) suberror GatedMlpCudaSourceError {
+  UnsupportedDotReductionLaw
   InvalidRowCount
   InvalidWidth
   DimensionOverflow
