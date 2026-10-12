@@ -10,6 +10,7 @@ pub struct GroupedAttentionOutputPrecision {
   priv matrices : ReadOnlyArray[@format.Representation]
   priv frames : ReadOnlyArray[Int64]
   priv accumulation : DotReductionLaw
+  priv scaled_dot : ScaledDotReductionLaw
 }
 
 ///|
@@ -26,7 +27,13 @@ pub fn GroupedAttentionOutputPrecision::new(
   maximum_workspace_bytes~ : Int64,
   rotary_product? : RotaryProductLaw = SeparateFloat32Products,
   accumulation? : DotReductionLaw = OrderedFloat32,
+  projection_scaled_dot_law? : ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> Self raise {
+  match projection_scaled_dot_law {
+    DecodeOperandsFloat32 => ()
+    UnscaledBlockMatrixFloat32(block_columns=128, ..) => ()
+    _ => raise PrecisionPlanError::NoImplementation
+  }
   guard group_count > 0 &&
     group_count <= head_count &&
     head_count % group_count == 0 &&
@@ -82,6 +89,7 @@ pub fn GroupedAttentionOutputPrecision::new(
     rank: output_rank,
     hidden: hidden_width,
     accumulation,
+    scaled_dot: projection_scaled_dot_law,
     matrices: ReadOnlyArray::from_array([
       matrix(group_count * output_rank, head_count * head_width / group_count),
       matrix(hidden_width, group_count * output_rank),
@@ -95,6 +103,14 @@ pub fn GroupedAttentionOutputPrecision::accumulation(
   self : Self,
 ) -> DotReductionLaw {
   self.accumulation
+}
+
+///|
+/// Output-B arithmetic is independent of group-local output-A accumulation.
+pub fn GroupedAttentionOutputPrecision::projection_scaled_dot_law(
+  self : Self,
+) -> ScaledDotReductionLaw {
+  self.scaled_dot
 }
 
 ///|

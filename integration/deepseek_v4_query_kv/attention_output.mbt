@@ -17,6 +17,7 @@ pub fn attention_output_plan(
   maximum_workspace_bytes~ : Int64,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   accumulation? : @precision.DotReductionLaw = OrderedFloat32,
+  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision.GroupedAttentionOutputPrecision raise {
   let frequency = rotary_frequency_policy(spec, layer~)
   @precision.GroupedAttentionOutputPrecision::new(
@@ -32,6 +33,7 @@ pub fn attention_output_plan(
     maximum_workspace_bytes~,
     rotary_product~,
     accumulation~,
+    projection_scaled_dot_law~,
   )
 }
 
@@ -70,6 +72,7 @@ pub fn DeepSeekAttentionOutput::new(
   maximum_workspace_bytes~ : Int64,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   accumulation? : @precision.DotReductionLaw = OrderedFloat32,
+  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> Self raise {
   let plan = attention_output_plan(
     spec,
@@ -78,6 +81,7 @@ pub fn DeepSeekAttentionOutput::new(
     maximum_workspace_bytes~,
     rotary_product~,
     accumulation~,
+    projection_scaled_dot_law~,
   )
   {
     spec,

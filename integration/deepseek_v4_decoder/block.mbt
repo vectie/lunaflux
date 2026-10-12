@@ -36,6 +36,7 @@ pub fn DeepSeekDecoderBlock::new(
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
+  output_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
@@ -64,6 +65,7 @@ pub fn DeepSeekDecoderBlock::new(
       attention_accumulation~,
       rotary_product~,
       output_accumulation~,
+      output_scaled_dot_law~,
       projection_scaled_dot_law~,
       query_square_law~,
       control_square_law~,

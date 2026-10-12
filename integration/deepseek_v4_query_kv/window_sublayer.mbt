@@ -17,6 +17,7 @@ pub fn DeepSeekWindowSublayer::new(
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
+  output_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
@@ -29,6 +30,7 @@ pub fn DeepSeekWindowSublayer::new(
     maximum_rows~,
     maximum_workspace_bytes~,
     accumulation=output_accumulation,
+    projection_scaled_dot_law=output_scaled_dot_law,
   )
   {
     attention: DeepSeekWindowAttention::new(
@@ -49,6 +51,7 @@ pub fn DeepSeekWindowSublayer::new(
       maximum_workspace_bytes~,
       rotary_product~,
       accumulation=output_accumulation,
+      projection_scaled_dot_law=output_scaled_dot_law,
     ),
     launches: [],
     state: Fresh,

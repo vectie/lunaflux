@@ -208,7 +208,8 @@ pub fn GroupedAttentionOutputPrecision::accumulation(Self) -> DotReductionLaw
 pub fn GroupedAttentionOutputPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn GroupedAttentionOutputPrecision::geometry(Self) -> (Int, Int, Int, Int)
 pub fn GroupedAttentionOutputPrecision::hidden_width(Self) -> Int
-pub fn GroupedAttentionOutputPrecision::new(head_count~ : Int, head_width~ : Int, rotary_width~ : Int, group_count~ : Int, output_rank~ : Int, hidden_width~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, frequency~ : RotaryFrequency, maximum_workspace_bytes~ : Int64, rotary_product? : RotaryProductLaw, accumulation? : DotReductionLaw) -> Self raise
+pub fn GroupedAttentionOutputPrecision::new(head_count~ : Int, head_width~ : Int, rotary_width~ : Int, group_count~ : Int, output_rank~ : Int, hidden_width~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, frequency~ : RotaryFrequency, maximum_workspace_bytes~ : Int64, rotary_product? : RotaryProductLaw, accumulation? : DotReductionLaw, projection_scaled_dot_law? : ScaledDotReductionLaw) -> Self raise
+pub fn GroupedAttentionOutputPrecision::projection_scaled_dot_law(Self) -> ScaledDotReductionLaw
 pub fn GroupedAttentionOutputPrecision::rotary(Self) -> RotaryTensorPrecision
 pub fn GroupedAttentionOutputPrecision::weight_representations(Self) -> ReadOnlyArray[@precision_format.Representation]
 pub fn GroupedAttentionOutputPrecision::workspace_bytes(Self) -> Int64

@@ -149,3 +149,30 @@ async test "original DeepSeek query replay exports full-width numerical stages" 
     @fs.write_file(path, bytes, create_mode=CreateNew)
   }
 }
+
+///|
+async test "matched output B exports independent raw projection arithmetic" {
+  let source = @projection.block_fp8_ue8m0_projection_cuda_source(
+    input_width=8192,
+    output_width=4096,
+    maximum_rows=144,
+    function_symbol="matched_projection",
+    scaled_dot_law=UnscaledBlockMatrixFloat32(
+      block_columns=128,
+      publication=SeparateMultiplyAdd,
+    ),
+  )
+  let (_, y, threads) = source.launch()
+  assert_eq((y, threads), (128, 128))
+  if @env.get_env_var("LUNAFLUX_MATCHED_OUTPUT_B_MATRIX_SOURCE_OUTPUT")
+    is Some(path) {
+    @fs.write_file(
+      path,
+      source.source_bytes() +
+      @utf8.encode(
+        "\n#define LUNA_PROJECTION_Y \{y}\n#define LUNA_PROJECTION_THREADS \{threads}\n",
+      ),
+      create_mode=CreateNew,
+    )
+  }
+}

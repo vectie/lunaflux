@@ -3,6 +3,7 @@ pub struct GroupedAttentionOutputCudaSource {
   priv plan : @precision.GroupedAttentionOutputPrecision
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
+  priv output_launch : (Int, Int, Int)
 }
 
 ///|
@@ -29,11 +30,17 @@ pub fn grouped_attention_output_source(
     output_width=plan.hidden_width(),
     maximum_rows=rows,
     function_symbol=symbols[2],
+    scaled_dot_law=plan.projection_scaled_dot_law(),
   )
   let source = output_b.source_bytes() +
     @utf8.encode(inverse) +
     @utf8.encode(grouped_dot_source(plan, symbols[1]))
-  { plan, source, symbols: ReadOnlyArray::from_array(symbols), }
+  {
+    plan,
+    source,
+    symbols: ReadOnlyArray::from_array(symbols),
+    output_launch: output_b.launch(),
+  }
 }
 
 ///|
@@ -112,6 +119,6 @@ pub fn GroupedAttentionOutputCudaSource::launch(
           )
         }
       }
-    _ => (rows, (self.plan.hidden_width() + 255) / 256, 256)
+    _ => self.output_launch
   }
 }

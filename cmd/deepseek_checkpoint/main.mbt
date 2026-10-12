@@ -15,11 +15,14 @@ async fn main {
       | "replay-layer-vector-query"
       | "replay-layer-router-arithmetic"
       | "replay-layer-shared-block-matrix"
+      | "replay-layer-fp8-projections"
       | "replay-layer-query-block-matrix" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
-    let query_matrix = mode == "replay-layer-query-block-matrix"
+    let output_matrix = mode == "replay-layer-fp8-projections"
+    let query_matrix = output_matrix ||
+      mode == "replay-layer-query-block-matrix"
     let shared_matrix = query_matrix ||
       mode == "replay-layer-shared-block-matrix"
     let router = shared_matrix || mode == "replay-layer-router-arithmetic"
@@ -33,6 +36,14 @@ async fn main {
       mode == "replay-layer-vector-query"
     replay_matched_layer(
       arguments,
+      output_scaled_dot_law=if output_matrix {
+        UnscaledBlockMatrixFloat32(
+          block_columns=128,
+          publication=SeparateMultiplyAdd,
+        )
+      } else {
+        DecodeOperandsFloat32
+      },
       projection_scaled_dot_law=if query_matrix {
         UnscaledBlockMatrixFloat32(
           block_columns=128,

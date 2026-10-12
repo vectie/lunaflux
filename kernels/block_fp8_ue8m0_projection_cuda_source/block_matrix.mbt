@@ -16,10 +16,11 @@ fn matrix_projection_source(
     ) else {
     raise UnsupportedArithmetic
   }
-  let helper = @lowering.e4m3_block_matrix_helper(
-    symbol=function_symbol,
-    publication=SeparateMultiplyAdd,
-  )
+  let helper = projection_helpers() +
+    @lowering.e4m3_block_matrix_helper(
+      symbol=function_symbol,
+      publication=SeparateMultiplyAdd,
+    )
   @utf8.encode(
     helper +
     (

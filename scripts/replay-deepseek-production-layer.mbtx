@@ -82,6 +82,8 @@ fn replay_mode(mode : String) -> String {
     "replay-layer-shared-block-matrix"
   } else if mode == "prepare-query-block-matrix" {
     "replay-layer-query-block-matrix"
+  } else if mode == "prepare-fp8-projections" {
+    "replay-layer-fp8-projections"
   } else {
     "replay-layer"
   }
@@ -117,6 +119,10 @@ test "tiled replay uses the same explicit policy at export and execution" {
     replay_mode("prepare-query-block-matrix"),
     "replay-layer-query-block-matrix",
   )
+  assert_eq(
+    replay_mode("prepare-fp8-projections"),
+    "replay-layer-fp8-projections",
+  )
 }
 
 ///|
@@ -142,7 +148,8 @@ async fn main {
     mode == "prepare-vector-query" ||
     mode == "prepare-router-arithmetic" ||
     mode == "prepare-shared-block-matrix" ||
-    mode == "prepare-query-block-matrix" {
+    mode == "prepare-query-block-matrix" ||
+    mode == "prepare-fp8-projections" {
     guard extra is [executable, layer, rows, input, reference, .. optional] &&
       optional.length() <= 1 else {
       fail("matched operands required")

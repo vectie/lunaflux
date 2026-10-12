@@ -1011,6 +1011,47 @@ outputs remain bitwise in matched/propagated modes; memcheck/full leak,
 racecheck and synccheck remain zero. This validates the common primitive without
 silently assuming the earlier shared-expert result survives a source refactor.
 
+### Commit-pinned query replay and independent output-B proof
+
+Implementation23dea2e7 is pushed. Its clean ARM build completes on178 under
+2GiB/no-swap CPU-only limits (750.3MiB reported peak). Complete original-input
+one-row replays cover all144 predecessors/IDs at
+`/tmp/lunaflux-deepseek-production-layer-{0,3}-query-matrix-rows1-20261012-v1`.
+Export AND execution explicitly select the query scaled-dot law.
+
+Layer0 query norm/RoPE, KV, sparse attention, inverse rotary and output-A are
+now **all bitwise**, including removal of139 qRoPE differences. Output-B still
+has11 BF16 differences, hidden still16; complete error0.000199292% is unchanged.
+Layer3 lowrank is147456/147456 exact; qRoPE has just1/4718592 differing value,
+while sparse attention, inverse and output-A are all bitwise. Output-B retains8
+differences. Complete hidden error decreases from0.027008023% to**0.001508918%**;
+this is numerical error reduction, not throughput. Frontier report roots are
+`/tmp/lunaflux-deepseek-layer-{0,3}-query-matrix-frontiers-20261012-v1`.
+
+The next leaf is tested independently, not inferred from the query result:
+`/tmp/lunaflux-deepseek-output-b-source-20261012-v1` replays actual generic
+8192→4096 FP8 matrix source on all144 original output-A operands from the
+original one-row output observer
+`/tmp/lunaflux-deepseek-original-output-native-all144-20261012-v1`.
+All589824 output-B BF16 values are bitwise; full144 memcheck/leak and first-row
+race/sync checks report zero. No output-A/reference substitution enters serving.
+The same proof survives decoder-helper factoring at source-rootv2. The new
+independent output scaled-dot policy and `replay-layer-fp8-projections` profile
+must next establish complete-layer propagation; defaults remain unchanged.
+
+The output-B policy now reaches immutable grouped-output precision, actual
+launch metadata, output owner, window/compressed sublayers, envelope and
+decoder block/slice independently of query and output-A policies. Generic
+numeric helpers are shared without changing scalar-default bytes. Nativecheck
+and131 affected tests pass; targetedinfo936 existing migration warnings,0errors.
+Query-default source and output-B-default leaf are byte-compared unchanged.
+An initial whole-historical-output-bundle byte check failed only on older
+inverse-rotary casts/formatting; it is not a numerical mismatch or a reference
+rewrite. The corrected regression compares the actual unchanged leaf, leaving
+all original arrays intact. New source-rootv2 again has full144 bitwise output-B,
+full144 memory/leak checks and first-row race/sync checks zero. Complete-layer
+FP8-projections replay is still pending; no new full-chain/performance claim.
+
 Default shared source is independently byte-compared with the pre-change
 retained export; it remains unchanged. Native affected tests99/99 and offline
 source/chain/query runner regressions pass. Actual shared source sanitizers are

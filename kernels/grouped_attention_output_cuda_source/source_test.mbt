@@ -34,6 +34,14 @@ async test "original grouped output replay exports full checkpoint geometry" {
   )
   assert_eq(source.launch(1), (144, 8, 256))
   assert_eq(source.launch(2), (144, 16, 256))
+  if @env.get_env_var("LUNAFLUX_MATCHED_OUTPUT_PREVIOUS_SOURCE") is Some(path) {
+    // Retained older bundles may have an earlier inverse/output-A generator.
+    // Compare the unchanged output-B leaf, not unrelated historical stages.
+    let boundary = "extern \"C\" __global__ void matched_output_inverse"
+    let current = @utf8.decode(source.source_bytes()).split(boundary).collect()[0].to_owned()
+    let previous = @fs.read_file(path).text().split(boundary).collect()[0].to_owned()
+    assert_eq(current, previous)
+  }
   if @env.get_env_var("LUNAFLUX_MATCHED_OUTPUT_SOURCE_OUTPUT") is Some(path) {
     @fs.write_file(path, source.source_bytes(), create_mode=CreateNew)
   }
