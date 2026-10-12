@@ -14,6 +14,9 @@ numeric selection cannot use agreement or timings as rewrite authorization;
 a transitive development dependency check enforces the separation. Default
 generated compressor sources are unchanged. Ordered and explicit FMA fixtures
 pass179 correctness/state and memcheck/leak/race/sync gates (2GiB/no swap).
+Affected tests pass95/95; the current full working-tree native suite passes
+5092/5092 with existing warning exclusions. Unrelated in-progress toolchain/TLS
+files remain outside these commits; this is not a clean commit-only suite claim.
 
 Remaining evaluation work: actual final-head capture/mapping for native and
 original; exact-checkpoint vLLM/SGLang comparisons and within-framework controls;

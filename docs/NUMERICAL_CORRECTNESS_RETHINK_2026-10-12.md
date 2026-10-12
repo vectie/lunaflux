@@ -261,6 +261,12 @@ passes **9/9**; the architecture-dependency script passes its test and checks th
 11-package compiler dependency closure. Native check passes with the existing
 migration-warning exclusions unchanged. Targeted interface generation reports
 441 existing migration warnings and zero errors.
+The complete current working-tree native suite subsequently passes
+**5,092/5,092**, with the same warning exclusions. This includes the user's
+pre-existing uncommitted toolchain/TLS work; it is not described as a clean
+commit-only build. Those unrelated files are neither changed nor committed by
+this iteration. Final default fixture source also byte-matches the generated
+source used in the physical run below.
 
 Physical fixture root: `/tmp/lunaflux-numeric-program-20261012-v1` (local and179).
 Actual generated ordered and explicitly requested FMA variants both run the
