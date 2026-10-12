@@ -350,3 +350,39 @@ and synccheck with zero reports, 2-GiB/no-swap and released CUDA. Native check
 passes with unchanged warning exclusions; affected native tests **130/130**,
 replay/probe runner tests **3/3**. Actual complete-layer propagation remains the
 next check; no throughput or full-model benefit is inferred from these counts.
+
+## Complete vector-RMS replay
+
+Clean pinned ARM build of **c0467273** completes. Export and execution both
+record vectorized control/branch square folds (512 partitions, four components),
+reciprocal control sqrt, striped-32 control dots, direct sigmoid and vector
+affine FMA. Both one-row complete-layer replays exit zero, close CUDA and report
+no swap; application stderr is empty (systemd wrapper messages are retained).
+
+| Complete matched layer | Nonlinear candidate | Vector-RMS candidate | Exact BF16 / 2,359,296 |
+| --- | ---: | ---: | ---: |
+| Layer 0 relative L2 | 0.016411788% | **0.015280325%** | 2,353,501 |
+| Compressed layer 3 relative L2 | 0.156272325% | **0.156252161%** | 1,203,147 |
+
+Layer 0 improves a further **6.9% in numerical error**, about 95.9% below the
+initial 0.3749400% error, not a throughput gain. Its attention input, sparse
+attention, inverse and output-A remain bitwise. FFN input differs on 58 values,
+relative L2 0.002561457%; FFN output is 0.018099565%. Row 47 remains 0.00428665%
+complete-output error. Layer-3 normalization improves 56 to 49 differing inputs,
+but low-rank query and all downstream attention outputs are bitwise identical
+to the preceding nonlinear candidate. Its complete-layer benefit is tiny and
+remains worse than the earlier 0.155833791% refined-reduction result. The source
+fix is verified at its RMS boundary, but **does not resolve the larger compressed
+projection/input-sensitivity problem**. Do not blanket-enable it.
+
+Roots `/tmp/lunaflux-deepseek-production-layer-0-vector-rms-rows1-20261012-v1`
+and `/tmp/lunaflux-deepseek-production-layer-3-vector-rms-rows1-20261012-v1`;
+frontiers `/tmp/lunaflux-deepseek-layer-0-vector-rms-frontiers-20261012-v1` and
+`/tmp/lunaflux-deepseek-layer-3-vector-rms-frontiers-20261012-v1`.
+Actual layer-3 control mixes still match only **1,007/3,456 F32** values,
+relative L2 0.000010158%. With RMS now exact on the original control input, the
+next isolated target is the **control projection's F32 dot order**, rather than
+repeating RMS experiments or blaming layout/cache ownership. Branch weighted
+RMS is exact on identical original collapsed input; upstream collapsed-input
+differences remain. Full-model 18–21% drift and MiniMax correctness/quality are
+still open; ordinary serving stays unchanged.
