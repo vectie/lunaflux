@@ -1,0 +1,452 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// External reference engine/client. No compiler/runtime import or payload hash.
+
+///|
+fn host(last : Bool) -> String {
+  if last {
+    "wlc004s@192.168.2.179"
+  } else {
+    "wlc003s@192.168.2.178"
+  }
+}
+
+///|
+fn socket(last : Bool) -> String {
+  if last {
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  } else {
+    "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  }
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    socket(last),
+    host(last),
+    command,
+  ]).output(max_output_bytes=16777216)
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn copy(last : Bool, source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket(last),
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn checkpoint(glm : Bool, last : Bool) -> String {
+  if glm {
+    (if last {
+      "/tmp/lunaflux-glm-real-20261010.ekEYBzqU"
+    } else {
+      "/tmp/lunaflux-glm-real-20261010.6yIBQN35"
+    }) +
+    "/GLM-5.3-Flash-NVFP4"
+  } else {
+    (if last {
+      "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT"
+    } else {
+      "/tmp/lunaflux-deepseek-real-20261010.dLryo68E"
+    }) +
+    "/DeepSeek-V4-Flash-DSpark"
+  }
+}
+
+///|
+fn payload(tokens : Array[Int], glm : Bool, sglang : Bool) -> Json {
+  let stops : Array[Json] = [Json(if glm { 154827 } else { 1 })]
+  if sglang {
+    {
+      "input_ids": Json(tokens.map(t => Json(t))),
+      "sampling_params": {
+        "temperature": 0,
+        "max_new_tokens": 8,
+        "stop_token_ids": Json(stops),
+      },
+      "stream": false,
+    }
+  } else {
+    {
+      "model": "matched-model",
+      "prompt": Json(tokens.map(t => Json(t))),
+      "temperature": 0,
+      "max_tokens": 8,
+      "stop_token_ids": Json(stops),
+      "stream": false,
+    }
+  }
+}
+
+///|
+fn available_kib(text : String) -> Int64 raise {
+  for line in text.split("\n") {
+    if line.has_prefix("MemAvailable:") {
+      let parts = line.split(" ").filter(s => !s.is_empty()).to_array()
+      guard parts is [_, value, "kB"] else { fail("memory units") }
+      return @string.parse_int64(value)
+    }
+  }
+  fail("missing host memory observation")
+}
+
+///|
+async fn stop_pair(tag : String) -> Unit {
+  for last in [false, true] {
+    let rank = if last { "1" } else { "0" }
+    ignore(remote(last, "docker stop --time 30 " + tag + "-" + rank))
+  }
+}
+
+///|
+test "reference uses literal IDs and does not reinterpret the chat template" {
+  let p = payload([0, 12, 1], false, false)
+  guard p
+    is { "prompt": Array([Number(a, ..), Number(b, ..), Number(c, ..)]), .. } else {
+    fail("literal ID prompt missing")
+  }
+  assert_eq((a, b, c), (0.0, 12.0, 1.0))
+  assert_eq(available_kib("MemAvailable: 16777216 kB\n"), 16777216L)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, family, engine, mode, .. rest] &&
+    root.has_prefix("/tmp/lunaflux-reference-bench-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    family is ("glm" | "deepseek") &&
+    engine is ("vllm" | "sglang") &&
+    mode
+    is ("prepare" | "start" | "status" | "query" | "stop" | "watch" | "collect") else {
+    fail(
+      "NEW_ROOT glm|deepseek vllm|sglang prepare NATIVE_CORPUS | start|status|query|stop|watch|collect",
+    )
+  }
+  let glm = family == "glm"
+  let sg = engine == "sglang"
+  let image = if sg {
+    "nvcr.io/nvidia/sglang:26.09-py3"
+  } else {
+    "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+  }
+  let tag = root[5:].to_owned()
+  if mode == "watch" {
+    let observations = StringBuilder()
+    for tick in 0..<1500 {
+      let mut terminal = 0
+      let mut failed = false
+      for last in [false, true] {
+        let rank = if last { "1" } else { "0" }
+        let status = remote(
+          last,
+          "systemctl --user show " +
+          tag +
+          "-" +
+          rank +
+          ".service -p SubState -p Result -p ExecMainStatus; grep MemAvailable /proc/meminfo",
+        )
+        status.check()
+        observations <+ "tick=\{tick} rank=\{rank}\n\{status.stdout()}"
+        if available_kib(status.stdout()) < 16777216L ||
+          status.stdout().contains("SubState=failed") {
+          failed = true
+        }
+        if status.stdout().contains("SubState=exited") {
+          terminal += 1
+        }
+      }
+      if failed || terminal == 2 {
+        if failed {
+          stop_pair(tag)
+        }
+        @fs.write_file(
+          root + "/memory-watch.txt",
+          observations.to_string(),
+          create_mode=CreateNew,
+        )
+        guard !failed else {
+          fail(
+            "external rank failed or 16 GiB host floor reached; pair stopped",
+          )
+        }
+        println("both reference ranks retired")
+        return
+      }
+      @async.sleep(5000)
+    }
+    stop_pair(tag)
+    @fs.write_file(
+      root + "/memory-watch.txt",
+      observations.to_string(),
+      create_mode=CreateNew,
+    )
+    fail("bounded reference watch expired; pair stopped")
+  }
+  if mode == "collect" {
+    for last in [false, true] {
+      let rank = if last { "1" } else { "0" }
+      record(
+        root,
+        "terminal-" + rank,
+        remote(
+          last,
+          "systemctl --user show " +
+          tag +
+          "-" +
+          rank +
+          ".service -p ActiveState -p SubState -p Result -p ExecMainStatus; journalctl --user -u " +
+          tag +
+          "-" +
+          rank +
+          " --no-pager",
+        ),
+      )
+    }
+    return
+  }
+  if mode == "prepare" {
+    guard rest is [corpus] && corpus.has_prefix("/tmp/lunaflux-model-bench-") else {
+      fail("prepared literal corpus required")
+    }
+    @fs.mkdir(root)
+    for last in [false, true] {
+      record(
+        root,
+        if last {
+          "179-mkdir"
+        } else {
+          "178-mkdir"
+        },
+        remote(last, "mkdir " + root),
+      )
+    }
+    for i in 0..<6 {
+      let text = @fs.read_file(corpus + "/input-\{i}-tokens.txt").text().trim()
+      let tokens : Array[Int] = []
+      for item in text.split(",") {
+        tokens.push(@string.parse_int(item))
+      }
+      guard !tokens.is_empty() && tokens.all(t => t >= 0) else {
+        fail("invalid IDs")
+      }
+      let path = root + "/request-\{i}.json"
+      @fs.write_file(
+        path,
+        payload(tokens, glm, sg).stringify(),
+        create_mode=CreateNew,
+      )
+      copy(false, path, host(false) + ":" + path)
+    }
+    @fs.write_file(
+      root + "/configuration.txt",
+      "image=" +
+      image +
+      "\ncheckpoint=" +
+      family +
+      "\nengine=" +
+      engine +
+      "\ntp=2\npp=1\ncontext=256\nconcurrency=1\nmax_output=8\nspeculation=false\nprefix_cache=false\ncorpus=" +
+      corpus +
+      "\n",
+      create_mode=CreateNew,
+    )
+    return
+  }
+  guard rest.is_empty() else { fail("unexpected arguments") }
+  if mode == "stop" {
+    for last in [false, true] {
+      let rank = if last { "1" } else { "0" }
+      record(
+        root,
+        "stop-" + rank,
+        remote(last, "docker stop --time 30 " + tag + "-" + rank),
+      )
+    }
+    return
+  }
+  if mode == "status" {
+    for last in [false, true] {
+      let rank = if last { "1" } else { "0" }
+      let result = remote(
+        last,
+        "systemctl --user show " +
+        tag +
+        "-" +
+        rank +
+        ".service -p ActiveState -p SubState -p Result -p ExecMainStatus; journalctl --user -u " +
+        tag +
+        "-" +
+        rank +
+        " -n 60 --no-pager; grep MemAvailable /proc/meminfo",
+      )
+      println("rank=" + rank + "\n" + result.stdout())
+    }
+    return
+  }
+  if mode == "query" {
+    record(
+      root,
+      "health",
+      remote(
+        false, "curl --fail --silent --show-error --max-time 10 http://127.0.0.1:28880/health",
+      ),
+    )
+    let endpoint = if sg { "/generate" } else { "/v1/completions" }
+    record(
+      root,
+      "warmup-timing",
+      remote(
+        false,
+        "curl --fail --silent --show-error --max-time 900 -H 'Content-Type: application/json' --data-binary @" +
+        root +
+        "/request-0.json -o " +
+        root +
+        "/warmup-response.json -w 'http=%{http_code} total_seconds=%{time_total}\n' http://127.0.0.1:28880" +
+        endpoint,
+      ),
+    )
+    copy(
+      false,
+      host(false) + ":" + root + "/warmup-response.json",
+      root + "/warmup-response.json",
+    )
+    for i in 0..<6 {
+      record(
+        root,
+        "request-\{i}-timing",
+        remote(
+          false,
+          "curl --fail --silent --show-error --max-time 900 -H 'Content-Type: application/json' --data-binary @" +
+          root +
+          "/request-\{i}.json -o " +
+          root +
+          "/response-\{i}.json -w 'http=%{http_code} total_seconds=%{time_total}\n' http://127.0.0.1:28880" +
+          endpoint,
+        ),
+      )
+      copy(
+        false,
+        host(false) + ":" + root + "/response-\{i}.json",
+        root + "/response-\{i}.json",
+      )
+    }
+    return
+  }
+  for last in [false, true] {
+    let memory = remote(last, "grep MemAvailable /proc/meminfo")
+    memory.check()
+    guard available_kib(memory.stdout()) >= 16777216L else {
+      fail("host reserve unavailable before launch")
+    }
+    let owners = remote(
+      last, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("GPU already occupied")
+    }
+    record(
+      root,
+      if last {
+        "179-image"
+      } else {
+        "178-image"
+      },
+      remote(
+        last,
+        "docker image inspect --format '{{.Architecture}} {{.Created}}' " +
+        image,
+      ),
+    )
+  }
+  for last in [true, false] {
+    let rank = if last { "1" } else { "0" }
+    let ip = if last { "10.0.0.2" } else { "10.0.0.1" }
+    let interface = if last { "enp1s0f0np0" } else { "enp1s0f1np1" }
+    let hca = if last { "rocep1s0f0" } else { "rocep1s0f1" }
+    let command = if sg {
+      "python3 -m sglang.launch_server --model-path /model --served-model-name matched-model --tp-size 2 --nnodes 2 --node-rank " +
+      rank +
+      " --dist-init-addr 10.0.0.1:29570 --host 127.0.0.1 --port 28880 --context-length 256 --max-total-tokens 1024 --max-running-requests 1 --mem-fraction-static 0.76 --disable-radix-cache --trust-remote-code"
+    } else {
+      "vllm serve /model --served-model-name matched-model --tensor-parallel-size 2 --nnodes 2 --node-rank " +
+      rank +
+      " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len 256 --max-num-seqs 1 --max-num-batched-tokens 256 --gpu-memory-utilization 0.80 --kv-cache-memory-bytes 536870912 --no-enable-prefix-caching --trust-remote-code" +
+      (if glm { " --language-model-only" } else { "" }) +
+      (if last { " --headless" } else { "" })
+    }
+    record(
+      root,
+      "start-" + rank,
+      remote(
+        last,
+        "systemd-run --user --unit=" +
+        tag +
+        "-" +
+        rank +
+        " --property=RemainAfterExit=yes --property=RuntimeMaxSec=7200 docker run --rm --name " +
+        tag +
+        "-" +
+        rank +
+        " --network host --gpus all --ipc=private --shm-size=2g --memory=96g --memory-swap=96g --ulimit memlock=-1 --device=/dev/infiniband -v " +
+        checkpoint(glm, last) +
+        ":/model:ro -v " +
+        root +
+        ":/run-result" +
+        " -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 -e VLLM_HOST_IP=" +
+        ip +
+        " -e NCCL_SOCKET_IFNAME=" +
+        interface +
+        " -e GLOO_SOCKET_IFNAME=" +
+        interface +
+        " -e NCCL_IB_HCA=" +
+        hca +
+        " -e NCCL_IB_DISABLE=0 -e HF_HOME=/run-result/hf --entrypoint " +
+        (if sg { "python3" } else { "vllm" }) +
+        " " +
+        image +
+        " " +
+        command[if sg { 8 } else { 5 }:].to_owned(),
+      ),
+    )
+  }
+  println("started external pair; both GPUs reserved until stopped or failed")
+}

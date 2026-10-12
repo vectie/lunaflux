@@ -1,0 +1,531 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// Offline measurement only. Reuse already built AOT; never hash payloads.
+
+///|
+fn host(last : Bool) -> String {
+  if last {
+    "wlc004s@192.168.2.179"
+  } else {
+    "wlc003s@192.168.2.178"
+  }
+}
+
+///|
+fn socket(last : Bool) -> String {
+  if last {
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  } else {
+    "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  }
+}
+
+///|
+fn model(glm : Bool, last : Bool) -> String {
+  if glm {
+    (if last {
+      "/tmp/lunaflux-glm-real-20261010.ekEYBzqU"
+    } else {
+      "/tmp/lunaflux-glm-real-20261010.6yIBQN35"
+    }) +
+    "/GLM-5.3-Flash-NVFP4"
+  } else {
+    (if last {
+      "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT"
+    } else {
+      "/tmp/lunaflux-deepseek-real-20261010.dLryo68E"
+    }) +
+    "/DeepSeek-V4-Flash-DSpark"
+  }
+}
+
+///|
+fn selected(glm : Bool) -> String {
+  if glm {
+    "/tmp/lunaflux-glm-sequence-numerical-ir-chat-20261012-v1"
+  } else {
+    "/tmp/lunaflux-dspark-real-numerical-ir-chat-20261012-v2"
+  }
+}
+
+///|
+fn binary(glm : Bool) -> String {
+  selected(glm) +
+  (if glm { "/glm_checkpoint.exe" } else { "/deepseek_checkpoint.exe" })
+}
+
+///|
+fn template(glm : Bool, prompt : String) -> String {
+  if glm {
+    "[gMASK]<sop><|system|>Reasoning Effort: Low<|user|>" +
+    prompt +
+    "<|assistant|><think>"
+  } else {
+    "<｜begin▁of▁sentence｜><｜User｜>" +
+    prompt +
+    "<｜Assistant｜></think>"
+  }
+}
+
+///|
+fn corpus(profile : Bool) -> Array[(String, String)] {
+  if profile {
+    [("profile", "2+2?")]
+  } else {
+    [
+      ("fact", "What is the capital of Japan? Answer briefly."),
+      ("arithmetic", "17 plus 25 equals? Answer only the number."),
+      ("chinese", "法国的首都是哪里？请简短回答。"),
+      ("json", "Return only JSON with key result and value 42."),
+      ("code", "Python expression for squares of integers 0 through 3?"),
+      (
+        "retrieval", "Mira has a red bag. Jon has a blue bag. Who has the blue bag? Answer only the name.",
+      ),
+    ]
+  }
+}
+
+///|
+async fn remote(last : Bool, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    socket(last),
+    host(last),
+    command,
+  ]).output(max_output_bytes=16777216)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn copy(last : Bool, source : String, destination : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket(last),
+    source,
+    destination,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn available_kib(text : String) -> Int64 raise {
+  for line in text.split("\n") {
+    if line.has_prefix("MemAvailable:") {
+      let parts = line.split(" ").filter(s => !s.is_empty()).to_array()
+      guard parts is [_, value, "kB"] else { fail("memory units") }
+      return @string.parse_int64(value)
+    }
+  }
+  fail("missing available memory")
+}
+
+///|
+test "prompt and memory measurement boundaries" {
+  assert_eq(corpus(false).length(), 6)
+  assert_eq(corpus(true).length(), 1)
+  assert_true(template(false, "a").has_suffix("</think>"))
+  assert_eq(available_kib("MemAvailable:   33554432 kB\n"), 33554432L)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, family, mode] &&
+    root.has_prefix("/tmp/lunaflux-model-bench-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    family is ("glm" | "deepseek") &&
+    mode is ("prepare" | "prepare-profile" | "start" | "watch" | "collect") else {
+    fail("NEW_ROOT glm|deepseek prepare|prepare-profile|start|watch|collect")
+  }
+  let glm = family == "glm"
+  let rows = if glm { 1 } else { 6 }
+  let history = if glm { 64 } else { 256 }
+  let queue = root + "/queue"
+  let aot = selected(glm) + "/aot"
+  let prefix = root[5:].to_owned()
+  if mode == "watch" {
+    let observations = StringBuilder()
+    for tick in 0..<2200 {
+      let mut terminal = 0
+      for last in [false, true] {
+        let role = if last { "egress" } else { "ingress" }
+        let status = remote(
+          last,
+          "systemctl --user show " +
+          prefix +
+          "-" +
+          role +
+          ".service -p LoadState -p SubState -p Result -p ExecMainStatus -p MemoryCurrent -p MemorySwapCurrent",
+        )
+        status.check()
+        let memory = remote(last, "cat /proc/meminfo")
+        memory.check()
+        let available = available_kib(memory.stdout())
+        observations <+ "tick=\{tick} role=\{role} available_kib=\{available}\n"
+        observations <+ "\{status.stdout()}"
+        if available < 16777216L {
+          for stop_last in [false, true] {
+            let stop_role = if stop_last { "egress" } else { "ingress" }
+            ignore(
+              remote(
+                stop_last,
+                "systemctl --user stop " + prefix + "-" + stop_role + ".service",
+              ),
+            )
+          }
+          @fs.write_file(
+            root + "/memory-watch.txt",
+            observations.to_string(),
+            create_mode=CreateNew,
+          )
+          fail("stopped experiment: host memory reserve reached")
+        }
+        if status.stdout().contains("SubState=failed") {
+          @fs.write_file(
+            root + "/memory-watch.txt",
+            observations.to_string(),
+            create_mode=CreateNew,
+          )
+          fail("rank failed: " + role)
+        }
+        if status.stdout().contains("SubState=exited") {
+          terminal += 1
+        }
+      }
+      if terminal == 2 {
+        @fs.write_file(
+          root + "/memory-watch.txt",
+          observations.to_string(),
+          create_mode=CreateNew,
+        )
+        println("both ranks terminal with host reserve retained")
+        return
+      }
+      @async.sleep(5000)
+    }
+    fail("bounded watch expired")
+  }
+  if mode is ("prepare" | "prepare-profile") {
+    @fs.mkdir(root)
+    let profile = mode == "prepare-profile"
+    for last in [false, true] {
+      record(
+        root,
+        if last {
+          "179-mkdir"
+        } else {
+          "178-mkdir"
+        },
+        remote(last, "mkdir " + root),
+      )
+    }
+    record(root, "queue-mkdir", remote(false, "mkdir " + queue))
+    let counts : Array[String] = []
+    for i, (category, prompt) in corpus(profile) {
+      let literal = root + "/input-\{i}.txt"
+      @fs.write_file(literal, template(glm, prompt), create_mode=CreateNew)
+      @fs.write_file(
+        root + "/category-\{i}.txt",
+        category + "\n",
+        create_mode=CreateNew,
+      )
+      copy(false, literal, host(false) + ":" + literal)
+      let output = remote(
+        false,
+        binary(glm) +
+        " text-frames " +
+        model(glm, false) +
+        " \{rows} \{history} " +
+        "a".repeat(64) +
+        " " +
+        literal +
+        " " +
+        queue +
+        "/request-\{i}",
+      )
+      record(root, "frames-\{i}", output)
+      let mut count = 0
+      for word in output.stdout().trim().split(" ") {
+        if word.has_prefix("prompt_frames=") {
+          count = @string.parse_int(word[14:])
+        }
+      }
+      guard count > 0 && count + 8 <= history else {
+        fail("prompt outside existing AOT envelope")
+      }
+      counts.push(count.to_string())
+      copy(
+        false,
+        host(false) + ":" + queue + "/request-\{i}/tokens.txt",
+        root + "/input-\{i}-tokens.txt",
+      )
+    }
+    @fs.write_file(
+      root + "/frame-counts.txt",
+      counts.join(",") + "\n",
+      create_mode=CreateNew,
+    )
+    copy(
+      false,
+      root + "/frame-counts.txt",
+      host(false) + ":" + queue + "/frame-counts.txt",
+    )
+    @fs.write_file(
+      root + "/profile.txt",
+      if profile {
+        "true"
+      } else {
+        "false"
+      },
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/selected.txt",
+      "binary=" +
+      binary(glm) +
+      "\naot=" +
+      aot +
+      "\ncomparison_outside_compiler=true\npayload_hashing=false\n",
+      create_mode=CreateNew,
+    )
+    println("prepared " + root)
+    return
+  }
+  let profile = @fs.read_file(root + "/profile.txt").text() == "true"
+  let count = corpus(profile).length()
+  let maximum = if profile { 2 } else { 8 }
+  let stop = if glm { 154827 } else { 1 }
+  if mode == "start" {
+    for last in [false, true] {
+      let owners = remote(
+        last, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      record(
+        root,
+        if last {
+          "179-gpu-before"
+        } else {
+          "178-gpu-before"
+        },
+        owners,
+      )
+      guard owners.stdout().trim().is_empty() else { fail("GPU busy") }
+      let memory = remote(last, "cat /proc/meminfo")
+      record(
+        root,
+        if last {
+          "179-memory-before"
+        } else {
+          "178-memory-before"
+        },
+        memory,
+      )
+      guard available_kib(memory.stdout()) >= 16777216L else {
+        fail("host reserve unavailable")
+      }
+    }
+    record(
+      root,
+      "preflight",
+      remote(
+        false,
+        binary(glm) +
+        " preflight-generation-sequence " +
+        model(glm, false) +
+        " \{rows} \{history} \{maximum} \{stop} " +
+        queue +
+        " \{count} 1048576",
+      ),
+    )
+    for last in [true, false] {
+      let role = if last { "egress" } else { "ingress" }
+      let unit = prefix + "-" + role + ".service"
+      let shards = if glm {
+        aot + "/SHARDS.sha256"
+      } else {
+        (if last {
+          "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT"
+        } else {
+          "/tmp/lunaflux-deepseek-real-20261010.dLryo68E"
+        }) +
+        "/SHARDS.sha256"
+      }
+      let command = if last {
+        if glm {
+          "egress"
+        } else {
+          "egress-dspark"
+        }
+      } else if glm {
+        "generate-sequence"
+      } else {
+        "generate-sequence-reference-dspark"
+      }
+      let profile_prefix = if profile {
+        "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda --force-overwrite=false --kill=none --output=" +
+        root +
+        "/timeline "
+      } else {
+        ""
+      }
+      record(
+        root,
+        role + "-start",
+        remote(
+          last,
+          "systemd-run --user --unit=" +
+          unit +
+          " --setenv=TMPDIR=" +
+          root +
+          " --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800 " +
+          profile_prefix +
+          binary(glm) +
+          " " +
+          command +
+          " " +
+          model(glm, last) +
+          " " +
+          shards +
+          " \{rows} \{history} 103079215104 103079215104 " +
+          (if glm { "2147483648" } else { "4294967296" }) +
+          " " +
+          aot +
+          (if last { " stage-1.cubin" } else { " stage-0.cubin" }) +
+          " 192.168.2.179:28618 192.168.2.179:28619" +
+          (if last {
+            ""
+          } else {
+            " " + queue + " \{count} \{maximum} \{stop} " + root + "/output"
+          }),
+        ),
+      )
+      if last {
+        let mut ready = false
+        for _ in 0..<180 {
+          let status = remote(
+            true,
+            "systemctl --user show " + unit + " -p ActiveState -p SubState",
+          )
+          status.check()
+          guard status.stdout().contains("SubState=running") else {
+            fail("egress stopped: " + status.stdout())
+          }
+          let listeners = remote(true, "ss -ltnp")
+          listeners.check()
+          if listeners.stdout().contains("192.168.2.179:28618") &&
+            listeners.stdout().contains("192.168.2.179:28619") {
+            ready = true
+            break
+          }
+          @async.sleep(2000)
+        }
+        guard ready else { fail("egress not listening") }
+      }
+    }
+    println("started " + prefix + "; both GPUs reserved until both ranks close")
+    return
+  }
+  for last in [false, true] {
+    let role = if last { "egress" } else { "ingress" }
+    let unit = prefix + "-" + role + ".service"
+    let status = remote(
+      last,
+      "systemctl --user show " +
+      unit +
+      " -p ActiveState -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+    )
+    status.check()
+    guard status.stdout().contains("SubState=exited") &&
+      status.stdout().contains("ExecMainStatus=0") else {
+      fail("not normally terminal: " + status.stdout())
+    }
+    record(root, role + "-terminal", status)
+    let journal = remote(last, "journalctl --user -u " + unit + " --no-pager")
+    record(root, role + "-journal", journal)
+    guard journal.stdout().contains("context_closed=true") else {
+      fail("missing explicit release")
+    }
+    if profile {
+      copy(
+        last,
+        host(last) + ":" + root + "/timeline.nsys-rep",
+        root + "/" + role + ".nsys-rep",
+      )
+      record(
+        root,
+        role + "-stats",
+        remote(
+          last,
+          "nsys stats --report cuda_gpu_kern_sum,cuda_api_sum,cuda_gpu_mem_time_sum --format csv " +
+          root +
+          "/timeline.nsys-rep",
+        ),
+      )
+    }
+  }
+  for i in 0..<count {
+    let tokens = root + "/output-\{i}-tokens.txt"
+    copy(
+      false,
+      host(false) + ":" + root + "/output/request-\{i}/tokens.txt",
+      tokens,
+    )
+    let ids = @fs.read_file(tokens)
+      .text()
+      .trim()
+      .split("\n")
+      .to_array()
+      .join(",")
+    record(
+      root,
+      "decode-\{i}",
+      remote(
+        false,
+        binary(glm) +
+        " decode-tokens " +
+        model(glm, false) +
+        " " +
+        "a".repeat(64) +
+        " " +
+        ids +
+        " " +
+        root +
+        "/decoded-\{i}.txt",
+      ),
+    )
+    copy(
+      false,
+      host(false) + ":" + root + "/decoded-\{i}.txt",
+      root + "/decoded-\{i}.txt",
+    )
+  }
+  println("collected " + root)
+}
