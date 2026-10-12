@@ -32,10 +32,14 @@ the Python runtime and compatibility debt of existing inference systems.
 **LunaNexa manages the fleet. LunaFlux executes inference.**
 
 The [numerical-program integration for DeepSeek and GLM](docs/NUMERICAL_MODEL_INTEGRATION_2026-10-12.md)
-now covers their actual prediction heads: typed rounding/reduction semantics,
-effect-derived schedules and offline logits/row metadata. Framework comparison
-stays outside the compiler and is not a correctness proof. This preserves head
-behavior; it is not full-model quality validation or a throughput claim.
+covers their prediction heads; the subsequent
+[decoder migration](docs/DECODER_NUMERICAL_MIGRATION_2026-10-12.md) extends typed
+arithmetic, reduction and state semantics through their selected decoder
+families. Effect-derived schedules and offline logits/row metadata preserve
+the separation between execution and evaluation. Framework comparison stays
+outside the compiler and is not a correctness proof. The validation ledger
+distinguishes physical fixtures and full-model execution from quality acceptance;
+the migration itself does not claim a throughput improvement.
 
 ~~~mermaid
 flowchart LR

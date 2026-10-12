@@ -3218,6 +3218,27 @@ GLM's existing sixteen matched continuation tokens are not a universal
 all-prompt numerical proof. Detailed scope and results are recorded in
 `docs/INDEPENDENT_CHECKPOINT_CORRECTNESS_2026-10-11.md`.
 
+### Decoder numerical-program migration — 12 October 2026
+
+DeepSeek and GLM decoder lowering now consumes the extended shared numerical
+expression/fold vocabulary for rotary, normalization, recurrent state,
+convolution, dense/selected-expert MLP, routing, residual-stream controls and
+attention publication. Existing typed matrix/reduction/quantization plans remain
+in place; explicit effect schedules order materialized stages. Estimated divide
+and rounded divide are different primitives, not an exact rewrite. Backend
+spelling remains private CUDA lowering. Numerical alternatives are not silently
+selected by a reference implementation's scores.
+
+Comparison and teacher-forced evaluation stay outside compiler dependencies.
+The working-tree native suite passes 5,101/5,101; clean source-pinned ARM builds
+and fresh two-stage AOT exports pass. New recurrent, convolution and F32
+residual-mix GPU fixtures pass independent-oracle, state, sanitizer and leak
+checks. Real two-Spark checkpoint execution, literal prompt formatting, retired
+raw-head capture and quality limitations are recorded separately in
+`docs/DECODER_NUMERICAL_MIGRATION_2026-10-12.md`. Fixture agreement and successful
+model execution are not automatically whole-model quality acceptance. No
+payload hashing or runtime comparison is introduced.
+
 ## Deferred capabilities
 
 These require separate architecture decisions after the first release:
