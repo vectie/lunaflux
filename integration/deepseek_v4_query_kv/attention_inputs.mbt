@@ -22,6 +22,7 @@ pub fn DeepSeekAttentionInputs::new(
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
@@ -40,6 +41,7 @@ pub fn DeepSeekAttentionInputs::new(
       layer~,
       maximum_rows~,
       maximum_workspace_bytes=maximum_workspace_bytes - plan.workspace_bytes(),
+      projection_scaled_dot_law~,
       query_square_law~,
     ),
     rotary: @rotary_frame.RotaryKvFrame::new(

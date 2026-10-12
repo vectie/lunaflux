@@ -483,8 +483,9 @@ pub fn QuantizedQueryKvPrecision::activation_quantization(Self) -> QuantizationP
 pub fn QuantizedQueryKvPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn QuantizedQueryKvPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn QuantizedQueryKvPrecision::head_normalization(Self) -> QueryHeadNormalization
-pub fn QuantizedQueryKvPrecision::new(hidden_width~ : Int, query_rank~ : Int, head_count~ : Int, head_width~ : Int, maximum_rows~ : Int, normalization_epsilon~ : Double, activation_amax_floor~ : Double, maximum_workspace_bytes~ : Int64, query_square_law? : SquareReductionLaw) -> Self raise
+pub fn QuantizedQueryKvPrecision::new(hidden_width~ : Int, query_rank~ : Int, head_count~ : Int, head_width~ : Int, maximum_rows~ : Int, normalization_epsilon~ : Double, activation_amax_floor~ : Double, maximum_workspace_bytes~ : Int64, query_square_law? : SquareReductionLaw, projection_scaled_dot_law? : ScaledDotReductionLaw) -> Self raise
 pub fn QuantizedQueryKvPrecision::normalization_epsilon(Self) -> Double
+pub fn QuantizedQueryKvPrecision::projection_scaled_dot_law(Self) -> ScaledDotReductionLaw
 pub fn QuantizedQueryKvPrecision::query_square_law(Self) -> SquareReductionLaw
 pub fn QuantizedQueryKvPrecision::weight_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn QuantizedQueryKvPrecision::weight_representations(Self) -> ReadOnlyArray[@precision_format.Representation]

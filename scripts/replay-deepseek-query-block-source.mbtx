@@ -1,0 +1,224 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node = "wlc004s@192.168.2.179"
+
+///|
+let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn copy(from : String, to : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    from,
+    to,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn valid_root(root : String, prefix : String) -> Bool {
+  root.has_prefix(prefix) &&
+  root
+  .to_array()
+  .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '_')) &&
+  !root.contains("//")
+}
+
+///|
+test "query source replay keeps literal stage extents" {
+  assert_eq(
+    ["matched", "propagated", "memcheck", "racecheck", "synccheck"].length(),
+    5,
+  )
+  assert_true(
+    valid_root(
+      "/tmp/lunaflux-deepseek-query-source-row6-v1", "/tmp/lunaflux-deepseek-query-source-",
+    ),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, original, root, .. options] &&
+    (options is [] || options is ["--sanitizer-prefix"]) &&
+    valid_root(original, "/tmp/lunaflux-deepseek-original-query-") &&
+    valid_root(root, "/tmp/lunaflux-deepseek-query-source-") else {
+    fail(
+      "CAPTURED_ORIGINAL_QUERY_ROOT NEW_ACTUAL_SOURCE_ROOT [--sanitizer-prefix]",
+    )
+  }
+  @fs.mkdir(root)
+  record(root, "mkdir", remote("mkdir " + root))
+  record(
+    root,
+    "export",
+    @shell.Cmd(
+      "moon",
+      [
+        "test", "kernels/quantized_query_kv_cuda_source", "--target", "native", "--deny-warn",
+        "--warn-list", "-20-25-29-35-79-92", "--filter", "original DeepSeek query replay exports full-width numerical stages",
+      ],
+      env={
+        "LUNAFLUX_MATCHED_QUERY_SOURCE_OUTPUT": root +
+        "/query_matched_kernels.cuh",
+        "LUNAFLUX_MATCHED_QUERY_MATRIX": "1",
+      },
+    ).output(),
+  )
+  copy(
+    root + "/query_matched_kernels.cuh",
+    node + ":" + root + "/query_matched_kernels.cuh",
+  )
+  copy(
+    "tests/packed_moe_execution/query_kv_matched_probe.cu",
+    node + ":" + root + "/probe.cu",
+  )
+  record(
+    root,
+    "compile",
+    remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      root[5:].to_owned() +
+      "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 -arch=sm_121 " +
+      root +
+      "/probe.cu -o " +
+      root +
+      "/probe",
+    ),
+  )
+  let prefix_only = options is ["--sanitizer-prefix"]
+  let modes = if prefix_only {
+    ["racecheck", "synccheck"]
+  } else {
+    ["matched", "propagated", "memcheck", "racecheck", "synccheck"]
+  }
+  for mode in modes {
+    let rows = if prefix_only || mode == "racecheck" || mode == "synccheck" {
+      1
+    } else {
+      144
+    }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize actual-source GPU probes")
+    }
+    @fs.mkdir(root + "/" + mode)
+    record(root, mode + "-mkdir", remote("mkdir " + root + "/" + mode))
+    let leak = if mode == "memcheck" { "--leak-check full " } else { "" }
+    let prefix = if mode == "matched" || mode == "propagated" {
+      ""
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+      mode +
+      " --error-exitcode 97 " +
+      leak +
+      (if mode == "racecheck" {
+        "--racecheck-report all --print-limit 8 "
+      } else {
+        ""
+      })
+    }
+    let argument = if mode == "matched" { "matched" } else { "propagated" }
+    record(
+      root,
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-" +
+        mode +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 " +
+        prefix +
+        root +
+        "/probe " +
+        original +
+        "/original " +
+        root +
+        "/" +
+        mode +
+        " \{rows} " +
+        argument +
+        " 144",
+      ),
+    )
+    for
+      (stage, width) in [
+        ("q-a", 1024),
+        ("q-norm", 1024),
+        ("q-b", 32768),
+        ("q-head", 32768),
+        ("kv", 512),
+        ("kv-norm", 512),
+      ] {
+      copy(
+        node + ":" + root + "/" + mode + "/" + stage + ".bf16",
+        root + "/" + mode + "/" + stage + ".bf16",
+      )
+      let reference = if rows == 1 {
+        let all = @fs.read_file(original + "/original/" + stage + ".bf16").binary()
+        let path = root + "/" + mode + "/reference-" + stage + ".bf16"
+        @fs.write_file(path, all[:width * 2].to_owned(), create_mode=CreateNew)
+        path
+      } else {
+        original + "/original/" + stage + ".bf16"
+      }
+      record(
+        root,
+        mode + "-" + stage,
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-minimax-encoder-reference.mbtx",
+          root + "/" + mode + "/" + stage + ".bf16",
+          reference,
+          root + "/" + mode + "-" + stage + ".txt",
+          "actual_block_scaled_query_" + mode,
+          (rows * width).to_string(),
+        ]).output(),
+      )
+    }
+  }
+  record(
+    root,
+    "released",
+    remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+  )
+  println(
+    "Actual query source complete; complete-layer propagation still separate",
+  )
+}

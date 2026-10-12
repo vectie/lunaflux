@@ -7,14 +7,30 @@
 #include <string>
 #include <vector>
 #include "query_matched_kernels.cuh"
+#ifndef LUNA_QUERY_Y_0
+#define LUNA_QUERY_Y_0 4
+#define LUNA_QUERY_THREADS_0 256
+#define LUNA_QUERY_Y_1 1
+#define LUNA_QUERY_THREADS_1 256
+#define LUNA_QUERY_Y_2 128
+#define LUNA_QUERY_THREADS_2 256
+#define LUNA_QUERY_Y_3 64
+#define LUNA_QUERY_THREADS_3 256
+#define LUNA_QUERY_Y_4 2
+#define LUNA_QUERY_THREADS_4 256
+#define LUNA_QUERY_Y_5 1
+#define LUNA_QUERY_THREADS_5 256
+#endif
 
 static void check(cudaError_t e) {
   if(e!=cudaSuccess){std::fprintf(stderr,"%s\n",cudaGetErrorString(e));std::exit(2);}
 }
-template<class T> static T *load(const std::string &path,size_t n) {
+template<class T> static T *load(const std::string &path,size_t n,size_t corpus=0) {
   auto *file=std::fopen(path.c_str(),"rb");if(!file){std::perror(path.c_str());std::exit(3);}
   std::vector<T> values(n);
-  const bool read=std::fread(values.data(),sizeof(T),n,file)==n&&std::fgetc(file)==EOF;
+  if(corpus==0)corpus=n;
+  if(std::fseek(file,0,SEEK_END)!=0||std::ftell(file)!=(long)(corpus*sizeof(T))||std::fseek(file,0,SEEK_SET)!=0)std::exit(3);
+  const bool read=std::fread(values.data(),sizeof(T),n,file)==n;
   std::fclose(file);if(!read){std::fprintf(stderr,"incomplete %s\n",path.c_str());std::exit(3);}
   T *p=nullptr;check(cudaMalloc(&p,n*sizeof(T)));
   check(cudaMemcpy(p,values.data(),n*sizeof(T),cudaMemcpyHostToDevice));return p;
@@ -29,11 +45,12 @@ template<class T> static void save(T *p,size_t n,const std::string &path) {
   const bool closed=std::fclose(file)==0;if(!wrote||!closed)std::exit(4);
 }
 int main(int argc,char **argv) {
-  if(argc!=5)return 2;
+  if(argc!=5&&argc!=6)return 2;
   const int rows=std::atoi(argv[3]);if(rows<1||rows>144)return 2;
+  const int corpus=argc==6?std::atoi(argv[5]):rows;if(corpus<rows||corpus>144)return 2;
   const std::string input(argv[1]),out(argv[2]),mode(argv[4]);
   const bool matched=mode=="matched";if(!matched&&mode!="propagated")return 2;
-  auto *x=load<__nv_bfloat16>(input+"/input.bf16",rows*4096);
+  auto *x=load<__nv_bfloat16>(input+"/input.bf16",rows*4096,corpus*4096);
   const int in[3]={4096,1024,4096},width[3]={1024,32768,512};
   const char *matrix[3]={"wq_a","wq_b","wkv"};
   unsigned char *weights[3],*scales[3];
@@ -49,14 +66,14 @@ int main(int argc,char **argv) {
   __nv_bfloat16 *buffers[6],*original[6]={};
   for(int i=0;i<6;++i){
     buffers[i]=allocate<__nv_bfloat16>(rows*widths[i]);
-    if(matched)original[i]=load<__nv_bfloat16>(input+"/"+stages[i]+".bf16",rows*widths[i]);
+    if(matched)original[i]=load<__nv_bfloat16>(input+"/"+stages[i]+".bf16",rows*widths[i],corpus*widths[i]);
   }
-  matched_query_q_a<<<dim3(rows,4),256>>>(counts,x,weights[0],scales[0],buffers[0]);
-  matched_query_q_norm<<<rows,256>>>(counts,matched?original[0]:buffers[0],qw,buffers[1]);
-  matched_query_q_b<<<dim3(rows,128),256>>>(counts,matched?original[1]:buffers[1],weights[1],scales[1],buffers[2]);
-  matched_query_q_head_norm<<<dim3(rows,64),256>>>(counts,matched?original[2]:buffers[2],buffers[3]);
-  matched_query_kv<<<dim3(rows,2),256>>>(counts,x,weights[2],scales[2],buffers[4]);
-  matched_query_kv_norm<<<rows,256>>>(counts,matched?original[4]:buffers[4],kw,buffers[5]);
+  matched_query_q_a<<<dim3(rows,LUNA_QUERY_Y_0),LUNA_QUERY_THREADS_0>>>(counts,x,weights[0],scales[0],buffers[0]);
+  matched_query_q_norm<<<dim3(rows,LUNA_QUERY_Y_1),LUNA_QUERY_THREADS_1>>>(counts,matched?original[0]:buffers[0],qw,buffers[1]);
+  matched_query_q_b<<<dim3(rows,LUNA_QUERY_Y_2),LUNA_QUERY_THREADS_2>>>(counts,matched?original[1]:buffers[1],weights[1],scales[1],buffers[2]);
+  matched_query_q_head_norm<<<dim3(rows,LUNA_QUERY_Y_3),LUNA_QUERY_THREADS_3>>>(counts,matched?original[2]:buffers[2],buffers[3]);
+  matched_query_kv<<<dim3(rows,LUNA_QUERY_Y_4),LUNA_QUERY_THREADS_4>>>(counts,x,weights[2],scales[2],buffers[4]);
+  matched_query_kv_norm<<<dim3(rows,LUNA_QUERY_Y_5),LUNA_QUERY_THREADS_5>>>(counts,matched?original[4]:buffers[4],kw,buffers[5]);
   check(cudaGetLastError());check(cudaDeviceSynchronize());
   for(int i=0;i<6;++i)save(buffers[i],rows*widths[i],out+"/"+stages[i]+".bf16");
 #ifdef LUNA_MATCHED_QUERY_NORM_VARIANTS

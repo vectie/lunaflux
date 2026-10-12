@@ -73,6 +73,7 @@ test "offline quantized query prefix exporter" {
 
 ///|
 async test "original DeepSeek query replay exports full-width numerical stages" {
+  let matrix = @env.get_env_var("LUNAFLUX_MATCHED_QUERY_MATRIX") == Some("1")
   let plan = @precision.QuantizedQueryKvPrecision::new(
     hidden_width=4096,
     query_rank=1024,
@@ -82,16 +83,49 @@ async test "original DeepSeek query replay exports full-width numerical stages" 
     normalization_epsilon=1.0e-6,
     activation_amax_floor=0.0001,
     maximum_workspace_bytes=33554432L,
+    query_square_law=VectorizedTreeFloat32(
+      partitions=256,
+      vector_width=if matrix { 4 } else { 1 },
+    ),
+    projection_scaled_dot_law=if matrix {
+      UnscaledBlockMatrixFloat32(
+        block_columns=128,
+        publication=SeparateMultiplyAdd,
+      )
+    } else {
+      DecodeOperandsFloat32
+    },
   )
   let source = @quantized_query_kv_cuda_source.quantized_query_kv_source(
     plan,
     symbol_prefix="matched_query",
   )
-  assert_eq(source.launch(2), (144, 128, 256))
+  assert_eq(
+    source.launch(2),
+    if matrix {
+      (144, 1024, 128)
+    } else {
+      (144, 128, 256)
+    },
+  )
   assert_eq(source.launch(3), (144, 64, 256))
+  if !matrix &&
+    @env.get_env_var("LUNAFLUX_MATCHED_QUERY_PREVIOUS_SOURCE") is Some(path) {
+    let old = @fs.read_file(path)
+      .text()
+      .split("\n#define LUNA_MATCHED_QUERY_NORM_VARIANTS")
+      .collect()[0]
+    assert_eq(@utf8.decode(source.source_bytes()), old.to_owned())
+  }
   if @env.get_env_var("LUNAFLUX_MATCHED_QUERY_SOURCE_OUTPUT") is Some(path) {
     let mut bytes = source.source_bytes() +
       b"\n#define LUNA_MATCHED_QUERY_NORM_VARIANTS 1\n"
+    for stage in 0..<6 {
+      let (_, y, threads) = source.launch(stage)
+      bytes += @utf8.encode(
+        "#define LUNA_QUERY_Y_\{stage} \{y}\n#define LUNA_QUERY_THREADS_\{stage} \{threads}\n",
+      )
+    }
     for
       (partitions, vector) in [
         (128, 4),

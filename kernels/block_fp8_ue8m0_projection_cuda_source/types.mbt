@@ -3,6 +3,7 @@ pub(all) suberror BlockFp8Ue8M0ProjectionCudaSourceError {
   InvalidGeometry
   InvalidSymbol
   SizeOverflow
+  UnsupportedArithmetic
 } derive(Debug, Eq)
 
 ///|
@@ -13,4 +14,5 @@ pub struct BlockFp8Ue8M0ProjectionCudaSource {
   priv maximum_rows : Int
   priv block_width : Int
   priv function_symbol : String
+  priv matrix : Bool
 }

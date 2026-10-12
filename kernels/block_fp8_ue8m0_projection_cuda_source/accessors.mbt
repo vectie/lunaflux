@@ -4,6 +4,18 @@ pub fn BlockFp8Ue8M0ProjectionCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
+/// AOT launch geometry must travel with the arithmetic-selected source.
+pub fn BlockFp8Ue8M0ProjectionCudaSource::launch(
+  self : Self,
+) -> (Int, Int, Int) {
+  if self.matrix {
+    (self.maximum_rows, self.output_width / 32, 128)
+  } else {
+    (self.maximum_rows, (self.output_width + 255) / 256, 256)
+  }
+}
+
+///|
 pub fn BlockFp8Ue8M0ProjectionCudaSource::input_width(self : Self) -> Int {
   self.input_width
 }

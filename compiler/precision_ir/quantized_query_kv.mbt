@@ -22,6 +22,7 @@ pub struct QuantizedQueryKvPrecision {
   priv rows : Int
   priv epsilon : Double
   priv query_square : SquareReductionLaw
+  priv projection_scaled_dot : ScaledDotReductionLaw
   priv activation_quantization : QuantizationPlan
   priv representations : ReadOnlyArray[@format.Representation]
   priv frames : ReadOnlyArray[Int64]
@@ -43,8 +44,14 @@ pub fn QuantizedQueryKvPrecision::new(
     partitions=256,
     vector_width=1,
   ),
+  projection_scaled_dot_law? : ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> Self raise {
   query_square_law.validate()
+  match projection_scaled_dot_law {
+    DecodeOperandsFloat32 => ()
+    UnscaledBlockMatrixFloat32(block_columns=128, ..) => ()
+    _ => raise PrecisionPlanError::NoImplementation
+  }
   guard hidden_width > 0 &&
     hidden_width <= 65536 &&
     query_rank > 0 &&
@@ -129,6 +136,7 @@ pub fn QuantizedQueryKvPrecision::new(
     rows: maximum_rows,
     epsilon: normalization_epsilon,
     query_square: query_square_law,
+    projection_scaled_dot: projection_scaled_dot_law,
     activation_quantization,
     representations: ReadOnlyArray::from_array(representations),
     frames: ReadOnlyArray::from_array(frames),
@@ -155,6 +163,14 @@ pub fn QuantizedQueryKvPrecision::query_square_law(
   self : Self,
 ) -> SquareReductionLaw {
   self.query_square
+}
+
+///|
+/// Projection accumulation is independent of learned-query normalization.
+pub fn QuantizedQueryKvPrecision::projection_scaled_dot_law(
+  self : Self,
+) -> ScaledDotReductionLaw {
+  self.projection_scaled_dot
 }
 
 ///|

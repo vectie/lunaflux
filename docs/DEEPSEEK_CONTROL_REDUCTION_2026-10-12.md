@@ -971,6 +971,46 @@ dot policy through the generic FP8 projection family, query owner and output-B
 chain, consume actual launch metadata, then test complete execution. Do not
 claim propagation from this helper-level result or blanket-promote all laws.
 
+### Query projection law reaches generated prefix execution
+
+The independent `QuantizedQueryKvPrecision.projection_scaled_dot_law` now
+reaches the generic FP8 source, its launch descriptors, query frame/owner,
+window/compressed attention, envelope, decoder block/slice and explicit
+`replay-layer-query-block-matrix` diagnostic. Learned-query reduction remains
+independent; KV/head normalization and ordinary serving defaults are unchanged.
+The private raw matrix primitive is shared with the proven shared-expert
+lowering. A fixed 128-element quantization scratch preserves all supported
+input widths instead of adding a full-width shared-memory limit. Unsupported
+block/publication alternatives reject, never silently substitute.
+
+Actual source root `/tmp/lunaflux-deepseek-query-source-layer3-20261012-v4`
+matches all six captured stages on **144 rows**, both with matched original
+operands and a fully propagated native prefix: Query-A/query norm147456,
+Query-B/head norm4718592, KV/KV norm73728 BF16 values are bitwise. Full144
+memcheck/leak reports zero. Racecheck/synccheck on the **first captured row**
+report zero, with balanced release in serialized2GiB/no-swap user units. These
+are actual generated-kernel results, not an unselected helper prototype.
+
+The negative runs are retained: v1 full144 racecheck hit2GiB OOM; v2/v3
+one-row racecheck found a real WAR hazard. Line-correlated v3 establishes that
+CUDA aliases dead maxima storage with the encoded scale while other threads
+still read the maxima. The missing reader-completion barrier now closes that
+scratch lifetime before publication. v4 retains bitwise results after repair;
+no suppression, tolerance edit, approximate exponential or reference change.
+
+Affected native tests124/124 and warning-denied check pass with existing
+migration exclusions. Targeted `moon info` reports936 migration warnings,
+zero errors. Ordinary query source is independently byte-compared against its
+retained pre-change export and is unchanged. Complete-layer execution remains
+the next propagation test; this local prefix correction is not a throughput,
+43-layer parity, generated-token or media-quality claim. No payload hashes.
+
+The shared helper refactor is separately rerun in actual generated source at
+`/tmp/lunaflux-deepseek-shared-source-row6-20261012-v2`:2048 activations and4096
+outputs remain bitwise in matched/propagated modes; memcheck/full leak,
+racecheck and synccheck remain zero. This validates the common primitive without
+silently assuming the earlier shared-expert result survives a source refactor.
+
 Default shared source is independently byte-compared with the pre-change
 retained export; it remains unchanged. Native affected tests99/99 and offline
 source/chain/query runner regressions pass. Actual shared source sanitizers are

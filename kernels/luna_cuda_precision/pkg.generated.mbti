@@ -10,6 +10,8 @@ import {
 // Values
 pub fn decode_source(@precision_ir.OperandPlan, symbol~ : String) -> ConversionSource raise LoweringError
 
+pub fn e4m3_block_matrix_helper(symbol~ : String, publication~ : @precision_ir.Float32AffineLaw) -> String
+
 pub fn moe_combine_source(@precision_ir.MoeCombinePrecision, symbol~ : String) -> MoeCombineSource raise LoweringError
 
 pub fn quantize_bf16_rows_source(@precision_ir.QuantizationPlan, row_multiplier~ : Int, symbol~ : String) -> RowQuantizationSource raise LoweringError

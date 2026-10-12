@@ -14,11 +14,14 @@ async fn main {
       | "replay-layer-butterfly-controls"
       | "replay-layer-vector-query"
       | "replay-layer-router-arithmetic"
-      | "replay-layer-shared-block-matrix" as mode,
+      | "replay-layer-shared-block-matrix"
+      | "replay-layer-query-block-matrix" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
-    let shared_matrix = mode == "replay-layer-shared-block-matrix"
+    let query_matrix = mode == "replay-layer-query-block-matrix"
+    let shared_matrix = query_matrix ||
+      mode == "replay-layer-shared-block-matrix"
     let router = shared_matrix || mode == "replay-layer-router-arithmetic"
     let grouped = router ||
       mode == "replay-layer-hierarchical-controls" ||
@@ -30,6 +33,14 @@ async fn main {
       mode == "replay-layer-vector-query"
     replay_matched_layer(
       arguments,
+      projection_scaled_dot_law=if query_matrix {
+        UnscaledBlockMatrixFloat32(
+          block_columns=128,
+          publication=SeparateMultiplyAdd,
+        )
+      } else {
+        DecodeOperandsFloat32
+      },
       routing_projection_law=if router {
         GroupedVectorFloat32(
           groups=1,

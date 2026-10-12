@@ -5,6 +5,7 @@ pub fn query_kv_plan(
   spec : @spec.DeepSeekV4ModelSpec,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
@@ -19,6 +20,7 @@ pub fn query_kv_plan(
     normalization_epsilon=spec.rms_norm_epsilon(),
     activation_amax_floor=0.0001,
     maximum_workspace_bytes~,
+    projection_scaled_dot_law~,
     query_square_law~,
   )
 }

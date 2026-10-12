@@ -29,13 +29,15 @@ pub fn quantized_query_kv_source(
       (rank, heads * width, 2),
       (hidden, width, 4),
     ] {
-    sources[stage] = @projection.block_fp8_ue8m0_projection_cuda_source(
+    let projection = @projection.block_fp8_ue8m0_projection_cuda_source(
       input_width=input,
       output_width=output,
       maximum_rows=rows,
       function_symbol=symbols[stage],
-    ).source_bytes()
-    geometry[stage] = (rows, (output + 255) / 256, 256)
+      scaled_dot_law=plan.projection_scaled_dot_law(),
+    )
+    sources[stage] = projection.source_bytes()
+    geometry[stage] = projection.launch()
   }
   for (size, stage) in [(rank, 1), (width, 5)] {
     let norm = @norm.prefix_rms_norm_bf16_with_optional_suffix_copy_source(
