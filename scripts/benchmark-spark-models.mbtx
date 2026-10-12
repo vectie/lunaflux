@@ -390,7 +390,10 @@ async fn main {
         "generate-sequence-reference-dspark"
       }
       let profile_prefix = if profile {
-        "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda --force-overwrite=false --kill=none --output=" +
+        // Exclude checkpoint loading; a short execution sample is not a full-request timeline.
+        "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda --delay=" +
+        (if last { "270" } else { "180" }) +
+        " --duration=60 --force-overwrite=false --kill=none --output=" +
         root +
         "/timeline "
       } else {

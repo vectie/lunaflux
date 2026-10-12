@@ -322,6 +322,37 @@ async fn main {
     return
   }
   if mode == "query" {
+    let readiness = StringBuilder()
+    let mut ready = false
+    for attempt in 0..<180 {
+      let health = remote(
+        false, "curl --fail --silent --show-error --max-time 3 http://127.0.0.1:28880/health",
+      )
+      readiness <+
+        "attempt=\{attempt} status=\{health.exit_code()}\n\{health.stderr()}"
+      if health.exit_code() == 0 {
+        ready = true
+        break
+      }
+      let state = remote(
+        false,
+        "systemctl --user show " + tag + "-0.service -p SubState",
+      )
+      state.check()
+      if state.stdout().contains("SubState=failed") ||
+        state.stdout().contains("SubState=exited") {
+        break
+      }
+      @async.sleep(5000)
+    }
+    @fs.write_file(
+      root + "/readiness.txt",
+      readiness.to_string(),
+      create_mode=CreateNew,
+    )
+    guard ready else {
+      fail("reference did not become ready; no benchmark result")
+    }
     record(
       root,
       "health",
@@ -368,9 +399,21 @@ async fn main {
         root + "/response-\{i}.json",
       )
     }
+    stop_pair(tag)
+    println("six literal requests collected; reference pair stopped")
     return
   }
   for last in [false, true] {
+    let profilers = remote(last, "ps -eo comm=")
+    profilers.check()
+    guard !profilers
+      .stdout()
+      .split("\n")
+      .any(name => name.trim() is ("nsys" | "QdstrmImporter")) else {
+      fail(
+        "profile capture/conversion still owns host memory; wait before model loading",
+      )
+    }
     let memory = remote(last, "grep MemAvailable /proc/meminfo")
     memory.check()
     guard available_kib(memory.stdout()) >= 16777216L else {

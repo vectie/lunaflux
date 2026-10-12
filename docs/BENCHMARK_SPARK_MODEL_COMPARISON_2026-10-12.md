@@ -94,8 +94,18 @@ not SGLang model-performance measurements.
 
 Profile v3 completed the native request with 16 input tokens and two generated
 tokens in 355,986 ms, excluding loading; both ranks explicitly closed their
-contexts. Nsight's report conversion is separate from inference time. This is
-a profiled observation, not yet the six-prompt unprofiled comparison.
+contexts. Nsight's report conversion is separate from inference time. Loading
+the vLLM trial during that conversion was a scheduling mistake: free host
+memory on ingress fell to 12.4--13.5 GiB and both independent monitors stopped
+their owned runs. Neither checkpoint changed. The vLLM exit 137 followed the
+monitor's stop, not a demonstrated model arithmetic failure. The retained raw
+captures were incomplete: the egress importer rejected its stream, and the
+ingress importer hit its 48 GiB cgroup limit. No kernel percentages can be
+claimed from this failed conversion. A retry excludes initialization and
+captures only 60 seconds after delays of 180/270 seconds on ingress/egress;
+this is explicitly a sample, not a complete request timeline. External loading
+now rejects a still-active profiler/importer. Profile v3's completed request
+is a profiled observation, not the six-prompt unprofiled comparison.
 
 The exact deployed `stage-0.cu` contains `glm_sparse_3_attention_attention`
 with `if (blockIdx.x != 0 || threadIdx.x != 0) return`. The corresponding
