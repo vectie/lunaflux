@@ -13,9 +13,9 @@ static bool initial_producers(PyObject *torch,PyObject *module,PyObject *arch,
                               PyObject *open,PyObject *map,PyObject *bf16,
                               PyObject *f32,PyObject *i64,PyObject *u8,
                               const char *root,const std::string &base,
-                              const char *out,int times,const float *sigmas) {
-  Owned packed0(literal_bf16(torch,bf16,(base+"/packed-input.bf16").c_str(),1024,5376));
-  Owned packed(packed0.p?PyObject_CallMethod(packed0.p,"view","ii",1024,5376):nullptr);
+                              const char *out,int packed_rows,int times,const float *sigmas) {
+  Owned packed0(literal_bf16(torch,bf16,(base+"/packed-input.bf16").c_str(),packed_rows,5376));
+  Owned packed(packed0.p?PyObject_CallMethod(packed0.p,"view","ii",packed_rows,5376):nullptr);
   Owned cls(PyObject_GetAttrString(module,"ColumnParallelLinear"));
   if(!packed.p||!cls.p)return false;
   for(int modality=0;modality<2;++modality) {
@@ -45,7 +45,7 @@ static bool initial_producers(PyObject *torch,PyObject *module,PyObject *arch,
   // No sorted-index convention or assumed order is substituted.
   std::vector<float> values(times);std::vector<bool> seen(times,false);
   std::ifstream inverse(base+"/inverse.i32",std::ios::binary),tags(base+"/combined.i32",std::ios::binary);
-  for(int row=0;row<1024;++row) {
+  for(int row=0;row<packed_rows;++row) {
     int32_t index,tag;inverse.read(reinterpret_cast<char*>(&index),4);tags.read(reinterpret_cast<char*>(&tag),4);
     if(!inverse||!tags||index<0||index>=times||tag<0)return false;
     // H3 text and padding inherit video time; only target audio uses audio time.

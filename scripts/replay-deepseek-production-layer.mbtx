@@ -210,6 +210,27 @@ async fn main {
       "released",
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
+  } else if mode == "terminal" {
+    guard extra.is_empty() else { fail("unexpected terminal arguments") }
+    record(
+      root,
+      "terminal-recovery",
+      remote(
+        "systemctl --user show " +
+        tag +
+        ".service -p ActiveState -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+      ),
+    )
+    record(
+      root,
+      "terminal-recovery-journal",
+      remote("journalctl --user -u " + tag + ".service --no-pager"),
+    )
+    record(
+      root,
+      "terminal-recovery-owners",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
   } else if mode == "collect" {
     guard extra is [] || extra is ["--boundaries"] else {
       fail("optional --boundaries required")

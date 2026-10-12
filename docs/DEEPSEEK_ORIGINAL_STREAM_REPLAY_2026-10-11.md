@@ -1,5 +1,59 @@
 # DeepSeek matched original layer-stream replay — 2026-10-11
 
+## Complete-layer tiled-accumulation intervention — 2026-10-12
+
+Commit `1d509053` adds an explicit backend-neutral `TiledFloat32` accumulation
+law, consumed by the window/compressed CUDA lowerings and diagnostic decoder
+route. Ordered accumulation remains the ordinary serving default. The clean
+commit-pinned ARM build succeeds; the physical replay uses the same original
+144 four-stream predecessors, one-row submissions, literal IDs and weights
+as the earlier ordered layer-0 replay. It completes, exits zero, has empty
+application stderr and releases its CUDA context.
+
+| Propagated layer-0 boundary | Earlier ordered relative L2 | Tiled relative L2 |
+| --- | --- | --- |
+| Normalized branch input | 0% | 0% |
+| Sparse attention | 0.006288009% | 0.000421985% |
+| After inverse rotation | 0.007179415% | 0.000574527% |
+| Grouped output-A | 0.031320318% | 0.004923267% |
+| Attention output-B | 0.138442652% | 0.027743304% |
+| Four-stream attention residual | 0.0932574% | 0.021144838% |
+| FFN input | 0.1506909% | 0.041244792% |
+| FFN output | 0.5006931% | 0.227111820% |
+| Complete layer output | 0.3749400% | 0.175669656% |
+
+The complete-layer error norm falls about **53.1%**, and the attention branch
+about **80.0%**. This establishes propagation of the local attention correction,
+not full correctness or a performance result. All arrays are finite, but only
+2,128,390 of 2,359,296 complete-layer BF16 outputs are exact. Rotary queries
+still have the same 151 differences as before; low-rank queries and simulated
+KV are exact. Downstream FFN differences therefore include input drift.
+Neither a relaxed tolerance nor an altered reference was used.
+
+Native root: `/tmp/lunaflux-deepseek-production-layer-0-tiled-rows1-20261012-v1`.
+Original root: `/tmp/lunaflux-deepseek-original-layer-stream-inverse-20261012-v1`.
+Boundary reports: `/tmp/lunaflux-deepseek-layer-0-tiled-frontiers-20261012-v1`.
+`scripts/compare-deepseek-layer-frontiers.mbtx` reproduces every boundary and
+per-row error without treating propagated differences as local operator errors.
+Full-model and clean-host native-suite results remain pending.
+
+The same commit also completes a matched **layer-3 compressed** one-row control.
+Its ordered relative L2 is **0.231644100%**, versus **0.232746659%** tiled:
+this is a small **regression**, not an improvement. Both receive the same
+original predecessor and retain the same compressed state. The earlier
+six-row ordered result has the same aggregate error, but is not substituted
+for this new one-row control. A pure-window local bitwise match therefore does
+not justify blanket replacement of every attention path.
+
+Roots: `/tmp/lunaflux-deepseek-production-layer-3-ordered-rows1-20261012-v2`
+and `/tmp/lunaflux-deepseek-production-layer-3-tiled-rows1-20261012-v1`.
+Both user units terminate successfully and release CUDA. Desktop disk exhaustion
+prevented writing the tiled run's console transaction after remote completion;
+separate `terminal-recovery` systemd properties/journal and the untouched
+captured tensors are preserved. Empty application stderr is **not** claimed
+for that missing console capture. An earlier ordered preparation failed on
+desktop disk space before execution; its partial root is preserved as v1.
+
 The bounded offline bridge calls unmodified original `Block.forward`, loading
 one complete layer at a time. It retains that layer's real KV state, all four
 residual streams and the literal 144 prompt IDs. After each layer, it stores

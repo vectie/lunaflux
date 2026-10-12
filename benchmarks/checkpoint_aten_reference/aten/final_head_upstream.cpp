@@ -3,10 +3,27 @@
 #include "original_h3_loading.h"
 #include <cstring>
 
+static constexpr bool valid_document_shape(int primary,int packed) {
+  return primary>0&&primary<=packed;
+}
+static_assert(valid_document_shape(1009,1024));
+static_assert(valid_document_shape(2785,2816));
+static_assert(!valid_document_shape(2785,1024));
+
+static int packed_document_rows(const std::string &base) {
+  std::ifstream docs(base+"/documents.i32",std::ios::binary);
+  int32_t boundaries[3];docs.read(reinterpret_cast<char*>(boundaries),sizeof(boundaries));
+  if(!docs||boundaries[0]!=0||!valid_document_shape(boundaries[1],boundaries[2])) {
+    PyErr_SetString(PyExc_ValueError,"literal primary/padding document geometry differs");
+    return 0;
+  }
+  return boundaries[2];
+}
+
 static PyObject *indices(PyObject *torch,PyObject *dtype,const std::string &base,int tag,int &count) {
   std::ifstream docs(base+"/documents.i32",std::ios::binary),tags(base+"/combined.i32",std::ios::binary);
   int32_t boundaries[3];docs.read(reinterpret_cast<char*>(boundaries),sizeof(boundaries));
-  if(!docs||boundaries[0]!=0||boundaries[1]<=0||boundaries[1]>1024||boundaries[2]!=1024)return nullptr;
+  if(!docs||boundaries[0]!=0||!valid_document_shape(boundaries[1],boundaries[2]))return nullptr;
   Owned values(PyList_New(0));count=0;
   for(int row=0;row<boundaries[1];++row) {
     int32_t value;tags.read(reinterpret_cast<char*>(&value),sizeof(value));
@@ -80,16 +97,18 @@ static int execute(const char *root,const char *input,const char *out) {
   if(!linear.p||!h3_parameter(linear.p,open.p,map,root,"weight","norm_out.linear.weight")||
      !h3_parameter(linear.p,open.p,map,root,"bias","norm_out.linear.bias"))return -1;
   const std::string base(input);
-  Owned x0(literal_bf16(torch.p,bf16.p,(base+"/block-49.bf16").c_str(),1024,5376));
-  Owned x(x0.p?PyObject_CallMethod(x0.p,"view","ii",1024,5376):nullptr);
+  const int packed_rows=packed_document_rows(base);
+  if(!packed_rows)return -1;
+  Owned x0(literal_bf16(torch.p,bf16.p,(base+"/block-49.bf16").c_str(),packed_rows,5376));
+  Owned x(x0.p?PyObject_CallMethod(x0.p,"view","ii",packed_rows,5376):nullptr);
   std::ifstream time_file(base+"/timestep.f32",std::ios::binary|std::ios::ate);
   const auto bytes=time_file.tellg();
   if(!time_file||bytes<=0||bytes%(2688*4)!=0)return -1;
   const int times=static_cast<int>(bytes/(2688*4));
   Owned t0(literal_tensor(torch.p,f32.p,(base+"/timestep.f32").c_str(),times,2688,4));
   Owned t(t0.p?PyObject_CallMethod(t0.p,"view","ii",times,2688):nullptr);
-  Owned inverse0(literal_tensor(torch.p,i32.p,(base+"/inverse.i32").c_str(),1024,1,4));
-  Owned inverse_flat(inverse0.p?PyObject_CallMethod(inverse0.p,"view","i",1024):nullptr);
+  Owned inverse0(literal_tensor(torch.p,i32.p,(base+"/inverse.i32").c_str(),packed_rows,1,4));
+  Owned inverse_flat(inverse0.p?PyObject_CallMethod(inverse0.p,"view","i",packed_rows):nullptr);
   Owned inverse(inverse_flat.p?PyObject_CallMethod(inverse_flat.p,"long",nullptr):nullptr);
   Owned args(x.p?PyTuple_Pack(1,x.p):nullptr);
   Owned kwargs(t.p&&inverse.p?Py_BuildValue("{s:O,s:O}","t_emb",t.p,"inverse_indices",inverse.p):nullptr);
@@ -98,7 +117,7 @@ static int execute(const char *root,const char *input,const char *out) {
   float sigmas[6];std::ifstream sf(base+"/sigmas.f32",std::ios::binary);
   sf.read(reinterpret_cast<char*>(sigmas),sizeof(sigmas));if(!sf)return -1;
   if(!initial_producers(torch.p,module.p,arch.p,open.p,map,bf16.p,f32.p,i64.p,u8.p,
-                        root,base,out,times,sigmas))return -1;
+                        root,base,out,packed_rows,times,sigmas))return -1;
   for(int modality=0;modality<2;++modality) {
     const char *label=modality?"audio":"video";const int width=modality?32:96;
     int rows=0;Owned ids(indices(torch.p,i64.p,base,modality?2:0,rows));

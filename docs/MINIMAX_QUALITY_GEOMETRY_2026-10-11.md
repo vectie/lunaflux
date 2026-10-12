@@ -1022,3 +1022,42 @@ same-geometry 256×256 default full-stack control yet**; the older 128×128
 3.467995% result cannot establish a whole-stack benefit for this experiment.
 The original series checks blocks only, not the newly captured heads/first
 update. No trajectory/media-quality pass or production selection follows.
+
+### Larger-geometry final-head/flow controls — 2026-10-12
+
+The final-head reference initially failed before any numerical comparison:
+its offline adapter assumed 1,024 packed rows even though this 256×256 capture
+has 2,816 rows (2,785 real rows and a separate padding document). The adapter
+now derives the packed extent from literal `documents.i32`, including the input
+producer and unique-time ownership traversal. Compile-time shape regressions
+cover both the earlier 1,009/1,024 and actual 2,785/2,816 geometries. Original
+operator math and production execution are unchanged.
+
+Failed root `/tmp/lunaflux-minimax-original-head-online64-256-20261012-v1`
+is preserved. Corrected original replay and reports at
+`/tmp/lunaflux-minimax-original-head-online64-256-20261012-v2` complete, exit
+zero and release CUDA. Installed-module warnings remain in stderr.
+Cluster-to-cluster input transfer keeps the complete native block-49 capture
+unchanged and avoids downloading the entire stack to the desktop.
+
+| Original operator on identical native input | Exact / elements | Relative L2 |
+| --- | --- | --- |
+| Final video head | 6,571 / 227,328 F32 | 0.000122690% |
+| Final audio head | 383 / 13,248 F32 | 0.000135019% |
+| First video RF update on native velocity | 227,328 / 227,328 F32 | 0%, bitwise |
+| First audio RF update on native velocity | 13,248 / 13,248 F32 | 0%, bitwise |
+| Initial video projection | 12,728,596 / 12,730,368 BF16 | 0.002212433% |
+| Initial audio projection | 2,225,415 / 2,225,664 BF16 | 0.001398786% |
+| Time embedding | 3 / 2,688 F32 | 0.001508693% |
+
+All arrays are finite. These exclude a large local head/first-update error on
+this capture, but do not compare native versus original propagated velocities,
+prove complete conditioning parity or validate a full generated media trajectory.
+The 2.580187% propagated block-49 video difference above remains unresolved.
+
+A physical 1,024-row regression also completes at
+`/tmp/lunaflux-minimax-original-head-geometry1024-regression-20261012-v1`.
+Both modality head outputs and both first RF updates remain **bitwise identical**
+to the earlier `original-head-actual-20261012-v3` outputs. The dynamic-geometry
+repair therefore preserves the earlier smoke's observed arithmetic rather
+than replacing its reference.

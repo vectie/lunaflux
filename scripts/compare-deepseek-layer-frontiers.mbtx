@@ -1,0 +1,88 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn metric(report : String, name : String) -> String raise {
+  for line in report.split("\n") {
+    if line.has_prefix(name + "=") {
+      return line[name.length() + 1:].to_owned()
+    }
+  }
+  fail("missing measured metric " + name)
+}
+
+///|
+test "frontier summary reads aggregate metrics, not a propagated row field" {
+  assert_eq(
+    metric("relative_l2=0.01\nrow=0 relative_l2=0.9\n", "relative_l2"),
+    "0.01",
+  )
+  try metric("elements=16\n", "nonfinite") catch {
+    _ => ()
+  } noraise {
+    _ => fail("absent measurement accepted")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native, original, complete_reference, report_root] else {
+    fail(
+      "NATIVE_FRONTIERS ORIGINAL_FRONTIERS ORIGINAL_COMPLETE_LAYER_BF16 NEW_REPORT_ROOT",
+    )
+  }
+  @fs.mkdir(report_root)
+  let summary = StringBuilder()
+  summary.write_string(
+    "frontier\telements\texact_bf16\tnonfinite\trelative_l2\tmax_absolute_error\n",
+  )
+  for
+    (name, width) in [
+      ("attention-input", 4096),
+      ("attention-low-rank", 1024),
+      ("q-rope", 32768),
+      ("kv-sim", 512),
+      ("sparse-attention", 32768),
+      ("attention-inverse", 32768),
+      ("attention-output-a", 8192),
+      ("attention-output", 4096),
+      ("attention-residual", 16384),
+      ("ffn-input", 4096),
+      ("ffn-output", 4096),
+      ("hidden", 16384),
+    ] {
+    let path = report_root + "/" + name + ".txt"
+    @shell.Cmd("moon", [
+      "run",
+      "scripts/compare-minimax-encoder-reference.mbtx",
+      native + "/" + name + ".bf16",
+      if name == "hidden" {
+        complete_reference
+      } else {
+        original + "/" + name + ".bf16"
+      },
+      path,
+      "matched_original_layer_propagated_" + name,
+      width.to_string(),
+    ])
+    .output(max_output_bytes=65536)
+    .check()
+    let report = @fs.read_file(path).text()
+    summary <+
+      "\{name}\t\{metric(report, "elements")}\t\{metric(report, "exact_bf16")}\t\{metric(report, "nonfinite")}\t\{metric(report, "relative_l2")}\t\{metric(report, "max_absolute_error")}\n"
+  }
+  @fs.write_file(
+    report_root + "/frontiers.tsv",
+    summary.to_string(),
+    create_mode=CreateNew,
+  )
+  println(summary.to_string())
+  println(
+    "Downstream differences include propagated input drift; this is not a local-operator or full-model parity claim.",
+  )
+}
