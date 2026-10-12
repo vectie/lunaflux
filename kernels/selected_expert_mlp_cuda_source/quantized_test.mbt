@@ -1,6 +1,7 @@
 ///|
 fn dynamic_plan(
   shared? : Bool = false,
+  scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision_ir.ExpertMlpPrecision raise {
   fn weight() -> @precision_ir.OperandPlan raise {
     @precision_ir.plan_operand(
@@ -55,6 +56,7 @@ fn dynamic_plan(
       quantization(if shared { 2 } else { 4 }),
     ),
     memory_ceiling=1000000L,
+    scaled_dot_law~,
   )
 }
 

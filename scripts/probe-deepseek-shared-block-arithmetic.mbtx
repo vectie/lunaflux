@@ -1,0 +1,64 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node = "wlc004s@192.168.2.179"
+
+///|
+let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + name + ".stdout", output.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + name + ".stderr", output.stderr(), create_mode=CreateNew)
+  output.check()
+}
+
+///|
+fn valid_root(root : String, prefix : String) -> Bool {
+  root.has_prefix(prefix) && root.to_array().all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '_')) && !root.contains("//")
+}
+
+///|
+test "shared arithmetic roots reject shell metacharacters" {
+  assert_true(valid_root("/tmp/lunaflux-deepseek-shared-block-row6-v1", "/tmp/lunaflux-deepseek-shared-block-"))
+  assert_false(valid_root("/tmp/lunaflux-deepseek-shared-block-x;true", "/tmp/lunaflux-deepseek-shared-block-"))
+}
+
+///|
+test "FP8 blocks retain original scale geometry" {
+  assert_eq(4096 / 128, 32)
+  assert_eq(2048 / 128, 16)
+  assert_eq(32 * 16, 512)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, source, root, .. options] &&
+    valid_root(source, "/tmp/lunaflux-deepseek-original-shared-") &&
+    valid_root(root, "/tmp/lunaflux-deepseek-shared-block-") &&
+    (options is [] || options is ["--observed"]) else {
+    fail("SOURCE_SHARED_ROOT NEW_BLOCK_PROBE_ROOT [--observed]")
+  }
+  @fs.mkdir(root)
+  record(root, "mkdir", remote("mkdir " + root))
+  let file = "shared_fp8_block_probe.cu"
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, "tests/packed_moe_execution/" + file, node + ":" + root + "/" + file]).output().check()
+  record(root, "compile", remote("systemd-run --user --wait --pipe --unit=" + root[5:].to_owned() + "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 -I" + source + " " + root + "/" + file + " -o " + root + "/probe"))
+  let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU owner active; serialize numerical probes") }
+  let flag = if options is ["--observed"] { " --observed" } else { "" }
+  record(root, "run", remote("systemd-run --user --wait --pipe --unit=" + root[5:].to_owned() + "-run --property=MemoryMax=2G --property=MemorySwapMax=0 " + root + "/probe " + source + "/original " + root + flag))
+  record(root, "released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+  println("Captured FP8 block arithmetic complete; numerical isolation only")
+}

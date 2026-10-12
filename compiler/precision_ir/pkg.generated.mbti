@@ -176,9 +176,10 @@ pub fn ExpertMlpPrecision::expert_map(Self) -> ReadOnlyArray[Int]
 pub fn ExpertMlpPrecision::expert_stride(Self) -> Int64
 pub fn ExpertMlpPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn ExpertMlpPrecision::local_experts(Self) -> ReadOnlyArray[Int]
-pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, activation_rounding? : ExpertActivationRounding, routing_placement? : ExpertRoutingPlacement, activation_quantization? : (QuantizationPlan, QuantizationPlan), memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
+pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, activation_rounding? : ExpertActivationRounding, routing_placement? : ExpertRoutingPlacement, activation_quantization? : (QuantizationPlan, QuantizationPlan), scaled_dot_law? : ScaledDotReductionLaw, memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
 pub fn ExpertMlpPrecision::quantized_workspace_bytes(Self) -> (Int64, Int64)
 pub fn ExpertMlpPrecision::routing_placement(Self) -> ExpertRoutingPlacement
+pub fn ExpertMlpPrecision::scaled_dot_law(Self) -> ScaledDotReductionLaw
 pub fn ExpertMlpPrecision::total_bytes(Self) -> Int64
 pub fn ExpertMlpPrecision::weight_offsets(Self) -> ReadOnlyArray[Int64]
 pub fn ExpertMlpPrecision::weights(Self) -> ReadOnlyArray[OperandPlan]
@@ -606,6 +607,14 @@ pub fn RowProjectionNormPrecision::new(input_width~ : Int, output_width~ : Int, 
 pub fn RowProjectionNormPrecision::normalization_epsilon(Self) -> Double
 pub fn RowProjectionNormPrecision::weight_representation(Self) -> @precision_format.Representation
 pub fn RowProjectionNormPrecision::workspace_bytes(Self) -> Int64
+
+pub(all) enum ScaledDotReductionLaw {
+  DecodeOperandsFloat32
+  UnscaledBlockMatrixFloat32(block_columns~ : Int, publication~ : Float32AffineLaw)
+} derive(Eq, @debug.Debug)
+pub fn ScaledDotReductionLaw::equal(Self, Self) -> Bool
+pub fn ScaledDotReductionLaw::not_equal(Self, Self) -> Bool
+pub fn ScaledDotReductionLaw::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ScratchLifetime {
   Sequential

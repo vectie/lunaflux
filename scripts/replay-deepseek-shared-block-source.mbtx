@@ -1,0 +1,74 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node = "wlc004s@192.168.2.179"
+
+///|
+let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(root + "/" + name + ".stdout", output.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + name + ".stderr", output.stderr(), create_mode=CreateNew)
+  output.check()
+}
+
+///|
+async fn copy(from : String, to : String) -> Unit {
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + socket, from, to]).output().check()
+}
+
+///|
+fn valid_root(root : String, prefix : String) -> Bool {
+  root.has_prefix(prefix) && root.to_array().all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '_')) && !root.contains("//")
+}
+
+///|
+test "source replay names retain independent modes" {
+  assert_eq(["matched", "propagated", "memcheck", "racecheck", "synccheck"].length(), 5)
+  assert_true(valid_root("/tmp/lunaflux-deepseek-shared-source-row6-v1", "/tmp/lunaflux-deepseek-shared-source-"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, original, root] &&
+    valid_root(original, "/tmp/lunaflux-deepseek-original-shared-") &&
+    valid_root(root, "/tmp/lunaflux-deepseek-shared-source-") else {
+    fail("CAPTURED_ORIGINAL_SHARED_ROOT NEW_ACTUAL_SOURCE_ROOT")
+  }
+  @fs.mkdir(root)
+  record(root, "mkdir", remote("mkdir " + root))
+  record(root, "export", @shell.Cmd("moon", ["test", "integration/deepseek_v4_packed_expert", "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "--filter", "literal shared expert replay exports actual production FP8 plan"], env={"LUNAFLUX_MATCHED_SHARED_SOURCE_OUTPUT": root + "/shared_matched_kernels.cuh", "LUNAFLUX_MATCHED_SHARED_MATRIX": "1"}).output())
+  copy(root + "/shared_matched_kernels.cuh", node + ":" + root + "/shared_matched_kernels.cuh")
+  copy("tests/packed_moe_execution/shared_expert_matched_probe.cu", node + ":" + root + "/probe.cu")
+  record(root, "compile", remote("systemd-run --user --wait --pipe --unit=" + root[5:].to_owned() + "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 " + root + "/probe.cu -o " + root + "/probe"))
+  for mode in ["matched", "propagated", "memcheck", "racecheck", "synccheck"] {
+    let owners = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("serialize actual-source GPU probes") }
+    @fs.mkdir(root + "/" + mode)
+    record(root, mode + "-mkdir", remote("mkdir " + root + "/" + mode))
+    let leak = if mode == "memcheck" { "--leak-check full " } else { "" }
+    let prefix = if mode == "matched" || mode == "propagated" { "" } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " + mode + " --error-exitcode 97 " + leak
+    }
+    let argument = if mode == "matched" { "matched" } else { "propagated" }
+    record(root, mode, remote("systemd-run --user --wait --pipe --unit=" + root[5:].to_owned() + "-" + mode + " --property=MemoryMax=2G --property=MemorySwapMax=0 " + prefix + root + "/probe " + original + "/original " + root + "/" + mode + " " + argument))
+    for stage in ["activation", "output"] {
+      copy(node + ":" + root + "/" + mode + "/" + stage + ".bf16", root + "/" + mode + "/" + stage + ".bf16")
+      record(root, mode + "-" + stage, @shell.Cmd("moon", ["run", "scripts/compare-minimax-encoder-reference.mbtx", root + "/" + mode + "/" + stage + ".bf16", original + "/original/" + stage + ".bf16", root + "/" + mode + "-" + stage + ".txt", "actual_block_scaled_shared_" + mode, if stage == "activation" { "2048" } else { "4096" }]).output())
+    }
+  }
+  record(root, "released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
+  println("Actual block-scaled source complete; not whole-model parity")
+}

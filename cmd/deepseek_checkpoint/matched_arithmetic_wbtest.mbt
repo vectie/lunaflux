@@ -21,4 +21,8 @@ test "vector RMS replay retains the refined control dot rather than falling back
     matched_control_dot_law("replay-layer-router-arithmetic"),
     matched_control_dot_law("replay-layer-vector-query"),
   )
+  assert_eq(
+    matched_control_dot_law("replay-layer-shared-block-matrix"),
+    matched_control_dot_law("replay-layer-router-arithmetic"),
+  )
 }

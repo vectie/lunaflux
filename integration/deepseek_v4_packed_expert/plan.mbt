@@ -80,6 +80,7 @@ fn compute_plan(
   maximum_rows~ : Int,
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
+  scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision.ExpertMlpPrecision raise {
   let operands = family[:3].map(weight => {
     @precision.plan_operand(
@@ -122,6 +123,7 @@ fn compute_plan(
       ),
     ),
     memory_ceiling~,
+    scaled_dot_law~,
   )
 }
 
@@ -134,6 +136,7 @@ pub fn shared_expert_compute_plan(
   maximum_rows~ : Int,
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
+  scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision.ExpertMlpPrecision raise {
   block_shared_expert_compute_plan(
     spec,
@@ -141,6 +144,7 @@ pub fn shared_expert_compute_plan(
     maximum_rows~,
     memory_ceiling~,
     accuracy~,
+    scaled_dot_law~,
   )
 }
 
@@ -151,6 +155,7 @@ pub fn block_shared_expert_compute_plan(
   maximum_rows~ : Int,
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
+  scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision.ExpertMlpPrecision raise {
   compute_plan(
     spec,
@@ -161,6 +166,7 @@ pub fn block_shared_expert_compute_plan(
     maximum_rows~,
     memory_ceiling~,
     accuracy~,
+    scaled_dot_law~,
   )
 }
 

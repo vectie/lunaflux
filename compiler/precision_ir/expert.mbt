@@ -39,6 +39,7 @@ pub struct ExpertMlpPrecision {
   priv activation_rounding : ExpertActivationRounding
   priv routing_placement : ExpertRoutingPlacement
   priv activation_quantization : (QuantizationPlan, QuantizationPlan)?
+  priv scaled_dot_law : ScaledDotReductionLaw
   priv quantized_bytes : (Int64, Int64)
   priv offsets : ReadOnlyArray[Int64]
   priv stride : Int64
@@ -69,6 +70,7 @@ pub fn ExpertMlpPrecision::new(
   activation_rounding? : ExpertActivationRounding = Bf16Stages,
   routing_placement? : ExpertRoutingPlacement = AfterDownOutputRound,
   activation_quantization? : (QuantizationPlan, QuantizationPlan),
+  scaled_dot_law? : ScaledDotReductionLaw = DecodeOperandsFloat32,
   memory_ceiling~ : Int64,
 ) -> Self raise PrecisionPlanError {
   if memory_ceiling < 0L ||
@@ -92,6 +94,13 @@ pub fn ExpertMlpPrecision::new(
     }
   }
   let (intermediate, hidden) = gate.representation().shape()
+  if scaled_dot_law is UnscaledBlockMatrixFloat32(block_columns~, publication=_) {
+    if block_columns <= 0 ||
+      hidden % block_columns != 0 ||
+      intermediate % block_columns != 0 {
+      raise IllegalPlacement
+    }
+  }
   if up.representation().shape() != (intermediate, hidden) ||
     down.representation().shape() != (hidden, intermediate) {
     raise IllegalPlacement
@@ -195,6 +204,7 @@ pub fn ExpertMlpPrecision::new(
     activation_rounding,
     routing_placement,
     activation_quantization,
+    scaled_dot_law,
     quantized_bytes,
     offsets: ReadOnlyArray::from_array(offsets),
     stride,
@@ -266,6 +276,11 @@ pub fn ExpertMlpPrecision::activation_rounding(
   self : Self,
 ) -> ExpertActivationRounding {
   self.activation_rounding
+}
+
+///|
+pub fn ExpertMlpPrecision::scaled_dot_law(self : Self) -> ScaledDotReductionLaw {
+  self.scaled_dot_law
 }
 
 ///|

@@ -75,6 +75,7 @@ async fn replay_matched_layer(
   routing_projection_law? : @precision.DotReductionLaw = OrderedFloat32,
   routing_softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
   routing_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
+  shared_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
@@ -130,6 +131,7 @@ async fn replay_matched_layer(
     routing_projection_law~,
     routing_softplus_law~,
     routing_sum_law~,
+    shared_scaled_dot_law~,
     attention_accumulation~,
     rotary_product~,
     output_accumulation~,
@@ -146,6 +148,7 @@ async fn replay_matched_layer(
   defer decoder.close()
   @fs.mkdir(arguments[8])
   if mode == "export" {
+    println("matched_shared_export scaled_dot=\{Repr(shared_scaled_dot_law)}")
     println(
       "matched_routing_export projection=\{Repr(routing_projection_law)} softplus=\{Repr(routing_softplus_law)} selected_sum=\{Repr(routing_sum_law)}",
     )
@@ -162,6 +165,7 @@ async fn replay_matched_layer(
   println(
     "matched_routing_execution projection=\{Repr(routing_projection_law)} softplus=\{Repr(routing_softplus_law)} selected_sum=\{Repr(routing_sum_law)} ordinary_routing=\{routing_projection_law == @precision.DotReductionLaw::OrderedFloat32 && routing_softplus_law == @precision.SoftplusEvaluationLaw::StableFloat32 && routing_sum_law == @precision.SumReductionLaw::OrderedFloat32}",
   )
+  println("matched_shared_execution scaled_dot=\{Repr(shared_scaled_dot_law)}")
   let inventory = @inventory.CheckpointInventory::parse(
     @utf8.decode(read_inventory(root, arguments[1])),
     maximum_bytes=1048576,

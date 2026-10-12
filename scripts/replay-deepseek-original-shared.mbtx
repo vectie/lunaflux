@@ -65,7 +65,12 @@ async fn main {
       record(root, route + "-run", remote("systemd-run --user --wait --pipe --unit=" + root[5:].to_owned() + "-" + route + " --property=MemoryMax=2G --property=MemorySwapMax=0 " + root + "/shared-native " + root + "/original " + root + "/" + route + " " + route))
     }
     record(root, "released", remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"))
-  } else if mode == "collect" {
+  } else if mode == "collect" || mode == "collect-observed" {
+    if mode == "collect-observed" {
+      for file in ["gate.bf16", "up.bf16", "input-quantized.fp8", "input-quantized.scale", "activation-quantized.fp8", "activation-quantized.scale", "matched-output.bf16", "matched-output.f32", "f32-terminal.bf16"] {
+        copy(node + ":" + root + "/original/" + file, root + "/original/" + file)
+      }
+    }
     for route in ["original", "matched", "propagated"] {
       for file in ["activation.bf16", "output.bf16"] {
         copy(node + ":" + root + "/" + route + "/" + file, root + "/" + route + "/" + file)

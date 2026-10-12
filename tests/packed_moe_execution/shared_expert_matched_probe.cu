@@ -7,6 +7,11 @@
 #include <string>
 #include <vector>
 #include "shared_matched_kernels.cuh"
+#ifndef LUNA_SHARED_LAUNCH_METADATA
+// Retained offline exports predate launch metadata. Production AOT owners
+// always use the actual source launch descriptors.
+static constexpr int shared_gate_grid=512,shared_down_grid=1024;
+#endif
 static void check(cudaError_t e) {
   if(e!=cudaSuccess){std::fprintf(stderr,"%s\n",cudaGetErrorString(e));std::exit(2);}
 }
@@ -47,7 +52,7 @@ int main(int argc,char **argv) {
   auto *q0=allocate<unsigned char>(shared_quantized_bytes[0]),*q1=allocate<unsigned char>(shared_quantized_bytes[1]);
   auto *activation=allocate<__nv_bfloat16>(2048),*output=allocate<__nv_bfloat16>(4096);
   matched_shared_quantize_0<<<32,128>>>(counts,x,q0,error);
-  matched_shared_gate_up<<<512,128>>>(counts,q0,indices,map,bank,activation,weights);
+  matched_shared_gate_up<<<shared_gate_grid,128>>>(counts,q0,indices,map,bank,activation,weights);
   check(cudaGetLastError());check(cudaDeviceSynchronize());
   save(activation,2048,out+"/activation.bf16");
   if(mode=="matched") {
@@ -55,7 +60,7 @@ int main(int argc,char **argv) {
     check(cudaMemcpy(activation,host.data(),4096,cudaMemcpyHostToDevice));
   }
   matched_shared_quantize_1<<<16,128>>>(counts,activation,q1,error);
-  matched_shared_down<<<1024,128>>>(counts,q1,indices,weights,map,bank,output);
+  matched_shared_down<<<shared_down_grid,128>>>(counts,q1,indices,weights,map,bank,output);
   check(cudaGetLastError());check(cudaDeviceSynchronize());save(output,4096,out+"/output.bf16");
   int host_error=0;check(cudaMemcpy(&host_error,error,4,cudaMemcpyDeviceToHost));
   for(void *p:{(void*)bank,(void*)x,(void*)counts,(void*)indices,(void*)map,(void*)error,(void*)weights,(void*)q0,(void*)q1,(void*)activation,(void*)output})check(cudaFree(p));

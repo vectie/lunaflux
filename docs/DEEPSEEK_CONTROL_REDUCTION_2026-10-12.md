@@ -859,3 +859,58 @@ or promote the candidate because a global norm looks small. A general scaled-
 dot arithmetic contract belongs in precision IR and backend lowering, not a
 row/token/model-specific exception. All `.179` probes have retired; MiniMax
 `.178` remains in denoising with zero swap and empty application stderr.
+
+### Shared FP8: the missing boundary is raw matrix accumulation
+
+The new bounded operand probe falsifies the simple "move scaling after the
+dot" explanation for the first divergent row. In
+`/tmp/lunaflux-deepseek-shared-block-row6-20261012-v2`, all 32 scalar alternatives
+(1–128 independent partial sums, separate/FMA inner updates and separate/FMA
+scaled publication) fix the one up-projection discrepancy, but **none fixes
+down-output 631**. Those negative results remain available.
+
+The installed original quantizer is independently observed in
+`/tmp/lunaflux-deepseek-original-shared-row6-observed-20261012-v2` without
+modifying or feeding observations into `Expert`. Input payload/scales are
+**4,096/4,096 and 32/32 bitwise**; matched activation payload/scales are
+**2,048/2,048 and 16/16 bitwise**. Stateless original down on this activation
+is bitwise the complete original shared output. The original F32 terminal
+also rounds to all 4,096 original BF16 outputs.
+
+Output 631 is exactly rounding-sensitive: original F32 is **-0.4384765625**,
+the BF16 midpoint; native is **-0.438476592302**, one F32 ULP lower. A full-dot
+F64 diagnostic still rounds to the native BF16 value, so merely "increase
+precision" does not reproduce the reference arithmetic. No midpoint snapping,
+tolerance waiver, input replacement or special-case output correction is used.
+
+Original unscaled 128-column blocks are captured independently at
+`/tmp/lunaflux-deepseek-original-shared-row6-blocks-20261012-v3`. Scalar folds
+match only about 61,500/65,536 F32 block values. A native raw-E4M3 matrix-block
+probe at `...shared-block-row6-20261012-v5` matches **65,536/65,536 F32 blocks**
+and **4,096/4,096 BF16 down outputs**, plus both 2,048-value gate/up outputs.
+Its register ownership follows the documented
+[NVIDIA PTX matrix-fragment ABI](https://docs.nvidia.com/cuda/parallel-thread-execution/#warp-level-matrix-fragment-mma-16832).
+The original's two accumulators are two **F32** levels, not F64. The early
+compile failure in block-probe v1 is retained and was repaired using the public
+BF16 raw conversion, not by changing model arithmetic.
+
+The implementation expresses `ScaledDotReductionLaw` in immutable precision
+IR: decoded-operand F32 remains default; an explicit unscaled matrix block
+and scaled-publication law are selectable. This independent policy reaches
+the shared expert, FFN owner, decoder block/slice and diagnostic CLI
+`replay-layer-shared-block-matrix`. Routed FP4 remains unchanged. Unsupported
+formats/grouping reject instead of silently falling back. CUDA warp/MMA
+details remain private lowering; no vendor runtime dependency is introduced.
+
+Actual generated-source replay
+`/tmp/lunaflux-deepseek-shared-source-row6-20261012-v1` now matches **all 2,048
+activations and 4,096 outputs bitwise** in both matched-down and propagated
+modes. Actual source memcheck/full leak, racecheck and synccheck report zero,
+in serialized 2-GiB/no-swap user units with balanced CUDA release. Launch
+descriptors, not old replay constants, select the matrix work decomposition.
+Affected native tests **99/99** pass. Ordinary serving defaults are unchanged.
+This is a demonstrated local numerical correction, **not throughput, a
+43-layer parity result or media quality**; the next source-pinned complete
+layer must establish whether the first propagated residual difference is
+removed. MiniMax remains independently active on `.178` without concurrent
+GPU work. All comparisons use array values directly, with no payload hashes.

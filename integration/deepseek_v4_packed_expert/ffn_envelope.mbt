@@ -29,6 +29,7 @@ pub fn DeepSeekFfnEnvelope::new(
   routing_projection_law? : @precision.DotReductionLaw = OrderedFloat32,
   routing_softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
   routing_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
+  shared_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
@@ -53,6 +54,7 @@ pub fn DeepSeekFfnEnvelope::new(
     routing_projection_law~,
     routing_softplus_law~,
     routing_sum_law~,
+    shared_scaled_dot_law~,
     control_square_law~,
     control_dot_law~,
     control_vector_affine_law~,
@@ -74,6 +76,7 @@ pub fn DeepSeekFfnEnvelope::for_block(
   routing_projection_law? : @precision.DotReductionLaw = OrderedFloat32,
   routing_softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
   routing_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
+  shared_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
@@ -101,6 +104,7 @@ pub fn DeepSeekFfnEnvelope::for_block(
     maximum_rows~,
     memory_ceiling=maximum_expert_bytes,
     accuracy~,
+    scaled_dot_law=shared_scaled_dot_law,
   )
   guard routed.bank_bytes() <= maximum_expert_bytes &&
     shared.bank_bytes() <= maximum_expert_bytes - routed.bank_bytes() else {

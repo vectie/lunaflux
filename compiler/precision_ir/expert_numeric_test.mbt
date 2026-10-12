@@ -41,6 +41,7 @@ test "expert quantization and routing order are explicit immutable numeric seman
   assert_eq(plan.routing_placement(), BeforeDownInputRound)
   assert_eq(plan.quantized_workspace_bytes(), (195L, 198L))
   assert_eq(plan.total_bytes(), 9805L)
+  assert_eq(plan.scaled_dot_law(), DecodeOperandsFloat32)
   assert_eq(qx.amax_floor(), 0.0001)
   assert_true(qx.canonical().contains("amax-floor:"))
   assert_eq(qx.operand().quantization().amax_floor(), 0.0)

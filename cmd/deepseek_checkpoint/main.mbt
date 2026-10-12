@@ -13,11 +13,13 @@ async fn main {
       | "replay-layer-hierarchical-controls"
       | "replay-layer-butterfly-controls"
       | "replay-layer-vector-query"
-      | "replay-layer-router-arithmetic" as mode,
+      | "replay-layer-router-arithmetic"
+      | "replay-layer-shared-block-matrix" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
-    let router = mode == "replay-layer-router-arithmetic"
+    let shared_matrix = mode == "replay-layer-shared-block-matrix"
+    let router = shared_matrix || mode == "replay-layer-router-arithmetic"
     let grouped = router ||
       mode == "replay-layer-hierarchical-controls" ||
       mode == "replay-layer-butterfly-controls" ||
@@ -45,6 +47,14 @@ async fn main {
         StableFloat32
       },
       routing_sum_law=if router { ButterflyFloat32 } else { OrderedFloat32 },
+      shared_scaled_dot_law=if shared_matrix {
+        UnscaledBlockMatrixFloat32(
+          block_columns=128,
+          publication=SeparateMultiplyAdd,
+        )
+      } else {
+        DecodeOperandsFloat32
+      },
       attention_accumulation=if mode != "replay-layer" {
         TiledFloat32
       } else {

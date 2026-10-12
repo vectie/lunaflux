@@ -78,6 +78,8 @@ fn replay_mode(mode : String) -> String {
     "replay-layer-vector-query"
   } else if mode == "prepare-router-arithmetic" {
     "replay-layer-router-arithmetic"
+  } else if mode == "prepare-shared-block-matrix" {
+    "replay-layer-shared-block-matrix"
   } else {
     "replay-layer"
   }
@@ -105,6 +107,7 @@ test "tiled replay uses the same explicit policy at export and execution" {
     replay_mode("prepare-router-arithmetic"),
     "replay-layer-router-arithmetic",
   )
+  assert_eq(replay_mode("prepare-shared-block-matrix"), "replay-layer-shared-block-matrix")
 }
 
 ///|
@@ -128,7 +131,8 @@ async fn main {
     mode == "prepare-hierarchical-controls" ||
     mode == "prepare-butterfly-controls" ||
     mode == "prepare-vector-query" ||
-    mode == "prepare-router-arithmetic" {
+    mode == "prepare-router-arithmetic" ||
+    mode == "prepare-shared-block-matrix" {
     guard extra is [executable, layer, rows, input, reference, .. optional] &&
       optional.length() <= 1 else {
       fail("matched operands required")
