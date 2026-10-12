@@ -914,3 +914,67 @@ This is a demonstrated local numerical correction, **not throughput, a
 layer must establish whether the first propagated residual difference is
 removed. MiniMax remains independently active on `.178` without concurrent
 GPU work. All comparisons use array values directly, with no payload hashes.
+
+### Committed shared-matrix complete replay and next projection frontier
+
+Implementation **16fb7184** is pushed. Its clean ARM build on `.178` is
+CPU-only, warning-denied with unchanged migration exclusions, completes at
+746.3 MiB reported memory and zero swap. The full layer-0 replay on all 144
+original predecessors/IDs proves the selected law in **both export and
+execution**:
+`/tmp/lunaflux-deepseek-production-layer-0-shared-matrix-rows1-20261012-v1`.
+All **589,824 FFN outputs are now bitwise**. Complete hidden error is
+**0.000199292%**, down from 0.000808384%, with 2,359,280/2,359,296 exact.
+Row 6 is bitwise across all 16,384 hidden values, removing the demonstrated
+first shared-output divergence. The remaining 16 hidden differences follow
+attention/output boundaries; FFN input and output are bitwise.
+
+Layer 1 using that **corrected native predecessor**, not an original-input
+substitution, has bitwise row 6 and row 143. Root
+`/tmp/lunaflux-deepseek-production-layer-1-shared-matrix-propagated-rows1-20261012-v1`;
+all-row hidden error 0.027826625%. Layer 3 on original predecessors remains
+0.027008023%, with preceding attention/FFN-input drift unchanged. The small
+layer-0 result is not extrapolated into compressed attention or all layers.
+
+The new full native propagation run completes all 43 layers, one bank at a
+time, serialized under 12-GiB/no-swap boundaries:
+`/tmp/lunaflux-deepseek-native-layer-chain-shared-matrix-20261012-v1`.
+Every derived original position-143 mean is again bitwise the actual observer
+before comparison. The earlier router-only run is retained unchanged.
+
+| Retired layer | Router-only mean error (%) | Shared-matrix mean error (%) |
+| --- | ---: | ---: |
+| 0 | 0 | 0 |
+| 1 | 0.432739059 | **0** |
+| 2 | 1.546022872 | 0.731341504 |
+| 3 | 2.204441841 | 1.805925927 |
+| 9 | 11.278133835 | 10.693824442 |
+| 21 | 17.713524434 | 14.480403024 |
+| 40 | 17.704235998 | 14.473616808 |
+| 42 | 15.878691075 | **13.196633236** |
+
+Final row-143 complete-stream error is **13.656348080%**, versus 16.527097826%.
+All-row aggregate is 0.301482656%; it is still dominated by large reference
+entries and is not a quality/parity claim. No model head, generated tokens or
+TP2 serving correctness follows. These are numerical-error reductions, **not
+performance improvements**.
+
+The next identical-operand projection test reuses the actual compiler's raw
+matrix-block helper, without changing learned/head normalization:
+`/tmp/lunaflux-deepseek-query-block-layer3-20261012-v1`. It matches **Query-A
+147,456/147,456, Query-B 4,718,592/4,718,592 and KV 73,728/73,728 BF16 values
+bitwise** on the retained layer-3 original one-row corpus. The old scalar
+Query-A/B differences are therefore an executable arithmetic gap, not an
+unexplained norm/layout/cache issue. This probe is **not yet a selected query
+owner/complete-layer implementation**. Next propagate an independent scaled-
+dot policy through the generic FP8 projection family, query owner and output-B
+chain, consume actual launch metadata, then test complete execution. Do not
+claim propagation from this helper-level result or blanket-promote all laws.
+
+Default shared source is independently byte-compared with the pre-change
+retained export; it remains unchanged. Native affected tests99/99 and offline
+source/chain/query runner regressions pass. Actual shared source sanitizers are
+the preceding one-row proof; the new full-chain runs are deterministic numeric
+replays, not full-chain sanitizer campaigns. `.179` owners have retired after
+the query probe. MiniMax `.178` is still denoising, zero swap and empty
+application stderr; no media terminal or quality result is available yet.

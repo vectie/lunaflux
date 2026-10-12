@@ -1,0 +1,129 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node = "wlc004s@192.168.2.179"
+
+///|
+let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=4194304,
+  )
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+fn valid_path(path : String) -> Bool {
+  path.has_prefix("/tmp/lunaflux-deepseek-") &&
+  path.to_array().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '_'))
+}
+
+///|
+test "query matrix probe retains bounded original rows and format blocks" {
+  assert_eq(144 * 32768, 4718592)
+  assert_eq(1024 / 128, 8)
+  assert_true(valid_path("/tmp/lunaflux-deepseek-query-block-v1"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. args] &&
+    valid_path(root) &&
+    root.has_prefix("/tmp/lunaflux-deepseek-query-block-") else {
+    fail(
+      "prepare NEW_ROOT ORIGINAL_QUERY_ROOT ACTUAL_MATRIX_SHARED_ROOT | run ROOT",
+    )
+  }
+  if mode == "prepare" {
+    guard args is [original, shared] &&
+      valid_path(original) &&
+      valid_path(shared) else {
+      fail("actual source/operands required")
+    }
+    @fs.mkdir(root)
+    @fs.write_file(root + "/ORIGINAL.txt", original, create_mode=CreateNew)
+    record(root, "mkdir", remote("mkdir " + root))
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      "tests/packed_moe_execution/query_fp8_block_probe.cu",
+      node + ":" + root + "/probe.cu",
+    ])
+    .output()
+    .check()
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 -I" +
+        original +
+        " -I" +
+        shared +
+        " " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+  } else if mode == "run" {
+    guard args is [] else { fail("run ROOT") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize against active GPU owner")
+    }
+    let original = @fs.read_file(root + "/ORIGINAL.txt").text()
+    record(
+      root,
+      "run",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-run --property=MemoryMax=2G --property=MemorySwapMax=0 " +
+        root +
+        "/probe " +
+        original +
+        "/original " +
+        root +
+        " 144",
+      ),
+    )
+    record(
+      root,
+      "released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else {
+    fail("unknown mode")
+  }
+  println("Query matrix " + mode + " complete; no serving selection")
+}

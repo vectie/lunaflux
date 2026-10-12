@@ -23,6 +23,16 @@ async test "literal shared expert replay exports actual production FP8 plan" {
     plan,
     symbol="matched_shared",
   )
+  if !matrix &&
+    @env.get_env_var("LUNAFLUX_MATCHED_SHARED_PREVIOUS_SOURCE") is Some(path) {
+    let retained = @fs.read_file(path)
+      .text()
+      .split("\nstatic constexpr size_t shared_stride=")
+      .next()
+      .unwrap()
+      .to_owned()
+    assert_eq(source.source_bytes(), @utf8.encode(retained))
+  }
   assert_eq(source.launches()[1], (if matrix { 64 } else { 512 }, 128))
   assert_eq(source.launches()[3], (if matrix { 128 } else { 1024 }, 128))
   assert_eq(plan.weights()[0].representation().scale_shape(), (16, 32))
