@@ -112,7 +112,10 @@ async fn main {
   guard @env.args()
     is [_, root, suffix, build, commit, prior, input, .. generation] &&
     root.has_prefix("/tmp/lunaflux-dspark-run-") &&
-    build.has_prefix("/tmp/lunaflux-checkpoint-build-dspark-") &&
+    (
+      build.has_prefix("/tmp/lunaflux-checkpoint-build-dspark-") ||
+      build.has_prefix("/tmp/lunaflux-checkpoint-build-deepseek-")
+    ) &&
     prior.has_prefix("/tmp/lunaflux-dspark-real-") &&
     [root, suffix, build, prior].all(path => {
       !path.is_empty() &&

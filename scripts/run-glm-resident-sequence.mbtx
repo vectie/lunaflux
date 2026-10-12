@@ -266,9 +266,9 @@ async fn main {
     !suffix.contains("/") &&
     commit.length() == 40 &&
     commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) &&
-    mode is ("prepare" | "run") else {
+    mode is ("prepare" | "run" | "logits") else {
     fail(
-      "NEW_LOCAL_ROOT SUFFIX prepare|run COMMITTED_BUILD COMMIT LITERAL_INPUT0 LITERAL_INPUT1",
+      "NEW_LOCAL_ROOT SUFFIX prepare|run|logits COMMITTED_BUILD COMMIT LITERAL_INPUT0 LITERAL_INPUT1",
     )
   }
   let destination = "/tmp/lunaflux-glm-sequence-" + suffix
@@ -313,28 +313,76 @@ async fn main {
       copy(last, root + "/glm_checkpoint.exe", node(last) + ":" + binary)
     }
     let export_unit = "lunaflux-glm-sequence-" + suffix + "-export.service"
-    retain(root, "export-start", remote(false,
-      "systemd-run --user --unit=" + export_unit +
-      " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
-      binary + " export " + model(false) + " " + declared_shards(false) +
-      "/SHARDS.sha256 1 64 103079215104 103079215104 2147483648 " + aot))
-    { errdefer collect(root, false, export_unit); wait_unit(false, export_unit) }
+    retain(
+      root,
+      "export-start",
+      remote(
+        false,
+        "systemd-run --user --unit=" +
+        export_unit +
+        " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+        binary +
+        " export " +
+        model(false) +
+        " " +
+        declared_shards(false) +
+        "/SHARDS.sha256 1 64 103079215104 103079215104 2147483648 " +
+        aot,
+      ),
+    )
+    {
+      errdefer collect(root, false, export_unit)
+      wait_unit(false, export_unit)
+    }
     collect(root, false, export_unit)
     retain(root, "179-aot-mkdir", remote(true, "mkdir " + aot))
     for (last, ordinal) in [(false, 0), (true, 1)] {
       let source = "stage-\{ordinal}.cu"
       copy(false, node(false) + ":" + aot + "/" + source, root + "/" + source)
-      if last { copy(true, root + "/" + source, node(true) + ":" + aot + "/" + source) }
-      retain(root, "\{ordinal}-declared-shards", remote(last,
-        "cp -n " + declared_shards(last) + "/SHARDS.sha256 " + aot + "/SHARDS.sha256"))
-      let unit = "lunaflux-glm-sequence-" + suffix + "-compile-\{ordinal}.service"
-      retain(root, "\{ordinal}-compile-start", remote(last,
-        "systemd-run --user --unit=" + unit +
-        " --property=RemainAfterExit=yes --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
-        aot + "/" + source + " -o " + aot + "/stage-\{ordinal}.cubin"))
-      { errdefer collect(root, last, unit); wait_unit(last, unit) }
+      if last {
+        copy(true, root + "/" + source, node(true) + ":" + aot + "/" + source)
+      }
+      retain(
+        root,
+        "\{ordinal}-declared-shards",
+        remote(
+          last,
+          "cp -n " +
+          declared_shards(last) +
+          "/SHARDS.sha256 " +
+          aot +
+          "/SHARDS.sha256",
+        ),
+      )
+      let unit = "lunaflux-glm-sequence-" +
+        suffix +
+        "-compile-\{ordinal}.service"
+      retain(
+        root,
+        "\{ordinal}-compile-start",
+        remote(
+          last,
+          "systemd-run --user --unit=" +
+          unit +
+          " --property=RemainAfterExit=yes --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 --cubin -arch=sm_121 " +
+          aot +
+          "/" +
+          source +
+          " -o " +
+          aot +
+          "/stage-\{ordinal}.cubin",
+        ),
+      )
+      {
+        errdefer collect(root, last, unit)
+        wait_unit(last, unit)
+      }
       collect(root, last, unit)
-      copy(last, node(last) + ":" + aot + "/stage-\{ordinal}.cubin", root + "/stage-\{ordinal}.cubin")
+      copy(
+        last,
+        node(last) + ":" + aot + "/stage-\{ordinal}.cubin",
+        root + "/stage-\{ordinal}.cubin",
+      )
     }
     retain(root, "queue-mkdir", remote(false, "mkdir " + queue))
     let counts : Array[Int] = []
@@ -445,7 +493,7 @@ async fn main {
       egress +
       " --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 " +
       binary +
-      " egress " +
+      (if mode == "logits" { " egress-logits " } else { " egress " }) +
       model(true) +
       " " +
       aot +
@@ -453,7 +501,8 @@ async fn main {
       common +
       aot +
       " stage-1.cubin" +
-      peers,
+      peers +
+      (if mode == "logits" { " " + destination + "/retired-head" } else { "" }),
     ),
   )
   for ;; {
@@ -588,6 +637,18 @@ async fn main {
     for token in tokens {
       guard @string.parse_int(token) >= 0 else { fail("invalid output ID") }
     }
+  }
+  if mode == "logits" {
+    copy(
+      true,
+      node(true) + ":" + destination + "/retired-head/logits.f32",
+      root + "/last-request-final-logits.f32",
+    )
+    @fs.write_file(
+      root + "/logits-scope.txt",
+      "request=1\nphysical_selected_row=0\npredicts_generated_token_index=7\nconsumed_generated_prefix_length=7\nraw_model_full_vocabulary=true\n",
+      create_mode=CreateNew,
+    )
   }
   println(
     "GLM two-request resident queue completed; independent numerical and concurrent serving parity remain unverified",

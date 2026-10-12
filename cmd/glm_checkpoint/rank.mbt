@@ -67,6 +67,27 @@ async fn run_egress(
   )
   defer rank.close()
   prepare_rank(startup, 1, context, aot, stream, root, rank, stage)
+  // Explicit offline mode only: capture once after EOF, never in a token step.
+  let capture = if arguments.length() == 5 {
+    let allocation = stage.borrow_text_logits()
+    Some(
+      (
+        context.prepare_transfer_pool(
+          allocation,
+          host_bytes=allocation.byte_count(),
+          lanes=1,
+          max_regions_per_lane=1,
+        ),
+        allocation.byte_count().to_int(),
+      ),
+    )
+  } else {
+    None
+  }
+  defer (if capture is Some((pool, _)) {
+    pool.drain(0)
+    pool.close()
+  })
   let control_listener = @socket.TcpServer::TcpServer(
     @socket.Addr::parse(arguments[2]),
   )
@@ -118,6 +139,31 @@ async fn run_egress(
     }
     server.poll(local_now_millis=now)
     @async.pause()
+  }
+  if capture is Some((pool, bytes)) {
+    pool.enqueue(
+      lane=0,
+      host_offset=0L,
+      device_offset=0L,
+      bytes=bytes.to_int64(),
+      to_device=false,
+    )
+    pool.record(0)
+    while !pool.poll(0) {
+      @async.pause()
+    }
+    let payload = FixedArray::make(bytes, b'\x00')
+    pool.read_host(payload, host_offset=0L, destination_offset=0, bytes~)
+    pool.reset(0)
+    @fs.mkdir(arguments[4])
+    @fs.write_file(
+      arguments[4] + "/logits.f32",
+      Bytes::from_array(payload[:]),
+      create_mode=CreateNew,
+    )
+    println(
+      "retired_tensor_capture file=logits.f32 bytes=\{bytes} scope=selected_rows",
+    )
   }
 }
 

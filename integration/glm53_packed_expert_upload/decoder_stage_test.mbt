@@ -27,6 +27,12 @@ test "stage assembly follows model boundaries rather than slice-local boundaries
     assert_eq(stage.layer_range(), (first, end))
     assert_true(stage.text_boundary() == boundary)
     assert_eq(stage.launch_count(), 0)
+    try stage.borrow_text_logits() catch {
+      @device.DeviceError::InvalidArgument(StreamingTransfer) => ()
+      error => raise error
+    } noraise {
+      _ => fail("fresh stage exposed an unallocated vocabulary output")
+    }
     let source = @utf8.decode(stage.source_bytes())
     assert_true(source.contains("glm_text_io_embed("))
     if first == 0 {

@@ -13,3 +13,16 @@ pub fn GlmTextIo::projection_suffix(
 ) -> ArrayView[@device.OrderedKernelLaunch] raise {
   self.frame.projection_suffix()
 }
+
+///|
+/// Borrow the already allocated vocabulary output for an offline observer.
+/// Caller must retire execution before reading and close transfer leases before
+/// this stage. Ordinary execution allocates no observer and performs no copy.
+pub fn GlmDecoderStage::borrow_text_logits(
+  self : Self,
+) -> @device.Allocation raise {
+  guard self.status is Ready && self.range.text_boundary().has_egress() else {
+    raise @device.DeviceError::InvalidArgument(StreamingTransfer)
+  }
+  self.text.logits()
+}

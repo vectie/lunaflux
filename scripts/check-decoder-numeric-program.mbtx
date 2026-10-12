@@ -1,0 +1,187 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline physical validation only. The caller reserves Spark179 for this
+// serial campaign. Retained C++ oracles are supplied explicitly, not regenerated
+// from the numerical IR under test. No checkpoint or payload hashing.
+
+///|
+let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+let node = "wlc004s@192.168.2.179"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn retain(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+fn extract(source : String, kind : String) -> String raise {
+  guard source.split("LUNA_SOURCE_BEGIN " + kind + "\n").to_array() is [_, tail] &&
+    tail.split("LUNA_SOURCE_END").to_array() is [body, _] else {
+    fail("missing or ambiguous source marker")
+  }
+  body.to_owned()
+}
+
+///|
+test "source extraction excludes test output and rejects duplicates" {
+  assert_eq(
+    extract("LUNA_SOURCE_BEGIN x\nbody\nLUNA_SOURCE_END\n", "x"),
+    "body\n",
+  )
+  try extract("none", "x") catch {
+    _ => ()
+  } noraise {
+    _ => fail("missing source accepted")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, recurrent_probe, convolution_probe] &&
+    root.has_prefix("/tmp/lunaflux-decoder-numeric-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail(
+      "NEW_ROOT RETAINED_RECURRENT_ORACLE RETAINED_CONVOLUTION_ORACLE; exclusive179 required",
+    )
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  @fs.mkdir(root)
+  remote("mkdir " + root).check()
+  for
+    (kind, source_package, probe, variable) in [
+      (
+        "recurrent", "kernels/recurrent_delta_execution_cuda_source", recurrent_probe,
+        "LUNA_EXPORT_RECURRENT",
+      ),
+      (
+        "convolution", "kernels/causal_convolution_execution_cuda_source", convolution_probe,
+        "LUNA_EXPORT_CONVOLUTION",
+      ),
+      (
+        "hyper_f32", "kernels/hyper_connection_execution_cuda_source", "tests/packed_moe_execution/hyper_f32_probe.cu",
+        "LUNAFLUX_HYPER_F32_SOURCE_OUTPUT",
+      ),
+    ] {
+    let path = root + "/" + kind
+    @fs.mkdir(path)
+    remote("mkdir " + path).check()
+    let header = path + "/" + kind + "_kernels.cuh"
+    let filter = match kind {
+      "recurrent" => "export recurrent execution fixtures"
+      "convolution" => "export request convolution fixtures"
+      _ => "F32 envelope consumes precision-owned control arithmetic"
+    }
+    let exported = @shell.Cmd("env", [
+      variable + "=" + (if kind == "hyper_f32" { header } else { "1" }),
+      "moon",
+      "--target-dir",
+      root + "/build",
+      "test",
+      source_package,
+      "--filter",
+      filter,
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-20-25-29-35-79-92",
+    ]).output(max_output_bytes=4194304)
+    retain(path, "export", exported)
+    if kind != "hyper_f32" {
+      @fs.write_file(
+        header,
+        extract(exported.stdout(), kind),
+        create_mode=CreateNew,
+      )
+    }
+    @fs.write_file(
+      path + "/probe.cu",
+      @fs.read_file(probe),
+      create_mode=CreateNew,
+    )
+    for file in [header, path + "/probe.cu"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ControlPath=" + socket,
+        file,
+        node + ":" + path + "/",
+      ])
+      .output()
+      .check()
+    }
+    let bounded = "systemd-run --user --wait --collect --pipe -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=600 "
+    retain(
+      path,
+      "compile",
+      remote(
+        bounded +
+        "/usr/local/cuda-13.0/bin/nvcc -O3 --fmad=false -Xcompiler=-ffp-contract=off -std=c++17 -arch=sm_121 " +
+        path +
+        "/probe.cu -o " +
+        path +
+        "/probe",
+      ),
+    )
+    let shapes = if kind == "hyper_f32" { [""] } else { ["0", "1", "2"] }
+    for ordinal, shape in shapes {
+      let arguments = path + "/probe " + shape
+      retain(path, "correctness-\{ordinal}", remote(bounded + arguments))
+      for tool in ["memcheck", "racecheck", "synccheck"] {
+        let leak = if tool == "memcheck" { " --leak-check full" } else { "" }
+        // Serial legacy recurrent kernel has no role in sanitizer admission.
+        let sanitizer_args = arguments +
+          (if kind == "recurrent" { " sanitize" } else { "" })
+        retain(
+          path,
+          tool + "-\{ordinal}",
+          remote(
+            bounded +
+            "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+            tool +
+            leak +
+            " --error-exitcode 86 " +
+            sanitizer_args,
+          ),
+        )
+      }
+      println(kind + " shape=" + shape + " correctness and sanitizers passed")
+    }
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "decoder fixture correctness, memory, leak, race and synchronization checks complete; not full-model quality\n",
+    create_mode=CreateNew,
+  )
+}

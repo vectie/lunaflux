@@ -426,7 +426,10 @@ async fn main {
     checkpoint: "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT",
     uuid: "GPU-5b603331-c778-d6ef-7ffa-7c6b774fe4a6",
   }
-  guard build.has_prefix("/tmp/lunaflux-checkpoint-build-dspark-") &&
+  guard (
+      build.has_prefix("/tmp/lunaflux-checkpoint-build-dspark-") ||
+      build.has_prefix("/tmp/lunaflux-checkpoint-build-deepseek-")
+    ) &&
     !build.contains("..") &&
     build.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
     commit.length() == 40 &&

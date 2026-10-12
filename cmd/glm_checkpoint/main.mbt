@@ -132,6 +132,7 @@ async fn main {
   let mode_valid = match (mode, tail.length()) {
     ("export", 1)
     | ("egress", 4)
+    | ("egress-logits", 5)
     | ("ingress", 7)
     | ("generate", 9)
     | ("generate-sequence", 9) => true
@@ -139,7 +140,7 @@ async fn main {
   }
   guard mode_valid else {
     fail(
-      "export OUTDIR | egress AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN | ingress AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT FRAME_COUNT OUTDIR | generate|generate-sequence AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT PREFILL_COUNT_OR_REQUEST_COUNT MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE OUTDIR",
+      "export OUTDIR | egress AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN | egress-logits AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN CAPTURE_DIR | ingress AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT FRAME_COUNT OUTDIR | generate|generate-sequence AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT PREFILL_COUNT_OR_REQUEST_COUNT MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE OUTDIR",
     )
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
@@ -179,7 +180,7 @@ async fn main {
         create_mode=CreateNew,
       )
     }
-    "egress" => run_egress(startup, root, tail)
+    "egress" | "egress-logits" => run_egress(startup, root, tail)
     "ingress" => run_ingress(startup, root, tail, generate=false)
     "generate" => run_ingress(startup, root, tail, generate=true, cancellation~)
     "generate-sequence" =>
