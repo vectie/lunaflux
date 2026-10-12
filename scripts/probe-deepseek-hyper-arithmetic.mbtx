@@ -51,16 +51,18 @@ async fn transfer(source : String, target : String) -> Unit {
 ///|
 fn routes() -> Array[String] {
   [
-    "production", "literal_mix", "literal_mix_direct", "literal_mix_affine_fma", "literal_mix_direct_affine_fma", "literal_inverse", "striped32", "striped32_fma",
+    "production", "literal_mix", "literal_mix_direct", "literal_mix_affine_fma",
+    "literal_mix_direct_affine_fma", "literal_inverse", "striped32", "striped32_fma",
     "refined", "striped32_literal_inverse", "striped32_fma_literal_inverse", "compensated_square",
-    "square256", "striped32_fma_compensated_square", "striped32_fma_square256",
-    "refined_direct", "refined_affine_fma", "refined_direct_affine_fma", "refined_rsqrt", "nonlinear", "vector_rms",
+    "square256", "striped32_fma_compensated_square", "striped32_fma_square256", "refined_direct",
+    "refined_affine_fma", "refined_direct_affine_fma", "refined_rsqrt", "nonlinear",
+    "vector_rms", "hierarchical",
   ]
 }
 
 ///|
 test "control probe isolates inverse and product/reduction order without changing reference" {
-  assert_eq(routes().length(), 21)
+  assert_eq(routes().length(), 22)
   assert_eq(routes()[0], "production")
   assert_eq(routes()[1], "literal_mix")
 }
@@ -228,12 +230,23 @@ async fn main {
       transfer(node + ":" + hyper + "/original/" + field + ".bf16", reference)
       for route in routes() {
         let target = frontend + "/" + route + "-" + field + ".bf16"
-        transfer(node + ":" + root + "/output/" + route + "-" + field + ".bf16", target)
-        record(frontend, route + "-" + field + "-comparison", @shell.Cmd("moon", [
-          "run", "scripts/compare-minimax-encoder-reference.mbtx", target, reference,
-          frontend + "/" + route + "-" + field + "-comparison.txt",
-          "matched_original_hyper_" + route + "_" + field, "4096",
-        ]).output())
+        transfer(
+          node + ":" + root + "/output/" + route + "-" + field + ".bf16",
+          target,
+        )
+        record(
+          frontend,
+          route + "-" + field + "-comparison",
+          @shell.Cmd("moon", [
+            "run",
+            "scripts/compare-minimax-encoder-reference.mbtx",
+            target,
+            reference,
+            frontend + "/" + route + "-" + field + "-comparison.txt",
+            "matched_original_hyper_" + route + "_" + field,
+            "4096",
+          ]).output(),
+        )
       }
     }
   } else if mode == "collect" {

@@ -15,6 +15,13 @@ test "vector RMS arithmetic reaches both envelopes and actual normalization thre
     accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
     control_square_law=VectorizedTreeFloat32(partitions=512, vector_width=4),
     control_root_law=ReciprocalSqrtFloat32,
+    control_dot_law=GroupedVectorFloat32(
+      groups=18,
+      partitions=128,
+      vector_width=2,
+      publication_partitions=4,
+      multiply_add=FusedMultiplyAdd,
+    ),
     normalization_square_law=VectorizedTreeFloat32(
       partitions=512,
       vector_width=4,
@@ -23,6 +30,8 @@ test "vector RMS arithmetic reaches both envelopes and actual normalization thre
   defer selected.close()
   let text = @utf8.decode(selected.source_bytes())
   assert_eq(text.split("float square_vectors[2048]").count(), 9)
+  assert_eq(text.split("float dot_vectors[4608]").count(), 9)
+  assert_eq(text.split("float dot_publication[4]").count(), 9)
   assert_eq(text.split("blockDim.x != 512").count(), 9)
   assert_eq(
     text

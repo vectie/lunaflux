@@ -1,4 +1,40 @@
 ///|
+test "grouped control source consumes both reduction levels and FMA law" {
+  let arithmetic_laws : Array[@precision.Float32AffineLaw] = [
+    SeparateMultiplyAdd,
+    FusedMultiplyAdd,
+  ]
+  for arithmetic in arithmetic_laws {
+    let source = @decoder_hyper_connection_cuda_source.staged_function_and_collapse_bf16_f32_source(
+      stream_width=4,
+      hidden_width=4096,
+      maximum_rows=1,
+      control_epsilon=0.000001,
+      normalization_epsilon=0.000001,
+      function_symbol="grouped_control",
+      control_law=F32ProjectionThenNormalize,
+      control_dot_law=GroupedVectorFloat32(
+        groups=18,
+        partitions=128,
+        vector_width=2,
+        publication_partitions=4,
+        multiply_add=arithmetic,
+      ),
+    )
+    let text = @utf8.decode(source.source_bytes())
+    assert_true(text.contains("float dot_vectors[4608]"))
+    assert_true(text.contains("float dot_publication[4]"))
+    assert_true(text.contains("span = 64"))
+    assert_true(text.contains("q = g % 4"))
+    assert_eq(
+      text.contains("__fmaf_rn(operand, weight"),
+      arithmetic is FusedMultiplyAdd,
+    )
+    assert_true(text.contains("mixes[output] = __fmul_rn(dot, inverse)"))
+  }
+}
+
+///|
 test "refined control source reports both semantic reduction laws" {
   let source = @decoder_hyper_connection_cuda_source.staged_function_and_collapse_bf16_f32_source(
     stream_width=4,

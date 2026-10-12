@@ -51,6 +51,7 @@ int main(int argc,char **argv) {
   RUN(hc_refined_function,"refined");
   RUN(hc_nonlinear_function,"nonlinear");
   RUN_NORM(hc_vector_rms_function,hc_vector_rms_norm,512,"vector_rms");
+  RUN_NORM(hc_hierarchical_function,hc_hierarchical_norm,512,"hierarchical");
   RUN(hc_refined_direct_function,"refined_direct");
   RUN(hc_refined_affine_fma_function,"refined_affine_fma");
   RUN(hc_refined_direct_affine_fma_function,"refined_direct_affine_fma");

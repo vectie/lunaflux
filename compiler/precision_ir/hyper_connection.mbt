@@ -90,7 +90,7 @@ pub fn HyperConnectionPrecision::new(
   normalization_square_law.validate()
   let streams = stream_count.to_int64()
   let hidden = hidden_width.to_int64()
-  if control_dot_law is StripedTreeFloat32(_) {
+  if control_dot_law is (StripedTreeFloat32(_) | GroupedVectorFloat32(..)) {
     let flattened = expert_checked_mul(streams, hidden)
     guard flattened <= 2147483647L else { raise IllegalPlacement }
     control_dot_law.validate(flattened.to_int())

@@ -1,0 +1,282 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+let node : String = "wlc004s@192.168.2.179"
+
+///|
+let socket : String = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, node, command]).output(
+    max_output_bytes=2097152,
+  )
+}
+
+///|
+async fn record(root : String, label : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + label + ".stdout",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + label + ".stderr",
+    result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn transfer(source : String, target : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    target,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn routes() -> Array[String] {
+  let result = []
+  for p in [4, 8, 16, 32, 64, 128, 256, 512] {
+    for v in [1, 2, 4, 8] {
+      for arithmetic in ["separate", "fma"] {
+        result.push("p\{p}-v\{v}-\{arithmetic}")
+      }
+    }
+  }
+  for arithmetic in ["separate", "fma"] {
+    for publication in ["tree32", "striped4"] {
+      result.push("hierarchical-s18-v2-\{arithmetic}-\{publication}")
+    }
+  }
+  for (splits, width) in [(16, 2), (24, 2), (18, 1), (18, 4)] {
+    result.push("hierarchical-s\{splits}-v\{width}-fma-striped4")
+  }
+  result.push("cublas-gemv-pedantic")
+  result.push("cublas-gemm-pedantic")
+  result
+}
+
+///|
+test "dot probe separates partition, vector and accumulation order" {
+  assert_eq(routes().length(), 74)
+  assert_eq(routes()[0], "p4-v1-separate")
+  assert_eq(routes()[63], "p512-v8-fma")
+  assert_eq(routes()[67], "hierarchical-s18-v2-fma-striped4")
+  assert_eq(routes()[72], "cublas-gemv-pedantic")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, root, .. extra] &&
+    root.has_prefix("/tmp/lunaflux-deepseek-control-dot-") else {
+    fail(
+      "prepare NEW_ROOT ORIGINAL_HYPER_ROOT | run|sanitize|profile|collect ROOT",
+    )
+  }
+  let tag = root[5:].to_owned()
+  if mode == "prepare" {
+    guard extra is [hyper] else { fail("actual original hyper root required") }
+    @fs.mkdir(root)
+    @fs.write_file(root + "/HYPER_ROOT.txt", hyper, create_mode=CreateNew)
+    record(root, "mkdir", remote("mkdir " + root))
+    transfer(
+      "tests/packed_moe_execution/control_dot_arithmetic_probe.cu",
+      node + ":" + root + "/dot-probe.cu",
+    )
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --working-directory=" +
+        root +
+        " /usr/local/cuda-13.0/bin/nvcc -O3 -std=c++17 -arch=sm_121 dot-probe.cu -lcublas -o dot-probe",
+      ),
+    )
+  } else if mode == "collect-profile" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    @fs.mkdir(root + "/profile-admin")
+    transfer(
+      node + ":" + root + "/profile-admin/control.ncu-rep",
+      root + "/profile-admin/control.ncu-rep",
+    )
+  } else if mode == "profile-source" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    record(
+      root,
+      mode,
+      remote(
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu --import " +
+        root +
+        "/profile-admin/control.ncu-rep --page source --print-source sass",
+      ),
+    )
+  } else if mode == "profile" ||
+    mode == "profile-kernels" ||
+    mode == "profile-launch" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU probes")
+    }
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    record(root, mode + "-mkdir", remote("mkdir " + root + "/" + mode))
+    record(
+      root,
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-" +
+        mode +
+        " --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 /opt/nvidia/nsight-compute/2025.3.1/ncu --kernel-name regex:" +
+        (if mode == "profile" {
+          "gemv --launch-count 1"
+        } else {
+          "kernel --launch-count 2"
+        }) +
+        " --section LaunchStats " +
+        (if mode == "profile-launch" {
+          ""
+        } else {
+          "--section SourceCounters --section InstructionStats "
+        }) +
+        "--export " +
+        root +
+        "/" +
+        mode +
+        "/control --page source --print-source sass " +
+        root +
+        "/dot-probe " +
+        hyper +
+        "/original " +
+        root +
+        "/" +
+        mode,
+      ),
+    )
+    record(
+      root,
+      mode + "-released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "run" || mode == "sanitize" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("serialize GPU probes")
+    }
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    for
+      tool in (if mode == "run" {
+        ["output"]
+      } else {
+        ["memcheck", "racecheck", "synccheck"]
+      }) {
+      record(root, tool + "-mkdir", remote("mkdir " + root + "/" + tool))
+      record(
+        root,
+        tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-" +
+          tool +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 " +
+          (if tool == "output" {
+            ""
+          } else {
+            "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 7 --tool " +
+            tool +
+            (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+            " "
+          }) +
+          root +
+          "/dot-probe " +
+          hyper +
+          "/original " +
+          root +
+          "/" +
+          tool +
+          (if tool == "racecheck" || tool == "synccheck" {
+            " --rows 1 --native-only"
+          } else {
+            ""
+          }),
+        ),
+      )
+    }
+    record(
+      root,
+      mode + "-released",
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
+    )
+  } else if mode == "collect" {
+    guard extra.is_empty() else { fail("unexpected arguments") }
+    @fs.mkdir(root + "/output")
+    @fs.mkdir(root + "/reference")
+    let hyper = @fs.read_file(root + "/HYPER_ROOT.txt").text()
+    for field in ["mixes", "rsqrt"] {
+      transfer(
+        node + ":" + hyper + "/original/" + field + ".f32",
+        root + "/reference/" + field + ".f32",
+      )
+    }
+    transfer(
+      node + ":" + root + "/output/computed-rsqrt.f32",
+      root + "/output/computed-rsqrt.f32",
+    )
+    record(
+      root,
+      "computed-rsqrt-comparison",
+      @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-f32-tensors.mbtx",
+        root + "/output/computed-rsqrt.f32",
+        root + "/reference/rsqrt.f32",
+        root + "/computed-rsqrt-comparison.txt",
+        "independent_computed_rms_inverse",
+      ]).output(),
+    )
+    for route in routes() {
+      let target = root + "/output/" + route + ".f32"
+      transfer(node + ":" + target, target)
+      record(
+        root,
+        route + "-comparison",
+        @shell.Cmd("moon", [
+          "run",
+          "scripts/compare-f32-tensors.mbtx",
+          target,
+          root + "/reference/mixes.f32",
+          root + "/" + route + "-comparison.txt",
+          "matched_original_control_dot_" + route,
+        ]).output(),
+      )
+    }
+  } else {
+    fail("unknown mode")
+  }
+}

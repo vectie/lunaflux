@@ -8,7 +8,7 @@ pub fn dot_accumulator_source(
   accumulator~ : String,
 ) -> (String, String, String) raise @precision.PrecisionPlanError {
   match law {
-    StripedTreeFloat32(_) =>
+    StripedTreeFloat32(_) | GroupedVectorFloat32(..) =>
       raise @precision.PrecisionPlanError::NoImplementation
     OrderedFloat32 =>
       (

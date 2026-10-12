@@ -75,5 +75,36 @@ fn control_dot_source(
         "for (int span = \{partitions / 2}; span > 0; span >>= 1) for (int p = 0; p < span; ++p) dot_partials[p] = __fadd_rn(dot_partials[p], dot_partials[p + span]); dot = dot_partials[0];",
       )
     }
+    GroupedVectorFloat32(
+      groups~,
+      partitions~,
+      vector_width~,
+      publication_partitions~,
+      multiply_add~
+    ) => {
+      guard groups > 0 &&
+        groups <= 64 &&
+        partitions > 0 &&
+        partitions <= 1024 &&
+        (partitions & (partitions - 1)) == 0 &&
+        vector_width > 0 &&
+        vector_width <= 4 &&
+        (vector_width & (vector_width - 1)) == 0 &&
+        publication_partitions > 0 &&
+        publication_partitions <= groups &&
+        groups * partitions * vector_width <= 65536 else {
+        raise InvalidNumericalContract
+      }
+      let update = match multiply_add {
+        SeparateMultiplyAdd =>
+          "__fadd_rn(dot_vectors[slot], __fmul_rn(\{operand}, weight))"
+        FusedMultiplyAdd => "__fmaf_rn(\{operand}, weight, dot_vectors[slot])"
+      }
+      (
+        "float dot = 0.0f; float dot_vectors[\{groups * partitions * vector_width}] = {}; float dot_publication[\{publication_partitions}] = {};",
+        "const int slot = column % \{groups * partitions * vector_width}; dot_vectors[slot] = \{update};",
+        "for (int g = 0; g < \{groups}; ++g) { const int base = g * \{partitions * vector_width}; for (int p = 0; p < \{partitions}; ++p) for (int v = 1; v < \{vector_width}; ++v) dot_vectors[base + p * \{vector_width}] = __fadd_rn(dot_vectors[base + p * \{vector_width}], dot_vectors[base + p * \{vector_width} + v]); for (int span = \{partitions / 2}; span > 0; span >>= 1) for (int p = 0; p < span; ++p) dot_vectors[base + p * \{vector_width}] = __fadd_rn(dot_vectors[base + p * \{vector_width}], dot_vectors[base + (p + span) * \{vector_width}]); const int q = g % \{publication_partitions}; dot_publication[q] = __fadd_rn(dot_publication[q], dot_vectors[base]); } for (int q = 0; q < \{publication_partitions}; ++q) dot = __fadd_rn(dot, dot_publication[q]);",
+      )
+    }
   }
 }

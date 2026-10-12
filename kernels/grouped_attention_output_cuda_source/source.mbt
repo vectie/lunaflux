@@ -43,7 +43,8 @@ fn grouped_dot_source(
 ) -> String raise {
   let (groups, input, rank, rows) = plan.geometry()
   match plan.accumulation() {
-    CompensatedFloat32 => raise @precision.PrecisionPlanError::NoImplementation
+    CompensatedFloat32 | GroupedVectorFloat32(..) =>
+      raise @precision.PrecisionPlanError::NoImplementation
     StripedTreeFloat32(partitions~) =>
       striped_dot_source(plan, symbol, partitions)
     OrderedFloat32 =>
@@ -100,7 +101,7 @@ pub fn GroupedAttentionOutputCudaSource::launch(
     0 => (rows, heads, 256)
     1 =>
       match self.plan.accumulation() {
-        CompensatedFloat32 => (rows, groups, 256) // Unreachable: source factory rejects this law.
+        CompensatedFloat32 | GroupedVectorFloat32(..) => (rows, groups, 256) // Unreachable: source factory rejects this law.
         OrderedFloat32 => (rows, groups, 256)
         StripedTreeFloat32(partitions~) => {
           let (_, _, rank, _) = self.plan.geometry()

@@ -28,6 +28,13 @@ uses Neumaier compensation and preserves nonfinite/overflow propagation rather
 than manufacturing finite outputs. Physical component probes check the actual
 generated dense and staged-MLP source against an independent F64 oracle.
 
+`GroupedVectorFloat32` retains an explicit two-level dot order: group/partition/
+component ownership, separate or fused multiply-add rounding, descending local
+trees, and ordered publication stripes. These are numerical semantics, not CUDA
+launch dimensions. Parameter choices are explicit per numerical alternative;
+there is no universal group-count constant or vendor reference in model plans.
+An unsupported lowering rejects the law rather than silently changing it.
+
 `StripedTreeFloat32(partitions)` adds an exact summation-order choice to that
 same `DotReductionLaw`, not another numerical-policy layer. Partition p sums
 p,p+P,... and a fixed upper-half/lower-half tree joins the partials. The grouped

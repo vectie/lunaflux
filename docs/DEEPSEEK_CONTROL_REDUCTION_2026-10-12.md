@@ -386,3 +386,60 @@ repeating RMS experiments or blaming layout/cache ownership. Branch weighted
 RMS is exact on identical original collapsed input; upstream collapsed-input
 differences remain. Full-model 18–21% drift and MiniMax correctness/quality are
 still open; ordinary serving stays unchanged.
+
+## Control dot: two reduction levels, not another RMS defect
+
+On the same original layer-3 streams and F32 function weights, a fresh offline
+probe computes its own RMS inverse (144/144 bitwise) and compares 64 single-level
+dot orders. None matches every original mix. Pedantic cuBLAS GEMV and GEMM
+controls match **3,456/3,456 F32 mixes bitwise**; they are diagnostic controls,
+not references, production dependencies or substituted model outputs.
+
+The selected vendor execution was captured with the previously authorized
+administrator access, in a 4-GiB/no-swap user unit. It uses a **two-stage dot**:
+18 groups × 128 partitions per output; each partition retains two independent
+FMA accumulators. Group totals reduce by descending halves. The second kernel
+adds group totals in four ordered stripes, then joins the four stripes in order.
+Selected launch is `(18,1,24)×(128,1,1)`, followed by `(1,1,24)×(128,1,1)`.
+The SASS and source-correlated instruction counts corroborate the independent
+accumulators, FMA updates and both reduction levels. This is arithmetic order,
+not a throughput claim or a general recommendation to increase launch count.
+
+| Native probe on identical original operands | Exact mixes / 3,456 | Relative L2 (%) |
+| --- | ---: | ---: |
+| Previous stripe-32 separate products | 1,007 | 0.000010158 |
+| Two-level 18×128, two components, FMA, four-stripe publication | **3,456** | **0** |
+| Same groups/components/FMA, tree-32 publication instead | 2,085 | 0.000006347 |
+| Same groups/components/publication, separate products instead | 2,202 | 0.000004699 |
+| Sixteen groups instead of eighteen | 1,673 | 0.000007490 |
+
+Roots `/tmp/lunaflux-deepseek-control-dot-20261012-v1`–`v3`. Captured report:
+`v2/profile-admin/control.ncu-rep`; imported SASS `v2/profile-source.stdout`.
+All 74 routes pass full-144-row memcheck/leak. Native 72-route racecheck and
+synccheck pass on **one row**, not all 144; the original full-row race attempt
+hit its enforced 2-GiB cap and remains preserved as `v1/racecheck.stderr`.
+Unprivileged profiler attempts failed with `ERR_NVGPUCTRPERM`; no machine-wide
+driver setting or memory cap was changed. All probe owners have retired.
+
+The implementation expresses this as `DotReductionLaw::GroupedVectorFloat32`:
+immutable group/component ownership, explicit multiply-add rounding, local
+tree and publication order. It contains no vendor/model names or CUDA thread
+semantics. Private control lowering consumes the law; lowerings without this
+arithmetic reject it instead of silently reverting. The diagnostic replay
+mode selects the observed parameters explicitly, never as a universal/default
+policy. Actual generated-source controls and complete-layer propagation must
+still verify before claiming the control/frontend discrepancy is fixed.
+
+Actual generated-source `v9` now confirms the control/frontend boundary on all
+144 literal original layer-3 predecessors: **3,456/3,456 mixes**, **144/144 RMS
+inverses**, **576/576 post controls**, **589,824/589,824 collapsed BF16** and
+**589,824/589,824 weighted-normalized BF16** are bitwise exact. This is native
+generated arithmetic, not the vendor control or literal-mix intervention.
+Sinkhorn combination is still only 501/2,304 F32 exact, relative L2
+0.000006108%; residual publication can therefore still differ. All 22 actual
+source routes pass full-144-row memcheck/leak, racecheck and synccheck with zero
+reports, 2-GiB/no-swap and released CUDA. Default source remains independently
+byte-identical. Warning-denied native check and 122 affected native tests pass;
+the eight attention/FFN envelopes across window/compressed layers consume the
+new grouped dot law in the source regression. Runner tests 4/4 pass. Complete
+layers and full-model drift remain separate, pending checks.
