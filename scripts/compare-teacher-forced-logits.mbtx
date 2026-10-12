@@ -1,0 +1,575 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/math",
+  "moonbitlang/core/string",
+}
+
+///|
+struct Case {
+  id : String
+  tokens : Array[Int]
+  first_position : Int
+  logits : Array[String]
+}
+
+///|
+struct Capture {
+  metadata : Json
+  vocabulary : Int
+  cases : Array[Case]
+}
+
+///|
+struct Metrics {
+  left_top1 : Int
+  right_top1 : Int
+  top1_agrees : Bool
+  topk_overlap : Double
+  left_margin : Double
+  right_margin : Double
+  left_gap_to_right_winner : Double
+  right_gap_to_left_winner : Double
+  js_nats : Double
+  kl_left_right_nats : Double
+  kl_right_left_nats : Double
+  total_variation : Double
+  left_target_nll : Double
+  right_target_nll : Double
+  target_nll_delta_left_minus_right : Double
+  left_entropy_nats : Double
+  right_entropy_nats : Double
+} derive(ToJson)
+
+///|
+fn field(j : Json, key : String) -> Json raise {
+  guard j is Object(m) && m.get(key) is Some(v) else {
+    fail("missing field: \{key}")
+  }
+  v
+}
+
+///|
+fn text(j : Json) -> String raise {
+  guard j is String(s) && !s.is_empty() else { fail("nonempty text required") }
+  s
+}
+
+///|
+fn integer(j : Json) -> Int raise {
+  guard j is Number(n, ..) &&
+    n >= 0.0 &&
+    n <= 2147483647.0 &&
+    n.to_int().to_double() == n else {
+    fail("nonnegative integer required")
+  }
+  n.to_int()
+}
+
+///|
+fn capture(j : Json) -> Capture raise {
+  guard field(j, "schema") == Json("lunaflux-teacher-forced-v1") &&
+    field(j, "logit_semantics") == Json("raw-model-full-vocabulary") else {
+    fail("raw complete vocabulary teacher-forced capture required")
+  }
+  let metadata : Map[String, Json] = Map([])
+  for
+    key in [
+      "implementation", "checkpoint", "tokenizer", "configuration", "state_policy",
+    ] {
+    metadata[key] = Json(text(field(j, key)))
+  }
+  let vocabulary = integer(field(j, "vocabulary"))
+  guard vocabulary >= 2 &&
+    vocabulary <= 1000000 &&
+    field(j, "cases") is Array(cases) &&
+    !cases.is_empty() else {
+    fail("vocabulary/case extent")
+  }
+  let ids : Map[String, Bool] = Map([])
+  let cases = cases.map(c => {
+    let id = text(field(c, "id"))
+    guard !ids.contains(id) &&
+      field(c, "tokens") is Array(tokens) &&
+      field(c, "logits") is Array(paths) else {
+      fail("duplicate case or missing rows")
+    }
+    ids[id] = true
+    let tokens = tokens.map(integer)
+    guard tokens.length() >= 2 && tokens.all(t => t < vocabulary) else {
+      fail("literal token IDs outside vocabulary or missing next token")
+    }
+    let first_position = integer(field(c, "first_position"))
+    let logits = paths.map(text)
+    guard !logits.is_empty() &&
+      first_position < tokens.length() - 1 &&
+      logits.length() <= tokens.length() - 1 - first_position &&
+      logits.all(p => p.has_prefix("/")) else {
+      fail("invalid scored interval or row path")
+    }
+    Case::{ id, tokens, first_position, logits, }
+  })
+  { metadata: Json(metadata), vocabulary, cases, }
+}
+
+///|
+fn aligned(a : Capture, b : Capture) -> Unit raise {
+  guard a.vocabulary == b.vocabulary && a.cases.length() == b.cases.length() else {
+    fail("vocabulary or case coverage differs")
+  }
+  for key in ["checkpoint", "tokenizer", "state_policy"] {
+    guard field(a.metadata, key) == field(b.metadata, key) else {
+      fail("different declared \{key}")
+    }
+  }
+  for i in 0..<a.cases.length() {
+    let x = a.cases[i]
+    let y = b.cases[i]
+    guard x.id == y.id &&
+      x.tokens == y.tokens &&
+      x.first_position == y.first_position &&
+      x.logits.length() == y.logits.length() else {
+      fail(
+        "different literal teacher-forced sequence/position/coverage at case \{i}",
+      )
+    }
+  }
+}
+
+///|
+fn decode(bytes : BytesView, width : Int) -> Array[Double] raise {
+  guard width >= 2 && width <= 1000000 && bytes.length() == width * 4 else {
+    fail("expected exactly one complete F32 vocabulary row")
+  }
+  [
+    for i in 0..<width => {
+      let o = i * 4
+      let bits = bytes[o].to_uint() |
+        (bytes[o + 1].to_uint() << 8) |
+        (bytes[o + 2].to_uint() << 16) |
+        (bytes[o + 3].to_uint() << 24)
+      let v = Float::reinterpret_from_uint(bits).to_double()
+      guard !v.is_nan() && !v.is_inf() else { fail("nonfinite raw logit") }
+      v
+    }
+  ]
+}
+
+///|
+async fn read_row(path : String, width : Int) -> Array[Double] {
+  let f = @fs.open(path, mode=ReadOnly)
+  defer f.close()
+  guard f.size() == width.to_int64() * 4L else {
+    fail("not a complete single row: \{path}")
+  }
+  decode(f.read_exactly(width * 4), width)
+}
+
+///|
+fn top(scores : ArrayView[Double], k : Int) -> Array[Int] {
+  let ids : Array[Int] = []
+  for i in 0..<scores.length() {
+    let at = for j in 0..<ids.length() {
+      if scores[i] > scores[ids[j]] {
+        break j
+      }
+    } nobreak {
+      ids.length()
+    }
+    if at < k {
+      ids.insert(at, i)
+      if ids.length() > k {
+        ignore(ids.pop())
+      }
+    }
+  }
+  ids
+}
+
+///|
+fn log_probabilities(scores : ArrayView[Double]) -> Array[Double] {
+  let maximum = scores.fold(init=scores[0], (a, b) => a.max(b))
+  let centered = scores.map(s => s - maximum)
+  let log_sum = @math.ln(centered.fold(init=0.0, (a, b) => a + @math.exp(b)))
+  centered.map(s => s - log_sum)
+}
+
+///|
+fn compare(
+  a : ArrayView[Double],
+  b : ArrayView[Double],
+  target : Int,
+  k : Int,
+) -> Metrics raise {
+  guard a.length() >= 2 &&
+    a.length() == b.length() &&
+    target >= 0 &&
+    target < a.length() &&
+    k >= 1 &&
+    k <= a.length() &&
+    k <= 128 &&
+    a.all(x => !x.is_nan() && !x.is_inf() && x.abs() <= 3.4028234663852886e38) &&
+    b.all(x => !x.is_nan() && !x.is_inf() && x.abs() <= 3.4028234663852886e38) else {
+    fail("invalid finite F32 row, target, or top-k")
+  }
+  let ta = top(a, k.max(2))
+  let tb = top(b, k.max(2))
+  let la = log_probabilities(a)
+  let lb = log_probabilities(b)
+  let (js, ab, ba, tv, ha, hb) = for
+    i in 0..<a.length()
+    js = 0.0, ab = 0.0, ba = 0.0, tv = 0.0, ha = 0.0, hb = 0.0 {
+    let p = @math.exp(la[i])
+    let q = @math.exp(lb[i])
+    // Log-space mixture ratios avoid subtracting large common offsets in tails.
+    let d = lb[i] - la[i]
+    let shared = @math.ln(2.0) - @math.ln_1p(@math.exp(-d.abs()))
+    continue js +
+      0.5 * (p * (shared - d.max(0.0)) + q * (shared - (-d).max(0.0))),
+      ab + p * (la[i] - lb[i]),
+      ba + q * (lb[i] - la[i]),
+      tv + 0.5 * (p - q).abs(),
+      ha - p * la[i],
+      hb - q * lb[i]
+  } nobreak {
+    (js, ab, ba, tv, ha, hb)
+  }
+  let overlap = ta[:k].fold(init=0, (n, id) => {
+    n + (if tb[:k].contains(id) { 1 } else { 0 })
+  })
+  {
+    left_top1: ta[0],
+    right_top1: tb[0],
+    top1_agrees: ta[0] == tb[0],
+    topk_overlap: overlap.to_double() / k.to_double(),
+    left_margin: a[ta[0]] - a[ta[1]],
+    right_margin: b[tb[0]] - b[tb[1]],
+    left_gap_to_right_winner: a[ta[0]] - a[tb[0]],
+    right_gap_to_left_winner: b[tb[0]] - b[ta[0]],
+    js_nats: js,
+    kl_left_right_nats: ab,
+    kl_right_left_nats: ba,
+    total_variation: tv,
+    left_target_nll: -la[target],
+    right_target_nll: -lb[target],
+    target_nll_delta_left_minus_right: lb[target] - la[target],
+    left_entropy_nats: ha,
+    right_entropy_nats: hb,
+  }
+}
+
+///|
+fn summary(rows : ArrayView[Metrics]) -> Json {
+  let n = rows.length().to_double()
+  let mean = fn(f : (Metrics) -> Double) {
+    rows.fold(init=0.0, (s, r) => s + f(r)) / n
+  }
+  {
+    "positions": rows.length(),
+    "mean_js_nats": mean(r => r.js_nats),
+    "maximum_js_nats": rows.fold(init=0.0, (s, r) => s.max(r.js_nats)),
+    "mean_total_variation": mean(r => r.total_variation),
+    "top1_agreement": mean(r => if r.top1_agrees { 1.0 } else { 0.0 }),
+    "mean_topk_overlap": mean(r => r.topk_overlap),
+    "mean_left_target_nll": mean(r => r.left_target_nll),
+    "mean_right_target_nll": mean(r => r.right_target_nll),
+    "mean_target_nll_delta_left_minus_right": mean(r => {
+      r.target_nll_delta_left_minus_right
+    }),
+  }
+}
+
+///|
+fn macro_summary(cases : ArrayView[Json]) -> Json raise {
+  let means : Map[String, Json] = Map([])
+  for
+    key in [
+      "mean_js_nats", "mean_total_variation", "top1_agreement", "mean_topk_overlap",
+      "mean_left_target_nll", "mean_right_target_nll", "mean_target_nll_delta_left_minus_right",
+    ] {
+    let sum = for c in cases; s = 0.0 {
+      guard field(c, key) is Number(x, ..) else {
+        fail("internal summary metric")
+      }
+      continue s + x
+    } nobreak {
+      s
+    }
+    means[key] = Json(sum / cases.length().to_double())
+  }
+  Json(means)
+}
+
+///|
+async fn run(left : Capture, right : Capture, k : Int) -> Json {
+  aligned(left, right)
+  guard k >= 1 && k <= left.vocabulary && k <= 128 else {
+    fail("top-k outside 1..min(vocabulary,128)")
+  }
+  let cases : Array[Json] = []
+  let case_summaries : Array[Json] = []
+  let all_rows : Array[Metrics] = []
+  for i in 0..<left.cases.length() {
+    let a = left.cases[i]
+    let b = right.cases[i]
+    let metrics : Array[Metrics] = []
+    let positions : Array[Json] = []
+    for j in 0..<a.logits.length() {
+      let position = a.first_position + j
+      let target = a.tokens[position + 1]
+      let m = compare(
+        read_row(a.logits[j], left.vocabulary),
+        read_row(b.logits[j], right.vocabulary),
+        target,
+        k,
+      )
+      metrics.push(m)
+      all_rows.push(m)
+      positions.push({
+        "position": position,
+        "target": target,
+        "left_logits": a.logits[j],
+        "right_logits": b.logits[j],
+        "metrics": ToJson::to_json(m),
+      })
+    }
+    let s = summary(metrics)
+    case_summaries.push(s)
+    cases.push({
+      "id": a.id,
+      "input_tokens": a.tokens.length(),
+      "first_position": a.first_position,
+      "all_next_token_positions_scored": a.first_position == 0 &&
+      a.logits.length() == a.tokens.length() - 1,
+      "summary": s,
+      "positions": positions,
+    })
+  }
+  {
+    "schema": "lunaflux-prediction-comparison-v1",
+    "left": left.metadata,
+    "right": right.metadata,
+    "vocabulary": left.vocabulary,
+    "topk": k,
+    "scope": "matched_teacher_forced_prediction_difference_not_task_quality_or_equivalence",
+    "acceptance": "not_assessed",
+    "temperature": 1,
+    "log_units": "nats",
+    "token_weighted": summary(all_rows),
+    "case_balanced": macro_summary(case_summaries),
+    "cases": cases,
+  }
+}
+
+///|
+test "identity and constant logit shifts preserve probabilities" {
+  let m = compare([1.0, 2.0, 0.0], [1001.0, 1002.0, 1000.0], 2, 2)
+  assert_eq(m.total_variation, 0.0)
+  assert_true(m.js_nats.abs() < 1.0e-14)
+  assert_eq(m.kl_left_right_nats, 0.0)
+  assert_eq(m.target_nll_delta_left_minus_right, 0.0)
+  assert_eq(m.top1_agrees, true)
+  assert_eq(m.topk_overlap, 1.0)
+}
+
+///|
+test "analytic distributions verify direction units margins and target loss" {
+  let m = compare(
+    [@math.ln(0.75), @math.ln(0.25)],
+    [@math.ln(0.25), @math.ln(0.75)],
+    0,
+    1,
+  )
+  assert_true((m.total_variation - 0.5).abs() < 1.0e-14)
+  assert_true((m.kl_left_right_nats - 0.5 * @math.ln(3.0)).abs() < 1.0e-14)
+  assert_true(
+    (m.js_nats - (0.75 * @math.ln(1.5) + 0.25 * @math.ln(0.5))).abs() < 1.0e-14,
+  )
+  assert_true(
+    (m.target_nll_delta_left_minus_right + @math.ln(3.0)).abs() < 1.0e-14,
+  )
+  assert_eq(m.top1_agrees, false)
+  assert_eq(m.topk_overlap, 0.0)
+  assert_true((m.left_margin - @math.ln(3.0)).abs() < 1.0e-14)
+}
+
+///|
+test "large logits and underflow tails do not require a probability floor" {
+  let m = compare([1000.0, -1000.0], [-1000.0, 1000.0], 1, 2)
+  assert_true((m.js_nats - @math.ln(2.0)).abs() < 1.0e-14)
+  assert_eq(m.kl_left_right_nats, 2000.0)
+  assert_eq(m.total_variation, 1.0)
+  assert_eq(m.left_target_nll, 2000.0)
+  assert_eq(m.right_target_nll, 0.0)
+}
+
+///|
+test "ties use lower token IDs without interpreting tiny-margin flips as quality failure" {
+  let tie = compare([0.0, 0.0, -1.0], [0.0, 0.0, -1.0], 0, 1)
+  assert_eq(tie.left_top1, 0)
+  assert_eq(tie.left_margin, 0.0)
+  let flip = compare([0.000001, 0.0], [0.0, 0.000001], 0, 1)
+  assert_eq(flip.top1_agrees, false)
+  assert_true(flip.total_variation < 0.000001)
+}
+
+///|
+fn fixture(
+  tokens : Json,
+  first : Int,
+  logit? : String = "/not-read.f32",
+) -> Json {
+  {
+    "schema": "lunaflux-teacher-forced-v1",
+    "implementation": "synthetic-test",
+    "checkpoint": "test-only",
+    "tokenizer": "test-only",
+    "configuration": "test-only",
+    "state_policy": "fresh causal",
+    "logit_semantics": "raw-model-full-vocabulary",
+    "vocabulary": 3,
+    "cases": [
+      {
+        "id": "case",
+        "tokens": tokens,
+        "first_position": first,
+        "logits": [logit],
+      },
+    ],
+  }
+}
+
+///|
+test "alignment rejects changed prefixes and off-by-one row mapping" {
+  let a = capture(fixture(Json([0, 1, 2]), 0))
+  aligned(a, a)
+  for
+    b in [
+      capture(fixture(Json([0, 2, 1]), 0)),
+      capture(fixture(Json([0, 1, 2]), 1)),
+    ] {
+    try aligned(a, b) catch {
+      _ => ()
+    } noraise {
+      _ => fail("unaligned comparison accepted")
+    }
+  }
+  for j in [fixture(Json([0, 3]), 0), fixture(Json([0, 1]), 1)] {
+    try capture(j) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid coverage accepted")
+    }
+  }
+}
+
+///|
+test "complete finite rows required no NaN infinity or truncated vocabulary" {
+  assert_eq(decode(b"\x00\x00\x80\x3f\x00\x00\x00\x40", 2), [1.0, 2.0])
+  for
+    bytes in [
+      b"", b"\x00\x00\x80\x7f\x00\x00\x00\x00", b"\x00\x00\xc0\x7f\x00\x00\x00\x00",
+    ] {
+    try decode(bytes, 2) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid raw logits accepted")
+    }
+  }
+}
+
+///|
+test "case balancing differs from token weighting" {
+  let equal = compare([0.0, 1.0], [0.0, 1.0], 0, 1)
+  let different = compare([0.0, 1.0], [1.0, 0.0], 0, 1)
+  let micro = summary([equal, equal, equal, different])
+  let balanced = macro_summary([
+    summary([equal, equal, equal]),
+    summary([different]),
+  ])
+  assert_eq(field(micro, "top1_agreement"), Json(0.75))
+  assert_eq(field(balanced, "top1_agreement"), Json(0.5))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, left, right, output, k] else {
+    fail("LEFT_CAPTURE.json RIGHT_CAPTURE.json NEW_REPORT.json TOP_K")
+  }
+  write_report(left, right, output, @string.parse_int(k))
+  println(
+    "Wrote descriptive prediction comparison to \{output}; task quality not assessed.",
+  )
+}
+
+///|
+async fn write_report(
+  left : String,
+  right : String,
+  output : String,
+  k : Int,
+) -> Unit {
+  let a = capture(@json.parse(@fs.read_file(left).text()))
+  let b = capture(@json.parse(@fs.read_file(right).text()))
+  let report = run(a, b, k)
+  @fs.write_file(
+    output,
+    report.stringify(indent=2) + "\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "directional KL is not assumed symmetric" {
+  let a = [@math.ln(0.9), @math.ln(0.1)]
+  let b = [@math.ln(0.5), @math.ln(0.5)]
+  let x = compare(a, b, 0, 2)
+  let y = compare(b, a, 0, 2)
+  assert_true((x.js_nats - y.js_nats).abs() < 1.0e-14)
+  assert_true((x.kl_left_right_nats - y.kl_right_left_nats).abs() < 1.0e-14)
+  assert_true((x.kl_left_right_nats - x.kl_right_left_nats).abs() > 0.1)
+}
+
+///|
+async test "capture files to report preserve alignment and never replace a report" {
+  let root = @fs.tmpdir(prefix="lunaflux-prediction-comparison-test-")
+  let a = root + "/left.f32"
+  let b = root + "/right.f32"
+  @fs.write_file(
+    a,
+    b"\x00\x00\x00\x00\x00\x00\x80\x3f\x00\x00\x00\x40",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    b,
+    b"\x00\x00\x20\x41\x00\x00\x30\x41\x00\x00\x40\x41",
+    create_mode=CreateNew,
+  )
+  let left = root + "/left.json"
+  let right = root + "/right.json"
+  let output = root + "/report.json"
+  @fs.write_file(
+    left,
+    fixture(Json([0, 1, 2]), 0, logit=a).stringify(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    right,
+    fixture(Json([0, 1, 2]), 0, logit=b).stringify(),
+    create_mode=CreateNew,
+  )
+  write_report(left, right, output, 2)
+  let original = @fs.read_file(output).text()
+  let report = @json.parse(original)
+  assert_eq(field(field(report, "token_weighted"), "top1_agreement"), Json(1.0))
+  assert_eq(field(report, "acceptance"), Json("not_assessed"))
+  try write_report(left, right, output, 2) catch {
+    _ => ()
+  } noraise {
+    _ => fail("report overwritten")
+  }
+  assert_eq(@fs.read_file(output).text(), original)
+}

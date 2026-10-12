@@ -1110,3 +1110,33 @@ the preceding one-row proof; the new full-chain runs are deterministic numeric
 replays, not full-chain sanitizer campaigns. `.179` owners have retired after
 the query probe. MiniMax `.178` is still denoising, zero swap and empty
 application stderr; no media terminal or quality result is available yet.
+
+### Completed FP8 chain and revised interpretation
+
+The FP8-projection chain above is now terminal (`COMPLETE.txt` exists), not
+reserving179. All43 children retired. Its final position143 mean relativeL2 is
+14.134457856729%, versus retained shared-matrix13.196633236%; full row143 streams
+are14.551407124895%, versus13.656348080%. Several exact local repairs therefore
+did **not** produce a final-hidden improvement. The all144 aggregate0.299083838%
+is dominated by large reference values and must not be presented as model quality.
+No final head, generated-token, task-quality or speed improvement is established.
+
+The independent original ratio4 observer subsequently completed; hidden0..3
+retain the full-reference values. Layer2 begins with exact original inputs and
+first diverges in the captured KV-simulation boundary. Native query/RoPE are
+bitwise. Complete frontiers are retained at
+`/tmp/lunaflux-deepseek-layer-2-fp8-projections-frontiers-20261012-v1`.
+The later matched query probe
+`/tmp/lunaflux-deepseek-original-query-layer2-rows1-20261012-v1`
+shows exact QueryA/query norm/QueryB/head norm/KV projection, but2/73728 learned
+KV-norm differences on **identical** original projected inputs. At row30/column40
+native is-0.91015625 versus original-0.90625; the later quantized KV value is
+-0.9375 versus-0.875. This proves one local arithmetic discrepancy, not that it
+alone explains compressed attention or final-model drift. No new KV-norm policy
+has been selected or physically proved by the prepared alternative probe.
+
+The [revised correctness plan](NUMERICAL_CORRECTNESS_RETHINK_2026-10-12.md)
+now prioritizes prediction distributions, within-framework controls and held-out
+quality alongside causal operator tests. Exact local compatibility remains
+useful evidence, not the universal optimization objective. The new CPU
+teacher-forced comparator is infrastructure, not a new four-framework model run.

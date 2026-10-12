@@ -5,6 +5,13 @@ output precision. Conversion placement and accuracy bounds are semantic inputs.
 Startup writes, ordinary step writes and transactional cache commits are explicit
 effects. Quantization publication stages are planned before device lowering.
 
+The [numerical correctness roadmap](../../docs/NUMERICAL_CORRECTNESS_RETHINK_2026-10-12.md)
+distinguishes exact rewrites, bounded rewrites with assumptions, and empirical
+arithmetic alternatives. Existing laws do not imply that one vendor's reduction
+order is universally correct, or that local bitwise agreement guarantees model
+quality. Compositional expression/replay integration is planned, not claimed as
+complete. Prediction comparison runs offline and never adds token-step effects.
+
 `SquareReductionLaw` makes ordered versus compensated F32 square summation
 explicit, independently of tensor storage and normalize-before-weight rounding.
 It is a numerical accuracy choice, not permission to reassociate an ordered

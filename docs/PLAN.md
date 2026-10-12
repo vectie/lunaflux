@@ -1,5 +1,18 @@
 # LunaFlux detailed implementation plan
 
+## Prediction-level correctness — 2026-10-12
+
+Follow [the numerical correctness rethink](NUMERICAL_CORRECTNESS_RETHINK_2026-10-12.md).
+The first implementation is the offline, framework-neutral teacher-forced
+distribution comparator. It checks literal token/position alignment and reports
+JS/KL/TV, top-token margins and prescribed-token NLL without defining one engine
+as ground truth. It makes no task-quality or production-selection decision.
+Next: actual final-head capture/mapping for native and original; exact-checkpoint
+vLLM/SGLang comparisons and within-framework controls; varied held-out quality;
+then the compressor's compositional numerical/effect boundary and generated
+replay. These remain separate unfinished tasks, not completed by the comparator.
+No default kernel, reference, tolerance, payload-hashing or scheduled-task change.
+
 ## Remaining payload-hardening cleanup — 2026-10-11
 
 Two-node remote startup now also removes the group/frame SHA passes and its

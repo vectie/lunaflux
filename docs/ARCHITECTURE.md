@@ -15,6 +15,15 @@ and publication coalescing must be represented before emission; a renderer
 must not silently change a reduction law or infer a different ownership map.
 Source coverage and physical performance completion are tracked separately.
 
+The [numerical correctness rethink](NUMERICAL_CORRECTNESS_RETHINK_2026-10-12.md)
+separates semantic validity, finite-precision compatibility, next-token prediction
+differences and held-out task/media quality. Exact, bounded and empirically
+evaluated rewrites are distinct contracts, not interchangeable test outcomes.
+The next evolution completes existing precision/effect/replay layers; it does
+not introduce a global numerical policy or diagnostics into token execution.
+Offline teacher-forced comparisons are implemented separately from the planned
+compiler-generated replay and quality-constrained complete-plan selection.
+
 LunaFlux is an instance-level execution engine. Deployment systems are callers,
 not libraries.
 
