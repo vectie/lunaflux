@@ -67,6 +67,35 @@ units and release CUDA. The earlier `v1` compile failure from a diagnostic
 helper-name replacement is retained; `v2` corrects it and adds a regression.
 `v3` isolates square reductions; `v4` uses the actual new renderer.
 
-Complete-layer propagation and speed remain to be measured before any default
-policy change. The residual publisher itself is unchanged. Full-model 18–21%
-drift, compressed-path parity and MiniMax media/encoder differences remain open.
+## Commit-pinned complete layer
+
+The `0be5ea5b` ARM release build passes on the clean source, then the same 144
+original one-row layer-0 replay completes, zero exit, empty application stderr,
+no swap and CUDA closed. Logs explicitly record compensated control squares
+and striped control dots in addition to tiled attention/complex rotary/striped
+output-A. It is not the default policy. Root:
+`/tmp/lunaflux-deepseek-production-layer-0-refined-rows1-20261012-v1`;
+reports: `/tmp/lunaflux-deepseek-layer-0-refined-frontiers-20261012-v1`.
+
+| Propagated boundary | Before control refinement | After control refinement |
+| --- | ---: | ---: |
+| Attention input | Bitwise | Bitwise |
+| Sparse attention, inverse, output-A | Bitwise | Bitwise |
+| Output-B differing BF16 / 589,824 | 11 | 11 |
+| Residual differing BF16 / 2,359,296 | 2,386 | **64** |
+| Residual relative L2 | 0.009148849% | **0.000704269%** |
+| FFN-input differing BF16 / 589,824 | 2,131 | **56** |
+| FFN-input relative L2 | 0.021675558% | **0.001278160%** |
+| FFN-output relative L2 | 0.198810072% | **0.031858964%** |
+| Complete-layer relative L2 | 0.153870184% | **0.025374703%** |
+
+Complete-layer error falls **83.5%** from the previous candidate, about **93.2%**
+from the first 0.3749400% matched baseline. This proves propagated numerical
+benefit, not a speedup. It retains 12,377 differing complete-output BF16 values;
+remaining nonlinear controls, FFN local arithmetic and propagated drift are
+not waived. Affected tests pass 114/114 plus the new metadata/unsupported-law
+package tests 12/12; the offline mode tests pass 2/2. Native check succeeds with
+unchanged toolchain exclusions. The whole-module clean TLS blocker remains.
+
+The residual publisher itself is unchanged. Speed, compressed-path parity,
+full-model 18–21% drift and MiniMax media/encoder differences remain open.
