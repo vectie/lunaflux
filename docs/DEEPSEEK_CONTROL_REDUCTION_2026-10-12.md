@@ -172,3 +172,22 @@ All nineteen routes finish memcheck/leak, racecheck and synccheck with zero
 errors/hazards/warnings in 2-GiB/no-swap units and release CUDA. Serving sources
 and policy are unchanged. Next: represent vector affine and sigmoid arithmetic
 explicitly in numerical IR, retain matrix arithmetic, and measure propagation.
+
+The implementation now represents `Float32AffineLaw` and
+`SigmoidEvaluationLaw` in the existing precision IR. `HyperConnectionPrecision`
+records **vector** affine rounding independently of matrix logits. Pure decoder
+planning forwards both laws through attention and FFN envelopes to their private
+CUDA lowering; no new buffers, queues, host effects or reference inputs appear.
+Default source remains byte-identical to the preceding capture. The explicit
+`replay-layer-nonlinear` mode selects direct sigmoid and fused vector affine on
+top of the refined reduction candidate, at both export and execution.
+
+Actual renderer root `/tmp/lunaflux-deepseek-hyper-arithmetic-20261012-v6`
+reproduces the **430/576** exact post controls and **0.000003151%** relative L2.
+Combination remains **572/2304** exact and **0.000004574%** relative L2,
+unchanged from the refined baseline: matrix-FMA regression was not incorporated.
+All twenty routes pass memcheck/leak, racecheck and synccheck with zero reports
+under 2-GiB/no-swap limits. Native check passes with unchanged toolchain warning
+exclusions; affected native tests **118/118**, runner tests **3/3**. Tests verify
+both window/compressed layers and both envelopes receive the vector policies.
+Complete-layer propagation and full-model quality remain separate next gates.

@@ -15,7 +15,7 @@ pub fn bind_block_hyper_connection_weights(@precision_materialize.PackedCheckpoi
 
 pub fn bind_hyper_connection_weights(@precision_materialize.PackedCheckpoint, @deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, branch~ : DeepSeekHyperBranch) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
-pub fn hyper_connection_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw) -> @precision_ir.HyperConnectionPrecision raise
+pub fn hyper_connection_plan(@deepseek_v4_spec.DeepSeekV4ModelSpec, maximum_rows~ : Int, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw, control_vector_affine_law? : @precision_ir.Float32AffineLaw, control_sigmoid_law? : @precision_ir.SigmoidEvaluationLaw) -> @precision_ir.HyperConnectionPrecision raise
 
 // Errors
 
@@ -31,8 +31,8 @@ pub struct DeepSeekHyperConnection {
 pub fn DeepSeekHyperConnection::branch_input(Self) -> @device.Allocation raise
 pub fn DeepSeekHyperConnection::branch_output(Self) -> @device.Allocation raise
 pub fn DeepSeekHyperConnection::close(Self) -> Unit raise
-pub fn DeepSeekHyperConnection::for_block(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, branch~ : DeepSeekHyperBranch, maximum_rows~ : Int, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw) -> Self raise
-pub fn DeepSeekHyperConnection::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, branch~ : DeepSeekHyperBranch, maximum_rows~ : Int, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw) -> Self raise
+pub fn DeepSeekHyperConnection::for_block(@deepseek_v4_spec.DeepSeekV4ModelSpec, block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress, branch~ : DeepSeekHyperBranch, maximum_rows~ : Int, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw, control_vector_affine_law? : @precision_ir.Float32AffineLaw, control_sigmoid_law? : @precision_ir.SigmoidEvaluationLaw) -> Self raise
+pub fn DeepSeekHyperConnection::new(@deepseek_v4_spec.DeepSeekV4ModelSpec, layer~ : Int, branch~ : DeepSeekHyperBranch, maximum_rows~ : Int, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw, control_vector_affine_law? : @precision_ir.Float32AffineLaw, control_sigmoid_law? : @precision_ir.SigmoidEvaluationLaw) -> Self raise
 pub fn DeepSeekHyperConnection::prefix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
 pub fn DeepSeekHyperConnection::prepare(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, counts~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 pub fn DeepSeekHyperConnection::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise

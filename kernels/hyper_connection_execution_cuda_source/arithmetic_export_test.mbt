@@ -40,6 +40,26 @@ async test "offline control arithmetic probe retains the actual renderer" {
   sources.push(
     arithmetic_capture(@utf8.decode(refined.source_bytes()), "refined"),
   )
+  let nonlinear = @hyper_connection_execution_cuda_source.hyper_connection_source(
+    @precision.HyperConnectionPrecision::new(
+      stream_count=4,
+      hidden_width=4096,
+      maximum_rows=144,
+      sinkhorn_iterations=20,
+      control_epsilon=0.000001,
+      normalization_epsilon=0.000001,
+      mix_law=TransposedF32ResidualThenBranch,
+      control_law=F32ProjectionThenNormalize,
+      control_square_law=CompensatedFloat32,
+      control_dot_law=StripedTreeFloat32(partitions=32),
+      control_vector_affine_law=FusedMultiplyAdd,
+      control_sigmoid_law=DirectReciprocal,
+    ),
+    symbol_prefix="hc_nonlinear",
+  )
+  sources.push(
+    arithmetic_capture(@utf8.decode(nonlinear.source_bytes()), "nonlinear"),
+  )
   for
     route in [
       "refined_direct", "refined_affine_fma", "refined_direct_affine_fma", "refined_rsqrt",

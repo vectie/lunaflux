@@ -13,6 +13,8 @@ pub fn staged_function_and_collapse_bf16_f32_source(
   control_law? : @precision.HyperConnectionControlLaw = NormalizedBf16Projection,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
 ) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth
@@ -72,18 +74,24 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     stream_width * hidden_width,
   )
   let numerical_contract = if control_square_law is OrderedFloat32 &&
-    control_dot_law is OrderedFloat32 {
+    control_dot_law is OrderedFloat32 &&
+    control_vector_affine_law is SeparateMultiplyAdd &&
+    control_sigmoid_law is StableBranches {
     numerical_contract
   } else {
     RefinedControlFunctionBf16CollapseV1(
       control=control_law,
       square=control_square_law,
       dot=control_dot_law,
+      vector_affine=control_vector_affine_law,
+      sigmoid=control_sigmoid_law,
     )
   }
   let source = @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
-    "__device__ __forceinline__ float lf_hc_stage_sigmoid(float x) { if (x >= 0.0f) return __fdiv_rn(1.0f, __fadd_rn(1.0f, expf(-x))); const float e = expf(x); return __fdiv_rn(e, __fadd_rn(1.0f, e)); }\n" +
+    "__device__ __forceinline__ float lf_hc_stage_sigmoid(float x) { " +
+    control_sigmoid_source(control_sigmoid_law) +
+    " }\n" +
     "extern \"C\" __global__ void " +
     function_symbol +
     "(const int32_t *counts, const __nv_bfloat16 *streams, const " +
@@ -136,11 +144,15 @@ pub fn staged_function_and_collapse_bf16_f32_source(
     width +
     "ULL; for (int32_t stream = 0; stream < " +
     width +
-    "; ++stream) { const float pre_logit = __fadd_rn(__fmul_rn(mixes[stream], scale[0]), base[stream]); pre[stream] = __fadd_rn(lf_hc_stage_sigmoid(pre_logit), " +
+    "; ++stream) { const float pre_logit = " +
+    control_vector_affine_source("stream", "0", control_vector_affine_law) +
+    "; pre[stream] = __fadd_rn(lf_hc_stage_sigmoid(pre_logit), " +
     control +
     "); const int32_t p = " +
     width +
-    " + stream; const float post_logit = __fadd_rn(__fmul_rn(mixes[p], scale[1]), base[p]); post[vector_base + (unsigned long long)stream] = __fmul_rn(2.0f, lf_hc_stage_sigmoid(post_logit)); }\n" +
+    " + stream; const float post_logit = " +
+    control_vector_affine_source("p", "1", control_vector_affine_law) +
+    "; post[vector_base + (unsigned long long)stream] = __fmul_rn(2.0f, lf_hc_stage_sigmoid(post_logit)); }\n" +
     "  const unsigned long long matrix_base = (unsigned long long)row * " +
     width +
     "ULL * " +

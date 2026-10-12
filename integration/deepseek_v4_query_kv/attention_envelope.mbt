@@ -28,6 +28,8 @@ pub fn DeepSeekAttentionEnvelope::new(
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
 ) -> Self raise {
   let hyper = @hyper.DeepSeekHyperConnection::new(
     spec,
@@ -36,6 +38,8 @@ pub fn DeepSeekAttentionEnvelope::new(
     maximum_rows~,
     control_square_law~,
     control_dot_law~,
+    control_vector_affine_law~,
+    control_sigmoid_law~,
   )
   let branch = match spec.compression_ratio(layer) {
     Some(0) => {

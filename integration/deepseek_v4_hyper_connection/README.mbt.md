@@ -12,3 +12,9 @@ Three prefix launches expose normalized branch input; the caller writes the
 borrowed branch output before the one-launch suffix. They join the decoder's
 queue and add no completion. Close that queue, this owner, then borrowed inputs.
 This is an executable component, not complete DeepSeek/DSpark generation.
+
+Optional square, dot, vector-affine and sigmoid laws refine arithmetic through
+the shared precision plan. Vector-affine FMA is independent of matrix-logit
+rounding; the latter remains separate-round. Ordinary defaults are unchanged.
+These options are numerical candidates, not permission to claim full-model
+parity from a component comparison.

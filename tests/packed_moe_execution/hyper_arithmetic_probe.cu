@@ -44,6 +44,7 @@ int main(int argc,char **argv) {
 } while(false)
   RUN(hc_probe_function,"production");
   RUN(hc_refined_function,"refined");
+  RUN(hc_nonlinear_function,"nonlinear");
   RUN(hc_refined_direct_function,"refined_direct");
   RUN(hc_refined_affine_fma_function,"refined_affine_fma");
   RUN(hc_refined_direct_affine_fma_function,"refined_direct_affine_fma");

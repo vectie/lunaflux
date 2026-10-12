@@ -66,6 +66,8 @@ fn replay_mode(mode : String) -> String {
     "replay-layer-striped"
   } else if mode == "prepare-refined" {
     "replay-layer-refined"
+  } else if mode == "prepare-nonlinear" {
+    "replay-layer-nonlinear"
   } else {
     "replay-layer"
   }
@@ -78,6 +80,7 @@ test "tiled replay uses the same explicit policy at export and execution" {
   assert_eq(replay_mode("prepare-complex"), "replay-layer-complex")
   assert_eq(replay_mode("prepare-striped"), "replay-layer-striped")
   assert_eq(replay_mode("prepare-refined"), "replay-layer-refined")
+  assert_eq(replay_mode("prepare-nonlinear"), "replay-layer-nonlinear")
 }
 
 ///|
@@ -91,7 +94,7 @@ async fn main {
   }
   let tag = root[5:].to_owned()
   let model = "/tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT"
-  if mode == "prepare" || mode == "prepare-tiled" || mode == "prepare-complex" || mode == "prepare-striped" || mode == "prepare-refined" {
+  if mode == "prepare" || mode == "prepare-tiled" || mode == "prepare-complex" || mode == "prepare-striped" || mode == "prepare-refined" || mode == "prepare-nonlinear" {
     guard extra is [executable, layer, rows, input, reference, .. optional] &&
       optional.length() <= 1 else {
       fail("matched operands required")

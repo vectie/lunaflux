@@ -34,6 +34,8 @@ pub fn DeepSeekDecoderBlock::new(
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
 ) -> Self raise {
   {
     attention: @attention.DeepSeekAttentionEnvelope::new(
@@ -48,6 +50,8 @@ pub fn DeepSeekDecoderBlock::new(
       output_accumulation~,
       control_square_law~,
       control_dot_law~,
+      control_vector_affine_law~,
+      control_sigmoid_law~,
     ),
     ffn: @expert.DeepSeekFfnEnvelope::new(
       spec,
@@ -57,6 +61,8 @@ pub fn DeepSeekDecoderBlock::new(
       accuracy~,
       control_square_law~,
       control_dot_law~,
+      control_vector_affine_law~,
+      control_sigmoid_law~,
     ),
     residual_bytes: maximum_rows.to_int64() *
     spec.hidden_size().to_int64() *

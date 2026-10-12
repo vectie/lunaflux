@@ -10,6 +10,8 @@ pub fn hyper_connection_plan(
   maximum_rows~ : Int,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
 ) -> @precision.HyperConnectionPrecision raise {
   @precision.HyperConnectionPrecision::new(
     stream_count=spec.hyper_connection_width(),
@@ -22,6 +24,8 @@ pub fn hyper_connection_plan(
     mix_law=TransposedF32ResidualThenBranch,
     control_square_law~,
     control_dot_law~,
+    control_vector_affine_law~,
+    control_sigmoid_law~,
   )
 }
 

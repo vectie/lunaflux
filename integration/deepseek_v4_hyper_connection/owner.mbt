@@ -26,6 +26,8 @@ pub fn DeepSeekHyperConnection::new(
   maximum_rows~ : Int,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
 ) -> Self raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -37,6 +39,8 @@ pub fn DeepSeekHyperConnection::new(
     maximum_rows~,
     control_square_law~,
     control_dot_law~,
+    control_vector_affine_law~,
+    control_sigmoid_law~,
   )
 }
 
@@ -48,6 +52,8 @@ pub fn DeepSeekHyperConnection::for_block(
   maximum_rows~ : Int,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
 ) -> Self raise {
   let prefix = block.symbol_prefix(spec)
   let name = match branch {
@@ -65,6 +71,8 @@ pub fn DeepSeekHyperConnection::for_block(
           maximum_rows~,
           control_square_law~,
           control_dot_law~,
+          control_vector_affine_law~,
+          control_sigmoid_law~,
         ),
         symbol_prefix=prefix + "_hyper_" + name,
       ),

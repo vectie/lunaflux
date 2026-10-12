@@ -35,6 +35,15 @@ Default control source remains byte-identical; an explicit diagnostic policy
 is required to select the refined candidate. No reference tensors or vendor
 library calls are embedded in the production lowering.
 
+`Float32AffineLaw` and `SigmoidEvaluationLaw` independently specify vector
+multiply-add rounding and sigmoid evaluation form. Hyper controls carry these
+as immutable numerical inputs, separate from their square/dot laws and matrix
+logits. Direct reciprocal sigmoid does not authorize an approximate exponential.
+The CUDA backend spells fused F32 multiply-add locally; no NVIDIA instruction
+name enters the semantic plan or model adapter. The selected choices reach both
+attention and FFN envelopes without adding buffers or completion boundaries.
+Ordinary callers retain separate affine products and stable sigmoid branches.
+
 `PhysicalOperand` refines an existing physical operand region; it does not invent
 an unrelated shared-memory map. Local/global F32 scaling and BF16 rounding are
 retained boundaries. A caller-provided supported-placement set is a capability

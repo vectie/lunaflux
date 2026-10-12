@@ -16,7 +16,9 @@ pub(all) enum DecoderHyperConnectionNumericalContract {
   RefinedControlFunctionBf16CollapseV1(
     control~ : @precision.HyperConnectionControlLaw,
     square~ : @precision.SquareReductionLaw,
-    dot~ : @precision.DotReductionLaw
+    dot~ : @precision.DotReductionLaw,
+    vector_affine~ : @precision.Float32AffineLaw,
+    sigmoid~ : @precision.SigmoidEvaluationLaw
   )
   OrderedF32PositiveSinkhornV1
   OrderedF32PreReduceBf16RoundV1

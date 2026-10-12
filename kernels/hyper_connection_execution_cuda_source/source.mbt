@@ -23,6 +23,8 @@ pub fn hyper_connection_source(
     control_law=plan.control_law(),
     control_square_law=plan.control_square_law(),
     control_dot_law=plan.control_dot_law(),
+    control_vector_affine_law=plan.control_vector_affine_law(),
+    control_sigmoid_law=plan.control_sigmoid_law(),
   )
   // Multiple branch envelopes may share a module without duplicate helpers.
   let function_source = @utf8.encode(

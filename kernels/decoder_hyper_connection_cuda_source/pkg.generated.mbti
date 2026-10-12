@@ -15,7 +15,7 @@ pub fn post_combine_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, max
 
 pub fn pre_reduce_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderHyperConnectionPreReduceCudaSource raise DecoderHyperConnectionCudaSourceError
 
-pub fn staged_function_and_collapse_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String, control_law? : @precision_ir.HyperConnectionControlLaw, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError
+pub fn staged_function_and_collapse_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String, control_law? : @precision_ir.HyperConnectionControlLaw, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw, control_vector_affine_law? : @precision_ir.Float32AffineLaw, control_sigmoid_law? : @precision_ir.SigmoidEvaluationLaw) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError
 
 pub fn staged_positive_sinkhorn_f32_source(stream_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionSinkhornCudaSource raise DecoderHyperConnectionCudaSourceError
 
@@ -84,7 +84,7 @@ pub(all) enum DecoderHyperConnectionNumericalContract {
   OrderedF32BlockControlV1
   OrderedF32FunctionBf16CollapseV1
   OrderedF32ProjectionThenNormalizeBf16CollapseV1
-  RefinedControlFunctionBf16CollapseV1(control~ : @precision_ir.HyperConnectionControlLaw, square~ : @precision_ir.SquareReductionLaw, dot~ : @precision_ir.DotReductionLaw)
+  RefinedControlFunctionBf16CollapseV1(control~ : @precision_ir.HyperConnectionControlLaw, square~ : @precision_ir.SquareReductionLaw, dot~ : @precision_ir.DotReductionLaw, vector_affine~ : @precision_ir.Float32AffineLaw, sigmoid~ : @precision_ir.SigmoidEvaluationLaw)
   OrderedF32PositiveSinkhornV1
   OrderedF32PreReduceBf16RoundV1
   OrderedF32PostCombineBf16RoundV1

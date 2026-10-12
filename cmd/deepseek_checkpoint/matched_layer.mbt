@@ -77,6 +77,8 @@ async fn replay_matched_layer(
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
 ) -> Unit {
   let model_root = arguments[0]
   let layer = @string.parse_int(arguments[2])
@@ -116,6 +118,8 @@ async fn replay_matched_layer(
     output_accumulation~,
     control_square_law~,
     control_dot_law~,
+    control_vector_affine_law~,
+    control_sigmoid_law~,
   )
   defer decoder.close()
   @fs.mkdir(arguments[8])
@@ -126,7 +130,7 @@ async fn replay_matched_layer(
       create_mode=CreateNew,
     )
     println(
-      "matched_layer_export layer=\{layer} physical_rows=\{rows} input_rows=\{count} accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} control_square=\{Repr(control_square_law)} control_dot=\{Repr(control_dot_law)}",
+      "matched_layer_export layer=\{layer} physical_rows=\{rows} input_rows=\{count} accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} control_square=\{Repr(control_square_law)} control_dot=\{Repr(control_dot_law)} control_vector_affine=\{Repr(control_vector_affine_law)} control_sigmoid=\{Repr(control_sigmoid_law)}",
     )
     return
   }
@@ -359,6 +363,6 @@ async fn replay_matched_layer(
     )
   }
   println(
-    "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} shared_decoder_slice=true accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} control_square=\{Repr(control_square_law)} control_dot=\{Repr(control_dot_law)} production_default_policy=\{attention_accumulation == @precision.AttentionAccumulationLaw::OrderedFloat32 && rotary_product == @precision.RotaryProductLaw::SeparateFloat32Products && output_accumulation == @precision.DotReductionLaw::OrderedFloat32 && control_square_law == @precision.SquareReductionLaw::OrderedFloat32 && control_dot_law == @precision.DotReductionLaw::OrderedFloat32} full_model=false",
+    "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} shared_decoder_slice=true accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} control_square=\{Repr(control_square_law)} control_dot=\{Repr(control_dot_law)} control_vector_affine=\{Repr(control_vector_affine_law)} control_sigmoid=\{Repr(control_sigmoid_law)} production_default_policy=\{attention_accumulation == @precision.AttentionAccumulationLaw::OrderedFloat32 && rotary_product == @precision.RotaryProductLaw::SeparateFloat32Products && output_accumulation == @precision.DotReductionLaw::OrderedFloat32 && control_square_law == @precision.SquareReductionLaw::OrderedFloat32 && control_dot_law == @precision.DotReductionLaw::OrderedFloat32 && control_vector_affine_law == @precision.Float32AffineLaw::SeparateMultiplyAdd && control_sigmoid_law == @precision.SigmoidEvaluationLaw::StableBranches} full_model=false",
   )
 }

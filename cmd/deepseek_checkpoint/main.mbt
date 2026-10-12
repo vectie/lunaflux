@@ -7,7 +7,8 @@ async fn main {
       | "replay-layer-tiled"
       | "replay-layer-complex"
       | "replay-layer-striped"
-      | "replay-layer-refined" as mode,
+      | "replay-layer-refined"
+      | "replay-layer-nonlinear" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
@@ -20,26 +21,40 @@ async fn main {
       },
       rotary_product=if mode == "replay-layer-complex" ||
         mode == "replay-layer-striped" ||
-        mode == "replay-layer-refined" {
+        mode == "replay-layer-refined" ||
+        mode == "replay-layer-nonlinear" {
         ComplexFloat32Fma
       } else {
         SeparateFloat32Products
       },
       output_accumulation=if mode == "replay-layer-striped" ||
-        mode == "replay-layer-refined" {
+        mode == "replay-layer-refined" ||
+        mode == "replay-layer-nonlinear" {
         StripedTreeFloat32(partitions=32)
       } else {
         OrderedFloat32
       },
-      control_square_law=if mode == "replay-layer-refined" {
+      control_square_law=if mode == "replay-layer-refined" ||
+        mode == "replay-layer-nonlinear" {
         CompensatedFloat32
       } else {
         OrderedFloat32
       },
-      control_dot_law=if mode == "replay-layer-refined" {
+      control_dot_law=if mode == "replay-layer-refined" ||
+        mode == "replay-layer-nonlinear" {
         StripedTreeFloat32(partitions=32)
       } else {
         OrderedFloat32
+      },
+      control_vector_affine_law=if mode == "replay-layer-nonlinear" {
+        FusedMultiplyAdd
+      } else {
+        SeparateMultiplyAdd
+      },
+      control_sigmoid_law=if mode == "replay-layer-nonlinear" {
+        DirectReciprocal
+      } else {
+        StableBranches
       },
     )
     return

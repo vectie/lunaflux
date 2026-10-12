@@ -42,6 +42,8 @@ pub struct HyperConnectionPrecision {
   priv control_law : HyperConnectionControlLaw
   priv control_square_law : SquareReductionLaw
   priv control_dot_law : DotReductionLaw
+  priv control_vector_affine_law : Float32AffineLaw
+  priv control_sigmoid_law : SigmoidEvaluationLaw
   priv function_bytes : Int64
   priv frames : ReadOnlyArray[Int64]
   priv bytes : Int64
@@ -59,6 +61,8 @@ pub fn HyperConnectionPrecision::new(
   control_law? : HyperConnectionControlLaw = NormalizedBf16Projection,
   control_square_law? : SquareReductionLaw = OrderedFloat32,
   control_dot_law? : DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law? : Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law? : SigmoidEvaluationLaw = StableBranches,
 ) -> Self raise PrecisionPlanError {
   guard stream_count > 1 &&
     hidden_width > 0 &&
@@ -117,6 +121,8 @@ pub fn HyperConnectionPrecision::new(
     control_law,
     control_square_law,
     control_dot_law,
+    control_vector_affine_law,
+    control_sigmoid_law,
     function_bytes,
     frames: ReadOnlyArray::from_array(frames),
     bytes,
@@ -135,6 +141,20 @@ pub fn HyperConnectionPrecision::control_dot_law(
   self : Self,
 ) -> DotReductionLaw {
   self.control_dot_law
+}
+
+///|
+pub fn HyperConnectionPrecision::control_vector_affine_law(
+  self : Self,
+) -> Float32AffineLaw {
+  self.control_vector_affine_law
+}
+
+///|
+pub fn HyperConnectionPrecision::control_sigmoid_law(
+  self : Self,
+) -> SigmoidEvaluationLaw {
+  self.control_sigmoid_law
 }
 
 ///|
