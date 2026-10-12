@@ -1061,3 +1061,30 @@ Both modality head outputs and both first RF updates remain **bitwise identical*
 to the earlier `original-head-actual-20261012-v3` outputs. The dynamic-geometry
 repair therefore preserves the earlier smoke's observed arithmetic rather
 than replacing its reference.
+
+### Full 256×256 literal-noise trajectory dispatched — 2026-10-12
+
+The larger native media control is now running, rather than stopping after one
+evaluation. Exact `.178` user unit:
+`lunaflux-minimax-joint-online64-original-noise-quality256-20261012-v1.service`.
+Root: `/tmp/lunaflux-minimax-joint-online64-original-noise-quality256-20261012-v1`.
+It reuses `f50b4ce3`'s committed executable, the same online64 AOT candidate,
+actual original encoder caption and literal original video/audio initialization
+as the completed full-prefix control. Configuration is 256×256, 120 requested
+frames and 50 inclusive-zero sigma points / 49 denoising updates, with terminal
+latent capture. No default production source or precision selection changes.
+
+Startup preflight remains 82,890,073,512 planned bytes against the 96-GiB
+device limit; the user unit has a 96-GiB memory cap, no swap and a 48-hour cap.
+Its initial application stderr is empty. The earlier first evaluation required
+43 minutes, so this is a long-running experiment; there is no measured complete
+trajectory duration or quality result yet. Never overlap GPU work on `.178`.
+`.179` remains available for serialized numerical comparisons.
+
+After terminal retirement, collect actual output geometry and final latents,
+render and inspect real video, assess audio separately, then compare installed
+original VAEs on identical final latents serially on `.179`. Expected decoded
+extent is 124 frames at 256×256, but report literal observed geometry and update
+counts. Finite tensors and the earlier local head/update match are not a media
+quality or complete numerical parity pass. The existing heartbeat remains
+active with this exact unit and the unresolved correctness work recorded.

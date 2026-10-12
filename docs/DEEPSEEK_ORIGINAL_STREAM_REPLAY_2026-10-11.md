@@ -35,7 +35,16 @@ Original root: `/tmp/lunaflux-deepseek-original-layer-stream-inverse-20261012-v1
 Boundary reports: `/tmp/lunaflux-deepseek-layer-0-tiled-frontiers-20261012-v1`.
 `scripts/compare-deepseek-layer-frontiers.mbtx` reproduces every boundary and
 per-row error without treating propagated differences as local operator errors.
-Full-model and clean-host native-suite results remain pending.
+Full-model correctness remains unresolved. The clean commit-pinned ARM
+affected-package tests pass **96/96**: precision IR 51, shared-window source 7,
+compressed source 7, query/KV integration 17 and decoder integration 14.
+The whole-module warning-denied native suite instead stops during compilation
+at existing `runtime/remote_tls/channel.mbt:174`: `Tls::server` is marked
+`alert_internal` by this toolchain/dependency version. This is not an attention
+assertion failure and does not justify suppressing warning 14 or claiming the
+full suite passed. The unrelated local TLS/toolchain migration is preserved.
+Exact failed user unit: `lunaflux-checkpoint-native-suite-tiled-20261012-v1.service`
+on `.178`; its memory peak is 7.5 GiB and swap peak is zero.
 
 The same commit also completes a matched **layer-3 compressed** one-row control.
 Its ordered relative L2 is **0.231644100%**, versus **0.232746659%** tiled:
