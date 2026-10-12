@@ -71,7 +71,7 @@ static bool load_block(PyObject *block,PyObject *open,PyObject *map,const char *
 }
 
 static int execute(const char *inference,const char *root,const char *config_path,
-                   const char *ids_path,const char *out,int layers,bool prefill,const char *ffn_input) {
+                   const char *ids_path,const char *out,int layers,bool prefill,const char *ffn_input,const char *attention_input) {
   Owned path(PyUnicode_FromString(inference));
   if(!path.p||PyList_Insert(PySys_GetObject("path"),0,path.p)<0)return -1;
   Owned torch(PyImport_ImportModule("torch")),model(PyImport_ImportModule("model"));
@@ -110,11 +110,32 @@ static int execute(const char *inference,const char *root,const char *config_pat
   Owned h(viewed.p?PyObject_CallMethod(viewed.p,"repeat","iiii",1,1,4,1):nullptr);
   if(!h.p||!ids.p||!save(h.p,u8.p,std::string(out)+"/hidden-0.bf16",144LL*4*4096*2))return -1;
   Owned block_cls(PyObject_GetAttrString(model.p,"Block"));
-  for(int layer=0;layer<layers;++layer) {
+  for(int layer=attention_input?layers-1:0;layer<layers;++layer) {
     // Scope retires this original block, its parameters and KV before the next.
     Owned ctor(Py_BuildValue("iO",layer,args.p));
     Owned block(block_cls.p?PyObject_CallObject(block_cls.p,ctor.p):nullptr);
     if(!block.p||!load_block(block.p,open.p,map,root,layer,u8.p))return -1;
+    if(attention_input) {
+      // A fresh original attention owns all its retained/indexer/compressor KV.
+      // Only its literal operand changes; original math and one-row order stay.
+      Owned literal(literal_bf16(torch.p,bf16.p,attention_input,144,4096));
+      Owned input(literal.p?PyObject_CallMethod(literal.p,"view","iii",1,144,4096):nullptr);
+      Owned attention(PyObject_GetAttrString(block.p,"attn"));
+      if(!input.p||!attention.p)return -1;
+      OriginalBoundaries observer;observer.attention=attention.p;observer.u8=u8.p;
+      boundary_observer=&observer;PyEval_SetTrace(trace_original_boundary,Py_None);
+      for(int position=0;position<144;++position) {
+        Owned row(PyObject_CallMethod(input.p,"narrow","iii",1,position,1));
+        if(!row.p||append_original_boundary("attention-input",row.p,4096)<0)return -1;
+        Owned operands(Py_BuildValue("Oi",row.p,position));
+        Owned result(operands.p?PyObject_CallObject(attention.p,operands.p):nullptr);
+        if(!result.p)return -1;
+      }
+      PyEval_SetTrace(nullptr,nullptr);boundary_observer=nullptr;
+      if(!write_original_boundaries(observer,out,true))return -1;
+      std::printf("original_attention_replay_complete layer=%d rows=144 submission_rows=1 input=literal_matched original_kv=true arithmetic=unchanged\n",layer);
+      return 0;
+    }
     if(ffn_input) {
       if(layer!=0||layers!=1||prefill){PyErr_SetString(PyExc_ValueError,"literal layer-0 one-row FFN replay required");return -1;}
       Owned literal(literal_bf16(torch.p,bf16.p,ffn_input,144,4096));
@@ -184,9 +205,11 @@ static int execute(const char *inference,const char *root,const char *config_pat
 int main(int argc,char **argv) {
   if(argc!=7&&argc!=8&&argc!=9)return 2;
   if(argc==8&&std::string(argv[7])!="--prefill")return 2;
-  if(argc==9&&std::string(argv[7])!="--ffn-input")return 2;
+  if(argc==9&&std::string(argv[7])!="--ffn-input"&&std::string(argv[7])!="--attention-input")return 2;
   const int layers=std::atoi(argv[6]);if(layers<1||layers>43)return 2;
-  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],argv[5],layers,argc==8,argc==9?argv[8]:nullptr);
+  Py_Initialize();const int result=execute(argv[1],argv[2],argv[3],argv[4],argv[5],layers,argc==8,
+    argc==9&&std::string(argv[7])=="--ffn-input"?argv[8]:nullptr,
+    argc==9&&std::string(argv[7])=="--attention-input"?argv[8]:nullptr);
   if(PyErr_Occurred())PyErr_Print();
   return Py_FinalizeEx()<0||result?1:0;
 }

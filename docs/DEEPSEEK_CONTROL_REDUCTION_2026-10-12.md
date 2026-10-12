@@ -191,3 +191,74 @@ under 2-GiB/no-swap limits. Native check passes with unchanged toolchain warning
 exclusions; affected native tests **118/118**, runner tests **3/3**. Tests verify
 both window/compressed layers and both envelopes receive the vector policies.
 Complete-layer propagation and full-model quality remain separate next gates.
+
+## Commit-pinned nonlinear propagation
+
+Clean ARM build of `0c17d345` succeeds under the same 2-GiB/no-swap CPU build
+limit (716.2-MiB peak), without using the active media GPU. Actual layer replay
+logs explicitly show `FusedMultiplyAdd` vector affine and `DirectReciprocal`
+sigmoid at export and execution; ordinary serving is still unchanged. The
+144 matched original one-row layer-0 replay exits zero, closes CUDA and records
+no application stderr. Root:
+`/tmp/lunaflux-deepseek-production-layer-0-nonlinear-rows1-20261012-v1`;
+frontiers `/tmp/lunaflux-deepseek-layer-0-nonlinear-frontiers-20261012-v1`.
+
+| Propagated boundary | Refined reduction only | Plus vector nonlinear laws |
+| --- | ---: | ---: |
+| Attention input, sparse attention/inverse/output-A | Bitwise | Bitwise |
+| Attention residual differing BF16 | 64 | 53 |
+| Attention residual relative L2 | 0.000704269% | 0.000762259% |
+| FFN-input differing BF16 | 56 | 61 |
+| FFN-input relative L2 | 0.001278160% | 0.003477828% |
+| FFN-output relative L2 | 0.031858964% | 0.019480324% |
+| Complete-layer relative L2 | 0.025374703% | **0.016411788%** |
+
+Complete-layer norm decreases **35.3%** from refined, about **95.6%** from the
+initial 0.3749400% result. Row 47 changes from 0.253464% to **0.00428665%**,
+about **59.1× less error**. The exact-output count is 2,352,495/2,359,296. This
+is a numerical benefit, not throughput or full-model parity. Increased
+aggregate FFN-input norm and remaining 6,801 complete-output differences remain
+visible: BF16/FP4 thresholds make propagation nonlinear.
+
+Compressed layer 3 also completes in
+`/tmp/lunaflux-deepseek-production-layer-3-nonlinear-rows1-20261012-v1`, but
+slightly **regresses** from 0.155833791% to **0.156272325%**, 1,202,877 exact
+BF16 values. Its attention branch outputs remain bitwise identical to the
+preceding refined run; altered vector controls affect the subsequent FFN
+input/trajectory. This rules out blanket enabling this policy. The remaining
+full-model 18–21% drift is not fixed by either layer experiment.
+
+Fresh installed-original observation now captures all eleven compressed layer-3
+frontiers at `/tmp/lunaflux-deepseek-original-layer-stream-compressed-frontiers-20261012-v1`.
+It executes original layers 0–3 sequentially, one complete block resident at a
+time, under 16-GiB/no-swap limits. Literal predecessor `hidden-3` and complete
+`hidden-4` are both bitwise identical to the retained matched input/reference,
+independently checked with `cmp`: the newly observed original does not alter
+the comparison. No original arithmetic, weights or tolerances are edited.
+
+### Compressed attention on identical native operands
+
+The installed original attention now runs independently on the exact native
+layer-3 attention inputs, with its own fresh retained/compressed/indexer KV and
+the unchanged one-row positional sequence. Root:
+`/tmp/lunaflux-deepseek-original-layer-stream-compressed-matched-attention-20261012-v1`.
+Its observer captures eight complete frontiers without changing original math.
+The input arrays match native bitwise; output extents are complete. Reference
+substitution remains an offline causal experiment, not a serving mechanism.
+
+| Boundary | Local native/original, identical native inputs | Original native/original input propagation |
+| --- | ---: | ---: |
+| Normalized low-rank query | 0.000048151% | 0.016786876% |
+| Q after RoPE | 0.001580096% | 0.090942609% |
+| KV after simulation | Bitwise | 0.027888525% |
+| Sparse attention | 0.001824029% | 0.052158547% |
+| Output-A | 0.007378225% | 0.126846301% |
+| Attention output-B | **0.034442365%** | **0.379403555%** |
+
+The originally observed propagated output-B error is 0.379357699%. Original
+attention on native inputs reproduces nearly the same drift. This isolates
+upstream input/quantization sensitivity as the larger source here, not a claim
+that native attention is exact: local query/output differences remain. These
+norms do not add linearly and are not a decomposition into percentage shares.
+Reports: `/tmp/lunaflux-deepseek-layer-3-matched-attention-frontiers-20261012-v1`
+and `/tmp/lunaflux-deepseek-layer-3-attention-input-propagation-20261012-v1`.

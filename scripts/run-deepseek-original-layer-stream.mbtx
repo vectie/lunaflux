@@ -102,7 +102,7 @@ async fn main {
       options.is_empty() ||
       (mode == "prepare" && options is ["--prefill" | "--boundaries"]) ||
       (mode == "prepare" && options is ["--boundaries", _]) ||
-      (mode == "prepare" && options is ["--ffn-input", _])
+      (mode == "prepare" && options is ["--ffn-input" | "--attention-input", _])
     ) &&
     root.has_prefix("/tmp/lunaflux-deepseek-original-layer-stream-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
@@ -160,6 +160,12 @@ async fn main {
       @fs.write_file(root + "/ffn-input.bf16", bytes, create_mode=CreateNew)
       transfer(root + "/ffn-input.bf16", node + ":" + root + "/ffn-input.bf16")
     }
+    if options is ["--attention-input", input] {
+      let bytes = @fs.read_file(input).binary()
+      guard bytes.length() == 144 * 4096 * 2 else { fail("all literal attention rows required") }
+      @fs.write_file(root + "/attention-input.bf16", bytes, create_mode=CreateNew)
+      transfer(root + "/attention-input.bf16", node + ":" + root + "/attention-input.bf16")
+    }
     for
       name in [
         "upstream_layer_stream.cpp", "original_tensor_io.h", "original_block_boundaries.h",
@@ -187,6 +193,7 @@ async fn main {
     }
     let observed_layer = (@fs.read_file(root + "/BOUNDARY_LAYER.txt").text()) catch { _ => "0" }
     let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
+    let matched_attention = (@fs.read_file(root + "/attention-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -207,7 +214,7 @@ async fn main {
       image +
       " /inference /model /work/config.json /work/ids.i32 /work/original " +
       number.to_string() +
-      (if matched_ffn { " --ffn-input /work/ffn-input.bf16" } else if prefill { " --prefill" } else { "" }),
+      (if matched_ffn { " --ffn-input /work/ffn-input.bf16" } else if matched_attention { " --attention-input /work/attention-input.bf16" } else if prefill { " --prefill" } else { "" }),
     )
     @fs.write_file(
       root + "/run.stdout",
@@ -231,6 +238,15 @@ async fn main {
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
   } else if mode == "collect" {
+    let matched_attention = (@fs.read_file(root + "/attention-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
+    if matched_attention {
+      for name in ["attention-input", "attention-low-rank", "q-rope", "kv-sim", "sparse-attention", "attention-inverse", "attention-output-a", "attention-output"] {
+        let path = root + "/original/" + name + ".bf16"
+        transfer(node + ":" + path, path)
+      }
+      println("original matched attention frontiers collected; not full-model parity")
+      return
+    }
     let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
     if matched_ffn {
       transfer(node + ":" + root + "/original/matched-ffn-output.bf16", root + "/original/matched-ffn-output.bf16")

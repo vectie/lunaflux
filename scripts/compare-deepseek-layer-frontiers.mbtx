@@ -31,18 +31,17 @@ test "frontier summary reads aggregate metrics, not a propagated row field" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, native, original, complete_reference, report_root] else {
-    fail(
-      "NATIVE_FRONTIERS ORIGINAL_FRONTIERS ORIGINAL_COMPLETE_LAYER_BF16 NEW_REPORT_ROOT",
-    )
+  let (native, original, complete_reference, report_root, attention_only) = match @env.args() {
+    [_, native, original, report_root, "--attention-only"] => (native, original, "", report_root, true)
+    [_, native, original, complete_reference, report_root] => (native, original, complete_reference, report_root, false)
+    _ => fail("NATIVE ORIGINAL COMPLETE_REFERENCE NEW_REPORT | NATIVE ORIGINAL NEW_REPORT --attention-only")
   }
   @fs.mkdir(report_root)
   let summary = StringBuilder()
   summary.write_string(
     "frontier\telements\texact_bf16\tnonfinite\trelative_l2\tmax_absolute_error\n",
   )
-  for
-    (name, width) in [
+  let boundaries : Array[(String, Int)] = [
       ("attention-input", 4096),
       ("attention-low-rank", 1024),
       ("q-rope", 32768),
@@ -55,7 +54,8 @@ async fn main {
       ("ffn-input", 4096),
       ("ffn-output", 4096),
       ("hidden", 16384),
-    ] {
+    ]
+  for (name, width) in (if attention_only { boundaries[:8] } else { boundaries[:] }) {
     let path = report_root + "/" + name + ".txt"
     @shell.Cmd("moon", [
       "run",

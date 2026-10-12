@@ -88,8 +88,8 @@ static int trace_original_boundary(PyObject *,PyFrameObject *frame,int event,PyO
   return 0;
 }
 
-static bool write_original_boundaries(const OriginalBoundaries &observer,const char *out) {
-  if(observer.values.size()!=11){PyErr_SetString(PyExc_ValueError,"original boundary observer incomplete");return false;}
+static bool write_original_boundaries(const OriginalBoundaries &observer,const char *out,bool attention_only=false) {
+  if(observer.values.size()!=(attention_only?8U:11U)){PyErr_SetString(PyExc_ValueError,"original boundary observer incomplete");return false;}
   for(const auto &[name,values]:observer.values) {
     const int width=name=="attention-residual"?16384:
       (name=="q-rope"||name=="sparse-attention"||name=="attention-inverse")?32768:
