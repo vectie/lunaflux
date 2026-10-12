@@ -110,7 +110,7 @@ static int execute(const char *inference,const char *root,const char *config_pat
   Owned h(viewed.p?PyObject_CallMethod(viewed.p,"repeat","iiii",1,1,4,1):nullptr);
   if(!h.p||!ids.p||!save(h.p,u8.p,std::string(out)+"/hidden-0.bf16",144LL*4*4096*2))return -1;
   Owned block_cls(PyObject_GetAttrString(model.p,"Block"));
-  for(int layer=attention_input?layers-1:0;layer<layers;++layer) {
+  for(int layer=(attention_input||ffn_input)?layers-1:0;layer<layers;++layer) {
     // Scope retires this original block, its parameters and KV before the next.
     Owned ctor(Py_BuildValue("iO",layer,args.p));
     Owned block(block_cls.p?PyObject_CallObject(block_cls.p,ctor.p):nullptr);
@@ -137,7 +137,7 @@ static int execute(const char *inference,const char *root,const char *config_pat
       return 0;
     }
     if(ffn_input) {
-      if(layer!=0||layers!=1||prefill){PyErr_SetString(PyExc_ValueError,"literal layer-0 one-row FFN replay required");return -1;}
+      if(prefill){PyErr_SetString(PyExc_ValueError,"literal one-row FFN replay required");return -1;}
       Owned literal(literal_bf16(torch.p,bf16.p,ffn_input,144,4096));
       Owned input(literal.p?PyObject_CallMethod(literal.p,"view","iii",1,144,4096):nullptr);
       Owned ffn(PyObject_GetAttrString(block.p,"ffn"));
@@ -153,7 +153,7 @@ static int execute(const char *inference,const char *root,const char *config_pat
         if(!copied.p)return -1;
       }
       if(!save(output.p,u8.p,std::string(out)+"/matched-ffn-output.bf16",144LL*4096*2))return -1;
-      std::puts("original_ffn_replay_complete layer=0 rows=144 submission_rows=1 original_inputs=true original_routes=true");
+      std::printf("original_ffn_replay_complete layer=%d rows=144 submission_rows=1 original_inputs=true original_routes=true\n",layer);
       return 0;
     }
     const char *boundary_layer=std::getenv("LUNA_ORIGINAL_BOUNDARIES_LAYER");

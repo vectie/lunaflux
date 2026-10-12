@@ -65,7 +65,9 @@ fn boundary_layer(options : ArrayView[String], count : Int) -> Int? raise {
     ["--boundaries"] => Some(0)
     ["--boundaries", index] => {
       let layer = @string.parse_int(index)
-      guard layer >= 0 && layer < count else { fail("boundary must be an executed layer") }
+      guard layer >= 0 && layer < count else {
+        fail("boundary must be an executed layer")
+      }
       Some(layer)
     }
     _ => None
@@ -78,7 +80,11 @@ test "compressed boundary observation retains actual original predecessor layers
   assert_eq(boundary_layer(["--boundaries", "3"], 4), Some(3))
   assert_eq(boundary_layer([], 4), None)
   for index in ["4", "-1"] {
-    try boundary_layer(["--boundaries", index], 4) catch { _ => () } noraise { _ => fail("unexecuted observer layer") }
+    try boundary_layer(["--boundaries", index], 4) catch {
+      _ => ()
+    } noraise {
+      _ => fail("unexecuted observer layer")
+    }
   }
 }
 
@@ -134,7 +140,11 @@ async fn main {
       create_mode=CreateNew,
     )
     if boundary_layer(options, number) is Some(layer) {
-      @fs.write_file(root + "/BOUNDARY_LAYER.txt", layer.to_string(), create_mode=CreateNew)
+      @fs.write_file(
+        root + "/BOUNDARY_LAYER.txt",
+        layer.to_string(),
+        create_mode=CreateNew,
+      )
     }
     for
       (name, source) in [
@@ -154,17 +164,27 @@ async fn main {
       transfer(root + "/" + name, node + ":" + root + "/" + name)
     }
     if options is ["--ffn-input", input] {
-      guard number == 1 else { fail("matched FFN uses literal layer zero") }
       let bytes = @fs.read_file(input).binary()
-      guard bytes.length() == 144 * 4096 * 2 else { fail("all literal FFN rows required") }
+      guard bytes.length() == 144 * 4096 * 2 else {
+        fail("all literal FFN rows required")
+      }
       @fs.write_file(root + "/ffn-input.bf16", bytes, create_mode=CreateNew)
       transfer(root + "/ffn-input.bf16", node + ":" + root + "/ffn-input.bf16")
     }
     if options is ["--attention-input", input] {
       let bytes = @fs.read_file(input).binary()
-      guard bytes.length() == 144 * 4096 * 2 else { fail("all literal attention rows required") }
-      @fs.write_file(root + "/attention-input.bf16", bytes, create_mode=CreateNew)
-      transfer(root + "/attention-input.bf16", node + ":" + root + "/attention-input.bf16")
+      guard bytes.length() == 144 * 4096 * 2 else {
+        fail("all literal attention rows required")
+      }
+      @fs.write_file(
+        root + "/attention-input.bf16",
+        bytes,
+        create_mode=CreateNew,
+      )
+      transfer(
+        root + "/attention-input.bf16",
+        node + ":" + root + "/attention-input.bf16",
+      )
     }
     for
       name in [
@@ -191,9 +211,19 @@ async fn main {
     let boundaries = (@fs.read_file(root + "/BOUNDARIES.txt").text() == "true") catch {
       _ => false
     }
-    let observed_layer = (@fs.read_file(root + "/BOUNDARY_LAYER.txt").text()) catch { _ => "0" }
-    let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
-    let matched_attention = (@fs.read_file(root + "/attention-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
+    let observed_layer = @fs.read_file(root + "/BOUNDARY_LAYER.txt").text() catch {
+      _ => "0"
+    }
+    let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() ==
+    144 * 4096 * 2) catch {
+      _ => false
+    }
+    let matched_attention = (@fs.read_file(root + "/attention-input.bf16")
+    .binary()
+    .length() ==
+    144 * 4096 * 2) catch {
+      _ => false
+    }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -205,7 +235,12 @@ async fn main {
       " --property=MemoryMax=16G --property=MemorySwapMax=0 --property=RuntimeMaxSec=7200 docker run --name " +
       tag +
       " --gpus all --network none --user 1000:1000 --memory 16g --memory-swap 16g -e OMP_NUM_THREADS=2" +
-      (if boundaries { " -e LUNA_ORIGINAL_BOUNDARIES=1 -e LUNA_ORIGINAL_BOUNDARIES_LAYER=" + observed_layer } else { "" }) +
+      (if boundaries {
+        " -e LUNA_ORIGINAL_BOUNDARIES=1 -e LUNA_ORIGINAL_BOUNDARIES_LAYER=" +
+        observed_layer
+      } else {
+        ""
+      }) +
       " -e PYTHONPATH=/dependency -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/dependency:/dependency:ro" +
       " -v " +
       root +
@@ -214,7 +249,15 @@ async fn main {
       image +
       " /inference /model /work/config.json /work/ids.i32 /work/original " +
       number.to_string() +
-      (if matched_ffn { " --ffn-input /work/ffn-input.bf16" } else if matched_attention { " --attention-input /work/attention-input.bf16" } else if prefill { " --prefill" } else { "" }),
+      (if matched_ffn {
+        " --ffn-input /work/ffn-input.bf16"
+      } else if matched_attention {
+        " --attention-input /work/attention-input.bf16"
+      } else if prefill {
+        " --prefill"
+      } else {
+        ""
+      }),
     )
     @fs.write_file(
       root + "/run.stdout",
@@ -238,18 +281,35 @@ async fn main {
       remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
   } else if mode == "collect" {
-    let matched_attention = (@fs.read_file(root + "/attention-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
+    let matched_attention = (@fs.read_file(root + "/attention-input.bf16")
+    .binary()
+    .length() ==
+    144 * 4096 * 2) catch {
+      _ => false
+    }
     if matched_attention {
-      for name in ["attention-input", "attention-low-rank", "q-rope", "kv-sim", "sparse-attention", "attention-inverse", "attention-output-a", "attention-output"] {
+      for
+        name in [
+          "attention-input", "attention-low-rank", "q-rope", "kv-sim", "sparse-attention",
+          "attention-inverse", "attention-output-a", "attention-output",
+        ] {
         let path = root + "/original/" + name + ".bf16"
         transfer(node + ":" + path, path)
       }
-      println("original matched attention frontiers collected; not full-model parity")
+      println(
+        "original matched attention frontiers collected; not full-model parity",
+      )
       return
     }
-    let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() == 144 * 4096 * 2) catch { _ => false }
+    let matched_ffn = (@fs.read_file(root + "/ffn-input.bf16").binary().length() ==
+    144 * 4096 * 2) catch {
+      _ => false
+    }
     if matched_ffn {
-      transfer(node + ":" + root + "/original/matched-ffn-output.bf16", root + "/original/matched-ffn-output.bf16")
+      transfer(
+        node + ":" + root + "/original/matched-ffn-output.bf16",
+        root + "/original/matched-ffn-output.bf16",
+      )
       println("original matched FFN collected; not full-model parity")
       return
     }
@@ -284,7 +344,11 @@ async fn main {
       }
       // Older preserved captures have ten frontiers; new observations add the
       // original inverse-RoPE return without changing arithmetic or old files.
-      let inverse = remote("find " + root + "/original -maxdepth 1 -name attention-inverse.bf16 -print")
+      let inverse = remote(
+        "find " +
+        root +
+        "/original -maxdepth 1 -name attention-inverse.bf16 -print",
+      )
       inverse.check()
       if !inverse.stdout().trim().is_empty() {
         let path = root + "/original/attention-inverse.bf16"

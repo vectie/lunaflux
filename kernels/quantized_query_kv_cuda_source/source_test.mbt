@@ -90,6 +90,28 @@ async test "original DeepSeek query replay exports full-width numerical stages" 
   assert_eq(source.launch(2), (144, 128, 256))
   assert_eq(source.launch(3), (144, 64, 256))
   if @env.get_env_var("LUNAFLUX_MATCHED_QUERY_SOURCE_OUTPUT") is Some(path) {
-    @fs.write_file(path, source.source_bytes(), create_mode=CreateNew)
+    let mut bytes = source.source_bytes() +
+      b"\n#define LUNA_MATCHED_QUERY_NORM_VARIANTS 1\n"
+    for
+      (partitions, vector) in [
+        (128, 4),
+        (256, 2),
+        (256, 4),
+        (512, 1),
+        (512, 2),
+        (512, 4),
+      ] {
+      let norm = @norm.prefix_rms_norm_bf16_with_optional_suffix_copy_source(
+        prefix_width=1024,
+        suffix_width=0,
+        maximum_rows=144,
+        epsilon=1.0e-6,
+        function_symbol="matched_norm_\{partitions}_\{vector}",
+        square_law=VectorizedTreeFloat32(partitions~, vector_width=vector),
+      )
+      assert_eq(norm.launch_threads(), partitions)
+      bytes += norm.source_bytes() + b"\n"
+    }
+    @fs.write_file(path, bytes, create_mode=CreateNew)
   }
 }

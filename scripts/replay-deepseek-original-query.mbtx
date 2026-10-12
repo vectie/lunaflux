@@ -80,6 +80,35 @@ fn stages() -> Array[(String, Int)] {
 }
 
 ///|
+fn original_submission(options : ArrayView[String]) -> (Int, Bool) raise {
+  match options {
+    [] => (0, false)
+    [layer] | [layer, "--one-row"] => {
+      let index = @string.parse_int(layer)
+      guard index >= 0 && index < 43 else {
+        fail("literal base layer required")
+      }
+      (index, options.length() == 2)
+    }
+    _ => fail("LAYER [--one-row]")
+  }
+}
+
+///|
+test "matched query keeps original layer and submission shape explicit" {
+  assert_eq(original_submission([]), (0, false))
+  assert_eq(original_submission(["3", "--one-row"]), (3, true))
+  assert_eq(original_submission(["0"]), (0, false))
+  for options in [["43"], ["-1"], ["3", "--prefill"]] {
+    try original_submission(options[:]) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid original workload accepted")
+    }
+  }
+}
+
+///|
 test "original component work keeps full head geometry and independent quantized scales" {
   assert_eq(stages()[2], ("q-b", 32768))
   assert_eq(originals(144)[4], ("wq_b.scale", 2048))
@@ -92,14 +121,15 @@ async fn main {
     root.has_prefix("/tmp/lunaflux-deepseek-original-query-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail(
-      "prepare NEW_ROOT EXACT_ORIGINAL_INPUT_BF16 ROWS | run|sanitize|collect ROOT",
+      "prepare NEW_ROOT EXACT_ORIGINAL_INPUT_BF16 ROWS [LAYER [--one-row]] | run|sanitize|collect|collect-norm ROOT",
     )
   }
   let tag = root.split("/").last().unwrap().to_owned()
   if mode == "prepare" {
-    guard extra is [input, row_text] else {
+    guard extra is [input, row_text, .. options] else {
       fail("original input and rows required")
     }
+    let (layer, one_row) = original_submission(options)
     let rows = @string.parse_int(row_text)
     guard rows >= 1 && rows <= 144 else {
       fail("bounded original rows required")
@@ -114,6 +144,20 @@ async fn main {
     }
     @fs.write_file(root + "/input.bf16", bytes, create_mode=CreateNew)
     @fs.write_file(root + "/ROWS.txt", row_text, create_mode=CreateNew)
+    @fs.write_file(
+      root + "/ORIGINAL_LAYER.txt",
+      layer.to_string(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/ORIGINAL_SUBMISSION.txt",
+      if one_row {
+        "1"
+      } else {
+        row_text
+      },
+      create_mode=CreateNew,
+    )
     record(
       root,
       "export",
@@ -182,6 +226,13 @@ async fn main {
   } else if mode == "run" {
     guard extra.is_empty() else { fail("unexpected options") }
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())
+    let layer = @fs.read_file(root + "/ORIGINAL_LAYER.txt").text() catch {
+      _ => "0"
+    }
+    let one_row = (@fs.read_file(root + "/ORIGINAL_SUBMISSION.txt").text() ==
+    "1") catch {
+      _ => false
+    }
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -202,7 +253,10 @@ async fn main {
         " --entrypoint /work/query-upstream " +
         image +
         " /inference /model /work/input.bf16 /work/original " +
-        rows.to_string(),
+        rows.to_string() +
+        " " +
+        layer +
+        (if one_row { " --one-row" } else { "" }),
       ),
     )
     record(
@@ -281,6 +335,24 @@ async fn main {
           " matched",
         ),
       )
+    }
+  } else if mode == "collect-norm" {
+    guard extra.is_empty() else { fail("unexpected norm collection arguments") }
+    for dir in ["matched", "propagated"] {
+      for name in ["128-4", "256-2", "256-4", "512-1", "512-2", "512-4"] {
+        let target = root + "/" + dir + "/q-norm-" + name + ".bf16"
+        @fs.write_file(target, b"", create_mode=CreateNew)
+        @shell.Cmd("scp", [
+          "-o",
+          "BatchMode=yes",
+          "-o",
+          "ControlPath=" + socket,
+          node + ":" + target,
+          target,
+        ])
+        .output()
+        .check()
+      }
     }
   } else if mode == "collect" {
     let rows = @string.parse_int(@fs.read_file(root + "/ROWS.txt").text())

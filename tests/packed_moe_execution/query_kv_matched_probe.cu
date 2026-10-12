@@ -58,8 +58,21 @@ int main(int argc,char **argv) {
   matched_query_kv<<<dim3(rows,2),256>>>(counts,x,weights[2],scales[2],buffers[4]);
   matched_query_kv_norm<<<rows,256>>>(counts,matched?original[4]:buffers[4],kw,buffers[5]);
   check(cudaGetLastError());check(cudaDeviceSynchronize());
+  for(int i=0;i<6;++i)save(buffers[i],rows*widths[i],out+"/"+stages[i]+".bf16");
+#ifdef LUNA_MATCHED_QUERY_NORM_VARIANTS
+  auto *variant=allocate<__nv_bfloat16>(rows*1024);
+  const auto *norm_operand=matched?original[0]:buffers[0];
+#define NORM_VARIANT(P,V) \
+  matched_norm_##P##_##V<<<rows,P>>>(counts,norm_operand,qw,variant); \
+  check(cudaGetLastError());check(cudaDeviceSynchronize()); \
+  save(variant,rows*1024,out+"/q-norm-" #P "-" #V ".bf16")
+  NORM_VARIANT(128,4);NORM_VARIANT(256,2);NORM_VARIANT(256,4);
+  NORM_VARIANT(512,1);NORM_VARIANT(512,2);NORM_VARIANT(512,4);
+#undef NORM_VARIANT
+  check(cudaFree(variant));
+#endif
   for(int i=0;i<6;++i){
-    save(buffers[i],rows*widths[i],out+"/"+stages[i]+".bf16");check(cudaFree(buffers[i]));
+    check(cudaFree(buffers[i]));
     if(original[i])check(cudaFree(original[i]));
   }
   for(int i=0;i<3;++i){check(cudaFree(weights[i]));check(cudaFree(scales[i]));}

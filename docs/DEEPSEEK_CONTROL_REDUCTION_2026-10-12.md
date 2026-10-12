@@ -523,3 +523,111 @@ native tests pass, including both attention/FFN envelope propagation across
 window/compressed layers. Original-source runner tests5/5 and sinkhorn/replay
 runner tests3/3 pass. Complete-layer propagation is still pending, and matrix
 parity on these original controls does not establish full-model parity.
+
+### Complete butterfly-control propagation
+
+Source-pinned ARM build **e9cf0537** passes in the CPU-only 2-GiB/no-swap unit;
+the active MiniMax media GPU run is undisturbed. Export and execution both
+record `matrix_affine=FusedMultiplyAdd` and `matrix_sum=ButterflyFloat32`.
+Complete matched one-row layers on the original 144 predecessors/IDs exit
+zero, release CUDA, and retain zero swap. No ordinary serving policy changes.
+
+| Complete matched layer | Hierarchical relative L2 (%) | Butterfly relative L2 (%) | Exact BF16 / 2,359,296 |
+| --- | ---: | ---: | ---: |
+| Layer 0 | 0.015244816 | **0.006187106** | 2,358,217 |
+| Compressed layer 3 | 0.031195749 | **0.027058402** | 2,316,157 |
+
+Layer 0's FFN input is now **589,824/589,824 bitwise**, compared with 53
+differences before this correction. Residual publication has one remaining
+BF16 difference, down from 48. Its FFN output still differs on 1,800 values,
+relative L2 **0.007635825%**, now on identical original FFN input. That is a
+genuine local FFN frontier, not unexplained input propagation. Rotary queries
+retain 139 differences and output-B retains 11; sparse attention, inverse
+and output-A remain bitwise. Complete-layer numerical error falls 59.4%, not
+execution time.
+
+Layer 3 improves 13.3% in complete-layer numerical error. Attention input
+remains bitwise; its three low-rank query values, 25 rotary values and
+output-B error **0.033465559%** are unchanged. Residual relative L2 becomes
+0.004460128%, FFN input 0.039682893%, and FFN output 0.372156653%.
+
+A fresh installed-original layer-3 FFN replay on those **latest native literal
+FFN inputs**, preserving actual IDs and one-row execution, distinguishes:
+
+| Layer-3 FFN comparison | Relative L2 (%) | Exact BF16 / 589,824 |
+| --- | ---: | ---: |
+| Native vs original on identical latest native input | **0.015284652** | 588,405 |
+| Original latest-native-input vs original original-input | **0.371842650** | 569,958 |
+| Native latest-native-input vs original original-input | **0.372156653** | 568,539 |
+
+Most propagated FFN drift is caused by changed input, while the smaller local
+FFN differences remain visible. Norms do not add linearly. The offline adapter
+now targets an arbitrary base layer for literal FFN replay, rather than
+silently restricting this intervention to layer zero. It changes no original
+model arithmetic. Roots are
+`/tmp/lunaflux-deepseek-production-layer-{0,3}-butterfly-controls-rows1-20261012-v1`,
+frontiers `/tmp/lunaflux-deepseek-layer-{0,3}-butterfly-controls-frontiers-20261012-v1`,
+and original matched FFN
+`/tmp/lunaflux-deepseek-original-layer-stream-butterfly-ffn-layer3-20261012-v1`.
+Remaining local query/RoPE/projection and FFN arithmetic still require matched
+isolation. Full-model 18–21% drift has not been remeasured or fixed; these are
+not full-model correctness, throughput or media-quality results.
+
+### Remaining query and local FFN isolation
+
+The offline query observer now selects an explicit original layer and one-row
+submission geometry. Layer-3 capture
+`/tmp/lunaflux-deepseek-original-query-layer3-rows1-20261012-v4` calls installed
+original quantization, FP8 matrix and normalization operations unchanged.
+Its normalized-query output is **bitwise equal to the actual complete original
+layer-3 observer**, confirming that this component replay has matched semantics.
+All 144 normalized attention inputs are literal original values, not synthetic
+or previously drifting native inputs.
+
+| Query/KV component on identical original operands | Exact BF16 / values | Relative L2 (%) |
+| --- | ---: | ---: |
+| Query-A projection | 147,454 / 147,456 | 0.000035698 |
+| Learned query RMSNorm | 147,455 / 147,456 | 0.000034048 |
+| Query-B projection | 4,718,566 / 4,718,592 | 0.001786253 |
+| BF16-expression head normalization | 4,718,592 / 4,718,592 | **0** |
+| KV projection | 73,728 / 73,728 | **0** |
+| Learned KV RMSNorm | 73,728 / 73,728 | **0** |
+
+Head normalization and KV are not demonstrated local defects in this capture.
+The learned query RMSNorm has a separate, reproducible reduction-order
+frontier. Generated-source probe
+`/tmp/lunaflux-deepseek-original-query-layer3-rows1-20261012-v5` tests six
+immutable vector/tree folds on the **same original Query-A output**:
+
+| Partitions × vector components | Exact normalized BF16 / 147,456 |
+| --- | ---: |
+| 128 × 4 | **147,456** |
+| 256 × 4 | **147,456** |
+| 512 × 4 | **147,456** |
+| 256 × 2 | 147,455 |
+| 512 × 1 | 147,455 |
+| 512 × 2 | 147,455 |
+
+All six alternatives plus the existing six-stage query prefix pass full-input
+memcheck/leak, racecheck and synccheck in a 2-GiB/no-swap unit, with balanced
+release. These are actual generated prefix-RMS sources consuming the existing
+generic square-reduction law. They are **not yet selected in the complete
+query prefix**; do not report that propagation as finished. Query-A/B matrix
+rounding remains a separate cause. Failed observer attempts `v1`/`v2` are
+preserved: the new row extraction initially sliced the batch rather than the
+sequence axis. `v4` explicitly retains `[1,1,width]`; this was a diagnostic
+bridge bug, not evidence of a production shape defect. Prepared `v3` was not
+executed after identifying the axis mistake.
+
+The worst layer-0 local FFN row, **54**, uses actual token **45948** and the
+now-bitwise original/native FFN input. In
+`/tmp/lunaflux-deepseek-original-expert-row54-20261012-v1`, all six routed
+experts' weighted activations and outputs, using the **same original route
+weights**, are bitwise in both matched-down
+and propagated modes (12,288 activation and 24,576 output values per mode).
+This excludes those routed expert kernels on these identical operands, as the earlier row-47
+intervention did for row 47. Native router logits/weights, the shared FP8 expert
+and final MoE combination are not covered by this intervention and require
+isolation; other rows remain
+unproven. No tolerance/reference edits or production selection changes follow
+from these diagnostic results.
