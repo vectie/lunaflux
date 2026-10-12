@@ -53,6 +53,31 @@ fn layer_root(root : String, layer : Int) -> String {
 }
 
 ///|
+fn chain_mode(options : ArrayView[String]) -> String raise {
+  match options {
+    [] => "prepare-router-arithmetic"
+    ["--shared-block-matrix"] => "prepare-shared-block-matrix"
+    ["--fp8-projections"] => "prepare-fp8-projections"
+    _ => fail("unsupported chain arithmetic mode")
+  }
+}
+
+///|
+test "chain modes preserve prior arithmetic and select full projections explicitly" {
+  assert_eq(chain_mode([]), "prepare-router-arithmetic")
+  assert_eq(
+    chain_mode(["--shared-block-matrix"]),
+    "prepare-shared-block-matrix",
+  )
+  assert_eq(chain_mode(["--fp8-projections"]), "prepare-fp8-projections")
+  try chain_mode(["unknown"]) catch {
+    _ => ()
+  } noraise {
+    _ => fail("unsupported arithmetic accepted")
+  }
+}
+
+///|
 async fn command(root : String, label : String, args : Array[String]) -> Unit {
   let result = @shell.Cmd("moon", args).output(max_output_bytes=2097152)
   @fs.write_file(
@@ -73,17 +98,17 @@ async fn main {
   guard @env.args() is [_, executable, original, root, count_text, .. options] &&
     root.has_prefix("/tmp/lunaflux-deepseek-native-layer-chain-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
-    (options is [] || options is ["--shared-block-matrix"]) else {
+    (
+      options is [] ||
+      options is ["--shared-block-matrix"] ||
+      options is ["--fp8-projections"]
+    ) else {
     fail(
-      "PINNED_ARM_EXECUTABLE ORIGINAL_FULL_STREAM_ROOT NEW_CHAIN_ROOT BASE_LAYERS [--shared-block-matrix]",
+      "PINNED_ARM_EXECUTABLE ORIGINAL_FULL_STREAM_ROOT NEW_CHAIN_ROOT BASE_LAYERS [--shared-block-matrix|--fp8-projections]",
     )
   }
   let count = @string.parse_int(count_text)
-  let mode = if options is ["--shared-block-matrix"] {
-    "prepare-shared-block-matrix"
-  } else {
-    "prepare-router-arithmetic"
-  }
+  let mode = chain_mode(options)
   guard count >= 1 && count <= 43 else { fail("1..43 base layers") }
   @fs.mkdir(root)
   @fs.write_file(

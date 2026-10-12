@@ -1052,6 +1052,35 @@ all original arrays intact. New source-rootv2 again has full144 bitwise output-B
 full144 memory/leak checks and first-row race/sync checks zero. Complete-layer
 FP8-projections replay is still pending; no new full-chain/performance claim.
 
+### Complete combined projection replay — bfec7a6a
+
+Clean commit-pinned ARM build
+`/tmp/lunaflux-checkpoint-build-fp8-projections-20261012-v1` completes CPU-only
+on178 at752.2MiB reported peak and zero swap. Original-input, physical-row1
+replays execute all144 literal predecessor/ID rows with actual export AND
+execution selection at
+`/tmp/lunaflux-deepseek-production-layer-{0,3}-fp8-projections-rows1-20261012-v1`.
+
+Layer0 is now **2359296/2359296 hidden values bitwise**, and every captured
+attention/control/FFN frontier is bitwise. This removes the remaining16 hidden
+differences; it is a complete local layer result on the original corpus, not
+whole-model generation correctness.
+
+Layer3 is2359293/2359296 hidden exact, relativeL2**0.000056015%**, versus
+query-only0.001508918% and shared-only0.027008023%. Sparse attention, inverse,
+output-A/B, residual and FFN input are all bitwise. One qRoPE value differs
+without affecting the captured attention output; two FFN-output values remain
+different on an **identical original FFN input**, producing three hidden
+differences. These remain visible local frontiers, not waived tolerances.
+Reports `/tmp/lunaflux-deepseek-layer-{0,3}-fp8-projections-frontiers-20261012-v1`.
+
+The chain runner now has an explicit `--fp8-projections` option, with prior
+router/shared modes unchanged and2/2 runner regressions passing. A fresh native
+propagation chain, starting only from originalhidden0 and thereafter using
+previous native hidden, is the next test. No updated43-layer result, model
+head/generated-token, TP2 serving or performance claim is made yet. MiniMax
+remains active on178, empty application stderr and zero swap; no GPU overlap.
+
 Default shared source is independently byte-compared with the pre-change
 retained export; it remains unchanged. Native affected tests99/99 and offline
 source/chain/query runner regressions pass. Actual shared source sanitizers are
