@@ -211,3 +211,67 @@ The CUDA API sample also contains 13,755,938 `cuEventQuery` calls and
 explains why even a bounded sample contains millions of trace records. Its
 CPU cost and report-memory cost are separate from the 90.425% sparse GPU share;
 do not add these percentages or treat profiled CPU costs as unprofiled latency.
+
+## SGLang images ready and bounded launches (13 October)
+
+At 01:14 CST both recipe images were installed on both Sparks: the GLM image
+reports 30.5 GB and the DeepSeek image 33.3 GB. The successful 1ms pulls supersede
+the partial-download status above. No additional payload hashes were computed.
+Image help and installed source were inspected without GPU access. GLM's image
+contains `Glm5NextForConditionalGeneration`; the DSpark image contains the
+SM12x `b12x` backend. Model checkpoints and literal prompt IDs are unchanged.
+
+The external MoonBit runner now selects the model-specific backends, limits
+prefill to 256 tokens and decode graph capture to batch one, disables FlashInfer
+autotuning, and records launch options. GLM uses TileLang DSA and CUTLASS NVFP4
+MoE with BF16 KV; DeepSeek uses DSV4 attention and b12x MoE. These are external
+engine configuration choices, not compiler comparisons or numerical oracles.
+The existing 96 GiB container/no-process-swap limit and 16 GiB host reserve
+remain enforced. Initial budget: the same six categories, one excluded warmup,
+one measured request each, greedy target-only generation capped at eight tokens.
+This is a first compatibility/timing smoke, not a complete quality evaluation.
+
+GLM launch `/tmp/lunaflux-reference-bench-sglang-glm-20261013-v1` reached
+distributed initialization and model construction, but not serving readiness.
+The monitor observed 12,603,096 KiB available on ingress and 14,182,624 KiB on
+egress and stopped both owned ranks. No benchmark timing resulted. The image
+automatically disabled prefill CUDA graphs for its KDA hybrid model. Its
+configuration, readiness log, memory observations and terminal journals are
+preserved. The next launch skips the unused vision encoder with the supported
+`--language-only` option and uses expandable allocator segments; the reserve
+is not reduced. The similarly named `--language-model-only` is NOT supported
+for GLM in this image and is not used.
+
+DeepSeek launch `/tmp/lunaflux-reference-bench-sglang-deepseek-20261013-v1`
+started after both GLM ranks released their GPUs. It recognizes the installed
+text-only FP4-expert checkpoint and selects FP8 E4M3 KV with page size 256.
+No speculative draft is enabled. Completion/results must be recorded separately
+from successful image download or model initialization.
+
+DeepSeek did not reach serving readiness either. Ingress stopped at 01:20:57
+CST with exit 137. Docker events explicitly show SIGTERM followed 30 seconds
+later by SIGKILL from the stop operation; this is not evidence of a native
+model exception or a container-OOM event. Its last model messages report
+output-A FP8 dequantization and conversion of FP8 shared experts into FP4 fused
+MoE weights. Those default reference-engine transformations are retained in
+the log, not treated as unchanged arithmetic. Ingress terminal journals were
+downloaded to `terminal-0.stdout`; its GPU is released and host available memory
+returned to about 117 GiB.
+
+Egress `.179` subsequently stopped responding to SSH, including fresh
+connections via the jump host and an SSH-banner check from `.178`; ICMP still
+responds. The pending stop and egress GPU release cannot be confirmed. Host
+OOM is a possibility, not a verified diagnosis without its logs. No further GPU
+work is launched and no reboot or unrelated service mutation was attempted.
+The user was asked to check the local console and stop only the named owned
+DeepSeek benchmark container. GLM v2 is prepared, NOT launched.
+
+This exposed a flaw in the external monitor: it stopped ranks serially with
+a 30-second grace, and wrote observations only after both remote stops returned.
+The runner now saves observations first, requests both stops concurrently with
+five-second grace and bounded remote waits, and reports unconfirmed stops
+explicitly. Regression tests cover a slow rank and an unreachable rank without
+delaying/cancelling the other stop. This does not prove that SSH-dependent
+monitoring can recover an unresponsive host; host recovery and a reviewed
+loading-memory envelope are still required before another physical trial.
+There are **no SGLang request timings or quality results** from these launches.

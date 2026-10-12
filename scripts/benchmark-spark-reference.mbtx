@@ -21,6 +21,16 @@ fn reference_image(glm : Bool, sglang : Bool) -> String {
 }
 
 ///|
+fn sglang_options(glm : Bool) -> String {
+  " --chunked-prefill-size 256 --max-prefill-tokens 256" +
+  (if glm {
+    " --language-only --attention-backend dsa --dsa-prefill-backend tilelang --dsa-decode-backend tilelang --moe-runner-backend flashinfer_cutlass --kv-cache-dtype bfloat16 --disable-shared-experts-fusion --disable-flashinfer-autotune --cuda-graph-max-bs-decode 1 --cuda-graph-max-bs-prefill 256"
+  } else {
+    " --attention-backend dsv4 --moe-runner-backend b12x --cuda-graph-max-bs-decode 1 --cuda-graph-max-bs-prefill 256 --disable-flashinfer-autotune"
+  })
+}
+
+///|
 fn host(last : Bool) -> String {
   if last {
     "wlc004s@192.168.2.179"
@@ -138,11 +148,55 @@ fn available_kib(text : String) -> Int64 raise {
 }
 
 ///|
+async fn stop_ranks(action : async (Bool) -> Unit) -> Unit {
+  @async.with_task_group(group => {
+    for last in [false, true] {
+      group.spawn_bg(() => action(last), allow_failure=true)
+    }
+  })
+}
+
+///|
 async fn stop_pair(tag : String) -> Unit {
-  for last in [false, true] {
+  stop_ranks(last => {
     let rank = if last { "1" } else { "0" }
-    ignore(remote(last, "docker stop --time 30 " + tag + "-" + rank))
-  }
+    let result = @async.with_timeout(15000, () => {
+      remote(last, "docker stop --time 5 " + tag + "-" + rank)
+    }) catch {
+      error => {
+        println("stop rank=\{rank} unconfirmed: \{error}")
+        return
+      }
+    }
+    if result.exit_code() != 0 {
+      println("stop rank=\{rank} exit=\{result.exit_code()} \{result.stderr()}")
+    }
+  })
+}
+
+///|
+async test "slow rank stop does not delay requesting the other stop" {
+  let finished : Array[Bool] = []
+  stop_ranks(last => {
+    if !last {
+      @async.sleep(20)
+    }
+    finished.push(last)
+  })
+  assert_eq(finished, [true, false])
+}
+
+///|
+async test "one unreachable rank does not cancel the other stop" {
+  let finished : Array[Bool] = []
+  stop_ranks(last => {
+    if !last {
+      fail("simulated unreachable rank")
+    }
+    @async.sleep(10)
+    finished.push(last)
+  })
+  assert_eq(finished, [true])
 }
 
 ///|
@@ -164,6 +218,19 @@ test "Spark recipes retain distinct GLM and DeepSeek builds" {
 }
 
 ///|
+test "GLM recipe limits scratch and captures without enabling speculation" {
+  let options = sglang_options(true)
+  assert_true(options.contains("--dsa-prefill-backend tilelang"))
+  assert_true(options.contains("--disable-flashinfer-autotune"))
+  assert_true(options.contains("--kv-cache-dtype bfloat16"))
+  assert_true(options.contains("--cuda-graph-max-bs-decode 1"))
+  assert_true(options.contains("--language-only"))
+  assert_false(options.contains("--speculative"))
+  assert_false(sglang_options(false).contains("--dsa-prefill-backend"))
+  assert_true(sglang_options(false).contains("--moe-runner-backend b12x"))
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, family, engine, mode, .. rest] &&
     root.has_prefix("/tmp/lunaflux-reference-bench-") &&
@@ -172,9 +239,16 @@ async fn main {
     family is ("glm" | "deepseek") &&
     engine is ("vllm" | "sglang") &&
     mode
-    is ("prepare" | "start" | "status" | "query" | "stop" | "watch" | "collect") else {
+    is ("prepare"
+    | "start"
+    | "status"
+    | "query"
+    | "stop"
+    | "watch"
+    | "collect"
+    | "collect-ingress") else {
     fail(
-      "NEW_ROOT glm|deepseek vllm|sglang prepare NATIVE_CORPUS | start|status|query|stop|watch|collect",
+      "NEW_ROOT glm|deepseek vllm|sglang prepare NATIVE_CORPUS | start|status|query|stop|watch|collect|collect-ingress",
     )
   }
   let glm = family == "glm"
@@ -188,36 +262,46 @@ async fn main {
       let mut failed = false
       for last in [false, true] {
         let rank = if last { "1" } else { "0" }
-        let status = remote(
-          last,
-          "systemctl --user show " +
-          tag +
-          "-" +
-          rank +
-          ".service -p SubState -p Result -p ExecMainStatus; grep MemAvailable /proc/meminfo",
-        )
-        status.check()
+        let status = @async.with_timeout(10000, () => {
+          remote(
+            last,
+            "systemctl --user show " +
+            tag +
+            "-" +
+            rank +
+            ".service -p SubState -p Result -p ExecMainStatus; grep MemAvailable /proc/meminfo",
+          )
+        }) catch {
+          error => {
+            observations <+
+              "tick=\{tick} rank=\{rank} observation_error=\{error}\n"
+            failed = true
+            break
+          }
+        }
         observations <+ "tick=\{tick} rank=\{rank}\n\{status.stdout()}"
-        if available_kib(status.stdout()) < 16777216L ||
+        if status.exit_code() != 0 ||
+          available_kib(status.stdout()) < 16777216L ||
           status.stdout().contains("SubState=failed") {
           failed = true
+          break
         }
         if status.stdout().contains("SubState=exited") {
           terminal += 1
         }
       }
       if failed || terminal == 2 {
-        if failed {
-          stop_pair(tag)
-        }
         @fs.write_file(
           root + "/memory-watch.txt",
           observations.to_string(),
           create_mode=CreateNew,
         )
+        if failed {
+          stop_pair(tag)
+        }
         guard !failed else {
           fail(
-            "external rank failed or 16 GiB host floor reached; pair stopped",
+            "external rank/observation failed or 16 GiB host floor reached; paired stop requested, verify release",
           )
         }
         println("both reference ranks retired")
@@ -231,10 +315,13 @@ async fn main {
       observations.to_string(),
       create_mode=CreateNew,
     )
-    fail("bounded reference watch expired; pair stopped")
+    fail(
+      "bounded reference watch expired; paired stop requested, verify release",
+    )
   }
-  if mode == "collect" {
-    for last in [false, true] {
+  if mode is ("collect" | "collect-ingress") {
+    for
+      last in (if mode == "collect-ingress" { [false] } else { [false, true] }) {
       let rank = if last { "1" } else { "0" }
       record(
         root,
@@ -298,6 +385,7 @@ async fn main {
       engine +
       "\ntp=2\npp=1\ncontext=256\nconcurrency=1\nmax_output=8\nspeculation=false\nprefix_cache=false\ncorpus=" +
       corpus +
+      (if sg { "\nsglang_options=" + sglang_options(glm) } else { "" }) +
       "\n",
       create_mode=CreateNew,
     )
@@ -413,7 +501,9 @@ async fn main {
       )
     }
     stop_pair(tag)
-    println("six literal requests collected; reference pair stopped")
+    println(
+      "six literal requests collected; paired stop requested, verify release",
+    )
     return
   }
   for last in [false, true] {
@@ -461,7 +551,8 @@ async fn main {
     let command = if sg {
       "python3 -m sglang.launch_server --model-path /model --served-model-name matched-model --tp-size 2 --nnodes 2 --node-rank " +
       rank +
-      " --dist-init-addr 10.0.0.1:29570 --host 127.0.0.1 --port 28880 --context-length 256 --max-total-tokens 1024 --max-running-requests 1 --mem-fraction-static 0.76 --disable-radix-cache --trust-remote-code"
+      " --dist-init-addr 10.0.0.1:29570 --host 127.0.0.1 --port 28880 --context-length 256 --max-total-tokens 1024 --max-running-requests 1 --mem-fraction-static 0.80 --disable-radix-cache --trust-remote-code" +
+      sglang_options(glm)
     } else {
       "vllm serve /model --served-model-name matched-model --tensor-parallel-size 2 --nnodes 2 --node-rank " +
       rank +
@@ -482,7 +573,7 @@ async fn main {
         tag +
         "-" +
         rank +
-        " --network host --gpus all --ipc=private --shm-size=2g --memory=96g --memory-swap=96g --ulimit memlock=-1 --device=/dev/infiniband -v " +
+        " --network host --gpus all --ipc=private --shm-size=2g --memory=96g --memory-swap=96g --ulimit memlock=-1 --cap-add IPC_LOCK --device=/dev/infiniband -v " +
         checkpoint(glm, last) +
         ":/model:ro -v " +
         root +
@@ -491,6 +582,18 @@ async fn main {
         ip +
         " -e NCCL_SOCKET_IFNAME=" +
         interface +
+        (if sg {
+          " -e TP_SOCKET_IFNAME=" +
+          interface +
+          " -e NCCL_CUMEM_ENABLE=0 -e NCCL_NVLS_ENABLE=0 -e PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True"
+        } else {
+          ""
+        }) +
+        (if sg && !glm {
+          " -e SGLANG_SM120_FLASHMLA_BACKEND=b12x -e SGLANG_B12X_MAX_TOKENS=256"
+        } else {
+          ""
+        }) +
         " -e GLOO_SOCKET_IFNAME=" +
         interface +
         " -e NCCL_IB_HCA=" +
