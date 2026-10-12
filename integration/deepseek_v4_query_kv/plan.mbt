@@ -5,6 +5,10 @@ pub fn query_kv_plan(
   spec : @spec.DeepSeekV4ModelSpec,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> @precision.QuantizedQueryKvPrecision raise {
   @precision.QuantizedQueryKvPrecision::new(
     hidden_width=spec.hidden_size(),
@@ -15,6 +19,7 @@ pub fn query_kv_plan(
     normalization_epsilon=spec.rms_norm_epsilon(),
     activation_amax_floor=0.0001,
     maximum_workspace_bytes~,
+    query_square_law~,
   )
 }
 

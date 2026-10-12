@@ -25,6 +25,10 @@ pub fn DeepSeekCompressedAttention::new(
   maximum_workspace_bytes~ : Int64,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> Self raise {
   let plan = compressed_attention_plan(
     spec,
@@ -76,6 +80,7 @@ pub fn DeepSeekCompressedAttention::new(
       maximum_rows~,
       maximum_workspace_bytes=prefix_bytes,
       rotary_product~,
+      query_square_law~,
     ),
     cache: DeepSeekCompressedKvCache::new(
       spec,

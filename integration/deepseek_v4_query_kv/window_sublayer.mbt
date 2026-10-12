@@ -17,6 +17,10 @@ pub fn DeepSeekWindowSublayer::new(
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
+  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> Self raise {
   let output_plan = attention_output_plan(
     spec,
@@ -34,6 +38,7 @@ pub fn DeepSeekWindowSublayer::new(
         output_plan.workspace_bytes(),
       attention_accumulation~,
       rotary_product~,
+      query_square_law~,
     ),
     output: DeepSeekAttentionOutput::new(
       spec,

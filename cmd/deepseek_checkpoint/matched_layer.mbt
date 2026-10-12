@@ -75,6 +75,10 @@ async fn replay_matched_layer(
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
+  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
@@ -123,6 +127,7 @@ async fn replay_matched_layer(
     attention_accumulation~,
     rotary_product~,
     output_accumulation~,
+    query_square_law~,
     control_square_law~,
     control_dot_law~,
     control_vector_affine_law~,
@@ -141,7 +146,7 @@ async fn replay_matched_layer(
       create_mode=CreateNew,
     )
     println(
-      "matched_layer_export layer=\{layer} physical_rows=\{rows} input_rows=\{count} accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} control_square=\{Repr(control_square_law)} control_dot=\{Repr(control_dot_law)} control_vector_affine=\{Repr(control_vector_affine_law)} control_sigmoid=\{Repr(control_sigmoid_law)} matrix_affine=\{Repr(control_matrix_affine_law)} matrix_sum=\{Repr(matrix_sum_law)} control_root=\{Repr(control_root_law)} norm_square=\{Repr(normalization_square_law)}",
+      "matched_layer_export layer=\{layer} physical_rows=\{rows} input_rows=\{count} accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} control_square=\{Repr(control_square_law)} control_dot=\{Repr(control_dot_law)} control_vector_affine=\{Repr(control_vector_affine_law)} control_sigmoid=\{Repr(control_sigmoid_law)} matrix_affine=\{Repr(control_matrix_affine_law)} matrix_sum=\{Repr(matrix_sum_law)} control_root=\{Repr(control_root_law)} norm_square=\{Repr(normalization_square_law)} query_square=\{Repr(query_square_law)}",
     )
     return
   }
@@ -374,6 +379,6 @@ async fn replay_matched_layer(
     )
   }
   println(
-    "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} shared_decoder_slice=true accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} control_square=\{Repr(control_square_law)} control_dot=\{Repr(control_dot_law)} control_vector_affine=\{Repr(control_vector_affine_law)} control_sigmoid=\{Repr(control_sigmoid_law)} matrix_affine=\{Repr(control_matrix_affine_law)} matrix_sum=\{Repr(matrix_sum_law)} control_root=\{Repr(control_root_law)} norm_square=\{Repr(normalization_square_law)} production_default_policy=\{attention_accumulation == @precision.AttentionAccumulationLaw::OrderedFloat32 && rotary_product == @precision.RotaryProductLaw::SeparateFloat32Products && output_accumulation == @precision.DotReductionLaw::OrderedFloat32 && control_square_law == @precision.SquareReductionLaw::OrderedFloat32 && control_dot_law == @precision.DotReductionLaw::OrderedFloat32 && control_vector_affine_law == @precision.Float32AffineLaw::SeparateMultiplyAdd && control_sigmoid_law == @precision.SigmoidEvaluationLaw::StableBranches && control_matrix_affine_law == @precision.Float32AffineLaw::SeparateMultiplyAdd && matrix_sum_law == @precision.SumReductionLaw::OrderedFloat32 && control_root_law == @precision.ReciprocalRootLaw::DivideRoundedSqrtFloat32 && normalization_square_law == @precision.SquareReductionLaw::VectorizedTreeFloat32(partitions=256, vector_width=1)} full_model=false",
+    "matched_layer_complete layer=\{layer} input_rows=\{count} physical_rows=\{rows} shared_decoder_slice=true accumulation=\{Repr(attention_accumulation)} rotary_product=\{Repr(rotary_product)} output_accumulation=\{Repr(output_accumulation)} control_square=\{Repr(control_square_law)} control_dot=\{Repr(control_dot_law)} control_vector_affine=\{Repr(control_vector_affine_law)} control_sigmoid=\{Repr(control_sigmoid_law)} matrix_affine=\{Repr(control_matrix_affine_law)} matrix_sum=\{Repr(matrix_sum_law)} control_root=\{Repr(control_root_law)} norm_square=\{Repr(normalization_square_law)} query_square=\{Repr(query_square_law)} production_default_policy=\{attention_accumulation == @precision.AttentionAccumulationLaw::OrderedFloat32 && rotary_product == @precision.RotaryProductLaw::SeparateFloat32Products && output_accumulation == @precision.DotReductionLaw::OrderedFloat32 && control_square_law == @precision.SquareReductionLaw::OrderedFloat32 && control_dot_law == @precision.DotReductionLaw::OrderedFloat32 && control_vector_affine_law == @precision.Float32AffineLaw::SeparateMultiplyAdd && control_sigmoid_law == @precision.SigmoidEvaluationLaw::StableBranches && control_matrix_affine_law == @precision.Float32AffineLaw::SeparateMultiplyAdd && matrix_sum_law == @precision.SumReductionLaw::OrderedFloat32 && control_root_law == @precision.ReciprocalRootLaw::DivideRoundedSqrtFloat32 && normalization_square_law == @precision.SquareReductionLaw::VectorizedTreeFloat32(partitions=256, vector_width=1) && query_square_law == @precision.SquareReductionLaw::VectorizedTreeFloat32(partitions=256, vector_width=1)} full_model=false",
   )
 }

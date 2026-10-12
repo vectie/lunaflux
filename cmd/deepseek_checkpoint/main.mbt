@@ -11,13 +11,17 @@ async fn main {
       | "replay-layer-nonlinear"
       | "replay-layer-vector-rms"
       | "replay-layer-hierarchical-controls"
-      | "replay-layer-butterfly-controls" as mode,
+      | "replay-layer-butterfly-controls"
+      | "replay-layer-vector-query" as mode,
       .. arguments,
     ] &&
     (arguments.length() == 9 || arguments.length() == 10) {
     let grouped = mode == "replay-layer-hierarchical-controls" ||
-      mode == "replay-layer-butterfly-controls"
+      mode == "replay-layer-butterfly-controls" ||
+      mode == "replay-layer-vector-query"
     let vector_rms = grouped || mode == "replay-layer-vector-rms"
+    let butterfly = mode == "replay-layer-butterfly-controls" ||
+      mode == "replay-layer-vector-query"
     replay_matched_layer(
       arguments,
       attention_accumulation=if mode != "replay-layer" {
@@ -51,6 +55,11 @@ async fn main {
         OrderedFloat32
       },
       control_dot_law=matched_control_dot_law(mode),
+      query_square_law=if mode == "replay-layer-vector-query" {
+        VectorizedTreeFloat32(partitions=256, vector_width=4)
+      } else {
+        VectorizedTreeFloat32(partitions=256, vector_width=1)
+      },
       control_vector_affine_law=if mode == "replay-layer-nonlinear" ||
         vector_rms {
         FusedMultiplyAdd
@@ -62,16 +71,12 @@ async fn main {
       } else {
         StableBranches
       },
-      control_matrix_affine_law=if mode == "replay-layer-butterfly-controls" {
+      control_matrix_affine_law=if butterfly {
         FusedMultiplyAdd
       } else {
         SeparateMultiplyAdd
       },
-      matrix_sum_law=if mode == "replay-layer-butterfly-controls" {
-        ButterflyFloat32
-      } else {
-        OrderedFloat32
-      },
+      matrix_sum_law=if butterfly { ButterflyFloat32 } else { OrderedFloat32 },
       control_root_law=if vector_rms {
         ReciprocalSqrtFloat32
       } else {

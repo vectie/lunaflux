@@ -38,13 +38,20 @@ pub fn quantized_query_kv_source(
     geometry[stage] = (rows, (output + 255) / 256, 256)
   }
   for (size, stage) in [(rank, 1), (width, 5)] {
-    sources[stage] = @norm.prefix_rms_norm_bf16_with_optional_suffix_copy_source(
+    let norm = @norm.prefix_rms_norm_bf16_with_optional_suffix_copy_source(
       prefix_width=size,
       suffix_width=0,
       maximum_rows=rows,
       epsilon=plan.normalization_epsilon(),
       function_symbol=symbols[stage],
-    ).source_bytes()
+      square_law=if stage == 1 {
+        plan.query_square_law()
+      } else {
+        VectorizedTreeFloat32(partitions=256, vector_width=1)
+      },
+    )
+    sources[stage] = norm.source_bytes()
+    geometry[stage] = (rows, 1, norm.launch_threads())
   }
   let epsilon = @literal.canonical_cuda_float_literal(
     plan.normalization_epsilon(),

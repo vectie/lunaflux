@@ -23,6 +23,10 @@ pub fn DeepSeekQueryKv::new(
   layer~ : Int,
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
+  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> Self raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -32,7 +36,12 @@ pub fn DeepSeekQueryKv::new(
     layer,
     frame: @frame.QuantizedQueryKvFrame::new(
       @source.quantized_query_kv_source(
-        query_kv_plan(spec, maximum_rows~, maximum_workspace_bytes~),
+        query_kv_plan(
+          spec,
+          maximum_rows~,
+          maximum_workspace_bytes~,
+          query_square_law~,
+        ),
         symbol_prefix="deepseek_l\{layer}_query_kv",
       ),
     ),

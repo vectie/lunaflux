@@ -21,6 +21,7 @@ pub struct QuantizedQueryKvPrecision {
   priv width : Int
   priv rows : Int
   priv epsilon : Double
+  priv query_square : SquareReductionLaw
   priv activation_quantization : QuantizationPlan
   priv representations : ReadOnlyArray[@format.Representation]
   priv frames : ReadOnlyArray[Int64]
@@ -38,7 +39,12 @@ pub fn QuantizedQueryKvPrecision::new(
   normalization_epsilon~ : Double,
   activation_amax_floor~ : Double,
   maximum_workspace_bytes~ : Int64,
+  query_square_law? : SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
 ) -> Self raise {
+  query_square_law.validate()
   guard hidden_width > 0 &&
     hidden_width <= 65536 &&
     query_rank > 0 &&
@@ -122,6 +128,7 @@ pub fn QuantizedQueryKvPrecision::new(
     width: head_width,
     rows: maximum_rows,
     epsilon: normalization_epsilon,
+    query_square: query_square_law,
     activation_quantization,
     representations: ReadOnlyArray::from_array(representations),
     frames: ReadOnlyArray::from_array(frames),
@@ -140,6 +147,14 @@ pub fn QuantizedQueryKvPrecision::geometry(
 ///|
 pub fn QuantizedQueryKvPrecision::normalization_epsilon(self : Self) -> Double {
   self.epsilon
+}
+
+///|
+/// Independent learned-query fold; KV/head normalization remain unchanged.
+pub fn QuantizedQueryKvPrecision::query_square_law(
+  self : Self,
+) -> SquareReductionLaw {
+  self.query_square
 }
 
 ///|

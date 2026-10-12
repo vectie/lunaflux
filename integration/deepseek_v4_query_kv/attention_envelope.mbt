@@ -26,6 +26,10 @@ pub fn DeepSeekAttentionEnvelope::new(
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
   output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
+  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+    partitions=256,
+    vector_width=1,
+  ),
   control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
   control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
   control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
@@ -66,6 +70,7 @@ pub fn DeepSeekAttentionEnvelope::new(
           attention_accumulation~,
           rotary_product~,
           output_accumulation~,
+          query_square_law~,
         ),
       )
     }
@@ -81,6 +86,7 @@ pub fn DeepSeekAttentionEnvelope::new(
           attention_accumulation~,
           rotary_product~,
           output_accumulation~,
+          query_square_law~,
         ),
       )
     _ => raise @precision.PrecisionPlanError::IllegalPlacement

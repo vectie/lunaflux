@@ -631,3 +631,31 @@ and final MoE combination are not covered by this intervention and require
 isolation; other rows remain
 unproven. No tolerance/reference edits or production selection changes follow
 from these diagnostic results.
+
+## Independent query-normalization law propagation
+
+The existing `QuantizedQueryKvPrecision` now carries an independent immutable
+`query_square_law`. Its default is unchanged (256 partitions, one component);
+the KV fold and BF16-expression head normalization are not overloaded with
+this option. The source generator consumes the law for learned query RMSNorm
+only and publishes that kernel's actual launch threads. The existing device
+frame already consumes source launch geometry, so no runtime rediscovery or
+token-step branch is added.
+
+Propagation is through the query owner → attention inputs → window/compressed
+attention → enclosing attention envelope → decoder block/slice. Regression
+tests cover both attention routes, unchanged weights/frame budgets, untouched
+other five kernels, and unsupported-law rejection without silent fallback.
+Ordinary generated query source remains byte-identical against retained `v5`.
+The distinct `replay-layer-vector-query` diagnostic selects 256 partitions ×
+four components on top of the previous butterfly-control candidate; the
+earlier replay mode and production defaults stay unchanged. Both export and
+execution report the selected query fold. A source-pinned complete-layer
+replay is still required before claiming propagated numerical benefit.
+
+Warning-denied native check and **106/106 affected native tests** pass,
+including independent query geometry/source and window/compressed owner
+regressions. Replay-runner tests2/2 pass. Targeted `moon info` completes with
+936 existing migration warnings and zero errors; only affected public
+interfaces are retained with this implementation. This does not replace the
+unresolved clean full-suite/whole-model validation.
