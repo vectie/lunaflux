@@ -56,7 +56,8 @@ GLM image contains vLLM 0.1.dev20051+g487ecf187 and registers both exact model
 architectures. Registration is not proof that quantization/SM121 execution works.
 Upstream also records a [GLM Spark DSA backend issue](https://github.com/sgl-project/sglang/issues/40286).
 Inspect a current supported build before drawing conclusions from the old NGC
-image. No fresh comparative performance numbers have been obtained yet.
+image. Fresh vLLM GLM measurements are recorded below; the matched native and
+SGLang corpus measurements are not yet complete.
 
 ## Public recipes found from the user's template table
 
@@ -72,6 +73,53 @@ image. No fresh comparative performance numbers have been obtained yet.
   references, but neither checkpoint may replace the installed DSpark package
   without explicitly changing the comparison. Disable drafting for the initial
   matched target-only experiment; speculative results are a separate axis.
+- The [GLM SGLang Spark recipe](https://github.com/beastllama/GLM-5.3-Flash-DFlash2-SGLang-2x-DGX-Spark)
+  names `lmsysorg/sglang:glm-5.3-flash-arm64`. Only its target-engine build is
+  relevant here: no drafter, replacement checkpoint or global host changes.
+- The [official DeepSeek Spark cookbook](https://github.com/sgl-project/sglang/blob/main/docs/cookbook/autoregressive/DeepSeek/DeepSeek-V4.mdx)
+  names `lmsysorg/sglang:dev-v4f-2dgx-v2`, with SM12x b12x kernels. Its listed
+  checkpoint variants do not prove compatibility with our installed DSpark
+  package; actual startup and generation must establish that separately.
+
+Docker Hub connections from the Sparks were refused. Per the user's suggestion,
+the exact recipe tags are now being pulled directly on both Sparks through
+`docker.1ms.run`. DaoCloud returned HTTP 502 on the Spark, though its manifest
+was accessible on the Mac. 1ms returned the ARM64 manifests and downloaded
+layers. A partial download is not yet an installed/working engine. No system
+registry configuration was changed and no extra payload hashing was added.
+
+## Fresh GLM vLLM six-category smoke
+
+Completed root: `/tmp/lunaflux-reference-bench-vllm-glm-20261012-v2`.
+Actual vLLM version is `0.1.dev20051+g487ecf187`. Exact installed NVFP4
+checkpoint, TP2/PP1 over ConnectX-7, concurrency one, no speculation or prefix
+cache. One warm-up was excluded; each following prompt was measured once.
+Times below are buffered HTTP completion time, including prefill and generation,
+not TTFT or decode-only throughput.
+
+| Category | Input tokens | Output tokens | Seconds | Finish |
+| --- | ---: | ---: | ---: | --- |
+| Fact | 22 | 4 | 0.385179 | EOS |
+| Arithmetic | 23 | 4 | 0.393374 | EOS |
+| Chinese | 22 | 8 | 0.656677 | Length |
+| JSON | 23 | 8 | 0.674772 | Length |
+| Code | 24 | 8 | 0.672520 | Length |
+| Retrieval | 36 | 3 | 0.388957 | EOS |
+
+Outputs include Tokyo, 42 and Jon. Chinese, JSON and code are truncated by the
+eight-token budget; JSON is not valid completed JSON. This is broader subject
+coverage, not broad quality acceptance. Literal input IDs, output text, counts
+and finish reasons are retained; the API returned null output-token IDs, so
+raw output-vector agreement cannot be claimed.
+
+The engine selected `FLASHINFER_MLA_SPARSE_SM120`, `FLASHINFER_CUTLASS` MoE,
+`fp8_ds_mla` KV and breakable CUDA graphs. Native GLM uses BF16 KV, PP2/TP1 and
+one-row prefill; these strategy/precision differences must accompany any later
+comparison. Loading took about 571 seconds and 88.47 GiB per rank, excluded
+from request timing. Its warning that `w1_weight_scale_2` and
+`w3_weight_scale_2` differ is retained: this engine is not a correctness oracle.
+Both containers stopped and released their GPUs. No ratio against an unmatched
+native prompt or historical smoke is reported.
 
 ## Measurement setup failures retained
 
@@ -129,3 +177,37 @@ These are executable-coverage differences. Merely adding numerical IR or
 proving arithmetic behavior does not select a throughput implementation.
 Comparison remains external to the compiler; neither a timing advantage nor
 agreement with another engine proves mathematical/model correctness.
+
+## Recovered first-rank GLM execution sample
+
+Profile v4 also crossed the 16 GiB host floor (10.64 GiB observed on ingress)
+when report conversion began while the model remained resident. Its two model
+units were stopped; no completed v4 request time is claimed. After both GPUs
+were released, a separate CPU-only importer under 32 GiB/no swap recovered
+the ingress stream successfully. Egress rejected its incomplete stream; that
+failure remains preserved. No model overlapped either recovery attempt.
+
+Root: `/tmp/lunaflux-model-bench-glm-profile-20261012-v4`, ingress report
+`recovered-v1.nsys-rep`, downloaded locally without overwrite. Nsight's CSVs
+and SQLite query agree on this first-rank sample:
+
+| Selected family | Calls | Summed GPU seconds | Share of kernel time | Grid / block |
+| --- | ---: | ---: | ---: | --- |
+| Sparse attention | 16 | 25.882088 | 90.425% | 1 block / 1 thread |
+| Hyper-connection function | 139 | 2.303595 | 8.048% | 1 block / 1 thread |
+| Other kernels | 2,190 | 0.436984 | 1.527% | Various |
+
+The 2,345 kernels sum to 28.622667 seconds within a 46.614597-second span
+from first kernel start to last kernel end. These are sampled ingress values,
+not a whole-request, two-rank or steady-state-decode attribution. The unsummed
+time cannot be assigned to network, scheduler or pipeline waiting without the
+missing paired rank timeline. Sparse calls take 1.588--1.656 seconds each;
+their measured one-thread launches corroborate the selected source above.
+This is direct evidence of a dominant executable implementation gap in this
+sample, not evidence that numerical IR inherently forces slow execution.
+
+The CUDA API sample also contains 13,755,938 `cuEventQuery` calls and
+13,758,656 `cuCtxSetCurrent` calls. This exceptionally high polling volume
+explains why even a bounded sample contains millions of trace records. Its
+CPU cost and report-memory cost are separate from the 90.425% sparse GPU share;
+do not add these percentages or treat profiled CPU costs as unprofiled latency.

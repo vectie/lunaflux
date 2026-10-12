@@ -11,6 +11,16 @@ import {
 // External reference engine/client. No compiler/runtime import or payload hash.
 
 ///|
+fn reference_image(glm : Bool, sglang : Bool) -> String {
+  if sglang {
+    "docker.1ms.run/lmsysorg/sglang:" +
+    (if glm { "glm-5.3-flash-arm64" } else { "dev-v4f-2dgx-v2" })
+  } else {
+    "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+  }
+}
+
+///|
 fn host(last : Bool) -> String {
   if last {
     "wlc004s@192.168.2.179"
@@ -147,6 +157,13 @@ test "reference uses literal IDs and does not reinterpret the chat template" {
 }
 
 ///|
+test "Spark recipes retain distinct GLM and DeepSeek builds" {
+  assert_true(reference_image(true, true).has_suffix(":glm-5.3-flash-arm64"))
+  assert_true(reference_image(false, true).has_suffix(":dev-v4f-2dgx-v2"))
+  assert_eq(reference_image(true, false), reference_image(false, false))
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, family, engine, mode, .. rest] &&
     root.has_prefix("/tmp/lunaflux-reference-bench-") &&
@@ -162,11 +179,7 @@ async fn main {
   }
   let glm = family == "glm"
   let sg = engine == "sglang"
-  let image = if sg {
-    "nvcr.io/nvidia/sglang:26.09-py3"
-  } else {
-    "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
-  }
+  let image = reference_image(glm, sg)
   let tag = root[5:].to_owned()
   if mode == "watch" {
     let observations = StringBuilder()
