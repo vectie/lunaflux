@@ -40,12 +40,26 @@ pub fn GlmDecoderStage::new(
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
   }
   let (first_layer, end_layer) = range.layer_range()
+  // TP workers receive identical token IDs. Only the last rank owns model
+  // egress; computing a discarded full vocabulary on every rank is redundant.
+  let boundary : @precision_ir.TextBoundary = if tensor_group
+    is Some((rank, world)) &&
+    rank != world - 1 &&
+    range.text_boundary().has_egress() {
+    if range.text_boundary().has_ingress() {
+      Ingress
+    } else {
+      Interior
+    }
+  } else {
+    range.text_boundary()
+  }
   let text_plan = flash_text_io_plan(
     spec,
     maximum_rows~,
     maximum_output_rows=1,
     maximum_workspace_bytes=maximum_text_workspace_bytes,
-    boundary=range.text_boundary(),
+    boundary~,
   )
   {
     range,
@@ -71,7 +85,7 @@ pub fn GlmDecoderStage::new(
       maximum_rows~,
       maximum_output_rows=1,
       maximum_workspace_bytes=maximum_text_workspace_bytes,
-      boundary=range.text_boundary(),
+      boundary~,
     ),
     residual_bytes: text_plan.residual_bytes(),
     maximum_rows,
@@ -95,7 +109,7 @@ pub fn GlmDecoderStage::layer_range(self : Self) -> (Int, Int) {
 pub fn GlmDecoderStage::text_boundary(
   self : Self,
 ) -> @precision_ir.TextBoundary {
-  self.range.text_boundary()
+  self.text.boundary
 }
 
 ///|

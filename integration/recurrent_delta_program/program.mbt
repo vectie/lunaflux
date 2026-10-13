@@ -26,6 +26,7 @@ pub struct RecurrentDeltaProgram {
   priv intermediates : Array[@device.Allocation]
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut queue : @device.OrderedKernelExecutor?
+  priv mut tensor_boundary : (Int, @device.Allocation, Int)?
 }
 
 ///|
@@ -47,6 +48,7 @@ pub fn RecurrentDeltaProgram::new(
     intermediates: [],
     launches: [],
     queue: None,
+    tensor_boundary: None,
   }
 }
 
@@ -147,6 +149,9 @@ fn RecurrentDeltaProgram::prepare_program(
   prefix~ : ArrayView[@device.OrderedKernelLaunch],
   suffix~ : ArrayView[@device.OrderedKernelLaunch],
 ) -> Unit raise @device.DeviceError {
+  guard stream is None || self.tensor_width() is None else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
   guard self.status is Fresh &&
     self.cache is None &&
     self.functions.is_empty() &&

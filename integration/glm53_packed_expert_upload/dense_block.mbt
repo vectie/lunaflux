@@ -11,6 +11,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int, Int),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is DenseSwiGlu else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -24,6 +25,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
     maximum_state_bytes~,
     evaluation~,
     matrix_law~,
+    tensor_group?,
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(
     stream_count=spec.hyper_connection_streams(),
@@ -36,8 +38,16 @@ pub fn GlmRecurrentLayer::with_dense_block(
   )
   let mlp = @precision_ir.DenseSwiGluPrecision::new(
     hidden_width=spec.hidden_size(),
-    intermediate_width=spec.dense_intermediate_size(),
+    intermediate_width=partition_width(
+      spec.dense_intermediate_size(),
+      tensor_group,
+    ),
     maximum_rows~,
+    publication=if tensor_group is Some(_) {
+      ReduceFloat32BeforeRound
+    } else {
+      LocalBFloat16
+    },
   )
   {
     spec,
@@ -45,6 +55,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
     program: branch.program,
     weights: branch.weights,
     hyper: branch.hyper,
+    tensor_group,
     ffn: Some({
       envelope: @hyper.HyperConnectionFrame::new(
         @hyper_source.hyper_connection_source(
@@ -76,6 +87,7 @@ fn bind_dense_ffn_weights(
   checkpoint : @precision_materialize.PackedCheckpoint,
   spec : @glm53_spec.Glm53FlashSpec,
   layer : Int,
+  tensor_group? : (Int, Int),
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   let prefix = "model.language_model.layers.\{layer}."
   let hidden = spec.hidden_size()
@@ -97,6 +109,16 @@ fn bind_dense_ffn_weights(
         payload_name=prefix + name,
       ),
     )
+  }
+  if tensor_group is Some((rank, world_size)) {
+    let (start, count) = @precision_ir.TensorAxisPartition::new(
+      intermediate,
+      rank~,
+      world_size~,
+    ).range()
+    weights[0] = slice_weight_rows(weights[0], start, count)
+    weights[1] = slice_weight_rows(weights[1], start, count)
+    weights[2] = slice_weight_columns(weights[2], start, count)
   }
   weights.append(bind_ffn_hyper_weights(checkpoint, spec, layer))
   weights

@@ -35,6 +35,7 @@ pub fn dense_mlp_source(
       intermediate_size=intermediate,
       maximum_rows=rows,
       function_prefix=symbol_prefix,
+      publication=plan.publication(),
     ),
   }
 }
@@ -62,6 +63,7 @@ pub fn DenseMlpCudaSource::symbol(
   let suffix = match stage {
     0 => "_gate_up"
     1 => "_down"
+    2 if self.plan.publication() == ReduceFloat32BeforeRound => "_publish"
     _ => raise @precision.PrecisionPlanError::IllegalPlacement
   }
   self.prefix + suffix

@@ -60,3 +60,25 @@ pub fn RecurrentDeltaProgram::launches(
   }
   self.launches[:]
 }
+
+///|
+pub fn RecurrentDeltaProgram::tensor_width(self : Self) -> Int? {
+  match self.block {
+    Some(block) if block.plan().publication() == ReduceFloat32BeforeRound => {
+      let (hidden, _) = block.plan().projection_geometry()
+      Some(hidden)
+    }
+    _ => None
+  }
+}
+
+///|
+/// Borrowed partials; the caller must reduce them before the indicated launch.
+pub fn RecurrentDeltaProgram::tensor_boundary(
+  self : Self,
+) -> (Int, @device.Allocation, Int)? raise @device.DeviceError {
+  guard self.status is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.tensor_boundary
+}

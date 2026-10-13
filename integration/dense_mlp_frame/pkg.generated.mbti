@@ -19,6 +19,8 @@ pub fn DenseMlpFrame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] r
 pub fn DenseMlpFrame::new(@dense_mlp_execution_cuda_source.DenseMlpCudaSource) -> Self
 pub fn DenseMlpFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, input~ : @device.Allocation, gate~ : @device.Allocation, up~ : @device.Allocation, down~ : @device.Allocation, output~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise
 pub fn DenseMlpFrame::source_bytes(Self) -> Bytes
+pub fn DenseMlpFrame::tensor_boundary(Self) -> (Int, @device.Allocation, Int)? raise @device.DeviceError
+pub fn DenseMlpFrame::tensor_width(Self) -> Int?
 pub fn DenseMlpFrame::workspace_bytes(Self) -> Int64
 
 // Type aliases

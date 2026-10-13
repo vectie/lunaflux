@@ -177,9 +177,11 @@ pub struct DenseSwiGluPrecision {
 }
 pub fn DenseSwiGluPrecision::expression(Self, DenseSwiGluExpression) -> NumericExpression raise PrecisionPlanError
 pub fn DenseSwiGluPrecision::geometry(Self) -> (Int, Int, Int)
-pub fn DenseSwiGluPrecision::new(hidden_width~ : Int, intermediate_width~ : Int, maximum_rows~ : Int) -> Self raise PrecisionPlanError
+pub fn DenseSwiGluPrecision::new(hidden_width~ : Int, intermediate_width~ : Int, maximum_rows~ : Int, publication? : ProjectionPublication) -> Self raise PrecisionPlanError
+pub fn DenseSwiGluPrecision::product_bytes(Self) -> Int64
 pub fn DenseSwiGluPrecision::program(Self) -> @parallel_ir.Program raise PrecisionPlanError
 pub fn DenseSwiGluPrecision::projection_fold(Self, down~ : Bool) -> OrderedNumericFold raise PrecisionPlanError
+pub fn DenseSwiGluPrecision::publication(Self) -> ProjectionPublication
 pub fn DenseSwiGluPrecision::weight_bytes(Self) -> Int64
 pub fn DenseSwiGluPrecision::workspace_bytes(Self) -> Int64
 
@@ -368,9 +370,10 @@ pub struct IndexedSparseDecoderPrecision {
 pub fn IndexedSparseDecoderPrecision::attention_output_bytes(Self) -> Int64
 pub fn IndexedSparseDecoderPrecision::envelope(Self) -> HyperConnectionPrecision
 pub fn IndexedSparseDecoderPrecision::history(Self) -> IndexedSparseHistoryPrecision
-pub fn IndexedSparseDecoderPrecision::new(IndexedSparseProjectionPrecision, HyperConnectionPrecision, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn IndexedSparseDecoderPrecision::new(IndexedSparseProjectionPrecision, HyperConnectionPrecision, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, publication? : ProjectionPublication) -> Self raise PrecisionPlanError
 pub fn IndexedSparseDecoderPrecision::output_weight_bytes(Self) -> Int64
 pub fn IndexedSparseDecoderPrecision::projection(Self) -> IndexedSparseProjectionPrecision
+pub fn IndexedSparseDecoderPrecision::publication(Self) -> ProjectionPublication
 pub fn IndexedSparseDecoderPrecision::workspace_bytes(Self) -> Int64
 
 pub struct IndexedSparseHistoryPrecision {
@@ -711,6 +714,14 @@ pub(all) enum ProjectionExpression {
 }
 pub fn ProjectionExpression::program(Self) -> NumericExpression raise PrecisionPlanError
 
+pub(all) enum ProjectionPublication {
+  LocalBFloat16
+  ReduceFloat32BeforeRound
+} derive(Eq, @debug.Debug)
+pub fn ProjectionPublication::equal(Self, Self) -> Bool
+pub fn ProjectionPublication::not_equal(Self, Self) -> Bool
+pub fn ProjectionPublication::to_repr(Self) -> @debug.Repr
+
 pub(all) enum QuantizationPass {
   GlobalAmax
   ScaleAmax
@@ -780,10 +791,11 @@ pub struct RecurrentBlockPrecision {
 pub fn RecurrentBlockPrecision::convolution(Self) -> CausalConvolutionPrecision
 pub fn RecurrentBlockPrecision::delta(Self) -> RecurrentDeltaPrecision
 pub fn RecurrentBlockPrecision::frame_bytes(Self) -> Int64
-pub fn RecurrentBlockPrecision::new(RecurrentDeltaPrecision, CausalConvolutionPrecision, hidden_width~ : Int, control_rank~ : Int, output_normalization_epsilon~ : Double, projection_law? : DenseDotLaw) -> Self raise PrecisionPlanError
+pub fn RecurrentBlockPrecision::new(RecurrentDeltaPrecision, CausalConvolutionPrecision, hidden_width~ : Int, control_rank~ : Int, output_normalization_epsilon~ : Double, projection_law? : DenseDotLaw, publication? : ProjectionPublication) -> Self raise PrecisionPlanError
 pub fn RecurrentBlockPrecision::normalization_epsilon(Self) -> Double
 pub fn RecurrentBlockPrecision::projection_geometry(Self) -> (Int, Int)
 pub fn RecurrentBlockPrecision::projection_law(Self) -> DenseDotLaw
+pub fn RecurrentBlockPrecision::publication(Self) -> ProjectionPublication
 
 pub(all) enum RecurrentChunkExpression {
   GatePrefix
@@ -1033,6 +1045,12 @@ pub(all) enum SumReductionLaw {
 pub fn SumReductionLaw::equal(Self, Self) -> Bool
 pub fn SumReductionLaw::not_equal(Self, Self) -> Bool
 pub fn SumReductionLaw::to_repr(Self) -> @debug.Repr
+
+pub struct TensorAxisPartition {
+  // private fields
+}
+pub fn TensorAxisPartition::new(Int, rank~ : Int, world_size~ : Int) -> Self raise PrecisionPlanError
+pub fn TensorAxisPartition::range(Self) -> (Int, Int)
 
 pub(all) enum TextBoundary {
   Ingress

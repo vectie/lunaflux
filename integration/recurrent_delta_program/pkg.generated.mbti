@@ -46,6 +46,8 @@ pub fn RecurrentDeltaProgram::prepare_block_frame(Self, @device.Context, @device
 pub fn RecurrentDeltaProgram::source_bytes(Self) -> Bytes
 pub fn RecurrentDeltaProgram::state_bytes(Self) -> Int64
 pub fn RecurrentDeltaProgram::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
+pub fn RecurrentDeltaProgram::tensor_boundary(Self) -> (Int, @device.Allocation, Int)? raise @device.DeviceError
+pub fn RecurrentDeltaProgram::tensor_width(Self) -> Int?
 pub fn RecurrentDeltaProgram::with_block(@recurrent_block_execution_cuda_source.RecurrentBlockCudaSource) -> Self raise @precision_ir.PrecisionPlanError
 pub fn RecurrentDeltaProgram::with_convolution(@recurrent_delta_execution_cuda_source.RecurrentDeltaCudaSource, @causal_convolution_execution_cuda_source.CausalConvolutionCudaSource) -> Self raise @precision_ir.PrecisionPlanError
 pub fn RecurrentDeltaProgram::workspace_bytes(Self) -> Int64

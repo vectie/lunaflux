@@ -149,7 +149,7 @@ async fn main {
       export_unit +
       " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
       binary +
-      " export-tiled-grouped-expert-tp /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 16 64 103079215104 103079215104 2147483648 " +
+      " export-tiled-grouped-expert-tp /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 16 64 107374182400 107374182400 2147483648 " +
       aot,
     ),
   )

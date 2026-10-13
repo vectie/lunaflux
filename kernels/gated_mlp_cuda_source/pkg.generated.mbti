@@ -15,7 +15,7 @@ pub fn separate_gate_up_swiglu_dense_bf16_source(hidden_size~ : Int, intermediat
 
 pub fn staged_packed_swiglu_bf16_source(rows~ : Int, hidden_size~ : Int, intermediate_size~ : Int, function_prefix~ : String, dot_reduction_law? : @precision_ir.DotReductionLaw) -> Bytes raise GatedMlpCudaSourceError
 
-pub fn staged_separate_swiglu_bf16_source(hidden_size~ : Int, intermediate_size~ : Int, maximum_rows~ : Int, function_prefix~ : String) -> Bytes raise GatedMlpCudaSourceError
+pub fn staged_separate_swiglu_bf16_source(hidden_size~ : Int, intermediate_size~ : Int, maximum_rows~ : Int, function_prefix~ : String, publication? : @precision_ir.ProjectionPublication) -> Bytes raise GatedMlpCudaSourceError
 
 // Errors
 pub(all) suberror GatedMlpCudaSourceError {

@@ -142,3 +142,53 @@ precision, raising the cap, or quietly substituting CPU offload would not be
 the tested implementation. Also still open: the compatible-runtime collective
 sanitizer gate and the native low-bit expert operand path. Neither target is
 reported as fully fixed.
+
+## Follow-up: complete tensor partitioning and native low-bit execution
+
+The user has explicitly raised this experiment's ceiling to **100 GiB per
+Spark**, with zero task swap. The old 96 GiB rejection remains a historical
+result, not the current limit. Preserve at least 16 GiB host-available memory;
+the larger cap does not authorize overlapping GPU workloads.
+
+Non-expert TP partitions independent attention heads and FFN intermediate
+channels. Column-parallel producers retain full hidden inputs; row-parallel
+consumers produce F32 partial sums, then an explicit collective precedes BF16
+publication and residual updates. Small controls and normalization parameters
+may remain replicated. Partition plans describe logical axes and rounding
+boundaries; device instructions and collective ownership stay in their private
+lowering/runtime layers. Test source selection and compact checkpoint slices,
+not merely the presence of a plan in the compiler.
+
+The low-bit grouped alternative must express activation quantization explicitly.
+NVFP4-weight/BF16-activation WMMA and native W4A4 are different numerical
+programs. A native block-scaled implementation needs independent quantized
+arithmetic tests, matched output checks, sanitizer coverage, and measured
+selection. Framework comparison remains an external benchmark, not a compiler
+correctness oracle. No payload hashes or integrity scans are part of this work.
+
+### Non-expert implementation stage (physical validation pending)
+
+`TensorAxisPartition` and `ProjectionPublication` now carry head/channel slices
+and the F32-before-BF16 collective boundary. KDA Q/K/V, expansions, convolution
+history and recurrence state are head-sharded. Sparse Q-B/KV-B, KV history and
+output projection are head-sharded; sparse indexing and low-rank inputs remain
+replicated. Dense and shared FFNs shard intermediate channels. Compact uploads
+reuse the packed rectangular-slice materializer, including strided output
+weights. Rank zero no longer loads or computes a discarded vocabulary head;
+token embedding and small controls are deliberately replicated.
+
+Each full decoder has 132 explicit reduction sites: two per dense block and
+three per MoE block. The decoder composes ordered compute/reduction/publication
+boundaries at startup, without per-step array allocation. A local-only recurrent
+executor rejects plans requiring a reduction. No TP output round occurs before
+its collective. F32 reduction changes grouping and is not claimed to be bitwise
+equivalent to the unpartitioned arithmetic on arbitrary inputs.
+
+Warning-denied native check passes using the existing warning exclusions.
+Two targeted batches pass (104/104 and 44/44; these overlap and are not summed).
+The tests include all logical axis partitions, F32 scratch accounting, the
+full 132-site contract, both attention source paths, dense/shared integration,
+and text egress ownership. These are not yet GPU correctness, sanitizer, or
+matched full-model timing results. The explicit TP benchmark now uses the
+authorized 100 GiB planning/runtime ceiling; other benchmark modes retain their
+previous 96 GiB limit.

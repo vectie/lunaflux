@@ -11,6 +11,7 @@ pub struct IndexedSparseDecoderFrame {
   priv functions : Array[@device.Function]
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut state : State
+  priv mut tensor_boundary : (Int, @device.Allocation, Int)?
 }
 
 ///|
@@ -27,6 +28,7 @@ pub fn IndexedSparseDecoderFrame::new(
     functions: [],
     launches: [],
     state: Fresh,
+    tensor_boundary: None,
   }
 }
 
@@ -113,6 +115,14 @@ pub fn IndexedSparseDecoderFrame::prepare(
   let (hidden_width, _, _) = plan.projection().geometry()
   let (rows, _) = plan.projection().attention().capacity()
   let out_bytes = rows.to_int64() * hidden_width.to_int64() * 2L
+  let partial = plan.publication() == ReduceFloat32BeforeRound
+  let projection_output = if partial {
+    let buffer = context.allocate(out_bytes * 2L)
+    self.buffers.push(buffer)
+    buffer
+  } else {
+    self.envelope.branch_output()
+  }
   let (output_grid, output_block) = self.source.output_launch()
   self.launches.push(
     @device.OrderedKernelLaunch::new(
@@ -135,12 +145,72 @@ pub fn IndexedSparseDecoderFrame::prepare(
         ),
         region(attention_output, plan.attention_output_bytes()),
         region(output_weight, plan.output_weight_bytes()),
-        region(self.envelope.branch_output(), out_bytes),
+        region(
+          projection_output,
+          if partial {
+            out_bytes * 2L
+          } else {
+            out_bytes
+          },
+        ),
       ]),
     ),
   )
+  if partial {
+    self.tensor_boundary = Some(
+      (self.launches.length(), projection_output, hidden_width),
+    )
+    let publish = aot.load_function(
+      @utf8.encode(self.source.output_symbol() + "_publish"),
+    )
+    self.functions.push(publish)
+    self.launches.push(
+      @device.OrderedKernelLaunch::new(
+        publish,
+        @device.KernelLaunchDimensions::new(
+          grid_x=((out_bytes / 2L + 255L) / 256L).to_int(),
+          grid_y=1,
+          grid_z=1,
+          block_x=256,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=0,
+        ),
+        @device.KernelArguments::new([
+          @device.KernelArgument::device_region(
+            counts,
+            offset=0L,
+            byte_count=20L,
+            alignment=4L,
+          ),
+          region(projection_output, out_bytes * 2L),
+          region(self.envelope.branch_output(), out_bytes),
+        ]),
+      ),
+    )
+  }
   self.launches.append(self.envelope.suffix())
   self.state = Prepared
+}
+
+///|
+pub fn IndexedSparseDecoderFrame::tensor_width(self : Self) -> Int? {
+  if self.source.plan().publication() == ReduceFloat32BeforeRound {
+    let (hidden, _, _) = self.source.plan().projection().geometry()
+    Some(hidden)
+  } else {
+    None
+  }
+}
+
+///|
+pub fn IndexedSparseDecoderFrame::tensor_boundary(
+  self : Self,
+) -> (Int, @device.Allocation, Int)? raise @device.DeviceError {
+  guard self.state is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.tensor_boundary
 }
 
 ///|

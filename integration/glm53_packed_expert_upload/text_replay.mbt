@@ -21,7 +21,7 @@ pub fn GlmTextIo::projection_suffix(
 pub fn GlmDecoderStage::borrow_text_logits(
   self : Self,
 ) -> @device.Allocation raise {
-  guard self.status is Ready && self.range.text_boundary().has_egress() else {
+  guard self.status is Ready && self.text_boundary().has_egress() else {
     raise @device.DeviceError::InvalidArgument(StreamingTransfer)
   }
   self.text.logits()

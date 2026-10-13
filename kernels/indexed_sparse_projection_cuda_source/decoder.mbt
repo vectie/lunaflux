@@ -22,6 +22,7 @@ pub fn indexed_sparse_decoder_source(
   let (hidden, _, _) = projection.geometry()
   let (rows, _) = attention.capacity()
   let output_symbol = symbol_prefix + "_output"
+  let partial = plan.publication() == ReduceFloat32BeforeRound
   let (output, output_launch) = if projection.projection_law() == MatrixFloat32 {
     let tile = @matrix.MatrixTilePlan::new(
       rows~,
@@ -29,7 +30,20 @@ pub fn indexed_sparse_decoder_source(
       inner=heads * values,
       law=projection.projection_law(),
     )
-    (@tiled.dense_source(tile, symbol=output_symbol), (tile.tile_count(), 128))
+    (
+      @tiled.dense_source(tile, symbol=output_symbol, partial_float32=partial),
+      (tile.tile_count(), 128),
+    )
+  } else if partial {
+    (
+      @tiled.scalar_partial_source(
+        rows~,
+        columns=hidden,
+        inner=heads * values,
+        symbol=output_symbol,
+      ),
+      (((rows.to_int64() * hidden.to_int64() + 255L) / 256L).to_int(), 256),
+    )
   } else {
     (
       @projection.dense_projection_bf16_source(
@@ -59,7 +73,17 @@ pub fn indexed_sparse_decoder_source(
       plan.envelope(),
       symbol_prefix=symbol_prefix + "_hyper",
     ),
-    output,
+    output: output +
+    (if partial {
+      b"\n" +
+      @tiled.publication_source(
+        rows~,
+        width=hidden,
+        symbol=output_symbol + "_publish",
+      )
+    } else {
+      b""
+    }),
     output_symbol,
     output_launch,
   }

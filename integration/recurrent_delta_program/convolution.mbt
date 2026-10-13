@@ -38,6 +38,7 @@ pub fn RecurrentDeltaProgram::with_convolution(
     intermediates: [],
     launches: [],
     queue: None,
+    tensor_boundary: None,
   }
 }
 

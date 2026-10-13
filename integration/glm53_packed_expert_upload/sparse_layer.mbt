@@ -8,6 +8,7 @@ pub struct GlmSparseLayer {
   priv maximum_rows : Int
   priv decoder : @sparse_frame.IndexedSparseDecoderFrame
   priv ffn : GlmFfn
+  priv tensor_group : (Int, Int)?
   priv weights : @upload.CheckpointDeviceWeights
   priv mut queue : @device.OrderedKernelExecutor?
   priv mut launch_count : Int
@@ -38,6 +39,7 @@ pub fn GlmSparseLayer::new(
     maximum_attention_workspace_bytes=maximum_workspace_bytes,
     maximum_projection_workspace_bytes=maximum_workspace_bytes,
     projection_law=matrix_law,
+    tensor_group?,
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(
     stream_count=spec.hyper_connection_streams(),
@@ -53,6 +55,11 @@ pub fn GlmSparseLayer::new(
     envelope,
     maximum_state_bytes~,
     maximum_workspace_bytes~,
+    publication=if tensor_group is Some(_) {
+      ReduceFloat32BeforeRound
+    } else {
+      LocalBFloat16
+    },
   )
   let ffn = make_moe_ffn(
     spec,
@@ -79,6 +86,7 @@ pub fn GlmSparseLayer::new(
     maximum_rows: maximum_queries,
     decoder,
     ffn,
+    tensor_group,
     weights: @upload.CheckpointDeviceWeights::new(),
     queue: None,
     launch_count: 0,

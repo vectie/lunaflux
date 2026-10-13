@@ -10,6 +10,7 @@ pub struct RecurrentBlockPrecision {
   priv epsilon : Double
   priv frame_bytes : Int64
   priv projection_law : DenseDotLaw
+  priv publication : ProjectionPublication
 }
 
 ///|
@@ -20,6 +21,7 @@ pub fn RecurrentBlockPrecision::new(
   control_rank~ : Int,
   output_normalization_epsilon~ : Double,
   projection_law? : DenseDotLaw = ScalarFloat32,
+  publication? : ProjectionPublication = LocalBFloat16,
 ) -> Self raise PrecisionPlanError {
   let (heads, keys, values) = delta.geometry()
   let (channels, _) = convolution.geometry()
@@ -50,6 +52,17 @@ pub fn RecurrentBlockPrecision::new(
     expert_checked_mul(rows.to_int64(), width),
     2L,
   )
+  let partial_bytes = if publication == ReduceFloat32BeforeRound {
+    expert_checked_mul(
+      expert_checked_mul(rows.to_int64(), hidden_width.to_int64()),
+      4L,
+    )
+  } else {
+    0L
+  }
+  guard partial_bytes <= 9223372036854775807L - frame_bytes else {
+    raise MemoryBudgetExceeded
+  }
   ignore(
     expert_checked_mul(
       expert_checked_mul(channels.to_int64(), hidden_width.to_int64()),
@@ -74,9 +87,17 @@ pub fn RecurrentBlockPrecision::new(
     hidden: hidden_width,
     rank: control_rank,
     epsilon: output_normalization_epsilon,
-    frame_bytes,
+    frame_bytes: frame_bytes + partial_bytes,
     projection_law,
+    publication,
   }
+}
+
+///|
+pub fn RecurrentBlockPrecision::publication(
+  self : Self,
+) -> ProjectionPublication {
+  self.publication
 }
 
 ///|

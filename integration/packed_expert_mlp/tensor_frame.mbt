@@ -24,6 +24,16 @@ pub fn ExpertTensorBoundary::width(self : Self) -> Int {
 }
 
 ///|
+pub fn MoeProgram::shared_tensor_boundary(
+  self : Self,
+) -> ExpertTensorBoundary? raise @device.DeviceError {
+  guard !self.closed && !self.launches.is_empty() else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  self.shared_tensor_boundary
+}
+
+///|
 pub fn MoeProgram::prepare_routed_tensor_frame(
   self : Self,
   context : @device.Context,

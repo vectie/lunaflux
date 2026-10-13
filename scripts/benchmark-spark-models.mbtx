@@ -555,7 +555,9 @@ async fn main {
           } else {
             ""
           }) +
-          " --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800 " +
+          " --property=RemainAfterExit=yes --property=MemoryMax=" +
+          (if expert_tp { "100G" } else { "96G" }) +
+          " --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800 " +
           profile_prefix +
           executable +
           " " +
@@ -564,7 +566,12 @@ async fn main {
           model(glm, last) +
           " " +
           shards +
-          " \{rows} \{history} 103079215104 103079215104 " +
+          " \{rows} \{history} " +
+          (if expert_tp {
+            "107374182400 107374182400 "
+          } else {
+            "103079215104 103079215104 "
+          }) +
           (if glm { "2147483648" } else { "4294967296" }) +
           " " +
           aot +

@@ -66,6 +66,7 @@ pub fn GlmDecoderSlice::new(
                 maximum_state_bytes=maximum_layer_state_bytes,
                 evaluation=recurrent_evaluation,
                 matrix_law~,
+                tensor_group?,
               ),
             )
           RoutedMixtureOfExperts =>
@@ -254,12 +255,12 @@ pub fn GlmDecoderSlice::prepare(
       hidden=input,
       output=next,
     )
-    if layer.tensor_boundary() is Some((before_kernel, partials, width)) {
+    for (sublayer, before_kernel, partials, width) in layer.tensor_boundaries() {
       boundaries.push(
         @collective_program.ReductionBoundary::new(
           before_kernel=launches.length() + before_kernel,
           width~,
-          operation_id=self.first_layer + index,
+          operation_id=(self.first_layer + index) * 3 + sublayer,
           buffer=partials,
         ),
       )

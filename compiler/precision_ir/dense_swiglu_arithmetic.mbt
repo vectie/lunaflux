@@ -74,6 +74,13 @@ pub fn DenseSwiGluPrecision::program(
   self : Self,
 ) -> @parallel.Program raise PrecisionPlanError {
   let frame = self.rows.to_int64() * self.hidden.to_int64() * 2L
+  // A partial program ends at its F32 reduction input. Its caller owns the
+  // collective effect and the single subsequent BF16 publication.
+  let output = if self.publication == ReduceFloat32BeforeRound {
+    frame * 2L
+  } else {
+    frame
+  }
   numeric_effects(
     [
       20L,
@@ -82,7 +89,7 @@ pub fn DenseSwiGluPrecision::program(
       self.weight_bytes,
       self.weight_bytes,
       self.product_bytes,
-      frame,
+      output,
     ],
     [true, true, true, true, true, false, false],
     [

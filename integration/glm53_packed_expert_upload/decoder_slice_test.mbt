@@ -23,7 +23,7 @@ fn decoder_slice_fixture(
 }
 
 ///|
-test "tensor decoder schedule contains one pre-publication reduction per MoE layer" {
+test "tensor decoder schedule reduces attention dense routed and shared before publication" {
   let slice = decoder_slice_fixture(0, 5, tensor_group=(1, 2))
   defer slice.close()
   let contract = slice.tensor_contract(
@@ -33,7 +33,7 @@ test "tensor decoder schedule contains one pre-publication reduction per MoE lay
   )
   assert_eq(contract.rank(), 1)
   assert_eq(contract.world_size(), 2)
-  assert_eq(contract.site_count(), 2)
+  assert_eq(contract.site_count(), 12)
   let source = @utf8.decode(slice.source_bytes())
   assert_true(source.contains("float *weighted"))
   assert_true(source.contains("glm_routed_3_combine"))

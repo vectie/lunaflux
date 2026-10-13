@@ -154,6 +154,9 @@ fn MoeProgram::prepare_experts(
   reduction? : MoeReduction,
   prefix~ : ArrayView[@device.OrderedKernelLaunch],
 ) -> Unit raise @device.DeviceError {
+  guard self.shared.plan().down_publication() == LocalBFloat16 else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
   let partial = self.routed.plan().down_publication() ==
     ReduceFloat32BeforeRound
   guard !partial || reduction is Some(_) else {
@@ -262,6 +265,14 @@ fn MoeProgram::bind_experts(
     shared=shared.output,
     output~,
   )
+  if self.shared.plan().down_publication() == ReduceFloat32BeforeRound {
+    let (_, hidden, _, _, _) = self.shared.plan().geometry()
+    self.shared_tensor_boundary = Some({
+      before_kernel: routed_launches.length() + shared_launches.length() - 1,
+      partials: shared.weighted,
+      width: hidden,
+    })
+  }
   (
     routed_launches,
     shared_launches,

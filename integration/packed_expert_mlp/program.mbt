@@ -13,6 +13,7 @@ pub struct MoeProgram {
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut executor : MoeExecutor?
   priv mut closed : Bool
+  priv mut shared_tensor_boundary : ExpertTensorBoundary?
 }
 
 ///|
@@ -51,7 +52,10 @@ pub fn MoeProgram::new(
     hidden == sh &&
     se == 1 &&
     ss == 1 &&
-    shared.plan().down_publication() == LocalBFloat16 &&
+    (
+      shared.plan().down_publication() == LocalBFloat16 ||
+      routed.plan().down_publication() == ReduceFloat32BeforeRound
+    ) &&
     shared.plan().local_experts()[:] == [0] &&
     combine.plan().geometry() == (rows, hidden) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -101,6 +105,7 @@ pub fn MoeProgram::new(
     launches: [],
     executor: None,
     closed: false,
+    shared_tensor_boundary: None,
   }
 }
 

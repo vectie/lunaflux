@@ -38,13 +38,16 @@ pub fn RecurrentDeltaProgram::with_block(
     maximum_rows: base.maximum_rows,
     cache_bytes: base.cache_bytes,
     owned_bytes: base.owned_bytes + extra,
-    launch_count: 15 + block.delta().stage_count(),
+    launch_count: 15 +
+    block.delta().stage_count() +
+    (if block.plan().publication() == ReduceFloat32BeforeRound { 1 } else { 0 }),
     status: Fresh,
     cache: None,
     functions: [],
     intermediates: [],
     launches: [],
     queue: None,
+    tensor_boundary: None,
   }
 }
 
@@ -126,6 +129,10 @@ fn allocate_block_frame(
     full,
     full,
   ]
+  if plan.publication() == ReduceFloat32BeforeRound {
+    let (hidden, _) = plan.projection_geometry()
+    sizes.push(rows.to_int64() * hidden.to_int64() * 4L)
+  }
   FixedArray::from_array(
     sizes.map(size => {
       let allocation = context.allocate(size)
@@ -182,6 +189,12 @@ fn append_block_projection(
 ) -> Unit raise @device.DeviceError {
   let (rows, _, _) = source.plan().delta().capacity()
   let out_cells = rows.to_int64() * output_width.to_int64()
+  let out_element = if stage == 15 &&
+    source.plan().publication() == ReduceFloat32BeforeRound {
+    4L
+  } else {
+    2L
+  }
   let (grid, threads) = source.projection_launch(input_width, output_width) catch {
     _ => raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
@@ -189,7 +202,7 @@ fn append_block_projection(
     region(counts, 20L, 4L),
     region(input, rows.to_int64() * input_width.to_int64() * 2L, 2L),
     region(weight, output_width.to_int64() * input_width.to_int64() * 2L, 2L),
-    region(output, out_cells * 2L, 2L),
+    region(output, out_cells * out_element, out_element),
   ])
 }
 
@@ -358,8 +371,31 @@ fn append_block_suffix(
     counts,
     frame[11],
     weights.output,
-    output,
+    if plan.publication() == ReduceFloat32BeforeRound {
+      frame[12]
+    } else {
+      output
+    },
     channels,
     hidden,
   )
+  if plan.publication() == ReduceFloat32BeforeRound {
+    owner.tensor_boundary = Some((launches.length(), frame[12], hidden))
+    let cells = rows.to_int64() * hidden.to_int64()
+    append_block_launch(
+      owner,
+      aot,
+      source,
+      launches,
+      16,
+      ((cells + 255L) / 256L).to_int(),
+      1,
+      256,
+      [
+        region(counts, 20L, 4L),
+        region(frame[12], cells * 4L, 4L),
+        region(output, cells * 2L, 2L),
+      ],
+    )
+  }
 }

@@ -12,6 +12,7 @@ priv enum State {
 pub struct DenseMlpFrame {
   priv source : @source.DenseMlpCudaSource
   priv mut product : @device.Allocation?
+  priv mut partials : @device.Allocation?
   priv functions : Array[@device.Function]
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut status : State
@@ -19,7 +20,14 @@ pub struct DenseMlpFrame {
 
 ///|
 pub fn DenseMlpFrame::new(source : @source.DenseMlpCudaSource) -> Self {
-  { source, product: None, functions: [], launches: [], status: Fresh, }
+  {
+    source,
+    product: None,
+    partials: None,
+    functions: [],
+    launches: [],
+    status: Fresh,
+  }
 }
 
 ///|
@@ -66,22 +74,42 @@ pub fn DenseMlpFrame::prepare(
   self.status = Failed
   let plan = self.source.plan()
   let (hidden, intermediate, rows) = plan.geometry()
-  let product = context.allocate(plan.workspace_bytes())
+  let product = context.allocate(plan.product_bytes())
   self.product = Some(product)
   let input_bytes = rows.to_int64() * hidden.to_int64() * 2L
+  let partial = plan.publication() == ReduceFloat32BeforeRound
+  let down_output = if partial {
+    let buffer = context.allocate(input_bytes * 2L)
+    self.partials = Some(buffer)
+    buffer
+  } else {
+    output
+  }
   let arguments = [
     [
       region(counts, 20L, 4L),
       region(input, input_bytes, 2L),
       region(gate, plan.weight_bytes(), 2L),
       region(up, plan.weight_bytes(), 2L),
-      region(product, plan.workspace_bytes(), 2L),
+      region(product, plan.product_bytes(), 2L),
     ],
     [
       region(counts, 20L, 4L),
-      region(product, plan.workspace_bytes(), 2L),
+      region(product, plan.product_bytes(), 2L),
       region(down, plan.weight_bytes(), 2L),
-      region(output, input_bytes, 2L),
+      region(
+        down_output,
+        if partial {
+          input_bytes * 2L
+        } else {
+          input_bytes
+        },
+        if partial {
+          4L
+        } else {
+          2L
+        },
+      ),
     ],
   ]
   for stage in self.source.execution_order() {
@@ -104,7 +132,54 @@ pub fn DenseMlpFrame::prepare(
       ),
     )
   }
+  if partial {
+    let function = aot.load_function(@utf8.encode(self.source.symbol(2)))
+    self.functions.push(function)
+    self.launches.push(
+      @device.OrderedKernelLaunch::new(
+        function,
+        @device.KernelLaunchDimensions::new(
+          grid_x=((input_bytes / 2L + 255L) / 256L).to_int(),
+          grid_y=1,
+          grid_z=1,
+          block_x=256,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=0,
+        ),
+        @device.KernelArguments::new([
+          region(counts, 20L, 4L),
+          region(down_output, input_bytes * 2L, 4L),
+          region(output, input_bytes, 2L),
+        ]),
+      ),
+    )
+  }
   self.status = Prepared
+}
+
+///|
+pub fn DenseMlpFrame::tensor_width(self : Self) -> Int? {
+  if self.source.plan().publication() == ReduceFloat32BeforeRound {
+    let (hidden, _, _) = self.source.plan().geometry()
+    Some(hidden)
+  } else {
+    None
+  }
+}
+
+///|
+pub fn DenseMlpFrame::tensor_boundary(
+  self : Self,
+) -> (Int, @device.Allocation, Int)? raise @device.DeviceError {
+  guard self.status is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  if self.partials is Some(buffer) && self.tensor_width() is Some(width) {
+    Some((self.launches.length() - 1, buffer, width))
+  } else {
+    None
+  }
 }
 
 ///|
@@ -131,6 +206,10 @@ pub fn DenseMlpFrame::close(self : Self) -> Unit raise @device.DeviceError {
   if self.product is Some(product) {
     product.close()
     self.product = None
+  }
+  if self.partials is Some(partials) {
+    partials.close()
+    self.partials = None
   }
   self.status = Closed
 }

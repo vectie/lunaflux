@@ -11,17 +11,34 @@ pub fn flash_sparse_projection_plan(
   maximum_attention_workspace_bytes~ : Int64,
   maximum_projection_workspace_bytes~ : Int64,
   projection_law? : @precision.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int, Int),
 ) -> @precision.IndexedSparseProjectionPrecision raise {
   guard spec.attention_kind(layer_index) is DeepSeekSparseAttention &&
     spec.qk_rope_head_dimension() == 0 &&
     maximum_history <= spec.context_length() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
+  let (query_heads, kv_heads) = match tensor_group {
+    None => (spec.attention_head_count(), spec.kv_head_count())
+    Some((rank, world_size)) => {
+      let (_, query) = @precision.TensorAxisPartition::new(
+        spec.attention_head_count(),
+        rank~,
+        world_size~,
+      ).range()
+      let (_, kv) = @precision.TensorAxisPartition::new(
+        spec.kv_head_count(),
+        rank~,
+        world_size~,
+      ).range()
+      (query, kv)
+    }
+  }
   let attention = @precision.IndexedSparseAttentionPrecision::new(
     index_head_count=spec.index_head_count(),
     index_head_dimension=spec.index_head_dimension(),
-    query_head_count=spec.attention_head_count(),
-    key_value_head_count=spec.kv_head_count(),
+    query_head_count=query_heads,
+    key_value_head_count=kv_heads,
     query_key_dimension=spec.qk_nope_head_dimension(),
     value_dimension=spec.value_head_dimension(),
     pool_size=spec.index_kpool(),

@@ -9,6 +9,8 @@ pub struct DenseSwiGluPrecision {
   priv rows : Int
   priv weight_bytes : Int64
   priv product_bytes : Int64
+  priv publication : ProjectionPublication
+  priv partial_bytes : Int64
 }
 
 ///|
@@ -16,6 +18,7 @@ pub fn DenseSwiGluPrecision::new(
   hidden_width~ : Int,
   intermediate_width~ : Int,
   maximum_rows~ : Int,
+  publication? : ProjectionPublication = LocalBFloat16,
 ) -> Self raise PrecisionPlanError {
   guard hidden_width > 0 && intermediate_width > 0 && maximum_rows > 0 else {
     raise IllegalPlacement
@@ -34,12 +37,25 @@ pub fn DenseSwiGluPrecision::new(
       2L,
     ),
   )
+  let partial_bytes = if publication == ReduceFloat32BeforeRound {
+    expert_checked_mul(
+      expert_checked_mul(maximum_rows.to_int64(), hidden_width.to_int64()),
+      4L,
+    )
+  } else {
+    0L
+  }
+  guard partial_bytes <= 9223372036854775807L - product_bytes else {
+    raise ArithmeticOverflow
+  }
   {
     hidden: hidden_width,
     intermediate: intermediate_width,
     rows: maximum_rows,
     weight_bytes,
     product_bytes,
+    publication,
+    partial_bytes,
   }
 }
 
@@ -55,5 +71,15 @@ pub fn DenseSwiGluPrecision::weight_bytes(self : Self) -> Int64 {
 
 ///|
 pub fn DenseSwiGluPrecision::workspace_bytes(self : Self) -> Int64 {
+  self.product_bytes + self.partial_bytes
+}
+
+///|
+pub fn DenseSwiGluPrecision::product_bytes(self : Self) -> Int64 {
   self.product_bytes
+}
+
+///|
+pub fn DenseSwiGluPrecision::publication(self : Self) -> ProjectionPublication {
+  self.publication
 }

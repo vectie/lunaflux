@@ -7,6 +7,7 @@ fn GlmRecurrentLayer::bound_weights(
     checkpoint,
     self.spec,
     layer_index=self.layer_index,
+    tensor_group?=self.tensor_group,
   )
   if self.hyper is Some(_) {
     bound.append(
@@ -17,7 +18,12 @@ fn GlmRecurrentLayer::bound_weights(
     bound.append(
       match ffn.branch {
         Dense(_) =>
-          bind_dense_ffn_weights(checkpoint, self.spec, self.layer_index)
+          bind_dense_ffn_weights(
+            checkpoint,
+            self.spec,
+            self.layer_index,
+            tensor_group?=self.tensor_group,
+          )
         Moe(_) => {
           let weights = bind_router(checkpoint, layer_index=self.layer_index)
           weights.append(
@@ -48,6 +54,27 @@ fn GlmSparseLayer::bound_weights(
       layer_index=self.layer_index,
     ),
   )
+  if self.tensor_group is Some((rank, world_size)) {
+    let (qfirst, qcount) = @precision_ir.TensorAxisPartition::new(
+      self.spec.attention_head_count(),
+      rank~,
+      world_size~,
+    ).range()
+    let (kfirst, kcount) = @precision_ir.TensorAxisPartition::new(
+      self.spec.kv_head_count(),
+      rank~,
+      world_size~,
+    ).range()
+    let qdim = self.spec.qk_nope_head_dimension()
+    let vdim = self.spec.value_head_dimension()
+    bound[2] = slice_weight_rows(bound[2], qfirst * qdim, qcount * qdim)
+    bound[5] = slice_weight_rows(
+      bound[5],
+      kfirst * (qdim + vdim),
+      kcount * (qdim + vdim),
+    )
+    bound[12] = slice_weight_columns(bound[12], qfirst * vdim, qcount * vdim)
+  }
   bound.append(
     bind_attention_hyper_weights(checkpoint, self.spec, self.layer_index),
   )

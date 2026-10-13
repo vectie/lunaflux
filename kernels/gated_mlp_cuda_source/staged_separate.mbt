@@ -7,6 +7,7 @@ pub fn staged_separate_swiglu_bf16_source(
   intermediate_size~ : Int,
   maximum_rows~ : Int,
   function_prefix~ : String,
+  publication? : @precision.ProjectionPublication = LocalBFloat16,
 ) -> Bytes raise GatedMlpCudaSourceError {
   guard hidden_size > 0 && intermediate_size > 0 else { raise InvalidWidth }
   guard maximum_rows > 0 else { raise InvalidRowCount }
@@ -57,7 +58,24 @@ pub fn staged_separate_swiglu_bf16_source(
   ]) catch {
     _ => abort("invalid dense bindings")
   }
-  let down_publish = expression(ProjectionPublish, ["sum"])
+  let partial = publication == ReduceFloat32BeforeRound
+  let down_publish = if partial {
+    "sum"
+  } else {
+    expression(ProjectionPublish, ["sum"])
+  }
+  let output_type = if partial { "float" } else { "__nv_bfloat16" }
+  let publish = if partial {
+    let text =
+      $|extern "C" __global__ void \{function_prefix}_publish(const int *counts,const float *partial,__nv_bfloat16 *output) {
+      $|  const unsigned long long i=(unsigned long long)blockIdx.x*256+threadIdx.x;
+      $|  const int live=counts[3]; if(live<=0||live>\{r}||i>=(unsigned long long)live*\{h}) return;
+      $|  output[i]=__float2bfloat16_rn(partial[i]);
+      $|}
+    text
+  } else {
+    ""
+  }
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
@@ -80,7 +98,7 @@ pub fn staged_separate_swiglu_bf16_source(
     "const __nv_bfloat16 gate=\{gate_publish}, up=\{up_publish}; const __nv_bfloat16 activated=\{activation}; product[i]=\{product}; }\n" +
     "extern \"C\" __global__ void " +
     function_prefix +
-    "_down(const int32_t *counts, const __nv_bfloat16 *product, const __nv_bfloat16 *down_weight, __nv_bfloat16 *output) {\n" +
+    "_down(const int32_t *counts, const __nv_bfloat16 *product, const __nv_bfloat16 *down_weight, \{output_type} *output) {\n" +
     "const int32_t rows=counts[3]; if(rows<=0 || rows>" +
     r +
     ") return;\n" +
@@ -93,6 +111,7 @@ pub fn staged_separate_swiglu_bf16_source(
     h +
     "ULL; float sum=0.0f; for(int inner=0; inner<" +
     down_fold.extent.to_string() +
-    "; ++inner) sum=\{down_update}; output[i]=\{down_publish}; }\n",
+    "; ++inner) sum=\{down_update}; output[i]=\{down_publish}; }\n" +
+    publish,
   )
 }

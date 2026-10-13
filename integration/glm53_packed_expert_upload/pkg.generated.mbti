@@ -16,7 +16,7 @@ import {
 // Values
 pub fn bind_experts(@precision_materialize.PackedCheckpoint, layer_index~ : Int, expert_indices~ : ArrayView[Int]) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
-pub fn bind_recurrent_weights(@precision_materialize.PackedCheckpoint, @glm53_spec.Glm53FlashSpec, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
+pub fn bind_recurrent_weights(@precision_materialize.PackedCheckpoint, @glm53_spec.Glm53FlashSpec, layer_index~ : Int, tensor_group? : (Int, Int)) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
 pub fn bind_router(@precision_materialize.PackedCheckpoint, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
@@ -30,11 +30,11 @@ pub fn expert_compute_plan(layer_index~ : Int, expert_indices~ : ArrayView[Int],
 
 pub fn flash_text_io_plan(@glm53_spec.Glm53FlashSpec, maximum_rows~ : Int, maximum_output_rows~ : Int, maximum_workspace_bytes~ : Int64, boundary? : @precision_ir.TextBoundary) -> @precision_ir.TextIoPrecision raise
 
-pub fn recurrent_block_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw) -> @precision_ir.RecurrentBlockPrecision raise
+pub fn recurrent_block_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, tensor_group? : (Int, Int)) -> @precision_ir.RecurrentBlockPrecision raise
 
-pub fn recurrent_compute_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw) -> @precision_ir.RecurrentDeltaPrecision raise
+pub fn recurrent_compute_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, tensor_group? : (Int, Int)) -> @precision_ir.RecurrentDeltaPrecision raise
 
-pub fn recurrent_convolution_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> @precision_ir.CausalConvolutionPrecision raise
+pub fn recurrent_convolution_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, tensor_group? : (Int, Int)) -> @precision_ir.CausalConvolutionPrecision raise
 
 pub fn routing_compute_plan(maximum_rows~ : Int, maximum_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy) -> @precision_ir.MoeRoutingPrecision raise
 
@@ -112,14 +112,14 @@ pub struct GlmRecurrentLayer {
 pub fn GlmRecurrentLayer::close(Self) -> Unit raise @device.DeviceError
 pub fn GlmRecurrentLayer::device_bytes(Self) -> Int64
 pub fn GlmRecurrentLayer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
-pub fn GlmRecurrentLayer::new(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw) -> Self raise
+pub fn GlmRecurrentLayer::new(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, tensor_group? : (Int, Int)) -> Self raise
 pub fn GlmRecurrentLayer::poll(Self) -> Bool raise @device.DeviceError
 pub fn GlmRecurrentLayer::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
 pub fn GlmRecurrentLayer::prepare_frame(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
 pub fn GlmRecurrentLayer::source_bytes(Self) -> Bytes
 pub fn GlmRecurrentLayer::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError
-pub fn GlmRecurrentLayer::with_dense_block(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw) -> Self raise
-pub fn GlmRecurrentLayer::with_hyper_connection(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw) -> Self raise
+pub fn GlmRecurrentLayer::with_dense_block(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, tensor_group? : (Int, Int)) -> Self raise
+pub fn GlmRecurrentLayer::with_hyper_connection(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, tensor_group? : (Int, Int)) -> Self raise
 pub fn GlmRecurrentLayer::with_moe_block(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, tensor_group? : (Int, Int)) -> Self raise
 pub fn GlmRecurrentLayer::workspace_bytes(Self) -> Int64
 

@@ -9,6 +9,7 @@ pub struct IndexedSparseDecoderPrecision {
   priv attention_output_bytes : Int64
   priv output_weight_bytes : Int64
   priv workspace : Int64
+  priv publication : ProjectionPublication
 }
 
 ///|
@@ -17,6 +18,7 @@ pub fn IndexedSparseDecoderPrecision::new(
   envelope : HyperConnectionPrecision,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
+  publication? : ProjectionPublication = LocalBFloat16,
 ) -> Self raise PrecisionPlanError {
   let attention = projection.attention()
   let (rows, _) = attention.capacity()
@@ -42,6 +44,14 @@ pub fn IndexedSparseDecoderPrecision::new(
       attention.workspace_bytes(),
       envelope.workspace_bytes(),
       output,
+      if publication == ReduceFloat32BeforeRound {
+        expert_checked_mul(
+          expert_checked_mul(rows.to_int64(), hidden.to_int64()),
+          4L,
+        )
+      } else {
+        0L
+      },
     ]
     total = 0L {
     guard size <= 9223372036854775807L - total else { raise ArithmeticOverflow }
@@ -57,7 +67,15 @@ pub fn IndexedSparseDecoderPrecision::new(
     attention_output_bytes: output,
     output_weight_bytes: weight,
     workspace,
+    publication,
   }
+}
+
+///|
+pub fn IndexedSparseDecoderPrecision::publication(
+  self : Self,
+) -> ProjectionPublication {
+  self.publication
 }
 
 ///|

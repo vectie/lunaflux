@@ -6,6 +6,7 @@ priv struct GlmMoeBranch {
   source : Bytes
   banks : Array[@device.Allocation]
   tensor_partition : @precision_ir.ExpertTensorPartition?
+  shared_partition : @precision_ir.ExpertTensorPartition?
   mut tensor_boundary : @packed_expert_mlp.ExpertTensorBoundary?
 }
 
@@ -53,16 +54,30 @@ fn GlmMoeBranch::prepare(
         limits~,
       )
   }
-  upload_shared_expert_bank(
-    context,
-    checkpoint,
-    root,
-    self.shared,
-    shared,
-    layer_index~,
-    chunk_bytes~,
-    limits~,
-  )
+  if self.shared_partition is Some(partition) {
+    let bound = bind_shared_expert(checkpoint, layer_index~)
+    @packed_expert_mlp.upload_bank(
+      context,
+      checkpoint,
+      root,
+      self.shared,
+      shared,
+      weights=bound.mapi((i, weight) => weight.slice(partition.slices()[i])),
+      chunk_bytes~,
+      limits~,
+    )
+  } else {
+    upload_shared_expert_bank(
+      context,
+      checkpoint,
+      root,
+      self.shared,
+      shared,
+      layer_index~,
+      chunk_bytes~,
+      limits~,
+    )
+  }
   if self.tensor_partition is Some(_) {
     self.tensor_boundary = Some(
       self.program.prepare_routed_tensor_frame(

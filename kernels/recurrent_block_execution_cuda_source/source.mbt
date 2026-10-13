@@ -47,6 +47,8 @@ pub fn recurrent_block_source(
   let mut source = convolution.source_bytes() + b"\n" + delta.source_bytes()
   for index, (input_width, output_width) in shapes {
     let symbol = symbol_prefix + "_" + indices[index].to_string()
+    let partial = indices[index] == 15 &&
+      plan.publication() == ReduceFloat32BeforeRound
     let projection = if plan.projection_law() == MatrixFloat32 {
       @tiled.dense_source(
         @matrix.MatrixTilePlan::new(
@@ -55,6 +57,14 @@ pub fn recurrent_block_source(
           inner=input_width,
           law=plan.projection_law(),
         ),
+        symbol~,
+        partial_float32=partial,
+      )
+    } else if partial {
+      @tiled.scalar_partial_source(
+        rows~,
+        columns=output_width,
+        inner=input_width,
         symbol~,
       )
     } else {
@@ -66,6 +76,15 @@ pub fn recurrent_block_source(
       ).source_bytes()
     }
     source = source + b"\n" + projection
+  }
+  if plan.publication() == ReduceFloat32BeforeRound {
+    source = source +
+      b"\n" +
+      @tiled.publication_source(
+        rows~,
+        width=hidden,
+        symbol=symbol_prefix + "_16",
+      )
   }
   source = source +
     b"\n" +

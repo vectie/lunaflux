@@ -28,6 +28,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
     maximum_state_bytes~,
     evaluation~,
     matrix_law~,
+    tensor_group?,
   )
   {
     spec,
@@ -35,6 +36,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
     program: branch.program,
     weights: branch.weights,
     hyper: branch.hyper,
+    tensor_group,
     ffn: Some(
       make_moe_ffn(
         spec,
@@ -99,6 +101,22 @@ fn make_moe_ffn(
     accuracy~,
     matrix_law~,
   )
+  let shared_partition = match tensor_group {
+    None => None
+    Some((rank, world_size)) =>
+      Some(
+        @precision_ir.ExpertTensorPartition::new(
+          shared,
+          rank~,
+          world_size~,
+          memory_ceiling=maximum_expert_bytes,
+        ),
+      )
+  }
+  let shared = match shared_partition {
+    None => shared
+    Some(partition) => partition.rank_plan()
+  }
   guard routed.bank_bytes() <= maximum_expert_bytes &&
     shared.bank_bytes() <= maximum_expert_bytes - routed.bank_bytes() else {
     raise @precision_ir.PrecisionPlanError::MemoryBudgetExceeded
@@ -155,6 +173,7 @@ fn make_moe_ffn(
       source: program.source_bytes(),
       banks: [],
       tensor_partition: partition,
+      shared_partition,
       tensor_boundary: None,
     }),
     input_bytes: maximum_rows.to_int64() *

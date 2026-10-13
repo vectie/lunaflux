@@ -71,7 +71,11 @@ pub fn matrix_tile_body(
 }
 
 ///|
-pub fn dense_source(plan : @matrix.MatrixTilePlan, symbol~ : String) -> Bytes {
+pub fn dense_source(
+  plan : @matrix.MatrixTilePlan,
+  symbol~ : String,
+  partial_float32? : Bool = false,
+) -> Bytes {
   let (rows, columns, inner) = plan.geometry()
   let blocks_n = (columns + 63) / 64
   let body = matrix_tile_body(
@@ -95,10 +99,16 @@ pub fn dense_source(plan : @matrix.MatrixTilePlan, symbol~ : String) -> Bytes {
       None
     },
   )
+  let output_type = if partial_float32 { "float" } else { "__nv_bfloat16" }
+  let output_value = if partial_float32 {
+    "result[i]"
+  } else {
+    "__float2bfloat16_rn(result[i])"
+  }
   let text =
     $|#include <cuda_bf16.h>
     $|#include <mma.h>
-    $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,__nv_bfloat16 *output) {
+    $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output) {
     $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows}) return;
     $|  const int row_base=(blockIdx.x/\{blocks_n})*16,column_base=(blockIdx.x%\{blocks_n})*64;
     $|  if(row_base>=live_rows) return;
@@ -106,7 +116,7 @@ pub fn dense_source(plan : @matrix.MatrixTilePlan, symbol~ : String) -> Bytes {
     $|  \{body}
     $|  for(int i=threadIdx.x;i<1024;i+=128) {
     $|    int row=row_base+i/64,column=column_base+i%64;
-    $|    if(row<live_rows&&column<\{columns}) output[(unsigned long long)row*\{columns}+column]=__float2bfloat16_rn(result[i]);
+    $|    if(row<live_rows&&column<\{columns}) output[(unsigned long long)row*\{columns}+column]=\{output_value};
     $|  }
     $|}
   @utf8.encode(text)

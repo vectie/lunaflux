@@ -6,6 +6,7 @@ pub fn bind_recurrent_weights(
   checkpoint : @precision_materialize.PackedCheckpoint,
   spec : @glm53_spec.Glm53FlashSpec,
   layer_index~ : Int,
+  tensor_group? : (Int, Int),
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   guard spec.attention_kind(layer_index) is KimiDeltaAttention else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -94,6 +95,32 @@ pub fn bind_recurrent_weights(
         payload_name=prefix + stem + "_conv1d.weight",
         source_shape=[channels.to_int64(), 1L, kernel.to_int64()],
       ),
+    )
+  }
+  if tensor_group is Some((rank, world_size)) {
+    let (first, local) = @precision_ir.TensorAxisPartition::new(
+      heads,
+      rank~,
+      world_size~,
+    ).range()
+    for index in [0, 1, 2, 4, 5, 9, 12, 13, 14] {
+      let factor = if index == 5 { 1 } else { dimension }
+      weights[index] = slice_weight_rows(
+        weights[index],
+        first * factor,
+        local * factor,
+      )
+    }
+    weights[6] = slice_weight_columns(
+      weights[6],
+      first * dimension,
+      local * dimension,
+    )
+    weights[7] = slice_weight_columns(weights[7], first, local)
+    weights[11] = slice_weight_columns(
+      weights[11],
+      first * dimension,
+      local * dimension,
     )
   }
   weights

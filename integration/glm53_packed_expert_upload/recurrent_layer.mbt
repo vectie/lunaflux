@@ -19,6 +19,7 @@ pub struct GlmRecurrentLayer {
   priv weights : @upload.CheckpointDeviceWeights
   priv hyper : @hyper.HyperConnectionFrame?
   priv ffn : GlmFfn?
+  priv tensor_group : (Int, Int)?
   priv mut status : RecurrentLayerState
 }
 
@@ -32,6 +33,7 @@ pub fn GlmRecurrentLayer::new(
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int, Int),
 ) -> Self raise {
   let plan = recurrent_block_plan(
     spec,
@@ -42,6 +44,7 @@ pub fn GlmRecurrentLayer::new(
     maximum_state_bytes~,
     evaluation~,
     matrix_law~,
+    tensor_group?,
   )
   let source = @block.recurrent_block_source(
     plan,
@@ -54,6 +57,7 @@ pub fn GlmRecurrentLayer::new(
     weights: @upload.CheckpointDeviceWeights::new(),
     hyper: None,
     ffn: None,
+    tensor_group,
     status: Fresh,
   }
 }
