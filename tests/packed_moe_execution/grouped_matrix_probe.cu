@@ -11,6 +11,30 @@ template<class T>static T* alloc(size_t n){T*p;ck(cudaMalloc(&p,n*sizeof(T)));re
 static float bf(float v){return __bfloat162float(__float2bfloat16_rn(v));}
 static float weight(int local,int stage,int out,int k){return float(((local+stage+out*3+k)%5)-2)*.5f;}
 static unsigned nibble(float v){return v<0?unsigned(-v*2)|8:unsigned(v*2);}
+__global__ void decode_codes(float*out){int i=threadIdx.x;if(i<16)out[i]=lf_precision_e2(i);}
+static void check_decode(){
+ auto p=alloc<float>(16);decode_codes<<<1,32>>>(p);float actual[16],expected[16];
+ const float values[]={0.f,.5f,1.f,1.5f,2.f,3.f,4.f,6.f};
+ for(int i=0;i<16;++i)expected[i]=(i&8)?-values[i&7]:values[i&7];
+ ck(cudaMemcpy(actual,p,sizeof(actual),cudaMemcpyDeviceToHost));
+ if(memcmp(actual,expected,sizeof(actual))){fprintf(stderr,"E2M1 code mismatch including signed zero\n");exit(6);}
+ ck(cudaFree(p));puts("e2m1_all16_codes=bitwise");
+}
+__global__ void vector_decode_check(const unsigned char*p,const unsigned char*s,const float*g,__nv_bfloat16*out){
+ int lane=threadIdx.x;if(lane>=8)return;
+ uint4 values=nv_matrix_v0(p,s,g,0,lane*8);reinterpret_cast<uint4*>(out)[lane]=values;
+ for(int j=0;j<8;++j)out[64+lane*8+j]=nv_matrix_w0(p,s,g,0,lane*8+j);
+}
+static void check_vector_decode(){
+ auto p=alloc<unsigned char>(33),s=alloc<unsigned char>(4);auto g=alloc<float>(1);auto out=alloc<__nv_bfloat16>(128);
+ unsigned char payload[33];for(int i=0;i<33;++i)payload[i]=unsigned((i*2)%16)|unsigned(((i*2+1)%16)<<4);
+ for(int offset:{0,1})for(unsigned scale:{1,2,0x38,0x7e})for(float global:{.0001f,.33f,1.f,3.42f,1.e30f}){
+  ck(cudaMemcpy(p,payload,33,cudaMemcpyHostToDevice));ck(cudaMemset(s,scale,4));ck(cudaMemcpy(g,&global,4,cudaMemcpyHostToDevice));
+  vector_decode_check<<<1,32>>>(p+offset,s,g,out);__nv_bfloat16 actual[128];ck(cudaMemcpy(actual,out,sizeof(actual),cudaMemcpyDeviceToHost));
+  if(memcmp(actual,actual+64,128)){fprintf(stderr,"vector decode mismatch offset=%d scale=%u global=%g\n",offset,scale,global);exit(7);}
+ }
+ ck(cudaFree(p));ck(cudaFree(s));ck(cudaFree(g));ck(cudaFree(out));puts("vector_fp4_scale_rounding_unaligned=bitwise");
+}
 static void run(bool packed,int rows){
  const int H=64,I=32,R=17,S=2,J=R*S;
  size_t stride=packed?nv_matrix_stride:bf_matrix_stride;
@@ -54,4 +78,4 @@ static void run(bool packed,int rows){
  for(void*p:{(void*)db,(void*)dx,(void*)di,(void*)ds,(void*)dm,(void*)dc,(void*)a,(void*)am,(void*)b,(void*)bm,(void*)y,(void*)ym})ck(cudaFree(p));
  printf("format=%s rows=%d stages=bitwise oracle=pass repeat=bitwise\n",packed?"nvfp4":"bf16",rows);
 }
-int main(){for(int rows:{0,1,7,16,17,18})for(bool packed:{false,true})run(packed,rows);ck(cudaDeviceReset());puts("released=true");}
+int main(){check_decode();check_vector_decode();for(int rows:{0,1,7,16,17,18})for(bool packed:{false,true})run(packed,rows);ck(cudaDeviceReset());puts("released=true");}

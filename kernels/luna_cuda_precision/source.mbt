@@ -108,6 +108,60 @@ pub fn tile_load_source(
 }
 
 ///|
+/// Eight adjacent packed values share one scale read. This only changes
+/// physical loading: decode, separate F32 scale/global products and BF16
+/// publication retain exactly the scalar operand law, including signed zero.
+pub fn tile_load_vector_source(
+  physical : @precision.PhysicalOperand,
+  symbol~ : String,
+) -> String? raise LoweringError {
+  if !valid_symbol(symbol) {
+    raise InvalidSymbol
+  }
+  if physical.plan().placement() != DecodeInOperandTile {
+    raise UnsupportedPlacement
+  }
+  let rep = physical.plan().representation()
+  guard rep.element() == E2M1 && rep.shape().1 % 8 == 0 else { return None }
+  match rep.grouping() {
+    Block(columns=bc, ..) => if bc % 8 != 0 { return None }
+    _ => ()
+  }
+  let scale = match rep.scale_element() {
+    Absent => ""
+    E4M3 => "const float s=lf_precision_e4(scales[\{scale_index(rep)}]);"
+    Ue8M0 => "const float s=lf_precision_ue8(scales[\{scale_index(rep)}]);"
+    F32 =>
+      "const float s=__uint_as_float(lf_precision_read(scales,(\{scale_index(rep)})*4ULL,4));"
+  }
+  let values = StringBuilder()
+  for i in 0..<8 {
+    values <+ "float v\{i}=lf_precision_e2((bits>>\{i*4})&15U);\n"
+    if rep.scale_element() != Absent {
+      values <+ "v\{i}=__fmul_rn(v\{i},s);\n"
+    }
+    if rep.has_global_scale() {
+      values <+ "v\{i}=__fmul_rn(v\{i},g);\n"
+    }
+    values <+
+      "const unsigned b\{i}=__bfloat16_as_ushort(__float2bfloat16_rn(fminf(3.3895313892515355e38f,fmaxf(-3.3895313892515355e38f,v\{i}))));\n"
+  }
+  Some(
+    prelude() +
+    (
+      $|__device__ __forceinline__ uint4 \{symbol}(const unsigned char *payload,const unsigned char *scales,const float *global,unsigned long long row,unsigned long long column) {
+      $|  const unsigned char *p=payload+row*\{rep.row_bytes()}ULL+column/2ULL;
+      $|  const unsigned bits=((unsigned long long)p&3ULL)==0ULL?*reinterpret_cast<const unsigned *>(p):lf_precision_read(p,0,4);
+      $|  \{scale}
+      $|  \{if rep.has_global_scale() { "const float g=*global;" } else { "" }}
+      $|  \{values.to_string()}
+      $|  return make_uint4(b0|(b1<<16),b2|(b3<<16),b4|(b5<<16),b6|(b7<<16));
+      $|}
+    ),
+  )
+}
+
+///|
 fn prelude() -> String {
   (
     $|#include <cuda_bf16.h>
@@ -120,7 +174,7 @@ fn prelude() -> String {
     $|__device__ __forceinline__ unsigned lf_precision_read(const unsigned char *p, unsigned long long i, int width) { unsigned c = 0; for (int k=0;k<width;k++) c |= (unsigned)p[i+k] << (8*k); return c; }
     $|__device__ __forceinline__ float lf_precision_e4(unsigned c) { __nv_fp8_e4m3 v; v.__x = (unsigned char)c; return (float)v; }
     $|__device__ __forceinline__ float lf_precision_e5(unsigned c) { __nv_fp8_e5m2 v; v.__x = (unsigned char)c; return (float)v; }
-    $|__device__ __forceinline__ float lf_precision_e2(unsigned c) { const float v[8]={0.0f,0.5f,1.0f,1.5f,2.0f,3.0f,4.0f,6.0f}; return (c&8U) ? -v[c&7U] : v[c&7U]; }
+    $|__device__ __forceinline__ float lf_precision_e2(unsigned c) { const unsigned m=c&7U; const unsigned magnitude=m==0U?0U:m==1U?0x3f000000U:((126U+(m>>1U))<<23U)|((m&1U)<<22U); return __uint_as_float(magnitude|((c&8U)<<28U)); }
     $|__device__ __forceinline__ float lf_precision_ue8(unsigned c) { return c==255U ? nanf("") : c==0U ? __uint_as_float(0x00400000U) : __uint_as_float(c<<23); }
     $|#endif
     $|

@@ -22,6 +22,8 @@ pub fn scalar_expression(@precision_ir.NumericExpression, ArrayView[String]) -> 
 
 pub fn tile_load_source(@precision_ir.PhysicalOperand, symbol~ : String) -> String raise LoweringError
 
+pub fn tile_load_vector_source(@precision_ir.PhysicalOperand, symbol~ : String) -> String? raise LoweringError
+
 // Errors
 pub(all) suberror LoweringError {
   InvalidSymbol

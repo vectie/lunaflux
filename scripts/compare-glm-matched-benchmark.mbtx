@@ -1,0 +1,154 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+fn metric(line : StringView, key : String) -> Double raise {
+  guard line.split(key + "=").to_array() is [_, tail] else {
+    fail("missing metric " + key)
+  }
+  @string.parse_double(tail.split(" ").to_array()[0].trim()) catch {
+    error => fail("metric \{key}: \{tail}: \{error}")
+  }
+}
+
+///|
+fn parse_ids(text : StringView) -> Json raise {
+  let ids : Array[Int] = []
+  for s in text.split(",").join("\n").split("\n") {
+    if !s.trim().is_empty() {
+      ids.push(
+        @string.parse_int(s.trim()) catch {
+          error => fail("token IDs \{s}: \{error}")
+        },
+      )
+    }
+  }
+  Json(ids)
+}
+
+///|
+async fn token_ids(path : String) -> Json {
+  parse_ids(@fs.read_file(path).text())
+}
+
+///|
+test "literal comma and line separated IDs agree without tokenizing text" {
+  assert_eq(parse_ids("1,2,3\n"), parse_ids("1\n2\n3\n"))
+  assert_eq(metric("generation_millis=6900", "generation_millis"), 6900.0)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, previous] else {
+    fail("NEW_NATIVE_ROOT PREVIOUS_MATCHED_COMPARISON_JSON")
+  }
+  guard @json.parse(@fs.read_file(previous).text()) is Object(report) &&
+    report.get("rows") is Some(Array(rows)) &&
+    rows.length() == 6 else {
+    fail("six matched prompt comparison required")
+  }
+  let journal = @fs.read_file(root + "/ingress-journal.stdout").text()
+  let elapsed : Array[Double] = []
+  let prefill : Array[Double] = []
+  let chunks : Array[Double] = []
+  let steps : Array[Double] = []
+  for line in journal.split("\n") {
+    if line.contains("generation_millis=") {
+      elapsed.push(metric(line, "generation_millis") / 1000.0)
+    }
+    if line.contains("first_token_millis=") {
+      prefill.push(metric(line, "first_token_millis") / 1000.0)
+      chunks.push(metric(line, "prefill_chunks"))
+      steps.push(metric(line, "submitted_steps"))
+    }
+  }
+  guard elapsed.length() == 6 && prefill.length() == 6 else {
+    fail("missing completed requests")
+  }
+  let mut total = 0.0
+  let mut old_total = 0.0
+  let mut ref_total = 0.0
+  for i, row in rows {
+    guard row is Object(fields) &&
+      fields.get("native_seconds") is Some(Number(old, ..)) &&
+      fields.get("reference_seconds") is Some(Number(reference, ..)) else {
+      fail("missing timing")
+    }
+    let input = token_ids(root + "/input-\{i}-tokens.txt")
+    guard fields.get("input_ids") == Some(input) else {
+      fail("input tokens changed; not matched")
+    }
+    let ids = token_ids(root + "/output-\{i}-tokens.txt")
+    guard ids is Array(outputs) else { fail("output IDs") }
+    let text = @fs.read_file(root + "/decoded-\{i}.txt").text()
+    let old_ids = fields.get("native_output_ids").unwrap()
+    fields["previous_native"] = {
+      "seconds": Json(old),
+      "output_ids": old_ids,
+      "output_ids_equal": Json(old_ids == ids),
+      "speedup": Json(old / elapsed[i]),
+    }
+    fields["native_seconds"] = Json(elapsed[i])
+    fields["native_first_token_seconds"] = Json(prefill[i])
+    fields["native_output_ids"] = ids
+    fields["native_output_tokens"] = Json(outputs.length())
+    fields["native_finish"] = Json(
+      if outputs.last() == Some(Json(154827)) {
+        "stop"
+      } else {
+        "length"
+      },
+    )
+    fields["native_prefill_chunks"] = Json(chunks[i])
+    fields["native_serial_model_steps"] = Json(steps[i])
+    fields["native_request_seconds_per_serial_step"] = Json(
+      elapsed[i] / steps[i],
+    )
+    fields["native_output_tokens_per_request_second"] = Json(
+      outputs.length().to_double() / elapsed[i],
+    )
+    fields["native_text"] = Json(text)
+    fields["text_equal_excluding_native_stop_marker"] = Json(
+      fields.get("reference_text") ==
+      Some(Json(text.replace(old="<|user|>", new=""))),
+    )
+    fields["completion_time_ratio"] = Json(elapsed[i] / reference)
+    total += elapsed[i]
+    old_total += old
+    ref_total += reference
+    println(
+      "prompt=\{i} new_s=\{elapsed[i]} previous_s=\{old} vllm_s=\{reference} unchanged_tokens=\{old_ids==ids}",
+    )
+  }
+  let mut minimum = 1.0e20
+  for line in @fs.read_file(root + "/memory-watch.txt").text().split("\n") {
+    if line.contains("available_kib=") {
+      minimum = minimum.min(metric(line, "available_kib"))
+    }
+  }
+  report["native_root"] = Json(root)
+  report["previous_comparison"] = Json(previous)
+  report["native_total_seconds"] = Json(total)
+  report["previous_native_total_seconds"] = Json(old_total)
+  report["speedup_over_previous_native"] = Json(old_total / total)
+  report["reference_total_seconds"] = Json(ref_total)
+  report["total_completion_time_ratio"] = Json(total / ref_total)
+  report["native_minimum_host_available_gib"] = Json(minimum / 1048576.0)
+  report["numerical_policy"] = Json(
+    "explicit BF16 matrix projections/grouped experts; ordered recurrence",
+  )
+  @fs.write_file(
+    root + "/comparison.json",
+    Json(report).stringify(indent=2) + "\n",
+    create_mode=CreateNew,
+  )
+  println(
+    "new=\{total}s previous=\{old_total}s vllm=\{ref_total}s speedup=\{old_total/total} remaining_ratio=\{total/ref_total}",
+  )
+}

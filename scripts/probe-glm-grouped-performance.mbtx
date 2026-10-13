@@ -1,0 +1,136 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-grouped-performance-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode is ("prepare" | "run" | "collect-counters") else {
+    fail("NEW_ROOT prepare|run|collect-counters")
+  }
+  let host = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, host, command]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(name : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let out = @shell.Cmd("env", [
+      "LUNA_EXPORT_GROUPED_PERFORMANCE=1", "moon", "test", "kernels/selected_expert_mlp_cuda_source",
+      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+    ]).output(max_output_bytes=16777216)
+    record("export", out)
+    let text = StringBuilder()
+    let mut capture = false
+    for line in out.stdout().split("\n") {
+      if line.has_prefix("LUNA_SOURCE_BEGIN") {
+        capture = true
+        continue
+      }
+      if line.has_prefix("LUNA_SOURCE_END") {
+        capture = false
+        continue
+      }
+      if capture {
+        text <+ "\{line}\n"
+      }
+    }
+    guard !text.to_string().is_empty() else { fail("no source") }
+    @fs.write_file(
+      root + "/grouped.cuh",
+      text.to_string(),
+      create_mode=CreateNew,
+    )
+    record("mkdir", remote("mkdir " + root))
+    for
+      (source, name) in [
+        (root + "/grouped.cuh", "grouped.cuh"),
+        ("tests/packed_moe_execution/grouped_performance_probe.cu", "probe.cu"),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        source,
+        host + ":" + root + "/" + name,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+  } else if mode == "run" {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU busy") }
+    for rows in [1, 16] {
+      record(
+        "timing-\{rows}",
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          root[5:].to_owned() +
+          "-r\{rows} --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+          root +
+          "/probe \{rows} timing",
+        ),
+      )
+    }
+  } else {
+    for route in ["matrix", "scalar"] {
+      let report = root + "/" + route + ".ncu-rep"
+      guard !@fs.exists(report) else { fail("already collected") }
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        host + ":" + report,
+        report,
+      ])
+      .output()
+      .check()
+      for page in ["raw", "details"] {
+        record(
+          route + "-" + page,
+          remote(
+            "/opt/nvidia/nsight-compute/2025.3.1/ncu --import " +
+            report +
+            " --page " +
+            page +
+            " --csv",
+          ),
+        )
+      }
+    }
+  }
+}

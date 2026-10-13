@@ -55,6 +55,7 @@ fn grouped_expert_source(
     .region(0)
     .unwrap()
   let loads : Array[String] = []
+  let vectors : Array[Bool] = []
   let addresses : Array[String] = []
   for i, weight in plan.weights() {
     loads.push(
@@ -63,6 +64,14 @@ fn grouped_expert_source(
         symbol="\{symbol}_w\{i}",
       ),
     )
+    let vector = @luna_cuda_precision.tile_load_vector_source(
+      weight.refine_region(region),
+      symbol="\{symbol}_v\{i}",
+    )
+    vectors.push(vector is Some(_))
+    if vector is Some(code) {
+      loads.push(code)
+    }
     let storage = @precision_ir.packed_buffer_layout(weight.representation())
     let offset = plan.weight_offsets()[i]
     let scales = storage.scales_offset().unwrap_or(0L)
@@ -80,6 +89,21 @@ fn grouped_expert_source(
         input~,
         weight="(local>=0&&column_base+matrix_column<\{intermediate}?\{symbol}_w\{i}(w\{i},s\{i},g\{i},column_base+matrix_column,matrix_inner):__float2bfloat16_rn(0.0f))",
         result="result\{i}",
+        vector_guard="((unsigned long long)input&15ULL)==0ULL",
+        input_vector?=if hidden % 8 == 0 {
+          Some(
+            "(job_ids[matrix_row]>=0&&local>=0?*reinterpret_cast<const uint4 *>(input+(unsigned long long)(job_ids[matrix_row]/\{selected})*\{hidden}+matrix_inner):make_uint4(0,0,0,0))",
+          )
+        } else {
+          None
+        },
+        weight_vector?=if vectors[i] {
+          Some(
+            "(local>=0&&column_base+matrix_column<\{intermediate}?\{symbol}_v\{i}(w\{i},s\{i},g\{i},column_base+matrix_column,matrix_inner):make_uint4(0,0,0,0))",
+          )
+        } else {
+          None
+        },
       ),
     )
   }
@@ -88,6 +112,21 @@ fn grouped_expert_source(
     input="(job_ids[matrix_row]>=0&&local>=0?activation[(unsigned long long)job_ids[matrix_row]*\{intermediate}+matrix_inner]:__float2bfloat16_rn(0.0f))",
     weight="(local>=0&&column_base+matrix_column<\{hidden}?\{symbol}_w2(w2,s2,g2,column_base+matrix_column,matrix_inner):__float2bfloat16_rn(0.0f))",
     result="result",
+    vector_guard="((unsigned long long)activation&15ULL)==0ULL",
+    input_vector?=if intermediate % 8 == 0 {
+      Some(
+        "(job_ids[matrix_row]>=0&&local>=0?*reinterpret_cast<const uint4 *>(activation+(unsigned long long)job_ids[matrix_row]*\{intermediate}+matrix_inner):make_uint4(0,0,0,0))",
+      )
+    } else {
+      None
+    },
+    weight_vector?=if vectors[2] {
+      Some(
+        "(local>=0&&column_base+matrix_column<\{hidden}?\{symbol}_v2(w2,s2,g2,column_base+matrix_column,matrix_inner):make_uint4(0,0,0,0))",
+      )
+    } else {
+      None
+    },
   )
   fn expr(
     op : @precision_ir.ExpertExpression,

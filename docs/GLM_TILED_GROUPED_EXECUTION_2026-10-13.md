@@ -76,3 +76,56 @@ from untouched `d49c7595` in `/tmp/lunaflux-tiled-baseline-check.UpvIewHx`.
 New grouped-owner binding checks pass, including allocation-free replay and
 deterministic close. Unexcluded full check/test stop on existing toolchain
 migration warnings; no new exclusions or unrelated TLS edits were introduced.
+
+## First full-model regression and measured repair
+
+Commit `612e3dc8`, matched six-prompt run
+`/tmp/lunaflux-model-bench-glm-tiled-grouped-20261013-v1`, took 53.599 s
+versus the retained ordered-prefill 32.981 s. Five token sequences were unchanged;
+JSON changed. This was a regression, not a winning production route. Its separate
+16-input/2-output Systems trace at `glm-tiled-profile-20261013-v1` measured:
+
+| Both-rank kernel sum | Previous ms | First tiled/grouped ms |
+|---|---:|---:|
+| KDA projections | 1,063.346 | 156.117 |
+| Routed experts | 799.734 | 2,946.333 |
+| Shared experts | 116.533 | 90.945 |
+| Sparse attention chain | 380.319 | 377.190 |
+| All kernels | 2,631.764 | 3,841.265 |
+
+Projection savings were overwhelmed by grouped expert lowering. Full-width
+NVFP4 expert probes (H4096/I2048, eight selections, 32 available local experts)
+were therefore added; small H64/I32 correctness fixtures were insufficient as
+performance proxies. These are synthetic matched operands, not measured real
+model routing distributions or a captured vLLM MoE kernel.
+
+In `/tmp/lunaflux-glm-grouped-performance-20261013-v1`, NCU on the generated
+matrix gate/up reports 67,108,864 local-load sectors and 536,870,912 local-store
+sectors, despite **zero register-spilling requests**. The dynamically indexed
+eight-element E2M1 decode table materialized as thread-local storage in this
+renderer. Scalar gate/up had zero local sectors. Sector counts include cache
+traffic; multiplying them by 32 does not produce DRAM bytes.
+
+The first grouped tuning revision replaces that table with an exact sign,
+exponent and mantissa bit construction in private generic precision lowering.
+All 16 codes, including negative zero, match bitwise. v2 counters show both local
+load/store sectors become zero; profiled gate/up falls 22.93936 to 8.96730 ms.
+This is not an approximate math policy or change to model/precision semantics.
+
+The second revision vectorizes eight adjacent packed values, reusing one packed
+word and scale read while retaining separate F32 scale/global multiplications,
+saturation and BF16 rounding. It falls back to scalar tile loads for unsupported
+formats/geometry. Full-width expert-chain medians:
+
+| Synthetic expert chain | Original grouped | Bit decode | Vector decode |
+|---|---:|---:|---:|
+| R16, 32 local experts | 29.8872 ms | 10.5709 ms | 4.58764 ms |
+| R1, eight selected experts | 9.23362 ms | 3.93274 ms | 1.41421 ms |
+
+The same final probe's scalar controls are 13.4304/0.925414 ms. Thus R16 now
+benefits, while R1 grouped execution still loses locally. This remains visible;
+neither the full-model improvement nor vLLM parity is inferred from these probes.
+Roots v1/v2/v3 retain all measurements and generated sources. Physical fixture
+v7 additionally checks vector decode on all codes, multiple local/global scales,
+unaligned payloads, all existing tails and idle/expert cases; all nine sanitizer
+campaigns pass. No payload hashes, tolerance changes, or full-bank expansion.

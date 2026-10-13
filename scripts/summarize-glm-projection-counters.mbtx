@@ -8,13 +8,18 @@ import {
 ///|
 async fn main {
   guard @env.args() is [_, root] else { fail("COLLECTED_COUNTER_ROOT") }
-  let routes = if root.has_prefix("/tmp/lunaflux-glm-tiled-grouped-") {
+  let grouped = root.has_prefix("/tmp/lunaflux-glm-grouped-performance-")
+  let routes = if grouped {
+    ["matrix", "scalar"]
+  } else if root.has_prefix("/tmp/lunaflux-glm-tiled-grouped-") {
     ["native"]
   } else {
     ["native", "vendor"]
   }
   for route in routes {
-    let lines = @fs.read_file(root + "/" + route + "-raw.csv")
+    let lines = @fs.read_file(
+        root + "/" + route + (if grouped { "-raw.stdout" } else { "-raw.csv" }),
+      )
       .text()
       .split("\n")
       .to_array()
@@ -35,6 +40,8 @@ async fn main {
         name.contains("long_scoreboard") ||
         name.contains("dram__bytes") ||
         name.contains("lts__t_bytes") ||
+        name.contains("sectors_pipe_lsu_mem_local_op") ||
+        name.contains("inst_executed_op_local_") ||
         name.contains("pcsamp_warps_issue_stalled") ||
         name.contains("smsp__warps_issue_stalled_long") {
         out <+ "\{name}=\{values[index]} [\{units[index]}]\n"

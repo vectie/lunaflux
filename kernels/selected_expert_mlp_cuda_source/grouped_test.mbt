@@ -29,6 +29,63 @@ fn grouped_fixture(
 }
 
 ///|
+test "export full-width grouped expert performance fixture" {
+  if @env.get_env_var("LUNA_EXPORT_GROUPED_PERFORMANCE") != Some("1") {
+    return
+  }
+  fn operand(n : Int, k : Int) -> @precision_ir.OperandPlan raise {
+    @precision_ir.plan_operand(
+      role=Weight,
+      representation=@format.Representation::new(
+        format=NvFp4,
+        rows=n,
+        columns=k,
+      ),
+      placement=DecodeInOperandTile,
+      supported_placements=[DecodeInOperandTile],
+      accuracy=@precision_ir.Accuracy::new(absolute=0.02, relative=0.02),
+      memory_ceiling=1073741824L,
+      tile_elements=32,
+    )
+  }
+  for
+    (law, name) in [
+      (@precision_ir.DenseDotLaw::ScalarFloat32, "scalar"),
+      (MatrixFloat32, "matrix"),
+    ] {
+    let plan = @precision_ir.ExpertMlpPrecision::new(
+      gate=operand(2048, 4096),
+      up=operand(2048, 4096),
+      down=operand(4096, 2048),
+      expert_count=288,
+      local_experts=Array::makei(32, i => i),
+      selected_experts=8,
+      maximum_rows=16,
+      clamp=10.0,
+      dot_law=law,
+      memory_ceiling=1073741824L,
+    )
+    let source = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+      plan,
+      symbol=name,
+    )
+    println("LUNA_SOURCE_BEGIN")
+    println(@utf8.decode(source.source_bytes()))
+    println(
+      "static constexpr size_t \{name}_stride=\{plan.expert_stride()}ULL;",
+    )
+    let offsets = plan.weight_offsets()
+    println(
+      "static constexpr size_t \{name}_offsets[3]={\{offsets[0]}ULL,\{offsets[1]}ULL,\{offsets[2]}ULL};",
+    )
+    println(
+      "static constexpr size_t \{name}_activation=\{source.activation_bytes()}ULL;",
+    )
+    println("LUNA_SOURCE_END")
+  }
+}
+
+///|
 test "grouped expert actual source and bounded startup scratch" {
   for (format, name) in [(@format.Format::NvFp4, "nv"), (Bf16, "bf")] {
     for
