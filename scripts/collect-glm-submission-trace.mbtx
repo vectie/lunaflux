@@ -1,0 +1,81 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn queries() -> Array[(String, String)] {
+  // The ingress rank has no vocabulary head. Bound it by the next embedding
+  // (or the final kernel) instead of silently returning an empty timeline.
+  let kernels = "WITH kernels AS (SELECT k.start,k.end,k.correlationId,s.value AS name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON k.shortName=s.id), embeds AS (SELECT start,lead(start) over (order by start) AS next_embed,row_number() over (order by start) AS step FROM kernels WHERE name='glm_text_io_embed'), ranges AS (SELECT step,start,coalesce((SELECT min(end) FROM kernels WHERE name='glm_text_io_head' AND kernels.start>=embeds.start AND (next_embed IS NULL OR kernels.start<next_embed)),next_embed-1,(SELECT max(end) FROM kernels)) AS finish FROM embeds) "
+  [
+    (
+      "step-gaps",
+      kernels +
+      ", ordered AS (SELECT r.step,k.start,k.end,k.name,max(k.end) over (partition by r.step order by k.start rows between unbounded preceding and 1 preceding) AS previous_end FROM ranges r JOIN kernels k ON k.start>=r.start AND k.end<=r.finish) SELECT step,CASE WHEN name LIKE '%nccl%' THEN 'collective' ELSE 'compute' END AS family,count(*) AS calls,sum(end-start)/1e6 AS summed_ms,sum(max(0,start-previous_end))/1e6 AS preceding_kernel_free_ms FROM ordered GROUP BY step,family;",
+    ),
+    (
+      "submission",
+      kernels +
+      ", apis AS (SELECT a.start,a.end,a.correlationId,s.value AS name FROM CUPTI_ACTIVITY_KIND_RUNTIME a JOIN StringIds s ON a.nameId=s.id), launches AS (SELECT r.step,min(a.start) AS first_launch,max(a.end) AS last_launch,max(CASE WHEN k.name LIKE '%nccl%' THEN a.end END) AS last_collective_enqueue,count(CASE WHEN k.name LIKE '%nccl%' THEN 1 END) AS collective_launches FROM ranges r JOIN kernels k ON k.start>=r.start AND k.end<=r.finish JOIN apis a ON a.correlationId=k.correlationId GROUP BY r.step) SELECT step,collective_launches,(last_collective_enqueue-first_launch)/1e6 AS host_enqueue_ms,(SELECT count(*) FROM apis WHERE name='cuStreamQuery' AND start>=first_launch AND start<last_collective_enqueue) AS stream_queries_before_last_collective,(SELECT count(*) FROM apis WHERE name='cuGraphLaunch' AND start>=first_launch AND start<=last_launch) AS graph_launches FROM launches;",
+    ),
+    (
+      "api-totals", "SELECT s.value AS api,count(*) AS calls,sum(a.end-a.start)/1e6 AS summed_ms FROM CUPTI_ACTIVITY_KIND_RUNTIME a JOIN StringIds s ON a.nameId=s.id WHERE s.value IN ('cuStreamQuery','cuEventQuery','cuGraphLaunch','cuLaunchKernel','cuLaunchKernelEx') GROUP BY s.value;",
+    ),
+  ]
+}
+
+///|
+test "submission query measures before the final enqueue, not raw poll count" {
+  assert_true(queries()[1].1.contains("start<last_collective_enqueue"))
+  assert_true(queries()[0].1.contains("max(k.end) over"))
+  assert_true(queries()[0].1.contains("next_embed-1"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, trace, root] &&
+    [trace, root].all(p => {
+      p.has_prefix("/tmp/lunaflux-") &&
+      !p.contains("..") &&
+      p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) else {
+    fail("COLLECTED_TRACE_ROOT NEW_ANALYSIS_ROOT")
+  }
+  @fs.mkdir(root)
+  for
+    (role, host, socket) in [
+      (
+        "ingress", "wlc003s@192.168.2.178", "/tmp/lunaflux-checkpoint-live-20261010.sock",
+      ),
+      (
+        "egress", "wlc004s@192.168.2.179", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+      ),
+    ] {
+    for (name, sql) in queries() {
+      let result = @shell.Cmd("ssh", [
+        "-S",
+        socket,
+        "-o",
+        "BatchMode=yes",
+        host,
+        "sqlite3 -header -csv " + trace + "/timeline.sqlite \"" + sql + "\"",
+      ]).output(max_output_bytes=1048576)
+      @fs.write_file(
+        root + "/" + role + "-" + name + ".stdout",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/" + role + "-" + name + ".stderr",
+        result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+      println(role + " " + name + "\n" + result.stdout())
+    }
+  }
+}

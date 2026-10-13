@@ -501,6 +501,25 @@ async fn main {
   let maximum = if profile { 2 } else { 8 }
   let stop = if glm { 154827 } else { 1 }
   if mode == "start" {
+    // A closed previous benchmark can leave the listener's accepted socket in
+    // TIME_WAIT. Wait for these two benchmark ports; do not change the service
+    // socket policy or kill another owner merely to start a measurement.
+    let mut ports_free = false
+    for attempt in 0..<90 {
+      let ports = remote(
+        true, "ss -Htan '( sport = :28618 or sport = :28619 )'",
+      )
+      ports.check()
+      if ports.stdout().trim().is_empty() {
+        ports_free = true
+        break
+      }
+      if attempt == 0 {
+        println("waiting for the previous benchmark sockets to retire")
+      }
+      @async.sleep(1000)
+    }
+    guard ports_free else { fail("benchmark ports remain occupied") }
     for last in [false, true] {
       let owners = remote(
         last, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
@@ -569,7 +588,15 @@ async fn main {
       let profile_prefix = if profile || timeline {
         // Whole process: fixed wall-time delays miss inference after loading
         // speed changes. Separate loading copies from model kernels in reports.
-        "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda --force-overwrite=false --kill=none --output=" +
+        "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda " +
+        // The two-token probe includes StreamQuery (omitted by default) and
+        // individual graph nodes. Never add this overhead to timed cohorts.
+        (if profile {
+          "--cuda-trace-all-apis=true --cuda-graph-trace=node "
+        } else {
+          ""
+        }) +
+        "--force-overwrite=false --kill=none --output=" +
         root +
         "/timeline "
       } else {
