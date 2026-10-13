@@ -1,0 +1,158 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+let host = "wlc003s@192.168.2.178"
+
+///|
+let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, host, command,
+  ]).output(max_output_bytes=16777216)
+}
+
+///|
+async fn record(root : String, name : String, output : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".stdout",
+    output.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/" + name + ".stderr",
+    output.stderr(),
+    create_mode=CreateNew,
+  )
+  output.check()
+}
+
+///|
+async fn copy(source : String, target : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    source,
+    target,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn idle() -> Unit {
+  let gpu = remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+  gpu.check()
+  guard gpu.stdout().trim().is_empty() else { fail("GPU owner exists") }
+  let mem = remote("grep MemAvailable /proc/meminfo")
+  mem.check()
+  let words = mem
+    .stdout()
+    .trim()
+    .split(" ")
+    .filter(x => !x.is_empty())
+    .to_array()
+  guard words is ["MemAvailable:", count, "kB"] &&
+    @string.parse_int64(count) >= 16777216L else {
+    fail("host reserve below 16 GiB")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-hyper-tiles-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode
+    is ("prepare" | "run" | "analytic" | "memcheck" | "racecheck" | "synccheck") else {
+    fail("NEW_ROOT prepare|run|analytic|memcheck|racecheck|synccheck")
+  }
+  let unit = root[5:].to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    record(root, "mkdir", remote("mkdir " + root))
+    record(
+      root,
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", "kernels/hyper_connection_execution_cuda_source", "--target", "native",
+          "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "--filter", "export ordered hyper control tiles paired probe",
+        ],
+        env={ "LUNAFLUX_HYPER_TILES_HEADER": root + "/hyper_tiles.cuh" },
+      ).output(),
+    )
+    copy(root + "/hyper_tiles.cuh", host + ":" + root + "/hyper_tiles.cuh")
+    copy(
+      "tests/packed_moe_execution/hyper_control_tiles_probe.cu",
+      host + ":" + root + "/probe.cu",
+    )
+    record(
+      root,
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 -arch=sm_121 " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+  } else {
+    idle()
+    record(
+      root,
+      mode + "-memory-before",
+      remote("grep MemAvailable /proc/meminfo"),
+    )
+    let command = if mode == "run" {
+      root + "/probe"
+    } else if mode == "analytic" {
+      root + "/probe analytic"
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 97 --tool " +
+      mode +
+      (if mode == "memcheck" { " --leak-check full" } else { "" }) +
+      " " +
+      root +
+      "/probe sanitizer"
+    }
+    record(
+      root,
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-" +
+        mode +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 " +
+        command,
+      ),
+    )
+    idle()
+    record(
+      root,
+      mode + "-terminal",
+      remote(
+        "systemctl --user show " +
+        unit +
+        "-" +
+        mode +
+        ".service -p ActiveState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+      ),
+    )
+  }
+}

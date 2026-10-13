@@ -35,11 +35,17 @@ pub fn encode_prompt(
   let request_id = @inference.RequestId::new(1UL)
   let request_generation = @inference.RequestGeneration::initial()
   let capabilities = [@plan.KernelCapabilityId::paged_causal_attention()]
-  for start = 0, sequence = 1UL; start < tokens.length(); {
-    let end = (start + maximum_rows).min(tokens.length())
+  let chunks = @prefill.ContiguousPrefillPlan::new(
+    input_tokens=tokens.length(),
+    row_capacity=maximum_rows,
+    context_capacity=maximum_context,
+  )
+  for index in 0..<chunks.chunk_count() {
+    let (start, end) = chunks.range(index)
+    let sequence = index.to_uint64() + 1UL
     let owner = @protocol.SchedulePlanBuffer::new(limits)
     let completion_slot = @protocol.CompletionSlot::new(0, limits)
-    if end == tokens.length() {
+    if chunks.produces_token(index) {
       owner.append_final_prefill(
         request_id~,
         request_generation~,
@@ -75,7 +81,6 @@ pub fn encode_prompt(
     encoded.copy_to(scratch, destination_offset=0)
     results.push(Bytes::from_array(scratch[:encoded.length()].to_owned()))
     ignore(owner.retire(submitted))
-    continue end, sequence + 1UL
   }
   results
 }

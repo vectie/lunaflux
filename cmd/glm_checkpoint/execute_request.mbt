@@ -33,6 +33,7 @@ async fn execute_ingress_request(
   let started = clock.now_millis()
   let mut next_epoch = first_epoch
   let mut submitted_steps = 0
+  let mut first_token_millis = 0UL
   for index in 0..<count {
     let input = match prepared {
       Some(prompt) => prompt.frame_bytes(index)
@@ -85,6 +86,7 @@ async fn execute_ingress_request(
       fail("model execution returned a failed completion")
     }
     if generate && index == count - 1 {
+      first_token_millis = clock.now_millis() - started
       generation.val = Some(
         @generation.SerialGreedyGeneration::new(
           plan,
@@ -105,6 +107,7 @@ async fn execute_ingress_request(
       )
     }
   }
+  let prefill_finished = clock.now_millis()
   if generate {
     guard generation.val is Some(owner) else { fail("no completed prompt") }
     while owner.finish_reason() is Running {
@@ -162,5 +165,8 @@ async fn execute_ingress_request(
     )
   }
   println("generation_millis=\{clock.now_millis() - started}")
+  println(
+    "prefill_chunks=\{count} first_token_millis=\{first_token_millis} after_prefill_millis=\{clock.now_millis() - prefill_finished} submitted_steps=\{submitted_steps}",
+  )
   next_epoch
 }

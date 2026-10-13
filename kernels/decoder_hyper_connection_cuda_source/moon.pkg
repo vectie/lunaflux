@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/hyper_connection_physical_ir" @physical,
   "vectie/lunaflux/kernels/luna_cuda_precision" @arithmetic,
   "vectie/lunaflux/kernels/float32_reduction_cuda_source" @reduction,
   "moonbitlang/core/encoding/utf8",

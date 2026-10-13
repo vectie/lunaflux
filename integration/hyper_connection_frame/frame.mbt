@@ -32,7 +32,11 @@ pub fn HyperConnectionFrame::source_bytes(self : Self) -> Bytes {
 
 ///|
 pub fn HyperConnectionFrame::workspace_bytes(self : Self) -> Int64 {
-  self.source.plan().workspace_bytes()
+  self.source.plan().workspace_bytes() +
+  (match self.source.control_schedule() {
+    Some(schedule) => schedule.workspace_bytes()
+    None => 0L
+  })
 }
 
 ///|
@@ -100,6 +104,9 @@ pub fn HyperConnectionFrame::prepare(
   for size in plan.frame_bytes() {
     self.buffers.push(context.allocate(size))
   }
+  if self.source.control_schedule() is Some(schedule) {
+    self.buffers.push(context.allocate(schedule.workspace_bytes()))
+  }
   let frame = self.buffers
   let sizes = plan.frame_bytes()
   let stream_bytes = rows.to_int64() *
@@ -107,18 +114,41 @@ pub fn HyperConnectionFrame::prepare(
     hidden.to_int64() *
     2L
   let width = (streams.to_int64() + 2L) * streams.to_int64()
+  let weight = region(
+    function_weight,
+    plan.function_weight_bytes(),
+    match plan.control_law() {
+      NormalizedBf16Projection => 2L
+      F32ProjectionThenNormalize => 4L
+    },
+  )
+  let (control_input, control_threads) = if self.source.control_schedule()
+    is Some(schedule) {
+    let scratch = region(frame[6], schedule.workspace_bytes(), 4L)
+    self.before.push(
+      self.launch(aot, 4, schedule.workgroups(0), schedule.workers(), [
+        region(counts, 20L, 4L),
+        region(input, stream_bytes, 2L),
+        scratch,
+      ]),
+    )
+    self.before.push(
+      self.launch(aot, 5, schedule.workgroups(1), schedule.workers(), [
+        region(counts, 20L, 4L),
+        region(input, stream_bytes, 2L),
+        weight,
+        scratch,
+      ]),
+    )
+    (scratch, schedule.workers())
+  } else {
+    (weight, 1)
+  }
   self.before.push(
-    self.launch(aot, 0, rows, 1, [
+    self.launch(aot, 0, rows, control_threads, [
       region(counts, 20L, 4L),
       region(input, stream_bytes, 2L),
-      region(
-        function_weight,
-        plan.function_weight_bytes(),
-        match plan.control_law() {
-          NormalizedBf16Projection => 2L
-          F32ProjectionThenNormalize => 4L
-        },
-      ),
+      control_input,
       region(base, width * 4L, 4L),
       region(scale, 12L, 4L),
       region(frame[0], sizes[0], 4L),

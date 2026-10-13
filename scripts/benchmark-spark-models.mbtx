@@ -63,6 +63,9 @@ fn binary(glm : Bool, runtime : String) -> String {
 
 ///|
 fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
+  if options is ["--runtime", runtime, "--rows", _] {
+    return runtime_selection(glm, ["--runtime", runtime])
+  }
   if options.is_empty() {
     return selected(glm)
   }
@@ -73,6 +76,21 @@ fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
     fail("expected --runtime /tmp/lunaflux-NEW-RUNTIME")
   }
   runtime
+}
+
+///|
+fn row_selection(glm : Bool, options : ArrayView[String]) -> Int raise {
+  let rows = if options is ["--runtime", _, "--rows", value] {
+    @string.parse_int(value)
+  } else if glm {
+    1
+  } else {
+    6
+  }
+  guard rows > 0 && rows <= (if glm { 64 } else { 256 }) else {
+    fail("row capacity exceeds bounded history")
+  }
+  rows
 }
 
 ///|
@@ -171,6 +189,19 @@ test "prompt and memory measurement boundaries" {
 
 ///|
 test "fresh runtime selection is explicit and preserves the retained baseline" {
+  assert_eq(row_selection(true, []), 1)
+  assert_eq(
+    row_selection(true, [
+      "--runtime", "/tmp/lunaflux-glm-new-v1", "--rows", "16",
+    ]),
+    16,
+  )
+  assert_eq(
+    runtime_selection(true, [
+      "--runtime", "/tmp/lunaflux-glm-new-v1", "--rows", "16",
+    ]),
+    "/tmp/lunaflux-glm-new-v1",
+  )
   assert_eq(runtime_selection(true, []), selected(true))
   assert_eq(
     binary(
@@ -208,7 +239,7 @@ async fn main {
   let glm = family == "glm"
   let runtime = runtime_selection(glm, options)
   let executable = binary(glm, runtime)
-  let rows = if glm { 1 } else { 6 }
+  let rows = row_selection(glm, options)
   let history = if glm { 64 } else { 256 }
   let queue = root + "/queue"
   let aot = runtime + "/aot"
@@ -216,7 +247,7 @@ async fn main {
     executable +
     "\naot=" +
     aot +
-    "\ncomparison_outside_compiler=true\npayload_hashing=false\n"
+    "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n"
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -325,12 +356,18 @@ async fn main {
       )
       record(root, "frames-\{i}", output)
       let mut count = 0
+      let mut input_tokens = 0
       for word in output.stdout().trim().split(" ") {
         if word.has_prefix("prompt_frames=") {
           count = @string.parse_int(word[14:])
         }
+        if word.has_prefix("input_tokens=") {
+          input_tokens = @string.parse_int(word[13:])
+        }
       }
-      guard count > 0 && count + 8 <= history else {
+      guard input_tokens > 0 &&
+        count == 1 + (input_tokens - 1) / rows &&
+        input_tokens + 8 <= history else {
         fail("prompt outside existing AOT envelope")
       }
       counts.push(count.to_string())

@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/hyper_connection_physical_ir",
   "vectie/lunaflux/compiler/precision_ir",
 }
 
@@ -10,6 +11,8 @@ import {
 pub fn block_control_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionCudaSource raise DecoderHyperConnectionCudaSourceError
 
 pub fn head_reduce_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionHeadReduceCudaSource raise DecoderHyperConnectionCudaSourceError
+
+pub fn ordered_control_tiles_source(@precision_ir.HyperConnectionPrecision, @hyper_connection_physical_ir.OrderedControlPlan, symbol_prefix~ : String) -> Bytes raise DecoderHyperConnectionCudaSourceError
 
 pub fn post_combine_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String, mix_law? : @precision_ir.HyperConnectionMixLaw) -> DecoderHyperConnectionPostCombineCudaSource raise DecoderHyperConnectionCudaSourceError
 

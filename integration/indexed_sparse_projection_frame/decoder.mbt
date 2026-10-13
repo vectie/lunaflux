@@ -37,7 +37,10 @@ pub fn IndexedSparseDecoderFrame::source_bytes(self : Self) -> Bytes {
 
 ///|
 pub fn IndexedSparseDecoderFrame::workspace_bytes(self : Self) -> Int64 {
-  self.source.plan().workspace_bytes() + self.source.attention().scratch_bytes()
+  self.source.plan().workspace_bytes() +
+  self.source.attention().scratch_bytes() +
+  self.envelope.workspace_bytes() -
+  self.source.envelope().plan().workspace_bytes()
 }
 
 ///|

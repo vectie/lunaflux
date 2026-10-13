@@ -2,11 +2,12 @@
 package "vectie/lunaflux/kernels/hyper_connection_execution_cuda_source"
 
 import {
+  "vectie/lunaflux/compiler/hyper_connection_physical_ir",
   "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
-pub fn hyper_connection_source(@precision_ir.HyperConnectionPrecision, symbol_prefix~ : String) -> HyperConnectionCudaSource raise
+pub fn hyper_connection_source(@precision_ir.HyperConnectionPrecision, symbol_prefix~ : String, parallel_controls? : Bool) -> HyperConnectionCudaSource raise
 
 // Errors
 
@@ -14,6 +15,7 @@ pub fn hyper_connection_source(@precision_ir.HyperConnectionPrecision, symbol_pr
 pub struct HyperConnectionCudaSource {
   // private fields
 }
+pub fn HyperConnectionCudaSource::control_schedule(Self) -> @hyper_connection_physical_ir.OrderedControlPlan?
 pub fn HyperConnectionCudaSource::normalization_threads(Self) -> Int
 pub fn HyperConnectionCudaSource::plan(Self) -> @precision_ir.HyperConnectionPrecision
 pub fn HyperConnectionCudaSource::source_bytes(Self) -> Bytes

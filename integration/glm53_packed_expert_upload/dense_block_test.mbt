@@ -10,7 +10,8 @@ test "complete early decoder block includes both envelopes and shared MLP produc
     maximum_state_bytes=134217728L,
   )
   defer block.close()
-  assert_eq(block.workspace_bytes(), 148669440L)
+  // Both control envelopes retain inverse + 24 mixes for each of 32 rows.
+  assert_eq(block.workspace_bytes(), 148669440L + 2L * 32L * 25L * 4L)
   let source = @utf8.decode(block.source_bytes())
   for
     symbol in [

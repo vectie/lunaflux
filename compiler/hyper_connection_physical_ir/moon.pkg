@@ -1,0 +1,5 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+}
+
+supported_targets = "native"

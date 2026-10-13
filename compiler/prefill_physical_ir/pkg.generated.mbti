@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/prefill_physical_ir"
+
+// Values
+
+// Errors
+pub suberror PrefillPlanError {
+  InvalidGeometry
+}
+
+// Types and methods
+pub struct ContiguousPrefillPlan {
+  // private fields
+}
+pub fn ContiguousPrefillPlan::chunk_count(Self) -> Int
+pub fn ContiguousPrefillPlan::new(input_tokens~ : Int, row_capacity~ : Int, context_capacity~ : Int) -> Self raise PrefillPlanError
+pub fn ContiguousPrefillPlan::produces_token(Self, Int) -> Bool raise PrefillPlanError
+pub fn ContiguousPrefillPlan::range(Self, Int) -> (Int, Int) raise PrefillPlanError
+
+// Type aliases
+
+// Traits

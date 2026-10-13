@@ -4,6 +4,7 @@ pub struct HyperConnectionCudaSource {
   priv prefix : String
   priv source : Bytes
   priv normalization_threads : Int
+  priv control_schedule : @physical.OrderedControlPlan?
 }
 
 ///|
@@ -12,8 +13,19 @@ pub struct HyperConnectionCudaSource {
 pub fn hyper_connection_source(
   plan : @precision.HyperConnectionPrecision,
   symbol_prefix~ : String,
+  parallel_controls? : Bool = true,
 ) -> HyperConnectionCudaSource raise {
   let (streams, hidden, rows) = plan.geometry()
+  // Independent physical scheduling does not change the numerical IR. Keep
+  // other arithmetic laws on their explicit existing implementations.
+  let control_schedule = if parallel_controls &&
+    plan.control_law() is NormalizedBf16Projection &&
+    plan.control_square_law() is OrderedFloat32 &&
+    plan.control_dot_law() is OrderedFloat32 {
+    Some(@physical.OrderedControlPlan::new(plan, workers=256, product_tile=256))
+  } else {
+    None
+  }
   let function = @control.staged_function_and_collapse_bf16_f32_source(
     stream_width=streams,
     hidden_width=hidden,
@@ -31,11 +43,15 @@ pub fn hyper_connection_source(
     control_root_law=plan.control_root_law(),
   )
   // Multiple branch envelopes may share a module without duplicate helpers.
-  let function_source = @utf8.encode(
-    @utf8.decode(function.source_bytes())
-    .replace_all(old="lf_hc_stage_sigmoid", new=symbol_prefix + "_sigmoid")
-    .replace_all(old="lf_hc_stage_sum", new=symbol_prefix + "_matrix_sum"),
-  )
+  let function_source = if control_schedule is Some(schedule) {
+    @control.ordered_control_tiles_source(plan, schedule, symbol_prefix~)
+  } else {
+    @utf8.encode(
+      @utf8.decode(function.source_bytes())
+      .replace_all(old="lf_hc_stage_sigmoid", new=symbol_prefix + "_sigmoid")
+      .replace_all(old="lf_hc_stage_sum", new=symbol_prefix + "_matrix_sum"),
+    )
+  }
   let sinkhorn = @control.staged_positive_sinkhorn_f32_source(
     stream_width=streams,
     maximum_rows=rows,
@@ -86,6 +102,7 @@ pub fn hyper_connection_source(
     b"\n" +
     post,
     normalization_threads: normalization.launch_threads(),
+    control_schedule,
   }
 }
 
@@ -107,15 +124,29 @@ pub fn HyperConnectionCudaSource::normalization_threads(self : Self) -> Int {
 }
 
 ///|
+pub fn HyperConnectionCudaSource::control_schedule(
+  self : Self,
+) -> @physical.OrderedControlPlan? {
+  self.control_schedule
+}
+
+///|
 pub fn HyperConnectionCudaSource::symbol(
   self : Self,
   stage : Int,
 ) -> String raise @precision.PrecisionPlanError {
   let suffix = match stage {
-    0 => "function"
+    0 =>
+      if self.control_schedule is Some(_) {
+        "function_ordered_tiles_v1"
+      } else {
+        "function"
+      }
     1 => "sinkhorn"
     2 => "norm"
     3 => "post"
+    4 if self.control_schedule is Some(_) => "square_ordered_tiles_v1"
+    5 if self.control_schedule is Some(_) => "project_ordered_tiles_v1"
     _ => raise @precision.PrecisionPlanError::IllegalPlacement
   }
   self.prefix + "_" + suffix

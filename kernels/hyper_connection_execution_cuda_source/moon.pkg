@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/hyper_connection_physical_ir" @physical,
   "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source" @control,
   "vectie/lunaflux/kernels/hyper_connection_mix_cuda_source" @mix,
   "vectie/lunaflux/kernels/prefix_rms_norm_cuda_source" @norm,

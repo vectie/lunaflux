@@ -94,7 +94,13 @@ async fn main {
   let journal = @fs.read_file(native + "/ingress-journal.stdout").text()
   let native_times = metrics(journal, "generation_millis")
   let epochs = metrics(journal, "next_epoch")
-  guard native_times.length() == 6 && epochs.length() == 6 else {
+  let frames = ids(
+    @fs.read_file(native + "/frame-counts.txt").text(),
+    delimiter=",",
+  )
+  guard native_times.length() == 6 &&
+    epochs.length() == 6 &&
+    frames.length() == 6 else {
     fail("expected six completed native requests")
   }
   let rows : Array[Json] = []
@@ -140,9 +146,8 @@ async fn main {
     }
     let native_seconds = native_times[i] / 1000.0
     let native_steps = epochs[i] - (if i == 0 { 1.0 } else { epochs[i - 1] })
-    guard native_steps ==
-      (native_input.length() + native_output.length() - 1).to_double() else {
-      fail("unexpected serial model-step count")
+    guard native_steps == (frames[i] + native_output.length() - 1).to_double() else {
+      fail("unexpected prefill-chunk plus decode model-step count")
     }
     native_total += native_seconds
     reference_total += reference_seconds
@@ -152,6 +157,7 @@ async fn main {
       ),
       "input_ids": Json(native_input.map(t => Json(t))),
       "input_tokens": Json(native_input.length()),
+      "native_prefill_chunks": Json(frames[i]),
       "native_output_ids": Json(native_output.map(t => Json(t))),
       "native_output_tokens": Json(native_output.length()),
       "reference_output_tokens": Json(reference_tokens),
@@ -188,7 +194,7 @@ async fn main {
     "decode_only_throughput": false,
     "native_first_request_cold": true,
     "reference_excluded_warmup_requests": 1,
-    "native_topology": "PP2/TP1/BF16 KV/one-row prefill",
+    "native_topology": "PP2/TP1/BF16 KV; actual prefill chunks reported per request",
     "reference_topology": "PP1/TP2/FP8 MLA KV",
     "payload_hashing": false,
     "native_total_seconds": Json(native_total),

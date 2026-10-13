@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/compiler/prefill_physical_ir" @prefill,
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/engine/worker_protocol" @protocol,
   "vectie/lunaflux/engine/worker_wire" @wire,
