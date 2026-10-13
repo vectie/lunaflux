@@ -41,6 +41,50 @@ may silently claim replay performance.
 
 ## Results
 
+### Same binary, separate changes
+
+All native modes below use ARM executable `aed93d05` and the same retained
+FP4-staging AOT. One warmup is excluded, C1 sequential requests; prompt lengths
+`[22,23,22,23,24,36]`, generated lengths `[4,4,8,8,8,3]` (35 total).
+
+| Mode | Six-request completion sum | Relative to vLLM |
+| --- | ---: | ---: |
+| Per-collective whole-stream retirement | 9.855 s | 3.115x |
+| Queued TP, eager compute | 8.938 s | 2.825x |
+| Queued TP, graph compute (two cohorts) | 8.731 / 8.739 s | 2.760 / 2.762x |
+| Retained vLLM | 3.163588 s | 1.000x |
+
+The first change reduces time **9.305%**; graph replay adds **2.316%** on the
+queued mode, for **11.405%** total; the repeat gives 2.226% additional and
+11.324% total. These are sequential cohort observations,
+not a confidence interval or a claim to have closed the remaining gap.
+
+| Prompt | Input/output tokens | Per-site (s) | Queued (s) | Graph (s) | vLLM (s) |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Fact | 22/4 | 1.200 | 1.078 | 1.063 | .385331 |
+| Arithmetic | 23/4 | 1.219 | 1.099 | 1.078 | .396595 |
+| Chinese | 22/8 | 2.067 | 1.890 | 1.840 | .656153 |
+| JSON | 23/8 | 2.090 | 1.919 | 1.870 | .670817 |
+| Code | 24/8 | 2.149 | 1.928 | 1.869 | .673605 |
+| Retrieval | 36/3 | 1.130 | 1.024 | 1.011 | .381087 |
+
+Native CLI completion includes diagnostic output/retirement; reference timing
+is buffered HTTP completion including client/server overhead. Native uses
+BF16 KV, vLLM uses FP8 MLA KV. Four reference texts agree after removing the
+native stop marker; Chinese/JSON differ despite matched output lengths.
+Reference token IDs are unavailable. All native output IDs agree across modes.
+This compares implementations on literal matched prompts, not bitwise numerical
+equivalence, full-model correctness, or long-context/batched throughput.
+
+Literal baseline root: `/tmp/lunaflux-model-bench-glm-tp-each-20261013-v1`.
+Reference root: `/tmp/lunaflux-reference-bench-vllm-glm-staging-20261014-v1`.
+The reference is retained, not rerun in this change; its suffix is an experiment
+identifier, not evidence of a future measurement date. All six HTTP responses
+succeeded; the subsequent deliberate container teardown had rank 1 exit 137,
+so no clean reference-shutdown claim is made.
+
+### Earlier cohorts and validation
+
 Retained baseline:
 9.756/10.189 s summed completion across six sequential requests; vLLM 3.163588 s.
 Native uses BF16 KV; the reference uses FP8 MLA KV and breakable CUDA graphs.
@@ -87,3 +131,102 @@ fails before GPU loading with `Address already in use` shortly after the
 previous listener closes, 9,207,808-byte peak and zero swap. Its journal is
 retained; no GPU result exists. Restart v2 uses a new output root after the
 socket retires.
+
+Same-binary queued cohort `...tp-queued-scalar-20261013-v2` takes 8.938 s,
+with TTFT sum 2.986 s and post-first-token sum 5.952 s. The graph cohort's
+corresponding sums are 2.950 / 5.781 s. Thus the first isolated graph comparison
+is **2.316% less completion time**, not the entire ~10% baseline improvement.
+
+## Dispatch trace (separate from timing cohorts)
+
+Short traces use one 16-input/two-output prompt plus one excluded-from-timing
+warmup: four model steps. Both trace modes explicitly include all CUDA APIs
+(`cuStreamQuery` is absent from the default Nsight API set) and graph nodes.
+The profiler substantially perturbs execution; its durations are **not**
+unprofiled latency estimates. No profiler or comparison enters the compiler.
+
+Queued trace: `/tmp/lunaflux-model-bench-glm-tp-queued-trace-20261013-v1`.
+Graph trace: `/tmp/lunaflux-model-bench-glm-tp-graphs-trace-20261013-v2`.
+Analysis roots are `/tmp/lunaflux-glm-submission-trace-queued-20261013-v2`
+and `/tmp/lunaflux-glm-submission-trace-graphs-20261013-v1`.
+
+Both ranks execute all 132 collectives per step with **zero StreamQuery calls
+between the first launch and the last collective enqueue**, on all four steps.
+Graph mode executes **133 cuGraphLaunch calls per step** on both ranks. The
+2,020/2,022 compute kernels per rank per step and 132 collectives are unchanged;
+graph replay reduces host dispatch, not mathematical work. StreamQuery still
+runs at final completion and retains resources until then; "one frame fence"
+does not mean just one polling API call.
+
+The queued ingress trace's final decode has 5.972 ms of kernel-free intervals
+before compute kernels versus 0.966 ms with graphs. Intervals before collectives
+remain 37.694 / 28.590 ms respectively. Egress differs, and NCCL kernel time
+includes peer waiting: these quantities cannot be summed across ranks or used
+as additive unprofiled speedup claims. Host enqueue spans remain substantial
+even without StreamQuery; their remaining cause is not established by a CUDA
+API trace alone. Native NCCL uses nonblocking submission, while the inspected
+local vLLM PyNccl initializes a conventional communicator. This is a further
+measurement hypothesis, **not a demonstrated explanation for the whole gap**.
+
+The first graph-trace startup also encountered the retired socket's TIME_WAIT
+before GPU loading. Its failure root is retained. The external benchmark
+driver now waits for its two fixed ports to retire without changing runtime
+socket semantics. The initial analysis returned no ingress steps because that
+rank has no vocabulary head; the corrected external query uses the next
+embedding/final kernel as that rank's endpoint. Its original empty report is
+retained, not interpreted as missing GPU work.
+
+### Matched old-fence trace confirms the cause
+
+The same `aed93d05` binary with per-collective retirement produces
+`/tmp/lunaflux-model-bench-glm-tp-each-trace-20261013-v1`; analysis is
+`/tmp/lunaflux-glm-submission-trace-each-20261013-v1`. Its final decode step:
+
+| Observed quantity | Per-site wait | Queued TP | Queued + graphs |
+| --- | ---: | ---: | ---: |
+| Ingress stream queries before final collective enqueue | 61,444 | 0 | 0 |
+| Egress stream queries before final collective enqueue | 255,594 | 0 | 0 |
+| Collectives per rank | 132 | 132 | 132 |
+| Actual graph launches per rank | 0 | 0 | 133 |
+| Egress compute-kernel sum (profiled ms) | 181.816 | 183.961 | 182.985 |
+| Egress host enqueue span (profiled ms) | 505.457 | 258.775 | 243.612 |
+
+The invariant compute work and eliminated pre-final stream queries establish
+the targeted dispatch change. The old trace records 1,524,636 egress stream
+queries over four steps (475.272 ms *inside the API calls alone*); tracing those
+polls itself greatly perturbs the schedule. Consequently the ~halved profiled
+host span must **not** be advertised as a ~2x end-to-end gain. The unprofiled
+cohorts measure ~9% for queued submission and a small additional graph gain.
+NCCL duration also changes with peer arrival and tracing; it is not an isolated
+network-bandwidth measurement.
+
+These additions are explicit policies, selected end-to-end by the benchmark's
+`--queued-tp` and `--graph-tp` modes. Existing eager/default capability coverage
+remains available; no unsupported backend is silently claimed to capture.
+The changed native lifetime boundary passes host ASan/UBSan and deterministic
+lease/cancellation tests. These are not a claim of a new full-model CUDA
+Compute Sanitizer campaign; the existing NCCL/CUDA sanitizer-version limitation
+is unchanged. All completed physical modes explicitly close both contexts.
+
+## Final repeat and handoff
+
+`/tmp/lunaflux-model-bench-glm-tp-graphs-repeat-20261013-v1` completes with
+per-prompt times `[1.054,1.076,1.858,1.871,1.875,1.005]` s, total 8.739 s.
+TTFT sum 2.942 s; post-first-token sum 5.797 s. All 35 native output IDs remain
+unchanged and both ranks report 133 prepared graphs. Mean of the two graph
+cohorts is 8.735 s (about 4.01 output tokens/s including prefill, not decode-only).
+The retained reference is about 11.06 output tokens/s on the same length vector.
+
+Repeat memory peaks are 67,285,569,536 / 69,569,478,656 bytes, task swap 0,
+minimum host available 22.9051 GiB. All successful task memory peaks in these
+new cohorts/traces are below 66 GiB; allocation plans remain below 100 GiB with
+the graph reservation inside the existing 2 GiB runtime reserve. Both 100 GiB
+process ceilings, zero-swap limits and 16 GiB host reserve guard remained active.
+Final GPU-owner checks on both Sparks are empty. No payload hashes were computed.
+
+Implementation is committed in `712b6fec` and `aed93d05`; diagnostic dispatch
+measurement is `a21f0e2e`. Source-pinned ARM builds and the local 5,145-test suite
+pass, as do the changed NCCL and existing ordered-graph host ASan/UBSan gates.
+The comparison/trace tools remain external `.mbtx` automation. Unrelated dirty
+toolchain/TLS work is preserved. The measured remaining ~2.76x completion-time
+ratio is not solved or attributed wholesale to NCCL, kernels, or the compiler.
