@@ -88,12 +88,29 @@ test "observation parsing does not conflate completion with decode timing" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, native, reference, output] else {
-    fail("NATIVE_ROOT VLLM_ROOT NEW_REPORT_JSON")
+  guard @env.args() is [_, native, reference, output, .. options] else {
+    fail("NATIVE_ROOT VLLM_ROOT NEW_REPORT_JSON [--previous NATIVE_BASELINE]")
+  }
+  let previous = match options {
+    [] => None
+    ["--previous", root] => Some(root)
+    _ => fail("expected optional --previous NATIVE_BASELINE")
   }
   let journal = @fs.read_file(native + "/ingress-journal.stdout").text()
   let native_times = metrics(journal, "generation_millis")
   let epochs = metrics(journal, "next_epoch")
+  let first_tokens = metrics(journal, "first_token_millis")
+  let previous_times = if previous is Some(root) {
+    metrics(
+      @fs.read_file(root + "/ingress-journal.stdout").text(),
+      "generation_millis",
+    )
+  } else {
+    []
+  }
+  guard previous is None || previous_times.length() == 6 else {
+    fail("six previous timings required")
+  }
   let frames = ids(
     @fs.read_file(native + "/frame-counts.txt").text(),
     delimiter=",",
@@ -151,6 +168,26 @@ async fn main {
     }
     native_total += native_seconds
     reference_total += reference_seconds
+    let previous_observation : Json = if previous is Some(root) {
+      guard ids(
+          @fs.read_file(root + "/input-\{i}-tokens.txt").text(),
+          delimiter=",",
+        ) ==
+        native_input else {
+        fail("unmatched previous input IDs")
+      }
+      let previous_output = ids(
+        @fs.read_file(root + "/output-\{i}-tokens.txt").text(),
+      )
+      {
+        "output_ids_equal": Json(previous_output == native_output),
+        "output_ids": Json(previous_output.map(t => Json(t))),
+        "seconds": Json(previous_times[i] / 1000.0),
+        "speedup": Json(previous_times[i] / native_times[i]),
+      }
+    } else {
+      null
+    }
     rows.push({
       "category": Json(
         @fs.read_file(native + "/category-\{i}.txt").text().trim().to_owned(),
@@ -162,6 +199,12 @@ async fn main {
       "native_output_tokens": Json(native_output.length()),
       "reference_output_tokens": Json(reference_tokens),
       "native_seconds": Json(native_seconds),
+      "native_first_token_seconds": if first_tokens.length() == 6 {
+        Json(first_tokens[i] / 1000.0)
+      } else {
+        null
+      },
+      "previous_native": previous_observation,
       "native_serial_model_steps": Json(native_steps),
       "native_request_seconds_per_serial_step": Json(
         native_seconds / native_steps,

@@ -9,13 +9,23 @@ test "ordered products preserve folds and count all publication storage" {
     normalization_epsilon=1.0e-5,
     mix_law=RoundedBf16ControlsAndProducts,
   )
-  let plan = OrderedControlPlan::new(p, workers=256, product_tile=256)
+  let plan = @hyper_connection_physical_ir.OrderedControlPlan::new(
+    p,
+    workers=256,
+    product_tile=256,
+  )
   assert_eq(plan.workgroups(0), 16)
   assert_eq(plan.workgroups(1), 384)
   assert_eq(plan.workgroups(2), 16)
   assert_eq(plan.workspace_bytes(), 1600L)
   assert_eq(plan.local_bytes(), 1024L)
-  try OrderedControlPlan::new(p, workers=256, product_tile=255) catch {
+  try
+    @hyper_connection_physical_ir.OrderedControlPlan::new(
+      p,
+      workers=256,
+      product_tile=255,
+    )
+  catch {
     @precision.PrecisionPlanError::NoImplementation => ()
     e => raise e
   } noraise {

@@ -276,6 +276,21 @@ monitoring can recover an unresponsive host; host recovery and a reviewed
 loading-memory envelope are still required before another physical trial.
 There are **no SGLang request timings or quality results** from these launches.
 
+## Update: parallel controls and 16-row prefill, 13 October
+
+A later selected full-model run reduces the same six native requests from
+323.475 to **32.981 seconds (9.81x faster)**, with all six native output-token
+vectors unchanged. The earlier same-day vLLM baseline remains 3.160961 seconds,
+so the remaining completion-time ratio is **10.43x**. Prefill submissions fall
+from 150 to 13, total submissions from 179 to 42. Both native ranks exit 0 with
+zero process swap; minimum sampled host availability is 22.698 GiB. No hashing.
+
+See [the implementation and full result](GLM_PARALLEL_CONTROLS_PREFILL_2026-10-13.md)
+for per-prompt TTFT/completion times, pure-IR responsibilities, changed-kernel
+tests and remaining limitations. This update supersedes the native timing in
+the historical section below, not its preserved raw observations. vLLM's
+algebraically parallel KDA prefill is not yet implemented in LunaFlux.
+
 ## Recovered Sparks: matched full-model GLM result, 13 October
 
 The requested fresh retry recovered .179 through a new authenticated SSH
