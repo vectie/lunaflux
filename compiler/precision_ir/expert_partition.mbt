@@ -32,8 +32,13 @@ pub fn ExpertTensorPartition::new(
     intermediate % world_size == 0 &&
     original.down_publication() == LocalBFloat16 &&
     original.local_experts().length() == experts &&
-    original.activation_quantization() is None &&
-    original.scaled_dot_law() == DecodeOperandsFloat32 else {
+    (
+      (
+        original.activation_quantization() is None &&
+        original.scaled_dot_law() == DecodeOperandsFloat32
+      ) ||
+      original.scaled_dot_law() is BlockScaledMatrixFloat32(block_columns=16)
+    ) else {
     raise NoImplementation
   }
   let width = intermediate / world_size
@@ -75,6 +80,31 @@ pub fn ExpertTensorPartition::new(
     activation_rounding=original.activation_rounding(),
     routing_placement=original.routing_placement(),
     dot_law=original.dot_law(),
+    scaled_dot_law=original.scaled_dot_law(),
+    activation_quantization?=match original.activation_quantization() {
+      None => None
+      Some((input, product)) => {
+        let old = product.operand()
+        let representation = @format.Representation::new(
+          format=old.representation().format(),
+          rows=rows * selected,
+          columns=width,
+        ) catch {
+          _ => raise NoImplementation
+        }
+        let local_product = plan_operand(
+            role=Activation,
+            representation~,
+            placement=QuantizeBeforeConsumer,
+            supported_placements=[QuantizeBeforeConsumer],
+            accuracy=old.accuracy(),
+            memory_ceiling~,
+          )
+          .quantization()
+          .with_amax_floor(product.amax_floor())
+        Some((input, local_product))
+      }
+    },
     down_publication=ReduceFloat32BeforeRound,
     memory_ceiling~,
   )

@@ -14,6 +14,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   accuracy~ : @precision_ir.Accuracy,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
@@ -45,6 +46,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
         maximum_expert_bytes,
         accuracy,
         matrix_law~,
+        expert_scaled_dot_law~,
         tensor_group?,
       ),
     ),
@@ -62,6 +64,7 @@ fn make_moe_ffn(
   maximum_expert_bytes : Int64,
   accuracy : @precision_ir.Accuracy,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   tensor_group? : (Int, Int),
 ) -> GlmFfn raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
@@ -78,6 +81,7 @@ fn make_moe_ffn(
           world_size~,
           accuracy~,
           matrix_law~,
+          expert_scaled_dot_law~,
           memory_ceiling=maximum_expert_bytes,
         ),
       )
@@ -92,6 +96,7 @@ fn make_moe_ffn(
         memory_ceiling=maximum_expert_bytes,
         accuracy~,
         matrix_law~,
+        expert_scaled_dot_law~,
       )
   }
   let shared = shared_expert_compute_plan(

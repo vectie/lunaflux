@@ -137,3 +137,21 @@ int32_t lunaflux_cuda_test_retryable_lifecycle(
   }
   return LF_OK;
 }
+
+static CUresult lf_fake_primary_release(CUdevice device) { return device == 7 ? 0 : 1; }
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_cuda_test_primary_lifecycle(void) {
+  lf_cuda_api api; memset(&api, 0, sizeof(api));
+  api.cuDevicePrimaryCtxRelease = lf_fake_primary_release;
+  /* No destroy callback: a primary lease must never destroy/reset the context. */
+  lf_context context; memset(&context, 0, sizeof(context));
+  context.api=&api; context.handle=LF_FAKE_VALID_HANDLE; context.runtime_primary=1; context.device=6;
+  atomic_init(&context.state,LF_RESOURCE_LIVE); atomic_init(&context.active_operations,0); atomic_init(&context.children,1);
+  if(lunaflux_cuda_context_close(&context)!=LF_BUSY) return 1;
+  atomic_store(&context.children,0);
+  if(lunaflux_cuda_context_close(&context)!=LF_DRIVER_FAILURE || context.handle==NULL) return 2;
+  context.device=7;
+  if(lunaflux_cuda_context_close(&context)!=LF_OK || context.handle!=NULL) return 3;
+  if(lunaflux_cuda_context_close(&context)!=LF_OK) return 4;
+  return 0;
+}

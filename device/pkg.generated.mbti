@@ -14,7 +14,7 @@ pub fn admit_tensor_collective_runtime(minimum_version_code~ : Int, maximum_vers
 
 pub fn can_access_peer(Int, Int) -> Bool raise DeviceError
 
-pub fn open_context(Int) -> Context raise DeviceError
+pub fn open_context(Int, runtime_interoperable? : Bool) -> Context raise DeviceError
 
 pub fn probe() -> ProbeResult
 

@@ -1,5 +1,10 @@
 ///|
 async fn main {
+  if @env.args() is [_, "probe-tensor-context", rank, endpoint, policy] {
+    guard policy is ("private" | "runtime") else { fail("private|runtime") }
+    probe_tensor_context(@string.parse_int(rank), endpoint, policy == "runtime")
+    return
+  }
   if @env.args() is [_, "decode-tokens", model_root, label, ids, output] {
     decode_text_tokens(model_root, label, ids, output)
     return
@@ -124,6 +129,8 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let low_bit = mode.has_suffix("-low-bit")
+  let mode = if low_bit { mode[:mode.length() - 8].to_owned() } else { mode }
   let expert_tp = mode.has_suffix("-expert-tp")
   let mode = if expert_tp { mode[:mode.length() - 10].to_owned() } else { mode }
   let tiled = mode.has_suffix("-tiled-grouped")
@@ -168,11 +175,19 @@ async fn main {
         OrderedTokenFloat32
       },
       matrix_law=if tiled { MatrixFloat32 } else { ScalarFloat32 },
+      expert_scaled_dot_law=if low_bit {
+        BlockScaledMatrixFloat32(block_columns=16)
+      } else {
+        DecodeOperandsFloat32
+      },
       expert_tensor_parallel=expert_tp,
     )
   }
   println(
-    "expert_tensor_parallel=\{expert_tp} attention_replicated=\{expert_tp} payload_hashing=false",
+    "expert_tensor_parallel=\{expert_tp} nonexpert_tensor_parallel=\{expert_tp} attention_replicated=false payload_hashing=false",
+  )
+  println(
+    "expert_activation_quantization=\{low_bit} native_block_scaled_matrix=\{low_bit}",
   )
   for ordinal, range in startup.ranges {
     let (first, end) = range.layer_range()

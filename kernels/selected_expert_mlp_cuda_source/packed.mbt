@@ -42,6 +42,12 @@ pub fn packed_expert_mlp_source(
   if symbol.length() > 60 || !valid_selected_expert_symbol(symbol) {
     raise SelectedExpertMlpCudaSourceError::InvalidFunctionSymbol
   }
+  if plan.scaled_dot_law() is BlockScaledMatrixFloat32(..) {
+    guard grouping is None else {
+      raise @precision_ir.PrecisionPlanError::NoImplementation
+    }
+    return grouped_fp4_source(plan, symbol~)
+  }
   if plan.scaled_dot_law() != DecodeOperandsFloat32 {
     guard grouping is None else {
       raise @precision_ir.PrecisionPlanError::NoImplementation

@@ -63,6 +63,9 @@ fn binary(glm : Bool, runtime : String) -> String {
 
 ///|
 fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
+  if options is [.. base, "--low-bit"] {
+    return runtime_selection(glm, base)
+  }
   if options is [.. base, "--expert-tp"] {
     return runtime_selection(glm, base)
   }
@@ -89,6 +92,9 @@ fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
 
 ///|
 fn row_selection(glm : Bool, options : ArrayView[String]) -> Int raise {
+  if options is [.. base, "--low-bit"] {
+    return row_selection(glm, base)
+  }
   if options is [.. base, "--expert-tp"] {
     return row_selection(glm, base)
   }
@@ -267,6 +273,8 @@ async fn main {
     )
   }
   let glm = family == "glm"
+  let low_bit = options.last() is Some("--low-bit")
+  let options = if low_bit { options[:options.length() - 1] } else { options }
   let expert_tp = options.last() is Some("--expert-tp")
   let profiles = if expert_tp {
     options[:options.length() - 1]
@@ -295,7 +303,8 @@ async fn main {
     "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n" +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled { "matrix_evaluation=bf16-matrix-f32-grouped\n" } else { "" }) +
-    "expert_tensor_parallel=\{expert_tp}\n"
+    "expert_tensor_parallel=\{expert_tp}\n" +
+    (if low_bit { "expert_scaled_dot=block-scaled-matrix-f32\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -535,7 +544,8 @@ async fn main {
         } else {
           ""
         }) +
-        (if expert_tp { "-expert-tp" } else { "" })
+        (if expert_tp { "-expert-tp" } else { "" }) +
+        (if low_bit { "-low-bit" } else { "" })
       record(
         root,
         role + "-start",

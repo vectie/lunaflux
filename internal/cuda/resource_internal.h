@@ -13,6 +13,8 @@ typedef struct lf_context {
   atomic_int state;
   atomic_int active_operations;
   atomic_int children;
+  CUdevice device;
+  int runtime_primary;
 } lf_context;
 
 typedef struct lf_child {

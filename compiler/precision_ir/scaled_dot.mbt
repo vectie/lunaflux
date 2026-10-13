@@ -4,6 +4,9 @@
 /// promise of a particular device instruction or execution geometry.
 pub(all) enum ScaledDotReductionLaw {
   DecodeOperandsFloat32
+  /// Consume packed operands with block scales in the matrix accumulation;
+  /// apply the two tensor-wide scales to the accumulated result afterwards.
+  BlockScaledMatrixFloat32(block_columns~ : Int)
   UnscaledBlockMatrixFloat32(
     block_columns~ : Int,
     publication~ : Float32AffineLaw

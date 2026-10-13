@@ -12,6 +12,7 @@ priv struct Startup {
   reserve : Int64
   recurrent_evaluation : @precision.RecurrentEvaluationLaw
   matrix_law : @precision.DenseDotLaw
+  expert_scaled_dot_law : @precision.ScaledDotReductionLaw
 }
 
 ///|
@@ -65,6 +66,7 @@ fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
     accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
     recurrent_evaluation=startup.recurrent_evaluation,
     matrix_law=startup.matrix_law,
+    expert_scaled_dot_law=startup.expert_scaled_dot_law,
     tensor_group?=if startup.expert_tensor_parallel {
       Some((ordinal, 2))
     } else {
@@ -91,6 +93,7 @@ fn inspect_startup(
   reserve : Int64,
   recurrent_evaluation? : @precision.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_tensor_parallel? : Bool = false,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
@@ -157,6 +160,7 @@ fn inspect_startup(
     accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
     recurrent_evaluation~,
     matrix_law~,
+    expert_scaled_dot_law~,
   )
   defer decoder.close()
   let text = @glm.GlmTextIo::new(
@@ -210,6 +214,7 @@ fn inspect_startup(
     reserve,
     recurrent_evaluation,
     matrix_law,
+    expert_scaled_dot_law,
   }
   // Recheck the executable owners, not only the planner's layer estimates.
   for ordinal in 0..<2 {

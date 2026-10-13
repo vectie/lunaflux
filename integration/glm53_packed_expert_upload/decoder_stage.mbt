@@ -33,6 +33,7 @@ pub fn GlmDecoderStage::new(
   accuracy~ : @precision_ir.Accuracy,
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
@@ -78,6 +79,7 @@ pub fn GlmDecoderStage::new(
       accuracy~,
       recurrent_evaluation~,
       matrix_law~,
+      expert_scaled_dot_law~,
       tensor_group?,
     ),
     text: GlmTextIo::new(

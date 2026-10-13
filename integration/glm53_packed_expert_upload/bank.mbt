@@ -8,6 +8,7 @@ pub fn expert_compute_plan(
   memory_ceiling~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision_ir.ExpertMlpPrecision raise {
   let family = @glm53_weights.nvfp4_expert_weights(
     layer_index~,
@@ -34,6 +35,29 @@ pub fn expert_compute_plan(
     maximum_rows~,
     clamp=10.0,
     dot_law=matrix_law,
+    scaled_dot_law=expert_scaled_dot_law,
+    activation_quantization?=if expert_scaled_dot_law
+      is BlockScaledMatrixFloat32(..) {
+      let (intermediate, hidden) = operands[0].representation().shape()
+      let quantized = [(maximum_rows, hidden), (maximum_rows * 8, intermediate)].map(shape => {
+          @precision_ir.plan_operand(
+            role=Activation,
+            representation=@precision_format.Representation::new(
+              format=NvFp4,
+              rows=shape.0,
+              columns=shape.1,
+            ),
+            placement=QuantizeBeforeConsumer,
+            supported_placements=[QuantizeBeforeConsumer],
+            accuracy~,
+            memory_ceiling~,
+          ).quantization()
+        },
+      )
+      Some((quantized[0], quantized[1]))
+    } else {
+      None
+    },
     memory_ceiling~,
   )
 }

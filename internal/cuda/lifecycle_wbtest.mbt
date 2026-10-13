@@ -16,3 +16,11 @@ test "native lifecycle probe bounds adversarial inputs" {
   assert_eq(raw_test_retryable_lifecycle(0, 1), -2)
   assert_eq(raw_test_retryable_lifecycle(1, 3), -2)
 }
+
+///|
+extern "c" fn raw_test_primary_lifecycle() -> Int = "lunaflux_cuda_test_primary_lifecycle"
+
+///|
+test "runtime interoperable context releases a lease without reset or destroy" {
+  assert_eq(raw_test_primary_lifecycle(), 0)
+}

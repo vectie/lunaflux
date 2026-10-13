@@ -142,6 +142,10 @@ static void lf_initialize_loader(void) {
   LF_LOAD_REQUIRED(cuCtxCreate, "cuCtxCreate_v2");
   LF_LOAD_REQUIRED(cuCtxDestroy, "cuCtxDestroy_v2");
   LF_LOAD_REQUIRED(cuCtxSetCurrent, "cuCtxSetCurrent");
+  api->cuDevicePrimaryCtxRetain = (CUresult (*)(CUcontext *, CUdevice))
+    lf_symbol(api->driver_library, "cuDevicePrimaryCtxRetain");
+  api->cuDevicePrimaryCtxRelease = (CUresult (*)(CUdevice))
+    lf_symbol(api->driver_library, "cuDevicePrimaryCtxRelease_v2");
   LF_LOAD_REQUIRED(cuStreamCreate, "cuStreamCreate");
   LF_LOAD_REQUIRED(cuStreamDestroy, "cuStreamDestroy_v2");
   LF_LOAD_REQUIRED(cuStreamQuery, "cuStreamQuery");

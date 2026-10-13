@@ -85,13 +85,27 @@ pub fn bind(
     if before {
       gate.push(sw)
     }
-    [
+    let quantized = [
       [c, x, qx, error],
       gate,
       [c, a, qa, error],
       [c, qa, ix, sw, em, w, b],
-      arguments[2],
+      combine,
     ]
+    if p.scaled_dot_law() is BlockScaledMatrixFloat32(..) {
+      [
+        [c, ix, a],
+        quantized[0],
+        quantized[0],
+        gate,
+        quantized[2],
+        quantized[2],
+        [c, qa, ix, sw, em, w, b, a],
+        combine,
+      ]
+    } else {
+      quantized
+    }
   } else {
     arguments
   }

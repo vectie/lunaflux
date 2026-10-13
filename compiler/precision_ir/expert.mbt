@@ -104,7 +104,22 @@ pub fn ExpertMlpPrecision::new(
     raise MissingAccuracyContract
   }
   let weights = [gate, up, down]
+  let packed_matrix = scaled_dot_law
+    is BlockScaledMatrixFloat32(block_columns=16)
+  if scaled_dot_law is BlockScaledMatrixFloat32(..) && !packed_matrix {
+    raise NoImplementation
+  }
+  if packed_matrix {
+    guard dot_law == MatrixFloat32 &&
+      activation_quantization is Some((input, product)) &&
+      weights.all(w => w.representation().format() == NvFp4) &&
+      input.operand().representation().format() == NvFp4 &&
+      product.operand().representation().format() == NvFp4 else {
+      raise NoImplementation
+    }
+  }
   if down_publication == ReduceFloat32BeforeRound &&
+    !packed_matrix &&
     (
       scaled_dot_law != DecodeOperandsFloat32 ||
       activation_quantization is Some(_)
@@ -112,6 +127,7 @@ pub fn ExpertMlpPrecision::new(
     raise NoImplementation
   }
   if dot_law == MatrixFloat32 &&
+    !packed_matrix &&
     (
       activation_quantization is Some(_) ||
       scaled_dot_law != DecodeOperandsFloat32
@@ -126,6 +142,9 @@ pub fn ExpertMlpPrecision::new(
     }
   }
   let (intermediate, hidden) = gate.representation().shape()
+  if packed_matrix && (hidden % 64 != 0 || intermediate % 64 != 0) {
+    raise NoImplementation
+  }
   if scaled_dot_law is UnscaledBlockMatrixFloat32(block_columns~, publication=_) {
     if block_columns <= 0 ||
       hidden % block_columns != 0 ||

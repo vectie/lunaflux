@@ -1,0 +1,141 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, build, mode] &&
+    root.has_prefix("/tmp/lunaflux-tensor-context-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    mode is ("private" | "runtime") &&
+    [root, build].all(p => {
+      p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) else {
+    fail("NEW_ROOT PINNED_BUILD_ROOT private|runtime")
+  }
+  let nodes = ["wlc003s@192.168.2.178", "wlc004s@192.168.2.179"]
+  let sockets = [
+    "/tmp/lunaflux-checkpoint-live-20261010.sock", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+  ]
+  async fn remote(rank : Int, command : String) -> @shell.Output {
+    @shell.Cmd("ssh", [
+      "-S",
+      sockets[rank],
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=10",
+      nodes[rank],
+      command,
+    ]).output(max_output_bytes=4194304)
+  }
+  @fs.mkdir(root)
+  for rank in 0..<2 {
+    let owners = remote(
+      rank, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    remote(rank, "mkdir " + root).check()
+  }
+  @shell.Cmd("scp", [
+    "-o",
+    "ControlPath=" + sockets[0],
+    nodes[0] +
+    ":" +
+    build +
+    "/source/_build/native/release/build/cmd/glm_checkpoint/glm_checkpoint.exe",
+    root + "/probe",
+  ])
+  .output()
+  .check()
+  for rank in [1, 0] {
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + sockets[rank],
+      root + "/probe",
+      nodes[rank] + ":" + root + "/probe",
+    ])
+    .output()
+    .check()
+    let iface = if rank == 0 { "enp1s0f1np1" } else { "enp1s0f0np0" }
+    let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
+    let command = "systemd-run --user --unit=" +
+      root[5:].to_owned() +
+      "-rank" +
+      rank.to_string() +
+      " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=90 --property=RemainAfterExit=yes" +
+      " --property=StandardOutput=append:" +
+      root +
+      "/stdout --property=StandardError=append:" +
+      root +
+      "/stderr" +
+      " --setenv=LD_LIBRARY_PATH=/tmp/lunaflux-glm-expert-tp-full-20261013-v1/nccl --setenv=NCCL_DEBUG=INFO" +
+      " --setenv=NCCL_SOCKET_IFNAME=" +
+      iface +
+      " --setenv=NCCL_IB_HCA=" +
+      hca +
+      " " +
+      root +
+      "/probe probe-tensor-context " +
+      rank.to_string() +
+      " 192.168.2.179:28629 " +
+      mode
+    remote(rank, command).check()
+    if rank == 1 {
+      @async.sleep(1000)
+    }
+  }
+  for _ in 0..<100 {
+    let finished : Array[Bool] = []
+    for rank in 0..<2 {
+      let state = remote(
+        rank,
+        "systemctl --user show " +
+        root[5:].to_owned() +
+        "-rank" +
+        rank.to_string() +
+        ".service -p SubState --value",
+      )
+      state.check()
+      finished.push(state.stdout().trim() is ("exited" | "failed" | "dead"))
+    }
+    if finished.all(x => x) {
+      break
+    }
+    @async.sleep(1000)
+  }
+  for rank in 0..<2 {
+    for
+      (name, cmd) in [
+        (
+          "status",
+          "systemctl --user show " +
+          root[5:].to_owned() +
+          "-rank" +
+          rank.to_string() +
+          ".service -p Result -p ExecMainStatus -p SubState -p MemoryPeak -p MemorySwapCurrent",
+        ),
+        ("stdout", "cat " + root + "/stdout"),
+        ("stderr", "cat " + root + "/stderr"),
+      ] {
+      let result = remote(rank, cmd)
+      result.check()
+      @fs.write_file(
+        root + "/rank" + rank.to_string() + "-" + name + ".txt",
+        result.stdout(),
+        create_mode=CreateNew,
+      )
+      if name == "status" {
+        println("rank\{rank}: " + result.stdout())
+      }
+    }
+  }
+  println(
+    "Context A/B diagnostic collected; inspect status and all32values, including failures.",
+  )
+}

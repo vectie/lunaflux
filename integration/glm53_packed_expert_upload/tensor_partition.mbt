@@ -8,6 +8,7 @@ pub fn tensor_expert_compute_plan(
   world_size~ : Int,
   accuracy~ : @precision_ir.Accuracy,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   memory_ceiling~ : Int64,
 ) -> @precision_ir.ExpertTensorPartition raise {
   // The full plan is metadata, not a full allocation. Its capacity ceiling
@@ -18,6 +19,7 @@ pub fn tensor_expert_compute_plan(
     maximum_rows~,
     accuracy~,
     matrix_law~,
+    expert_scaled_dot_law~,
     memory_ceiling=9223372036854775807L,
   )
   @precision_ir.ExpertTensorPartition::new(

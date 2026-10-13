@@ -192,3 +192,37 @@ and text egress ownership. These are not yet GPU correctness, sanitizer, or
 matched full-model timing results. The explicit TP benchmark now uses the
 authorized 100 GiB planning/runtime ceiling; other benchmark modes retain their
 previous 96 GiB limit.
+
+### Native block-scaled expert implementation and first physical results
+
+The explicit `-low-bit` variant carries `BlockScaledMatrixFloat32(16)` through
+the independent expert numerical plan, compact rank plan, decoder owner and
+kernel binding. Input/product global-amax and block-16 quantization are explicit
+GPU stages, not implicit changes inside a GEMM. CUDA lowering uses native E2M1
+block-scaled matrix instructions, with E4M3 block scales and separate global
+scale publication. The eight-stage grouped path retains F32 partial output for
+TP before collective/BF16 publication. Routed weights remain packed; there is
+no persistent BF16 expansion. Defaults are unchanged. Per-rank product
+quantization is an explicit numerical choice, not claimed to be bitwise equal
+to unpartitioned BF16 activation execution.
+
+Independent scalar packed-arithmetic fixtures passed on Spark .179:
+
+- `/tmp/lunaflux-native-fp4-fragment-20261013-v4`: all 128 fragment outputs exact.
+- `/tmp/lunaflux-native-fp4-grouped-20261013-v3`: actual generated grouping,
+  activation quantization, gate/up, product quantization, down and combination
+  match at live rows 1, 3, 16, 17, zero rows and reuse. Memory/leak/race/sync
+  sanitizers report zero errors. This is not a full-model accuracy or speed claim.
+
+CUDA 13.0 requires architecture-specific cubin compilation for these operations:
+`--generate-code arch=compute_121a,code=sm_121a`. Plain sm121 and sm121a with a
+generic fallback PTX target failed compilation; failed probe roots are retained.
+
+The first complete non-expert TP run, pinned to `9c6d11fe`, compiled both rank
+modules and loaded below the 100 GiB cap, but failed at the first NCCL launch
+with `invalid resource handle`. Both ranks released their contexts and had zero
+task swap. Root: `/tmp/lunaflux-model-bench-glm-fulltp-20261013-v1`. No prompt
+timing from that attempt is valid. A runtime-primary-context alternative and a
+small real-ABI two-rank context A/B probe are implemented; the context explanation
+is a hypothesis until that identical-communicator experiment runs. Retain/release
+ownership is explicit, with no primary-context reset or driver configuration change.

@@ -2,9 +2,9 @@
 /// Startup rendezvous on the existing second socket; no residual payload is
 /// transferred in expert-TP mode. The generating process stays alive while
 /// both communicators bootstrap. All numerical comparison remains external.
-async fn connect_tensor_group(
+async fn connect_tensor_contract(
   context : @device.Context,
-  stage : @glm.GlmDecoderStage,
+  contract : @device.TensorCollectiveContract,
   connection : @socket.Tcp,
   rank~ : Int,
 ) -> @device.TensorCollectiveOwner {
@@ -43,12 +43,6 @@ async fn connect_tensor_group(
       )
     }
   })
-  // Declared site-table label only, not a computed payload digest.
-  let contract = stage.tensor_contract(
-    @device.TensorCollectiveContractDigest::from_sha256(
-      "0000000000000000000000000000000000000000000000000000000000000001",
-    ),
-  )
   let owner = context.create_tensor_collective_owner(
     runtime~,
     group_id=id,
@@ -63,9 +57,25 @@ async fn connect_tensor_group(
     }
   })
   println(
-    "expert_tp_ready rank=\{rank} world=2 sites=\{contract.site_count()} reduction=f32-before-round attention=replicated",
+    "expert_tp_ready rank=\{rank} world=2 sites=\{contract.site_count()} reduction=f32-before-round attention=head-sharded",
   )
   owner
+}
+
+///|
+async fn connect_tensor_group(
+  context : @device.Context,
+  stage : @glm.GlmDecoderStage,
+  connection : @socket.Tcp,
+  rank~ : Int,
+) -> @device.TensorCollectiveOwner {
+  // Declared operation-table label; not a computed payload digest.
+  let contract = stage.tensor_contract(
+    @device.TensorCollectiveContractDigest::from_sha256(
+      "0000000000000000000000000000000000000000000000000000000000000001",
+    ),
+  )
+  connect_tensor_contract(context, contract, connection, rank~)
 }
 
 ///|
@@ -77,7 +87,7 @@ async fn run_tensor_egress(
   guard arguments.length() == 4 else {
     fail("expert TP egress currently requires ordinary output mode")
   }
-  let context = @device.open_context(0)
+  let context = @device.open_context(0, runtime_interoperable=true)
   defer close_rank_context(context, "tensor-1")
   let stream = context.create_stream()
   defer stream.close()

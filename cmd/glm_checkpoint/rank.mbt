@@ -245,7 +245,10 @@ async fn run_ingress(
     frame_root.close()
   }
   @fs.mkdir(output_directory)
-  let context = @device.open_context(0)
+  let context = @device.open_context(
+    0,
+    runtime_interoperable=startup.expert_tensor_parallel,
+  )
   defer close_rank_context(context, "ingress")
   let stream = context.create_stream()
   defer stream.close()

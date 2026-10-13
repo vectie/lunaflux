@@ -87,7 +87,9 @@ static int32_t lf_close_context(lf_context *context) {
   CUcontext handle = context->handle;
   int32_t result = handle == NULL
     ? LF_OK
-    : lf_cuda_map_result(context->api->cuCtxDestroy(handle));
+    : lf_cuda_map_result(context->runtime_primary
+        ? context->api->cuDevicePrimaryCtxRelease(context->device)
+        : context->api->cuCtxDestroy(handle));
   if (result != LF_OK) {
     lf_close_failed(&context->state);
     return result;
@@ -101,8 +103,7 @@ static void lf_finalize_context(void *object) {
   if (lf_close_context((lf_context *)object) != LF_OK) lf_finalize_failure();
 }
 
-MOONBIT_FFI_EXPORT
-lf_context *lunaflux_cuda_context_create(int32_t ordinal, int32_t *status) {
+static lf_context *lf_create_context(int32_t ordinal, int runtime_primary, int32_t *status) {
   lf_context *context = (lf_context *)moonbit_make_external_object(
     lf_finalize_context,
     sizeof(lf_context)
@@ -121,8 +122,23 @@ lf_context *lunaflux_cuda_context_create(int32_t ordinal, int32_t *status) {
     return context;
   }
   CUdevice device = 0;
+  if (runtime_primary && (context->api->cuDevicePrimaryCtxRetain == NULL ||
+                          context->api->cuDevicePrimaryCtxRelease == NULL)) {
+    *status = LF_UNSUPPORTED;
+    return context;
+  }
   if (context->api->cuDeviceGet(&device, ordinal) != CUDA_SUCCESS ||
-      context->api->cuCtxCreate(&context->handle, 0, device) != CUDA_SUCCESS) {
+      (runtime_primary
+        ? context->api->cuDevicePrimaryCtxRetain(&context->handle, device)
+        : context->api->cuCtxCreate(&context->handle, 0, device)) != CUDA_SUCCESS) {
+    context->handle = NULL;
+    *status = LF_DRIVER_FAILURE;
+    return context;
+  }
+  context->device = device;
+  context->runtime_primary = runtime_primary;
+  if (runtime_primary && context->api->cuCtxSetCurrent(context->handle) != CUDA_SUCCESS) {
+    if (context->api->cuDevicePrimaryCtxRelease(device) != CUDA_SUCCESS) abort();
     context->handle = NULL;
     *status = LF_DRIVER_FAILURE;
     return context;
@@ -130,6 +146,16 @@ lf_context *lunaflux_cuda_context_create(int32_t ordinal, int32_t *status) {
   atomic_store(&context->state, LF_RESOURCE_LIVE);
   *status = LF_OK;
   return context;
+}
+
+MOONBIT_FFI_EXPORT
+lf_context *lunaflux_cuda_context_create(int32_t ordinal, int32_t *status) {
+  return lf_create_context(ordinal, 0, status);
+}
+
+MOONBIT_FFI_EXPORT
+lf_context *lunaflux_cuda_runtime_context_create(int32_t ordinal, int32_t *status) {
+  return lf_create_context(ordinal, 1, status);
 }
 
 MOONBIT_FFI_EXPORT

@@ -8,7 +8,8 @@ import {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, build] &&
+  guard @env.args() is [_, root, build, .. args] &&
+    (args is [] || args is ["--low-bit"]) &&
     root.has_prefix("/tmp/lunaflux-glm-expert-tp-") &&
     build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
     [root, build].all(p => {
@@ -108,6 +109,7 @@ async fn main {
     root + "/glm_checkpoint.exe",
   )
   let binary = root + "/glm_checkpoint.exe"
+  let low_bit = args is ["--low-bit"]
   let aot = root + "/aot"
   for rank in 0..<2 {
     record("mkdir-\{rank}", remote(rank, "mkdir " + root))
@@ -149,7 +151,9 @@ async fn main {
       export_unit +
       " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
       binary +
-      " export-tiled-grouped-expert-tp /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 16 64 107374182400 107374182400 2147483648 " +
+      " export-tiled-grouped-expert-tp" +
+      (if low_bit { "-low-bit" } else { "" }) +
+      " /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 16 64 107374182400 107374182400 2147483648 " +
       aot,
     ),
   )
@@ -184,7 +188,12 @@ async fn main {
         rank,
         "systemd-run --user --unit=" +
         unit +
-        " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 --cubin -arch=sm_121 " +
+        " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 --cubin " +
+        (if low_bit {
+          "--generate-code arch=compute_121a,code=sm_121a "
+        } else {
+          "-arch=sm_121 "
+        }) +
         aot +
         "/stage-\{rank}.cu -o " +
         aot +
@@ -207,7 +216,7 @@ async fn main {
   }
   @fs.write_file(
     root + "/PREPARED.txt",
-    "expert_tp=2\nattention=replicated\nrows=16\nhistory=64\nno_hashing=true\n",
+    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=last-rank-owner\nrows=16\nhistory=64\nno_hashing=true\n",
     create_mode=CreateNew,
   )
   println("CPU-only expert TP preparation complete; full model has not run")

@@ -949,6 +949,7 @@ pub fn RowProjectionNormPrecision::workspace_bytes(Self) -> Int64
 
 pub(all) enum ScaledDotReductionLaw {
   DecodeOperandsFloat32
+  BlockScaledMatrixFloat32(block_columns~ : Int)
   UnscaledBlockMatrixFloat32(block_columns~ : Int, publication~ : Float32AffineLaw)
 } derive(Eq, @debug.Debug)
 pub fn ScaledDotReductionLaw::equal(Self, Self) -> Bool

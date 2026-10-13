@@ -78,6 +78,8 @@ typedef struct lf_cuda_api {
   CUresult (*cuCtxCreate)(CUcontext *, uint32_t, CUdevice);
   CUresult (*cuCtxDestroy)(CUcontext);
   CUresult (*cuCtxSetCurrent)(CUcontext);
+  CUresult (*cuDevicePrimaryCtxRetain)(CUcontext *, CUdevice);
+  CUresult (*cuDevicePrimaryCtxRelease)(CUdevice);
   CUresult (*cuStreamCreate)(CUstream *, uint32_t);
   CUresult (*cuStreamDestroy)(CUstream);
   CUresult (*cuStreamQuery)(CUstream);
