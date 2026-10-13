@@ -1,5 +1,5 @@
 ///|
-test "complete sparse decoder and routed FFN share thirty-seven prepared launches" {
+test "complete sparse decoder and routed FFN share forty-one prepared launches" {
   let baseline = live_resources()
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
@@ -93,7 +93,10 @@ test "complete sparse decoder and routed FFN share thirty-seven prepared launche
     output_weight=external[0],
     hyper_weights=Array::make(4, external[0]),
   )
-  assert_eq(decoder.launches().length(), 23)
+  // Each parallel hyper envelope adds inverse and independent-dot stages.
+  assert_eq(decoder.launches().length(), 25)
+  assert_eq(ffn.prefix().length(), 5)
+  assert_eq(ffn.suffix().length(), 1)
   moe.prepare_routed_frame(
     context,
     aot,
@@ -110,7 +113,7 @@ test "complete sparse decoder and routed FFN share thirty-seven prepared launche
   launches.append(ffn.prefix())
   launches.append(moe.launches())
   launches.append(ffn.suffix())
-  assert_eq(launches.length(), 37)
+  assert_eq(launches.length(), 41)
   let queue = context.create_ordered_kernel_executor(stream, launches)
   defer (queue.abort() catch { _ => () })
   defer (queue.close() catch { _ => () })
@@ -118,7 +121,7 @@ test "complete sparse decoder and routed FFN share thirty-seven prepared launche
   let waits = blocking_syncs()
   begin_allocations()
   for _ in 0..<32 {
-    for stage in 0..<37 {
+    for stage in 0..<41 {
       queue.enqueue(stage)
     }
     queue.record_completion()
@@ -128,7 +131,7 @@ test "complete sparse decoder and routed FFN share thirty-seven prepared launche
     queue.reset()
   }
   assert_eq(end_allocations(), 0UL)
-  assert_eq(enqueues() - before, 1184UL)
+  assert_eq(enqueues() - before, 32UL * 41UL)
   assert_eq(blocking_syncs(), waits)
   queue.enqueue(0)
   queue.abort()

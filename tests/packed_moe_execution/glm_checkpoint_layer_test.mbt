@@ -126,7 +126,9 @@ fn CheckpointTestLayer::prepare(
         output~,
       )
       let sparse = layer.layer_range().0 == 3
-      assert_eq(layer.launch_count(), if sparse { 37 } else { 78 })
+      // Two added control stages per attention/FFN envelope: one sparse block
+      // has two envelopes; the dense slice has three blocks and six envelopes.
+      assert_eq(layer.launch_count(), if sparse { 37 + 4 } else { 78 + 12 })
       assert_eq(layer.append_descriptors().length(), if sparse { 1 } else { 0 })
     }
   }

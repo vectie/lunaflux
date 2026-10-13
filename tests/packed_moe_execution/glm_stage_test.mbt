@@ -102,7 +102,8 @@ async fn exercise_glm_stage(
     chunk_bytes=1048573,
     limits~,
   )
-  assert_eq(stage.launch_count(), 27)
+  // Embedding + dense decoder, including two extra control stages per branch.
+  assert_eq(stage.launch_count(), 1 + 26 + 2 * 2)
   assert_eq(stage.append_descriptors().length(), 0)
   assert_eq(stage.input_residual().byte_count(), 1048576L)
   assert_false(stage.input_residual().same_storage(stage.output_residual()))
@@ -130,7 +131,7 @@ async fn exercise_glm_stage(
     }
   }
   assert_eq(end_allocations(), 0UL)
-  assert_eq(enqueues() - queued, 864UL)
+  assert_eq(enqueues() - queued, 32UL * 31UL)
   assert_eq(blocking_syncs(), waits)
   let listener = @socket.TcpServer::TcpServer(
     @socket.Addr::parse("127.0.0.1:0"),

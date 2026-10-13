@@ -369,3 +369,28 @@ failure for inspection, and the full suite was restarted after rebuilding them.
 This is an incremental native-header dependency/cache failure, not a reason to
 change collective arithmetic or suppress a test. Source-pinned Spark builds
 and the physical runs above were clean builds.
+
+That rebuilt full suite then ran 5,137 tests, with nine failures in old
+`packed_moe_execution` integration fixtures. They predated the parallel-control
+schedule (`1b77e542`) and retained sparse key/score storage: each normalized
+hyper envelope now has two extra dispatches and `rows * (1 + streams *
+(streams + 2)) * 4` physical scratch bytes. At rows32/streams4 this is 3,200
+bytes per envelope. The sparse-history fixture was admitting only its 580-byte
+semantic storage, omitting the 1,408-byte retained attention region (which also
+serves the smaller index lifetime). No production arithmetic was changed.
+
+The fixtures now check these independent size formulas and the exact new launch
+counts, still execute every stage, and retain no-hot-allocation, cancellation,
+resource-release and aggregate-budget assertions. A new one-byte-under-physical-
+budget rejection check also verifies no allocation occurred. The entire affected
+integration package passes 119/119; no numerical tolerance or reference output
+was changed. External comparison and timeline-summary script tests pass, and
+the capacity-selectable runtime preparation script passes its native check.
+
+Final working-tree phase validation completes successfully: native check and
+the full **5,137/5,137** native tests pass with the unchanged existing warning
+exclusions (`-20-25-29-35-79-92`) and `--deny-warn`. `moon info --target native`
+reported 3,665 existing migration warnings and zero errors. Formatting and
+`git diff --check` pass for task changes. Unrelated toolchain/TLS edits remain
+uncommitted and untouched by this task. The fixture-only corrections do not
+change the source-pinned production binary or invalidate the measured cohorts.

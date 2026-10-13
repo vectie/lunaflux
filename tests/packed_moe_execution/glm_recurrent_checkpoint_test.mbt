@@ -298,19 +298,25 @@ async fn exercise_glm_checkpoint_owner(
       )
     }
     let workspace_bytes = layer.workspace_bytes()
+    // Each parallel control envelope retains one inverse and 4*(4+2) F32
+    // control dots per row; these are physical scratch, not semantic frames.
+    let control_scratch = 32L * (1L + 4L * (4L + 2L)) * 4L
     if with_decoder_slice && !with_sparse_block {
-      assert_eq(workspace_bytes, 3L * 148669440L + 2L * 1048576L)
+      assert_eq(
+        workspace_bytes,
+        3L * (148669440L + 2L * control_scratch) + 2L * 1048576L,
+      )
     } else if with_sparse_block {
       assert_true(workspace_bytes > 0L)
     } else if with_moe_block {
-      assert_eq(workspace_bytes, 152584580L)
+      assert_eq(workspace_bytes, 152584580L + 2L * control_scratch)
     } else {
       assert_eq(
         workspace_bytes,
         if with_dense_block {
-          148669440L
+          148669440L + 2L * control_scratch
         } else {
-          146043392L
+          146043392L + control_scratch
         },
       )
     }
@@ -374,15 +380,15 @@ async fn exercise_glm_checkpoint_owner(
     assert_eq(
       enqueues() - before,
       if with_decoder_slice && !with_sparse_block {
-        2496UL
+        32UL * 90UL
       } else if with_sparse_block {
-        1184UL
+        32UL * 41UL
       } else if with_moe_block {
-        1088UL
+        32UL * 38UL
       } else if with_dense_block {
-        832UL
+        32UL * 30UL
       } else {
-        640UL
+        32UL * 22UL
       },
     )
     assert_eq(blocking_syncs(), waits)
@@ -400,12 +406,12 @@ async fn exercise_glm_checkpoint_owner(
 }
 
 ///|
-async test "GLM full attention sublayer binds nineteen weights and one twenty-launch queue" {
+async test "GLM full attention sublayer binds nineteen weights and one twenty-two-launch queue" {
   exercise_glm_checkpoint_owner(with_dense_block=false)
 }
 
 ///|
-async test "GLM full dense decoder binds twenty-six weights and one twenty-six-launch queue" {
+async test "GLM full dense decoder binds twenty-six weights and one thirty-launch queue" {
   exercise_glm_checkpoint_owner(with_dense_block=true)
 }
 

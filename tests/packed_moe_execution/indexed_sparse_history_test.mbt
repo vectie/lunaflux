@@ -59,11 +59,36 @@ test "request history composes one queue and independent owners without hot allo
     ),
   )
   defer (frame.close() catch { _ => () })
+  // Semantic pooling/selection frames plus retained key/score cells. Index
+  // scratch (8 queries * 8 pools * 8 bytes) reuses the larger attention region.
+  let workspace = 580L + 8L * 2L * 11L * 8L
+  assert_eq(frame.workspace_bytes(), workspace)
+  let before_prepare = live_resources()
+  try
+    frame.prepare_retained(
+      context,
+      aot,
+      history,
+      maximum_workspace_bytes=workspace - 1L,
+      query_counts=external,
+      index_queries=external,
+      index_head_weights=external,
+      pool_ape=external,
+      queries=external,
+      output=external,
+    )
+  catch {
+    @device.DeviceError::InvalidArgument(OrderedExecutorCreate) => ()
+    e => raise e
+  } noraise {
+    _ => fail("retained physical scratch budget was ignored")
+  }
+  assert_eq(live_resources(), before_prepare)
   frame.prepare_retained(
     context,
     aot,
     history,
-    maximum_workspace_bytes=580L,
+    maximum_workspace_bytes=workspace,
     query_counts=external,
     index_queries=external,
     index_head_weights=external,
