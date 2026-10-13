@@ -147,3 +147,107 @@ MMA, not native NVFP4 W4A4. Achieving that backend's performance cannot be assum
 from adding grouping alone. Any activation-quantized matrix alternative must
 declare its quantization/numeric contract in IR and be tested as such; comparisons
 remain an external diagnostic, never compiler semantics or a correctness oracle.
+
+## Repaired full-model comparison
+
+Runtime/AOT are clean commit `84f07da6`, built under
+`/tmp/lunaflux-checkpoint-build-glm-tiled-repaired-20261013-v1` on both Sparks.
+Export and runtime explicitly select `bf16-matrix-f32-grouped`; recurrence is
+ordered. No benchmark/reference dependency enters the compiler.
+
+Native root: `/tmp/lunaflux-model-bench-glm-tiled-repaired-20261013-v1`.
+Fresh reference root: `/tmp/lunaflux-reference-bench-vllm-glm-tiled-20261013-v1`.
+Literal input IDs, maximum eight output tokens and stop IDs are matched.
+
+| Prompt | Input/output tokens | Previous native s | Repaired native s | Fresh vLLM s | Native TTFT s |
+|---|---:|---:|---:|---:|---:|
+| Fact | 22/4 | 4.350 | 2.632 | 0.383396 | 1.640 |
+| Arithmetic | 23/4 | 4.504 | 2.697 | 0.393215 | 1.698 |
+| Chinese | 22/8 | 5.717 | 3.926 | 0.652706 | 1.612 |
+| JSON | 23/8 | 5.932 | 4.066 | 0.667366 | 1.735 |
+| Code | 24/8 | 6.050 | 4.118 | 0.672706 | 1.785 |
+| Retrieval | 36/3 | 6.428 | 3.577 | 0.374787 | 2.858 |
+| Total | 150/35 | 32.981 | **21.016** | **3.144176** | |
+
+The repaired path is **1.569x faster / 36.28% less completion time** than the
+prior ordered-prefill path. It still takes **6.684x vLLM's time**. Initial broken
+grouping took 53.599 s; repairing it reduced that by 60.79%. These are single
+samples across six short requests, not a long-context or concurrency result.
+Aggregate completion throughput is 35 / 21.016 = 1.665 generated tok/s versus
+35 / 3.144176 = 11.132 tok/s; this includes prefill, not decode-only throughput.
+
+Five native token sequences retain the old scalar result; the capped JSON
+sequence differs. All six repaired sequences are byte-identical to the initial
+matrix candidate: decode/load repairs did not change those outputs. Four texts
+match vLLM after removing the native stop marker; Chinese/JSON still differ.
+The eight-token cap truncates reasoning/output and does not validate task quality.
+vLLM returns null output IDs. No whole-model numerical equivalence claim.
+
+Loading is excluded. Native times include resident CLI completion publication
+and retirement, reference times buffered HTTP. Native's first request is cold;
+vLLM excludes one warm-up. Native uses PP2/TP1 with expanded BF16 KV and 16-row
+prefill chunks (two chunks except retrieval's three); vLLM uses TP2/PP1 over CX7,
+compressed FP8 MLA KV and a larger prefill capacity. Therefore the wall-time
+ratio is a system comparison, not an isolated kernel-efficiency ratio.
+
+Both native ranks exit zero and close CUDA, zero process swap. Minimum sampled
+MemAvailable is 22.712 GiB native / 17.666 GiB reference, above the 16 GiB floor.
+All six fresh vLLM responses are HTTP 200. After requests completed, paired
+`docker stop --time 5` retired rank0 cleanly but force-killed headless rank1
+(137, post-stop NCCL broken-pipe messages); the watch correctly retained a
+terminal failure. This was after completion, not a memory-floor abort. Both
+containers/GPUs were verified released before the next workload.
+
+## Final selected-route timeline and remaining gap
+
+`/tmp/lunaflux-model-bench-glm-repaired-profile-20261013-v1` replays the same
+16-input/2-output profile shape as the older trace, with actual two-rank AOT
+launches. Both ranks exit zero, close CUDA and retain zero process swap.
+
+| Kernel family | Previous ms | Repaired ms | Share now |
+|---|---:|---:|---:|
+| KDA projections | 1,063.346 | 156.117 | 11.84% |
+| Routed experts | 799.734 | 433.744 | 32.88% |
+| Shared experts | 116.533 | 78.322 | 5.94% |
+| Sparse attention chain | 380.319 | 379.340 | 28.76% |
+| Dense FFN | 128.852 | 129.340 | 9.81% |
+| Hyper connections | 29.142 | 28.953 | 2.20% |
+| KDA recurrence | 2.764 | 2.720 | 0.21% |
+| All kernels | **2,631.764** | **1,319.029** | 100% |
+
+The kernel sum is 1.995x faster. This profiled workload has fewer output tokens
+than the six-request test: the difference between 1.995x GPU and 1.569x wall
+speedups is **not** a measured host-overhead fraction. Family sums also do not
+partition the 6.684x vLLM wall-time gap: no matched selected-vLLM kernel-counter
+capture was made in this iteration.
+
+Remaining concrete implementation work, not another recurrence rewrite:
+
+- Routed experts: sparse/one-row groups underfill M16 tiles, decoded-BF16
+  operations still replace native packed NVFP4 MMA, and gate/up restages input
+  twice. The generated gate/up counter retains ~4-way shared-load conflicts,
+  43.8% average latency in long-scoreboard waits and only 5.11% tensor activity.
+  These are separate layout, pipeline and arithmetic-path issues; counters alone
+  do not establish the end-to-end benefit of each proposed change.
+- Sparse attention's whole chain remains ~379 ms; the current projection
+  migration covers recurrent/KDA projections, not all sparse projection leaves.
+  Early dense FFN likewise remains scalar. Their unchanged time is measured.
+- The native 16-row prefill capacity requires two/three sequential chunks here.
+  Larger legal buckets should be measured independently of this code-change
+  comparison. PP2 also serializes a single request across stages; the reference
+  uses TP2, so equivalent kernel times would not alone establish equivalent
+  serving latency.
+
+The two announced grouped tuning revisions are complete; no extra unmeasured
+arithmetic policy or default promotion is made. Final full-width generated-source
+probe v3 additionally passes **R16 memcheck/full-leak and R1 racecheck/synccheck**,
+2 GiB/no swap, with deterministic release. Do not describe the race check as R16.
+The final local validation is 121 affected compiler/runtime tests plus eight
+precision-lowering tests, and the comparison/runner tests. Fresh unexcluded full
+native check/test still stop on pre-existing migration warnings; the nine older
+fixture failures were independently reproduced on untouched `d49c7595`.
+
+Implementation commits: `612e3dc8` (IR/owners/tiled/grouped execution),
+`84f07da6` (measured packed-load fixes); `d3464fe2` adds comparison and regression
+coverage. All source changes are scoped; unrelated dirty toolchain/TLS work is
+preserved. No reference substitution, tolerance waiver or payload hashing.

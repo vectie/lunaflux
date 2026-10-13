@@ -11,8 +11,9 @@ async fn main {
   guard @env.args() is [_, root, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-grouped-performance-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
-    mode is ("prepare" | "run" | "collect-counters" | "collect-matrix") else {
-    fail("NEW_ROOT prepare|run|collect-counters|collect-matrix")
+    mode
+    is ("prepare" | "run" | "sanitize" | "collect-counters" | "collect-matrix") else {
+    fail("NEW_ROOT prepare|run|sanitize|collect-counters|collect-matrix")
   }
   let host = "wlc004s@192.168.2.179"
   let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
@@ -89,12 +90,32 @@ async fn main {
         "/probe",
       ),
     )
-  } else if mode == "run" {
+  } else if mode == "run" || mode == "sanitize" {
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
     owners.check()
     guard owners.stdout().trim().is_empty() else { fail("GPU busy") }
+    if mode == "sanitize" {
+      for (tool, rows) in [("memcheck", 16), ("racecheck", 1), ("synccheck", 1)] {
+        record(
+          tool + "-r\{rows}",
+          remote(
+            "systemd-run --user --wait --pipe --unit=" +
+            root[5:].to_owned() +
+            "-" +
+            tool +
+            " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+            tool +
+            (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+            " " +
+            root +
+            "/probe \{rows} matrix",
+          ),
+        )
+      }
+      return
+    }
     for rows in [1, 16] {
       record(
         "timing-\{rows}",
