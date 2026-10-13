@@ -12,6 +12,7 @@ pub struct RecurrentDeltaPrecision {
   priv epsilon : Double
   priv decay_lower : Double
   priv state_bytes : Int64
+  priv evaluation : RecurrentEvaluationLaw
 }
 
 ///|
@@ -25,6 +26,7 @@ pub fn RecurrentDeltaPrecision::new(
   normalization_epsilon~ : Double,
   log_decay_lower_bound~ : Double,
   maximum_state_bytes~ : Int64,
+  evaluation? : RecurrentEvaluationLaw = OrderedTokenFloat32,
 ) -> Self raise PrecisionPlanError {
   guard head_count > 0 &&
     key_dimension > 0 &&
@@ -80,6 +82,7 @@ pub fn RecurrentDeltaPrecision::new(
     epsilon: normalization_epsilon,
     decay_lower: log_decay_lower_bound,
     state_bytes,
+    evaluation,
   }
 }
 
@@ -112,4 +115,11 @@ pub fn RecurrentDeltaPrecision::state_bytes(self : Self) -> Int64 {
 pub fn RecurrentDeltaPrecision::effect(self : Self) -> NumericEffect {
   ignore(self)
   CacheCommit
+}
+
+///|
+pub fn RecurrentDeltaPrecision::evaluation(
+  self : Self,
+) -> RecurrentEvaluationLaw {
+  self.evaluation
 }

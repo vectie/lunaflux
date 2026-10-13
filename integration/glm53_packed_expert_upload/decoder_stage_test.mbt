@@ -74,3 +74,47 @@ test "stage range cannot silently describe a different model depth" {
     _ => fail("wrong complete-model depth accepted")
   }
 }
+
+///|
+test "explicit chunk numerical policy reaches both dense and MoE recurrent owners" {
+  for
+    law in [
+      @precision_ir.RecurrentEvaluationLaw::OrderedTokenFloat32,
+      ChunkTriangularFloat32,
+    ] {
+    let stage = @glm53_packed_expert_upload.GlmDecoderStage::new(
+      @glm53_spec.Glm53FlashSpec::official(),
+      @pipeline.DecoderStageRange::new(
+        layer_count=45,
+        first_layer=0,
+        end_layer=5,
+      ),
+      maximum_rows=16,
+      maximum_history=64,
+      index_layer_norm_epsilon=1.0e-5,
+      maximum_layer_state_bytes=100000000L,
+      maximum_layer_workspace_bytes=100000000L,
+      maximum_layer_expert_bytes=5000000000L,
+      maximum_text_workspace_bytes=10000000L,
+      accuracy=@precision_ir.Accuracy::new(absolute=0.125, relative=0.125),
+      recurrent_evaluation=law,
+    )
+    defer stage.close()
+    let source = @utf8.decode(stage.source_bytes())
+    for layer in [0, 4] {
+      assert_eq(
+        source.contains("glm_recurrent_\{layer}_delta_prepare"),
+        law == ChunkTriangularFloat32,
+      )
+      assert_eq(
+        source.contains("glm_recurrent_\{layer}_delta_solve"),
+        law == ChunkTriangularFloat32,
+      )
+      assert_eq(
+        source.contains("glm_recurrent_\{layer}_delta_publish"),
+        law == ChunkTriangularFloat32,
+      )
+    }
+    assert_true(source.contains("glm_sparse_3_"))
+  }
+}

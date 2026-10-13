@@ -9,6 +9,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
   maximum_sequences~ : Int,
   cache_slots~ : Int,
   maximum_state_bytes~ : Int64,
+  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is DenseSwiGlu else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -20,6 +21,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
     maximum_sequences~,
     cache_slots~,
     maximum_state_bytes~,
+    evaluation~,
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(
     stream_count=spec.hyper_connection_streams(),

@@ -12,6 +12,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   maximum_state_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
+  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -23,6 +24,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
     maximum_sequences~,
     cache_slots~,
     maximum_state_bytes~,
+    evaluation~,
   )
   {
     spec,

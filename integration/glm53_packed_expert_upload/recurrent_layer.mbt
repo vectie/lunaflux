@@ -30,6 +30,7 @@ pub fn GlmRecurrentLayer::new(
   maximum_sequences~ : Int,
   cache_slots~ : Int,
   maximum_state_bytes~ : Int64,
+  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
 ) -> Self raise {
   let plan = recurrent_block_plan(
     spec,
@@ -38,6 +39,7 @@ pub fn GlmRecurrentLayer::new(
     maximum_sequences~,
     cache_slots~,
     maximum_state_bytes~,
+    evaluation~,
   )
   let source = @block.recurrent_block_source(
     plan,

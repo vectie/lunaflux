@@ -17,7 +17,11 @@ pub struct RecurrentDeltaCudaSource {
 pub fn RecurrentDeltaCudaSource::launch(Self) -> (Int, Int, Int)
 pub fn RecurrentDeltaCudaSource::plan(Self) -> @precision_ir.RecurrentDeltaPrecision
 pub fn RecurrentDeltaCudaSource::source_bytes(Self) -> Bytes
+pub fn RecurrentDeltaCudaSource::stage_count(Self) -> Int
+pub fn RecurrentDeltaCudaSource::stage_launch(Self, Int) -> (Int, Int, Int, Int)
+pub fn RecurrentDeltaCudaSource::stage_symbol(Self, Int) -> String
 pub fn RecurrentDeltaCudaSource::symbol(Self) -> String
+pub fn RecurrentDeltaCudaSource::workspace_bytes(Self) -> Int64
 
 // Type aliases
 

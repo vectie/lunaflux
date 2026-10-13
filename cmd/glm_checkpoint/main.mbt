@@ -122,7 +122,11 @@ async fn main {
       "MODE MODEL_ROOT SHARD_SHA256 ROWS HISTORY BUDGET0 BUDGET1 RESERVE [MODE_ARGS]",
     )
   }
-  // Reject mode/arguments before opening or hashing checkpoint payloads.
+  // Explicit experimental arithmetic, shared by export and runtime planning.
+  // Ordinary commands retain ordered recurrence; no request-path selection.
+  let chunk = mode.has_suffix("-chunk-kda")
+  let mode = if chunk { mode[:mode.length() - 10].to_owned() } else { mode }
+  // Reject mode/arguments before opening checkpoint payloads.
   let (tail, cancellation) = @prompt_file.split_request_cancellation_options(
     tail,
   )
@@ -154,6 +158,11 @@ async fn main {
       @string.parse_int(history),
       [@string.parse_int64(budget0), @string.parse_int64(budget1)],
       @string.parse_int64(reserve),
+      recurrent_evaluation=if chunk {
+        ChunkTriangularFloat32
+      } else {
+        OrderedTokenFloat32
+      },
     )
   }
   for ordinal, range in startup.placement.stages() {
@@ -162,6 +171,10 @@ async fn main {
       "stage=\{ordinal} layers=[\{first},\{end}) planned_bytes=\{startup.placement.stage_bytes()[ordinal]} ceiling=\{startup.budgets[ordinal]}",
     )
   }
+  println(
+    "recurrent_evaluation=" +
+    (if chunk { "chunk-triangular-f32" } else { "ordered-token-f32" }),
+  )
   match mode {
     "export" => {
       @fs.mkdir(tail[0])

@@ -7,6 +7,7 @@ pub fn recurrent_compute_plan(
   maximum_sequences~ : Int,
   cache_slots~ : Int,
   maximum_state_bytes~ : Int64,
+  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
 ) -> @precision_ir.RecurrentDeltaPrecision raise {
   guard spec.attention_kind(layer_index) is KimiDeltaAttention else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -21,6 +22,7 @@ pub fn recurrent_compute_plan(
     normalization_epsilon=0.000001,
     log_decay_lower_bound=spec.linear_gate_lower_bound(),
     maximum_state_bytes~,
+    evaluation~,
   )
 }
 
@@ -57,6 +59,7 @@ pub fn recurrent_block_plan(
   maximum_sequences~ : Int,
   cache_slots~ : Int,
   maximum_state_bytes~ : Int64,
+  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
 ) -> @precision_ir.RecurrentBlockPrecision raise {
   @precision_ir.RecurrentBlockPrecision::new(
     recurrent_compute_plan(
@@ -66,6 +69,7 @@ pub fn recurrent_block_plan(
       maximum_sequences~,
       cache_slots~,
       maximum_state_bytes~,
+      evaluation~,
     ),
     recurrent_convolution_plan(
       spec,

@@ -740,6 +740,15 @@ pub fn RecurrentBlockPrecision::new(RecurrentDeltaPrecision, CausalConvolutionPr
 pub fn RecurrentBlockPrecision::normalization_epsilon(Self) -> Double
 pub fn RecurrentBlockPrecision::projection_geometry(Self) -> (Int, Int)
 
+pub(all) enum RecurrentChunkExpression {
+  GatePrefix
+  DecayedOperand
+  ProductUpdate
+  SubtractProduct
+  Scale
+}
+pub fn RecurrentChunkExpression::program(Self) -> NumericExpression raise PrecisionPlanError
+
 pub(all) enum RecurrentDeltaExpression {
   SquareUpdate
   NormInverse
@@ -759,13 +768,22 @@ pub struct RecurrentDeltaPrecision {
 }
 pub fn RecurrentDeltaPrecision::capacity(Self) -> (Int, Int, Int)
 pub fn RecurrentDeltaPrecision::effect(Self) -> NumericEffect
+pub fn RecurrentDeltaPrecision::evaluation(Self) -> RecurrentEvaluationLaw
 pub fn RecurrentDeltaPrecision::expression(Self, RecurrentDeltaExpression) -> NumericExpression raise PrecisionPlanError
 pub fn RecurrentDeltaPrecision::fold(Self, RecurrentDeltaExpression) -> OrderedNumericFold raise PrecisionPlanError
 pub fn RecurrentDeltaPrecision::geometry(Self) -> (Int, Int, Int)
 pub fn RecurrentDeltaPrecision::log_decay_lower_bound(Self) -> Double
-pub fn RecurrentDeltaPrecision::new(head_count~ : Int, key_dimension~ : Int, value_dimension~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, normalization_epsilon~ : Double, log_decay_lower_bound~ : Double, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn RecurrentDeltaPrecision::new(head_count~ : Int, key_dimension~ : Int, value_dimension~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, normalization_epsilon~ : Double, log_decay_lower_bound~ : Double, maximum_state_bytes~ : Int64, evaluation? : RecurrentEvaluationLaw) -> Self raise PrecisionPlanError
 pub fn RecurrentDeltaPrecision::normalization_epsilon(Self) -> Double
 pub fn RecurrentDeltaPrecision::state_bytes(Self) -> Int64
+
+pub(all) enum RecurrentEvaluationLaw {
+  OrderedTokenFloat32
+  ChunkTriangularFloat32
+} derive(Eq, @debug.Debug)
+pub fn RecurrentEvaluationLaw::equal(Self, Self) -> Bool
+pub fn RecurrentEvaluationLaw::not_equal(Self, Self) -> Bool
+pub fn RecurrentEvaluationLaw::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ReplayScalar {
   ReplayF32

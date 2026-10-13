@@ -1,0 +1,28 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/recurrent_physical_ir"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct ChunkDeltaPlan {
+  // private fields
+}
+pub fn ChunkDeltaPlan::head_floats(Self) -> Int64
+pub fn ChunkDeltaPlan::local_factors(Self) -> Bool
+pub fn ChunkDeltaPlan::local_storage_bytes(Self) -> Int
+pub fn ChunkDeltaPlan::new(@precision_ir.RecurrentDeltaPrecision, value_tile~ : Int, maximum_workspace_bytes~ : Int64, maximum_local_storage_bytes? : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn ChunkDeltaPlan::numerical(Self) -> @precision_ir.RecurrentDeltaPrecision
+pub fn ChunkDeltaPlan::stage_count(Self) -> Int
+pub fn ChunkDeltaPlan::state_effect(Self, Int) -> @precision_ir.NumericEffect
+pub fn ChunkDeltaPlan::value_tile(Self) -> Int
+pub fn ChunkDeltaPlan::workspace_bytes(Self) -> Int64
+
+// Type aliases
+
+// Traits

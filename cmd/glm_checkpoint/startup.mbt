@@ -8,6 +8,7 @@ priv struct Startup {
   history : Int
   budgets : Array[Int64]
   reserve : Int64
+  recurrent_evaluation : @precision.RecurrentEvaluationLaw
 }
 
 ///|
@@ -59,6 +60,7 @@ fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
     maximum_layer_expert_bytes=ceiling,
     maximum_text_workspace_bytes=ceiling,
     accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
+    recurrent_evaluation=startup.recurrent_evaluation,
   )
 }
 
@@ -78,6 +80,7 @@ fn inspect_startup(
   history : Int,
   budgets : Array[Int64],
   reserve : Int64,
+  recurrent_evaluation? : @precision.RecurrentEvaluationLaw = OrderedTokenFloat32,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -141,6 +144,7 @@ fn inspect_startup(
     maximum_layer_workspace_bytes=ceiling,
     maximum_layer_expert_bytes=ceiling,
     accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
+    recurrent_evaluation~,
   )
   defer decoder.close()
   let text = @glm.GlmTextIo::new(
@@ -170,6 +174,7 @@ fn inspect_startup(
     history,
     budgets,
     reserve,
+    recurrent_evaluation,
   }
   // Recheck the executable owners, not only the planner's layer estimates.
   for ordinal in 0..<2 {

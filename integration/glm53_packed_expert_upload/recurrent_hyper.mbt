@@ -8,6 +8,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
   maximum_sequences~ : Int,
   cache_slots~ : Int,
   maximum_state_bytes~ : Int64,
+  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
 ) -> Self raise {
   let branch = GlmRecurrentLayer::new(
     spec,
@@ -16,6 +17,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
     maximum_sequences~,
     cache_slots~,
     maximum_state_bytes~,
+    evaluation~,
   )
   let plan = @precision_ir.HyperConnectionPrecision::new(
     stream_count=spec.hyper_connection_streams(),

@@ -63,6 +63,7 @@ fn binary(glm : Bool, runtime : String) -> String {
 
 ///|
 fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
+  if options is [.. base, "--chunk-kda"] { return runtime_selection(glm, base) }
   if options is ["--runtime", runtime, "--rows", _] {
     return runtime_selection(glm, ["--runtime", runtime])
   }
@@ -80,6 +81,7 @@ fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
 
 ///|
 fn row_selection(glm : Bool, options : ArrayView[String]) -> Int raise {
+  if options is [.. base, "--chunk-kda"] { return row_selection(glm, base) }
   let rows = if options is ["--runtime", _, "--rows", value] {
     @string.parse_int(value)
   } else if glm {
@@ -237,6 +239,8 @@ async fn main {
     )
   }
   let glm = family == "glm"
+  let chunk = options.last() is Some("--chunk-kda")
+  guard !chunk || glm else { fail("chunk KDA requires a recurrent model") }
   let runtime = runtime_selection(glm, options)
   let executable = binary(glm, runtime)
   let rows = row_selection(glm, options)
@@ -247,7 +251,8 @@ async fn main {
     executable +
     "\naot=" +
     aot +
-    "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n"
+    "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n" +
+    (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -471,15 +476,15 @@ async fn main {
         "generate-sequence-reference-dspark"
       }
       let profile_prefix = if profile {
-        // Exclude checkpoint loading; a short execution sample is not a full-request timeline.
-        "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda --delay=" +
-        (if last { "270" } else { "180" }) +
-        " --duration=60 --force-overwrite=false --kill=none --output=" +
+        // Whole process: fixed wall-time delays miss inference after loading
+        // speed changes. Separate loading copies from model kernels in reports.
+        "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda --force-overwrite=false --kill=none --output=" +
         root +
         "/timeline "
       } else {
         ""
       }
+      let command = command + (if chunk { "-chunk-kda" } else { "" })
       record(
         root,
         role + "-start",

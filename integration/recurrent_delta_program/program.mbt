@@ -39,8 +39,8 @@ pub fn RecurrentDeltaProgram::new(
     block: None,
     maximum_rows,
     cache_bytes: source.plan().state_bytes(),
-    owned_bytes: source.plan().state_bytes(),
-    launch_count: 1,
+    owned_bytes: source.plan().state_bytes() + source.workspace_bytes(),
+    launch_count: source.stage_count(),
     status: Fresh,
     cache: None,
     functions: [],
@@ -226,56 +226,41 @@ fn RecurrentDeltaProgram::prepare_program(
     }
     _ => inputs
   }
-  let function = aot.load_function(@utf8.encode(self.source.symbol()))
-  self.functions.push(function)
-  let (grid_x, grid_y, block_x) = self.source.launch()
-  let launch = @device.OrderedKernelLaunch::new(
-    function,
-    @device.KernelLaunchDimensions::new(
-      grid_x~,
-      grid_y~,
-      grid_z=1,
-      block_x~,
-      block_y=1,
-      block_z=1,
-      shared_memory_bytes=0,
+  let arguments = [
+    region(counts, 20L, 4L),
+    region(sequence_offsets, (sequences.to_int64() + 1L) * 4L, 4L),
+    region(sequence_slots, sequences.to_int64() * 4L, 4L),
+    region(reset_flags, sequences.to_int64() * 4L, 4L),
+    region(delta_inputs[0], qbytes, 2L),
+    region(delta_inputs[1], qbytes, 2L),
+    region(delta_inputs[2], vbytes, 2L),
+    region(
+      match frame {
+        Some(frame) => frame[7]
+        None => log_decay
+      },
+      qbytes * 2L,
+      4L,
     ),
-    @device.KernelArguments::new([
-      region(counts, 20L, 4L),
-      region(sequence_offsets, (sequences.to_int64() + 1L) * 4L, 4L),
-      region(sequence_slots, sequences.to_int64() * 4L, 4L),
-      region(reset_flags, sequences.to_int64() * 4L, 4L),
-      region(delta_inputs[0], qbytes, 2L),
-      region(delta_inputs[1], qbytes, 2L),
-      region(delta_inputs[2], vbytes, 2L),
-      region(
-        match frame {
-          Some(frame) => frame[7]
-          None => log_decay
-        },
-        qbytes * 2L,
-        4L,
-      ),
-      region(
-        match frame {
-          Some(frame) => frame[6]
-          None => beta
-        },
-        rows.to_int64() * heads.to_int64() * 2L,
-        2L,
-      ),
-      region(state, plan.state_bytes(), 4L),
-      region(
-        match frame {
-          Some(frame) => frame[10]
-          None => output
-        },
-        vbytes,
-        2L,
-      ),
-    ]),
-  )
-  launches.push(launch)
+    region(
+      match frame {
+        Some(frame) => frame[6]
+        None => beta
+      },
+      rows.to_int64() * heads.to_int64() * 2L,
+      2L,
+    ),
+    region(state, plan.state_bytes(), 4L),
+    region(
+      match frame {
+        Some(frame) => frame[10]
+        None => output
+      },
+      vbytes,
+      2L,
+    ),
+  ]
+  self.append_delta_launches(context, aot, launches, arguments)
   match (self.block, block_weights, frame) {
     (Some(block), Some(weights), Some(frame)) =>
       append_block_suffix(

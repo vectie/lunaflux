@@ -4,6 +4,7 @@ pub struct RecurrentDeltaCudaSource {
   priv symbol : String
   priv source : Bytes
   priv block : Int
+  priv chunk : @physical.ChunkDeltaPlan?
 }
 
 ///|
@@ -24,6 +25,9 @@ pub fn recurrent_delta_source(
     symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
     symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
     raise @precision.PrecisionPlanError::NoImplementation
+  }
+  if plan.evaluation() is ChunkTriangularFloat32 {
+    return chunk_delta_source(plan, symbol~)
   }
   let block = ((if keys > values { keys } else { values }) + 31) / 32 * 32
   let epsilon = @literal.canonical_cuda_float_literal(
@@ -94,7 +98,7 @@ pub fn recurrent_delta_source(
     $|  }
     $|  if(lane<\{values}) for(int k=0;k<\{keys};++k) state[state_base+(unsigned long long)k*\{values}ULL+lane]=memory_state[k];
     $|}
-  { plan, symbol, source: @utf8.encode(text), block, }
+  { plan, symbol, source: @utf8.encode(text), block, chunk: None, }
 }
 
 ///|

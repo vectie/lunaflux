@@ -38,7 +38,7 @@ pub fn RecurrentDeltaProgram::with_block(
     maximum_rows: base.maximum_rows,
     cache_bytes: base.cache_bytes,
     owned_bytes: base.owned_bytes + extra,
-    launch_count: 16,
+    launch_count: 15 + block.delta().stage_count(),
     status: Fresh,
     cache: None,
     functions: [],
