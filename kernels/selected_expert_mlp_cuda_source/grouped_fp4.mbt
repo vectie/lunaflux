@@ -42,18 +42,7 @@ fn grouped_fp4_source(
       (
         $|float d\{stage}[4]={0,0,0,0};
         $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
-        $|for(int k=0;k<\{k};k+=64) {
-        $|  unsigned a0=0,a1=0,a2=0,a3=0,b0=0,b1=0,sa=0,sb=0;
-        $|  int j0=job_ids[g],j1=job_ids[g+8];
-        $|  int r0=\{if stage<2 {"j0/"+selected.to_string()} else {"j0"}},r1=\{if stage<2 {"j1/"+selected.to_string()} else {"j1"}};
-        $|  if(j0>=0&&local>=0) {const unsigned *p=(const unsigned *)(input+(unsigned long long)r0*\{k/2}+k/2);a0=p[t];a2=p[t+4];}
-        $|  if(j1>=0&&local>=0) {const unsigned *p=(const unsigned *)(input+(unsigned long long)r1*\{k/2}+k/2);a1=p[t];a3=p[t+4];}
-        $|  int sr=(t&1)?r1:r0,sj=(t&1)?j1:j0;
-        $|  if(sj>=0&&local>=0) sa=*(const unsigned *)(input+\{x.scales_offset().unwrap()}ULL+(unsigned long long)sr*\{k/16}+k/16);
-        $|  int wr=column+g;
-        $|  if(local>=0&&wr<\{n}) {const unsigned *p=(const unsigned *)(w\{stage}+(unsigned long long)wr*\{k/2}+k/2);b0=p[t];b1=p[t+4];sb=*(const unsigned *)(w\{stage}+\{w.scales_offset().unwrap()}ULL+(unsigned long long)wr*\{k/16}+k/16);}
-        $|  \{symbol}_mma(d\{stage},a0,a1,a2,a3,b0,b1,sa,sb);
-        $|}
+        $|\{fp4_fragment_pipeline(stage,k,n,selected,x.scales_offset().unwrap(),w.scales_offset().unwrap(),symbol)}
         $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{w.global_scale_offset().unwrap()}ULL));
         $|for(int i=0;i<4;++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
       ),
