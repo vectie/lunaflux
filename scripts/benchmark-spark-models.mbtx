@@ -294,6 +294,8 @@ async fn main {
   let options = if timeline { options[:options.length() - 1] } else { options }
   let warmup = options.last() is Some("--warmup")
   let options = if warmup { options[:options.length() - 1] } else { options }
+  let queued = options.last() is Some("--queued-tp")
+  let options = if queued { options[:options.length() - 1] } else { options }
   let low_bit = options.last() is Some("--low-bit")
   let options = if low_bit { options[:options.length() - 1] } else { options }
   let expert_tp = options.last() is Some("--expert-tp")
@@ -307,6 +309,7 @@ async fn main {
   guard !expert_tp || glm else {
     fail("expert TP is currently bound through GLM")
   }
+  guard !queued || expert_tp else { fail("queued mode requires TP") }
   guard !tiled || glm else {
     fail("tiled grouped profile currently bound through GLM")
   }
@@ -327,7 +330,8 @@ async fn main {
     "expert_tensor_parallel=\{expert_tp}\n" +
     (if low_bit { "expert_scaled_dot=block-scaled-matrix-f32\n" } else { "" }) +
     (if warmup { "warmup_requests=1\n" } else { "" }) +
-    (if timeline { "timeline=true\n" } else { "" })
+    (if timeline { "timeline=true\n" } else { "" }) +
+    (if queued { "tp_submission_queued=true\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -576,7 +580,8 @@ async fn main {
           ""
         }) +
         (if expert_tp { "-expert-tp" } else { "" }) +
-        (if low_bit { "-low-bit" } else { "" })
+        (if low_bit { "-low-bit" } else { "" }) +
+        (if queued { "-queued-tp" } else { "" })
       record(
         root,
         role + "-start",

@@ -211,6 +211,7 @@ pub fn GlmDecoderSlice::prepare(
   suffix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
   collective? : @device.TensorCollectiveOwner,
   generation? : UInt64 = 1UL,
+  retirement? : @parallel.RetirementPolicy = EachCollective,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -289,6 +290,7 @@ pub fn GlmDecoderSlice::prepare(
           owner~,
           generation~,
           maximum_rows=self.maximum_rows,
+          retirement~,
         ),
       )
       self.collective_count = boundaries.length()

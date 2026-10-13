@@ -240,12 +240,54 @@ static void test_enqueue_failure_retains(lf_nccl_api *api) {
   probe_submit_result = LF_NCCL_IN_PROGRESS;
 }
 
+static void test_deferred_retirement(lf_nccl_api *api, int fail) {
+  lf_device_interop_probe device;
+  lf_device_interop_probe_init(&device);
+  lf_nccl_communicator *c = create_ready(api, &device, 4U);
+  assert(lunaflux_nccl_prepare_deferred(c, 2) == LF_NCCL_OK);
+  submit(c, &device, 4U);
+  probe_async_status = LF_NCCL_IN_PROGRESS;
+  assert(lunaflux_nccl_defer_submitted(c) == 0);
+  assert(c->next_collective_sequence == 1U);
+  probe_async_status = 0;
+  lf_device_interop_probe_query_result(&device, 600);
+  assert(lunaflux_nccl_defer_submitted(c) == 1);
+  assert(lf_device_interop_probe_query_calls(&device) == 0);
+  assert(lf_device_interop_probe_active_count(&device) == 4);
+  assert(lf_nccl_communicator_close(c) == LF_NCCL_BUSY);
+  assert(lf_nccl_communicator_submit_bf16(
+    c, 4U, 1U, 2U, 1, 1,
+    lf_device_interop_probe_context(&device),
+    lf_device_interop_probe_send(&device), 0, 16,
+    lf_device_interop_probe_receive(&device), 0, 16,
+    lf_device_interop_probe_queue(&device)) == LF_NCCL_OK);
+  assert(lunaflux_nccl_defer_submitted(c) == 1);
+  assert(lf_device_interop_probe_active_count(&device) == 8);
+  assert(lunaflux_nccl_prepare_deferred(c, 3) == LF_NCCL_BUSY);
+  assert(lunaflux_nccl_poll_deferred(c) == 0);
+  assert(lf_device_interop_probe_context_close(&device) == LF_BUSY);
+  if (fail) {
+    probe_async_status = 1;
+    assert(lunaflux_nccl_poll_deferred(c) == LF_NCCL_RUNTIME_FAILURE);
+    assert(lf_device_interop_probe_active_count(&device) == 8);
+  } else {
+    lf_device_interop_probe_query_result(&device, 0);
+    assert(lunaflux_nccl_poll_deferred(c) == 1);
+    assert(lf_device_interop_probe_active_count(&device) == 0);
+    assert(c->next_collective_sequence == 3U);
+  }
+  abort_and_free(c, &device);
+  probe_async_status = 0;
+}
+
 int main(void) {
   lf_nccl_api api;
   initialize_api(&api);
   test_pending_and_complete(&api);
   test_failure_retains_until_abort(&api);
   test_enqueue_failure_retains(&api);
+  test_deferred_retirement(&api, 0);
+  test_deferred_retirement(&api, 1);
   assert(probe_increfs == probe_decrefs);
   return 0;
 }

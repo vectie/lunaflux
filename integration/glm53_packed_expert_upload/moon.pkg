@@ -8,6 +8,7 @@ import {
   "vectie/lunaflux/runtime/approved_fs",
   "vectie/lunaflux/device",
   "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/compiler/parallel_ir" @parallel,
   "vectie/lunaflux/integration/packed_expert_mlp",
   "vectie/lunaflux/integration/precision_checkpoint_upload" @upload,
   "vectie/lunaflux/integration/recurrent_delta_program" @recurrent,

@@ -30,6 +30,7 @@ fn prepare_rank(
       chunk_bytes=1048576,
       limits=startup.limits,
       collective?,
+      retirement=startup.retirement,
     )
   })
   stage.bind_rank(rank, context)

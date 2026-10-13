@@ -129,9 +129,14 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let queued = mode.has_suffix("-queued-tp")
+  let mode = if queued { mode[:mode.length() - 10].to_owned() } else { mode }
   let low_bit = mode.has_suffix("-low-bit")
   let mode = if low_bit { mode[:mode.length() - 8].to_owned() } else { mode }
   let expert_tp = mode.has_suffix("-expert-tp")
+  guard !queued || expert_tp else {
+    fail("queued submission requires tensor parallelism")
+  }
   let mode = if expert_tp { mode[:mode.length() - 10].to_owned() } else { mode }
   let tiled = mode.has_suffix("-tiled-grouped")
   let mode = if tiled { mode[:mode.length() - 14].to_owned() } else { mode }
@@ -181,6 +186,7 @@ async fn main {
         DecodeOperandsFloat32
       },
       expert_tensor_parallel=expert_tp,
+      retirement=if queued { WholeFrame } else { EachCollective },
     )
   }
   println(
@@ -189,6 +195,7 @@ async fn main {
   println(
     "expert_activation_quantization=\{low_bit} native_block_scaled_matrix=\{low_bit}",
   )
+  println("tp_submission_queued=\{queued} tp_graph_replay=false")
   for ordinal, range in startup.ranges {
     let (first, end) = range.layer_range()
     println(

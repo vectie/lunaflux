@@ -199,13 +199,7 @@ pub fn TensorCollectiveOwner::poll(
     }
   }
   if completed {
-    self.plan_sequence = self.pending_plan_sequence
-    self.next_global_sequence = self.pending_global_sequence + 1UL
-    self.next_site_index = self.pending_site_index + 1
-    self.pending_plan_sequence = 0UL
-    self.pending_global_sequence = 0UL
-    self.pending_site_index = 0
-    self.state = CollectiveOwnerLive
+    self.commit_submission()
   }
   completed
 }
@@ -260,10 +254,15 @@ pub fn TensorCollectiveOwner::close(
       raise Busy(TensorCollectiveClose)
     CollectiveOwnerLive => ()
   }
-  self.state = CollectiveOwnerClosed
   self.communicator.close() catch {
-    error => raise error_from_nccl_for(error, TensorCollectiveClose)
+    error => {
+      if !(error is @nccl.NcclError::Busy(_)) {
+        self.state = CollectiveOwnerClosed
+      }
+      raise error_from_nccl_for(error, TensorCollectiveClose)
+    }
   }
+  self.state = CollectiveOwnerClosed
 }
 
 ///|

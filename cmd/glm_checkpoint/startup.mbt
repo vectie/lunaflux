@@ -6,6 +6,7 @@ priv struct Startup {
   ranges : Array[@placement.DecoderStageRange]
   planned_bytes : Array[Int64]
   expert_tensor_parallel : Bool
+  retirement : @parallel.RetirementPolicy
   rows : Int
   history : Int
   budgets : Array[Int64]
@@ -95,6 +96,7 @@ fn inspect_startup(
   matrix_law? : @precision.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_tensor_parallel? : Bool = false,
+  retirement? : @parallel.RetirementPolicy = EachCollective,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -208,6 +210,7 @@ fn inspect_startup(
       None => [0L, 0L]
     },
     expert_tensor_parallel,
+    retirement,
     rows,
     history,
     budgets,

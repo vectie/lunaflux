@@ -1,5 +1,5 @@
 ///|
-test "decoder queue splices multiple tensor reductions before consumers without allocation" {
+fn run_collective_program(queued : Bool) -> Unit raise {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
   let stream = context.create_stream()
@@ -108,6 +108,7 @@ test "decoder queue splices multiple tensor reductions before consumers without 
     owner~,
     generation=1UL,
     maximum_rows=2,
+    retirement=if queued { WholeFrame } else { EachCollective },
   )
   defer (queue.abort() catch { _ => () })
   let before = enqueues()
@@ -135,4 +136,14 @@ test "decoder queue splices multiple tensor reductions before consumers without 
   assert_eq(blocking_syncs() - syncs, 0UL)
   queue.close()
   owner.close()
+}
+
+///|
+test "decoder queue splices multiple tensor reductions before consumers without allocation" {
+  run_collective_program(false)
+}
+
+///|
+test "queued decoder retains operands through one terminal retirement without allocation" {
+  run_collective_program(true)
 }

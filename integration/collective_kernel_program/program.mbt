@@ -34,6 +34,7 @@ pub struct CollectiveKernelProgram {
   priv stream : @device.Stream
   priv owner : @device.TensorCollectiveOwner
   priv boundaries : ReadOnlyArray[ReductionBoundary]
+  priv plan : @parallel.OrderedSubmissionPlan
   priv generation : UInt64
   priv maximum_rows : Int
   priv mut state : State
@@ -53,11 +54,19 @@ pub fn CollectiveKernelProgram::new(
   owner~ : @device.TensorCollectiveOwner,
   generation~ : UInt64,
   maximum_rows~ : Int,
+  retirement? : @parallel.RetirementPolicy = EachCollective,
 ) -> Self raise @device.DeviceError {
   guard !boundaries.is_empty() && !launches.is_empty() && maximum_rows > 0 else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   owner.validate_site_count(boundaries.length())
+  let plan = @parallel.OrderedSubmissionPlan::new(
+    kernel_count=launches.length(),
+    boundaries.map(b => b.before_kernel),
+    retirement~,
+  ) catch {
+    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
   for i, boundary in boundaries {
     guard boundary.before_kernel > 0 &&
       boundary.before_kernel < launches.length() &&
@@ -77,11 +86,15 @@ pub fn CollectiveKernelProgram::new(
       alignment=4L,
     )
   }
+  if retirement == WholeFrame {
+    owner.prepare_deferred()
+  }
   {
     queue: context.create_ordered_kernel_executor(stream, launches),
     stream,
     owner,
     boundaries: ReadOnlyArray::from_array(boundaries),
+    plan,
     generation,
     maximum_rows,
     state: Idle,
@@ -142,7 +155,7 @@ pub fn CollectiveKernelProgram::submit(
   self.global_sequence = global_sequence
   self.site = 0
   self.next_kernel = 0
-  self.enqueue_until(self.boundaries[0].before_kernel)
+  self.enqueue_until(self.plan.interval(0).1)
   self.reduce()
 }
 
@@ -161,19 +174,33 @@ pub fn CollectiveKernelProgram::poll(
     self.state = Failed
   }
   if self.state == Submission {
-    if !self.owner.poll_submitted() {
+    let submitted = if self.plan.retirement_policy() == WholeFrame {
+      self.owner.defer_submitted()
+    } else {
+      self.owner.poll_submitted()
+    }
+    if !submitted {
       return false
     }
-    let end = if self.site + 1 < self.boundaries.length() {
-      self.boundaries[self.site + 1].before_kernel
-    } else {
-      self.queue.kernel_count()
-    }
+    let end = self.plan.interval(self.site + 1).1
     self.enqueue_until(end)
     if self.site + 1 == self.boundaries.length() {
       self.queue.record_completion()
     }
-    self.state = Completion
+    if self.plan.retirement_policy() == WholeFrame {
+      self.site += 1
+      self.global_sequence += 1UL
+      if self.site < self.boundaries.length() {
+        self.reduce()
+        return false
+      }
+      self.state = Tail
+    } else {
+      self.state = Completion
+    }
+  }
+  if self.plan.retirement_policy() == WholeFrame && !self.owner.poll_deferred() {
+    return false
   }
   if self.state == Completion {
     if !self.owner.poll() {

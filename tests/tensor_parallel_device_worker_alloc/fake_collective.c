@@ -16,6 +16,8 @@ typedef struct {
   int32_t ready_polls;
   int32_t collective_polls;
   int32_t submission_polls;
+  int32_t deferred_capacity;
+  int32_t deferred_count;
   void *stream;
   int32_t live;
 } tp_fake_communicator;
@@ -189,7 +191,7 @@ int32_t lunaflux_tp_alloc_fake_communicator_close(
 ) {
   if (communicator == NULL) return -2;
   if (communicator->live == 0) return 0;
-  if (communicator->phase != TP_COMM_LIVE) return -4;
+  if (communicator->phase != TP_COMM_LIVE || communicator->deferred_count != 0) return -4;
   communicator->phase = TP_COMM_CLOSED;
   communicator->live = 0;
   live_communicators -= 1;
@@ -270,3 +272,31 @@ int lunaflux_tp_alloc_submission_pending_on(void *stream) {
 }
 
 int lunaflux_tp_alloc_gpu_pending(void) { return inflight != NULL; }
+
+int32_t lunaflux_tp_alloc_prepare_deferred(tp_fake_communicator *c, int32_t capacity) {
+  if (c == NULL || c->phase != TP_COMM_LIVE || capacity <= 0 || c->deferred_count) return -2;
+  c->deferred_capacity = capacity;
+  return 0;
+}
+
+int32_t lunaflux_tp_alloc_defer_submitted(tp_fake_communicator *c) {
+  int32_t ready = lunaflux_tp_alloc_poll_submitted(c);
+  if (ready != 1) return ready;
+  if (c->deferred_count >= c->deferred_capacity) return -2;
+  c->deferred_count++;
+  c->previous_plan_sequence = c->pending_plan_sequence;
+  c->next_collective_sequence = c->pending_collective_sequence + 1U;
+  c->phase = TP_COMM_LIVE;
+  return 1;
+}
+
+int32_t lunaflux_tp_alloc_poll_deferred(tp_fake_communicator *c) {
+  if (c == NULL || c->phase != TP_COMM_LIVE) return -2;
+  if (c->deferred_count == 0) return 1;
+  c->collective_polls++;
+  if (c->collective_polls == 1) { collective_pending_polls++; return 0; }
+  collective_complete_polls++;
+  c->deferred_count = 0;
+  inflight = NULL;
+  return 1;
+}

@@ -147,6 +147,7 @@ pub fn GlmDecoderStage::prepare(
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   collective? : @device.TensorCollectiveOwner,
   generation? : UInt64 = 1UL,
+  retirement? : @parallel.RetirementPolicy = EachCollective,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -214,6 +215,7 @@ pub fn GlmDecoderStage::prepare(
     suffix_launches=self.text.suffix(),
     collective?,
     generation~,
+    retirement~,
   )
   self.counts = Some(counts)
   self.status = Ready

@@ -222,7 +222,24 @@ int32_t lunaflux_nccl_test_collectives(int32_t cycles) {
     completed = 0;
     if (lf_nccl_communicator_poll_collective(communicator, &completed) != LF_NCCL_OK ||
         completed != 1 || communicator->next_collective_sequence != 5U) return 17;
-    if (lf_nccl_communicator_close(communicator) != LF_NCCL_OK) return 18;
+    if (lunaflux_nccl_prepare_deferred(communicator, 2) != LF_NCCL_OK) return 18;
+    int32_t queries = lf_device_interop_managed_probe_query_calls(&device);
+    for (int site = 0; site < 2; ++site) {
+      if (lf_nccl_communicator_submit_typed(
+            communicator, 4, (uint64_t)cycle + 1U, 2U, 5U + site, site, 1,
+            lf_device_interop_managed_probe_context(&device),
+            lf_device_interop_managed_probe_send(&device), 0, 48,
+            lf_device_interop_managed_probe_receive(&device), 0, 48,
+            lf_device_interop_managed_probe_queue(&device)) != LF_NCCL_OK ||
+          lunaflux_nccl_defer_submitted(communicator) != 1 ||
+          lf_device_interop_managed_probe_query_calls(&device) != queries ||
+          communicator->deferred_count != site + 1 ||
+          lf_nccl_communicator_close(communicator) != LF_NCCL_BUSY) return 19;
+    }
+    if (lunaflux_nccl_poll_deferred(communicator) != 1 ||
+        communicator->deferred_count != 0 || communicator->next_collective_sequence != 7U ||
+        lf_device_interop_managed_probe_query_calls(&device) != queries + 1) return 20;
+    if (lf_nccl_communicator_close(communicator) != LF_NCCL_OK) return 21;
     moonbit_decref(communicator);
     lf_device_interop_managed_probe_close(&device);
   }

@@ -50,7 +50,8 @@ static int32_t lf_nccl_consume(
     atomic_store(&communicator->operation_lock, 0);
     return LF_NCCL_FAILED;
   }
-  if (use_abort == 0 && communicator->phase != LF_NCCL_PHASE_READY) {
+  if (use_abort == 0 && (communicator->phase != LF_NCCL_PHASE_READY ||
+                        communicator->deferred_count != 0)) {
     atomic_store(&communicator->state, LF_NCCL_RESOURCE_LIVE);
     atomic_store(&communicator->operation_lock, 0);
     return LF_NCCL_BUSY;
@@ -71,6 +72,9 @@ static int32_t lf_nccl_consume(
   communicator->handle = NULL;
   atomic_store(&communicator->state, LF_NCCL_RESOURCE_CLOSED);
   lf_nccl_release_in_flight(communicator);
+  free(communicator->deferred_leases);
+  communicator->deferred_leases = NULL;
+  communicator->deferred_capacity = 0;
   /* Release after publishing terminal state so a newly unblocked context
    * close cannot observe a live communicator. */
   lf_device_context_lease_release(&communicator->context_lease);

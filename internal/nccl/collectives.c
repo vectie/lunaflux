@@ -2,6 +2,8 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define NCCL_SUCCESS 0
 #define NCCL_IN_PROGRESS 7
@@ -67,6 +69,10 @@ static int32_t lf_nccl_validate_shape(
 void lf_nccl_release_in_flight(lf_nccl_communicator *communicator) {
   if (communicator != NULL) {
     lf_device_collective_lease_release(&communicator->in_flight_lease);
+    for (int32_t i = 0; i < communicator->deferred_count; ++i)
+      lf_device_collective_lease_release(&communicator->deferred_leases[i]);
+    communicator->deferred_count = 0;
+    communicator->deferred_stream = NULL;
   }
 }
 
@@ -98,6 +104,12 @@ int32_t lf_nccl_communicator_submit_typed(
     collective_kind
   );
   if (status != LF_NCCL_OK) return status;
+  if (communicator->deferred_count != 0 &&
+      (plan_sequence != communicator->last_plan_sequence ||
+       communicator->deferred_count >= communicator->deferred_capacity)) {
+    atomic_store(&communicator->operation_lock, 0);
+    return LF_NCCL_BUSY;
+  }
   size_t send_bytes = 0;
   size_t receive_bytes = 0;
   int32_t alias_rule = 0;
@@ -151,6 +163,11 @@ int32_t lf_nccl_communicator_submit_typed(
   if (status != LF_NCCL_OK) {
     lf_nccl_collective_fail(communicator);
     return status;
+  }
+  if (communicator->deferred_count != 0 &&
+      queue_token != communicator->deferred_stream) {
+    lf_nccl_collective_fail(communicator);
+    return LF_NCCL_INVALID_ARGUMENT;
   }
   communicator->in_flight_plan_sequence = plan_sequence;
   communicator->in_flight_collective_sequence = collective_sequence;
@@ -350,4 +367,62 @@ int32_t lunaflux_nccl_communicator_poll_collective_state(
     &completed
   );
   return status == LF_NCCL_OK ? completed : status;
+}
+
+/* Startup allocation only. The bounded lease bank belongs to the communicator,
+ * not to a caller that could disappear while device work is outstanding. */
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_nccl_prepare_deferred(lf_nccl_communicator *c, int32_t capacity) {
+  if (c == NULL || capacity <= 0 || (size_t)capacity > SIZE_MAX / sizeof(lf_device_collective_lease))
+    return LF_NCCL_INVALID_ARGUMENT;
+  if (atomic_load(&c->state) != LF_NCCL_RESOURCE_LIVE) return LF_NCCL_CLOSED;
+  if (c->phase != LF_NCCL_PHASE_READY || c->deferred_count != 0) return LF_NCCL_BUSY;
+  if (c->deferred_capacity >= capacity) return LF_NCCL_OK;
+  lf_device_collective_lease *leases = calloc((size_t)capacity, sizeof(*leases));
+  if (leases == NULL) return LF_NCCL_RUNTIME_FAILURE;
+  free(c->deferred_leases);
+  c->deferred_leases = leases;
+  c->deferred_capacity = capacity;
+  return LF_NCCL_OK;
+}
+
+/* Thread-confined, like submit/poll. Advance the submission cursor without
+ * releasing resources or claiming completion. Never query the device here. */
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_nccl_defer_submitted(lf_nccl_communicator *c) {
+  if (c == NULL || c->deferred_count >= c->deferred_capacity) return LF_NCCL_INVALID_ARGUMENT;
+  int32_t submitted = lunaflux_nccl_communicator_poll_submitted(c);
+  if (submitted != 1) return submitted;
+  uintptr_t send = 0, receive = 0;
+  void *stream = NULL;
+  int32_t status = lf_device_collective_lease_view(&c->in_flight_lease, &send, &receive, &stream);
+  if (status != LF_DEVICE_INTEROP_OK) { lf_nccl_collective_fail(c); return LF_NCCL_RUNTIME_FAILURE; }
+  c->deferred_stream = stream;
+  memcpy(&c->deferred_leases[c->deferred_count++], &c->in_flight_lease, sizeof(c->in_flight_lease));
+  memset(&c->in_flight_lease, 0, sizeof(c->in_flight_lease));
+  lf_nccl_collective_commit(c, c->in_flight_plan_sequence, c->in_flight_collective_sequence, c->in_flight_operation_id);
+  return 1;
+}
+
+/* All deferred sites share one stream and one frame. Its last lease observes
+ * the terminal stream fence, so one query retires every retained operand. */
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_nccl_poll_deferred(lf_nccl_communicator *c) {
+  if (c == NULL) return LF_NCCL_INVALID_ARGUMENT;
+  if (atomic_load(&c->state) != LF_NCCL_RESOURCE_LIVE) return LF_NCCL_CLOSED;
+  if (c->phase == LF_NCCL_PHASE_FAILED) return LF_NCCL_FAILED;
+  if (c->phase != LF_NCCL_PHASE_READY) return LF_NCCL_BUSY;
+  if (c->deferred_count == 0) return 1;
+  lf_nccl_result async = NCCL_IN_PROGRESS;
+  lf_nccl_result result = c->api->comm_get_async_error(c->handle, &async);
+  if (result == NCCL_IN_PROGRESS || (result == NCCL_SUCCESS && async == NCCL_IN_PROGRESS)) return 0;
+  if (result != NCCL_SUCCESS || async != NCCL_SUCCESS) {
+    lf_nccl_collective_fail(c); return LF_NCCL_RUNTIME_FAILURE;
+  }
+  int32_t completed = 0;
+  int32_t status = lf_device_collective_lease_query(&c->deferred_leases[c->deferred_count - 1], &completed);
+  if (status != LF_DEVICE_INTEROP_OK) { lf_nccl_collective_fail(c); return LF_NCCL_RUNTIME_FAILURE; }
+  if (!completed) return 0;
+  lf_nccl_release_in_flight(c);
+  return 1;
 }

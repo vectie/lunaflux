@@ -115,6 +115,10 @@ typedef struct lf_nccl_communicator {
   lf_nccl_handle handle;
   lf_device_context_lease context_lease;
   lf_device_collective_lease in_flight_lease;
+  lf_device_collective_lease *deferred_leases;
+  int32_t deferred_capacity;
+  int32_t deferred_count;
+  void *deferred_stream;
   atomic_int state;
   atomic_int operation_lock;
   atomic_int failed;
@@ -189,6 +193,9 @@ void lf_nccl_collective_commit(
 );
 void lf_nccl_collective_fail(lf_nccl_communicator *communicator);
 void lf_nccl_release_in_flight(lf_nccl_communicator *communicator);
+int32_t lunaflux_nccl_prepare_deferred(lf_nccl_communicator *, int32_t);
+int32_t lunaflux_nccl_defer_submitted(lf_nccl_communicator *);
+int32_t lunaflux_nccl_poll_deferred(lf_nccl_communicator *);
 int32_t lf_nccl_communicator_submit_typed(
   lf_nccl_communicator *communicator,
   int32_t element_bytes,

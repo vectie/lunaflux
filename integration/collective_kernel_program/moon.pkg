@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/device",
+  "vectie/lunaflux/compiler/parallel_ir" @parallel,
 }
 
 supported_targets = "native"
