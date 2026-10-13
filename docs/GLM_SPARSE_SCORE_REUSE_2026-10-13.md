@@ -151,11 +151,49 @@ buffered HTTP request, 3–8 output tokens, C1, excluding loading. Those are not
 comparable to the kernel-only numbers above. Native old 643/671-second examples
 used different prompts/output lengths and are not a matched before/after.
 
-.179 still times out during fresh SSH banner exchange. Its previous SGLang
-process and memory release cannot be verified, so **no new two-Spark full-model
-benchmark has run**. Do not load more weights or extrapolate end-to-end speed.
+.179 initially timed out during fresh SSH banner exchange. At that point its
+previous SGLang process and memory release could not be verified, so no new
+two-Spark full-model benchmark was launched. The subsequent recovery and actual
+completed measurement below supersede that infrastructure blocker.
 The benchmark runner accepts `--runtime NEW_RUNTIME` and retains that explicit
 binary/AOT selection across prepare/start/collect, avoiding a silent benchmark
-of the old hard-coded runtime. Once both nodes are available, export fresh AOT
-from the committed executable, run the exact six prompts/EOS/output cap, then
-report text/token results and request times against the frozen vLLM run.
+of the old hard-coded runtime. Fresh AOT from the committed executable is used
+for the recovered run, preserving the exact six prompts/EOS/output cap.
+
+### Recovery and selected full-model execution
+
+On the subsequent requested retry, .179 accepted a fresh SSH login. Both hosts
+had no GPU owners or running containers and approximately 117 GiB available.
+The committed executable and fresh AOT above were staged on both machines;
+no payload hashing or integrity scan was performed.
+
+Native root `/tmp/lunaflux-model-bench-glm-retained-20261013-v1` completed all
+six requests on the full 45-layer model, with source commit `015722c7`, fresh
+retained-score AOT, PP2/TP1 and BF16 KV. Both user units exited successfully,
+explicitly closed their CUDA contexts and used zero process swap. The monitor
+retained the 16 GiB host reserve throughout. No profiler overlapped the run.
+
+| Category | Input / output tokens | Request seconds | Finish |
+| --- | ---: | ---: | --- |
+| Fact | 22 / 4 | 45.141 | EOS |
+| Arithmetic | 23 / 4 | 46.950 | EOS |
+| Chinese | 22 / 8 | 52.419 | Length |
+| JSON | 23 / 8 | 54.209 | Length |
+| Code | 24 / 8 | 56.036 | Length |
+| Retrieval | 36 / 3 | 68.720 | EOS |
+
+Total measured request time is 323.475 seconds, excluding checkpoint loading.
+These are resident CLI completion times, including single-row prefill,
+generation, diagnostic completion-file output and request retirement—not
+decode-only throughput. The native
+first request has no excluded warmup. The 179 serial model steps recorded by
+transport epochs imply 1.806–1.808 seconds of request time per step, including
+host/pipeline overhead. This is a normalization of whole-request time, not an
+independently measured per-kernel or decode latency.
+
+The sparse fix demonstrably reaches full-model execution, but does not remove
+the remaining slow decoder implementations or one-row prefill. Historical
+643/671-second requests used different prompts and EOS settings; they still
+cannot support an exact before/after speedup claim. The fresh vLLM comparison,
+including all strategy, timing and output caveats, is recorded in
+`BENCHMARK_SPARK_MODEL_COMPARISON_2026-10-12.md`.

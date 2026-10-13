@@ -1,0 +1,211 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline observation only: comparison is not a compiler correctness rule.
+// Read literal token vectors and timings; never compute payload digests.
+
+///|
+fn field(value : Json, name : String) -> Json raise {
+  guard value is Object(fields) && fields.get(name) is Some(value) else {
+    fail("missing JSON field: " + name)
+  }
+  value
+}
+
+///|
+fn integer(value : Json) -> Int raise {
+  @string.parse_int(value.stringify())
+}
+
+///|
+fn ids(text : String, delimiter? : String = "\n") -> Array[Int] raise {
+  let result : Array[Int] = []
+  for line in text.trim().split(delimiter) {
+    result.push(@string.parse_int(line.trim()))
+  }
+  result
+}
+
+///|
+fn metrics(text : String, key : String) -> Array[Double] raise {
+  let result : Array[Double] = []
+  let prefix = key + "="
+  for line in text.split("\n") {
+    for word in line.split(" ") {
+      if word.has_prefix(prefix) {
+        result.push(@string.parse_double(word[prefix.length():]))
+      }
+    }
+  }
+  result
+}
+
+///|
+fn minimum_memory(text : String) -> Double raise {
+  let observations = metrics(text, "available_kib")
+  for line in text.split("\n") {
+    if line.has_prefix("MemAvailable:") {
+      let words = line.split(" ").filter(s => !s.is_empty()).to_array()
+      guard words is [_, value, "kB"] else { fail("memory units") }
+      observations.push(@string.parse_double(value))
+    }
+  }
+  guard observations.length() > 0 else { fail("missing memory observations") }
+  observations.fold(init=observations[0], (a, b) => a.min(b)) / 1048576.0
+}
+
+///|
+fn visible_completion(text : String, stopped : Bool) -> String {
+  let marker = "<|user|>"
+  if stopped && text.has_suffix(marker) {
+    text[:text.length() - marker.length()].to_owned()
+  } else {
+    text
+  }
+}
+
+///|
+test "observation parsing does not conflate completion with decode timing" {
+  assert_eq(metrics("journal: generation_millis=1234\n", "generation_millis"), [
+    1234.0,
+  ])
+  assert_eq(metrics("http=200 total_seconds=0.5\n", "total_seconds"), [0.5])
+  assert_eq(
+    minimum_memory("tick=0 available_kib=33554432\nMemAvailable: 16777216 kB\n"),
+    16.0,
+  )
+  assert_eq(visible_completion("answer<|user|>", true), "answer")
+  assert_eq(visible_completion("answer<|user|>", false), "answer<|user|>")
+  assert_eq(ids("1\n2\n"), [1, 2])
+  assert_eq(ids("1,2\n", delimiter=","), [1, 2])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native, reference, output] else {
+    fail("NATIVE_ROOT VLLM_ROOT NEW_REPORT_JSON")
+  }
+  let journal = @fs.read_file(native + "/ingress-journal.stdout").text()
+  let native_times = metrics(journal, "generation_millis")
+  let epochs = metrics(journal, "next_epoch")
+  guard native_times.length() == 6 && epochs.length() == 6 else {
+    fail("expected six completed native requests")
+  }
+  let rows : Array[Json] = []
+  let mut native_total = 0.0
+  let mut reference_total = 0.0
+  for i in 0..<6 {
+    let native_input = ids(
+      @fs.read_file(native + "/input-\{i}-tokens.txt").text(),
+      delimiter=",",
+    )
+    let request = @json.parse(
+      @fs.read_file(reference + "/request-\{i}.json").text(),
+    )
+    guard field(request, "prompt") is Array(prompt) else {
+      fail("literal prompt IDs required")
+    }
+    let reference_input = prompt.map(integer)
+    guard native_input == reference_input else {
+      fail("unmatched input token vector")
+    }
+    let native_output = ids(
+      @fs.read_file(native + "/output-\{i}-tokens.txt").text(),
+    )
+    let stopped = native_output.last() == Some(154827)
+    let native_text = @fs.read_file(native + "/decoded-\{i}.txt").text()
+    let response = @json.parse(
+      @fs.read_file(reference + "/response-\{i}.json").text(),
+    )
+    guard field(response, "choices") is Array([choice]) &&
+      field(choice, "text") is String(reference_text) else {
+      fail("one completed reference choice required")
+    }
+    let usage = field(response, "usage")
+    guard integer(field(usage, "prompt_tokens")) == native_input.length() else {
+      fail("reference executed different prompt extent")
+    }
+    let reference_tokens = integer(field(usage, "completion_tokens"))
+    let timing = @fs.read_file(reference + "/request-\{i}-timing.stdout").text()
+    guard metrics(timing, "http") == [200.0] &&
+      metrics(timing, "total_seconds") is [reference_seconds] &&
+      reference_seconds > 0.0 else {
+      fail("missing successful reference timing")
+    }
+    let native_seconds = native_times[i] / 1000.0
+    let native_steps = epochs[i] - (if i == 0 { 1.0 } else { epochs[i - 1] })
+    guard native_steps ==
+      (native_input.length() + native_output.length() - 1).to_double() else {
+      fail("unexpected serial model-step count")
+    }
+    native_total += native_seconds
+    reference_total += reference_seconds
+    rows.push({
+      "category": Json(
+        @fs.read_file(native + "/category-\{i}.txt").text().trim().to_owned(),
+      ),
+      "input_ids": Json(native_input.map(t => Json(t))),
+      "input_tokens": Json(native_input.length()),
+      "native_output_ids": Json(native_output.map(t => Json(t))),
+      "native_output_tokens": Json(native_output.length()),
+      "reference_output_tokens": Json(reference_tokens),
+      "native_seconds": Json(native_seconds),
+      "native_serial_model_steps": Json(native_steps),
+      "native_request_seconds_per_serial_step": Json(
+        native_seconds / native_steps,
+      ),
+      "reference_seconds": Json(reference_seconds),
+      "completion_time_ratio": Json(native_seconds / reference_seconds),
+      "native_output_tokens_per_request_second": Json(
+        native_output.length().to_double() / native_seconds,
+      ),
+      "reference_output_tokens_per_request_second": Json(
+        reference_tokens.to_double() / reference_seconds,
+      ),
+      "native_finish": Json(if stopped { "stop" } else { "length" }),
+      "reference_finish": field(choice, "finish_reason"),
+      "native_text": Json(native_text),
+      "reference_text": Json(reference_text),
+      "text_equal_excluding_native_stop_marker": Json(
+        visible_completion(native_text, stopped) == reference_text,
+      ),
+      "reference_output_ids": field(choice, "token_ids"),
+    })
+  }
+  let report : Json = {
+    "native_root": Json(native),
+    "reference_root": Json(reference),
+    "scope": "six matched GLM prompts, single sample, completion latency including prefill",
+    "native_timing_boundary": "resident CLI including diagnostic completion-file output and retirement",
+    "reference_timing_boundary": "buffered HTTP completion including client/server overhead",
+    "correctness_or_parity_claim": false,
+    "decode_only_throughput": false,
+    "native_first_request_cold": true,
+    "reference_excluded_warmup_requests": 1,
+    "native_topology": "PP2/TP1/BF16 KV/one-row prefill",
+    "reference_topology": "PP1/TP2/FP8 MLA KV",
+    "payload_hashing": false,
+    "native_total_seconds": Json(native_total),
+    "reference_total_seconds": Json(reference_total),
+    "total_completion_time_ratio": Json(native_total / reference_total),
+    "native_minimum_host_available_gib": Json(
+      minimum_memory(@fs.read_file(native + "/memory-watch.txt").text()),
+    ),
+    "reference_minimum_host_available_gib": Json(
+      minimum_memory(@fs.read_file(reference + "/memory-watch.txt").text()),
+    ),
+    "rows": Json(rows),
+  }
+  @fs.write_file(
+    output,
+    report.stringify(indent=2) + "\n",
+    create_mode=CreateNew,
+  )
+  println(report.stringify(indent=2))
+}
