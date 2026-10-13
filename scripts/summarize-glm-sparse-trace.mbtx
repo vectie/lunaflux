@@ -1,0 +1,64 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn component(name : StringView) -> String {
+  if name.contains("_projection_") {
+    if name.contains("_norm") || name.contains("_split") {
+      return "sparse normalization/split"
+    }
+    return "sparse input projections"
+  }
+  if name.has_suffix("_output") {
+    return "sparse output projection"
+  }
+  if name.has_suffix("_index") {
+    return "sparse index"
+  }
+  if name.has_suffix("_pool") {
+    return "sparse pooling"
+  }
+  if name.contains("attention_retained_scores") {
+    return "sparse attention core"
+  }
+  "sparse history/other"
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COLLECTED_PROFILE_ROOT") }
+  let totals : Map[String, Int64] = Map([])
+  for role in ["ingress", "egress"] {
+    for
+      line in @fs.read_file(root + "/" + role + "-stats.stdout")
+      .text()
+      .split("\n") {
+      let cols = line.split(",").to_array()
+      if cols.length() == 9 && cols[8].has_prefix("glm_sparse_") {
+        let key = component(cols[8])
+        totals[key] = totals.get(key).unwrap_or(0L) +
+          @string.parse_int64(cols[1])
+      }
+    }
+  }
+  let out = StringBuilder()
+  out <+ "scope=16_input_2_output_both_PP_stages_kernel_sums\n"
+  for
+    key in [
+      "sparse input projections", "sparse output projection", "sparse index", "sparse pooling",
+      "sparse attention core", "sparse normalization/split", "sparse history/other",
+    ] {
+    out <+ "\{key}: ms=\{totals.get(key).unwrap_or(0L).to_double()/1000000.0}\n"
+  }
+  @fs.write_file(
+    root + "/sparse-breakdown.txt",
+    out.to_string(),
+    create_mode=CreateNew,
+  )
+  println(out.to_string())
+}

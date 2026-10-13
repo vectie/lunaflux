@@ -77,6 +77,14 @@ pub fn IndexedSparseAttentionCudaSource::scratch_bytes(self : Self) -> Int64 {
 }
 
 ///|
+/// IndexShare consumers execute only the final stage, not the index lifetime.
+pub fn IndexedSparseAttentionCudaSource::attention_scratch_bytes(
+  self : Self,
+) -> Int64 {
+  self.attention.scratch_bytes()
+}
+
+///|
 pub fn IndexedSparseAttentionCudaSource::launch(
   self : Self,
   stage : Int,

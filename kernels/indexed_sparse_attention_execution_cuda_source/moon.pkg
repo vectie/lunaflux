@@ -3,13 +3,13 @@ import {
   "vectie/lunaflux/compiler/sparse_index_physical_ir" @index_physical,
   "vectie/lunaflux/kernels/luna_cuda_precision" @arithmetic,
   "vectie/lunaflux/kernels/glm_hybrid_dsa_pooling_cuda_source" @pooling,
-  "vectie/lunaflux/kernels/glm_hybrid_dsa_index_cuda_source" @index,
   "vectie/lunaflux/kernels/selected_sparse_attention_cuda_source" @attention,
   "moonbitlang/core/encoding/utf8",
 }
 
 import {
   "moonbitlang/core/env",
+  "vectie/lunaflux/kernels/glm_hybrid_dsa_index_cuda_source" @index,
 } for "test"
 
 supported_targets = "native"

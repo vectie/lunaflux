@@ -50,7 +50,7 @@ fn IndexedSparseAttentionFrame::attention_arguments(
     region(values, h * kvh.to_int64() * vd.to_int64() * 2L, 2L),
     region(selected_indices, plan.frame_bytes()[4], 4L),
     region(output, r * qh.to_int64() * vd.to_int64() * 2L, 2L),
-    region(scratch, self.source.scratch_bytes(), 4L),
+    region(scratch, self.source.attention_scratch_bytes(), 4L),
   ]
 }
 
@@ -79,7 +79,7 @@ pub fn IndexedSparseAttentionFrame::prepare_shared_indices(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
-  let scratch = context.allocate(self.source.scratch_bytes())
+  let scratch = context.allocate(self.source.attention_scratch_bytes())
   self.buffers.push(scratch)
   let arguments = self.attention_arguments(
     query_counts, history_counts, query_positions, history_valid, queries, keys,

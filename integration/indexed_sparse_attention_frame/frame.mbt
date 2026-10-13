@@ -43,7 +43,7 @@ pub fn IndexedSparseAttentionFrame::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn IndexedSparseAttentionFrame::workspace_bytes(self : Self) -> Int64 {
   if self.shared {
-    self.source.scratch_bytes()
+    self.source.attention_scratch_bytes()
   } else {
     self.source.plan().workspace_bytes() + self.source.scratch_bytes()
   }
