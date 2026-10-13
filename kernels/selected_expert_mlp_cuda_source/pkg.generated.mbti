@@ -3,11 +3,12 @@ package "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/grouped_matrix_ir",
   "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
-pub fn packed_expert_mlp_source(@precision_ir.ExpertMlpPrecision, symbol~ : String) -> PackedExpertMlpCudaSource raise
+pub fn packed_expert_mlp_source(@precision_ir.ExpertMlpPrecision, symbol~ : String, grouping? : @grouped_matrix_ir.ExpertGroupingPlan) -> PackedExpertMlpCudaSource raise
 
 pub fn selected_expert_swiglu_bf16_source(hidden_size~ : Int, intermediate_size~ : Int, routed_expert_count~ : Int, experts_per_token~ : Int, activation~ : SelectedExpertActivation, maximum_rows~ : Int, function_symbol~ : String) -> SelectedExpertMlpCudaSource raise SelectedExpertMlpCudaSourceError
 

@@ -11,7 +11,7 @@ extern "C" fn enqueues() -> UInt64 = "lunaflux_tp_alloc_executor_enqueues"
 extern "C" fn blocking_syncs() -> UInt64 = "lunaflux_tp_alloc_blocking_synchronizations"
 
 ///|
-test "prepared MoE inserts F32 reduction, reuses its queue and allocates nothing" {
+test "prepared TP MoE reduces before routed publication without allocation" {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
   let stream = context.create_stream()
@@ -77,11 +77,12 @@ test "prepared MoE inserts F32 reduction, reuses its queue and allocates nothing
   let executor = @moe.prepare_moe(
     context,
     stream,
-    [launch],
+    [launch, launch],
     [launch],
     launch,
     routed_output=buffer,
     maximum_rows=2,
+    post_reduction_routed_kernels=1,
     reduction=@moe.MoeReduction::new(
       collective,
       generation=1UL,
@@ -103,8 +104,8 @@ test "prepared MoE inserts F32 reduction, reuses its queue and allocates nothing
     if executor.poll() {
       abort("premature completion")
     }
-    if enqueues() != before + (sequence - 1UL) * 3UL + 1UL {
-      abort("shared work was submitted before the reduction")
+    if enqueues() != before + (sequence - 1UL) * 4UL + 1UL {
+      abort("expert publication was submitted before the reduction")
     }
     while !executor.poll() {
       ()
@@ -112,7 +113,7 @@ test "prepared MoE inserts F32 reduction, reuses its queue and allocates nothing
   }
   let allocations = end_allocations()
   assert_eq(allocations, 0UL)
-  assert_eq(enqueues() - before, 48UL)
+  assert_eq(enqueues() - before, 64UL)
   assert_eq(blocking_syncs() - syncs_before, 0UL)
   executor.close()
   collective.close()

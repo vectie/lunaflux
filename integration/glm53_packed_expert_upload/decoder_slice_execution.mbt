@@ -3,28 +3,58 @@ pub fn GlmDecoderSlice::submit(
   self : Self,
   live_rows~ : Int,
 ) -> Unit raise @device.DeviceError {
-  guard self.status is Ready && self.queue is Some(queue) else {
+  guard self.status is Ready else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
   }
   guard live_rows > 0 && live_rows <= self.maximum_rows else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
   }
   self.status = Failed
-  for stage in 0..<self.launch_count {
-    queue.enqueue(stage)
+  if self.collective_queue is Some(queue) {
+    guard self.plan_sequence < 0xffffffffffffffffUL &&
+      self.global_sequence <=
+      0xffffffffffffffffUL - self.collective_count.to_uint64() else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    }
+    queue.submit(
+      live_rows~,
+      plan_sequence=self.plan_sequence + 1UL,
+      global_sequence=self.global_sequence,
+    )
+  } else if self.queue is Some(queue) {
+    for stage in 0..<self.launch_count {
+      queue.enqueue(stage)
+    }
+    queue.record_completion()
+  } else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
   }
-  queue.record_completion()
   self.status = Active
 }
 
 ///|
 pub fn GlmDecoderSlice::poll(self : Self) -> Bool raise @device.DeviceError {
-  guard self.status is Active && self.queue is Some(queue) else {
+  guard self.status is Active else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
   }
   self.status = Failed
-  if queue.poll_completion() {
-    queue.reset()
+  let complete = if self.collective_queue is Some(queue) {
+    queue.poll()
+  } else if self.queue is Some(queue) {
+    if queue.poll_completion() {
+      queue.reset()
+      true
+    } else {
+      false
+    }
+  } else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+  }
+  if complete {
+    if self.collective_queue is Some(_) {
+      self.plan_sequence += 1UL
+      self.global_sequence += self.collective_count.to_uint64()
+    }
     self.status = Ready
     true
   } else {
@@ -38,7 +68,16 @@ pub fn GlmDecoderSlice::close(self : Self) -> Unit raise @device.DeviceError {
   if self.status is Closed {
     return
   }
+  let idle = self.status is Ready
   self.status = Failed
+  if self.collective_queue is Some(queue) {
+    if idle {
+      queue.close()
+    } else {
+      queue.abort()
+    }
+    self.collective_queue = None
+  }
   if self.queue is Some(queue) {
     queue.abort()
     queue.close()

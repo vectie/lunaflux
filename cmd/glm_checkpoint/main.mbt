@@ -124,6 +124,8 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let expert_tp = mode.has_suffix("-expert-tp")
+  let mode = if expert_tp { mode[:mode.length() - 10].to_owned() } else { mode }
   let tiled = mode.has_suffix("-tiled-grouped")
   let mode = if tiled { mode[:mode.length() - 14].to_owned() } else { mode }
   let chunk = mode.has_suffix("-chunk-kda")
@@ -166,12 +168,16 @@ async fn main {
         OrderedTokenFloat32
       },
       matrix_law=if tiled { MatrixFloat32 } else { ScalarFloat32 },
+      expert_tensor_parallel=expert_tp,
     )
   }
-  for ordinal, range in startup.placement.stages() {
+  println(
+    "expert_tensor_parallel=\{expert_tp} attention_replicated=\{expert_tp} payload_hashing=false",
+  )
+  for ordinal, range in startup.ranges {
     let (first, end) = range.layer_range()
     println(
-      "stage=\{ordinal} layers=[\{first},\{end}) planned_bytes=\{startup.placement.stage_bytes()[ordinal]} ceiling=\{startup.budgets[ordinal]}",
+      "rank=\{ordinal} layers=[\{first},\{end}) planned_bytes=\{startup.planned_bytes[ordinal]} ceiling=\{startup.budgets[ordinal]}",
     )
   }
   println(
@@ -221,10 +227,11 @@ fn placement_receipt(startup : Startup) -> String {
   let builder = StringBuilder()
   builder <+
     "glm-checkpoint-placement-v1\nrows=\{startup.rows}\nhistory=\{startup.history}\nreserve=\{startup.reserve}\n"
-  for ordinal, range in startup.placement.stages() {
+  builder <+ "expert_tensor_parallel=\{startup.expert_tensor_parallel}\n"
+  for ordinal, range in startup.ranges {
     let (first, end) = range.layer_range()
     builder <+
-      "stage=\{ordinal} first=\{first} end=\{end} planned=\{startup.placement.stage_bytes()[ordinal]} ceiling=\{startup.budgets[ordinal]}\n"
+      "rank=\{ordinal} first=\{first} end=\{end} planned=\{startup.planned_bytes[ordinal]} ceiling=\{startup.budgets[ordinal]}\n"
   }
   builder.to_string()
 }

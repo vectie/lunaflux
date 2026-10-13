@@ -3,6 +3,7 @@ fn decoder_slice_fixture(
   first : Int,
   end : Int,
   sequences? : Int = 1,
+  tensor_group? : (Int, Int),
 ) -> @glm53_packed_expert_upload.GlmDecoderSlice raise {
   @glm53_packed_expert_upload.GlmDecoderSlice::new(
     @glm53_spec.Glm53FlashSpec::official(),
@@ -17,7 +18,26 @@ fn decoder_slice_fixture(
     maximum_layer_workspace_bytes=20000000L,
     maximum_layer_expert_bytes=5000000000L,
     accuracy=@precision_ir.Accuracy::new(absolute=0.125, relative=0.125),
+    tensor_group?,
   )
+}
+
+///|
+test "tensor decoder schedule contains one pre-publication reduction per MoE layer" {
+  let slice = decoder_slice_fixture(0, 5, tensor_group=(1, 2))
+  defer slice.close()
+  let contract = slice.tensor_contract(
+    @device.TensorCollectiveContractDigest::from_sha256(
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    ),
+  )
+  assert_eq(contract.rank(), 1)
+  assert_eq(contract.world_size(), 2)
+  assert_eq(contract.site_count(), 2)
+  let source = @utf8.decode(slice.source_bytes())
+  assert_true(source.contains("float *weighted"))
+  assert_true(source.contains("glm_routed_3_combine"))
+  assert_true(source.contains("glm_sparse_3_output"))
 }
 
 ///|

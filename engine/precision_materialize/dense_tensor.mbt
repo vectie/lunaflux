@@ -36,5 +36,6 @@ pub fn PackedCheckpoint::bind_dense_tensor(
     scales_offset: 0L,
     global_scale_offset: 0L,
     buffer_bytes: bytes,
+    slice: None,
   }
 }

@@ -20,7 +20,8 @@ pub fn MoeProgram::prepare_routed_frame(
   output~ : @device.Allocation,
 ) -> Unit raise @device.DeviceError {
   self.check_fresh(maximum_workspace_bytes)
-  guard self.routed.plan().local_experts().length() ==
+  guard self.routed.plan().down_publication() == LocalBFloat16 &&
+    self.routed.plan().local_experts().length() ==
     self.routed.plan().geometry().3 else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }

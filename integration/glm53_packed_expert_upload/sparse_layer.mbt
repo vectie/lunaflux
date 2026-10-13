@@ -27,6 +27,7 @@ pub fn GlmSparseLayer::new(
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int, Int),
 ) -> Self raise {
   let projection = @sparse_model.flash_sparse_projection_plan(
     spec,
@@ -60,6 +61,7 @@ pub fn GlmSparseLayer::new(
     maximum_expert_bytes,
     accuracy,
     matrix_law~,
+    tensor_group?,
   )
   let decoder = @sparse_frame.IndexedSparseDecoderFrame::new(
     @sparse_source.indexed_sparse_decoder_source(
@@ -157,6 +159,9 @@ fn GlmSparseLayer::prepare_layer(
   output~ : @device.Allocation,
 ) -> Unit raise {
   let frames = self.workspace_bytes() + self.state_bytes()
+  guard stream is None || !self.ffn.is_tensor_parallel() else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
   let banks = self.ffn.bank_bytes()
   guard self.status is Fresh &&
     frames <= maximum_device_bytes &&

@@ -1,0 +1,212 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-expert-tp-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode is ("prepare" | "run" | "memcheck" | "collect") else {
+    fail("NEW_ROOT prepare|run|memcheck|collect")
+  }
+  let image = "nvcr.io/nvidia/sglang:26.09-py3"
+  let hosts = ["wlc003s@192.168.2.178", "wlc004s@192.168.2.179"]
+  let sockets = [
+    "/tmp/lunaflux-checkpoint-live-20261010.sock", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+  ]
+  async fn remote(rank : Int, command : String) -> @shell.Output {
+    @shell.Cmd("ssh", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=10",
+      "-S",
+      sockets[rank],
+      hosts[rank],
+      command,
+    ]).output(max_output_bytes=8388608)
+  }
+  async fn record(name : String, output : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      output.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      output.stderr(),
+      create_mode=CreateNew,
+    )
+    output.check()
+  }
+  async fn copy(rank : Int, source : String, target : String) -> Unit {
+    @shell.Cmd("scp", ["-o", "ControlPath=" + sockets[rank], source, target])
+    .output()
+    .check()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let out = @shell.Cmd("env", [
+      "LUNA_EXPORT_EXPERT_TP=1", "moon", "test", "kernels/selected_expert_mlp_cuda_source",
+      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "--filter",
+      "*tensor parallel source*",
+    ]).output(max_output_bytes=8388608)
+    record("export", out)
+    let text = StringBuilder()
+    let mut capture = false
+    for line in out.stdout().split("\n") {
+      if line.has_prefix("LUNA_SOURCE_BEGIN") {
+        capture = true
+        continue
+      }
+      if line.has_prefix("LUNA_SOURCE_END") {
+        capture = false
+        continue
+      }
+      if capture {
+        text <+ "\{line}\n"
+      }
+    }
+    guard !text.to_string().is_empty() else { fail("missing selected source") }
+    @fs.write_file(
+      root + "/experts.cuh",
+      text.to_string(),
+      create_mode=CreateNew,
+    )
+    for rank in 0..<2 {
+      record("mkdir-\{rank}", remote(rank, "mkdir " + root))
+      for
+        (path, name) in [
+          (root + "/experts.cuh", "experts.cuh"),
+          ("tests/packed_moe_execution/tensor_parallel_probe.cu", "probe.cu"),
+        ] {
+        copy(rank, path, hosts[rank] + ":" + root + "/" + name)
+      }
+      record(
+        "compile-\{rank}",
+        remote(
+          rank,
+          "systemd-run --user --wait --pipe --unit=" +
+          root[5:].to_owned() +
+          "-compile-\{rank} --property=RuntimeMaxSec=300 docker run --pull=never --rm --network none --memory=2g --memory-swap=2g -v " +
+          root +
+          ":/probe --entrypoint /usr/local/cuda/bin/nvcc " +
+          image +
+          " -O3 -lineinfo -arch=sm_121 -std=c++17 /probe/probe.cu -lnccl -o /probe/probe",
+        ),
+      )
+    }
+    return
+  }
+  if mode == "run" || mode == "memcheck" {
+    for rank in 0..<2 {
+      let owners = remote(
+        rank, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+      let available = remote(
+        rank, "awk '/MemAvailable:/ {print $2}' /proc/meminfo",
+      )
+      available.check()
+      guard @string.parse_int64(available.stdout().trim()) >= 16777216L else {
+        fail("host headroom")
+      }
+    }
+    for rank in [0, 1] {
+      if rank == 1 {
+        let ready = for _ in 0..<30 {
+          let result = remote(0, "test -s " + root + "/group.id")
+          if result.exit_code() == 0 {
+            break true
+          }
+          @async.sleep(1000)
+        } nobreak {
+          false
+        }
+        guard ready else { fail("bootstrap not ready") }
+        guard !@fs.exists(root + "/group.id") else {
+          fail("already collected ID")
+        }
+        copy(0, hosts[0] + ":" + root + "/group.id", root + "/group.id")
+        copy(1, root + "/group.id", hosts[1] + ":" + root + "/group.id")
+      }
+      let interface = if rank == 0 { "enp1s0f1np1" } else { "enp1s0f0np0" }
+      let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
+      let entry = if mode == "memcheck" {
+        "/toolkit/bin/compute-sanitizer"
+      } else {
+        "/probe/probe"
+      }
+      let tool_mount = if mode == "memcheck" {
+        " -v /usr/local/cuda-13.0:/toolkit:ro"
+      } else {
+        ""
+      }
+      let program = if mode == "memcheck" {
+        " --error-exitcode 9 --tool memcheck --leak-check full /probe/probe"
+      } else {
+        ""
+      }
+      record(
+        "launch-\{rank}",
+        remote(
+          rank,
+          "systemd-run --user --unit=" +
+          root[5:].to_owned() +
+          "-rank\{rank} --property=RemainAfterExit=yes --property=RuntimeMaxSec=300 --property=StandardOutput=file:" +
+          root +
+          "/run.stdout --property=StandardError=file:" +
+          root +
+          "/run.stderr docker run --pull=never --rm --name " +
+          root[5:].to_owned() +
+          "-rank\{rank} --network host --gpus all --ipc=private --shm-size=128m --memory=2g --memory-swap=2g --ulimit memlock=-1 --cap-add IPC_LOCK --device=/dev/infiniband -e NCCL_DEBUG=WARN -e NCCL_SOCKET_IFNAME=" +
+          interface +
+          " -e NCCL_IB_HCA=" +
+          hca +
+          " -e NCCL_IB_DISABLE=0 -v " +
+          root +
+          ":/probe" +
+          tool_mount +
+          " --entrypoint " +
+          entry +
+          " " +
+          image +
+          program +
+          " \{rank} /probe/group.id",
+        ),
+      )
+    }
+    return
+  }
+  for rank in 0..<2 {
+    let status = remote(
+      rank,
+      "systemctl --user show " +
+      root[5:].to_owned() +
+      "-rank\{rank}.service -p ActiveState -p SubState -p Result -p ExecMainStatus",
+    )
+    status.check()
+    guard status.stdout().contains("SubState=exited") ||
+      status.stdout().contains("ActiveState=failed") else {
+      fail("still active; do not overlap GPUs")
+    }
+    record("status-\{rank}", status)
+    for name in ["run.stdout", "run.stderr"] {
+      guard !@fs.exists(root + "/rank\{rank}-" + name) else {
+        fail("already collected")
+      }
+      copy(
+        rank,
+        hosts[rank] + ":" + root + "/" + name,
+        root + "/rank\{rank}-" + name,
+      )
+    }
+  }
+}

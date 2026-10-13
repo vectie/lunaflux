@@ -53,14 +53,19 @@ pub fn bind(
   let em = region(expert_map, experts.to_int64() * 4L, 4L)
   let w = region(bank, p.bank_bytes(), 16L)
   let a = region(activation, activation_bytes, 2L)
-  let b = region(weighted, weighted_bytes, 2L)
+  let partial = p.down_publication() == ReduceFloat32BeforeRound
+  let b = region(weighted, weighted_bytes, if partial { 4L } else { 2L })
   let y = region(output, cells * 4L, 4L)
   let before = p.routing_placement() == BeforeDownInputRound
   let gate = [c, x, ix, em, w, a]
   if before {
     gate.push(sw)
   }
-  let arguments = [gate, [c, a, ix, sw, em, w, b], [c, ix, b, y]]
+  let combine = [c, ix, b, y]
+  if partial {
+    combine.push(sw)
+  }
+  let arguments = [gate, [c, a, ix, sw, em, w, b], combine]
   let arguments = if p.dot_law() == MatrixFloat32 {
     [[c, ix, a], arguments[0], arguments[1], arguments[2]]
   } else {

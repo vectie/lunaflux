@@ -51,6 +51,7 @@ pub fn MoeProgram::new(
     hidden == sh &&
     se == 1 &&
     ss == 1 &&
+    shared.plan().down_publication() == LocalBFloat16 &&
     shared.plan().local_experts()[:] == [0] &&
     combine.plan().geometry() == (rows, hidden) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)

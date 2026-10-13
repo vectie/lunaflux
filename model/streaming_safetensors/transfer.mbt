@@ -8,6 +8,8 @@ pub struct StreamingSafetensorsTransfer {
   priv destination_ordinal : Int
   priv destination_offset : Int64
   priv byte_count : Int64
+  priv row_count : Int
+  priv source_row_stride : Int64
 }
 
 ///|
@@ -18,6 +20,8 @@ pub fn StreamingSafetensorsTransfer::new(
   destination_ordinal~ : Int,
   destination_offset~ : Int64,
   byte_count~ : Int64,
+  row_count? : Int = 1,
+  source_row_stride? : Int64,
 ) -> Self raise StreamingSafetensorsError {
   guard shard_ordinal >= 0 &&
     tensor_ordinal >= 0 &&
@@ -25,7 +29,18 @@ pub fn StreamingSafetensorsTransfer::new(
     destination_ordinal >= 0 &&
     destination_offset >= 0L &&
     byte_count > 0L &&
-    byte_count <= 9223372036854775807L - destination_offset else {
+    byte_count <= 9223372036854775807L - destination_offset &&
+    row_count > 0 &&
+    byte_count % row_count.to_int64() == 0L else {
+    raise InvalidCopyRequest(-1)
+  }
+  let row_bytes = byte_count / row_count.to_int64()
+  let stride = source_row_stride.unwrap_or(row_bytes)
+  guard stride >= row_bytes &&
+    (
+      row_count == 1 ||
+      stride <= (9223372036854775807L - row_bytes) / (row_count - 1).to_int64()
+    ) else {
     raise InvalidCopyRequest(-1)
   }
   {
@@ -35,6 +50,8 @@ pub fn StreamingSafetensorsTransfer::new(
     destination_ordinal,
     destination_offset,
     byte_count,
+    row_count,
+    source_row_stride: stride,
   }
 }
 
@@ -57,8 +74,11 @@ fn validate_transfers(
     guard destination_bytes.get(request.destination_ordinal) is Some(bytes) else {
       raise InvalidDestinationArena(i)
     }
-    guard request.byte_count <= tensor.byte_count() &&
-      request.tensor_byte_offset <= tensor.byte_count() - request.byte_count else {
+    let source_bytes = request.source_row_stride *
+      (request.row_count - 1).to_int64() +
+      request.byte_count / request.row_count.to_int64()
+    guard source_bytes <= tensor.byte_count() &&
+      request.tensor_byte_offset <= tensor.byte_count() - source_bytes else {
       raise CopyRangeOutsideTensor(i)
     }
     guard bytes >= request.byte_count &&
@@ -134,6 +154,13 @@ fn transfer_open_file(
     let start = shard.metadata.payload_offset +
       tensor.data_start +
       request.tensor_byte_offset
+    if request.source_row_stride !=
+      request.byte_count / request.row_count.to_int64() {
+      transfer_strided_file(
+        shard_ordinal, file, request_index, request, start, scratch, consume,
+      )
+      continue
+    }
     for copied = 0L; copied < request.byte_count; {
       let count = scratch
         .length()

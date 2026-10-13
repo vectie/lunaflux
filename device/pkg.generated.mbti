@@ -364,6 +364,9 @@ pub fn TensorCollectiveOwner::poll(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::poll_ready(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::poll_submitted(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::submit(Self, generation~ : UInt64, plan_sequence~ : UInt64, global_sequence~ : UInt64, site_sequence~ : Int, operation_id~ : Int, kind~ : TensorCollectiveKind, live_query_tokens~ : Int, send~ : Allocation, send_offset~ : Int64, receive~ : Allocation, receive_offset~ : Int64, stream~ : Stream) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::validate_group(Self, rank~ : Int, world_size~ : Int) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::validate_site_count(Self, Int) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::validate_sum_site(Self, site_sequence~ : Int, operation_id~ : Int, maximum_rows~ : Int, width~ : Int) -> Unit raise DeviceError
 
 type TensorCollectiveOwnerState derive(Eq, @debug.Debug)
 

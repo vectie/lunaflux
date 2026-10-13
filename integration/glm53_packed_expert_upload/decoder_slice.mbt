@@ -13,6 +13,11 @@ pub struct GlmDecoderSlice {
   priv buffers : Array[@device.Allocation]
   priv descriptors : Array[@device.Allocation]
   priv mut queue : @device.OrderedKernelExecutor?
+  priv tensor_group : (Int, Int)?
+  priv mut collective_queue : @collective_program.CollectiveKernelProgram?
+  priv mut collective_count : Int
+  priv mut plan_sequence : UInt64
+  priv mut global_sequence : UInt64
   priv mut launch_count : Int
   priv mut status : RecurrentLayerState
 }
@@ -37,6 +42,7 @@ pub fn GlmDecoderSlice::new(
   accuracy~ : @precision_ir.Accuracy,
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int, Int),
 ) -> Self raise {
   guard first_layer >= 0 &&
     end_layer > first_layer &&
@@ -75,6 +81,7 @@ pub fn GlmDecoderSlice::new(
                 accuracy~,
                 evaluation=recurrent_evaluation,
                 matrix_law~,
+                tensor_group?,
               ),
             )
         }
@@ -94,6 +101,7 @@ pub fn GlmDecoderSlice::new(
             maximum_expert_bytes=maximum_layer_expert_bytes,
             accuracy~,
             matrix_law~,
+            tensor_group?,
           ),
         )
       }
@@ -119,6 +127,11 @@ pub fn GlmDecoderSlice::new(
     buffers: [],
     descriptors: [],
     queue: None,
+    tensor_group,
+    collective_queue: None,
+    collective_count: 0,
+    plan_sequence: 0UL,
+    global_sequence: 1UL,
     launch_count: 0,
     status: Fresh,
   }
@@ -192,9 +205,17 @@ pub fn GlmDecoderSlice::prepare(
   output~ : @device.Allocation,
   prefix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
   suffix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
+  collective? : @device.TensorCollectiveOwner,
+  generation? : UInt64 = 1UL,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  guard (self.tensor_group is Some(_)) == (collective is Some(_)) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  if self.tensor_group is Some((rank, world_size)) && collective is Some(owner) {
+    owner.validate_group(rank~, world_size~)
   }
   let budgets = self.layers.map(layer => layer.required_device_bytes(checkpoint))
   let total = budgets.fold(
@@ -209,6 +230,7 @@ pub fn GlmDecoderSlice::prepare(
     self.buffers.push(context.allocate(self.residual_bytes))
   }
   let launches = prefix_launches.to_owned()
+  let boundaries = []
   for index, layer in self.layers {
     let input = if index == 0 { hidden } else { self.buffers[(index - 1) % 2] }
     let next = if index == self.layers.length() - 1 {
@@ -232,13 +254,42 @@ pub fn GlmDecoderSlice::prepare(
       hidden=input,
       output=next,
     )
+    if layer.tensor_boundary() is Some((before_kernel, partials, width)) {
+      boundaries.push(
+        @collective_program.ReductionBoundary::new(
+          before_kernel=launches.length() + before_kernel,
+          width~,
+          operation_id=self.first_layer + index,
+          buffer=partials,
+        ),
+      )
+    }
     launches.append(layer.launches())
     if layer is Sparse(sparse) {
       self.descriptors.push(sparse.append_descriptor())
     }
   }
   launches.append(suffix_launches)
-  self.queue = Some(context.create_ordered_kernel_executor(stream, launches))
+  match collective {
+    None =>
+      self.queue = Some(
+        context.create_ordered_kernel_executor(stream, launches),
+      )
+    Some(owner) => {
+      self.collective_queue = Some(
+        @collective_program.CollectiveKernelProgram::new(
+          context,
+          stream,
+          launches,
+          boundaries,
+          owner~,
+          generation~,
+          maximum_rows=self.maximum_rows,
+        ),
+      )
+      self.collective_count = boundaries.length()
+    }
+  }
   self.launch_count = launches.length()
   self.status = Ready
 }

@@ -31,7 +31,10 @@ pub fn GlmDecoderStage::bind_rank(
 ) -> Unit raise {
   let outputs_token = self.range.text_boundary() is (Egress | Complete)
   guard self.status is Ready &&
-    rank.outputs_token() == outputs_token &&
+    (
+      rank.outputs_token() == outputs_token ||
+      (!rank.outputs_token() && self.decoder.tensor_group is Some((0, _)))
+    ) &&
     self.counts is Some(counts) &&
     counts.same_storage(rank.ports().input(Counts)) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)

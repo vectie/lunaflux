@@ -79,6 +79,7 @@ pub struct PackedCheckpointWeight {
   priv scales_offset : Int64
   priv global_scale_offset : Int64
   priv buffer_bytes : Int64
+  priv slice : @precision.PackedMatrixSlice?
 }
 
 ///|
@@ -179,6 +180,7 @@ pub fn PackedCheckpoint::bind_weight(
     scales_offset,
     global_scale_offset,
     buffer_bytes: layout.buffer_bytes(),
+    slice: None,
   }
 }
 
@@ -283,10 +285,23 @@ pub fn PackedCheckpoint::transfer_weights_to(
         }
       }
     }
-    requests.push(transfer_plane(weight.payload, destination, base))
+    append_plane_transfers(
+      requests,
+      weight.payload,
+      destination,
+      base,
+      view=weight.slice.map(view => view.payload()),
+    )
     if weight.scales is Some(location) {
-      requests.push(
-        transfer_plane(location, destination, base + weight.scales_offset),
+      append_plane_transfers(
+        requests,
+        location,
+        destination,
+        base + weight.scales_offset,
+        view=match weight.slice {
+          None => None
+          Some(view) => view.scales()
+        },
       )
     }
     if weight.global_scale is Some(location) {

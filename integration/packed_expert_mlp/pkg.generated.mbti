@@ -19,13 +19,20 @@ pub fn bind_combine(@luna_cuda_precision.MoeCombineSource, @device.Function, cou
 
 pub fn initialize_shared_route(@device.Context, @precision_ir.ExpertMlpPrecision, indices~ : @device.Allocation, weights~ : @device.Allocation, expert_map~ : @device.Allocation) -> Unit raise @device.DeviceError
 
-pub fn prepare_moe(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], @device.OrderedKernelLaunch, routed_output~ : @device.Allocation, maximum_rows~ : Int, reduction? : MoeReduction) -> MoeExecutor raise @device.DeviceError
+pub fn prepare_moe(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], @device.OrderedKernelLaunch, routed_output~ : @device.Allocation, maximum_rows~ : Int, reduction? : MoeReduction, post_reduction_routed_kernels? : Int) -> MoeExecutor raise @device.DeviceError
 
 pub fn upload_bank(@device.Context, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @precision_ir.ExpertMlpPrecision, @device.Allocation, weights~ : ArrayView[@precision_materialize.PackedCheckpointWeight], chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
 
 // Errors
 
 // Types and methods
+pub struct ExpertTensorBoundary {
+  // private fields
+}
+pub fn ExpertTensorBoundary::before_kernel(Self) -> Int
+pub fn ExpertTensorBoundary::partials(Self) -> @device.Allocation
+pub fn ExpertTensorBoundary::width(Self) -> Int
+
 pub struct MoeExecutor {
   // private fields
 }
@@ -45,6 +52,7 @@ pub fn MoeProgram::poll(Self) -> Bool raise @device.DeviceError
 pub fn MoeProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, selected_indices~ : @device.Allocation, selected_weights~ : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation, reduction? : MoeReduction) -> Unit raise @device.DeviceError
 pub fn MoeProgram::prepare_routed(Self, @device.Context, @device.Module, @device.Stream, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, router_weight~ : @device.Allocation, correction_bias? : @device.Allocation, token_ids? : @device.Allocation, token_table? : @device.Allocation, token_table_offset? : Int64, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation, reduction? : MoeReduction) -> Unit raise @device.DeviceError
 pub fn MoeProgram::prepare_routed_frame(Self, @device.Context, @device.Module, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, router_weight~ : @device.Allocation, correction_bias? : @device.Allocation, token_ids? : @device.Allocation, token_table? : @device.Allocation, token_table_offset? : Int64, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise @device.DeviceError
+pub fn MoeProgram::prepare_routed_tensor_frame(Self, @device.Context, @device.Module, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, router_weight~ : @device.Allocation, correction_bias? : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation) -> ExpertTensorBoundary raise @device.DeviceError
 pub fn MoeProgram::source_bytes(Self) -> Bytes raise
 pub fn MoeProgram::submit(Self, live_rows~ : Int, plan_sequence~ : UInt64, global_sequence~ : UInt64) -> Unit raise @device.DeviceError
 pub fn MoeProgram::workspace_bytes(Self) -> Int64

@@ -37,15 +37,22 @@ pub fn PackedExpertMlpCudaSource::launches(
 pub fn packed_expert_mlp_source(
   plan : @precision_ir.ExpertMlpPrecision,
   symbol~ : String,
+  grouping? : @matrix.ExpertGroupingPlan,
 ) -> PackedExpertMlpCudaSource raise {
   if symbol.length() > 60 || !valid_selected_expert_symbol(symbol) {
     raise SelectedExpertMlpCudaSourceError::InvalidFunctionSymbol
   }
   if plan.scaled_dot_law() != DecodeOperandsFloat32 {
+    guard grouping is None else {
+      raise @precision_ir.PrecisionPlanError::NoImplementation
+    }
     return block_scaled_expert_source(plan, symbol~)
   }
   if plan.dot_law() == MatrixFloat32 {
-    return grouped_expert_source(plan, symbol~)
+    return grouped_expert_source(plan, symbol~, grouping?)
+  }
+  guard grouping is None else {
+    raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   let (maximum_rows, hidden, intermediate, expert_count, selected) = plan.geometry()
   let jobs = maximum_rows.to_int64() * selected.to_int64()
@@ -171,7 +178,19 @@ pub fn packed_expert_mlp_source(
   } else {
     ""
   }
-  let down_output = expr(DownPublish, ["sum", "selected_weights[job]"])
+  let partial = plan.down_publication() == ReduceFloat32BeforeRound
+  let weighted_type = if partial { "float" } else { "__nv_bfloat16" }
+  let zero = if partial { "0.0f" } else { "__float2bfloat16_rn(0.0f)" }
+  let combine_args = if partial {
+    ", const float *selected_weights"
+  } else {
+    ""
+  }
+  let down_output = if partial {
+    "sum"
+  } else {
+    expr(DownPublish, ["sum", "selected_weights[job]"])
+  }
   let gate_update = expr(DotUpdate, [
     "gate_sum",
     "x",
@@ -187,9 +206,14 @@ pub fn packed_expert_mlp_source(
     activation_load,
     "__bfloat162float(\{symbol}_w2(w2,s2,g2,out,column))",
   ])
+  let value = "weighted[(row*\{selected}ULL+slot)*\{hidden}ULL+column]"
   let combine_update = expr(CombineUpdate, [
     "sum",
-    "weighted[(row*\{selected}ULL+slot)*\{hidden}ULL+column]",
+    if partial {
+      expr(DownPublish, [value, "selected_weights[row*\{selected}ULL+slot]"])
+    } else {
+      value
+    },
   ])
   let text = loads.join("\n") +
     (
@@ -222,18 +246,18 @@ pub fn packed_expert_mlp_source(
       $|    activation[cell]=__float2bfloat16_rn(product);
       $|  }
       $|}
-      $|extern "C" __global__ void \{down}(const int *counts, \{activation_type}activation, const int *selected_indices, const float *selected_weights, const int *expert_map, const unsigned char *bank, __nv_bfloat16 *weighted) {
+      $|extern "C" __global__ void \{down}(const int *counts, \{activation_type}activation, const int *selected_indices, const float *selected_weights, const int *expert_map, const unsigned char *bank, \{weighted_type} *weighted) {
       $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{maximum_rows}) return;
       $|  const unsigned long long cell=((unsigned long long)blockIdx.x*blockDim.x+threadIdx.x)/32ULL;
       $|  const int lane=threadIdx.x&31; if(cell>=(unsigned long long)live_rows*\{selected}ULL*\{hidden}ULL) return;
       $|  const unsigned long long job=cell/\{hidden}ULL; const int out=(int)(cell%\{hidden}ULL);
       $|  const int expert=selected_indices[job]; const int local=(expert>=0&&expert<\{expert_count})?expert_map[expert]:-1;
-      $|  if(local<0||local>=\{plan.local_experts().length()}) { if(lane==0) weighted[cell]=__float2bfloat16_rn(0.0f); return; }
+      $|  if(local<0||local>=\{plan.local_experts().length()}) { if(lane==0) weighted[cell]=\{zero}; return; }
       $|  \{addresses[2]}
       $|  float sum=0.0f; for(int column=lane;column<\{intermediate};column+=32) sum=\{down_update};
       $|  sum=\{symbol}_reduce(sum); if(lane==0) weighted[cell]=\{down_output};
       $|}
-      $|extern "C" __global__ void \{combine}(const int *counts, const int *selected_indices, const __nv_bfloat16 *weighted, float *output) {
+      $|extern "C" __global__ void \{combine}(const int *counts, const int *selected_indices, const \{weighted_type} *weighted, float *output\{combine_args}) {
       $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{maximum_rows}) return;
       $|  const unsigned long long cell=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;
       $|  if(cell>=(unsigned long long)live_rows*\{hidden}ULL) return;

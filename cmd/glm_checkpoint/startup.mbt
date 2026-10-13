@@ -3,7 +3,9 @@ priv struct Startup {
   spec : @spec.Glm53FlashSpec
   checkpoint : @materialize.PackedCheckpoint
   limits : @streaming.StreamingSafetensorsLimits
-  placement : @placement.DecoderPipelinePlan
+  ranges : Array[@placement.DecoderStageRange]
+  planned_bytes : Array[Int64]
+  expert_tensor_parallel : Bool
   rows : Int
   history : Int
   budgets : Array[Int64]
@@ -46,7 +48,7 @@ fn read_inventory(
 
 ///|
 fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
-  guard startup.placement.stages().get(ordinal) is Some(range) else {
+  guard startup.ranges.get(ordinal) is Some(range) else {
     fail("stage ordinal is outside the planned placement")
   }
   let ceiling = startup.budgets[ordinal] - startup.reserve
@@ -63,6 +65,11 @@ fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
     accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
     recurrent_evaluation=startup.recurrent_evaluation,
     matrix_law=startup.matrix_law,
+    tensor_group?=if startup.expert_tensor_parallel {
+      Some((ordinal, 2))
+    } else {
+      None
+    },
   )
 }
 
@@ -84,6 +91,7 @@ fn inspect_startup(
   reserve : Int64,
   recurrent_evaluation? : @precision.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision.DenseDotLaw = ScalarFloat32,
+  expert_tensor_parallel? : Bool = false,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -159,21 +167,43 @@ fn inspect_startup(
   )
   defer text.close()
   let (ingress, egress) = text.boundary_device_bytes(checkpoint)
-  let placement = decoder.partition(
-    checkpoint,
-    budgets,
-    ingress_bytes=ingress,
-    egress_bytes=egress,
-    additional_stage_bytes=reserve,
-  )
-  guard placement.stages().length() == 2 else {
+  let placement = if expert_tensor_parallel {
+    None
+  } else {
+    Some(
+      decoder.partition(
+        checkpoint,
+        budgets,
+        ingress_bytes=ingress,
+        egress_bytes=egress,
+        additional_stage_bytes=reserve,
+      ),
+    )
+  }
+  guard placement is None || (placement is Some(p) && p.stages().length() == 2) else {
     fail("checkpoint does not require exactly two stages under these budgets")
   }
   let startup = {
     spec,
     checkpoint,
     limits,
-    placement,
+    ranges: match placement {
+      Some(p) => p.stages().to_owned()
+      None =>
+        Array::make(
+          2,
+          @placement.DecoderStageRange::new(
+            layer_count=spec.layer_count(),
+            first_layer=0,
+            end_layer=spec.layer_count(),
+          ),
+        )
+    },
+    planned_bytes: match placement {
+      Some(p) => p.stage_bytes().to_owned()
+      None => [0L, 0L]
+    },
+    expert_tensor_parallel,
     rows,
     history,
     budgets,
@@ -188,6 +218,8 @@ fn inspect_startup(
     guard stage.required_device_bytes(checkpoint) <= budgets[ordinal] - reserve else {
       fail("executable stage exceeds its planned memory budget")
     }
+    startup.planned_bytes[ordinal] = stage.required_device_bytes(checkpoint) +
+      reserve
   }
   startup
 }

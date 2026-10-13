@@ -10,6 +10,8 @@ pub fn dense_source(@grouped_matrix_ir.MatrixTilePlan, symbol~ : String) -> Byte
 
 pub fn matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weight~ : String, result~ : String, input_vector? : String, weight_vector? : String, vector_guard? : String) -> String
 
+pub fn paired_matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weights~ : (String, String), results~ : (String, String), input_vector? : String, weight_vectors? : (String, String), vector_guard? : String) -> String
+
 // Errors
 
 // Types and methods

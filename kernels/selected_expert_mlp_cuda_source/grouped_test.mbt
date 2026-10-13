@@ -68,6 +68,19 @@ test "export full-width grouped expert performance fixture" {
     let source = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
       plan,
       symbol=name,
+      grouping?=if law == MatrixFloat32 &&
+        @env.get_env_var("LUNA_GROUPED_SHARED_INPUT") == Some("1") {
+        Some(
+          @matrix.ExpertGroupingPlan::new(
+            maximum_rows=16,
+            selected_experts=8,
+            shared_input_staging=@env.get_env_var("LUNA_GROUPED_SHARED_INPUT") ==
+              Some("1"),
+          ),
+        )
+      } else {
+        None
+      },
     )
     println("LUNA_SOURCE_BEGIN")
     println(@utf8.decode(source.source_bytes()))

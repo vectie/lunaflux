@@ -154,6 +154,20 @@ fn MoeProgram::prepare_experts(
   reduction? : MoeReduction,
   prefix~ : ArrayView[@device.OrderedKernelLaunch],
 ) -> Unit raise @device.DeviceError {
+  let partial = self.routed.plan().down_publication() ==
+    ReduceFloat32BeforeRound
+  guard !partial || reduction is Some(_) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  if reduction is Some(site) {
+    let (rows, hidden, _, _, selected) = self.routed.plan().geometry()
+    let width = hidden.to_int64() *
+      (if partial { selected.to_int64() } else { 1L })
+    guard width <= 2147483647L else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+    site.validate_shape(rows, width.to_int())
+  }
   let (routed, shared, finalize, routed_output) = self.bind_experts(
     context,
     aot_module,
@@ -176,6 +190,7 @@ fn MoeProgram::prepare_experts(
       routed_output~,
       maximum_rows=self.routed.plan().geometry().0,
       reduction?,
+      post_reduction_routed_kernels=if partial { 1 } else { 0 },
     ),
   )
 }
@@ -247,5 +262,14 @@ fn MoeProgram::bind_experts(
     shared=shared.output,
     output~,
   )
-  (routed_launches, shared_launches, finalize, routed.output)
+  (
+    routed_launches,
+    shared_launches,
+    finalize,
+    if self.routed.plan().down_publication() == ReduceFloat32BeforeRound {
+      routed.weighted
+    } else {
+      routed.output
+    },
+  )
 }

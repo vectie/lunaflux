@@ -15,16 +15,23 @@ pub fn PackedExpertMlpCudaSource::activation_bytes(self : Self) -> Int64 {
 fn grouped_expert_source(
   plan : @precision_ir.ExpertMlpPrecision,
   symbol~ : String,
+  grouping? : @matrix.ExpertGroupingPlan,
 ) -> PackedExpertMlpCudaSource raise {
   guard plan.activation_quantization() is None &&
     plan.scaled_dot_law() == DecodeOperandsFloat32 else {
     raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   let (rows, hidden, intermediate, experts, selected) = plan.geometry()
-  let grouping = @matrix.ExpertGroupingPlan::new(
-    maximum_rows=rows,
-    selected_experts=selected,
+  let grouping = grouping.unwrap_or(
+    @matrix.ExpertGroupingPlan::new(
+      maximum_rows=rows,
+      selected_experts=selected,
+    ),
   )
+  guard grouping.maximum_groups().to_int64() ==
+    rows.to_int64() * selected.to_int64() else {
+    raise @precision_ir.PrecisionPlanError::NoImplementation
+  }
   let jobs = grouping.maximum_groups()
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
   let gate_plan = @matrix.MatrixTilePlan::new(
@@ -81,31 +88,58 @@ fn grouped_expert_source(
     )
   }
   let input = "(job_ids[matrix_row]>=0&&local>=0?input[(unsigned long long)(job_ids[matrix_row]/\{selected})*\{hidden}+matrix_inner]:__float2bfloat16_rn(0.0f))"
-  let bodies : Array[String] = []
+  let pair_weights : Array[String] = []
+  let pair_vectors : Array[String] = []
   for i in 0..<2 {
-    bodies.push(
-      @tiled.matrix_tile_body(
-        gate_plan,
-        input~,
-        weight="(local>=0&&column_base+matrix_column<\{intermediate}?\{symbol}_w\{i}(w\{i},s\{i},g\{i},column_base+matrix_column,matrix_inner):__float2bfloat16_rn(0.0f))",
-        result="result\{i}",
-        vector_guard="((unsigned long long)input&15ULL)==0ULL",
-        input_vector?=if hidden % 8 == 0 {
-          Some(
-            "(job_ids[matrix_row]>=0&&local>=0?*reinterpret_cast<const uint4 *>(input+(unsigned long long)(job_ids[matrix_row]/\{selected})*\{hidden}+matrix_inner):make_uint4(0,0,0,0))",
-          )
-        } else {
-          None
-        },
-        weight_vector?=if vectors[i] {
-          Some(
-            "(local>=0&&column_base+matrix_column<\{intermediate}?\{symbol}_v\{i}(w\{i},s\{i},g\{i},column_base+matrix_column,matrix_inner):make_uint4(0,0,0,0))",
-          )
-        } else {
-          None
-        },
-      ),
+    pair_weights.push(
+      "(local>=0&&column_base+matrix_column<\{intermediate}?\{symbol}_w\{i}(w\{i},s\{i},g\{i},column_base+matrix_column,matrix_inner):__float2bfloat16_rn(0.0f))",
     )
+    pair_vectors.push(
+      "(local>=0&&column_base+matrix_column<\{intermediate}?\{symbol}_v\{i}(w\{i},s\{i},g\{i},column_base+matrix_column,matrix_inner):make_uint4(0,0,0,0))",
+    )
+  }
+  let pair_body = if grouping.shared_input_staging() {
+    @tiled.paired_matrix_tile_body(
+      gate_plan,
+      input~,
+      weights=(pair_weights[0], pair_weights[1]),
+      results=("result0", "result1"),
+      vector_guard="((unsigned long long)input&15ULL)==0ULL",
+      input_vector?=if hidden % 8 == 0 {
+        Some(
+          "(job_ids[matrix_row]>=0&&local>=0?*reinterpret_cast<const uint4 *>(input+(unsigned long long)(job_ids[matrix_row]/\{selected})*\{hidden}+matrix_inner):make_uint4(0,0,0,0))",
+        )
+      } else {
+        None
+      },
+      weight_vectors?=if vectors[0] && vectors[1] {
+        Some((pair_vectors[0], pair_vectors[1]))
+      } else {
+        None
+      },
+    )
+  } else {
+    let bodies = []
+    for i in 0..<2 {
+      bodies.push(
+        @tiled.matrix_tile_body(
+          gate_plan,
+          input~,
+          weight=pair_weights[i],
+          result="result\{i}",
+          vector_guard="((unsigned long long)input&15ULL)==0ULL",
+          input_vector?=if hidden % 8 == 0 {
+            Some(
+              "(job_ids[matrix_row]>=0&&local>=0?*reinterpret_cast<const uint4 *>(input+(unsigned long long)(job_ids[matrix_row]/\{selected})*\{hidden}+matrix_inner):make_uint4(0,0,0,0))",
+            )
+          } else {
+            None
+          },
+          weight_vector?=if vectors[i] { Some(pair_vectors[i]) } else { None },
+        ),
+      )
+    }
+    bodies.join("\n")
   }
   let down_body = @tiled.matrix_tile_body(
     down_plan,
@@ -149,10 +183,23 @@ fn grouped_expert_source(
     ""
   }
   let product = expr(Product, ["g", "up"])
-  let publish = expr(DownPublish, ["result[i]", "selected_weights[job]"])
+  let partial = plan.down_publication() == ReduceFloat32BeforeRound
+  let weighted_type = if partial { "float" } else { "__nv_bfloat16" }
+  let zero = if partial { "0.0f" } else { "__float2bfloat16_rn(0.0f)" }
+  let publish = if partial {
+    "result[i]"
+  } else {
+    expr(DownPublish, ["result[i]", "selected_weights[job]"])
+  }
+  let combine_args = if partial { ",const float *selected_weights" } else { "" }
+  let value = "weighted[(row*\{selected}ULL+slot)*\{hidden}ULL+column]"
   let combine = expr(CombineUpdate, [
     "sum",
-    "weighted[(row*\{selected}ULL+slot)*\{hidden}ULL+column]",
+    if partial {
+      expr(DownPublish, [value, "selected_weights[row*\{selected}ULL+slot]"])
+    } else {
+      value
+    },
   ])
   let group_symbol = symbol + "_group"
   let gate_symbol = symbol + "_gate_up"
@@ -198,8 +245,7 @@ fn grouped_expert_source(
       $|  \{addresses[0]}
       $|  \{addresses[1]}
       $|  __shared__ __align__(32) float result0[1024],result1[1024];
-      $|  \{bodies[0]}
-      $|  \{bodies[1]}
+      $|  \{pair_body}
       $|  for(int i=threadIdx.x;i<1024;i+=128) {
       $|    int job=job_ids[i/64],column=column_base+i%64;
       $|    if(job<0||column>=\{intermediate}) continue;
@@ -208,7 +254,7 @@ fn grouped_expert_source(
       $|    activation[(unsigned long long)job*\{intermediate}+column]=local<0?__float2bfloat16_rn(0.0f):__float2bfloat16_rn(product);
       $|  }
       $|}
-      $|extern "C" __global__ void \{down_symbol}(const int *counts,const __nv_bfloat16 *activation,const int *selected_indices,const float *selected_weights,const int *expert_map,const unsigned char *bank,__nv_bfloat16 *weighted) {
+      $|extern "C" __global__ void \{down_symbol}(const int *counts,const __nv_bfloat16 *activation,const int *selected_indices,const float *selected_weights,const int *expert_map,const unsigned char *bank,\{weighted_type} *weighted) {
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
       $|  const int group=blockIdx.x/\{n_down},column_base=(blockIdx.x%\{n_down})*64;
       $|  if(group>=meta[0]) return;
@@ -220,10 +266,10 @@ fn grouped_expert_source(
       $|  \{down_body}
       $|  for(int i=threadIdx.x;i<1024;i+=128) {
       $|    int job=job_ids[i/64],column=column_base+i%64;
-      $|    if(job>=0&&column<\{hidden}) weighted[(unsigned long long)job*\{hidden}+column]=local<0?__float2bfloat16_rn(0.0f):\{publish};
+      $|    if(job>=0&&column<\{hidden}) weighted[(unsigned long long)job*\{hidden}+column]=local<0?\{zero}:\{publish};
       $|  }
       $|}
-      $|extern "C" __global__ void \{combine_symbol}(const int *counts,const int *selected_indices,const __nv_bfloat16 *weighted,float *output) {
+      $|extern "C" __global__ void \{combine_symbol}(const int *counts,const int *selected_indices,const \{weighted_type} *weighted,float *output\{combine_args}) {
       $|  int rows=counts[3]; if(rows<=0||rows>\{rows}) return;
       $|  unsigned long long cell=(unsigned long long)blockIdx.x*256+threadIdx.x;
       $|  if(cell>=(unsigned long long)rows*\{hidden}) return;

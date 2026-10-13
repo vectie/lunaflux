@@ -14,6 +14,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   accuracy~ : @precision_ir.Accuracy,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int, Int),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -42,6 +43,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
         maximum_expert_bytes,
         accuracy,
         matrix_law~,
+        tensor_group?,
       ),
     ),
     status: Fresh,
@@ -58,18 +60,38 @@ fn make_moe_ffn(
   maximum_expert_bytes : Int64,
   accuracy : @precision_ir.Accuracy,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int, Int),
 ) -> GlmFfn raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
   }
-  let routed = expert_compute_plan(
-    layer_index~,
-    expert_indices=Array::makei(spec.routed_expert_count(), i => i),
-    maximum_rows~,
-    memory_ceiling=maximum_expert_bytes,
-    accuracy~,
-    matrix_law~,
-  )
+  let partition = match tensor_group {
+    None => None
+    Some((rank, world_size)) =>
+      Some(
+        tensor_expert_compute_plan(
+          layer_index~,
+          maximum_rows~,
+          rank~,
+          world_size~,
+          accuracy~,
+          matrix_law~,
+          memory_ceiling=maximum_expert_bytes,
+        ),
+      )
+  }
+  let routed = match partition {
+    Some(partition) => partition.rank_plan()
+    None =>
+      expert_compute_plan(
+        layer_index~,
+        expert_indices=Array::makei(spec.routed_expert_count(), i => i),
+        maximum_rows~,
+        memory_ceiling=maximum_expert_bytes,
+        accuracy~,
+        matrix_law~,
+      )
+  }
   let shared = shared_expert_compute_plan(
     layer_index~,
     maximum_rows~,
@@ -132,6 +154,8 @@ fn make_moe_ffn(
       program,
       source: program.source_bytes(),
       banks: [],
+      tensor_partition: partition,
+      tensor_boundary: None,
     }),
     input_bytes: maximum_rows.to_int64() *
     spec.hyper_connection_streams().to_int64() *

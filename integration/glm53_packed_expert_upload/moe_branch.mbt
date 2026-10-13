@@ -5,6 +5,8 @@ priv struct GlmMoeBranch {
   program : @packed_expert_mlp.MoeProgram
   source : Bytes
   banks : Array[@device.Allocation]
+  tensor_partition : @precision_ir.ExpertTensorPartition?
+  mut tensor_boundary : @packed_expert_mlp.ExpertTensorBoundary?
 }
 
 ///|
@@ -27,16 +29,30 @@ fn GlmMoeBranch::prepare(
   self.banks.push(routed)
   let shared = context.allocate(self.shared.bank_bytes())
   self.banks.push(shared)
-  upload_expert_bank(
-    context,
-    checkpoint,
-    root,
-    self.routed,
-    routed,
-    layer_index~,
-    chunk_bytes~,
-    limits~,
-  )
+  match self.tensor_partition {
+    Some(partition) =>
+      upload_tensor_expert_bank(
+        context,
+        checkpoint,
+        root,
+        partition,
+        routed,
+        layer_index~,
+        chunk_bytes~,
+        limits~,
+      )
+    None =>
+      upload_expert_bank(
+        context,
+        checkpoint,
+        root,
+        self.routed,
+        routed,
+        layer_index~,
+        chunk_bytes~,
+        limits~,
+      )
+  }
   upload_shared_expert_bank(
     context,
     checkpoint,
@@ -47,18 +63,35 @@ fn GlmMoeBranch::prepare(
     chunk_bytes~,
     limits~,
   )
-  self.program.prepare_routed_frame(
-    context,
-    aot,
-    maximum_workspace_bytes=self.program.workspace_bytes(),
-    counts~,
-    input~,
-    router_weight~,
-    correction_bias~,
-    routed_bank=routed,
-    shared_bank=shared,
-    output~,
-  )
+  if self.tensor_partition is Some(_) {
+    self.tensor_boundary = Some(
+      self.program.prepare_routed_tensor_frame(
+        context,
+        aot,
+        maximum_workspace_bytes=self.program.workspace_bytes(),
+        counts~,
+        input~,
+        router_weight~,
+        correction_bias~,
+        routed_bank=routed,
+        shared_bank=shared,
+        output~,
+      ),
+    )
+  } else {
+    self.program.prepare_routed_frame(
+      context,
+      aot,
+      maximum_workspace_bytes=self.program.workspace_bytes(),
+      counts~,
+      input~,
+      router_weight~,
+      correction_bias~,
+      routed_bank=routed,
+      shared_bank=shared,
+      output~,
+    )
+  }
 }
 
 ///|

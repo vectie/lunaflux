@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/collective_kernel_program"
+
+import {
+  "vectie/lunaflux/device",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct CollectiveKernelProgram {
+  // private fields
+}
+pub fn CollectiveKernelProgram::abort(Self) -> Unit raise @device.DeviceError
+pub fn CollectiveKernelProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn CollectiveKernelProgram::new(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], ArrayView[ReductionBoundary], owner~ : @device.TensorCollectiveOwner, generation~ : UInt64, maximum_rows~ : Int) -> Self raise @device.DeviceError
+pub fn CollectiveKernelProgram::poll(Self) -> Bool raise @device.DeviceError
+pub fn CollectiveKernelProgram::submit(Self, live_rows~ : Int, plan_sequence~ : UInt64, global_sequence~ : UInt64) -> Unit raise @device.DeviceError
+
+pub struct ReductionBoundary {
+  // private fields
+}
+pub fn ReductionBoundary::new(before_kernel~ : Int, width~ : Int, operation_id~ : Int, buffer~ : @device.Allocation) -> Self
+
+// Type aliases
+
+// Traits

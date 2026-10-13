@@ -23,6 +23,20 @@ pub extend ExpertRoutingPlacement with Eq::{equal, not_equal}
 pub extend ExpertRoutingPlacement with @debug.Debug::{to_repr}
 
 ///|
+/// A down-projection partial is not an expert output. Collective execution
+/// must complete before its output round and routing/publication expression.
+pub(all) enum ExpertDownPublication {
+  LocalBFloat16
+  ReduceFloat32BeforeRound
+} derive(Debug, Eq)
+
+///|
+pub extend ExpertDownPublication with Eq::{equal, not_equal}
+
+///|
+pub extend ExpertDownPublication with @debug.Debug::{to_repr}
+
+///|
 /// Immutable selected-expert compute plan. All weight operands are decoded at
 /// consumption; BF16 activation/product rounding is explicit. Rank-local
 /// contributions are combined in F32 so the same plan can feed an all-reduce.
@@ -41,6 +55,7 @@ pub struct ExpertMlpPrecision {
   priv activation_quantization : (QuantizationPlan, QuantizationPlan)?
   priv scaled_dot_law : ScaledDotReductionLaw
   priv dot_law : DenseDotLaw
+  priv down_publication : ExpertDownPublication
   priv quantized_bytes : (Int64, Int64)
   priv offsets : ReadOnlyArray[Int64]
   priv stride : Int64
@@ -73,6 +88,7 @@ pub fn ExpertMlpPrecision::new(
   activation_quantization? : (QuantizationPlan, QuantizationPlan),
   scaled_dot_law? : ScaledDotReductionLaw = DecodeOperandsFloat32,
   dot_law? : DenseDotLaw = ScalarFloat32,
+  down_publication? : ExpertDownPublication = LocalBFloat16,
   memory_ceiling~ : Int64,
 ) -> Self raise PrecisionPlanError {
   if memory_ceiling < 0L ||
@@ -88,6 +104,13 @@ pub fn ExpertMlpPrecision::new(
     raise MissingAccuracyContract
   }
   let weights = [gate, up, down]
+  if down_publication == ReduceFloat32BeforeRound &&
+    (
+      scaled_dot_law != DecodeOperandsFloat32 ||
+      activation_quantization is Some(_)
+    ) {
+    raise NoImplementation
+  }
   if dot_law == MatrixFloat32 &&
     (
       activation_quantization is Some(_) ||
@@ -150,7 +173,11 @@ pub fn ExpertMlpPrecision::new(
   )
   let weighted_bytes = expert_checked_mul(
     expert_checked_mul(jobs, hidden.to_int64()),
-    2L,
+    if down_publication == LocalBFloat16 {
+      2L
+    } else {
+      4L
+    },
   )
   let row_cells = expert_checked_mul(maximum_rows.to_int64(), hidden.to_int64())
   let quantized_bytes = match activation_quantization {
@@ -215,6 +242,7 @@ pub fn ExpertMlpPrecision::new(
     activation_quantization,
     scaled_dot_law,
     dot_law,
+    down_publication,
     quantized_bytes,
     offsets: ReadOnlyArray::from_array(offsets),
     stride,

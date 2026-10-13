@@ -152,6 +152,9 @@ fn GlmRecurrentLayer::prepare_layer(
     None => 0L
     Some(ffn) => ffn.bank_bytes()
   }
+  guard stream is None || !(self.ffn is Some(ffn) && ffn.is_tensor_parallel()) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
   guard self.status is Fresh &&
     maximum_device_bytes >= self.workspace_bytes() &&
     banks <= maximum_device_bytes - self.workspace_bytes() else {

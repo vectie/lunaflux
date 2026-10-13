@@ -63,6 +63,9 @@ fn binary(glm : Bool, runtime : String) -> String {
 
 ///|
 fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
+  if options is [.. base, "--expert-tp"] {
+    return runtime_selection(glm, base)
+  }
   if options is [.. base, "--tiled-grouped"] {
     return runtime_selection(glm, base)
   }
@@ -86,6 +89,9 @@ fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
 
 ///|
 fn row_selection(glm : Bool, options : ArrayView[String]) -> Int raise {
+  if options is [.. base, "--expert-tp"] {
+    return row_selection(glm, base)
+  }
   if options is [.. base, "--tiled-grouped"] {
     return row_selection(glm, base)
   }
@@ -216,6 +222,18 @@ test "fresh runtime selection is explicit and preserves the retained baseline" {
   )
   assert_eq(runtime_selection(true, []), selected(true))
   assert_eq(
+    runtime_selection(true, [
+      "--runtime", "/tmp/lunaflux-tp-v1", "--rows", "16", "--tiled-grouped", "--expert-tp",
+    ]),
+    "/tmp/lunaflux-tp-v1",
+  )
+  assert_eq(
+    row_selection(true, [
+      "--runtime", "/tmp/lunaflux-tp-v1", "--rows", "16", "--tiled-grouped", "--expert-tp",
+    ]),
+    16,
+  )
+  assert_eq(
     binary(
       true,
       runtime_selection(true, ["--runtime", "/tmp/lunaflux-glm-new-v1"]),
@@ -249,8 +267,17 @@ async fn main {
     )
   }
   let glm = family == "glm"
-  let chunk = options.last() is Some("--chunk-kda")
-  let tiled = options.last() is Some("--tiled-grouped")
+  let expert_tp = options.last() is Some("--expert-tp")
+  let profiles = if expert_tp {
+    options[:options.length() - 1]
+  } else {
+    options
+  }
+  let chunk = profiles.last() is Some("--chunk-kda")
+  let tiled = profiles.last() is Some("--tiled-grouped")
+  guard !expert_tp || glm else {
+    fail("expert TP is currently bound through GLM")
+  }
   guard !tiled || glm else {
     fail("tiled grouped profile currently bound through GLM")
   }
@@ -267,7 +294,8 @@ async fn main {
     aot +
     "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n" +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
-    (if tiled { "matrix_evaluation=bf16-matrix-f32-grouped\n" } else { "" })
+    (if tiled { "matrix_evaluation=bf16-matrix-f32-grouped\n" } else { "" }) +
+    "expert_tensor_parallel=\{expert_tp}\n"
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -506,7 +534,8 @@ async fn main {
           "-tiled-grouped"
         } else {
           ""
-        })
+        }) +
+        (if expert_tp { "-expert-tp" } else { "" })
       record(
         root,
         role + "-start",
@@ -516,6 +545,16 @@ async fn main {
           unit +
           " --setenv=TMPDIR=" +
           root +
+          (if expert_tp {
+            " --setenv=LD_LIBRARY_PATH=" +
+            runtime +
+            "/nccl --setenv=NCCL_DEBUG=WARN --setenv=NCCL_SOCKET_IFNAME=" +
+            (if last { "enp1s0f0np0" } else { "enp1s0f1np1" }) +
+            " --setenv=NCCL_IB_HCA=" +
+            (if last { "rocep1s0f0" } else { "rocep1s0f1" })
+          } else {
+            ""
+          }) +
           " --property=RemainAfterExit=yes --property=MemoryMax=96G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800 " +
           profile_prefix +
           executable +

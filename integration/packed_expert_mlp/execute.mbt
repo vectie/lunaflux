@@ -18,6 +18,20 @@ pub fn MoeReduction::new(
 }
 
 ///|
+fn MoeReduction::validate_shape(
+  self : Self,
+  rows : Int,
+  width : Int,
+) -> Unit raise @device.DeviceError {
+  self.owner.validate_sum_site(
+    site_sequence=self.site_sequence,
+    operation_id=self.operation_id,
+    maximum_rows=rows,
+    width~,
+  )
+}
+
+///|
 priv enum MoeExecutionState {
   Idle
   AwaitingSubmission
@@ -51,8 +65,14 @@ pub fn prepare_moe(
   routed_output~ : @device.Allocation,
   maximum_rows~ : Int,
   reduction? : MoeReduction,
+  post_reduction_routed_kernels? : Int = 0,
 ) -> MoeExecutor raise @device.DeviceError {
-  guard !routed.is_empty() && !shared.is_empty() && maximum_rows > 0 else {
+  guard !routed.is_empty() &&
+    !shared.is_empty() &&
+    maximum_rows > 0 &&
+    post_reduction_routed_kernels >= 0 &&
+    post_reduction_routed_kernels < routed.length() &&
+    (post_reduction_routed_kernels == 0 || reduction is Some(_)) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   let launches = routed.to_owned()
@@ -65,7 +85,7 @@ pub fn prepare_moe(
     routed_output,
     reduction,
     maximum_rows,
-    routed_count: routed.length(),
+    routed_count: routed.length() - post_reduction_routed_kernels,
     state: Idle,
     reduction_complete: false,
   }

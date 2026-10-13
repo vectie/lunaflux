@@ -63,6 +63,7 @@ pub fn PackedCheckpointWeight::buffer_bytes(Self) -> Int64
 pub fn PackedCheckpointWeight::global_scale_offset(Self) -> Int64?
 pub fn PackedCheckpointWeight::representation(Self) -> @precision_format.Representation
 pub fn PackedCheckpointWeight::scales_offset(Self) -> Int64?
+pub fn PackedCheckpointWeight::slice(Self, @precision_ir.PackedMatrixSlice) -> Self raise PackedCheckpointError
 
 pub(all) enum SourcePlane {
   Payload

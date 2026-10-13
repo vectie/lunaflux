@@ -8,6 +8,7 @@ fn prepare_rank(
   root : @approved_fs.ApprovedRoot,
   rank : @worker.SerialDecoderRank,
   stage : @glm.GlmDecoderStage,
+  collective? : @device.TensorCollectiveOwner,
 ) -> Unit raise {
   let ports = rank.ports()
   guard ports.required_device_bytes() <= startup.reserve else {
@@ -28,6 +29,7 @@ fn prepare_rank(
       maximum_device_bytes=startup.budgets[ordinal] - startup.reserve,
       chunk_bytes=1048576,
       limits=startup.limits,
+      collective?,
     )
   })
   stage.bind_rank(rank, context)
@@ -53,6 +55,10 @@ async fn run_egress(
   root : @approved_fs.ApprovedRoot,
   arguments : ArrayView[String],
 ) -> Unit {
+  if startup.expert_tensor_parallel {
+    run_tensor_egress(startup, root, arguments)
+    return
+  }
   let context = @device.open_context(0)
   defer close_rank_context(context, "egress")
   let stream = context.create_stream()
@@ -252,7 +258,6 @@ async fn run_ingress(
     outputs_token=false,
   )
   defer rank.close()
-  prepare_rank(startup, 0, context, aot, stream, root, rank, stage)
   let connection = @socket.Tcp::connect(@socket.Addr::parse(arguments[2]))
   defer connection.close()
   let client = @control.DecoderStageClient::new(
@@ -267,15 +272,30 @@ async fn run_ingress(
     @socket.Addr::parse(arguments[3]),
   )
   defer activation_connection.close()
-  let edge = @glm.GlmActivationEdge::new(
-    stage,
-    activation_connection,
-    outgoing=true,
-    maximum_host_bytes=startup.reserve / 4L,
-    timeout_millis=300000UL,
-  )
-  defer edge.close()
-  edge.prepare(context)
+  let collective = if startup.expert_tensor_parallel {
+    Some(connect_tensor_group(context, stage, activation_connection, rank=0))
+  } else {
+    None
+  }
+  defer (if collective is Some(owner) { owner.abort() })
+  prepare_rank(startup, 0, context, aot, stream, root, rank, stage, collective?)
+  let edge = if startup.expert_tensor_parallel {
+    None
+  } else {
+    Some(
+      @glm.GlmActivationEdge::new(
+        stage,
+        activation_connection,
+        outgoing=true,
+        maximum_host_bytes=startup.reserve / 4L,
+        timeout_millis=300000UL,
+      ),
+    )
+  }
+  defer (if edge is Some(edge) { edge.close() })
+  if edge is Some(edge) {
+    edge.prepare(context)
+  }
   let pipeline = @pipeline.TwoRankDecoderPipeline::new(
     new_frame(startup),
     rank,
@@ -283,10 +303,20 @@ async fn run_ingress(
     limits,
     inference,
     begin_activation=(epoch, rows, now) => {
-      edge.begin(epoch~, live_rows=rows, local_now_millis=now)
+      if edge is Some(edge) {
+        edge.begin(epoch~, live_rows=rows, local_now_millis=now)
+      }
     },
-    poll_activation=now => edge.poll(local_now_millis=now),
-    close_activation=() => edge.close(),
+    poll_activation=now => {
+      match edge {
+        Some(edge) => edge.poll(local_now_millis=now)
+        None => {
+          @async.pause()
+          true
+        }
+      }
+    },
+    close_activation=() => if edge is Some(edge) { edge.close() },
   )
   defer pipeline.close()
   let clock = @clock.MonotonicClock::system()

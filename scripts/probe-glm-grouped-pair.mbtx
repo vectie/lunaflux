@@ -1,0 +1,153 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode, .. candidate_path] &&
+    candidate_path.length() <= 1 &&
+    root.has_prefix("/tmp/lunaflux-glm-grouped-pair-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode is ("prepare" | "run" | "sanitize") else {
+    fail("NEW_ROOT prepare|run|sanitize")
+  }
+  let host = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, host, command]).output(
+      max_output_bytes=8388608,
+    )
+  }
+  async fn record(name : String, output : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      output.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      output.stderr(),
+      create_mode=CreateNew,
+    )
+    output.check()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    // Frozen actual AOT exports, not regenerated references or payload hashes.
+    for
+      (source, name) in [
+        (
+          "/tmp/lunaflux-glm-grouped-performance-20261013-v3/grouped.cuh", "baseline",
+        ),
+        (
+          candidate_path
+          .get(0)
+          .unwrap_or(
+            "/tmp/lunaflux-glm-grouped-performance-20261013-paired-v1/grouped.cuh",
+          ),
+          "candidate",
+        ),
+      ] {
+      let mut text = @fs.read_file(source).text()
+      for (prefix, target) in [("matrix", name), ("scalar", name + "_scalar")] {
+        for
+          suffix in [
+            "group", "gate_up", "down", "combine", "reduce", "w0", "w1", "w2", "v0",
+            "v1", "v2", "grid0", "grid1", "grid2", "grid3", "block0", "block1", "block2",
+            "block3", "stride", "offsets", "activation",
+          ] {
+          text = text
+            .split(prefix + "_" + suffix)
+            .to_array()
+            .join(target + "_" + suffix)
+        }
+      }
+      if name == "baseline" {
+        // Literal launches retained in v3/probe.cu (the old exporter did not
+        // emit constants). These match the selected baseline, not a new tile.
+        text += "\nstatic constexpr int baseline_grid0=1,baseline_block0=128,baseline_grid1=4096,baseline_block1=128,baseline_grid2=8192,baseline_block2=128,baseline_grid3=256,baseline_block3=256;\n"
+      }
+      @fs.write_file(root + "/" + name + ".cuh", text, create_mode=CreateNew)
+    }
+    record("mkdir", remote("mkdir " + root))
+    for
+      (source, name) in [
+        (root + "/baseline.cuh", "baseline.cuh"),
+        (root + "/candidate.cuh", "candidate.cuh"),
+        ("tests/packed_moe_execution/grouped_pair_probe.cu", "probe.cu"),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        source,
+        host + ":" + root + "/" + name,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+    return
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let memory = remote("awk '/MemAvailable:/ {print $2}' /proc/meminfo")
+  memory.check()
+  guard @string.parse_int64(memory.stdout().trim()) >= 16777216L else {
+    fail("host headroom")
+  }
+  let trials = if mode == "run" {
+    ["r1", "r3", "r16"]
+  } else {
+    ["memcheck", "racecheck", "synccheck"]
+  }
+  for trial in trials {
+    let arguments = match trial {
+      "r1" => "1 timing"
+      "r3" => "3 timing"
+      "r16" => "16 timing"
+      "memcheck" => "16 candidate"
+      _ => "1 candidate"
+    }
+    let sanitizer = if mode == "run" {
+      ""
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+      trial +
+      (if trial == "memcheck" { " --leak-check full" } else { "" }) +
+      " "
+    }
+    record(
+      trial,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-" +
+        trial +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+        sanitizer +
+        root +
+        "/probe " +
+        arguments,
+      ),
+    )
+  }
+}

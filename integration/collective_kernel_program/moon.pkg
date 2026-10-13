@@ -1,0 +1,5 @@
+import {
+  "vectie/lunaflux/device",
+}
+
+supported_targets = "native"

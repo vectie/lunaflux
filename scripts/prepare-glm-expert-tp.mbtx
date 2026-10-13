@@ -1,0 +1,203 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, build] &&
+    root.has_prefix("/tmp/lunaflux-glm-expert-tp-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    [root, build].all(p => {
+      p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))
+    }) else {
+    fail("NEW_RUNTIME_ROOT COMMITTED_BUILD_ROOT")
+  }
+  let hosts = ["wlc003s@192.168.2.178", "wlc004s@192.168.2.179"]
+  let sockets = [
+    "/tmp/lunaflux-checkpoint-live-20261010.sock", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+  ]
+  async fn remote(rank : Int, cmd : String) -> @shell.Output {
+    @shell.Cmd("ssh", [
+      "-S",
+      sockets[rank],
+      "-o",
+      "BatchMode=yes",
+      hosts[rank],
+      cmd,
+    ]).output(max_output_bytes=8388608)
+  }
+  async fn record(name : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  async fn copy(rank : Int, source : String, destination : String) -> Unit {
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + sockets[rank],
+      source,
+      destination,
+    ])
+    .output()
+    .check()
+  }
+  async fn wait(rank : Int, unit : String) -> Unit {
+    for _ in 0..<360 {
+      let state = remote(
+        rank,
+        "systemctl --user show " +
+        unit +
+        " -p SubState -p Result -p ExecMainStatus",
+      )
+      state.check()
+      guard !state.stdout().contains("SubState=failed") else {
+        fail(state.stdout())
+      }
+      if state.stdout().contains("SubState=exited") {
+        guard state.stdout().contains("ExecMainStatus=0") else {
+          fail(state.stdout())
+        }
+        return
+      }
+      @async.sleep(5000)
+    }
+    fail("CPU preparation timeout")
+  }
+  @fs.mkdir(root)
+  record(
+    "build-status",
+    remote(
+      0,
+      "systemctl --user show " +
+      build[5:].to_owned() +
+      ".service -p ActiveState -p Result -p ExecMainStatus",
+    ),
+  )
+  copy(
+    0,
+    hosts[0] +
+    ":" +
+    build +
+    "/source/_build/native/release/build/cmd/glm_checkpoint/glm_checkpoint.exe",
+    root + "/glm_checkpoint.exe",
+  )
+  let binary = root + "/glm_checkpoint.exe"
+  let aot = root + "/aot"
+  for rank in 0..<2 {
+    record("mkdir-\{rank}", remote(rank, "mkdir " + root))
+    copy(rank, binary, hosts[rank] + ":" + binary)
+    record("nccl-dir-\{rank}", remote(rank, "mkdir " + root + "/nccl"))
+  }
+  // Reuse the already cached runtime library. Never pull an image or install
+  // system packages, and never compute payload hashes.
+  let container = root[5:].to_owned() + "-library"
+  record(
+    "library-create",
+    remote(
+      1,
+      "docker create --name " +
+      container +
+      " --entrypoint /bin/true nvcr.io/nvidia/sglang:26.09-py3",
+    ),
+  )
+  record(
+    "library-copy",
+    remote(
+      1,
+      "docker cp -L " +
+      container +
+      ":/usr/lib/aarch64-linux-gnu/libnccl.so.2 " +
+      root +
+      "/nccl/libnccl.so.2",
+    ),
+  )
+  record("library-retire", remote(1, "docker rm " + container))
+  copy(1, hosts[1] + ":" + root + "/nccl/libnccl.so.2", root + "/libnccl.so.2")
+  copy(0, root + "/libnccl.so.2", hosts[0] + ":" + root + "/nccl/libnccl.so.2")
+  let export_unit = root[5:].to_owned() + "-export"
+  record(
+    "export-launch",
+    remote(
+      0,
+      "systemd-run --user --unit=" +
+      export_unit +
+      " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+      binary +
+      " export-tiled-grouped-expert-tp /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 16 64 103079215104 103079215104 2147483648 " +
+      aot,
+    ),
+  )
+  errdefer ignore(
+    remote(0, "journalctl --user -u " + export_unit + " --no-pager"),
+  )
+  wait(0, export_unit)
+  record(
+    "export-journal",
+    remote(0, "journalctl --user -u " + export_unit + " --no-pager"),
+  )
+  record("aot-dir-1", remote(1, "mkdir " + aot))
+  for rank in 0..<2 {
+    copy(
+      0,
+      hosts[0] + ":" + aot + "/stage-\{rank}.cu",
+      root + "/stage-\{rank}.cu",
+    )
+    if rank == 1 {
+      copy(rank, root + "/stage-1.cu", hosts[rank] + ":" + aot + "/stage-1.cu")
+    }
+    let old = if rank == 0 {
+      "/tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP"
+    } else {
+      "/tmp/lunaflux-glm-real-aot-20261010.uvS6YcCC"
+    }
+    record(
+      "labels-\{rank}",
+      remote(rank, "cp -n " + old + "/SHARDS.sha256 " + aot + "/SHARDS.sha256"),
+    )
+    let unit = root[5:].to_owned() + "-compile-\{rank}"
+    record(
+      "compile-launch-\{rank}",
+      remote(
+        rank,
+        "systemd-run --user --unit=" +
+        unit +
+        " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 --cubin -arch=sm_121 " +
+        aot +
+        "/stage-\{rank}.cu -o " +
+        aot +
+        "/stage-\{rank}.cubin",
+      ),
+    )
+  }
+  for rank in 0..<2 {
+    let unit = root[5:].to_owned() + "-compile-\{rank}"
+    wait(rank, unit)
+    record(
+      "compile-journal-\{rank}",
+      remote(rank, "journalctl --user -u " + unit + " --no-pager"),
+    )
+    copy(
+      rank,
+      hosts[rank] + ":" + aot + "/stage-\{rank}.cubin",
+      root + "/stage-\{rank}.cubin",
+    )
+  }
+  @fs.write_file(
+    root + "/PREPARED.txt",
+    "expert_tp=2\nattention=replicated\nrows=16\nhistory=64\nno_hashing=true\n",
+    create_mode=CreateNew,
+  )
+  println("CPU-only expert TP preparation complete; full model has not run")
+}

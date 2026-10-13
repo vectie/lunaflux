@@ -33,6 +33,7 @@ pub fn GlmDecoderStage::new(
   accuracy~ : @precision_ir.Accuracy,
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int, Int),
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
     maximum_history >= maximum_rows else {
@@ -63,6 +64,7 @@ pub fn GlmDecoderStage::new(
       accuracy~,
       recurrent_evaluation~,
       matrix_law~,
+      tensor_group?,
     ),
     text: GlmTextIo::new(
       spec,
@@ -127,6 +129,8 @@ pub fn GlmDecoderStage::prepare(
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
+  collective? : @device.TensorCollectiveOwner,
+  generation? : UInt64 = 1UL,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -192,6 +196,8 @@ pub fn GlmDecoderStage::prepare(
     output=self.residuals[1],
     prefix_launches=self.text.prefix(),
     suffix_launches=self.text.suffix(),
+    collective?,
+    generation~,
   )
   self.counts = Some(counts)
   self.status = Ready

@@ -54,18 +54,20 @@ pub fn MatrixTilePlan::tile_count(self : Self) -> Int {
 /// bounded by capacity, not by the number of experts or token values.
 pub struct ExpertGroupingPlan {
   priv jobs : Int
+  priv shared_input_staging : Bool
 }
 
 ///|
 pub fn ExpertGroupingPlan::new(
   maximum_rows~ : Int,
   selected_experts~ : Int,
+  shared_input_staging? : Bool = false,
 ) -> Self raise @precision.PrecisionPlanError {
   let jobs = maximum_rows.to_int64() * selected_experts.to_int64()
   guard maximum_rows > 0 && selected_experts > 0 && jobs <= 1048576L else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
-  { jobs: jobs.to_int(), }
+  { jobs: jobs.to_int(), shared_input_staging, }
 }
 
 ///|
@@ -81,4 +83,11 @@ pub fn ExpertGroupingPlan::rows_per_group(_self : Self) -> Int {
 ///|
 pub fn ExpertGroupingPlan::storage_bytes(self : Self) -> Int64 {
   (1L + self.jobs.to_int64() * 17L) * 4L
+}
+
+///|
+/// Physical reuse, independent of numerical reduction/publication laws. The
+/// measured frontier may retain both shared and independent staging schedules.
+pub fn ExpertGroupingPlan::shared_input_staging(self : Self) -> Bool {
+  self.shared_input_staging
 }

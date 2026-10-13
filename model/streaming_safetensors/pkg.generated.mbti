@@ -154,7 +154,7 @@ pub fn StreamingSafetensorsTensorMetadata::shape(Self) -> ReadOnlyArray[Int64]
 pub struct StreamingSafetensorsTransfer {
   // private fields
 }
-pub fn StreamingSafetensorsTransfer::new(shard_ordinal~ : Int, tensor_ordinal~ : Int, tensor_byte_offset~ : Int64, destination_ordinal~ : Int, destination_offset~ : Int64, byte_count~ : Int64) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsTransfer::new(shard_ordinal~ : Int, tensor_ordinal~ : Int, tensor_byte_offset~ : Int64, destination_ordinal~ : Int, destination_offset~ : Int64, byte_count~ : Int64, row_count? : Int, source_row_stride? : Int64) -> Self raise StreamingSafetensorsError
 
 pub struct StreamingSafetensorsTransferSession {
   // private fields
