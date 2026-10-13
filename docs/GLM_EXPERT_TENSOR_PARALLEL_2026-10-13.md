@@ -93,3 +93,52 @@ vLLM's selected reference uses FlashInfer CUTLASS W4A4, while this native path
 still expands packed NVFP4 operands into BF16 for WMMA. This is a substantive
 remaining implementation difference, not a claim that an extra IR layer alone
 will close the gap. No new full-model speedup is established by these probes.
+
+### Instruction-counter rejection
+
+The paired register-only singleton root contains frozen `baseline.ncu-rep` and
+`candidate.ncu-rep`, downloaded without hashing, and their raw counter CSVs.
+`scripts/summarize-glm-grouped-pair-counters.mbtx` reproduces this selected
+row-one gate/up comparison (profiled time is distinct from the unprofiled
+four-kernel medians above):
+
+| Counter | Original | Register-only singleton |
+| --- | ---: | ---: |
+| Gate/up profiled duration | 1.260672 ms | 3.137984 ms |
+| Executed warp instructions | 124,659,152 | 152,652,732 |
+| Average warp latency | 14.695807 cycles | 31.414019 cycles |
+| Long-scoreboard per-issue ratio | 5.718480 | 24.592409 |
+| Barrier per-issue ratio | 2.236370 | 0 |
+| Tensor activity | 3.248920% | 1.301060% |
+| Active-warps occupancy | 36.849723% | 38.020803% |
+
+Both artifacts allocate 48 registers/thread and 19.456 KB shared/block. The
+singleton branch bypasses the shared path but the combined kernel's launch
+resource allocation still includes it. The loss is not explained by reduced
+occupancy: dependent loads and 22.5% more instructions dominate despite removing
+barrier stalls. Keep the rejected source frozen, not selected.
+
+### Full-model memory boundary: no unsafe run
+
+Clean ARM compilation of pinned `9d5c0393` completed at
+`/tmp/lunaflux-checkpoint-build-glm-expert-tp-20261013-v1` (226 build tasks).
+The CPU-only preparation `/tmp/lunaflux-glm-expert-tp-20261013-v1` stopped before
+GPU allocation: compact routed-expert shards plus replicated non-expert
+weights/state/workspace require **106,146,621,756 bytes per rank including the
+2 GiB reserve**, or **98.86 GiB**. The configured limit remains **96 GiB**;
+the shortfall is 3,067,406,652 bytes, approximately **2.86 GiB per rank**.
+
+The separate metadata-only export
+`/tmp/lunaflux-glm-expert-tp-metadata-only-20261013-v1` used a larger *planning*
+ceiling solely to reveal the footprint. It was CPU-only under 4 GiB/no swap;
+that number is not an authorized GPU budget or a runnable benchmark profile.
+No full-model expert-TP benchmark was started. The last valid matched full-model
+result is still the PP2 result at the beginning of this report.
+
+Expert TP alone is consequently not a complete two-Spark solution for this
+checkpoint under the agreed cap. Additional non-expert projection/attention
+partitioning must reduce resident bytes before the full-model run. Reducing
+precision, raising the cap, or quietly substituting CPU offload would not be
+the tested implementation. Also still open: the compatible-runtime collective
+sanitizer gate and the native low-bit expert operand path. Neither target is
+reported as fully fixed.

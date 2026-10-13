@@ -1,0 +1,50 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-grouped-pair-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("PAIRED_ROOT")
+  }
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let host = "wlc004s@192.168.2.179"
+  for name in ["baseline", "candidate"] {
+    let report = root + "/" + name + ".ncu-rep"
+    if !@fs.exists(report) {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        host + ":" + report,
+        report,
+      ])
+      .output()
+      .check()
+    }
+    let out = @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      host,
+      "/opt/nvidia/nsight-compute/2025.3.1/ncu --import " +
+      report +
+      " --page raw --csv",
+    ]).output(max_output_bytes=16777216)
+    @fs.write_file(
+      root + "/" + name + "-raw.csv",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + "-raw.stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+}

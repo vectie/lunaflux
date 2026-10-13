@@ -215,11 +215,13 @@ fn inspect_startup(
   for ordinal in 0..<2 {
     let stage = stage_plan(startup, ordinal)
     defer stage.close()
-    guard stage.required_device_bytes(checkpoint) <= budgets[ordinal] - reserve else {
-      fail("executable stage exceeds its planned memory budget")
+    let required = stage.required_device_bytes(checkpoint)
+    guard required <= budgets[ordinal] - reserve else {
+      fail(
+        "executable stage exceeds its planned memory budget: rank=\{ordinal} device_bytes=\{required} reserve=\{reserve} total=\{required + reserve} limit=\{budgets[ordinal]}",
+      )
     }
-    startup.planned_bytes[ordinal] = stage.required_device_bytes(checkpoint) +
-      reserve
+    startup.planned_bytes[ordinal] = required + reserve
   }
   startup
 }

@@ -63,6 +63,20 @@ async fn main {
       )
       state.check()
       guard !state.stdout().contains("SubState=failed") else {
+        let journal = remote(
+          rank,
+          "journalctl --user -u " + unit + " --no-pager",
+        )
+        @fs.write_file(
+          root + "/failed-" + unit + ".stdout",
+          journal.stdout(),
+          create_mode=CreateNew,
+        )
+        @fs.write_file(
+          root + "/failed-" + unit + ".stderr",
+          journal.stderr(),
+          create_mode=CreateNew,
+        )
         fail(state.stdout())
       }
       if state.stdout().contains("SubState=exited") {
@@ -138,9 +152,6 @@ async fn main {
       " export-tiled-grouped-expert-tp /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 16 64 103079215104 103079215104 2147483648 " +
       aot,
     ),
-  )
-  errdefer ignore(
-    remote(0, "journalctl --user -u " + export_unit + " --no-pager"),
   )
   wait(0, export_unit)
   record(
