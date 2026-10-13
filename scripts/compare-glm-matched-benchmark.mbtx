@@ -54,6 +54,8 @@ async fn main {
     fail("six matched prompt comparison required")
   }
   let journal = @fs.read_file(root + "/ingress-journal.stdout").text()
+  let selection = @fs.read_file(root + "/selected.txt").text()
+  let warmup = selection.contains("warmup_requests=1")
   let elapsed : Array[Double] = []
   let prefill : Array[Double] = []
   let chunks : Array[Double] = []
@@ -68,9 +70,20 @@ async fn main {
       steps.push(metric(line, "submitted_steps"))
     }
   }
-  guard elapsed.length() == 6 && prefill.length() == 6 else {
+  guard elapsed.length() == 6 + (if warmup { 1 } else { 0 }) &&
+    prefill.length() == elapsed.length() else {
     fail("missing completed requests")
   }
+  if warmup {
+    report["native_warmup_seconds"] = Json(elapsed[0])
+    report["native_warmup_first_token_seconds"] = Json(prefill[0])
+    ignore(elapsed.remove(0))
+    ignore(prefill.remove(0))
+    ignore(chunks.remove(0))
+    ignore(steps.remove(0))
+  }
+  report["native_warmup_requests"] = Json(if warmup { 1 } else { 0 })
+  report["native_first_request_cold"] = Json(!warmup)
   let mut total = 0.0
   let mut old_total = 0.0
   let mut ref_total = 0.0
@@ -189,8 +202,21 @@ async fn main {
   report["reference_total_seconds"] = Json(ref_total)
   report["total_completion_time_ratio"] = Json(total / ref_total)
   report["native_minimum_host_available_gib"] = Json(minimum / 1048576.0)
+  let tensor_parallel = selection.contains("expert_tensor_parallel=true")
+  let low_bit = selection.contains("expert_scaled_dot=block-scaled-matrix-f32")
+  report["native_topology"] = Json(
+    if tensor_parallel {
+      "TP2/PP1, head/channel-sharded non-experts, BF16 KV; actual prefill chunks reported per request"
+    } else {
+      "PP2/TP1/BF16 KV; actual prefill chunks reported per request"
+    },
+  )
   report["numerical_policy"] = Json(
-    "explicit BF16 matrix projections/grouped experts; ordered recurrence",
+    if low_bit {
+      "explicit native NVFP4 activation/weight grouped experts; F32 TP reduction before BF16 publication; BF16 non-expert projections; ordered recurrence"
+    } else {
+      "explicit BF16 matrix projections/grouped experts; ordered recurrence"
+    },
   )
   @fs.write_file(
     root + "/comparison.json",

@@ -204,6 +204,21 @@ fn available_kib(text : String) -> Int64 raise {
 }
 
 ///|
+fn sample_label(index : Int, warmup : Bool, prefix : String) -> String {
+  if warmup && index == 0 { "warmup" } else {
+    prefix + (index - (if warmup { 1 } else { 0 })).to_string()
+  }
+}
+
+///|
+test "warmup retains original measured prompt and output indices" {
+  assert_eq(sample_label(0, true, "input-"), "warmup")
+  assert_eq(sample_label(1, true, "input-"), "input-0")
+  assert_eq(sample_label(6, true, "output-"), "output-5")
+  assert_eq(sample_label(0, false, "input-"), "input-0")
+}
+
+///|
 test "prompt and memory measurement boundaries" {
   assert_eq(corpus(false).length(), 6)
   assert_eq(corpus(true).length(), 1)
@@ -273,6 +288,8 @@ async fn main {
     )
   }
   let glm = family == "glm"
+  let warmup = options.last() is Some("--warmup")
+  let options = if warmup { options[:options.length() - 1] } else { options }
   let low_bit = options.last() is Some("--low-bit")
   let options = if low_bit { options[:options.length() - 1] } else { options }
   let expert_tp = options.last() is Some("--expert-tp")
@@ -304,7 +321,8 @@ async fn main {
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled { "matrix_evaluation=bf16-matrix-f32-grouped\n" } else { "" }) +
     "expert_tensor_parallel=\{expert_tp}\n" +
-    (if low_bit { "expert_scaled_dot=block-scaled-matrix-f32\n" } else { "" })
+    (if low_bit { "expert_scaled_dot=block-scaled-matrix-f32\n" } else { "" }) +
+    (if warmup { "warmup_requests=1\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -389,11 +407,19 @@ async fn main {
     }
     record(root, "queue-mkdir", remote(false, "mkdir " + queue))
     let counts : Array[String] = []
-    for i, (category, prompt) in corpus(profile) {
-      let literal = root + "/input-\{i}.txt"
+    let samples = []
+    if warmup {
+      samples.push(corpus(profile)[0])
+    }
+    for sample in corpus(profile) {
+      samples.push(sample)
+    }
+    for i, (category, prompt) in samples {
+      let label = sample_label(i, warmup, "input-")
+      let literal = root + "/" + label + ".txt"
       @fs.write_file(literal, template(glm, prompt), create_mode=CreateNew)
       @fs.write_file(
-        root + "/category-\{i}.txt",
+        root + "/category-" + sample_label(i, warmup, "") + ".txt",
         category + "\n",
         create_mode=CreateNew,
       )
@@ -431,7 +457,7 @@ async fn main {
       copy(
         false,
         host(false) + ":" + queue + "/request-\{i}/tokens.txt",
-        root + "/input-\{i}-tokens.txt",
+        root + "/" + label + "-tokens.txt",
       )
     }
     @fs.write_file(
@@ -458,7 +484,7 @@ async fn main {
     return
   }
   let profile = @fs.read_file(root + "/profile.txt").text() == "true"
-  let count = corpus(profile).length()
+  let count = corpus(profile).length() + (if warmup { 1 } else { 0 })
   let maximum = if profile { 2 } else { 8 }
   let stop = if glm { 154827 } else { 1 }
   if mode == "start" {
@@ -659,7 +685,9 @@ async fn main {
     }
   }
   for i in 0..<count {
-    let tokens = root + "/output-\{i}-tokens.txt"
+    let label = sample_label(i, warmup, "output-")
+    let decoded_label = sample_label(i, warmup, "")
+    let tokens = root + "/" + label + "-tokens.txt"
     copy(
       false,
       host(false) + ":" + root + "/output/request-\{i}/tokens.txt",
@@ -691,7 +719,7 @@ async fn main {
     copy(
       false,
       host(false) + ":" + root + "/decoded-\{i}.txt",
-      root + "/decoded-\{i}.txt",
+      root + "/decoded-" + decoded_label + ".txt",
     )
   }
   println("collected " + root)
